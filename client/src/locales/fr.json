@@ -12079,6 +12079,60 @@
     "noteBody": "Vous devez activer au moins un mode de paiement. Les clients verront vos options activées lors de l’examen de votre offre."
   },
   "howOxsteedWorks": {
+    "experience": {
+      "metaTitle": "Comment fonctionne OxSteed - Votre prochaine étape, clairement",
+      "metaDescription": "Découvrez le parcours actuel d’OxSteed pour les clients, helpers et entreprises, puis passez à l’action.",
+      "kicker": "Comment fonctionne OxSteed",
+      "title": "Une prochaine étape claire pour le travail qui compte.",
+      "availableNow": "Disponible maintenant",
+      "roleKicker": "Faites-le vôtre",
+      "chooseRole": "Choisissez la vue qui vous correspond",
+      "roleHint": "Changez d’histoire à tout moment. Votre choix est mémorisé sur cet appareil.",
+      "roleChooserAria": "Choisir une histoire selon son rôle OxSteed",
+      "storyKicker": "Votre parcours OxSteed",
+      "storyHint": "Faites défiler les trois moments qui relient le travail.",
+      "availableKicker": "Disponible maintenant",
+      "availableTitle": "Des actions utiles, prêtes quand vous l’êtes",
+      "availableDescription": "Voici les outils disponibles aujourd’hui pour ce rôle.",
+      "nextKicker": "Quand vous êtes prêt",
+      "nextTitle": "Commencez par une petite action.",
+      "nextDescription": "OxSteed relie les personnes, les messages, le calendrier et le suivi au fil du travail.",
+      "previewAria": "Aperçu de l’espace de travail OxSteed",
+      "previewKicker": "Espace connecté",
+      "roles": {
+        "customer": { "label": "Client", "short": "Trouver de l’aide et avancer", "title": "D’un besoin à un travail terminé.", "description": "Publiez un travail, trouvez le bon helper et gardez réservations, messages et prochaines étapes ensemble." },
+        "helper": { "label": "Helper", "short": "Trouver le travail adapté", "title": "De vos compétences à votre prochaine occasion.", "description": "Parcourez les missions, gardez votre présence à jour et répondez en confiance." },
+        "business": { "label": "Entreprise", "short": "Coordonner votre activité", "title": "Du travail quotidien à un espace fiable.", "description": "Ouvrez le Business Hub, coordonnez le calendrier et gardez les échanges près du travail." }
+      },
+      "preview": {
+        "customer": { "title": "Votre travail, au même endroit.", "detail": "Demandes, helpers, messages et réservations restent liés." },
+        "helper": { "title": "Votre prochaine mission est proche.", "detail": "Voyez le travail, répondez vite et gardez vos disponibilités claires." },
+        "business": { "title": "Gérez la journée ensemble.", "detail": "Espaces, horaires et conversations restent alignés." }
+      },
+      "steps": {
+        "customer": {
+          "discover": { "eyebrow": "01 / Commencer", "title": "Décrivez ce qu’il faut faire", "description": "Placez la demande au même endroit pour que les bonnes personnes comprennent le travail.", "cardAria": "Carte de demande client", "cardTitle": "Nouvelle demande", "cardHeadline": "Votre tâche prend forme", "cardDetail": "Détails, horaire et contexte sont prêts à partager.", "status": "Prête" },
+          "connect": { "eyebrow": "02 / Connecter", "title": "Comparez helpers et réponses", "description": "Utilisez les profils et messages pour poser des questions et choisir avec le bon contexte.", "cardAria": "Carte de réponses client", "cardTitle": "Réponses", "cardHeadline": "Un choix plus clair", "cardDetail": "Les messages et signes de confiance restent avec la demande.", "status": "Connecté" },
+          "complete": { "eyebrow": "03 / Avancer", "title": "Planifiez et suivez", "description": "Gardez l’heure confirmée, les détails de la réservation et la prochaine conversation accessibles.", "cardAria": "Carte de réservation client", "cardTitle": "Réservation", "cardHeadline": "La prochaine étape est visible", "cardDetail": "Votre calendrier et votre suivi restent connectés.", "status": "Confirmée" }
+        },
+        "helper": {
+          "browse": { "eyebrow": "01 / Découvrir", "title": "Trouvez le travail adapté", "description": "Parcourez les missions actuelles et voyez celles qui correspondent à vos compétences et à votre temps.", "cardAria": "Carte de mission helper", "cardTitle": "Tableau des missions", "cardHeadline": "Une bonne correspondance est là", "cardDetail": "Lieu, portée et horaire se lisent rapidement.", "status": "Ouverte" },
+          "presence": { "eyebrow": "02 / Être prêt", "title": "Gardez votre présence à jour", "description": "Votre profil et vos disponibilités indiquent aux clients quand et comment vous joindre.", "cardAria": "Carte de profil helper", "cardTitle": "Votre profil", "cardHeadline": "Montrez votre meilleur travail", "cardDetail": "Services et disponibilités sont prêts.", "status": "Actif" },
+          "respond": { "eyebrow": "03 / Répondre", "title": "Transformez une réponse en travail", "description": "Répondez clairement et gardez le travail accepté dans votre calendrier.", "cardAria": "Carte de réponse helper", "cardTitle": "Conversation de travail", "cardHeadline": "Une réponse crée l’élan", "cardDetail": "Client, conversation et horaire restent ensemble.", "status": "En cours" }
+        },
+        "business": {
+          "workspace": { "eyebrow": "01 / Ouvrir", "title": "Commencez dans Business Hub", "description": "Ouvrez l’espace qui rassemble vos tâches actives et le travail client.", "cardAria": "Carte d’espace entreprise", "cardTitle": "Business Hub", "cardHeadline": "La journée a son point d’ancrage", "cardDetail": "Votre point de départ opérationnel est facile à retrouver.", "status": "Prêt" },
+          "coordinate": { "eyebrow": "02 / Coordonner", "title": "Alignez travail et temps", "description": "Utilisez le calendrier et les actions de l’espace pour garder les engagements visibles.", "cardAria": "Carte calendrier entreprise", "cardTitle": "Planning", "cardHeadline": "Moins de surprises", "cardDetail": "Le travail confirmé et le temps à venir restent visibles.", "status": "Aligné" },
+          "followThrough": { "eyebrow": "03 / Suivre", "title": "Gardez les conversations proches", "description": "Passez du message client à l’action avec le contexte dont votre équipe a besoin.", "cardAria": "Carte messages entreprise", "cardTitle": "Messages", "cardHeadline": "Le fil reste connecté", "cardDetail": "Questions client et suivi opérationnel restent ensemble.", "status": "En mouvement" }
+        }
+      },
+      "actions": { "customer": { "postJob": "Publier un travail", "findHelpers": "Trouver des helpers" }, "helper": { "browseJobs": "Parcourir les missions", "profile": "Mettre à jour le profil" }, "business": { "hub": "Ouvrir Business Hub", "calendar": "Ouvrir le calendrier", "support": "Ouvrir l’espace support" } },
+      "cards": {
+        "customer": { "postJob": { "title": "Publier un travail", "description": "Décrivez la tâche et invitez la bonne aide." }, "findHelpers": { "title": "Trouver des helpers", "description": "Découvrez les personnes et services adaptés." }, "bookings": { "title": "Gérer les réservations", "description": "Gardez travail et horaire ensemble." }, "messages": { "title": "Ouvrir les messages", "description": "Posez vos questions sans perdre le contexte." } },
+        "helper": { "browseJobs": { "title": "Parcourir les missions", "description": "Trouvez du travail selon votre temps." }, "profile": { "title": "Garder votre présence", "description": "Gardez services et disponibilités utiles." }, "messages": { "title": "Répondre au travail", "description": "Faites avancer les échanges clients." }, "calendar": { "title": "Voir le calendrier", "description": "Voyez le temps autour de vos engagements." } },
+        "business": { "hub": { "title": "Business Hub", "description": "Retournez à votre espace opérationnel." }, "calendar": { "title": "Calendrier", "description": "Consultez le travail et le temps confirmés." }, "messages": { "title": "Messages", "description": "Gardez les échanges proches." }, "support": { "title": "Espace support", "description": "Gérez le support depuis son portail autorisé." } }
+      }
+    },
     "metaTitle": "Comment fonctionne OxSteed - Fonctionnalités, parcours et cas réels",
     "metaDescription": "Découvrez comment OxSteed fonctionne pour les clients, les prestataires, les entreprises et les propriétaires d’outils. Explorez les missions, réservations, outils, paiements, besoins planifiés, messages, litiges, tableaux de bord et fonctions de croissance.",
     "kicker": "Comment fonctionne OxSteed",

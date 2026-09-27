@@ -12079,6 +12079,60 @@
     "noteBody": "Ou dwe pèmèt omwen yon metòd peman. Kliyan yo pral wè opsyon ki pèmèt ou yo lè yo revize òf ou a."
   },
   "howOxsteedWorks": {
+    "experience": {
+      "metaTitle": "Kijan OxSteed mache - Pwochen etap ou, byen klè",
+      "metaDescription": "Gade fason OxSteed mache kounye a pou kliyan, helpers ak biznis, epi pran pwochen etap la.",
+      "kicker": "Kijan OxSteed mache",
+      "title": "Yon pwochen etap ki klè pou travay ki enpòtan.",
+      "availableNow": "Disponib kounye a",
+      "roleKicker": "Fè l pou ou",
+      "chooseRole": "Chwazi fason ki mache pou ou",
+      "roleHint": "Chanje istwa a nenpòt lè. Chwa ou ap rete sou aparèy sa a.",
+      "roleChooserAria": "Chwazi yon istwa selon wòl ou nan OxSteed",
+      "storyKicker": "Vwayaj OxSteed ou",
+      "storyHint": "Desann pou wè twa moman ki konekte travay la.",
+      "availableKicker": "Disponib kounye a",
+      "availableTitle": "Aksyon itil, pare lè ou pare",
+      "availableDescription": "Men zouti ki disponib jodi a pou wòl sa a.",
+      "nextKicker": "Lè ou pare",
+      "nextTitle": "Kòmanse ak yon ti aksyon.",
+      "nextDescription": "OxSteed kenbe moun, mesaj, kalandriye ak swivi konekte pandan travay la ap vanse.",
+      "previewAria": "Aperçu espas travay OxSteed",
+      "previewKicker": "Espas konekte",
+      "roles": {
+        "customer": { "label": "Kliyan", "short": "Jwenn èd epi avanse", "title": "Soti nan yon bezwen rive nan yon travay fini.", "description": "Pibliye yon travay, jwenn bon helper la, epi kenbe rezèvasyon, mesaj ak pwochen etap yo ansanm." },
+        "helper": { "label": "Helper", "short": "Jwenn travay ki bon pou ou", "title": "Soti nan konpetans ou rive nan pwochen opòtinite a.", "description": "Browse travay ki disponib, kenbe prezans ou ajou epi reponn avèk konfyans." },
+        "business": { "label": "Biznis", "short": "Kowòdone operasyon ou", "title": "Soti nan travay chak jou rive nan yon espas ou ka fè konfyans.", "description": "Louvri Business Hub, kowòdone kalandriye a epi kenbe konvèsasyon kliyan yo toupre travay la." }
+      },
+      "preview": {
+        "customer": { "title": "Travay ou, nan yon sèl kote.", "detail": "Demann, helpers, mesaj ak rezèvasyon rete konekte." },
+        "helper": { "title": "Pwochen travay ou pi pre.", "detail": "Wè travay, reponn vit epi kenbe disponiblite ou klè." },
+        "business": { "title": "Jere jounen an ansanm.", "detail": "Espas, orè ak konvèsasyon rete ann amoni." }
+      },
+      "steps": {
+        "customer": {
+          "discover": { "eyebrow": "01 / Kòmanse", "title": "Dekri sa ki bezwen fèt", "description": "Mete demann lan yon sèl kote pou bon moun yo ka konprann travay la.", "cardAria": "Kat demann kliyan", "cardTitle": "Nouvo demann", "cardHeadline": "Travay ou ap pran fòm", "cardDetail": "Detay, lè ak enfòmasyon itil pare pou pataje.", "status": "Pare" },
+          "connect": { "eyebrow": "02 / Konekte", "title": "Konpare helpers ak repons", "description": "Sèvi ak pwofil ak mesaj pou poze kesyon, konpare opsyon epi chwazi avèk bon enfòmasyon.", "cardAria": "Kat repons kliyan", "cardTitle": "Repons", "cardHeadline": "Yon chwa ki pi klè", "cardDetail": "Mesaj ak siy konfyans rete ak demann lan.", "status": "Konekte" },
+          "complete": { "eyebrow": "03 / Avanse", "title": "Planifye epi swiv li", "description": "Kenbe lè konfime a, detay rezèvasyon an ak pwochen konvèsasyon an fasil pou jwenn.", "cardAria": "Kat rezèvasyon kliyan", "cardTitle": "Rezèvasyon", "cardHeadline": "Pwochen etap la vizib", "cardDetail": "Kalandriye ak swivi ou rete konekte.", "status": "Konfime" }
+        },
+        "helper": {
+          "browse": { "eyebrow": "01 / Dekouvri", "title": "Jwenn travay ki bon pou ou", "description": "Browse travay kounye a epi wè sa ki mache ak konpetans ak tan ou.", "cardAria": "Kat travay helper", "cardTitle": "Tablo travay", "cardHeadline": "Gen yon bon match", "cardDetail": "Kote, dimansyon ak lè fasil pou gade.", "status": "Louvri" },
+          "presence": { "eyebrow": "02 / Pare", "title": "Kenbe prezans ou ajou", "description": "Pwofil ak disponiblite ou ede kliyan konnen kilè ak kijan pou kontakte ou.", "cardAria": "Kat pwofil helper", "cardTitle": "Pwofil ou", "cardHeadline": "Montre sa ou fè pi byen", "cardDetail": "Sèvis ak disponiblite pare pou pwochen demann lan.", "status": "Aktif" },
+          "respond": { "eyebrow": "03 / Reponn", "title": "Fè repons lan tounen travay", "description": "Reponn klèman epi kenbe travay ou aksepte nan kalandriye ou.", "cardAria": "Kat repons helper", "cardTitle": "Konvèsasyon travay", "cardHeadline": "Yon repons kreye mouvman", "cardDetail": "Kliyan, konvèsasyon ak orè rete ansanm.", "status": "Ap mache" }
+        },
+        "business": {
+          "workspace": { "eyebrow": "01 / Louvri", "title": "Kòmanse nan Business Hub", "description": "Louvri espas ki mete travay aktif biznis la ak travay kliyan yo devan ou.", "cardAria": "Kat espas biznis", "cardTitle": "Business Hub", "cardHeadline": "Jounen an gen yon kay", "cardDetail": "Pwen depa operasyon ou fasil pou retounen ladan.", "status": "Pare" },
+          "coordinate": { "eyebrow": "02 / Kowòdone", "title": "Mete travay ak tan ann amoni", "description": "Sèvi ak kalandriye a ak aksyon espas la pou kenbe angajman yo vizib.", "cardAria": "Kat kalandriye biznis", "cardTitle": "Orè", "cardHeadline": "Mwens sipriz", "cardDetail": "Travay konfime ak tan k ap vini rete vizib.", "status": "Alinye" },
+          "followThrough": { "eyebrow": "03 / Swiv", "title": "Kenbe konvèsasyon yo toupre", "description": "Pase soti nan mesaj kliyan an pou rive nan aksyon avèk enfòmasyon ekip ou bezwen.", "cardAria": "Kat mesaj biznis", "cardTitle": "Mesaj", "cardHeadline": "Fil la rete konekte", "cardDetail": "Kesyon kliyan ak swivi operasyon rete ansanm.", "status": "Ap vanse" }
+        }
+      },
+      "actions": { "customer": { "postJob": "Pibliye yon travay", "findHelpers": "Jwenn helpers" }, "helper": { "browseJobs": "Browse travay", "profile": "Mete pwofil ou ajou" }, "business": { "hub": "Louvri Business Hub", "calendar": "Louvri kalandriye", "support": "Louvri espas sipò" } },
+      "cards": {
+        "customer": { "postJob": { "title": "Pibliye yon travay", "description": "Dekri travay la epi envite bon èd la." }, "findHelpers": { "title": "Jwenn helpers", "description": "Eksplore moun ak sèvis ki mache pou ou." }, "bookings": { "title": "Jere rezèvasyon", "description": "Kenbe travay ak lè ansanm." }, "messages": { "title": "Louvri mesaj", "description": "Poze kesyon san pèdi kontèks la." } },
+        "helper": { "browseJobs": { "title": "Browse travay", "description": "Jwenn travay selon tan ou." }, "profile": { "title": "Kenbe prezans ou", "description": "Kenbe sèvis ak disponiblite ou itil." }, "messages": { "title": "Reponn travay", "description": "Kenbe konvèsasyon kliyan yo ap vanse." }, "calendar": { "title": "Tcheke kalandriye", "description": "Wè tan ki antoure angajman ou." } },
+        "business": { "hub": { "title": "Business Hub", "description": "Retounen nan espas operasyon ou." }, "calendar": { "title": "Kalandriye", "description": "Revize travay ak tan konfime." }, "messages": { "title": "Mesaj", "description": "Kenbe konvèsasyon kliyan ak ekip toupre." }, "support": { "title": "Espas sipò", "description": "Jere sipò nan pòtal li otorize." } }
+      }
+    },
     "metaTitle": "Kijan OxSteed mache - Fonksyon, etap travay, ak egzanp reyèl",
     "metaDescription": "Aprann kijan OxSteed mache pou kliyan, moun k ap bay sèvis, biznis, ak moun ki lwe zouti. Gade travay, rezèvasyon, zouti, peman, bezwen planifye, mesaj, diskisyon, tablo kontwòl, ak zouti pou grandi biznis.",
     "kicker": "Kijan OxSteed mache",

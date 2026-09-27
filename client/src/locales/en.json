@@ -12085,6 +12085,79 @@
     }
   },
   "howOxsteedWorks": {
+    "experience": {
+      "metaTitle": "How OxSteed Works - Your next step, made clear",
+      "metaDescription": "See the current OxSteed journey for customers, helpers, and businesses, then take the next step.",
+      "kicker": "How OxSteed Works",
+      "title": "One clear next step for the work that matters.",
+      "availableNow": "Available now",
+      "roleKicker": "Make it yours",
+      "chooseRole": "Choose the view that fits you",
+      "roleHint": "Switch the story at any time. Your choice is remembered on this device.",
+      "roleChooserAria": "Choose an OxSteed role story",
+      "storyKicker": "Your OxSteed journey",
+      "storyHint": "Scroll through the three moments that connect the work.",
+      "availableKicker": "Available now",
+      "availableTitle": "Useful actions, ready when you are",
+      "availableDescription": "These are the launch-scope tools available for this role today.",
+      "nextKicker": "Ready when you are",
+      "nextTitle": "Start with one small action.",
+      "nextDescription": "OxSteed keeps the people, messages, schedule, and follow-through connected as the work moves forward.",
+      "previewAria": "Preview of the OxSteed workspace",
+      "previewKicker": "Connected workspace",
+      "roles": {
+        "customer": { "label": "Customer", "short": "Get help and keep it moving", "title": "From a need to a finished job.", "description": "Post a job, find the right helper, and keep bookings, messages, and next steps together." },
+        "helper": { "label": "Helper", "short": "Find work that fits", "title": "From your skills to your next opportunity.", "description": "Browse available work, keep your presence current, and respond with confidence." },
+        "business": { "label": "Business", "short": "Coordinate your operation", "title": "From daily work to a workspace you can trust.", "description": "Open your Business Hub, coordinate the calendar, and keep customer conversations close to the work." }
+      },
+      "preview": {
+        "customer": { "title": "Your work, in one place.", "detail": "Requests, helpers, messages, and bookings stay connected." },
+        "helper": { "title": "Your next job is closer.", "detail": "See work, respond quickly, and keep your availability clear." },
+        "business": { "title": "Run the day together.", "detail": "Workspaces, schedules, and conversations stay aligned." }
+      },
+      "steps": {
+        "customer": {
+          "discover": { "eyebrow": "01 / Start", "title": "Describe what needs doing", "description": "Put the request in one place so the right people can understand the work.", "cardAria": "Customer request card", "cardTitle": "New request", "cardHeadline": "Your task is taking shape", "cardDetail": "Scope, timing, and helpful details are ready to share.", "status": "Ready" },
+          "connect": { "eyebrow": "02 / Connect", "title": "Compare helpers and responses", "description": "Use profiles and messages to ask questions, compare options, and choose with context.", "cardAria": "Customer responses card", "cardTitle": "Responses", "cardHeadline": "A clearer choice", "cardDetail": "Messages and trust signals stay with the request.", "status": "Connected" },
+          "complete": { "eyebrow": "03 / Move forward", "title": "Schedule and follow through", "description": "Keep the confirmed time, booking details, and next conversation easy to find.", "cardAria": "Customer booking card", "cardTitle": "Booking", "cardHeadline": "The next step is visible", "cardDetail": "Your schedule and follow-up remain connected.", "status": "Confirmed" }
+        },
+        "helper": {
+          "browse": { "eyebrow": "01 / Discover", "title": "Find work that fits", "description": "Browse current jobs and quickly see which requests match your skills and time.", "cardAria": "Helper job card", "cardTitle": "Job board", "cardHeadline": "A good match is in view", "cardDetail": "Location, scope, and timing are easy to scan.", "status": "Open" },
+          "presence": { "eyebrow": "02 / Be ready", "title": "Keep your presence current", "description": "Your profile and availability help customers know when and how to reach you.", "cardAria": "Helper profile card", "cardTitle": "Your profile", "cardHeadline": "Show what you do best", "cardDetail": "Services and availability are ready for the next request.", "status": "Active" },
+          "respond": { "eyebrow": "03 / Respond", "title": "Turn a response into scheduled work", "description": "Message clearly, respond to opportunities, and keep accepted work on your calendar.", "cardAria": "Helper response card", "cardTitle": "Work conversation", "cardHeadline": "A response becomes momentum", "cardDetail": "The customer, conversation, and schedule stay together.", "status": "In progress" }
+        },
+        "business": {
+          "workspace": { "eyebrow": "01 / Open", "title": "Start from Business Hub", "description": "Open the workspace that brings your active business tasks and customer work into view.", "cardAria": "Business workspace card", "cardTitle": "Business Hub", "cardHeadline": "The day has a home", "cardDetail": "Your operational starting point is easy to return to.", "status": "Ready" },
+          "coordinate": { "eyebrow": "02 / Coordinate", "title": "Keep work and time aligned", "description": "Use the calendar and current workspace actions to keep commitments visible to the right team.", "cardAria": "Business calendar card", "cardTitle": "Schedule", "cardHeadline": "Fewer surprises", "cardDetail": "Confirmed work and upcoming time stay in view.", "status": "Aligned" },
+          "followThrough": { "eyebrow": "03 / Follow through", "title": "Keep conversations close", "description": "Move from customer message to action with the context your team needs to respond well.", "cardAria": "Business messages card", "cardTitle": "Messages", "cardHeadline": "The thread stays connected", "cardDetail": "Customer questions and operational follow-up remain together.", "status": "Moving" }
+        }
+      },
+      "actions": {
+        "customer": { "postJob": "Post a job", "findHelpers": "Find helpers" },
+        "helper": { "browseJobs": "Browse jobs", "profile": "Update your profile" },
+        "business": { "hub": "Open Business Hub", "calendar": "Open calendar", "support": "Open support workspace" }
+      },
+      "cards": {
+        "customer": {
+          "postJob": { "title": "Post a job", "description": "Describe the task and invite the right help." },
+          "findHelpers": { "title": "Find helpers", "description": "Explore people and services that fit." },
+          "bookings": { "title": "Manage bookings", "description": "Keep confirmed work and timing together." },
+          "messages": { "title": "Open messages", "description": "Ask questions without losing context." }
+        },
+        "helper": {
+          "browseJobs": { "title": "Browse jobs", "description": "Find current work by fit and timing." },
+          "profile": { "title": "Maintain your presence", "description": "Keep your services and availability useful." },
+          "messages": { "title": "Respond to work", "description": "Keep customer conversations moving." },
+          "calendar": { "title": "Check your calendar", "description": "See the time around your commitments." }
+        },
+        "business": {
+          "hub": { "title": "Business Hub", "description": "Return to your operational workspace." },
+          "calendar": { "title": "Calendar", "description": "Review confirmed work and time." },
+          "messages": { "title": "Messages", "description": "Keep customer and team conversations close." },
+          "support": { "title": "Support workspace", "description": "Handle support work from its permitted portal." }
+        }
+      }
+    },
     "metaTitle": "How OxSteed Works - Features, Workflows, and Real-Life Use Cases",
     "metaDescription": "Learn how OxSteed works for customers, helpers, businesses, and tool owners. Explore jobs, bookings, tools, payments, planned needs, messages, disputes, dashboards, and business growth features.",
     "kicker": "How OxSteed Works",

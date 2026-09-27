@@ -279,7 +279,7 @@ export default function App() {
                     <Route path="/forgot-password"         element={<Guarded><ForgotPasswordPage /></Guarded>} />
                     <Route path="/reset-password/:token"   element={<Guarded><ResetPasswordPage /></Guarded>} />
                     <Route path="/how-it-works"            element={<Guarded><FeatureGuidePage /></Guarded>} />
-                    <Route path="/features"                element={<Guarded><FeatureGuidePage /></Guarded>} />
+                    <Route path="/features"                element={<Navigate to="/how-it-works" replace />} />
                     <Route path="/help/crew"               element={<Guarded><InventoryHelpCenterPage appKey="crew" /></Guarded>} />
                     <Route path="/help/display"            element={<Guarded><InventoryHelpCenterPage appKey="display" /></Guarded>} />
                     <Route path="/help/inventory"          element={<Guarded><InventoryHelpCenterPage appKey="inventory" /></Guarded>} />
