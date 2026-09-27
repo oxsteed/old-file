@@ -1,11 +1,11 @@
-// Run with Playwright available (NODE_PATH may point to a tooling installation):
+// Run with playwright-core and Chrome available (NODE_PATH may point to tooling):
 // node --test scripts/qrGenerator.browser-check.cjs
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
 const path = require('node:path');
 const { build } = require('esbuild');
-const { chromium } = require('playwright');
+const { chromium } = require('playwright-core');
 
 test('QR page renders without a logo, exports, saves, and handles input changes', async () => {
   const mocks = {
@@ -25,7 +25,7 @@ test('QR page renders without a logo, exports, saves, and handles input changes'
         window.savedPayload = payload;
         return {data: {success: true}};
       },
-      download: async () => ({data: {data: {imageUrl: window.savedQRs[0].image_url}}}),
+      download: async () => ({data: {data: {imageUrl: '/saved-qr.png'}}}),
       delete: async () => {window.savedQRs = [];}
     };`,
   };
@@ -34,6 +34,15 @@ test('QR page renders without a logo, exports, saves, and handles input changes'
       contents: `import React from 'react'; import {createRoot} from 'react-dom/client';
         import Page from './src/pages/QRCodeGeneratorPage.jsx';
         import {prepareQrLogo} from './src/utils/qrLogo.js';
+        import QRCodeStyling from 'qr-code-styling';
+        const getRawData = QRCodeStyling.prototype.getRawData;
+        QRCodeStyling.prototype.getRawData = function (...args) {
+          if (window.stallQrRender) {
+            window.qrRenderStalled = true;
+            return new Promise(() => {});
+          }
+          return getRawData.apply(this, args);
+        };
         window.prepareQrLogo = prepareQrLogo;
         window.qrErrors = []; window.savedQRs = [];
         createRoot(document.getElementById('root')).render(<Page />);`,
@@ -47,6 +56,9 @@ test('QR page renders without a logo, exports, saves, and handles input changes'
     }}],
   });
   const server = http.createServer((req, res) => {
+    // Production allows data images, but intentionally forbids fetching data
+    // URLs via XHR/connect-src. A permissive development server hid this hang.
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; worker-src 'self' blob:; connect-src 'self'");
     if (req.url === '/app.js') {
       res.setHeader('Content-Type', 'text/javascript');
       res.end(result.outputFiles[0].contents);
@@ -57,6 +69,10 @@ test('QR page renders without a logo, exports, saves, and handles input changes'
   try {
     browser = await chromium.launch({headless: true, channel: 'chrome'});
     const page = await browser.newPage();
+    await page.route('**/saved-qr.png', async route => {
+      const data = await page.evaluate(() => window.savedPayload.imageData);
+      await route.fulfill({contentType: 'image/png', body: Buffer.from(data.split(',')[1], 'base64')});
+    });
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(`http://127.0.0.1:${server.address().port}`);
@@ -83,9 +99,50 @@ test('QR page renders without a logo, exports, saves, and handles input changes'
         assert.equal(download.suggestedFilename(), 'qr-regression.svg');
       }
     }
-    const logo = await page.locator('.qrg-preview-container canvas').evaluate(canvas => canvas.toDataURL());
-    await page.locator('#logoUpload').setInputFiles({name:'logo.png', mimeType:'image/png', buffer:Buffer.from(logo.split(',')[1], 'base64')});
-    await page.waitForFunction(() => !document.querySelector('.qrg-download-buttons button').disabled);
+    const logo = await page.evaluate(() => {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 256;
+      const context = canvas.getContext('2d');
+      context.fillStyle = '#ff0000'; context.fillRect(0, 0, 256, 256);
+      return canvas.toDataURL();
+    });
+    const logoFile = {name:'logo.png', mimeType:'image/png', buffer:Buffer.from(logo.split(',')[1], 'base64')};
+    // Re-selecting identical bytes must not leave processing stuck either.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const started = Date.now();
+      await page.locator('#logoUpload').setInputFiles(logoFile);
+      await page.waitForFunction(() => !document.querySelector('.qrg-download-buttons button').disabled, null, {timeout: 5000});
+      console.log(`Logo preview ${attempt + 1}: ${Date.now() - started} ms under restrictive CSP.`);
+      const center = await page.locator('.qrg-preview-container canvas').evaluate(canvas =>
+        Array.from(canvas.getContext('2d').getImageData(150, 150, 1, 1).data));
+      assert.deepEqual(center, [255, 0, 0, 255], 'preview must actually contain the logo');
+    }
+    for (const format of ['PNG', 'SVG']) {
+      const pending = page.waitForEvent('download');
+      await page.getByRole('button', {name:`qrGenerator.download${format}`, exact:true}).click();
+      const chunks = [];
+      for await (const chunk of await (await pending).createReadStream()) chunks.push(chunk);
+      const bytes = Buffer.concat(chunks);
+      const center = await page.evaluate(async ({data, type}) => {
+        const image = new Image(); image.src = `data:${type};base64,${data}`;
+        await image.decode();
+        const canvas = document.createElement('canvas'); canvas.width = canvas.height = 300;
+        const context = canvas.getContext('2d'); context.drawImage(image, 0, 0);
+        return Array.from(context.getImageData(150, 150, 1, 1).data);
+      }, {data:bytes.toString('base64'), type:format === 'PNG' ? 'image/png' : 'image/svg+xml'});
+      assert.deepEqual(center, [255, 0, 0, 255], `${format} download must retain the logo`);
+    }
+    await page.clock.install();
+    await page.evaluate(() => { window.stallQrRender = true; });
+    await page.locator('#logoUpload').setInputFiles(logoFile);
+    await page.waitForFunction(() => window.qrRenderStalled);
+    await page.clock.fastForward(15_001);
+    await page.waitForFunction(() => window.qrErrors.includes('qrGenerator.errorGenerating'));
+    assert.equal(await png.isDisabled(), true, 'a stalled render must not enable downloads');
+    await page.evaluate(() => { window.stallQrRender = false; window.qrErrors = []; });
+    await page.locator('#logoUpload').setInputFiles(logoFile);
+    await page.waitForFunction(() => !document.querySelector('.qrg-download-buttons button').disabled, null, {timeout:5000});
+    await page.clock.resume();
     await page.getByRole('button', {name: 'qrGenerator.removeLogo'}).click();
     await page.waitForFunction(() => !document.querySelector('.qrg-download-buttons button').disabled);
     // A real high-quality JPEG larger than the old limit, not just a fake MIME label.
@@ -104,8 +161,10 @@ test('QR page renders without a logo, exports, saves, and handles input changes'
     });
     const jpegBytes = Buffer.from(largeJpeg.split(',')[1], 'base64');
     assert.ok(jpegBytes.length > 5 * 1024 * 1024 && jpegBytes.length < 15 * 1024 * 1024);
+    const jpegStarted = Date.now();
     await page.locator('#logoUpload').setInputFiles({name:'large-logo.jpg', mimeType:'image/jpeg', buffer:jpegBytes});
-    await page.waitForFunction(() => !document.querySelector('.qrg-download-buttons button').disabled);
+    await page.waitForFunction(() => !document.querySelector('.qrg-download-buttons button').disabled, null, {timeout: 5000});
+    console.log(`Large JPEG preview: ${Date.now() - jpegStarted} ms.`);
     const normalized = await page.evaluate(async () => {
       const canvas = document.createElement('canvas');
       canvas.width = 1600; canvas.height = 800;
