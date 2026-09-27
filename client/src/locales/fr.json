@@ -13746,6 +13746,20 @@
     "emailLabel": "Courriel : ",
     "responseTime": "Nous visons une réponse dans les 2 jours ouvrables."
   },
+  "delivery": {
+    "metaTitle": "Livraison OxSteed - De A à B",
+    "metaDescription": "Réservez une livraison simple de point à point ou acceptez des livraisons proches avec OxSteed.",
+    "eyebrow": "Livraison locale simple",
+    "title": "Déplacez-le de A à B.",
+    "subtitle": "Obtenez une estimation claire, publiez la livraison et suivez le trajet du retrait à la remise.",
+    "heroBadge": "Du retrait à la remise",
+    "pricingNote": "Le prix tient compte d’un minimum, de la distance incluse, de la taille du colis, de la vitesse et de frais de plateforme clairs.",
+    "customer": { "title": "Réserver une livraison", "body": "Indiquez le point de départ, la destination et le délai souhaité.", "pickup": "Retrait", "dropoff": "Remise", "pickupPlaceholder": "Choisissez une adresse de retrait", "dropoffPlaceholder": "Choisissez une adresse de remise", "package": "Taille du colis", "weight": "Poids (lb)", "serviceLevel": "Vitesse", "notes": "Notes de livraison", "notesPlaceholder": "Instructions d’accès, repères ou précautions", "getQuote": "Obtenir un devis", "post": "Publier la livraison", "quoteTitle": "Votre prix estimé", "quoteHint": "Choisissez les deux arrêts pour voir le temps, la distance et le prix.", "quoteExpires": "Devis valable {{minutes}} minutes", "distance": "Trajet de {{miles}} mi", "duration": "Environ {{minutes}} min", "total": "Total client", "subtotal": "Livraison", "platformFee": "Frais de plateforme", "tolls": "Péages et stationnement", "selectAddress": "Choisissez une suggestion d’adresse pour les deux arrêts afin de calculer le trajet précisément.", "posted": "Livraison publiée", "openMessages": "Ouvrir les messages" },
+    "helper": { "eyebrow": "Travail de livraison", "heroBody": "Consultez les livraisons proches, acceptez-en une et tenez le client informé à chaque étape.", "title": "Livrer près de chez vous", "body": "Acceptez un trajet adapté à votre journée et faites-le avancer du retrait à la remise.", "open": "Livraisons ouvertes", "myDeliveries": "Mes livraisons", "empty": "Aucune livraison ouverte n’est disponible pour le moment.", "myEmpty": "Acceptez une livraison pour la voir ici.", "claim": "Accepter la livraison", "payout": "Paiement du livreur", "moveTo": "Marquer comme {{status}}", "refresh": "Actualiser", "loading": "Chargement des livraisons…", "localPickup": "Retrait local", "status": { "posted": "Ouverte", "assigned": "Attribuée", "picked_up": "Retirée", "in_transit": "En transit", "delivered": "Livrée", "cancelled": "Annulée", "failed": "Attention requise" } },
+    "packageTypes": { "small": "Petit · jusqu’à 25 lb", "medium": "Moyen · jusqu’à 75 lb", "large": "Grand · jusqu’à 150 lb", "oversized": "Très grand · jusqu’à 300 lb" },
+    "serviceLevels": { "standard": "Standard", "same_day": "Le jour même", "rush": "Express" },
+    "errors": { "quote": "Impossible de calculer ce trajet. Vérifiez les deux arrêts et réessayez.", "create": "Impossible de publier la livraison. Réessayez.", "load": "Impossible de charger les livraisons.", "claim": "Cette livraison n’est plus disponible.", "status": "Impossible de mettre à jour le statut." }
+  },
   "aboutPage": {
     "experience": {
       "metaDescription": "Découvrez OxSteed : une façon connectée pour que clients, helpers et entreprises fassent avancer le travail local.",

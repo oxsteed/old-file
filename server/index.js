@@ -168,6 +168,7 @@ const internalWorkspaceRoutes = require('./routes/internalWorkspaces');
 // OxSteed Logistics branch (migration 247)
 const logisticsRoutes      = require('./routes/logistics');
 const logisticsAdminRoutes = require('./routes/logisticsAdmin');
+const localDeliveryRoutes  = require('./routes/localDelivery');
 // Per-mode platform approval gates (migration 272)
 const modePlatformApprovalRoutes = require('./routes/modePlatformApprovals');
 // roleToggleRoutes removed - use POST /api/auth/switch-role instead (authController.switchRole)
@@ -475,6 +476,7 @@ app.use('/api/admin/corporate', corporateRolesRoutes);
 app.use('/api/internal/workspaces', internalWorkspaceRoutes);
 // OxSteed Logistics branch
 app.use('/api/logistics',       logisticsRoutes);
+app.use('/api/delivery',        localDeliveryRoutes);
 app.use('/api/admin/logistics', authenticate, logisticsAdminRoutes);
 // Per-mode platform approval gates — user-facing + admin queues.
 app.use('/api/mode-approvals', modePlatformApprovalRoutes.userRouter);

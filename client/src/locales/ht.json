@@ -13746,6 +13746,20 @@
     "emailLabel": "Imèl: ",
     "responseTime": "Nou vize reponn a fidbak aksesibilite nan 2 jou travay."
   },
+  "delivery": {
+    "metaTitle": "Livrez ak OxSteed - Soti A pou ale B",
+    "metaDescription": "Rezève yon livrezon senp soti nan yon pwen pou ale nan yon lòt, oswa pran travay livrezon ki toupre w ak OxSteed.",
+    "eyebrow": "Livrezon lokal ki senp",
+    "title": "Deplase l soti A pou ale B.",
+    "subtitle": "Jwenn yon estimasyon klè, poste livrezon an, epi swiv li soti lè yo pran l jouk yo remèt li.",
+    "heroBadge": "Soti nan ranmase pou rive remèt",
+    "pricingNote": "Pri a sèvi ak yon minimòm, distans ki ladan l, gwosè pakè a, vitès sèvis la ak yon frè platfòm ki klè.",
+    "customer": { "title": "Rezève yon livrezon", "body": "Di nou kote li kòmanse, kote li prale ak ki vitès li dwe rive.", "pickup": "Ranmase", "dropoff": "Remèt", "pickupPlaceholder": "Chwazi adrès pou ranmase", "dropoffPlaceholder": "Chwazi adrès pou remèt", "package": "Gwosè pakè", "weight": "Pwa (lb)", "serviceLevel": "Vitès", "notes": "Nòt livrezon", "notesPlaceholder": "Enstriksyon pou antre, siy espesyal oswa manyen espesyal", "getQuote": "Jwenn pri", "post": "Poste livrezon", "quoteTitle": "Pri ou estime", "quoteHint": "Chwazi toude arè yo pou wè tan, distans ak pri a.", "quoteExpires": "Pri a valab pandan {{minutes}} minit", "distance": "Wout {{miles}} mi", "duration": "Anviwon {{minutes}} minit", "total": "Total kliyan", "subtotal": "Livrezon", "platformFee": "Frè platfòm", "tolls": "Peyaj ak pakin", "selectAddress": "Chwazi yon sijesyon adrès pou toude arè yo pou nou kalkile wout la byen.", "posted": "Livrezon an poste", "openMessages": "Louvri mesaj yo" },
+    "helper": { "eyebrow": "Travay livrezon", "heroBody": "Gade travay pwen-a-pwen ki toupre w, pran youn epi kenbe kliyan an okouran pandan tout etap yo.", "title": "Livre travay ki toupre w", "body": "Pran yon wout ki mache ak jounen ou epi fè l pase soti nan ranmase pou rive remèt.", "open": "Livrezon ki ouvè", "myDeliveries": "Livrezon mwen yo", "empty": "Pa gen livrezon ki ouvè kounye a.", "myEmpty": "Pran yon livrezon pou w wè l isit la.", "claim": "Pran livrezon an", "payout": "Peman chofè", "moveTo": "Make kòm {{status}}", "refresh": "Rafrechi", "loading": "Ap chaje travay livrezon…", "localPickup": "Ranmase lokal", "status": { "posted": "Ouvè", "assigned": "Bay", "picked_up": "Ranmase", "in_transit": "Sou wout", "delivered": "Livre", "cancelled": "Anile", "failed": "Bezwen atansyon" } },
+    "packageTypes": { "small": "Ti · jiska 25 lb", "medium": "Mwayen · jiska 75 lb", "large": "Gwo · jiska 150 lb", "oversized": "Twò gwo · jiska 300 lb" },
+    "serviceLevels": { "standard": "Nòmal", "same_day": "Menm jou", "rush": "Ijan" },
+    "errors": { "quote": "Nou pa t ka kalkile wout sa a. Verifye toude arè yo epi eseye ankò.", "create": "Nou pa t ka poste livrezon an. Eseye ankò.", "load": "Nou pa t ka chaje travay livrezon yo.", "claim": "Livrezon sa a pa disponib ankò.", "status": "Nou pa t ka mete estati livrezon an ajou." }
+  },
   "aboutPage": {
     "experience": {
       "metaDescription": "Dekouvri OxSteed: yon fason konekte pou kliyan, helpers ak biznis fè travay lokal la avanse.",

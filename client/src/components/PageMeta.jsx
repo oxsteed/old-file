@@ -12,7 +12,7 @@ const TWITTER_HANDLE = '@oxsteed';
 const SEO_LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
 const OG_LOCALES = { en: 'en_US', es: 'es_ES', fr: 'fr_FR', ht: 'ht_HT', ar: 'ar_AR' };
 const LOCALIZED_PATHS = new Set([
-  '/', '/about', '/careers', '/join', '/jobs', '/helpers', '/how-it-works', '/restaurants',
+  '/', '/about', '/careers', '/join', '/jobs', '/helpers', '/how-it-works', '/delivery', '/restaurants',
   '/consulting-intake', '/direct', '/direct/services', '/direct/request-quote',
   '/direct/view-quote',
   '/support/escalation', '/terms', '/privacy', '/security', '/accessibility',
