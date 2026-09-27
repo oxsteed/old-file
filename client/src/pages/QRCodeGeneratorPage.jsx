@@ -709,6 +709,15 @@ const QRCodeGeneratorPage = () => {
                 <Download size={16} />
                 {t('qrGenerator.downloadSVG')}
               </button>
+              <button
+                onClick={() => handleDownloadQR('png', 'promotional')}
+                disabled={!previewReady || !formData.title.trim()}
+                className="qrg-button qrg-button-promotional"
+                title={!formData.title.trim() ? t('qrGenerator.titleRequired') : t('qrGenerator.downloadStylePromotionalHelp')}
+              >
+                <Download size={16} />
+                {t('qrGenerator.downloadPromotionalPage')}
+              </button>
             </div>
 
             <button

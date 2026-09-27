@@ -9877,6 +9877,7 @@
     "downloadError": "Erreur lors du téléchargement du code QR",
     "downloadPNG": "Télécharger PNG",
     "downloadSVG": "Télécharger SVG",
+    "downloadPromotionalPage": "Télécharger la page promotionnelle",
     "downloadStyle": "Style de téléchargement",
     "downloadStyleSimple": "QR simple",
     "downloadStyleSimpleHelp": "Seulement le code QR, prêt à être utilisé partout.",

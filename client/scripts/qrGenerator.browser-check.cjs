@@ -103,7 +103,7 @@ test('QR page renders without a logo, exports, saves, and handles input changes'
     await page.locator('#promoDescription').fill('Discover our latest services and special offers.');
     await page.locator('#promoCta').fill('Scan to get started');
     const promoDownload = page.waitForEvent('download');
-    await png.click();
+    await page.getByRole('button', {name: 'qrGenerator.downloadPromotionalPage', exact: true}).click();
     const promoFile = await promoDownload;
     const promoChunks = [];
     for await (const chunk of await promoFile.createReadStream()) promoChunks.push(chunk);

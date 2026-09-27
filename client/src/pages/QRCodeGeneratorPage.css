@@ -395,6 +395,17 @@
   background: rgba(255, 107, 53, 0.1);
 }
 
+.qrg-button-promotional {
+  background: linear-gradient(135deg, #16323a, #285663);
+  color: #fff;
+  width: 100%;
+}
+
+.qrg-button-promotional:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(22, 50, 58, 0.25);
+}
+
 .qrg-button-accent {
   background: var(--border-color);
   color: var(--app-text);
@@ -407,7 +418,7 @@
 
 .qrg-download-buttons {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
 }
 

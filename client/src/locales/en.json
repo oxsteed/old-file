@@ -9912,6 +9912,7 @@
     "downloadError": "Failed to download QR code",
     "downloadPNG": "Download PNG",
     "downloadSVG": "Download SVG",
+    "downloadPromotionalPage": "Download Promotional Page",
     "downloadStyle": "Download style",
     "downloadStyleSimple": "Simple QR",
     "downloadStyleSimpleHelp": "Just the QR code, ready to use anywhere.",
