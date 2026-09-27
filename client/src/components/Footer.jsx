@@ -81,7 +81,7 @@ export default function Footer() {
                 {t('footer.platform')}
               </span>
               <FooterLink to="/direct">{t('footer.direct')}</FooterLink>
-              <FooterLink to="/logistics">{t('footer.logistics')}</FooterLink>
+              <FooterLink to="/delivery">{t('footer.delivery')}</FooterLink>
               <FooterLink to="/consulting-intake">{t('footer.consultingIntake')}</FooterLink>
               {showQrGenerator && (
                 <>
