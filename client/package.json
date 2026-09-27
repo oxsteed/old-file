@@ -31,9 +31,11 @@
     "pretypecheck": "node scripts/splitLocaleCatalogs.mjs",
     "typecheck": "tsc --noEmit",
     "prebuild:ci": "node --test scripts/qrLogo.test.mjs",
-    "build:ci": "npm run test:credit-currency && npm run test:credit-date-time && npm run test:credit-admin-idempotency && npm run test:credit-request-guards && npm run test:credit-status && npm run test:credit-errors && npm run test:credit-admin-localization && npm run test:credit-cards-localization && npm run test:language-preference && npm run test:auth-refresh-policy && npm run test:realtime-url && npm run test:restaurant-discovery && npm run test:restaurant-accessibility && npm run test:business-profile-editor && npm run test:messenger-shell && npm run test:theme-contrast && npm run test:route-reliability && npm run test:how-it-works && npm run verify:i18n && npm run typecheck && npm run build && npm run verify:dist-assets",
+    "build:ci": "npm run test:credit-currency && npm run test:credit-date-time && npm run test:credit-admin-idempotency && npm run test:credit-request-guards && npm run test:credit-status && npm run test:credit-errors && npm run test:credit-admin-localization && npm run test:credit-cards-localization && npm run test:language-preference && npm run test:auth-refresh-policy && npm run test:realtime-url && npm run test:restaurant-discovery && npm run test:restaurant-accessibility && npm run test:business-profile-editor && npm run test:messenger-shell && npm run test:theme-contrast && npm run test:route-reliability && npm run test:how-it-works && npm run test:experience-guides && npm run test:dashboard-quick-links && npm run verify:i18n && npm run typecheck && npm run build && npm run verify:dist-assets",
     "test:route-reliability": "node --test scripts/routeReliability.test.mjs",
     "test:how-it-works": "node --test src/utils/howItWorksRoleModel.test.mjs",
+    "test:experience-guides": "node --test src/utils/experienceGuideModel.test.mjs",
+    "test:dashboard-quick-links": "node --test scripts/dashboardQuickLinks.test.mjs",
     "verify:dist-assets": "node scripts/verify-dist-assets.mjs"
   },
   "dependencies": {
@@ -47,6 +49,7 @@
     "i18next": "^26.0.5",
     "i18next-http-backend": "^3.0.5",
     "image-size": "2.0.4",
+    "jsbarcode": "^3.12.3",
     "lucide-react": "^0.294.0",
     "maplibre-gl": "^6.4.1",
     "qr-code-styling": "^1.8.0",
@@ -70,6 +73,7 @@
     "acorn": "^8.16.0",
     "acorn-jsx": "^5.3.2",
     "autoprefixer": "^10.4.16",
+    "playwright-core": "^1.63.0",
     "postcss": "^8.5.26",
     "tailwindcss": "^3.3.6",
     "typescript": "^5.3.0",

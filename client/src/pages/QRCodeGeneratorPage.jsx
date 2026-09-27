@@ -13,7 +13,80 @@ import './QRCodeGeneratorPage.css';
 import { canUseQrGenerator } from '../utils/modeAccess';
 import { prepareQrLogo } from '../utils/qrLogo';
 import { composeQrDownload, qrDownloadFileName } from '../utils/qrExport';
-import { Trash2, Download, Copy, Check, Plus, X, RotateCcw } from 'lucide-react';
+import { BARCODE_TYPES, normalizeBarcodeValue, renderBarcode } from '../utils/barcodeGenerator';
+import {
+  Trash2, Download, Copy, Check, Plus, X, RotateCcw, Search,
+  CopyPlus, MapPin, Warehouse, Package, Layers, Utensils, ShoppingBag, Megaphone, Sparkles,
+} from 'lucide-react';
+import {
+  QR_OPERATION_TEMPLATES,
+  getQrOperationTemplate,
+  getQrOperationDefaults,
+  buildQrOperationPayload,
+} from '../utils/qrOperationsTemplates';
+
+const QR_DOWNLOAD_DEFAULT_KEY = 'oxs:qr-generator-download-default:v1';
+const QR_PENDING_EXPORT_KEY = 'oxs:qr-generator-pending-export:v1';
+// A darker OxSteed orange preserves QR contrast on white backgrounds while
+// still matching the brand accent used throughout the studio.
+const DEFAULT_QR_ORANGE = '#c2410c';
+
+const DOWNLOAD_FORMATS = {
+  png: { rawFormat: 'png', mode: 'simple', labelKey: 'downloadFormatPng' },
+  svg: { rawFormat: 'svg', mode: 'simple', labelKey: 'downloadFormatSvg' },
+  'branded-png': { rawFormat: 'png', mode: 'branded', labelKey: 'downloadFormatBrandedPng' },
+  'branded-svg': { rawFormat: 'svg', mode: 'branded', labelKey: 'downloadFormatBrandedSvg' },
+  'promo-png': { rawFormat: 'png', mode: 'promotional', labelKey: 'downloadFormatPromoPng' },
+  'promo-svg': { rawFormat: 'svg', mode: 'promotional', labelKey: 'downloadFormatPromoSvg' },
+};
+
+const OPERATION_ICONS = {
+  'map-pin': MapPin,
+  warehouse: Warehouse,
+  package: Package,
+  layers: Layers,
+  utensils: Utensils,
+  'shopping-bag': ShoppingBag,
+  megaphone: Megaphone,
+  sparkles: Sparkles,
+};
+
+function readStoredDownloadFormat() {
+  if (typeof window === 'undefined') return 'promo-png';
+  try {
+    const stored = window.localStorage.getItem(QR_DOWNLOAD_DEFAULT_KEY);
+    return DOWNLOAD_FORMATS[stored] ? stored : 'promo-png';
+  } catch (_) {
+    return 'promo-png';
+  }
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('QR image could not be read'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function dataUrlToBlob(dataUrl) {
+  const [header, encoded] = String(dataUrl || '').split(',');
+  if (!header || !encoded) throw new Error('Pending QR export is invalid');
+  const match = header.match(/^data:([^;]+);base64$/);
+  if (!match) throw new Error('Pending QR export is invalid');
+  const binary = atob(encoded);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return new Blob([bytes], { type: match[1] });
+}
+
+async function createQrExportKey(payload) {
+  if (!window.crypto?.subtle) throw new Error('Secure payment verification is unavailable');
+  const encoded = new TextEncoder().encode(JSON.stringify(payload));
+  const digest = await window.crypto.subtle.digest('SHA-256', encoded);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
 
 const LOGO_STAGE_KEYS = {
   validating: 'logoStageValidating',
@@ -40,7 +113,7 @@ const QRCodeGeneratorPage = () => {
   const [formData, setFormData] = useState({
     title: '',
     url: 'https://example.com',
-    dotColor: '#000000',
+    dotColor: DEFAULT_QR_ORANGE,
     backgroundColor: '#ffffff',
     dotStyle: 'square',
     size: 300,
@@ -56,7 +129,6 @@ const QRCodeGeneratorPage = () => {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
   const [logoDataUrl, setLogoDataUrl] = useState('');
-  const [downloadStyle, setDownloadStyle] = useState('branded');
   const [promoDescription, setPromoDescription] = useState('');
   const [promoCta, setPromoCta] = useState('');
   const [logoRevision, setLogoRevision] = useState(0);
@@ -66,12 +138,24 @@ const QRCodeGeneratorPage = () => {
   const [logoElapsedSeconds, setLogoElapsedSeconds] = useState(0);
   const [logoFileInfo, setLogoFileInfo] = useState(null);
   const [logoProcessingError, setLogoProcessingError] = useState('');
+  const [downloadFormat, setDownloadFormat] = useState(readStoredDownloadFormat);
+  const [rememberDownloadFormat, setRememberDownloadFormat] = useState(true);
+  const [watermarkChoice, setWatermarkChoice] = useState('watermarked');
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [templateKey, setTemplateKey] = useState('custom');
+  const [templateData, setTemplateData] = useState({});
+  const [savedFilter, setSavedFilter] = useState('all');
+  const [savedSearch, setSavedSearch] = useState('');
+  const [codeType, setCodeType] = useState('qr');
+  const [barcodeErrorKey, setBarcodeErrorKey] = useState('');
   const previewInput = JSON.stringify([
-    formData.url, formData.size, formData.dotColor,
+    codeType, formData.url, formData.size, formData.dotColor,
     formData.backgroundColor, formData.dotStyle, logoDataUrl,
   ]);
   const previewReady = Boolean(!logoProcessing && qrInstance && generatedInput === previewInput);
-  const showLogoProcessing = !logoProcessingError && (logoProcessing || (Boolean(logoDataUrl) && !previewReady));
+  const showLogoProcessing = codeType === 'qr'
+    && !logoProcessingError
+    && (logoProcessing || (Boolean(logoDataUrl) && !previewReady));
 
   useEffect(() => {
     if (!showLogoProcessing || !logoProcessingStartedAt) return undefined;
@@ -104,52 +188,84 @@ const QRCodeGeneratorPage = () => {
 
     const generatePreview = async () => {
       try {
-        if (logoDataUrl) {
+        if (logoDataUrl && codeType === 'qr') {
           setLogoProcessingStage('generating');
           setLogoProcessingStartedAt((previous) => previous || Date.now());
         }
-        const qr = new QRCodeStyling({
-          width: Number(formData.size),
-          height: Number(formData.size),
-          data: formData.url,
-          image: logoDataUrl || undefined,
-          // Undefined nested options overwrite the library defaults and crash
-          // its constructor. Supply valid options with and without a logo.
-          imageOptions: {
-            // prepareQrLogo already returns a bounded, embedded PNG data URL.
-            // The default re-fetches it with XHR, which production connect-src
-            // blocks, leaving the library's drawing promise unresolved.
-            saveAsBlob: false,
-            hideBackgroundDots: true,
-            imageSize: 0.22,
-            margin: 5,
-          },
-          qrOptions: { errorCorrectionLevel: logoDataUrl ? 'H' : 'Q' },
-          dotsOptions: {
-            color: formData.dotColor,
-            type: formData.dotStyle,
-          },
-          backgroundOptions: {
-            color: formData.backgroundColor,
-          },
-          margin: 10,
-        });
-
-        const blob = await Promise.race([
-          qr.getRawData('png'),
-          new Promise((_, reject) => {
-            renderTimer = window.setTimeout(() => reject(new Error('QR render timed out')), 15_000);
-          }),
-        ]);
+        let renderer;
+        let blob;
+        if (codeType === 'qr') {
+          const qr = new QRCodeStyling({
+            width: Number(formData.size),
+            height: Number(formData.size),
+            data: formData.url,
+            image: logoDataUrl || undefined,
+            // Undefined nested options overwrite the library defaults and crash
+            // its constructor. Supply valid options with and without a logo.
+            imageOptions: {
+              // prepareQrLogo already returns a bounded, embedded PNG data URL.
+              // The default re-fetches it with XHR, which production connect-src
+              // blocks, leaving the library's drawing promise unresolved.
+              saveAsBlob: false,
+              hideBackgroundDots: true,
+              imageSize: 0.22,
+              margin: 5,
+            },
+            qrOptions: { errorCorrectionLevel: logoDataUrl ? 'H' : 'Q' },
+            dotsOptions: {
+              color: formData.dotColor,
+              type: formData.dotStyle,
+            },
+            backgroundOptions: {
+              color: formData.backgroundColor,
+            },
+            margin: 10,
+          });
+          blob = await Promise.race([
+            qr.getRawData('png'),
+            new Promise((_, reject) => {
+              renderTimer = window.setTimeout(() => reject(new Error('QR render timed out')), 15_000);
+            }),
+          ]);
+          renderer = qr;
+        } else {
+          const normalized = normalizeBarcodeValue(codeType, formData.url);
+          if (normalized.error) {
+            const error = new Error(normalized.error);
+            error.code = normalized.error;
+            throw error;
+          }
+          blob = await renderBarcode(codeType, normalized.value, 'png', {
+            height: Number(formData.size) * 0.55,
+            lineColor: formData.dotColor,
+            background: formData.backgroundColor,
+          });
+          renderer = {
+            getRawData: (format) => renderBarcode(codeType, normalized.value, format, {
+              height: Number(formData.size) * 0.55,
+              lineColor: formData.dotColor,
+              background: formData.backgroundColor,
+            }),
+          };
+          setBarcodeErrorKey('');
+        }
         if (cancelled) return;
         if (!blob || !blob.size) throw new Error('QR image is empty');
         if (qrRef.current) {
           qrRef.current.innerHTML = '';
-          qr.append(qrRef.current);
+          if (codeType === 'qr') {
+            renderer.append(qrRef.current);
+          } else {
+            const image = document.createElement('img');
+            image.src = URL.createObjectURL(blob);
+            image.alt = t('qrGenerator.preview');
+            image.onload = () => URL.revokeObjectURL(image.src);
+            qrRef.current.appendChild(image);
+          }
         }
-        setQRInstance(qr);
+        setQRInstance(renderer);
         setGeneratedInput(previewInput);
-        if (logoDataUrl) {
+        if (logoDataUrl && codeType === 'qr') {
           setLogoProcessing(false);
           setLogoProcessingStage('ready');
           setLogoProcessingStartedAt(null);
@@ -158,7 +274,11 @@ const QRCodeGeneratorPage = () => {
         if (cancelled) return;
         setQRInstance(null);
         setGeneratedInput(null);
-        if (logoDataUrl) {
+        if (err.code === 'barcodeValueRequired' || err.code === 'barcodeCode128Invalid' || err.code === 'barcodeEan13Invalid') {
+          setBarcodeErrorKey(err.code);
+          return;
+        }
+        if (logoDataUrl && codeType === 'qr') {
           setLogoProcessing(false);
           setLogoProcessingStage('error');
           setLogoProcessingError('logoInvalid');
@@ -177,7 +297,7 @@ const QRCodeGeneratorPage = () => {
       cancelled = true;
       window.clearTimeout(renderTimer);
     };
-  }, [previewInput, logoRevision, canUseQr, t]);
+  }, [previewInput, logoRevision, canUseQr, codeType, t]);
 
   // Fetch saved QR codes only after the same Pro entitlement check used by
   // the API. This prevents a generic load error for regular helpers.
@@ -211,6 +331,17 @@ const QRCodeGeneratorPage = () => {
       ...prev,
       [name]: name === 'size' ? Number(value) : value,
     }));
+  };
+
+  const handleCodeTypeChange = (nextType) => {
+    setCodeType(nextType);
+    setBarcodeErrorKey('');
+    if (nextType !== 'qr' && logoDataUrl) {
+      setLogoProcessingError('');
+      setLogoProcessing(false);
+      setLogoProcessingStage('idle');
+      setLogoProcessingStartedAt(null);
+    }
   };
 
   const handleColorChange = (e) => {
@@ -293,6 +424,55 @@ const QRCodeGeneratorPage = () => {
     if (logoInputRef.current) logoInputRef.current.value = '';
   };
 
+  const applyOperationalTemplate = (nextKey) => {
+    const template = getQrOperationTemplate(nextKey);
+    const defaults = getQrOperationDefaults(template);
+    setTemplateKey(template.key);
+    setTemplateData(defaults);
+    if (template.key === 'custom') {
+      setFormData((previous) => ({ ...previous, title: '', url: 'https://example.com' }));
+      setPromoDescription('');
+      setPromoCta('');
+      return;
+    }
+    setFormData((previous) => ({
+      ...previous,
+      title: t(template.titleKey),
+      url: buildQrOperationPayload(template, defaults),
+    }));
+    setPromoDescription(t(template.descriptionKey));
+    setPromoCta(t('qrGenerator.operations.defaultCta'));
+  };
+
+  const handleTemplateFieldChange = (fieldKey, value) => {
+    const nextData = { ...templateData, [fieldKey]: value };
+    const template = getQrOperationTemplate(templateKey);
+    setTemplateData(nextData);
+    setFormData((previous) => ({
+      ...previous,
+      url: buildQrOperationPayload(template, nextData),
+    }));
+  };
+
+  const handleDuplicateQR = (qr) => {
+    const nextTemplate = getQrOperationTemplate(qr.template_key || 'custom');
+    const nextData = qr.label_data && typeof qr.label_data === 'object' ? qr.label_data : {};
+    setTemplateKey(nextTemplate.key);
+    setTemplateData(nextData);
+    setCodeType(BARCODE_TYPES[qr.code_type] ? qr.code_type : 'qr');
+    setFormData((previous) => ({
+      ...previous,
+      title: qr.title || '',
+      url: qr.url || 'https://example.com',
+      dotColor: qr.dot_color || DEFAULT_QR_ORANGE,
+      backgroundColor: qr.background_color || '#ffffff',
+      dotStyle: qr.dot_style || 'square',
+      size: Number(qr.size) || 300,
+    }));
+    toast.success(t('qrGenerator.operations.duplicateReady'));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
 
   const handleSaveQR = async () => {
     if (!formData.title.trim()) {
@@ -327,6 +507,10 @@ const QRCodeGeneratorPage = () => {
         size: parseInt(formData.size),
         imageData,
         imageFormat: 'png',
+        codeType,
+        workspace: getQrOperationTemplate(templateKey).workspace,
+        templateKey,
+        labelData: templateData,
       };
 
       await qrCodesApi.create(payload);
@@ -366,7 +550,7 @@ const QRCodeGeneratorPage = () => {
       if (!response.ok) throw new Error('Saved QR image is unavailable');
       const blob = await response.blob();
       if (!blob.type.startsWith('image/')) throw new Error('Saved QR image is invalid');
-      const titledBlob = await composeQrDownload(blob, qr.title, format);
+      const titledBlob = await composeQrDownload(blob, qr.title, format, { watermark: true });
       const objectUrl = URL.createObjectURL(titledBlob);
       const link = document.createElement('a');
       link.href = objectUrl;
@@ -388,36 +572,156 @@ const QRCodeGeneratorPage = () => {
     }
   };
 
-  const handleDownloadQR = async (format = 'png', mode = downloadStyle) => {
+  const performExportDownload = async ({
+    rawBlob,
+    formatKey,
+    watermark,
+    title = formData.title,
+    description = promoDescription,
+    cta = promoCta,
+    backgroundColor = formData.backgroundColor,
+    accentColor = formData.dotColor || DEFAULT_QR_ORANGE,
+  }) => {
+    const selection = DOWNLOAD_FORMATS[formatKey] || DOWNLOAD_FORMATS['promo-png'];
+    const titledBlob = await composeQrDownload(rawBlob, title, selection.rawFormat, {
+      mode: selection.mode,
+      description,
+      cta,
+      backgroundColor,
+      accentColor,
+      watermark,
+    });
+    const url = URL.createObjectURL(titledBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = qrDownloadFileName(title, selection.rawFormat);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast.success(t('qrGenerator.downloadSuccess'));
+  };
+
+  const buildExportPayload = () => ({
+    codeType,
+    title: formData.title.trim(),
+    url: formData.url.trim(),
+    dotColor: formData.dotColor,
+    backgroundColor: formData.backgroundColor,
+    dotStyle: formData.dotStyle,
+    size: Number(formData.size),
+    logo: logoDataUrl,
+    templateKey,
+    labelData: templateData,
+    format: downloadFormat,
+    description: promoDescription.trim(),
+    cta: promoCta.trim(),
+  });
+
+  const handleDownloadQR = async () => {
     try {
       if (!previewReady) {
         toast.error(t('qrGenerator.errorGenerating'));
         return;
       }
 
-      const blob = await qrInstance.getRawData(format);
-      const titledBlob = await composeQrDownload(blob, formData.title, format, {
-        mode,
+      const selection = DOWNLOAD_FORMATS[downloadFormat] || DOWNLOAD_FORMATS['promo-png'];
+      if (selection.mode === 'promotional' && !formData.title.trim()) {
+        toast.error(t('qrGenerator.titleRequired'));
+        return;
+      }
+      const rawBlob = await qrInstance.getRawData(selection.rawFormat);
+      if (watermarkChoice === 'watermarked') {
+        await performExportDownload({ rawBlob, formatKey: downloadFormat, watermark: true });
+        return;
+      }
+
+      setPaymentLoading(true);
+      const qrKey = await createQrExportKey(buildExportPayload());
+      const pending = {
+        qrKey,
+        formatKey: downloadFormat,
+          rawImage: await blobToDataUrl(rawBlob),
+        codeType,
+        title: formData.title,
+        url: formData.url,
         description: promoDescription,
         cta: promoCta,
         backgroundColor: formData.backgroundColor,
-        accentColor: formData.dotColor,
-      });
-      const url = URL.createObjectURL(titledBlob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = qrDownloadFileName(formData.title, format);
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+        accentColor: formData.dotColor || DEFAULT_QR_ORANGE,
+      };
+      const { data } = await qrCodesApi.createExportCheckout({ qrKey, format: downloadFormat });
+      if (data.data?.paid || data.data?.alreadyPaid) {
+        await performExportDownload({ rawBlob, formatKey: downloadFormat, watermark: false });
+        return;
+      }
 
-      toast.success(t('qrGenerator.downloadSuccess'));
+      window.sessionStorage.setItem(QR_PENDING_EXPORT_KEY, JSON.stringify(pending));
+      if (!data.data?.url) throw new Error('Checkout URL is unavailable');
+      window.location.assign(data.data.url);
     } catch (err) {
       logger.error('QRCodeGeneratorPage: download error', { err: err.message });
-      toast.error(t('qrGenerator.downloadError'));
+      toast.error(err.response?.data?.error || t('qrGenerator.downloadError'));
+    } finally {
+      setPaymentLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!rememberDownloadFormat) return;
+    try {
+      window.localStorage.setItem(QR_DOWNLOAD_DEFAULT_KEY, downloadFormat);
+    } catch (_) {
+      // A blocked storage context should not prevent downloading.
+    }
+  }, [downloadFormat, rememberDownloadFormat]);
+
+  // Stripe Checkout returns to this page. Verify the session with the server
+  // before producing a watermark-free file, then replay the exact export that
+  // the user started before leaving the page.
+  useEffect(() => {
+    if (!canUseQr || typeof window === 'undefined') return undefined;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('qr_payment') !== 'success' || !params.get('session_id')) return undefined;
+
+    let cancelled = false;
+    const recoverPaidExport = async () => {
+      setPaymentLoading(true);
+      try {
+        const pendingRaw = window.sessionStorage.getItem(QR_PENDING_EXPORT_KEY);
+        if (!pendingRaw) throw new Error(t('qrGenerator.paymentSessionMissing'));
+        const pending = JSON.parse(pendingRaw);
+        const { data } = await qrCodesApi.verifyExportCheckout({
+          sessionId: params.get('session_id'),
+          qrKey: pending.qrKey,
+        });
+        if (!data.data?.paid) throw new Error(t('qrGenerator.paymentNotCompleted'));
+        if (cancelled) return;
+        await performExportDownload({
+          rawBlob: dataUrlToBlob(pending.rawImage),
+          formatKey: pending.formatKey,
+          watermark: false,
+          title: pending.title,
+          description: pending.description,
+          cta: pending.cta,
+          backgroundColor: pending.backgroundColor,
+          accentColor: pending.accentColor,
+        });
+        window.sessionStorage.removeItem(QR_PENDING_EXPORT_KEY);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } catch (err) {
+        if (!cancelled) {
+          logger.error('QRCodeGeneratorPage: paid export recovery failed', { err: err.message });
+          toast.error(err.response?.data?.error || err.message || t('qrGenerator.paymentVerificationFailed'));
+        }
+      } finally {
+        if (!cancelled) setPaymentLoading(false);
+      }
+    };
+
+    recoverPaidExport();
+    return () => { cancelled = true; };
+  }, [canUseQr, t]);
 
   const handleDeleteQR = async (id) => {
     if (!confirm(t('qrGenerator.confirmDelete'))) return;
@@ -438,6 +742,17 @@ const QRCodeGeneratorPage = () => {
     setCopiedId(url);
     setTimeout(() => setCopiedId(null), 2000);
   };
+
+  const normalizedSavedSearch = savedSearch.trim().toLowerCase();
+  const filteredSavedQRs = savedQRs.filter((qr) => {
+    const matchesWorkspace = savedFilter === 'all' || (qr.workspace || 'custom') === savedFilter;
+    if (!matchesWorkspace) return false;
+    if (!normalizedSavedSearch) return true;
+    return [qr.title, qr.url, qr.template_key, qr.workspace]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(normalizedSavedSearch));
+  });
+  const savedWorkspaceCount = (workspace) => savedQRs.filter((qr) => (qr.workspace || 'custom') === workspace).length;
 
   if (!canUseQr) {
     return (
@@ -467,9 +782,102 @@ const QRCodeGeneratorPage = () => {
 
       <div className="qrg-container">
         <div className="qrg-hero">
+          <span className="qrg-eyebrow">{t('qrGenerator.studioEyebrow')}</span>
           <h1 className="qrg-title">{t('qrGenerator.title')}</h1>
           <p className="qrg-subtitle">{t('qrGenerator.subtitle')}</p>
+          <div className="qrg-journey" aria-label={t('qrGenerator.journeyLabel')}>
+            <span className="qrg-journey-step qrg-journey-step-active"><b>01</b>{t('qrGenerator.journeyCreate')}</span>
+            <span className="qrg-journey-line" aria-hidden="true" />
+            <span className="qrg-journey-step"><b>02</b>{t('qrGenerator.journeyStyle')}</span>
+            <span className="qrg-journey-line" aria-hidden="true" />
+            <span className="qrg-journey-step"><b>03</b>{t('qrGenerator.journeyShare')}</span>
+          </div>
         </div>
+
+        <section className="qrg-operations-panel" aria-labelledby="qrg-operations-title">
+          <div className="qrg-operations-header">
+            <div>
+              <span className="qrg-section-kicker">{t('qrGenerator.operations.kicker')}</span>
+              <h2 id="qrg-operations-title">{t('qrGenerator.operations.title')}</h2>
+              <p>{t('qrGenerator.operations.subtitle')}</p>
+            </div>
+            <div className="qrg-operations-stat">
+              <strong>{t('qrGenerator.operations.freeLabel')}</strong>
+              <span>{t('qrGenerator.operations.freeDetail')}</span>
+            </div>
+          </div>
+          <div className="qrg-code-type-picker">
+            <div>
+              <span className="qrg-section-kicker">{t('qrGenerator.codeTypeKicker')}</span>
+              <h3>{t('qrGenerator.codeTypeTitle')}</h3>
+              <p>{t('qrGenerator.codeTypeHelp')}</p>
+            </div>
+            <div className="qrg-code-type-options" role="radiogroup" aria-label={t('qrGenerator.codeTypeTitle')}>
+              {Object.entries(BARCODE_TYPES).map(([type, details]) => (
+                <button
+                  key={type}
+                  type="button"
+                  role="radio"
+                  aria-checked={codeType === type}
+                  className={`qrg-code-type-option ${codeType === type ? 'is-selected' : ''}`}
+                  onClick={() => handleCodeTypeChange(type)}
+                >
+                  <strong>{t(`qrGenerator.${details.labelKey}`)}</strong>
+                  <span>{t(`qrGenerator.${details.descriptionKey}`)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="qrg-template-grid">
+            {QR_OPERATION_TEMPLATES.map((template) => {
+              const Icon = OPERATION_ICONS[template.icon] || Sparkles;
+              return (
+                <button
+                  key={template.key}
+                  type="button"
+                  className={`qrg-template-card ${templateKey === template.key ? 'is-selected' : ''}`}
+                  onClick={() => applyOperationalTemplate(template.key)}
+                  aria-pressed={templateKey === template.key}
+                >
+                  <span className="qrg-template-icon"><Icon size={18} /></span>
+                  <span className="qrg-template-copy">
+                    <small>{t(template.categoryKey)}</small>
+                    <strong>{t(template.titleKey)}</strong>
+                    <span>{t(template.descriptionKey)}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {templateKey !== 'custom' && (
+            <div className="qrg-label-fields">
+              <div className="qrg-label-fields-heading">
+                <div>
+                  <span className="qrg-section-kicker">{t('qrGenerator.operations.labelDetails')}</span>
+                  <h3>{t(getQrOperationTemplate(templateKey).titleKey)}</h3>
+                </div>
+                <span className="qrg-structured-badge">{t('qrGenerator.operations.structuredBadge')}</span>
+              </div>
+              <div className="qrg-label-fields-grid">
+                {getQrOperationTemplate(templateKey).fields.map((field) => (
+                  <div className="qrg-form-group" key={field.key}>
+                    <label htmlFor={`operation-${field.key}`}>{t(field.labelKey)}</label>
+                    <input
+                      id={`operation-${field.key}`}
+                      value={templateData[field.key] || ''}
+                      onChange={(event) => handleTemplateFieldChange(field.key, event.target.value)}
+                      placeholder={t(field.placeholderKey)}
+                      className="qrg-input"
+                      maxLength={120}
+                    />
+                  </div>
+                ))}
+              </div>
+              <p className="qrg-label-payload">{t('qrGenerator.operations.payloadHelp')}</p>
+            </div>
+          )}
+        </section>
 
         <div className="qrg-main">
           {/* Left: Controls */}
@@ -502,6 +910,11 @@ const QRCodeGeneratorPage = () => {
                   placeholder="https://example.com"
                   className="qrg-input"
                 />
+                {codeType !== 'qr' && (
+                  <p className={`qrg-barcode-help ${barcodeErrorKey ? 'is-error' : ''}`} role={barcodeErrorKey ? 'alert' : undefined}>
+                    {barcodeErrorKey ? t(`qrGenerator.${barcodeErrorKey}`) : t(`qrGenerator.${BARCODE_TYPES[codeType].descriptionKey}`)}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -652,19 +1065,26 @@ const QRCodeGeneratorPage = () => {
             <div ref={qrRef} className="qrg-preview-container" />
 
             <div className="qrg-download-options">
-              <label htmlFor="downloadStyle">{t('qrGenerator.downloadStyle')}</label>
+              <div className="qrg-download-heading">
+                <div>
+                  <span className="qrg-section-kicker">{t('qrGenerator.downloadKicker')}</span>
+                  <h3>{t('qrGenerator.downloadTitle')}</h3>
+                </div>
+                <span className="qrg-price-pill">{watermarkChoice === 'clean' ? '$1' : t('qrGenerator.free')}</span>
+              </div>
+              <label htmlFor="downloadFormat">{t('qrGenerator.downloadFormat')}</label>
               <select
-                id="downloadStyle"
-                value={downloadStyle}
-                onChange={(event) => setDownloadStyle(event.target.value)}
+                id="downloadFormat"
+                value={downloadFormat}
+                onChange={(event) => setDownloadFormat(event.target.value)}
                 className="qrg-select"
               >
-                <option value="simple">{t('qrGenerator.downloadStyleSimple')}</option>
-                <option value="branded">{t('qrGenerator.downloadStyleBranded')}</option>
-                <option value="promotional">{t('qrGenerator.downloadStylePromotional')}</option>
+                {Object.entries(DOWNLOAD_FORMATS).map(([value, option]) => (
+                  <option key={value} value={value}>{t(`qrGenerator.${option.labelKey}`)}</option>
+                ))}
               </select>
-              <p>{t(`qrGenerator.downloadStyle${downloadStyle[0].toUpperCase()}${downloadStyle.slice(1)}Help`)}</p>
-              {downloadStyle === 'promotional' && (
+              <p>{t(`qrGenerator.${DOWNLOAD_FORMATS[downloadFormat]?.labelKey || 'downloadFormatPromoPng'}Help`)}</p>
+              {DOWNLOAD_FORMATS[downloadFormat]?.mode === 'promotional' && (
                 <div className="qrg-promo-fields">
                   <div className="qrg-form-group">
                     <label htmlFor="promoDescription">{t('qrGenerator.promoDescription')}</label>
@@ -690,35 +1110,57 @@ const QRCodeGeneratorPage = () => {
                   </div>
                 </div>
               )}
+              <div className="qrg-export-choice" role="radiogroup" aria-label={t('qrGenerator.watermarkChoice')}>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={watermarkChoice === 'watermarked'}
+                  className={`qrg-export-choice-card ${watermarkChoice === 'watermarked' ? 'is-selected' : ''}`}
+                  onClick={() => setWatermarkChoice('watermarked')}
+                >
+                  <span className="qrg-choice-dot" aria-hidden="true" />
+                  <span><strong>{t('qrGenerator.watermarkedOption')}</strong><small>{t('qrGenerator.watermarkedHelp')}</small></span>
+                  <b>{t('qrGenerator.free')}</b>
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={watermarkChoice === 'clean'}
+                  className={`qrg-export-choice-card ${watermarkChoice === 'clean' ? 'is-selected' : ''}`}
+                  onClick={() => setWatermarkChoice('clean')}
+                >
+                  <span className="qrg-choice-dot" aria-hidden="true" />
+                  <span><strong>{t('qrGenerator.cleanOption')}</strong><small>{t('qrGenerator.cleanHelp')}</small></span>
+                  <b>$1</b>
+                </button>
+              </div>
+              <label className="qrg-default-format">
+                <input
+                  type="checkbox"
+                  checked={rememberDownloadFormat}
+                  onChange={(event) => {
+                    const checked = event.target.checked;
+                    setRememberDownloadFormat(checked);
+                    if (!checked) {
+                      try { window.localStorage.removeItem(QR_DOWNLOAD_DEFAULT_KEY); } catch (_) { /* ignore */ }
+                    }
+                  }}
+                />
+                {t('qrGenerator.rememberFormat')}
+              </label>
             </div>
 
             <div className="qrg-download-buttons">
               <button
-                onClick={() => handleDownloadQR('png', downloadStyle)}
-                disabled={!previewReady}
+                onClick={handleDownloadQR}
+                disabled={!previewReady || paymentLoading}
                 className="qrg-button qrg-button-primary"
               >
                 <Download size={16} />
-                {t('qrGenerator.downloadPNG')}
-              </button>
-              <button
-                onClick={() => handleDownloadQR('svg', downloadStyle)}
-                disabled={!previewReady}
-                className="qrg-button qrg-button-secondary"
-              >
-                <Download size={16} />
-                {t('qrGenerator.downloadSVG')}
-              </button>
-              <button
-                onClick={() => handleDownloadQR('png', 'promotional')}
-                disabled={!previewReady || !formData.title.trim()}
-                className="qrg-button qrg-button-promotional"
-                title={!formData.title.trim() ? t('qrGenerator.titleRequired') : t('qrGenerator.downloadStylePromotionalHelp')}
-              >
-                <Download size={16} />
-                {t('qrGenerator.downloadPromotionalPage')}
+                {paymentLoading ? t('qrGenerator.paymentProcessing') : watermarkChoice === 'clean' ? t('qrGenerator.payAndDownload') : t('qrGenerator.downloadSelected')}
               </button>
             </div>
+            <p className="qrg-download-footnote">{t('qrGenerator.watermarkFootnote')}</p>
 
             <button
               onClick={() => setShowSaveModal(true)}
@@ -734,9 +1176,46 @@ const QRCodeGeneratorPage = () => {
         {/* Saved QR Codes */}
         {savedQRs.length > 0 && (
           <div className="qrg-saved-section">
-            <h2 className="qrg-section-title">{t('qrGenerator.savedQRs')}</h2>
-            <div className="qrg-grid">
-              {savedQRs.map((qr) => (
+            <div className="qrg-management-header">
+              <div>
+                <span className="qrg-section-kicker">{t('qrGenerator.operations.managementKicker')}</span>
+                <h2 className="qrg-section-title">{t('qrGenerator.savedQRs')}</h2>
+                <p>{t('qrGenerator.operations.managementSubtitle')}</p>
+              </div>
+              <div className="qrg-management-stats" aria-label={t('qrGenerator.operations.managementStats')}>
+                <span><b>{savedQRs.length}</b>{t('qrGenerator.operations.totalLabels')}</span>
+                <span><b>{savedWorkspaceCount('warehouse')}</b>{t('qrGenerator.operations.warehouseLabels')}</span>
+                <span><b>{savedWorkspaceCount('restaurant')}</b>{t('qrGenerator.operations.restaurantLabels')}</span>
+              </div>
+            </div>
+            <div className="qrg-management-toolbar">
+              <label className="qrg-search-box">
+                <Search size={16} aria-hidden="true" />
+                <span className="sr-only">{t('qrGenerator.operations.searchLabels')}</span>
+                <input
+                  value={savedSearch}
+                  onChange={(event) => setSavedSearch(event.target.value)}
+                  placeholder={t('qrGenerator.operations.searchPlaceholder')}
+                />
+              </label>
+              <div className="qrg-filter-pills" role="group" aria-label={t('qrGenerator.operations.filterLabels')}>
+                {['all', 'warehouse', 'restaurant', 'custom'].map((filter) => (
+                  <button
+                    key={filter}
+                    type="button"
+                    className={savedFilter === filter ? 'is-selected' : ''}
+                    onClick={() => setSavedFilter(filter)}
+                  >
+                    {t(`qrGenerator.operations.filter${filter[0].toUpperCase()}${filter.slice(1)}`)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {filteredSavedQRs.length === 0 ? (
+              <div className="qrg-management-empty">{t('qrGenerator.operations.noMatchingLabels')}</div>
+            ) : (
+              <div className="qrg-grid">
+              {filteredSavedQRs.map((qr) => (
                 <div key={qr.id} className="qrg-card">
                   <div className="qrg-card-image">
                     {qr.image_url ? (
@@ -747,6 +1226,9 @@ const QRCodeGeneratorPage = () => {
                   </div>
                   <div className="qrg-card-content">
                     <h3 className="qrg-card-title">{qr.title}</h3>
+                    <span className={`qrg-workspace-tag qrg-workspace-${qr.workspace || 'custom'}`}>
+                      {t(`qrGenerator.operations.workspace${(qr.workspace || 'custom')[0].toUpperCase()}${(qr.workspace || 'custom').slice(1)}`)}
+                    </span>
                     <p className="qrg-card-url">{qr.url}</p>
                     <div className="qrg-card-meta">
                       <span>{qr.size}px</span>
@@ -760,6 +1242,13 @@ const QRCodeGeneratorPage = () => {
                       title={t('common.copy')}
                     >
                       {copiedId === qr.url ? <Check size={18} /> : <Copy size={18} />}
+                    </button>
+                    <button
+                      onClick={() => handleDuplicateQR(qr)}
+                      className="qrg-action-btn"
+                      title={t('qrGenerator.operations.duplicateLabel')}
+                    >
+                      <CopyPlus size={18} />
                     </button>
                     <button
                       onClick={() => handleDownloadSavedQR(qr)}
@@ -778,7 +1267,8 @@ const QRCodeGeneratorPage = () => {
                   </div>
                 </div>
               ))}
-            </div>
+              </div>
+            )}
           </div>
         )}
       </div>

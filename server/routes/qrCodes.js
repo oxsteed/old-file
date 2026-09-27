@@ -13,6 +13,8 @@ const {
   updateQRCode,
   deleteQRCode,
   downloadQRCode,
+  createQrExportCheckout,
+  verifyQrExportCheckout,
 } = require('../controllers/qrCodesController');
 
 // QR generation is a Pro feature. Any authenticated account with a current
@@ -36,6 +38,11 @@ const requireProTier = (req, res, next) => {
 router.use(authenticate);
 router.use(requireProTier);
 router.use(generalLimiter);
+
+// One-time watermark removal purchase for a QR export. These routes must be
+// registered before /:id so "export-checkout" is not treated as a QR id.
+router.post('/export-checkout', createQrExportCheckout);
+router.post('/export-checkout/verify', verifyQrExportCheckout);
 
 // Create new QR code
 router.post('/', createQRCode);

@@ -7,6 +7,7 @@ import {
   FileText,
   LayoutDashboard,
   MessageSquare,
+  QrCode,
   Search,
   Settings,
   ShieldCheck,
@@ -16,7 +17,7 @@ import {
 } from 'lucide-react';
 import '../styles/Dashboard.css';
 
-const link = (to, labelKey, defaultLabel, Icon, tone = '', activityKey = '', action = '') => ({
+const link = (to, labelKey, defaultLabel, Icon, tone = '', activityKey = '', action = '', pro = false) => ({
   to,
   labelKey,
   defaultLabel,
@@ -24,7 +25,10 @@ const link = (to, labelKey, defaultLabel, Icon, tone = '', activityKey = '', act
   tone,
   activityKey,
   action,
+  pro,
 });
+
+const QR_GENERATOR_LINK = link('/qr-generator', 'nav.qrGenerator', 'QR Generator', QrCode, '', '', '', true);
 
 export const DASHBOARD_QUICK_LINKS = {
   helper: [
@@ -36,30 +40,35 @@ export const DASHBOARD_QUICK_LINKS = {
     link('/helper/clients', 'helperDashboard.client', 'Client', LayoutDashboard),
     link('/helper/messages', 'nav.messages', 'Messages', MessageSquare, '', 'messages'),
     link('/disputes', 'helperDashboard.disputes', 'Disputes', ShieldCheck, '', 'disputes'),
+    QR_GENERATOR_LINK,
     link('/settings', 'nav.settings', 'Settings', Settings),
   ],
   life: [
     link('/activity', 'dashboard.recentActivity', 'Recent activity', Activity),
     link('/calendar', 'nav.calendar', 'Calendar', CalendarDays),
     link('/planned-needs', 'dashboards.life.plannedNeeds', 'Planned needs', FileText),
+    QR_GENERATOR_LINK,
     link('/settings', 'nav.settings', 'Account settings', Settings),
   ],
   toolOwner: [
     link('/tool-rentals', 'toolRentals.browsePage', 'Tool rentals', Wrench),
     link('/tool-rentals/analytics', 'toolRentals.analytics', 'Rental analytics', Activity),
     link('/calendar', 'nav.calendar', 'Calendar', CalendarDays),
+    QR_GENERATOR_LINK,
     link('/settings', 'nav.settings', 'Settings', Settings),
   ],
   franchise: [
     link('/franchise/status', 'franchiseApplicantDashboard.title', 'Application status', FileText),
     link('/franchise/territory', 'franchiseApplicantDashboard.territory', 'Territory', Store),
     link('/support/escalation', 'nav.support', 'Support', ShieldCheck),
+    QR_GENERATOR_LINK,
     link('/settings', 'nav.settings', 'Settings', Settings),
   ],
   consultant: [
     link('/consulting/contractor-dashboard', 'consultantContractorDashboard.page.title', 'Consultant dashboard', LayoutDashboard),
     link('/consulting', 'nav.consulting', 'Consulting', Briefcase),
     link('/messages', 'nav.messages', 'Messages', MessageSquare),
+    QR_GENERATOR_LINK,
     link('/settings', 'nav.settings', 'Settings', Settings),
   ],
   businessOwner: [
@@ -69,12 +78,14 @@ export const DASHBOARD_QUICK_LINKS = {
     link('/business-hub', 'nav.business', 'Business hub', Store),
     link('/messages', 'nav.messages', 'Messages', MessageSquare),
     link('/calendar', 'nav.calendar', 'Calendar', CalendarDays),
+    QR_GENERATOR_LINK,
     link('/settings', 'nav.settings', 'Settings', Settings),
   ],
   businessRole: [
     link('/messages', 'nav.messages', 'Messages', MessageSquare),
     link('/calendar', 'nav.calendar', 'Calendar', CalendarDays),
     link('/vortex', 'businessRoleDashboard.viewAllWorkspaces', 'Workspaces', Store),
+    QR_GENERATOR_LINK,
     link('/settings', 'nav.settings', 'Settings', Settings),
   ],
 };
@@ -90,7 +101,7 @@ export default function DashboardQuickLinks({ items, className = '', activity = 
       <span className="dashboard-quick-links__label">
         {t('dashboard.customer.quickLinks', { defaultValue: 'Quick links' })}
       </span>
-      {items.map(({ to, labelKey, defaultLabel, Icon, tone, activityKey, action }) => (
+      {items.map(({ to, labelKey, defaultLabel, Icon, tone, activityKey, action, pro }) => (
         <Link
           key={to}
           to={to}
@@ -102,6 +113,7 @@ export default function DashboardQuickLinks({ items, className = '', activity = 
         >
           <Icon size={15} aria-hidden="true" />
           <span>{t(labelKey, { defaultValue: defaultLabel })}</span>
+          {pro && <span className="dashboard-quick-links__badge" aria-label={t('dashboard.customer.quickLinksPro', { defaultValue: 'Pro' })}>{t('dashboard.customer.quickLinksPro', { defaultValue: 'Pro' })}</span>}
           {activityKey && activity[activityKey] > 0 && (
             <span
               className="dashboard-quick-links__activity"

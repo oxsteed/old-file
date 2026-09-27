@@ -42,6 +42,7 @@ const IcoX         = (p) => <Ico {...p}><line x1="18" y1="6" x2="6" y2="18"/><li
 const IcoHeart     = (p) => <Ico {...p}><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></Ico>;
 const IcoCar       = (p) => <Ico {...p}><rect x="1" y="11" width="22" height="9" rx="2"/><path d="M3 11l2.5-7h13L21 11"/><circle cx="7" cy="20" r="2"/><circle cx="17" cy="20" r="2"/></Ico>;
 const IcoCalendar  = (p) => <Ico {...p}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Ico>;
+const IcoQrCode    = (p) => <Ico {...p}><rect x="3" y="3" width="6" height="6"/><rect x="15" y="3" width="6" height="6"/><rect x="3" y="15" width="6" height="6"/><path d="M15 15h3v3h-3zM18 18h3M15 21h3M21 15v3M11 3v3M11 11h3M3 11h3M11 18h2"/></Ico>;
 const IcoWrench    = (p) => <Ico {...p}><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></Ico>;
 const IcoFork      = (p) => <Ico {...p}><path d="M3 2v7a3 3 0 003 3V2M9 2v7a3 3 0 01-3 3v10M15 2v20M15 2c4 2 6 5 6 9h-6"/></Ico>;
 const IcoWallet    = (p) => <Ico {...p}><path d="M20 7V5a2 2 0 00-2-2H5a3 3 0 000 6h15v12H5a3 3 0 01-3-3V6"/><path d="M16 13h4"/></Ico>;
@@ -296,9 +297,10 @@ function LaunchCustomerDashboard({
         {[
           { to: '/calendar', label: t('dashboard.customer.calendar'), icon: IcoCalendar },
           { to: '/activity', label: t('dashboard.recentActivity'), icon: IcoBell },
+          { to: '/qr-generator', label: t('nav.qrGenerator'), icon: IcoQrCode, pro: true },
           { to: '/settings', label: t('dashboard.customer.accountSettings'), icon: IcoSettings },
-        ].map(({ to, label, icon: Icon }) => (
-          <Link key={to} to={to} className="customer-dashboard-quick-link inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-gray-400 transition hover:bg-gray-800 hover:text-white"><Icon size={14} cls="text-gray-500" />{label}</Link>
+        ].map(({ to, label, icon: Icon, pro }) => (
+          <Link key={to} to={to} className="customer-dashboard-quick-link inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-gray-400 transition hover:bg-gray-800 hover:text-white"><Icon size={14} cls="text-gray-500" />{label}{pro && <span className="customer-dashboard-quick-link__badge" aria-label={t('dashboard.customer.quickLinksPro', { defaultValue: 'Pro' })}>{t('dashboard.customer.quickLinksPro', { defaultValue: 'Pro' })}</span>}</Link>
         ))}
       </nav>
     </div>

@@ -76,15 +76,16 @@ test('QR page renders without a logo, exports, saves, and handles input changes'
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(`http://127.0.0.1:${server.address().port}`);
-    const png = page.getByRole('button', {name: 'qrGenerator.downloadPNG', exact: true}).first();
+    const downloadButton = page.getByRole('button', {name: 'qrGenerator.downloadSelected', exact: true});
     await page.waitForFunction(() => document.querySelector('.qrg-preview-container canvas') &&
       !document.querySelector('.qrg-download-buttons button').disabled);
     await page.locator('#title').fill('QR regression');
     await page.locator('#url').fill('https://example.com/qr-regression');
     await page.waitForFunction(() => !document.querySelector('.qrg-download-buttons button').disabled);
-    for (const [button, format] of [[png, 'png'], [page.getByRole('button', {name: 'qrGenerator.downloadSVG', exact: true}), 'svg']]) {
+    for (const format of ['png', 'svg']) {
+      await page.locator('#downloadFormat').selectOption(format);
       const downloadPromise = page.waitForEvent('download');
-      await button.click();
+      await downloadButton.click();
       const download = await downloadPromise;
       const chunks = [];
       for await (const chunk of await download.createReadStream()) chunks.push(chunk);
@@ -95,15 +96,40 @@ test('QR page renders without a logo, exports, saves, and handles input changes'
         assert.equal(download.suggestedFilename(), 'qr-regression.png');
       } else {
         assert.match(content.toString(), /<svg/);
-        assert.match(content.toString(), /QR regression/);
         assert.equal(download.suggestedFilename(), 'qr-regression.svg');
       }
     }
-    await page.locator('#downloadStyle').selectOption('promotional');
+    await page.locator('.qrg-code-type-option').nth(1).click();
+    await page.locator('#url').fill('DOCK-07-A');
+    await page.waitForSelector('.qrg-preview-container img');
+    await page.locator('#downloadFormat').selectOption('svg');
+    const code128Download = page.waitForEvent('download');
+    await downloadButton.click();
+    const code128File = await code128Download;
+    const code128Chunks = [];
+    for await (const chunk of await code128File.createReadStream()) code128Chunks.push(chunk);
+    const code128Export = Buffer.concat(code128Chunks).toString();
+    const code128Source = code128Export.match(/base64,([^"']+)/);
+    assert.ok(code128Source, 'Code 128 export must embed the barcode SVG');
+    assert.match(Buffer.from(code128Source[1], 'base64').toString(), /DOCK-07-A/);
+    await page.locator('.qrg-code-type-option').nth(2).click();
+    await page.locator('#url').fill('400638133393');
+    await page.waitForSelector('.qrg-preview-container img');
+    await page.locator('.qrg-code-type-option').first().click();
+    await page.locator('#url').fill('https://example.com/qr-regression');
+    await page.waitForSelector('.qrg-preview-container canvas');
+    await page.locator('#downloadFormat').selectOption('branded-svg');
+    const brandedSvgDownload = page.waitForEvent('download');
+    await downloadButton.click();
+    const brandedSvg = await brandedSvgDownload;
+    const brandedSvgChunks = [];
+    for await (const chunk of await brandedSvg.createReadStream()) brandedSvgChunks.push(chunk);
+    assert.match(Buffer.concat(brandedSvgChunks).toString(), /QR regression/);
+    await page.locator('#downloadFormat').selectOption('promo-png');
     await page.locator('#promoDescription').fill('Discover our latest services and special offers.');
     await page.locator('#promoCta').fill('Scan to get started');
     const promoDownload = page.waitForEvent('download');
-    await page.getByRole('button', {name: 'qrGenerator.downloadPromotionalPage', exact: true}).click();
+    await downloadButton.click();
     const promoFile = await promoDownload;
     const promoChunks = [];
     for await (const chunk of await promoFile.createReadStream()) promoChunks.push(chunk);
@@ -114,15 +140,16 @@ test('QR page renders without a logo, exports, saves, and handles input changes'
       return {width: image.naturalWidth, height: image.naturalHeight};
     }, promoBytes.toString('base64'));
     assert.ok(promoSize.height > promoSize.width, 'promotional PNG must be a page layout');
+    await page.locator('#downloadFormat').selectOption('promo-svg');
     const promoSvgDownload = page.waitForEvent('download');
-    await page.getByRole('button', {name: 'qrGenerator.downloadSVG', exact: true}).click();
+    await downloadButton.click();
     const promoSvg = await promoSvgDownload;
     const promoSvgChunks = [];
     for await (const chunk of await promoSvg.createReadStream()) promoSvgChunks.push(chunk);
     const promoSvgText = Buffer.concat(promoSvgChunks).toString();
     assert.match(promoSvgText, /Discover our latest services/);
     assert.match(promoSvgText, /Scan to get started/);
-    await page.locator('#downloadStyle').selectOption('branded');
+    await page.locator('#downloadFormat').selectOption('branded-png');
     const logo = await page.evaluate(() => {
       const canvas = document.createElement('canvas');
       canvas.width = canvas.height = 256;
@@ -142,8 +169,9 @@ test('QR page renders without a logo, exports, saves, and handles input changes'
       assert.deepEqual(center, [255, 0, 0, 255], 'preview must actually contain the logo');
     }
     for (const format of ['PNG', 'SVG']) {
+      await page.locator('#downloadFormat').selectOption(format.toLowerCase());
       const pending = page.waitForEvent('download');
-      await page.getByRole('button', {name:`qrGenerator.download${format}`, exact:true}).click();
+      await downloadButton.click();
       const chunks = [];
       for await (const chunk of await (await pending).createReadStream()) chunks.push(chunk);
       const bytes = Buffer.concat(chunks);
@@ -162,7 +190,7 @@ test('QR page renders without a logo, exports, saves, and handles input changes'
     await page.waitForFunction(() => window.qrRenderStalled);
     await page.clock.fastForward(15_001);
     await page.waitForFunction(() => window.qrErrors.includes('qrGenerator.errorGenerating'));
-    assert.equal(await png.isDisabled(), true, 'a stalled render must not enable downloads');
+    assert.equal(await downloadButton.isDisabled(), true, 'a stalled render must not enable downloads');
     await page.evaluate(() => { window.stallQrRender = false; window.qrErrors = []; });
     await page.locator('#logoUpload').setInputFiles(logoFile);
     await page.waitForFunction(() => !document.querySelector('.qrg-download-buttons button').disabled, null, {timeout:5000});
@@ -224,7 +252,7 @@ test('QR page renders without a logo, exports, saves, and handles input changes'
     assert.deepEqual(await page.evaluate(() => window.qrErrors.splice(0)), ['qrGenerator.logoInvalid', 'qrGenerator.logoTooLarge']);
     console.log(`Verified ${(jpegBytes.length / 1024 / 1024).toFixed(1)} MiB JPG, PNG/JPG/WebP resizing, forged-file rejection, and 15 MiB boundary.`);
     await page.locator('#url').fill('');
-    assert.equal(await png.isDisabled(), true);
+    assert.equal(await downloadButton.isDisabled(), true);
     assert.equal(await page.getByRole('button', {name:'qrGenerator.save',exact:true}).isDisabled(), true);
     await page.locator('#url').fill('https://example.com/final');
     await page.waitForFunction(() => !document.querySelector('.qrg-download-buttons button').disabled);

@@ -22,6 +22,10 @@ export const qrCodesApi = {
   // Download QR code (with tracking)
   download: (id, format = 'png') =>
     api.post(`/qr-codes/${id}/download`, null, { params: { format } }),
+
+  // Create and verify the one-time $1 watermark-removal checkout.
+  createExportCheckout: (payload) => api.post('/qr-codes/export-checkout', payload),
+  verifyExportCheckout: (payload) => api.post('/qr-codes/export-checkout/verify', payload),
 };
 
 export default qrCodesApi;

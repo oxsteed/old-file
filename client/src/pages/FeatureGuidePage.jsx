@@ -25,6 +25,7 @@ import {
   selectHowItWorksStory,
   STORY_ROLE_KEYS,
 } from '../utils/howItWorksRoleModel';
+import { getExperienceArea, getExperienceAreaKeys, experienceAreaTranslationKey } from '../utils/experienceGuideModel';
 import './FeatureGuidePage.css';
 
 const ICONS = {
@@ -250,6 +251,32 @@ export default function FeatureGuidePage() {
                 <ArrowRight className="how-works-action-card__arrow" size={18} aria-hidden="true" />
               </Link>
             ))}
+          </div>
+        </section>
+
+        <section className="how-works-available how-works-experience-directory" aria-labelledby="how-works-experience-title">
+          <div className="how-works-section-heading">
+            <div>
+              <p className="how-works-eyebrow">{t('experienceGuides.directoryKicker', { defaultValue: 'Explore OxSteed' })}</p>
+              <h2 id="how-works-experience-title">{t('experienceGuides.directoryTitle', { defaultValue: 'See how each part connects' })}</h2>
+            </div>
+            <p>{t('experienceGuides.directoryDescription', { defaultValue: 'Choose a product journey to see the current roles, actions, and next steps.' })}</p>
+          </div>
+          <div className="how-works-card-grid">
+            {getExperienceAreaKeys().map((areaKey) => {
+              const area = getExperienceArea(areaKey);
+              const translationKey = experienceAreaTranslationKey(areaKey);
+              return (
+                <Link className="how-works-action-card" key={areaKey} to={`/how-it-works/${areaKey}`}>
+                  <span className="how-works-action-card__icon"><Icon name={area.enabled ? 'ArrowRight' : 'Clock3'} /></span>
+                  <span className="how-works-action-card__copy">
+                    <strong>{t(`experienceGuides.areas.${translationKey}.title`, { defaultValue: areaKey })}</strong>
+                    <span>{t(`experienceGuides.areas.${translationKey}.description`, { defaultValue: t('experienceGuides.directoryDescription', { defaultValue: 'See the current OxSteed journey.' }) })}</span>
+                  </span>
+                  <ArrowRight className="how-works-action-card__arrow" size={18} aria-hidden="true" />
+                </Link>
+              );
+            })}
           </div>
         </section>
 

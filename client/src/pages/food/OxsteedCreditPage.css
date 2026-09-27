@@ -6,6 +6,9 @@
     radial-gradient(circle at 94% 18%, rgba(35, 137, 149, .12), transparent 30rem),
     #f7f3ed;
 }
+.credit-guide-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 24px; }
+.credit-guide-links a { display: inline-flex; align-items: center; min-height: 36px; padding: 7px 12px; border: 1px solid rgba(16,37,63,.14); border-radius: 999px; color: inherit; text-decoration: none; font-size: 13px; font-weight: 650; }
+.credit-guide-links a:hover { border-color: #d66e0c; color: #d66e0c; }
 
 .ox-credit-shell { width: min(1160px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0 82px; }
 .ox-credit-back { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 30px; color: #526473; font-size: 14px; font-weight: 750; text-decoration: none; }

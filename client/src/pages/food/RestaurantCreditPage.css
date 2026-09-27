@@ -113,6 +113,9 @@
 .credit-qr-result > strong { font-size: 28px; }
 .credit-qr-result > span { margin-bottom: 10px; color: #6c7984; font-size: 12px; }
 .credit-spin { animation: credit-spin .9s linear infinite; }
+.credit-guide-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 24px; }
+.credit-guide-links a { display: inline-flex; align-items: center; min-height: 36px; padding: 7px 12px; border: 1px solid var(--credit-line, #dfe5ec); border-radius: 999px; color: inherit; text-decoration: none; font-size: 13px; font-weight: 650; }
+.credit-guide-links a:hover { border-color: var(--credit-accent, #c4470e); color: var(--credit-accent, #c4470e); }
 @keyframes credit-spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 900px) {

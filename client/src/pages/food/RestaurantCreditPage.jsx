@@ -131,6 +131,7 @@ function EmptyState({ title, detail }) {
 
 export default function RestaurantCreditPage() {
   const { t } = useTranslation('credit');
+  const { t: guideT } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedRestaurantId = searchParams.get('restaurantId');
   const [wallets, setWallets] = useState([]);
@@ -278,6 +279,11 @@ export default function RestaurantCreditPage() {
             </button>
           </div>
         </header>
+        <nav className="credit-guide-links" aria-label={guideT('experienceGuides.relatedAria', { defaultValue: 'Related OxSteed experiences' })}>
+          <Link to="/how-it-works/restaurant-credit">{guideT('experienceGuides.areas.restaurantCredit.title', { defaultValue: 'Restaurant Credit' })}</Link>
+          <Link to="/how-it-works/credit">{guideT('experienceGuides.areas.credit.title', { defaultValue: 'OxSteed Credit' })}</Link>
+          <Link to="/how-it-works/food">{guideT('experienceGuides.areas.food.title', { defaultValue: 'Local Food Directory' })}</Link>
+        </nav>
 
         {loading ? (
           <div className="credit-loading"><RefreshCw className="credit-spin" /> {t('restaurantWallet.loading')}</div>

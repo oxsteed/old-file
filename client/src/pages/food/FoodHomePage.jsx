@@ -647,6 +647,14 @@ export default function FoodHomePage() {
         <div><span className="rd-eyebrow">{t('food.home.redesign.forOwners')}</span><h2 id="restaurant-owner-title">{t('food.home.redesign.ownerTitle')}</h2><p>{t('food.home.redesign.ownerBody')}</p></div>
         <Link to="/restaurants/merchant" className="fd-btn">{t('food.home.redesign.ownerAction')}<ArrowUpRight size={18} aria-hidden="true" /></Link>
       </section>
+      <section className="rd-experience-links" aria-labelledby="rd-experience-links-title">
+        <div><span className="rd-eyebrow">{t('experienceGuides.availableKicker', { defaultValue: 'Available now' })}</span><h2 id="rd-experience-links-title">{t('experienceGuides.directoryTitle', { defaultValue: 'See how each part connects' })}</h2><p>{t('experienceGuides.directoryDescription', { defaultValue: 'Choose a product journey to see the current roles, actions, and next steps.' })}</p></div>
+        <div className="rd-experience-links__actions">
+          <Link to="/how-it-works/food" className="fd-btn fd-btn-secondary">{t('experienceGuides.areas.food.title', { defaultValue: 'Local Food Directory' })}<ArrowUpRight size={16} aria-hidden="true" /></Link>
+          <Link to="/how-it-works/credit" className="fd-btn fd-btn-secondary">{t('experienceGuides.areas.credit.title', { defaultValue: 'OxSteed Credit' })}<ArrowUpRight size={16} aria-hidden="true" /></Link>
+          <Link to="/how-it-works/restaurant-credit" className="fd-btn fd-btn-secondary">{t('experienceGuides.areas.restaurantCredit.title', { defaultValue: 'Restaurant Credit' })}<ArrowUpRight size={16} aria-hidden="true" /></Link>
+        </div>
+      </section>
     </div>
     </PageShell>
   );

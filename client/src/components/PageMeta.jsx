@@ -26,6 +26,7 @@ function getLocalizedPath(pathname) {
   const normalizedPath = pathname === '/' ? '/' : pathname.replace(/\/+$/, '') || '/';
   return normalizedPath === '/'
     || normalizedPath.startsWith('/help/')
+    || /^\/how-it-works\/[^/]+$/i.test(normalizedPath)
     || LOCALIZED_PATHS.has(normalizedPath)
     || /^\/(helpers\/public|businesses\/public|jobs\/public|restaurants\/r|tool-rentals|logistics\/campaigns)\/[^/]+$/i.test(normalizedPath);
 }

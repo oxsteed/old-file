@@ -170,6 +170,7 @@ const EnforcementPolicyPage = lazyWithRetry(() => import('./pages/EnforcementPol
 const HelperProfileEditPage = lazyWithRetry(() => import('./pages/HelperProfileEditPage'));
 const BusinessProfileEditPage = lazyWithRetry(() => import('./pages/BusinessProfileEditPage'));
 const FeatureGuidePage = lazyWithRetry(() => import('./pages/FeatureGuidePage'));
+const ExperienceGuidePage = lazyWithRetry(() => import('./pages/ExperienceGuidePage'));
 const LearnModePage = lazyWithRetry(() => import('./pages/LearnModePage'));
 const PromotePage = lazyWithRetry(() => import('./pages/PromotePage'));
 const DirectPortalPage = lazyWithRetry(() => import('./pages/DirectPortalPage'));
@@ -280,6 +281,7 @@ export default function App() {
                     <Route path="/forgot-password"         element={<Guarded><ForgotPasswordPage /></Guarded>} />
                     <Route path="/reset-password/:token"   element={<Guarded><ResetPasswordPage /></Guarded>} />
                     <Route path="/how-it-works"            element={<Guarded><FeatureGuidePage /></Guarded>} />
+                    <Route path="/how-it-works/:area"      element={<Guarded><ExperienceGuidePage /></Guarded>} />
                     <Route path="/features"                element={<Navigate to="/how-it-works" replace />} />
                     <Route path="/help/crew"               element={<Guarded><InventoryHelpCenterPage appKey="crew" /></Guarded>} />
                     <Route path="/help/display"            element={<Guarded><InventoryHelpCenterPage appKey="display" /></Guarded>} />

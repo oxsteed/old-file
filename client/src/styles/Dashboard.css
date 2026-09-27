@@ -195,6 +195,29 @@ html:not(.dark) .customer-launch-dashboard .customer-dashboard-quick-link svg {
   line-height: 1;
 }
 
+.dashboard-quick-links__badge,
+.customer-dashboard-quick-link__badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.05rem;
+  padding: 0 0.35rem;
+  border: 1px solid rgba(249, 115, 22, 0.35);
+  border-radius: 999px;
+  background: rgba(249, 115, 22, 0.12);
+  color: var(--color-primary, #fb923c);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+html:not(.dark) .customer-dashboard-quick-link__badge {
+  border-color: #fdba74;
+  background: #fff7ed;
+  color: #c2410c;
+}
+
 .dashboard-quick-links__link--history {
   background: #34d399;
   color: #0f172a;

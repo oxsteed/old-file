@@ -124,6 +124,7 @@ function amountPlaceholder(currency, metadata) {
 
 export default function OxsteedCreditPage() {
   const { t } = useTranslation('credit');
+  const { t: guideT } = useTranslation();
   const [account, setAccount] = useState(null);
   const [limitSummary, setLimitSummary] = useState(null);
   const [accounts, setAccounts] = useState([]);
@@ -522,6 +523,11 @@ export default function OxsteedCreditPage() {
               </button>
             </div>
           </header>
+          <nav className="credit-guide-links" aria-label={guideT('experienceGuides.relatedAria', { defaultValue: 'Related OxSteed experiences' })}>
+            <Link to="/how-it-works/credit">{guideT('experienceGuides.areas.credit.title', { defaultValue: 'OxSteed Credit' })}</Link>
+            <Link to="/how-it-works/restaurant-credit">{guideT('experienceGuides.areas.restaurantCredit.title', { defaultValue: 'Restaurant Credit' })}</Link>
+            <Link to="/how-it-works/food">{guideT('experienceGuides.areas.food.title', { defaultValue: 'Local Food Directory' })}</Link>
+          </nav>
 
           <section className="ox-credit-disclaimer" role="note">
             <ShieldCheck size={19} />
