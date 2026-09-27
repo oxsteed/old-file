@@ -13747,6 +13747,50 @@
     "responseTime": "Nou vize reponn a fidbak aksesibilite nan 2 jou travay."
   },
   "aboutPage": {
+    "experience": {
+      "metaDescription": "Dekouvri OxSteed: yon fason konekte pou kliyan, helpers ak biznis fè travay lokal la avanse.",
+      "eyebrow": "Fèt pou travay reyèl",
+      "title": "Travay lokal merite yon chemen ki pi klè.",
+      "intro": "OxSteed mete demann, moun, mesaj, tan ak swivi nan yon sèl kote pratik pou jwenn èd oswa fè travay ou grandi pi fasil.",
+      "primaryCta": "Gade kijan li mache",
+      "secondaryCta": "Antre nan OxSteed",
+      "visualAria": "Rezime travay konekte nan OxSteed",
+      "visualTitle": "Travay la rete konekte.",
+      "visualDetail": "Depi premye demann lan rive nan pwochen etap ki konfime a.",
+      "visualBadgeOne": "Tan ann amoni",
+      "visualBadgeTwo": "Kontèks konsève",
+      "pillarsKicker": "Poukisa OxSteed",
+      "pillarsTitle": "Yon pi bon lyen ant moun ak travay la.",
+      "pillars": {
+        "people": { "title": "Moun an premye", "body": "Kliyan, helpers ak ekip yo ka wè pwochen aksyon itil la san yo pa pèdi kontèks imen an." },
+        "clarity": { "title": "Klète olye dezòd", "body": "Demann, mesaj, orè ak estati rete toupre travay yo dekri a." },
+        "ownership": { "title": "Endepandans nan konsepsyon", "body": "Helpers ak biznis kenbe kontwòl travay yo pandan kliyan yo jwenn yon fason pi klè pou kowòdone." }
+      },
+      "journeyKicker": "Fason OxSteed la",
+      "journeyTitle": "Senp sou deyò. Konekte anndan.",
+      "journeyDescription": "Chak vwayaj kòmanse ak yon bezwen reyèl epi konsantre sou pwochen etap ki konfime a.",
+      "journey": {
+        "start": { "label": "Kòmanse", "title": "Mete bezwen an nan bon kote", "body": "Dekri yon travay, poze yon kesyon oswa louvri espas kote travay ou deja ye." },
+        "coordinate": { "label": "Kowòdone", "title": "Rasanble bon moun yo", "body": "Sèvi ak pwofil, mesaj ak tan ki disponib pou fè yon pi bon chwa." },
+        "followThrough": { "label": "Swiv", "title": "Kenbe angajman an vizib", "body": "Rezèvasyon, mizajou ak pwochen etap yo rete fasil pou jwenn." }
+      },
+      "offerKicker": "Disponib jodi a",
+      "offerTitle": "Kòmanse nan wòl ou genyen an.",
+      "offerDescription": "Eksperyans OxSteed la konsantre sou aksyon itil ki disponib kounye a, pa sou yon lis fonksyon k ap vini.",
+      "roles": {
+        "customer": { "title": "Pou kliyan", "body": "Pibliye yon travay, jwenn helpers epi jere rezèvasyon ak mesaj nan yon sèl koule konekte.", "cta": "Pibliye yon travay" },
+        "helper": { "title": "Pou helpers", "body": "Browse travay, kenbe prezans ou ajou, reponn klèman epi pwoteje tan pou travay ou aksepte.", "cta": "Browse travay" },
+        "business": { "title": "Pou biznis", "body": "Louvri Business Hub, kowòdone travay operasyon an epi kenbe kalandriye ak konvèsasyon toupre.", "cta": "Louvri Business Hub" }
+      },
+      "trustKicker": "Responsablite nou",
+      "trustTitle": "Teknoloji itil, limit ki klè.",
+      "trustBody": "OxSteed ede moun dekouvri, kowòdone epi suiv travay lokal. Nou fè platfòm nan pou rann relasyon an ak pwochen etap la pi klè, pa pou ranplase moun k ap fè travay la.",
+      "trustNote": "OxSteed pa anplwaye, voye oswa sipèvize helpers. Akò sèvis yo rete dirèkteman ant kliyan ak helpers.",
+      "contactKicker": "Rete konekte",
+      "contactTitle": "Kesyon oswa lide? Pote yo ban nou.",
+      "contactBody": "Nou ap bati OxSteed ak moun ki sèvi avè l. Voye kòmantè, kesyon patenarya oswa enkyetid sou aksè nenpòt lè.",
+      "legalNote": "OxSteed LLC · Anrejistre nan Ohio · Gade paj Kondisyon ak Konfidansyalite nou yo pou tout detay legal yo."
+    },
     "title": "Sou OxSteed",
     "sections": {
       "whoWeAre": "Ki n ap fè",

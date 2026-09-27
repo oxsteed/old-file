@@ -13748,6 +13748,50 @@
     "responseTime": "We aim to respond to accessibility feedback within 2 business days."
   },
   "aboutPage": {
+    "experience": {
+      "metaDescription": "Meet OxSteed: a connected way for customers, helpers, and businesses to move local work forward.",
+      "eyebrow": "Built for real work",
+      "title": "Local work deserves a clearer way forward.",
+      "intro": "OxSteed brings requests, people, messages, time, and follow-through into one practical place—so getting help or growing your work feels less scattered.",
+      "primaryCta": "See how it works",
+      "secondaryCta": "Join OxSteed",
+      "visualAria": "A connected OxSteed work overview",
+      "visualTitle": "The work stays connected.",
+      "visualDetail": "From the first request to the next confirmed step.",
+      "visualBadgeOne": "Time aligned",
+      "visualBadgeTwo": "Context kept",
+      "pillarsKicker": "Why OxSteed",
+      "pillarsTitle": "A better handoff between people and the work.",
+      "pillars": {
+        "people": { "title": "People first", "body": "Customers, helpers, and teams can see the next useful action without losing the human context." },
+        "clarity": { "title": "Clarity over clutter", "body": "Current requests, messages, schedules, and statuses stay close to the work they describe." },
+        "ownership": { "title": "Independent by design", "body": "Helpers and businesses keep ownership of their work while customers get a clearer way to coordinate." }
+      },
+      "journeyKicker": "The OxSteed approach",
+      "journeyTitle": "Simple on the surface. Connected underneath.",
+      "journeyDescription": "Every journey starts with a real need and stays focused on the next confirmed step.",
+      "journey": {
+        "start": { "label": "Start", "title": "Put the need somewhere useful", "body": "Describe a job, ask a question, or open the workspace where your work already lives." },
+        "coordinate": { "label": "Coordinate", "title": "Bring the right people together", "body": "Use profiles, messages, and available time to make a more informed choice." },
+        "followThrough": { "label": "Follow through", "title": "Keep the promise visible", "body": "Bookings, updates, and next steps remain easier to find as work moves forward." }
+      },
+      "offerKicker": "Available today",
+      "offerTitle": "Start from the role you have.",
+      "offerDescription": "The current OxSteed experience is focused on useful, available actions—not a long list of future features.",
+      "roles": {
+        "customer": { "title": "For customers", "body": "Post a job, find helpers, and manage bookings and messages in one connected flow.", "cta": "Post a job" },
+        "helper": { "title": "For helpers", "body": "Browse work, keep your presence current, respond clearly, and protect time for the work you accept.", "cta": "Browse jobs" },
+        "business": { "title": "For businesses", "body": "Open Business Hub, coordinate operational work, and keep calendar and conversations close.", "cta": "Open Business Hub" }
+      },
+      "trustKicker": "Our responsibility",
+      "trustTitle": "Useful technology, clear boundaries.",
+      "trustBody": "OxSteed helps people discover, coordinate, and keep track of local work. We design the platform to make the relationship and the next step clearer—not to replace the people doing the work.",
+      "trustNote": "OxSteed does not employ, dispatch, or supervise helpers. Service agreements remain between customers and helpers directly.",
+      "contactKicker": "Stay connected",
+      "contactTitle": "Questions or ideas? Bring them to us.",
+      "contactBody": "We are building OxSteed with the people who use it. Send feedback, partnership questions, or accessibility concerns anytime.",
+      "legalNote": "OxSteed LLC · Registered in Ohio · See our Terms and Privacy pages for the full legal details."
+    },
     "title": "About OxSteed",
     "sections": {
       "whoWeAre": "Who We Are",

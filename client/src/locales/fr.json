@@ -13747,6 +13747,50 @@
     "responseTime": "Nous visons une réponse dans les 2 jours ouvrables."
   },
   "aboutPage": {
+    "experience": {
+      "metaDescription": "Découvrez OxSteed : une façon connectée pour que clients, helpers et entreprises fassent avancer le travail local.",
+      "eyebrow": "Pensé pour le vrai travail",
+      "title": "Le travail local mérite une voie plus claire.",
+      "intro": "OxSteed réunit demandes, personnes, messages, temps et suivi au même endroit pour simplifier l’aide et le développement de votre activité.",
+      "primaryCta": "Voir comment ça marche",
+      "secondaryCta": "Rejoindre OxSteed",
+      "visualAria": "Vue connectée du travail dans OxSteed",
+      "visualTitle": "Le travail reste connecté.",
+      "visualDetail": "De la première demande à la prochaine étape confirmée.",
+      "visualBadgeOne": "Temps aligné",
+      "visualBadgeTwo": "Contexte conservé",
+      "pillarsKicker": "Pourquoi OxSteed",
+      "pillarsTitle": "Un meilleur lien entre les personnes et le travail.",
+      "pillars": {
+        "people": { "title": "Les personnes d’abord", "body": "Clients, helpers et équipes voient la prochaine action utile sans perdre le contexte humain." },
+        "clarity": { "title": "La clarté avant le bruit", "body": "Demandes, messages, horaires et statuts restent proches du travail qu’ils décrivent." },
+        "ownership": { "title": "L’indépendance par conception", "body": "Helpers et entreprises gardent la maîtrise de leur travail, tandis que les clients coordonnent plus clairement." }
+      },
+      "journeyKicker": "L’approche OxSteed",
+      "journeyTitle": "Simple en surface. Connecté en profondeur.",
+      "journeyDescription": "Chaque parcours commence par un besoin réel et reste centré sur la prochaine étape confirmée.",
+      "journey": {
+        "start": { "label": "Commencer", "title": "Mettre le besoin au bon endroit", "body": "Décrivez un travail, posez une question ou ouvrez l’espace où votre travail existe déjà." },
+        "coordinate": { "label": "Coordonner", "title": "Réunir les bonnes personnes", "body": "Utilisez profils, messages et temps disponible pour faire un choix éclairé." },
+        "followThrough": { "label": "Suivre", "title": "Garder l’engagement visible", "body": "Réservations, mises à jour et prochaines étapes restent faciles à retrouver." }
+      },
+      "offerKicker": "Disponible aujourd’hui",
+      "offerTitle": "Commencez avec votre rôle.",
+      "offerDescription": "L’expérience actuelle d’OxSteed privilégie les actions utiles et disponibles, pas une longue liste de fonctions futures.",
+      "roles": {
+        "customer": { "title": "Pour les clients", "body": "Publiez un travail, trouvez des helpers et gérez réservations et messages dans un même parcours.", "cta": "Publier un travail" },
+        "helper": { "title": "Pour les helpers", "body": "Parcourez les missions, gardez votre présence à jour, répondez clairement et protégez votre temps.", "cta": "Parcourir les missions" },
+        "business": { "title": "Pour les entreprises", "body": "Ouvrez Business Hub, coordonnez le travail opérationnel et gardez calendrier et échanges proches.", "cta": "Ouvrir Business Hub" }
+      },
+      "trustKicker": "Notre responsabilité",
+      "trustTitle": "Une technologie utile, des limites claires.",
+      "trustBody": "OxSteed aide à découvrir, coordonner et suivre le travail local. La plateforme clarifie la relation et la prochaine étape sans remplacer les personnes qui font le travail.",
+      "trustNote": "OxSteed n’emploie, ne mandate et ne supervise pas les helpers. Les accords de service restent directement entre clients et helpers.",
+      "contactKicker": "Restez connecté",
+      "contactTitle": "Questions ou idées ? Parlons-en.",
+      "contactBody": "Nous construisons OxSteed avec les personnes qui l’utilisent. Envoyez-nous vos retours, questions de partenariat ou préoccupations d’accessibilité.",
+      "legalNote": "OxSteed LLC · Enregistrée dans l’Ohio · Consultez nos pages Conditions et Confidentialité pour les détails juridiques."
+    },
     "title": "À propos d'OxSteed",
     "sections": {
       "whoWeAre": "Qui nous sommes",

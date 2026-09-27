@@ -1,0 +1,115 @@
+.about-page {
+  --about-ink: var(--app-text, #172033);
+  --about-muted: var(--muted-text, #667085);
+  --about-surface: var(--card-bg, #fff);
+  --about-border: var(--border-color, rgba(15, 23, 42, .12));
+  --about-accent: var(--color-primary, #f97316);
+  --about-soft: color-mix(in srgb, var(--about-accent) 12%, transparent);
+  color: var(--about-ink);
+  overflow: hidden;
+  background: radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--about-accent) 9%, transparent), transparent 31rem), var(--app-bg, #f8fafc);
+}
+
+.about-hero, .about-pillars, .about-journey, .about-roles, .about-trust, .about-contact { width: min(1160px, calc(100% - 40px)); margin-inline: auto; }
+.about-hero { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, .82fr); gap: clamp(2.5rem, 8vw, 8rem); align-items: center; min-height: 630px; padding-block: clamp(4rem, 9vw, 7.5rem); }
+.about-hero__content, .about-hero__visual { position: relative; z-index: 1; }
+.about-eyebrow { display: inline-flex; align-items: center; gap: .45rem; margin: 0 0 .85rem; color: var(--about-accent); font-size: .75rem; font-weight: 850; letter-spacing: .12em; line-height: 1.35; text-transform: uppercase; }
+.about-hero h1 { max-width: 740px; margin: 0; font-size: clamp(2.7rem, 6.2vw, 5.4rem); font-weight: 850; letter-spacing: -.07em; line-height: .98; }
+.about-hero__intro { max-width: 650px; margin: 1.6rem 0 0; color: var(--about-muted); font-size: clamp(1.05rem, 2vw, 1.3rem); line-height: 1.7; }
+.about-actions { display: flex; flex-wrap: wrap; gap: .8rem; margin-top: 2rem; }
+.about-button { display: inline-flex; align-items: center; justify-content: center; gap: .55rem; min-height: 2.9rem; padding: .75rem 1.1rem; border: 1px solid transparent; border-radius: .75rem; font-size: .92rem; font-weight: 800; text-decoration: none; transition: transform .2s ease, box-shadow .2s ease; }
+.about-button:hover { transform: translateY(-2px); }
+.about-button--primary { background: var(--about-accent); color: #fff; box-shadow: 0 .7rem 1.6rem color-mix(in srgb, var(--about-accent) 28%, transparent); }
+.about-button--secondary { border-color: var(--about-border); background: var(--about-surface); color: var(--about-ink); }
+
+.about-hero__visual { min-height: 430px; display: grid; place-items: center; isolation: isolate; }
+.about-orbit { position: absolute; border: 1px solid color-mix(in srgb, var(--about-accent) 30%, transparent); border-radius: 50%; transform: rotate(-18deg); }
+.about-orbit--outer { width: 390px; height: 265px; }
+.about-orbit--inner { width: 295px; height: 210px; border-style: dashed; opacity: .65; transform: rotate(35deg); }
+.about-visual-card { border: 1px solid var(--about-border); background: color-mix(in srgb, var(--about-surface) 92%, transparent); box-shadow: 1rem 1.5rem 3rem rgba(15, 23, 42, .12); }
+.about-visual-card--main { position: relative; z-index: 2; display: grid; gap: .85rem; width: min(100%, 360px); min-height: 285px; padding: 1.35rem; border-radius: 1.35rem; transform: rotate(3deg); transition: transform .45s ease; }
+.about-visual-card--main:hover { transform: rotate(0) translateY(-5px); }
+.about-visual-card__top { display: flex; align-items: center; gap: .55rem; color: var(--about-muted); font-size: .8rem; font-weight: 800; }
+.about-visual-card__logo { display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: .6rem; background: var(--about-accent); color: #fff; font-size: 1rem; }
+.about-live-dot { width: .5rem; height: .5rem; margin-inline-start: auto; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 .25rem rgba(34, 197, 94, .14); }
+.about-visual-card--main strong { max-width: 285px; font-size: clamp(1.55rem, 4vw, 2.25rem); letter-spacing: -.055em; line-height: 1.05; }
+.about-visual-card--main > span:not(.about-visual-card__top) { color: var(--about-muted); line-height: 1.55; }
+.about-visual-flow { display: grid; gap: .55rem; margin-top: auto; }
+.about-visual-flow i { display: block; height: .55rem; border-radius: 999px; background: color-mix(in srgb, var(--about-accent) 28%, transparent); }
+.about-visual-flow i:nth-child(2) { width: 78%; background: color-mix(in srgb, var(--about-ink) 12%, transparent); }
+.about-visual-flow i:nth-child(3) { width: 55%; background: color-mix(in srgb, var(--about-ink) 12%, transparent); }
+.about-visual-card--small { position: absolute; z-index: 3; display: inline-flex; align-items: center; gap: .45rem; padding: .7rem .85rem; border-radius: .8rem; color: var(--about-ink); font-size: .75rem; font-weight: 800; }
+.about-visual-card--one { inset: 15% auto auto 1%; transform: rotate(-8deg); }
+.about-visual-card--two { inset: auto 0 16%; transform: rotate(7deg); }
+
+.about-pillars, .about-journey, .about-roles { padding-block: clamp(3.5rem, 7vw, 6rem); }
+.about-section-heading { margin-bottom: 2rem; }
+.about-section-heading h2, .about-trust h2, .about-contact h2 { margin: 0; font-size: clamp(1.9rem, 4vw, 3.2rem); letter-spacing: -.055em; line-height: 1.05; }
+.about-pillar-grid, .about-role-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .85rem; }
+.about-pillar { padding: 1.35rem; border: 1px solid var(--about-border); border-radius: 1rem; background: var(--about-surface); }
+.about-pillar__icon, .about-role-card__icon { display: grid; place-items: center; width: 2.6rem; height: 2.6rem; border-radius: .75rem; background: var(--about-soft); color: var(--about-accent); }
+.about-pillar h3, .about-role-card h3, .about-journey-card h3 { margin: 1.25rem 0 .55rem; font-size: 1.18rem; letter-spacing: -.025em; }
+.about-pillar p, .about-role-card p, .about-journey-card > p:last-child, .about-section-heading > p, .about-trust p, .about-contact p { margin: 0; color: var(--about-muted); line-height: 1.65; }
+
+.about-journey { border-top: 1px solid var(--about-border); }
+.about-section-heading--journey { display: flex; align-items: end; justify-content: space-between; gap: 2rem; }
+.about-section-heading--journey > p { max-width: 420px; }
+.about-journey-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .85rem; }
+.about-journey-card { position: relative; min-height: 240px; padding: 1.35rem; overflow: hidden; border: 1px solid var(--about-border); border-radius: 1rem; background: linear-gradient(145deg, color-mix(in srgb, var(--about-accent) 7%, var(--about-surface)), var(--about-surface)); }
+.about-journey-card__number { position: absolute; inset: .8rem 1rem auto auto; color: color-mix(in srgb, var(--about-accent) 32%, transparent); font-size: 2.5rem; font-weight: 900; letter-spacing: -.08em; }
+.about-journey-card__icon { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: .7rem; background: var(--about-accent); color: #fff; }
+.about-journey-card .about-eyebrow { margin-top: 1.4rem; margin-bottom: .35rem; font-size: .68rem; }
+.about-journey-card h3 { margin-top: 0; }
+
+.about-roles { border-top: 1px solid var(--about-border); }
+.about-roles > .about-section-heading { display: flex; align-items: end; justify-content: space-between; gap: 2rem; }
+.about-roles > .about-section-heading > p { max-width: 420px; }
+.about-role-card { display: flex; flex-direction: column; min-height: 245px; padding: 1.3rem; border: 1px solid var(--about-border); border-radius: 1rem; background: var(--about-surface); color: var(--about-ink); text-decoration: none; transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease; }
+.about-role-card:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--about-accent) 65%, var(--about-border)); box-shadow: 0 1rem 2.3rem rgba(15, 23, 42, .08); }
+.about-role-card__link { display: inline-flex; align-items: center; gap: .4rem; margin-top: auto; color: var(--about-accent); font-size: .82rem; font-weight: 850; }
+
+.about-trust { display: grid; grid-template-columns: auto 1fr; gap: 1.25rem; align-items: start; margin-bottom: 2.5rem; padding: clamp(1.4rem, 4vw, 2.6rem); border-radius: 1.35rem; background: linear-gradient(135deg, color-mix(in srgb, var(--about-accent) 14%, var(--about-surface)), var(--about-surface)); }
+.about-trust__icon { display: grid; place-items: center; width: 3.1rem; height: 3.1rem; border-radius: .9rem; background: var(--about-accent); color: #fff; }
+.about-trust h2 { font-size: clamp(1.65rem, 3.5vw, 2.55rem); }
+.about-trust p { max-width: 720px; margin-top: .75rem; }
+.about-trust__note { padding-top: .85rem; border-top: 1px solid var(--about-border); font-size: .9rem; }
+
+.about-contact { display: flex; align-items: center; justify-content: space-between; gap: 2rem; margin-bottom: 5rem; padding: clamp(1.5rem, 4vw, 2.7rem); border: 1px solid var(--about-border); border-radius: 1.35rem; background: var(--about-surface); }
+.about-contact > div:first-child { max-width: 620px; }
+.about-contact p { margin-top: .75rem; }
+.about-contact__links { display: grid; gap: .65rem; min-width: 220px; }
+.about-contact__links a { display: inline-flex; align-items: center; gap: .5rem; color: var(--about-accent); font-size: .88rem; font-weight: 800; text-decoration: none; }
+.about-contact__links a:hover { text-decoration: underline; }
+.about-contact__links span { color: var(--about-muted); font-size: .76rem; line-height: 1.45; }
+
+.about-button:focus-visible, .about-role-card:focus-visible, .about-contact a:focus-visible { outline: 3px solid color-mix(in srgb, var(--about-accent) 65%, #fff); outline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .about-page *, .about-page *::before, .about-page *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  .about-visual-card--main { transform: none; }
+}
+
+@media (max-width: 850px) {
+  .about-hero { grid-template-columns: 1fr; min-height: auto; }
+  .about-hero__visual { min-height: 360px; }
+  .about-pillar-grid, .about-journey-grid, .about-role-grid { grid-template-columns: 1fr; }
+  .about-pillar, .about-journey-card, .about-role-card { min-height: auto; }
+  .about-section-heading--journey, .about-roles > .about-section-heading, .about-contact { align-items: start; flex-direction: column; }
+  .about-contact__links { width: 100%; }
+}
+
+@media (max-width: 600px) {
+  .about-hero, .about-pillars, .about-journey, .about-roles, .about-trust, .about-contact { width: min(100% - 28px, 1160px); }
+  .about-hero { padding-block: 3.2rem 4rem; }
+  .about-hero h1 { font-size: clamp(2.5rem, 14vw, 4rem); }
+  .about-orbit--outer { width: 310px; height: 230px; }
+  .about-orbit--inner { width: 235px; height: 180px; }
+  .about-visual-card--one { inset-inline-start: 0; }
+  .about-visual-card--two { inset-inline-end: 0; }
+  .about-trust { grid-template-columns: 1fr; }
+}
+
+[dir="rtl"] .about-role-card__link svg, [dir="rtl"] .about-button svg, [dir="rtl"] .about-contact__links a svg { transform: rotate(180deg); }
+
+[data-theme="dark"] .about-page, .dark .about-page { --about-border: rgba(148, 163, 184, .2); --about-surface: color-mix(in srgb, var(--card-bg, #111827) 94%, transparent); background: radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--about-accent) 13%, transparent), transparent 31rem), var(--app-bg, #0b1120); }
+
