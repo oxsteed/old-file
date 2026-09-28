@@ -1,1129 +1,1129 @@
 {
   "sections": {
-  "1": {
-  "search": "1 what oxsteed is not customers helpers directory cda 230",
-  "blocks": [
-  {
-  "type": "h2",
-  "text": "1. What OxSteed Is - And Is Not"
-  },
-  {
-  "type": "p",
-  "text": "OxSteed LLC (\"OxSteed,\" \"we,\" \"us,\" or \"our\") operates an online introduction platform that connects individuals seeking local assistance (\"Customers\") with independent individuals who offer their skills and labor (\"Helpers\"). OxSteed is a neutral third-party platform that provide a directory service. OxSteed is not an employer, a staffing agency, or a general contractor."
-  },
-  {
-  "type": "p",
-  "text": "OxSteed does not employ Helpers, does not control how Helpers perform their work, does not set the prices Helpers charge, and does not dispatch Helpers to any job. All agreements for services are made directly between Customers and Helpers."
-  },
-  {
-  "type": "p",
-  "text": "OxSteed is a platform, not a party to any service agreement between a Customer and a Helper. By using OxSteed, you acknowledge and agree that OxSteed has no control over, and bears no responsibility for, the quality, safety, legality, or outcome of any service performed."
-  },
-  {
-  "type": "note",
-  "variant": "yellow",
-  "strong": "Important:",
-  "text": " OxSteed operates under the Communications Decency Act, 47 U.S.C. § 230. OxSteed is not the publisher or speaker of any content created by its users and is immune from liability for such content to the extent provided by federal law."
-  }
-  ]
-  },
-  "2": {
-  "search": "2 eligibility 18 account united states",
-  "blocks": [
-  {
-  "type": "h2",
-  "text": "2. Eligibility"
-  },
-  {
-  "type": "p",
-  "text": "You must be at least 18 years old to create an account or use OxSteed. By creating an account, you represent and warrant that:"
-  },
-  {
-  "type": "ul",
-  "items": [
-  [
-  "You are at least 18 years of age;"
-  ],
-  [
-  "You have the legal capacity to enter into a binding agreement;"
-  ],
-  [
-  "You are not prohibited by law from using the platform;"
-  ],
-  [
-  "All information you provide during registration is accurate, current, and complete;"
-  ],
-  [
-  "You will maintain the accuracy of your account information."
-  ]
-  ]
-  },
-  {
-  "type": "p",
-  "text": "OxSteed reserves the right to request proof of age or identity at any time. Accounts created by anyone under 18 will be immediately terminated."
-  },
-  {
-  "type": "note",
-  "variant": "yellow",
-  "strong": "Important:",
-  "text": " OxSteed is currently available within the United States."
-  }
-  ]
-  },
-  "3": {
-  "search": "3 platform tiers tier 1 tier 2 stripe pro subscription",
-  "blocks": [
-  {
-  "type": "h2",
-  "text": "3. Platform Tiers and Services"
-  },
-  {
-  "type": "p",
-  "text": "OxSteed operates 2 distinct service tiers. Each tier has different features, fees, and legal implications."
-  },
-  {
-  "type": "tier",
-  "title": "Tier 1 - Free Directory Listing",
-  "paragraphs": [
-  {
-  "segments": [
-  "Helpers may create a free profile. Customers may browse profiles and post job listings. OxSteed facilitates introductions only. ",
-  {
-  "strong": "No money passes through OxSteed."
-  },
-  " Customers and Helpers transact entirely outside the platform. OxSteed holds zero liability for any transaction, outcome, injury, or dispute arising from Tier 1 connections."
-  ]
-  }
-  ]
-  },
-  {
-  "type": "tier",
-  "title": "Tier 2 - Verified Subscription (Pro, $14.99/month)",
-  "paragraphs": [
-  "Helpers who subscribe to Tier 2 gain access to: priority placement in search results, a verified pro-member badge, optional background check certification, bid submission on posted jobs, and push notification alerts for matching jobs.",
-  "Tier 2 subscriptions are billed monthly through Stripe and renew automatically until cancelled. At this tier, customer-to-helper payments normally occur directly between the parties, and OxSteed does not route or control those funds.",
-  "If both parties choose to use our optional payment service, OxSteed uses Stripe Connect to place a temporary authorization or charge on the customer's payment method and to coordinate release of funds to the helper, who remains the merchant of record. Both the customer and the helper must confirm that the job is complete before funds are released, and OxSteed will process that release within 12 hours of confirmation, deducting a 7.1% platform fee from the job amount plus the helpers pay the stripe payment processing fees.",
-  "Paying via does not make OxSteed a party to the service agreement. OxSteed acts solely as a payment intermediary and a neutral agent. Stripe, Inc. processes all payments as a licensed money transmitter."
-  ]
-  }
-  ]
-  },
-  "4": {
-  "search": "4 tool rental addendum owner renter damage safety",
-  "blocks": [
-  {
-  "type": "h2",
-  "text": "4. Tool Rental Addendum"
-  },
-  {
-  "type": "p",
-  "text": "OxSteed allows Helpers to list tools and equipment for rent through the platform. The following additional terms apply to all tool rental transactions:"
-  },
-  {
-  "type": "p",
-  "segments": [
-  {
-  "strong": "Tool Owner Responsibilities."
-  },
-  " Helpers who list tools for rent represent and warrant that: (a) they are the legal owner of the tool or have authorization to rent it; (b) the tool is in safe, working condition; (c) the listing accurately describes the tool's condition, capabilities, and any known defects; and (d) they maintain any required insurance for the equipment."
-  ]
-  },
-  {
-  "type": "p",
-  "segments": [
-  {
-  "strong": "Renter Responsibilities."
-  },
-  " Customers who rent tools agree to: (a) use the tool only for its intended purpose; (b) return the tool in the same condition as received, normal wear and tear excepted; (c) not sublease, lend, or transfer the tool to any third party; (d) immediately notify the tool owner and OxSteed of any damage, malfunction, or loss; and (e) assume full liability for damage to or loss of the tool while in their possession."
-  ]
-  },
-  {
-  "type": "p",
-  "segments": [
-  {
-  "strong": "Damage and Loss."
-  },
-  " The renter is financially responsible for the full replacement value of any tool that is lost, stolen, or damaged beyond normal wear and tear while in the renter's possession. Disputes over tool condition will follow the dispute resolution process in Section 16."
-  ]
-  },
-  {
-  "type": "p",
-  "segments": [
-  {
-  "strong": "OxSteed's Role."
-  },
-  " OxSteed does not inspect, certify, or guarantee the condition, safety, or fitness of any tool listed on the platform. OxSteed is not liable for any injury, property damage, or loss arising from the use of rented tools. Tool rental transactions between users are governed by the same tier structure described in Section 3."
-  ]
-  },
-  {
-  "type": "note",
-  "variant": "red",
-  "strong": "Safety Warning:",
-  "text": " Always inspect any rented tool before use. Do not use any tool that appears damaged, modified, or unsafe. OxSteed is not responsible for injuries caused by defective or improperly maintained equipment."
-  }
-  ]
-  },
-  "5": {
-  "search": "5 user roles customer helper independent contractor",
-  "blocks": [
-  {
-  "type": "h2",
-  "text": "5. User Roles and Definitions"
-  },
-  {
-  "type": "ul",
-  "className": "space-y-3",
-  "items": [
-  [
-  {
-  "strong": "Customer:"
-  },
-  " Any individual or entity that creates an OxSteed account for the purpose of posting job listings or contacting Helpers to arrange services."
-  ],
-  [
-  {
-  "strong": "Helper (Tier 1 - Free):"
-  },
-  " An independent individual who creates a free OxSteed profile to advertise their skills and availability. Helpers are not employees, agents, or contractors of OxSteed."
-  ],
-  [
-  {
-  "strong": "Helper (Tier 2 - Pro Subscriber):"
-  },
-  " A Helper who maintains an active Pro subscription, has completed identity and optional background verification, and may submit bids on posted jobs."
-  ],
-  [
-  {
-  "strong": "Independent Contractor Status:"
-  },
-  " All Helpers, regardless of tier, are independent contractors. OxSteed does not set their work hours, require minimum availability, control their methods or tools, provide equipment, mandate specific rates, or guarantee any volume of work."
-  ]
-  ]
-  }
-  ]
-  },
-  "6": {
-  "search": "6 fees payment subscription w-9 1099 refunds dispute 16",
-  "blocks": [
-  {
-  "type": "h2",
-  "text": "6. Fees and Payment Terms"
-  },
-  {
-  "type": "p",
-  "segments": [
-  {
-  "strong": "Subscription Fees."
-  },
-  " Tier 2 (Pro) is billed monthly. Subscription fees are non-refundable except as required by applicable law. You may cancel at any time through your account dashboard."
-  ]
-  },
-  {
-  "type": "p",
-  "segments": [
-  {
-  "strong": "Tax Compliance."
-  },
-  " Helpers earning $600 or more through the platform in a calendar year are required to provide a completed IRS Form W-9. OxSteed will issue IRS Form 1099-NEC to qualifying Helpers as required by law."
-  ]
-  },
-  {
-  "type": "p",
-  "segments": [
-  {
-  "strong": "Refunds ."
-  },
-  " Disputed funds held will be released according to the dispute resolution process described in Section 16."
-  ]
-  }
-  ]
-  },
-  "7": {
-  "search": "7 background check fcra checkr adverse action badge verified",
-  "blocks": [
-  {
-  "type": "h2",
-  "text": "Background Checks, Verification, and FCRA Compliance"
-  },
-  {
-  "type": "h2",
-  "text": "7.1 Optional Background Screening",
-  "sub": true
-  },
-  {
-  "type": "p",
-  "segments": [
-  "Tier 2 Helpers may elect to complete a background check through ",
-  {
-  "strong": "Checkr, Inc."
-  },
-  ", OxSteed's third-party consumer reporting agency. Background checks are entirely voluntary. Completion of a background check does not guarantee employment, job awards, or continued platform access."
-  ]
-  },
-  {
-  "type": "h2",
-  "text": "7.2 Fair Credit Reporting Act (FCRA) Disclosure",
-  "sub": true
-  },
-  {
-  "type": "p",
-  "text": "OxSteed complies with the Fair Credit Reporting Act, 15 U.S.C. § 1681 et seq. (\"FCRA\"). Before initiating a background check, OxSteed will provide you with:"
-  },
-  {
-  "type": "ul",
-  "items": [
-  [
-  "A ",
-  {
-  "strong": "standalone written FCRA disclosure"
-  },
-  " informing you that a consumer report may be obtained for platform access purposes; and"
-  ],
-  [
-  "A request for your ",
-  {
-  "strong": "written authorization"
-  },
-  " to obtain the report."
-  ]
-  ]
-  },
-  {
-  "type": "p",
-  "text": "You must affirmatively consent before any background check is initiated. Your consent is separate from acceptance of these Terms."
-  },
-  {
-  "type": "h2",
-  "text": "7.3 Adverse Action Procedure",
-  "sub": true
-  },
-  {
-  "type": "p",
-  "text": "If OxSteed takes an adverse action based in whole or in part on information in a consumer report - for example, denying or revoking your verified badge - OxSteed will:"
-  },
-  {
-  "type": "ol",
-  "items": [
-  [
-  "Provide you with a ",
-  {
-  "strong": "pre-adverse action notice"
-  },
-  " and a copy of the consumer report and a summary of your FCRA rights before the action is finalized;"
-  ],
-  [
-  "Allow you a reasonable period (typically 5 business days) to dispute any inaccuracies directly with Checkr;"
-  ],
-  [
-  "Provide a final ",
-  {
-  "strong": "adverse action notice"
-  },
-  " if the decision is upheld, including contact information for Checkr and information on your right to obtain a free copy of the report."
-  ]
-  ]
-  },
-  {
-  "type": "h2",
-  "text": "7.4 Accuracy Disclaimer",
-  "sub": true
-  },
-  {
-  "type": "p",
-  "segments": [
-  "Background check results are provided solely by ",
-  {
-  "strong": "Checkr, Inc."
-  },
-  ", which is subject to its own Terms of Service and Privacy Policy. ",
-  {
-  "strong": "OxSteed makes no representation or warranty that any background check result is complete, accurate, or current."
-  },
-  " OxSteed is not responsible for errors or omissions in Checkr's reports. Customers are solely responsible for conducting their own independent due diligence before engaging any Helper, regardless of badge status."
-  ]
-  },
-  {
-  "type": "h2",
-  "text": "7.5 Background check Expiration and Renewal",
-  "sub": true
-  },
-  {
-  "type": "p",
-  "text": "Background check badges expire 12 months after the date of the underlying report and must be renewed to maintain verified status. OxSteed will notify you at least 30 days before your badge expires."
-  },
-  {
-  "type": "ul",
-  "items": [
-  [
-  "A backgroung check doesn't constitute OxSteed's endorsement of any Helper's skills, quality of work, or character;"
-  ],
-  [
-  "A backgroung check doesn't guarantee that a Helper holds any required professional license or insurance;"
-  ],
-  [
-  "A backgroung check doesn't reflect criminal activity, license changes, or other events occurring after the check date;"
-  ],
-  [
-  "A backgroung check doesn't create any warranty or guarantee by OxSteed regarding the Helper's fitness for any particular job."
-  ]
-  ]
-  },
-  {
-  "type": "p",
-  "segments": [
-  {
-  "strong": "Do not rely solely on the verified badge when hiring a Helper."
-  },
-  " Always independently verify licenses, insurance, and references for any regulated trade or high-value job."
-  ]
-  }
-  ]
-  },
-  "8": {
-  "search": "8 independent contractor employment taxes insurance",
-  "blocks": [
-  {
-  "type": "h2",
-  "text": "8. Independent Contractor Status"
-  },
-  {
-  "type": "p",
-  "text": "Nothing in these Terms creates an employment relationship, partnership, joint venture, agency, franchise, or employer-employee relationship between OxSteed and any Helper."
-  },
-  {
-  "type": "p",
-  "text": "Helpers expressly acknowledge that:"
-  },
-  {
-  "type": "ul",
-  "items": [
-  [
-  "They are operating an independent business"
-  ],
-  [
-  "They are solely responsible for all federal, state, and local taxes on income earned through the platform"
-  ],
-  [
-  "They must carry any insurance required by law for their services"
-  ],
-  [
-  "They are solely responsible for obtaining any licenses or permits required by law"
-  ],
-  [
-  "OxSteed does not provide workers' compensation, unemployment insurance, health benefits, or any other employment benefits"
-  ],
-  [
-  "They may work for any other platform, client, or employer at any time without restriction"
-  ]
-  ]
-  }
-  ]
-  },
-  "9": {
-  "search": "9 intellectual property dmca copyright trademark legal@oxsteed.com",
-  "blocks": [
-  {
-  "type": "h2",
-  "text": "9. Intellectual Property and DMCA"
-  },
-  {
-  "type": "p",
-  "segments": [
-  {
-  "strong": "OxSteed Content."
-  },
-  " All content, design, logos, trademarks, code, and materials on the OxSteed platform (\"OxSteed Content\") are owned by or licensed to OxSteed LLC and are protected by U.S. and international copyright, trademark, and other intellectual property laws. You may not copy, reproduce, distribute, modify, create derivative works of, publicly display, or otherwise exploit any OxSteed Content without prior written consent from OxSteed."
-  ]
-  },
-  {
-  "type": "p",
-  "segments": [
-  {
-  "strong": "User Content License."
-  },
-  " By posting content on OxSteed (including but not limited to profile information, photos, reviews, job descriptions, and messages), you grant OxSteed a non-exclusive, worldwide, royalty-free, transferable, sublicensable license to use, display, reproduce, and distribute your content solely in connection with operating and promoting the platform. You retain ownership of your content. This license terminates when you delete your content or your account, except for content that has been shared with other users or that OxSteed is required to retain for legal or compliance purposes."
-  ]
-  },
-  {
-  "type": "p",
-  "segments": [
-  {
-  "strong": "DMCA Notice and Takedown."
-  },
-  " OxSteed respects intellectual property rights and complies with the Digital Millennium Copyright Act (\"DMCA\"), 17 U.S.C. § 512. If you believe that content on OxSteed infringes your copyright, you may submit a DMCA takedown notice to our designated agent:"
-  ]
-  },
-  {
-  "type": "dmcaBox",
-  "title": "DMCA Designated Agent:",
-  "lines": [
-  "OxSteed LLC",
-  "Attn: DMCA Agent",
-  "Springfield, Ohio"
-  ],
-  "email": "legal@oxsteed.com"
-  },
-  {
-  "type": "p",
-  "text": "Your DMCA notice must include: (1) identification of the copyrighted work; (2) identification of the infringing material and its location on the platform; (3) your contact information; (4) a statement of good faith belief that the use is not authorized; (5) a statement under penalty of perjury that the information is accurate and you are the copyright owner or authorized agent; and (6) your physical or electronic signature."
-  },
-  {
-  "type": "p",
-  "segments": [
-  {
-  "strong": "Counter-Notice."
-  },
-  " If you believe your content was removed in error, you may submit a counter-notice containing: (1) identification of the removed material; (2) a statement under penalty of perjury that the removal was a mistake; (3) your name, address, and phone number; (4) consent to jurisdiction of the federal court in your district; and (5) your physical or electronic signature."
-  ]
-  },
-  {
-  "type": "note",
-  "variant": "red",
-  "strong": "Warning:",
-  "text": " Submitting a false DMCA notice or counter-notice may result in legal liability under 17 U.S.C. § 512(f), including damages and attorney's fees."
-  }
-  ]
-  },
-  "10": {
-  "search": "10 termination suspension deactivate appeal escrow legal",
-  "blocks": [
-  {
-  "type": "h2",
-  "text": "10. Termination and Suspension"
-  },
-  {
-  "type": "p",
-  "segments": [
-  {
-  "strong": "By OxSteed."
-  },
-  " OxSteed may suspend or terminate your account at any time, with or without cause, and with or without notice. Grounds for termination include, but are not limited to: violation of these Terms, fraudulent or illegal activity, non-payment of fees, receiving multiple complaints from other users, or any conduct that OxSteed determines is harmful to the platform, other users, or third parties."
-  ]
-  },
-  {
-  "type": "p",
-  "segments": [
-  {
-  "strong": "By You."
-  },
-  " You may deactivate your account at any time through your account settings. Deactivation does not release you from any obligations incurred prior to deactivation, including pending Tier 3 escrow transactions or outstanding fees."
-  ]
-  },
-  {
-  "type": "p",
-  "segments": [
-  {
-  "strong": "Effect of Termination."
-  },
-  " Upon termination:"
-  ]
-  },
-  {
-  "type": "ul",
-  "items": [
-  [
-  "Your right to access and use OxSteed ceases immediately;"
-  ],
-  [
-  "Any pending held funds will be handled according to the dispute resolution process in Section 16;"
-  ],
-  [
-  "OxSteed may retain your data as required by law or for legitimate business purposes (e.g., tax records, dispute evidence);"
-  ],
-  [
-  "Provisions that by their nature should survive termination will survive, including Sections 8, 9, 11, 12, 13, 16, and 20."
-  ]
-  ]
-  },
-  {
-  "type": "p",
-  "segments": [
-  {
-  "strong": "Appeal."
-  },
-  " If your account is suspended or terminated, you may appeal by contacting ",
-  {
-  "mailto": "legal@oxsteed.com"
-  },
-  " within 30 days. OxSteed will review your appeal and respond within 10 business days. OxSteed's decision on appeal is final."
-  ]
-  }
-  ]
-  },
-  "11": {
-  "search": "11 disclaimer warranties as is available merchantability",
-  "blocks": [
-  {
-  "type": "h2",
-  "text": "11. Disclaimer of Warranties"
-  },
-  {
-  "type": "p",
-  "uppercase": true,
-  "text": "THE OXSTEED PLATFORM, INCLUDING ALL CONTENT, FEATURES, AND SERVICES, IS PROVIDED ON AN \"AS IS\" AND \"AS AVAILABLE\" BASIS WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED. TO THE FULLEST EXTENT PERMITTED BY LAW, OXSTEED DISCLAIMS ALL WARRANTIES, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, AND TITLE."
-  },
-  {
-  "type": "p",
-  "text": "Without limiting the foregoing, OxSteed does not warrant that:"
-  },
-  {
-  "type": "ul",
-  "items": [
-  [
-  "The platform will be uninterrupted, timely, secure, or error-free;"
-  ],
-  [
-  "The results obtained from the platform will be accurate or reliable;"
-  ],
-  [
-  "Any Helper or Customer will perform their obligations;"
-  ],
-  [
-  "Any content on the platform is accurate, complete, or current;"
-  ],
-  [
-  "The platform will meet your specific requirements or expectations."
-  ]
-  ]
-  },
-  {
-  "type": "p",
-  "text": "You use the platform at your own risk. No advice or information, whether oral or written, obtained from OxSteed or through the platform creates any warranty not expressly stated in these Terms."
-  }
-  ]
-  },
-  "12": {
-  "search": "12 liability insurance limitation damages ohio 4113",
-  "blocks": [
-  {
-  "type": "h2",
-  "text": "12. Liability Limitations and Insurance"
-  },
-  {
-  "type": "p",
-  "segments": [
-  {
-  "strong": "No Insurance Provided."
-  },
-  " OxSteed does not provide any insurance coverage for any Helper, Customer, or third party."
-  ]
-  },
-  {
-  "type": "p",
-  "segments": [
-  {
-  "strong": "Limitation of Liability."
-  },
-  " TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, OXSTEED'S TOTAL LIABILITY FOR ANY CLAIM ARISING FROM OR RELATING TO THESE TERMS OR THE PLATFORM SHALL NOT EXCEED THE GREATER OF: (A) $100 USD, OR (B) THE TOTAL FEES PAID BY YOU TO OXSTEED IN THE 12 MONTHS PRECEDING THE CLAIM."
-  ]
-  },
-  {
-  "type": "p",
-  "text": "OXSTEED SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, PUNITIVE, OR EXEMPLARY DAMAGES."
-  },
-  {
-  "type": "p",
-  "segments": [
-  {
-  "strong": "Property Damage."
-  },
-  " OxSteed is not liable for any property damage caused by a Helper during the performance of services."
-  ]
-  },
-  {
-  "type": "p",
-  "segments": [
-  {
-  "strong": "Personal Injury."
-  },
-  " OxSteed is not liable for any personal injury, death, or bodily harm arising from services arranged through the platform."
-  ]
-  },
-  {
-  "type": "note",
-  "variant": "red",
-  "strong": "Ohio-Specific Notice:",
-  "text": " Ohio Revised Code § 4113.15 et seq. governs wage payment disputes between independent contractors and engaging parties. OxSteed is not an \"employer\" as defined under Ohio law."
-  }
-  ]
-  },
-  "13": {
-  "search": "13 indemnification claims attorney fees tools",
-  "blocks": [
-  {
-  "type": "h2",
-  "text": "13. Indemnification"
-  },
-  {
-  "type": "p",
-  "text": "You agree to indemnify, defend, and hold harmless OxSteed LLC, its officers, directors, employees, agents, and affiliates from and against any and all claims, damages, losses, liabilities, costs, and expenses (including reasonable attorney's fees) arising out of or related to:"
-  },
-  {
-  "type": "ul",
-  "items": [
-  [
-  "Your use of or access to the OxSteed platform;"
-  ],
-  [
-  "Your violation of these Terms of Service;"
-  ],
-  [
-  "Your violation of any applicable law, rule, or regulation;"
-  ],
-  [
-  "Any content you post, upload, or transmit through the platform;"
-  ],
-  [
-  "Any service you perform or receive through the platform;"
-  ],
-  [
-  "Any dispute between you and another user;"
-  ],
-  [
-  "Your negligence or willful misconduct;"
-  ],
-  [
-  "Any third-party claim arising from your use of rented tools or equipment listed on the platform."
-  ]
-  ]
-  },
-  {
-  "type": "p",
-  "text": "This indemnification obligation survives termination of your account and these Terms."
-  }
-  ]
-  },
-  "14": {
-  "search": "14 licensing disclaimer license verified badge electrician",
-  "blocks": [
-  {
-  "type": "h2",
-  "text": "14. Licensing Disclaimer"
-  },
-  {
-  "type": "p",
-  "segments": [
-  {
-  "strong": "No License Verification."
-  },
-  " OxSteed does not verify, validate, or guarantee that any Helper holds any professional license, permit, certification, or insurance required by federal, state, or local law to perform the services they advertise on the platform."
-  ]
-  },
-  {
-  "type": "p",
-  "segments": [
-  {
-  "strong": "Customer Responsibility."
-  },
-  " Customers are solely responsible for independently verifying that any Helper they engage holds all licenses, permits, certifications, and insurance required by applicable law for the specific services to be performed. This includes, but is not limited to: electricians, plumbers, HVAC technicians, general contractors, roofers, and any other trade requiring state or local licensure."
-  ]
-  },
-  {
-  "type": "p",
-  "segments": [
-  {
-  "strong": "Helper Responsibility."
-  },
-  " Helpers represent and warrant that they hold all licenses, permits, and certifications required by applicable law for the services they advertise. Listing services that require licensure without holding the appropriate license is a violation of these Terms and may result in immediate account termination."
-  ]
-  },
-  {
-  "type": "note",
-  "variant": "yellow",
-  "strong": "Important:",
-  "text": " A verified badge on OxSteed indicates only that a background check was completed. It does NOT indicate that a Helper is licensed, insured, or bonded for any particular trade."
-  }
-  ]
-  },
-  "15": {
-  "search": "15 tool rental listings bailment tier 3 escrow renter owner",
-  "blocks": [
-  {
-  "type": "h2",
-  "text": "15. Tool Rental Listings - Special Terms"
-  },
-  {
-  "type": "h3",
-  "text": "15.1 Nature of Tool Rental Listings"
-  },
-  {
-  "type": "p",
-  "text": "OxSteed permits users to post listings offering tools and equipment for temporary use by other users (\"Tool Rental\"). Tool Rental listings are a distinct category from labor service listings. When a Tool Rental transaction occurs, the listing owner (\"Tool Owner\") and the renting user (\"Renter\") enter into a direct bailment agreement governed by applicable state law."
-  },
-  {
-  "type": "p",
-  "segments": [
-  {
-  "strong": "OxSteed is not a party to any Tool Rental agreement."
-  },
-  " OxSteed does not own, inspect, certify, maintain, or insure any tool or equipment listed on the platform. OxSteed facilitates the introduction only."
-  ]
-  },
-  {
-  "type": "h3",
-  "text": "15.2 Tool Owner Responsibilities"
-  },
-  {
-  "type": "p",
-  "text": "As a Tool Owner listing equipment on OxSteed, you represent, warrant, and agree that:"
-  },
-  {
-  "type": "ul",
-  "items": [
-  [
-  "You are the lawful owner of, or are authorized to rent out, all listed tools;"
-  ],
-  [
-  "All tools listed are in safe, functional working condition and are free from defects that could cause injury or property damage;"
-  ],
-  [
-  "You will disclose any known limitations, safety hazards, or operating requirements to the Renter before the rental begins;"
-  ],
-  [
-  "You are solely responsible for complying with any applicable local ordinances or regulations governing the rental of tools or equipment;"
-  ],
-  [
-  "Your homeowner's, renter's, or business insurance may not cover commercial tool lending and you should consult your insurer before listing tools;"
-  ],
-  [
-  "You are solely responsible for determining the rental price, deposit requirements, and return conditions;"
-  ],
-  [
-  "Any damage assessment, deposit dispute, or loss claim is entirely between you and the Renter."
-  ]
-  ]
-  },
-  {
-  "type": "h3",
-  "text": "15.3 Renter Responsibilities"
-  },
-  {
-  "type": "p",
-  "text": "As a Renter of tools or equipment listed on OxSteed, you agree that:"
-  },
-  {
-  "type": "ul",
-  "items": [
-  [
-  "You will use all rented tools only for their intended, lawful purpose and in accordance with all manufacturer instructions and safety guidelines;"
-  ],
-  [
-  "You assume all risk of personal injury, property damage, and third-party harm arising from your use of any rented tool;"
-  ],
-  [
-  "You are responsible for returning tools in the same condition as received, normal wear and tear excepted;"
-  ],
-  [
-  "You are liable to the Tool Owner for any damage, loss, or theft of rented tools occurring while in your possession;"
-  ],
-  [
-  "You will not sub-rent, lend, or otherwise transfer possession of any rented tool to a third party without the Tool Owner's written consent."
-  ]
-  ]
-  },
-  {
-  "type": "h3",
-  "text": "15.4 OxSteed's Limitation of Liability for Tool Rentals"
-  },
-  {
-  "type": "p",
-  "segments": [
-  {
-  "strong": "OxSteed expressly disclaims all liability"
-  },
-  " arising from or related to Tool Rental transactions, including but not limited to: personal injury or death caused by a defective or improperly used tool; property damage caused during tool use; loss, theft, or damage to rented tools; disputes between Tool Owners and Renters regarding condition, deposits, or return; and any claim by a third party injured by a rented tool."
-  ]
-  },
-  {
-  "type": "p",
-  "segments": [
-  "OxSteed does not inspect, certify, or warrant the safety or condition of any tool listed on the platform. ",
-  {
-  "strong": "Renters and Tool Owners use the Tool Rental feature entirely at their own risk."
-  }
-  ]
-  },
-  {
-  "type": "h3",
-  "text": "15.5 Tier 3 Escrow for Tool Rentals"
-  },
-  {
-  "type": "p",
-  "text": "Tool Rental transactions may use Tier 3 payment protection for the rental fee. However, Tier 3 escrow covers only the agreed rental payment amount. Deposit disputes, damage claims, and loss recovery fall entirely outside the Tier 3 dispute process and must be resolved directly between Tool Owner and Renter or through applicable legal channels."
-  }
-  ]
-  },
-  "16": {
-  "search": "16 oxsteed pay stripe connect escrow held funds refund stripe express dispute",
-  "blocks": [
-  {
-  "type": "h2",
-  "text": "16. OxSteed Pay - Payment Terms"
-  },
-  {
-  "type": "h3",
-  "text": "16.1 Mutual Opt-In Requirement"
-  },
-  {
-  "type": "p",
-  "segments": [
-  "OxSteed Pay is ",
-  {
-  "strong": "never automatic"
-  },
-  ". It activates only when both the Customer and the Helper independently and affirmatively elect to use it for a specific, identified job. Neither party may unilaterally activate it on behalf of the other. OxSteed pay election is job-specific and does not apply to future jobs between the same parties."
-  ]
-  },
-  {
-  "type": "h3",
-  "text": "16.2 Nature of Held Funds"
-  },
-  {
-  "type": "p",
-  "segments": [
-  "When the Customer submits payment to the helpers via OxSteed through Stripe Connect for the limited purpose of holding those funds pending completion of the job. These funds are held in a dedicated balance and ",
-  {
-  "strong": "remain the Customer's property until they are released in accordance with these Terms."
-  },
-  " Held funds are not OxSteed's assets and are not commingled with OxSteed's operating funds."
-  ]
-  },
-  {
-  "type": "h3",
-  "text": "16.3 Fund Release Triggers"
-  },
-  {
-  "type": "p",
-  "text": "Held funds will be released to the Helper when:"
-  },
-  {
-  "type": "ul",
-  "items": [
-  [
-  "Both the Customer ",
-  {
-  "strong": "and"
-  },
-  " the Helper confirm job completion through the platform within 12 hours; or"
-  ],
-  [
-  "OxSteed issues a resolution decision in the Helper's favor following a dispute process; or"
-  ],
-  [
-  "The Customer fails to respond to a completion confirmation request within 48 hours of the Helper marking the job complete (funds auto-release after this window)."
-  ]
-  ]
-  },
-  {
-  "type": "h3",
-  "text": "16.4 Refund Triggers"
-  },
-  {
-  "type": "p",
-  "text": "Held funds will be refunded to the Customer when:"
-  },
-  {
-  "type": "ul",
-  "items": [
-  [
-  "Both parties mutually agree to cancel the job before work begins;"
-  ],
-  [
-  "The Helper fails to appear or abandons the job, as documented by the Customer;"
-  ],
-  [
-  "OxSteed issues a resolution decision in the Customer's favor following a dispute process;"
-  ],
-  [
-  "The job is cancelled by either party at least 24 hours before the scheduled start time."
-  ]
-  ]
-  },
-  {
-  "type": "h3",
-  "text": "16.5 Platform Fees Deducted from Escrow"
-  },
-  {
-  "type": "p",
-  "text": "OxSteed deducts the following fees from escrowed funds before releasing the net amount to the Helper:"
-  },
-  {
-  "type": "ul",
-  "items": [
-  [
-  {
-  "strong": "Platform service fee:"
-  },
-  " 7.1% of the agreed job value (minimum $5.00)"
-  ]
-  ]
-  },
-  {
-  "type": "feesNote",
-  "strong": "All fees are disclosed to both parties.",
-  "text": "No hidden fees will be charged."
-  },
-  {
-  "type": "h3",
-  "text": "16.6 No Interest on Held Funds"
-  },
-  {
-  "type": "p",
-  "text": "OxSteed does not pay interest on held funds to either party. Any interest or float accruing on escrow balances due to Stripe's payment processing timelines is retained by OxSteed as an administrative fee."
-  },
-  {
-  "type": "h3",
-  "text": "16.7 Stripe Connected Account Agreement"
-  },
-  {
-  "type": "stripeLinkP",
-  "before": "Helpers must connect a Stripe Express account as a condition of eligibility to receive payment. By connecting a Stripe Express account, you agree to Stripe's ",
-  "linkLabel": "Connected Account Agreement",
-  "href": "https://stripe.com/legal/connect-account",
-  "after": ", which includes Stripe's own terms, privacy policy, and compliance obligations. OxSteed is not a party to your agreement with Stripe and is not responsible for Stripe's actions, errors, or service interruptions."
-  },
-  {
-  "type": "h3",
-  "text": "16.9 Platform Continuity"
-  },
-  {
-  "type": "p",
-  "text": "In the event OxSteed ceases operations, is acquired, or undergoes a change of control , OxSteed will make commercially reasonable efforts to either release held funds to the appropriate party, transfer escrow obligations to a successor entity, or refund all held amounts within 30 days of the triggering event. Users will be notified by email."
-  }
-  ]
-  },
-  "17": {
-  "search": "17 job postings bids cancellation volume subscription",
-  "blocks": [
-  {
-  "type": "h2",
-  "text": "17. Job Postings and Bid System"
-  },
-  {
-  "type": "h3",
-  "text": "17.1 Customer Job Postings"
-  },
-  {
-  "type": "p",
-  "text": "Customers may post job listings describing work they need performed. By posting a job listing, you represent that the work described is lawful, that you have authority to engage someone to perform it, and that the listing is accurate and not misleading. OxSteed reserves the right to remove any job listing for any reason without notice or liability."
-  },
-  {
-  "type": "p",
-  "text": "Posting a job listing creates no obligation to accept any bid or engage any Helper. Customers may close a listing, modify it, or decline all bids at their sole discretion."
-  },
-  {
-  "type": "h3",
-  "text": "17.2 Helper Bids"
-  },
-  {
-  "type": "p",
-  "text": "Helpers may submit bids on posted job listings. By submitting a bid, you represent that:"
-  },
-  {
-  "type": "ul",
-  "items": [
-  [
-  "You are genuinely available and qualified to perform the described work;"
-  ],
-  [
-  "Your bid price is accurate and reflects your all-in cost to the Customer;"
-  ],
-  [
-  "You hold any licenses, permits, or certifications required to legally perform the work in the applicable jurisdiction."
-  ]
-  ]
-  },
-  {
-  "type": "p",
-  "text": "Submitting a bid is an offer, not a contract."
-  },
-  {
-  "type": "h3",
-  "text": "17.3 Cancellation of Active Bids"
-  },
-  {
-  "type": "p",
-  "text": "If a Customer removes a job listing or cancels it after bids have been submitted but before a bid is accepted, all pending bids are automatically voided. Helpers have no claim against OxSteed or the Customer for bid cancellations."
-  },
-  {
-  "type": "h3",
-  "text": "17.4 No Guarantee of Job Volume"
-  },
-  {
-  "type": "p",
-  "text": "OxSteed makes no representation, warranty, or guarantee that any Helper at any tier will receive bids, leads, job offers, or income of any amount. Subscription fees are for platform access and features, not for guaranteed work volume."
-  }
-  ]
-  },
-  "18": {
-  "search": "18 third-party stripe checkr resend services",
-  "blocks": [
-  {
-  "type": "h2",
-  "text": "18. Third-Party Services"
-  },
-  {
-  "type": "p",
-  "text": "OxSteed integrates with or relies on the following third-party services, each of which is subject to its own terms and privacy policies:"
-  },
-  {
-  "type": "ul",
-  "items": [
-  [
-  {
-  "strong": "Stripe, Inc."
-  },
-  " - Payment processing and connected accounts "
-  ],
-  [
-  {
-  "strong": "Checkr, Inc."
-  },
-  " - Background check and consumer reporting services"
-  ],
-  [
-  {
-  "strong": "Resend"
-  },
-  " - Transactional email delivery"
-  ]
-  ]
-  },
-  {
-  "type": "p",
-  "text": "OxSteed is not responsible for the availability, accuracy, security, or performance of any third-party service. Your use of third-party services through OxSteed is subject to the applicable third-party terms. OxSteed shall not be liable for any loss or damage caused by a third-party service provider's acts, omissions, or service interruptions."
-  }
-  ]
-  },
-  "19": {
-  "search": "19 consent acceptance e-sign create account continue",
-  "blocks": [
-  {
-  "type": "h2",
-  "text": "19. Consent and Acceptance"
-  },
-  {
-  "type": "p",
-  "text": "By creating an OxSteed account, you confirm that you have read, understood, and agree to be bound by these Terms of Service. Your click of \"Create Account\" or \"Continue\" constitutes a legally binding electronic signature under the E-SIGN Act, 15 U.S.C. § 7001 et seq."
-  },
-  {
-  "type": "p",
-  "text": "If you do not agree to these Terms, do not create an account or use the OxSteed platform."
-  }
-  ]
-  },
-  "20": {
-  "search": "20 modifications terms update email notice deactivate",
-  "blocks": [
-  {
-  "type": "h2",
-  "text": "20. Modifications to These Terms"
-  },
-  {
-  "type": "p",
-  "text": "OxSteed may update these Terms at any time. We will notify users of material changes by email at least 14 days before the changes take effect. Continued use of the platform after the effective date of updated Terms constitutes acceptance of the new Terms. If you do not agree to the updated Terms, you must stop using the platform and deactivate your account."
-  }
-  ]
-  }
+    "1": {
+      "search": "1 ما هي أوكستيد وما ليست عليه العملاء المساعدون الدليل قانون آداب الاتصالات 230",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "1. ما هي أوكستيد - وما ليست عليه"
+        },
+        {
+          "type": "p",
+          "text": "تُدير شركة أوكستيد ذات المسؤولية المحدودة (\"OxSteed LLC\") (\"أوكستيد\" أو \"نحن\" أو \"لنا\" أو \"خاصتنا\") منصة تعارف إلكترونية تربط الأفراد الباحثين عن مساعدة محلية (\"العملاء\") بأفراد مستقلين يعرضون مهاراتهم وعملهم (\"المساعدون\"). أوكستيد منصة محايدة تابعة لجهة خارجية تُقدِّم خدمة دليل. أوكستيد ليست جهة توظيف، ولا وكالة توظيف، ولا مقاولًا عامًا."
+        },
+        {
+          "type": "p",
+          "text": "لا توظِّف أوكستيد المساعدين، ولا تتحكم في كيفية أداء المساعدين لعملهم، ولا تُحدِّد الأسعار التي يتقاضاها المساعدون، ولا ترسل المساعدين إلى أي عمل. تُبرم جميع اتفاقيات الخدمات مباشرة بين العملاء والمساعدين."
+        },
+        {
+          "type": "p",
+          "text": "أوكستيد منصة، وليست طرفًا في أي اتفاقية خدمة بين العميل والمساعد. باستخدامك لأوكستيد، فإنك تُقِرّ وتوافق على أن أوكستيد لا تملك أي سيطرة على جودة أي خدمة مُؤدَّاة أو سلامتها أو قانونيتها أو نتائجها، ولا تتحمل أي مسؤولية عنها."
+        },
+        {
+          "type": "note",
+          "variant": "yellow",
+          "strong": "هام:",
+          "text": " تعمل أوكستيد بموجب قانون آداب الاتصالات (Communications Decency Act)، ‏47 U.S.C. § 230. أوكستيد ليست ناشرةً أو متحدثةً باسم أي محتوى ينشئه مستخدموها، وهي محصَّنة من المسؤولية عن هذا المحتوى بالقدر الذي ينص عليه القانون الفيدرالي."
+        }
+      ]
+    },
+    "2": {
+      "search": "2 الأهلية 18 الحساب الولايات المتحدة",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "2. الأهلية"
+        },
+        {
+          "type": "p",
+          "text": "يجب أن تبلغ من العمر 18 عامًا على الأقل لإنشاء حساب أو استخدام أوكستيد. بإنشائك حسابًا، فإنك تُقِرّ وتضمن ما يلي:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "أن تبلغ من العمر 18 عامًا على الأقل؛"
+            ],
+            [
+              "أن تتمتع بالأهلية القانونية لإبرام اتفاقية مُلزِمة؛"
+            ],
+            [
+              "ألا يمنعك القانون من استخدام المنصة؛"
+            ],
+            [
+              "أن جميع المعلومات التي تُقدِّمها أثناء التسجيل دقيقة وحديثة وكاملة؛"
+            ],
+            [
+              "أن تُحافِظ على دقة معلومات حسابك."
+            ]
+          ]
+        },
+        {
+          "type": "p",
+          "text": "تحتفظ أوكستيد بالحق في طلب إثبات العمر أو الهوية في أي وقت. سيتم إنهاء الحسابات التي ينشئها أي شخص دون سن 18 عامًا فورًا."
+        },
+        {
+          "type": "note",
+          "variant": "yellow",
+          "strong": "هام:",
+          "text": " تتوفر أوكستيد حاليًا داخل الولايات المتحدة."
+        }
+      ]
+    },
+    "3": {
+      "search": "3 مستويات المنصة المستوى 1 المستوى 2 stripe pro الاشتراك",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "3. مستويات المنصة والخدمات"
+        },
+        {
+          "type": "p",
+          "text": "تُدير أوكستيد مستويين متميزين من الخدمات. ولكل مستوى ميزات ورسوم وآثار قانونية مختلفة."
+        },
+        {
+          "type": "tier",
+          "title": "المستوى 1 - إدراج مجاني في الدليل",
+          "paragraphs": [
+            {
+              "segments": [
+                "يجوز للمساعدين إنشاء ملف شخصي مجاني. ويجوز للعملاء تصفح الملفات الشخصية ونشر إعلانات الوظائف. تُسهِّل أوكستيد التعارف فقط. ",
+                {
+                  "strong": "لا تمر أي أموال عبر أوكستيد."
+                },
+                " يتعامل العملاء والمساعدون بالكامل خارج المنصة. لا تتحمل أوكستيد أي مسؤولية عن أي معاملة أو نتيجة أو إصابة أو نزاع ينشأ عن اتصالات المستوى 1."
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tier",
+          "title": "المستوى 2 - اشتراك موثَّق (Pro، ‏$14.99 شهريًا)",
+          "paragraphs": [
+            "يحصل المساعدون المشتركون في المستوى 2 على: أولوية الظهور في نتائج البحث، وشارة عضو محترف موثَّقة، وشهادة فحص خلفية اختيارية، وتقديم عروض أسعار على الوظائف المعلنة، وتنبيهات دفع للوظائف المطابقة.",
+            "تُفوتر اشتراكات المستوى 2 شهريًا عبر Stripe وتتجدد تلقائيًا حتى يتم إلغاؤها. وفي هذا المستوى، تتم مدفوعات العميل إلى المساعد عادةً مباشرة بين الطرفين، ولا تُوجِّه أوكستيد تلك الأموال ولا تتحكم فيها.",
+            "إذا اختار الطرفان استخدام خدمة الدفع الاختيارية لدينا، فإن أوكستيد تستخدم Stripe Connect لوضع تفويض مؤقت أو خصم على وسيلة دفع العميل ولتنسيق الإفراج عن الأموال للمساعد، الذي يظل التاجر المُسجَّل. ويجب أن يؤكد كل من العميل والمساعد اكتمال العمل قبل الإفراج عن الأموال، وستُعالِج أوكستيد هذا الإفراج خلال 12 ساعة من التأكيد، مع خصم رسوم منصة قدرها 7.1% من مبلغ العمل، بالإضافة إلى أن يدفع المساعدون رسوم معالجة مدفوعات Stripe.",
+            "الدفع عبر أوكستيد لا يجعل أوكستيد طرفًا في اتفاقية الخدمة. تتصرف أوكستيد فقط كوسيط دفع ووكيل محايد. تُعالِج شركة Stripe, Inc. جميع المدفوعات بصفتها جهة تحويل أموال مرخَّصة."
+          ]
+        }
+      ]
+    },
+    "4": {
+      "search": "4 ملحق تأجير الأدوات المالك المستأجر التلف السلامة",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "4. ملحق تأجير الأدوات"
+        },
+        {
+          "type": "p",
+          "text": "تُتيح أوكستيد للمساعدين إدراج الأدوات والمعدات للتأجير عبر المنصة. وتسري الشروط الإضافية التالية على جميع معاملات تأجير الأدوات:"
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "مسؤوليات مالك الأداة."
+            },
+            " يُقِرّ المساعدون الذين يدرجون أدوات للتأجير ويضمنون ما يلي: (أ) أنهم المالك القانوني للأداة أو لديهم تفويض بتأجيرها؛ (ب) أن الأداة في حالة آمنة وصالحة للعمل؛ (ج) أن الإدراج يصف بدقة حالة الأداة وقدراتها وأي عيوب معروفة؛ و(د) أنهم يُحافِظون على أي تأمين مطلوب للمعدات."
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "مسؤوليات المستأجر."
+            },
+            " يوافق العملاء الذين يستأجرون أدوات على: (أ) استخدام الأداة لغرضها المقصود فقط؛ (ب) إعادة الأداة بنفس الحالة التي استلموها بها، باستثناء البلى الطبيعي؛ (ج) عدم تأجير الأداة من الباطن أو إقراضها أو نقلها إلى أي طرف ثالث؛ (د) إخطار مالك الأداة وأوكستيد فورًا بأي تلف أو عطل أو فقدان؛ و(هـ) تحمل المسؤولية الكاملة عن التلف أو الفقدان الذي يلحق بالأداة أثناء حيازتها."
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "التلف والفقدان."
+            },
+            " يتحمل المستأجر المسؤولية المالية عن القيمة الاستبدالية الكاملة لأي أداة تُفقَد أو تُسرَق أو تتلف بما يتجاوز البلى الطبيعي أثناء حيازته لها. وتخضع المنازعات حول حالة الأداة لإجراءات تسوية المنازعات الواردة في القسم 16."
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "دور أوكستيد."
+            },
+            " لا تفحص أوكستيد حالة أي أداة مُدرَجة على المنصة أو تعتمدها أو تضمنها أو سلامتها أو ملاءمتها. ولا تتحمل أوكستيد أي مسؤولية عن أي إصابة أو تلف في الممتلكات أو خسارة تنشأ عن استخدام الأدوات المستأجرة. وتخضع معاملات تأجير الأدوات بين المستخدمين لهيكل المستويات نفسه الموضح في القسم 3."
+          ]
+        },
+        {
+          "type": "note",
+          "variant": "red",
+          "strong": "تحذير بشأن السلامة:",
+          "text": " افحص دائمًا أي أداة مستأجرة قبل الاستخدام. لا تستخدم أي أداة تبدو تالفة أو مُعدَّلة أو غير آمنة. أوكستيد غير مسؤولة عن الإصابات الناجمة عن معدات معيبة أو غير مصانة بشكل صحيح."
+        }
+      ]
+    },
+    "5": {
+      "search": "5 أدوار المستخدمين العميل المساعد مقاول مستقل",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "5. أدوار المستخدمين والتعريفات"
+        },
+        {
+          "type": "ul",
+          "className": "space-y-3",
+          "items": [
+            [
+              {
+                "strong": "العميل:"
+              },
+              " أي فرد أو كيان ينشئ حساب أوكستيد لغرض نشر إعلانات الوظائف أو التواصل مع المساعدين لترتيب الخدمات."
+            ],
+            [
+              {
+                "strong": "المساعد (المستوى 1 - مجاني):"
+              },
+              " فرد مستقل ينشئ ملفًا شخصيًا مجانيًا على أوكستيد للإعلان عن مهاراته ومدى توفره. المساعدون ليسوا موظفين أو وكلاء أو متعاقدين لدى أوكستيد."
+            ],
+            [
+              {
+                "strong": "المساعد (المستوى 2 - مشترك Pro):"
+              },
+              " مساعد يُحافِظ على اشتراك Pro نشط، وأكمل التحقق من الهوية وفحص الخلفية الاختياري، ويجوز له تقديم عروض أسعار على الوظائف المعلنة."
+            ],
+            [
+              {
+                "strong": "صفة المقاول المستقل:"
+              },
+              " جميع المساعدين، بغض النظر عن المستوى، هم مقاولون مستقلون. لا تُحدِّد أوكستيد ساعات عملهم، ولا تشترط حدًا أدنى من التوفر، ولا تتحكم في أساليبهم أو أدواتهم، ولا توفر معدات، ولا تفرض أسعارًا محددة، ولا تضمن أي حجم من العمل."
+            ]
+          ]
+        }
+      ]
+    },
+    "6": {
+      "search": "6 الرسوم الدفع الاشتراك w-9 1099 المبالغ المستردة النزاع 16",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "6. الرسوم وشروط الدفع"
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "رسوم الاشتراك."
+            },
+            " تُفوتر خدمة المستوى 2 (Pro) شهريًا. رسوم الاشتراك غير قابلة للاسترداد إلا بالقدر الذي يقتضيه القانون المعمول به. يجوز لك الإلغاء في أي وقت عبر لوحة تحكم حسابك."
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "الامتثال الضريبي."
+            },
+            " يُطلَب من المساعدين الذين يكسبون 600$ أو أكثر عبر المنصة في السنة التقويمية تقديم نموذج IRS W-9 مكتمل. وستُصدِر أوكستيد نموذج IRS 1099-NEC للمساعدين المؤهلين حسبما يقتضيه القانون."
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "المبالغ المستردة."
+            },
+            " تُفرَج عن الأموال المتنازع عليها المحتجزة وفقًا لإجراءات تسوية المنازعات الموضحة في القسم 16."
+          ]
+        }
+      ]
+    },
+    "7": {
+      "search": "7 فحص الخلفية fcra checkr الإجراء السلبي الشارة الموثقة",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "فحوصات الخلفية والتحقق والامتثال لقانون FCRA"
+        },
+        {
+          "type": "h2",
+          "text": "7.1 فحص الخلفية الاختياري",
+          "sub": true
+        },
+        {
+          "type": "p",
+          "segments": [
+            "يجوز لمساعدي المستوى 2 اختيار إكمال فحص خلفية عبر ",
+            {
+              "strong": "Checkr, Inc."
+            },
+            "، وهي وكالة أوكستيد الخارجية لإعداد تقارير المستهلك. فحوصات الخلفية طوعية تمامًا. إكمال فحص الخلفية لا يضمن التوظيف أو إسناد الوظائف أو استمرار الوصول إلى المنصة."
+          ]
+        },
+        {
+          "type": "h2",
+          "text": "7.2 الإفصاح بموجب قانون الإبلاغ الائتماني العادل (FCRA)",
+          "sub": true
+        },
+        {
+          "type": "p",
+          "text": "تلتزم أوكستيد بقانون الإبلاغ الائتماني العادل (Fair Credit Reporting Act)، ‏15 U.S.C. § 1681 وما يليه (\"FCRA\"). قبل بدء فحص الخلفية، ستُزوِّدك أوكستيد بما يلي:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "إفصاح ",
+              {
+                "strong": "مكتوب مستقل بموجب قانون FCRA"
+              },
+              " يُبلِغك بأنه قد يتم الحصول على تقرير مستهلك لأغراض الوصول إلى المنصة؛ و"
+            ],
+            [
+              "وطلب ",
+              {
+                "strong": "تفويضك الكتابي"
+              },
+              " للحصول على التقرير."
+            ]
+          ]
+        },
+        {
+          "type": "p",
+          "text": "يجب أن توافق موافقة إيجابية قبل بدء أي فحص خلفية. موافقتك منفصلة عن قبولك لهذه الشروط."
+        },
+        {
+          "type": "h2",
+          "text": "7.3 إجراء الإجراء السلبي",
+          "sub": true
+        },
+        {
+          "type": "p",
+          "text": "إذا اتخذت أوكستيد إجراءً سلبيًا يستند كليًا أو جزئيًا إلى معلومات واردة في تقرير مستهلك - على سبيل المثال، رفض شارتك الموثَّقة أو إلغاؤها - فستقوم أوكستيد بما يلي:"
+        },
+        {
+          "type": "ol",
+          "items": [
+            [
+              "بتزويدك ",
+              {
+                "strong": "بإشعار ما قبل الإجراء السلبي"
+              },
+              " ونسخة من تقرير المستهلك وملخصًا لحقوقك بموجب قانون FCRA قبل الانتهاء من الإجراء؛"
+            ],
+            [
+              "بمنحك فترة معقولة (عادة 5 أيام عمل) للطعن في أي معلومات غير دقيقة مباشرة لدى Checkr؛"
+            ],
+            [
+              "بتزويدك ",
+              {
+                "strong": "بإشعار إجراء سلبي نهائي"
+              },
+              " إذا تم تأييد القرار، بما في ذلك معلومات الاتصال بـ Checkr ومعلومات عن حقك في الحصول على نسخة مجانية من التقرير."
+            ]
+          ]
+        },
+        {
+          "type": "h2",
+          "text": "7.4 إخلاء المسؤولية عن الدقة",
+          "sub": true
+        },
+        {
+          "type": "p",
+          "segments": [
+            "تُقدَّم نتائج فحوصات الخلفية حصريًا من قبل ",
+            {
+              "strong": "Checkr, Inc."
+            },
+            "، والتي تخضع لشروط الخدمة وسياسة الخصوصية الخاصة بها. ",
+            {
+              "strong": "لا تُقدِّم أوكستيد أي إقرار أو ضمان بأن أي نتيجة فحص خلفية كاملة أو دقيقة أو حديثة."
+            },
+            " أوكستيد غير مسؤولة عن الأخطاء أو السهو في تقارير Checkr. يتحمل العملاء وحدهم مسؤولية إجراء العناية الواجبة المستقلة الخاصة بهم قبل التعاقد مع أي مساعد، بغض النظر عن حالة الشارة."
+          ]
+        },
+        {
+          "type": "h2",
+          "text": "7.5 انتهاء صلاحية فحص الخلفية وتجديده",
+          "sub": true
+        },
+        {
+          "type": "p",
+          "text": "تنتهي صلاحية شارات فحص الخلفية بعد 12 شهرًا من تاريخ التقرير الأساسي ويجب تجديدها للحفاظ على الحالة الموثَّقة. ستُخطِرك أوكستيد قبل 30 يومًا على الأقل من انتهاء صلاحية شارتك."
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "فحص الخلفية لا يُشكِّل تأييدًا من أوكستيد لمهارات أي مساعد أو جودة عمله أو شخصيته؛"
+            ],
+            [
+              "فحص الخلفية لا يضمن أن المساعد يحمل أي رخصة مهنية أو تأمين مطلوب؛"
+            ],
+            [
+              "فحص الخلفية لا يعكس أي نشاط إجرامي أو تغييرات في الرخص أو أحداث أخرى تحدث بعد تاريخ الفحص؛"
+            ],
+            [
+              "فحص الخلفية لا ينشئ أي ضمان أو كفالة من أوكستيد بشأن ملاءمة المساعد لأي وظيفة معينة."
+            ]
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "لا تعتمد فقط على الشارة الموثَّقة عند توظيف مساعد."
+            },
+            " تحقق دائمًا بشكل مستقل من الرخص والتأمين والمراجع لأي مهنة منظمة أو وظيفة عالية القيمة."
+          ]
+        }
+      ]
+    },
+    "8": {
+      "search": "8 مقاول مستقل التوظيف الضرائب التأمين",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "8. صفة المقاول المستقل"
+        },
+        {
+          "type": "p",
+          "text": "لا ينشئ أي شيء في هذه الشروط علاقة توظيف أو شراكة أو مشروعًا مشتركًا أو وكالة أو امتيازًا أو علاقة صاحب عمل-موظف بين أوكستيد وأي مساعد."
+        },
+        {
+          "type": "p",
+          "text": "يُقِرّ المساعدون صراحة بما يلي:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "أنهم يديرون عملًا مستقلًا"
+            ],
+            [
+              "أنهم يتحملون وحدهم مسؤولية جميع الضرائب الفيدرالية والولائية والمحلية على الدخل المكتسب عبر المنصة"
+            ],
+            [
+              "أنه يجب عليهم حمل أي تأمين يقتضيه القانون لخدماتهم"
+            ],
+            [
+              "أنهم يتحملون وحدهم مسؤولية الحصول على أي رخص أو تصاريح يقتضيها القانون"
+            ],
+            [
+              "أن أوكستيد لا توفر تعويض العمال أو تأمين البطالة أو المزايا الصحية أو أي مزايا توظيف أخرى"
+            ],
+            [
+              "أنه يجوز لهم العمل لدى أي منصة أو عميل أو صاحب عمل آخر في أي وقت دون قيود"
+            ]
+          ]
+        }
+      ]
+    },
+    "9": {
+      "search": "9 الملكية الفكرية dmca حقوق النشر العلامات التجارية legal@oxsteed.com",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "9. الملكية الفكرية وقانون DMCA"
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "محتوى أوكستيد."
+            },
+            " جميع المحتويات والتصاميم والشعارات والعلامات التجارية والرموز البرمجية والمواد الموجودة على منصة أوكستيد (\"محتوى أوكستيد\") مملوكة لأوكستيد ذات المسؤولية المحدودة أو مرخَّصة لها، وهي محمية بموجب قوانين حقوق النشر والعلامات التجارية الأمريكية والدولية وغيرها من قوانين الملكية الفكرية. لا يجوز لك نسخ أي محتوى من محتوى أوكستيد أو استنساخه أو توزيعه أو تعديله أو إنشاء أعمال مشتقة منه أو عرضه علنًا أو استغلاله بأي شكل آخر دون موافقة كتابية مسبقة من أوكستيد."
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "ترخيص محتوى المستخدم."
+            },
+            " بنشرك محتوى على أوكستيد (بما في ذلك على سبيل المثال لا الحصر معلومات الملف الشخصي والصور والتقييمات وأوصاف الوظائف والرسائل)، فإنك تمنح أوكستيد ترخيصًا غير حصري وعالمي وخاليًا من الإتاوات وقابلًا للنقل والترخيص من الباطن لاستخدام محتواك وعرضه واستنساخه وتوزيعه فقط فيما يتعلق بتشغيل المنصة والترويج لها. تحتفظ بملكية محتواك. ينتهي هذا الترخيص عند حذفك لمحتواك أو حسابك، باستثناء المحتوى الذي تمت مشاركته مع مستخدمين آخرين أو الذي يتعين على أوكستيد الاحتفاظ به لأغراض قانونية أو امتثال."
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "إشعار DMCA والإزالة."
+            },
+            " تحترم أوكستيد حقوق الملكية الفكرية وتمتثل لقانون الألفية الجديدة لحقوق نشر المواد الرقمية (\"DMCA\")، ‏17 U.S.C. § 512. إذا كنت تعتقد أن محتوى على أوكستيد ينتهك حقوق النشر الخاصة بك، فيجوز لك تقديم إشعار إزالة بموجب قانون DMCA إلى وكيلنا المعيَّن:"
+          ]
+        },
+        {
+          "type": "dmcaBox",
+          "title": "وكيل DMCA المعيَّن:",
+          "lines": [
+            "OxSteed LLC",
+            "عناية: وكيل DMCA",
+            "سبرينغفيلد، أوهايو"
+          ],
+          "email": "legal@oxsteed.com"
+        },
+        {
+          "type": "p",
+          "text": "يجب أن يتضمن إشعار DMCA الخاص بك: (1) تحديد العمل المحمي بحقوق النشر؛ (2) تحديد المادة المُنتهِكة وموقعها على المنصة؛ (3) معلومات الاتصال الخاصة بك؛ (4) بيانًا بحسن النية بأن الاستخدام غير مصرح به؛ (5) بيانًا تحت طائلة عقوبة الحنث باليمين بأن المعلومات دقيقة وأنك مالك حقوق النشر أو وكيله المفوض؛ و(6) توقيعك المادي أو الإلكتروني."
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "الإشعار المضاد."
+            },
+            " إذا كنت تعتقد أن محتواك أُزيل عن طريق الخطأ، فيجوز لك تقديم إشعار مضاد يتضمن: (1) تحديد المادة المزالة؛ (2) بيانًا تحت طائلة عقوبة الحنث باليمين بأن الإزالة كانت خطأ؛ (3) اسمك وعنوانك ورقم هاتفك؛ (4) موافقتك على اختصاص المحكمة الفيدرالية في منطقتك؛ و(5) توقيعك المادي أو الإلكتروني."
+          ]
+        },
+        {
+          "type": "note",
+          "variant": "red",
+          "strong": "تحذير:",
+          "text": " قد يؤدي تقديم إشعار DMCA أو إشعار مضاد كاذب إلى مسؤولية قانونية بموجب ‏17 U.S.C. § 512(f)، بما في ذلك التعويضات وأتعاب المحاماة."
+        }
+      ]
+    },
+    "10": {
+      "search": "10 الإنهاء التعليق التعطيل الاستئناف الضمان القانون",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "10. الإنهاء والتعليق"
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "من قبل أوكستيد."
+            },
+            " يجوز لأوكستيد تعليق حسابك أو إنهائه في أي وقت، بسبب أو بدون سبب، وبإشعار أو بدونه. تشمل أسباب الإنهاء، على سبيل المثال لا الحصر: انتهاك هذه الشروط، أو النشاط الاحتيالي أو غير القانوني، أو عدم سداد الرسوم، أو تلقي شكاوى متعددة من مستخدمين آخرين، أو أي سلوك ترى أوكستيد أنه ضار بالمنصة أو بالمستخدمين الآخرين أو بأطراف ثالثة."
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "من قبلك."
+            },
+            " يجوز لك تعطيل حسابك في أي وقت عبر إعدادات حسابك. لا يُعفِيك التعطيل من أي التزامات نشأت قبل التعطيل، بما في ذلك معاملات الضمان المعلقة من المستوى 3 أو الرسوم المستحقة."
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "أثر الإنهاء."
+            },
+            " عند الإنهاء:"
+          ]
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "يتوقف حقك في الوصول إلى أوكستيد واستخدامها فورًا؛"
+            ],
+            [
+              "تُعالَج أي أموال محتجزة معلقة وفقًا لإجراءات تسوية المنازعات الواردة في القسم 16؛"
+            ],
+            [
+              "يجوز لأوكستيد الاحتفاظ ببياناتك حسبما يقتضيه القانون أو لأغراض تجارية مشروعة (مثل السجلات الضريبية وأدلة المنازعات)؛"
+            ],
+            [
+              "تبقى الأحكام التي بطبيعتها يجب أن تستمر بعد الإنهاء سارية، بما في ذلك الأقسام 8 و9 و11 و12 و13 و16 و20."
+            ]
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "الاستئناف."
+            },
+            " إذا تم تعليق حسابك أو إنهاؤه، فيجوز لك الاستئناف بالتواصل مع ",
+            {
+              "mailto": "legal@oxsteed.com"
+            },
+            " خلال 30 يومًا. ستُراجِع أوكستيد استئنافك وترد خلال 10 أيام عمل. قرار أوكستيد بشأن الاستئناف نهائي."
+          ]
+        }
+      ]
+    },
+    "11": {
+      "search": "11 إخلاء المسؤولية الضمانات كما هي حسب التوافر الصلاحية التجارية",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "11. إخلاء المسؤولية عن الضمانات"
+        },
+        {
+          "type": "p",
+          "uppercase": true,
+          "text": "تُقدَّم منصة OxSteed، بما في ذلك جميع المحتويات والميزات والخدمات، «كما هي» و«حسب توافرها» دون أي ضمانات من أي نوع، سواء كانت صريحة أو ضمنية. وبأقصى حدٍّ يسمح به القانون، تُخلي OxSteed مسؤوليتها عن جميع الضمانات، بما في ذلك على سبيل المثال لا الحصر الضمانات الضمنية المتعلقة بالصلاحية للتسويق، والملاءمة لغرض معين، وعدم الانتهاك، والملكية."
+        },
+        {
+          "type": "p",
+          "text": "دون الحد مما سبق، لا تضمن OxSteed ما يلي:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "أن تكون المنصة متواصلة دون انقطاع، أو في وقتها المحدد، أو آمنة، أو خالية من الأخطاء؛"
+            ],
+            [
+              "أن تكون النتائج المُتحصَّل عليها من المنصة دقيقة أو موثوقة؛"
+            ],
+            [
+              "أن يُنفِّذ أيُّ مُساعد أو عميل التزاماته؛"
+            ],
+            [
+              "أن يكون أيُّ محتوى على المنصة دقيقًا أو كاملًا أو حديثًا؛"
+            ],
+            [
+              "أن تُلبي المنصة متطلباتك أو توقعاتك المحددة."
+            ]
+          ]
+        },
+        {
+          "type": "p",
+          "text": "إن استخدامك للمنصة يكون على مسؤوليتك الخاصة. ولا تُنشئ أيُّ نصيحة أو معلومة، سواء كانت شفوية أو كتابية، تحصل عليها من OxSteed أو عبر المنصة، أيَّ ضمانٍ غير منصوصٍ عليه صراحةً في شروط الخدمة هذه."
+        }
+      ]
+    },
+    "12": {
+      "search": "12 المسؤولية التأمين تحديد الأضرار أوهايو 4113",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "12. تحديد المسؤولية والتأمين"
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "لا يُقدَّم أيُّ تأمين."
+            },
+            " لا تُقدِّم OxSteed أيَّ تغطية تأمينية لأيِّ مُساعد أو عميل أو طرف ثالث."
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "تحديد المسؤولية."
+            },
+            " إلى أقصى حدٍّ يسمح به القانون المعمول به، لا تتجاوز المسؤولية الإجمالية لـ OxSteed عن أيِّ مطالبة ناشئة عن شروط الخدمة هذه أو عن المنصة أو متعلقة بهما أيَّهما أكبر: (أ) 100 دولار أمريكي، أو (ب) إجمالي الرسوم التي دفعتها إلى OxSteed خلال الأشهر الـ12 السابقة للمطالبة."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "لا تتحمل OxSteed أيَّ مسؤولية عن أيِّ أضرار غير مباشرة أو عرضية أو خاصة أو تبعية أو عقابية أو تأديبية."
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "الأضرار المادية."
+            },
+            " لا تتحمل OxSteed أيَّ مسؤولية عن أيِّ ضرر يلحق بالممتلكات بسبب مُساعد أثناء أداء الخدمات."
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "الإصابة الشخصية."
+            },
+            " لا تتحمل OxSteed أيَّ مسؤولية عن أيِّ إصابة شخصية أو وفاة أو ضرر بدني ناشئ عن خدمات تم ترتيبها عبر المنصة."
+          ]
+        },
+        {
+          "type": "note",
+          "variant": "red",
+          "strong": "إشعار خاص بولاية أوهايو:",
+          "text": " ينظِّم القانون المنقَّح لولاية أوهايو § 4113.15 وما يليه المنازعات المتعلقة بدفع الأجور بين المقاولين المستقلين والجهات المتعاقدة. ولا تُعدُّ OxSteed «صاحب عمل» بالمعنى المحدد في قانون ولاية أوهايو."
+        }
+      ]
+    },
+    "13": {
+      "search": "13 التعويض المطالبات أتعاب المحاماة الأدوات",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "13. التعويض"
+        },
+        {
+          "type": "p",
+          "text": "توافق على تعويض شركة OxSteed LLC ومسؤوليها ومديريها وموظفيها ووكلائها والشركات التابعة لها، والدفاع عنهم، وإبرائهم من أيِّ وجميع المطالبات والأضرار والخسائر والمسؤوليات والتكاليف والنفقات (بما في ذلك أتعاب المحاماة المعقولة) الناشئة عما يلي أو المتعلقة به:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "استخدامك لمنصة OxSteed أو وصولك إليها؛"
+            ],
+            [
+              "مخالفتك لشروط الخدمة هذه؛"
+            ],
+            [
+              "مخالفتك لأيِّ قانون أو قاعدة أو لائحة معمول بها؛"
+            ],
+            [
+              "أيِّ محتوى تنشره أو ترفعه أو تنقله عبر المنصة؛"
+            ],
+            [
+              "أيِّ خدمة تُقدِّمها أو تتلقاها عبر المنصة؛"
+            ],
+            [
+              "أيِّ نزاع بينك وبين مستخدم آخر؛"
+            ],
+            [
+              "إهمالك أو سوء سلوكك المتعمد؛"
+            ],
+            [
+              "أيِّ مطالبة من طرف ثالث ناشئة عن استخدامك للأدوات أو المعدات المستأجرة المدرجة على المنصة."
+            ]
+          ]
+        },
+        {
+          "type": "p",
+          "text": "يبقى التزام التعويض هذا ساريًا بعد إنهاء حسابك وشروط الخدمة هذه."
+        }
+      ]
+    },
+    "14": {
+      "search": "14 إخلاء المسؤولية الترخيص الرخصة شارة التحقق الكهربائي",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "14. إخلاء المسؤولية عن التراخيص"
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "لا يوجد تحقق من الترخيص."
+            },
+            " لا تتحقق OxSteed أو تُصدِّق أو تضمن أن أيَّ مُساعد يحمل أيَّ رخصة مهنية أو تصريح أو شهادة أو تأمين يقتضيه القانون الاتحادي أو قانون الولاية أو القانون المحلي لأداء الخدمات التي يُعلن عنها على المنصة."
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "مسؤولية العميل."
+            },
+            " يتحمل العملاء وحدهم مسؤولية التحقق المستقل من أن أيَّ مُساعد يتعاقدون معه يحمل جميع الرخص والتصاريح والشهادات والتأمينات التي يقتضيها القانون المعمول به لأداء الخدمات المحددة المراد تنفيذها. ويشمل ذلك على سبيل المثال لا الحصر: الكهربائيين، والسباكين، وفنيي أنظمة التدفئة والتهوية وتكييف الهواء (HVAC)، والمقاولين العامين، وفنيي الأسقف، وأيَّ مهنة أخرى تتطلب ترخيصًا من الولاية أو الجهة المحلية."
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "مسؤولية المُساعد."
+            },
+            " يُقرُّ المُساعدون ويضمنون أنهم يحملون جميع الرخص والتصاريح والشهادات التي يقتضيها القانون المعمول به للخدمات التي يُعلنون عنها. ويُعدُّ إدراج خدمات تتطلب ترخيصًا دون حيازة الترخيص المناسب مخالفةً لشروط الخدمة هذه، وقد يؤدي إلى إنهاء الحساب فورًا."
+          ]
+        },
+        {
+          "type": "note",
+          "variant": "yellow",
+          "strong": "مهم:",
+          "text": " تشير شارة التحقق على OxSteed فقط إلى أن التحقق من الخلفية قد اكتمل. وهي لا تشير إلى أن المُساعد مرخَّص أو مؤمَّن عليه أو مُكفَّل بأيِّ شكلٍ لأيِّ مهنة معينة."
+        }
+      ]
+    },
+    "15": {
+      "search": "15 تأجير الأدوات الإعلانات الإيداع المستوى الثالث الضمان المستأجر المالك",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "15. إعلانات تأجير الأدوات — شروط خاصة"
+        },
+        {
+          "type": "h3",
+          "text": "15.1 طبيعة إعلانات تأجير الأدوات"
+        },
+        {
+          "type": "p",
+          "text": "تُتيح OxSteed للمستخدمين نشر إعلانات تُقدِّم أدوات ومعدات للاستخدام المؤقت من قِبل مستخدمين آخرين («تأجير الأدوات»). وتُعدُّ إعلانات تأجير الأدوات فئةً متميزة عن إعلانات خدمات العمل. وعند حدوث معاملة تأجير أدوات، يُبرم مالك الإعلان («مالك الأدوات») والمستخدم المُستأجِر («المستأجِر») اتفاقية إيداع مباشرة تخضع لقانون الولاية المعمول به."
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "ليست OxSteed طرفًا في أيِّ اتفاقية تأجير أدوات."
+            },
+            " لا تمتلك OxSteed أو تفحص أو تُصدِّق أو تصون أو تؤمِّن أيَّ أداة أو معدّة مدرجة على المنصة. وتقتصر مهمة OxSteed على التيسير بين الأطراف فحسب."
+          ]
+        },
+        {
+          "type": "h3",
+          "text": "15.2 مسؤوليات مالك الأدوات"
+        },
+        {
+          "type": "p",
+          "text": "بصفتك مالك أدوات تُدرِج معدات على OxSteed، تُقرُّ وتضمن وتوافق على ما يلي:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "أنك المالك الشرعي لجميع الأدوات المدرجة، أو أنك مخوَّل بتأجيرها؛"
+            ],
+            [
+              "أن جميع الأدوات المدرجة في حالة تشغيل آمنة وسليمة وخالية من العيوب التي قد تسبب إصابة أو ضررًا بالممتلكات؛"
+            ],
+            [
+              "أنك ستُفصح عن أيِّ قيود أو مخاطر سلامة أو متطلبات تشغيل معروفة للمستأجِر قبل بدء التأجير؛"
+            ],
+            [
+              "أنك وحدك المسؤول عن الامتثال لأيِّ مراسيم أو لوائح محلية معمول بها تنظم تأجير الأدوات أو المعدات؛"
+            ],
+            [
+              "أن تأمين مالك المنزل أو تأمين المستأجِر أو تأمين الأعمال الخاص بك قد لا يغطي الإقراض التجاري للأدوات، وأنك ينبغي أن تستشير شركة التأمين الخاصة بك قبل إدراج الأدوات؛"
+            ],
+            [
+              "أنك وحدك المسؤول عن تحديد سعر التأجير ومتطلبات الإيداع وشروط الإعادة؛"
+            ],
+            [
+              "أن أيَّ تقييم للأضرار أو نزاع بشأن الإيداع أو مطالبة بالخسارة يكون بينك وبين المستأجِر وحدهما."
+            ]
+          ]
+        },
+        {
+          "type": "h3",
+          "text": "15.3 مسؤوليات المستأجِر"
+        },
+        {
+          "type": "p",
+          "text": "بصفتك مستأجِرًا للأدوات أو المعدات المدرجة على OxSteed، توافق على ما يلي:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "أنك ستستخدم جميع الأدوات المستأجرة للغرض المقصود المشروع منها فقط، ووفقًا لجميع تعليمات الشركة المصنعة وإرشادات السلامة؛"
+            ],
+            [
+              "أنك تتحمل جميع مخاطر الإصابة الشخصية والأضرار المادية وأذى الأطراف الثالثة الناشئة عن استخدامك لأيِّ أداة مستأجرة؛"
+            ],
+            [
+              "أنك مسؤول عن إعادة الأدوات بالحالة نفسها التي استلمتها بها، باستثناء البلى الطبيعي الناتج عن الاستخدام العادي؛"
+            ],
+            [
+              "أنك مسؤول تجاه مالك الأدوات عن أيِّ ضرر أو خسارة أو سرقة تلحق بالأدوات المستأجرة أثناء حيازتك لها؛"
+            ],
+            [
+              "أنك لن تُعيد تأجير أيِّ أداة مستأجرة أو تُقرضها أو تنقل حيازتها إلى طرف ثالث بأيِّ شكلٍ آخر دون موافقة كتابية من مالك الأدوات."
+            ]
+          ]
+        },
+        {
+          "type": "h3",
+          "text": "15.4 تحديد مسؤولية OxSteed عن تأجير الأدوات"
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "تُخلي OxSteed صراحةً مسؤوليتها عن أيِّ التزام"
+            },
+            " ناشئٍ عن معاملات تأجير الأدوات أو متعلق بها، بما في ذلك على سبيل المثال لا الحصر: الإصابة الشخصية أو الوفاة الناجمة عن أداة معيبة أو مُستخدمة بشكل غير صحيح؛ والأضرار المادية الناجمة أثناء استخدام الأدوات؛ وفقدان الأدوات المستأجرة أو سرقتها أو تلفها؛ والنزاعات بين مالكي الأدوات والمستأجِرين بشأن الحالة أو الإيداعات أو الإعادة؛ وأيِّ مطالبة من طرف ثالث أصيب بسبب أداة مستأجرة."
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            "لا تفحص OxSteed أو تُصدِّق أو تضمن سلامة أو حالة أيِّ أداة مدرجة على المنصة. ",
+            {
+              "strong": "يستخدم المستأجِرون ومالكو الأدوات ميزة تأجير الأدوات على مسؤوليتهم الخاصة تمامًا."
+            }
+          ]
+        },
+        {
+          "type": "h3",
+          "text": "15.5 ضمان المستوى الثالث لتأجير الأدوات"
+        },
+        {
+          "type": "p",
+          "text": "قد تستخدم معاملات تأجير الأدوات حماية الدفع من المستوى الثالث لرسوم التأجير. ومع ذلك، فإن ضمان المستوى الثالث يغطي فقط مبلغ دفعة التأجير المتفق عليه. وتقع النزاعات المتعلقة بالإيداعات ومطالبات الأضرار واسترداد الخسائر خارج عملية النزاع الخاصة بالمستوى الثالث تمامًا، ويجب تسويتها مباشرةً بين مالك الأدوات والمستأجِر أو عبر القنوات القانونية المعمول بها."
+        }
+      ]
+    },
+    "16": {
+      "search": "16 OxSteed Pay دفع Stripe Connect ضمان الأموال المحتجزة استرداد Stripe Express النزاع",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "16. OxSteed Pay — شروط الدفع"
+        },
+        {
+          "type": "h3",
+          "text": "16.1 شرط الاشتراك المتبادل"
+        },
+        {
+          "type": "p",
+          "segments": [
+            "إن OxSteed Pay ",
+            {
+              "strong": "ليس تلقائيًا أبدًا"
+            },
+            ". ولا يُفعَّل إلا عندما يختار العميل والمُساعد معًا، وبشكل مستقل وإيجابي، استخدامه لمهمة محددة معيَّنة. ولا يجوز لأيِّ طرف تفعيله منفردًا نيابةً عن الطرف الآخر. ويكون اختيار OxSteed Pay خاصًا بالمهمة ولا ينطبق على المهام المستقبلية بين الطرفين نفسيهما."
+          ]
+        },
+        {
+          "type": "h3",
+          "text": "16.2 طبيعة الأموال المحتجزة"
+        },
+        {
+          "type": "p",
+          "segments": [
+            "عندما يُقدِّم العميل الدفعة إلى المُساعدين عبر OxSteed من خلال Stripe Connect للغرض المحدود المتمثل في احتجاز تلك الأموال ريثما تكتمل المهمة. تُحتجَز هذه الأموال في رصيد مخصَّص و",
+            {
+              "strong": "تبقى ملكًا للعميل حتى يتم الإفراج عنها وفقًا لشروط الخدمة هذه."
+            },
+            " ولا تُعدُّ الأموال المحتجزة أصولًا لـ OxSteed ولا تُخلَط مع الأموال التشغيلية لـ OxSteed."
+          ]
+        },
+        {
+          "type": "h3",
+          "text": "16.3 محفزات الإفراج عن الأموال"
+        },
+        {
+          "type": "p",
+          "text": "سيتم الإفراج عن الأموال المحتجزة للمُساعد عندما:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "يؤكِّد العميل ",
+              {
+                "strong": "و"
+              },
+              "المُساعد اكتمالَ المهمة عبر المنصة خلال 12 ساعة؛ أو"
+            ],
+            [
+              "تُصدِر OxSteed قرار تسوية لصالح المُساعد عقب عملية نزاع؛ أو"
+            ],
+            [
+              "يتعذَّر على العميل الرد على طلب تأكيد الاكتمال خلال 48 ساعة من قيام المُساعد بوضع علامة اكتمال المهمة (يتم الإفراج عن الأموال تلقائيًا بعد انتهاء هذه المهلة)."
+            ]
+          ]
+        },
+        {
+          "type": "h3",
+          "text": "16.4 محفزات الاسترداد"
+        },
+        {
+          "type": "p",
+          "text": "سيتم ردُّ الأموال المحتجزة إلى العميل عندما:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "يتفق الطرفان معًا على إلغاء المهمة قبل بدء العمل؛"
+            ],
+            [
+              "يتغيب المُساعد عن الحضور أو يهجر المهمة، وفقًا لما يوثِّقه العميل؛"
+            ],
+            [
+              "تُصدِر OxSteed قرار تسوية لصالح العميل عقب عملية نزاع؛"
+            ],
+            [
+              "تُلغَى المهمة من قِبل أيِّ طرف قبل موعد البدء المقرر بـ24 ساعة على الأقل."
+            ]
+          ]
+        },
+        {
+          "type": "h3",
+          "text": "16.5 رسوم المنصة المخصومة من الضمان"
+        },
+        {
+          "type": "p",
+          "text": "تخصم OxSteed الرسوم التالية من الأموال المحتجزة قبل الإفراج عن المبلغ الصافي للمُساعد:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              {
+                "strong": "رسوم خدمة المنصة:"
+              },
+              " 7.1% من قيمة المهمة المتفق عليها (بحد أدنى 5.00 دولار)"
+            ]
+          ]
+        },
+        {
+          "type": "feesNote",
+          "strong": "تُفصَح عن جميع الرسوم للطرفين.",
+          "text": "لن تُفرَض أيُّ رسوم خفية."
+        },
+        {
+          "type": "h3",
+          "text": "16.6 عدم استحقاق فائدة على الأموال المحتجزة"
+        },
+        {
+          "type": "p",
+          "text": "لا تدفع OxSteed فائدة على الأموال المحتجزة لأيٍّ من الطرفين. وتُحتفَظ بأيِّ فائدة أو عائد متراكم على أرصدة الضمان بسبب الجداول الزمنية لمعالجة الدفع لدى Stripe كرسوم إدارية من قِبل OxSteed."
+        },
+        {
+          "type": "h3",
+          "text": "16.7 اتفاقية الحساب المرتبط لدى Stripe"
+        },
+        {
+          "type": "stripeLinkP",
+          "before": "يجب على المُساعدين ربط حساب Stripe Express كشرط للأهلية لتلقي الدفع. وبربط حساب Stripe Express، توافق على ",
+          "linkLabel": "اتفاقية الحساب المرتبط",
+          "href": "https://stripe.com/legal/connect-account",
+          "after": "، والتي تتضمن شروط Stripe الخاصة وسياسة الخصوصية والتزامات الامتثال لديها. وليست OxSteed طرفًا في اتفاقيتك مع Stripe، وهي غير مسؤولة عن أفعال Stripe أو أخطائها أو انقطاعات خدماتها."
+        },
+        {
+          "type": "h3",
+          "text": "16.9 استمرارية المنصة"
+        },
+        {
+          "type": "p",
+          "text": "في حال توقفت OxSteed عن العمل أو تم الاستحواذ عليها أو خضعت لتغيُّر في السيطرة، ستبذل OxSteed جهودًا معقولة تجاريًا إما للإفراج عن الأموال المحتجزة للطرف المستحق، أو لنقل التزامات الضمان إلى كيان خلف، أو لردِّ جميع المبالغ المحتجزة خلال 30 يومًا من الحدث المُفجِّر. وسيتم إشعار المستخدمين عبر البريد الإلكتروني."
+        }
+      ]
+    },
+    "17": {
+      "search": "17 إعلانات الوظائف العطاءات الإلغاء حجم العمل الاشتراك",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "17. إعلانات الوظائف ونظام العطاءات"
+        },
+        {
+          "type": "h3",
+          "text": "17.1 إعلانات وظائف العملاء"
+        },
+        {
+          "type": "p",
+          "text": "يجوز للعملاء نشر إعلانات وظائف تصف العمل الذي يحتاجون إلى تنفيذه. وبنشر إعلان وظيفة، تُقرُّ بأن العمل الموصوف مشروع، وأن لديك الصلاحية للتعاقد مع شخص لتنفيذه، وأن الإعلان دقيق وغير مضلل. وتحتفظ OxSteed بحق إزالة أيِّ إعلان وظيفة لأيِّ سبب دون إشعار أو مسؤولية."
+        },
+        {
+          "type": "p",
+          "text": "لا يُنشئ نشرُ إعلان وظيفة أيَّ التزام بقبول أيِّ عطاء أو التعاقد مع أيِّ مُساعد. ويجوز للعملاء إغلاق الإعلان أو تعديله أو رفض جميع العطاءات وفقًا لتقديرهم المطلق."
+        },
+        {
+          "type": "h3",
+          "text": "17.2 عطاءات المُساعدين"
+        },
+        {
+          "type": "p",
+          "text": "يجوز للمُساعدين تقديم عطاءات على إعلانات الوظائف المنشورة. وبتقديم عطاء، تُقرُّ بما يلي:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "أنك متاح فعلًا ومؤهل لأداء العمل الموصوف؛"
+            ],
+            [
+              "أن سعر عطائك دقيق ويعكس تكلفتك الإجمالية الشاملة للعميل؛"
+            ],
+            [
+              "أنك تحمل أيَّ رخص أو تصاريح أو شهادات مطلوبة لأداء العمل بشكل قانوني في الولاية القضائية المعمول بها."
+            ]
+          ]
+        },
+        {
+          "type": "p",
+          "text": "يُعدُّ تقديم العطاء عرضًا، وليس عقدًا."
+        },
+        {
+          "type": "h3",
+          "text": "17.3 إلغاء العطاءات النشطة"
+        },
+        {
+          "type": "p",
+          "text": "إذا أزال العميل إعلان وظيفة أو ألغاه بعد تقديم العطاءات وقبل قبول أيِّ عطاء، تُبطَل جميع العطاءات المعلَّقة تلقائيًا. ولا يحق للمُساعدين أيُّ مطالبة ضد OxSteed أو العميل بسبب إلغاء العطاءات."
+        },
+        {
+          "type": "h3",
+          "text": "17.4 عدم ضمان حجم العمل"
+        },
+        {
+          "type": "p",
+          "text": "لا تُقدِّم OxSteed أيَّ إقرار أو ضمان أو كفالة بأن أيَّ مُساعد في أيِّ مستوى سيتلقى عطاءات أو فرصًا أو عروض عمل أو دخلًا بأيِّ مبلغ. وتكون رسوم الاشتراك مقابل الوصول إلى المنصة وميزاتها، وليس مقابل حجم عمل مضمون."
+        }
+      ]
+    },
+    "18": {
+      "search": "18 الأطراف الثالثة Stripe Checkr Resend الخدمات",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "18. خدمات الأطراف الثالثة"
+        },
+        {
+          "type": "p",
+          "text": "تتكامل OxSteed مع خدمات الأطراف الثالثة التالية أو تعتمد عليها، ويخضع كلٌّ منها لشروطه وسياسات الخصوصية الخاصة به:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              {
+                "strong": "Stripe, Inc."
+              },
+              " — معالجة الدفع والحسابات المرتبطة "
+            ],
+            [
+              {
+                "strong": "Checkr, Inc."
+              },
+              " — خدمات التحقق من الخلفية وخدمات التقارير الاستهلاكية"
+            ],
+            [
+              {
+                "strong": "Resend"
+              },
+              " — توصيل البريد الإلكتروني للمعاملات"
+            ]
+          ]
+        },
+        {
+          "type": "p",
+          "text": "ليست OxSteed مسؤولة عن توافر أيِّ خدمة من خدمات الأطراف الثالثة أو دقتها أو أمنها أو أدائها. ويخضع استخدامك لخدمات الأطراف الثالثة عبر OxSteed لشروط الطرف الثالث المعمول بها. ولن تتحمل OxSteed أيَّ مسؤولية عن أيِّ خسارة أو ضرر ناجم عن أفعال أو إغفالات أو انقطاعات خدمة أيِّ مزود خدمة من الأطراف الثالثة."
+        }
+      ]
+    },
+    "19": {
+      "search": "19 الموافقة القبول التوقيع الإلكتروني إنشاء الحساب المتابعة",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "19. الموافقة والقبول"
+        },
+        {
+          "type": "p",
+          "text": "بإنشاء حساب OxSteed، تؤكد أنك قرأت شروط الخدمة هذه وفهمتها وتوافق على الالتزام بها. ويُشكِّل نقرك على «إنشاء حساب» أو «متابعة» توقيعًا إلكترونيًا ملزمًا قانونًا بموجب قانون التوقيع الإلكتروني (E-SIGN Act)، ‏15 U.S.C. § 7001‏ وما يليها."
+        },
+        {
+          "type": "p",
+          "text": "إذا كنت لا توافق على شروط الخدمة هذه، فلا تُنشئ حسابًا ولا تستخدم منصة OxSteed."
+        }
+      ]
+    },
+    "20": {
+      "search": "20 تعديلات الشروط تحديث البريد الإلكتروني الإشعار إلغاء التنشيط",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "20. تعديلات على شروط الخدمة هذه"
+        },
+        {
+          "type": "p",
+          "text": "يجوز لـ OxSteed تحديث شروط الخدمة هذه في أيِّ وقت. وسنُشعِر المستخدمين بالتغييرات الجوهرية عبر البريد الإلكتروني قبل سريان التغييرات بـ14 يومًا على الأقل. ويُشكِّل الاستمرار في استخدام المنصة بعد تاريخ سريان الشروط المحدَّثة قبولًا للشروط الجديدة. وإذا كنت لا توافق على الشروط المحدَّثة، فيجب عليك التوقف عن استخدام المنصة وإلغاء تنشيط حسابك."
+        }
+      ]
+    }
   }
 }

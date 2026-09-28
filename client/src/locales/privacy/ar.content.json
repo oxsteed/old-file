@@ -1,116 +1,116 @@
 {
   "sections": {
     "1": {
-      "search": "1 introduction oxsteed personal information collect",
+      "search": "1 مقدمة أوكستيد المعلومات الشخصية جمع المعلومات",
       "blocks": [
         {
           "type": "h2",
-          "text": "1. Introduction"
+          "text": "1. مقدمة"
         },
         {
           "type": "p",
-          "text": "OxSteed LLC (\"OxSteed,\" \"we,\" \"us,\" or \"our\") operates the OxSteed platform at oxsteed.com. This Privacy Policy explains what personal information we collect, how we use it, how we share it, and your rights regarding your data."
+          "text": "تُشغّل شركة OxSteed LLC (يُشار إليها فيما بعد باسم «OxSteed» أو «نحن» أو «ضمير المتكلمين») منصة OxSteed على الموقع oxsteed.com. تشرح سياسة الخصوصية هذه ماهية المعلومات الشخصية التي نجمعها، وكيفية استخدامها، وكيفية مشاركتها، وحقوقك المتعلقة ببياناتك."
         },
         {
           "type": "p",
-          "text": "By creating an account or using OxSteed, you consent to the collection and use of your information as described in this Privacy Policy. If you do not agree, do not use the platform."
+          "text": "بإنشاء حساب أو استخدام OxSteed، فإنك توافق على جمع معلوماتك واستخدامها كما هو موضح في سياسة الخصوصية هذه. وإذا كنت لا توافق، فلا تستخدم المنصة."
         }
       ]
     },
     "2": {
-      "search": "2 information collect registration stripe checkr cookies device",
+      "search": "2 المعلومات التي نجمعها التسجيل سترايب تشيكر ملفات تعريف الارتباط الجهاز",
       "blocks": [
         {
           "type": "h2",
-          "text": "2. Information We Collect"
+          "text": "2. المعلومات التي نجمعها"
         },
         {
           "type": "h3",
-          "text": "2.1 Information You Provide"
+          "text": "2.1 المعلومات التي تقدمها"
         },
         {
           "type": "ul",
           "items": [
             [
               {
-                "strong": "Account registration:"
+                "strong": "تسجيل الحساب:"
               },
-              " Name, email address, phone number, password, role (Customer or Helper), and location (city, state, zip code)."
+              " الاسم، وعنوان البريد الإلكتروني، ورقم الهاتف، وكلمة المرور، والدور (عميل أو مساعد)، والموقع (المدينة، والولاية، والرمز البريدي)."
             ],
             [
               {
-                "strong": "Profile information:"
+                "strong": "معلومات الملف الشخصي:"
               },
-              " Profile photo, bio, skills, service categories, hourly rates, and availability."
+              " صورة الملف الشخصي، والسيرة الذاتية، والمهارات، وفئات الخدمات، والأجور بالساعة، ومواعيد التوفر."
             ],
             [
               {
-                "strong": "Payment information:"
+                "strong": "معلومات الدفع:"
               },
-              " Stripe processes all payments. OxSteed does not store credit card numbers. We store Stripe customer IDs and connected account IDs."
+              " يعالج Stripe جميع المدفوعات. لا تُخزّن OxSteed أرقام بطاقات الائتمان. ونحتفظ بمعرفات عملاء Stripe ومعرفات الحسابات المتصلة."
             ],
             [
               {
-                "strong": "Background check data:"
+                "strong": "بيانات التحقق من الخلفية:"
               },
-              " If you elect a background check, Checkr, Inc. collects and processes your personal data under its own privacy policy. OxSteed receives only pass/fail status and badge eligibility."
+              " إذا اخترت إجراء تحقق من الخلفية، فإن Checkr, Inc. تجمع بياناتك الشخصية وتعالجها وفقًا لسياسة الخصوصية الخاصة بها. وتتلقى OxSteed حالة النجاح/الفشل وأهلية الشارة فقط."
             ],
             [
               {
-                "strong": "Communications:"
+                "strong": "الاتصالات:"
               },
-              " Messages sent through the platform, support requests, and feedback."
+              " الرسائل المرسلة عبر المنصة، وطلبات الدعم، والملاحظات."
             ],
             [
               {
-                "strong": "Job and bid data:"
+                "strong": "بيانات الوظائف والعروض:"
               },
-              " Job descriptions, bid amounts, completion status, and reviews."
+              " أوصاف الوظائف، ومبالغ العروض، وحالة الإنجاز، والتقييمات."
             ],
             [
               {
-                "strong": "Tax information:"
+                "strong": "المعلومات الضريبية:"
               },
-              " IRS Form W-9 data (name, address, SSN/EIN) for Helpers earning $600+ annually through Tier 3."
+              " بيانات نموذج W-9 الصادر عن مصلحة الضرائب الأمريكية (الاسم، والعنوان، ورقم الضمان الاجتماعي/رقم تعريف صاحب العمل) للمساعدين الذين يكسبون 600 دولار أو أكثر سنويًا عبر المستوى 3."
             ]
           ]
         },
         {
           "type": "h3",
-          "text": "2.2 Information Collected Automatically"
+          "text": "2.2 المعلومات التي تُجمع تلقائيًا"
         },
         {
           "type": "ul",
           "items": [
             [
               {
-                "strong": "Device and browser data:"
+                "strong": "بيانات الجهاز والمتصفح:"
               },
-              " IP address, browser type, operating system, device identifiers, and screen resolution."
+              " عنوان IP، ونوع المتصفح، ونظام التشغيل، ومعرفات الجهاز، ودقة الشاشة."
             ],
             [
               {
-                "strong": "Usage data:"
+                "strong": "بيانات الاستخدام:"
               },
-              " Pages viewed, features used, search queries, click patterns, and session duration."
+              " الصفحات التي تمت زيارتها، والميزات المستخدمة، واستعلامات البحث، وأنماط النقر، ومدة الجلسة."
             ],
             [
               {
-                "strong": "Location data:"
+                "strong": "بيانات الموقع:"
               },
-              " Approximate location derived from IP address and zip code provided during registration."
+              " الموقع التقريبي المُستمد من عنوان IP والرمز البريدي المقدم أثناء التسجيل."
             ],
             [
               {
-                "strong": "Cookies and tracking:"
+                "strong": "ملفات تعريف الارتباط والتتبع:"
               },
-              " We use essential cookies for authentication and session management. See Section 8 for details."
+              " نستخدم ملفات تعريف الارتباط الأساسية للمصادقة وإدارة الجلسات. انظر القسم 8 لمزيد من التفاصيل."
             ]
           ]
         },
         {
           "type": "h3",
-          "text": "2.3 Information from Third Parties"
+          "text": "2.3 المعلومات من أطراف ثالثة"
         },
         {
           "type": "ul",
@@ -119,61 +119,61 @@
               {
                 "strong": "Stripe:"
               },
-              " Payment status, transaction IDs, and connected account status."
+              " حالة الدفع، ومعرفات المعاملات، وحالة الحساب المتصل."
             ],
             [
               {
                 "strong": "Checkr:"
               },
-              " Background check completion status and badge eligibility (not the underlying report details)."
+              " حالة إتمام التحقق من الخلفية وأهلية الشارة (وليس تفاصيل التقرير الأساسي)."
             ]
           ]
         }
       ]
     },
     "3": {
-      "search": "3 how we use information account payments tax advertising sell",
+      "search": "3 كيف نستخدم المعلومات الحساب المدفوعات الضرائب الإعلان البيع",
       "blocks": [
         {
           "type": "h2",
-          "text": "3. How We Use Your Information"
+          "text": "3. كيفية استخدامنا لمعلوماتك"
         },
         {
           "type": "p",
-          "text": "We use the information we collect for the following purposes:"
+          "text": "نستخدم المعلومات التي نجمعها للأغراض التالية:"
         },
         {
           "type": "ul",
           "items": [
             [
-              "To create, maintain, and secure your account;"
+              "لإنشاء حسابك وصيانته وتأمينه؛"
             ],
             [
-              "To connect Customers with Helpers and facilitate service transactions;"
+              "لربط العملاء بالمساعدين وتيسير معاملات الخدمات؛"
             ],
             [
-              "To process payments through Stripe (Tier 3 escrow);"
+              "لمعالجة المدفوعات عبر Stripe (الضمان في المستوى 3)؛"
             ],
             [
-              "To facilitate background checks through Checkr;"
+              "لتيسير عمليات التحقق من الخلفية عبر Checkr؛"
             ],
             [
-              "To send transactional emails (job alerts, payment confirmations, account notifications);"
+              "لإرسال رسائل البريد الإلكتروني المتعلقة بالمعاملات (تنبيهات الوظائف، وتأكيدات الدفع، وإشعارات الحساب)؛"
             ],
             [
-              "To comply with tax reporting obligations (IRS Form 1099-NEC);"
+              "للامتثال لالتزامات الإبلاغ الضريبي (نموذج 1099-NEC الصادر عن مصلحة الضرائب الأمريكية)؛"
             ],
             [
-              "To enforce our Terms of Service and prevent fraud;"
+              "لتنفيذ شروط الخدمة الخاصة بنا ومنع الاحتيال؛"
             ],
             [
-              "To improve and develop the platform;"
+              "لتحسين المنصة وتطويرها؛"
             ],
             [
-              "To respond to legal requests and prevent harm;"
+              "للرد على الطلبات القانونية ومنع الضرر؛"
             ],
             [
-              "To send service-related communications (you may not opt out of these while your account is active)."
+              "لإرسال الاتصالات المتعلقة بالخدمة (لا يمكنك إلغاء الاشتراك في هذه الاتصالات طالما كان حسابك نشطًا)."
             ]
           ]
         },
@@ -181,289 +181,289 @@
           "type": "p",
           "segments": [
             {
-              "strong": "We do not sell your personal information."
+              "strong": "نحن لا نبيع معلوماتك الشخصية."
             },
-            " We do not use your data for targeted advertising. We do not share your data with data brokers."
+            " نحن لا نستخدم بياناتك للإعلانات المستهدفة. ونحن لا نشارك بياناتك مع وسطاء البيانات."
           ]
         }
       ]
     },
     "4": {
-      "search": "4 share information stripe checkr resend law enforcement address",
+      "search": "4 مشاركة المعلومات سترايب تشيكر ريسند إنفاذ القانون العنوان",
       "blocks": [
         {
           "type": "h2",
-          "text": "4. How We Share Your Information"
+          "text": "4. كيفية مشاركتنا لمعلوماتك"
         },
         {
           "type": "p",
-          "text": "We share your personal information only in the following circumstances:"
+          "text": "نشارك معلوماتك الشخصية فقط في الظروف التالية:"
         },
         {
           "type": "ul",
           "items": [
             [
               {
-                "strong": "With other users:"
+                "strong": "مع المستخدمين الآخرين:"
               },
-              " Your profile information (name, photo, skills, reviews, badge status) is visible to other users. Your full address is shared only with Helpers who have accepted a job, and only within 12 hours of the job start time."
+              " تكون معلومات ملفك الشخصي (الاسم، والصورة، والمهارات، والتقييمات، وحالة الشارة) مرئية للمستخدمين الآخرين. ولا يُشارَك عنوانك الكامل إلا مع المساعدين الذين قبلوا وظيفة، وذلك فقط خلال 12 ساعة من وقت بدء الوظيفة."
             ],
             [
               {
-                "strong": "With Stripe, Inc.:"
+                "strong": "مع Stripe, Inc.:"
               },
-              " Payment and identity data necessary to process transactions and manage connected accounts."
+              " بيانات الدفع والهوية اللازمة لمعالجة المعاملات وإدارة الحسابات المتصلة."
             ],
             [
               {
-                "strong": "With Checkr, Inc.:"
+                "strong": "مع Checkr, Inc.:"
               },
-              " Personal data necessary to conduct background checks (only with your separate, affirmative consent under FCRA)."
+              " البيانات الشخصية اللازمة لإجراء عمليات التحقق من الخلفية (فقط بموافقتك المنفصلة والصريحة بموجب قانون الإبلاغ الائتماني العادل FCRA)."
             ],
             [
               {
-                "strong": "With Resend:"
+                "strong": "مع Resend:"
               },
-              " Email address and name for transactional email delivery."
+              " عنوان البريد الإلكتروني والاسم لتسليم رسائل البريد الإلكتروني المتعلقة بالمعاملات."
             ],
             [
               {
-                "strong": "With law enforcement:"
+                "strong": "مع جهات إنفاذ القانون:"
               },
-              " When required by law, subpoena, court order, or to protect the rights, property, or safety of OxSteed, its users, or the public."
+              " عند الاقتضاء بموجب القانون، أو مذكرة استدعاء، أو أمر قضائي، أو لحماية حقوق OxSteed أو ممتلكاتها أو سلامتها، أو حقوق مستخدميها أو الجمهور أو سلامتهم."
             ],
             [
               {
-                "strong": "In a business transfer:"
+                "strong": "في حالة نقل الأعمال:"
               },
-              " If OxSteed is acquired, merged, or sells assets, user data may be transferred to the successor entity. We will notify you by email before your data is subject to a different privacy policy."
+              " إذا تم الاستحواذ على OxSteed أو اندماجها أو بيع أصولها، فقد تُنقل بيانات المستخدمين إلى الكيان الخلف. وسنُشعرك عبر البريد الإلكتروني قبل أن تخضع بياناتك لسياسة خصوصية مختلفة."
             ]
           ]
         }
       ]
     },
     "5": {
-      "search": "5 address privacy masking street 12 hours helper job",
+      "search": "5 العنوان الخصوصية الإخفاء الشارع 12 ساعة المساعد الوظيفة",
       "blocks": [
         {
           "type": "h2",
-          "text": "5. Address Privacy and Data Masking"
+          "text": "5. خصوصية العنوان وإخفاء البيانات"
         },
         {
           "type": "p",
-          "text": "When a Customer posts a job, their full street address is never displayed publicly. A Helper receives the Customer's full address only after:"
+          "text": "عندما ينشر العميل وظيفة، لا يُعرض عنوان الشارع الكامل الخاص به علنًا أبدًا. يتلقى المساعد العنوان الكامل للعميل فقط بعد:"
         },
         {
           "type": "ul",
           "items": [
             [
-              "The Helper has been accepted for the job; AND"
+              "قبول المساعد للوظيفة؛ و"
             ],
             [
-              "The job is scheduled to begin within 12 hours."
+              "أن تكون الوظيفة مجدولة للبدء خلال 12 ساعة."
             ]
           ]
         },
         {
           "type": "p",
-          "text": "All address reveals are logged with timestamps, user IDs, and IP addresses for security and audit purposes."
+          "text": "تُسجَّل جميع عمليات الكشف عن العناوين مع الطوابع الزمنية ومعرفات المستخدمين وعناوين IP لأغراض الأمن والتدقيق."
         }
       ]
     },
     "6": {
-      "search": "6 data retention w-9 1099 escrow audit logs closed account",
+      "search": "6 الاحتفاظ بالبيانات W-9 1099 الضمان سجلات التدقيق الحساب المغلق",
       "blocks": [
         {
           "type": "h2",
-          "text": "6. Data Retention"
+          "text": "6. الاحتفاظ بالبيانات"
         },
         {
           "type": "ul",
           "items": [
             [
               {
-                "strong": "Active accounts:"
+                "strong": "الحسابات النشطة:"
               },
-              " Data is retained for as long as your account is active."
+              " تُحتفظ بالبيانات طالما كان حسابك نشطًا."
             ],
             [
               {
-                "strong": "Closed accounts:"
+                "strong": "الحسابات المغلقة:"
               },
-              " Account data is retained for 3 years after account closure for tax compliance, legal obligations, and dispute resolution purposes."
+              " تُحتفظ ببيانات الحساب لمدة 3 سنوات بعد إغلاق الحساب لأغراض الامتثال الضريبي والالتزامات القانونية وتسوية النزاعات."
             ],
             [
               {
-                "strong": "Tax records (W-9, 1099-NEC):"
+                "strong": "السجلات الضريبية (W-9 و1099-NEC):"
               },
-              " Retained for 7 years as required by IRS regulations."
+              " تُحتفظ بها لمدة 7 سنوات كما تتطلب لوائح مصلحة الضرائب الأمريكية."
             ],
             [
               {
-                "strong": "Escrow transaction records:"
+                "strong": "سجلات معاملات الضمان:"
               },
-              " Retained for 5 years after the transaction date."
+              " تُحتفظ بها لمدة 5 سنوات بعد تاريخ المعاملة."
             ],
             [
               {
-                "strong": "Audit logs:"
+                "strong": "سجلات التدقيق:"
               },
-              " Security and access logs are retained for 2 years."
+              " تُحتفظ بسجلات الأمن والوصول لمدة سنتين."
             ],
             [
               {
-                "strong": "Background check status:"
+                "strong": "حالة التحقق من الخلفية:"
               },
-              " Badge expiration is 12 months. Underlying check data is held by Checkr under its own retention policy."
+              " تنتهي صلاحية الشارة بعد 12 شهرًا. وتحتفظ Checkr ببيانات التحقق الأساسية وفقًا لسياسة الاحتفاظ الخاصة بها."
             ]
           ]
         }
       ]
     },
     "7": {
-      "search": "7 your rights delete correct california ccpa cpra opt out",
+      "search": "7 حقوقك الحذف التصحيح كاليفورنيا CCPA CPRA الانسحاب",
       "blocks": [
         {
           "type": "h2",
-          "text": "7. Your Rights"
+          "text": "7. حقوقك"
         },
         {
           "type": "p",
-          "text": "Depending on your state of residence, you may have the following rights regarding your personal information:"
+          "text": "اعتمادًا على ولاية إقامتك، قد تتمتع بالحقوق التالية فيما يتعلق بمعلوماتك الشخصية:"
         },
         {
           "type": "ul",
           "items": [
             [
               {
-                "strong": "Right to know:"
+                "strong": "الحق في المعرفة:"
               },
-              " Request a copy of the personal information we hold about you."
+              " طلب نسخة من المعلومات الشخصية التي نحتفظ بها عنك."
             ],
             [
               {
-                "strong": "Right to delete:"
+                "strong": "الحق في الحذف:"
               },
-              " Request deletion of your personal information, subject to legal retention obligations."
+              " طلب حذف معلوماتك الشخصية، مع مراعاة التزامات الاحتفاظ القانونية."
             ],
             [
               {
-                "strong": "Right to correct:"
+                "strong": "الحق في التصحيح:"
               },
-              " Request correction of inaccurate personal information."
+              " طلب تصحيح المعلومات الشخصية غير الدقيقة."
             ],
             [
               {
-                "strong": "Right to opt out of sale:"
+                "strong": "الحق في إلغاء الاشتراك في البيع:"
               },
-              " We do not sell personal information. No action is needed."
+              " نحن لا نبيع المعلومات الشخصية. لا حاجة لاتخاذ أي إجراء."
             ],
             [
               {
-                "strong": "Right to non-discrimination:"
+                "strong": "الحق في عدم التمييز:"
               },
-              " We will not discriminate against you for exercising your privacy rights."
+              " لن نميّز ضدك لممارستك حقوق الخصوصية الخاصة بك."
             ]
           ]
         },
         {
           "type": "p",
           "segments": [
-            "To exercise any of these rights, email ",
+            "لممارسة أي من هذه الحقوق، أرسل بريدًا إلكترونيًا إلى ",
             {
               "mailto": "legal@oxsteed.com"
             },
-            " with the subject line \"Privacy Rights Request.\" We will respond within 30 days. We may need to verify your identity before processing your request."
+            " مع سطر الموضوع «طلب حقوق الخصوصية». وسنرد خلال 30 يومًا. وقد نحتاج إلى التحقق من هويتك قبل معالجة طلبك."
           ]
         },
         {
           "type": "note",
           "variant": "yellow",
-          "strong": "California residents (CCPA/CPRA):",
+          "strong": "سكان كاليفورنيا (CCPA/CPRA):",
           "segments": [
-            " You have additional rights under the California Consumer Privacy Act and the California Privacy Rights Act. See our ",
+            " تتمتع بحقوق إضافية بموجب قانون خصوصية المستهلك في كاليفورنيا وقانون حقوق الخصوصية في كاليفورنيا. انظر صفحة ",
             {
               "routeLink": {
                 "to": "/do-not-sell",
-                "label": "Do Not Sell or Share My Personal Information"
+                "label": "عدم بيع معلوماتي الشخصية أو مشاركتها"
               }
             },
-            " page for details."
+            " لمزيد من التفاصيل."
           ]
         }
       ]
     },
     "8": {
-      "search": "8 cookies tracking essential functional advertising",
+      "search": "8 ملفات تعريف الارتباط التتبع الأساسية الوظيفية الإعلانات",
       "blocks": [
         {
           "type": "h2",
-          "text": "8. Cookies and Tracking Technologies"
+          "text": "8. ملفات تعريف الارتباط وتقنيات التتبع"
         },
         {
           "type": "p",
-          "text": "OxSteed uses the following categories of cookies:"
+          "text": "تستخدم OxSteed الفئات التالية من ملفات تعريف الارتباط:"
         },
         {
           "type": "ul",
           "items": [
             [
               {
-                "strong": "Essential cookies:"
+                "strong": "ملفات تعريف الارتباط الأساسية:"
               },
-              " Required for authentication, session management, and security. These cannot be disabled."
+              " مطلوبة للمصادقة وإدارة الجلسات والأمن. ولا يمكن تعطيلها."
             ],
             [
               {
-                "strong": "Functional cookies:"
+                "strong": "ملفات تعريف الارتباط الوظيفية:"
               },
-              " Remember your preferences (e.g., dark mode, location). You may disable these in your browser settings."
+              " تتذكر تفضيلاتك (مثل الوضع الداكن والموقع). يمكنك تعطيلها في إعدادات متصفحك."
             ]
           ]
         },
         {
           "type": "p",
           "segments": [
-            "OxSteed does ",
+            "OxSteed ",
             {
-              "strong": "not"
+              "strong": "لا"
             },
-            " use advertising cookies, retargeting pixels, or third-party tracking scripts. We do not participate in ad networks or sell data to advertisers."
+            " تستخدم ملفات تعريف الارتباط الإعلانية، أو وحدات بكسل إعادة الاستهداف، أو نصوص التتبع التابعة لأطراف ثالثة. ونحن لا نشارك في شبكات الإعلانات ولا نبيع البيانات للمعلنين."
           ]
         }
       ]
     },
     "9": {
-      "search": "9 security breach notification tls bcrypt jwt 72 hours",
+      "search": "9 الأمن خرق البيانات الإشعار TLS bcrypt JWT 72 ساعة",
       "blocks": [
         {
           "type": "h2",
-          "text": "9. Data Security and Breach Notification"
+          "text": "9. أمن البيانات والإشعار بخرق البيانات"
         },
         {
           "type": "p",
-          "text": "OxSteed implements commercially reasonable security measures to protect your personal information, including:"
+          "text": "تطبق OxSteed تدابير أمنية معقولة تجاريًا لحماية معلوماتك الشخصية، بما في ذلك:"
         },
         {
           "type": "ul",
           "items": [
             [
-              "Encryption in transit (TLS/HTTPS) and at rest for sensitive data;"
+              "التشفير أثناء النقل (TLS/HTTPS) وأثناء التخزين للبيانات الحساسة؛"
             ],
             [
-              "Bcrypt password hashing with salting;"
+              "تجزئة كلمات المرور باستخدام Bcrypt مع إضافة الملح؛"
             ],
             [
-              "JWT-based authentication with secure, HTTP-only cookies;"
+              "المصادقة القائمة على JWT مع ملفات تعريف ارتباط آمنة مخصصة لـ HTTP فقط؛"
             ],
             [
-              "Rate limiting on authentication endpoints;"
+              "تحديد معدل الطلبات على نقاط نهاية المصادقة؛"
             ],
             [
-              "Role-based access controls;"
+              "ضوابط الوصول القائمة على الأدوار؛"
             ],
             [
-              "Audit logging of security-sensitive actions."
+              "تسجيل التدقيق للإجراءات الحساسة أمنيًا."
             ]
           ]
         },
@@ -471,24 +471,24 @@
           "type": "p",
           "segments": [
             {
-              "strong": "Breach notification:"
+              "strong": "الإشعار بخرق البيانات:"
             },
-            " In the event of a data breach that compromises your personal information, OxSteed will notify affected users by email within 72 hours of discovering the breach and will notify applicable state attorneys general as required by law."
+            " في حالة حدوث خرق للبيانات يُعرّض معلوماتك الشخصية للخطر، ستُشعر OxSteed المستخدمين المتأثرين عبر البريد الإلكتروني خلال 72 ساعة من اكتشاف الخرق، وستُشعر المدعين العامين للولايات المعنية كما يقتضي القانون."
           ]
         }
       ]
     },
     "10": {
-      "search": "10 account deletion profile anonymized escrow tier 3",
+      "search": "10 حذف الحساب الملف الشخصي مجهول الهوية الضمان المستوى 3",
       "blocks": [
         {
           "type": "h2",
-          "text": "10. Account Deletion"
+          "text": "10. حذف الحساب"
         },
         {
           "type": "p",
           "segments": [
-            "You may request deletion of your account at any time through your account settings or by emailing ",
+            "يمكنك طلب حذف حسابك في أي وقت عبر إعدادات حسابك أو عن طريق إرسال بريد إلكتروني إلى ",
             {
               "mailto": "legal@oxsteed.com"
             },
@@ -497,41 +497,41 @@
         },
         {
           "type": "p",
-          "text": "Upon deletion:"
+          "text": "عند الحذف:"
         },
         {
           "type": "ul",
           "items": [
             [
-              "Your profile, messages, and personal data will be permanently removed within 30 days;"
+              "سيتم حذف ملفك الشخصي ورسائلك وبياناتك الشخصية نهائيًا خلال 30 يومًا؛"
             ],
             [
-              "Reviews you have left for others will be anonymized but not deleted;"
+              "ستُجعل التقييمات التي تركتها للآخرين مجهولة الهوية دون حذفها؛"
             ],
             [
-              "Tax records (W-9, 1099-NEC) will be retained for the legally required period;"
+              "ستُحتفظ بالسجلات الضريبية (W-9 و1099-NEC) للفترة المطلوبة قانونًا؛"
             ],
             [
-              "Escrow transaction records will be retained for audit purposes;"
+              "ستُحتفظ بسجلات معاملات الضمان لأغراض التدقيق؛"
             ],
             [
-              "Active Tier 3 escrow transactions must be completed or resolved before deletion can proceed."
+              "يجب إتمام معاملات الضمان النشطة في المستوى 3 أو تسويتها قبل أن يتمكن الحذف من المتابعة."
             ]
           ]
         }
       ]
     },
     "11": {
-      "search": "11 children privacy under 18 minors",
+      "search": "11 خصوصية الأطفال دون 18 القاصرين",
       "blocks": [
         {
           "type": "h2",
-          "text": "11. Children's Privacy"
+          "text": "11. خصوصية الأطفال"
         },
         {
           "type": "p",
           "segments": [
-            "OxSteed is not intended for use by anyone under the age of 18. We do not knowingly collect personal information from children under 18. If we discover that we have collected personal information from a child under 18, we will delete it immediately. If you believe a child under 18 has provided us personal information, contact us at ",
+            "إن OxSteed غير مخصصة للاستخدام من قبل أي شخص دون سن 18 عامًا. ونحن لا نجمع عن علم معلومات شخصية من أطفال دون سن 18 عامًا. وإذا اكتشفنا أننا جمعنا معلومات شخصية من طفل دون سن 18 عامًا، فسنحذفها فورًا. وإذا كنت تعتقد أن طفلًا دون سن 18 عامًا قد قدم لنا معلومات شخصية، فاتصل بنا على ",
             {
               "mailto": "legal@oxsteed.com"
             },
@@ -541,28 +541,28 @@
       ]
     },
     "12": {
-      "search": "12 changes privacy policy email 14 days updated",
+      "search": "12 التغييرات سياسة الخصوصية البريد الإلكتروني 14 يومًا محدثة",
       "blocks": [
         {
           "type": "h2",
-          "text": "12. Changes to This Privacy Policy"
+          "text": "12. التغييرات على سياسة الخصوصية هذه"
         },
         {
           "type": "p",
-          "text": "OxSteed may update this Privacy Policy at any time. We will notify users of material changes by email at least 14 days before the changes take effect. The \"Last updated\" date at the top of this page reflects the most recent revision."
+          "text": "قد تُحدّث OxSteed سياسة الخصوصية هذه في أي وقت. وسنُشعر المستخدمين بالتغييرات الجوهرية عبر البريد الإلكتروني قبل 14 يومًا على الأقل من سريان التغييرات. ويعكس تاريخ «آخر تحديث» في أعلى هذه الصفحة أحدث مراجعة."
         }
       ]
     },
     "13": {
-      "search": "13 contact us springfield legal@oxsteed.com",
+      "search": "13 اتصل بنا سبرينغفيلد legal@oxsteed.com",
       "blocks": [
         {
           "type": "h2",
-          "text": "13. Contact Us"
+          "text": "13. اتصل بنا"
         },
         {
           "type": "p",
-          "text": "For questions about this Privacy Policy or to exercise your privacy rights, contact us at:"
+          "text": "للأسئلة المتعلقة بسياسة الخصوصية هذه أو لممارسة حقوق الخصوصية الخاصة بك، اتصل بنا على:"
         },
         {
           "type": "p",
@@ -570,7 +570,7 @@
         },
         {
           "type": "p",
-          "text": "Springfield, Ohio"
+          "text": "سبرينغفيلد، أوهايو"
         },
         {
           "type": "p",
