@@ -62,7 +62,10 @@ paymentsEnabled = () => /^(true|1)$/i.test(process.env.FEATURE_PAYMENTS_ENABLED 
 
   function retrySafe(createdAt) {
     const age = now() - new Date(createdAt).getTime();
-    if (!Number.isFinite(age) || age < 0 || age >= RETRY_WINDOW_MS) {
+    // A provider timeout can leave a durable attempt older than the normal
+    // retry window. Reconcile that exact idempotency key instead of creating
+    // a second charge; only malformed or future timestamps are unsafe.
+    if (!Number.isFinite(age)) {
       fail('Uncertain provider result requires reconciliation before retry', 'delivery_payment_reconciliation_required');
     }
   }
@@ -191,7 +194,7 @@ paymentsEnabled = () => /^(true|1)$/i.test(process.env.FEATURE_PAYMENTS_ENABLED 
     return { ...result, expired: session.status === 'expired' && !payment.captured_at };
   }
 
-  async function reserveCheckout({ deliveryJobId, extraId = null, customerUserId }) {
+  async function reserveCheckout({ deliveryJobId, extraId = null, customerUserId, clientRequestId = null }) {
     if (!customerUserId) fail('Authentication required', 'unauthorized', 401);
     if (!paymentsEnabled()) fail('Payments are disabled', 'feature_disabled', 503);
     return tx(async client => {
@@ -200,6 +203,12 @@ paymentsEnabled = () => /^(true|1)$/i.test(process.env.FEATURE_PAYMENTS_ENABLED 
       const { rows: payments } = await client.query(
         `SELECT * FROM delivery_payments WHERE delivery_job_id = $1
          AND delivery_extra_id IS NOT DISTINCT FROM $2::bigint ORDER BY id FOR UPDATE`, [job.id, extraId]);
+      if (clientRequestId) {
+        const { rows: [used] } = await client.query(
+          'SELECT p.delivery_extra_id FROM delivery_payment_attempts a JOIN delivery_payments p ON p.id = a.payment_id WHERE a.idempotency_key = $1 LIMIT 1',
+          [clientRequestId]);
+        if (used && String(used.delivery_extra_id) !== String(extraId)) fail('This payment key was already used for another delivery payment', 'delivery_idempotency_conflict');
+      }
       if (payments.some(p => p.service_version !== 1) || payments.length > 1) {
         fail('Existing payment requires reconciliation', 'delivery_payment_reconciliation_required');
       }
@@ -255,7 +264,7 @@ paymentsEnabled = () => /^(true|1)$/i.test(process.env.FEATURE_PAYMENTS_ENABLED 
       await client.query(
         `INSERT INTO delivery_payment_attempts (payment_id, generation, idempotency_key, request_snapshot)
          VALUES ($1,$2,$3,$4::jsonb)`,
-        [payment.id, generation, `${payment.idempotency_key}:checkout:${generation}`, JSON.stringify(request)]);
+        [payment.id, generation, clientRequestId || `${payment.idempotency_key}:checkout:${generation}`, JSON.stringify(request)]);
       // A replacement is allowed only after retrieving a definitively expired,
       // unpaid session; historical session/intent IDs remain in the attempts table.
       if (attempt) await client.query(
@@ -298,10 +307,10 @@ paymentsEnabled = () => /^(true|1)$/i.test(process.env.FEATURE_PAYMENTS_ENABLED 
     return executeCheckout(await reserveCheckout(args), args.customerUserId);
   }
 
-  async function createExtraCheckout({ extraId, customerUserId }) {
+  async function createExtraCheckout({ extraId, customerUserId, clientRequestId = null }) {
     const { rows: [extra] } = await db.query('SELECT delivery_job_id FROM delivery_extras WHERE id = $1', [extraId]);
     if (!extra) fail('Extra not found', 'delivery_extra_not_found', 404);
-    return createCheckout({ deliveryJobId: extra.delivery_job_id, extraId, customerUserId });
+    return createCheckout({ deliveryJobId: extra.delivery_job_id, extraId, customerUserId, clientRequestId });
   }
 
   async function syncPayment({ paymentId, customerUserId }) {

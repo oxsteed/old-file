@@ -415,10 +415,10 @@ exports.updateStatus = async (req,res,next) => {
     }
     const timestamp={picked_up:'picked_up_at',delivered:'delivered_at',cancelled:'cancelled_at',approaching:'approaching_at'}[requested];
     const dispatch=requested==='delivered'?'completed':requested==='cancelled'?'exception':job.dispatch_state;
-    const {rows:[updated]}=await client.query(`UPDATE delivery_jobs SET status=$1,dispatch_state=$2,${timestamp?`${timestamp}=NOW(),`:''}
+    const {rows:[updated]}=await client.query(`UPDATE delivery_jobs SET status=$1::local_delivery_status,dispatch_state=$2,${timestamp?`${timestamp}=NOW(),`:''}
       proof_verified_at=CASE WHEN $1='delivered' THEN NOW() ELSE proof_verified_at END,
       proof_verified_by_user_id=CASE WHEN $1='delivered' THEN $5 ELSE proof_verified_by_user_id END,
-      cancellation_reason=CASE WHEN $1='cancelled' THEN $3 ELSE cancellation_reason END,updated_at=NOW() WHERE id=$4 RETURNING *`,
+      cancellation_reason=CASE WHEN $1::text='cancelled' THEN $3 ELSE cancellation_reason END,updated_at=NOW() WHERE id=$4 RETURNING *`,
       [approaching?job.status:requested,dispatch,text(req.body.reason,500)||null,job.id,req.user.id]);
     if(requested==='in_transit') {
       // Start-of-route estimate only; stale estimates become unavailable after 15 minutes.
@@ -532,7 +532,7 @@ exports.reviewExtra = async (req, res, next) => {
     await client.query('BEGIN');
     const decision = req.body.decision === 'approved' ? 'approved' : req.body.decision === 'rejected' ? 'rejected' : null;
     if (!decision) throw new AppError('Extra decision must be approved or rejected', 400, 'delivery_extra_decision_invalid');
-    const { rows } = await client.query(`UPDATE delivery_extras de SET status = $1, payment_status = CASE WHEN $1 = 'approved' THEN 'requires_action' ELSE 'not_required' END, approved_amount_cents = CASE WHEN $1 = 'approved' THEN de.amount_cents ELSE NULL END, reviewed_by_user_id = $2, reviewed_at = NOW() FROM delivery_jobs dj WHERE de.id = $3 AND de.delivery_job_id = dj.id AND dj.customer_user_id = $2 AND de.status = 'pending' RETURNING de.*`, [decision, req.user.id, req.params.extraId]);
+    const { rows } = await client.query(`UPDATE delivery_extras de SET status = $1::text, payment_status = CASE WHEN $1::text = 'approved' THEN 'requires_action' ELSE 'not_required' END, approved_amount_cents = CASE WHEN $1::text = 'approved' THEN de.amount_cents ELSE NULL END, reviewed_by_user_id = $2, reviewed_at = NOW() FROM delivery_jobs dj WHERE de.id = $3 AND de.delivery_job_id = dj.id AND dj.customer_user_id = $2 AND de.status = 'pending' RETURNING de.*`, [decision, req.user.id, req.params.extraId]);
     if (!rows[0]) throw new AppError('Extra is unavailable for review', 409, 'delivery_extra_conflict');
     await recordActivity(client, rows[0].delivery_job_id, req.user.id, `delivery_extra_${decision}`, { extraId: rows[0].id });
     await client.query('COMMIT');
@@ -625,11 +625,11 @@ Object.assign(exports, {
   ...Object.fromEntries(['requestReschedule','reviewReschedule','requestReturn','reviewReturn','resolveIssue'].map(name => [name, require('../services/localDeliveryRecoveryService')[name]])),
 });
 const deliveryPayments = require('../services/localDeliveryPaymentService');
-const paymentHandler = operation => async (req,res,next) => {
-  try { idempotencyKey(req); res.json({success:true, ...await operation(req)}); } catch(error) {next(error);}
+const paymentHandler = (operation, statusCode = 200) => async (req,res,next) => {
+  try { res.status(statusCode).json({success:true, ...await operation(req)}); } catch(error) {next(error);}
 };
-exports.createBaseCheckout = paymentHandler(req => deliveryPayments.createBaseCheckout({deliveryJobId:req.params.id,customerUserId:req.user.id}));
-exports.createExtraCheckout = paymentHandler(req => deliveryPayments.createExtraCheckout({extraId:req.params.extraId,customerUserId:req.user.id}));
+exports.createBaseCheckout = paymentHandler(req => deliveryPayments.createBaseCheckout({deliveryJobId:req.params.id,customerUserId:req.user.id}), 201);
+exports.createExtraCheckout = paymentHandler(req => deliveryPayments.createExtraCheckout({extraId:req.params.extraId,customerUserId:req.user.id,clientRequestId:req.get?.('Idempotency-Key') || null}), 201);
 exports.syncExtraPayment = paymentHandler(async req => {
   let paymentId=req.params.paymentId;
   if(req.params.extraId) { const result=await pool.query('SELECT id FROM delivery_payments WHERE delivery_extra_id=$1 AND customer_user_id=$2 ORDER BY id DESC LIMIT 1',[req.params.extraId,req.user.id]); paymentId=result.rows[0]?.id; }

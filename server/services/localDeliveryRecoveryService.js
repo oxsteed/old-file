@@ -156,8 +156,8 @@ function createRecoveryService(deps = {}) {
         await client.query("UPDATE delivery_jobs SET status = 'failed', dispatch_state = 'exception', exception_code = $2, updated_at = NOW() WHERE id = $1", [job.id, decision === 'in_transit' ? 'return_in_transit' : 'return_approved']);
       }
       const nextStatus = decision === 'rejected' ? 'cancelled' : decision;
-      const reviewed = (await client.query(`UPDATE delivery_returns SET status = $1, reviewed_by_user_id = $2, reviewed_at = NOW(),
-        completed_at = CASE WHEN $1 = 'completed' THEN NOW() ELSE completed_at END WHERE id = $3 RETURNING *`, [nextStatus, req.user.id, request.id])).rows[0];
+      const reviewed = (await client.query(`UPDATE delivery_returns SET status = $1::varchar, reviewed_by_user_id = $2, reviewed_at = NOW(),
+        completed_at = CASE WHEN $1::varchar = 'completed' THEN NOW() ELSE completed_at END WHERE id = $3 RETURNING *`, [nextStatus, req.user.id, request.id])).rows[0];
       await activity(client, job.id, req.user.id, `delivery_return_${decision}`, { returnId: request.id, proofId });
       return { success: true, decision, returnRequest: reviewed };
     }),

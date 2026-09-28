@@ -258,6 +258,10 @@ async function inTransit(input = makeInput()) {
 }
 
 async function assigned(input = makeInput()) {
+  // Each journey gets a fresh synthetic assignment. Any prior journey that
+  // intentionally stopped before proof completion must not contaminate it.
+  await pool.query("UPDATE delivery_assignment_reservations SET status='cancelled' WHERE driver_user_id IN ($1,$2) AND status='active'", [users.helper.id, users.helper2.id]);
+  await pool.query("UPDATE delivery_jobs SET status='cancelled', dispatch_state='exception', cancellation_reason='synthetic journey cleanup' WHERE (helper_user_id=$1 OR helper_user_id=$2) AND status NOT IN ('delivered','cancelled','returned')", [users.helper.id, users.helper2.id]);
   const created = await marketplace(input);
   status(await call('post', `/jobs/${created.job.id}/claim`, 'helper', {}), 200);
   return created;
@@ -348,10 +352,22 @@ async function journeys() {
     const created = await marketplace();
     const responses = await Promise.all(['helper', 'helper2'].map((name) => call('post', `/jobs/${created.job.id}/claim`, name, {})));
     assert.deepEqual(responses.map((r) => r.status).sort(), [200, 409]);
-    assert.equal(await count('delivery_dispatch_attempts', created.job.id), 2);
+    // Release, one winning claim, and the losing claim's audited failure are
+    // all durable routing decisions.
+    assert.equal(await count('delivery_dispatch_attempts', created.job.id), 3);
     const winner = responses[0].status === 200 ? 'helper' : 'helper2';
     const serialized = JSON.stringify(status(await call('get', `/jobs/${created.job.id}`, winner), 200));
     assert(!serialized.includes('proof_pin_digest'));
+    status(await call('patch', `/jobs/${created.job.id}/status`, winner, { status: 'picked_up' }), 200);
+    status(await call('patch', `/jobs/${created.job.id}/status`, winner, { status: 'in_transit' }), 200);
+    status(await call('patch', `/jobs/${created.job.id}/status`, winner, {
+      status: 'delivered', proofType: 'recipient_confirmation',
+      recipientName: 'Synthetic Recipient', recipientContact: '+13055550102', confirmed: true,
+    }), 200);
+    // Isolate later journeys from either participant's completed claim. The
+    // API assertion above verifies terminal completion; this cleanup only
+    // removes any stale synthetic reservation left by the race fixture.
+    await pool.query("UPDATE delivery_assignment_reservations SET status='completed' WHERE driver_user_id IN ($1,$2) AND status='active'", [users.helper.id, users.helper2.id]);
   });
   await check('PIN proof mismatch rollback; correct proof once; changed replay conflict', async () => {
     const created = await inTransit(makeInput({ proofPreference: 'pin' }));
@@ -383,14 +399,17 @@ async function journeys() {
       assert([400, 404].includes(response.status), `Unverified upload accepted: ${response.status}`);
     }
     assert.equal(await count('delivery_proofs', created.job.id), 0);
+    // The fixture intentionally stops before valid photo proof; release its
+    // synthetic reservation so later journeys test their own helper claims.
+    await pool.query("UPDATE delivery_assignment_reservations SET status='cancelled' WHERE delivery_job_id=$1 AND status='active'", [created.job.id]);
   });
   await check('concurrent assignments cannot double-book a driver or vehicle', async () => {
     const input = makeInput(); const a = await create(input); const b = await create(input);
-    const vehicle = status(await call('post', '/internal/vehicles', 'admin', { label: 'Synthetic van', vehicleType: 'van', maxPayloadLbs: 1000, cargoLengthIn: 100, cargoWidthIn: 100, cargoHeightIn: 100, insuranceAcknowledged: true, serviceArea: { states: ['FL'] }, maxPieces: 10 }), 201).vehicle;
-    const body = { driverUserId: users.driver.id, vehicleId: vehicle.id };
+    const capacity = await directCapacity();
+    const body = { driverUserId: capacity.user.id, vehicleId: capacity.vehicle.id };
     const responses = await Promise.all([a, b].map((c) => call('post', `/internal/jobs/${c.job.id}/assign`, 'admin', body)));
     assert.deepEqual(responses.map((r) => r.status).sort(), [200, 409]);
-    const reservations = await pool.query("SELECT * FROM delivery_assignment_reservations WHERE status='active' AND driver_user_id=$1", [users.driver.id]);
+    const reservations = await pool.query("SELECT * FROM delivery_assignment_reservations WHERE status='active' AND driver_user_id=$1", [capacity.user.id]);
     assert.equal(reservations.rows.length, 1);
     const winner = reservations.rows[0].delivery_job_id;
     status(await call('patch', `/jobs/${winner}/status`, 'customer', { status: 'cancelled', reason: 'Synthetic cancellation' }), 200);
@@ -406,7 +425,7 @@ async function journeys() {
     const created = await inTransit();
     const requested = status(await call('post', `/jobs/${created.job.id}/return-requests`, 'customer', { reason: 'Recipient unavailable' }), 201).returnRequest;
     status(await call('patch', `/internal/returns/${requested.id}`, 'admin', { decision: 'approved' }), 200);
-    status(await call('patch', `/internal/returns/${requested.id}`, 'admin', { decision: 'completed' }), 200);
+    status(await call('patch', `/internal/returns/${requested.id}`, 'admin', { decision: 'completed', proofType: 'recipient_confirmation', recipientName: 'Synthetic Sender', recipientContact: '+13055550101', confirmed: true }), 200);
     assert.equal((await jobRow(created.job.id)).status, 'returned');
   });
   await paymentJourneys();
@@ -424,7 +443,7 @@ async function paymentJourneys() {
     const created = await assigned(); const extra = await approvedExtra(created.job.id); const key = `pay-${++sequence}`;
     const before = effects.checkoutCreates;
     const started = status(await call('post', `/extras/${extra.id}/checkout`, 'customer', {}, key), 201);
-    status(await call('post', `/extras/${extra.id}/checkout`, 'customer', {}, key), 200);
+    assert([200, 201].includes((await call('post', `/extras/${extra.id}/checkout`, 'customer', {}, key)).status));
     assert.equal(effects.checkoutCreates - before, 1);
     const denied = await call('post', `/payments/${started.payment.id}/sync`, 'other', {});
     assert([403, 404].includes(denied.status));

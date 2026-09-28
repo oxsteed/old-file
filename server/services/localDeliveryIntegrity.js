@@ -49,7 +49,7 @@ async function recordActivity(client, jobId, actor, type, payload = {}, customer
   await client.query('SELECT id FROM delivery_jobs WHERE id=$1 FOR UPDATE', [jobId]);
   await client.query('INSERT INTO delivery_activity(delivery_job_id,actor_user_id,event_type,customer_visible,payload) VALUES($1,$2,$3,$4,$5)', [jobId,actor || null,type,customerVisible,JSON.stringify(payload)]);
   const { rows } = await client.query(`INSERT INTO delivery_events(delivery_job_id,event_type,event_version,actor_user_id,payload,customer_visible)
-    SELECT $1,$2,COALESCE(MAX(event_version),0)+1,$3,$4,$5 FROM delivery_events WHERE delivery_job_id=$1 RETURNING id`, [jobId,type,actor || null,JSON.stringify(payload),customerVisible]);
+    SELECT $1::bigint,$2,COALESCE(MAX(event_version),0)+1,$3,$4,$5 FROM delivery_events WHERE delivery_job_id=$1::bigint RETURNING id`, [jobId,type,actor || null,JSON.stringify(payload),customerVisible]);
   if (customerVisible) await client.query("INSERT INTO delivery_event_deliveries(event_id,consumer) VALUES($1,'notifications'),($1,'realtime')", [rows[0].id]);
   return rows[0].id;
 }

@@ -87,8 +87,8 @@ async function renewLease(row) {
 async function finishEvent(row, status, errorCode = null) {
   const { rowCount } = await pool.query(
     `UPDATE delivery_event_deliveries
-        SET status = $4, last_error = $5, updated_at = NOW(),
-            delivered_at = CASE WHEN $4 = 'delivered' THEN NOW() ELSE NULL END
+        SET status = $4::varchar, last_error = $5, updated_at = NOW(),
+            delivered_at = CASE WHEN $4::varchar = 'delivered' THEN NOW() ELSE NULL END
       WHERE event_id = $1 AND consumer = $2 AND attempts = $3 AND status = 'processing'
         AND updated_at > NOW() - ($6 * INTERVAL '1 millisecond')`,
     [row.event_id, row.consumer, row.attempts, status, errorCode, LEASE_MS],
