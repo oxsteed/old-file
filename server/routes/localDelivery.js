@@ -5,9 +5,12 @@ const { requireAuth } = require('../middleware/auth');
 const { requireInternalLogisticsWorkspace } = require('../middleware/requireInternalLogisticsWorkspace');
 const controller = require('../controllers/localDeliveryController');
 const proofController = require('../controllers/localDeliveryProofController');
+const trackingOpsController = require('../controllers/deliveryTrackingOpsController');
+const telematicsWebhookController = require('../controllers/deliveryTelematicsWebhookController');
+const trackingLinkController = require('../controllers/deliveryTrackingLinkController');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
-const { authenticatedLimiter } = require('../middleware/rateLimiter');
+const { authenticatedLimiter, generalLimiter } = require('../middleware/rateLimiter');
 
 const router = express.Router();
 router.use(authenticatedLimiter);
@@ -44,5 +47,48 @@ router.post('/internal/jobs/:id/release-marketplace', requireAuth, requireOperat
 router.patch('/internal/reschedule-requests/:requestId', requireAuth, requireOperationsWorkspace, controller.reviewReschedule);
 router.patch('/internal/returns/:returnId', requireAuth, requireOperationsWorkspace, controller.reviewReturn);
 router.patch('/internal/issues/:issueId/resolve', requireAuth, requireOperationsWorkspace, controller.resolveIssue);
+
+// Customer tracking links: signed, expiring tokens for recipients without an
+// OxSteed account. Management endpoints are owner-or-ops; the public
+// tracking endpoint is unauthenticated (rate-limited, non-enumerable).
+router.post('/jobs/:id/tracking/links', requireAuth, trackingLinkController.create);
+router.get('/jobs/:id/tracking/links', requireAuth, trackingLinkController.list);
+router.post('/jobs/:id/tracking/links/:linkId/revoke', requireAuth, trackingLinkController.revoke);
+router.post('/jobs/:id/tracking/links/:linkId/refresh', requireAuth, trackingLinkController.refresh);
+router.get('/jobs/:id/tracking/customer-state', requireAuth, trackingLinkController.customerState);
+router.get('/t/public/:token', generalLimiter, trackingLinkController.publicTrack);
+
+const trackingController = require('../controllers/deliveryTrackingController');
+router.post('/jobs/:id/tracking/consent', requireAuth, trackingController.grantConsent);
+router.delete('/jobs/:id/tracking/consent', requireAuth, trackingController.revokeConsent);
+router.post('/jobs/:id/tracking/start', requireAuth, trackingController.startTracking);
+router.post('/jobs/:id/tracking/pause', requireAuth, trackingController.pauseTracking);
+router.post('/jobs/:id/tracking/resume', requireAuth, trackingController.resumeTracking);
+router.post('/jobs/:id/tracking/stop', requireAuth, trackingController.stopTracking);
+router.post('/jobs/:id/tracking/locations', requireAuth, trackingController.ingestLocations);
+router.post('/jobs/:id/tracking/scans', requireAuth, trackingController.recordScan);
+router.get('/jobs/:id/tracking/scans', requireAuth, trackingController.listScans);
+router.get('/jobs/:id/tracking/status', requireAuth, trackingController.getStatus);
+router.post('/tracking/devices', requireAuth, trackingController.registerDevice);
+router.get('/tracking/devices', requireAuth, trackingController.listDevices);
+
+// ── Delivery tracking: operations API (integration plan) ──
+router.get('/internal/jobs/:id/tracking/exact', requireAuth, requireOperationsWorkspace, trackingOpsController.getExactTracking);
+router.get('/internal/tracking/review-queue', requireAuth, requireOperationsWorkspace, trackingOpsController.getReviewQueue);
+router.patch('/internal/tracking/points/:pointId', requireAuth, requireOperationsWorkspace, trackingOpsController.reviewPoint);
+router.post('/internal/telematics/connections', requireAuth, requireOperationsWorkspace, trackingOpsController.createTelematicsConnection);
+router.get('/internal/telematics/connections', requireAuth, requireOperationsWorkspace, trackingOpsController.listTelematicsConnections);
+router.post('/internal/telematics/connections/:id/pause', requireAuth, requireOperationsWorkspace, trackingOpsController.pauseTelematicsConnection);
+router.post('/internal/telematics/connections/:id/resume', requireAuth, requireOperationsWorkspace, trackingOpsController.resumeTelematicsConnection);
+router.post('/internal/telematics/connections/:id/revoke', requireAuth, requireOperationsWorkspace, trackingOpsController.revokeTelematicsConnection);
+router.post('/internal/telematics/connections/:id/reconcile', requireAuth, requireOperationsWorkspace, trackingOpsController.reconcileTelematicsConnection);
+router.post('/internal/tracking/eta/:id/refresh', requireAuth, requireOperationsWorkspace, trackingOpsController.refreshEta);
+router.get('/internal/jobs/:id/tracking/geofences', requireAuth, requireOperationsWorkspace, trackingOpsController.getGeofences);
+router.get('/internal/jobs/:id/tracking/eta-history', requireAuth, requireOperationsWorkspace, trackingOpsController.getEtaHistory);
+
+// ── Telematics provider webhooks ──
+// PUBLIC: no session auth; the provider's webhook signature is the
+// authentication. Mounted here without requireAuth by design.
+router.post('/webhooks/telematics/:provider', telematicsWebhookController.receiveWebhook);
 
 module.exports = router;
