@@ -246,7 +246,7 @@ export default function BidAcceptanceModal({ bid, helperName, jobTitle, onClose,
                   <h3 className="bam-slots-date-heading">{formatDateLong(selectedDate, locale)}</h3>
                   {slotsForDate.length === 0 ? (
                     <p className="bam-slots-none">
-                      {t('bidAccept.noSlotsThisDay', { defaultValue: 'No slots available — pick another day.' })}
+                      {t('bidAccept.noSlotsThisDay', { defaultValue: 'No slots available. Pick another day.' })}
                     </p>
                   ) : (
                     <div className="bam-slots-list">

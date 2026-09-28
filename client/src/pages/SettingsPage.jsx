@@ -940,7 +940,7 @@ export default function SettingsPage() {
     <div className="sp-card">
       <h2 className="sp-card-title">{t('settings.account.title')}</h2>
       <p className="sp-card-subtitle">
-        {t('settings.account.unifiedDesc', { defaultValue: 'Your account type drives the dashboard, the navbar, and which features are visible. Switch any time — the change is instant and your data is preserved.' })}
+        {t('settings.account.unifiedDesc', { defaultValue: 'Your account type drives the dashboard, the navbar, and which features are visible. Switch any time, the change is instant and your data is preserved.' })}
       </p>
 
       <ul className="flex flex-col gap-2 mb-2">
@@ -1060,7 +1060,7 @@ export default function SettingsPage() {
             <div className="rounded-lg border p-3 text-xs mb-3 space-y-1" style={{ borderColor: 'rgba(251,146,60,0.3)', background: 'rgba(251,146,60,0.06)', color: '#fdba74' }}>
               <p className="font-semibold">You have {deleteActiveJobs.length} active job{deleteActiveJobs.length !== 1 ? 's' : ''} that must be resolved first:</p>
               {deleteActiveJobs.map(j => (
-                <p key={j.id}>• {j.title} — <span style={{ opacity: 0.75 }}>{j.status}</span></p>
+                <p key={j.id}>• {j.title}: <span style={{ opacity: 0.75 }}>{j.status}</span></p>
               ))}
             </div>
           )}

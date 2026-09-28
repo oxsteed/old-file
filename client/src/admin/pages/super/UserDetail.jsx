@@ -915,7 +915,7 @@ export default function UserDetail() {
                     <div className="flex items-center gap-2 mb-1">
                       <AlertTriangle className={`w-4 h-4 shrink-0 ${expired ? 'text-red-400' : 'text-orange-400'}`} />
                       <span className={`text-sm font-semibold ${expired ? 'text-red-300' : 'text-orange-300'}`}>
-                        {expired ? 'Permanent deletion overdue' : `Scheduled for permanent deletion — ${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining`}
+                        {expired ? 'Permanent deletion overdue' : `Scheduled for permanent deletion: ${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining`}
                       </span>
                     </div>
                     <p className="text-xs text-gray-400 ml-6">
@@ -946,7 +946,7 @@ export default function UserDetail() {
                   )}
                   {user.deletion_type === 'self' && (
                     <span className="shrink-0 text-xs text-gray-500 italic">
-                      Self-deleted — not restorable
+                      Self-deleted: not restorable
                     </span>
                   )}
                 </div>

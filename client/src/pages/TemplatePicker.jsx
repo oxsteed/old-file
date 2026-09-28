@@ -165,7 +165,7 @@ const PreviewModal = ({ template, slug, pricing, hasAccess, trialExpiry, isActiv
           {/* Sample-data notice banner */}
           <div className="sticky top-0 z-10 flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600/90 backdrop-blur-sm text-white text-xs font-medium">
             <IcoEye size={13} cls="text-white" />
-            {t('templatePicker.previewSampleNotice', { defaultValue: 'Preview using sample data — your real content will appear once activated' })}
+            {t('templatePicker.previewSampleNotice', { defaultValue: 'Preview using sample data, your real content will appear once activated' })}
           </div>
           <ProfileTemplateRenderer slug={slug} profileData={PREVIEW_SAMPLE_DATA} />
         </div>

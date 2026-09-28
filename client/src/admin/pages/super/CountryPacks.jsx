@@ -73,7 +73,7 @@ export default function CountryPacks() {
         <div>
           <h1 className="text-xl font-bold text-white">Country Packs</h1>
           <p className="text-sm text-gray-400">
-            A country is a pack you register, never a condition you check. Flip a status to change the picker for everyone — no deploy.
+            A country is a pack you register, never a condition you check. Flip a status to change the picker for everyone, no deploy.
           </p>
         </div>
       </div>

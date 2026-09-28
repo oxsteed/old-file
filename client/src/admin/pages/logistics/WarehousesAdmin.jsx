@@ -209,7 +209,7 @@ export default function WarehousesAdmin() {
       {receiptModal && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999 }}>
           <div style={{ background:'var(--card-bg,#fff)', borderRadius:'1rem', padding:'1.5rem', width:420, maxWidth:'90vw' }}>
-            <h3 style={{ fontWeight:700, marginBottom:'.5rem' }}>Receive Inventory — {receiptModal.reference}</h3>
+            <h3 style={{ fontWeight:700, marginBottom:'.5rem' }}>Receive Inventory: {receiptModal.reference}</h3>
             <div style={{ fontSize:'.82rem', color:'#64748b', marginBottom:'1rem' }}>
               Expected: <strong>{receiptModal.expected_qty?.toLocaleString()}</strong> units
             </div>

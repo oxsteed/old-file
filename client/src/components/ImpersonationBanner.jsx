@@ -72,7 +72,7 @@ export default function ImpersonationBanner() {
           {t('impersonation.adminView')}&nbsp;
           <strong>{displayName}</strong>
           &nbsp;({impUser.email})
-          &nbsp;—&nbsp;
+          .&nbsp;
           <span className="font-normal opacity-80">
             {t('impersonation.loggedAs')}
           </span>

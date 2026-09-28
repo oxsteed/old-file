@@ -160,7 +160,7 @@ export function ElectricianTemplate({ profileData }) {
             <a href={`tel:${phone}`}
               className="inline-block px-6 py-3 rounded-xl font-black text-sm"
               style={{ background: YELLOW, color: NAVY }}>
-              Call Now — {phone}
+              Call Now: {phone}
             </a>
           )}
         </div>
@@ -393,7 +393,7 @@ export function MassageTherapistTemplate({ profileData }) {
             {[
               'Arrive 10 minutes early for intake form',
               'Discuss pressure preferences and problem areas',
-              'Communicate during session — your comfort comes first',
+              'Communicate during session, your comfort comes first',
               'Drink plenty of water after your session',
             ].map(t => (
               <ChecklistRow key={t} iconColor={WARM} textClass="text-amber-900">{t}</ChecklistRow>
@@ -422,7 +422,7 @@ export function MassageTherapistTemplate({ profileData }) {
             <a href={`tel:${phone}`}
               className="inline-block px-8 py-4 rounded-2xl font-black text-white text-sm shadow-lg"
               style={{ background: `linear-gradient(135deg, ${BROWN}, ${WARM})` }}>
-              Book Your Session — {phone}
+              Book Your Session: {phone}
             </a>
           </div>
         )}
@@ -540,9 +540,9 @@ export function AutoMechanicTemplate({ profileData }) {
           <div className="bg-white rounded-2xl p-5 shadow-sm">
             <SectionHead className="text-zinc-900">How It Works</SectionHead>
             <div className="space-y-4">
-              <ProcessStep number={1} title="Schedule &amp; Drop Off" description="Book online or call — same-day appointments often available" numBg={ORANGE} textClass="text-zinc-900" />
-              <ProcessStep number={2} title="Free Diagnostic" description="We scan your vehicle and explain what we find — no surprises" numBg={ORANGE} textClass="text-zinc-900" />
-              <ProcessStep number={3} title="Flat-Rate Repair" description="Approve the quote, we get to work — parts + labor included" numBg={ORANGE} textClass="text-zinc-900" />
+              <ProcessStep number={1} title="Schedule &amp; Drop Off" description="Book online or call, same-day appointments often available" numBg={ORANGE} textClass="text-zinc-900" />
+              <ProcessStep number={2} title="Free Diagnostic" description="We scan your vehicle and explain what we find, no surprises" numBg={ORANGE} textClass="text-zinc-900" />
+              <ProcessStep number={3} title="Flat-Rate Repair" description="Approve the quote, we get to work, parts + labor included" numBg={ORANGE} textClass="text-zinc-900" />
               <ProcessStep number={4} title="Quality Check + Pick Up" description="Test drive and inspection before you take the keys back" numBg={ORANGE} textClass="text-zinc-900" />
             </div>
           </div>
@@ -704,7 +704,7 @@ export function DogWalkerTemplate({ profileData }) {
             'Up-to-date rabies vaccination required',
             'Bordetella (kennel cough) vaccine recommended',
             'Dogs must be flea & tick treated',
-            'Aggressive dogs not accepted — please disclose behavior history',
+            'Aggressive dogs not accepted. Please disclose behavior history',
             'All dogs must be leash-trained or notified in advance',
           ].map(r => (
             <ChecklistRow key={r} iconColor={GREEN} textClass="text-green-800">{r}</ChecklistRow>
@@ -750,7 +750,7 @@ export function DogWalkerTemplate({ profileData }) {
             <a href={`tel:${phone}`}
               className="inline-block px-8 py-4 rounded-2xl font-black text-white text-sm"
               style={{ background: GREEN }}>
-              Book a Walk — {phone}
+              Book a Walk: {phone}
             </a>
           </div>
         )}
@@ -906,7 +906,7 @@ export function PrivateChefTemplate({ profileData }) {
             <a href={`tel:${phone}`}
               className="inline-block px-8 py-4 rounded-xl font-black text-white text-sm"
               style={{ background: BURGUNDY }}>
-              Reserve Your Dinner — {phone}
+              Reserve Your Dinner: {phone}
             </a>
           </div>
         )}
@@ -1380,7 +1380,7 @@ export function MathTutorTemplate({ profileData }) {
             <a href={`tel:${phone}`}
               className="inline-block px-6 py-3 rounded-xl font-black text-sm"
               style={{ background: '#fff', color: INDIGO }}>
-              Book Free Session — {phone}
+              Book Free Session: {phone}
             </a>
           )}
         </div>
@@ -1571,12 +1571,12 @@ export function PartyEntertainerTemplate({ profileData }) {
         <div className="rounded-2xl p-8 text-center shadow-sm" style={{ background: PURPLE }}>
           <PartyPopper size={28} className="mx-auto mb-3 text-yellow-300" />
           <p className="text-xl font-black text-white mb-1">Make It Unforgettable! 🎈</p>
-          <p className="text-sm text-purple-200 mb-5">Book early — weekends fill up fast</p>
+          <p className="text-sm text-purple-200 mb-5">Book early, weekends fill up fast</p>
           {phone && (
             <a href={`tel:${phone}`}
               className="inline-block px-8 py-4 rounded-2xl font-black text-sm"
               style={{ background: '#FACC15', color: PURPLE }}>
-              Book My Party — {phone}
+              Book My Party: {phone}
             </a>
           )}
         </div>
@@ -1619,7 +1619,7 @@ export function CarDealershipTemplate({ profileData }) {
     { icon: '🔑', name: 'New Vehicle Sales', desc: 'Latest models from top brands with factory incentives' },
     { icon: '🚘', name: 'Certified Pre-Owned', desc: 'Inspected, warrantied used vehicles you can trust' },
     { icon: '💰', name: 'Financing & Leasing', desc: 'Competitive rates, all credit types welcome' },
-    { icon: '🔄', name: 'Trade-In Appraisal', desc: 'Instant offer — trade toward your next vehicle' },
+    { icon: '🔄', name: 'Trade-In Appraisal', desc: 'Instant offer, trade toward your next vehicle' },
     { icon: '🔧', name: 'Service & Parts', desc: 'Factory-trained technicians, genuine OEM parts' },
     { icon: '📋', name: 'Extended Warranties', desc: 'Coverage plans for any budget, no surprises' },
   ];
@@ -1793,8 +1793,8 @@ export function CarDealershipTemplate({ profileData }) {
                 <p className="font-black text-white mb-2">Financing Available</p>
                 <div className="space-y-1">
                   {[
-                    'All credit types welcome — good, fair, and rebuilding',
-                    'Pre-approval in minutes — no hard credit hit',
+                    'All credit types welcome: good, fair, and rebuilding',
+                    'Pre-approval in minutes, no hard credit hit',
                     'Terms from 24 to 84 months available',
                     'Trade-in value applied directly to your down payment',
                   ].map(t => (
@@ -1880,7 +1880,7 @@ export function CarDealershipTemplate({ profileData }) {
             <div className="rounded-2xl p-5 text-center shadow-sm" style={{ background: RED }}>
               <Key size={22} className="mx-auto mb-2 text-white" />
               <p className="font-black text-white text-sm mb-1">Schedule a Test Drive</p>
-              <p className="text-xs text-red-200 mb-3">No commitment — just come in</p>
+              <p className="text-xs text-red-200 mb-3">No commitment, just come in</p>
               <a href={`tel:${phone}`}
                 className="block py-2.5 px-4 rounded-xl text-xs font-black"
                 style={{ background: '#fff', color: RED }}>

@@ -169,7 +169,7 @@ export default function HelperAvailabilityEditor() {
         <div>
           <h2 className="hae-title">{t('availability.title', { defaultValue: 'Your Weekly Availability' })}</h2>
           <p className="hae-subtitle">
-            {t('availability.subtitle', { defaultValue: 'Set your typical working hours. Customers see these slots when they accept your bids — giving you the perfect job at the right time.' })}
+            {t('availability.subtitle', { defaultValue: 'Set your typical working hours. Customers see these slots when they accept your bids, giving you the perfect job at the right time.' })}
           </p>
         </div>
         <button className="hae-save-btn" onClick={handleSave} disabled={saving}>
@@ -247,7 +247,7 @@ export default function HelperAvailabilityEditor() {
           </button>
         </div>
         <p className="hae-overrides-hint">
-          {t('availability.blockHint', { defaultValue: 'Block out holidays, vacations, or any day you\'re unavailable — even if your weekly schedule would normally show you as open.' })}
+          {t('availability.blockHint', { defaultValue: 'Block out holidays, vacations, or any day you\'re unavailable, even if your weekly schedule would normally show you as open.' })}
         </p>
 
         {showOverrideForm && (

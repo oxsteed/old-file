@@ -36,7 +36,7 @@ export default function SourcingPage() {
         <div style={{ display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:'1rem' }}>
           <div>
             <h1 className="lx-page-title">{t('logistics.sourcing.title','Sourcing')}</h1>
-            <p className="lx-page-sub">{t('logistics.sourcing.subtitle','Request, quote, and convert — from first inquiry to purchase order.')}</p>
+            <p className="lx-page-sub">{t('logistics.sourcing.subtitle','Request, quote, and convert, from first inquiry to purchase order.')}</p>
           </div>
           <Link to="/logistics/requests/new" className="lx-btn-primary">
             + {t('logistics.sourcing.newRequest','New Request')}

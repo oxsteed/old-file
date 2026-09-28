@@ -96,7 +96,7 @@ function ApprovalCard({ approval, onChange }) {
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             rows={3}
-            placeholder="Reason — visible to the applicant"
+            placeholder="Reason: visible to the applicant"
             className="w-full px-3 py-2 bg-gray-800/50 border border-gray-700 rounded-md text-white text-sm placeholder-gray-500 focus:outline-none focus:border-red-500"
           />
           <div className="mt-2 flex gap-2 justify-end">

@@ -61,7 +61,7 @@ function TabErrorFallback({ label, error, onRetry }) {
     >
       <p style={{ fontWeight: 700, marginBottom: '0.35rem' }}>
         {t('errorBoundary.title', { defaultValue: 'Something went wrong' })}
-        {label ? ` — ${label}` : ''}
+        {label ? `: ${label}` : ''}
       </p>
       <p style={{ color: 'var(--color-text-muted, #9ca3af)', fontSize: '0.9rem', marginBottom: '0.75rem' }}>
         {t('errorBoundary.message', {

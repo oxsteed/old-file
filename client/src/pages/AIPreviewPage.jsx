@@ -52,7 +52,7 @@ function ContextCards({ ctx, t }) {
         <p className="text-xs font-semibold uppercase tracking-widest text-gray-600 mb-1">{t('aiPreview.skillsLabel')}</p>
         <ul className="list-disc list-inside text-gray-300 space-y-0.5">
           {(ctx.skills || []).map(s => (
-            <li key={s.skill_name}>{s.skill_name}{s.hourly_rate != null ? ` — $${parseFloat(s.hourly_rate).toFixed(0)}/hr` : ''}</li>
+            <li key={s.skill_name}>{s.skill_name}{s.hourly_rate != null ? `: $${parseFloat(s.hourly_rate).toFixed(0)}/hr` : ''}</li>
           ))}
         </ul>
       </div>
@@ -72,7 +72,7 @@ function ContextCards({ ctx, t }) {
         {(ctx.products || []).length
           ? (ctx.products || []).map(p => (
             <div key={p.id} className="text-gray-300 text-xs mb-1">
-              {p.name} — ${((p.price_cents || 0) / 100).toFixed(2)}
+              {p.name}: ${((p.price_cents || 0) / 100).toFixed(2)}
             </div>
           ))
           : <p className="text-gray-600 italic">{t('aiPreview.noProducts')}</p>}

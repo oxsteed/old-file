@@ -2026,7 +2026,7 @@
       "confirmSwitchHelper": "Êtes-vous sûr de vouloir basculer vers le mode assistant?",
       "switchHelperNotice": "Votre profil sera visible pour les clients à la recherche d'aide.",
       "yesSwitch": "Oui, Basculer",
-      "unifiedDesc": "Votre type de compte pilote le tableau de bord, la barre de navigation et les fonctionnalités visibles. Basculez à tout moment — le changement est instantané et vos données sont conservées.",
+      "unifiedDesc": "Votre type de compte pilote le tableau de bord, la barre de navigation et les fonctionnalités visibles. Basculez à tout moment. Le changement est instantané et vos données sont conservées.",
       "switchTo": "Basculer",
       "switchSuccess": "Basculé vers {{mode}}.",
       "grantedTitle": "Espaces auxquels vous appartenez",
@@ -2548,12 +2548,12 @@
         "photos": "Je peux envoyer des photos du travail si cela aide."
       },
       "helper": {
-        "thanks": "Merci pour votre message — je peux vous aider.",
+        "thanks": "Merci pour votre message, je peux vous aider.",
         "when": "Quand souhaitez-vous que ce soit fait ?",
         "details": "Pouvez-vous partager des photos ou un peu plus de détails ?"
       }
     },
-    "guestInquiryLiveHint": "Répondez en direct dans l’app — l’invité voit votre message instantanément s’il est connecté.",
+    "guestInquiryLiveHint": "Répondez en direct dans l’app, l’invité voit votre message instantanément s’il est connecté.",
     "guestInquiryLoadingThread": "Chargement de la conversation…",
     "guestInquiryReplyPlaceholder": "Écrivez une réponse à l’invité…",
     "guestInquirySendReply": "Envoyer la réponse",
@@ -7959,15 +7959,15 @@
       "oxsteedAssistantLabel": "Assistant OxSteed (IA)",
       "talkToHumanCta": "Parler à un humain",
       "oxsteedAiOnlyHint": "OxSteed ici est une IA. Pour un spécialiste du support en direct, continuez ci-dessous.",
-      "helperAiAvailable": "Hors ligne — discutez avec leur assistant IA",
-      "aiUnavailableConnecting": "IA indisponible — connexion avec {{name}}",
+      "helperAiAvailable": "Hors ligne : discutez avec leur assistant IA",
+      "aiUnavailableConnecting": "IA indisponible : connexion avec {{name}}",
       "aiUnavailableEscalateTitle": "Besoin d’une personne ?",
       "aiUnavailableEscalate": "L’assistant IA est indisponible pour le moment. Continuez vers OxSteed Support pour un spécialiste en direct.",
       "verifyToReachHuman": "{{name}} est en ligne. Vérifiez ou connectez-vous pour les joindre en direct.",
       "providerOfflineAiFallback": "{{name}} est hors ligne. Vous discutez maintenant avec leur assistant IA.",
       "providerBackOnline": "{{name}} est de nouveau en ligne.",
       "connectLiveCta": "Se connecter à {{name}} en direct",
-      "connectedLiveToast": "Connecté — votre prochain message ira à {{name}} en direct.",
+      "connectedLiveToast": "Connecté, votre prochain message ira à {{name}} en direct.",
       "escalationPanelAria": "Options d’escalade vers le support"
     },
     "messenger": {
@@ -7978,7 +7978,7 @@
       "close": "Fermer la messagerie",
       "replyExpectation": "Répond généralement sous un jour",
       "inviteTitle": "Envoyer un message à {{name}}",
-      "inviteBody": "Demandez la disponibilité, les tarifs ou une réservation — les réponses restent sur OxSteed.",
+      "inviteBody": "Demandez la disponibilité, les tarifs ou une réservation, les réponses restent sur OxSteed.",
       "emptyPrompt": "Demandez la disponibilité, les tarifs ou une réservation pour commencer.",
       "disclaimerHelper": "Les messages sont envoyés à cet assistant sur OxSteed.",
       "disclaimerBusiness": "Les messages sont envoyés à cette entreprise sur OxSteed.",
@@ -8013,9 +8013,9 @@
       "guestAccessCodeInvalid": "Ce code d’accès au chat est invalide ou expiré.",
       "guestHistoryExpired": "Cet historique de chat invité date de plus de 30 jours.",
       "createAccountToRecover": "Créez un compte pour conserver votre historique.",
-      "guestLiveWaiting": "{{name}} est en ligne — votre message a été livré en direct.",
-      "guestOfflineAi": "{{name}} est hors ligne. Vous discutez avec son assistant IA — laissez un message à tout moment.",
-      "guestOfflineBanner": "Hors ligne — assistant IA",
+      "guestLiveWaiting": "{{name}} est en ligne, votre message a été livré en direct.",
+      "guestOfflineAi": "{{name}} est hors ligne. Vous discutez avec son assistant IA, laissez un message à tout moment.",
+      "guestOfflineBanner": "Hors ligne : assistant IA",
       "guestLiveBanner": "Chat en direct",
       "availabilityTitle": "Horaires disponibles",
       "availabilityToggle": "Voir les disponibilités",
@@ -8030,7 +8030,7 @@
       "slotRequestMessage": "Je souhaite demander {{service}} : {{when}}\n{{marker}}",
       "availabilityServices": "Services",
       "slotBookingConfirmed": "Demande de réservation envoyée pour {{service}} · {{when}}",
-      "slotBookingToast": "Demande de réservation envoyée — le prestataire doit encore confirmer.",
+      "slotBookingToast": "Demande de réservation envoyée, le prestataire doit encore confirmer.",
       "slotBookingFailed": "Impossible de créer la demande de réservation. Le message du chat a tout de même été préparé.",
       "slotBookingConflict": "Ce créneau n’est plus disponible. Choisissez-en un autre.",
       "guestSessionExpired": "Votre session invité a expiré. Veuillez vérifier votre e-mail à nouveau.",
@@ -8146,7 +8146,7 @@
       "bookingDeclinePlaceholder": "Expliquez pourquoi (facultatif)",
       "bookingConfirmDecline": "Confirmer le refus",
       "bookingCustomerPending": "En attente de confirmation du prestataire.",
-      "bookingCustomerAccepted": "Confirmé — vous êtes réservé.",
+      "bookingCustomerAccepted": "Confirmé, vous êtes réservé.",
       "bookingCustomerDeclined": "Cette demande a été refusée.",
       "bookingCustomerCounter": "Le prestataire a proposé un autre créneau.",
       "bookingStatus": {
@@ -11201,8 +11201,8 @@
     "messages": "Messages",
     "myBookings": "Centre de gestion des réservations",
     "dashboard": "Tableau de bord",
-    "helperOperations": "Calendrier — Gérez votre disponibilité et vos rendez-vous à venir",
-    "customerPlanning": "Calendrier — Consultez vos rendez-vous et gérez votre agenda",
+    "helperOperations": "Calendrier : gérez votre disponibilité et vos rendez-vous à venir",
+    "customerPlanning": "Calendrier : consultez vos rendez-vous et gérez votre agenda",
 
     "business": {
       "categories": {
@@ -11448,7 +11448,7 @@
     "showingCount": "{{shown}} sur {{total}}",
     "categoriesLegend": "Parcourir par categorie",
     "closePreview": "Fermer l'apercu",
-    "previewSampleNotice": "Apercu avec des données exemples — votre vrai contenu apparaitra une fois activé",
+    "previewSampleNotice": "Apercu avec des données exemples, votre vrai contenu apparaitra une fois activé",
     "previewAriaLabel": "Apercu du modele {{name}}",
     "activateAriaLabel": "Activer le modele {{name}}",
     "unlockAriaLabel": "Debloquer le modele {{name}}",
@@ -11652,7 +11652,7 @@
     "feeHistory": "Frais d'annulation payés",
     "feesCount": "{{n}} frais d'annulation payé(s)",
     "feesTotal": "total",
-    "feesNone": "Aucun frais d'annulation — excellent historique.",
+    "feesNone": "Aucun frais d'annulation, excellent historique.",
     "feesShow": "Afficher",
     "feesHide": "Masquer",
     "feeTo": "À",
@@ -11749,11 +11749,11 @@
     "theHelper": "l'assistant",
     "helperSub": "En annulant, vous libérez leur temps, mais ils ont peut-être déjà refusé d'autres missions pour celle-ci.",
     "blockedTimeTitle": "Temps réservé pour votre travail",
-    "noSlotFound": "Date non définie — ils étaient disponibles quand vous en aviez besoin.",
+    "noSlotFound": "Date non définie, ils étaient disponibles quand vous en aviez besoin.",
     "feeTitle": "Frais de reconnaissance pour annulation",
     "feeExplain": "C'est 10 % du budget du travail (plafonné à 100 $). Cela va directement à {{helper}} pour reconnaître le temps bloqué et le travail qu'ils ont peut-être refusé.",
     "feePhilosophy": "C'est la reconnaissance de l'impact sur leur subsistance, pas une amende de la plateforme.",
-    "feeZeroAdvance": "Aucun frais — vous annulez plus de 3 jours à l'avance, leur laissant le temps de se réorganiser.",
+    "feeZeroAdvance": "Aucun frais. Vous annulez plus de 3 jours à l'avance, leur laissant le temps de se réorganiser.",
     "feeZeroOffPlatform": "Aucun frais OxSteed car ce travail utilise un mode de paiement hors plateforme.",
     "ackWithFee": "Je comprends que cela peut affecter les revenus de {{helper}} et je souhaite continuer.",
     "ackNoFee": "Je comprends que {{helper}} a organisé son agenda pour ce travail et je souhaite annuler.",
@@ -11767,9 +11767,9 @@
   "helperCancelConfirm": {
     "title": "Annuler ce travail ?",
     "theCustomer": "le client",
-    "urgencyBanner": "Annulation moins de 24 heures avant le travail — {{customer}} devra trouver quelqu'un d'autre à la dernière minute.",
+    "urgencyBanner": "Annulation moins de 24 heures avant le travail, {{customer}} devra trouver quelqu'un d'autre à la dernière minute.",
     "customerReliabilityLabel": "Fiabilité du client",
-    "newCustomer": "Nouveau client — aucun historique d'annulations.",
+    "newCustomer": "Nouveau client, aucun historique d'annulations.",
     "custCompletedOf": "{{completed}} / {{total}} travaux effectués",
     "custCancellations": "{{n}} annulation(s) au cours de la dernière année",
     "patternEarly": "Annule généralement suffisamment à l'avance.",
@@ -11778,9 +11778,9 @@
     "yourRecordLabel": "Votre historique d'annulations (visible sur votre profil)",
     "cancellationRate": "taux d'annulation",
     "cancellationsOf": "sur {{total}} travaux",
-    "cleanRecord": "Historique vierge — aucune annulation. Ce serait la première.",
+    "cleanRecord": "Historique vierge, aucune annulation. Ce serait la première.",
     "ownNote": "Les clients voient cela lors de la consultation de votre profil. La fiabilité est l'un des principaux facteurs considérés.",
-    "noFeeNote": "Aucun frais d'annulation ne vous sera facturé — mais cette annulation sera enregistrée sur votre profil.",
+    "noFeeNote": "Aucun frais d'annulation ne vous sera facturé, mais cette annulation sera enregistrée sur votre profil.",
     "ackText": "Je comprends que cela affecte la planification de {{customer}}. Je souhaite continuer.",
     "keepJob": "Conserver le travail",
     "confirmCancel": "Confirmer l'annulation",
@@ -11978,7 +11978,7 @@
     "selectService": "De quoi avez-vous besoin ?",
     "serviceRequest": "Service request",
     "chooseService": "Choose a listed service",
-    "otherService": "Other — type a service name",
+    "otherService": "Other: type a service name",
     "backToServices": "Choose a listed service",
     "serviceName": "Nom du service",
     "serviceLocation": "Lieu d’intervention",
@@ -11999,7 +11999,7 @@
     "expireChoice": "Let the request expire",
     "expireChoiceHint": "Keep the request private if the provider does not confirm.",
     "requestWithoutSchedule": "Send request without a time slot",
-    "flexibleTime": "Flexible time — provider will coordinate",
+    "flexibleTime": "Flexible time: provider will coordinate",
     "autoPostSummary": "If the provider does not confirm within {{hours}} hours, this request will open as a public job for bids.",
     "expireSummary": "This request will remain private and expire after {{hours}} hours if the provider does not confirm.",
     "requestOnlyWindowHint": "Choose any deadline up to {{hours}} hours before the requested date.",
@@ -12902,7 +12902,7 @@
     "statusApproved": "Vous êtes approuvé",
     "statusApprovedHint": "Vous pouvez maintenant prendre des clients payants.",
     "statusRequested": "Candidature en cours d'examen",
-    "statusRequestedHint": "Nous vous enverrons un e-mail dès la décision — généralement 1-2 jours ouvrables.",
+    "statusRequestedHint": "Nous vous enverrons un e-mail dès la décision, généralement 1-2 jours ouvrables.",
     "statusRejected": "La candidature précédente n'a pas été approuvée",
     "statusRejectedHint": "Vous pouvez mettre à jour vos réponses et réessayer.",
     "reviewerNotes": "Note du réviseur :",
@@ -12933,7 +12933,7 @@
         "title": "Approbation OxSteed nécessaire",
         "hint": "Soumettez une courte candidature avant d'accepter des clients payants.",
         "pendingTitle": "Approbation en cours",
-        "pendingHint": "Nous vous enverrons un e-mail dès la décision — généralement 1-2 jours ouvrables."
+        "pendingHint": "Nous vous enverrons un e-mail dès la décision, généralement 1-2 jours ouvrables."
       }
     }
   },
@@ -13020,7 +13020,7 @@
       "browseOpenCampaigns": "Parcourir les campagnes ouvertes",
       "viewAll": "Voir tout",
       "readyToStart": "Prêt à commencer ?",
-      "readyToStartBody": "Rejoignez-nous pour accéder à l'approvisionnement, aux achats groupés et à une visibilité complète de la chaîne d'approvisionnement — du premier contact avec le fournisseur à la livraison finale.",
+      "readyToStartBody": "Rejoignez-nous pour accéder à l'approvisionnement, aux achats groupés et à une visibilité complète de la chaîne d'approvisionnement : du premier contact avec le fournisseur à la livraison finale.",
       "createAccount": "Créer un compte",
       "unitsProgress": "{{current}} / {{target}} {{units}}",
       "whyCards": {
@@ -13034,7 +13034,7 @@
         },
         "lastmile": {
           "heading": "La dernière étape est un défi à part",
-          "body": "Les produits arrivent au port. Ensuite ? Stockage, allocation, ordres de livraison — chaque étape est une nouvelle transition. OxSteed coordonne la chaîne pour que chaque étape sache ce dont la suivante a besoin."
+          "body": "Les produits arrivent au port. Ensuite ? Stockage, allocation, ordres de livraison, chaque étape est une nouvelle transition. OxSteed coordonne la chaîne pour que chaque étape sache ce dont la suivante a besoin."
         }
       }
     },
@@ -15325,7 +15325,7 @@
     "loading": "Chargement du tableau de bord d’affiliation…",
     "loadingAnalytics": "Chargement des statistiques…",
     "sparklineNoData": "Aucune donnée pour le moment",
-    "pageTitle": "Tableau de bord affiliation — OxSteed",
+    "pageTitle": "Tableau de bord affiliation : OxSteed",
     "title": "Tableau de bord affiliation",
     "subtitle": "Suivez vos gains, conversions et paiements de vos parrainages",
     "actions": {
@@ -15341,7 +15341,7 @@
     },
     "toasts": {
       "programCreated": "Programme d’affiliation créé",
-      "payoutCalculated": "Paiement calculé — consultez l'historique",
+      "payoutCalculated": "Paiement calculé, consultez l'historique",
       "linkCopied": "Lien copié"
     },
     "form": {
@@ -16155,7 +16155,7 @@
   },
   "learn": {
     "page": {
-      "metaTitle": "Apprendre à le faire soi-même — Réparations maison, entretien auto & métiers | OxSteed",
+      "metaTitle": "Apprendre à le faire soi-même : réparations maison, entretien auto & métiers | OxSteed",
       "metaDesc": "Guides étape par étape pour réparer les robinets, boucher les trous, changer l'huile, et plus encore. Chaque guide inclut une liste d'outils, le suivi des compétences et un accès direct à un intervenant local.",
       "searchPlaceholder": "Rechercher des guides… (robinet, placo, vidange)",
       "searchAriaLabel": "Rechercher des guides",
@@ -16256,7 +16256,7 @@
         "eyebrow": "Mode Apprentissage",
         "guest": {
           "title": "Apprendre. Faire. Gagner.",
-          "sub": "Guides étape par étape pour la réparation domicile et l'entretien auto — chaque compétence acquise vous connecte aux outils, kits et intervenants dont vous avez besoin."
+          "sub": "Guides étape par étape pour la réparation domicile et l'entretien auto, chaque compétence acquise vous connecte aux outils, kits et intervenants dont vous avez besoin."
         },
         "customer": {
           "title": "Apprendre. Faire. Gagner.",
@@ -16290,7 +16290,7 @@
         },
         "support_agent": {
           "title": "Résolvez plus vite. Escaladez plus intelligemment.",
-          "sub": "Plus vous comprenez la réparation, plus vite vous pouvez trier le problème d'un client — et mieux vous savez quand escalader.",
+          "sub": "Plus vous comprenez la réparation, plus vite vous pouvez trier le problème d'un client, et mieux vous savez quand escalader.",
           "cta": "Parcourir tous les guides"
         }
       },
@@ -16334,7 +16334,7 @@
     "pageTitle": "Centre de croissance | OxSteed",
     "kicker": "Centre de croissance",
     "heroTitle": "Faites la promotion de vos services comme le font les prestataires locaux qui réussissent.",
-    "heroDescription": "Six angles, six canaux, 24 campagnes saisonnières, des remplisseurs de créneaux intelligents, un constructeur de parrainage avec des liens suivis, des analyses de performance et une boîte à outils de cinq outils. Directement intégré dans votre profil OxSteed — parce que le travail marketing ne devrait pas être un second emploi.",
+    "heroDescription": "Six angles, six canaux, 24 campagnes saisonnières, des remplisseurs de créneaux intelligents, un constructeur de parrainage avec des liens suivis, des analyses de performance et une boîte à outils de cinq outils. Directement intégré dans votre profil OxSteed, parce que le travail marketing ne devrait pas être un second emploi.",
     "heroBtnProfile": "Améliorer le profil",
     "heroBtnQr": "Ouvrir le studio QR",
     "emptyTitle": "Le Centre de croissance est destiné aux helpers et aux prestataires professionnels.",
@@ -16363,7 +16363,7 @@
     "readyProfileReadiness": "complétude du profil",
     "studioKicker": "Studio de contenu",
     "studioTitle": "Six angles. Six canaux. Un profil.",
-    "studioDescription": "Choisissez un angle et un canal — OxSteed crée une publication adaptée à ce public, avec une longueur, un CTA et des hashtags spécifiques au canal. Générez autant de variantes que vous voulez.",
+    "studioDescription": "Choisissez un angle et un canal : OxSteed crée une publication adaptée à ce public, avec une longueur, un CTA et des hashtags spécifiques au canal. Générez autant de variantes que vous voulez.",
     "studioTryAnother": "Essayer un autre angle",
     "studioTrackedLinkNote": "Lien suivi ajouté automatiquement lors de la copie",
     "studioCopyPost": "Copier cette publication",
@@ -16389,7 +16389,7 @@
     "slotsDescription": "OxSteed scanne vos 7 prochains jours et met en évidence les fenêtres où vous n'avez aucun travail planifié. Chaque jour ouvert obtient une promo prête à envoyer avec une remise de dernière minute optionnelle.",
     "slotsDiscountLabel": "Remise de dernière minute",
     "slotsLoading": "Analyse de votre calendrier...",
-    "slotsFullyBooked": "Vous êtes complètement réservé pour les 7 prochains jours — formidable ! Utilisez l'onglet Campagnes pour remplir la semaine suivante.",
+    "slotsFullyBooked": "Vous êtes complètement réservé pour les 7 prochains jours, formidable ! Utilisez l'onglet Campagnes pour remplir la semaine suivante.",
     "slotsWideOpen": "Totalement libre",
     "slotsCopy": "Copier",
     "slotsSendText": "Envoyer par SMS",
@@ -16408,7 +16408,7 @@
     "referralsCardPrint": "Imprimer et distribuer",
     "performanceKicker": "Performance",
     "performanceTitle": "Suivez quelles promos génèrent vraiment du travail.",
-    "performanceDescription": "Chaque fois que vous copiez un lien suivi ou une publication, OxSteed l'enregistre localement. Consultez ici chaque semaine pour identifier quels canaux et angles portent leurs fruits — et lesquels arrêter.",
+    "performanceDescription": "Chaque fois que vous copiez un lien suivi ou une publication, OxSteed l'enregistre localement. Consultez ici chaque semaine pour identifier quels canaux et angles portent leurs fruits, et lesquels arrêter.",
     "performanceTrackedActions": "actions suivies",
     "performanceActiveSources": "sources actives",
     "performanceTopSource": "source principale",
@@ -16453,11 +16453,11 @@
     "playbookKicker": "Manuel hebdomadaire",
     "playbookTitle": "Le minimum que vous devriez faire chaque semaine",
     "whyTitle": "Pourquoi cela vit dans OxSteed",
-    "whyDescription": "La plupart des prestataires de services locaux savent qu'ils devraient faire du marketing. Peu ont le temps. Le Centre de croissance transforme les ressources que vous avez déjà — votre profil, vos avis, votre calendrier — en publications prêtes à coller, flyers prêts à imprimer et liens prêts à suivre.",
-    "nextBusinessHub": "Business Hub — factures, impôts et objectifs",
-    "nextCalendar": "Calendrier — marquez votre disponibilité visible par les clients",
-    "nextReviews": "Avis — demandez et répondez aux retours clients",
-    "nextTemplates": "Modèles de profil — améliorez l'apparence de votre page",
+    "whyDescription": "La plupart des prestataires de services locaux savent qu'ils devraient faire du marketing. Peu ont le temps. Le Centre de croissance transforme les ressources que vous avez déjà, votre profil, vos avis, votre calendrier, en publications prêtes à coller, flyers prêts à imprimer et liens prêts à suivre.",
+    "nextBusinessHub": "Business Hub : factures, impôts et objectifs",
+    "nextCalendar": "Calendrier : marquez votre disponibilité visible par les clients",
+    "nextReviews": "Avis : demandez et répondez aux retours clients",
+    "nextTemplates": "Modèles de profil : améliorez l'apparence de votre page",
     "angleIntroLabel": "Intro amicale",
     "angleIntroDesc": "Ouverture chaleureuse et de voisinage.",
     "angleUrgencyLabel": "Disponible cette semaine",
@@ -17011,12 +17011,12 @@
       "landing": {
         "eyebrow": "Local Food Directory",
         "headline": "Outils de niveau franchise pour restaurants indépendants",
-        "sub": "Lancez-vous le même jour. Acceptez des commandes au comptoir, en kiosque, sur l'écran cuisine et en ligne — depuis un seul backend partagé.",
+        "sub": "Lancez-vous le même jour. Acceptez des commandes au comptoir, en kiosque, sur l'écran cuisine et en ligne, depuis un seul backend partagé.",
         "cta": "Ajouter votre restaurant",
         "f1Title": "Configuration le jour même",
         "f1Desc": "Ajoutez votre menu et commencez à accepter des commandes en quelques heures.",
         "f2Title": "Commandes multi-surfaces",
-        "f2Desc": "Comptoir, kiosque, KDS et en ligne — tout synchronisé automatiquement.",
+        "f2Desc": "Comptoir, kiosque, KDS et en ligne, tout synchronisé automatiquement.",
         "f3Title": "Marque indépendante",
         "f3Desc": "Votre nom, votre identité. Propulsé par Local Food Directory en arrière-plan.",
         "f4Title": "Prêt pour le monde entier",
@@ -17036,11 +17036,11 @@
       "opens": "Ouvre",
       "closes": "Ferme",
       "menuExists": "{{count}} article(s) déjà dans votre menu",
-      "menuSkip": "— vous pouvez continuer ou en ajouter un autre.",
+      "menuSkip": "Vous pouvez continuer ou en ajouter un autre.",
       "menuFirstHint": "Ajoutez votre premier plat. Vous pouvez compléter le menu depuis le tableau de bord.",
       "doneMessage": "{{name}} est maintenant visible. Les clients peuvent vous trouver et commander dès maintenant.",
       "alreadyLive": "Votre restaurant est déjà en ligne.",
-      "chip1": "Votre marque, votre salle — nous gérons l'infrastructure",
+      "chip1": "Votre marque, votre salle, nous gérons l'infrastructure",
       "chip2": "Kiosque, écran cuisine et panneau de file inclus",
       "chip3": "Configuration le jour même, en ligne dès que vous retournez le panneau",
       "scene": {
@@ -17050,7 +17050,7 @@
         },
         "create": {
           "headline": "Qu'est-ce qu'on ouvre ?",
-          "sub": "Commencez par un nom — le reste suit."
+          "sub": "Commencez par un nom, le reste suit."
         },
         "profile": {
           "headline": "Présentez-vous aux clients.",
@@ -17062,7 +17062,7 @@
         },
         "hours": {
           "headline": "Quand les portes ouvrent-elles ?",
-          "sub": "Définissez vos horaires — vous pouvez les modifier à tout moment."
+          "sub": "Définissez vos horaires, vous pouvez les modifier à tout moment."
         },
         "menu": {
           "headline": "Proposez quelque chose de réel.",
@@ -17074,7 +17074,7 @@
         },
         "devices": {
           "headline": "Connectez la salle.",
-          "sub": "Kiosque, écran cuisine, panneau de file — puis un cycle de test."
+          "sub": "Kiosque, écran cuisine, panneau de file, puis un cycle de test."
         },
         "done": {
           "headline": "Vous êtes en service.",
@@ -17086,7 +17086,7 @@
         "description": "Description ajoutée",
         "location": "Ville ou adresse configurée",
         "menu": "Au moins un article dans le menu",
-        "ready": "Tout semble bon — prêt à mettre en ligne.",
+        "ready": "Tout semble bon, prêt à mettre en ligne.",
         "incomplete": "Complétez ces étapes pour mettre en ligne."
       }
     },

@@ -329,7 +329,7 @@ export default function SuperDashboard() {
       {/* ── Revenue highlight (super only) ──────────────────────────────── */}
       {isSuper && (
         <section>
-          <SectionHeading>Revenue — {pl}</SectionHeading>
+          <SectionHeading>Revenue: {pl}</SectionHeading>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
             <StatCard
               label="Total Revenue"
@@ -519,12 +519,12 @@ export default function SuperDashboard() {
             <SectionHeading>Geographic Distribution</SectionHeading>
             <div className="bg-[#111318] border border-gray-800 rounded-2xl p-4 sm:p-5 space-y-5">
               <div>
-                <p className="text-xs font-medium text-gray-400 mb-3">Top Cities — Users</p>
+                <p className="text-xs font-medium text-gray-400 mb-3">Top Cities: Users</p>
                 <GeoTable rows={geo.userGeo} loading={geoLoading} label="users" />
               </div>
               {geo.jobGeo?.length > 0 && (
                 <div>
-                  <p className="text-xs font-medium text-gray-400 mb-3">Top Cities — Jobs</p>
+                  <p className="text-xs font-medium text-gray-400 mb-3">Top Cities: Jobs</p>
                   <GeoTable rows={geo.jobGeo} loading={geoLoading} label="jobs" />
                 </div>
               )}

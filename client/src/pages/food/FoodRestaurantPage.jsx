@@ -1135,7 +1135,7 @@ export default function FoodRestaurantPage() {
                 <span style={{ width: 9, height: 9, borderRadius: '50%', background: isReady ? '#16a34a' : accent, flexShrink: 0 }} />
                 <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: isReady ? 'var(--color-success)' : 'var(--color-text)' }}>
                   {queueNumber != null ? t('food.restaurant.orderNumber', { number: queueNumber }) : t('food.order.yourOrder')}
-                  {' — '}
+                  {': '}
                   {isReady ? t('food.restaurant.readyForPickupShort') : t(FOOD_STATUS_KEYS[status] || FOOD_STATUS_KEYS.received)}
                 </span>
                 <Link to={`/restaurants/queue/${restaurantId}`} style={{ fontSize: 13, fontWeight: 600, color: isReady ? 'var(--color-success)' : accent, textDecoration: 'none', whiteSpace: 'nowrap' }}>{t('food.order.watchQueue')}</Link>

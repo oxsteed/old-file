@@ -110,7 +110,7 @@ export default function NewRequestPage() {
             <div className="lx-form-group">
               <label className="lx-label">{t('logistics.requests.description','Description')}</label>
               <textarea className="lx-textarea" value={form.description}
-                placeholder="Describe the product in detail — materials, dimensions, certifications needed…"
+                placeholder="Describe the product in detail: materials, dimensions, certifications needed…"
                 onChange={e => set('description', e.target.value)} />
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1rem' }}>

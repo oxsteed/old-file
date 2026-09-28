@@ -99,7 +99,7 @@ export default function AllocationsAdmin() {
                 <option value="">— Select allocation —</option>
                 {allocations.filter(a => a.status === 'reserved').map(a => (
                   <option key={a.id} value={a.id}>
-                    #{a.id} — {a.qty} units @ {warehouseMap[a.warehouse_id]||a.warehouse_id}
+                    #{a.id}: {a.qty} units @ {warehouseMap[a.warehouse_id]||a.warehouse_id}
                   </option>
                 ))}
               </select>

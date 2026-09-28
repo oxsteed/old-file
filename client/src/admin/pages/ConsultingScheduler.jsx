@@ -47,7 +47,7 @@ function CalendarEvent({ session, onClick }) {
   return (
     <div
       onClick={() => onClick(session)}
-      title={`${session.first_name} ${session.last_name} — ${session.service_tier}`}
+      title={`${session.first_name} ${session.last_name}: ${session.service_tier}`}
       style={{
         background: color,
         color: 'white',

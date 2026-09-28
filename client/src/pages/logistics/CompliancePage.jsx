@@ -144,10 +144,10 @@ export default function CompliancePage() {
                 <span style={{ width:10, height:10, borderRadius:'50%', background:color, display:'inline-block' }} />
                 <strong style={{ textTransform:'capitalize' }}>{tier}</strong>
                 <span style={{ color:'#64748b' }}>
-                  {tier==='low' && '— Standard processing'}
-                  {tier==='managed' && '— Enhanced due diligence'}
-                  {tier==='restricted' && '— Manual compliance review'}
-                  {tier==='prohibited' && '— Not permitted on this lane'}
+                  {tier==='low' && ': Standard processing'}
+                  {tier==='managed' && ': Enhanced due diligence'}
+                  {tier==='restricted' && ': Manual compliance review'}
+                  {tier==='prohibited' && ': Not permitted on this lane'}
                 </span>
               </div>
             ))}

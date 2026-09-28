@@ -42,7 +42,7 @@ export default function NetworkAppsPage() {
   return (
     <PageShell>
       <PageMeta
-        title={`${t('nav.network', 'OxSteed Network')} — OxSteed`}
+        title={`${t('nav.network', 'OxSteed Network')}: OxSteed`}
         description={t('network.pageSubtitle', 'One OxSteed account. Switch between every OxSteed branch you have access to.')}
       />
       <div style={{ maxWidth: '64rem', margin: '0 auto', padding: 'var(--space-6) var(--space-4)' }}>

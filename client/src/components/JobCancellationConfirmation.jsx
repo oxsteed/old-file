@@ -150,7 +150,7 @@ export default function JobCancellationConfirmation({
           <div className="jcc-helper-info">
             <p className="jcc-helper-name">{displayHelper}</p>
             <p className="jcc-helper-sub">
-              {t('cancellationConfirm.helperSub', 'By cancelling, you\'re freeing up their time — but they may have already turned down other work for this.')}
+              {t('cancellationConfirm.helperSub', 'By cancelling, you\'re freeing up their time, but they may have already turned down other work for this.')}
             </p>
           </div>
         </div>
@@ -186,7 +186,7 @@ export default function JobCancellationConfirmation({
             </div>
           ) : (
             <p className="jcc-slot-none">
-              {t('cancellationConfirm.noSlotFound', 'Scheduled date not set — they were available when you needed them.')}
+              {t('cancellationConfirm.noSlotFound', 'Scheduled date not set: they were available when you needed them.')}
             </p>
           )}
         </div>
@@ -210,7 +210,7 @@ export default function JobCancellationConfirmation({
                 </p>
                 <p className="jcc-fee-philosophy">
                   {t('cancellationConfirm.feePhilosophy',
-                    'This is recognition of the impact on their livelihood — not a platform fine.'
+                    'This is recognition of the impact on their livelihood, not a platform fine.'
                   )}
                 </p>
               </>

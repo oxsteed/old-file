@@ -343,7 +343,7 @@ export default function AffiliateDashboardPage() {
                   >
                     {programs.map((p) => (
                       <option key={p.id} value={p.id}>
-                        {p.program_type} — {fmt$(p.total_commission_cents)} lifetime
+                        {p.program_type}: {fmt$(p.total_commission_cents)} lifetime
                       </option>
                     ))}
                   </select>

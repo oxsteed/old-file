@@ -101,7 +101,7 @@ function ThreadDetail({ conv, onStatusChange, actionBusy, breakGlassReason }) {
       <div className="px-5 py-2 bg-yellow-900/30 border-b border-yellow-700/30 flex items-center gap-2">
         <AlertTriangle size={13} className="text-yellow-400 shrink-0" />
         <p className="text-yellow-300 text-xs">
-          Break-glass access — reason logged: “{breakGlassReason}”. Telegram cloud-chat model (not E2EE).
+          Break-glass access: reason logged: “{breakGlassReason}”. Telegram cloud-chat model (not E2EE).
         </p>
       </div>
 
@@ -517,7 +517,7 @@ export default function ConversationsAdmin() {
               <h2 className="font-semibold text-white">Break-glass access</h2>
             </div>
             <p className="mb-3 text-sm text-gray-400">
-              Viewing helper/customer threads requires a logged reason (Telegram cloud-chat model — not E2EE).
+              Viewing helper/customer threads requires a logged reason (Telegram cloud-chat model, not E2EE).
             </p>
             <p className="mb-2 text-xs text-gray-500">
               {pendingConv.customer_name} ↔ {pendingConv.helper_name}

@@ -188,7 +188,7 @@ export default function RestaurantCrewPage() {
       <div className="fd-page">
         <div className="fd-hero" style={{ marginBottom: '1.5rem' }}>
           <FoodBrand />
-          <h1 className="fd-hero-title">{restaurant?.name} — {t('food.crew.title')}</h1>
+          <h1 className="fd-hero-title">{restaurant?.name}: {t('food.crew.title')}</h1>
           <Link className="fd-btn-secondary fd-btn-sm" to="/restaurants/merchant">{t('food.common.back')}</Link>
         </div>
 

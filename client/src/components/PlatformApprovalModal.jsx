@@ -59,7 +59,7 @@ function Status({ status, t }) {
         <Clock size={20} className="text-blue-400 mt-0.5 flex-shrink-0" />
         <div>
           <div className="text-sm font-semibold text-blue-300">{t('platformApproval.statusRequested', { defaultValue: 'Application under review' })}</div>
-          <div className="text-xs mt-0.5 text-blue-200/80">{t('platformApproval.statusRequestedHint', { defaultValue: "We'll email you when it's decided — usually 1-2 business days." })}</div>
+          <div className="text-xs mt-0.5 text-blue-200/80">{t('platformApproval.statusRequestedHint', { defaultValue: "We'll email you when it's decided, usually 1-2 business days." })}</div>
         </div>
       </div>
     );

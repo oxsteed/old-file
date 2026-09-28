@@ -208,7 +208,7 @@ function ProductLinkModal({ initial, onSave, onClose }) {
             </select>
             {form.link_type === 'own_inventory' && (
               <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
-                <CheckCircle size={11} /> App shows "Shop OxSteed" — no affiliate disclosure required.
+                <CheckCircle size={11} /> App shows "Shop OxSteed": no affiliate disclosure required.
               </p>
             )}
           </div>
@@ -289,7 +289,7 @@ function ProductLinkModal({ initial, onSave, onClose }) {
                 form.is_active ? 'translate-x-4' : 'translate-x-1'
               }`} />
             </button>
-            <span className="text-sm">{form.is_active ? 'Active — visible to app users' : 'Inactive — hidden from app'}</span>
+            <span className="text-sm">{form.is_active ? 'Active: visible to app users' : 'Inactive: hidden from app'}</span>
           </div>
 
           {err && (
@@ -388,7 +388,7 @@ export default function LearnProductLinksAdmin() {
             Learn · Product Links
           </h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-            Manage affiliate and product links shown in the app's Learn tab. Changes take effect on the next app refresh — no update required.
+            Manage affiliate and product links shown in the app's Learn tab. Changes take effect on the next app refresh, no update required.
           </p>
         </div>
         <button
@@ -405,10 +405,10 @@ export default function LearnProductLinksAdmin() {
           <AlertTriangle size={14} /> Amazon Associates Compliance (April 2026)
         </div>
         <ul className="text-amber-700 dark:text-amber-400 space-y-0.5 list-disc list-inside text-xs">
-          <li><strong>No link cloaking</strong> — Amazon links must be direct <code>amazon.com</code> URLs. No /go/ redirects or URL shorteners.</li>
-          <li><strong>Affiliate tag required</strong> — append <code>&tag=oxsteed-20</code> to every Amazon buy URL.</li>
-          <li>The app auto-renders <em>"(paid link)"</em> and <em>"As an Amazon Associate, OxSteed earns from qualifying purchases."</em> — do not remove from app code.</li>
-          <li>Set <code>link_type = own_inventory</code> for OxSteed-stocked items — no disclosure shown, button reads "Shop OxSteed".</li>
+          <li><strong>No link cloaking</strong>: Amazon links must be direct <code>amazon.com</code> URLs. No /go/ redirects or URL shorteners.</li>
+          <li><strong>Affiliate tag required</strong>: append <code>&tag=oxsteed-20</code> to every Amazon buy URL.</li>
+          <li>The app auto-renders <em>"(paid link)"</em> and <em>"As an Amazon Associate, OxSteed earns from qualifying purchases."</em>: do not remove from app code.</li>
+          <li>Set <code>link_type = own_inventory</code> for OxSteed-stocked items: no disclosure shown, button reads "Shop OxSteed".</li>
         </ul>
       </div>
 
@@ -571,9 +571,9 @@ export default function LearnProductLinksAdmin() {
         <div className="font-semibold flex items-center gap-2"><Tag size={14} className="text-orange-500" /> How this works</div>
         <ul className="text-zinc-500 dark:text-zinc-400 space-y-1 list-disc list-inside text-xs">
           <li>The iOS app fetches <code className="bg-zinc-100 dark:bg-zinc-800 px-1 rounded">GET /api/learn/product-links</code> on every refresh.</li>
-          <li>Active rows here override the hardcoded tool links in the app's Learn catalog — no app update needed.</li>
+          <li>Active rows here override the hardcoded tool links in the app's Learn catalog, no app update needed.</li>
           <li>A <strong>guide-scoped</strong> row (guide ID set) takes priority over a <strong>global</strong> row (guide ID blank) for the same tool name.</li>
-          <li>Setting <code className="bg-zinc-100 dark:bg-zinc-800 px-1 rounded">link_type = own_inventory</code> is how you switch a tool from Amazon to the OxSteed store — the app renders "Shop OxSteed" and suppresses the affiliate disclosure.</li>
+          <li>Setting <code className="bg-zinc-100 dark:bg-zinc-800 px-1 rounded">link_type = own_inventory</code> is how you switch a tool from Amazon to the OxSteed store: the app renders "Shop OxSteed" and suppresses the affiliate disclosure.</li>
           <li>Deactivating a row makes the app fall back to the hardcoded catalog URL immediately.</li>
         </ul>
       </div>

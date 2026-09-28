@@ -1419,7 +1419,7 @@ function OperationsTab({ t, restaurant }) {
       >
         <h3 style={{ margin: '0 0 0.35rem' }}>{t('restaurants.ops.help.title', 'Need help at your restaurant?')}</h3>
         <p className="fd-card-meta" style={{ marginTop: 0 }}>
-          {t('restaurants.ops.help.desc', 'Hire local helpers through OxSteed Marketplace — repairs, cleaning, equipment, signage, and more.')}
+          {t('restaurants.ops.help.desc', 'Hire local helpers through OxSteed Marketplace: repairs, cleaning, equipment, signage, and more.')}
         </p>
         <Link
           to="/post-job?source=restaurant"
@@ -1446,7 +1446,7 @@ function MerchantLanding({ t, onStart }) {
       <div className="fd-merchant-landing-pitch">
         <span className="fd-merchant-landing-eyebrow">{t('food.merchant.landing.eyebrow', 'Local Food Directory')}</span>
         <h2 className="fd-merchant-landing-headline">{t('food.merchant.landing.headline', 'Franchise-grade tools for independent restaurants')}</h2>
-        <p className="fd-merchant-landing-sub">{t('food.merchant.landing.sub', 'Go live the same day. Accept orders at the counter, kiosk, kitchen display, and online — all from one shared backend.')}</p>
+        <p className="fd-merchant-landing-sub">{t('food.merchant.landing.sub', 'Go live the same day. Accept orders at the counter, kiosk, kitchen display, and online, all from one shared backend.')}</p>
         <button type="button" className="fd-btn fd-merchant-landing-cta" onClick={onStart}>
           {t('food.merchant.landing.cta', 'Add your restaurant')}
         </button>

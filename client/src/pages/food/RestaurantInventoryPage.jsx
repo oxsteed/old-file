@@ -242,7 +242,7 @@ export default function RestaurantInventoryPage() {
       <div className="fd-page">
         <div className="fd-hero" style={{ marginBottom: '1.5rem' }}>
           <FoodBrand />
-          <h1 className="fd-hero-title">{restaurant?.name} — {t('food.inv.title')}</h1>
+          <h1 className="fd-hero-title">{restaurant?.name}: {t('food.inv.title')}</h1>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <Link className="fd-btn-secondary fd-btn-sm" to="/restaurants/merchant">{t('food.common.back')}</Link>
           </div>

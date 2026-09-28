@@ -152,7 +152,7 @@ export default function HelperCancellationConfirmation({
             <div className="hcc-urgency-banner" role="alert">
               <AlertTriangle size={14} aria-hidden="true" />
               {t('helperCancelConfirm.urgencyBanner',
-                'Cancelling less than 24 hours before the job — {{customer}} will need to find someone else at the last minute.',
+                'Cancelling less than 24 hours before the job, {{customer}} will need to find someone else at the last minute.',
                 { customer: displayCustomer }
               )}
             </div>
@@ -199,7 +199,7 @@ export default function HelperCancellationConfirmation({
                 </div>
               ) : (
                 <p className="hcc-stat-text">
-                  {t('helperCancelConfirm.newCustomer', 'New customer — no cancellation history yet.')}
+                  {t('helperCancelConfirm.newCustomer', 'New customer: no cancellation history yet.')}
                 </p>
               )}
 
@@ -254,7 +254,7 @@ export default function HelperCancellationConfirmation({
             </div>
           ) : (
             <p className="hcc-stat-text">
-              {t('helperCancelConfirm.cleanRecord', 'Clean record — no cancellations yet. This would be your first.')}
+              {t('helperCancelConfirm.cleanRecord', 'Clean record: no cancellations yet. This would be your first.')}
             </p>
           )}
 
@@ -270,7 +270,7 @@ export default function HelperCancellationConfirmation({
           <TrendingDown size={13} aria-hidden="true" />
           <span>
             {t('helperCancelConfirm.noFeeNote',
-              'No cancellation fee charged to you — but this cancellation will be logged and visible on your profile.'
+              'No cancellation fee charged to you, but this cancellation will be logged and visible on your profile.'
             )}
           </span>
         </div>

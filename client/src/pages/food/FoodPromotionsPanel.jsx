@@ -101,7 +101,7 @@ export default function PromotionsPanel({ t, restaurant }) {
             <li key={promo.id} className={`fd-setup-step ${promo.is_active ? 'fd-complete' : ''}`}>
               <span>
                 <strong>{promo.code}</strong>
-                {' — '}
+                {': '}
                 {promo.title}
                 {' · '}
                 {discountLabel(promo)}

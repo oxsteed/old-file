@@ -56,7 +56,7 @@ export default function CustomsAdmin() {
     <div className="lx-page">
       <div className="lx-page-header">
         <h1 className="lx-page-title">📋 Customs Review</h1>
-        <p className="lx-page-sub">Manage shipments at customs — review declarations, clear or flag holds.</p>
+        <p className="lx-page-sub">Manage shipments at customs: review declarations, clear or flag holds.</p>
       </div>
 
       <div className="lx-filter-bar">
@@ -131,7 +131,7 @@ export default function CustomsAdmin() {
       {selected && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999 }}>
           <div style={{ background:'var(--card-bg,#fff)', borderRadius:'1rem', padding:'1.5rem', width:460, maxWidth:'90vw' }}>
-            <h3 style={{ fontWeight:700, marginBottom:'.5rem' }}>Customs Review — {selected.reference}</h3>
+            <h3 style={{ fontWeight:700, marginBottom:'.5rem' }}>Customs Review: {selected.reference}</h3>
             <div style={{ fontSize:'.82rem', color:'#64748b', marginBottom:'1rem' }}>
               <strong>Route:</strong> {selected.origin_country} → {selected.destination_country}<br/>
               <strong>Freight:</strong> {selected.freight_mode?.replace(/_/g,' ') || '—'}<br/>

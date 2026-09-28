@@ -63,7 +63,7 @@ export default function SetupWizard({ restaurant, t, onGoTab, onStartGuide }) {
         <p className="fd-pay-note">{STEP_HINTS[progress.nextStepId]}</p>
       )}
       {progress.readyToPublish && (
-        <p className="fd-pay-note">{t('food.merchant.setupWizardReady', 'All setup steps are done — you can go live from Settings.')}</p>
+        <p className="fd-pay-note">{t('food.merchant.setupWizardReady', 'All setup steps are done, you can go live from Settings.')}</p>
       )}
       {onStartGuide && (
         <button type="button" className="fd-btn fd-btn-primary fd-btn-sm" onClick={onStartGuide}>

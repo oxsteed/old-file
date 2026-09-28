@@ -149,7 +149,7 @@ export function ProductManagement({ businessId }) {
           <div className="pm-alert-list">
             {lowStockAlerts.map(alert => (
               <div key={alert.variantId} className="pm-alert-item">
-                <span><strong>{alert.productName}</strong> — {alert.variantName} <small>({alert.sku})</small></span>
+                <span><strong>{alert.productName}</strong>: {alert.variantName} <small>({alert.sku})</small></span>
                 <span className="pm-stock-warning">{alert.currentStock} / {alert.reorderLevel}</span>
               </div>
             ))}
@@ -229,7 +229,7 @@ export function ProductManagement({ businessId }) {
       {showVariantModal && selectedProduct && (
         <div className="pm-modal-overlay" onClick={() => setShowVariantModal(false)}>
           <div className="pm-modal" onClick={e => e.stopPropagation()}>
-            <h3>{t('products.addVariant', { defaultValue: 'Add Variant' })} — {selectedProduct.name}</h3>
+            <h3>{t('products.addVariant', { defaultValue: 'Add Variant' })}: {selectedProduct.name}</h3>
             <form onSubmit={handleCreateVariant}>
               <input type="text" placeholder={`${t('products.variantName', { defaultValue: 'Variant Name' })} *`} value={variantForm.variantName} onChange={e => setVariantForm({ ...variantForm, variantName: e.target.value })} required />
               <input type="text" placeholder={`${t('products.sku', { defaultValue: 'SKU' })} *`} value={variantForm.sku} onChange={e => setVariantForm({ ...variantForm, sku: e.target.value })} required />

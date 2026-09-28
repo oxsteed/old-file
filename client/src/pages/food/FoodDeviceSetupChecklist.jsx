@@ -12,7 +12,7 @@ const DEVICE_STEPS = [
   {
     id: 'kitchen',
     title: 'Install Local Food Directory Kitchen (TestFlight)',
-    detail: 'Staff sign-in — tickets appear in New. Tap to advance Preparing → Ready.',
+    detail: 'Staff sign-in: tickets appear in New. Tap to advance Preparing → Ready.',
   },
   {
     id: 'queue',

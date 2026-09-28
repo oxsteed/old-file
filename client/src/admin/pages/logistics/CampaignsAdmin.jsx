@@ -65,7 +65,7 @@ export default function CampaignsAdmin() {
     <div className="lx-page">
       <div className="lx-page-header">
         <h1 className="lx-page-title">🤝 Campaigns Management</h1>
-        <p className="lx-page-sub">Manage pooled order campaigns — open, lock, ship, close.</p>
+        <p className="lx-page-sub">Manage pooled order campaigns: open, lock, ship, close.</p>
       </div>
 
       <div className="lx-filter-bar">

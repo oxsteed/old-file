@@ -182,7 +182,7 @@ export default function RescheduleModal({ appointment, isCustomer, onClose, onRe
               id="rsm-msg"
               value={message}
               onChange={e => setMessage(e.target.value)}
-              placeholder={t('reschedule.messagePlaceholder', { defaultValue: 'e.g. "Something came up — does this new time work?"' })}
+              placeholder={t('reschedule.messagePlaceholder', { defaultValue: 'e.g. "Something came up, does this new time work?"' })}
               maxLength={500}
               rows={3}
             />

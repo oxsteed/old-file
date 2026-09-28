@@ -2111,7 +2111,7 @@
       "confirmSwitchHelper": "Ou sèten ou vle chanj a mod asistan?",
       "switchHelperNotice": "Pwofil ou a ap dwe vizib pou kliyent yo ap chèche èd",
       "yesSwitch": "Wi, Chanj",
-      "unifiedDesc": "Kalite kont ou kontwole dashboard la, navbar la, ak ki karakteristik ki vizib. Chanje nenpòt lè — chanjman an enstantane epi done ou yo konsève.",
+      "unifiedDesc": "Kalite kont ou kontwole dashboard la, navbar la, ak ki karakteristik ki vizib. Chanje nenpòt lè. Chanjman an enstantane epi done ou yo konsève.",
       "switchTo": "Chanje",
       "switchSuccess": "Chanje pou {{mode}}.",
       "grantedTitle": "Espas ou fè pati",
@@ -2633,12 +2633,12 @@
         "photos": "Mwen ka voye foto travay la si sa ede."
       },
       "helper": {
-        "thanks": "Mèsi dèske ou kontakte m — mwen ka ede ak sa.",
+        "thanks": "Mèsi dèske ou kontakte m, mwen ka ede ak sa.",
         "when": "Kilè ou ta renmen sa fèt?",
         "details": "Èske ou ka pataje foto oswa yon ti kras plis detay?"
       }
     },
-    "guestInquiryLiveHint": "Reponn an dirèk nan app la — envite a wè mesaj ou imedyatman si li konekte.",
+    "guestInquiryLiveHint": "Reponn an dirèk nan app la, envite a wè mesaj ou imedyatman si li konekte.",
     "guestInquiryLoadingThread": "Ap chaje konvèsasyon an…",
     "guestInquiryReplyPlaceholder": "Ekri yon repons pou envite a…",
     "guestInquirySendReply": "Voye repons",
@@ -7959,15 +7959,15 @@
       "oxsteedAssistantLabel": "Asistan OxSteed (AI)",
       "talkToHumanCta": "Pale ak yon moun",
       "oxsteedAiOnlyHint": "OxSteed isit la se AI. Pou yon espesyalis sipò an dirèk, kontinye anba a.",
-      "helperAiAvailable": "Offline — pale ak asistan IA yo",
-      "aiUnavailableConnecting": "IA pa disponib — n ap konekte ou ak {{name}}",
+      "helperAiAvailable": "Offline: pale ak asistan IA yo",
+      "aiUnavailableConnecting": "IA pa disponib: n ap konekte ou ak {{name}}",
       "aiUnavailableEscalateTitle": "Ou bezwen yon moun?",
       "aiUnavailableEscalate": "Asistan IA a pa disponib kounye a. Kontinye nan OxSteed Support pou yon espesyalis an dirèk.",
       "verifyToReachHuman": "{{name}} online. Verifye oswa konekte pou pale ak yo an dirèk.",
       "providerOfflineAiFallback": "{{name}} ale offline. Kounye a w ap pale ak asistan IA yo.",
       "providerBackOnline": "{{name}} tounen online.",
       "connectLiveCta": "Konekte ak {{name}} an dirèk",
-      "connectedLiveToast": "Konekte — pwochen mesaj ou a pral ale bay {{name}} an dirèk.",
+      "connectedLiveToast": "Konekte, pwochen mesaj ou a pral ale bay {{name}} an dirèk.",
       "escalationPanelAria": "Opsyon eskalad sipò"
     },
     "messenger": {
@@ -7978,7 +7978,7 @@
       "close": "Fèmen mesajri a",
       "replyExpectation": "Anjeneral reponn nan yon jou",
       "inviteTitle": "Voye mesaj bay {{name}}",
-      "inviteBody": "Mande sou disponiblite, pri, oswa rezèvasyon — repons yo rete sou OxSteed.",
+      "inviteBody": "Mande sou disponiblite, pri, oswa rezèvasyon, repons yo rete sou OxSteed.",
       "emptyPrompt": "Mande sou disponiblite, pri, oswa rezèvasyon pou kòmanse.",
       "disclaimerHelper": "Mesaj yo ale bay èdè sa a sou OxSteed.",
       "disclaimerBusiness": "Mesaj yo ale bay biznis sa a sou OxSteed.",
@@ -8013,9 +8013,9 @@
       "guestAccessCodeInvalid": "Kòd aksè chat la pa valab oswa li ekspire.",
       "guestHistoryExpired": "Istwa chat envite sa a gen plis pase 30 jou.",
       "createAccountToRecover": "Kreye yon kont pou kenbe istwa chat ou.",
-      "guestLiveWaiting": "{{name}} sou liy — mesaj ou te livré an dirèk.",
-      "guestOfflineAi": "{{name}} pa sou liy kounye a. Ou ap pale ak asistan IA li — ou ka kite yon mesaj.",
-      "guestOfflineBanner": "Pa sou liy — asistan IA",
+      "guestLiveWaiting": "{{name}} sou liy, mesaj ou te livré an dirèk.",
+      "guestOfflineAi": "{{name}} pa sou liy kounye a. Ou ap pale ak asistan IA li, ou ka kite yon mesaj.",
+      "guestOfflineBanner": "Pa sou liy: asistan IA",
       "guestLiveBanner": "Chat an dirèk",
       "availabilityTitle": "Orè ki disponib",
       "availabilityToggle": "Gade disponiblite",
@@ -8030,7 +8030,7 @@
       "slotRequestMessage": "Mwen ta renmen mande {{service}}: {{when}}\n{{marker}}",
       "availabilityServices": "Sèvis",
       "slotBookingConfirmed": "Demann rezèvasyon voye pou {{service}} · {{when}}",
-      "slotBookingToast": "Demann rezèvasyon voye — founisè a toujou bezwen konfime.",
+      "slotBookingToast": "Demann rezèvasyon voye, founisè a toujou bezwen konfime.",
       "slotBookingFailed": "Pa t kapab kreye demann rezèvasyon an. Mesaj chat la te prepare kanmenm.",
       "slotBookingConflict": "Lè sa a pa disponib ankò. Chwazi yon lòt.",
       "guestSessionExpired": "Sesyon envite ou a ekspire. Tanpri verifye imèl ou ankò.",
@@ -8146,7 +8146,7 @@
       "bookingDeclinePlaceholder": "Di yo poukisa (opsyonèl)",
       "bookingConfirmDecline": "Konfime refi",
       "bookingCustomerPending": "Ap tann konfimasyon founisè a.",
-      "bookingCustomerAccepted": "Konfime — ou rezève.",
+      "bookingCustomerAccepted": "Konfime, ou rezève.",
       "bookingCustomerDeclined": "Yo te refize demann sa a.",
       "bookingCustomerCounter": "Founisè a pwopoze yon lòt lè.",
       "bookingStatus": {
@@ -11201,8 +11201,8 @@
     "messages": "Mesaj",
     "myBookings": "Sant rezèvasyon",
     "dashboard": "Tablo de Bòd",
-    "helperOperations": "Kalandriye — Jere disponiblite ak randevou kap vini",
-    "customerPlanning": "Kalandriye — Wè randevou ou yo epi jere orè ou",
+    "helperOperations": "Kalandriye: jere disponiblite ak randevou kap vini",
+    "customerPlanning": "Kalandriye: wè randevou ou yo epi jere orè ou",
 
     "business": {
       "categories": {
@@ -11448,7 +11448,7 @@
     "showingCount": "{{shown}} nan {{total}}",
     "categoriesLegend": "Ekspore pa kategori",
     "closePreview": "Fèmen apèsi",
-    "previewSampleNotice": "Apèsi ak done echantiyon — kontni reyèl ou a ap parèt yon fwa aktive",
+    "previewSampleNotice": "Apèsi ak done echantiyon, kontni reyèl ou a ap parèt yon fwa aktive",
     "previewAriaLabel": "Apèsi modèl {{name}}",
     "activateAriaLabel": "Aktive modèl {{name}}",
     "unlockAriaLabel": "Debloke modèl {{name}}",
@@ -11652,7 +11652,7 @@
     "feeHistory": "Frè anilasyon peye",
     "feesCount": "{{n}} frè anilasyon peye",
     "feesTotal": "total",
-    "feesNone": "Pa gen frè anilasyon — bon istwa.",
+    "feesNone": "Pa gen frè anilasyon, bon istwa.",
     "feesShow": "Montre",
     "feesHide": "Kache",
     "feeTo": "Ba",
@@ -11749,11 +11749,11 @@
     "theHelper": "asistan an",
     "helperSub": "Lè w anile, ou libè tan yo, men yo ka deja refize lòt travay pou sa a.",
     "blockedTimeTitle": "Tan yo rezève pou travay ou",
-    "noSlotFound": "Dat pwograme pa defini — yo te disponib lè ou te bezwen yo.",
+    "noSlotFound": "Dat pwograme pa defini, yo te disponib lè ou te bezwen yo.",
     "feeTitle": "Frè rekonesans pou anilasyon",
     "feeExplain": "Sa a se 10% nan bidjè travay la (maksimòm $100). Li al dirèkteman bay {{helper}} pou rekonèt tan yo rezève ak lòt travay yo ka refize.",
     "feePhilosophy": "Sa a se rekonesans enpak sou lavi yo, pa yon amann platfòm.",
-    "feeZeroAdvance": "Pa gen frè — ou ap anile plis pase 3 jou alavans, ba yo tan pou repwograme.",
+    "feeZeroAdvance": "Pa gen frè. Ou ap anile plis pase 3 jou alavans, ba yo tan pou repwograme.",
     "feeZeroOffPlatform": "Pa gen frè OxSteed paske travay sa a itilize yon metòd peman andeyò platfòm.",
     "ackWithFee": "Mwen konprann sa ka afekte salè {{helper}} epi mwen vle kontinye.",
     "ackNoFee": "Mwen konprann {{helper}} òganize orè yo pou travay sa a epi mwen vle anile.",
@@ -11767,9 +11767,9 @@
   "helperCancelConfirm": {
     "title": "Anile travay sa a?",
     "theCustomer": "kliyan an",
-    "urgencyBanner": "Ap anile mwens pase 24 è anvan travay la — {{customer}} pral bezwen jwenn yon lòt moun dènyè minit.",
+    "urgencyBanner": "Ap anile mwens pase 24 è anvan travay la, {{customer}} pral bezwen jwenn yon lòt moun dènyè minit.",
     "customerReliabilityLabel": "Fiabilite kliyan",
-    "newCustomer": "Nouvo kliyan — pa gen istwa anilasyon ankò.",
+    "newCustomer": "Nouvo kliyan, pa gen istwa anilasyon ankò.",
     "custCompletedOf": "{{completed}} / {{total}} travay konplete",
     "custCancellations": "{{n}} anilasyon nan ane pase a",
     "patternEarly": "Anjeneral anile avanse lè li anile.",
@@ -11778,9 +11778,9 @@
     "yourRecordLabel": "Istwa anilasyon ou (vizib sou pwofil ou)",
     "cancellationRate": "to anilasyon",
     "cancellationsOf": "nan {{total}} travay",
-    "cleanRecord": "Istwa pwòp — pa gen anilasyon ankò. Sa ta se premye a.",
+    "cleanRecord": "Istwa pwòp, pa gen anilasyon ankò. Sa ta se premye a.",
     "ownNote": "Kliyan yo wè sa lè yo revize pwofil ou. Fiabilite se youn nan faktè prensipal yo konsidere.",
-    "noFeeNote": "Pa gen frè anilasyon pou ou — men anilasyon sa a pral anrejistre sou pwofil ou.",
+    "noFeeNote": "Pa gen frè anilasyon pou ou, men anilasyon sa a pral anrejistre sou pwofil ou.",
     "ackText": "Mwen konprann sa afekte planifikasyon {{customer}}. Mwen vle kontinye.",
     "keepJob": "Kenbe travay la",
     "confirmCancel": "Konfime anilasyon",
@@ -11978,7 +11978,7 @@
     "selectService": "Kisa ou bezwen?",
     "serviceRequest": "Service request",
     "chooseService": "Choose a listed service",
-    "otherService": "Other — type a service name",
+    "otherService": "Other: type a service name",
     "backToServices": "Choose a listed service",
     "serviceName": "Non sèvis la",
     "serviceLocation": "Kote sèvis la",
@@ -11999,7 +11999,7 @@
     "expireChoice": "Let the request expire",
     "expireChoiceHint": "Keep the request private if the provider does not confirm.",
     "requestWithoutSchedule": "Send request without a time slot",
-    "flexibleTime": "Flexible time — provider will coordinate",
+    "flexibleTime": "Flexible time: provider will coordinate",
     "autoPostSummary": "If the provider does not confirm within {{hours}} hours, this request will open as a public job for bids.",
     "expireSummary": "This request will remain private and expire after {{hours}} hours if the provider does not confirm.",
     "requestOnlyWindowHint": "Choose any deadline up to {{hours}} hours before the requested date.",
@@ -12902,7 +12902,7 @@
     "statusApproved": "Ou apwouve",
     "statusApprovedHint": "Ou ka pran kliyan peye kounye a.",
     "statusRequested": "Aplikasyon an revize",
-    "statusRequestedHint": "N ap voye yon imel ba ou lè desizyon an pran — anjeneral 1-2 jou travay.",
+    "statusRequestedHint": "N ap voye yon imel ba ou lè desizyon an pran, anjeneral 1-2 jou travay.",
     "statusRejected": "Aplikasyon anvan an pa t apwouve",
     "statusRejectedHint": "Ou ka mete repons ou ajou epi eseye ankò.",
     "reviewerNotes": "Nòt revize a:",
@@ -12933,7 +12933,7 @@
         "title": "Apwobasyon OxSteed bezwen",
         "hint": "Soumèt yon aplikasyon kout anvan ou aksepte kliyan peye yo.",
         "pendingTitle": "Apwobasyon an revize",
-        "pendingHint": "N ap voye yon imel ba ou lè desizyon an pran — anjeneral 1-2 jou travay."
+        "pendingHint": "N ap voye yon imel ba ou lè desizyon an pran, anjeneral 1-2 jou travay."
       }
     }
   },
@@ -13026,7 +13026,7 @@
       "whyCards": {
         "moq": {
           "heading": "Pwoblèm lòd minimòm nan",
-          "body": "Manifakti yo fikse minimòm pou faktori, pa pou moun endividyèl. Pifò achtè bloke — pa paske pri a, men paske kantite."
+          "body": "Manifakti yo fikse minimòm pou faktori, pa pou moun endividyèl. Pifò achtè bloke, pa paske pri a, men paske kantite."
         },
         "compliance": {
           "heading": "Kòmplians pa opsyonèl",
@@ -13034,7 +13034,7 @@
         },
         "lastmile": {
           "heading": "Dènye etap la se pwòp pwoblèm li",
-          "body": "Machandiz yo rive nan pò. Apre sa? Depo, alokasyon, lòd livrezon — chak youn se yon nouvo etap. OxSteed kowòdone chèn nan pou chak etap konnen sa pwochen an bezwen."
+          "body": "Machandiz yo rive nan pò. Apre sa? Depo, alokasyon, lòd livrezon, chak youn se yon nouvo etap. OxSteed kowòdone chèn nan pou chak etap konnen sa pwochen an bezwen."
         }
       }
     },
@@ -15325,7 +15325,7 @@
     "loading": "Ap chaje tablo tablodbò afilye a…",
     "loadingAnalytics": "Ap chaje analiz yo…",
     "sparklineNoData": "Pa gen done ankò",
-    "pageTitle": "Tablodbò afilye — OxSteed",
+    "pageTitle": "Tablodbò afilye: OxSteed",
     "title": "Tablodbò afilye",
     "subtitle": "Swiv pwofi, transfòmasyon, ak peye ki soti nan referans ou yo",
     "actions": {
@@ -15341,7 +15341,7 @@
     },
     "toasts": {
       "programCreated": "Pwogram afilye kreye",
-      "payoutCalculated": "Peye kalkile — tcheke istwa peman",
+      "payoutCalculated": "Peye kalkile, tcheke istwa peman",
       "linkCopied": "Lyen kopi"
     },
     "form": {
@@ -16155,7 +16155,7 @@
   },
   "learn": {
     "page": {
-      "metaTitle": "Aprann fè DIY — Reparasyon kay, swen machin & metye | OxSteed",
+      "metaTitle": "Aprann fè DIY: reparasyon kay, swen machin & metye | OxSteed",
       "metaDesc": "Gid etap pa etap pou repare robinèt, bwouche miray, chanje lwil, ak plis. Chak gid gen lis zouti, swivi konpetans, ak aksè dirèk a yon asistan lokal.",
       "searchPlaceholder": "Chèche gid… (tiyo, drywall, chanjman lwil)",
       "searchAriaLabel": "Chèche gid",
@@ -16256,7 +16256,7 @@
         "eyebrow": "Mod Aprantisaj",
         "guest": {
           "title": "Aprann. Fè. Genyen.",
-          "sub": "Gid etap pa etap pou reparasyon kay ak swen machin — chak konpetans ou devlope konekte w ak zouti, kits, ak asistan ou bezwen."
+          "sub": "Gid etap pa etap pou reparasyon kay ak swen machin, chak konpetans ou devlope konekte w ak zouti, kits, ak asistan ou bezwen."
         },
         "customer": {
           "title": "Aprann. Fè. Genyen.",
@@ -16290,7 +16290,7 @@
         },
         "support_agent": {
           "title": "Rezoud pi vit. Eskalad pi entèlijan.",
-          "sub": "Plis ou konprann reparasyon an, pi vit ou ka triage pwoblèm yon kliyan — epi pi byen ou konnen ki lè pou eskalad.",
+          "sub": "Plis ou konprann reparasyon an, pi vit ou ka triage pwoblèm yon kliyan, epi pi byen ou konnen ki lè pou eskalad.",
           "cta": "Parcourir tout gid yo"
         }
       },
@@ -16334,7 +16334,7 @@
     "pageTitle": "Sant Kwasans | OxSteed",
     "kicker": "Sant Kwasans",
     "heroTitle": "Fè pwomosyon sèvis ou yo jan founisè lokal ki reyisi yo fè l.",
-    "heroDescription": "Sis ang, sis kanal, 24 kanpay sezonye, ranplisman entèlijan, yon konstriktè referans ak lyen pou swiv, analitik pèfòmans ak yon bwat zouti senk eleman. Konstrwi dirèkteman nan pwofil OxSteed ou — paske travay maketing pa ta dwe yon dezyèm travay.",
+    "heroDescription": "Sis ang, sis kanal, 24 kanpay sezonye, ranplisman entèlijan, yon konstriktè referans ak lyen pou swiv, analitik pèfòmans ak yon bwat zouti senk eleman. Konstrwi dirèkteman nan pwofil OxSteed ou, paske travay maketing pa ta dwe yon dezyèm travay.",
     "heroBtnProfile": "Amelyore pwofil",
     "heroBtnQr": "Ouvri estidyo QR",
     "emptyTitle": "Sant Kwasans la pou èd ak founisè biznis.",
@@ -16363,7 +16363,7 @@
     "readyProfileReadiness": "konpletid pwofil",
     "studioKicker": "Estidyo Kontni",
     "studioTitle": "Sis ang. Sis kanal. Yon pwofil.",
-    "studioDescription": "Chwazi yon ang ak yon kanal — OxSteed kreye yon pòs adapte pou piblik sa a, ak longè, CTA ak hashtag espesifik kanal. Jenere otank varyant ou vle.",
+    "studioDescription": "Chwazi yon ang ak yon kanal: OxSteed kreye yon pòs adapte pou piblik sa a, ak longè, CTA ak hashtag espesifik kanal. Jenere otank varyant ou vle.",
     "studioTryAnother": "Eseye yon lòt ang",
     "studioTrackedLinkNote": "Lyen trake ajoute otomatikman lè ou kopye",
     "studioCopyPost": "Kopye pòs sa a",
@@ -16389,7 +16389,7 @@
     "slotsDescription": "OxSteed eskanye 7 jou k ap vini yo epi mete an evidans fenèt kote ou pa gen travay pwograme. Chak jou ouvè jwenn yon pwomo prè pou voye ak yon rabè dènye minit opsyonèl.",
     "slotsDiscountLabel": "Rabè dènye minit",
     "slotsLoading": "Eskanye kalandriye ou...",
-    "slotsFullyBooked": "Ou totalman rezève pou 7 jou k ap vini yo — ekselan! Itilize paj Kanpay pou ranpli semèn ki vin apre a.",
+    "slotsFullyBooked": "Ou totalman rezève pou 7 jou k ap vini yo, ekselan! Itilize paj Kanpay pou ranpli semèn ki vin apre a.",
     "slotsWideOpen": "Totalman lib",
     "slotsCopy": "Kopye",
     "slotsSendText": "Voye kòm mesaj",
@@ -16408,7 +16408,7 @@
     "referralsCardPrint": "Enprime ak distribiye",
     "performanceKicker": "Pèfòmans",
     "performanceTitle": "Swiv ki pwomo ki reyèlman jenere travay.",
-    "performanceDescription": "Chak fwa ou kopye yon lyen trake oswa pòs, OxSteed anrejistre l lokalmman. Gade isit la chak semèn pou idantifye ki kanal ak ang ki bay rezilta — ak kiyès pou sispann itilize.",
+    "performanceDescription": "Chak fwa ou kopye yon lyen trake oswa pòs, OxSteed anrejistre l lokalmman. Gade isit la chak semèn pou idantifye ki kanal ak ang ki bay rezilta, ak kiyès pou sispann itilize.",
     "performanceTrackedActions": "aksyon trake",
     "performanceActiveSources": "sous aktif",
     "performanceTopSource": "pi gwo sous",
@@ -16453,11 +16453,11 @@
     "playbookKicker": "Manyèl chak semèn",
     "playbookTitle": "Minimòm ou ta dwe fè chak semèn",
     "whyTitle": "Poukisa sa viv anndan OxSteed",
-    "whyDescription": "Pi pifò founisè sèvis lokal konnen yo ta dwe fè maketing. Kèk moun genyen tan pou sa. Sant Kwasans la konvèti resous ou genyen deja — pwofil ou, evalyasyon ou, kalandriye ou — an pòs prè pou kole, flayè prè pou enprime ak lyen prè pou swiv.",
-    "nextBusinessHub": "Business Hub — fakti, taks ak objektif",
-    "nextCalendar": "Kalandriye — make disponibilite kliyan yo ka wè",
-    "nextReviews": "Evalyasyon — mande ak reponn kòmantè kliyan",
-    "nextTemplates": "Modèl pwofil — amelyore aparans paj ou",
+    "whyDescription": "Pi pifò founisè sèvis lokal konnen yo ta dwe fè maketing. Kèk moun genyen tan pou sa. Sant Kwasans la konvèti resous ou genyen deja, pwofil ou, evalyasyon ou, kalandriye ou, an pòs prè pou kole, flayè prè pou enprime ak lyen prè pou swiv.",
+    "nextBusinessHub": "Business Hub: fakti, taks ak objektif",
+    "nextCalendar": "Kalandriye: make disponibilite kliyan yo ka wè",
+    "nextReviews": "Evalyasyon: mande ak reponn kòmantè kliyan",
+    "nextTemplates": "Modèl pwofil: amelyore aparans paj ou",
     "angleIntroLabel": "Intro zanmi",
     "angleIntroDesc": "Ouvèti cho ak vwazenaj.",
     "angleUrgencyLabel": "Disponib semèn sa a",
@@ -17011,12 +17011,12 @@
       "landing": {
         "eyebrow": "Local Food Directory",
         "headline": "Zouti nivo franchise pou restoran endepandan",
-        "sub": "Kòmanse menm jou a. Aksepte kòmand nan kontwa, kiosk, afichaj kwizin, ak sou entènèt — tout nan yon sèl backend pataje.",
+        "sub": "Kòmanse menm jou a. Aksepte kòmand nan kontwa, kiosk, afichaj kwizin, ak sou entènèt, tout nan yon sèl backend pataje.",
         "cta": "Ajoute restoran ou",
         "f1Title": "Konfigirasyon menm jou",
         "f1Desc": "Ajoute meni ou epi kòmanse aksepte kòmand nan kèk èdtan.",
         "f2Title": "Kòmand sou plizyè ekran",
-        "f2Desc": "Kontwa, kiosk, KDS, ak sou entènèt — tout senkronize otomatikman.",
+        "f2Desc": "Kontwa, kiosk, KDS, ak sou entènèt, tout senkronize otomatikman.",
         "f3Title": "Mak endepandan",
         "f3Desc": "Non ou, idantite ou. Alimante pa Local Food Directory dèyè.",
         "f4Title": "Pare pou lemond",
@@ -17036,11 +17036,11 @@
       "opens": "Ouvri",
       "closes": "Fèmen",
       "menuExists": "{{count}} atik deja nan meni ou",
-      "menuSkip": "— ou ka kontinye oswa ajoute yon lòt.",
+      "menuSkip": "Ou ka kontinye oswa ajoute yon lòt.",
       "menuFirstHint": "Ajoute premye plat ou. Ou ka bati meni konplè a depi tablo de bò.",
       "doneMessage": "{{name}} kounye a vizib. Kliyan yo ka jwenn ou epi kòmande kounye a.",
       "alreadyLive": "Restoran ou deja aktif.",
-      "chip1": "Mak ou, sal ou — nou jere enfrastriktè a",
+      "chip1": "Mak ou, sal ou, nou jere enfrastriktè a",
       "chip2": "Kyòsk, ekran kwizin ak tablo atant enkli",
       "chip3": "Konfigirasyon menm jou a, aktif depi ou vire pankat la",
       "scene": {
@@ -17050,7 +17050,7 @@
         },
         "create": {
           "headline": "Kisa nou ap ouvri?",
-          "sub": "Kòmanse ak yon non — rès la swiv."
+          "sub": "Kòmanse ak yon non, rès la swiv."
         },
         "profile": {
           "headline": "Di kliyan ki moun ou ye.",
@@ -17062,7 +17062,7 @@
         },
         "hours": {
           "headline": "Ki lè pòt yo ouvri?",
-          "sub": "Fikse orè regilye ou — ou ka chanje l nenpòt ki lè."
+          "sub": "Fikse orè regilye ou, ou ka chanje l nenpòt ki lè."
         },
         "menu": {
           "headline": "Mete yon bagay reyèl sou meni.",
@@ -17074,7 +17074,7 @@
         },
         "devices": {
           "headline": "Konekte sal la.",
-          "sub": "Kyòsk, ekran kwizin, tablo atant — epi yon sik tès."
+          "sub": "Kyòsk, ekran kwizin, tablo atant, epi yon sik tès."
         },
         "done": {
           "headline": "Ou an sèvis.",
@@ -17086,7 +17086,7 @@
         "description": "Deskripsyon ajoute",
         "location": "Vil oswa adrès fikse",
         "menu": "Omwen yon atik nan meni",
-        "ready": "Tout bagay sanble bon — pare pou mete an liy.",
+        "ready": "Tout bagay sanble bon, pare pou mete an liy.",
         "incomplete": "Ranpli etap sa yo pou mete an liy."
       }
     },

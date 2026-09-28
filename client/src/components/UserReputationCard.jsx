@@ -234,7 +234,7 @@ const UserReputationCard = ({ userId, showFeeHistory = false, className = '' }) 
                 </>
               ) : (
                 <span className="rep-fee-none">
-                  ✓ {t('reputation.feesNone', 'No cancellation fees — great track record.')}
+                  ✓ {t('reputation.feesNone', 'No cancellation fees: great track record.')}
                 </span>
               )}
             </div>

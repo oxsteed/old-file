@@ -37,13 +37,13 @@ function sceneHeadline(step, t) {
 function sceneSub(step, t) {
   const map = {
     welcome: t('food.onboarding.scene.welcome.sub', 'One path from empty kitchen to a live floor.'),
-    create:  t('food.onboarding.scene.create.sub',  'Start with a name — the rest follows.'),
+    create:  t('food.onboarding.scene.create.sub',  'Start with a name, the rest follows.'),
     profile: t('food.onboarding.scene.profile.sub', 'Personality travels further than a logo alone.'),
     location:t('food.onboarding.scene.location.sub','Help nearby guests and delivery apps find you.'),
-    hours:   t('food.onboarding.scene.hours.sub',   'Set your regular hours — you can change them anytime.'),
+    hours:   t('food.onboarding.scene.hours.sub',   'Set your regular hours, you can change them anytime.'),
     menu:    t('food.onboarding.scene.menu.sub',    'One item is enough to take your first real order.'),
     publish: t('food.onboarding.scene.publish.sub', 'Live means findable by every guest nearby.'),
-    devices: t('food.onboarding.scene.devices.sub', 'Kiosk, kitchen screen, queue board — then a test loop.'),
+    devices: t('food.onboarding.scene.devices.sub', 'Kiosk, kitchen screen, queue board, then a test loop.'),
     done:    t('food.onboarding.scene.done.sub',    'Guests order. Kitchen fires. The board tells the story.'),
   };
   return map[step] || '';
@@ -310,7 +310,7 @@ export default function MerchantOnboardingWizard({
             {/* ── Welcome ── */}
             {step === 'welcome' && (
               <ul className="fd-onboarding-chips">
-                <li>{t('food.onboarding.chip1', 'Your brand, your floor — we run the infrastructure')}</li>
+                <li>{t('food.onboarding.chip1', 'Your brand, your floor, we run the infrastructure')}</li>
                 <li>{t('food.onboarding.chip2', 'Kiosk, kitchen screen, and queue board included')}</li>
                 <li>{t('food.onboarding.chip3', 'Same-day setup, live the moment you flip the sign')}</li>
               </ul>
@@ -458,15 +458,15 @@ export default function MerchantOnboardingWizard({
                     onChange={(e) => setLocationForm((f) => ({ ...f, currencyCode: e.target.value }))}
                     className="fd-select"
                   >
-                    <option value="USD">USD — US Dollar</option>
-                    <option value="EUR">EUR — Euro</option>
-                    <option value="GBP">GBP — British Pound</option>
-                    <option value="CAD">CAD — Canadian Dollar</option>
-                    <option value="HTG">HTG — Haitian Gourde</option>
-                    <option value="DOP">DOP — Dominican Peso</option>
-                    <option value="BRL">BRL — Brazilian Real</option>
-                    <option value="MXN">MXN — Mexican Peso</option>
-                    <option value="RWF">RWF — Rwandan Franc</option>
+                    <option value="USD">USD: US Dollar</option>
+                    <option value="EUR">EUR: Euro</option>
+                    <option value="GBP">GBP: British Pound</option>
+                    <option value="CAD">CAD: Canadian Dollar</option>
+                    <option value="HTG">HTG: Haitian Gourde</option>
+                    <option value="DOP">DOP: Dominican Peso</option>
+                    <option value="BRL">BRL: Brazilian Real</option>
+                    <option value="MXN">MXN: Mexican Peso</option>
+                    <option value="RWF">RWF: Rwandan Franc</option>
                   </select>
                 </div>
                 <details className="fd-onboarding-advanced">
@@ -528,7 +528,7 @@ export default function MerchantOnboardingWizard({
                 {(progress?.menuItemCount || 0) > 0 ? (
                   <p className="fd-onboarding-hint fd-onboarding-hint--good">
                     ✓ {t('food.onboarding.menuExists', '{{count}} item(s) already on your menu', { count: progress.menuItemCount })}
-                    {' '}{t('food.onboarding.menuSkip', '— you can continue or add another.')}
+                    {' '}{t('food.onboarding.menuSkip', ', you can continue or add another.')}
                   </p>
                 ) : (
                   <p className="fd-onboarding-hint">{t('food.onboarding.menuFirstHint', 'Add your first dish. You can build out the full menu from the dashboard.')}</p>
@@ -562,7 +562,7 @@ export default function MerchantOnboardingWizard({
               <div className="fd-onboarding-readiness">
                 <p className="fd-onboarding-readiness-title">
                   {progress?.readyToPublish
-                    ? t('food.onboarding.readiness.ready', 'Everything looks good — ready to go live.')
+                    ? t('food.onboarding.readiness.ready', 'Everything looks good, ready to go live.')
                     : t('food.onboarding.readiness.incomplete', 'Complete these steps to go live.')}
                 </p>
                 <ul className="fd-onboarding-readiness-list">

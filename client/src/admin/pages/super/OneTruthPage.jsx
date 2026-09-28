@@ -666,7 +666,7 @@ export default function OneTruthPage() {
                     <option value="">All admin regions</option>
                     {filtersData.regions.map((option) => (
                       <option key={option.id} value={option.id}>
-                        {option.name} — {option.coverageLabel}
+                        {option.name}: {option.coverageLabel}
                       </option>
                     ))}
                   </select>

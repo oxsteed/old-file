@@ -323,7 +323,7 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
               <div style={{ ...noteCardStyle, borderLeft: '4px solid #10B981', marginBottom: '1rem' }}>
                 <p style={{ margin: '0 0 0.35rem' }}>
                   <strong>{request.consultant_first_name} {request.consultant_last_name}</strong>
-                  {request.consultant_headline ? ` — ${request.consultant_headline}` : ''}
+                  {request.consultant_headline ? `: ${request.consultant_headline}` : ''}
                 </p>
                 <p style={{ margin: '0.2rem 0', color: 'var(--color-text-muted)' }}>
                   Assignment status: {request.consultant_assignment_status || 'assigned'}
