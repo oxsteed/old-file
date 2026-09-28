@@ -14030,6 +14030,7 @@
       "quoteTitle": "Your estimated price",
       "quoteHint": "Choose both stops to see route time, distance, and price.",
       "quoteExpires": "Quote valid for {{minutes}} minutes",
+      "quoteExpired": "This delivery quote has expired. Get a new quote to continue.",
       "distance": "{{miles}} mi route",
       "duration": "About {{minutes}} min",
       "total": "Customer total",
