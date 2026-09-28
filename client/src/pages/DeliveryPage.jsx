@@ -140,6 +140,7 @@ function CustomerDelivery({ t }) {
     packageType,
     weightLbs: Number(weightLbs),
     serviceLevel,
+    notes,
     pieces: Number(pieces),
     dimensions: Object.fromEntries(Object.entries(dimensions).map(([key, value]) => [key, value ? Number(value) : undefined])),
     contentsCategory,
@@ -152,7 +153,7 @@ function CustomerDelivery({ t }) {
     pickupWindow: { start: pickupWindow.start ? new Date(pickupWindow.start).toISOString() : undefined, end: pickupWindow.end ? new Date(pickupWindow.end).toISOString() : undefined },
     deliveryWindow: { start: deliveryWindow.start ? new Date(deliveryWindow.start).toISOString() : undefined, end: deliveryWindow.end ? new Date(deliveryWindow.end).toISOString() : undefined },
     proofPreference,
-  }), [contentsCategory, declaredValue, deliveryWindow, destination, destinationContact, dimensions, fragile, handlingRequirements, origin, originContact, packageType, perishable, pieces, pickupWindow, proofPreference, serviceLevel, weightLbs]);
+  }), [contentsCategory, declaredValue, deliveryWindow, destination, destinationContact, dimensions, fragile, handlingRequirements, notes, origin, originContact, packageType, perishable, pieces, pickupWindow, proofPreference, serviceLevel, weightLbs]);
 
   useEffect(() => { setQuote(null); setClientRequestId(''); }, [payload]);
 

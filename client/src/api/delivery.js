@@ -92,7 +92,9 @@ export function deliveryError(error, t, fallback = 'delivery.errors.status') {
     valueInvalid: ['delivery_declared_value_invalid'],
     shipmentInvalid: ['delivery_pieces_invalid', 'delivery_shipment_invalid', 'delivery_weight_exceeds_package_limit'],
     unsupported: ['delivery_contents_unsupported', 'delivery_handling_unsupported', 'delivery_hazmat_unsupported'],
-    quoteExpired: ['delivery_quote_expired', 'delivery_quote_mismatch', 'delivery_quote_required'],
+    quoteExpired: ['delivery_quote_expired'],
+    quoteMismatch: ['delivery_quote_mismatch'],
+    quoteRequired: ['delivery_quote_required'],
     permission: ['delivery_helper_required', 'delivery_operator_required', 'delivery_status_forbidden', 'delivery_self_claim'],
     capacityError: ['delivery_capacity_mismatch', 'delivery_schedule_conflict'],
     recoveryPending: ['delivery_recovery_pending', 'delivery_reschedule_pending', 'delivery_return_pending'],
@@ -106,7 +108,10 @@ export function deliveryError(error, t, fallback = 'delivery.errors.status') {
     conflict: ['delivery_idempotency_conflict'],
   };
   const match = Object.entries(mappings).find(([, codes]) => codes.includes(code));
-  if (match) return t(`delivery.ui.${match[0]}`);
+  if (match) {
+    const namespace = new Set(['quoteExpired', 'quoteMismatch', 'quoteRequired']).has(match[0]) ? 'customer' : 'ui';
+    return t(`delivery.${namespace}.${match[0]}`);
+  }
   if (status === 503) return t('delivery.ui.serviceUnavailable');
   if (status === 401 || status === 403) return t('delivery.ui.permission');
   if (status === 409) return t('delivery.ui.conflict');

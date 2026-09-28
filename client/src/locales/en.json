@@ -14031,6 +14031,8 @@
       "quoteHint": "Choose both stops to see route time, distance, and price.",
       "quoteExpires": "Quote valid for {{minutes}} minutes",
       "quoteExpired": "This delivery quote has expired. Get a new quote to continue.",
+      "quoteMismatch": "The delivery details changed after pricing. Get a new quote before posting.",
+      "quoteRequired": "Get a delivery quote before posting this request.",
       "distance": "{{miles}} mi route",
       "duration": "About {{minutes}} min",
       "total": "Customer total",
