@@ -48,6 +48,22 @@ function broadcastToAdmins(event, data) {
   io.to('admins').emit(event, data);
 }
 
+// Generic room broadcast following the same conventions as the helpers
+// above. Used by the delivery tracking event bus for participant rooms
+// (`delivery_<jobId>`) whose membership is decided server-side on join.
+function broadcastToRoom(room, event, data) {
+  if (!io || !room) return;
+  io.to(room).emit(event, data);
+}
+
+// Exact operational delivery-tracking events. Only admin/super_admin
+// sockets join the `ops_delivery` room (on connect, next to `admins`);
+// customer-safe projections go to `delivery_<jobId>` instead.
+function broadcastToOpsDelivery(event, data) {
+  if (!io) return;
+  io.to('ops_delivery').emit(event, data);
+}
+
 function disconnectUserSockets(userId) {
   if (!io) return;
   try { io.in(`user_${userId}`).disconnectSockets(true); }
@@ -199,6 +215,7 @@ async function validateBusinessRoomAccess(businessId, userId) {
 module.exports = {
   init, trackConnect, trackDisconnect, isOnline,
   broadcastToUser, broadcastToConversation, broadcastToAdmins,
+  broadcastToRoom, broadcastToOpsDelivery,
   broadcastNewGuestSession, broadcastGuestSessionUpdate, broadcastGuestChatMessage,
   disconnectUserSockets, getSocketCount, validateConversationAccess,
   joinBusinessRooms, listUserBusinessIds,

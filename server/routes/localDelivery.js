@@ -6,7 +6,6 @@ const { requireInternalLogisticsWorkspace } = require('../middleware/requireInte
 const controller = require('../controllers/localDeliveryController');
 const proofController = require('../controllers/localDeliveryProofController');
 const trackingOpsController = require('../controllers/deliveryTrackingOpsController');
-const telematicsWebhookController = require('../controllers/deliveryTelematicsWebhookController');
 const trackingLinkController = require('../controllers/deliveryTrackingLinkController');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
@@ -86,9 +85,10 @@ router.post('/internal/tracking/eta/:id/refresh', requireAuth, requireOperations
 router.get('/internal/jobs/:id/tracking/geofences', requireAuth, requireOperationsWorkspace, trackingOpsController.getGeofences);
 router.get('/internal/jobs/:id/tracking/eta-history', requireAuth, requireOperationsWorkspace, trackingOpsController.getEtaHistory);
 
-// ── Telematics provider webhooks ──
-// PUBLIC: no session auth; the provider's webhook signature is the
-// authentication. Mounted here without requireAuth by design.
-router.post('/webhooks/telematics/:provider', telematicsWebhookController.receiveWebhook);
+// NOTE: the public telematics provider webhook
+// (POST /api/delivery/webhooks/telematics/:provider) is mounted in
+// server/index.js BEFORE express.json() with express.raw() so the exact
+// request bytes survive for HMAC verification. It is intentionally NOT
+// registered on this router.
 
 module.exports = router;

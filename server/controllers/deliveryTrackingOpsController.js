@@ -22,6 +22,7 @@ const trackingService = require('../services/deliveryTrackingService');
 const geofenceService = require('../services/deliveryGeofenceService');
 const etaService = require('../services/deliveryEtaService');
 const telematicsService = require('../services/telematicsConnectionService');
+const trackingEventBus = require('../services/deliveryTrackingEventBus');
 
 const REVIEWABLE_POINT_STATES = ['pending', 'suspicious'];
 const REVIEW_QUEUE_STATES = ['suspicious', 'rejected'];
@@ -313,6 +314,29 @@ async function reviewPoint(req, res) {
       return updated[0];
     }, 'review_tracking_point');
 
+    // Realtime fan-out: the tracking_exception row was written in the review
+    // transaction above (insertEvent: false). Ops-only: review notes are
+    // internal, so no customer projection is emitted.
+    try {
+      await trackingEventBus.publishTrackingEvent({
+        deliveryJobId: point.delivery_job_id,
+        eventType: 'tracking_exception',
+        payload: {
+          pointId: point.id,
+          decision,
+          reviewedAt: new Date().toISOString(),
+        },
+        actorUserId: reviewerId,
+        assignmentId: point.assignment_id || null,
+        customerVisible: false,
+        insertEvent: false,
+      });
+    } catch (err) {
+      logger.warn('Tracking broadcast failed after point review', {
+        pointId, message: err?.message,
+      });
+    }
+
     return res.status(200).json({ success: true, point });
   } catch (err) {
     return sendError(res, err, { handler: 'reviewPoint', pointId });
@@ -427,6 +451,28 @@ async function refreshEta(req, res) {
       deliveryJobId, snapshotId: snapshot && snapshot.id,
       actorId: req.user && req.user.id,
     });
+    // Realtime fan-out: the eta_updated row was written inside refreshEta
+    // (insertEvent: false). A forced refresh always writes a snapshot row.
+    if (snapshot && snapshot.id) {
+      try {
+        await trackingEventBus.publishTrackingEvent({
+          deliveryJobId,
+          eventType: 'eta_updated',
+          payload: {
+            etaAt: snapshot.eta_at || null,
+            source: snapshot.source || null,
+            confidence: snapshot.confidence || null,
+            stale: false,
+          },
+          actorUserId: req.user && req.user.id ? req.user.id : null,
+          insertEvent: false,
+        });
+      } catch (err) {
+        logger.warn('Tracking broadcast failed after forced ETA refresh', {
+          deliveryJobId, message: err?.message,
+        });
+      }
+    }
     return res.status(200).json({ success: true, eta: snapshot });
   } catch (err) {
     return sendError(res, err, { handler: 'refreshEta', deliveryJobId });

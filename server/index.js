@@ -264,6 +264,14 @@ app.post('/api/didit/webhook', express.raw({ type: 'application/json' }), diditW
 // raw body so HMAC signatures cover the exact bytes sent by the provider.
 app.use('/api/support/webhooks', channelWebhookLimiter, express.raw({ type: 'application/json', limit: '64kb' }), supportChannelWebhookRoutes);
 
+// Telematics provider webhooks sign the exact request bytes, so this route
+// also needs the raw body for HMAC verification. Mounted before
+// express.json() (same pattern as the verification/Didit webhooks above);
+// the JSON-parser mount inside localDeliveryRoutes was removed to avoid
+// double-registration.
+const telematicsWebhookCtrl = require('./controllers/deliveryTelematicsWebhookController');
+app.post('/api/delivery/webhooks/telematics/:provider', express.raw({ type: 'application/json' }), telematicsWebhookCtrl.receiveWebhook);
+
 // ── RATE LIMITING ────────────────────────────────────────────
 // Unauthenticated requests: 200 req / 15 min / IP
 // Authenticated requests:   500 req / 15 min / user ID

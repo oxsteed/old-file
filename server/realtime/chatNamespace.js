@@ -81,7 +81,49 @@ function bindChatNamespace(namespace, { pool, socketService, logger }) {
     if (['admin', 'super_admin'].includes(socket.userRole)) {
       socket.join('admins');
       socket.join('guest_chat_admin');
+      // Exact operational delivery-tracking events (see
+      // server/services/deliveryTrackingEventBus.js) are emitted to the
+      // `ops_delivery` room. Customers never join it; they receive only the
+      // customer-safe `tracking:<event>` projection in `delivery_<jobId>`.
+      socket.join('ops_delivery');
     }
+
+    // ── Delivery tracking rooms ──────────────────────────────────────────
+    // CLIENT CONTRACT: `delivery:join` subscribes this socket to the
+    // customer-safe tracking stream for one delivery job. Membership is
+    // decided server-side (customer, assigned driver, or operations only).
+    // Tracking events are point-in-time broadcasts, not state: after any
+    // reconnect the client MUST re-emit `delivery:join` and reload
+    // authoritative state via
+    //   GET /api/delivery/jobs/:id/tracking/customer-state
+    // (or the ops exact-state endpoint), never reconstructing position
+    // history from cached socket events.
+    socket.on('delivery:join', async (deliveryJobId) => {
+      const userId = socket.userId;
+      if (!deliveryJobId || !userId) return;
+      try {
+        const { rows } = await pool.query(
+          `SELECT 1 FROM delivery_jobs j
+            WHERE j.id = $1 AND (
+              j.customer_user_id = $2
+              OR j.helper_user_id = $2
+              OR j.internal_driver_user_id = $2
+              OR $3 IN ('admin', 'super_admin')
+            )`,
+          [deliveryJobId, userId, socket.userRole]
+        );
+        if (rows.length) {
+          socket.join(`delivery_${deliveryJobId}`);
+          logger.debug('Socket joined delivery tracking room', { userId, deliveryJobId });
+        }
+      } catch (err) {
+        logger.error('socket delivery:join error', { message: err.message });
+      }
+    });
+
+    socket.on('delivery:leave', (deliveryJobId) => {
+      if (deliveryJobId) socket.leave(`delivery_${deliveryJobId}`);
+    });
 
     // Room membership is always decided by the server. Arbitrary client room
     // names are intentionally ignored to prevent cross-account subscriptions.

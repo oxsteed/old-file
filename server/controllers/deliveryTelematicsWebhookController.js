@@ -34,13 +34,13 @@
  *   existing webhook-secret pattern (cf. STRIPE_WEBHOOK_SECRET in
  *   middleware/webhookAuth.js). Secrets are never logged, never persisted,
  *   and never appear in responses.
- * - Raw body: providers sign the exact bytes they send. Prefer req.body when
- *   it is a Buffer (express.raw). This router is mounted after
- *   express.json(), so req.body is usually the parsed object; the controller
- *   then verifies over the canonical JSON serialization. For production HMAC
- *   fidelity, mount this route before express.json() with
- *   express.raw({ type: 'application/json' }) — the same pattern the Stripe
- *   and verification webhooks use in server/index.js.
+ * - Raw body: providers sign the exact bytes they send. req.body is a Buffer
+ *   because this route is mounted in server/index.js BEFORE express.json()
+ *   with express.raw({ type: 'application/json' }) — the same pattern the
+ *   Stripe and verification webhooks use. rawBodyBytes() prefers that Buffer
+ *   for signature verification and falls back to the canonical JSON
+ *   serialization when the controller is mounted behind a JSON parser
+ *   (e.g. in tests).
  * - Tracking writes here are evidence only: this controller never touches
  *   delivery_jobs status, pricing, or payments.
  */
@@ -50,6 +50,7 @@ const logger = require('../utils/logger');
 const { withTransaction } = require('../utils/transaction');
 const { getAdapter } = require('../services/telematics/adapterRegistry');
 const telematicsService = require('../services/telematicsConnectionService');
+const trackingEventBus = require('../services/deliveryTrackingEventBus');
 
 // Provider vehicle identities are recorded on the OxSteed vehicle record at
 // delivery_vehicles.equipment -> 'telematics' -> '<provider>' so a fleet-level
@@ -379,6 +380,39 @@ async function receiveWebhook(req, res) {
       pointId: outcome.pointId,
       providerEventId,
     });
+
+    // Realtime fan-out. The provider_receipt row was written in the
+    // transaction above (insertEvent: false); the bus only broadcasts. The
+    // idempotency key guards the broadcast path against provider retries
+    // that slip past the ON CONFLICT dedupe. A broadcast failure must never
+    // fail the webhook (the provider would retry the whole delivery).
+    if (locationPoint) {
+      try {
+        await trackingEventBus.publishTrackingEvent({
+          deliveryJobId,
+          eventType: 'location_updated',
+          payload: {
+            latest: {
+              latitude: locationPoint.latitude,
+              longitude: locationPoint.longitude,
+              recordedAt: locationPoint.recordedAt,
+            },
+            source: provider,
+            provider,
+            providerEventId,
+            accuracyMeters: locationPoint.accuracyMeters ?? null,
+          },
+          provider,
+          providerEventId,
+          idempotencyKey: providerEventId ? `telematics:${provider}:${providerEventId}` : null,
+          insertEvent: false,
+        });
+      } catch (err) {
+        logger.warn('Telematics tracking broadcast failed', {
+          provider, deliveryJobId, error: err.message,
+        });
+      }
+    }
 
     return res.status(200).json({
       success: true,

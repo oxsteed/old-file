@@ -25,6 +25,16 @@ const {
   processNotification,
 } = require('./workers/paymentWorker');
 const { pollTranslationJobs } = require('./modules/jobs/translationJobWorker');
+const {
+  normalizeLocations,
+  refreshEtas,
+  evaluateGeofences,
+  retryProviderWebhooks,
+  reconcileCursors,
+  detectStaleTrackers,
+  cleanupTrackingLinks,
+  enforceRetention,
+} = require('./workers/deliveryTrackingWorkers');
 
 // Map queue to processor function
 const processors = {
@@ -44,6 +54,7 @@ const concurrency = {
 const activeJobs = new Map(Object.values(QUEUES).map(q => [q, 0]));
 let pollInterval = null;
 let translationInterval = null;
+let trackingIntervals = [];
 let stopping = false;
 let shutdownPromise = null;
 
@@ -155,11 +166,44 @@ const pollQueue = async (queueKey) => {
 };
 
 /**
+ * Schedule a delivery tracking worker on a fixed interval, following the same
+ * setInterval pattern as the translation worker. A per-worker in-flight guard
+ * prevents overlapping runs when a pass takes longer than its interval.
+ */
+const trackingInFlight = new Set();
+
+const scheduleTrackingWorker = (name, workerFn, intervalMs, options) => {
+  const timer = setInterval(() => {
+    if (stopping || trackingInFlight.has(name)) return;
+    trackingInFlight.add(name);
+    Promise.resolve()
+      .then(() => workerFn(options))
+      .then((summary) => logger.info('Tracking worker completed', { worker: name, summary }))
+      .catch((err) => logger.error('Tracking worker failed', { worker: name, error: err.message }))
+      .finally(() => trackingInFlight.delete(name));
+  }, intervalMs);
+  timer.unref?.();
+  trackingIntervals.push(timer);
+};
+
+const TRACKING_WORKER_SCHEDULE = [
+  // [name, workerFn, intervalMs, options]
+  ['normalizeLocations', normalizeLocations, 2 * 60 * 1000, { limit: 200 }],
+  ['refreshEtas', refreshEtas, 60 * 1000, { limit: 100 }],
+  ['evaluateGeofences', evaluateGeofences, 2 * 60 * 1000, { limit: 100 }],
+  ['retryProviderWebhooks', retryProviderWebhooks, 5 * 60 * 1000, { limit: 25 }],
+  ['reconcileCursors', reconcileCursors, 5 * 60 * 1000, { limit: 100 }],
+  ['detectStaleTrackers', detectStaleTrackers, 5 * 60 * 1000, { limit: 200 }],
+  ['cleanupTrackingLinks', cleanupTrackingLinks, 5 * 60 * 1000, { limit: 200 }],
+  ['enforceRetention', enforceRetention, 60 * 60 * 1000, { limit: 5000 }],
+];
+
+/**
  * Main worker loop
  * Polls all queues in round-robin fashion
  */
 const runWorker = async () => {
-  if (pollInterval || translationInterval) return;
+  if (pollInterval || translationInterval || trackingIntervals.length > 0) return;
   stopping = false;
   const queueList = Object.values(QUEUES);
   let queueIndex = 0;
@@ -178,7 +222,11 @@ const runWorker = async () => {
     });
   }, 1500);
 
-  logger.info('✅ Worker started, polling payment queues and translation jobs');
+  for (const [name, workerFn, intervalMs, options] of TRACKING_WORKER_SCHEDULE) {
+    scheduleTrackingWorker(name, workerFn, intervalMs, options);
+  }
+
+  logger.info('✅ Worker started, polling payment queues, translation jobs, and delivery tracking workers');
 };
 
 // Graceful shutdown handler
@@ -193,6 +241,11 @@ const shutdown = async (signal) => {
     clearInterval(translationInterval);
     translationInterval = null;
   }
+  for (const timer of trackingIntervals) {
+    clearInterval(timer);
+  }
+  trackingIntervals = [];
+  trackingInFlight.clear();
 
   shutdownPromise = (async () => {
   logger.info(`Received ${signal}, shutting down worker gracefully...`);

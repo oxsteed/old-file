@@ -21,6 +21,7 @@ const logger = require('../utils/logger');
 const trackingService = require('../services/deliveryTrackingService');
 const geofenceService = require('../services/deliveryGeofenceService');
 const etaService = require('../services/deliveryEtaService');
+const trackingEventBus = require('../services/deliveryTrackingEventBus');
 
 const OPS_ROLES = new Set(['admin', 'super_admin']);
 const DEVICE_KINDS = new Set(['driver_phone', 'vehicle_tracker']);
@@ -316,6 +317,68 @@ async function ingestLocations(req, res) {
       });
     }
 
+    // Realtime fan-out. The location_batch, geofence, and eta_updated event
+    // rows were written by the services above, so the bus only broadcasts
+    // (insertEvent: false). Customer location broadcasts are throttled to
+    // 1/minute per delivery inside the bus; the ops room gets every batch.
+    // A broadcast failure must never fail the ingest.
+    try {
+      const latestPoint = latest || null;
+      await trackingEventBus.publishTrackingEvent({
+        deliveryJobId: job.id,
+        eventType: 'location_updated',
+        payload: {
+          latest: latestPoint ? {
+            latitude: latestPoint.latitude,
+            longitude: latestPoint.longitude,
+            recordedAt: latestPoint.recordedAt,
+          } : null,
+          pointCount: Number.isInteger(summary?.accepted) ? summary.accepted : points.length,
+          source: 'driver_gps',
+        },
+        actorUserId: req.user.id,
+        assignmentId: assignment.id,
+        insertEvent: false,
+      });
+      if (geofence && geofence.suggestion && latestPoint) {
+        await trackingEventBus.publishTrackingEvent({
+          deliveryJobId: job.id,
+          eventType: geofence.suggestion === 'arrival' ? 'geofence_arrival' : 'geofence_departure',
+          payload: {
+            geofenceKind: geofence.geofenceKind,
+            observedAt: new Date().toISOString(),
+            latitude: latestPoint.latitude,
+            longitude: latestPoint.longitude,
+          },
+          actorUserId: req.user.id,
+          assignmentId: assignment.id,
+          insertEvent: false,
+        });
+      }
+      // Publish only when the refresh actually produced a new snapshot;
+      // a throttled refresh wrote no row and must not emit.
+      if (eta && !eta.throttled && !eta.error && etaSnapshot) {
+        await trackingEventBus.publishTrackingEvent({
+          deliveryJobId: job.id,
+          eventType: 'eta_updated',
+          payload: {
+            etaAt: etaSnapshot.etaAt,
+            source: etaSnapshot.source,
+            confidence: etaSnapshot.confidence,
+            stale: etaSnapshot.stale,
+          },
+          actorUserId: req.user.id,
+          assignmentId: assignment.id,
+          insertEvent: false,
+        });
+      }
+    } catch (err) {
+      logger.warn('Tracking broadcast failed after location ingest', {
+        deliveryJobId: job.id,
+        message: err?.message,
+      });
+    }
+
     res.json({ summary, geofence, eta, etaSnapshot });
   } catch (err) {
     sendServiceError(res, err);
@@ -335,6 +398,29 @@ async function recordScan(req, res) {
       codeFormat,
       idempotencyKey,
     });
+    // Realtime fan-out for new scans only: a duplicate replay returns the
+    // original row without writing an event, so it must not rebroadcast.
+    // The scan_recorded row was written by the service (insertEvent: false).
+    if (!scan.duplicate) {
+      try {
+        await trackingEventBus.publishTrackingEvent({
+          deliveryJobId: job.id,
+          eventType: 'scan_recorded',
+          payload: {
+            scanType,
+            scannedAt: scan.scanned_at,
+            codeFormat: scan.code_format || codeFormat || null,
+          },
+          actorUserId: req.user.id,
+          insertEvent: false,
+        });
+      } catch (err) {
+        logger.warn('Tracking broadcast failed after scan', {
+          deliveryJobId: job.id,
+          message: err?.message,
+        });
+      }
+    }
     res.status(scan.duplicate ? 200 : 201).json({ scan });
   } catch (err) {
     sendServiceError(res, err);
