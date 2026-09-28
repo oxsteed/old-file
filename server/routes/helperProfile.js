@@ -59,7 +59,8 @@ router.get('/me', helperOnly, async (req, res) => {
               flat_rate_available, contact_for_pricing,
               availability_json, is_available_now, response_rate,
               show_services, show_faqs, show_policies, show_gallery, show_hours,
-              ai_knowledge
+              ai_knowledge,
+              profile_slug, profile_slug_updated_at
        FROM helper_profiles WHERE user_id = $1`,
       [uid],
     );
@@ -84,6 +85,10 @@ router.get('/me', helperOnly, async (req, res) => {
     res.status(500).json({ error: 'Failed to load profile' });
   }
 });
+
+// ── PUT /api/helper-profile/slug ──────────────────────────────────────────────
+// Claim or change the helper's vanity profile slug (e.g. /h/mike-plumber).
+router.put('/slug', helperOnly, generalLimiter, require('../controllers/profileSlugController').setHelperSlug);
 
 // ── PUT /api/helper-profile/core ──────────────────────────────────────────────
 // Update core profile fields: bio, headline, hourly rate, location, availability.

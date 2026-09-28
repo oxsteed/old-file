@@ -6,6 +6,7 @@ import QRCodeDisplay from '../components/profile/QRCodeDisplay';
 import api from '../api/axios';
 import PageMeta from '../components/PageMeta';
 import { buildPublicProfileDescription, getPublicSiteUrl } from '../utils/seoDescription';
+import { businessProfilePath } from '../utils/profileUrls';
 import PublicProfileSummaryCard from '../components/publicProfile/PublicProfileSummaryCard';
 import { buildPublicProfileSummaryModel } from '../utils/profileStudio';
 import './BusinessPublicProfilePage.css';
@@ -30,7 +31,7 @@ export default function BusinessPublicProfilePage() {
     try {
       const { data } = await api.get(`/businesses/${businessId}/public`);
       const profile = data.business || data.data || data;
-      setBusiness({
+      const loaded = {
         ...profile,
         name: profile.name || profile.business_name,
         profilePhotoUrl: profile.profilePhotoUrl || profile.logo_url,
@@ -40,7 +41,13 @@ export default function BusinessPublicProfilePage() {
         location: profile.location || [profile.address_city, profile.address_state].filter(Boolean).join(', '),
         teamSize: profile.teamSize ?? data.team?.length,
         hours: profile.hours || data.hours,
-      });
+      };
+      // Canonicalize: when a vanity slug is claimed, the short URL is canonical.
+      const slug = loaded.profile_slug || loaded.profileSlug;
+      if (slug && slug !== String(businessId)) {
+        navigate(businessProfilePath({ businessId: slug }), { replace: true });
+      }
+      setBusiness(loaded);
     } catch (err) {
       setError(err.response?.data?.error || err.message || t('businessPublicProfile.notFound'));
     } finally {
@@ -76,14 +83,16 @@ export default function BusinessPublicProfilePage() {
           entityLabel: 'business',
         })}
         image={business.coverImageUrl || business.cover_photo_url || business.profilePhotoUrl || business.logo_url}
-        url={`${getPublicSiteUrl()}/businesses/public/${businessId}`}
+        url={`${getPublicSiteUrl()}${businessProfilePath(business)}`}
         type="profile"
       />
       {/* COVER IMAGE WITH QR OVERLAY - AT TOP */}
       <ProfileHeader
-        helperId={businessId}
+        helperId={business.id || businessId}
         helperName={business.name || business.business_name}
         coverImageUrl={business.coverImageUrl || business.cover_photo_url}
+        profileSlug={business.profile_slug || business.profileSlug}
+        profileType="business"
       />
 
       {/* Main Profile Content */}
@@ -167,8 +176,10 @@ export default function BusinessPublicProfilePage() {
           <div className="sidebar-card">
             <h3>{t('profile.qrCode.title')}</h3>
             <QRCodeDisplay
-              helperId={businessId}
+              helperId={business.id || businessId}
               helperName={business.name}
+              profileSlug={business.profile_slug || business.profileSlug}
+              profileType="business"
             />
           </div>
 

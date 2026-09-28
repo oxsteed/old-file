@@ -1268,7 +1268,16 @@ function generateLast6Months() {
 // Returns everything a customer needs to see the business profile page.
 async function getBusinessPublicProfile(req, res) {
   try {
-    const bizId = req.params.id;
+    // :id accepts either the numeric business id or its vanity profile_slug.
+    let bizId = req.params.id;
+    if (!/^\d+$/.test(String(bizId))) {
+      const slugRow = await pool.query(
+        'SELECT id FROM businesses WHERE profile_slug = $1',
+        [String(bizId).toLowerCase()]
+      );
+      if (!slugRow.rows[0]) return res.status(404).json({ error: 'Business not found' });
+      bizId = slugRow.rows[0].id;
+    }
 
     // Core business record + owner info
     // Per migration 214, businesses are FULLY independent from the owner's helper_profile:
@@ -1293,6 +1302,7 @@ async function getBusinessPublicProfile(req, res) {
          b.service_lat, b.service_lng,
          b.avg_rating, b.total_reviews, b.completed_jobs_count,
          b.is_business_verified,
+         b.profile_slug,
          b.stripe_charges_enabled, b.stripe_account_status,
          COALESCE(hp.allow_guest_contact, TRUE) AS owner_allow_guest_contact,
          COALESCE(b.active_template, 'default') AS active_template
@@ -1372,6 +1382,8 @@ async function getBusinessPublicProfile(req, res) {
     return res.json({
       business: withBusinessCapabilities({
         id:             biz.id,
+        profile_slug:   biz.profile_slug || null,
+        profileUrl:     biz.profile_slug ? `/b/${biz.profile_slug}` : `/businesses/public/${biz.id}`,
         business_name:  biz.business_name,
         business_type:  biz.business_type,
         description:    biz.description,
@@ -1460,6 +1472,8 @@ async function loadBusinessEditorRow(id) {
        b.is_active,
        b.is_listed,
        b.tax_rate,
+       b.profile_slug,
+       b.profile_slug_updated_at,
        COALESCE(b.active_template, 'default') AS active_template,
        COALESCE(b.profile_headline, hp.profile_headline) AS profile_headline,
        b.service_radius_miles,

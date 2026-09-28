@@ -19,11 +19,15 @@ const { logger } = require('./logger');
  * Build a business profile URL for QR code
  * @param {string} businessId - Business ID
  * @param {string} businessName - Business name (optional, for readability)
+ * @param {string} profileSlug - Vanity profile slug (optional; when set, yields the short /b/:slug URL)
  * @returns {string} - Full URL to business's public profile
  */
-exports.buildBusinessProfileURL = (businessId, businessName = null) => {
+exports.buildBusinessProfileURL = (businessId, businessName = null, profileSlug = null) => {
   const baseUrl = process.env.APP_URL || process.env.CLIENT_URL || 'http://localhost:3000';
-  return `${baseUrl}/business/${businessId}`;
+  if (profileSlug) {
+    return `${baseUrl}/b/${profileSlug}`;
+  }
+  return `${baseUrl}/businesses/public/${businessId}`;
 };
 
 /**
@@ -35,7 +39,7 @@ exports.buildBusinessProfileURL = (businessId, businessName = null) => {
  * @returns {Promise} - QR code in requested format
  */
 exports.generateBusinessProfileQRCode = async (businessId, businessName = null, format = 'dataurl', options = {}) => {
-  const profileUrl = exports.buildBusinessProfileURL(businessId, businessName);
+  const profileUrl = exports.buildBusinessProfileURL(businessId, businessName, options.profileSlug || null);
 
   try {
     switch (format) {
@@ -63,8 +67,8 @@ exports.generateBusinessProfileQRCode = async (businessId, businessName = null, 
  * @param {string} businessName - Business name (optional)
  * @returns {Promise<object>} - Object with size keys, QR code data URLs as values
  */
-exports.generateBusinessQRCodeSizes = async (businessId, businessName = null) => {
-  const profileUrl = exports.buildBusinessProfileURL(businessId, businessName);
+exports.generateBusinessQRCodeSizes = async (businessId, businessName = null, options = {}) => {
+  const profileUrl = exports.buildBusinessProfileURL(businessId, businessName, options.profileSlug || null);
 
   try {
     const sizes = {

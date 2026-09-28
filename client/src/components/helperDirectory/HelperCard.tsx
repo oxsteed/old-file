@@ -23,6 +23,7 @@ import {
 } from '../../utils/jobsTaxonomy';
 import StarRating from '../helperProfile/ui/StarRating';
 import { formatMoney } from '../../lib/format';
+import { helperProfilePath, businessProfilePath } from '../../utils/profileUrls';
 
 interface HelperCardProps {
   helper: HelperCardData;
@@ -39,7 +40,9 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
   const { t } = useTranslation();
   const isBusiness    = helper.type === 'business';
   const isExactMatch  = !!(highlightCategory && helper.categories.includes(highlightCategory));
-  const profileLink   = helper.profileUrl ?? (isBusiness ? `/businesses/public/${helper.id}` : `/helpers/public/${helper.id}`);
+  const profileLink   = helper.profileUrl ?? (isBusiness
+    ? businessProfilePath({ businessId: (helper as any).businessId ?? helper.id, profileSlug: (helper as any).profileSlug || (helper as any).profile_slug })
+    : helperProfilePath({ id: helper.id, profileSlug: (helper as any).profileSlug || (helper as any).profile_slug }));
 
   const formatPrice = (price: number | undefined | null, unit: string): string => {
     const u = unit || 'hour';

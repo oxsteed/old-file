@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { QrCode, Download, Share2 } from 'lucide-react';
 import './ProfileHeader.css';
 import { useTranslation } from 'react-i18next';
+import { helperProfileUrl, businessProfileUrl } from '../../utils/profileUrls';
 
 /**
  * ProfileHeader Component
@@ -9,11 +10,19 @@ import { useTranslation } from 'react-i18next';
  * Displays the helper profile cover image with QR code overlay in the top-right corner.
  * Shows QR code on hover with download and share options.
  */
-export default function ProfileHeader({ helperId, helperName, coverImageUrl }) {
+export default function ProfileHeader({ helperId, helperName, coverImageUrl, profileSlug, profileType = 'helper' }) {
   const { t } = useTranslation();
   const [showQRCode, setShowQRCode] = useState(false);
   const [qrCode, setQRCode] = useState(null);
   const [qrLoading, setQRLoading] = useState(false);
+
+  const isBusiness = profileType === 'business';
+  const qrEndpoint = isBusiness
+    ? `/api/business-profile/${helperId}/qr-code`
+    : `/api/helper-profile/${helperId}/qr-code`;
+  const canonicalProfileUrl = isBusiness
+    ? businessProfileUrl({ businessId: helperId, profileSlug })
+    : helperProfileUrl({ id: helperId, profileSlug });
 
   // Load QR code when hovering over profile header
   const handleMouseEnter = () => {
@@ -27,7 +36,7 @@ export default function ProfileHeader({ helperId, helperName, coverImageUrl }) {
     setQRLoading(true);
     try {
       const response = await fetch(
-        `/api/helper-profile/${helperId}/qr-code?size=small&format=dataurl`
+        `${qrEndpoint}?size=small&format=dataurl`
       );
 
       if (response.ok) {
@@ -47,7 +56,7 @@ export default function ProfileHeader({ helperId, helperName, coverImageUrl }) {
     e.stopPropagation();
     try {
       const response = await fetch(
-        `/api/helper-profile/${helperId}/qr-code?size=medium&format=png`
+        `${qrEndpoint}?size=medium&format=png`
       );
 
       if (response.ok) {
@@ -68,7 +77,7 @@ export default function ProfileHeader({ helperId, helperName, coverImageUrl }) {
 
   const handleQRShare = (e) => {
     e.stopPropagation();
-    const profileUrl = `${window.location.origin}/helpers/public/${helperId}`;
+    const profileUrl = canonicalProfileUrl;
 
     if (navigator.share) {
       navigator.share({

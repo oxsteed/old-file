@@ -19683,5 +19683,27 @@
         "operatingModel": "General OxSteed business workflow"
       }
     }
+  },
+  "profileSlug": {
+    "title": "Profile link",
+    "description": "Pick a short, memorable link for your public profile. First come, first served.",
+    "placeholder": "your-name",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Profile link saved!",
+    "available": "This link is available!",
+    "taken": "That link is taken. Try one of these:",
+    "current": "Your current link:",
+    "lastChanged": "Last changed {{date}}",
+    "cooldown": "You changed your link recently. You can change it again after {{date}}.",
+    "reasons": {
+      "empty": "Enter a link name.",
+      "too_short": "Use at least 3 characters.",
+      "too_long": "Keep it under 64 characters.",
+      "invalid_chars": "Use only lowercase letters, numbers, and hyphens.",
+      "reserved": "That name is reserved. Try another.",
+      "taken": "That link is taken.",
+      "error": "Something went wrong. Try again."
+    }
   }
 }

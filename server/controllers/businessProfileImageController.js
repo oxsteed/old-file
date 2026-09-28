@@ -8,6 +8,33 @@ const {
   buildBusinessProfileURL
 } = require('../utils/businessQRCodeGenerator');
 
+// Resolve a businessId route param that may be a numeric id or a vanity profile_slug.
+async function resolveBusinessId(idOrSlug) {
+  if (/^\d+$/.test(String(idOrSlug))) return idOrSlug;
+  try {
+    const { rows } = await pool.query(
+      'SELECT id FROM businesses WHERE profile_slug = $1',
+      [String(idOrSlug).toLowerCase()]
+    );
+    return rows[0]?.id || idOrSlug;
+  } catch {
+    return idOrSlug;
+  }
+}
+
+// Resolve a business's vanity slug (null when none claimed). Fail-open: QR still works via ID URL.
+async function resolveBusinessSlug(businessId) {
+  try {
+    const { rows } = await pool.query(
+      'SELECT profile_slug FROM businesses WHERE id = $1',
+      [businessId]
+    );
+    return rows[0]?.profile_slug || null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Upload business profile cover image
  * PUT /api/business-profile/cover-image
@@ -168,12 +195,12 @@ exports.deleteCoverImage = async (req, res) => {
  */
 exports.generateQRCode = async (req, res) => {
   try {
-    const { businessId } = req.params;
+    const businessId = await resolveBusinessId(req.params.businessId);
     const { size = 'medium', format = 'dataurl' } = req.query;
 
     // Validate business exists
     const businessResult = await pool.query(
-      'SELECT id, business_name FROM businesses WHERE id = $1 AND is_active = true',
+      'SELECT id, business_name, profile_slug FROM businesses WHERE id = $1 AND is_active = true',
       [businessId]
     );
 
@@ -213,7 +240,7 @@ exports.generateQRCode = async (req, res) => {
       businessId,
       business.business_name,
       format,
-      { width }
+      { width, profileSlug: business.profile_slug }
     );
 
     // For buffer format, send as image
@@ -231,7 +258,7 @@ exports.generateQRCode = async (req, res) => {
         qrCode,
         format,
         size: width,
-        profileUrl: buildBusinessProfileURL(businessId),
+        profileUrl: buildBusinessProfileURL(businessId, null, await resolveBusinessSlug(businessId)),
         message: `QR code generated (${width}px)`
       }
     });
@@ -249,11 +276,11 @@ exports.generateQRCode = async (req, res) => {
  */
 exports.generateMultiSizeQRCode = async (req, res) => {
   try {
-    const { businessId } = req.params;
+    const businessId = await resolveBusinessId(req.params.businessId);
 
     // Validate business exists
     const businessResult = await pool.query(
-      'SELECT id, business_name FROM businesses WHERE id = $1 AND is_active = true',
+      'SELECT id, business_name, profile_slug FROM businesses WHERE id = $1 AND is_active = true',
       [businessId]
     );
 
@@ -266,14 +293,16 @@ exports.generateMultiSizeQRCode = async (req, res) => {
     logger.info('Generating multi-size business QR codes', { businessId });
 
     // Generate all sizes
-    const qrCodes = await generateBusinessQRCodeSizes(businessId, business.business_name);
+    const qrCodes = await generateBusinessQRCodeSizes(businessId, business.business_name, {
+      profileSlug: business.profile_slug,
+    });
 
     res.json({
       success: true,
       data: {
         businessId,
         qrCodes,
-        profileUrl: buildBusinessProfileURL(businessId),
+        profileUrl: buildBusinessProfileURL(businessId, null, await resolveBusinessSlug(businessId)),
         message: 'QR codes generated in multiple sizes'
       }
     });
@@ -318,7 +347,7 @@ exports.getBusinessProfileWithCover = async (req, res) => {
         description: business.description,
         profilePhotoUrl: business.profile_photo_url,
         coverImageUrl: business.cover_image_url,
-        profileUrl: buildBusinessProfileURL(business.id)
+        profileUrl: buildBusinessProfileURL(business.id, null, await resolveBusinessSlug(business.id))
       }
     });
   } catch (err) {

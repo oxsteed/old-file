@@ -13,6 +13,7 @@ import {
   uploadBusinessPhotos,
 } from '../api/businesses';
 import './BusinessProfileEditPage.css';
+import ProfileSlugField from '../components/profile/ProfileSlugField';
 
 /**
  * Business Profile Edit Page
@@ -172,6 +173,20 @@ export default function BusinessProfileEditPage() {
 
           <TabsContent value="basic">
             <form className="tab-content" onSubmit={handleSave}>
+              {business?.id && (
+                <div className="form-group">
+                  <ProfileSlugField
+                    type="business"
+                    businessId={business.id}
+                    initialSlug={business.profile_slug || null}
+                    slugUpdatedAt={business.profile_slug_updated_at || null}
+                    onChanged={(slug) => {
+                      setBusiness((prev) => prev ? ({ ...prev, profile_slug: slug, profile_slug_updated_at: new Date().toISOString() }) : prev);
+                      toast.success(t('profileSlug.saved', { defaultValue: 'Profile link saved!' }));
+                    }}
+                  />
+                </div>
+              )}
               <div className="form-group">
                 <label>{t('businessProfileEdit.businessName')}</label>
                 <input

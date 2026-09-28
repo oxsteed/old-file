@@ -5,6 +5,7 @@ import { CheckCircle2 } from 'lucide-react';
 import { useHelpersInfiniteScroll } from '../hooks/useHelpersInfiniteScroll';
 import type { Helper } from '../hooks/useHelpersInfiniteScroll';
 import { getSharedBrowserLocation } from '../utils/browserLocation';
+import { helperProfilePath, businessProfilePath } from '../utils/profileUrls';
 
 const FALLBACK_LAT = 39.921923;
 const FALLBACK_LNG = -82.998619;
@@ -21,8 +22,9 @@ function initialsFromName(name: string) {
 
 function profilePath(row: Helper): string {
   if (row.profileUrl) return row.profileUrl;
-  if (row.type === 'business' && row.businessId != null) return `/businesses/public/${row.businessId}`;
-  return `/helpers/public/${row.id}`;
+  const slug = (row as any).profileSlug || (row as any).profile_slug;
+  if (row.type === 'business' && row.businessId != null) return businessProfilePath({ businessId: row.businessId, profileSlug: slug });
+  return helperProfilePath({ id: row.id, profileSlug: slug });
 }
 
 function mergeSkillServiceLabels(row: Helper): string[] {

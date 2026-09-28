@@ -6,6 +6,7 @@ import QRCodeDisplay from '../components/profile/QRCodeDisplay';
 import api from '../api/axios';
 import PageMeta from '../components/PageMeta';
 import { buildPublicProfileDescription, getPublicSiteUrl } from '../utils/seoDescription';
+import { helperProfilePath } from '../utils/profileUrls';
 import PublicProfileSummaryCard from '../components/publicProfile/PublicProfileSummaryCard';
 import { buildPublicProfileSummaryModel } from '../utils/profileStudio';
 import './HelperPublicProfilePage.css';
@@ -31,7 +32,12 @@ export default function HelperPublicProfilePage() {
     try {
       const { data } = await api.get(`/helpers/${helperId}/profile`);
       const profile = data.helper || data.data || data;
-      setHelper({ ...profile, services: data.services || profile.services || [] });
+      const loaded = { ...profile, services: data.services || profile.services || [] };
+      // Canonicalize: when a vanity slug is claimed, the short URL is canonical.
+      if (loaded.profileSlug && loaded.profileSlug !== helperId) {
+        navigate(helperProfilePath(loaded), { replace: true });
+      }
+      setHelper(loaded);
     } catch (err) {
       setError(err.response?.data?.error || err.message || t('publicProfile.notFound'));
     } finally {
@@ -75,14 +81,15 @@ export default function HelperPublicProfilePage() {
           entityLabel: 'helper',
         })}
         image={coverImage || profilePhoto}
-        url={`${getPublicSiteUrl()}/helpers/public/${helperId}`}
+        url={`${getPublicSiteUrl()}${helperProfilePath(helper)}`}
         type="profile"
       />
       {/* COVER IMAGE WITH QR OVERLAY - AT TOP */}
       <ProfileHeader
-        helperId={helperId}
+        helperId={helper.id || helperId}
         helperName={displayName}
         coverImageUrl={coverImage}
+        profileSlug={helper.profileSlug}
       />
 
       {/* Main Profile Content */}
@@ -148,8 +155,9 @@ export default function HelperPublicProfilePage() {
           <div className="sidebar-card">
             <h3>{t('profile.qrCode.title')}</h3>
             <QRCodeDisplay
-              helperId={helperId}
+              helperId={helper.id || helperId}
               helperName={displayName}
+              profileSlug={helper.profileSlug}
             />
           </div>
 

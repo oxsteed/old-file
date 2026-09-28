@@ -19560,5 +19560,27 @@
         "operatingModel": "Flujo general de negocio OxSteed"
       }
     }
+  },
+  "profileSlug": {
+    "title": "Enlace del perfil",
+    "description": "Elige un enlace corto y memorable para tu perfil público. Por orden de llegada.",
+    "placeholder": "tu-nombre",
+    "save": "Guardar",
+    "saving": "Guardando…",
+    "saved": "¡Enlace del perfil guardado!",
+    "available": "¡Este enlace está disponible!",
+    "taken": "Ese enlace ya está en uso. Prueba con uno de estos:",
+    "current": "Tu enlace actual:",
+    "lastChanged": "Último cambio {{date}}",
+    "cooldown": "Cambiaste tu enlace recientemente. Podrás cambiarlo de nuevo después del {{date}}.",
+    "reasons": {
+      "empty": "Escribe un nombre para el enlace.",
+      "too_short": "Usa al menos 3 caracteres.",
+      "too_long": "Máximo 64 caracteres.",
+      "invalid_chars": "Usa solo letras minúsculas, números y guiones.",
+      "reserved": "Ese nombre está reservado. Prueba con otro.",
+      "taken": "Ese enlace ya está en uso.",
+      "error": "Algo salió mal. Inténtalo de nuevo."
+    }
   }
 }

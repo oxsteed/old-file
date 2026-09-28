@@ -19560,5 +19560,27 @@
         "operatingModel": "Workflow jeneral biznis OxSteed"
       }
     }
+  },
+  "profileSlug": {
+    "title": "Lyen pwofil la",
+    "description": "Chwazi yon lyen kout epi fasil pou sonje pou pwofil piblik ou a. Premye vini, premye sèvi.",
+    "placeholder": "non-ou",
+    "save": "Anrejistre",
+    "saving": "Ap anrejistre…",
+    "saved": "Lyen pwofil la anrejistre!",
+    "available": "Lyen sa a disponib!",
+    "taken": "Lyen sa a deja pran. Eseye youn nan sa yo:",
+    "current": "Lyen ou gen kounye a:",
+    "lastChanged": "Dènye chanjman {{date}}",
+    "cooldown": "Ou te chanje lyen ou an dènyeman. W ap ka chanje l ankò apre {{date}}.",
+    "reasons": {
+      "empty": "Ekri yon non pou lyen an.",
+      "too_short": "Itilize omwen 3 karaktè.",
+      "too_long": "Pa depase 64 karaktè.",
+      "invalid_chars": "Itilize sèlman lèt miniskil, chif ak tirè.",
+      "reserved": "Non sa a rezève. Eseye yon lòt.",
+      "taken": "Lyen sa a deja pran.",
+      "error": "Yon pwoblèm rive. Eseye ankò."
+    }
   }
 }

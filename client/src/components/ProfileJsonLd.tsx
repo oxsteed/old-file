@@ -1,6 +1,7 @@
 import { Helmet } from 'react-helmet-async';
 import type { HelperProfile, LocationInfo, Service } from '../types/helperProfile';
 import { getPublicSiteUrl, toAbsoluteUrl } from '../utils/seoDescription';
+import { helperProfileUrl, businessProfileUrl } from '../utils/profileUrls';
 
 type ProfileJsonLdProps =
   | {
@@ -23,7 +24,10 @@ export default function ProfileJsonLd(props: ProfileJsonLdProps) {
   const { helper, location, services } = props;
 
   if (props.variant === 'helper') {
-    const profileUrl = `${origin}/helpers/public/${props.helperId}`;
+    const profileUrl = helperProfileUrl(
+      { id: props.helperId, profileSlug: (helper as any).profileSlug || (helper as any).profile_slug },
+      origin,
+    );
     const knowsAbout = [
       ...helper.categories,
       ...services.map((s) => s.name).filter(Boolean),
@@ -69,7 +73,10 @@ export default function ProfileJsonLd(props: ProfileJsonLdProps) {
     );
   }
 
-  const profileUrl = `${origin}/businesses/public/${props.businessId}`;
+  const profileUrl = businessProfileUrl(
+    { businessId: props.businessId, profileSlug: (helper as any).profileSlug || (helper as any).profile_slug },
+    origin,
+  );
   const data = {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',

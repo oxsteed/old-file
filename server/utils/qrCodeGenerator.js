@@ -95,21 +95,17 @@ exports.generateQRCodeSVG = async (text, options = {}) => {
  * Build a helper profile URL for QR code
  * @param {string} helperId - Helper user ID
  * @param {string} helperName - Helper name (optional, for readability)
+ * @param {string} profileSlug - Vanity profile slug (optional; when set, yields the short /h/:slug URL)
  * @returns {string} - Full URL to helper's public profile
  */
-exports.buildHelperProfileURL = (helperId, helperName = null) => {
+exports.buildHelperProfileURL = (helperId, helperName = null, profileSlug = null) => {
   const baseUrl = process.env.APP_URL || process.env.CLIENT_URL || 'http://localhost:3000';
 
-  if (helperName) {
-    // Clean name for URL (lowercase, replace spaces with hyphens)
-    const cleanName = helperName
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
-    return `${baseUrl}/helpers/${helperId}`;
+  if (profileSlug) {
+    return `${baseUrl}/h/${profileSlug}`;
   }
 
-  return `${baseUrl}/helpers/${helperId}`;
+  return `${baseUrl}/helpers/public/${helperId}`;
 };
 
 /**

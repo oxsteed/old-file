@@ -80,6 +80,7 @@ router.get('/:id/profile', getBusinessPublicProfile);
 
 // ── Authenticated profile editor (before generic PUT /:id) ───────────────────
 router.get('/:id/profile-edit', authenticate, getBusinessProfileForEditor);
+router.put('/:id/slug', authenticate, bizIdAccess('owner'), require('../controllers/profileSlugController').setBusinessSlug);
 router.get('/:id', authenticate, getBusiness);
 router.get('/:id/onboarding', authenticate, getBusinessOnboarding);
 router.put('/:id/onboarding', authenticate, bizIdAccess('any'), updateBusinessOnboarding);

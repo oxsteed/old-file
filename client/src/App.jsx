@@ -308,6 +308,7 @@ export default function App() {
                     <Route path="/profile/:id"             element={<Guarded><PublicProfile /></Guarded>} />
                     <Route path="/helpers"                 element={<Guarded><HelpersDirectoryPage /></Guarded>} />
                     <Route path="/helpers/public/:helperId" element={<HelperPublicProfilePage />} />
+                    <Route path="/h/:helperId"        element={<HelperPublicProfilePage />} />
                     <Route path="/discover"                element={<Guarded><DiscoverPage /></Guarded>} />
                     <Route path="/consulting-intake"       element={<Guarded><ConsultingIntakePage /></Guarded>} />
                     <Route path="/direct"                  element={<Guarded><DirectPortalPage view="landing" /></Guarded>} />
@@ -346,6 +347,7 @@ export default function App() {
                     <Route path="/franchise/territory"     element={<Guarded><ProtectedRoute><RouteErrorBoundary><FranchiseTerritoryOpsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/helpers/:id"             element={<Guarded><HelperBusinessProfilePage /></Guarded>} />
                     <Route path="/businesses/public/:businessId" element={<BusinessPublicProfilePage />} />
+                    <Route path="/b/:businessId"        element={<BusinessPublicProfilePage />} />
                     <Route path="/book/:id"                element={<Guarded><ProtectedRoute><RouteErrorBoundary><BookHelperPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/book/business/:id"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><BookBusinessPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/business/:businessId/services/:serviceId/book" element={<Guarded><ProtectedRoute><RouteErrorBoundary><BookServicePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

@@ -74,7 +74,7 @@ router.get('/', async (_req, res) => {
     ];
 
     const { rows: helpers } = await pool.query(
-      `SELECT u.id, hp.updated_at
+      `SELECT u.id, hp.updated_at, hp.profile_slug
        FROM users u
        JOIN helper_profiles hp ON hp.user_id = u.id
        WHERE u.deleted_at IS NULL
@@ -88,7 +88,7 @@ router.get('/', async (_req, res) => {
     );
 
     const { rows: businesses } = await pool.query(
-      `SELECT b.id, b.updated_at
+      `SELECT b.id, b.updated_at, b.profile_slug
        FROM businesses b
        JOIN users u ON u.id = b.user_id AND u.deleted_at IS NULL AND u.is_active = TRUE
        LEFT JOIN helper_profiles hp ON hp.user_id = b.user_id
@@ -155,7 +155,7 @@ router.get('/', async (_req, res) => {
       ...STATIC_URLS.map(urlEntry),
       ...helpers.map((r) =>
         urlEntry({
-          loc: `${origin}/helpers/public/${r.id}`,
+          loc: r.profile_slug ? `${origin}/h/${r.profile_slug}` : `${origin}/helpers/public/${r.id}`,
           changefreq: 'weekly',
           priority: '0.8',
           localized: true,
@@ -164,7 +164,7 @@ router.get('/', async (_req, res) => {
       ),
       ...businesses.map((r) =>
         urlEntry({
-          loc: `${origin}/businesses/public/${r.id}`,
+          loc: r.profile_slug ? `${origin}/b/${r.profile_slug}` : `${origin}/businesses/public/${r.id}`,
           changefreq: 'weekly',
           priority: '0.75',
           localized: true,

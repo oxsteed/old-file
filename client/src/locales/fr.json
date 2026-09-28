@@ -19560,5 +19560,27 @@
         "operatingModel": "Workflow général d’entreprise OxSteed"
       }
     }
+  },
+  "profileSlug": {
+    "title": "Lien du profil",
+    "description": "Choisissez un lien court et mémorable pour votre profil public. Premier arrivé, premier servi.",
+    "placeholder": "votre-nom",
+    "save": "Enregistrer",
+    "saving": "Enregistrement…",
+    "saved": "Lien du profil enregistré !",
+    "available": "Ce lien est disponible !",
+    "taken": "Ce lien est déjà pris. Essayez l'un de ceux-ci :",
+    "current": "Votre lien actuel :",
+    "lastChanged": "Dernière modification {{date}}",
+    "cooldown": "Vous avez modifié votre lien récemment. Vous pourrez le modifier à nouveau après le {{date}}.",
+    "reasons": {
+      "empty": "Saisissez un nom de lien.",
+      "too_short": "Utilisez au moins 3 caractères.",
+      "too_long": "64 caractères maximum.",
+      "invalid_chars": "Utilisez uniquement des lettres minuscules, des chiffres et des traits d'union.",
+      "reserved": "Ce nom est réservé. Essayez-en un autre.",
+      "taken": "Ce lien est déjà pris.",
+      "error": "Une erreur est survenue. Réessayez."
+    }
   }
 }

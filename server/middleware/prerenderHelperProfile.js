@@ -1053,7 +1053,27 @@ function buildBusinessStaticShell(biz, services) {
   `;
 }
 
-async function handleHelperProfile(helperId, template, res, next, req) {
+async function handleHelperProfile(idOrSlug, template, res, next, req) {
+  // Accept either the helper's user UUID or their vanity profile_slug.
+  const viaSlug = !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(idOrSlug));
+  let helperId = idOrSlug;
+  if (viaSlug) {
+    const slugRow = await pool.query(
+      'SELECT user_id FROM helper_profiles WHERE profile_slug = $1',
+      [String(idOrSlug).toLowerCase()]
+    );
+    if (!slugRow.rows[0]) {
+      return sendSeoNotFound(
+        template,
+        res,
+        `${base()}/h/${idOrSlug}`,
+        'Helper Profile Not Found | OxSteed',
+        'This OxSteed helper profile is no longer available.',
+      );
+    }
+    helperId = slugRow.rows[0].user_id;
+  }
+
   const { rows } = await pool.query(
     `SELECT u.id, u.first_name, u.last_name, u.display_name_preference,
             pb.business_name AS primary_business_name,
@@ -1063,7 +1083,8 @@ async function handleHelperProfile(helperId, template, res, next, req) {
             hp.service_city, hp.service_state, hp.service_zip,
             hp.service_radius_miles, hp.hourly_rate_min,
             hp.avg_rating, hp.total_reviews,
-            hp.is_identity_verified, hp.is_background_checked
+            hp.is_identity_verified, hp.is_background_checked,
+            hp.profile_slug
      FROM users u
      JOIN helper_profiles hp ON hp.user_id = u.id
      LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
@@ -1087,6 +1108,11 @@ async function handleHelperProfile(helperId, template, res, next, req) {
   }
 
   const h = rows[0];
+
+  // Canonicalize: ID-based URLs 301 to the vanity slug URL when one is claimed.
+  if (!viaSlug && h.profile_slug) {
+    return res.redirect(301, `${base()}/h/${h.profile_slug}`);
+  }
   const { rows: skillRows } = await pool.query(
     `SELECT hs.skill_name, c.name AS category_name
      FROM helper_skills hs
@@ -1121,7 +1147,7 @@ async function handleHelperProfile(helperId, template, res, next, req) {
   };
 
   const origin = base();
-  const publicPath = `/helpers/public/${helper.id}`;
+  const publicPath = h.profile_slug ? `/h/${h.profile_slug}` : `/helpers/public/${helper.id}`;
   const language = getRequestedLanguage(req);
   const url = getLocalizedRequestUrl(publicPath, req);
   const image = (helper.coverImage || helper.avatar)
@@ -1162,7 +1188,27 @@ async function handleHelperProfile(helperId, template, res, next, req) {
   return res.send(html);
 }
 
-async function handleBusinessProfile(businessId, template, res, next, req) {
+async function handleBusinessProfile(idOrSlug, template, res, next, req) {
+  // Accept either the numeric business id or its vanity profile_slug.
+  const viaSlug = !/^\d+$/.test(String(idOrSlug));
+  let businessId = idOrSlug;
+  if (viaSlug) {
+    const slugRow = await pool.query(
+      'SELECT id FROM businesses WHERE profile_slug = $1',
+      [String(idOrSlug).toLowerCase()]
+    );
+    if (!slugRow.rows[0]) {
+      return sendSeoNotFound(
+        template,
+        res,
+        `${base()}/b/${idOrSlug}`,
+        'Business Profile Not Found | OxSteed',
+        'This OxSteed business profile is no longer available.',
+      );
+    }
+    businessId = slugRow.rows[0].id;
+  }
+
   const { rows } = await pool.query(
     `SELECT b.id, b.business_name, b.description,
             COALESCE(b.cover_photo_url, hp.cover_photo_url) AS cover_photo_url,
@@ -1171,7 +1217,8 @@ async function handleBusinessProfile(businessId, template, res, next, req) {
             hp.profile_headline, hp.bio_short,
             hp.service_city, hp.service_state,
             hp.avg_rating, hp.total_reviews,
-            hp.is_identity_verified, hp.is_background_checked
+            hp.is_identity_verified, hp.is_background_checked,
+            b.profile_slug
      FROM businesses b
      JOIN users u ON u.id = b.user_id AND u.deleted_at IS NULL AND u.is_active = TRUE
      LEFT JOIN helper_profiles hp ON hp.user_id = b.user_id
@@ -1193,6 +1240,11 @@ async function handleBusinessProfile(businessId, template, res, next, req) {
   }
 
   const b = rows[0];
+
+  // Canonicalize: ID-based URLs 301 to the vanity slug URL when one is claimed.
+  if (!viaSlug && b.profile_slug) {
+    return res.redirect(301, `${base()}/b/${b.profile_slug}`);
+  }
   const { rows: svcRows } = await pool.query(
     `SELECT name FROM business_services
      WHERE business_id = $1 AND is_active = TRUE
@@ -1218,7 +1270,7 @@ async function handleBusinessProfile(businessId, template, res, next, req) {
   };
 
   const origin = base();
-  const publicPath = `/businesses/public/${biz.id}`;
+  const publicPath = b.profile_slug ? `/b/${b.profile_slug}` : `/businesses/public/${biz.id}`;
   const language = getRequestedLanguage(req);
   const url = getLocalizedRequestUrl(publicPath, req);
   const image = biz.image ? absoluteUrl(biz.image) : `${origin}/icons/icon-192.png`;
@@ -1250,8 +1302,10 @@ async function handleBusinessProfile(businessId, template, res, next, req) {
 
 const PUBLIC_HELPER_RE = /^\/helpers\/public\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 const LEGACY_HELPER_RE = /^\/helpers\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+const SLUG_HELPER_RE = /^\/h\/([a-z0-9](?:[a-z0-9-]{1,62}[a-z0-9])?)$/i;
 const PUBLIC_BUSINESS_RE = /^\/businesses\/public\/(\d+)$/i;
 const LEGACY_BUSINESS_RE = /^\/business\/(\d+)$/i;
+const SLUG_BUSINESS_RE = /^\/b\/([a-z0-9](?:[a-z0-9-]{1,62}[a-z0-9])?)$/i;
 const PUBLIC_RESTAURANT_RE = /^\/restaurants\/r\/(\d+)$/i;
 const LEGACY_RESTAURANT_RE = /^\/food\/restaurants\/(\d+)$/i;
 const PUBLIC_TOOL_RE = /^\/tool-rentals\/(\d+)$/i;
@@ -1263,6 +1317,7 @@ function isPublicSeoPath(pagePath) {
   if (pagePath === '/' || pagePath === '/helpers' || pagePath === '/helpers/') return true;
   if (MARKETING_PAGES[pagePath] && !MARKETING_PAGES[pagePath].noIndex) return true;
   if (PUBLIC_HELPER_RE.test(pagePath) || PUBLIC_BUSINESS_RE.test(pagePath)) return true;
+  if (SLUG_HELPER_RE.test(pagePath) || SLUG_BUSINESS_RE.test(pagePath)) return true;
   if (PUBLIC_JOB_RE.test(pagePath) || PUBLIC_RESTAURANT_RE.test(pagePath)) return true;
   if (PUBLIC_TOOL_RE.test(pagePath) || PUBLIC_LOGISTICS_CAMPAIGN_RE.test(pagePath)) return true;
   return false;
@@ -1709,6 +1764,22 @@ function prerenderPublicPages(req, res, next) {
   if (matchRestaurant) {
     return handleRestaurantProfile(matchRestaurant[1], template, res, next, req).catch((err) => {
       logger.error('[prerender] restaurant profile error', { restaurantId: matchRestaurant[1], error: err.message });
+      return next();
+    });
+  }
+
+  const matchSlugHelper = p.match(SLUG_HELPER_RE);
+  if (matchSlugHelper) {
+    return handleHelperProfile(matchSlugHelper[1], template, res, next, req).catch((err) => {
+      logger.error('[prerender] helper slug profile error', { slug: matchSlugHelper[1], error: err.message });
+      return next();
+    });
+  }
+
+  const matchSlugBiz = p.match(SLUG_BUSINESS_RE);
+  if (matchSlugBiz) {
+    return handleBusinessProfile(matchSlugBiz[1], template, res, next, req).catch((err) => {
+      logger.error('[prerender] business slug profile error', { slug: matchSlugBiz[1], error: err.message });
       return next();
     });
   }

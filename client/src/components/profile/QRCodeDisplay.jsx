@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Download, Copy, Share2, AlertCircle, Loader } from 'lucide-react';
 import './QRCodeDisplay.css';
+import { helperProfileUrl, businessProfileUrl } from '../../utils/profileUrls';
 
 /**
  * QRCodeDisplay Component
@@ -10,7 +11,7 @@ import './QRCodeDisplay.css';
  * QR codes are generated on-the-fly (not stored).
  * Supports download, copy, and share functionality.
  */
-export default function QRCodeDisplay({ helperId, helperName }) {
+export default function QRCodeDisplay({ helperId, helperName, profileSlug, profileType = 'helper' }) {
   const { t } = useTranslation();
 
   const [qrCode, setQRCode] = useState(null);
@@ -19,6 +20,14 @@ export default function QRCodeDisplay({ helperId, helperName }) {
   const [size, setSize] = useState('medium'); // small, medium, large
   const [copied, setCopied] = useState(false);
   const [downloadFormat, setDownloadFormat] = useState('png'); // png or svg
+
+  const isBusiness = profileType === 'business';
+  const qrEndpoint = isBusiness
+    ? `/api/business-profile/${helperId}/qr-code`
+    : `/api/helper-profile/${helperId}/qr-code`;
+  const canonicalProfileUrl = isBusiness
+    ? businessProfileUrl({ businessId: helperId, profileSlug })
+    : helperProfileUrl({ id: helperId, profileSlug });
 
   // Generate QR code on mount and when size changes
   useEffect(() => {
@@ -31,7 +40,7 @@ export default function QRCodeDisplay({ helperId, helperName }) {
 
     try {
       const response = await fetch(
-        `/api/helper-profile/${helperId}/qr-code?size=${size}&format=dataurl`
+        `${qrEndpoint}?size=${size}&format=dataurl`
       );
 
       if (!response.ok) {
@@ -53,7 +62,7 @@ export default function QRCodeDisplay({ helperId, helperName }) {
   const handleDownload = async () => {
     try {
       const response = await fetch(
-        `/api/helper-profile/${helperId}/qr-code?size=${size}&format=png`
+        `${qrEndpoint}?size=${size}&format=png`
       );
 
       if (!response.ok) {
@@ -76,7 +85,7 @@ export default function QRCodeDisplay({ helperId, helperName }) {
 
   const handleCopyLink = async () => {
     try {
-      const profileUrl = `${window.location.origin}/helpers/public/${helperId}`;
+      const profileUrl = canonicalProfileUrl;
       await navigator.clipboard.writeText(profileUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -86,7 +95,7 @@ export default function QRCodeDisplay({ helperId, helperName }) {
   };
 
   const handleShare = async () => {
-    const profileUrl = `${window.location.origin}/helpers/public/${helperId}`;
+    const profileUrl = canonicalProfileUrl;
 
     if (navigator.share) {
       try {

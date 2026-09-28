@@ -9,18 +9,47 @@ const {
   buildHelperProfileURL
 } = require('../utils/qrCodeGenerator');
 
+// Resolve a helperId route param that may be a UUID or a vanity profile_slug.
+async function resolveHelperUserId(idOrSlug) {
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(idOrSlug))) {
+    return idOrSlug;
+  }
+  try {
+    const { rows } = await pool.query(
+      'SELECT user_id FROM helper_profiles WHERE profile_slug = $1',
+      [String(idOrSlug).toLowerCase()]
+    );
+    return rows[0]?.user_id || idOrSlug;
+  } catch {
+    return idOrSlug;
+  }
+}
+
+// Resolve a helper's vanity slug (null when none claimed). Fail-open: QR still works via ID URL.
+async function resolveHelperSlug(helperId) {
+  try {
+    const { rows } = await pool.query(
+      'SELECT profile_slug FROM helper_profiles WHERE user_id = $1',
+      [helperId]
+    );
+    return rows[0]?.profile_slug || null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Get helper profile QR code PNG
  * GET /api/helpers/:id/profile-qr.png
  */
 exports.getHelperProfileQRCodePng = async (req, res) => {
   try {
-    const helperId = req.params.id;
+    const helperId = await resolveHelperUserId(req.params.id);
     const width = Math.min(Math.max(parseInt(req.query.w) || 200, 64), 512); // Clamp between 64-512
 
     logger.info('Generating profile QR code', { helperId, width });
 
-    const profileUrl = buildHelperProfileURL(helperId);
+    const profileUrl = buildHelperProfileURL(helperId, null, await resolveHelperSlug(helperId));
     const pngBuffer = await generateQRCodeBuffer(profileUrl, { width });
 
     if (!pngBuffer) {
@@ -44,7 +73,7 @@ exports.getHelperProfileQRCodePng = async (req, res) => {
  */
 exports.generateQRCode = async (req, res) => {
   try {
-    const { helperId } = req.params;
+    const helperId = await resolveHelperUserId(req.params.helperId);
     const { size = 'medium', format = 'dataurl' } = req.query;
 
     // Validate size parameter
@@ -58,7 +87,7 @@ exports.generateQRCode = async (req, res) => {
 
     logger.info('Generating QR code', { helperId, size, width, format });
 
-    const profileUrl = buildHelperProfileURL(helperId);
+    const profileUrl = buildHelperProfileURL(helperId, null, await resolveHelperSlug(helperId));
 
     if (format === 'png' || format === 'buffer' || format === 'dataurl') {
       const pngBuffer = await generateQRCodeBuffer(profileUrl, { width });
@@ -98,11 +127,11 @@ exports.generateQRCode = async (req, res) => {
  */
 exports.generateMultiSizeQRCode = async (req, res) => {
   try {
-    const { helperId } = req.params;
+    const helperId = await resolveHelperUserId(req.params.helperId);
 
     logger.info('Generating multi-size QR codes', { helperId });
 
-    const profileUrl = buildHelperProfileURL(helperId);
+    const profileUrl = buildHelperProfileURL(helperId, null, await resolveHelperSlug(helperId));
 
     const sizes = {
       small: 100,

@@ -5,6 +5,8 @@ import api from '../api/axios';
 import toast from 'react-hot-toast';
 import { ProgressBar, Btn, Input, Textarea, Select } from './dashboardUI';
 import CoverImageUpload from './profile/CoverImageUpload';
+import ProfileSlugField from './profile/ProfileSlugField';
+import { helperProfilePath } from '../utils/profileUrls';
 import ProfileStudioShell from './profileStudio/ProfileStudioShell';
 import ProfilePreviewCard from './profileStudio/ProfilePreviewCard';
 import {
@@ -63,6 +65,8 @@ export default function EditProfileTab() {
   const [editPol, setEditPol] = useState({ title:'', content:'', icon:'calendar-x' });
   const [newImg, setNewImg] = useState({ url:'', caption:'' });
   const [coverImageUrl, setCoverImageUrl] = useState(null);
+  const [profileSlug, setProfileSlug] = useState(null);
+  const [profileSlugUpdatedAt, setProfileSlugUpdatedAt] = useState(null);
 
   const coreBaselineRef = useRef('');
   const coreSnapRef = useRef(null);
@@ -97,6 +101,8 @@ export default function EditProfileTab() {
         setPolicies(d.policies  || []);
         setGallery(d.gallery    || []);
         setCoverImageUrl(d.cover_image_url || d.cover_photo_url || null);
+        setProfileSlug(d.profile_slug || null);
+        setProfileSlugUpdatedAt(d.profile_slug_updated_at || null);
       })
       .catch(() => toast.error(t('helperDashboard.failedLoadProfile')))
       .finally(() => setLoading(false));
@@ -433,7 +439,7 @@ export default function EditProfileTab() {
     : '';
   const meta = formatHelperPreviewMeta({ place, ratesLine: rateLine, radiusLine });
 
-  const publicHref = user?.id ? `/helpers/public/${user.id}` : '';
+  const publicHref = user?.id ? helperProfilePath({ id: user.id, profileSlug }) : '';
 
   const preview = (
     <ProfilePreviewCard
@@ -795,6 +801,14 @@ export default function EditProfileTab() {
   } else if (section === 'visibility') {
     sectionBody = (
       <>
+        <div className="mb-5 rounded-xl border border-gray-800 bg-gray-900/60 p-4">
+          <ProfileSlugField
+            type="helper"
+            initialSlug={profileSlug}
+            slugUpdatedAt={profileSlugUpdatedAt}
+            onChanged={(s) => { setProfileSlug(s); setProfileSlugUpdatedAt(new Date().toISOString()); toast.success(t('profileSlug.saved', { defaultValue: 'Profile link saved!' })); }}
+          />
+        </div>
         <div className="mb-5 rounded-xl border border-gray-800 bg-gray-900/60 p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-semibold text-white">{t('helperDashboard.profileCompleteness')}</span>

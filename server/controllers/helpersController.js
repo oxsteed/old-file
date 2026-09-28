@@ -304,7 +304,8 @@ async function listHelpers(req, res, next) {
          hp.is_identity_verified, hp.is_background_checked,
          hp.insurance_details, hp.license_details,
          hp.is_available_now,
-         hp.search_rank_boost
+         hp.search_rank_boost,
+         hp.profile_slug
        FROM users u
        LEFT JOIN helper_profiles hp ON hp.user_id = u.id
        LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
@@ -404,7 +405,7 @@ async function listHelpers(req, res, next) {
       const displayName = resolvePublicDisplayName(h);
       return {
         id:               h.id,
-        profileUrl:       `/helpers/${h.id}`,
+        profileUrl:       h.profile_slug ? `/h/${h.profile_slug}` : `/helpers/public/${h.id}`,
         businessName:     displayName,
         ownerName:        displayName,
         avatar:           h.profile_photo_url || '',
@@ -509,7 +510,8 @@ async function listHelpers(req, res, next) {
            COALESCE(b.is_business_verified, FALSE) AS is_verified,
            u.id AS owner_id, u.first_name AS owner_first, u.last_name AS owner_last,
            u.display_name_preference,
-           pb_owner.business_name AS primary_business_name
+           pb_owner.business_name AS primary_business_name,
+           b.profile_slug
          FROM businesses b
          JOIN users u ON u.id = b.user_id
          LEFT JOIN helper_profiles hp ON hp.user_id = b.user_id
@@ -575,7 +577,7 @@ async function listHelpers(req, res, next) {
         id:               `biz_${b.id}`,
         businessId:       b.id,
         type:             'business',
-        profileUrl:       `/business/${b.id}`,
+        profileUrl:       b.profile_slug ? `/b/${b.profile_slug}` : `/businesses/public/${b.id}`,
         businessName:     b.business_name,
         ownerName:        resolvePublicDisplayName(b),
         avatar:           b.profile_photo_url || '',
@@ -610,9 +612,19 @@ async function listHelpers(req, res, next) {
 }
 
 // ── GET /api/helpers/:id/profile ──────────────────────────────────────────────
+// :id accepts either the helper's user UUID or their vanity profile_slug.
 async function getHelperProfile(req, res, next) {
   try {
-    const { id } = req.params;
+    let { id } = req.params;
+
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id))) {
+      const slugRow = await pool.query(
+        'SELECT user_id FROM helper_profiles WHERE profile_slug = $1',
+        [String(id).toLowerCase()]
+      );
+      if (!slugRow.rows[0]) throw new AppError('Helper not found', 404, 'not_found');
+      id = slugRow.rows[0].user_id;
+    }
 
     const [helperRes, skillRes, reviewRes, svcRes, faqRes, polRes, galRes, rateRes, badgeRes] = await Promise.all([
       pool.query(
@@ -633,6 +645,7 @@ async function getHelperProfile(req, res, next) {
            hp.is_insured, hp.is_licensed,
            hp.insurance_details, hp.license_details,
            hp.availability_json, hp.is_available_now,
+           hp.profile_slug,
            COALESCE(hp.show_services, TRUE) AS show_services,
            COALESCE(hp.show_faqs, TRUE) AS show_faqs,
            COALESCE(hp.show_policies, TRUE) AS show_policies,
@@ -820,6 +833,8 @@ async function getHelperProfile(req, res, next) {
     return res.json({
       helper: {
         id:           h.id,
+        profileSlug:  h.profile_slug || null,
+        profileUrl:   h.profile_slug ? `/h/${h.profile_slug}` : `/helpers/public/${h.id}`,
         businessName: publicDisplayName,
         ownerName:    publicDisplayName,
         tagline:      h.profile_headline || '',
