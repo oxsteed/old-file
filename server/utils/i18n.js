@@ -1,4 +1,5 @@
 const T = {
+  ...require('./localDeliveryNotifications').deliveryNotifications,
   bid_received: {
     title: {
       en: 'New bid on your job',

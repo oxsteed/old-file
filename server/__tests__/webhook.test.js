@@ -2,6 +2,10 @@
 
 const { mockQuery, resetMocks } = require('./setup');
 
+jest.mock('../services/localDeliveryPaymentService', () => ({
+  handleStripeEvent: jest.fn().mockResolvedValue({ handled: false }),
+}));
+
 jest.mock('../controllers/verificationController', () => ({
   recalculateBadges: jest.fn().mockResolvedValue(true),
 }));
@@ -34,6 +38,29 @@ function sendEvent(app, eventObj) {
 beforeEach(() => {
   resetMocks();
   jest.clearAllMocks();
+});
+
+test('verified delivery event uses delivery service before generic handlers and marks receipt processed', async () => {
+  const delivery = require('../services/localDeliveryPaymentService');
+  const event = { id: 'evt_delivery', type: 'checkout.session.completed', data: {
+    object: { id: 'cs_delivery', metadata: { source: 'local_delivery_v1' } },
+  } };
+  mockQuery.mockResolvedValueOnce({ rows: [{ id: 88 }] });
+  delivery.handleStripeEvent.mockResolvedValueOnce({ handled: true });
+  const response = await sendEvent(buildApp(), event);
+  expect(response.status).toBe(200);
+  expect(delivery.handleStripeEvent).toHaveBeenCalledWith(event);
+  expect(mockQuery).toHaveBeenCalledTimes(2);
+  expect(mockQuery.mock.calls[1][0]).toContain("SET status = 'processed'");
+});
+
+test('delivery verification errors mark webhook failed for provider retry', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{ id: 88 }] });
+  require('../services/localDeliveryPaymentService').handleStripeEvent.mockRejectedValueOnce(new Error('delivery mismatch'));
+  const response = await sendEvent(buildApp(), { id: 'evt_delivery_bad', type: 'checkout.session.completed',
+    data: { object: { id: 'cs_delivery' } } });
+  expect(response.status).toBe(500);
+  expect(mockQuery.mock.calls[1][0]).toContain("SET status = 'failed'");
 });
 
 // ── Signature failure ─────────────────────────────────────────────────────────

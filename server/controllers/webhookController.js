@@ -16,6 +16,7 @@ const {
   applyStripeChargeRefund,
 } = require('../services/restaurantPosPaymentLedgerService');
 const socketService = require('../services/socketService');
+const localDeliveryPayments = require('../services/localDeliveryPaymentService');
 
 function extractFoodOrderId(metadata) {
   const raw = metadata?.food_order_id
@@ -276,6 +277,14 @@ exports.stripeWebhook = async (req, res, next) => {
     if (!receipt.shouldProcess) {
       logger.info('Duplicate Stripe webhook ignored', { eventId: event.id, eventType: event.type });
       return res.json({ received: true, duplicate: true, stale: receipt.stale === true });
+    }
+
+    // Delivery collection uses the same verified webhook/retry envelope, but
+    // reconciles provider evidence against its own BIGINT financial obligations.
+    const deliveryResult = await localDeliveryPayments.handleStripeEvent(event);
+    if (deliveryResult.handled) {
+      await markWebhookEventProcessed(receiptId);
+      return res.json({ received: true });
     }
 
     switch (event.type) {

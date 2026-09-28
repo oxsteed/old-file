@@ -26,6 +26,10 @@ async function sendLocalFile(req, res, { signed = false } = {}) {
     return res.status(400).json({ error: 'Invalid file key' });
   }
 
+  if (!signed && key.startsWith('delivery-private/')) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+
   if (signed) {
     const { exp, sig } = req.query;
     if (!verifyLocalDownloadSignature(key, exp, sig)) {

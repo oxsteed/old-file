@@ -11,6 +11,7 @@ const {
 } = require('./localDeliveryPricing');
 
 function finiteCoordinate(value, min, max) {
+  if (value === null || value === undefined || value === '' || typeof value === 'boolean') return null;
   const number = Number(value);
   return Number.isFinite(number) && number >= min && number <= max ? number : null;
 }

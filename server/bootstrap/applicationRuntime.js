@@ -64,7 +64,7 @@ class ApplicationRuntime {
       runtimeState.update({ acceptingTraffic: false, workersReady: false, shuttingDown: true });
       this.log.info('Graceful shutdown started', { signal });
 
-      this.workers.stop();
+      await this.workers.stop();
       await this.realtime.close();
       runtimeState.update({ realtimeReady: false });
       await closeHttpServer(this.httpServer);

@@ -1,5 +1,9 @@
 'use strict';
 
+jest.mock('../services/localDeliveryPaymentService', () => ({
+  handleStripeEvent: jest.fn().mockResolvedValue({ handled: false }),
+}));
+
 jest.mock('../services/notificationService', () => ({
   sendNotification: jest.fn(),
 }));
@@ -77,4 +81,21 @@ test('Stripe webhook jobs fail when no local payment matches', async () => {
       eventData: { id: 'pi_missing_local_payment' },
     },
   })).rejects.toThrow('No local payment matched Stripe webhook pi_missing_local_payment');
+});
+
+test('worker routes delivery webhooks before generic marketplace payment writes', async () => {
+  const delivery = require('../services/localDeliveryPaymentService');
+  delivery.handleStripeEvent.mockResolvedValueOnce({ handled: true, payment: { id: 8, status: 'paid' } });
+  const eventData = { id: 'pi_delivery', metadata: { source: 'local_delivery_v1' } };
+  await expect(processStripeWebhook({ data: { eventType: 'payment_intent.succeeded', eventData } }))
+    .resolves.toMatchObject({ handled: true, payment: { id: 8 } });
+  expect(delivery.handleStripeEvent).toHaveBeenCalledWith({ type: 'payment_intent.succeeded', data: { object: eventData }, account: undefined });
+  expect(mockQuery).not.toHaveBeenCalled();
+});
+
+test('delivery verification failure propagates for queue retry without generic writes', async () => {
+  require('../services/localDeliveryPaymentService').handleStripeEvent.mockRejectedValueOnce(new Error('Delivery verification failed'));
+  await expect(processStripeWebhook({ data: { eventType: 'charge.refunded', eventData: { id: 'ch_delivery' } } }))
+    .rejects.toThrow('Delivery verification failed');
+  expect(mockQuery).not.toHaveBeenCalled();
 });

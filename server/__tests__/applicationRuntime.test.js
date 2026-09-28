@@ -8,6 +8,22 @@ const { ApplicationRuntime } = require('../bootstrap/applicationRuntime');
 describe('ApplicationRuntime lifecycle', () => {
   beforeEach(() => runtimeState.reset());
 
+  test('keeps realtime and the pool open until delivery worker drain completes', async () => {
+    let drain;
+    const workers = { stop: jest.fn(() => new Promise((resolve) => { drain = resolve; })) };
+    const realtime = { close: jest.fn(async () => undefined) };
+    const pool = { end: jest.fn(async () => undefined) };
+    const runtime = new ApplicationRuntime({ httpServer: http.createServer(), realtime, pool, workers });
+    const stopping = runtime.shutdown('test');
+    await Promise.resolve();
+    expect(realtime.close).not.toHaveBeenCalled();
+    expect(pool.end).not.toHaveBeenCalled();
+    drain();
+    await stopping;
+    expect(realtime.close).toHaveBeenCalledTimes(1);
+    expect(pool.end).toHaveBeenCalledTimes(1);
+  });
+
   test('starts workers only after dependency checks and drains every resource once', async () => {
     const migrations = expectedMigrationFiles();
     const pool = {

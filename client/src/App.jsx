@@ -96,6 +96,8 @@ const OxsteedCreditTransactionPage = lazyWithRetry(() => import('./pages/food/Ox
 // OxSteed Logistics branch
 const LogisticsHomePage = lazyWithRetry(routeLoaders.logistics, { name: 'logistics' });
 const DeliveryPage = lazyWithRetry(() => import('./pages/DeliveryPage'));
+const DeliveryDetailPage = lazyWithRetry(() => import('./pages/DeliveryDetailPage'));
+const DeliveryDispatchPage = lazyWithRetry(() => import('./pages/DeliveryDispatchPage'));
 const BuyerDashboardPage = lazyWithRetry(() => import('./pages/logistics/BuyerDashboardPage'));
 const OrganizerDashboardPage = lazyWithRetry(() => import('./pages/logistics/OrganizerDashboardPage'));
 const BusinessProcurementPage = lazyWithRetry(() => import('./pages/logistics/BusinessProcurementPage'));
@@ -481,6 +483,8 @@ export default function App() {
 
                     {/* OxSteed Logistics branch (migration 247) */}
                     <Route path="/delivery"                  element={<Guarded><ProtectedRoute><RouteErrorBoundary><DeliveryPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/delivery/jobs/:id"           element={<Guarded><ProtectedRoute><RouteErrorBoundary><DeliveryDetailPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/delivery/operations"          element={<Guarded><LogisticsOperatorGuard><RouteErrorBoundary><DeliveryDispatchPage /></RouteErrorBoundary></LogisticsOperatorGuard></Guarded>} />
                     <Route path="/logistics"                  element={<Guarded><RouteErrorBoundary><LogisticsHomePage /></RouteErrorBoundary></Guarded>} />
                     <Route path="/logistics/internal/login"   element={<Guarded><LogisticsOperatorLoginPage /></Guarded>} />
                     <Route path="/logistics/operations/login" element={<Guarded><LogisticsOperatorLoginPage /></Guarded>} />

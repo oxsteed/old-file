@@ -6,6 +6,7 @@ const bookingController = require('../controllers/bookingController');
 const cleanupOldMessagesJob = require('../jobs/cleanupOldMessages');
 const { cleanupExpiredSupportMessages } = require('../jobs/supportConversationRetentionCleanup');
 const { pollTranslationJobs } = require('../modules/jobs/translationJobWorker');
+const { startLocalDeliveryEventWorker } = require('../services/localDeliveryEventWorker');
 const { startWeeklySummaryJob } = require('../jobs/weeklySummary');
 const { startPlannedNeedsScheduler } = require('../jobs/plannedNeedsScheduler');
 const { startDiscoverDigestJob } = require('../jobs/discoverDigest');
@@ -161,6 +162,7 @@ class BackgroundWorkers {
 
       this.captureCronTasks(existingTaskIds);
 
+      this.handles.push(startLocalDeliveryEventWorker({ log: this.log }));
       this.started = true;
       this.log.info('Background workers started', {
         cronTasks: this.cronTaskIds.size,
@@ -177,6 +179,7 @@ class BackgroundWorkers {
   }
 
   stop() {
+    const draining = [];
     for (const taskId of this.cronTaskIds) {
       const task = cron.getTask(taskId);
       try { task?.stop(); } catch (err) {
@@ -188,7 +191,7 @@ class BackgroundWorkers {
     }
 
     for (const handle of this.handles) {
-      try { handle?.stop?.(); } catch (err) {
+      try { draining.push(Promise.resolve(handle?.stop?.())); } catch (err) {
         this.log.warn('Failed to stop timer worker', { error: err.message });
       }
     }
@@ -196,6 +199,7 @@ class BackgroundWorkers {
     this.cronTaskIds.clear();
     this.handles = [];
     this.started = false;
+    return Promise.allSettled(draining);
   }
 
   status() {

@@ -7,6 +7,7 @@ const logger = require('../utils/logger');
 const { withTransaction } = require('../utils/transaction');
 const { captureAuthorizedPayment } = require('../services/paymentCaptureService');
 const { sendNotification } = require('../services/notificationService');
+const localDeliveryPayments = require('../services/localDeliveryPaymentService');
 
 /**
  * Process payment capture job
@@ -27,6 +28,12 @@ const processStripeWebhook = async (job) => {
   logger.info('Processing Stripe webhook', { eventType, eventId: eventData.id });
 
   try {
+    const deliveryResult = await localDeliveryPayments.handleStripeEvent({
+      type: eventType,
+      data: { object: eventData },
+      account: job.data.account,
+    });
+    if (deliveryResult.handled) return deliveryResult;
     switch (eventType) {
       case 'payment_intent.succeeded':
         return await handlePaymentIntentSucceeded(eventData);
