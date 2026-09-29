@@ -743,6 +743,134 @@ exports.getHelperAvailableSlots = async (req, res, next) => {
   }
 };
 
+/**
+ * Public business availability. Businesses may publish hours at the business
+ * level, independently from the owner's helper profile. An empty schedule is
+ * returned as a valid request-only state so the booking UI can offer the
+ * request-only fallback instead of showing a server error.
+ */
+exports.getBusinessAvailableSlots = async (req, res) => {
+  try {
+    const businessId = Number.parseInt(req.params.businessId, 10);
+    const { date, serviceId } = req.query;
+    if (!Number.isInteger(businessId) || businessId <= 0) {
+      return sendValidationError(res, { businessId: 'Invalid business ID' });
+    }
+    if (!date) return sendValidationError(res, { date: 'Date is required' });
+
+    const dateObj = new Date(`${date}T12:00:00`);
+    if (Number.isNaN(dateObj.getTime())) return sendValidationError(res, { date: 'Invalid date' });
+
+    const businessResult = await pool.query(
+      `SELECT id, is_active, is_listed FROM businesses
+        WHERE id = $1 AND business_kind = 'service'`,
+      [businessId]
+    );
+    const business = businessResult.rows[0];
+    if (!business) return sendError(res, 404, 'Business not found', 'BUSINESS_NOT_FOUND');
+    if (!business.is_active || business.is_listed === false) {
+      return sendError(res, 400, 'Business is not accepting bookings', 'BUSINESS_INACTIVE');
+    }
+
+    const scheduleResult = await pool.query(
+      `SELECT (
+        EXISTS (
+          SELECT 1 FROM business_hours
+           WHERE business_id = $1
+             AND is_closed = FALSE
+             AND start_time IS NOT NULL
+             AND end_time IS NOT NULL
+        ) OR EXISTS (
+          SELECT 1
+            FROM business_service_availability bsa
+            JOIN business_services bs ON bs.id = bsa.service_id
+           WHERE bs.business_id = $1
+             AND bsa.is_available = TRUE
+        )
+      ) AS schedule_configured`,
+      [businessId]
+    );
+    const scheduleConfigured = Boolean(scheduleResult.rows[0]?.schedule_configured);
+    const dow = dateObj.getDay();
+
+    const hoursResult = await pool.query(
+      `SELECT start_time, end_time
+         FROM business_hours
+        WHERE business_id = $1
+          AND day_of_week = $2
+          AND is_closed = FALSE
+          AND start_time IS NOT NULL
+          AND end_time IS NOT NULL
+        ORDER BY start_time`,
+      [businessId, dow]
+    );
+
+    let effectiveHours = hoursResult.rows;
+    if (effectiveHours.length === 0 && serviceId) {
+      const serviceHours = await pool.query(
+        `SELECT start_time, end_time
+           FROM business_service_availability
+          WHERE service_id = $1
+            AND day_of_week = $2
+            AND is_available = TRUE
+          ORDER BY start_time`,
+        [String(serviceId), dow]
+      );
+      effectiveHours = serviceHours.rows;
+    }
+
+    let durationMinutes = 60;
+    if (serviceId) {
+      const serviceResult = await pool.query(
+        `SELECT duration_minutes, duration
+           FROM business_services
+          WHERE id = $1 AND business_id = $2 AND is_active = TRUE`,
+        [String(serviceId), businessId]
+      );
+      if (serviceResult.rows[0]) {
+        const service = serviceResult.rows[0];
+        const parsed = Number.parseInt(service.duration_minutes || service.duration, 10);
+        if (Number.isFinite(parsed) && parsed > 0) durationMinutes = Math.min(480, parsed);
+      }
+    }
+
+    const appointmentsResult = await pool.query(
+      `SELECT start_time::time AS start_time, end_time::time AS end_time
+         FROM business_appointments
+        WHERE business_id = $1
+          AND start_time::date = $2::date
+          AND status NOT IN ('cancelled', 'no_show')
+        ORDER BY start_time`,
+      [businessId, date]
+    );
+    const busy = appointmentsResult.rows.map((row) => ({ start: row.start_time, end: row.end_time }));
+    const slots = [];
+    for (const block of effectiveHours) {
+      slots.push(...sliceWindowToHourSlots(block.start_time, block.end_time, busy, durationMinutes, 30));
+    }
+
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    return res.json({
+      success: true,
+      data: {
+        date,
+        dayOfWeek: dayNames[dow],
+        slots,
+        scheduleConfigured,
+        dayHasAvailability: effectiveHours.length > 0,
+        durationMinutes,
+      },
+    });
+  } catch (err) {
+    logger.error('Error fetching business available slots', {
+      businessId: req.params?.businessId,
+      error: err.message,
+      stack: err.stack,
+    });
+    sendError(res, 500, 'Failed to fetch business availability');
+  }
+};
+
 exports.listRecurringBookings = async (req, res) => {
   try {
     const userId = req.user.id;
