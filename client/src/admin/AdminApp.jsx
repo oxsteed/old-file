@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
 import AdminLayout from './layouts/AdminLayout';
+import GrantGuard from './lib/GrantGuard';
 import TwoFactorSetup from '../pages/Settings/TwoFactorSetup';
 
 const adminQueryClient = new QueryClient({
@@ -234,7 +235,7 @@ export default function AdminApp() {
           <Route path="learn/product-links"  element={<LearnProductLinksAdmin />} />
 
           {/* Reputation & Enforcement */}
-          <Route path="reports" element={<AdminReportsDashboard />} />
+          <Route path="reports/dashboard" element={<AdminReportsDashboard />} />
           <Route path="enforcement" element={<AdminEnforcementDashboard />} />
 
           {/* Legal & Compliance */}
@@ -243,15 +244,20 @@ export default function AdminApp() {
           <Route path="legal/compliance-metrics" element={<AdminComplianceMetricsPage />} />
           <Route path="legal/ccpa-requests" element={<AdminCCPARequestsPage />} />
 
-          {/* Super admin only */}
+          {/* Super admin and grant-gated routes.
+              GrantGuard checks the admin's permission grants (super-admins
+              bypass via their implicit all-grants status). Pages whose server
+              endpoints have no backing grant scope stay superOnly: super/fees
+              (no manage_fees scope; fee mutations are super-only), and
+              super/franchises + super/careers (no franchise/careers scopes). */}
           <Route path="super/dashboard" element={
             <AdminGuard superOnly><SuperDashboard /></AdminGuard>
           } />
           <Route path="super/revenue" element={
-            <AdminGuard superOnly><Revenue /></AdminGuard>
+            <GrantGuard grant="view_financials"><Revenue /></GrantGuard>
           } />
           <Route path="super/money" element={
-            <AdminGuard superOnly><MoneyPage /></AdminGuard>
+            <GrantGuard grant="view_financials"><MoneyPage /></GrantGuard>
           } />
           <Route path="super/restaurant-credit" element={
             <AdminGuard superOnly><RestaurantCreditAdmin /></AdminGuard>
@@ -260,20 +266,23 @@ export default function AdminApp() {
             <AdminGuard superOnly><OxsteedCreditAdmin /></AdminGuard>
           } />
           <Route path="super/financials" element={
-            <AdminGuard superOnly><Financials /></AdminGuard>
+            <GrantGuard grant="view_financials"><Financials /></GrantGuard>
           } />
           <Route path="super/payouts" element={
-            <AdminGuard superOnly><Payouts /></AdminGuard>
+            <GrantGuard grant="view_financials"><Payouts /></GrantGuard>
           } />
           <Route path="super/conversations" element={
             <AdminGuard superOnly><ConversationsAdmin /></AdminGuard>
           } />
           <Route path="super/settings" element={
-            <AdminGuard superOnly><PlatformSettings /></AdminGuard>
+            <GrantGuard grant="manage_settings"><PlatformSettings /></GrantGuard>
           } />
           <Route path="super/audit-log" element={
-            <AdminGuard superOnly><AuditLog /></AdminGuard>
+            <GrantGuard grant="view_audit_log"><AuditLog /></GrantGuard>
           } />
+          {/* Stays superOnly: no manage_fees scope exists in the permission
+              catalogue, and the fee mutations (/api/fee-config PUT + reset)
+              are super-only on the server. */}
           <Route path="super/fees" element={
             <AdminGuard superOnly><FeeConfig /></AdminGuard>
           } />
@@ -293,13 +302,13 @@ export default function AdminApp() {
             <AdminGuard superOnly><ModeApprovals /></AdminGuard>
           } />
           <Route path="super/admin-accounts" element={
-            <AdminGuard superOnly><AdminAccounts /></AdminGuard>
+            <GrantGuard grant="manage_admin_accounts"><AdminAccounts /></GrantGuard>
           } />
           <Route path="super/search-logs" element={
-            <AdminGuard><SearchLogs /></AdminGuard>
+            <AdminGuard superOnly><SearchLogs /></AdminGuard>
           } />
           <Route path="super/permissions" element={
-            <AdminGuard superOnly><PermissionGrants /></AdminGuard>
+            <GrantGuard grant="manage_admin_accounts"><PermissionGrants /></GrantGuard>
           } />
           <Route path="super/users/create" element={
             <AdminGuard superOnly><CreateUser /></AdminGuard>
@@ -314,11 +323,13 @@ export default function AdminApp() {
             <AdminGuard superOnly><AccessGateLockouts /></AdminGuard>
           } />
           <Route path="super/audit-log/user-actions" element={
-            <AdminGuard superOnly><AuditLogUserActions /></AdminGuard>
+            <GrantGuard grant="view_audit_log"><AuditLogUserActions /></GrantGuard>
           } />
           <Route path="super/one-truth" element={
             <AdminGuard superOnly><OneTruthPage /></AdminGuard>
           } />
+          {/* Stays superOnly: no franchise/careers scopes exist in the
+              permission catalogue, so there is no grant to honor. */}
           <Route path="super/franchises" element={
             <AdminGuard superOnly><FranchiseHQPage /></AdminGuard>
           } />

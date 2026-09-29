@@ -337,7 +337,7 @@ export default function AdminLayout() {
             </p>
             {visibleRegularNav.map(({ to, icon: Icon, label, external }) => (
               external ? (
-                <a key={to} href={to} className={navClass} onClick={closeSidebar}>
+                <a key={to} href={to} className={navClass({ isActive: false })} onClick={closeSidebar}>
                   <Icon size={16} />
                   {label}
                 </a>

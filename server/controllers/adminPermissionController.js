@@ -21,7 +21,43 @@ const PERMISSION_SCOPES = {
 
 const VALID_PERMISSIONS = Object.keys(PERMISSION_SCOPES);
 
-// ── List active grants (super-admin sees all; admin sees their own) ───────────
+// ── List the current admin's own active grants (self-lookup) ─────────────────
+// Used by the admin app's client-side GrantGuard to learn which permission
+// scopes the signed-in admin holds. No grant check: it only ever returns the
+// caller's own grants, never anyone else's. Super-admins hold every
+// permission implicitly (see requirePermission in adminAuth.js) and the
+// client bypasses the grant lookup for them entirely.
+
+exports.listMyGrants = async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT
+        g.id,
+        g.permissions,
+        g.expires_at,
+        g.notes,
+        g.created_at,
+        g.region_id
+      FROM admin_permission_grants g
+      WHERE g.grantee_id = $1
+        AND g.revoked_at IS NULL
+        AND g.expires_at > NOW()
+      ORDER BY g.created_at DESC
+      LIMIT 50
+    `, [req.user.id]);
+
+    const scopes = [...new Set(rows.flatMap(g => g.permissions || []))];
+    res.json({ grants: rows, scopes });
+  } catch (err) {
+    logger.error('listMyGrants error:', { err: err });
+    res.status(500).json({ error: 'Failed to fetch your permission grants.' });
+  }
+};
+
+// ── List grants (super-admin sees all; manage_admin_accounts grant required) ─
+// Super-admins bypass the grant check in requirePermission. Regular admins
+// need the manage_admin_accounts grant; admins checking only their own
+// grants should use listMyGrants instead.
 
 exports.listGrants = async (req, res) => {
   try {
