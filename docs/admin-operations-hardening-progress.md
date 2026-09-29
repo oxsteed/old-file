@@ -89,6 +89,9 @@ the release is pushed, deployed, and passes the live readiness checks.
 - Added migration 599 database-level consulting-payment terminal integrity:
   refunded payments cannot be reopened, and completed payments can only remain
   completed or transition through the approved refund path.
+- Added migration 600 database-level support-ticket terminal integrity:
+  resolved and closed tickets can only remain terminal or explicitly reopen to
+  open, and terminal transitions require their corresponding timestamps.
 - Added visibility-aware 30-second refresh to the read-only operations command
   center. Hidden tabs stop polling, and returning to the tab reloads
   authoritative server state.
@@ -115,7 +118,7 @@ the release is pushed, deployed, and passes the live readiness checks.
 
 The following passed against the current worktree on 2026-09-29:
 
-- Server Jest suite: 259 suites passed; 2,087 tests passed; 37 skipped when
+- Server Jest suite: 260 suites passed; 2,089 tests passed; 37 skipped when
   excluding the existing 60-request rate-limit timing test from the aggregate
   run. The aggregate was verified with a 30-second per-test timeout to avoid
   suite-load timing noise; the remembered-MFA test also passes independently.
@@ -152,8 +155,9 @@ The following passed against the current worktree on 2026-09-29:
 - Delivery state migration and dispatch/recovery tests: passed (71 tests).
 - Food-order terminal integrity migration contract tests: passed.
 - Consulting-payment terminal integrity migration contract tests: passed.
-- Fresh PostgreSQL/PostGIS migration rehearsal: passed all 599 migration files
-  from an empty database, including migrations 591 through 599; the disposable
+- Support-ticket terminal integrity migration contract tests: passed.
+- Fresh PostgreSQL/PostGIS migration rehearsal: passed all 600 migration files
+  from an empty database, including migrations 591 through 600; the disposable
   rehearsal database was removed after verification.
 - Marketplace refund reconciliation tests: passed, including stable request
   keys, partial-refund settlement, provider verification, and migration
@@ -194,8 +198,8 @@ The following passed against the current worktree on 2026-09-29:
   durable retry/reconciliation paths; provider-outage and webhook-replay
   assertions across every rail remain open.
 - Extend database-level transition enforcement beyond delivery, food orders,
-  and consulting payments to the remaining critical workflow state machines
-  where application-only guards still permit bypasses.
+  consulting payments, and support tickets to the remaining critical workflow
+  state machines where application-only guards still permit bypasses.
 - Add browser coverage for every admin role and the high-risk workflows, not only
   the Operations overview.
 - Verify the production schema contract from the current migration marker
