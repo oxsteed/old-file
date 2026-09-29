@@ -27,6 +27,10 @@ const operationsData = {
     crm: { key: 'crm', available: true, route: '/admin/businesses', leads: { available: true, total: 2, statuses: { new: 2 } } },
   },
 };
+for (const [key, section] of Object.entries(operationsData.sections)) {
+  section.correlation_id = 'unknown';
+  section.source = key === 'delivery' ? 'delivery_jobs' : `${key}_source`;
+}
 
 test('admin operations command center renders, respects grants, and recovers from errors', async () => {
   const mocks = {
@@ -87,6 +91,8 @@ test('admin operations command center renders, respects grants, and recovers fro
     assert.equal(await page.locator('section[aria-labelledby="operations-title"]').count(), 1);
     assert.equal(await page.locator('a[href="/admin/payments"]').count(), 0, 'financial link must stay hidden without its grant');
     assert.equal(await page.locator('a[href="/admin/orders"]').count(), 1);
+    assert.equal(await page.locator('code').filter({ hasText: 'delivery_jobs' }).count(), 1);
+    assert.equal(await page.getByText('adminOperations.correlationId').count(), 15);
     assert.equal(await page.locator('[role="alert"]').count(), 0);
     assert.equal(await page.locator('article').count(), 15);
 

@@ -22821,7 +22821,7 @@
     "authoritativeNote": "Read-only signals from existing domain services. Open each module for actions.",
     "title": "Operations Overview", "subtitle": "See the work that needs attention across OxSteed without duplicating domain records.",
     "available": "Available", "connected": "Connected", "creditDescription": "Credit reconciliation and dispute controls.",
-    "creditDisputes": "Open credit disputes: {{count}}", "creditTitle": "Credit", "correlationId": "Reference: {{id}}",
+    "creditDisputes": "Open credit disputes: {{count}}", "creditTitle": "Credit", "correlationId": "Reference: {{id}}", "source": "Source",
     "deliveryDescription": "Delivery lifecycle, exceptions, and event backlog.", "deliveryTitle": "Delivery",
     "disputesDescription": "Marketplace disputes awaiting review or resolution.", "disputesTitle": "Disputes",
     "eventsLast24h": "Events, 24h", "eyebrow": "Operations command center",

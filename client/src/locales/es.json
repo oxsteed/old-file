@@ -22811,7 +22811,7 @@
     "authoritativeNote": "Señales de solo lectura de los servicios de dominio existentes. Abre cada módulo para actuar.",
     "title": "Resumen de operaciones", "subtitle": "Consulta el trabajo que requiere atención en OxSteed sin duplicar los registros de dominio.",
     "available": "Disponible", "connected": "Conectadas", "creditDescription": "Conciliación de crédito y controles de disputas.",
-    "creditDisputes": "Disputas de crédito abiertas: {{count}}", "creditTitle": "Crédito", "correlationId": "Referencia: {{id}}",
+    "creditDisputes": "Disputas de crédito abiertas: {{count}}", "creditTitle": "Crédito", "correlationId": "Referencia: {{id}}", "source": "Fuente",
     "deliveryDescription": "Ciclo de entregas, excepciones y eventos pendientes.", "deliveryTitle": "Entregas",
     "disputesDescription": "Disputas del mercado pendientes de revisión o resolución.", "disputesTitle": "Disputas",
     "eventsLast24h": "Eventos, 24 h", "eyebrow": "Centro de operaciones",

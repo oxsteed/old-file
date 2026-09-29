@@ -79,7 +79,16 @@ async function permissionGranted(req, permission) {
 async function loadSection(name, source, route, read, correlationId) {
   try {
     const value = await read();
-    return { key: name, source, route, ...value };
+    return {
+      key: name,
+      source,
+      route,
+      ...value,
+      // Keep a traceable reference on successful cards as well as degraded
+      // cards. Operators need the same request context when opening the
+      // authoritative module or correlating a live incident.
+      correlation_id: correlationId || 'unknown',
+    };
   } catch (error) {
     logger.error('Admin operations section failed', { section: name, error: error.message });
     return {

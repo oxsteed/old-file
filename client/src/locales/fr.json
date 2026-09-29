@@ -22811,7 +22811,7 @@
     "authoritativeNote": "Signaux en lecture seule des services métier existants. Ouvrez chaque module pour agir.",
     "title": "Vue d’ensemble des opérations", "subtitle": "Visualisez le travail à traiter dans OxSteed sans dupliquer les données métier.",
     "available": "Disponible", "connected": "Connectées", "creditDescription": "Rapprochement du crédit et contrôle des litiges.",
-    "creditDisputes": "Litiges de crédit ouverts : {{count}}", "creditTitle": "Crédit", "correlationId": "Référence : {{id}}",
+    "creditDisputes": "Litiges de crédit ouverts : {{count}}", "creditTitle": "Crédit", "correlationId": "Référence : {{id}}", "source": "Source",
     "deliveryDescription": "Cycle des livraisons, exceptions et événements en attente.", "deliveryTitle": "Livraisons",
     "disputesDescription": "Litiges de la place de marché à examiner ou résoudre.", "disputesTitle": "Litiges",
     "eventsLast24h": "Événements, 24 h", "eyebrow": "Centre de commandement des opérations",

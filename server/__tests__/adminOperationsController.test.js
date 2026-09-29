@@ -48,6 +48,11 @@ test('returns bounded operational sections without exposing records', async () =
   expect(payload.sections.delivery.available).toBe(true);
   expect(payload.sections.delivery.statuses.statuses).toEqual({ posted: 3, delivered: 2 });
   expect(payload.sections.delivery.openIssues.count).toBe(4);
+  expect(payload.sections.delivery).toEqual(expect.objectContaining({
+    source: 'delivery_jobs',
+    route: '/delivery/operations',
+    correlation_id: 'corr-1',
+  }));
   expect(payload.correlation_id).toBe('corr-1');
   expect(JSON.stringify(payload)).not.toContain('customer@example.com');
   expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('LIMIT 50'))).toBe(true);
@@ -69,6 +74,7 @@ test('redacts financial and credit sections when the admin lacks access', async 
   await controller.getOverview({ isSuper: false, user: { id: 'admin-2' } }, res);
 
   const { sections } = res.json.mock.calls[0][0];
+  expect(Object.values(sections).every((section) => section.correlation_id === 'unknown')).toBe(true);
   expect(sections.payments).toEqual(expect.objectContaining({ available: false, reason: 'permission_required' }));
   expect(sections.credit).toEqual(expect.objectContaining({ available: false, reason: 'permission_required' }));
   expect(sections.integrations).toEqual(expect.objectContaining({ available: false, reason: 'permission_required' }));

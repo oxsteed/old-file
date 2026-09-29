@@ -22811,7 +22811,7 @@
     "authoritativeNote": "Siy lekti sèlman ki soti nan sèvis prensipal yo. Louvri chak modil pou fè aksyon.",
     "title": "Apèsi operasyon yo", "subtitle": "Gade travay ki bezwen atansyon nan OxSteed san nou pa double dosye prensipal yo.",
     "available": "Disponib", "connected": "Konekte", "creditDescription": "Rekonsilyasyon kredi ak kontwòl diskisyon.",
-    "creditDisputes": "Diskisyon kredi ki louvri: {{count}}", "creditTitle": "Kredi", "correlationId": "Referans: {{id}}",
+    "creditDisputes": "Diskisyon kredi ki louvri: {{count}}", "creditTitle": "Kredi", "correlationId": "Referans: {{id}}", "source": "Sous",
     "deliveryDescription": "Sik livrezon, eksepsyon ak evènman ki anreta.", "deliveryTitle": "Livrezon",
     "disputesDescription": "Diskisyon mache ki bezwen revizyon oswa rezolisyon.", "disputesTitle": "Diskisyon",
     "eventsLast24h": "Evènman, 24 èdtan", "eyebrow": "Sant kòmand operasyon",

@@ -127,6 +127,12 @@ function SectionCard({ section, title, description, t, canLink }) {
               {t('adminOperations.creditDisputes', { count: count(section.disputes) })}
             </p>
           )}
+          <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-500">
+            <span>{t('adminOperations.source')}: <code className="font-mono text-gray-400">{section.source || 'unknown'}</code></span>
+            {section.correlation_id && (
+              <span>{t('adminOperations.correlationId', { id: section.correlation_id })}</span>
+            )}
+          </div>
           {canLink && section.route && (
             section.route.startsWith('/admin/') ? (
               <Link

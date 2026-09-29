@@ -22814,7 +22814,7 @@
     "authoritativeNote": "مؤشرات للقراءة فقط من خدمات النطاق الحالية. افتح كل وحدة لتنفيذ الإجراءات.",
     "title": "نظرة عامة على العمليات", "subtitle": "اطلع على العمل الذي يحتاج إلى اهتمام في OxSteed دون تكرار سجلات النطاق.",
     "available": "متاح", "connected": "متصل", "creditDescription": "تسوية الائتمان وضوابط النزاعات.",
-    "creditDisputes": "نزاعات ائتمانية مفتوحة: {{count}}", "creditTitle": "الائتمان", "correlationId": "المرجع: {{id}}",
+    "creditDisputes": "نزاعات ائتمانية مفتوحة: {{count}}", "creditTitle": "الائتمان", "correlationId": "المرجع: {{id}}", "source": "المصدر",
     "deliveryDescription": "دورة التسليم والاستثناءات والأحداث المعلقة.", "deliveryTitle": "التسليم",
     "disputesDescription": "نزاعات السوق التي تنتظر المراجعة أو الحل.", "disputesTitle": "النزاعات",
     "eventsLast24h": "الأحداث خلال 24 ساعة", "eyebrow": "مركز قيادة العمليات",

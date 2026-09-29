@@ -95,6 +95,9 @@ the release is pushed, deployed, and passes the live readiness checks.
 - Added visibility-aware 30-second refresh to the read-only operations command
   center. Hidden tabs stop polling, and returning to the tab reloads
   authoritative server state.
+- Added source and correlation references to every operations card, including
+  successful responses, so operators can trace each summary to its
+  authoritative module and request context.
 - Made the Users admin page URL-authoritative for search, role, status, plan,
   location, pagination, page size, and sort order so deep links and
   back/forward navigation preserve the exact operator view.
@@ -142,6 +145,9 @@ The following passed against the current worktree on 2026-09-29:
   supported locales.
 - Operations command-center route contract: passed, including visibility-aware
   refresh cleanup and the existing permission/link checks.
+- Operations command-center source and correlation contract: passed in the
+  controller test and Chrome browser smoke, including all 15 cards and the
+  permission-hidden financial section.
 - Client admin Operations browser test: passed in Chrome.
 - Focused admin permission, operations, order-list, support-route, readiness,
   audit-export, pagination, and region-scope tests: passed.
@@ -207,7 +213,9 @@ The following passed against the current worktree on 2026-09-29:
   but a production-like marker rehearsal still depends on a safe staging
   snapshot or CI database.
 - Verify every operations card against a deployed route and authoritative live
-  data source, including unavailable/degraded states and correlation IDs.
+  data source, including unavailable/degraded states and correlation IDs. The
+  card contract and browser smoke now verify source and reference rendering;
+  deployed live-data verification remains open.
 - Run deployment verification after push: `/ready`, `/health`, worker health,
   queue age, failed deliveries, external sync status, and the production smoke
   matrix.
