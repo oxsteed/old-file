@@ -12222,7 +12222,24 @@
     "enableOxsteed": "Habilitar pagos OxSteed",
     "enableCustom": "Habilite pagos personalizados fuera de la plataforma",
     "noteTitle": "Nota",
-    "noteBody": "Debes habilitar al menos un método de pago. Los clientes verán sus opciones habilitadas cuando revisen su oferta."
+    "noteBody": "Debes habilitar al menos un método de pago. Los clientes verán sus opciones habilitadas cuando revisen su oferta.",
+    "pageSubtitle": "Elige cómo te pagan los clientes y qué pasa si cambian los planes.",
+    "backToSettings": "Ajustes",
+    "recommended": "Recomendado",
+    "statusOn": "Activado",
+    "statusOff": "Desactivado",
+    "unsavedChanges": "Cambios sin guardar",
+    "discard": "Descartar",
+    "depositHint": "Se cobra por adelantado cuando se confirma la reserva.",
+    "noticeHint": "Con cuánta antelación debe cancelar el cliente según tus términos.",
+    "loadError": "No pudimos cargar tus políticas.",
+    "tier0": "0%",
+    "tier50": "50%",
+    "tier100": "100%",
+    "tierFreeCaption": "Sin cargo",
+    "tierHalfCaption": "Mitad del tope de tarifa",
+    "tierFullCaption": "Tope de tarifa completo",
+    "methodsEnabled": "{count} de 2 activados"
   },
   "howOxsteedWorks": {
     "experience": {

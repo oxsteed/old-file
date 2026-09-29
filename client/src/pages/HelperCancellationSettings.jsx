@@ -1,76 +1,183 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import {
+  ShieldCheck,
+  Banknote,
+  ChevronRight,
+  Info,
+  RotateCcw,
+  Check,
+  Clock3,
+  Wallet,
+  FileText,
+} from 'lucide-react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
+import './HelperCancellationSettings.css';
+
+const DEFAULT_CUSTOM_POLICY = { deposit_percent: 50, terms: '', min_notice_hours: 48 };
+
+function Toggle({ checked, onChange, label }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      className={`pcs-toggle${checked ? ' is-on' : ''}`}
+      onClick={() => onChange(!checked)}
+    >
+      <span className="pcs-toggle-knob" aria-hidden="true" />
+    </button>
+  );
+}
+
+function StatusPill({ active, t }) {
+  return (
+    <span className={`pcs-status${active ? ' is-on' : ''}`}>
+      <span className="pcs-status-dot" aria-hidden="true" />
+      {active ? t('cancellationSettings.statusOn') : t('cancellationSettings.statusOff')}
+    </span>
+  );
+}
 
 export default function HelperCancellationSettings() {
   const { t } = useTranslation();
-  const [policies, setPolicies] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [oxsteadEnabled, setOxsteadEnabled] = useState(true);
+  const [oxsteedEnabled, setOxsteedEnabled] = useState(true);
   const [customEnabled, setCustomEnabled] = useState(false);
-  const [customPolicy, setCustomPolicy] = useState({
-    deposit_percent: 50,
-    terms: '',
-    min_notice_hours: 48
-  });
-
-  useEffect(() => {
-    loadPolicies();
-  }, []);
+  const [customPolicy, setCustomPolicy] = useState(DEFAULT_CUSTOM_POLICY);
+  const snapshotRef = useRef(null);
 
   const loadPolicies = async () => {
+    setLoading(true);
+    setLoadFailed(false);
     try {
       const { data } = await api.get('/helper-settings/policies');
-      setPolicies(data.data);
-      setOxsteadEnabled(data.data.oxsteed_enabled ?? true);
-      setCustomEnabled(data.data.custom_enabled ?? false);
-      setCustomPolicy(data.data.custom_policy || {
-        deposit_percent: 50,
-        terms: '',
-        min_notice_hours: 48
+      const next = {
+        oxsteed: data.data.oxsteed_enabled ?? true,
+        custom: data.data.custom_enabled ?? false,
+        policy: data.data.custom_policy || DEFAULT_CUSTOM_POLICY,
+      };
+      setOxsteedEnabled(next.oxsteed);
+      setCustomEnabled(next.custom);
+      setCustomPolicy({ ...DEFAULT_CUSTOM_POLICY, ...next.policy });
+      snapshotRef.current = JSON.stringify({
+        oxsteed: next.oxsteed,
+        custom: next.custom,
+        policy: { ...DEFAULT_CUSTOM_POLICY, ...next.policy },
       });
     } catch (err) {
-      toast.error(t('common.failedToLoad') || 'Failed to load policies');
+      setLoadFailed(true);
       console.error('Error loading policies:', err);
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    loadPolicies();
+  }, []);
+
+  const dirty = useMemo(() => {
+    if (!snapshotRef.current) return false;
+    return (
+      snapshotRef.current !==
+      JSON.stringify({ oxsteed: oxsteedEnabled, custom: customEnabled, policy: customPolicy })
+    );
+  }, [oxsteedEnabled, customEnabled, customPolicy]);
+
+  const handleDiscard = () => {
+    if (!snapshotRef.current) return;
+    const snap = JSON.parse(snapshotRef.current);
+    setOxsteedEnabled(snap.oxsteed);
+    setCustomEnabled(snap.custom);
+    setCustomPolicy(snap.policy);
+  };
+
   const handleSave = async () => {
-    // Validation: at least one method enabled
-    if (!oxsteadEnabled && !customEnabled) {
-      toast.error(t('cancellationSettings.enableAtLeastOne') || 'Enable at least one payment method');
+    if (!oxsteedEnabled && !customEnabled) {
+      toast.error(t('cancellationSettings.enableAtLeastOne'));
       return;
     }
-
     setSaving(true);
     try {
       await api.put('/helper-settings/policies', {
-        oxsteed_enabled: oxsteadEnabled,
+        oxsteed_enabled: oxsteedEnabled,
         custom_enabled: customEnabled,
-        custom_policy: customEnabled ? customPolicy : {}
+        custom_policy: customEnabled ? customPolicy : {},
       });
-      toast.success(t('cancellationSettings.policiesSaved') || 'Policies updated');
-      loadPolicies();
+      toast.success(t('cancellationSettings.policiesSaved'));
+      snapshotRef.current = JSON.stringify({
+        oxsteed: oxsteedEnabled,
+        custom: customEnabled,
+        policy: customPolicy,
+      });
     } catch (err) {
-      const errorMsg = err.response?.data?.message || err.response?.data?.error || t('common.failedToUpdate') || 'Failed to update policies';
+      const errorMsg =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        t('common.failedToUpdate');
       toast.error(errorMsg);
     } finally {
       setSaving(false);
     }
   };
 
+  const activeCount = (oxsteedEnabled ? 1 : 0) + (customEnabled ? 1 : 0);
+
+  const tiers = [
+    {
+      window: t('cancellationSettings.threeDaysPlus'),
+      fee: t('cancellationSettings.tier0'),
+      caption: t('cancellationSettings.tierFreeCaption'),
+      level: 0,
+    },
+    {
+      window: t('cancellationSettings.twentyFourTo72Hours'),
+      fee: t('cancellationSettings.tier50'),
+      caption: t('cancellationSettings.tierHalfCaption'),
+      level: 1,
+    },
+    {
+      window: t('cancellationSettings.lessThan24Hours'),
+      fee: t('cancellationSettings.tier100'),
+      caption: t('cancellationSettings.tierFullCaption'),
+      level: 2,
+    },
+  ];
+
   if (loading) {
     return (
       <PageShell>
-        <PageMeta title={t('cancellationSettings.pageTitle') || 'Payment & Cancellation Policies'} />
-        <div className="flex items-center justify-center py-12">
-          <div className="text-gray-600 dark:text-gray-400">{t('common.loading') || 'Loading...'}</div>
+        <PageMeta title={t('cancellationSettings.pageTitle')} />
+        <div className="pcs-page" aria-busy="true">
+          <div className="pcs-skeleton pcs-skeleton-title" />
+          <div className="pcs-skeleton pcs-skeleton-card" />
+          <div className="pcs-skeleton pcs-skeleton-card" />
+        </div>
+      </PageShell>
+    );
+  }
+
+  if (loadFailed) {
+    return (
+      <PageShell>
+        <PageMeta title={t('cancellationSettings.pageTitle')} />
+        <div className="pcs-page pcs-error">
+          <div className="pcs-error-icon" aria-hidden="true">
+            <Info size={28} />
+          </div>
+          <h1>{t('cancellationSettings.pageTitle')}</h1>
+          <p>{t('cancellationSettings.loadError')}</p>
+          <button type="button" className="pcs-btn pcs-btn-secondary" onClick={loadPolicies}>
+            <RotateCcw size={16} aria-hidden="true" /> {t('common.retry')}
+          </button>
         </div>
       </PageShell>
     );
@@ -78,122 +185,228 @@ export default function HelperCancellationSettings() {
 
   return (
     <PageShell>
-      <PageMeta title={t('cancellationSettings.pageTitle') || 'Payment & Cancellation Policies'} />
-      <div className="max-w-2xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-6">
-          {t('cancellationSettings.pageTitle') || 'Payment & Cancellation Policies'}
-        </h1>
+      <PageMeta title={t('cancellationSettings.pageTitle')} />
+      <div className="pcs-page">
+        <nav className="pcs-breadcrumb" aria-label="Breadcrumb">
+          <Link to="/settings">{t('cancellationSettings.backToSettings')}</Link>
+          <ChevronRight size={14} aria-hidden="true" />
+          <span aria-current="page">{t('cancellationSettings.pageTitle')}</span>
+        </nav>
 
-        {/* OxSteed Payment Method */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg p-6 mb-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-xl font-semibold">{t('cancellationSettings.oxsteadPayment') || 'OxSteed Platform Payment'}</h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                {t('cancellationSettings.oxsteadDescription') || 'Customers pay via OxSteed with standard cancellation protection'}
-              </p>
-            </div>
-            <input
-              type="checkbox"
-              checked={oxsteadEnabled}
-              onChange={(e) => setOxsteadEnabled(e.target.checked)}
-              className="w-6 h-6 cursor-pointer"
-              aria-label={t('cancellationSettings.enableOxsteed') || 'Enable OxSteed payments'}
-            />
+        <header className="pcs-header">
+          <div>
+            <h1>{t('cancellationSettings.pageTitle')}</h1>
+            <p className="pcs-subtitle">{t('cancellationSettings.pageSubtitle')}</p>
           </div>
-          {oxsteadEnabled && (
-            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded border border-blue-200 dark:border-blue-700">
-              <h3 className="font-semibold text-sm mb-2">{t('cancellationSettings.cancellationPolicy') || 'Cancellation Policy'}</h3>
-              <ul className="text-sm space-y-1 text-gray-700 dark:text-gray-300">
-                <li>• <strong>{t('cancellationSettings.threeDaysPlus') || '3+ days before'}:</strong> {t('cancellationSettings.zeroPercent') || 'Customer pays 0% cancellation fee'}</li>
-                <li>• <strong>{t('cancellationSettings.twentyFourTo72Hours') || '24h-3 days before'}:</strong> {t('cancellationSettings.fiftyPercent') || 'Customer pays 50% of fee cap (max $100)'}</li>
-                <li>• <strong>{t('cancellationSettings.lessThan24Hours') || '<24h before'}:</strong> {t('cancellationSettings.fullPercent') || 'Customer pays 100% of fee cap (max $100)'}</li>
-                <li className="mt-2 text-xs text-green-600">✓ {t('cancellationSettings.helperProtected') || 'You are protected from last-minute cancellations'}</li>
-              </ul>
+          <div
+            className="pcs-summary"
+            role="status"
+            aria-label={t('cancellationSettings.methodsEnabled', { count: activeCount })}
+          >
+            <span className="pcs-summary-count">{activeCount}/2</span>
+            <span>{t('cancellationSettings.methodsEnabled', { count: activeCount })}</span>
+          </div>
+        </header>
+
+        {/* OxSteed platform payment */}
+        <section
+          className={`pcs-card${oxsteedEnabled ? ' is-active' : ''}`}
+          aria-labelledby="pcs-oxsteed-title"
+        >
+          <div className="pcs-card-head">
+            <div className="pcs-card-identity">
+              <span className="pcs-icon-tile pcs-icon-tile-brand" aria-hidden="true">
+                <ShieldCheck size={22} />
+              </span>
+              <div>
+                <h2 id="pcs-oxsteed-title">
+                  {t('cancellationSettings.oxsteadPayment')}
+                  <span className="pcs-badge">{t('cancellationSettings.recommended')}</span>
+                </h2>
+                <p>{t('cancellationSettings.oxsteadDescription')}</p>
+              </div>
+            </div>
+            <div className="pcs-card-controls">
+              <StatusPill active={oxsteedEnabled} t={t} />
+              <Toggle
+                checked={oxsteedEnabled}
+                onChange={setOxsteedEnabled}
+                label={t('cancellationSettings.enableOxsteed')}
+              />
+            </div>
+          </div>
+
+          {oxsteedEnabled && (
+            <div className="pcs-card-body">
+              <h3 className="pcs-section-label">{t('cancellationSettings.cancellationPolicy')}</h3>
+              <ol className="pcs-tiers">
+                {tiers.map((tier) => (
+                  <li key={tier.fee} className={`pcs-tier pcs-tier-${tier.level}`}>
+                    <span className="pcs-tier-fee">{tier.fee}</span>
+                    <span className="pcs-tier-window">{tier.window}</span>
+                    <span className="pcs-tier-caption">{tier.caption}</span>
+                    <span className="pcs-tier-bar" aria-hidden="true">
+                      <span className="pcs-tier-fill" />
+                    </span>
+                  </li>
+                ))}
+              </ol>
+              <div className="pcs-callout pcs-callout-success">
+                <Check size={16} aria-hidden="true" />
+                <p>{t('cancellationSettings.helperProtected')}</p>
+              </div>
             </div>
           )}
-        </div>
+        </section>
 
-        {/* Custom Off-Platform Payment */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg p-6 mb-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-xl font-semibold">{t('cancellationSettings.customPayment') || 'Custom Off-Platform Payment'}</h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                {t('cancellationSettings.customDescription') || 'Negotiate directly with customers (payment outside OxSteed)'}
-              </p>
+        {/* Custom off-platform payment */}
+        <section
+          className={`pcs-card${customEnabled ? ' is-active' : ''}`}
+          aria-labelledby="pcs-custom-title"
+        >
+          <div className="pcs-card-head">
+            <div className="pcs-card-identity">
+              <span className="pcs-icon-tile pcs-icon-tile-neutral" aria-hidden="true">
+                <Banknote size={22} />
+              </span>
+              <div>
+                <h2 id="pcs-custom-title">{t('cancellationSettings.customPayment')}</h2>
+                <p>{t('cancellationSettings.customDescription')}</p>
+              </div>
             </div>
-            <input
-              type="checkbox"
-              checked={customEnabled}
-              onChange={(e) => setCustomEnabled(e.target.checked)}
-              className="w-6 h-6 cursor-pointer"
-              aria-label={t('cancellationSettings.enableCustom') || 'Enable custom off-platform payments'}
-            />
+            <div className="pcs-card-controls">
+              <StatusPill active={customEnabled} t={t} />
+              <Toggle
+                checked={customEnabled}
+                onChange={setCustomEnabled}
+                label={t('cancellationSettings.enableCustom')}
+              />
+            </div>
           </div>
+
           {customEnabled && (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  {t('cancellationSettings.depositRequired') || 'Deposit Required (%)'} <span className="text-red-500">*</span>
+            <div className="pcs-card-body pcs-form">
+              <div className="pcs-field">
+                <label htmlFor="pcs-deposit">
+                  <span className="pcs-field-icon" aria-hidden="true">
+                    <Wallet size={15} />
+                  </span>
+                  {t('cancellationSettings.depositRequired')}
                 </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={customPolicy.deposit_percent ?? 50}
-                  onChange={(e) => setCustomPolicy({...customPolicy, deposit_percent: parseInt(e.target.value) || 0})}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                  aria-label={t('cancellationSettings.depositRequired') || 'Deposit percentage'}
-                />
+                <div className="pcs-slider-row">
+                  <input
+                    id="pcs-deposit"
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value={customPolicy.deposit_percent ?? 50}
+                    onChange={(e) =>
+                      setCustomPolicy({
+                        ...customPolicy,
+                        deposit_percent: parseInt(e.target.value, 10) || 0,
+                      })
+                    }
+                    className="pcs-slider"
+                    aria-describedby="pcs-deposit-hint"
+                  />
+                  <output className="pcs-slider-value" htmlFor="pcs-deposit">
+                    {customPolicy.deposit_percent ?? 50}%
+                  </output>
+                </div>
+                <p id="pcs-deposit-hint" className="pcs-hint">
+                  {t('cancellationSettings.depositHint')}
+                </p>
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  {t('cancellationSettings.minimumNoticeHours') || 'Minimum Notice Hours'} <span className="text-red-500">*</span>
+
+              <div className="pcs-field">
+                <label htmlFor="pcs-notice">
+                  <span className="pcs-field-icon" aria-hidden="true">
+                    <Clock3 size={15} />
+                  </span>
+                  {t('cancellationSettings.minimumNoticeHours')}
                 </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={customPolicy.min_notice_hours ?? 48}
-                  onChange={(e) => setCustomPolicy({...customPolicy, min_notice_hours: parseInt(e.target.value) || 0})}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                  aria-label={t('cancellationSettings.minimumNoticeHours') || 'Minimum notice in hours'}
-                />
+                <div className="pcs-input-wrap">
+                  <input
+                    id="pcs-notice"
+                    type="number"
+                    min="0"
+                    value={customPolicy.min_notice_hours ?? 48}
+                    onChange={(e) =>
+                      setCustomPolicy({
+                        ...customPolicy,
+                        min_notice_hours: parseInt(e.target.value, 10) || 0,
+                      })
+                    }
+                    className="pcs-input"
+                    aria-describedby="pcs-notice-hint"
+                  />
+                </div>
+                <p id="pcs-notice-hint" className="pcs-hint">
+                  {t('cancellationSettings.noticeHint')}
+                </p>
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  {t('cancellationSettings.yourTerms') || 'Your Terms (shown to customers)'} <span className="text-red-500">*</span>
+
+              <div className="pcs-field">
+                <label htmlFor="pcs-terms">
+                  <span className="pcs-field-icon" aria-hidden="true">
+                    <FileText size={15} />
+                  </span>
+                  {t('cancellationSettings.yourTerms')}
                 </label>
                 <textarea
+                  id="pcs-terms"
                   value={customPolicy.terms ?? ''}
-                  onChange={(e) => setCustomPolicy({...customPolicy, terms: e.target.value})}
-                  placeholder={t('cancellationSettings.termsPlaceholder') || 'E.g., "50% upfront, 50% on completion. 100% refund if cancelled >48h before."'}
-                  maxLength="1000"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg h-24 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                  aria-label={t('cancellationSettings.yourTerms') || 'Your custom cancellation terms'}
+                  onChange={(e) => setCustomPolicy({ ...customPolicy, terms: e.target.value })}
+                  placeholder={t('cancellationSettings.termsPlaceholder')}
+                  maxLength={1000}
+                  rows={4}
+                  className="pcs-textarea"
                 />
-                <div className="text-xs text-gray-500 mt-1">{(customPolicy.terms?.length || 0)}/1000 characters</div>
+                <p className="pcs-counter" aria-live="polite">
+                  {(customPolicy.terms?.length || 0)}/1000
+                </p>
               </div>
             </div>
           )}
-        </div>
+        </section>
 
-        {/* Info Box */}
-        <div className="bg-yellow-50 dark:bg-yellow-900/10 p-4 rounded-lg border border-yellow-200 dark:border-yellow-700 mb-6">
-          <p className="text-sm text-yellow-800 dark:text-yellow-200">
-            <strong>{t('cancellationSettings.noteTitle') || 'Note'}: </strong>
-            {t('cancellationSettings.noteBody') || 'You must enable at least one payment method. Customers will see your enabled options when reviewing your bid.'}
+        <div className="pcs-callout pcs-callout-info">
+          <Info size={16} aria-hidden="true" />
+          <p>
+            <strong>{t('cancellationSettings.noteTitle')}: </strong>
+            {t('cancellationSettings.noteBody')}
           </p>
         </div>
 
-        {/* Save Button */}
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-orange-400 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {saving ? (t('common.saving') || 'Saving...') : (t('common.save') || 'Save Policies')}
-        </button>
+        <div className={`pcs-savebar${dirty ? ' is-visible' : ''}`} aria-live="polite">
+          {dirty && (
+            <>
+              <span className="pcs-dirty">
+                <span className="pcs-dirty-dot" aria-hidden="true" />
+                {t('cancellationSettings.unsavedChanges')}
+              </span>
+              <div className="pcs-savebar-actions">
+                <button
+                  type="button"
+                  className="pcs-btn pcs-btn-ghost"
+                  onClick={handleDiscard}
+                  disabled={saving}
+                >
+                  {t('cancellationSettings.discard')}
+                </button>
+                <button
+                  type="button"
+                  className="pcs-btn pcs-btn-primary"
+                  onClick={handleSave}
+                  disabled={saving}
+                >
+                  {saving ? t('common.saving') : t('common.save')}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </PageShell>
   );

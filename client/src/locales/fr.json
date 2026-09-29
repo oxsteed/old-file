@@ -12527,7 +12527,24 @@
     "enableOxsteed": "Activer les paiements OxSteed",
     "enableCustom": "Activer les paiements hors plateforme personnalisés",
     "noteTitle": "Note",
-    "noteBody": "Vous devez activer au moins un mode de paiement. Les clients verront vos options activées lors de l’examen de votre offre."
+    "noteBody": "Vous devez activer au moins un mode de paiement. Les clients verront vos options activées lors de l’examen de votre offre.",
+    "pageSubtitle": "Choisissez comment les clients vous paient et ce qui se passe en cas de changement.",
+    "backToSettings": "Paramètres",
+    "recommended": "Recommandé",
+    "statusOn": "Activé",
+    "statusOff": "Désactivé",
+    "unsavedChanges": "Modifications non enregistrées",
+    "discard": "Annuler",
+    "depositHint": "Encaissé d'avance lorsque la réservation est confirmée.",
+    "noticeHint": "Le délai dont le client dispose pour annuler selon vos conditions.",
+    "loadError": "Nous n'avons pas pu charger vos politiques.",
+    "tier0": "0%",
+    "tier50": "50%",
+    "tier100": "100%",
+    "tierFreeCaption": "Sans frais",
+    "tierHalfCaption": "Moitié du plafond de frais",
+    "tierFullCaption": "Plafond de frais complet",
+    "methodsEnabled": "{count} sur 2 activés"
   },
   "howOxsteedWorks": {
     "experience": {

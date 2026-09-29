@@ -12527,7 +12527,24 @@
     "enableOxsteed": "Pèmèt peman OxSteed",
     "enableCustom": "Pèmèt peman koutim andeyò platfòm",
     "noteTitle": "Remak",
-    "noteBody": "Ou dwe pèmèt omwen yon metòd peman. Kliyan yo pral wè opsyon ki pèmèt ou yo lè yo revize òf ou a."
+    "noteBody": "Ou dwe pèmèt omwen yon metòd peman. Kliyan yo pral wè opsyon ki pèmèt ou yo lè yo revize òf ou a.",
+    "pageSubtitle": "Chwazi kijan kliyan yo peye w, ak sa k ap pase si plan yo chanje.",
+    "backToSettings": "Paramèt",
+    "recommended": "Rekòmande",
+    "statusOn": "Aktive",
+    "statusOff": "Eten",
+    "unsavedChanges": "Chanjman ki poko anrejistre",
+    "discard": "Jete",
+    "depositHint": "Yo kolekte l davans lè yo konfime rezervasyon an.",
+    "noticeHint": "Konbyen tan davans yon kliyan dwe anile dapre kondisyon ou yo.",
+    "loadError": "Nou pa t kapab chaje politik ou yo.",
+    "tier0": "0%",
+    "tier50": "50%",
+    "tier100": "100%",
+    "tierFreeCaption": "San frè",
+    "tierHalfCaption": "Mwatye plafon frè a",
+    "tierFullCaption": "Plen plafon frè a",
+    "methodsEnabled": "{count} sou 2 aktive"
   },
   "howOxsteedWorks": {
     "experience": {
