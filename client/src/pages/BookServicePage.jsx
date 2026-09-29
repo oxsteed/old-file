@@ -7,6 +7,14 @@ import { Calendar, Clock, DollarSign, User, Mail, Phone } from 'lucide-react';
 import '../styles/BookServicePage.css';
 import { formatCents, formatDate } from '../lib/format';
 
+/** YYYY-MM-DD in the viewer's local timezone (toISOString is UTC and shifts the day west of UTC). */
+function toLocalDateStr(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 export default function BookServicePage() {
   const { businessId, serviceId } = useParams();
   const navigate = useNavigate();
@@ -154,7 +162,7 @@ export default function BookServicePage() {
   const nextDays = Array.from({ length: 30 }, (_, i) => {
     const date = new Date();
     date.setDate(date.getDate() + i);
-    return date.toISOString().split('T')[0];
+    return toLocalDateStr(date);
   });
 
   return (

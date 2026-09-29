@@ -1069,7 +1069,7 @@ exports.counterProposeBooking = async (req, res) => {
       await sendNotification({
         userId: updated.customer_id,
         type: 'booking_counter_proposed',
-        body: `${updated.service_name} — ${counter_date} ${counter_start_time}-${counter_end_time}`,
+        body: `${updated.service_name}, ${counter_date} ${counter_start_time}-${counter_end_time}`,
         data: { bookingId },
         action_url: '/my-bookings',
       }).catch((err) => logger.warn('Failed counter-propose notification', { error: err.message }));
@@ -1143,7 +1143,7 @@ exports.respondToCounterPropose = async (req, res) => {
     await sendNotification({
       userId: booking.helper_id,
       type: action === 'accept' ? 'booking_counter_accepted' : 'booking_counter_declined',
-      body: `${booking.service_name} — ${
+      body: `${booking.service_name}: ${
         action === 'accept' ? 'counter-proposal accepted' : 'counter-proposal declined'
       }`,
       data: { bookingId },
@@ -1311,7 +1311,7 @@ async function notifyHelperOfBooking(helperId, booking) {
     await sendNotification({
       userId: helperId,
       type: 'booking_request_new',
-      body: `${booking.service_name} — ${booking.requested_date} ${booking.requested_start_time}–${booking.requested_end_time}`,
+      body: `${booking.service_name}, ${booking.requested_date} ${booking.requested_start_time}-${booking.requested_end_time}`,
       data: { bookingId: booking.id },
       action_url: '/calendar?tab=bookingRequests',
     });
@@ -1335,15 +1335,15 @@ async function notifyCustomerOfBookingResponse(customerId, booking, response) {
 
     if (isAccepted) {
       type = 'booking_accepted';
-      body = `${booking.service_name} — ${booking.requested_date}`;
+      body = `${booking.service_name}, ${booking.requested_date}`;
       action_url = '/calendar';
     } else if (isDeclined) {
       type = 'booking_declined';
-      body = `${booking.service_name} — ${booking.requested_date}${booking.helper_response_reason ? ` (${booking.helper_response_reason})` : ''}`;
+      body = `${booking.service_name}, ${booking.requested_date}${booking.helper_response_reason ? ` (${booking.helper_response_reason})` : ''}`;
       action_url = '/my-bookings';
     } else if (isAcceptedCancelled) {
       type = 'booking_cancelled';
-      body = `${booking.service_name} — ${booking.requested_date}`;
+      body = `${booking.service_name}, ${booking.requested_date}`;
       action_url = '/my-bookings';
     } else {
       return;
@@ -1365,7 +1365,7 @@ async function notifyHelperOfBookingCancellation(helperId, booking) {
     await sendNotification({
       userId: helperId,
       type: 'booking_cancelled',
-      body: `${booking.service_name} — ${booking.requested_date}`,
+      body: `${booking.service_name}, ${booking.requested_date}`,
       data: { bookingId: booking.id },
       action_url: '/calendar?tab=bookingRequests',
     });
@@ -1453,14 +1453,14 @@ exports.expirePendingBookingRequests = async () => {
         sendNotification({
           userId: row.customer_id,
           type: 'booking_auto_released',
-          body: `${row.service_name} — ${row.requested_date}`,
+          body: `${row.service_name}, ${row.requested_date}`,
           data: { bookingId: row.id },
           action_url: '/my-bookings',
         }).catch((err) => logger.warn('Failed expiry notification', { error: err.message }));
         sendNotification({
           userId: row.helper_id,
           type: 'booking_expired',
-          body: `${row.service_name} — ${row.requested_date}`,
+          body: `${row.service_name}, ${row.requested_date}`,
           data: { bookingId: row.id },
           action_url: '/calendar?tab=bookingRequests',
         }).catch((err) => logger.warn('Failed provider expiry notification', { error: err.message }));
@@ -1515,7 +1515,7 @@ exports.releaseStaleAcceptedBookings = async () => {
         sendNotification({
           userId: row.customer_id,
           type: 'booking_auto_released',
-          body: `${row.service_name} — ${row.requested_date}`,
+          body: `${row.service_name}, ${row.requested_date}`,
           data: { bookingId: row.id },
           action_url: '/my-bookings',
         }).catch((err) => logger.warn('Failed auto-release customer notification', { error: err.message }));
@@ -1523,7 +1523,7 @@ exports.releaseStaleAcceptedBookings = async () => {
         sendNotification({
           userId: row.helper_id,
           type: 'booking_auto_released',
-          body: `${row.service_name} — ${row.requested_date}`,
+          body: `${row.service_name}, ${row.requested_date}`,
           data: { bookingId: row.id },
           action_url: '/calendar',
         }).catch((err) => logger.warn('Failed auto-release helper notification', { error: err.message }));

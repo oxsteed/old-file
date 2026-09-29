@@ -83,7 +83,11 @@ export default function BookingFlow({ helperId, helperName, businessId, business
 
   useEffect(() => {
     if (step !== 'status' || !bookingRequest?.id) return;
-    if (bookingRequest.status !== 'pending') return;
+    // Keep polling while the request is still actionable (pending or
+    // counter-proposed). Stop at terminal states: accepted, declined,
+    // expired, cancelled.
+    const terminal = ['accepted', 'declined', 'expired', 'cancelled'];
+    if (terminal.includes(bookingRequest.status)) return;
 
     const id = bookingRequest.id;
     const tick = async () => {

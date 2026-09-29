@@ -5,6 +5,14 @@ import { getAvailableSlots, getBusinessAvailableSlots } from '../../api/bookings
 import api from '../../api/axios';
 import './BookingCalendar.css';
 
+/** YYYY-MM-DD in the viewer's local timezone (toISOString is UTC and shifts the day west of UTC). */
+function toLocalDateStr(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 function formatTime(hhmm) {
   if (!hhmm) return hhmm;
   const [h, m] = hhmm.split(':').map(Number);
@@ -70,7 +78,7 @@ export default function BookingCalendar({
     setLoading(true);
     setError(null);
     setAvailability(null);
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = toLocalDateStr(date);
     const request = businessId
       ? getBusinessAvailableSlots(businessId, dateStr, selectedServiceId)
       : getAvailableSlots(helperId, dateStr);
@@ -108,7 +116,7 @@ export default function BookingCalendar({
   const handleSelectTimeSlot = (slot) => {
     if (!validateRequest() || !selectedDate) return;
     onSelectSlot({
-      requestedDate: selectedDate.toISOString().split('T')[0],
+      requestedDate: toLocalDateStr(selectedDate),
       requestedStartTime: slot.startTime,
       requestedEndTime: slot.endTime,
       availabilityMode: 'scheduled', autoPostOnExpiry: false, serviceId: serviceId || null, ...serviceData,
@@ -118,7 +126,7 @@ export default function BookingCalendar({
   const handleRequestOnly = () => {
     if (!validateRequest() || !selectedDate) return;
     onSelectSlot({
-      requestedDate: selectedDate.toISOString().split('T')[0],
+      requestedDate: toLocalDateStr(selectedDate),
       requestedStartTime: null, requestedEndTime: null,
       availabilityMode: 'request_only', autoPostOnExpiry: fallbackChoice === 'post', serviceId: serviceId || null, ...serviceData,
     });
