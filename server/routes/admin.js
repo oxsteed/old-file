@@ -227,8 +227,8 @@ router.post('/support/tickets/:ticketId/reply',       requireAdmin, supportCtrl.
 router.get('/search',                  requireAdmin, searchCtrl.search);
 
 // Search audit log - super-admin or admins with view_search_logs permission
-router.get('/super/search-logs',       requireAdmin, requirePermission('view_search_logs'), searchCtrl.getSearchLogs);
-router.get('/super/search-stats',      requireAdmin, requirePermission('view_search_logs'), searchCtrl.getSearchStats);
+router.get('/super/search-logs',       requireSuperAdmin, searchCtrl.getSearchLogs);
+router.get('/super/search-stats',      requireSuperAdmin, searchCtrl.getSearchStats);
 
 // ══════════════════════════════════════════════════════════════
 // PERMISSION GRANTS (super-admin manages; admins view own)
