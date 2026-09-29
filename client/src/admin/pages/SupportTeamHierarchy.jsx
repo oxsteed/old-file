@@ -48,12 +48,14 @@ function MemberCard({ member, onEdit, onRemove }) {
       <div className="flex gap-2">
         <button
           onClick={() => onEdit(member)}
+          aria-label={`Edit ${member.name || 'team member'}`}
           className="p-2 hover:bg-gray-600 rounded transition"
         >
           <Edit2 size={16} className="text-gray-400 hover:text-white" />
         </button>
         <button
           onClick={() => onRemove(member.id)}
+          aria-label={`Remove ${member.name || 'team member'}`}
           className="p-2 hover:bg-red-900/30 rounded transition"
         >
           <Trash2 size={16} className="text-red-400" />
@@ -64,7 +66,7 @@ function MemberCard({ member, onEdit, onRemove }) {
 }
 
 // Department Section
-function DepartmentSection({ department, onEditMember, onRemoveMember, onEditDepartment }) {
+function DepartmentSection({ department, onEditMember, onRemoveMember }) {
   const [expanded, setExpanded] = useState(true);
 
   return (
@@ -80,14 +82,6 @@ function DepartmentSection({ department, onEditMember, onRemoveMember, onEditDep
             <p className="text-gray-400 text-sm">{department.members?.length || 0} members</p>
           </div>
         </button>
-        <div className="flex gap-2">
-          <button
-            onClick={() => onEditDepartment(department)}
-            className="p-2 hover:bg-gray-700 rounded-lg transition"
-          >
-            <Edit2 size={16} className="text-gray-400 hover:text-white" />
-          </button>
-        </div>
       </div>
 
       {expanded && (
@@ -111,13 +105,12 @@ function DepartmentSection({ department, onEditMember, onRemoveMember, onEditDep
 }
 
 // Member Form Modal
-function MemberFormModal({ member, roles, skills, onClose, onSave }) {
+function MemberFormModal({ member, roles, skills, departmentName, onClose, onSave }) {
   const [formData, setFormData] = useState(member || {
     name: '',
     email: '',
     role: 'agent',
     skills: [],
-    department: '',
   });
 
   const [selectedSkills, setSelectedSkills] = useState(formData.skills || []);
@@ -190,6 +183,18 @@ function MemberFormModal({ member, roles, skills, onClose, onSave }) {
           </div>
 
           <div>
+            <label className="block text-gray-400 text-sm mb-2">Department</label>
+            <p className="px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-sm text-gray-300">
+              {departmentName || 'Assigned automatically'}
+              {!member && (
+                <span className="block text-xs text-gray-500 mt-0.5">
+                  New members join the first active department.
+                </span>
+              )}
+            </p>
+          </div>
+
+          <div>
             <label className="block text-gray-400 text-sm mb-3">Skills</label>
             <div className="grid grid-cols-2 gap-2">
               {skills.map(skill => (
@@ -234,6 +239,7 @@ export default function SupportTeamHierarchy() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
+  const [editingDepartmentName, setEditingDepartmentName] = useState('');
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -314,6 +320,7 @@ export default function SupportTeamHierarchy() {
           <button
             onClick={() => {
               setEditingMember(null);
+              setEditingDepartmentName('');
               setShowForm(true);
             }}
             className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-700
@@ -378,10 +385,10 @@ export default function SupportTeamHierarchy() {
                 department={department}
                 onEditMember={(member) => {
                   setEditingMember(member);
+                  setEditingDepartmentName(department.name || '');
                   setShowForm(true);
                 }}
                 onRemoveMember={handleRemoveMember}
-                onEditDepartment={() => {}}
               />
             ))}
           </div>
@@ -394,9 +401,11 @@ export default function SupportTeamHierarchy() {
           member={editingMember}
           roles={roles}
           skills={skills}
+          departmentName={editingDepartmentName || departments[0]?.name || ''}
           onClose={() => {
             setShowForm(false);
             setEditingMember(null);
+            setEditingDepartmentName('');
           }}
           onSave={handleSaveMember}
         />

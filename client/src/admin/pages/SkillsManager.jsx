@@ -2,14 +2,12 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { Plus, Search, Pencil, Trash2, ToggleLeft, ToggleRight, X, Check } from 'lucide-react';
 import adminApi from '../../lib/adminApi';
 import toast from 'react-hot-toast';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
 
 const EMPTY_FORM = { name: '', category: '', is_active: true };
 
 export default function SkillsManager() {
-  const [skills,    setSkills]    = useState([]);
-  const [total,     setTotal]     = useState(0);
   const [categories, setCategories] = useState([]);
-  const [loading,   setLoading]   = useState(true);
   const [filters,   setFilters]   = useState({ q: '', category: '', offset: 0, limit: 50 });
   const [showForm,  setShowForm]  = useState(false);
   const [editing,   setEditing]   = useState(null);
@@ -19,21 +17,30 @@ export default function SkillsManager() {
   const [catSugs,   setCatSugs]   = useState([]);
   const catRef = useRef(null);
 
-  const fetchSkills = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = { ...filters };
-      if (!params.q) delete params.q;
-      if (!params.category) delete params.category;
-      const { data } = await adminApi.get('/admin/skills-lookup', { params });
-      setSkills(data.skills);
-      setTotal(data.total);
-    } catch {
-      toast.error('Failed to load skills');
-    } finally {
-      setLoading(false);
-    }
+  // Debounce the search box: typing no longer fires a request per keystroke.
+  const [qInput, setQInput] = useState('');
+  const qTimer = useRef(null);
+  useEffect(() => {
+    clearTimeout(qTimer.current);
+    qTimer.current = setTimeout(() => {
+      setFilters(p => (p.q === qInput ? p : { ...p, q: qInput, offset: 0 }));
+    }, 350);
+    return () => clearTimeout(qTimer.current);
+  }, [qInput]);
+
+  // Sequence-guarded + abortable: out-of-order responses can no longer
+  // clobber the list with stale results.
+  const { data: skillsData, loading, reload } = useAbortableFetch(async (signal) => {
+    const params = { ...filters };
+    if (!params.q) delete params.q;
+    if (!params.category) delete params.category;
+    const { data } = await adminApi.get('/admin/skills-lookup', { params, signal });
+    return data;
   }, [filters]);
+  const skills = skillsData?.skills || [];
+  const total = skillsData?.total || 0;
+
+  const fetchSkills = () => reload();
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -42,7 +49,6 @@ export default function SkillsManager() {
     } catch { /* silent */ }
   }, []);
 
-  useEffect(() => { fetchSkills(); },    [fetchSkills]);
   useEffect(() => { fetchCategories(); }, [fetchCategories]);
 
   // Category autocomplete for form
@@ -142,8 +148,8 @@ export default function SkillsManager() {
         <div className="relative flex-1">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
           <input
-            value={filters.q}
-            onChange={e => setFilters(p => ({ ...p, q: e.target.value, offset: 0 }))}
+            value={qInput}
+            onChange={e => setQInput(e.target.value)}
             placeholder="Search skill names…"
             className="w-full pl-8 pr-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none"
           />

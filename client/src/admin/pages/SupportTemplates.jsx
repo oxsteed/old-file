@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import adminApi from '../../lib/adminApi';
+import toast from 'react-hot-toast';
 import { MessageSquare, Plus, Edit2, Trash2, Search, RefreshCw, Copy, TrendingUp } from 'lucide-react';
 
 export default function SupportTemplates() {
@@ -38,6 +39,14 @@ export default function SupportTemplates() {
   }, [loadTemplates]);
 
   const handleSave = async () => {
+    if (!formData.name.trim()) {
+      toast.error('Template name is required');
+      return;
+    }
+    if (!formData.content.trim()) {
+      toast.error('Template content is required');
+      return;
+    }
     try {
       if (selectedTemplate) {
         await adminApi.patch(`/support/templates/${selectedTemplate.id}`, {
@@ -56,6 +65,7 @@ export default function SupportTemplates() {
       loadTemplates();
     } catch (err) {
       console.error('Failed to save template:', err);
+      toast.error(err?.response?.data?.error || 'Failed to save template');
     }
   };
 
@@ -80,10 +90,15 @@ export default function SupportTemplates() {
     setShowForm(true);
   };
 
-  const handleCopy = (content, id) => {
-    navigator.clipboard.writeText(content);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+  const handleCopy = async (content, id) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy template:', err);
+      toast.error('Failed to copy template content');
+    }
   };
 
   return (

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import adminApi from '../../lib/adminApi';
+import AdminErrorState from '../lib/AdminErrorState';
 import { Clock, AlertCircle, TrendingUp, CheckCircle, RefreshCw, Target } from 'lucide-react';
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -8,6 +9,7 @@ export default function SupportSLADashboard() {
   const { businessId } = useParams();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -16,8 +18,10 @@ export default function SupportSLADashboard() {
         params: { business_id: businessId },
       });
       setData(res.data);
+      setError(null);
     } catch (err) {
       console.error('Failed to load SLA data:', err);
+      setError(err);
     }
     setLoading(false);
   }, [businessId]);
@@ -26,7 +30,27 @@ export default function SupportSLADashboard() {
     loadData();
   }, [loadData]);
 
-  if (loading || !data) {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto">
+        <AdminErrorState
+          title="Failed to load SLA data"
+          message={error?.response?.data?.error || 'Could not load SLA data.'}
+          onRetry={loadData}
+        />
+      </div>
+    );
+  }
+
+  if (!data) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="animate-spin w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full" />
@@ -168,8 +192,12 @@ export default function SupportSLADashboard() {
                         {dept.compliance == null ? '-' : `${dept.compliance}%`}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-white">{dept.avg_first_response_minutes}m</td>
-                    <td className="px-6 py-4 text-white">{dept.avg_resolution_hours}h</td>
+                    <td className="px-6 py-4 text-white">
+                      {dept.avg_first_response_minutes == null ? '-' : `${dept.avg_first_response_minutes}m`}
+                    </td>
+                    <td className="px-6 py-4 text-white">
+                      {dept.avg_resolution_hours == null ? '-' : `${dept.avg_resolution_hours}h`}
+                    </td>
                     <td className="px-6 py-4 text-white font-medium">{dept.violations}</td>
                   </tr>
                 ))}

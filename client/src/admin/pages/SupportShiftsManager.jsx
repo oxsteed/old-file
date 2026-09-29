@@ -60,11 +60,24 @@ export default function SupportShiftsManager() {
       toast.error('Shift name is required');
       return;
     }
+    if (!formData.start_time || !formData.end_time) {
+      toast.error('Start and end time are required');
+      return;
+    }
+    if (formData.end_time <= formData.start_time) {
+      toast.error('End time must be after start time');
+      return;
+    }
+    const maxAgents = parseInt(formData.max_agents, 10);
+    if (!Number.isInteger(maxAgents) || maxAgents < 1) {
+      toast.error('Max agents must be at least 1');
+      return;
+    }
 
     const payload = {
       ...formData,
       name: formData.name.trim(),
-      max_agents: parseInt(formData.max_agents, 10) || 0,
+      max_agents: maxAgents,
       days: formData.days,
     };
 
@@ -240,6 +253,7 @@ export default function SupportShiftsManager() {
                     </button>
                     <button
                       onClick={() => handleDelete(shift.id)}
+                      aria-label={`Delete ${shift.name} shift`}
                       className="rounded-xl border border-red-900/40 bg-red-950/30 p-2 text-red-400 transition hover:bg-red-900/30"
                     >
                       <Trash2 size={15} />
@@ -301,7 +315,7 @@ export default function SupportShiftsManager() {
                 <input
                   type="number"
                   value={formData.max_agents}
-                  onChange={(event) => setFormData({ ...formData, max_agents: parseInt(event.target.value, 10) || 0 })}
+                  onChange={(event) => setFormData({ ...formData, max_agents: event.target.value })}
                   min="1"
                   className="w-full rounded-2xl border border-gray-700 bg-gray-950 px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
                 />

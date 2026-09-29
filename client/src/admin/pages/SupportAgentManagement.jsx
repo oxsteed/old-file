@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
+import toast from 'react-hot-toast';
 import {
   Users,
   Search,
@@ -39,6 +40,7 @@ export default function SupportAgentManagement() {
       setAgents(res.data.agents || []);
     } catch (err) {
       console.error('Failed to load agents:', err);
+      toast.error(err?.response?.data?.error || 'Failed to load agents');
       setAgents([]);
     } finally {
       setLoading(false);
@@ -133,7 +135,11 @@ export default function SupportAgentManagement() {
           </div>
         </div>
 
-        {agents.length === 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="animate-spin w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full" />
+          </div>
+        ) : agents.length === 0 ? (
           <SupportEmptyState
             icon={Users}
             title="No agents found"

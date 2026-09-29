@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
+import toast from 'react-hot-toast';
 import {
   BookOpen,
   Plus,
@@ -60,6 +61,14 @@ export default function SupportKnowledgeBase() {
   }, [loadArticles]);
 
   const handleSave = async () => {
+    if (!formData.title.trim()) {
+      toast.error('Article title is required');
+      return;
+    }
+    if (!formData.content.trim()) {
+      toast.error('Article content is required');
+      return;
+    }
     try {
       if (selectedArticle) {
         await adminApi.patch(`/support/kb/${selectedArticle.id}`, {
@@ -78,6 +87,7 @@ export default function SupportKnowledgeBase() {
       loadArticles();
     } catch (err) {
       console.error('Failed to save article:', err);
+      toast.error(err?.response?.data?.error || 'Failed to save article');
     }
   };
 

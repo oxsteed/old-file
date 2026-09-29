@@ -1,30 +1,26 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Shield, AlertTriangle, CheckCircle, XCircle, Flag } from 'lucide-react';
 import toast from 'react-hot-toast';
 import adminApi from '../../lib/adminApi';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState from '../lib/AdminErrorState';
 
 export default function Moderation() {
   const { t } = useTranslation();
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(null);
 
-  const fetchQueue = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data } = await adminApi.get('/admin/moderation-queue');
-      setItems(data.queue || []);
-    } catch (err) {
-      console.error('Failed to fetch moderation queue:', err);
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
+  // Sequence-guarded + abortable: rapid filter/tab switching can no longer
+  // clobber the queue with a stale response, and a failed fetch surfaces an
+  // error panel instead of a misleading "queue is clear" empty state.
+  const { data, loading, error, reload } = useAbortableFetch(async (signal) => {
+    const { data: res } = await adminApi.get('/admin/moderation-queue', { signal });
+    return res.queue || [];
   }, []);
+  const items = data || [];
 
-  useEffect(() => { fetchQueue(); }, [fetchQueue]);
+  const fetchQueue = () => reload();
 
   const handleAction = async (jobId, action) => {
     const reason =
@@ -43,7 +39,10 @@ export default function Moderation() {
       });
       fetchQueue();
     } catch (err) {
-      console.error(`Moderation action failed:`, err);
+      toast.error(
+        err?.response?.data?.error ||
+          t('admin.moderationActionFailed', { defaultValue: 'Moderation action failed.' })
+      );
     } finally {
       setActing(null);
     }
@@ -64,6 +63,14 @@ export default function Moderation() {
       <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
         {loading ? (
           <div className="text-center text-gray-400 py-16">Loading...</div>
+        ) : error ? (
+          <div className="p-6">
+            <AdminErrorState
+              title="Failed to load moderation queue"
+              message={error?.response?.data?.error || 'Could not load the moderation queue.'}
+              onRetry={reload}
+            />
+          </div>
         ) : items.length === 0 ? (
           <div className="text-center py-16">
             <CheckCircle className="mx-auto mb-3 text-green-400" size={48} />

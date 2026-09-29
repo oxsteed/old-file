@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import adminApi from '../../lib/adminApi';
 import { Users, Search, RefreshCw, TrendingUp, Star, Clock, MessageSquare } from 'lucide-react';
@@ -30,19 +30,26 @@ export default function SupportPerformanceAnalytics() {
     loadAgents();
   }, [loadAgents]);
 
+  // Sequence-guarded: a slow response for a previously selected agent can
+  // never populate the modal with the wrong agent's metrics.
+  const detailSeq = useRef(0);
   const loadAgentDetails = useCallback(async (agentId) => {
+    const seq = ++detailSeq.current;
     try {
       const res = await adminApi.get(`/support/performance/${agentId}`, {
         params: { business_id: businessId },
       });
-      setAgentDetails(res.data);
+      if (detailSeq.current === seq) setAgentDetails(res.data);
     } catch (err) {
-      console.error('Failed to load agent details:', err);
+      if (detailSeq.current === seq) console.error('Failed to load agent details:', err);
     }
   }, [businessId]);
 
   const handleSelectAgent = (agent) => {
     setSelectedAgent(agent);
+    // Clear the previous agent's metrics immediately so the modal never shows
+    // the new agent's name alongside stale metrics while loading.
+    setAgentDetails(null);
     loadAgentDetails(agent.id);
   };
 
@@ -180,7 +187,7 @@ export default function SupportPerformanceAnalytics() {
       </div>
 
       {/* Agent Detail Modal */}
-      {selectedAgent && agentDetails && (
+      {selectedAgent && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="border-b border-gray-700 p-6 flex items-center justify-between sticky top-0 bg-gray-800">
@@ -196,6 +203,9 @@ export default function SupportPerformanceAnalytics() {
               </button>
             </div>
 
+            {!agentDetails ? (
+              <div className="p-12 text-center text-gray-400">Loading performance details…</div>
+            ) : (
             <div className="p-6 space-y-6">
               {/* Key Metrics */}
               <div className="grid grid-cols-2 gap-4">
@@ -279,6 +289,7 @@ export default function SupportPerformanceAnalytics() {
                 </div>
               </div>
             </div>
+            )}
           </div>
         </div>
       )}

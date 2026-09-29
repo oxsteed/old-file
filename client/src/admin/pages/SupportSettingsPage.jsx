@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import adminApi from '../../lib/adminApi';
+import AdminErrorState from '../lib/AdminErrorState';
 import {
   Settings, Bell, Zap, Clock, Mail, MessageSquare, Link2, Save, RefreshCw, CheckCircle, AlertCircle,
 } from 'lucide-react';
@@ -393,7 +394,14 @@ function AutomationSettings({ settings, onUpdate }) {
         <input
           type="number"
           value={formData.auto_close_after_days}
-          onChange={e => setFormData({ ...formData, auto_close_after_days: parseInt(e.target.value) })}
+          onChange={e => {
+            // Guard: clearing or typing non-numeric text must never store NaN.
+            const parsed = parseInt(e.target.value, 10);
+            setFormData({
+              ...formData,
+              auto_close_after_days: Number.isNaN(parsed) ? 1 : Math.max(1, parsed),
+            });
+          }}
           className="w-full px-4 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white
                      focus:outline-none focus:border-orange-500"
           min="1"
@@ -440,32 +448,59 @@ function WorkingHoursSettings({ settings, onUpdate }) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {days.map(day => (
-          <div key={day} className="bg-gray-700 rounded-lg p-4">
-            <h3 className="text-white font-semibold mb-3 capitalize">{day}</h3>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <input
-                  type="time"
-                  value={formData[`${day}_start`]}
-                  onChange={e => setFormData({ ...formData, [`${day}_start`]: e.target.value })}
-                  className="flex-1 px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white text-sm
-                             focus:outline-none focus:border-orange-500"
-                  disabled={!formData[`${day}_start`] && !formData[`${day}_end`] && day !== 'monday'}
-                />
-                <span className="text-gray-400">to</span>
-                <input
-                  type="time"
-                  value={formData[`${day}_end`]}
-                  onChange={e => setFormData({ ...formData, [`${day}_end`]: e.target.value })}
-                  className="flex-1 px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white text-sm
-                             focus:outline-none focus:border-orange-500"
-                  disabled={!formData[`${day}_start`] && !formData[`${day}_end`] && day !== 'monday'}
-                />
+        {days.map(day => {
+          const start = formData[`${day}_start`] || '';
+          const end = formData[`${day}_end`] || '';
+          const isOpen = !!(start || end);
+          const toggleDay = () => {
+            if (isOpen) {
+              setFormData({ ...formData, [`${day}_start`]: '', [`${day}_end`]: '' });
+            } else {
+              setFormData({
+                ...formData,
+                [`${day}_start`]: start || '09:00',
+                [`${day}_end`]: end || '17:00',
+              });
+            }
+          };
+          return (
+            <div key={day} className="bg-gray-700 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-white font-semibold capitalize">{day}</h3>
+                <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isOpen}
+                    onChange={toggleDay}
+                    className="w-4 h-4 accent-orange-500"
+                  />
+                  Open
+                </label>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="time"
+                    value={start}
+                    onChange={e => setFormData({ ...formData, [`${day}_start`]: e.target.value })}
+                    className="flex-1 px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white text-sm
+                               focus:outline-none focus:border-orange-500 disabled:opacity-40"
+                    disabled={!isOpen}
+                  />
+                  <span className="text-gray-400">to</span>
+                  <input
+                    type="time"
+                    value={end}
+                    onChange={e => setFormData({ ...formData, [`${day}_end`]: e.target.value })}
+                    className="flex-1 px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white text-sm
+                               focus:outline-none focus:border-orange-500 disabled:opacity-40"
+                    disabled={!isOpen}
+                  />
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <button
@@ -486,6 +521,7 @@ export default function SupportSettingsPage() {
   const [activeTab, setActiveTab] = useState('general');
   const [settings, setSettings] = useState({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [saveStatus, setSaveStatus] = useState(null);
 
   const loadSettings = useCallback(async () => {
@@ -495,8 +531,12 @@ export default function SupportSettingsPage() {
         params: { business_id: businessId },
       });
       setSettings(res.data);
+      setLoadError(null);
     } catch (err) {
+      // Never fall back to editable defaults after a failed fetch: saving
+      // from defaults would silently overwrite the real settings.
       console.error('Failed to load settings:', err);
+      setLoadError(err);
     }
     setLoading(false);
   }, [businessId]);
@@ -525,6 +565,18 @@ export default function SupportSettingsPage() {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="animate-spin w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="p-6 max-w-5xl mx-auto">
+        <AdminErrorState
+          title="Failed to load settings"
+          message={loadError?.response?.data?.error || 'Could not load support settings.'}
+          onRetry={loadSettings}
+        />
       </div>
     );
   }

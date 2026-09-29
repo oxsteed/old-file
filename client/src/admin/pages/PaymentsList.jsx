@@ -1,8 +1,9 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CreditCard, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
 
 const PAYMENT_STATUSES = [
   '', 'pending', 'authorized', 'captured', 'released', 'refunded', 'failed', 'disputed',
@@ -32,43 +33,41 @@ function fmt(dollars) {
 
 export default function PaymentsList() {
   const { t } = useTranslation();
-  const [payments,   setPayments]   = useState([]);
-  const [total,      setTotal]      = useState(0);
-  const [loading,    setLoading]    = useState(true);
-  const [forbidden,  setForbidden]  = useState(false);
-  const [error,      setError]      = useState('');
   const [lastUpdated, setLastUpdated] = useState(null);
   const [filters,    setFilters]    = useState({
     status: '', date_from: '', date_to: '', page: 1,
   });
 
-  const fetchPayments = useCallback(async () => {
-    setLoading(true);
-    setForbidden(false);
-    setError('');
+  // Sequence-guarded + abortable: rapid filter changes can no longer resolve
+  // out of order and clobber the table with stale results. A 403 still lands
+  // on the dedicated permission panel; other failures surface an error banner.
+  const { data, loading, error, reload } = useAbortableFetch(async (signal) => {
+    const params = Object.fromEntries(
+      Object.entries(filters).filter(([, v]) => v !== '' && v !== 0)
+    );
     try {
-      const params = Object.fromEntries(
-        Object.entries(filters).filter(([, v]) => v !== '' && v !== 0)
-      );
-      const { data } = await adminApi.get('/admin/payments', { params });
-      setPayments(data.payments || []);
-      setTotal(data.total || 0);
-      setLastUpdated(new Date());
+      const { data: res } = await adminApi.get('/admin/payments', { params, signal });
+      return { payments: res.payments || [], total: res.total || 0 };
     } catch (err) {
+      if (err?.name === 'AbortError' || err?.code === 'ERR_CANCELED') throw err;
       if (err?.response?.status === 403) {
-        setForbidden(true);
-        setPayments([]);
-      } else {
-        console.error('Failed to fetch payments:', err);
-        setError(err?.response?.data?.error || t('common.failedToLoad'));
-        setPayments([]);
+        return { payments: [], total: 0, forbidden: true };
       }
-    } finally {
-      setLoading(false);
+      const wrapped = new Error(err?.response?.data?.error || t('common.failedToLoad'));
+      wrapped.cause = err;
+      throw wrapped;
     }
   }, [filters, t]);
+  const payments = data?.payments || [];
+  const total = data?.total || 0;
+  const forbidden = !!data?.forbidden;
+  const errorMessage = error?.message || '';
 
-  useEffect(() => { fetchPayments(); }, [fetchPayments]);
+  useEffect(() => {
+    if (data && !data.forbidden) setLastUpdated(new Date());
+  }, [data]);
+
+  const fetchPayments = () => reload();
 
   const updateFilter = (key, value) =>
     setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
@@ -118,9 +117,9 @@ export default function PaymentsList() {
         </div>
       </div>
 
-      {error && (
+      {errorMessage && (
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200" role="alert">
-          <span>{error}</span>
+          <span>{errorMessage}</span>
           <button type="button" onClick={fetchPayments} className="font-semibold text-red-100 underline underline-offset-2 hover:text-white">
             {t('common.retry')}
           </button>

@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, Trash2, RotateCcw, AlertCircle } from 'lucide-react';
 import adminApi from '../../lib/adminApi';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState from '../lib/AdminErrorState';
 
 const TABS = [
   { key: 'bids',    label: 'Bids'    },
@@ -88,54 +90,62 @@ function RemoveModal({ item, type, onConfirm, onClose }) {
 export default function ContentRemovals() {
   const { t } = useTranslation();
   const [tab, setTab]         = useState('bids');
-  const [items, setItems]     = useState([]);
-  const [total, setTotal]     = useState(0);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch]   = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage]       = useState(1);
   const [modal, setModal]     = useState(null); // { item, type }
   const [toast, setToast]     = useState('');
+  const toastTimer = useRef(null);
 
-  const fetchItems = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = { type: tab, page, limit: 25 };
-      if (search) params.search = search;
-      if (statusFilter) params.status = statusFilter;
-      const { data } = await adminApi.get('/admin/content', { params });
-      setItems(data.items || []);
-      setTotal(data.total || 0);
-    } catch {
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [tab, page, search, statusFilter]);
+  // Debounce the search input so we do not fire a request per keystroke.
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(id);
+  }, [search]);
 
-  useEffect(() => { fetchItems(); }, [fetchItems]);
+  const { data, error, loading, reload } = useAbortableFetch(async (signal) => {
+    const params = { type: tab, page, limit: 25 };
+    if (debouncedSearch) params.search = debouncedSearch;
+    if (statusFilter) params.status = statusFilter;
+    const { data: payload } = await adminApi.get('/admin/content', { params, signal });
+    return { items: payload.items || [], total: payload.total || 0 };
+  }, [tab, page, debouncedSearch, statusFilter]);
+
+  // Keep previously loaded items on failure; the error panel below makes the
+  // outage visible instead of faking an empty queue.
+  const items = data?.items ?? [];
+  const total = data?.total ?? 0;
 
   function showToast(msg) {
     setToast(msg);
-    setTimeout(() => setToast(''), 3500);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(''), 3500);
   }
+
+  useEffect(() => () => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+  }, []);
 
   async function handleRemoveBid(bidId, reason) {
     await adminApi.post(`/admin/bids/${bidId}/remove`, { reason });
     showToast(t('admin.bidRemoved'));
-    fetchItems();
+    reload();
   }
 
   async function handleRemoveReview(reviewId, reason) {
     await adminApi.post(`/admin/reviews/${reviewId}/remove`, { reason });
     showToast(t('admin.reviewHidden'));
-    fetchItems();
+    reload();
   }
 
   async function handleRestoreReview(reviewId) {
     await adminApi.post(`/admin/reviews/${reviewId}/restore`);
     showToast(t('admin.reviewRestored'));
-    fetchItems();
+    reload();
   }
 
   function switchTab(t) {
@@ -209,6 +219,9 @@ export default function ContentRemovals() {
       </div>
 
       {/* Table */}
+      {error ? (
+        <AdminErrorState onRetry={reload} />
+      ) : (
       <div className="bg-gray-800/50 border border-gray-700 rounded-xl overflow-hidden">
         {tab === 'bids' && (
           <table className="w-full text-sm">
@@ -317,6 +330,7 @@ export default function ContentRemovals() {
           </table>
         )}
       </div>
+      )}
 
       {/* Pagination */}
       {pages > 1 && (

@@ -1,7 +1,9 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
 import { Wrench, Search, ToggleLeft, ToggleRight, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import adminApi from '../../lib/adminApi';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState from '../lib/AdminErrorState';
 
 const AVAIL_FILTERS = [
   { value: '',          label: 'All'       },
@@ -85,9 +87,6 @@ function ReasonModal({ tool, onConfirm, onClose, loading }) {
 // ─── main page ────────────────────────────────────────────────────────────────
 
 export default function ToolRentalModeration() {
-  const [tools,      setTools]      = useState([]);
-  const [total,      setTotal]      = useState(0);
-  const [loading,    setLoading]    = useState(true);
   const [search,     setSearch]     = useState('');
   const [availFilter, setAvailFilter] = useState('');
   const [page,       setPage]       = useState(1);
@@ -95,24 +94,18 @@ export default function ToolRentalModeration() {
   const [toggling,   setToggling]   = useState(null);
   const [actionBusy, setActionBusy] = useState(false);
 
-  const fetchTools = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = { page };
-      if (search)      params.search    = search;
-      if (availFilter) params.available = availFilter;
-      const { data } = await adminApi.get('/admin/tool-rentals', { params });
-      setTools(data.tools || []);
-      setTotal(data.total || 0);
-    } catch (err) {
-      console.error('Failed to fetch tool rentals:', err);
-      setTools([]);
-    } finally {
-      setLoading(false);
-    }
+  // Sequence-guarded + abortable: rapid search/filter paging can no longer
+  // clobber the table with a stale response, and a failed fetch surfaces an
+  // error panel instead of a misleading "no tool rentals found" empty state.
+  const { data, loading, error, reload } = useAbortableFetch(async (signal) => {
+    const params = { page };
+    if (search)      params.search    = search;
+    if (availFilter) params.available = availFilter;
+    const { data: res } = await adminApi.get('/admin/tool-rentals', { params, signal });
+    return { tools: res.tools || [], total: res.total || 0 };
   }, [search, availFilter, page]);
-
-  useEffect(() => { fetchTools(); }, [fetchTools]);
+  const tools = data?.tools || [];
+  const total = data?.total || 0;
 
   const resetPage = (setter) => (val) => { setter(val); setPage(1); };
 
@@ -120,11 +113,9 @@ export default function ToolRentalModeration() {
     setActionBusy(true);
     try {
       await adminApi.put(`/admin/tool-rentals/${toggling.id}/toggle`, { reason });
-      setTools(prev =>
-        prev.map(t => t.id === toggling.id ? { ...t, is_available: !t.is_available } : t)
-      );
       setToggling(null);
       toast.success('Tool listing updated.');
+      reload();
     } catch (err) {
       toast.error(err?.response?.data?.error || 'Action failed.');
     } finally {
@@ -194,6 +185,16 @@ export default function ToolRentalModeration() {
               {loading ? (
                 <tr>
                   <td colSpan={7} className="text-center text-gray-400 py-12">Loading…</td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={7} className="py-6 px-4">
+                    <AdminErrorState
+                      title="Failed to load tool rentals"
+                      message={error?.response?.data?.error || 'Could not load tool rentals.'}
+                      onRetry={reload}
+                    />
+                  </td>
                 </tr>
               ) : tools.length === 0 ? (
                 <tr>

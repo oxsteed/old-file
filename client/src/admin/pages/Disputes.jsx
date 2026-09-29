@@ -1,33 +1,27 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link }                from 'react-router-dom';
 import { AlertTriangle }       from 'lucide-react';
 import adminApi                from '../../lib/adminApi';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState from '../lib/AdminErrorState';
 
 const STATUS_TABS = ['open','under_review','resolved'];
 
 export default function AdminDisputes() {
-  const [disputes, setDisputes] = useState([]);
   const [tab,      setTab]      = useState('open');
-  const [total,    setTotal]    = useState(0);
-  const [loading,  setLoading]  = useState(true);
   const [acting,   setActing]   = useState(null);
 
-  useEffect(() => {
-    const fetch = async () => {
-      setLoading(true);
-      try {
-        const { data } = await adminApi.get('/disputes/admin/all', {
-          params: { status: tab }        });
-        setDisputes(data.disputes);
-        setTotal(data.total);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetch();
+  const { data, error, loading, reload } = useAbortableFetch(async (signal) => {
+    const { data: payload } = await adminApi.get('/disputes/admin/all', {
+      params: { status: tab }, signal,
+    });
+    return { disputes: payload.disputes || [], total: payload.total || 0 };
   }, [tab]);
+
+  // Keep previously loaded disputes on failure; the error panel below makes
+  // the outage visible instead of faking an empty queue.
+  const disputes = data?.disputes ?? [];
+  const total = data?.total ?? 0;
 
   const handleStartReview = async (disputeId) => {
     setActing(disputeId);
@@ -75,7 +69,9 @@ export default function AdminDisputes() {
         ))}
       </div>
 
-      {loading ? (
+      {error ? (
+        <AdminErrorState onRetry={reload} />
+      ) : loading ? (
         <div className="text-center py-16 text-gray-500">Loading...</div>
       ) : disputes.length === 0 ? (
         <div className="text-center py-16">

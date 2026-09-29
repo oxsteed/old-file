@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Search, Download, UserPlus, X, MessageSquare, MoreHorizontal,
@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import adminApi from '../../lib/adminApi';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -355,18 +356,27 @@ export default function UsersList() {
   const { user: me }  = useAuth();
   const isSuper       = me?.role === 'super_admin';
 
-  const [users,    setUsers]    = useState([]);
-  const [total,    setTotal]    = useState(0);
-  const [pages,    setPages]    = useState(1);
-  const [summary,  setSummary]  = useState(null);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState(null);
-  const [lastUpdated, setLastUpdated] = useState(null);
-
   const [filters, setFilters] = useState({
     search: '', role: '', status: '', plan: '', location: '',
     page: 1, limit: 25, sort: 'created_at', order: 'desc',
   });
+  const [lastUpdated, setLastUpdated] = useState(null);
+
+  // Sequence-guarded + abortable: rapid filter changes can no longer resolve
+  // out of order and clobber the table with stale results.
+  const { data: usersData, loading, error, reload } = useAbortableFetch(async (signal) => {
+    const params = Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== ''));
+    const { data } = await adminApi.get('/admin/users', { params, signal });
+    return data;
+  }, [filters]);
+  const users = usersData?.users || [];
+  const total = usersData?.total || 0;
+  const pages = usersData?.pages || 1;
+  const summary = usersData?.summary || null;
+
+  useEffect(() => {
+    if (usersData) setLastUpdated(new Date());
+  }, [usersData]);
 
   // Selection state for bulk actions
   const [selected, setSelected]       = useState(new Set());
@@ -385,26 +395,7 @@ export default function UsersList() {
     setTimeout(() => setToastMsg(null), 4000);
   };
 
-  const fetchUsers = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== ''));
-      const { data } = await adminApi.get('/admin/users', { params });
-      setUsers(data.users);
-      setTotal(data.total);
-      setPages(data.pages);
-      if (data.summary) setSummary(data.summary);
-      setLastUpdated(new Date());
-    } catch (err) {
-      console.error(err);
-      setError(err.response?.data?.error || 'Could not load users.');
-    } finally {
-      setLoading(false);
-    }
-  }, [filters]);
-
-  useEffect(() => { fetchUsers(); }, [fetchUsers]);
+  const fetchUsers = () => reload();
 
   // Clear selection when page/filters change
   useEffect(() => { setSelected(new Set()); }, [filters]);
@@ -456,18 +447,8 @@ export default function UsersList() {
   const handleToggleBan = async (user) => {
     try {
       await adminApi.post(`/admin/users/${user.id}/ban`);
-      setUsers((prev) => prev.map((u) => (u.id === user.id
-        ? {
-          ...u,
-          is_active: !u.is_active,
-          deleted_at: u.is_active ? u.deleted_at : null,
-          deletion_scheduled_at: u.is_active ? u.deletion_scheduled_at : null,
-          deletion_type: u.is_active ? u.deletion_type : null,
-          deletion_reason: u.is_active ? u.deletion_reason : null,
-        }
-        : u)));
       showToast(`${user.first_name} ${user.is_active ? 'suspended' : 'reactivated'}.`);
-      await fetchUsers();
+      fetchUsers();
     } catch (err) {
       showToast(err.response?.data?.error || 'Action failed.', 'error');
     }
@@ -558,7 +539,7 @@ export default function UsersList() {
 
       {error && (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-          <span>{error}</span>
+          <span>{error?.response?.data?.error || error?.message || 'Could not load users.'}</span>
           <button type="button" onClick={fetchUsers} disabled={loading} className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/10 disabled:opacity-50">Try again</button>
         </div>
       )}
@@ -911,8 +892,8 @@ export default function UsersList() {
           onClose={() => setShowCreate(false)}
           onCreated={(newUser) => {
             setShowCreate(false);
-            setUsers(prev => [newUser, ...prev]);
-            setTotal(t => t + 1);
+            // Re-fetch so the new user appears through the same guarded path.
+            fetchUsers();
           }}
         />
       )}

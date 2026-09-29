@@ -31,6 +31,11 @@ const IcoExternal = p => <Ico {...p}><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2
 // ── Helpers ────────────────────────────────────────────────────────────────
 const cents = v => Math.round(parseFloat(v || '0') * 100);
 const dollars = v => (v / 100).toFixed(2);
+// Local YYYY-MM-DD (toISOString() is UTC and shifts the day west of UTC).
+const todayLocal = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 const TABS = ['pricing', 'grants', 'stats'];
 
@@ -90,16 +95,23 @@ function EditPricingModal({ row, onClose, onSave, saving, t }) {
   const [monthly, setMonthly] = useState(dollars(row.monthly_price_cents || 999));
   const [lifetime, setLifetime] = useState(dollars(row.lifetime_price_cents || 4999));
   const [active, setActive] = useState(row.is_active !== false);
+  const [saveError, setSaveError] = useState('');
   const templateMeta = TEMPLATE_REGISTRY[row.slug] || {};
   const displayName = row.name || templateMeta.name || row.slug;
 
   const handleSave = async () => {
-    await onSave(row.slug, {
-      monthly_price_cents: cents(monthly),
-      lifetime_price_cents: cents(lifetime),
-      is_active: active,
-    });
-    onClose();
+    setSaveError('');
+    try {
+      await onSave(row.slug, {
+        monthly_price_cents: cents(monthly),
+        lifetime_price_cents: cents(lifetime),
+        is_active: active,
+      });
+      onClose();
+    } catch (err) {
+      // Keep the modal open and surface the failure instead of silently closing.
+      setSaveError(err?.response?.data?.error || t('adminTemplates.pricingSaveFailed'));
+    }
   };
 
   return (
@@ -159,6 +171,9 @@ function EditPricingModal({ row, onClose, onSave, saving, t }) {
               </>
             )}
             <div className="flex flex-wrap gap-2 pt-2">
+              {saveError && (
+                <p className="w-full text-sm text-red-400" role="alert">{saveError}</p>
+              )}
               <button
                 type="button"
                 onClick={handleSave}
@@ -342,7 +357,7 @@ const GrantModal = ({ open, onClose, onGrant, granting }) => {
               <input
                 type="date"
                 value={form.expiry_date}
-                min={new Date().toISOString().slice(0, 10)}
+                min={todayLocal()}
                 onChange={e => set('expiry_date', e.target.value)}
                 className="w-full px-3 py-2 bg-gray-800 border border-gray-700/50 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500"
               />
@@ -429,6 +444,7 @@ export default function TemplateManagement() {
   const [grantSearch, setGrantSearch] = useState('');
   const [grantStatusFilter, setGrantStatusFilter] = useState('active');
   const [grantsPage, setGrantsPage]   = useState(0);
+  const [grantsHasNext, setGrantsHasNext] = useState(false);
   const GRANTS_PER_PAGE = 20;
 
   const previewMeta = previewSlug ? (TEMPLATE_REGISTRY[previewSlug] || {}) : {};
@@ -446,12 +462,16 @@ export default function TemplateManagement() {
   }, []);
 
   // ── Load grants ────────────────────────────────────────────────────────
+  // The API takes a 1-based `page` (no `offset`); `hasNext` is derived from a
+  // full page so the user can never page into a dead end with no way back.
   const loadGrants = useCallback(async () => {
     try {
-      const params = new URLSearchParams({ status: grantStatusFilter, limit: GRANTS_PER_PAGE, offset: grantsPage * GRANTS_PER_PAGE });
+      const params = new URLSearchParams({ status: grantStatusFilter, limit: GRANTS_PER_PAGE, page: grantsPage + 1 });
       if (grantSearch) params.set('user_id', grantSearch);
       const res = await api.get(`/templates/admin/grants?${params}`);
-      setGrants(res.data?.data || []);
+      const rows = res.data?.data || [];
+      setGrants(rows);
+      setGrantsHasNext(rows.length === GRANTS_PER_PAGE);
     } catch (e) {
       toast.error('Failed to load grants');
     }
@@ -483,7 +503,8 @@ export default function TemplateManagement() {
       await loadPricing();
       toast.success(t('adminTemplates.pricingUpdated', { slug }));
     } catch (e) {
-      toast.error(e.response?.data?.error || t('adminTemplates.pricingSaveFailed'));
+      // Rethrow so the pricing modal keeps itself open and shows the failure inline.
+      throw e;
     } finally {
       setSavingSlug(null);
     }
@@ -697,8 +718,9 @@ export default function TemplateManagement() {
               </tbody>
             </table>
 
-            {/* Pagination */}
-            {grants.length >= GRANTS_PER_PAGE && (
+            {/* Pagination: always render Previous when past page 1 so the user
+                can get back from a full final page that led to an empty page. */}
+            {(grantsPage > 0 || grantsHasNext) && (
               <div className="flex items-center justify-between px-4 py-3 border-t border-gray-800">
                 <button disabled={grantsPage === 0}
                   onClick={() => setGrantsPage(p => p - 1)}
@@ -706,8 +728,8 @@ export default function TemplateManagement() {
                   Previous
                 </button>
                 <span className="text-gray-500 text-xs">Page {grantsPage + 1}</span>
-                <button onClick={() => setGrantsPage(p => p + 1)}
-                  className="px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs transition">
+                <button onClick={() => setGrantsPage(p => p + 1)} disabled={!grantsHasNext}
+                  className="px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs transition disabled:opacity-40">
                   Next
                 </button>
               </div>

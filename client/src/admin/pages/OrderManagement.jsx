@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import axios from '../../api/axios';
+import adminApi from '../../lib/adminApi';
 import PageMeta from '../../components/PageMeta';
+import AdminErrorState from '../lib/AdminErrorState';
 import OrderManagementTable from '../components/OrderManagementTable';
 import OrderDetailModal from '../components/OrderDetailModal';
 import OrderFilters from '../components/OrderFilters';
@@ -19,10 +20,10 @@ export default function OrderManagement() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
-  // Fetch orders
+  // Fetch orders (via adminApi so token refresh and 403 handling apply)
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['adminOrders', filters],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const params = new URLSearchParams();
       if (filters.status) params.append('status', filters.status);
       if (filters.search) params.append('search', filters.search);
@@ -31,7 +32,7 @@ export default function OrderManagement() {
       params.append('sortBy', filters.sortBy);
       params.append('sortOrder', filters.sortOrder);
 
-      const res = await axios.get(`/admin/orders?${params.toString()}`);
+      const res = await adminApi.get(`/admin/orders?${params.toString()}`, { signal });
       return res.data;
     },
     staleTime: 30000,
@@ -40,8 +41,8 @@ export default function OrderManagement() {
   // Fetch order statistics
   const { data: stats } = useQuery({
     queryKey: ['adminOrderStats'],
-    queryFn: async () => {
-      const res = await axios.get('/admin/orders/stats');
+    queryFn: async ({ signal }) => {
+      const res = await adminApi.get('/admin/orders/stats', { signal });
       return res.data.data;
     },
     staleTime: 60000,
@@ -68,10 +69,11 @@ export default function OrderManagement() {
     return (
       <div className="p-6">
         <PageMeta title="Order Management" description="Manage marketplace orders" />
-        <div className="rounded-lg bg-red-50 p-4 text-red-800">
-          <p className="font-semibold">Error loading orders</p>
-          <p className="text-sm">{error.message}</p>
-        </div>
+        <AdminErrorState
+          title="Error loading orders"
+          message={error?.response?.data?.error || error?.message || 'Could not load orders.'}
+          onRetry={() => refetch()}
+        />
       </div>
     );
   }

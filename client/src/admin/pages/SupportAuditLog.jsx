@@ -178,7 +178,8 @@ export default function SupportAuditLog() {
       link.setAttribute('download', `audit-log-${new Date().toISOString()}.csv`);
       document.body.appendChild(link);
       link.click();
-      link.parentChild.removeChild(link);
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Failed to export logs:', err);
     }

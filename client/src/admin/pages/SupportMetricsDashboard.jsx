@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import adminApi from '../../lib/adminApi';
+import AdminErrorState from '../lib/AdminErrorState';
 import { MessageSquare, CheckCircle, Clock, TrendingUp, RefreshCw } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -8,6 +9,7 @@ export default function SupportMetricsDashboard() {
   const { businessId } = useParams();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -16,8 +18,10 @@ export default function SupportMetricsDashboard() {
         params: { business_id: businessId },
       });
       setData(res.data);
+      setError(null);
     } catch (err) {
       console.error('Failed to load metrics:', err);
+      setError(err);
     }
     setLoading(false);
   }, [businessId]);
@@ -26,7 +30,27 @@ export default function SupportMetricsDashboard() {
     loadData();
   }, [loadData]);
 
-  if (loading || !data) {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto">
+        <AdminErrorState
+          title="Failed to load metrics"
+          message={error?.response?.data?.error || 'Could not load support metrics.'}
+          onRetry={loadData}
+        />
+      </div>
+    );
+  }
+
+  if (!data) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="animate-spin w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full" />

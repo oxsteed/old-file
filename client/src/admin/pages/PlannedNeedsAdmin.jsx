@@ -20,6 +20,22 @@ function statusBadge(status) {
   }
 }
 
+// Parse a date-only (YYYY-MM-DD) value as local time. `new Date('2026-09-30')`
+// is parsed as UTC midnight, which renders a day early west of UTC.
+function parseLocalDate(value) {
+  if (!value) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value));
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return new Date(value);
+}
+
+function formatCost(value) {
+  if (value == null) return '-';
+  const num = Number(value);
+  if (!Number.isFinite(num)) return '-';
+  return `$${num.toLocaleString()}`;
+}
+
 // ─── Action modal ─────────────────────────────────────────────────────────────
 
 function ActionModal({ item, actionType, onConfirm, onClose, loading }) {
@@ -230,10 +246,10 @@ export default function PlannedNeedsAdmin() {
                     </span>
                   </td>
                   <td className={`${col} text-gray-400`}>
-                    {n.due_date ? new Date(n.due_date).toLocaleDateString() : '-'}
+                    {n.due_date ? parseLocalDate(n.due_date).toLocaleDateString() : '-'}
                   </td>
                   <td className={`${col} text-white`}>
-                    {n.estimated_cost != null ? `$${Number(n.estimated_cost).toLocaleString()}` : '-'}
+                    {formatCost(n.estimated_cost)}
                   </td>
                   <td className={`${col} text-gray-400 capitalize`}>
                     {n.recurrence_type || 'one-time'}

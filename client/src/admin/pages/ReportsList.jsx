@@ -1,5 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { Check } from 'lucide-react';
 import adminApi              from '../../lib/adminApi';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState       from '../lib/AdminErrorState';
 
 const STATUS_TABS = ['pending','reviewed','escalated','dismissed'];
 
@@ -11,29 +14,23 @@ const REASON_COLORS = {
 };
 
 export default function ReportsList() {
-  const [reports, setReports]  = useState([]);
   const [tab,     setTab]      = useState('pending');
-  const [total,   setTotal]    = useState(0);
-  const [loading, setLoading]  = useState(true);
   const [acting,  setActing]   = useState(null);
   const [message, setMessage]  = useState(null);
 
-  const fetchReports = async () => {
-    setLoading(true);
-    try {
-      const { data } = await adminApi.get('/admin/reports', {
-        params: { status: tab }
-      });
-      setReports(data.reports);
-      setTotal(data.total);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Sequence-guarded + abortable: a failed fetch surfaces an error panel
+  // instead of a misleading "queue is clear" empty state.
+  const { data, loading, error, reload } = useAbortableFetch(async (signal) => {
+    const { data: res } = await adminApi.get('/admin/reports', {
+      params: { status: tab },
+      signal,
+    });
+    return { reports: res.reports || [], total: res.total || 0 };
+  }, [tab]);
+  const reports = data?.reports || [];
+  const total = data?.total || 0;
 
-  useEffect(() => { fetchReports(); }, [tab]);
+  const fetchReports = () => reload();
 
   const handleAction = async (reportId, action) => {
     const actionLabel = {
@@ -104,9 +101,15 @@ export default function ReportsList() {
 
       {loading ? (
         <div className="text-center py-16 text-gray-500">Loading...</div>
+      ) : error ? (
+        <AdminErrorState
+          title="Failed to load reports"
+          message={error?.response?.data?.error || 'Could not load the reports queue.'}
+          onRetry={reload}
+        />
       ) : reports.length === 0 ? (
         <div className="text-center py-16">
-          <p className="text-4xl mb-3">✓</p>
+          <Check size={40} className="mx-auto mb-3 text-green-400" />
           <p className="text-gray-400 font-medium">
             No {tab} reports. Queue is clear.
           </p>

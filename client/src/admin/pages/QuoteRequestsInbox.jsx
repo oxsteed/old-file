@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ExternalLink, FileText, Mail, Phone, RefreshCw, Search, User, MessageSquare, CalendarDays, MapPin, Tag } from 'lucide-react';
 import toast from 'react-hot-toast';
 import adminApi from '../../lib/adminApi';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
 
 const STATUS_OPTIONS = [
   { value: 'new', label: 'New' },
@@ -62,27 +63,60 @@ export default function QuoteRequestsInbox() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const [detail, setDetail] = useState(null);
-  const [detailLoading, setDetailLoading] = useState(false);
   const [draft, setDraft] = useState({ status: 'new', admin_notes: '' });
 
   const pageSize = 20;
   const totalPages = Math.max(Math.ceil(total / pageSize), 1);
+
+  // Detail fetch is sequence-guarded + abortable: a slow response for a
+  // previously selected request can never populate the pane (or the editable
+  // notes) with the wrong request's data.
+  const {
+    data: detail,
+    loading: detailLoading,
+    error: detailError,
+    reload: reloadDetail,
+  } = useAbortableFetch(async (signal) => {
+    if (!selectedId) return null;
+    const { data } = await adminApi.get(`/quote-requests/${selectedId}`, { signal });
+    return data;
+  }, [selectedId]);
+
+  // Keep the editable draft in sync with the request the pane is showing.
+  useEffect(() => {
+    if (detail) {
+      setDraft({ status: detail.status || 'new', admin_notes: detail.admin_notes || '' });
+    }
+  }, [detail]);
+
+  // Clear the draft while a newly selected request loads, so the previous
+  // request's notes are never shown as the new request's.
+  useEffect(() => {
+    setDraft({ status: 'new', admin_notes: '' });
+  }, [selectedId]);
+
+  useEffect(() => {
+    if (detailError) {
+      toast.error(detailError?.response?.data?.error || 'Failed to load quote request');
+    }
+  }, [detailError]);
 
   const selectedRequest = useMemo(
     () => detail || requests.find((item) => String(item.id) === String(selectedId)) || null,
     [detail, requests, selectedId]
   );
 
-  const loadRequests = async (nextPage = page) => {
+  const loadRequests = async (nextPage = page, overrides = {}) => {
     setLoading(true);
     try {
+      const effectiveSearch = overrides.search !== undefined ? overrides.search : search.trim();
+      const effectiveStatus = overrides.status !== undefined ? overrides.status : statusFilter;
       const { data } = await adminApi.get('/quote-requests/admin/list', {
         params: {
           page: nextPage,
           limit: pageSize,
-          status: statusFilter || undefined,
-          search: search.trim() || undefined,
+          status: effectiveStatus || undefined,
+          search: effectiveSearch || undefined,
         },
       });
       const nextRequests = data.requests || [];
@@ -91,7 +125,6 @@ export default function QuoteRequestsInbox() {
       setPage(Number(data.page || nextPage));
       if (nextRequests.length === 0) {
         setSelectedId(null);
-        setDetail(null);
       } else if (!selectedId || !nextRequests.some((item) => String(item.id) === String(selectedId))) {
         setSelectedId(nextRequests[0].id);
       }
@@ -102,36 +135,10 @@ export default function QuoteRequestsInbox() {
     }
   };
 
-  const loadDetail = async (id) => {
-    if (!id) return;
-    setDetailLoading(true);
-    try {
-      const { data } = await adminApi.get(`/quote-requests/${id}`);
-      setDetail(data);
-      setDraft({
-        status: data.status || 'new',
-        admin_notes: data.admin_notes || '',
-      });
-    } catch (error) {
-      toast.error(error?.response?.data?.error || 'Failed to load quote request');
-    } finally {
-      setDetailLoading(false);
-    }
-  };
-
   useEffect(() => {
     loadRequests(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
-
-  useEffect(() => {
-    if (selectedId) {
-      loadDetail(selectedId);
-    } else {
-      setDetail(null);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId]);
 
   const handleSearch = (event) => {
     event.preventDefault();
@@ -145,10 +152,11 @@ export default function QuoteRequestsInbox() {
     setSaving(true);
     try {
       const { data } = await adminApi.patch(`/quote-requests/admin/${selectedRequest.id}`, draft);
-      setDetail(data.request);
       setRequests((current) => current.map((item) => (
         String(item.id) === String(selectedRequest.id) ? data.request : item
       )));
+      // Re-fetch the pane so the draft resyncs from the saved request.
+      reloadDetail();
       toast.success('Quote request updated.');
     } catch (error) {
       toast.error(error?.response?.data?.error || 'Failed to update quote request');
@@ -227,7 +235,18 @@ export default function QuoteRequestsInbox() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setSearch(''); setStatusFilter(''); setPage(1); loadRequests(1); }}
+                  onClick={() => {
+                    setSearch('');
+                    setPage(1);
+                    if (statusFilter) {
+                      // The statusFilter effect below fires the list reload.
+                      setStatusFilter('');
+                    } else {
+                      // Filter already clear, so no effect fires: load once with
+                      // the cleared search instead of firing a duplicate request.
+                      loadRequests(1, { search: '' });
+                    }
+                  }}
                   className="rounded-xl border border-gray-800 bg-gray-950/70 px-3 py-2 text-sm text-gray-200 transition hover:border-gray-700 hover:text-white"
                 >
                   Clear
