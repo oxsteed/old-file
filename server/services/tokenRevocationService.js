@@ -31,6 +31,39 @@ class TokenRevocationService {
   }
 
   /**
+   * Revoke an impersonation session by JWT jti.
+   *
+   * Impersonation tokens deliberately skip the standard token blacklist in
+   * the auth middleware (they are short-lived and tracked separately), so
+   * ending a session must record the jti here; the middleware checks it
+   * explicitly for impersonation tokens. TTL matches the 30-minute
+   * impersonation JWT lifetime.
+   */
+  async revokeImpersonationSession(jti) {
+    if (!jti) return;
+    return this.revoke(`impersonation-jti:${jti}`, 30 * 60, 'impersonation');
+  }
+
+  /**
+   * Check whether an impersonation session (JWT jti) was revoked via
+   * endImpersonation. Only the per-jti entry is consulted; user-level
+   * revocation markers do not apply to impersonation tokens.
+   */
+  async isImpersonationSessionRevoked(jti) {
+    if (!jti) return false;
+    const tokenId = `impersonation-jti:${jti}`;
+    try {
+      if (redis) {
+        return !!(await redis.get(`revoked:${tokenId}`));
+      }
+      return tokenBlacklist.has(tokenId);
+    } catch (err) {
+      logger.error('Failed to check impersonation revocation', { error: err.message });
+      return false;
+    }
+  }
+
+  /**
    * Revoke all tokens for a user (e.g., on password change)
    */
   async revokeAllUserTokens(userId) {

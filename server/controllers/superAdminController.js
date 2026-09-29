@@ -914,6 +914,16 @@ exports.updateUserRole = async (req, res) => {
     if (role === 'admin' && !req.isSuper) return res.status(403).json({ error: 'Super Admin required.' });
     const { rows: before } = await db.query('SELECT role FROM users WHERE id = $1', [userId]);
     if (!before.length) return res.status(404).json({ error: 'User not found.' });
+    // Never allow demoting the sole remaining super_admin (fail closed).
+    if (before[0].role === 'super_admin' && role !== 'super_admin') {
+      const { rows: remaining } = await db.query(
+        `SELECT COUNT(*)::int AS n FROM users WHERE role = 'super_admin' AND id <> $1`,
+        [userId]
+      );
+      if (remaining[0].n === 0) {
+        return res.status(400).json({ error: 'Cannot demote the last remaining super_admin.' });
+      }
+    }
     const { rows: updateRows } = await db.query('UPDATE users SET role = $1, updated_at = NOW() WHERE id = $2 AND role = $3 RETURNING id', [role, userId, before[0].role]);
     if (updateRows.length === 0) {
       return res.status(409).json({ error: 'User role changed during update - concurrent modification detected.' });
@@ -1237,6 +1247,7 @@ exports.issueManualRefund = async (req, res) => {
   try {
     const { jobId } = req.params;
     const { reason, amount_cents } = req.body;
+    const adminId = req.user.id;
     if (!reason) return res.status(400).json({ error: 'Refund reason required.' });
 
     const refundAmountCents = amount_cents == null ? null : Number(amount_cents);
@@ -1245,7 +1256,7 @@ exports.issueManualRefund = async (req, res) => {
     }
 
     const { rows } = await db.query(
-      `SELECT id, stripe_payment_intent_id
+      `SELECT id, amount, stripe_payment_intent_id
        FROM payments
        WHERE job_id = $1
          AND stripe_payment_intent_id IS NOT NULL
@@ -1259,8 +1270,29 @@ exports.issueManualRefund = async (req, res) => {
     }
 
     const payment = rows[0];
+    // Server-side guard: never refund more than was captured.
+    const capturedCents = Math.round(Number(payment.amount) * 100);
+    if (!Number.isInteger(capturedCents) || capturedCents <= 0) {
+      return res.status(409).json({ error: 'Payment has no captured amount to refund against.' });
+    }
+    if (refundAmountCents != null && refundAmountCents > capturedCents) {
+      return res.status(400).json({ error: 'Refund amount cannot exceed the captured amount.' });
+    }
+
     const idempotencyKey = `admin-job-refund-${jobId}-${payment.id}-${refundAmountCents || 'full'}`;
     const refund = await issueRefund(payment.stripe_payment_intent_id, refundAmountCents, idempotencyKey);
+    try {
+      await logAdminAction({
+        adminId,
+        action: 'manual_refund_issued',
+        targetType: 'payment',
+        targetId: String(payment.id),
+        description: `Manual refund issued for job ${jobId}: ${reason}`,
+        before: { captured_cents: capturedCents },
+        after: { refund_cents: refundAmountCents == null ? capturedCents : refundAmountCents, stripe_refund_id: refund.id },
+        req,
+      });
+    } catch (e) {}
     res.json({ message: `Refund issued successfully.`, refundId: refund.id });
   } catch (err) { logger.error('issueManualRefund error', { err }); res.status(500).json({ error: 'Refund failed.' }); }
 };
@@ -1316,6 +1348,76 @@ exports.getPayouts = async (req, res) => {
   } catch (err) {
     logger.error('getPayouts error', { err });
     res.status(500).json({ error: 'Failed to fetch payouts.' });
+  }
+};
+
+/**
+ * POST /admin/super/payouts/:id/retry
+ * Requeues a failed helper payout for processing (resets it to pending so
+ * the payout pipeline picks it up again). Super-admin only: no
+ * payouts-write grant exists in the permission catalogue, so fail closed.
+ * Idempotent: a payout that is already released is a no-op; concurrent
+ * retries race safely on the conditional UPDATE.
+ */
+exports.retryPayout = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const adminId = req.user.id;
+
+    const { rows } = await db.query(
+      `SELECT id, job_id, helper_payout, status, failure_reason
+       FROM payments
+       WHERE id = $1 AND helper_payout > 0`,
+      [id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Payout not found.' });
+
+    const payout = rows[0];
+    if (payout.status === 'released') {
+      return res.json({
+        retried: false,
+        reason: 'Payout already completed.',
+        payout: { id: payout.id, status: payout.status },
+      });
+    }
+    if (payout.status !== 'failed') {
+      return res.status(409).json({ error: 'Only failed payouts can be retried.' });
+    }
+
+    const { rows: updated } = await db.query(
+      `UPDATE payments
+       SET status = 'pending', failure_reason = NULL, updated_at = NOW()
+       WHERE id = $1 AND status = 'failed'
+       RETURNING id, status`,
+      [id]
+    );
+    if (!updated.length) {
+      // Lost a race with another retry; re-read for an accurate answer.
+      const { rows: reread } = await db.query('SELECT id, status FROM payments WHERE id = $1', [id]);
+      return res.json({
+        retried: false,
+        reason: 'Payout is no longer in a failed state.',
+        payout: reread[0] || null,
+      });
+    }
+
+    try {
+      await logAdminAction({
+        adminId,
+        action: 'payout_retry_queued',
+        targetType: 'payment',
+        targetId: String(payout.id),
+        description: `Requeued failed payout ${payout.id} (helper_payout ${payout.helper_payout})`,
+        before: { status: 'failed', failure_reason: payout.failure_reason },
+        after: { status: 'pending' },
+        req,
+      });
+    } catch (e) {}
+
+    res.json({ retried: true, payout: updated[0] });
+  } catch (err) {
+    logger.error('retryPayout error', { err });
+    res.status(500).json({ error: 'Failed to retry payout.' });
   }
 };
 
@@ -2001,10 +2103,24 @@ exports.updateSetting = async (req, res) => {
     const { key } = req.params;
     const { value } = req.body;
     const adminId = req.user.id;
-    const { rows: updateRows } = await db.query('UPDATE platform_settings SET value = $1, updated_by = $2, updated_at = now() WHERE key = $3 RETURNING key', [String(value), adminId, key]);
-    if (updateRows.length === 0) {
+    const { rows: before } = await db.query('SELECT value FROM platform_settings WHERE key = $1', [key]);
+    if (before.length === 0) {
       return res.status(404).json({ error: `Setting "${key}" not found.` });
     }
+    const newValue = String(value);
+    await db.query('UPDATE platform_settings SET value = $1, updated_by = $2, updated_at = now() WHERE key = $3', [newValue, adminId, key]);
+    try {
+      await logAdminAction({
+        adminId,
+        action: 'platform_setting_updated',
+        targetType: 'platform_setting',
+        targetId: key,
+        description: `Setting "${key}" updated`,
+        before: { value: before[0].value },
+        after: { value: newValue },
+        req,
+      });
+    } catch (e) {}
     res.json({ message: `Setting "${key}" updated.` });
   } catch (err) { logger.error('updateSetting error', { err }); res.status(500).json({ error: 'Failed to update setting.' }); }
 };
@@ -2014,11 +2130,25 @@ exports.updateFeatureFlag = async (req, res) => {
     const { key } = req.params;
     const { enabled } = req.body;
     const adminId = req.user.id;
-    const { rows: updateRows } = await db.query('UPDATE feature_flags SET is_enabled = $1, updated_by = $2, updated_at = now() WHERE key = $3 RETURNING key', [Boolean(enabled), adminId, key]);
-    if (updateRows.length === 0) {
+    const { rows: before } = await db.query('SELECT is_enabled FROM feature_flags WHERE key = $1', [key]);
+    if (before.length === 0) {
       return res.status(404).json({ error: `Feature flag "${key}" not found.` });
     }
-    res.json({ message: `Feature flag "${key}" set to ${enabled}.` });
+    const newEnabled = Boolean(enabled);
+    await db.query('UPDATE feature_flags SET is_enabled = $1, updated_by = $2, updated_at = now() WHERE key = $3', [newEnabled, adminId, key]);
+    try {
+      await logAdminAction({
+        adminId,
+        action: 'feature_flag_updated',
+        targetType: 'feature_flag',
+        targetId: key,
+        description: `Feature flag "${key}" set to ${newEnabled}`,
+        before: { is_enabled: before[0].is_enabled },
+        after: { is_enabled: newEnabled },
+        req,
+      });
+    } catch (e) {}
+    res.json({ message: `Feature flag "${key}" set to ${newEnabled}.` });
   } catch (err) { logger.error('updateFeatureFlag error', { err }); res.status(500).json({ error: 'Failed to update feature flag.' }); }
 };
 
@@ -2303,7 +2433,7 @@ exports.deleteUser = async (req, res) => {
       userMessage = 'A conflict occurred while updating the account status.';
       detail = 'Concurrent modification detected. Reload the page and try again.';
     } else if (pgCode === '42703') {
-      userMessage = 'Database schema mismatch — a required column does not exist.';
+      userMessage = 'Database schema mismatch: a required column does not exist.';
       detail = `Column: ${err.message}. A migration has not been applied. Redeploy and retry.`;
     } else if (pgCode === '42P01') {
       userMessage = 'A required database table does not exist.';
@@ -2397,7 +2527,7 @@ exports.restoreUser = async (req, res) => {
     let userMessage = 'Failed to restore user account.';
     let detail = null;
     if (pgCode === '42703') {
-      userMessage = 'Database schema mismatch — a required column does not exist.';
+      userMessage = 'Database schema mismatch: a required column does not exist.';
       detail = 'Migration 165 has not been applied. Redeploy and retry.';
     } else if (pgCode === '23505') {
       userMessage = 'A conflict occurred while restoring the account.';
@@ -2977,6 +3107,15 @@ exports.endImpersonation = async (req, res) => {
       [jti]
     );
 
+    // Revoke the JWT itself: impersonation tokens skip the standard token
+    // blacklist in the auth middleware, so record the jti in the revocation
+    // store. Audit/logging failures here must not resurrect the session.
+    try {
+      await tokenRevocationService.revokeImpersonationSession(jti);
+    } catch (revokeErr) {
+      logger.warn('endImpersonation: failed to revoke impersonation jti', { jti, error: revokeErr.message });
+    }
+
     res.json({ message: 'Impersonation session ended.' });
   } catch (err) {
     logger.error('endImpersonation error', { err });
@@ -3228,8 +3367,11 @@ exports.suspendUser = async (req, res) => {
     const { reason = '', days = 0 } = req.body;
     if (!reason.trim()) return res.status(400).json({ error: 'Suspension reason is required.' });
 
-    const { rows: existing } = await db.query('SELECT id, email, first_name FROM users WHERE id = $1', [userId]);
+    const { rows: existing } = await db.query('SELECT id, email, first_name, role FROM users WHERE id = $1', [userId]);
     if (!existing.length) return res.status(404).json({ error: 'User not found.' });
+    if (['admin', 'super_admin'].includes(existing[0].role)) {
+      return res.status(403).json({ error: 'Cannot suspend admin accounts.' });
+    }
 
     const suspendedUntil = days > 0 ? new Date(Date.now() + days * 86400000) : null;
 

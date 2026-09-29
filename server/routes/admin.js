@@ -189,6 +189,9 @@ router.get('/super/access-gate/attempts',           requireSuperAdmin, logistics
 // Financials - super-admin direct, or admin with view_financials grant
 router.get('/financials',            requireAdmin, requirePermission('view_financials'), superCtrl.getFinancials);
 router.get('/payouts',               requireAdmin, requirePermission('view_financials'), superCtrl.getPayouts);
+// Failed-payout retry: super-admin only (no payouts-write grant exists in the
+// permission catalogue). Requeues the payout; idempotent on completed payouts.
+router.post('/super/payouts/:id/retry', requireSuperAdmin, superCtrl.retryPayout);
 router.get('/super/money',           requireAdmin, requirePermission('view_financials'), superCtrl.getMoneyOverview);
 router.get('/super/revenue',         requireAdmin, requirePermission('view_financials'), superCtrl.getRevenueSummary);
 router.get('/super/revenue/export',  requireAdmin, requirePermission('view_financials'), superCtrl.getRevenueExport);

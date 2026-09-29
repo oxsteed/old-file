@@ -70,10 +70,16 @@ async function authenticate(req, res, next) {
       return res.status(401).json({ error: 'Refresh token cannot be used for API access' });
     }
 
-    // Impersonation tokens: skip standard revocation check (they are short-lived
-    // and tracked separately in user_impersonation_log). Flag the request so
-    // downstream handlers can audit impersonated actions.
+    // Impersonation tokens: skip the standard revocation check (they are
+    // short-lived and tracked separately in user_impersonation_log), but
+    // honor explicit session termination via endImpersonation, which records
+    // the jti in the revocation store. Flag the request so downstream
+    // handlers can audit impersonated actions.
     if (decoded.impersonation) {
+      const sessionRevoked = await tokenRevocationService.isImpersonationSessionRevoked(decoded.jti);
+      if (sessionRevoked) {
+        return res.status(401).json({ error: 'Impersonation session has ended' });
+      }
       req.isImpersonated   = true;
       req.impersonatedBy   = decoded.impersonated_by;
       req.impersonationJti = decoded.jti;
@@ -250,7 +256,10 @@ const optionalAuth = async (req, res, next) => {
     const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
     if (decoded.isMfaToken || decoded.type === 'refresh') return next();
 
-    if (!decoded.impersonation) {
+    if (decoded.impersonation) {
+      // Ended impersonation sessions must not authenticate, even optionally.
+      if (await tokenRevocationService.isImpersonationSessionRevoked(decoded.jti)) return next();
+    } else {
       const tokenId = crypto.createHash('sha256').update(token).digest('hex');
       const isRevoked = await tokenRevocationService.isRevoked(tokenId, decoded.id, decoded.iat);
       if (isRevoked) return next();
