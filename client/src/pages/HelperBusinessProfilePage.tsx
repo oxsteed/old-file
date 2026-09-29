@@ -322,6 +322,7 @@ const HelperBusinessProfilePage: React.FC = () => {
       <BusinessHeader
         helperId={id}
         helper={helper}
+        onBookNow={handleBookNow}
         onPostJobPublic={handlePostJobPublic}
         onToggleSaved={handleToggleSavedHelper}
         isSaved={!!savedHelperId}

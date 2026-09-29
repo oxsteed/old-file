@@ -996,6 +996,7 @@ export default function BusinessProfilePage() {
       <BusinessHeader
         helperId={helper.id}
         helper={helper}
+        onBookNow={handleBookNow}
         onPostJobPublic={handlePostJobPublic}
         shareUrl={`${getPublicSiteUrl()}/businesses/public/${id}`}
         shareTitle={helper.businessName}

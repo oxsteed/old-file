@@ -17,6 +17,8 @@ interface BusinessHeaderProps {
   /** Helper user UUID — public profile QR image */
   helperId?: string;
   helper: HelperProfile;
+  /** Desktop-only hero Book Now (mobile uses the sticky bottom bar) */
+  onBookNow: () => void;
   /** Broad job post (optional second CTA) */
   onPostJobPublic?: () => void;
   onToggleSaved?: () => void;
@@ -51,6 +53,7 @@ const badgeColorMap: Record<Badge['variant'], string> = {
 const BusinessHeader: React.FC<BusinessHeaderProps> = ({
   helperId,
   helper,
+  onBookNow,
   onPostJobPublic,
   onToggleSaved,
   isSaved = false,
@@ -124,9 +127,18 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
     'flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors';
   const btnSecondary =
     `${btnBase} border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800`;
+  const btnPrimary =
+    `${btnBase} px-5 bg-brand-500 hover:bg-brand-600 text-white font-semibold shadow-lg shadow-brand-500/20`;
 
   const actions = (
     <div className="pph-actions">
+      <button
+        type="button"
+        onClick={onBookNow}
+        className={`${btnPrimary} hidden lg:inline-flex`}
+      >
+        {t('helperProfile.header.bookNow')}
+      </button>
       {onPostJobPublic && (
         <button
           type="button"
