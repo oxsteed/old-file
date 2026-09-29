@@ -1,6 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
+import { useTranslation } from 'react-i18next';
+import { useAbortableFetch } from '../../lib/useAbortableFetch';
+import ConfirmDialog from '../../lib/ConfirmDialog';
 
 // Format helper
 const fmt = (row) => {
@@ -13,12 +16,27 @@ const fmt = (row) => {
   return row.value;
 };
 
+// Convert a user-entered value into the stored unit for this row.
+const inputToStored = (row, parsed) => {
+  if (row.value_type === 'percentage') return parsed / 100;
+  if (row.value_type === 'cents') return Math.round(parsed * 100);
+  return parsed;
+};
+
+// Convert a stored value back into the unit the user types.
+const storedToInput = (row, stored) => {
+  if (row.value_type === 'percentage') return stored * 100;
+  if (row.value_type === 'cents') return stored / 100;
+  return stored;
+};
+
 // Fee row component
 function FeeRow({ row, onSave }) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [rawInput, setRawInput] = useState('');
   const [reason, setReason] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   const openEdit = () => {
     if (row.value_type === 'percentage') {
@@ -32,27 +50,37 @@ function FeeRow({ row, onSave }) {
     setEditing(true);
   };
 
-  const handleSave = async () => {
-    setSaving(true);
+  const handleSave = () => {
+    const trimmed = rawInput.trim();
+    const parsed = parseFloat(trimmed);
+    if (!trimmed || Number.isNaN(parsed)) {
+      toast.error('Enter a valid number.');
+      return;
+    }
+    const sendValue = inputToStored(row, parsed);
+    if ((row.min_value != null && sendValue < row.min_value)
+      || (row.max_value != null && sendValue > row.max_value)) {
+      toast.error(`Value must be between ${storedToInput(row, row.min_value)} and ${storedToInput(row, row.max_value)}.`);
+      return;
+    }
+    setConfirming(true);
+  };
+
+  const doSave = async () => {
+    const sendValue = inputToStored(row, parseFloat(rawInput.trim()));
     try {
-      let sendValue = parseFloat(rawInput);
-      if (row.value_type === 'percentage') {
-        sendValue = sendValue / 100;
-      } else if (row.value_type === 'cents') {
-        sendValue = Math.round(sendValue * 100);
-      }
       await api.put('/fee-config', {
         key: row.key,
         value: sendValue,
         reason: reason || undefined,
       });
-      setEditing(false);
-      onSave();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Update failed');
-    } finally {
-      setSaving(false);
+      toast.error(err.response?.data?.error || t('superFeeConfig.updateFailed'));
+      throw err; // keep the dialog open on failure
     }
+    setEditing(false);
+    setConfirming(false);
+    onSave();
   };
 
   return (
@@ -72,15 +100,14 @@ function FeeRow({ row, onSave }) {
               className="text-xs bg-orange-500 hover:bg-orange-600
                 text-white font-semibold px-3 py-1.5
                 rounded-lg transition-colors ml-3">
-              Edit
+              {t('superFeeConfig.edit')}
             </button>
           )}
         </div>
       </div>
       {row.updated_by_name && (
         <p className="text-xs text-gray-300 mt-2">
-          Last updated by {row.updated_by_name} on{' '}
-          {new Date(row.updated_at).toLocaleDateString()}
+          {t('superFeeConfig.lastUpdated', { name: row.updated_by_name, date: new Date(row.updated_at).toLocaleDateString() })}
         </p>
       )}
       {editing && (
@@ -88,9 +115,9 @@ function FeeRow({ row, onSave }) {
           <div className="flex items-center gap-3">
             <div className="flex-1">
               <label className="text-xs font-medium text-gray-600 mb-1 block">
-                New value
-                {row.value_type === 'percentage' && ' (enter as %)'}
-                {row.value_type === 'cents' && ' (enter as $)'}
+                {t('superFeeConfig.newValue')}
+                {row.value_type === 'percentage' && ` ${t('superFeeConfig.enterAsPct')}`}
+                {row.value_type === 'cents' && ` ${t('superFeeConfig.enterAsDollars')}`}
               </label>
               <input
                 type="number"
@@ -104,13 +131,13 @@ function FeeRow({ row, onSave }) {
             </div>
             <div className="flex-1">
               <label className="text-xs font-medium text-gray-600 mb-1 block">
-                Reason (optional)
+                {t('superFeeConfig.reasonOptional')}
               </label>
               <input
                 type="text"
                 value={reason}
                 onChange={e => setReason(e.target.value)}
-                placeholder="Why this change?"
+                placeholder={t('superFeeConfig.whyPlaceholder')}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2
                   text-sm focus:outline-none focus:ring-2
                   focus:ring-orange-300"
@@ -120,28 +147,36 @@ function FeeRow({ row, onSave }) {
           <div className="flex gap-2">
             <button
               onClick={handleSave}
-              disabled={saving}
               className="bg-orange-500 hover:bg-orange-600 text-white
                 font-semibold px-4 py-2 rounded-lg text-sm
                 transition-colors disabled:opacity-50">
-              {saving ? 'Saving...' : 'Save'}
+              {t('superPlatformSettings.save')}
             </button>
             <button
               onClick={() => setEditing(false)}
               className="bg-gray-100 hover:bg-gray-200 text-gray-700
                 font-semibold px-4 py-2 rounded-lg text-sm
                 transition-colors">
-              Cancel
+              {t('superConversations.cancel')}
             </button>
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={confirming}
+        title="Save fee change"
+        message={`Save this fee change for ${row.label}? This takes effect immediately.`}
+        confirmLabel={t('superPlatformSettings.save')}
+        onConfirm={doSave}
+        onClose={() => setConfirming(false)}
+      />
     </div>
   );
 }
 
 // Change History component
 function ChangeHistory({ history }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const visible = expanded ? history : history.slice(0, 5);
   if (!history.length) return null;
@@ -150,10 +185,12 @@ function ChangeHistory({ history }) {
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
       <button
         onClick={() => setExpanded(e => !e)}
+        aria-expanded={expanded}
+        aria-controls="fee-config-history"
         className="w-full flex items-center justify-between px-5 py-4
           hover:bg-gray-50 transition-colors">
         <div className="flex items-center gap-2">
-          <h2 className="font-semibold text-gray-800">Change History</h2>
+          <h2 className="font-semibold text-gray-800">{t('superFeeConfig.historyTitle')}</h2>
           <span className="text-xs bg-gray-100 text-gray-500
             px-2 py-0.5 rounded-full">
             {history.length}
@@ -161,16 +198,16 @@ function ChangeHistory({ history }) {
         </div>
         <span className="text-gray-400">{expanded ? '▲' : '▼'}</span>
       </button>
-      <div className="px-5 pb-4">
+      <div className="px-5 pb-4" id="fee-config-history">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-gray-500 border-b">
-              <th className="pb-2">Setting</th>
-              <th className="pb-2">Old</th>
-              <th className="pb-2">New</th>
-              <th className="pb-2">Changed By</th>
-              <th className="pb-2">Reason</th>
-              <th className="pb-2">Date</th>
+              <th className="pb-2">{t('superFeeConfig.colSetting')}</th>
+              <th className="pb-2">{t('superFeeConfig.colOld')}</th>
+              <th className="pb-2">{t('superFeeConfig.colNew')}</th>
+              <th className="pb-2">{t('superFeeConfig.colChangedBy')}</th>
+              <th className="pb-2">{t('superFeeConfig.colReason')}</th>
+              <th className="pb-2">{t('superFeeConfig.colDate')}</th>
             </tr>
           </thead>
           <tbody>
@@ -179,7 +216,7 @@ function ChangeHistory({ history }) {
                 <td className="py-2 font-medium">{h.config_key}</td>
                 <td className="py-2 text-red-500">{h.old_value}</td>
                 <td className="py-2 text-green-600">{h.new_value}</td>
-                <td className="py-2">{h.changed_by_name || 'System'}</td>
+                <td className="py-2">{h.changed_by_name || t('superAuditLog.systemActor')}</td>
                 <td className="py-2 text-gray-400">{h.reason || '-'}</td>
                 <td className="py-2 text-gray-400">
                   {new Date(h.created_at).toLocaleDateString()}
@@ -195,53 +232,55 @@ function ChangeHistory({ history }) {
 
 // Main FeeConfig page
 export default function FeeConfig() {
+  const { t } = useTranslation();
   const [config, setConfig] = useState([]);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [resetting, setResetting] = useState(false);
   const [resetReason, setResetReason] = useState('');
   const [showReset, setShowReset] = useState(false);
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
 
-  const load = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const [cfgRes, histRes] = await Promise.all([
-        api.get('/fee-config'),
-        api.get('/fee-config/history'),
-      ]);
-      setConfig(cfgRes.data.config || []);
-      setHistory(histRes.data.history || []);
-    } catch (err) {
-      setConfig([]);
-      setHistory([]);
-      setError(err.response?.data?.error || 'Failed to load fee configuration.');
-    } finally {
-      setLoading(false);
-    }
+  const { data, loading, error: fetchError, reload } = useAbortableFetch(async (signal) => {
+    const [cfgRes, histRes] = await Promise.all([
+      api.get('/fee-config', { signal }),
+      api.get('/fee-config/history', { signal }),
+    ]);
+    return {
+      config: cfgRes.data.config || [],
+      history: histRes.data.history || [],
+    };
+  }, []);
+  const config = data?.config || [];
+  const history = data?.history || [];
+
+  const loadError = !loading && fetchError
+    ? (fetchError.response?.data?.error || t('superFeeConfig.errorLoad'))
+    : '';
+
+  const retryLoad = () => {
+    setActionError('');
+    reload();
   };
-
-  useEffect(() => { load(); }, []);
 
   const handleReset = async () => {
     setResetting(true);
-    setError('');
+    setActionError('');
     try {
       await api.post('/fee-config/reset', {
-        reason: resetReason || 'Manual reset to defaults',
+        reason: resetReason || t('superFeeConfig.defaultResetReason'),
       });
       setShowReset(false);
       setResetReason('');
-      load();
+      reload();
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to reset fee configuration.');
+      setActionError(err.response?.data?.error || t('superFeeConfig.errorReset'));
     } finally {
       setResetting(false);
     }
   };
 
-  const trialDurationConfig = config.find(r => r.key === 'trial_duration_days');
+  const error = actionError || loadError;
   const transactionFees = config.filter(r =>
     r.key.startsWith('tier3_') && !r.key.includes('subscription'));
   const subscriptionFees = config.filter(r =>
@@ -259,11 +298,10 @@ export default function FeeConfig() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            Price Management
+            {t('superFeeConfig.title')}
           </h1>
           <p className="text-sm text-gray-400 mt-1">
-            All fee changes take effect immediately for new transactions.
-            Every change is logged with a full audit trail.
+            {t('superFeeConfig.subtitle')}
           </p>
         </div>
         <button
@@ -272,15 +310,15 @@ export default function FeeConfig() {
             text-gray-500 hover:text-red-600 px-3 py-2
             border border-gray-200 hover:border-red-200
             rounded-lg transition-colors">
-          Reset to Defaults
+          {t('superFeeConfig.resetToDefaults')}
         </button>
       </div>
 
       {error && (
         <div className="flex items-center justify-between gap-3 mb-6 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
           <span>{error}</span>
-          <button onClick={load} className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold">
-            Retry
+          <button onClick={retryLoad} className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold">
+            {t('superFinancials.retry')}
           </button>
         </div>
       )}
@@ -290,12 +328,10 @@ export default function FeeConfig() {
           <div className="flex items-start gap-2 mb-3">
             <div>
               <p className="text-sm font-semibold text-red-700">
-                Reset all fees to default values?
+                {t('superFeeConfig.resetTitle')}
               </p>
               <p className="text-xs text-red-500 mt-0.5">
-                This will restore: 10% platform fee, 2% protection fee,
-                5% broker cut, $5 minimum, $29 Pro, $79 Broker.
-                All changes are logged.
+                {t('superFeeConfig.resetBody', { platform: 10, protection: 2, broker: 5, minimum: 5, pro: 29, brokerSub: 79 })}
               </p>
             </div>
           </div>
@@ -303,7 +339,7 @@ export default function FeeConfig() {
             type="text"
             value={resetReason}
             onChange={e => setResetReason(e.target.value)}
-            placeholder="Reason for reset..."
+            placeholder={t('superFeeConfig.resetReasonPlaceholder')}
             className="w-full border border-red-200 rounded-lg px-3 py-2
               text-sm mb-3 focus:outline-none focus:ring-2
               focus:ring-red-300"
@@ -315,14 +351,14 @@ export default function FeeConfig() {
               className="bg-red-500 hover:bg-red-600 text-white
                 font-semibold px-4 py-2 rounded-lg text-sm
                 transition-colors disabled:opacity-50">
-              {resetting ? 'Resetting...' : 'Confirm Reset'}
+              {resetting ? t('superFeeConfig.resetting') : t('superFeeConfig.confirmReset')}
             </button>
             <button
               onClick={() => setShowReset(false)}
               className="bg-gray-100 hover:bg-gray-200 text-gray-700
                 font-semibold px-4 py-2 rounded-lg text-sm
                 transition-colors">
-              Cancel
+              {t('superConversations.cancel')}
             </button>
           </div>
         </div>
@@ -333,32 +369,31 @@ export default function FeeConfig() {
           <div className="flex items-start justify-between">
             <div>
               <h2 className="text-lg font-semibold text-blue-900 mb-2">
-                Trial Duration Configuration
+                {t('superFeeConfig.trialTitle')}
               </h2>
               <p className="text-sm text-blue-700 mb-3">
-                New users get a <strong>{Math.floor(trialDurationConfig.value)}-day trial</strong> with pro tier access
-                before reverting to the free tier. Adjust this to affect all new signups.
+                {t('superFeeConfig.trialBody', { days: Math.floor(trialDurationConfig.value) })}
               </p>
               <p className="text-xs text-blue-600">
-                Min: {trialDurationConfig.min_value} days | Max: {trialDurationConfig.max_value} days
+                {t('superFeeConfig.trialRange', { min: trialDurationConfig.min_value, max: trialDurationConfig.max_value })}
               </p>
             </div>
           </div>
           <div className="mt-4 border-t border-blue-200 pt-4">
-            <FeeRow row={trialDurationConfig} onSave={load} />
+            <FeeRow row={trialDurationConfig} onSave={reload} />
           </div>
         </div>
       )}
 
       <h2 className="text-lg font-semibold text-gray-800 mb-3">
-        Transaction Fees
+        {t('superFeeConfig.transactionFees')}
       </h2>
       {transactionFees.map(row => (
-        <FeeRow key={row.key} row={row} onSave={load} />
+        <FeeRow key={row.key} row={row} onSave={reload} />
       ))}
 
       <h2 className="text-lg font-semibold text-gray-800 mb-3 mt-8">
-        Subscription Prices
+        {t('superFeeConfig.subscriptionPrices')}
       </h2>
       {subscriptionFees.map(row => (
         <FeeRow key={row.key} row={row} onSave={load} />

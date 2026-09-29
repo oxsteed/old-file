@@ -7,11 +7,15 @@
 //   GET   /api/admin/mode-policies
 //   PATCH /api/admin/mode-policies/:mode
 
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
 import { Loader2, Save, ToggleLeft, ToggleRight, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
+import api from '../../../api/axios';
+import { useAbortableFetch } from '../../lib/useAbortableFetch';
+import AdminErrorState from '../../lib/AdminErrorState';
+import ConfirmDialog from '../../lib/ConfirmDialog';
 import {
-  adminListPolicies,
   adminUpdatePolicy,
 } from '../../../api/modePlatformApprovals';
 
@@ -19,6 +23,7 @@ function ToggleRow({ label, checked, onChange, hint, disabled }) {
   return (
     <button
       type="button"
+      aria-pressed={checked}
       onClick={() => !disabled && onChange(!checked)}
       disabled={disabled}
       className="w-full flex items-start gap-3 p-3 rounded-lg border border-gray-800 hover:border-gray-700 transition text-left"
@@ -35,24 +40,29 @@ function ToggleRow({ label, checked, onChange, hint, disabled }) {
 }
 
 function PolicyCard({ policy, onChange }) {
+  const { t } = useTranslation();
   const [requiresApproval, setRequiresApproval] = useState(policy.requires_approval);
   const [autoApprove, setAutoApprove] = useState(policy.auto_approve);
   const [gatedActions, setGatedActions] = useState((policy.gated_actions || []).join(', '));
   const [schemaText, setSchemaText] = useState(JSON.stringify(policy.application_schema || {}, null, 2));
   const [saving, setSaving] = useState(false);
   const [schemaError, setSchemaError] = useState(null);
+  const [confirmGateOff, setConfirmGateOff] = useState(false);
 
   const dirty = requiresApproval !== policy.requires_approval
     || autoApprove !== policy.auto_approve
     || gatedActions !== (policy.gated_actions || []).join(', ')
     || schemaText !== JSON.stringify(policy.application_schema || {}, null, 2);
 
-  const handleSave = async () => {
+  // Turning the approval gate OFF is a safety downgrade: require confirmation.
+  const turningGateOff = policy.requires_approval && !requiresApproval;
+
+  const doSave = async () => {
     let parsedSchema;
     try {
       parsedSchema = JSON.parse(schemaText);
     } catch (e) {
-      setSchemaError('Invalid JSON');
+      setSchemaError(t('superModePolicies.invalidJson'));
       return;
     }
     setSchemaError(null);
@@ -64,12 +74,25 @@ function PolicyCard({ policy, onChange }) {
         gated_actions: gatedActions.split(',').map(s => s.trim()).filter(Boolean),
         application_schema: parsedSchema,
       });
-      toast.success(`Policy for ${policy.mode} saved`);
+      toast.success(t('superModePolicies.savedToast', { mode: policy.mode }));
       onChange?.(res.policy);
     } catch (err) {
-      toast.error(err?.response?.data?.error || 'Failed to save');
+      throw new Error(err?.response?.data?.error || t('superPricingConfig.errorSave'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSave = () => {
+    if (turningGateOff) { setConfirmGateOff(true); return; }
+    doSave().catch((err) => toast.error(err.message));
+  };
+
+  const confirmGateOffSave = async () => {
+    try {
+      await doSave();
+    } catch (err) {
+      throw err; // keep dialog open on failure
     }
   };
 
@@ -82,7 +105,7 @@ function PolicyCard({ policy, onChange }) {
             {policy.mode}
           </h3>
           <div className="text-xs text-gray-400 mt-0.5">
-            Updated {policy.updated_at ? new Date(policy.updated_at).toLocaleString() : '—'}
+            {t('superModePolicies.updated', { date: policy.updated_at ? new Date(policy.updated_at).toLocaleString() : '—' })}
           </div>
         </div>
         <button
@@ -92,28 +115,28 @@ function PolicyCard({ policy, onChange }) {
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold disabled:opacity-50"
         >
           {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-          {dirty ? 'Save changes' : 'Saved'}
+          {dirty ? t('superModePolicies.saveChanges') : t('superModePolicies.saved')}
         </button>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <ToggleRow
-          label="Requires approval"
+          label={t('superModePolicies.requiresApproval')}
           checked={requiresApproval}
           onChange={setRequiresApproval}
-          hint="When ON, gated actions inside this mode are blocked until OxSteed approves the user."
+          hint={t('superModePolicies.requiresApprovalHint')}
         />
         <ToggleRow
-          label="Auto-approve"
+          label={t('superModePolicies.autoApprove')}
           checked={autoApprove}
           onChange={setAutoApprove}
-          hint="When ON, valid submissions skip the queue and approve immediately."
+          hint={t('superModePolicies.autoApproveHint')}
           disabled={!requiresApproval}
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Gated actions (comma-separated)</label>
+        <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{t('superModePolicies.gatedLabel')}</label>
         <input
           type="text"
           value={gatedActions}
@@ -121,11 +144,11 @@ function PolicyCard({ policy, onChange }) {
           placeholder="e.g. accept_paying_booking, publish_listing"
           className="w-full py-2 px-3 bg-gray-800/50 border border-gray-700 rounded-md text-white text-sm placeholder-gray-500 focus:outline-none focus:border-orange-500"
         />
-        <p className="text-[11px] text-gray-500">App code passes one of these action codes to <code className="px-1 bg-gray-800 rounded">requirePlatformApproval(mode, action)</code>.</p>
+        <p className="text-[11px] text-gray-500">{t('superModePolicies.gatedHint')}</p>
       </div>
 
       <div className="flex flex-col gap-1">
-        <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Application schema (JSON)</label>
+        <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{t('superModePolicies.schemaLabel')}</label>
         <textarea
           value={schemaText}
           onChange={(e) => { setSchemaText(e.target.value); setSchemaError(null); }}
@@ -137,38 +160,39 @@ function PolicyCard({ policy, onChange }) {
           Shape: <code className="px-1 bg-gray-800 rounded">{'{ "fields": [{ "name", "type", "label", "required", "hint?", "minLength?", "maxLength?", "min?", "max?" }] }'}</code>
         </p>
       </div>
+
+      <ConfirmDialog
+        open={confirmGateOff}
+        title={t('superModePolicies.confirmGateOffTitle')}
+        message={t('superModePolicies.confirmGateOffMsg', { mode: policy.mode })}
+        danger
+        confirmLabel={t('superModePolicies.confirmGateOffLabel')}
+        onConfirm={confirmGateOffSave}
+        onClose={() => setConfirmGateOff(false)}
+      />
     </section>
   );
 }
 
 export default function ModePolicies() {
-  const [policies, setPolicies] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { t } = useTranslation();
 
-  const reload = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await adminListPolicies();
-      setPolicies(res.policies || []);
-    } catch (err) {
-      toast.error('Failed to load policies');
-    } finally {
-      setLoading(false);
-    }
+  const { data, loading, error, reload } = useAbortableFetch(async (signal) => {
+    const res = await api.get('/admin/mode-policies', { signal });
+    return res.data.policies || [];
   }, []);
-
-  useEffect(() => { reload(); }, [reload]);
+  const policies = data || [];
 
   const handlePolicyChange = (updated) => {
-    setPolicies(prev => prev.map(p => p.mode === updated.mode ? updated : p));
+    reload();
   };
 
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold tracking-tight text-white">Mode platform-approval policies</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-white">{t('superModePolicies.title')}</h1>
         <p className="text-sm text-gray-400 mt-1">
-          Configure which modes require OxSteed approval before users can perform gated actions. Toggle auto-approve to skip manual review.
+          {t('superModePolicies.subtitle')}
         </p>
       </header>
 
@@ -176,6 +200,8 @@ export default function ModePolicies() {
         <div className="flex items-center justify-center py-16">
           <Loader2 size={24} className="animate-spin text-orange-500" />
         </div>
+      ) : error ? (
+        <AdminErrorState onRetry={reload} />
       ) : (
         <div className="grid grid-cols-1 gap-4">
           {policies.map(p => (

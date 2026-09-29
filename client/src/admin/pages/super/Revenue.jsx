@@ -1,34 +1,27 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
 import { DollarSign, TrendingUp, Download, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
+import { useTranslation } from 'react-i18next';
+import { useAbortableFetch } from '../../lib/useAbortableFetch';
+import AdminErrorState from '../../lib/AdminErrorState';
 
 export default function Revenue() {
-  const [stats, setStats] = useState(null);
+  const { t } = useTranslation();
   const [period, setPeriod] = useState('30d');
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [exportError, setExportError] = useState('');
 
-  const fetchRevenue = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const { data } = await adminApi.get('/admin/super/revenue', {
-        params: { period }
-      });
-      setStats(data.stats || { totalRevenue: 0, subscriptionRevenue: 0, jobFeeRevenue: 0, refunds: 0, growth: 0 });
-      setTransactions(data.transactions || []);
-    } catch (err) {
-      console.error('Failed to fetch revenue:', err);
-      setStats(null);
-      setTransactions([]);
-      setError(err.response?.data?.error || 'Failed to load revenue.');
-    } finally {
-      setLoading(false);
-    }
+  const { data, loading, error, reload } = useAbortableFetch(async (signal) => {
+    const { data } = await adminApi.get('/admin/super/revenue', {
+      signal,
+      params: { period },
+    });
+    return {
+      stats: data.stats || { totalRevenue: 0, subscriptionRevenue: 0, jobFeeRevenue: 0, refunds: 0, growth: 0 },
+      transactions: data.transactions || [],
+    };
   }, [period]);
-
-  useEffect(() => { fetchRevenue(); }, [fetchRevenue]);
+  const stats = data?.stats || null;
+  const transactions = data?.transactions || [];
 
   const fmt = (v) => {
     const amount = Number(v);
@@ -36,6 +29,7 @@ export default function Revenue() {
   };
 
   const exportCSV = async () => {
+    setExportError('');
     try {
       const { data } = await adminApi.get('/admin/super/revenue/export', { params: { period }, responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([data]));
@@ -44,7 +38,7 @@ export default function Revenue() {
       a.click(); window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Export failed:', err);
-      setError(err.response?.data?.error || 'Failed to export revenue.');
+      setExportError(err.response?.data?.error || t('superRevenue.errorExport'));
     }
   };
 
@@ -52,40 +46,41 @@ export default function Revenue() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Revenue</h1>
-          <p className="text-gray-400 text-sm">Platform revenue analytics</p>
+          <h1 className="text-2xl font-bold text-white">{t('superRevenue.title')}</h1>
+          <p className="text-gray-400 text-sm">{t('superRevenue.subtitle')}</p>
         </div>
         <div className="flex gap-2">
           {['7d','30d','90d','1y'].map(p => (
             <button key={p} onClick={() => setPeriod(p)}
               className={`px-3 py-1.5 rounded-full text-sm font-medium ${
                 period === p ? 'bg-orange-500 text-white' : 'bg-slate-800 text-gray-400 border border-slate-700'
-              }`}>{p}</button>
+              }`}>{t('superDashboard.period' + p)}</button>
           ))}
           <button onClick={exportCSV}
             className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded-lg text-sm ml-2">
-            <Download size={14} /> Export
+            <Download size={14} /> {t('superRevenue.export')}
           </button>
         </div>
       </div>
 
-      {error && (
-        <div className="flex items-center justify-between gap-3 mb-6 px-4 py-3 bg-red-900/30 border border-red-700/60 rounded-xl text-red-300 text-sm">
-          <span>{error}</span>
-          <button onClick={fetchRevenue} className="px-3 py-1.5 rounded-lg bg-red-700/60 hover:bg-red-700 text-white text-xs font-semibold">
-            Retry
-          </button>
+      {exportError && (
+        <div className="mb-6 px-4 py-3 bg-red-900/30 border border-red-700/60 rounded-xl text-red-300 text-sm">
+          <span>{exportError}</span>
         </div>
+      )}
+
+      {!loading && error && (
+        <div className="mb-6"><AdminErrorState onRetry={reload} /></div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
-          { label: 'Total Revenue', value: stats?.totalRevenue, icon: DollarSign, color: 'orange' },
-          { label: 'Subscriptions', value: stats?.subscriptionRevenue, icon: TrendingUp, color: 'green' },
-          { label: 'Job Fees', value: stats?.jobFeeRevenue, icon: DollarSign, color: 'blue' },
-          { label: 'Refunds', value: stats?.refunds, icon: ArrowDownRight, color: 'red' },
+          { key: 'total', label: t('superRevenue.cardTotal'), value: stats?.totalRevenue, icon: DollarSign, color: 'orange' },
+          { key: 'subs', label: t('superRevenue.cardSubscriptions'), value: stats?.subscriptionRevenue, icon: TrendingUp, color: 'green' },
+          { key: 'fees', label: t('superRevenue.cardJobFees'), value: stats?.jobFeeRevenue, icon: DollarSign, color: 'blue' },
+          { key: 'refunds', label: t('superRevenue.cardRefunds'), value: stats?.refunds, icon: ArrowDownRight, color: 'red' },
         ].map(card => (
-          <div key={card.label} className="bg-slate-800/50 border border-slate-700 rounded-xl p-5">
+          <div key={card.key} className="bg-slate-800/50 border border-slate-700 rounded-xl p-5">
             <div className="flex items-center justify-between mb-2">
               <span className="text-gray-400 text-sm">{card.label}</span>
               <card.icon size={18} className={`text-${card.color}-400`} />
@@ -98,7 +93,7 @@ export default function Revenue() {
       {stats?.growth !== undefined && (
         <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-5 mb-6">
           <div className="flex items-center gap-2">
-            <span className="text-gray-400">Growth vs previous period:</span>
+            <span className="text-gray-400">{t('superRevenue.growthLabel')}</span>
             <span className={`flex items-center font-bold ${
               (stats.growth || 0) >= 0 ? 'text-green-400' : 'text-red-400'
             }`}>
@@ -111,23 +106,23 @@ export default function Revenue() {
 
       <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-700">
-          <h2 className="text-white font-medium">Recent Transactions</h2>
+          <h2 className="text-white font-medium">{t('superRevenue.recentTransactions')}</h2>
         </div>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-700">
-              <th className="text-left text-gray-400 font-medium px-4 py-3">DATE</th>
-              <th className="text-left text-gray-400 font-medium px-4 py-3">TYPE</th>
-              <th className="text-left text-gray-400 font-medium px-4 py-3">USER</th>
-              <th className="text-left text-gray-400 font-medium px-4 py-3">AMOUNT</th>
-              <th className="text-left text-gray-400 font-medium px-4 py-3">STATUS</th>
+              <th className="text-left text-gray-400 font-medium px-4 py-3">{t('superRevenue.colDate')}</th>
+              <th className="text-left text-gray-400 font-medium px-4 py-3">{t('superRevenue.colType')}</th>
+              <th className="text-left text-gray-400 font-medium px-4 py-3">{t('superRevenue.colUser')}</th>
+              <th className="text-left text-gray-400 font-medium px-4 py-3">{t('superRevenue.colAmount')}</th>
+              <th className="text-left text-gray-400 font-medium px-4 py-3">{t('superRevenue.colStatus')}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} className="text-center text-gray-400 py-12">Loading...</td></tr>
-            ) : transactions.length === 0 ? (
-              <tr><td colSpan={5} className="text-center text-gray-400 py-12">No transactions found.</td></tr>
+              <tr><td colSpan={5} className="text-center text-gray-400 py-12">{t('superRevenue.loading')}</td></tr>
+            ) : !error && transactions.length === 0 ? (
+              <tr><td colSpan={5} className="text-center text-gray-400 py-12">{t('superRevenue.empty')}</td></tr>
             ) : transactions.map(tx => (
               <tr key={tx._id} className="border-b border-slate-700/50 hover:bg-slate-700/30">
                 <td className="px-4 py-3 text-gray-400">{new Date(tx.createdAt).toLocaleDateString()}</td>

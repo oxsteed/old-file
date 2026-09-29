@@ -1,44 +1,32 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Download }            from 'lucide-react';
 import adminApi                from '../../../lib/adminApi';
+import { useTranslation }     from 'react-i18next';
+import { useAbortableFetch } from '../../lib/useAbortableFetch';
+import AdminErrorState from '../../lib/AdminErrorState';
 
 const TYPE_TABS = [
-  { key: '',             label: 'All'           },
-  { key: 'job_fee',      label: 'Job Fees'      },
-  { key: 'subscription', label: 'Subscriptions' },
-  { key: 'refund',       label: 'Refunds'       },
+  { key: '',             labelKey: 'superFinancials.tabAll'           },
+  { key: 'job_fee',      labelKey: 'superFinancials.tabJobFees'      },
+  { key: 'subscription', labelKey: 'superFinancials.tabSubscriptions' },
+  { key: 'refund',       labelKey: 'superFinancials.tabRefunds'       },
 ];
 
 export default function Financials() {
-  const [ledger,  setLedger]  = useState([]);
-  const [totals,  setTotals]  = useState(null);
+  const { t } = useTranslation();
   const [type,    setType]    = useState('');
   const [page,    setPage]    = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState('');
-  const [retry,   setRetry]   = useState(0);
+  const [exportError, setExportError] = useState('');
 
-  useEffect(() => {
-    const fetch = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const { data } = await adminApi.get('/admin/financials', {
-          params: { type, page, limit: 30 }
-        });
-        setLedger(data.ledger || []);
-        setTotals(data.totals || null);
-      } catch (err) {
-        console.error(err);
-        setLedger([]);
-        setTotals(null);
-        setError(err.response?.data?.error || 'Failed to load financials.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetch();
-  }, [type, page, retry]);
+  const { data, loading, error, reload } = useAbortableFetch(async (signal) => {
+    const { data } = await adminApi.get('/admin/financials', {
+      signal,
+      params: { type, page, limit: 30 },
+    });
+    return { ledger: data.ledger || [], totals: data.totals || null };
+  }, [type, page]);
+  const ledger = data?.ledger || [];
+  const totals = data?.totals || null;
 
   const handleExport = async () => {
     try {
@@ -53,7 +41,7 @@ export default function Financials() {
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.error || 'Failed to export financials.');
+      setExportError(err.response?.data?.error || t('superFinancials.errorExport'));
     }
   };
 
@@ -61,9 +49,9 @@ export default function Financials() {
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Financials</h1>
+          <h1 className="text-2xl font-bold text-white">{t('superFinancials.title')}</h1>
           <p className="text-gray-400 text-sm mt-1">
-            Full platform revenue ledger
+            {t('superFinancials.subtitle')}
           </p>
         </div>
         <button
@@ -73,17 +61,18 @@ export default function Financials() {
                      hover:bg-gray-600 transition"
         >
           <Download size={15} />
-          Export CSV
+          {t('superFinancials.exportCsv')}
         </button>
       </div>
 
-      {error && (
-        <div className="flex items-center justify-between gap-3 mb-6 px-4 py-3 bg-red-900/30 border border-red-700/60 rounded-xl text-red-300 text-sm">
-          <span>{error}</span>
-          <button onClick={() => setRetry(value => value + 1)} className="px-3 py-1.5 rounded-lg bg-red-700/60 hover:bg-red-700 text-white text-xs font-semibold">
-            Retry
-          </button>
+      {exportError && (
+        <div className="mb-6 px-4 py-3 bg-red-900/30 border border-red-700/60 rounded-xl text-red-300 text-sm">
+          <span>{exportError}</span>
         </div>
+      )}
+
+      {!loading && error && (
+        <div className="mb-6"><AdminErrorState onRetry={reload} /></div>
       )}
 
       {/* Revenue summary */}
@@ -91,34 +80,34 @@ export default function Financials() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
           {[
             {
-              label: 'Gross Revenue',
+              key: 'gross', labelKey: 'superFinancials.grossRevenue',
               value: `$${((totals.gross_revenue_cents || 0) / 100)
                 .toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
               color: 'text-green-400'
             },
             {
-              label: 'Job Fees',
+              key: 'fees', labelKey: 'superFinancials.jobFees',
               value: `$${((totals.job_fee_revenue_cents || 0) / 100)
                 .toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
               color: 'text-orange-400'
             },
             {
-              label: 'Subscriptions',
+              key: 'subs', labelKey: 'superFinancials.subscriptions',
               value: `$${((totals.subscription_revenue_cents || 0) / 100)
                 .toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
               color: 'text-purple-400'
             },
             {
-              label: 'Total Refunds',
+              key: 'refunds', labelKey: 'superFinancials.totalRefunds',
               value: `-$${((totals.total_refunds_cents || 0) / 100)
                 .toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
               color: 'text-red-400'
             },
-          ].map(({ label, value, color }) => (
-            <div key={label}
+          ].map(({ key, labelKey, value, color }) => (
+            <div key={key}
                  className="bg-gray-800 border border-gray-700 rounded-xl p-4">
               <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">
-                {label}
+                {t(labelKey)}
               </p>
               <p className={`text-2xl font-bold ${color}`}>{value}</p>
             </div>
@@ -128,18 +117,18 @@ export default function Financials() {
 
       {/* Type filter tabs */}
       <div className="flex gap-2 mb-6">
-        {TYPE_TABS.map(t => (
+        {TYPE_TABS.map(tab => (
           <button
-            key={t.key}
-            onClick={() => { setType(t.key); setPage(1); }}
+            key={tab.key}
+            onClick={() => { setType(tab.key); setPage(1); }}
             className={`px-4 py-1.5 rounded-full text-xs font-semibold
                         transition ${
-              type === t.key
+              type === tab.key
                 ? 'bg-orange-500 text-white'
                 : 'bg-gray-800 text-gray-400 hover:text-white'
             }`}
           >
-            {t.label}
+            {t(tab.labelKey)}
           </button>
         ))}
       </div>
@@ -152,12 +141,12 @@ export default function Financials() {
             <thead>
               <tr className="border-b border-gray-700 text-gray-400
                              text-xs uppercase tracking-wider">
-                <th className="px-4 py-3 text-left">Date</th>
-                <th className="px-4 py-3 text-left">Type</th>
-                <th className="px-4 py-3 text-left">User</th>
-                <th className="px-4 py-3 text-left">Job</th>
-                <th className="px-4 py-3 text-right">Amount</th>
-                <th className="px-4 py-3 text-left">Description</th>
+                <th className="px-4 py-3 text-left">{t('superFinancials.colDate')}</th>
+                <th className="px-4 py-3 text-left">{t('superFinancials.colType')}</th>
+                <th className="px-4 py-3 text-left">{t('superFinancials.colUser')}</th>
+                <th className="px-4 py-3 text-left">{t('superFinancials.colJob')}</th>
+                <th className="px-4 py-3 text-right">{t('superFinancials.colAmount')}</th>
+                <th className="px-4 py-3 text-left">{t('superFinancials.colDescription')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-700/50">
@@ -165,14 +154,14 @@ export default function Financials() {
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center
                                              text-gray-500">
-                    Loading...
+                    {t('superFinancials.loading')}
                   </td>
                 </tr>
-              ) : ledger.length === 0 ? (
+              ) : !error && ledger.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center
                                              text-gray-500">
-                    No ledger entries found.
+                    {t('superFinancials.empty')}
                   </td>
                 </tr>
               ) : ledger.map(entry => (
@@ -234,7 +223,7 @@ export default function Financials() {
         {/* Pagination */}
         <div className="flex items-center justify-between px-4 py-3
                         border-t border-gray-700">
-          <p className="text-xs text-gray-500">Page {page}</p>
+          <p className="text-xs text-gray-500">{t('superFinancials.page', { page })}</p>
           <div className="flex gap-2">
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
@@ -243,7 +232,7 @@ export default function Financials() {
                          rounded-lg disabled:opacity-40 hover:bg-gray-600
                          transition"
             >
-              ← Prev
+              {t('superFinancials.prev')}
             </button>
             <button
               onClick={() => setPage(p => p + 1)}
@@ -252,7 +241,7 @@ export default function Financials() {
                          rounded-lg disabled:opacity-40 hover:bg-gray-600
                          transition"
             >
-              Next →
+              {t('superFinancials.next')}
             </button>
           </div>
         </div>

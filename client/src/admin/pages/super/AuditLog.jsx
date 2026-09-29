@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { RefreshCw, RotateCcw, ScrollText } from 'lucide-react';
 import adminApi                from '../../../lib/adminApi';
+import { useTranslation } from 'react-i18next';
 
 export default function AuditLog() {
+  const { t } = useTranslation();
   const [log,     setLog]     = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -26,7 +28,7 @@ export default function AuditLog() {
       } catch (err) {
         console.error(err);
         setLog([]);
-        setError(err.response?.data?.error || 'Failed to load the audit log.');
+        setError(err.response?.data?.error || t('superAuditLog.errorLoad'));
       } finally {
         setLoading(false);
       }
@@ -60,10 +62,10 @@ export default function AuditLog() {
             <div className="rounded-xl border border-orange-500/20 bg-orange-500/10 p-2">
               <ScrollText size={19} className="text-orange-400" />
             </div>
-            <h1 className="text-2xl font-bold text-white">Audit Log</h1>
+            <h1 className="text-2xl font-bold text-white">{t('superAuditLog.title')}</h1>
           </div>
           <p className="text-gray-400 text-sm mt-1">
-            Full record of all admin actions - immutable.
+            {t('superAuditLog.subtitle')}
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
@@ -74,11 +76,11 @@ export default function AuditLog() {
             className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-700 bg-gray-800 text-sm text-gray-200 hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 transition"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            {loading ? 'Refreshing' : 'Refresh'}
+            {loading ? t('superConversations.refreshing') : t('superPlatformSettings.refresh')}
           </button>
           {lastLoadedAt && !loading && (
             <span className="text-[11px] text-gray-600">
-              Updated {lastLoadedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+              {t('superConversations.updatedAt', { time: lastLoadedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) })}
             </span>
           )}
         </div>
@@ -88,7 +90,7 @@ export default function AuditLog() {
       <div className="flex gap-3 mb-6 flex-wrap">
         <input
           type="text"
-          placeholder="Filter by action..."
+          placeholder={t('superAuditLog.filterAction')}
           value={filters.action}
           onChange={e => { setPage(1); setFilters(f => ({ ...f, action: e.target.value })); }}
           className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg
@@ -102,9 +104,15 @@ export default function AuditLog() {
                      text-sm text-gray-300 focus:outline-none
                      focus:border-orange-500"
         >
-          <option value="">All Types</option>
-          {['user','job','payout','setting','dispute'].map(t => (
-            <option key={t} value={t} className="capitalize">{t}</option>
+          <option value="">{t('superAuditLog.allTypes')}</option>
+          {[
+            { value: 'user', labelKey: 'superAuditLog.typeUser' },
+            { value: 'job', labelKey: 'superAuditLog.typeJob' },
+            { value: 'payout', labelKey: 'superAuditLog.typePayout' },
+            { value: 'setting', labelKey: 'superAuditLog.typeSetting' },
+            { value: 'dispute', labelKey: 'superAuditLog.typeDispute' },
+          ].map(opt => (
+            <option key={opt.value} value={opt.value} className="capitalize">{t(opt.labelKey)}</option>
           ))}
         </select>
         {(filters.action || filters.target_type) && (
@@ -114,7 +122,7 @@ export default function AuditLog() {
             className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-700 bg-gray-900 text-sm text-gray-400 hover:text-white hover:border-gray-500 transition"
           >
             <RotateCcw size={14} />
-            Clear filters
+            {t('superAuditLog.clearFilters')}
           </button>
         )}
       </div>
@@ -123,7 +131,7 @@ export default function AuditLog() {
         <div className="flex items-center justify-between gap-3 mb-6 px-4 py-3 bg-red-900/30 border border-red-700/60 rounded-xl text-red-300 text-sm">
           <span>{error}</span>
           <button onClick={() => setRetry(value => value + 1)} className="px-3 py-1.5 rounded-lg bg-red-700/60 hover:bg-red-700 text-white text-xs font-semibold">
-            Retry
+            {t('superFinancials.retry')}
           </button>
         </div>
       )}
@@ -135,12 +143,12 @@ export default function AuditLog() {
             <thead>
               <tr className="border-b border-gray-700 text-gray-400
                              text-xs uppercase tracking-wider">
-                <th className="px-4 py-3 text-left">Timestamp</th>
-                <th className="px-4 py-3 text-left">Admin</th>
-                <th className="px-4 py-3 text-left">Action</th>
-                <th className="px-4 py-3 text-left">Target</th>
-                <th className="px-4 py-3 text-left">Description</th>
-                <th className="px-4 py-3 text-left">IP</th>
+                <th className="px-4 py-3 text-left">{t('superAuditLog.colTimestamp')}</th>
+                <th className="px-4 py-3 text-left">{t('superAuditLog.colAdmin')}</th>
+                <th className="px-4 py-3 text-left">{t('superAuditLog.colAction')}</th>
+                <th className="px-4 py-3 text-left">{t('superAuditLog.colTarget')}</th>
+                <th className="px-4 py-3 text-left">{t('superAuditLog.colDescription')}</th>
+                <th className="px-4 py-3 text-left">{t('superAuditLog.colIp')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-700/50">
@@ -148,14 +156,14 @@ export default function AuditLog() {
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center
                                              text-gray-500">
-                    Loading...
+                    {t('superFinancials.loading')}
                   </td>
                 </tr>
               ) : log.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center
                                              text-gray-500">
-                    No audit entries found.
+                    {t('superAuditLog.empty')}
                   </td>
                 </tr>
               ) : log.map(entry => (
@@ -172,7 +180,7 @@ export default function AuditLog() {
                   <td className="px-4 py-3">
                     <div>
                       <p className="text-white text-xs font-medium">
-                        {entry.admin_name || 'System'}
+                        {entry.admin_name || t('superAuditLog.systemActor')}
                       </p>
                       <p className="text-gray-500 text-xs">
                         {entry.admin_email || '-'}
@@ -213,7 +221,7 @@ export default function AuditLog() {
         {/* Pagination */}
         <div className="flex items-center justify-between px-4 py-3
                         border-t border-gray-700">
-          <p className="text-xs text-gray-500">Page {page}</p>
+          <p className="text-xs text-gray-500">{t('superAuditLog.page', { page })}</p>
           <div className="flex gap-2">
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
@@ -222,7 +230,7 @@ export default function AuditLog() {
                          rounded-lg disabled:opacity-40 hover:bg-gray-600
                          transition"
             >
-              ← Prev
+              {t('superAuditLog.prev')}
             </button>
             <button
               onClick={() => setPage(p => p + 1)}
@@ -231,7 +239,7 @@ export default function AuditLog() {
                          rounded-lg disabled:opacity-40 hover:bg-gray-600
                          transition"
             >
-              Next →
+              {t('superAuditLog.next')}
             </button>
           </div>
         </div>

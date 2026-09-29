@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Globe, Loader2, Power, Clock, EyeOff } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 
 // Super-admin country pack registry (docs/oxsteed-pack-architecture.md §5).
 // Activating a country is a one-row status flip — never a deploy.
@@ -12,13 +13,14 @@ const STATUS_STYLES = {
   disabled: 'bg-gray-500/10 text-gray-400 border-gray-500/30',
 };
 
-const STATUS_LABELS = {
-  active: 'Active',
-  coming_soon: 'Coming soon',
-  disabled: 'Disabled',
+const STATUS_LABEL_KEYS = {
+  active: 'superCountryPacks.statusActive',
+  coming_soon: 'superCountryPacks.statusComingSoon',
+  disabled: 'superCountryPacks.statusDisabled',
 };
 
 export default function CountryPacks() {
+  const { t } = useTranslation();
   const [packs, setPacks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(null); // country code mid-update
@@ -30,7 +32,7 @@ export default function CountryPacks() {
       const res = await adminApi.get('/country-config/admin');
       setPacks(res.data?.data?.packs || []);
     } catch {
-      toast.error('Failed to load country packs');
+      toast.error(t('superCountryPacks.errorLoad'));
     } finally {
       setLoading(false);
     }
@@ -41,16 +43,16 @@ export default function CountryPacks() {
   }, [fetchPacks]);
 
   const setStatus = async (pack, status) => {
-    const verb = STATUS_LABELS[status].toLowerCase();
+    const verb = t(STATUS_LABEL_KEYS[status]).toLowerCase();
     // eslint-disable-next-line no-alert
-    if (!window.confirm(`Set ${pack.name} (${pack.code}) to "${verb}"? This changes what every user in the picker sees immediately.`)) return;
+    if (!window.confirm(t('superCountryPacks.confirmSet', { name: pack.name, code: pack.code, status: verb }))) return;
     setUpdating(pack.code);
     try {
       await adminApi.patch(`/country-config/admin/${pack.code}`, { status });
-      toast.success(`${pack.flag_emoji || ''} ${pack.name} → ${STATUS_LABELS[status]}`.trim());
+      toast.success(t('superCountryPacks.statusUpdated', { emoji: pack.flag_emoji || '', name: pack.name, status: t(STATUS_LABEL_KEYS[status]) }).trim());
       fetchPacks();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to update country pack');
+      toast.error(err.response?.data?.message || t('superCountryPacks.errorUpdate'));
     } finally {
       setUpdating(null);
     }
@@ -71,9 +73,9 @@ export default function CountryPacks() {
           <Globe size={20} className="text-orange-400" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-white">Country Packs</h1>
+          <h1 className="text-xl font-bold text-white">{t('superCountryPacks.title')}</h1>
           <p className="text-sm text-gray-400">
-            A country is a pack you register, never a condition you check. Flip a status to change the picker for everyone, no deploy.
+            {t('superCountryPacks.subtitle')}
           </p>
         </div>
       </div>
@@ -82,13 +84,13 @@ export default function CountryPacks() {
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs uppercase tracking-wider text-gray-500 border-b border-gray-800">
-              <th className="px-4 py-3">Country</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Currency</th>
-              <th className="px-4 py-3">Locales</th>
-              <th className="px-4 py-3">Personas</th>
-              <th className="px-4 py-3">Payments</th>
-              <th className="px-4 py-3 text-right">Actions</th>
+              <th className="px-4 py-3">{t('superCountryPacks.colCountry')}</th>
+              <th className="px-4 py-3">{t('superCountryPacks.colStatus')}</th>
+              <th className="px-4 py-3">{t('superCountryPacks.colCurrency')}</th>
+              <th className="px-4 py-3">{t('superCountryPacks.colLocales')}</th>
+              <th className="px-4 py-3">{t('superCountryPacks.colPersonas')}</th>
+              <th className="px-4 py-3">{t('superCountryPacks.colPayments')}</th>
+              <th className="px-4 py-3 text-right">{t('superCountryPacks.colActions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800">
@@ -110,7 +112,7 @@ export default function CountryPacks() {
             {packs.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-10 text-center text-gray-500">
-                  No country packs yet. Apply migration 304 and reload.
+                  {t('superCountryPacks.empty')}
                 </td>
               </tr>
             )}
@@ -122,6 +124,7 @@ export default function CountryPacks() {
 }
 
 function FragmentRow({ pack: p, cfg, busy, expanded, onToggleExpand, onSetStatus }) {
+  const { t } = useTranslation();
   return (
     <>
       <tr className="hover:bg-gray-800/40 transition">
@@ -136,7 +139,7 @@ function FragmentRow({ pack: p, cfg, busy, expanded, onToggleExpand, onSetStatus
         </td>
         <td className="px-4 py-3">
           <span className={`inline-block px-2 py-1 rounded-full border text-[11px] font-bold ${STATUS_STYLES[p.status] || STATUS_STYLES.disabled}`}>
-            {STATUS_LABELS[p.status] || p.status}
+            {t(STATUS_LABEL_KEYS[p.status] || 'superCountryPacks.statusDisabled')}
           </span>
         </td>
         <td className="px-4 py-3 text-gray-300">{p.currency_code}</td>
@@ -152,17 +155,17 @@ function FragmentRow({ pack: p, cfg, busy, expanded, onToggleExpand, onSetStatus
             ) : (
               <>
                 {p.status !== 'active' && (
-                  <ActionBtn title="Activate" color="text-green-400 hover:bg-green-500/10" onClick={() => onSetStatus(p, 'active')}>
+                  <ActionBtn title={t('superCountryPacks.activate')} color="text-green-400 hover:bg-green-500/10" onClick={() => onSetStatus(p, 'active')}>
                     <Power size={14} />
                   </ActionBtn>
                 )}
                 {p.status !== 'coming_soon' && (
-                  <ActionBtn title="Mark coming soon" color="text-amber-400 hover:bg-amber-500/10" onClick={() => onSetStatus(p, 'coming_soon')}>
+                  <ActionBtn title={t('superCountryPacks.markComingSoon')} color="text-amber-400 hover:bg-amber-500/10" onClick={() => onSetStatus(p, 'coming_soon')}>
                     <Clock size={14} />
                   </ActionBtn>
                 )}
                 {p.status !== 'disabled' && (
-                  <ActionBtn title="Disable (hide everywhere)" color="text-gray-400 hover:bg-gray-500/10" onClick={() => onSetStatus(p, 'disabled')}>
+                  <ActionBtn title={t('superCountryPacks.disable')} color="text-gray-400 hover:bg-gray-500/10" onClick={() => onSetStatus(p, 'disabled')}>
                     <EyeOff size={14} />
                   </ActionBtn>
                 )}
