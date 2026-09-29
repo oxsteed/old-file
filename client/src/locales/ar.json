@@ -12164,7 +12164,18 @@
     "historyUnknownChange": "تم تحديث الإعداد",
     "historyEmpty": "لا توجد تغييرات مسجلة بعد.",
     "historyLoadError": "تعذّر تحميل السجل.",
-    "historyRetry": "إعادة المحاولة"
+    "historyRetry": "إعادة المحاولة",
+    "historyView": "عرض التفاصيل",
+    "historyHide": "إخفاء التفاصيل",
+    "historySnapshotMethods": "طرق الدفع",
+    "historySnapshotNoMethods": "لم يتم تسجيل طرق دفع",
+    "historySnapshotDeposit": "العربون",
+    "historySnapshotNotice": "الحد الأدنى للإشعار",
+    "historySnapshotNoticeHours": "{{hours}} ساعة",
+    "historySnapshotTerms": "الشروط",
+    "historySnapshotNoTerms": "لم يتم تسجيل شروط",
+    "historySnapshotNotSet": "غير محدد",
+    "historySnapshotCustom": "دفع مخصص خارج المنصة"
   },
   "cancellationModal": {
     "cancelJob": "إلغاء الوظيفة",

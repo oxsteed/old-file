@@ -813,3 +813,144 @@
   gap: 0.25rem;
   font-size: 0.92rem;
 }
+
+/* History snapshot detail (expandable per entry) */
+.pcs-history-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+  padding: 0.25rem 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.pcs-history-toggle:hover {
+  text-decoration: underline;
+}
+
+.pcs-history-toggle:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.pcs-history-chevron {
+  transition: transform 0.2s ease;
+}
+
+.pcs-history-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.pcs-history-snapshot {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.28s ease;
+}
+
+.pcs-history-snapshot.is-open {
+  grid-template-rows: 1fr;
+}
+
+.pcs-history-snapshot-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.pcs-snapshot {
+  display: grid;
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+}
+
+.pcs-snapshot-heading {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  margin: 0 0 0.5rem;
+}
+
+.pcs-snapshot-muted {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.pcs-snapshot-facts {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.pcs-snapshot-fact {
+  display: grid;
+  gap: 2px;
+}
+
+.pcs-snapshot-fact > dt {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.pcs-snapshot-fact > dd {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--color-text);
+}
+
+.pcs-snapshot-field {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pcs-snapshot-field > span {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.pcs-snapshot-field > p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.pcs-snapshot-field > a {
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.pcs-snapshot-prewrap {
+  white-space: pre-wrap;
+}
+
+.pcs-snapshot-terms {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.92rem;
+  color: var(--color-text);
+  margin: 0;
+  background: var(--color-surface-2, var(--color-surface));
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  padding: var(--space-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pcs-history-snapshot,
+  .pcs-history-chevron {
+    transition: none;
+  }
+}

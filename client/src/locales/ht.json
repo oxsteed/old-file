@@ -12624,7 +12624,18 @@
     "historyUnknownChange": "Paramèt mete ajou",
     "historyEmpty": "Pa gen okenn chanjman anrejistre pou kounye a.",
     "historyLoadError": "Pa t ka chaje istwa a.",
-    "historyRetry": "Eseye ankò"
+    "historyRetry": "Eseye ankò",
+    "historyView": "Wè detay yo",
+    "historyHide": "Kache detay yo",
+    "historySnapshotMethods": "Mwayen peman",
+    "historySnapshotNoMethods": "Okenn mwayen peman anrejistre",
+    "historySnapshotDeposit": "Depo",
+    "historySnapshotNotice": "Avi minimòm",
+    "historySnapshotNoticeHours": "{{hours}} èdtan",
+    "historySnapshotTerms": "Kondisyon yo",
+    "historySnapshotNoTerms": "Okenn kondisyon anrejistre",
+    "historySnapshotNotSet": "Pa defini",
+    "historySnapshotCustom": "Peman pèsonalize andeyò platfòm nan"
   },
   "howOxsteedWorks": {
     "experience": {

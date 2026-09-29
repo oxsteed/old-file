@@ -11860,7 +11860,18 @@
     "historyUnknownChange": "Setting updated",
     "historyEmpty": "No changes recorded yet.",
     "historyLoadError": "Could not load history.",
-    "historyRetry": "Retry"
+    "historyRetry": "Retry",
+    "historyView": "View details",
+    "historyHide": "Hide details",
+    "historySnapshotMethods": "Payment methods",
+    "historySnapshotNoMethods": "No payment methods recorded",
+    "historySnapshotDeposit": "Deposit",
+    "historySnapshotNotice": "Minimum notice",
+    "historySnapshotNoticeHours": "{{hours}} hours",
+    "historySnapshotTerms": "Terms",
+    "historySnapshotNoTerms": "No terms recorded",
+    "historySnapshotNotSet": "Not set",
+    "historySnapshotCustom": "Custom off-platform payment"
   },
   "cancellationModal": {
     "cancelJob": "Cancel Job",

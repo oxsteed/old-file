@@ -12624,7 +12624,18 @@
     "historyUnknownChange": "Paramètre mis à jour",
     "historyEmpty": "Aucune modification enregistrée pour le moment.",
     "historyLoadError": "Impossible de charger l’historique.",
-    "historyRetry": "Réessayer"
+    "historyRetry": "Réessayer",
+    "historyView": "Voir les détails",
+    "historyHide": "Masquer les détails",
+    "historySnapshotMethods": "Moyens de paiement",
+    "historySnapshotNoMethods": "Aucun moyen de paiement enregistré",
+    "historySnapshotDeposit": "Acompte",
+    "historySnapshotNotice": "Préavis minimum",
+    "historySnapshotNoticeHours": "{{hours}} heures",
+    "historySnapshotTerms": "Conditions",
+    "historySnapshotNoTerms": "Aucune condition enregistrée",
+    "historySnapshotNotSet": "Non défini",
+    "historySnapshotCustom": "Paiement personnalisé hors plateforme"
   },
   "howOxsteedWorks": {
     "experience": {

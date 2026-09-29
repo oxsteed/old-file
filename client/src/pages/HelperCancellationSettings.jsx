@@ -5,6 +5,7 @@ import {
   ShieldCheck,
   Banknote,
   ChevronRight,
+  ChevronDown,
   Info,
   RotateCcw,
   Check,
@@ -55,6 +56,132 @@ function formatHistoryDate(iso, locale) {
   }
 }
 
+/**
+ * Whether the custom off-platform payment toggle state can be inferred from
+ * an entry's change list. Returns true/false when the entry turned it on/off,
+ * or null when the entry says nothing about it (never guess).
+ */
+function customEnabledFromChanges(changes) {
+  const kinds = (changes || []).map((c) => c && c.kind);
+  if (kinds.includes('custom_enabled')) return true;
+  if (kinds.includes('custom_disabled')) return false;
+  return null;
+}
+
+/**
+ * Read-only rendering of the full payment policy snapshot stored with a
+ * history entry. The snapshot is the custom_policy JSONB at the time of the
+ * change: payment_details (label, link_url, handle, instructions),
+ * deposit_percent, min_notice_hours, terms. Older entries may have no
+ * snapshot; render an empty but valid policy in that case.
+ */
+function PolicySnapshotDetail({ entry, t }) {
+  let snapshot = entry.snapshot;
+  if (typeof snapshot === 'string') {
+    try {
+      snapshot = JSON.parse(snapshot);
+    } catch {
+      snapshot = null;
+    }
+  }
+  const policy = snapshot && typeof snapshot === 'object' && !Array.isArray(snapshot) ? snapshot : {};
+  const methods = Array.isArray(policy.payment_details) ? policy.payment_details : [];
+  const customState = customEnabledFromChanges(entry.changes);
+  const deposit = policy.deposit_percent;
+  const notice = policy.min_notice_hours;
+  const terms = typeof policy.terms === 'string' ? policy.terms.trim() : '';
+  const notSet = t('cancellationSettings.historySnapshotNotSet', 'Not set');
+
+  return (
+    <div className="pcs-snapshot">
+      <div className="pcs-snapshot-section">
+        <h4 className="pcs-snapshot-heading">
+          {t('cancellationSettings.historySnapshotMethods', 'Payment methods')}
+        </h4>
+        {methods.length === 0 ? (
+          <p className="pcs-snapshot-muted">
+            {t('cancellationSettings.historySnapshotNoMethods', 'No payment methods recorded')}
+          </p>
+        ) : (
+          <div className="pcs-paydetails" style={{ marginBlock: 0 }}>
+            {methods.map((method, index) => (
+              <div key={index} className="pcs-paydetail">
+                <div className="pcs-paydetail-head">
+                  <span className="pcs-paydetail-name">
+                    {method.label ||
+                      t('cancellationSettings.paymentDetailNumber', 'Method {{n}}', { n: index + 1 })}
+                  </span>
+                </div>
+                <div className="pcs-paydetail-grid">
+                  {method.link_url ? (
+                    <div className="pcs-snapshot-field">
+                      <span>{t('cancellationSettings.paymentDetailLink', 'Payment link')}</span>
+                      <a href={method.link_url} target="_blank" rel="noreferrer noopener">
+                        {method.link_url}
+                      </a>
+                    </div>
+                  ) : null}
+                  {method.handle ? (
+                    <div className="pcs-snapshot-field">
+                      <span>{t('cancellationSettings.paymentDetailHandle', 'Account handle or ID')}</span>
+                      <p>{method.handle}</p>
+                    </div>
+                  ) : null}
+                  {method.instructions ? (
+                    <div className="pcs-snapshot-field pcs-paydetail-full">
+                      <span>{t('cancellationSettings.paymentDetailInstructions', 'Instructions')}</span>
+                      <p className="pcs-snapshot-prewrap">{method.instructions}</p>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <dl className="pcs-snapshot-facts">
+        <div className="pcs-snapshot-fact">
+          <dt>{t('cancellationSettings.historySnapshotDeposit', 'Deposit')}</dt>
+          <dd>{deposit === null || deposit === undefined || deposit === '' ? notSet : `${deposit}%`}</dd>
+        </div>
+        <div className="pcs-snapshot-fact">
+          <dt>{t('cancellationSettings.historySnapshotNotice', 'Minimum notice')}</dt>
+          <dd>
+            {notice === null || notice === undefined || notice === ''
+              ? notSet
+              : t('cancellationSettings.historySnapshotNoticeHours', '{{hours}} hours', { hours: notice })}
+          </dd>
+        </div>
+        {customState !== null && (
+          <div className="pcs-snapshot-fact">
+            <dt>{t('cancellationSettings.historySnapshotCustom', 'Custom off-platform payment')}</dt>
+            <dd>
+              <span className={`pcs-status${customState ? ' is-on' : ''}`}>
+                <span className="pcs-status-dot" aria-hidden="true" />
+                {customState ? t('cancellationSettings.statusOn') : t('cancellationSettings.statusOff')}
+              </span>
+            </dd>
+          </div>
+        )}
+      </dl>
+
+      <div className="pcs-snapshot-section">
+        <h4 className="pcs-snapshot-heading">
+          {t('cancellationSettings.historySnapshotTerms', 'Terms')}
+        </h4>
+        {terms ? (
+          <p className="pcs-snapshot-terms">{terms}</p>
+        ) : (
+          <p className="pcs-snapshot-muted">
+            {t('cancellationSettings.historySnapshotNoTerms', 'No terms recorded')}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function historyChangeText(change, t) {
   const kind = change?.kind;
   const label = change?.label || '';
@@ -96,6 +223,7 @@ export default function HelperCancellationSettings() {
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyFailed, setHistoryFailed] = useState(false);
+  const [expandedHistoryId, setExpandedHistoryId] = useState(null);
   const [oxsteedEnabled, setOxsteedEnabled] = useState(true);
   const [customEnabled, setCustomEnabled] = useState(false);
   const [customPolicy, setCustomPolicy] = useState(DEFAULT_CUSTOM_POLICY);
@@ -165,6 +293,7 @@ export default function HelperCancellationSettings() {
       const { data } = await api.get('/helper-settings/policies/history');
       const entries = data?.data?.history ?? data?.history ?? [];
       setHistory(Array.isArray(entries) ? entries : []);
+      setExpandedHistoryId(null);
     } catch (err) {
       setHistoryFailed(true);
       console.error('Error loading policy history:', err);
@@ -621,21 +750,54 @@ export default function HelperCancellationSettings() {
               </p>
             ) : (
               <ol className="pcs-history">
-                {history.map((entry) => (
-                  <li key={entry.id} className="pcs-history-item">
-                    <span className="pcs-history-dot" aria-hidden="true" />
-                    <div className="pcs-history-content">
-                      <time className="pcs-history-time" dateTime={entry.created_at}>
-                        {formatHistoryDate(entry.created_at, i18n.language)}
-                      </time>
-                      <ul className="pcs-history-changes">
-                        {(entry.changes || []).map((change, idx) => (
-                          <li key={idx}>{historyChangeText(change, t)}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </li>
-                ))}
+                {history.map((entry) => {
+                  const hasSnapshot = !!entry.snapshot;
+                  const expanded = expandedHistoryId === entry.id;
+                  const panelId = `pcs-history-snapshot-${entry.id}`;
+                  return (
+                    <li key={entry.id} className="pcs-history-item">
+                      <span className="pcs-history-dot" aria-hidden="true" />
+                      <div className="pcs-history-content">
+                        <time className="pcs-history-time" dateTime={entry.created_at}>
+                          {formatHistoryDate(entry.created_at, i18n.language)}
+                        </time>
+                        <ul className="pcs-history-changes">
+                          {(entry.changes || []).map((change, idx) => (
+                            <li key={idx}>{historyChangeText(change, t)}</li>
+                          ))}
+                        </ul>
+                        {hasSnapshot && (
+                          <button
+                            type="button"
+                            className="pcs-history-toggle"
+                            aria-expanded={expanded}
+                            aria-controls={panelId}
+                            onClick={() => setExpandedHistoryId(expanded ? null : entry.id)}
+                          >
+                            {expanded
+                              ? t('cancellationSettings.historyHide', 'Hide details')
+                              : t('cancellationSettings.historyView', 'View details')}
+                            <ChevronDown
+                              size={15}
+                              aria-hidden="true"
+                              className={`pcs-history-chevron${expanded ? ' is-open' : ''}`}
+                            />
+                          </button>
+                        )}
+                        {hasSnapshot && (
+                          <div
+                            id={panelId}
+                            className={`pcs-history-snapshot${expanded ? ' is-open' : ''}`}
+                          >
+                            <div className="pcs-history-snapshot-inner">
+                              <PolicySnapshotDetail entry={entry} t={t} />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
               </ol>
             )}
           </div>
