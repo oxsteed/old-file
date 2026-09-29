@@ -100,7 +100,7 @@ describe('deployment release identity wiring', () => {
     expect(portalSource).toContain('Choose the catalog services you want included. You can add more than one.');
     const quoteController = fs.readFileSync(path.join(repositoryRoot, 'server/controllers/quoteRequestsController.js'), 'utf8');
     expect(quoteController).toContain('INSERT INTO quote_request_services');
-    expect(adminSource).toContain('label="Skill category"');
+    expect(adminSource).toContain('directCatalogAdmin.skillCategoryLabel');
     expect(adminSource).toContain('update(\'categorySlug\', event.target.value)');
   });
 
