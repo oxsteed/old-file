@@ -21,6 +21,9 @@ const { requireRole } = require('../middleware/auth');
 const requireOperationsWorkspace = requireInternalLogisticsWorkspace('operations');
 const requireComplianceWorkspace = requireInternalLogisticsWorkspace('compliance');
 const requireAdminRole = requireRole('admin', 'super_admin');
+// Markup/fee rules mutate platform pricing: super-admin only (the permission
+// grant catalogue has no pricing/fee scope, so we fail closed to super-admin).
+const requireSuperAdminRole = requireRole('super_admin');
 
 router.use((req, _res, next) => {
   req.isAdmin = true;
@@ -110,13 +113,13 @@ router.patch('/claims/:id',                  requireOperationsWorkspace, adminCt
 router.get('/refund-cases',                  requireOperationsWorkspace, adminCtrl.listRefundCases);
 router.patch('/refund-cases/:id',            requireOperationsWorkspace, adminCtrl.updateRefundCase);
 
-// ─── Markup / Fee Rules (super-admin) ────────────────────────
+// ─── Markup / Fee Rules (super-admin only) ────────────────────
 
 router.get('/markup-rules',                  requireAdminRole, adminCtrl.listMarkupRules);
-router.post('/markup-rules',                 requireAdminRole, adminCtrl.createMarkupRule);
-router.put('/markup-rules/:id',              requireAdminRole, adminCtrl.updateMarkupRule);
+router.post('/markup-rules',                 requireSuperAdminRole, adminCtrl.createMarkupRule);
+router.put('/markup-rules/:id',              requireSuperAdminRole, adminCtrl.updateMarkupRule);
 router.get('/fee-rules',                     requireAdminRole, adminCtrl.listFeeRules);
-router.put('/fee-rules/:id',                 requireAdminRole, adminCtrl.updateFeeRule);
+router.put('/fee-rules/:id',                 requireSuperAdminRole, adminCtrl.updateFeeRule);
 
 // ─── Compliance + Finance (admin) ─────────────────────────────
 

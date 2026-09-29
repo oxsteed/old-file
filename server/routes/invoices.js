@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
-const { requireAdmin } = require('../middleware/adminAuth');
+const { requireSuperAdmin } = require('../middleware/adminAuth');
 const { generalLimiter } = require('../middleware/rateLimiter');
 const logger = require('../utils/logger');
+const { logAdminAction } = require('../services/auditService');
 const { tNotif } = require('../utils/i18n');
 
 // Helper: check invoice ownership or admin
@@ -71,8 +72,9 @@ router.get('/:id', authenticate, generalLimiter, async (req, res) => {
   }
 });
 
-// PATCH /api/invoices/:id/mark-paid  (admin only)
-router.patch('/:id/mark-paid', authenticate, requireAdmin, async (req, res) => {
+// PATCH /api/invoices/:id/mark-paid  (super-admin only: falsifying "paid"
+// must be a deliberate, audited super-admin action)
+router.patch('/:id/mark-paid', authenticate, requireSuperAdmin, async (req, res) => {
   try {
     const { rows: [inv] } = await pool.query(
       `UPDATE business_invoices
@@ -81,6 +83,18 @@ router.patch('/:id/mark-paid', authenticate, requireAdmin, async (req, res) => {
       [req.params.id]
     );
     if (!inv) return res.status(404).json({ error: 'Invoice not found' });
+    try {
+      await logAdminAction({
+        adminId: req.user.id,
+        action: 'invoice_marked_paid',
+        targetType: 'business_invoice',
+        targetId: inv.id,
+        description: `Invoice ${inv.invoice_number || inv.id} marked as paid`,
+        before: { status: 'unpaid' },
+        after: { status: 'paid', amount_paid: inv.amount_paid },
+        req,
+      });
+    } catch (_) {}
     res.json({ success: true, invoice: inv });
   } catch (err) {
     logger.error('PATCH /api/invoices/:id/mark-paid error', { err: err.message });
@@ -88,19 +102,35 @@ router.patch('/:id/mark-paid', authenticate, requireAdmin, async (req, res) => {
   }
 });
 
-// PATCH /api/invoices/:id/status  (admin only)
-router.patch('/:id/status', authenticate, requireAdmin, async (req, res) => {
+// PATCH /api/invoices/:id/status  (super-admin only: this endpoint can also
+// set status='paid', so it gets the same gate and audit trail as mark-paid)
+router.patch('/:id/status', authenticate, requireSuperAdmin, async (req, res) => {
   try {
     const { status } = req.body;
     const valid = ['draft', 'sent', 'paid', 'overdue', 'cancelled', 'partial'];
     if (!status || !valid.includes(status)) {
       return res.status(400).json({ error: 'Valid status required', valid });
     }
+    const { rows: [before] } = await pool.query(
+      'SELECT id, status FROM business_invoices WHERE id = $1',
+      [req.params.id]
+    );
+    if (!before) return res.status(404).json({ error: 'Invoice not found' });
     const { rows: [inv] } = await pool.query(
       'UPDATE business_invoices SET status = $1 WHERE id = $2 RETURNING *',
       [status, req.params.id]
     );
-    if (!inv) return res.status(404).json({ error: 'Invoice not found' });
+    try {
+      await logAdminAction({
+        adminId: req.user.id,
+        action: 'invoice_status_changed',
+        targetType: 'business_invoice',
+        targetId: inv.id,
+        before: { status: before.status },
+        after: { status },
+        req,
+      });
+    } catch (_) {}
     res.json({ success: true, invoice: inv });
   } catch (err) {
     logger.error('PATCH /api/invoices/:id/status error', { err: err.message });

@@ -1,6 +1,6 @@
 const router      = require('express').Router();
 const { authenticate } = require('../middleware/auth');
-const { requireAdmin } = require('../middleware/adminAuth');
+const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const disputeCtrl = require('../controllers/disputeController');
 const adminDisputeCtrl = require('../controllers/disputeAdminController');
 const upload      = require('../middleware/upload');
@@ -63,6 +63,7 @@ router.post('/admin/:disputeId/review',
 router.post('/admin/:disputeId/resolve',
   authenticate,
   requireAdmin,
+  requirePermission('issue_refunds'),
   adminDisputeCtrl.resolveDispute
 );
 

@@ -170,7 +170,7 @@ router.get('/super/guest-inquiries/:id',        requireSuperAdmin, convAdminCtrl
 
 // Admin account management - delegatable via manage_admin_accounts grant
 router.get('/super/admin-accounts',             requireAdmin, requirePermission('manage_admin_accounts'), superCtrl.getAdminAccounts);
-router.get('/super/internal-staff',             requireAdmin, superCtrl.getInternalStaffAccounts);
+router.get('/super/internal-staff',             requireSuperAdmin, superCtrl.getInternalStaffAccounts);
 router.post('/super/admin-accounts',            requireAdmin, requirePermission('manage_admin_accounts'), superCtrl.createAdminAccount);
 router.put('/super/admin-accounts/:id/status',  requireAdmin, requirePermission('manage_admin_accounts'), superCtrl.toggleAdminAccountStatus);
 router.get('/super/admin-activity/:adminId',    requireAdmin, requirePermission('manage_admin_accounts'), superCtrl.getAdminActivity);
@@ -231,9 +231,17 @@ router.get('/super/search-stats',      requireAdmin, requirePermission('view_sea
 // PERMISSION GRANTS (super-admin manages; admins view own)
 // ══════════════════════════════════════════════════════════════
 
-// Super-admin bypasses requirePermission automatically (see adminAuth.js)
-router.get('/permission-grants',          requireAdmin,      permCtrl.listGrants);
-router.get('/permission-scopes',          requireAdmin,      permCtrl.getScopes);
+// Self-lookup for the signed-in admin's own grants (no grant required: the
+// response only ever contains the caller's own grants). The admin app's
+// GrantGuard uses this to decide which grant-gated pages the admin may see.
+// Super-admins hold every permission implicitly, so the client skips this call.
+router.get('/permission-grants/me',    requireAdmin,      permCtrl.listMyGrants);
+
+// Listing all grants or the full permission-scope catalogue exposes the
+// permission model beyond the caller's own access, so it requires the
+// grant used for managing admin accounts/permissions.
+router.get('/permission-grants',          requireAdmin, requirePermission('manage_admin_accounts'), permCtrl.listGrants);
+router.get('/permission-scopes',          requireAdmin, requirePermission('manage_admin_accounts'), permCtrl.getScopes);
 router.post('/super/permission-grants',   requireSuperAdmin, permCtrl.createGrant);
 router.delete('/super/permission-grants/:id', requireSuperAdmin, permCtrl.revokeGrant);
 
