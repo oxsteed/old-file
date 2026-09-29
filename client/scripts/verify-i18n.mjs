@@ -290,7 +290,7 @@ function verifyPageHasNoHardcodedUiText(relativePath, { allowedJsxText = [], all
   const missingKeys = [];
   const hasKey = (key) => {
     const resolve = (candidate) => candidate.split('.').reduce((value, part) => value?.[part], legacyEnglish);
-    const isLeaf = (value) => value !== undefined && (value === null || typeof value !== 'object');
+    const isLeaf = (value) => value !== undefined && (value === null || typeof value !== 'object' || Array.isArray(value));
     return isLeaf(resolve(key)) || isLeaf(resolve(`${key}_one`)) || isLeaf(resolve(`${key}_other`));
   };
   for (const match of source.matchAll(/\bt\(\s*(['"])([A-Za-z0-9_.-]+)\1/g)) {
