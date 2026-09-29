@@ -26,6 +26,37 @@
   .messenger-launcher {
     /* Clear the floating Contact support pill (bottom 20px, ~44px tall) */
     bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+    /* Desktop keeps the original dark theme — green is mobile-only */
+    border: 1px solid rgb(55 65 81 / 0.8);
+    background: linear-gradient(180deg, rgb(17 24 39) 0%, rgb(3 7 18) 100%);
+    box-shadow:
+      0 10px 30px rgb(0 0 0 / 0.35),
+      0 0 0 1px rgb(249 115 22 / 0.15);
+  }
+
+  .messenger-launcher:hover {
+    box-shadow:
+      0 14px 34px rgb(0 0 0 / 0.4),
+      0 0 0 1px rgb(249 115 22 / 0.28);
+  }
+
+  .messenger-launcher:focus-visible {
+    outline: 2px solid rgb(249 115 22);
+  }
+
+  .messenger-launcher__kicker {
+    color: rgb(156 163 175);
+  }
+
+  .messenger-launcher__avatar {
+    background: rgb(55 65 81);
+    color: rgb(209 213 219);
+  }
+
+  @keyframes messenger-launcher-pulse {
+    0% { box-shadow: 0 0 0 0 rgb(249 115 22 / 0.45), 0 10px 30px rgb(0 0 0 / 0.35); }
+    70% { box-shadow: 0 0 0 14px rgb(249 115 22 / 0), 0 10px 30px rgb(0 0 0 / 0.35); }
+    100% { box-shadow: 0 0 0 0 rgb(249 115 22 / 0), 0 10px 30px rgb(0 0 0 / 0.35); }
   }
 }
 
