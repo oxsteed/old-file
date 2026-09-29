@@ -211,6 +211,24 @@ export function ensureLanguageLoaded(code) {
   });
 }
 
+/**
+ * Last-resort bootstrap for an asset-cache failure. The legacy catalog is
+ * intentionally kept out of the normal startup path, but it provides a
+ * complete English surface if a split catalog cannot be fetched.
+ */
+export function initializeEnglishFallback() {
+  return import('../locales/en.json').then((module) => i18n.use(initReactI18next).init({
+    resources: { en: { translation: module.default } },
+    lng: 'en',
+    fallbackLng: 'en',
+    supportedLngs: ['en'],
+    ns: ['translation'],
+    defaultNS: 'translation',
+    interpolation: { escapeValue: false },
+    react: { useSuspense: false },
+  }));
+}
+
 export function ensureLegalContentLoaded(code) {
   const normalizedCode = normalizeInitialLanguage(code);
   return i18nReady.then(() => {

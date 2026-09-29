@@ -4,7 +4,7 @@ import ReactDOM from 'react-dom/client';
 import * as Sentry from '@sentry/react';
 import AdminProviders from './AdminProviders';
 import AdminApp from './AdminApp';
-import i18next, { i18nReady } from '../i18n';
+import i18next, { i18nReady, initializeEnglishFallback } from '../i18n';
 import '../index.css';
 import {
   clearBootstrapRecoveryMarker,
@@ -67,5 +67,11 @@ i18nReady.then(() => {
     window.location.reload();
     return;
   }
-  renderAdminBootstrapFailure();
+  try {
+    await initializeEnglishFallback();
+    clearBootstrapRecoveryMarker();
+    renderAdmin();
+  } catch {
+    renderAdminBootstrapFailure();
+  }
 });

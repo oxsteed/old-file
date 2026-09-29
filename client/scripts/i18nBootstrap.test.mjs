@@ -34,3 +34,12 @@ test('optional translation namespaces fail soft while the legacy catalog stays r
   assert.equal((source.match(/optionalLocaleModule\(import\(/g) || []).length, 15);
   assert.match(source, /import\('\.\.\/locales\/generated\/en-0\.json'\)/);
 });
+
+test('admin has a complete English fallback for split-catalog failures', () => {
+  const i18nSource = read('src/i18n/index.js');
+  const adminSource = read('src/admin/main.jsx');
+  assert.match(i18nSource, /export function initializeEnglishFallback/);
+  assert.match(i18nSource, /import\('\.\.\/locales\/en\.json'\)/);
+  assert.match(adminSource, /initializeEnglishFallback/);
+  assert.match(adminSource, /renderAdminBootstrapFailure/);
+});
