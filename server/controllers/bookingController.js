@@ -752,9 +752,12 @@ exports.getHelperAvailableSlots = async (req, res, next) => {
       await availabilityService.getHourSlots(helperId, dateISO, 60);
 
     const pad = (n) => String(n).padStart(2, '0');
+    // BookingCalendar expects { startTime, endTime, available }; every slot
+    // here survived the busy-range filter in getHourSlots, so all are free.
     const out = slots.map((sl) => ({
-      start: `${pad(Math.floor(sl.startMin / 60))}:${pad(sl.startMin % 60)}`,
-      end: `${pad(Math.floor(sl.endMin / 60))}:${pad(sl.endMin % 60)}`,
+      startTime: `${pad(Math.floor(sl.startMin / 60))}:${pad(sl.startMin % 60)}`,
+      endTime: `${pad(Math.floor(sl.endMin / 60))}:${pad(sl.endMin % 60)}`,
+      available: true,
     }));
 
     const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
