@@ -2,8 +2,16 @@
 const logger = require('../utils/logger');
 const db = require('../db');
 const { sendEmail } = require('../utils/email');
+const { logAdminAction } = require('../services/auditService');
 
 const VALID_CONSULTING_STATUSES = ['pending', 'contacted', 'scheduled', 'in_progress', 'completed', 'cancelled', 'archived'];
+
+/** Minimal HTML escaper for interpolating admin input into email bodies. */
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
 
 exports.getConsultingRequests = async (req, res) => {
   const { status, limit = 50, offset = 0, search } = req.query;
@@ -128,6 +136,17 @@ exports.generateInvoice = async (req, res) => {
     );
 
     if (!purchase.rows.length) return res.status(404).json({ error: 'Purchase not found' });
+
+    // Duplicate guard: refuse a second invoice for the same purchase.
+    const { rows: existingInvoices } = await db.query(
+      `SELECT id FROM consulting_invoices
+        WHERE purchase_id = $1 AND status IN ('draft', 'sent', 'paid', 'overdue')
+        LIMIT 1`,
+      [purchase_id]
+    );
+    if (existingInvoices.length) {
+      return res.status(409).json({ error: 'An invoice already exists for this purchase' });
+    }
 
     const p = purchase.rows[0];
     const invoiceNumber = `CONS-${Date.now()}`;
@@ -512,7 +531,19 @@ exports.updateRequestStatusById = async (req, res) => {
     return res.status(400).json({ error: 'Status is required' });
   }
 
+  if (!VALID_CONSULTING_STATUSES.includes(status)) {
+    return res.status(400).json({
+      error: `Invalid status. Must be one of: ${VALID_CONSULTING_STATUSES.join(', ')}`,
+    });
+  }
+
   try {
+    const { rows: existing } = await db.query('SELECT status FROM consulting_sessions WHERE id = $1', [id]);
+    if (!existing.length) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+    const previousStatus = existing[0].status;
+
     const updates = ['status = $1', 'updated_at = NOW()'];
     const values = [status];
     let idx = 2;
@@ -530,6 +561,18 @@ exports.updateRequestStatusById = async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Request not found' });
     }
+
+    try {
+      await logAdminAction({
+        adminId: req.user?.id,
+        action: 'consulting_request_status_updated',
+        targetType: 'consulting_session',
+        targetId: String(id),
+        before: { status: previousStatus },
+        after: { status },
+        req,
+      });
+    } catch (e) {}
 
     logger.info('Consulting request status updated', { adminId: req.user?.id, id, status });
     return res.json(result.rows[0]);
@@ -618,25 +661,57 @@ exports.listInvoices = async (req, res) => {
  * POST /api/consulting/admin/invoices/generate-manual
  */
 exports.generateManualInvoice = async (req, res) => {
-  const { client_email, client_name, package_tier, amount_cents, notes } = req.body;
+  const { client_email, client_name, package_tier, amount_cents, notes, idempotency_key } = req.body;
   if (!client_email || !client_name) {
     return res.status(400).json({ error: 'Client email and name required' });
   }
+  // Strict amount validation: no `|| 0` coercion, reject negative/non-numeric.
+  if (amount_cents === undefined || amount_cents === null || typeof amount_cents !== 'number' ||
+      !Number.isInteger(amount_cents) || amount_cents < 0) {
+    return res.status(400).json({ error: 'amount_cents must be a non-negative integer' });
+  }
   try {
+    // Idempotency guard: a repeated request with the same key returns the
+    // original invoice instead of creating a duplicate.
+    const idempotencyKey = idempotency_key ? String(idempotency_key) : null;
+    if (idempotencyKey) {
+      const { rows: dup } = await db.query(
+        'SELECT * FROM consulting_invoices WHERE idempotency_key = $1 LIMIT 1',
+        [idempotencyKey]
+      );
+      if (dup.length) {
+        return res.json({ ...dup[0], client_email, client_name, duplicate: true });
+      }
+    }
+
     const invoiceNumber = `CONS-${Date.now()}`;
     const result = await db.query(
-      `INSERT INTO consulting_invoices (invoice_number, amount_cents, status, issued_date, due_date, notes)
-       VALUES ($1, $2, 'sent', CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', $3)
+      `INSERT INTO consulting_invoices (invoice_number, amount_cents, status, issued_date, due_date, notes, idempotency_key)
+       VALUES ($1, $2, 'sent', CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', $3, $4)
        RETURNING *`,
-      [invoiceNumber, amount_cents || 0, notes || null]
+      [invoiceNumber, amount_cents, notes || null, idempotencyKey]
     );
 
-    // Non-blocking email send
+    // Escape admin-supplied name before interpolating into the email HTML.
+    const safeClientName = escapeHtml(client_name);
+    const safeInvoiceNumber = escapeHtml(invoiceNumber);
     sendEmail({
       to: client_email,
       subject: `Invoice ${invoiceNumber} - OxSteed Consulting`,
-      html: `<p>Dear ${client_name},</p><p>Please find your invoice for consulting services attached.</p><p><strong>Invoice #:</strong> ${invoiceNumber}<br><strong>Amount:</strong> $${((amount_cents || 0) / 100).toFixed(2)}</p><p>Please contact us if you have any questions.</p>`,
+      html: `<p>Dear ${safeClientName},</p><p>Please find your invoice for consulting services attached.</p><p><strong>Invoice #:</strong> ${safeInvoiceNumber}<br><strong>Amount:</strong> $${(amount_cents / 100).toFixed(2)}</p><p>Please contact us if you have any questions.</p>`,
     }).catch(err => logger.warn('Failed to send invoice email', { error: err.message }));
+
+    try {
+      await logAdminAction({
+        adminId: req.user?.id,
+        action: 'consulting_manual_invoice_generated',
+        targetType: 'consulting_invoice',
+        targetId: String(result.rows[0].id),
+        description: `Manual consulting invoice ${invoiceNumber} for ${client_email}`,
+        after: { invoice_number: invoiceNumber, amount_cents, client_email },
+        req,
+      });
+    } catch (e) {}
 
     logger.info('Manual invoice generated', { invoiceNumber, adminId: req.user?.id, client_email });
     return res.status(201).json({ ...result.rows[0], client_email, client_name });

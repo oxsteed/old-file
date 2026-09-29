@@ -6,6 +6,28 @@ const sourcingService = require('../services/sourcingService');
 const { logLogisticsAction, listLogisticsAudit } = require('../services/logisticsAuditService');
 const { invalidateCache } = require('../services/logisticsPricingService');
 
+/**
+ * Strict numeric parse for money/percent inputs. Rejects NaN, Infinity,
+ * non-numeric strings and trailing-garbage strings ('10abc') that
+ * parseFloat/Number coercion would silently accept or mangle.
+ * Returns null when the value was not provided.
+ */
+function parseStrictAmount(value) {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string' && /^-?\d+(\.\d+)?$/.test(value.trim())) return Number(value.trim());
+  return NaN;
+}
+
+/** Provided money/percent values must be valid, finite, non-negative numbers. */
+function requireNonNegativeAmount(value, fieldName) {
+  const n = parseStrictAmount(value);
+  if (n === null) return null;
+  if (!Number.isFinite(n)) throw new AppError(`${fieldName} must be a valid number`, 400, 'validation_failed');
+  if (n < 0) throw new AppError(`${fieldName} must not be negative`, 400, 'validation_failed');
+  return n;
+}
+
 // ─── Dashboard Stats ──────────────────────────────────────────
 
 exports.getStats = async (req, res, next) => {
@@ -140,11 +162,14 @@ exports.createMarkupRule = async (req, res, next) => {
   try {
     const { scope, markup_pct, priority } = req.body;
     if (!scope) return next(new AppError('scope required', 400, 'validation_failed'));
+    const pct = requireNonNegativeAmount(markup_pct, 'markup_pct');
+    const fixedCents = requireNonNegativeAmount(req.body.markup_fixed_cents, 'markup_fixed_cents');
+    const prio = requireNonNegativeAmount(priority, 'priority');
     const result = await pool.query(
       `INSERT INTO markup_rules (scope,scope_id,category,markup_pct,markup_fixed_cents,priority,description,created_by)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [scope, req.body.scope_id, req.body.category, markup_pct, req.body.markup_fixed_cents,
-       priority||0, req.body.description, req.user.id]
+      [scope, req.body.scope_id, req.body.category, pct, fixedCents,
+       prio == null ? 0 : Math.trunc(prio), req.body.description, req.user.id]
     );
     invalidateCache();
     res.status(201).json({ success: true, data: result.rows[0] });
@@ -153,10 +178,12 @@ exports.createMarkupRule = async (req, res, next) => {
 
 exports.updateMarkupRule = async (req, res, next) => {
   try {
+    const pct = requireNonNegativeAmount(req.body.markup_pct, 'markup_pct');
+    const prio = requireNonNegativeAmount(req.body.priority, 'priority');
     const result = await pool.query(
       `UPDATE markup_rules SET markup_pct=$1, priority=$2, is_active=$3, description=$4
        WHERE id=$5 RETURNING *`,
-      [req.body.markup_pct, req.body.priority, req.body.is_active, req.body.description, req.params.id]
+      [pct, prio == null ? null : Math.trunc(prio), req.body.is_active, req.body.description, req.params.id]
     );
     invalidateCache();
     res.json({ success: true, data: result.rows[0] });
@@ -172,10 +199,12 @@ exports.listFeeRules = async (req, res, next) => {
 
 exports.updateFeeRule = async (req, res, next) => {
   try {
+    const amountCents = requireNonNegativeAmount(req.body.amount_cents, 'amount_cents');
+    const pctOfProduct = requireNonNegativeAmount(req.body.pct_of_product, 'pct_of_product');
     const result = await pool.query(
       `UPDATE fee_rules SET amount_cents=$1, pct_of_product=$2, is_active=$3
        WHERE id=$4 RETURNING *`,
-      [req.body.amount_cents, req.body.pct_of_product, req.body.is_active, req.params.id]
+      [amountCents, pctOfProduct, req.body.is_active, req.params.id]
     );
     invalidateCache();
     res.json({ success: true, data: result.rows[0] });

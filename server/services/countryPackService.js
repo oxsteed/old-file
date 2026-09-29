@@ -176,7 +176,15 @@ async function updateCountryPack(codeRaw, { status, name, flag_emoji, sort_order
   if (flag_emoji !== undefined) push('flag_emoji', String(flag_emoji).slice(0, 8));
   if (sort_order !== undefined) push('sort_order', Number(sort_order) || 100);
   if (default_locale !== undefined) push('default_locale', String(default_locale).slice(0, 8));
-  if (currency_code !== undefined) push('currency_code', String(currency_code).toUpperCase().slice(0, 3));
+  if (currency_code !== undefined) {
+    const code = String(currency_code).toUpperCase();
+    if (!/^[A-Z]{3}$/.test(code)) {
+      const err = new Error('currency_code must be a 3-letter ISO-4217 code');
+      err.code = 'validation_failed';
+      throw err;
+    }
+    push('currency_code', code);
+  }
   if (config !== undefined) {
     if (typeof config !== 'object' || config === null || Array.isArray(config)) {
       const err = new Error('config must be an object');

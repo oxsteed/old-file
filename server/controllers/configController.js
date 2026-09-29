@@ -1,6 +1,7 @@
 const db = require('../db');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
+const { logAdminAction } = require('../services/auditService');
 const { getPublicCapabilities } = require('../services/featureCapabilities');
 
 async function hasPlatformConfigTable() {
@@ -82,6 +83,16 @@ exports.updatePricing = async (req, res, next) => {
     if (entries.length === 0) {
       throw new AppError('No valid pricing keys provided', 400, 'validation_failed', { pricing: 'At least one valid pricing key is required' });
     }
+    // Validate price value format up front (fail before any partial write).
+    // Price keys must be non-negative numeric strings; label keys are free text.
+    for (const [key, value] of entries) {
+      if (key.endsWith('_price')) {
+        const str = String(value).trim();
+        if (!/^\d+(\.\d+)?$/.test(str)) {
+          throw new AppError(`Invalid price value for ${key}`, 400, 'validation_failed', { [key]: 'Must be a non-negative numeric price' });
+        }
+      }
+    }
     for (const [key, value] of entries) {
       await db.query(
         `INSERT INTO platform_config (key, value, updated_by)
@@ -90,6 +101,16 @@ exports.updatePricing = async (req, res, next) => {
         [key, String(value), req.user.id]
       );
     }
+    try {
+      await logAdminAction({
+        adminId: req.user.id,
+        action: 'pricing_updated',
+        targetType: 'platform_config',
+        description: 'Platform pricing updated',
+        after: Object.fromEntries(entries.map(([k, v]) => [k, String(v)])),
+        req,
+      });
+    } catch (e) {}
     res.json({ message: 'Pricing updated', updated: Object.fromEntries(entries) });
   } catch (err) {
     next(err);

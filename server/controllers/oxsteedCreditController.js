@@ -527,8 +527,10 @@ async function adminAdjustCredit(req, res, next) {
     const customerId = parseUuid(req.params.customerId, 'customerId');
     const direction = req.body?.direction;
     const referenceId = normalizeString(req.body?.referenceId || req.body?.reference_id, 160);
-    if (direction === 'credit' && !referenceId) {
-      throw new AppError('A funding reference is required for a positive administrative credit adjustment', 400, 'credit_funding_reference_required');
+    // A funding/case reference is required for both directions: credits and
+    // debits both move real customer balances and must be traceable.
+    if (!referenceId) {
+      throw new AppError('A funding reference is required for an administrative credit adjustment', 400, 'credit_funding_reference_required');
     }
     const result = await adjustCustomerCredit({
       customerId,

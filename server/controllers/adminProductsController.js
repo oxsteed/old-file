@@ -3,6 +3,65 @@ const { withTransaction } = require('../utils/transaction');
 const logger = require('../utils/logger');
 const { sendError, sendValidationError } = require('../utils/apiError');
 
+const VALID_PRODUCT_CATEGORIES = ['tools', 'supplies', 'equipment', 'materials', 'other'];
+const MAX_BULK_PRODUCTS = 100;
+
+/**
+ * Shared product validation, mirroring createProduct's rules.
+ * partial=true validates only the fields present (for updates).
+ */
+function validateProductFields(data, { partial = false } = {}) {
+  const errors = {};
+  const { name, description, category, price_cents, quantity_available, image_url, affiliate_url } = data || {};
+
+  if (!partial || name !== undefined) {
+    if (!name || typeof name !== 'string') {
+      errors.name = 'Required string';
+    } else if (name.trim().length < 3) {
+      errors.name = 'Must be at least 3 characters';
+    } else if (name.trim().length > 255) {
+      errors.name = 'Must be less than 255 characters';
+    }
+  }
+
+  if (description !== undefined && description !== null && typeof description === 'string') {
+    if (description.trim().length > 2000) {
+      errors.description = 'Must be less than 2000 characters';
+    }
+  }
+
+  if (!partial || price_cents !== undefined) {
+    if (price_cents === undefined || price_cents === null || typeof price_cents !== 'number') {
+      errors.price_cents = 'Required number';
+    } else if (!Number.isInteger(price_cents) || price_cents < 0 || price_cents > 999999999) {
+      errors.price_cents = 'Must be a non-negative integer between 0 and 999999999';
+    }
+  }
+
+  if (quantity_available !== undefined && quantity_available !== null &&
+      (typeof quantity_available !== 'number' || quantity_available < 0)) {
+    errors.quantity_available = 'Must be non-negative number';
+  }
+
+  if (category !== undefined && category !== null && typeof category === 'string' && category !== '') {
+    if (!VALID_PRODUCT_CATEGORIES.includes(category.toLowerCase())) {
+      errors.category = `Must be one of: ${VALID_PRODUCT_CATEGORIES.join(', ')}`;
+    }
+  }
+
+  for (const [field, url] of [['image_url', image_url], ['affiliate_url', affiliate_url]]) {
+    if (url !== undefined && url !== null && url !== '' && typeof url === 'string') {
+      try {
+        new URL(url);
+      } catch {
+        errors[field] = 'Invalid URL format';
+      }
+    }
+  }
+
+  return errors;
+}
+
 async function createProduct(req, res) {
   try {
     const {
@@ -18,56 +77,8 @@ async function createProduct(req, res) {
       quantity_available = 999999
     } = req.body;
 
-    // Comprehensive validation
-    const errors = {};
-
-    if (!name || typeof name !== 'string') {
-      errors.name = 'Required string';
-    } else if (name.trim().length < 3) {
-      errors.name = 'Must be at least 3 characters';
-    } else if (name.trim().length > 255) {
-      errors.name = 'Must be less than 255 characters';
-    }
-
-    if (description && typeof description === 'string') {
-      if (description.trim().length > 2000) {
-        errors.description = 'Must be less than 2000 characters';
-      }
-    }
-
-    if (!price_cents || typeof price_cents !== 'number') {
-      errors.price_cents = 'Required positive number';
-    } else if (price_cents < 0 || price_cents > 999999999) {
-      errors.price_cents = 'Must be between 0 and 999999999';
-    }
-
-    if (quantity_available && (typeof quantity_available !== 'number' || quantity_available < 0)) {
-      errors.quantity_available = 'Must be non-negative number';
-    }
-
-    if (category && typeof category === 'string') {
-      const validCategories = ['tools', 'supplies', 'equipment', 'materials', 'other'];
-      if (!validCategories.includes(category.toLowerCase())) {
-        errors.category = `Must be one of: ${validCategories.join(', ')}`;
-      }
-    }
-
-    if (image_url && typeof image_url === 'string') {
-      try {
-        new URL(image_url);
-      } catch {
-        errors.image_url = 'Invalid URL format';
-      }
-    }
-
-    if (affiliate_url && typeof affiliate_url === 'string') {
-      try {
-        new URL(affiliate_url);
-      } catch {
-        errors.affiliate_url = 'Invalid URL format';
-      }
-    }
-
+    // Comprehensive validation (shared with update/bulk paths)
+    const errors = validateProductFields(req.body);
     if (Object.keys(errors).length > 0) {
       return sendValidationError(res, errors);
     }
@@ -131,6 +142,12 @@ async function updateProduct(req, res) {
     );
 
     if (!existing.rows.length) return sendError(res, 404, 'Product not found');
+
+    // Mirror createProduct's validation for every field being updated
+    const errors = validateProductFields(req.body, { partial: true });
+    if (Object.keys(errors).length > 0) {
+      return sendValidationError(res, errors);
+    }
 
     const product = await withTransaction(async (client) => {
       // Update product
@@ -259,10 +276,20 @@ async function bulkCreateProducts(req, res) {
       return sendValidationError(res, { products: 'Array of products required' });
     }
 
-    const created = [];
+    if (products.length > MAX_BULK_PRODUCTS) {
+      return sendValidationError(res, { products: `Maximum ${MAX_BULK_PRODUCTS} products per bulk request` });
+    }
 
-    for (const productData of products) {
-      if (!productData.name || !productData.price_cents) continue;
+    const created = [];
+    const failed = [];
+
+    for (let i = 0; i < products.length; i++) {
+      const productData = products[i] || {};
+      const itemErrors = validateProductFields(productData);
+      if (Object.keys(itemErrors).length > 0) {
+        failed.push({ index: i, errors: itemErrors });
+        continue;
+      }
 
       try {
         const result = await pool.query(
@@ -287,13 +314,15 @@ async function bulkCreateProducts(req, res) {
       }
     }
 
-    logger.info('Bulk created products', { count: created.length });
+    logger.info('Bulk created products', { count: created.length, failed: failed.length });
 
     res.json({
       success: true,
       data: {
         created: created.length,
-        products: created
+        failed: failed.length,
+        products: created,
+        errors: failed
       }
     });
   } catch (error) {

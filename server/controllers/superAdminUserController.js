@@ -43,6 +43,11 @@ const LOGISTICS_ROLE_VALUES = Object.freeze([
   'super_admin',
 ]);
 
+// Roles assignable through the edit-full endpoint. `admin` is appended at the
+// validation site; `super_admin` can additionally only be granted by a
+// super_admin (regional admins are blocked - fail closed).
+const ALLOWED_ROLES = Object.freeze(['customer', 'helper', 'helper_pro', 'broker', 'employee']);
+
 // ── Constants ───────────────────────────────────────────────────────────────
 
 const ACCOUNT_TYPE_CONFIG = Object.freeze({
@@ -417,7 +422,12 @@ exports.editUserFull = async (req, res) => {
         }
 
         if (f.key === 'role' && newVal && !ALLOWED_ROLES.concat(['admin']).includes(newVal)) {
-          throw Object.assign(new Error(`Invalid role: ${newVal}`), { httpStatus: 400 });
+          throw Object.assign(new Error('Invalid role'), { httpStatus: 400 });
+        }
+
+        // Regional admins must never be able to grant super_admin (fail closed).
+        if (f.key === 'role' && newVal === 'super_admin' && req.user.role !== 'super_admin') {
+          throw Object.assign(new Error('Only a super_admin can grant the super_admin role'), { httpStatus: 403 });
         }
 
         // Re-uppercase state for fixed-list countries before storing.
@@ -560,8 +570,7 @@ exports.editUserFull = async (req, res) => {
     }
     logger.error('editUserFull error', { err: err.message });
     return res.status(500).json({
-      error:  'Failed to update user.',
-      detail: err.message,
+      error: 'Failed to update user.',
     });
   }
 };

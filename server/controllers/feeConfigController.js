@@ -5,6 +5,20 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 
+/**
+ * Strict numeric parse for fee config values. Rejects NaN, Infinity,
+ * non-numeric strings ('abc'), and trailing-garbage strings ('10abc')
+ * that parseFloat would silently accept.
+ */
+function parseStrictNumber(value) {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed !== '' && /^-?\d+(\.\d+)?$/.test(trimmed)) return Number(trimmed);
+  }
+  return NaN;
+}
+
 // --- Get all fee config values -----------------------
 exports.getFeeConfig = async (req, res, next) => {
   try {
@@ -60,7 +74,11 @@ exports.updateFeeConfig = async (req, res, next) => {
     }
 
     const current = existing[0];
-    const newValue = parseFloat(value);
+    const newValue = parseStrictNumber(value);
+
+    if (!Number.isFinite(newValue)) {
+      throw new AppError('Value must be a valid number', 400, 'validation_failed', { value: 'Must be a numeric value' });
+    }
 
     if (key === 'trial_duration_days' && newValue < DEFAULT_TRIAL_DURATION_DAYS) {
       throw new AppError(
