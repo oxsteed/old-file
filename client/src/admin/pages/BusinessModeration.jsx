@@ -1,11 +1,14 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
 import {
   Building2, Search, ToggleLeft, ToggleRight, X, Eye, Edit2, Users,
   MessageSquare, Trash2, Flag, AlertCircle, TrendingUp
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState from '../lib/AdminErrorState';
 
 const STATUS_FILTERS = [
   { value: '',         label: 'All'      },
@@ -68,6 +71,7 @@ function BusinessAvatar({ business }) {
 // ─── Reason Modal ─────────────────────────────────────────────────────────────
 
 function ReasonModal({ business, actionType, onConfirm, onClose, loading }) {
+  const { t } = useTranslation();
   const [reason, setReason] = useState('');
   const [error,  setError]  = useState('');
 
@@ -104,6 +108,7 @@ function ReasonModal({ business, actionType, onConfirm, onClose, loading }) {
           <button
             onClick={onClose}
             disabled={loading}
+            aria-label={t('common.aria.closeButton')}
             className="text-gray-500 hover:text-white transition p-1"
           >
             <X size={16} />
@@ -156,6 +161,7 @@ function ReasonModal({ business, actionType, onConfirm, onClose, loading }) {
 // ─── Action Menu ──────────────────────────────────────────────────────────────
 
 function ActionMenu({ business, onToggle, onSuspend, onDelete, onFlag, onViewProfile }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
   return (
@@ -164,6 +170,7 @@ function ActionMenu({ business, onToggle, onSuspend, onDelete, onFlag, onViewPro
         onClick={() => setOpen(!open)}
         className="px-2 py-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition text-xl"
         title="More actions"
+        aria-label={t('adminA11y.moreActions')}
       >
         ⋯
       </button>
@@ -204,15 +211,6 @@ function ActionMenu({ business, onToggle, onSuspend, onDelete, onFlag, onViewPro
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function BusinessModeration() {
-  const [businesses, setBusinesses] = useState([]);
-  const [stats, setStats] = useState({
-    total: 0,
-    active: 0,
-    inactive: 0,
-    newThisMonth: 0,
-    dormant: 0,
-  });
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [activityFilter, setActivityFilter] = useState('');
@@ -223,33 +221,36 @@ export default function BusinessModeration() {
   const [actionBusy, setActionBusy] = useState(false);
   const navigate = useNavigate();
 
-  const fetchBusinesses = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = { page };
-      if (search) params.search = search;
-      if (statusFilter) params.status = statusFilter;
-      if (activityFilter) params.activity = activityFilter;
-      if (sortBy) params.sort = sortBy;
+  // Abortable list load. On failure the previous queue stays visible and an
+  // error state is shown; the list is never cleared into a false empty queue.
+  const { data, error, loading, reload } = useAbortableFetch(async (signal) => {
+    const params = { page };
+    if (search) params.search = search;
+    if (statusFilter) params.status = statusFilter;
+    if (activityFilter) params.activity = activityFilter;
+    if (sortBy) params.sort = sortBy;
 
-      const { data } = await adminApi.get('/admin/businesses', { params });
-      setBusinesses(data.businesses || []);
-      setStats({
+    const { data } = await adminApi.get('/admin/businesses', { params, signal });
+    return {
+      businesses: data.businesses || [],
+      stats: {
         total: data.total || 0,
         active: data.stats?.active || 0,
         inactive: data.stats?.inactive || 0,
         newThisMonth: data.stats?.newThisMonth || 0,
         dormant: data.stats?.dormant || 0,
-      });
-    } catch (err) {
-      console.error('Failed to fetch businesses:', err);
-      setBusinesses([]);
-    } finally {
-      setLoading(false);
-    }
+      },
+    };
   }, [search, statusFilter, activityFilter, sortBy, page]);
 
-  useEffect(() => { fetchBusinesses(); }, [fetchBusinesses]);
+  const businesses = data?.businesses ?? [];
+  const stats = data?.stats ?? {
+    total: 0,
+    active: 0,
+    inactive: 0,
+    newThisMonth: 0,
+    dormant: 0,
+  };
 
   const resetPage = (setter) => (val) => { setter(val); setPage(1); };
 
@@ -262,15 +263,8 @@ export default function BusinessModeration() {
 
       await adminApi.put(endpoint, { reason });
 
-      if (actionType === 'toggle') {
-        setBusinesses(prev =>
-          prev.map(b => b.id === modal.business.id ? { ...b, is_active: !b.is_active } : b)
-        );
-      } else if (actionType === 'delete') {
-        setBusinesses(prev => prev.filter(b => b.id !== modal.business.id));
-      }
-
       setModal(null);
+      reload();
     } catch (err) {
       toast.error(err?.response?.data?.error || 'Action failed.');
     } finally {
@@ -394,6 +388,12 @@ export default function BusinessModeration() {
               {loading ? (
                 <tr>
                   <td colSpan={9} className="text-center text-gray-400 py-12">Loading…</td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={9} className="text-center py-12">
+                    <AdminErrorState onRetry={reload} />
+                  </td>
                 </tr>
               ) : businesses.length === 0 ? (
                 <tr>

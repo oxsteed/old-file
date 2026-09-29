@@ -1,6 +1,9 @@
-import { useEffect, useState }  from 'react';
+import { useState }  from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import adminApi                 from '../../lib/adminApi';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState from '../lib/AdminErrorState';
+import ConfirmDialog from '../lib/ConfirmDialog';
 
 const RESOLUTION_OPTIONS = [
   {
@@ -33,51 +36,39 @@ const RESOLUTION_OPTIONS = [
 export default function DisputeResolve() {
   const { disputeId }            = useParams();
   const navigate                 = useNavigate();
-  const [data,        setData]   = useState(null);
   const [resolution,  setResolution] = useState('');
   const [notes,       setNotes]  = useState('');
   const [refundAmt,   setRefundAmt] = useState('');
   const [submitting,  setSubmitting] = useState(false);
-  const [error,       setError]  = useState(null);
-  const [loading,     setLoading] = useState(true);
+  const [formError,   setFormError]  = useState(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
-  useEffect(() => {
-    const fetch = async () => {
-      try {
-        const { data: res } = await adminApi.get(
-          `/disputes/${disputeId}`
-        );
-        setData(res);
-      } catch (err) {
-        setError('Failed to load dispute.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetch();
+  const { data, error: loadError, loading, reload } = useAbortableFetch(async (signal) => {
+    const { data: res } = await adminApi.get(`/disputes/${disputeId}`, { signal });
+    return res;
   }, [disputeId]);
 
-  const handleResolve = async (e) => {
+  const handleResolve = (e) => {
     e.preventDefault();
     if (!resolution) {
-      setError('Please select a resolution type.');
+      setFormError('Please select a resolution type.');
       return;
     }
     if (!notes.trim()) {
-      setError('Resolution notes are required.');
+      setFormError('Resolution notes are required.');
       return;
     }
     if (resolution === 'partial_refund' && !refundAmt) {
-      setError('Enter the refund amount for partial refund.');
+      setFormError('Enter the refund amount for partial refund.');
       return;
     }
+    setFormError(null);
+    setConfirmOpen(true);
+  };
 
-    if (!window.confirm(
-      `Resolve this dispute as "${resolution}"? This action is irreversible.`
-    )) return;
-
+  // ConfirmDialog keeps itself open and shows the error if this throws.
+  const confirmResolve = async () => {
     setSubmitting(true);
-    setError(null);
     try {
       await adminApi.post(`/disputes/admin/${disputeId}/resolve`, {
         resolution,
@@ -87,8 +78,6 @@ export default function DisputeResolve() {
         })
       });
       navigate('/admin/disputes?resolved=true');
-    } catch (err) {
-      setError(err.response?.data?.error || 'Resolution failed.');
     } finally {
       setSubmitting(false);
     }
@@ -98,9 +87,9 @@ export default function DisputeResolve() {
     <div className="p-8 text-center text-gray-500">Loading dispute...</div>
   );
 
-  if (!data) return (
-    <div className="p-8 text-center text-gray-500">
-      {error || 'Dispute not found.'}
+  if (loadError || !data) return (
+    <div className="p-8 max-w-4xl">
+      <AdminErrorState onRetry={reload} />
     </div>
   );
 
@@ -271,10 +260,10 @@ export default function DisputeResolve() {
               </p>
             </div>
 
-            {error && (
+            {formError && (
               <div className="bg-red-900 border border-red-700
                               text-red-300 text-sm rounded-xl px-4 py-3">
-                {error}
+                {formError}
               </div>
             )}
 
@@ -293,6 +282,16 @@ export default function DisputeResolve() {
           </form>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        danger
+        title="Confirm Resolution"
+        message={`Resolve this dispute as "${resolution}"? This action is irreversible.`}
+        confirmLabel="Resolve Dispute"
+        onConfirm={confirmResolve}
+        onClose={() => setConfirmOpen(false)}
+      />
     </div>
   );
 }

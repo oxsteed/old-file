@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Check, Loader2, MapPinned, Pencil, Plus, RefreshCw, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
-import adminApi from '../lib/adminApi';
+import adminApi from '../../lib/adminApi';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState from '../lib/AdminErrorState';
 
 const EMPTY_FORM = {
   label: '',
@@ -50,25 +52,23 @@ export default function DirectServiceAreas() {
   const [areas, setAreas] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
   const [query, setQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
 
-  const loadAreas = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data } = await adminApi.get('/direct/admin/service-areas');
-      setAreas(data.serviceAreas || []);
-    } catch (error) {
-      toast.error(error.response?.data?.error || t('directCatalogAdmin.couldNotLoadServiceAreas', { defaultValue: 'Could not load Direct service areas.' }));
-    } finally {
-      setLoading(false);
-    }
+  // Abortable areas load. The previous list stays visible while a refetch is
+  // in flight; failures surface as an error state, never an empty list.
+  const { data: areasData, error, loading, reload } = useAbortableFetch(async (signal) => {
+    const { data } = await adminApi.get('/direct/admin/service-areas', { signal });
+    return data.serviceAreas || [];
   }, []);
 
-  useEffect(() => { loadAreas(); }, [loadAreas]);
+  useEffect(() => {
+    if (areasData) setAreas(areasData);
+  }, [areasData]);
+
+  const loadAreas = reload;
 
   const visibleAreas = areas.filter((area) => {
     const haystack = `${area.label || ''} ${area.anchorZip || ''}`.toLowerCase();
@@ -152,10 +152,9 @@ export default function DirectServiceAreas() {
           </div>
         </div>
         <div className="flex gap-2">
-          <button type="button" onClick={loadAreas} disabled={loading} className="inline-flex items-center gap-2 rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:border-gray-500 hover:text-white disabled:opacity-50">
+          <button type="button" onClick={loadAreas} disabled={loading} aria-label={t('common.refresh')} className="inline-flex items-center gap-2 rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:border-gray-500 hover:text-white disabled:opacity-50">
             <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> {t('directCatalogAdmin.refresh', { defaultValue: 'Refresh' })}
           </button>
-          <a href="/direct/service-area" target="_blank" rel="noreferrer" className="inline-flex items-center rounded-lg border border-orange-500/30 px-3 py-2 text-sm text-orange-300 hover:bg-orange-500/10">{t('directCatalogAdmin.viewPublicChecker', { defaultValue: 'View public checker' })}</a>
         </div>
       </div>
 
@@ -218,8 +217,10 @@ export default function DirectServiceAreas() {
               <option value="inactive">{t('directCatalogAdmin.inactiveOnly', { defaultValue: 'Inactive only' })}</option>
             </select>
           </div>
-          {loading ? (
+          {loading && areas.length === 0 ? (
             <div className="flex h-48 items-center justify-center text-orange-400"><Loader2 className="animate-spin" /></div>
+          ) : error ? (
+            <AdminErrorState onRetry={reload} />
           ) : areas.length === 0 ? (
             <div className="rounded-lg border border-dashed border-gray-700 p-8 text-center text-sm text-gray-500">{t('directCatalogAdmin.noServiceAreas', { defaultValue: 'No service areas configured.' })}</div>
           ) : visibleAreas.length === 0 ? (

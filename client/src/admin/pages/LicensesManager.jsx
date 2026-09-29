@@ -1,8 +1,11 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Plus, Search, Pencil, Trash2, ToggleLeft, ToggleRight, X, Check } from 'lucide-react';
 import adminApi from '../../lib/adminApi';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState from '../lib/AdminErrorState';
+import ConfirmDialog from '../lib/ConfirmDialog';
 
 const EMPTY_FORM = { name: '', category: '', is_active: true };
 
@@ -11,41 +14,42 @@ export default function LicensesManager() {
   const [licenses,   setLicenses]   = useState([]);
   const [total,      setTotal]      = useState(0);
   const [categories, setCategories] = useState([]);
-  const [loading,    setLoading]    = useState(true);
   const [filters,    setFilters]    = useState({ q: '', category: '', offset: 0, limit: 50 });
   const [showForm,   setShowForm]   = useState(false);
   const [editing,    setEditing]    = useState(null);
   const [form,       setForm]       = useState(EMPTY_FORM);
   const [saving,     setSaving]     = useState(false);
+  const [deleting,   setDeleting]   = useState(null);
   const [catSearch,  setCatSearch]  = useState('');
   const [catSugs,    setCatSugs]    = useState([]);
   const catRef = useRef(null);
 
-  const fetchLicenses = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = { ...filters };
-      if (!params.q) delete params.q;
-      if (!params.category) delete params.category;
-      const { data } = await adminApi.get('/admin/licenses-lookup', { params });
-      setLicenses(data.licenses);
-      setTotal(data.total);
-    } catch {
-      toast.error(t('adminLicenses.toast.loadFailed'));
-    } finally {
-      setLoading(false);
-    }
-  }, [filters, t]);
+  // Abortable licenses load. A failed refetch keeps the previous list on
+  // screen and surfaces a retryable error instead of clearing the table.
+  const { data: licensesData, error, loading, reload } = useAbortableFetch(async (signal) => {
+    const params = { ...filters };
+    if (!params.q) delete params.q;
+    if (!params.category) delete params.category;
+    const { data } = await adminApi.get('/admin/licenses-lookup', { params, signal });
+    return { licenses: data.licenses, total: data.total };
+  }, [filters]);
 
-  const fetchCategories = useCallback(async () => {
-    try {
-      const { data } = await adminApi.get('/admin/licenses-lookup/categories');
-      setCategories(data.categories || []);
-    } catch { /* silent */ }
+  useEffect(() => {
+    if (licensesData) {
+      setLicenses(licensesData.licenses);
+      setTotal(licensesData.total);
+    }
+  }, [licensesData]);
+
+  // Categories are a separate non-blocking load.
+  const { data: categoriesData, reload: reloadCategories } = useAbortableFetch(async (signal) => {
+    const { data } = await adminApi.get('/admin/licenses-lookup/categories', { signal });
+    return data.categories || [];
   }, []);
 
-  useEffect(() => { fetchLicenses(); },    [fetchLicenses]);
-  useEffect(() => { fetchCategories(); }, [fetchCategories]);
+  useEffect(() => {
+    if (categoriesData) setCategories(categoriesData);
+  }, [categoriesData]);
 
   // Category autocomplete for form
   useEffect(() => {
@@ -90,8 +94,8 @@ export default function LicensesManager() {
         toast.success(t('adminLicenses.toast.added'));
       }
       setShowForm(false);
-      fetchLicenses();
-      fetchCategories();
+      reload();
+      reloadCategories();
     } catch (err) {
       toast.error(err?.response?.data?.error || t('adminLicenses.toast.saveFailed'));
     } finally {
@@ -103,22 +107,18 @@ export default function LicensesManager() {
     try {
       await adminApi.put(`/admin/licenses-lookup/${license.id}`, { is_active: !license.is_active });
       toast.success(license.is_active ? t('adminLicenses.toast.hidden') : t('adminLicenses.toast.restored'));
-      fetchLicenses();
+      reload();
     } catch {
       toast.error(t('adminLicenses.toast.toggleFailed'));
     }
   };
 
-  const handleDelete = async (license) => {
-    if (!confirm(t('adminLicenses.deleteConfirm', { name: license.name }))) return;
-    try {
-      await adminApi.delete(`/admin/licenses-lookup/${license.id}?hard=true`);
-      toast.success(t('adminLicenses.toast.deleted'));
-      fetchLicenses();
-      fetchCategories();
-    } catch {
-      toast.error(t('adminLicenses.toast.deleteFailed'));
-    }
+  const confirmDelete = async () => {
+    if (!deleting) return;
+    await adminApi.delete(`/admin/licenses-lookup/${deleting.id}?hard=true`);
+    toast.success(t('adminLicenses.toast.deleted'));
+    reload();
+    reloadCategories();
   };
 
   return (
@@ -161,6 +161,9 @@ export default function LicensesManager() {
       </div>
 
       {/* Table */}
+      {error && (
+        <div className="mb-4"><AdminErrorState onRetry={reload} /></div>
+      )}
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
         <table className="w-full text-sm">
           <thead>
@@ -172,9 +175,9 @@ export default function LicensesManager() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800">
-            {loading ? (
+            {loading && licenses.length === 0 ? (
               <tr><td colSpan={4} className="text-center py-10 text-gray-500">{t('adminLicenses.table.loading')}</td></tr>
-            ) : licenses.length === 0 ? (
+            ) : !error && licenses.length === 0 ? (
               <tr><td colSpan={4} className="text-center py-10 text-gray-500">{t('adminLicenses.table.none')}</td></tr>
             ) : licenses.map(license => (
               <tr key={license.id} className={`hover:bg-gray-800/50 transition ${!license.is_active ? 'opacity-50' : ''}`}>
@@ -192,6 +195,7 @@ export default function LicensesManager() {
                     <button
                       onClick={() => handleToggle(license)}
                       title={license.is_active ? t('adminLicenses.actions.hideFromAutocomplete') : t('adminLicenses.actions.restore')}
+                      aria-label={license.is_active ? t('adminLicenses.actions.hideFromAutocomplete') : t('adminLicenses.actions.restore')}
                       className="p-1.5 text-gray-500 hover:text-orange-400 transition rounded hover:bg-gray-800"
                     >
                       {license.is_active ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
@@ -199,13 +203,15 @@ export default function LicensesManager() {
                     <button
                       onClick={() => openEdit(license)}
                       title={t('adminLicenses.actions.edit')}
+                      aria-label={t('adminLicenses.actions.edit')}
                       className="p-1.5 text-gray-500 hover:text-white transition rounded hover:bg-gray-800"
                     >
                       <Pencil size={14} />
                     </button>
                     <button
-                      onClick={() => handleDelete(license)}
+                      onClick={() => setDeleting(license)}
                       title={t('adminLicenses.actions.hardDelete')}
+                      aria-label={t('adminLicenses.actions.hardDelete')}
                       className="p-1.5 text-gray-500 hover:text-red-400 transition rounded hover:bg-gray-800"
                     >
                       <Trash2 size={14} />
@@ -249,7 +255,7 @@ export default function LicensesManager() {
           <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
             <div className="flex items-center justify-between mb-5">
               <h3 className="font-bold text-white">{editing ? t('adminLicenses.modal.editTitle') : t('adminLicenses.modal.addTitle')}</h3>
-              <button onClick={() => setShowForm(false)} className="text-gray-500 hover:text-white transition">
+              <button onClick={() => setShowForm(false)} aria-label={t('common.aria.closeButton')} className="text-gray-500 hover:text-white transition">
                 <X size={18} />
               </button>
             </div>
@@ -325,6 +331,19 @@ export default function LicensesManager() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Hard-delete confirmation */}
+      {deleting && (
+        <ConfirmDialog
+          open
+          danger
+          title={t('adminLicenses.deleteConfirmTitle')}
+          message={t('adminLicenses.deleteConfirm', { name: deleting.name })}
+          confirmLabel={t('adminLicenses.actions.hardDelete')}
+          onConfirm={confirmDelete}
+          onClose={() => setDeleting(null)}
+        />
       )}
     </div>
   );

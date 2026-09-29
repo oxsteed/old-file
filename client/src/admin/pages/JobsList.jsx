@@ -1,8 +1,10 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Download, Trash2, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import adminApi from '../../lib/adminApi';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState from '../lib/AdminErrorState';
 
 const STATUSES = ['', 'published', 'accepted', 'in_progress', 'completed', 'cancelled', 'disputed'];
 
@@ -24,47 +26,41 @@ export default function JobsList() {
 
   const [jobs, setJobs] = useState([]);
   const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [filters, setFilters] = useState({ search: '', status: '', page: 1 });
+  const [exportError, setExportError] = useState('');
 
-  // Delete modal state
-  const [deleting, setDeleting] = useState(null); // job object
-  const [deleteReason, setDeleteReason] = useState('');
-  const [deleteLoading, setDeleteLoading] = useState(false);
-  const [deleteError, setDeleteError] = useState('');
-
-  const fetchJobs = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== ''));
-      const { data } = await adminApi.get('/admin/jobs', { params });
-      setJobs(data.jobs || []);
-      setTotal(data.total || 0);
-      setLastUpdated(new Date());
-    } catch (err) {
-      console.error('Failed to fetch jobs:', err);
-      setJobs([]);
-      setError(err.response?.data?.error || 'Could not load jobs.');
-    } finally {
-      setLoading(false);
-    }
+  // Abortable jobs load. A failed refetch keeps the previous list on screen and
+  // surfaces a retryable error instead of clearing the table.
+  const { data: jobsData, error, loading, reload } = useAbortableFetch(async (signal) => {
+    const params = Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== ''));
+    const { data } = await adminApi.get('/admin/jobs', { params, signal });
+    return { jobs: data.jobs || [], total: data.total || 0 };
   }, [filters]);
 
-  useEffect(() => { fetchJobs(); }, [fetchJobs]);
+  useEffect(() => {
+    if (jobsData) {
+      setJobs(jobsData.jobs);
+      setTotal(jobsData.total);
+      setLastUpdated(new Date());
+    }
+  }, [jobsData]);
+
+  const fetchJobs = reload;
 
   const updateFilter = (key, value) => setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
 
   const exportCSV = async () => {
+    setExportError('');
     try {
       const { data } = await adminApi.get('/admin/export/jobs', { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([data]));
       const a = document.createElement('a');
       a.href = url; a.download = `jobs_${new Date().toISOString().slice(0,10)}.csv`;
       a.click(); window.URL.revokeObjectURL(url);
-    } catch (err) { console.error('Export failed:', err); }
+    } catch (err) {
+      setExportError(err.response?.data?.error || 'Could not export jobs. Try again.');
+    }
   };
 
   const handleDeleteConfirm = async () => {
@@ -98,29 +94,32 @@ export default function JobsList() {
             className="flex items-center gap-2 bg-gray-800 border border-gray-700 hover:bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm transition-colors disabled:opacity-50">
             <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> Refresh
           </button>
-          <button onClick={exportCSV}
+          <button type="button" onClick={exportCSV}
             className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm transition-colors">
             <Download size={16} /> Export CSV
           </button>
         </div>
       </div>
+      {exportError && (
+        <div className="mb-6 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          <span>{exportError}</span>
+          <button type="button" onClick={exportCSV} className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/10">Try again</button>
+        </div>
+      )}
 
       {error && (
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-          <span>{error}</span>
-          <button type="button" onClick={fetchJobs} disabled={loading} className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/10 disabled:opacity-50">Try again</button>
-        </div>
+        <div className="mb-6"><AdminErrorState onRetry={fetchJobs} /></div>
       )}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-6">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-          <input type="text" placeholder="Search jobs by title or ID..."
+          <input type="text" placeholder="Search jobs by title or ID..." aria-label="Search jobs"
             value={filters.search} onChange={e => updateFilter('search', e.target.value)}
             className="w-full pl-9 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm placeholder-gray-500 focus:border-orange-500 focus:outline-none" />
         </div>
-        <select value={filters.status} onChange={e => updateFilter('status', e.target.value)}
+        <select value={filters.status} onChange={e => updateFilter('status', e.target.value)} aria-label="Filter jobs by status"
           className="bg-gray-800 border border-gray-700 rounded-lg text-white text-sm px-3 py-2 focus:border-orange-500 focus:outline-none">
           <option value="">All Statuses</option>
           {STATUSES.filter(Boolean).map(s => (
@@ -144,10 +143,10 @@ export default function JobsList() {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
+            {loading && jobs.length === 0 ? (
               <tr><td colSpan={7} className="text-center text-gray-400 py-12">Loading…</td></tr>
             ) : jobs.length === 0 ? (
-              <tr><td colSpan={7} className="text-center text-gray-400 py-12">{error ? 'Job data is unavailable.' : 'No jobs found.'}</td></tr>
+              <tr><td colSpan={7} className="text-center text-gray-400 py-12">No jobs found.</td></tr>
             ) : jobs.map(job => (
               <tr key={job.id} className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors">
                 <td className={`${col} text-white font-medium max-w-[200px]`}>

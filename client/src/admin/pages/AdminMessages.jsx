@@ -1,7 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useSocket } from '../../hooks/useSocket';
 import api from '../../api/axios';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState from '../lib/AdminErrorState';
 
 const adminApi = (path, opts) => api(path.startsWith('/api') ? path : `/admin${path}`, opts);
 
@@ -23,57 +25,83 @@ export default function AdminMessages() {
   const [selected,      setSelected]      = useState(null); // { userId, user, conversation_id }
   const [thread,        setThread]        = useState([]);
   const [threadLoading, setThreadLoading] = useState(false);
-  const [listLoading,   setListLoading]   = useState(true);
+  const [threadError,   setThreadError]   = useState(false);
   const [message,       setMessage]       = useState('');
   const [sending,       setSending]       = useState(false);
   const [searchInput,   setSearchInput]   = useState('');
+  const [listQuery,     setListQuery]     = useState('');
   const [newUserSearch, setNewUserSearch] = useState('');
   const [newUserResults,setNewUserResults]= useState([]);
   const [showNewModal,  setShowNewModal]  = useState(false);
   const bottomRef = useRef(null);
   const inputRef  = useRef(null);
 
-  const loadConversations = useCallback(async (q = '') => {
-    try {
-      const { data } = await adminApi(`/messages/conversations?q=${encodeURIComponent(q)}&limit=100`);
-      setConversations(data.conversations || []);
-    } catch {
-      // silent
-    } finally {
-      setListLoading(false);
-    }
-  }, []);
+  // Debounce the conversation search so keystrokes don't fan out requests.
+  useEffect(() => {
+    const timer = setTimeout(() => setListQuery(searchInput), 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
-  useEffect(() => { loadConversations(); }, [loadConversations]);
+  // Conversation list: abortable, sequence-guarded, with a real error state.
+  const {
+    data: conversationsData,
+    error: listError,
+    loading: listLoading,
+    reload: reloadConversations,
+  } = useAbortableFetch(async (signal) => {
+    const { data } = await adminApi(`/messages/conversations?q=${encodeURIComponent(listQuery)}&limit=100`, { signal });
+    return data.conversations || [];
+  }, [listQuery]);
+
+  useEffect(() => {
+    if (conversationsData) setConversations(conversationsData);
+  }, [conversationsData]);
 
   useEffect(() => {
     if (!socket) return;
-    const handler = () => loadConversations(searchInput);
+    const handler = () => reloadConversations();
     socket.on('admin:message', handler);
     socket.on('message:new',   handler);
     return () => {
       socket.off('admin:message', handler);
       socket.off('message:new',   handler);
     };
-  }, [socket, searchInput, loadConversations]);
+  }, [socket, reloadConversations]);
 
-  const openThread = async (conv) => {
-    setSelected({ userId: conv.user_id, user: conv, conversation_id: conv.id });
+  // Thread loading: abort in-flight fetches and ignore stale responses so a
+  // slower earlier request can never clobber a newer thread.
+  const threadRequestRef = useRef({ controller: null, seq: 0 });
+
+  const loadThread = async (userId) => {
+    const prev = threadRequestRef.current;
+    prev.controller?.abort();
+    const controller = new AbortController();
+    const seq = prev.seq + 1;
+    threadRequestRef.current = { controller, seq };
     setThreadLoading(true);
+    setThreadError(false);
     try {
-      const { data } = await adminApi(`/messages/conversations/${conv.user_id}`);
+      const { data } = await adminApi(`/messages/conversations/${userId}`, { signal: controller.signal });
+      if (threadRequestRef.current.seq !== seq) return; // stale
       setThread(data.messages || []);
-      // Mark as read in the list
-      setConversations(prev => prev.map(c =>
-        c.id === conv.id ? { ...c, unread_count: 0 } : c
-      ));
     } catch {
+      if (controller.signal.aborted || threadRequestRef.current.seq !== seq) return;
       setThread([]);
+      setThreadError(true);
     } finally {
-      setThreadLoading(false);
+      if (threadRequestRef.current.seq === seq) setThreadLoading(false);
       setTimeout(() => { bottomRef.current?.scrollIntoView({ behavior: 'instant' }); }, 50);
       inputRef.current?.focus();
     }
+  };
+
+  const openThread = (conv) => {
+    setSelected({ userId: conv.user_id, user: conv, conversation_id: conv.id });
+    loadThread(conv.user_id);
+    // Mark as read in the list
+    setConversations(prev => prev.map(c =>
+      c.id === conv.id ? { ...c, unread_count: 0 } : c
+    ));
   };
 
   useEffect(() => {
@@ -105,7 +133,7 @@ export default function AdminMessages() {
       setThread(prev => prev.map(m =>
         m.id === optimistic.id ? { ...optimistic, id: data.message_id, created_at: data.created_at } : m
       ));
-      loadConversations(searchInput);
+      reloadConversations();
     } catch {
       setThread(prev => prev.filter(m => m.id !== optimistic.id));
     } finally {
@@ -113,16 +141,41 @@ export default function AdminMessages() {
     }
   };
 
-  const searchNewUser = async (q) => {
+  // New-conversation user search: debounced and abortable so keystrokes
+  // don't race each other.
+  const userSearchRequestRef = useRef({ controller: null, seq: 0 });
+
+  useEffect(() => () => {
+    threadRequestRef.current.controller?.abort();
+    userSearchRequestRef.current.controller?.abort();
+  }, []);
+
+  const searchNewUser = (q) => {
     setNewUserSearch(q);
-    if (q.length < 2) { setNewUserResults([]); return; }
-    try {
-      const { data } = await adminApi(`/users?q=${encodeURIComponent(q)}&limit=10`);
-      setNewUserResults(data.users || []);
-    } catch { setNewUserResults([]); }
+    if (q.length < 2) {
+      userSearchRequestRef.current.controller?.abort();
+      setNewUserResults([]);
+      return;
+    }
+    const prev = userSearchRequestRef.current;
+    prev.controller?.abort();
+    const controller = new AbortController();
+    const seq = prev.seq + 1;
+    userSearchRequestRef.current = { controller, seq };
+    const query = q;
+    setTimeout(async () => {
+      if (userSearchRequestRef.current.seq !== seq) return;
+      try {
+        const { data } = await adminApi(`/users?q=${encodeURIComponent(query)}&limit=10`, { signal: controller.signal });
+        if (userSearchRequestRef.current.seq !== seq) return;
+        setNewUserResults(data.users || []);
+      } catch {
+        if (!controller.signal.aborted && userSearchRequestRef.current.seq === seq) setNewUserResults([]);
+      }
+    }, 300);
   };
 
-  const startConversation = async (targetUser) => {
+  const startConversation = (targetUser) => {
     setShowNewModal(false);
     setNewUserSearch('');
     setNewUserResults([]);
@@ -136,15 +189,10 @@ export default function AdminMessages() {
       user_role:       targetUser.role,
       last_message:    null,
       last_message_at: null,
-      unread_count:    0,
+      unread_count: 0,
     };
     setSelected({ userId: targetUser.id, user: fakeConv });
-    setThreadLoading(true);
-    try {
-      const { data } = await adminApi(`/messages/conversations/${targetUser.id}`);
-      setThread(data.messages || []);
-    } catch { setThread([]); }
-    finally { setThreadLoading(false); }
+    loadThread(targetUser.id);
     setTimeout(() => inputRef.current?.focus(), 100);
   };
 
@@ -165,7 +213,7 @@ export default function AdminMessages() {
           <input
             type="text"
             value={searchInput}
-            onChange={e => { setSearchInput(e.target.value); loadConversations(e.target.value); }}
+            onChange={e => setSearchInput(e.target.value)}
             placeholder="Search by name or email…"
             className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-orange-500"
           />
@@ -174,7 +222,12 @@ export default function AdminMessages() {
           {listLoading && (
             <p className="text-sm text-gray-500 text-center py-6">Loading…</p>
           )}
-          {!listLoading && conversations.length === 0 && (
+          {!listLoading && listError && (
+            <div className="p-3">
+              <AdminErrorState onRetry={reloadConversations} />
+            </div>
+          )}
+          {!listLoading && !listError && conversations.length === 0 && (
             <p className="text-sm text-gray-500 text-center py-6">No conversations yet.</p>
           )}
           {conversations.map(conv => (
@@ -251,7 +304,12 @@ export default function AdminMessages() {
             {/* Messages */}
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
               {threadLoading && <p className="text-center text-sm text-gray-500">Loading…</p>}
-              {!threadLoading && thread.length === 0 && (
+              {!threadLoading && threadError && (
+                <div className="max-w-md mx-auto">
+                  <AdminErrorState onRetry={() => selected && loadThread(selected.userId)} />
+                </div>
+              )}
+              {!threadLoading && !threadError && thread.length === 0 && (
                 <p className="text-center text-sm text-gray-600">No messages yet. Send the first message below.</p>
               )}
               {thread.map(msg => {

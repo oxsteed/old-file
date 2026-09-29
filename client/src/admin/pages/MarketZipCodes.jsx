@@ -1,27 +1,24 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { MapPin, Plus, X, Loader2 } from 'lucide-react';
 import adminApi from '../../lib/adminApi';
 import toast from 'react-hot-toast';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState from '../lib/AdminErrorState';
+import ConfirmDialog from '../lib/ConfirmDialog';
 
 export default function MarketZipCodes() {
   const [markets, setMarkets] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [newZips, setNewZips] = useState({});
   const [adding, setAdding] = useState({});
+  const [removing, setRemoving] = useState(null); // { marketId, zip } | null
 
-  const fetchMarkets = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data } = await adminApi.get('/admin/markets');
-      setMarkets(data.markets || []);
-    } catch (err) {
-      toast.error('Failed to load markets');
-    } finally {
-      setLoading(false);
-    }
+  // Abortable markets load. A failure shows a retryable error, never an empty page.
+  const { data: marketsData, error, loading, reload } = useAbortableFetch(async (signal) => {
+    const { data } = await adminApi.get('/admin/markets', { signal });
+    return data.markets || [];
   }, []);
 
-  useEffect(() => { fetchMarkets(); }, [fetchMarkets]);
+  useEffect(() => { if (marketsData) setMarkets(marketsData); }, [marketsData]);
 
   const handleAddZips = async (marketId) => {
     const raw = (newZips[marketId] || '').trim();
@@ -45,22 +42,34 @@ export default function MarketZipCodes() {
     }
   };
 
-  const handleRemoveZip = async (marketId, zip) => {
-    try {
-      const { data } = await adminApi.delete(`/admin/markets/${marketId}/zip-codes`, {
-        data: { zipCodes: [zip] }
-      });
-      setMarkets(prev => prev.map(m => m.id === marketId ? data.market : m));
-      toast.success(`Removed ${zip}`);
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to remove zip code');
-    }
+  // ZIP removal goes through the shared ConfirmDialog. The dialog stays open
+  // and shows the error if the DELETE fails, so a failure is never silent.
+  const confirmRemoveZip = async () => {
+    if (!removing) return;
+    const { marketId, zip } = removing;
+    const { data } = await adminApi.delete(`/admin/markets/${marketId}/zip-codes`, {
+      data: { zipCodes: [zip] }
+    });
+    setMarkets(prev => prev.map(m => m.id === marketId ? data.market : m));
+    toast.success(`Removed ${zip}`);
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <MapPin className="w-6 h-6 text-orange-500" />
+          <h1 className="text-2xl font-bold text-white">Market Zip Codes</h1>
+        </div>
+        <AdminErrorState onRetry={reload} />
       </div>
     );
   }
@@ -92,9 +101,10 @@ export default function MarketZipCodes() {
                 bg-zinc-800 text-zinc-200 rounded-full text-sm border border-zinc-700">
                 {zip}
                 <button
-                  onClick={() => handleRemoveZip(market.id, zip)}
+                  onClick={() => setRemoving({ marketId: market.id, zip })}
                   className="ml-1 text-zinc-500 hover:text-red-400 transition-colors"
                   title={`Remove ${zip}`}
+                  aria-label={`Remove zip code ${zip}`}
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -134,6 +144,19 @@ export default function MarketZipCodes() {
         <div className="text-center py-12 text-zinc-500">
           No markets found. Create a market first.
         </div>
+      )}
+
+      {/* ZIP removal confirmation */}
+      {removing && (
+        <ConfirmDialog
+          open
+          danger
+          title={`Remove zip code ${removing.zip}?`}
+          message={`Remove ${removing.zip} from this market's coverage?`}
+          confirmLabel="Remove"
+          onConfirm={confirmRemoveZip}
+          onClose={() => setRemoving(null)}
+        />
       )}
     </div>
   );

@@ -1,6 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Search, Filter, RefreshCw, Calendar, Mail, MoreVertical, Eye } from 'lucide-react';
+import toast from 'react-hot-toast';
 import adminApi from '../../lib/adminApi';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState from '../lib/AdminErrorState';
 
 const REQUEST_TYPES = [
   { value: '', label: 'All Types' },
@@ -56,12 +60,16 @@ function StatusBadge({ status }) {
 
 // ─── Request Detail Modal ──────────────────────────────────────────────────────
 
-function RequestDetailModal({ request, onClose, onStatusChange, updating }) {
+function RequestDetailModal({ request, onClose, onStatusChange }) {
+  const { t } = useTranslation();
   const [newStatus, setNewStatus] = useState(request?.status);
   const [adminNotes, setAdminNotes] = useState(request?.admin_notes || '');
   const [fulfillmentDate, setFulfillmentDate] = useState(request?.fulfillment_date || '');
+  const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
+    if (saving) return;
+    setSaving(true);
     try {
       await adminApi.put(`/admin/legal/ccpa-requests/${request.id}`, {
         status: newStatus,
@@ -72,6 +80,9 @@ function RequestDetailModal({ request, onClose, onStatusChange, updating }) {
       onClose();
     } catch (err) {
       console.error('Failed to update request:', err);
+      toast.error('Failed to save changes');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -84,7 +95,7 @@ function RequestDetailModal({ request, onClose, onStatusChange, updating }) {
       <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-auto">
         <div className="sticky top-0 bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between">
           <h2 className="text-white font-bold">Request Details</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white">✕</button>
+          <button onClick={onClose} aria-label={t('common.aria.closeButton')} className="text-gray-400 hover:text-white">✕</button>
         </div>
 
         <div className="p-6 space-y-6">
@@ -217,11 +228,17 @@ function RequestDetailModal({ request, onClose, onStatusChange, updating }) {
           </button>
           <div className="flex gap-2">
             <button
-              onClick={() => {
-                // Send notification email
-                adminApi.post(`/admin/legal/ccpa-requests/${request.id}/send-notification`, {
-                  message: 'Your CCPA request has been processed.',
-                });
+              onClick={async () => {
+                // Await the send so a failure is surfaced instead of silently dropped.
+                try {
+                  await adminApi.post(`/admin/legal/ccpa-requests/${request.id}/send-notification`, {
+                    message: 'Your CCPA request has been processed.',
+                  });
+                  toast.success('Notification email sent');
+                } catch (err) {
+                  console.error('Failed to send notification:', err);
+                  toast.error('Failed to send notification email');
+                }
               }}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
             >
@@ -230,10 +247,10 @@ function RequestDetailModal({ request, onClose, onStatusChange, updating }) {
             </button>
             <button
               onClick={handleSave}
-              disabled={updating}
+              disabled={saving}
               className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition disabled:opacity-50"
             >
-              {updating ? 'Saving...' : 'Save Changes'}
+              {saving ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
         </div>
@@ -245,12 +262,7 @@ function RequestDetailModal({ request, onClose, onStatusChange, updating }) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function AdminCCPARequestsPage() {
-  const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [totalCount, setTotalCount] = useState(0);
-  const [selectedRequest, setSelectedRequest] = useState(null);
-  const [updating, setUpdating] = useState(false);
-
+  const { t } = useTranslation();
   // Filters
   const [status, setStatus] = useState('');
   const [type, setType] = useState('');
@@ -258,46 +270,37 @@ export default function AdminCCPARequestsPage() {
   const [sort, setSort] = useState('due_soon');
   const [page, setPage] = useState(1);
   const [limit] = useState(25);
+  const [selectedRequest, setSelectedRequest] = useState(null);
 
-  // Stats
-  const [stats, setStats] = useState(null);
-  const [error, setError] = useState('');
-
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const res = await adminApi.get('/admin/legal/ccpa-requests', {
-        params: {
-          status: status || undefined,
-          type: type || undefined,
-          search: search || undefined,
-          sort,
-          page,
-          limit,
-        },
-      });
-      setRequests(res.data.requests || []);
-      setTotalCount(res.data.total || 0);
-      setStats(res.data.stats);
-    } catch (err) {
-      console.error('Failed to load requests:', err);
-      setError(err.response?.data?.message || 'Failed to load CCPA requests');
-    }
-    setLoading(false);
+  const { data, error, loading, reload } = useAbortableFetch(async (signal) => {
+    const res = await adminApi.get('/admin/legal/ccpa-requests', {
+      params: {
+        status: status || undefined,
+        type: type || undefined,
+        search: search || undefined,
+        sort,
+        page,
+        limit,
+      },
+      signal,
+    });
+    return {
+      requests: res.data.requests || [],
+      totalCount: res.data.total || 0,
+      stats: res.data.stats,
+    };
   }, [status, type, search, sort, page, limit]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  const requests = data?.requests ?? [];
+  const totalCount = data?.totalCount ?? 0;
+  const stats = data?.stats ?? null;
 
   const handleDetailClose = () => {
     setSelectedRequest(null);
   };
 
   const handleStatusChange = () => {
-    setUpdating(false);
-    loadData();
+    reload();
   };
 
   const pages = Math.ceil(totalCount / limit);
@@ -320,8 +323,9 @@ export default function AdminCCPARequestsPage() {
           <p className="text-gray-400 text-sm">Manage CCPA data requests with 45-day SLA compliance tracking.</p>
         </div>
         <button
-          onClick={loadData}
+          onClick={reload}
           disabled={loading}
+          aria-label={t('common.refresh')}
           className="p-2.5 bg-gray-700 border border-gray-600 text-gray-400 rounded-lg hover:text-white transition disabled:opacity-50"
         >
           <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
@@ -330,10 +334,7 @@ export default function AdminCCPARequestsPage() {
 
       {/* Error Alert */}
       {error && (
-        <div className="bg-red-500/20 border border-red-500/50 text-red-300 px-4 py-3 rounded-lg text-sm flex items-start gap-2">
-          <span>⚠️</span>
-          <span>{error}</span>
-        </div>
+        <AdminErrorState onRetry={reload} />
       )}
 
       {/* Stats */}
@@ -485,6 +486,12 @@ export default function AdminCCPARequestsPage() {
                     </div>
                   </td>
                 </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan="7" className="px-6 py-12 text-center text-gray-400">
+                    Failed to load requests.
+                  </td>
+                </tr>
               ) : requests.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="px-6 py-12 text-center text-gray-400">
@@ -590,7 +597,6 @@ export default function AdminCCPARequestsPage() {
           request={selectedRequest}
           onClose={handleDetailClose}
           onStatusChange={handleStatusChange}
-          updating={updating}
         />
       )}
     </div>

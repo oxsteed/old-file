@@ -1,65 +1,50 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ChevronRight, Loader } from 'lucide-react';
 import api from '../../api/axios';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState from '../lib/AdminErrorState';
+import ConfirmDialog from '../lib/ConfirmDialog';
 import '../styles/AdminReportsDashboard.css';
 
 const AdminReportsDashboard = () => {
   const { t } = useTranslation();
-  const [reports, setReports] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [filters, setFilters] = useState({ status: '', reason: '' });
   const [pagination, setPagination] = useState({ offset: 0, limit: 20 });
   const [adminNotes, setAdminNotes] = useState('');
-  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [statusTarget, setStatusTarget] = useState(null);
+  const [statusError, setStatusError] = useState(null);
 
-  const fetchReports = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  const { data, error, loading, reload } = useAbortableFetch(async (signal) => {
+    const params = new URLSearchParams({
+      limit: pagination.limit,
+      offset: pagination.offset
+    });
 
-      const params = new URLSearchParams({
-        limit: pagination.limit,
-        offset: pagination.offset
-      });
+    if (filters.status) params.append('status', filters.status);
+    if (filters.reason) params.append('reason', filters.reason);
 
-      if (filters.status) params.append('status', filters.status);
-      if (filters.reason) params.append('reason', filters.reason);
-
-      const response = await api.get('/reports/admin/all', { params });
-      const { data, pagination: paginationData } = response.data;
-      setReports(data);
-      setPagination(paginationData);
-    } catch (err) {
-      setError(err.response?.data?.error || err.message);
-    } finally {
-      setLoading(false);
-    }
+    const response = await api.get('/reports/admin/all', { params, signal });
+    return response.data;
   }, [filters, pagination.offset, pagination.limit]);
 
-  useEffect(() => {
-    fetchReports();
-  }, [fetchReports]);
+  const reports = data?.data ?? [];
+  const hasMore = data?.pagination?.hasMore ?? false;
 
-  const handleUpdateStatus = async (reportId, newStatus) => {
-    try {
-      setUpdatingStatus(true);
-
-      await api.patch(`/reports/admin/${reportId}/status`, {
-        status: newStatus,
-        adminNotes
-      });
-
-      setAdminNotes('');
-      fetchReports();
-      setSelectedReport(null);
-    } catch (err) {
-      setError(err.response?.data?.error || err.message);
-    } finally {
-      setUpdatingStatus(false);
-    }
+  // Privileged status changes (dismiss, escalate) go through a confirmation
+  // dialog. ConfirmDialog stays open and shows the error if the PATCH fails.
+  const confirmUpdateStatus = async () => {
+    if (!statusTarget) return;
+    const { reportId, newStatus } = statusTarget;
+    await api.patch(`/reports/admin/${reportId}/status`, {
+      status: newStatus,
+      adminNotes
+    });
+    setAdminNotes('');
+    setStatusTarget(null);
+    reload();
+    setSelectedReport(null);
   };
 
   const getReasonLabel = (reason) => {
@@ -98,7 +83,7 @@ const AdminReportsDashboard = () => {
       <div className="admin-reports-header">
         <h1>{t('adminReports.title')}</h1>
         <p className="admin-reports-subtitle">
-          {t('adminReports.totalReports', { count: pagination.total })}
+          {t('adminReports.totalReports', { count: data?.pagination?.total ?? 0 })}
         </p>
       </div>
 
@@ -140,7 +125,9 @@ const AdminReportsDashboard = () => {
 
       <div className="admin-reports-container">
         <div className="admin-reports-list">
-          {reports.length === 0 ? (
+          {error ? (
+            <AdminErrorState onRetry={reload} />
+          ) : reports.length === 0 ? (
             <div className="admin-reports-empty">
               <AlertTriangle size={32} opacity={0.5} />
               <p>{t('adminReports.noReports')}</p>
@@ -244,7 +231,6 @@ const AdminReportsDashboard = () => {
                   onChange={(e) => setAdminNotes(e.target.value)}
                   placeholder={t('adminReports.adminNotesPlaceholder')}
                   className="admin-report-notes"
-                  disabled={updatingStatus}
                   maxLength="1000"
                 />
                 <p className="admin-report-char-count">
@@ -252,24 +238,42 @@ const AdminReportsDashboard = () => {
                 </p>
               </div>
 
+              {statusError && (
+                <div className="admin-reports-error">
+                  {statusError}
+                </div>
+              )}
+
               <div className="admin-report-detail-actions">
                 <button
-                  onClick={() => handleUpdateStatus(selectedReport.id, 'reviewing')}
-                  disabled={updatingStatus || selectedReport.status === 'reviewing'}
+                  onClick={async () => {
+                    setStatusError(null);
+                    try {
+                      await api.patch(`/reports/admin/${selectedReport.id}/status`, {
+                        status: 'reviewing',
+                        adminNotes
+                      });
+                      setAdminNotes('');
+                      reload();
+                      setSelectedReport(null);
+                    } catch (err) {
+                      setStatusError(err.response?.data?.error || err.message);
+                    }
+                  }}
+                  disabled={selectedReport.status === 'reviewing'}
                   className="admin-report-btn"
                 >
                   {t('adminReports.markReviewing')}
                 </button>
                 <button
-                  onClick={() => handleUpdateStatus(selectedReport.id, 'dismissed')}
-                  disabled={updatingStatus || ['dismissed', 'resolved'].includes(selectedReport.status)}
+                  onClick={() => setStatusTarget({ reportId: selectedReport.id, newStatus: 'dismissed' })}
+                  disabled={['dismissed', 'resolved'].includes(selectedReport.status)}
                   className="admin-report-btn admin-report-btn-secondary"
                 >
                   {t('adminReports.dismiss')}
                 </button>
                 <button
-                  onClick={() => handleUpdateStatus(selectedReport.id, 'escalated')}
-                  disabled={updatingStatus}
+                  onClick={() => setStatusTarget({ reportId: selectedReport.id, newStatus: 'escalated' })}
                   className="admin-report-btn admin-report-btn-danger"
                 >
                   {t('adminReports.escalate')}
@@ -280,13 +284,7 @@ const AdminReportsDashboard = () => {
         )}
       </div>
 
-      {error && (
-        <div className="admin-reports-error">
-          {error}
-        </div>
-      )}
-
-      {pagination.hasMore && (
+      {hasMore && (
         <div className="admin-reports-pagination">
           <button
             onClick={() => setPagination({ ...pagination, offset: pagination.offset + pagination.limit })}
@@ -296,6 +294,19 @@ const AdminReportsDashboard = () => {
           </button>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!statusTarget}
+        danger={statusTarget?.newStatus === 'dismissed' || statusTarget?.newStatus === 'escalated'}
+        title={t(statusTarget?.newStatus === 'escalated'
+          ? 'adminReports.confirmEscalateTitle'
+          : 'adminReports.confirmDismissTitle')}
+        message={t(statusTarget?.newStatus === 'escalated'
+          ? 'adminReports.confirmEscalateMessage'
+          : 'adminReports.confirmDismissMessage')}
+        onConfirm={confirmUpdateStatus}
+        onClose={() => setStatusTarget(null)}
+      />
     </div>
   );
 };

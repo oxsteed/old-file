@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from '../../api/axios';
 import toast from 'react-hot-toast';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState from '../lib/AdminErrorState';
 
 const PACKAGE_TIERS = [
   { tier: 'initial', label: 'Initial', price: 10000, description: 'One 60-minute consultation session to assess your needs and map next steps.', sessions: 1 },
@@ -28,12 +30,30 @@ function PackageCard({ pkg, onEdit, onToggle }) {
   const [saving, setSaving] = useState(false);
 
   async function saveEdit() {
+    // Guard against invalid package data before it ever reaches the server.
+    const price = Number(form.base_price);
+    const sessionCount = Number(form.session_count);
+    if (!form.name.trim()) { toast.error('Package name is required'); return; }
+    if (!Number.isFinite(price) || price <= 0) { toast.error('Price must be greater than zero'); return; }
+    if (!Number.isInteger(sessionCount) || sessionCount <= 0) { toast.error('Session count must be a whole number of at least 1'); return; }
     try {
       setSaving(true);
-      await onEdit(pkg.id, form);
+      await onEdit(pkg.id, { ...form, name: form.name.trim(), base_price: price, session_count: sessionCount });
       setEditing(false);
     } finally {
       setSaving(false);
+    }
+  }
+
+  // Optimistic toggle with rollback: if the PATCH fails, revert the card to
+  // the real server state instead of showing a stale activation state.
+  async function toggleActive() {
+    const next = !form.is_active;
+    setForm(f => ({ ...f, is_active: next }));
+    try {
+      await onToggle(pkg.id, next);
+    } catch {
+      setForm(f => ({ ...f, is_active: !next }));
     }
   }
 
@@ -79,7 +99,7 @@ function PackageCard({ pkg, onEdit, onToggle }) {
                 Edit
               </button>
             )}
-            <button onClick={() => { setForm(f => ({ ...f, is_active: !f.is_active })); onToggle(pkg.id, !form.is_active); }} style={{ padding: '0.4rem 0.8rem', borderRadius: '6px', border: `1px solid ${form.is_active ? '#EF4444' : '#10B981'}`, background: 'none', color: form.is_active ? '#EF4444' : '#10B981', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
+            <button onClick={toggleActive} style={{ padding: '0.4rem 0.8rem', borderRadius: '6px', border: `1px solid ${form.is_active ? '#EF4444' : '#10B981'}`, background: 'none', color: form.is_active ? '#EF4444' : '#10B981', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
               {form.is_active ? 'Disable' : 'Enable'}
             </button>
           </div>
@@ -96,6 +116,7 @@ function ManualInvoiceModal({ onClose, onCreated }) {
   async function handleSubmit(e) {
     e.preventDefault();
     if (!form.client_email || !form.client_name) { toast.error('Client name and email are required'); return; }
+    if (!Number.isFinite(Number(form.amount_cents)) || Number(form.amount_cents) <= 0) { toast.error('Amount must be greater than zero'); return; }
     try {
       setSaving(true);
       await axios.post('/consulting/admin/invoices/generate-manual', form);
@@ -157,45 +178,36 @@ function ManualInvoiceModal({ onClose, onCreated }) {
 }
 
 export default function ConsultingPayments() {
-  const [packages, setPackages] = useState([]);
-  const [purchases, setPurchases] = useState([]);
-  const [invoices, setInvoices] = useState([]);
-  const [revenueStats, setRevenueStats] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('packages');
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [pkgRes, dashRes] = await Promise.all([
-        axios.get('/consulting/packages'),
-        axios.get('/consulting/admin/dashboard-stats'),
-      ]);
-      setPackages(pkgRes.data || []);
-      setRevenueStats(dashRes.data);
-
-      // Load purchases and invoices from admin endpoints
-      const [purchRes, invRes] = await Promise.allSettled([
-        axios.get('/consulting/admin/purchases'),
-        axios.get('/consulting/admin/invoices'),
-      ]);
-      if (purchRes.status === 'fulfilled') setPurchases(purchRes.value.data || []);
-      if (invRes.status === 'fulfilled') setInvoices(invRes.value.data || []);
-    } catch {
-      toast.error('Failed to load payment data');
-    } finally {
-      setLoading(false);
-    }
+  const { data, error, loading, reload } = useAbortableFetch(async (signal) => {
+    // All four requests must succeed together; a partial dashboard with
+    // silently missing purchases or invoices would be worse than an error state.
+    const [pkgRes, dashRes, purchRes, invRes] = await Promise.all([
+      axios.get('/consulting/packages', { signal }),
+      axios.get('/consulting/admin/dashboard-stats', { signal }),
+      axios.get('/consulting/admin/purchases', { signal }),
+      axios.get('/consulting/admin/invoices', { signal }),
+    ]);
+    return {
+      packages: pkgRes.data || [],
+      revenueStats: dashRes.data,
+      purchases: purchRes.data || [],
+      invoices: invRes.data || [],
+    };
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  const packages = data?.packages ?? [];
+  const purchases = data?.purchases ?? [];
+  const invoices = data?.invoices ?? [];
+  const revenueStats = data?.revenueStats ?? null;
 
   async function handleEditPackage(id, form) {
     try {
       await axios.patch(`/consulting/admin/packages/${id}`, form);
       toast.success('Package updated');
-      loadData();
+      reload();
     } catch {
       toast.error('Failed to update package');
     }
@@ -207,6 +219,8 @@ export default function ConsultingPayments() {
       toast.success(isActive ? 'Package enabled' : 'Package disabled');
     } catch {
       toast.error('Failed to toggle package');
+      // Rethrow so the PackageCard rolls its optimistic toggle back.
+      throw new Error('Failed to toggle package');
     }
   }
 
@@ -256,6 +270,14 @@ export default function ConsultingPayments() {
     return (
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem', color: 'var(--color-text-muted)' }}>
         Loading payment data...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
+        <AdminErrorState onRetry={reload} />
       </div>
     );
   }
@@ -426,7 +448,7 @@ export default function ConsultingPayments() {
       )}
 
       {showInvoiceModal && (
-        <ManualInvoiceModal onClose={() => setShowInvoiceModal(false)} onCreated={loadData} />
+        <ManualInvoiceModal onClose={() => setShowInvoiceModal(false)} onCreated={reload} />
       )}
     </div>
   );

@@ -1,6 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Search, Filter, RefreshCw, ChevronDown, Download } from 'lucide-react';
 import adminApi from '../../lib/adminApi';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState from '../lib/AdminErrorState';
 
 const ACTION_TYPES = [
   { value: '', label: 'All Actions' },
@@ -84,9 +87,7 @@ function DetailsRow({ event, isExpanded, onToggle }) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function AdminLegalAuditLogPage() {
-  const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [totalCount, setTotalCount] = useState(0);
+  const { t } = useTranslation();
   const [expandedRows, setExpandedRows] = useState({});
 
   // Filter state
@@ -102,40 +103,32 @@ export default function AdminLegalAuditLogPage() {
   const [page, setPage] = useState(1);
   const [limit] = useState(50);
 
-  // Stats
-  const [stats, setStats] = useState(null);
-  const [error, setError] = useState('');
+  const [exportError, setExportError] = useState('');
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const params = {
-        search: search || undefined,
-        action: actionType || undefined,
-        documentType: documentType || undefined,
-        actor: actorType || undefined,
-        status: status || undefined,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-        page,
-        limit,
-      };
+  const { data, error, loading, reload } = useAbortableFetch(async (signal) => {
+    const params = {
+      search: search || undefined,
+      action: actionType || undefined,
+      documentType: documentType || undefined,
+      actor: actorType || undefined,
+      status: status || undefined,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+      page,
+      limit,
+    };
 
-      const res = await adminApi.get('/admin/legal/audit-log', { params });
-      setEvents(res.data.events || []);
-      setTotalCount(res.data.total || 0);
-      setStats(res.data.stats);
-    } catch (err) {
-      console.error('Failed to load audit log:', err);
-      setError(err.response?.data?.message || 'Failed to load audit log');
-    }
-    setLoading(false);
+    const res = await adminApi.get('/admin/legal/audit-log', { params, signal });
+    return {
+      events: res.data.events || [],
+      totalCount: res.data.total || 0,
+      stats: res.data.stats,
+    };
   }, [search, actionType, documentType, actorType, status, startDate, endDate, page, limit]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  const events = data?.events ?? [];
+  const totalCount = data?.totalCount ?? 0;
+  const stats = data?.stats ?? null;
 
   const toggleExpanded = (eventId) => {
     setExpandedRows(prev => ({
@@ -166,7 +159,7 @@ export default function AdminLegalAuditLogPage() {
       link.download = `audit-log-${new Date().toISOString().split('T')[0]}.csv`;
       link.click();
     } catch (err) {
-      setError('Failed to export CSV');
+      setExportError('Failed to export CSV');
     }
   };
 
@@ -181,8 +174,9 @@ export default function AdminLegalAuditLogPage() {
           <p className="text-gray-400 text-sm">Immutable trail of all legal document actions and approvals.</p>
         </div>
         <button
-          onClick={loadData}
+          onClick={reload}
           disabled={loading}
+          aria-label={t('common.refresh')}
           className="p-2.5 bg-gray-700 border border-gray-600 text-gray-400 rounded-lg hover:text-white transition disabled:opacity-50"
         >
           <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
@@ -191,9 +185,12 @@ export default function AdminLegalAuditLogPage() {
 
       {/* Error Alert */}
       {error && (
+        <AdminErrorState onRetry={reload} />
+      )}
+      {exportError && (
         <div className="bg-red-500/20 border border-red-500/50 text-red-300 px-4 py-3 rounded-lg text-sm flex items-start gap-2">
           <span>⚠️</span>
-          <span>{error}</span>
+          <span>{exportError}</span>
         </div>
       )}
 
@@ -373,7 +370,7 @@ export default function AdminLegalAuditLogPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-700">
-              {loading ? (
+              {loading && events.length === 0 ? (
                 <tr>
                   <td colSpan="8" className="px-6 py-12 text-center">
                     <div className="flex justify-center">
@@ -381,7 +378,7 @@ export default function AdminLegalAuditLogPage() {
                     </div>
                   </td>
                 </tr>
-              ) : events.length === 0 ? (
+              ) : error ? null : events.length === 0 ? (
                 <tr>
                   <td colSpan="8" className="px-6 py-12 text-center text-gray-400">
                     No audit log entries found

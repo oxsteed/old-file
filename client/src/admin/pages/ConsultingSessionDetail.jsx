@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import axios from '../../api/axios';
 import toast from 'react-hot-toast';
 import ActionItemsPanel from '../../components/ActionItemsPanel';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import ConfirmDialog from '../lib/ConfirmDialog';
 
 const STATUS_COLORS = {
   pending: '#FFA500',
@@ -17,26 +19,25 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
   const [updateLoading, setUpdateLoading] = useState(false);
   const [notes, setNotes] = useState(session.notes || '');
   const [notesLoading, setNotesLoading] = useState(false);
-  const [consultants, setConsultants] = useState([]);
-  const [consultantsLoading, setConsultantsLoading] = useState(false);
   const [selectedConsultant, setSelectedConsultant] = useState(session.consultant_assigned_id || '');
   const [assigningConsultant, setAssigningConsultant] = useState(false);
+  const [confirmCompleteOpen, setConfirmCompleteOpen] = useState(false);
+  const [confirmNoShowOpen, setConfirmNoShowOpen] = useState(false);
+
+  // Refetch and reset per-session state whenever the viewed session changes,
+  // so consultants and notes never bleed across sessions.
+  const { data: consultantsData, loading: consultantsLoading } = useAbortableFetch(async (signal) => {
+    const response = await axios.get('/consulting/admin/consultants', { signal });
+    return response.data || [];
+  }, [session.id]);
+
+  const consultants = consultantsData || [];
 
   useEffect(() => {
-    fetchConsultants();
-  }, []);
-
-  async function fetchConsultants() {
-    try {
-      setConsultantsLoading(true);
-      const response = await axios.get('/consulting/admin/consultants');
-      setConsultants(response.data);
-    } catch (err) {
-      toast.error(t('adminConsultingSessionDetail.toast.loadConsultantsFailed'));
-    } finally {
-      setConsultantsLoading(false);
-    }
-  }
+    setNotes(session.notes || '');
+    setSelectedConsultant(session.consultant_assigned_id || '');
+    setActiveTab('overview');
+  }, [session.id, session.notes, session.consultant_assigned_id]);
 
   async function assignConsultant() {
     if (!selectedConsultant) {
@@ -58,35 +59,44 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
     }
   }
 
-  async function markSessionComplete() {
-    if (!window.confirm(t('adminConsultingSessionDetail.confirm.complete'))) {
-      return;
-    }
+  // Completion is confirmation-gated: the generic status select and the
+  // "Mark Completed" button both open the same ConfirmDialog.
+  function requestComplete() {
+    setConfirmCompleteOpen(true);
+  }
 
+  async function confirmMarkSessionComplete() {
     try {
       setUpdateLoading(true);
       await axios.patch(`/consulting/admin/sessions/${session.id}/complete`);
       toast.success(t('adminConsultingSessionDetail.toast.markedComplete'));
       onStatusUpdate();
     } catch (err) {
+      // Rethrow so the ConfirmDialog stays open and shows the failure instead
+      // of closing as if the session was completed.
       toast.error(t('adminConsultingSessionDetail.toast.markCompleteFailed'));
+      throw err;
     } finally {
       setUpdateLoading(false);
     }
   }
 
-  async function markSessionNoShow() {
-    if (!window.confirm(t('adminConsultingSessionDetail.confirm.noShow'))) {
-      return;
-    }
+  // No-show is confirmation-gated via the shared ConfirmDialog.
+  function requestNoShow() {
+    setConfirmNoShowOpen(true);
+  }
 
+  async function confirmMarkSessionNoShow() {
     try {
       setUpdateLoading(true);
       await axios.patch(`/consulting/admin/sessions/${session.id}/no-show`);
       toast.success(t('adminConsultingSessionDetail.toast.markedNoShow'));
       onStatusUpdate();
     } catch (err) {
+      // Rethrow so the ConfirmDialog stays open and shows the failure instead
+      // of closing as if the session was marked no-show.
       toast.error(t('adminConsultingSessionDetail.toast.markNoShowFailed'));
+      throw err;
     } finally {
       setUpdateLoading(false);
     }
@@ -309,11 +319,16 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
             <div style={sectionTitleStyle}>Update Status</div>
             <select
               style={inputStyle}
-              defaultValue={session.status}
+              value={session.status}
               onChange={e => {
-                if (e.target.value !== session.status) {
-                  updateSessionStatus(session.id, e.target.value);
+                if (e.target.value === session.status) return;
+                // Completion always goes through the confirmation dialog,
+                // even when reached from this generic status select.
+                if (e.target.value === 'completed') {
+                  requestComplete();
+                  return;
                 }
+                updateSessionStatus(session.id, e.target.value);
               }}
               disabled={updateLoading}
             >
@@ -404,7 +419,7 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
                     flex: 1,
                     minWidth: '200px',
                   }}
-                  onClick={markSessionComplete}
+                  onClick={requestComplete}
                   disabled={updateLoading}
                 >
                   {updateLoading ? 'Processing...' : '✓ Mark Completed'}
@@ -418,7 +433,7 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
                     flex: 1,
                     minWidth: '200px',
                   }}
-                  onClick={markSessionNoShow}
+                  onClick={requestNoShow}
                   disabled={updateLoading}
                 >
                   {updateLoading ? 'Processing...' : '✗ Mark No-Show'}
@@ -461,8 +476,22 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
         }}
         onClick={onClose}
       >
-        Close
+        {t('common.close')}
       </button>
+
+      <ConfirmDialog
+        open={confirmCompleteOpen}
+        title={t('adminConsultingSessionDetail.confirm.complete')}
+        onConfirm={confirmMarkSessionComplete}
+        onClose={() => setConfirmCompleteOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={confirmNoShowOpen}
+        title={t('adminConsultingSessionDetail.confirm.noShow')}
+        onConfirm={confirmMarkSessionNoShow}
+        onClose={() => setConfirmNoShowOpen(false)}
+      />
     </div>
   );
 }

@@ -1,7 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { MoreVertical, Download, Mail, RefreshCw, Search, Filter, Eye, RotateCcw } from 'lucide-react';
 import adminApi from '../../lib/adminApi';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState from '../lib/AdminErrorState';
+import ConfirmDialog from '../lib/ConfirmDialog';
 import { LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 // Document type options
@@ -27,12 +30,13 @@ const SORT_OPTIONS = [
 // ─── Detail Modal ─────────────────────────────────────────────────────────────
 
 function DetailModal({ acceptance, onClose }) {
+  const { t } = useTranslation();
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-auto">
         <div className="sticky top-0 bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between">
           <h2 className="text-white font-bold">Acceptance Details</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white">✕</button>
+          <button onClick={onClose} aria-label={t('common.aria.closeButton')} className="text-gray-400 hover:text-white">✕</button>
         </div>
 
         <div className="p-6 space-y-6">
@@ -110,12 +114,14 @@ function DetailModal({ acceptance, onClose }) {
 // ─── Action Menu ──────────────────────────────────────────────────────────────
 
 function ActionMenu({ acceptance, onRevoke, revoking }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
   return (
     <div className="relative">
       <button
         onClick={() => setOpen(!open)}
+        aria-label={t('adminA11y.moreActions')}
         className="p-1.5 hover:bg-gray-700 rounded-lg transition"
       >
         <MoreVertical size={16} className="text-gray-400" />
@@ -142,10 +148,7 @@ function ActionMenu({ acceptance, onRevoke, revoking }) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function AdminLegalAcceptancesPage() {
-  const [acceptances, setAcceptances] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [totalCount, setTotalCount] = useState(0);
-  const [selectedDetail, setSelectedDetail] = useState(null);
+  const { t } = useTranslation();
 
   // Filter & pagination state
   const [documentType, setDocumentType] = useState('');
@@ -153,56 +156,50 @@ export default function AdminLegalAcceptancesPage() {
   const [sort, setSort] = useState('newest');
   const [page, setPage] = useState(1);
   const [limit] = useState(50);
-
-  // Stats state
-  const [stats, setStats] = useState(null);
-  const [chartData, setChartData] = useState([]);
-  const [pieData, setPieData] = useState([]);
+  const [selectedDetail, setSelectedDetail] = useState(null);
 
   // Action states
   const [revoking, setRevoking] = useState({});
-  const [error, setError] = useState('');
+  const [revokeTarget, setRevokeTarget] = useState(null);
+  const [exportError, setExportError] = useState('');
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const res = await adminApi.get('/admin/legal/acceptances', {
-        params: {
-          documentType: documentType || undefined,
-          search: search || undefined,
-          sort,
-          page,
-          limit,
-        },
-      });
-
-      setAcceptances(res.data.acceptances || []);
-      setTotalCount(res.data.total || 0);
-      setStats(res.data.stats);
-      setChartData(res.data.trend || []);
-      setPieData(res.data.breakdown || []);
-    } catch (err) {
-      console.error('Failed to load acceptances:', err);
-      setError(err.response?.data?.message || 'Failed to load acceptances');
-    }
-    setLoading(false);
+  const { data, error, loading, reload } = useAbortableFetch(async (signal) => {
+    const res = await adminApi.get('/admin/legal/acceptances', {
+      params: {
+        documentType: documentType || undefined,
+        search: search || undefined,
+        sort,
+        page,
+        limit,
+      },
+      signal,
+    });
+    return {
+      acceptances: res.data.acceptances || [],
+      totalCount: res.data.total || 0,
+      stats: res.data.stats,
+      chartData: res.data.trend || [],
+      pieData: res.data.breakdown || [],
+    };
   }, [documentType, search, sort, page, limit]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  const acceptances = data?.acceptances ?? [];
+  const totalCount = data?.totalCount ?? 0;
+  const stats = data?.stats ?? null;
+  const chartData = data?.chartData ?? [];
+  const pieData = data?.pieData ?? [];
 
-  const handleRevoke = async (acceptanceId) => {
+  // Revocation is destructive: it goes through a confirmation dialog.
+  // ConfirmDialog stays open and shows the error if the POST fails.
+  const confirmRevoke = async () => {
+    const acceptanceId = revokeTarget;
     setRevoking(prev => ({ ...prev, [acceptanceId]: true }));
     try {
       await adminApi.post(`/admin/legal/acceptances/${acceptanceId}/revoke`);
-      setAcceptances(prev => prev.filter(a => a.id !== acceptanceId));
-      setTotalCount(prev => Math.max(0, prev - 1));
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to revoke acceptance');
+      reload();
+    } finally {
+      setRevoking(prev => ({ ...prev, [acceptanceId]: false }));
     }
-    setRevoking(prev => ({ ...prev, [acceptanceId]: false }));
   };
 
   const handleExportCSV = async () => {
@@ -217,7 +214,7 @@ export default function AdminLegalAcceptancesPage() {
       link.download = `legal-acceptances-${new Date().toISOString().split('T')[0]}.csv`;
       link.click();
     } catch (err) {
-      setError('Failed to export CSV');
+      setExportError('Failed to export CSV');
     }
   };
 
@@ -233,8 +230,9 @@ export default function AdminLegalAcceptancesPage() {
           <p className="text-gray-400 text-sm">View all legal document acceptances across users and document types.</p>
         </div>
         <button
-          onClick={loadData}
+          onClick={reload}
           disabled={loading}
+          aria-label={t('common.refresh')}
           className="p-2.5 bg-gray-700 border border-gray-600 text-gray-400 rounded-lg hover:text-white transition disabled:opacity-50"
         >
           <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
@@ -243,9 +241,12 @@ export default function AdminLegalAcceptancesPage() {
 
       {/* Error Alert */}
       {error && (
+        <AdminErrorState onRetry={reload} />
+      )}
+      {exportError && (
         <div className="bg-red-500/20 border border-red-500/50 text-red-300 px-4 py-3 rounded-lg text-sm flex items-start gap-2">
           <span>⚠️</span>
-          <span>{error}</span>
+          <span>{exportError}</span>
         </div>
       )}
 
@@ -411,7 +412,7 @@ export default function AdminLegalAcceptancesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-700">
-              {loading ? (
+              {loading && acceptances.length === 0 ? (
                 <tr>
                   <td colSpan="6" className="px-6 py-12 text-center">
                     <div className="flex justify-center">
@@ -419,7 +420,7 @@ export default function AdminLegalAcceptancesPage() {
                     </div>
                   </td>
                 </tr>
-              ) : acceptances.length === 0 ? (
+              ) : error ? null : acceptances.length === 0 ? (
                 <tr>
                   <td colSpan="6" className="px-6 py-12 text-center text-gray-400">
                     No acceptances found
@@ -461,7 +462,7 @@ export default function AdminLegalAcceptancesPage() {
                       </button>
                       <ActionMenu
                         acceptance={acceptance}
-                        onRevoke={handleRevoke}
+                        onRevoke={(id) => setRevokeTarget(id)}
                         revoking={revoking[acceptance.id]}
                       />
                     </td>
@@ -518,6 +519,15 @@ export default function AdminLegalAcceptancesPage() {
           onClose={() => setSelectedDetail(null)}
         />
       )}
+
+      <ConfirmDialog
+        open={!!revokeTarget}
+        danger
+        title={t('adminLegalAcceptances.confirmRevokeTitle')}
+        message={t('adminLegalAcceptances.confirmRevokeMessage')}
+        onConfirm={confirmRevoke}
+        onClose={() => setRevokeTarget(null)}
+      />
     </div>
   );
 }

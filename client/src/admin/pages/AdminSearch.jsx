@@ -6,6 +6,7 @@ import {
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import adminApi from '../../lib/adminApi';
+import AdminErrorState from '../lib/AdminErrorState';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -386,10 +387,23 @@ export default function AdminSearch() {
     Object.fromEntries(ALL_TYPES.map(t => [t, 1]))
   );
   const initialMountRef = useRef(true);
+  const searchRequestRef = useRef({ controller: null, seq: 0 });
   const LIMIT = 10;
 
+  // Abort the in-flight search when this page unmounts.
+  useEffect(() => () => {
+    searchRequestRef.current.controller?.abort();
+  }, []);
+
+  // Abortable and sequence-guarded: a new search cancels the previous one,
+  // and a slower earlier response can never clobber newer results.
   const doSearch = useCallback(async (q, entityTypes, pageMap) => {
     if (!q || q.trim().length < 2) return;
+    const prev = searchRequestRef.current;
+    prev.controller?.abort();
+    const controller = new AbortController();
+    const seq = prev.seq + 1;
+    searchRequestRef.current = { controller, seq };
     setLoading(true);
     setError(null);
     try {
@@ -399,23 +413,28 @@ export default function AdminSearch() {
       // a stale page > 1 from a previous session without affecting this query.
       const allPage1 = entityTypes.every(t => (pageMap[t] || 1) === 1);
 
+      let payload;
       if (allPage1) {
         const { data } = await adminApi.get('/admin/search', {
           params: { q: q.trim(), types: entityTypes.join(','), limit: LIMIT, page: 1 },
+          signal: controller.signal,
         });
-        setResults(data);
+        payload = data;
       } else {
         // For paginated state, fetch each active type individually so we can
-        // honour their individual page numbers, then merge.
-        const responses = await Promise.allSettled(
+        // honour their individual page numbers, then merge. All requests must
+        // succeed; a partial failure surfaces as an error, never as silently
+        // incomplete results.
+        const responses = await Promise.all(
           entityTypes.map(t =>
             adminApi.get('/admin/search', {
               params: { q: q.trim(), types: t, limit: LIMIT, page: pageMap[t] || 1 },
+              signal: controller.signal,
             })
           )
         );
 
-        const merged = {
+        payload = {
           query: q.trim(),
           entity_types: entityTypes,
           total: 0,
@@ -425,21 +444,21 @@ export default function AdminSearch() {
           results: Object.fromEntries(ALL_TYPES.map(t => [t, []])),
         };
         responses.forEach((res, i) => {
-          if (res.status === 'fulfilled') {
-            const d = res.value.data;
-            const t = entityTypes[i];
-            merged.results[t] = d.results[t] || [];
-            merged.totals[t]  = d.totals?.[t] || 0;
-            merged.total     += (d.results[t] || []).length;
-          }
+          const d = res.data;
+          const t = entityTypes[i];
+          payload.results[t] = d.results[t] || [];
+          payload.totals[t]  = d.totals?.[t] || 0;
+          payload.total     += (d.results[t] || []).length;
         });
-        setResults(merged);
       }
+      if (searchRequestRef.current.seq !== seq) return; // stale
+      setResults(payload);
     } catch (err) {
+      if (controller.signal.aborted || searchRequestRef.current.seq !== seq) return;
       setError(err.response?.data?.error || 'Search failed.');
       setResults(null);
     } finally {
-      setLoading(false);
+      if (searchRequestRef.current.seq === seq) setLoading(false);
     }
   }, []);
 
@@ -558,9 +577,10 @@ export default function AdminSearch() {
 
       {/* Error */}
       {error && !loading && (
-        <div className="p-4 bg-red-950 border border-red-800 rounded-xl text-red-300 text-sm">
-          {error}
-        </div>
+        <AdminErrorState
+          message={error}
+          onRetry={() => doSearch(query, types, pages)}
+        />
       )}
 
       {/* Results */}

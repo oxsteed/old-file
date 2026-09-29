@@ -1,11 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft, Building2, User, MapPin, Mail, Phone, Calendar, DollarSign,
   ToggleLeft, ToggleRight, Trash2, Flag, Edit2, ExternalLink, AlertCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState from '../lib/AdminErrorState';
 
 function BusinessAvatar({ business }) {
   const bgColor = ['bg-blue-500', 'bg-purple-500', 'bg-pink-500', 'bg-green-500', 'bg-orange-500'];
@@ -26,6 +29,7 @@ function BusinessAvatar({ business }) {
 }
 
 export default function BusinessDetail() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const [business, setBusiness] = useState(null);
@@ -35,21 +39,20 @@ export default function BusinessDetail() {
   const [adminNotes, setAdminNotes] = useState('');
   const [editingNotes, setEditingNotes] = useState(false);
 
-  useEffect(() => {
-    const fetchBusiness = async () => {
-      setLoading(true);
-      try {
-        const { data } = await adminApi.get(`/admin/businesses/${id}`);
-        setBusiness(data.business);
-        setAdminNotes(data.business?.admin_notes || '');
-      } catch (err) {
-        console.error('Failed to fetch business:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchBusiness();
+  // Abortable detail load. A fetch failure is an error state, never
+  // "Business not found": only a successful response with no business means
+  // the business is actually gone.
+  const { data, error, loading, reload } = useAbortableFetch(async (signal) => {
+    const { data } = await adminApi.get(`/admin/businesses/${id}`, { signal });
+    return data.business ?? null;
   }, [id]);
+
+  const business = data;
+
+  // Seed the editable admin-notes draft whenever a (new) business loads.
+  useEffect(() => {
+    setAdminNotes(business?.admin_notes || '');
+  }, [business?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAction = async (actionType, reason = '') => {
     setActionBusy(true);
@@ -60,9 +63,7 @@ export default function BusinessDetail() {
 
       await adminApi.put(endpoint, { reason });
 
-      // Refetch business
-      const { data } = await adminApi.get(`/admin/businesses/${id}`);
-      setBusiness(data.business);
+      reload();
       setModal(null);
     } catch (err) {
       toast.error(err?.response?.data?.error || 'Action failed.');
@@ -104,7 +105,11 @@ export default function BusinessDetail() {
         >
           <ArrowLeft size={18} /> Back to Businesses
         </button>
-        <div className="text-center text-gray-400 py-12">Business not found.</div>
+        {error ? (
+          <AdminErrorState onRetry={reload} />
+        ) : (
+          <div className="text-center text-gray-400 py-12">Business not found.</div>
+        )}
       </div>
     );
   }
@@ -232,6 +237,7 @@ export default function BusinessDetail() {
                     </div>
                     <a
                       href={`/admin/jobs/${job.id}`}
+                      aria-label={t('businessDetail.viewJob')}
                       className="text-blue-400 hover:text-blue-300 transition"
                     >
                       <ExternalLink size={16} />

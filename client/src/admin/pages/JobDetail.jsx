@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Briefcase, User, MapPin, DollarSign,
@@ -7,6 +7,9 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks/useAuth';
 import adminApi from '../../lib/adminApi';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState from '../lib/AdminErrorState';
+import ConfirmDialog from '../lib/ConfirmDialog';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -102,32 +105,25 @@ export default function JobDetail() {
   const { user: me } = useAuth();
   const isSuper   = me?.role === 'super_admin';
 
-  const [job,     setJob]     = useState(null);
-  const [bids,    setBids]    = useState([]);
-  const [payment, setPayment] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState(null);
-
   // Modal state
   const [modal,       setModal]       = useState(null); // 'cancel' | 'flag' | 'delete' | 'refund'
   const [modalReason, setModalReason] = useState('');
   const [modalErr,    setModalErr]    = useState('');
   const [modalBusy,   setModalBusy]   = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data } = await adminApi.get(`/admin/jobs/${jobId}`);
-        setJob(data.job);
-        setBids(data.bids || []);
-        setPayment(data.payment || null);
-      } catch (err) {
-        setError(err.response?.data?.error || t('adminJobDetail.failedToLoad'));
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [jobId, t]);
+  // Abortable detail load.
+  const { data, error, loading, reload } = useAbortableFetch(async (signal) => {
+    const { data } = await adminApi.get(`/admin/jobs/${jobId}`, { signal });
+    return {
+      job: data.job,
+      bids: data.bids || [],
+      payment: data.payment || null,
+    };
+  }, [jobId]);
+
+  const job = data?.job ?? null;
+  const bids = data?.bids ?? [];
+  const payment = data?.payment ?? null;
 
   const openModal = (name) => {
     setModal(name);
@@ -145,23 +141,22 @@ export default function JobDetail() {
         navigate('/admin/jobs');
         return;
       }
-      if (action === 'refund') {
-        await adminApi.post(`/admin/jobs/${jobId}/refund`, { reason: modalReason, ...extraBody });
-        const { data } = await adminApi.get(`/admin/jobs/${jobId}`);
-        setPayment(data.payment || null);
-        closeModal();
-        return;
-      }
       // forceJobAction: cancel / flag / unflag
       await adminApi.post(`/admin/jobs/${jobId}/action`, { action, reason: modalReason });
-      const { data } = await adminApi.get(`/admin/jobs/${jobId}`);
-      setJob(data.job);
+      reload();
       closeModal();
     } catch (err) {
       setModalErr(err.response?.data?.error || 'Action failed.');
     } finally {
       setModalBusy(false);
     }
+  };
+
+  // Refund goes through the shared ConfirmDialog with requireReason.
+  // ConfirmDialog stays open and shows the error if the POST fails.
+  const confirmRefund = async (reason) => {
+    await adminApi.post(`/admin/jobs/${jobId}/refund`, { reason });
+    reload();
   };
 
   // ── Loading / error states ────────────────────────────────────────────────
@@ -173,8 +168,8 @@ export default function JobDetail() {
   );
 
   if (error) return (
-    <div className="p-8 text-center">
-      <p className="text-red-400 text-sm mb-4">{error}</p>
+    <div className="p-8">
+      <AdminErrorState onRetry={reload} />
       <button onClick={() => navigate('/admin/jobs')}
         className="text-sm text-orange-400 hover:text-orange-300">
         {t('adminJobDetail.backToJobs')}
@@ -422,21 +417,17 @@ export default function JobDetail() {
       )}
 
       {modal === 'refund' && (
-        <ActionModal
-          title={t('adminJobDetail.modals.refund.title')}
-          description={t('adminJobDetail.modals.refund.description')}
-          confirmLabel={t('adminJobDetail.modals.refund.confirm')}
+        <ConfirmDialog
+          open
           danger
-          loading={modalBusy}
-          error={modalErr}
+          requireReason
+          title={t('adminJobDetail.modals.refund.title')}
+          message={t('adminJobDetail.modals.refund.description')}
+          confirmLabel={t('adminJobDetail.modals.refund.confirm')}
+          reasonPlaceholder={t('adminJobDetail.modals.refund.reasonPlaceholder')}
+          onConfirm={confirmRefund}
           onClose={closeModal}
-          onConfirm={() => runAction('refund')}
-        >
-          <textarea rows={3} value={modalReason} onChange={e => setModalReason(e.target.value)}
-            placeholder={t('adminJobDetail.modals.refund.reasonPlaceholder')}
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white text-sm p-2.5
-                       placeholder-gray-500 focus:border-orange-500 focus:outline-none resize-none" />
-        </ActionModal>
+        />
       )}
 
       {modal === 'delete' && (

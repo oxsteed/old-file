@@ -1,8 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import axios from '../../api/axios';
 import toast from 'react-hot-toast';
 import BusinessLaunchRequestDetail from './BusinessLaunchRequestDetail';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState from '../lib/AdminErrorState';
+import ConfirmDialog from '../lib/ConfirmDialog';
 
 const STATUS_COLORS = {
   pending: '#FFA500',
@@ -54,29 +58,22 @@ function UrgencyBadge({ urgency }) {
   return <Badge color={URGENT_COLORS[urgency] || '#6B7280'}>{URGENCY_LABELS[urgency] || urgency}</Badge>;
 }
 
-function QuickStatusMenu({ request, onUpdated }) {
+// Every status change goes through a parent-level confirmation dialog:
+// the menu asks the parent to confirm, then the parent performs the PATCH.
+function QuickStatusMenu({ request, onStatusRequest }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
 
-  async function update(newStatus) {
+  function requestUpdate(newStatus) {
     setOpen(false);
-    try {
-      setLoading(true);
-      await axios.patch(`/consulting/business-launch/requests/${request.id}`, { status: newStatus });
-      toast.success('Status updated');
-      onUpdated();
-    } catch {
-      toast.error('Failed to update status');
-    } finally {
-      setLoading(false);
-    }
+    onStatusRequest(request, newStatus);
   }
 
   return (
     <div style={{ position: 'relative', display: 'inline-block' }}>
       <button
         onClick={() => setOpen(o => !o)}
-        disabled={loading}
+        aria-label={t('businessLaunchAdmin.statusMenuLabel')}
         style={{ padding: '0.3rem 0.6rem', borderRadius: '5px', border: '1px solid var(--color-border)', background: 'none', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--color-text)' }}
       >
         Status ▾
@@ -84,7 +81,7 @@ function QuickStatusMenu({ request, onUpdated }) {
       {open && (
         <div style={{ position: 'absolute', right: 0, top: '100%', zIndex: 100, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', minWidth: '160px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', overflow: 'hidden' }}>
           {STATUS_PIPELINE.map(s => (
-            <button key={s.key} onClick={() => update(s.key)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.6rem 1rem', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.85rem', color: STATUS_COLORS[s.key], fontWeight: request.status === s.key ? 700 : 400 }}>
+            <button key={s.key} onClick={() => requestUpdate(s.key)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.6rem 1rem', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.85rem', color: STATUS_COLORS[s.key], fontWeight: request.status === s.key ? 700 : 400 }}>
               {request.status === s.key ? '✓ ' : ''}{s.label}
             </button>
           ))}
@@ -95,36 +92,52 @@ function QuickStatusMenu({ request, onUpdated }) {
 }
 
 export default function BusinessLaunchAdmin() {
-  const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { t } = useTranslation();
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState({ status: '', package: '', urgency: '', state: '', country: '' });
   const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState({});
+  const [statusTarget, setStatusTarget] = useState(null);
+  const [archiveTarget, setArchiveTarget] = useState(null);
 
-  const loadRequests = useCallback(async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams({ page, limit: 20 });
-      if (filters.status) params.set('status', filters.status);
-      if (filters.package) params.set('package', filters.package);
-      if (filters.urgency) params.set('urgency', filters.urgency);
-      if (filters.state) params.set('state', filters.state);
-      if (filters.country) params.set('country', filters.country);
-      if (search) params.set('search', search);
+  const { data, error, loading, reload } = useAbortableFetch(async (signal) => {
+    const params = new URLSearchParams({ page, limit: 20 });
+    if (filters.status) params.set('status', filters.status);
+    if (filters.package) params.set('package', filters.package);
+    if (filters.urgency) params.set('urgency', filters.urgency);
+    if (filters.state) params.set('state', filters.state);
+    if (filters.country) params.set('country', filters.country);
+    if (search) params.set('search', search);
 
-      const res = await axios.get(`/consulting/business-launch/requests?${params}`);
-      setRequests(res.data.data || []);
-      setPagination(res.data.pagination || {});
-    } catch {
-      toast.error('Failed to load requests');
-    } finally {
-      setLoading(false);
-    }
+    const res = await axios.get(`/consulting/business-launch/requests?${params}`, { signal });
+    return {
+      requests: res.data.data || [],
+      pagination: res.data.pagination || {},
+    };
   }, [filters, page, search]);
 
-  useEffect(() => { loadRequests(); }, [loadRequests]);
+  const requests = data?.requests ?? [];
+  const pagination = data?.pagination ?? {};
+
+  // Confirmed status change (quick status menu). ConfirmDialog stays open and
+  // shows the error if the PATCH fails.
+  const confirmStatusChange = async () => {
+    const { request, newStatus } = statusTarget;
+    await axios.patch(`/consulting/business-launch/requests/${request.id}`, { status: newStatus });
+    toast.success('Status updated');
+    setStatusTarget(null);
+    reload();
+  };
+
+  // Confirmed archive. ConfirmDialog stays open and shows the error if the
+  // PATCH fails.
+  const confirmArchive = async () => {
+    const req = archiveTarget;
+    await axios.patch(`/consulting/business-launch/requests/${req.id}`, { status: 'archived' });
+    toast.success('Request archived');
+    setArchiveTarget(null);
+    reload();
+  };
 
   function exportCSV() {
     const headers = ['Name', 'Email', 'Phone', 'Package', 'Country', 'State', 'Urgency', 'Status', 'Submitted'];
@@ -149,16 +162,9 @@ export default function BusinessLaunchAdmin() {
     URL.revokeObjectURL(url);
   }
 
-  async function archiveRequest(req) {
-    if (!window.confirm(`Archive request from ${req.first_name} ${req.last_name}? This will hide it from default views.`)) return;
-    try {
-      await axios.patch(`/consulting/business-launch/requests/${req.id}`, { status: 'archived' });
-      toast.success('Request archived');
-      loadRequests();
-    } catch {
-      toast.error('Failed to archive');
-    }
-  }
+  const archiveRequest = (req) => {
+    setArchiveTarget(req);
+  };
 
   const inputStyle = { padding: '0.55rem 0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: '0.9rem' };
   const btnStyle = { padding: '0.55rem 1rem', borderRadius: '6px', border: 'none', background: 'var(--color-primary)', color: 'white', fontWeight: 600, cursor: 'pointer', fontSize: '0.85rem' };
@@ -243,6 +249,8 @@ export default function BusinessLaunchAdmin() {
       {/* Table */}
       {loading && page === 1 ? (
         <div style={{ color: 'var(--color-text-muted)' }}>Loading...</div>
+      ) : error ? (
+        <AdminErrorState onRetry={reload} />
       ) : requests.length === 0 ? (
         <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '10px', padding: '3rem', textAlign: 'center' }}>
           <p style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>No requests found</p>
@@ -298,8 +306,8 @@ export default function BusinessLaunchAdmin() {
                       <button onClick={() => setSelectedRequest(req)} style={{ padding: '0.3rem 0.6rem', borderRadius: '5px', border: '1px solid var(--color-primary)', background: 'none', color: 'var(--color-primary)', fontSize: '0.78rem', cursor: 'pointer', fontWeight: 600 }}>
                         View
                       </button>
-                      <QuickStatusMenu request={req} onUpdated={loadRequests} />
-                      <button onClick={() => archiveRequest(req)} style={{ padding: '0.3rem 0.6rem', borderRadius: '5px', border: '1px solid #EF4444', background: 'none', color: '#EF4444', fontSize: '0.78rem', cursor: 'pointer' }}>
+                      <QuickStatusMenu request={req} onStatusRequest={(request, newStatus) => setStatusTarget({ request, newStatus })} />
+                      <button onClick={() => archiveRequest(req)} aria-label={t('businessLaunchAdmin.archiveLabel')} style={{ padding: '0.3rem 0.6rem', borderRadius: '5px', border: '1px solid #EF4444', background: 'none', color: '#EF4444', fontSize: '0.78rem', cursor: 'pointer' }}>
                         Archive
                       </button>
                     </div>
@@ -327,10 +335,28 @@ export default function BusinessLaunchAdmin() {
           <BusinessLaunchRequestDetail
             request={selectedRequest}
             onClose={() => setSelectedRequest(null)}
-            onStatusUpdate={() => { loadRequests(); setSelectedRequest(null); }}
+            onStatusUpdate={() => { reload(); setSelectedRequest(null); }}
           />
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!statusTarget}
+        title={t('businessLaunchAdmin.confirmStatusTitle')}
+        message={t('businessLaunchAdmin.confirmStatusMessage', {
+          status: STATUS_PIPELINE.find(s => s.key === statusTarget?.newStatus)?.label || statusTarget?.newStatus || '',
+        })}
+        onConfirm={confirmStatusChange}
+        onClose={() => setStatusTarget(null)}
+      />
+      <ConfirmDialog
+        open={!!archiveTarget}
+        danger
+        title={t('businessLaunchAdmin.confirmArchiveTitle')}
+        message={t('businessLaunchAdmin.confirmArchiveMessage')}
+        onConfirm={confirmArchive}
+        onClose={() => setArchiveTarget(null)}
+      />
     </div>
   );
 }

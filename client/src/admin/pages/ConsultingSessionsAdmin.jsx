@@ -1,9 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from '../../api/axios';
 import toast from 'react-hot-toast';
 import ConsultingSessionDetail from './ConsultingSessionDetail';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState from '../lib/AdminErrorState';
+import ConfirmDialog from '../lib/ConfirmDialog';
 
 const STATUS_COLORS = {
   pending: '#FFA500',
@@ -84,6 +87,14 @@ function NewSessionModal({ consultants, onClose, onCreated }) {
     e.preventDefault();
     if (!form.email || !form.service_tier) {
       toast.error(t('adminConsultingSessions.toast.createRequired'));
+      return;
+    }
+    // Scheduling needs both a date and a time, or neither; a date with no
+    // time (or the reverse) can never produce a real session slot.
+    const hasDate = !!form.scheduled_date;
+    const hasTime = !!form.scheduled_time;
+    if (hasDate !== hasTime) {
+      toast.error(t('adminConsultingSessions.toast.scheduleDateTimeBoth'));
       return;
     }
     try {
@@ -203,59 +214,59 @@ function NewSessionModal({ consultants, onClose, onCreated }) {
 
 export default function ConsultingSessionsAdmin() {
   const { t } = useTranslation();
-  const [sessions, setSessions] = useState([]);
-  const [consultants, setConsultants] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedSession, setSelectedSession] = useState(null);
-  const [showNewSession, setShowNewSession] = useState(false);
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState({ status: '', service_tier: '' });
   const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState({});
+  const [selectedSession, setSelectedSession] = useState(null);
+  const [showNewSession, setShowNewSession] = useState(false);
 
-  const loadSessions = useCallback(async () => {
+  const { data, error, loading, reload } = useAbortableFetch(async (signal) => {
+    const params = new URLSearchParams({ page, limit: 20 });
+    if (filters.status) params.set('status', filters.status);
+    if (filters.service_tier) params.set('service_tier', filters.service_tier);
+    if (search) params.set('search', search);
+
+    const [sesRes, consRes] = await Promise.all([
+      axios.get(`/consulting/admin/sessions?${params}`, { signal }),
+      axios.get('/consulting/admin/consultants', { signal }),
+    ]);
+    return {
+      sessions: sesRes.data.data || [],
+      pagination: sesRes.data.pagination || {},
+      consultants: consRes.data || [],
+    };
+  }, [filters, page, search]);
+
+  const sessions = data?.sessions ?? [];
+  const consultants = data?.consultants ?? [];
+  const pagination = data?.pagination ?? {};
+
+  // Confirmation-gated actions. ConfirmDialog stays open and shows the
+  // error if the PATCH fails, so a failure is never mistaken for success.
+  const [completeTarget, setCompleteTarget] = useState(null);
+  const [cancelTarget, setCancelTarget] = useState(null);
+
+  async function confirmMarkComplete() {
+    if (!completeTarget) return;
     try {
-      setLoading(true);
-      const params = new URLSearchParams({ page, limit: 20 });
-      if (filters.status) params.set('status', filters.status);
-      if (filters.service_tier) params.set('service_tier', filters.service_tier);
-      if (search) params.set('search', search);
-
-      const [sesRes, consRes] = await Promise.all([
-        axios.get(`/consulting/admin/sessions?${params}`),
-        axios.get('/consulting/admin/consultants'),
-      ]);
-      setSessions(sesRes.data.data || []);
-      setPagination(sesRes.data.pagination || {});
-      setConsultants(consRes.data || []);
-    } catch {
-      toast.error(t('adminConsultingSessions.toast.loadFailed'));
-    } finally {
-      setLoading(false);
-    }
-  }, [filters, page, search, t]);
-
-  useEffect(() => { loadSessions(); }, [loadSessions]);
-
-  async function markComplete(session) {
-    if (!window.confirm(t('adminConsultingSessions.confirm.markComplete', { name: `${session.first_name} ${session.last_name}` }))) return;
-    try {
-      await axios.patch(`/consulting/admin/sessions/${session.id}/complete`);
+      await axios.patch(`/consulting/admin/sessions/${completeTarget.id}/complete`);
       toast.success(t('adminConsultingSessions.toast.markedComplete'));
-      loadSessions();
+      reload();
     } catch {
       toast.error(t('adminConsultingSessions.toast.markCompleteFailed'));
+      throw new Error(t('adminConsultingSessions.toast.markCompleteFailed'));
     }
   }
 
-  async function cancelSession(session) {
-    if (!window.confirm(t('adminConsultingSessions.confirm.cancel', { name: `${session.first_name} ${session.last_name}` }))) return;
+  async function confirmCancelSession() {
+    if (!cancelTarget) return;
     try {
-      await axios.patch(`/consulting/admin/sessions/${session.id}`, { status: 'cancelled' });
+      await axios.patch(`/consulting/admin/sessions/${cancelTarget.id}`, { status: 'cancelled' });
       toast.success(t('adminConsultingSessions.toast.cancelled'));
-      loadSessions();
+      reload();
     } catch {
       toast.error(t('adminConsultingSessions.toast.cancelFailed'));
+      throw new Error(t('adminConsultingSessions.toast.cancelFailed'));
     }
   }
 
@@ -359,7 +370,9 @@ export default function ConsultingSessionsAdmin() {
       </div>
 
       {/* Table */}
-      {loading && page === 1 ? (
+      {error ? (
+        <AdminErrorState onRetry={reload} />
+      ) : loading && page === 1 ? (
         <div style={{ color: 'var(--color-text-muted)' }}>{t('adminConsultingSessions.loading')}</div>
       ) : sessions.length === 0 ? (
         <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '10px', padding: '3rem', textAlign: 'center' }}>
@@ -416,7 +429,7 @@ export default function ConsultingSessionsAdmin() {
                         {t('adminConsultingSessions.actions.view')}
                       </button>
                       {session.status === 'scheduled' && (
-                        <button onClick={() => markComplete(session)} style={{ padding: '0.3rem 0.55rem', borderRadius: '5px', border: '1px solid #10B981', background: 'none', color: '#10B981', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                        <button onClick={() => setCompleteTarget(session)} style={{ padding: '0.3rem 0.55rem', borderRadius: '5px', border: '1px solid #10B981', background: 'none', color: '#10B981', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}>
                           {t('adminConsultingSessions.actions.complete')}
                         </button>
                       )}
@@ -426,7 +439,7 @@ export default function ConsultingSessionsAdmin() {
                         </button>
                       )}
                       {(session.status === 'pending' || session.status === 'scheduled') && (
-                        <button onClick={() => cancelSession(session)} style={{ padding: '0.3rem 0.55rem', borderRadius: '5px', border: '1px solid #EF4444', background: 'none', color: '#EF4444', fontSize: '0.75rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        <button onClick={() => setCancelTarget(session)} style={{ padding: '0.3rem 0.55rem', borderRadius: '5px', border: '1px solid #EF4444', background: 'none', color: '#EF4444', fontSize: '0.75rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                           {t('adminConsultingSessions.actions.cancel')}
                         </button>
                       )}
@@ -455,7 +468,7 @@ export default function ConsultingSessionsAdmin() {
           <ConsultingSessionDetail
             session={selectedSession}
             onClose={() => setSelectedSession(null)}
-            onStatusUpdate={() => { loadSessions(); setSelectedSession(null); }}
+            onStatusUpdate={() => { reload(); setSelectedSession(null); }}
           />
         </div>
       )}
@@ -464,9 +477,24 @@ export default function ConsultingSessionsAdmin() {
         <NewSessionModal
           consultants={consultants}
           onClose={() => setShowNewSession(false)}
-          onCreated={loadSessions}
+          onCreated={reload}
         />
       )}
+
+      <ConfirmDialog
+        open={!!completeTarget}
+        title={t('adminConsultingSessions.confirm.markComplete', { name: completeTarget ? `${completeTarget.first_name} ${completeTarget.last_name}` : '' })}
+        onConfirm={confirmMarkComplete}
+        onClose={() => setCompleteTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={!!cancelTarget}
+        danger
+        title={t('adminConsultingSessions.confirm.cancel', { name: cancelTarget ? `${cancelTarget.first_name} ${cancelTarget.last_name}` : '' })}
+        onConfirm={confirmCancelSession}
+        onClose={() => setCancelTarget(null)}
+      />
     </div>
   );
 }

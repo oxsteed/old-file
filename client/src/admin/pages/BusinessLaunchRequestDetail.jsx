@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from '../../api/axios';
 import toast from 'react-hot-toast';
+import ConfirmDialog from '../lib/ConfirmDialog';
 
 const STATUS_COLORS = {
   pending: '#FFA500',
@@ -16,8 +17,11 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('overview');
   const [notes, setNotes] = useState([]);
+  const [notesLoading, setNotesLoading] = useState(false);
   const [messages, setMessages] = useState([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
   const [templates, setTemplates] = useState([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
   const [newNote, setNewNote] = useState('');
   const [noteLoading, setNoteLoading] = useState(false);
   const [messageLoading, setMessageLoading] = useState(false);
@@ -25,6 +29,7 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
   const [consultants, setConsultants] = useState([]);
   const [consultantsLoading, setConsultantsLoading] = useState(false);
   const [assignmentLoading, setAssignmentLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [assignmentForm, setAssignmentForm] = useState({
     consultant_user_id: request.consultant_assigned_id || '',
     assigned_oxsteed_cut_bps: request.assigned_oxsteed_cut_bps || 2000,
@@ -34,6 +39,36 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
     subject: '',
     message_html: '',
   });
+
+  // Abortable, sequence-guarded per-resource loader. A newer load of the same
+  // resource cancels the in-flight one, and a slower earlier response can
+  // never clobber newer data. Individual loading flags keep empty states
+  // from flashing while their own resource is still fetching.
+  const loadersRef = useRef({});
+
+  useEffect(() => () => {
+    Object.values(loadersRef.current).forEach(({ controller }) => controller?.abort());
+  }, []);
+
+  async function loadResource(key, fetcher, { setData, setLoading, onError } = {}) {
+    const prev = loadersRef.current[key];
+    prev?.controller?.abort();
+    const controller = new AbortController();
+    const seq = (prev?.seq || 0) + 1;
+    loadersRef.current[key] = { controller, seq };
+    const isCurrent = () => loadersRef.current[key]?.seq === seq;
+    setLoading?.(true);
+    try {
+      const value = await fetcher(controller.signal);
+      if (!isCurrent()) return;
+      setData?.(value);
+    } catch (err) {
+      if (controller.signal.aborted || !isCurrent()) return;
+      onError?.(err);
+    } finally {
+      if (isCurrent()) setLoading?.(false);
+    }
+  }
 
   useEffect(() => {
     loadNotes();
@@ -45,49 +80,45 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
       assigned_oxsteed_cut_bps: request.assigned_oxsteed_cut_bps || 2000,
       note_text: '',
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request.id]);
 
   async function loadNotes() {
-    try {
-      const res = await axios.get(`/consulting/business-launch/requests/${request.id}/notes`);
-      setNotes(res.data || []);
-    } catch (err) {
-      toast.error(t('common.errorLoading'));
-    }
+    await loadResource(
+      'notes',
+      (signal) => axios.get(`/consulting/business-launch/requests/${request.id}/notes`, { signal }).then(r => r.data || []),
+      { setData: setNotes, setLoading: setNotesLoading, onError: () => toast.error(t('common.errorLoading')) }
+    );
   }
 
   async function loadMessages() {
-    try {
-      const res = await axios.get(`/consulting/business-launch/requests/${request.id}/messages`);
-      setMessages(res.data || []);
-    } catch (err) {
-      toast.error(t('common.errorLoading'));
-    }
+    await loadResource(
+      'messages',
+      (signal) => axios.get(`/consulting/business-launch/requests/${request.id}/messages`, { signal }).then(r => r.data || []),
+      { setData: setMessages, setLoading: setMessagesLoading, onError: () => toast.error(t('common.errorLoading')) }
+    );
   }
 
   async function loadTemplates() {
-    try {
-      const res = await axios.get(`/consulting/business-launch/message-templates`);
-      setTemplates(res.data || []);
-    } catch (err) {
-      toast.error(t('common.errorLoading'));
-    }
+    await loadResource(
+      'templates',
+      (signal) => axios.get('/consulting/business-launch/message-templates', { signal }).then(r => r.data || []),
+      { setData: setTemplates, setLoading: setTemplatesLoading, onError: () => toast.error(t('common.errorLoading')) }
+    );
   }
 
   async function loadConsultants() {
-    try {
-      setConsultantsLoading(true);
-      const params = new URLSearchParams();
-      if (request.operating_country) params.set('country', request.operating_country);
-      if (request.operating_state) params.set('region', request.operating_state);
-      if (request.package_price) params.set('package_price', request.package_price);
-      const res = await axios.get(`/consulting/business-launch/consultants?${params}`);
-      setConsultants(res.data.consultants || []);
-    } catch (err) {
-      toast.error('Failed to load consultants');
-    } finally {
-      setConsultantsLoading(false);
-    }
+    await loadResource(
+      'consultants',
+      (signal) => {
+        const params = new URLSearchParams();
+        if (request.operating_country) params.set('country', request.operating_country);
+        if (request.operating_state) params.set('region', request.operating_state);
+        if (request.package_price) params.set('package_price', request.package_price);
+        return axios.get(`/consulting/business-launch/consultants?${params}`, { signal }).then(r => r.data.consultants || []);
+      },
+      { setData: setConsultants, setLoading: setConsultantsLoading, onError: () => toast.error('Failed to load consultants') }
+    );
   }
 
   async function addNote() {
@@ -112,16 +143,14 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
     }
   }
 
-  async function deleteNote(noteId) {
-    if (!window.confirm(t('businessLaunchAdmin.deleteNoteConfirm'))) return;
-
-    try {
-      await axios.delete(`/consulting/business-launch/notes/${noteId}`);
-      loadNotes();
-      toast.success(t('businessLaunchAdmin.noteDeleted'));
-    } catch (err) {
-      toast.error(t('common.errorUpdating'));
-    }
+  // Note deletion is destructive: it goes through a confirmation dialog.
+  // ConfirmDialog stays open and shows the error if the DELETE fails.
+  async function confirmDeleteNote() {
+    const noteId = deleteTarget;
+    await axios.delete(`/consulting/business-launch/notes/${noteId}`);
+    setDeleteTarget(null);
+    loadNotes();
+    toast.success(t('businessLaunchAdmin.noteDeleted'));
   }
 
   async function sendMessage() {
@@ -159,9 +188,19 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
       return;
     }
 
+    // Referral cut is basis points: a finite integer from 0 through 10000.
+    const bps = Number(assignmentForm.assigned_oxsteed_cut_bps);
+    if (!Number.isFinite(bps) || !Number.isInteger(bps) || bps < 0 || bps > 10000) {
+      toast.error(t('businessLaunchAdmin.invalidBps'));
+      return;
+    }
+
     try {
       setAssignmentLoading(true);
-      await axios.post(`/consulting/business-launch/requests/${request.id}/assign-consultant`, assignmentForm);
+      await axios.post(`/consulting/business-launch/requests/${request.id}/assign-consultant`, {
+        ...assignmentForm,
+        assigned_oxsteed_cut_bps: bps,
+      });
       toast.success('Consultant assigned');
       onStatusUpdate?.();
     } catch (err) {
@@ -442,7 +481,9 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
 
           <div style={sectionStyle}>
             <div style={sectionTitleStyle}>Notes</div>
-            {notes.length === 0 ? (
+            {notesLoading ? (
+              <p style={{ color: 'var(--color-text-muted)' }}>{t('common.loading')}</p>
+            ) : notes.length === 0 ? (
               <p style={{ color: 'var(--color-text-muted)' }}>No notes yet</p>
             ) : (
               notes.map(note => (
@@ -464,7 +505,7 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
                       </p>
                     </div>
                     <button
-                      onClick={() => deleteNote(note.id)}
+                      onClick={() => setDeleteTarget(note.id)}
                       style={{
                         background: 'transparent',
                         border: 'none',
@@ -500,8 +541,9 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
                 value={selectedTemplate}
                 onChange={e => setSelectedTemplate(e.target.value)}
                 style={inputStyle}
+                disabled={templatesLoading}
               >
-                <option value="">- Create Custom Message -</option>
+                <option value="">{templatesLoading ? t('common.loading') : '- Create Custom Message -'}</option>
                 {templates.map(template => (
                   <option key={template.id} value={template.id}>
                     {template.name}
@@ -551,7 +593,9 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
 
           <div style={sectionStyle}>
             <div style={sectionTitleStyle}>Message History</div>
-            {messages.length === 0 ? (
+            {messagesLoading ? (
+              <p style={{ color: 'var(--color-text-muted)' }}>{t('common.loading')}</p>
+            ) : messages.length === 0 ? (
               <p style={{ color: 'var(--color-text-muted)' }}>No messages sent yet</p>
             ) : (
               messages.map(msg => (
@@ -613,6 +657,15 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
       >
         Close
       </button>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        danger
+        title={t('businessLaunchAdmin.deleteNoteTitle')}
+        message={t('businessLaunchAdmin.deleteNoteConfirm')}
+        onConfirm={confirmDeleteNote}
+        onClose={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

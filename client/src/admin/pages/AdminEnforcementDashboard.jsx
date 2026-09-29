@@ -1,14 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, Shield, Clock, Loader, X } from 'lucide-react';
 import api from '../../api/axios';
 import '../styles/AdminEnforcementDashboard.css';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState from '../lib/AdminErrorState';
+import ConfirmDialog from '../lib/ConfirmDialog';
 
 const AdminEnforcementDashboard = () => {
   const { t } = useTranslation();
-  const [actions, setActions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [actionError, setActionError] = useState(null);
+  const [deactivateTarget, setDeactivateTarget] = useState(null);
   const [filters, setFilters] = useState({ actionType: '', isActive: '' });
   const [pagination, setPagination] = useState({ offset: 0, limit: 20 });
   const [showNewActionModal, setShowNewActionModal] = useState(false);
@@ -22,45 +24,33 @@ const AdminEnforcementDashboard = () => {
   });
   const [creatingAction, setCreatingAction] = useState(false);
 
-  const fetchActions = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  const { data, error: fetchError, loading, reload } = useAbortableFetch(async (signal) => {
+    const params = new URLSearchParams({
+      limit: pagination.limit,
+      offset: pagination.offset
+    });
 
-      const params = new URLSearchParams({
-        limit: pagination.limit,
-        offset: pagination.offset
-      });
+    if (filters.actionType) params.append('actionType', filters.actionType);
+    if (filters.isActive !== '') params.append('isActive', filters.isActive);
 
-      if (filters.actionType) params.append('actionType', filters.actionType);
-      if (filters.isActive !== '') params.append('isActive', filters.isActive);
-
-      const response = await api.get('/enforcement/all', { params });
-      const { data, pagination: paginationData } = response.data;
-      setActions(data);
-      setPagination(paginationData);
-    } catch (err) {
-      setError(err.response?.data?.error || err.message);
-    } finally {
-      setLoading(false);
-    }
+    const response = await api.get('/enforcement/all', { params, signal });
+    return response.data;
   }, [filters, pagination.offset, pagination.limit]);
 
-  useEffect(() => {
-    fetchActions();
-  }, [fetchActions]);
+  const actions = data?.data ?? [];
+  const hasMore = data?.pagination?.hasMore ?? false;
 
   const handleCreateAction = async (e) => {
     e.preventDefault();
-    setError(null);
+    setActionError(null);
 
     if (!newAction.userId.trim()) {
-      setError(t('adminEnforcement.userIdRequired'));
+      setActionError(t('adminEnforcement.userIdRequired'));
       return;
     }
 
     if (!newAction.reason.trim()) {
-      setError(t('adminEnforcement.reasonRequired'));
+      setActionError(t('adminEnforcement.reasonRequired'));
       return;
     }
 
@@ -87,21 +77,20 @@ const AdminEnforcementDashboard = () => {
         expiresAt: ''
       });
       setShowNewActionModal(false);
-      fetchActions();
+      reload();
     } catch (err) {
-      setError(err.response?.data?.error || err.message);
+      setActionError(err.response?.data?.error || err.message);
     } finally {
       setCreatingAction(false);
     }
   };
 
-  const handleDeactivateAction = async (actionId) => {
-    try {
-      await api.post(`/enforcement/${actionId}/deactivate`);
-      fetchActions();
-    } catch (err) {
-      setError(err.response?.data?.error || err.message);
-    }
+  // Deactivation is destructive: it lifts restrictions immediately, so it
+  // goes through a confirmation dialog. ConfirmDialog stays open and shows
+  // the error if the POST fails.
+  const confirmDeactivate = async () => {
+    await api.post(`/enforcement/${deactivateTarget}/deactivate`);
+    reload();
   };
 
   const getActionColor = (actionType) => {
@@ -181,7 +170,9 @@ const AdminEnforcementDashboard = () => {
       </div>
 
       <div className="admin-enforcement-list">
-        {actions.length === 0 ? (
+        {fetchError ? (
+          <AdminErrorState onRetry={reload} />
+        ) : actions.length === 0 && !loading ? (
           <div className="admin-enforcement-empty">
             <Shield size={32} opacity={0.5} />
             <p>{t('adminEnforcement.noActions')}</p>
@@ -240,7 +231,7 @@ const AdminEnforcementDashboard = () => {
 
                 {action.isActive && (
                   <button
-                    onClick={() => handleDeactivateAction(action.id)}
+                    onClick={() => setDeactivateTarget(action.id)}
                     className="admin-enforcement-btn-deactivate"
                   >
                     {t('adminEnforcement.deactivate')}
@@ -252,13 +243,7 @@ const AdminEnforcementDashboard = () => {
         )}
       </div>
 
-      {error && (
-        <div className="admin-enforcement-error">
-          {error}
-        </div>
-      )}
-
-      {pagination.hasMore && (
+      {hasMore && (
         <div className="admin-enforcement-pagination">
           <button
             onClick={() => setPagination({ ...pagination, offset: pagination.offset + pagination.limit })}
@@ -277,6 +262,7 @@ const AdminEnforcementDashboard = () => {
               <button
                 onClick={() => setShowNewActionModal(false)}
                 className="admin-enforcement-modal-close"
+                aria-label={t('common.aria.closeButton')}
               >
                 <X size={20} />
               </button>
@@ -365,7 +351,7 @@ const AdminEnforcementDashboard = () => {
                 </p>
               </div>
 
-              {error && <div className="admin-enforcement-error">{error}</div>}
+              {actionError && <div className="admin-enforcement-error">{actionError}</div>}
 
               <div className="admin-enforcement-form-actions">
                 <button
@@ -388,6 +374,14 @@ const AdminEnforcementDashboard = () => {
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={!!deactivateTarget}
+        danger
+        title={t('adminEnforcement.confirmDeactivateTitle')}
+        message={t('adminEnforcement.confirmDeactivateMessage')}
+        onConfirm={confirmDeactivate}
+        onClose={() => setDeactivateTarget(null)}
+      />
     </div>
   );
 };

@@ -1,42 +1,41 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import toast from 'react-hot-toast';
-import consultingAnalyticsApi from '../../api/consultingAnalytics';
+import api from '../../api/axios';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState from '../lib/AdminErrorState';
+
+// Parse a date-only string (YYYY-MM-DD) as a local date so chart labels are
+// not shifted a day in timezones behind UTC.
+function parseLocalDate(value) {
+  if (!value) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return new Date(`${value}T12:00:00`);
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
 
 export default function ConsultingAnalyticsDashboard() {
   const { t } = useTranslation();
-  const [loading, setLoading] = useState(false);
-  const [platformStats, setPlatformStats] = useState(null);
-  const [topConsultants, setTopConsultants] = useState([]);
-  const [conversionFunnel, setConversionFunnel] = useState([]);
-  const [feedbackTrends, setFeedbackTrends] = useState([]);
   const [activeTab, setActiveTab] = useState('overview');
 
-  // Load all analytics on mount
-  useEffect(() => {
-    loadAnalytics();
+  const { data, error, loading, reload } = useAbortableFetch(async (signal) => {
+    const [stats, consultants, funnel, trends] = await Promise.all([
+      api.get('/consulting/analytics/platform-stats', { signal }),
+      api.get('/consulting/analytics/consultants/top', { params: { limit: 10, minSessions: 5 }, signal }),
+      api.get('/consulting/analytics/conversion-funnel', { params: { days: 30 }, signal }),
+      api.get('/consulting/analytics/feedback-trends', { params: { weeks: 12 }, signal }),
+    ]);
+    return {
+      platformStats: stats.data,
+      topConsultants: consultants.data,
+      conversionFunnel: funnel.data,
+      feedbackTrends: trends.data,
+    };
   }, []);
 
-  const loadAnalytics = async () => {
-    try {
-      setLoading(true);
-      const [stats, consultants, funnel, trends] = await Promise.all([
-        consultingAnalyticsApi.getPlatformStats(),
-        consultingAnalyticsApi.getTopConsultants(10, 3),
-        consultingAnalyticsApi.getConversionFunnel(30),
-        consultingAnalyticsApi.getFeedbackTrends(12),
-      ]);
-
-      setPlatformStats(stats.data);
-      setTopConsultants(consultants.data);
-      setConversionFunnel(funnel.data);
-      setFeedbackTrends(trends.data);
-    } catch (err) {
-      toast.error(t('common.errorLoading') || 'Failed to load analytics');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const platformStats = data?.platformStats ?? null;
+  const topConsultants = data?.topConsultants ?? [];
+  const conversionFunnel = data?.conversionFunnel ?? [];
+  const feedbackTrends = data?.feedbackTrends ?? [];
 
   const pageStyle = {
     padding: '2rem',
@@ -156,6 +155,14 @@ export default function ConsultingAnalyticsDashboard() {
 
   if (loading) {
     return <div style={pageStyle}>{t('common.loading') || 'Loading...'}</div>;
+  }
+
+  if (error) {
+    return (
+      <div style={pageStyle}>
+        <AdminErrorState onRetry={reload} />
+      </div>
+    );
   }
 
   return (
@@ -294,7 +301,7 @@ export default function ConsultingAnalyticsDashboard() {
                 {conversionFunnel.slice(0, 15).map((row, idx) => (
                   <tr key={idx} style={{ borderBottom: '1px solid var(--color-border)' }}>
                     <td style={{ ...tableCellStyle, fontWeight: '500' }}>
-                      {new Date(row.date).toLocaleDateString('en-US')}
+                      {parseLocalDate(row.date)?.toLocaleDateString('en-US') || ''}
                     </td>
                     <td style={tableCellStyle}>{row.intake_forms}</td>
                     <td style={tableCellStyle}>{row.scheduled_sessions}</td>
@@ -344,7 +351,7 @@ export default function ConsultingAnalyticsDashboard() {
                 {feedbackTrends.map((row, idx) => (
                   <tr key={idx} style={{ borderBottom: '1px solid var(--color-border)' }}>
                     <td style={{ ...tableCellStyle, fontWeight: '500' }}>
-                      {new Date(row.week_start).toLocaleDateString('en-US')}
+                      {parseLocalDate(row.week_start)?.toLocaleDateString('en-US') || ''}
                     </td>
                     <td style={tableCellStyle}>{row.total_feedback}</td>
                     <td style={{ ...tableCellStyle, ...ratingStyle(row.avg_rating || 0) }}>

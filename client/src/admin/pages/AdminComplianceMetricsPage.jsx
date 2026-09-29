@@ -1,6 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { RefreshCw } from 'lucide-react';
 import adminApi from '../../lib/adminApi';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState from '../lib/AdminErrorState';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const toNumber = (value, fallback = 0) => {
@@ -169,26 +172,11 @@ function AlertBox({ type, title, message, action }) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function AdminComplianceMetricsPage() {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const res = await adminApi.get('/admin/legal/compliance-metrics');
-      setData(res.data?.metrics ? res.data.metrics : res.data);
-    } catch (err) {
-      console.error('Failed to load metrics:', err);
-      setError(err.response?.data?.message || 'Failed to load compliance metrics');
-    }
-    setLoading(false);
+  const { t } = useTranslation();
+  const { data, error, loading, reload } = useAbortableFetch(async (signal) => {
+    const res = await adminApi.get('/admin/legal/compliance-metrics', { signal });
+    return res.data?.metrics ? res.data.metrics : res.data;
   }, []);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
 
   if (loading) {
     return (
@@ -279,8 +267,9 @@ export default function AdminComplianceMetricsPage() {
           <p className="text-gray-400 text-sm">Legal document adoption rates, compliance risks, and trends.</p>
         </div>
         <button
-          onClick={loadData}
+          onClick={reload}
           disabled={loading}
+          aria-label={t('common.refresh')}
           className="p-2.5 bg-gray-700 border border-gray-600 text-gray-400 rounded-lg hover:text-white transition disabled:opacity-50"
         >
           <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
@@ -288,12 +277,10 @@ export default function AdminComplianceMetricsPage() {
       </div>
 
       {/* Error Alert */}
-      {error && (
-        <div className="bg-red-500/20 border border-red-500/50 text-red-300 px-4 py-3 rounded-lg text-sm flex items-start gap-2">
-          <span>⚠️</span>
-          <span>{error}</span>
-        </div>
-      )}
+      {error ? (
+        <AdminErrorState onRetry={reload} />
+      ) : (
+        <>
 
       {/* Acceptance Rates Grid */}
       <div>
@@ -470,6 +457,8 @@ export default function AdminComplianceMetricsPage() {
             </BarChart>
           </ResponsiveContainer>
         </div>
+      )}
+        </>
       )}
     </div>
   );

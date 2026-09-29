@@ -4,12 +4,26 @@
  * Route: /admin/learn/submissions
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   BookOpen, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp,
   RefreshCw, Filter, ExternalLink, MessageSquare,
 } from 'lucide-react';
-import api from '../../api/axios';
+import adminApi from '../../lib/adminApi';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState from '../lib/AdminErrorState';
+
+/** Parse a value that may be an array, a JSON-encoded array string, or garbage. */
+function safeList(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== 'string' || !value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -69,9 +83,9 @@ function ExpandedSubmission({ sub, onReview }) {
     }
   };
 
-  const steps  = Array.isArray(sub.steps)  ? sub.steps  : JSON.parse(sub.steps  ?? '[]');
-  const skills = Array.isArray(sub.skills) ? sub.skills : JSON.parse(sub.skills ?? '[]');
-  const tools  = Array.isArray(sub.tools)  ? sub.tools  : JSON.parse(sub.tools  ?? 'null') ?? [];
+  const steps  = safeList(sub.steps);
+  const skills = safeList(sub.skills);
+  const tools  = safeList(sub.tools);
 
   return (
     <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 px-5 py-4 space-y-4">
@@ -237,35 +251,34 @@ export default function LearnSubmissionsAdmin() {
   const [submissions, setSubmissions] = useState([]);
   const [total,       setTotal]       = useState(0);
   const [status,      setStatus]      = useState('pending');
-  const [loading,     setLoading]     = useState(false);
-  const [error,       setError]       = useState('');
   const [expanded,    setExpanded]    = useState(null);   // submission id
   const [page,        setPage]        = useState(0);
 
   const PAGE_SIZE = 25;
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const { data } = await api.get('/learn/admin/submissions', {
-        params: { status, limit: PAGE_SIZE, offset: page * PAGE_SIZE },
-      });
-      setSubmissions(data.submissions ?? []);
-      setTotal(data.total ?? 0);
-    } catch (e) {
-      setError(e?.response?.data?.message ?? 'Failed to load submissions.');
-    } finally {
-      setLoading(false);
-    }
+  // Abortable submissions load. A failed refetch keeps the previous list on
+  // screen and surfaces a retryable error instead of clearing it.
+  const { data: submissionsData, error, loading, reload } = useAbortableFetch(async (signal) => {
+    const { data } = await adminApi.get('/learn/admin/submissions', {
+      params: { status, limit: PAGE_SIZE, offset: page * PAGE_SIZE },
+      signal,
+    });
+    return { submissions: data.submissions ?? [], total: data.total ?? 0 };
   }, [status, page]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (submissionsData) {
+      setSubmissions(submissionsData.submissions);
+      setTotal(submissionsData.total);
+    }
+  }, [submissionsData]);
+
+  const load = reload;
 
   const handleReview = async (id, action, reviewer_note) => {
-    await api.patch(`/learn/admin/submissions/${id}`, { action, reviewer_note });
+    await adminApi.patch(`/learn/admin/submissions/${id}`, { action, reviewer_note });
     // Refresh to reflect new status
-    load();
+    reload();
     setExpanded(null);
   };
 
@@ -322,9 +335,8 @@ export default function LearnSubmissionsAdmin() {
 
       {/* Error */}
       {error && (
-        <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800
-          px-4 py-3 text-sm text-red-700 dark:text-red-300 font-600">
-          {error}
+        <div className="rounded-lg">
+          <AdminErrorState onRetry={reload} />
         </div>
       )}
 
@@ -334,13 +346,13 @@ export default function LearnSubmissionsAdmin() {
           <RefreshCw size={18} className="animate-spin mr-2" />
           Loading…
         </div>
-      ) : submissions.length === 0 ? (
+      ) : !error && submissions.length === 0 ? (
         <div className="text-center py-14 text-gray-400">
           <BookOpen size={36} className="mx-auto mb-3 opacity-40" />
           <p className="font-600">No {status === 'all' ? '' : status} submissions</p>
           <p className="text-sm mt-1">Check back later or change the filter.</p>
         </div>
-      ) : (
+      ) : submissions.length > 0 ? (
         <div className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           {/* Table header */}
           <div className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-x-4 px-5 py-2.5
@@ -360,6 +372,8 @@ export default function LearnSubmissionsAdmin() {
               <div key={sub.id} className="border-b border-gray-200 dark:border-gray-700 last:border-0">
                 <button
                   onClick={() => setExpanded(isOpen ? null : sub.id)}
+                  aria-expanded={isOpen}
+                  aria-controls={`submission-detail-${sub.id}`}
                   className="w-full grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-x-4 items-center
                     px-5 py-3.5 text-left bg-white dark:bg-gray-900 hover:bg-gray-50
                     dark:hover:bg-gray-800/60 transition-colors">
@@ -393,13 +407,15 @@ export default function LearnSubmissionsAdmin() {
 
                 {/* Expanded detail */}
                 {isOpen && (
-                  <ExpandedSubmission sub={sub} onReview={handleReview} />
+                  <div id={`submission-detail-${sub.id}`}>
+                    <ExpandedSubmission sub={sub} onReview={handleReview} />
+                  </div>
                 )}
               </div>
             );
           })}
         </div>
-      )}
+      ) : null}
 
       {/* Pagination */}
       {totalPages > 1 && (

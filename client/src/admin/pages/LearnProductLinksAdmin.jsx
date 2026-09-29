@@ -18,13 +18,16 @@
  *   - The app renders "(paid link)" and the Associates disclosure automatically.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Link2, Plus, Pencil, Trash2, AlertTriangle, CheckCircle,
   RefreshCw, Search, ShoppingBag, Tag, X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import api from '../../api/axios';
+import adminApi from '../../lib/adminApi';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState from '../lib/AdminErrorState';
+import ConfirmDialog from '../lib/ConfirmDialog';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -134,10 +137,10 @@ function ProductLinkModal({ initial, onSave, onClose }) {
                          : null,
       };
       if (editing) {
-        const { data } = await api.put(`/learn/admin/product-links/${initial.id}`, payload);
+        const { data } = await adminApi.put(`/learn/admin/product-links/${initial.id}`, payload);
         onSave(data.product, true);
       } else {
-        const { data } = await api.post('/learn/admin/product-links', payload);
+        const { data } = await adminApi.post('/learn/admin/product-links', payload);
         onSave(data.product, false);
       }
     } catch (e) {
@@ -155,7 +158,7 @@ function ProductLinkModal({ initial, onSave, onClose }) {
       <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-zinc-200 dark:border-zinc-700">
           <h2 className="text-base font-bold">{editing ? 'Edit' : 'Add'} Product Link</h2>
-          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
+          <button onClick={onClose} aria-label="Close" className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
             <X size={18} />
           </button>
         </div>
@@ -281,6 +284,8 @@ function ProductLinkModal({ initial, onSave, onClose }) {
             <button
               type="button"
               onClick={() => set('is_active', !form.is_active)}
+              aria-label={form.is_active ? 'Deactivate link' : 'Activate link'}
+              aria-pressed={form.is_active}
               className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
                 form.is_active ? 'bg-orange-500' : 'bg-zinc-300 dark:bg-zinc-600'
               }`}
@@ -320,30 +325,25 @@ function ProductLinkModal({ initial, onSave, onClose }) {
 
 export default function LearnProductLinksAdmin() {
   const [links,      setLinks]      = useState([]);
-  const [loading,    setLoading]    = useState(true);
-  const [error,      setError]      = useState('');
   const [search,     setSearch]     = useState('');
   const [filterType, setFilterType] = useState('');
   const [filterActive, setFilterActive] = useState('');
   const [modal,      setModal]      = useState(null); // null | { initial: obj | null }
+  const [deactivating, setDeactivating] = useState(null); // link object pending deactivation
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const params = {};
-      if (filterType)   params.link_type = filterType;
-      if (filterActive) params.is_active = filterActive;
-      const { data } = await api.get('/learn/admin/product-links', { params });
-      setLinks(data.products ?? []);
-    } catch (e) {
-      setError(e.response?.data?.message || 'Failed to load product links.');
-    } finally {
-      setLoading(false);
-    }
+  // Abortable product-links load. A failed refetch keeps the previous list on
+  // screen and surfaces a retryable error instead of clearing the table.
+  const { data: linksData, error, loading, reload } = useAbortableFetch(async (signal) => {
+    const params = {};
+    if (filterType)   params.link_type = filterType;
+    if (filterActive) params.is_active = filterActive;
+    const { data } = await adminApi.get('/learn/admin/product-links', { params, signal });
+    return data.products ?? [];
   }, [filterType, filterActive]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (linksData) setLinks(linksData); }, [linksData]);
+
+  const load = reload;
 
   const handleSave = (saved, isEdit) => {
     setLinks(prev =>
@@ -354,14 +354,10 @@ export default function LearnProductLinksAdmin() {
     setModal(null);
   };
 
-  const handleDelete = async (link) => {
-    if (!window.confirm(`Deactivate "${link.tool_name}"? The app will fall back to the hardcoded catalog entry.`)) return;
-    try {
-      await api.delete(`/learn/admin/product-links/${link.id}`);
-      setLinks(prev => prev.map(l => l.id === link.id ? { ...l, is_active: false } : l));
-    } catch (e) {
-      toast.error(e.response?.data?.message || 'Delete failed.');
-    }
+  const handleDeactivate = async () => {
+    if (!deactivating) return;
+    await adminApi.delete(`/learn/admin/product-links/${deactivating.id}`);
+    setLinks(prev => prev.map(l => l.id === deactivating.id ? { ...l, is_active: false } : l));
   };
 
   const filtered = links.filter(l => {
@@ -462,6 +458,7 @@ export default function LearnProductLinksAdmin() {
           disabled={loading}
           className="p-2 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-500"
           title="Refresh"
+          aria-label="Refresh"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
         </button>
@@ -469,8 +466,8 @@ export default function LearnProductLinksAdmin() {
 
       {/* Error */}
       {error && (
-        <div className="rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 text-sm text-red-700 dark:text-red-400">
-          {error}
+        <div className="rounded-xl">
+          <AdminErrorState onRetry={reload} />
         </div>
       )}
 
@@ -489,7 +486,7 @@ export default function LearnProductLinksAdmin() {
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-            {loading && (
+            {loading && links.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-12 text-center text-zinc-400">
                   <RefreshCw size={20} className="animate-spin mx-auto mb-2" />
@@ -497,7 +494,7 @@ export default function LearnProductLinksAdmin() {
                 </td>
               </tr>
             )}
-            {!loading && filtered.length === 0 && (
+            {!loading && !error && links.length > 0 && filtered.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-12 text-center text-zinc-400">
                   <ShoppingBag size={32} className="mx-auto mb-2 opacity-30" />
@@ -548,13 +545,15 @@ export default function LearnProductLinksAdmin() {
                       onClick={() => setModal({ initial: link })}
                       className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
                       title="Edit"
+                      aria-label={`Edit ${link.tool_name}`}
                     >
                       <Pencil size={13} />
                     </button>
                     <button
-                      onClick={() => handleDelete(link)}
+                      onClick={() => setDeactivating(link)}
                       className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-zinc-400 hover:text-red-500"
                       title="Deactivate"
+                      aria-label={`Deactivate ${link.tool_name}`}
                     >
                       <Trash2 size={13} />
                     </button>
@@ -584,6 +583,19 @@ export default function LearnProductLinksAdmin() {
           initial={modal.initial}
           onSave={handleSave}
           onClose={() => setModal(null)}
+        />
+      )}
+
+      {/* Deactivate confirmation */}
+      {deactivating && (
+        <ConfirmDialog
+          open
+          danger
+          title="Deactivate product link"
+          message={`Deactivate "${deactivating.tool_name}"? The app will fall back to the hardcoded catalog entry.`}
+          confirmLabel="Deactivate"
+          onConfirm={handleDeactivate}
+          onClose={() => setDeactivating(null)}
         />
       )}
     </div>

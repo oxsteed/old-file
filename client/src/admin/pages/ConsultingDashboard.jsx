@@ -1,8 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import axios from '../../api/axios';
 import toast from 'react-hot-toast';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState from '../lib/AdminErrorState';
+import ConfirmDialog from '../lib/ConfirmDialog';
 
 const STATUS_COLORS = {
   pending: '#FFA500',
@@ -168,6 +171,7 @@ function RequestDetailModal({ request, consultants, onClose, onRefresh }) {
   const [assigning, setAssigning] = useState(false);
   const [note, setNote] = useState('');
   const [addingNote, setAddingNote] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState(null);
 
   async function updateStatus(newStatus) {
     try {
@@ -176,8 +180,11 @@ function RequestDetailModal({ request, consultants, onClose, onRefresh }) {
       setStatus(newStatus);
       toast.success('Status updated');
       onRefresh();
-    } catch {
+    } catch (err) {
+      // Rethrow so the ConfirmDialog stays open and shows the failure instead
+      // of closing as if the status change succeeded.
       toast.error('Failed to update status');
+      throw err;
     } finally {
       setUpdating(false);
     }
@@ -268,7 +275,7 @@ function RequestDetailModal({ request, consultants, onClose, onRefresh }) {
           <h4 style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)' }}>Update Status</h4>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
             {Object.entries(STATUS_LABELS).map(([s, label]) => (
-              <button key={s} disabled={updating || s === status} onClick={() => updateStatus(s)} style={{
+              <button key={s} disabled={updating || s === status} onClick={() => setPendingStatus(s)} style={{
                 padding: '0.4rem 0.9rem', borderRadius: '8px', border: `2px solid ${STATUS_COLORS[s] || '#6B7280'}`,
                 background: s === status ? STATUS_COLORS[s] : 'transparent',
                 color: s === status ? 'white' : STATUS_COLORS[s],
@@ -305,40 +312,44 @@ function RequestDetailModal({ request, consultants, onClose, onRefresh }) {
           </button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!pendingStatus}
+        title="Update Status"
+        message={pendingStatus ? `Change status to ${STATUS_LABELS[pendingStatus] || pendingStatus}?` : ''}
+        onConfirm={async () => { await updateStatus(pendingStatus); }}
+        onClose={() => setPendingStatus(null)}
+      />
     </div>
   );
 }
 
 export default function ConsultingDashboard() {
   const { t } = useTranslation();
-  const [requests, setRequests] = useState([]);
-  const [consultants, setConsultants] = useState([]);
-  const [stats, setStats] = useState(null);
   const [selectedRequest, setSelectedRequest] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterTier, setFilterTier] = useState('');
+  const [archiveTarget, setArchiveTarget] = useState(null);
+  const [contactTarget, setContactTarget] = useState(null);
 
-  const loadData = useCallback(async () => {
-    try {
-      const [reqRes, consRes, statsRes] = await Promise.all([
-        axios.get('/consulting/admin/requests?limit=200'),
-        axios.get('/consulting/admin/consultants'),
-        axios.get('/consulting/admin/dashboard-stats'),
-      ]);
-      setRequests(reqRes.data.requests || []);
-      setConsultants(consRes.data || []);
-      setStats(statsRes.data);
-    } catch {
-      toast.error('Failed to load dashboard');
-    } finally {
-      setLoading(false);
-    }
+  const { data, error, loading, reload } = useAbortableFetch(async (signal) => {
+    const [reqRes, consRes, statsRes] = await Promise.all([
+      axios.get('/consulting/admin/requests?limit=200', { signal }),
+      axios.get('/consulting/admin/consultants', { signal }),
+      axios.get('/consulting/admin/dashboard-stats', { signal }),
+    ]);
+    return {
+      requests: reqRes.data.requests || [],
+      consultants: consRes.data || [],
+      stats: statsRes.data,
+    };
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  const requests = data?.requests ?? [];
+  const consultants = data?.consultants ?? [];
+  const stats = data?.stats ?? null;
 
   const filteredRequests = requests.filter(r => {
     if (filterStatus && r.status !== filterStatus) return false;
@@ -351,25 +362,22 @@ export default function ConsultingDashboard() {
     return true;
   });
 
-  async function markContacted(req) {
-    try {
-      await axios.patch(`/consulting/admin/requests/${req.id}/status`, { status: 'contacted' });
-      toast.success('Marked as contacted');
-      loadData();
-    } catch {
-      toast.error('Failed to update');
-    }
+  // Mark Contacted goes through a confirmation dialog; ConfirmDialog keeps
+  // itself open and shows the error if the PATCH fails.
+  async function confirmMarkContacted() {
+    if (!contactTarget) return;
+    await axios.patch(`/consulting/admin/requests/${contactTarget.id}/status`, { status: 'contacted' });
+    toast.success('Marked as contacted');
+    reload();
   }
 
-  async function archiveRequest(req) {
-    if (!window.confirm(`Archive this request from ${req.first_name} ${req.last_name}?`)) return;
-    try {
-      await axios.patch(`/consulting/admin/requests/${req.id}/status`, { status: 'archived' });
-      toast.success('Request archived');
-      loadData();
-    } catch {
-      toast.error('Failed to archive');
-    }
+  // Archive goes through a confirmation dialog; ConfirmDialog keeps itself
+  // open and shows the error if the PATCH fails.
+  async function confirmArchive() {
+    if (!archiveTarget) return;
+    await axios.patch(`/consulting/admin/requests/${archiveTarget.id}/status`, { status: 'archived' });
+    toast.success('Request archived');
+    reload();
   }
 
   const inputStyle = { padding: '0.55rem 0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: '0.9rem' };
@@ -378,6 +386,14 @@ export default function ConsultingDashboard() {
     return (
       <div style={{ maxWidth: '1300px', margin: '0 auto', padding: '2rem' }}>
         <div style={{ color: 'var(--color-text-muted)' }}>Loading dashboard...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ maxWidth: '1300px', margin: '0 auto', padding: '2rem' }}>
+        <AdminErrorState onRetry={reload} />
       </div>
     );
   }
@@ -494,11 +510,11 @@ export default function ConsultingDashboard() {
                         View
                       </button>
                       {req.status === 'pending' && (
-                        <button onClick={() => markContacted(req)} style={{ padding: '0.35rem 0.7rem', borderRadius: '5px', border: '1px solid #4F46E5', background: 'none', color: '#4F46E5', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>
+                        <button onClick={() => setContactTarget(req)} style={{ padding: '0.35rem 0.7rem', borderRadius: '5px', border: '1px solid #4F46E5', background: 'none', color: '#4F46E5', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>
                           Mark Contacted
                         </button>
                       )}
-                      <button onClick={() => archiveRequest(req)} style={{ padding: '0.35rem 0.7rem', borderRadius: '5px', border: '1px solid var(--color-border)', background: 'none', color: 'var(--color-text-muted)', fontSize: '0.8rem', cursor: 'pointer' }}>
+                      <button onClick={() => setArchiveTarget(req)} style={{ padding: '0.35rem 0.7rem', borderRadius: '5px', border: '1px solid var(--color-border)', background: 'none', color: 'var(--color-text-muted)', fontSize: '0.8rem', cursor: 'pointer' }}>
                         Archive
                       </button>
                     </div>
@@ -515,7 +531,7 @@ export default function ConsultingDashboard() {
           request={selectedRequest}
           consultants={consultants}
           onClose={() => setSelectedRequest(null)}
-          onRefresh={loadData}
+          onRefresh={reload}
         />
       )}
 
@@ -523,9 +539,26 @@ export default function ConsultingDashboard() {
         <CreateRequestModal
           consultants={consultants}
           onClose={() => setShowCreate(false)}
-          onCreated={loadData}
+          onCreated={reload}
         />
       )}
+
+      <ConfirmDialog
+        open={!!contactTarget}
+        title="Mark Contacted"
+        message={contactTarget ? `Mark the request from ${contactTarget.first_name} ${contactTarget.last_name} as contacted?` : ''}
+        onConfirm={confirmMarkContacted}
+        onClose={() => setContactTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={!!archiveTarget}
+        danger
+        title="Archive Request"
+        message={archiveTarget ? `Archive this request from ${archiveTarget.first_name} ${archiveTarget.last_name}?` : ''}
+        onConfirm={confirmArchive}
+        onClose={() => setArchiveTarget(null)}
+      />
     </div>
   );
 }

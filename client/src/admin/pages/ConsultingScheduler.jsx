@@ -1,8 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from '../../api/axios';
 import toast from 'react-hot-toast';
+import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState from '../lib/AdminErrorState';
+import ConfirmDialog from '../lib/ConfirmDialog';
 
 const SESSION_STATUS_COLORS = {
   pending: '#FFA500',
@@ -42,6 +45,23 @@ function getMonday(date) {
   return d;
 }
 
+// Build a local YYYY-MM-DD date (never UTC) for <input type="date"> minimums.
+function localDateISO(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Parse a date-only string (YYYY-MM-DD) as a local date so the displayed
+// day is never shifted by the viewer's UTC offset.
+function parseLocalDate(value) {
+  if (!value) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return new Date(`${value}T12:00:00`);
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function CalendarEvent({ session, onClick }) {
   const color = SESSION_STATUS_COLORS[session.status] || '#6B7280';
   return (
@@ -77,6 +97,7 @@ function ScheduleModal({ session, consultants, onClose, onScheduled }) {
   const [meetingUrl, setMeetingUrl] = useState('');
   const [consultant, setConsultant] = useState('');
   const [saving, setSaving] = useState(false);
+  const [confirmDeclineOpen, setConfirmDeclineOpen] = useState(false);
 
   async function doSchedule() {
     if (!selectedDate || !selectedTime) {
@@ -111,8 +132,8 @@ function ScheduleModal({ session, consultants, onClose, onScheduled }) {
     }
   }
 
-  async function decline() {
-    if (!window.confirm(t('adminConsultingScheduler.confirm.decline'))) return;
+  // Decline is confirmation-gated via the shared ConfirmDialog.
+  async function confirmDecline() {
     try {
       await axios.patch(`/consulting/admin/requests/${session.id}/status`, { status: 'cancelled' });
       toast.success(t('adminConsultingScheduler.toast.requestDeclined'));
@@ -120,6 +141,7 @@ function ScheduleModal({ session, consultants, onClose, onScheduled }) {
       onClose();
     } catch {
       toast.error(t('adminConsultingScheduler.toast.declineFailed'));
+      throw new Error(t('adminConsultingScheduler.toast.declineFailed'));
     }
   }
 
@@ -138,7 +160,7 @@ function ScheduleModal({ session, consultants, onClose, onScheduled }) {
               {session.email} · {session.service_tier} · {session.phone || t('adminConsultingScheduler.scheduleModal.noPhone')}
             </p>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--color-text-muted)' }}>×</button>
+          <button onClick={onClose} aria-label={t('common.aria.closeButton')} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--color-text-muted)' }}>×</button>
         </div>
 
         {session.description && (
@@ -149,7 +171,7 @@ function ScheduleModal({ session, consultants, onClose, onScheduled }) {
 
         <div style={{ marginBottom: '1rem' }}>
           <label style={labelStyle}>{t('adminConsultingScheduler.scheduleModal.selectDate')}</label>
-          <input type="date" style={inputStyle} value={selectedDate} onChange={e => setSelectedDate(e.target.value)} min={new Date().toISOString().slice(0, 10)} />
+          <input type="date" style={inputStyle} value={selectedDate} onChange={e => setSelectedDate(e.target.value)} min={localDateISO()} />
         </div>
 
         <div style={{ marginBottom: '1rem' }}>
@@ -192,11 +214,19 @@ function ScheduleModal({ session, consultants, onClose, onScheduled }) {
           <button onClick={sendCalendarInvite} style={{ padding: '0.6rem 1rem', borderRadius: '6px', border: '1px solid var(--color-primary)', background: 'none', color: 'var(--color-primary)', fontWeight: 600, cursor: 'pointer' }}>
             {t('adminConsultingScheduler.scheduleModal.sendInvite')}
           </button>
-          <button onClick={decline} style={{ padding: '0.6rem 1rem', borderRadius: '6px', border: '1px solid #EF4444', background: 'none', color: '#EF4444', fontWeight: 600, cursor: 'pointer' }}>
+          <button onClick={() => setConfirmDeclineOpen(true)} style={{ padding: '0.6rem 1rem', borderRadius: '6px', border: '1px solid #EF4444', background: 'none', color: '#EF4444', fontWeight: 600, cursor: 'pointer' }}>
             {t('adminConsultingScheduler.scheduleModal.decline')}
           </button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmDeclineOpen}
+        danger
+        title={t('adminConsultingScheduler.confirm.decline')}
+        onConfirm={confirmDecline}
+        onClose={() => setConfirmDeclineOpen(false)}
+      />
     </div>
   );
 }
@@ -300,31 +330,24 @@ function NewSessionModal({ consultants, onClose, onCreated }) {
 
 export default function ConsultingScheduler() {
   const { t } = useTranslation();
-  const [sessions, setSessions] = useState([]);
-  const [consultants, setConsultants] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [weekStart, setWeekStart] = useState(() => getMonday(new Date()));
   const [selectedSession, setSelectedSession] = useState(null);
   const [showNewSession, setShowNewSession] = useState(false);
   const [view, setView] = useState('week');
 
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [sesRes, consRes] = await Promise.all([
-        axios.get('/consulting/admin/requests?limit=200'),
-        axios.get('/consulting/admin/consultants'),
-      ]);
-      setSessions(sesRes.data.requests || []);
-      setConsultants(consRes.data || []);
-    } catch {
-      toast.error(t('adminConsultingScheduler.toast.loadFailed'));
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
+  const { data, error, loading, reload } = useAbortableFetch(async (signal) => {
+    const [sesRes, consRes] = await Promise.all([
+      axios.get('/consulting/admin/requests?limit=200', { signal }),
+      axios.get('/consulting/admin/consultants', { signal }),
+    ]);
+    return {
+      sessions: sesRes.data.requests || [],
+      consultants: consRes.data || [],
+    };
+  }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  const sessions = data?.sessions ?? [];
+  const consultants = data?.consultants ?? [];
 
   const weekDays = getWeekDays(weekStart);
   const pendingSessions = sessions.filter(s => s.status === 'pending');
@@ -349,6 +372,14 @@ export default function ConsultingScheduler() {
   if (loading) {
     return (
       <div style={{ maxWidth: '1300px', margin: '0 auto', padding: '2rem', color: 'var(--color-text-muted)' }}>{t('adminConsultingScheduler.loading')}</div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ maxWidth: '1300px', margin: '0 auto', padding: '2rem' }}>
+        <AdminErrorState onRetry={reload} />
+      </div>
     );
   }
 
@@ -450,7 +481,7 @@ export default function ConsultingScheduler() {
               </div>
               {session.preferred_date && (
                 <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '0.75rem' }}>
-                  <strong>Preferred:</strong> {new Date(session.preferred_date).toLocaleDateString()} {session.preferred_time_slot ? `at ${session.preferred_time_slot}` : ''}
+                  <strong>Preferred:</strong> {parseLocalDate(session.preferred_date)?.toLocaleDateString() || ''} {session.preferred_time_slot ? `at ${session.preferred_time_slot}` : ''}
                 </div>
               )}
               <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
@@ -540,7 +571,7 @@ export default function ConsultingScheduler() {
           session={selectedSession}
           consultants={consultants}
           onClose={() => setSelectedSession(null)}
-          onScheduled={loadData}
+          onScheduled={reload}
         />
       )}
 
@@ -548,7 +579,7 @@ export default function ConsultingScheduler() {
         <NewSessionModal
           consultants={consultants}
           onClose={() => setShowNewSession(false)}
-          onCreated={loadData}
+          onCreated={reload}
         />
       )}
     </div>
