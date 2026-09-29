@@ -233,9 +233,6 @@ function ChangeHistory({ history }) {
 // Main FeeConfig page
 export default function FeeConfig() {
   const { t } = useTranslation();
-  const [config, setConfig] = useState([]);
-  const [history, setHistory] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [resetting, setResetting] = useState(false);
   const [resetReason, setResetReason] = useState('');
   const [showReset, setShowReset] = useState(false);
