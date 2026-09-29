@@ -91,7 +91,7 @@ exports.setTemplate = async (req, res, next) => {
       );
       if (slots.length > 0) {
         const valuesClause = slots.map((_, i) => {
-          const base = i * 4;
+          const base = i * 3;
           return `($1, $${base + 2}, $${base + 3}, $${base + 4}, TRUE)`;
         }).join(', ');
         const params = [helperId];

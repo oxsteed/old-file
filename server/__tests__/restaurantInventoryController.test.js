@@ -178,4 +178,17 @@ describe('restaurant Inventory item backend', () => {
     expect(auditCall[1][3]).toBe('item');
     expect(auditCall[1][4]).toBe(5);
   });
+
+  test('BACKEND-2K: listItems GROUP BY covers reserved.quantity referenced in the SELECT', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [access()] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/inventory/items`);
+
+    expect(response.status).toBe(200);
+    const listSql = mockQuery.mock.calls[1][0];
+    const groupBy = listSql.match(/GROUP BY([\s\S]*?)ORDER BY/)[1];
+    expect(groupBy).toMatch(/reserved\.quantity/);
+  });
 });

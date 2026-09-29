@@ -12,6 +12,34 @@ const { sendNotification } = require('./notificationService');
 
 const CLIENT_MESSAGE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+// ─────────────────────────────────────────────────────────────────
+// ticket:join authorization query
+// ─────────────────────────────────────────────────────────────────
+// NOTE: `current_user` is a reserved keyword in Postgres and cannot be used
+// as an unquoted table alias, so the users self-join below uses `cu`.
+function buildTicketJoinQuery(ticketId, userId, userRole, guestConversationId) {
+  return {
+    text: `SELECT 1
+           FROM support_conversations sc
+           LEFT JOIN support_agents sa ON sa.id = sc.agent_id
+           LEFT JOIN users cu
+             ON cu.id = $2
+            AND cu.is_active = TRUE
+            AND cu.deleted_at IS NULL
+           WHERE sc.id = $1
+             AND (
+               ($2 IS NULL AND $4 = sc.id)
+               OR (
+                 cu.id IS NOT NULL
+                 AND ($2 = sc.customer_id
+                   OR sa.user_id = $2
+                   OR cu.role IN ('admin', 'super_admin'))
+               )
+             )`,
+    params: [ticketId, userId, userRole, guestConversationId],
+  };
+}
+
 class WebSocketService {
   constructor() {
     this.io = null;
@@ -151,26 +179,10 @@ class WebSocketService {
       socket.on('ticket:join', async (data, acknowledgement) => {
         const { ticketId } = data || {};
         if (!ticketId || (!socket.userId && socket.guestConversationId !== ticketId)) return;
-        const { rows } = await pool.query(
-          `SELECT 1
-           FROM support_conversations sc
-           LEFT JOIN support_agents sa ON sa.id = sc.agent_id
-           LEFT JOIN users current_user
-             ON current_user.id = $2
-            AND current_user.is_active = TRUE
-            AND current_user.deleted_at IS NULL
-           WHERE sc.id = $1
-             AND (
-               ($2 IS NULL AND $4 = sc.id)
-               OR (
-                 current_user.id IS NOT NULL
-                 AND ($2 = sc.customer_id
-                   OR sa.user_id = $2
-                   OR current_user.role IN ('admin', 'super_admin'))
-               )
-             )`,
-          [ticketId, socket.userId, socket.userRole, socket.guestConversationId]
+        const { text, params } = buildTicketJoinQuery(
+          ticketId, socket.userId, socket.userRole, socket.guestConversationId
         );
+        const { rows } = await pool.query(text, params);
         if (!rows.length) return;
         socket.join(`ticket:${ticketId}`);
 
@@ -636,3 +648,6 @@ class WebSocketService {
 }
 
 module.exports = new WebSocketService();
+
+// Exposed for unit tests of the ticket:join authorization SQL.
+WebSocketService.prototype.buildTicketJoinQuery = buildTicketJoinQuery;

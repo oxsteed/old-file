@@ -161,7 +161,7 @@ exports.listItems = async (req, res, next) => {
           AND fmi.restaurant_id = i.restaurant_id
         WHERE i.restaurant_id = $1 AND i.is_active = TRUE
           ${lowOnly ? 'AND GREATEST(0, i.quantity - COALESCE(reserved.quantity, 0)) <= i.reorder_point AND i.reorder_point > 0' : ''}
-        GROUP BY i.id, a.name, s.name
+        GROUP BY i.id, a.name, s.name, reserved.quantity
         ORDER BY i.name ASC`,
       [restaurantId]
     );
