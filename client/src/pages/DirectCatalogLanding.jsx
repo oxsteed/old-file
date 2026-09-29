@@ -6,6 +6,7 @@ import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import { OxSteedIcon } from '../components/OxSteedIcon';
 import { DEFAULT_DIRECT_PROFILE, getDirectCatalog, loadDirectProfile } from '../api/direct';
+import { directCatalogHref } from '../utils/directCatalogNavigation';
 import '../styles/DirectCatalog.css';
 
 const ICONS = { wrench: Wrench, zap: Zap, droplets: Droplets, hammer: Hammer, paintbrush: Paintbrush, trees: Trees, ruler: Ruler, drill: Gauge, truck: Truck, 'shield-check': ShieldCheck };
@@ -130,7 +131,7 @@ export function DirectCatalogPanels({ profile }) {
             {!visibleCategories.length && <p className="rounded-xl border border-dashed border-white/10 p-4 text-sm text-slate-500">{t('directCatalog.noCategories', { defaultValue: 'No published categories yet.' })}</p>}
           </div>
         </CatalogScrollRegion>
-        <Link to="/helpers" className="direct-catalog-view-all mt-3">{t('directCatalog.viewAllCategories', { defaultValue: 'View all skills' })} <ArrowRight size={14} /></Link>
+        <Link to={directCatalogHref('skills', { categorySlug: selectedSlug })} className="direct-catalog-view-all mt-3">{t('directCatalog.viewAllCategories', { defaultValue: 'View all skills' })} <ArrowRight size={14} /></Link>
       </CatalogCard>
 
       <CatalogCard className="min-w-0">
@@ -189,7 +190,7 @@ export function DirectCatalogPanels({ profile }) {
             );
           })}{!services.length && serviceEmptyState()}{serviceTotal != null && services.length < serviceTotal && <button type="button" disabled={serviceLoading} onClick={() => setServicePage((page) => page + 1)} className="w-full rounded-xl border border-orange-500/30 px-4 py-3 text-sm font-semibold text-orange-200 hover:bg-orange-500/10 disabled:opacity-50">{t('directCatalog.showMoreServices', { count: `${services.length}/${serviceTotal}`, defaultValue: 'Show more services ({{count}})' })}</button>}</div>
         </CatalogScrollRegion>
-        <Link to="/direct/services" className="direct-catalog-view-all mt-3">{t('directCatalog.viewAllServices', { defaultValue: 'View all services' })} <ArrowRight size={14} /></Link>
+        <Link to={directCatalogHref('services', { categorySlug: selectedSlug })} className="direct-catalog-view-all mt-3">{t('directCatalog.viewAllServices', { defaultValue: 'View all services' })} <ArrowRight size={14} /></Link>
       </CatalogCard>
 
       <CatalogCard>
@@ -198,7 +199,7 @@ export function DirectCatalogPanels({ profile }) {
         <CatalogScrollRegion className="mt-4">
           <div className="space-y-3">{tools.map((tool) => { const Icon = ICONS[tool.iconKey] || Wrench; const toolCategory = categories.find((category) => category.slug === tool.categorySlug); return <article key={tool.id} className="flex gap-3 rounded-2xl border border-white/10 bg-slate-950/60 p-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-orange-300"><Icon size={19} /></div><div className="min-w-0"><h3 className="font-semibold text-white">{tool.name}</h3>{(toolCategory?.name || tool.categorySlug) && <span className="mt-1 inline-flex rounded-full border border-orange-500/20 bg-orange-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-orange-200">{toolCategory?.name || tool.categorySlug}</span>}<p className="mt-1 text-xs leading-5 text-slate-400">{tool.description}</p><span className={`mt-2 inline-flex items-center gap-1 text-xs ${tool.isOperationallyAvailable ? 'text-emerald-300' : 'text-amber-200'}`}><CheckCircle2 size={13} /> {tool.isOperationallyAvailable ? t('directCatalog.availableWhenScheduled', { defaultValue: 'Available when scheduled' }) : t('directCatalog.currentlyUnavailable', { defaultValue: 'Currently unavailable' })}</span></div></article>; })}{!tools.length && <p className={`rounded-2xl border border-dashed p-8 text-center text-sm ${toolQuery ? 'border-white/10 text-slate-500' : 'border-orange-400/20 bg-orange-400/5 text-orange-100'}`}>{toolQuery ? t('directCatalog.noTools', { defaultValue: 'No published tools match your search.' }) : t('directCatalog.toolsComingSoon', { defaultValue: 'Tools and equipment are coming soon.' })}</p>}</div>
         </CatalogScrollRegion>
-        <Link to="/direct/services" className="direct-catalog-view-all mt-3">{t('directCatalog.viewAllTools', { defaultValue: 'View all tools' })} <ArrowRight size={14} /></Link>
+        <Link to={directCatalogHref('tools', { categorySlug: selectedSlug })} className="direct-catalog-view-all mt-3">{t('directCatalog.viewAllTools', { defaultValue: 'View all tools' })} <ArrowRight size={14} /></Link>
       </CatalogCard>
     </div>
   );

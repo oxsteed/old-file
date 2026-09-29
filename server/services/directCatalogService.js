@@ -289,6 +289,8 @@ function parseCatalogInteger(value, field, { min = 0, max = 100 } = {}) {
 }
 
 function parseCatalogQuery(query = {}) {
+  const rawView = cleanText(query.view, 20).toLowerCase();
+  const view = ['services', 'tools'].includes(rawView) ? rawView : null;
   const rawLimit = query.serviceLimit ?? query.limit;
   const rawOffset = query.serviceOffset ?? query.offset;
   const serviceLimit = parseCatalogInteger(rawLimit, 'limit', { min: 1, max: 100 });
@@ -296,18 +298,30 @@ function parseCatalogQuery(query = {}) {
   if (serviceLimit === null && serviceOffset !== 0) {
     throw Object.assign(new Error('offset requires limit'), { statusCode: 400 });
   }
+  const rawToolLimit = query.toolLimit ?? (view === 'tools' ? query.limit : undefined);
+  const rawToolOffset = query.toolOffset ?? (view === 'tools' ? query.offset : undefined);
+  const toolLimit = parseCatalogInteger(rawToolLimit, 'toolLimit', { min: 1, max: 100 });
+  const toolOffset = parseCatalogInteger(rawToolOffset, 'toolOffset', { min: 0, max: 100000 }) ?? 0;
+  if (toolLimit === null && toolOffset !== 0) {
+    throw Object.assign(new Error('toolOffset requires toolLimit'), { statusCode: 400 });
+  }
   const rawCategory = query.categorySlug ?? query.category;
   const categorySlug = rawCategory ? slugify(rawCategory) || null : null;
-  const serviceSearch = cleanText(query.serviceSearch ?? query.search ?? query.q, 100);
-  return { categorySlug, serviceSearch, serviceLimit, serviceOffset };
+  const rawSearch = query.search ?? query.q;
+  const serviceSearch = cleanText(query.serviceSearch ?? (view === 'tools' ? '' : rawSearch), 100);
+  const toolSearch = cleanText(query.toolSearch ?? (view === 'tools' ? rawSearch : ''), 100);
+  return { view, categorySlug, serviceSearch, serviceLimit, serviceOffset, toolSearch, toolLimit, toolOffset };
 }
 
-async function getCatalog({ locale = 'en', includeUnpublished = false, categorySlug = null, serviceSearch = '', serviceLimit = null, serviceOffset = 0 } = {}) {
+async function getCatalog({ locale = 'en', includeUnpublished = false, view = null, categorySlug = null, serviceSearch = '', serviceLimit = null, serviceOffset = 0, toolSearch = '', toolLimit = null, toolOffset = 0 } = {}) {
   const safeLocale = LOCALES.includes(locale) ? locale : 'en';
   const safeCategorySlug = categorySlug ? slugify(categorySlug) || null : null;
   const safeSearch = cleanText(serviceSearch, 100);
   const safeLimit = serviceLimit == null ? null : parseCatalogInteger(serviceLimit, 'limit', { min: 1, max: 100 });
   const safeOffset = parseCatalogInteger(serviceOffset, 'offset', { min: 0, max: 100000 }) ?? 0;
+  const safeToolSearch = cleanText(toolSearch, 100);
+  const safeToolLimit = toolLimit == null ? null : parseCatalogInteger(toolLimit, 'toolLimit', { min: 1, max: 100 });
+  const safeToolOffset = parseCatalogInteger(toolOffset, 'toolOffset', { min: 0, max: 100000 }) ?? 0;
   const browseStatuses = PUBLIC_BROWSE_SERVICE_STATUSES.map((status) => `'${status}'`).join(', ');
   const visibility = includeUnpublished
     ? ''
@@ -317,10 +331,19 @@ async function getCatalog({ locale = 'en', includeUnpublished = false, categoryS
     ? ['1 = 1']
     : [`t.is_active = TRUE AND t.lifecycle_status IN (${browseStatuses})`];
   const toolParams = [];
+  if (safeToolSearch) {
+    toolParams.push(safeLocale, `%${safeToolSearch}%`);
+    toolWhere.push(`(
+      COALESCE(t.name_i18n ->> $1, t.name_i18n ->> 'en', '') ILIKE $2
+      OR COALESCE(t.description_i18n ->> $1, t.description_i18n ->> 'en', '') ILIKE $2
+    )`);
+  }
   if (safeCategorySlug) {
     toolParams.push(safeCategorySlug);
     toolWhere.push(`t.category_slug = $${toolParams.length}`);
   }
+  const toolBounded = safeToolLimit !== null;
+  if (toolBounded) toolParams.push(safeToolOffset, safeToolOffset + safeToolLimit);
   // The locale is only needed by localized search expressions. Avoid binding
   // an unused value on the default full-catalog query.
   const serviceParams = safeSearch ? [safeLocale] : [];
@@ -339,7 +362,7 @@ async function getCatalog({ locale = 'en', includeUnpublished = false, categoryS
   }
   const bounded = safeLimit !== null;
   if (bounded) serviceParams.push(safeOffset, safeOffset + safeLimit);
-  const serviceQuery = `
+  const serviceQuery = view === 'tools' ? 'SELECT NULL::text AS id WHERE FALSE' : `
     SELECT catalog_rows.*
     FROM (
       SELECT s.*, c.slug AS category_slug,
@@ -354,7 +377,7 @@ async function getCatalog({ locale = 'en', includeUnpublished = false, categoryS
           WHERE s.lifecycle_status IN ('live', 'paused')
         ) OVER (PARTITION BY s.category_id) AS category_visible_service_count,
         ROW_NUMBER() OVER (
-          PARTITION BY s.category_id
+          ${view === 'services' && !safeCategorySlug ? '' : 'PARTITION BY s.category_id'}
           ORDER BY COALESCE(s.display_order, s.sort_order), s.created_at, s.id
         ) - 1 AS service_rank
       FROM direct_catalog_services s
@@ -363,10 +386,22 @@ async function getCatalog({ locale = 'en', includeUnpublished = false, categoryS
     ) AS catalog_rows
     ${bounded ? `WHERE service_rank >= $${serviceParams.length - 1} AND service_rank < $${serviceParams.length}` : ''}
     ORDER BY category_id, COALESCE(display_order, sort_order), created_at, id`;
+  const toolQuery = view === 'services' ? 'SELECT NULL::text AS id WHERE FALSE' : `
+    SELECT tool_rows.*
+    FROM (
+      SELECT t.*, c.lifecycle_status AS category_lifecycle_status, c.is_active AS category_is_active,
+        COUNT(*) OVER () AS tool_total_count,
+        ROW_NUMBER() OVER (ORDER BY COALESCE(t.display_order, t.sort_order), t.created_at, t.id) - 1 AS tool_rank
+      FROM direct_catalog_tools t
+      LEFT JOIN direct_catalog_categories c ON c.slug = t.category_slug
+      WHERE ${toolWhere.join(' AND ')}
+    ) AS tool_rows
+    ${toolBounded ? `WHERE tool_rank >= $${toolParams.length - 1} AND tool_rank < $${toolParams.length}` : ''}
+    ORDER BY COALESCE(display_order, sort_order), created_at, id`;
   const [{ rows: categories }, { rows: services }, { rows: tools }] = await Promise.all([
     db.query(`SELECT * FROM direct_catalog_categories c ${includeUnpublished ? '' : `WHERE c.is_active = TRUE AND c.lifecycle_status IN (${PUBLIC_CATEGORY_STATUSES.map((status) => `'${status}'`).join(', ')})`} ORDER BY COALESCE(c.display_order, c.sort_order), c.created_at`),
     db.query(serviceQuery, serviceParams),
-    db.query(`SELECT * FROM direct_catalog_tools t WHERE ${toolWhere.join(' AND ')} ORDER BY COALESCE(t.display_order, t.sort_order), t.created_at`, toolParams),
+    db.query(toolQuery, toolParams),
   ]);
   const categoryMap = new Map(categories.map((row) => [String(row.id), {
     ...adminCategory(row), name: localized(row.name_i18n, safeLocale), services: [], liveServiceCount: 0, availableServiceCount: 0, visibleServiceCount: 0, bookableServiceCount: 0,
@@ -455,6 +490,18 @@ async function getCatalog({ locale = 'en', includeUnpublished = false, categoryS
       search: safeSearch || null,
       limit: safeLimit,
       offset: safeOffset,
+      ...(view === 'services' ? {
+        total: [...categoryMap.values()].reduce((sum, category) => sum + Number(category.visibleServiceCount || 0), 0),
+      } : {}),
+    };
+  }
+  if (toolBounded || (view === 'tools' && (safeCategorySlug || safeToolSearch))) {
+    catalog.toolPagination = {
+      categorySlug: safeCategorySlug,
+      search: safeToolSearch || null,
+      limit: safeToolLimit,
+      offset: safeToolOffset,
+      total: tools.length ? Number(tools[0].tool_total_count || tools.length) : 0,
     };
   }
   return catalog;

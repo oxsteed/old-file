@@ -20266,7 +20266,22 @@
     "confirmBooking": "Confirm booking",
     "pickSlotFirst": "Pick an open slot first.",
     "confirmBook": "Confirm book",
-    "bookFailed": "Could not book that slot."
+    "bookFailed": "Could not book that slot.",
+    "backToDirect": "Back to Direct",
+    "directoryNavigation": "Direct directories",
+    "allCategories": "All categories",
+    "directoryResults": "Available now",
+    "directoryLoadError": "This Direct directory is temporarily unavailable.",
+    "loadingDirectory": "Loading Direct catalog...",
+    "toolsDirectoryTitle": "Direct tools and equipment",
+    "toolsDirectorySubtitle": "See the equipment OxSteed uses to support Direct work.",
+    "servicesDirectoryTitle": "Direct services",
+    "servicesDirectorySubtitle": "Browse published Direct services, availability, and next steps.",
+    "toolsDirectoryRentalNote": "These are OxSteed Direct tools and equipment. For peer-owned tools available for rental, visit the separate rental marketplace.",
+    "browseToolRentals": "Browse tool rentals",
+    "skillsDirectoryEyebrow": "OxSteed Direct",
+    "skillsDirectoryTitle": "Find the right skills and helpers",
+    "skillsDirectorySubtitle": "Browse trusted helper skills connected to Direct work."
   },
   "directCatalogAdmin": {
     "activeCount": "{{count}} active",

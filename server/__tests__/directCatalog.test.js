@@ -192,6 +192,21 @@ describe('Direct catalog', () => {
     expect(mockQuery.mock.calls[2][1]).toEqual(['electrical']);
   });
 
+  test('supports bounded localized tool directories without returning services', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'cat-1', slug: 'electrical', name_i18n: { en: 'Electrical' }, icon_key: 'zap', sort_order: 1, lifecycle_status: 'live', is_active: true, is_published: true }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [{ id: 'tool-1', category_slug: 'electrical', slug: 'drill', name_i18n: { en: 'Drill' }, description_i18n: { en: 'Power drill.' }, availability_days: ['Monday'], lifecycle_status: 'live', is_operationally_available: true, is_active: true, is_published: true, tool_total_count: '3', tool_rank: '0' }], rowCount: 1 });
+
+    const catalog = await getCatalog({ ...parseCatalogQuery({ view: 'tools', category: 'Electrical', q: 'drill', limit: '1', offset: '0' }) });
+
+    expect(catalog.categories[0].services).toEqual([]);
+    expect(catalog.tools).toHaveLength(1);
+    expect(catalog.toolPagination).toEqual({ categorySlug: 'electrical', search: 'drill', limit: 1, offset: 0, total: 3 });
+    expect(mockQuery.mock.calls[2][1]).toEqual(['en', '%drill%', 'electrical', 0, 1]);
+    expect(mockQuery.mock.calls[2][0]).toContain('tool_total_count');
+  });
+
   test('rejects unsafe catalog pagination values', () => {
     expect(() => parseCatalogQuery({ limit: '0' })).toThrow(/limit must be between/);
     expect(() => parseCatalogQuery({ limit: '101' })).toThrow(/limit must be between/);

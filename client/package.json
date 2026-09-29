@@ -31,10 +31,11 @@
     "pretypecheck": "node scripts/splitLocaleCatalogs.mjs",
     "typecheck": "tsc --noEmit",
     "prebuild:ci": "node --test scripts/qrLogo.test.mjs",
-    "build:ci": "npm run test:credit-currency && npm run test:credit-date-time && npm run test:credit-admin-idempotency && npm run test:credit-request-guards && npm run test:credit-status && npm run test:credit-errors && npm run test:credit-admin-localization && npm run test:credit-cards-localization && npm run test:language-preference && npm run test:auth-refresh-policy && npm run test:realtime-url && npm run test:restaurant-discovery && npm run test:restaurant-accessibility && npm run test:business-profile-editor && npm run test:messenger-shell && npm run test:theme-contrast && npm run test:route-reliability && npm run test:how-it-works && npm run test:experience-guides && npm run test:dashboard-quick-links && npm run verify:i18n && npm run typecheck && npm run build && npm run verify:dist-assets",
+    "build:ci": "npm run test:credit-currency && npm run test:credit-date-time && npm run test:credit-admin-idempotency && npm run test:credit-request-guards && npm run test:credit-status && npm run test:credit-errors && npm run test:credit-admin-localization && npm run test:credit-cards-localization && npm run test:language-preference && npm run test:auth-refresh-policy && npm run test:realtime-url && npm run test:restaurant-discovery && npm run test:restaurant-accessibility && npm run test:business-profile-editor && npm run test:messenger-shell && npm run test:theme-contrast && npm run test:route-reliability && npm run test:how-it-works && npm run test:experience-guides && npm run test:direct-catalog-navigation && npm run test:dashboard-quick-links && npm run verify:i18n && npm run typecheck && npm run build && npm run verify:dist-assets",
     "test:route-reliability": "node --test scripts/routeReliability.test.mjs",
     "test:how-it-works": "node --test src/utils/howItWorksRoleModel.test.mjs",
     "test:experience-guides": "node --test src/utils/experienceGuideModel.test.mjs",
+    "test:direct-catalog-navigation": "node --test src/utils/directCatalogNavigation.test.mjs",
     "test:dashboard-quick-links": "node --test scripts/dashboardQuickLinks.test.mjs",
     "verify:dist-assets": "node scripts/verify-dist-assets.mjs"
   },

@@ -20350,7 +20350,22 @@
     "confirmBooking": "Konfime rezèvasyon",
     "pickSlotFirst": "Chwazi yon plas anvan.",
     "confirmBook": "Konfime",
-    "bookFailed": "Pa t kapab rezève plas sa a."
+    "bookFailed": "Pa t kapab rezève plas sa a.",
+    "backToDirect": "Retounen nan Direct",
+    "directoryNavigation": "Anyè Direct yo",
+    "allCategories": "Tout kategori yo",
+    "directoryResults": "Disponib kounye a",
+    "directoryLoadError": "Anyè Direct sa a pa disponib pou yon ti tan.",
+    "loadingDirectory": "Anyè Direct la ap chaje...",
+    "toolsDirectoryTitle": "Zouti ak ekipman Direct",
+    "toolsDirectorySubtitle": "Gade ekipman OxSteed itilize pou sipòte travay Direct yo.",
+    "servicesDirectoryTitle": "Sèvis Direct yo",
+    "servicesDirectorySubtitle": "Browse sèvis Direct yo ki pibliye, disponiblite yo ak pwochen etap yo.",
+    "toolsDirectoryRentalNote": "Sa yo se zouti ak ekipman OxSteed Direct. Pou zouti lòt moun ki disponib pou lwe, vizite mache lokasyon an apa.",
+    "browseToolRentals": "Gade lokasyon zouti yo",
+    "skillsDirectoryEyebrow": "OxSteed Direct",
+    "skillsDirectoryTitle": "Jwenn bon konpetans ak bon moun pou ede w",
+    "skillsDirectorySubtitle": "Browse konpetans moun ou ka fè konfyans ki konekte ak travay Direct yo."
   },
   "directCatalogAdmin": {
     "activeCount": "{{count}} aktif",

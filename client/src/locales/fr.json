@@ -20350,7 +20350,22 @@
     "confirmBooking": "Confirmer la réservation",
     "pickSlotFirst": "Choisissez d’abord un créneau.",
     "confirmBook": "Confirmer",
-    "bookFailed": "Impossible de réserver ce créneau."
+    "bookFailed": "Impossible de réserver ce créneau.",
+    "backToDirect": "Retour à Direct",
+    "directoryNavigation": "Répertoires Direct",
+    "allCategories": "Toutes les catégories",
+    "directoryResults": "Disponible maintenant",
+    "directoryLoadError": "Ce répertoire Direct est temporairement indisponible.",
+    "loadingDirectory": "Chargement du catalogue Direct...",
+    "toolsDirectoryTitle": "Outils et équipement Direct",
+    "toolsDirectorySubtitle": "Consultez l’équipement utilisé par OxSteed pour les travaux Direct.",
+    "servicesDirectoryTitle": "Services Direct",
+    "servicesDirectorySubtitle": "Parcourez les services Direct publiés, leur disponibilité et les prochaines étapes.",
+    "toolsDirectoryRentalNote": "Il s’agit des outils et équipements OxSteed Direct. Pour les outils appartenant à des particuliers et disponibles à la location, consultez le marché de location séparé.",
+    "browseToolRentals": "Parcourir les locations d’outils",
+    "skillsDirectoryEyebrow": "OxSteed Direct",
+    "skillsDirectoryTitle": "Trouvez les bonnes compétences et les bons intervenants",
+    "skillsDirectorySubtitle": "Parcourez les compétences d’intervenants de confiance liées aux travaux Direct."
   },
   "directCatalogAdmin": {
     "activeCount": "{{count}} actives",

@@ -319,12 +319,15 @@ const DirectoryHero: React.FC<{
   searchValue: string;
   onSearch: (v: string) => void;
   categoryLabels: { key: string; label: string }[];
+  entryPoint?: 'helpers' | 'direct';
 }> = ({
   searchValue,
   onSearch,
   categoryLabels,
+  entryPoint = 'helpers',
 }) => {
   const { t } = useTranslation();
+  const isDirect = entryPoint === 'direct';
   return (
   <div className="relative bg-gray-900 border-b border-gray-800 overflow-hidden">
     {/* BG texture */}
@@ -345,14 +348,14 @@ const DirectoryHero: React.FC<{
         <div className="flex items-center gap-2 mb-3">
           <Sparkles className="w-4 h-4 text-brand-400" aria-hidden="true" />
           <span className="text-xs font-semibold text-brand-400 uppercase tracking-widest">
-            {t('helpersDir.heroEyebrow')}
+            {isDirect ? t('directCatalog.skillsDirectoryEyebrow', { defaultValue: 'OxSteed Direct' }) : t('helpersDir.heroEyebrow')}
           </span>
         </div>
         <h1 className="text-3xl sm:text-4xl font-bold text-white leading-tight">
-          {t('helpersDir.heroTitle')}
+          {isDirect ? t('directCatalog.skillsDirectoryTitle', { defaultValue: 'Find the right skills and helpers' }) : t('helpersDir.heroTitle')}
         </h1>
         <p className="text-gray-400 mt-2 text-base leading-relaxed">
-          {t('helpersDir.heroSubtitle')}
+          {isDirect ? t('directCatalog.skillsDirectorySubtitle', { defaultValue: 'Browse trusted helper skills connected to Direct work.' }) : t('helpersDir.heroSubtitle')}
         </p>
 
         {/* Hero search */}
@@ -453,7 +456,7 @@ function mergeGridItems(
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-const HelpersDirectoryPage: React.FC = () => {
+const HelpersDirectoryPage: React.FC<{ entryPoint?: 'helpers' | 'direct' }> = ({ entryPoint = 'helpers' }) => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   // Parse URL params exactly once - destructure for both derived states.
@@ -575,6 +578,7 @@ const HelpersDirectoryPage: React.FC = () => {
   const displayed = mergeGridItems(sortedHelpers, filteredBusinesses);
   const hasMore          = helpers.length < total;
   const activeFilterCount = countActiveFilters(filters);
+  const isDirect = entryPoint === 'direct';
 
   const handleShowMore = useCallback(() => {
     const nextPage = page + 1;
@@ -593,14 +597,15 @@ const HelpersDirectoryPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       <PageMeta
-        title={t('helpersDir.heroTitle')}
-        description={t('helpersDir.metaDescription')}
-        url={`${getPublicSiteUrl()}/helpers`}
+        title={isDirect ? t('directCatalog.skillsDirectoryTitle', { defaultValue: 'Find the right skills and helpers' }) : t('helpersDir.heroTitle')}
+        description={isDirect ? t('directCatalog.skillsDirectorySubtitle', { defaultValue: 'Browse trusted helper skills connected to Direct work.' }) : t('helpersDir.metaDescription')}
+        url={`${getPublicSiteUrl()}${isDirect ? '/direct/skills' : '/helpers'}`}
       />
       <Navbar />
 
       {/* Hero + search */}
       <DirectoryHero
+        entryPoint={entryPoint}
         searchValue={filters.query}
         onSearch={(q) => updateFilters({ query: q })}
         categoryLabels={categoryHeroChips}

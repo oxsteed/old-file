@@ -20353,7 +20353,22 @@
     "confirmBooking": "تأكيد الحجز",
     "pickSlotFirst": "اختر موعدًا أولًا.",
     "confirmBook": "تأكيد الحجز",
-    "bookFailed": "تعذر حجز هذا الموعد."
+    "bookFailed": "تعذر حجز هذا الموعد.",
+    "backToDirect": "العودة إلى Direct",
+    "directoryNavigation": "أدلة Direct",
+    "allCategories": "جميع الفئات",
+    "directoryResults": "متاح الآن",
+    "directoryLoadError": "دليل Direct هذا غير متاح مؤقتًا.",
+    "loadingDirectory": "جارٍ تحميل كتالوج Direct...",
+    "toolsDirectoryTitle": "أدوات ومعدات Direct",
+    "toolsDirectorySubtitle": "اطلع على المعدات التي تستخدمها OxSteed لدعم أعمال Direct.",
+    "servicesDirectoryTitle": "خدمات Direct",
+    "servicesDirectorySubtitle": "تصفح خدمات Direct المنشورة وتوفرها والخطوات التالية.",
+    "toolsDirectoryRentalNote": "هذه أدوات ومعدات OxSteed Direct. لاستعراض الأدوات المملوكة للآخرين والمتاحة للإيجار، انتقل إلى سوق الإيجار المنفصل.",
+    "browseToolRentals": "تصفح إيجارات الأدوات",
+    "skillsDirectoryEyebrow": "OxSteed Direct",
+    "skillsDirectoryTitle": "اعثر على المهارات والمساعدين المناسبين",
+    "skillsDirectorySubtitle": "تصفح مهارات المساعدين الموثوقين المرتبطة بأعمال Direct."
   },
   "directCatalogAdmin": {
     "activeCount": "{{count}} نشطة",

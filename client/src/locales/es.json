@@ -20350,7 +20350,22 @@
     "confirmBooking": "Confirmar reserva",
     "pickSlotFirst": "Elige un horario primero.",
     "confirmBook": "Confirmar reserva",
-    "bookFailed": "No se pudo reservar ese horario."
+    "bookFailed": "No se pudo reservar ese horario.",
+    "backToDirect": "Volver a Direct",
+    "directoryNavigation": "Directorios de Direct",
+    "allCategories": "Todas las categorías",
+    "directoryResults": "Disponible ahora",
+    "directoryLoadError": "Este directorio de Direct no está disponible temporalmente.",
+    "loadingDirectory": "Cargando el catálogo Direct...",
+    "toolsDirectoryTitle": "Herramientas y equipo Direct",
+    "toolsDirectorySubtitle": "Consulta el equipo que OxSteed utiliza para respaldar el trabajo Direct.",
+    "servicesDirectoryTitle": "Servicios Direct",
+    "servicesDirectorySubtitle": "Explora los servicios Direct publicados, su disponibilidad y los próximos pasos.",
+    "toolsDirectoryRentalNote": "Estas son herramientas y equipos de OxSteed Direct. Para herramientas de otros propietarios disponibles en alquiler, visita el mercado de alquileres separado.",
+    "browseToolRentals": "Explorar alquileres de herramientas",
+    "skillsDirectoryEyebrow": "OxSteed Direct",
+    "skillsDirectoryTitle": "Encuentra las habilidades y los ayudantes adecuados",
+    "skillsDirectorySubtitle": "Explora habilidades de ayudantes de confianza conectadas con el trabajo Direct."
   },
   "directCatalogAdmin": {
     "activeCount": "{{count}} activas",

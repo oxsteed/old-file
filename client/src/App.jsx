@@ -177,6 +177,7 @@ const ExperienceGuidePage = lazyWithRetry(() => import('./pages/ExperienceGuideP
 const LearnModePage = lazyWithRetry(() => import('./pages/LearnModePage'));
 const PromotePage = lazyWithRetry(() => import('./pages/PromotePage'));
 const DirectPortalPage = lazyWithRetry(() => import('./pages/DirectPortalPage'));
+const DirectCatalogDirectoryPage = lazyWithRetry(() => import('./pages/DirectCatalogDirectoryPage'));
 const DirectBookSlotPage = lazyWithRetry(() => import('./pages/DirectBookSlotPage'));
 const DirectAdminPortalPage = lazyWithRetry(() => import('./pages/DirectAdminPortalPage'));
 const DirectCatalog = lazyWithRetry(() => import('./admin/pages/DirectCatalog'));
@@ -317,12 +318,14 @@ export default function App() {
                     <Route path="/jobs/public/:jobId"      element={<JobPublicPage />} />
                     <Route path="/profile/:id"             element={<Guarded><PublicProfile /></Guarded>} />
                     <Route path="/helpers"                 element={<Guarded><HelpersDirectoryPage /></Guarded>} />
+                    <Route path="/direct/skills"            element={<Guarded><HelpersDirectoryPage entryPoint="direct" /></Guarded>} />
                     <Route path="/helpers/public/:helperId" element={<LegacyHelperProfileRedirect />} />
                     <Route path="/h/:helperId"        element={<LegacyHelperProfileRedirect />} />
                     <Route path="/discover"                element={<Guarded><DiscoverPage /></Guarded>} />
                     <Route path="/consulting-intake"       element={<Guarded><ConsultingIntakePage /></Guarded>} />
                     <Route path="/direct"                  element={<Guarded><DirectPortalPage view="landing" /></Guarded>} />
-                    <Route path="/direct/services"         element={<Guarded><DirectPortalPage view="landing" /></Guarded>} />
+                    <Route path="/direct/services"         element={<Guarded><DirectCatalogDirectoryPage view="services" /></Guarded>} />
+                    <Route path="/direct/tools"            element={<Guarded><DirectCatalogDirectoryPage view="tools" /></Guarded>} />
                     <Route path="/direct/request-quote"    element={<Guarded><DirectPortalPage view="request" /></Guarded>} />
                     <Route path="/direct/request-quote/thanks" element={<Guarded><DirectPortalPage view="thanks" /></Guarded>} />
                     <Route path="/direct/view-quote"       element={<Guarded><DirectPortalPage view="lookup" /></Guarded>} />
