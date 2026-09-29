@@ -73,7 +73,7 @@ export const LAUNCH_VISIBILITY = Object.freeze({
   specializedProfileTemplates: false,
   subscriptions: false,
   templates: false,
-  toolRentals: false,
+  toolRentals: true,
   vortexWorkspaceEntry: false,
 });
 
@@ -85,7 +85,6 @@ const LAUNCH_ROUTE_REDIRECTS = Object.freeze([
   { prefix: '/discover', to: '/jobs' },
   { prefix: '/learn', to: '/jobs' },
   { prefix: '/translator', to: '/' },
-  { prefix: '/tool-rentals', to: '/jobs' },
   { prefix: '/products', to: '/restaurants' },
   { prefix: '/cart', to: '/restaurants' },
   { prefix: '/shared-cart', to: '/restaurants' },
