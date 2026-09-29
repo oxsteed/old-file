@@ -1,4 +1,4 @@
-import { normalizeLaunchDashboardMode } from './launchScope.js';
+import { LAUNCH_VISIBILITY, normalizeLaunchDashboardMode } from './launchScope.js';
 
 export const EXPERIENCE_ROLE_STORAGE_PREFIX = 'oxsteed:experience-guide-role:v1:';
 export const EXPERIENCE_AREA_KEYS = Object.freeze([
@@ -78,7 +78,7 @@ const AREAS = Object.freeze({
     defaultRole: 'customer',
   },
   rentals: {
-    enabled: false,
+    enabled: LAUNCH_VISIBILITY.toolRentals,
     roles: {
       customer: { steps: ['browse', 'book', 'return'], cards: ['openRentals'] },
       business: { steps: ['browse', 'book', 'return'], cards: ['openRentals'] },

@@ -42,12 +42,12 @@ test('active account modes select the correct supported story', () => {
   assert.equal(getExperienceRole({ default_mode: 'helper' }, 'marketplace'), 'helper');
 });
 
-test('disabled areas never expose action cards', () => {
+test('rentals area is enabled now that tool rentals launched', () => {
   const area = getExperienceArea('rentals');
   const guide = getExperienceGuide('rentals', null);
-  assert.equal(area.enabled, false);
-  assert.equal(guide.cards.length, 0);
-  assert.equal(guide.primary, null);
+  assert.equal(area.enabled, true);
+  assert.ok(guide.cards.length > 0);
+  assert.equal(guide.primary.to, '/tool-rentals');
 });
 
 test('enabled guide cards resolve only to existing product destinations', () => {
@@ -56,6 +56,7 @@ test('enabled guide cards resolve only to existing product destinations', () => 
     '/help/runner', '/oxsteed-credit', '/direct', '/direct/view-quote', '/direct/support', '/direct/history',
     '/post-job', '/helpers', '/messages', '/jobs', '/dashboard/edit-profile', '/calendar', '/business-hub',
     '/my-bookings', '/delivery', '/logistics', '/support/agent', '/support/agent/workspace', '/consulting-intake', '/join',
+    '/tool-rentals',
   ]);
   for (const areaKey of EXPERIENCE_AREA_KEYS) {
     const area = getExperienceArea(areaKey);
