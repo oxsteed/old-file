@@ -50,11 +50,13 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Static assets (JS/CSS/fonts/images): cache-first
+  // Static assets: network-first so a deployment cannot keep serving a
+  // broken or stale module from a long-lived cache. Cached assets remain the
+  // offline fallback when the network is unavailable.
   if (
     url.pathname.match(/\.(js|css|woff2?|ttf|otf|png|jpg|jpeg|svg|ico|webp)$/)
   ) {
-    event.respondWith(cacheFirst(request, STATIC_CACHE));
+    event.respondWith(networkFirst(request, STATIC_CACHE));
     return;
   }
 

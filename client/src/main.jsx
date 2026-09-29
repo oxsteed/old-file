@@ -7,6 +7,11 @@ import App from './App';
 import './index.css';
 import { initMobileBridge } from './utils/mobileBridge';
 import { i18nReady } from './i18n';
+import {
+  clearBootstrapRecoveryMarker,
+  recoverFromBootstrapFailure,
+  registerServiceWorker,
+} from './utils/serviceWorkerRegistration';
 
 function sentryRootFallback({ error, resetError }) {
   return (
@@ -37,7 +42,20 @@ function sentryRootFallback({ error, resetError }) {
   );
 }
 
+function renderBootstrapFailure() {
+  document.getElementById('root').innerHTML = `
+    <main style="min-height:100vh;display:grid;place-items:center;padding:2rem;background:#030712;color:#e5e7eb;font-family:system-ui,sans-serif;text-align:center">
+      <section style="max-width:30rem">
+        <h1 style="font-size:1.25rem;margin:0 0 .75rem">OxSteed is refreshing</h1>
+        <p style="color:#9ca3af;margin:0 0 1.25rem">A new version is being loaded. Please try again.</p>
+        <button type="button" onclick="window.location.reload()" style="border:0;border-radius:.5rem;background:#f97316;color:white;padding:.65rem 1rem;font-weight:600;cursor:pointer">Try again</button>
+      </section>
+    </main>`;
+}
+
+registerServiceWorker();
 i18nReady.then(() => {
+  clearBootstrapRecoveryMarker();
   ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
       <Sentry.ErrorBoundary fallback={sentryRootFallback}>
@@ -45,17 +63,12 @@ i18nReady.then(() => {
       </Sentry.ErrorBoundary>
     </React.StrictMode>
   );
+}).catch(async () => {
+  if (await recoverFromBootstrapFailure()) {
+    window.location.reload();
+    return;
+  }
+  renderBootstrapFailure();
 });
-
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    const swVersion = import.meta.env.VITE_APP_VERSION || import.meta.env.VITE_SENTRY_RELEASE || 'dev';
-    navigator.serviceWorker.register(`/sw.js?v=${encodeURIComponent(swVersion)}`, {
-      updateViaCache: 'none',
-    }).catch(() => {
-      // SW registration is non-fatal - app works without it
-    });
-  });
-}
 
 initMobileBridge();
