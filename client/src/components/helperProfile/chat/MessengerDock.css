@@ -23,7 +23,8 @@
 
 @media (min-width: 1024px) {
   .messenger-launcher {
-    bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+    /* Clear the floating Contact support pill (bottom 20px, ~44px tall) */
+    bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
   }
 }
 
