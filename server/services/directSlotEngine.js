@@ -389,6 +389,7 @@ async function createHold({
   const shouldRelease = Boolean(executor.connect);
   try {
     if (shouldRelease) await client.query('BEGIN');
+    await expireHolds(client);
 
     const slotResult = await computeServiceSlots({
       serviceId,
@@ -424,11 +425,20 @@ async function createHold({
       throw err;
     }
 
-    // Advisory lock per assignee
+    // Advisory lock per assignee, then re-check so two concurrent holds cannot
+    // both reserve the last free pool member.
     await client.query(
       `SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))`,
       [chosen.id]
     );
+
+    const busyAfter = await loadBusyIntervals([chosen.id], start, end, client);
+    if (freeMembersForSlot([chosen], busyAfter, start, end).length < 1) {
+      const err = new Error('Selected assignee was just reserved');
+      err.statusCode = 409;
+      err.code = 'capacity_exhausted';
+      throw err;
+    }
 
     const token = crypto.randomBytes(24).toString('hex');
     const expiresAt = new Date(Date.now() + HOLD_TTL_MS);
@@ -456,10 +466,23 @@ async function createHold({
   }
 }
 
-async function expireHolds(executor = db) {
-  await executor.query(
-    `DELETE FROM direct_slot_holds WHERE expires_at <= CURRENT_TIMESTAMP`
+async function expireHolds(executor = db, { limit = 1000 } = {}) {
+  const batchLimit = Number.isFinite(Number(limit)) && Number(limit) > 0
+    ? Math.min(Math.floor(Number(limit)), 5000)
+    : 1000;
+  const { rows } = await executor.query(
+    `DELETE FROM direct_slot_holds
+      WHERE id IN (
+        SELECT id
+          FROM direct_slot_holds
+         WHERE expires_at <= CURRENT_TIMESTAMP
+         ORDER BY expires_at ASC
+         LIMIT $1
+      )
+      RETURNING id`,
+    [batchLimit]
   );
+  return { count: rows.length, ids: rows.map((row) => String(row.id)) };
 }
 
 /**
@@ -662,12 +685,15 @@ async function bookServiceSlot({
       // junction table may not exist in older deploys; metadata still carries linkage
     }
 
-    if (holdToken) {
-      await client.query(
-        `DELETE FROM direct_slot_holds WHERE hold_token = $1`,
-        [holdToken]
-      );
-    }
+    // Drop the converted hold (if any) and any overlapping abandoned holds for
+    // the same assignee so capacity listing stays honest after book.
+    await client.query(
+      `DELETE FROM direct_slot_holds
+        WHERE reserved_user_id = $1
+          AND starts_at < $3
+          AND ends_at > $2`,
+      [chosen.id, start.toISOString(), end.toISOString()]
+    );
 
     await client.query('COMMIT');
     return {

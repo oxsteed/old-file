@@ -26,6 +26,7 @@ const { startCustomerReengagementJob } = require('../jobs/customerReengagementJo
 const { releaseExpiredInventoryReservations } = require('../services/restaurantInventoryOrderService');
 const { cleanupExpiredWalletOperations } = require('../services/foodWalletOperationsService');
 const { startOxsteedCreditHoldExpiryJob } = require('../jobs/oxsteedCreditHoldExpiry');
+const { startDirectSlotHoldExpiryJob } = require('../jobs/directSlotHoldExpiry');
 const { startOxsteedCreditEntitlementExpiryJob } = require('../jobs/oxsteedCreditEntitlementExpiry');
 const { startOxsteedCreditReconciliationJob } = require('../jobs/oxsteedCreditReconciliation');
 const { startOxsteedCreditIntegrityJob } = require('../jobs/oxsteedCreditIntegrity');
@@ -74,6 +75,7 @@ class BackgroundWorkers {
       startRecurringJobScheduler();
       startCustomerReengagementJob();
       startOxsteedCreditHoldExpiryJob();
+      startDirectSlotHoldExpiryJob();
       startOxsteedCreditEntitlementExpiryJob();
       startOxsteedCreditReconciliationJob();
       startOxsteedCreditIntegrityJob();

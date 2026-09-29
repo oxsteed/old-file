@@ -5,7 +5,7 @@ Repo: oxsteed/old-file (`/workspace/old-file`)
 Branch context: old-files-claude  
 Surfaces: Admin Direct Catalog (incl. assignee pools), Direct Admin Settings, public Home embed (`DirectCatalogPanels`), `/direct` (`DirectCatalogLanding`), `/direct/request-quote`, `/direct/book/:id` / book-slot, admin Dispatch calendar (`direct_calendar_blocks`, `assigned_to`)
 
-Status: **implemented on `old-files-claude` (2026-09-29)** — capability triad, Live/operational parity + backfill migration 589, dual Settings kill, browse honesty, catalog-driven request form, assignee pools, slots engine, Book UI + POST book, retire/category/concurrency guards, i18n en/es/fr/ht/ar
+Status: **implemented on `old-files-claude` (2026-09-29)** — capability triad, Live/operational parity + backfill migration 589, dual Settings kill, browse honesty, catalog-driven request form, assignee pools, slots engine, Book UI + POST book, retire/category/concurrency guards, i18n en/es/fr/ht/ar, Direct slot-hold TTL sweeper (migration 590 index fix)
 
 ---
 
@@ -642,9 +642,62 @@ Estimated ordered chunks (each PR-sized):
 7. **Slots engine** — ✅ `direct_calendar_blocks` − blackouts − busy pool members; public GET slots with capacity counts; empty ⇒ auto-fall.  
 8. **Bookable UI + holds + POST book** — ✅ Book CTA only when derived bookable; `/direct/book-slot`; transactional assign; 409 race; empty slots → Request CTA.  
 9. **Guards & leftovers** — ✅ parent retire rules, tool category required for publish phases, soft 409 concurrency, bookable_without_pool review.  
-10. **QA / i18n / rollout notes** — ✅ unit tests + i18n en/es/fr/ht/ar; residual: full e2e smoke against live calendar + deploy migration 589.
+10. **QA / i18n / rollout notes** — ✅ unit tests + i18n en/es/fr/ht/ar; residual: full e2e smoke against live calendar + deploy migrations 589–590.
+11. **Hold TTL sweeper** — ✅ `directSlotHoldExpiry` cron (`55 * * * * *`) via `BackgroundWorkers`; on-demand `expireHolds` kept on slots GET + book/hold paths.
 
 ---
+
+---
+
+## Operator migrate checklist (per environment)
+
+Run this checklist in **each** environment (local → staging → production) after shipping Direct catalog availability / Bookable slots.
+
+### 1. Apply migrations
+
+- [ ] Run migrations through **`589_direct_catalog_availability_capacity.sql`** (assignee pool tables, `direct_slot_holds`, Live⇒operational backfill, legacy tools import as `planned`, orphans report view).
+- [ ] Run **`590_direct_slot_hold_expiry_indexes.sql`** (rebuild hold indexes for the TTL sweeper; drops invalid `CURRENT_TIMESTAMP` partial predicate from 589).
+- [ ] Confirm migrate exit 0 and no leftover failed migration rows.
+
+### 2. Verify Live backfill
+
+- [ ] Spot-check: `live` services/tools that admins expect to sell have `is_operationally_available = TRUE` (589 backfill).
+- [ ] Query / review view `direct_catalog_orphans_report` for `live_not_operational`, `bookable_not_operational`, orphan live children, tools missing category — fix or accept intentionally.
+- [ ] Confirm Settings no longer accepts legacy tools/areas inventory writes; Catalog + Service Areas are sole sources.
+
+### 3. Smoke: Bookable vs Requestable (one assignee)
+
+Use **one** active dispatch-capable user in the service assignee pool.
+
+- [ ] Service: `lifecycle=live`, operational on, `is_bookable=true`, pool size 1, at least one future `direct_calendar_blocks` availability window.
+- [ ] Public browse: derived **Bookable** → Book CTA visible; Request still available.
+- [ ] `GET /direct/catalog/services/:id/slots` returns capacity-open slots (`freeAssigneeCount ≥ 1`).
+- [ ] Hold path (optional): `POST .../holds` returns token + `expiresAt` (~4 min TTL / `HOLD_TTL_MS`).
+- [ ] `POST .../book` succeeds → `quote_requests` row `status=scheduled`, `assigned_to` = that pool member, scheduled interval set.
+- [ ] Second overlapping book (same window / last capacity) → **409** (`slot_conflict` or `capacity_exhausted`); slots refresh omits that window.
+- [ ] With pool member busy / no free slots in horizon: derived **Bookable false**, **Requestable true** (auto-fall — Book hidden, Request remains).
+- [ ] Tools remain **non-Bookable** (out of scope); no Book CTA on tools.
+
+### 4. Hold TTL sweeper registration
+
+| Item | Value |
+|---|---|
+| Job module | `server/jobs/directSlotHoldExpiry.js` |
+| Start helper | `startDirectSlotHoldExpiryJob()` |
+| Registered in | `server/bootstrap/backgroundWorkers.js` (with other node-cron workers) |
+| Cron expression | `55 * * * * *` (every minute at second **:55**, offset from credit-hold `:10`) |
+| Lock name | `direct-slot-hold-expiry` via `withJobLock` (TTL 120s) |
+| Hold TTL | `HOLD_TTL_MS` = 4 minutes in `directSlotEngine.js` |
+| On-demand safety net | `expireHolds()` on `GET .../slots`, at start of `createHold` / `bookServiceSlot` |
+| Batch limit | 1000 rows per tick (RETURNING count logged when > 0) |
+
+- [ ] After deploy, confirm process logs: `Direct slot hold expiry job scheduled` with cron + `holdTtlMs`.
+- [ ] Optional: insert a hold with `expires_at` in the past and confirm the next tick deletes it (or call slots GET as safety net).
+
+### 5. Rollback / residual notes
+
+- Sweeper is additive; disabling BackgroundWorkers stops only the periodic delete — on-demand `expireHolds` still runs on slots/book.
+- Full calendar e2e against a live Dispatch calendar remains a manual residual if not covered in this env’s smoke.
 
 ## Open questions (only if product wants to refine later)
 
