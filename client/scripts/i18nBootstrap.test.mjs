@@ -28,3 +28,9 @@ test('service worker uses a network-first static asset strategy', () => {
   assert.match(source, /event\.respondWith\(networkFirst\(request, STATIC_CACHE\)\)/);
 });
 
+test('optional translation namespaces fail soft while the legacy catalog stays required', () => {
+  const source = read('src/i18n/index.js');
+  assert.match(source, /const optionalLocaleModule/);
+  assert.equal((source.match(/optionalLocaleModule\(import\(/g) || []).length, 15);
+  assert.match(source, /import\('\.\.\/locales\/generated\/en-0\.json'\)/);
+});

@@ -11,6 +11,12 @@ export const LANGUAGES = [
 
 const LANGUAGE_QUERY_PARAMS = ['lang', 'lng', 'locale'];
 
+// Translation is split into independently cached chunks. The legacy catalog
+// is required to render the application; these smaller namespaces are
+// additive and can safely fall back to English if one chunk is temporarily
+// unavailable during a deployment or cache transition.
+const optionalLocaleModule = (modulePromise) => modulePromise.catch(() => ({ default: {} }));
+
 // Keep the initial bundle small: the legacy catalogs are large, and visitors
 // only need the selected language plus English fallback on first load.
 const localeLoaders = {
@@ -18,41 +24,41 @@ const localeLoaders = {
     import('../locales/generated/en-0.json'),
     import('../locales/generated/en-1.json'),
     import('../locales/generated/en-2.json'),
-    import('./locales/en/common.json'),
-    import('./locales/en/translator.json'),
-    import('./locales/en/credit.json'),
+    optionalLocaleModule(import('./locales/en/common.json')),
+    optionalLocaleModule(import('./locales/en/translator.json')),
+    optionalLocaleModule(import('./locales/en/credit.json')),
   ]),
   es: () => Promise.all([
     import('../locales/generated/es-0.json'),
     import('../locales/generated/es-1.json'),
     import('../locales/generated/es-2.json'),
-    import('./locales/es/common.json'),
-    import('./locales/es/translator.json'),
-    import('./locales/es/credit.json'),
+    optionalLocaleModule(import('./locales/es/common.json')),
+    optionalLocaleModule(import('./locales/es/translator.json')),
+    optionalLocaleModule(import('./locales/es/credit.json')),
   ]),
   fr: () => Promise.all([
     import('../locales/generated/fr-0.json'),
     import('../locales/generated/fr-1.json'),
     import('../locales/generated/fr-2.json'),
-    import('./locales/fr/common.json'),
-    import('./locales/fr/translator.json'),
-    import('./locales/fr/credit.json'),
+    optionalLocaleModule(import('./locales/fr/common.json')),
+    optionalLocaleModule(import('./locales/fr/translator.json')),
+    optionalLocaleModule(import('./locales/fr/credit.json')),
   ]),
   ht: () => Promise.all([
     import('../locales/generated/ht-0.json'),
     import('../locales/generated/ht-1.json'),
     import('../locales/generated/ht-2.json'),
-    import('./locales/ht/common.json'),
-    import('./locales/ht/translator.json'),
-    import('./locales/ht/credit.json'),
+    optionalLocaleModule(import('./locales/ht/common.json')),
+    optionalLocaleModule(import('./locales/ht/translator.json')),
+    optionalLocaleModule(import('./locales/ht/credit.json')),
   ]),
   ar: () => Promise.all([
     import('../locales/generated/ar-0.json'),
     import('../locales/generated/ar-1.json'),
     import('../locales/generated/ar-2.json'),
-    import('./locales/ar/common.json'),
-    import('./locales/ar/translator.json'),
-    import('./locales/ar/credit.json'),
+    optionalLocaleModule(import('./locales/ar/common.json')),
+    optionalLocaleModule(import('./locales/ar/translator.json')),
+    optionalLocaleModule(import('./locales/ar/credit.json')),
   ]),
 };
 
