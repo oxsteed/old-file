@@ -214,6 +214,24 @@ exports.createBookingRequest = async (req, res) => {
       return sendError(res, 400, 'Helper account is inactive', 'HELPER_INACTIVE');
     }
 
+    // A scheduled request commits to a concrete time: verify it is truly free
+    // (schedule, blocks, existing appointments) before the request exists.
+    // Request-only bookings carry no agreed time yet and skip this check.
+    if (!requestOnly) {
+      const slotCheck = await bookingLifecycle.validateBookingSlot({
+        helperId: business ? null : helperId,
+        businessId: business ? business.id : null,
+        date: requestedDate,
+        start: requestedStartTime,
+        end: requestedEndTime,
+      });
+      if (!slotCheck.ok) {
+        return sendError(res, 409, slotCheck.message || 'Requested time is not available', slotCheck.code, {
+          reason: slotCheck.reason,
+        });
+      }
+    }
+
     
     if (conversationId || guestSessionId) {
       const agreementGate = await checkScheduleAgreementGate(pool, {
@@ -553,6 +571,13 @@ exports.cancelBookingRequest = async (req, res) => {
       if (!updatedResult.rows.length) {
         return sendError(res, 400, 'Booking cannot be cancelled');
       }
+      // Cancelling an accepted booking must also cancel the confirmed
+      // appointment it created (helper or business calendar).
+      try {
+        await bookingLifecycle.cancelLinkedAppointment(updatedResult.rows[0], updatedResult.rows[0].helper_id);
+      } catch (e) {
+        logger.warn('Failed to cancel linked appointment on customer cancel', { error: e.message });
+      }
       await logBookingAudit(
         bookingId,
         'accepted_cancelled',
@@ -611,6 +636,14 @@ exports.helperCancelAcceptedBooking = async (req, res) => {
     );
 
     const updated = updatedResult.rows[0];
+
+    // Cancelling an accepted booking must also cancel the confirmed
+    // appointment it created (helper or business calendar).
+    try {
+      await bookingLifecycle.cancelLinkedAppointment(updated, updated.helper_id);
+    } catch (e) {
+      logger.warn('Failed to cancel linked appointment on helper cancel', { error: e.message });
+    }
 
     await logBookingAudit(
       bookingId,
@@ -1326,82 +1359,13 @@ async function notifyHelperOfBookingCancellation(helperId, booking) {
 }
 
 /**
- * Atomically turn an opted-in request-only booking into a public job when its
- * customer-selected confirmation window expires. The booking remains an expired record
- * and keeps the job id so both sides can follow the handoff.
+ * Marketplace fallback for expired bookings. The DB work lives in
+ * bookingLifecycle.autoPostExpiredBooking so read-side expiry (expireIfStale)
+ * and this worker share one implementation; this wrapper keeps the
+ * socket/push notifications that belong to the worker.
  */
 async function autoPostExpiredBooking(bookingId) {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const bookingResult = await client.query(
-      `SELECT * FROM booking_requests
-        WHERE id = $1
-        FOR UPDATE`,
-      [bookingId]
-    );
-    const booking = bookingResult.rows[0];
-    if (!booking || booking.status !== 'pending' || !booking.auto_post_on_expiry || !booking.customer_id) {
-      await client.query('ROLLBACK');
-      return null;
-    }
-    if (new Date(booking.expires_at) > new Date()) {
-      await client.query('ROLLBACK');
-      return null;
-    }
-
-    const title = String(booking.service_name || 'Service request').trim().slice(0, 255) || 'Service request';
-    const description = [
-      booking.description,
-      booking.requested_date ? `Requested date: ${booking.requested_date}` : null,
-      booking.requested_start_time && booking.requested_end_time
-        ? `Requested time: ${booking.requested_start_time}–${booking.requested_end_time}`
-        : 'The provider had not published availability; please coordinate a time.',
-      booking.service_location ? `Service location: ${booking.service_location}` : null,
-    ].filter(Boolean).join('\n\n');
-
-    const jobResult = await client.query(
-      `INSERT INTO jobs (
-         client_id, title, description, category_name,
-         location_address, status, expires_at
-       ) VALUES ($1, $2, $3, $4, $5, 'published', NOW() + INTERVAL '30 days')
-       RETURNING id`,
-      [booking.customer_id, title, description || title, title.slice(0, 100), booking.service_location || null]
-    );
-    const job = jobResult.rows[0];
-
-    const updatedResult = await client.query(
-      `UPDATE booking_requests
-          SET status = 'expired',
-              converted_to_job_id = $2,
-              marketplace_posted_at = CURRENT_TIMESTAMP,
-              helper_response_reason = COALESCE(
-                helper_response_reason,
-                'Published as a public job after the request window expired'
-              ),
-              updated_at = CURRENT_TIMESTAMP
-        WHERE id = $1 AND status = 'pending'
-        RETURNING *`,
-      [booking.id, job.id]
-    );
-    if (!updatedResult.rows[0]) {
-      throw new Error('Booking changed before marketplace fallback could be recorded');
-    }
-
-    await client.query(
-      `INSERT INTO booking_request_audit_log
-        (booking_request_id, action, actor_id, actor_type, old_status, new_status, metadata)
-       VALUES ($1, 'auto_posted', NULL, 'system', 'pending', 'expired', $2::jsonb)`,
-      [booking.id, JSON.stringify({ jobId: job.id })]
-    );
-    await client.query('COMMIT');
-    return { booking: updatedResult.rows[0], jobId: job.id };
-  } catch (err) {
-    try { await client.query('ROLLBACK'); } catch (_) { /* best effort */ }
-    throw err;
-  } finally {
-    client.release();
-  }
+  return bookingLifecycle.autoPostExpiredBooking(bookingId);
 }
 
 /** Pending bookings past expires_at → expired. Notifies customer via socket. */
@@ -1454,12 +1418,18 @@ exports.expirePendingBookingRequests = async () => {
        SET status = 'expired', updated_at = CURRENT_TIMESTAMP
        WHERE status = 'pending' AND expires_at < NOW()
          AND (COALESCE(auto_post_on_expiry, FALSE) = FALSE OR customer_id IS NULL)
-       RETURNING id, customer_id, service_name, requested_date`
+       RETURNING id, customer_id, helper_id, service_name, requested_date`
     );
     if (r.rowCount > 0 || postedCount > 0) {
       logger.info('Expired pending booking requests', { count: r.rowCount, autoPosted: postedCount });
       for (const row of r.rows) {
+        await logBookingAudit(row.id, 'expired', null, 'system', 'pending', 'expired');
         broadcastToUser(row.customer_id, 'booking:updated', {
+          bookingId: row.id,
+          status: 'expired',
+        });
+        // The provider also needs to know the request lapsed.
+        broadcastToUser(row.helper_id, 'booking:updated', {
           bookingId: row.id,
           status: 'expired',
         });
@@ -1471,6 +1441,13 @@ exports.expirePendingBookingRequests = async () => {
           data: { bookingId: row.id },
           action_url: '/my-bookings',
         }).catch((err) => logger.warn('Failed expiry notification', { error: err.message }));
+        sendNotification({
+          userId: row.helper_id,
+          type: 'booking_expired',
+          body: `${row.service_name} — ${row.requested_date}`,
+          data: { bookingId: row.id },
+          action_url: '/calendar?tab=bookingRequests',
+        }).catch((err) => logger.warn('Failed provider expiry notification', { error: err.message }));
       }
     }
     return (r.rowCount || 0) + postedCount;
@@ -1482,6 +1459,8 @@ exports.expirePendingBookingRequests = async () => {
 
 /**
  * After scheduled end (date + end time in server TZ), release accepted bookings so customer can post publicly.
+ * Also releases request-only bookings that were accepted but never got an agreed time (stranded),
+ * and cancels the linked appointment (helper or business) for every released booking.
  * Notifies both parties.
  */
 exports.releaseStaleAcceptedBookings = async () => {
@@ -1495,52 +1474,25 @@ exports.releaseStaleAcceptedBookings = async () => {
            ),
            updated_at = CURRENT_TIMESTAMP
        WHERE status = 'accepted'
-         AND (requested_date::timestamp + requested_end_time::interval) < NOW()
-       RETURNING id, customer_id, helper_id, service_name, requested_date`
+         AND (
+           (requested_end_time IS NOT NULL
+             AND (requested_date::timestamp + requested_end_time::interval) < NOW())
+           OR (requested_end_time IS NULL
+             AND updated_at < NOW() - INTERVAL '7 days')
+         )
+       RETURNING id, customer_id, helper_id, business_id, service_name, requested_date,
+                 appointment_id, business_appointment_id`
     );
     if (r.rowCount > 0) {
       logger.info('Released accepted bookings past scheduled end', { count: r.rowCount });
       for (const row of r.rows) {
-        broadcastToUser(row.customer_id, 'booking:updated', { bookingId: row.id, status: 'accepted_cancelled' });
-        broadcastToUser(row.helper_id, 'booking:updated', { bookingId: row.id, status: 'accepted_cancelled' });
-
-        sendNotification({
-          userId: row.customer_id,
-          type: 'booking_auto_released',
-          body: `${row.service_name} — ${row.requested_date}`,
-          data: { bookingId: row.id },
-          action_url: '/my-bookings',
-        }).catch((err) => logger.warn('Failed expiry notification', { error: err.message }));
-      }
-    }
-    return r.rowCount || 0;
-  } catch (err) {
-    logger.warn('expirePendingBookingRequests failed', { error: err.message });
-    return 0;
-  }
-};
-
-/**
- * After scheduled end (date + end time in server TZ), release accepted bookings so customer can post publicly.
- * Notifies both parties.
- */
-exports.releaseStaleAcceptedBookings = async () => {
-  try {
-    const r = await pool.query(
-      `UPDATE booking_requests
-       SET status = 'accepted_cancelled',
-           helper_response_reason = COALESCE(
-             helper_response_reason,
-             'Automatically released after scheduled time passed'
-           ),
-           updated_at = CURRENT_TIMESTAMP
-       WHERE status = 'accepted'
-         AND (requested_date::timestamp + requested_end_time::interval) < NOW()
-       RETURNING id, customer_id, helper_id, service_name, requested_date`
-    );
-    if (r.rowCount > 0) {
-      logger.info('Released accepted bookings past scheduled end', { count: r.rowCount });
-      for (const row of r.rows) {
+        // The linked appointment must not outlive the released booking.
+        try {
+          await bookingLifecycle.cancelLinkedAppointment(row, row.helper_id);
+        } catch (e) {
+          logger.warn('Failed to cancel linked appointment on auto-release', { error: e.message });
+        }
+        await logBookingAudit(row.id, 'auto_released', null, 'system', 'accepted', 'accepted_cancelled');
         broadcastToUser(row.customer_id, 'booking:updated', { bookingId: row.id, status: 'accepted_cancelled' });
         broadcastToUser(row.helper_id, 'booking:updated', { bookingId: row.id, status: 'accepted_cancelled' });
 

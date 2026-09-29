@@ -5,7 +5,7 @@
  * Marker/status gates live in chatBookingRequests; lifecycle re-exports them.
  */
 
-jest.mock('../db', () => ({ query: jest.fn() }));
+jest.mock('../db', () => ({ query: jest.fn(), connect: jest.fn() }));
 jest.mock('../utils/logger', () => ({
   info: jest.fn(),
   warn: jest.fn(),
@@ -18,15 +18,31 @@ jest.mock('../services/socketService', () => ({
   broadcastToBusinessCalendar: jest.fn(),
   io: null,
 }));
+jest.mock('../services/helperAvailabilityService', () => ({
+  isSlotFree: jest.fn(),
+}));
 
 const pool = require('../db');
 const socketService = require('../services/socketService');
+const availabilityService = require('../services/helperAvailabilityService');
 const lifecycle = require('../services/bookingRequestLifecycle');
 
 describe('bookingRequestLifecycle', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    availabilityService.isSlotFree.mockResolvedValue({ free: true });
   });
+
+  // NOTE: __tests__/setup.js replaces withTransaction with a pass-through that
+  // runs the operation callback using pool.query as the client (no real
+  // BEGIN/COMMIT, pool.connect() is never called). Transactional tests
+  // therefore queue every query on pool.query in exact call order.
+  function queueTx(values) {
+    for (const v of values) pool.query.mockResolvedValueOnce(v);
+  }
+  function txSql() {
+    return pool.query.mock.calls.map((c) => String(c[0])).join('\n');
+  }
 
   test('toCalendarBooking maps conversation/source/status', () => {
     const card = lifecycle.toCalendarBooking({
@@ -164,15 +180,18 @@ describe('bookingRequestLifecycle', () => {
       requested_end_time: '10:00:00',
       source: 'calendar',
     };
-    pool.query
-      .mockResolvedValueOnce({
-        rows: [{ ...booking, status: 'accepted', accepted_at: new Date().toISOString() }],
-      }) // UPDATE accept
-      .mockResolvedValueOnce({
-        rows: [{ id: 99, status: 'confirmed' }],
-      }) // INSERT appointment
-      .mockResolvedValueOnce({ rows: [] }) // link appointment_id
-      .mockResolvedValueOnce({ rows: [] }); // audit
+    queueTx([
+      { rows: [] }, // advisory lock
+      { rows: [booking] }, // re-read inside txn (still pending)
+      { rows: [] }, // pre-accept overlap check
+      // isSlotFree mocked -> free
+      { rows: [{ ...booking, status: 'accepted', accepted_at: new Date().toISOString() }] }, // UPDATE accept
+      { rows: [] }, // confirm: overlap check
+      // isSlotFree mocked -> free
+      { rows: [{ id: 99, status: 'confirmed' }] }, // INSERT appointment
+      { rows: [] }, // link appointment_id
+      { rows: [] }, // audit
+    ]);
 
     const result = await lifecycle.acceptBookingRequest({
       booking,
@@ -181,7 +200,12 @@ describe('bookingRequestLifecycle', () => {
     });
 
     expect(result.booking.status).toBe('accepted');
+    expect(result.booking.appointment_id).toBe(99);
     expect(result.appointment.id).toBe(99);
+    // The slot was conflict-checked before the status flip.
+    const sql = txSql();
+    expect(sql).toMatch(/pg_advisory_xact_lock/);
+    expect(sql.indexOf('pg_advisory_xact_lock')).toBeLessThan(sql.indexOf("status = 'accepted'"));
     expect(socketService.broadcastToUser).toHaveBeenCalledWith(
       'h1',
       'booking:updated',
@@ -194,6 +218,238 @@ describe('bookingRequestLifecycle', () => {
     );
   });
 
+  test('acceptBookingRequest rejects an already auto-posted booking', async () => {
+    await expect(
+      lifecycle.acceptBookingRequest({
+        booking: { id: 'x', status: 'pending', helper_id: 'h', converted_to_job_id: 'job-1' },
+        actorId: 'h',
+      }),
+    ).rejects.toMatchObject({ code: 'already_posted', status: 409 });
+    expect(pool.connect).not.toHaveBeenCalled();
+  });
+
+  test('acceptBookingRequest refuses a stale pending booking and expires it', async () => {
+    const booking = {
+      id: 'br-stale',
+      helper_id: 'h1',
+      customer_id: 'c1',
+      status: 'pending',
+      service_name: 'Trim',
+      requested_date: '2026-09-22',
+      requested_start_time: '09:00:00',
+      requested_end_time: '10:00:00',
+      expires_at: new Date(Date.now() - 3600_000).toISOString(),
+      auto_post_on_expiry: false,
+    };
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ ...booking, status: 'expired' }] }) // expireIfStale UPDATE
+      .mockResolvedValueOnce({ rows: [] }); // audit
+
+    await expect(
+      lifecycle.acceptBookingRequest({ booking, actorId: 'h1' }),
+    ).rejects.toMatchObject({ code: 'expired', status: 409 });
+    // The accept transaction never started; the row was expired on the read path.
+    expect(pool.connect).not.toHaveBeenCalled();
+    expect(pool.query.mock.calls[0][0]).toMatch(/status = 'expired'/);
+  });
+
+  test('acceptBookingRequest transitions a booking whose window lapsed inside the transaction', async () => {
+    jest.useFakeTimers();
+    try {
+      const T = new Date('2026-09-29T12:00:00Z').getTime();
+      jest.setSystemTime(T);
+      const booking = {
+        id: 'br-race',
+        helper_id: 'h1',
+        customer_id: 'c1',
+        status: 'pending',
+        service_name: 'Trim',
+        requested_date: '2026-09-29',
+        requested_start_time: '13:00:00',
+        requested_end_time: '14:00:00',
+        expires_at: new Date(T + 60_000).toISOString(), // lapses after the accept starts
+        auto_post_on_expiry: false,
+      };
+      const staleRow = { ...booking, expires_at: new Date(T - 1000).toISOString() };
+      pool.query
+        .mockResolvedValueOnce({ rows: [] }) // advisory lock
+        .mockImplementationOnce(async () => {
+          // The window lapses between the outer pre-check and the re-read.
+          jest.setSystemTime(T + 120_000);
+          return { rows: [staleRow] };
+        })
+        .mockResolvedValueOnce({ rows: [{ ...booking, status: 'expired' }] }) // expireIfStale UPDATE
+        .mockResolvedValueOnce({ rows: [] }); // audit
+
+      await expect(
+        lifecycle.acceptBookingRequest({ booking, actorId: 'h1' }),
+      ).rejects.toMatchObject({ code: 'expired', status: 409 });
+
+      const sql = txSql();
+      expect(sql).toMatch(/SET status = 'expired'/);
+      expect(sql).not.toMatch(/status = 'accepted'/);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('acceptBookingRequest requires an agreed time (request-only)', async () => {
+    const booking = {
+      id: 'br-no-time',
+      helper_id: 'h1',
+      customer_id: 'c1',
+      status: 'pending',
+      service_name: 'Consult',
+      availability_mode: 'request_only',
+      requested_date: null,
+      requested_start_time: null,
+      requested_end_time: null,
+    };
+    queueTx([
+      { rows: [] }, // advisory lock
+      { rows: [booking] }, // re-read: still no time
+    ]);
+
+    await expect(
+      lifecycle.acceptBookingRequest({ booking, actorId: 'h1' }),
+    ).rejects.toMatchObject({ code: 'time_required', status: 409 });
+    // The accept UPDATE never ran, so the booking stays pending for a
+    // counter-proposal first.
+    expect(txSql()).not.toMatch(/status = 'accepted'/);
+  });
+
+  test('acceptBookingRequest excludes the own linked appointment from the conflict check', async () => {
+    const booking = {
+      id: 'br-linked',
+      helper_id: 'h1',
+      customer_id: 'c1',
+      status: 'pending',
+      service_name: 'Trim',
+      requested_date: '2026-09-22',
+      requested_start_time: '09:00:00',
+      requested_end_time: '10:00:00',
+      appointment_id: 55,
+    };
+    queueTx([
+      { rows: [] }, // advisory lock
+      { rows: [booking] }, // re-read
+      { rows: [] }, // pre-accept overlap check (own appointment excluded)
+      { rows: [{ ...booking, status: 'accepted', accepted_at: new Date().toISOString() }] }, // UPDATE accept
+      { rows: [{ id: 55, status: 'confirmed' }] }, // confirm existing appointment
+      { rows: [] }, // audit
+    ]);
+
+    const result = await lifecycle.acceptBookingRequest({ booking, actorId: 'h1' });
+    expect(result.booking.status).toBe('accepted');
+    const overlapCall = pool.query.mock.calls.find((c) =>
+      /FROM appointments/.test(c[0]) && /scheduled_start_time/.test(c[0]),
+    );
+    expect(overlapCall[0]).toMatch(/id <> \$4/);
+    expect(overlapCall[1][3]).toBe(55);
+    // Confirming the linked appointment, not inserting a second one.
+    const inserts = pool.query.mock.calls.filter((c) => /INSERT INTO appointments/.test(c[0]));
+    expect(inserts).toHaveLength(0);
+  });
+
+  test('acceptBookingRequest creates a business_appointments row for business bookings', async () => {
+    const booking = {
+      id: 'br-biz-accept',
+      helper_id: 'owner-h',
+      customer_id: 'c1',
+      business_id: 7,
+      status: 'pending',
+      service_name: 'Biz cut',
+      requested_date: '2026-09-22',
+      requested_start_time: '09:00:00',
+      requested_end_time: '10:00:00',
+      source: 'messenger_picker',
+    };
+    const service = { id: 'svc-1', name: 'Biz cut', base_price_cents: 5000 };
+    queueTx([
+      { rows: [] }, // advisory lock
+      { rows: [booking] }, // re-read
+      { rows: [] }, // pre-accept business overlap check
+      { rows: [service] }, // pre-accept service resolution (name match)
+      { rows: [{ ...booking, status: 'accepted', accepted_at: new Date().toISOString() }] }, // UPDATE accept
+      { rows: [] }, // create: business overlap check
+      { rows: [service] }, // create: service resolution
+      { rows: [] }, // create: customer lookup
+      { rows: [{ id: 'ba-1', status: 'confirmed' }] }, // INSERT business_appointments
+      { rows: [] }, // link business_appointment_id
+      { rows: [] }, // audit
+    ]);
+
+    const result = await lifecycle.acceptBookingRequest({
+      booking,
+      actorId: 'owner-h',
+      appointmentSource: 'messenger_accept',
+    });
+
+    expect(result.booking.status).toBe('accepted');
+    expect(result.booking.business_appointment_id).toBe('ba-1');
+    expect(result.appointment.id).toBe('ba-1');
+    const businessInserts = pool.query.mock.calls.filter((c) =>
+      /INSERT INTO business_appointments/.test(c[0]),
+    );
+    expect(businessInserts).toHaveLength(1);
+    // Never touches the owner's personal appointments table.
+    const helperInserts = pool.query.mock.calls.filter((c) =>
+      /INSERT INTO appointments(?!\w)/.test(c[0]),
+    );
+    expect(helperInserts).toHaveLength(0);
+    // The business advisory lock scopes to the business calendar.
+    expect(pool.query.mock.calls[0][1][0]).toBe('business_appointments:7');
+  });
+
+  test('acceptBookingRequest rolls back when the business service is gone', async () => {
+    const booking = {
+      id: 'br-biz-nosvc',
+      helper_id: 'owner-h',
+      customer_id: 'c1',
+      business_id: 7,
+      status: 'pending',
+      service_name: 'Retired cut',
+      requested_date: '2026-09-22',
+      requested_start_time: '09:00:00',
+      requested_end_time: '10:00:00',
+    };
+    queueTx([
+      { rows: [] }, // advisory lock
+      { rows: [booking] }, // re-read
+      { rows: [] }, // pre-accept business overlap check
+      { rows: [] }, // service name lookup: no match
+    ]);
+
+    await expect(
+      lifecycle.acceptBookingRequest({ booking, actorId: 'owner-h' }),
+    ).rejects.toMatchObject({ code: 'business_service_missing', status: 409 });
+    const sql = txSql();
+    expect(sql).not.toMatch(/status = 'accepted'/);
+    expect(sql).not.toMatch(/INSERT INTO business_appointments/);
+  });
+
+  test('acceptBookingRequest fails cleanly on a double-booked slot', async () => {
+    const booking = {
+      id: 'br-conflict',
+      helper_id: 'h1',
+      customer_id: 'c1',
+      status: 'pending',
+      service_name: 'Trim',
+      requested_date: '2026-09-22',
+      requested_start_time: '09:00:00',
+      requested_end_time: '10:00:00',
+    };
+    queueTx([
+      { rows: [] }, // advisory lock
+      { rows: [booking] }, // re-read
+      { rows: [{ 1: 1 }] }, // pre-check finds overlap
+    ]);
+    await expect(
+      lifecycle.acceptBookingRequest({ booking, actorId: 'h1' }),
+    ).rejects.toMatchObject({ code: 'SCHEDULING_CONFLICT', status: 409 });
+    expect(txSql()).not.toMatch(/status = 'accepted'/);
+  });
+
   test('acceptBookingRequest rejects already accepted', async () => {
     await expect(
       lifecycle.acceptBookingRequest({
@@ -202,6 +458,7 @@ describe('bookingRequestLifecycle', () => {
       }),
     ).rejects.toMatchObject({ code: 'already_accepted', status: 409 });
     expect(pool.query).not.toHaveBeenCalled();
+    expect(pool.connect).not.toHaveBeenCalled();
   });
 
   test('proposeBookingTime sets counter_proposed and syncs legacy counter_*', async () => {
@@ -215,17 +472,21 @@ describe('bookingRequestLifecycle', () => {
       requested_start_time: '09:00:00',
       requested_end_time: '10:00:00',
     };
+    const future = new Date(Date.now() + 5 * 86400000);
+    const futureStr = future.toISOString().slice(0, 10);
     pool.query
+      .mockResolvedValueOnce({ rows: [] }) // counter-proposal slot availability check
+      // isSlotFree mocked -> free
       .mockResolvedValueOnce({
         rows: [
           {
             ...booking,
             status: 'counter_proposed',
-            requested_date: '2026-09-24',
+            requested_date: futureStr,
             requested_start_time: '14:00:00',
             requested_end_time: '15:00:00',
             counter_status: 'pending',
-            counter_date: '2026-09-24',
+            counter_date: futureStr,
           },
         ],
       })
@@ -234,14 +495,14 @@ describe('bookingRequestLifecycle', () => {
     const result = await lifecycle.proposeBookingTime({
       booking,
       actorId: 'h1',
-      date: '2026-09-24',
+      date: futureStr,
       start: '14:00',
       end: '15:00',
       note: 'Later?',
     });
 
     expect(result.booking.status).toBe('counter_proposed');
-    const updateSql = pool.query.mock.calls[0][0];
+    const updateSql = pool.query.mock.calls[1][0];
     expect(updateSql).toMatch(/status = 'counter_proposed'/);
     expect(updateSql).toMatch(/counter_status = 'pending'/);
     expect(socketService.broadcastToUser).toHaveBeenCalledWith(
@@ -249,6 +510,48 @@ describe('bookingRequestLifecycle', () => {
       'booking:updated',
       expect.objectContaining({ event: 'counter_proposed' }),
     );
+  });
+
+  test('proposeBookingTime rejects a past date', async () => {
+    const booking = {
+      id: 'br-prop-past',
+      helper_id: 'h1',
+      customer_id: 'c1',
+      status: 'pending',
+      service_name: 'Paint',
+    };
+    await expect(
+      lifecycle.proposeBookingTime({
+        booking,
+        actorId: 'h1',
+        date: '2020-01-01',
+        start: '14:00',
+        end: '15:00',
+      }),
+    ).rejects.toMatchObject({ code: 'validation_failed', status: 400 });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  test('proposeBookingTime rejects a conflicting time', async () => {
+    const booking = {
+      id: 'br-prop-conflict',
+      helper_id: 'h1',
+      customer_id: 'c1',
+      status: 'pending',
+      service_name: 'Paint',
+    };
+    const future = new Date(Date.now() + 5 * 86400000);
+    const futureStr = future.toISOString().slice(0, 10);
+    pool.query.mockResolvedValueOnce({ rows: [{ 1: 1 }] }); // overlap found
+    await expect(
+      lifecycle.proposeBookingTime({
+        booking,
+        actorId: 'h1',
+        date: futureStr,
+        start: '14:00',
+        end: '15:00',
+      }),
+    ).rejects.toMatchObject({ code: 'slot_conflict', status: 409 });
   });
 
   test('declineBookingRequest cancels linked appointment', async () => {
@@ -281,6 +584,76 @@ describe('bookingRequestLifecycle', () => {
     expect(cancelSql).toMatch(/cancelled/);
   });
 
+  test('customerAccept rolls back on a double-booked slot', async () => {
+    const booking = {
+      id: 'br-cust-conflict',
+      helper_id: 'h1',
+      customer_id: 'c1',
+      status: 'counter_proposed',
+      service_name: 'Trim',
+      requested_date: '2026-09-22',
+      requested_start_time: '09:00:00',
+      requested_end_time: '10:00:00',
+    };
+    queueTx([
+      { rows: [] }, // advisory lock
+      { rows: [{ 1: 1 }] }, // pre-accept overlap check finds a conflict
+    ]);
+
+    await expect(
+      lifecycle.customerAcceptBookingRequest({ booking, actorId: 'c1' }),
+    ).rejects.toMatchObject({ code: 'SCHEDULING_CONFLICT', status: 409 });
+    expect(txSql()).not.toMatch(/status = 'accepted'/);
+  });
+
+  test('declineBookingRequest cancels the linked business appointment', async () => {
+    const booking = {
+      id: 'br-biz-dec',
+      helper_id: 'owner-h',
+      customer_id: 'c1',
+      business_id: 7,
+      business_appointment_id: 'ba-9',
+      status: 'counter_proposed',
+      service_name: 'Biz cut',
+    };
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ ...booking, status: 'declined' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'ba-9', status: 'cancelled' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const result = await lifecycle.declineBookingRequest({ booking, actorId: 'owner-h' });
+    expect(result.booking.status).toBe('declined');
+    const cancelSql = pool.query.mock.calls[1][0];
+    expect(cancelSql).toMatch(/UPDATE business_appointments/);
+    expect(cancelSql).toMatch(/cancelled/);
+  });
+
+  test('proposeBookingTime refuses a stale pending booking', async () => {
+    const booking = {
+      id: 'br-prop-stale',
+      helper_id: 'h1',
+      customer_id: 'c1',
+      status: 'pending',
+      service_name: 'Paint',
+      expires_at: new Date(Date.now() - 3600_000).toISOString(),
+      auto_post_on_expiry: false,
+    };
+    const future = new Date(Date.now() + 5 * 86400000);
+    const futureStr = future.toISOString().slice(0, 10);
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ ...booking, status: 'expired' }] }) // expireIfStale UPDATE
+      .mockResolvedValueOnce({ rows: [] }); // audit
+
+    await expect(
+      lifecycle.proposeBookingTime({
+        booking,
+        actorId: 'h1',
+        date: futureStr,
+        start: '14:00',
+        end: '15:00',
+      }),
+    ).rejects.toMatchObject({ code: 'expired', status: 409 });
+  });
   test('customerAccept only for counter_proposed (or legacy counter_status)', async () => {
     await expect(
       lifecycle.customerAcceptBookingRequest({

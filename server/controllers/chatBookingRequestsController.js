@@ -274,81 +274,6 @@ async function postStatusToThread({
   return null;
 }
 
-async function confirmOrCreateAppointment(booking, helperId) {
-  if (booking.appointment_id) {
-    const { rows } = await pool.query(
-      `UPDATE appointments
-          SET status = 'confirmed',
-              updated_at = NOW()
-        WHERE id = $1 AND helper_id = $2 AND status IN ('requested', 'confirmed')
-        RETURNING *`,
-      [booking.appointment_id, helperId],
-    );
-    return rows[0] || null;
-  }
-
-  const date = normalizeDate(booking.requested_date);
-  const start = normalizeClock(booking.requested_start_time);
-  const end = normalizeClock(booking.requested_end_time);
-  if (!date || !start || !end) return null;
-
-  const startIso = `${date}T${start}:00`;
-  const endIso = `${date}T${end}:00`;
-  const startDate = new Date(startIso);
-  const endDate = new Date(endIso);
-  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate <= startDate) {
-    return null;
-  }
-  const duration = Math.max(15, Math.min(480, Math.round((endDate - startDate) / 60000) || 60));
-  const customerId = booking.customer_id || '00000000-0000-4000-8000-000000000001';
-
-  const { rows } = await pool.query(
-    `INSERT INTO appointments (
-       customer_id, helper_id, job_id, service_description,
-       scheduled_start_time, scheduled_end_time, estimated_duration_minutes,
-       customer_notes, status, created_by_user_id,
-       source, guest_name, guest_email
-     ) VALUES (
-       $1, $2, NULL, $3, $4, $5, $6, $7, 'confirmed', $8,
-       'messenger_accept', NULL, NULL
-     ) RETURNING *`,
-    [
-      customerId,
-      helperId,
-      booking.service_name || 'Booked service',
-      startDate,
-      endDate,
-      duration,
-      [
-        booking.source ? `source=${booking.source}` : null,
-        booking.conversation_id ? `conversation_id=${booking.conversation_id}` : null,
-        `booking_request_id=${booking.id}`,
-      ].filter(Boolean).join(' | '),
-      helperId,
-    ],
-  );
-  const appt = rows[0];
-  if (appt?.id) {
-    await pool.query(
-      'UPDATE booking_requests SET appointment_id = $2, updated_at = NOW() WHERE id = $1',
-      [booking.id, appt.id],
-    );
-  }
-  return appt;
-}
-
-async function cancelLinkedAppointment(booking, helperId) {
-  if (!booking.appointment_id) return null;
-  const { rows } = await pool.query(
-    `UPDATE appointments
-        SET status = 'cancelled', updated_at = NOW()
-      WHERE id = $1 AND helper_id = $2 AND status IN ('requested', 'confirmed')
-      RETURNING *`,
-    [booking.appointment_id, helperId],
-  );
-  return rows[0] || null;
-}
-
 /**
  * GET /api/chat/booking-requests/:id
  */
@@ -738,6 +663,21 @@ exports.createChatBookingRequest = async (req, res, next) => {
       .trim()
       .slice(0, 200);
     const serviceId = body.serviceId ?? body.service_id ?? null;
+
+    // The messenger picker commits to a concrete time: verify it is truly free
+    // before the request exists.
+    const slotCheck = await bookingLifecycle.validateBookingSlot({
+      helperId: businessId ? null : helperId,
+      businessId: businessId || null,
+      date,
+      start,
+      end,
+    });
+    if (!slotCheck.ok) {
+      return bad(res, 409, slotCheck.message || 'Requested time is not available', slotCheck.code, {
+        reason: slotCheck.reason,
+      });
+    }
     const timezone = String(body.timezone || '').trim().slice(0, 80) || null;
     const description = String(body.description || '').trim().slice(0, 2000) || null;
     const source = String(body.source || 'messenger_inbox_schedule').trim().slice(0, 64);

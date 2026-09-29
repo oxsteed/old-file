@@ -98,9 +98,10 @@ function stripBookingRequestMarkers(text) {
 function canProviderRespond(row) {
   if (!row) return { ok: false, reason: 'not_found' };
   const status = toChatStatus(row.status);
-  if (status === 'pending' || status === 'counter_proposed' || status === 'expired') {
+  if (status === 'pending' || status === 'counter_proposed') {
     return { ok: true };
   }
+  if (status === 'expired') return { ok: false, reason: 'expired' };
   if (status === 'accepted') return { ok: false, reason: 'already_accepted' };
   if (status === 'declined') return { ok: false, reason: 'already_declined' };
   if (status === 'cancelled' || status === 'accepted_cancelled') {

@@ -22,6 +22,7 @@ jest.mock('../services/chatAgreements', () => ({
 jest.mock('../services/bookingRequestLifecycle', () => ({
   emitBookingEvent: jest.fn().mockResolvedValue(undefined),
   isProviderForBooking: jest.fn().mockResolvedValue(false),
+  validateBookingSlot: jest.fn().mockResolvedValue({ ok: true }),
 }));
 
 jest.mock('../services/chatBookingRequests', () => ({

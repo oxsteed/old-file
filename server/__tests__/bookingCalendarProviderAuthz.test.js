@@ -23,6 +23,10 @@ jest.mock('../services/notificationService', () => ({
 jest.mock('../controllers/chatBookingRequestsController', () => ({
   postStatusToThreadForLifecycle: jest.fn().mockResolvedValue(undefined),
 }));
+// Keep these tests about authz: availability itself is covered elsewhere.
+jest.mock('../services/helperAvailabilityService', () => ({
+  isSlotFree: jest.fn().mockResolvedValue({ free: true }),
+}));
 
 const pool = require('../db');
 const bookingController = require('../controllers/bookingController');
@@ -68,20 +72,28 @@ describe('calendar booking provider authz', () => {
       accepted_at: new Date().toISOString(),
     };
 
+    const service = { id: 'svc-9', name: 'Cut', base_price_cents: 1000 };
+
     // loadBooking
     pool.query.mockResolvedValueOnce({ rows: [pending] });
     // isProviderForBooking → assertBusinessAccess
     pool.query.mockResolvedValueOnce({
       rows: [{ id: BIZ, user_id: OWNER, business_name: 'Salon' }],
     });
-    // accept UPDATE
-    pool.query.mockResolvedValueOnce({ rows: [accepted] });
-    // confirmOrCreateAppointment INSERT
-    pool.query.mockResolvedValueOnce({ rows: [{ id: 77, status: 'confirmed' }] });
-    // link appointment_id
-    pool.query.mockResolvedValueOnce({ rows: [] });
-    // audit
-    pool.query.mockResolvedValueOnce({ rows: [] });
+    // acceptBookingRequest (transactional, run inline by the test setup):
+    pool.query
+      .mockResolvedValueOnce({ rows: [] }) // advisory lock
+      .mockResolvedValueOnce({ rows: [pending] }) // re-read (still pending)
+      .mockResolvedValueOnce({ rows: [] }) // pre-accept business overlap check
+      .mockResolvedValueOnce({ rows: [service] }) // service resolution (name match)
+      .mockResolvedValueOnce({ rows: [accepted] }) // UPDATE accept
+      .mockResolvedValueOnce({ rows: [] }) // create: business overlap check
+      .mockResolvedValueOnce({ rows: [service] }) // create: service resolution
+      .mockResolvedValueOnce({ rows: [] }) // create: customer lookup
+      .mockResolvedValueOnce({ rows: [{ id: 77, status: 'confirmed' }] }) // INSERT business_appointments
+      .mockResolvedValueOnce({ rows: [] }) // link business_appointment_id
+      .mockResolvedValueOnce({ rows: [] }) // audit
+      .mockResolvedValueOnce({ rows: [] }); // emitBookingEvent: business member ids
 
     const res = resMock();
     await bookingController.acceptBookingRequest(
@@ -147,11 +159,15 @@ describe('calendar booking provider authz', () => {
     const accepted = { ...pending, status: 'accepted', accepted_at: new Date().toISOString() };
 
     pool.query
-      .mockResolvedValueOnce({ rows: [pending] })
-      .mockResolvedValueOnce({ rows: [accepted] })
-      .mockResolvedValueOnce({ rows: [{ id: 88, status: 'confirmed' }] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] });
+      .mockResolvedValueOnce({ rows: [pending] }) // loadBooking
+      .mockResolvedValueOnce({ rows: [] }) // advisory lock
+      .mockResolvedValueOnce({ rows: [pending] }) // re-read (still pending)
+      .mockResolvedValueOnce({ rows: [] }) // pre-accept overlap check (isSlotFree mocked free)
+      .mockResolvedValueOnce({ rows: [accepted] }) // UPDATE accept
+      .mockResolvedValueOnce({ rows: [] }) // create: overlap check (isSlotFree mocked free)
+      .mockResolvedValueOnce({ rows: [{ id: 88, status: 'confirmed' }] }) // INSERT appointment
+      .mockResolvedValueOnce({ rows: [] }) // link appointment_id
+      .mockResolvedValueOnce({ rows: [] }); // audit
 
     const res = resMock();
     await bookingController.acceptBookingRequest(

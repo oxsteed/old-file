@@ -32,6 +32,12 @@ jest.mock('../services/businessConversationSync', () => ({
   mirrorLegacyMessage: jest.fn().mockResolvedValue(null),
 }));
 
+// Slot validation is covered by the lifecycle suite; this file tests quote
+// schedule idempotency, so keep the creation path from consuming DB mocks.
+jest.mock('../services/bookingRequestLifecycle', () => ({
+  validateBookingSlot: jest.fn().mockResolvedValue({ ok: true }),
+}));
+
 const socketService = require('../services/socketService');
 const controller = require('../controllers/chatQuotesController');
 

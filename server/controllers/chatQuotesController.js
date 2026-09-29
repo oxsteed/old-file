@@ -21,6 +21,7 @@ const {
   toChatStatus,
 } = require('../services/chatQuotes');
 const { checkScheduleAgreementGate } = require('../services/chatAgreements');
+const bookingLifecycle = require('../services/bookingRequestLifecycle');
 const { mirrorLegacyMessage } = require('../services/businessConversationSync');
 const { scheduleConversationMessageNotifications } = require('../services/messageNotificationService');
 
@@ -1108,6 +1109,23 @@ exports.scheduleFromQuote = async (req, res, next) => {
       helperId = biz.rows[0]?.user_id;
     }
     if (!helperId) return bad(res, 400, 'Could not resolve helper for booking', 'validation_failed');
+
+    // A quote schedule commits to a concrete time: verify it is truly free
+    // before the request exists (skipped for idempotent replays).
+    if (!replayed) {
+      const slotCheck = await bookingLifecycle.validateBookingSlot({
+        helperId: businessId ? null : helperId,
+        businessId: businessId || null,
+        date,
+        start,
+        end,
+      });
+      if (!slotCheck.ok) {
+        return bad(res, 409, slotCheck.message || 'Requested time is not available', slotCheck.code, {
+          reason: slotCheck.reason,
+        });
+      }
+    }
 
     if (booking?.quote_id && (
       String(booking.quote_kind || '') !== kind

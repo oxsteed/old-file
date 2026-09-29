@@ -9,6 +9,7 @@ const socketService = require('../services/socketService');
 const { broadcastGuestChatMessage } = socketService;
 const guestProfileVerify = require('../services/guestProfileChatVerification');
 const chatBookingReqCtl = require('./chatBookingRequestsController');
+const bookingLifecycle = require('../services/bookingRequestLifecycle');
 const { buildProfileAiFailurePayload } = require('../services/profileChatRouting');
 const { withTransaction } = require('../utils/transaction');
 const { canEditProfile } = require('../utils/businessOwnership');
@@ -1842,9 +1843,8 @@ exports.createMessengerGuestBooking = async (req, res, next) => {
 
     // Authenticated non-guest: create booking_request (production path parity)
     if (req.user?.id && !verifiedGuestSession) {
-      
 
-const bookingId = require('crypto').randomUUID();
+      const bookingId = require('crypto').randomUUID();
       const hours = 24;
       const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
       let resolvedHelperId = helperId;
@@ -1855,6 +1855,24 @@ const bookingId = require('crypto').randomUUID();
       if (!resolvedHelperId) {
         throw new AppError('helperId or businessId is required', 400, 'validation_failed');
       }
+
+      // The messenger picker commits to a concrete time: verify it is truly
+      // free before the request exists.
+      const slotCheck = await bookingLifecycle.validateBookingSlot({
+        helperId: businessId ? null : resolvedHelperId,
+        businessId: businessId || null,
+        date,
+        start,
+        end,
+      });
+      if (!slotCheck.ok) {
+        throw new AppError(
+          slotCheck.message || 'Requested time is not available',
+          409,
+          slotCheck.code || 'slot_conflict',
+        );
+      }
+
       const descParts = [];
       if (serviceId) descParts.push(`serviceId=${serviceId}`);
       if (timezone) descParts.push(`tz=${timezone}`);
