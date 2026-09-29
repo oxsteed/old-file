@@ -306,6 +306,18 @@
             ],
             [
               {
+                "strong": "Dosye finansye:"
+              },
+              " Antre liv kontab platfòm nan, dosye peman yo, ak istwa odit peman andeyò platfòm nan konsève pandan 7 an."
+            ],
+            [
+              {
+                "strong": "Istwa paramèt peman:"
+              },
+              " Dosye chanjman nan fason ou resevwa peman yo konsève pandan 7 an."
+            ],
+            [
+              {
                 "strong": "Jounal odit:"
               },
               "Yo konsève mòso bwa sekirite ak aksè pou 2 zan."
@@ -344,7 +356,7 @@
               {
                 "strong": "Dwa pou efase:"
               },
-              "Mande efase enfòmasyon pèsonèl ou, sijè a obligasyon legal pou kenbe."
+              " Mande pou efase enfòmasyon pèsonèl ou yo, selon obligasyon legal konsèvasyon ki dekri nan Seksyon 6."
             ],
             [
               {
@@ -497,6 +509,10 @@
         },
         {
           "type": "p",
+          "text": "Efase kont ou retire pwofil ou epi netwaye done pèsonèl ou yo, men li pa efase dosye nou oblije kenbe legalman. Gade Seksyon 6 pou tout kalandriye konsèvasyon nou an."
+        },
+        {
+          "type": "p",
           "text": "Lè yo efase:"
         },
         {
@@ -515,9 +531,22 @@
               "Yo pral konsève dosye tranzaksyon yo pou rezon odit;"
             ],
             [
+              "Dosye peman andeyò platfòm nan ak istwa odit yo ap konsève pandan 7 an kòm dosye finansye;"
+            ],
+            [
+              "Dosye chanjman nan paramèt resepsyon peman ou yo ap konsève pandan 7 an;"
+            ],
+            [
+              "Antre liv kontab finansye platfòm nan ap konsève pandan 7 an;"
+            ],
+            [
               "Tranzaksyon escrow aktif Tier 3 dwe konplete oswa rezoud anvan efase ka kontinye."
             ]
           ]
+        },
+        {
+          "type": "p",
+          "text": "Dosye yo kenbe yo netwaye de done pèsonèl ki pa nesesè lè sa posib, epi aksè limite sèlman pou konfòmite legal, prevansyon fwod, ak rezolisyon dispit."
         }
       ]
     },

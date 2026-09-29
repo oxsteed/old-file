@@ -1048,7 +1048,7 @@ export default function SettingsPage() {
               <p style={{ color: '#fca5a5', fontWeight: 600 }}>What happens when you delete your account:</p>
               <p>• Your profile, photo, and personal information are immediately anonymized</p>
               <p>• You are logged out and cannot log back in</p>
-              <p>• Your review history and dispute records are <strong style={{ color: '#fca5a5' }}>retained</strong> as required by law</p>
+              <p>• Your review history, dispute records, and financial/payment records are <strong style={{ color: '#fca5a5' }}>retained</strong> as required by law</p>
               <p>• Pending earnings must be collected before deletion</p>
               <p>• Active jobs must be completed or cancelled first</p>
               <p style={{ color: '#fb923c' }}>⚠ Banned accounts cannot be self-deleted. Contact support to appeal a ban.</p>

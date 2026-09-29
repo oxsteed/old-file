@@ -306,6 +306,18 @@
             ],
             [
               {
+                "strong": "Registros financieros:"
+              },
+              " Las entradas del libro mayor de la plataforma, los registros de pagos y el historial de auditoría de pagos fuera de la plataforma se conservan durante 7 años."
+            ],
+            [
+              {
+                "strong": "Historial de configuración de pagos:"
+              },
+              " Los registros de cambios en la forma en que recibes pagos se conservan durante 7 años."
+            ],
+            [
+              {
                 "strong": "Registros de auditoría:"
               },
               "Los registros de seguridad y acceso se conservan durante 2 años."
@@ -344,7 +356,7 @@
               {
                 "strong": "Derecho a eliminar:"
               },
-              "Solicitar la eliminación de su información personal, sujeto a obligaciones legales de retención."
+              " Solicita la eliminación de tu información personal, sujeta a las obligaciones legales de conservación descritas en la Sección 6."
             ],
             [
               {
@@ -497,6 +509,10 @@
         },
         {
           "type": "p",
+          "text": "Eliminar tu cuenta elimina tu perfil y depura tus datos personales, pero no borra los registros que estamos legalmente obligados a conservar. Consulta la Sección 6 para ver nuestro calendario completo de conservación."
+        },
+        {
+          "type": "p",
           "text": "Al eliminar:"
         },
         {
@@ -515,9 +531,22 @@
               "Los registros de transacciones en depósito en garantía se conservarán para fines de auditoría;"
             ],
             [
+              "Los registros de pagos fuera de la plataforma y su historial de auditoría se conservarán durante 7 años como registros financieros;"
+            ],
+            [
+              "Los registros de cambios en tu configuración de recepción de pagos se conservarán durante 7 años;"
+            ],
+            [
+              "Las entradas del libro mayor financiero de la plataforma se conservarán durante 7 años;"
+            ],
+            [
               "Las transacciones activas de depósito en garantía de Nivel 3 deben completarse o resolverse antes de que se pueda proceder a la eliminación."
             ]
           ]
+        },
+        {
+          "type": "p",
+          "text": "Los registros conservados se depuran de datos personales innecesarios cuando es posible, y el acceso está restringido al cumplimiento legal, la prevención del fraude y la resolución de disputas."
         }
       ]
     },

@@ -306,6 +306,18 @@
             ],
             [
               {
+                "strong": "Financial records:"
+              },
+              " Platform ledger entries, payment records, and off-platform payment audit history are retained for 7 years."
+            ],
+            [
+              {
+                "strong": "Payment settings history:"
+              },
+              " Records of changes to how you receive payment are retained for 7 years."
+            ],
+            [
+              {
                 "strong": "Audit logs:"
               },
               " Security and access logs are retained for 2 years."
@@ -344,7 +356,7 @@
               {
                 "strong": "Right to delete:"
               },
-              " Request deletion of your personal information, subject to legal retention obligations."
+              " Request deletion of your personal information, subject to the legal retention obligations described in Section 6."
             ],
             [
               {
@@ -497,6 +509,10 @@
         },
         {
           "type": "p",
+          "text": "Deleting your account removes your profile and scrubs your personal data, but it does not erase records we are legally required to keep. See Section 6 for our full retention schedule."
+        },
+        {
+          "type": "p",
           "text": "Upon deletion:"
         },
         {
@@ -515,9 +531,22 @@
               "Escrow transaction records will be retained for audit purposes;"
             ],
             [
+              "Off-platform payment records and their audit history will be retained for 7 years as financial records;"
+            ],
+            [
+              "Records of changes to your payment receiving settings will be retained for 7 years;"
+            ],
+            [
+              "Platform financial ledger entries will be retained for 7 years;"
+            ],
+            [
               "Active Tier 3 escrow transactions must be completed or resolved before deletion can proceed."
             ]
           ]
+        },
+        {
+          "type": "p",
+          "text": "Retained records are stripped of unnecessary personal data where possible, and access is restricted to legal compliance, fraud prevention, and dispute resolution."
         }
       ]
     },

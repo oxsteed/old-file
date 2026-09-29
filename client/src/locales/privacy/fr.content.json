@@ -306,6 +306,18 @@
             ],
             [
               {
+                "strong": "Dossiers financiers :"
+              },
+              " Les écritures du grand livre de la plateforme, les registres de paiement et l'historique d'audit des paiements hors plateforme sont conservés pendant 7 ans."
+            ],
+            [
+              {
+                "strong": "Historique des paramètres de paiement :"
+              },
+              " Les enregistrements des modifications de votre mode de réception des paiements sont conservés pendant 7 ans."
+            ],
+            [
+              {
                 "strong": "Journaux d'audit :"
               },
               "Les journaux de sécurité et d’accès sont conservés pendant 2 ans."
@@ -344,7 +356,7 @@
               {
                 "strong": "Droit de suppression :"
               },
-              "Demander la suppression de vos informations personnelles, sous réserve des obligations légales de conservation."
+              " Demandez la suppression de vos informations personnelles, sous réserve des obligations légales de conservation décrites à la section 6."
             ],
             [
               {
@@ -497,6 +509,10 @@
         },
         {
           "type": "p",
+          "text": "La suppression de votre compte supprime votre profil et efface vos données personnelles, mais n'efface pas les enregistrements que nous sommes légalement tenus de conserver. Voir la section 6 pour notre calendrier de conservation complet."
+        },
+        {
+          "type": "p",
           "text": "Lors de la suppression :"
         },
         {
@@ -515,9 +531,22 @@
               "Les enregistrements des transactions Escrow seront conservés à des fins d’audit ;"
             ],
             [
+              "Les registres de paiement hors plateforme et leur historique d'audit seront conservés pendant 7 ans en tant que dossiers financiers ;"
+            ],
+            [
+              "Les enregistrements des modifications de vos paramètres de réception des paiements seront conservés pendant 7 ans ;"
+            ],
+            [
+              "Les écritures du grand livre financier de la plateforme seront conservées pendant 7 ans ;"
+            ],
+            [
               "Les transactions de dépôt actives de niveau 3 doivent être terminées ou résolues avant que la suppression puisse avoir lieu."
             ]
           ]
+        },
+        {
+          "type": "p",
+          "text": "Les enregistrements conservés sont expurgés des données personnelles inutiles lorsque cela est possible, et l'accès est restreint à la conformité légale, à la prévention de la fraude et à la résolution des litiges."
         }
       ]
     },
