@@ -89,6 +89,30 @@ export function useHasGrant(required) {
   return state;
 }
 
+/** Hook: the signed-in admin's own permission scopes (empty for super_admin;
+ *  callers bypass via isSuper, and empty while loading for everyone else). */
+export function useMyScopes() {
+  const { user, loading: authLoading } = useAuth();
+  const [state, setState] = useState({ loading: true, scopes: [] });
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user || user.role !== 'admin') {
+      setState({ loading: false, scopes: [] });
+      return;
+    }
+    let cancelled = false;
+    setState({ loading: true, scopes: [] });
+    fetchMyScopes(user.id).then(({ scopes }) => {
+      if (cancelled) return;
+      setState({ loading: false, scopes });
+    });
+    return () => { cancelled = true; };
+  }, [authLoading, user]);
+
+  return state;
+}
+
 export default function GrantGuard({ grant, grants, children }) {
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();

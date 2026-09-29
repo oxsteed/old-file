@@ -3,6 +3,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth }   from '../../hooks/useAuth';
 import { useTheme }  from '../../context/ThemeContext';
 import useAdminSupportAvailability from '../hooks/useAdminSupportAvailability';
+import { useMyScopes } from '../lib/GrantGuard';
 import { OxSteedIcon } from '../../components/OxSteedIcon';
 import { useTranslation } from 'react-i18next';
 import {
@@ -56,26 +57,26 @@ const REGULAR_NAV = [
 
 const SUPER_NAV = [
   { to: '/admin/super/dashboard',      icon: BarChart2,     labelKey: 'adminNav.superDashboard'  },
-  { to: '/admin/super/money',          icon: DollarSign,    labelKey: 'adminNav.money'            },
+  { to: '/admin/super/money',          icon: DollarSign,    labelKey: 'adminNav.money',            grant: 'view_financials' },
   { to: '/admin/super/restaurant-credit', icon: Wallet,      labelKey: 'adminNav.restaurantCredit' },
   { to: '/admin/super/oxsteed-credit', icon: Wallet,         labelKey: 'adminNav.oxsteedCredit'     },
-  { to: '/admin/super/revenue',        icon: TrendingUp,    labelKey: 'adminNav.revenue'          },
+  { to: '/admin/super/revenue',        icon: TrendingUp,    labelKey: 'adminNav.revenue',          grant: 'view_financials' },
   { to: '/admin/super/fees',           icon: DollarSign,    labelKey: 'adminNav.feeConfig'        },
   { to: '/admin/super/pricing',        icon: DollarSign,    labelKey: 'adminNav.pricingConfig'    },
   { to: '/admin/super/pricing-overrides', icon: Globe,      labelKey: 'adminNav.pricingOverrides' },
-  { to: '/admin/super/financials',     icon: DollarSign,    labelKey: 'adminNav.financials'       },
-  { to: '/admin/super/payouts',          icon: FileText,       labelKey: 'adminNav.payouts'          },
+  { to: '/admin/super/financials',     icon: DollarSign,    labelKey: 'adminNav.financials',       grant: 'view_financials' },
+  { to: '/admin/super/payouts',          icon: FileText,       labelKey: 'adminNav.payouts',          grant: 'view_financials' },
   { to: '/admin/super/conversations',   icon: MessageSquare,  labelKey: 'adminNav.conversations'    },
-  { to: '/admin/super/admin-accounts',  icon: UserCog,        labelKey: 'adminNav.adminAccounts'   },
-  { to: '/admin/super/permissions',    icon: Key,           labelKey: 'adminNav.permissions'      },
+  { to: '/admin/super/admin-accounts',  icon: UserCog,        labelKey: 'adminNav.adminAccounts',   grant: 'manage_admin_accounts' },
+  { to: '/admin/super/permissions',    icon: Key,           labelKey: 'adminNav.permissions',      grant: 'manage_admin_accounts' },
   { to: '/admin/super/regions',        icon: Map,           labelKey: 'adminNav.regions'          },
   { to: '/admin/super/logistics-internal-access', icon: Key, labelKey: 'adminNav.internalAccess' },
   { to: '/admin/super/access-gate-lockouts', icon: ShieldAlert, labelKey: 'adminNav.gateLockouts' },
   { to: '/admin/super/users/create',   icon: UserPlus,      labelKey: 'adminNav.createUser'      },
   { to: '/admin/super/search-logs',    icon: ClipboardList, labelKey: 'adminNav.searchLogs'      },
-  { to: '/admin/super/settings',       icon: Settings,      labelKey: 'adminNav.settings'         },
-  { to: '/admin/super/audit-log',      icon: ScrollText,    labelKey: 'adminNav.auditLog'        },
-  { to: '/admin/super/audit-log/user-actions', icon: ScrollText,    labelKey: 'adminNav.userActionLog' },
+  { to: '/admin/super/settings',       icon: Settings,      labelKey: 'adminNav.settings',         grant: 'manage_settings' },
+  { to: '/admin/super/audit-log',      icon: ScrollText,    labelKey: 'adminNav.auditLog',        grant: 'view_audit_log' },
+  { to: '/admin/super/audit-log/user-actions', icon: ScrollText,    labelKey: 'adminNav.userActionLog', grant: 'view_audit_log' },
   { to: '/admin/super/one-truth',              icon: Fingerprint,   labelKey: 'adminNav.oneTruth'       },
   { to: '/admin/super/franchises',             icon: Globe,         labelKey: 'adminNav.franchiseHq'    },
   { to: '/admin/super/careers',                icon: Briefcase,     labelKey: 'adminNav.careers'         },
@@ -139,6 +140,7 @@ export default function AdminLayout() {
   const navigate                = useNavigate();
   const { isDark, toggleTheme } = useTheme();
   const isSuper                 = user?.role === 'super_admin';
+  const { scopes: myScopes }    = useMyScopes();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [sidebarNavSearch, setSidebarNavSearch] = useState('');
@@ -207,13 +209,19 @@ export default function AdminLayout() {
     const regularNav = simpleMode
       ? REGULAR_NAV.filter(({ to }) => SIMPLE_REGULAR_NAV.includes(to))
       : REGULAR_NAV;
-    const superNav = simpleMode
+    const fullSuperNav = simpleMode
       ? SUPER_NAV.filter(({ to }) => SIMPLE_SUPER_NAV.includes(to))
       : SUPER_NAV;
+    // Super-admins see everything. Plain admins additionally see the
+    // grant-backed entries their permission grants unlock (fail closed
+    // while scopes are still loading).
+    const superNav = fullSuperNav.filter(
+      (item) => isSuper || !item.grant || myScopes.includes(item.grant)
+    );
     const visibleRegularNav = regularNav.filter(matches);
     const visibleSuperNav = superNav.filter(matches);
-    const totalAdminTabs = regularNav.length + (isSuper ? superNav.length : 0);
-    const visibleAdminTabs = visibleRegularNav.length + (isSuper ? visibleSuperNav.length : 0);
+    const totalAdminTabs = regularNav.length + superNav.length;
+    const visibleAdminTabs = visibleRegularNav.length + visibleSuperNav.length;
 
     return (
       <>
@@ -353,7 +361,7 @@ export default function AdminLayout() {
           </>
         )}
 
-        {isSuper && visibleSuperNav.length > 0 && (
+        {visibleSuperNav.length > 0 && (
           <>
             <div className="pt-4 pb-2">
               <p className="text-xs font-semibold text-gray-500 uppercase
