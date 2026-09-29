@@ -169,3 +169,124 @@ describe('updateProfile existing fields still work', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
   });
 });
+
+describe('updateProfile address', () => {
+  test('accepts a full address, trims and normalizes it', async () => {
+    const res = mockResponse();
+    queueUpdateResult(baseRow({ address_line1: '123 Main St', city: 'Springfield', state: 'IL', zip_code: '62701', country: 'US' }));
+    await authCtrl.updateProfile(
+      mockReq({
+        address_line1: '  123 Main St ',
+        address_line2: '',
+        city: 'Springfield',
+        state: 'il',
+        country: 'us',
+        zip_code: '62701',
+      }),
+      res
+    );
+
+    const { text, params } = updateCall();
+    expect(text).toMatch(/address_line1 = \$\d+/);
+    expect(text).toMatch(/address_line2 = NULL/);
+    expect(text).toMatch(/city = \$\d+/);
+    expect(text).toMatch(/state = \$\d+/);
+    expect(text).toMatch(/zip_code = \$\d+/);
+    expect(text).toMatch(/country = \$\d+/);
+    expect(params).toContain('123 Main St');
+    expect(params).toContain('Springfield');
+    expect(params).toContain('IL');
+    expect(params).toContain('62701');
+    expect(params).toContain('US');
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+        user: expect.objectContaining({ address_line1: '123 Main St', country: 'US' }),
+      })
+    );
+  });
+
+  test('rejects an unsupported country with 400 and issues no queries', async () => {
+    const res = mockResponse();
+    await authCtrl.updateProfile(mockReq({ country: 'XX' }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'invalid_country' }));
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  test('rejects an empty country with 400', async () => {
+    const res = mockResponse();
+    await authCtrl.updateProfile(mockReq({ country: '   ' }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'invalid_country' }));
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  test('rejects a state that is not valid for the country with 400', async () => {
+    const res = mockResponse();
+    await authCtrl.updateProfile(mockReq({ country: 'US', state: 'Ontario' }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'invalid_state' }));
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  test('rejects a postal code that does not match the country format with 400', async () => {
+    const res = mockResponse();
+    await authCtrl.updateProfile(mockReq({ country: 'US', zip_code: 'not-a-zip' }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'invalid_postal_code' }));
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  test('rejects address_line1 longer than 255 chars with 400', async () => {
+    const res = mockResponse();
+    await authCtrl.updateProfile(mockReq({ address_line1: 'x'.repeat(256) }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'address_line1_too_long' }));
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  test('empty address_line2 clears the stored value', async () => {
+    const res = mockResponse();
+    queueUpdateResult(baseRow({ address_line2: null }));
+    await authCtrl.updateProfile(mockReq({ address_line2: '   ' }), res);
+    const { text } = updateCall();
+    expect(text).toMatch(/address_line2 = NULL/);
+  });
+
+  test('omitted address fields leave stored values untouched', async () => {
+    const res = mockResponse();
+    queueUpdateResult(baseRow({ phone: '555-0100' }));
+    await authCtrl.updateProfile(mockReq({ phone: '555-0100' }), res);
+    const { text } = updateCall();
+    expect(text).not.toMatch(/address_line1/);
+    expect(text).not.toMatch(/address_line2/);
+    expect(text).not.toMatch(/city = /);
+    expect(text).not.toMatch(/state = /);
+    expect(text).not.toMatch(/zip_code = /);
+    expect(text).not.toMatch(/country = /);
+  });
+
+  test('validates state against the stored country when country is omitted', async () => {
+    const res = mockResponse();
+    const req = mockReq({ state: 'Ontario' });
+    req.user.country = 'US';
+    await authCtrl.updateProfile(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'invalid_state' }));
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  test('accepts a free-text state for a country without a region list', async () => {
+    const res = mockResponse();
+    queueUpdateResult(baseRow({ city: 'Port-au-Prince', state: 'Ouest', country: 'HT' }));
+    await authCtrl.updateProfile(
+      mockReq({ city: 'Port-au-Prince', state: 'Ouest', country: 'HT' }),
+      res
+    );
+    const { params } = updateCall();
+    expect(params).toContain('Ouest');
+    expect(params).toContain('HT');
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+  });
+});

@@ -1910,7 +1910,6 @@
       "verificationNotice": "Verification updates your public profile instantly",
       "supportChat": "Questions? Open a support chat →",
       "phone": "Phone",
-      "zipCode": "ZIP Code",
       "bio": "Bio",
       "displayName": "Display Name Preference",
       "displayNameSub": "How your name appears to others",
@@ -1946,7 +1945,16 @@
       "previewLocation": "Serving {{zip}}",
       "previewNoLocation": "Location not set",
       "previewNoBio": "No bio yet.",
-      "previewBusinessFallback": "Your Business"
+      "previewBusinessFallback": "Your Business",
+      "addressTitle": "Address",
+      "addressLine1": "Street address",
+      "addressLine2": "Apt, suite, unit (optional)",
+      "city": "City",
+      "stateProvince": "State / Province",
+      "country": "Country",
+      "postalCodeInvalid": "Enter a valid postal code for the selected country.",
+      "completeAddress": "Add your address",
+      "previewLocationFull": "Serving {{city}}, {{state}}"
     },
     "security": {
       "changePassword": "Change Password",

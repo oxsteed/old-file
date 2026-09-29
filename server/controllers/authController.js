@@ -144,6 +144,9 @@ function formatAuthUser(user) {
     city:                  user.city,
     state:                 user.state,
     zip_code:              user.zip_code,
+    address_line1:         user.address_line1 || null,
+    address_line2:         user.address_line2 || null,
+    country:               user.country || 'US',
     display_name_preference: user.display_name_preference || 'first_name',
     business_name:         user.business_name || null,
     is_listed:             user.is_listed !== undefined ? !!user.is_listed : true,
@@ -1371,8 +1374,70 @@ async function getMe(req, res) {
 async function updateProfile(req, res) {
   const client = await pool.connect();
   try {
-    const { phone, zip_code, zipcode, display_name_preference, default_mode, preferred_language, bio, profile_photo_url } = req.body;
-    const finalZip = zip_code || zipcode;
+    const { phone, zip_code, zipcode, display_name_preference, default_mode, preferred_language, bio, profile_photo_url,
+      address_line1, address_line2, city, state, country } = req.body;
+    // Address: each field is optional. Omitted (undefined/null) leaves it untouched;
+    // provided (even '') sets it, with '' clearing to NULL. Country, when
+    // provided, must be a supported code and is rejected when empty/invalid;
+    // omitted keeps the stored country. State and postal code validate against
+    // the effective country (provided or stored), mirroring registration rules.
+    let countryCode;
+    if (country !== undefined && country !== null) {
+      const upper = String(country).trim().toUpperCase();
+      if (!countriesUtil.isValidCountry(upper)) {
+        return res.status(400).json({ error: 'invalid_country' });
+      }
+      countryCode = upper;
+    }
+    const effectiveCountry = countryCode || req.user.country || 'US';
+
+    function addressText(raw, max, errorCode) {
+      if (raw === undefined || raw === null) return undefined;
+      const v = String(raw).trim();
+      if (v.length > max) return { error: errorCode };
+      return { value: v === '' ? null : v };
+    }
+
+    const line1 = addressText(address_line1, 255, 'address_line1_too_long');
+    const line2 = addressText(address_line2, 255, 'address_line2_too_long');
+    const cityVal = addressText(city, 100, 'city_too_long');
+    for (const parsed of [line1, line2, cityVal]) {
+      if (parsed && parsed.error) return res.status(400).json({ error: parsed.error });
+    }
+
+    let stateValue;
+    if (state !== undefined && state !== null) {
+      const rawState = String(state).trim();
+      if (rawState.length > 100) {
+        return res.status(400).json({ error: 'state_too_long' });
+      }
+      if (rawState === '') {
+        stateValue = null;
+      } else {
+        const regionList = countriesUtil.getRegions(effectiveCountry);
+        const usesRegionCodes = Array.isArray(regionList)
+          && regionList.every((r) => /^[A-Z]{2,3}$/.test(String(r)));
+        const normalizedState = usesRegionCodes ? rawState.toUpperCase() : rawState;
+        if (countriesUtil.hasRegions(effectiveCountry)
+          && !countriesUtil.isValidRegion(effectiveCountry, normalizedState)) {
+          return res.status(400).json({ error: 'invalid_state' });
+        }
+        stateValue = normalizedState;
+      }
+    }
+
+    let zipValue;
+    const rawZip = zip_code !== undefined ? zip_code : zipcode;
+    if (rawZip !== undefined && rawZip !== null) {
+      const v = String(rawZip).trim();
+      if (v.length > 20) {
+        return res.status(400).json({ error: 'postal_code_too_long' });
+      }
+      if (v !== '' && !countriesUtil.isValidPostal(effectiveCountry, v)) {
+        return res.status(400).json({ error: 'invalid_postal_code' });
+      }
+      zipValue = v === '' ? null : v;
+    }
     const requestedMode = default_mode === undefined || default_mode === null
       ? null
       : String(default_mode);
@@ -1464,11 +1529,10 @@ async function updateProfile(req, res) {
 
     const setFragments = [
       'phone = COALESCE($1, phone)',
-      'zip_code = COALESCE($2, zip_code)',
-      'display_name_preference = COALESCE($3, display_name_preference)',
-      'preferred_language = COALESCE($4, preferred_language)',
+      'display_name_preference = COALESCE($2, display_name_preference)',
+      'preferred_language = COALESCE($3, preferred_language)',
     ];
-    const updateParams = [phone || null, finalZip || null, pref || null, preferredLang || null];
+    const updateParams = [phone || null, pref || null, preferredLang || null];
     if (bioValue !== undefined) {
       setFragments.push(`bio = $${updateParams.length + 1}`);
       updateParams.push(bioValue || null);
@@ -1479,6 +1543,23 @@ async function updateProfile(req, res) {
       } else {
         setFragments.push(`profile_photo_url = $${updateParams.length + 1}`);
         updateParams.push(photoValue);
+      }
+    }
+    const addressSets = [
+      ['address_line1', line1 && line1.value],
+      ['address_line2', line2 && line2.value],
+      ['city', cityVal && cityVal.value],
+      ['state', stateValue],
+      ['zip_code', zipValue],
+      ['country', countryCode],
+    ];
+    for (const [column, value] of addressSets) {
+      if (value === undefined) continue;
+      if (value === null) {
+        setFragments.push(`${column} = NULL`);
+      } else {
+        setFragments.push(`${column} = $${updateParams.length + 1}`);
+        updateParams.push(value);
       }
     }
     updateParams.push(req.user.id);

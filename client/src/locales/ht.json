@@ -1996,7 +1996,6 @@
       "verificationNotice": "Verifiye mete ajou pwofil piblik ou touswit",
       "supportChat": "Kesyon? Louvri chat sipò →",
       "phone": "Telefon",
-      "zipCode": "Kod Postal",
       "bio": "Biografi",
       "displayName": "Preferans Non Afiche",
       "displayNameSub": "Kijan non ou fè parèt lòt moun",
@@ -2032,7 +2031,16 @@
       "previewLocation": "Ap sèvi {{zip}}",
       "previewNoLocation": "Kote pa endike",
       "previewNoBio": "Pa gen bio pou kounye a.",
-      "previewBusinessFallback": "Biznis ou"
+      "previewBusinessFallback": "Biznis ou",
+      "addressTitle": "Adrès",
+      "addressLine1": "Adrès lari",
+      "addressLine2": "Apatman, suit, inite (si ou vle)",
+      "city": "Vil",
+      "stateProvince": "Eta / Pwovens",
+      "country": "Peyi",
+      "postalCodeInvalid": "Mete yon kòd postal ki valab pou peyi ou chwazi a.",
+      "completeAddress": "Ajoute adrès ou",
+      "previewLocationFull": "Ap sèvi {{city}}, {{state}}"
     },
     "security": {
       "changePassword": "Chanj Modpas",

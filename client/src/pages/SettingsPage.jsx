@@ -17,6 +17,7 @@ import CountrySelect from '../components/CountrySelect';
 import RegionInput from '../components/RegionInput';
 import PostalCodeInput from '../components/PostalCodeInput';
 import AddressAutocomplete from '../components/AddressAutocomplete';
+import { isValidPostal } from '../lib/countries';
 import { MODE_CATALOG, routeForMode } from '../utils/modeRouter';
 import {
   LAUNCH_SELF_SELECTABLE_MODES,
@@ -156,7 +157,7 @@ export default function SettingsPage() {
     return () => { cancelled = true; };
   }, [user]);
 
-  const [profile, setProfile] = useState({ first_name: '', last_name: '', phone: '', bio: '', zipcode: '', profile_photo_url: '' });
+  const [profile, setProfile] = useState({ first_name: '', last_name: '', phone: '', bio: '', zipcode: '', profile_photo_url: '', address_line1: '', address_line2: '', city: '', state: '', country: 'US' });
   const [profileSnapshot, setProfileSnapshot] = useState(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [namePrefTouched, setNamePrefTouched] = useState(false);
@@ -204,6 +205,11 @@ export default function SettingsPage() {
           zipcode: u.zip_code || u.zipcode || '',
           display_name_preference: u.display_name_preference || 'first_name',
           profile_photo_url: u.profile_photo_url || '',
+          address_line1: u.address_line1 || '',
+          address_line2: u.address_line2 || '',
+          city: u.city || '',
+          state: u.state || '',
+          country: u.country || 'US',
         };
         setProfile(initialProfile);
         setProfileSnapshot(initialProfile);
@@ -240,6 +246,11 @@ export default function SettingsPage() {
 
   const saveProfile = async (e) => {
     e.preventDefault();
+    const zipTrimmed = (profile.zipcode || '').trim();
+    if (zipTrimmed && !isValidPostal(profile.country || 'US', zipTrimmed)) {
+      toast.error(t('settings.profile.postalCodeInvalid', 'Enter a valid postal code for the selected country.'));
+      return;
+    }
     setSaving(true);
     try {
       const { first_name, last_name, ...updatableFields } = profile;
@@ -283,7 +294,7 @@ export default function SettingsPage() {
 
   const removePhoto = () => setProfile(p => ({ ...p, profile_photo_url: '' }));
 
-  const DIRTY_KEYS = ['phone', 'bio', 'zipcode', 'display_name_preference', 'profile_photo_url'];
+  const DIRTY_KEYS = ['phone', 'bio', 'zipcode', 'display_name_preference', 'profile_photo_url', 'address_line1', 'address_line2', 'city', 'state', 'country'];
   const isProfileDirty = !!profileSnapshot && DIRTY_KEYS.some(k => (profile[k] || '') !== (profileSnapshot[k] || ''));
 
   const avatarInitials = useMemo(() => {
@@ -302,6 +313,7 @@ export default function SettingsPage() {
     { key: 'photo', done: !!profile.profile_photo_url, label: t('settings.profile.completePhoto', 'Add a profile photo') },
     { key: 'bio', done: (profile.bio || '').trim().length >= 20, label: t('settings.profile.completeBio', 'Write a bio (20+ characters)') },
     { key: 'phone', done: !!(profile.phone || '').trim(), label: t('settings.profile.completePhone', 'Add your phone number') },
+    { key: 'address', done: !!((profile.address_line1 || '').trim() && (profile.city || '').trim() && (profile.country || '').trim()), label: t('settings.profile.completeAddress', 'Add your address') },
     { key: 'name', done: namePrefTouched || (!!profileSnapshot && profileSnapshot.display_name_preference !== 'first_name'), label: t('settings.profile.completeName', 'Choose how your name appears') },
   ];
   const completenessPct = Math.round((completenessItems.filter(i => i.done).length / completenessItems.length) * 100);
@@ -623,9 +635,67 @@ export default function SettingsPage() {
               <label className="sp-label">{t('settings.profile.phone')}</label>
               <input className="sp-input" value={profile.phone || ''} onChange={e => setProfile({ ...profile, phone: e.target.value })} />
             </div>
-            <div>
-              <label className="sp-label">{t('settings.profile.zipCode')}</label>
-              <input className="sp-input" value={profile.zipcode || ''} onChange={e => setProfile({ ...profile, zipcode: e.target.value })} />
+          </div>
+
+          <div className="mb-4">
+            <label className="sp-label">{t('settings.profile.addressTitle', 'Address')}</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+              <div className="md:col-span-2">
+                <input
+                  className="sp-input"
+                  value={profile.address_line1 || ''}
+                  onChange={e => setProfile({ ...profile, address_line1: e.target.value })}
+                  placeholder={t('settings.profile.addressLine1', 'Street address')}
+                  autoComplete="street-address"
+                  maxLength={255}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <input
+                  className="sp-input"
+                  value={profile.address_line2 || ''}
+                  onChange={e => setProfile({ ...profile, address_line2: e.target.value })}
+                  placeholder={t('settings.profile.addressLine2', 'Apt, suite, unit (optional)')}
+                  autoComplete="address-line2"
+                  maxLength={255}
+                />
+              </div>
+              <div>
+                <input
+                  className="sp-input"
+                  value={profile.city || ''}
+                  onChange={e => setProfile({ ...profile, city: e.target.value })}
+                  placeholder={t('settings.profile.city', 'City')}
+                  autoComplete="address-level2"
+                  maxLength={100}
+                />
+              </div>
+              <div>
+                <RegionInput
+                  className="sp-input"
+                  country={profile.country || 'US'}
+                  value={profile.state || ''}
+                  onChange={(v) => setProfile({ ...profile, state: v })}
+                  placeholder={t('settings.profile.stateProvince', 'State / Province')}
+                />
+              </div>
+              <div>
+                <CountrySelect
+                  className="sp-input"
+                  value={profile.country || 'US'}
+                  onChange={(code) => setProfile({ ...profile, country: code, state: '' })}
+                  includeBlank={false}
+                  placeholder={t('settings.profile.country', 'Country')}
+                />
+              </div>
+              <div>
+                <PostalCodeInput
+                  className="sp-input"
+                  country={profile.country || 'US'}
+                  value={profile.zipcode || ''}
+                  onChange={(v) => setProfile({ ...profile, zipcode: v })}
+                />
+              </div>
             </div>
           </div>
 
@@ -688,9 +758,11 @@ export default function SettingsPage() {
           </div>
           <div className="sp-preview-name">{previewDisplayName}</div>
           <div className="sp-preview-loc">
-            {profile.zipcode
-              ? t('settings.profile.previewLocation', 'Serving {{zip}}', { zip: profile.zipcode })
-              : t('settings.profile.previewNoLocation', 'Location not set')}
+            {(profile.city || '').trim() && (profile.state || '').trim()
+              ? t('settings.profile.previewLocationFull', 'Serving {{city}}, {{state}}', { city: (profile.city || '').trim(), state: (profile.state || '').trim() })
+              : profile.zipcode
+                ? t('settings.profile.previewLocation', 'Serving {{zip}}', { zip: profile.zipcode })
+                : t('settings.profile.previewNoLocation', 'Location not set')}
           </div>
           <p className="sp-preview-bio">
             {(profile.bio || '').trim() || t('settings.profile.previewNoBio', 'No bio yet.')}

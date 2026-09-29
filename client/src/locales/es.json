@@ -1911,7 +1911,6 @@
       "verificationNotice": "La verificación actualiza tu perfil público al instante",
       "supportChat": "¿Preguntas? Abre un chat de soporte →",
       "phone": "Teléfono",
-      "zipCode": "Código Postal",
       "bio": "Biografía",
       "displayName": "Preferencia de Nombre Mostrado",
       "displayNameSub": "Cómo aparece tu nombre para otros",
@@ -1947,7 +1946,16 @@
       "previewLocation": "Sirviendo {{zip}}",
       "previewNoLocation": "Ubicación no indicada",
       "previewNoBio": "Sin biografía todavía.",
-      "previewBusinessFallback": "Tu negocio"
+      "previewBusinessFallback": "Tu negocio",
+      "addressTitle": "Dirección",
+      "addressLine1": "Dirección",
+      "addressLine2": "Apto., suite, unidad (opcional)",
+      "city": "Ciudad",
+      "stateProvince": "Estado / Provincia",
+      "country": "País",
+      "postalCodeInvalid": "Ingresa un código postal válido para el país seleccionado.",
+      "completeAddress": "Agrega tu dirección",
+      "previewLocationFull": "Sirviendo {{city}}, {{state}}"
     },
     "security": {
       "changePassword": "Cambiar Contraseña",

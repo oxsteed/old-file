@@ -1910,7 +1910,6 @@
       "verificationNotice": "يقوم التحقق بتحديث ملفك الشخصي العام على الفور",
       "supportChat": "هل لديك أسئلة؟ افتح محادثة دعم →",
       "phone": "هاتف",
-      "zipCode": "الرمز البريدي",
       "bio": "السيرة الذاتية",
       "displayName": "تفضيلات اسم العرض",
       "displayNameSub": "كيف يظهر اسمك للآخرين",
@@ -1946,7 +1945,16 @@
       "previewLocation": "يخدم {{zip}}",
       "previewNoLocation": "الموقع غير محدد",
       "previewNoBio": "لا توجد سيرة بعد.",
-      "previewBusinessFallback": "نشاطك التجاري"
+      "previewBusinessFallback": "نشاطك التجاري",
+      "addressTitle": "العنوان",
+      "addressLine1": "عنوان الشارع",
+      "addressLine2": "شقة، جناح، وحدة (اختياري)",
+      "city": "المدينة",
+      "stateProvince": "الولاية / المقاطعة",
+      "country": "البلد",
+      "postalCodeInvalid": "أدخل رمزًا بريديًا صالحًا للبلد المحدد.",
+      "completeAddress": "أضف عنوانك",
+      "previewLocationFull": "يخدم {{city}}، {{state}}"
     },
     "security": {
       "changePassword": "تغيير كلمة المرور",

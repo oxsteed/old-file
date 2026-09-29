@@ -1911,7 +1911,6 @@
       "verificationNotice": "La vérification met à jour votre profil public instantanément",
       "supportChat": "Des questions ? Ouvrez un chat d’assistance →",
       "phone": "Téléphone",
-      "zipCode": "Code Postal",
       "bio": "Biographie",
       "displayName": "Préférence d'Affichage du Nom",
       "displayNameSub": "Comment votre nom apparaît aux autres",
@@ -1947,7 +1946,16 @@
       "previewLocation": "Dessert {{zip}}",
       "previewNoLocation": "Lieu non indiqué",
       "previewNoBio": "Pas encore de bio.",
-      "previewBusinessFallback": "Votre entreprise"
+      "previewBusinessFallback": "Votre entreprise",
+      "addressTitle": "Adresse",
+      "addressLine1": "Adresse",
+      "addressLine2": "App., suite, unité (facultatif)",
+      "city": "Ville",
+      "stateProvince": "État / Province",
+      "country": "Pays",
+      "postalCodeInvalid": "Saisissez un code postal valide pour le pays sélectionné.",
+      "completeAddress": "Ajoutez votre adresse",
+      "previewLocationFull": "Dessert {{city}}, {{state}}"
     },
     "security": {
       "changePassword": "Changer le Mot de Passe",
