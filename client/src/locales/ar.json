@@ -11363,12 +11363,12 @@
       "other": "أخرى",
       "mobileMoney": "أموال الهاتف المحمول",
       "paymentLink": "رابط الدفع"
-    }
-  ,
+    },
     "proofUploaded": "تم تحميل مرفق الإثبات.",
     "proofUploadFailed": "تعذّر تحميل مرفق الإثبات.",
     "directRecordSaved": "تم حفظ سجل الدفع.",
-    "directRecordFailed": "تعذّر حفظ سجل الدفع."},
+    "directRecordFailed": "تعذّر حفظ سجل الدفع."
+  },
   "invoices": {
     "title": "فواتيري",
     "number": "الفاتورة #",
@@ -19741,7 +19741,13 @@
     "viewWeek": "أسبوع",
     "whatThisChecks": "ما يتحقق منه هذا",
     "workOrderDetails": "أمر عمل OxSteed Direct رقم {{id}}.",
-    "workOrderSaved": "تم حفظ أمر العمل."
+    "workOrderSaved": "تم حفظ أمر العمل.",
+    "settingsTitle": "Direct settings",
+    "settingsBody": "Update marketing copy, minimums, and support contacts. Tools and coverage are managed in Catalog and Service Areas.",
+    "inventoryMovedBanner": "Tools and coverage moved",
+    "inventoryMovedBody": "Manage offer inventory in Catalog and Service Areas — Settings no longer edits tools or coverage lists.",
+    "openCatalog": "Open Catalog",
+    "openServiceAreas": "Open Service Areas"
   },
   "inventoryHelpCenter": {
     "metaTitle": "مركز مساعدة المخزون",
@@ -19912,7 +19918,9 @@
         "pastDate": "لا يمكن أن يكون التاريخ المفضل في الماضي.",
         "photoTooLarge": "يجب أن يكون حجم الصور 10 ميجابايت أو أقل.",
         "photoType": "يمكن إرفاق ملفات الصور فقط كصور."
-      }
+      },
+      "derivedCategoryHint": "Select a catalog service above (or describe Other work in details).",
+      "useOtherCategory": "Use “Other / describe” without a catalog service"
     },
     "thanks": {
       "title": "تم استلام الطلب",
@@ -20327,9 +20335,25 @@
     "comingSoon": "قريبًا",
     "paused": "غير متاحة مؤقتًا",
     "currentlyUnavailable": "غير متاحة حاليًا",
-    "categoryComingSoon": "ستتوفر الخدمات في هذه الفئة قريبًا.",
+    "categoryComingSoon": "خدمات هذه الفئة قادمة قريبًا.",
     "categoryPaused": "هذه الفئة غير متاحة مؤقتًا.",
-    "noServicesAvailable": "لا توجد خدمات Direct متاحة حاليًا."
+    "noServicesAvailable": "لا توجد خدمات Direct متاحة الآن.",
+    "book": "احجز",
+    "nextSlot": "أقرب موعد متاح",
+    "instantBookFull": "الحجز الفوري ممتلئ — اطلب موعدًا.",
+    "typicalWorkdays": "أيام العمل المعتادة: {{days}}",
+    "bookTitle": "احجز موعد Direct",
+    "bookingFor": "الحجز لـ {{service}}",
+    "bookMissingService": "اختر خدمة من الكتالوج للحجز.",
+    "requestInstead": "اطلب عرض سعر بدلًا من ذلك",
+    "loadingSlots": "جارٍ تحميل المواعيد…",
+    "openSlots": "مواعيد مفتوحة",
+    "noSlotsFallback": "لا توجد مواعيد فورية الآن. يمكنك طلب عرض سعر.",
+    "loadSlotsError": "تعذر تحميل المواعيد.",
+    "confirmBooking": "تأكيد الحجز",
+    "pickSlotFirst": "اختر موعدًا أولًا.",
+    "confirmBook": "تأكيد الحجز",
+    "bookFailed": "تعذر حجز هذا الموعد."
   },
   "directCatalogAdmin": {
     "activeCount": "{{count}} نشطة",
@@ -20478,7 +20502,15 @@
     "lifecycleComingSoon": "قريبًا",
     "lifecycleLive": "مباشر",
     "lifecyclePaused": "متوقف مؤقتًا",
-    "lifecycleRetired": "مسحوب"
+    "lifecycleRetired": "مسحوب",
+    "typicalWorkdaysLabel": "Typical workdays (marketing)",
+    "assigneePoolTitle": "Who can do this job?",
+    "assigneePoolHelp": "Book only appears when a pool member is free in an open calendar window.",
+    "assigneePeople": "Named people",
+    "poolSizeHint": "Pool selectors: {{count}} (roles expand to active dispatch users).",
+    "manageCalendar": "Manage bookable slots",
+    "bookableWithoutPoolWarn": "Bookable is on but the assignee pool is empty — customers will only see Request.",
+    "bookableHelper": "Customers can pick a calendar slot on Direct when someone in this service’s pool is free."
   },
   "careers": {
     "metaTitle": "الوظائف في OxSteed",

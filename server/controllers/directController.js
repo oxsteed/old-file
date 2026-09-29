@@ -29,6 +29,14 @@ const {
   parseEntity,
   audit: auditCatalog,
 } = require('../services/directCatalogService');
+const {
+  computeServiceSlots,
+  createHold,
+  bookServiceSlot,
+  getServiceAssigneePool,
+  setServiceAssigneePool,
+  expireHolds,
+} = require('../services/directSlotEngine');
 const { createDraft: createCatalogDraft } = require('../services/directCatalogAI');
 const { recordDirectCalendarAudit } = require('../services/directCalendarAudit');
 const { calculateRoute } = require('../services/geoRouteProviderService');
@@ -255,8 +263,15 @@ async function signAttachmentList(list) {
   return signed;
 }
 
-function serializeProfile(row) {
-  if (!row) return { ...DEFAULT_PROFILE };
+function serializeProfile(row, { includeLegacyInventory = false } = {}) {
+  if (!row) {
+    const base = { ...DEFAULT_PROFILE };
+    if (!includeLegacyInventory) {
+      base.tools = [];
+      // serviceAreas overwritten by direct_service_areas at call sites
+    }
+    return base;
+  }
   return {
     id: String(row.id),
     companyName: row.company_name || DEFAULT_PROFILE.companyName,
@@ -265,12 +280,14 @@ function serializeProfile(row) {
     availabilityText: row.availability_text || DEFAULT_PROFILE.availabilityText,
     baseCity: row.base_city || DEFAULT_PROFILE.baseCity,
     publicNote: row.public_note || DEFAULT_PROFILE.publicNote,
-    serviceAreas: normalizeArray(row.service_areas),
-    tools: normalizeArray(row.tools),
+    // Canonical coverage comes from direct_service_areas; legacy JSON omitted from public offer.
+    serviceAreas: includeLegacyInventory ? normalizeArray(row.service_areas) : [],
+    tools: includeLegacyInventory ? normalizeArray(row.tools) : [],
     travelDays: normalizeArray(row.travel_days),
     travelCities: normalizeArray(row.travel_cities),
     supportEmail: row.support_email || DEFAULT_PROFILE.supportEmail,
     supportPhone: row.support_phone || DEFAULT_PROFILE.supportPhone,
+    inventorySource: 'catalog_and_service_areas',
   };
 }
 
@@ -1775,19 +1792,38 @@ exports.getSettings = async (_req, res) => {
 
 exports.updateSettings = async (req, res) => {
   try {
+    const body = req.body || {};
+    const hasLegacyTools = Object.prototype.hasOwnProperty.call(body, 'tools')
+      && Array.isArray(body.tools)
+      && body.tools.length > 0;
+    const hasLegacyAreas = (
+      Object.prototype.hasOwnProperty.call(body, 'serviceAreas')
+      || Object.prototype.hasOwnProperty.call(body, 'service_areas')
+    ) && normalizeArray(body.serviceAreas || body.service_areas).length > 0;
+    if (hasLegacyTools || hasLegacyAreas) {
+      return res.status(400).json({
+        error: 'Tools and coverage are managed in Catalog and Service Areas.',
+        code: 'use_catalog_and_service_areas',
+        catalogPath: '/direct/admin/catalog',
+        serviceAreasPath: '/admin/direct-service-areas',
+      });
+    }
+
+    const existing = await loadProfileRow();
     const profile = {
-      company_name: cleanText(req.body.companyName || req.body.company_name || DEFAULT_PROFILE.companyName, 200) || DEFAULT_PROFILE.companyName,
-      headline: cleanText(req.body.headline || DEFAULT_PROFILE.headline, 240) || DEFAULT_PROFILE.headline,
-      minimum_price_cents: normalizeInteger(req.body.minimumPriceCents || req.body.minimum_price_cents) || DEFAULT_PROFILE.minimumPriceCents,
-      availability_text: cleanText(req.body.availabilityText || req.body.availability_text || DEFAULT_PROFILE.availabilityText, 200) || DEFAULT_PROFILE.availabilityText,
-      base_city: cleanText(req.body.baseCity || req.body.base_city || DEFAULT_PROFILE.baseCity, 120) || DEFAULT_PROFILE.baseCity,
-      public_note: cleanText(req.body.publicNote || req.body.public_note || DEFAULT_PROFILE.publicNote, 2000) || DEFAULT_PROFILE.publicNote,
-      service_areas: JSON.stringify(normalizeArray(req.body.serviceAreas || req.body.service_areas)),
-      tools: JSON.stringify(normalizeArray(req.body.tools)),
-      travel_days: JSON.stringify(normalizeArray(req.body.travelDays || req.body.travel_days)),
-      travel_cities: JSON.stringify(normalizeArray(req.body.travelCities || req.body.travel_cities)),
-      support_email: cleanText(req.body.supportEmail || req.body.support_email || '', 255) || null,
-      support_phone: cleanText(req.body.supportPhone || req.body.support_phone || '', 40) || null,
+      company_name: cleanText(body.companyName || body.company_name || DEFAULT_PROFILE.companyName, 200) || DEFAULT_PROFILE.companyName,
+      headline: cleanText(body.headline || DEFAULT_PROFILE.headline, 240) || DEFAULT_PROFILE.headline,
+      minimum_price_cents: normalizeInteger(body.minimumPriceCents || body.minimum_price_cents) || DEFAULT_PROFILE.minimumPriceCents,
+      availability_text: cleanText(body.availabilityText || body.availability_text || DEFAULT_PROFILE.availabilityText, 200) || DEFAULT_PROFILE.availabilityText,
+      base_city: cleanText(body.baseCity || body.base_city || DEFAULT_PROFILE.baseCity, 120) || DEFAULT_PROFILE.baseCity,
+      public_note: cleanText(body.publicNote || body.public_note || DEFAULT_PROFILE.publicNote, 2000) || DEFAULT_PROFILE.publicNote,
+      // Preserve legacy JSON columns but stop accepting inventory writes.
+      service_areas: JSON.stringify(normalizeArray(existing?.service_areas)),
+      tools: JSON.stringify(normalizeArray(existing?.tools)),
+      travel_days: JSON.stringify(normalizeArray(body.travelDays || body.travel_days)),
+      travel_cities: JSON.stringify(normalizeArray(body.travelCities || body.travel_cities)),
+      support_email: cleanText(body.supportEmail || body.support_email || '', 255) || null,
+      support_phone: cleanText(body.supportPhone || body.support_phone || '', 40) || null,
     };
 
     await db.query(
@@ -1803,8 +1839,6 @@ exports.updateSettings = async (req, res) => {
          availability_text = EXCLUDED.availability_text,
          base_city = EXCLUDED.base_city,
          public_note = EXCLUDED.public_note,
-         service_areas = EXCLUDED.service_areas,
-         tools = EXCLUDED.tools,
          travel_days = EXCLUDED.travel_days,
          travel_cities = EXCLUDED.travel_cities,
          support_email = EXCLUDED.support_email,
@@ -1827,7 +1861,10 @@ exports.updateSettings = async (req, res) => {
     );
 
     const updated = await loadProfileRow();
-    return res.json({ settings: serializeProfile(updated) });
+    return res.json({
+      settings: serializeProfile(updated),
+      notice: 'Tools and coverage are managed in Catalog and Service Areas.',
+    });
   } catch (err) {
     logger.error('updateSettings error', { error: err.message });
     return res.status(500).json({ error: 'Failed to save settings' });
@@ -2585,5 +2622,130 @@ exports.sendAdminTestEmail = async (req, res) => {
       recipientEmail: req.body?.recipientEmail,
     });
     return res.status(500).json({ error: 'Failed to send test email' });
+  }
+};
+
+
+// ---------------------------------------------------------------------------
+// Bookable slots + capacity (public)
+// ---------------------------------------------------------------------------
+
+exports.getServiceSlots = async (req, res) => {
+  try {
+    await expireHolds().catch(() => {});
+    const serviceId = cleanText(String(req.params.id || ''), 80);
+    if (!serviceId) return res.status(400).json({ error: 'service id is required' });
+    const result = await computeServiceSlots({
+      serviceId,
+      from: req.query.from,
+      to: req.query.to,
+    });
+    if (result.statusCode === 404) return res.status(404).json({ error: result.error || 'Service not found' });
+    return res.json({
+      serviceId: result.serviceId,
+      slotMinutes: result.slotMinutes,
+      assigneePoolSize: result.assigneePoolSize,
+      requiredCrewSize: result.requiredCrewSize,
+      nextSlotStartsAt: result.nextSlotStartsAt || null,
+      slots: result.slots || [],
+      reason: result.reason || null,
+    });
+  } catch (err) {
+    logger.error('getServiceSlots error', { error: err.message, id: req.params.id });
+    return res.status(err.statusCode || 500).json({ error: err.message || 'Failed to load slots' });
+  }
+};
+
+exports.createServiceHold = async (req, res) => {
+  try {
+    const serviceId = cleanText(String(req.params.id || ''), 80);
+    if (!serviceId) return res.status(400).json({ error: 'service id is required' });
+    const hold = await createHold({
+      serviceId,
+      startsAt: req.body?.startsAt || req.body?.start,
+      endsAt: req.body?.endsAt || req.body?.end,
+      actorUserId: req.user?.id || null,
+    });
+    return res.status(201).json({ hold });
+  } catch (err) {
+    logger.error('createServiceHold error', { error: err.message, id: req.params.id });
+    return res.status(err.statusCode || 500).json({
+      error: err.message || 'Failed to hold slot',
+      code: err.code || undefined,
+    });
+  }
+};
+
+exports.bookServiceSlot = async (req, res) => {
+  try {
+    const serviceId = cleanText(String(req.params.id || ''), 80);
+    if (!serviceId) return res.status(400).json({ error: 'service id is required' });
+    const body = req.body || {};
+    const result = await bookServiceSlot({
+      serviceId,
+      startsAt: body.startsAt || body.start,
+      endsAt: body.endsAt || body.end,
+      holdToken: body.holdToken || null,
+      actorUserId: req.user?.id || null,
+      locale: req.query.lang || req.query.locale || body.locale || 'en',
+      contact: {
+        firstName: body.firstName || body.first_name,
+        lastName: body.lastName || body.last_name,
+        email: body.email,
+        phone: body.phone,
+        companyName: body.companyName || body.company_name,
+        serviceLocation: body.serviceLocation || body.service_location,
+        serviceCity: body.serviceCity || body.service_city,
+        serviceZipCode: body.serviceZipCode || body.service_zip_code,
+        details: body.details,
+      },
+    });
+    return res.status(201).json({
+      success: true,
+      requestId: String(result.request.id),
+      assignedTo: result.assignedTo,
+      startsAt: result.startsAt,
+      endsAt: result.endsAt,
+      serviceId: result.serviceId,
+      serviceName: result.serviceName,
+      status: result.request.status,
+    });
+  } catch (err) {
+    logger.error('bookServiceSlot error', { error: err.message, id: req.params.id });
+    return res.status(err.statusCode || 500).json({
+      error: err.message || 'Failed to book slot',
+      code: err.code || undefined,
+    });
+  }
+};
+
+exports.getAdminServiceAssigneePool = async (req, res) => {
+  try {
+    const serviceId = cleanText(String(req.params.id || ''), 80);
+    if (!serviceId) return res.status(400).json({ error: 'service id is required' });
+    const pool = await getServiceAssigneePool(serviceId);
+    return res.json({ pool });
+  } catch (err) {
+    logger.error('getAdminServiceAssigneePool error', { error: err.message });
+    return res.status(err.statusCode || 500).json({ error: err.message || 'Failed to load assignee pool' });
+  }
+};
+
+exports.putAdminServiceAssigneePool = async (req, res) => {
+  try {
+    const serviceId = cleanText(String(req.params.id || ''), 80);
+    if (!serviceId) return res.status(400).json({ error: 'service id is required' });
+    const pool = await setServiceAssigneePool(
+      serviceId,
+      {
+        roles: req.body?.roles || req.body?.assigneePool?.roles,
+        userIds: req.body?.userIds || req.body?.assigneePool?.userIds,
+      },
+      req.user?.id || null
+    );
+    return res.json({ pool, catalog: await getAdminCatalog() });
+  } catch (err) {
+    logger.error('putAdminServiceAssigneePool error', { error: err.message });
+    return res.status(err.statusCode || 500).json({ error: err.message || 'Failed to save assignee pool' });
   }
 };

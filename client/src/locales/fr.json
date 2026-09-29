@@ -11363,12 +11363,12 @@
       "other": "Autre",
       "mobileMoney": "Argent mobile",
       "paymentLink": "Lien de paiement"
-    }
-  ,
+    },
     "proofUploaded": "Preuve jointe téléchargée.",
     "proofUploadFailed": "Impossible de téléverser la preuve jointe.",
     "directRecordSaved": "Enregistrement de paiement sauvegardé.",
-    "directRecordFailed": "Impossible d'enregistrer le paiement."},
+    "directRecordFailed": "Impossible d'enregistrer le paiement."
+  },
   "invoices": {
     "title": "Mes Factures",
     "number": "Facture #",
@@ -19738,7 +19738,13 @@
     "viewWeek": "Semaine",
     "whatThisChecks": "Ce que cela vérifie",
     "workOrderDetails": "Bon de travail OxSteed Direct n° {{id}}.",
-    "workOrderSaved": "Bon de travail enregistré."
+    "workOrderSaved": "Bon de travail enregistré.",
+    "settingsTitle": "Direct settings",
+    "settingsBody": "Update marketing copy, minimums, and support contacts. Tools and coverage are managed in Catalog and Service Areas.",
+    "inventoryMovedBanner": "Tools and coverage moved",
+    "inventoryMovedBody": "Manage offer inventory in Catalog and Service Areas — Settings no longer edits tools or coverage lists.",
+    "openCatalog": "Open Catalog",
+    "openServiceAreas": "Open Service Areas"
   },
   "inventoryHelpCenter": {
     "metaTitle": "Centre d'aide Inventaire",
@@ -19909,7 +19915,9 @@
         "pastDate": "La date souhaitée ne peut pas être dans le passé.",
         "photoTooLarge": "Les photos doivent peser 10 Mo ou moins.",
         "photoType": "Seuls les fichiers image peuvent être joints comme photos."
-      }
+      },
+      "derivedCategoryHint": "Select a catalog service above (or describe Other work in details).",
+      "useOtherCategory": "Use “Other / describe” without a catalog service"
     },
     "thanks": {
       "title": "Demande reçue",
@@ -20324,9 +20332,25 @@
     "comingSoon": "Bientôt disponible",
     "paused": "Temporairement indisponible",
     "currentlyUnavailable": "Actuellement indisponible",
-    "categoryComingSoon": "Les services de cette catégorie seront bientôt disponibles.",
+    "categoryComingSoon": "Les services de cette catégorie arrivent bientôt.",
     "categoryPaused": "Cette catégorie est temporairement indisponible.",
-    "noServicesAvailable": "Aucun service Direct disponible pour le moment."
+    "noServicesAvailable": "Aucun service Direct n’est disponible pour le moment.",
+    "book": "Réserver",
+    "nextSlot": "Prochain créneau disponible",
+    "instantBookFull": "La réservation instantanée est complète — demandez un horaire.",
+    "typicalWorkdays": "Jours habituels : {{days}}",
+    "bookTitle": "Réserver un créneau Direct",
+    "bookingFor": "Réservation pour {{service}}",
+    "bookMissingService": "Choisissez un service du catalogue pour réserver.",
+    "requestInstead": "Demander un devis à la place",
+    "loadingSlots": "Chargement des créneaux…",
+    "openSlots": "Créneaux ouverts",
+    "noSlotsFallback": "Aucun créneau instantané pour le moment. Vous pouvez toujours demander un devis.",
+    "loadSlotsError": "Impossible de charger les créneaux.",
+    "confirmBooking": "Confirmer la réservation",
+    "pickSlotFirst": "Choisissez d’abord un créneau.",
+    "confirmBook": "Confirmer",
+    "bookFailed": "Impossible de réserver ce créneau."
   },
   "directCatalogAdmin": {
     "activeCount": "{{count}} actives",
@@ -20475,7 +20499,15 @@
     "lifecycleComingSoon": "Bientôt disponible",
     "lifecycleLive": "En ligne",
     "lifecyclePaused": "En pause",
-    "lifecycleRetired": "Retiré"
+    "lifecycleRetired": "Retiré",
+    "typicalWorkdaysLabel": "Typical workdays (marketing)",
+    "assigneePoolTitle": "Who can do this job?",
+    "assigneePoolHelp": "Book only appears when a pool member is free in an open calendar window.",
+    "assigneePeople": "Named people",
+    "poolSizeHint": "Pool selectors: {{count}} (roles expand to active dispatch users).",
+    "manageCalendar": "Manage bookable slots",
+    "bookableWithoutPoolWarn": "Bookable is on but the assignee pool is empty — customers will only see Request.",
+    "bookableHelper": "Customers can pick a calendar slot on Direct when someone in this service’s pool is free."
   },
   "careers": {
     "metaTitle": "Carrières chez OxSteed",

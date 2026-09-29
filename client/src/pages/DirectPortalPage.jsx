@@ -93,7 +93,7 @@ const EMPTY_FORM = {
   email: '',
   phone: '',
   company_name: '',
-  service_category: 'Home services',
+  service_category: '',
   service_location: '',
   service_zip_code: '',
   budget_range: '',
@@ -412,15 +412,23 @@ export function DirectQuoteRequestPage() {
     }
   }, [catalogServices, linkedServiceId, linkedServiceSlug]);
 
+  useEffect(() => {
+    const primary = selectedCatalogServices[0];
+    const derived = primary?.categoryName || (selectedServiceIds.length ? 'General Direct' : '');
+    setForm((current) => (
+      current.service_category === derived ? current : { ...current, service_category: derived }
+    ));
+  }, [selectedCatalogServices, selectedServiceIds.length]);
+
   const canSubmit = useMemo(() => (
     form.first_name.trim() &&
     form.last_name.trim() &&
     form.email.trim() &&
-    form.service_category.trim() &&
+    (selectedServiceIds.length > 0 || form.details.trim()) &&
     form.service_location.trim() &&
     form.service_zip_code.trim() &&
     form.details.trim()
-  ), [form]);
+  ), [form, selectedServiceIds.length]);
 
   const update = (key) => (event) => {
     const value = event.target.value;
@@ -498,7 +506,7 @@ export function DirectQuoteRequestPage() {
         email: form.email,
         phone: form.phone,
         company_name: form.company_name,
-        service_category: form.service_category,
+        service_category: form.service_category || (selectedCatalogServices[0]?.categoryName) || 'Other',
         service_location: form.service_location,
         service_zip_code: form.service_zip_code,
         budget_range: form.budget_range,
@@ -595,16 +603,21 @@ export function DirectQuoteRequestPage() {
                 <div className="mt-3 grid max-h-64 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">{visibleCatalogServices.slice(0, 50).map((service) => <label key={service.id} className="flex cursor-pointer items-start gap-2 rounded-xl border border-white/10 bg-slate-950/50 px-3 py-2 text-xs text-slate-300"><input type="checkbox" checked={selectedServiceIds.includes(String(service.id).toLowerCase())} onChange={() => toggleCatalogService(service.id)} className="mt-0.5 accent-orange-500" /><span><span className="block font-semibold text-white">{service.name}</span><span className="block text-slate-500">{service.categoryName}</span></span></label>)}</div>
                 {!visibleCatalogServices.length && <p className="mt-3 text-xs text-slate-500">{t('directPortal.request.errors.noServices', { defaultValue: 'No requestable catalog services match that search.' })}</p>}
               </div>
-              <Field label={t('directPortal.request.fields.serviceType')} required>
-                <Select value={form.service_category} onChange={update('service_category')}>
-                  <option>{t('directPortal.request.serviceCategories.homeServices')}</option>
-                  <option>{t('directPortal.request.serviceCategories.restaurantServices')}</option>
-                  <option>{t('directPortal.request.serviceCategories.businessSetup')}</option>
-                  <option>{t('directPortal.request.serviceCategories.businessSupport')}</option>
-                  <option>{t('directPortal.request.serviceCategories.maintenance')}</option>
-                  <option>{t('directPortal.request.serviceCategories.other')}</option>
-                </Select>
-              </Field>
+              <div className="sm:col-span-2 rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-slate-300">
+                <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{t('directPortal.request.fields.serviceType', { defaultValue: 'Service type' })}</div>
+                <div className="mt-1 font-semibold text-white">
+                  {form.service_category || t('directPortal.request.derivedCategoryHint', { defaultValue: 'Select a catalog service above (or describe Other work in details).' })}
+                </div>
+                {!selectedServiceIds.length && (
+                  <button
+                    type="button"
+                    className="mt-2 text-xs font-semibold text-orange-200 underline"
+                    onClick={() => setForm((current) => ({ ...current, service_category: t('directPortal.request.serviceCategories.other', { defaultValue: 'Other' }) }))}
+                  >
+                    {t('directPortal.request.useOtherCategory', { defaultValue: 'Use “Other / describe” without a catalog service' })}
+                  </button>
+                )}
+              </div>
               {linkedServiceName && <p role="status" className="rounded-2xl border border-orange-500/25 bg-orange-500/10 px-4 py-3 text-sm text-orange-100 sm:col-span-2">{t('directCatalog.selectedService', { service: linkedServiceName, defaultValue: 'Selected catalog service: {{service}}' })}</p>}
               <Field label={t('directPortal.request.fields.workLocation')} required hint={t('directPortal.request.hints.workLocation')}>
                 <Input value={form.service_location} onChange={update('service_location')} placeholder={t('directPortal.request.placeholders.workLocation')} />

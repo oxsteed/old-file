@@ -282,3 +282,28 @@ export async function sendDirectAdminTestEmail(payload) {
   const response = await api.post('/direct/admin/email-test', payload);
   return response.data;
 }
+
+export async function getDirectServiceSlots(serviceId, params = {}) {
+  const response = await api.get(`/direct/catalog/services/${serviceId}/slots`, { params });
+  return response.data;
+}
+
+export async function holdDirectServiceSlot(serviceId, payload) {
+  const response = await api.post(`/direct/catalog/services/${serviceId}/holds`, payload);
+  return response.data;
+}
+
+export async function bookDirectServiceSlot(serviceId, payload) {
+  const response = await api.post(`/direct/catalog/services/${serviceId}/book`, payload);
+  return response.data;
+}
+
+export async function getDirectServiceAssigneePool(serviceId) {
+  const response = await api.get(`/direct/admin/catalog/services/${serviceId}/assignees`);
+  return response.data;
+}
+
+export async function putDirectServiceAssigneePool(serviceId, payload) {
+  const response = await api.put(`/direct/admin/catalog/services/${serviceId}/assignees`, payload);
+  return response.data;
+}

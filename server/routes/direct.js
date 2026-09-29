@@ -50,6 +50,9 @@ function limitDirectPhotoAttachments(req, res, next) {
 
 router.get('/profile', optionalAuth, ctrl.getProfile);
 router.get('/catalog', generalLimiter, ctrl.getCatalog);
+router.get('/catalog/services/:id/slots', generalLimiter, ctrl.getServiceSlots);
+router.post('/catalog/services/:id/holds', generalLimiter, ctrl.createServiceHold);
+router.post('/catalog/services/:id/book', generalLimiter, ctrl.bookServiceSlot);
 router.get('/service-areas', generalLimiter, ctrl.getServiceAreas);
 router.post('/service-availability', generalLimiter, ctrl.checkServiceAvailability);
 router.post('/uploads', authenticate, directUploadLimiter, upload.single('image'), validateFileUpload, ctrl.uploadDirectAsset);
@@ -87,6 +90,8 @@ router.post('/admin/catalog/categories', authenticate, requireAdmin, generalLimi
 router.patch('/admin/catalog/categories/:id', authenticate, requireAdmin, generalLimiter, ctrl.updateAdminCatalogCategory);
 router.post('/admin/catalog/services', authenticate, requireAdmin, generalLimiter, ctrl.createAdminCatalogService);
 router.patch('/admin/catalog/services/:id', authenticate, requireAdmin, generalLimiter, ctrl.updateAdminCatalogService);
+router.get('/admin/catalog/services/:id/assignees', authenticate, requireAdmin, ctrl.getAdminServiceAssigneePool);
+router.put('/admin/catalog/services/:id/assignees', authenticate, requireAdmin, generalLimiter, ctrl.putAdminServiceAssigneePool);
 router.post('/admin/catalog/tools', authenticate, requireAdmin, generalLimiter, ctrl.createAdminCatalogTool);
 router.patch('/admin/catalog/tools/:id', authenticate, requireAdmin, generalLimiter, ctrl.updateAdminCatalogTool);
 router.patch('/admin/catalog/:entity/:id/archive', authenticate, requireAdmin, generalLimiter, ctrl.archiveAdminCatalogEntity);

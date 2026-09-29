@@ -177,6 +177,7 @@ const ExperienceGuidePage = lazyWithRetry(() => import('./pages/ExperienceGuideP
 const LearnModePage = lazyWithRetry(() => import('./pages/LearnModePage'));
 const PromotePage = lazyWithRetry(() => import('./pages/PromotePage'));
 const DirectPortalPage = lazyWithRetry(() => import('./pages/DirectPortalPage'));
+const DirectBookSlotPage = lazyWithRetry(() => import('./pages/DirectBookSlotPage'));
 const DirectAdminPortalPage = lazyWithRetry(() => import('./pages/DirectAdminPortalPage'));
 const DirectCatalog = lazyWithRetry(() => import('./admin/pages/DirectCatalog'));
 const MaintenanceRequestPage = lazyWithRetry(() => import('./pages/MaintenanceRequestPage'));
@@ -326,6 +327,7 @@ export default function App() {
                     <Route path="/direct/request-quote/thanks" element={<Guarded><DirectPortalPage view="thanks" /></Guarded>} />
                     <Route path="/direct/view-quote"       element={<Guarded><DirectPortalPage view="lookup" /></Guarded>} />
                     <Route path="/direct/quotes/:id"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><DirectPortalPage view="quote" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/direct/book-slot"       element={<Guarded><DirectBookSlotPage /></Guarded>} />
                     <Route path="/direct/book/:id"         element={<Guarded><ProtectedRoute><RouteErrorBoundary><DirectPortalPage view="book" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/direct/jobs/:id"         element={<Guarded><ProtectedRoute><RouteErrorBoundary><DirectPortalPage view="job" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/direct/payments/:id/proof" element={<Guarded><ProtectedRoute><RouteErrorBoundary><DirectPortalPage view="proof" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

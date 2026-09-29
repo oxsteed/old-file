@@ -1509,8 +1509,6 @@ function DirectAdminSettingsView() {
         availabilityText: profile.availabilityText,
         baseCity: profile.baseCity,
         publicNote: profile.publicNote,
-        serviceAreas: profile.serviceAreas.join(', '),
-        tools: profile.tools.join(', '),
         travelDays: profile.travelDays.join(', '),
         travelCities: profile.travelCities.join(', '),
         supportEmail: profile.supportEmail,
@@ -1525,7 +1523,7 @@ function DirectAdminSettingsView() {
   };
 
   return (
-    <AdminShell title={t('directAdminPortal.serviceAreaTitle', { defaultValue: 'Service area and tools' })} subtitle={t('directAdminPortal.serviceAreaBody', { defaultValue: 'Update the company-owned Direct offer without redesigning the page.' })} profile={profile} right={<div className="text-sm text-slate-300">{t('directAdminPortal.settingsRight', { defaultValue: 'These settings drive the public Direct landing page.' })}</div>}>
+    <AdminShell title={t('directAdminPortal.settingsTitle', { defaultValue: 'Direct settings' })} subtitle={t('directAdminPortal.settingsBody', { defaultValue: 'Update marketing copy, minimums, and support contacts. Tools and coverage are managed in Catalog and Service Areas.' })} profile={profile} right={<div className="text-sm text-slate-300">{t('directAdminPortal.settingsRight', { defaultValue: 'These settings drive the public Direct landing page.' })}</div>}>
       <div className="grid gap-4 xl:grid-cols-[1fr_0.9fr]">
         <SectionCard title={t('directAdminPortal.publicSettings', { defaultValue: 'Public settings' })} eyebrow={t('directAdminPortal.directWord', { defaultValue: 'Direct' })}>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -1540,9 +1538,13 @@ function DirectAdminSettingsView() {
           <div className="mt-4">
             <Field label={t('directAdminPortal.publicNoteLabel', { defaultValue: 'Public note' })}><Textarea rows={4} value={profile.publicNote} onChange={update('publicNote')} /></Field>
           </div>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <Field label={t('directAdminPortal.serviceAreasLabel', { defaultValue: 'Service areas (comma separated)' })}><Textarea rows={4} value={profile.serviceAreas.join(', ')} onChange={(e) => setProfile((current) => ({ ...current, serviceAreas: e.target.value.split(',').map((item) => item.trim()).filter(Boolean) }))} /></Field>
-            <Field label={t('directAdminPortal.toolsLabel', { defaultValue: 'Tools (comma separated)' })}><Textarea rows={4} value={profile.tools.join(', ')} onChange={(e) => setProfile((current) => ({ ...current, tools: e.target.value.split(',').map((item) => item.trim()).filter(Boolean) }))} /></Field>
+          <div className="mt-4 rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4 text-sm text-orange-100">
+            <p className="font-semibold">{t('directAdminPortal.inventoryMovedBanner', { defaultValue: 'Tools and coverage moved' })}</p>
+            <p className="mt-1 text-xs leading-5 text-orange-100/80">{t('directAdminPortal.inventoryMovedBody', { defaultValue: 'Manage offer inventory in Catalog and Service Areas — Settings no longer edits tools or coverage lists.' })}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Link to="/direct/admin/catalog" className="rounded-full border border-orange-500/30 px-3 py-1.5 text-xs font-semibold text-orange-100 hover:bg-orange-500/10">{t('directAdminPortal.openCatalog', { defaultValue: 'Open Catalog' })}</Link>
+              <Link to="/admin/direct-service-areas" className="rounded-full border border-orange-500/30 px-3 py-1.5 text-xs font-semibold text-orange-100 hover:bg-orange-500/10">{t('directAdminPortal.openServiceAreas', { defaultValue: 'Open Service Areas' })}</Link>
+            </div>
           </div>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Field label={t('directAdminPortal.travelDays', { defaultValue: 'Travel days' })}><Textarea rows={3} value={profile.travelDays.join(', ')} onChange={(e) => setProfile((current) => ({ ...current, travelDays: e.target.value.split(',').map((item) => item.trim()).filter(Boolean) }))} /></Field>
@@ -1560,8 +1562,6 @@ function DirectAdminSettingsView() {
         <SectionCard title={t('directAdminPortal.preview', { defaultValue: 'Preview' })} eyebrow={t('directAdminPortal.publicPageWord', { defaultValue: 'Public page' })}>
           <div className="space-y-4 text-sm leading-6 text-slate-300">
             <div><strong className="text-white">{t('directAdminPortal.minimumPrice', { defaultValue: 'Minimum price' })}:</strong> {currencyLabel(profile.minimumPriceCents)}</div>
-            <div><strong className="text-white">{t('directAdminPortal.serviceArea', { defaultValue: 'Service area' })}:</strong> {(profile.serviceAreas || []).join(', ')}</div>
-            <div><strong className="text-white">{t('directAdminPortal.toolsWord', { defaultValue: 'Tools' })}:</strong> {(profile.tools || []).slice(0, 6).join(', ')}{(profile.tools || []).length > 6 ? '…' : ''}</div>
             <div><strong className="text-white">{t('directAdminPortal.travelDays', { defaultValue: 'Travel days' })}:</strong> {(profile.travelDays || []).join(', ')}</div>
             <div><strong className="text-white">{t('directAdminPortal.travelCities', { defaultValue: 'Travel cities' })}:</strong> {(profile.travelCities || []).join(', ')}</div>
           </div>
@@ -1884,7 +1884,7 @@ function DirectAdminLanding() {
         <Link to="/direct/admin/settings" className="rounded-[24px] border border-white/10 bg-white/5 p-5">
           <div className="text-sm uppercase tracking-[0.2em] text-slate-500">{t('directAdminPortal.settings', { defaultValue: 'Settings' })}</div>
           <div className="mt-2 text-xl font-semibold text-white">{t('directAdminPortal.landingCardServiceArea', { defaultValue: 'Service area and tools' })}</div>
-          <p className="mt-2 text-sm leading-6 text-slate-400">{t('directAdminPortal.landingCardServiceAreaBody', { defaultValue: 'Update minimums, cities, travel days, and tools.' })}</p>
+          <p className="mt-2 text-sm leading-6 text-slate-400">{t('directAdminPortal.landingCardServiceAreaBody', { defaultValue: 'Update minimums, marketing copy, travel days, and support contacts.' })}</p>
         </Link>
         <a href="/admin/direct-service-areas" className="rounded-[24px] border border-orange-500/20 bg-orange-500/5 p-5">
           <div className="text-sm uppercase tracking-[0.2em] text-orange-300">{t('directAdminPortal.coverageControls', { defaultValue: 'Coverage controls' })}</div>

@@ -1,6 +1,13 @@
 'use strict';
 
 const db = require('../db');
+const { deriveServiceCapability } = require('./directCapability');
+const {
+  loadPoolSizes,
+  hasOfferableSlots,
+  getServiceAssigneePool,
+  setServiceAssigneePool,
+} = require('./directSlotEngine');
 
 const LOCALES = ['en', 'es', 'fr', 'ht', 'ar'];
 const ICONS = new Set(['wrench', 'zap', 'droplets', 'hammer', 'paintbrush', 'trees', 'ruler', 'drill', 'truck', 'shield-check']);
@@ -8,6 +15,7 @@ const DAYS = new Set(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'S
 const LIFECYCLE_STATUSES = ['planned', 'coming_soon', 'live', 'paused', 'retired'];
 const PUBLIC_CATEGORY_STATUSES = ['coming_soon', 'live', 'paused'];
 const PUBLIC_SERVICE_STATUS = 'live';
+const PUBLIC_BROWSE_SERVICE_STATUSES = ['live', 'paused'];
 
 function legacyLifecycle(row) {
   if (row?.lifecycle_status && LIFECYCLE_STATUSES.includes(row.lifecycle_status)) return row.lifecycle_status;
@@ -73,11 +81,20 @@ function daysFromRow(row) {
   return Array.isArray(row?.availability_days) ? row.availability_days : [];
 }
 
-function publicService(row, locale) {
+function publicService(row, locale, capabilityOpts = {}) {
   const lifecycleStatus = legacyLifecycle(row);
   const isOperationallyAvailable = row?.is_operationally_available === undefined
     ? lifecycleStatus === 'live' && row?.is_active !== false && row?.is_published !== false
     : !!row.is_operationally_available;
+  const parent = {
+    lifecycle_status: row.category_lifecycle_status || row.parent_lifecycle_status || 'live',
+    is_active: row.category_is_active !== undefined ? row.category_is_active : true,
+  };
+  const capability = deriveServiceCapability(
+    { ...row, lifecycle_status: lifecycleStatus, is_operationally_available: isOperationallyAvailable },
+    parent,
+    { entity: 'service', ...capabilityOpts }
+  );
   return {
     id: String(row.id),
     slug: row.slug,
@@ -87,20 +104,41 @@ function publicService(row, locale) {
     priceCents: row.price_cents == null ? null : Number(row.price_cents),
     currencyCode: row.currency_code || 'USD',
     availabilityDays: daysFromRow(row),
+    typicalWorkdays: daysFromRow(row),
     sortOrder: Number(row.display_order ?? row.sort_order ?? 0),
     lifecycleStatus: statusLabel(lifecycleStatus),
-    isOperationallyAvailable,
-    isBookable: !!row.is_bookable,
-    requestable: lifecycleStatus === PUBLIC_SERVICE_STATUS && isOperationallyAvailable,
+    isOperationallyAvailable: capability.isOperationallyAvailable,
+    isBookable: capability.isBookable,
+    // Legacy alias
+    requestable: capability.requestable,
+    visible: capability.visible,
+    bookable: capability.bookable,
+    capabilityReasons: capability.capabilityReasons,
+    nextSlotStartsAt: capability.nextSlotStartsAt || null,
+    slotsAvailable: !!capability.slotsAvailable && capability.bookable,
+    capacityExhausted: !!capability.capacityExhausted,
+    assigneePoolSize: capability.assigneePoolSize ?? null,
     serviceArea: row.service_area || null,
+    bookingSlotMinutes: row.booking_slot_minutes == null ? 120 : Number(row.booking_slot_minutes),
   };
 }
 
-function publicTool(row, locale) {
+function publicTool(row, locale, capabilityOpts = {}) {
   const lifecycleStatus = legacyLifecycle(row);
   const isOperationallyAvailable = row?.is_operationally_available === undefined
     ? lifecycleStatus === 'live' && row?.is_active !== false && row?.is_published !== false
     : !!row.is_operationally_available;
+  const parent = row.category_slug
+    ? {
+      lifecycle_status: row.category_lifecycle_status || 'live',
+      is_active: row.category_is_active !== undefined ? row.category_is_active : true,
+    }
+    : { lifecycle_status: 'live', is_active: true };
+  const capability = deriveServiceCapability(
+    { ...row, lifecycle_status: lifecycleStatus, is_operationally_available: isOperationallyAvailable, is_bookable: false },
+    parent,
+    { entity: 'tool', toolsBookable: false, ...capabilityOpts }
+  );
   return {
     id: String(row.id),
     slug: row.slug,
@@ -109,9 +147,15 @@ function publicTool(row, locale) {
     description: localized(row.description_i18n, locale),
     iconKey: row.icon_key || 'wrench',
     availabilityDays: daysFromRow(row),
+    typicalWorkdays: daysFromRow(row),
     sortOrder: Number(row.display_order ?? row.sort_order ?? 0),
     lifecycleStatus: statusLabel(lifecycleStatus),
-    isOperationallyAvailable,
+    isOperationallyAvailable: capability.isOperationallyAvailable,
+    isBookable: false,
+    requestable: capability.requestable,
+    visible: capability.visible,
+    bookable: false,
+    capabilityReasons: capability.capabilityReasons,
     serviceArea: row.service_area || null,
   };
 }
@@ -124,17 +168,30 @@ function adminCategory(row) {
   };
 }
 
-function adminService(row) {
-  return {
+function adminService(row, pool = null) {
+  const base = {
     id: String(row.id), categoryId: String(row.category_id), slug: row.slug,
     nameI18n: row.name_i18n || {}, descriptionI18n: row.description_i18n || {},
     priceCents: row.price_cents == null ? null : Number(row.price_cents), currencyCode: row.currency_code || 'USD',
     availabilityDays: daysFromRow(row),
+    typicalWorkdays: daysFromRow(row),
     sortOrder: Number(row.display_order ?? row.sort_order ?? 0), displayOrder: Number(row.display_order ?? row.sort_order ?? 0),
     isActive: !!row.is_active, isPublished: !!row.is_published, lifecycleStatus: legacyLifecycle(row),
     isOperationallyAvailable: !!row.is_operationally_available, isBookable: !!row.is_bookable,
     serviceArea: row.service_area || '', pausedReason: row.paused_reason || '', isFeatured: !!row.is_featured,
+    bookingSlotMinutes: row.booking_slot_minutes == null ? 120 : Number(row.booking_slot_minutes),
+    requiredCrewSize: row.required_crew_size == null ? 1 : Number(row.required_crew_size),
+    updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : null,
   };
+  if (pool) {
+    base.assigneePool = {
+      roles: pool.roles || [],
+      userIds: pool.userIds || [],
+      size: pool.size || 0,
+      members: pool.members || [],
+    };
+  }
+  return base;
 }
 
 function adminTool(row) {
@@ -162,6 +219,10 @@ function catalogReviewIssues(row, entity, duplicateIds = new Set()) {
     if (!cleanText(row.service_area, 255)) issues.push('missing_service_area');
     if (legacyLifecycle(row) === 'live' && row.is_operationally_available === false) issues.push('live_not_operational');
     if (entity === 'tool' && !cleanText(row.category_slug, 100)) issues.push('missing_tool_category');
+    if (row.is_bookable === true && row.is_operationally_available === false) issues.push('bookable_not_requestable');
+    if (entity === 'service' && row.is_bookable === true && Number(row.assignee_pool_size || 0) === 0 && !(row._pool_size > 0)) {
+      issues.push('bookable_without_pool');
+    }
   }
   const lifecycleStatus = legacyLifecycle(row);
   if (['coming_soon', 'live', 'paused'].includes(lifecycleStatus) && (row.is_active !== true || row.is_published !== true)) {
@@ -247,13 +308,14 @@ async function getCatalog({ locale = 'en', includeUnpublished = false, categoryS
   const safeSearch = cleanText(serviceSearch, 100);
   const safeLimit = serviceLimit == null ? null : parseCatalogInteger(serviceLimit, 'limit', { min: 1, max: 100 });
   const safeOffset = parseCatalogInteger(serviceOffset, 'offset', { min: 0, max: 100000 }) ?? 0;
+  const browseStatuses = PUBLIC_BROWSE_SERVICE_STATUSES.map((status) => `'${status}'`).join(', ');
   const visibility = includeUnpublished
     ? ''
-    : ` AND c.is_active = TRUE AND c.lifecycle_status = 'live'
-        AND s.is_active = TRUE AND s.lifecycle_status = '${PUBLIC_SERVICE_STATUS}'`;
+    : ` AND c.is_active = TRUE AND c.lifecycle_status IN (${PUBLIC_CATEGORY_STATUSES.map((status) => `'${status}'`).join(', ')})
+        AND s.is_active = TRUE AND s.lifecycle_status IN (${browseStatuses})`;
   const toolWhere = includeUnpublished
     ? ['1 = 1']
-    : [`t.is_active = TRUE AND t.lifecycle_status = '${PUBLIC_SERVICE_STATUS}'`];
+    : [`t.is_active = TRUE AND t.lifecycle_status IN (${browseStatuses})`];
   const toolParams = [];
   if (safeCategorySlug) {
     toolParams.push(safeCategorySlug);
@@ -281,8 +343,16 @@ async function getCatalog({ locale = 'en', includeUnpublished = false, categoryS
     SELECT catalog_rows.*
     FROM (
       SELECT s.*, c.slug AS category_slug,
+        c.lifecycle_status AS category_lifecycle_status,
+        c.is_active AS category_is_active,
         COUNT(*) OVER (PARTITION BY s.category_id) AS category_service_count,
-        COUNT(*) FILTER (WHERE COALESCE(s.is_operationally_available, TRUE)) OVER (PARTITION BY s.category_id) AS category_available_service_count,
+        COUNT(*) FILTER (
+          WHERE s.lifecycle_status = 'live'
+            AND s.is_operationally_available = TRUE
+        ) OVER (PARTITION BY s.category_id) AS category_available_service_count,
+        COUNT(*) FILTER (
+          WHERE s.lifecycle_status IN ('live', 'paused')
+        ) OVER (PARTITION BY s.category_id) AS category_visible_service_count,
         ROW_NUMBER() OVER (
           PARTITION BY s.category_id
           ORDER BY COALESCE(s.display_order, s.sort_order), s.created_at, s.id
@@ -299,16 +369,64 @@ async function getCatalog({ locale = 'en', includeUnpublished = false, categoryS
     db.query(`SELECT * FROM direct_catalog_tools t WHERE ${toolWhere.join(' AND ')} ORDER BY COALESCE(t.display_order, t.sort_order), t.created_at`, toolParams),
   ]);
   const categoryMap = new Map(categories.map((row) => [String(row.id), {
-    ...adminCategory(row), name: localized(row.name_i18n, safeLocale), services: [], liveServiceCount: 0, availableServiceCount: 0,
+    ...adminCategory(row), name: localized(row.name_i18n, safeLocale), services: [], liveServiceCount: 0, availableServiceCount: 0, visibleServiceCount: 0, bookableServiceCount: 0,
   }]));
+
+  // Enrich capabilities. Prefer bookable services get pool + slot hints.
+  // Soft-fail when capacity tables are not migrated yet so browse still works.
+  const bookableCandidates = services.filter((row) => !!row.is_bookable);
+  let poolMap = new Map(services.map((row) => [String(row.id), { size: 0, roles: [], userIds: [] }]));
+  if (bookableCandidates.length) {
+    try {
+      poolMap = await loadPoolSizes(bookableCandidates.map((row) => String(row.id)));
+    } catch (_) {
+      // keep empty defaults
+    }
+  }
+  const capabilityByService = new Map();
+  for (const row of services) {
+    const pool = poolMap.get(String(row.id)) || { size: 0 };
+    const prefersBook = !!row.is_bookable;
+    const operational = row.is_operationally_available === undefined
+      ? true
+      : !!row.is_operationally_available;
+    const requestableBase = legacyLifecycle(row) === 'live'
+      && operational
+      && (row.category_lifecycle_status || 'live') === 'live';
+    let slotsAvailable = false;
+    let nextSlotStartsAt = null;
+    let capacityExhausted = false;
+    if (prefersBook && requestableBase && pool.size > 0) {
+      try {
+        const offer = await hasOfferableSlots(row.id);
+        slotsAvailable = offer.slotsAvailable;
+        nextSlotStartsAt = offer.nextSlotStartsAt;
+        capacityExhausted = offer.capacityExhausted;
+      } catch (_) {
+        slotsAvailable = false;
+      }
+    } else if (prefersBook && requestableBase && pool.size === 0) {
+      // preference on, no pool → not bookable (reason set in derive)
+    }
+    capabilityByService.set(String(row.id), {
+      slotsAvailable,
+      nextSlotStartsAt,
+      capacityExhausted,
+      assigneePoolSize: prefersBook ? pool.size : undefined,
+      freeCapacityInHorizon: slotsAvailable,
+    });
+  }
+
   for (const row of services) {
     const category = categoryMap.get(String(row.category_id));
     if (category) {
-      const service = publicService(row, safeLocale);
+      const service = publicService(row, safeLocale, capabilityByService.get(String(row.id)) || {});
       category.services.push(service);
       category.liveServiceCount = Math.max(category.liveServiceCount, Number(row.category_service_count || 0), category.services.length);
       category.availableServiceCount = Math.max(category.availableServiceCount, Number(row.category_available_service_count || 0));
+      category.visibleServiceCount = Math.max(category.visibleServiceCount, Number(row.category_visible_service_count || 0), category.services.length);
       if (!row.category_service_count && service.requestable) category.availableServiceCount += 1;
+      if (service.bookable) category.bookableServiceCount += 1;
     }
   }
   const catalog = {
@@ -325,6 +443,9 @@ async function getCatalog({ locale = 'en', includeUnpublished = false, categoryS
       configuredLifecycleStatus: category.lifecycleStatus,
       liveServiceCount: category.liveServiceCount,
       availableServiceCount: category.availableServiceCount,
+      visibleServiceCount: category.visibleServiceCount || category.liveServiceCount,
+      bookableServiceCount: category.bookableServiceCount,
+      requestableServiceCount: category.availableServiceCount,
     })),
     tools: tools.map((row) => publicTool(row, safeLocale)),
   };
@@ -345,9 +466,32 @@ async function getAdminCatalog() {
     db.query('SELECT * FROM direct_catalog_services ORDER BY COALESCE(display_order, sort_order), created_at'),
     db.query('SELECT * FROM direct_catalog_tools ORDER BY COALESCE(display_order, sort_order), created_at'),
   ]);
+  let poolMap = new Map();
+  try {
+    poolMap = await loadPoolSizes(services.map((row) => String(row.id)));
+  } catch (_) {
+    poolMap = new Map(services.map((row) => [String(row.id), { size: 0, roles: [], userIds: [] }]));
+  }
+  const servicesWithPool = services.map((row) => {
+    const pool = poolMap.get(String(row.id)) || { size: 0, roles: [], userIds: [], eligibleIds: [] };
+    return { ...row, _pool_size: pool.size, assignee_pool_size: pool.size };
+  });
+  const reviewedServices = reviewAdminRecords(servicesWithPool, 'service').map((record) => {
+    const pool = poolMap.get(String(record.id)) || { size: 0, roles: [], userIds: [] };
+    return {
+      ...record,
+      assigneePool: {
+        roles: pool.roles || [],
+        userIds: pool.userIds || [],
+        size: pool.size || 0,
+      },
+      bookingSlotMinutes: record.bookingSlotMinutes ?? 120,
+      requiredCrewSize: record.requiredCrewSize ?? 1,
+    };
+  });
   const records = {
     categories: reviewAdminRecords(categories, 'category'),
-    services: reviewAdminRecords(services, 'service'),
+    services: reviewedServices,
     tools: reviewAdminRecords(tools, 'tool'),
   };
   return { ...records, locales: LOCALES, icons: [...ICONS], review: { summary: buildCatalogReviewSummary(records) } };
@@ -386,6 +530,8 @@ function parseEntity(entity, body) {
   }
   if (!nameI18n.en) throw Object.assign(new Error('English name is required'), { statusCode: 400 });
   if (entity !== 'category' && !descriptionI18n.en) throw Object.assign(new Error('English description is required'), { statusCode: 400 });
+  // Live default: operational true unless admin explicitly opts out.
+  const operationalDefault = lifecycleStatus === 'live';
   const result = {
     slug: slugify(data.slug || data.nameI18n?.en || data.name),
     nameI18n,
@@ -396,7 +542,7 @@ function parseEntity(entity, body) {
     lifecycleStatus,
     isActive: lifecycleStatus !== 'retired' && data.isActive !== false,
     isPublished: ['coming_soon', 'live', 'paused'].includes(lifecycleStatus),
-    isOperationallyAvailable: parseBoolean(data.isOperationallyAvailable, lifecycleStatus === 'live' && data.isPublished === true),
+    isOperationallyAvailable: parseBoolean(data.isOperationallyAvailable, operationalDefault),
     isBookable: parseBoolean(data.isBookable, false),
     serviceArea: cleanText(data.serviceArea, 255) || null,
     pausedReason: cleanText(data.pausedReason, 500) || null,
@@ -404,8 +550,24 @@ function parseEntity(entity, body) {
     displayOrder: Number.isInteger(Number(data.displayOrder ?? data.sortOrder)) && Number(data.displayOrder ?? data.sortOrder) >= 0 ? Number(data.displayOrder ?? data.sortOrder) : 0,
     isFeatured: parseBoolean(data.isFeatured, false),
     reason: cleanText(data.reason, 500) || null,
+    expectedUpdatedAt: data.updatedAt || data.expectedUpdatedAt || null,
+    bookingSlotMinutes: parseCatalogInteger(data.bookingSlotMinutes ?? data.booking_slot_minutes ?? 120, 'bookingSlotMinutes', { min: 15, max: 480 }) ?? 120,
+    requiredCrewSize: parseCatalogInteger(data.requiredCrewSize ?? data.required_crew_size ?? 1, 'requiredCrewSize', { min: 1, max: 20 }) ?? 1,
+    assigneePool: data.assigneePool && typeof data.assigneePool === 'object'
+      ? {
+        roles: Array.isArray(data.assigneePool.roles) ? data.assigneePool.roles : [],
+        userIds: Array.isArray(data.assigneePool.userIds) ? data.assigneePool.userIds : (Array.isArray(data.assigneePool.user_ids) ? data.assigneePool.user_ids : []),
+      }
+      : null,
   };
+  if (result.isBookable && !result.isOperationallyAvailable) {
+    // Soft preference: bookable implies operational at write time
+    result.isOperationallyAvailable = true;
+  }
   if (!result.slug) throw Object.assign(new Error('A valid name or slug is required'), { statusCode: 400 });
+  if (entity === 'tool' && ['coming_soon', 'live', 'paused'].includes(lifecycleStatus) && !result.categorySlug) {
+    throw Object.assign(new Error('Tools require a category before Coming soon / Live / Paused'), { statusCode: 400 });
+  }
   if (entity === 'service') {
     result.categoryId = cleanText(String(data.categoryId || ''), 80);
     if (!result.categoryId) throw Object.assign(new Error('categoryId is required'), { statusCode: 400 });
@@ -426,12 +588,12 @@ async function saveEntity(entity, body, actorUserId, id = null) {
   const columns = entity === 'category'
     ? ['slug', 'name_i18n', 'icon_key', 'sort_order', 'display_order', 'is_active', 'is_published', 'lifecycle_status']
     : entity === 'service'
-      ? ['category_id', 'slug', 'name_i18n', 'description_i18n', 'price_cents', 'currency_code', 'availability_days', 'available_days', 'sort_order', 'display_order', 'is_active', 'is_published', 'lifecycle_status', 'is_operationally_available', 'is_bookable', 'service_area', 'paused_reason', 'is_featured']
+      ? ['category_id', 'slug', 'name_i18n', 'description_i18n', 'price_cents', 'currency_code', 'availability_days', 'available_days', 'sort_order', 'display_order', 'is_active', 'is_published', 'lifecycle_status', 'is_operationally_available', 'is_bookable', 'service_area', 'paused_reason', 'is_featured', 'booking_slot_minutes', 'required_crew_size']
       : ['slug', 'category_slug', 'name_i18n', 'description_i18n', 'icon_key', 'availability_days', 'available_days', 'sort_order', 'display_order', 'is_active', 'is_published', 'lifecycle_status', 'is_operationally_available', 'is_bookable', 'service_area', 'paused_reason', 'is_featured'];
   const values = entity === 'category'
     ? [data.slug, data.nameI18n, data.iconKey, data.sortOrder, data.displayOrder, data.isActive, data.isPublished, data.lifecycleStatus]
     : entity === 'service'
-      ? [data.categoryId, data.slug, data.nameI18n, data.descriptionI18n, data.priceCents, data.currencyCode, data.availabilityDays, data.availabilityDays, data.sortOrder, data.displayOrder, data.isActive, data.isPublished, data.lifecycleStatus, data.isOperationallyAvailable, data.isBookable, data.serviceArea, data.pausedReason, data.isFeatured]
+      ? [data.categoryId, data.slug, data.nameI18n, data.descriptionI18n, data.priceCents, data.currencyCode, data.availabilityDays, data.availabilityDays, data.sortOrder, data.displayOrder, data.isActive, data.isPublished, data.lifecycleStatus, data.isOperationallyAvailable, data.isBookable, data.serviceArea, data.pausedReason, data.isFeatured, data.bookingSlotMinutes, data.requiredCrewSize]
       : [data.slug, data.categorySlug, data.nameI18n, data.descriptionI18n, data.iconKey, data.availabilityDays, data.availabilityDays, data.sortOrder, data.displayOrder, data.isActive, data.isPublished, data.lifecycleStatus, data.isOperationallyAvailable, data.isBookable, data.serviceArea, data.pausedReason, data.isFeatured];
   const client = await db.connect();
   try {
@@ -447,10 +609,63 @@ async function saveEntity(entity, body, actorUserId, id = null) {
       if (!category.rows[0]) throw Object.assign(new Error('The selected tool category does not exist'), { statusCode: 400 });
     }
     if (id) {
-      const existing = await client.query(`SELECT is_published, is_active, lifecycle_status FROM ${table} WHERE id = $1`, [id]);
+      const existing = await client.query(`SELECT is_published, is_active, lifecycle_status, updated_at FROM ${table} WHERE id = $1 FOR UPDATE`, [id]);
       if (!existing.rows[0]) throw Object.assign(new Error('Catalog record not found'), { statusCode: 404 });
       previousPublished = !!existing.rows[0].is_published;
       previousStatus = legacyLifecycle(existing.rows[0]);
+      assertTransition(previousStatus, data.lifecycleStatus);
+      if (data.expectedUpdatedAt) {
+        const currentUpdated = existing.rows[0].updated_at
+          ? new Date(existing.rows[0].updated_at).toISOString()
+          : null;
+        const expected = new Date(data.expectedUpdatedAt).toISOString();
+        if (currentUpdated && expected && currentUpdated !== expected) {
+          throw Object.assign(new Error('Catalog record was modified by someone else. Reload and try again.'), {
+            statusCode: 409,
+            code: 'catalog_conflict',
+          });
+        }
+      }
+    }
+
+    // Retire category guard: block while live/requestable children exist unless cascadePauseChildren
+    if (entity === 'category' && data.lifecycleStatus === 'retired' && id) {
+      const children = await client.query(
+        `SELECT id, lifecycle_status, is_operationally_available
+           FROM direct_catalog_services
+          WHERE category_id = $1
+            AND lifecycle_status IN ('live', 'paused', 'coming_soon')`,
+        [id]
+      );
+      const sellable = children.rows.filter((row) => row.lifecycle_status === 'live');
+      if (sellable.length && !body?.cascadePauseChildren) {
+        throw Object.assign(
+          new Error(`Cannot retire category while ${sellable.length} live service(s) remain. Pass cascadePauseChildren to pause children and retire.`),
+          { statusCode: 400, code: 'category_has_live_children' }
+        );
+      }
+      if (body?.cascadePauseChildren && children.rows.length) {
+        await client.query(
+          `UPDATE direct_catalog_services
+              SET lifecycle_status = 'paused',
+                  paused_at = CURRENT_TIMESTAMP,
+                  updated_at = CURRENT_TIMESTAMP
+            WHERE category_id = $1
+              AND lifecycle_status IN ('live', 'coming_soon')`,
+          [id]
+        );
+      }
+    }
+
+    // Side effect: transition to live ⇒ operational true unless explicit false already applied in parse
+    if (data.lifecycleStatus === 'live' && previousStatus !== 'live') {
+      if (body?.isOperationallyAvailable === undefined && body?.is_operationally_available === undefined) {
+        data.isOperationallyAvailable = true;
+        if (entity !== 'category') {
+          const opIdx = columns.indexOf('is_operationally_available');
+          if (opIdx >= 0) values[opIdx] = true;
+        }
+      }
     }
     let result;
     if (id) {
@@ -480,6 +695,9 @@ async function saveEntity(entity, body, actorUserId, id = null) {
          VALUES ($1, $2, $3, $4, $5, $6)`,
         [entity, result.rows[0].id, previousStatus, data.lifecycleStatus, actorUserId || null, data.reason]
       );
+    }
+    if (entity === 'service' && data.assigneePool) {
+      await setServiceAssigneePool(result.rows[0].id, data.assigneePool, actorUserId, client);
     }
     await client.query('COMMIT');
     return result.rows[0];
@@ -546,10 +764,15 @@ async function bulkTransition(entity, ids, targetStatus, actorUserId, reason = n
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `SELECT id, lifecycle_status, name_i18n, description_i18n
-         FROM ${table}
-        WHERE id = ANY($1::uuid[])
-        FOR UPDATE`,
+      entity === 'tool'
+        ? `SELECT id, lifecycle_status, name_i18n, description_i18n, category_slug
+             FROM ${table}
+            WHERE id = ANY($1::uuid[])
+            FOR UPDATE`
+        : `SELECT id, lifecycle_status, name_i18n, description_i18n
+             FROM ${table}
+            WHERE id = ANY($1::uuid[])
+            FOR UPDATE`,
       [normalizedIds]
     );
     if (rows.length !== normalizedIds.length) throw Object.assign(new Error('One or more catalog records were not found'), { statusCode: 404 });
@@ -560,20 +783,53 @@ async function bulkTransition(entity, ids, targetStatus, actorUserId, reason = n
         requireCompleteTranslations(row.name_i18n, 'nameI18n');
         if (entity !== 'category') requireCompleteTranslations(row.description_i18n, 'descriptionI18n');
       }
+      if (entity === 'tool' && ['coming_soon', 'live', 'paused'].includes(toStatus) && !cleanText(row.category_slug, 100)) {
+        throw Object.assign(new Error('Tools require a category before Coming soon / Live / Paused'), { statusCode: 400 });
+      }
+      if (entity === 'category' && toStatus === 'retired') {
+        const children = await client.query(
+          `SELECT COUNT(*)::int AS live_count
+             FROM direct_catalog_services
+            WHERE category_id = $1 AND lifecycle_status = 'live'`,
+          [row.id]
+        );
+        if (Number(children.rows[0]?.live_count || 0) > 0) {
+          throw Object.assign(
+            new Error('Cannot retire category while live services remain. Pause or retire children first.'),
+            { statusCode: 400, code: 'category_has_live_children' }
+          );
+        }
+      }
       const customerVisible = ['coming_soon', 'live', 'paused'].includes(toStatus);
       const active = customerVisible;
       const published = customerVisible;
-      await client.query(
-        `UPDATE ${table}
-            SET lifecycle_status = $1,
-                is_active = $2,
-                is_published = $3,
-                published_at = CASE WHEN $1 = 'live' THEN COALESCE(published_at, CURRENT_TIMESTAMP) ELSE published_at END,
-                paused_at = CASE WHEN $1 = 'paused' THEN CURRENT_TIMESTAMP ELSE paused_at END,
-                updated_at = CURRENT_TIMESTAMP
-          WHERE id = $4`,
-        [toStatus, active, published, row.id]
-      );
+      if (entity === 'category') {
+        await client.query(
+          `UPDATE ${table}
+              SET lifecycle_status = $1,
+                  is_active = $2,
+                  is_published = $3,
+                  updated_at = CURRENT_TIMESTAMP
+            WHERE id = $4`,
+          [toStatus, active, published, row.id]
+        );
+      } else {
+        await client.query(
+          `UPDATE ${table}
+              SET lifecycle_status = $1,
+                  is_active = $2,
+                  is_published = $3,
+                  is_operationally_available = CASE
+                    WHEN $1 = 'live' THEN TRUE
+                    ELSE is_operationally_available
+                  END,
+                  published_at = CASE WHEN $1 = 'live' THEN COALESCE(published_at, CURRENT_TIMESTAMP) ELSE published_at END,
+                  paused_at = CASE WHEN $1 = 'paused' THEN CURRENT_TIMESTAMP ELSE paused_at END,
+                  updated_at = CURRENT_TIMESTAMP
+            WHERE id = $4`,
+          [toStatus, active, published, row.id]
+        );
+      }
       await audit(actorUserId, 'lifecycle_transition', entity, row.id, { fromStatus, toStatus, reason }, client);
       if (fromStatus !== toStatus) {
         await client.query(
@@ -598,6 +854,7 @@ module.exports = {
   ICONS,
   LIFECYCLE_STATUSES,
   PUBLIC_CATEGORY_STATUSES,
+  PUBLIC_BROWSE_SERVICE_STATUSES,
   getCatalog,
   parseCatalogQuery,
   getAdminCatalog,
@@ -608,4 +865,8 @@ module.exports = {
   audit,
   catalogReviewIssues,
   buildCatalogReviewSummary,
+  assertTransition,
+  deriveServiceCapability,
+  getServiceAssigneePool,
+  setServiceAssigneePool,
 };

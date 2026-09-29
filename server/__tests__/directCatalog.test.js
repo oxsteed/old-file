@@ -220,19 +220,23 @@ describe('Direct catalog', () => {
   });
 
   test('updates records and audit events in one transaction', async () => {
-    const row = { id: 'tool-1', is_published: false };
+    const row = { id: 'tool-1', is_published: false, is_active: true, lifecycle_status: 'coming_soon', updated_at: '2026-01-01T00:00:00.000Z', category_slug: 'electrical' };
     mockQuery
-      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
-      .mockResolvedValueOnce({ rows: [row], rowCount: 1 })
-      .mockResolvedValueOnce({ rows: [{ ...row, is_published: true }], rowCount: 1 })
-      .mockResolvedValueOnce({ rows: [], rowCount: 1 })
-      .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ slug: 'electrical' }], rowCount: 1 }) // category exists
+      .mockResolvedValueOnce({ rows: [row], rowCount: 1 }) // existing FOR UPDATE
+      .mockResolvedValueOnce({ rows: [{ ...row, is_published: true, lifecycle_status: 'live' }], rowCount: 1 }) // UPDATE
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 }) // audit
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 }) // status history
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 }); // COMMIT
 
     const result = await saveEntity('tool', {
       slug: 'drill',
+      categorySlug: 'electrical',
       nameI18n: completeName,
       descriptionI18n: completeDescription,
-      isPublished: true,
+      lifecycleStatus: 'live',
+      isOperationallyAvailable: true,
     }, 'admin-1', 'tool-1');
 
     expect(result.is_published).toBe(true);
@@ -244,6 +248,33 @@ describe('Direct catalog', () => {
       'COMMIT',
     ]));
     expect(mockQuery.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO direct_catalog_audit_events'))[1][1]).toBe('publish');
+  });
+
+  test('live parse defaults operationally available to true', () => {
+    const result = parseEntity('service', {
+      slug: 'fan',
+      categoryId: 'category-1',
+      nameI18n: completeName,
+      descriptionI18n: completeDescription,
+      lifecycleStatus: 'live',
+    });
+    expect(result.isOperationallyAvailable).toBe(true);
+    expect(result.lifecycleStatus).toBe('live');
+  });
+
+  test('public service capability fields include visible/requestable/bookable', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'cat-1', slug: 'electrical', name_i18n: { en: 'Electrical' }, icon_key: 'zap', sort_order: 1, lifecycle_status: 'live', is_active: true, is_published: true }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ id: 'svc-1', category_id: 'cat-1', category_slug: 'electrical', category_lifecycle_status: 'live', category_is_active: true, slug: 'fan', name_i18n: { en: 'Fan' }, description_i18n: { en: 'Install fan.' }, price_cents: null, currency_code: 'USD', available_days: ['Monday'], lifecycle_status: 'live', is_operationally_available: true, is_bookable: false, is_active: true }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const catalog = await getCatalog({ locale: 'en' });
+    expect(catalog.categories[0].services[0]).toEqual(expect.objectContaining({
+      visible: true,
+      requestable: true,
+      bookable: false,
+      requestable: true,
+    }));
   });
 
   test('rejects an unknown tool category before persistence', async () => {

@@ -11363,12 +11363,12 @@
       "other": "Lòt",
       "mobileMoney": "Lajan mobil",
       "paymentLink": "Lyen peman"
-    }
-  ,
+    },
     "proofUploaded": "Dokiman prèv la telechaje.",
     "proofUploadFailed": "Pa ka telechaje dokiman prèv la.",
     "directRecordSaved": "Dosye peman an anrejistre.",
-    "directRecordFailed": "Pa ka anrejistre dosye peman an."},
+    "directRecordFailed": "Pa ka anrejistre dosye peman an."
+  },
   "invoices": {
     "title": "Fakti Mwen",
     "number": "Fakti #",
@@ -19738,7 +19738,13 @@
     "viewWeek": "Semèn",
     "whatThisChecks": "Sa sa tcheke",
     "workOrderDetails": "Lòd travay OxSteed Direct #{{id}}.",
-    "workOrderSaved": "Lòd travay la anrejistre."
+    "workOrderSaved": "Lòd travay la anrejistre.",
+    "settingsTitle": "Direct settings",
+    "settingsBody": "Update marketing copy, minimums, and support contacts. Tools and coverage are managed in Catalog and Service Areas.",
+    "inventoryMovedBanner": "Tools and coverage moved",
+    "inventoryMovedBody": "Manage offer inventory in Catalog and Service Areas — Settings no longer edits tools or coverage lists.",
+    "openCatalog": "Open Catalog",
+    "openServiceAreas": "Open Service Areas"
   },
   "inventoryHelpCenter": {
     "metaTitle": "Sant èd Envantè",
@@ -19909,7 +19915,9 @@
         "pastDate": "Dat ou prefere a pa ka nan pase a.",
         "photoTooLarge": "Foto yo dwe 10 MB oswa pi piti.",
         "photoType": "Se fichye imaj sèlman ou ka tache kòm foto."
-      }
+      },
+      "derivedCategoryHint": "Select a catalog service above (or describe Other work in details).",
+      "useOtherCategory": "Use “Other / describe” without a catalog service"
     },
     "thanks": {
       "title": "Demann lan resevwa",
@@ -20324,9 +20332,25 @@
     "comingSoon": "Talè konsa",
     "paused": "Pa disponib pou yon ti tan",
     "currentlyUnavailable": "Pa disponib kounye a",
-    "categoryComingSoon": "Sèvis ki nan kategori sa a ap disponib talè konsa.",
-    "categoryPaused": "Kategori sa a pa disponib pou yon ti tan.",
-    "noServicesAvailable": "Okenn sèvis Direct ki disponib kounye a."
+    "categoryComingSoon": "Sèvis nan kategori sa a ap vini byento.",
+    "categoryPaused": "Kategori sa a pa disponib pou kounye a.",
+    "noServicesAvailable": "Pa gen sèvis Direct disponib kounye a.",
+    "book": "Rezève",
+    "nextSlot": "Pwochen plas ki disponib",
+    "instantBookFull": "Rezèvasyon rapid plen — mande yon lè.",
+    "typicalWorkdays": "Jou tipik: {{days}}",
+    "bookTitle": "Rezève yon plas Direct",
+    "bookingFor": "Rezèvasyon pou {{service}}",
+    "bookMissingService": "Chwazi yon sèvis nan katalòg la pou rezève.",
+    "requestInstead": "Mande yon quote olye",
+    "loadingSlots": "Ap chaje plas yo…",
+    "openSlots": "Plas ouvè",
+    "noSlotsFallback": "Pa gen plas rapid kounye a. Ou ka toujou mande yon quote.",
+    "loadSlotsError": "Pa t kapab chaje plas yo.",
+    "confirmBooking": "Konfime rezèvasyon",
+    "pickSlotFirst": "Chwazi yon plas anvan.",
+    "confirmBook": "Konfime",
+    "bookFailed": "Pa t kapab rezève plas sa a."
   },
   "directCatalogAdmin": {
     "activeCount": "{{count}} aktif",
@@ -20475,7 +20499,15 @@
     "lifecycleComingSoon": "Byento disponib",
     "lifecycleLive": "Anliy",
     "lifecyclePaused": "Sou poz",
-    "lifecycleRetired": "Retire"
+    "lifecycleRetired": "Retire",
+    "typicalWorkdaysLabel": "Typical workdays (marketing)",
+    "assigneePoolTitle": "Who can do this job?",
+    "assigneePoolHelp": "Book only appears when a pool member is free in an open calendar window.",
+    "assigneePeople": "Named people",
+    "poolSizeHint": "Pool selectors: {{count}} (roles expand to active dispatch users).",
+    "manageCalendar": "Manage bookable slots",
+    "bookableWithoutPoolWarn": "Bookable is on but the assignee pool is empty — customers will only see Request.",
+    "bookableHelper": "Customers can pick a calendar slot on Direct when someone in this service’s pool is free."
   },
   "careers": {
     "metaTitle": "Karyè nan OxSteed",
