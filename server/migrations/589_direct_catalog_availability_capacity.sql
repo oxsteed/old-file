@@ -79,8 +79,7 @@ CREATE TABLE IF NOT EXISTS direct_slot_holds (
 );
 
 CREATE INDEX IF NOT EXISTS idx_direct_slot_holds_service_range
-  ON direct_slot_holds (service_id, starts_at, ends_at)
-  WHERE expires_at > CURRENT_TIMESTAMP;
+  ON direct_slot_holds (service_id, starts_at, ends_at, expires_at);
 CREATE INDEX IF NOT EXISTS idx_direct_slot_holds_expires
   ON direct_slot_holds (expires_at);
 CREATE INDEX IF NOT EXISTS idx_direct_slot_holds_reserved
@@ -141,7 +140,7 @@ SELECT
 FROM direct_catalog_services s
 JOIN direct_catalog_categories c ON c.id = s.category_id
 WHERE s.lifecycle_status = 'live'
-  AND c.lifecycle_status <> 'live';
+  AND c.lifecycle_status <> 'live'
 
 UNION ALL
 
