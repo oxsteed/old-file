@@ -1,8 +1,10 @@
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeft, UserPlus } from 'lucide-react';
 import CreateUserForm from '../../../components/CreateUserForm';
 
 export default function CreateUser() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   return (
@@ -12,7 +14,7 @@ export default function CreateUser() {
         className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-gray-200 mb-4"
       >
         <ArrowLeft size={14} />
-        Back
+        {t('common.back')}
       </button>
 
       <div className="flex items-center gap-3 mb-6">
@@ -20,11 +22,9 @@ export default function CreateUser() {
           <UserPlus size={20} className="text-orange-400" />
         </div>
         <div>
-          <h1 className="text-xl font-semibold text-gray-100">Create user</h1>
+          <h1 className="text-xl font-semibold text-gray-100">{t('adminCreateUserTitle')}</h1>
           <p className="text-sm text-gray-400">
-            Provision a new account for any current OxSteed account type, including logistics,
-            business workspaces, granted business roles, and internal staff.
-            All fields are recorded in the audit log.
+            {t('adminCreateUserDescription')}
           </p>
         </div>
       </div>

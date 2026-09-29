@@ -468,7 +468,7 @@ function GrantRow({ grant, onRevoke, revoking }) {
             {grant.expires_at ? (
               <span>{t('adminPermissionGrantsExpires', { date: dateOnly(grant.expires_at) })}</span>
             ) : (
-              <span>Never expires</span>
+              <span>{t('adminPermissionGrantsNeverExpires')}</span>
             )}
             {grant.notes && (
               <>

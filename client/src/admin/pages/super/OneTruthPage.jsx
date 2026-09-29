@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -35,8 +36,8 @@ import {
 import adminApi from '../../../lib/adminApi';
 
 const TABS = [
-  { id: 'suspects', label: 'Flagged Pairs', icon: AlertTriangle },
-  { id: 'users', label: 'People & Accounts', icon: Users },
+  { id: 'suspects', labelKey: 'adminOneTruthTabSuspects', icon: AlertTriangle },
+  { id: 'users', labelKey: 'adminOneTruthTabUsers', icon: Users },
 ];
 
 const SIGNAL_META = {
@@ -52,75 +53,75 @@ const SIGNAL_META = {
 
 const SECTION_META = {
   people: {
-    label: 'People & Businesses',
+    labelKey: 'adminOneTruthSectionPeople',
     icon: Users,
     tone: 'from-sky-500/18 via-sky-500/6 to-transparent border-sky-500/25',
     metrics: [
-      { key: 'totalUsers', label: 'Users' },
-      { key: 'verifiedUsers', label: 'Verified' },
-      { key: 'totalBusinesses', label: 'Businesses' },
-      { key: 'usersWithMultipleBusinesses', label: 'Multi-biz owners' },
+      { key: 'totalUsers', labelKey: 'adminOneTruthMetricUsers' },
+      { key: 'verifiedUsers', labelKey: 'adminOneTruthMetricVerified' },
+      { key: 'totalBusinesses', labelKey: 'adminOneTruthMetricBusinesses' },
+      { key: 'usersWithMultipleBusinesses', labelKey: 'adminOneTruthMetricMultiBiz' },
     ],
   },
   marketplace: {
-    label: 'Marketplace Jobs',
+    labelKey: 'adminOneTruthSectionMarketplace',
     icon: Briefcase,
     tone: 'from-amber-500/18 via-amber-500/6 to-transparent border-amber-500/25',
     metrics: [
-      { key: 'totalJobs', label: 'Total jobs' },
-      { key: 'openJobs', label: 'Open' },
-      { key: 'activeJobs', label: 'Active' },
-      { key: 'completedJobs', label: 'Completed' },
+      { key: 'totalJobs', labelKey: 'adminOneTruthMetricTotalJobs' },
+      { key: 'openJobs', labelKey: 'adminOneTruthMetricOpen' },
+      { key: 'activeJobs', labelKey: 'adminOneTruthMetricActive' },
+      { key: 'completedJobs', labelKey: 'adminOneTruthMetricCompleted' },
     ],
   },
   support: {
-    label: 'Support & Risk',
+    labelKey: 'adminOneTruthSectionSupport',
     icon: LifeBuoy,
     tone: 'from-indigo-500/18 via-indigo-500/6 to-transparent border-indigo-500/25',
     metrics: [
-      { key: 'totalTickets', label: 'Tickets' },
-      { key: 'openTickets', label: 'Open' },
-      { key: 'escalatedTickets', label: 'High priority' },
+      { key: 'totalTickets', labelKey: 'adminOneTruthMetricTickets' },
+      { key: 'openTickets', labelKey: 'adminOneTruthMetricOpen' },
+      { key: 'escalatedTickets', labelKey: 'adminOneTruthMetricEscalated' },
     ],
   },
   commerce: {
-    label: 'Orders & Commerce',
+    labelKey: 'adminOneTruthSectionCommerce',
     icon: ShoppingBag,
     tone: 'from-emerald-500/18 via-emerald-500/6 to-transparent border-emerald-500/25',
     metrics: [
-      { key: 'totalOrders', label: 'Orders' },
-      { key: 'paidOrders', label: 'Paid / processing' },
-      { key: 'paidVolumeCents', label: 'Paid volume', format: 'cents' },
+      { key: 'totalOrders', labelKey: 'adminOneTruthMetricOrders' },
+      { key: 'paidOrders', labelKey: 'adminOneTruthMetricPaidProcessing' },
+      { key: 'paidVolumeCents', labelKey: 'adminOneTruthMetricPaidVolume', format: 'cents' },
     ],
   },
   rentals: {
-    label: 'Tool Rentals',
+    labelKey: 'adminOneTruthSectionRentals',
     icon: Wrench,
     tone: 'from-cyan-500/18 via-cyan-500/6 to-transparent border-cyan-500/25',
     metrics: [
-      { key: 'totalListings', label: 'Listings' },
-      { key: 'availableListings', label: 'Available' },
-      { key: 'activeBookings', label: 'Live bookings' },
+      { key: 'totalListings', labelKey: 'adminOneTruthMetricListings' },
+      { key: 'availableListings', labelKey: 'adminOneTruthMetricAvailable' },
+      { key: 'activeBookings', labelKey: 'adminOneTruthMetricLiveBookings' },
     ],
   },
   money: {
-    label: 'Payments',
+    labelKey: 'adminOneTruthSectionMoney',
     icon: CreditCard,
     tone: 'from-violet-500/18 via-violet-500/6 to-transparent border-violet-500/25',
     metrics: [
-      { key: 'totalPayments', label: 'Payments' },
-      { key: 'pendingPayments', label: 'Pending / authorized' },
-      { key: 'completedVolumeAmount', label: 'Captured volume', format: 'amount' },
+      { key: 'totalPayments', labelKey: 'adminOneTruthMetricPayments' },
+      { key: 'pendingPayments', labelKey: 'adminOneTruthMetricPendingAuthorized' },
+      { key: 'completedVolumeAmount', labelKey: 'adminOneTruthMetricCapturedVolume', format: 'amount' },
     ],
   },
   consulting: {
-    label: 'Consulting',
+    labelKey: 'adminOneTruthSectionConsulting',
     icon: MessageSquare,
     tone: 'from-fuchsia-500/18 via-fuchsia-500/6 to-transparent border-fuchsia-500/25',
     metrics: [
-      { key: 'totalSessions', label: 'Sessions' },
-      { key: 'scheduledSessions', label: 'Scheduled' },
-      { key: 'completedSessions', label: 'Completed' },
+      { key: 'totalSessions', labelKey: 'adminOneTruthMetricSessions' },
+      { key: 'scheduledSessions', labelKey: 'adminOneTruthMetricScheduled' },
+      { key: 'completedSessions', labelKey: 'adminOneTruthMetricCompleted' },
     ],
   },
 };
@@ -144,10 +145,10 @@ function scoreBg(score) {
   return 'bg-yellow-400/10 border-yellow-400/40';
 }
 
-function riskLabel(score) {
-  if (score >= 6) return 'High Risk';
-  if (score >= 4) return 'Medium Risk';
-  return 'Low Risk';
+function riskLabel(score, t) {
+  if (score >= 6) return t('adminOneTruthRiskHigh');
+  if (score >= 4) return t('adminOneTruthRiskMedium');
+  return t('adminOneTruthRiskLow');
 }
 
 function buildScopeParams({ country, regionId }) {
@@ -173,6 +174,7 @@ function StatCard({ icon: Icon, label, value, hint, color = 'text-white' }) {
 }
 
 function Pagination({ page, totalPages, onPage }) {
+  const { t } = useTranslation();
   if (totalPages <= 1) return null;
   return (
     <div className="mt-6 flex items-center justify-center gap-2">
@@ -183,7 +185,7 @@ function Pagination({ page, totalPages, onPage }) {
       >
         <ChevronLeft className="h-4 w-4" />
       </button>
-      <span className="text-sm text-gray-400">Page {page} of {totalPages}</span>
+      <span className="text-sm text-gray-400">{t('adminOneTruthPageOf', { page, totalPages })}</span>
       <button
         onClick={() => onPage(page + 1)}
         disabled={page >= totalPages}
@@ -235,7 +237,8 @@ function OperationChip({ label, value, tone = 'default' }) {
 }
 
 function UserMiniCard({ user, onClick }) {
-  const name = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Unknown';
+  const { t } = useTranslation();
+  const name = [user.first_name, user.last_name].filter(Boolean).join(' ') || t('adminOneTruthUnknownUser');
   const bizCount = user.businesses?.length ?? user.business_count ?? 0;
   const status = user.is_banned ? 'banned' : (!user.is_active ? 'inactive' : 'active');
   const statusColors = {
@@ -260,19 +263,20 @@ function UserMiniCard({ user, onClick }) {
             </p>
           )}
         </div>
-        <span className={`text-xs font-semibold uppercase ${statusColors[status]}`}>{status}</span>
+        <span className={`text-xs font-semibold uppercase ${statusColors[status]}`}>{status === 'banned' ? t('adminOneTruthStatusBanned') : status === 'inactive' ? t('adminOneTruthStatusInactive') : t('adminOneTruthStatusActive')}</span>
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
-        <OperationChip label="Businesses" value={bizCount} tone="cool" />
-        <OperationChip label="Jobs" value={(user.ops?.jobsPosted || 0) + (user.ops?.jobsWorked || 0)} />
-        <OperationChip label="Support" value={user.ops?.supportTickets || 0} tone="violet" />
+        <OperationChip label={t('adminOneTruthChipBusinesses')} value={bizCount} tone="cool" />
+        <OperationChip label={t('adminOneTruthChipJobs')} value={(user.ops?.jobsPosted || 0) + (user.ops?.jobsWorked || 0)} />
+        <OperationChip label={t('adminOneTruthChipSupport')} value={user.ops?.supportTickets || 0} tone="violet" />
       </div>
     </button>
   );
 }
 
 function SuspectPairCard({ pair, onViewUser }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -286,8 +290,8 @@ function SuspectPairCard({ pair, onViewUser }) {
             {pair.score}
           </div>
           <div>
-            <p className={`text-sm font-semibold ${scoreColor(pair.score)}`}>{riskLabel(pair.score)}</p>
-            <p className="text-xs text-gray-400">{pair.signals.length} cross-account signal{pair.signals.length !== 1 ? 's' : ''}</p>
+            <p className={`text-sm font-semibold ${scoreColor(pair.score)}`}>{riskLabel(pair.score, t)}</p>
+            <p className="text-xs text-gray-400">{t('adminOneTruthCrossSignals', { count: pair.signals.length })}</p>
           </div>
         </div>
         <div className="hidden text-right sm:block">
@@ -303,7 +307,7 @@ function SuspectPairCard({ pair, onViewUser }) {
       {expanded && (
         <div className="space-y-4 border-t border-white/5 p-4">
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Signals</p>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('adminOneTruthSignals')}</p>
             <div className="flex flex-wrap gap-2">
               {pair.signals.map((signal, index) => (
                 <SignalBadge key={`${pair.id}-${index}`} signal={signal} />
@@ -318,7 +322,7 @@ function SuspectPairCard({ pair, onViewUser }) {
 
           <div className="flex items-start gap-2 text-xs text-gray-500">
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            Open either account to review full activity, business ownership, and enforcement actions before resolving the duplicate risk.
+            {t('adminOneTruthPairHint')}
           </div>
         </div>
       )}
@@ -327,6 +331,7 @@ function SuspectPairCard({ pair, onViewUser }) {
 }
 
 function MetricSectionCard({ sectionKey, stats }) {
+  const { t } = useTranslation();
   const meta = SECTION_META[sectionKey];
   if (!meta || !stats) return null;
   const Icon = meta.icon;
@@ -335,9 +340,9 @@ function MetricSectionCard({ sectionKey, stats }) {
     <div className={`rounded-3xl border bg-gradient-to-br p-5 ${meta.tone}`}>
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{meta.label}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t(meta.labelKey)}</p>
           <p className="mt-2 text-sm leading-6 text-gray-300">
-            Operational truth for this scope, updated from the live admin data sources behind One Truth.
+            {t('adminOneTruthMetricSectionDetail')}
           </p>
         </div>
         <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-black/20">
@@ -348,7 +353,7 @@ function MetricSectionCard({ sectionKey, stats }) {
       <div className="grid grid-cols-2 gap-3">
         {meta.metrics.map((metric) => (
           <div key={metric.key} className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-            <p className="text-[11px] uppercase tracking-[0.16em] text-gray-500">{metric.label}</p>
+            <p className="text-[11px] uppercase tracking-[0.16em] text-gray-500">{t(metric.labelKey)}</p>
             <p className="mt-2 text-lg font-semibold text-white">{formatValue(stats[metric.key], metric.format)}</p>
           </div>
         ))}
@@ -358,7 +363,8 @@ function MetricSectionCard({ sectionKey, stats }) {
 }
 
 function UserCard({ user, onView }) {
-  const name = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Unknown';
+  const { t } = useTranslation();
+  const name = [user.first_name, user.last_name].filter(Boolean).join(' ') || t('adminOneTruthUnknownUser');
   const bizCount = parseInt(user.business_count ?? user.businesses?.length ?? 0, 10);
   const isActive = user.is_active !== false;
   const isBanned = user.is_banned === true;
@@ -377,20 +383,20 @@ function UserCard({ user, onView }) {
           )}
         </div>
         <div className="flex flex-col items-end gap-1">
-          {isBanned && <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-xs font-medium text-red-400">Banned</span>}
-          {!isBanned && !isActive && <span className="rounded-full bg-yellow-500/15 px-2 py-0.5 text-xs font-medium text-yellow-400">Inactive</span>}
-          {!isBanned && isActive && <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-400">Active</span>}
-          {user.identity_verified && <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-xs font-medium text-sky-300">Verified</span>}
+          {isBanned && <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-xs font-medium text-red-400">{t('adminOneTruthStatusBanned')}</span>}
+          {!isBanned && !isActive && <span className="rounded-full bg-yellow-500/15 px-2 py-0.5 text-xs font-medium text-yellow-400">{t('adminOneTruthStatusInactive')}</span>}
+          {!isBanned && isActive && <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-400">{t('adminOneTruthStatusActive')}</span>}
+          {user.identity_verified && <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-xs font-medium text-sky-300">{t('adminOneTruthVerified')}</span>}
         </div>
       </div>
 
       <div className="mb-4 flex flex-wrap gap-1.5">
-        <OperationChip label="Businesses" value={bizCount} tone="cool" />
-        <OperationChip label="Jobs posted" value={user.ops?.jobsPosted || 0} />
-        <OperationChip label="Jobs worked" value={user.ops?.jobsWorked || 0} tone="warm" />
-        <OperationChip label="Orders" value={user.ops?.orders || 0} tone="good" />
-        <OperationChip label="Support" value={user.ops?.supportTickets || 0} tone="violet" />
-        <OperationChip label="Tools" value={user.ops?.toolsListed || 0} />
+        <OperationChip label={t('adminOneTruthChipBusinesses')} value={bizCount} tone="cool" />
+        <OperationChip label={t('adminOneTruthChipJobsPosted')} value={user.ops?.jobsPosted || 0} />
+        <OperationChip label={t('adminOneTruthChipJobsWorked')} value={user.ops?.jobsWorked || 0} tone="warm" />
+        <OperationChip label={t('adminOneTruthChipOrders')} value={user.ops?.orders || 0} tone="good" />
+        <OperationChip label={t('adminOneTruthChipSupport')} value={user.ops?.supportTickets || 0} tone="violet" />
+        <OperationChip label={t('adminOneTruthChipTools')} value={user.ops?.toolsListed || 0} />
       </div>
 
       {user.businesses?.length > 0 && (
@@ -408,7 +414,7 @@ function UserCard({ user, onView }) {
               {business.business_name}
             </span>
           ))}
-          {user.businesses.length > 4 && <span className="text-xs text-gray-600">+{user.businesses.length - 4} more</span>}
+          {user.businesses.length > 4 && <span className="text-xs text-gray-600">{t('adminOneTruthMore', { count: user.businesses.length - 4 })}</span>}
         </div>
       )}
 
@@ -417,13 +423,14 @@ function UserCard({ user, onView }) {
         className="flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-700 py-2 text-xs font-semibold text-gray-400 transition hover:border-gray-500 hover:text-white"
       >
         <Eye className="h-3.5 w-3.5" />
-        View Profile
+        {t('adminOneTruthViewProfile')}
       </button>
     </div>
   );
 }
 
 export default function OneTruthPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   const [filtersData, setFiltersData] = useState({ countries: [], regions: [] });
@@ -481,7 +488,7 @@ export default function OneTruthPage() {
     } finally {
       setStatsLoading(false);
     }
-  }, [activeScope.country, activeScope.regionId]);
+  }, [activeScope.country, activeScope.regionId, t]);
 
   const loadSuspects = useCallback(async (page = 1) => {
     setSuspectLoading(true);
@@ -499,11 +506,11 @@ export default function OneTruthPage() {
       setSuspectPage(data.page || 1);
       setSuspectPages(data.totalPages || 1);
     } catch (err) {
-      setSuspectError(err.response?.data?.error || err.message || 'Failed to run duplicate detection.');
+      setSuspectError(err.response?.data?.error || err.message || t('adminOneTruthDetectionFailed'));
     } finally {
       setSuspectLoading(false);
     }
-  }, [activeScope.country, activeScope.regionId]);
+  }, [activeScope.country, activeScope.regionId, t]);
 
   const loadUsers = useCallback(async (page = 1, search = '') => {
     setUsersLoading(true);
@@ -522,11 +529,11 @@ export default function OneTruthPage() {
       setUserPage(data.page || 1);
       setUserPages(data.totalPages || 1);
     } catch (err) {
-      setUsersError(err.response?.data?.error || err.message || 'Failed to load users.');
+      setUsersError(err.response?.data?.error || err.message || t('adminOneTruthUsersFailed'));
     } finally {
       setUsersLoading(false);
     }
-  }, [activeScope.country, activeScope.regionId]);
+  }, [activeScope.country, activeScope.regionId, t]);
 
   useEffect(() => {
     loadFilters();
@@ -574,12 +581,12 @@ export default function OneTruthPage() {
                       <Shield className="h-5 w-5 text-orange-400" />
                     </div>
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-300/80">Super Admin</p>
-                      <h1 className="text-3xl font-semibold text-white">One Truth</h1>
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-300/80">{t('adminOneTruthSuperAdmin')}</p>
+                      <h1 className="text-3xl font-semibold text-white">{t('adminOneTruthTitle')}</h1>
                     </div>
                   </div>
                   <p className="max-w-2xl text-sm leading-7 text-gray-300">
-                    Expanded operations truth layer for identity, staffing, support, commerce, jobs, payments, and launch-market health. Use country or region scope to inspect a market before you hire, investigate, or intervene.
+                    {t('adminOneTruthSubtitle')}
                   </p>
                 </div>
 
@@ -588,44 +595,44 @@ export default function OneTruthPage() {
                   className="inline-flex items-center gap-2 rounded-2xl border border-gray-700 bg-gray-900/70 px-3 py-2 text-sm text-gray-300 transition hover:text-white"
                 >
                   <RefreshCw className={`h-4 w-4 ${statsLoading || suspectLoading || usersLoading ? 'animate-spin' : ''}`} />
-                  Refresh
+                  {t('common.refresh')}
                 </button>
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <ScopeBadge icon={Globe} label="Country" value={country || 'All markets'} />
-                <ScopeBadge icon={Map} label="Region" value={selectedRegion?.name || 'All regions'} />
-                <ScopeBadge icon={Users} label="People" value={statsLoading ? '…' : formatValue(peopleStats.totalUsers)} />
-                <ScopeBadge icon={Building2} label="Businesses" value={statsLoading ? '…' : formatValue(peopleStats.totalBusinesses)} />
+                <ScopeBadge icon={Globe} label={t('adminOneTruthScopeCountry')} value={country || t('adminOneTruthAllMarkets')} />
+                <ScopeBadge icon={Map} label={t('adminOneTruthScopeRegion')} value={selectedRegion?.name || t('adminOneTruthAllRegions')} />
+                <ScopeBadge icon={Users} label={t('adminOneTruthScopePeople')} value={statsLoading ? '…' : formatValue(peopleStats.totalUsers)} />
+                <ScopeBadge icon={Building2} label={t('adminOneTruthStatBusinesses')} value={statsLoading ? '…' : formatValue(peopleStats.totalBusinesses)} />
               </div>
 
               <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
                 <StatCard
                   icon={Users}
-                  label="Users In Scope"
+                  label={t('adminOneTruthStatUsersInScope')}
                   value={statsLoading ? '…' : formatValue(stats?.totalUsers)}
-                  hint="Customer, helper, and provider accounts that match the selected market scope."
+                  hint={t('adminOneTruthStatUsersInScopeHint')}
                   color="text-sky-300"
                 />
                 <StatCard
                   icon={Building2}
-                  label="Businesses"
+                  label={t('adminOneTruthStatBusinesses')}
                   value={statsLoading ? '…' : formatValue(stats?.totalBusinesses)}
-                  hint="Registered businesses tied to this geography."
+                  hint={t('adminOneTruthStatBusinessesHint')}
                   color="text-blue-300"
                 />
                 <StatCard
                   icon={UserCheck}
-                  label="Verified Users"
+                  label={t('adminOneTruthStatVerified')}
                   value={statsLoading ? '…' : formatValue(peopleStats.verifiedUsers)}
-                  hint="Identity-verified accounts in the selected operational scope."
+                  hint={t('adminOneTruthStatVerifiedHint')}
                   color="text-emerald-300"
                 />
                 <StatCard
                   icon={AlertTriangle}
-                  label="Flagged Pairs"
+                  label={t('adminOneTruthStatFlagged')}
                   value={suspectLoading ? '…' : formatValue(stats?.flaggedPairs ?? suspectTotal)}
-                  hint="Duplicate-account investigations surfaced by One Truth signals."
+                  hint={t('adminOneTruthStatFlaggedHint')}
                   color="text-orange-300"
                 />
               </div>
@@ -634,19 +641,19 @@ export default function OneTruthPage() {
             <div className="rounded-[26px] border border-gray-800 bg-[#111318] p-5">
               <div className="mb-4 flex items-center gap-2">
                 <Filter className="h-4 w-4 text-orange-400" />
-                <p className="text-sm font-semibold text-white">Scope Filters</p>
+                <p className="text-sm font-semibold text-white">{t('adminOneTruthScopeFilters')}</p>
               </div>
 
               <div className="space-y-4">
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Country</span>
+                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('adminOneTruthCountry')}</span>
                   <select
                     value={country}
                     onChange={(event) => setCountry(event.target.value)}
                     className="w-full rounded-2xl border border-gray-700 bg-gray-900 px-3 py-3 text-sm text-white outline-none transition focus:border-orange-500"
                     disabled={filtersLoading}
                   >
-                    <option value="">All countries</option>
+                    <option value="">{t('adminOneTruthAllCountries')}</option>
                     {filtersData.countries.map((option) => (
                       <option key={option.code} value={option.code}>
                         {option.name} ({option.code})
@@ -656,14 +663,14 @@ export default function OneTruthPage() {
                 </label>
 
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Region</span>
+                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('adminOneTruthRegion')}</span>
                   <select
                     value={regionId}
                     onChange={(event) => setRegionId(event.target.value)}
                     className="w-full rounded-2xl border border-gray-700 bg-gray-900 px-3 py-3 text-sm text-white outline-none transition focus:border-orange-500"
                     disabled={filtersLoading}
                   >
-                    <option value="">All admin regions</option>
+                    <option value="">{t('adminOneTruthAllAdminRegions')}</option>
                     {filtersData.regions.map((option) => (
                       <option key={option.id} value={option.id}>
                         {option.name}: {option.coverageLabel}
@@ -677,11 +684,11 @@ export default function OneTruthPage() {
                   disabled={!country && !regionId}
                   className="w-full rounded-2xl border border-gray-700 px-3 py-2.5 text-sm font-medium text-gray-300 transition hover:border-gray-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  Clear scope
+                  {t('adminOneTruthClearScope')}
                 </button>
 
                 <div className="rounded-2xl border border-orange-500/20 bg-orange-500/6 p-4 text-sm leading-6 text-gray-300">
-                  Filter by a whole country when you’re evaluating launch readiness for a market. Filter by an admin region when you want the operational truth for a province, state, city cluster, or assigned territory.
+                  {t('adminOneTruthScopeHelp')}
                 </div>
               </div>
             </div>
@@ -692,7 +699,7 @@ export default function OneTruthPage() {
           <div className="rounded-2xl border border-yellow-500/25 bg-yellow-500/8 p-4 text-sm text-yellow-200">
             <div className="mb-2 flex items-center gap-2 font-semibold">
               <AlertTriangle className="h-4 w-4" />
-              Scope notes
+              {t('adminOneTruthScopeNotes')}
             </div>
             <div className="space-y-1 text-yellow-100/90">
               {stats.warnings.map((warning) => (
@@ -717,9 +724,9 @@ export default function OneTruthPage() {
               <Zap className="h-4 w-4 text-orange-400" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-white">Policy and investigation intent</p>
+              <p className="text-sm font-semibold text-white">{t('adminOneTruthPolicyTitle')}</p>
               <p className="mt-1 text-sm leading-6 text-gray-400">
-                OxSteed allows one account per person. A person may operate multiple businesses under that account, but duplicate personal accounts create trust, safety, support, and payment risk across the platform. One Truth now gives that investigation context alongside wider operational reality.
+                {t('adminOneTruthPolicyText')}
               </p>
             </div>
           </div>
@@ -737,7 +744,7 @@ export default function OneTruthPage() {
               }`}
             >
               <item.icon className="h-4 w-4" />
-              {item.label}
+              {t(item.labelKey)}
               {item.id === 'suspects' && suspectTotal > 0 && (
                 <span className="rounded-full bg-orange-500/20 px-1.5 py-0.5 text-xs font-bold text-orange-400">
                   {suspectTotal}
@@ -751,19 +758,19 @@ export default function OneTruthPage() {
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm text-gray-400">
-                {suspectLoading ? 'Running duplicate detection…' : `${suspectTotal.toLocaleString()} suspected duplicate pair${suspectTotal !== 1 ? 's' : ''} found in this scope`}
+                {suspectLoading ? t('adminOneTruthRunningDetection') : t('adminOneTruthSuspectedPairs', { count: suspectTotal })}
               </p>
               <div className="flex flex-wrap gap-3 text-xs text-gray-500">
-                <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-yellow-400" /> Low risk (2–3)</span>
-                <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-orange-400" /> Medium risk (4–5)</span>
-                <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-red-400" /> High risk (6+)</span>
+                <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-yellow-400" /> {t('adminOneTruthLegendLow')}</span>
+                <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-orange-400" /> {t('adminOneTruthLegendMedium')}</span>
+                <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-red-400" /> {t('adminOneTruthLegendHigh')}</span>
               </div>
             </div>
 
             {suspectLoading && (
               <div className="py-14 text-center text-gray-500">
                 <RefreshCw className="mx-auto mb-3 h-6 w-6 animate-spin" />
-                Running duplicate detection…
+                {t('adminOneTruthRunningDetection')}
               </div>
             )}
 
@@ -776,8 +783,8 @@ export default function OneTruthPage() {
             {!suspectLoading && !suspectError && suspects.length === 0 && (
               <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 py-12 text-center">
                 <CheckCircle className="mx-auto mb-3 h-8 w-8 text-emerald-400" />
-                <p className="font-semibold text-emerald-400">No suspected duplicates found</p>
-                <p className="mt-1 text-sm text-gray-500">This scope looks clean based on the available identity and behavior signals.</p>
+                <p className="font-semibold text-emerald-400">{t('adminOneTruthNoSuspects')}</p>
+                <p className="mt-1 text-sm text-gray-500">{t('adminOneTruthNoSuspectsHint')}</p>
               </div>
             )}
 
@@ -799,7 +806,7 @@ export default function OneTruthPage() {
                     type="text"
                     value={userSearchInput}
                     onChange={(event) => setUserSearchInput(event.target.value)}
-                    placeholder="Search by name or email…"
+                    placeholder={t('adminOneTruthUserSearchPlaceholder')}
                     className="w-full rounded-2xl border border-gray-700 bg-gray-900 py-3 pl-9 pr-4 text-sm text-white outline-none transition focus:border-orange-500"
                   />
                 </div>
@@ -807,21 +814,21 @@ export default function OneTruthPage() {
                   type="submit"
                   className="rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-orange-600"
                 >
-                  Search
+                  {t('common.search')}
                 </button>
               </form>
 
               <div className="mt-4 flex flex-wrap gap-2">
-                <OperationChip label="Users in scope" value={usersLoading ? '…' : userTotal.toLocaleString()} tone="cool" />
-                <OperationChip label="Country filter" value={country || 'All'} />
-                <OperationChip label="Region filter" value={selectedRegion?.name || 'All'} tone="violet" />
+                <OperationChip label={t('adminOneTruthChipUsersInScope')} value={usersLoading ? '…' : userTotal.toLocaleString()} tone="cool" />
+                <OperationChip label={t('adminOneTruthChipCountryFilter')} value={country || t('common.all')} />
+                <OperationChip label={t('adminOneTruthChipRegionFilter')} value={selectedRegion?.name || t('common.all')} tone="violet" />
               </div>
             </div>
 
             {usersLoading && (
               <div className="py-12 text-center text-gray-500">
                 <RefreshCw className="mx-auto mb-2 h-5 w-5 animate-spin" />
-                Loading users…
+                {t('adminOneTruthLoadingUsers')}
               </div>
             )}
 
@@ -833,7 +840,7 @@ export default function OneTruthPage() {
 
             {!usersLoading && !usersError && users.length === 0 && (
               <div className="rounded-2xl border border-gray-800 bg-[#111318] py-12 text-center text-gray-500">
-                No users found for this scope.
+                {t('adminOneTruthNoUsers')}
               </div>
             )}
 

@@ -604,10 +604,10 @@ export default function LogisticsInternalAccess() {
 
       <ConfirmDialog
         open={confirmSave}
-        title="Save logistics access"
+        title={t('adminLogisticsAccessConfirmTitle')}
         message={selectedRecord
-          ? `Save access changes for ${`${selectedRecord.first_name || ''} ${selectedRecord.last_name || ''}`.trim() || selectedRecord.email}? This updates their logistics login routes.`
-          : 'Save these access changes? This updates the user\'s logistics login routes.'}
+          ? t('adminLogisticsAccessConfirmMessage', { name: `${selectedRecord.first_name || ''} ${selectedRecord.last_name || ''}`.trim() || selectedRecord.email })
+          : t('adminLogisticsAccessConfirmMessageGeneric')}
         confirmLabel={selectedRecord?.has_record ? t('adminLogisticsAccessUpdate') : t('adminLogisticsAccessCreate')}
         onConfirm={doSave}
         onClose={() => setConfirmSave(false)}

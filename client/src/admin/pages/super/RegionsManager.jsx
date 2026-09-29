@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   AlertCircle,
   Compass,
@@ -21,56 +22,54 @@ import RegionForm from '../../../components/RegionForm';
 
 const TYPE_META = {
   zip_range: {
-    label: 'ZIP ranges',
     tone: 'rgba(59, 130, 246, 0.14)',
     color: '#93c5fd',
-    description: 'Structured US postal coverage.',
   },
   city_state: {
-    label: 'City + state',
     tone: 'rgba(14, 165, 233, 0.14)',
     color: '#7dd3fc',
-    description: 'Named cities grouped by state.',
   },
   geo_radius: {
-    label: 'Geo radius',
     tone: 'rgba(249, 115, 22, 0.14)',
     color: '#fdba74',
-    description: 'Distance-based territory around a point.',
   },
   country_region: {
-    label: 'Country + region',
     tone: 'rgba(34, 197, 94, 0.14)',
     color: '#86efac',
-    description: 'International sub-market coverage.',
   },
   country_only: {
-    label: 'Whole country',
     tone: 'rgba(168, 85, 247, 0.14)',
     color: '#d8b4fe',
-    description: 'Entire national market ownership.',
   },
 };
 
-function summarizeBoundary(def) {
+function summarizeBoundary(def, t) {
   if (!def || !def.type) return '-';
   switch (def.type) {
     case 'zip_range':
-      return `${def.ranges?.length || 0} ZIP range(s)`;
+      return t('adminRegionsZipRanges', { count: def.ranges?.length || 0 });
     case 'city_state':
-      return `${def.entries?.length || 0} city/state pair(s)`;
+      return t('adminRegionsCityStatePairs', { count: def.entries?.length || 0 });
     case 'geo_radius':
-      return `${def.radius_miles} mi around (${def.center?.lat?.toFixed(3)}, ${def.center?.lng?.toFixed(3)})`;
+      return t('adminRegionsGeoRadiusSummary', {
+        radius: def.radius_miles,
+        lat: def.center?.lat?.toFixed(3),
+        lng: def.center?.lng?.toFixed(3),
+      });
     case 'country_region': {
       const n = def.entries?.length || 0;
-      if (!n) return '0 country/region pairs';
+      if (!n) return t('adminRegionsCountryRegionPairs', { count: 0 });
       const first = def.entries[0];
       const more = n > 1 ? ` +${n - 1}` : '';
-      return `${first?.country || '?'}/${first?.region || '?'}${more}`;
+      return t('adminRegionsCountryRegionSummary', {
+        country: first?.country || '?',
+        region: first?.region || '?',
+        more,
+      });
     }
     case 'country_only': {
       const list = def.countries || [];
-      if (!list.length) return '0 countries';
+      if (!list.length) return t('adminRegionsCountries', { count: 0 });
       const head = list.slice(0, 3).join(', ');
       const more = list.length > 3 ? ` +${list.length - 3}` : '';
       return `${head}${more}`;
@@ -79,6 +78,21 @@ function summarizeBoundary(def) {
       return def.type;
   }
 }
+
+const TYPE_LABEL_KEY = {
+  zip_range: 'adminRegionsTypeZipRange',
+  city_state: 'adminRegionsTypeCityState',
+  geo_radius: 'adminRegionsTypeGeoRadius',
+  country_region: 'adminRegionsTypeCountryRegion',
+  country_only: 'adminRegionsTypeCountryOnly',
+};
+const TYPE_DESC_KEY = {
+  zip_range: 'adminRegionsTypeZipRangeDesc',
+  city_state: 'adminRegionsTypeCityStateDesc',
+  geo_radius: 'adminRegionsTypeGeoRadiusDesc',
+  country_region: 'adminRegionsTypeCountryRegionDesc',
+  country_only: 'adminRegionsTypeCountryOnlyDesc',
+};
 
 function boundaryCount(def) {
   if (!def || !def.type) return 0;
@@ -139,13 +153,15 @@ function MetricCard({ icon: Icon, label, value, hint, tone }) {
 }
 
 function RegionCard({ region, onEdit, onDelete, deleting }) {
+  const { t } = useTranslation();
   const type = region.boundary_definition?.type || 'unknown';
+  const known = Boolean(TYPE_META[type]);
   const meta = TYPE_META[type] || {
-    label: type,
     tone: 'rgba(148, 163, 184, 0.14)',
     color: '#cbd5e1',
-    description: 'Custom territory boundary.',
   };
+  const typeLabel = known ? t(TYPE_LABEL_KEY[type]) : type;
+  const typeDescription = known ? t(TYPE_DESC_KEY[type]) : t('adminRegionsTypeCustomDesc');
   const chips = boundaryHighlights(region.boundary_definition);
 
   return (
@@ -157,15 +173,15 @@ function RegionCard({ region, onEdit, onDelete, deleting }) {
               className="inline-flex items-center rounded-full px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.14em]"
               style={{ background: meta.tone, color: meta.color }}
             >
-              {meta.label}
+              {typeLabel}
             </span>
             <span className="inline-flex items-center rounded-full bg-white/5 px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-slate-300">
-              {region.active_grants_count || 0} active grant{region.active_grants_count === 1 ? '' : 's'}
+              {t('adminRegionsActiveGrants', { count: region.active_grants_count || 0 })}
             </span>
           </div>
           <h2 className="truncate text-xl font-semibold text-white">{region.name}</h2>
           <p className="mt-2 text-sm leading-6 text-slate-400">
-            {region.description || meta.description}
+            {region.description || typeDescription}
           </p>
         </div>
 
@@ -173,7 +189,7 @@ function RegionCard({ region, onEdit, onDelete, deleting }) {
           <button
             onClick={() => onEdit(region)}
             className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-slate-300 transition hover:border-orange-400/40 hover:bg-orange-500/10 hover:text-orange-200"
-            title="Edit region"
+            title={t('adminRegionsEditRegion')}
           >
             <Edit2 size={15} />
           </button>
@@ -181,7 +197,7 @@ function RegionCard({ region, onEdit, onDelete, deleting }) {
             onClick={() => onDelete(region)}
             disabled={deleting}
             className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-slate-300 transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-50"
-            title="Delete region"
+            title={t('adminRegionsDeleteRegion')}
           >
             {deleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
           </button>
@@ -191,15 +207,15 @@ function RegionCard({ region, onEdit, onDelete, deleting }) {
       <div className="mt-5 grid gap-3 md:grid-cols-3">
         <div className="rounded-2xl border border-white/8 bg-slate-900/70 p-4">
           <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-slate-500">
-            Coverage
+            {t('adminRegionsCoverage')}
           </div>
           <div className="mt-2 text-sm font-medium text-slate-100">
-            {summarizeBoundary(region.boundary_definition)}
+            {summarizeBoundary(region.boundary_definition, t)}
           </div>
         </div>
         <div className="rounded-2xl border border-white/8 bg-slate-900/70 p-4">
           <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-slate-500">
-            Boundary units
+            {t('adminRegionsBoundaryUnits')}
           </div>
           <div className="mt-2 text-sm font-medium text-slate-100">
             {boundaryCount(region.boundary_definition)}
@@ -207,10 +223,10 @@ function RegionCard({ region, onEdit, onDelete, deleting }) {
         </div>
         <div className="rounded-2xl border border-white/8 bg-slate-900/70 p-4">
           <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-slate-500">
-            Region owner load
+            {t('adminRegionsOwnerLoad')}
           </div>
           <div className="mt-2 text-sm font-medium text-slate-100">
-            {region.active_grants_count > 0 ? 'Currently assigned' : 'Unassigned'}
+            {region.active_grants_count > 0 ? t('adminRegionsAssigned') : t('adminRegionsUnassigned')}
           </div>
         </div>
       </div>
@@ -229,14 +245,15 @@ function RegionCard({ region, onEdit, onDelete, deleting }) {
       )}
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-white/8 pt-4 text-xs text-slate-500">
-        <span>Created by {region.created_by_name || 'Unknown admin'}</span>
-        <span>Updated {new Date(region.updated_at || region.created_at).toLocaleDateString()}</span>
+        <span>{t('adminRegionsCreatedBy', { name: region.created_by_name || t('adminRegionsUnknownAdmin') })}</span>
+        <span>{t('adminRegionsUpdated', { date: new Date(region.updated_at || region.created_at).toLocaleDateString() })}</span>
       </div>
     </article>
   );
 }
 
 export default function RegionsManager() {
+  const { t } = useTranslation();
   const [regions, setRegions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
@@ -252,7 +269,7 @@ export default function RegionsManager() {
       const { data } = await adminApi.get('/admin/super/regions');
       setRegions(data.regions || []);
     } catch (err) {
-      setLoadError(err.response?.data?.error || 'Failed to load regions.');
+      setLoadError(err.response?.data?.error || t('adminRegionsLoadFailed'));
     } finally {
       setLoading(false);
     }
@@ -271,7 +288,7 @@ export default function RegionsManager() {
         region.name,
         region.description,
         type,
-        summarizeBoundary(region.boundary_definition),
+        summarizeBoundary(region.boundary_definition, t),
         ...boundaryHighlights(region.boundary_definition),
       ]
         .filter(Boolean)
@@ -280,7 +297,7 @@ export default function RegionsManager() {
       const matchesSearch = !term || haystack.includes(term);
       return matchesType && matchesSearch;
     });
-  }, [regions, search, typeFilter]);
+  }, [regions, search, typeFilter, t]);
 
   const metrics = useMemo(() => {
     const total = regions.length;
@@ -301,13 +318,13 @@ export default function RegionsManager() {
   };
 
   const handleDelete = async (region) => {
-    if (!confirm(`Delete region "${region.name}"? This cannot be undone.`)) return;
+    if (!confirm(t('adminRegionsDeleteConfirm', { name: region.name }))) return;
     setDeletingId(region.id);
     try {
       await adminApi.delete(`/admin/super/regions/${region.id}`);
       await load();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to delete region.');
+      toast.error(err.response?.data?.error || t('adminRegionsDeleteFailed'));
     } finally {
       setDeletingId(null);
     }
@@ -321,14 +338,13 @@ export default function RegionsManager() {
             <div className="max-w-3xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-orange-400/20 bg-orange-500/10 px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-orange-200">
                 <MapPinned size={14} />
-                Regional control plane
+                {t('adminRegionsEyebrow')}
               </div>
               <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white md:text-4xl">
-                Build geographic authority zones for super-admin and regional operations.
+                {t('adminRegionsTitle')}
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400 md:text-base">
-                Regions define where admin grants apply across the platform. Use them to scope launch markets,
-                assign local oversight, and separate operations by ZIPs, cities, provinces, or whole countries.
+                {t('adminRegionsSubtitle')}
               </p>
             </div>
 
@@ -338,14 +354,14 @@ export default function RegionsManager() {
                 className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-slate-200 transition hover:bg-white/10"
               >
                 <RefreshCcw size={15} />
-                Refresh
+                {t('common.refresh')}
               </button>
               <button
                 onClick={() => setEditing('new')}
                 className="inline-flex items-center gap-2 rounded-2xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-orange-500"
               >
                 <Plus size={15} />
-                New region
+                {t('adminRegionsNewRegion')}
               </button>
             </div>
           </div>
@@ -353,30 +369,30 @@ export default function RegionsManager() {
           <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <MetricCard
               icon={Map}
-              label="Total regions"
+              label={t('adminRegionsMetricTotal')}
               value={metrics.total}
-              hint="All territory definitions available for admin assignment."
+              hint={t('adminRegionsMetricTotalHint')}
               tone="linear-gradient(135deg, rgba(59,130,246,0.3), rgba(14,165,233,0.15))"
             />
             <MetricCard
               icon={ShieldCheck}
-              label="Actively assigned"
+              label={t('adminRegionsMetricAssigned')}
               value={metrics.assigned}
-              hint="Regions currently powering at least one live admin grant."
+              hint={t('adminRegionsMetricAssignedHint')}
               tone="linear-gradient(135deg, rgba(34,197,94,0.3), rgba(16,185,129,0.15))"
             />
             <MetricCard
               icon={Globe2}
-              label="International"
+              label={t('adminRegionsMetricInternational')}
               value={metrics.international}
-              hint="Regions scoped by country or country-plus-region boundaries."
+              hint={t('adminRegionsMetricInternationalHint')}
               tone="linear-gradient(135deg, rgba(168,85,247,0.3), rgba(99,102,241,0.15))"
             />
             <MetricCard
               icon={Layers3}
-              label="Boundary units"
+              label={t('adminRegionsMetricBoundaryUnits')}
               value={metrics.boundaryUnits}
-              hint="ZIP ranges, city pairs, radius blocks, and country entries combined."
+              hint={t('adminRegionsMetricBoundaryUnitsHint')}
               tone="linear-gradient(135deg, rgba(249,115,22,0.3), rgba(234,88,12,0.15))"
             />
           </div>
@@ -392,7 +408,7 @@ export default function RegionsManager() {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by region name, coverage, or boundary details..."
+                placeholder={t('adminRegionsSearchPlaceholder')}
                 className="w-full rounded-2xl border border-white/10 bg-slate-900/80 py-3 pl-11 pr-4 text-sm text-white placeholder:text-slate-500 focus:border-orange-500 focus:outline-none"
               />
             </div>
@@ -402,10 +418,10 @@ export default function RegionsManager() {
               onChange={(e) => setTypeFilter(e.target.value)}
               className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white focus:border-orange-500 focus:outline-none"
             >
-              <option value="">All boundary types</option>
-              {Object.entries(TYPE_META).map(([value, meta]) => (
+              <option value="">{t('adminRegionsAllBoundaryTypes')}</option>
+              {Object.entries(TYPE_META).map(([value]) => (
                 <option key={value} value={value}>
-                  {meta.label}
+                  {t(TYPE_LABEL_KEY[value])}
                 </option>
               ))}
             </select>
@@ -418,7 +434,7 @@ export default function RegionsManager() {
                 }}
                 className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-white/10"
               >
-                Clear
+                {t('adminRegionsClearFilters')}
               </button>
             )}
           </div>
@@ -434,7 +450,7 @@ export default function RegionsManager() {
         {loading ? (
           <div className="flex items-center justify-center rounded-[28px] border border-white/10 bg-slate-950/70 py-20 text-slate-400">
             <Loader2 size={20} className="mr-2 animate-spin" />
-            Loading regions...
+            {t('adminRegionsLoading')}
           </div>
         ) : filteredRegions.length === 0 ? (
           <div className="rounded-[28px] border border-dashed border-white/10 bg-slate-950/60 px-6 py-20 text-center">
@@ -442,12 +458,12 @@ export default function RegionsManager() {
               <Compass size={22} />
             </div>
             <h2 className="text-xl font-semibold text-white">
-              {regions.length === 0 ? 'No admin regions defined yet' : 'No regions match this filter'}
+              {regions.length === 0 ? t('adminRegionsEmptyTitle') : t('adminRegionsNoMatchTitle')}
             </h2>
             <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-slate-400">
               {regions.length === 0
-                ? 'Create regions for launch markets, support territories, or operational oversight before assigning them to admins.'
-                : 'Try broadening your search or switching the boundary-type filter to see more territory definitions.'}
+                ? t('adminRegionsEmptyDetail')
+                : t('adminRegionsNoMatchDetail')}
             </p>
             {regions.length === 0 && (
               <button
@@ -455,7 +471,7 @@ export default function RegionsManager() {
                 className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-orange-500"
               >
                 <Plus size={15} />
-                Create first region
+                {t('adminRegionsCreateFirst')}
               </button>
             )}
           </div>
@@ -480,10 +496,10 @@ export default function RegionsManager() {
             <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
               <div>
                 <h2 className="text-lg font-semibold text-white">
-                  {editing === 'new' ? 'Create admin region' : `Edit region: ${editing.name}`}
+                  {editing === 'new' ? t('adminRegionsCreateTitle') : t('adminRegionsEditTitle', { name: editing.name })}
                 </h2>
                 <p className="mt-1 text-sm text-slate-400">
-                  Define who owns which operational geography across OxSteed.
+                  {t('adminRegionsModalSubtitle')}
                 </p>
               </div>
               <button

@@ -131,8 +131,8 @@ function ApprovalCard({ approval, onChange }) {
 
       <ConfirmDialog
         open={confirmApprove}
-        title="Approve mode request"
-        message={`Approve ${approval.first_name || ''} ${approval.last_name || ''} for ${approval.mode} mode? Their gated actions will unlock.`}
+        title={t('adminModeApprovalsConfirmTitle')}
+        message={t('adminModeApprovalsConfirmMessage', { name: `${approval.first_name || ''} ${approval.last_name || ''}`.trim() || approval.email, mode: approval.mode })}
         confirmLabel={t('common.approve')}
         onConfirm={handleApprove}
         onClose={() => setConfirmApprove(false)}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle,
   Briefcase,
@@ -35,6 +36,7 @@ function formatCodeLabel(code) {
 }
 
 function DepartmentModal({ initial, onClose, onSaved }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     id: initial?.id || null,
     code: initial?.code || '',
@@ -60,7 +62,7 @@ function DepartmentModal({ initial, onClose, onSaved }) {
       await upsertCorporateDepartment(form);
       onSaved();
     } catch (err) {
-      setError(err?.response?.data?.error || 'Failed to save.');
+      setError(err?.response?.data?.error || t('corporateOrg.departments.form.errorSave'));
     } finally {
       setSaving(false);
     }
@@ -71,7 +73,7 @@ function DepartmentModal({ initial, onClose, onSaved }) {
       <div className="w-full max-w-lg rounded-xl border border-gray-700 bg-gray-900 p-6 shadow-2xl">
         <div className="mb-5 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-white">
-            {initial ? 'Edit department' : 'New department'}
+            {initial ? t('corporateOrg.departments.editDepartment') : t('corporateOrg.departments.newDepartment')}
           </h2>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-300">
             <X size={18} />
@@ -81,7 +83,7 @@ function DepartmentModal({ initial, onClose, onSaved }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm text-gray-400">Code *</label>
+              <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.form.codeLabel')}</label>
               <input
                 type="text"
                 value={form.code}
@@ -91,7 +93,7 @@ function DepartmentModal({ initial, onClose, onSaved }) {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-gray-400">Name *</label>
+              <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.form.nameLabel')}</label>
               <input
                 type="text"
                 value={form.name}
@@ -102,7 +104,7 @@ function DepartmentModal({ initial, onClose, onSaved }) {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm text-gray-400">Description</label>
+            <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.form.descriptionLabel')}</label>
             <textarea
               value={form.description}
               onChange={(event) => setF('description', event.target.value)}
@@ -113,7 +115,7 @@ function DepartmentModal({ initial, onClose, onSaved }) {
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="mb-1 block text-sm text-gray-400">Color</label>
+              <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.form.colorLabel')}</label>
               <input
                 type="color"
                 value={form.color}
@@ -122,17 +124,17 @@ function DepartmentModal({ initial, onClose, onSaved }) {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-gray-400">Icon</label>
+              <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.form.iconLabel')}</label>
               <input
                 type="text"
                 value={form.icon}
                 onChange={(event) => setF('icon', event.target.value)}
-                placeholder="lucide name"
+                placeholder={t('adminCorporateDeptsIconPlaceholder')}
                 className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-gray-400">Sort</label>
+              <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.form.sortLabel')}</label>
               <input
                 type="number"
                 value={form.sort_order}
@@ -148,7 +150,7 @@ function DepartmentModal({ initial, onClose, onSaved }) {
               checked={form.is_active}
               onChange={(event) => setF('is_active', event.target.checked)}
             />
-            Active
+            {t('corporateOrg.departments.form.active')}
           </label>
 
           {error && (
@@ -159,7 +161,7 @@ function DepartmentModal({ initial, onClose, onSaved }) {
 
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-400 hover:text-white">
-              Cancel
+              {t('corporateOrg.departments.form.cancel')}
             </button>
             <button
               type="submit"
@@ -167,7 +169,7 @@ function DepartmentModal({ initial, onClose, onSaved }) {
               className="flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600 disabled:opacity-50"
             >
               {saving && <Loader2 size={14} className="animate-spin" />}
-              Save
+              {t('corporateOrg.departments.form.save')}
             </button>
           </div>
         </form>
@@ -177,6 +179,7 @@ function DepartmentModal({ initial, onClose, onSaved }) {
 }
 
 function TitleModal({ initial, departments, onClose, onSaved }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     id: initial?.id || null,
     department_id: initial?.department_id || departments[0]?.id || '',
@@ -203,7 +206,7 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
       await upsertCorporateTitle(form);
       onSaved();
     } catch (err) {
-      setError(err?.response?.data?.error || 'Failed to save.');
+      setError(err?.response?.data?.error || t('corporateOrg.departments.form.errorSave'));
     } finally {
       setSaving(false);
     }
@@ -214,7 +217,7 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
       <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-gray-700 bg-gray-900 p-6 shadow-2xl">
         <div className="mb-5 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-white">
-            {initial ? 'Edit title' : 'New title'}
+            {initial ? t('corporateOrg.departments.editTitle') : t('corporateOrg.departments.newTitle')}
           </h2>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-300">
             <X size={18} />
@@ -223,7 +226,7 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm text-gray-400">Department *</label>
+            <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.form.departmentLabel')}</label>
             <select
               value={form.department_id}
               onChange={(event) => setF('department_id', Number(event.target.value))}
@@ -237,7 +240,7 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm text-gray-400">Code *</label>
+              <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.form.codeLabel')}</label>
               <input
                 type="text"
                 value={form.code}
@@ -247,7 +250,7 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-gray-400">Name *</label>
+              <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.form.nameLabel')}</label>
               <input
                 type="text"
                 value={form.name}
@@ -258,7 +261,7 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm text-gray-400">Description</label>
+            <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.form.descriptionLabel')}</label>
             <textarea
               value={form.description}
               onChange={(event) => setF('description', event.target.value)}
@@ -269,7 +272,7 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm text-gray-400">Seniority (1-10)</label>
+              <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.form.seniorityLabel')}</label>
               <input
                 type="number"
                 min="1"
@@ -280,7 +283,7 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-gray-400">Sort order</label>
+              <label className="mb-1 block text-sm text-gray-400">{t('adminCorporateDeptsSortOrder')}</label>
               <input
                 type="number"
                 value={form.sort_order}
@@ -297,7 +300,7 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
                 checked={form.is_csuite}
                 onChange={(event) => setF('is_csuite', event.target.checked)}
               />
-              C-suite title
+              {t('corporateOrg.departments.form.csuite')}
             </label>
             <label className="flex items-center gap-2 text-sm text-gray-300">
               <input
@@ -305,7 +308,7 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
                 checked={form.is_active}
                 onChange={(event) => setF('is_active', event.target.checked)}
               />
-              Active
+              {t('corporateOrg.departments.form.active')}
             </label>
           </div>
 
@@ -317,7 +320,7 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
 
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-400 hover:text-white">
-              Cancel
+              {t('corporateOrg.departments.form.cancel')}
             </button>
             <button
               type="submit"
@@ -325,7 +328,7 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
               className="flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600 disabled:opacity-50"
             >
               {saving && <Loader2 size={14} className="animate-spin" />}
-              Save
+              {t('corporateOrg.departments.form.save')}
             </button>
           </div>
         </form>
@@ -335,6 +338,7 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
 }
 
 function PermissionsEditor({ department, catalog, onSaved }) {
+  const { t } = useTranslation();
   const allPermissions = catalog?.permissions || [];
   const [allowed, setAllowed] = useState(new Set(department.permissions || []));
   const [saving, setSaving] = useState(false);
@@ -366,7 +370,7 @@ function PermissionsEditor({ department, catalog, onSaved }) {
       await setDepartmentDefaultPermissions(department.id, payload);
       onSaved();
     } catch (err) {
-      setError(err?.response?.data?.error || 'Failed to save permissions.');
+      setError(err?.response?.data?.error || t('adminCorporateDeptsSavePermsFailed'));
     } finally {
       setSaving(false);
     }
@@ -374,7 +378,7 @@ function PermissionsEditor({ department, catalog, onSaved }) {
 
   return (
     <div className="mt-4 rounded-lg border border-gray-800 bg-gray-950 p-4">
-      <div className="mb-3 text-sm font-medium text-white">Default permissions</div>
+      <div className="mb-3 text-sm font-medium text-white">{t('adminCorporateDeptsDefaultPermissions')}</div>
       <div className="max-h-[400px] space-y-3 overflow-y-auto">
         {Object.entries(grouped).map(([group, permissions]) => (
           <div key={group}>
@@ -408,7 +412,7 @@ function PermissionsEditor({ department, catalog, onSaved }) {
           className="flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600 disabled:opacity-50"
         >
           {saving && <Loader2 size={14} className="animate-spin" />}
-          Save defaults
+          {t('corporateOrg.departments.savePermissions')}
         </button>
       </div>
     </div>
@@ -429,6 +433,7 @@ function MetricCard({ icon: Icon, label, value, hint }) {
 }
 
 function CoveragePill({ status }) {
+  const { t } = useTranslation();
   const styles = {
     assigned: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
     country: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
@@ -436,10 +441,10 @@ function CoveragePill({ status }) {
     open: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
   };
   const labels = {
-    assigned: 'Assigned',
-    country: 'Filled in country',
-    global: 'Covered globally',
-    open: 'Open priority',
+    assigned: t('adminCorporateDeptsStatusAssigned'),
+    country: t('adminCorporateDeptsStatusCountry'),
+    global: t('adminCorporateDeptsStatusGlobal'),
+    open: t('adminCorporateDeptsStatusOpen'),
   };
 
   return (
@@ -450,6 +455,7 @@ function CoveragePill({ status }) {
 }
 
 function PriorityRoleCard({ item, selectedCountry, onEdit }) {
+  const { t } = useTranslation();
   return (
     <div className="rounded-xl border border-gray-800 bg-gray-950 p-4">
       <div className="mb-3 flex items-start justify-between gap-3">
@@ -466,28 +472,28 @@ function PriorityRoleCard({ item, selectedCountry, onEdit }) {
       </div>
 
       <div className="text-sm leading-6 text-gray-300">
-        {ROLE_FOCUS[item.code] || 'Define how this role supports the launch in this department.'}
+        {ROLE_FOCUS[item.code] || t('adminCorporateDeptsRoleFocusFallback')}
       </div>
 
       {selectedCountry && (
         <div className="mt-3 text-xs text-gray-400">
-          {item.status === 'country' && `Already assigned directly in ${selectedCountry}.`}
-          {item.status === 'global' && `Currently covered by a global assignment, but no direct ${selectedCountry} seat yet.`}
-          {item.status === 'open' && `No active assignment is covering this launch role for ${selectedCountry}.`}
+          {item.status === 'country' && t('adminCorporateDeptsAssignedInCountry', { country: selectedCountry })}
+          {item.status === 'global' && t('adminCorporateDeptsGlobalCoverage', { country: selectedCountry })}
+          {item.status === 'open' && t('adminCorporateDeptsNoCoverage', { country: selectedCountry })}
         </div>
       )}
 
       {!selectedCountry && item.status === 'assigned' && (
         <div className="mt-3 text-xs text-gray-400">
-          This role already has at least one active assignment somewhere in the organization.
+          {t('adminCorporateDeptsAssignedSomewhere')}
         </div>
       )}
 
       <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
-        <span>{item.assignmentCount} active seat{item.assignmentCount === 1 ? '' : 's'}</span>
+        <span>{t('adminCorporateDeptsActiveSeats', { count: item.assignmentCount })}</span>
         {item.title && (
           <button onClick={() => onEdit(item.title)} className="text-gray-400 hover:text-white">
-            Edit title
+            {t('corporateOrg.departments.editTitle')}
           </button>
         )}
       </div>
@@ -496,6 +502,7 @@ function PriorityRoleCard({ item, selectedCountry, onEdit }) {
 }
 
 export default function CorporateDepartments() {
+  const { t } = useTranslation();
   const [catalog, setCatalog] = useState(null);
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -519,11 +526,11 @@ export default function CorporateDepartments() {
       setCatalog(catalogResponse);
       setAssignments(activeAssignments);
     } catch (err) {
-      setError(err?.response?.data?.error || 'Failed to load catalog.');
+      setError(err?.response?.data?.error || t('adminCorporateDeptsLoadFailed'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();
@@ -557,8 +564,8 @@ export default function CorporateDepartments() {
     const departments = catalog?.departments || [];
     const departmentSummaries = departments.map((department) => {
       const playbook = DEPARTMENT_PLAYBOOKS[department.code] || {
-        mission: department.description || 'Define what this team should own.',
-        launchObjective: 'Clarify how this department supports country launch execution.',
+        mission: department.description || t('adminCorporateDeptsMissionFallback'),
+        launchObjective: t('adminCorporateDeptsObjectiveFallback'),
         owns: [],
         firstHireCodes: [],
       };
@@ -625,12 +632,12 @@ export default function CorporateDepartments() {
       coveredCriticalRoles,
       openLaunchRoles,
     };
-  }, [assignmentCounts, assignments, catalog, selectedCountry]);
+  }, [assignmentCounts, assignments, catalog, selectedCountry, t]);
 
   if (loading) {
     return (
       <div className="p-10 text-center text-gray-400">
-        <Loader2 className="mr-2 inline animate-spin" size={18} /> Loading...
+        <Loader2 className="mr-2 inline animate-spin" size={18} /> {t('common.loading')}
       </div>
     );
   }
@@ -645,17 +652,17 @@ export default function CorporateDepartments() {
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-semibold text-white">
             <Shield size={22} />
-            Corporate Departments & Titles
+            {t('corporateOrg.departments.pageTitle')}
           </h1>
           <p className="mt-1 max-w-3xl text-sm text-gray-400">
-            Super-admin command center for structuring departments, defining titles, and checking whether a new country launch has the right people covering the work.
+            {t('adminCorporateDeptsSubtitle')}
           </p>
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <label className="flex items-center gap-2 rounded-xl border border-gray-800 bg-gray-900 px-3 py-2 text-sm text-gray-300">
             <Globe2 size={15} className="text-gray-500" />
-            <span>Country launch</span>
+            <span>{t('adminCorporateDeptsCountryLaunch')}</span>
             <input
               type="text"
               value={countryCode}
@@ -669,7 +676,7 @@ export default function CorporateDepartments() {
             onClick={() => setDeptModal({})}
             className="flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600"
           >
-            <Plus size={16} /> New department
+            <Plus size={16} /> {t('corporateOrg.departments.newDepartment')}
           </button>
         </div>
       </div>
@@ -677,27 +684,27 @@ export default function CorporateDepartments() {
       <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           icon={Building2}
-          label="Departments"
+          label={t('adminCorporateDeptsDepartments')}
           value={dashboard.departments.length}
-          hint={`${dashboard.activeDepartments} currently have at least one active assignment.`}
+          hint={t('adminCorporateDeptsActiveHint', { count: dashboard.activeDepartments })}
         />
         <MetricCard
           icon={Briefcase}
-          label="Titles"
+          label={t('adminCorporateDeptsTitles')}
           value={dashboard.totalTitles}
-          hint={`${dashboard.totalPermissions} default permissions mapped across departments.`}
+          hint={t('adminCorporateDeptsPermsHint', { count: dashboard.totalPermissions })}
         />
         <MetricCard
           icon={Users2}
-          label={selectedCountry ? `${selectedCountry} coverage` : 'Org coverage'}
+          label={selectedCountry ? t('adminCorporateDeptsCountryCoverage', { country: selectedCountry }) : t('adminCorporateDeptsOrgCoverage')}
           value={selectedCountry ? `${dashboard.staffedDepartmentsInCountry}/${dashboard.departments.length}` : `${dashboard.activeDepartments}/${dashboard.departments.length}`}
-          hint={selectedCountry ? `${dashboard.totalCountryAssignments} active country-scoped assignments in this launch market.` : 'Departments with live ownership across the organization.'}
+          hint={selectedCountry ? t('adminCorporateDeptsCountryAssignmentsHint', { count: dashboard.totalCountryAssignments }) : t('adminCorporateDeptsOrgCoverageHint')}
         />
         <MetricCard
           icon={Target}
-          label="Launch readiness"
+          label={t('adminCorporateDeptsLaunchReadiness')}
           value={`${dashboard.coveredCriticalRoles}/${dashboard.totalCriticalRoles}`}
-          hint={selectedCountry ? `Priority launch roles covered for ${selectedCountry}.` : 'Priority launch roles covered by country or global leadership.'}
+          hint={selectedCountry ? t('adminCorporateDeptsReadinessHint', { country: selectedCountry }) : t('adminCorporateDeptsReadinessHintGlobal')}
         />
       </div>
 
@@ -707,53 +714,53 @@ export default function CorporateDepartments() {
             <div>
               <div className="flex items-center gap-2 text-sm font-medium text-orange-300">
                 <Sparkles size={15} />
-                Launch Console
+                {t('adminCorporateDeptsLaunchConsole')}
               </div>
               <h2 className="mt-2 text-xl font-semibold text-white">
-                {selectedCountry ? `How OxSteed is staffed for ${selectedCountry}` : 'How OxSteed is structured to expand'}
+                {selectedCountry ? t('adminCorporateDeptsConsoleStaffed', { country: selectedCountry }) : t('adminCorporateDeptsConsoleStructure')}
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-400">
-                Use the country filter when you are entering a new market. The page will show which departments already have local ownership, which roles are only covered globally, and where you still need direct hires.
+                {t('adminCorporateDeptsConsoleText')}
               </p>
             </div>
             {selectedCountry && (
               <div className="rounded-full border border-orange-500/30 bg-orange-500/10 px-3 py-1 text-xs font-medium text-orange-300">
-                Focus market: {selectedCountry}
+                {t('adminCorporateDeptsFocusMarket', { country: selectedCountry })}
               </div>
             )}
           </div>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             <div className="rounded-xl border border-gray-800 bg-gray-900/70 p-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-gray-500">Country-staffed departments</div>
+              <div className="text-xs uppercase tracking-[0.18em] text-gray-500">{t('adminCorporateDeptsCountryStaffedDepts')}</div>
               <div className="mt-2 text-2xl font-semibold text-white">
                 {selectedCountry ? dashboard.staffedDepartmentsInCountry : dashboard.activeDepartments}
               </div>
               <div className="mt-1 text-sm text-gray-400">
-                {selectedCountry ? `Departments with direct ${selectedCountry} ownership.` : 'Departments with someone actively assigned.'}
+                {selectedCountry ? t('adminCorporateDeptsDirectOwnership', { country: selectedCountry }) : t('adminCorporateDeptsSomeoneAssigned')}
               </div>
             </div>
             <div className="rounded-xl border border-gray-800 bg-gray-900/70 p-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-gray-500">Priority roles open</div>
+              <div className="text-xs uppercase tracking-[0.18em] text-gray-500">{t('adminCorporateDeptsPriorityOpen')}</div>
               <div className="mt-2 text-2xl font-semibold text-white">{dashboard.openLaunchRoles.length}</div>
               <div className="mt-1 text-sm text-gray-400">
-                Roles you likely need to hire or explicitly assign next.
+                {t('adminCorporateDeptsPriorityOpenHint')}
               </div>
             </div>
             <div className="rounded-xl border border-gray-800 bg-gray-900/70 p-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-gray-500">Global backstop</div>
+              <div className="text-xs uppercase tracking-[0.18em] text-gray-500">{t('adminCorporateDeptsGlobalBackstop')}</div>
               <div className="mt-2 text-2xl font-semibold text-white">
                 {dashboard.totalCriticalRoles - dashboard.openLaunchRoles.length}
               </div>
               <div className="mt-1 text-sm text-gray-400">
-                Priority roles covered either locally or by global leaders.
+                {t('adminCorporateDeptsGlobalBackstopHint')}
               </div>
             </div>
           </div>
         </div>
 
         <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
-          <div className="mb-3 text-sm font-medium text-white">Immediate founder hiring view</div>
+          <div className="mb-3 text-sm font-medium text-white">{t('adminCorporateDeptsHiringView')}</div>
           {dashboard.openLaunchRoles.length ? (
             <div className="space-y-3">
               {dashboard.openLaunchRoles.slice(0, 6).map((role) => (
@@ -772,10 +779,10 @@ export default function CorporateDepartments() {
             <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4">
               <div className="flex items-center gap-2 text-sm font-medium text-emerald-300">
                 <CheckCircle2 size={16} />
-                No open priority roles in the current view
+                {t('adminCorporateDeptsNoOpenRoles')}
               </div>
               <p className="mt-2 text-sm leading-6 text-emerald-100/80">
-                The current setup already has launch-critical ownership covered. You can still expand deeper into execution roles inside each department below.
+                {t('adminCorporateDeptsNoOpenRolesText')}
               </p>
             </div>
           )}
@@ -801,10 +808,10 @@ export default function CorporateDepartments() {
                       <div className="text-lg font-semibold text-white">{department.name}</div>
                       <div className="mt-1 text-sm text-gray-400">{playbook.mission}</div>
                       <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-500">
-                        <span>{department.titles?.length || 0} titles</span>
-                        <span>{department.permissions?.length || 0} default permissions</span>
-                        <span>{item.totalAssignments} active seats</span>
-                        {selectedCountry && <span>{item.countryAssignments} in {selectedCountry}</span>}
+                        <span>{t('corporateOrg.departments.metaTitles', { count: department.titles?.length || 0 })}</span>
+                        <span>{t('corporateOrg.departments.metaPermissions', { count: department.permissions?.length || 0 })}</span>
+                        <span>{t('adminCorporateDeptsActiveSeats', { count: item.totalAssignments })}</span>
+                        {selectedCountry && <span>{t('adminCorporateDeptsInCountry', { count: item.countryAssignments, country: selectedCountry })}</span>}
                       </div>
                     </div>
                   </div>
@@ -812,7 +819,7 @@ export default function CorporateDepartments() {
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                     <div className="min-w-[220px]">
                       <div className="mb-1 flex items-center justify-between text-xs text-gray-500">
-                        <span>Launch coverage</span>
+                        <span>{t('adminCorporateDeptsLaunchCoverage')}</span>
                         <span>{item.criticalCovered}/{item.criticalTotal || 0}</span>
                       </div>
                       <div className="h-2 overflow-hidden rounded-full bg-gray-800">
@@ -832,7 +839,7 @@ export default function CorporateDepartments() {
                         }}
                         className="rounded-lg border border-gray-700 px-3 py-1 text-xs text-gray-300 hover:border-gray-500 hover:text-white"
                       >
-                        Permissions
+                        {t('corporateOrg.departments.permissionsButton')}
                       </button>
                       <button
                         onClick={(event) => {
@@ -840,7 +847,7 @@ export default function CorporateDepartments() {
                           setDeptModal(department);
                         }}
                         className="p-1 text-gray-500 hover:text-white"
-                        title="Edit department"
+                        title={t('corporateOrg.departments.editDepartment')}
                       >
                         <Edit3 size={15} />
                       </button>
@@ -858,7 +865,7 @@ export default function CorporateDepartments() {
                 <div className="border-t border-gray-800 p-5">
                   <div className="mb-5 grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_0.9fr]">
                     <div className="rounded-2xl border border-gray-800 bg-gray-950 p-4">
-                      <div className="text-sm font-medium text-white">What this department owns</div>
+                      <div className="text-sm font-medium text-white">{t('adminCorporateDeptsWhatOwns')}</div>
                       <p className="mt-2 text-sm leading-6 text-gray-400">{playbook.launchObjective}</p>
                       <div className="mt-4 flex flex-wrap gap-2">
                         {(playbook.owns || []).map((itemText) => (
@@ -871,12 +878,12 @@ export default function CorporateDepartments() {
 
                     <div className="rounded-2xl border border-gray-800 bg-gray-950 p-4">
                       <div className="text-sm font-medium text-white">
-                        {selectedCountry ? `Launch note for ${selectedCountry}` : 'Founder note'}
+                        {selectedCountry ? t('adminCorporateDeptsLaunchNote', { country: selectedCountry }) : t('adminCorporateDeptsFounderNote')}
                       </div>
                       <p className="mt-2 text-sm leading-6 text-gray-400">
                         {selectedCountry
-                          ? `When you travel to ${selectedCountry} to stand up operations, this team needs an owner who can make decisions locally and still stay connected to global standards.`
-                          : 'Use this page to decide who owns strategy, execution, compliance, and growth before expansion work starts.'}
+                          ? t('adminCorporateDeptsLaunchNoteText', { country: selectedCountry })
+                          : t('adminCorporateDeptsFounderNoteText')}
                       </p>
                     </div>
                   </div>
@@ -884,42 +891,42 @@ export default function CorporateDepartments() {
                   <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
                     <MetricCard
                       icon={Briefcase}
-                      label="Defined titles"
+                      label={t('adminCorporateDeptsDefinedTitles')}
                       value={department.titles?.length || 0}
-                      hint="Total role slots available in this department."
+                      hint={t('adminCorporateDeptsDefinedTitlesHint')}
                     />
                     <MetricCard
                       icon={Users2}
-                      label="Active seats"
+                      label={t('adminCorporateDeptsActiveSeatsLabel')}
                       value={item.totalAssignments}
-                      hint="Current active assignments across all scopes."
+                      hint={t('adminCorporateDeptsActiveSeatsHint')}
                     />
                     <MetricCard
                       icon={Globe2}
-                      label={selectedCountry ? `${selectedCountry} seats` : 'Global seats'}
+                      label={selectedCountry ? t('adminCorporateDeptsCountrySeats', { country: selectedCountry }) : t('adminCorporateDeptsGlobalSeats')}
                       value={selectedCountry ? item.countryAssignments : item.totalAssignments}
-                      hint={selectedCountry ? 'Directly assigned into the selected country.' : 'Use country filter to inspect local market staffing.'}
+                      hint={selectedCountry ? t('adminCorporateDeptsDirectlyAssigned') : t('adminCorporateDeptsInspectStaffing')}
                     />
                     <MetricCard
                       icon={Target}
-                      label="Priority filled"
+                      label={t('adminCorporateDeptsPriorityFilled')}
                       value={`${item.criticalCovered}/${item.criticalTotal || 0}`}
-                      hint="Launch-sequence roles that already have coverage."
+                      hint={t('adminCorporateDeptsPriorityFilledHint')}
                     />
                   </div>
 
                   <div className="mb-5 flex items-center justify-between">
                     <div>
-                      <h3 className="text-sm font-medium text-gray-300">Priority hiring sequence</h3>
+                      <h3 className="text-sm font-medium text-gray-300">{t('adminCorporateDeptsHiringSequence')}</h3>
                       <p className="mt-1 text-xs text-gray-500">
-                        These are the first roles this department usually needs when opening a new country.
+                        {t('adminCorporateDeptsHiringSequenceHint')}
                       </p>
                     </div>
                     <button
                       onClick={() => setTitleModal({ department_id: department.id })}
                       className="flex items-center gap-1 px-3 py-1 text-xs text-orange-300 hover:text-orange-200"
                     >
-                      <Plus size={12} /> Add title
+                      <Plus size={12} /> {t('corporateOrg.departments.addTitle')}
                     </button>
                   </div>
 
@@ -934,12 +941,12 @@ export default function CorporateDepartments() {
                     ))}
                     {!priorityRoles.length && (
                       <div className="col-span-full rounded-xl border border-dashed border-gray-800 bg-gray-950 p-4 text-sm text-gray-500">
-                        No launch playbook is defined for this department yet.
+                        {t('adminCorporateDeptsNoPlaybook')}
                       </div>
                     )}
                   </div>
 
-                  <div className="mb-3 text-sm font-medium text-gray-300">All titles</div>
+                  <div className="mb-3 text-sm font-medium text-gray-300">{t('adminCorporateDeptsAllTitles')}</div>
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                     {(department.titles || [])
                       .slice()
@@ -947,7 +954,7 @@ export default function CorporateDepartments() {
                       .map((title) => {
                         const totalAssignments = assignmentCounts.byTitle.get(title.id) || 0;
                         const inCountry = assignmentCounts.byTitleInCountry.get(title.id) || 0;
-                        const focus = ROLE_FOCUS[title.code] || title.description || `${department.name} ownership role.`;
+                        const focus = ROLE_FOCUS[title.code] || title.description || t('adminCorporateDeptsOwnershipRole', { department: department.name });
 
                         return (
                           <div key={title.id} className="rounded-xl border border-gray-800 bg-gray-950 p-4">
@@ -964,7 +971,7 @@ export default function CorporateDepartments() {
                               <button
                                 onClick={() => setTitleModal(title)}
                                 className="p-1 text-gray-500 hover:text-white"
-                                title="Edit title"
+                                title={t('corporateOrg.departments.editTitle')}
                               >
                                 <Edit3 size={13} />
                               </button>
@@ -974,16 +981,16 @@ export default function CorporateDepartments() {
 
                             <div className="mt-4 flex flex-wrap gap-2">
                               <span className="rounded-full border border-gray-700 bg-gray-900 px-2.5 py-1 text-xs text-gray-300">
-                                {totalAssignments} active seat{totalAssignments === 1 ? '' : 's'}
+                                {t('adminCorporateDeptsActiveSeats', { count: totalAssignments })}
                               </span>
                               {selectedCountry && (
                                 <span className="rounded-full border border-gray-700 bg-gray-900 px-2.5 py-1 text-xs text-gray-300">
-                                  {inCountry} in {selectedCountry}
+                                  {t('adminCorporateDeptsInCountry', { count: inCountry, country: selectedCountry })}
                                 </span>
                               )}
                               {title.is_csuite && (
                                 <span className="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2.5 py-1 text-xs text-yellow-300">
-                                  C-suite
+                                  {t('adminCorporateDeptsCSuite')}
                                 </span>
                               )}
                             </div>
@@ -993,7 +1000,7 @@ export default function CorporateDepartments() {
 
                     {!department.titles?.length && (
                       <div className="col-span-full text-xs italic text-gray-500">
-                        No titles defined.
+                        {t('corporateOrg.departments.noTitles')}
                       </div>
                     )}
                   </div>

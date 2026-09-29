@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle,
   Briefcase,
@@ -49,8 +50,37 @@ const fieldStyle = {
   fontSize: '0.92rem',
 };
 
-function formatLabel(value) {
-  return String(value || '')
+const OPTION_LABEL_KEYS = {
+  inquiry: 'adminFranchiseStatusInquiry',
+  screening: 'adminFranchiseStatusScreening',
+  application_review: 'adminFranchiseStatusApplicationReview',
+  diligence: 'adminFranchiseStatusDiligence',
+  agreement_pending: 'adminFranchiseStatusAgreementPending',
+  approved: 'adminFranchiseStatusApproved',
+  rejected: 'adminFranchiseStatusRejected',
+  archived: 'adminFranchiseStatusArchived',
+  launched: 'adminFranchiseStatusLaunched',
+  draft: 'adminFranchiseOptionDraft',
+  sent: 'adminFranchiseOptionSent',
+  signed: 'adminFranchiseOptionSigned',
+  waived: 'adminFranchiseOptionWaived',
+  not_started: 'adminFranchiseOptionNotStarted',
+  scheduled: 'adminFranchiseOptionScheduled',
+  in_progress: 'adminFranchiseOptionInProgress',
+  completed: 'adminFranchiseOptionCompleted',
+  not_ready: 'adminFranchiseOptionNotReady',
+  planning: 'adminFranchiseOptionPlanning',
+  ready: 'adminFranchiseOptionReady',
+  pending: 'adminFranchiseOptionPending',
+  blocked: 'adminFranchiseOptionBlocked',
+};
+
+function formatLabel(value, t) {
+  const raw = String(value || '');
+  if (!raw) return '';
+  const key = OPTION_LABEL_KEYS[raw.toLowerCase()];
+  if (key && t) return t(key);
+  return raw
     .split('_')
     .filter(Boolean)
     .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
@@ -73,6 +103,7 @@ function MetricCard({ icon: Icon, label, value, sublabel, accent }) {
 }
 
 function FranchiseRow({ item, isActive, onClick }) {
+  const { t } = useTranslation();
   const readinessPct = item.checklist_total ? Math.round((item.checklist_completed / item.checklist_total) * 100) : 0;
 
   return (
@@ -99,7 +130,7 @@ function FranchiseRow({ item, isActive, onClick }) {
           </div>
           <div style={{ color: '#94a3b8', fontSize: '0.86rem' }}>{item.first_name} {item.last_name} · {item.email}</div>
         </div>
-        <div style={{ color: '#fb923c', fontSize: '0.8rem', fontWeight: 700 }}>{formatLabel(item.status)}</div>
+        <div style={{ color: '#fb923c', fontSize: '0.8rem', fontWeight: 700 }}>{formatLabel(item.status, t)}</div>
       </div>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -107,16 +138,16 @@ function FranchiseRow({ item, isActive, onClick }) {
           {item.desired_country}{item.desired_region ? ` · ${item.desired_region}` : ''}
         </span>
         <span style={{ padding: '4px 10px', borderRadius: 999, background: 'rgba(16, 185, 129, 0.15)', color: '#86efac', fontSize: '0.78rem' }}>
-          Agreement {formatLabel(item.agreement_status)}
+          {t('adminFranchiseAgreementLabel', { status: formatLabel(item.agreement_status, t) })}
         </span>
         <span style={{ padding: '4px 10px', borderRadius: 999, background: 'rgba(250, 204, 21, 0.12)', color: '#fde68a', fontSize: '0.78rem' }}>
-          {item.preferred_store_count} store{item.preferred_store_count === 1 ? '' : 's'}
+          {t('adminFranchiseStores', { count: item.preferred_store_count })}
         </span>
       </div>
 
       <div style={{ display: 'grid', gap: 6 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', color: '#94a3b8', fontSize: '0.78rem' }}>
-          <span>Launch readiness</span>
+          <span>{t('adminFranchiseLaunchReadiness')}</span>
           <span>{readinessPct}%</span>
         </div>
         <div style={{ height: 8, borderRadius: 999, background: 'rgba(148, 163, 184, 0.14)', overflow: 'hidden' }}>
@@ -128,6 +159,7 @@ function FranchiseRow({ item, isActive, onClick }) {
 }
 
 export default function FranchiseHQPage() {
+  const { t } = useTranslation();
   const [applications, setApplications] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [selectedBundle, setSelectedBundle] = useState(null);
@@ -189,7 +221,7 @@ export default function FranchiseHQPage() {
         setSelectedBundle(null);
       }
     } catch (err) {
-      toast.error('Failed to load franchise applications');
+      toast.error(t('adminFranchiseLoadFailed'));
     } finally {
       setLoading(false);
     }
@@ -240,7 +272,7 @@ export default function FranchiseHQPage() {
         description: bundle.application.local_market_overview || '',
       });
     } catch (err) {
-      toast.error('Failed to load franchise details');
+      toast.error(t('adminFranchiseDetailFailed'));
     } finally {
       setDetailLoading(false);
     }
@@ -257,10 +289,10 @@ export default function FranchiseHQPage() {
       setSaving(true);
       const res = await axios.patch(`/franchise/applications/${selectedApplication.id}`, editForm);
       setSelectedBundle(res.data);
-      toast.success('Franchise application updated');
+      toast.success(t('adminFranchiseUpdated'));
       await loadApplications(selectedApplication.id);
     } catch (err) {
-      toast.error(err?.response?.data?.error || 'Failed to update application');
+      toast.error(err?.response?.data?.error || t('adminFranchiseUpdateFailed'));
     } finally {
       setSaving(false);
     }
@@ -272,10 +304,10 @@ export default function FranchiseHQPage() {
       setSaving(true);
       const res = await axios.put(`/franchise/applications/${selectedApplication.id}/agreement`, agreementForm);
       setSelectedBundle(res.data);
-      toast.success('Agreement updated');
+      toast.success(t('adminFranchiseAgreementUpdated'));
       await loadApplications(selectedApplication.id);
     } catch (err) {
-      toast.error(err?.response?.data?.error || 'Failed to update agreement');
+      toast.error(err?.response?.data?.error || t('adminFranchiseAgreementFailed'));
     } finally {
       setSaving(false);
     }
@@ -286,7 +318,7 @@ export default function FranchiseHQPage() {
     try {
       setSaving(true);
       const res = await axios.post('/franchise/applications', createForm);
-      toast.success('Franchise lead created');
+      toast.success(t('adminFranchiseLeadCreated'));
       setShowCreate(false);
       setCreateForm({
         first_name: '',
@@ -308,7 +340,7 @@ export default function FranchiseHQPage() {
       });
       await loadApplications(res.data?.application?.id);
     } catch (err) {
-      toast.error(err?.response?.data?.error || 'Failed to create franchise lead');
+      toast.error(err?.response?.data?.error || t('adminFranchiseLeadFailed'));
     } finally {
       setSaving(false);
     }
@@ -321,9 +353,9 @@ export default function FranchiseHQPage() {
       const res = await axios.post(`/franchise/applications/${selectedApplication.id}/notes`, { note_text: noteText });
       setSelectedBundle(res.data);
       setNoteText('');
-      toast.success('Note added');
+      toast.success(t('adminFranchiseNoteAdded'));
     } catch (err) {
-      toast.error(err?.response?.data?.error || 'Failed to add note');
+      toast.error(err?.response?.data?.error || t('adminFranchiseNoteFailed'));
     } finally {
       setSaving(false);
     }
@@ -334,10 +366,10 @@ export default function FranchiseHQPage() {
     try {
       const res = await axios.patch(`/franchise/applications/${selectedApplication.id}/checklist/${itemId}`, payload);
       setSelectedBundle(res.data);
-      toast.success('Checklist updated');
+      toast.success(t('adminFranchiseChecklistUpdated'));
       await loadApplications(selectedApplication.id);
     } catch (err) {
-      toast.error(err?.response?.data?.error || 'Failed to update checklist');
+      toast.error(err?.response?.data?.error || t('adminFranchiseChecklistFailed'));
     }
   }
 
@@ -347,10 +379,10 @@ export default function FranchiseHQPage() {
       setSaving(true);
       const res = await axios.post(`/franchise/applications/${selectedApplication.id}/activate-store`, activationForm);
       setSelectedBundle(res.data);
-      toast.success('Franchise store activated');
+      toast.success(t('adminFranchiseStoreActivated'));
       await loadApplications(selectedApplication.id);
     } catch (err) {
-      toast.error(err?.response?.data?.error || 'Failed to activate store');
+      toast.error(err?.response?.data?.error || t('adminFranchiseActivateFailed'));
     } finally {
       setSaving(false);
     }
@@ -364,13 +396,13 @@ export default function FranchiseHQPage() {
             <div style={{ maxWidth: 760 }}>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '7px 12px', borderRadius: 999, background: 'rgba(249, 115, 22, 0.13)', color: '#fdba74', fontSize: '0.82rem', fontWeight: 700 }}>
                 <Globe size={14} />
-                Global Franchise HQ
+                {t('adminFranchiseEyebrow')}
               </div>
               <h1 style={{ margin: '14px 0 10px', fontSize: '2.6rem', lineHeight: 1.05, color: '#f8fafc' }}>
-                Run the full OxSteed franchise pipeline from first contact to live store.
+                {t('adminFranchiseTitle')}
               </h1>
               <p style={{ margin: 0, color: '#94a3b8', fontSize: '1rem', lineHeight: 1.6 }}>
-                Intake franchise opportunities from any country, track diligence and agreement readiness, assign launch ownership, and convert approved operators into real OxSteed business stores.
+                {t('adminFranchiseSubtitle')}
               </p>
             </div>
 
@@ -381,7 +413,7 @@ export default function FranchiseHQPage() {
                 style={{ border: 'none', borderRadius: 14, background: 'linear-gradient(135deg, #f97316, #fb7185)', color: 'white', padding: '12px 18px', fontWeight: 700, display: 'inline-flex', gap: 8, alignItems: 'center', cursor: 'pointer' }}
               >
                 <Plus size={16} />
-                New franchise lead
+                {t('adminFranchiseNewLead')}
               </button>
               <button
                 type="button"
@@ -389,40 +421,40 @@ export default function FranchiseHQPage() {
                 style={{ border: '1px solid rgba(148, 163, 184, 0.18)', borderRadius: 14, background: 'rgba(15, 23, 42, 0.72)', color: '#e5e7eb', padding: '12px 16px', fontWeight: 700, display: 'inline-flex', gap: 8, alignItems: 'center', cursor: 'pointer' }}
               >
                 <RefreshCcw size={16} />
-                Refresh
+                {t('common.refresh')}
               </button>
             </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
-            <MetricCard icon={Users} label="Live pipeline" value={metrics.active} sublabel="Applications still moving through HQ." accent="rgba(59, 130, 246, 0.22)" />
-            <MetricCard icon={Briefcase} label="Approved" value={metrics.approved} sublabel="Approved or already launched operators." accent="rgba(34, 197, 94, 0.2)" />
-            <MetricCard icon={Building2} label="Launched stores" value={metrics.launched} sublabel="Applications already converted into businesses." accent="rgba(16, 185, 129, 0.22)" />
-            <MetricCard icon={ClipboardList} label="Total leads" value={metrics.total} sublabel="All franchise leads currently in the system." accent="rgba(249, 115, 22, 0.2)" />
+            <MetricCard icon={Users} label={t('adminFranchiseLivePipeline')} value={metrics.active} sublabel={t('adminFranchiseLivePipelineHint')} accent="rgba(59, 130, 246, 0.22)" />
+            <MetricCard icon={Briefcase} label={t('adminFranchiseApproved')} value={metrics.approved} sublabel={t('adminFranchiseApprovedHint')} accent="rgba(34, 197, 94, 0.2)" />
+            <MetricCard icon={Building2} label={t('adminFranchiseLaunchedStores')} value={metrics.launched} sublabel={t('adminFranchiseLaunchedStoresHint')} accent="rgba(16, 185, 129, 0.22)" />
+            <MetricCard icon={ClipboardList} label={t('adminFranchiseTotalLeads')} value={metrics.total} sublabel={t('adminFranchiseTotalLeadsHint')} accent="rgba(249, 115, 22, 0.2)" />
           </div>
 
           {showCreate && (
             <form onSubmit={createApplication} style={{ ...panel, padding: 20, display: 'grid', gap: 14, borderRadius: 20 }}>
-              <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#f8fafc' }}>Create franchise lead</div>
+              <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#f8fafc' }}>{t('adminFranchiseCreateLead')}</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-                <input style={fieldStyle} placeholder="First name" value={createForm.first_name} onChange={(e) => setCreateForm((v) => ({ ...v, first_name: e.target.value }))} />
-                <input style={fieldStyle} placeholder="Last name" value={createForm.last_name} onChange={(e) => setCreateForm((v) => ({ ...v, last_name: e.target.value }))} />
-                <input style={fieldStyle} placeholder="Email" value={createForm.email} onChange={(e) => setCreateForm((v) => ({ ...v, email: e.target.value }))} />
-                <input style={fieldStyle} placeholder="Phone" value={createForm.phone} onChange={(e) => setCreateForm((v) => ({ ...v, phone: e.target.value }))} />
-                <input style={fieldStyle} placeholder="Country code (HT, US, FR)" value={createForm.desired_country} onChange={(e) => setCreateForm((v) => ({ ...v, desired_country: e.target.value.toUpperCase() }))} />
-                <input style={fieldStyle} placeholder="Region / province" value={createForm.desired_region} onChange={(e) => setCreateForm((v) => ({ ...v, desired_region: e.target.value }))} />
-                <input style={fieldStyle} placeholder="City" value={createForm.desired_city} onChange={(e) => setCreateForm((v) => ({ ...v, desired_city: e.target.value }))} />
-                <input style={fieldStyle} placeholder="Lead source" value={createForm.lead_source} onChange={(e) => setCreateForm((v) => ({ ...v, lead_source: e.target.value }))} />
-                <input style={fieldStyle} placeholder="Current company" value={createForm.current_company_name} onChange={(e) => setCreateForm((v) => ({ ...v, current_company_name: e.target.value }))} />
-                <input style={fieldStyle} placeholder="Desired brand / store name" value={createForm.desired_brand_name} onChange={(e) => setCreateForm((v) => ({ ...v, desired_brand_name: e.target.value }))} />
-                <input style={fieldStyle} placeholder="Available capital (e.g. 250000)" value={createForm.available_capital} onChange={(e) => setCreateForm((v) => ({ ...v, available_capital: e.target.value }))} />
-                <input style={fieldStyle} placeholder="Liquid capital" value={createForm.liquid_capital} onChange={(e) => setCreateForm((v) => ({ ...v, liquid_capital: e.target.value }))} />
+                <input style={fieldStyle} placeholder={t('adminFranchiseFirstName')} value={createForm.first_name} onChange={(e) => setCreateForm((v) => ({ ...v, first_name: e.target.value }))} />
+                <input style={fieldStyle} placeholder={t('adminFranchiseLastName')} value={createForm.last_name} onChange={(e) => setCreateForm((v) => ({ ...v, last_name: e.target.value }))} />
+                <input style={fieldStyle} placeholder={t('adminFranchiseEmail')} value={createForm.email} onChange={(e) => setCreateForm((v) => ({ ...v, email: e.target.value }))} />
+                <input style={fieldStyle} placeholder={t('adminFranchisePhone')} value={createForm.phone} onChange={(e) => setCreateForm((v) => ({ ...v, phone: e.target.value }))} />
+                <input style={fieldStyle} placeholder={t('adminFranchiseCountryCode')} value={createForm.desired_country} onChange={(e) => setCreateForm((v) => ({ ...v, desired_country: e.target.value.toUpperCase() }))} />
+                <input style={fieldStyle} placeholder={t('adminFranchiseRegion')} value={createForm.desired_region} onChange={(e) => setCreateForm((v) => ({ ...v, desired_region: e.target.value }))} />
+                <input style={fieldStyle} placeholder={t('adminFranchiseCity')} value={createForm.desired_city} onChange={(e) => setCreateForm((v) => ({ ...v, desired_city: e.target.value }))} />
+                <input style={fieldStyle} placeholder={t('adminFranchiseLeadSource')} value={createForm.lead_source} onChange={(e) => setCreateForm((v) => ({ ...v, lead_source: e.target.value }))} />
+                <input style={fieldStyle} placeholder={t('adminFranchiseCurrentCompany')} value={createForm.current_company_name} onChange={(e) => setCreateForm((v) => ({ ...v, current_company_name: e.target.value }))} />
+                <input style={fieldStyle} placeholder={t('adminFranchiseDesiredBrand')} value={createForm.desired_brand_name} onChange={(e) => setCreateForm((v) => ({ ...v, desired_brand_name: e.target.value }))} />
+                <input style={fieldStyle} placeholder={t('adminFranchiseAvailableCapital')} value={createForm.available_capital} onChange={(e) => setCreateForm((v) => ({ ...v, available_capital: e.target.value }))} />
+                <input style={fieldStyle} placeholder={t('adminFranchiseLiquidCapital')} value={createForm.liquid_capital} onChange={(e) => setCreateForm((v) => ({ ...v, liquid_capital: e.target.value }))} />
               </div>
-              <textarea style={{ ...fieldStyle, minHeight: 90 }} placeholder="Territory summary" value={createForm.territory_summary} onChange={(e) => setCreateForm((v) => ({ ...v, territory_summary: e.target.value }))} />
-              <textarea style={{ ...fieldStyle, minHeight: 90 }} placeholder="Business background" value={createForm.business_background} onChange={(e) => setCreateForm((v) => ({ ...v, business_background: e.target.value }))} />
+              <textarea style={{ ...fieldStyle, minHeight: 90 }} placeholder={t('adminFranchiseTerritorySummary')} value={createForm.territory_summary} onChange={(e) => setCreateForm((v) => ({ ...v, territory_summary: e.target.value }))} />
+              <textarea style={{ ...fieldStyle, minHeight: 90 }} placeholder={t('adminFranchiseBusinessBackground')} value={createForm.business_background} onChange={(e) => setCreateForm((v) => ({ ...v, business_background: e.target.value }))} />
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-                <button type="button" onClick={() => setShowCreate(false)} style={{ border: '1px solid rgba(148, 163, 184, 0.18)', borderRadius: 14, background: 'transparent', color: '#cbd5e1', padding: '11px 16px', cursor: 'pointer' }}>Close</button>
-                <button type="submit" style={{ border: 'none', borderRadius: 14, background: 'linear-gradient(135deg, #f97316, #fb7185)', color: 'white', padding: '11px 18px', fontWeight: 700, cursor: 'pointer' }}>Create lead</button>
+                <button type="button" onClick={() => setShowCreate(false)} style={{ border: '1px solid rgba(148, 163, 184, 0.18)', borderRadius: 14, background: 'transparent', color: '#cbd5e1', padding: '11px 16px', cursor: 'pointer' }}>{t('common.close')}</button>
+                <button type="submit" style={{ border: 'none', borderRadius: 14, background: 'linear-gradient(135deg, #f97316, #fb7185)', color: 'white', padding: '11px 18px', fontWeight: 700, cursor: 'pointer' }}>{t('adminFranchiseCreateLeadButton')}</button>
               </div>
             </form>
           )}
@@ -433,34 +465,34 @@ export default function FranchiseHQPage() {
             <div style={{ display: 'grid', gap: 12 }}>
               <div style={{ position: 'relative' }}>
                 <Search size={16} style={{ position: 'absolute', left: 12, top: 12, color: '#64748b' }} />
-                <input style={{ ...fieldStyle, paddingLeft: 38 }} placeholder="Search leads, brands, operators..." value={search} onChange={(e) => setSearch(e.target.value)} />
+                <input style={{ ...fieldStyle, paddingLeft: 38 }} placeholder={t('adminFranchiseSearchPlaceholder')} value={search} onChange={(e) => setSearch(e.target.value)} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
                 <select style={fieldStyle} value={filters.status} onChange={(e) => setFilters((v) => ({ ...v, status: e.target.value }))}>
-                  <option value="">All statuses</option>
-                  {STATUS_OPTIONS.map((value) => <option key={value} value={value}>{formatLabel(value)}</option>)}
+                  <option value="">{t('adminFranchiseAllStatuses')}</option>
+                  {STATUS_OPTIONS.map((value) => <option key={value} value={value}>{formatLabel(value, t)}</option>)}
                 </select>
-                <input style={fieldStyle} placeholder="Country" value={filters.country} onChange={(e) => setFilters((v) => ({ ...v, country: e.target.value.toUpperCase() }))} />
+                <input style={fieldStyle} placeholder={t('adminFranchiseCountry')} value={filters.country} onChange={(e) => setFilters((v) => ({ ...v, country: e.target.value.toUpperCase() }))} />
                 <select style={fieldStyle} value={filters.agreement_status} onChange={(e) => setFilters((v) => ({ ...v, agreement_status: e.target.value }))}>
-                  <option value="">All agreements</option>
-                  {AGREEMENT_OPTIONS.map((value) => <option key={value} value={value}>{formatLabel(value)}</option>)}
+                  <option value="">{t('adminFranchiseAllAgreements')}</option>
+                  {AGREEMENT_OPTIONS.map((value) => <option key={value} value={value}>{formatLabel(value, t)}</option>)}
                 </select>
               </div>
               <button type="button" onClick={() => loadApplications()} style={{ border: 'none', borderRadius: 14, background: 'rgba(59, 130, 246, 0.16)', color: '#bfdbfe', padding: '11px 14px', fontWeight: 700, cursor: 'pointer' }}>
-                Apply filters
+                {t('adminFranchiseApplyFilters')}
               </button>
             </div>
 
             <div style={{ display: 'grid', gap: 12, maxHeight: '68vh', overflowY: 'auto', paddingRight: 4 }}>
               {loading ? (
-                <div style={{ color: '#94a3b8' }}>Loading franchise pipeline...</div>
+                <div style={{ color: '#94a3b8' }}>{t('adminFranchiseLoadingPipeline')}</div>
               ) : applications.length ? (
                 applications.map((item) => (
                   <FranchiseRow key={item.id} item={item} isActive={item.id === selectedId} onClick={() => { setSelectedId(item.id); loadDetail(item.id); }} />
                 ))
               ) : (
                 <div style={{ ...panel, padding: 20, textAlign: 'center', color: '#94a3b8' }}>
-                  No franchise applications match this scope yet.
+                  {t('adminFranchiseNoMatches')}
                 </div>
               )}
             </div>
@@ -469,18 +501,18 @@ export default function FranchiseHQPage() {
           <div style={{ display: 'grid', gap: 18 }}>
             {!selectedApplication ? (
               <div style={{ ...panel, padding: 36, textAlign: 'center', color: '#94a3b8' }}>
-                Select a franchise application to review diligence, agreement, and launch readiness.
+                {t('adminFranchiseSelectPrompt')}
               </div>
             ) : detailLoading || !editForm || !agreementForm ? (
-              <div style={{ ...panel, padding: 36, color: '#94a3b8' }}>Loading application workspace...</div>
+              <div style={{ ...panel, padding: 36, color: '#94a3b8' }}>{t('adminFranchiseLoadingWorkspace')}</div>
             ) : (
               <>
                 <section style={{ ...panel, padding: 24, display: 'grid', gap: 18 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20, flexWrap: 'wrap' }}>
                     <div style={{ display: 'grid', gap: 8 }}>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <span style={{ padding: '6px 11px', borderRadius: 999, background: 'rgba(249, 115, 22, 0.14)', color: '#fdba74', fontSize: '0.78rem', fontWeight: 700 }}>{formatLabel(selectedApplication.status)}</span>
-                        <span style={{ padding: '6px 11px', borderRadius: 999, background: 'rgba(16, 185, 129, 0.14)', color: '#86efac', fontSize: '0.78rem', fontWeight: 700 }}>{formatLabel(selectedApplication.agreement_status)} agreement</span>
+                        <span style={{ padding: '6px 11px', borderRadius: 999, background: 'rgba(249, 115, 22, 0.14)', color: '#fdba74', fontSize: '0.78rem', fontWeight: 700 }}>{formatLabel(selectedApplication.status, t)}</span>
+                        <span style={{ padding: '6px 11px', borderRadius: 999, background: 'rgba(16, 185, 129, 0.14)', color: '#86efac', fontSize: '0.78rem', fontWeight: 700 }}>{t('adminFranchiseAgreementBadge', { status: formatLabel(selectedApplication.agreement_status, t) })}</span>
                         <span style={{ padding: '6px 11px', borderRadius: 999, background: 'rgba(59, 130, 246, 0.16)', color: '#bfdbfe', fontSize: '0.78rem', fontWeight: 700 }}>{selectedApplication.desired_country}{selectedApplication.desired_region ? ` · ${selectedApplication.desired_region}` : ''}</span>
                       </div>
                       <h2 style={{ margin: 0, fontSize: '2rem', color: '#f8fafc' }}>
@@ -492,105 +524,105 @@ export default function FranchiseHQPage() {
                     </div>
 
                     <div style={{ ...panel, padding: 16, borderRadius: 18, minWidth: 240 }}>
-                      <div style={{ color: '#94a3b8', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Launch progress</div>
+                      <div style={{ color: '#94a3b8', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{t('adminFranchiseLaunchProgress')}</div>
                       <div style={{ marginTop: 6, fontSize: '1.9rem', fontWeight: 700 }}>{selectedApplication.checklist_total ? Math.round((selectedApplication.checklist_completed / selectedApplication.checklist_total) * 100) : 0}%</div>
                       <div style={{ color: '#94a3b8', fontSize: '0.88rem', marginTop: 4 }}>
-                        {selectedApplication.checklist_completed} of {selectedApplication.checklist_total} core franchise steps complete.
+                        {t('adminFranchiseStepsComplete', { completed: selectedApplication.checklist_completed, total: selectedApplication.checklist_total })}
                       </div>
                     </div>
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12 }}>
-                    <MetricCard icon={MapPin} label="Territory" value={selectedApplication.desired_city || selectedApplication.desired_region || selectedApplication.desired_country} sublabel={selectedApplication.territory_summary || 'Territory still being defined.'} accent="rgba(59, 130, 246, 0.18)" />
-                    <MetricCard icon={DollarSign} label="Capital" value={selectedApplication.available_capital_cents ? money.format(selectedApplication.available_capital_cents / 100) : 'TBD'} sublabel={selectedApplication.liquid_capital_cents ? `${money.format(selectedApplication.liquid_capital_cents / 100)} liquid` : 'Liquidity not entered yet.'} accent="rgba(16, 185, 129, 0.18)" />
-                    <MetricCard icon={Users} label="Owner" value={selectedApplication.owner_email || 'Unassigned'} sublabel={selectedApplication.owner_user_id ? 'Owner account linked for store activation.' : 'Assign a user before activation.'} accent="rgba(168, 85, 247, 0.18)" />
-                    <MetricCard icon={Building2} label="Store link" value={selectedApplication.linked_business_name || 'Not launched'} sublabel={selectedApplication.linked_business_id ? `Business #${selectedApplication.linked_business_id}` : 'No live store attached yet.'} accent="rgba(249, 115, 22, 0.18)" />
+                    <MetricCard icon={MapPin} label={t('adminFranchiseTerritory')} value={selectedApplication.desired_city || selectedApplication.desired_region || selectedApplication.desired_country} sublabel={selectedApplication.territory_summary || t('adminFranchiseTerritoryFallback')} accent="rgba(59, 130, 246, 0.18)" />
+                    <MetricCard icon={DollarSign} label={t('adminFranchiseCapital')} value={selectedApplication.available_capital_cents ? money.format(selectedApplication.available_capital_cents / 100) : t('adminFranchiseTbd')} sublabel={selectedApplication.liquid_capital_cents ? t('adminFranchiseLiquidAmount', { amount: money.format(selectedApplication.liquid_capital_cents / 100) }) : t('adminFranchiseLiquidityMissing')} accent="rgba(16, 185, 129, 0.18)" />
+                    <MetricCard icon={Users} label={t('adminFranchiseOwner')} value={selectedApplication.owner_email || t('adminFranchiseUnassigned')} sublabel={selectedApplication.owner_user_id ? t('adminFranchiseOwnerLinked') : t('adminFranchiseAssignOwner')} accent="rgba(168, 85, 247, 0.18)" />
+                    <MetricCard icon={Building2} label={t('adminFranchiseStoreLink')} value={selectedApplication.linked_business_name || t('adminFranchiseNotLaunched')} sublabel={selectedApplication.linked_business_id ? t('adminFranchiseBusinessRef', { id: selectedApplication.linked_business_id }) : t('adminFranchiseNoStore')} accent="rgba(249, 115, 22, 0.18)" />
                   </div>
                 </section>
 
                 <section style={{ display: 'grid', gridTemplateColumns: '1.08fr 0.92fr', gap: 18 }}>
                   <div style={{ ...panel, padding: 22, display: 'grid', gap: 14 }}>
-                    <div style={{ fontSize: '1.08rem', fontWeight: 700, color: '#f8fafc' }}>HQ review</div>
+                    <div style={{ fontSize: '1.08rem', fontWeight: 700, color: '#f8fafc' }}>{t('adminFranchiseHqReview')}</div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
                       <select style={fieldStyle} value={editForm.status} onChange={(e) => setEditForm((v) => ({ ...v, status: e.target.value }))}>
-                        {STATUS_OPTIONS.map((value) => <option key={value} value={value}>{formatLabel(value)}</option>)}
+                        {STATUS_OPTIONS.map((value) => <option key={value} value={value}>{formatLabel(value, t)}</option>)}
                       </select>
-                      <input style={fieldStyle} placeholder="Owner user UUID" value={editForm.owner_user_id} onChange={(e) => setEditForm((v) => ({ ...v, owner_user_id: e.target.value }))} />
+                      <input style={fieldStyle} placeholder={t('adminFranchiseOwnerUuid')} value={editForm.owner_user_id} onChange={(e) => setEditForm((v) => ({ ...v, owner_user_id: e.target.value }))} />
                       <select style={fieldStyle} value={editForm.training_status} onChange={(e) => setEditForm((v) => ({ ...v, training_status: e.target.value }))}>
-                        {TRAINING_OPTIONS.map((value) => <option key={value} value={value}>{formatLabel(value)}</option>)}
+                        {TRAINING_OPTIONS.map((value) => <option key={value} value={value}>{formatLabel(value, t)}</option>)}
                       </select>
                       <select style={fieldStyle} value={editForm.launch_readiness_status} onChange={(e) => setEditForm((v) => ({ ...v, launch_readiness_status: e.target.value }))}>
-                        {READINESS_OPTIONS.map((value) => <option key={value} value={value}>{formatLabel(value)}</option>)}
+                        {READINESS_OPTIONS.map((value) => <option key={value} value={value}>{formatLabel(value, t)}</option>)}
                       </select>
-                      <input style={fieldStyle} placeholder="Country" value={editForm.desired_country} onChange={(e) => setEditForm((v) => ({ ...v, desired_country: e.target.value.toUpperCase() }))} />
-                      <input style={fieldStyle} placeholder="Region / province" value={editForm.desired_region} onChange={(e) => setEditForm((v) => ({ ...v, desired_region: e.target.value }))} />
-                      <input style={fieldStyle} placeholder="City" value={editForm.desired_city} onChange={(e) => setEditForm((v) => ({ ...v, desired_city: e.target.value }))} />
-                      <input style={fieldStyle} placeholder="Preferred store count" value={editForm.preferred_store_count} onChange={(e) => setEditForm((v) => ({ ...v, preferred_store_count: e.target.value }))} />
-                      <input style={{ ...fieldStyle, gridColumn: '1 / -1' }} placeholder="Desired brand name" value={editForm.desired_brand_name} onChange={(e) => setEditForm((v) => ({ ...v, desired_brand_name: e.target.value }))} />
-                      <input style={{ ...fieldStyle, gridColumn: '1 / -1' }} placeholder="Current company name" value={editForm.current_company_name} onChange={(e) => setEditForm((v) => ({ ...v, current_company_name: e.target.value }))} />
+                      <input style={fieldStyle} placeholder={t('adminFranchiseCountry')} value={editForm.desired_country} onChange={(e) => setEditForm((v) => ({ ...v, desired_country: e.target.value.toUpperCase() }))} />
+                      <input style={fieldStyle} placeholder={t('adminFranchiseRegion')} value={editForm.desired_region} onChange={(e) => setEditForm((v) => ({ ...v, desired_region: e.target.value }))} />
+                      <input style={fieldStyle} placeholder={t('adminFranchiseCity')} value={editForm.desired_city} onChange={(e) => setEditForm((v) => ({ ...v, desired_city: e.target.value }))} />
+                      <input style={fieldStyle} placeholder={t('adminFranchisePreferredStoreCount')} value={editForm.preferred_store_count} onChange={(e) => setEditForm((v) => ({ ...v, preferred_store_count: e.target.value }))} />
+                      <input style={{ ...fieldStyle, gridColumn: '1 / -1' }} placeholder={t('adminFranchiseDesiredBrandName')} value={editForm.desired_brand_name} onChange={(e) => setEditForm((v) => ({ ...v, desired_brand_name: e.target.value }))} />
+                      <input style={{ ...fieldStyle, gridColumn: '1 / -1' }} placeholder={t('adminFranchiseCurrentCompanyName')} value={editForm.current_company_name} onChange={(e) => setEditForm((v) => ({ ...v, current_company_name: e.target.value }))} />
                     </div>
-                    <textarea style={{ ...fieldStyle, minHeight: 90 }} placeholder="Territory summary" value={editForm.territory_summary} onChange={(e) => setEditForm((v) => ({ ...v, territory_summary: e.target.value }))} />
-                    <textarea style={{ ...fieldStyle, minHeight: 90 }} placeholder="Market assessment" value={editForm.market_assessment} onChange={(e) => setEditForm((v) => ({ ...v, market_assessment: e.target.value }))} />
-                    <textarea style={{ ...fieldStyle, minHeight: 90 }} placeholder="HQ recommendation" value={editForm.hq_recommendation} onChange={(e) => setEditForm((v) => ({ ...v, hq_recommendation: e.target.value }))} />
-                    <textarea style={{ ...fieldStyle, minHeight: 90 }} placeholder="Risk notes" value={editForm.risk_notes} onChange={(e) => setEditForm((v) => ({ ...v, risk_notes: e.target.value }))} />
+                    <textarea style={{ ...fieldStyle, minHeight: 90 }} placeholder={t('adminFranchiseTerritorySummary')} value={editForm.territory_summary} onChange={(e) => setEditForm((v) => ({ ...v, territory_summary: e.target.value }))} />
+                    <textarea style={{ ...fieldStyle, minHeight: 90 }} placeholder={t('adminFranchiseMarketAssessment')} value={editForm.market_assessment} onChange={(e) => setEditForm((v) => ({ ...v, market_assessment: e.target.value }))} />
+                    <textarea style={{ ...fieldStyle, minHeight: 90 }} placeholder={t('adminFranchiseHqRecommendation')} value={editForm.hq_recommendation} onChange={(e) => setEditForm((v) => ({ ...v, hq_recommendation: e.target.value }))} />
+                    <textarea style={{ ...fieldStyle, minHeight: 90 }} placeholder={t('adminFranchiseRiskNotes')} value={editForm.risk_notes} onChange={(e) => setEditForm((v) => ({ ...v, risk_notes: e.target.value }))} />
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                       <div style={{ color: '#94a3b8', fontSize: '0.86rem' }}>
-                        Last contact: {selectedApplication.last_contacted_at ? new Date(selectedApplication.last_contacted_at).toLocaleString() : 'Not recorded'}
+                        {t('adminFranchiseLastContact', { value: selectedApplication.last_contacted_at ? new Date(selectedApplication.last_contacted_at).toLocaleString() : t('adminFranchiseNotRecorded') })}
                       </div>
                       <div style={{ display: 'flex', gap: 10 }}>
-                        <button type="button" onClick={() => setEditForm((v) => ({ ...v, touch_contacted_at: true }))} style={{ border: '1px solid rgba(148, 163, 184, 0.18)', borderRadius: 14, background: 'transparent', color: '#cbd5e1', padding: '10px 14px', cursor: 'pointer' }}>Mark contacted</button>
-                        <button type="button" disabled={saving} onClick={saveApplication} style={{ border: 'none', borderRadius: 14, background: 'linear-gradient(135deg, #2563eb, #14b8a6)', color: 'white', padding: '10px 16px', fontWeight: 700, cursor: 'pointer' }}>Save HQ review</button>
+                        <button type="button" onClick={() => setEditForm((v) => ({ ...v, touch_contacted_at: true }))} style={{ border: '1px solid rgba(148, 163, 184, 0.18)', borderRadius: 14, background: 'transparent', color: '#cbd5e1', padding: '10px 14px', cursor: 'pointer' }}>{t('adminFranchiseMarkContacted')}</button>
+                        <button type="button" disabled={saving} onClick={saveApplication} style={{ border: 'none', borderRadius: 14, background: 'linear-gradient(135deg, #2563eb, #14b8a6)', color: 'white', padding: '10px 16px', fontWeight: 700, cursor: 'pointer' }}>{t('adminFranchiseSaveReview')}</button>
                       </div>
                     </div>
                   </div>
 
                   <div style={{ display: 'grid', gap: 18 }}>
                     <div style={{ ...panel, padding: 22, display: 'grid', gap: 12 }}>
-                      <div style={{ fontSize: '1.08rem', fontWeight: 700, color: '#f8fafc' }}>Agreement package</div>
+                      <div style={{ fontSize: '1.08rem', fontWeight: 700, color: '#f8fafc' }}>{t('adminFranchiseAgreementPackage')}</div>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
                         <select style={fieldStyle} value={agreementForm.application_agreement_status} onChange={(e) => setAgreementForm((v) => ({ ...v, application_agreement_status: e.target.value }))}>
-                          {AGREEMENT_OPTIONS.map((value) => <option key={value} value={value}>{formatLabel(value)}</option>)}
+                          {AGREEMENT_OPTIONS.map((value) => <option key={value} value={value}>{formatLabel(value, t)}</option>)}
                         </select>
-                        <input style={fieldStyle} placeholder="Agreement version" value={agreementForm.agreement_version} onChange={(e) => setAgreementForm((v) => ({ ...v, agreement_version: e.target.value }))} />
-                        <input style={fieldStyle} placeholder="Initial fee (USD)" value={agreementForm.initial_fee} onChange={(e) => setAgreementForm((v) => ({ ...v, initial_fee: e.target.value }))} />
-                        <input style={fieldStyle} placeholder="Royalty (bps)" value={agreementForm.royalty_bps} onChange={(e) => setAgreementForm((v) => ({ ...v, royalty_bps: e.target.value }))} />
-                        <input style={fieldStyle} placeholder="Marketing fee (bps)" value={agreementForm.marketing_fee_bps} onChange={(e) => setAgreementForm((v) => ({ ...v, marketing_fee_bps: e.target.value }))} />
-                        <input style={fieldStyle} placeholder="Term years" value={agreementForm.term_years} onChange={(e) => setAgreementForm((v) => ({ ...v, term_years: e.target.value }))} />
-                        <input style={{ ...fieldStyle, gridColumn: '1 / -1' }} placeholder="Agreement URL" value={agreementForm.document_url} onChange={(e) => setAgreementForm((v) => ({ ...v, document_url: e.target.value }))} />
-                        <input style={fieldStyle} placeholder="Signed by name" value={agreementForm.signed_by_name} onChange={(e) => setAgreementForm((v) => ({ ...v, signed_by_name: e.target.value }))} />
-                        <input style={fieldStyle} placeholder="Signed by email" value={agreementForm.signed_by_email} onChange={(e) => setAgreementForm((v) => ({ ...v, signed_by_email: e.target.value }))} />
+                        <input style={fieldStyle} placeholder={t('adminFranchiseAgreementVersion')} value={agreementForm.agreement_version} onChange={(e) => setAgreementForm((v) => ({ ...v, agreement_version: e.target.value }))} />
+                        <input style={fieldStyle} placeholder={t('adminFranchiseInitialFee')} value={agreementForm.initial_fee} onChange={(e) => setAgreementForm((v) => ({ ...v, initial_fee: e.target.value }))} />
+                        <input style={fieldStyle} placeholder={t('adminFranchiseRoyalty')} value={agreementForm.royalty_bps} onChange={(e) => setAgreementForm((v) => ({ ...v, royalty_bps: e.target.value }))} />
+                        <input style={fieldStyle} placeholder={t('adminFranchiseMarketingFee')} value={agreementForm.marketing_fee_bps} onChange={(e) => setAgreementForm((v) => ({ ...v, marketing_fee_bps: e.target.value }))} />
+                        <input style={fieldStyle} placeholder={t('adminFranchiseTermYears')} value={agreementForm.term_years} onChange={(e) => setAgreementForm((v) => ({ ...v, term_years: e.target.value }))} />
+                        <input style={{ ...fieldStyle, gridColumn: '1 / -1' }} placeholder={t('adminFranchiseAgreementUrl')} value={agreementForm.document_url} onChange={(e) => setAgreementForm((v) => ({ ...v, document_url: e.target.value }))} />
+                        <input style={fieldStyle} placeholder={t('adminFranchiseSignedByName')} value={agreementForm.signed_by_name} onChange={(e) => setAgreementForm((v) => ({ ...v, signed_by_name: e.target.value }))} />
+                        <input style={fieldStyle} placeholder={t('adminFranchiseSignedByEmail')} value={agreementForm.signed_by_email} onChange={(e) => setAgreementForm((v) => ({ ...v, signed_by_email: e.target.value }))} />
                       </div>
                       <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#cbd5e1', fontSize: '0.9rem' }}>
                         <input type="checkbox" checked={agreementForm.territory_exclusive} onChange={(e) => setAgreementForm((v) => ({ ...v, territory_exclusive: e.target.checked }))} />
-                        Exclusive territory
+                        {t('adminFranchiseExclusiveTerritory')}
                       </label>
-                      <textarea style={{ ...fieldStyle, minHeight: 90 }} placeholder="Agreement notes" value={agreementForm.notes} onChange={(e) => setAgreementForm((v) => ({ ...v, notes: e.target.value }))} />
+                      <textarea style={{ ...fieldStyle, minHeight: 90 }} placeholder={t('adminFranchiseAgreementNotes')} value={agreementForm.notes} onChange={(e) => setAgreementForm((v) => ({ ...v, notes: e.target.value }))} />
                       <button type="button" disabled={saving} onClick={saveAgreement} style={{ border: 'none', borderRadius: 14, background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', color: 'white', padding: '10px 16px', fontWeight: 700, cursor: 'pointer' }}>
-                        Save agreement
+                        {t('adminFranchiseSaveAgreement')}
                       </button>
                     </div>
 
                     <div style={{ ...panel, padding: 22, display: 'grid', gap: 12 }}>
-                      <div style={{ fontSize: '1.08rem', fontWeight: 700, color: '#f8fafc' }}>Activate live store</div>
+                      <div style={{ fontSize: '1.08rem', fontWeight: 700, color: '#f8fafc' }}>{t('adminFranchiseActivateStore')}</div>
                       <div style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.6 }}>
-                        Once the operator is approved and ownership is assigned, launch the real OxSteed business workspace from this application.
+                        {t('adminFranchiseActivateText')}
                       </div>
-                      <input style={fieldStyle} placeholder="Business name" value={activationForm.business_name} onChange={(e) => setActivationForm((v) => ({ ...v, business_name: e.target.value }))} />
-                      <input style={fieldStyle} placeholder="Business type" value={activationForm.business_type} onChange={(e) => setActivationForm((v) => ({ ...v, business_type: e.target.value }))} />
-                      <input style={fieldStyle} placeholder="Website" value={activationForm.website} onChange={(e) => setActivationForm((v) => ({ ...v, website: e.target.value }))} />
-                      <textarea style={{ ...fieldStyle, minHeight: 84 }} placeholder="Opening description" value={activationForm.description} onChange={(e) => setActivationForm((v) => ({ ...v, description: e.target.value }))} />
+                      <input style={fieldStyle} placeholder={t('adminFranchiseBusinessName')} value={activationForm.business_name} onChange={(e) => setActivationForm((v) => ({ ...v, business_name: e.target.value }))} />
+                      <input style={fieldStyle} placeholder={t('adminFranchiseBusinessType')} value={activationForm.business_type} onChange={(e) => setActivationForm((v) => ({ ...v, business_type: e.target.value }))} />
+                      <input style={fieldStyle} placeholder={t('adminFranchiseWebsite')} value={activationForm.website} onChange={(e) => setActivationForm((v) => ({ ...v, website: e.target.value }))} />
+                      <textarea style={{ ...fieldStyle, minHeight: 84 }} placeholder={t('adminFranchiseOpeningDescription')} value={activationForm.description} onChange={(e) => setActivationForm((v) => ({ ...v, description: e.target.value }))} />
                       <button
                         type="button"
                         disabled={saving || !selectedApplication.owner_user_id || !!selectedApplication.linked_business_id}
                         onClick={activateStore}
                         style={{ border: 'none', borderRadius: 14, background: selectedApplication.linked_business_id ? 'rgba(34, 197, 94, 0.25)' : 'linear-gradient(135deg, #10b981, #22c55e)', color: 'white', padding: '10px 16px', fontWeight: 700, cursor: selectedApplication.linked_business_id ? 'default' : 'pointer' }}
                       >
-                        {selectedApplication.linked_business_id ? 'Store already activated' : 'Activate franchise store'}
+                        {selectedApplication.linked_business_id ? t('adminFranchiseAlreadyActivated') : t('adminFranchiseActivateButton')}
                       </button>
                       {!selectedApplication.owner_user_id && (
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center', color: '#fca5a5', fontSize: '0.86rem' }}>
                           <AlertTriangle size={15} />
-                          Assign an `owner_user_id` before launching the store.
+                          {t('adminFranchiseAssignOwnerNote')}
                         </div>
                       )}
                     </div>
@@ -600,8 +632,8 @@ export default function FranchiseHQPage() {
                 <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
                   <div style={{ ...panel, padding: 22, display: 'grid', gap: 14 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ fontSize: '1.08rem', fontWeight: 700, color: '#f8fafc' }}>Launch checklist</div>
-                      <div style={{ color: '#94a3b8', fontSize: '0.84rem' }}>{selectedBundle.checklist.length} items</div>
+                      <div style={{ fontSize: '1.08rem', fontWeight: 700, color: '#f8fafc' }}>{t('adminFranchiseLaunchChecklist')}</div>
+                      <div style={{ color: '#94a3b8', fontSize: '0.84rem' }}>{t('adminFranchiseItems', { count: selectedBundle.checklist.length })}</div>
                     </div>
                     <div style={{ display: 'grid', gap: 10 }}>
                       {selectedBundle.checklist.map((item) => (
@@ -609,11 +641,11 @@ export default function FranchiseHQPage() {
                           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
                             <div>
                               <div style={{ fontWeight: 700, color: '#f8fafc' }}>{item.label}</div>
-                              <div style={{ color: '#94a3b8', fontSize: '0.84rem' }}>{item.owner_role || 'Unassigned owner'}</div>
+                              <div style={{ color: '#94a3b8', fontSize: '0.84rem' }}>{item.owner_role || t('adminFranchiseUnassignedOwner')}</div>
                             </div>
                             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: item.status === 'completed' ? '#86efac' : '#fcd34d', fontSize: '0.84rem', fontWeight: 700 }}>
                               {item.status === 'completed' ? <CheckCircle2 size={15} /> : <ClipboardList size={15} />}
-                              {formatLabel(item.status)}
+                              {formatLabel(item.status, t)}
                             </div>
                           </div>
                           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -632,7 +664,7 @@ export default function FranchiseHQPage() {
                                   cursor: 'pointer',
                                 }}
                               >
-                                {formatLabel(status)}
+                                {formatLabel(status, t)}
                               </button>
                             ))}
                           </div>
@@ -644,37 +676,37 @@ export default function FranchiseHQPage() {
 
                   <div style={{ display: 'grid', gap: 18 }}>
                     <div style={{ ...panel, padding: 22, display: 'grid', gap: 12 }}>
-                      <div style={{ fontSize: '1.08rem', fontWeight: 700, color: '#f8fafc' }}>Internal notes</div>
-                      <textarea style={{ ...fieldStyle, minHeight: 92 }} placeholder="Add internal guidance, legal follow-up, territory concerns, or launch notes..." value={noteText} onChange={(e) => setNoteText(e.target.value)} />
-                      <button type="button" disabled={saving || !noteText.trim()} onClick={addNote} style={{ border: 'none', borderRadius: 14, background: 'linear-gradient(135deg, #0ea5e9, #2563eb)', color: 'white', padding: '10px 16px', fontWeight: 700, cursor: 'pointer' }}>Add note</button>
+                      <div style={{ fontSize: '1.08rem', fontWeight: 700, color: '#f8fafc' }}>{t('adminFranchiseInternalNotes')}</div>
+                      <textarea style={{ ...fieldStyle, minHeight: 92 }} placeholder={t('adminFranchiseNotesPlaceholder')} value={noteText} onChange={(e) => setNoteText(e.target.value)} />
+                      <button type="button" disabled={saving || !noteText.trim()} onClick={addNote} style={{ border: 'none', borderRadius: 14, background: 'linear-gradient(135deg, #0ea5e9, #2563eb)', color: 'white', padding: '10px 16px', fontWeight: 700, cursor: 'pointer' }}>{t('adminFranchiseAddNote')}</button>
                       <div style={{ display: 'grid', gap: 10, maxHeight: 260, overflowY: 'auto' }}>
                         {selectedBundle.notes.length ? selectedBundle.notes.map((note) => (
                           <div key={note.id} style={{ borderRadius: 16, padding: 14, background: 'rgba(2, 6, 23, 0.56)', border: '1px solid rgba(148, 163, 184, 0.12)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 8, color: '#94a3b8', fontSize: '0.78rem' }}>
-                              <span>{note.admin_email || 'System'}</span>
+                              <span>{note.admin_email || t('adminFranchiseSystem')}</span>
                               <span>{new Date(note.created_at).toLocaleString()}</span>
                             </div>
                             <div style={{ color: '#e5e7eb', fontSize: '0.9rem', lineHeight: 1.55 }}>{note.note_text}</div>
                           </div>
                         )) : (
-                          <div style={{ color: '#94a3b8', fontSize: '0.88rem' }}>No notes yet.</div>
+                          <div style={{ color: '#94a3b8', fontSize: '0.88rem' }}>{t('adminFranchiseNoNotes')}</div>
                         )}
                       </div>
                     </div>
 
                     <div style={{ ...panel, padding: 22, display: 'grid', gap: 12 }}>
-                      <div style={{ fontSize: '1.08rem', fontWeight: 700, color: '#f8fafc' }}>Recent activity</div>
+                      <div style={{ fontSize: '1.08rem', fontWeight: 700, color: '#f8fafc' }}>{t('adminFranchiseRecentActivity')}</div>
                       <div style={{ display: 'grid', gap: 10, maxHeight: 240, overflowY: 'auto' }}>
                         {selectedBundle.activity.length ? selectedBundle.activity.map((event) => (
                           <div key={event.id} style={{ borderRadius: 16, padding: 14, background: 'rgba(2, 6, 23, 0.56)', border: '1px solid rgba(148, 163, 184, 0.12)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 8, color: '#94a3b8', fontSize: '0.78rem' }}>
-                              <span>{formatLabel(event.event_type)}</span>
+                              <span>{formatLabel(event.event_type, t)}</span>
                               <span>{new Date(event.created_at).toLocaleString()}</span>
                             </div>
                             <div style={{ color: '#e5e7eb', fontSize: '0.9rem', lineHeight: 1.55 }}>{event.event_summary}</div>
                           </div>
                         )) : (
-                          <div style={{ color: '#94a3b8', fontSize: '0.88rem' }}>No activity yet.</div>
+                          <div style={{ color: '#94a3b8', fontSize: '0.88rem' }}>{t('adminFranchiseNoActivity')}</div>
                         )}
                       </div>
                     </div>
