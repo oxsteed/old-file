@@ -5,7 +5,6 @@ import {
   ShieldCheck,
   Award,
   Zap,
-  MessageCircle,
   Heart,
 } from 'lucide-react';
 import type { HelperProfile, Badge } from '../../types/helperProfile';
@@ -18,13 +17,11 @@ interface BusinessHeaderProps {
   /** Helper user UUID — public profile QR image */
   helperId?: string;
   helper: HelperProfile;
-  onBookNow: () => void;
   /** Broad job post (optional second CTA) */
   onPostJobPublic?: () => void;
   onToggleSaved?: () => void;
   isSaved?: boolean;
   savingHelper?: boolean;
-  onOpenChat: () => void;
   /** Public canonical URL for Copy link / Share (omit to hide share row) */
   shareUrl?: string;
   /** Profile title for native share sheet */
@@ -54,12 +51,10 @@ const badgeColorMap: Record<Badge['variant'], string> = {
 const BusinessHeader: React.FC<BusinessHeaderProps> = ({
   helperId,
   helper,
-  onBookNow,
   onPostJobPublic,
   onToggleSaved,
   isSaved = false,
   savingHelper = false,
-  onOpenChat,
   shareUrl,
   shareTitle,
   shareText,
@@ -129,29 +124,9 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
     'flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors';
   const btnSecondary =
     `${btnBase} border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800`;
-  const btnPrimary =
-    `${btnBase} px-5 bg-brand-500 hover:bg-brand-600 text-white font-semibold shadow-lg shadow-brand-500/20`;
 
   const actions = (
     <div className="pph-actions">
-      <div className="pph-actions__pair">
-        <button
-          type="button"
-          onClick={onOpenChat}
-          aria-label={t('helperProfile.header.openChatAria')}
-          className={btnSecondary}
-        >
-          <MessageCircle className="w-4 h-4" />
-          {t('helperProfile.header.message')}
-        </button>
-        <button
-          type="button"
-          onClick={onBookNow}
-          className={btnPrimary}
-        >
-          {t('helperProfile.header.bookNow')}
-        </button>
-      </div>
       {onPostJobPublic && (
         <button
           type="button"

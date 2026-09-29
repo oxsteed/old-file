@@ -11,7 +11,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { MessageCircle, Flag } from 'lucide-react';
+import { Flag } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import UserReputationCard from '../components/UserReputationCard';
@@ -996,9 +996,7 @@ export default function BusinessProfilePage() {
       <BusinessHeader
         helperId={helper.id}
         helper={helper}
-        onBookNow={handleBookNow}
         onPostJobPublic={handlePostJobPublic}
-        onOpenChat={handleOpenChat}
         shareUrl={`${getPublicSiteUrl()}/businesses/public/${id}`}
         shareTitle={helper.businessName}
         shareI18nPrefix="businessProfile"
@@ -1133,16 +1131,8 @@ export default function BusinessProfilePage() {
         aria-label={t('businessProfile.quickActionsAria')}
       >
         <button
-          onClick={handleOpenChat}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-700 text-gray-200 font-medium text-sm flex-1 hover:bg-gray-800 transition-colors active:bg-gray-700"
-          aria-label={t('businessProfile.openChatAria')}
-        >
-          <MessageCircle className="w-4 h-4" aria-hidden="true" />
-          {t('businessProfile.message')}
-        </button>
-        <button
           onClick={services.length > 0 ? handleBookNow : handleOpenChat}
-          className="flex-[2] py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-500/20 active:bg-brand-700"
+          className="flex-1 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-500/20 active:bg-brand-700"
           aria-label={services.length > 0 ? t('businessProfile.bookBusinessAria') : t('helperProfile.cta.messageHelperAria')}
         >
           {services.length > 0 ? t('businessProfile.bookNow') : t('helperProfile.cta.contactForPricing')}
