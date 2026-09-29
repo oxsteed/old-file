@@ -77,57 +77,58 @@ export default function SupportAgentManagement() {
     <SupportPageShell>
       <SupportHero
         icon={Users}
-        eyebrow="Team Directory"
-        title="Support agents"
-        description="Review staffing, inspect skills, and manage who is active in the support operation without leaving the team roster."
+        eyebrow={t('adminSupportAgents.eyebrow')}
+        title={t('adminSupportAgents.title')}
+        description={t('adminSupportAgents.description')}
         actions={(
           <>
             <SupportActionButton icon={RefreshCw} onClick={loadAgents} tone="secondary">
-              Refresh
+              {t('adminSupportAgents.refresh')}
             </SupportActionButton>
           </>
         )}
         stats={[
           {
             icon: Users,
-            label: 'Agents',
+            label: t('adminSupportAgents.agents'),
             value: agents.length,
-            detail: 'Total support agents currently in the roster.',
+            detail: t('adminSupportAgents.agentsDetail'),
           },
           {
             icon: ShieldCheck,
-            label: 'Active',
+            label: t('adminSupportAgents.active'),
             value: activeCount,
-            detail: 'Agents currently enabled for support work.',
+            detail: t('adminSupportAgents.activeDetail'),
             tone: 'text-green-300',
           },
           {
             icon: Star,
-            label: 'Skill areas',
+            label: t('adminSupportAgents.skillAreas'),
             value: skillCount,
-            detail: 'Unique support specialties represented on the team.',
+            detail: t('adminSupportAgents.skillAreasDetail'),
             tone: 'text-blue-300',
           },
           {
             icon: Search,
-            label: 'Search mode',
-            value: search ? 'Filtered' : 'All',
-            detail: search ? `Current query: ${search}` : 'Browsing the full team roster.',
+            label: t('adminSupportAgents.searchMode'),
+            value: search ? t('adminSupportAgents.filtered') : t('adminSupportAgents.all'),
+            detail: search ? t('adminSupportAgents.currentQuery', { query: search }) : t('adminSupportAgents.browsingAll'),
             tone: 'text-orange-300',
           },
         ]}
       />
 
       <SupportPanel
-        title="Agent roster"
-        subtitle="Search by name or email, then inspect skills and activation status."
+        title={t('adminSupportAgents.rosterTitle')}
+        subtitle={t('adminSupportAgents.rosterSubtitle')}
       >
         <div className="mb-5">
           <div className="relative">
             <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
             <input
               type="text"
-              placeholder="Search agents by name or email..."
+              placeholder={t('adminSupportAgents.searchPlaceholder')}
+              aria-label={t('adminSupportAgents.searchPlaceholder')}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               className="w-full rounded-2xl border border-gray-700 bg-gray-900 py-3 pl-11 pr-4 text-white focus:border-orange-500 focus:outline-none"
@@ -142,8 +143,8 @@ export default function SupportAgentManagement() {
         ) : agents.length === 0 ? (
           <SupportEmptyState
             icon={Users}
-            title="No agents found"
-            body="Try a different search or onboard new support staff to begin building out the team roster."
+            title={t('adminSupportAgents.noAgents')}
+            body={t('adminSupportAgents.noAgentsBody')}
           />
         ) : (
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -155,7 +156,7 @@ export default function SupportAgentManagement() {
                     <div className="mt-1 text-sm text-gray-500">{agent.email}</div>
                   </div>
                   <SupportTag tone={agent.is_active ? 'green' : 'default'}>
-                    {agent.is_active ? 'Active' : 'Inactive'}
+                    {agent.is_active ? t('adminSupportAgents.activeStatus') : t('adminSupportAgents.inactiveStatus')}
                   </SupportTag>
                 </div>
 
@@ -171,17 +172,21 @@ export default function SupportAgentManagement() {
 
                 <div className="mt-5 flex items-center justify-between border-t border-gray-800 pt-4">
                   <div className="text-xs text-gray-500">
-                    Chats today: <span className="text-gray-300">{agent.chats_today || 0}</span>
+                    {t('adminSupportAgents.chatsToday')}: <span className="text-gray-300">{agent.chats_today || 0}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setSelectedAgent(agent)}
+                      aria-label={t('adminSupportAgents.viewAgent', { name: agent.name })}
+                      title={t('adminSupportAgents.viewAgent', { name: agent.name })}
                       className="rounded-xl border border-gray-700 bg-gray-900 p-2 text-gray-400 transition hover:text-white"
                     >
                       <Eye size={15} />
                     </button>
                     <button
                       onClick={() => handleToggleStatus(agent.id)}
+                      aria-label={t('adminSupportAgents.toggleStatus', { name: agent.name })}
+                      title={t('adminSupportAgents.toggleStatus', { name: agent.name })}
                       className="rounded-xl border border-gray-700 bg-gray-900 p-2 text-gray-400 transition hover:text-white"
                     >
                       {agent.is_active ? (
@@ -192,6 +197,8 @@ export default function SupportAgentManagement() {
                     </button>
                     <button
                       onClick={() => handleDelete(agent.id)}
+                      aria-label={t('adminSupportAgents.deleteAgent', { name: agent.name })}
+                      title={t('adminSupportAgents.deleteAgent', { name: agent.name })}
                       className="rounded-xl border border-red-900/40 bg-red-950/30 p-2 text-red-400 transition hover:bg-red-900/30"
                     >
                       <Trash2 size={15} />
@@ -209,10 +216,10 @@ export default function SupportAgentManagement() {
           <div className="w-full max-w-xl rounded-[28px] border border-gray-700 bg-gray-900 shadow-2xl">
             <div className="flex items-center justify-between border-b border-gray-800 px-6 py-5">
               <div>
-                <div className="text-xl font-semibold text-white">Agent profile</div>
-                <div className="mt-1 text-sm text-gray-500">Support performance and specialization snapshot.</div>
+                <div className="text-xl font-semibold text-white">{t('adminSupportAgents.profileTitle')}</div>
+                <div className="mt-1 text-sm text-gray-500">{t('adminSupportAgents.profileDescription')}</div>
               </div>
-              <button onClick={() => setSelectedAgent(null)} className="text-2xl text-gray-500 hover:text-white">x</button>
+              <button onClick={() => setSelectedAgent(null)} aria-label={t('adminSupportAgents.close')} className="text-2xl text-gray-500 hover:text-white">x</button>
             </div>
             <div className="space-y-5 px-6 py-6">
               <div>
@@ -222,17 +229,17 @@ export default function SupportAgentManagement() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="rounded-2xl border border-gray-800 bg-gray-950/70 p-4">
-                  <div className="text-xs uppercase tracking-[0.18em] text-gray-500">Chats today</div>
+                  <div className="text-xs uppercase tracking-[0.18em] text-gray-500">{t('adminSupportAgents.chatsToday')}</div>
                   <div className="mt-2 text-2xl font-semibold text-white">{selectedAgent.chats_today || 0}</div>
                 </div>
                 <div className="rounded-2xl border border-gray-800 bg-gray-950/70 p-4">
-                  <div className="text-xs uppercase tracking-[0.18em] text-gray-500">Avg rating</div>
+                  <div className="text-xs uppercase tracking-[0.18em] text-gray-500">{t('adminSupportAgents.avgRating')}</div>
                   <div className="mt-2 text-2xl font-semibold text-white">{selectedAgent.avg_rating || '-'}</div>
                 </div>
               </div>
 
               <div>
-                <div className="mb-2 text-sm font-medium text-gray-300">Skill coverage</div>
+                <div className="mb-2 text-sm font-medium text-gray-300">{t('adminSupportAgents.skillCoverage')}</div>
                 <div className="flex flex-wrap gap-2">
                   {(selectedAgent.skills || []).map((skill) => (
                     <SupportTag key={skill} tone="orange">{skill}</SupportTag>

@@ -34,8 +34,10 @@ exports.search = async (req, res) => {
   }
 
   // Pagination
-  const page   = Math.max(1, parseInt(req.query.page) || DEFAULT_PAGE);
-  const limit  = Math.min(Math.max(1, parseInt(req.query.limit) || MAX_PER_TYPE), 50);
+  const parsedPage = parseInt(req.query.page, 10);
+  const parsedLimit = parseInt(req.query.limit, 10);
+  const page   = Number.isSafeInteger(parsedPage) && parsedPage > 0 ? Math.min(parsedPage, 1_000_000) : DEFAULT_PAGE;
+  const limit  = Number.isSafeInteger(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 50) : MAX_PER_TYPE;
   const offset = (page - 1) * limit;
 
   // Escape ILIKE special characters

@@ -132,6 +132,7 @@ function FunnelBar({ label, count, pct, color }) {
 
 // ── Modal ─────────────────────────────────────────────────────────────────
 function Modal({ open, onClose, title, children }) {
+  const { t } = useTranslation();
   useEffect(() => {
     if (!open) return;
     document.body.style.overflow = 'hidden';
@@ -146,7 +147,7 @@ function Modal({ open, onClose, title, children }) {
       <div className="relative bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h3 className="font-bold text-white">{title}</h3>
-          <button onClick={onClose} className="p-2 text-gray-500 hover:text-white transition rounded-lg hover:bg-gray-800"><IcoX size={16} /></button>
+          <button onClick={onClose} aria-label={t('common.close', { defaultValue: 'Close' })} className="p-2 text-gray-500 hover:text-white transition rounded-lg hover:bg-gray-800"><IcoX size={16} aria-hidden="true" /></button>
         </div>
         {children}
       </div>

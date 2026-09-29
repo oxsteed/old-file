@@ -10,10 +10,10 @@ import { TEMPLATE_REGISTRY } from '../../components/profileTemplates/index';
 import { TemplatePreviewThumb, TemplatePreviewPanel } from '../components/AdminTemplatePreview';
 
 // ── Icons ──────────────────────────────────────────────────────────────────
-const Ico = ({ children, size = 18, cls = 'text-gray-400' }) => (
+const Ico = ({ children, size = 18, cls = 'text-gray-400', ...rest }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
     strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
-    className={`flex-shrink-0 ${cls}`}>{children}</svg>
+    className={`flex-shrink-0 ${cls}`} {...rest}>{children}</svg>
 );
 const IcoEdit     = p => <Ico {...p}><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></Ico>;
 const IcoSave     = p => <Ico {...p}><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></Ico>;
@@ -39,7 +39,7 @@ const todayLocal = () => {
 
 const TABS = ['pricing', 'grants', 'stats'];
 
-const Badge = ({ type }) => {
+const Badge = ({ type, t }) => {
   const m = {
     active:    'bg-emerald-500/15 text-emerald-400',
     expired:   'bg-yellow-500/15 text-yellow-400',
@@ -51,7 +51,7 @@ const Badge = ({ type }) => {
   };
   return (
     <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${m[type] || 'bg-gray-700 text-gray-400'}`}>
-      {type?.replace(/_/g, ' ')}
+      {t ? t(`adminTemplates.badge${type?.split('_').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join('')}`, { defaultValue: type?.replace(/_/g, ' ') }) : type?.replace(/_/g, ' ')}
     </span>
   );
 };
@@ -125,8 +125,8 @@ function EditPricingModal({ row, onClose, onSave, saving, t }) {
             <h2 className="text-white font-bold text-lg">{t('adminTemplates.editPricingTitle')}</h2>
             <p className="text-gray-500 text-xs font-mono">{row.slug}</p>
           </div>
-          <button type="button" onClick={onClose} className="p-2 rounded-lg hover:bg-gray-800">
-            <IcoX size={18} cls="text-gray-400" />
+          <button type="button" onClick={onClose} className="p-2 rounded-lg hover:bg-gray-800" aria-label={t('adminTemplates.closePreview')}>
+            <IcoX size={18} cls="text-gray-400" aria-hidden="true" />
           </button>
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto grid md:grid-cols-2 gap-0 md:divide-x divide-gray-800">
@@ -285,9 +285,9 @@ const GrantModal = ({ open, onClose, onGrant, granting }) => {
 
   const handleSubmit = async e => {
     e.preventDefault();
-    if (!form.user_id.trim()) { toast.error('User ID is required'); return; }
-    if (!form.template_slug)  { toast.error('Select a template'); return; }
-    if (form.grant_type === 'timed' && !form.expiry_date) { toast.error('Expiry date required for timed grant'); return; }
+    if (!form.user_id.trim()) { toast.error(t('adminTemplates.userIdRequired')); return; }
+    if (!form.template_slug)  { toast.error(t('adminTemplates.selectTemplate')); return; }
+    if (form.grant_type === 'timed' && !form.expiry_date) { toast.error(t('adminTemplates.expiryRequired')); return; }
     await onGrant(form);
   };
 
@@ -299,32 +299,32 @@ const GrantModal = ({ open, onClose, onGrant, granting }) => {
       <div className="bg-gray-900 border border-gray-700/60 rounded-2xl w-full max-w-md shadow-2xl p-6"
         onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-white font-bold text-lg">Grant Template Access</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-800 transition">
-            <IcoX size={16} cls="text-gray-400" />
+          <h2 className="text-white font-bold text-lg">{t('adminTemplates.grantTitle')}</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-800 transition" aria-label={t('adminTemplates.closePreview')}>
+            <IcoX size={16} cls="text-gray-400" aria-hidden="true" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-gray-400 text-xs font-medium mb-1.5">User ID or Email *</label>
+            <label className="block text-gray-400 text-xs font-medium mb-1.5">{t('adminTemplates.userIdOrEmail')}</label>
             <input
               value={form.user_id}
               onChange={e => set('user_id', e.target.value)}
-              placeholder="UUID or email address"
+              placeholder={t('adminTemplates.uuidOrEmailPlaceholder')}
               className="w-full px-3 py-2 bg-gray-800 border border-gray-700/50 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
             />
-            <p className="text-gray-600 text-xs mt-1">Enter the user's UUID (from Users admin page)</p>
+            <p className="text-gray-600 text-xs mt-1">{t('adminTemplates.userIdHelp')}</p>
           </div>
 
           <div>
-            <label className="block text-gray-400 text-xs font-medium mb-1.5">Template *</label>
+            <label className="block text-gray-400 text-xs font-medium mb-1.5">{t('adminTemplates.templateRequired')}</label>
             <select
               value={form.template_slug}
               onChange={e => set('template_slug', e.target.value)}
               className="w-full px-3 py-2 bg-gray-800 border border-gray-700/50 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500"
             >
-              <option value="">Select template...</option>
+              <option value="">{t('adminTemplates.selectTemplateOption')}</option>
               {Object.entries(TEMPLATE_REGISTRY)
                 .filter(([, meta]) => !meta.is_free)
                 .map(([slug, meta]) => (
@@ -335,11 +335,11 @@ const GrantModal = ({ open, onClose, onGrant, granting }) => {
           </div>
 
           <div>
-            <label className="block text-gray-400 text-xs font-medium mb-1.5">Grant Type *</label>
+            <label className="block text-gray-400 text-xs font-medium mb-1.5">{t('adminTemplates.grantTypeRequired')}</label>
             <div className="flex gap-3">
               {[
-                { val: 'permanent', label: 'Permanent', icon: IcoShield },
-                { val: 'timed',     label: 'Timed',     icon: IcoClock },
+                { val: 'permanent', label: t('adminTemplates.permanent'), icon: IcoShield },
+                { val: 'timed',     label: t('adminTemplates.timed'),     icon: IcoClock },
               ].map(({ val, label, icon: Icon }) => (
                 <label key={val} className={`flex-1 flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition ${form.grant_type === val ? 'border-blue-500 bg-blue-500/10' : 'border-gray-700 hover:border-gray-600'}`}>
                   <input type="radio" name="grant_type" value={val} checked={form.grant_type === val}
@@ -353,7 +353,7 @@ const GrantModal = ({ open, onClose, onGrant, granting }) => {
 
           {form.grant_type === 'timed' && (
             <div>
-              <label className="block text-gray-400 text-xs font-medium mb-1.5">Expiry Date *</label>
+              <label className="block text-gray-400 text-xs font-medium mb-1.5">{t('adminTemplates.expiryDateRequired')}</label>
               <input
                 type="date"
                 value={form.expiry_date}
@@ -365,12 +365,12 @@ const GrantModal = ({ open, onClose, onGrant, granting }) => {
           )}
 
           <div>
-            <label className="block text-gray-400 text-xs font-medium mb-1.5">Internal Note (optional)</label>
+            <label className="block text-gray-400 text-xs font-medium mb-1.5">{t('adminTemplates.internalNote')}</label>
             <textarea
               value={form.internal_note}
               onChange={e => set('internal_note', e.target.value)}
               rows={2}
-              placeholder="Reason, ticket #, promo campaign..."
+              placeholder={t('adminTemplates.internalNotePlaceholder')}
               className="w-full px-3 py-2 bg-gray-800 border border-gray-700/50 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none"
             />
           </div>
@@ -382,11 +382,11 @@ const GrantModal = ({ open, onClose, onGrant, granting }) => {
               className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition disabled:opacity-60 flex items-center justify-center gap-2"
             >
               {granting ? <IcoRefresh size={15} cls="text-white animate-spin" /> : <IcoPlus size={15} cls="text-white" />}
-              {granting ? 'Granting...' : 'Grant Access'}
+              {granting ? t('adminTemplates.granting') : t('adminTemplates.grantAccess')}
             </button>
             <button type="button" onClick={onClose}
               className="px-4 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm transition">
-              Cancel
+              {t('adminTemplates.cancel')}
             </button>
           </div>
         </form>
@@ -397,25 +397,24 @@ const GrantModal = ({ open, onClose, onGrant, granting }) => {
 
 // ── Revoke confirm modal ────────────────────────────────────────────────────
 const RevokeConfirm = ({ grant, onConfirm, onCancel, revoking }) => {
+  const { t } = useTranslation();
   if (!grant) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onCancel}>
       <div className="bg-gray-900 border border-red-500/40 rounded-2xl w-full max-w-sm p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-        <h3 className="text-white font-bold mb-2">Revoke Access?</h3>
+        <h3 className="text-white font-bold mb-2">{t('adminTemplates.revokeTitle')}</h3>
         <p className="text-gray-400 text-sm mb-4">
-          This will revoke <strong className="text-white">{TEMPLATE_REGISTRY[grant.template_slug]?.name || grant.template_slug}</strong> access
-          for user <span className="font-mono text-blue-300 text-xs">{grant.user_id}</span>.
-          If their active profile uses this template, it will revert to Default.
+          {t('adminTemplates.revokeDescription', { template: TEMPLATE_REGISTRY[grant.template_slug]?.name || grant.template_slug, userId: grant.user_id })}
         </p>
         <div className="flex gap-3">
           <button onClick={onConfirm} disabled={revoking}
             className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-semibold text-sm transition disabled:opacity-60 flex items-center justify-center gap-2">
             {revoking ? <IcoRefresh size={14} cls="text-white animate-spin" /> : <IcoTrash size={14} cls="text-white" />}
-            {revoking ? 'Revoking...' : 'Yes, Revoke'}
+            {revoking ? t('adminTemplates.revoking') : t('adminTemplates.confirmRevoke')}
           </button>
           <button onClick={onCancel}
             className="px-4 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm transition">
-            Cancel
+            {t('adminTemplates.cancel')}
           </button>
         </div>
       </div>
@@ -457,7 +456,7 @@ export default function TemplateManagement() {
       const res = await api.get('/templates/admin/pricing');
       setPricingRows(res.data?.data || []);
     } catch (e) {
-      toast.error('Failed to load pricing');
+      toast.error(t('adminTemplates.loadPricingFailed'));
     }
   }, []);
 
@@ -473,7 +472,7 @@ export default function TemplateManagement() {
       setGrants(rows);
       setGrantsHasNext(rows.length === GRANTS_PER_PAGE);
     } catch (e) {
-      toast.error('Failed to load grants');
+      toast.error(t('adminTemplates.loadGrantsFailed'));
     }
   }, [grantSearch, grantStatusFilter, grantsPage]);
 
@@ -483,7 +482,7 @@ export default function TemplateManagement() {
       const res = await api.get('/templates/admin/stats');
       setStats(res.data?.data || []);
     } catch (e) {
-      toast.error('Failed to load stats');
+      toast.error(t('adminTemplates.loadStatsFailed'));
     }
   }, []);
 
@@ -515,11 +514,11 @@ export default function TemplateManagement() {
     setGranting(true);
     try {
       await api.post('/templates/admin/grants', form);
-      toast.success('Access granted');
+      toast.success(t('adminTemplates.accessGranted'));
       setShowGrantModal(false);
       await loadGrants();
     } catch (e) {
-      toast.error(e.response?.data?.error || 'Failed to grant access');
+      toast.error(e.response?.data?.error || t('adminTemplates.grantFailed'));
     } finally {
       setGranting(false);
     }
@@ -531,11 +530,11 @@ export default function TemplateManagement() {
     setRevoking(true);
     try {
       await api.delete(`/templates/admin/grants/${revokeTarget.id}`);
-      toast.success('Access revoked');
+      toast.success(t('adminTemplates.accessRevoked'));
       setRevokeTarget(null);
       await loadGrants();
     } catch (e) {
-      toast.error(e.response?.data?.error || 'Failed to revoke');
+      toast.error(e.response?.data?.error || t('adminTemplates.revokeFailed'));
     } finally {
       setRevoking(false);
     }
@@ -642,7 +641,7 @@ export default function TemplateManagement() {
               <input
                 value={grantSearch}
                 onChange={e => { setGrantSearch(e.target.value); setGrantsPage(0); }}
-                placeholder="Search by user ID..."
+                placeholder={t('adminTemplates.searchUserPlaceholder')}
                 className="w-full pl-8 pr-3 py-2 bg-gray-800 border border-gray-700/50 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
               />
             </div>
@@ -657,8 +656,8 @@ export default function TemplateManagement() {
                 </button>
               ))}
             </div>
-            <button onClick={loadGrants} className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition" title="Refresh">
-              <IcoRefresh size={15} cls="text-gray-400" />
+            <button onClick={loadGrants} className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition" title={t('common.refresh')} aria-label={t('common.refresh')}>
+              <IcoRefresh size={15} cls="text-gray-400" aria-hidden="true" />
             </button>
           </div>
 
@@ -666,21 +665,21 @@ export default function TemplateManagement() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-800 text-gray-400 text-xs uppercase tracking-wider">
-                  <th className="text-left py-3 px-4 font-medium">User ID</th>
-                  <th className="text-left py-3 px-4 font-medium">Template</th>
-                  <th className="text-left py-3 px-4 font-medium">Type</th>
-                  <th className="text-left py-3 px-4 font-medium">Status</th>
-                  <th className="text-left py-3 px-4 font-medium">Granted</th>
-                  <th className="text-left py-3 px-4 font-medium">Expires</th>
-                  <th className="text-left py-3 px-4 font-medium">Note</th>
-                  <th className="text-right py-3 px-4 font-medium">Actions</th>
+                  <th className="text-left py-3 px-4 font-medium">{t('adminTemplates.colUserId')}</th>
+                  <th className="text-left py-3 px-4 font-medium">{t('adminTemplates.colTemplate')}</th>
+                  <th className="text-left py-3 px-4 font-medium">{t('adminTemplates.colType')}</th>
+                  <th className="text-left py-3 px-4 font-medium">{t('adminTemplates.colStatus')}</th>
+                  <th className="text-left py-3 px-4 font-medium">{t('adminTemplates.colGranted')}</th>
+                  <th className="text-left py-3 px-4 font-medium">{t('adminTemplates.colExpires')}</th>
+                  <th className="text-left py-3 px-4 font-medium">{t('adminTemplates.colNote')}</th>
+                  <th className="text-right py-3 px-4 font-medium">{t('adminTemplates.colActions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={8} className="py-10 text-center text-gray-500">Loading...</td></tr>
+                  <tr><td colSpan={8} className="py-10 text-center text-gray-500">{t('adminTemplates.loading')}</td></tr>
                 ) : grants.length === 0 ? (
-                  <tr><td colSpan={8} className="py-10 text-center text-gray-500">No grants found</td></tr>
+                  <tr><td colSpan={8} className="py-10 text-center text-gray-500">{t('adminTemplates.noGrants')}</td></tr>
                 ) : grants.map(g => (
                   <tr key={g.id} className="border-b border-gray-800 hover:bg-gray-800/30 transition">
                     <td className="py-3 px-4">
@@ -690,12 +689,12 @@ export default function TemplateManagement() {
                       <div className="text-white text-sm">{TEMPLATE_REGISTRY[g.template_slug]?.name || g.template_slug}</div>
                       <div className="text-gray-600 text-xs font-mono">{g.template_slug}</div>
                     </td>
-                    <td className="py-3 px-4"><Badge type={g.access_type} /></td>
-                    <td className="py-3 px-4"><Badge type={g.status} /></td>
+                    <td className="py-3 px-4"><Badge type={g.access_type} t={t} /></td>
+                    <td className="py-3 px-4"><Badge type={g.status} t={t} /></td>
                     <td className="py-3 px-4 text-gray-400 text-xs">{formatDate(g.start_date || g.created_at)}</td>
                     <td className="py-3 px-4 text-gray-400 text-xs">
                       {g.grant_type === 'permanent' ? (
-                        <span className="text-blue-400">Permanent</span>
+                        <span className="text-blue-400">{t('adminTemplates.permanent')}</span>
                       ) : formatDate(g.expiry_date)}
                     </td>
                     <td className="py-3 px-4">
@@ -709,7 +708,7 @@ export default function TemplateManagement() {
                           onClick={() => setRevokeTarget(g)}
                           className="flex items-center gap-1 ml-auto px-3 py-1.5 rounded-lg bg-red-500/15 hover:bg-red-500/25 text-red-400 text-xs font-medium transition"
                         >
-                          <IcoX size={12} cls="text-red-400" /> Revoke
+                          <IcoX size={12} cls="text-red-400" /> {t('adminTemplates.revoke')}
                         </button>
                       )}
                     </td>
@@ -727,7 +726,7 @@ export default function TemplateManagement() {
                   className="px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs disabled:opacity-40 transition">
                   Previous
                 </button>
-                <span className="text-gray-500 text-xs">Page {grantsPage + 1}</span>
+                <span className="text-gray-500 text-xs">{t('adminTemplates.pageNumber', { page: grantsPage + 1 })}</span>
                 <button onClick={() => setGrantsPage(p => p + 1)} disabled={!grantsHasNext}
                   className="px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs transition disabled:opacity-40">
                   Next
@@ -742,23 +741,23 @@ export default function TemplateManagement() {
       {tab === 'stats' && (
         <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
           <div className="p-4 border-b border-gray-800">
-            <h2 className="text-white font-semibold">Template Adoption Stats</h2>
-            <p className="text-gray-500 text-xs mt-0.5">Number of active profiles using each template</p>
+            <h2 className="text-white font-semibold">{t('adminTemplates.statsTitle')}</h2>
+            <p className="text-gray-500 text-xs mt-0.5">{t('adminTemplates.statsDescription')}</p>
           </div>
           {loading ? (
-            <div className="p-8 text-center text-gray-500">Loading...</div>
+            <div className="p-8 text-center text-gray-500">{t('adminTemplates.loading')}</div>
           ) : stats.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">No data yet</div>
+            <div className="p-8 text-center text-gray-500">{t('adminTemplates.noStats')}</div>
           ) : (
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-800 text-gray-400 text-xs uppercase tracking-wider">
-                  <th className="text-left py-3 px-4 font-medium">Template</th>
-                  <th className="text-left py-3 px-4 font-medium">Category</th>
-                  <th className="text-right py-3 px-4 font-medium">Helper Profiles</th>
-                  <th className="text-right py-3 px-4 font-medium">Business Profiles</th>
-                  <th className="text-right py-3 px-4 font-medium">Total Access Records</th>
-                  <th className="text-right py-3 px-4 font-medium">Active Grants</th>
+                  <th className="text-left py-3 px-4 font-medium">{t('adminTemplates.colTemplate')}</th>
+                  <th className="text-left py-3 px-4 font-medium">{t('adminTemplates.colCategory')}</th>
+                  <th className="text-right py-3 px-4 font-medium">{t('adminTemplates.colHelperProfiles')}</th>
+                  <th className="text-right py-3 px-4 font-medium">{t('adminTemplates.colBusinessProfiles')}</th>
+                  <th className="text-right py-3 px-4 font-medium">{t('adminTemplates.colTotalAccess')}</th>
+                  <th className="text-right py-3 px-4 font-medium">{t('adminTemplates.colActiveGrants')}</th>
                 </tr>
               </thead>
               <tbody>

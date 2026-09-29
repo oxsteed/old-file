@@ -2,6 +2,7 @@ const db          = require('../db');
 const { logAdminAction } = require('../services/auditService');
 const { sendNotification } = require('../services/notificationService');
 const logger = require('../utils/logger');
+const { parseBoundedPagination } = require('../utils/pagination');
 
 // Helper: check if a table exists
 async function tableExists(name) {
@@ -51,8 +52,8 @@ exports.getReports = async (req, res) => {
     if (!(await tableExists('content_reports'))) {
       return res.json({ reports: [], total: 0, page: 1, limit: 25 });
     }
-    const { status = 'pending', page = 1, limit = 25 } = req.query;
-    const offset = (page - 1) * limit;
+    const { status = 'pending' } = req.query;
+    const { page, limit, offset } = parseBoundedPagination(req.query, { defaultLimit: 25, maxLimit: 100 });
 
     const { rows } = await db.query(`
       SELECT
@@ -89,26 +90,33 @@ exports.reviewReport = async (req, res) => {
   if (!(await tableExists('content_reports'))) {
     return res.status(400).json({ error: 'Content reports table not available.' });
   }
+  const { reportId } = req.params;
+  const { action, action_taken } = req.body;
+  const adminId = req.user.id;
+  const allowed = ['dismiss','warn_user','remove_content','escalate'];
+  if (!allowed.includes(action)) {
+    return res.status(400).json({ error: 'Invalid action.' });
+  }
+
   const dbClient = await db.connect();
   try {
     await dbClient.query('BEGIN');
 
-    const { reportId } = req.params;
-    const { action, action_taken } = req.body;
-    const adminId = req.user.id;
-
-    const allowed = ['dismiss','warn_user','remove_content','escalate'];
-    if (!allowed.includes(action)) {
-      return res.status(400).json({ error: 'Invalid action.' });
-    }
-
     const { rows: reportRows } = await dbClient.query(
-      `SELECT * FROM content_reports WHERE id = $1`, [reportId]
+      `SELECT * FROM content_reports WHERE id = $1 FOR UPDATE`, [reportId]
     );
     if (!reportRows.length) {
+      await dbClient.query('ROLLBACK');
       return res.status(404).json({ error: 'Report not found.' });
     }
     const report = reportRows[0];
+    if (!['pending', 'open'].includes(String(report.status || '').toLowerCase())) {
+      await dbClient.query('ROLLBACK');
+      return res.status(409).json({
+        error: 'This report has already been reviewed.',
+        code: 'report_already_reviewed',
+      });
+    }
 
     await dbClient.query(`
       UPDATE content_reports
@@ -380,8 +388,8 @@ exports.removeZipCodes = async (req, res) => {
 // GET /admin/content?type=bids|reviews&page=1&limit=25&search=
 exports.getContent = async (req, res) => {
   try {
-    const { type = 'bids', page = 1, limit = 25, search = '', status = '' } = req.query;
-    const offset = (Math.max(1, parseInt(page)) - 1) * Math.min(parseInt(limit) || 25, 100);
+    const { type = 'bids', search = '', status = '' } = req.query;
+    const { page, limit, offset } = parseBoundedPagination(req.query, { defaultLimit: 25, maxLimit: 100 });
 
     if (type === 'bids') {
       if (!(await tableExists('bids'))) return res.json({ items: [], total: 0 });
@@ -399,7 +407,7 @@ exports.getContent = async (req, res) => {
         ${wc}
         ORDER BY b.created_at DESC
         LIMIT $${paramIdx++} OFFSET $${paramIdx++}
-      `, [...params, Math.min(parseInt(limit) || 25, 100), offset]);
+      `, [...params, limit, offset]);
       const { rows: countRows } = await db.query(`SELECT COUNT(*) FROM bids b JOIN jobs j ON b.job_id = j.id ${wc}`, params);
       return res.json({ items: rows, total: parseInt(countRows[0].count), type: 'bids' });
     }
@@ -423,7 +431,7 @@ exports.getContent = async (req, res) => {
         ${wc}
         ORDER BY r.created_at DESC
         LIMIT $${paramIdx++} OFFSET $${paramIdx++}
-      `, [...params, Math.min(parseInt(limit) || 25, 100), offset]);
+      `, [...params, limit, offset]);
       const { rows: countRows } = await db.query(`SELECT COUNT(*) FROM reviews r JOIN jobs j ON r.job_id = j.id ${wc}`, params);
       return res.json({ items: rows, total: parseInt(countRows[0].count), type: 'reviews' });
     }

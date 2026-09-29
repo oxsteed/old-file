@@ -1,7 +1,8 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const socketService = require('../services/socketService');
-const { enqueueMessageNotification, scheduleConversationMessageNotifications } = require('../services/messageNotificationService');
+const { enqueueMessageNotification, enqueueConversationMessageNotifications } = require('../services/messageNotificationService');
+const { withTransaction } = require('../utils/transaction');
 
 function getClientRequestId(req) {
   const value = req.get?.('Idempotency-Key')
@@ -130,37 +131,51 @@ async function handleLiveAdminChat(req, res, userId, visitorName, visitorEmail, 
     }
     if (!conversationId) throw new Error('Failed to create support conversation');
 
-    // Insert the initial message
-    const { rows: messageRows } = await pool.query(
-      `INSERT INTO messages (
-        conversation_id, sender_id, content, client_message_id
-      ) VALUES ($1, $2, $3, $4)
-      ON CONFLICT (conversation_id, client_message_id)
-      WHERE client_message_id IS NOT NULL DO NOTHING
-      RETURNING id`,
-      [conversationId, userId, message, clientRequestId]
-    );
-    if (!messageRows.length && clientRequestId) replayed = true;
-
-    // Notify all online admins about new support chat
-    if (!replayed) {
-      try {
+    // Insert the message and durable notification intent atomically. The
+    // realtime broadcast remains a post-commit side effect.
+    const transactionResult = await withTransaction(pool, async (client) => {
+      const { rows: messageRows } = await client.query(
+        `INSERT INTO messages (
+          conversation_id, sender_id, content, client_message_id
+        ) VALUES ($1, $2, $3, $4)
+        ON CONFLICT (conversation_id, client_message_id)
+        WHERE client_message_id IS NOT NULL DO NOTHING
+        RETURNING id`,
+        [conversationId, userId, message, clientRequestId]
+      );
+      let messageId = messageRows[0]?.id || null;
+      const wasReplayed = !messageId && Boolean(clientRequestId);
+      if (wasReplayed) {
+        const { rows: existingMessage } = await client.query(
+          `SELECT id FROM messages
+             WHERE conversation_id = $1 AND client_message_id = $2
+             LIMIT 1`,
+          [conversationId, clientRequestId]
+        );
+        messageId = existingMessage[0]?.id || null;
+      }
+      if (!messageId) throw new Error('Failed to create support message');
+      if (!wasReplayed) {
+        await client.query(
+          `UPDATE conversations SET last_message_at = NOW(), updated_at = NOW() WHERE id = $1`,
+          [conversationId]
+        );
         await enqueueMessageNotification({
-          messageId: messageRows[0]?.id,
+          dbClient: client,
+          messageId,
           conversationId,
           recipientId: admin.id,
           senderName: visitorName || 'OxSteed customer',
           body: message,
           actionUrl: `/messages/${conversationId}`,
         });
-      } catch (notificationError) {
-        logger.warn('Live support message notification enqueue failed', {
-          conversationId,
-          messageId: messageRows[0]?.id,
-          error: notificationError.message,
-        });
       }
+      return { messageId, wasReplayed };
+    }, 'support_live_message');
+    replayed = transactionResult.wasReplayed;
 
+    // Notify all online admins about new support chat
+    if (!replayed) {
       socketService.broadcastToAdmins('support:new_chat', {
         conversationId,
         visitorName,
@@ -315,46 +330,50 @@ async function sendSupportMessage(req, res) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    // Insert message
-    const { rows: inserted } = await pool.query(
-      `INSERT INTO messages (
-        conversation_id, sender_id, content, client_message_id
-      ) VALUES ($1, $2, $3, $4)
-      ON CONFLICT (conversation_id, client_message_id)
-      WHERE client_message_id IS NOT NULL DO NOTHING
-      RETURNING id, content, created_at`,
-      [conversationId, userId, message, clientRequestId]
-    );
-    let msg = inserted[0] || null;
-    const replayed = !msg && Boolean(clientRequestId);
-    if (!msg && clientRequestId) {
-      const { rows: existing } = await pool.query(
-        `SELECT id, content, created_at FROM messages
-          WHERE conversation_id = $1 AND client_message_id = $2`,
-        [conversationId, clientRequestId],
+    const { msg, replayed } = await withTransaction(pool, async (client) => {
+      const { rows: inserted } = await client.query(
+        `INSERT INTO messages (
+          conversation_id, sender_id, content, client_message_id
+        ) VALUES ($1, $2, $3, $4)
+        ON CONFLICT (conversation_id, client_message_id)
+        WHERE client_message_id IS NOT NULL DO NOTHING
+        RETURNING id, content, created_at`,
+        [conversationId, userId, message, clientRequestId]
       );
-      msg = existing[0] || null;
-    }
+      let msg = inserted[0] || null;
+      const replayed = !msg && Boolean(clientRequestId);
+      if (!msg && clientRequestId) {
+        const { rows: existing } = await client.query(
+          `SELECT id, content, created_at FROM messages
+            WHERE conversation_id = $1 AND client_message_id = $2`,
+          [conversationId, clientRequestId],
+        );
+        msg = existing[0] || null;
+      }
+      if (!msg) throw new Error('Failed to send message');
+      if (!replayed) {
+        await client.query(
+          `UPDATE conversations SET last_message_at = NOW(), updated_at = NOW()
+           WHERE id = $1`,
+          [conversationId]
+        );
+        await enqueueConversationMessageNotifications({
+          dbClient: client,
+          messageId: msg.id,
+          conversationId,
+          recipientIds: [conv.customer_id, conv.helper_id],
+          senderId: userId,
+          senderName: 'OxSteed customer',
+          body: message,
+          actionUrl: `/messages/${conversationId}`,
+        });
+      }
+      return { msg, replayed };
+    }, 'support_followup_message');
+
     if (!msg) return res.status(500).json({ error: 'Failed to send message' });
 
-    // Update conversation last_message_at
     if (!replayed) {
-      await pool.query(
-        `UPDATE conversations SET last_message_at = NOW()
-         WHERE id = $1`,
-        [conversationId]
-      );
-
-      scheduleConversationMessageNotifications({
-        conversationId,
-        messageId: msg.id,
-        senderId: userId,
-        senderName: 'OxSteed customer',
-        body: message,
-        actionUrl: `/messages/${conversationId}`,
-        recipientIds: [conv.customer_id, conv.helper_id],
-        bestEffort: true,
-      });
 
       // Emit via Socket.IO to both participants.
       socketService.broadcastToConversation(conversationId, 'message:new', {

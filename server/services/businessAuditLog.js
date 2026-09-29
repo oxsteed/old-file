@@ -62,7 +62,8 @@ async function logBusinessAction(req, entry) {
     const actorRole = entry.actor_role || req.businessRole || null;
     const ua = req.headers && req.headers['user-agent'] ? String(req.headers['user-agent']).slice(0, 500) : null;
 
-    await pool.query(
+    const runner = entry.client || pool;
+    await runner.query(
       `INSERT INTO business_audit_log
          (business_id, actor_user_id, actor_role, action,
           target_type, target_id, before_state, after_state, metadata,
@@ -88,6 +89,7 @@ async function logBusinessAction(req, entry) {
       err: err && err.message,
       action: entry && entry.action,
     });
+    if (entry && entry.throwOnError) throw err;
   }
 }
 

@@ -1,18 +1,87 @@
 const db = require('../db');
 const { tableExists, columnExists, userIdEq, ACTIVE_JOB_STATUS_SQL_IN } = require('../utils/schemaProbe');
 const { logAdminAction, logUserAction } = require('../services/auditService');
-const { issueRefund } = require('../services/stripeService');
+const { processPaymentRefund } = require('../services/paymentRefundService');
 const { sendNotification } = require('../services/notificationService');
 const logger = require('../utils/logger');
 const socketService = require('../services/socketService');
 const tokenRevocationService = require('../services/tokenRevocationService');
 const { withTransaction } = require('../utils/transaction');
 const { enqueueMessageNotification } = require('../services/messageNotificationService');
+const { parseBoundedPagination } = require('../utils/pagination');
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const AI_BOOKING_PLACEHOLDER_USER_ID = '00000000-0000-4000-8000-000000000001';
 const INTERNAL_EMAIL_SUFFIX = '@oxsteed.internal';
+
+const BOOLEAN_SETTING_KEYS = new Set([
+  'maintenance_mode',
+  'new_user_registrations',
+  'require_id_verification',
+]);
+
+const NUMERIC_SETTING_LIMITS = {
+  platform_fee_starter: [0, 1],
+  platform_fee_pro: [0, 1],
+  platform_fee_elite: [0, 1],
+  platform_fee_broker: [0, 1],
+  broker_cut_rate: [0, 1],
+  max_job_budget: [0.01, 1000000],
+  bid_expiry_hours: [1, 720],
+  escrow_release_delay_hrs: [1, 720],
+  min_helper_rating: [0, 5],
+};
+
+function parsePlatformSettingValue(row, rawValue) {
+  const key = String(row.key || '');
+  const valueType = String(row.value_type || '').toLowerCase();
+  const isBoolean = valueType === 'boolean' || BOOLEAN_SETTING_KEYS.has(key);
+  const isNumber = valueType === 'number' || Object.prototype.hasOwnProperty.call(NUMERIC_SETTING_LIMITS, key);
+
+  if (isBoolean) {
+    if (rawValue === true || rawValue === false) return { value: String(rawValue), normalized: rawValue };
+    if (rawValue === 'true' || rawValue === 'false') return { value: rawValue, normalized: rawValue === 'true' };
+    return { error: 'Boolean settings must be true or false.' };
+  }
+
+  if (isNumber) {
+    const number = typeof rawValue === 'number' ? rawValue : Number(String(rawValue).trim());
+    if (!Number.isFinite(number)) return { error: 'Numeric settings must contain a finite number.' };
+    const bounds = NUMERIC_SETTING_LIMITS[key];
+    const min = row.min_numeric_value == null ? bounds?.[0] : Number(row.min_numeric_value);
+    const max = row.max_numeric_value == null ? bounds?.[1] : Number(row.max_numeric_value);
+    if (Number.isFinite(min) && number < min) return { error: `Value must be at least ${min}.` };
+    if (Number.isFinite(max) && number > max) return { error: `Value must be at most ${max}.` };
+    return { value: String(number), normalized: number };
+  }
+
+  if (valueType === 'json') {
+    try {
+      const parsed = typeof rawValue === 'string' ? JSON.parse(rawValue) : rawValue;
+      return { value: JSON.stringify(parsed), normalized: parsed };
+    } catch {
+      return { error: 'JSON settings must contain valid JSON.' };
+    }
+  }
+
+  const value = String(rawValue ?? '').trim();
+  if (value.length > 5000) return { error: 'Text settings cannot exceed 5,000 characters.' };
+  if (key === 'support_email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+    return { error: 'Support email must be a valid email address.' };
+  }
+  if (row.validation_pattern && key !== 'support_email' && !(new RegExp(row.validation_pattern).test(value))) {
+    return { error: 'The setting value has an invalid format.' };
+  }
+  return { value, normalized: value };
+}
+
+function parseStrictBoolean(value) {
+  if (value === true || value === false) return value;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return null;
+}
 
 function isUuidParam(id) {
   return typeof id === 'string' && UUID_RE.test(id.trim());
@@ -371,7 +440,7 @@ exports.getRevenueChart = async (req, res) => {
 
 exports.getDashboardActivity = async (req, res) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
+    const { limit } = parseBoundedPagination(req.query, { defaultLimit: 20, maxLimit: 50 });
     const events = [];
 
     const [hasJobs, hasST, hasHP, hasMig154] = await Promise.all([
@@ -465,9 +534,9 @@ exports.getUsers = async (req, res) => {
   try {
     const {
       search, role, status, plan, location,
-      page = 1, limit = 25, sort = 'created_at', order = 'desc'
+      sort = 'created_at', order = 'desc'
     } = req.query;
-    const offset = (page - 1) * limit;
+    const { page, limit, offset } = parseBoundedPagination(req.query, { defaultLimit: 25, maxLimit: 100 });
     const params = [];
     let paramIdx = 1;
 
@@ -957,8 +1026,8 @@ exports.updateUserName = async (req, res) => {
 exports.getJobs = async (req, res) => {
   try {
     if (!(await tableExists('jobs'))) return res.json({ jobs: [], total: 0, page: 1, limit: 25, pages: 0 });
-    const { search, status, category, page = 1, limit = 25 } = req.query;
-    const offset = (page - 1) * limit;
+    const { search, status, category } = req.query;
+    const { page, limit, offset } = parseBoundedPagination(req.query, { defaultLimit: 25, maxLimit: 100 });
     const params = []; let paramIdx = 1; let conditions = [];
     if (search) { conditions.push(`(j.title ILIKE $${paramIdx} OR j.description ILIKE $${paramIdx})`); params.push(`%${search}%`); paramIdx++; }
     if (status) { conditions.push(`j.status = $${paramIdx++}`); params.push(status); }
@@ -1225,8 +1294,8 @@ exports.createUser = async (req, res) => {
 exports.getFinancials = async (req, res) => {
   try {
     if (!(await tableExists('platform_ledger'))) return res.json({ ledger: [], totals: {}, page: 1, limit: 25 });
-    const { page = 1, limit = 25, type } = req.query;
-    const offset = (page - 1) * limit;
+    const { type } = req.query;
+    const { page, limit, offset } = parseBoundedPagination(req.query, { defaultLimit: 25, maxLimit: 100 });
     const params = []; let paramIdx = 1; let condition = '';
     if (type) { condition = `WHERE source_type = $${paramIdx++}`; params.push(type); }
     const { rows } = await db.query(`SELECT pl.*, u.first_name || ' ' || u.last_name AS user_name, u.email AS user_email FROM platform_ledger pl LEFT JOIN users u ON pl.user_id = u.id ${condition} ORDER BY pl.created_at DESC LIMIT $${paramIdx++} OFFSET $${paramIdx++}`, [...params, limit, offset]);
@@ -1256,7 +1325,7 @@ exports.issueManualRefund = async (req, res) => {
     }
 
     const { rows } = await db.query(
-      `SELECT id, amount, stripe_payment_intent_id
+      `SELECT id, amount, stripe_payment_intent_id, stripe_account_id
        FROM payments
        WHERE job_id = $1
          AND stripe_payment_intent_id IS NOT NULL
@@ -1279,8 +1348,22 @@ exports.issueManualRefund = async (req, res) => {
       return res.status(400).json({ error: 'Refund amount cannot exceed the captured amount.' });
     }
 
-    const idempotencyKey = `admin-job-refund-${jobId}-${payment.id}-${refundAmountCents || 'full'}`;
-    const refund = await issueRefund(payment.stripe_payment_intent_id, refundAmountCents, idempotencyKey);
+    const requestId = `admin-job-refund-${jobId}-${payment.id}-${refundAmountCents || 'full'}`;
+    const refundResult = await processPaymentRefund({
+      paymentId: payment.id,
+      requestedAmountCents: refundAmountCents,
+      reason,
+      actorUserId: adminId,
+      requestId,
+    });
+    if (refundResult.attempt.status !== 'succeeded') {
+      return res.status(202).json({
+        message: 'Refund accepted for provider reconciliation.',
+        refundStatus: refundResult.attempt.status,
+        refundAttemptId: refundResult.attempt.id,
+      });
+    }
+    const refund = { id: refundResult.attempt.stripe_refund_id };
     try {
       await logAdminAction({
         adminId,
@@ -1289,7 +1372,7 @@ exports.issueManualRefund = async (req, res) => {
         targetId: String(payment.id),
         description: `Manual refund issued for job ${jobId}: ${reason}`,
         before: { captured_cents: capturedCents },
-        after: { refund_cents: refundAmountCents == null ? capturedCents : refundAmountCents, stripe_refund_id: refund.id },
+        after: { refund_cents: refundAmountCents == null ? capturedCents : refundAmountCents, stripe_refund_id: refund.id, request_id: requestId },
         req,
       });
     } catch (e) {}
@@ -1299,8 +1382,8 @@ exports.issueManualRefund = async (req, res) => {
 
 exports.getPayouts = async (req, res) => {
   try {
-    const { status = '', page = 1, limit = 25 } = req.query;
-    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const { status = '' } = req.query;
+    const { page, limit, offset } = parseBoundedPagination(req.query, { defaultLimit: 25, maxLimit: 100 });
 
     // Map frontend tab names to DB payment statuses
     const STATUS_MAP = {
@@ -1327,7 +1410,7 @@ exports.getPayouts = async (req, res) => {
        WHERE ${baseFilter}
        ORDER BY p.created_at DESC
        LIMIT $1 OFFSET $2
-    `, [parseInt(limit), offset]);
+    `, [limit, offset]);
 
     const { rows: statsRows } = await db.query(`
       SELECT
@@ -1342,8 +1425,8 @@ exports.getPayouts = async (req, res) => {
     res.json({
       payouts,
       stats: statsRows[0],
-      page: parseInt(page),
-      limit: parseInt(limit),
+      page,
+      limit,
     });
   } catch (err) {
     logger.error('getPayouts error', { err });
@@ -2090,103 +2173,283 @@ exports.getMoneyOverview = async (req, res) => {
 // PLATFORM SETTINGS
 exports.getSettings = async (req, res) => {
   try {
-    let settings = [];
-    try { const r = await db.query('SELECT * FROM platform_settings ORDER BY key ASC'); settings = r.rows; } catch(e) {}
-    let flags = [];
-    if (await tableExists('feature_flags')) { const r = await db.query('SELECT * FROM feature_flags ORDER BY key ASC'); flags = r.rows; }
+    if (!(await tableExists('platform_settings')) || !(await tableExists('feature_flags'))) {
+      return res.status(503).json({
+        error: 'Platform settings are temporarily unavailable until the control-plane schema is ready.',
+        code: 'admin_settings_unavailable',
+      });
+    }
+    const [{ rows: settings }, { rows: flags }] = await Promise.all([
+      db.query('SELECT * FROM platform_settings ORDER BY key ASC'),
+      db.query('SELECT * FROM feature_flags ORDER BY key ASC'),
+    ]);
     res.json({ settings, flags });
   } catch (err) { logger.error('getSettings error', { err }); res.status(500).json({ error: 'Failed to fetch settings.' }); }
 };
 
 exports.updateSetting = async (req, res) => {
+  let client;
   try {
+    client = await db.connect();
     const { key } = req.params;
     const { value } = req.body;
     const adminId = req.user.id;
-    const { rows: before } = await db.query('SELECT value FROM platform_settings WHERE key = $1', [key]);
+    await client.query('BEGIN');
+    const { rows: before } = await client.query('SELECT * FROM platform_settings WHERE key = $1 FOR UPDATE', [key]);
     if (before.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: `Setting "${key}" not found.` });
     }
-    const newValue = String(value);
-    await db.query('UPDATE platform_settings SET value = $1, updated_by = $2, updated_at = now() WHERE key = $3', [newValue, adminId, key]);
-    try {
-      await logAdminAction({
-        adminId,
-        action: 'platform_setting_updated',
-        targetType: 'platform_setting',
-        targetId: key,
-        description: `Setting "${key}" updated`,
-        before: { value: before[0].value },
-        after: { value: newValue },
-        req,
-      });
-    } catch (e) {}
+    const parsed = parsePlatformSettingValue(before[0], value);
+    if (parsed.error) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: parsed.error, code: 'invalid_setting_value' });
+    }
+    await client.query('UPDATE platform_settings SET value = $1, version = COALESCE(version, 1) + 1, updated_by = $2, updated_at = now() WHERE key = $3', [parsed.value, adminId, key]);
+    await logAdminAction({
+      client,
+      adminId,
+      action: 'platform_setting_updated',
+      targetType: 'platform_setting',
+      targetKey: key,
+      description: `Setting "${key}" updated`,
+      before: { value: before[0].value, version: before[0].version || 1 },
+      after: { value: parsed.value, version: (before[0].version || 1) + 1 },
+      req,
+      throwOnError: true,
+    });
+    await client.query('COMMIT');
     res.json({ message: `Setting "${key}" updated.` });
-  } catch (err) { logger.error('updateSetting error', { err }); res.status(500).json({ error: 'Failed to update setting.' }); }
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch {}
+    logger.error('updateSetting error', { err });
+    res.status(err.code === '22P02' ? 400 : 500).json({ error: err.code === '22P02' ? 'Invalid setting value.' : 'Failed to update setting.' });
+  } finally { client?.release(); }
+};
+
+// Restore the immediately previous audited value. Rollback is itself a new
+// forward change, so the audit trail remains append-only and another rollback
+// can recover the prior state if an operator changes their mind.
+exports.rollbackSetting = async (req, res) => {
+  let client;
+  try {
+    client = await db.connect();
+    const { key } = req.params;
+    const adminId = req.user.id;
+    await client.query('BEGIN');
+    const { rows: currentRows } = await client.query(
+      'SELECT * FROM platform_settings WHERE key = $1 FOR UPDATE',
+      [key],
+    );
+    if (!currentRows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: `Setting "${key}" not found.` });
+    }
+    const { rows: history } = await client.query(
+      `SELECT before_state
+         FROM admin_audit_log
+        WHERE target_type = 'platform_setting'
+          AND target_key = $1
+          AND action IN ('platform_setting_updated', 'platform_setting_rollback')
+          AND before_state IS NOT NULL
+          AND before_state->>'value' IS NOT NULL
+        ORDER BY created_at DESC, id DESC
+        LIMIT 1`,
+      [key],
+    );
+    const previousValue = history[0]?.before_state?.value;
+    if (previousValue === undefined) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'No audited previous value is available for rollback.', code: 'rollback_unavailable' });
+    }
+    const parsed = parsePlatformSettingValue(currentRows[0], previousValue);
+    if (parsed.error) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'The audited value is no longer valid under current platform bounds.', code: 'rollback_invalidated' });
+    }
+    const previousVersion = currentRows[0].version || 1;
+    await client.query(
+      'UPDATE platform_settings SET value = $1, version = COALESCE(version, 1) + 1, updated_by = $2, updated_at = now() WHERE key = $3',
+      [parsed.value, adminId, key],
+    );
+    await logAdminAction({
+      client,
+      adminId,
+      action: 'platform_setting_rollback',
+      targetType: 'platform_setting',
+      targetKey: key,
+      description: `Setting "${key}" rolled back`,
+      before: { value: currentRows[0].value, version: previousVersion },
+      after: { value: parsed.value, version: previousVersion + 1 },
+      req,
+      throwOnError: true,
+    });
+    await client.query('COMMIT');
+    return res.json({ message: `Setting "${key}" rolled back.`, value: parsed.value });
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch {}
+    logger.error('rollbackSetting error', { err });
+    return res.status(500).json({ error: 'Failed to roll back setting.' });
+  } finally { client?.release(); }
 };
 
 exports.updateFeatureFlag = async (req, res) => {
+  const { enabled } = req.body;
+  const newEnabled = parseStrictBoolean(enabled);
+  if (newEnabled === null) return res.status(400).json({ error: 'Feature flags must be true or false.', code: 'invalid_feature_flag_value' });
+  let client;
   try {
+    client = await db.connect();
     const { key } = req.params;
-    const { enabled } = req.body;
     const adminId = req.user.id;
-    const { rows: before } = await db.query('SELECT is_enabled FROM feature_flags WHERE key = $1', [key]);
+    await client.query('BEGIN');
+    const { rows: before } = await client.query('SELECT is_enabled FROM feature_flags WHERE key = $1 FOR UPDATE', [key]);
     if (before.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: `Feature flag "${key}" not found.` });
     }
-    const newEnabled = Boolean(enabled);
-    await db.query('UPDATE feature_flags SET is_enabled = $1, updated_by = $2, updated_at = now() WHERE key = $3', [newEnabled, adminId, key]);
-    try {
-      await logAdminAction({
-        adminId,
-        action: 'feature_flag_updated',
-        targetType: 'feature_flag',
-        targetId: key,
-        description: `Feature flag "${key}" set to ${newEnabled}`,
-        before: { is_enabled: before[0].is_enabled },
-        after: { is_enabled: newEnabled },
-        req,
-      });
-    } catch (e) {}
+    await client.query('UPDATE feature_flags SET is_enabled = $1, updated_by = $2, updated_at = now() WHERE key = $3', [newEnabled, adminId, key]);
+    await logAdminAction({
+      client,
+      adminId,
+      action: 'feature_flag_updated',
+      targetType: 'feature_flag',
+      targetKey: key,
+      description: `Feature flag "${key}" set to ${newEnabled}`,
+      before: { is_enabled: before[0].is_enabled },
+      after: { is_enabled: newEnabled },
+      req,
+      throwOnError: true,
+    });
+    await client.query('COMMIT');
     res.json({ message: `Feature flag "${key}" set to ${newEnabled}.` });
-  } catch (err) { logger.error('updateFeatureFlag error', { err }); res.status(500).json({ error: 'Failed to update feature flag.' }); }
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch {}
+    logger.error('updateFeatureFlag error', { err });
+    res.status(500).json({ error: 'Failed to update feature flag.' });
+  } finally { client?.release(); }
+};
+
+exports.rollbackFeatureFlag = async (req, res) => {
+  let client;
+  try {
+    client = await db.connect();
+    const { key } = req.params;
+    const adminId = req.user.id;
+    await client.query('BEGIN');
+    const { rows: currentRows } = await client.query(
+      'SELECT is_enabled FROM feature_flags WHERE key = $1 FOR UPDATE',
+      [key],
+    );
+    if (!currentRows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: `Feature flag "${key}" not found.` });
+    }
+    const { rows: history } = await client.query(
+      `SELECT before_state
+         FROM admin_audit_log
+        WHERE target_type = 'feature_flag'
+          AND target_key = $1
+          AND action IN ('feature_flag_updated', 'feature_flag_rollback')
+          AND before_state IS NOT NULL
+          AND before_state->>'is_enabled' IS NOT NULL
+        ORDER BY created_at DESC, id DESC
+        LIMIT 1`,
+      [key],
+    );
+    const previousValue = history[0]?.before_state?.is_enabled;
+    const previousEnabled = parseStrictBoolean(previousValue);
+    if (previousEnabled === null) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'No audited previous flag state is available for rollback.', code: 'rollback_unavailable' });
+    }
+    await client.query(
+      'UPDATE feature_flags SET is_enabled = $1, updated_by = $2, updated_at = now() WHERE key = $3',
+      [previousEnabled, adminId, key],
+    );
+    await logAdminAction({
+      client,
+      adminId,
+      action: 'feature_flag_rollback',
+      targetType: 'feature_flag',
+      targetKey: key,
+      description: `Feature flag "${key}" rolled back`,
+      before: { is_enabled: currentRows[0].is_enabled },
+      after: { is_enabled: previousEnabled },
+      req,
+      throwOnError: true,
+    });
+    await client.query('COMMIT');
+    return res.json({ message: `Feature flag "${key}" rolled back.`, enabled: previousEnabled });
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch {}
+    logger.error('rollbackFeatureFlag error', { err });
+    return res.status(500).json({ error: 'Failed to roll back feature flag.' });
+  } finally { client?.release(); }
 };
 
 // AUDIT LOG
 exports.getAuditLog = async (req, res) => {
   try {
-    if (!(await tableExists('admin_audit_log'))) return res.json({ log: [], page: 1, limit: 50 });
-    const { page = 1, limit = 50, admin_id, action, target_type } = req.query;
-    const offset = (page - 1) * limit;
+    if (!(await tableExists('admin_audit_log'))) {
+      return res.status(503).json({ error: 'Audit log is temporarily unavailable.', code: 'admin_audit_unavailable' });
+    }
+    const pageNumber = Math.min(1000000, Math.max(1, Number.parseInt(String(req.query.page || '1'), 10) || 1));
+    const limitNumber = Math.min(100, Math.max(1, Number.parseInt(String(req.query.limit || '50'), 10) || 50));
+    const { admin_id, action, target_type } = req.query;
+    const offset = (pageNumber - 1) * limitNumber;
     const params = []; let paramIdx = 1; const conditions = [];
     if (admin_id) { conditions.push(`a.admin_id = $${paramIdx++}`); params.push(admin_id); }
     if (action) { conditions.push(`a.action ILIKE $${paramIdx++}`); params.push(`%${action}%`); }
     if (target_type) { conditions.push(`a.target_type = $${paramIdx++}`); params.push(target_type); }
     const wc = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-    const { rows } = await db.query(`SELECT a.*, u.first_name || ' ' || u.last_name AS admin_name, u.email AS admin_email FROM admin_audit_log a LEFT JOIN users u ON a.admin_id = u.id ${wc} ORDER BY a.created_at DESC LIMIT $${paramIdx++} OFFSET $${paramIdx++}`, [...params, limit, offset]);
-    res.json({ log: rows, page: parseInt(page), limit: parseInt(limit) });
+    const { rows } = await db.query(`SELECT a.*, u.first_name || ' ' || u.last_name AS admin_name, u.email AS admin_email FROM admin_audit_log a LEFT JOIN users u ON a.admin_id = u.id ${wc} ORDER BY a.created_at DESC LIMIT $${paramIdx++} OFFSET $${paramIdx++}`, [...params, limitNumber, offset]);
+    res.json({ log: rows, page: pageNumber, limit: limitNumber });
   } catch (err) { logger.error('getAuditLog error', { err }); res.status(500).json({ error: 'Failed to fetch audit log.' }); }
 };
 
 // DATA EXPORT
 exports.exportData = async (req, res) => {
   try {
+    // Exports contain controlled operational data and must never be cached by
+    // a browser, proxy, or shared workstation. The route is also protected by
+    // the dedicated sensitive-operation limiter in server/routes/admin.js.
+    res.set('Cache-Control', 'private, no-store');
+    res.set('Pragma', 'no-cache');
+    res.set('X-Content-Type-Options', 'nosniff');
     const { type } = req.params;
+    const exportLimit = 10000;
     const queries = {
-      users: 'SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_active, u.created_at FROM users u WHERE u.role NOT IN (\'admin\',\'super_admin\') ORDER BY u.created_at DESC',
-      jobs: await tableExists('jobs') ? 'SELECT j.id, j.title, j.status, j.created_at FROM jobs j ORDER BY j.created_at DESC' : null,
-      revenue: await tableExists('platform_ledger') ? 'SELECT source_type, amount_cents, created_at FROM platform_ledger ORDER BY created_at DESC' : null,
+      users: `SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_active, u.created_at FROM users u WHERE u.role NOT IN ('admin','super_admin') ORDER BY u.created_at DESC LIMIT ${exportLimit}`,
+      jobs: await tableExists('jobs') ? `SELECT j.id, j.title, j.status, j.created_at FROM jobs j ORDER BY j.created_at DESC LIMIT ${exportLimit}` : null,
+      revenue: await tableExists('platform_ledger') ? `SELECT source_type, amount_cents, created_at FROM platform_ledger ORDER BY created_at DESC LIMIT ${exportLimit}` : null,
       bids: await tableExists('bids') ? 'SELECT b.id, b.job_id, b.helper_id, b.amount, b.status, b.created_at FROM bids b ORDER BY b.created_at DESC LIMIT 10000' : null,
       reviews: await tableExists('reviews') ? 'SELECT r.id, r.reviewer_id, r.reviewee_id, r.rating, r.comment, r.is_public, r.created_at FROM reviews r ORDER BY r.created_at DESC LIMIT 10000' : null,
-      businesses: await tableExists('businesses') ? 'SELECT b.id, b.user_id, b.business_name, b.business_type, b.is_active, b.created_at FROM businesses b ORDER BY b.created_at DESC' : null,
-      disputes: await tableExists('disputes') ? 'SELECT d.id, d.job_id, d.opened_by, d.status, d.reason, d.resolution, d.created_at FROM disputes d ORDER BY d.created_at DESC' : null,
-      support_tickets: await tableExists('support_tickets') ? 'SELECT t.id, t.user_id, t.subject, t.status, t.priority, t.created_at FROM support_tickets t ORDER BY t.created_at DESC' : null,
+      businesses: await tableExists('businesses') ? `SELECT b.id, b.user_id, b.business_name, b.business_type, b.is_active, b.created_at FROM businesses b ORDER BY b.created_at DESC LIMIT ${exportLimit}` : null,
+      disputes: await tableExists('disputes') ? `SELECT d.id, d.job_id, d.opened_by, d.status, d.reason, d.resolution, d.created_at FROM disputes d ORDER BY d.created_at DESC LIMIT ${exportLimit}` : null,
+      support_tickets: await tableExists('support_tickets') ? `SELECT t.id, t.user_id, t.subject, t.status, t.priority, t.created_at FROM support_tickets t ORDER BY t.created_at DESC LIMIT ${exportLimit}` : null,
     };
     if (!queries[type]) return res.status(400).json({ error: 'Invalid or unavailable export type.' });
     const { rows } = await db.query(queries[type]);
     if (!rows.length) return res.json({ data: [], csv: '' });
-    const headers = Object.keys(rows[0]).join(',');
-    const csvRows = rows.map(row => Object.values(row).map(val => { if (val === null || val === undefined) return ''; const str = String(val).replace(/"/g, '""'); return str.includes(',') || str.includes('\n') ? `"${str}"` : str; }).join(','));
+    const csvCell = (val) => {
+      if (val === null || val === undefined) return '';
+      let str = String(val);
+      // Prevent spreadsheet formula execution when an exported value starts
+      // with a formula-capable character.
+      if (/^[=+\-@]/.test(str)) str = `'${str}`;
+      return `"${str.replace(/"/g, '""')}"`;
+    };
+    const headers = Object.keys(rows[0]).map(csvCell).join(',');
+    const csvRows = rows.map(row => Object.values(row).map(csvCell).join(','));
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'data_exported',
+      targetType: 'export',
+      targetKey: type,
+      description: `Exported ${type} data (up to ${exportLimit} rows)`,
+      req,
+    });
     const csv = [headers, ...csvRows].join('\n');
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="oxsteed_${type}_${new Date().toISOString().split('T')[0]}.csv"`);
@@ -2322,7 +2585,18 @@ exports.deleteUser = async (req, res) => {
 
     // ── Lock the account immediately ──────────────────────────────────────
 
-    try { await tokenRevocationService.revokeAllUserTokens(userId); } catch { /* non-fatal */ }
+    try {
+      await tokenRevocationService.revokeAllUserTokens(userId);
+    } catch (err) {
+      if (err?.code === 'token_revocation_unavailable') {
+        return res.status(503).json({
+          error: 'Account deletion is temporarily unavailable. Please retry.',
+          code: 'token_revocation_unavailable',
+          retryable: true,
+        });
+      }
+      throw err;
+    }
     try {
       await db.query(
         `UPDATE sessions SET is_valid = false WHERE ${userIdEq('user_id')}`,
@@ -2877,6 +3151,15 @@ exports.sendAdminMessage = async (req, res) => {
           `UPDATE conversations SET last_message_at = NOW(), updated_at = NOW() WHERE id = $1`,
           [conversationId]
         );
+        await enqueueMessageNotification({
+          dbClient: client,
+          messageId: msgRows[0].id,
+          conversationId,
+          recipientId: targetId,
+          senderName: 'OxSteed Admin',
+          body: content.trim(),
+          actionUrl: `/messages/${conversationId}`,
+        });
       }
 
       await client.query('COMMIT');
@@ -2888,23 +3171,6 @@ exports.sendAdminMessage = async (req, res) => {
     }
 
     if (!replayed) {
-      try {
-        await enqueueMessageNotification({
-          messageId: msgRows[0].id,
-          conversationId,
-          recipientId: targetId,
-          senderName: 'OxSteed Admin',
-          body: content.trim(),
-          actionUrl: `/messages/${conversationId}`,
-        });
-      } catch (notificationError) {
-        logger.warn('Super-admin message notification enqueue failed', {
-          conversationId,
-          messageId: msgRows[0].id,
-          error: notificationError.message,
-        });
-      }
-
       // Push real-time event to target user
       socketService.broadcastToUser(targetId, 'new_message', {
         conversation_id: conversationId,
@@ -2963,6 +3229,22 @@ exports.setUserPasswordBySuperAdmin = async (req, res) => {
     const { rows } = await db.query('SELECT id, email FROM users WHERE id = $1', [userId]);
     if (!rows.length) return res.status(404).json({ error: 'User not found.' });
 
+    // Revoke existing tokens before changing the password. A revocation-store
+    // outage must block the password change rather than leave the old session
+    // usable after the admin believes credentials were rotated.
+    try {
+      await tokenRevocationService.revokeAllUserTokens(userId);
+    } catch (err) {
+      if (err?.code === 'token_revocation_unavailable') {
+        return res.status(503).json({
+          error: 'Password change is temporarily unavailable. Please retry.',
+          code: 'token_revocation_unavailable',
+          retryable: true,
+        });
+      }
+      throw err;
+    }
+
     const bcrypt = require('bcrypt');
     const passwordHash = await bcrypt.hash(password, 12);
     await db.query(
@@ -2970,11 +3252,6 @@ exports.setUserPasswordBySuperAdmin = async (req, res) => {
       [passwordHash, userId],
     );
 
-    try {
-      await tokenRevocationService.revokeAllUserTokens(userId);
-    } catch (e) {
-      /* non-fatal */
-    }
     await db.query(
       `UPDATE sessions SET is_valid = false WHERE ${userIdEq('user_id')}`,
       [String(userId)],
@@ -3138,8 +3415,10 @@ exports.endImpersonation = async (req, res) => {
 exports.getUserActivityLog = async (req, res) => {
   try {
     const { userId } = req.params;
-    const limit  = Math.min(parseInt(req.query.limit  || '100', 10), 200);
-    const offset = parseInt(req.query.offset || '0', 10);
+    const parsedLimit = parseInt(req.query.limit || '100', 10);
+    const parsedOffset = parseInt(req.query.offset || '0', 10);
+    const limit  = Number.isSafeInteger(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 200) : 100;
+    const offset = Number.isSafeInteger(parsedOffset) && parsedOffset >= 0 ? Math.min(parsedOffset, 1_000_000) : 0;
 
     const hasActionLog    = await tableExists('admin_user_action_log');
     const hasAuditLog     = await tableExists('admin_audit_log');

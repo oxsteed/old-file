@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
 import { Users, Search, RefreshCw, TrendingUp, Star, Clock, MessageSquare } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 export default function SupportPerformanceAnalytics() {
+  const { t } = useTranslation();
   const { businessId } = useParams();
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -67,13 +69,15 @@ export default function SupportPerformanceAnalytics() {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 className="text-white font-bold text-3xl mb-2">Performance Analytics</h1>
-          <p className="text-gray-400 text-sm">Team and individual agent performance metrics.</p>
+          <h1 className="text-white font-bold text-3xl mb-2">{t('adminSupportPerformance.title')}</h1>
+          <p className="text-gray-400 text-sm">{t('adminSupportPerformance.subtitle')}</p>
         </div>
         <button
           onClick={loadAgents}
           disabled={loading}
           className="p-2.5 bg-gray-700 border border-gray-600 text-gray-400 rounded-lg hover:text-white transition"
+          aria-label={t('adminSupportPerformance.refresh')}
+          title={t('adminSupportPerformance.refresh')}
         >
           <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
         </button>
@@ -84,37 +88,37 @@ export default function SupportPerformanceAnalytics() {
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
           <p className="text-gray-400 text-sm mb-2 flex items-center gap-2">
             <Users size={14} />
-            Total Agents
+            {t('adminSupportPerformance.totalAgents')}
           </p>
           <p className="text-white text-3xl font-bold">{agents.length}</p>
-          <p className="text-gray-500 text-xs mt-2">Active</p>
+          <p className="text-gray-500 text-xs mt-2">{t('adminSupportPerformance.active')}</p>
         </div>
 
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
           <p className="text-gray-400 text-sm mb-2 flex items-center gap-2">
             <Star size={14} />
-            Avg Rating
+            {t('adminSupportPerformance.avgRating')}
           </p>
           <p className="text-white text-3xl font-bold">{teamAvgRating}★</p>
-          <p className="text-gray-500 text-xs mt-2">Team average</p>
+          <p className="text-gray-500 text-xs mt-2">{t('adminSupportPerformance.teamAverage')}</p>
         </div>
 
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
           <p className="text-gray-400 text-sm mb-2 flex items-center gap-2">
             <Clock size={14} />
-            Avg Response Time
+            {t('adminSupportPerformance.avgResponseTime')}
           </p>
           <p className="text-white text-3xl font-bold">{teamAvgResponseTime}s</p>
-          <p className="text-gray-500 text-xs mt-2">Team average</p>
+          <p className="text-gray-500 text-xs mt-2">{t('adminSupportPerformance.teamAverage')}</p>
         </div>
 
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
           <p className="text-gray-400 text-sm mb-2 flex items-center gap-2">
             <MessageSquare size={14} />
-            Total Chats
+            {t('adminSupportPerformance.totalChats')}
           </p>
           <p className="text-white text-3xl font-bold">{totalChats}</p>
-          <p className="text-gray-500 text-xs mt-2">All time</p>
+          <p className="text-gray-500 text-xs mt-2">{t('adminSupportPerformance.allTime')}</p>
         </div>
       </div>
 
@@ -124,7 +128,8 @@ export default function SupportPerformanceAnalytics() {
           <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
           <input
             type="text"
-            placeholder="Search agents by name..."
+            placeholder={t('adminSupportPerformance.searchPlaceholder')}
+            aria-label={t('adminSupportPerformance.searchPlaceholder')}
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="w-full pl-12 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
@@ -136,10 +141,10 @@ export default function SupportPerformanceAnalytics() {
             onChange={e => setSortBy(e.target.value)}
             className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-400 focus:outline-none focus:border-orange-500"
           >
-            <option value="rating">Sort by Rating</option>
-            <option value="response_time">Sort by Response Time</option>
-            <option value="chats">Sort by Chats</option>
-            <option value="resolution_rate">Sort by Resolution Rate</option>
+            <option value="rating">{t('adminSupportPerformance.sortByRating')}</option>
+            <option value="response_time">{t('adminSupportPerformance.sortByResponseTime')}</option>
+            <option value="chats">{t('adminSupportPerformance.sortByChats')}</option>
+            <option value="resolution_rate">{t('adminSupportPerformance.sortByResolutionRate')}</option>
           </select>
         </div>
       </div>
@@ -164,21 +169,21 @@ export default function SupportPerformanceAnalytics() {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-gray-400 text-sm">Response Time</span>
+                <span className="text-gray-400 text-sm">{t('adminSupportPerformance.responseTime')}</span>
                     <span className="text-white font-medium">
                       {agent.avg_response_time_seconds == null ? '-' : `${agent.avg_response_time_seconds}s`}
                     </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-gray-400 text-sm">Resolution Rate</span>
+                <span className="text-gray-400 text-sm">{t('adminSupportPerformance.resolutionRate')}</span>
                 <span className="text-green-400 font-medium">{agent.resolution_rate}%</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-gray-400 text-sm">Total Chats</span>
+                <span className="text-gray-400 text-sm">{t('adminSupportPerformance.totalChats')}</span>
                 <span className="text-white font-medium">{agent.total_chats}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-gray-400 text-sm">Satisfaction</span>
+                <span className="text-gray-400 text-sm">{t('adminSupportPerformance.satisfaction')}</span>
                 <span className="text-white font-medium">{agent.satisfaction_score}%</span>
               </div>
             </div>
@@ -191,40 +196,41 @@ export default function SupportPerformanceAnalytics() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="border-b border-gray-700 p-6 flex items-center justify-between sticky top-0 bg-gray-800">
-              <h2 className="text-white font-bold text-xl">{selectedAgent.name} - Performance Details</h2>
+              <h2 className="text-white font-bold text-xl">{selectedAgent.name} - {t('adminSupportPerformance.performanceDetails')}</h2>
               <button
                 onClick={() => {
                   setSelectedAgent(null);
                   setAgentDetails(null);
                 }}
                 className="text-gray-500 hover:text-white text-2xl"
+                aria-label={t('adminSupportPerformance.close')}
               >
                 ×
               </button>
             </div>
 
             {!agentDetails ? (
-              <div className="p-12 text-center text-gray-400">Loading performance details…</div>
+              <div className="p-12 text-center text-gray-400">{t('adminSupportPerformance.loadingDetails')}</div>
             ) : (
             <div className="p-6 space-y-6">
               {/* Key Metrics */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-700/30 rounded-lg p-4">
-                  <p className="text-gray-400 text-sm mb-1">Overall Rating</p>
+                  <p className="text-gray-400 text-sm mb-1">{t('adminSupportPerformance.overallRating')}</p>
                   <p className="text-white text-2xl font-bold">{agentDetails.rating}★</p>
                 </div>
                 <div className="bg-gray-700/30 rounded-lg p-4">
-                  <p className="text-gray-400 text-sm mb-1">Satisfaction Score</p>
+                  <p className="text-gray-400 text-sm mb-1">{t('adminSupportPerformance.satisfactionScore')}</p>
                   <p className="text-white text-2xl font-bold">{agentDetails.satisfaction_score}%</p>
                 </div>
                 <div className="bg-gray-700/30 rounded-lg p-4">
-                  <p className="text-gray-400 text-sm mb-1">Avg Response Time</p>
+                  <p className="text-gray-400 text-sm mb-1">{t('adminSupportPerformance.avgResponseTime')}</p>
                   <p className="text-white text-2xl font-bold">
                     {agentDetails.avg_response_time_seconds == null ? '-' : `${agentDetails.avg_response_time_seconds}s`}
                   </p>
                 </div>
                 <div className="bg-gray-700/30 rounded-lg p-4">
-                  <p className="text-gray-400 text-sm mb-1">Resolution Rate</p>
+                  <p className="text-gray-400 text-sm mb-1">{t('adminSupportPerformance.resolutionRate')}</p>
                   <p className="text-white text-2xl font-bold">{agentDetails.resolution_rate}%</p>
                 </div>
               </div>
@@ -232,7 +238,7 @@ export default function SupportPerformanceAnalytics() {
               {/* 7-Day Trend */}
               {agentDetails.trend && agentDetails.trend.length > 0 && (
                 <div>
-                  <h3 className="text-white font-bold text-lg mb-4">7-Day Performance Trend</h3>
+                  <h3 className="text-white font-bold text-lg mb-4">{t('adminSupportPerformance.sevenDayTrend')}</h3>
                   <ResponsiveContainer width="100%" height={250}>
                     <LineChart data={agentDetails.trend}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -264,26 +270,26 @@ export default function SupportPerformanceAnalytics() {
 
               {/* Detailed Stats */}
               <div>
-                <h3 className="text-white font-bold text-lg mb-3">Detailed Statistics</h3>
+                <h3 className="text-white font-bold text-lg mb-3">{t('adminSupportPerformance.detailedStatistics')}</h3>
                 <div className="space-y-2">
                   <div className="flex justify-between text-gray-400">
-                    <span>Total Conversations</span>
+                    <span>{t('adminSupportPerformance.totalConversations')}</span>
                     <span className="text-white font-medium">{agentDetails.total_conversations}</span>
                   </div>
                   <div className="flex justify-between text-gray-400">
-                    <span>Resolved</span>
+                    <span>{t('adminSupportPerformance.resolved')}</span>
                     <span className="text-white font-medium">{agentDetails.resolved_conversations}</span>
                   </div>
                   <div className="flex justify-between text-gray-400">
-                    <span>Avg Handling Time</span>
+                    <span>{t('adminSupportPerformance.avgHandlingTime')}</span>
                     <span className="text-white font-medium">{agentDetails.avg_handling_time_seconds}s</span>
                   </div>
                   <div className="flex justify-between text-gray-400">
-                    <span>First Contact Resolution</span>
+                    <span>{t('adminSupportPerformance.firstContactResolution')}</span>
                     <span className="text-white font-medium">{agentDetails.fcr_rate}%</span>
                   </div>
                   <div className="flex justify-between text-gray-400">
-                    <span>Quality Score</span>
+                    <span>{t('adminSupportPerformance.qualityScore')}</span>
                     <span className="text-white font-medium">{agentDetails.quality_score}/100</span>
                   </div>
                 </div>

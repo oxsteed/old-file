@@ -70,8 +70,8 @@ exports.listSuppliers = async (req, res, next) => {
       category:    req.query.category,
       trustRating: req.query.trust_rating ? parseInt(req.query.trust_rating) : null,
       isActive:    req.query.is_active !== undefined ? req.query.is_active === 'true' : null,
-      limit:       Math.min(parseInt(req.query.limit)||50, 200),
-      offset:      parseInt(req.query.offset)||0,
+      limit:       Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200),
+      offset:      Math.min(Math.max(parseInt(req.query.offset, 10) || 0, 0), 1_000_000),
     });
     res.json({ success: true, ...result });
   } catch (err) { next(err); }
@@ -140,8 +140,8 @@ exports.listQuotes = async (req, res, next) => {
       status: req.query.status,
       sourcingRequestId: req.query.sourcing_request_id,
       supplierId: req.query.supplier_id,
-      limit: Math.min(parseInt(req.query.limit) || 100, 200),
-      offset: parseInt(req.query.offset) || 0,
+      limit: Math.min(Math.max(parseInt(req.query.limit, 10) || 100, 1), 200),
+      offset: Math.min(Math.max(parseInt(req.query.offset, 10) || 0, 0), 1_000_000),
     });
     res.json({ success: true, data: quotes });
   } catch (err) { next(err); }

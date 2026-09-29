@@ -5,6 +5,7 @@ const { validate, rules } = require('../utils/validate');
 const logger = require('../utils/logger');
 const { withPaymentTransaction } = require('../utils/transaction');
 const { captureAuthorizedPayment } = require('../services/paymentCaptureService');
+const { processPaymentRefund } = require('../services/paymentRefundService');
 const { AppError } = require('../middleware/errorHandler');
 
 /** When true, capture is queued to Redis (requires worker). Default false = capture in-request so funds release without a separate process. */
@@ -490,8 +491,8 @@ exports.capturePayment = async (req, res, next) => {
       await client.query('BEGIN ISOLATION LEVEL SERIALIZABLE');
 
       const payment = await client.query(
-        'SELECT * FROM payments WHERE job_id = $1 AND status = $2 FOR UPDATE',
-        [job_id, 'authorized']
+        'SELECT * FROM payments WHERE job_id = $1 AND status IN ($2, $3) FOR UPDATE',
+        [job_id, 'authorized', 'captured']
       );
 
       if (!payment.rows[0]) {
@@ -507,6 +508,21 @@ exports.capturePayment = async (req, res, next) => {
       }
 
       const paymentData = payment.rows[0];
+
+      // A retry after the first request committed is a successful replay, not
+      // a missing payment. Return the authoritative terminal state without
+      // calling Stripe a second time.
+      if (paymentData.status === 'captured') {
+        await client.query('COMMIT');
+        return res.status(200).json({
+          status: 'captured',
+          message: 'Payment was already captured',
+          payment_id: paymentData.id,
+          charge_id: paymentData.stripe_charge_id || null,
+          job_id,
+          idempotent: true,
+        });
+      }
 
       // Release lock early (we'll keep transaction for atomicity)
       await client.query('COMMIT');
@@ -556,8 +572,9 @@ exports.capturePayment = async (req, res, next) => {
   }
 };
 
-// Refund payment (on helper's connected account - admin only)
-// ATOMIC: Stripe refund + DB update happen together
+// Refund payment (on helper's connected account - admin only).
+// The provider operation is reserved and settled through the durable refund
+// service so retries cannot duplicate a partial refund or lose a timeout.
 exports.refundPayment = async (req, res, next) => {
   try {
     if (!['admin', 'super_admin'].includes(req.user.role)) {
@@ -565,115 +582,30 @@ exports.refundPayment = async (req, res, next) => {
     }
 
     const { payment_id, reason, amount, reverse_application_fee } = req.body;
-
-    // ── Validation (outside transaction) ──────────────────────────────────
-    const payment = await pool.query('SELECT * FROM payments WHERE id = $1', [payment_id]);
-    if (!payment.rows[0]) {
-      throw new AppError('Payment not found', 404, 'payment_not_found');
-    }
-
-    const paymentData = payment.rows[0];
     const hasRequestedAmount = amount !== undefined && amount !== null && String(amount).trim() !== '';
-    const originalAmountCents = Math.round(Number(paymentData.amount) * 100);
-    const refundAmountCents = hasRequestedAmount
-      ? Math.round(Number(amount) * 100)
-      : originalAmountCents;
-
-    if (!Number.isInteger(originalAmountCents) || originalAmountCents <= 0) {
-      throw new AppError('Payment has an invalid amount and cannot be refunded.', 400, 'invalid_payment_amount');
-    }
     if (!Number.isFinite(Number(amount)) && hasRequestedAmount) {
       throw new AppError('Refund amount must be a valid number.', 400, 'invalid_refund_amount');
     }
-    if (refundAmountCents <= 0 || refundAmountCents > originalAmountCents) {
-      throw new AppError('Refund amount must be greater than zero and no greater than the original payment.', 400, 'invalid_refund_amount');
+    if (reason !== undefined && reason !== null && String(reason).length > 1000) {
+      throw new AppError('Refund reason is too long.', 400, 'invalid_refund_reason');
     }
-    if (!paymentData.stripe_payment_intent_id) {
-      throw new AppError('Payment has no payment-processor reference and cannot be refunded automatically.', 409, 'missing_payment_reference');
-    }
-    const refundAmount = refundAmountCents / 100;
-
-    // ── VALIDATE PAYMENT STATUS ──────────────────────────────────────────
-    // Only authorized and captured payments can be refunded
-    if (!['authorized', 'captured'].includes(paymentData.status)) {
-      throw new AppError(
-        `Payment cannot be refunded in '${paymentData.status}' status. Only authorized and captured payments can be refunded.`,
-        400,
-        'invalid_payment_state'
-      );
-    }
-
-    // ── CHECK FOR OPEN DISPUTES ──────────────────────────────────────────
-    // Refunds can only happen after disputes are resolved
-    const dispute = await pool.query('SELECT id FROM disputes WHERE job_id = $1 AND status IN ($2, $3)', [paymentData.job_id, 'open', 'in_progress']);
-    if (dispute.rows[0]) {
-      throw new AppError('Cannot refund payment while dispute is open. Dispute must be resolved first.', 409, 'dispute_open');
-    }
-
-    // ── Stripe refund (outside transaction for idempotency) ──────────────
-    const refundParams = {
-      payment_intent: paymentData.stripe_payment_intent_id,
-    };
-    if (hasRequestedAmount) refundParams.amount = refundAmountCents;
-    if (reverse_application_fee) {
-      refundParams.refund_application_fee = true;
-    }
-
-    let refundId;
-    try {
-      const refund = await stripe.refunds.create(
-        refundParams,
-        {
-          stripeAccount: paymentData.stripe_account_id,
-          idempotencyKey: `payment-refund-${paymentData.id}-${refundAmountCents}`
-        }
-      );
-      refundId = refund.id;
-    } catch (stripeErr) {
-      logger.error('Stripe refund failed', { paymentId: paymentData.id, error: stripeErr.message });
-      throw new AppError('Refund failed with payment processor. Please try again or contact support.', 502, 'stripe_error');
-    }
-
-    // ── Database update (ATOMIC TRANSACTION) ─────────────────────────────
-    await withPaymentTransaction(pool, async (client) => {
-      const { rows: updateRows } = await client.query(
-        `UPDATE payments SET status = 'refunded', payment_hold_status = 'refunded',
-         refunded_at = NOW(), refund_amount = $1, refund_reason = $2, stripe_refund_id = $3,
-         updated_at = NOW() WHERE id = $4 AND status IN ('authorized', 'captured') RETURNING id`,
-        [refundAmount, reason, refundId, payment_id]
-      );
-      if (updateRows.length === 0) {
-        throw new Error('Payment status changed during refund processing');
-      }
-
-      // Audit log for refund (admin action)
-      await client.query(
-        `INSERT INTO admin_audit_log (admin_id, action, entity_type, entity_id, changes, timestamp)
-         VALUES ($1, 'refund_payment', 'payment', $2, $3, NOW())`,
-        [req.user.id, payment_id, JSON.stringify({ amount: refundAmount, reason, stripe_refund_id: refundId })]
-      );
-
-      // Log to platform ledger (financial audit trail)
-      await client.query(
-        `INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata)
-         VALUES (NULL, 'payment_refunded', $1, $2, $3)`,
-        [
-          Math.round(refundAmount * -100),  // negative for refund
-          `Payment #${paymentData.id} refunded by admin ${req.user.id}: ${reason || 'No reason'}`,
-          JSON.stringify({
-            payment_id: paymentData.id,
-            job_id: paymentData.job_id,
-            refund_id: refundId,
-            refund_amount: refundAmount,
-            reason: reason || null,
-            admin_id: req.user.id,
-            reverse_fee: reverse_application_fee || false
-          })
-        ]
-      );
-    }, 'refund_payment');
-
-    res.json({ message: 'Refund processed', refund_id: refundId });
+    const result = await processPaymentRefund({
+      paymentId: payment_id,
+      requestedAmountCents: hasRequestedAmount ? Math.round(Number(amount) * 100) : null,
+      reason,
+      reverseApplicationFee: !!reverse_application_fee,
+      actorUserId: req.user.id,
+      requestId: req.get('Idempotency-Key') || req.body?.idempotencyKey,
+    });
+    const responseStatus = result.attempt.status === 'succeeded' ? 200 : 202;
+    return res.status(responseStatus).json({
+      message: result.attempt.status === 'succeeded' ? 'Refund processed' : 'Refund is being reconciled',
+      refund_id: result.attempt.stripe_refund_id || null,
+      refund_status: result.attempt.status,
+      refund_amount_cents: Number(result.attempt.amount_cents),
+      cumulative_refunded_amount: Number(result.payment.refunded_amount || 0),
+      idempotent: !!result.replay,
+    });
   } catch (err) {
     // If we already created an AppError above, propagate it as-is so the
     // status/code reach the client. Only wrap unexpected errors.

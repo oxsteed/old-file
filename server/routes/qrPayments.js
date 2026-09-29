@@ -283,6 +283,16 @@ router.get('/pay/:code', strictLimiter, async (req, res, next) => {
 // ── Create a Stripe Checkout Session for a code ──────────────────
 router.post('/pay/:code/checkout', paymentsLimiter, async (req, res, next) => {
   try {
+    const clientRequestId = String(
+      req.get('Idempotency-Key') || req.body?.client_request_id || ''
+    ).trim();
+    if (!/^[A-Za-z0-9:._-]{8,120}$/.test(clientRequestId)) {
+      return res.status(400).json({
+        error: 'A valid checkout request ID is required. Please try again.',
+        code: 'idempotency_key_required',
+      });
+    }
+
     const code = await getActiveCode(req.params.code);
     if (!code) return codeNotFound(res);
 
@@ -307,6 +317,33 @@ router.post('/pay/:code/checkout', paymentsLimiter, async (req, res, next) => {
 
     const connect = await getConnectAccount(code.owner_user_id);
     if (!connect || !connect.charges_enabled) return connectRequired(res);
+
+    const requestFingerprint = crypto
+      .createHash('sha256')
+      .update(JSON.stringify({ amount_cents: amountCents, payer_email: payerEmail, currency: code.currency || 'usd' }))
+      .digest('hex');
+
+    const { rows: previousAttempts } = await pool.query(
+      `SELECT stripe_checkout_session_id, checkout_url, status, request_fingerprint
+         FROM qr_payments
+        WHERE qr_code_id = $1 AND client_request_id = $2
+        LIMIT 1`,
+      [code.id, clientRequestId],
+    );
+    if (previousAttempts[0]) {
+      if (previousAttempts[0].request_fingerprint && previousAttempts[0].request_fingerprint !== requestFingerprint) {
+        return res.status(409).json({
+          error: 'This checkout request ID was already used for different payment details.',
+          code: 'idempotency_key_conflict',
+        });
+      }
+      return res.json({
+        url: previousAttempts[0].checkout_url || null,
+        session_id: previousAttempts[0].stripe_checkout_session_id,
+        status: previousAttempts[0].status,
+        idempotent: true,
+      });
+    }
 
     const fees = calculateTier3Fees(amountCents);
     const baseUrl = publicBaseUrl();
@@ -343,18 +380,45 @@ router.post('/pay/:code/checkout', paymentsLimiter, async (req, res, next) => {
       },
       {
         stripeAccount: connect.stripe_account_id,
-        idempotencyKey: `qr-checkout:${code.id}:${crypto.randomBytes(8).toString('hex')}`,
+        idempotencyKey: `qr-checkout:${code.id}:${clientRequestId}`,
       }
     );
 
-    await pool.query(
+    const { rows: inserted } = await pool.query(
       `INSERT INTO qr_payments
-         (qr_code_id, stripe_checkout_session_id, amount_cents, platform_fee_cents, status, payer_email)
-       VALUES ($1, $2, $3, $4, 'pending', $5)`,
-      [code.id, session.id, amountCents, fees.application_fee_cents, payerEmail]
+         (qr_code_id, stripe_checkout_session_id, amount_cents, platform_fee_cents, status, payer_email, client_request_id, checkout_url, request_fingerprint)
+       VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7, $8)
+       ON CONFLICT (qr_code_id, client_request_id) DO NOTHING
+       RETURNING stripe_checkout_session_id, checkout_url, status`,
+      [code.id, session.id, amountCents, fees.application_fee_cents, payerEmail, clientRequestId, session.url, requestFingerprint]
     );
 
-    return res.json({ url: session.url });
+    if (inserted[0]) return res.json({ url: inserted[0].checkout_url, session_id: inserted[0].stripe_checkout_session_id });
+
+    // Another request with the same key won the insert race. Replay the
+    // durable result instead of returning a second checkout attempt.
+    const { rows: raced } = await pool.query(
+      `SELECT stripe_checkout_session_id, checkout_url, status, request_fingerprint
+         FROM qr_payments
+        WHERE qr_code_id = $1 AND client_request_id = $2
+        LIMIT 1`,
+      [code.id, clientRequestId],
+    );
+    if (!raced[0]) {
+      return res.status(503).json({ error: 'Checkout is still being prepared. Please retry.', code: 'checkout_reconciliation_required' });
+    }
+    if (raced[0].request_fingerprint && raced[0].request_fingerprint !== requestFingerprint) {
+      return res.status(409).json({
+        error: 'This checkout request ID was already used for different payment details.',
+        code: 'idempotency_key_conflict',
+      });
+    }
+    return res.json({
+      url: raced[0].checkout_url || session.url,
+      session_id: raced[0].stripe_checkout_session_id,
+      status: raced[0].status,
+      idempotent: true,
+    });
   } catch (err) {
     logger.error('qrPayments: checkout failed', { code: req.params.code, error: err.message });
     return next(err);

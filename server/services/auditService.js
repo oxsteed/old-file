@@ -1,6 +1,8 @@
 const db     = require('../db');
 const logger = require('../utils/logger');
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 /**
  * Log every admin action for compliance and audit (general action log).
  *
@@ -16,20 +18,29 @@ exports.logAdminAction = async ({
   description = null,
   before      = null,
   after       = null,
-  req         = null
+  req         = null,
+  client      = null,
+  targetKey   = null,
+  throwOnError = false,
 }) => {
+  const runner = client || db;
+  const safeTargetId = typeof targetId === 'string' && UUID_RE.test(targetId.trim())
+    ? targetId.trim()
+    : null;
+  const safeTargetKey = targetKey || (!safeTargetId && targetId != null ? String(targetId).slice(0, 160) : null);
   try {
-    await db.query(`
+    await runner.query(`
       INSERT INTO admin_audit_log (
         admin_id, action, target_type, target_id,
-        description, ip_address, user_agent,
+        target_key, description, ip_address, user_agent,
         before_state, after_state
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
     `, [
       adminId,
       action,
       targetType,
-      targetId,
+      safeTargetId,
+      safeTargetKey,
       description,
       req?.ip || null,
       req?.headers?.['user-agent'] || null,
@@ -38,6 +49,7 @@ exports.logAdminAction = async ({
     ]);
   } catch (err) {
     logger.error('Failed to log admin action', { adminId, action, error: err.message });
+    if (throwOnError) throw err;
   }
 };
 
@@ -174,7 +186,7 @@ exports.getUserActionLogs = async ({
   const whereSql = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const limitN  = Math.min(Math.max(1, parseInt(limit, 10)  || 100), 500);
-  const offsetN = Math.max(0, parseInt(offset, 10) || 0);
+  const offsetN = Math.min(1_000_000, Math.max(0, parseInt(offset, 10) || 0));
 
   const dataSql = `
     SELECT

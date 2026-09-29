@@ -1,6 +1,7 @@
 'use strict';
 
 const cron = require('node-cron');
+const crypto = require('crypto');
 const logger = require('../utils/logger');
 const db = require('../db');
 const { sendNotification } = require('../services/notificationService');
@@ -13,6 +14,7 @@ const STALE_LOCK_MINUTES = 15;
 
 async function claimMessageNotifications(limit = 100) {
   const boundedLimit = Math.max(1, Math.min(Number(limit) || 100, 500));
+  const leaseToken = crypto.randomUUID();
   const { rows } = await db.query(
     `WITH candidates AS (
        SELECT id
@@ -24,31 +26,36 @@ async function claimMessageNotifications(limit = 100) {
        LIMIT $1
      )
      UPDATE message_notification_outbox outbox
-        SET status = 'sending', attempts = outbox.attempts + 1,
-            locked_at = NOW(), updated_at = NOW()
+       SET status = 'sending', attempts = outbox.attempts + 1,
+            locked_at = NOW(), lease_token = $3, updated_at = NOW()
        FROM candidates
       WHERE outbox.id = candidates.id
       RETURNING outbox.id, outbox.message_id, outbox.conversation_id,
-                outbox.recipient_id, outbox.payload, outbox.attempts`,
-    [boundedLimit, STALE_LOCK_MINUTES]
+                outbox.recipient_id, outbox.payload, outbox.attempts,
+                outbox.lease_token`,
+    [boundedLimit, STALE_LOCK_MINUTES, leaseToken]
   );
   return rows || [];
 }
 
-async function finishMessageNotification(id, attempts, result) {
+async function finishMessageNotification(id, attempts, result, leaseToken) {
   const succeeded = result?.success !== false;
   const terminal = !succeeded && attempts >= MAX_ATTEMPTS;
   const status = succeeded ? 'sent' : terminal ? 'failed' : 'pending';
   const retryMinutes = Math.min(60, 2 ** Math.max(0, attempts - 1));
-  await db.query(
+  const updateResult = await db.query(
     `UPDATE message_notification_outbox
         SET status = $1,
             sent_at = CASE WHEN $5::boolean THEN NOW() ELSE sent_at END,
             locked_at = NULL,
+            lease_token = NULL,
             last_error = $2,
             next_attempt_at = CASE WHEN $6::boolean THEN NOW() + ($3::integer * INTERVAL '1 minute') ELSE next_attempt_at END,
             updated_at = NOW()
-      WHERE id = $4`,
+      WHERE id = $4
+        AND status = 'sending'
+        AND attempts = $7
+        AND lease_token = $8`,
     [
       status,
       succeeded ? null : String(result?.error || 'Message notification delivery failed').slice(0, 2000),
@@ -56,9 +63,11 @@ async function finishMessageNotification(id, attempts, result) {
       id,
       succeeded,
       status === 'pending',
+      attempts,
+      leaseToken || null,
     ]
   );
-  return status;
+  return leaseToken ? (updateResult.rowCount === 1 ? status : 'stale') : status;
 }
 
 function normalizePayload(payload) {
@@ -95,7 +104,8 @@ async function processMessageNotificationOutbox(limit = 100) {
         action_url: payload.actionUrl || `/messages/${payload.conversationId || row.conversation_id}`,
         idempotencyKey: `message:${row.message_id}:${row.recipient_id}`,
       });
-      const status = await finishMessageNotification(row.id, Number(row.attempts || 0), result);
+      const status = await finishMessageNotification(row.id, Number(row.attempts || 0), result, row.lease_token);
+      if (status === 'stale') continue;
       if (status === 'sent') sent += 1;
       else if (status === 'pending') retried += 1;
       else failed += 1;
@@ -103,7 +113,8 @@ async function processMessageNotificationOutbox(limit = 100) {
       const status = await finishMessageNotification(row.id, Number(row.attempts || 0), {
         success: false,
         error: error.message,
-      });
+      }, row.lease_token);
+      if (status === 'stale') continue;
       if (status === 'pending') retried += 1;
       else failed += 1;
     }

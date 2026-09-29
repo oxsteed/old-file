@@ -1,13 +1,22 @@
 const pool = require('../db');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const logger = require('../utils/logger');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const { withTransaction } = require('../utils/transaction');
+const { processMarketplaceRefund } = require('../services/marketplaceRefundService');
 
 // Get orders list with filtering, sorting, and pagination
 async function getOrders(req, res) {
   try {
     const { status, customerId, sortBy = 'created_at', sortOrder = 'DESC', skip = 0, limit = 20, search } = req.query;
+    const parsedLimit = Number.parseInt(String(limit), 10);
+    const parsedSkip = Number.parseInt(String(skip), 10);
+    const limitN = Number.isSafeInteger(parsedLimit) && parsedLimit > 0
+      ? Math.min(parsedLimit, 100)
+      : 20;
+    const skipN = Number.isSafeInteger(parsedSkip) && parsedSkip >= 0
+      ? Math.min(parsedSkip, 1_000_000)
+      : 0;
+    const searchTerm = search == null ? '' : String(search).slice(0, 120);
 
     let query = 'SELECT mo.*, u.email, u.first_name, u.last_name FROM marketplace_orders mo JOIN users u ON mo.customer_id = u.id WHERE 1=1';
     const params = [];
@@ -28,9 +37,9 @@ async function getOrders(req, res) {
     }
 
     // Search by order ID, email, or customer name
-    if (search) {
+    if (searchTerm) {
       query += ` AND (CAST(mo.id AS TEXT) ILIKE $${paramCount} OR u.email ILIKE $${paramCount} OR u.first_name ILIKE $${paramCount} OR u.last_name ILIKE $${paramCount})`;
-      params.push(`%${search}%`);
+      params.push(`%${searchTerm}%`);
       paramCount++;
     }
 
@@ -40,16 +49,25 @@ async function getOrders(req, res) {
     const direction = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
     query += ` ORDER BY mo.${sortColumn} ${direction} LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
-    params.push(limit, skip);
+    params.push(limitN, skipN);
 
     const result = await pool.query(query, params);
 
     // Get total count
-    let countQuery = 'SELECT COUNT(*) as total FROM marketplace_orders mo WHERE 1=1';
+    let countQuery = 'SELECT COUNT(*) as total FROM marketplace_orders mo JOIN users u ON mo.customer_id = u.id WHERE 1=1';
     const countParams = [];
-    if (status) countQuery += ' AND status = $1', countParams.push(status);
-    if (customerId) countQuery += ` AND customer_id = $${countParams.length + 1}`, countParams.push(customerId);
-    if (search) countQuery += ` AND (CAST(mo.id AS TEXT) ILIKE $${countParams.length + 1} OR customer_id ILIKE $${countParams.length + 1})`, countParams.push(`%${search}%`);
+    if (status && ['pending', 'paid', 'processing', 'completed', 'cancelled', 'refunded'].includes(status)) {
+      countQuery += ` AND mo.status = $${countParams.length + 1}`;
+      countParams.push(status);
+    }
+    if (customerId) {
+      countQuery += ` AND mo.customer_id = $${countParams.length + 1}`;
+      countParams.push(customerId);
+    }
+    if (searchTerm) {
+      countQuery += ` AND (CAST(mo.id AS TEXT) ILIKE $${countParams.length + 1} OR u.email ILIKE $${countParams.length + 1} OR u.first_name ILIKE $${countParams.length + 1} OR u.last_name ILIKE $${countParams.length + 1})`;
+      countParams.push(`%${searchTerm}%`);
+    }
 
     const countResult = await pool.query(countQuery, countParams);
     const total = parseInt(countResult.rows[0].total);
@@ -75,9 +93,9 @@ async function getOrders(req, res) {
       })),
       pagination: {
         total,
-        skip: parseInt(skip),
-        limit: parseInt(limit),
-        hasMore: parseInt(skip) + parseInt(limit) < total
+        skip: skipN,
+        limit: limitN,
+        hasMore: skipN + limitN < total
       }
     });
   } catch (error) {
@@ -270,99 +288,40 @@ async function processRefund(req, res) {
       return sendValidationError(res, { orderId: 'Invalid order ID' });
     }
 
-    if (!reason || reason.trim().length === 0) {
+    if (!reason || String(reason).trim().length === 0) {
       return sendValidationError(res, { reason: 'Refund reason required' });
     }
-
-    const orderResult = await pool.query(
-      'SELECT * FROM marketplace_orders WHERE id = $1',
-      [orderId]
-    );
-
-    if (!orderResult.rows.length) {
-      return sendError(res, 404, 'Order not found');
-    }
-
-    const order = orderResult.rows[0];
-
-    // Get Stripe transaction
-    const transactionResult = await pool.query(
-      'SELECT * FROM marketplace_transactions WHERE order_id = $1',
-      [orderId]
-    );
-
-    if (!transactionResult.rows.length) {
-      return sendError(res, 400, 'No payment transaction found for refund');
-    }
-
-    const transaction = transactionResult.rows[0];
-    if (transaction.status !== 'succeeded' || !transaction.payment_intent_id) {
-      return sendError(res, 409, 'Payment is not in a refundable state');
-    }
-    const refundCents = refundAmount === undefined || refundAmount === null
-      ? Number(transaction.amount_cents)
-      : Number(refundAmount);
-    const transactionCents = Number(transaction.amount_cents);
-    if (!Number.isInteger(refundCents) || refundCents <= 0
-      || !Number.isInteger(transactionCents) || transactionCents <= 0
-      || refundCents > transactionCents) {
-      return sendValidationError(res, {
-        refundAmount: 'Refund amount must be a positive whole-cent amount no greater than the payment.'
-      });
-    }
-
-    // Process Stripe refund
-    try {
-      const stripeRefund = await stripe.refunds.create({
-        payment_intent: transaction.payment_intent_id,
-        amount: refundCents,
-        reason: reason.substring(0, 50) // Stripe limit: 50 chars
-      }, {
-        idempotencyKey: `marketplace-order-refund-${orderId}-${refundCents}`
-      });
-
-      // Update order and transaction
-      await withTransaction(async (client) => {
-        await client.query(
-          `UPDATE marketplace_orders
-           SET status = 'refunded', refund_reason = $1, refunded_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-           WHERE id = $2`,
-          [reason, orderId]
-        );
-
-        await client.query(
-          `UPDATE marketplace_transactions
-           SET status = 'refunded', updated_at = CURRENT_TIMESTAMP
-           WHERE order_id = $1`,
-          [orderId]
-        );
-
-        await client.query(
-          `INSERT INTO order_action_log (order_id, action_type, action_details, performed_by)
-           VALUES ($1, $2, $3, $4)`,
-          [orderId, 'refunded', JSON.stringify({ reason, refundCents, stripeRefundId: stripeRefund.id }), adminId]
-        );
-      });
-
-      logger.info('Order refunded', { orderId, refundCents, stripeRefundId: stripeRefund.id });
-
-      res.json({
-        success: true,
-        data: {
-          orderId: order.id,
-          status: 'refunded',
-          refundAmount: refundCents,
-          reason,
-          stripeRefundId: stripeRefund.id
-        }
-      });
-    } catch (stripeError) {
-      logger.error('Stripe refund failed', { error: stripeError, orderId });
-      sendError(res, 400, `Stripe refund failed: ${stripeError.message}`);
-    }
+    const result = await processMarketplaceRefund({
+      orderId,
+      requestedAmountCents: refundAmount,
+      reason,
+      actorUserId: adminId,
+      requestId: req.get('Idempotency-Key') || req.body?.idempotencyKey,
+    });
+    const status = result.refund.status === 'succeeded' ? (result.order.status || 'refunded') : 'processing';
+    logger.info('Marketplace order refund reconciled', {
+      orderId,
+      refundAmount: result.refund.amount_cents,
+      stripeRefundId: result.refund.provider_refund_id,
+      refundStatus: result.refund.status,
+      replay: !!result.replay,
+    });
+    return res.status(result.refund.status === 'succeeded' ? 200 : 202).json({
+      success: true,
+      data: {
+        orderId: result.order.id,
+        status,
+        refundStatus: result.refund.status,
+        refundAmount: Number(result.refund.amount_cents),
+        cumulativeRefundedAmount: Number(result.transaction.refunded_amount_cents || 0),
+        reason: result.refund.reason,
+        stripeRefundId: result.refund.provider_refund_id || null,
+        idempotent: !!result.replay,
+      },
+    });
   } catch (error) {
     logger.error('Error processing refund', { error, orderId: req.params.orderId });
-    sendError(res, 500, 'Failed to process refund');
+    sendError(res, error.status || error.statusCode || 500, error.message || 'Failed to process refund', error.code, error.fields);
   }
 }
 

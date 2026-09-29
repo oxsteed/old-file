@@ -177,6 +177,14 @@ async function authenticate(req, res, next) {
     req.isSuperAdmin = user.role === 'super_admin';
     next();
   } catch (err) {
+    if (err?.code === 'token_revocation_unavailable') {
+      logger.error('Authentication unavailable: token revocation check failed', { error: err.message });
+      return res.status(503).json({
+        error: 'Authentication temporarily unavailable',
+        code: 'token_revocation_unavailable',
+        retryable: true,
+      });
+    }
     if (err.name === 'TokenExpiredError') {
       return res.status(401).json({ error: 'Token expired' });
     }

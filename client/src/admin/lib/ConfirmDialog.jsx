@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 
 /**
@@ -29,6 +29,10 @@ export default function ConfirmDialog({
   onConfirm,
   onClose,
 }) {
+  const titleId = useId();
+  const reasonId = useId();
+  const dialogRef = useRef(null);
+  const previouslyFocused = useRef(null);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -60,32 +64,77 @@ export default function ConfirmDialog({
     onClose();
   };
 
+  useEffect(() => {
+    if (!open) return undefined;
+
+    previouslyFocused.current = document.activeElement;
+    const frame = window.requestAnimationFrame(() => {
+      const firstFocusable = dialogRef.current?.querySelector(
+        'button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+      );
+      (firstFocusable || dialogRef.current)?.focus();
+    });
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        handleClose();
+        return;
+      }
+      if (event.key !== 'Tab' || !dialogRef.current) return;
+
+      const focusable = [...dialogRef.current.querySelectorAll(
+        'button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+      )];
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener('keydown', handleKeyDown);
+      if (previouslyFocused.current?.focus) previouslyFocused.current.focus();
+    };
+  }, [open]);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
       role="dialog"
       aria-modal="true"
-      aria-label={title}
+      aria-labelledby={titleId}
       onClick={handleClose}
     >
       <div
+        ref={dialogRef}
+        tabIndex="-1"
         className="w-full max-w-md rounded-lg bg-gray-900 border border-gray-700 p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start gap-3">
           {danger && <AlertTriangle size={22} className="text-red-400 shrink-0 mt-0.5" />}
           <div>
-            <h2 className="text-lg font-semibold text-white">{title}</h2>
+            <h2 id={titleId} className="text-lg font-semibold text-white">{title}</h2>
             {message && <div className="mt-2 text-sm text-gray-300">{message}</div>}
           </div>
         </div>
 
         {requireReason && (
           <div className="mt-4">
-            <label className="block text-sm font-medium text-gray-300 mb-1">
+            <label htmlFor={reasonId} className="block text-sm font-medium text-gray-300 mb-1">
               {reasonLabel} <span className="text-red-400">*</span>
             </label>
             <textarea
+              id={reasonId}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder={reasonPlaceholder}

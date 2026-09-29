@@ -198,10 +198,10 @@ export default function AuditLog() {
                     {entry.target_type && (
                       <span className="capitalize">{entry.target_type}</span>
                     )}
-                    {entry.target_id && (
+                    {(entry.target_id || entry.target_key) && (
                       <p className="font-mono text-gray-600 text-xs
                                     truncate max-w-24">
-                        {entry.target_id.split('-')[0]}...
+                        {entry.target_key || `${entry.target_id.split('-')[0]}...`}
                       </p>
                     )}
                   </td>

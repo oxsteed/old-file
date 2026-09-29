@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { adminListShipments } from '../../../api/logistics';
 import '../../../styles/logistics/LogisticsHomePage.css';
 import AdminErrorState from '../../lib/AdminErrorState';
 
 export default function ShipmentOpsAdmin() {
+  const { t, i18n } = useTranslation();
   const [shipments, setShipments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
@@ -26,14 +28,14 @@ export default function ShipmentOpsAdmin() {
   return (
     <div className="lx-page">
       <div className="lx-page-header">
-        <h1 className="lx-page-title">Shipment Ops Workspace</h1>
-        <p className="lx-page-sub">Watch the active freight pipeline, customs queue, and exception posture across all logistics lanes.</p>
+        <h1 className="lx-page-title">{t('logistics.admin.shipmentOps.title')}</h1>
+        <p className="lx-page-sub">{t('logistics.admin.shipmentOps.subtitle')}</p>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:'1rem', marginBottom:'1.5rem' }}>
         {[
-          ['Active shipments', active.length, '🚢'],
-          ['Customs queue', customs.length, '📋'],
-          ['Exceptions', exceptions.length, '⚠️'],
+          [t('logistics.admin.shipmentOps.activeShipments'), active.length, '🚢'],
+          [t('logistics.admin.shipmentOps.customsQueue'), customs.length, '📋'],
+          [t('logistics.admin.shipmentOps.exceptions'), exceptions.length, '⚠️'],
         ].map(([label, value, icon]) => (
           <div key={label} className="lx-card" style={{ textAlign:'center' }}>
             <div style={{ fontSize:'1.4rem' }}>{icon}</div>
@@ -45,18 +47,18 @@ export default function ShipmentOpsAdmin() {
       {!loading && loadError && <AdminErrorState onRetry={load} />}
       <div className="lx-table-wrap">
         <table className="lx-table">
-          <thead><tr><th>Reference</th><th>Route</th><th>Freight</th><th>Status</th><th>ETA</th></tr></thead>
+          <thead><tr><th>{t('logistics.admin.shipmentOps.reference')}</th><th>{t('logistics.admin.shipmentOps.route')}</th><th>{t('logistics.admin.shipmentOps.freight')}</th><th>{t('logistics.admin.shipmentOps.status')}</th><th>{t('logistics.admin.shipmentOps.eta')}</th></tr></thead>
           <tbody>
             {shipments.map((shipment) => (
               <tr key={shipment.id}>
                 <td>{shipment.reference}</td>
                 <td>{shipment.origin_country} → {shipment.destination_country}</td>
                 <td>{shipment.freight_mode || '—'}</td>
-                <td><span className="lx-status-pill" style={{ background: shipment.status === 'exception' ? '#ef4444' : shipment.status === 'completed' ? '#22c55e' : '#64748b' }}>{shipment.status}</span></td>
-                <td>{shipment.eta ? new Date(shipment.eta).toLocaleDateString() : '—'}</td>
+                <td><span className="lx-status-pill" style={{ background: shipment.status === 'exception' ? '#ef4444' : shipment.status === 'completed' ? '#22c55e' : '#64748b' }}>{t(`logistics.status.${shipment.status}`, { defaultValue: shipment.status || t('logistics.admin.unknownStatus') })}</span></td>
+                <td>{shipment.eta ? new Date(shipment.eta).toLocaleDateString(i18n.language) : '—'}</td>
               </tr>
             ))}
-            {!loading && !loadError && shipments.length === 0 && <tr><td colSpan={5} style={{ textAlign:'center', color:'#94a3b8' }}>No shipments found.</td></tr>}
+            {!loading && !loadError && shipments.length === 0 && <tr><td colSpan={5} style={{ textAlign:'center', color:'#94a3b8' }}>{t('logistics.admin.shipmentOps.empty')}</td></tr>}
           </tbody>
         </table>
       </div>

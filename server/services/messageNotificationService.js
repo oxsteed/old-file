@@ -132,14 +132,15 @@ async function enqueueConversationMessageNotifications({
   }
 }
 
-// Structured chat actions call this after their message write has committed.
-// Deferring the outbox write keeps notification delivery best-effort and avoids
-// holding an HTTP response open for a separate notification insert.
+// Compatibility wrapper for older callers. New message paths should pass a
+// transaction client to enqueueConversationMessageNotifications directly so
+// the message and notification intent commit together. Keep this wrapper
+// synchronous with the durable insert; a timer here would reintroduce a crash
+// window between the domain write and its outbox row.
 function scheduleConversationMessageNotifications(options) {
-  setImmediate(() => {
-    enqueueConversationMessageNotifications({ ...options, bestEffort: true }).catch(() => {});
-  });
-  return true;
+  const operation = enqueueConversationMessageNotifications(options);
+  if (options?.bestEffort) return operation.catch(() => []);
+  return operation;
 }
 
 module.exports = {

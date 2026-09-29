@@ -10,6 +10,11 @@ const { getRelease } = require('../utils/release');
 
 const migrationsDirectory = path.join(__dirname, '../migrations');
 
+const ADMIN_CONTROL_PLANE_SCHEMA = Object.freeze({
+  admin_audit_log: ['target_key'],
+  platform_settings: ['min_numeric_value', 'max_numeric_value', 'validation_pattern', 'version'],
+});
+
 function creditLedgerReadiness() {
   const dedicatedSecret = process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET;
   const fallbackSecret = process.env.JWT_SECRET;
@@ -53,6 +58,38 @@ async function migrationStatus(pool) {
   };
 }
 
+async function adminControlPlaneSchemaStatus(pool) {
+  // Development and test databases intentionally use lightweight mocks or
+  // older schemas. Production readiness must validate the additive control
+  // plane contract because runtime settings/audit paths depend on it.
+  if ((process.env.NODE_ENV || 'production') !== 'production') {
+    return { ok: true, skipped: true };
+  }
+
+  const entries = Object.entries(ADMIN_CONTROL_PLANE_SCHEMA);
+  const predicates = entries.map(([table], index) =>
+    `(table_name = $${index + 1} AND column_name = ANY($${index + 1 + entries.length}::text[]))`
+  );
+  const params = [
+    ...entries.map(([table]) => table),
+    ...entries.map(([, columns]) => columns),
+  ];
+  const { rows } = await pool.query(
+    `SELECT table_name, column_name
+       FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND (${predicates.join(' OR ')})`,
+    params,
+  );
+  const present = new Set(rows.map((row) => `${row.table_name}.${row.column_name}`));
+  const missing = entries.flatMap(([table, columns]) =>
+    columns.filter((column) => !present.has(`${table}.${column}`)).map((column) => `${table}.${column}`)
+  );
+  return missing.length
+    ? { ok: false, error: 'admin control-plane schema contract is incomplete', missing }
+    : { ok: true };
+}
+
 async function checkReadiness({ pool, redis, includeTrafficState = true }) {
   const runtime = runtimeState.snapshot();
   const productionConfigurationErrors = getProductionConfigurationErrors();
@@ -77,6 +114,7 @@ async function checkReadiness({ pool, redis, includeTrafficState = true }) {
       },
       database: { ok: false },
       migrations: { ok: false },
+      adminControlPlane: { ok: false },
       redis: { ok: true, configured: Boolean(process.env.REDIS_URL) },
       creditLedger: creditLedgerReadiness(),
       creditRail: { ok: true, enabled: false, requiresSharedRedis: false },
@@ -98,8 +136,10 @@ async function checkReadiness({ pool, redis, includeTrafficState = true }) {
   if (result.checks.database.ok) {
     try {
       result.checks.migrations = await migrationStatus(pool);
+      result.checks.adminControlPlane = await adminControlPlaneSchemaStatus(pool);
     } catch (err) {
       result.checks.migrations = { ok: false, error: 'migration state unavailable' };
+      result.checks.adminControlPlane = { ok: false, error: 'admin control-plane schema unavailable' };
       logger.error('Readiness migration check failed', { message: err.message });
     }
   }
@@ -167,4 +207,4 @@ async function checkReadiness({ pool, redis, includeTrafficState = true }) {
   return result;
 }
 
-module.exports = { checkReadiness, expectedMigrationFiles, migrationStatus };
+module.exports = { checkReadiness, expectedMigrationFiles, migrationStatus, adminControlPlaneSchemaStatus };

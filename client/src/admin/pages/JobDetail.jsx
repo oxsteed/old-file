@@ -10,6 +10,7 @@ import adminApi from '../../lib/adminApi';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
 import ConfirmDialog from '../lib/ConfirmDialog';
+import { useHasGrant } from '../lib/GrantGuard';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -104,6 +105,8 @@ export default function JobDetail() {
   const navigate  = useNavigate();
   const { user: me } = useAuth();
   const isSuper   = me?.role === 'super_admin';
+  const { allowed: canRefund } = useHasGrant('issue_refunds');
+  const { allowed: canDelete } = useHasGrant('delete_jobs');
 
   // Modal state
   const [modal,       setModal]       = useState(null); // 'cancel' | 'flag' | 'delete' | 'refund'
@@ -219,14 +222,14 @@ export default function JobDetail() {
             {isFlagged ? <RotateCcw size={13} /> : <AlertTriangle size={13} />}
             {isFlagged ? t('adminJobDetail.unflag') : t('adminJobDetail.flag')}
           </button>
-          {isSuper && payment?.status === 'captured' && (
+          {(isSuper || canRefund) && payment?.status === 'captured' && (
             <button onClick={() => openModal('refund')}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 border border-gray-700
                          text-gray-300 hover:border-orange-500 hover:text-orange-400 rounded-lg text-xs font-medium transition">
               <DollarSign size={13} /> {t('adminJobDetail.refund')}
             </button>
           )}
-          {isSuper && (
+          {(isSuper || canDelete) && (
             <button onClick={() => openModal('delete')}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-red-950 border border-red-900
                          text-red-400 hover:bg-red-900 rounded-lg text-xs font-medium transition">

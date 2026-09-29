@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
 import AdminErrorState from '../lib/AdminErrorState';
 import { MessageSquare, CheckCircle, Clock, TrendingUp, RefreshCw } from 'lucide-react';
@@ -7,6 +8,7 @@ import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Cart
 
 export default function SupportMetricsDashboard() {
   const { businessId } = useParams();
+  const { t } = useTranslation();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -42,8 +44,8 @@ export default function SupportMetricsDashboard() {
     return (
       <div className="p-6 max-w-7xl mx-auto">
         <AdminErrorState
-          title="Failed to load metrics"
-          message={error?.response?.data?.error || 'Could not load support metrics.'}
+          title={t('adminSupportMetrics.failedTitle')}
+          message={error?.response?.data?.error || t('adminSupportMetrics.failedMessage')}
           onRetry={loadData}
         />
       </div>
@@ -70,12 +72,15 @@ export default function SupportMetricsDashboard() {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 className="text-white font-bold text-3xl mb-2">Metrics Dashboard</h1>
-          <p className="text-gray-400 text-sm">Support team performance and trends.</p>
+          <h1 className="text-white font-bold text-3xl mb-2">{t('adminSupportMetrics.title')}</h1>
+          <p className="text-gray-400 text-sm">{t('adminSupportMetrics.subtitle')}</p>
         </div>
         <button
+          type="button"
           onClick={loadData}
           disabled={loading}
+          aria-label={t('adminSupportMetrics.refresh')}
+          title={t('adminSupportMetrics.refresh')}
           className="p-2.5 bg-gray-700 border border-gray-600 text-gray-400 rounded-lg hover:text-white transition"
         >
           <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
@@ -87,37 +92,37 @@ export default function SupportMetricsDashboard() {
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
           <p className="text-gray-400 text-sm mb-2 flex items-center gap-2">
             <MessageSquare size={14} />
-            Conversations
+            {t('adminSupportMetrics.conversations')}
           </p>
           <p className="text-white text-3xl font-bold">{stats.total_conversations || 0}</p>
-          <p className="text-gray-500 text-xs mt-2">Total</p>
+          <p className="text-gray-500 text-xs mt-2">{t('adminSupportMetrics.total')}</p>
         </div>
 
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
           <p className="text-gray-400 text-sm mb-2 flex items-center gap-2">
             <CheckCircle size={14} />
-            Resolved
+            {t('adminSupportMetrics.resolved')}
           </p>
           <p className="text-white text-3xl font-bold">{stats.resolved_conversations || 0}</p>
-          <p className="text-gray-500 text-xs mt-2">{stats.resolution_rate || 0}% rate</p>
+          <p className="text-gray-500 text-xs mt-2">{t('adminSupportMetrics.resolutionRate', { value: stats.resolution_rate || 0 })}</p>
         </div>
 
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
           <p className="text-gray-400 text-sm mb-2 flex items-center gap-2">
             <Clock size={14} />
-            Avg Response Time
+            {t('adminSupportMetrics.avgResponseTime')}
           </p>
-          <p className="text-white text-3xl font-bold">{stats.avg_response_time_seconds || 0}s</p>
-          <p className="text-gray-500 text-xs mt-2">Team average</p>
+          <p className="text-white text-3xl font-bold">{t('adminSupportMetrics.seconds', { value: stats.avg_response_time_seconds || 0 })}</p>
+          <p className="text-gray-500 text-xs mt-2">{t('adminSupportMetrics.teamAverage')}</p>
         </div>
 
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
           <p className="text-gray-400 text-sm mb-2 flex items-center gap-2">
             <TrendingUp size={14} />
-            Active Agents
+            {t('adminSupportMetrics.activeAgents')}
           </p>
           <p className="text-white text-3xl font-bold">{stats.active_agents || 0}</p>
-          <p className="text-gray-500 text-xs mt-2">Online now</p>
+          <p className="text-gray-500 text-xs mt-2">{t('adminSupportMetrics.onlineNow')}</p>
         </div>
       </div>
 
@@ -125,7 +130,7 @@ export default function SupportMetricsDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* Trend Chart */}
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-          <h2 className="text-white font-bold text-lg mb-4">Conversations Trend (7 days)</h2>
+          <h2 className="text-white font-bold text-lg mb-4">{t('adminSupportMetrics.trendTitle')}</h2>
           {trendData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={trendData}>
@@ -140,6 +145,7 @@ export default function SupportMetricsDashboard() {
                 <Line
                   type="monotone"
                   dataKey="conversations"
+                  name={t('adminSupportMetrics.conversations')}
                   stroke="#ea580c"
                   strokeWidth={2}
                   dot={{ fill: '#ea580c' }}
@@ -147,13 +153,13 @@ export default function SupportMetricsDashboard() {
               </LineChart>
             </ResponsiveContainer>
           ) : (
-            <p className="text-gray-400 text-sm text-center py-12">No trend data</p>
+            <p className="text-gray-400 text-sm text-center py-12">{t('adminSupportMetrics.noTrendData')}</p>
           )}
         </div>
 
         {/* Category Distribution */}
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-          <h2 className="text-white font-bold text-lg mb-4">Issues by Category</h2>
+          <h2 className="text-white font-bold text-lg mb-4">{t('adminSupportMetrics.issuesByCategory')}</h2>
           {categoryData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
@@ -178,14 +184,14 @@ export default function SupportMetricsDashboard() {
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <p className="text-gray-400 text-sm text-center py-12">No category data</p>
+            <p className="text-gray-400 text-sm text-center py-12">{t('adminSupportMetrics.noCategoryData')}</p>
           )}
         </div>
       </div>
 
       {/* Department Breakdown */}
       <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 mb-8">
-        <h2 className="text-white font-bold text-lg mb-4">Department Breakdown</h2>
+        <h2 className="text-white font-bold text-lg mb-4">{t('adminSupportMetrics.departmentBreakdown')}</h2>
         {departmentData.length > 0 ? (
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={departmentData}>
@@ -197,18 +203,18 @@ export default function SupportMetricsDashboard() {
                 labelStyle={{ color: '#fff' }}
               />
               <Legend />
-              <Bar dataKey="conversations" fill="#ea580c" name="Conversations" />
-              <Bar dataKey="resolved" fill="#10b981" name="Resolved" />
+              <Bar dataKey="conversations" fill="#ea580c" name={t('adminSupportMetrics.conversations')} />
+              <Bar dataKey="resolved" fill="#10b981" name={t('adminSupportMetrics.resolved')} />
             </BarChart>
           </ResponsiveContainer>
         ) : (
-          <p className="text-gray-400 text-sm text-center py-12">No department data</p>
+          <p className="text-gray-400 text-sm text-center py-12">{t('adminSupportMetrics.noDepartmentData')}</p>
         )}
       </div>
 
       {/* Top Agents Leaderboard */}
       <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-        <h2 className="text-white font-bold text-lg mb-4">Top Agents</h2>
+        <h2 className="text-white font-bold text-lg mb-4">{t('adminSupportMetrics.topAgents')}</h2>
         {topAgents.length > 0 ? (
           <div className="space-y-3">
             {topAgents.map((agent, idx) => (
@@ -220,15 +226,15 @@ export default function SupportMetricsDashboard() {
                     </div>
                     <div>
                       <p className="text-white font-medium">{agent.name}</p>
-                      <p className="text-gray-400 text-xs">{agent.resolved_conversations} resolved</p>
+                      <p className="text-gray-400 text-xs">{t('adminSupportMetrics.resolvedCount', { count: agent.resolved_conversations })}</p>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="text-orange-400 font-semibold">
-                      {agent.rating == null ? 'No rating' : `${agent.rating}★`}
+                      {agent.rating == null ? t('adminSupportMetrics.noRating') : t('adminSupportMetrics.rating', { value: agent.rating })}
                     </p>
                     <p className="text-gray-400 text-xs">
-                      {agent.avg_response_time_seconds == null ? 'No response data' : `${agent.avg_response_time_seconds}s avg`}
+                      {agent.avg_response_time_seconds == null ? t('adminSupportMetrics.noResponseData') : t('adminSupportMetrics.avgSeconds', { value: agent.avg_response_time_seconds })}
                     </p>
                   </div>
                 </div>
@@ -236,7 +242,7 @@ export default function SupportMetricsDashboard() {
             ))}
           </div>
         ) : (
-          <p className="text-gray-400 text-sm text-center py-12">No agent data</p>
+          <p className="text-gray-400 text-sm text-center py-12">{t('adminSupportMetrics.noAgentData')}</p>
         )}
       </div>
     </div>

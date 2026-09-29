@@ -145,7 +145,11 @@ async function loadAssignedRegions(req, res, next) {
     next();
   } catch (err) {
     logger.error('loadAssignedRegions failed', { error: err.message });
+    // An authorization lookup failure must never be indistinguishable from
+    // an unrestricted legacy admin. Keep the request moving so the route can
+    // return a retryable, explicit authorization-unavailable response.
     req.assigned_regions = [];
+    req.region_scope_unavailable = true;
     next();
   }
 }
@@ -160,6 +164,13 @@ function requireRegionAccessForUser(paramName = 'userId') {
   return async (req, res, next) => {
     try {
       if (req.isSuper) return next();
+
+      if (req.region_scope_unavailable) {
+        return res.status(503).json({
+          error: 'Region authorization is temporarily unavailable. Please retry.',
+          code: 'region_authorization_unavailable',
+        });
+      }
 
       // Admin with no scoped region grants - fall through (legacy admins)
       const regions = req.assigned_regions;

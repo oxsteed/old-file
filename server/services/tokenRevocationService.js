@@ -13,6 +13,14 @@ const logger = require('../utils/logger');
 
 const tokenBlacklist = new Set(); // Fallback for non-Redis environments
 
+function revocationUnavailable(operation, cause) {
+  const error = new Error(`Token revocation service unavailable during ${operation}`);
+  error.code = 'token_revocation_unavailable';
+  error.statusCode = 503;
+  error.cause = cause;
+  return error;
+}
+
 class TokenRevocationService {
   /**
    * Revoke an access token (15-minute TTL)
@@ -59,7 +67,7 @@ class TokenRevocationService {
       return tokenBlacklist.has(tokenId);
     } catch (err) {
       logger.error('Failed to check impersonation revocation', { error: err.message });
-      return false;
+      throw revocationUnavailable('impersonation check', err);
     }
   }
 
@@ -81,8 +89,10 @@ class TokenRevocationService {
       }
     } catch (err) {
       logger.error('Failed to revoke user tokens', { userId, error: err.message });
-      // Non-fatal: if revocation fails, token validation will still work
-      // via database session checks
+      // A failed revocation is security-critical. Callers must not continue
+      // with a password change, account deletion, or successful logout while
+      // previously issued tokens may still be active.
+      throw revocationUnavailable('user-token revocation', err);
     }
   }
 
@@ -118,7 +128,10 @@ class TokenRevocationService {
       }
     } catch (err) {
       logger.error('Failed to check token revocation', { tokenId, error: err.message });
-      return false;
+      // Fail closed: an unavailable blacklist must never be treated as an
+      // empty blacklist. Authentication middleware converts this to a 503 so
+      // clients can retry without receiving a misleading 401.
+      throw revocationUnavailable('token check', err);
     }
   }
 
@@ -143,7 +156,7 @@ class TokenRevocationService {
       }
     } catch (err) {
       logger.error('Failed to revoke token', { tokenId, error: err.message });
-      // Non-fatal error
+      throw revocationUnavailable('token revocation', err);
     }
   }
 }

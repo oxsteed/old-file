@@ -1,6 +1,7 @@
 'use strict';
 
 const db = require('../db');
+const crypto = require('crypto');
 const logger = require('../utils/logger');
 const { sendEmail } = require('../utils/email');
 
@@ -55,6 +56,7 @@ async function sendSupportEmail(payload) {
 
 async function claimSupportEmails(limit = 25) {
   const boundedLimit = Math.max(1, Math.min(Number(limit) || 25, 100));
+  const leaseToken = crypto.randomUUID();
   const result = await db.query(
     `WITH candidates AS (
        SELECT id
@@ -67,32 +69,36 @@ async function claimSupportEmails(limit = 25) {
      )
      UPDATE support_email_outbox outbox
      SET status = 'sending', attempts = outbox.attempts + 1,
-         locked_at = NOW(), updated_at = NOW()
+         locked_at = NOW(), lease_token = $3, updated_at = NOW()
      FROM candidates
      WHERE outbox.id = candidates.id
-     RETURNING outbox.id, outbox.payload, outbox.attempts`,
-    [boundedLimit, STALE_LOCK_MINUTES]
+     RETURNING outbox.id, outbox.payload, outbox.attempts, outbox.lease_token`,
+    [boundedLimit, STALE_LOCK_MINUTES, leaseToken]
   );
   return result.rows;
 }
 
-async function finishSupportEmail(id, attempts, result) {
+async function finishSupportEmail(id, attempts, result, leaseToken) {
   const succeeded = Boolean(result?.success);
   const terminal = !succeeded && attempts >= MAX_ATTEMPTS;
   const status = succeeded ? 'sent' : terminal ? 'failed' : 'pending';
   const retryMinutes = Math.min(60, 2 ** Math.max(0, attempts - 1));
-  await db.query(
+  const updateResult = await db.query(
     `UPDATE support_email_outbox
      SET status = $1,
          sent_at = CASE WHEN $1 = 'sent' THEN NOW() ELSE sent_at END,
          locked_at = NULL,
+         lease_token = NULL,
          last_error = $2,
          next_attempt_at = CASE WHEN $1 = 'pending' THEN NOW() + ($3::integer * INTERVAL '1 minute') ELSE next_attempt_at END,
          updated_at = NOW()
-     WHERE id = $4`,
-    [status, succeeded ? null : String(result?.error || 'Email send failed').slice(0, 2000), retryMinutes, id]
+     WHERE id = $4
+       AND status = 'sending'
+       AND attempts = $5
+       AND lease_token = $6`,
+    [status, succeeded ? null : String(result?.error || 'Email send failed').slice(0, 2000), retryMinutes, id, attempts, leaseToken || null]
   );
-  return status;
+  return leaseToken ? (updateResult.rowCount === 1 ? status : 'stale') : status;
 }
 
 async function processSupportEmailOutbox() {
@@ -104,12 +110,14 @@ async function processSupportEmailOutbox() {
     try {
       const payload = typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload;
       const result = await sendEmail(payload);
-      const status = await finishSupportEmail(row.id, Number(row.attempts || 0), result);
+      const status = await finishSupportEmail(row.id, Number(row.attempts || 0), result, row.lease_token);
+      if (status === 'stale') continue;
       if (status === 'sent') sent += 1;
       else if (status === 'pending') retried += 1;
       else failed += 1;
     } catch (error) {
-      const status = await finishSupportEmail(row.id, Number(row.attempts || 0), { success: false, error: error.message });
+      const status = await finishSupportEmail(row.id, Number(row.attempts || 0), { success: false, error: error.message }, row.lease_token);
+      if (status === 'stale') continue;
       if (status === 'pending') retried += 1;
       else failed += 1;
     }

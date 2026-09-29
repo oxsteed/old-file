@@ -5,6 +5,23 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex, nofollow" />
+    <script>
+      (() => {
+        try {
+          const language = (localStorage.getItem('oxs:language') || navigator.language || 'en').toLowerCase().split(/[-_]/)[0];
+          const root = document.documentElement;
+          root.lang = ['en', 'es', 'fr', 'ht', 'ar'].includes(language) ? language : 'en';
+          root.dir = root.lang === 'ar' ? 'rtl' : 'ltr';
+          const savedTheme = localStorage.getItem('theme');
+          const isDark = savedTheme ? savedTheme === 'dark' : true;
+          root.classList.toggle('dark', isDark);
+          root.dataset.theme = isDark ? 'dark' : 'light';
+          root.style.colorScheme = isDark ? 'dark' : 'light';
+        } catch (_) {
+          // Keep the secure dark/LTR defaults when storage is unavailable.
+        }
+      })();
+    </script>
     <title>OxSteed Admin</title>
   </head>
   <body>

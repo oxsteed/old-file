@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
 import AdminErrorState from '../lib/AdminErrorState';
 import { Clock, AlertCircle, TrendingUp, CheckCircle, RefreshCw, Target } from 'lucide-react';
@@ -7,6 +8,7 @@ import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, Cartesia
 
 export default function SupportSLADashboard() {
   const { businessId } = useParams();
+  const { t } = useTranslation();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -42,8 +44,8 @@ export default function SupportSLADashboard() {
     return (
       <div className="p-6 max-w-7xl mx-auto">
         <AdminErrorState
-          title="Failed to load SLA data"
-          message={error?.response?.data?.error || 'Could not load SLA data.'}
+          title={t('adminSupportSla.failedTitle')}
+          message={error?.response?.data?.error || t('adminSupportSla.failedMessage')}
           onRetry={loadData}
         />
       </div>
@@ -82,12 +84,15 @@ export default function SupportSLADashboard() {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 className="text-white font-bold text-3xl mb-2">SLA Dashboard</h1>
-          <p className="text-gray-400 text-sm">Service level agreement compliance tracking.</p>
+          <h1 className="text-white font-bold text-3xl mb-2">{t('adminSupportSla.title')}</h1>
+          <p className="text-gray-400 text-sm">{t('adminSupportSla.subtitle')}</p>
         </div>
         <button
+          type="button"
           onClick={loadData}
           disabled={loading}
+          aria-label={t('adminSupportSla.refresh')}
+          title={t('adminSupportSla.refresh')}
           className="p-2.5 bg-gray-700 border border-gray-600 text-gray-400 rounded-lg hover:text-white transition"
         >
           <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
@@ -99,45 +104,45 @@ export default function SupportSLADashboard() {
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
           <p className="text-gray-400 text-sm mb-2 flex items-center gap-2">
             <Target size={14} />
-            Overall Compliance
+            {t('adminSupportSla.overallCompliance')}
           </p>
           <p className={`text-3xl font-bold ${getComplianceColor(compliance)}`}>
-            {compliance == null ? '-' : `${compliance}%`}
+            {compliance == null ? t('adminSupportSla.notAvailable') : `${compliance}%`}
           </p>
-          <p className="text-gray-500 text-xs mt-2">Target: 95%</p>
+          <p className="text-gray-500 text-xs mt-2">{t('adminSupportSla.targetPercent', { value: 95 })}</p>
         </div>
 
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
           <p className="text-gray-400 text-sm mb-2 flex items-center gap-2">
             <Clock size={14} />
-            Avg First Response
+            {t('adminSupportSla.avgFirstResponse')}
           </p>
-          <p className="text-white text-3xl font-bold">{stats.avg_first_response_minutes || 0}m</p>
-          <p className="text-gray-500 text-xs mt-2">Target: 1h</p>
+          <p className="text-white text-3xl font-bold">{t('adminSupportSla.minutes', { value: stats.avg_first_response_minutes || 0 })}</p>
+          <p className="text-gray-500 text-xs mt-2">{t('adminSupportSla.targetHour', { value: 1 })}</p>
         </div>
 
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
           <p className="text-gray-400 text-sm mb-2 flex items-center gap-2">
             <CheckCircle size={14} />
-            Avg Resolution Time
+            {t('adminSupportSla.avgResolutionTime')}
           </p>
-          <p className="text-white text-3xl font-bold">{stats.avg_resolution_hours || 0}h</p>
-          <p className="text-gray-500 text-xs mt-2">Target: 24h</p>
+          <p className="text-white text-3xl font-bold">{t('adminSupportSla.hours', { value: stats.avg_resolution_hours || 0 })}</p>
+          <p className="text-gray-500 text-xs mt-2">{t('adminSupportSla.targetHours', { value: 24 })}</p>
         </div>
 
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
           <p className="text-gray-400 text-sm mb-2 flex items-center gap-2">
             <AlertCircle size={14} />
-            Violations
+            {t('adminSupportSla.violations')}
           </p>
           <p className="text-white text-3xl font-bold">{stats.violation_count || 0}</p>
-          <p className="text-gray-500 text-xs mt-2">This week</p>
+          <p className="text-gray-500 text-xs mt-2">{t('adminSupportSla.thisWeek')}</p>
         </div>
       </div>
 
       {/* Compliance Trend */}
       <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 mb-8">
-        <h2 className="text-white font-bold text-lg mb-4">Compliance Trend (30 days)</h2>
+        <h2 className="text-white font-bold text-lg mb-4">{t('adminSupportSla.complianceTrend')}</h2>
         {trendData.length > 0 ? (
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={trendData}>
@@ -164,23 +169,23 @@ export default function SupportSLADashboard() {
             </AreaChart>
           </ResponsiveContainer>
         ) : (
-          <p className="text-gray-400 text-sm text-center py-12">No trend data</p>
+          <p className="text-gray-400 text-sm text-center py-12">{t('adminSupportSla.noTrendData')}</p>
         )}
       </div>
 
       {/* Department Comparison */}
       <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 mb-8">
-        <h2 className="text-white font-bold text-lg mb-4">Department Comparison</h2>
+        <h2 className="text-white font-bold text-lg mb-4">{t('adminSupportSla.departmentComparison')}</h2>
         {departmentData.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-700 bg-gray-700/50">
-                  <th className="px-6 py-3 text-left text-gray-400 text-sm font-semibold">Department</th>
-                  <th className="px-6 py-3 text-left text-gray-400 text-sm font-semibold">Compliance</th>
-                  <th className="px-6 py-3 text-left text-gray-400 text-sm font-semibold">Avg Response</th>
-                  <th className="px-6 py-3 text-left text-gray-400 text-sm font-semibold">Avg Resolution</th>
-                  <th className="px-6 py-3 text-left text-gray-400 text-sm font-semibold">Violations</th>
+                  <th className="px-6 py-3 text-left text-gray-400 text-sm font-semibold">{t('adminSupportSla.department')}</th>
+                  <th className="px-6 py-3 text-left text-gray-400 text-sm font-semibold">{t('adminSupportSla.compliance')}</th>
+                  <th className="px-6 py-3 text-left text-gray-400 text-sm font-semibold">{t('adminSupportSla.avgResponse')}</th>
+                  <th className="px-6 py-3 text-left text-gray-400 text-sm font-semibold">{t('adminSupportSla.avgResolution')}</th>
+                  <th className="px-6 py-3 text-left text-gray-400 text-sm font-semibold">{t('adminSupportSla.violations')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -189,14 +194,14 @@ export default function SupportSLADashboard() {
                     <td className="px-6 py-4 text-white font-medium">{dept.name}</td>
                     <td className="px-6 py-4">
                       <span className={`font-semibold ${getComplianceColor(dept.compliance)}`}>
-                        {dept.compliance == null ? '-' : `${dept.compliance}%`}
+                        {dept.compliance == null ? t('adminSupportSla.notAvailable') : `${dept.compliance}%`}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-white">
-                      {dept.avg_first_response_minutes == null ? '-' : `${dept.avg_first_response_minutes}m`}
+                      {dept.avg_first_response_minutes == null ? t('adminSupportSla.notAvailable') : t('adminSupportSla.minutes', { value: dept.avg_first_response_minutes })}
                     </td>
                     <td className="px-6 py-4 text-white">
-                      {dept.avg_resolution_hours == null ? '-' : `${dept.avg_resolution_hours}h`}
+                      {dept.avg_resolution_hours == null ? t('adminSupportSla.notAvailable') : t('adminSupportSla.hours', { value: dept.avg_resolution_hours })}
                     </td>
                     <td className="px-6 py-4 text-white font-medium">{dept.violations}</td>
                   </tr>
@@ -205,7 +210,7 @@ export default function SupportSLADashboard() {
             </table>
           </div>
         ) : (
-          <p className="text-gray-400 text-sm text-center py-12">No department data</p>
+          <p className="text-gray-400 text-sm text-center py-12">{t('adminSupportSla.noDepartmentData')}</p>
         )}
       </div>
 
@@ -214,7 +219,7 @@ export default function SupportSLADashboard() {
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
           <h2 className="text-white font-bold text-lg mb-4 flex items-center gap-2">
             <AlertCircle size={20} className="text-red-400" />
-            Recent SLA Violations
+            {t('adminSupportSla.recentViolations')}
           </h2>
           <div className="space-y-3">
             {violations.slice(0, 10).map(violation => (
@@ -225,12 +230,12 @@ export default function SupportSLADashboard() {
                     <p className="text-gray-400 text-sm mt-1">{violation.issue_type}</p>
                     <p className="text-gray-500 text-xs mt-2">
                       {violation.violation_type === 'first_response'
-                        ? `First response missed by ${violation.minutes_over}m`
-                        : `Resolution missed by ${violation.hours_over}h`}
+                        ? t('adminSupportSla.firstResponseMissed', { value: violation.minutes_over })
+                        : t('adminSupportSla.resolutionMissed', { value: violation.hours_over })}
                     </p>
                   </div>
                   <span className="px-3 py-1 bg-red-900/50 text-red-300 rounded text-xs font-medium capitalize">
-                    {violation.violation_type}
+                    {t(`adminSupportSla.violationTypes.${violation.violation_type}`, { defaultValue: violation.violation_type })}
                   </span>
                 </div>
               </div>

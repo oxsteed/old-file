@@ -47,7 +47,9 @@ const CSV_COLUMNS = [
 
 function csvEscape(val) {
   if (val === null || val === undefined) return '';
-  const s = String(val);
+  let s = String(val);
+  // Keep exported audit values inert when opened in spreadsheet software.
+  if (/^[=+\-@]/.test(s)) s = `'${s}`;
   if (/[",\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
   return s;
 }
@@ -67,6 +69,9 @@ exports.exportUserActions = async (req, res) => {
 
     const { rows } = await getUserActionLogs(filters);
 
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader(
       'Content-Disposition',

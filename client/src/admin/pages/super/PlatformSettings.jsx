@@ -109,7 +109,7 @@ function OverviewCard({ icon: Icon, label, value, hint, color = 'text-white' }) 
   );
 }
 
-function SettingsSection({ sectionKey, config, settings, editing, setEditing, onSave, onReset, saving }) {
+function SettingsSection({ sectionKey, config, settings, editing, setEditing, onSave, onReset, onRollback, saving, rollbacking }) {
   const { t } = useTranslation();
   const Icon = config.icon;
 
@@ -216,6 +216,17 @@ function SettingsSection({ sectionKey, config, settings, editing, setEditing, on
                     {saving === setting.key ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                     {saving === setting.key ? t('superPlatformSettings.saving') : t('superPlatformSettings.save')}
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => onRollback(setting.key)}
+                    disabled={saving !== null || rollbacking === ('setting:' + setting.key) || dirty}
+                    title={t('superPlatformSettings.rollbackTitle')}
+                    aria-label={t('superPlatformSettings.rollbackLabel', { name: prettifyKey(setting.key) })}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-700 px-3 py-2 text-sm font-medium text-gray-300 transition hover:border-orange-500/50 hover:text-orange-200 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <RotateCcw className={`h-4 w-4 ${rollbacking === ('setting:' + setting.key) ? 'animate-spin' : ''}`} />
+                    {t('superPlatformSettings.rollback')}
+                  </button>
                 </div>
               </div>
             </div>
@@ -226,7 +237,7 @@ function SettingsSection({ sectionKey, config, settings, editing, setEditing, on
   );
 }
 
-function FeatureFlagRow({ flag, onToggle, updating }) {
+function FeatureFlagRow({ flag, onToggle, onRollback, updating, rollbacking }) {
   const { t } = useTranslation();
   return (
     <div className="rounded-2xl border border-gray-800 bg-[#111318] p-4">
@@ -263,6 +274,16 @@ function FeatureFlagRow({ flag, onToggle, updating }) {
           {updating ? t('superPlatformSettings.updating') : flag.enabled ? t('superPlatformSettings.disableFlagShort') : t('superPlatformSettings.enableFlagShort')}
           <ChevronRight className="h-4 w-4 opacity-60" />
         </button>
+        <button
+          type="button"
+          onClick={onRollback}
+          disabled={updating || rollbacking}
+          aria-label={t('superPlatformSettings.rollbackFlagLabel', { flag: prettifyKey(flag.key) })}
+          className="inline-flex items-center gap-2 rounded-2xl border border-gray-700 px-4 py-2 text-sm font-medium text-gray-300 transition hover:border-orange-500/50 hover:text-orange-200 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <RotateCcw className={`h-5 w-5 ${rollbacking ? 'animate-spin' : ''}`} />
+          {t('superPlatformSettings.rollback')}
+        </button>
       </div>
     </div>
   );
@@ -282,6 +303,8 @@ export default function PlatformSettings() {
   const [query, setQuery] = useState('');
   const [filterMode, setFilterMode] = useState('all');
   const [pendingFlag, setPendingFlag] = useState(null);
+  const [pendingRollback, setPendingRollback] = useState(null);
+  const [rollbacking, setRollbacking] = useState(null);
 
   const { data, loading, error: fetchError, reload } = useAbortableFetch(async (signal) => {
     const { data: payload } = await adminApi.get('/admin/settings', { signal });
@@ -373,6 +396,41 @@ export default function PlatformSettings() {
     });
     setEditing(savedValues);
     setMessage({ type: 'success', textKey: 'superPlatformSettings.discarded' });
+  };
+
+  const rollbackSetting = async (key) => {
+    setRollbacking(`setting:${key}`);
+    setMessage(null);
+    try {
+      const { data: result } = await adminApi.post(`/admin/settings/${key}/rollback`);
+      setSettings((prev) => prev.map((setting) => (
+        setting.key === key ? { ...setting, value: result.value } : setting
+      )));
+      setEditing((prev) => ({ ...prev, [key]: result.value }));
+      setMessage({ type: 'success', textKey: 'superPlatformSettings.rolledBack', textParams: { key } });
+    } catch (err) {
+      setMessage({ type: 'error', text: err.response?.data?.error, textKey: 'superPlatformSettings.rollbackFailed' });
+      throw err;
+    } finally {
+      setRollbacking(null);
+    }
+  };
+
+  const rollbackFlag = async (key) => {
+    setRollbacking(`flag:${key}`);
+    setMessage(null);
+    try {
+      const { data: result } = await adminApi.post(`/admin/feature-flags/${key}/rollback`);
+      setFlags((prev) => prev.map((flag) => (
+        flag.key === key ? { ...flag, enabled: result.enabled } : flag
+      )));
+      setMessage({ type: 'success', textKey: 'superPlatformSettings.flagRolledBack', textParams: { key } });
+    } catch (err) {
+      setMessage({ type: 'error', text: err.response?.data?.error, textKey: 'superPlatformSettings.rollbackFailed' });
+      throw err;
+    } finally {
+      setRollbacking(null);
+    }
   };
 
   const saveAll = async () => {
@@ -627,7 +685,9 @@ export default function PlatformSettings() {
                 setEditing={setEditing}
                 onSave={saveSetting}
                 onReset={resetSetting}
+                onRollback={(key) => setPendingRollback({ kind: 'setting', key })}
                 saving={saving}
+                rollbacking={rollbacking}
               />
             ))}
           </div>
@@ -664,7 +724,9 @@ export default function PlatformSettings() {
                 key={flag.key}
                 flag={flag}
                 updating={flagUpdating === flag.key}
+                rollbacking={rollbacking === `flag:${flag.key}`}
                 onToggle={() => setPendingFlag({ key: flag.key, current: flag.enabled })}
+                onRollback={() => setPendingRollback({ kind: 'flag', key: flag.key })}
               />
             ))}
           </div>
@@ -678,13 +740,30 @@ export default function PlatformSettings() {
 
       <ConfirmDialog
         open={!!pendingFlag}
-        title="Change feature flag"
+        title={t('superPlatformSettings.flagConfirmTitle')}
         message={pendingFlag
-          ? `Change the ${prettifyKey(pendingFlag.key)} flag to ${pendingFlag.current ? 'off' : 'on'}? This takes effect immediately.`
+          ? t('superPlatformSettings.flagConfirmMessage', {
+            flag: prettifyKey(pendingFlag.key),
+            state: pendingFlag.current ? t('superPlatformSettings.disabledOption') : t('superPlatformSettings.enabledOption'),
+          })
           : ''}
-        confirmLabel="Change flag"
+        confirmLabel={t('superPlatformSettings.flagConfirmButton')}
         onConfirm={async () => { await toggleFlag(pendingFlag.key, pendingFlag.current); }}
         onClose={() => setPendingFlag(null)}
+      />
+      <ConfirmDialog
+        open={!!pendingRollback}
+        title={t('superPlatformSettings.rollbackConfirmTitle')}
+        message={pendingRollback
+          ? t('superPlatformSettings.rollbackConfirmMessage', { name: prettifyKey(pendingRollback.key) })
+          : ''}
+        confirmLabel={t('superPlatformSettings.rollbackConfirmButton')}
+        danger
+        onConfirm={async () => {
+          if (pendingRollback.kind === 'setting') await rollbackSetting(pendingRollback.key);
+          else await rollbackFlag(pendingRollback.key);
+        }}
+        onClose={() => setPendingRollback(null)}
       />
     </div>
   );

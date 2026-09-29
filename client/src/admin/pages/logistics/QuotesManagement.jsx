@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { adminListQuotes, adminReviewQuote } from '../../../api/logistics';
 import toast from 'react-hot-toast';
 import '../../../styles/logistics/LogisticsHomePage.css';
@@ -9,6 +10,7 @@ const STATUS_COLOR = {
 };
 
 export default function QuotesManagement() {
+  const { t, i18n } = useTranslation();
   const [quotes, setQuotes]     = useState([]);
   const [loading, setLoading]   = useState(true);
   const [loadError, setLoadError] = useState(null);
@@ -27,38 +29,40 @@ export default function QuotesManagement() {
   useEffect(() => { load(); }, [status]);
 
   const review = async () => {
-    if (!form.action) { toast.error('Select accept or reject'); return; }
+    if (!form.action) { toast.error(t('logistics.admin.quotes.selectDecisionError')); return; }
     try {
       await adminReviewQuote(selected.id, form);
-      toast.success(`Quote ${form.action}ed`);
+      toast.success(form.action === 'accepted'
+        ? t('logistics.admin.quotes.reviewAccepted')
+        : t('logistics.admin.quotes.reviewRejected'));
       setSelected(null);
       load();
-    } catch (err) { toast.error(err.message); }
+    } catch (err) { toast.error(t('logistics.admin.quotes.reviewFailed')); }
   };
 
   return (
     <div className="lx-page">
       <div className="lx-page-header">
-        <h1 className="lx-page-title">💬 Quotes Management</h1>
-        <p className="lx-page-sub">Review supplier quotes submitted for sourcing requests.</p>
+        <h1 className="lx-page-title">💬 {t('logistics.admin.quotes.title')}</h1>
+        <p className="lx-page-sub">{t('logistics.admin.quotes.subtitle')}</p>
       </div>
 
       <div className="lx-filter-bar">
         <select className="lx-select" value={status} onChange={e => setStatus(e.target.value)}>
-          <option value="">All Statuses</option>
-          {Object.keys(STATUS_COLOR).map(s => <option key={s} value={s}>{s}</option>)}
+          <option value="">{t('logistics.admin.quotes.allStatuses')}</option>
+          {Object.keys(STATUS_COLOR).map(s => <option key={s} value={s}>{t(`logistics.admin.quotes.statuses.${s}`, { defaultValue: s })}</option>)}
         </select>
       </div>
 
-      {loading && <div className="lx-loading">Loading…</div>}
+      {loading && <div className="lx-loading">{t('logistics.admin.quotes.loading')}</div>}
       {!loading && loadError && <AdminErrorState onRetry={load} />}
 
       <div className="lx-table-wrap">
         <table className="lx-table">
           <thead>
             <tr>
-              <th>Reference</th><th>Sourcing Request</th><th>Supplier</th>
-              <th>Unit Price</th><th>MOQ</th><th>Lead Days</th><th>Status</th><th>Submitted</th><th></th>
+              <th>{t('logistics.admin.quotes.reference')}</th><th>{t('logistics.admin.quotes.sourcingRequest')}</th><th>{t('logistics.admin.quotes.supplier')}</th>
+              <th>{t('logistics.admin.quotes.unitPrice')}</th><th>{t('logistics.admin.quotes.moq')}</th><th>{t('logistics.admin.quotes.leadDays')}</th><th>{t('logistics.admin.quotes.status')}</th><th>{t('logistics.admin.quotes.submitted')}</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -74,22 +78,22 @@ export default function QuotesManagement() {
                 <td>{q.lead_time_days ? `${q.lead_time_days}d` : '—'}</td>
                 <td>
                   <span className="lx-status-pill" style={{ background: STATUS_COLOR[q.status]||'#64748b' }}>
-                    {q.status}
+                    {t(`logistics.admin.quotes.statuses.${q.status}`, { defaultValue: q.status || t('logistics.admin.unknownStatus') })}
                   </span>
                 </td>
-                <td style={{ fontSize:'.8rem' }}>{q.created_at ? new Date(q.created_at).toLocaleDateString() : '—'}</td>
+                <td style={{ fontSize:'.8rem' }}>{q.created_at ? new Date(q.created_at).toLocaleDateString(i18n.language) : '—'}</td>
                 <td>
                   {q.status === 'submitted' && (
                     <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem' }}
                       onClick={() => { setSelected(q); setForm({ action:'', admin_notes:'' }); }}>
-                      Review
+                      {t('logistics.admin.quotes.review')}
                     </button>
                   )}
                 </td>
               </tr>
             ))}
             {quotes.length === 0 && !loading && !loadError && (
-              <tr><td colSpan={9} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>No quotes found.</td></tr>
+              <tr><td colSpan={9} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>{t('logistics.admin.quotes.empty')}</td></tr>
             )}
           </tbody>
         </table>
@@ -98,37 +102,37 @@ export default function QuotesManagement() {
       {selected && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999 }}>
           <div style={{ background:'var(--card-bg,#fff)', borderRadius:'1rem', padding:'1.5rem', width:480, maxWidth:'90vw' }}>
-            <h3 style={{ fontWeight:700, marginBottom:'.5rem' }}>Review Quote</h3>
+            <h3 style={{ fontWeight:700, marginBottom:'.5rem' }}>{t('logistics.admin.quotes.reviewTitle')}</h3>
             <div style={{ fontSize:'.82rem', color:'#64748b', marginBottom:'1rem' }}>
-              <strong>Supplier:</strong> {selected.supplier_name}<br/>
-              <strong>Unit Price:</strong> ${parseFloat(selected.unit_price_usd||0).toFixed(2)}<br/>
-              <strong>MOQ:</strong> {selected.moq?.toLocaleString()}<br/>
-              <strong>Lead Time:</strong> {selected.lead_time_days} days<br/>
-              {selected.freight_included && <><strong>Freight Included:</strong> Yes<br/></>}
-              {selected.notes && <><strong>Supplier Notes:</strong> {selected.notes}</>}
+              <strong>{t('logistics.admin.quotes.supplierLabel')}:</strong> {selected.supplier_name}<br/>
+              <strong>{t('logistics.admin.quotes.unitPriceLabel')}:</strong> ${parseFloat(selected.unit_price_usd||0).toFixed(2)}<br/>
+              <strong>{t('logistics.admin.quotes.moqLabel')}:</strong> {selected.moq?.toLocaleString(i18n.language)}<br/>
+              <strong>{t('logistics.admin.quotes.leadTime')}:</strong> {selected.lead_time_days} {t('logistics.admin.quotes.days')}<br/>
+              {selected.freight_included && <><strong>{t('logistics.admin.quotes.freightIncluded')}:</strong> {t('logistics.admin.quotes.yes')}<br/></>}
+              {selected.notes && <><strong>{t('logistics.admin.quotes.supplierNotes')}:</strong> {selected.notes}</>}
             </div>
             {selected.sample_price_usd && (
               <div style={{ background:'#f0fdf4', borderRadius:'.5rem', padding:'.75rem', marginBottom:'1rem', fontSize:'.82rem' }}>
-                Sample available: <strong>${parseFloat(selected.sample_price_usd).toFixed(2)}</strong>
-                {selected.sample_lead_days && ` (${selected.sample_lead_days}d lead)`}
+                {t('logistics.admin.quotes.sampleAvailable')}: <strong>${parseFloat(selected.sample_price_usd).toFixed(2)}</strong>
+                {selected.sample_lead_days && ` (${selected.sample_lead_days}${t('logistics.admin.quotes.dayAbbrev')} ${t('logistics.admin.quotes.leadShort')})`}
               </div>
             )}
             <div className="lx-form-group">
-              <label className="lx-label">Decision</label>
+              <label className="lx-label">{t('logistics.admin.quotes.decision')}</label>
               <select className="lx-select" value={form.action} onChange={e => setForm(f=>({...f,action:e.target.value}))}>
-                <option value="">— Choose —</option>
-                <option value="accepted">Accept</option>
-                <option value="rejected">Reject</option>
+                <option value="">— {t('logistics.admin.quotes.choose')} —</option>
+                <option value="accepted">{t('logistics.admin.quotes.accept')}</option>
+                <option value="rejected">{t('logistics.admin.quotes.reject')}</option>
               </select>
             </div>
             <div className="lx-form-group">
-              <label className="lx-label">Admin Notes (shared with buyer)</label>
+              <label className="lx-label">{t('logistics.admin.quotes.adminNotes')}</label>
               <textarea className="lx-textarea" value={form.admin_notes}
                 onChange={e => setForm(f=>({...f,admin_notes:e.target.value}))} />
             </div>
             <div style={{ display:'flex', gap:'.75rem' }}>
-              <button className="lx-btn-primary" onClick={review}>Submit Decision</button>
-              <button className="lx-btn-secondary" onClick={() => setSelected(null)}>Cancel</button>
+              <button className="lx-btn-primary" onClick={review}>{t('logistics.admin.quotes.submitDecision')}</button>
+              <button className="lx-btn-secondary" onClick={() => setSelected(null)}>{t('logistics.admin.quotes.cancel')}</button>
             </div>
           </div>
         </div>

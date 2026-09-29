@@ -38,8 +38,9 @@ test('delivers a claimed message notification and marks it sent', async () => {
         body: 'I need help.',
         actionUrl: '/messages/conversation-1',
       },
+      lease_token: 'lease-1',
     }] })
-    .mockResolvedValueOnce({ rows: [] });
+    .mockResolvedValueOnce({ rows: [], rowCount: 1 });
   sendNotification.mockResolvedValueOnce({ success: true, notificationId: 42 });
 
   await expect(processMessageNotificationOutbox()).resolves.toEqual({
@@ -66,8 +67,9 @@ test('retries failed deliveries and eventually records a terminal failure', asyn
       recipient_id: 'customer-1',
       attempts: 8,
       payload: { senderName: 'Helper One', body: 'Update' },
+      lease_token: 'lease-2',
     }] })
-    .mockResolvedValueOnce({ rows: [] });
+    .mockResolvedValueOnce({ rows: [], rowCount: 1 });
   sendNotification.mockResolvedValueOnce({ success: false, error: 'provider unavailable' });
 
   await expect(processMessageNotificationOutbox()).resolves.toEqual({
@@ -77,6 +79,28 @@ test('retries failed deliveries and eventually records a terminal failure', asyn
     failed: 1,
   });
   expect(db.query.mock.calls[1][1].slice(0, 2)).toEqual(['failed', 'provider unavailable']);
+});
+
+test('does not count a stale worker completion after its lease is replaced', async () => {
+  db.query
+    .mockResolvedValueOnce({ rows: [{
+      id: 'outbox-stale',
+      message_id: 'message-stale',
+      conversation_id: 'conversation-stale',
+      recipient_id: 'customer-stale',
+      attempts: 2,
+      lease_token: 'lease-stale',
+      payload: { senderName: 'Helper', body: 'Update' },
+    }] })
+    .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+  sendNotification.mockResolvedValueOnce({ success: true });
+
+  await expect(processMessageNotificationOutbox()).resolves.toEqual({
+    claimed: 1,
+    sent: 0,
+    retried: 0,
+    failed: 0,
+  });
 });
 
 test('runs under the distributed worker lock', async () => {

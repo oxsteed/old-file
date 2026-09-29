@@ -156,6 +156,15 @@ describe('GET /api/qr-payments/pay/:code', () => {
 });
 
 describe('POST /api/qr-payments/pay/:code/checkout', () => {
+  test('requires an idempotency key before creating a checkout session', async () => {
+    const res = await request(buildApp())
+      .post('/api/qr-payments/pay/AbCdEfGhIjKl/checkout')
+      .send({ payer_email: 'payer@example.com' });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('idempotency_key_required');
+    expect(mockStripe.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+
   test('open-amount code requires an amount in the body', async () => {
     mockQuery.mockResolvedValueOnce({
       rows: [{ ...CODE_ROW, amount_cents: null }],
@@ -163,6 +172,7 @@ describe('POST /api/qr-payments/pay/:code/checkout', () => {
     });
     const res = await request(buildApp())
       .post('/api/qr-payments/pay/AbCdEfGhIjKl/checkout')
+      .set('Idempotency-Key', 'qr-invalid-amount-1')
       .send({});
     expect(res.status).toBe(400);
     expect(res.body.code).toBe('invalid_amount');
@@ -172,6 +182,7 @@ describe('POST /api/qr-payments/pay/:code/checkout', () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ ...CODE_ROW, amount_cents: null }], rowCount: 1 });
     const low = await request(buildApp())
       .post('/api/qr-payments/pay/AbCdEfGhIjKl/checkout')
+      .set('Idempotency-Key', 'qr-invalid-amount-2')
       .send({ amount_cents: 50 });
     expect(low.status).toBe(400);
     expect(low.body.code).toBe('invalid_amount');
@@ -179,6 +190,7 @@ describe('POST /api/qr-payments/pay/:code/checkout', () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ ...CODE_ROW, amount_cents: null }], rowCount: 1 });
     const high = await request(buildApp())
       .post('/api/qr-payments/pay/AbCdEfGhIjKl/checkout')
+      .set('Idempotency-Key', 'qr-invalid-amount-3')
       .send({ amount_cents: 10_000_001 });
     expect(high.status).toBe(400);
     expect(high.body.code).toBe('invalid_amount');
@@ -188,6 +200,7 @@ describe('POST /api/qr-payments/pay/:code/checkout', () => {
     mockQuery.mockResolvedValueOnce({ rows: [CODE_ROW], rowCount: 1 });
     const res = await request(buildApp())
       .post('/api/qr-payments/pay/AbCdEfGhIjKl/checkout')
+      .set('Idempotency-Key', 'qr-invalid-email-1')
       .send({ payer_email: 'not-an-email' });
     expect(res.status).toBe(400);
     expect(res.body.code).toBe('invalid_email');
@@ -197,9 +210,11 @@ describe('POST /api/qr-payments/pay/:code/checkout', () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [CODE_ROW], rowCount: 1 }) // code lookup
       .mockResolvedValueOnce({ rows: [CONNECT_ROW], rowCount: 1 }) // connect lookup
-      .mockResolvedValueOnce({ rows: [{ id: 'pay-1' }], rowCount: 1 }); // qr_payments insert
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // prior request lookup
+      .mockResolvedValueOnce({ rows: [{ stripe_checkout_session_id: 'cs_test_1', checkout_url: 'https://checkout.stripe.com/pay/cs_test_1', status: 'pending' }], rowCount: 1 }); // qr_payments insert
     const res = await request(buildApp())
       .post('/api/qr-payments/pay/AbCdEfGhIjKl/checkout')
+      .set('Idempotency-Key', 'qr-test-request-1')
       .send({ payer_email: 'payer@example.com' });
     expect(res.status).toBe(200);
     expect(res.body.url).toBe('https://checkout.stripe.com/pay/cs_test_1');
@@ -213,11 +228,56 @@ describe('POST /api/qr-payments/pay/:code/checkout', () => {
     expect(params.payment_intent_data.application_fee_amount).toBeGreaterThan(0);
     expect(params.success_url).toContain('/pay/AbCdEfGhIjKl/success');
 
-    const insertCall = mockQuery.mock.calls[2][0];
+    const insertCall = mockQuery.mock.calls[3][0];
     expect(insertCall).toMatch(/INSERT INTO qr_payments/);
-    expect(mockQuery.mock.calls[2][1]).toEqual(
+    expect(mockQuery.mock.calls[3][1]).toEqual(
       expect.arrayContaining(['qr-code-1', 'cs_test_1', 2500, 500, 'payer@example.com'])
     );
+  });
+
+  test('replays a previously recorded checkout without calling Stripe again', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [CODE_ROW], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [CONNECT_ROW], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{
+        stripe_checkout_session_id: 'cs_existing',
+        checkout_url: 'https://checkout.stripe.com/pay/cs_existing',
+        status: 'pending',
+      }], rowCount: 1 });
+
+    const res = await request(buildApp())
+      .post('/api/qr-payments/pay/AbCdEfGhIjKl/checkout')
+      .set('Idempotency-Key', 'qr-replay-request-1')
+      .send({ payer_email: 'payer@example.com' });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(expect.objectContaining({
+      url: 'https://checkout.stripe.com/pay/cs_existing',
+      session_id: 'cs_existing',
+      idempotent: true,
+    }));
+    expect(mockStripe.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+
+  test('rejects reuse of a request key for different payment details', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [CODE_ROW], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [CONNECT_ROW], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{
+        stripe_checkout_session_id: 'cs_existing',
+        checkout_url: 'https://checkout.stripe.com/pay/cs_existing',
+        status: 'pending',
+        request_fingerprint: 'different-request-details',
+      }], rowCount: 1 });
+
+    const res = await request(buildApp())
+      .post('/api/qr-payments/pay/AbCdEfGhIjKl/checkout')
+      .set('Idempotency-Key', 'qr-conflict-request-1')
+      .send({ payer_email: 'different@example.com' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('idempotency_key_conflict');
+    expect(mockStripe.checkout.sessions.create).not.toHaveBeenCalled();
   });
 
   test('409 when the payee disconnected Stripe after code creation', async () => {
@@ -226,6 +286,7 @@ describe('POST /api/qr-payments/pay/:code/checkout', () => {
       .mockResolvedValueOnce({ rows: [], rowCount: 0 });
     const res = await request(buildApp())
       .post('/api/qr-payments/pay/AbCdEfGhIjKl/checkout')
+      .set('Idempotency-Key', 'qr-connect-required-1')
       .send({});
     expect(res.status).toBe(409);
     expect(res.body.code).toBe('connect_required');

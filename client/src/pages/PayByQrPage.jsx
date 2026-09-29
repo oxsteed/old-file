@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -40,6 +40,7 @@ function PayForm({ info }) {
   const [email, setEmail] = useState('');
   const [formError, setFormError] = useState('');
   const [starting, setStarting] = useState(false);
+  const checkoutRequestRef = useRef(null);
 
   const amountCents = isFixed ? info.amount_cents : (() => {
     const parsed = Number.parseFloat(amountDollars);
@@ -68,7 +69,16 @@ function PayForm({ info }) {
       const payload = {};
       if (!isFixed && cents != null) payload.amount_cents = cents;
       if (trimmedEmail) payload.payer_email = trimmedEmail;
-      const { data } = await api.post(`/qr-payments/pay/${info.code}/checkout`, payload);
+      const fingerprint = `${info.code}|${cents}|${trimmedEmail.toLowerCase()}`;
+      if (checkoutRequestRef.current?.fingerprint !== fingerprint) {
+        const requestId = typeof crypto?.randomUUID === 'function'
+          ? crypto.randomUUID()
+          : `qr-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+        checkoutRequestRef.current = { fingerprint, requestId };
+      }
+      const { data } = await api.post(`/qr-payments/pay/${info.code}/checkout`, payload, {
+        headers: { 'Idempotency-Key': checkoutRequestRef.current.requestId },
+      });
       const url = data?.url;
       if (!url) throw new Error('missing checkout url');
       window.location.href = url;

@@ -37,9 +37,10 @@ exports.listConversations = async (req, res) => {
   try {
     const adminId  = req.user.id;
     const isSuper  = req.user.role === 'super_admin';
-    const { limit = 50, offset = 0, q = '' } = req.query;
-    const limitN  = Math.min(Math.max(1, parseInt(limit)  || 50), 200);
-    const offsetN = Math.max(0, parseInt(offset) || 0);
+    const { limit = 50, offset = 0 } = req.query;
+    const limitN  = Math.min(Math.max(1, parseInt(limit, 10)  || 50), 200);
+    const offsetN = Math.min(1_000_000, Math.max(0, parseInt(offset, 10) || 0));
+    const q = String(req.query.q || '').trim().slice(0, 120);
 
     const rows = await db.query(
       `SELECT
@@ -111,8 +112,8 @@ exports.getThread = async (req, res) => {
     const adminId  = req.user.id;
     const { userId } = req.params;
     const { limit = 50, offset = 0 } = req.query;
-    const limitN  = Math.min(Math.max(1, parseInt(limit) || 50), 200);
-    const offsetN = Math.max(0, parseInt(offset) || 0);
+    const limitN  = Math.min(Math.max(1, parseInt(limit, 10) || 50), 200);
+    const offsetN = Math.min(1_000_000, Math.max(0, parseInt(offset, 10) || 0));
 
     // Verify target user (must not be soft-deleted — reinstate first if scheduled for deletion)
     const { rows: targetRows } = await db.query(
@@ -272,6 +273,15 @@ exports.send = async (req, res) => {
           `UPDATE conversations SET last_message_at = NOW(), updated_at = NOW() WHERE id = $1`,
           [conversationId]
         );
+        await enqueueMessageNotification({
+          dbClient: client,
+          messageId: msgRow.id,
+          conversationId,
+          recipientId: userId,
+          senderName: 'OxSteed Admin',
+          body: content,
+          actionUrl: `/messages/${conversationId}`,
+        });
       }
 
       await client.query('COMMIT');
@@ -296,23 +306,6 @@ exports.send = async (req, res) => {
     };
 
     if (!replayed) {
-      try {
-        await enqueueMessageNotification({
-          messageId: msgRow.id,
-          conversationId,
-          recipientId: userId,
-          senderName: 'OxSteed Admin',
-          body: content,
-          actionUrl: `/messages/${conversationId}`,
-        });
-      } catch (notificationError) {
-        logger.warn('Admin message notification enqueue failed', {
-          conversationId,
-          messageId: msgRow.id,
-          error: notificationError.message,
-        });
-      }
-
       // Standard inbox event (user's MessagesPage picks this up)
       socketService.broadcastToUser(userId, 'message:new', {
         conversationId,

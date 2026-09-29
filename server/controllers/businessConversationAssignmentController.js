@@ -26,31 +26,45 @@ function broadcast(businessId, event, payload) {
   } catch { /* non-fatal */ }
 }
 
-async function fetchConversation(businessId, conversationId) {
-  const { rows } = await pool.query(
+async function fetchConversation(businessId, conversationId, db = pool, lock = false) {
+  const { rows } = await db.query(
     `SELECT id, business_id, assigned_to_user_id, assigned_at, status
        FROM business_conversations
-      WHERE id = $1 AND business_id = $2`,
+      WHERE id = $1 AND business_id = $2${lock ? ' FOR UPDATE' : ''}`,
     [conversationId, businessId]
   );
   return rows[0] || null;
 }
 
 exports.claimConversation = async function claimConversation(req, res, next) {
+  let client;
   try {
+    client = await pool.connect();
+    await client.query('BEGIN');
     const businessId = req.business && req.business.id;
     const { conversationId } = req.params;
     const userId = req.user.id;
 
-    const conv = await fetchConversation(businessId, conversationId);
-    if (!conv) return sendError(res, 404, 'Conversation not found', 'not_found');
+    const { rows } = await client.query(
+      `SELECT id, business_id, assigned_to_user_id, assigned_at, status
+         FROM business_conversations
+        WHERE id = $1 AND business_id = $2
+        FOR UPDATE`,
+      [conversationId, businessId]
+    );
+    const conv = rows[0] || null;
+    if (!conv) {
+      await client.query('ROLLBACK');
+      return sendError(res, 404, 'Conversation not found', 'not_found');
+    }
     if (conv.assigned_to_user_id && conv.assigned_to_user_id !== userId) {
+      await client.query('ROLLBACK');
       return sendError(res, 409, 'Conversation already claimed by another team member.', 'already_claimed', {
         assigned_to_user_id: conv.assigned_to_user_id,
       });
     }
 
-    await pool.query(
+    await client.query(
       `UPDATE business_conversations
           SET assigned_to_user_id = $1,
               assigned_at = NOW(),
@@ -65,7 +79,10 @@ exports.claimConversation = async function claimConversation(req, res, next) {
       target_id: conversationId,
       before_state: { assigned_to_user_id: conv.assigned_to_user_id },
       after_state:  { assigned_to_user_id: userId },
+      client,
+      throwOnError: true,
     });
+    await client.query('COMMIT');
 
     broadcast(businessId, 'business_inbox:claim_changed', {
       conversation_id: conversationId,
@@ -74,26 +91,41 @@ exports.claimConversation = async function claimConversation(req, res, next) {
     });
 
     return sendSuccess(res, { conversation_id: conversationId, assigned_to_user_id: userId });
-  } catch (err) { next(err); }
+  } catch (err) {
+    await client?.query('ROLLBACK').catch(() => {});
+    next(err);
+  } finally {
+    client?.release();
+  }
 };
 
 exports.releaseConversation = async function releaseConversation(req, res, next) {
+  let client;
   try {
+    client = await pool.connect();
+    await client.query('BEGIN');
     const businessId = req.business && req.business.id;
     const { conversationId } = req.params;
     const userId = req.user.id;
     const role = req.businessRole;
 
-    const conv = await fetchConversation(businessId, conversationId);
-    if (!conv) return sendError(res, 404, 'Conversation not found', 'not_found');
-    if (!conv.assigned_to_user_id) return sendSuccess(res, { conversation_id: conversationId, assigned_to_user_id: null });
+    const conv = await fetchConversation(businessId, conversationId, client, true);
+    if (!conv) {
+      await client.query('ROLLBACK');
+      return sendError(res, 404, 'Conversation not found', 'not_found');
+    }
+    if (!conv.assigned_to_user_id) {
+      await client.query('COMMIT');
+      return sendSuccess(res, { conversation_id: conversationId, assigned_to_user_id: null });
+    }
 
     // Only the current claimer OR an owner/manager can release.
     if (conv.assigned_to_user_id !== userId && role !== 'owner' && role !== 'manager') {
+      await client.query('ROLLBACK');
       return sendError(res, 403, 'Only the claimer or a manager can release this conversation.', 'forbidden');
     }
 
-    await pool.query(
+    await client.query(
       `UPDATE business_conversations
           SET assigned_to_user_id = NULL,
               assigned_at = NULL,
@@ -108,7 +140,10 @@ exports.releaseConversation = async function releaseConversation(req, res, next)
       target_id: conversationId,
       before_state: { assigned_to_user_id: conv.assigned_to_user_id },
       after_state:  { assigned_to_user_id: null },
+      client,
+      throwOnError: true,
     });
+    await client.query('COMMIT');
 
     broadcast(businessId, 'business_inbox:claim_changed', {
       conversation_id: conversationId,
@@ -117,23 +152,35 @@ exports.releaseConversation = async function releaseConversation(req, res, next)
     });
 
     return sendSuccess(res, { conversation_id: conversationId, assigned_to_user_id: null });
-  } catch (err) { next(err); }
+  } catch (err) {
+    await client?.query('ROLLBACK').catch(() => {});
+    next(err);
+  } finally {
+    client?.release();
+  }
 };
 
 exports.reassignConversation = async function reassignConversation(req, res, next) {
+  let client;
   try {
+    client = await pool.connect();
+    await client.query('BEGIN');
     const businessId = req.business && req.business.id;
     const { conversationId } = req.params;
     const role = req.businessRole;
     if (role !== 'owner' && role !== 'manager') {
+      await client.query('ROLLBACK');
       return sendError(res, 403, 'Owner or manager required.', 'forbidden');
     }
 
     const newAssignee = req.body && req.body.user_id;
-    if (!newAssignee) return sendError(res, 400, 'user_id is required', 'validation_failed');
+    if (!newAssignee) {
+      await client.query('ROLLBACK');
+      return sendError(res, 400, 'user_id is required', 'validation_failed');
+    }
 
     // Sanity: newAssignee must be active team member or the owner.
-    const { rows: ok } = await pool.query(
+    const { rows: ok } = await client.query(
       `SELECT 1
          FROM businesses b
          WHERE b.id = $1
@@ -146,12 +193,18 @@ exports.reassignConversation = async function reassignConversation(req, res, nex
            )`,
       [businessId, newAssignee]
     );
-    if (!ok.length) return sendError(res, 400, 'Assignee is not a team member of this business.', 'invalid_assignee');
+    if (!ok.length) {
+      await client.query('ROLLBACK');
+      return sendError(res, 400, 'Assignee is not a team member of this business.', 'invalid_assignee');
+    }
 
-    const conv = await fetchConversation(businessId, conversationId);
-    if (!conv) return sendError(res, 404, 'Conversation not found', 'not_found');
+    const conv = await fetchConversation(businessId, conversationId, client, true);
+    if (!conv) {
+      await client.query('ROLLBACK');
+      return sendError(res, 404, 'Conversation not found', 'not_found');
+    }
 
-    await pool.query(
+    await client.query(
       `UPDATE business_conversations
           SET assigned_to_user_id = $1,
               assigned_at = NOW(),
@@ -166,7 +219,10 @@ exports.reassignConversation = async function reassignConversation(req, res, nex
       target_id: conversationId,
       before_state: { assigned_to_user_id: conv.assigned_to_user_id },
       after_state:  { assigned_to_user_id: newAssignee },
+      client,
+      throwOnError: true,
     });
+    await client.query('COMMIT');
 
     broadcast(businessId, 'business_inbox:claim_changed', {
       conversation_id: conversationId,
@@ -175,7 +231,12 @@ exports.reassignConversation = async function reassignConversation(req, res, nex
     });
 
     return sendSuccess(res, { conversation_id: conversationId, assigned_to_user_id: newAssignee });
-  } catch (err) { next(err); }
+  } catch (err) {
+    await client?.query('ROLLBACK').catch(() => {});
+    next(err);
+  } finally {
+    client?.release();
+  }
 };
 
 exports.listAssignments = async function listAssignments(req, res, next) {

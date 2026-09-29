@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
+import { createStableIdempotencyKeyStore } from '../../lib/idempotency';
 
 export default function OrderDetailModal({ order, onClose, onRefresh }) {
   const [activeTab, setActiveTab] = useState('details');
@@ -10,6 +11,7 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
   const [trackingNumber, setTrackingNumber] = useState('');
   const [refundReason, setRefundReason] = useState('');
   const [refundAmount, setRefundAmount] = useState(order.totalCents);
+  const refundIdempotencyKeysRef = useRef(createStableIdempotencyKeyStore());
 
   // Fetch full order details
   const { data: fullOrder, isLoading } = useQuery({
@@ -40,13 +42,23 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
 
   // Refund mutation
   const refundMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async ({ reason, amountCents }) => {
+      const keyPayload = {
+        orderId: order.id,
+        reason,
+        amountCents,
+      };
+      const idempotencyKey = refundIdempotencyKeysRef.current.get('marketplace-refund', keyPayload);
       await api.post(`/admin/orders/${order.id}/refund`, {
-        reason: refundReason,
-        refundAmount,
+        reason,
+        refundAmount: amountCents,
+      }, {
+        headers: { 'Idempotency-Key': idempotencyKey },
       });
+      return { keyPayload };
     },
-    onSuccess: () => {
+    onSuccess: (_result, variables) => {
+      refundIdempotencyKeysRef.current.clear('marketplace-refund', variables.keyPayload);
       setShowRefund(false);
       setRefundReason('');
       toast.success('Refund processed');
@@ -320,7 +332,7 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
                     </div>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => refundMutation.mutate()}
+                        onClick={() => refundMutation.mutate({ reason: refundReason, amountCents: refundAmount })}
                         disabled={!refundReason || refundMutation.isPending}
                         className="flex-1 rounded bg-orange-600 px-4 py-2 text-white hover:bg-orange-700 disabled:opacity-50 font-medium"
                       >

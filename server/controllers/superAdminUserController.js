@@ -162,6 +162,13 @@ function normalizeLogisticsRole(raw, fallback = null) {
 
 async function regionAccessOrFail(req, targetUser) {
   if (req.isSuper) return null;
+  if (req.region_scope_unavailable) {
+    return {
+      status: 503,
+      error: 'Region authorization is temporarily unavailable. Please retry.',
+      code: 'region_authorization_unavailable',
+    };
+  }
   const regions = req.assigned_regions;
   if (regions === null || regions === undefined) return null;
   if (!Array.isArray(regions) || regions.length === 0) return null;
@@ -584,8 +591,8 @@ exports.editUserFull = async (req, res) => {
 exports.getUsersInRegion = async (req, res) => {
   try {
     const limitN  = Math.min(Math.max(1, parseInt(req.query.limit, 10)  || 50), 200);
-    const offsetN = Math.max(0, parseInt(req.query.offset, 10) || 0);
-    const search  = (req.query.search || '').toString().trim();
+    const offsetN = Math.min(1_000_000, Math.max(0, parseInt(req.query.offset, 10) || 0));
+    const search  = (req.query.search || '').toString().trim().slice(0, 120);
 
     const conditions = [];
     const values = [];

@@ -730,6 +730,7 @@ async function logout(req, res) {
           }
         }
       } catch (err) {
+        if (err?.code === 'token_revocation_unavailable') throw err;
         // Ignore invalid or expired access tokens here; refresh-token logout should still work.
       }
     }
@@ -1192,16 +1193,40 @@ async function resetPassword(req, res) {
     if (pwErrs) return res.status(400).json({ error: 'validation_failed', fields: pwErrs });
 
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    const { rows: resetUsers } = await pool.query(
+      `SELECT id FROM users
+       WHERE reset_token = $1
+         AND reset_token_expires > NOW()`,
+      [token],
+    );
+    if (resetUsers.length === 0) {
+      return res.status(400).json({ error: 'Reset link is invalid or expired.' });
+    }
+
+    try {
+      await tokenRevocationService.revokeAllUserTokens(resetUsers[0].id);
+    } catch (err) {
+      if (err?.code === 'token_revocation_unavailable') {
+        return res.status(503).json({
+          error: 'Password reset is temporarily unavailable. Please retry.',
+          code: 'token_revocation_unavailable',
+          retryable: true,
+        });
+      }
+      throw err;
+    }
+
     const { rows } = await pool.query(
       `UPDATE users
        SET password_hash = $1,
            reset_token = NULL,
            reset_token_expires = NULL,
            updated_at = NOW()
-       WHERE reset_token = $2
+       WHERE id = $3
+         AND reset_token = $2
          AND reset_token_expires > NOW()
        RETURNING id`,
-      [passwordHash, token]
+      [passwordHash, token, resetUsers[0].id]
     );
 
     if (rows.length === 0) {
@@ -1490,6 +1515,22 @@ async function changePassword(req, res) {
     const valid = await bcrypt.compare(currentPassword, rows[0].password_hash);
     if (!valid) return res.status(401).json({ error: 'Current password is incorrect' });
     const newHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+
+    // Rotate credentials only after the revocation store confirms it can
+    // invalidate existing tokens. Otherwise a successful password change can
+    // leave an old bearer token active until its normal expiry.
+    try {
+      await tokenRevocationService.revokeAllUserTokens(req.user.id);
+    } catch (err) {
+      if (err?.code === 'token_revocation_unavailable') {
+        return res.status(503).json({
+          error: 'Password change is temporarily unavailable. Please retry.',
+          code: 'token_revocation_unavailable',
+          retryable: true,
+        });
+      }
+      throw err;
+    }
     await pool.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [newHash, req.user.id]);
 
     // FIX #10 & #11: Audit log password change

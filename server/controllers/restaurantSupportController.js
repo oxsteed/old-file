@@ -3,7 +3,7 @@
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
-const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
+const { processExternalRefund } = require('../services/externalRefundService');
 
 const ISSUE_TYPES = new Set([
   'missing_item',
@@ -712,7 +712,7 @@ exports.acceptResolution = async (req, res, next) => {
   try {
     const caseId = parsePositiveInt(req.params.caseId);
     const { rows: [caseForPayment] } = await pool.query(`
-      SELECT rsc.*, fo.total_cents, fo.payment_status, fo.stripe_payment_intent_id,
+      SELECT rsc.*, fo.total_cents, fo.currency_code, fo.payment_status, fo.stripe_payment_intent_id,
              fr.stripe_account_id
       FROM restaurant_support_cases rsc
       LEFT JOIN food_orders fo ON fo.id = rsc.order_id
@@ -733,7 +733,6 @@ exports.acceptResolution = async (req, res, next) => {
       if (caseForPayment.refund_status !== 'approved') {
         throw new AppError('Refund approval is still pending', 409, 'refund_not_approved');
       }
-      if (!stripe) throw new AppError('Refund processing is not configured', 503, 'stripe_not_configured');
       if (caseForPayment.payment_status !== 'paid' || !caseForPayment.stripe_payment_intent_id) {
         throw new AppError('The order payment is not refundable', 409, 'payment_not_refundable');
       }
@@ -746,20 +745,32 @@ exports.acceptResolution = async (req, res, next) => {
         throw new AppError('Refund amount is invalid', 400, 'invalid_refund_amount');
       }
       try {
-        const refund = await stripe.refunds.create({
-          payment_intent: caseForPayment.stripe_payment_intent_id,
-          ...(refundAmountCents === originalCents ? {} : { amount: refundAmountCents }),
-        }, {
-          idempotencyKey: `restaurant-support-refund-${caseId}-${refundAmountCents}`,
-          ...(caseForPayment.stripe_account_id ? { stripeAccount: caseForPayment.stripe_account_id } : {}),
+        const refundResult = await processExternalRefund({
+          rail: 'restaurant_support',
+          referenceId: caseId,
+          paymentIntentId: caseForPayment.stripe_payment_intent_id,
+          stripeAccountId: caseForPayment.stripe_account_id,
+          amountCents: refundAmountCents,
+          currency: caseForPayment.currency_code || 'USD',
+          reason: `Restaurant support case ${caseId}: ${caseForPayment.final_resolution}`,
+          actorUserId: req.user.id,
+          requestId: `restaurant-support-refund-${caseId}-${refundAmountCents}`,
+          metadata: { order_id: caseForPayment.order_id, final_resolution: caseForPayment.final_resolution },
         });
-        processorRefundId = refund.id;
-      } catch (stripeError) {
+        if (refundResult.attempt.status !== 'succeeded') {
+          return res.status(202).json({
+            message: 'Refund accepted for payment-provider reconciliation. The resolution remains pending.',
+            refundStatus: refundResult.attempt.status,
+            refundAttemptId: refundResult.attempt.id,
+          });
+        }
+        processorRefundId = refundResult.attempt.provider_refund_id;
+      } catch (refundError) {
         logger.error('Restaurant support refund failed at payment processor', {
           caseId,
-          error: stripeError.message,
+          error: refundError.message,
         });
-        throw new AppError('Refund failed with payment processor. The resolution was not accepted.', 502, 'stripe_error');
+        throw new AppError(refundError.message || 'Refund failed with payment processor. The resolution was not accepted.', refundError.status || 502, refundError.code || 'external_refund_error');
       }
     }
 

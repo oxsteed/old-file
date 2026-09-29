@@ -1653,7 +1653,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                       if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) sendMessage(event);
                     }}
                   />
-                  <button type="submit" disabled={!canReply || busy || channelNotReady || (!reply.trim() && !attachment)} className="self-end rounded-2xl bg-orange-600 p-4 text-white hover:bg-orange-500 disabled:opacity-40"><Send size={18} /></button>
+                  <button type="submit" aria-label={t('common.send', { defaultValue: 'Send' })} disabled={!canReply || busy || channelNotReady || (!reply.trim() && !attachment)} className="self-end rounded-2xl bg-orange-600 p-4 text-white hover:bg-orange-500 disabled:opacity-40"><Send size={18} aria-hidden="true" /></button>
                 </div>
               </form>
             </>

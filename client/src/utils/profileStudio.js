@@ -40,8 +40,17 @@ export function buildHelperSectionCompleteness({
   galleryCount = 0,
   // The one availability system (weekly template) is the source of truth.
   hasSchedule,
+  // Keep the pure helper compatible with callers/tests that still provide the
+  // persisted weekly template instead of the derived boolean.
+  availability_json,
 } = {}) {
-  const hoursOpen = !!hasSchedule;
+  const availabilityTemplate = availability_json ?? core.availability_json;
+  const derivedSchedule = availabilityTemplate && typeof availabilityTemplate === 'object'
+    ? Object.values(availabilityTemplate).some((day) => (
+      day && day.closed !== true && day.start && day.end
+    ))
+    : false;
+  const hoursOpen = hasSchedule == null ? derivedSchedule : !!hasSchedule;
 
   return {
     cover: !!coverImageUrl,

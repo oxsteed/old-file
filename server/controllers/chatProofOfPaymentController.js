@@ -21,7 +21,8 @@ const {
   redactPopForLog,
 } = require('../services/chatProofOfPayment');
 const { mirrorLegacyMessage } = require('../services/businessConversationSync');
-const { scheduleConversationMessageNotifications } = require('../services/messageNotificationService');
+const { enqueueConversationMessageNotifications } = require('../services/messageNotificationService');
+const { withTransaction } = require('../utils/transaction');
 
 function bad(res, status, error, code) {
   return res.status(status).json({ error, code: code || 'error' });
@@ -40,40 +41,47 @@ function getClientRequestId(req) {
 }
 
 async function postConversationMessage({ conversationId, senderId, content, senderName, businessId = null, clientMessageId, recipientIds = null }) {
-  const { rows } = await pool.query(
+  const { messageRow, replayed } = await withTransaction(pool, async (client) => {
+    let messageRow;
+    let replayed = false;
+    const { rows } = await client.query(
     `INSERT INTO messages (conversation_id, sender_id, content, message_type, client_message_id)
      VALUES ($1, $2, $3, 'text', $4)
      ON CONFLICT (conversation_id, client_message_id)
      WHERE client_message_id IS NOT NULL DO NOTHING
      RETURNING *`,
     [conversationId, senderId, content, clientMessageId || null],
-  );
-  let messageRow = rows[0];
-  const replayed = !messageRow && Boolean(clientMessageId);
-  if (!messageRow && clientMessageId) {
-    const replay = await pool.query(
+    );
+    messageRow = rows[0];
+    replayed = !messageRow && Boolean(clientMessageId);
+    if (!messageRow && clientMessageId) {
+      const replay = await client.query(
       'SELECT * FROM messages WHERE conversation_id = $1 AND client_message_id = $2',
       [conversationId, clientMessageId],
-    );
-    messageRow = replay.rows[0];
-  }
-  if (!messageRow) throw new Error('Failed to create proof-of-payment chat message');
-  if (replayed) return { ...messageRow, sender_name: senderName };
-  await pool.query(
+      );
+      messageRow = replay.rows[0];
+    }
+    if (!messageRow) throw new Error('Failed to create proof-of-payment chat message');
+    if (!replayed) {
+      await client.query(
     'UPDATE conversations SET last_message_at = NOW(), updated_at = NOW() WHERE id = $1',
     [conversationId],
-  );
+      );
+      await enqueueConversationMessageNotifications({
+        dbClient: client,
+        conversationId,
+        messageId: messageRow.id,
+        senderId,
+        senderName,
+        body: content,
+        actionUrl: `/messages/${conversationId}`,
+        recipientIds,
+      });
+    }
+    return { messageRow, replayed };
+  }, 'chat_proof_of_payment_message');
+  if (replayed) return { ...messageRow, sender_name: senderName };
   const message = { ...messageRow, sender_name: senderName };
-  scheduleConversationMessageNotifications({
-    conversationId,
-    messageId: messageRow.id,
-    senderId,
-    senderName,
-    body: content,
-    actionUrl: `/messages/${conversationId}`,
-    recipientIds,
-    bestEffort: true,
-  });
   socketService.broadcastToConversation(conversationId, 'message:new', { conversationId, message });
   socketService.broadcastToConversation(conversationId, 'profile_chat:new_message', {
     conversationId,

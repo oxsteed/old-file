@@ -26,13 +26,14 @@ const supportQualityController = require('../controllers/supportQualityControlle
 const supportFollowUpReminderController = require('../controllers/supportFollowUpReminderController');
 const supportEmployerService = require('../services/supportEmployerService');
 const db = require('../db');
-const { authenticatedLimiter, conversationMessageLimiter } = require('../middleware/rateLimiter');
+const { authenticatedLimiter, conversationMessageLimiter, strictLimiter } = require('../middleware/rateLimiter');
 const { sendValidationError } = require('../utils/apiError');
 const publicSupport = require('../controllers/publicSupportController');
 const SupportRoutingService = require('../services/supportRoutingService');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const { TERMINAL_CONVERSATION_STATUS_SQL } = require('../services/supportConversationTerminal');
+const { columnExists } = require('../utils/schemaProbe');
 const DAY_NAMES = new Set(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']);
 
 function parseBoolean(value, fallback = false) {
@@ -1867,6 +1868,10 @@ router.post('/settings/:section', async (req, res, next) => {
 router.get('/audit/logs', async (req, res, next) => {
   if (!supportEmployerService.isPlatformAdmin(req.user.role)) return res.status(403).json({ error: 'Access denied' });
   try {
+    const hasTargetKey = await columnExists('admin_audit_log', 'target_key');
+    const targetIdSelect = hasTargetKey
+      ? 'COALESCE(a.target_key, a.target_id::text) AS target_id'
+      : 'a.target_id::text AS target_id';
     const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
     const limit = Math.min(200, Math.max(1, Number.parseInt(req.query.limit, 10) || 50));
     const offset = (page - 1) * limit;
@@ -1884,7 +1889,7 @@ router.get('/audit/logs', async (req, res, next) => {
     const dataValues = [...values, limit, offset];
     const [rowsResult, countResult, statsResult] = await Promise.all([
       db.query(
-        `SELECT a.id, a.admin_id, a.action, a.target_type, a.target_id,
+        `SELECT a.id, a.admin_id, a.action, a.target_type, ${targetIdSelect},
                 COALESCE(a.description, a.notes) AS description,
                 a.ip_address, a.user_agent, a.before_state, a.after_state, a.created_at,
                 COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email, 'System') AS admin_name
@@ -1916,10 +1921,14 @@ router.get('/audit/logs', async (req, res, next) => {
   }
 });
 
-router.get('/audit/export', async (req, res, next) => {
+router.get('/audit/export', strictLimiter, async (req, res, next) => {
   if (!supportEmployerService.isPlatformAdmin(req.user.role)) return res.status(403).json({ error: 'Access denied' });
   try {
-    const limit = Math.min(10_000, Math.max(1, Number.parseInt(req.query.limit, 10) || 10_000));
+    const hasTargetKey = await columnExists('admin_audit_log', 'target_key');
+    const targetIdSelect = hasTargetKey
+      ? 'COALESCE(a.target_key, a.target_id::text) AS target_id'
+      : 'a.target_id::text AS target_id';
+    const limit = Math.min(500, Math.max(1, Number.parseInt(req.query.limit, 10) || 500));
     const values = [limit];
     const conditions = [];
     if (req.query.action) {
@@ -1930,7 +1939,7 @@ router.get('/audit/export', async (req, res, next) => {
     const limitParam = conditions.length + 1;
     const { rows } = await db.query(
       `SELECT a.created_at, COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email, 'System') AS admin_name,
-              a.action, a.target_type, a.target_id, COALESCE(a.description, a.notes) AS description
+              a.action, a.target_type, ${targetIdSelect}, COALESCE(a.description, a.notes) AS description
        FROM admin_audit_log a LEFT JOIN users u ON u.id = a.admin_id
        ${where} ORDER BY a.created_at DESC LIMIT $${limitParam}`,
       values
@@ -1943,7 +1952,13 @@ router.get('/audit/export', async (req, res, next) => {
       ['timestamp', 'actor', 'action', 'resource_type', 'resource_id', 'description'].map(csvCell).join(','),
       ...rows.map((row) => [row.created_at, row.admin_name, row.action, row.target_type, row.target_id, row.description].map(csvCell).join(',')),
     ];
-    return res.type('text/csv').set('Content-Disposition', 'attachment; filename="oxsteed-support-audit.csv"').send(`${lines.join('\n')}\n`);
+    return res
+      .type('text/csv')
+      .set('Cache-Control', 'private, no-store')
+      .set('Pragma', 'no-cache')
+      .set('X-Content-Type-Options', 'nosniff')
+      .set('Content-Disposition', 'attachment; filename="oxsteed-support-audit.csv"')
+      .send(`${lines.join('\n')}\n`);
   } catch (err) {
     next(err);
   }

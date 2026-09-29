@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Check } from 'lucide-react';
 import adminApi              from '../../lib/adminApi';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState       from '../lib/AdminErrorState';
+import { adminDateTime } from '../lib/formatters';
 
 const STATUS_TABS = ['pending','reviewed','escalated','dismissed'];
 
@@ -14,6 +16,7 @@ const REASON_COLORS = {
 };
 
 export default function ReportsList() {
+  const { t } = useTranslation();
   const [tab,     setTab]      = useState('pending');
   const [acting,  setActing]   = useState(null);
   const [message, setMessage]  = useState(null);
@@ -33,12 +36,7 @@ export default function ReportsList() {
   const fetchReports = () => reload();
 
   const handleAction = async (reportId, action) => {
-    const actionLabel = {
-      dismiss: 'Dismiss this report',
-      warn_user: 'Warn the reported user',
-      remove_content: 'Remove the reported content',
-      escalate: 'Escalate to super admin'
-    }[action];
+    const actionLabel = t(`adminReports.action.${action}`, { defaultValue: action });
     if (!window.confirm(`${actionLabel}?`)) return;
 
     setActing(reportId);
@@ -48,12 +46,12 @@ export default function ReportsList() {
         action,
         action_taken: actionLabel
       });
-      setMessage({ type: 'success', text: `Report ${action} successfully.` });
+      setMessage({ type: 'success', text: t('adminReports.actionSuccess', { action: t(`adminReports.actionShort.${action}`, { defaultValue: action }) }) });
       fetchReports();
     } catch (err) {
       setMessage({
         type: 'error',
-        text: err.response?.data?.error || 'Action failed.'
+        text: err.response?.data?.error || t('adminReports.actionFailed')
       });
     } finally {
       setActing(null);
@@ -64,27 +62,27 @@ export default function ReportsList() {
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Content Reports</h1>
+          <h1 className="text-2xl font-bold text-white">{t('adminReports.title')}</h1>
           <p className="text-gray-400 text-sm mt-1">
-            {total} {tab} report{total !== 1 ? 's' : ''}
+            {t('adminReports.count', { count: total, status: t(`adminReports.status.${tab}`, { defaultValue: tab }) })}
           </p>
         </div>
       </div>
 
       {/* Status tabs */}
       <div className="flex gap-2 mb-6">
-        {STATUS_TABS.map(t => (
+        {STATUS_TABS.map(statusKey => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
+            key={statusKey}
+            onClick={() => setTab(statusKey)}
             className={`px-4 py-1.5 rounded-full text-xs font-semibold
               capitalize transition ${
-              tab === t
+              tab === statusKey
                 ? 'bg-orange-500 text-white'
                 : 'bg-gray-800 text-gray-400 hover:text-white'
               }`}
           >
-            {t}
+            {t(`adminReports.status.${statusKey}`, { defaultValue: statusKey })}
           </button>
         ))}
       </div>
@@ -100,18 +98,18 @@ export default function ReportsList() {
       )}
 
       {loading ? (
-        <div className="text-center py-16 text-gray-500">Loading...</div>
+        <div className="text-center py-16 text-gray-500">{t('adminReports.loading')}</div>
       ) : error ? (
         <AdminErrorState
-          title="Failed to load reports"
-          message={error?.response?.data?.error || 'Could not load the reports queue.'}
+          title={t('adminReports.loadFailedTitle')}
+          message={error?.response?.data?.error || t('adminReports.loadFailedMessage')}
           onRetry={reload}
         />
       ) : reports.length === 0 ? (
         <div className="text-center py-16">
           <Check size={40} className="mx-auto mb-3 text-green-400" />
           <p className="text-gray-400 font-medium">
-            No {tab} reports. Queue is clear.
+            {t('adminReports.empty', { status: t(`adminReports.status.${tab}`, { defaultValue: tab }) })}
           </p>
         </div>
       ) : (
@@ -134,16 +132,16 @@ export default function ReportsList() {
                       {report.reason}
                     </span>
                     <span className="text-xs text-gray-500">
-                      {new Date(report.created_at).toLocaleString()}
+                      {adminDateTime(report.created_at)}
                     </span>
                   </div>
                   <p className="text-sm text-gray-300">
-                    {report.description || 'No description provided.'}
+                    {report.description || t('adminReports.noDescription')}
                   </p>
                   <p className="text-xs text-gray-500 mt-2">
-                    Reported by:{' '}
+                    {t('adminReports.reportedBy')}{' '}
                     <span className="text-gray-400">
-                      {report.reporter_name || 'Anonymous'} -{' '}
+                      {report.reporter_name || t('adminReports.anonymous')} -{' '}
                       {report.reporter_email || ''}
                     </span>
                   </p>
@@ -153,13 +151,13 @@ export default function ReportsList() {
                 {tab === 'pending' && (
                   <div className="flex flex-col gap-2 shrink-0">
                     {[
-                      { action: 'dismiss', label: 'Dismiss',
+                      { action: 'dismiss', label: t('adminReports.dismiss'),
                         cls: 'bg-gray-700 text-gray-300 hover:bg-gray-600' },
-                      { action: 'warn_user', label: 'Warn',
+                      { action: 'warn_user', label: t('adminReports.actionShort.warn_user'),
                         cls: 'bg-yellow-900 text-yellow-300 hover:bg-yellow-800' },
-                      { action: 'remove_content', label: 'Remove',
+                      { action: 'remove_content', label: t('adminReports.actionShort.remove_content'),
                         cls: 'bg-red-900 text-red-300 hover:bg-red-800' },
-                      { action: 'escalate', label: 'Escalate',
+                      { action: 'escalate', label: t('adminReports.actionShort.escalate'),
                         cls: 'bg-orange-900 text-orange-300 hover:bg-orange-800' },
                     ].map(({ action, label, cls }) => (
                       <button
@@ -178,13 +176,13 @@ export default function ReportsList() {
                 {/* Reviewed state */}
                 {tab !== 'pending' && report.action_taken && (
                   <div className="shrink-0 text-right">
-                    <p className="text-xs text-gray-500">Action taken</p>
+                    <p className="text-xs text-gray-500">{t('adminReports.actionTaken')}</p>
                     <p className="text-xs text-gray-300 mt-0.5 font-medium">
                       {report.action_taken}
                     </p>
                     {report.reviewed_by_name && (
                       <p className="text-xs text-gray-600 mt-1">
-                        by {report.reviewed_by_name}
+                        {t('adminReports.by')} {report.reviewed_by_name}
                       </p>
                     )}
                   </div>

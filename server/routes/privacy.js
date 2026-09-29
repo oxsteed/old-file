@@ -449,8 +449,21 @@ router.delete('/delete-account', strictLimiter, authenticate, async (req, res) =
       .update(user.email.toLowerCase().trim())
       .digest('hex');
 
-    // Immediately revoke all tokens and disconnect sockets so existing JWTs stop working
-    try { await tokenRevocationService.revokeAllUserTokens(userId); } catch { /* non-fatal */ }
+    // Revoke tokens before anonymizing the account. If the revocation store is
+    // unavailable, stop here: deleting the account while old JWTs remain
+    // usable would create a security and privacy incident.
+    try {
+      await tokenRevocationService.revokeAllUserTokens(userId);
+    } catch (err) {
+      if (err?.code === 'token_revocation_unavailable') {
+        return res.status(503).json({
+          error: 'Account deletion is temporarily unavailable. Please retry.',
+          code: 'token_revocation_unavailable',
+          retryable: true,
+        });
+      }
+      throw err;
+    }
     try { await pool.query(
       `UPDATE sessions SET is_valid = false WHERE ${userIdEq('user_id')}`,
       [String(userId)],

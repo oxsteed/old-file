@@ -38,7 +38,13 @@ async function captureAuthorizedPayment({ paymentId, jobId, amount }) {
   const captured = await stripe.paymentIntents.capture(
     payment.stripe_payment_intent_id,
     { amount_to_capture: Math.round(Number(amount) * 100) },
-    { stripeAccount: payment.stripe_account_id },
+    {
+      stripeAccount: payment.stripe_account_id,
+      // Capture retries must address the same Stripe operation. The payment
+      // row is the durable business identity, so this key remains stable
+      // across HTTP retries and worker restarts.
+      idempotencyKey: `payment-capture:${payment.id}`,
+    },
   );
 
   await withTransaction(pool, async (client) => {
@@ -82,7 +88,10 @@ async function captureAuthorizedPaymentWithClient(client, paymentRow) {
   const captured = await stripe.paymentIntents.capture(
     paymentRow.stripe_payment_intent_id,
     { amount_to_capture: Math.round(Number(paymentRow.amount) * 100) },
-    { stripeAccount: paymentRow.stripe_account_id },
+    {
+      stripeAccount: paymentRow.stripe_account_id,
+      idempotencyKey: `payment-capture:${paymentRow.id}`,
+    },
   );
 
   await client.query(

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import adminApi from '../../lib/adminApi';
 import AdminErrorState from '../lib/AdminErrorState';
+import { adminDate } from '../lib/formatters';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -19,8 +20,7 @@ function Badge({ text, colorClass }) {
 }
 
 function ts(dateStr) {
-  if (!dateStr) return '-';
-  return new Date(dateStr).toLocaleDateString('en-US', {
+  return adminDate(dateStr, {
     month: 'short', day: 'numeric', year: 'numeric',
   });
 }

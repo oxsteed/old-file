@@ -298,8 +298,11 @@ app.use(addAdditionalSecurityHeaders);
 
 // ── CSRF PROTECTION ──────────────────────────────────────────
 // ── FIX #9: CSRF TOKEN PROTECTION ───────────────────────────
-// Attach CSRF token to all responses (for authenticated users)
-// Validate CSRF token on all state-changing requests (POST/PUT/DELETE)
+// Attach CSRF tokens for any future session-authenticated responses and
+// validate cookie/session mutations. Current API authentication uses explicit
+// Authorization: Bearer headers, which are not ambient browser credentials;
+// route-local auth runs later and bearer requests are intentionally exempt in
+// csrf.js so existing clients do not need an impossible pre-auth token fetch.
 // This prevents Cross-Site Request Forgery attacks where external sites
 // trick authenticated users into making unintended API calls.
 //

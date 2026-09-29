@@ -14,11 +14,12 @@ const convAdminCtrl   = require('../controllers/conversationsAdminController');
 const paymentsCtrl    = require('../controllers/paymentsAdminController');
 const adminMsgCtrl    = require('../controllers/adminMessageController');
 const adminPhoneVerificationCtrl = require('../controllers/adminPhoneVerificationController');
+const adminOperationsCtrl = require('../controllers/adminOperationsController');
 const logisticsInternalAccessCtrl = require('../controllers/logisticsInternalAccessController');
 const restaurantCreditAdminCtrl = require('../controllers/restaurantCreditAdminController');
 const oxsteedCreditCtrl = require('../controllers/oxsteedCreditController');
 const oxsteedCreditCardCtrl = require('../controllers/oxsteedCreditCardController');
-const { creditAdminMutationLimiter, creditExportLimiter, adminPhoneVerificationLimiter } = require('../middleware/rateLimiter');
+const { creditAdminMutationLimiter, creditExportLimiter, adminPhoneVerificationLimiter, strictLimiter } = require('../middleware/rateLimiter');
 
 function noStoreCreditResponse(_req, res, next) {
   res.set('Cache-Control', 'private, no-store');
@@ -36,6 +37,9 @@ router.put('/support/availability', requireAdmin, supportCtrl.setMyAvailability)
 
 // Dashboard
 router.get('/dashboard',         requireAdmin, adminCtrl.getDashboardStats);
+// Read-only cross-domain command center. Each section reports its own
+// availability and permission state; domain pages remain authoritative.
+router.get('/operations/overview', requireAdmin, adminOperationsCtrl.getOverview);
 
 // Content moderation
 router.get('/reports',           requireAdmin, adminCtrl.getReports);
@@ -200,11 +204,13 @@ router.post('/jobs/:jobId/refund',   requireAdmin, requirePermission('issue_refu
 // Platform settings - super-admin direct, or admin with manage_settings grant
 router.get('/settings',              requireAdmin, requirePermission('manage_settings'), superCtrl.getSettings);
 router.put('/settings/:key',         requireAdmin, requirePermission('manage_settings'), superCtrl.updateSetting);
+router.post('/settings/:key/rollback', requireAdmin, requirePermission('manage_settings'), superCtrl.rollbackSetting);
 router.put('/feature-flags/:key',    requireAdmin, requirePermission('manage_settings'), superCtrl.updateFeatureFlag);
+router.post('/feature-flags/:key/rollback', requireAdmin, requirePermission('manage_settings'), superCtrl.rollbackFeatureFlag);
 
 // Audit log + export
 router.get('/audit-log',             requireAdmin, requirePermission('view_audit_log'), superCtrl.getAuditLog);
-router.get('/export/:type',          requireAdmin, requirePermission('export_data'),    superCtrl.exportData);
+router.get('/export/:type',          requireAdmin, requirePermission('export_data'), strictLimiter, superCtrl.exportData);
 
 // ══════════════════════════════════════════════════════════════
 // SUPPORT TICKETS (admin + super_admin)
@@ -354,6 +360,7 @@ router.get(
   '/super/audit-log/user-actions/export',
   requireAdmin,
   requirePermission('view_audit_log'),
+  strictLimiter,
   auditCtrl.exportUserActions
 );
 
@@ -379,7 +386,7 @@ router.get('/skills-lookup', requireAdmin, async (req, res) => {
   try {
     const { q = '', category = '', limit = 50, offset = 0 } = req.query;
     const limitN  = Math.min(Math.max(1, parseInt(limit)  || 50), 200);
-    const offsetN = Math.max(0, parseInt(offset) || 0);
+    const offsetN = Math.min(1_000_000, Math.max(0, parseInt(offset, 10) || 0));
     const result = await pool.query(
       `SELECT id, name, category, is_active, created_at
          FROM skills_lookup
@@ -494,7 +501,7 @@ router.get('/licenses-lookup', requireAdmin, async (req, res) => {
   try {
     const { q = '', category = '', limit = 50, offset = 0 } = req.query;
     const limitN  = Math.min(Math.max(1, parseInt(limit)  || 50), 200);
-    const offsetN = Math.max(0, parseInt(offset) || 0);
+    const offsetN = Math.min(1_000_000, Math.max(0, parseInt(offset, 10) || 0));
     const result = await pool.query(
       `SELECT id, name, category, is_active
          FROM licenses_lookup

@@ -4,21 +4,24 @@ import { useSocket } from '../../hooks/useSocket';
 import api from '../../api/axios';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
+import { useTranslation } from 'react-i18next';
 
 const adminApi = (path, opts) => api(path.startsWith('/api') ? path : `/admin${path}`, opts);
 
-function formatTime(ts) {
+function formatTime(ts, language, t) {
   if (!ts) return '';
   const d = new Date(ts);
   const now = new Date();
   const diffDays = Math.floor((now - d) / 86400000);
-  if (diffDays === 0) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  if (diffDays === 1) return 'Yesterday';
-  if (diffDays < 7)  return d.toLocaleDateString([], { weekday: 'short' });
-  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  const locale = language || undefined;
+  if (diffDays === 0) return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+  if (diffDays === 1) return t('adminMessages.yesterday');
+  if (diffDays < 7)  return d.toLocaleDateString(locale, { weekday: 'short' });
+  return d.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 }
 
 export default function AdminMessages() {
+  const { t, i18n } = useTranslation();
   const { user }       = useAuth();
   const { socket }     = useSocket();
   const [conversations, setConversations] = useState([]);
@@ -197,16 +200,16 @@ export default function AdminMessages() {
   };
 
   return (
-    <div className="h-[calc(100vh-64px)] flex bg-gray-900 text-white overflow-hidden">
+    <div className="h-[calc(100vh-64px)] flex bg-gray-900 text-white overflow-hidden" aria-label={t('adminMessages.title')}>
       {/* Left pane - conversation list */}
       <div className={`w-full sm:w-80 flex-shrink-0 border-r border-gray-800 flex flex-col ${selected ? 'hidden sm:flex' : 'flex'}`}>
         <div className="p-4 border-b border-gray-800 flex items-center gap-2">
-          <h1 className="text-base font-semibold flex-1">Admin Messages</h1>
+          <h1 className="text-base font-semibold flex-1">{t('adminMessages.title')}</h1>
           <button
             onClick={() => setShowNewModal(true)}
             className="px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium transition"
           >
-            + New
+            + {t('adminMessages.new')}
           </button>
         </div>
         <div className="px-3 py-2 border-b border-gray-800">
@@ -214,13 +217,14 @@ export default function AdminMessages() {
             type="text"
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
-            placeholder="Search by name or email…"
+            placeholder={t('adminMessages.searchPlaceholder')}
+            aria-label={t('adminMessages.searchPlaceholder')}
             className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-orange-500"
           />
         </div>
         <div className="flex-1 overflow-y-auto">
           {listLoading && (
-            <p className="text-sm text-gray-500 text-center py-6">Loading…</p>
+            <p className="text-sm text-gray-500 text-center py-6" role="status">{t('adminMessages.loading')}</p>
           )}
           {!listLoading && listError && (
             <div className="p-3">
@@ -228,12 +232,13 @@ export default function AdminMessages() {
             </div>
           )}
           {!listLoading && !listError && conversations.length === 0 && (
-            <p className="text-sm text-gray-500 text-center py-6">No conversations yet.</p>
+            <p className="text-sm text-gray-500 text-center py-6">{t('adminMessages.empty')}</p>
           )}
           {conversations.map(conv => (
             <button
               key={conv.id ?? conv.user_id}
               onClick={() => openThread(conv)}
+              aria-label={t('adminMessages.openConversation', { name: `${conv.user_first_name || ''} ${conv.user_last_name || ''}`.trim() })}
               className={`w-full text-left px-4 py-3 border-b border-gray-800/50 hover:bg-gray-800 transition flex gap-3 items-start ${
                 selected?.userId === conv.user_id ? 'bg-gray-800' : ''
               }`}
@@ -247,7 +252,7 @@ export default function AdminMessages() {
                     {conv.user_first_name} {conv.user_last_name}
                   </span>
                   {conv.last_message_at && (
-                    <span className="text-[11px] text-gray-500 flex-shrink-0">{formatTime(conv.last_message_at)}</span>
+                    <span className="text-[11px] text-gray-500 flex-shrink-0">{formatTime(conv.last_message_at, i18n.resolvedLanguage || i18n.language, t)}</span>
                   )}
                 </div>
                 <p className="text-xs text-gray-500 truncate">{conv.user_email}</p>
@@ -269,7 +274,7 @@ export default function AdminMessages() {
       <div className={`flex-1 flex flex-col ${selected ? 'flex' : 'hidden sm:flex'}`}>
         {!selected ? (
           <div className="flex-1 flex items-center justify-center text-gray-600 text-sm">
-            Select a conversation or start a new one
+            {t('adminMessages.selectPrompt')}
           </div>
         ) : (
           <>
@@ -278,7 +283,7 @@ export default function AdminMessages() {
               <button
                 onClick={() => setSelected(null)}
                 className="sm:hidden p-1 rounded text-gray-400 hover:text-white"
-                aria-label="Back"
+                aria-label={t('adminMessages.back')}
               >
                 ←
               </button>
@@ -298,19 +303,19 @@ export default function AdminMessages() {
 
             {/* Notice */}
             <div className="px-4 py-2 bg-yellow-900/20 border-b border-yellow-800/30 text-xs text-yellow-300/80">
-              ⚠️ Messages sent here are visible to the user in their inbox and logged to the audit trail.
+              ⚠️ {t('adminMessages.auditNotice')}
             </div>
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-              {threadLoading && <p className="text-center text-sm text-gray-500">Loading…</p>}
+              {threadLoading && <p className="text-center text-sm text-gray-500" role="status">{t('adminMessages.loading')}</p>}
               {!threadLoading && threadError && (
                 <div className="max-w-md mx-auto">
                   <AdminErrorState onRetry={() => selected && loadThread(selected.userId)} />
                 </div>
               )}
               {!threadLoading && !threadError && thread.length === 0 && (
-                <p className="text-center text-sm text-gray-600">No messages yet. Send the first message below.</p>
+                <p className="text-center text-sm text-gray-600">{t('adminMessages.noMessages')}</p>
               )}
               {thread.map(msg => {
                 const isAdmin = ['admin', 'super_admin'].includes(msg.sender_role);
@@ -328,10 +333,10 @@ export default function AdminMessages() {
                       )}
                       <p className="whitespace-pre-wrap">{msg.content}</p>
                       <p className={`text-[10px] mt-1 ${isAdmin ? 'text-orange-200/70' : 'text-gray-500'}`}>
-                        {formatTime(msg.created_at)}
+                        {formatTime(msg.created_at, i18n.resolvedLanguage || i18n.language, t)}
                         {isAdmin && (
                           <span className="ml-1.5">
-                            - {msg.sender_first_name} ({msg.sender_role === 'super_admin' ? 'Super Admin' : 'Admin'})
+                            - {msg.sender_first_name} ({msg.sender_role === 'super_admin' ? t('adminMessages.superAdmin') : t('adminMessages.admin')})
                           </span>
                         )}
                       </p>
@@ -349,7 +354,8 @@ export default function AdminMessages() {
                 value={message}
                 onChange={e => setMessage(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                placeholder="Type a message to the user…"
+                placeholder={t('adminMessages.messagePlaceholder')}
+                aria-label={t('adminMessages.messagePlaceholder')}
                 maxLength={4000}
                 disabled={sending}
                 rows={2}
@@ -360,7 +366,7 @@ export default function AdminMessages() {
                 disabled={!message.trim() || sending}
                 className="flex-shrink-0 px-4 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:bg-gray-700 disabled:text-gray-500 text-white text-sm font-semibold transition self-end pb-2 pt-2"
               >
-                Send
+                {t('adminMessages.send')}
               </button>
             </form>
           </>
@@ -370,14 +376,15 @@ export default function AdminMessages() {
       {/* New conversation modal */}
       {showNewModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">
-            <h2 className="text-base font-semibold mb-4">New Conversation</h2>
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="admin-new-conversation-title">
+            <h2 id="admin-new-conversation-title" className="text-base font-semibold mb-4">{t('adminMessages.newConversation')}</h2>
             <input
               type="text"
               autoFocus
               value={newUserSearch}
               onChange={e => searchNewUser(e.target.value)}
-              placeholder="Search user by name or email…"
+              placeholder={t('adminMessages.newUserPlaceholder')}
+              aria-label={t('adminMessages.newUserPlaceholder')}
               className="w-full rounded-xl bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 mb-3"
             />
             <div className="space-y-1 max-h-48 overflow-y-auto">
@@ -385,6 +392,7 @@ export default function AdminMessages() {
                 <button
                   key={u.id}
                   onClick={() => startConversation(u)}
+                  aria-label={t('adminMessages.startConversation', { name: `${u.first_name || ''} ${u.last_name || ''}`.trim() })}
                   className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-800 transition flex items-center gap-2.5"
                 >
                   <div className="w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-300 flex-shrink-0">
@@ -397,14 +405,14 @@ export default function AdminMessages() {
                 </button>
               ))}
               {newUserSearch.length >= 2 && newUserResults.length === 0 && (
-                <p className="text-xs text-gray-500 text-center py-2">No users found</p>
+                <p className="text-xs text-gray-500 text-center py-2">{t('adminMessages.noUsers')}</p>
               )}
             </div>
             <button
               onClick={() => { setShowNewModal(false); setNewUserSearch(''); setNewUserResults([]); }}
               className="mt-4 w-full py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-sm text-gray-300 transition"
             >
-              Cancel
+              {t('adminMessages.cancel')}
             </button>
           </div>
         </div>

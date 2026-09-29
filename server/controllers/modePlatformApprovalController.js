@@ -139,8 +139,10 @@ exports.adminUpdatePolicy = async (req, res) => {
 exports.adminListApprovals = async (req, res) => {
   try {
     const { mode } = req.query;
-    const limit = parseInt(req.query.limit, 10) || 100;
-    const offset = parseInt(req.query.offset, 10) || 0;
+    const parsedLimit = parseInt(req.query.limit, 10);
+    const parsedOffset = parseInt(req.query.offset, 10);
+    const limit = Number.isSafeInteger(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 200) : 100;
+    const offset = Number.isSafeInteger(parsedOffset) && parsedOffset >= 0 ? Math.min(parsedOffset, 1_000_000) : 0;
     const rows = await svc.listPendingApprovals({ mode, limit, offset });
     res.json({ success: true, approvals: rows });
   } catch (err) {

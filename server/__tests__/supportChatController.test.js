@@ -101,6 +101,7 @@ describe('legacy support chat compatibility', () => {
       .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', customer_id: 'user-1', helper_id: 'admin-1' }] })
       .mockResolvedValueOnce({ rows: [message] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] }) // message notification outbox
       .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', customer_id: 'user-1', helper_id: 'admin-1' }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [message] });

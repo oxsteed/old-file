@@ -1234,7 +1234,7 @@ export default function UserDetail() {
                     <div className="flex items-center gap-2 shrink-0">
                       <StatusBadge value={ticket.status} />
                       <StatusBadge value={ticket.priority} />
-                      <Link to={`/admin/support/tickets/${ticket.id}`} className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition">
+                      <Link to={`/admin/support?ticket=${encodeURIComponent(ticket.id)}`} className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition">
                         <ExternalLink size={12} />View
                       </Link>
                     </div>

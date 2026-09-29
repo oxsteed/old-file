@@ -36,8 +36,8 @@ exports.listReceipts = async (req, res, next) => {
     const receipts = await warehouseService.listInventoryReceipts({
       warehouseId: req.query.warehouse_id,
       status:      req.query.status,
-      limit:       parseInt(req.query.limit)||50,
-      offset:      parseInt(req.query.offset)||0,
+      limit:       Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200),
+      offset:      Math.min(Math.max(parseInt(req.query.offset, 10) || 0, 0), 1_000_000),
     });
     res.json({ success: true, data: receipts });
   } catch (err) { next(err); }

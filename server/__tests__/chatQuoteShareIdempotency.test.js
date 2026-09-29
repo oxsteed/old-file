@@ -82,8 +82,8 @@ test('replays a quick-built quote without creating another quote or message', as
     .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', customer_id: 'customer-1', helper_id: 'provider-1', business_id: null, job_id: null }] }) // message participant check
     .mockResolvedValueOnce({ rows: [message] }) // message insert
     .mockResolvedValueOnce({ rows: [] }) // conversation timestamp
+    .mockResolvedValueOnce({ rows: [] }) // message notification outbox (inside message transaction)
     .mockResolvedValueOnce({ rows: [share] }) // share audit insert
-    .mockResolvedValueOnce({ rows: [] }) // message notification outbox
     .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', customer_id: 'customer-1', helper_id: 'provider-1', business_id: null, job_id: null }] }) // retry participant check
     .mockResolvedValueOnce({ rows: [share] }) // retry share-key lookup
     .mockResolvedValueOnce({ rows: [quote] }); // retry quote load
@@ -159,8 +159,8 @@ test('share audit ON CONFLICT predicate matches migration 547 partial index pred
     .mockResolvedValueOnce({ rows: [conversation] }) // message participant check
     .mockResolvedValueOnce({ rows: [message] }) // message insert
     .mockResolvedValueOnce({ rows: [] }) // conversation timestamp
-    .mockResolvedValueOnce({ rows: [share] }) // share audit insert
-    .mockResolvedValueOnce({ rows: [] }); // message notification outbox
+    .mockResolvedValueOnce({ rows: [] }) // message notification outbox (inside message transaction)
+    .mockResolvedValueOnce({ rows: [share] }); // share audit insert
 
   const response = await request(buildApp())
     .post('/api/chat/quotes/share')

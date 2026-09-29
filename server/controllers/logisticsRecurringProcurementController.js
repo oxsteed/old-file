@@ -11,8 +11,8 @@ exports.listPrograms = async (req, res, next) => {
       status: req.query.status || null,
       cadence: req.query.cadence || null,
       includeAll: req.isAdmin && req.query.all === 'true',
-      limit: parseInt(req.query.limit || '100', 10),
-      offset: parseInt(req.query.offset || '0', 10),
+      limit: Math.min(Math.max(parseInt(req.query.limit || '100', 10) || 100, 1), 200),
+      offset: Math.min(Math.max(parseInt(req.query.offset || '0', 10) || 0, 0), 1_000_000),
     });
     res.json({ success: true, data: rows });
   } catch (err) { next(err); }

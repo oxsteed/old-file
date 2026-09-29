@@ -3,8 +3,10 @@ const logger = require('../utils/logger');
 
 exports.listPayments = async (req, res) => {
   try {
-    const { status = '', date_from = '', date_to = '', page = 1, limit = 25 } = req.query;
-    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const pageNumber = Math.min(1000000, Math.max(1, parseInt(req.query.page, 10) || 1));
+    const limitNumber = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 25));
+    const { status = '', date_from = '', date_to = '' } = req.query;
+    const offset = (pageNumber - 1) * limitNumber;
     const params = []; let p = 1; const conds = [];
 
     if (status) { conds.push(`p.status = $${p++}`); params.push(status); }
@@ -34,13 +36,14 @@ exports.listPayments = async (req, res) => {
         ${wc}
        ORDER BY p.created_at DESC
        LIMIT $${p} OFFSET $${p + 1}
-    `, [...params, parseInt(limit), offset]);
+    `, [...params, limitNumber, offset]);
 
     const { rows: countRows } = await db.query(
       `SELECT COUNT(*) FROM payments p JOIN users payer ON p.payer_id = payer.id JOIN users payee ON p.payee_id = payee.id ${wc}`,
       params
     );
-    res.json({ payments: rows, total: parseInt(countRows[0].count) });
+    const total = parseInt(countRows[0].count, 10) || 0;
+    res.json({ payments: rows, total, page: pageNumber, limit: limitNumber, pages: Math.max(1, Math.ceil(total / limitNumber)) });
   } catch (err) {
     logger.error('listPayments error', { err });
     res.status(500).json({ error: 'Failed to fetch payments.' });

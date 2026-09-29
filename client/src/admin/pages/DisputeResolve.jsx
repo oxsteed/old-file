@@ -1,39 +1,42 @@
 import { useState }  from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 import adminApi                 from '../../lib/adminApi';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
 import ConfirmDialog from '../lib/ConfirmDialog';
+import { adminDate } from '../lib/formatters';
 
 const RESOLUTION_OPTIONS = [
   {
     value: 'full_refund',
-    label: 'Full Refund to Client',
-    description: 'Client receives 100% refund. Helper receives nothing.',
+    labelKey: 'fullRefund',
+    descriptionKey: 'fullRefundDescription',
     color: 'border-green-500 bg-green-950'
   },
   {
     value: 'partial_refund',
-    label: 'Partial Refund',
-    description: 'Split the payment. Enter refund amount below.',
+    labelKey: 'partialRefund',
+    descriptionKey: 'partialRefundDescription',
     color: 'border-yellow-500 bg-yellow-950',
     needsAmount: true
   },
   {
     value: 'release_to_helper',
-    label: 'Release to Helper',
-    description: 'Helper wins dispute. Full payment released.',
+    labelKey: 'releaseToHelper',
+    descriptionKey: 'releaseToHelperDescription',
     color: 'border-blue-500 bg-blue-950'
   },
   {
     value: 'dismissed',
-    label: 'Dismiss Dispute',
-    description: 'No financial action. Dispute closed.',
+    labelKey: 'dismiss',
+    descriptionKey: 'dismissDescription',
     color: 'border-gray-500 bg-gray-800'
   }
 ];
 
 export default function DisputeResolve() {
+  const { t } = useTranslation();
   const { disputeId }            = useParams();
   const navigate                 = useNavigate();
   const [resolution,  setResolution] = useState('');
@@ -51,15 +54,15 @@ export default function DisputeResolve() {
   const handleResolve = (e) => {
     e.preventDefault();
     if (!resolution) {
-      setFormError('Please select a resolution type.');
+      setFormError(t('adminDisputeResolve.resolutionRequired'));
       return;
     }
     if (!notes.trim()) {
-      setFormError('Resolution notes are required.');
+      setFormError(t('adminDisputeResolve.notesRequired'));
       return;
     }
     if (resolution === 'partial_refund' && !refundAmt) {
-      setFormError('Enter the refund amount for partial refund.');
+      setFormError(t('adminDisputeResolve.refundRequired'));
       return;
     }
     setFormError(null);
@@ -84,7 +87,7 @@ export default function DisputeResolve() {
   };
 
   if (loading) return (
-    <div className="p-8 text-center text-gray-500">Loading dispute...</div>
+    <div className="p-8 text-center text-gray-500">{t('adminDisputeResolve.loading')}</div>
   );
 
   if (loadError || !data) return (
@@ -98,11 +101,11 @@ export default function DisputeResolve() {
   return (
     <div className="p-8 max-w-4xl">
       <h1 className="text-2xl font-bold text-white mb-2">
-        Resolve Dispute
+        {t('adminDisputeResolve.title')}
       </h1>
       <p className="text-gray-400 text-sm mb-8">
-        Job: <span className="text-white">{dispute.job_title}</span>
-        {' '}· Amount at stake:{' '}
+        {t('adminDisputeResolve.job')}: <span className="text-white">{dispute.job_title}</span>
+        {' '}· {t('adminDisputeResolve.amountAtStake')}:{' '}
         <span className="text-orange-400 font-bold">
           ${parseFloat(dispute.job_amount || 0).toFixed(2)}
         </span>
@@ -113,11 +116,11 @@ export default function DisputeResolve() {
         {/* Evidence summary */}
         <div className="bg-gray-800 border border-gray-700 rounded-2xl p-5">
           <h2 className="font-semibold text-white mb-4">
-            Evidence ({evidence.length})
+            {t('adminDisputeResolve.evidence', { count: evidence.length })}
           </h2>
           {evidence.length === 0 ? (
             <p className="text-gray-500 text-sm text-center py-6">
-              No evidence submitted.
+              {t('adminDisputeResolve.noEvidence')}
             </p>
           ) : (
             <div className="space-y-4 max-h-80 overflow-y-auto pr-1">
@@ -145,7 +148,7 @@ export default function DisputeResolve() {
                       {item.submitted_by_name}
                     </span>
                     <span className="text-xs text-gray-600 ml-auto">
-                      {new Date(item.created_at).toLocaleDateString()}
+                      {adminDate(item.created_at)}
                     </span>
                   </div>
 
@@ -164,7 +167,7 @@ export default function DisputeResolve() {
                                   transition mt-1">
                       {item.type === 'image' ? '🖼' :
                        item.type === 'video' ? '🎥' : '📄'}{' '}
-                      {item.file_name || 'View file'}
+                      {item.file_name || t('adminDisputeResolve.viewFile')}
                     </a>
                   )}
                 </div>
@@ -177,7 +180,7 @@ export default function DisputeResolve() {
         <div>
           <form onSubmit={handleResolve} className="space-y-4">
             <h2 className="font-semibold text-white mb-4">
-              Select Resolution
+              {t('adminDisputeResolve.selectResolution')}
             </h2>
 
             {RESOLUTION_OPTIONS.map(opt => (
@@ -197,10 +200,10 @@ export default function DisputeResolve() {
                                     className="sr-only"
                 />
                 <p className="font-semibold text-white text-sm">
-                  {opt.label}
+                  {t(`adminDisputeResolve.${opt.labelKey}`)}
                 </p>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  {opt.description}
+                  {t(`adminDisputeResolve.${opt.descriptionKey}`)}
                 </p>
               </label>
             ))}
@@ -210,7 +213,7 @@ export default function DisputeResolve() {
               <div>
                 <label className="block text-sm font-medium
                                   text-gray-300 mb-1">
-                  Refund Amount ($)
+                  {t('adminDisputeResolve.refundAmount')}
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2
@@ -232,7 +235,7 @@ export default function DisputeResolve() {
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  Max: ${parseFloat(dispute.job_amount || 0).toFixed(2)}
+                  {t('adminDisputeResolve.maxRefund', { amount: parseFloat(dispute.job_amount || 0).toFixed(2) })}
                 </p>
               </div>
             )}
@@ -241,7 +244,7 @@ export default function DisputeResolve() {
             <div>
               <label className="block text-sm font-medium
                                 text-gray-300 mb-1">
-                Resolution Notes
+                {t('adminDisputeResolve.notes')}
                 <span className="text-red-400 ml-1">*</span>
               </label>
               <textarea
@@ -249,7 +252,7 @@ export default function DisputeResolve() {
                 onChange={e => setNotes(e.target.value)}
                 rows={4}
                 maxLength={1000}
-                placeholder="Explain your decision. This will be shown to both parties..."
+                placeholder={t('adminDisputeResolve.notesPlaceholder')}
                 className="w-full px-3 py-2.5 bg-gray-700 border
                            border-gray-600 rounded-lg text-sm text-white
                            placeholder-gray-500 focus:outline-none
@@ -275,8 +278,8 @@ export default function DisputeResolve() {
                          disabled:cursor-not-allowed transition text-sm"
             >
               {submitting
-                ? 'Processing resolution...'
-                : 'Confirm Resolution - Irreversible'
+                ? t('adminDisputeResolve.processing')
+                : t('adminDisputeResolve.confirmIrreversible')
               }
             </button>
           </form>
@@ -286,9 +289,9 @@ export default function DisputeResolve() {
       <ConfirmDialog
         open={confirmOpen}
         danger
-        title="Confirm Resolution"
-        message={`Resolve this dispute as "${resolution}"? This action is irreversible.`}
-        confirmLabel="Resolve Dispute"
+        title={t('adminDisputeResolve.confirmTitle')}
+        message={t('adminDisputeResolve.confirmMessage', { resolution: t(`adminDisputeResolve.${RESOLUTION_OPTIONS.find((option) => option.value === resolution)?.labelKey || 'dismiss'}`) })}
+        confirmLabel={t('adminDisputeResolve.resolve')}
         onConfirm={confirmResolve}
         onClose={() => setConfirmOpen(false)}
       />

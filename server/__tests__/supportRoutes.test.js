@@ -873,11 +873,17 @@ describe('support routes', () => {
   });
 
   test('returns bounded support audit logs to platform admins', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, email: 'admin@example.com', role: 'super_admin' }] })
-      .mockResolvedValueOnce({ rows: [{ id: 'audit-1', action: 'support_reply' }] })
-      .mockResolvedValueOnce({ rows: [{ total: 1 }] })
-      .mockResolvedValueOnce({ rows: [{ total_entries: 1, users_active: 1, actions_today: 1, last_entry: '2026-09-09T00:00:00.000Z' }] });
+    mockQuery.mockImplementation(async (sql) => {
+      const text = String(sql);
+      if (text.includes('information_schema.columns')) return { rows: [] };
+      if (text.includes('FROM users') && text.includes('is_active')) {
+        return { rows: [{ ...authUserRow(), id: ADMIN_ID, email: 'admin@example.com', role: 'super_admin' }] };
+      }
+      if (text.includes('SELECT a.id')) return { rows: [{ id: 'audit-1', action: 'support_reply' }] };
+      if (text.includes('SELECT COUNT(*)::int AS total FROM admin_audit_log')) return { rows: [{ total: 1 }] };
+      if (text.includes('COUNT(*)::int AS total_entries')) return { rows: [{ total_entries: 1, users_active: 1, actions_today: 1, last_entry: '2026-09-09T00:00:00.000Z' }] };
+      return { rows: [] };
+    });
 
     const res = await request(buildApp())
       .get('/api/support/audit/logs?limit=10')

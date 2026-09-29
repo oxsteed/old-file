@@ -346,12 +346,10 @@ export default function ConversationsAdmin() {
     setActionBusy(true);
     try {
       await adminApi.post(`/admin/super/conversations/${convId}/status`, { status, reason });
-      setConvs(prev =>
-        prev.map(c => c.id === convId ? { ...c, status } : c)
-      );
       if (selected?.id === convId) {
         setSelected(prev => ({ ...prev, status }));
       }
+      await reload();
     } catch (err) {
       toast.error(err?.response?.data?.error || t('superConversations.actionFailed'));
     } finally {

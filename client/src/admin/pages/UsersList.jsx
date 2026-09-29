@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useState, useRef } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Search, Download, UserPlus, X, MessageSquare, MoreHorizontal,
   ChevronUp, ChevronDown, Shield, ShieldCheck, MapPin, Star,
@@ -7,8 +7,11 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
+import { useHasGrant } from '../lib/GrantGuard';
+import { adminDate } from '../lib/formatters';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -46,34 +49,39 @@ const SORT_COLS = [
   { key: 'last_login_at',label: 'Last Active' },
   { key: 'avg_rating',   label: 'Rating'      },
 ];
+const SORT_KEYS = new Set(SORT_COLS.map(({ key }) => key));
+
+function positiveQueryInt(value, fallback) {
+  const parsed = Number.parseInt(value || '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
 
 // ---------------------------------------------------------------------------
 // Utilities
 // ---------------------------------------------------------------------------
-function activityInfo(lastLoginAt) {
-  if (!lastLoginAt) return { color: 'bg-gray-600', label: 'Never logged in', key: 'never' };
+function activityInfo(lastLoginAt, t) {
+  if (!lastLoginAt) return { color: 'bg-gray-600', label: t('adminUsers.list.neverLoggedIn'), key: 'never' };
   const diffH = (Date.now() - new Date(lastLoginAt)) / 3_600_000;
-  if (diffH < 1)   return { color: 'bg-green-400',  label: 'Online recently',      key: 'online'   };
-  if (diffH < 168) return { color: 'bg-yellow-400', label: 'Active this week',     key: 'recent'   };
-  if (diffH < 720) return { color: 'bg-gray-400',   label: 'Active this month',    key: 'moderate' };
-  return               { color: 'bg-red-500',    label: 'Inactive 30+ days',    key: 'inactive' };
+  if (diffH < 1)   return { color: 'bg-green-400',  label: t('adminUsers.list.onlineRecently'), key: 'online' };
+  if (diffH < 168) return { color: 'bg-yellow-400', label: t('adminUsers.list.activeThisWeek'), key: 'recent' };
+  if (diffH < 720) return { color: 'bg-gray-400',   label: t('adminUsers.list.activeThisMonth'), key: 'moderate' };
+  return { color: 'bg-red-500', label: t('adminUsers.list.inactiveThirtyDays'), key: 'inactive' };
 }
 
 function fmtDate(d) {
-  if (!d) return '-';
-  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
+  return adminDate(d, { month: 'short', day: 'numeric', year: '2-digit' });
 }
 
-function fmtRelative(d) {
+function fmtRelative(d, t) {
   if (!d) return '-';
   const diffH = (Date.now() - new Date(d)) / 3_600_000;
-  if (diffH < 1)   return 'Just now';
-  if (diffH < 24)  return `${Math.floor(diffH)}h ago`;
+  if (diffH < 1)   return t('adminUsers.list.justNow');
+  if (diffH < 24)  return t('adminUsers.list.hoursAgo', { count: Math.floor(diffH) });
   const diffD = Math.floor(diffH / 24);
-  if (diffD < 7)   return `${diffD}d ago`;
-  if (diffD < 30)  return `${Math.floor(diffD / 7)}w ago`;
-  if (diffD < 365) return `${Math.floor(diffD / 30)}mo ago`;
-  return `${Math.floor(diffD / 365)}y ago`;
+  if (diffD < 7)   return t('adminUsers.list.daysAgo', { count: diffD });
+  if (diffD < 30)  return t('adminUsers.list.weeksAgo', { count: Math.floor(diffD / 7) });
+  if (diffD < 365) return t('adminUsers.list.monthsAgo', { count: Math.floor(diffD / 30) });
+  return t('adminUsers.list.yearsAgo', { count: Math.floor(diffD / 365) });
 }
 
 // Click-outside hook
@@ -89,6 +97,7 @@ function useClickOutside(ref, handler) {
 // CreateUserModal (unchanged from original)
 // ---------------------------------------------------------------------------
 function CreateUserModal({ onClose, onCreated }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({ first_name: '', last_name: '', email: '', password: '', account_type: 'customer' });
   const [error, setError] = useState('');
   const [busy, setBusy]   = useState(false);
@@ -103,7 +112,7 @@ function CreateUserModal({ onClose, onCreated }) {
       });
       onCreated(data.user);
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to create user.');
+      setError(err.response?.data?.error || t('adminUsers.list.createFailed'));
     } finally { setBusy(false); }
   };
 
@@ -113,12 +122,12 @@ function CreateUserModal({ onClose, onCreated }) {
       <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md shadow-2xl"
         onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
-          <h3 className="font-bold text-white text-base">Create User Account</h3>
-          <button onClick={onClose} disabled={busy} className="text-gray-500 hover:text-white transition"><X size={18} /></button>
+          <h3 className="font-bold text-white text-base">{t('adminUsers.list.createTitle')}</h3>
+          <button onClick={onClose} disabled={busy} aria-label={t('common.close', { defaultValue: 'Close' })} className="text-gray-500 hover:text-white transition"><X size={18} aria-hidden="true" /></button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            {[['first_name', 'First Name'], ['last_name', 'Last Name']].map(([k, label]) => (
+            {[['first_name', t('adminUsers.list.firstName')], ['last_name', t('adminUsers.list.lastName')]].map(([k, label]) => (
               <div key={k}>
                 <label className="block text-xs font-medium text-gray-400 mb-1">{label}</label>
                 <input required value={form[k]} onChange={e => set(k, e.target.value)}
@@ -128,25 +137,25 @@ function CreateUserModal({ onClose, onCreated }) {
             ))}
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1">Email</label>
+            <label className="block text-xs font-medium text-gray-400 mb-1">{t('adminUsers.list.email')}</label>
             <input type="email" required value={form.email} onChange={e => set('email', e.target.value)}
               className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm
                          text-white placeholder-gray-500 focus:outline-none focus:border-orange-500" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1">Password <span className="text-gray-600">(min 8 chars)</span></label>
+            <label className="block text-xs font-medium text-gray-400 mb-1">{t('adminUsers.list.password')} <span className="text-gray-600">{t('adminUsers.list.minChars')}</span></label>
             <input type="password" required minLength={8} value={form.password} onChange={e => set('password', e.target.value)}
               className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm
                          text-white placeholder-gray-500 focus:outline-none focus:border-orange-500" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1">Account type</label>
+            <label className="block text-xs font-medium text-gray-400 mb-1">{t('adminUsers.list.accountType')}</label>
             <select value={form.account_type} onChange={e => set('account_type', e.target.value)}
               className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm
                          text-gray-300 focus:outline-none focus:border-orange-500">
               {QUICK_CREATE_ACCOUNT_TYPES.map((accountType) => (
                 <option key={accountType.value} value={accountType.value}>
-                  {accountType.label}
+                  {t(`adminUsers.list.accountTypes.${accountType.value}`, { defaultValue: accountType.label })}
                 </option>
               ))}
             </select>
@@ -156,12 +165,12 @@ function CreateUserModal({ onClose, onCreated }) {
             <button type="button" onClick={onClose} disabled={busy}
               className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 text-gray-300
                          rounded-lg text-sm font-medium hover:bg-gray-700 transition disabled:opacity-50">
-              Cancel
+              {t('adminUsers.list.cancel')}
             </button>
             <button type="submit" disabled={busy}
               className="flex-1 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white
                          rounded-lg text-sm font-semibold transition disabled:opacity-50">
-              {busy ? 'Creating…' : 'Create User'}
+              {busy ? t('adminUsers.list.creating') : t('adminUsers.list.createUser')}
             </button>
           </div>
         </form>
@@ -174,6 +183,7 @@ function CreateUserModal({ onClose, onCreated }) {
 // ResetPasswordModal (super-admin only, used from quick-actions menu)
 // ---------------------------------------------------------------------------
 function ResetPasswordModal({ user, onClose }) {
+  const { t } = useTranslation();
   const [pw, setPw]     = useState('');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
@@ -185,7 +195,7 @@ function ResetPasswordModal({ user, onClose }) {
       await adminApi.post(`/admin/users/${user.id}/password`, { newPassword: pw });
       setDone(true);
     } catch (error) {
-      setErr(error.response?.data?.error || 'Failed to reset password.');
+      setErr(error.response?.data?.error || t('adminUsers.list.resetFailed'));
     } finally { setBusy(false); }
   };
 
@@ -196,22 +206,22 @@ function ResetPasswordModal({ user, onClose }) {
         onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-bold text-white text-sm flex items-center gap-2">
-            <Key size={15} className="text-orange-400" /> Reset Password
+            <Key size={15} className="text-orange-400" /> {t('adminUsers.list.resetPassword')}
           </h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-white transition"><X size={16} /></button>
+          <button onClick={onClose} aria-label={t('common.close', { defaultValue: 'Close' })} className="text-gray-500 hover:text-white transition"><X size={16} aria-hidden="true" /></button>
         </div>
         {done ? (
           <div className="text-center py-4">
-            <CheckCircle size={32} className="text-green-400 mx-auto mb-2" />
-            <p className="text-white text-sm font-medium">Password reset successfully.</p>
-            <p className="text-gray-400 text-xs mt-1">All sessions for {user.first_name} have been invalidated.</p>
-            <button onClick={onClose} className="mt-4 px-4 py-2 bg-gray-700 text-gray-200 rounded-lg text-sm hover:bg-gray-600 transition">Close</button>
+            <CheckCircle size={32} className="text-green-400 mx-auto mb-2" aria-hidden="true" />
+            <p className="text-white text-sm font-medium">{t('adminUsers.list.resetSuccess')}</p>
+            <p className="text-gray-400 text-xs mt-1">{t('adminUsers.list.sessionsInvalidated', { name: user.first_name })}</p>
+            <button onClick={onClose} className="mt-4 px-4 py-2 bg-gray-700 text-gray-200 rounded-lg text-sm hover:bg-gray-600 transition">{t('common.close', { defaultValue: 'Close' })}</button>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <p className="text-gray-400 text-xs">Setting a new password for <span className="text-white font-medium">{user.first_name} {user.last_name}</span>. Their active sessions will be invalidated.</p>
+            <p className="text-gray-400 text-xs">{t('adminUsers.list.settingPassword', { name: `${user.first_name} ${user.last_name}` })}</p>
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1">New Password <span className="text-gray-600">(min 8 chars)</span></label>
+              <label className="block text-xs font-medium text-gray-400 mb-1">{t('adminUsers.list.newPassword')} <span className="text-gray-600">{t('adminUsers.list.minChars')}</span></label>
               <input type="password" required minLength={8} value={pw} onChange={e => setPw(e.target.value)}
                 className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm
                            text-white focus:outline-none focus:border-orange-500" />
@@ -220,11 +230,11 @@ function ResetPasswordModal({ user, onClose }) {
             <div className="flex gap-3">
               <button type="button" onClick={onClose} disabled={busy}
                 className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 text-gray-300 rounded-lg text-sm hover:bg-gray-700 transition disabled:opacity-50">
-                Cancel
+                {t('adminUsers.list.cancel')}
               </button>
               <button type="submit" disabled={busy || pw.length < 8}
                 className="flex-1 px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-semibold transition disabled:opacity-50">
-                {busy ? 'Resetting…' : 'Reset'}
+                {busy ? t('adminUsers.list.resetting') : t('adminUsers.list.reset')}
               </button>
             </div>
           </form>
@@ -237,7 +247,8 @@ function ResetPasswordModal({ user, onClose }) {
 // ---------------------------------------------------------------------------
 // QuickActionsMenu — "..." dropdown per row
 // ---------------------------------------------------------------------------
-function QuickActionsMenu({ user, isSuper, onMessage, onToggleBan, onResetPw, onRefresh, onCancelPendingDeletion }) {
+function QuickActionsMenu({ user, isSuper, canMessage, onMessage, onToggleBan, onResetPw, onRefresh, onCancelPendingDeletion }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const ref = useRef(null);
@@ -252,8 +263,9 @@ function QuickActionsMenu({ user, isSuper, onMessage, onToggleBan, onResetPw, on
   return (
     <div ref={ref} className="relative">
       <button onClick={() => setOpen(o => !o)} disabled={busy}
+        aria-label={t('common.moreActions', { defaultValue: 'More actions' })}
         className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-700 transition disabled:opacity-40">
-        <MoreHorizontal size={15} />
+        <MoreHorizontal size={15} aria-hidden="true" />
       </button>
       {open && (
         <div className="absolute right-0 top-full mt-1 z-40 w-48 bg-gray-900 border border-gray-700
@@ -261,19 +273,21 @@ function QuickActionsMenu({ user, isSuper, onMessage, onToggleBan, onResetPw, on
           <Link to={`/admin/users/${user.id}`} onClick={() => setOpen(false)}
             className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left rounded-lg
                        text-gray-300 hover:bg-gray-700 transition">
-            <Eye size={13} /> View profile
+            <Eye size={13} /> {t('adminUsers.list.viewProfile')}
           </Link>
-          <button onClick={() => { setOpen(false); onMessage(user); }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left rounded-lg text-gray-300 hover:bg-gray-700 transition">
-            <MessageSquare size={13} /> Send message
-          </button>
+          {canMessage && (
+            <button onClick={() => { setOpen(false); onMessage(user); }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left rounded-lg text-gray-300 hover:bg-gray-700 transition">
+              <MessageSquare size={13} /> {t('adminUsers.list.sendMessage')}
+            </button>
+          )}
           <div className="border-t border-gray-800 my-1" />
           {isSuper && user.deletion_scheduled_at && user.deletion_type !== 'self' && (
             <button
               type="button"
               onClick={async () => {
                 setOpen(false);
-                if (!window.confirm(`Cancel pending deletion for ${user.email}? They will show as Active again.`)) return;
+                if (!window.confirm(t('adminUsers.list.cancelDeletionConfirm', { email: user.email }))) return;
                 setBusy(true);
                 try {
                   await onCancelPendingDeletion(user);
@@ -283,18 +297,18 @@ function QuickActionsMenu({ user, isSuper, onMessage, onToggleBan, onResetPw, on
               }}
               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left rounded-lg text-orange-300 hover:bg-orange-900/25 transition"
             >
-              <RotateCcw size={13} /> Cancel pending deletion
+              <RotateCcw size={13} /> {t('adminUsers.list.cancelDeletion')}
             </button>
           )}
           <button onClick={doToggleBan}
             className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left rounded-lg transition
               ${user.is_active ? 'text-red-400 hover:bg-red-900/30' : 'text-green-400 hover:bg-green-900/30'}`}>
-            {user.is_active ? <><Ban size={13} /> Suspend account</> : <><CheckCircle size={13} /> Reactivate account</>}
+            {user.is_active ? <><Ban size={13} /> {t('adminUsers.list.suspend')}</> : <><CheckCircle size={13} /> {t('adminUsers.list.reactivate')}</>}
           </button>
           {isSuper && (
             <button onClick={() => { setOpen(false); onResetPw(user); }}
               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left rounded-lg text-orange-400 hover:bg-orange-900/20 transition">
-              <Key size={13} /> Reset password
+              <Key size={13} /> {t('adminUsers.list.resetPasswordAction')}
             </button>
           )}
         </div>
@@ -306,15 +320,15 @@ function QuickActionsMenu({ user, isSuper, onMessage, onToggleBan, onResetPw, on
 // ---------------------------------------------------------------------------
 // StatsBar
 // ---------------------------------------------------------------------------
-function StatsBar({ summary }) {
+function StatsBar({ summary, t }) {
   if (!summary) return null;
   const stats = [
-    { label: 'Total Users',    value: Number(summary.total).toLocaleString(),        color: 'text-white'         },
-    { label: 'Active',         value: Number(summary.active).toLocaleString(),        color: 'text-green-400'     },
-    { label: 'Suspended',      value: Number(summary.suspended).toLocaleString(),     color: 'text-red-400'       },
-    { label: 'Helpers',        value: Number(summary.helpers).toLocaleString(),       color: 'text-orange-400'    },
-    { label: 'Customers',      value: Number(summary.customers).toLocaleString(),     color: 'text-blue-400'      },
-    { label: 'New This Week',  value: Number(summary.new_this_week).toLocaleString(), color: 'text-purple-400'    },
+    { label: t('adminUsers.list.totalUsers'), value: Number(summary.total).toLocaleString(), color: 'text-white' },
+    { label: t('adminUsers.list.active'), value: Number(summary.active).toLocaleString(), color: 'text-green-400' },
+    { label: t('adminUsers.list.suspended'), value: Number(summary.suspended).toLocaleString(), color: 'text-red-400' },
+    { label: t('adminUsers.list.helpers'), value: Number(summary.helpers).toLocaleString(), color: 'text-orange-400' },
+    { label: t('adminUsers.list.customers'), value: Number(summary.customers).toLocaleString(), color: 'text-blue-400' },
+    { label: t('adminUsers.list.newThisWeek'), value: Number(summary.new_this_week).toLocaleString(), color: 'text-purple-400' },
   ];
   return (
     <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-6">
@@ -354,12 +368,30 @@ function SortHeader({ col, label, currentSort, currentOrder, onSort }) {
 // ---------------------------------------------------------------------------
 export default function UsersList() {
   const { user: me }  = useAuth();
+  const { t } = useTranslation();
   const isSuper       = me?.role === 'super_admin';
+  const { allowed: canMessage } = useHasGrant('message_users');
+  const { allowed: canExport } = useHasGrant('export_data');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryFilters = useMemo(() => {
+    const role = searchParams.get('role') || '';
+    const status = searchParams.get('status') || '';
+    const plan = searchParams.get('plan') || '';
+    const limit = positiveQueryInt(searchParams.get('limit'), 25);
+    return {
+      search: searchParams.get('search') || '',
+      role: ROLES.includes(role) ? role : '',
+      status: STATUSES.includes(status) ? status : '',
+      plan: PLANS.includes(plan) ? plan : '',
+      location: searchParams.get('location') || '',
+      page: positiveQueryInt(searchParams.get('page'), 1),
+      limit: PAGE_SIZES.includes(limit) ? limit : 25,
+      sort: SORT_KEYS.has(searchParams.get('sort')) ? searchParams.get('sort') : 'created_at',
+      order: searchParams.get('order') === 'asc' ? 'asc' : 'desc',
+    };
+  }, [searchParams]);
 
-  const [filters, setFilters] = useState({
-    search: '', role: '', status: '', plan: '', location: '',
-    page: 1, limit: 25, sort: 'created_at', order: 'desc',
-  });
+  const [filters, setFilters] = useState(queryFilters);
   const [lastUpdated, setLastUpdated] = useState(null);
 
   // Sequence-guarded + abortable: rapid filter changes can no longer resolve
@@ -397,19 +429,48 @@ export default function UsersList() {
 
   const fetchUsers = () => reload();
 
+  // Dashboard deep links and browser back/forward navigation are part of the
+  // users-page contract. Keep every supported URL filter authoritative without
+  // allowing arbitrary values to reach the API.
+  useEffect(() => {
+    setFilters((current) => {
+      const unchanged = Object.keys(queryFilters).every((key) => current[key] === queryFilters[key]);
+      return unchanged ? current : queryFilters;
+    });
+  }, [queryFilters]);
+
   // Clear selection when page/filters change
   useEffect(() => { setSelected(new Set()); }, [filters]);
 
-  const update = (key, val) => setFilters(f => ({ ...f, [key]: val, page: 1 }));
-  const setPage = (p) => setFilters(f => ({ ...f, page: p }));
+  const update = (key, val) => {
+    setFilters(f => ({ ...f, [key]: val, page: 1 }));
+    const next = new URLSearchParams(searchParams);
+    if (val) next.set(key, String(val));
+    else next.delete(key);
+    if (key !== 'page') next.set('page', '1');
+    setSearchParams(next, { replace: true });
+  };
+  const setPage = (p) => {
+    setFilters(f => ({ ...f, page: p }));
+    const next = new URLSearchParams(searchParams);
+    next.set('page', String(p));
+    setSearchParams(next, { replace: true });
+  };
 
   const onSort = (col) => {
-    setFilters(f => ({
+    const nextFilters = f => ({
       ...f,
       sort: col,
       order: f.sort === col && f.order === 'desc' ? 'asc' : 'desc',
       page: 1,
-    }));
+    });
+    setFilters(nextFilters);
+    const next = new URLSearchParams(searchParams);
+    const nextState = nextFilters(filters);
+    next.set('sort', nextState.sort);
+    next.set('order', nextState.order);
+    next.set('page', '1');
+    setSearchParams(next, { replace: true });
   };
 
   // Export (respects current filters)
@@ -447,20 +508,20 @@ export default function UsersList() {
   const handleToggleBan = async (user) => {
     try {
       await adminApi.post(`/admin/users/${user.id}/ban`);
-      showToast(`${user.first_name} ${user.is_active ? 'suspended' : 'reactivated'}.`);
+      showToast(t('adminUsers.list.userStatusChanged', { name: user.first_name, status: user.is_active ? t('adminUsers.list.suspended').toLowerCase() : t('adminUsers.list.reactivated').toLowerCase() }));
       fetchUsers();
     } catch (err) {
-      showToast(err.response?.data?.error || 'Action failed.', 'error');
+      showToast(err.response?.data?.error || t('adminUsers.list.actionFailed'), 'error');
     }
   };
 
   const handleCancelPendingDeletion = async (user) => {
     try {
       await adminApi.post(`/admin/users/${user.id}/cancel-pending-deletion`);
-      showToast(`Pending deletion cleared for ${user.first_name}.`);
+      showToast(t('adminUsers.list.pendingDeletionCleared', { name: user.first_name }));
       await fetchUsers();
     } catch (err) {
-      showToast(err.response?.data?.error || 'Failed to cancel pending deletion.', 'error');
+      showToast(err.response?.data?.error || t('adminUsers.list.cancelDeletionFailed'), 'error');
     }
   };
 
@@ -478,7 +539,7 @@ export default function UsersList() {
     setBulkBusy(false);
     setSelected(new Set());
     fetchUsers();
-    showToast(`${done} user(s) ${suspend ? 'suspended' : 'reactivated'}.`);
+    showToast(t('adminUsers.list.bulkStatusChanged', { count: done, status: suspend ? t('adminUsers.list.suspended').toLowerCase() : t('adminUsers.list.reactivated').toLowerCase() }));
   };
 
   // Message modal
@@ -490,10 +551,10 @@ export default function UsersList() {
     setMsgSending(true);
     try {
       await adminApi.post(`/admin/super/users/${msgTarget.id}/message`, { content: msgText.trim() });
-      showToast(`Message sent to ${msgTarget.first_name}.`);
+      showToast(t('adminUsers.list.messageSent', { name: msgTarget.first_name }));
       closeMessage();
     } catch (err) {
-      showToast(err.response?.data?.error || 'Failed to send.', 'error');
+      showToast(err.response?.data?.error || t('adminUsers.list.sendFailed'), 'error');
     } finally { setMsgSending(false); }
   };
 
@@ -512,26 +573,27 @@ export default function UsersList() {
       {/* ── Header ── */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
         <div>
-          <h1 className="text-2xl font-bold text-white">Users</h1>
-          <p className="text-gray-400 text-sm mt-0.5">{total.toLocaleString()} users matching current filters</p>
-          {lastUpdated && <p className="mt-1 text-xs text-gray-600">Updated {lastUpdated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>}
+          <h1 className="text-2xl font-bold text-white">{t('adminUsers.list.title')}</h1>
+          <p className="text-gray-400 text-sm mt-0.5">{t('adminUsers.list.matchingFilters', { count: total.toLocaleString() })}</p>
+          {lastUpdated && <p className="mt-1 text-xs text-gray-600">{t('adminUsers.list.updated', { time: lastUpdated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) })}</p>}
         </div>
         <div className="flex items-center gap-2">
           <button type="button" onClick={fetchUsers} disabled={loading}
             className="flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-700 text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-700 transition disabled:opacity-50"
-            title="Refresh users">
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
+            title={t('common.refresh', { defaultValue: 'Refresh' })}
+            aria-label={t('common.refresh', { defaultValue: 'Refresh' })}>
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} aria-hidden="true" /> {t('adminUsers.list.refresh')}
           </button>
           {isSuper && (
             <button onClick={() => setShowCreate(true)}
               className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-lg transition">
-              <UserPlus size={15} /> Create User
+              <UserPlus size={15} /> {t('adminUsers.list.createUser')}
             </button>
           )}
-          {isSuper && (
+          {(isSuper || canExport) && (
             <button onClick={handleExport}
               className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-gray-200 text-sm font-medium rounded-lg hover:bg-gray-600 transition">
-              <Download size={15} /> Export CSV
+              <Download size={15} /> {t('adminUsers.list.exportCsv')}
             </button>
           )}
         </div>
@@ -540,19 +602,19 @@ export default function UsersList() {
       {error && (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
           <span>{error?.response?.data?.error || error?.message || 'Could not load users.'}</span>
-          <button type="button" onClick={fetchUsers} disabled={loading} className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/10 disabled:opacity-50">Try again</button>
+          <button type="button" onClick={fetchUsers} disabled={loading} className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/10 disabled:opacity-50">{t('adminUsers.list.tryAgain')}</button>
         </div>
       )}
 
       {/* ── Summary Stats ── */}
-      <StatsBar summary={summary} />
+      <StatsBar summary={summary} t={t} />
 
       {/* ── Filters ── */}
       <div className="flex flex-wrap gap-2.5 mb-4">
         {/* Search */}
         <div className="relative flex-1 min-w-52">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-          <input type="text" placeholder="Search name, email, phone..."
+          <input type="text" placeholder={t('adminUsers.list.searchPlaceholder')}
             value={filters.search} onChange={e => update('search', e.target.value)}
             className="w-full pl-9 pr-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm
                        text-white placeholder-gray-500 focus:outline-none focus:border-orange-500" />
@@ -561,7 +623,7 @@ export default function UsersList() {
         {/* Location */}
         <div className="relative min-w-40">
           <MapPin size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-          <input type="text" placeholder="City, state, zip..."
+          <input type="text" placeholder={t('adminUsers.list.locationPlaceholder')}
             value={filters.location} onChange={e => update('location', e.target.value)}
             className="w-full pl-8 pr-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm
                        text-white placeholder-gray-500 focus:outline-none focus:border-orange-500" />
@@ -569,9 +631,9 @@ export default function UsersList() {
 
         {/* Role / Status / Plan dropdowns */}
         {[
-          { key: 'role',   options: ROLES,    label: 'All Roles'   },
-          { key: 'status', options: STATUSES, label: 'All Status'  },
-          { key: 'plan',   options: PLANS,    label: 'All Plans'   },
+          { key: 'role', options: ROLES, label: t('adminUsers.list.allRoles') },
+          { key: 'status', options: STATUSES, label: t('adminUsers.list.allStatus') },
+          { key: 'plan', options: PLANS, label: t('adminUsers.list.allPlans') },
         ].map(({ key, options, label }) => (
           <select key={key} value={filters[key]} onChange={e => update(key, e.target.value)}
             className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm
@@ -585,28 +647,28 @@ export default function UsersList() {
         <select value={filters.sort} onChange={e => onSort(e.target.value)}
           className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm
                      text-gray-300 focus:outline-none focus:border-orange-500">
-          {SORT_COLS.map(c => <option key={c.key} value={c.key}>Sort: {c.label}</option>)}
+          {SORT_COLS.map(c => <option key={c.key} value={c.key}>{t('adminUsers.list.sortBy', { label: t(`adminUsers.list.sort.${c.key}`) })}</option>)}
         </select>
 
         {/* Page size */}
-        <select value={filters.limit} onChange={e => setFilters(f => ({ ...f, limit: Number(e.target.value), page: 1 }))}
+        <select value={filters.limit} onChange={e => update('limit', Number(e.target.value))}
           className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm
                      text-gray-300 focus:outline-none focus:border-orange-500">
-          {PAGE_SIZES.map(n => <option key={n} value={n}>{n} / page</option>)}
+          {PAGE_SIZES.map(n => <option key={n} value={n}>{t('adminUsers.list.perPage', { count: n })}</option>)}
         </select>
       </div>
 
       {/* ── Bulk Actions ── */}
       {someSelected && (
         <div className="flex items-center gap-3 mb-3 px-4 py-2.5 bg-orange-500/10 border border-orange-500/30 rounded-xl">
-          <span className="text-orange-300 text-sm font-medium">{selected.size} selected</span>
+          <span className="text-orange-300 text-sm font-medium">{t('adminUsers.list.selected', { count: selected.size })}</span>
           <button onClick={() => bulkToggleBan(true)} disabled={bulkBusy}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-red-900/50 text-red-300 rounded-lg text-xs font-medium hover:bg-red-900 transition disabled:opacity-50">
-            <Ban size={12} /> Suspend selected
+            <Ban size={12} /> {t('adminUsers.list.suspendSelected')}
           </button>
           <button onClick={() => bulkToggleBan(false)} disabled={bulkBusy}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-green-900/50 text-green-300 rounded-lg text-xs font-medium hover:bg-green-900 transition disabled:opacity-50">
-            <CheckCircle size={12} /> Reactivate selected
+            <CheckCircle size={12} /> {t('adminUsers.list.reactivateSelected')}
           </button>
           <button onClick={() => setSelected(new Set())}
             className="ml-auto text-gray-500 hover:text-gray-300 transition">
@@ -624,32 +686,33 @@ export default function UsersList() {
                 {/* Checkbox all */}
                 <th className="px-4 py-3 w-8">
                   <button onClick={toggleAll}
+                    aria-label={allSelected ? t('common.clearSelection', { defaultValue: 'Clear selection' }) : t('common.selectAll', { defaultValue: 'Select all users on this page' })}
                     className="text-gray-400 hover:text-white transition">
                     {allSelected
                       ? <div className="w-4 h-4 rounded bg-orange-500 flex items-center justify-center"><div className="w-2.5 h-0.5 bg-white rounded" /></div>
                       : <div className="w-4 h-4 rounded border border-gray-600" />}
                   </button>
                 </th>
-                <SortHeader col="first_name"    label="User"        currentSort={filters.sort} currentOrder={filters.order} onSort={onSort} />
-                <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-gray-400">Location</th>
-                <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-gray-400">Role</th>
-                <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-gray-400">Plan</th>
-                <SortHeader col="avg_rating"    label="Rating"      currentSort={filters.sort} currentOrder={filters.order} onSort={onSort} />
-                <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-gray-400">Jobs</th>
-                <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-gray-400">Verified</th>
-                <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-gray-400">Status</th>
-                <SortHeader col="created_at"    label="Joined"      currentSort={filters.sort} currentOrder={filters.order} onSort={onSort} />
-                <SortHeader col="last_login_at" label="Last Active"  currentSort={filters.sort} currentOrder={filters.order} onSort={onSort} />
+                <SortHeader col="first_name" label={t('adminUsers.list.user')} currentSort={filters.sort} currentOrder={filters.order} onSort={onSort} />
+                <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-gray-400">{t('adminUsers.list.location')}</th>
+                <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-gray-400">{t('adminUsers.list.role')}</th>
+                <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-gray-400">{t('adminUsers.list.plan')}</th>
+                <SortHeader col="avg_rating" label={t('adminUsers.list.rating')} currentSort={filters.sort} currentOrder={filters.order} onSort={onSort} />
+                <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-gray-400">{t('adminUsers.list.jobs')}</th>
+                <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-gray-400">{t('adminUsers.list.verified')}</th>
+                <th className="px-4 py-3 text-left text-xs uppercase tracking-wider font-semibold text-gray-400">{t('adminUsers.list.status')}</th>
+                <SortHeader col="created_at" label={t('adminUsers.list.joined')} currentSort={filters.sort} currentOrder={filters.order} onSort={onSort} />
+                <SortHeader col="last_login_at" label={t('adminUsers.list.lastActive')} currentSort={filters.sort} currentOrder={filters.order} onSort={onSort} />
                 <th className="px-4 py-3 w-10" />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-700/50">
               {loading ? (
-                <tr><td colSpan={12} className="px-4 py-12 text-center text-gray-500">Loading…</td></tr>
+                <tr><td colSpan={12} className="px-4 py-12 text-center text-gray-500">{t('adminUsers.list.loading')}</td></tr>
               ) : users.length === 0 ? (
-                <tr><td colSpan={12} className="px-4 py-12 text-center text-gray-500">{error ? 'User data is unavailable.' : 'No users found.'}</td></tr>
+                <tr><td colSpan={12} className="px-4 py-12 text-center text-gray-500">{error ? t('adminUsers.list.unavailable') : t('adminUsers.list.noUsers')}</td></tr>
               ) : users.map(user => {
-                const activity = activityInfo(user.last_login_at);
+                const activity = activityInfo(user.last_login_at, t);
                 const isSelected = selected.has(user.id);
                 return (
                   <tr key={user.id}
@@ -657,7 +720,7 @@ export default function UsersList() {
 
                     {/* Checkbox */}
                     <td className="px-4 py-3">
-                      <button onClick={() => toggleOne(user.id)} className="text-gray-400 hover:text-orange-400 transition">
+                      <button onClick={() => toggleOne(user.id)} aria-label={isSelected ? `Deselect ${user.first_name} ${user.last_name}` : `Select ${user.first_name} ${user.last_name}`} className="text-gray-400 hover:text-orange-400 transition">
                         {isSelected
                           ? <div className="w-4 h-4 rounded bg-orange-500 flex items-center justify-center"><div className="w-2.5 h-0.5 bg-white rounded" /></div>
                           : <div className="w-4 h-4 rounded border border-gray-600" />}
@@ -713,7 +776,7 @@ export default function UsersList() {
                           user.plan_slug === 'broker' ? 'bg-indigo-900 text-indigo-300' :
                                                         'bg-gray-700   text-gray-400'
                         }`}>{user.plan_slug}</span>
-                      ) : <span className="text-gray-600 text-xs">Free</span>}
+                      ) : <span className="text-gray-600 text-xs">{t('adminUsers.list.free')}</span>}
                     </td>
 
                     {/* Rating */}
@@ -731,26 +794,26 @@ export default function UsersList() {
 
                     {/* Jobs */}
                     <td className="px-4 py-3 text-gray-300 text-xs whitespace-nowrap">
-                      <span title="Posted">{user.jobs_posted ?? 0}</span>
+                      <span title={t('adminUsers.list.posted')}>{user.jobs_posted ?? 0}</span>
                       <span className="text-gray-600 mx-1">/</span>
-                      <span title="Completed as helper">{user.jobs_completed_as_helper ?? 0}</span>
+                      <span title={t('adminUsers.list.completedAsHelper')}>{user.jobs_completed_as_helper ?? 0}</span>
                     </td>
 
                     {/* Verified badges */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         {user.email_verified && (
-                          <span title="Email verified" className="text-blue-400">
+                          <span title={t('adminUsers.list.emailVerified')} className="text-blue-400">
                             <ShieldCheck size={13} />
                           </span>
                         )}
                         {user.is_identity_verified && (
-                          <span title="ID verified" className="text-green-400">
+                          <span title={t('adminUsers.list.idVerified')} className="text-green-400">
                             <Shield size={13} />
                           </span>
                         )}
                         {user.is_background_checked && (
-                          <span title="Background checked" className="text-purple-400">
+                          <span title={t('adminUsers.list.backgroundChecked')} className="text-purple-400">
                             <Shield size={13} />
                           </span>
                         )}
@@ -763,14 +826,14 @@ export default function UsersList() {
                     {/* Status */}
                     <td className="px-4 py-3">
                       {user.deletion_scheduled_at ? (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-900/50 text-orange-400 border border-orange-500/30" title={`Deletion scheduled: ${new Date(user.deletion_scheduled_at).toLocaleDateString()}`}>
-                          {user.deletion_type === 'self' ? 'Self-deleted' : 'Pending deletion'}
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-900/50 text-orange-400 border border-orange-500/30" title={`Deletion scheduled: ${adminDate(user.deletion_scheduled_at)}`}>
+                          {user.deletion_type === 'self' ? t('adminUsers.list.selfDeleted') : t('adminUsers.list.pendingDeletion')}
                         </span>
                       ) : (
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                           user.is_active ? 'bg-green-900 text-green-400' : 'bg-red-900 text-red-400'
                         }`}>
-                          {user.is_active ? 'Active' : 'Suspended'}
+                          {user.is_active ? t('adminUsers.list.active') : t('adminUsers.list.suspended')}
                         </span>
                       )}
                     </td>
@@ -783,7 +846,7 @@ export default function UsersList() {
                     {/* Last Active */}
                     <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
                       <span title={user.last_login_at ? new Date(user.last_login_at).toLocaleString() : 'Never'}>
-                        {user.last_login_at ? fmtRelative(user.last_login_at) : <span className="text-gray-600">Never</span>}
+                        {user.last_login_at ? fmtRelative(user.last_login_at, t) : <span className="text-gray-600">{t('adminUsers.list.never')}</span>}
                       </span>
                     </td>
 
@@ -792,6 +855,7 @@ export default function UsersList() {
                       <QuickActionsMenu
                         user={user}
                         isSuper={isSuper}
+                        canMessage={isSuper || canMessage}
                         onMessage={openMessage}
                         onToggleBan={handleToggleBan}
                         onResetPw={setResetTarget}
@@ -810,13 +874,15 @@ export default function UsersList() {
         {pages > 0 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-700">
             <p className="text-xs text-gray-500">
-              Page {filters.page} of {pages} &nbsp;·&nbsp; {total.toLocaleString()} results
+              {t('adminUsers.list.pageSummary', { page: filters.page, pages, count: total.toLocaleString() })}
             </p>
             <div className="flex items-center gap-1">
               <button onClick={() => setPage(1)} disabled={filters.page <= 1}
+                aria-label={t('common.firstPage', { defaultValue: 'First page' })}
                 className="px-2 py-1.5 bg-gray-700 text-gray-300 text-xs rounded-lg disabled:opacity-40 hover:bg-gray-600 transition">«</button>
               <button onClick={() => setPage(Math.max(1, filters.page - 1))} disabled={filters.page <= 1}
-                className="px-3 py-1.5 bg-gray-700 text-gray-300 text-xs rounded-lg disabled:opacity-40 hover:bg-gray-600 transition">← Prev</button>
+                aria-label={t('common.previous', { defaultValue: 'Previous page' })}
+                className="px-3 py-1.5 bg-gray-700 text-gray-300 text-xs rounded-lg disabled:opacity-40 hover:bg-gray-600 transition">{t('adminUsers.list.previous')}</button>
 
               {/* Page number pills */}
               {Array.from({ length: Math.min(5, pages) }, (_, i) => {
@@ -827,6 +893,8 @@ export default function UsersList() {
                 else p = filters.page - 2 + i;
                 return (
                   <button key={p} onClick={() => setPage(p)}
+                    aria-label={`Page ${p}`}
+                    aria-current={p === filters.page ? 'page' : undefined}
                     className={`px-3 py-1.5 text-xs rounded-lg transition ${
                       p === filters.page
                         ? 'bg-orange-500 text-white font-semibold'
@@ -836,8 +904,10 @@ export default function UsersList() {
               })}
 
               <button onClick={() => setPage(Math.min(pages, filters.page + 1))} disabled={filters.page >= pages}
-                className="px-3 py-1.5 bg-gray-700 text-gray-300 text-xs rounded-lg disabled:opacity-40 hover:bg-gray-600 transition">Next →</button>
+                aria-label={t('common.next', { defaultValue: 'Next page' })}
+                className="px-3 py-1.5 bg-gray-700 text-gray-300 text-xs rounded-lg disabled:opacity-40 hover:bg-gray-600 transition">{t('adminUsers.list.next')}</button>
               <button onClick={() => setPage(pages)} disabled={filters.page >= pages}
+                aria-label={t('common.lastPage', { defaultValue: 'Last page' })}
                 className="px-2 py-1.5 bg-gray-700 text-gray-300 text-xs rounded-lg disabled:opacity-40 hover:bg-gray-600 transition">»</button>
             </div>
           </div>
@@ -850,17 +920,17 @@ export default function UsersList() {
           <div className="w-full max-w-md bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
               <h2 className="font-semibold text-white flex items-center gap-2 text-sm">
-                <MessageSquare size={15} className="text-blue-400" /> Message {msgTarget.first_name}
+                <MessageSquare size={15} className="text-blue-400" /> {t('adminUsers.list.messageTitle', { name: msgTarget.first_name })}
               </h2>
-              <button onClick={closeMessage} className="text-gray-500 hover:text-white transition p-1"><X size={15} /></button>
+              <button onClick={closeMessage} aria-label={t('common.close', { defaultValue: 'Close' })} className="text-gray-500 hover:text-white transition p-1"><X size={15} aria-hidden="true" /></button>
             </div>
             <form onSubmit={handleSendMessage} className="p-5">
               <p className="text-xs text-gray-400 mb-3">
-                This message will appear in {msgTarget.first_name}'s inbox as a system message and is logged in the audit trail.
+                {t('adminUsers.list.messageAudit', { name: msgTarget.first_name })}
               </p>
               <textarea autoFocus required rows={5} maxLength={4000} value={msgText}
                 onChange={e => setMsgText(e.target.value)}
-                placeholder={`Write a message to ${msgTarget.first_name}…`}
+                placeholder={t('adminUsers.list.messagePlaceholder', { name: msgTarget.first_name })}
                 className="w-full px-3 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-sm
                            text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none" />
               <div className="flex justify-between items-center mt-4">
@@ -868,11 +938,11 @@ export default function UsersList() {
                 <div className="flex gap-2">
                   <button type="button" onClick={closeMessage} disabled={msgSending}
                     className="px-4 py-2 text-sm rounded-lg bg-gray-700 text-gray-300 hover:bg-gray-600 disabled:opacity-50 transition">
-                    Cancel
+                    {t('adminUsers.list.cancel')}
                   </button>
                   <button type="submit" disabled={msgSending || !msgText.trim()}
                     className="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition font-medium">
-                    {msgSending ? 'Sending…' : 'Send Message'}
+                    {msgSending ? t('adminUsers.list.sending') : t('adminUsers.list.sendMessage')}
                   </button>
                 </div>
               </div>

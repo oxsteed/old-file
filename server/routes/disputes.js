@@ -25,6 +25,28 @@ router.get('/my',
   disputeCtrl.getMyDisputes
 );
 
+// Admin routes must precede the generic /:disputeId route. Express matches
+// routes in declaration order, so leaving these below /:disputeId would make
+// /admin/all look like a customer request for disputeId="admin".
+router.get('/admin/all',
+  authenticate,
+  requireAdmin,
+  adminDisputeCtrl.getAllDisputes
+);
+
+router.post('/admin/:disputeId/review',
+  authenticate,
+  requireAdmin,
+  adminDisputeCtrl.startReview
+);
+
+router.post('/admin/:disputeId/resolve',
+  authenticate,
+  requireAdmin,
+  requirePermission('issue_refunds'),
+  adminDisputeCtrl.resolveDispute
+);
+
 router.get('/:disputeId',
   authenticate,
   disputeCtrl.getDispute
@@ -45,26 +67,6 @@ router.post('/:disputeId/messages',
 router.post('/:disputeId/message',
   authenticate,
   disputeCtrl.sendDisputeMessage
-);
-
-// Admin: dispute management
-router.get('/admin/all',
-  authenticate,
-  requireAdmin,
-  adminDisputeCtrl.getAllDisputes
-);
-
-router.post('/admin/:disputeId/review',
-  authenticate,
-  requireAdmin,
-  adminDisputeCtrl.startReview
-);
-
-router.post('/admin/:disputeId/resolve',
-  authenticate,
-  requireAdmin,
-  requirePermission('issue_refunds'),
-  adminDisputeCtrl.resolveDispute
 );
 
 module.exports = router;

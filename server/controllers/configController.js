@@ -93,15 +93,17 @@ exports.updatePricing = async (req, res, next) => {
         }
       }
     }
-    for (const [key, value] of entries) {
-      await db.query(
-        `INSERT INTO platform_config (key, value, updated_by)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (key) DO UPDATE SET value = $2, updated_by = $3, updated_at = NOW()`,
-        [key, String(value), req.user.id]
-      );
-    }
+    const client = await db.connect();
     try {
+      await client.query('BEGIN');
+      for (const [key, value] of entries) {
+        await client.query(
+          `INSERT INTO platform_config (key, value, updated_by)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (key) DO UPDATE SET value = $2, updated_by = $3, updated_at = NOW()`,
+          [key, String(value), req.user.id]
+        );
+      }
       await logAdminAction({
         adminId: req.user.id,
         action: 'pricing_updated',
@@ -109,8 +111,16 @@ exports.updatePricing = async (req, res, next) => {
         description: 'Platform pricing updated',
         after: Object.fromEntries(entries.map(([k, v]) => [k, String(v)])),
         req,
+        client,
+        throwOnError: true,
       });
-    } catch (e) {}
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw error;
+    } finally {
+      client.release();
+    }
     res.json({ message: 'Pricing updated', updated: Object.fromEntries(entries) });
   } catch (err) {
     next(err);

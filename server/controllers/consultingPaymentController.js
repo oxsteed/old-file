@@ -1,6 +1,7 @@
 const db = require('../db');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const logger = require('../utils/logger');
+const { processExternalRefund } = require('../services/externalRefundService');
 
 // Get available consulting packages (public, for marketing pages)
 exports.getPackages = async (req, res) => {
@@ -260,7 +261,7 @@ exports.refundPayment = async (req, res) => {
     }
 
     const { rows: paymentRows } = await db.query(
-      `SELECT id, status, stripe_payment_intent_id FROM consulting_payments WHERE id = $1`,
+      `SELECT id, status, amount_cents, stripe_payment_intent_id FROM consulting_payments WHERE id = $1`,
       [paymentId]
     );
     if (paymentRows.length === 0) {
@@ -278,13 +279,27 @@ exports.refundPayment = async (req, res) => {
       return res.status(400).json({ error: 'No Stripe payment to refund' });
     }
 
-    // Stripe call (external, do not wrap in DB transaction).
-    await stripe.refunds.create({
-      payment_intent: payment.stripe_payment_intent_id,
+    // Provider call is durable and reconcilable. The consulting payment status
+    // changes only after the provider confirms the exact refund.
+    const refundResult = await processExternalRefund({
+      rail: 'consulting',
+      referenceId: payment.id,
+      paymentIntentId: payment.stripe_payment_intent_id,
+      amountCents: Number(payment.amount_cents),
+      currency: 'USD',
       reason: reason || 'requested_by_customer',
-    }, {
-      idempotencyKey: `consulting-payment-refund-${payment.id}`,
+      actorUserId: req.user.id,
+      requestId: `consulting-payment-refund-${payment.id}`,
+      metadata: { payment_id: payment.id },
     });
+    if (refundResult.attempt.status !== 'succeeded') {
+      return res.status(202).json({
+        id: paymentId,
+        status: 'refund_pending',
+        refundStatus: refundResult.attempt.status,
+        refundAttemptId: refundResult.attempt.id,
+      });
+    }
 
     // Conditional UPDATE: only refund if still 'completed' (prevents concurrent refund races).
     const { rows } = await db.query(

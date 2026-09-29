@@ -40,6 +40,15 @@ jobs:
         working-directory: client
         run: node --test scripts/*.test.mjs
 
+      - name: Install Chrome for browser regression tests
+        uses: browser-actions/setup-chrome@v2
+        with:
+          chrome-version: stable
+
+      - name: Client browser regression tests
+        working-directory: client
+        run: node --test scripts/*.browser-check.cjs
+
       - name: Client localization, type, and production build checks
         working-directory: client
         run: npm run build:ci

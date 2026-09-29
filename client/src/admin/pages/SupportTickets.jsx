@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import adminApi from '../../lib/adminApi';
 import { useAuth } from '../../hooks/useAuth';
 import { useSocket } from '../../hooks/useSocket';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import useAdminSupportAvailability from '../hooks/useAdminSupportAvailability';
 import {
@@ -548,6 +548,7 @@ export default function SupportTickets() {
   const { user } = useAuth();
   const { socket } = useSocket();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const isSuper = user?.role === 'super_admin';
 
   const [tickets, setTickets] = useState([]);
@@ -609,6 +610,16 @@ export default function SupportTickets() {
 
   useEffect(() => { loadTickets(); }, [loadTickets]);
 
+  // Deep links use the registered inbox route plus a ticket query parameter.
+  // This keeps the route contract single and preserves normal authorization.
+  useEffect(() => {
+    const ticketId = searchParams.get('ticket');
+    if (ticketId) {
+      setSelected(ticketId);
+      setShowDetail(true);
+    }
+  }, [searchParams]);
+
   const toggleAvailability = async () => {
     try {
       const nextValue = !availability;
@@ -629,6 +640,17 @@ export default function SupportTickets() {
   const openTicket = (ticket) => {
     setSelected(ticket.id);
     setShowDetail(true);
+    const next = new URLSearchParams(searchParams);
+    next.set('ticket', ticket.id);
+    setSearchParams(next, { replace: true });
+  };
+
+  const closeTicketDetail = () => {
+    setShowDetail(false);
+    setSelected(null);
+    const next = new URLSearchParams(searchParams);
+    next.delete('ticket');
+    setSearchParams(next, { replace: true });
   };
 
   const totalOpen = stats
@@ -875,7 +897,7 @@ export default function SupportTickets() {
               <>
                 <div className="mb-3 xl:hidden">
                   <button
-                    onClick={() => setShowDetail(false)}
+                    onClick={closeTicketDetail}
                     className="rounded-xl border border-gray-800 bg-gray-950 px-3 py-2 text-sm text-gray-400 transition hover:text-white"
                   >
                     ← Back to inbox

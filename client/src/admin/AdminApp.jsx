@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
 import AdminLayout from './layouts/AdminLayout';
 import GrantGuard from './lib/GrantGuard';
+import { adminRoute } from './adminRouteManifest';
 import TwoFactorSetup from '../pages/Settings/TwoFactorSetup';
 
 const adminQueryClient = new QueryClient({
@@ -127,6 +128,7 @@ const AdminReportsDashboard = lazyWithRetry(() => import('./pages/AdminReportsDa
 const AdminEnforcementDashboard = lazyWithRetry(() => import('./pages/AdminEnforcementDashboard'));
 const LearnSubmissionsAdmin = lazyWithRetry(() => import('./pages/LearnSubmissionsAdmin'));
 const LearnProductLinksAdmin = lazyWithRetry(() => import('./pages/LearnProductLinksAdmin'));
+const OperationsOverview = lazyWithRetry(() => import('./pages/OperationsOverview'));
 
 function AdminGuard({ children, superOnly = false }) {
   const { user, loading } = useAuth();
@@ -181,38 +183,43 @@ export default function AdminApp() {
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
 
           {/* Regular admin */}
-          <Route path="dashboard"           element={<SuperDashboard />} />
-          <Route path="users"               element={<UsersList />} />
+          <Route path={adminRoute('dashboard').relative} element={<SuperDashboard />} />
+          <Route path={adminRoute('operations').relative} element={<OperationsOverview />} />
+          <Route path={adminRoute('users').relative} element={<UsersList />} />
           <Route path="users/:userId"       element={<UserDetail />} />
-          <Route path="jobs"                element={<JobsList />} />
+          <Route path={adminRoute('jobs').relative} element={<JobsList />} />
           <Route path="jobs/:jobId"        element={<JobDetail />} />
-          <Route path="reports"             element={<ReportsList />} />
-          <Route path="moderation"          element={<Moderation />} />
+          <Route path={adminRoute('reports').relative} element={<ReportsList />} />
+          <Route path={adminRoute('moderation').relative} element={<Moderation />} />
           <Route path="disputes"            element={<Disputes />} />
           <Route path="disputes/:disputeId" element={<DisputeResolve />} />
           <Route path="markets"             element={<MarketZipCodes />} />
-          <Route path="direct-service-areas" element={<DirectServiceAreas />} />
-          <Route path="direct-catalog" element={<DirectCatalog embedded />} />
-          <Route path="skills"              element={<SkillsManager />} />
+          <Route path={adminRoute('directServiceAreas').relative} element={<DirectServiceAreas />} />
+          <Route path={adminRoute('directCatalog').relative} element={<DirectCatalog embedded />} />
+          <Route path={adminRoute('skills').relative} element={<SkillsManager />} />
           <Route path="licenses"            element={<LicensesManager />} />
-          <Route path="content-removals"    element={<ContentRemovals />} />
-          <Route path="support"             element={<SupportTickets />} />
-          <Route path="quote-requests"      element={<QuoteRequestsInbox />} />
-          <Route path="search"              element={<AdminSearch />} />
-          <Route path="messages"            element={<AdminMessages />} />
-          <Route path="businesses"          element={<BusinessModeration />} />
+          <Route path={adminRoute('contentRemovals').relative} element={<ContentRemovals />} />
+          <Route path={adminRoute('support').relative} element={<SupportTickets />} />
+          <Route path={adminRoute('quoteRequests').relative} element={<QuoteRequestsInbox />} />
+          <Route path={adminRoute('search').relative} element={<AdminSearch />} />
+          <Route path={adminRoute('messages').relative} element={
+            <GrantGuard grant={adminRoute('messages').grant}><AdminMessages /></GrantGuard>
+          } />
+          <Route path={adminRoute('businesses').relative} element={<BusinessModeration />} />
           <Route path="businesses/:id"      element={<BusinessDetail />} />
-          <Route path="tool-rentals"        element={<ToolRentalModeration />} />
-          <Route path="planned-needs"       element={<PlannedNeedsAdmin />} />
-          <Route path="payments"            element={<PaymentsList />} />
-          <Route path="orders"              element={<OrderManagement />} />
-          <Route path="templates"           element={<TemplateManagement />} />
-          <Route path="consulting"          element={<ConsultingDashboard />} />
-          <Route path="consulting/payments" element={<ConsultingPayments />} />
-          <Route path="consulting/scheduler" element={<ConsultingScheduler />} />
+          <Route path={adminRoute('toolRentals').relative} element={<ToolRentalModeration />} />
+          <Route path={adminRoute('plannedNeeds').relative} element={<PlannedNeedsAdmin />} />
+          <Route path={adminRoute('payments').relative} element={
+            <GrantGuard grant={adminRoute('payments').grant}><PaymentsList /></GrantGuard>
+          } />
+          <Route path={adminRoute('orders').relative} element={<OrderManagement />} />
+          <Route path={adminRoute('templates').relative} element={<TemplateManagement />} />
+          <Route path={adminRoute('consulting').relative} element={<ConsultingDashboard />} />
+          <Route path={adminRoute('consultingPayments').relative} element={<ConsultingPayments />} />
+          <Route path={adminRoute('scheduling').relative} element={<ConsultingScheduler />} />
           <Route path="consulting/analytics" element={<ConsultingAnalyticsDashboard />} />
-          <Route path="consulting/business-launch" element={<BusinessLaunchAdmin />} />
-          <Route path="consulting/sessions" element={<ConsultingSessionsAdmin />} />
+          <Route path={adminRoute('businessLaunch').relative} element={<BusinessLaunchAdmin />} />
+          <Route path={adminRoute('consultingSessions').relative} element={<ConsultingSessionsAdmin />} />
           <Route path="support/agent-dashboard" element={<SupportAgentDashboard />} />
           <Route path="support/agent-onboarding" element={<SupportAgentOnboarding />} />
           <Route path="support/shifts" element={<SupportShiftsManager />} />
@@ -231,12 +238,12 @@ export default function AdminApp() {
           <Route path="support/audit" element={<SupportAuditLog />} />
 
           {/* Learn Mode */}
-          <Route path="learn/submissions"    element={<LearnSubmissionsAdmin />} />
-          <Route path="learn/product-links"  element={<LearnProductLinksAdmin />} />
+          <Route path={adminRoute('learnSubmissions').relative} element={<LearnSubmissionsAdmin />} />
+          <Route path={adminRoute('learnProductLinks').relative} element={<LearnProductLinksAdmin />} />
 
           {/* Reputation & Enforcement */}
           <Route path="reports/dashboard" element={<AdminReportsDashboard />} />
-          <Route path="enforcement" element={<AdminEnforcementDashboard />} />
+          <Route path={adminRoute('enforcement').relative} element={<AdminEnforcementDashboard />} />
 
           {/* Legal & Compliance */}
           <Route path="legal/acceptances" element={<AdminLegalAcceptancesPage />} />
@@ -250,103 +257,103 @@ export default function AdminApp() {
               endpoints have no backing grant scope stay superOnly: super/fees
               (no manage_fees scope; fee mutations are super-only), and
               super/franchises + super/careers (no franchise/careers scopes). */}
-          <Route path="super/dashboard" element={
-            <AdminGuard superOnly><SuperDashboard /></AdminGuard>
+          <Route path={adminRoute('superDashboard').relative} element={
+            <AdminGuard superOnly={adminRoute('superDashboard').superOnly}><SuperDashboard /></AdminGuard>
           } />
-          <Route path="super/revenue" element={
-            <GrantGuard grant="view_financials"><Revenue /></GrantGuard>
+          <Route path={adminRoute('revenue').relative} element={
+            <GrantGuard grant={adminRoute('revenue').grant}><Revenue /></GrantGuard>
           } />
-          <Route path="super/money" element={
-            <GrantGuard grant="view_financials"><MoneyPage /></GrantGuard>
+          <Route path={adminRoute('money').relative} element={
+            <GrantGuard grant={adminRoute('money').grant}><MoneyPage /></GrantGuard>
           } />
-          <Route path="super/restaurant-credit" element={
-            <AdminGuard superOnly><RestaurantCreditAdmin /></AdminGuard>
+          <Route path={adminRoute('restaurantCredit').relative} element={
+            <AdminGuard superOnly={adminRoute('restaurantCredit').superOnly}><RestaurantCreditAdmin /></AdminGuard>
           } />
-          <Route path="super/oxsteed-credit" element={
-            <AdminGuard superOnly><OxsteedCreditAdmin /></AdminGuard>
+          <Route path={adminRoute('oxsteedCredit').relative} element={
+            <AdminGuard superOnly={adminRoute('oxsteedCredit').superOnly}><OxsteedCreditAdmin /></AdminGuard>
           } />
-          <Route path="super/financials" element={
-            <GrantGuard grant="view_financials"><Financials /></GrantGuard>
+          <Route path={adminRoute('financials').relative} element={
+            <GrantGuard grant={adminRoute('financials').grant}><Financials /></GrantGuard>
           } />
-          <Route path="super/payouts" element={
-            <GrantGuard grant="view_financials"><Payouts /></GrantGuard>
+          <Route path={adminRoute('payouts').relative} element={
+            <GrantGuard grant={adminRoute('payouts').grant}><Payouts /></GrantGuard>
           } />
-          <Route path="super/conversations" element={
-            <AdminGuard superOnly><ConversationsAdmin /></AdminGuard>
+          <Route path={adminRoute('conversations').relative} element={
+            <AdminGuard superOnly={adminRoute('conversations').superOnly}><ConversationsAdmin /></AdminGuard>
           } />
-          <Route path="super/settings" element={
-            <GrantGuard grant="manage_settings"><PlatformSettings /></GrantGuard>
+          <Route path={adminRoute('settings').relative} element={
+            <GrantGuard grant={adminRoute('settings').grant}><PlatformSettings /></GrantGuard>
           } />
-          <Route path="super/audit-log" element={
-            <GrantGuard grant="view_audit_log"><AuditLog /></GrantGuard>
+          <Route path={adminRoute('auditLog').relative} element={
+            <GrantGuard grant={adminRoute('auditLog').grant}><AuditLog /></GrantGuard>
           } />
           {/* Stays superOnly: no manage_fees scope exists in the permission
               catalogue, and the fee mutations (/api/fee-config PUT + reset)
               are super-only on the server. */}
-          <Route path="super/fees" element={
-            <AdminGuard superOnly><FeeConfig /></AdminGuard>
+          <Route path={adminRoute('feeConfig').relative} element={
+            <AdminGuard superOnly={adminRoute('feeConfig').superOnly}><FeeConfig /></AdminGuard>
           } />
-          <Route path="super/pricing" element={
-            <AdminGuard superOnly><PricingConfig /></AdminGuard>
+          <Route path={adminRoute('pricingConfig').relative} element={
+            <AdminGuard superOnly={adminRoute('pricingConfig').superOnly}><PricingConfig /></AdminGuard>
           } />
-          <Route path="super/pricing-overrides" element={
-            <AdminGuard superOnly><PricingOverrides /></AdminGuard>
+          <Route path={adminRoute('pricingOverrides').relative} element={
+            <AdminGuard superOnly={adminRoute('pricingOverrides').superOnly}><PricingOverrides /></AdminGuard>
           } />
-          <Route path="super/country-packs" element={
-            <AdminGuard superOnly><CountryPacks /></AdminGuard>
+          <Route path={adminRoute('countryPacks').relative} element={
+            <AdminGuard superOnly={adminRoute('countryPacks').superOnly}><CountryPacks /></AdminGuard>
           } />
-          <Route path="super/mode-policies" element={
-            <AdminGuard superOnly><ModePolicies /></AdminGuard>
+          <Route path={adminRoute('modePolicies').relative} element={
+            <AdminGuard superOnly={adminRoute('modePolicies').superOnly}><ModePolicies /></AdminGuard>
           } />
-          <Route path="super/mode-approvals" element={
-            <AdminGuard superOnly><ModeApprovals /></AdminGuard>
+          <Route path={adminRoute('modeApprovals').relative} element={
+            <AdminGuard superOnly={adminRoute('modeApprovals').superOnly}><ModeApprovals /></AdminGuard>
           } />
-          <Route path="super/admin-accounts" element={
-            <GrantGuard grant="manage_admin_accounts"><AdminAccounts /></GrantGuard>
+          <Route path={adminRoute('adminAccounts').relative} element={
+            <GrantGuard grant={adminRoute('adminAccounts').grant}><AdminAccounts /></GrantGuard>
           } />
-          <Route path="super/search-logs" element={
-            <AdminGuard superOnly><SearchLogs /></AdminGuard>
+          <Route path={adminRoute('searchLogs').relative} element={
+            <AdminGuard superOnly={adminRoute('searchLogs').superOnly}><SearchLogs /></AdminGuard>
           } />
-          <Route path="super/permissions" element={
-            <GrantGuard grant="manage_admin_accounts"><PermissionGrants /></GrantGuard>
+          <Route path={adminRoute('permissions').relative} element={
+            <GrantGuard grant={adminRoute('permissions').grant}><PermissionGrants /></GrantGuard>
           } />
-          <Route path="super/users/create" element={
-            <AdminGuard superOnly><CreateUser /></AdminGuard>
+          <Route path={adminRoute('createUser').relative} element={
+            <AdminGuard superOnly={adminRoute('createUser').superOnly}><CreateUser /></AdminGuard>
           } />
-          <Route path="super/regions" element={
-            <AdminGuard superOnly><RegionsManager /></AdminGuard>
+          <Route path={adminRoute('regions').relative} element={
+            <AdminGuard superOnly={adminRoute('regions').superOnly}><RegionsManager /></AdminGuard>
           } />
-          <Route path="super/logistics-internal-access" element={
-            <AdminGuard superOnly><LogisticsInternalAccess /></AdminGuard>
+          <Route path={adminRoute('internalAccess').relative} element={
+            <AdminGuard superOnly={adminRoute('internalAccess').superOnly}><LogisticsInternalAccess /></AdminGuard>
           } />
-          <Route path="super/access-gate-lockouts" element={
-            <AdminGuard superOnly><AccessGateLockouts /></AdminGuard>
+          <Route path={adminRoute('gateLockouts').relative} element={
+            <AdminGuard superOnly={adminRoute('gateLockouts').superOnly}><AccessGateLockouts /></AdminGuard>
           } />
-          <Route path="super/audit-log/user-actions" element={
-            <GrantGuard grant="view_audit_log"><AuditLogUserActions /></GrantGuard>
+          <Route path={adminRoute('userActionLog').relative} element={
+            <GrantGuard grant={adminRoute('userActionLog').grant}><AuditLogUserActions /></GrantGuard>
           } />
-          <Route path="super/one-truth" element={
-            <AdminGuard superOnly><OneTruthPage /></AdminGuard>
+          <Route path={adminRoute('oneTruth').relative} element={
+            <AdminGuard superOnly={adminRoute('oneTruth').superOnly}><OneTruthPage /></AdminGuard>
           } />
           {/* Stays superOnly: no franchise/careers scopes exist in the
               permission catalogue, so there is no grant to honor. */}
-          <Route path="super/franchises" element={
-            <AdminGuard superOnly><FranchiseHQPage /></AdminGuard>
+          <Route path={adminRoute('franchiseHq').relative} element={
+            <AdminGuard superOnly={adminRoute('franchiseHq').superOnly}><FranchiseHQPage /></AdminGuard>
           } />
-          <Route path="super/careers" element={
-            <AdminGuard superOnly><CareersAdmin /></AdminGuard>
+          <Route path={adminRoute('careers').relative} element={
+            <AdminGuard superOnly={adminRoute('careers').superOnly}><CareersAdmin /></AdminGuard>
           } />
 
           {/* Corporate hierarchy (migration 246) - org chart open to all admins,
               assignments + departments restricted by controller-level guards. */}
-          <Route path="corporate/org-chart" element={<CorporateOrgChart />} />
-          <Route path="corporate/assignments" element={<CorporateAssignments />} />
-          <Route path="super/corporate/departments" element={
-            <AdminGuard superOnly><CorporateDepartments /></AdminGuard>
+          <Route path={adminRoute('orgChart').relative} element={<CorporateOrgChart />} />
+          <Route path={adminRoute('corporateAssignments').relative} element={<CorporateAssignments />} />
+          <Route path={adminRoute('corporateSetup').relative} element={
+            <AdminGuard superOnly={adminRoute('corporateSetup').superOnly}><CorporateDepartments /></AdminGuard>
           } />
 
           {/* OxSteed Logistics branch (migration 247) */}
-          <Route path="logistics"                    element={<LogisticsAdminDashboard />} />
+          <Route path={adminRoute('logistics').relative} element={<LogisticsAdminDashboard />} />
           <Route path="logistics/sourcing-ops"       element={<SourcingOpsAdmin />} />
           <Route path="logistics/organizer-approvals" element={<OrganizerApprovalsAdmin />} />
           <Route path="logistics/lanes"              element={<LanesManagement />} />
@@ -364,7 +371,7 @@ export default function AdminApp() {
           <Route path="logistics/pricing"            element={<PricingAdmin />} />
           <Route path="logistics/restrictions"       element={<RestrictionsAdmin />} />
           <Route path="logistics/disputes"           element={<DisputesAdmin />} />
-          <Route path="logistics/control"            element={<AdminGuard superOnly><SuperAdminLogisticsControl /></AdminGuard>} />
+          <Route path={adminRoute('logisticsControl').relative} element={<AdminGuard superOnly={adminRoute('logisticsControl').superOnly}><SuperAdminLogisticsControl /></AdminGuard>} />
         </Route>
 
         {/* Catch-all */}

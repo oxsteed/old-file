@@ -4,6 +4,7 @@ import { useAuth }   from '../../hooks/useAuth';
 import { useTheme }  from '../../context/ThemeContext';
 import useAdminSupportAvailability from '../hooks/useAdminSupportAvailability';
 import { useMyScopes } from '../lib/GrantGuard';
+import { adminRoute } from '../adminRouteManifest';
 import { OxSteedIcon } from '../../components/OxSteedIcon';
 import { useTranslation } from 'react-i18next';
 import {
@@ -15,99 +16,102 @@ import {
   Search, Key, ClipboardList, Building2, CreditCard, MessageSquare,
   HeartHandshake, Calendar, UserPlus, Map, MapPinned, ShoppingCart, Layers, Fingerprint,
   AlertTriangle, Crown, Globe, Network, Package, Truck, ShieldAlert, BookOpen, Link2,
-  Settings2, Check, Wallet,
+  Settings2, Check, Wallet, Activity,
 } from 'lucide-react';
 
 const ADMIN_NAV_MODE_KEY = 'oxsteed:admin-nav-mode';
+const routePath = (key) => adminRoute(key).path;
 
 const REGULAR_NAV = [
-  { to: '/admin/dashboard',        icon: LayoutDashboard, labelKey: 'adminNav.dashboard'        },
-  { to: '/admin/users',            icon: Users,           labelKey: 'adminNav.users'            },
-  { to: '/admin/jobs',             icon: Briefcase,       labelKey: 'adminNav.jobs'             },
-  { to: '/admin/reports',          icon: Flag,            labelKey: 'adminNav.reports'          },
-  { to: '/admin/moderation',       icon: Shield,          labelKey: 'adminNav.moderation'       },
-  { to: '/admin/enforcement',      icon: AlertTriangle,   labelKey: 'adminNav.enforcement'      },
-  { to: '/admin/content-removals', icon: Trash2,          labelKey: 'adminNav.contentRemovals' },
-  { to: '/admin/skills',           icon: Wrench,          labelKey: 'adminNav.skills'           },
-  { to: '/admin/support',          icon: HeadphonesIcon,  labelKey: 'adminNav.supportTickets'  },
-  { to: '/admin/support/chat',     icon: MessageSquare,   labelKey: 'adminNav.liveSupport'     },
-  { to: '/admin/quote-requests',   icon: FileText,        labelKey: 'adminNav.quoteRequests'   },
-  { to: '/direct/admin',           icon: HeartHandshake,   labelKey: 'adminNav.directOps',        external: true },
-  { to: '/admin/direct-service-areas', icon: MapPinned,    labelKey: 'adminNav.directServiceAreas' },
-  { to: '/admin/direct-catalog',       icon: Package,      labelKey: 'adminNav.directCatalog'       },
-  { to: '/admin/messages',         icon: MessageSquare,   labelKey: 'adminNav.messages'         },
-  { to: '/admin/search',           icon: Search,          labelKey: 'adminNav.search'           },
-  { to: '/admin/businesses',       icon: Building2,       labelKey: 'adminNav.businesses'       },
-  { to: '/admin/tool-rentals',     icon: Wrench,          labelKey: 'adminNav.toolRentals'     },
-  { to: '/admin/planned-needs',        icon: ClipboardList,      labelKey: 'adminNav.plannedNeeds'    },
-  { to: '/admin/payments',             icon: CreditCard,         labelKey: 'adminNav.payments'         },
-  { to: '/admin/orders',               icon: ShoppingCart,       labelKey: 'adminNav.orders'           },
-  { to: '/admin/templates',            icon: Layers,             labelKey: 'adminNav.templates'        },
-  { to: '/admin/consulting',           icon: HeartHandshake,     labelKey: 'adminNav.consulting'       },
-  { to: '/admin/consulting/payments',  icon: CreditCard,         labelKey: 'adminNav.consultingPay'   },
-  { to: '/admin/consulting/scheduler', icon: Calendar,           labelKey: 'adminNav.scheduling'       },
-  { to: '/admin/consulting/business-launch', icon: Briefcase,    labelKey: 'adminNav.businessLaunch'  },
-  { to: '/admin/consulting/sessions',  icon: Calendar,           labelKey: 'adminNav.consultingSessions' },
-  { to: '/admin/corporate/org-chart',  icon: Network,            labelKey: 'adminNav.orgChart'        },
-  { to: '/admin/corporate/assignments',icon: Crown,              labelKey: 'adminNav.corporateTitles' },
-  { to: '/admin/logistics',            icon: Truck,              labelKey: 'adminNav.logisticsOps'    },
-  { to: '/admin/learn/submissions',    icon: BookOpen,           labelKey: 'adminNav.learnSubmissions'},
-  { to: '/admin/learn/product-links', icon: Link2,              labelKey: 'adminNav.learnProductLinks'},
+  { to: routePath('dashboard'),        icon: LayoutDashboard, labelKey: 'adminNav.dashboard'        },
+  { to: routePath('operations'),       icon: Activity,        labelKey: 'adminNav.operationsOverview' },
+  { to: routePath('users'),            icon: Users,           labelKey: 'adminNav.users'            },
+  { to: routePath('jobs'),             icon: Briefcase,       labelKey: 'adminNav.jobs'             },
+  { to: routePath('reports'),          icon: Flag,            labelKey: 'adminNav.reports'          },
+  { to: routePath('moderation'),       icon: Shield,          labelKey: 'adminNav.moderation'       },
+  { to: routePath('enforcement'),      icon: AlertTriangle,   labelKey: 'adminNav.enforcement'      },
+  { to: routePath('contentRemovals'), icon: Trash2,          labelKey: 'adminNav.contentRemovals' },
+  { to: routePath('skills'),           icon: Wrench,          labelKey: 'adminNav.skills'           },
+  { to: routePath('support'),          icon: HeadphonesIcon,  labelKey: 'adminNav.supportTickets'  },
+  { to: routePath('supportChat'),     icon: MessageSquare,   labelKey: 'adminNav.liveSupport'     },
+  { to: routePath('quoteRequests'),   icon: FileText,        labelKey: 'adminNav.quoteRequests'   },
+  { to: routePath('directOps'),           icon: HeartHandshake,   labelKey: 'adminNav.directOps',        external: true },
+  { to: routePath('directServiceAreas'), icon: MapPinned,    labelKey: 'adminNav.directServiceAreas' },
+  { to: routePath('directCatalog'),       icon: Package,      labelKey: 'adminNav.directCatalog'       },
+  { to: routePath('messages'),         icon: MessageSquare,   labelKey: 'adminNav.messages',         grant: adminRoute('messages').grant },
+  { to: routePath('search'),           icon: Search,          labelKey: 'adminNav.search'           },
+  { to: routePath('businesses'),       icon: Building2,       labelKey: 'adminNav.businesses'       },
+  { to: routePath('toolRentals'),     icon: Wrench,          labelKey: 'adminNav.toolRentals'     },
+  { to: routePath('plannedNeeds'),        icon: ClipboardList,      labelKey: 'adminNav.plannedNeeds'    },
+  { to: routePath('payments'),             icon: CreditCard,         labelKey: 'adminNav.payments',        grant: adminRoute('payments').grant },
+  { to: routePath('orders'),               icon: ShoppingCart,       labelKey: 'adminNav.orders'           },
+  { to: routePath('templates'),            icon: Layers,             labelKey: 'adminNav.templates'        },
+  { to: routePath('consulting'),           icon: HeartHandshake,     labelKey: 'adminNav.consulting'       },
+  { to: routePath('consultingPayments'),  icon: CreditCard,         labelKey: 'adminNav.consultingPay'   },
+  { to: routePath('scheduling'), icon: Calendar,           labelKey: 'adminNav.scheduling'       },
+  { to: routePath('businessLaunch'), icon: Briefcase,    labelKey: 'adminNav.businessLaunch'  },
+  { to: routePath('consultingSessions'),  icon: Calendar,           labelKey: 'adminNav.consultingSessions' },
+  { to: routePath('orgChart'),  icon: Network,            labelKey: 'adminNav.orgChart'        },
+  { to: routePath('corporateAssignments'),icon: Crown,              labelKey: 'adminNav.corporateTitles' },
+  { to: routePath('logistics'),            icon: Truck,              labelKey: 'adminNav.logisticsOps'    },
+  { to: routePath('learnSubmissions'),    icon: BookOpen,           labelKey: 'adminNav.learnSubmissions'},
+  { to: routePath('learnProductLinks'), icon: Link2,              labelKey: 'adminNav.learnProductLinks'},
 ];
 
 const SUPER_NAV = [
-  { to: '/admin/super/dashboard',      icon: BarChart2,     labelKey: 'adminNav.superDashboard'  },
-  { to: '/admin/super/money',          icon: DollarSign,    labelKey: 'adminNav.money',            grant: 'view_financials' },
-  { to: '/admin/super/restaurant-credit', icon: Wallet,      labelKey: 'adminNav.restaurantCredit' },
-  { to: '/admin/super/oxsteed-credit', icon: Wallet,         labelKey: 'adminNav.oxsteedCredit'     },
-  { to: '/admin/super/revenue',        icon: TrendingUp,    labelKey: 'adminNav.revenue',          grant: 'view_financials' },
-  { to: '/admin/super/fees',           icon: DollarSign,    labelKey: 'adminNav.feeConfig'        },
-  { to: '/admin/super/pricing',        icon: DollarSign,    labelKey: 'adminNav.pricingConfig'    },
-  { to: '/admin/super/pricing-overrides', icon: Globe,      labelKey: 'adminNav.pricingOverrides' },
-  { to: '/admin/super/financials',     icon: DollarSign,    labelKey: 'adminNav.financials',       grant: 'view_financials' },
-  { to: '/admin/super/payouts',          icon: FileText,       labelKey: 'adminNav.payouts',          grant: 'view_financials' },
-  { to: '/admin/super/conversations',   icon: MessageSquare,  labelKey: 'adminNav.conversations'    },
-  { to: '/admin/super/admin-accounts',  icon: UserCog,        labelKey: 'adminNav.adminAccounts',   grant: 'manage_admin_accounts' },
-  { to: '/admin/super/permissions',    icon: Key,           labelKey: 'adminNav.permissions',      grant: 'manage_admin_accounts' },
-  { to: '/admin/super/regions',        icon: Map,           labelKey: 'adminNav.regions'          },
-  { to: '/admin/super/logistics-internal-access', icon: Key, labelKey: 'adminNav.internalAccess' },
-  { to: '/admin/super/access-gate-lockouts', icon: ShieldAlert, labelKey: 'adminNav.gateLockouts' },
-  { to: '/admin/super/users/create',   icon: UserPlus,      labelKey: 'adminNav.createUser'      },
-  { to: '/admin/super/search-logs',    icon: ClipboardList, labelKey: 'adminNav.searchLogs'      },
-  { to: '/admin/super/settings',       icon: Settings,      labelKey: 'adminNav.settings',         grant: 'manage_settings' },
-  { to: '/admin/super/audit-log',      icon: ScrollText,    labelKey: 'adminNav.auditLog',        grant: 'view_audit_log' },
-  { to: '/admin/super/audit-log/user-actions', icon: ScrollText,    labelKey: 'adminNav.userActionLog', grant: 'view_audit_log' },
-  { to: '/admin/super/one-truth',              icon: Fingerprint,   labelKey: 'adminNav.oneTruth'       },
-  { to: '/admin/super/franchises',             icon: Globe,         labelKey: 'adminNav.franchiseHq'    },
-  { to: '/admin/super/careers',                icon: Briefcase,     labelKey: 'adminNav.careers'         },
-  { to: '/admin/super/country-packs',          icon: Globe,         labelKey: 'adminNav.countryPacks'   },
-  { to: '/admin/super/corporate/departments',  icon: Building2,     labelKey: 'adminNav.corporateSetup' },
-  { to: '/admin/super/mode-policies',          icon: Key,           labelKey: 'adminNav.modePolicies'   },
-  { to: '/admin/super/mode-approvals',         icon: AlertTriangle, labelKey: 'adminNav.modeApprovals'  },
+  { to: routePath('superDashboard'),      icon: BarChart2,     labelKey: 'adminNav.superDashboard'  },
+  { to: routePath('money'),          icon: DollarSign,    labelKey: 'adminNav.money',            grant: adminRoute('money').grant },
+  { to: routePath('restaurantCredit'), icon: Wallet,      labelKey: 'adminNav.restaurantCredit' },
+  { to: routePath('oxsteedCredit'), icon: Wallet,         labelKey: 'adminNav.oxsteedCredit'     },
+  { to: routePath('revenue'),        icon: TrendingUp,    labelKey: 'adminNav.revenue',          grant: adminRoute('revenue').grant },
+  { to: routePath('feeConfig'),           icon: DollarSign,    labelKey: 'adminNav.feeConfig'        },
+  { to: routePath('pricingConfig'),        icon: DollarSign,    labelKey: 'adminNav.pricingConfig'    },
+  { to: routePath('pricingOverrides'), icon: Globe,      labelKey: 'adminNav.pricingOverrides' },
+  { to: routePath('financials'),     icon: DollarSign,    labelKey: 'adminNav.financials',       grant: adminRoute('financials').grant },
+  { to: routePath('payouts'),          icon: FileText,       labelKey: 'adminNav.payouts',          grant: adminRoute('payouts').grant },
+  { to: routePath('conversations'),   icon: MessageSquare,  labelKey: 'adminNav.conversations'    },
+  { to: routePath('adminAccounts'),  icon: UserCog,        labelKey: 'adminNav.adminAccounts',   grant: adminRoute('adminAccounts').grant },
+  { to: routePath('permissions'),    icon: Key,           labelKey: 'adminNav.permissions',      grant: adminRoute('permissions').grant },
+  { to: routePath('regions'),        icon: Map,           labelKey: 'adminNav.regions'          },
+  { to: routePath('internalAccess'), icon: Key, labelKey: 'adminNav.internalAccess' },
+  { to: routePath('gateLockouts'), icon: ShieldAlert, labelKey: 'adminNav.gateLockouts' },
+  { to: routePath('createUser'),   icon: UserPlus,      labelKey: 'adminNav.createUser'      },
+  { to: routePath('searchLogs'),    icon: ClipboardList, labelKey: 'adminNav.searchLogs'      },
+  { to: routePath('settings'),       icon: Settings,      labelKey: 'adminNav.settings',         grant: adminRoute('settings').grant },
+  { to: routePath('auditLog'),      icon: ScrollText,    labelKey: 'adminNav.auditLog',        grant: adminRoute('auditLog').grant },
+  { to: routePath('userActionLog'), icon: ScrollText,    labelKey: 'adminNav.userActionLog', grant: adminRoute('userActionLog').grant },
+  { to: routePath('oneTruth'),              icon: Fingerprint,   labelKey: 'adminNav.oneTruth'       },
+  { to: routePath('franchiseHq'),             icon: Globe,         labelKey: 'adminNav.franchiseHq'    },
+  { to: routePath('careers'),                icon: Briefcase,     labelKey: 'adminNav.careers'         },
+  { to: routePath('countryPacks'),          icon: Globe,         labelKey: 'adminNav.countryPacks'   },
+  { to: routePath('corporateSetup'),  icon: Building2,     labelKey: 'adminNav.corporateSetup' },
+  { to: routePath('modePolicies'),          icon: Key,           labelKey: 'adminNav.modePolicies'   },
+  { to: routePath('modeApprovals'),         icon: AlertTriangle, labelKey: 'adminNav.modeApprovals'  },
 ];
 
 // Simple mode keeps the operational paths close at hand without removing access
 // to any route. Full mode remains the default for existing admin sessions.
 const SIMPLE_REGULAR_NAV = [
-  '/admin/dashboard',
-  '/admin/users',
-  '/admin/jobs',
-  '/admin/support',
-  '/admin/support/chat',
-  '/direct/admin',
-  '/admin/direct-service-areas',
-  '/admin/direct-catalog',
-  '/admin/payments',
+  routePath('dashboard'),
+  routePath('operations'),
+  routePath('users'),
+  routePath('jobs'),
+  routePath('support'),
+  routePath('supportChat'),
+  routePath('directOps'),
+  routePath('directServiceAreas'),
+  routePath('directCatalog'),
+  routePath('payments'),
 ];
 
 const SIMPLE_SUPER_NAV = [
-  '/admin/super/dashboard',
-  '/admin/super/restaurant-credit',
-  '/admin/super/oxsteed-credit',
-  '/admin/super/conversations',
-  '/admin/super/careers',
-  '/admin/super/settings',
-  '/admin/super/audit-log',
+  routePath('superDashboard'),
+  routePath('restaurantCredit'),
+  routePath('oxsteedCredit'),
+  routePath('conversations'),
+  routePath('careers'),
+  routePath('settings'),
+  routePath('auditLog'),
 ];
 
 function readAdminNavMode() {
@@ -212,13 +216,15 @@ export default function AdminLayout() {
     const fullSuperNav = simpleMode
       ? SUPER_NAV.filter(({ to }) => SIMPLE_SUPER_NAV.includes(to))
       : SUPER_NAV;
-    // Super-admins see everything. Plain admins additionally see the
-    // grant-backed entries their permission grants unlock (fail closed
-    // while scopes are still loading).
+    // Super-admins see everything. Plain admins only see entries backed by
+    // an explicit grant; super-admin-only pages have no grant and must not be
+    // advertised to a regular admin who would be rejected after navigation.
     const superNav = fullSuperNav.filter(
-      (item) => isSuper || !item.grant || myScopes.includes(item.grant)
+      (item) => isSuper || (item.grant && myScopes.includes(item.grant))
     );
-    const visibleRegularNav = regularNav.filter(matches);
+    const visibleRegularNav = regularNav.filter(
+      (item) => (!item.grant || isSuper || myScopes.includes(item.grant)) && matches(item)
+    );
     const visibleSuperNav = superNav.filter(matches);
     const totalAdminTabs = regularNav.length + superNav.length;
     const visibleAdminTabs = visibleRegularNav.length + visibleSuperNav.length;
@@ -241,7 +247,9 @@ export default function AdminLayout() {
         </div>
         {/* Close button - mobile only */}
         <button
+          type="button"
           onClick={closeSidebar}
+          aria-label={t('closeMenu')}
           className="lg:hidden text-gray-500 hover:text-white transition p-1"
         >
           <X size={18} />
@@ -249,7 +257,7 @@ export default function AdminLayout() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+      <nav aria-label={t('adminNav.sidebarLabel', { defaultValue: 'Admin navigation' })} className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         <div className="sticky top-0 z-10 -mx-3 bg-gray-900 px-3 pb-3">
           <div className={`rounded-xl border bg-gray-950/50 transition-colors ${tabSettingsOpen ? 'border-gray-700' : 'border-gray-800'}`}>
             <div className="flex items-center justify-between gap-2 px-3 py-2.5">
@@ -287,7 +295,7 @@ export default function AdminLayout() {
                   {[
                     { value: true, labelKey: 'adminNav.presetEssential', detailKey: 'adminNav.presetEssentialDetail' },
                     { value: false, labelKey: 'adminNav.presetAll', detailKey: 'adminNav.presetAllDetail' },
-                  ].map(({ value, label, detail }) => (
+                  ].map(({ value, labelKey, detailKey }) => (
                     <button
                       key={value ? 'essential' : 'all'}
                       type="button"
@@ -352,7 +360,7 @@ export default function AdminLayout() {
                   {t(labelKey)}
                 </a>
               ) : (
-                <NavLink key={to} to={to} end={to === '/admin/support'} className={navClass} onClick={closeSidebar}>
+                <NavLink key={to} to={to} end={to === routePath('support')} className={navClass} onClick={closeSidebar}>
                   <Icon size={16} />
                   {t(labelKey)}
                 </NavLink>
@@ -411,7 +419,9 @@ export default function AdminLayout() {
         <div className="px-3 py-2 mb-2 flex items-center justify-between">
           <p className="text-xs text-gray-500 truncate">{user?.email}</p>
           <button
+            type="button"
             onClick={toggleTheme}
+            aria-label={isDark ? t('adminNav.lightMode') : t('adminNav.darkMode')}
             title={isDark ? t('adminNav.lightMode') : t('adminNav.darkMode')}
             className="p-1.5 rounded-lg text-gray-400 hover:text-white
                        hover:bg-gray-700 transition-all shrink-0 ml-2"
@@ -420,7 +430,9 @@ export default function AdminLayout() {
           </button>
         </div>
         <button
+          type="button"
           onClick={handleLogout}
+          aria-label={t('adminNav.signOut')}
           className="w-full flex items-center gap-3 px-3 py-2 rounded-lg
                      text-sm font-medium text-red-400 hover:bg-red-950
                      hover:text-red-300 transition-all"
@@ -449,7 +461,7 @@ export default function AdminLayout() {
           onClick={closeSidebar}
         />
       )}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-gray-900
+      <aside id="admin-mobile-sidebar" aria-label={t('adminNav.sidebarLabel', { defaultValue: 'Admin navigation' })} aria-hidden={!sidebarOpen} inert={!sidebarOpen ? '' : undefined} className={`fixed inset-y-0 left-0 z-50 w-64 bg-gray-900
                          border-r border-gray-800 flex flex-col
                          transition-transform duration-200 lg:hidden ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
@@ -464,7 +476,11 @@ export default function AdminLayout() {
         <header className="lg:hidden flex items-center gap-3 px-4 py-3
                             bg-gray-900 border-b border-gray-800 shrink-0">
           <button
+            type="button"
             onClick={() => setSidebarOpen(true)}
+            aria-expanded={sidebarOpen}
+            aria-controls="admin-mobile-sidebar"
+            aria-label={t('openMenu')}
             className="text-gray-400 hover:text-white transition"
           >
             <Menu size={20} />
@@ -490,7 +506,9 @@ export default function AdminLayout() {
             </div>
           </form>
           <button
+            type="button"
             onClick={toggleTheme}
+            aria-label={isDark ? t('adminNav.lightMode') : t('adminNav.darkMode')}
             title={isDark ? t('adminNav.lightMode') : t('adminNav.darkMode')}
             className="p-1.5 rounded-lg text-gray-400 hover:text-white
                        hover:bg-gray-700 transition-all"

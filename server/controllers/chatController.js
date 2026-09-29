@@ -17,7 +17,7 @@ const { getUserFinancialContext, formatFinancialContextForAI } = require('../ser
 const { sanitizeMessage } = require('../utils/messageSanitizer');
 const { ensureBusinessConversation, mirrorMessage } = require('../services/businessConversationSync');
 const { sendNotification } = require('../services/notificationService');
-const { scheduleConversationMessageNotifications } = require('../services/messageNotificationService');
+const { enqueueConversationMessageNotifications } = require('../services/messageNotificationService');
 
 function isUuid(value) {
   return typeof value === 'string'
@@ -740,41 +740,55 @@ exports.profileChatMessage = async (req, res, next) => {
       }
       if (!conversationId) throw new AppError('Failed to resolve conversation', 500, 'processing_error');
 
-      // Save message
+      // Save message and notification intent atomically. Realtime and the
+      // business mirror remain downstream effects after the commit.
       const lastMsg = msgHistory[msgHistory.length - 1];
       const content = String(lastMsg.content || '').trim().slice(0, 2000);
       if (!content) throw new AppError('Empty message', 400, 'validation_failed', { content: 'Message cannot be empty' });
 
-      const insertedMessage = await pool.query(
+      const { message, replayed } = await withTransaction(pool, async (client) => {
+        const insertedMessage = await client.query(
         `INSERT INTO messages (conversation_id, sender_id, content, client_message_id)
          VALUES ($1, $2, $3, $4)
          ON CONFLICT (conversation_id, client_message_id)
          WHERE client_message_id IS NOT NULL
          DO NOTHING
          RETURNING *`,
-        [conversationId, userId, content, clientMessageId]
-      );
-      let message = insertedMessage.rows[0];
-      const replayed = !message && Boolean(clientMessageId);
-      if (replayed) {
-        const existingMessage = await pool.query(
+          [conversationId, userId, content, clientMessageId]
+        );
+        let message = insertedMessage.rows[0];
+        const replayed = !message && Boolean(clientMessageId);
+        if (replayed) {
+          const existingMessage = await client.query(
           `SELECT * FROM messages
            WHERE conversation_id = $1 AND client_message_id = $2
            LIMIT 1`,
           [conversationId, clientMessageId]
-        );
-        message = existingMessage.rows[0];
-        if (!message) {
-          throw new AppError('Message retry could not be resolved', 409, 'idempotency_conflict');
+          );
+          message = existingMessage.rows[0];
+          if (!message) {
+            throw new AppError('Message retry could not be resolved', 409, 'idempotency_conflict');
+          }
         }
-      }
 
-      if (!replayed) {
-        await pool.query(
+        if (!replayed) {
+          await client.query(
           `UPDATE conversations SET last_message_at = NOW() WHERE id = $1`,
           [conversationId]
-        );
-      }
+          );
+          await enqueueConversationMessageNotifications({
+            dbClient: client,
+            conversationId,
+            messageId: message.id,
+            senderId: userId,
+            senderName: 'A customer',
+            body: content,
+            actionUrl: `/messages/${conversationId}`,
+            recipientIds: [resolvedHelperId, ...activeRepIds],
+          });
+        }
+        return { message, replayed };
+      }, 'profile_chat_message');
 
       // Phase 1a: mirror into business_conversations / business_messages so the
       // business workspace inbox shows the same thread. Fire-and-forget.
@@ -827,15 +841,6 @@ exports.profileChatMessage = async (req, res, next) => {
 
       // Notify the business owner AND all online reps, not just resolvedHelperId.
       if (!replayed) {
-        scheduleConversationMessageNotifications({
-          conversationId,
-          messageId: message.id,
-          senderId: userId,
-          senderName: socketPayload.senderName,
-          body: content,
-          actionUrl: `/messages/${conversationId}`,
-          recipientIds: [resolvedHelperId, ...activeRepIds],
-        });
         const notifyTargets = new Set([resolvedHelperId, ...onlineRepIds]);
         notifyTargets.forEach(targetId => {
           socketService.broadcastToUser(targetId, 'profile_chat:new_message', socketPayload);

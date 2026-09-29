@@ -2,8 +2,8 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 const { sendError } = require('../utils/apiError');
 const { AppError } = require('../middleware/errorHandler');
-const { withTransaction } = require('../utils/transaction');
 const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
+const { processMarketplaceRefund } = require('../services/marketplaceRefundService');
 
 async function getOrders(req, res) {
   try {
@@ -135,55 +135,23 @@ async function cancelOrder(req, res, next) {
         throw new AppError('Refunds are temporarily unavailable. Please contact support.', 503, 'refund_unavailable');
       }
 
-      const transaction = await pool.query(
-        `SELECT id, payment_intent_id, amount_cents, status
-           FROM marketplace_transactions
-          WHERE order_id = $1
-          ORDER BY created_at DESC
-          LIMIT 1`,
-        [orderId]
-      );
-      const payment = transaction.rows[0];
-      if (!payment || payment.status !== 'succeeded' || !payment.payment_intent_id) {
-        throw new AppError('Paid order payment could not be verified for refund.', 409, 'refund_verification_failed');
-      }
-
-      const refund = await stripe.refunds.create(
-        {
-          payment_intent: payment.payment_intent_id,
-          amount: Number(payment.amount_cents),
-        },
-        { idempotencyKey: `marketplace-order-customer-refund:${orderId}` }
-      );
-
-      const updatedOrder = await withTransaction(pool, async (client) => {
-        const updated = await client.query(
-          `UPDATE marketplace_orders
-              SET status = 'refunded', refund_reason = $1,
-                  refunded_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-            WHERE id = $2 AND status = 'paid'
-            RETURNING *`,
-          [String(req.body?.reason || 'Cancelled by customer').slice(0, 500), orderId]
-        );
-        if (!updated.rows.length) {
-          throw new AppError('Order state changed while processing the refund.', 409, 'order_state_conflict');
-        }
-        await client.query(
-          `UPDATE marketplace_transactions
-              SET status = 'refunded', updated_at = CURRENT_TIMESTAMP,
-                  completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP)
-            WHERE id = $1`,
-          [payment.id]
-        );
-        return updated.rows[0];
+      const refundResult = await processMarketplaceRefund({
+        orderId,
+        requestedAmountCents: Number(currentOrder.total_cents || 0),
+        reason: String(req.body?.reason || 'Cancelled by customer').slice(0, 500),
+        actorUserId: userId,
+        requestId: req.get('Idempotency-Key') || req.body?.idempotencyKey || `customer-cancel-${orderId}`,
       });
+      if (refundResult.refund.status !== 'succeeded') {
+        throw new AppError('Refund is still processing. Please check the order again shortly.', 202, 'refund_processing');
+      }
 
       logger.info('Paid marketplace order cancelled and refunded', {
         orderId,
         userId,
-        refundId: refund.id,
+        refundId: refundResult.refund.provider_refund_id,
       });
-      return res.json({ success: true, data: updatedOrder });
+      return res.json({ success: true, data: refundResult.order });
     }
 
     // Pending orders have not been paid and can be cancelled locally.

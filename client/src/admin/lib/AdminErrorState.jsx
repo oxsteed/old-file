@@ -1,4 +1,5 @@
 import { AlertCircle, RefreshCw } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * AdminErrorState — error panel with a retry button.
@@ -12,12 +13,13 @@ import { AlertCircle, RefreshCw } from 'lucide-react';
  *  - onRetry(): void (optional — hides the button when absent)
  */
 export default function AdminErrorState({ title, message, onRetry }) {
+  const { t } = useTranslation();
   return (
     <div className="rounded-lg border border-red-900/60 bg-red-950/30 p-6 text-center">
       <AlertCircle size={28} className="mx-auto text-red-400" />
       {title && <h3 className="mt-2 text-base font-semibold text-white">{title}</h3>}
       <p className="mt-1 text-sm text-gray-300">
-        {message || 'Something went wrong loading this data. Please try again.'}
+        {message || t('common.failedToLoad')}
       </p>
       {onRetry && (
         <button
@@ -26,7 +28,7 @@ export default function AdminErrorState({ title, message, onRetry }) {
           className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-500"
         >
           <RefreshCw size={15} />
-          Retry
+          {t('common.retry')}
         </button>
       )}
     </div>

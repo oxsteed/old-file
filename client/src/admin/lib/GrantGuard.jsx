@@ -34,13 +34,14 @@ function LoadingSpinner() {
 
 // Session cache keyed by admin id: { scopes: string[] }
 const scopesCache = new Map();
-let inflight = null;
+const inflightByUser = new Map();
 
 function fetchMyScopes(userId) {
   const cached = scopesCache.get(userId);
   if (cached) return Promise.resolve(cached);
+  const inflight = inflightByUser.get(userId);
   if (inflight) return inflight;
-  inflight = adminApi.get('/admin/permission-grants/me')
+  const request = adminApi.get('/admin/permission-grants/me')
     .then(({ data }) => {
       const scopes = [...new Set((data.scopes || []).filter(s => typeof s === 'string'))];
       const entry = { scopes };
@@ -52,8 +53,11 @@ function fetchMyScopes(userId) {
       // grants. Do not cache the failure, so a later navigation retries.
       return { scopes: [] };
     })
-    .finally(() => { inflight = null; });
-  return inflight;
+    .finally(() => {
+      if (inflightByUser.get(userId) === request) inflightByUser.delete(userId);
+    });
+  inflightByUser.set(userId, request);
+  return request;
 }
 
 /** Hook: does the signed-in admin hold at least one of the required scopes? */

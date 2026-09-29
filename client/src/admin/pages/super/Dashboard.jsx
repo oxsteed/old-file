@@ -235,7 +235,7 @@ export default function SuperDashboard() {
   // ── Alerts: items that need immediate attention ─────────────────────────
   const alerts = s ? [
     s.open_disputes      > 0 && { icon: AlertTriangle, title: t('superDashboard.alertOpenDisputes', { count: s.open_disputes }), detail: t('superDashboard.alertOpenDisputesDetail'), to: '/admin/disputes',    color: 'red'    },
-    s.open_support_tickets > 0 && { icon: MessageSquare, title: t('superDashboard.alertOpenTickets', { count: s.open_support_tickets }), detail: t('superDashboard.alertOpenTicketsDetail'), to: '/admin/support/tickets', color: 'indigo' },
+    s.open_support_tickets > 0 && { icon: MessageSquare, title: t('superDashboard.alertOpenTickets', { count: s.open_support_tickets }), detail: t('superDashboard.alertOpenTicketsDetail'), to: '/admin/support', color: 'indigo' },
     s.pending_reports    > 0 && { icon: Flag,          title: t('superDashboard.alertPendingReports', { count: s.pending_reports }), detail: t('superDashboard.alertPendingReportsDetail'), to: '/admin/reports',     color: 'yellow' },
     s.unverified_helpers > 0 && { icon: UserCheck,     title: t('superDashboard.alertUnverifiedHelpers', { count: s.unverified_helpers }), detail: t('superDashboard.alertUnverifiedHelpersDetail'), to: '/admin/users?role=helper', color: 'orange' },
   ].filter(Boolean) : [];
@@ -404,7 +404,7 @@ export default function SuperDashboard() {
       <section>
         <SectionHeading>{t('superDashboard.supportModeration')}</SectionHeading>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard label={t('superDashboard.statOpenTickets')} value={s?.open_support_tickets ?? null} icon={MessageSquare} color="text-indigo-400" href="/admin/support/tickets" />
+          <StatCard label={t('superDashboard.statOpenTickets')} value={s?.open_support_tickets ?? null} icon={MessageSquare} color="text-indigo-400" href="/admin/support" />
           <StatCard label={t('superDashboard.statPendingReports')}       value={s?.pending_reports      ?? null} icon={Flag}          color="text-yellow-400" href="/admin/reports" />
           <StatCard label={t('superDashboard.statActiveSubs')}  value={s?.active_subscriptions ?? null} icon={CreditCard}    color="text-purple-400" />
           <StatCard label={t('superDashboard.statPendingPayouts')}   value={s?.pending_payouts ? Math.round(s.pending_payouts) * 100 : null} format="currency" icon={DollarSign} color="text-orange-400" />

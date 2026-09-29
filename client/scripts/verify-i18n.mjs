@@ -25,6 +25,45 @@ function flattenKeys(value, prefix = '') {
   });
 }
 
+function flattenStringValues(value, prefix = '') {
+  if (typeof value === 'string') return [[prefix, value]];
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
+  return Object.entries(value).flatMap(([key, child]) => {
+    const nextPrefix = prefix ? `${prefix}.${key}` : key;
+    return flattenStringValues(child, nextPrefix);
+  });
+}
+
+function interpolationNames(value) {
+  return [...String(value).matchAll(/{{\s*([A-Za-z0-9_.-]+)\s*}}/g)]
+    .map((match) => match[1])
+    .sort();
+}
+
+function verifyInterpolationParity(label, pathForLanguage) {
+  const english = Object.fromEntries(flattenStringValues(readJson(pathForLanguage('en'))));
+  const failures = [];
+
+  for (const language of languages.filter((entry) => entry !== 'en')) {
+    const translated = Object.fromEntries(flattenStringValues(readJson(pathForLanguage(language))));
+    for (const [key, englishValue] of Object.entries(english)) {
+      const translatedValue = translated[key];
+      if (typeof translatedValue !== 'string') continue;
+      // i18next plural variants may intentionally render a fixed singular or
+      // plural phrase, so their count token is not required in every locale.
+      if (/_((zero|one|two|few|many|other))$/.test(key)) continue;
+      const expected = interpolationNames(englishValue).filter((name) => name !== 's');
+      const actual = interpolationNames(translatedValue);
+      if (expected.join('|') !== actual.join('|')) {
+        failures.push(`${label} ${language} ${key}: expected {{${expected.join(', ')}}}, got {{${actual.join(', ')}}}`);
+      }
+    }
+  }
+
+  if (failures.length) throw new Error(`Interpolation placeholder parity failed:\n${failures.join('\n')}`);
+  console.log(`ok ${label} interpolation placeholders match across ${languages.join('/')}`);
+}
+
 function pluralStem(key) {
   return key.replace(/_(zero|one|two|few|many|other)$/, '');
 }
@@ -343,6 +382,12 @@ compareKeySets('translator namespace', (language) => `src/i18n/locales/${languag
 compareKeySets('credit namespace', (language) => `src/i18n/locales/${language}/credit.json`);
 compareKeySets('terms content', (language) => `src/locales/terms/${language}.content.json`);
 compareKeySets('privacy content', (language) => `src/locales/privacy/${language}.content.json`);
+verifyInterpolationParity('legacy translation', (language) => `src/locales/${language}.json`);
+verifyInterpolationParity('common namespace', (language) => `src/i18n/locales/${language}/common.json`);
+verifyInterpolationParity('translator namespace', (language) => `src/i18n/locales/${language}/translator.json`);
+verifyInterpolationParity('credit namespace', (language) => `src/i18n/locales/${language}/credit.json`);
+verifyInterpolationParity('terms content', (language) => `src/locales/terms/${language}.content.json`);
+verifyInterpolationParity('privacy content', (language) => `src/locales/privacy/${language}.content.json`);
 verifyI18nIndex();
 verifyCanonicalBrands();
 verifyHomepageTranslationSurface();

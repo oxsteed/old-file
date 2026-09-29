@@ -42,9 +42,10 @@ describe('support email outbox', () => {
       .mockResolvedValueOnce({ rows: [{
         id: 'outbox-1',
         attempts: 1,
+        lease_token: 'lease-1',
         payload: { to: 'customer@example.com', subject: 'Support update', text: 'Hello', html: '<p>Hello</p>', idempotencyKey: 'support-status-1' },
       }] })
-      .mockResolvedValueOnce({ rows: [] });
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 });
     email.sendEmail.mockResolvedValueOnce({ success: true, id: 'resend-1' });
 
     await expect(processSupportEmailOutbox()).resolves.toEqual({ claimed: 1, sent: 1, retried: 0, failed: 0 });
@@ -56,7 +57,7 @@ describe('support email outbox', () => {
   test('marks a repeatedly failing email terminal after the final attempt', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 'outbox-1', attempts: MAX_ATTEMPTS, payload: { to: 'customer@example.com', subject: 'Support update', idempotencyKey: 'support-status-1' } }] })
-      .mockResolvedValueOnce({ rows: [] });
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 });
     email.sendEmail.mockResolvedValueOnce({ success: false, error: 'provider unavailable' });
 
     await expect(processSupportEmailOutbox()).resolves.toEqual({ claimed: 1, sent: 0, retried: 0, failed: 1 });
@@ -71,5 +72,19 @@ describe('support email outbox', () => {
       expect.stringContaining("SET status = 'pending', attempts = 0"),
       ['conversation-1']
     );
+  });
+
+  test('does not count a stale worker completion after its lease is replaced', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{
+        id: 'outbox-stale',
+        attempts: 2,
+        lease_token: 'lease-stale',
+        payload: { to: 'customer@example.com', subject: 'Support update', idempotencyKey: 'support-status-stale' },
+      }] })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+    email.sendEmail.mockResolvedValueOnce({ success: true });
+
+    await expect(processSupportEmailOutbox()).resolves.toEqual({ claimed: 1, sent: 0, retried: 0, failed: 0 });
   });
 });

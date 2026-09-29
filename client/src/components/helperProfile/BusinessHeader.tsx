@@ -132,22 +132,24 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
 
   const actions = (
     <div className="pph-actions">
-      <button
-        type="button"
-        onClick={onBookNow}
-        className={`${btnPrimary} hidden lg:inline-flex`}
-      >
-        {t('helperProfile.header.bookNow')}
-      </button>
-      {onPostJobPublic && (
+      <div className="pph-actions__pair">
         <button
           type="button"
-          onClick={onPostJobPublic}
-          className={btnSecondary}
+          onClick={onBookNow}
+          className={`${btnPrimary} hidden lg:inline-flex`}
         >
-          {t('helperProfile.header.postJobPublic')}
+          {t('helperProfile.header.bookNow')}
         </button>
-      )}
+        {onPostJobPublic && (
+          <button
+            type="button"
+            onClick={onPostJobPublic}
+            className={btnSecondary}
+          >
+            {t('helperProfile.header.postJobPublic')}
+          </button>
+        )}
+      </div>
       {onToggleSaved && (
         <button
           type="button"

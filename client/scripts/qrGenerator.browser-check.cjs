@@ -31,7 +31,7 @@ test('QR page renders without a logo, exports, saves, and handles input changes'
   };
   const result = await build({
     stdin: {
-      contents: `import React from 'react'; import {createRoot} from 'react-dom/client';
+      contents: `import React from 'react'; import {createRoot} from 'react-dom/client'; import {MemoryRouter} from 'react-router-dom';
         import Page from './src/pages/QRCodeGeneratorPage.jsx';
         import {prepareQrLogo} from './src/utils/qrLogo.js';
         import QRCodeStyling from 'qr-code-styling';
@@ -45,7 +45,7 @@ test('QR page renders without a logo, exports, saves, and handles input changes'
         };
         window.prepareQrLogo = prepareQrLogo;
         window.qrErrors = []; window.savedQRs = [];
-        createRoot(document.getElementById('root')).render(<Page />);`,
+        createRoot(document.getElementById('root')).render(<MemoryRouter><Page /></MemoryRouter>);`,
       resolveDir: path.resolve(__dirname, '..'), loader: 'jsx',
     },
     bundle: true, write: false, loader: {'.css': 'empty'},
@@ -77,8 +77,17 @@ test('QR page renders without a logo, exports, saves, and handles input changes'
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(`http://127.0.0.1:${server.address().port}`);
     const downloadButton = page.getByRole('button', {name: 'qrGenerator.downloadSelected', exact: true});
-    await page.waitForFunction(() => document.querySelector('.qrg-preview-container canvas') &&
-      !document.querySelector('.qrg-download-buttons button').disabled);
+    try {
+      await page.waitForFunction(() => document.querySelector('.qrg-preview-container canvas') &&
+        !document.querySelector('.qrg-download-buttons button').disabled);
+    } catch (error) {
+      const previewState = await page.evaluate(() => ({
+        canvas: Boolean(document.querySelector('.qrg-preview-container canvas')),
+        previewHtml: document.querySelector('.qrg-preview-container')?.innerHTML || '',
+        buttonsDisabled: [...document.querySelectorAll('.qrg-download-buttons button')].map((button) => button.disabled),
+      }));
+      throw new Error(`${error.message}; pageErrors=${errors.join(' | ') || 'none'}; previewState=${JSON.stringify(previewState)}`);
+    }
     await page.locator('#title').fill('QR regression');
     await page.locator('#url').fill('https://example.com/qr-regression');
     await page.waitForFunction(() => !document.querySelector('.qrg-download-buttons button').disabled);

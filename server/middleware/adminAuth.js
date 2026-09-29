@@ -69,7 +69,14 @@ exports.requireAdmin = async (req, res, next) => {
     req.user    = user;
     req.isSuper = user.role === 'super_admin';
     next();
-  } catch {
+  } catch (err) {
+    if (err?.code === 'token_revocation_unavailable') {
+      return res.status(503).json({
+        error: 'Authentication temporarily unavailable.',
+        code: 'token_revocation_unavailable',
+        retryable: true,
+      });
+    }
     return res.status(401).json({ error: 'Invalid or expired token.' });
   }
 };
@@ -97,7 +104,14 @@ exports.requireSuperAdmin = async (req, res, next) => {
     req.user    = rows[0];
     req.isSuper = true;
     next();
-  } catch {
+  } catch (err) {
+    if (err?.code === 'token_revocation_unavailable') {
+      return res.status(503).json({
+        error: 'Authentication temporarily unavailable.',
+        code: 'token_revocation_unavailable',
+        retryable: true,
+      });
+    }
     return res.status(401).json({ error: 'Invalid or expired token.' });
   }
 };
@@ -109,7 +123,8 @@ exports.requireSuperAdmin = async (req, res, next) => {
 // Regular admins must have an active (non-expired, non-revoked) grant that
 // includes the requested permission scope.
 
-exports.requirePermission = (permission) => async (req, res, next) => {
+function permissionMiddleware(permission, { globalOnly = true } = {}) {
+  return async (req, res, next) => {
   // requireAdmin must run before this - req.user and req.isSuper are already set.
   if (!req.user) return res.status(401).json({ error: 'Unauthorized.' });
 
@@ -118,17 +133,27 @@ exports.requirePermission = (permission) => async (req, res, next) => {
 
   try {
     const { rows } = await db.query(`
-      SELECT id FROM admin_permission_grants
+      SELECT id, region_id FROM admin_permission_grants
       WHERE grantee_id = $1
         AND permissions ? $2
         AND expires_at  > NOW()
         AND revoked_at IS NULL
+      ORDER BY (region_id IS NULL) DESC
       LIMIT 1
     `, [req.user.id, permission]);
 
-    if (rows.length) {
+    const grant = rows.find((row) => !globalOnly || row.region_id == null);
+    if (grant) {
       req.grantedPermission = permission; // useful for downstream controllers
       return next();
+    }
+
+    if (rows.length && globalOnly) {
+      return res.status(403).json({
+        error: `Permission '${permission}' is limited to a region and cannot authorize this global action.`,
+        code: 'global_permission_required',
+        required: permission,
+      });
     }
 
     return res.status(403).json({
@@ -138,7 +163,25 @@ exports.requirePermission = (permission) => async (req, res, next) => {
     logger.error('Permission check failed', { adminId: req.user?.id, permission, error: err.message });
     return res.status(500).json({ error: 'Permission check failed.' });
   }
-};
+  };
+}
+
+// All current delegated admin endpoints operate on platform-wide data. A
+// regional grant must not accidentally authorize one of them.
+exports.requirePermission = (permission) => permissionMiddleware(permission, { globalOnly: true });
+
+/**
+ * Opt-in middleware for a future endpoint that resolves and verifies the
+ * target record's region before allowing a regional grant.
+ */
+exports.requireRegionalPermission = (permission) => permissionMiddleware(permission, { globalOnly: false });
+
+/**
+ * Require an unscoped grant for an endpoint whose data or mutation is global.
+ * Region-scoped grants must be paired with an explicit record-region check;
+ * silently treating them as platform-wide access would bypass that boundary.
+ */
+exports.requireGlobalPermission = (permission) => permissionMiddleware(permission, { globalOnly: true });
 
 /** Super-admin bypasses; otherwise same grant check as requirePermission. */
 exports.requireSuperAdminOrPermission = (permission) => async (req, res, next) => {

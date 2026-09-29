@@ -4,6 +4,7 @@ require('dotenv').config();
 const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const logger = require('./utils/logger');
 const {
   classifyDatabaseError,
@@ -17,71 +18,128 @@ const pool = new Pool({
   connectionTimeoutMillis: Math.max(1000, Math.min(Number.parseInt(process.env.DB_CONNECTION_TIMEOUT_MS, 10) || 5000, 30000)),
 });
 
+const MIGRATION_LOCK_KEY = 88421931;
+
+function migrationChecksum(sql) {
+  return crypto.createHash('sha256').update(String(sql)).digest('hex');
+}
+
+function listMigrationFiles(migrationsDir) {
+  return fs.readdirSync(migrationsDir)
+    .filter((file) => file.endsWith('.sql'))
+    .sort();
+}
+
 async function migrate() {
-  // Use one client just for the _migrations tracking table
-  const setupClient = await pool.connect();
+  // Hold one database-level lock for the complete run. This protects both the
+  // pending-migration read and the marker writes across multiple deploy
+  // processes or application replicas.
+  let lockClient;
   try {
-    await setupClient.query(`
+    lockClient = await pool.connect();
+    await lockClient.query('SELECT pg_advisory_lock($1::bigint)', [MIGRATION_LOCK_KEY]);
+    await lockClient.query(`
       CREATE TABLE IF NOT EXISTS _migrations (
         id SERIAL PRIMARY KEY,
         filename VARCHAR(255) UNIQUE NOT NULL,
-        applied_at TIMESTAMPTZ DEFAULT now()
+        applied_at TIMESTAMPTZ DEFAULT now(),
+        status VARCHAR(20) NOT NULL DEFAULT 'applied',
+        checksum CHAR(64),
+        started_at TIMESTAMPTZ,
+        error TEXT
       )
     `);
-  } finally {
-    setupClient.release();
-  }
+    // Existing installations predate the status/checksum fields.
+    await lockClient.query(`
+      ALTER TABLE _migrations
+        ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'applied',
+        ADD COLUMN IF NOT EXISTS checksum CHAR(64),
+        ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS error TEXT
+    `);
+    const { rows: applied } = await lockClient.query(
+      'SELECT filename, status, checksum FROM _migrations ORDER BY filename'
+    );
+    const migrationStates = new Map(applied.map((row) => [row.filename, row]));
+    const migrationsDir = path.join(__dirname, 'migrations');
+    const files = listMigrationFiles(migrationsDir);
 
-  // Get already-applied migrations
-  const { rows: applied } = await pool.query(
-    'SELECT filename FROM _migrations ORDER BY filename'
-  );
-  const appliedSet = new Set(applied.map(r => r.filename));
+    logger.info('Migration runner started', {
+      totalFiles: files.length,
+      alreadyApplied: applied.filter((row) => row.status === 'applied').length,
+    });
 
-  // Read migration files
-  const migrationsDir = path.join(__dirname, 'migrations');
-  const files = fs.readdirSync(migrationsDir)
-    .filter(f => f.endsWith('.sql'))
-    .sort();
+    for (const file of files) {
+      const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+      const checksum = migrationChecksum(sql);
+      const state = migrationStates.get(file);
 
-  logger.info('Migration runner started', { totalFiles: files.length, alreadyApplied: appliedSet.size });
+      if (state?.status === 'applied') {
+        if (state.checksum && state.checksum !== checksum) {
+          throw new Error(`Migration ${file} checksum changed after it was applied; restore the original file or add a new migration.`);
+        }
+        logger.info('Migration already applied, skipping', { filename: file });
+        continue;
+      }
 
-  for (const file of files) {
-    if (appliedSet.has(file)) {
-      logger.info('Migration already applied, skipping', { filename: file });
-      continue;
-    }
+      if (state?.status === 'applying' || state?.status === 'failed') {
+        throw new Error(`Migration ${file} is marked ${state.status}; reconcile the database before retrying. Previous error: ${state.error || 'none recorded'}`);
+      }
 
-    logger.info('Applying migration', { filename: file });
-    const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
-
-    // Use a FRESH client for each migration to avoid transaction state issues
-    const migClient = await pool.connect();
-    try {
-      await migClient.query(sql);
-      await migClient.query(
-        'INSERT INTO _migrations (filename) VALUES ($1)',
-        [file]
+      // Persist intent before executing SQL. If a migration contains its own
+      // COMMIT and the process dies afterward, the next run stops safely for
+      // reconciliation instead of silently executing it twice.
+      await lockClient.query(
+        `INSERT INTO _migrations (filename, status, checksum, started_at, error)
+         VALUES ($1, 'applying', $2, NOW(), NULL)
+         ON CONFLICT (filename) DO UPDATE SET
+           status = 'applying', checksum = EXCLUDED.checksum,
+           started_at = NOW(), error = NULL`,
+        [file, checksum]
       );
-      migClient.release();
-      logger.info('Migration applied successfully', { filename: file });
-    } catch (err) {
-      logger.error('Migration failed: ' + file + ' - ' + err.message);
-      // Rollback any open transaction on this client
-      try { await migClient.query('ROLLBACK'); } catch (e) { /* ignore */ }
-      migClient.release();
-      const migrationError = new Error(`Migration ${file} failed: ${err.message}`, { cause: err });
-      // Preserve PostgreSQL's machine-readable code for startup diagnostics.
-      migrationError.code = err.code;
-      throw migrationError;
-    }
-  }
 
-  logger.info('All migrations complete');
-  await pool.end();
+      logger.info('Applying migration', { filename: file, checksum });
+      const migClient = await pool.connect();
+      try {
+        await migClient.query(sql);
+        await lockClient.query(
+          `UPDATE _migrations
+              SET status = 'applied', checksum = $2, applied_at = NOW(), error = NULL
+            WHERE filename = $1`,
+          [file, checksum]
+        );
+        migClient.release();
+        logger.info('Migration applied successfully', { filename: file });
+      } catch (err) {
+        logger.error('Migration failed: ' + file + ' - ' + err.message);
+        try { await migClient.query('ROLLBACK'); } catch (e) { /* ignore */ }
+        migClient.release();
+        await lockClient.query(
+          `UPDATE _migrations SET status = 'failed', error = $2 WHERE filename = $1`,
+          [file, String(err.message || 'Migration failed').slice(0, 4000)]
+        ).catch((markerError) => logger.error('Failed to persist migration failure marker', {
+          filename: file,
+          error: markerError.message,
+        }));
+        const migrationError = new Error(`Migration ${file} failed: ${err.message}`, { cause: err });
+        migrationError.code = err.code;
+        throw migrationError;
+      }
+    }
+
+    logger.info('All migrations complete');
+  } finally {
+    if (lockClient) {
+      await lockClient.query('SELECT pg_advisory_unlock($1::bigint)', [MIGRATION_LOCK_KEY]).catch(() => {});
+      lockClient.release();
+    }
+    await pool.end();
+  }
 }
 
-migrate().catch(async (err) => {
+module.exports = { MIGRATION_LOCK_KEY, migrationChecksum, listMigrationFiles, migrate };
+
+if (require.main === module) migrate().catch(async (err) => {
   const databaseFailure = classifyDatabaseError(err);
   const databaseTarget = describeDatabaseTarget(process.env.DATABASE_URL);
   logger.error('Migration process failed', {

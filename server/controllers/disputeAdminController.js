@@ -5,6 +5,7 @@ const logger                = require('../utils/logger');
 const { withTransaction }   = require('../utils/transaction');
 const { mapResolutionToEscrowStatus } = require('../utils/disputeResolution');
 const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
+const { processPaymentRefund } = require('../services/paymentRefundService');
 
 const DISPUTE_RESOLUTIONS = Object.freeze({
   REFUND_CUSTOMER: 'refund_customer',
@@ -113,7 +114,7 @@ exports.resolveDispute = async (req, res) => {
       if (!stripe) return res.status(503).json({ error: 'Refund processing is not configured.' });
 
       const { rows: paymentRows } = await db.query(`
-        SELECT d.status, p.amount, p.status AS payment_status,
+        SELECT d.status, p.id AS payment_id, p.amount, p.status AS payment_status,
                p.stripe_payment_intent_id, p.stripe_account_id
         FROM disputes d
         LEFT JOIN payments p ON p.id = COALESCE(
@@ -138,18 +139,26 @@ exports.resolveDispute = async (req, res) => {
       }
 
       try {
-        const refund = await stripe.refunds.create({
-          payment_intent: payment.stripe_payment_intent_id,
-          ...(fullRefund ? {} : { amount: refundCents }),
-        }, {
-          idempotencyKey: `dispute-refund-${disputeId}-${refundCents}`,
-          ...(payment.stripe_account_id ? { stripeAccount: payment.stripe_account_id } : {}),
+        const refundResult = await processPaymentRefund({
+          paymentId: payment.payment_id,
+          requestedAmountCents: refundCents,
+          reason: `Dispute ${disputeId} resolution: ${resolution}`,
+          actorUserId: adminId,
+          requestId: `dispute-refund-${disputeId}-${refundCents}`,
+          allowOpenDisputeId: disputeId,
         });
-        processorRefundId = refund.id;
+        if (refundResult.attempt.status !== 'succeeded') {
+          return res.status(202).json({
+            message: 'Refund accepted for provider reconciliation. The dispute remains unresolved until payment settlement is confirmed.',
+            refundStatus: refundResult.attempt.status,
+            refundAttemptId: refundResult.attempt.id,
+          });
+        }
+        processorRefundId = refundResult.attempt.stripe_refund_id;
         processorRefundAmount = refundCents / 100;
-      } catch (stripeError) {
-        logger.error('Dispute refund failed at payment processor', { disputeId, error: stripeError.message });
-        return res.status(502).json({ error: 'Refund failed with payment processor. The dispute was not resolved.' });
+      } catch (refundError) {
+        logger.error('Dispute refund failed at payment processor', { disputeId, error: refundError.message });
+        return res.status(refundError.status || 502).json({ error: refundError.message || 'Refund failed with payment processor. The dispute was not resolved.' });
       }
     }
 
