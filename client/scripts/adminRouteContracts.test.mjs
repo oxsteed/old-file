@@ -83,8 +83,11 @@ test('every static admin navigation destination resolves to a registered route',
   for (const [, key] of app.matchAll(/<Route\s+path=\{adminRoute\('([^']+)'\)\.relative\}/g)) {
     routePaths.add(ADMIN_ROUTE_MANIFEST[key].relative);
   }
+  for (const [, key] of app.matchAll(/<Route\s+path=\{adminRoute\('([^']+)'\)\.path\}/g)) {
+    routePaths.add(ADMIN_ROUTE_MANIFEST[key].relative);
+  }
   const navPaths = Object.values(ADMIN_ROUTE_MANIFEST).map(({ path }) => path);
-  const externalPaths = new Set(['/direct/admin']);
+  const externalPaths = new Set(['/direct/admin', '/admin']);
 
   const matchesRoute = (path) => {
     if (externalPaths.has(path)) return true;
@@ -102,6 +105,16 @@ test('every static admin navigation destination resolves to a registered route',
   for (const path of navPaths) {
     assert.equal(matchesRoute(path), true, `Admin navigation path is not registered: ${path}`);
   }
+});
+
+test('admin route manifest has unique paths and AdminApp has no unregistered static paths', () => {
+  const app = read('src/admin/AdminApp.jsx');
+  const definitions = Object.entries(ADMIN_ROUTE_MANIFEST);
+  const paths = definitions.map(([, definition]) => definition.path);
+  assert.equal(new Set(paths).size, paths.length, 'admin route paths must be unique');
+
+  const staticPaths = [...app.matchAll(/<Route\s+path="([^"]+)"/g)].map(([, route]) => route);
+  assert.deepEqual(staticPaths, ['*'], 'all concrete AdminApp routes must use the manifest');
 });
 
 test('operations overview links resolve to real product or admin routes', () => {

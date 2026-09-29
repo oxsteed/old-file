@@ -9,6 +9,10 @@ the release is pushed, deployed, and passes the live readiness checks.
 
 - Centralized admin route definitions and aligned client navigation with the
   registered React routes.
+- Extended the route manifest to cover every concrete AdminApp route, including
+  support, legal, consulting, and logistics sub-workspaces. AdminApp now has a
+  CI contract forbidding unregistered concrete paths and duplicate manifest
+  destinations; the previous duplicate support-chat registration was removed.
 - Added grant-aware navigation and direct-navigation guards for protected admin
   pages.
 - Added the read-only operations overview covering delivery, jobs, orders,

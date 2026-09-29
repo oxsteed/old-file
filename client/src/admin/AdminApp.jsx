@@ -161,20 +161,20 @@ export default function AdminApp() {
       )}>
       <Routes>
         {/* Public login route */}
-        <Route path="/admin/login" element={<AdminLogin />} />
-        <Route path="/admin/2fa-setup" element={
+        <Route path={adminRoute('login').path} element={<AdminLogin />} />
+        <Route path={adminRoute('twoFactorSetup').path} element={
           <AdminGuard><TwoFactorSetup adminSetup /></AdminGuard>
         } />
 
         {/* Full-width template preview (no sidebar) - still requires admin auth */}
-        <Route path="/admin/template-preview" element={
+        <Route path={adminRoute('templatePreview').path} element={
           <AdminGuard>
             <TemplatePreviewPage />
           </AdminGuard>
         } />
 
         {/* Protected admin routes */}
-        <Route path="/admin" element={
+        <Route path={adminRoute('root').path} element={
           <AdminGuard>
             <AdminLayout />
           </AdminGuard>
@@ -186,27 +186,28 @@ export default function AdminApp() {
           <Route path={adminRoute('dashboard').relative} element={<SuperDashboard />} />
           <Route path={adminRoute('operations').relative} element={<OperationsOverview />} />
           <Route path={adminRoute('users').relative} element={<UsersList />} />
-          <Route path="users/:userId"       element={<UserDetail />} />
+          <Route path={adminRoute('userDetail').relative} element={<UserDetail />} />
           <Route path={adminRoute('jobs').relative} element={<JobsList />} />
-          <Route path="jobs/:jobId"        element={<JobDetail />} />
+          <Route path={adminRoute('jobDetail').relative} element={<JobDetail />} />
           <Route path={adminRoute('reports').relative} element={<ReportsList />} />
           <Route path={adminRoute('moderation').relative} element={<Moderation />} />
-          <Route path="disputes"            element={<Disputes />} />
-          <Route path="disputes/:disputeId" element={<DisputeResolve />} />
-          <Route path="markets"             element={<MarketZipCodes />} />
+          <Route path={adminRoute('disputeList').relative} element={<Disputes />} />
+          <Route path={adminRoute('disputeDetail').relative} element={<DisputeResolve />} />
+          <Route path={adminRoute('markets').relative} element={<MarketZipCodes />} />
           <Route path={adminRoute('directServiceAreas').relative} element={<DirectServiceAreas />} />
           <Route path={adminRoute('directCatalog').relative} element={<DirectCatalog embedded />} />
           <Route path={adminRoute('skills').relative} element={<SkillsManager />} />
-          <Route path="licenses"            element={<LicensesManager />} />
+          <Route path={adminRoute('licenses').relative} element={<LicensesManager />} />
           <Route path={adminRoute('contentRemovals').relative} element={<ContentRemovals />} />
           <Route path={adminRoute('support').relative} element={<SupportTickets />} />
+          <Route path={adminRoute('supportChat').relative} element={<SupportAgentChat />} />
           <Route path={adminRoute('quoteRequests').relative} element={<QuoteRequestsInbox />} />
           <Route path={adminRoute('search').relative} element={<AdminSearch />} />
           <Route path={adminRoute('messages').relative} element={
             <GrantGuard grant={adminRoute('messages').grant}><AdminMessages /></GrantGuard>
           } />
           <Route path={adminRoute('businesses').relative} element={<BusinessModeration />} />
-          <Route path="businesses/:id"      element={<BusinessDetail />} />
+          <Route path={adminRoute('businessDetail').relative} element={<BusinessDetail />} />
           <Route path={adminRoute('toolRentals').relative} element={<ToolRentalModeration />} />
           <Route path={adminRoute('plannedNeeds').relative} element={<PlannedNeedsAdmin />} />
           <Route path={adminRoute('payments').relative} element={
@@ -217,39 +218,38 @@ export default function AdminApp() {
           <Route path={adminRoute('consulting').relative} element={<ConsultingDashboard />} />
           <Route path={adminRoute('consultingPayments').relative} element={<ConsultingPayments />} />
           <Route path={adminRoute('scheduling').relative} element={<ConsultingScheduler />} />
-          <Route path="consulting/analytics" element={<ConsultingAnalyticsDashboard />} />
+          <Route path={adminRoute('consultingAnalytics').relative} element={<ConsultingAnalyticsDashboard />} />
           <Route path={adminRoute('businessLaunch').relative} element={<BusinessLaunchAdmin />} />
           <Route path={adminRoute('consultingSessions').relative} element={<ConsultingSessionsAdmin />} />
-          <Route path="support/agent-dashboard" element={<SupportAgentDashboard />} />
-          <Route path="support/agent-onboarding" element={<SupportAgentOnboarding />} />
-          <Route path="support/shifts" element={<SupportShiftsManager />} />
-          <Route path="support/agents" element={<SupportAgentManagement />} />
-          <Route path="support/chat" element={<SupportAgentChat />} />
-          <Route path="support/kb" element={<SupportKnowledgeBase />} />
-          <Route path="support/templates" element={<SupportTemplates />} />
-          <Route path="support/metrics" element={<SupportMetricsDashboard />} />
-          <Route path="support/sla" element={<SupportSLADashboard />} />
-          <Route path="support/performance" element={<SupportPerformanceAnalytics />} />
-          <Route path="support/csat" element={<SupportCSATAnalytics />} />
-          <Route path="support/qa" element={<SupportQAReviews />} />
-          <Route path="support/escalations" element={<SupportEscalationManager />} />
-          <Route path="support/team-hierarchy" element={<SupportTeamHierarchy />} />
-          <Route path="support/settings" element={<SupportSettingsPage />} />
-          <Route path="support/audit" element={<SupportAuditLog />} />
+          <Route path={adminRoute('supportAgentDashboard').relative} element={<SupportAgentDashboard />} />
+          <Route path={adminRoute('supportAgentOnboarding').relative} element={<SupportAgentOnboarding />} />
+          <Route path={adminRoute('supportShifts').relative} element={<SupportShiftsManager />} />
+          <Route path={adminRoute('supportAgents').relative} element={<SupportAgentManagement />} />
+          <Route path={adminRoute('supportKnowledgeBase').relative} element={<SupportKnowledgeBase />} />
+          <Route path={adminRoute('supportTemplates').relative} element={<SupportTemplates />} />
+          <Route path={adminRoute('supportMetrics').relative} element={<SupportMetricsDashboard />} />
+          <Route path={adminRoute('supportSla').relative} element={<SupportSLADashboard />} />
+          <Route path={adminRoute('supportPerformance').relative} element={<SupportPerformanceAnalytics />} />
+          <Route path={adminRoute('supportCsat').relative} element={<SupportCSATAnalytics />} />
+          <Route path={adminRoute('supportQa').relative} element={<SupportQAReviews />} />
+          <Route path={adminRoute('supportEscalations').relative} element={<SupportEscalationManager />} />
+          <Route path={adminRoute('supportTeamHierarchy').relative} element={<SupportTeamHierarchy />} />
+          <Route path={adminRoute('supportSettings').relative} element={<SupportSettingsPage />} />
+          <Route path={adminRoute('supportAudit').relative} element={<SupportAuditLog />} />
 
           {/* Learn Mode */}
           <Route path={adminRoute('learnSubmissions').relative} element={<LearnSubmissionsAdmin />} />
           <Route path={adminRoute('learnProductLinks').relative} element={<LearnProductLinksAdmin />} />
 
           {/* Reputation & Enforcement */}
-          <Route path="reports/dashboard" element={<AdminReportsDashboard />} />
+          <Route path={adminRoute('reportsDashboard').relative} element={<AdminReportsDashboard />} />
           <Route path={adminRoute('enforcement').relative} element={<AdminEnforcementDashboard />} />
 
           {/* Legal & Compliance */}
-          <Route path="legal/acceptances" element={<AdminLegalAcceptancesPage />} />
-          <Route path="legal/audit-log" element={<AdminLegalAuditLogPage />} />
-          <Route path="legal/compliance-metrics" element={<AdminComplianceMetricsPage />} />
-          <Route path="legal/ccpa-requests" element={<AdminCCPARequestsPage />} />
+          <Route path={adminRoute('legalAcceptances').relative} element={<AdminLegalAcceptancesPage />} />
+          <Route path={adminRoute('legalAuditLog').relative} element={<AdminLegalAuditLogPage />} />
+          <Route path={adminRoute('legalComplianceMetrics').relative} element={<AdminComplianceMetricsPage />} />
+          <Route path={adminRoute('legalCcpaRequests').relative} element={<AdminCCPARequestsPage />} />
 
           {/* Super admin and grant-gated routes.
               GrantGuard checks the admin's permission grants (super-admins
@@ -354,23 +354,23 @@ export default function AdminApp() {
 
           {/* OxSteed Logistics branch (migration 247) */}
           <Route path={adminRoute('logistics').relative} element={<LogisticsAdminDashboard />} />
-          <Route path="logistics/sourcing-ops"       element={<SourcingOpsAdmin />} />
-          <Route path="logistics/organizer-approvals" element={<OrganizerApprovalsAdmin />} />
-          <Route path="logistics/lanes"              element={<LanesManagement />} />
-          <Route path="logistics/suppliers"          element={<SuppliersManagement />} />
-          <Route path="logistics/quotes"             element={<QuotesManagement />} />
-          <Route path="logistics/campaigns"          element={<CampaignsAdmin />} />
-          <Route path="logistics/purchase-orders"   element={<PurchaseOrdersAdmin />} />
-          <Route path="logistics/shipment-ops"       element={<ShipmentOpsAdmin />} />
-          <Route path="logistics/shipments"          element={<ShipmentsAdmin />} />
-          <Route path="logistics/compliance-review"  element={<ComplianceReviewAdmin />} />
-          <Route path="logistics/customs"            element={<CustomsAdmin />} />
-          <Route path="logistics/warehouse-ops"      element={<WarehouseOpsDashboard />} />
-          <Route path="logistics/warehouses"         element={<WarehousesAdmin />} />
-          <Route path="logistics/allocations"        element={<AllocationsAdmin />} />
-          <Route path="logistics/pricing"            element={<PricingAdmin />} />
-          <Route path="logistics/restrictions"       element={<RestrictionsAdmin />} />
-          <Route path="logistics/disputes"           element={<DisputesAdmin />} />
+          <Route path={adminRoute('logisticsSourcingOps').relative} element={<SourcingOpsAdmin />} />
+          <Route path={adminRoute('logisticsOrganizerApprovals').relative} element={<OrganizerApprovalsAdmin />} />
+          <Route path={adminRoute('logisticsLanes').relative} element={<LanesManagement />} />
+          <Route path={adminRoute('logisticsSuppliers').relative} element={<SuppliersManagement />} />
+          <Route path={adminRoute('logisticsQuotes').relative} element={<QuotesManagement />} />
+          <Route path={adminRoute('logisticsCampaigns').relative} element={<CampaignsAdmin />} />
+          <Route path={adminRoute('logisticsPurchaseOrders').relative} element={<PurchaseOrdersAdmin />} />
+          <Route path={adminRoute('logisticsShipmentOps').relative} element={<ShipmentOpsAdmin />} />
+          <Route path={adminRoute('logisticsShipments').relative} element={<ShipmentsAdmin />} />
+          <Route path={adminRoute('logisticsComplianceReview').relative} element={<ComplianceReviewAdmin />} />
+          <Route path={adminRoute('logisticsCustoms').relative} element={<CustomsAdmin />} />
+          <Route path={adminRoute('logisticsWarehouseOps').relative} element={<WarehouseOpsDashboard />} />
+          <Route path={adminRoute('logisticsWarehouses').relative} element={<WarehousesAdmin />} />
+          <Route path={adminRoute('logisticsAllocations').relative} element={<AllocationsAdmin />} />
+          <Route path={adminRoute('logisticsPricing').relative} element={<PricingAdmin />} />
+          <Route path={adminRoute('logisticsRestrictions').relative} element={<RestrictionsAdmin />} />
+          <Route path={adminRoute('logisticsDisputes').relative} element={<DisputesAdmin />} />
           <Route path={adminRoute('logisticsControl').relative} element={<AdminGuard superOnly={adminRoute('logisticsControl').superOnly}><SuperAdminLogisticsControl /></AdminGuard>} />
         </Route>
 
