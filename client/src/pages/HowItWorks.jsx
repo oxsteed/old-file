@@ -56,7 +56,7 @@ export default function HowItWorks() {
               onMouseEnter={e => e.currentTarget.style.color = 'var(--color-nav-link-hover)'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-subtle)'}
             >{t('howItWorks.postJob')}</Link>
-            <Link to="/register/helper" className="hidden sm:inline"
+            <Link to="/join?mode=helper" className="hidden sm:inline"
               style={{ fontSize: '0.875rem', color: 'var(--color-text-subtle)', textDecoration: 'none', transition: 'color 150ms' }}
               onMouseEnter={e => e.currentTarget.style.color = 'var(--color-nav-link-hover)'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-subtle)'}
@@ -159,7 +159,7 @@ export default function HowItWorks() {
                 {t('howItWorks.postJobFree')}
               </Link>
               <Link
-                to="/register/helper"
+                to="/join?mode=helper"
                 style={{
                   background: 'var(--color-surface-translucent)',
                   border: '1px solid var(--color-border-subtle)',
@@ -190,7 +190,7 @@ export default function HowItWorks() {
           }}>
             {[
               { eyebrow: t('howItWorks.forCustomers'), title: t('howItWorks.customerTitle'), steps: CUSTOMER_STEPS, cta: { to: '/join', label: t('howItWorks.customerCta'), style: 'solid' } },
-              { eyebrow: t('howItWorks.forHelpers'),   title: t('howItWorks.helperTitle'),   steps: HELPER_STEPS,   cta: { to: '/register/helper',   label: t('howItWorks.helperCta'),   style: 'outline' } },
+              { eyebrow: t('howItWorks.forHelpers'),   title: t('howItWorks.helperTitle'),   steps: HELPER_STEPS,   cta: { to: '/join?mode=helper',   label: t('howItWorks.helperCta'),   style: 'outline' } },
             ].map((col) => (
               <div
                 key={col.eyebrow}
@@ -453,7 +453,7 @@ export default function HowItWorks() {
                 {t('howItWorks.postJobFreeBtn')}
               </Link>
               <Link
-                to="/register/helper"
+                to="/join?mode=helper"
                 style={{
                   background: 'var(--color-surface-translucent)',
                   border: '1px solid var(--color-border-subtle)',

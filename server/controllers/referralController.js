@@ -102,18 +102,20 @@ exports.getMyReferral = async (req, res, next) => {
 
     // Generate role-appropriate share URLs so referrers land on the right
     // registration flow, and so the platform can track cross-persona referrals.
+    // /join is the single signup page; ?mode= preselects the signup mode.
     const role = req.user.role || 'customer';
-    const roleToRegisterPath = {
-      helper:          'register/helper',
-      helper_pro:      'register/helper',
-      broker:          'register/helper',
-      business_owner:  'register/business',
-      consultant:      'register/consultant',
-      franchise_owner: 'register/franchise',
-      tool_owner:      'register/helper',
+    const roleToJoinMode = {
+      helper:          'helper',
+      helper_pro:      'helper',
+      broker:          'helper',
+      business_owner:  'business_owner',
+      consultant:      'consultant',
+      franchise_owner: 'franchise',
+      tool_owner:      'helper',
     };
-    const registerPath = roleToRegisterPath[role] || 'join';
-    const shareUrl         = `${appUrl}/${registerPath}?ref=${referral_code}`;
+    const joinMode = roleToJoinMode[role];
+    const modeQuery = joinMode ? `?mode=${joinMode}&` : '?';
+    const shareUrl         = `${appUrl}/join${modeQuery}ref=${referral_code}`;
     // Also provide a customer-specific URL for when they want to refer end-users
     const customerShareUrl = `${appUrl}/join?ref=${referral_code}`;
 

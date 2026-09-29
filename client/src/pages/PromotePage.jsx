@@ -1471,7 +1471,7 @@ export default function PromotePage() {
             <Briefcase size={28} />
             <h2>{t('promotePage.emptyTitle', { defaultValue: 'Growth Center is for helpers and business providers.' })}</h2>
             <p>{t('promotePage.emptyBody', { defaultValue: 'Create a helper profile or business page first, then come back to build your promotion kit.' })}</p>
-            <Link to="/register/helper" className="promote-btn primary">{t('promotePage.joinAsHelper', { defaultValue: 'Join as a helper' })}</Link>
+            <Link to="/join?mode=helper" className="promote-btn primary">{t('promotePage.joinAsHelper', { defaultValue: 'Join as a helper' })}</Link>
           </div>
         ) : (
           <>

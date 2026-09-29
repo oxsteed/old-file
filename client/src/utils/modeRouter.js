@@ -60,8 +60,8 @@ const ROUTE_BY_MODE = {
 };
 
 // Helpers that wrap routes so the JoinPage can chain into Didit / onboarding
-// the same way the old customer page / HelperRegister did. These are
-// the "first stop" after OTP succeeds — not necessarily the long-term home.
+// after OTP succeeds. These are the "first stop" — not necessarily the
+// long-term home.
 const POST_SIGNUP_ROUTE_BY_MODE = {
   // Helpers must still pass identity verification before they can list/bid.
   helper:                   '/verify-identity',

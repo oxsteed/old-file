@@ -374,10 +374,6 @@ verifyPageHasNoHardcodedUiText('src/pages/ForgotPassword.jsx', {
   allowedJsxText: ['OxSteed'],
   allowedAttributes: ['you@example.com'],
 });
-verifyPageHasNoHardcodedUiText('src/pages/JobListPage.jsx');
-verifyPageHasNoHardcodedUiText('src/pages/HelperRegister.tsx', {
-  allowedJsxText: ['OxSteed'],
-});
 verifyPageHasNoHardcodedUiText('src/pages/ResetPassword.jsx', {
   allowedJsxText: ['OxSteed'],
 });

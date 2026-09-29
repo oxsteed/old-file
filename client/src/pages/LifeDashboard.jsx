@@ -156,7 +156,7 @@ function buildCrossSells({ vehicles, homes, goals, expenses, summary, t }) {
       icon: <Wrench size={16} className="text-green-400" />,
       title: t('dashboards.life.crossSell.turnSkills'),
       subtitle: t('dashboards.life.crossSell.helperSubtitle'),
-      href: '/register/helper',
+      href: '/join?mode=helper',
       cta: t('dashboards.life.crossSell.becomeHelper'),
       color: 'green',
     });

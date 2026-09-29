@@ -19,7 +19,6 @@ const ImpersonatePage = lazyWithRetry(() => import('./pages/ImpersonatePage'));
 const HomePage = lazyWithRetry(() => import('./pages/HomePage'));
 const Login = lazyWithRetry(() => import('./pages/Login'));
 const InvestorLoginPage = lazyWithRetry(() => import('./pages/InvestorLoginPage'));
-const HelperRegister = lazyWithRetry(() => import('./pages/HelperRegister'));
 const JoinPage = lazyWithRetry(() => import('./pages/JoinPage'));
 const ConsultingIntakePage = lazyWithRetry(() => import('./pages/ConsultingIntakePage'));
 const ConsultingFeedbackPage = lazyWithRetry(() => import('./pages/ConsultingFeedbackPage'));
@@ -285,7 +284,7 @@ export default function App() {
                     <Route path="/login"                   element={<Guarded><Login /></Guarded>} />
                     <Route path="/investor/login"          element={<Guarded><InvestorLoginPage /></Guarded>} />
                     <Route path="/register/customer"      element={<Navigate to="/join" replace />} />
-                    <Route path="/register/helper"         element={<Guarded><HelperRegister /></Guarded>} />
+                    <Route path="/register/helper"        element={<Navigate to="/join?mode=helper" replace />} />
                     {/* ── Unified signup (post-2026-05). /join is the single   */}
                     {/*    customer registration page; the old /register/customer */}
                     {/*    page redirects here for inbound links + back-compat.  */}

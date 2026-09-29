@@ -4,8 +4,8 @@ import { useAuth } from '../context/AuthContext';
 // Protected routes a helper may visit before onboarding is complete.
 // All entries here must correspond to actual <ProtectedRoute>-wrapped routes
 // in App.jsx - public paths never reach this gate.
-// '/helper-dashboard' is required: HelperRegister navigates there after OTP
-// verification, before onboarding_completed is set to true.
+// '/helper-dashboard' is required: helpers who finish signup via /join land
+// there after OTP verification, before onboarding_completed is set to true.
 const ONBOARDING_ALLOWED_PATHS = [
   '/helper-dashboard',
   '/dashboard',
@@ -70,14 +70,16 @@ export default function ProtectedRoute({ children, requiredRole, requireOnboarde
   }
 
   // Helper onboarding gate: redirect helpers who haven't completed onboarding
-  // unless they're already on an allowed path.
+  // to their dashboard unless they're already on an allowed path. (The Didit
+  // gate above already handled identity verification, so they resume where
+  // they left off. Previously this pointed at the retired /join?mode=helper.)
   if (
     requireOnboarded &&
     ['helper', 'helper_pro', 'broker'].includes(user.role) &&
     !isOnboardingComplete &&
     !ONBOARDING_ALLOWED_PATHS.includes(location.pathname)
   ) {
-    return <Navigate to="/register/helper" replace />;
+    return <Navigate to="/helper-dashboard" replace />;
   }
 
   return children;
