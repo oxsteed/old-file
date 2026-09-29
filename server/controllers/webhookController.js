@@ -832,6 +832,10 @@ async function beginDiditWebhookEvent(body) {
 // Didit identity webhook handler (v3 API)
 exports.diditWebhook = async (req, res, next) => {
   let receiptId = null;
+  // Hoisted so the catch block can log the inner error with webhook context
+  // (event type, event id, verification session reference) instead of only
+  // the generic wrapper message.
+  let body = null;
   try {
     const secret = process.env.DIDIT_WEBHOOK_SECRET;
     if (!secret) {
@@ -841,11 +845,15 @@ exports.diditWebhook = async (req, res, next) => {
 
     // Parse body from raw Buffer
     let rawBody;
-    let body;
     try {
       rawBody = req.body instanceof Buffer ? req.body.toString('utf-8') : (typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
       body = typeof req.body === 'object' && !(req.body instanceof Buffer) ? req.body : JSON.parse(rawBody);
     } catch {
+      return res.status(400).json({ error: 'Invalid JSON', code: 'invalid_json' });
+    }
+    // A JSON literal (null, string, number) parses fine but is not a webhook
+    // payload: reject it as malformed instead of throwing a TypeError later.
+    if (!body || typeof body !== 'object') {
       return res.status(400).json({ error: 'Invalid JSON', code: 'invalid_json' });
     }
 
@@ -962,29 +970,49 @@ exports.diditWebhook = async (req, res, next) => {
             );
             logger.warn('[Didit] Duplicate identity detected', { userId, existingUserId: existing[0].id });
           } else {
-            await db.query(
-              `UPDATE users
-               SET identity_verified = TRUE,
-                   didit_identity_hash = $1,
-                   didit_verified_at = NOW(),
-                   didit_status = 'verified'
-               WHERE id = $2`,
-              [identityHash, userId]
-            );
-            // Award identity badge
-            await db.query(
-              `INSERT INTO badges (user_id, type, label)
-               VALUES ($1, 'identity_verified', 'ID Verified')
-               ON CONFLICT DO NOTHING`,
-              [userId]
-            );
-            logger.info('[Didit] Identity approved', {
-              userId,
-              name: idVerification.full_name,
-              docType: idVerification.document_type,
-              livenessScore: livenessCheck.liveness_score,
-              faceMatchScore: faceMatch.face_match_score,
-            });
+            // The duplicate check above is not atomic: a concurrent approval
+            // for the same identity can win the race and trip the unique index
+            // on users.didit_identity_hash. Treat a unique violation as a
+            // duplicate instead of letting it surface as a 500.
+            let verified = false;
+            try {
+              await db.query(
+                `UPDATE users
+                 SET identity_verified = TRUE,
+                     didit_identity_hash = $1,
+                     didit_verified_at = NOW(),
+                     didit_status = 'verified'
+                 WHERE id = $2`,
+                [identityHash, userId]
+              );
+              verified = true;
+            } catch (updateErr) {
+              if (updateErr && updateErr.code === '23505') {
+                await db.query(
+                  `UPDATE users SET didit_status = 'duplicate' WHERE id = $1`,
+                  [userId]
+                );
+                logger.warn('[Didit] Duplicate identity detected (concurrent approval)', { userId });
+              } else {
+                throw updateErr;
+              }
+            }
+            if (verified) {
+              // Award identity badge
+              await db.query(
+                `INSERT INTO badges (user_id, type, label)
+                 VALUES ($1, 'identity_verified', 'ID Verified')
+                 ON CONFLICT DO NOTHING`,
+                [userId]
+              );
+              logger.info('[Didit] Identity approved', {
+                userId,
+                name: idVerification.full_name,
+                docType: idVerification.document_type,
+                livenessScore: livenessCheck.liveness_score,
+                faceMatchScore: faceMatch.face_match_score,
+              });
+            }
           }
         }
       } else {
@@ -1009,7 +1037,13 @@ exports.diditWebhook = async (req, res, next) => {
         }
       }
     } else if (normalizedStatus === 'declined') {
-      const reason = idVerification.warnings?.join(', ')
+      // Didit documents warnings as an array of strings, but guard anyway:
+      // calling .join on a non-array value would throw a TypeError into the
+      // 500 path and hide behind the generic wrapper error.
+      const warnings = Array.isArray(idVerification.warnings)
+        ? idVerification.warnings.join(', ')
+        : '';
+      const reason = warnings
         || body.reason
         || 'Verification declined';
       await db.query(
@@ -1036,14 +1070,32 @@ exports.diditWebhook = async (req, res, next) => {
         );
       }
     } else {
-      logger.info('[Didit] Unhandled status', { status });
+      // Unknown statuses (including future Didit event types) are logged and
+      // acknowledged, never thrown: a throw here would fail every new event
+      // type Didit starts sending.
+      logger.info('[Didit] Unhandled status', {
+        status,
+        eventType: body.webhook_type || body.type,
+        providerRefId: session_id,
+      });
     }
 
     await markWebhookEventProcessed(receiptId);
     res.json({ received: true });
   } catch (err) {
     await markWebhookEventFailed(receiptId, err).catch(() => {});
-    logger.error('Didit webhook handler error', { error: err.message });
+    // Log the inner error with its stack and the webhook context (not just the
+    // generic wrapper message) so the next Sentry occurrence is diagnosable.
+    // providerRefId is the Didit verification session reference; the key name
+    // avoids the logger's substring redaction rule for 'session'.
+    logger.error('[Didit] Webhook handler failed', {
+      error: err?.message || String(err),
+      stack: err?.stack,
+      eventType: body?.webhook_type || body?.type || undefined,
+      eventId: body?.event_id || body?.id || undefined,
+      providerRefId: body?.session_id,
+      receiptId,
+    });
     if (typeof next === 'function') {
       return next(new AppError('Webhook processing failed', 500, 'webhook_processing_error'));
     }
