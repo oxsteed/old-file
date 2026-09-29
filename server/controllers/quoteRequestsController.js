@@ -176,6 +176,38 @@ async function sendConfirmationEmail(request) {
   });
 }
 
+// Audit finding #17: notify the customer when an admin sets or updates the
+// quoted amount. Fire-and-forget; email failures are logged, never fatal.
+async function notifyCustomerOfQuote(request) {
+  if (!request?.email || request.quote_amount_cents === null || request.quote_amount_cents === undefined) return;
+  const amount = `${(Number(request.quote_amount_cents) / 100).toFixed(2)} ${request.quote_currency_code || 'USD'}`;
+  try {
+    const rendered = renderOxSteedEmail({
+      language: request.metadata?.language || 'en',
+      preheader: `Your OxSteed quote is ready: ${amount}`,
+      eyebrow: 'QUOTE READY',
+      title: 'Your quote is ready',
+      bodyHtml: `<p style="margin:0 0 16px;color:#334155;font-size:16px;line-height:1.65;">Our team has prepared a quote for your request. The quoted amount is <strong>${escapeHtml(amount)}</strong>.</p>`,
+      bodyText: `Our team has prepared a quote for your request. The quoted amount is ${amount}.`,
+      details: [
+        { label: 'Quoted amount', value: amount },
+        { label: 'Service', value: request.service_category || '-' },
+        { label: 'Reference ID', value: request.public_reference || request.id },
+      ],
+      footerText: 'You are receiving this message because you have an OxSteed Direct request.',
+    });
+    await sendEmail({
+      to: request.email,
+      subject: `Your OxSteed quote is ready: ${amount}`,
+      html: rendered.html,
+      text: rendered.text,
+      idempotencyKey: `quote-request:quoted:${request.id}:${request.quote_amount_cents}`,
+    });
+  } catch (emailErr) {
+    logger.warn('Quote-ready email notification failed', { requestId: request.id, error: emailErr.message });
+  }
+}
+
 exports.createQuoteRequest = async (req, res) => {
   const firstName = cleanText(req.body.first_name, 100);
   const lastName = cleanText(req.body.last_name, 100);
@@ -803,6 +835,13 @@ exports.updateQuoteRequestAdmin = async (req, res) => {
 
     if (!result.rows.length) {
       return res.status(404).json({ error: 'Quote request not found' });
+    }
+
+    // Audit finding #17: the admin quote action lives here (PATCH
+    // /admin/requests/:id). Notify the customer when the admin set or updated
+    // the quoted amount in this call. Fire-and-forget.
+    if (quoteAmountCents !== null) {
+      notifyCustomerOfQuote(result.rows[0]).catch(() => {});
     }
 
     if (auditBefore) {
