@@ -350,5 +350,6 @@
     "offline": "Hors ligne",
     "offlineHint": "Les mises à jour en direct sont indisponibles. Vous pouvez envoyer des messages ; les réponses peuvent être retardées.",
     "searchFailed": "La recherche n’a pas abouti. Réessayez."
-  }
+  },
+  "updated": "Mis à jour"
 }

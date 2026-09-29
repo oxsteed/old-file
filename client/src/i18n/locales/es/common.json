@@ -350,5 +350,6 @@
     "offline": "Sin conexión",
     "offlineHint": "Las actualizaciones en vivo no están disponibles. Aún puedes enviar mensajes; las respuestas pueden tardar.",
     "searchFailed": "No se pudo completar la búsqueda. Inténtalo de nuevo."
-  }
+  },
+  "updated": "Actualizado"
 }
