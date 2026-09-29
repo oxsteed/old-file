@@ -151,12 +151,18 @@ function mapToHelperProfileData(profile, t) {
   // Hours: mapped from business_hours table (Phase 3 business content)
   // Convert day_of_week (0-6) to day names expected by HoursSection
   const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const mappedHours = (hours || []).map(h => ({
-    day:    DAY_NAMES[h.day_of_week] || 'Sunday',
-    open:   h.start_time || '00:00',
-    close:  h.end_time || '00:00',
-    closed: h.is_closed || false,
-  }));
+  const mappedHours = (hours || []).map(h => {
+    const startTime = h.start_time || null;
+    const endTime = h.end_time || null;
+    return {
+      day:    DAY_NAMES[h.day_of_week] || 'Sunday',
+      open:   startTime || '',
+      close:  endTime || '',
+      // A day with no start/end times is treated as closed: it must never
+      // render as "00:00 - 00:00".
+      closed: h.is_closed || !startTime || !endTime,
+    };
+  });
 
   const chatSession = {
     id:            `session_${business.owner_id}`,
@@ -183,6 +189,9 @@ function mapToHelperProfileData(profile, t) {
     bizId:   business.id,
     phone:   business.phone,
     website: business.website,
+    // Canonical public URL path for this business, vanity-slug aware
+    // (server computes `/b/:slug` when claimed, else `/businesses/public/:id`).
+    profileUrl: business.profileUrl || `/businesses/public/${business.id}`,
   };
 }
 
@@ -894,7 +903,7 @@ export default function BusinessProfilePage() {
   const {
     helper, services, gallery, hours, location,
     policies, reviews, faqs, chatSession,
-    team, bizId, phone, website,
+    team, bizId, phone, website, profileUrl,
   } = profileData;
 
   const isGuestVisitor = !user;
@@ -902,247 +911,59 @@ export default function BusinessProfilePage() {
     LAUNCH_VISIBILITY.specializedProfileTemplates ? activeTemplate : 'default',
   );
 
-  // ── Template override: non-default templates replace the page interior ─────
-  if (LAUNCH_VISIBILITY.specializedProfileTemplates && activeTemplate && activeTemplate !== 'default') {
-    return (
-      <div className="min-h-screen bg-gray-950 text-white">
-        <PageMeta
-          title={helper.businessName}
-          description={buildPublicProfileDescription({
-            displayName: helper.businessName,
-            tagline: helper.tagline,
-            bio: helper.bio,
-            city: helper.city,
-            state: helper.state,
-            entityLabel: 'business',
-          })}
-          image={helper.coverImage || helper.avatar}
-          url={`${getPublicSiteUrl()}/businesses/public/${id}`}
-          type="profile"
-        />
-        <Navbar />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2">
-          <ProfileShareControls
-            shareUrl={`${getPublicSiteUrl()}/businesses/public/${id}`}
-            shareTitle={helper.businessName}
-            i18nPrefix="businessProfile"
-          />
-        </div>
-        <ProfileTemplateRenderer slug={activeTemplate} profileData={profileData} />
-        <div className="px-4 sm:px-6 lg:px-8">
-          {activeTemplate === 'property_manager' ? (
-            <div className="mt-6">
-              <PropertyOperationsPublicSection data={propertyOpsData} t={t} />
-            </div>
-          ) : null}
-          {['trades_pro', 'electrician', 'auto_mechanic'].includes(activeTemplate) ? (
-            <div className="mt-6">
-              <TradesOperationsPublicSection data={tradesOpsData} t={t} />
-            </div>
-          ) : null}
-          {['beauty_style', 'barbershop', 'hair_stylist', 'spa_skincare'].includes(activeTemplate) ? (
-            <div className="mt-6">
-              <BeautyOperationsPublicSection data={beautyOpsData} t={t} />
-            </div>
-          ) : null}
-          {['photographer', 'creative_studio', 'graphic_design'].includes(activeTemplate) ? (
-            <div className="mt-6">
-              <CreativeOperationsPublicSection data={creativeOpsData} t={t} />
-            </div>
-          ) : null}
-          {['accountant', 'consulting_coaching', 'legal_admin'].includes(activeTemplate) ? (
-            <div className="mt-6">
-              <ProfessionalOperationsPublicSection data={professionalOpsData} t={t} />
-            </div>
-          ) : null}
-          {['fitness_pro', 'wellness_therapy', 'nutrition_diet', 'mental_health', 'massage_therapist', 'care_trust', 'pet_services', 'tutoring_education', 'child_development', 'dog_walker', 'math_tutor'].includes(activeTemplate) ? (
-            <div className="mt-6">
-              <ContinuityOperationsPublicSection data={continuityOpsData} t={t} />
-            </div>
-          ) : null}
-        </div>
-        <Footer />
-      </div>
-    );
-  }
+  // Canonical public URL for this business (vanity-slug aware).
+  const canonicalUrl = `${getPublicSiteUrl()}${profileUrl || `/businesses/public/${id}`}`;
 
-  return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <PageMeta
-        title={helper.businessName}
-        description={buildPublicProfileDescription({
-          displayName: helper.businessName,
-          tagline: helper.tagline,
-          bio: helper.bio,
-          city: helper.city,
-          state: helper.state,
-          entityLabel: 'business',
-        })}
-        image={helper.coverImage || helper.avatar}
-        url={`${getPublicSiteUrl()}/businesses/public/${id}`}
-        type="profile"
-      />
-      <ProfileJsonLd
-        variant="business"
-        businessId={bizId}
-        helper={helper}
-        location={location}
-        services={services}
-      />
-      <Navbar />
+  // Only show the Location card when the business actually has location data.
+  const hasLocation = Boolean(
+    (location && (location.city || location.state)) || location?.serviceLat != null,
+  );
 
-      {/* Business hero — PublicProfileSummaryCard via BusinessHeader / PublicProfileHero */}
-      <BusinessHeader
-        helperId={helper.id}
-        helper={helper}
-        onBookNow={handleBookNow}
-        onPostJobPublic={handlePostJobPublic}
-        shareUrl={`${getPublicSiteUrl()}/businesses/public/${id}`}
-        shareTitle={helper.businessName}
-        shareI18nPrefix="businessProfile"
-      />
+  // Direct booking needs a service menu unless the template explicitly allows
+  // a primary action without services (e.g. maintenance requests). Without
+  // it, both desktop and mobile fall back to the Quote/chat action.
+  const canBookDirect =
+    services.length > 0 || templateBehavior.allowPrimaryWithoutServices;
 
-      {/* Sticky section nav */}
-      <SectionNav />
-
-      {/* Page body */}
-      <main
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
-        id="main-content"
-      >
-        <div className="flex flex-col lg:grid lg:grid-cols-12 gap-8">
-
-          {/* ── Left column ────────────────────────────────────────── */}
-          <div className="lg:col-span-7 space-y-6">
-
-            {/* Bio */}
-            {helper.bio && (
-              <section
-                aria-labelledby="bio-heading"
-                className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5"
-              >
-                <h2 id="bio-heading" className="text-base font-semibold text-white mb-2">
-                  {t('businessProfile.about', { name: helper.businessName })}
-                </h2>
-                <p className="text-gray-300 text-sm leading-relaxed">{helper.bio}</p>
-              </section>
-            )}
-
-            {/* Contact links (phone / website) */}
-            <ContactLinksSection phone={phone} website={website} />
-
-            {LAUNCH_VISIBILITY.specializedProfileTemplates && activeTemplate === 'property_manager' ? (
-              <PropertyOperationsPublicSection data={propertyOpsData} t={t} />
-            ) : null}
-            {LAUNCH_VISIBILITY.specializedProfileTemplates && ['trades_pro', 'electrician', 'auto_mechanic'].includes(activeTemplate) ? (
-              <TradesOperationsPublicSection data={tradesOpsData} t={t} />
-            ) : null}
-            {LAUNCH_VISIBILITY.specializedProfileTemplates && ['beauty_style', 'barbershop', 'hair_stylist', 'spa_skincare'].includes(activeTemplate) ? (
-              <BeautyOperationsPublicSection data={beautyOpsData} t={t} />
-            ) : null}
-            {LAUNCH_VISIBILITY.specializedProfileTemplates && ['photographer', 'creative_studio', 'graphic_design'].includes(activeTemplate) ? (
-              <CreativeOperationsPublicSection data={creativeOpsData} t={t} />
-            ) : null}
-            {LAUNCH_VISIBILITY.specializedProfileTemplates && ['accountant', 'consulting_coaching', 'legal_admin'].includes(activeTemplate) ? (
-              <ProfessionalOperationsPublicSection data={professionalOpsData} t={t} />
-            ) : null}
-            {LAUNCH_VISIBILITY.specializedProfileTemplates && ['fitness_pro', 'wellness_therapy', 'nutrition_diet', 'mental_health', 'massage_therapist', 'care_trust', 'pet_services', 'tutoring_education', 'child_development', 'dog_walker', 'math_tutor'].includes(activeTemplate) ? (
-              <ContinuityOperationsPublicSection data={continuityOpsData} t={t} />
-            ) : null}
-
-            {/* Services & Pricing (empty state built into component) */}
-            <ServicesSection
-              services={services}
-              onSelectService={handleSelectService}
-            />
-
-            {/* Photo gallery */}
-            <GallerySection images={gallery} />
-
-            {/* Team members */}
-            <TeamSection team={team} />
-
-            {/* Hours + Location side by side on md+ */}
-            <div className="grid sm:grid-cols-2 gap-6">
-              {hours.length > 0 && <HoursSection hours={hours} />}
-              <LocationSection location={location} />
-            </div>
-
-            <PoliciesSection policies={policies} />
-
-            {/*
-              Identity separation: a business keeps its own identity. Its
-              schedule is its own business_hours (HoursSection above) and its
-              pricing is its own service catalog. The owner's personal helper
-              availability/pricing/slots are never shown here; they live on
-              the helper's individual profile (/helpers/:id).
-            */}
-
-            <ReviewsSection
-              reviews={reviews}
-              overallRating={helper.rating}
-              totalCount={helper.reviewCount}
-            />
-
-            <FAQSection faqs={faqs} />
-
-            {/* Bottom padding for mobile CTA bar + launcher + iOS home indicator */}
-            <div className="h-32 lg:hidden" aria-hidden="true" />
-          </div>
-
-          {/* ── Right column: CTA + Chat (desktop) ─────────────────── */}
-          <aside
-            className="hidden lg:flex lg:col-span-5 flex-col gap-5"
-            aria-label={t('businessProfile.bookAndChatAria')}
-          >
-            <div className="sticky top-[7.25rem] space-y-5 max-h-[calc(100vh-7.25rem)] flex flex-col overflow-y-auto overscroll-contain">
-              <UserReputationCard userId={helper.id} />
-              <CTASection
-                helper={helper}
-                onBookNow={handleTemplatePrimaryAction}
-                onMessageHelper={handleOpenChat}
-                hasServices={services.length > 0}
-                primaryLabel={templateBehavior.primaryCta}
-                allowPrimaryWithoutServices={templateBehavior.allowPrimaryWithoutServices}
-              />
-              {user && (
-                <button
-                  onClick={() => setReportModalOpen(true)}
-                  className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl border border-red-600/30 text-red-400 font-medium text-sm hover:bg-red-950/20 transition-colors"
-                  aria-label={t('reportModal.reportUser', { name: helper.businessName })}
-                >
-                  <Flag size={16} />
-                  {t('reportModal.report')}
-                </button>
-              )}
-            </div>
-          </aside>
-
-        </div>
-      </main>
-
-      <Footer />
-
+  // ── Shared page chrome: mobile CTA bar, chat, modals, back-to-top ──────────
+  // Rendered in both the default and specialized-template branches so the
+  // template early-return does not drop booking/chat/report controls.
+  const pageChrome = (
+    <>
       {/* ── Mobile sticky CTA bar ────────────────────────────────────── */}
       <div
         className="lg:hidden fixed bottom-0 inset-x-0 z-30 px-4 pt-3 bg-gray-900/95 backdrop-blur border-t border-gray-800 flex items-center gap-3"
         style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
         aria-label={t('businessProfile.quickActionsAria')}
       >
-        <button
-          onClick={handleBookNow}
-          className="flex-1 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold text-sm transition-colors shadow-lg shadow-green-600/20 active:bg-green-800"
-          aria-label={t('businessProfile.bookBusinessAria')}
-        >
-          {t('businessProfile.bookNow')}
-        </button>
-        <button
-          onClick={handleOpenChat}
-          className="flex-1 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-500/20 active:bg-brand-700"
-          aria-label={t('helperProfile.cta.messageHelperAria')}
-        >
-          {t('helperProfile.cta.contactForPricing')}
-        </button>
+        {canBookDirect ? (
+          <>
+            <button
+              onClick={handleTemplatePrimaryAction}
+              className="flex-1 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold text-sm transition-colors shadow-lg shadow-green-600/20 active:bg-green-800"
+              aria-label={t('businessProfile.bookBusinessAria')}
+            >
+              {activeTemplate !== 'default' && templateBehavior.primaryCta
+                ? templateBehavior.primaryCta
+                : t('businessProfile.bookNow')}
+            </button>
+            <button
+              onClick={handleOpenChat}
+              className="flex-1 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-500/20 active:bg-brand-700"
+              aria-label={t('businessProfile.messageBusinessAria')}
+            >
+              {t('helperProfile.cta.contactForPricing')}
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={handleOpenChat}
+            className="flex-1 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-500/20 active:bg-brand-700"
+            aria-label={t('businessProfile.messageBusinessAria')}
+          >
+            {t('helperProfile.cta.contactForPricing')}
+          </button>
+        )}
       </div>
 
       <PublicProfileMessenger
@@ -1209,6 +1030,242 @@ export default function BusinessProfilePage() {
       )}
 
       <BackToTopButton />
+    </>
+  );
+
+  // ── Template override: non-default templates replace the page interior ─────
+  if (LAUNCH_VISIBILITY.specializedProfileTemplates && activeTemplate && activeTemplate !== 'default') {
+    return (
+      <div className="min-h-screen bg-gray-950 text-white">
+        <PageMeta
+          title={helper.businessName}
+          description={buildPublicProfileDescription({
+            displayName: helper.businessName,
+            tagline: helper.tagline,
+            bio: helper.bio,
+            city: helper.city,
+            state: helper.state,
+            entityLabel: 'business',
+          })}
+          image={helper.coverImage || helper.avatar}
+          url={canonicalUrl}
+          type="profile"
+        />
+        <ProfileJsonLd
+          variant="business"
+          businessId={bizId}
+          helper={helper}
+          location={location}
+          services={services}
+        />
+        <Navbar />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2">
+          <ProfileShareControls
+            shareUrl={canonicalUrl}
+            shareTitle={helper.businessName}
+            i18nPrefix="businessProfile"
+          />
+        </div>
+        <ProfileTemplateRenderer slug={activeTemplate} profileData={profileData} />
+        <div className="px-4 sm:px-6 lg:px-8">
+          {activeTemplate === 'property_manager' ? (
+            <div className="mt-6">
+              <PropertyOperationsPublicSection data={propertyOpsData} t={t} />
+            </div>
+          ) : null}
+          {['trades_pro', 'electrician', 'auto_mechanic'].includes(activeTemplate) ? (
+            <div className="mt-6">
+              <TradesOperationsPublicSection data={tradesOpsData} t={t} />
+            </div>
+          ) : null}
+          {['beauty_style', 'barbershop', 'hair_stylist', 'spa_skincare'].includes(activeTemplate) ? (
+            <div className="mt-6">
+              <BeautyOperationsPublicSection data={beautyOpsData} t={t} />
+            </div>
+          ) : null}
+          {['photographer', 'creative_studio', 'graphic_design'].includes(activeTemplate) ? (
+            <div className="mt-6">
+              <CreativeOperationsPublicSection data={creativeOpsData} t={t} />
+            </div>
+          ) : null}
+          {['accountant', 'consulting_coaching', 'legal_admin'].includes(activeTemplate) ? (
+            <div className="mt-6">
+              <ProfessionalOperationsPublicSection data={professionalOpsData} t={t} />
+            </div>
+          ) : null}
+          {['fitness_pro', 'wellness_therapy', 'nutrition_diet', 'mental_health', 'massage_therapist', 'care_trust', 'pet_services', 'tutoring_education', 'child_development', 'dog_walker', 'math_tutor'].includes(activeTemplate) ? (
+            <div className="mt-6">
+              <ContinuityOperationsPublicSection data={continuityOpsData} t={t} />
+            </div>
+          ) : null}
+        </div>
+        <Footer />
+        {pageChrome}
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-950 text-white">
+      <PageMeta
+        title={helper.businessName}
+        description={buildPublicProfileDescription({
+          displayName: helper.businessName,
+          tagline: helper.tagline,
+          bio: helper.bio,
+          city: helper.city,
+          state: helper.state,
+          entityLabel: 'business',
+        })}
+        image={helper.coverImage || helper.avatar}
+        url={canonicalUrl}
+        type="profile"
+      />
+      <ProfileJsonLd
+        variant="business"
+        businessId={bizId}
+        helper={helper}
+        location={location}
+        services={services}
+      />
+      <Navbar />
+
+      {/* Business hero — PublicProfileSummaryCard via BusinessHeader / PublicProfileHero */}
+      <BusinessHeader
+        helperId={helper.id}
+        helper={helper}
+        onBookNow={handleBookNow}
+        onPostJobPublic={handlePostJobPublic}
+        shareUrl={canonicalUrl}
+        shareTitle={helper.businessName}
+        shareI18nPrefix="businessProfile"
+      />
+
+      {/* Sticky section nav */}
+      <SectionNav />
+
+      {/* Page body */}
+      <main
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
+        id="main-content"
+      >
+        <div className="flex flex-col lg:grid lg:grid-cols-12 gap-8">
+
+          {/* ── Left column ────────────────────────────────────────── */}
+          <div className="lg:col-span-7 space-y-6">
+
+            {/* Bio */}
+            {helper.bio && (
+              <section
+                aria-labelledby="bio-heading"
+                className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5"
+              >
+                <h2 id="bio-heading" className="text-base font-semibold text-white mb-2">
+                  {t('businessProfile.about', { name: helper.businessName })}
+                </h2>
+                <p className="text-gray-300 text-sm leading-relaxed">{helper.bio}</p>
+              </section>
+            )}
+
+            {/* Contact links (phone / website) */}
+            <ContactLinksSection phone={phone} website={website} />
+
+            {LAUNCH_VISIBILITY.specializedProfileTemplates && activeTemplate === 'property_manager' ? (
+              <PropertyOperationsPublicSection data={propertyOpsData} t={t} />
+            ) : null}
+            {LAUNCH_VISIBILITY.specializedProfileTemplates && ['trades_pro', 'electrician', 'auto_mechanic'].includes(activeTemplate) ? (
+              <TradesOperationsPublicSection data={tradesOpsData} t={t} />
+            ) : null}
+            {LAUNCH_VISIBILITY.specializedProfileTemplates && ['beauty_style', 'barbershop', 'hair_stylist', 'spa_skincare'].includes(activeTemplate) ? (
+              <BeautyOperationsPublicSection data={beautyOpsData} t={t} />
+            ) : null}
+            {LAUNCH_VISIBILITY.specializedProfileTemplates && ['photographer', 'creative_studio', 'graphic_design'].includes(activeTemplate) ? (
+              <CreativeOperationsPublicSection data={creativeOpsData} t={t} />
+            ) : null}
+            {LAUNCH_VISIBILITY.specializedProfileTemplates && ['accountant', 'consulting_coaching', 'legal_admin'].includes(activeTemplate) ? (
+              <ProfessionalOperationsPublicSection data={professionalOpsData} t={t} />
+            ) : null}
+            {LAUNCH_VISIBILITY.specializedProfileTemplates && ['fitness_pro', 'wellness_therapy', 'nutrition_diet', 'mental_health', 'massage_therapist', 'care_trust', 'pet_services', 'tutoring_education', 'child_development', 'dog_walker', 'math_tutor'].includes(activeTemplate) ? (
+              <ContinuityOperationsPublicSection data={continuityOpsData} t={t} />
+            ) : null}
+
+            {/* Services & Pricing (empty state built into component) */}
+            <ServicesSection
+              services={services}
+              onSelectService={handleSelectService}
+            />
+
+            {/* Photo gallery */}
+            <GallerySection images={gallery} />
+
+            {/* Team members */}
+            <TeamSection team={team} />
+
+            {/* Hours + Location side by side on md+ (hidden when both are empty) */}
+            {(hours.length > 0 || hasLocation) && (
+              <div className="grid sm:grid-cols-2 gap-6">
+                {hours.length > 0 && <HoursSection hours={hours} />}
+                {hasLocation && <LocationSection location={location} />}
+              </div>
+            )}
+
+            <PoliciesSection policies={policies} />
+
+            {/*
+              Identity separation: a business keeps its own identity. Its
+              schedule is its own business_hours (HoursSection above) and its
+              pricing is its own service catalog. The owner's personal helper
+              availability/pricing/slots are never shown here; they live on
+              the helper's individual profile (/helpers/:id).
+            */}
+
+            <ReviewsSection
+              reviews={reviews}
+              overallRating={helper.rating}
+              totalCount={helper.reviewCount}
+            />
+
+            <FAQSection faqs={faqs} />
+
+            {/* Bottom padding for mobile CTA bar + launcher + iOS home indicator */}
+            <div className="h-32 lg:hidden" aria-hidden="true" />
+          </div>
+
+          {/* ── Right column: CTA + Chat (desktop) ─────────────────── */}
+          <aside
+            className="hidden lg:flex lg:col-span-5 flex-col gap-5"
+            aria-label={t('businessProfile.bookAndChatAria')}
+          >
+            <div className="sticky top-[7.25rem] space-y-5 max-h-[calc(100vh-7.25rem)] flex flex-col overflow-y-auto overscroll-contain">
+              <UserReputationCard userId={helper.id} />
+              <CTASection
+                helper={helper}
+                services={services}
+                onBookNow={handleTemplatePrimaryAction}
+                onMessageHelper={handleOpenChat}
+                hasServices={services.length > 0}
+                primaryLabel={templateBehavior.primaryCta}
+                allowPrimaryWithoutServices={templateBehavior.allowPrimaryWithoutServices}
+              />
+              {user && (
+                <button
+                  onClick={() => setReportModalOpen(true)}
+                  className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl border border-red-600/30 text-red-400 font-medium text-sm hover:bg-red-950/20 transition-colors"
+                  aria-label={t('reportModal.reportUser', { name: helper.businessName })}
+                >
+                  <Flag size={16} />
+                  {t('reportModal.report')}
+                </button>
+              )}
+            </div>
+          </aside>
+
+        </div>
+      </main>
+
+      <Footer />
+
+      {pageChrome}
     </div>
   );
 }
