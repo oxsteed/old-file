@@ -47,6 +47,45 @@ export const uploadDeliveryProof = (id, file, proofType) => {
   return mutate('post', `/delivery/jobs/${id}/proof-upload`, form, { name: file.name, size: file.size, lastModified: file.lastModified, proofType });
 };
 
+// ── Customer-facing delivery tracking (customer-safe projection) ──
+export const getCustomerTrackingState = (id) =>
+  api.get(`/delivery/jobs/${id}/tracking/customer-state`).then((response) => response.data);
+export const createTrackingLink = (id, payload = {}) =>
+  mutate('post', `/delivery/jobs/${id}/tracking/links`, payload);
+export const getPublicDeliveryTracking = (token) =>
+  api.get(`/delivery/t/public/${encodeURIComponent(token)}`).then((response) => response.data);
+
+// ── Driver GPS tracking (driver-facing; restored for DriverTrackingControls) ──
+export const listTrackingDevices = () => api.get('/delivery/tracking/devices').then((response) => response.data);
+export const registerTrackingDevice = (payload) => mutate('post', '/delivery/tracking/devices', payload);
+export const grantTrackingConsent = (id, payload) => mutate('post', `/delivery/jobs/${id}/tracking/consent`, payload);
+export const revokeTrackingConsent = (id, reason = null) => api.delete(`/delivery/jobs/${id}/tracking/consent`, { data: { reason } }).then((response) => response.data);
+export const startTracking = (id, payload) => mutate('post', `/delivery/jobs/${id}/tracking/start`, payload);
+export const pauseTracking = (id, payload = {}) => mutate('post', `/delivery/jobs/${id}/tracking/pause`, payload);
+export const resumeTracking = (id, payload = {}) => mutate('post', `/delivery/jobs/${id}/tracking/resume`, payload);
+export const stopTracking = (id, payload = {}) => mutate('post', `/delivery/jobs/${id}/tracking/stop`, payload);
+export const postTrackingLocations = (id, payload) => mutate('post', `/delivery/jobs/${id}/tracking/locations`, payload);
+export const postTrackingScan = (id, payload) => mutate('post', `/delivery/jobs/${id}/tracking/scans`, payload);
+export const getTrackingStatus = (id) => api.get(`/delivery/jobs/${id}/tracking/status`).then((response) => response.data);
+
+// ── Operations tracking (exact state; restored for DeliveryTrackingOpsPage) ──
+export const getExactTracking = (id) => api.get(`/delivery/internal/jobs/${id}/tracking/exact`).then((response) => response.data);
+export const getJobTrackingGeofences = (id) => api.get(`/delivery/internal/jobs/${id}/tracking/geofences`).then((response) => response.data);
+export const getJobTrackingEtaHistory = (id) => api.get(`/delivery/internal/jobs/${id}/tracking/eta-history`).then((response) => response.data);
+export const refreshTrackingEta = (id) => mutate('post', `/delivery/internal/tracking/eta/${id}/refresh`);
+export const listTrackingReviewQueue = (state = 'suspicious', page = 1, limit = 50) => api.get('/delivery/internal/tracking/review-queue', { params: { state, page, limit } }).then((response) => response.data);
+export const reviewTrackingPoint = (pointId, payload) => mutate('patch', `/delivery/internal/tracking/points/${pointId}`, payload);
+export const listTelematicsConnections = () => api.get('/delivery/internal/telematics/connections').then((response) => response.data);
+export const createTelematicsConnection = (payload) => mutate('post', '/delivery/internal/telematics/connections', payload);
+export const pauseTelematicsConnection = (id) => mutate('post', `/delivery/internal/telematics/connections/${id}/pause`);
+export const resumeTelematicsConnection = (id) => mutate('post', `/delivery/internal/telematics/connections/${id}/resume`);
+export const revokeTelematicsConnection = (id) => mutate('post', `/delivery/internal/telematics/connections/${id}/revoke`);
+export const reconcileTelematicsConnection = (id, cursor) => mutate('post', `/delivery/internal/telematics/connections/${id}/reconcile`, { cursor });
+
+// ── Tracking link management ──
+export const listTrackingLinks = (id) => api.get(`/delivery/jobs/${id}/tracking/links`).then((response) => response.data);
+export const revokeTrackingLink = (id, linkId, reason) => mutate('post', `/delivery/jobs/${id}/tracking/links/${linkId}/revoke`, { reason });
+
 export const listInternalDeliveryQueue = () => api.get('/delivery/internal/queue').then((response) => response.data);
 export const getInternalDelivery = (id) => api.get(`/delivery/internal/jobs/${id}`).then((response) => response.data);
 export const listDeliveryVehicles = () => api.get('/delivery/internal/vehicles').then((response) => response.data);

@@ -14062,7 +14062,357 @@
     "events": { "delivery_posted": "Solicitud de entrega publicada", "delivery_coordinated": "Entrega coordinada", "delivery_assigned": "Conductor asignado", "delivery_picked_up": "Recogida completada", "delivery_in_transit": "Entrega en tránsito", "delivery_delivered": "Entrega completada", "delivery_cancelled": "Entrega cancelada", "delivery_exception_reported": "Problema informado", "delivery_marketplace_released": "Entrega publicada en el mercado", "delivery_extra_requested": "Extra solicitado", "delivery_extra_approved": "Extra aprobado", "delivery_extra_rejected": "Extra rechazado", "delivery_reschedule_requested": "Reprogramación solicitada", "delivery_reschedule_approved": "Reprogramación aprobada", "delivery_reschedule_rejected": "Reprogramación rechazada", "delivery_return_requested": "Devolución solicitada", "delivery_return_approved": "Devolución aprobada", "delivery_return_rejected": "Devolución rechazada", "delivery_return_completed": "Devolución completada", "delivery_extra_payment_started": "Pago del extra iniciado", "delivery_extra_payment_captured": "Pago del extra capturado", "delivery_exception_resolved": "Problema de entrega resuelto" },
     "extraCategories": { "waiting": "Tiempo de espera", "parking_toll": "Estacionamiento o peajes", "difficult_access": "Acceso difícil", "loading_help": "Ayuda de carga", "special_handling": "Manejo especial" },
     "dispatch": { "metaTitle": "Despacho de entregas", "eyebrow": "Operaciones internas de entrega", "title": "Coordinar solicitudes de entrega", "subtitle": "Intenta primero con OxSteed y publica la solicitud en el mercado cuando sea necesario.", "loadError": "No pudimos cargar el despacho.", "assignError": "No pudimos asignar esta entrega.", "releaseError": "No pudimos publicar esta entrega.", "releaseReason": "Cumplimiento interno no disponible", "empty": "No hay solicitudes que necesiten atención de despacho.", "driver": "Conductor", "chooseDriver": "Elegir conductor", "vehicle": "Vehículo", "chooseVehicle": "Elegir vehículo", "assign": "Asignar internamente", "release": "Publicar en el mercado" },
-    "dispatchStates": { "internal_review": "Revisión interna", "internal_assigned": "Asignada internamente", "exception": "Requiere atención", "marketplace_posted": "Publicada en el mercado", "assigned": "Asignada", "completed": "Completada" }
+    "dispatchStates": { "internal_review": "Revisión interna", "internal_assigned": "Asignada internamente", "exception": "Requiere atención", "marketplace_posted": "Publicada en el mercado", "assigned": "Asignada", "completed": "Completada" },
+    "tracking": {
+      "ops": {
+        "openTracking": "Seguimiento",
+        "metaTitle": "Operaciones de seguimiento - OxSteed",
+        "title": "Operaciones de seguimiento",
+        "subtitle": "Seguimiento operativo exacto de una entrega. Las coordenadas exactas solo aparecen aquí, nunca en las pantallas del cliente.",
+        "back": "Volver a despacho",
+        "loading": "Cargando estado de seguimiento.",
+        "loadError": "No se pudo cargar el estado de seguimiento.",
+        "refresh": "Actualizar",
+        "tabs": {
+          "location": "Ubicación",
+          "eta": "Historial de ETA",
+          "geofences": "Geocercas",
+          "scans": "Escaneos",
+          "events": "Eventos",
+          "review": "Revisión de puntos",
+          "provider": "Sincronización del proveedor",
+          "links": "Enlaces de seguimiento"
+        },
+        "header": {
+          "reference": "Referencia",
+          "status": "Estado",
+          "customer": "Cliente",
+          "customerMasked": "Cliente {id}",
+          "customerUnknown": "Desconocido",
+          "route": "Ruta",
+          "assignment": "Asignación",
+          "driver": "Conductor",
+          "vehicle": "Vehículo",
+          "device": "Dispositivo",
+          "consent": "Consentimiento",
+          "noAssignment": "Sin asignación de seguimiento activa",
+          "noDevice": "Sin dispositivo registrado",
+          "noConsent": "Sin consentimiento registrado",
+          "consentRecorded": "Consentimiento registrado ({version})"
+        },
+        "health": {
+          "title": "Salud del seguimiento",
+          "active": "Activo",
+          "stale": "Obsoleto",
+          "idle": "Sin seguimiento",
+          "lastUpdate": "Última actualización",
+          "staleFor": "Sin actualizar desde hace",
+          "never": "Nunca",
+          "minutes": "{count} min",
+          "live": "En vivo",
+          "reconnecting": "Reconectando",
+          "offline": "Sin conexión"
+        },
+        "location": {
+          "title": "Ubicación exacta",
+          "latitude": "Latitud",
+          "longitude": "Longitud",
+          "accuracy": "Precisión",
+          "accuracyMeters": "{count} m",
+          "source": "Fuente",
+          "recordedAt": "Registrado el",
+          "receivedAt": "Recibido el",
+          "speed": "Velocidad",
+          "speedMps": "{count} m/s",
+          "heading": "Dirección",
+          "headingDegrees": "{count} deg",
+          "noPoints": "Aún no se registraron puntos de ubicación.",
+          "sources": {
+            "driver_gps": "GPS del conductor",
+            "geotab": "Geotab",
+            "samsara": "Samsara",
+            "motive": "Motive",
+            "verizon_connect": "Verizon Connect"
+          }
+        },
+        "eta": {
+          "title": "Historial de ETA",
+          "refreshEta": "Actualizar ETA",
+          "refreshing": "Actualizando.",
+          "refreshed": "ETA actualizada.",
+          "empty": "Aún no hay registros de ETA.",
+          "columns": {
+            "etaAt": "ETA",
+            "source": "Fuente",
+            "confidence": "Confianza",
+            "basis": "Base",
+            "createdAt": "Registrada el"
+          }
+        },
+        "geofences": {
+          "title": "Eventos de geocerca",
+          "definitions": "Geocercas",
+          "observations": "Observaciones",
+          "empty": "No hay geocercas definidas.",
+          "noObservations": "Aún no hay observaciones de geocerca.",
+          "active": "Activa",
+          "inactive": "Inactiva",
+          "kinds": {
+            "pickup": "Recogida",
+            "destination": "Destino",
+            "stop": "Parada"
+          },
+          "events": {
+            "geofence_arrival": "Llegada",
+            "geofence_departure": "Salida"
+          },
+          "columns": {
+            "kind": "Tipo",
+            "center": "Centro",
+            "radius": "Radio",
+            "status": "Estado",
+            "event": "Evento",
+            "observedAt": "Observado el"
+          }
+        },
+        "scans": {
+          "title": "Historial de escaneos",
+          "empty": "No hay escaneos registrados.",
+          "types": {
+            "pickup": "Recogida",
+            "handoff": "Traspaso",
+            "arrival": "Llegada",
+            "return": "Devolución",
+            "exception": "Excepción"
+          },
+          "columns": {
+            "type": "Tipo",
+            "code": "Código",
+            "format": "Formato",
+            "scannedBy": "Escaneado por",
+            "scannedAt": "Escaneado el"
+          }
+        },
+        "events": {
+          "title": "Eventos de seguimiento",
+          "empty": "Aún no hay eventos de seguimiento.",
+          "types": {
+            "location_batch": "Lote de ubicaciones",
+            "eta_updated": "ETA actualizada",
+            "geofence_arrival": "Llegada a geocerca",
+            "geofence_departure": "Salida de geocerca",
+            "scan_recorded": "Escaneo registrado",
+            "tracking_stale": "Seguimiento obsoleto",
+            "tracking_reconnected": "Seguimiento reconectado",
+            "tracking_exception": "Excepción de seguimiento"
+          },
+          "columns": {
+            "type": "Evento",
+            "actor": "Actor",
+            "provider": "Proveedor",
+            "version": "Versión",
+            "occurredAt": "Ocurrido el"
+          }
+        },
+        "review": {
+          "title": "Revisión de puntos sospechosos",
+          "empty": "No hay puntos pendientes de revisión para esta entrega.",
+          "stateFilter": "Estado",
+          "states": {
+            "suspicious": "Sospechoso",
+            "rejected": "Rechazado"
+          },
+          "validate": "Válido",
+          "reject": "Rechazar",
+          "notesLabel": "Notas de revisión",
+          "notesPlaceholder": "Nota opcional, p. ej. salto de GPS cerca de un túnel",
+          "reviewed": "Punto revisado.",
+          "reviewing": "Guardando.",
+          "columns": {
+            "recordedAt": "Registrado el",
+            "source": "Fuente",
+            "coordinates": "Coordenadas",
+            "accuracy": "Precisión",
+            "notes": "Notas"
+          }
+        },
+        "provider": {
+          "title": "Sincronización del proveedor",
+          "empty": "Aún no hay conexiones telemáticas.",
+          "showAll": "Mostrar conexiones de todos los vehículos",
+          "forVehicle": "Mostrando conexiones del vehículo de esta entrega",
+          "pause": "Pausar",
+          "resume": "Reanudar",
+          "revoke": "Revocar",
+          "reconcile": "Conciliar",
+          "reconcilePlaceholder": "Nuevo valor del cursor",
+          "confirmRevoke": "¿Revocar esta conexión? El proveedor dejará de enviar actualizaciones.",
+          "updated": "Conexión actualizada.",
+          "createTitle": "Registrar conexión de proveedor",
+          "providerLabel": "Proveedor",
+          "providerPlaceholder": "p. ej. samsara",
+          "vehicleIdLabel": "ID del vehículo",
+          "credentialRefLabel": "Referencia de credencial",
+          "webhookSecretRefLabel": "Referencia del secreto del webhook",
+          "refsHint": "Aquí solo se guardan referencias. Los secretos permanecen en el almacén seguro de configuración.",
+          "create": "Registrar",
+          "creating": "Registrando.",
+          "created": "Conexión registrada.",
+          "statuses": {
+            "active": "Activa",
+            "paused": "Pausada",
+            "revoked": "Revocada",
+            "error": "Error"
+          },
+          "columns": {
+            "provider": "Proveedor",
+            "vehicle": "Vehículo",
+            "status": "Estado",
+            "cursor": "Cursor",
+            "lastSync": "Última sincronización",
+            "lastError": "Último error",
+            "errors": "Errores"
+          }
+        },
+        "links": {
+          "title": "Enlaces de seguimiento",
+          "empty": "Aún no se crearon enlaces de seguimiento.",
+          "createTitle": "Crear enlace de seguimiento",
+          "ttlLabel": "Válido por (horas)",
+          "ttlHint": "El token sin procesar se muestra una sola vez. Compártelo y después no se podrá ver de nuevo.",
+          "create": "Crear enlace",
+          "creating": "Creando.",
+          "newTokenTitle": "Nuevo token de enlace de seguimiento",
+          "newTokenHint": "Cópialo ahora. No se volverá a mostrar.",
+          "copy": "Copiar",
+          "copied": "Copiado.",
+          "openLink": "Abrir enlace de seguimiento",
+          "revoke": "Revocar",
+          "revokeReason": "Motivo de la revocación",
+          "revokeReasonPlaceholder": "Motivo opcional",
+          "confirmRevoke": "¿Revocar este enlace de seguimiento?",
+          "revoked": "Enlace de seguimiento revocado.",
+          "status": {
+            "active": "Activo",
+            "revoked": "Revocado",
+            "expired": "Vencido"
+          },
+          "columns": {
+            "prefix": "Prefijo",
+            "expiresAt": "Vence",
+            "uses": "Usos",
+            "lastUsed": "Último uso",
+            "createdAt": "Creado"
+          }
+        },
+        "live": {
+          "updateReceived": "Actualización en vivo recibida."
+        },
+        "common": {
+          "actions": "Acciones",
+          "close": "Cerrar",
+          "cancel": "Cancelar",
+          "confirm": "Confirmar",
+          "saved": "Guardado."
+        }
+      },
+      "title": "Seguimiento de ubicación del conductor",
+      "subtitle": "Comparte tu ubicación en vivo con el cliente mientras realizas esta entrega. El seguimiento solo funciona mientras está activo.",
+      "loading": "Cargando configuración de seguimiento.",
+      "deviceLabel": "Teléfono del conductor",
+      "consentTitle": "¿Compartir tu ubicación?",
+      "consentBody": "Mientras el seguimiento está activo, este teléfono envía tu ubicación aproximadamente cada 15 segundos para que el cliente pueda seguir la entrega. Los puntos también pueden guardarse en el teléfono y enviarse después si pierdes la señal. Puedes pausar o detener el uso compartido en cualquier momento y retirar el consentimiento abajo. El seguimiento por sí solo nunca cambia el estado de la entrega ni el pago.",
+      "consentGrant": "Aceptar y continuar",
+      "consentGranted": "Consentimiento de ubicación registrado.",
+      "consentRevoke": "Revocar consentimiento de ubicación",
+      "consentRevoked": "Consentimiento de ubicación revocado. El seguimiento se detuvo.",
+      "statusNone": "Sin seguimiento",
+      "statusActive": "Seguimiento activo",
+      "statusPaused": "Seguimiento en pausa",
+      "start": "Iniciar seguimiento",
+      "pause": "Pausar seguimiento",
+      "resume": "Reanudar seguimiento",
+      "stop": "Detener seguimiento",
+      "stopReason": "Motivo para detener",
+      "stopReasonPlaceholder": "Opcional, p. ej. tomar un descanso",
+      "started": "Seguimiento iniciado.",
+      "paused": "Seguimiento en pausa.",
+      "resumed": "Seguimiento reanudado.",
+      "stopped": "Seguimiento detenido.",
+      "gpsDenied": "El acceso a la ubicación está bloqueado, así que no se pueden capturar puntos.",
+      "gpsDeniedHint": "Abre la configuración de tu navegador o teléfono, permite el acceso a la ubicación para este sitio y toca Reintentar.",
+      "gpsUnsupported": "Este dispositivo no admite la captura de ubicación.",
+      "retryGps": "Reintentar ubicación",
+      "accuracyWarning": "La precisión del GPS es baja (unos {meters} m). Muévete a un área abierta para mejorar la señal.",
+      "lastPoint": "Última ubicación",
+      "noPoints": "Aún no hay puntos de ubicación",
+      "stale": "La ubicación está obsoleta",
+      "fresh": "La ubicación está actualizada",
+      "buffered": "{count} puntos pendientes de subir",
+      "scansTitle": "Escaneos de entrega",
+      "scanPickup": "Escanear recogida",
+      "scanHandoff": "Escanear traspaso",
+      "scanArrival": "Escanear llegada",
+      "scanCodePrompt": "Ingresa el código de escaneo",
+      "scanRecorded": "Escaneo registrado.",
+      "scanCancelled": "Escaneo cancelado.",
+      "errors": {
+        "generic": "Algo salió mal con el seguimiento. Inténtalo de nuevo."
+      },
+      "customer": {
+        "title": "Seguimiento en vivo",
+        "subtitle": "Progreso aproximado mientras tu entrega está en camino. La ubicación exacta del conductor nunca se muestra.",
+        "eta": "Llegada estimada",
+        "etaUnavailable": "ETA no disponible por ahora",
+        "staleEta": "Esta estimación podría estar desactualizada. El seguimiento no ha reportado recientemente.",
+        "lastUpdated": "Actualizado {{date}}",
+        "area": "Dentro de unos 500 m del área de destino",
+        "areaUnavailable": "La ubicación aproximada no está disponible por ahora.",
+        "empty": "El seguimiento de esta entrega aún no comenzó.",
+        "loading": "Cargando seguimiento…",
+        "loadError": "No pudimos cargar el seguimiento en vivo.",
+        "retry": "Reintentar",
+        "refresh": "Actualizar seguimiento",
+        "shareTitle": "Compartir seguimiento",
+        "shareHint": "Cualquier persona con este enlace puede seguir el progreso aproximado. El enlace vence automáticamente.",
+        "createLink": "Crear enlace de seguimiento",
+        "linkReady": "Enlace de seguimiento listo",
+        "linkExpires": "Vence {{date}}",
+        "copyLink": "Copiar enlace",
+        "copied": "Enlace copiado.",
+        "copyFailed": "No se pudo copiar. Selecciona el enlace y cópialo manualmente.",
+        "linkError": "No pudimos crear un enlace de seguimiento."
+      },
+      "public": {
+        "title": "Seguimiento de entrega",
+        "subtitle": "Progreso aproximado de esta entrega.",
+        "reference": "Referencia",
+        "status": "Estado",
+        "pickup": "Recogida",
+        "dropoff": "Entrega",
+        "eta": "Llegada estimada",
+        "etaUnavailable": "ETA no disponible por ahora",
+        "staleEta": "Esta estimación podría estar desactualizada. El seguimiento no ha reportado recientemente.",
+        "area": "Dentro de unos 500 m del área de destino",
+        "areaUnavailable": "La ubicación aproximada no está disponible por ahora.",
+        "loading": "Cargando seguimiento…",
+        "notFound": "No pudimos encontrar este enlace de seguimiento.",
+        "expired": "Este enlace de seguimiento venció.",
+        "expiredHint": "Pide al remitente un nuevo enlace de seguimiento para seguir esta entrega.",
+        "supportTitle": "¿Necesitas ayuda?",
+        "supportHint": "Contacta al soporte de entregas sobre este envío.",
+        "backHome": "Volver al inicio de OxSteed"
+      },
+      "milestones": {
+        "placed": "Entrega solicitada",
+        "assigned": "Conductor asignado",
+        "picked_up": "Recogida completada",
+        "handoff": "Traspaso completado",
+        "in_transit": "En camino",
+        "approaching": "Cerca del destino",
+        "delivered": "Entregada"
+      }
+    }
   },
   "aboutPage": {
     "experience": {

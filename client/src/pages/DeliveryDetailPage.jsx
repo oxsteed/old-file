@@ -4,6 +4,8 @@ import { ArrowLeft, RefreshCw, Truck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
+import DeliveryTrackingCard from '../components/delivery/DeliveryTrackingCard';
+import DriverTrackingControls from '../components/delivery/DriverTrackingControls';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../hooks/useSocket';
 import {
@@ -152,6 +154,7 @@ export default function DeliveryDetailPage() {
 
   const { activity = [], proofs = [], extras = [], issues = [], payments = [], rescheduleRequests = [], returns = [] } = data;
   const eta = data.eta || job.eta;
+  const trackable = ['assigned', 'picked_up', 'in_transit'].includes(job.status);
   const basePayment = payments.find((payment) => payment.delivery_extra_id == null);
   const nextStatus = job.status === 'assigned' ? 'picked_up' : job.status === 'picked_up' ? 'in_transit' : null;
   const canReturn = participant && ['picked_up', 'in_transit', 'failed'].includes(job.status);
@@ -170,6 +173,7 @@ export default function DeliveryDetailPage() {
       </header>
       {error && <div className="delivery-alert delivery-alert--error" role="alert">{error}<button className="delivery-button delivery-button--secondary" disabled={loading || busy} onClick={load}>{t('delivery.helper.refresh')}</button></div>}
       {notice && <p className="delivery-alert delivery-alert--success" role="status">{notice}</p>}
+      {trackable && <DeliveryTrackingCard jobId={id} />}
       <div className="delivery-detail-grid">
         <section className="delivery-panel"><h2>{t('delivery.detail.route')}</h2>
           <dl className="delivery-breakdown">
@@ -201,6 +205,7 @@ export default function DeliveryDetailPage() {
         </section>
         <section className="delivery-panel"><h2>{t('delivery.detail.timeline')}</h2><ol className="delivery-timeline">{activity.map((event) => <li key={event.id}><span className="delivery-timeline__dot" /><div><strong>{label('events', event.event_type)}</strong><time dateTime={event.created_at}>{date(event.created_at)}</time></div></li>)}</ol>{!activity.length && <p>{t('delivery.ui.noActivity')}</p>}</section>
       </div>
+      {isAssigned && <DriverTrackingControls job={job} userId={user?.id} />}
       <section className="delivery-panel"><h2>{t('delivery.ui.extras')}</h2>
         <div className="delivery-extra-list">{extras.map((item) => <div key={item.id}>
           <span>{label('extraCategories', item.category)}<p>{item.notes}</p></span><strong>{money(item.amount_cents, item.currency)}</strong><small>{paymentLabel(item)}</small>

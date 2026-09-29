@@ -252,3 +252,41 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Driver tracking controls */
+.delivery-tracking-status { display:flex; gap:14px; align-items:flex-start; margin:14px 0; }
+.delivery-tracking-status p { margin:4px 0; }
+.delivery-tracking-pill { display:inline-block; padding:6px 14px; border-radius:999px; font-size:.8rem; font-weight:700; white-space:nowrap; }
+.delivery-tracking-pill--none { background:rgba(148,163,184,.18); color:var(--text-secondary,#cbd5e1); }
+.delivery-tracking-pill--active { background:rgba(34,197,94,.18); color:#4ade80; }
+.delivery-tracking-pill--paused { background:rgba(251,146,60,.18); color:#fb923c; }
+.delivery-tracking-controls { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; margin:14px 0; }
+.delivery-tracking-controls .delivery-field { min-width:200px; flex:1; }
+.delivery-tracking-consent { margin:14px 0; padding:16px; border:1px solid rgba(148,163,184,.22); border-radius:13px; }
+.delivery-tracking-scans { margin:14px 0; }
+.delivery-tracking-stale { color:#fb923c; font-weight:700; }
+
+/* Customer live tracking card */
+.delivery-tracking-card { display:grid; gap:18px; }
+.delivery-tracking__meta { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start; justify-content:space-between; }
+.delivery-tracking__meta p { margin:6px 0 2px; }
+.delivery-tracking__meta small { color:#64748b; }
+.delivery-tracking__area { display:flex; gap:8px; align-items:center; color:var(--text-secondary,#cbd5e1); font-size:.88rem; }
+.delivery-tracking__share { display:grid; gap:10px; padding-top:16px; border-top:1px solid rgba(148,163,184,.16); }
+.delivery-tracking__share h3 { margin:0 0 4px; font-size:1rem; }
+.delivery-tracking__share p { margin:0; color:var(--text-secondary,#94a3b8); font-size:.86rem; }
+.delivery-tracking__link { display:grid; gap:8px; }
+.delivery-tracking__link p { margin:0; }
+.delivery-tracking__link-row { display:flex; gap:8px; flex-wrap:wrap; }
+.delivery-tracking__link-row .delivery-input { flex:1; min-width:220px; }
+.delivery-timeline__dot--done { background:#15803d; box-shadow:0 0 0 4px rgba(21,128,61,.16); color:#fff; display:inline-flex; align-items:center; justify-content:center; }
+.delivery-alert--warning { color:#fdba74; border:1px solid rgba(251,146,60,.35); background:rgba(154,52,18,.18); }
+[data-theme='light'] .delivery-alert--warning { color:#9a3412; background:#fff7ed; }
+
+/* Operations tracking workspace tables */
+.delivery-table-wrap { overflow-x:auto; margin:12px 0; }
+.delivery-table { width:100%; border-collapse:collapse; font-size:.85rem; }
+.delivery-table th, .delivery-table td { text-align:left; padding:9px 10px; border-bottom:1px solid rgba(148,163,184,.16); white-space:nowrap; }
+.delivery-table th { color:var(--text-secondary,#94a3b8); font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; }
+.delivery-table td { color:var(--text-primary,#e2e8f0); }
+.delivery-table code { font-size:.8rem; word-break:break-all; }

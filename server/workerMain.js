@@ -289,4 +289,5 @@ module.exports = {
   pollQueue,
   runWorker,
   shutdown,
+  TRACKING_WORKER_SCHEDULE,
 };

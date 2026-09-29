@@ -34,7 +34,7 @@ jest.doMock('../utils/logger', () => ({
   debug: jest.fn(),
 }));
 
-const { processJob, runWorker, shutdown } = require('../workerMain');
+const { processJob, runWorker, shutdown, TRACKING_WORKER_SCHEDULE } = require('../workerMain');
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -94,7 +94,7 @@ test('shutdown clears polling intervals and prevents new work from being claimed
   queueMocks.getNextJob.mockResolvedValue(null);
 
   await runWorker();
-  expect(jest.getTimerCount()).toBe(2);
+  expect(jest.getTimerCount()).toBe(2 + TRACKING_WORKER_SCHEDULE.length);
 
   await shutdown('SIGTERM');
   jest.advanceTimersByTime(3000);

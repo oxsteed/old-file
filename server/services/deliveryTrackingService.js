@@ -665,7 +665,7 @@ async function recordScan({ deliveryJobId, scanType, scannedByUserId, codeValue,
 async function getAssignmentStatus(deliveryJobId) {
   const { rows: assignmentRows } = await pool.query(
     `SELECT * FROM delivery_tracking_assignments
-      WHERE delivery_job_id = $1 AND status = 'active'
+      WHERE delivery_job_id = $1 AND status IN ('active', 'paused')
       ORDER BY started_at DESC
       LIMIT 1`,
     [deliveryJobId]

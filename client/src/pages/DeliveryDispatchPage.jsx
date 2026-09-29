@@ -236,7 +236,10 @@ export default function DeliveryDispatchPage() {
             <button className="delivery-button delivery-button--primary" disabled={!choice.driverUserId || !choice.vehicleId} onClick={() => run(() => assignInternalDelivery(job.id, { driverUserId: choice.driverUserId, vehicleId: choice.vehicleId }))}>{t('delivery.dispatch.assign')}</button>
             {!job.helper_user_id && <form onSubmit={(event) => { event.preventDefault(); run(() => releaseDeliveryToMarketplace(job.id, choice.reason)); }}><label className="delivery-field">{t('delivery.ui.releaseReason')}<input className="delivery-input" required maxLength={500} value={choice.reason || ''} onChange={(event) => choiceFor(job.id, 'reason', event.target.value)} /></label><button className="delivery-button delivery-button--secondary">{t('delivery.dispatch.release')}</button></form>}
           </fieldset>}
-          <button className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => openReview(job.id)}>{t('delivery.ui.review')}</button>
+          <div className="delivery-dispatch-actions">
+            <button className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => openReview(job.id)}>{t('delivery.ui.review')}</button>
+            <Link className="delivery-button delivery-button--secondary" to={`/delivery/operations/tracking/${job.id}`}>{t('delivery.tracking.ops.openTracking')}</Link>
+          </div>
         </article>;
       })}</div>
       {detail && <JobReview key={detail.job.id} detail={detail} busy={busy} run={run} t={t} language={i18n.language} />}

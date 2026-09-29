@@ -2,6 +2,15 @@
 
 const jwt = require('jsonwebtoken');
 
+// Logistics roles admitted to the operations workspace (mirrors
+// server/middleware/requireInternalLogisticsWorkspace.js). Holders with an
+// active operations internal access credential join the `ops_delivery` room.
+const OPERATIONS_LOGISTICS_ROLES = new Set([
+  'sourcing_operator',
+  'logistics_coordinator',
+  'warehouse_operator',
+]);
+
 function createChatAuthenticator({ pool, jwtSecret }) {
   if (!pool || typeof pool.query !== 'function') {
     throw new TypeError('Chat namespace requires a database pool');
@@ -46,13 +55,14 @@ function createChatAuthenticator({ pool, jwtSecret }) {
     try {
       const decoded = jwt.verify(token, jwtSecret);
       const { rows } = await pool.query(
-        'SELECT is_active, role FROM users WHERE id = $1 AND deleted_at IS NULL',
+        'SELECT is_active, role, logistics_role FROM users WHERE id = $1 AND deleted_at IS NULL',
         [decoded.id]
       );
       if (!rows[0]?.is_active) return next(new Error('Account suspended'));
 
       socket.userId = decoded.id;
       socket.userRole = rows[0].role;
+      socket.logisticsRole = rows[0].logistics_role;
       return next();
     } catch (err) {
       return next(new Error(err.name === 'JsonWebTokenError' ? 'Invalid token' : 'Auth check failed'));
@@ -61,7 +71,7 @@ function createChatAuthenticator({ pool, jwtSecret }) {
 }
 
 function bindChatNamespace(namespace, { pool, socketService, logger }) {
-  namespace.on('connection', (socket) => {
+  namespace.on('connection', async (socket) => {
     if (socket.isGuest) {
       socket.join(`guest_session_${socket.guestSessionId}`);
       logger.debug('Guest socket connected to /chat', {
@@ -78,14 +88,32 @@ function bindChatNamespace(namespace, { pool, socketService, logger }) {
     const userId = socket.userId;
     socket.join(`user_${userId}`);
 
+    // Exact operational delivery-tracking events (see
+    // server/services/deliveryTrackingEventBus.js) are emitted to the
+    // `ops_delivery` room. Customers never join it; they receive only the
+    // customer-safe `tracking:<event>` projection in `delivery_<jobId>`.
+    // Membership mirrors the operations workspace: admins plus approved
+    // operations-workspace staff (logistics_role with an active operations
+    // internal access credential).
     if (['admin', 'super_admin'].includes(socket.userRole)) {
       socket.join('admins');
       socket.join('guest_chat_admin');
-      // Exact operational delivery-tracking events (see
-      // server/services/deliveryTrackingEventBus.js) are emitted to the
-      // `ops_delivery` room. Customers never join it; they receive only the
-      // customer-safe `tracking:<event>` projection in `delivery_<jobId>`.
       socket.join('ops_delivery');
+    } else if (OPERATIONS_LOGISTICS_ROLES.has(socket.logisticsRole)) {
+      try {
+        const { rows } = await pool.query(
+          `SELECT 1 FROM logistics_internal_access_credentials
+            WHERE user_id = $1 AND is_active = TRUE AND operations_enabled = TRUE
+            LIMIT 1`,
+          [socket.userId]
+        );
+        if (rows.length > 0) socket.join('ops_delivery');
+      } catch (err) {
+        logger.error('ops_delivery room membership check failed', {
+          userId: socket.userId,
+          error: err.message,
+        });
+      }
     }
 
     // ── Delivery tracking rooms ──────────────────────────────────────────
