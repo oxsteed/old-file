@@ -698,7 +698,7 @@ export default function SupportWidget() {
       <button
         type="button"
         onClick={() => navigate('/support/escalation')}
-        className="support-contact-fab fixed bottom-5 right-5 z-40 rounded-full bg-action px-4 py-3 text-sm font-semibold text-on-action shadow-xl transition hover:bg-action-hover"
+        className="support-contact-fab fixed bottom-[4.75rem] lg:bottom-5 right-5 z-40 rounded-full bg-action px-4 py-3 text-sm font-semibold text-on-action shadow-xl transition hover:bg-action-hover"
         aria-label={t('supportWidget.talkToHuman')}
       >
         {t('supportWidget.talkToHuman')}

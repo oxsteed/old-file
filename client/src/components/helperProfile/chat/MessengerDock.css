@@ -3,7 +3,8 @@
 .messenger-launcher {
   position: fixed;
   inset-inline-end: 1rem;
-  bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+  /* Clear the mobile sticky CTA bar (~64px) + the OxSteed Support pill stacked below */
+  bottom: calc(9rem + env(safe-area-inset-bottom, 0px));
   z-index: 40;
   display: inline-flex;
   align-items: center;
