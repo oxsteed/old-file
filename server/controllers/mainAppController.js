@@ -2212,6 +2212,63 @@ exports.listPaymentRequests = async (req, res, next) => {
   }
 };
 
+exports.getPaymentRequest = async (req, res, next) => {
+  try {
+    const requestId = Number.parseInt(String(req.params.requestId), 10);
+    if (!Number.isFinite(requestId) || requestId <= 0) {
+      return res.status(400).json({
+        error: {
+          code: 'validation_failed',
+          fields: { requestId: 'Valid request ID is required.' },
+        },
+      });
+    }
+
+    const { rows: [row] } = await pool.query(
+      `SELECT id, requester_id, source_type, source_id, payer_id, payee_id, business_id,
+              amount_cents, currency_code, status, settlement_mode, external_provider,
+              processor_payment_id, description, idempotency_key, expires_at, metadata,
+              created_at, updated_at
+         FROM main_app_payment_requests
+        WHERE id = $1`,
+      [requestId]
+    );
+    if (!row) {
+      return res.status(404).json({
+        error: {
+          code: 'payment_request_not_found',
+          message: 'Payment request was not found.',
+        },
+      });
+    }
+
+    const viewerId = String(req.user.id);
+    const isParticipant = [row.requester_id, row.payer_id, row.payee_id]
+      .some((id) => id && String(id) === viewerId);
+    if (!isParticipant) {
+      return res.status(403).json({
+        error: {
+          code: 'payment_request_forbidden',
+          message: 'You are not a participant on this payment request.',
+        },
+      });
+    }
+
+    const events = await mainAppContracts.getPaymentRequestEvents(requestId);
+    return res.json({
+      contract: {
+        version: 'main-payment-request-v1',
+        generatedAt: new Date().toISOString(),
+        moneyMoved: false,
+      },
+      paymentRequest: await presentPaymentRequest(row),
+      events,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.getReferralDashboard = async (req, res, next) => {
   try {
     const { rows } = await pool.query(

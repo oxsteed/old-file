@@ -5071,6 +5071,22 @@
       "bookings": "الحجوزات",
       "messages": "الرسائل",
       "support": "الدعم"
+    },
+    "viewHistory": "عرض السجل",
+    "hideHistory": "إخفاء السجل",
+    "historyLoading": "جارٍ تحميل السجل...",
+    "historyError": "تعذّر تحميل السجل.",
+    "historyEmpty": "لا توجد أحداث في السجل بعد.",
+    "auditAmount": "المبلغ",
+    "auditProof": "الإثبات",
+    "auditEvents": {
+      "created": "تم إنشاء السجل",
+      "proof_submitted": "تم إرسال الإثبات",
+      "confirmed": "تم تأكيد الدفع",
+      "cancelled": "تم إلغاء الدفع",
+      "expired": "انتهت صلاحية الدفع",
+      "note_added": "تمت إضافة ملاحظة",
+      "viewed": "تم عرض الدفع"
     }
   },
   "adminUsers": {
@@ -11249,7 +11265,9 @@
       "venmo": "Venmo",
       "zelle": "Zelle",
       "bankTransfer": "تحويل مصرفي",
-      "other": "أخرى"
+      "other": "أخرى",
+      "mobileMoney": "أموال الهاتف المحمول",
+      "paymentLink": "رابط الدفع"
     }
   },
   "invoices": {
@@ -12085,7 +12103,21 @@
     "tierFreeCaption": "بدون رسوم",
     "tierHalfCaption": "نصف الحد الأقصى للرسوم",
     "tierFullCaption": "الحد الأقصى الكامل للرسوم",
-    "methodsEnabled": "{count} من 2 مفعّلة"
+    "methodsEnabled": "{count} من 2 مفعّلة",
+    "paymentDetailsTitle": "كيف يدفع لك العملاء",
+    "paymentDetailsHint": "تُعرض هذه التفاصيل للعملاء الذين يختارون الدفع المباشر، حتى يعرفوا أين يرسلونه.",
+    "paymentDetailNumber": "طريقة {{n}}",
+    "paymentDetailLabel": "التسمية",
+    "paymentDetailLabelPlaceholder": "أموال الهاتف المحمول، تحويل مصرفي",
+    "paymentDetailLink": "رابط الدفع",
+    "paymentDetailHandle": "اسم الحساب أو المعرف",
+    "paymentDetailHandlePlaceholder": "رقم الحساب أو اسم المستخدم أو معرف المحفظة",
+    "paymentDetailInstructions": "التعليمات",
+    "paymentDetailInstructionsPlaceholder": "أي شيء يجب أن يعرفه العميل لإتمام الدفع",
+    "addPaymentDetail": "إضافة طريقة دفع",
+    "removePaymentDetail": "إزالة",
+    "paymentDetailMax": "يمكنك إضافة ما يصل إلى 5 طرق دفع.",
+    "paymentDetailLabelRequired": "أضف تسمية لكل طريقة دفع."
   },
   "cancellationModal": {
     "cancelJob": "إلغاء الوظيفة",
@@ -12148,7 +12180,8 @@
     "noteBody": "بمجرد قبول العرض، لا يمكن تغيير طريقة الدفع. تأكد من أنك تفهم شروط الإلغاء قبل التأكيد.",
     "cancel": "يلغي",
     "accepting": "قبول...",
-    "acceptBid": "قبول العرض"
+    "acceptBid": "قبول العرض",
+    "howToPayTitle": "كيفية الدفع"
   },
   "reputation": {
     "reliability": "نقاط الموثوقية",

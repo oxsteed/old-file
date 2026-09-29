@@ -5156,6 +5156,22 @@
       "bookings": "Rezèvasyon",
       "messages": "Mesaj",
       "support": "Sipò"
+    },
+    "viewHistory": "Wè istwa",
+    "hideHistory": "Kache istwa",
+    "historyLoading": "Ap chaje istwa...",
+    "historyError": "Pa t ka chaje istwa a.",
+    "historyEmpty": "Pa gen okenn evènman nan istwa a pou kounye a.",
+    "auditAmount": "Kantite",
+    "auditProof": "Prèv",
+    "auditEvents": {
+      "created": "Dosye kreye",
+      "proof_submitted": "Prèv voye",
+      "confirmed": "Peman konfime",
+      "cancelled": "Peman anile",
+      "expired": "Peman ekspire",
+      "note_added": "Nòt ajoute",
+      "viewed": "Peman wè"
     }
   },
   "adminUsers": {
@@ -11249,7 +11265,9 @@
       "venmo": "Venmo",
       "zelle": "Zelle",
       "bankTransfer": "Transfè labank",
-      "other": "Lòt"
+      "other": "Lòt",
+      "mobileMoney": "Lajan mobil",
+      "paymentLink": "Lyen peman"
     }
   },
   "invoices": {
@@ -11936,7 +11954,8 @@
     "noteBody": "Yon fwa ou aksepte òf la, metòd peman an pa ka chanje. Asire ke ou konprann tèm anilasyon yo anvan w konfime.",
     "cancel": "Anile",
     "accepting": "Aksepte an kous...",
-    "acceptBid": "Aksepte Òf"
+    "acceptBid": "Aksepte Òf",
+    "howToPayTitle": "Kijan pou peye"
   },
   "reputation": {
     "reliability": "Nòt Depenab",
@@ -12544,7 +12563,21 @@
     "tierFreeCaption": "San frè",
     "tierHalfCaption": "Mwatye plafon frè a",
     "tierFullCaption": "Plen plafon frè a",
-    "methodsEnabled": "{count} sou 2 aktive"
+    "methodsEnabled": "{count} sou 2 aktive",
+    "paymentDetailsTitle": "Kijan kliyan yo peye ou",
+    "paymentDetailsHint": "Detay sa yo parèt pou kliyan ki chwazi peman dirèk, pou yo konnen ki kote pou voye l.",
+    "paymentDetailNumber": "Metòd {{n}}",
+    "paymentDetailLabel": "Non",
+    "paymentDetailLabelPlaceholder": "Lajan mobil, Transfè labank",
+    "paymentDetailLink": "Lyen peman",
+    "paymentDetailHandle": "Non kont oswa ID",
+    "paymentDetailHandlePlaceholder": "Nimewo kont, non itilizatè, oswa ID bous",
+    "paymentDetailInstructions": "Enstriksyon",
+    "paymentDetailInstructionsPlaceholder": "Tout sa kliyan an ta dwe konnen pou konplete peman an",
+    "addPaymentDetail": "Ajoute metòd peman",
+    "removePaymentDetail": "Retire",
+    "paymentDetailMax": "Ou ka ajoute jiska 5 metòd peman.",
+    "paymentDetailLabelRequired": "Ajoute yon non pou chak metòd peman."
   },
   "howOxsteedWorks": {
     "experience": {

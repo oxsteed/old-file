@@ -156,6 +156,63 @@ function ActivityCard({ event, onOpen }) {
   );
 }
 
+function humanizeEventType(type) {
+  const words = String(type || '').replace(/_/g, ' ').trim();
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : '';
+}
+
+function AuditTimeline({ events, request, t }) {
+  if (!events || events.length === 0) {
+    return <p className="text-sm text-slate-500">{t('activity.historyEmpty', 'No history events yet.')}</p>;
+  }
+  return (
+    <ol className="relative mt-1 space-y-4 border-s border-white/10 ps-5">
+      {events.map((event) => {
+        const details = event.details && typeof event.details === 'object' && !Array.isArray(event.details)
+          ? event.details
+          : {};
+        return (
+          <li key={event.id} className="relative">
+            <span
+              className="absolute -start-[23px] top-1 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-4 ring-emerald-400/10"
+              aria-hidden="true"
+            />
+            <p className="text-sm font-semibold text-slate-200">
+              {t(`activity.auditEvents.${event.event_type}`, humanizeEventType(event.event_type))}
+            </p>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {event.actor_name}
+              {event.created_at ? ` · ${formatDateTime(event.created_at)}` : ''}
+            </p>
+            {(details.amount_cents != null || details.confirmation_code || details.note || details.proof || details.proof_link) && (
+              <div className="mt-1 space-y-0.5 text-xs text-slate-400">
+                {details.amount_cents != null && (
+                  <p>
+                    {t('activity.auditAmount', 'Amount')}: <span className="text-slate-200">{money(details.amount_cents, details.currency_code || request.currencyCode)}</span>
+                  </p>
+                )}
+                {details.confirmation_code && (
+                  <p>
+                    {t('activity.confirmationCode')}: <span className="text-slate-200">{details.confirmation_code}</span>
+                  </p>
+                )}
+                {details.note && (
+                  <p>
+                    {t('activity.note')}: <span className="text-slate-200">{details.note}</span>
+                  </p>
+                )}
+                {(details.proof || details.proof_link) && (
+                  <p>{t('activity.auditProof', 'Proof')}: <span className="text-slate-200">{t('activity.proofLinkAvailable')}</span></p>
+                )}
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 function PaymentRequestCard({ request, onConfirm, currentUserId }) {
   const { t } = useTranslation();
   const isRecipient = request.payeeId && String(request.payeeId) === String(currentUserId);
@@ -167,6 +224,30 @@ function PaymentRequestCard({ request, onConfirm, currentUserId }) {
   const confirmationCode = request.confirmationCode || metadata.confirmationCode || clientMetadata.confirmationCode || '';
   const note = request.confirmationNote || metadata.confirmationNote || metadata.note || clientMetadata.confirmationNote || clientMetadata.note || '';
   const amountLabel = money(request.amountCents, request.currencyCode);
+  const [expanded, setExpanded] = useState(false);
+  const [auditEvents, setAuditEvents] = useState(null);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditError, setAuditError] = useState('');
+
+  const toggleHistory = async () => {
+    if (expanded) {
+      setExpanded(false);
+      return;
+    }
+    setExpanded(true);
+    if (auditEvents || auditLoading) return;
+    setAuditLoading(true);
+    setAuditError('');
+    try {
+      const { data } = await api.get(`/main-app/payment-requests/${request.id}`);
+      const payload = data?.data || data || {};
+      setAuditEvents(Array.isArray(payload.events) ? payload.events : []);
+    } catch (err) {
+      setAuditError(t('activity.historyError', 'Could not load history.'));
+    } finally {
+      setAuditLoading(false);
+    }
+  };
 
   return (
     <article className="rounded-2xl border border-white/10 bg-slate-950/70 p-4 shadow-sm">
@@ -243,7 +324,30 @@ function PaymentRequestCard({ request, onConfirm, currentUserId }) {
                 {t('activity.confirmReceipt')}
               </button>
             )}
+            <button
+              type="button"
+              onClick={toggleHistory}
+              aria-expanded={expanded}
+              className="inline-flex items-center gap-1 rounded-full bg-white/5 px-3 py-1.5 text-sm font-medium text-slate-200 transition hover:bg-white/10"
+            >
+              <ChevronRight size={14} className={`transition-transform ${expanded ? 'rotate-90' : ''}`} />
+              {expanded ? t('activity.hideHistory', 'Hide history') : t('activity.viewHistory', 'View history')}
+            </button>
           </div>
+
+          {expanded && (
+            <div className="mt-4 border-t border-white/10 pt-4">
+              {auditLoading && (
+                <p className="text-sm text-slate-500">{t('activity.historyLoading', 'Loading history...')}</p>
+              )}
+              {auditError && !auditLoading && (
+                <p className="text-sm text-red-400">{auditError}</p>
+              )}
+              {!auditLoading && !auditError && (
+                <AuditTimeline events={auditEvents} request={request} t={t} />
+              )}
+            </div>
+          )}
         </div>
       </div>
     </article>

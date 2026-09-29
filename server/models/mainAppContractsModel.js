@@ -1,8 +1,19 @@
 'use strict';
 
 const pool = require('../db');
+const logger = require('../utils/logger');
 
 const PAYOUT_MINIMUM_CENTS = 1000;
+
+const PAYMENT_REQUEST_EVENT_TYPES = new Set([
+  'created',
+  'proof_submitted',
+  'confirmed',
+  'cancelled',
+  'expired',
+  'note_added',
+  'viewed',
+]);
 
 function normalizeCurrency(value) {
   return String(value || 'USD').trim().toUpperCase().slice(0, 3);
@@ -213,7 +224,7 @@ async function createPaymentRequest({
      RETURNING id, source_type, source_id, payer_id, payee_id, business_id,
                amount_cents, currency_code, status, settlement_mode, external_provider,
                processor_payment_id, description, idempotency_key, expires_at, metadata,
-               created_at, updated_at`,
+               created_at, updated_at, (xmax = 0) AS was_inserted`,
     [
       requesterId,
       payerId || null,
@@ -230,7 +241,22 @@ async function createPaymentRequest({
       JSON.stringify(metadata || {}),
     ]
   );
-  return rows[0];
+  const row = rows[0];
+  // Only log 'created' for genuine inserts, not idempotent replays.
+  if (row && row.was_inserted !== false) {
+    await auditPaymentRequestEvent({
+      paymentRequestId: row.id,
+      actorUserId: requesterId,
+      eventType: 'created',
+      details: {
+        amount_cents: Number(row.amount_cents || 0),
+        currency_code: normalizeCurrency(row.currency_code),
+        settlement_mode: row.settlement_mode,
+        external_provider: row.external_provider || null,
+      },
+    });
+  }
+  return row;
 }
 
 async function listPaymentRequests(userId, limit) {
@@ -282,7 +308,17 @@ async function confirmPaymentRequest({
     [requestId, userId, JSON.stringify(confirmationMetadata)]
   );
 
-  return rows[0] || null;
+  const row = rows[0] || null;
+  if (row) {
+    await auditPaymentRequestEvent({
+      paymentRequestId: row.id,
+      actorUserId: userId,
+      eventType: 'confirmed',
+      details: {},
+    });
+  }
+
+  return row;
 }
 
 async function submitPaymentProof({
@@ -316,7 +352,17 @@ async function submitPaymentProof({
     [requestId, userId, JSON.stringify(proofMetadata)]
   );
 
-  return rows[0] || null;
+  const row = rows[0] || null;
+  if (row) {
+    await auditPaymentRequestEvent({
+      paymentRequestId: row.id,
+      actorUserId: userId,
+      eventType: 'proof_submitted',
+      details: {},
+    });
+  }
+
+  return row;
 }
 
 async function listPublicServicePackages({ businessId, serviceId, limit }) {
@@ -349,8 +395,71 @@ async function listPublicServicePackages({ businessId, serviceId, limit }) {
   return rows;
 }
 
+/**
+ * Audit logging must never break a payment operation: if the event write
+ * fails (e.g. the audit table is not yet migrated), warn and continue.
+ */
+async function auditPaymentRequestEvent(args) {
+  try {
+    await logPaymentRequestEvent(args);
+  } catch (err) {
+    logger.warn('Failed to write payment request audit event', {
+      paymentRequestId: args && args.paymentRequestId,
+      eventType: args && args.eventType,
+      error: err && err.message,
+    });
+  }
+}
+
+/**
+ * Append an immutable audit event to a payment request's history.
+ * The events table is protected by DB rules against UPDATE/DELETE.
+ */
+async function logPaymentRequestEvent({ paymentRequestId, actorUserId, eventType, details }) {
+  if (!PAYMENT_REQUEST_EVENT_TYPES.has(eventType)) {
+    throw new Error(`Unsupported payment request event type: ${eventType}`);
+  }
+  const { rows } = await pool.query(
+    `INSERT INTO main_app_payment_request_events
+       (payment_request_id, actor_user_id, event_type, details)
+     VALUES ($1, $2, $3, $4::jsonb)
+     RETURNING id, payment_request_id, actor_user_id, event_type, details, created_at`,
+    [paymentRequestId, actorUserId || null, eventType, JSON.stringify(details || {})]
+  );
+  return rows[0];
+}
+
+/**
+ * Full audit history for a payment request, oldest first.
+ * Actor names are display-only (first name + last initial, never email).
+ */
+async function getPaymentRequestEvents(paymentRequestId) {
+  const { rows } = await pool.query(
+    `SELECT e.id, e.payment_request_id, e.actor_user_id, e.event_type, e.details, e.created_at,
+            u.first_name, u.last_name
+       FROM main_app_payment_request_events e
+       LEFT JOIN users u ON u.id = e.actor_user_id
+      WHERE e.payment_request_id = $1
+      ORDER BY e.created_at ASC, e.id ASC`,
+    [paymentRequestId]
+  );
+  return rows.map((row) => {
+    const firstName = String(row.first_name || '').trim();
+    const lastInitial = String(row.last_name || '').trim().charAt(0);
+    return {
+      id: String(row.id),
+      eventType: row.event_type,
+      details: row.details && typeof row.details === 'object' ? row.details : {},
+      createdAt: toIso(row.created_at),
+      actorUserId: row.actor_user_id ? String(row.actor_user_id) : null,
+      actorName: firstName ? (lastInitial ? `${firstName} ${lastInitial}.` : firstName) : null,
+    };
+  });
+}
+
 module.exports = {
   PAYOUT_MINIMUM_CENTS,
+  PAYMENT_REQUEST_EVENT_TYPES,
   normalizeCurrency,
   serializePayoutRequest,
   serializePaymentRequest,
@@ -362,5 +471,7 @@ module.exports = {
   cancelPayoutRequest,
   createPaymentRequest,
   listPaymentRequests,
+  logPaymentRequestEvent,
+  getPaymentRequestEvents,
   listPublicServicePackages,
 };

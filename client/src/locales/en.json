@@ -4961,6 +4961,22 @@
       "bookings": "Bookings",
       "messages": "Messages",
       "support": "Support"
+    },
+    "viewHistory": "View history",
+    "hideHistory": "Hide history",
+    "historyLoading": "Loading history...",
+    "historyError": "Could not load history.",
+    "historyEmpty": "No history events yet.",
+    "auditAmount": "Amount",
+    "auditProof": "Proof",
+    "auditEvents": {
+      "created": "Record created",
+      "proof_submitted": "Proof submitted",
+      "confirmed": "Payment confirmed",
+      "cancelled": "Payment cancelled",
+      "expired": "Payment expired",
+      "note_added": "Note added",
+      "viewed": "Payment viewed"
     }
   },
   "adminUsers": {
@@ -10950,7 +10966,7 @@
     "recordConsultingSubtitle": "Store the payment method, reference, and proof so the session can be matched later.",
     "consultingPackageLabel": "Consulting package · {{name}}",
     "consultingPackage": "Consulting package",
-    "providers": { "cash": "Cash", "cashApp": "Cash App", "venmo": "Venmo", "zelle": "Zelle", "bankTransfer": "Bank transfer", "other": "Other" }
+    "providers": { "cash": "Cash", "cashApp": "Cash App", "venmo": "Venmo", "zelle": "Zelle", "bankTransfer": "Bank transfer", "other": "Other", "mobileMoney": "Mobile money", "paymentLink": "Payment link" }
   },
   "invoices": {
     "title": "My Invoices",
@@ -11783,7 +11799,21 @@
     "tierFreeCaption": "No charge",
     "tierHalfCaption": "Half the fee cap",
     "tierFullCaption": "Full fee cap",
-    "methodsEnabled": "{count} of 2 enabled"
+    "methodsEnabled": "{count} of 2 enabled",
+    "paymentDetailsTitle": "How customers pay you",
+    "paymentDetailsHint": "These details are shown to customers who choose direct payment, so they know where to send it.",
+    "paymentDetailNumber": "Method {{n}}",
+    "paymentDetailLabel": "Label",
+    "paymentDetailLabelPlaceholder": "Mobile money, Bank transfer",
+    "paymentDetailLink": "Payment link",
+    "paymentDetailHandle": "Account handle or ID",
+    "paymentDetailHandlePlaceholder": "Account number, username, or wallet ID",
+    "paymentDetailInstructions": "Instructions",
+    "paymentDetailInstructionsPlaceholder": "Anything the customer should know to complete the payment",
+    "addPaymentDetail": "Add payment method",
+    "removePaymentDetail": "Remove",
+    "paymentDetailMax": "You can add up to 5 payment methods.",
+    "paymentDetailLabelRequired": "Add a label for each payment method."
   },
   "cancellationModal": {
     "cancelJob": "Cancel Job",
@@ -11846,7 +11876,8 @@
     "noteBody": "Once you accept the bid, the payment method cannot be changed. Make sure you understand the cancellation terms before confirming.",
     "cancel": "Cancel",
     "accepting": "Accepting...",
-    "acceptBid": "Accept Bid"
+    "acceptBid": "Accept Bid",
+    "howToPayTitle": "How to pay"
   },
   "reputation": {
     "reliability": "Reliability Score",

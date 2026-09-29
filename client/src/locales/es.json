@@ -4931,6 +4931,22 @@
       "bookings": "Reservas",
       "messages": "Mensajes",
       "support": "Soporte"
+    },
+    "viewHistory": "Ver historial",
+    "hideHistory": "Ocultar historial",
+    "historyLoading": "Cargando historial...",
+    "historyError": "No se pudo cargar el historial.",
+    "historyEmpty": "Aún no hay eventos en el historial.",
+    "auditAmount": "Monto",
+    "auditProof": "Comprobante",
+    "auditEvents": {
+      "created": "Registro creado",
+      "proof_submitted": "Comprobante enviado",
+      "confirmed": "Pago confirmado",
+      "cancelled": "Pago cancelado",
+      "expired": "Pago vencido",
+      "note_added": "Nota agregada",
+      "viewed": "Pago visto"
     }
   },
   "adminUsers": {
@@ -10944,7 +10960,7 @@
     "recordConsultingSubtitle": "Guarda el método de pago, la referencia y el comprobante para relacionarlos con la sesión.",
     "consultingPackageLabel": "Paquete de consultoría · {{name}}",
     "consultingPackage": "Paquete de consultoría",
-    "providers": { "cash": "Efectivo", "cashApp": "Cash App", "venmo": "Venmo", "zelle": "Zelle", "bankTransfer": "Transferencia bancaria", "other": "Otro" }
+    "providers": { "cash": "Efectivo", "cashApp": "Cash App", "venmo": "Venmo", "zelle": "Zelle", "bankTransfer": "Transferencia bancaria", "other": "Otro", "mobileMoney": "Dinero móvil", "paymentLink": "Enlace de pago" }
   },
   "invoices": {
     "title": "Mis Facturas",
@@ -11631,7 +11647,8 @@
     "noteBody": "Una vez que aceptes la oferta, el método de pago no puede ser cambiado. Asegúrate de entender los términos de cancelación antes de confirmar.",
     "cancel": "Cancelar",
     "accepting": "Aceptando...",
-    "acceptBid": "Aceptar Oferta"
+    "acceptBid": "Aceptar Oferta",
+    "howToPayTitle": "Cómo pagar"
   },
   "reputation": {
     "reliability": "Puntuación de Confiabilidad",
@@ -12239,7 +12256,21 @@
     "tierFreeCaption": "Sin cargo",
     "tierHalfCaption": "Mitad del tope de tarifa",
     "tierFullCaption": "Tope de tarifa completo",
-    "methodsEnabled": "{count} de 2 activados"
+    "methodsEnabled": "{count} de 2 activados",
+    "paymentDetailsTitle": "Cómo te pagan los clientes",
+    "paymentDetailsHint": "Estos datos se muestran a los clientes que eligen el pago directo, para que sepan dónde enviarlo.",
+    "paymentDetailNumber": "Método {{n}}",
+    "paymentDetailLabel": "Etiqueta",
+    "paymentDetailLabelPlaceholder": "Dinero móvil, Transferencia bancaria",
+    "paymentDetailLink": "Enlace de pago",
+    "paymentDetailHandle": "Nombre de cuenta o ID",
+    "paymentDetailHandlePlaceholder": "Número de cuenta, nombre de usuario o ID de billetera",
+    "paymentDetailInstructions": "Instrucciones",
+    "paymentDetailInstructionsPlaceholder": "Todo lo que el cliente debe saber para completar el pago",
+    "addPaymentDetail": "Agregar método de pago",
+    "removePaymentDetail": "Eliminar",
+    "paymentDetailMax": "Puedes agregar hasta 5 métodos de pago.",
+    "paymentDetailLabelRequired": "Agrega una etiqueta para cada método de pago."
   },
   "howOxsteedWorks": {
     "experience": {

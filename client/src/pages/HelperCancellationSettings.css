@@ -665,3 +665,64 @@
     transition: none;
   }
 }
+
+/* Payment receiving details (custom off-platform policy) */
+.pcs-paydetails {
+  display: grid;
+  gap: var(--space-3);
+  margin-block: var(--space-3);
+}
+
+.pcs-paydetail {
+  border: 1px solid var(--color-border);
+  border-radius: 0.875rem;
+  background: var(--color-surface-2, var(--color-surface));
+  padding: var(--space-3);
+}
+
+.pcs-paydetail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-block-end: var(--space-2);
+}
+
+.pcs-paydetail-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--color-text);
+}
+
+.pcs-paydetail-remove {
+  padding: var(--space-1) var(--space-3);
+  font-size: 0.85rem;
+}
+
+.pcs-paydetail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2) var(--space-3);
+}
+
+.pcs-paydetail-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pcs-paydetail-field > span {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.pcs-paydetail-full {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 560px) {
+  .pcs-paydetail-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -106,6 +106,47 @@ export default function BidAcceptanceModal({
                     <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2 font-semibold">
                       ⚠ {t('bidAcceptanceModal.customPaymentWarning') || 'Use chat/activity to share proof or confirmation after payment.'}
                     </p>
+
+                    {selectedPaymentMethod === 'off_platform' &&
+                      Array.isArray(helperPolicies?.custom_policy?.payment_details) &&
+                      helperPolicies.custom_policy.payment_details.length > 0 && (
+                        <div className="mt-2 pt-2 border-t border-orange-200 dark:border-orange-700">
+                          <p className="text-sm font-semibold mb-2">
+                            {t('bidAcceptanceModal.howToPayTitle', 'How to pay')}
+                          </p>
+                          <ul className="space-y-2">
+                            {helperPolicies.custom_policy.payment_details.map((detail, index) => (
+                              <li key={index} className="text-sm">
+                                <p className="font-semibold text-gray-800 dark:text-gray-200">
+                                  {detail.label}
+                                </p>
+                                {detail.link_url && (
+                                  <p>
+                                    <a
+                                      href={detail.link_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 dark:text-blue-400 underline break-all"
+                                    >
+                                      {detail.link_url}
+                                    </a>
+                                  </p>
+                                )}
+                                {detail.handle && (
+                                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                                    {detail.handle}
+                                  </p>
+                                )}
+                                {detail.instructions && (
+                                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                                    {detail.instructions}
+                                  </p>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                   </div>
                 </div>
               </div>

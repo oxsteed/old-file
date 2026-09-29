@@ -17,6 +17,7 @@ router.get('/payouts/summary', authenticate, ctrl.getPayoutSummary);
 router.post('/payouts', authenticate, ctrl.requestPayout);
 router.post('/payouts/:requestId/cancel', authenticate, ctrl.cancelPayoutRequest);
 router.get('/payment-requests', authenticate, ctrl.listPaymentRequests);
+router.get('/payment-requests/:requestId', authenticate, ctrl.getPaymentRequest);
 router.post('/payment-requests', authenticate, ctrl.createPaymentRequest);
 router.post(
   '/payment-requests/:requestId/proof-upload',

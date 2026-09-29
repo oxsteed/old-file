@@ -5071,6 +5071,22 @@
       "bookings": "Réservations",
       "messages": "Messages",
       "support": "Assistance"
+    },
+    "viewHistory": "Voir l’historique",
+    "hideHistory": "Masquer l’historique",
+    "historyLoading": "Chargement de l’historique...",
+    "historyError": "Impossible de charger l’historique.",
+    "historyEmpty": "Aucun événement pour le moment.",
+    "auditAmount": "Montant",
+    "auditProof": "Preuve",
+    "auditEvents": {
+      "created": "Enregistrement créé",
+      "proof_submitted": "Preuve envoyée",
+      "confirmed": "Paiement confirmé",
+      "cancelled": "Paiement annulé",
+      "expired": "Paiement expiré",
+      "note_added": "Note ajoutée",
+      "viewed": "Paiement consulté"
     }
   },
   "adminUsers": {
@@ -11249,7 +11265,9 @@
       "venmo": "Venmo",
       "zelle": "Zelle",
       "bankTransfer": "Virement bancaire",
-      "other": "Autre"
+      "other": "Autre",
+      "mobileMoney": "Argent mobile",
+      "paymentLink": "Lien de paiement"
     }
   },
   "invoices": {
@@ -11936,7 +11954,8 @@
     "noteBody": "Une fois que vous acceptez l'offre, la méthode de paiement ne peut pas être modifiée. Assurez-vous de comprendre les termes d'annulation avant de confirmer.",
     "cancel": "Annuler",
     "accepting": "Acceptation en cours...",
-    "acceptBid": "Accepter l'Offre"
+    "acceptBid": "Accepter l'Offre",
+    "howToPayTitle": "Comment payer"
   },
   "reputation": {
     "reliability": "Score de Fiabilité",
@@ -12544,7 +12563,21 @@
     "tierFreeCaption": "Sans frais",
     "tierHalfCaption": "Moitié du plafond de frais",
     "tierFullCaption": "Plafond de frais complet",
-    "methodsEnabled": "{count} sur 2 activés"
+    "methodsEnabled": "{count} sur 2 activés",
+    "paymentDetailsTitle": "Comment les clients vous paient",
+    "paymentDetailsHint": "Ces informations sont montrées aux clients qui choisissent le paiement direct, pour qu’ils sachent où l’envoyer.",
+    "paymentDetailNumber": "Méthode {{n}}",
+    "paymentDetailLabel": "Libellé",
+    "paymentDetailLabelPlaceholder": "Argent mobile, Virement bancaire",
+    "paymentDetailLink": "Lien de paiement",
+    "paymentDetailHandle": "Identifiant ou nom de compte",
+    "paymentDetailHandlePlaceholder": "Numéro de compte, nom d’utilisateur ou identifiant de portefeuille",
+    "paymentDetailInstructions": "Instructions",
+    "paymentDetailInstructionsPlaceholder": "Tout ce que le client doit savoir pour effectuer le paiement",
+    "addPaymentDetail": "Ajouter un moyen de paiement",
+    "removePaymentDetail": "Supprimer",
+    "paymentDetailMax": "Vous pouvez ajouter jusqu’à 5 moyens de paiement.",
+    "paymentDetailLabelRequired": "Ajoutez un libellé pour chaque moyen de paiement."
   },
   "howOxsteedWorks": {
     "experience": {

@@ -2,6 +2,58 @@ const pool = require('../db');
 const { AppError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 
+const MAX_PAYMENT_DETAILS = 5;
+const HTTPS_URL_PATTERN = /^https?:\/\/\S+$/i;
+
+/**
+ * Validate and sanitize helper-provided off-platform payment details.
+ * Brand-neutral and international: entries are free-text labels with an
+ * optional link, handle, and instructions. Unknown fields are dropped.
+ * Throws AppError(400) on any violation.
+ */
+function sanitizePaymentDetails(paymentDetails) {
+  if (paymentDetails === undefined) return undefined;
+  if (paymentDetails === null) return [];
+  if (!Array.isArray(paymentDetails)) {
+    throw new AppError('Payment details must be provided as a list', 400);
+  }
+  if (paymentDetails.length > MAX_PAYMENT_DETAILS) {
+    throw new AppError(`You can add up to ${MAX_PAYMENT_DETAILS} payment methods`, 400);
+  }
+  return paymentDetails.map((entry, index) => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      throw new AppError(`Payment method ${index + 1} must be an object with a label`, 400);
+    }
+    const label = String(entry.label ?? '').trim();
+    if (!label || label.length > 60) {
+      throw new AppError(`Payment method ${index + 1} needs a label of 1 to 60 characters`, 400);
+    }
+    const sanitized = { label };
+    if (entry.link_url !== undefined && entry.link_url !== null && String(entry.link_url).trim() !== '') {
+      const linkUrl = String(entry.link_url).trim();
+      if (linkUrl.length > 500 || !HTTPS_URL_PATTERN.test(linkUrl)) {
+        throw new AppError(`Payment method "${label}" needs a valid http(s) link of 500 characters or less`, 400);
+      }
+      sanitized.link_url = linkUrl;
+    }
+    if (entry.handle !== undefined && entry.handle !== null && String(entry.handle).trim() !== '') {
+      const handle = String(entry.handle).trim();
+      if (handle.length > 100) {
+        throw new AppError(`Payment method "${label}" handle must be 100 characters or less`, 400);
+      }
+      sanitized.handle = handle;
+    }
+    if (entry.instructions !== undefined && entry.instructions !== null && String(entry.instructions).trim() !== '') {
+      const instructions = String(entry.instructions).trim();
+      if (instructions.length > 500) {
+        throw new AppError(`Payment method "${label}" instructions must be 500 characters or less`, 400);
+      }
+      sanitized.instructions = instructions;
+    }
+    return sanitized;
+  });
+}
+
 /**
  * Get helper's current cancellation policies
  * GET /api/helper-settings/policies
@@ -73,6 +125,10 @@ exports.updatePolicies = async (req, res, next) => {
       }
       if (custom_policy.terms && custom_policy.terms.length > 1000) {
         throw new AppError('Custom terms must be 1000 characters or less', 400);
+      }
+      // Brand-neutral off-platform receiving details (mobile money, bank transfer, etc.)
+      if (typeof custom_policy.payment_details !== 'undefined') {
+        custom_policy.payment_details = sanitizePaymentDetails(custom_policy.payment_details);
       }
     }
 
@@ -166,3 +222,6 @@ exports.getOxsteadDefaultPolicy = async (req, res, next) => {
     next(new AppError('Failed to load default policy', 500));
   }
 };
+
+// Exported for unit testing the brand-neutral payment detail validation.
+exports.sanitizePaymentDetails = sanitizePaymentDetails;

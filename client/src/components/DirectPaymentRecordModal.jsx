@@ -18,13 +18,30 @@ function currencyLabel(amountCents, currencyCode = 'USD') {
 }
 
 const PROVIDERS = [
-  { value: 'cash', key: 'cash' },
-  { value: 'cash_app', key: 'cashApp' },
-  { value: 'venmo', key: 'venmo' },
-  { value: 'zelle', key: 'zelle' },
-  { value: 'bank_transfer', key: 'bankTransfer' },
-  { value: 'other', key: 'other' },
+  { value: 'cash', key: 'cash', fallback: 'Cash' },
+  { value: 'bank_transfer', key: 'bankTransfer', fallback: 'Bank transfer' },
+  { value: 'mobile_money', key: 'mobileMoney', fallback: 'Mobile money' },
+  { value: 'payment_link', key: 'paymentLink', fallback: 'Payment link' },
+  { value: 'other', key: 'other', fallback: 'Other' },
 ];
+
+// Provider values retired in favor of brand-neutral options. Historical
+// records keep their stored values and still render via the old locale keys.
+const RETIRED_PROVIDERS = new Set(['cash_app', 'venmo', 'zelle']);
+
+function normalizeProvider(value) {
+  if (RETIRED_PROVIDERS.has(value)) return 'cash';
+  return PROVIDERS.some((p) => p.value === value) ? value : 'cash';
+}
+
+export function providerLabel(value, t) {
+  const opt = PROVIDERS.find((p) => p.value === value);
+  if (opt) return t(`payment.providers.${opt.key}`, opt.fallback);
+  // Retired brand-specific values: render through the legacy locale keys.
+  const legacy = { cash_app: 'cashApp', venmo: 'venmo', zelle: 'zelle' }[value];
+  if (legacy) return t(`payment.providers.${legacy}`, value);
+  return t('payment.providers.other', 'Other');
+}
 
 export default function DirectPaymentRecordModal({
   isOpen,
@@ -38,12 +55,12 @@ export default function DirectPaymentRecordModal({
   payerId = null,
   payeeId = null,
   businessId = null,
-  defaultProvider = 'cash_app',
+  defaultProvider = 'cash',
   onClose,
   onSuccess,
 }) {
   const { t } = useTranslation();
-  const [provider, setProvider] = useState(defaultProvider);
+  const [provider, setProvider] = useState(() => normalizeProvider(defaultProvider));
   const [confirmationCode, setConfirmationCode] = useState('');
   const [proofLink, setProofLink] = useState('');
   const [proofAttachment, setProofAttachment] = useState(null);
@@ -56,7 +73,7 @@ export default function DirectPaymentRecordModal({
 
   useEffect(() => {
     if (!isOpen) return;
-    setProvider(defaultProvider);
+    setProvider(normalizeProvider(defaultProvider));
     setConfirmationCode('');
     setProofLink('');
     setProofAttachment(null);
@@ -199,7 +216,7 @@ export default function DirectPaymentRecordModal({
               style={{ padding: '0.85rem 0.9rem', borderRadius: 10, border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)' }}
             >
               {PROVIDERS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{t(`payment.providers.${opt.key}`, opt.key)}</option>
+                <option key={opt.value} value={opt.value}>{t(`payment.providers.${opt.key}`, opt.fallback)}</option>
               ))}
             </select>
           </label>

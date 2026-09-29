@@ -54,6 +54,37 @@ export default function HelperCancellationSettings() {
   const [customPolicy, setCustomPolicy] = useState(DEFAULT_CUSTOM_POLICY);
   const snapshotRef = useRef(null);
 
+  const paymentDetails = Array.isArray(customPolicy.payment_details)
+    ? customPolicy.payment_details
+    : [];
+
+  const updatePaymentDetail = (index, field, value) => {
+    setCustomPolicy({
+      ...customPolicy,
+      payment_details: paymentDetails.map((d, i) =>
+        i === index ? { ...d, [field]: value } : d
+      ),
+    });
+  };
+
+  const addPaymentDetail = () => {
+    if (paymentDetails.length >= 5) return;
+    setCustomPolicy({
+      ...customPolicy,
+      payment_details: [
+        ...paymentDetails,
+        { label: '', link_url: '', handle: '', instructions: '' },
+      ],
+    });
+  };
+
+  const removePaymentDetail = (index) => {
+    setCustomPolicy({
+      ...customPolicy,
+      payment_details: paymentDetails.filter((_, i) => i !== index),
+    });
+  };
+
   const loadPolicies = async () => {
     setLoading(true);
     setLoadFailed(false);
@@ -104,6 +135,20 @@ export default function HelperCancellationSettings() {
     if (!oxsteedEnabled && !customEnabled) {
       toast.error(t('cancellationSettings.enableAtLeastOne'));
       return;
+    }
+    if (customEnabled) {
+      const missingLabel = (customPolicy.payment_details || []).some(
+        (d) => !(d?.label || '').trim()
+      );
+      if (missingLabel) {
+        toast.error(
+          t(
+            'cancellationSettings.paymentDetailLabelRequired',
+            'Add a label for each payment method.'
+          )
+        );
+        return;
+      }
     }
     setSaving(true);
     try {
@@ -366,6 +411,109 @@ export default function HelperCancellationSettings() {
                 <p className="pcs-counter" aria-live="polite">
                   {(customPolicy.terms?.length || 0)}/1000
                 </p>
+              </div>
+
+              <div className="pcs-field">
+                <label>
+                  <span className="pcs-field-icon" aria-hidden="true">
+                    <Wallet size={15} />
+                  </span>
+                  {t('cancellationSettings.paymentDetailsTitle', 'How customers pay you')}
+                </label>
+                <p className="pcs-hint">
+                  {t(
+                    'cancellationSettings.paymentDetailsHint',
+                    'These details are shown to customers who choose direct payment, so they know where to send it.'
+                  )}
+                </p>
+                <div className="pcs-paydetails">
+                  {paymentDetails.map((detail, index) => (
+                    <div key={index} className="pcs-paydetail">
+                      <div className="pcs-paydetail-head">
+                        <span className="pcs-paydetail-name">
+                          {t('cancellationSettings.paymentDetailNumber', 'Method {{n}}', { n: index + 1 })}
+                        </span>
+                        <button
+                          type="button"
+                          className="pcs-btn pcs-btn-ghost pcs-paydetail-remove"
+                          onClick={() => removePaymentDetail(index)}
+                          aria-label={t('cancellationSettings.removePaymentDetail', 'Remove payment method')}
+                        >
+                          {t('cancellationSettings.removePaymentDetail', 'Remove')}
+                        </button>
+                      </div>
+                      <div className="pcs-paydetail-grid">
+                        <label className="pcs-paydetail-field">
+                          <span>{t('cancellationSettings.paymentDetailLabel', 'Label')}</span>
+                          <input
+                            type="text"
+                            value={detail.label ?? ''}
+                            maxLength={60}
+                            onChange={(e) => updatePaymentDetail(index, 'label', e.target.value)}
+                            placeholder={t(
+                              'cancellationSettings.paymentDetailLabelPlaceholder',
+                              'Mobile money, Bank transfer'
+                            )}
+                            className="pcs-input"
+                          />
+                        </label>
+                        <label className="pcs-paydetail-field">
+                          <span>{t('cancellationSettings.paymentDetailLink', 'Payment link')}</span>
+                          <input
+                            type="url"
+                            value={detail.link_url ?? ''}
+                            maxLength={500}
+                            onChange={(e) => updatePaymentDetail(index, 'link_url', e.target.value)}
+                            placeholder="https://"
+                            className="pcs-input"
+                            dir="ltr"
+                          />
+                        </label>
+                        <label className="pcs-paydetail-field">
+                          <span>{t('cancellationSettings.paymentDetailHandle', 'Account handle or ID')}</span>
+                          <input
+                            type="text"
+                            value={detail.handle ?? ''}
+                            maxLength={120}
+                            onChange={(e) => updatePaymentDetail(index, 'handle', e.target.value)}
+                            placeholder={t(
+                              'cancellationSettings.paymentDetailHandlePlaceholder',
+                              'Account number, username, or wallet ID'
+                            )}
+                            className="pcs-input"
+                          />
+                        </label>
+                        <label className="pcs-paydetail-field pcs-paydetail-full">
+                          <span>{t('cancellationSettings.paymentDetailInstructions', 'Instructions')}</span>
+                          <textarea
+                            value={detail.instructions ?? ''}
+                            maxLength={500}
+                            rows={2}
+                            onChange={(e) => updatePaymentDetail(index, 'instructions', e.target.value)}
+                            placeholder={t(
+                              'cancellationSettings.paymentDetailInstructionsPlaceholder',
+                              'Anything the customer should know to complete the payment'
+                            )}
+                            className="pcs-textarea"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {paymentDetails.length < 5 ? (
+                  <button
+                    type="button"
+                    className="pcs-btn pcs-btn-secondary"
+                    onClick={addPaymentDetail}
+                  >
+                    {t('cancellationSettings.addPaymentDetail', 'Add payment method')}
+                  </button>
+                ) : (
+                  <p className="pcs-hint">
+                    {t('cancellationSettings.paymentDetailMax', 'You can add up to 5 payment methods.')}
+                  </p>
+                )}
               </div>
             </div>
           )}
