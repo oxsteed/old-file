@@ -10,6 +10,7 @@ const redis         = require('../utils/redis');
 const metricsService = require('../services/metricsService');
 const { AppError }  = require('../middleware/errorHandler');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
+const availabilityService = require('../services/helperAvailabilityService');
 
 const DIRECTORY_CACHE_TTL_SECONDS = 30;
 const DIRECTORY_CACHE_TTL_MS = DIRECTORY_CACHE_TTL_SECONDS * 1000;
@@ -644,7 +645,7 @@ async function getHelperProfile(req, res, next) {
            hp.is_identity_verified, hp.is_background_checked,
            hp.is_insured, hp.is_licensed,
            hp.insurance_details, hp.license_details,
-           hp.availability_json, hp.is_available_now,
+           hp.is_available_now,
            hp.profile_slug,
            COALESCE(hp.show_services, TRUE) AS show_services,
            COALESCE(hp.show_faqs, TRUE) AS show_faqs,
@@ -797,19 +798,20 @@ async function getHelperProfile(req, res, next) {
       awarded_at:  b.awarded_at,
     }));
 
-    // Hours from availability_json
-    const avail = h.availability_json || {};
+    // Hours from the unified weekly template (helper_availability).
+    // Dated exceptions (availability_blocks) are NOT folded into this weekly
+    // view; the true day-by-day availability comes from computeAvailability.
+    const template = await availabilityService.getTemplate(pool, h.id);
     const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const hours = DAY_NAMES.map((day) => {
-      const key     = day.toLowerCase();
-      const dayData = avail[key] || avail[day] || null;
-      if (!dayData || dayData.closed) {
+    const hours = DAY_NAMES.map((day, idx) => {
+      const wins = template.byDay[idx] || [];
+      if (wins.length === 0) {
         return { day, open: '9:00 AM', close: '5:00 PM', closed: true };
       }
       return {
         day,
-        open:   dayData.start || dayData.open  || '9:00 AM',
-        close:  dayData.end   || dayData.close || '5:00 PM',
+        open:   availabilityService.formatTime(wins[0].start),
+        close:  availabilityService.formatTime(wins[wins.length - 1].end),
         closed: false,
       };
     });
@@ -987,12 +989,14 @@ async function getHelperStatus(req, res, next) {
 }
 
 // ── GET /api/helpers/:id/availability ────────────────────────────────────────
-// Dynamic endpoint: returns live availability data (fetched client-side after page load)
+// Dynamic endpoint: returns live availability data (fetched client-side after page load).
+// Computed from the ONE availability system (weekly template + dated blocks +
+// appointments) via helperAvailabilityService.
 async function getHelperAvailability(req, res, next) {
   try {
     const { id } = req.params;
     const { rows: [hp] } = await pool.query(
-      `SELECT hp.availability_json, hp.is_available_now, hp.response_time_hours
+      `SELECT hp.is_available_now, hp.response_time_hours
        FROM helper_profiles hp
        JOIN users u ON u.id = hp.user_id
        WHERE hp.user_id = $1
@@ -1002,27 +1006,35 @@ async function getHelperAvailability(req, res, next) {
     );
     if (!hp) throw new AppError('Helper not found', 404, 'not_found');
 
-    const avail = hp.availability_json || {};
+    const template = await availabilityService.getTemplate(pool, id);
     const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const schedule = DAY_NAMES.map((day) => {
-      const key = day.toLowerCase();
-      const dayData = avail[key] || avail[day] || null;
-      if (!dayData || dayData.closed) {
+    const schedule = DAY_NAMES.map((day, idx) => {
+      const wins = template.byDay[idx] || [];
+      if (wins.length === 0) {
         return { day, open: null, close: null, closed: true };
       }
       return {
         day,
-        open: dayData.start || dayData.open || '9:00 AM',
-        close: dayData.end || dayData.close || '5:00 PM',
+        open: availabilityService.formatTime(wins[0].start),
+        close: availabilityService.formatTime(wins[wins.length - 1].end),
         closed: false,
+        windows: wins.map((w) => ({
+          open: availabilityService.formatTime(w.start),
+          close: availabilityService.formatTime(w.end),
+        })),
       };
     });
 
-    // Determine if currently within business hours
-    const now = new Date();
-    const todayIdx = now.getDay();
-    const todaySchedule = schedule[todayIdx];
-    const isOpenNow = !todaySchedule.closed && !!hp.is_available_now;
+    // True availability summary for the coming week (blocks + appointments applied).
+    const todayISO = availabilityService.localTodayISO();
+    const { summary, hasTemplate } = await availabilityService.computeAvailability(
+      id,
+      todayISO,
+      availabilityService.addDaysISO(todayISO, 6)
+    );
+
+    // "Open now" = inside a truly free window right now AND the helper's live toggle is on.
+    const isOpenNow = summary.state === 'open-now' && !!hp.is_available_now;
 
     const online = socketService.isOnline(id);
 
@@ -1033,11 +1045,46 @@ async function getHelperAvailability(req, res, next) {
       isOnline: online,
       responseTime: formatResponseTime(hp.response_time_hours),
       responseTimeHours: hp.response_time_hours,
+      hasTemplate,
+      summary,
     });
   } catch (err) {
     next(err);
   }
 }
+
+// ── GET /api/helpers/:id/availability/summary ──────────────────────────────────
+// True availability for the coming days: weekly template − dated blocks −
+// appointments. Powers the profile's availability display.
+async function getHelperAvailabilitySummary(req, res, next) {
+  try {
+    const { id } = req.params;
+    const days = Math.max(1, Math.min(14, parseInt(req.query.days, 10) || 7));
+
+    const { rows: [hp] } = await pool.query(
+      `SELECT hp.is_available_now, hp.response_time_hours
+         FROM helper_profiles hp
+         JOIN users u ON u.id = hp.user_id
+        WHERE hp.user_id = $1
+          AND u.deleted_at IS NULL
+          AND u.email_verified = TRUE`,
+      [id]
+    );
+    if (!hp) throw new AppError('Helper not found', 404, 'not_found');
+
+    const todayISO = availabilityService.localTodayISO();
+    const result = await availabilityService.computeAvailability(
+      id,
+      todayISO,
+      availabilityService.addDaysISO(todayISO, days - 1)
+    );
+    result.isOnline = !!(hp.is_available_now || socketService.isOnline(id));
+    result.responseTime = formatResponseTime(hp.response_time_hours);
+    return res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
 
 // ── GET /api/helpers/:id/pricing ─────────────────────────────────────────────
 // Dynamic endpoint: returns current pricing info (fetched client-side after page load)
@@ -1088,15 +1135,14 @@ async function getHelperPricing(req, res, next) {
 }
 
 // ── GET /api/helpers/:id/slots ───────────────────────────────────────────────
-// Dynamic endpoint: returns available booking slots for the current week
+// Dynamic endpoint: true availability for the coming week, computed from the
+// ONE availability system (weekly template − dated blocks − appointments).
 async function getHelperSlots(req, res, next) {
   try {
     const { id } = req.params;
 
-    // Get helper's availability schedule
     const { rows: [hp] } = await pool.query(
-      `SELECT hp.availability_json, hp.is_available_now
-       FROM helper_profiles hp
+      `SELECT 1 FROM helper_profiles hp
        JOIN users u ON u.id = hp.user_id
        WHERE hp.user_id = $1
          AND u.deleted_at IS NULL
@@ -1105,67 +1151,38 @@ async function getHelperSlots(req, res, next) {
     );
     if (!hp) throw new AppError('Helper not found', 404, 'not_found');
 
-    // Get existing bookings for this week to subtract from available slots
-    const now = new Date();
-    const weekEnd = new Date(now);
-    weekEnd.setDate(weekEnd.getDate() + 7);
-
-    const { rows: bookedSlots } = await pool.query(
-      `SELECT COALESCE(j.scheduled_date::date, j.scheduled_start_at::date, j.scheduled_time::date) AS slot_day
-       FROM jobs j
-       WHERE j.assigned_helper_id = $1
-         AND j.status IN ('accepted', 'in_progress')
-         AND COALESCE(j.scheduled_date::date, j.scheduled_start_at::date, j.scheduled_time::date) IS NOT NULL
-         AND COALESCE(j.scheduled_date::date, j.scheduled_start_at::date, j.scheduled_time::date)
-             BETWEEN $2::date AND $3::date`,
-      [id, now.toISOString().split('T')[0], weekEnd.toISOString().split('T')[0]]
+    const todayISO = availabilityService.localTodayISO();
+    const { days, summary, hasTemplate } = await availabilityService.computeAvailability(
+      id,
+      todayISO,
+      availabilityService.addDaysISO(todayISO, 6)
     );
 
-    const avail = hp.availability_json || {};
     const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
-    // Generate slots for the next 7 days
-    const slots = [];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(now);
-      date.setDate(date.getDate() + i);
-      const dayName = DAY_NAMES[date.getDay()];
-      const key = dayName.toLowerCase();
-      const dayData = avail[key] || avail[dayName] || null;
-
-      if (!dayData || dayData.closed) continue;
-
-      const dateStr = date.toISOString().split('T')[0];
-      const dayBookings = bookedSlots.filter((b) => {
-        const d = b.slot_day;
-        if (d == null) return false;
-        const ds =
-          d instanceof Date
-            ? d.toISOString().split('T')[0]
-            : String(d).slice(0, 10);
-        return ds === dateStr;
-      });
-
-      slots.push({
-        date: dateStr,
-        dayName,
-        open: dayData.start || dayData.open || '9:00 AM',
-        close: dayData.end || dayData.close || '5:00 PM',
-        bookedCount: dayBookings.length,
-        hasOpenings: dayBookings.length < 4,
-      });
-    }
+    const slots = days.map((d) => ({
+      date: d.date,
+      dayName: DAY_NAMES[d.dayOfWeek],
+      // legacy shape (kept for existing clients)
+      open: d.templateWindows[0]?.start || null,
+      close: d.templateWindows[d.templateWindows.length - 1]?.end || null,
+      bookedCount: d.bookedCount,
+      hasOpenings: d.status === 'available' || d.status === 'limited',
+      // true-availability shape
+      status: d.status,
+      windows: d.windows,
+    }));
 
     return res.json({
       slots,
-      weekOf: now.toISOString().split('T')[0],
-      totalOpenDays: slots.length,
-      totalBookedSlots: bookedSlots.length,
+      summary,
+      hasTemplate,
+      weekOf: todayISO,
+      totalOpenDays: slots.filter((s) => s.hasOpenings).length,
     });
   } catch (err) {
     next(err);
   }
-}
+};
 
 // ── PUT /api/helpers/me/listing ───────────────────────────────────────────
 // Toggle the logged-in helper's directory visibility (is_listed).
@@ -1352,4 +1369,5 @@ async function removeCredential(req, res, next) {
   }
 }
 
-module.exports = { listHelpers, getHelperProfile, getHelperStatus, searchSkills, searchLicenses, getHelperAvailability, getHelperPricing, getHelperSlots, toggleListing, getMyListingStatus, getMyAvailability, toggleAvailability, removeCredential };
+module.exports = { listHelpers, getHelperProfile, getHelperStatus, searchSkills, searchLicenses, getHelperAvailability,
+  getHelperAvailabilitySummary, getHelperPricing, getHelperSlots, toggleListing, getMyListingStatus, getMyAvailability, toggleAvailability, removeCredential };

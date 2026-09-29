@@ -9,6 +9,7 @@ import ProfileSlugField from './profile/ProfileSlugField';
 import { helperProfilePath } from '../utils/profileUrls';
 import ProfileStudioShell from './profileStudio/ProfileStudioShell';
 import ProfilePreviewCard from './profileStudio/ProfilePreviewCard';
+import HelperAvailabilityEditor from './HelperAvailabilityEditor';
 import {
   applySectionCompleteness,
   buildHelperSectionCompleteness,
@@ -21,8 +22,6 @@ import {
   shouldPromptLeaveStickySection,
 } from '../utils/profileStudio';
 
-const DAY_LABELS = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
-const buildDefaultAvail = () => Object.fromEntries(DAY_LABELS.map(d => [d, { closed: true, start: '09:00', end: '17:00' }]));
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function EditProfileTab() {
@@ -46,8 +45,11 @@ export default function EditProfileTab() {
   const [core, setCore] = useState({
     profile_headline: '', bio_long: '', hourly_rate_min: '', hourly_rate_max: '',
     service_radius_miles: 10, service_city: '', service_state: '',
-    availability_json: buildDefaultAvail(), is_available_now: false,
+    is_available_now: false,
   });
+  // True weekly schedule lives in the ONE availability system (helper_availability
+  // + availability_blocks); the editor below owns it and reports back here.
+  const [hasSchedule, setHasSchedule] = useState(false);
   const [services,  setServices]  = useState([]);
   const [faqs,      setFaqs]      = useState([]);
   const [policies,  setPolicies]  = useState([]);
@@ -83,12 +85,11 @@ export default function EditProfileTab() {
           service_radius_miles: d.service_radius_miles  || 10,
           service_city:         d.service_city          || '',
           service_state:        d.service_state         || '',
-          availability_json:    d.availability_json     || buildDefaultAvail(),
           is_available_now:     !!d.is_available_now,
         };
         setCore(nextCore);
         coreBaselineRef.current = serializeHelperCore(nextCore);
-        coreSnapRef.current = { ...nextCore, availability_json: { ...nextCore.availability_json } };
+        coreSnapRef.current = { ...nextCore };
         setVisibility({
           show_services: d.show_services !== false,
           show_faqs: d.show_faqs !== false,
@@ -144,10 +145,7 @@ export default function EditProfileTab() {
     try {
       await api.put('/helper-profile/core', core);
       coreBaselineRef.current = serializeHelperCore(core);
-      coreSnapRef.current = {
-        ...core,
-        availability_json: JSON.parse(JSON.stringify(core.availability_json || {})),
-      };
+      coreSnapRef.current = { ...core };
       markSaved();
       toast.success(t('helperDashboard.profileSaved'));
     } catch (err) {
@@ -161,10 +159,7 @@ export default function EditProfileTab() {
   const discardCore = () => {
     const snap = coreSnapRef.current;
     if (!snap) return;
-    setCore({
-      ...snap,
-      availability_json: JSON.parse(JSON.stringify(snap.availability_json || {})),
-    });
+    setCore({ ...snap });
   };
 
   // ── Services ────────────────────────────────────────────────────────────────
@@ -340,22 +335,6 @@ export default function EditProfileTab() {
     saveVisibility({ [key]: !visibility[key] });
   };
 
-  // ── Availability helpers ─────────────────────────────────────────────────────
-  const toggleDay = (day) => setCore(prev => ({
-    ...prev,
-    availability_json: {
-      ...prev.availability_json,
-      [day]: { ...prev.availability_json[day], closed: !prev.availability_json[day]?.closed },
-    },
-  }));
-  const setDayTime = (day, field, val) => setCore(prev => ({
-    ...prev,
-    availability_json: {
-      ...prev.availability_json,
-      [day]: { ...prev.availability_json[day], [field]: val },
-    },
-  }));
-
   // ── Profile completeness ─────────────────────────────────────────────────────
   const checks = [
     !!core.bio_long,
@@ -365,7 +344,7 @@ export default function EditProfileTab() {
     faqs.length > 0,
     policies.length > 0,
     gallery.length > 0,
-    DAY_LABELS.some(d => !core.availability_json[d]?.closed),
+    hasSchedule,
   ];
   const pct = Math.round((checks.filter(Boolean).length / checks.length) * 100);
 
@@ -376,7 +355,8 @@ export default function EditProfileTab() {
     faqsCount: faqs.length,
     policiesCount: policies.length,
     galleryCount: gallery.length,
-  }), [coverImageUrl, core, services.length, faqs.length, policies.length, gallery.length]);
+    hasSchedule,
+  }), [coverImageUrl, core, services.length, faqs.length, policies.length, gallery.length, hasSchedule]);
 
   const SECTIONS = useMemo(() => applySectionCompleteness([
     { id: 'cover',      label: t('profileStudio.sectionCover') },
@@ -530,31 +510,12 @@ export default function EditProfileTab() {
       </form>
     );
   } else if (section === 'hours') {
+    // Single availability editor: weekly template + dated exceptions, all in
+    // the one system. It saves itself; nothing here writes availability_json.
     sectionBody = (
-      <div className="space-y-3">
-        {DAY_LABELS.map(day => {
-          const d = core.availability_json[day] || { closed: true, start: '09:00', end: '17:00' };
-          return (
-            <div key={day} className="flex items-center gap-3">
-              <button type="button" onClick={() => toggleDay(day)}
-                className={`w-24 text-[11px] font-semibold rounded-lg px-2 py-1.5 transition text-center ${d.closed ? 'bg-gray-800 text-gray-500' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-800'}`}>
-                {day.charAt(0).toUpperCase() + day.slice(1, 3)} {d.closed ? t('helperDashboard.dayOff') : t('helperDashboard.dayOpen')}
-              </button>
-              {!d.closed && (
-                <>
-                  <input type="time" value={d.start || '09:00'}
-                    onChange={e => setDayTime(day, 'start', e.target.value)}
-                    className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-sm text-white focus:border-orange-500 focus:outline-none" />
-                  <span className="text-gray-600 text-xs">{t('helperDashboard.to')}</span>
-                  <input type="time" value={d.end || '17:00'}
-                    onChange={e => setDayTime(day, 'end', e.target.value)}
-                    className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-sm text-white focus:border-orange-500 focus:outline-none" />
-                </>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      <HelperAvailabilityEditor
+        onTemplateLoaded={(tpl) => setHasSchedule((tpl || []).length > 0)}
+      />
     );
   } else if (section === 'services') {
     sectionBody = (

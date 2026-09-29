@@ -8196,6 +8196,28 @@
       "closed": "Fèmen",
       "hoursAria": "Orè chak semèn"
     },
+    "availability": {
+      "title": "Disponibilite",
+      "loading": "N ap chaje disponibilite…",
+      "aria": "Disponibilite èdè a pou jou k ap vini yo",
+      "today": "Jodi a",
+      "statusOpenNow": "Disponib kounye a",
+      "statusOpenNowUntil": "Disponib kounye a, jous {time}",
+      "statusOpensToday": "L ap louvri jodi a a {time}",
+      "statusNextAvailable": "Pwochen disponibilite: {date}",
+      "statusFullyBooked": "Plen",
+      "statusFullyBookedSub": "Pa gen plas pou 7 jou k ap vini yo",
+      "statusTimeOff": "An konje",
+      "statusTimeOffSub": "Pa gen disponibilite pou 7 jou k ap vini yo",
+      "statusNoSchedule": "Orè poko mete",
+      "statusNoScheduleSub": "Èdè sa poko mete orè li yo",
+      "dayAvailable": "Disponib",
+      "dayLimited": "Limite",
+      "dayBooked": "Rezève",
+      "dayTimeOff": "Konje",
+      "dayClosed": "Fèmen",
+      "dayNotSet": "Poko mete"
+    },
     "faq": {
       "title": "Kesyon Yo Poze Souvan"
     },
@@ -21194,8 +21216,7 @@
       "taken": "Lyen sa a deja pran.",
       "error": "Yon pwoblèm rive. Eseye ankò."
     }
-  }
-,
+  },
   "qrPay": {
     "setupTitle": "Resevwa peman ak kòd QR",
     "setupSubtitle": "Kreye kòd QR kliyan ou yo ka eskane pou peye ou dirèkteman. Yo pa bezwen aplikasyon an.",

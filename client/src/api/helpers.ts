@@ -119,6 +119,40 @@ export async function fetchHelperSlots(id: string, signal?: AbortSignal): Promis
   return data;
 }
 
+/** True availability summary for the coming days (the ONE availability system). */
+export interface HelperAvailabilitySummaryDay {
+  date: string;
+  dayOfWeek: number;
+  status: 'unset' | 'closed' | 'blocked' | 'booked' | 'limited' | 'available';
+  windows: Array<{ start: string; end: string; startMin: number; endMin: number }>;
+  templateWindows: Array<{ start: string; end: string }>;
+  freeMinutes: number;
+  blocked: boolean;
+  bookedCount: number;
+}
+
+export interface HelperAvailabilitySummary {
+  hasTemplate: boolean;
+  days: HelperAvailabilitySummaryDay[];
+  summary: {
+    state: 'unset' | 'open-now' | 'opens-today' | 'opens-on' | 'none';
+    openUntil?: string | null;
+    openUntilMin?: number | null;
+    opensAt?: string | null;
+    opensAtMin?: number | null;
+    date?: string | null;
+    dayOfWeek?: number | null;
+  };
+  bookingBufferMinutes: number;
+  isOnline: boolean;
+  responseTime: string;
+}
+
+export async function fetchHelperAvailabilitySummary(id: string, signal?: AbortSignal): Promise<HelperAvailabilitySummary> {
+  const { data } = await api.get<HelperAvailabilitySummary>(`/helpers/${id}/availability/summary`, { signal });
+  return data;
+}
+
 /** Cached public PNG QR for this helper's profile URL (`<img src={...}>`). */
 export function getHelperProfileQrPngUrl(helperId: string, width = 180): string {
   const base = ((import.meta as ImportMeta & { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL || '/api').replace(

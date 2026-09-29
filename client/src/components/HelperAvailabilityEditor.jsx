@@ -13,7 +13,7 @@
  * The component is self-contained; no props needed.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 import { toast } from 'sonner';
@@ -43,7 +43,9 @@ function to12(hhmm) {
   return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
-export default function HelperAvailabilityEditor() {
+export default function HelperAvailabilityEditor({ onTemplateLoaded } = {}) {
+  const onTemplateLoadedRef = useRef(onTemplateLoaded);
+  onTemplateLoadedRef.current = onTemplateLoaded;
   const { t } = useTranslation();
 
   const [slots, setSlots]         = useState(makeDefaultSlots());
@@ -81,6 +83,7 @@ export default function HelperAvailabilityEditor() {
       }
 
       setOverrides(ovrRes.data?.overrides || []);
+      onTemplateLoadedRef.current?.(tplRows);
     } catch { /* silently fail — user will see empty defaults */ }
     finally { setLoading(false); }
   }, []);
@@ -112,6 +115,7 @@ export default function HelperAvailabilityEditor() {
           end_time:    s.end,
         })),
       });
+      onTemplateLoadedRef.current?.(activeSlots);
       toast.success(t('availability.saved', { defaultValue: 'Availability saved! Customers can now see your open slots when accepting your bids.' }));
     } catch (err) {
       toast.error(err?.response?.data?.error || t('availability.saveError', { defaultValue: 'Failed to save availability.' }));

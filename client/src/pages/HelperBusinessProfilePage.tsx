@@ -41,7 +41,7 @@ import {
 import BusinessHeader from '../components/helperProfile/BusinessHeader';
 import ServicesSection from '../components/helperProfile/ServicesSection';
 import GallerySection from '../components/helperProfile/GallerySection';
-import HoursSection from '../components/helperProfile/HoursSection';
+import AvailabilitySection from '../components/helperProfile/AvailabilitySection';
 import LocationSection from '../components/helperProfile/LocationSection';
 import PoliciesSection from '../components/helperProfile/PoliciesSection';
 import ReviewsSection from '../components/helperProfile/ReviewsSection';
@@ -52,7 +52,7 @@ import CTASection from '../components/helperProfile/CTASection';
 import PublicProfileMessenger from '../components/helperProfile/chat/PublicProfileMessenger.jsx';
 
 // Dynamic blocks (Issue #35) - fetched client-side after static shell renders
-import { AvailabilityBlock, PricingBlock, SlotsBlock } from '../components/helperProfile/DynamicBlocks';
+import { PricingBlock } from '../components/helperProfile/DynamicBlocks';
 
 // Types & API
 import type { HelperProfileData, LoadingState, Service } from '../types/helperProfile';
@@ -254,7 +254,7 @@ const HelperBusinessProfilePage: React.FC = () => {
     );
   }
 
-  const { helper, services, gallery, hours, location, policies, reviews, faqs, visibility, chatSession } =
+  const { helper, services, gallery, location, policies, reviews, faqs, visibility, chatSession } =
     data;
 
   const isGuestVisitor = !user;
@@ -401,22 +401,18 @@ const HelperBusinessProfilePage: React.FC = () => {
               <GallerySection images={gallery} />
             )}
 
-            {/* Hours + Location side by side on md+ */}
-            <div className="grid sm:grid-cols-2 gap-6">
-              {visibility?.hours && (
-                <HoursSection hours={hours} />
-              )}
-              <LocationSection location={location} />
-            </div>
+            {/* True availability (one system) + Location */}
+            {visibility?.hours && id && (
+              <AvailabilitySection helperId={id} />
+            )}
+            <LocationSection location={location} />
 
             {visibility?.policies && (
               <PoliciesSection policies={policies} />
             )}
 
             {/* ── Dynamic blocks (Issue #35) ── fetched client-side after page load ── */}
-            <AvailabilityBlock helperId={id!} />
             <PricingBlock helperId={id!} />
-            <SlotsBlock helperId={id!} />
 
             {/* Helper reliability & job acceptance history */}
             {id && (

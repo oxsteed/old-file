@@ -14,6 +14,7 @@
 const pool   = require('../db');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
+const availabilityService = require('../services/helperAvailabilityService');
 
 const DAYS = [0, 1, 2, 3, 4, 5, 6]; // Sun=0 … Sat=6
 const HHMM = /^\d{2}:\d{2}$/;
@@ -126,24 +127,48 @@ exports.setTemplate = async (req, res, next) => {
 };
 
 // ─────────────────────────────────────────────────────────────────
-// GET /api/helper-profile/availability/overrides
 // ─────────────────────────────────────────────────────────────────
+// GET /api/helper-profile/availability/overrides
+//
+// Backed by availability_blocks (the ONE dated-exceptions store). Mapped to
+// the historical override shape so existing clients keep working.
+// ─────────────────────────────────────────────────────────────────
+function blockToOverride(b) {
+  const start = new Date(b.start_time);
+  const end = new Date(b.end_time);
+  const pad = (n) => String(n).padStart(2, '0');
+  const fullDay =
+    start.getUTCHours() === 0 && start.getUTCMinutes() === 0 &&
+    end.getUTCHours() === 0 && end.getUTCMinutes() === 0;
+  return {
+    id: b.id,
+    helper_id: b.helper_id,
+    override_date: start.toISOString().split('T')[0],
+    is_blocked: b.type !== 'available',
+    start_time: fullDay ? null : `${pad(start.getUTCHours())}:${pad(start.getUTCMinutes())}`,
+    end_time: fullDay ? null : `${pad(end.getUTCHours())}:${pad(end.getUTCMinutes())}`,
+    reason: b.title || b.notes || null,
+    type: b.type,
+  };
+}
+
 exports.getOverrides = async (req, res, next) => {
   try {
     const { from, to } = req.query;
     const conditions = ['helper_id = $1'];
     const params = [req.user.id];
 
-    if (from) { params.push(from); conditions.push(`override_date >= $${params.length}`); }
-    if (to)   { params.push(to);   conditions.push(`override_date <= $${params.length}`); }
+    if (from) { params.push(from); conditions.push(`start_time >= $${params.length}::date`); }
+    if (to)   { params.push(to);   conditions.push(`start_time < ($${params.length}::date + INTERVAL '1 day')`); }
 
     const { rows } = await pool.query(
-      `SELECT * FROM helper_availability_overrides
+      `SELECT id, helper_id, start_time, end_time, type, title, notes
+         FROM availability_blocks
         WHERE ${conditions.join(' AND ')}
-        ORDER BY override_date`,
+        ORDER BY start_time`,
       params
     );
-    res.json({ overrides: rows });
+    res.json({ overrides: rows.map(blockToOverride) });
   } catch (err) {
     next(err);
   }
@@ -152,6 +177,8 @@ exports.getOverrides = async (req, res, next) => {
 // ─────────────────────────────────────────────────────────────────
 // POST /api/helper-profile/availability/overrides
 // Body: { override_date, is_blocked, start_time?, end_time?, reason? }
+//
+// Writes an availability_blocks row (the ONE exceptions store).
 // ─────────────────────────────────────────────────────────────────
 exports.createOverride = async (req, res, next) => {
   const helperId = req.user.id;
@@ -170,14 +197,28 @@ exports.createOverride = async (req, res, next) => {
   }
 
   try {
+    const startTs = `${override_date}T${start_time || '00:00'}:00Z`;
+    const endTs = end_time
+      ? `${override_date}T${end_time}:00Z`
+      : `${override_date}T00:00:00Z`;
+    // Full-day block when no times given: end is the next midnight.
+    const endIso = !start_time && !end_time
+      ? new Date(new Date(`${override_date}T00:00:00Z`).getTime() + 86_400_000).toISOString()
+      : new Date(endTs).toISOString();
+    if (!(new Date(endIso) > new Date(startTs))) {
+      return next(new AppError('end_time must be after start_time', 400, 'validation_failed', {
+        end_time: 'Must be after start_time',
+      }));
+    }
+
     const { rows: [row] } = await pool.query(
-      `INSERT INTO helper_availability_overrides
-         (helper_id, override_date, is_blocked, start_time, end_time, reason)
+      `INSERT INTO availability_blocks
+         (helper_id, start_time, end_time, type, title, notes)
        VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING *`,
-      [helperId, override_date, is_blocked, start_time, end_time, reason]
+       RETURNING id, helper_id, start_time, end_time, type, title, notes`,
+      [helperId, new Date(startTs).toISOString(), endIso, is_blocked ? 'unavailable' : 'available', reason, reason]
     );
-    res.status(201).json(row);
+    res.status(201).json(blockToOverride(row));
   } catch (err) {
     next(err);
   }
@@ -191,7 +232,7 @@ exports.deleteOverride = async (req, res, next) => {
   const helperId = req.user.id;
   try {
     const { rows } = await pool.query(
-      'DELETE FROM helper_availability_overrides WHERE id = $1 AND helper_id = $2 RETURNING id',
+      'DELETE FROM availability_blocks WHERE id = $1 AND helper_id = $2 RETURNING id',
       [id, helperId]
     );
     if (!rows.length) return next(new AppError('Override not found', 404, 'not_found'));
@@ -201,7 +242,6 @@ exports.deleteOverride = async (req, res, next) => {
   }
 };
 
-// ─────────────────────────────────────────────────────────────────
 // GET /api/helpers/:helperId/available-slots?from=YYYY-MM-DD&to=YYYY-MM-DD
 //
 // Returns available 60-minute windows for the next N days (max 28).
@@ -234,128 +274,51 @@ exports.getAvailableSlots = async (req, res, next) => {
   }
 
   try {
-    // 1. Weekly template + scheduling settings
-    const [templateResult, profileResult] = await Promise.all([
-      pool.query(
-      `SELECT day_of_week,
-              EXTRACT(HOUR FROM start_time)::int * 60 + EXTRACT(MINUTE FROM start_time)::int AS start_min,
-              EXTRACT(HOUR FROM end_time)::int   * 60 + EXTRACT(MINUTE FROM end_time)::int   AS end_min
-         FROM helper_availability
-        WHERE helper_id = $1 AND is_active = TRUE
-        ORDER BY day_of_week, start_min`,
-      [helperId]
-      ),
-      pool.query(
-        'SELECT COALESCE(booking_buffer_minutes, 0)::int AS booking_buffer_minutes FROM helper_profiles WHERE user_id = $1',
-        [helperId]
-      ),
-    ]);
+    // Single-system computation: weekly template − dated blocks − appointments.
+    const pad = (n) => String(n).padStart(2, '0');
+    const hhmm = (mins) => `${pad(Math.floor(mins / 60))}:${pad(mins % 60)}`;
 
-    const templateRows = templateResult.rows;
-    const bookingBufferMinutes = Math.max(0, Math.min(240, profileResult.rows[0]?.booking_buffer_minutes || 0));
+    const fromISO = fromDate.toISOString().split('T')[0];
+    const toISO = toDate.toISOString().split('T')[0];
+    const { days, hasTemplate, bookingBufferMinutes } =
+      await availabilityService.computeAvailability(helperId, fromISO, toISO);
 
-    // If no template is set, return empty (helper hasn't configured availability)
-    if (templateRows.length === 0) {
+    if (!hasTemplate) {
       return res.json({ slots: [], hasTemplate: false });
     }
 
-    // Group template by day_of_week
-    const templateByDay = {};
-    for (const r of templateRows) {
-      if (!templateByDay[r.day_of_week]) templateByDay[r.day_of_week] = [];
-      templateByDay[r.day_of_week].push({ start: r.start_min, end: r.end_min });
-    }
-
-    // 2. Overrides in range (is_blocked entries)
-    const fromStr = fromDate.toISOString().split('T')[0];
-    const toStr   = toDate.toISOString().split('T')[0];
-    const { rows: overrides } = await pool.query(
-      `SELECT override_date::text AS date, is_blocked,
-              COALESCE(EXTRACT(HOUR FROM start_time)::int * 60 + EXTRACT(MINUTE FROM start_time)::int, 0)   AS start_min,
-              COALESCE(EXTRACT(HOUR FROM end_time)::int   * 60 + EXTRACT(MINUTE FROM end_time)::int,   1440) AS end_min
-         FROM helper_availability_overrides
-        WHERE helper_id = $1 AND override_date BETWEEN $2 AND $3`,
-      [helperId, fromStr, toStr]
-    );
-
-    // Group overrides by date
-    const blocksByDate = {};
-    for (const o of overrides) {
-      if (!o.is_blocked) continue; // Extra openings not yet needed for subtraction
-      if (!blocksByDate[o.date]) blocksByDate[o.date] = [];
-      blocksByDate[o.date].push({ start: o.start_min, end: o.end_min });
-    }
-
-    // 3. Existing confirmed / in_progress appointments
-    const { rows: appts } = await pool.query(
-      `SELECT scheduled_start_time, scheduled_end_time
-         FROM appointments
-        WHERE helper_id = $1
-          AND status IN ('requested', 'confirmed', 'in_progress')
-          AND scheduled_start_time >= $2
-          AND scheduled_end_time   <= $3`,
-      [helperId, fromDate, toDate]
-    );
-
-    // Group appointment busy ranges by date string
-    const apptsByDate = {};
-    for (const a of appts) {
-      const start = new Date(a.scheduled_start_time);
-      const end   = new Date(a.scheduled_end_time);
-      const dateKey = start.toISOString().split('T')[0];
-      if (!apptsByDate[dateKey]) apptsByDate[dateKey] = [];
-      apptsByDate[dateKey].push({
-        start: Math.max(0, start.getHours() * 60 + start.getMinutes() - bookingBufferMinutes),
-        end:   Math.min(1440, end.getHours()   * 60 + end.getMinutes() + bookingBufferMinutes),
-      });
-    }
-
-    // 4. Build slot list
     const now = new Date();
+    const todayISO = availabilityService.localTodayISO();
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const SLOT_DURATION = 60;
     const slots = [];
-    const SLOT_DURATION = 60; // minutes
 
-    let cursor = new Date(fromDate);
-    cursor.setHours(0, 0, 0, 0);
-
-    while (cursor <= toDate) {
-      const dateKey = cursor.toISOString().split('T')[0];
-      const dow = cursor.getDay(); // 0=Sun
-      const isToday = cursor.toDateString() === now.toDateString();
-
-      const dayWindows = templateByDay[dow] || [];
-      const dayBlocks  = (blocksByDate[dateKey] || []).concat(apptsByDate[dateKey] || []);
-
-      for (const window of dayWindows) {
-        // Generate 60-min slots from window.start to window.end
-        let slotStart = window.start;
-        while (slotStart + SLOT_DURATION <= window.end) {
+    for (const day of days) {
+      if (day.status !== 'available' && day.status !== 'limited') continue;
+      // Grid 60-min slots on the template/opening windows; drop any slot
+      // that touches a busy range (blocks, appointments + buffer).
+      for (const w of day.slotGrid) {
+        let slotStart = w.startMin;
+        while (slotStart + SLOT_DURATION <= w.endMin) {
           const slotEnd = slotStart + SLOT_DURATION;
-
-          // Skip past slots
-          if (isToday && slotStart <= nowMinutes) {
+          // Skip past slots today
+          if (day.date === todayISO && slotStart <= nowMinutes) {
             slotStart += SLOT_DURATION;
             continue;
           }
-
-          // Subtract blocked/busy ranges
-          const isBusy = dayBlocks.some(b => b.start < slotEnd && b.end > slotStart);
-          if (!isBusy) {
+          const overlapsBusy = day.busy.some((b) => b.startMin < slotEnd && b.endMin > slotStart);
+          if (!overlapsBusy) {
             slots.push({
-              date: dateKey,
-              start: fromMinutes(slotStart),
-              end:   fromMinutes(slotEnd),
-              startIso: `${dateKey}T${fromMinutes(slotStart)}:00`,
-              endIso:   `${dateKey}T${fromMinutes(slotEnd)}:00`,
+              date: day.date,
+              start: hhmm(slotStart),
+              end: hhmm(slotEnd),
+              startIso: `${day.date}T${hhmm(slotStart)}:00`,
+              endIso: `${day.date}T${hhmm(slotEnd)}:00`,
             });
           }
-
           slotStart += SLOT_DURATION;
         }
       }
-
-      cursor.setDate(cursor.getDate() + 1);
     }
 
     res.json({ slots, hasTemplate: true, count: slots.length, bookingBufferMinutes });

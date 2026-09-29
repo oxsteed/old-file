@@ -1411,7 +1411,8 @@ export default function PromotePage() {
   const helperReadiness = useMemo(() => {
     const services = helperProfile?.services || [];
     const gallery = helperProfile?.gallery || [];
-    const hasHours = helperProfile?.availability_json && Object.keys(helperProfile.availability_json || {}).length > 0;
+    const hasHours = helperProfile?.has_availability_template
+      ?? (helperProfile?.availability_json && Object.keys(helperProfile.availability_json || {}).length > 0);
     return [
       { done: !!helperProfile?.profile_headline, label: 'Headline explains what you do' },
       { done: !!helperProfile?.bio_long, label: 'About section tells customers what to expect' },

@@ -7937,6 +7937,28 @@
       "closed": "Closed",
       "hoursAria": "Weekly business hours"
     },
+    "availability": {
+      "title": "Availability",
+      "loading": "Loading availability…",
+      "aria": "Helper availability for the coming days",
+      "today": "Today",
+      "statusOpenNow": "Available now",
+      "statusOpenNowUntil": "Available now, until {time}",
+      "statusOpensToday": "Opens today at {time}",
+      "statusNextAvailable": "Next available {date}",
+      "statusFullyBooked": "Fully booked",
+      "statusFullyBookedSub": "No openings in the next 7 days",
+      "statusTimeOff": "Taking time off",
+      "statusTimeOffSub": "No availability in the next 7 days",
+      "statusNoSchedule": "Schedule not set",
+      "statusNoScheduleSub": "This helper has not set their hours yet",
+      "dayAvailable": "Available",
+      "dayLimited": "Limited",
+      "dayBooked": "Booked",
+      "dayTimeOff": "Time off",
+      "dayClosed": "Closed",
+      "dayNotSet": "Not set"
+    },
     "faq": {
       "title": "Frequently Asked Questions"
     },

@@ -24,10 +24,10 @@ describe('helper availability booking buffer', () => {
           { day_of_week: 1, start_min: 540, end_min: 780 },
         ],
       })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{ booking_buffer_minutes: 30 }],
       })
-      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [
           {

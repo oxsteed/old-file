@@ -8196,6 +8196,28 @@
       "closed": "Fermé",
       "hoursAria": "Horaires hebdomadaires"
     },
+    "availability": {
+      "title": "Disponibilités",
+      "loading": "Chargement des disponibilités…",
+      "aria": "Disponibilités de l'aidant pour les prochains jours",
+      "today": "Aujourd'hui",
+      "statusOpenNow": "Disponible",
+      "statusOpenNowUntil": "Disponible, jusqu'à {time}",
+      "statusOpensToday": "Ouvre aujourd'hui à {time}",
+      "statusNextAvailable": "Prochaine disponibilité : {date}",
+      "statusFullyBooked": "Complet",
+      "statusFullyBookedSub": "Aucune place dans les 7 prochains jours",
+      "statusTimeOff": "En congé",
+      "statusTimeOffSub": "Aucune disponibilité dans les 7 prochains jours",
+      "statusNoSchedule": "Horaires non définis",
+      "statusNoScheduleSub": "Cet aidant n'a pas encore défini ses horaires",
+      "dayAvailable": "Disponible",
+      "dayLimited": "Limité",
+      "dayBooked": "Réservé",
+      "dayTimeOff": "Congé",
+      "dayClosed": "Fermé",
+      "dayNotSet": "Non défini"
+    },
     "faq": {
       "title": "Questions Fréquentes"
     },
@@ -21194,8 +21216,7 @@
       "taken": "Ce lien est déjà pris.",
       "error": "Une erreur est survenue. Réessayez."
     }
-  }
-,
+  },
   "qrPay": {
     "setupTitle": "Recevez des paiements par QR code",
     "setupSubtitle": "Créez des QR codes que vos clients peuvent scanner pour vous payer directement. Aucune application requise de leur côté.",

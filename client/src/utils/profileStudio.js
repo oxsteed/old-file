@@ -38,11 +38,14 @@ export function buildHelperSectionCompleteness({
   faqsCount = 0,
   policiesCount = 0,
   galleryCount = 0,
+  // When the one availability system reports a template, prefer it over the
+  // legacy availability_json blob.
+  hasSchedule,
 } = {}) {
   const availability = core.availability_json && typeof core.availability_json === 'object'
     ? core.availability_json
     : {};
-  const hoursOpen = Object.values(availability).some((day) => day && !day.closed);
+  const hoursOpen = hasSchedule ?? Object.values(availability).some((day) => day && !day.closed);
 
   return {
     cover: !!coverImageUrl,
@@ -118,7 +121,6 @@ export function serializeHelperCore(core) {
     service_radius_miles: core?.service_radius_miles == null ? '' : String(core.service_radius_miles),
     service_city: core?.service_city || '',
     service_state: core?.service_state || '',
-    availability_json: core?.availability_json || {},
     is_available_now: !!core?.is_available_now,
   });
 }

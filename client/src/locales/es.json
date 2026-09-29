@@ -7902,6 +7902,28 @@
       "closed": "Cerrado",
       "hoursAria": "Horario semanal"
     },
+    "availability": {
+      "title": "Disponibilidad",
+      "loading": "Cargando disponibilidad…",
+      "aria": "Disponibilidad del ayudante para los próximos días",
+      "today": "Hoy",
+      "statusOpenNow": "Disponible ahora",
+      "statusOpenNowUntil": "Disponible ahora, hasta las {time}",
+      "statusOpensToday": "Abre hoy a las {time}",
+      "statusNextAvailable": "Próxima disponibilidad: {date}",
+      "statusFullyBooked": "Completo",
+      "statusFullyBookedSub": "Sin espacios en los próximos 7 días",
+      "statusTimeOff": "Fuera de servicio",
+      "statusTimeOffSub": "Sin disponibilidad en los próximos 7 días",
+      "statusNoSchedule": "Horario sin definir",
+      "statusNoScheduleSub": "Este ayudante aún no ha definido su horario",
+      "dayAvailable": "Disponible",
+      "dayLimited": "Limitado",
+      "dayBooked": "Reservado",
+      "dayTimeOff": "Libre",
+      "dayClosed": "Cerrado",
+      "dayNotSet": "Sin definir"
+    },
     "faq": {
       "title": "Preguntas Frecuentes"
     },

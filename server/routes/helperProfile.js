@@ -11,6 +11,7 @@ const { generalLimiter } = require('../middleware/rateLimiter');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const logger     = require('../utils/logger');
 const { invalidateHelperContext } = require('../services/helperContext');
+const availabilityService = require('../services/helperAvailabilityService');
 const helperProfileImageController = require('../controllers/helperProfileImageController');
 
 const helperOnly = [authenticate, requireRole('helper', 'helper_pro', 'broker')];
@@ -60,7 +61,10 @@ router.get('/me', helperOnly, async (req, res) => {
               availability_json, is_available_now, response_rate,
               show_services, show_faqs, show_policies, show_gallery, show_hours,
               ai_knowledge,
-              profile_slug, profile_slug_updated_at
+              profile_slug, profile_slug_updated_at,
+              EXISTS (SELECT 1 FROM helper_availability ha
+                       WHERE ha.helper_id = helper_profiles.user_id AND ha.is_active = TRUE)
+                AS has_availability_template
        FROM helper_profiles WHERE user_id = $1`,
       [uid],
     );
@@ -183,6 +187,20 @@ router.put('/core', helperOnly, generalLimiter, async (req, res) => {
       [uid]
     ).then(r => invalidateHelperContext(uid, r.rows[0]?.id))
      .catch(() => invalidateHelperContext(uid));
+
+    // Back-compat bridge: an older client may still submit the legacy
+    // availability_json shape. Mirror any valid windows into the ONE weekly
+    // template so the single system stays the source of truth.
+    if (availability_json) {
+      try {
+        const windows = availabilityService.templateWindowsFromJson(availability_json);
+        if (windows.length > 0) {
+          await availabilityService.replaceTemplate(uid, windows);
+        }
+      } catch (e) {
+        logger.warn('[helperProfile] availability_json bridge sync failed', { err: e.message });
+      }
+    }
 
     res.json({ ok: true });
   } catch (err) {

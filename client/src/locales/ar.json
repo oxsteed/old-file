@@ -8196,6 +8196,28 @@
       "closed": "مغلق",
       "hoursAria": "ساعات العمل الأسبوعية"
     },
+    "availability": {
+      "title": "التوفر",
+      "loading": "جارٍ تحميل التوفر…",
+      "aria": "توفر المساعد للأيام القادمة",
+      "today": "اليوم",
+      "statusOpenNow": "متاح الآن",
+      "statusOpenNowUntil": "متاح الآن، حتى {time}",
+      "statusOpensToday": "يفتح اليوم في {time}",
+      "statusNextAvailable": "التالي متاح {date}",
+      "statusFullyBooked": "محجوز بالكامل",
+      "statusFullyBookedSub": "لا توجد مواعيد خلال الأيام السبعة القادمة",
+      "statusTimeOff": "في إجازة",
+      "statusTimeOffSub": "لا يوجد توفر خلال الأيام السبعة القادمة",
+      "statusNoSchedule": "لم يتم تحديد الجدول",
+      "statusNoScheduleSub": "لم يقم هذا المساعد بتحديد ساعاته بعد",
+      "dayAvailable": "متاح",
+      "dayLimited": "محدود",
+      "dayBooked": "محجوز",
+      "dayTimeOff": "إجازة",
+      "dayClosed": "مغلق",
+      "dayNotSet": "غير محدد"
+    },
     "faq": {
       "title": "الأسئلة المتداولة"
     },
@@ -21197,8 +21219,7 @@
       "taken": "هذا الرابط مستخدم بالفعل.",
       "error": "حدث خطأ ما. حاول مرة أخرى."
     }
-  }
-,
+  },
   "qrPay": {
     "setupTitle": "استلم المدفوعات برموز QR",
     "setupSubtitle": "أنشئ رموز QR يمكن لعملائك مسحها للدفع لك مباشرة. لا يحتاجون إلى التطبيق.",

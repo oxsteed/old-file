@@ -20,6 +20,7 @@ const { broadcastToUser } = require('../services/socketService');
 const { renderAppointmentEmail } = require('../utils/calendarEmails');
 const { tNotif } = require('../utils/i18n');
 const { sendSuccess, sendError } = require('../utils/apiError');
+const availabilityService = require('../services/helperAvailabilityService');
 
 const HELPER_ROLES = ['helper', 'helper_pro', 'broker'];
 const APPOINTMENT_STATUSES = ['requested', 'confirmed', 'in_progress', 'completed', 'cancelled', 'rescheduled'];
@@ -236,19 +237,19 @@ exports.createAppointment = async (req, res, next) => {
         throw e;
       }
 
-      const blockedBy = await client.query(
-        `SELECT 1
-           FROM availability_blocks
-          WHERE helper_id = $1
-            AND type IN ('unavailable','busy')
-            AND start_time < $3
-            AND end_time   > $2
-          LIMIT 1`,
-        [helper_id, start, end]
+      // Single-system availability check: weekly template − dated blocks −
+      // existing appointments. Throws HELPER_UNAVAILABLE when the slot is not
+      // truly free.
+      const slotCheck = await availabilityService.isSlotFree(
+        helper_id,
+        start.toISOString(),
+        end.toISOString(),
+        client
       );
-      if (blockedBy.rows.length > 0) {
+      if (!slotCheck.free) {
         const e = new Error('HELPER_UNAVAILABLE');
         e.code = 'HELPER_UNAVAILABLE';
+        e.reason = slotCheck.reason;
         throw e;
       }
 
