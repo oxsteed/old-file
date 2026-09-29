@@ -120,7 +120,7 @@ router.post('/codes', authenticate, paymentsLimiter, async (req, res, next) => {
         const { rows } = await pool.query(
           `INSERT INTO qr_payment_codes (owner_user_id, code, label, amount_cents)
            VALUES ($1, $2, $3, $4)
-           RETURNING id, code`,
+           RETURNING id, code, label, amount_cents, currency, is_active, created_at`,
           [req.user.id, code, label, amountCents]
         );
         row = rows[0];
@@ -129,10 +129,15 @@ router.post('/codes', authenticate, paymentsLimiter, async (req, res, next) => {
       }
     }
 
+    // Return the full code object (same shape as the list endpoint) so the
+    // setup page can render and toggle the new card without a refetch.
     return res.status(201).json({
-      id: row.id,
-      code: row.code,
-      pay_url: `${publicBaseUrl()}/pay/${row.code}`,
+      code: {
+        ...row,
+        pay_url: `${publicBaseUrl()}/pay/${row.code}`,
+        total_received_cents: 0,
+        succeeded_count: 0,
+      },
     });
   } catch (err) {
     logger.error('qrPayments: create code failed', { userId: req.user?.id, error: err.message });
@@ -228,7 +233,9 @@ router.patch('/codes/:id', authenticate, async (req, res, next) => {
       values
     );
     const row = rows[0];
-    return res.json({ ...row, pay_url: `${publicBaseUrl()}/pay/${row.code}` });
+    // Same { code: {...} } envelope as create/list so the client's
+    // `data?.code || data` picks up the object (with is_active) every time.
+    return res.json({ code: { ...row, pay_url: `${publicBaseUrl()}/pay/${row.code}` } });
   } catch (err) {
     logger.error('qrPayments: update code failed', { userId: req.user?.id, error: err.message });
     return next(err);
@@ -362,7 +369,7 @@ router.get('/pay/:code/receipt', generalLimiter, async (req, res, next) => {
       return res.status(400).json({ error: 'A session id is required.', code: 'session_required' });
     }
     const { rows } = await pool.query(
-      `SELECT p.status, p.amount_cents, c.label
+      `SELECT p.status, p.amount_cents, c.label, c.currency
          FROM qr_payments p
          JOIN qr_payment_codes c ON c.id = p.qr_code_id
         WHERE p.stripe_checkout_session_id = $1 AND c.code = $2`,
@@ -374,6 +381,7 @@ router.get('/pay/:code/receipt', generalLimiter, async (req, res, next) => {
     return res.json({
       status: rows[0].status,
       amount_cents: rows[0].amount_cents,
+      currency: rows[0].currency || 'USD',
       label: rows[0].label,
     });
   } catch (err) {

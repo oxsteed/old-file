@@ -99,14 +99,25 @@ describe('POST /api/qr-payments/codes', () => {
   test('creates an open-amount code and returns the pay URL', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [CONNECT_ROW], rowCount: 1 }) // connect lookup
-      .mockResolvedValueOnce({ rows: [{ id: 'qr-1', code: 'AbCdEfGhIjKl' }], rowCount: 1 }); // insert
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'qr-1', code: 'AbCdEfGhIjKl', label: 'Lawn mowing',
+          amount_cents: null, currency: 'usd', is_active: true,
+          created_at: '2026-09-29T10:00:00.000Z',
+        }],
+        rowCount: 1,
+      }); // insert
     const res = await request(buildApp())
       .post('/api/qr-payments/codes')
       .send({ label: 'Lawn mowing' });
     expect(res.status).toBe(201);
-    expect(res.body.id).toBe('qr-1');
-    expect(res.body.code).toHaveLength(12);
-    expect(res.body.pay_url).toMatch(/\/pay\/AbCdEfGhIjKl$/);
+    // The setup page reads `data.code` as the created code object.
+    expect(res.body.code.id).toBe('qr-1');
+    expect(res.body.code.code).toHaveLength(12);
+    expect(res.body.code.label).toBe('Lawn mowing');
+    expect(res.body.code.is_active).toBe(true);
+    expect(res.body.code.total_received_cents).toBe(0);
+    expect(res.body.code.pay_url).toMatch(/\/pay\/AbCdEfGhIjKl$/);
     const insertCall = mockQuery.mock.calls[1][0];
     expect(insertCall).toMatch(/INSERT INTO qr_payment_codes/);
     expect(mockQuery.mock.calls[1][1][3]).toBeNull(); // open amount
@@ -238,16 +249,28 @@ describe('GET /api/qr-payments/pay/:code/receipt', () => {
     expect(res.body.code).toBe('not_found');
   });
 
-  test('returns status, amount, and label for a matching session', async () => {
+  test('returns status, amount, currency, and label for a matching session', async () => {
     mockQuery.mockResolvedValueOnce({
-      rows: [{ status: 'succeeded', amount_cents: 2500, label: 'Lawn mowing' }],
+      rows: [{ status: 'succeeded', amount_cents: 2500, currency: 'usd', label: 'Lawn mowing' }],
       rowCount: 1,
     });
     const res = await request(buildApp()).get(
       '/api/qr-payments/pay/AbCdEfGhIjKl/receipt?session_id=cs_test_1'
     );
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ status: 'succeeded', amount_cents: 2500, label: 'Lawn mowing' });
+    expect(res.body).toEqual({ status: 'succeeded', amount_cents: 2500, currency: 'usd', label: 'Lawn mowing' });
+  });
+
+  test('defaults receipt currency to USD when the code has none', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ status: 'succeeded', amount_cents: 2500, currency: null, label: 'Lawn mowing' }],
+      rowCount: 1,
+    });
+    const res = await request(buildApp()).get(
+      '/api/qr-payments/pay/AbCdEfGhIjKl/receipt?session_id=cs_test_1'
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.currency).toBe('USD');
   });
 });
 
@@ -259,6 +282,25 @@ describe('PATCH and DELETE /api/qr-payments/codes/:id', () => {
       .send({ label: 'New label' });
     expect(res.status).toBe(404);
     expect(res.body.code).toBe('not_found');
+  });
+
+  test('PATCH toggle returns the code object so the UI updates without a refetch', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'qr-1' }], rowCount: 1 }) // ownership check
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'qr-1', code: 'AbCdEfGhIjKl', label: 'Lawn mowing',
+          amount_cents: null, currency: 'usd', is_active: false,
+          updated_at: '2026-09-29T10:00:00.000Z',
+        }],
+        rowCount: 1,
+      }); // update
+    const res = await request(buildApp())
+      .patch('/api/qr-payments/codes/qr-1')
+      .send({ is_active: false });
+    expect(res.status).toBe(200);
+    expect(res.body.code.is_active).toBe(false);
+    expect(res.body.code.pay_url).toMatch(/\/pay\/AbCdEfGhIjKl$/);
   });
 
   test('DELETE soft-deactivates an owned code', async () => {
