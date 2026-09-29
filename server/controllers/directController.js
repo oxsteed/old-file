@@ -2,7 +2,10 @@
 
 const db = require('../db');
 const logger = require('../utils/logger');
+const escapeHtml = require('../utils/escapeHtml');
 const { sendEmail } = require('../utils/email');
+const { renderOxSteedEmail } = require('../utils/emailTemplate');
+const { withTransaction } = require('../utils/transaction');
 const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
 const {
   generateLookupCode,
@@ -56,8 +59,13 @@ const DEFAULT_PROFILE = {
   supportPhone: null,
 };
 
-const VALID_MESSAGE_ROLES = new Set(['customer', 'admin', 'staff', 'system']);
+const VALID_MESSAGE_ROLES = new Set(['customer', 'admin', 'staff', 'system', 'super_admin']);
 const DIRECT_CALENDAR_EXCLUDED_STATUSES = new Set(['cancelled', 'closed', 'completed']);
+// Terminal quote-request lifecycle states: a request in one of these states must
+// never transition back to an active state.
+const DIRECT_TERMINAL_STATUSES = new Set(['completed', 'cancelled', 'closed']);
+// States in which a quote is awaiting the customer's decision and can be accepted.
+const DIRECT_ACCEPTABLE_ACCEPT_STATUSES = new Set(['quoted', 'contacted']);
 
 function cleanText(value, maxLen = 255) {
   if (typeof value !== 'string') return '';
@@ -393,8 +401,8 @@ async function presentRequest(row, { includeMessages = false, includeEvents = fa
   return result;
 }
 
-async function appendEvent({ quoteRequestId, actorUserId = null, actorRole = 'system', eventType, title, details = '', payload = {} }) {
-  await db.query(
+async function appendEvent({ quoteRequestId, actorUserId = null, actorRole = 'system', eventType, title, details = '', payload = {}, client = null }) {
+  await (client || db).query(
     `INSERT INTO direct_request_events
        (quote_request_id, actor_user_id, actor_role, event_type, title, details, payload)
      VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)`,
@@ -510,25 +518,69 @@ async function loadProfileRow() {
   return rows[0] || null;
 }
 
-async function sendSupportEmail(subject, html) {
-  const supportEmail = process.env.SUPPORT_EMAIL || 'support@oxsteed.com';
-  await sendEmail({ to: supportEmail, subject, html });
+function directSupportEmail() {
+  return process.env.SUPPORT_EMAIL || 'support@oxsteed.com';
 }
 
-async function sendRequestConfirmationEmail(request) {
-  await sendEmail({
-    to: request.email,
-    subject: 'We received your OxSteed Direct request',
-    html: `
-      <h2>Thanks for choosing OxSteed Direct</h2>
-      <p>We received your request for <strong>${request.serviceCategory}</strong>.</p>
-      <p><strong>Reference:</strong> ${request.id}</p>
-      <p><strong>Location:</strong> ${request.serviceLocation}</p>
-      <p><strong>Budget:</strong> ${request.budgetRange || '-'}</p>
-      <p><strong>Timeline:</strong> ${request.timeline || '-'}</p>
-      <p>We’ll review it and follow up with the next step.</p>
-    `,
-  });
+function formatDirectMoney(cents, currencyCode) {
+  if (cents === null || cents === undefined) return null;
+  const amount = Number(cents) / 100;
+  try {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: currencyCode || 'USD' }).format(amount);
+  } catch {
+    return `$${amount.toFixed(2)}`;
+  }
+}
+
+function directRequestSummary(request) {
+  const customerName = `${request?.first_name || ''} ${request?.last_name || ''}`.trim();
+  return [
+    { label: 'Reference', value: publicReferenceFromRow(request) || String(request?.id || '') },
+    { label: 'Service', value: request?.service_category || 'Direct service' },
+    { label: 'Customer', value: customerName || request?.email || '-' },
+    { label: 'Email', value: request?.email || '-' },
+    { label: 'Quote amount', value: formatDirectMoney(request?.quote_amount_cents, request?.quote_currency_code) || '-' },
+    { label: 'Status', value: caseStatusLabel(request?.status) || request?.status || '-' },
+  ];
+}
+
+// Fire-and-forget Direct notification email. Email failures are logged and never
+// fail the underlying request; every interpolated value goes through the shared
+// template renderer (which escapes detail values) or escapeHtml below.
+async function sendDirectEmail({ to, subject, eyebrow, title, intro, details, idempotencyKey, requestId, kind }) {
+  if (!to) return;
+  try {
+    const rendered = renderOxSteedEmail({
+      language: 'en',
+      preheader: subject,
+      eyebrow,
+      title,
+      bodyHtml: intro
+        ? `<p style="margin:0 0 16px;color:#334155;font-size:16px;line-height:1.65;">${escapeHtml(intro)}</p>`
+        : '',
+      bodyText: intro || '',
+      details,
+      footerText: 'You are receiving this message because you have an OxSteed Direct request.',
+    });
+    await sendEmail({
+      to,
+      subject,
+      html: rendered.html,
+      text: rendered.text,
+      idempotencyKey,
+    });
+  } catch (emailErr) {
+    logger.warn('Direct email notification failed', { kind, requestId, error: emailErr.message });
+  }
+}
+
+async function notifyDirectCustomer(request, options) {
+  if (!request?.email) return;
+  await sendDirectEmail({ ...options, to: request.email, kind: 'customer', requestId: request.id });
+}
+
+async function notifyDirectSupport(request, options) {
+  await sendDirectEmail({ ...options, to: directSupportEmail(), kind: 'support', requestId: request?.id });
 }
 
 exports.getProfile = async (req, res) => {
@@ -601,7 +653,10 @@ async function saveCatalogEntity(req, res, entity, id = null) {
     return res.status(id ? 200 : 201).json({ record: row, catalog: await getAdminCatalog() });
   } catch (err) {
     const status = err.statusCode || (err.code === '23505' ? 409 : 500);
-    if (status >= 500) logger.error('saveCatalogEntity error', { error: err.message, entity, id, userId: req.user?.id });
+    if (status >= 500) {
+      logger.error('saveCatalogEntity error', { error: err.message, entity, id, userId: req.user?.id });
+      return res.status(status).json({ error: 'Failed to save Direct catalog record' });
+    }
     return res.status(status).json({ error: err.message || 'Failed to save Direct catalog record' });
   }
 }
@@ -674,6 +729,25 @@ exports.uploadDirectAsset = async (req, res) => {
     const purpose = cleanText(req.body.purpose || req.query.purpose || 'quote', 40) || 'quote';
     const draftId = cleanText(req.body.draftId || req.query.draftId || req.body.draft_id || req.query.draft_id || 'public', 120) || 'public';
     const requestId = cleanText(req.body.requestId || req.query.requestId || req.body.request_id || req.query.request_id || '', 120);
+
+    // A request-scoped upload must name a real quote request the caller can
+    // access. Draft-scoped uploads (no requestId) are unaffected.
+    if (requestId) {
+      const looksLikeReference = /^DQ-/i.test(requestId);
+      const looksLikeId = /^\d+$/.test(requestId);
+      const target = looksLikeReference
+        ? await loadRequestByPublicReference(requestId)
+        : looksLikeId
+          ? await loadRequestOr404(requestId)
+          : null;
+      if (!target) {
+        return res.status(404).json({ error: 'Quote request not found' });
+      }
+      if (!canAccessRequest(target, req.user)) {
+        return res.status(403).json({ error: 'Unauthorized' });
+      }
+    }
+
     const folder = requestId
       ? `direct-request-assets/${requestId}/${purpose}`
       : `direct-draft-assets/${draftId}/${purpose}`;
@@ -914,7 +988,7 @@ exports.lookupPublicQuote = async (req, res) => {
     }
 
     if (!assertPublicQuoteAccess(request, zipCode)) {
-      return res.status(403).json({ error: 'ZIP code did not match this quote' });
+      return res.status(404).json({ error: 'Quote not found' });
     }
 
     return res.json({
@@ -943,7 +1017,7 @@ exports.sendPublicLookupCode = async (req, res) => {
     }
 
     if (!assertPublicQuoteAccess(request, zipCode)) {
-      return res.status(403).json({ error: 'ZIP code did not match this quote' });
+      return res.status(404).json({ error: 'Quote not found' });
     }
 
     const { challenge, code } = await createLookupChallenge(request, zipCode);
@@ -982,7 +1056,7 @@ exports.verifyPublicLookupCode = async (req, res) => {
     }
 
     if (!assertPublicQuoteAccess(request, zipCode)) {
-      return res.status(403).json({ error: 'ZIP code did not match this quote' });
+      return res.status(404).json({ error: 'Quote not found' });
     }
 
     const challenge = await loadLookupChallengeByToken(challengeToken);
@@ -998,7 +1072,16 @@ exports.verifyPublicLookupCode = async (req, res) => {
       return res.status(400).json({ error: 'Verification code expired' });
     }
 
-    if ((challenge.attempts || 0) >= 5) {
+    // The attempt cap is tracked per quote request, not per challenge, so
+    // minting a fresh verification code cannot reset it.
+    const { rows: attemptRows } = await db.query(
+      `SELECT COALESCE(SUM(attempts), 0)::int AS total_attempts
+         FROM direct_quote_lookup_challenges
+        WHERE quote_request_id = $1
+          AND created_at > NOW() - INTERVAL '24 hours'`,
+      [request.id]
+    );
+    if (Number(attemptRows[0]?.total_attempts || 0) >= 5) {
       return res.status(429).json({ error: 'Too many verification attempts' });
     }
 
@@ -1066,6 +1149,10 @@ exports.checkServiceAvailability = async (req, res) => {
     const status = err.statusCode || 500;
     if (status >= 500) {
       logger.error('checkServiceAvailability error', { error: err.message });
+      return res.status(status).json({
+        error: 'Failed to check Direct service availability',
+        code: 'service_availability_failed',
+      });
     }
     return res.status(status).json({
       error: err.message || 'Failed to check Direct service availability',
@@ -1092,6 +1179,10 @@ exports.createAdminServiceArea = async (req, res) => {
     const status = err.statusCode || 500;
     if (status >= 500) {
       logger.error('createAdminServiceArea error', { error: err.message, userId: req.user?.id });
+      return res.status(status).json({
+        error: 'Failed to create Direct service area',
+        code: 'service_area_create_failed',
+      });
     }
     return res.status(status).json({
       error: err.message || 'Failed to create Direct service area',
@@ -1108,6 +1199,10 @@ exports.updateAdminServiceArea = async (req, res) => {
     const status = err.statusCode || 500;
     if (status >= 500) {
       logger.error('updateAdminServiceArea error', { error: err.message, userId: req.user?.id, serviceAreaId: req.params.id });
+      return res.status(status).json({
+        error: 'Failed to update Direct service area',
+        code: 'service_area_update_failed',
+      });
     }
     return res.status(status).json({
       error: err.message || 'Failed to update Direct service area',
@@ -1239,6 +1334,20 @@ exports.addMessage = async (req, res) => {
       payload: { senderRole },
     });
 
+    if (isAdmin(req.user)) {
+      await notifyDirectCustomer(request, {
+        subject: `New message about your OxSteed Direct request (${publicReferenceFromRow(request) || request.id})`,
+        eyebrow: 'NEW MESSAGE',
+        title: 'New message from OxSteed',
+        intro: 'OxSteed sent you a message about your Direct request.',
+        details: [
+          ...directRequestSummary(request),
+          { label: 'Message', value: message.slice(0, 500) },
+        ],
+        idempotencyKey: `direct:message:${row.id}`,
+      });
+    }
+
     return res.status(201).json({
       message: {
         id: String(row.id),
@@ -1295,27 +1404,32 @@ async function updateRequestRecord(requestId, updates, event, actor) {
   }
 
   params.push(requestId);
-  const result = await db.query(
-    `UPDATE quote_requests
-        SET ${setClauses.join(', ')},
-            updated_at = NOW()
-      WHERE id = $${index}
-      RETURNING *`,
-    params
-  );
-  const request = result.rows[0] || null;
-  if (request && event) {
-    await appendEvent({
-      quoteRequestId: requestId,
-      actorUserId: actor?.id || null,
-      actorRole: actor?.role || 'system',
-      eventType: event.eventType,
-      title: event.title,
-      details: event.details || '',
-      payload: event.payload || {},
-    });
-  }
-  return request;
+  // The status UPDATE and its audit event must commit together: if either
+  // fails, the whole lifecycle transition rolls back.
+  return withTransaction(db, async (client) => {
+    const result = await client.query(
+      `UPDATE quote_requests
+          SET ${setClauses.join(', ')},
+              updated_at = NOW()
+        WHERE id = $${index}
+        RETURNING *`,
+      params
+    );
+    const request = result.rows[0] || null;
+    if (request && event) {
+      await appendEvent({
+        quoteRequestId: requestId,
+        actorUserId: actor?.id || null,
+        actorRole: actor?.role || 'system',
+        eventType: event.eventType,
+        title: event.title,
+        details: event.details || '',
+        payload: event.payload || {},
+        client,
+      });
+    }
+    return request;
+  }, 'direct_update_request_record');
 }
 
 exports.acceptRequest = async (req, res) => {
@@ -1324,12 +1438,33 @@ exports.acceptRequest = async (req, res) => {
     if (!request) return res.status(404).json({ error: 'Request not found' });
     if (!canAccessRequest(request, req.user)) return res.status(403).json({ error: 'Unauthorized' });
 
+    // A quote can only be accepted while it is awaiting the customer's
+    // decision and a quoted amount exists.
+    if (
+      !DIRECT_ACCEPTABLE_ACCEPT_STATUSES.has(request.status)
+      || request.quote_amount_cents === null
+      || request.quote_amount_cents === undefined
+    ) {
+      return res.status(400).json({ error: 'This request cannot be accepted in its current state' });
+    }
+
     const updated = await updateRequestRecord(
       request.id,
       { status: 'accepted', acceptedAt: new Date().toISOString() },
       { eventType: 'request_accepted', title: 'Quote accepted', details: 'The customer accepted the Direct quote.' },
       req.user
     );
+
+    if (!isAdmin(req.user)) {
+      await notifyDirectSupport(updated, {
+        subject: `Direct quote accepted (${publicReferenceFromRow(updated) || updated.id})`,
+        eyebrow: 'QUOTE ACCEPTED',
+        title: 'A customer accepted a Direct quote',
+        intro: 'The customer accepted the quoted amount. Review the request to schedule the visit.',
+        details: directRequestSummary(updated),
+        idempotencyKey: `direct:accept:${request.id}`,
+      });
+    }
 
     return res.json({ request: await presentRequest(updated, { includeMessages: true, includeEvents: true }) });
   } catch (err) {
@@ -1344,6 +1479,10 @@ exports.rejectRequest = async (req, res) => {
     if (!request) return res.status(404).json({ error: 'Request not found' });
     if (!canAccessRequest(request, req.user)) return res.status(403).json({ error: 'Unauthorized' });
 
+    if (DIRECT_TERMINAL_STATUSES.has(request.status)) {
+      return res.status(400).json({ error: 'This request can no longer be rejected' });
+    }
+
     const reason = cleanText(req.body.reason || req.body.message || '', 500);
     const updated = await updateRequestRecord(
       request.id,
@@ -1355,6 +1494,20 @@ exports.rejectRequest = async (req, res) => {
       { eventType: 'request_rejected', title: 'Request rejected', details: reason || 'The request was declined.' },
       req.user
     );
+
+    if (!isAdmin(req.user)) {
+      await notifyDirectSupport(updated, {
+        subject: `Direct quote declined (${publicReferenceFromRow(updated) || updated.id})`,
+        eyebrow: 'QUOTE DECLINED',
+        title: 'A customer declined a Direct quote',
+        intro: 'The customer declined the Direct request.',
+        details: [
+          ...directRequestSummary(updated),
+          { label: 'Reason', value: reason || '-' },
+        ],
+        idempotencyKey: `direct:reject:${request.id}`,
+      });
+    }
 
     return res.json({ request: await presentRequest(updated, { includeMessages: true, includeEvents: true }) });
   } catch (err) {
@@ -1368,6 +1521,11 @@ exports.scheduleRequest = async (req, res) => {
     const request = await loadRequestOr404(req.params.id);
     if (!request) return res.status(404).json({ error: 'Request not found' });
     if (!canAccessRequest(request, req.user)) return res.status(403).json({ error: 'Unauthorized' });
+
+    // Never resurrect a terminal request by scheduling it.
+    if (DIRECT_TERMINAL_STATUSES.has(request.status)) {
+      return res.status(400).json({ error: 'This request can no longer be scheduled' });
+    }
 
     const updates = {
       status: 'scheduled',
@@ -1390,6 +1548,22 @@ exports.scheduleRequest = async (req, res) => {
       req.user
     );
 
+    if (isAdmin(req.user)) {
+      await notifyDirectCustomer(updated, {
+        subject: `Your OxSteed Direct visit is scheduled (${publicReferenceFromRow(updated) || updated.id})`,
+        eyebrow: 'VISIT SCHEDULED',
+        title: 'Your visit is scheduled',
+        intro: 'OxSteed scheduled your Direct service visit. The details are below.',
+        details: [
+          ...directRequestSummary(updated),
+          { label: 'Scheduled start', value: updated.scheduled_start_at || '-' },
+          { label: 'Scheduled end', value: updated.scheduled_end_at || '-' },
+          { label: 'Service address', value: updated.service_address || '-' },
+        ],
+        idempotencyKey: `direct:schedule:${request.id}:${Date.now()}`,
+      });
+    }
+
     return res.json({ request: await presentRequest(updated, { includeMessages: true, includeEvents: true }) });
   } catch (err) {
     if (err.code === '23P01' && err.message === 'Direct schedule overlaps an existing booking') {
@@ -1408,6 +1582,9 @@ exports.changeRequest = async (req, res) => {
 
     const action = cleanText(req.body.action || 'reschedule', 20).toLowerCase();
     if (action === 'cancel') {
+      if (DIRECT_TERMINAL_STATUSES.has(request.status)) {
+        return res.status(400).json({ error: 'This request can no longer be cancelled' });
+      }
       const updated = await updateRequestRecord(
         request.id,
         {
@@ -1421,6 +1598,21 @@ exports.changeRequest = async (req, res) => {
         { eventType: 'request_cancelled', title: 'Request cancelled', details: cleanText(req.body.reason || req.body.note || 'Customer requested cancellation.', 500) },
         req.user
       );
+
+      if (isAdmin(req.user)) {
+        await notifyDirectCustomer(updated, {
+          subject: `Your OxSteed Direct request was cancelled (${publicReferenceFromRow(updated) || updated.id})`,
+          eyebrow: 'REQUEST CANCELLED',
+          title: 'Your Direct request was cancelled',
+          intro: 'Your Direct service request has been cancelled.',
+          details: [
+            ...directRequestSummary(updated),
+            { label: 'Reason', value: cleanText(req.body.reason || req.body.note || '', 500) || '-' },
+          ],
+          idempotencyKey: `direct:cancel:${request.id}:${Date.now()}`,
+        });
+      }
+
       return res.json({ request: await presentRequest(updated, { includeMessages: true, includeEvents: true }) });
     }
 
@@ -1440,6 +1632,22 @@ exports.changeRequest = async (req, res) => {
       { eventType: 'request_rescheduled', title: 'Request rescheduled', details: 'The Direct job schedule was changed.' },
       req.user
     );
+
+    if (isAdmin(req.user)) {
+      await notifyDirectCustomer(updated, {
+        subject: `Your OxSteed Direct visit was rescheduled (${publicReferenceFromRow(updated) || updated.id})`,
+        eyebrow: 'VISIT RESCHEDULED',
+        title: 'Your visit was rescheduled',
+        intro: 'OxSteed updated the schedule for your Direct service visit. The new details are below.',
+        details: [
+          ...directRequestSummary(updated),
+          { label: 'Scheduled start', value: updated.scheduled_start_at || '-' },
+          { label: 'Scheduled end', value: updated.scheduled_end_at || '-' },
+          { label: 'Service address', value: updated.service_address || '-' },
+        ],
+        idempotencyKey: `direct:reschedule:${request.id}:${Date.now()}`,
+      });
+    }
 
     return res.json({ request: await presentRequest(updated, { includeMessages: true, includeEvents: true }) });
   } catch (err) {
@@ -1468,12 +1676,19 @@ exports.submitProof = async (req, res) => {
       return res.status(400).json({ error: 'Upload proof or provide a receipt reference' });
     }
 
+    // Never downgrade a confirmed payment back to proof_submitted, and never
+    // overwrite the recorded payment method/reference with nulls.
+    const paymentUpdates = {};
+    if (request.payment_status !== 'confirmed') {
+      paymentUpdates.paymentStatus = 'proof_submitted';
+    }
+    if (paymentMethod) paymentUpdates.paymentMethod = paymentMethod;
+    if (paymentReference) paymentUpdates.paymentReference = paymentReference;
+
     const updated = await updateRequestRecord(
       request.id,
       {
-        paymentStatus: 'proof_submitted',
-        paymentMethod,
-        paymentReference,
+        ...paymentUpdates,
         proofAttachment,
         proofLink,
         proofReceivedAt: new Date().toISOString(),
@@ -1488,6 +1703,22 @@ exports.submitProof = async (req, res) => {
       req.user
     );
 
+    if (!isAdmin(req.user)) {
+      await notifyDirectSupport(updated, {
+        subject: `Payment proof submitted (${publicReferenceFromRow(updated) || updated.id})`,
+        eyebrow: 'PAYMENT PROOF',
+        title: 'A customer submitted payment proof',
+        intro: 'A customer attached payment proof to a Direct request. Review and confirm it.',
+        details: [
+          ...directRequestSummary(updated),
+          { label: 'Payment method', value: updated.payment_method || '-' },
+          { label: 'Payment reference', value: updated.payment_reference || '-' },
+          { label: 'Proof link', value: proofLink || '-' },
+        ],
+        idempotencyKey: `direct:proof:${request.id}:${Date.now()}`,
+      });
+    }
+
     return res.json({ request: await presentRequest(updated, { includeMessages: true, includeEvents: true }) });
   } catch (err) {
     logger.error('submitProof error', { error: err.message, id: req.params.id });
@@ -1499,7 +1730,15 @@ exports.confirmProof = async (req, res) => {
   try {
     const request = await loadRequestOr404(req.params.id);
     if (!request) return res.status(404).json({ error: 'Request not found' });
+    // Belt-and-suspenders: the route also requires admin middleware, but the
+    // controller itself must never let a customer confirm their own payment.
+    if (!isAdmin(req.user)) {
+      return res.status(403).json({ error: 'Only OxSteed staff can confirm payment proof' });
+    }
     if (!canAccessRequest(request, req.user)) return res.status(403).json({ error: 'Unauthorized' });
+    if (request.status === 'cancelled') {
+      return res.status(400).json({ error: 'Cannot confirm payment proof for a cancelled request' });
+    }
 
     const note = cleanText(req.body.note || '', 1000) || null;
     const updated = await updateRequestRecord(
@@ -2090,7 +2329,7 @@ exports.getAdminCalendarAudit = async (req, res) => {
     const limit = Math.min(200, Math.max(1, requestedLimit || 100));
     const { rows } = await db.query(
       `SELECT h.id, h.request_id, h.block_id, h.action, h.before_data, h.after_data,
-              h.reason, h.created_at,
+              h.reason, h.created_at, h.actor_id,
               u.first_name AS actor_first_name, u.last_name AS actor_last_name, u.email AS actor_email,
               q.service_category, q.first_name AS customer_first_name, q.last_name AS customer_last_name,
               b.title AS block_title
@@ -2135,6 +2374,9 @@ exports.getAdminCalendarAudit = async (req, res) => {
 exports.getAdminCustomer = async (req, res) => {
   try {
     const userId = req.params.userId;
+    if (!isUuid(userId)) {
+      return res.status(400).json({ error: 'A valid customer id is required' });
+    }
     const { rows: requests } = await db.query(
       `SELECT *
          FROM quote_requests
