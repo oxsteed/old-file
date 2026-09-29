@@ -114,18 +114,6 @@ export function AuthProvider({ children }) {
     }
   }, [fetchMe, clearAuthState]);
 
-  const register = useCallback(async (userData) => {
-    const { data } = await authAPI.register(userData);
-
-    try {
-      const fullUser = await fetchMe();
-      return { ...(data ?? {}), user: fullUser };
-    } catch (err) {
-      clearAuthState();
-      throw err;
-    }
-  }, [fetchMe, clearAuthState]);
-
   const logout = useCallback(async () => {
     try {
       await authAPI.logout();
@@ -238,7 +226,6 @@ export function AuthProvider({ children }) {
     canAppearInSearch,
     login,
     completeTwoFactor,
-    register,
     logout,
     requestOTP,
     verifyOTP,
@@ -264,7 +251,6 @@ export function AuthProvider({ children }) {
     canAppearInSearch,
     login,
     completeTwoFactor,
-    register,
     logout,
     requestOTP,
     verifyOTP,

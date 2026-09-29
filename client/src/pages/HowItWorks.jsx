@@ -51,7 +51,7 @@ export default function HowItWorks() {
             OxSteed
           </Link>
           <div className="flex items-center gap-3 sm:gap-6">
-            <Link to="/register/customer" className="hidden sm:inline"
+            <Link to="/join" className="hidden sm:inline"
               style={{ fontSize: '0.875rem', color: 'var(--color-text-subtle)', textDecoration: 'none', transition: 'color 150ms' }}
               onMouseEnter={e => e.currentTarget.style.color = 'var(--color-nav-link-hover)'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-subtle)'}
@@ -141,7 +141,7 @@ export default function HowItWorks() {
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.75rem' }}>
               <Link
-                to="/register/customer"
+                to="/join"
                 style={{
                   background: '#f97316',
                   color: '#fff',
@@ -189,7 +189,7 @@ export default function HowItWorks() {
             alignItems: 'stretch',
           }}>
             {[
-              { eyebrow: t('howItWorks.forCustomers'), title: t('howItWorks.customerTitle'), steps: CUSTOMER_STEPS, cta: { to: '/register/customer', label: t('howItWorks.customerCta'), style: 'solid' } },
+              { eyebrow: t('howItWorks.forCustomers'), title: t('howItWorks.customerTitle'), steps: CUSTOMER_STEPS, cta: { to: '/join', label: t('howItWorks.customerCta'), style: 'solid' } },
               { eyebrow: t('howItWorks.forHelpers'),   title: t('howItWorks.helperTitle'),   steps: HELPER_STEPS,   cta: { to: '/register/helper',   label: t('howItWorks.helperCta'),   style: 'outline' } },
             ].map((col) => (
               <div
@@ -435,7 +435,7 @@ export default function HowItWorks() {
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.75rem' }}>
               <Link
-                to="/register/customer"
+                to="/join"
                 style={{
                   background: '#f97316',
                   color: '#fff',

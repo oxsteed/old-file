@@ -1,6 +1,6 @@
 // client/src/pages/HelperRegister.tsx
 // 2-step registration: Account → Didit (optional) → Helper Dashboard
-// Identical structure to CustomerRegister. Onboarding finishes from dashboard.
+// Same structure the old customer page used. Onboarding finishes from dashboard.
 
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';

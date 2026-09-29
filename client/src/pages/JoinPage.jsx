@@ -1,8 +1,8 @@
 // client/src/pages/JoinPage.jsx
 //
-// The unified signup. Replaces the customer/helper split at the navbar but
-// leaves the legacy /register/customer and /register/helper routes intact for
-// any existing campaigns / inbound links.
+// The unified signup. This is the single customer registration page used
+// everywhere; the legacy /register/customer page was removed (old links
+// redirect here).
 //
 // One form, one path through:
 //   step 1 (form) → POST /auth/register/start with { defaultMode }

@@ -38,7 +38,7 @@ export default function Hero({ search }) {
           </>
         ) : (
           <>
-            <PrefetchLink to="/register/customer" className="hp-btn hp-btn-primary hp-btn-lg">
+            <PrefetchLink to="/join" className="hp-btn hp-btn-primary hp-btn-lg">
               {t('hero.postJob')}
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
                 <polyline points="9 18 15 12 9 6" />

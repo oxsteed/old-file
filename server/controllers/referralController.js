@@ -112,10 +112,10 @@ exports.getMyReferral = async (req, res, next) => {
       franchise_owner: 'register/franchise',
       tool_owner:      'register/helper',
     };
-    const registerPath = roleToRegisterPath[role] || 'register/customer';
+    const registerPath = roleToRegisterPath[role] || 'join';
     const shareUrl         = `${appUrl}/${registerPath}?ref=${referral_code}`;
     // Also provide a customer-specific URL for when they want to refer end-users
-    const customerShareUrl = `${appUrl}/register/customer?ref=${referral_code}`;
+    const customerShareUrl = `${appUrl}/join?ref=${referral_code}`;
 
     res.json({
       referral_code,

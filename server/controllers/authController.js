@@ -1,4 +1,4 @@
-// Phase 2 - Auth controller (register, login, OTP, refresh, logout)
+// Phase 2 - Auth controller (3-step registration, login, OTP, refresh, logout)
 // + Customer Registration Flow (3-step)
 // + 2FA (TOTP) support on login
 // OxSteed v2
@@ -171,137 +171,6 @@ function formatAuthUser(user) {
     logistics_role:        user.logistics_role || null,
     internal_access_route: user.internal_access_route || null,
   };
-}
-
-async function register(req, res, next) {
-  try {
-    const body = req.body || {};
-    const email = body.email;
-    const password = body.password;
-    const first_name = body.first_name ?? body.firstName;
-    const last_name = body.last_name ?? body.lastName;
-    const phone = body.phone;
-    const role = body.role;
-    const language = body.language;
-    const ref = body.ref;
-
-    const errs = validate({ email, password, first_name, last_name, phone }, {
-      email:      [rules.required, rules.email, rules.maxLen(254)],
-      password:   [rules.required, rules.minLen(8), rules.maxLen(128)],
-      first_name: [rules.required, rules.minLen(1), rules.maxLen(50), rules.noScript],
-      last_name:  [rules.required, rules.minLen(1), rules.maxLen(50), rules.noScript],
-      phone:      [rules.phone],
-    });
-    if (errs) {
-      throw new AppError('Validation failed', 400, 'validation_failed', errs);
-    }
-
-    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
-    if (existing.rows.length > 0) {
-      throw new AppError('Email is already registered', 409, 'already_exists', {
-        email: 'This email address is already in use'
-      });
-    }
-    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-    const referralCode = crypto.randomBytes(6).toString('hex');
-    const finalRole = role || 'customer';
-    const { trial_started_at, trial_ends_at } = await trialDefaults();
-
-    // Resolve referrer from optional ?ref= code
-    let referrerId = null;
-    if (ref) {
-      const { rows: refRows } = await pool.query(
-        `SELECT id FROM users WHERE referral_code = $1`, [String(ref).trim()]
-      );
-      if (refRows.length) referrerId = refRows[0].id;
-    }
-
-    const isHelper = finalRole === 'helper';
-    const { rows } = await pool.query(
-      `INSERT INTO users (email, password_hash, first_name, last_name, phone, role,
-         preferred_language, referral_code, onboarding_status, membership_tier,
-         trial_started_at, trial_ends_at, referred_by,
-         email_verified, onboarding_completed, profile_completed, tier_selected, terms_accepted, contact_completed)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
-         $14, $15, $16, $17, $18, $19)
-       RETURNING id, email, role`,
-      [
-        email.toLowerCase(), passwordHash, first_name, last_name, phone || null,
-        finalRole, language || 'en', referralCode,
-        isHelper ? 'onboarding_complete' : null,
-        isHelper ? 'tier1' : null,
-        trial_started_at, trial_ends_at, referrerId,
-        false,
-        isHelper, isHelper, isHelper, isHelper, isHelper,
-      ]
-    );
-    const user = rows[0];
-
-    if (isHelper) {
-      await pool.query(
-        `INSERT INTO helper_profiles (user_id, tier, is_listed, created_at, updated_at)
-         VALUES ($1, 'tier1', false, NOW(), NOW())
-         ON CONFLICT (user_id) DO NOTHING`,
-        [user.id],
-      );
-    }
-
-    // Increment referrer's count + grant reward
-    if (referrerId) {
-      pool.query(
-        `UPDATE users SET referrals_count = referrals_count + 1 WHERE id = $1`,
-        [referrerId]
-      ).catch(err => logger.error('Failed to increment referrals_count', { err }));
-      const { grantReferralReward } = require('./referralController');
-      grantReferralReward(referrerId, user.id);
-    }
-
-    // Grant 1-year free trial on all paid templates (fire-and-forget)
-    grantFreeTrialToUser(user.id).catch(err =>
-      logger.error('Template free trial grant failed on registration', { userId: user.id, err: err.message })
-    );
-
-    const tokens = generateTokens(
-      user,
-      req.internalAccessRoute
-        ? {
-            internalAccessId: req.internalAccessId,
-            internalAccessRoute: req.internalAccessRoute,
-          }
-        : {}
-    );
-    const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
-    await pool.query(
-      "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
-      [user.id, hashedRefresh]
-    );
-   const { rows: fullRows } = await pool.query(
-  `SELECT u.id, u.first_name, u.last_name, u.email, u.phone, u.role, u.email_verified, u.is_verified,
-   u.onboarding_status, u.onboarding_completed, u.contact_completed, u.profile_completed,
-   u.tier_selected, u.w9_completed, u.terms_accepted, u.membership_tier, u.id_verified,
-   u.background_check_passed, u.city, u.state, u.zip_code,
-   u.preferred_language,
-   u.trial_started_at, u.trial_ends_at, u.didit_status, u.didit_verified_at,
-   u.default_mode,
-   COALESCE(u.didit_enforcement_required, FALSE) AS didit_enforcement_required,
-   ca.stripe_account_id AS connect_stripe_account_id,
-   ca.charges_enabled AS connect_charges_enabled,
-   ca.payouts_enabled AS connect_payouts_enabled,
-   ca.onboarding_complete AS connect_onboarding_complete
-   FROM users u
-   LEFT JOIN connect_accounts ca ON ca.user_id = u.id
-   WHERE u.id = $1`,
-  [user.id]
-);
-    // Run this cleanup after the registration reads and writes above so the
-    // non-critical query cannot race the session or full-user queries.
-    invalidateGuestHistoryAccessCodesForEmail(user.email).catch((claimErr) =>
-      logger.warn('Failed to invalidate guest chat access codes after registration', { userId: user.id, error: claimErr.message })
-    );
-res.status(201).json({ user: formatAuthUser(fullRows[0]), ...tokens });
-  } catch (err) {
-    next(err);
-  }
 }
 
 // LOGIN - Updated to support 2FA
@@ -1974,7 +1843,7 @@ async function switchRole(req, res) {
 }
 
 module.exports = {
-  register, login, loginWith2FA, requestOTP, verifyOTP, refreshToken, logout,
+  login, loginWith2FA, requestOTP, verifyOTP, refreshToken, logout,
   checkEmail, checkZip, addToWaitlist,
   startRegistration, acceptTerms, verifyRegistrationOTP, resendRegistrationOTP,
   forgotPassword, resetPassword,

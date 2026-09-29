@@ -85,7 +85,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
 
         {/* Post a job CTA */}
         <Link
-          to="/register/customer"
+          to="/join"
           className="w-full flex items-center justify-center gap-2 px-5 py-2.5 border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 text-sm font-medium rounded-xl transition-colors"
         >
           {t('helpersDir.postJobCta')}
@@ -116,7 +116,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
 
       <p className="text-xs text-gray-600 max-w-xs">
         {t('helpersDir.dontSeeWhat')}{' '}
-        <Link to="/register/customer" className="text-brand-500 hover:text-brand-400 transition-colors">
+        <Link to="/join" className="text-brand-500 hover:text-brand-400 transition-colors">
           {t('helpersDir.postForFree')}
         </Link>{' '}
         {t('helpersDir.postForFreeTrailing')}

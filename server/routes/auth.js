@@ -6,7 +6,6 @@ const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { authLimiter, strictLimiter, passwordResetLimiter } = require('../middleware/rateLimiter');
 const {
-  register,
   login,
   loginWith2FA,
   requestOTP,
@@ -36,8 +35,8 @@ const logisticsInternalAccessCtrl = require('../controllers/logisticsInternalAcc
 const passkeyCtrl = require('../controllers/passkeyController');
 const { errorHandler } = require('../middleware/errorHandler');
 
-// Original routes
-router.post('/register', authLimiter, register);
+// Original routes (legacy single-step POST /register removed 2026-09-29;
+// /join + the 3-step /register/* flow is the single customer signup path)
 router.post('/login', authLimiter, login);
 router.post('/login/2fa', authLimiter, loginWith2FA);
 router.post('/login/passkey/options', strictLimiter, passkeyCtrl.authenticationOptions);

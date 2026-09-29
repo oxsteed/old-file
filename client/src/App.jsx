@@ -19,7 +19,6 @@ const ImpersonatePage = lazyWithRetry(() => import('./pages/ImpersonatePage'));
 const HomePage = lazyWithRetry(() => import('./pages/HomePage'));
 const Login = lazyWithRetry(() => import('./pages/Login'));
 const InvestorLoginPage = lazyWithRetry(() => import('./pages/InvestorLoginPage'));
-const CustomerRegister = lazyWithRetry(() => import('./pages/CustomerRegister'));
 const HelperRegister = lazyWithRetry(() => import('./pages/HelperRegister'));
 const JoinPage = lazyWithRetry(() => import('./pages/JoinPage'));
 const ConsultingIntakePage = lazyWithRetry(() => import('./pages/ConsultingIntakePage'));
@@ -285,11 +284,11 @@ export default function App() {
                     <Route path="/status"                  element={<Guarded><StatusPage /></Guarded>} />
                     <Route path="/login"                   element={<Guarded><Login /></Guarded>} />
                     <Route path="/investor/login"          element={<Guarded><InvestorLoginPage /></Guarded>} />
-                    <Route path="/register/customer"       element={<Guarded><CustomerRegister /></Guarded>} />
+                    <Route path="/register/customer"      element={<Navigate to="/join" replace />} />
                     <Route path="/register/helper"         element={<Guarded><HelperRegister /></Guarded>} />
-                    {/* ── Unified signup (post-2026-05). Replaces the navbar's */}
-                    {/*    customer/helper choice. Old /register/* routes kept   */}
-                    {/*    intact for inbound links + back-compat.               */}
+                    {/* ── Unified signup (post-2026-05). /join is the single   */}
+                    {/*    customer registration page; the old /register/customer */}
+                    {/*    page redirects here for inbound links + back-compat.  */}
                     <Route path="/join"                    element={<Guarded><JoinPage /></Guarded>} />
                     <Route path="/forgot-password"         element={<Guarded><ForgotPasswordPage /></Guarded>} />
                     <Route path="/reset-password/:token"   element={<Guarded><ResetPasswordPage /></Guarded>} />

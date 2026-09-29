@@ -148,12 +148,6 @@ api.interceptors.response.use(
 );
 
 export const authAPI = {
-  register: async (userData) => {
-    const response = await api.post('/auth/register', userData);
-    persistSessionPayload(response.data);
-    return response;
-  },
-
   login: async (credentials) => {
     const response = await api.post('/auth/login', credentials);
     persistSessionPayload(response.data);
