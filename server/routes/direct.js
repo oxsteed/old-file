@@ -2,6 +2,7 @@
 
 const express = require('express');
 const router = express.Router();
+const rateLimit = require('express-rate-limit');
 const { authenticate, optionalAuth } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/adminAuth');
 const upload = require('../middleware/upload');
@@ -10,11 +11,48 @@ const { generalLimiter } = require('../middleware/rateLimiter');
 const quoteCtrl = require('../controllers/quoteRequestsController');
 const ctrl = require('../controllers/directController');
 
+// Audit finding #4: strict per-IP bucket for Direct asset uploads (20 requests
+// per 15 minutes). Mirrors the rateLimiter.js configuration pattern. Uploads
+// are now authenticated, so anonymous abuse is blocked at the gate before this
+// bucket is even reached.
+const directUploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many file uploads. Please try again later.',
+    retryAfter: '15 minutes',
+  },
+});
+
+// Audit finding #53: bound the photo attachment array before the quote request
+// controller runs, so an oversized metadata payload is rejected early with a
+// clear 400. Mirrors the controller's own photoAttachments/photos resolution.
+const MAX_DIRECT_PHOTO_ATTACHMENTS = 10;
+function limitDirectPhotoAttachments(req, res, next) {
+  let metadata = req.body?.metadata;
+  if (typeof metadata === 'string') {
+    try {
+      metadata = JSON.parse(metadata);
+    } catch {
+      return next();
+    }
+  }
+  const effective = metadata?.photoAttachments ?? metadata?.photos;
+  if (Array.isArray(effective) && effective.length > MAX_DIRECT_PHOTO_ATTACHMENTS) {
+    return res.status(400).json({
+      error: `Too many photo attachments. The maximum is ${MAX_DIRECT_PHOTO_ATTACHMENTS}.`,
+    });
+  }
+  return next();
+}
+
 router.get('/profile', optionalAuth, ctrl.getProfile);
 router.get('/catalog', generalLimiter, ctrl.getCatalog);
 router.get('/service-areas', generalLimiter, ctrl.getServiceAreas);
 router.post('/service-availability', generalLimiter, ctrl.checkServiceAvailability);
-router.post('/uploads', generalLimiter, upload.single('image'), validateFileUpload, ctrl.uploadDirectAsset);
+router.post('/uploads', authenticate, directUploadLimiter, upload.single('image'), validateFileUpload, ctrl.uploadDirectAsset);
 router.post('/public/lookup', generalLimiter, ctrl.lookupPublicQuote);
 router.post('/public/lookup/send-code', generalLimiter, ctrl.sendPublicLookupCode);
 router.post('/public/lookup/verify-code', generalLimiter, ctrl.verifyPublicLookupCode);
@@ -25,7 +63,7 @@ router.post('/account/locations', authenticate, ctrl.saveLocation);
 router.patch('/account/locations/:locationId', authenticate, ctrl.saveLocation);
 router.delete('/account/locations/:locationId', authenticate, ctrl.deleteLocation);
 
-router.post('/requests', generalLimiter, quoteCtrl.createQuoteRequest);
+router.post('/requests', generalLimiter, limitDirectPhotoAttachments, quoteCtrl.createQuoteRequest);
 router.get('/requests/:id', authenticate, ctrl.getRequestDetail);
 router.get('/requests/:id/messages', authenticate, ctrl.getRequestMessages);
 router.post('/requests/:id/messages', authenticate, ctrl.addMessage);
@@ -34,7 +72,7 @@ router.post('/requests/:id/reject', authenticate, ctrl.rejectRequest);
 router.post('/requests/:id/schedule', authenticate, ctrl.scheduleRequest);
 router.post('/requests/:id/change', authenticate, ctrl.changeRequest);
 router.post('/requests/:id/proof', authenticate, ctrl.submitProof);
-router.post('/requests/:id/proof-confirm', authenticate, ctrl.confirmProof);
+router.post('/requests/:id/proof-confirm', authenticate, requireAdmin, ctrl.confirmProof);
 
 router.get('/admin/dashboard', authenticate, requireAdmin, ctrl.getAdminDashboard);
 router.get('/admin/calendar/export.ics', authenticate, requireAdmin, ctrl.exportAdminCalendar);
