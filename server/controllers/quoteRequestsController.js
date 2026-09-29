@@ -25,6 +25,17 @@ const VALID_STATUSES = new Set([
   'cancelled',
 ]);
 
+const VALID_PAYMENT_STATUSES = new Set([
+  'unpaid',
+  'proof_submitted',
+  'confirmed',
+  'partially_paid',
+  'paid',
+  'disputed',
+  'refunded',
+  'cancelled',
+]);
+
 function cleanText(value, maxLen = 255) {
   if (typeof value !== 'string') return '';
   return value.trim().slice(0, maxLen);
@@ -78,7 +89,12 @@ function normalizeCatalogServiceIds(value) {
 function normalizeInteger(value) {
   if (value === undefined || value === null || value === '') return null;
   const parsed = Number.parseInt(String(value), 10);
-  return Number.isFinite(parsed) ? parsed : null;
+  if (!Number.isFinite(parsed)) return null;
+  // Security (audit finding #3): money fields must never go negative.
+  if (parsed < 0) {
+    throw Object.assign(new Error('Integer value must not be negative'), { statusCode: 400 });
+  }
+  return parsed;
 }
 
 function normalizeTimestamp(value) {
@@ -194,6 +210,25 @@ exports.createQuoteRequest = async (req, res) => {
   if (hasCatalogServiceSlug && (catalogServiceSlug.length > 140 || !CATALOG_SERVICE_SLUG_PATTERN.test(catalogServiceSlug))) {
     return res.status(400).json({ error: 'Selected catalog service is invalid' });
   }
+  const rawPhotoAttachments = inputMetadata.photoAttachments ?? inputMetadata.photos ?? [];
+  const photoAttachmentList = Array.isArray(rawPhotoAttachments) ? rawPhotoAttachments : [];
+  // Security (audit finding #53): cap unbounded metadata.photoAttachments on public creation.
+  if (photoAttachmentList.length > 10) {
+    return res.status(400).json({ error: 'Too many photo attachments (maximum 10)' });
+  }
+  const rawClientRequestId = req.body.client_request_id ?? req.body.clientRequestId;
+  let clientRequestId = null;
+  if (rawClientRequestId !== undefined && rawClientRequestId !== null && rawClientRequestId !== '') {
+    // Security (audit finding #27): optional client idempotency key, validated server-side.
+    if (typeof rawClientRequestId !== 'string') {
+      return res.status(400).json({ error: 'Invalid client request id' });
+    }
+    const trimmedClientRequestId = rawClientRequestId.trim();
+    if (!trimmedClientRequestId || trimmedClientRequestId.length > 64) {
+      return res.status(400).json({ error: 'Invalid client request id' });
+    }
+    clientRequestId = trimmedClientRequestId;
+  }
   const metadata = {
     ...inputMetadata,
     flow: cleanText(req.body.flow || req.body.case_flow || req.body.portal || 'direct', 40) || 'direct',
@@ -202,11 +237,15 @@ exports.createQuoteRequest = async (req, res) => {
     preferredTimeWindow: cleanText(req.body.preferred_time_window || req.body.preferredTimeWindow || '', 80) || undefined,
     travelCity: cleanText(req.body.travel_city || req.body.travelCity || '', 120) || undefined,
     urgency: cleanText(req.body.urgency || req.body.request_urgency || '', 40) || undefined,
-    photoAttachments: inputMetadata.photoAttachments || inputMetadata.photos || [],
+    photoAttachments: photoAttachmentList,
   };
   if (catalogServiceSlug) metadata.serviceSlug = catalogServiceSlug;
   delete metadata.service_slug;
-  const quoteAmountCents = normalizeInteger(req.body.quote_amount_cents ?? req.body.quoteAmountCents);
+  delete metadata.clientRequestId;
+  // Security (audit finding #3): public submissions must never set money,
+  // status, or lifecycle timestamps. The server forces safe defaults and
+  // ignores any caller-supplied values for these fields.
+  const quoteAmountCents = null;
   const quoteCurrencyCode = cleanText(req.body.quote_currency_code || req.body.quoteCurrencyCode || 'USD', 3).toUpperCase() || 'USD';
   const preferredDate = cleanText(req.body.preferred_date || req.body.preferredDate, 40) || null;
   const preferredTimeWindow = cleanText(req.body.preferred_time_window || req.body.preferredTimeWindow, 80) || null;
@@ -217,15 +256,15 @@ exports.createQuoteRequest = async (req, res) => {
   const accessNotes = cleanText(req.body.access_notes || req.body.accessNotes, 5000) || null;
   const scheduledStartAt = normalizeTimestamp(req.body.scheduled_start_at || req.body.scheduledStartAt);
   const scheduledEndAt = normalizeTimestamp(req.body.scheduled_end_at || req.body.scheduledEndAt);
-  const paymentStatus = cleanText(req.body.payment_status || req.body.paymentStatus || 'unpaid', 24).toLowerCase() || 'unpaid';
+  const paymentStatus = 'unpaid'; // forced server-side (audit finding #3)
   const paymentMethod = cleanText(req.body.payment_method || req.body.paymentMethod, 40) || null;
   const paymentReference = cleanText(req.body.payment_reference || req.body.paymentReference, 120) || null;
   const proofAttachment = normalizeJsonObject(req.body.proof_attachment || req.body.proofAttachment);
   const proofLink = cleanText(req.body.proof_link || req.body.proofLink, 2048) || null;
-  const proofReceivedAt = normalizeTimestamp(req.body.proof_received_at || req.body.proofReceivedAt);
-  const acceptedAt = normalizeTimestamp(req.body.accepted_at || req.body.acceptedAt);
-  const completedAt = normalizeTimestamp(req.body.completed_at || req.body.completedAt);
-  const closedAt = normalizeTimestamp(req.body.closed_at || req.body.closedAt);
+  const proofReceivedAt = null; // forced server-side (audit finding #3)
+  const acceptedAt = null; // forced server-side (audit finding #3)
+  const completedAt = null; // forced server-side (audit finding #3)
+  const closedAt = null; // forced server-side (audit finding #3)
 
   if (!firstName || !lastName || !email || !serviceCategory || !serviceLocation || !details) {
     return res.status(400).json({ error: 'First name, last name, email, service, location, and details are required' });
@@ -247,14 +286,37 @@ exports.createQuoteRequest = async (req, res) => {
     return res.status(400).json({ error: 'Preferred contact method must be email, phone, text, or either' });
   }
 
-  if (paymentStatus && !['unpaid', 'proof_submitted', 'confirmed', 'partially_paid', 'paid', 'disputed', 'refunded', 'cancelled'].includes(paymentStatus)) {
-    return res.status(400).json({ error: 'Invalid payment status' });
-  }
-
   const client = await db.connect();
 
   try {
     await client.query('BEGIN');
+
+    // Security (audit finding #27): retried public submissions that carry the
+    // same client_request_id within the last 10 minutes return the existing
+    // row instead of inserting a duplicate. The key is stored on the row's
+    // metadata (no suitable column exists on quote_requests and migrations are
+    // owned by another worker).
+    if (clientRequestId) {
+      const duplicate = await client.query(
+        `SELECT id, public_reference
+           FROM quote_requests
+          WHERE metadata->>'clientRequestId' = $1
+            AND created_at > NOW() - INTERVAL '10 minutes'
+          ORDER BY created_at DESC
+          LIMIT 1`,
+        [clientRequestId]
+      );
+      if (duplicate.rows.length) {
+        await client.query('COMMIT');
+        return res.status(200).json({
+          success: true,
+          duplicate: true,
+          requestId: duplicate.rows[0].id,
+          referenceId: duplicate.rows[0].public_reference,
+          message: 'Your quote request has already been submitted.',
+        });
+      }
+    }
 
     let catalogServices = [];
     if (catalogServiceIds.length) {
@@ -320,6 +382,9 @@ exports.createQuoteRequest = async (req, res) => {
     }
 
     const publicReference = generatePublicReference();
+    if (clientRequestId) {
+      metadata.clientRequestId = clientRequestId;
+    }
     const result = await client.query(
       `INSERT INTO quote_requests
        (user_id, public_reference, first_name, last_name, email, phone, company_name, service_category,
@@ -524,7 +589,13 @@ exports.updateQuoteRequestAdmin = async (req, res) => {
   const { id } = req.params;
   const status = cleanText(req.body.status, 32).toLowerCase();
   const adminNotes = cleanText(req.body.admin_notes, 10000);
-  const quoteAmountCents = normalizeInteger(req.body.quote_amount_cents ?? req.body.quoteAmountCents);
+  // Security (audit finding #3): negative amounts are rejected server-side.
+  let quoteAmountCents;
+  try {
+    quoteAmountCents = normalizeInteger(req.body.quote_amount_cents ?? req.body.quoteAmountCents);
+  } catch (error) {
+    return res.status(error.statusCode || 400).json({ error: error.message });
+  }
   const quoteCurrencyCode = cleanText(req.body.quote_currency_code || req.body.quoteCurrencyCode || 'USD', 3).toUpperCase() || 'USD';
   const paymentStatus = cleanText(req.body.payment_status || req.body.paymentStatus || '', 24).toLowerCase();
   const scheduledStartAt = normalizeTimestamp(req.body.scheduled_start_at || req.body.scheduledStartAt);
@@ -544,6 +615,12 @@ exports.updateQuoteRequestAdmin = async (req, res) => {
 
   if (!VALID_STATUSES.has(status)) {
     return res.status(400).json({ error: 'A valid status is required' });
+  }
+
+  // Security (audit finding #16): payment_status must come from the canonical
+  // list enforced by the quote_requests_payment_status_check CHECK constraint.
+  if (paymentStatus && !VALID_PAYMENT_STATUSES.has(paymentStatus)) {
+    return res.status(400).json({ error: 'Invalid payment status' });
   }
 
   if (scheduledStartAt && scheduledEndAt && new Date(scheduledEndAt).getTime() <= new Date(scheduledStartAt).getTime()) {
@@ -627,6 +704,45 @@ exports.updateQuoteRequestAdmin = async (req, res) => {
             conflict: item,
           });
         }
+      }
+    }
+
+    // Security (audit finding #26): payment/amount transition guards. The
+    // COALESCE-based update above must not silently allow money/status
+    // regressions, so the current row is checked before any change.
+    if (paymentStatus || quoteAmountCents !== null) {
+      const currentPayment = await db.query(
+        `SELECT payment_status, quote_amount_cents
+           FROM quote_requests
+          WHERE id = $1
+          LIMIT 1`,
+        [id]
+      );
+      if (!currentPayment.rows.length) {
+        return res.status(404).json({ error: 'Quote request not found' });
+      }
+      const currentPaymentStatus = currentPayment.rows[0].payment_status || 'unpaid';
+      const effectivePaymentStatus = paymentStatus || currentPaymentStatus;
+      if (paymentStatus && currentPaymentStatus === 'paid' && paymentStatus === 'unpaid') {
+        return res.status(400).json({
+          error: 'A paid request cannot be moved back to unpaid',
+          code: 'invalid_payment_transition',
+        });
+      }
+      if (paymentStatus && currentPaymentStatus === 'cancelled' && paymentStatus === 'paid') {
+        return res.status(400).json({
+          error: 'A cancelled payment cannot be marked paid',
+          code: 'invalid_payment_transition',
+        });
+      }
+      const currentAmount = currentPayment.rows[0].quote_amount_cents === null
+        ? null
+        : Number(currentPayment.rows[0].quote_amount_cents);
+      if (quoteAmountCents !== null && effectivePaymentStatus === 'confirmed' && quoteAmountCents !== currentAmount) {
+        return res.status(400).json({
+          error: 'The quote amount cannot change after payment is confirmed',
+          code: 'invalid_amount_transition',
+        });
       }
     }
 
