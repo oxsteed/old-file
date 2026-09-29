@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { CheckCircle2, ChevronRight, Clock3, FileText, MapPin, MessageSquare, Package, PenLine, Plus, RefreshCw, Send, ShieldCheck, Sparkles, UploadCloud, X } from 'lucide-react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { ChevronRight, Clock3, FileText, MapPin, MessageSquare, Package, RefreshCw, Send, ShieldCheck, Sparkles, UploadCloud, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import PageShell from '../components/PageShell';
@@ -19,7 +19,6 @@ import {
   getDirectHistory,
   getDirectProfile,
   getDirectRequest,
-  getDirectRequestMessages,
   lookupPublicDirectQuote,
   sendPublicDirectQuoteCode,
   saveDirectLocation,
@@ -31,12 +30,16 @@ import {
   uploadDirectAsset,
 } from '../api/direct';
 
-const DEFAULT_PROFILE = {
+const DEFAULT_PROFILE_BASE = {
   companyName: 'OxSteed',
-  headline: 'Food, tools, and local service work under one company.',
   minimumPriceCents: 10000,
-  availabilityText: 'Monday through Thursday',
   baseCity: 'Springfield, OH',
+};
+
+// English defaults double as the t() defaultValue fallback for every locale.
+const DEFAULT_PROFILE_COPY = {
+  headline: 'Food, tools, and local service work under one company.',
+  availabilityText: 'Monday through Thursday',
   publicNote: 'Company-run service portal for customers who want a direct quote, a scheduled visit, and in-app proof/history.',
   serviceAreas: ['Springfield', 'Dayton', 'Columbus', 'Beavercreek', 'Fairborn', 'Urbana'],
   tools: [
@@ -52,6 +55,37 @@ const DEFAULT_PROFILE = {
   travelDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday'],
   travelCities: ['Springfield', 'Dayton', 'Columbus', 'Beavercreek', 'Fairborn', 'Urbana'],
 };
+
+const DEFAULT_PROFILE = { ...DEFAULT_PROFILE_BASE, ...DEFAULT_PROFILE_COPY };
+
+// Localized fallback profile used when the API profile is missing.
+// Copy lives in directPortal.profile.* locale keys; DEFAULT_PROFILE_COPY
+// is only the defaultValue fallback.
+function localizedDefaultProfile(t) {
+  if (typeof t !== 'function') return DEFAULT_PROFILE;
+  return {
+    ...DEFAULT_PROFILE_BASE,
+    headline: t('directPortal.profile.headline', { defaultValue: DEFAULT_PROFILE_COPY.headline }),
+    availabilityText: t('directPortal.profile.availabilityText', { defaultValue: DEFAULT_PROFILE_COPY.availabilityText }),
+    publicNote: t('directPortal.profile.publicNote', { defaultValue: DEFAULT_PROFILE_COPY.publicNote }),
+    serviceAreas: t('directPortal.profile.serviceAreas', { returnObjects: true, defaultValue: DEFAULT_PROFILE_COPY.serviceAreas }),
+    tools: t('directPortal.profile.tools', { returnObjects: true, defaultValue: DEFAULT_PROFILE_COPY.tools }),
+    travelDays: t('directPortal.profile.travelDays', { returnObjects: true, defaultValue: DEFAULT_PROFILE_COPY.travelDays }),
+    travelCities: t('directPortal.profile.travelCities', { returnObjects: true, defaultValue: DEFAULT_PROFILE_COPY.travelCities }),
+  };
+}
+
+// Payment provider values retired in favor of brand-neutral options, mirroring
+// RETIRED_PROVIDERS in DirectPaymentRecordModal.jsx. Historical records keep
+// their stored values and normalize to cash for display/editing.
+const RETIRED_DIRECT_PROVIDERS = new Set(['cash_app', 'venmo', 'zelle']);
+
+function normalizeDirectProvider(value) {
+  const normalized = RETIRED_DIRECT_PROVIDERS.has(value) ? 'cash' : value;
+  return ['cash', 'bank_transfer', 'other'].includes(normalized) ? normalized : 'cash';
+}
+
+const MAX_DIRECT_UPLOAD_BYTES = 10 * 1024 * 1024;
 
 const EMPTY_FORM = {
   first_name: '',
@@ -103,6 +137,18 @@ function currencyLabel(amountCents, currencyCode = 'USD', locale) {
 
 function formatDate(value, locale) {
   if (!value) return '—';
+  if (typeof value === 'string') {
+    // Date-only strings (YYYY-MM-DD) parse as UTC midnight with new Date(),
+    // which renders one day early west of UTC. Parse them as local time.
+    const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+    if (dateOnly) {
+      const local = new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]));
+      if (!Number.isNaN(local.getTime())) {
+        return local.toLocaleDateString(locale || undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+      }
+      return '—';
+    }
+  }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
   return date.toLocaleDateString(locale || undefined, { month: 'short', day: 'numeric', year: 'numeric' });
@@ -270,145 +316,18 @@ function DirectShell({ profile, title, subtitle, children, heroRight, path = '/d
   );
 }
 
-async function loadProfile(locale) {
+async function loadProfile(locale, t) {
+  const fallback = localizedDefaultProfile(t);
   try {
     const data = await getDirectProfile(locale);
-    return { ...DEFAULT_PROFILE, ...(data?.profile || {}), catalog: data?.catalog || { categories: [], tools: [] }, serviceAreas: data?.serviceAreas?.map((area) => area.label) || data?.profile?.serviceAreas || DEFAULT_PROFILE.serviceAreas };
+    return { ...fallback, ...(data?.profile || {}), catalog: data?.catalog || { categories: [], tools: [] }, serviceAreas: data?.serviceAreas?.map((area) => area.label) || data?.profile?.serviceAreas || fallback.serviceAreas };
   } catch {
-    return DEFAULT_PROFILE;
+    return fallback;
   }
 }
 
 export function DirectLandingPage() {
   return <DirectCatalogLanding />;
-}
-
-function DirectLandingLegacyPage() {
-  const { t } = useTranslation();
-  const location = useLocation();
-  const [profile, setProfile] = useState(DEFAULT_PROFILE);
-
-  useEffect(() => {
-    let active = true;
-    loadProfile().then((next) => {
-      if (active) setProfile(next);
-    });
-    return () => { active = false; };
-  }, []);
-
-  useEffect(() => {
-    if (!location?.pathname?.endsWith('/services')) return;
-    const el = document.getElementById('services');
-    if (el) {
-      requestAnimationFrame(() => {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-    }
-  }, [location.pathname]);
-
-  return (
-    <DirectShell
-      profile={profile}
-      path={location.pathname}
-      title={`${profile.companyName} Direct`}
-      subtitle={t('homePage.company.subcopy', { defaultValue: profile.publicNote })}
-      heroRight={(
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4">
-            <div className="text-xs uppercase tracking-[0.22em] text-slate-500">
-              {t('homePage.company.howItWorks', { defaultValue: 'How it works' })}
-            </div>
-            <div className="mt-3 grid gap-2 text-sm text-slate-300">
-              <p>{t('homePage.company.step1', { defaultValue: '1. Request a quote with a few details and photos.' })}</p>
-              <p>{t('homePage.company.step2', { defaultValue: '2. Review the estimate and pick a schedule window.' })}</p>
-              <p>{t('homePage.company.step3', { defaultValue: '3. Upload proof, keep the receipt, and track the whole job history.' })}</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <Link to="/direct/request-quote" className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-orange-600">
-              {t('homePage.company.requestQuote', { defaultValue: 'Request a quote' })} <ChevronRight size={16} />
-            </Link>
-            <Link to="/direct/view-quote" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
-              {t('homePage.company.viewQuote', { defaultValue: 'View quote' })}
-            </Link>
-            <Link to="/direct/service-area" reloadDocument className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
-              {t('homePage.company.checkServiceArea', { defaultValue: 'Check service area' })}
-            </Link>
-            <Link to="/direct/history" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
-              {t('homePage.company.viewHistory', { defaultValue: 'View history' })}
-            </Link>
-          </div>
-        </div>
-      )}
-    >
-      <div className="grid gap-6 lg:grid-cols-3">
-        <SectionCard id="services" title={t('homePage.company.services', { defaultValue: 'Services' })} eyebrow={t('homePage.company.kicker', { defaultValue: 'OxSteed as a company' })} className="scroll-mt-28">
-          <div className="flex flex-wrap gap-2">
-            {(profile.serviceAreas || DEFAULT_PROFILE.serviceAreas).map((city) => <Chip key={city}>{city}</Chip>)}
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Chip tone="orange">{t('homePage.company.serviceTypes.homeHelp', { defaultValue: 'Home help' })}</Chip>
-            <Chip tone="blue">{t('homePage.company.serviceTypes.toolBased', { defaultValue: 'Tool-based jobs' })}</Chip>
-            <Chip tone="emerald">{t('homePage.company.serviceTypes.delivery', { defaultValue: 'Delivery and hauling' })}</Chip>
-            <Chip tone="default">{t('homePage.company.serviceTypes.cleanup', { defaultValue: 'Cleanup and setup' })}</Chip>
-          </div>
-        </SectionCard>
-
-        <SectionCard title={t('homePage.company.tools', { defaultValue: 'Tools' })} eyebrow={t('homePage.company.whatWeBring', { defaultValue: 'What we bring' })}>
-          <div className="flex flex-wrap gap-2">
-            {(profile.tools || DEFAULT_PROFILE.tools).map((tool) => <Chip key={tool}>{tool}</Chip>)}
-          </div>
-        </SectionCard>
-
-        <SectionCard title={t('homePage.company.travelCities', { defaultValue: 'Travel cities' })} eyebrow={t('homePage.company.mondayToThursday', { defaultValue: 'Monday to Thursday' })}>
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-sm text-slate-300">
-              <MapPin size={16} className="text-orange-300" />
-              {t('homePage.company.baseCity', { defaultValue: 'Base city' })}: <strong className="text-white">{profile.baseCity}</strong>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {(profile.travelCities || DEFAULT_PROFILE.travelCities).map((city) => <Chip key={city} tone="blue">{city}</Chip>)}
-            </div>
-          </div>
-        </SectionCard>
-      </div>
-
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <SectionCard title={t('homePage.company.whyDirect', { defaultValue: 'Why Direct' })} eyebrow={t('homePage.company.companyOwned', { defaultValue: 'Company-owned service flow' })}>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-white"><Sparkles size={16} className="text-orange-300" /> {t('homePage.company.simpleQuote', { defaultValue: 'Simple quote intake' })}</div>
-              <p className="mt-2 text-sm leading-6 text-slate-400">{t('homePage.company.simpleQuoteBody', { defaultValue: 'Public customers can request a quote without wading through marketplace browsing.' })}</p>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-white"><ShieldCheck size={16} className="text-emerald-300" /> {t('homePage.company.clearProof', { defaultValue: 'Clear proof and history' })}</div>
-              <p className="mt-2 text-sm leading-6 text-slate-400">{t('homePage.company.clearProofBody', { defaultValue: 'Every receipt, proof upload, and status change stays attached to the job record.' })}</p>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-white"><Clock3 size={16} className="text-sky-300" /> {t('homePage.company.scheduleWindow', { defaultValue: 'Schedule by window' })}</div>
-              <p className="mt-2 text-sm leading-6 text-slate-400">{t('homePage.company.scheduleWindowBody', { defaultValue: 'Jobs can be quoted, scheduled, and updated without restarting the request from scratch.' })}</p>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-white"><FileText size={16} className="text-violet-300" /> {t('homePage.company.longTermRecords', { defaultValue: 'Long-term records' })}</div>
-              <p className="mt-2 text-sm leading-6 text-slate-400">{t('homePage.company.longTermRecordsBody', { defaultValue: 'Request history, locations, and customer notes are kept in one portal for future work.' })}</p>
-            </div>
-          </div>
-        </SectionCard>
-
-        <SectionCard title={t('homePage.company.nextStep', { defaultValue: 'Next step' })} eyebrow={t('homePage.company.startHere', { defaultValue: 'Start here' })}>
-          <div className="space-y-4">
-            <p className="text-sm leading-6 text-slate-300">{t('homePage.company.nextStepBody', { defaultValue: 'Tell us what you need, where the work is, and whether you want to move fast or keep things flexible.' })}</p>
-            <Link to="/direct/request-quote" className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-orange-600">
-              {t('homePage.company.requestQuote', { defaultValue: 'Request a quote' })} <ChevronRight size={16} />
-            </Link>
-            <Link to="/direct/view-quote" className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
-              {t('homePage.company.viewQuote', { defaultValue: 'View quote' })}
-            </Link>
-          </div>
-        </SectionCard>
-      </div>
-    </DirectShell>
-  );
 }
 
 export function DirectQuoteRequestPage() {
@@ -425,7 +344,7 @@ export function DirectQuoteRequestPage() {
   const linkedServiceId = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(linkedServiceIdCandidate)
     ? linkedServiceIdCandidate
     : '';
-  const [profile, setProfile] = useState(DEFAULT_PROFILE);
+  const [profile, setProfile] = useState(() => localizedDefaultProfile(t));
   const [loading, setLoading] = useState(false);
   const [draftId] = useState(() => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `draft-${Date.now()}`));
   const [attachments, setAttachments] = useState([]);
@@ -458,7 +377,7 @@ export function DirectQuoteRequestPage() {
 
   useEffect(() => {
     let active = true;
-    loadProfile(i18n.resolvedLanguage).then(async (next) => {
+    loadProfile(i18n.resolvedLanguage, t).then(async (next) => {
       if (!active) return;
       setProfile(next);
       try {
@@ -516,6 +435,14 @@ export function DirectQuoteRequestPage() {
     setUploading(true);
     try {
       for (const file of files.slice(0, 6)) {
+        if (!file.type || !file.type.startsWith('image/')) {
+          toast.error(t('directPortal.request.errors.photoType', { defaultValue: 'Only image files can be attached as photos.' }));
+          continue;
+        }
+        if (file.size > MAX_DIRECT_UPLOAD_BYTES) {
+          toast.error(t('directPortal.request.errors.photoTooLarge', { defaultValue: 'Photos must be 10 MB or smaller.' }));
+          continue;
+        }
         const response = await uploadDirectAsset(file, { purpose: 'quote-photo', draftId });
         setAttachments((current) => [...current, response.attachment]);
       }
@@ -543,6 +470,24 @@ export function DirectQuoteRequestPage() {
     if (!canSubmit) {
       toast.error(t('directPortal.request.errors.requiredFields', { defaultValue: 'Please fill in the required fields.' }));
       return;
+    }
+    if (!/^\d{5}$/.test(form.service_zip_code.trim())) {
+      toast.error(t('directPortal.request.errors.invalidZip', { defaultValue: 'Enter a valid 5-digit ZIP code.' }));
+      return;
+    }
+    if (form.phone.trim() && form.phone.replace(/\D/g, '').length < 7) {
+      toast.error(t('directPortal.request.errors.invalidPhone', { defaultValue: 'Enter a valid phone number with at least 7 digits.' }));
+      return;
+    }
+    if (form.preferred_date) {
+      const [year, month, day] = form.preferred_date.split('-').map(Number);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const preferred = new Date(year, (month || 1) - 1, day || 1);
+      if (Number.isNaN(preferred.getTime()) || preferred < today) {
+        toast.error(t('directPortal.request.errors.pastDate', { defaultValue: 'The preferred date cannot be in the past.' }));
+        return;
+      }
     }
 
     setLoading(true);
@@ -707,7 +652,7 @@ export function DirectQuoteRequestPage() {
                         <div className="truncate font-medium text-white">{attachment.name || t('directPortal.request.photoAttachment', { defaultValue: 'Photo attachment' })}</div>
                         <div className="text-xs text-slate-500">{attachment.type || t('directPortal.request.attachmentType', { defaultValue: 'image' })}</div>
                       </div>
-                      <button type="button" onClick={() => removeAttachment(attachment.key)} className="rounded-full border border-white/10 p-2 text-slate-400 transition hover:bg-white/5 hover:text-white">
+                      <button type="button" onClick={() => removeAttachment(attachment.key)} aria-label={t('directPortal.request.actions.removeAttachment', { defaultValue: 'Remove attachment' })} className="rounded-full border border-white/10 p-2 text-slate-400 transition hover:bg-white/5 hover:text-white">
                         <X size={14} />
                       </button>
                     </div>
@@ -737,13 +682,14 @@ export function DirectQuoteRequestPage() {
 
 export function DirectQuoteThanksPage() {
   const { t } = useTranslation();
-  const [profile, setProfile] = useState(DEFAULT_PROFILE);
+  const [profile, setProfile] = useState(() => localizedDefaultProfile(t));
   const [params] = useSearchParams();
-  const referenceId = params.get('referenceId') || params.get('requestId') || '—';
+  const referenceIdParam = params.get('referenceId') || params.get('requestId');
+  const referenceId = referenceIdParam || '—';
 
   useEffect(() => {
     let active = true;
-    loadProfile().then((next) => {
+    loadProfile(undefined, t).then((next) => {
       if (active) setProfile(next);
     });
     return () => { active = false; };
@@ -764,7 +710,9 @@ export function DirectQuoteThanksPage() {
           </div>
           <div className="flex flex-wrap gap-3">
             <Link to="/direct/history" className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white">{t('directPortal.thanks.viewHistory', { defaultValue: 'View history' })}</Link>
-            <Link to={`/direct/view-quote?referenceId=${encodeURIComponent(referenceId)}`} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">{t('homePage.company.viewQuote', { defaultValue: 'View quote' })}</Link>
+            {referenceIdParam && (
+              <Link to={`/direct/view-quote?referenceId=${encodeURIComponent(referenceIdParam)}`} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">{t('homePage.company.viewQuote', { defaultValue: 'View quote' })}</Link>
+            )}
             <Link to="/direct/support" className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">{t('directPortal.thanks.openSupport', { defaultValue: 'Open support' })}</Link>
           </div>
         </div>
@@ -790,7 +738,7 @@ export function DirectQuoteThanksPage() {
 
 export function DirectPublicQuoteLookupPage() {
   const { t, i18n } = useTranslation();
-  const [profile, setProfile] = useState(DEFAULT_PROFILE);
+  const [profile, setProfile] = useState(() => localizedDefaultProfile(t));
   const [params] = useSearchParams();
   const [referenceId, setReferenceId] = useState(params.get('referenceId') || '');
   const [zipCode, setZipCode] = useState(params.get('zipCode') || '');
@@ -806,7 +754,7 @@ export function DirectPublicQuoteLookupPage() {
 
   useEffect(() => {
     let active = true;
-    loadProfile().then((next) => {
+    loadProfile(undefined, t).then((next) => {
       if (active) setProfile(next);
     });
     return () => { active = false; };
@@ -861,7 +809,10 @@ export function DirectPublicQuoteLookupPage() {
   const handleSendCode = async () => {
     const ref = referenceId.trim().toUpperCase();
     const zip = zipCode.trim();
-    if (!ref || zip.replace(/\D/g, '').length !== 5) return;
+    if (!ref || zip.replace(/\D/g, '').length !== 5) {
+      toast.error(t('directPortal.lookup.errors.invalidLookupFields', { defaultValue: 'Enter a reference ID and a 5-digit ZIP code to send a code.' }));
+      return;
+    }
 
     setSending(true);
     try {
@@ -1038,13 +989,27 @@ export function DirectPublicQuoteLookupPage() {
                     <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                       <div className="text-xs uppercase tracking-[0.18em] text-slate-500">{t('directPortal.lookup.labels.attachments', { defaultValue: 'Attachments' })}</div>
                       <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                        {verifiedQuote.photoAttachments.map((attachment) => (
-                          <a key={attachment.key || attachment.url} href={attachment.url || '#'} target="_blank" rel="noreferrer" className="rounded-2xl border border-white/10 bg-slate-950/80 p-3 text-sm text-slate-200 hover:border-orange-500/30">
-                            <div className="font-medium text-white">{attachment.name || t('directPortal.lookup.labels.attachment', { defaultValue: 'Attachment' })}</div>
-                            <div className="mt-1 text-xs text-slate-500">{attachment.type || 'file'}</div>
-                          </a>
+                        {verifiedQuote.photoAttachments.map((attachment, index) => (
+                          attachment.url ? (
+                            <a key={attachment.key || attachment.url || index} href={attachment.url} target="_blank" rel="noreferrer" className="rounded-2xl border border-white/10 bg-slate-950/80 p-3 text-sm text-slate-200 hover:border-orange-500/30">
+                              <div className="font-medium text-white">{attachment.name || t('directPortal.lookup.labels.attachment', { defaultValue: 'Attachment' })}</div>
+                              <div className="mt-1 text-xs text-slate-500">{attachment.type || 'file'}</div>
+                            </a>
+                          ) : (
+                            <div key={attachment.key || index} className="rounded-2xl border border-white/10 bg-slate-950/80 p-3 text-sm text-slate-200">
+                              <div className="font-medium text-white">{attachment.name || t('directPortal.lookup.labels.attachment', { defaultValue: 'Attachment' })}</div>
+                              <div className="mt-1 text-xs text-slate-500">{attachment.type || 'file'}</div>
+                            </div>
+                          )
                         ))}
                       </div>
+                    </div>
+                  )}
+                  {verifiedQuote.id && (
+                    <div className="flex flex-wrap gap-3">
+                      <Link to={`/direct/quotes/${verifiedQuote.id}`} className="inline-flex items-center justify-center gap-2 rounded-full bg-orange-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-orange-600">
+                        {t('directPortal.lookup.actions.reviewQuote', { defaultValue: 'Review and accept quote' })} <ChevronRight size={16} />
+                      </Link>
                     </div>
                   )}
                 </div>
@@ -1095,30 +1060,6 @@ function InfoRow({ label, value }) {
   );
 }
 
-function useDirectRequestData(id) {
-  const { t } = useTranslation();
-  const [request, setRequest] = useState(null);
-  const [loading, setLoading] = useState(Boolean(id));
-  const [error, setError] = useState('');
-
-  const load = async () => {
-    if (!id) return;
-    setLoading(true);
-    setError('');
-    try {
-      const data = await getDirectRequest(id);
-      setRequest(data?.request || null);
-    } catch (err) {
-      setError(err?.response?.data?.error || t('directPortal.case.errors.loadRequest', { defaultValue: 'Failed to load request' }));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id]);
-  return { request, setRequest, loading, error, refresh: load };
-}
-
 export function DirectQuoteDetailPage() {
   return <DirectCasePage mode="quote" />;
 }
@@ -1145,13 +1086,13 @@ export function DirectChangePage() {
 
 export function DirectHistoryPage() {
   const { t, i18n } = useTranslation();
-  const [profile, setProfile] = useState(DEFAULT_PROFILE);
+  const [profile, setProfile] = useState(() => localizedDefaultProfile(t));
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
-    Promise.all([loadProfile(), getDirectHistory()])
+    Promise.all([loadProfile(undefined, t), getDirectHistory()])
       .then(([nextProfile, data]) => {
         if (!active) return;
         setProfile(nextProfile);
@@ -1167,7 +1108,7 @@ export function DirectHistoryPage() {
   }, []);
 
   return (
-    <DirectShell profile={profile} title={t('directPortal.history.title', { defaultValue: 'Service history' })} subtitle={t('directPortal.history.subtitle', { defaultValue: 'All of your Direct quote requests, jobs, and receipts in one place.' })}>
+    <DirectShell profile={profile} title={t('directPortal.history.title', { defaultValue: 'Service history' })} subtitle={t('directPortal.history.subtitle', { defaultValue: 'All of your Direct quote requests, jobs, and receipts in one place.' })} noIndex>
       {loading ? (
         <EmptyState icon={RefreshCw} title={t('directPortal.history.loadingTitle', { defaultValue: 'Loading history…' })} body={t('directPortal.history.loadingBody', { defaultValue: 'We’re pulling your Direct records now.' })} />
       ) : history.length === 0 ? (
@@ -1180,7 +1121,7 @@ export function DirectHistoryPage() {
       ) : (
         <div className="grid gap-4">
           {history.map((item) => (
-            <Link key={item.id} to={`/direct/jobs/${item.id}`} className="rounded-[24px] border border-white/10 bg-slate-950/80 p-5 text-left transition hover:border-orange-500/30 hover:bg-slate-950">
+            <Link key={item.id} to={`/direct/jobs/${item.id}`} className="rounded-[24px] border border-white/10 bg-slate-950/80 p-5 text-start transition hover:border-orange-500/30 hover:bg-slate-950">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="text-lg font-semibold text-white">{item.serviceCategory || item.companyName || t('directPortal.common.directRequest', { defaultValue: 'Direct request' })}</div>
@@ -1207,7 +1148,7 @@ export function DirectHistoryPage() {
 export function DirectSupportPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
-  const [profile, setProfile] = useState(DEFAULT_PROFILE);
+  const [profile, setProfile] = useState(() => localizedDefaultProfile(t));
   const [history, setHistory] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [request, setRequest] = useState(null);
@@ -1217,46 +1158,56 @@ export function DirectSupportPage() {
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
   const pendingMessageIdRef = useRef(null);
+  const listSeqRef = useRef(0);
+  const detailSeqRef = useRef(0);
+
+  // Detail fetch is keyed by sequence so a superseded request never clobbers state.
+  const loadDetail = async (requestId) => {
+    const seq = ++detailSeqRef.current;
+    if (!requestId) {
+      setRequest(null);
+      setMessages([]);
+      return;
+    }
+    try {
+      const detail = await getDirectRequest(requestId);
+      if (detailSeqRef.current !== seq) return;
+      setRequest(detail?.request || null);
+      setMessages(detail?.request?.messages || []);
+    } catch {
+      if (detailSeqRef.current !== seq) return;
+    }
+  };
 
   const load = async () => {
+    const seq = ++listSeqRef.current;
     setLoading(true);
     try {
-      const [profileData, historyData] = await Promise.all([loadProfile(), getDirectHistory()]);
+      const [profileData, historyData] = await Promise.all([loadProfile(undefined, t), getDirectHistory()]);
+      if (listSeqRef.current !== seq) return;
       setProfile(profileData);
       const requests = Array.isArray(historyData?.requests) ? historyData.requests : [];
       setHistory(requests);
       const chosen = selectedId || requests.find((item) => ['new', 'reviewing', 'quoted', 'accepted', 'scheduled', 'started', 'waiting_customer'].includes(String(item.status || '').toLowerCase()))?.id || requests[0]?.id || null;
       setSelectedId(chosen);
-      if (chosen) {
-        const detail = await getDirectRequest(chosen);
-        setRequest(detail?.request || null);
-        setMessages(detail?.request?.messages || []);
-      } else {
+      // The [selectedId] effect below fetches the detail; load() no longer
+      // fetches it here so the detail is not fetched twice on mount.
+      if (!chosen) {
+        detailSeqRef.current += 1;
         setRequest(null);
         setMessages([]);
       }
     } catch {
+      if (listSeqRef.current !== seq) return;
       toast.error(t('directPortal.support.errors.load', { defaultValue: 'Could not load support.' }));
     } finally {
-      setLoading(false);
+      if (listSeqRef.current === seq) setLoading(false);
     }
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  useEffect(() => { load(); return () => { listSeqRef.current += 1; detailSeqRef.current += 1; }; /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
-  useEffect(() => {
-    if (!selectedId) return;
-    let active = true;
-    getDirectRequest(selectedId)
-      .then((detail) => {
-        if (!active) return;
-        setRequest(detail?.request || null);
-        setMessages(detail?.request?.messages || []);
-      })
-      .catch(() => {})
-      .finally(() => {});
-    return () => { active = false; };
-  }, [selectedId]);
+  useEffect(() => { loadDetail(selectedId); }, [selectedId]);
 
   const handleSend = async () => {
     const next = message.trim();
@@ -1270,6 +1221,7 @@ export function DirectSupportPage() {
       pendingMessageIdRef.current = null;
       setMessage('');
       await load();
+      await loadDetail(selectedId);
     } catch (error) {
       setSendError(error?.response?.data?.error || t('directPortal.support.errors.send', { defaultValue: 'Could not send message.' }));
       toast.error(error?.response?.data?.error || t('directPortal.support.errors.send', { defaultValue: 'Could not send message.' }));
@@ -1279,7 +1231,7 @@ export function DirectSupportPage() {
   };
 
   return (
-    <DirectShell profile={profile} title={t('directPortal.support.title', { defaultValue: 'Support and messages' })} subtitle={t('directPortal.support.subtitle', { defaultValue: 'Keep support attached to the Direct request instead of a separate inbox.' })}>
+    <DirectShell profile={profile} title={t('directPortal.support.title', { defaultValue: 'Support and messages' })} subtitle={t('directPortal.support.subtitle', { defaultValue: 'Keep support attached to the Direct request instead of a separate inbox.' })} noIndex>
       <div className="grid gap-6 xl:grid-cols-[0.7fr_1.3fr]">
         <SectionCard title={t('directPortal.support.requestsTitle', { defaultValue: 'Your Direct requests' })} eyebrow={t('directPortal.support.eyebrow', { defaultValue: 'Support' })} className="min-h-[28rem]">
           {loading ? (
@@ -1289,7 +1241,7 @@ export function DirectSupportPage() {
           ) : (
             <div className="space-y-2">
               {history.map((item) => (
-                <button key={item.id} type="button" onClick={() => setSelectedId(item.id)} className={`w-full rounded-2xl border p-4 text-left transition ${String(selectedId) === String(item.id) ? 'border-orange-500/40 bg-orange-500/10' : 'border-white/10 bg-white/5 hover:border-white/20'}`}>
+                <button key={item.id} type="button" onClick={() => setSelectedId(item.id)} className={`w-full rounded-2xl border p-4 text-start transition ${String(selectedId) === String(item.id) ? 'border-orange-500/40 bg-orange-500/10' : 'border-white/10 bg-white/5 hover:border-white/20'}`}>
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <div className="font-semibold text-white">{item.serviceCategory || t('directPortal.common.directRequest', { defaultValue: 'Direct request' })}</div>
@@ -1316,7 +1268,7 @@ export function DirectSupportPage() {
                     <div className="text-sm text-slate-500">{t('directPortal.support.noMessages', { defaultValue: 'No messages yet.' })}</div>
                   ) : (
                     messages.map((item) => (
-                      <div key={item.id} className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-6 ${item.senderRole === 'customer' ? 'ml-auto bg-orange-500 text-white' : 'bg-white/5 text-slate-200'}`}>
+                      <div key={item.id} className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-6 ${item.senderRole === 'customer' ? 'ms-auto bg-orange-500 text-white' : 'bg-white/5 text-slate-200'}`}>
                         <div>{item.message}</div>
                         <div className={`mt-2 text-[11px] ${item.senderRole === 'customer' ? 'text-orange-100/80' : 'text-slate-500'}`}>{formatDateTime(item.createdAt, i18n.resolvedLanguage)}</div>
                       </div>
@@ -1325,7 +1277,9 @@ export function DirectSupportPage() {
                 </div>
               </div>
               <div className="grid gap-3">
-                <Textarea rows={4} value={message} onChange={(e) => { setMessage(e.target.value); if (sendError) { setSendError(''); pendingMessageIdRef.current = null; } }} placeholder={t('directPortal.support.messagePlaceholder', { defaultValue: 'Type your message to the OxSteed team...' })} />
+                <Field label={t('directPortal.support.messageLabel', { defaultValue: 'Message' })}>
+                  <Textarea rows={4} value={message} onChange={(e) => { setMessage(e.target.value); if (sendError) { setSendError(''); pendingMessageIdRef.current = null; } }} placeholder={t('directPortal.support.messagePlaceholder', { defaultValue: 'Type your message to the OxSteed team...' })} />
+                </Field>
                 {sendError && <div role="alert" className="rounded-2xl border border-rose-400/30 bg-rose-500/10 p-3 text-sm text-rose-200"><div>{sendError}</div><button type="button" onClick={handleSend} disabled={sending || !message.trim()} className="mt-2 inline-flex items-center gap-2 font-semibold text-white underline disabled:opacity-60"><RefreshCw size={14} /> {t('common.retry', { defaultValue: 'Retry' })}</button></div>}
                 <div className="flex flex-wrap gap-3">
                   <button type="button" onClick={handleSend} disabled={sending || !message.trim()} className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">
@@ -1346,7 +1300,7 @@ export function DirectSupportPage() {
 
 export function DirectAccountPage() {
   const { t } = useTranslation();
-  const [profile, setProfile] = useState(DEFAULT_PROFILE);
+  const [profile, setProfile] = useState(() => localizedDefaultProfile(t));
   const [data, setData] = useState({ locations: [] });
   const [form, setForm] = useState({
     label: '',
@@ -1365,7 +1319,7 @@ export function DirectAccountPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const [profileData, accountData] = await Promise.all([loadProfile(), getDirectAccount()]);
+      const [profileData, accountData] = await Promise.all([loadProfile(undefined, t), getDirectAccount()]);
       setProfile(profileData);
       setData(accountData || { locations: [] });
     } catch {
@@ -1419,7 +1373,7 @@ export function DirectAccountPage() {
   };
 
   return (
-    <DirectShell profile={profile} title={t('directPortal.account.title', { defaultValue: 'Customer profile and locations' })} subtitle={t('directPortal.account.subtitle', { defaultValue: 'Save addresses, notes, and preferred city so future Direct jobs are easier to schedule.' })}>
+    <DirectShell profile={profile} title={t('directPortal.account.title', { defaultValue: 'Customer profile and locations' })} subtitle={t('directPortal.account.subtitle', { defaultValue: 'Save addresses, notes, and preferred city so future Direct jobs are easier to schedule.' })} noIndex>
       <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
         <SectionCard title={t('directPortal.account.savedLocations', { defaultValue: 'Saved locations' })} eyebrow={t('directPortal.account.eyebrow', { defaultValue: 'Account' })}>
           {loading ? (
@@ -1511,15 +1465,12 @@ function DirectCasePage({ mode }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [profile, setProfile] = useState(DEFAULT_PROFILE);
+  const [profile, setProfile] = useState(() => localizedDefaultProfile(t));
   const [request, setRequest] = useState(null);
   const [messages, setMessages] = useState([]);
   const [attachments, setAttachments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionBusy, setActionBusy] = useState(false);
-  const [message, setMessage] = useState('');
-  const [messageError, setMessageError] = useState('');
-  const pendingMessageIdRef = useRef(null);
   const [proofForm, setProofForm] = useState({
     paymentMethod: 'cash',
     paymentReference: '',
@@ -1536,54 +1487,63 @@ function DirectCasePage({ mode }) {
     accessNotes: '',
   });
   const [locationData, setLocationData] = useState({ locations: [] });
+  const loadSeqRef = useRef(0);
 
   const load = async () => {
+    const seq = ++loadSeqRef.current;
+    const loadId = id;
     setLoading(true);
     try {
-      const profileData = await loadProfile();
+      const profileData = await loadProfile(undefined, t);
+      if (loadSeqRef.current !== seq) return;
       setProfile(profileData);
-      if (mode === 'account') {
-        const accountData = await getDirectAccount();
-        setLocationData(accountData || { locations: [] });
+
+      if (!loadId) {
         setLoading(false);
         return;
       }
 
-      if (!id && mode !== 'history') {
-        setLoading(false);
-        return;
+      if (mode === 'book') {
+        try {
+          const accountData = await getDirectAccount();
+          if (loadSeqRef.current !== seq) return;
+          setLocationData(accountData || { locations: [] });
+        } catch {
+          // Saved locations are a convenience; the schedule form works without them.
+        }
       }
 
-      if (id) {
-        const detail = await getDirectRequest(id);
-        const nextRequest = detail?.request || null;
-        setRequest(nextRequest);
-        setMessages(nextRequest?.messages || []);
-        setAttachments(Array.isArray(nextRequest?.photoAttachments) ? nextRequest.photoAttachments : []);
-        setScheduleForm({
-          preferredDate: nextRequest?.preferredDate ? String(nextRequest.preferredDate).slice(0, 10) : '',
-          preferredTimeWindow: nextRequest?.preferredTimeWindow || '',
-          serviceAddress: nextRequest?.serviceAddress || '',
-          serviceCity: nextRequest?.serviceCity || '',
-          onSiteContactName: nextRequest?.onSiteContactName || '',
-          onSiteContactPhone: nextRequest?.onSiteContactPhone || '',
-          accessNotes: nextRequest?.accessNotes || '',
-        });
-        setProofForm({
-          paymentMethod: nextRequest?.paymentMethod || 'cash',
-          paymentReference: nextRequest?.paymentReference || '',
-          proofLink: nextRequest?.proofLink || '',
-          note: '',
-        });
-      }
+      const detail = await getDirectRequest(loadId);
+      // Ignore responses for a superseded record id (id changed mid-flight).
+      if (loadSeqRef.current !== seq) return;
+      const nextRequest = detail?.request || null;
+      setRequest(nextRequest);
+      setMessages(nextRequest?.messages || []);
+      setAttachments(Array.isArray(nextRequest?.photoAttachments) ? nextRequest.photoAttachments : []);
+      setScheduleForm({
+        preferredDate: nextRequest?.preferredDate ? String(nextRequest.preferredDate).slice(0, 10) : '',
+        preferredTimeWindow: nextRequest?.preferredTimeWindow || '',
+        serviceAddress: nextRequest?.serviceAddress || '',
+        serviceCity: nextRequest?.serviceCity || '',
+        onSiteContactName: nextRequest?.onSiteContactName || '',
+        onSiteContactPhone: nextRequest?.onSiteContactPhone || '',
+        accessNotes: nextRequest?.accessNotes || '',
+      });
+      setProofForm({
+        paymentMethod: normalizeDirectProvider(nextRequest?.paymentMethod) || 'cash',
+        paymentReference: nextRequest?.paymentReference || '',
+        proofLink: nextRequest?.proofLink || '',
+        note: '',
+      });
     } catch (error) {
+      if (loadSeqRef.current !== seq) return;
       toast.error(error?.response?.data?.error || t('directPortal.case.errors.load', { defaultValue: 'Could not load the Direct record.' }));
     } finally {
-      setLoading(false);
+      if (loadSeqRef.current === seq) setLoading(false);
     }
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id, mode]);
+  useEffect(() => { load(); return () => { loadSeqRef.current += 1; }; /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id, mode]);
 
   const header = useMemo(() => {
     switch (mode) {
@@ -1592,9 +1552,6 @@ function DirectCasePage({ mode }) {
       case 'job': return { title: t('directPortal.case.headers.job.title', { defaultValue: 'Job status' }), subtitle: t('directPortal.case.headers.job.subtitle', { defaultValue: 'Track the request from quote to completion.' }) };
       case 'proof': return { title: t('directPortal.case.headers.proof.title', { defaultValue: 'Payment proof' }), subtitle: t('directPortal.case.headers.proof.subtitle', { defaultValue: 'Upload a receipt or reference so the payment stays attached.' }) };
       case 'receipt': return { title: t('directPortal.case.headers.receipt.title', { defaultValue: 'Receipt confirmation' }), subtitle: t('directPortal.case.headers.receipt.subtitle', { defaultValue: 'Confirm that the proof has been received and tied to history.' }) };
-      case 'history': return { title: t('directPortal.history.title', { defaultValue: 'Service history' }), subtitle: t('directPortal.case.headers.history.subtitle', { defaultValue: 'See every Direct request, quote, job, and receipt.' }) };
-      case 'support': return { title: t('directPortal.case.headers.support.title', { defaultValue: 'Direct support' }), subtitle: t('directPortal.case.headers.support.subtitle', { defaultValue: 'Message the OxSteed team about this work.' }) };
-      case 'account': return { title: t('directPortal.account.savedLocations', { defaultValue: 'Saved locations' }), subtitle: t('directPortal.case.headers.account.subtitle', { defaultValue: 'Keep service addresses and notes ready for the next visit.' }) };
       case 'change': return { title: t('directPortal.case.headers.change.title', { defaultValue: 'Cancel or reschedule' }), subtitle: t('directPortal.case.headers.change.subtitle', { defaultValue: 'Adjust the plan without restarting the entire flow.' }) };
       default: return { title: t('directPortal.common.directRequest', { defaultValue: 'Direct request' }), subtitle: t('directPortal.case.headers.default.subtitle', { defaultValue: 'Review and manage this case.' }) };
     }
@@ -1602,6 +1559,10 @@ function DirectCasePage({ mode }) {
 
   const saveSchedule = async () => {
     if (!id) return;
+    if (!scheduleForm.preferredDate || !scheduleForm.preferredTimeWindow.trim() || !scheduleForm.serviceAddress.trim()) {
+      toast.error(t('directPortal.case.errors.scheduleRequired', { defaultValue: 'Add a date, time window, and service address before saving the schedule.' }));
+      return;
+    }
     setActionBusy(true);
     try {
       const { request: updated } = await scheduleDirectRequest(id, scheduleForm);
@@ -1617,6 +1578,10 @@ function DirectCasePage({ mode }) {
 
   const saveChange = async (action = 'reschedule') => {
     if (!id) return;
+    if (action === 'reschedule' && (!scheduleForm.preferredDate || !scheduleForm.preferredTimeWindow.trim())) {
+      toast.error(t('directPortal.case.errors.rescheduleRequired', { defaultValue: 'Choose a new date and time window to reschedule.' }));
+      return;
+    }
     setActionBusy(true);
     try {
       const { request: updated } = await changeDirectRequest(id, { ...scheduleForm, action });
@@ -1647,35 +1612,18 @@ function DirectCasePage({ mode }) {
 
   const reject = async () => {
     if (!id) return;
-    const reason = window.prompt(t('directPortal.case.prompts.declineReason', { defaultValue: 'Why are you declining this quote?' })) || '';
+    // window.prompt returns null on Cancel/Escape: abort entirely. An empty
+    // reason also aborts; declining requires an explicit reason.
+    const reason = window.prompt(t('directPortal.case.prompts.declineReason', { defaultValue: 'Why are you declining this quote?' }));
+    if (reason === null || reason.trim() === '') return;
     setActionBusy(true);
     try {
-      const { request: updated } = await changeDirectRequest(id, { action: 'cancel', reason });
+      const { request: updated } = await changeDirectRequest(id, { action: 'cancel', reason: reason.trim() });
       setRequest(updated);
       toast.success(t('directPortal.case.messages.declined', { defaultValue: 'Request declined.' }));
       navigate('/direct/history');
     } catch (error) {
       toast.error(error?.response?.data?.error || t('directPortal.case.errors.declineQuote', { defaultValue: 'Could not decline the quote.' }));
-    } finally {
-      setActionBusy(false);
-    }
-  };
-
-  const submitMessage = async () => {
-    if (!id || !message.trim()) return;
-    const clientMessageId = pendingMessageIdRef.current || createMessageRequestId();
-    pendingMessageIdRef.current = clientMessageId;
-    setActionBusy(true);
-    setMessageError('');
-    try {
-      await sendDirectMessage(id, message.trim(), clientMessageId);
-      pendingMessageIdRef.current = null;
-      setMessage('');
-      await load();
-      toast.success(t('directPortal.case.messages.messageSent', { defaultValue: 'Message sent.' }));
-    } catch (error) {
-      setMessageError(error?.response?.data?.error || t('directPortal.support.errors.send', { defaultValue: 'Could not send message.' }));
-      toast.error(error?.response?.data?.error || t('directPortal.support.errors.send', { defaultValue: 'Could not send message.' }));
     } finally {
       setActionBusy(false);
     }
@@ -1697,6 +1645,11 @@ function DirectCasePage({ mode }) {
 
   const submitProof = async () => {
     if (!id) return;
+    const hasProofDetail = proofForm.paymentReference.trim() || proofForm.proofLink.trim() || attachments.length > 0;
+    if (!hasProofDetail) {
+      toast.error(t('directPortal.case.errors.proofRequired', { defaultValue: 'Add a reference number, proof link, or receipt attachment before submitting.' }));
+      return;
+    }
     setActionBusy(true);
     try {
       const { request: updated } = await submitDirectProof(id, {
@@ -1717,7 +1670,7 @@ function DirectCasePage({ mode }) {
     if (!id) return;
     setActionBusy(true);
     try {
-      const { request: updated } = await confirmDirectProof(id, { note: 'Confirmed from Direct portal.' });
+      const { request: updated } = await confirmDirectProof(id, { note: t('directPortal.case.messages.receiptConfirmNote', { defaultValue: 'Confirmed from Direct portal.' }) });
       setRequest(updated);
       toast.success(t('directPortal.case.messages.receiptConfirmed', { defaultValue: 'Receipt confirmed.' }));
       navigate(`/direct/history`);
@@ -1734,13 +1687,9 @@ function DirectCasePage({ mode }) {
   const subtitle = header.subtitle;
 
   return (
-    <DirectShell profile={profile} title={title} subtitle={subtitle}>
+    <DirectShell profile={profile} title={title} subtitle={subtitle} noIndex>
       {loading ? (
         <EmptyState icon={RefreshCw} title={t('directPortal.common.loading', { defaultValue: 'Loading…' })} body={t('directPortal.case.loadingBody', { defaultValue: 'Fetching the Direct record now.' })} />
-      ) : mode === 'history' ? (
-        <DirectHistoryPage />
-      ) : mode === 'account' ? (
-        <DirectAccountPage />
       ) : !request ? (
         <EmptyState icon={Package} title={t('directPortal.case.emptyTitle', { defaultValue: 'No record found' })} body={t('directPortal.case.emptyBody', { defaultValue: 'This Direct record is not available yet.' })} action={<Link to="/direct/request-quote" className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white">{t('homePage.company.requestQuote', { defaultValue: 'Request a quote' })}</Link>} />
       ) : (
@@ -1769,11 +1718,18 @@ function DirectCasePage({ mode }) {
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <div className="text-xs uppercase tracking-[0.18em] text-slate-500">{t('directPortal.request.sections.photos', { defaultValue: 'Photos' })}</div>
                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    {request.photoAttachments.map((attachment) => (
-                      <a key={attachment.key || attachment.url} href={attachment.url || '#'} target="_blank" rel="noreferrer" className="rounded-2xl border border-white/10 bg-slate-950/80 p-3 text-sm text-slate-200 hover:border-orange-500/30">
-                        <div className="font-medium text-white">{attachment.name || t('directPortal.case.photo', { defaultValue: 'Photo' })}</div>
-                        <div className="mt-1 text-xs text-slate-500">{attachment.type || t('directPortal.lookup.labels.attachment', { defaultValue: 'Attachment' })}</div>
-                      </a>
+                    {request.photoAttachments.map((attachment, index) => (
+                      attachment.url ? (
+                        <a key={attachment.key || attachment.url || index} href={attachment.url} target="_blank" rel="noreferrer" className="rounded-2xl border border-white/10 bg-slate-950/80 p-3 text-sm text-slate-200 hover:border-orange-500/30">
+                          <div className="font-medium text-white">{attachment.name || t('directPortal.case.photo', { defaultValue: 'Photo' })}</div>
+                          <div className="mt-1 text-xs text-slate-500">{attachment.type || t('directPortal.lookup.labels.attachment', { defaultValue: 'Attachment' })}</div>
+                        </a>
+                      ) : (
+                        <div key={attachment.key || index} className="rounded-2xl border border-white/10 bg-slate-950/80 p-3 text-sm text-slate-200">
+                          <div className="font-medium text-white">{attachment.name || t('directPortal.case.photo', { defaultValue: 'Photo' })}</div>
+                          <div className="mt-1 text-xs text-slate-500">{attachment.type || t('directPortal.lookup.labels.attachment', { defaultValue: 'Attachment' })}</div>
+                        </div>
+                      )
                     ))}
                   </div>
                 </div>
@@ -1808,7 +1764,7 @@ function DirectCasePage({ mode }) {
             </div>
           </SectionCard>
 
-          <SectionCard title={mode === 'support' ? t('directPortal.support.conversation', { defaultValue: 'Conversation' }) : t('directPortal.case.actionsTitle', { defaultValue: 'Actions' })} eyebrow={t('directPortal.case.manageEyebrow', { defaultValue: 'Manage the case' })}>
+          <SectionCard title={t('directPortal.case.actionsTitle', { defaultValue: 'Actions' })} eyebrow={t('directPortal.case.manageEyebrow', { defaultValue: 'Manage the case' })}>
             {mode === 'book' && (
               <div className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -1838,7 +1794,7 @@ function DirectCasePage({ mode }) {
             {mode === 'proof' && (
               <div className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label={t('directPortal.case.fields.paymentMethod', { defaultValue: 'Payment method' })}><Select value={proofForm.paymentMethod} onChange={(e) => setProofForm((current) => ({ ...current, paymentMethod: e.target.value }))}><option value="cash">{t('directPortal.case.paymentMethods.cash', { defaultValue: 'Cash' })}</option><option value="cash_app">Cash App</option><option value="venmo">Venmo</option><option value="zelle">Zelle</option><option value="bank_transfer">{t('directPortal.case.paymentMethods.bankTransfer', { defaultValue: 'Bank transfer' })}</option><option value="other">{t('directPortal.request.serviceCategories.other', { defaultValue: 'Other' })}</option></Select></Field>
+                  <Field label={t('directPortal.case.fields.paymentMethod', { defaultValue: 'Payment method' })}><Select value={proofForm.paymentMethod} onChange={(e) => setProofForm((current) => ({ ...current, paymentMethod: normalizeDirectProvider(e.target.value) }))}><option value="cash">{t('directPortal.case.paymentMethods.cash', { defaultValue: 'Cash' })}</option><option value="bank_transfer">{t('directPortal.case.paymentMethods.bankTransfer', { defaultValue: 'Bank transfer' })}</option><option value="other">{t('directPortal.request.serviceCategories.other', { defaultValue: 'Other' })}</option></Select></Field>
                   <Field label={t('directPortal.case.fields.receiptNumber', { defaultValue: 'Reference / receipt number' })}><Input value={proofForm.paymentReference} onChange={(e) => setProofForm((current) => ({ ...current, paymentReference: e.target.value }))} /></Field>
                 </div>
                 <Field label={t('directPortal.case.fields.proofLink', { defaultValue: 'Proof link' })}><Input value={proofForm.proofLink} onChange={(e) => setProofForm((current) => ({ ...current, proofLink: e.target.value }))} placeholder={t('directPortal.case.placeholders.proofLink', { defaultValue: 'Shared receipt, screenshot, or file link' })} /></Field>
@@ -1846,10 +1802,16 @@ function DirectCasePage({ mode }) {
                 <Field label={t('directPortal.case.fields.note', { defaultValue: 'Note' })}><Textarea rows={4} value={proofForm.note} onChange={(e) => setProofForm((current) => ({ ...current, note: e.target.value }))} /></Field>
                 {attachments.length > 0 && (
                   <div className="space-y-2">
-                    {attachments.map((attachment) => (
-                      <a key={attachment.key || attachment.url} href={attachment.url || '#'} target="_blank" rel="noreferrer" className="block rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-slate-200">
-                        {attachment.name || t('directPortal.case.receiptAttachment', { defaultValue: 'Receipt attachment' })}
-                      </a>
+                    {attachments.map((attachment, index) => (
+                      attachment.url ? (
+                        <a key={attachment.key || attachment.url || index} href={attachment.url} target="_blank" rel="noreferrer" className="block rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-slate-200">
+                          {attachment.name || t('directPortal.case.receiptAttachment', { defaultValue: 'Receipt attachment' })}
+                        </a>
+                      ) : (
+                        <div key={attachment.key || index} className="block rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-slate-200">
+                          {attachment.name || t('directPortal.case.receiptAttachment', { defaultValue: 'Receipt attachment' })}
+                        </div>
+                      )
                     ))}
                   </div>
                 )}
@@ -1910,36 +1872,6 @@ function DirectCasePage({ mode }) {
                   <Link to={`/direct/payments/${id}/proof`} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">{t('directPortal.case.actions.uploadProof', { defaultValue: 'Upload proof' })}</Link>
                 </div>
                 <Timeline request={request} />
-              </div>
-            )}
-
-            {mode === 'support' && (
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-slate-300">
-                  {request?.messages?.length || messages.length ? t('directPortal.support.attachedConversation', { defaultValue: 'Your conversation is attached to this request.' }) : t('directPortal.support.noMessages', { defaultValue: 'No messages yet.' })}
-                </div>
-                <div className="space-y-2">
-                  {(request?.messages || messages || []).map((item) => (
-                    <div key={item.id} className={`rounded-2xl px-4 py-3 text-sm leading-6 ${item.senderRole === 'customer' ? 'bg-orange-500 text-white' : 'border border-white/10 bg-white/5 text-slate-200'}`}>
-                      <div>{item.message}</div>
-                      <div className={`mt-2 text-[11px] ${item.senderRole === 'customer' ? 'text-orange-100/80' : 'text-slate-500'}`}>{formatDateTime(item.createdAt, i18n.resolvedLanguage)}</div>
-                    </div>
-                  ))}
-                </div>
-                <Textarea rows={4} value={message} onChange={(e) => { setMessage(e.target.value); if (messageError) { setMessageError(''); pendingMessageIdRef.current = null; } }} placeholder={t('directPortal.support.supportPlaceholder', { defaultValue: 'Send a message to OxSteed support…' })} />
-                {messageError && <div role="alert" className="rounded-2xl border border-rose-400/30 bg-rose-500/10 p-3 text-sm text-rose-200"><div>{messageError}</div><button type="button" onClick={submitMessage} disabled={actionBusy || !message.trim()} className="mt-2 inline-flex items-center gap-2 font-semibold text-white underline disabled:opacity-60"><RefreshCw size={14} /> {t('common.retry', { defaultValue: 'Retry' })}</button></div>}
-                <button type="button" onClick={submitMessage} disabled={actionBusy || !message.trim()} className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">
-                  <Send size={15} /> {t('directPortal.support.send', { defaultValue: 'Send' })}
-                </button>
-              </div>
-            )}
-
-            {mode === 'account' && (
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-slate-300">
-                  {t('directPortal.case.accountHelp', { defaultValue: 'Manage your saved service locations from the account page.' })}
-                </div>
-                <Link to="/direct/account" className="inline-flex rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white">{t('directPortal.case.actions.openLocations', { defaultValue: 'Open locations' })}</Link>
               </div>
             )}
           </SectionCard>
