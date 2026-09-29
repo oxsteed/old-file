@@ -402,6 +402,13 @@ router.get('/me', authenticate, async (req, res) => {
   }
 });
 
+// PAYMENT METHODS (Option C)
+// NOTE: static paths must be registered before /:toolId/* and /:id or
+// Express matches them as tool IDs and these routes are never reached.
+router.get('/payment-method', authenticate, paymentMethodController.getPaymentMethod);
+router.post('/payment-method', authenticate, paymentMethodController.setPaymentMethod);
+router.delete('/payment-method', authenticate, paymentMethodController.deletePaymentMethod);
+
 // POST /api/tool-rentals
 router.post('/', authenticate, upload.single('image'), validateFileUpload, async (req, res) => {
   try {
@@ -612,11 +619,6 @@ router.get('/analytics/dashboard', authenticate, toolAnalyticsController.getOwne
 // NOTIFICATIONS
 router.get('/notifications/prefs', authenticate, toolNotificationsController.getNotificationPrefs);
 router.put('/notifications/prefs', authenticate, toolNotificationsController.updateNotificationPrefs);
-
-// PAYMENT METHODS (Option C)
-router.get('/payment-method', authenticate, paymentMethodController.getPaymentMethod);
-router.post('/payment-method', authenticate, paymentMethodController.setPaymentMethod);
-router.delete('/payment-method', authenticate, paymentMethodController.deletePaymentMethod);
 
 // INVOICES (Option C)
 router.post('/invoices', authenticate, invoiceLimiter, invoiceController.createInvoice);

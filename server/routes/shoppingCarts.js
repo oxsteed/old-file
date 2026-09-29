@@ -14,6 +14,11 @@ router.post('/', shoppingCartsController.createCart);
 // Get all carts (with optional template filter)
 router.get('/', shoppingCartsController.getCarts);
 
+// Get templates (shortcut - use GET / with templateOnly=true).
+// NOTE: static paths must be registered before /:cartId or Express matches
+// them as cart IDs and this route is never reached.
+router.get('/templates', shoppingCartsController.getCarts);
+
 // Get single cart with items
 router.get('/:cartId', shoppingCartsController.getCart);
 
@@ -37,8 +42,5 @@ router.post('/:cartId/save-as-template', shoppingCartsController.saveAsTemplate)
 
 // Create cart from template
 router.post('/from-template/:templateId', shoppingCartsController.createFromTemplate);
-
-// Get templates (shortcut - use GET / with templateOnly=true)
-router.get('/templates', shoppingCartsController.getCarts);
 
 module.exports = router;

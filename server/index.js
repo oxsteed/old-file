@@ -532,11 +532,13 @@ app.use('/api/helper-quotes', helperQuotesRoutes);
 const savedSearchesRoutes = require('./routes/savedSearches');
 app.use('/api/saved-searches', savedSearchesRoutes);
 app.use('/api/qr-codes',     qrCodesRoutes);
-app.use('/api/consulting',   consultingRoutes);
+// NOTE: specific /api/consulting routers must mount before consultingRoutes,
+// whose GET /:id would otherwise swallow /consultants, /packages, /analytics.
+app.use('/api/consulting',   consultingPaymentRoutes);
 app.use('/api/quote-requests', quoteRequestsRoutes);
 app.use('/api/consulting',   consultingAllPhasesRoutes);
 app.use('/api/consulting/admin', consultingAdminRoutes);
-app.use('/api/consulting',   consultingPaymentRoutes);
+app.use('/api/consulting',   consultingRoutes);
 app.use('/api/invoices',     invoiceRoutes);
 app.use('/api/consulting/feedback', consultingFeedbackRoutes);
 app.use('/api/consulting/business-launch', businessLaunchRoutes);
