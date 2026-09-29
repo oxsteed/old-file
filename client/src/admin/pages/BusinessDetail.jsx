@@ -32,8 +32,6 @@ export default function BusinessDetail() {
   const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
-  const [business, setBusiness] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
   const [actionBusy, setActionBusy] = useState(false);
   const [adminNotes, setAdminNotes] = useState('');
