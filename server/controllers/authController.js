@@ -117,6 +117,8 @@ function formatAuthUser(user) {
     last_name:             user.last_name,
     email:                 user.email,
     phone:                 user.phone,
+    bio:                   user.bio || null,
+    profile_photo_url:     user.profile_photo_url || null,
     role:                  user.role,
     email_verified:        !!user.email_verified,
     is_verified:           !!user.is_verified,
@@ -1369,7 +1371,7 @@ async function getMe(req, res) {
 async function updateProfile(req, res) {
   const client = await pool.connect();
   try {
-    const { phone, zip_code, zipcode, display_name_preference, default_mode, preferred_language } = req.body;
+    const { phone, zip_code, zipcode, display_name_preference, default_mode, preferred_language, bio, profile_photo_url } = req.body;
     const finalZip = zip_code || zipcode;
     const requestedMode = default_mode === undefined || default_mode === null
       ? null
@@ -1390,6 +1392,28 @@ async function updateProfile(req, res) {
     const VALID_PREFS = ['full_name', 'first_name', 'business_name'];
     const pref = VALID_PREFS.includes(display_name_preference) ? display_name_preference : undefined;
     const preferredLang = normalizeSupportedLanguage(preferred_language);
+
+    // Bio: optional, trimmed, max 500 chars. Provided (even empty) means set it.
+    let bioValue;
+    if (bio !== undefined && bio !== null) {
+      bioValue = String(bio).trim();
+      if (bioValue.length > 500) {
+        return res.status(400).json({ error: 'bio_too_long' });
+      }
+    }
+    // Photo URL: undefined/null = leave unchanged; '' = clear; otherwise must be http(s) and <= 500 chars.
+    let photoValue;
+    if (profile_photo_url !== undefined && profile_photo_url !== null) {
+      const trimmed = String(profile_photo_url).trim();
+      if (trimmed === '') {
+        photoValue = null;
+      } else {
+        if (trimmed.length > 500 || !/^https?:\/\//i.test(trimmed)) {
+          return res.status(400).json({ error: 'invalid_profile_photo_url' });
+        }
+        photoValue = trimmed;
+      }
+    }
 
     // default_mode through updateProfile is a convenience for clients that
     // want to do everything in one PATCH. The actual switch goes through
@@ -1438,16 +1462,33 @@ async function updateProfile(req, res) {
       didModeSwitch = true;
     }
 
+    const setFragments = [
+      'phone = COALESCE($1, phone)',
+      'zip_code = COALESCE($2, zip_code)',
+      'display_name_preference = COALESCE($3, display_name_preference)',
+      'preferred_language = COALESCE($4, preferred_language)',
+    ];
+    const updateParams = [phone || null, finalZip || null, pref || null, preferredLang || null];
+    if (bioValue !== undefined) {
+      setFragments.push(`bio = $${updateParams.length + 1}`);
+      updateParams.push(bioValue || null);
+    }
+    if (photoValue !== undefined) {
+      if (photoValue === null) {
+        setFragments.push('profile_photo_url = NULL');
+      } else {
+        setFragments.push(`profile_photo_url = $${updateParams.length + 1}`);
+        updateParams.push(photoValue);
+      }
+    }
+    updateParams.push(req.user.id);
     const { rows } = await client.query(
       `UPDATE users
-       SET phone = COALESCE($1, phone),
-           zip_code = COALESCE($2, zip_code),
-           display_name_preference = COALESCE($3, display_name_preference),
-           preferred_language = COALESCE($4, preferred_language),
+       SET ${setFragments.join(',\n           ')},
            updated_at = NOW()
-       WHERE id = $5
+       WHERE id = $${updateParams.length}
        RETURNING *`,
-      [phone || null, finalZip || null, pref || null, preferredLang || null, req.user.id]
+      updateParams
     );
     const finalRow = didModeSwitch && updatedUser
       ? { ...updatedUser, ...rows[0] }

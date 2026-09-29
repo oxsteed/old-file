@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
+import { uploadAppAsset } from '../api/uploads';
 import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -155,7 +156,11 @@ export default function SettingsPage() {
     return () => { cancelled = true; };
   }, [user]);
 
-  const [profile, setProfile] = useState({ first_name: '', last_name: '', phone: '', bio: '', zipcode: '' });
+  const [profile, setProfile] = useState({ first_name: '', last_name: '', phone: '', bio: '', zipcode: '', profile_photo_url: '' });
+  const [profileSnapshot, setProfileSnapshot] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [namePrefTouched, setNamePrefTouched] = useState(false);
+  const fileInputRef = useRef(null);
   const [passwords, setPasswords] = useState({ current: '', newPass: '', confirm: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -191,14 +196,17 @@ export default function SettingsPage() {
     api.get('/auth/me')
       .then(r => {
         const u = r.data?.user || r.data || {};
-        setProfile({
+        const initialProfile = {
           first_name: u.first_name || '',
           last_name: u.last_name || '',
           phone: u.phone || '',
           bio: u.bio || '',
           zipcode: u.zip_code || u.zipcode || '',
           display_name_preference: u.display_name_preference || 'first_name',
-        });
+          profile_photo_url: u.profile_photo_url || '',
+        };
+        setProfile(initialProfile);
+        setProfileSnapshot(initialProfile);
         if (typeof u.allow_guest_contact === 'boolean') {
           setAllowGuestContact(u.allow_guest_contact);
         } else {
@@ -234,17 +242,69 @@ export default function SettingsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const { first_name, last_name, bio, ...updatableFields } = profile;
+      const { first_name, last_name, ...updatableFields } = profile;
       const { data } = await api.put('/auth/profile', updatableFields);
       if (data?.accessToken && data?.refreshToken) {
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
       }
       if (data?.user) setUser(data.user);
+      setProfileSnapshot({ ...profile });
       toast.success(t('settings.profileUpdated'));
     } catch (err) { toast.error(err.response?.data?.error || t('settings.profileFailed')); }
     setSaving(false);
   };
+
+  const handlePhotoSelect = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (e.target) e.target.value = '';
+    if (!file) return;
+    if (!file.type || !file.type.startsWith('image/')) {
+      toast.error(t('settings.profile.photoTypeError', 'Please choose an image file.'));
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error(t('settings.profile.photoSizeError', 'Image must be smaller than 5 MB.'));
+      return;
+    }
+    setUploadingPhoto(true);
+    try {
+      const data = await uploadAppAsset(file, 'profile-photo');
+      const url = data && data.url;
+      if (!url) throw new Error('missing url');
+      setProfile(p => ({ ...p, profile_photo_url: url }));
+      toast.success(t('settings.profile.photoUploaded', 'Photo uploaded. Save your changes to keep it.'));
+    } catch (err) {
+      toast.error(t('settings.profile.photoUploadFailed', 'Photo upload failed. Please try again.'));
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const removePhoto = () => setProfile(p => ({ ...p, profile_photo_url: '' }));
+
+  const DIRTY_KEYS = ['phone', 'bio', 'zipcode', 'display_name_preference', 'profile_photo_url'];
+  const isProfileDirty = !!profileSnapshot && DIRTY_KEYS.some(k => (profile[k] || '') !== (profileSnapshot[k] || ''));
+
+  const avatarInitials = useMemo(() => {
+    const initials = `${profile.first_name?.[0] || ''}${profile.last_name?.[0] || ''}`.toUpperCase();
+    return initials || '?';
+  }, [profile.first_name, profile.last_name]);
+
+  const previewBusinessName = businesses.find(b => b.business_name)?.business_name;
+  const previewDisplayName = profile.display_name_preference === 'full_name'
+    ? (`${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.first_name || 'Alex')
+    : profile.display_name_preference === 'business_name'
+      ? (previewBusinessName || t('settings.profile.previewBusinessFallback', 'Your Business'))
+      : (profile.first_name || 'Alex');
+
+  const completenessItems = [
+    { key: 'photo', done: !!profile.profile_photo_url, label: t('settings.profile.completePhoto', 'Add a profile photo') },
+    { key: 'bio', done: (profile.bio || '').trim().length >= 20, label: t('settings.profile.completeBio', 'Write a bio (20+ characters)') },
+    { key: 'phone', done: !!(profile.phone || '').trim(), label: t('settings.profile.completePhone', 'Add your phone number') },
+    { key: 'name', done: namePrefTouched || (!!profileSnapshot && profileSnapshot.display_name_preference !== 'first_name'), label: t('settings.profile.completeName', 'Choose how your name appears') },
+  ];
+  const completenessPct = Math.round((completenessItems.filter(i => i.done).length / completenessItems.length) * 100);
 
   const changePassword = async (e) => {
     e.preventDefault();
@@ -470,80 +530,174 @@ export default function SettingsPage() {
   // ── Tab panels ──────────────────────────────────────────────────────────────
 
   const tabProfile = (
-    <form onSubmit={saveProfile}>
-      <div className="sp-card">
-        <h2 className="sp-card-title">{t('settings.profile.title')}</h2>
-        <p className="sp-card-subtitle">{t('settings.profile.subtitle')}</p>
+    <div className="sp-profile-grid">
+      <form onSubmit={saveProfile}>
+        <div className="sp-card">
+          <h2 className="sp-card-title">{t('settings.profile.title')}</h2>
+          <p className="sp-card-subtitle">{t('settings.profile.subtitle')}</p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="sp-label">{t('settings.profile.firstName')}</label>
-            <input className="sp-input" value={profile.first_name || ''} readOnly disabled />
+          <div className="sp-photo-row">
+            <div className="sp-avatar" aria-hidden="true">
+              {profile.profile_photo_url ? (
+                <img src={profile.profile_photo_url} alt={t('settings.profile.photoAlt', 'Profile photo')} />
+              ) : (
+                <span>{avatarInitials}</span>
+              )}
+            </div>
+            <div className="sp-photo-meta">
+              <div className="sp-photo-title">{t('settings.profile.photoTitle', 'Profile photo')}</div>
+              <div className="sp-photo-actions">
+                <button
+                  type="button"
+                  className="sp-btn sp-btn-ghost"
+                  style={{ padding: '0.35rem 0.8rem', fontSize: '0.8125rem' }}
+                  onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                  disabled={uploadingPhoto}
+                >
+                  {uploadingPhoto
+                    ? t('settings.profile.photoUploading', 'Uploading...')
+                    : profile.profile_photo_url
+                      ? t('settings.profile.changePhoto', 'Change photo')
+                      : t('settings.profile.uploadPhoto', 'Upload photo')}
+                </button>
+                {profile.profile_photo_url && (
+                  <button
+                    type="button"
+                    className="sp-btn sp-btn-ghost"
+                    style={{ padding: '0.35rem 0.8rem', fontSize: '0.8125rem' }}
+                    onClick={removePhoto}
+                    disabled={uploadingPhoto}
+                  >
+                    {t('settings.profile.removePhoto', 'Remove')}
+                  </button>
+                )}
+              </div>
+              <p className="sp-photo-hint">{t('settings.profile.photoHint', 'JPG or PNG, up to 5 MB. Shown to customers on your profile.')}</p>
+              <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handlePhotoSelect} />
+            </div>
           </div>
-          <div>
-            <label className="sp-label">{t('settings.profile.lastName')}</label>
-            <input className="sp-input" value={profile.last_name || ''} readOnly disabled />
+
+          <div className="sp-completeness">
+            <div className="sp-completeness-head">
+              <span>{t('settings.profile.completenessTitle', 'Profile completeness')}</span>
+              <span>{completenessPct}%</span>
+            </div>
+            <div className="sp-progress" role="progressbar" aria-valuenow={completenessPct} aria-valuemin="0" aria-valuemax="100">
+              <div className="sp-progress-fill" style={{ width: `${completenessPct}%` }} />
+            </div>
+            <ul className="sp-checklist">
+              {completenessItems.map(item => (
+                <li key={item.key} className={item.done ? 'done' : ''}>
+                  <span className="sp-check" aria-hidden="true">{item.done ? '✓' : '○'}</span>
+                  {item.label}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="sp-label">{t('settings.profile.firstName')}</label>
+              <input className="sp-input" value={profile.first_name || ''} readOnly disabled />
+            </div>
+            <div>
+              <label className="sp-label">{t('settings.profile.lastName')}</label>
+              <input className="sp-input" value={profile.last_name || ''} readOnly disabled />
+            </div>
+          </div>
+
+          <div className="sp-info-banner mb-4">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span>
+              {t('settings.profile.verificationNotice')}{' '}
+              <a href="mailto:support@oxsteed.com" className="underline opacity-80 hover:opacity-100">support@oxsteed.com</a>
+              {' '}or use the{' '}
+              <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('oxsteed:open-support'))} className="underline opacity-80 hover:opacity-100">{t('settings.profile.supportChat')}</button>.
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="sp-label">{t('settings.profile.phone')}</label>
+              <input className="sp-input" value={profile.phone || ''} onChange={e => setProfile({ ...profile, phone: e.target.value })} />
+            </div>
+            <div>
+              <label className="sp-label">{t('settings.profile.zipCode')}</label>
+              <input className="sp-input" value={profile.zipcode || ''} onChange={e => setProfile({ ...profile, zipcode: e.target.value })} />
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <label className="sp-label">{t('settings.profile.bio')}</label>
+            <textarea className="sp-textarea" maxLength={500} value={profile.bio || ''} onChange={e => setProfile({ ...profile, bio: e.target.value })} />
+            <div className="sp-bio-meta"><span>{(profile.bio || '').length}/500</span></div>
+            <ul className="sp-tips">
+              <li>{t('settings.profile.bioTip1', 'Mention your experience and the services you do best.')}</li>
+              <li>{t('settings.profile.bioTip2', 'A friendly, specific bio gets more bookings than a generic one.')}</li>
+            </ul>
+          </div>
+
+          <div className="mb-5">
+            <label className="sp-label">{t('settings.profile.displayName')}</label>
+            <p className="text-xs mb-2" style={{ color: 'var(--muted-text,#94a3b8)' }}>{t('settings.profile.displayNameSub')}</p>
+            <div className="sp-name-options">
+              {[
+                { value: 'first_name', label: t('settings.profile.names.firstName'), example: user?.first_name || 'Alex' },
+                { value: 'full_name', label: t('settings.profile.names.fullName'), example: `${user?.first_name || 'Alex'} ${user?.last_name || 'Smith'}` },
+                { value: 'business_name', label: t('settings.profile.names.businessName'), example: 'My Services LLC' },
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => { setNamePrefTouched(true); setProfile(p => ({ ...p, display_name_preference: opt.value })); }}
+                  className={`sp-name-opt ${profile.display_name_preference === opt.value ? 'selected' : ''}`}
+                >
+                  <span className="sp-name-opt-label">{opt.label}</span>
+                  <span className="sp-name-opt-example">{opt.example}</span>
+                </button>
+              ))}
+            </div>
+            {profile.display_name_preference === 'business_name' && (
+              <p className="text-xs mt-2" style={{ color: '#fb923c' }}>{t('settings.profile.businessWarning')}</p>
+            )}
+          </div>
+
+          <div className="sp-save-row">
+            <button type="submit" disabled={saving || !isProfileDirty} className="sp-btn sp-btn-primary">
+              {saving ? t('settings.profile.saving') : t('settings.profile.saveChanges')}
+            </button>
+            {isProfileDirty && !saving && (
+              <span className="sp-dirty-hint">{t('settings.profile.unsavedChanges', 'Unsaved changes')}</span>
+            )}
           </div>
         </div>
+      </form>
 
-        <div className="sp-info-banner mb-4">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
-          <span>
-            {t('settings.profile.verificationNotice')}{' '}
-            <a href="mailto:support@oxsteed.com" className="underline opacity-80 hover:opacity-100">support@oxsteed.com</a>
-            {' '}or use the{' '}
-            <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('oxsteed:open-support'))} className="underline opacity-80 hover:opacity-100">{t('settings.profile.supportChat')}</button>.
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="sp-label">{t('settings.profile.phone')}</label>
-            <input className="sp-input" value={profile.phone || ''} onChange={e => setProfile({ ...profile, phone: e.target.value })} />
+      <aside className="sp-card" aria-label={t('settings.profile.previewTitle', 'How others see you')}>
+        <h2 className="sp-card-title">{t('settings.profile.previewTitle', 'How others see you')}</h2>
+        <p className="sp-card-subtitle">{t('settings.profile.previewSubtitle', 'This is what customers see. It updates as you type.')}</p>
+        <div className="sp-preview">
+          <div className="sp-avatar sp-avatar-lg" aria-hidden="true">
+            {profile.profile_photo_url ? (
+              <img src={profile.profile_photo_url} alt="" />
+            ) : (
+              <span>{avatarInitials}</span>
+            )}
           </div>
-          <div>
-            <label className="sp-label">{t('settings.profile.zipCode')}</label>
-            <input className="sp-input" value={profile.zipcode || ''} onChange={e => setProfile({ ...profile, zipcode: e.target.value })} />
+          <div className="sp-preview-name">{previewDisplayName}</div>
+          <div className="sp-preview-loc">
+            {profile.zipcode
+              ? t('settings.profile.previewLocation', 'Serving {{zip}}', { zip: profile.zipcode })
+              : t('settings.profile.previewNoLocation', 'Location not set')}
           </div>
+          <p className="sp-preview-bio">
+            {(profile.bio || '').trim() || t('settings.profile.previewNoBio', 'No bio yet.')}
+          </p>
         </div>
-
-        <div className="mb-4">
-          <label className="sp-label">{t('settings.profile.bio')}</label>
-          <textarea className="sp-textarea" value={profile.bio || ''} onChange={e => setProfile({ ...profile, bio: e.target.value })} />
-        </div>
-
-        <div className="mb-5">
-          <label className="sp-label">{t('settings.profile.displayName')}</label>
-          <p className="text-xs mb-2" style={{ color: 'var(--muted-text,#94a3b8)' }}>{t('settings.profile.displayNameSub')}</p>
-          <div className="sp-name-options">
-            {[
-              { value: 'first_name',    label: t('settings.profile.names.firstName'),    example: user?.first_name || 'Alex' },
-              { value: 'full_name',     label: t('settings.profile.names.fullName'),     example: `${user?.first_name || 'Alex'} ${user?.last_name || 'Smith'}` },
-              { value: 'business_name', label: t('settings.profile.names.businessName'), example: 'My Services LLC' },
-            ].map(opt => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setProfile(p => ({ ...p, display_name_preference: opt.value }))}
-                className={`sp-name-opt ${profile.display_name_preference === opt.value ? 'selected' : ''}`}
-              >
-                <span className="sp-name-opt-label">{opt.label}</span>
-                <span className="sp-name-opt-example">{opt.example}</span>
-              </button>
-            ))}
-          </div>
-          {profile.display_name_preference === 'business_name' && (
-            <p className="text-xs mt-2" style={{ color: '#fb923c' }}>{t('settings.profile.businessWarning')}</p>
-          )}
-        </div>
-
-        <button type="submit" disabled={saving} className="sp-btn sp-btn-primary">
-          {saving ? t('settings.profile.saving') : t('settings.profile.saveChanges')}
-        </button>
-      </div>
-    </form>
+      </aside>
+    </div>
   );
 
   const tabSecurity = (

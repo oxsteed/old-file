@@ -96,6 +96,7 @@ async function authenticate(req, res, next) {
          u.tier_selected, u.w9_completed, u.terms_accepted,
          u.membership_tier, u.id_verified, u.background_check_passed,
          u.address_line1, u.city, u.state, u.zip_code, u.country,
+         u.bio, u.profile_photo_url,
          u.preferred_language,
          u.display_name_preference, u.is_active,
          u.didit_status, u.didit_verified_at,
