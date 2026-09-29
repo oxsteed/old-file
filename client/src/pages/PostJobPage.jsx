@@ -1188,7 +1188,7 @@ export default function PostJobPage() {
               <div style={{ display:'flex', alignItems:'center', gap:'10px', marginTop:'12px', padding:'12px 16px', background:'rgba(249,115,22,0.08)', border:'1px solid rgba(249,115,22,0.25)', borderRadius:'12px', fontSize:'13px', color:'#fb923c' }}>
                 <span>⚡</span>
                 <span>{t('postJob.directHelperNotice', { name: directHelperName || t('postJob.thisHelper') })}</span>
-                <a href={`/helpers/public/${directHelperId}`} style={{ marginLeft:'auto', color:'#fb923c', textDecoration:'underline', whiteSpace:'nowrap' }}>{t('postJob.viewProfile')}</a>
+                <a href={`/helpers/${directHelperId}`} style={{ marginLeft:'auto', color:'#fb923c', textDecoration:'underline', whiteSpace:'nowrap' }}>{t('postJob.viewProfile')}</a>
               </div>
             )}
             {fromBookingId && (

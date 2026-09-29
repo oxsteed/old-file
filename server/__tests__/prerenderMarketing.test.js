@@ -111,15 +111,20 @@ describe('localized marketing SEO shell', () => {
       }] })
       .mockResolvedValueOnce({ rows: [{ skill_name: 'Carpentry', category_name: 'Home repair' }] });
 
-    const res = await request(buildApp()).get('/helpers/public/123e4567-e89b-12d3-a456-426614174000?lang=es');
+    const legacy = await request(buildApp()).get('/helpers/public/123e4567-e89b-12d3-a456-426614174000?lang=es');
+
+    expect(legacy.status).toBe(301);
+    expect(legacy.headers.location).toContain('/helpers/123e4567-e89b-12d3-a456-426614174000');
+
+    const res = await request(buildApp()).get('/helpers/123e4567-e89b-12d3-a456-426614174000?lang=es');
 
     expect(res.status).toBe(200);
     expect(res.headers['content-language']).toBe('es');
     expect(res.text).toContain('<html lang="es">');
-    expect(res.text).toContain('rel="canonical" href="https://oxsteed.com/helpers/public/123e4567-e89b-12d3-a456-426614174000?lang=es"');
-    expect(res.text).toContain('hreflang="fr" href="https://oxsteed.com/helpers/public/123e4567-e89b-12d3-a456-426614174000?lang=fr"');
+    expect(res.text).toContain('rel="canonical" href="https://oxsteed.com/helpers/123e4567-e89b-12d3-a456-426614174000?lang=es"');
+    expect(res.text).toContain('hreflang="fr" href="https://oxsteed.com/helpers/123e4567-e89b-12d3-a456-426614174000?lang=fr"');
     expect(res.text).toContain('"inLanguage":"es"');
-    expect(res.text).toContain('"url":"https://oxsteed.com/helpers/public/123e4567-e89b-12d3-a456-426614174000?lang=es"');
+    expect(res.text).toContain('"url":"https://oxsteed.com/helpers/123e4567-e89b-12d3-a456-426614174000?lang=es"');
     expect(res.text).not.toContain('</script><img src=x onerror=alert(1)>');
     expect(res.text).toContain('\\u003c/script>\\u003cimg src=x onerror=alert(1)>');
   });

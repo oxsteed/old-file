@@ -536,7 +536,7 @@ const ToolRentalsBrowse = () => {
 
   const handleViewProfile = useCallback((userId) => {
     handleCloseModal();
-    navigate(`/helpers/public/${userId}`);
+    navigate(`/helpers/${userId}`);
   }, [handleCloseModal, navigate]);
 
   const toolPublicUrl = routeToolId

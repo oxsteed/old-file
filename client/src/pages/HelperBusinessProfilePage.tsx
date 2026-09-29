@@ -180,7 +180,7 @@ const HelperBusinessProfilePage: React.FC = () => {
   const handleToggleSavedHelper = useCallback(async () => {
     if (!id) return;
     if (!user) {
-      navigate('/login', { state: { from: `/helpers/public/${id}` } });
+      navigate('/login', { state: { from: `/helpers/${id}` } });
       return;
     }
     if (String(user.id) === String(id)) {
@@ -277,13 +277,13 @@ const HelperBusinessProfilePage: React.FC = () => {
             entityLabel: 'helper',
           })}
           image={helper.coverImage || helper.avatar}
-          url={`${getPublicSiteUrl()}/helpers/public/${id}`}
+          url={`${getPublicSiteUrl()}/helpers/${id}`}
           type="profile"
         />
         <Navbar />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2">
           <ProfileShareControls
-            shareUrl={`${getPublicSiteUrl()}/helpers/public/${id}`}
+            shareUrl={`${getPublicSiteUrl()}/helpers/${id}`}
             shareTitle={helper.businessName || helper.ownerName}
           />
         </div>
@@ -306,7 +306,7 @@ const HelperBusinessProfilePage: React.FC = () => {
           entityLabel: 'helper',
         })}
         image={helper.coverImage || helper.avatar}
-        url={`${getPublicSiteUrl()}/helpers/public/${id}`}
+        url={`${getPublicSiteUrl()}/helpers/${id}`}
         type="profile"
       />
       <ProfileJsonLd
@@ -328,7 +328,7 @@ const HelperBusinessProfilePage: React.FC = () => {
         isSaved={!!savedHelperId}
         savingHelper={savingHelper}
         onOpenChat={handleMessageHelper}
-        shareUrl={`${getPublicSiteUrl()}/helpers/public/${id}`}
+        shareUrl={`${getPublicSiteUrl()}/helpers/${id}`}
         shareTitle={helper.businessName || helper.ownerName}
       />
 

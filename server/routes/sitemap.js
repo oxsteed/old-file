@@ -155,7 +155,7 @@ router.get('/', async (_req, res) => {
       ...STATIC_URLS.map(urlEntry),
       ...helpers.map((r) =>
         urlEntry({
-          loc: r.profile_slug ? `${origin}/h/${r.profile_slug}` : `${origin}/helpers/public/${r.id}`,
+          loc: r.profile_slug ? `${origin}/h/${r.profile_slug}` : `${origin}/helpers/${r.id}`,
           changefreq: 'weekly',
           priority: '0.8',
           localized: true,

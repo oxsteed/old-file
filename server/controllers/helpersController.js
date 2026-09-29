@@ -405,7 +405,7 @@ async function listHelpers(req, res, next) {
       const displayName = resolvePublicDisplayName(h);
       return {
         id:               h.id,
-        profileUrl:       h.profile_slug ? `/h/${h.profile_slug}` : `/helpers/public/${h.id}`,
+        profileUrl:       h.profile_slug ? `/h/${h.profile_slug}` : `/helpers/${h.id}`,
         businessName:     displayName,
         ownerName:        displayName,
         avatar:           h.profile_photo_url || '',
@@ -834,7 +834,7 @@ async function getHelperProfile(req, res, next) {
       helper: {
         id:           h.id,
         profileSlug:  h.profile_slug || null,
-        profileUrl:   h.profile_slug ? `/h/${h.profile_slug}` : `/helpers/public/${h.id}`,
+        profileUrl:   h.profile_slug ? `/h/${h.profile_slug}` : `/helpers/${h.id}`,
         businessName: publicDisplayName,
         ownerName:    publicDisplayName,
         tagline:      h.profile_headline || '',

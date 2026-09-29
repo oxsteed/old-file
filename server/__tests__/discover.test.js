@@ -74,7 +74,7 @@ describe('discover search routes', () => {
       type: 'helper',
       id: '12',
       title: 'Sam',
-      url: '/helpers/public/12',
+      url: '/helpers/12',
       meta: 'Austin, TX',
       primaryAction: 'view',
       verified: true,

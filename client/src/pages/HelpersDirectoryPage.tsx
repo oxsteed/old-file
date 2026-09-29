@@ -586,7 +586,7 @@ const HelpersDirectoryPage: React.FC = () => {
     if (id.startsWith('biz_')) {
       navigate(`/businesses/public/${id.replace('biz_', '')}`);
     } else {
-      navigate(`/helpers/public/${id}`);
+      navigate(`/helpers/${id}`);
     }
   }, [navigate]);
 

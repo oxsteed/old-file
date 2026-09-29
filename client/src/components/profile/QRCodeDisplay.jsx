@@ -48,7 +48,9 @@ export default function QRCodeDisplay({ helperId, helperName, profileSlug, profi
       }
 
       const data = await response.json();
-      const image = data.data?.qr_code || data.data?.qrCode;
+      // Server returns { success, qr_code } at the top level; accept the
+      // legacy nested shape too.
+      const image = data.qr_code || data.qrCode || data.data?.qr_code || data.data?.qrCode;
       if (!image) throw new Error(t('profile.qrCode.generationFailed'));
       setQRCode(image);
     } catch (err) {

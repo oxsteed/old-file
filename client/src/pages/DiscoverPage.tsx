@@ -48,7 +48,7 @@ function itemHref(item: DiscoverItem): string {
     return item.url;
   }
   switch (item.type) {
-    case 'helper':   return `/helpers/public/${item.id}`;
+    case 'helper':   return `/helpers/${item.id}`;
     case 'job':      return `/jobs/public/${item.id}`;
     case 'business': return `/businesses/public/${item.id}`;
     default:         return '#';

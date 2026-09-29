@@ -105,7 +105,7 @@ exports.buildHelperProfileURL = (helperId, helperName = null, profileSlug = null
     return `${baseUrl}/h/${profileSlug}`;
   }
 
-  return `${baseUrl}/helpers/public/${helperId}`;
+  return `${baseUrl}/helpers/${helperId}`;
 };
 
 /**

@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import { Toaster } from 'react-hot-toast';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -147,7 +147,6 @@ const QRCodeGeneratorPage = lazyWithRetry(routeLoaders.qrGenerator, { name: 'qrG
 const QrPaySetupPage = lazyWithRetry(() => import('./pages/QrPaySetupPage'));
 const PayByQrPage = lazyWithRetry(() => import('./pages/PayByQrPage'));
 const BusinessPublicProfilePage = lazyWithRetry(() => import('./pages/BusinessPublicProfilePage'));
-const HelperPublicProfilePage = lazyWithRetry(() => import('./pages/HelperPublicProfilePage'));
 const JobPublicPage = lazyWithRetry(() => import('./pages/JobPublicPage'));
 const ConsultingFullPortal = lazyWithRetry(() => import('./pages/ConsultingFullPortal'));
 const ConsultingPortalPage = lazyWithRetry(() => import('./pages/ConsultingPortalPage'));
@@ -216,6 +215,14 @@ const queryClient = new QueryClient({
 // Plain ErrorBoundary is fine here: these are already inside <Router>.
 function Guarded({ children }) {
   return <ErrorBoundary>{children}</ErrorBoundary>;
+}
+
+// Legacy helper profile URLs (the retired simple public profile) redirect to
+// the main profile page. Preserves the query string (e.g. ?lang=es).
+function LegacyHelperProfileRedirect() {
+  const { helperId } = useParams();
+  const location = useLocation();
+  return <Navigate to={{ pathname: `/helpers/${helperId}`, search: location.search }} replace />;
 }
 
 function RouteLoadingFallback() {
@@ -311,8 +318,8 @@ export default function App() {
                     <Route path="/jobs/public/:jobId"      element={<JobPublicPage />} />
                     <Route path="/profile/:id"             element={<Guarded><PublicProfile /></Guarded>} />
                     <Route path="/helpers"                 element={<Guarded><HelpersDirectoryPage /></Guarded>} />
-                    <Route path="/helpers/public/:helperId" element={<HelperPublicProfilePage />} />
-                    <Route path="/h/:helperId"        element={<HelperPublicProfilePage />} />
+                    <Route path="/helpers/public/:helperId" element={<LegacyHelperProfileRedirect />} />
+                    <Route path="/h/:helperId"        element={<LegacyHelperProfileRedirect />} />
                     <Route path="/discover"                element={<Guarded><DiscoverPage /></Guarded>} />
                     <Route path="/consulting-intake"       element={<Guarded><ConsultingIntakePage /></Guarded>} />
                     <Route path="/direct"                  element={<Guarded><DirectPortalPage view="landing" /></Guarded>} />

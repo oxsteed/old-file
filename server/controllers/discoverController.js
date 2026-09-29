@@ -244,7 +244,7 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
         id: String(h.id),
         title: displayTitle,
         subtitle: (h.subtitle || '').slice(0, 160),
-        url: `/helpers/public/${h.id}`,
+        url: `/helpers/${h.id}`,
         imageUrl: h.image_url || null,
         meta: [h.service_city, h.service_state].filter(Boolean).join(', ') || null,
         distanceMiles: d,
@@ -516,7 +516,7 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
         tr.related = rel.map((x) => ({
           type: 'helper',
           title: resolvePublicDisplayName(x),
-          url: `/helpers/public/${x.id}`,
+          url: `/helpers/${x.id}`,
         }));
       } catch {
         tr.related = [];
@@ -635,7 +635,7 @@ exports.discoverPopular = async (req, res) => {
         id: String(h.id),
         title: resolvePublicDisplayName(h),
         subtitle: (h.subtitle || '').slice(0, 120),
-        url: `/helpers/public/${h.id}`,
+        url: `/helpers/${h.id}`,
         distanceMiles: d,
         rating: h.avg_rating != null ? parseFloat(h.avg_rating) : null,
         reviewCount: h.total_reviews || 0,

@@ -1,11 +1,11 @@
 // Canonical public profile URLs, vanity-slug aware.
-// When a profile has claimed a slug, its canonical URL is the short form
-// (/h/:slug, /b/:slug); otherwise it falls back to the ID-based URL.
+// Helper profiles resolve to the main profile page (/helpers/:id), using the
+// vanity slug when one is claimed.
 
 export function helperProfilePath({ id, profileSlug, slug } = {}) {
   const resolved = profileSlug || slug;
-  if (resolved) return `/h/${resolved}`;
-  return `/helpers/public/${id}`;
+  if (resolved) return `/helpers/${resolved}`;
+  return `/helpers/${id}`;
 }
 
 export function businessProfilePath({ id, businessId, profileSlug, profile_slug, slug } = {}) {

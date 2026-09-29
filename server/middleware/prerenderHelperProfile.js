@@ -2,7 +2,7 @@
 // Pre-renders SEO shell for public marketing pages (production only):
 //   /               → Organization + WebSite JSON-LD
 //   /helpers        → CollectionPage JSON-LD + meta
-//   /helpers/public/:uuid → Person JSON-LD + static shell (listed public helpers only)
+//   /helpers/:uuid → Person JSON-LD + static shell (listed public helpers only)
 //   /businesses/public/:id → LocalBusiness JSON-LD + static shell (active businesses, verified owner)
 //
 // Canonical URLs use APP_URL / CLIENT_URL (see server/utils/publicSiteUrl.js).
@@ -915,7 +915,7 @@ async function handleHelpersDirectory(template, res, req) {
 
 function buildHelperJsonLd(helper, services, location, { profileUrl, language = 'en' } = {}) {
   const origin = base();
-  const resolvedProfileUrl = profileUrl || `${origin}/helpers/public/${helper.id}`;
+  const resolvedProfileUrl = profileUrl || `${origin}/helpers/${helper.id}`;
   const knowsAbout = (services || []).map((s) => s.skill_name || s.name).filter(Boolean).slice(0, 20);
 
   const addr = {
@@ -1101,7 +1101,7 @@ async function handleHelperProfile(idOrSlug, template, res, next, req) {
     return sendSeoNotFound(
       template,
       res,
-      `${base()}/helpers/public/${helperId}`,
+      `${base()}/helpers/${helperId}`,
       'Helper Profile Not Found | OxSteed',
       'This OxSteed helper profile is no longer available.',
     );
@@ -1147,7 +1147,7 @@ async function handleHelperProfile(idOrSlug, template, res, next, req) {
   };
 
   const origin = base();
-  const publicPath = h.profile_slug ? `/h/${h.profile_slug}` : `/helpers/public/${helper.id}`;
+  const publicPath = h.profile_slug ? `/h/${h.profile_slug}` : `/helpers/${helper.id}`;
   const language = getRequestedLanguage(req);
   const url = getLocalizedRequestUrl(publicPath, req);
   const image = (helper.coverImage || helper.avatar)
@@ -1300,8 +1300,8 @@ async function handleBusinessProfile(idOrSlug, template, res, next, req) {
   return res.send(html);
 }
 
-const PUBLIC_HELPER_RE = /^\/helpers\/public\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
-const LEGACY_HELPER_RE = /^\/helpers\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+const PUBLIC_HELPER_RE = /^\/helpers\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+const LEGACY_HELPER_PUBLIC_RE = /^\/helpers\/public\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 const SLUG_HELPER_RE = /^\/h\/([a-z0-9](?:[a-z0-9-]{1,62}[a-z0-9])?)$/i;
 const PUBLIC_BUSINESS_RE = /^\/businesses\/public\/(\d+)$/i;
 const LEGACY_BUSINESS_RE = /^\/business\/(\d+)$/i;
@@ -1729,9 +1729,11 @@ function prerenderPublicPages(req, res, next) {
     return res.redirect(301, `${base()}/jobs/public/${matchLegacyJob[1]}`);
   }
 
-  const matchLegacyHelper = p.match(LEGACY_HELPER_RE);
+  const matchLegacyHelper = p.match(LEGACY_HELPER_PUBLIC_RE);
   if (matchLegacyHelper) {
-    return res.redirect(301, `${base()}/helpers/public/${matchLegacyHelper[1]}`);
+    const target = new URL(req.originalUrl, base());
+    target.pathname = `/helpers/${matchLegacyHelper[1]}`;
+    return res.redirect(301, target.toString());
   }
 
   const matchLegacyBusiness = p.match(LEGACY_BUSINESS_RE);

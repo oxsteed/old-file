@@ -32,7 +32,7 @@ export default function BookHelperPage() {
       />
       <div style={{ maxWidth: 960, margin: '0 auto', padding: '1.5rem 1rem 3rem' }}>
         <div style={{ marginBottom: '1.25rem' }}>
-          <Link to={`/helpers/public/${id}`} style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
+          <Link to={`/helpers/${id}`} style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
             ← {t('booking.backToProfile')}
           </Link>
         </div>

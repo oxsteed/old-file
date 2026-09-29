@@ -1930,7 +1930,7 @@ export default function HelperDashboard() {
                         <p className="text-xs text-gray-500 truncate">{h.categories || t('dashboard.home.savedHelperFallback')} · {h.avg_rating?`${h.avg_rating}★`:t('dashboard.home.newHelper')} · {h.completed_jobs||0} {t('dashboard.home.jobsLabel')}</p>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <Link to={`/helpers/public/${h.helper_id}`} className="text-xs text-orange-400 font-medium">View</Link>
+                        <Link to={`/helpers/${h.helper_id}`} className="text-xs text-orange-400 font-medium">View</Link>
                         <button onClick={async()=>{await life.removeSavedHelper(h.id);toast.success(t('helperDashboard.removed'));}} className="opacity-0 group-hover:opacity-100 transition"><IcoTrash size={13} cls="text-gray-600 hover:text-red-400"/></button>
                       </div>
                     </div>
@@ -2138,7 +2138,7 @@ export default function HelperDashboard() {
             onEditTool={openEditTool}
             onDeleteTool={handleDeleteTool}
             onViewTool={(tool) => navigate(`/tool-rentals/${tool.id}`)}
-            onViewProfile={() => navigate(`/helpers/public/${user?.id}`)}
+            onViewProfile={() => navigate(`/helpers/${user?.id}`)}
           />
         )}
         {/* ═══════ MY PRODUCTS ═══════ */}

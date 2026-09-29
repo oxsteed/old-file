@@ -389,7 +389,6 @@ verifyPageHasNoHardcodedUiText('src/pages/HelpersDirectoryPage.tsx', {
   allowedJsxText: ['0 && h.rating'],
 });
 verifyPageHasNoHardcodedUiText('src/pages/JobPublicPage.tsx');
-verifyPageHasNoHardcodedUiText('src/pages/HelperPublicProfilePage.tsx');
 verifyPageHasNoHardcodedUiText('src/pages/HelperBusinessProfilePage.tsx', {
   allowedJsxText: ['and'],
 });
