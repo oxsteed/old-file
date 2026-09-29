@@ -17,6 +17,7 @@ import { BARCODE_TYPES, normalizeBarcodeValue, renderBarcode } from '../utils/ba
 import {
   Trash2, Download, Copy, Check, Plus, X, RotateCcw, Search,
   CopyPlus, MapPin, Warehouse, Package, Layers, Utensils, ShoppingBag, Megaphone, Sparkles,
+  BadgeDollarSign,
 } from 'lucide-react';
 import {
   QR_OPERATION_TEMPLATES,
@@ -793,6 +794,17 @@ const QRCodeGeneratorPage = () => {
             <span className="qrg-journey-step"><b>03</b>{t('qrGenerator.journeyShare')}</span>
           </div>
         </div>
+
+        <Link to="/qr-payments" className="qrg-pay-banner">
+          <span className="qrg-pay-banner-icon" aria-hidden="true">
+            <BadgeDollarSign size={26} />
+          </span>
+          <span className="qrg-pay-banner-copy">
+            <strong>{t('qrPay.bannerTitle', { defaultValue: 'Get paid with QR codes' })}</strong>
+            <span>{t('qrPay.bannerBody', { defaultValue: 'Create a QR code customers can scan to pay you directly.' })}</span>
+          </span>
+          <span className="qrg-pay-banner-cta">{t('qrPay.bannerCta', { defaultValue: 'Set up QR payments' })}</span>
+        </Link>
 
         <section className="qrg-operations-panel" aria-labelledby="qrg-operations-title">
           <div className="qrg-operations-header">

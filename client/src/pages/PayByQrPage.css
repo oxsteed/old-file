@@ -1,0 +1,270 @@
+/* Public scan-to-pay page. Uses OxSteed semantic tokens so the page
+   adapts to dark/light themes. Logical properties keep RTL correct. */
+
+.pbq-page {
+  max-width: 30rem;
+  margin-inline: auto;
+  padding: var(--space-6) var(--space-4) var(--space-12);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.pbq-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 800;
+  font-size: 1.125rem;
+  letter-spacing: -0.02em;
+  color: var(--color-primary);
+  text-decoration: none;
+  align-self: flex-start;
+}
+
+.pbq-card {
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-card-border);
+  border-radius: 1.25rem;
+  padding: var(--space-6);
+  box-shadow: 0 18px 48px -24px rgba(0, 0, 0, 0.55);
+}
+
+/* ── Pay form ───────────────────────────────────────────────── */
+.pbq-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.pbq-recipient {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.pbq-avatar {
+  flex-shrink: 0;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+}
+
+.pbq-recipient-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-subtle);
+  margin: 0 0 var(--space-1);
+}
+
+.pbq-recipient h2 {
+  font-size: 1.375rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.pbq-for-label {
+  font-size: 0.9375rem;
+  color: var(--color-text-subtle);
+  margin: var(--space-1) 0 0;
+}
+
+.pbq-amount-display {
+  background: var(--color-surface-translucent);
+  border: 1px solid var(--color-border);
+  border-radius: 0.875rem;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: center;
+  text-align: center;
+}
+
+.pbq-amount-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-subtle);
+}
+
+.pbq-amount-display strong {
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+}
+
+.pbq-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.pbq-field > label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.pbq-amount-input {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.pbq-amount-input > span {
+  font-weight: 800;
+  font-size: 1.5rem;
+  color: var(--color-text-subtle);
+}
+
+.pbq-amount-input .pbq-input {
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.pbq-input {
+  width: 100%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 0.625rem;
+  color: var(--color-text);
+  padding: var(--space-2) var(--space-3);
+  font-size: 0.9375rem;
+  transition: border-color 150ms, box-shadow 150ms;
+}
+
+.pbq-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-bg);
+}
+
+.pbq-input::placeholder {
+  color: var(--color-text-faint);
+  font-weight: 400;
+  font-size: 0.9375rem;
+}
+
+.pbq-error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-error);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.pbq-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-weight: 700;
+  font-size: 1rem;
+  border-radius: 0.875rem;
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+  border: 1px solid transparent;
+  text-decoration: none;
+  transition: background 150ms, transform 100ms;
+}
+
+.pbq-btn:active {
+  transform: scale(0.98);
+}
+
+.pbq-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.pbq-btn-primary {
+  background: var(--color-action);
+  color: var(--color-on-action);
+  width: 100%;
+}
+
+.pbq-btn-primary:hover:not(:disabled) {
+  background: var(--color-action-hover);
+}
+
+.pbq-btn-secondary {
+  background: var(--color-surface-3);
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
+}
+
+.pbq-secure-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-size: 0.8125rem;
+  color: var(--color-text-subtle);
+  margin: 0;
+  text-align: center;
+}
+
+/* ── States ─────────────────────────────────────────────────── */
+.pbq-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  text-align: center;
+  padding: var(--space-6) var(--space-2);
+  color: var(--color-text-subtle);
+}
+
+.pbq-state h2 {
+  font-size: 1.375rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.pbq-state p {
+  margin: 0;
+  max-width: 24rem;
+}
+
+.pbq-spin {
+  animation: pbq-spin 1s linear infinite;
+  color: var(--color-primary);
+}
+
+@keyframes pbq-spin {
+  to { transform: rotate(360deg); }
+}
+
+.pbq-success-icon {
+  color: var(--color-success);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pbq-spin {
+    animation: none;
+  }
+
+  .pbq-btn {
+    transition: none;
+  }
+}

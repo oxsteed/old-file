@@ -29,6 +29,7 @@ const link = (to, labelKey, defaultLabel, Icon, tone = '', activityKey = '', act
 });
 
 const QR_GENERATOR_LINK = link('/qr-generator', 'nav.qrGenerator', 'QR Generator', QrCode, '', '', '', true);
+const QR_PAY_LINK = link('/qr-payments', 'qrPay.quickLink', 'Get paid by QR', QrCode);
 
 export const DASHBOARD_QUICK_LINKS = {
   helper: [
@@ -41,6 +42,7 @@ export const DASHBOARD_QUICK_LINKS = {
     link('/helper/messages', 'nav.messages', 'Messages', MessageSquare, '', 'messages'),
     link('/disputes', 'helperDashboard.disputes', 'Disputes', ShieldCheck, '', 'disputes'),
     QR_GENERATOR_LINK,
+    QR_PAY_LINK,
     link('/settings', 'nav.settings', 'Settings', Settings),
   ],
   life: [
@@ -79,6 +81,7 @@ export const DASHBOARD_QUICK_LINKS = {
     link('/messages', 'nav.messages', 'Messages', MessageSquare),
     link('/calendar', 'nav.calendar', 'Calendar', CalendarDays),
     QR_GENERATOR_LINK,
+    QR_PAY_LINK,
     link('/settings', 'nav.settings', 'Settings', Settings),
   ],
   businessRole: [

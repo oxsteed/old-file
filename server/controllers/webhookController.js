@@ -290,6 +290,10 @@ exports.stripeWebhook = async (req, res, next) => {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;
+        if (session.metadata?.qr_payment === 'true') {
+          await applyQrPaymentSucceeded(session);
+          break;
+        }
         const foodOrderId = extractFoodOrderId(session.metadata);
         if (foodOrderId) {
           const paymentStatus = session.payment_status === 'paid'
@@ -1050,3 +1054,23 @@ exports.diditWebhook = async (req, res, next) => {
 exports.canonicalizeDiditPayload = (body) => stableStringify(shortenFloats(body));
 exports.verifyDiditSignatureV2 = (body, signature, timestamp, secret) =>
   verifySignatureV2(body, signature, timestamp, secret);
+
+// Marks a QR scan-to-pay checkout as succeeded.
+// Idempotent: only flips rows that have not already succeeded, so duplicate
+// webhook deliveries and replays are safe.
+async function applyQrPaymentSucceeded(session) {
+  const paymentIntentId = typeof session.payment_intent === 'string'
+    ? session.payment_intent
+    : session.payment_intent?.id || null;
+  const { rowCount } = await db.query(
+    `UPDATE qr_payments
+        SET status = 'succeeded',
+            succeeded_at = NOW(),
+            stripe_payment_intent_id = COALESCE($2, stripe_payment_intent_id)
+      WHERE stripe_checkout_session_id = $1
+        AND status <> 'succeeded'`,
+    [session.id, paymentIntentId]
+  );
+  return rowCount;
+}
+exports.applyQrPaymentSucceeded = applyQrPaymentSucceeded;

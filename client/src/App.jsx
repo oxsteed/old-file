@@ -144,6 +144,8 @@ const DiscoverPage = lazyWithRetry(() => import('./pages/DiscoverPage'));
 const MyBookingsPage = lazyWithRetry(() => import('./pages/MyBookingsPage'));
 const ToolRentalsAnalytics = lazyWithRetry(() => import('./pages/ToolRentalsAnalytics'));
 const QRCodeGeneratorPage = lazyWithRetry(routeLoaders.qrGenerator, { name: 'qrGenerator' });
+const QrPaySetupPage = lazyWithRetry(() => import('./pages/QrPaySetupPage'));
+const PayByQrPage = lazyWithRetry(() => import('./pages/PayByQrPage'));
 const BusinessPublicProfilePage = lazyWithRetry(() => import('./pages/BusinessPublicProfilePage'));
 const HelperPublicProfilePage = lazyWithRetry(() => import('./pages/HelperPublicProfilePage'));
 const JobPublicPage = lazyWithRetry(() => import('./pages/JobPublicPage'));
@@ -490,6 +492,9 @@ export default function App() {
                     <Route path="/delivery/jobs/:id"           element={<Guarded><ProtectedRoute><RouteErrorBoundary><DeliveryDetailPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Public delivery tracking: signed token, no login required */}
                     <Route path="/t/:token"                    element={<Guarded><RouteErrorBoundary><PublicTrackingPage /></RouteErrorBoundary></Guarded>} />
+                    {/* Public scan-to-pay: payment QR link, no login required */}
+                    <Route path="/pay/:code"                   element={<Guarded><RouteErrorBoundary><PayByQrPage /></RouteErrorBoundary></Guarded>} />
+                    <Route path="/pay/:code/success"           element={<Guarded><RouteErrorBoundary><PayByQrPage /></RouteErrorBoundary></Guarded>} />
                     <Route path="/delivery/operations"          element={<Guarded><LogisticsOperatorGuard><RouteErrorBoundary><DeliveryDispatchPage /></RouteErrorBoundary></LogisticsOperatorGuard></Guarded>} />
                     <Route path="/delivery/operations/tracking/:id" element={<Guarded><LogisticsOperatorGuard><RouteErrorBoundary><DeliveryTrackingOpsPage /></RouteErrorBoundary></LogisticsOperatorGuard></Guarded>} />
                     <Route path="/logistics"                  element={<Guarded><RouteErrorBoundary><LogisticsHomePage /></RouteErrorBoundary></Guarded>} />
@@ -548,6 +553,8 @@ export default function App() {
 
                     {/* Pro feature: QR Code Generator */}
                     <Route path="/qr-generator"  element={<Guarded><ProtectedRoute><RouteErrorBoundary><QRCodeGeneratorPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    {/* QR payments: helpers and businesses get paid by QR */}
+                    <Route path="/qr-payments"   element={<Guarded><ProtectedRoute><RouteErrorBoundary><QrPaySetupPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
                     {/* Consulting Portal (All Phases) */}
                     <Route path="/consulting/portal" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ConsultingFullPortal /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

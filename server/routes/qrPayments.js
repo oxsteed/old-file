@@ -1,0 +1,385 @@
+// server/routes/qrPayments.js
+// Scan-to-pay QR codes: helpers and business owners create payment codes,
+// customers scan them and pay through Stripe Checkout on the owner's
+// connected Stripe account (destination charge with application fee).
+//
+// POST   /api/qr-payments/codes              → create a payment code (auth)
+// GET    /api/qr-payments/codes              → list my codes with totals (auth)
+// PATCH  /api/qr-payments/codes/:id          → update a code (auth, owner)
+// DELETE /api/qr-payments/codes/:id          → deactivate a code (auth, owner)
+// GET    /api/qr-payments/pay/:code          → public pay-page data
+// POST   /api/qr-payments/pay/:code/checkout → create Stripe Checkout Session
+// GET    /api/qr-payments/pay/:code/receipt  → receipt data for success page
+
+const express = require('express');
+const crypto = require('crypto');
+const router = express.Router();
+const { authenticate } = require('../middleware/auth');
+const { paymentsLimiter, strictLimiter, generalLimiter } = require('../middleware/rateLimiter');
+const pool = require('../db');
+const logger = require('../utils/logger');
+const { calculateTier3Fees } = require('../utils/feeCalculator');
+
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+
+const MIN_AMOUNT_CENTS = 100;        // $1.00
+const MAX_AMOUNT_CENTS = 10_000_000; // $100,000.00
+const CODE_BYTES = 9;                // 9 bytes -> 12 base64url chars
+
+function publicBaseUrl() {
+  const base = process.env.PUBLIC_APP_URL || process.env.APP_URL || process.env.CLIENT_URL || '';
+  return base.replace(/\/+$/, '');
+}
+
+function parseAmountCents(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Number(value);
+  if (!Number.isInteger(n)) return null;
+  return n;
+}
+
+function isValidEmail(value) {
+  return typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function recipientName(user) {
+  const first = (user.first_name || '').trim();
+  const lastInitial = (user.last_name || '').trim().charAt(0);
+  if (!first) return 'OxSteed provider';
+  return lastInitial ? `${first} ${lastInitial}.` : first;
+}
+
+async function getConnectAccount(userId) {
+  const { rows } = await pool.query(
+    'SELECT user_id, stripe_account_id, charges_enabled FROM connect_accounts WHERE user_id = $1',
+    [userId]
+  );
+  return rows[0] || null;
+}
+
+function connectRequired(res) {
+  return res.status(409).json({
+    error: 'Connect your Stripe account before creating payment codes.',
+    code: 'connect_required',
+  });
+}
+
+async function getActiveCode(code) {
+  const { rows } = await pool.query(
+    `SELECT c.id, c.owner_user_id, c.code, c.label, c.amount_cents, c.currency,
+            u.first_name, u.last_name
+       FROM qr_payment_codes c
+       JOIN users u ON u.id = c.owner_user_id
+      WHERE c.code = $1 AND c.is_active = TRUE`,
+    [code]
+  );
+  return rows[0] || null;
+}
+
+function codeNotFound(res) {
+  // Unknown and inactive codes share one response so scanners
+  // cannot distinguish deactivated codes from mistyped ones.
+  return res.status(404).json({
+    error: 'This payment link is not available.',
+    code: 'not_found',
+  });
+}
+
+// ── Create a payment code ────────────────────────────────────────
+router.post('/codes', authenticate, paymentsLimiter, async (req, res, next) => {
+  try {
+    const label = typeof req.body?.label === 'string' ? req.body.label.trim() : '';
+    if (!label) {
+      return res.status(400).json({ error: 'A label is required.', code: 'label_required' });
+    }
+    if (label.length > 80) {
+      return res.status(400).json({
+        error: 'The label must be 80 characters or fewer.',
+        code: 'label_too_long',
+      });
+    }
+
+    const amountCents = parseAmountCents(req.body?.amount_cents);
+    if (req.body?.amount_cents !== undefined && req.body?.amount_cents !== null && req.body?.amount_cents !== '') {
+      if (amountCents === null || amountCents < MIN_AMOUNT_CENTS) {
+        return res.status(400).json({
+          error: `A fixed amount must be at least $${(MIN_AMOUNT_CENTS / 100).toFixed(2)}. Leave it empty for an open amount.`,
+          code: 'invalid_amount',
+        });
+      }
+    }
+
+    const connect = await getConnectAccount(req.user.id);
+    if (!connect || !connect.charges_enabled) return connectRequired(res);
+
+    // Short URL-safe code; retry on the (unlikely) unique collision.
+    let row = null;
+    for (let attempt = 0; attempt < 3 && !row; attempt += 1) {
+      const code = crypto.randomBytes(CODE_BYTES).toString('base64url');
+      try {
+        const { rows } = await pool.query(
+          `INSERT INTO qr_payment_codes (owner_user_id, code, label, amount_cents)
+           VALUES ($1, $2, $3, $4)
+           RETURNING id, code`,
+          [req.user.id, code, label, amountCents]
+        );
+        row = rows[0];
+      } catch (err) {
+        if (err.code !== '23505' || attempt === 2) throw err;
+      }
+    }
+
+    return res.status(201).json({
+      id: row.id,
+      code: row.code,
+      pay_url: `${publicBaseUrl()}/pay/${row.code}`,
+    });
+  } catch (err) {
+    logger.error('qrPayments: create code failed', { userId: req.user?.id, error: err.message });
+    return next(err);
+  }
+});
+
+// ── List my codes with succeeded totals ──────────────────────────
+router.get('/codes', authenticate, async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT c.id, c.code, c.label, c.amount_cents, c.currency, c.is_active,
+              c.created_at, c.deactivated_at,
+              COALESCE(SUM(p.amount_cents) FILTER (WHERE p.status = 'succeeded'), 0)::int
+                AS total_received_cents,
+              COUNT(p.id) FILTER (WHERE p.status = 'succeeded')::int AS succeeded_count
+         FROM qr_payment_codes c
+         LEFT JOIN qr_payments p ON p.qr_code_id = c.id
+        WHERE c.owner_user_id = $1
+        GROUP BY c.id
+        ORDER BY c.created_at DESC`,
+      [req.user.id]
+    );
+    return res.json({
+      codes: rows.map((r) => ({
+        ...r,
+        pay_url: `${publicBaseUrl()}/pay/${r.code}`,
+      })),
+    });
+  } catch (err) {
+    logger.error('qrPayments: list codes failed', { userId: req.user?.id, error: err.message });
+    return next(err);
+  }
+});
+
+// ── Update a code (owner only) ────────────────────────────────────
+router.patch('/codes/:id', authenticate, async (req, res, next) => {
+  try {
+    const { rows: existing } = await pool.query(
+      'SELECT id FROM qr_payment_codes WHERE id = $1 AND owner_user_id = $2',
+      [req.params.id, req.user.id]
+    );
+    if (!existing[0]) {
+      return res.status(404).json({ error: 'Payment code not found.', code: 'not_found' });
+    }
+
+    const updates = [];
+    const values = [];
+    let idx = 1;
+
+    if (req.body?.label !== undefined) {
+      const label = typeof req.body.label === 'string' ? req.body.label.trim() : '';
+      if (!label || label.length > 80) {
+        return res.status(400).json({
+          error: 'The label must be between 1 and 80 characters.',
+          code: 'invalid_label',
+        });
+      }
+      updates.push(`label = $${idx++}`);
+      values.push(label);
+    }
+
+    if (req.body?.amount_cents !== undefined) {
+      const amountCents = parseAmountCents(req.body.amount_cents);
+      if (req.body.amount_cents !== null && req.body.amount_cents !== '' && (amountCents === null || amountCents < MIN_AMOUNT_CENTS)) {
+        return res.status(400).json({
+          error: `A fixed amount must be at least $${(MIN_AMOUNT_CENTS / 100).toFixed(2)}. Use null for an open amount.`,
+          code: 'invalid_amount',
+        });
+      }
+      updates.push(`amount_cents = $${idx++}`);
+      values.push(amountCents);
+    }
+
+    if (req.body?.is_active !== undefined) {
+      const isActive = req.body.is_active === true;
+      updates.push(`is_active = $${idx++}`);
+      values.push(isActive);
+      updates.push(isActive ? 'deactivated_at = NULL' : 'deactivated_at = NOW()');
+    }
+
+    if (!updates.length) {
+      return res.status(400).json({ error: 'Nothing to update.', code: 'no_changes' });
+    }
+
+    updates.push('updated_at = NOW()');
+    values.push(req.params.id, req.user.id);
+    const { rows } = await pool.query(
+      `UPDATE qr_payment_codes
+          SET ${updates.join(', ')}
+        WHERE id = $${idx++} AND owner_user_id = $${idx++}
+        RETURNING id, code, label, amount_cents, currency, is_active, updated_at`,
+      values
+    );
+    const row = rows[0];
+    return res.json({ ...row, pay_url: `${publicBaseUrl()}/pay/${row.code}` });
+  } catch (err) {
+    logger.error('qrPayments: update code failed', { userId: req.user?.id, error: err.message });
+    return next(err);
+  }
+});
+
+// ── Deactivate a code (owner only, soft delete) ──────────────────
+router.delete('/codes/:id', authenticate, async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `UPDATE qr_payment_codes
+          SET is_active = FALSE, deactivated_at = NOW(), updated_at = NOW()
+        WHERE id = $1 AND owner_user_id = $2
+        RETURNING id`,
+      [req.params.id, req.user.id]
+    );
+    if (!rows[0]) {
+      return res.status(404).json({ error: 'Payment code not found.', code: 'not_found' });
+    }
+    return res.json({ id: rows[0].id, is_active: false });
+  } catch (err) {
+    logger.error('qrPayments: deactivate code failed', { userId: req.user?.id, error: err.message });
+    return next(err);
+  }
+});
+
+// ── Public pay-page data ─────────────────────────────────────────
+router.get('/pay/:code', strictLimiter, async (req, res, next) => {
+  try {
+    const code = await getActiveCode(req.params.code);
+    if (!code) return codeNotFound(res);
+    return res.json({
+      label: code.label,
+      amount_cents: code.amount_cents,
+      currency: code.currency,
+      recipient_name: recipientName(code),
+      ready: true,
+    });
+  } catch (err) {
+    logger.error('qrPayments: pay lookup failed', { error: err.message });
+    return next(err);
+  }
+});
+
+// ── Create a Stripe Checkout Session for a code ──────────────────
+router.post('/pay/:code/checkout', paymentsLimiter, async (req, res, next) => {
+  try {
+    const code = await getActiveCode(req.params.code);
+    if (!code) return codeNotFound(res);
+
+    let amountCents = code.amount_cents;
+    if (amountCents === null || amountCents === undefined) {
+      amountCents = parseAmountCents(req.body?.amount_cents);
+    }
+    if (amountCents === null || amountCents < MIN_AMOUNT_CENTS || amountCents > MAX_AMOUNT_CENTS) {
+      return res.status(400).json({
+        error: `Enter an amount between $${(MIN_AMOUNT_CENTS / 100).toFixed(2)} and $${(MAX_AMOUNT_CENTS / 100).toFixed(2)}.`,
+        code: 'invalid_amount',
+      });
+    }
+
+    let payerEmail = null;
+    if (req.body?.payer_email !== undefined && req.body?.payer_email !== null && req.body?.payer_email !== '') {
+      if (!isValidEmail(req.body.payer_email)) {
+        return res.status(400).json({ error: 'Enter a valid email address.', code: 'invalid_email' });
+      }
+      payerEmail = req.body.payer_email.trim();
+    }
+
+    const connect = await getConnectAccount(code.owner_user_id);
+    if (!connect || !connect.charges_enabled) return connectRequired(res);
+
+    const fees = calculateTier3Fees(amountCents);
+    const baseUrl = publicBaseUrl();
+
+    const session = await stripe.checkout.sessions.create(
+      {
+        mode: 'payment',
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price_data: {
+              currency: code.currency || 'usd',
+              product_data: { name: code.label },
+              unit_amount: amountCents,
+            },
+            quantity: 1,
+          },
+        ],
+        payment_intent_data: {
+          application_fee_amount: fees.application_fee_cents,
+          metadata: {
+            qr_payment: 'true',
+            qr_code_id: code.id,
+          },
+        },
+        customer_email: payerEmail || undefined,
+        success_url: `${baseUrl}/pay/${code.code}/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/pay/${code.code}`,
+        metadata: {
+          qr_payment: 'true',
+          qr_code_id: code.id,
+          amount_cents: String(amountCents),
+        },
+      },
+      {
+        stripeAccount: connect.stripe_account_id,
+        idempotencyKey: `qr-checkout:${code.id}:${crypto.randomBytes(8).toString('hex')}`,
+      }
+    );
+
+    await pool.query(
+      `INSERT INTO qr_payments
+         (qr_code_id, stripe_checkout_session_id, amount_cents, platform_fee_cents, status, payer_email)
+       VALUES ($1, $2, $3, $4, 'pending', $5)`,
+      [code.id, session.id, amountCents, fees.application_fee_cents, payerEmail]
+    );
+
+    return res.json({ url: session.url });
+  } catch (err) {
+    logger.error('qrPayments: checkout failed', { code: req.params.code, error: err.message });
+    return next(err);
+  }
+});
+
+// ── Receipt data for the success page ────────────────────────────
+router.get('/pay/:code/receipt', generalLimiter, async (req, res, next) => {
+  try {
+    const sessionId = typeof req.query?.session_id === 'string' ? req.query.session_id.trim() : '';
+    if (!sessionId) {
+      return res.status(400).json({ error: 'A session id is required.', code: 'session_required' });
+    }
+    const { rows } = await pool.query(
+      `SELECT p.status, p.amount_cents, c.label
+         FROM qr_payments p
+         JOIN qr_payment_codes c ON c.id = p.qr_code_id
+        WHERE p.stripe_checkout_session_id = $1 AND c.code = $2`,
+      [sessionId, req.params.code]
+    );
+    if (!rows[0]) {
+      return res.status(404).json({ error: 'Receipt not found.', code: 'not_found' });
+    }
+    return res.json({
+      status: rows[0].status,
+      amount_cents: rows[0].amount_cents,
+      label: rows[0].label,
+    });
+  } catch (err) {
+    logger.error('qrPayments: receipt lookup failed', { error: err.message });
+    return next(err);
+  }
+});
+
+module.exports = router;
