@@ -15,20 +15,6 @@ export interface HelperDirectoryResponse {
 
 // ── Types for dynamic endpoints (Issue #35) ───────────────────────────────────
 
-export interface HelperAvailabilityData {
-  schedule: Array<{
-    day: string;
-    open: string | null;
-    close: string | null;
-    closed: boolean;
-  }>;
-  isAvailableNow: boolean;
-  isOpenNow: boolean;
-  isOnline: boolean;
-  responseTime: string;
-  responseTimeHours: number | null;
-}
-
 export interface HelperPricingData {
   hourlyRateMin: number | null;
   hourlyRateMax: number | null;
@@ -41,20 +27,6 @@ export interface HelperPricingData {
     hourlyRate: number | null;
     flatRate: number | null;
   }>;
-}
-
-export interface HelperSlotData {
-  slots: Array<{
-    date: string;
-    dayName: string;
-    open: string;
-    close: string;
-    bookedCount: number;
-    hasOpenings: boolean;
-  }>;
-  weekOf: string;
-  totalOpenDays: number;
-  totalBookedSlots: number;
 }
 
 // ── Directory ─────────────────────────────────────────────────────────────────
@@ -104,18 +76,8 @@ export async function fetchHelperProfile(id: string, signal?: AbortSignal): Prom
 // These are fetched client-side AFTER initial page load to keep
 // the pre-rendered shell fast and SEO-friendly.
 
-export async function fetchHelperAvailability(id: string, signal?: AbortSignal): Promise<HelperAvailabilityData> {
-  const { data } = await api.get<HelperAvailabilityData>(`/helpers/${id}/availability`, { signal });
-  return data;
-}
-
 export async function fetchHelperPricing(id: string, signal?: AbortSignal): Promise<HelperPricingData> {
   const { data } = await api.get<HelperPricingData>(`/helpers/${id}/pricing`, { signal });
-  return data;
-}
-
-export async function fetchHelperSlots(id: string, signal?: AbortSignal): Promise<HelperSlotData> {
-  const { data } = await api.get<HelperSlotData>(`/helpers/${id}/slots`, { signal });
   return data;
 }
 

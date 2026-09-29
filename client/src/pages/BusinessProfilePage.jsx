@@ -41,7 +41,6 @@ import ReviewsSection from '../components/helperProfile/ReviewsSection';
 import FAQSection from '../components/helperProfile/FAQSection';
 import CTASection from '../components/helperProfile/CTASection';
 import PublicProfileMessenger from '../components/helperProfile/chat/PublicProfileMessenger.jsx';
-import { AvailabilityBlock, PricingBlock, SlotsBlock } from '../components/helperProfile/DynamicBlocks';
 
 import { getBusinessPublicProfile } from '../api/businesses';
 import { getPublicPropertyOperations } from '../api/propertyOperations';
@@ -1072,13 +1071,12 @@ export default function BusinessProfilePage() {
             <PoliciesSection policies={policies} />
 
             {/*
-              Dynamic blocks - use owner_id as helperId so these endpoints
-              resolve against the business owner's helper profile data.
-              Each block silently renders null if the fetch fails.
+              Identity separation: a business keeps its own identity. Its
+              schedule is its own business_hours (HoursSection above) and its
+              pricing is its own service catalog. The owner's personal helper
+              availability/pricing/slots are never shown here; they live on
+              the helper's individual profile (/helpers/:id).
             */}
-            <AvailabilityBlock helperId={helper.id} />
-            <PricingBlock      helperId={helper.id} />
-            <SlotsBlock        helperId={helper.id} />
 
             <ReviewsSection
               reviews={reviews}

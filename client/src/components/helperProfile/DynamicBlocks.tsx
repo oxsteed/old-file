@@ -7,9 +7,9 @@
  */
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Clock, DollarSign, Calendar, Zap, Circle } from 'lucide-react';
-import type { HelperAvailabilityData, HelperPricingData, HelperSlotData } from '../../api/helpers';
-import { fetchHelperAvailability, fetchHelperPricing, fetchHelperSlots } from '../../api/helpers';
+import { DollarSign, Zap } from 'lucide-react';
+import type { HelperPricingData } from '../../api/helpers';
+import { fetchHelperPricing } from '../../api/helpers';
 
 // ── Skeleton primitives ─────────────────────────────────────────────────────
 const SkeletonLine: React.FC<{ width?: string }> = ({ width = 'w-full' }) => (
@@ -27,72 +27,6 @@ const SkeletonBlock: React.FC<{ lines?: number; title: string }> = ({ lines = 3,
     ))}
   </section>
 );
-
-// ── Availability Block ──────────────────────────────────────────────────────
-export const AvailabilityBlock: React.FC<{ helperId: string }> = ({ helperId }) => {
-  const { t } = useTranslation();
-  const [data, setData] = useState<HelperAvailabilityData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchHelperAvailability(helperId, controller.signal)
-      .then((result) => { if (!controller.signal.aborted) setData(result); })
-      .catch((err) => { if (!controller.signal.aborted && err?.code !== 'ERR_CANCELED') setError(true); })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return () => controller.abort();
-  }, [helperId]);
-
-  if (loading) return <SkeletonBlock title={t('helperProfile.chat.loadingAvailability')} lines={2} />;
-  if (error || !data) return null;
-
-  return (
-    <section
-      id="dynamic-availability"
-      className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5"
-      aria-label={t('helperProfile.chat.availabilityAria')}
-    >
-      <div className="flex items-center gap-2 mb-3">
-        <Clock className="w-4 h-4 text-brand-400" aria-hidden />
-        <h3 className="text-sm font-semibold text-white">{t('helperProfile.chat.availability')}</h3>
-      </div>
-      <div className="flex items-center gap-3 mb-3">
-        <span className="flex items-center gap-1.5">
-          <Circle
-            className={`w-2.5 h-2.5 fill-current ${
-              data.isOnline ? 'text-green-400' : data.isAvailableNow ? 'text-yellow-400' : 'text-gray-500'
-            }`}
-            aria-hidden
-          />
-          <span className="text-sm text-gray-300">
-            {data.isOnline
-              ? t('helperProfile.chat.onlineNow')
-              : data.isAvailableNow
-              ? t('helperProfile.chat.availableToday')
-              : t('helperProfile.chat.offline')}
-          </span>
-        </span>
-        {data.responseTime && (
-          <span className="flex items-center gap-1 text-xs text-gray-500">
-            <Zap className="w-3 h-3" aria-hidden />
-            {t('helperProfile.chat.respondsIn', { time: data.responseTime })}
-          </span>
-        )}
-      </div>
-      <div className="grid grid-cols-7 gap-1 text-center">
-        {data.schedule.map((day) => (
-          <div key={day.day} className="text-xs">
-            <div className="text-gray-500 font-medium mb-1">{day.day.slice(0, 3)}</div>
-            <div className={day.closed ? 'text-gray-600' : 'text-gray-300'}>
-              {day.closed ? t('helperProfile.chat.off') : day.open?.replace(':00', '')}
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-};
 
 // ── Pricing Block ───────────────────────────────────────────────────────────
 export const PricingBlock: React.FC<{ helperId: string }> = ({ helperId }) => {
@@ -166,66 +100,6 @@ export const PricingBlock: React.FC<{ helperId: string }> = ({ helperId }) => {
           ))}
         </ul>
       )}
-    </section>
-  );
-};
-
-// ── Slots This Week Block ───────────────────────────────────────────────────
-export const SlotsBlock: React.FC<{ helperId: string }> = ({ helperId }) => {
-  const { t, i18n } = useTranslation();
-  const [data, setData] = useState<HelperSlotData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchHelperSlots(helperId, controller.signal)
-      .then((result) => { if (!controller.signal.aborted) setData(result); })
-      .catch((err) => { if (!controller.signal.aborted && err?.code !== 'ERR_CANCELED') setError(true); })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return () => controller.abort();
-  }, [helperId]);
-
-  if (loading) return <SkeletonBlock title={t('helperProfile.chat.loadingSlots')} lines={4} />;
-  if (error || !data || data.slots.length === 0) return null;
-
-  return (
-    <section
-      id="dynamic-slots"
-      className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5"
-      aria-label={t('helperProfile.chat.slotsAria')}
-    >
-      <div className="flex items-center gap-2 mb-3">
-        <Calendar className="w-4 h-4 text-brand-400" aria-hidden />
-        <h3 className="text-sm font-semibold text-white">{t('helperProfile.chat.slotsThisWeek')}</h3>
-        <span className="ml-auto text-xs text-gray-500">
-          {t('helperProfile.chat.openDays', { count: data.totalOpenDays })}
-        </span>
-      </div>
-      <div className="space-y-2">
-        {data.slots.map((slot) => {
-          const dateObj = new Date(slot.date + 'T12:00:00');
-          const dayLabel = dateObj.toLocaleDateString(i18n.resolvedLanguage || i18n.language, { weekday: 'short', month: 'short', day: 'numeric' });
-          return (
-            <div
-              key={slot.date}
-              className={`flex items-center justify-between px-3 py-2 rounded-xl text-sm ${
-                slot.hasOpenings
-                  ? 'bg-gray-800/50 border border-gray-700/50'
-                  : 'bg-gray-800/20 border border-gray-800/30 opacity-60'
-              }`}
-            >
-              <span className="text-gray-300 font-medium">{dayLabel}</span>
-              <span className="text-gray-400 text-xs">{slot.open} – {slot.close}</span>
-              <span className={`text-xs font-medium ${
-                slot.hasOpenings ? 'text-green-400' : 'text-gray-500'
-              }`}>
-                {slot.hasOpenings ? t('helperProfile.chat.open') : t('helperProfile.chat.full')}
-              </span>
-            </div>
-          );
-        })}
-      </div>
     </section>
   );
 };
