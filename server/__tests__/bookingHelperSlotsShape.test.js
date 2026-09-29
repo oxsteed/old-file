@@ -14,6 +14,7 @@ jest.mock('../utils/logger', () => ({
 }));
 jest.mock('../services/helperAvailabilityService', () => ({
   getHourSlots: jest.fn(),
+  getHelperTimeZone: jest.fn().mockResolvedValue(null),
 }));
 
 const pool = require('../db');
@@ -73,5 +74,46 @@ describe('getHelperAvailableSlots slot shape', () => {
     );
 
     expect(res.status).toHaveBeenCalledWith(404);
+  });
+
+  test('rejects missing, malformed, and impossible dates', async () => {
+    pool.query.mockResolvedValue({ rows: [{ '1': 1 }] }); // helper exists
+
+    for (const date of [undefined, '', 'not-a-date', '2026-13-01', '2026-02-30', '10/05/2026']) {
+      const res = resMock();
+      await bookingController.getHelperAvailableSlots(
+        { params: { helperId: 'h1' }, query: { date } },
+        res,
+        (e) => { throw e; },
+      );
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(availabilityService.getHourSlots).not.toHaveBeenCalled();
+      jest.clearAllMocks();
+      pool.query.mockResolvedValue({ rows: [{ '1': 1 }] });
+    }
+  });
+
+  test('propagates the helper timezone into slot computation', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [{ '1': 1 }] }); // helper exists
+    availabilityService.getHelperTimeZone.mockResolvedValueOnce('America/New_York');
+    availabilityService.getHourSlots.mockResolvedValue({
+      slots: [],
+      hasTemplate: true,
+      dayHasAvailability: true,
+      dayStatus: 'available',
+      bookingBufferMinutes: 0,
+    });
+
+    const res = resMock();
+    await bookingController.getHelperAvailableSlots(
+      { params: { helperId: 'h1' }, query: { date: '2026-10-05' } },
+      res,
+      (e) => { throw e; },
+    );
+
+    expect(availabilityService.getHelperTimeZone).toHaveBeenCalledWith(pool, 'h1');
+    expect(availabilityService.getHourSlots).toHaveBeenCalledWith(
+      'h1', '2026-10-05', 60, pool, 'America/New_York'
+    );
   });
 });

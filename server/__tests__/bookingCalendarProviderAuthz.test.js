@@ -26,6 +26,7 @@ jest.mock('../controllers/chatBookingRequestsController', () => ({
 // Keep these tests about authz: availability itself is covered elsewhere.
 jest.mock('../services/helperAvailabilityService', () => ({
   isSlotFree: jest.fn().mockResolvedValue({ free: true }),
+  getHelperTimeZone: jest.fn().mockResolvedValue(null),
 }));
 
 const pool = require('../db');

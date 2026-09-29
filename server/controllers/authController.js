@@ -1808,7 +1808,7 @@ async function getPublicProfile(req, res) {
       `SELECT users.id, users.first_name, users.last_name, users.role, users.zip_code,
   hp.profile_headline, hp.bio_long, hp.hourly_rate_min,
   hp.service_radius_miles, hp.rate_preference, hp.tier AS helper_tier,
-  hp.availability_json, users.created_at
+  users.created_at
   FROM users LEFT JOIN helper_profiles hp ON hp.user_id = users.id WHERE users.id = $1 AND users.deleted_at IS NULL`,
       [id]
     );

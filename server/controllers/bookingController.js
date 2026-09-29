@@ -740,16 +740,29 @@ exports.getHelperAvailableSlots = async (req, res, next) => {
       return sendError(res, 404, 'Helper not found');
     }
 
-    const dateObj = new Date(`${date}T12:00:00`);
-    if (Number.isNaN(dateObj.getTime())) {
+    // The requested date is a wall-clock date on the helper's schedule.
+    // Parse it as a plain calendar date instead of round-tripping through
+    // the server's local timezone (which could shift the day near UTC
+    // midnight for far-from-UTC servers).
+    const dateMatch = typeof date === 'string' ? date.match(/^(\d{4})-(\d{2})-(\d{2})$/) : null;
+    const dateISO = dateMatch ? dateMatch[0] : null;
+    const dateValid =
+      dateISO &&
+      !Number.isNaN(Date.UTC(Number(dateMatch[1]), Number(dateMatch[2]) - 1, Number(dateMatch[3]))) &&
+      new Date(Date.UTC(Number(dateMatch[1]), Number(dateMatch[2]) - 1, Number(dateMatch[3])))
+        .toISOString()
+        .startsWith(dateISO);
+    if (!dateValid) {
       return sendValidationError(res, { date: 'Invalid date' });
     }
-    const dateISO = dateObj.toISOString().split('T')[0];
-    const dow = dateObj.getUTCDay();
+    const dow = new Date(`${dateISO}T00:00:00Z`).getUTCDay();
 
     // Single-system computation: weekly template − dated blocks − appointments.
+    // Anchored in the helper's timezone so "today", past-slot filtering, and
+    // block dates all follow the helper's wall clock, not the server's.
+    const helperTimeZone = await availabilityService.getHelperTimeZone(pool, helperId);
     const { slots, hasTemplate, dayHasAvailability, dayStatus, bookingBufferMinutes } =
-      await availabilityService.getHourSlots(helperId, dateISO, 60);
+      await availabilityService.getHourSlots(helperId, dateISO, 60, pool, helperTimeZone);
 
     const pad = (n) => String(n).padStart(2, '0');
     // BookingCalendar expects { startTime, endTime, available }; every slot

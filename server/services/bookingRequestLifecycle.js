@@ -419,11 +419,13 @@ async function checkHelperSlotFree(helperId, startDate, endDate, db, excludeAppo
     params,
   );
   if (overlap.rows.length > 0) throw slotConflictError('SCHEDULING_CONFLICT');
+  const helperTimeZone = await availabilityService.getHelperTimeZone(db, helperId);
   const slotCheck = await availabilityService.isSlotFree(
     helperId,
     startDate.toISOString(),
     endDate.toISOString(),
     db,
+    helperTimeZone,
   );
   if (!slotCheck.free) throw slotConflictError('HELPER_UNAVAILABLE', slotCheck.reason);
 }

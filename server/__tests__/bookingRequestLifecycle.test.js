@@ -20,6 +20,7 @@ jest.mock('../services/socketService', () => ({
 }));
 jest.mock('../services/helperAvailabilityService', () => ({
   isSlotFree: jest.fn(),
+  getHelperTimeZone: jest.fn().mockResolvedValue(null),
 }));
 
 const pool = require('../db');

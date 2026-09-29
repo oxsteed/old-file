@@ -22,6 +22,7 @@
 // so they line up with the wall-clock weekly template.
 
 const pool = require('../db');
+const logger = require('../utils/logger');
 
 // ─── Pure helpers (unit-tested) ─────────────────────────────────────────────
 
@@ -94,6 +95,134 @@ function localDateStr(d) {
 /** Today's date in local wall-clock time. */
 function localTodayISO() {
   return localDateStr(new Date());
+}
+
+/**
+ * Validate an IANA timezone name. Returns the name when usable, else null.
+ * A null timezone means "server-local wall clock" (historical behavior).
+ */
+function resolveTimeZone(tz) {
+  if (!tz || typeof tz !== 'string') return null;
+  try {
+    // Throws RangeError for unknown zones.
+    new Intl.DateTimeFormat('en-US', { timeZone: tz });
+    return tz;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Wall-clock parts of a Date in the given IANA zone (server-local when null).
+ * The template stores plain TIME values, so every interpretation of "9:00"
+ * must happen in the helper's zone, not the server's.
+ */
+function zonedParts(date, timeZone) {
+  if (!timeZone) {
+    return {
+      year: date.getFullYear(),
+      month: date.getMonth() + 1,
+      day: date.getDate(),
+      hour: date.getHours(),
+      minute: date.getMinutes(),
+    };
+  }
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  const parts = {};
+  for (const p of fmt.formatToParts(date)) parts[p.type] = p.value;
+  return {
+    year: Number(parts.year),
+    month: Number(parts.month),
+    day: Number(parts.day),
+    // hour12:false can yield "24" for midnight in some ICU versions.
+    hour: Number(parts.hour) % 24,
+    minute: Number(parts.minute),
+  };
+}
+
+/** YYYY-MM-DD of a Date in the given zone (server-local when null). */
+function zonedDateStr(date, timeZone) {
+  const p = zonedParts(date, timeZone);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${p.year}-${pad(p.month)}-${pad(p.day)}`;
+}
+
+/** Minutes since zoned midnight for a Date (server-local when null). */
+function zonedNowMinutes(date, timeZone) {
+  const p = zonedParts(date, timeZone);
+  return p.hour * 60 + p.minute;
+}
+
+/**
+ * UTC timestamp of 00:00 on a YYYY-MM-DD date in the given zone
+ * (server-local midnight when timeZone is null).
+ */
+function zonedDayStartUTC(dateISO, timeZone) {
+  return zonedLocalToUTC(dateISO, 0, timeZone);
+}
+
+/**
+ * UTC timestamp of a wall-clock time (minutes since midnight) on a YYYY-MM-DD
+ * date in the given zone (server-local when timeZone is null).
+ *
+ * Uses the zone offset in effect AT that local time, so blocks on DST
+ * transition days land on the correct UTC instant. Iterates: the offset
+ * depends on the instant, which depends on the offset; two passes converge
+ * everywhere except the repeated fall-back hour, where the first occurrence
+ * wins (either is defensible for a block boundary).
+ */
+function zonedLocalToUTC(dateISO, minutes, timeZone) {
+  const [y, m, d] = dateISO.split('-').map(Number);
+  const hh = Math.floor(minutes / 60);
+  const mm = minutes % 60;
+  if (!timeZone) return new Date(y, m - 1, d, hh, mm).getTime();
+  const wallAsUTC = Date.UTC(y, m - 1, d, hh, mm);
+  const offsetAt = (utcMs) => {
+    const p = zonedParts(new Date(utcMs), timeZone);
+    return Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute) - utcMs;
+  };
+  let utc = wallAsUTC - offsetAt(wallAsUTC);
+  for (let i = 0; i < 3; i++) {
+    const next = wallAsUTC - offsetAt(utc);
+    if (next === utc) break;
+    utc = next;
+  }
+  return utc;
+}
+
+/** Wall-clock length of a YYYY-MM-DD date in minutes in the given zone
+ * (server-local when null). 1440 normally, 1380/1500 on DST transition days. */
+function zonedDayLengthMinutes(dateISO, timeZone) {
+  const next = addDaysISO(dateISO, 1);
+  return Math.round((zonedDayStartUTC(next, timeZone) - zonedDayStartUTC(dateISO, timeZone)) / 60000);
+}
+
+/** Helper's IANA timezone from users.timezone (null when unset/invalid).
+ * A missing/invalid value falls back to null (server-local wall clock,
+ * the historical behavior). Unexpected query failures are logged and also
+ * fall back to null: the timezone is a best-effort refinement, and a
+ * transient read failure should not take down slot computation. */
+async function getHelperTimeZone(client, helperId) {
+  let timezone;
+  try {
+    const { rows } = await client.query('SELECT timezone FROM users WHERE id = $1', [helperId]);
+    timezone = rows[0]?.timezone;
+  } catch (err) {
+    logger.warn('[availability] helper timezone lookup failed, using server-local', {
+      helperId,
+      err: err.message,
+    });
+    return null;
+  }
+  return resolveTimeZone(timezone);
 }
 
 const DAY_NAME_TO_DOW = {
@@ -195,26 +324,43 @@ function eachDateISO(fromISO, toISO) {
 /** Clamp a timestamptz block to minute ranges per UTC date it touches. */
 /**
  * Split a timestamped block/appointment into per-date minute ranges.
- * Uses the server's local wall-clock time so the ranges line up with the
+ * Dates and minute offsets are anchored in the helper's timezone (server
+ * local wall-clock when timeZone is null) so the ranges line up with the
  * wall-clock weekly template (helper_availability stores plain TIME values).
  */
-function blockRangesPerDate(block) {
+function blockRangesPerDate(block, timeZone = null) {
+  const tz = resolveTimeZone(timeZone);
   const out = {};
   const startD = new Date(block.start_time);
   const endD = new Date(block.end_time);
   if (!(endD > startD)) return out;
-  const pad = (n) => String(n).padStart(2, '0');
-  let dayStart = new Date(startD.getFullYear(), startD.getMonth(), startD.getDate());
-  while (dayStart < endD) {
-    const dayEnd = new Date(dayStart);
-    dayEnd.setDate(dayEnd.getDate() + 1);
-    const s = Math.max(0, Math.round((startD - dayStart) / 60000));
-    const e = Math.min(1440, Math.round((Math.min(endD.getTime(), dayEnd.getTime()) - dayStart.getTime()) / 60000));
-    if (e > s) {
-      const key = `${dayStart.getFullYear()}-${pad(dayStart.getMonth() + 1)}-${pad(dayStart.getDate())}`;
+  // Walk each zoned date the block touches.
+  const startKey = zonedDateStr(startD, tz);
+  const endKey = zonedDateStr(new Date(endD.getTime() - 1), tz);
+  let key = startKey;
+  for (;;) {
+    const dayStart = zonedDayStartUTC(key, tz);
+    const nextKey = addDaysISO(key, 1);
+    const dayEnd = zonedDayStartUTC(nextKey, tz);
+    const segStart = Math.max(startD.getTime(), dayStart);
+    const segEnd = Math.min(endD.getTime(), dayEnd);
+    if (segEnd > segStart) {
+      // Wall-clock minutes in the zone, NOT elapsed minutes since midnight:
+      // on DST transition days these differ, and the weekly template is
+      // wall-clock. A segment ending exactly at zoned midnight belongs to
+      // this date, so its end is the day's wall length (1380/1440/1500).
+      const ps = zonedParts(new Date(segStart), tz);
+      const pe = zonedParts(new Date(segEnd), tz);
+      const s = ps.hour * 60 + ps.minute;
+      const e = segEnd === dayEnd
+        ? Math.round((dayEnd - dayStart) / 60000)
+        : pe.hour * 60 + pe.minute;
       (out[key] = out[key] || []).push({ start: s, end: e, type: block.type, title: block.title });
     }
-    dayStart = dayEnd;
+    if (key === endKey) break;
+    key = nextKey;
+    // Safety valve against pathological ranges.
+    if (Object.keys(out).length > 366) break;
   }
   return out;
 }
@@ -241,19 +387,26 @@ async function getTemplate(client, helperId) {
   return { byDay, hasTemplate: rows.length > 0 };
 }
 
-async function getBlocks(client, helperId, fromISO, toISO) {
+async function getBlocks(client, helperId, fromISO, toISO, timeZone = null) {
+  // With a helper timezone, the zoned dates map to a slightly wider absolute
+  // window than the DB's ::date arithmetic assumes; pad by a day each side so
+  // no overlapping block is missed. Bucketing sorts them to the right date.
+  const lo = timeZone ? addDaysISO(fromISO, -1) : fromISO;
+  const hi = timeZone ? addDaysISO(toISO, 1) : toISO;
   const { rows } = await client.query(
     `SELECT start_time, end_time, type, title
        FROM availability_blocks
       WHERE helper_id = $1
         AND start_time < ($3::date + INTERVAL '1 day')
         AND end_time   > $2::date`,
-    [helperId, fromISO, toISO]
+    [helperId, lo, hi]
   );
   return rows;
 }
 
-async function getAppointmentsBusy(client, helperId, fromISO, toISO, bufferMin) {
+async function getAppointmentsBusy(client, helperId, fromISO, toISO, bufferMin, timeZone = null) {
+  const lo = timeZone ? addDaysISO(fromISO, -1) : fromISO;
+  const hi = timeZone ? addDaysISO(toISO, 1) : toISO;
   const { rows } = await client.query(
     `SELECT scheduled_start_time, scheduled_end_time
        FROM appointments
@@ -261,14 +414,14 @@ async function getAppointmentsBusy(client, helperId, fromISO, toISO, bufferMin) 
         AND status IN ('requested','confirmed','in_progress')
         AND scheduled_start_time < ($3::date + INTERVAL '1 day')
         AND scheduled_end_time   > $2::date`,
-    [helperId, fromISO, toISO]
+    [helperId, lo, hi]
   );
   const byDate = {};
   for (const a of rows) {
     const perDate = blockRangesPerDate({
       start_time: a.scheduled_start_time,
       end_time: a.scheduled_end_time,
-    });
+    }, timeZone);
     for (const [date, ranges] of Object.entries(perDate)) {
       for (const r of ranges) {
         (byDate[date] = byDate[date] || []).push({
@@ -368,20 +521,21 @@ function computeDay(dateISO, templateWindows, blockRanges, apptBusy, bookedCount
  * Compute true availability for a date range (inclusive YYYY-MM-DD,
  * local wall-clock). Returns { days, summary, hasTemplate, bookingBufferMinutes }.
  */
-async function computeAvailability(helperId, fromISO, toISO, client = pool) {
+async function computeAvailability(helperId, fromISO, toISO, client = pool, timeZone = null) {
+  const tz = resolveTimeZone(timeZone);
   const [template, blocks, bufferMin] = await Promise.all([
     getTemplate(client, helperId),
-    getBlocks(client, helperId, fromISO, toISO),
+    getBlocks(client, helperId, fromISO, toISO, tz),
     getBookingBuffer(client, helperId),
   ]);
   const [apptBusy, bookedCounts] = await Promise.all([
-    getAppointmentsBusy(client, helperId, fromISO, toISO, bufferMin),
+    getAppointmentsBusy(client, helperId, fromISO, toISO, bufferMin, tz),
     getBookedCounts(client, helperId, fromISO, toISO),
   ]);
 
   const blocksByDate = {};
   for (const b of blocks) {
-    const perDate = blockRangesPerDate(b);
+    const perDate = blockRangesPerDate(b, tz);
     for (const [date, ranges] of Object.entries(perDate)) {
       (blocksByDate[date] = blocksByDate[date] || []).push(...ranges);
     }
@@ -400,17 +554,18 @@ async function computeAvailability(helperId, fromISO, toISO, client = pool) {
 
   return {
     days,
-    summary: buildSummary(days, template.hasTemplate),
+    summary: buildSummary(days, template.hasTemplate, tz),
     hasTemplate: template.hasTemplate,
     bookingBufferMinutes: bufferMin,
   };
 }
 
-function buildSummary(days, hasTemplate) {
+function buildSummary(days, hasTemplate, timeZone = null) {
   if (!hasTemplate) return { state: 'unset' };
+  const tz = resolveTimeZone(timeZone);
   const now = new Date();
-  const todayISO = localDateStr(now);
-  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const todayISO = zonedDateStr(now, tz);
+  const nowMin = zonedNowMinutes(now, tz);
 
   const today = days.find((d) => d.date === todayISO);
   if (today && today.windows.length > 0) {
@@ -438,15 +593,16 @@ function buildSummary(days, hasTemplate) {
 }
 
 /** True if [startISO, endISO) falls inside free availability. */
-async function isSlotFree(helperId, startISO, endISO, client = pool) {
+async function isSlotFree(helperId, startISO, endISO, client = pool, timeZone = null) {
+  const tz = resolveTimeZone(timeZone);
   const start = new Date(startISO);
   const end = new Date(endISO);
   if (!(end > start)) return { free: false, reason: 'invalid-range' };
-  // Wall-clock model: bucket by the server's local date so the slot lines
+  // Wall-clock model: bucket by the helper's zone date so the slot lines
   // up with the plain-TIME weekly template.
-  const fromISO = localDateStr(start);
-  const toISO = localDateStr(end);
-  const { days, hasTemplate } = await computeAvailability(helperId, fromISO, toISO, client);
+  const fromISO = zonedDateStr(start, tz);
+  const toISO = zonedDateStr(end, tz);
+  const { days, hasTemplate } = await computeAvailability(helperId, fromISO, toISO, client, tz);
 
   // No template configured → fall back to blocks + appointments only
   // (preserves the historical permissiveness of the appointment guard).
@@ -468,18 +624,19 @@ async function isSlotFree(helperId, startISO, endISO, client = pool) {
     return { free: true };
   }
 
-  const startMin = start.getHours() * 60 + start.getMinutes();
-  const endMin = end.getHours() * 60 + end.getMinutes();
+  const startMin = zonedNowMinutes(start, tz);
+  const endMin = zonedNowMinutes(end, tz);
 
   if (fromISO === toISO) {
     const day = days.find((d) => d.date === fromISO);
     const ok = day && day.windows.some((w) => w.startMin <= startMin && w.endMin >= endMin);
     return ok ? { free: true } : { free: false, reason: day?.status === 'blocked' ? 'blocked' : 'unavailable' };
   }
-  // Multi-day: every touched day must cover its portion.
+  // Multi-day: every touched day must cover its portion (using each day's
+  // wall-clock length so DST transition days are handled).
   for (const d of days) {
     const s = d.date === fromISO ? startMin : 0;
-    const e = d.date === toISO ? endMin : 1440;
+    const e = d.date === toISO ? endMin : zonedDayLengthMinutes(d.date, tz);
     const ok = d.windows.some((w) => w.startMin <= s && w.endMin >= e);
     if (!ok) return { free: false, reason: d.status === 'blocked' ? 'blocked' : 'unavailable' };
   }
@@ -487,15 +644,22 @@ async function isSlotFree(helperId, startISO, endISO, client = pool) {
 }
 
 /** Slice a day's free windows into bookable slots (for pickers). */
-async function getHourSlots(helperId, dateISO, slotMinutes = 60, client = pool) {
+async function getHourSlots(helperId, dateISO, slotMinutes = 60, client = pool, timeZone = null) {
+  const tz = resolveTimeZone(timeZone);
   const { days, hasTemplate, bookingBufferMinutes } = await computeAvailability(
     helperId,
     dateISO,
     dateISO,
-    client
+    client,
+    tz
   );
   const day = days[0];
   const slots = [];
+  // For the current day (in the helper's zone), hide slots that have already
+  // started or fall inside the helper's booking buffer: they cannot be booked.
+  const now = new Date();
+  const isToday = zonedDateStr(now, tz) === dateISO;
+  const cutoffMin = isToday ? zonedNowMinutes(now, tz) + bookingBufferMinutes : -1;
   if (day && (day.status === 'available' || day.status === 'limited')) {
     // Grid on the template/opening windows; drop slots touching busy ranges.
     for (const w of day.slotGrid) {
@@ -503,7 +667,7 @@ async function getHourSlots(helperId, dateISO, slotMinutes = 60, client = pool) 
       while (s + slotMinutes <= w.endMin) {
         const e = s + slotMinutes;
         const overlapsBusy = day.busy.some((b) => b.startMin < e && b.endMin > s);
-        if (!overlapsBusy) {
+        if (!overlapsBusy && s >= cutoffMin) {
           slots.push({
             start: formatTime(s),
             end: formatTime(e),
@@ -537,6 +701,13 @@ module.exports = {
   localTodayISO,
   templateWindowsFromJson,
   replaceTemplate,
+  resolveTimeZone,
+  zonedParts,
+  zonedDateStr,
+  zonedNowMinutes,
+  zonedDayStartUTC,
+  zonedLocalToUTC,
+  zonedDayLengthMinutes,
   // db-backed
   getTemplate,
   getBlocks,
@@ -544,4 +715,5 @@ module.exports = {
   isSlotFree,
   getHourSlots,
   getBookingBuffer,
+  getHelperTimeZone,
 };

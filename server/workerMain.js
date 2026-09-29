@@ -35,6 +35,7 @@ const {
   cleanupTrackingLinks,
   enforceRetention,
 } = require('./workers/deliveryTrackingWorkers');
+const { clearStaleAvailableNow } = require('./workers/availabilityWorkers');
 
 // Map queue to processor function
 const processors = {
@@ -196,6 +197,8 @@ const TRACKING_WORKER_SCHEDULE = [
   ['detectStaleTrackers', detectStaleTrackers, 5 * 60 * 1000, { limit: 200 }],
   ['cleanupTrackingLinks', cleanupTrackingLinks, 5 * 60 * 1000, { limit: 200 }],
   ['enforceRetention', enforceRetention, 60 * 60 * 1000, { limit: 5000 }],
+  // Clear stale "available now" readiness flags (12h TTL), every 15 minutes.
+  ['clearStaleAvailableNow', clearStaleAvailableNow, 15 * 60 * 1000, { limit: 500 }],
 ];
 
 /**

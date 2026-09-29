@@ -13,6 +13,7 @@ const redis  = require('../utils/redis');
 const logger = require('../utils/logger');
 const { ROLES } = require('../constants/roles');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
+const availabilityService = require('./helperAvailabilityService');
 
 const CONTEXT_TTL = 5 * 60;
 const CACHE_VER = 'v4';
@@ -30,7 +31,32 @@ const DAY_LABEL = {
   thursday: 'Thursday', friday: 'Friday', saturday: 'Saturday',
 };
 
-/** Human-readable weekly schedule from availability_json */
+/** Human-readable weekly schedule from the ONE availability template (helper_availability). */
+function summarizeTemplate(byDay) {
+  if (!byDay || typeof byDay !== 'object') {
+    return 'No weekly hours on file.';
+  }
+  const fmt = (mins) => {
+    const h24 = Math.floor(mins / 60);
+    const m = mins % 60;
+    const suffix = h24 >= 12 ? 'PM' : 'AM';
+    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+    return `${h12}:${String(m).padStart(2, '0')} ${suffix}`;
+  };
+  const lines = [];
+  for (const key of DAY_ORDER) {
+    const dow = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 }[key];
+    const windows = byDay[dow] || [];
+    if (!windows.length) {
+      lines.push(`${DAY_LABEL[key]}: closed`);
+    } else {
+      lines.push(`${DAY_LABEL[key]}: ${windows.map((w) => `${fmt(w.start)} - ${fmt(w.end)}`).join(', ')}`);
+    }
+  }
+  return lines.join('\n');
+}
+
+/** @deprecated Retained for the legacy bridge only; new code uses summarizeTemplate. */
 function summarizeAvailability(availabilityJson) {
   if (!availabilityJson || typeof availabilityJson !== 'object') {
     return 'No weekly hours on file.';
@@ -231,7 +257,7 @@ async function getHelperContext(helperId) {
             hp.service_city, hp.service_state, hp.service_radius_miles,
             hp.is_identity_verified, hp.is_background_checked,
             hp.avg_rating, hp.completed_jobs_count,
-            hp.availability_json, hp.is_available_now, hp.ai_knowledge
+            hp.is_available_now, hp.ai_knowledge
        FROM users u
        JOIN helper_profiles hp ON hp.user_id = u.id
        LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
@@ -243,7 +269,7 @@ async function getHelperContext(helperId) {
   if (!helperRes.rows.length) return null;
 
   const h = helperRes.rows[0];
-  const [skillsRes, faqs, products] = await Promise.all([
+  const [skillsRes, faqs, products, template] = await Promise.all([
     pool.query(
       `SELECT skill_name, hourly_rate FROM user_skills
         WHERE user_id = $1 AND is_available = true LIMIT 20`,
@@ -251,13 +277,10 @@ async function getHelperContext(helperId) {
     ).catch(() => ({ rows: [] })),
     fetchHelperFAQs(helperId),
     fetchHelperProducts(helperId),
+    availabilityService.getTemplate(pool, helperId).catch(() => ({ byDay: {}, hasTemplate: false })),
   ]);
 
-  let availabilityJson = h.availability_json;
-  if (typeof availabilityJson === 'string') {
-    try { availabilityJson = JSON.parse(availabilityJson); } catch { availabilityJson = {}; }
-  }
-  const availabilitySummary = summarizeAvailability(availabilityJson || {});
+  const availabilitySummary = summarizeTemplate(template.byDay);
 
   const rawContext = {
     profileType: 'helper',
@@ -287,14 +310,14 @@ async function getBusinessContext(businessId, ownerId) {
   const cached = await readCache(cacheKey);
   if (cached) return cached;
 
-  const [bizRes, hpRes, skillsRes] = await Promise.all([
+  const [bizRes, hpRes, skillsRes, ownerTemplate] = await Promise.all([
     pool.query(
       `SELECT id, business_name, description, address_city, address_state, ai_knowledge
          FROM businesses WHERE id = $1 AND is_active = TRUE`,
       [businessId]
     ),
     pool.query(
-      `SELECT availability_json, is_available_now, ai_knowledge
+      `SELECT is_available_now, ai_knowledge
          FROM helper_profiles WHERE user_id = $1`,
       [ownerId]
     ).catch(() => ({ rows: [] })),
@@ -303,17 +326,14 @@ async function getBusinessContext(businessId, ownerId) {
         WHERE user_id = $1 AND is_available = true LIMIT 20`,
       [ownerId]
     ).catch(() => ({ rows: [] })),
+    availabilityService.getTemplate(pool, ownerId).catch(() => ({ byDay: {}, hasTemplate: false })),
   ]);
 
   if (!bizRes.rows.length) return null;
 
   const b = bizRes.rows[0];
   const hp = hpRes.rows[0] || {};
-  let availabilityJson = hp.availability_json;
-  if (typeof availabilityJson === 'string') {
-    try { availabilityJson = JSON.parse(availabilityJson); } catch { availabilityJson = {}; }
-  }
-  const availabilitySummary = summarizeAvailability(availabilityJson || {});
+  const availabilitySummary = summarizeTemplate(ownerTemplate.byDay);
 
   const [faqs, products] = await Promise.all([
     fetchBusinessFAQs(businessId),

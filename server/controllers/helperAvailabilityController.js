@@ -275,21 +275,24 @@ exports.getAvailableSlots = async (req, res, next) => {
 
   try {
     // Single-system computation: weekly template − dated blocks − appointments.
+    // Anchored in the helper's timezone so "today" and block dates follow the
+    // helper's wall clock, not the server's.
+    const helperTimeZone = await availabilityService.getHelperTimeZone(pool, helperId);
     const pad = (n) => String(n).padStart(2, '0');
     const hhmm = (mins) => `${pad(Math.floor(mins / 60))}:${pad(mins % 60)}`;
 
     const fromISO = fromDate.toISOString().split('T')[0];
     const toISO = toDate.toISOString().split('T')[0];
     const { days, hasTemplate, bookingBufferMinutes } =
-      await availabilityService.computeAvailability(helperId, fromISO, toISO);
+      await availabilityService.computeAvailability(helperId, fromISO, toISO, pool, helperTimeZone);
 
     if (!hasTemplate) {
       return res.json({ slots: [], hasTemplate: false });
     }
 
     const now = new Date();
-    const todayISO = availabilityService.localTodayISO();
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const todayISO = availabilityService.zonedDateStr(now, helperTimeZone);
+    const nowMinutes = availabilityService.zonedNowMinutes(now, helperTimeZone);
     const SLOT_DURATION = 60;
     const slots = [];
 
@@ -301,8 +304,9 @@ exports.getAvailableSlots = async (req, res, next) => {
         let slotStart = w.startMin;
         while (slotStart + SLOT_DURATION <= w.endMin) {
           const slotEnd = slotStart + SLOT_DURATION;
-          // Skip past slots today
-          if (day.date === todayISO && slotStart <= nowMinutes) {
+          // Skip past slots today (plus the helper's booking buffer: a slot
+          // starting inside the buffer cannot be booked).
+          if (day.date === todayISO && slotStart <= nowMinutes + bookingBufferMinutes) {
             slotStart += SLOT_DURATION;
             continue;
           }

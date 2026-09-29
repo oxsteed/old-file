@@ -239,12 +239,14 @@ exports.createAppointment = async (req, res, next) => {
 
       // Single-system availability check: weekly template − dated blocks −
       // existing appointments. Throws HELPER_UNAVAILABLE when the slot is not
-      // truly free.
+      // truly free. Anchored in the helper's timezone.
+      const helperTimeZone = await availabilityService.getHelperTimeZone(client, helper_id);
       const slotCheck = await availabilityService.isSlotFree(
         helper_id,
         start.toISOString(),
         end.toISOString(),
-        client
+        client,
+        helperTimeZone
       );
       if (!slotCheck.free) {
         const e = new Error('HELPER_UNAVAILABLE');

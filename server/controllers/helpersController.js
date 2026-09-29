@@ -1026,11 +1026,15 @@ async function getHelperAvailability(req, res, next) {
     });
 
     // True availability summary for the coming week (blocks + appointments applied).
-    const todayISO = availabilityService.localTodayISO();
+    // Anchored in the helper's timezone.
+    const helperTimeZone = await availabilityService.getHelperTimeZone(pool, id);
+    const todayISO = availabilityService.zonedDateStr(new Date(), helperTimeZone);
     const { summary, hasTemplate } = await availabilityService.computeAvailability(
       id,
       todayISO,
-      availabilityService.addDaysISO(todayISO, 6)
+      availabilityService.addDaysISO(todayISO, 6),
+      pool,
+      helperTimeZone
     );
 
     // "Open now" = inside a truly free window right now AND the helper's live toggle is on.
@@ -1072,11 +1076,14 @@ async function getHelperAvailabilitySummary(req, res, next) {
     );
     if (!hp) throw new AppError('Helper not found', 404, 'not_found');
 
-    const todayISO = availabilityService.localTodayISO();
+    const helperTimeZone = await availabilityService.getHelperTimeZone(pool, id);
+    const todayISO = availabilityService.zonedDateStr(new Date(), helperTimeZone);
     const result = await availabilityService.computeAvailability(
       id,
       todayISO,
-      availabilityService.addDaysISO(todayISO, days - 1)
+      availabilityService.addDaysISO(todayISO, days - 1),
+      pool,
+      helperTimeZone
     );
     result.isOnline = !!(hp.is_available_now || socketService.isOnline(id));
     result.responseTime = formatResponseTime(hp.response_time_hours);
@@ -1151,11 +1158,14 @@ async function getHelperSlots(req, res, next) {
     );
     if (!hp) throw new AppError('Helper not found', 404, 'not_found');
 
-    const todayISO = availabilityService.localTodayISO();
+    const helperTimeZone = await availabilityService.getHelperTimeZone(pool, id);
+    const todayISO = availabilityService.zonedDateStr(new Date(), helperTimeZone);
     const { days, summary, hasTemplate } = await availabilityService.computeAvailability(
       id,
       todayISO,
-      availabilityService.addDaysISO(todayISO, 6)
+      availabilityService.addDaysISO(todayISO, 6),
+      pool,
+      helperTimeZone
     );
 
     const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -1264,7 +1274,8 @@ async function toggleAvailability(req, res, next) {
 
     const { rows } = await pool.query(
       `UPDATE helper_profiles
-       SET is_available_now = $1
+       SET is_available_now = $1,
+           is_available_now_updated_at = NOW()
        WHERE user_id = $2
        RETURNING is_available_now`,
       [is_available_now, req.user.id],

@@ -38,14 +38,10 @@ export function buildHelperSectionCompleteness({
   faqsCount = 0,
   policiesCount = 0,
   galleryCount = 0,
-  // When the one availability system reports a template, prefer it over the
-  // legacy availability_json blob.
+  // The one availability system (weekly template) is the source of truth.
   hasSchedule,
 } = {}) {
-  const availability = core.availability_json && typeof core.availability_json === 'object'
-    ? core.availability_json
-    : {};
-  const hoursOpen = hasSchedule ?? Object.values(availability).some((day) => day && !day.closed);
+  const hoursOpen = !!hasSchedule;
 
   return {
     cover: !!coverImageUrl,

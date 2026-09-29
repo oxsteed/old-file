@@ -59,7 +59,8 @@ describe('helper profile booking buffer setting', () => {
 
     const updateCall = mockQuery.mock.calls[0];
     expect(updateCall[0]).toMatch(/booking_buffer_minutes/);
-    expect(updateCall[1][17]).toBe(45);
+    // availability_json was retired from the write; the buffer is now $17.
+    expect(updateCall[1][16]).toBe(45);
   });
 
   test('PUT /core rejects invalid booking buffer values', async () => {
