@@ -128,7 +128,7 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
   const btnSecondary =
     `${btnBase} border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800`;
   const btnPrimary =
-    `${btnBase} px-5 bg-brand-500 hover:bg-brand-600 text-white font-semibold shadow-lg shadow-brand-500/20`;
+    `${btnBase} px-5 bg-green-600 hover:bg-green-700 text-white font-semibold shadow-lg shadow-green-600/20 active:bg-green-800`;
 
   const actions = (
     <div className="pph-actions">

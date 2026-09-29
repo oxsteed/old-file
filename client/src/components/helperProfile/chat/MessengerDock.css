@@ -11,13 +11,13 @@
   gap: 0.625rem;
   max-width: min(18rem, calc(100vw - 2rem));
   padding: 0.5rem 0.875rem 0.5rem 0.5rem;
-  border: 1px solid rgb(55 65 81 / 0.8);
+  border: 1px solid rgb(21 128 61 / 0.9);
   border-radius: 9999px;
-  background: linear-gradient(180deg, rgb(17 24 39) 0%, rgb(3 7 18) 100%);
+  background: linear-gradient(180deg, rgb(22 163 74) 0%, rgb(21 128 61) 100%);
   color: #fff;
   box-shadow:
-    0 10px 30px rgb(0 0 0 / 0.35),
-    0 0 0 1px rgb(249 115 22 / 0.15);
+    0 10px 30px rgb(21 128 61 / 0.4),
+    0 0 0 1px rgb(255 255 255 / 0.18);
   cursor: pointer;
   transition: transform 200ms ease, box-shadow 200ms ease, opacity 200ms ease;
 }
@@ -32,12 +32,12 @@
 .messenger-launcher:hover {
   transform: translateY(-1px);
   box-shadow:
-    0 14px 34px rgb(0 0 0 / 0.4),
-    0 0 0 1px rgb(249 115 22 / 0.28);
+    0 14px 34px rgb(21 128 61 / 0.45),
+    0 0 0 1px rgb(255 255 255 / 0.28);
 }
 
 .messenger-launcher:focus-visible {
-  outline: 2px solid rgb(249 115 22);
+  outline: 2px solid rgb(22 163 74);
   outline-offset: 3px;
 }
 
@@ -46,9 +46,9 @@
 }
 
 @keyframes messenger-launcher-pulse {
-  0% { box-shadow: 0 0 0 0 rgb(249 115 22 / 0.45), 0 10px 30px rgb(0 0 0 / 0.35); }
-  70% { box-shadow: 0 0 0 14px rgb(249 115 22 / 0), 0 10px 30px rgb(0 0 0 / 0.35); }
-  100% { box-shadow: 0 0 0 0 rgb(249 115 22 / 0), 0 10px 30px rgb(0 0 0 / 0.35); }
+  0% { box-shadow: 0 0 0 0 rgb(22 163 74 / 0.45), 0 10px 30px rgb(21 128 61 / 0.4); }
+  70% { box-shadow: 0 0 0 14px rgb(22 163 74 / 0), 0 10px 30px rgb(21 128 61 / 0.4); }
+  100% { box-shadow: 0 0 0 0 rgb(22 163 74 / 0), 0 10px 30px rgb(21 128 61 / 0.4); }
 }
 
 .messenger-launcher__avatar,
@@ -65,6 +65,11 @@
   color: rgb(209 213 219);
   font-size: 0.75rem;
   font-weight: 600;
+}
+
+.messenger-launcher__avatar {
+  background: rgb(255 255 255 / 0.2);
+  color: #fff;
 }
 
 .messenger-launcher__avatar--round,
@@ -98,7 +103,7 @@
   line-height: 1;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: rgb(156 163 175);
+  color: rgb(255 255 255 / 0.75);
 }
 
 .messenger-launcher__name {

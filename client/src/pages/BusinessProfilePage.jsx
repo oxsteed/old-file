@@ -1133,7 +1133,7 @@ export default function BusinessProfilePage() {
       >
         <button
           onClick={handleBookNow}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-700 text-gray-200 font-medium text-sm flex-1 hover:bg-gray-800 transition-colors active:bg-gray-700"
+          className="flex-1 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold text-sm transition-colors shadow-lg shadow-green-600/20 active:bg-green-800"
           aria-label={t('businessProfile.bookBusinessAria')}
         >
           {t('businessProfile.bookNow')}
