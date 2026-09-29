@@ -124,6 +124,9 @@ export default function HelperPublicProfilePage() {
           <div className="profile-card">
             <h2>{t('helperProfile.services.title')}</h2>
             <div className="services-list">
+              {services.length === 0 && (
+                <p className="empty-state">{t('businessServices.emptyTitle')}</p>
+              )}
               {services.map(service => (
                 <div key={service.id} className="service-item">
                   <h4>{service.name}</h4>
@@ -137,6 +140,9 @@ export default function HelperPublicProfilePage() {
           {/* Reviews */}
           <div className="profile-card">
             <h2>{t('publicProfile.reviews')}</h2>
+            {(!helper.reviews || helper.reviews.length === 0) && (
+              <p className="empty-state">{t('publicProfile.noReviews')}</p>
+            )}
             {helper.reviews && helper.reviews.map(review => (
               <div key={review.id} className="review-item">
                 <div className="review-header">
@@ -165,8 +171,7 @@ export default function HelperPublicProfilePage() {
           <div className="sidebar-card">
             <h3>{t('helpersDir.pricePerHour')}</h3>
             <div className="pricing-item">
-              <span>{t('helpersDir.priceStartingAt')}</span>
-              <span className="price">{startingRate ? t('jobDetail.hourlyRate', { amount: `$${startingRate}` }) : t('common.notProvided')}</span>
+              <span className="price">{startingRate ? t('helpersDir.priceStartingAt', { amount: `$${startingRate}` }) : t('common.notProvided')}</span>
             </div>
           </div>
 
