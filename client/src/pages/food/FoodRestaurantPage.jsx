@@ -654,6 +654,40 @@ export default function FoodRestaurantPage() {
     }
   };
 
+  // Payment options mirror the launch contract. OxSteed Credit is a separate
+  // signed-in stored-value rail and still requires server-side partner checks.
+  const walletBalanceCents = Number(wallet?.balanceCents || 0);
+  const walletReservedCents = Number(wallet?.reservedCents || 0);
+  const walletAvailableCents = Number(
+    wallet?.availableBalanceCents ?? Math.max(0, walletBalanceCents - walletReservedCents)
+  );
+  const walletCoversOrder = walletAvailableCents >= orderTotalCents;
+  const oxsteedCreditBalanceCents = Number(oxsteedCreditAccount?.balanceCents || 0);
+  const oxsteedCreditReservedCents = Number(oxsteedCreditAccount?.reservedCents || 0);
+  const oxsteedCreditAvailableCents = Number(
+    oxsteedCreditAccount?.availableBalanceCents
+      ?? Math.max(0, oxsteedCreditBalanceCents - oxsteedCreditReservedCents)
+  );
+  const oxsteedCreditCoversOrder = oxsteedCreditAvailableCents >= orderTotalCents;
+  const oxsteedCreditMaxTransactionCents = oxsteedCreditPartner?.maxTransactionCents == null
+    ? null
+    : Number(oxsteedCreditPartner.maxTransactionCents);
+  const oxsteedCreditExceedsTransactionLimit = Number.isFinite(oxsteedCreditMaxTransactionCents)
+    && orderTotalCents > oxsteedCreditMaxTransactionCents;
+  const oxsteedCreditPaymentIssue = oxsteedCreditEligibilityLoading
+    ? 'Checking eligibility...'
+    : oxsteedCreditEligibility && !oxsteedCreditEligibility.eligible
+      ? (oxsteedCreditEligibility.message || 'Not eligible for this order')
+      : oxsteedCreditExceedsTransactionLimit
+    ? `Restaurant limit ${formatFoodMoney(oxsteedCreditMaxTransactionCents, oxsteedCreditAccount?.currencyCode || currency)}`
+    : !oxsteedCreditCoversOrder
+      ? `Insufficient credit · ${formatFoodMoney(oxsteedCreditAvailableCents, oxsteedCreditAccount?.currencyCode || currency)}`
+      : null;
+  useEffect(() => {
+    if (paymentMethod === 'oxsteed_credit' && oxsteedCreditPaymentIssue) {
+      setPaymentMethod('pay_at_restaurant');
+    }
+  }, [paymentMethod, oxsteedCreditPaymentIssue]);
   // ── Loading / not found ─────────────────────────────────────────────────
   if (loading) {
     return (
@@ -1039,40 +1073,6 @@ export default function FoodRestaurantPage() {
     { id: '+30', label: t('food.restaurant.timeSlots.in30'), sub: t('food.restaurant.timeSlots.scheduled') },
     { id: 'later', label: t('food.restaurant.timeSlots.later'), sub: t('food.restaurant.timeSlots.chooseTime') },
   ];
-  // Payment options mirror the launch contract. OxSteed Credit is a separate
-  // signed-in stored-value rail and still requires server-side partner checks.
-  const walletBalanceCents = Number(wallet?.balanceCents || 0);
-  const walletReservedCents = Number(wallet?.reservedCents || 0);
-  const walletAvailableCents = Number(
-    wallet?.availableBalanceCents ?? Math.max(0, walletBalanceCents - walletReservedCents)
-  );
-  const walletCoversOrder = walletAvailableCents >= orderTotalCents;
-  const oxsteedCreditBalanceCents = Number(oxsteedCreditAccount?.balanceCents || 0);
-  const oxsteedCreditReservedCents = Number(oxsteedCreditAccount?.reservedCents || 0);
-  const oxsteedCreditAvailableCents = Number(
-    oxsteedCreditAccount?.availableBalanceCents
-      ?? Math.max(0, oxsteedCreditBalanceCents - oxsteedCreditReservedCents)
-  );
-  const oxsteedCreditCoversOrder = oxsteedCreditAvailableCents >= orderTotalCents;
-  const oxsteedCreditMaxTransactionCents = oxsteedCreditPartner?.maxTransactionCents == null
-    ? null
-    : Number(oxsteedCreditPartner.maxTransactionCents);
-  const oxsteedCreditExceedsTransactionLimit = Number.isFinite(oxsteedCreditMaxTransactionCents)
-    && orderTotalCents > oxsteedCreditMaxTransactionCents;
-  const oxsteedCreditPaymentIssue = oxsteedCreditEligibilityLoading
-    ? 'Checking eligibility...'
-    : oxsteedCreditEligibility && !oxsteedCreditEligibility.eligible
-      ? (oxsteedCreditEligibility.message || 'Not eligible for this order')
-      : oxsteedCreditExceedsTransactionLimit
-    ? `Restaurant limit ${formatFoodMoney(oxsteedCreditMaxTransactionCents, oxsteedCreditAccount?.currencyCode || currency)}`
-    : !oxsteedCreditCoversOrder
-      ? `Insufficient credit · ${formatFoodMoney(oxsteedCreditAvailableCents, oxsteedCreditAccount?.currencyCode || currency)}`
-      : null;
-  useEffect(() => {
-    if (paymentMethod === 'oxsteed_credit' && oxsteedCreditPaymentIssue) {
-      setPaymentMethod('pay_at_restaurant');
-    }
-  }, [paymentMethod, oxsteedCreditPaymentIssue]);
   const paymentMethods = [
     {
       id: 'pay_at_restaurant',
