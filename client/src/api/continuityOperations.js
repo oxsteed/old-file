@@ -1,7 +1,7 @@
 import api from './axios';
 
-export const getPublicContinuityOperations = (businessId) =>
-  api.get(`/continuity-operations/public/${businessId}`).then((r) => r.data);
+export const getPublicContinuityOperations = (businessId, signal) =>
+  api.get(`/continuity-operations/public/${businessId}`, { signal }).then((r) => r.data);
 
 export const createPublicContinuityIntake = (businessId, payload) =>
   api.post(`/continuity-operations/public/${businessId}/intakes`, payload).then((r) => r.data?.request);

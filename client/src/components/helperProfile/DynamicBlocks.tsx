@@ -36,10 +36,12 @@ export const AvailabilityBlock: React.FC<{ helperId: string }> = ({ helperId }) 
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    fetchHelperAvailability(helperId)
-      .then(setData)
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
+    const controller = new AbortController();
+    fetchHelperAvailability(helperId, controller.signal)
+      .then((result) => { if (!controller.signal.aborted) setData(result); })
+      .catch((err) => { if (!controller.signal.aborted && err?.code !== 'ERR_CANCELED') setError(true); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
   }, [helperId]);
 
   if (loading) return <SkeletonBlock title={t('helperProfile.chat.loadingAvailability')} lines={2} />;
@@ -100,10 +102,12 @@ export const PricingBlock: React.FC<{ helperId: string }> = ({ helperId }) => {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    fetchHelperPricing(helperId)
-      .then(setData)
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
+    const controller = new AbortController();
+    fetchHelperPricing(helperId, controller.signal)
+      .then((result) => { if (!controller.signal.aborted) setData(result); })
+      .catch((err) => { if (!controller.signal.aborted && err?.code !== 'ERR_CANCELED') setError(true); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
   }, [helperId]);
 
   if (loading) return <SkeletonBlock title={t('helperProfile.chat.loadingPricing')} lines={3} />;
@@ -174,10 +178,12 @@ export const SlotsBlock: React.FC<{ helperId: string }> = ({ helperId }) => {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    fetchHelperSlots(helperId)
-      .then(setData)
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
+    const controller = new AbortController();
+    fetchHelperSlots(helperId, controller.signal)
+      .then((result) => { if (!controller.signal.aborted) setData(result); })
+      .catch((err) => { if (!controller.signal.aborted && err?.code !== 'ERR_CANCELED') setError(true); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
   }, [helperId]);
 
   if (loading) return <SkeletonBlock title={t('helperProfile.chat.loadingSlots')} lines={4} />;

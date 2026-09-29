@@ -1,7 +1,7 @@
 import api from './axios';
 
-export const getPublicPropertyOperations = (businessId) =>
-  api.get(`/property-operations/public/${businessId}`).then((r) => r.data);
+export const getPublicPropertyOperations = (businessId, signal) =>
+  api.get(`/property-operations/public/${businessId}`, { signal }).then((r) => r.data);
 
 export const getPropertyOperationsWorkspace = (businessId) =>
   api.get(`/property-operations/business/${businessId}`).then((r) => r.data);

@@ -95,8 +95,8 @@ export async function fetchHelpers(
 
 // ── Full profile (existing) ───────────────────────────────────────────────────
 
-export async function fetchHelperProfile(id: string): Promise<HelperProfileData> {
-  const { data } = await api.get<HelperProfileData>(`/helpers/${id}/profile`);
+export async function fetchHelperProfile(id: string, signal?: AbortSignal): Promise<HelperProfileData> {
+  const { data } = await api.get<HelperProfileData>(`/helpers/${id}/profile`, { signal });
   return data;
 }
 
@@ -104,18 +104,18 @@ export async function fetchHelperProfile(id: string): Promise<HelperProfileData>
 // These are fetched client-side AFTER initial page load to keep
 // the pre-rendered shell fast and SEO-friendly.
 
-export async function fetchHelperAvailability(id: string): Promise<HelperAvailabilityData> {
-  const { data } = await api.get<HelperAvailabilityData>(`/helpers/${id}/availability`);
+export async function fetchHelperAvailability(id: string, signal?: AbortSignal): Promise<HelperAvailabilityData> {
+  const { data } = await api.get<HelperAvailabilityData>(`/helpers/${id}/availability`, { signal });
   return data;
 }
 
-export async function fetchHelperPricing(id: string): Promise<HelperPricingData> {
-  const { data } = await api.get<HelperPricingData>(`/helpers/${id}/pricing`);
+export async function fetchHelperPricing(id: string, signal?: AbortSignal): Promise<HelperPricingData> {
+  const { data } = await api.get<HelperPricingData>(`/helpers/${id}/pricing`, { signal });
   return data;
 }
 
-export async function fetchHelperSlots(id: string): Promise<HelperSlotData> {
-  const { data } = await api.get<HelperSlotData>(`/helpers/${id}/slots`);
+export async function fetchHelperSlots(id: string, signal?: AbortSignal): Promise<HelperSlotData> {
+  const { data } = await api.get<HelperSlotData>(`/helpers/${id}/slots`, { signal });
   return data;
 }
 

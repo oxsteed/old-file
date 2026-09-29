@@ -1,7 +1,7 @@
 import api from './axios';
 
-export const getPublicCreativeOperations = (businessId) =>
-  api.get(`/creative-operations/public/${businessId}`).then((r) => r.data);
+export const getPublicCreativeOperations = (businessId, signal) =>
+  api.get(`/creative-operations/public/${businessId}`, { signal }).then((r) => r.data);
 
 export const createPublicCreativeIntake = (businessId, formData) =>
   api.post(`/creative-operations/public/${businessId}/intakes`, formData).then((r) => r.data?.request);

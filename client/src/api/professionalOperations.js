@@ -1,7 +1,7 @@
 import api from './axios';
 
-export const getPublicProfessionalOperations = (businessId) =>
-  api.get(`/professional-operations/public/${businessId}`).then((r) => r.data);
+export const getPublicProfessionalOperations = (businessId, signal) =>
+  api.get(`/professional-operations/public/${businessId}`, { signal }).then((r) => r.data);
 
 export const createPublicProfessionalIntake = (businessId, payload) =>
   api.post(`/professional-operations/public/${businessId}/intakes`, payload).then((r) => r.data?.request);

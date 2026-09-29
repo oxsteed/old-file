@@ -1,7 +1,7 @@
 import api from './axios';
 
-export const getPublicTradesOperations = (businessId) =>
-  api.get(`/trades-operations/public/${businessId}`).then((r) => r.data);
+export const getPublicTradesOperations = (businessId, signal) =>
+  api.get(`/trades-operations/public/${businessId}`, { signal }).then((r) => r.data);
 
 export const createPublicTradesRequest = (businessId, formData) =>
   api.post(`/trades-operations/public/${businessId}/requests`, formData).then((r) => r.data?.request);

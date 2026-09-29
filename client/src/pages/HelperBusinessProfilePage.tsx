@@ -90,23 +90,27 @@ const HelperBusinessProfilePage: React.FC = () => {
     };
   }, []);
 
-  const loadProfile = useCallback(async () => {
+  const loadProfile = useCallback(async (signal?: AbortSignal) => {
     setLoadState('loading');
     setError(null);
 
     try {
-      const profileData = await fetchHelperProfile(id!);
+      const profileData = await fetchHelperProfile(id!, signal);
+      if (signal?.aborted) return;
       setData(profileData);
       setActiveTemplate((profileData as any).activeTemplate || 'default');
       setLoadState('success');
     } catch (err) {
+      if (signal?.aborted || (err as any)?.code === 'ERR_CANCELED') return;
       setError(t('helperProfile.chrome.unableToLoad'));
       setLoadState('error');
     }
   }, [id]);
 
   useEffect(() => {
-    loadProfile();
+    const controller = new AbortController();
+    loadProfile(controller.signal);
+    return () => controller.abort();
   }, [loadProfile]);
 
   useEffect(() => {
@@ -243,7 +247,7 @@ const HelperBusinessProfilePage: React.FC = () => {
         <main className="py-16">
           <ProfileError
             message={error ?? 'Unknown error'}
-            onRetry={loadProfile}
+            onRetry={() => loadProfile()}
           />
         </main>
         <Footer />

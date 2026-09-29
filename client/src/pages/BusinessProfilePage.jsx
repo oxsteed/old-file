@@ -730,11 +730,12 @@ export default function BusinessProfilePage() {
     return () => { document.documentElement.style.scrollPaddingTop = prev; };
   }, []);
 
-  const loadProfile = useCallback(async () => {
+  const loadProfile = useCallback(async (signal) => {
     setLoadState('loading');
     setError(null);
     try {
-      const raw = await getBusinessPublicProfile(id);
+      const raw = await getBusinessPublicProfile(id, signal);
+      if (signal?.aborted) return;
       setProfileData(mapToHelperProfileData(raw, t));
       setActiveTemplate(raw.business?.active_template || 'default');
       if (!LAUNCH_VISIBILITY.specializedProfileTemplates) {
@@ -746,21 +747,23 @@ export default function BusinessProfilePage() {
         setContinuityOpsData(null);
       } else {
         const template = raw.business?.active_template || 'default';
-        if (template === 'property_manager') getPublicPropertyOperations(id).then(setPropertyOpsData).catch(() => {});
+        const setIfFresh = (setter) => (data) => { if (!signal?.aborted) setter(data); };
+        if (template === 'property_manager') getPublicPropertyOperations(id, signal).then(setIfFresh(setPropertyOpsData)).catch(() => {});
         else setPropertyOpsData(null);
-        if (['trades_pro', 'electrician', 'auto_mechanic'].includes(template)) getPublicTradesOperations(id).then(setTradesOpsData).catch(() => {});
+        if (['trades_pro', 'electrician', 'auto_mechanic'].includes(template)) getPublicTradesOperations(id, signal).then(setIfFresh(setTradesOpsData)).catch(() => {});
         else setTradesOpsData(null);
-        if (['beauty_style', 'barbershop', 'hair_stylist', 'spa_skincare'].includes(template)) getPublicBeautyOperations(id).then(setBeautyOpsData).catch(() => {});
+        if (['beauty_style', 'barbershop', 'hair_stylist', 'spa_skincare'].includes(template)) getPublicBeautyOperations(id, signal).then(setIfFresh(setBeautyOpsData)).catch(() => {});
         else setBeautyOpsData(null);
-        if (['photographer', 'creative_studio', 'graphic_design'].includes(template)) getPublicCreativeOperations(id).then(setCreativeOpsData).catch(() => {});
+        if (['photographer', 'creative_studio', 'graphic_design'].includes(template)) getPublicCreativeOperations(id, signal).then(setIfFresh(setCreativeOpsData)).catch(() => {});
         else setCreativeOpsData(null);
-        if (['accountant', 'consulting_coaching', 'legal_admin'].includes(template)) getPublicProfessionalOperations(id).then(setProfessionalOpsData).catch(() => {});
+        if (['accountant', 'consulting_coaching', 'legal_admin'].includes(template)) getPublicProfessionalOperations(id, signal).then(setIfFresh(setProfessionalOpsData)).catch(() => {});
         else setProfessionalOpsData(null);
-        if (['fitness_pro', 'wellness_therapy', 'nutrition_diet', 'mental_health', 'massage_therapist', 'care_trust', 'pet_services', 'tutoring_education', 'child_development', 'dog_walker', 'math_tutor'].includes(template)) getPublicContinuityOperations(id).then(setContinuityOpsData).catch(() => {});
+        if (['fitness_pro', 'wellness_therapy', 'nutrition_diet', 'mental_health', 'massage_therapist', 'care_trust', 'pet_services', 'tutoring_education', 'child_development', 'dog_walker', 'math_tutor'].includes(template)) getPublicContinuityOperations(id, signal).then(setIfFresh(setContinuityOpsData)).catch(() => {});
         else setContinuityOpsData(null);
       }
       setLoadState('success');
     } catch (e) {
+      if (signal?.aborted || e?.code === 'ERR_CANCELED') return;
       setError(
         e?.response?.status === 404
           ? t('businessProfile.notFound')
@@ -770,7 +773,11 @@ export default function BusinessProfilePage() {
     }
   }, [id]);
 
-  useEffect(() => { loadProfile(); }, [loadProfile]);
+  useEffect(() => {
+    const controller = new AbortController();
+    loadProfile(controller.signal);
+    return () => controller.abort();
+  }, [loadProfile]);
 
   const handleBookNow = useCallback(() => {
     if (!profileData) return;
@@ -878,7 +885,7 @@ export default function BusinessProfilePage() {
           <ProfileError
             headline={t('businessProfile.unableToLoad')}
             message={error ?? 'Unknown error'}
-            onRetry={loadProfile}
+            onRetry={() => loadProfile()}
           />
         </main>
         <Footer />

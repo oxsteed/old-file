@@ -1,7 +1,7 @@
 import api from './axios';
 
-export const getPublicBeautyOperations = (businessId) =>
-  api.get(`/beauty-operations/public/${businessId}`).then((r) => r.data);
+export const getPublicBeautyOperations = (businessId, signal) =>
+  api.get(`/beauty-operations/public/${businessId}`, { signal }).then((r) => r.data);
 
 export const createPublicBeautyIntake = (businessId, formData) =>
   api.post(`/beauty-operations/public/${businessId}/intakes`, formData).then((r) => r.data?.request);
