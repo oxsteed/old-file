@@ -118,3 +118,78 @@ test('rejects malformed quote retry keys before database access', async () => {
   expect(response.status).toBe(400);
   expect(mockQuery).not.toHaveBeenCalled();
 });
+
+test('share audit ON CONFLICT predicate matches migration 547 partial index predicate', async () => {
+  const fs = require('fs');
+  const path = require('path');
+
+  const quote = {
+    id: 'quote-1',
+    helper_id: 'provider-1',
+    conversation_id: 'conversation-1',
+    guest_session_id: null,
+    title: 'Service quote',
+    total_cents: 2900,
+    status: 'sent',
+    token: 'quote-token',
+    version: 1,
+  };
+  const message = {
+    id: 'message-1',
+    conversation_id: 'conversation-1',
+    client_message_id: REQUEST_ID,
+    content: 'Quote\n[quote:quote-1]',
+  };
+  const share = {
+    id: 'share-1',
+    quote_kind: 'helper',
+    quote_id: 'quote-1',
+    message_id: 'message-1',
+    shared_by: 'provider-1',
+    client_request_id: REQUEST_ID,
+  };
+  const conversation = { id: 'conversation-1', customer_id: 'customer-1', helper_id: 'provider-1', business_id: null, job_id: null };
+
+  mockQuery
+    .mockResolvedValueOnce({ rows: [conversation] }) // participant check
+    .mockResolvedValueOnce({ rows: [] }) // share-key lookup
+    .mockResolvedValueOnce({ rows: [] }) // quote-key lookup
+    .mockResolvedValueOnce({ rows: [quote] }) // quote insert
+    .mockResolvedValueOnce({ rows: [quote] }) // quote linkage update
+    .mockResolvedValueOnce({ rows: [conversation] }) // message participant check
+    .mockResolvedValueOnce({ rows: [message] }) // message insert
+    .mockResolvedValueOnce({ rows: [] }) // conversation timestamp
+    .mockResolvedValueOnce({ rows: [share] }) // share audit insert
+    .mockResolvedValueOnce({ rows: [] }); // message notification outbox
+
+  const response = await request(buildApp())
+    .post('/api/chat/quotes/share')
+    .send({
+      kind: 'helper',
+      conversationId: 'conversation-1',
+      helperId: 'provider-1',
+      line_items: [{ description: 'Fan install', quantity: 1, unit_price: 29 }],
+      clientRequestId: REQUEST_ID,
+    });
+
+  expect(response.status).toBe(201);
+
+  const shareInsert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO chat_quote_shares/.test(sql));
+  expect(shareInsert).toBeDefined();
+  const [insertSql] = shareInsert;
+  const arbiter = insertSql.match(/ON CONFLICT\s*\(([^)]+)\)\s*WHERE\s*([\s\S]*?)\s*DO NOTHING/i);
+  expect(arbiter).not.toBeNull();
+
+  const migrationSql = fs.readFileSync(
+    path.join(__dirname, '..', 'migrations', '547_chat_quote_share_idempotency.sql'),
+    'utf8'
+  );
+  const indexDef = migrationSql.match(
+    /CREATE UNIQUE INDEX[^;]*?idx_chat_quote_shares_client_request[^;]*?ON\s+chat_quote_shares\s*\(([^)]+)\)\s*WHERE\s*([^;]+);/i
+  );
+  expect(indexDef).not.toBeNull();
+
+  const normalize = (s) => s.replace(/\s+/g, ' ').trim().toLowerCase();
+  expect(normalize(arbiter[1])).toBe(normalize(indexDef[1]));
+  expect(normalize(arbiter[2])).toBe(normalize(indexDef[2]));
+});

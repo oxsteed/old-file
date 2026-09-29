@@ -580,7 +580,7 @@ exports.shareQuote = async (req, res, next) => {
            (quote_kind, quote_id, conversation_id, guest_session_id, message_id, shared_by, status_at_share, client_request_id)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
          ON CONFLICT (shared_by, client_request_id)
-         WHERE client_request_id IS NOT NULL DO NOTHING
+         WHERE shared_by IS NOT NULL AND client_request_id IS NOT NULL DO NOTHING
          RETURNING id`,
         [
           kind,

@@ -7,8 +7,19 @@ const {
 exports.listPublicPackages = async (req, res, next) => {
   try {
     const limit = Math.min(Math.max(Number.parseInt(String(req.query.limit || '50'), 10) || 50, 1), 100);
+    // :businessId accepts either the numeric business id or its vanity profile_slug
+    // (same convention as GET /api/businesses/:id/public).
+    let businessId = req.params.businessId;
+    if (!/^\d+$/.test(String(businessId))) {
+      const slugRow = await pool.query(
+        'SELECT id FROM businesses WHERE profile_slug = $1',
+        [String(businessId).toLowerCase()]
+      );
+      if (!slugRow.rows[0]) return res.status(404).json({ error: 'Business not found' });
+      businessId = slugRow.rows[0].id;
+    }
     const rows = await listPublicServicePackages({
-      businessId: req.params.businessId,
+      businessId,
       serviceId: req.query.service_id || req.query.serviceId || null,
       limit,
     });
