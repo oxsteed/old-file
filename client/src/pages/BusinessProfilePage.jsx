@@ -41,7 +41,6 @@ import ReviewsSection from '../components/helperProfile/ReviewsSection';
 import FAQSection from '../components/helperProfile/FAQSection';
 import CTASection from '../components/helperProfile/CTASection';
 import PublicProfileMessenger from '../components/helperProfile/chat/PublicProfileMessenger.jsx';
-import { MessengerInviteCard } from '../components/helperProfile/chat/MessengerDock.jsx';
 import { AvailabilityBlock, PricingBlock, SlotsBlock } from '../components/helperProfile/DynamicBlocks';
 
 import { getBusinessPublicProfile } from '../api/businesses';
@@ -1105,10 +1104,8 @@ export default function BusinessProfilePage() {
                 helper={helper}
                 onBookNow={handleTemplatePrimaryAction}
                 onMessageHelper={handleOpenChat}
-                onOpenChat={handleOpenChat}
                 hasServices={services.length > 0}
                 primaryLabel={templateBehavior.primaryCta}
-                secondaryLabel={templateBehavior.secondaryCta}
                 allowPrimaryWithoutServices={templateBehavior.allowPrimaryWithoutServices}
               />
               {user && (
@@ -1121,10 +1118,6 @@ export default function BusinessProfilePage() {
                   {t('reportModal.report')}
                 </button>
               )}
-              <MessengerInviteCard
-                displayName={helper.businessName}
-                onOpen={handleOpenChat}
-              />
             </div>
           </aside>
 

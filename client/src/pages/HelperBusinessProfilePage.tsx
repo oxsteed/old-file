@@ -50,7 +50,6 @@ import CTASection from '../components/helperProfile/CTASection';
 
 // Chat
 import PublicProfileMessenger from '../components/helperProfile/chat/PublicProfileMessenger.jsx';
-import { MessengerInviteCard } from '../components/helperProfile/chat/MessengerDock.jsx';
 
 // Dynamic blocks (Issue #35) - fetched client-side after static shell renders
 import { AvailabilityBlock, PricingBlock, SlotsBlock } from '../components/helperProfile/DynamicBlocks';
@@ -387,10 +386,8 @@ const HelperBusinessProfilePage: React.FC = () => {
               services={services}
               onBookNow={handleTemplatePrimaryAction}
               onMessageHelper={handleMessageHelper}
-              onOpenChat={handleOpenChat}
               hasServices={services.length > 0}
               primaryLabel={templateBehavior.primaryCta}
-              secondaryLabel={templateBehavior.secondaryCta}
               allowPrimaryWithoutServices={templateBehavior.allowPrimaryWithoutServices}
             />
 
@@ -467,10 +464,6 @@ const HelperBusinessProfilePage: React.FC = () => {
                   {t('reportModal.report')}
                 </button>
               )}
-              <MessengerInviteCard
-                displayName={helper.businessName}
-                onOpen={handleOpenChat}
-              />
             </div>
           </aside>
         </div>

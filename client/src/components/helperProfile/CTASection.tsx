@@ -9,11 +9,9 @@ interface CTASectionProps {
   helper: HelperProfile;
   onBookNow: () => void;
   onMessageHelper: () => void;
-  onOpenChat?: () => void;
   hasServices?: boolean;
   services?: Service[];
   primaryLabel?: string;
-  secondaryLabel?: string;
   allowPrimaryWithoutServices?: boolean;
 }
 
@@ -43,11 +41,9 @@ const CTASection: React.FC<CTASectionProps> = ({
   helper,
   onBookNow,
   onMessageHelper,
-  onOpenChat,
   hasServices = true,
   services = [],
   primaryLabel,
-  secondaryLabel,
   allowPrimaryWithoutServices = false,
 }) => {
   const { t } = useTranslation();
@@ -113,8 +109,8 @@ const CTASection: React.FC<CTASectionProps> = ({
         </div>
       )}
 
-      {/* CTAs - Always Visible */}
-      <div className="px-5 py-4 space-y-3">
+      {/* Primary CTA - always visible. Falls back to messaging when booking isn't available. */}
+      <div className="px-5 py-4">
         <button
           onClick={primaryAction}
           className="w-full flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-brand-500 hover:bg-brand-600 shadow-lg shadow-brand-500/20 text-white font-semibold text-sm transition-colors active:scale-[0.98]"
@@ -126,14 +122,6 @@ const CTASection: React.FC<CTASectionProps> = ({
             <MessageCircle className="w-4 h-4" aria-hidden="true" />
           )}
           {primaryButtonLabel}
-        </button>
-        <button
-          onClick={onMessageHelper}
-          className="w-full flex items-center justify-center gap-2 py-3 px-5 rounded-xl border border-gray-700 hover:bg-gray-800 text-gray-200 font-medium text-sm transition-colors active:scale-[0.98]"
-          aria-label={t('helperProfile.cta.messageHelperAria')}
-        >
-          <MessageCircle className="w-4 h-4" aria-hidden="true" />
-          {secondaryLabel || t('helperProfile.cta.messageHelper')}
         </button>
       </div>
 
