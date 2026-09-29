@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
 import { useAuth } from '../../../hooks/useAuth';
+import { useAbortableFetch } from '../../lib/useAbortableFetch';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -187,9 +188,11 @@ export default function UserDetail() {
   const isSuper = me?.role === 'super_admin';
   const isAdmin = me?.role === 'admin' || me?.role === 'super_admin';
 
-  const [data,    setData]    = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState(null);
+  const { data: res, loading, error, reload } = useAbortableFetch(async (signal) => {
+    const { data } = await adminApi.get(`/admin/users/${userId}`, { signal });
+    return data ?? null;
+  }, [userId]);
+  const data = res ?? null;
   const [working, setWorking] = useState(false);
   const [message, setMessage] = useState(null);
 
@@ -243,44 +246,61 @@ export default function UserDetail() {
 
   // ── data fetching ─────────────────────────────────────────────────────────
 
-  const fetchUser = useCallback(async () => {
-    setLoading(true); setError(null);
+  // Refresh shim used by the mutation handlers below (abort-safe reload).
+  const fetchUser = useCallback(() => reload(), [reload]);
+
+  // Keep the edit forms in sync with the loaded user.
+  useEffect(() => {
+    const u = res?.user || {};
+    setNameForm({ first_name: u.first_name ?? '', last_name: u.last_name ?? '' });
+    setProfileForm({ email: u.email ?? '', phone: u.phone ?? '', bio: u.bio ?? '', city: u.city ?? '', state: u.state ?? '', country: u.country ?? 'US' });
+  }, [res]);
+
+  const lazyControllers = useRef({});
+  useEffect(() => () => {
+    Object.values(lazyControllers.current).forEach((c) => c.abort());
+  }, []);
+
+  const lazyGet = useCallback(async (key, url, onSuccess) => {
+    lazyControllers.current[key]?.abort();
+    const controller = new AbortController();
+    lazyControllers.current[key] = controller;
     try {
-      const { data: res } = await adminApi.get(`/admin/users/${userId}`);
-      setData(res ?? null);
-      const u = res?.user || {};
-      setNameForm({ first_name: u.first_name ?? '', last_name: u.last_name ?? '' });
-      setProfileForm({ email: u.email ?? '', phone: u.phone ?? '', bio: u.bio ?? '', city: u.city ?? '', state: u.state ?? '', country: u.country ?? 'US' });
+      const { data: res } = await adminApi.get(url, { signal: controller.signal });
+      onSuccess(res);
     } catch (err) {
-      setError(err?.response?.data?.error || err?.message || 'Failed to load user.');
-    } finally { setLoading(false); }
-  }, [userId]);
+      if (err?.code !== 'ERR_CANCELED') throw err;
+    } finally {
+      if (lazyControllers.current[key] === controller) delete lazyControllers.current[key];
+    }
+  }, []);
 
   const loadNotes = useCallback(async () => {
     if (notesLoaded) return;
     try {
-      const { data: res } = await adminApi.get(`/admin/users/${userId}/notes`);
-      setNotes(res.notes || []); setNotesLoaded(true);
+      await lazyGet('notes', `/admin/users/${userId}/notes`, (res) => {
+        setNotes(res.notes || []); setNotesLoaded(true);
+      });
     } catch (_) {}
-  }, [userId, notesLoaded]);
+  }, [userId, notesLoaded, lazyGet]);
 
   const loadActivity = useCallback(async () => {
     if (activityLoaded) return;
     try {
-      const { data: res } = await adminApi.get(`/admin/users/${userId}/activity?limit=100`);
-      setActivity(res.events || []); setActivityTotal(res.total || 0); setActivityLoaded(true);
+      await lazyGet('activity', `/admin/users/${userId}/activity?limit=100`, (res) => {
+        setActivity(res.events || []); setActivityTotal(res.total || 0); setActivityLoaded(true);
+      });
     } catch (_) {}
-  }, [userId, activityLoaded]);
+  }, [userId, activityLoaded, lazyGet]);
 
   const loadTickets = useCallback(async () => {
     if (ticketsLoaded) return;
     try {
-      const { data: res } = await adminApi.get(`/admin/users/${userId}/support-tickets`);
-      setTickets(res.tickets || []); setTicketsLoaded(true);
+      await lazyGet('tickets', `/admin/users/${userId}/support-tickets`, (res) => {
+        setTickets(res.tickets || []); setTicketsLoaded(true);
+      });
     } catch (_) {}
-  }, [userId, ticketsLoaded]);
-
-  useEffect(() => { fetchUser(); }, [fetchUser]);
+  }, [userId, ticketsLoaded, lazyGet]);
 
   // ── helpers ───────────────────────────────────────────────────────────────
 
@@ -576,7 +596,7 @@ export default function UserDetail() {
         <AlertCircle size={18} className="shrink-0 mt-0.5" />
         <div>
           <p className="font-semibold text-sm">Failed to load user</p>
-          <p className="text-xs mt-1 text-red-400">{error}</p>
+          <p className="text-xs mt-1 text-red-400">{error?.response?.data?.error || error?.message || 'Failed to load user.'}</p>
           <button onClick={fetchUser} className="mt-3 text-xs underline hover:no-underline">Try again</button>
         </div>
       </div>

@@ -5,6 +5,8 @@ import {
 } from '../../../api/logistics';
 import toast from 'react-hot-toast';
 import '../../../styles/logistics/LogisticsHomePage.css';
+import AdminErrorState from '../../lib/AdminErrorState';
+import ConfirmDialog from '../../lib/ConfirmDialog';
 
 const ALLOC_STATUS_COLOR = { pending:'#f59e0b', reserved:'#3b82f6', fulfilled:'#22c55e', released:'#94a3b8', expired:'#ef4444' };
 const DO_STATUS_COLOR    = { pending:'#f59e0b', dispatched:'#3b82f6', delivered:'#22c55e', failed:'#ef4444', cancelled:'#94a3b8' };
@@ -16,12 +18,14 @@ export default function AllocationsAdmin() {
   const [deliveries, setDeliveries] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [loading, setLoading]     = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [showDoForm, setShowDoForm] = useState(false);
   const [doForm, setDoForm]       = useState({ allocation_id:'', delivery_mode:'courier', recipient_name:'', recipient_address:'', notes:'' });
   const [saving, setSaving]       = useState(false);
 
   const load = () => {
     setLoading(true);
+    setLoadError(null);
     Promise.all([
       adminListAllocations({}),
       adminListDeliveryOrders({}),
@@ -30,18 +34,21 @@ export default function AllocationsAdmin() {
       setAllocations(aRes.data||[]);
       setDeliveries(dRes.data||[]);
       setWarehouses(wRes.data||[]);
-    }).catch(() => {}).finally(() => setLoading(false));
+    }).catch((err) => setLoadError(err)).finally(() => setLoading(false));
   };
   useEffect(() => { load(); }, []);
 
   const warehouseMap = Object.fromEntries(warehouses.map(w => [w.id, w.name]));
 
-  const release = async (id) => {
+  const [releaseTarget, setReleaseTarget] = useState(null);
+
+  const doRelease = async () => {
     try {
-      await adminReleaseAllocation(id);
+      await adminReleaseAllocation(releaseTarget);
       toast.success('Allocation released');
+      setReleaseTarget(null);
       load();
-    } catch (err) { toast.error(err.message); }
+    } catch (err) { throw new Error(err.message || 'Release failed'); }
   };
 
   const createDO = async () => {
@@ -86,6 +93,7 @@ export default function AllocationsAdmin() {
       </div>
 
       {loading && <div className="lx-loading">Loading…</div>}
+      {!loading && loadError && <AdminErrorState onRetry={load} />}
 
       {/* New delivery order form */}
       {showDoForm && tab === 'deliveries' && (
@@ -163,14 +171,14 @@ export default function AllocationsAdmin() {
                   <td>
                     {a.status === 'reserved' && (
                       <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .5rem' }}
-                        onClick={() => release(a.id)}>
+                        onClick={() => setReleaseTarget(a.id)}>
                         Release
                       </button>
                     )}
                   </td>
                 </tr>
               ))}
-              {allocations.length === 0 && !loading && (
+              {allocations.length === 0 && !loading && !loadError && (
                 <tr><td colSpan={7} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>No allocations found.</td></tr>
               )}
             </tbody>
@@ -211,13 +219,22 @@ export default function AllocationsAdmin() {
                   </td>
                 </tr>
               ))}
-              {deliveries.length === 0 && !loading && (
+              {deliveries.length === 0 && !loading && !loadError && (
                 <tr><td colSpan={6} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>No delivery orders found.</td></tr>
               )}
             </tbody>
           </table>
         </div>
       )}
+
+      <ConfirmDialog
+        open={releaseTarget != null}
+        title="Release allocation"
+        message="Release this reserved allocation back to available inventory?"
+        confirmLabel="Release"
+        onConfirm={doRelease}
+        onClose={() => setReleaseTarget(null)}
+      />
     </div>
   );
 }

@@ -1,7 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { adminGetStats } from '../../../api/logistics';
+import { useAuth } from '../../../hooks/useAuth';
+import axios from '../../../api/axios';
+import { useAbortableFetch } from '../../lib/useAbortableFetch';
+import AdminErrorState from '../../lib/AdminErrorState';
 import '../../../styles/logistics/LogisticsHomePage.css';
 
 const STATUS_COLORS = {
@@ -59,15 +62,18 @@ function StatBar({ label, rows, colorMap }) {
 
 export default function LogisticsAdminDashboard() {
   const { t } = useTranslation();
-  const [stats, setStats]   = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === 'super_admin';
 
-  useEffect(() => {
-    adminGetStats()
-      .then(r => setStats(r.data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: stats, loading, error, reload } = useAbortableFetch(
+    // Direct request (not the api wrapper) so the abort signal reaches the network call.
+    async (signal) => (await axios.get('/admin/logistics/stats', { signal })).data.data,
+    []
+  );
+
+  const links = isSuperAdmin
+    ? ADMIN_LINKS
+    : ADMIN_LINKS.filter((l) => l.path !== '/admin/logistics/control');
 
   return (
     <div className="lx-page">
@@ -78,7 +84,7 @@ export default function LogisticsAdminDashboard() {
 
       {/* Quick nav */}
       <div className="lx-nav-grid" style={{ marginBottom:'2rem' }}>
-        {ADMIN_LINKS.map(l => (
+        {links.map(l => (
           <Link key={l.path} to={l.path} className="lx-nav-tile">
             <span className="lx-nav-icon">{l.icon}</span>
             <span className="lx-nav-label">{l.label}</span>
@@ -88,7 +94,9 @@ export default function LogisticsAdminDashboard() {
 
       {loading && <div className="lx-loading">Loading stats…</div>}
 
-      {stats && (
+      {!loading && error && <AdminErrorState onRetry={reload} />}
+
+      {!loading && !error && stats && (
         <>
           <StatBar label="Purchase Orders" rows={stats.purchaseOrders||[]} colorMap={STATUS_COLORS} />
           <StatBar label="Shipments"       rows={stats.shipments||[]}      colorMap={STATUS_COLORS} />

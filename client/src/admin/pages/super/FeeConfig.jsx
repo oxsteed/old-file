@@ -281,6 +281,8 @@ export default function FeeConfig() {
   };
 
   const error = actionError || loadError;
+
+  const trialDurationConfig = config.find(r => r.key === 'trial_duration_days');
   const transactionFees = config.filter(r =>
     r.key.startsWith('tier3_') && !r.key.includes('subscription'));
   const subscriptionFees = config.filter(r =>
@@ -396,7 +398,7 @@ export default function FeeConfig() {
         {t('superFeeConfig.subscriptionPrices')}
       </h2>
       {subscriptionFees.map(row => (
-        <FeeRow key={row.key} row={row} onSave={load} />
+        <FeeRow key={row.key} row={row} onSave={reload} />
       ))}
 
       <div className="mt-8">

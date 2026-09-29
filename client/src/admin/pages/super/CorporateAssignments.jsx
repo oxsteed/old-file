@@ -1,14 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Plus, X, Building2, MapPin, Calendar, Trash2, Edit3,
   AlertTriangle, Crown, Shield, Loader2, ChevronDown,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
 import adminApi from '../../lib/adminApi';
+import api from '../../../api/axios';
+import { useAuth } from '../../../hooks/useAuth';
+import { useAbortableFetch } from '../../lib/useAbortableFetch';
+import ConfirmDialog from '../../lib/ConfirmDialog';
 import {
-  getCorporateCatalog,
-  listCorporateAssignments,
   createCorporateAssignment,
   updateCorporateAssignment,
   endCorporateAssignment,
@@ -62,13 +63,17 @@ function AssignModal({ catalog, regions, initial, onClose, onSaved }) {
   const [error,  setError]  = useState(null);
 
   useEffect(() => {
-    adminApi.get('/admin/super/internal-staff')
+    const controller = new AbortController();
+    adminApi.get('/admin/super/internal-staff', { signal: controller.signal })
       .then(({ data }) => {
         const list = (data.accounts || data.admins || [])
           .filter(a => a.is_active !== false);
         setAdmins(list);
       })
-      .catch(() => setAdmins([]));
+      .catch((err) => {
+        if (err?.code !== 'ERR_CANCELED') setAdmins([]);
+      });
+    return () => controller.abort();
   }, []);
 
   // When department changes, clear title (unless still in dept)
@@ -271,50 +276,50 @@ function AssignModal({ catalog, regions, initial, onClose, onSaved }) {
 
 export default function CorporateAssignments() {
   const { t } = useTranslation();
+  const { user } = useAuth();
 
-  const [catalog,     setCatalog]     = useState(null);
-  const [regions,     setRegions]     = useState([]);
-  const [assignments, setAssignments] = useState([]);
   const [filters, setFilters] = useState({
     department_id: '', title_id: '', country: '', active: 'true',
   });
-  const [loading,     setLoading]     = useState(true);
-  const [error,       setError]       = useState(null);
   const [modalState,  setModalState]  = useState(null); // null | { initial? }
+  const [endTarget, setEndTarget] = useState(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [cat, regs, assigns] = await Promise.all([
-        getCorporateCatalog(),
-        adminApi.get('/admin/regions').then(r => r.data?.regions || r.data?.data || [])
-          .catch(() => []),
-        listCorporateAssignments(filters),
-      ]);
-      setCatalog(cat);
-      setRegions(regs);
-      setAssignments(assigns);
-    } catch (e) {
-      setError(e?.response?.data?.error || 'Failed to load assignments.');
-    } finally {
-      setLoading(false);
-    }
+  // Direct requests so the abort signal actually reaches the network call
+  // (the corporateRoles wrappers do not accept a signal).
+  const { data, loading, error: fetchError, reload } = useAbortableFetch(async (signal) => {
+    const params = {};
+    if (filters.department_id) params.department_id = filters.department_id;
+    if (filters.title_id)      params.title_id = filters.title_id;
+    if (filters.country)       params.country = filters.country;
+    if (filters.active)        params.active = filters.active;
+    const [catRes, regsRes, assignsRes] = await Promise.all([
+      api.get('/admin/corporate/catalog', { signal }),
+      api.get('/admin/regions', { signal }).catch(() => ({ data: {} })),
+      api.get('/admin/corporate/assignments', { params, signal }),
+    ]);
+    return {
+      catalog: catRes.data.data,
+      regions: regsRes.data?.regions || regsRes.data?.data || [],
+      assignments: assignsRes.data.data,
+    };
   }, [filters]);
-
-  useEffect(() => { load(); }, [load]);
+  const catalog = data?.catalog || null;
+  const regions = data?.regions || [];
+  const assignments = data?.assignments || [];
+  const error = !loading && fetchError
+    ? (fetchError.response?.data?.error || 'Failed to load assignments.')
+    : '';
 
   function setFilter(k, v) { setFilters(f => ({ ...f, [k]: v })); }
 
-  async function handleEnd(id) {
-    if (!window.confirm('End this assignment? The user will lose its associated permissions.')) return;
+  const doEndAssignment = async () => {
     try {
-      await endCorporateAssignment(id);
-      await load();
+      await endCorporateAssignment(endTarget);
+      reload();
     } catch (e) {
-      toast.error(e?.response?.data?.error || 'Failed to end assignment.');
+      throw new Error(e?.response?.data?.error || 'Failed to end assignment.');
     }
-  }
+  };
 
   const titlesForFilterDept = useMemo(() => {
     if (!filters.department_id) return catalog?.titles || [];
@@ -381,8 +386,11 @@ export default function CorporateAssignments() {
       </div>
 
       {error && (
-        <div className="bg-red-900/30 border border-red-900 rounded-lg px-4 py-3 mb-4 text-red-300 text-sm">
-          {error}
+        <div className="bg-red-900/30 border border-red-900 rounded-lg px-4 py-3 mb-4 text-red-300 text-sm flex items-center justify-between gap-3">
+          <span>{error}</span>
+          <button type="button" onClick={reload} className="font-semibold underline underline-offset-2 hover:text-white shrink-0">
+            Try again
+          </button>
         </div>
       )}
 
@@ -440,9 +448,9 @@ export default function CorporateAssignments() {
                     >
                       <Edit3 size={15} />
                     </button>
-                    {row.is_active && (
+                    {row.is_active && user?.role === 'super_admin' && (
                       <button
-                        onClick={() => handleEnd(row.id)}
+                        onClick={() => setEndTarget(row.id)}
                         className="text-gray-400 hover:text-red-400 p-1 ml-1"
                         title="End assignment"
                       >
@@ -463,9 +471,19 @@ export default function CorporateAssignments() {
           regions={regions}
           initial={modalState.initial}
           onClose={() => setModalState(null)}
-          onSaved={async () => { setModalState(null); await load(); }}
+          onSaved={() => { setModalState(null); reload(); }}
         />
       )}
+
+      <ConfirmDialog
+        open={endTarget !== null}
+        title="End assignment"
+        message="End this assignment? The user will lose its associated permissions."
+        danger
+        confirmLabel="End assignment"
+        onConfirm={doEndAssignment}
+        onClose={() => setEndTarget(null)}
+      />
     </div>
   );
 }

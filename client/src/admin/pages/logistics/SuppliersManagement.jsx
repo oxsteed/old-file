@@ -1,43 +1,43 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { adminListSuppliers, adminApproveSupplier, adminUpdateSupplier } from '../../../api/logistics';
+import { adminApproveSupplier, adminUpdateSupplier } from '../../../api/logistics';
+import axios from '../../../api/axios';
 import toast from 'react-hot-toast';
+import { useAbortableFetch } from '../../lib/useAbortableFetch';
+import ConfirmDialog from '../../lib/ConfirmDialog';
+import AdminErrorState from '../../lib/AdminErrorState';
 import '../../../styles/logistics/LogisticsHomePage.css';
 
 export default function SuppliersManagement() {
   const { t } = useTranslation();
-  const [suppliers, setSuppliers] = useState([]);
-  const [total, setTotal]         = useState(0);
-  const [loading, setLoading]     = useState(true);
   const [filter, setFilter]       = useState({ country:'', trust_rating:'', is_active:'' });
   const [selected, setSelected]   = useState(null);
+  const [confirmAction, setConfirmAction] = useState(null); // { type: 'approve'|'deactivate', id, name }
 
-  const load = () => {
-    setLoading(true);
-    adminListSuppliers({
-      country:      filter.country || undefined,
-      trust_rating: filter.trust_rating || undefined,
-      is_active:    filter.is_active !== '' ? filter.is_active : undefined,
-    }).then(r => { setSuppliers(r.suppliers||[]); setTotal(r.total||0); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  };
-  useEffect(() => { load(); }, [filter]);
+  const { data, loading, error, reload } = useAbortableFetch(async (signal) => {
+    // Direct request (not the api wrapper) so the abort signal reaches the network call.
+    const { data: payload } = await axios.get('/admin/logistics/suppliers', {
+      params: {
+        country:      filter.country || undefined,
+        trust_rating: filter.trust_rating || undefined,
+        is_active:    filter.is_active !== '' ? filter.is_active : undefined,
+      },
+      signal,
+    });
+    return { suppliers: payload.suppliers || [], total: payload.total || 0 };
+  }, [filter]);
+  const suppliers = data?.suppliers || [];
 
-  const approve = async (id) => {
+  const doConfirmAction = async () => {
+    const { type, id } = confirmAction;
     try {
-      await adminApproveSupplier(id);
-      toast.success('Supplier approved');
-      load();
-    } catch (err) { toast.error(err.response?.data?.message || err.message); }
-  };
-
-  const deactivate = async (id) => {
-    try {
-      await adminUpdateSupplier(id, { is_active: false });
-      toast.success('Supplier deactivated');
-      load();
-    } catch (err) { toast.error(err.message); }
+      if (type === 'approve') await adminApproveSupplier(id);
+      else await adminUpdateSupplier(id, { is_active: false });
+      toast.success(type === 'approve' ? 'Supplier approved' : 'Supplier deactivated');
+      reload();
+    } catch (err) {
+      throw new Error(err.response?.data?.error || err.message || 'Action failed');
+    }
   };
 
   return (
@@ -65,6 +65,7 @@ export default function SuppliersManagement() {
       </div>
 
       {loading && <div className="lx-loading">Loading…</div>}
+      {!loading && error && <AdminErrorState onRetry={reload} />}
 
       <div className="lx-table-wrap">
         <table className="lx-table">
@@ -102,16 +103,16 @@ export default function SuppliersManagement() {
                 <td onClick={e => e.stopPropagation()} style={{ display:'flex', gap:'.35rem', flexWrap:'wrap' }}>
                   {!s.approved_at && (
                     <button className="lx-btn-primary" style={{ fontSize:'.72rem', padding:'.25rem .65rem' }}
-                      onClick={() => approve(s.id)}>Approve</button>
+                      onClick={() => setConfirmAction({ type:'approve', id:s.id, name:s.company_name })}>Approve</button>
                   )}
                   {s.is_active && (
                     <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem' }}
-                      onClick={() => deactivate(s.id)}>Deactivate</button>
+                      onClick={() => setConfirmAction({ type:'deactivate', id:s.id, name:s.company_name })}>Deactivate</button>
                   )}
                 </td>
               </tr>
             ))}
-            {suppliers.length === 0 && !loading && (
+            {suppliers.length === 0 && !loading && !error && (
               <tr><td colSpan={9} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>No suppliers found.</td></tr>
             )}
           </tbody>
@@ -169,6 +170,20 @@ export default function SuppliersManagement() {
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmAction != null}
+        title={confirmAction?.type === 'deactivate' ? 'Deactivate supplier' : 'Approve supplier'}
+        message={
+          confirmAction?.type === 'deactivate'
+            ? `Deactivate ${confirmAction?.name || 'this supplier'}? They will no longer be available for new sourcing.`
+            : `Approve ${confirmAction?.name || 'this supplier'} as an approved supplier?`
+        }
+        danger={confirmAction?.type === 'deactivate'}
+        confirmLabel={confirmAction?.type === 'deactivate' ? 'Deactivate' : 'Approve supplier'}
+        onConfirm={doConfirmAction}
+        onClose={() => setConfirmAction(null)}
+      />
     </div>
   );
 }

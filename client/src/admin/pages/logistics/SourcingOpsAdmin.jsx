@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { adminListSourcingRequests, adminListQuotes, adminAssignSourcingOperator, adminUpdateSourcingRequestStatus, adminListRecurringPrograms } from '../../../api/logistics';
 import '../../../styles/logistics/LogisticsHomePage.css';
+import AdminErrorState from '../../lib/AdminErrorState';
 
 const REQUEST_STATUSES = ['draft', 'quoted', 'pooled', 'procurement', 'private_label', 'cancelled', 'closed'];
 
@@ -10,11 +11,13 @@ export default function SourcingOpsAdmin() {
   const [quotes, setQuotes] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState({ operator_user_id: '', status: '', notes: '' });
 
   const load = () => {
     setLoading(true);
+    setLoadError(null);
     Promise.all([
       adminListSourcingRequests({ limit: 100 }),
       adminListQuotes({ limit: 50 }),
@@ -25,7 +28,7 @@ export default function SourcingOpsAdmin() {
         setQuotes(quoteRes.data || []);
         setPrograms(programRes.data || []);
       })
-      .catch(() => {})
+      .catch((err) => setLoadError(err))
       .finally(() => setLoading(false));
   };
 
@@ -70,6 +73,8 @@ export default function SourcingOpsAdmin() {
         ))}
       </div>
 
+      {!loading && loadError && <AdminErrorState onRetry={load} />}
+
       <div className="lx-card" style={{ marginBottom:'1.5rem' }}>
         <div className="lx-section-header"><h2>Sourcing request queue</h2></div>
         <div className="lx-table-wrap">
@@ -86,7 +91,7 @@ export default function SourcingOpsAdmin() {
                   <td><button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem' }} onClick={() => setSelected(request)}>Manage</button></td>
                 </tr>
               ))}
-              {!loading && requests.length === 0 && <tr><td colSpan={6} style={{ textAlign:'center', color:'#94a3b8' }}>No sourcing requests found.</td></tr>}
+              {!loading && !loadError && requests.length === 0 && <tr><td colSpan={6} style={{ textAlign:'center', color:'#94a3b8' }}>No sourcing requests found.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -107,7 +112,7 @@ export default function SourcingOpsAdmin() {
                   <td><span className="lx-status-pill" style={{ background: program.status === 'active' ? '#22c55e' : '#64748b' }}>{program.status}</span></td>
                 </tr>
               ))}
-              {!loading && programs.length === 0 && <tr><td colSpan={5} style={{ textAlign:'center', color:'#94a3b8' }}>No recurring procurement programs yet.</td></tr>}
+              {!loading && !loadError && programs.length === 0 && <tr><td colSpan={5} style={{ textAlign:'center', color:'#94a3b8' }}>No recurring procurement programs yet.</td></tr>}
             </tbody>
           </table>
         </div>

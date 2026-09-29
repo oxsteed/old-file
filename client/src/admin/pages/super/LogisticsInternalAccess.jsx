@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import adminApi from '../../../lib/adminApi';
 import { useAuth } from '../../../hooks/useAuth';
+import ConfirmDialog from '../../lib/ConfirmDialog';
 import { getInternalWorkspaceMeta, internalWorkspaceSlug } from '../../../utils/internalWorkspaces';
 
 const EMPTY_FORM = {
@@ -25,10 +27,10 @@ function makeForm(record) {
   };
 }
 
-function roleLabel(role) {
-  if (role === 'super_admin') return 'Super Admin';
-  if (role === 'admin') return 'Admin';
-  return 'Employee';
+function roleLabel(role, t) {
+  if (role === 'super_admin') return t('adminLogisticsAccessRoleSuperAdmin');
+  if (role === 'admin') return t('adminLogisticsAccessRoleAdmin');
+  return t('adminLogisticsAccessRoleEmployee');
 }
 
 function logisticsRoleLabel(role) {
@@ -39,10 +41,10 @@ function logisticsRoleLabel(role) {
     .join(' ');
 }
 
-function routeLabel(route) {
-  if (route === 'admin_portal') return 'Admin Portal';
-  if (route === 'operations') return 'Logistics Operations';
-  if (route === 'compliance') return 'Logistics Compliance';
+function routeLabel(route, t) {
+  if (route === 'admin_portal') return t('adminLogisticsAccessRouteAdminPortal');
+  if (route === 'operations') return t('adminLogisticsAccessRouteOperations');
+  if (route === 'compliance') return t('adminLogisticsAccessRouteCompliance');
   return getInternalWorkspaceMeta(route).label;
 }
 
@@ -68,12 +70,14 @@ function statusTone(record) {
 }
 
 export default function LogisticsInternalAccess() {
+  const { t } = useTranslation();
   const { user: me } = useAuth();
   const [records, setRecords] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [confirmSave, setConfirmSave] = useState(false);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
 
@@ -94,7 +98,7 @@ export default function LogisticsInternalAccess() {
         setForm(makeForm(preferred));
       })
       .catch((err) => {
-        toast.error(err?.response?.data?.error || 'Failed to load internal access settings.');
+        toast.error(err?.response?.data?.error || t('adminLogisticsAccessLoadFailed'));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -184,20 +188,23 @@ export default function LogisticsInternalAccess() {
     return enabled;
   }, [form.admin_portal_enabled, form.operations_enabled, form.compliance_enabled, selectedRecord]);
 
-  const handleSubmit = async (event) => {
+  const handleSubmit = (event) => {
     event.preventDefault();
     if (!selectedRecord) {
-      toast.error('Choose an internal staff account first.');
+      toast.error(t('adminLogisticsAccessChooseAccount'));
       return;
     }
+    setConfirmSave(true);
+  };
 
+  const doSave = async () => {
     setSaving(true);
     try {
       await adminApi.put(`/admin/super/logistics-internal-access/${selectedRecord.user_id}`, form);
       await refreshRecords(selectedRecord.user_id);
-      toast.success('Internal access updated.');
+      toast.success(t('adminLogisticsAccessUpdated'));
     } catch (err) {
-      toast.error(err?.response?.data?.error || 'Failed to save internal access settings.');
+      throw new Error(err?.response?.data?.error || t('adminLogisticsAccessSaveFailed'));
     } finally {
       setSaving(false);
     }
@@ -206,66 +213,64 @@ export default function LogisticsInternalAccess() {
   return (
     <div className="space-y-6">
       <header className="space-y-3">
-        <h1 className="text-2xl font-bold tracking-tight text-white">Internal Access Control</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-white">{t('adminLogisticsAccessTitle')}</h1>
         <p className="max-w-5xl text-sm text-gray-400">
-          Provision the credential gate that sits in front of internal workspaces. This screen should tell you who is ready,
-          who still needs setup, which route each person can use, and whether their access is tied to Admin Portal, Logistics,
-          or department dashboards like HR, Finance, Legal, and Corporate Ops.
+          {t('adminLogisticsAccessSubtitle')}
         </p>
       </header>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-4">
         <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-5">
-          <div className="text-xs uppercase tracking-[0.22em] text-gray-500">Internal staff</div>
+          <div className="text-xs uppercase tracking-[0.22em] text-gray-500">{t('adminLogisticsAccessStaff')}</div>
           <div className="mt-3 text-3xl font-semibold text-white">{summary.total}</div>
-          <div className="mt-2 text-sm text-gray-400">People who currently qualify for an internal access identity.</div>
+          <div className="mt-2 text-sm text-gray-400">{t('adminLogisticsAccessStaffHint')}</div>
         </div>
         <div className="rounded-xl border border-emerald-900/50 bg-emerald-950/20 p-5">
-          <div className="text-xs uppercase tracking-[0.22em] text-emerald-300/70">Active records</div>
+          <div className="text-xs uppercase tracking-[0.22em] text-emerald-300/70">{t('adminLogisticsAccessActiveRecords')}</div>
           <div className="mt-3 text-3xl font-semibold text-white">{summary.active}</div>
-          <div className="mt-2 text-sm text-emerald-100/80">Internal identities that can sign in right now.</div>
+          <div className="mt-2 text-sm text-emerald-100/80">{t('adminLogisticsAccessActiveRecordsHint')}</div>
         </div>
         <div className="rounded-xl border border-amber-900/50 bg-amber-950/20 p-5">
-          <div className="text-xs uppercase tracking-[0.22em] text-amber-300/70">Needs setup</div>
+          <div className="text-xs uppercase tracking-[0.22em] text-amber-300/70">{t('adminLogisticsAccessNeedsSetup')}</div>
           <div className="mt-3 text-3xl font-semibold text-white">{summary.needsSetup}</div>
-          <div className="mt-2 text-sm text-amber-100/80">Eligible staff without an internal name and security key yet.</div>
+          <div className="mt-2 text-sm text-amber-100/80">{t('adminLogisticsAccessNeedsSetupHint')}</div>
         </div>
         <div className="rounded-xl border border-sky-900/50 bg-sky-950/20 p-5">
-          <div className="text-xs uppercase tracking-[0.22em] text-sky-300/70">Department users</div>
+          <div className="text-xs uppercase tracking-[0.22em] text-sky-300/70">{t('adminLogisticsAccessDeptUsers')}</div>
           <div className="mt-3 text-3xl font-semibold text-white">{summary.internalDepartmentUsers}</div>
-          <div className="mt-2 text-sm text-sky-100/80">People whose internal access also unlocks company-wide department dashboards.</div>
+          <div className="mt-2 text-sm text-sky-100/80">{t('adminLogisticsAccessDeptUsersHint')}</div>
         </div>
       </section>
 
       <section className="rounded-xl border border-gray-800 bg-gray-900/40 p-5">
         {loading ? (
-          <div className="text-sm text-gray-400">Loading internal access settings…</div>
+          <div className="text-sm text-gray-400">{t('adminLogisticsAccessLoading')}</div>
         ) : (
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(380px,460px)_1fr]">
             <div className="space-y-5">
               <div className="rounded-xl border border-gray-800 bg-gray-950/50 p-4">
                 <div className="flex flex-col gap-4">
                   <div>
-                    <h2 className="text-sm font-semibold text-white">Provisioning Console</h2>
+                    <h2 className="text-sm font-semibold text-white">{t('adminLogisticsAccessConsole')}</h2>
                     <p className="mt-1 text-xs text-gray-500">
-                      Search the roster, filter by status, and jump straight into the next account that still needs provisioning.
+                      {t('adminLogisticsAccessConsoleHint')}
                     </p>
                   </div>
                   <input
                     type="text"
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Search name, email, route, department…"
+                    placeholder={t('adminLogisticsAccessSearchPlaceholder')}
                     className="w-full rounded-lg border border-gray-700 bg-gray-950 px-4 py-3 text-sm text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none"
                   />
                   <div className="flex flex-wrap gap-2">
                     {[
-                      ['all', 'All'],
-                      ['needs_setup', 'Needs setup'],
-                      ['ready', 'Ready'],
-                      ['inactive', 'Inactive'],
-                      ['employees', 'Employees'],
-                      ['admins', 'Admins'],
+                      ['all', t('common.all')],
+                      ['needs_setup', t('adminLogisticsAccessNeedsSetup')],
+                      ['ready', t('adminLogisticsAccessReady')],
+                      ['inactive', t('adminLogisticsAccessInactive')],
+                      ['employees', t('adminLogisticsAccessEmployees')],
+                      ['admins', t('adminLogisticsAccessAdmins')],
                     ].map(([value, label]) => (
                       <button
                         key={value}
@@ -287,10 +292,10 @@ export default function LogisticsInternalAccess() {
               <div className="rounded-xl border border-gray-800 bg-gray-950/50 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-sm font-semibold text-white">Provisioning Queue</h3>
-                    <p className="mt-1 text-xs text-gray-500">Most useful next actions for this screen.</p>
+                    <h3 className="text-sm font-semibold text-white">{t('adminLogisticsAccessQueue')}</h3>
+                    <p className="mt-1 text-xs text-gray-500">{t('adminLogisticsAccessQueueHint')}</p>
                   </div>
-                  <div className="text-xs text-amber-300">{provisioningQueue.length} queued</div>
+                  <div className="text-xs text-amber-300">{t('adminLogisticsAccessQueued', { count: provisioningQueue.length })}</div>
                 </div>
                 <div className="mt-4 space-y-2">
                   {provisioningQueue.length ? provisioningQueue.map((record) => (
@@ -303,14 +308,14 @@ export default function LogisticsInternalAccess() {
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <div className="text-sm font-medium text-white">{record.first_name} {record.last_name}</div>
-                          <div className="mt-1 text-xs text-gray-500">{roleLabel(record.role)}{record.department_names?.length ? ` · ${record.department_names.join(', ')}` : ''}</div>
+                          <div className="mt-1 text-xs text-gray-500">{roleLabel(record.role, t)}{record.department_names?.length ? ` · ${record.department_names.join(', ')}` : ''}</div>
                         </div>
-                        <div className="rounded-full border border-amber-500/30 px-2 py-1 text-[11px] text-amber-200">Needs setup</div>
+                        <div className="rounded-full border border-amber-500/30 px-2 py-1 text-[11px] text-amber-200">{t('adminLogisticsAccessNeedsSetup')}</div>
                       </div>
                     </button>
                   )) : (
                     <div className="rounded-lg border border-dashed border-gray-800 bg-gray-900/40 px-3 py-4 text-sm text-gray-500">
-                      No unprovisioned records in the current eligible roster.
+                      {t('adminLogisticsAccessQueueEmpty')}
                     </div>
                   )}
                 </div>
@@ -318,9 +323,9 @@ export default function LogisticsInternalAccess() {
 
               <div className="rounded-xl border border-gray-800 bg-gray-950/40 overflow-hidden">
                 <div className="border-b border-gray-800 px-4 py-3">
-                  <h2 className="text-sm font-semibold text-white">Internal Staff Accounts</h2>
+                  <h2 className="text-sm font-semibold text-white">{t('adminLogisticsAccessAccounts')}</h2>
                   <p className="mt-1 text-xs text-gray-500">
-                    Choose the employee, admin, or super-admin account that should own the internal access identity.
+                    {t('adminLogisticsAccessAccountsHint')}
                   </p>
                 </div>
                 <div className="max-h-[780px] divide-y divide-gray-800 overflow-y-auto">
@@ -341,15 +346,15 @@ export default function LogisticsInternalAccess() {
                           <div>
                             <div className="text-sm font-medium text-white">
                               {record.first_name} {record.last_name}
-                              {isSelf && <span className="ml-2 text-xs text-orange-400">(you)</span>}
+                              {isSelf && <span className="ml-2 text-xs text-orange-400">{t('adminLogisticsAccessYou')}</span>}
                             </div>
                             <div className="mt-1 text-xs text-gray-500">{record.email}</div>
                             {record.logistics_role && (
-                              <div className="mt-1 text-[11px] text-gray-500">Logistics role: {logisticsRoleLabel(record.logistics_role)}</div>
+                              <div className="mt-1 text-[11px] text-gray-500">{t('adminLogisticsAccessLogisticsRole', { role: logisticsRoleLabel(record.logistics_role) })}</div>
                             )}
                           </div>
                           <div className="text-right">
-                            <div className="text-[11px] uppercase tracking-wide text-gray-500">{roleLabel(record.role)}</div>
+                            <div className="text-[11px] uppercase tracking-wide text-gray-500">{roleLabel(record.role, t)}</div>
                             <div className={`mt-2 rounded-full border px-2 py-1 text-[11px] ${
                               tone === 'ready'
                                 ? 'border-emerald-500/40 text-emerald-200'
@@ -357,13 +362,13 @@ export default function LogisticsInternalAccess() {
                                   ? 'border-gray-700 text-gray-400'
                                   : 'border-amber-500/40 text-amber-200'
                             }`}>
-                              {tone === 'ready' ? 'Ready' : tone === 'inactive' ? 'Inactive' : 'Needs setup'}
+                              {tone === 'ready' ? t('adminLogisticsAccessReady') : tone === 'inactive' ? t('adminLogisticsAccessInactive') : t('adminLogisticsAccessNeedsSetup')}
                             </div>
                           </div>
                         </div>
                         <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
                           <span className={`rounded-full border px-2 py-1 ${record.has_record ? 'border-emerald-500/40 text-emerald-300' : 'border-gray-700 text-gray-500'}`}>
-                            {record.has_record ? `Name: ${record.internal_name}` : 'No internal record'}
+                            {record.has_record ? t('adminLogisticsAccessInternalNameValue', { name: record.internal_name }) : t('adminLogisticsAccessNoRecord')}
                           </span>
                           {(record.department_names || []).slice(0, 2).map((name) => (
                             <span key={`${record.user_id}-${name}`} className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-emerald-200">
@@ -372,14 +377,14 @@ export default function LogisticsInternalAccess() {
                           ))}
                           {(record.eligible_routes || []).slice(0, 3).map((route) => (
                             <span key={`${record.user_id}-${route}`} className={`rounded-full border px-2 py-1 ${routeChipClass(route, true)}`}>
-                              {routeLabel(route)}
+                              {routeLabel(route, t)}
                             </span>
                           ))}
                         </div>
                       </button>
                     );
                   }) : (
-                    <div className="px-4 py-8 text-sm text-gray-500">No internal staff matched your current filters.</div>
+                    <div className="px-4 py-8 text-sm text-gray-500">{t('adminLogisticsAccessNoMatch')}</div>
                   )}
                 </div>
               </div>
@@ -387,7 +392,7 @@ export default function LogisticsInternalAccess() {
 
             <section className="rounded-xl border border-gray-800 bg-gray-950/40 p-5">
               {!selectedRecord ? (
-                <div className="text-sm text-gray-400">Select an internal staff account to manage its internal access.</div>
+                <div className="text-sm text-gray-400">{t('adminLogisticsAccessSelectAccount')}</div>
               ) : (
                 <form className="space-y-6" onSubmit={handleSubmit}>
                   <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
@@ -397,7 +402,7 @@ export default function LogisticsInternalAccess() {
                           <div className="text-lg font-semibold text-white">{selectedRecord.first_name} {selectedRecord.last_name}</div>
                           <div className="mt-1 text-sm text-gray-400">{selectedRecord.email}</div>
                           <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                            <span className="rounded-full border border-gray-700 px-2 py-1 text-gray-300">{roleLabel(selectedRecord.role)}</span>
+                            <span className="rounded-full border border-gray-700 px-2 py-1 text-gray-300">{roleLabel(selectedRecord.role, t)}</span>
                             {selectedRecord.logistics_role && (
                               <span className="rounded-full border border-gray-700 px-2 py-1 text-gray-300">{logisticsRoleLabel(selectedRecord.logistics_role)}</span>
                             )}
@@ -415,20 +420,20 @@ export default function LogisticsInternalAccess() {
                               ? 'border-gray-700 text-gray-400'
                               : 'border-amber-500/40 text-amber-200'
                         }`}>
-                          {statusTone(selectedRecord) === 'ready' ? 'Ready' : statusTone(selectedRecord) === 'inactive' ? 'Inactive' : 'Needs setup'}
+                          {statusTone(selectedRecord) === 'ready' ? t('adminLogisticsAccessReady') : statusTone(selectedRecord) === 'inactive' ? t('adminLogisticsAccessInactive') : t('adminLogisticsAccessNeedsSetup')}
                         </div>
                       </div>
                     </div>
 
                     <div className="rounded-xl border border-gray-800 bg-gray-950/60 p-4">
-                      <div className="text-xs uppercase tracking-[0.22em] text-gray-500">Login routes unlocked</div>
+                      <div className="text-xs uppercase tracking-[0.22em] text-gray-500">{t('adminLogisticsAccessRoutesUnlocked')}</div>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {selectedEnabledRoutes.length ? selectedEnabledRoutes.map((route) => (
                           <span key={`enabled-${route}`} className={`rounded-full border px-2 py-1 text-xs ${routeChipClass(route, true)}`}>
-                            {routeLabel(route)}
+                            {routeLabel(route, t)}
                           </span>
                         )) : (
-                          <span className="rounded-full border border-gray-700 px-2 py-1 text-xs text-gray-500">No routes enabled yet</span>
+                          <span className="rounded-full border border-gray-700 px-2 py-1 text-xs text-gray-500">{t('adminLogisticsAccessNoRoutes')}</span>
                         )}
                       </div>
                     </div>
@@ -437,7 +442,7 @@ export default function LogisticsInternalAccess() {
                   <div className="grid gap-4 lg:grid-cols-2">
                     <div>
                       <label htmlFor="internal_name" className="mb-2 block text-sm font-medium text-gray-200">
-                        Internal name
+                        {t('adminLogisticsAccessInternalNameLabel')}
                       </label>
                       <input
                         id="internal_name"
@@ -445,17 +450,17 @@ export default function LogisticsInternalAccess() {
                         value={form.internal_name}
                         onChange={(event) => updateField('internal_name', event.target.value)}
                         className="w-full rounded-lg border border-gray-700 bg-gray-950 px-4 py-3 text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none"
-                        placeholder="Example: Emile"
+                        placeholder={t('adminLogisticsAccessInternalNamePlaceholder')}
                         required
                       />
                       <p className="mt-2 text-xs text-gray-500">
-                        Unique first-step credential for the internal gate. This is what the staff member types before password sign-in.
+                        {t('adminLogisticsAccessInternalNameHint')}
                       </p>
                     </div>
 
                     <div>
                       <label htmlFor="security_key" className="mb-2 block text-sm font-medium text-gray-200">
-                        {selectedRecord.has_record ? 'Replace security key' : 'Security key'}
+                        {selectedRecord.has_record ? t('adminLogisticsAccessReplaceSecurityKey') : t('adminLogisticsAccessSecurityKey')}
                       </label>
                       <input
                         id="security_key"
@@ -463,10 +468,10 @@ export default function LogisticsInternalAccess() {
                         value={form.security_key}
                         onChange={(event) => updateField('security_key', event.target.value)}
                         className="w-full rounded-lg border border-gray-700 bg-gray-950 px-4 py-3 text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none"
-                        placeholder={selectedRecord.has_record ? 'Leave blank to keep the current key' : 'Create a strong security key'}
+                        placeholder={selectedRecord.has_record ? t('adminLogisticsAccessSecurityKeyPlaceholderKeep') : t('adminLogisticsAccessSecurityKeyPlaceholderNew')}
                       />
                       <p className="mt-2 text-xs text-gray-500">
-                        Stored hashed only. Rotating it forces the linked person to use the new key immediately.
+                        {t('adminLogisticsAccessSecurityKeyHint')}
                       </p>
                     </div>
                   </div>
@@ -481,13 +486,13 @@ export default function LogisticsInternalAccess() {
                         className="mt-1"
                       />
                       <div>
-                        <div className="text-sm font-medium text-white">Enable Admin Portal gate</div>
+                        <div className="text-sm font-medium text-white">{t('adminLogisticsAccessEnableAdminPortal')}</div>
                         <div className="mt-1 text-xs text-gray-500">
-                          Protects `/admin/login` with this identity before password login can continue.
+                          {t('adminLogisticsAccessEnableAdminPortalHint')}
                         </div>
                         {selectedRecord.role === 'employee' && (
                           <div className="mt-2 text-xs text-amber-400">
-                            Employee accounts cannot use the Admin Portal gate.
+                            {t('adminLogisticsAccessEmployeePortalNote')}
                           </div>
                         )}
                       </div>
@@ -501,9 +506,9 @@ export default function LogisticsInternalAccess() {
                         className="mt-1"
                       />
                       <div>
-                        <div className="text-sm font-medium text-white">Record active</div>
+                        <div className="text-sm font-medium text-white">{t('adminLogisticsAccessRecordActive')}</div>
                         <div className="mt-1 text-xs text-gray-500">
-                          Turning this off disables future internal-access verification for this person.
+                          {t('adminLogisticsAccessRecordActiveHint')}
                         </div>
                       </div>
                     </label>
@@ -518,9 +523,9 @@ export default function LogisticsInternalAccess() {
                         className="mt-1"
                       />
                       <div>
-                        <div className="text-sm font-medium text-white">Enable Logistics Operations gate</div>
+                        <div className="text-sm font-medium text-white">{t('adminLogisticsAccessEnableOperations')}</div>
                         <div className="mt-1 text-xs text-gray-500">
-                          Unlocks `/logistics/operations/login` for branch-specific operations work.
+                          {t('adminLogisticsAccessEnableOperationsHint')}
                         </div>
                       </div>
                     </label>
@@ -533,28 +538,27 @@ export default function LogisticsInternalAccess() {
                         className="mt-1"
                       />
                       <div>
-                        <div className="text-sm font-medium text-white">Enable Logistics Compliance gate</div>
+                        <div className="text-sm font-medium text-white">{t('adminLogisticsAccessEnableCompliance')}</div>
                         <div className="mt-1 text-xs text-gray-500">
-                          Unlocks `/logistics/compliance-workspace/login` for branch-specific compliance work.
+                          {t('adminLogisticsAccessEnableComplianceHint')}
                         </div>
                       </div>
                     </label>
                   </div>
 
                   <div className="rounded-xl border border-blue-900/40 bg-blue-950/20 p-4">
-                    <div className="text-sm font-medium text-white">Department dashboards are assignment-driven</div>
+                    <div className="text-sm font-medium text-white">{t('adminLogisticsAccessDeptDriven')}</div>
                     <p className="mt-2 text-sm text-blue-100">
-                      Employees do not need extra toggles for company-wide department routes. Once this person has an active internal-access
-                      record and an active corporate assignment, they can use the matching login route automatically:
+                      {t('adminLogisticsAccessDeptDrivenText')}
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2 text-xs">
                       {(selectedRecord.department_codes || []).length ? selectedRecord.department_codes.map((route) => (
                         <span key={`dept-route-${route}`} className={`rounded-full border px-2 py-1 ${routeChipClass(route, true)}`}>
-                          {routeLabel(route)} · {routePath(route)}
+                          {routeLabel(route, t)} · {routePath(route)}
                         </span>
                       )) : (
                         <span className="rounded-full border border-gray-700 px-2 py-1 text-gray-400">
-                          No active department assignment on this account yet.
+                          {t('adminLogisticsAccessNoDeptAssignment')}
                         </span>
                       )}
                     </div>
@@ -563,32 +567,32 @@ export default function LogisticsInternalAccess() {
                   {selectedRecord.has_record && (
                     <div className="rounded-xl border border-gray-800 bg-gray-950/60 p-4 text-sm text-gray-400">
                       <div>
-                        Internal identity:
+                        {t('adminLogisticsAccessInternalIdentity')}
                         <span className="ml-2 font-medium text-white">{selectedRecord.internal_name}</span>
                       </div>
                       <div className="mt-2">
-                        Last check:
+                        {t('adminLogisticsAccessLastCheck')}
                         <span className="ml-2 text-gray-300">
-                          {selectedRecord.last_verified_at ? new Date(selectedRecord.last_verified_at).toLocaleString() : 'never'}
+                          {selectedRecord.last_verified_at ? new Date(selectedRecord.last_verified_at).toLocaleString() : t('adminLogisticsAccessNever')}
                         </span>
                       </div>
                       <div className="mt-2">
-                        Last route:
-                        <span className="ml-2 text-gray-300">{selectedRecord.last_verified_route ? routeLabel(selectedRecord.last_verified_route) : 'n/a'}</span>
+                        {t('adminLogisticsAccessLastRoute')}
+                        <span className="ml-2 text-gray-300">{selectedRecord.last_verified_route ? routeLabel(selectedRecord.last_verified_route, t) : t('adminLogisticsAccessNotApplicable')}</span>
                       </div>
                     </div>
                   )}
 
                   <div className="flex items-center justify-end gap-3">
                     <div className="text-xs text-gray-500">
-                      Department dashboard routes use active corporate assignments. Logistics and Admin Portal use explicit toggles above.
+                      {t('adminLogisticsAccessSaveHint')}
                     </div>
                     <button
                       type="submit"
                       disabled={saving}
                       className="inline-flex items-center justify-center rounded-lg bg-orange-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-orange-700 disabled:opacity-50"
                     >
-                      {saving ? 'Saving…' : selectedRecord.has_record ? 'Update Internal Access' : 'Create Internal Access'}
+                      {saving ? t('adminLogisticsAccessSaving') : selectedRecord.has_record ? t('adminLogisticsAccessUpdate') : t('adminLogisticsAccessCreate')}
                     </button>
                   </div>
                 </form>
@@ -597,6 +601,17 @@ export default function LogisticsInternalAccess() {
           </div>
         )}
       </section>
+
+      <ConfirmDialog
+        open={confirmSave}
+        title="Save logistics access"
+        message={selectedRecord
+          ? `Save access changes for ${`${selectedRecord.first_name || ''} ${selectedRecord.last_name || ''}`.trim() || selectedRecord.email}? This updates their logistics login routes.`
+          : 'Save these access changes? This updates the user\'s logistics login routes.'}
+        confirmLabel={selectedRecord?.has_record ? t('adminLogisticsAccessUpdate') : t('adminLogisticsAccessCreate')}
+        onConfirm={doSave}
+        onClose={() => setConfirmSave(false)}
+      />
     </div>
   );
 }

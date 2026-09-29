@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { listLanes, adminCreateLane, adminUpdateLane, listTradeRules } from '../../../api/logistics';
 import toast from 'react-hot-toast';
 import '../../../styles/logistics/LogisticsHomePage.css';
+import AdminErrorState from '../../lib/AdminErrorState';
 
 const RISK_TIERS   = ['low','managed','restricted','prohibited'];
 const FREIGHT_OPTS = ['air','sea_fcl','sea_lcl','road','rail','multimodal','courier','express'];
@@ -13,6 +14,7 @@ export default function LanesManagement() {
   const [lanes, setLanes]   = useState([]);
   const [rules, setRules]   = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editLane, setEditLane] = useState(null);
   const [form, setForm]     = useState({
@@ -26,9 +28,10 @@ export default function LanesManagement() {
 
   const load = () => {
     setLoading(true);
+    setLoadError(null);
     Promise.all([listLanes({ isActive: null }), listTradeRules()])
       .then(([lRes, rRes]) => { setLanes(lRes.data||[]); setRules(rRes.data||[]); })
-      .catch(() => {})
+      .catch((err) => setLoadError(err))
       .finally(() => setLoading(false));
   };
   useEffect(() => { load(); }, []);
@@ -83,6 +86,7 @@ export default function LanesManagement() {
       </div>
 
       {loading && <div className="lx-loading">Loading…</div>}
+      {!loading && loadError && <AdminErrorState onRetry={load} />}
 
       {showForm && (
         <div className="lx-card" style={{ marginBottom:'1.5rem', border:'2px solid #f97316' }}>

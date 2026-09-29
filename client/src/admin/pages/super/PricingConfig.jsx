@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import api from '../../../api/axios';
 import { useAuth } from '../../../hooks/useAuth';
 import { useTranslation } from 'react-i18next';
+import { useAbortableFetch } from '../../lib/useAbortableFetch';
+import ConfirmDialog from '../../lib/ConfirmDialog';
 
 export default function PricingConfig() {
   const { t } = useTranslation();
@@ -15,27 +17,31 @@ export default function PricingConfig() {
     tier3_label: 'per transaction'
   });
   const [saved, setSaved] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [retry, setRetry] = useState(0);
+  const [saveError, setSaveError] = useState('');
+  const [confirmSave, setConfirmSave] = useState(false);
+
+  const { data, loading, error: fetchError, reload } = useAbortableFetch(async (signal) => {
+    const res = await api.get('/config/pricing', { signal });
+    return res.data;
+  }, []);
 
   useEffect(() => {
-    setLoading(true);
-    setError('');
-    api.get('/config/pricing')
-      .then(res => { setForm(prev => ({ ...prev, ...res.data })); })
-      .catch(err => setError(err.response?.data?.error || t('superPricingConfig.errorLoad')))
-      .finally(() => setLoading(false));
-  }, [retry]);
+    if (data) setForm(prev => ({ ...prev, ...data }));
+  }, [data]);
 
-  const handleSave = async () => {
+  const loadError = !loading && fetchError
+    ? (fetchError.response?.data?.error || t('superPricingConfig.errorLoad'))
+    : '';
+
+  const doSave = async () => {
     setSaved(false);
-    setError('');
+    setSaveError('');
     try {
       await api.put('/config/pricing', form);
       setSaved(true);
     } catch (err) {
-      setError(err.response?.data?.error || t('superPricingConfig.errorSave'));
+      setSaveError(err.response?.data?.error || t('superPricingConfig.errorSave'));
+      throw err; // keep the dialog open on failure
     }
   };
 
@@ -45,12 +51,12 @@ export default function PricingConfig() {
 
   if (loading) return <div className="p-8 text-center">{t('superFinancials.loading')}</div>;
 
-  if (error) {
+  if (loadError) {
     return (
       <div className="p-8 text-center text-gray-300">
-        <p className="text-red-400">{error}</p>
+        <p className="text-red-400">{loadError}</p>
         <button
-          onClick={() => setRetry(value => value + 1)}
+          onClick={() => { setSaveError(''); reload(); }}
           className="mt-4 bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded font-medium"
         >
           {t('superFinancials.retry')}
@@ -88,14 +94,23 @@ export default function PricingConfig() {
         </div>
         <div className="mt-8 flex items-center gap-4">
           <button
-            onClick={handleSave}
+            onClick={() => setConfirmSave(true)}
             className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded font-medium"
           >
             {t('superPricingConfig.saveChanges')}
           </button>
           {saved && <span className="text-green-400 text-sm">{t('superPricingConfig.saved')}</span>}
-          {error && <span className="text-red-400 text-sm">{error}</span>}
+          {saveError && <span className="text-red-400 text-sm">{saveError}</span>}
         </div>
+
+        <ConfirmDialog
+          open={confirmSave}
+          title="Save pricing changes"
+          message="Save these pricing changes? They take effect immediately across the platform."
+          confirmLabel={t('superPricingConfig.saveChanges')}
+          onConfirm={doSave}
+          onClose={() => setConfirmSave(false)}
+        />
       </div>
     </div>
   );

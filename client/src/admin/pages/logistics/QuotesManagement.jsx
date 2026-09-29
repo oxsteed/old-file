@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { adminListQuotes, adminReviewQuote } from '../../../api/logistics';
 import toast from 'react-hot-toast';
 import '../../../styles/logistics/LogisticsHomePage.css';
+import AdminErrorState from '../../lib/AdminErrorState';
 
 const STATUS_COLOR = {
   submitted:'#f59e0b', under_review:'#3b82f6', accepted:'#22c55e', rejected:'#ef4444', expired:'#94a3b8',
@@ -10,15 +11,17 @@ const STATUS_COLOR = {
 export default function QuotesManagement() {
   const [quotes, setQuotes]     = useState([]);
   const [loading, setLoading]   = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [status, setStatus]     = useState('');
   const [selected, setSelected] = useState(null);
   const [form, setForm]         = useState({ action:'', admin_notes:'' });
 
   const load = () => {
     setLoading(true);
+    setLoadError(null);
     adminListQuotes({ status: status||undefined })
       .then(r => setQuotes(r.data||[]))
-      .catch(() => {})
+      .catch((err) => setLoadError(err))
       .finally(() => setLoading(false));
   };
   useEffect(() => { load(); }, [status]);
@@ -48,6 +51,7 @@ export default function QuotesManagement() {
       </div>
 
       {loading && <div className="lx-loading">Loading…</div>}
+      {!loading && loadError && <AdminErrorState onRetry={load} />}
 
       <div className="lx-table-wrap">
         <table className="lx-table">
@@ -84,7 +88,7 @@ export default function QuotesManagement() {
                 </td>
               </tr>
             ))}
-            {quotes.length === 0 && !loading && (
+            {quotes.length === 0 && !loading && !loadError && (
               <tr><td colSpan={9} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>No quotes found.</td></tr>
             )}
           </tbody>

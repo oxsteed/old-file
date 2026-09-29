@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { adminListClaims, adminUpdateClaim, adminListRefundCases, adminUpdateRefundCase } from '../../../api/logistics';
 import toast from 'react-hot-toast';
 import '../../../styles/logistics/LogisticsHomePage.css';
+import AdminErrorState from '../../lib/AdminErrorState';
 
 const STATUS_COLOR = {
   open:'#f59e0b', under_review:'#f97316', approved:'#22c55e',
@@ -15,19 +16,21 @@ export default function DisputesAdmin() {
   const [claims, setClaims]   = useState([]);
   const [refunds, setRefunds] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [status, setStatus]   = useState('');
   const [selected, setSelected] = useState(null);
   const [form, setForm]         = useState({});
 
   const load = () => {
     setLoading(true);
+    setLoadError(null);
     adminListClaims({ status: status||undefined })
       .then(r => setClaims(r.data||[]))
-      .catch(() => {})
+      .catch((err) => setLoadError(err))
       .finally(() => setLoading(false));
     adminListRefundCases({ status: status||undefined })
       .then(r => setRefunds(r.data||[]))
-      .catch(() => {});
+      .catch((err) => setLoadError(err));
   };
   useEffect(() => { load(); }, [status]);
 
@@ -64,6 +67,7 @@ export default function DisputesAdmin() {
       </div>
 
       {loading && <div className="lx-loading">Loading…</div>}
+      {!loading && loadError && <AdminErrorState onRetry={load} />}
 
       {tab === 'claims' && <div className="lx-table-wrap">
         <table className="lx-table">
@@ -100,7 +104,7 @@ export default function DisputesAdmin() {
                 </td>
               </tr>
             ))}
-            {claims.length === 0 && !loading && (
+            {claims.length === 0 && !loading && !loadError && (
               <tr><td colSpan={7} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>No claims found.</td></tr>
             )}
           </tbody>
@@ -131,7 +135,7 @@ export default function DisputesAdmin() {
                   </td>
                 </tr>
               ))}
-              {refunds.length === 0 && !loading && (
+              {refunds.length === 0 && !loading && !loadError && (
                 <tr><td colSpan={6} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>No refund cases found.</td></tr>
               )}
             </tbody>

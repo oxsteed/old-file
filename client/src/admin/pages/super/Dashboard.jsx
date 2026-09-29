@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Users, Briefcase, DollarSign, TrendingUp, AlertTriangle, Flag,
@@ -11,6 +11,8 @@ import StatCard     from '../../components/StatCard';
 import adminApi     from '../../../lib/adminApi';
 import { useAuth }  from '../../../hooks/useAuth';
 import { useTranslation } from 'react-i18next';
+import { useAbortableFetch } from '../../lib/useAbortableFetch';
+import ConfirmDialog from '../../lib/ConfirmDialog';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -137,118 +139,95 @@ export default function SuperDashboard() {
   const { t } = useTranslation();
   const isSuper   = user?.role === 'super_admin';
 
-  const [stats,    setStats]    = useState(null);
   const [period,   setPeriod]   = useState('30d');
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState(null);
-  const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
-
-  const [activity,    setActivity]    = useState([]);
-  const [actLoading,  setActLoading]  = useState(true);
-
-  const [geo,         setGeo]         = useState({ userGeo: [], jobGeo: [] });
-  const [geoLoading,  setGeoLoading]  = useState(true);
-  const [health,      setHealth]      = useState(null);
-  const [incidents,   setIncidents]   = useState([]);
-  const [incidentLoading, setIncidentLoading] = useState(true);
-  const [incidentError, setIncidentError] = useState(null);
   const [incidentActionId, setIncidentActionId] = useState(null);
+  const [incidentActionError, setIncidentActionError] = useState(null);
+  const [resolveTarget, setResolveTarget] = useState(null);
 
-  // Fetch main stats (re-runs on period change)
-  const fetchStats = useCallback(async (p) => {
-    setLoading(true); setError(null);
-    try {
-      const endpoint = isSuper ? `/admin/super/dashboard?period=${p}` : '/admin/dashboard';
-      const { data } = await adminApi.get(endpoint);
-      setStats(data.stats);
-      setLastUpdated(new Date());
-    } catch (err) {
-      setError(t('superDashboard.errorLoadStats'));
-    } finally {
-      setLoading(false);
-    }
-  }, [isSuper]);
+  // Main stats (re-runs on period change)
+  const { data: stats, loading, error: statsError, reload: reloadStats } = useAbortableFetch(async (signal) => {
+    const endpoint = isSuper ? `/admin/super/dashboard?period=${period}` : '/admin/dashboard';
+    const { data } = await adminApi.get(endpoint, { signal });
+    return data.stats;
+  }, [period, isSuper]);
+  const error = !loading && statsError ? t('superDashboard.errorLoadStats') : null;
 
-  // Fetch activity feed (one-time, not period-dependent)
-  const fetchActivity = useCallback(async () => {
-    if (!isSuper) return;
-    setActLoading(true);
-    try {
-      const { data } = await adminApi.get('/admin/super/dashboard/activity?limit=20');
-      setActivity(data.activity || []);
-    } catch (_) {}
-    finally { setActLoading(false); }
-  }, [isSuper]);
+  useEffect(() => { if (stats) setLastUpdated(new Date()); }, [stats]);
 
-  // Fetch geo data (one-time)
-  const fetchGeo = useCallback(async () => {
-    if (!isSuper) return;
-    setGeoLoading(true);
-    try {
-      const { data } = await adminApi.get('/admin/super/dashboard/geo');
-      setGeo(data);
-    } catch (_) {}
-    finally { setGeoLoading(false); }
-  }, [isSuper]);
-
-  const fetchHealth = useCallback(async () => {
-    if (!isSuper) return;
-    try {
-      const { data } = await adminApi.get('/monitoring/health');
-      setHealth(data);
-    } catch (_) {
-      setHealth(null);
-    }
-  }, [isSuper]);
-
-  const fetchIncidents = useCallback(async () => {
-    if (!isSuper) return;
-    setIncidentLoading(true);
-    setIncidentError(null);
-    try {
-      const { data } = await adminApi.get('/monitoring/security-events?hours=24');
-      const grouped = data?.byType || {};
-      const openIncidents = Object.values(grouped)
+  // Secondary panels: activity, geo, health, incidents (one-time, super only)
+  const { data: aux, loading: auxLoading, reload: reloadAux } = useAbortableFetch(async (signal) => {
+    const empty = { activity: [], geo: { userGeo: [], jobGeo: [] }, health: null, incidents: [], incidentError: null };
+    if (!isSuper) return empty;
+    const settled = await Promise.allSettled([
+      adminApi.get('/admin/super/dashboard/activity?limit=20', { signal }),
+      adminApi.get('/admin/super/dashboard/geo', { signal }),
+      adminApi.get('/monitoring/health', { signal }),
+      adminApi.get('/monitoring/security-events?hours=24', { signal }),
+    ]);
+    const [actRes, geoRes, healthRes, incRes] = settled;
+    let incidents = [];
+    let incidentError = null;
+    if (incRes.status === 'fulfilled') {
+      const grouped = incRes.value?.data?.byType || {};
+      incidents = Object.values(grouped)
         .flat()
         .filter((incident) => incident.source === 'durable' && !incident.resolvedAt)
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      setIncidents(openIncidents);
-    } catch (_) {
-      setIncidentError(t('superDashboard.incidentUnavailable'));
-    } finally {
-      setIncidentLoading(false);
+    } else if (incRes.reason?.name !== 'AbortError' && incRes.reason?.code !== 'ERR_CANCELED') {
+      incidentError = t('superDashboard.incidentUnavailable');
     }
+    return {
+      activity: actRes.status === 'fulfilled' ? (actRes.value?.data?.activity || []) : [],
+      geo: geoRes.status === 'fulfilled' ? (geoRes.value?.data || empty.geo) : empty.geo,
+      health: healthRes.status === 'fulfilled' ? (healthRes.value?.data || null) : null,
+      incidents,
+      incidentError,
+    };
   }, [isSuper]);
+  const activity        = aux?.activity || [];
+  const actLoading      = auxLoading;
+  const geo             = aux?.geo || { userGeo: [], jobGeo: [] };
+  const geoLoading      = auxLoading;
+  const health          = aux?.health ?? null;
+  const incidents       = aux?.incidents || [];
+  const incidentLoading = auxLoading;
+  const incidentError   = aux?.incidentError || incidentActionError || null;
 
-  const updateIncident = async (incidentId, action) => {
+  const acknowledgeIncident = async (incidentId) => {
     setIncidentActionId(incidentId);
+    setIncidentActionError(null);
     try {
-      const body = action === 'resolve'
-        ? { resolutionNotes: 'Resolved from the Super Admin dashboard.' }
-        : undefined;
-      await adminApi.post(`/monitoring/incidents/${incidentId}/${action}`, body);
-      await Promise.all([fetchIncidents(), fetchHealth()]);
+      await adminApi.post(`/monitoring/incidents/${incidentId}/acknowledge`);
+      reloadAux();
     } catch (err) {
-      setIncidentError(err?.response?.data?.error || t('superDashboard.incidentUpdateFailed'));
+      setIncidentActionError(err?.response?.data?.error || t('superDashboard.incidentUpdateFailed'));
     } finally {
       setIncidentActionId(null);
     }
   };
 
-  useEffect(() => { fetchStats(period); }, [period, fetchStats]);
-  useEffect(() => { fetchActivity(); fetchGeo(); fetchHealth(); fetchIncidents(); }, [fetchActivity, fetchGeo, fetchHealth, fetchIncidents]);
+  // Resolving requires a resolution note; the hardcoded placeholder is gone.
+  const doResolveIncident = async (note) => {
+    setIncidentActionId(resolveTarget);
+    setIncidentActionError(null);
+    try {
+      await adminApi.post(`/monitoring/incidents/${resolveTarget}/resolve`, { resolutionNotes: note });
+      reloadAux();
+    } catch (err) {
+      throw new Error(err?.response?.data?.error || t('superDashboard.incidentUpdateFailed'));
+    } finally {
+      setIncidentActionId(null);
+    }
+  };
 
   const handlePeriod = (p) => { if (p !== period) setPeriod(p); };
 
-  const refreshAll = async () => {
-    setRefreshing(true);
-    try {
-      await Promise.all([fetchStats(period), fetchActivity(), fetchGeo(), fetchHealth(), fetchIncidents()]);
-    } finally {
-      setRefreshing(false);
-    }
+  const refreshAll = () => {
+    reloadStats();
+    reloadAux();
   };
+  const busy = loading || auxLoading;
 
   const pl = t('superDashboard.period' + period);
   const s  = stats;
@@ -294,12 +273,12 @@ export default function SuperDashboard() {
           )}
           <button
             onClick={refreshAll}
-            disabled={refreshing}
+            disabled={busy}
             className="inline-flex items-center gap-2 rounded-lg bg-[#111318] border border-gray-800 px-3 py-2 text-xs font-semibold text-gray-400 hover:text-gray-200 transition disabled:opacity-40"
             title={t('superDashboard.refresh')}
           >
-            <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-            {refreshing ? t('superDashboard.refreshing') : t('superDashboard.refresh')}
+            <RefreshCw size={14} className={busy ? 'animate-spin' : ''} />
+            {busy ? t('superDashboard.refreshing') : t('superDashboard.refresh')}
           </button>
         </div>
       </div>
@@ -315,7 +294,7 @@ export default function SuperDashboard() {
       {error && (
         <div className="flex flex-wrap items-center justify-between gap-3 bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-300 text-sm">
           <span>{error}</span>
-          <button type="button" onClick={refreshAll} disabled={refreshing} className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/10 disabled:opacity-50">{t('superDashboard.tryAgain')}</button>
+          <button type="button" onClick={refreshAll} disabled={busy} className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/10 disabled:opacity-50">{t('superDashboard.tryAgain')}</button>
         </div>
       )}
 
@@ -484,8 +463,8 @@ export default function SuperDashboard() {
                         </div>
                       </div>
                       <div className="flex shrink-0 gap-2 sm:pt-0.5">
-                        {!incident.acknowledgedAt && <button type="button" onClick={() => updateIncident(incident.id, 'acknowledge')} disabled={incidentActionId === incident.id} className="rounded-lg border border-yellow-500/30 px-2.5 py-1.5 text-xs font-semibold text-yellow-300 hover:bg-yellow-500/10 disabled:opacity-50">{t('superDashboard.acknowledge')}</button>}
-                        <button type="button" onClick={() => updateIncident(incident.id, 'resolve')} disabled={incidentActionId === incident.id} className="rounded-lg border border-emerald-500/30 px-2.5 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50">{incidentActionId === incident.id ? t('superDashboard.updating') : t('superDashboard.resolve')}</button>
+                        {!incident.acknowledgedAt && <button type="button" onClick={() => acknowledgeIncident(incident.id)} disabled={incidentActionId === incident.id} className="rounded-lg border border-yellow-500/30 px-2.5 py-1.5 text-xs font-semibold text-yellow-300 hover:bg-yellow-500/10 disabled:opacity-50">{t('superDashboard.acknowledge')}</button>}
+                        <button type="button" onClick={() => setResolveTarget(incident.id)} disabled={incidentActionId === incident.id} className="rounded-lg border border-emerald-500/30 px-2.5 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50">{t('superDashboard.resolve')}</button>
                       </div>
                     </div>
                   </div>
@@ -536,6 +515,18 @@ export default function SuperDashboard() {
 
         </div>
       )}
+
+      <ConfirmDialog
+        open={resolveTarget !== null}
+        title="Resolve incident"
+        message="Describe how this incident was resolved. This note is required."
+        requireReason
+        reasonLabel="Resolution note"
+        reasonPlaceholder="What was done to resolve this incident?"
+        confirmLabel={t('superDashboard.resolve')}
+        onConfirm={doResolveIncident}
+        onClose={() => setResolveTarget(null)}
+      />
 
     </div>
   );

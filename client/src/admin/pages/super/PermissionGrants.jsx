@@ -1,6 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Shield, Plus, X, Check, AlertCircle, Loader2, ChevronDown } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
+import { useAbortableFetch } from '../../lib/useAbortableFetch';
+import AdminErrorState from '../../lib/AdminErrorState';
 
 function ts(d, fallback = '-') {
   if (!d) return fallback;
@@ -18,27 +21,36 @@ function dateOnly(d) {
 }
 
 function isExpired(grant) {
-  return !grant.revoked_at && new Date(grant.expires_at) <= new Date();
+  // expires_at === null means the grant never expires.
+  if (!grant.expires_at || grant.revoked_at) return false;
+  return new Date(grant.expires_at) <= new Date();
+}
+
+// Format a Date as a local (non-UTC) datetime-local input value.
+function toLocalDatetimeInput(d) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function GrantStatusBadge({ grant }) {
+  const { t } = useTranslation();
   if (grant.revoked_at) {
     return (
       <span className="px-2 py-0.5 text-xs rounded-full bg-red-900 text-red-300 font-medium">
-        Revoked
+        {t('adminPermissionGrantsRevoked')}
       </span>
     );
   }
   if (isExpired(grant)) {
     return (
       <span className="px-2 py-0.5 text-xs rounded-full bg-yellow-900 text-yellow-300 font-medium">
-        Expired
+        {t('adminPermissionGrantsExpired')}
       </span>
     );
   }
   return (
     <span className="px-2 py-0.5 text-xs rounded-full bg-green-900 text-green-300 font-medium">
-      Active
+      {t('adminPermissionGrantsActive')}
     </span>
   );
 }
@@ -46,7 +58,7 @@ function GrantStatusBadge({ grant }) {
 // ── Create Grant Modal ────────────────────────────────────────────────────────
 
 function CreateGrantModal({ scopes, onClose, onCreated }) {
-  const [admins,    setAdmins]    = useState([]);
+  const { t } = useTranslation();
   const [form,      setForm]      = useState({
     grantee_id:  '',
     permissions: [],
@@ -57,15 +69,11 @@ function CreateGrantModal({ scopes, onClose, onCreated }) {
   const [error,   setError]   = useState(null);
 
   // Fetch admin list on mount
-  useEffect(() => {
-    adminApi.get('/admin/super/admin-accounts')
-      .then(({ data }) => {
-        // Filter to active regular admins only
-        const list = (data.admins || data.accounts || [])
-          .filter(a => a.role === 'admin' && a.is_active !== false);
-        setAdmins(list);
-      })
-      .catch(() => setAdmins([]));
+  const { data: admins = [] } = useAbortableFetch(async (signal) => {
+    const { data } = await adminApi.get('/admin/super/admin-accounts', { signal });
+    // Filter to active regular admins only
+    return (data.admins || data.accounts || [])
+      .filter(a => a.role === 'admin' && a.is_active !== false);
   }, []);
 
   const togglePerm = (key) => {
@@ -85,20 +93,20 @@ function CreateGrantModal({ scopes, onClose, onCreated }) {
       const { data } = await adminApi.post('/admin/super/permission-grants', form);
       onCreated(data.grant);
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to create grant.');
+      setError(err.response?.data?.error || t('adminPermissionGrantsCreateFailed'));
     } finally {
       setSaving(false);
     }
   };
 
-  // Minimum date for expiry: tomorrow
+  // Minimum date for expiry: tomorrow (local time, not UTC)
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  const minDate = tomorrow.toISOString().slice(0, 16);
+  const minDate = toLocalDatetimeInput(tomorrow);
 
   const maxDate = new Date();
   maxDate.setFullYear(maxDate.getFullYear() + 1);
-  const maxDateStr = maxDate.toISOString().slice(0, 16);
+  const maxDateStr = toLocalDatetimeInput(maxDate);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
@@ -108,10 +116,11 @@ function CreateGrantModal({ scopes, onClose, onCreated }) {
                         border-b border-gray-800">
           <h2 className="font-semibold text-white flex items-center gap-2">
             <Shield size={16} className="text-purple-400" />
-            Grant Permission
+            {t('adminPermissionGrantsModalTitle')}
           </h2>
           <button
             onClick={onClose}
+            aria-label={t('common.close')}
             className="text-gray-500 hover:text-white transition p-1"
           >
             <X size={16} />
@@ -122,10 +131,10 @@ function CreateGrantModal({ scopes, onClose, onCreated }) {
           {/* Grantee */}
           <div>
             <label className="block text-xs font-semibold text-gray-400 mb-1.5">
-              Admin to Grant Access To
+              {t('adminPermissionGrantsGranteeLabel')}
             </label>
             {admins.length === 0 ? (
-              <p className="text-xs text-gray-500">No active regular admins found.</p>
+              <p className="text-xs text-gray-500">{t('adminPermissionGrantsNoAdmins')}</p>
             ) : (
               <select
                 required
@@ -135,7 +144,7 @@ function CreateGrantModal({ scopes, onClose, onCreated }) {
                            rounded-lg text-sm text-white focus:outline-none
                            focus:border-purple-500"
               >
-                <option value="">Select admin…</option>
+                <option value="">{t('adminPermissionGrantsSelectAdmin')}</option>
                 {admins.map(a => (
                   <option key={a.id} value={a.id}>
                     {a.first_name} {a.last_name} ({a.email})
@@ -148,7 +157,7 @@ function CreateGrantModal({ scopes, onClose, onCreated }) {
           {/* Permissions */}
           <div>
             <label className="block text-xs font-semibold text-gray-400 mb-1.5">
-              Permissions <span className="text-gray-600">(select one or more)</span>
+              {t('adminPermissionGrantsPermissionsLabel')} <span className="text-gray-600">{t('adminPermissionGrantsPermissionsHint')}</span>
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-52 overflow-y-auto
                             pr-1">
@@ -183,7 +192,7 @@ function CreateGrantModal({ scopes, onClose, onCreated }) {
           {/* Expiry */}
           <div>
             <label className="block text-xs font-semibold text-gray-400 mb-1.5">
-              Expires At <span className="text-gray-600">(max 1 year)</span>
+              {t('adminPermissionGrantsExpiresAt')} <span className="text-gray-600">{t('adminPermissionGrantsExpiresAtHint')}</span>
             </label>
             <input
               type="datetime-local"
@@ -201,11 +210,11 @@ function CreateGrantModal({ scopes, onClose, onCreated }) {
           {/* Notes */}
           <div>
             <label className="block text-xs font-semibold text-gray-400 mb-1.5">
-              Notes <span className="text-gray-600">(optional)</span>
+              {t('adminPermissionGrantsNotesLabel')} <span className="text-gray-600">({t('common.optional')})</span>
             </label>
             <input
               type="text"
-              placeholder="Reason for granting access…"
+              placeholder={t('adminPermissionGrantsNotesPlaceholder')}
               value={form.notes}
               onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
               className="w-full px-3 py-2 bg-gray-800 border border-gray-700
@@ -229,7 +238,7 @@ function CreateGrantModal({ scopes, onClose, onCreated }) {
               className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300
                          text-sm rounded-lg transition"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -240,7 +249,7 @@ function CreateGrantModal({ scopes, onClose, onCreated }) {
                          flex items-center gap-2"
             >
               {saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
-              Grant Access
+              {t('adminPermissionGrantsGrantAccess')}
             </button>
           </div>
         </form>
@@ -252,9 +261,7 @@ function CreateGrantModal({ scopes, onClose, onCreated }) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function PermissionGrants() {
-  const [grants,      setGrants]      = useState([]);
-  const [scopes,      setScopes]      = useState([]);
-  const [loading,     setLoading]     = useState(true);
+  const { t } = useTranslation();
   const [showCreate,  setShowCreate]  = useState(false);
   const [revoking,    setRevoking]    = useState(null);
   const [flash,       setFlash]       = useState(null);
@@ -265,38 +272,31 @@ export default function PermissionGrants() {
     setTimeout(() => setFlash(null), 4000);
   };
 
-  const fetchGrants = async () => {
-    setLoading(true);
-    try {
-      const [grantsRes, scopesRes] = await Promise.all([
-        adminApi.get('/admin/permission-grants', {
-          params: { include_expired: showExpired ? 'true' : 'false' },
-        }),
-        adminApi.get('/admin/permission-scopes'),
-      ]);
-      setGrants(grantsRes.data.grants || []);
-      setScopes(scopesRes.data.scopes || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchGrants();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const { data, loading, error, reload } = useAbortableFetch(async (signal) => {
+    const [grantsRes, scopesRes] = await Promise.all([
+      adminApi.get('/admin/permission-grants', {
+        signal,
+        params: { include_expired: showExpired ? 'true' : 'false' },
+      }),
+      adminApi.get('/admin/permission-scopes', { signal }),
+    ]);
+    return {
+      grants: grantsRes.data.grants || [],
+      scopes: scopesRes.data.scopes || [],
+    };
   }, [showExpired]);
+  const grants = data?.grants || [];
+  const scopes = data?.scopes || [];
 
   const handleRevoke = async (grantId) => {
-    if (!window.confirm('Revoke this grant? The admin will immediately lose this access.')) return;
+    if (!window.confirm(t('adminPermissionGrantsRevokeConfirm'))) return;
     setRevoking(grantId);
     try {
       await adminApi.delete(`/admin/super/permission-grants/${grantId}`);
-      showMsg('success', 'Grant revoked.');
-      fetchGrants();
+      showMsg('success', t('adminPermissionGrantsRevokedToast'));
+      reload();
     } catch (err) {
-      showMsg('error', err.response?.data?.error || 'Failed to revoke grant.');
+      showMsg('error', err.response?.data?.error || t('adminPermissionGrantsRevokeFailed'));
     } finally {
       setRevoking(null);
     }
@@ -311,11 +311,10 @@ export default function PermissionGrants() {
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-2">
             <Shield size={20} className="text-purple-400" />
-            Permission Grants
+            {t('adminPermissionGrantsTitle')}
           </h1>
           <p className="text-gray-400 text-sm mt-1">
-            Grant regular admins time-limited access to specific capabilities.
-            Super-admins always have full access and don't need grants.
+            {t('adminPermissionGrantsSubtitle')}
           </p>
         </div>
         <button
@@ -324,7 +323,7 @@ export default function PermissionGrants() {
                      text-white text-sm font-semibold rounded-lg transition shrink-0"
         >
           <Plus size={14} />
-          Grant Access
+          {t('adminPermissionGrantsGrantAccess')}
         </button>
       </div>
 
@@ -349,7 +348,7 @@ export default function PermissionGrants() {
             onChange={e => setShowExpired(e.target.checked)}
             className="accent-purple-500"
           />
-          Show expired &amp; revoked grants
+          {t('adminPermissionGrantsShowExpired')}
         </label>
       </div>
 
@@ -357,6 +356,8 @@ export default function PermissionGrants() {
         <div className="flex items-center justify-center py-16">
           <Loader2 size={24} className="animate-spin text-purple-400" />
         </div>
+      ) : error ? (
+        <AdminErrorState onRetry={reload} />
       ) : (
         <>
           {/* Active grants */}
@@ -365,7 +366,7 @@ export default function PermissionGrants() {
             <div className="px-4 py-3 border-b border-gray-800 flex items-center
                             justify-between">
               <h2 className="text-sm font-semibold text-white">
-                Active Grants
+                {t('adminPermissionGrantsActiveGrants')}
                 <span className="ml-2 text-xs text-gray-500 font-normal">
                   ({activeGrants.length})
                 </span>
@@ -374,7 +375,7 @@ export default function PermissionGrants() {
 
             {activeGrants.length === 0 ? (
               <p className="text-gray-500 text-sm text-center py-8">
-                No active grants. Use the button above to grant access.
+                {t('adminPermissionGrantsNoActive')}
               </p>
             ) : (
               <div className="divide-y divide-gray-800">
@@ -396,7 +397,7 @@ export default function PermissionGrants() {
                             overflow-hidden">
               <div className="px-4 py-3 border-b border-gray-800">
                 <h2 className="text-sm font-semibold text-gray-500">
-                  Expired / Revoked
+                  {t('adminPermissionGrantsExpiredRevoked')}
                   <span className="ml-2 text-xs font-normal">({inactiveGrants.length})</span>
                 </h2>
               </div>
@@ -416,8 +417,8 @@ export default function PermissionGrants() {
           onClose={() => setShowCreate(false)}
           onCreated={(grant) => {
             setShowCreate(false);
-            showMsg('success', 'Access granted successfully.');
-            fetchGrants();
+            showMsg('success', t('adminPermissionGrantsGrantedToast'));
+            reload();
           }}
         />
       )}
@@ -428,6 +429,7 @@ export default function PermissionGrants() {
 // ── Grant row ─────────────────────────────────────────────────────────────────
 
 function GrantRow({ grant, onRevoke, revoking }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const perms = Array.isArray(grant.permissions) ? grant.permissions : [];
 
@@ -456,14 +458,18 @@ function GrantRow({ grant, onRevoke, revoking }) {
                 className="text-xs text-gray-500 hover:text-gray-300 flex items-center
                            gap-0.5 transition"
               >
-                +{perms.length - 3} more <ChevronDown size={10} />
+{t('adminPermissionGrantsMorePerms', { count: perms.length - 3 })} <ChevronDown size={10} />
               </button>
             )}
           </div>
           <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-500">
-            <span>Granted by {grant.grantor_name}</span>
+            <span>{t('adminPermissionGrantsGrantedBy', { name: grant.grantor_name })}</span>
             <span>·</span>
-            <span>Expires {dateOnly(grant.expires_at)}</span>
+            {grant.expires_at ? (
+              <span>{t('adminPermissionGrantsExpires', { date: dateOnly(grant.expires_at) })}</span>
+            ) : (
+              <span>Never expires</span>
+            )}
             {grant.notes && (
               <>
                 <span>·</span>
@@ -482,7 +488,7 @@ function GrantRow({ grant, onRevoke, revoking }) {
                        shrink-0 disabled:opacity-40 flex items-center gap-1.5"
           >
             {revoking ? <Loader2 size={11} className="animate-spin" /> : <X size={11} />}
-            Revoke
+            {t('adminPermissionGrantsRevoke')}
           </button>
         )}
       </div>

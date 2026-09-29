@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../../hooks/useAuth';
 import { UserPlus, Power, PowerOff, Activity, X } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
+import { useAbortableFetch } from '../../lib/useAbortableFetch';
+import AdminErrorState from '../../lib/AdminErrorState';
 
 // ─── Create Admin Modal ──────────────────────────────────────
 function CreateAdminModal({ onCreated, onClose }) {
@@ -19,6 +21,10 @@ function CreateAdminModal({ onCreated, onClose }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (form.temporary_password.length < 12) {
+      setErr('Temporary password must be at least 12 characters.');
+      return;
+    }
     setSaving(true); setErr('');
     try {
       const { data } = await adminApi.post('/admin/super/admin-accounts', form);
@@ -36,7 +42,7 @@ function CreateAdminModal({ onCreated, onClose }) {
       <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-md shadow-2xl">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-white font-semibold text-lg">Create Admin Account</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-300"><X size={18} /></button>
+          <button onClick={onClose} aria-label="Close" className="text-gray-500 hover:text-gray-300"><X size={18} /></button>
         </div>
 
         {created ? (
@@ -86,7 +92,7 @@ function CreateAdminModal({ onCreated, onClose }) {
                 Temporary Password <span className="text-gray-500">(min 12 chars)</span>
               </label>
               <input type="password" value={form.temporary_password}
-                onChange={e => setF('temporary_password', e.target.value)} required
+                onChange={e => setF('temporary_password', e.target.value)} required minLength={12}
                 className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:outline-none" />
             </div>
             {err && <p className="text-red-400 text-sm">{err}</p>}
@@ -109,16 +115,12 @@ function CreateAdminModal({ onCreated, onClose }) {
 
 // ─── Activity Drawer ─────────────────────────────────────────
 function ActivityDrawer({ admin, onClose }) {
-  const [log, setLog]         = useState([]);
-  const [total, setTotal]     = useState(0);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    adminApi.get(`/admin/super/admin-activity/${admin.id}`)
-      .then(({ data }) => { setLog(data.log || []); setTotal(data.total || 0); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+  const { data, loading, error, reload } = useAbortableFetch(async (signal) => {
+    const { data } = await adminApi.get(`/admin/super/admin-activity/${admin.id}`, { signal });
+    return { log: data.log || [], total: data.total || 0 };
   }, [admin.id]);
+  const log = data?.log || [];
+  const total = data?.total || 0;
 
   const ACTION_COLOR = {
     bid_removed:             'text-red-400',
@@ -144,14 +146,16 @@ function ActivityDrawer({ admin, onClose }) {
             <h2 className="text-white font-semibold">{admin.first_name} {admin.last_name}</h2>
             <p className="text-gray-400 text-xs">{total} logged actions</p>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-300"><X size={18} /></button>
+          <button onClick={onClose} aria-label="Close" className="text-gray-500 hover:text-gray-300"><X size={18} /></button>
         </div>
 
         <div className="flex-1 p-5">
           {loading && <p className="text-gray-400 text-sm">Loading…</p>}
-          {!loading && log.length === 0 && (
+          {!loading && error && <AdminErrorState onRetry={reload} />}
+          {!loading && !error && log.length === 0 && (
             <p className="text-gray-500 text-sm">No logged actions yet.</p>
           )}
+          {!error && (
           <div className="space-y-2">
             {log.map(entry => (
               <div key={entry.id} className="bg-gray-800/60 border border-gray-700/50 rounded-lg px-4 py-3">
@@ -174,6 +178,7 @@ function ActivityDrawer({ admin, onClose }) {
               </div>
             ))}
           </div>
+          )}
         </div>
       </div>
     </div>
@@ -184,25 +189,14 @@ function ActivityDrawer({ admin, onClose }) {
 export default function AdminAccounts() {
   const { t } = useTranslation();
   const { user: me }          = useAuth();
-  const [admins, setAdmins]   = useState([]);
-  const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [activity, setActivity]     = useState(null);
   const [toast, setToast]     = useState('');
 
-  const fetchAdmins = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data } = await adminApi.get('/admin/super/admin-accounts');
-      setAdmins(data.admins || []);
-    } catch {
-      setAdmins([]);
-    } finally {
-      setLoading(false);
-    }
+  const { data: admins = [], loading, error, reload } = useAbortableFetch(async (signal) => {
+    const { data } = await adminApi.get('/admin/super/admin-accounts', { signal });
+    return data.admins || [];
   }, []);
-
-  useEffect(() => { fetchAdmins(); }, [fetchAdmins]);
 
   function showToast(msg) { setToast(msg); setTimeout(() => setToast(''), 3500); }
 
@@ -215,7 +209,7 @@ export default function AdminAccounts() {
     try {
       await adminApi.put(`/admin/super/admin-accounts/${admin.id}/status`, { reason: reason || undefined });
       showToast(`Account ${action}d. Sessions invalidated.`);
-      fetchAdmins();
+      reload();
     } catch (e) {
       showToast(e?.response?.data?.error || 'Failed to update status.');
     }
@@ -251,6 +245,10 @@ export default function AdminAccounts() {
       </div>
 
       <div className="bg-gray-800/50 border border-gray-700 rounded-xl overflow-hidden">
+        {!loading && error && (
+          <div className="p-4"><AdminErrorState onRetry={reload} /></div>
+        )}
+        {!error && (
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-700">
@@ -336,11 +334,12 @@ export default function AdminAccounts() {
             })}
           </tbody>
         </table>
+        )}
       </div>
 
       {showCreate && (
         <CreateAdminModal
-          onCreated={() => { fetchAdmins(); }}
+          onCreated={() => { reload(); }}
           onClose={() => setShowCreate(false)}
         />
       )}

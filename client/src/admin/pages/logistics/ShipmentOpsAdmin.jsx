@@ -1,17 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { adminListShipments } from '../../../api/logistics';
 import '../../../styles/logistics/LogisticsHomePage.css';
+import AdminErrorState from '../../lib/AdminErrorState';
 
 export default function ShipmentOpsAdmin() {
   const [shipments, setShipments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true);
+    setLoadError(null);
     adminListShipments({ limit: 100 })
       .then((res) => setShipments(res.data || []))
-      .catch(() => {})
+      .catch((err) => setLoadError(err))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { load(); }, []);
 
   const active = shipments.filter((row) => !['completed'].includes(row.status));
   const customs = shipments.filter((row) => ['arrived_destination', 'customs_hold', 'customs_cleared'].includes(row.status));
@@ -36,6 +42,7 @@ export default function ShipmentOpsAdmin() {
           </div>
         ))}
       </div>
+      {!loading && loadError && <AdminErrorState onRetry={load} />}
       <div className="lx-table-wrap">
         <table className="lx-table">
           <thead><tr><th>Reference</th><th>Route</th><th>Freight</th><th>Status</th><th>ETA</th></tr></thead>
@@ -49,7 +56,7 @@ export default function ShipmentOpsAdmin() {
                 <td>{shipment.eta ? new Date(shipment.eta).toLocaleDateString() : '—'}</td>
               </tr>
             ))}
-            {!loading && shipments.length === 0 && <tr><td colSpan={5} style={{ textAlign:'center', color:'#94a3b8' }}>No shipments found.</td></tr>}
+            {!loading && !loadError && shipments.length === 0 && <tr><td colSpan={5} style={{ textAlign:'center', color:'#94a3b8' }}>No shipments found.</td></tr>}
           </tbody>
         </table>
       </div>

@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollText, Download, Loader2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { ScrollText, Download, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import adminApi from '../../../lib/adminApi';
+import { useAbortableFetch } from '../../lib/useAbortableFetch';
+import AdminErrorState from '../../lib/AdminErrorState';
 import AuditLogFilter from '../../../components/AuditLogFilter';
 
 const PAGE_SIZE = 50;
@@ -34,14 +37,19 @@ function buildQuery(filters, page) {
 }
 
 export default function AuditLogUserActions() {
+  const { t } = useTranslation();
   const [filters,   setFilters]   = useState(EMPTY_FILTERS);
   const [page,      setPage]      = useState(0);
-  const [logs,      setLogs]      = useState([]);
-  const [total,     setTotal]     = useState(0);
   const [regions,   setRegions]   = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [error,     setError]     = useState(null);
   const [exporting, setExporting] = useState(false);
+
+  const { data, loading, error, reload } = useAbortableFetch(async (signal) => {
+    const qs = buildQuery(filters, page);
+    const { data } = await adminApi.get(`/admin/super/audit-log/user-actions?${qs}`, { signal });
+    return { logs: data.logs || [], total: data.total || 0 };
+  }, [page, filters]);
+  const logs = data?.logs || [];
+  const total = data?.total || 0;
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(total / PAGE_SIZE)),
@@ -50,29 +58,14 @@ export default function AuditLogUserActions() {
 
   // Load regions for filter dropdown (super admins only - silently fail otherwise)
   useEffect(() => {
-    adminApi.get('/admin/super/regions')
+    const controller = new AbortController();
+    adminApi.get('/admin/super/regions', { signal: controller.signal })
       .then(({ data }) => setRegions(data.regions || []))
-      .catch(() => setRegions([]));
+      .catch((err) => {
+        if (err?.code !== 'ERR_CANCELED') setRegions([]);
+      });
+    return () => controller.abort();
   }, []);
-
-  const load = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const qs = buildQuery(filters, page);
-      const { data } = await adminApi.get(`/admin/super/audit-log/user-actions?${qs}`);
-      setLogs(data.logs || []);
-      setTotal(data.total || 0);
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to load audit log.');
-      setLogs([]);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { load(); /* eslint-disable-line */ }, [page, filters]);
 
   const handleFilterChange = (newFilters) => {
     setPage(0);
@@ -97,7 +90,7 @@ export default function AuditLogUserActions() {
       link.remove();
       URL.revokeObjectURL(url);
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to export.');
+      toast.error(err.response?.data?.error || t('adminUserActionsAuditExportFailed'));
     } finally {
       setExporting(false);
     }
@@ -111,9 +104,9 @@ export default function AuditLogUserActions() {
             <ScrollText size={20} className="text-orange-400" />
           </div>
           <div>
-            <h1 className="text-xl font-semibold text-gray-100">User-action audit log</h1>
+            <h1 className="text-xl font-semibold text-gray-100">{t('adminUserActionsAuditTitle')}</h1>
             <p className="text-sm text-gray-400">
-              Per-field changes made to user accounts by administrators.
+              {t('adminUserActionsAuditSubtitle')}
             </p>
           </div>
         </div>
@@ -123,7 +116,7 @@ export default function AuditLogUserActions() {
           className="inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium bg-gray-800 hover:bg-gray-700 text-gray-100 disabled:opacity-50"
         >
           {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-          Export CSV
+          {t('adminLegal.audit.exportCsv')}
         </button>
       </div>
 
@@ -134,20 +127,17 @@ export default function AuditLogUserActions() {
       />
 
       {error && (
-        <div className="flex items-start gap-2 p-3 mb-4 rounded-md bg-red-950 border border-red-800 text-red-300 text-sm">
-          <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
-          <span>{error}</span>
-        </div>
+        <div className="mb-4"><AdminErrorState onRetry={reload} /></div>
       )}
 
       {loading ? (
         <div className="flex items-center justify-center py-12 text-gray-400">
           <Loader2 size={20} className="animate-spin mr-2" />
-          Loading…
+          {t('common.loading')}
         </div>
-      ) : logs.length === 0 ? (
+      ) : error ? null : logs.length === 0 ? (
         <div className="text-center py-12 rounded-lg border border-dashed border-gray-800 text-gray-500">
-          No audit log entries match your filters.
+          {t('adminUserActionsAuditEmpty')}
         </div>
       ) : (
         <div className="rounded-lg border border-gray-800 bg-gray-950 overflow-hidden">
@@ -155,14 +145,14 @@ export default function AuditLogUserActions() {
             <table className="w-full text-sm">
               <thead className="bg-gray-900 text-xs uppercase text-gray-400">
                 <tr>
-                  <th className="text-left px-4 py-3">When</th>
-                  <th className="text-left px-4 py-3">Admin</th>
-                  <th className="text-left px-4 py-3">Target user</th>
-                  <th className="text-left px-4 py-3">Action</th>
-                  <th className="text-left px-4 py-3">Field</th>
-                  <th className="text-left px-4 py-3">Old → New</th>
-                  <th className="text-left px-4 py-3">Region</th>
-                  <th className="text-left px-4 py-3">Notified</th>
+                  <th className="text-left px-4 py-3">{t('adminUserActionsAuditColWhen')}</th>
+                  <th className="text-left px-4 py-3">{t('adminUserActionsAuditColAdmin')}</th>
+                  <th className="text-left px-4 py-3">{t('adminUserActionsAuditColTargetUser')}</th>
+                  <th className="text-left px-4 py-3">{t('adminUserActionsAuditColAction')}</th>
+                  <th className="text-left px-4 py-3">{t('adminUserActionsAuditColField')}</th>
+                  <th className="text-left px-4 py-3">{t('adminUserActionsAuditColOldNew')}</th>
+                  <th className="text-left px-4 py-3">{t('adminUserActionsAuditColRegion')}</th>
+                  <th className="text-left px-4 py-3">{t('adminUserActionsAuditColNotified')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800">
@@ -201,10 +191,10 @@ export default function AuditLogUserActions() {
                     <td className="px-4 py-3">
                       {l.user_notified ? (
                         <span className="px-2 py-0.5 text-xs rounded-full bg-green-900 text-green-300">
-                          yes
+                          {t('common.yes')}
                         </span>
                       ) : (
-                        <span className="text-xs text-gray-500">no</span>
+                        <span className="text-xs text-gray-500">{t('common.no')}</span>
                       )}
                     </td>
                   </tr>
@@ -216,7 +206,7 @@ export default function AuditLogUserActions() {
           {/* Pagination */}
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-800 text-xs text-gray-400">
             <span>
-              Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} of {total}
+              {t('adminUserActionsAuditShowing', { from: page * PAGE_SIZE + 1, to: Math.min((page + 1) * PAGE_SIZE, total), total })}
             </span>
             <div className="flex items-center gap-2">
               <button
@@ -227,7 +217,7 @@ export default function AuditLogUserActions() {
                 <ChevronLeft size={14} />
               </button>
               <span>
-                Page {page + 1} / {totalPages}
+                {t('adminUserActionsAuditPage', { page: page + 1, totalPages })}
               </span>
               <button
                 onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}

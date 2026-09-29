@@ -5,6 +5,8 @@ import {
 } from '../../../api/logistics';
 import toast from 'react-hot-toast';
 import '../../../styles/logistics/LogisticsHomePage.css';
+import AdminErrorState from '../../lib/AdminErrorState';
+import ConfirmDialog from '../../lib/ConfirmDialog';
 
 const RECEIPT_STATUS_COLOR = {
   pending:'#f59e0b', received:'#22c55e', discrepancy:'#dc2626', reconciled:'#10b981',
@@ -15,6 +17,7 @@ export default function WarehousesAdmin() {
   const [warehouses, setWarehouses] = useState([]);
   const [receipts, setReceipts]   = useState([]);
   const [loading, setLoading]     = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [showForm, setShowForm]   = useState(false);
   const [form, setForm]           = useState({ name:'', country:'', city:'', address:'', contact_name:'', contact_email:'', capacity_cbm:'', notes:'' });
   const [receiptModal, setReceiptModal] = useState(null);
@@ -23,11 +26,12 @@ export default function WarehousesAdmin() {
 
   const load = () => {
     setLoading(true);
+    setLoadError(null);
     Promise.all([adminListWarehouses(), adminListReceipts({})])
       .then(([wRes, rRes]) => {
         setWarehouses(wRes.data||[]);
         setReceipts(rRes.data||[]);
-      }).catch(() => {}).finally(() => setLoading(false));
+      }).catch((err) => setLoadError(err)).finally(() => setLoading(false));
   };
   useEffect(() => { load(); }, []);
 
@@ -55,12 +59,15 @@ export default function WarehousesAdmin() {
     finally { setSaving(false); }
   };
 
-  const doReconcile = async (receiptId) => {
+  const [reconcileTarget, setReconcileTarget] = useState(null);
+
+  const doReconcile = async (notes) => {
     try {
-      await adminReconcileReceipt(receiptId, { notes: 'Reconciled by admin' });
+      await adminReconcileReceipt(reconcileTarget, { notes });
       toast.success('Receipt reconciled');
+      setReconcileTarget(null);
       load();
-    } catch (err) { toast.error(err.message); }
+    } catch (err) { throw new Error(err.response?.data?.message || err.message || 'Reconcile failed'); }
   };
 
   const set = (k, v) => setForm(f=>({...f,[k]:v}));
@@ -92,6 +99,7 @@ export default function WarehousesAdmin() {
       </div>
 
       {loading && <div className="lx-loading">Loading…</div>}
+      {!loading && loadError && <AdminErrorState onRetry={load} />}
 
       {/* Create warehouse form */}
       {showForm && tab === 'warehouses' && (
@@ -147,7 +155,7 @@ export default function WarehousesAdmin() {
               </div>
             </div>
           ))}
-          {warehouses.length === 0 && !loading && (
+          {warehouses.length === 0 && !loading && !loadError && (
             <div style={{ textAlign:'center', color:'#94a3b8', padding:'2rem' }}>No warehouses yet.</div>
           )}
         </div>
@@ -191,14 +199,14 @@ export default function WarehousesAdmin() {
                     )}
                     {r.status === 'discrepancy' && (
                       <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .5rem' }}
-                        onClick={() => doReconcile(r.id)}>
+                        onClick={() => setReconcileTarget(r.id)}>
                         Reconcile
                       </button>
                     )}
                   </td>
                 </tr>
               ))}
-              {receipts.length === 0 && !loading && (
+              {receipts.length === 0 && !loading && !loadError && (
                 <tr><td colSpan={8} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>No receipts found.</td></tr>
               )}
             </tbody>
@@ -234,6 +242,18 @@ export default function WarehousesAdmin() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={reconcileTarget != null}
+        title="Reconcile receipt"
+        message="Confirm the inventory discrepancy for this receipt has been reviewed and resolved."
+        requireReason
+        reasonLabel="Reconciliation note"
+        reasonPlaceholder="Describe how the discrepancy was resolved…"
+        confirmLabel="Reconcile"
+        onConfirm={doReconcile}
+        onClose={() => setReconcileTarget(null)}
+      />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { adminListRestrictions, adminUpsertRestriction } from '../../../api/logistics';
 import toast from 'react-hot-toast';
 import '../../../styles/logistics/LogisticsHomePage.css';
+import AdminErrorState from '../../lib/AdminErrorState';
 
 const ACCESS_LEVELS   = ['open','business_only','verified_only','invite_only','blocked'];
 const RISK_TIERS      = ['low','managed','restricted','prohibited'];
@@ -11,6 +12,7 @@ const RISK_COLOR      = { low:'#22c55e', managed:'#f59e0b', restricted:'#dc2626'
 export default function RestrictionsAdmin() {
   const [rules, setRules]       = useState([]);
   const [loading, setLoading]   = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [editing, setEditing]   = useState(null); // null = new, or existing rule
   const [form, setForm]         = useState({
     country_code:'', direction:'import', access_level:'open', risk_tier:'low',
@@ -22,9 +24,10 @@ export default function RestrictionsAdmin() {
 
   const load = () => {
     setLoading(true);
+    setLoadError(null);
     adminListRestrictions({})
       .then(r => setRules(r.data||[]))
-      .catch(() => {})
+      .catch((err) => setLoadError(err))
       .finally(() => setLoading(false));
   };
   useEffect(() => { load(); }, []);
@@ -154,6 +157,7 @@ export default function RestrictionsAdmin() {
       )}
 
       {loading && <div className="lx-loading">Loading…</div>}
+      {!loading && loadError && <AdminErrorState onRetry={load} />}
 
       <div className="lx-table-wrap">
         <table className="lx-table">
@@ -203,7 +207,7 @@ export default function RestrictionsAdmin() {
                 </td>
               </tr>
             ))}
-            {rules.length === 0 && !loading && (
+            {rules.length === 0 && !loading && !loadError && (
               <tr><td colSpan={8} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>No country rules defined. All countries default to open.</td></tr>
             )}
           </tbody>

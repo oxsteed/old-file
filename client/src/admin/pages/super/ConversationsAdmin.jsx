@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { MessageSquare, Search, RefreshCw, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import adminApi from '../../../lib/adminApi';
 import { useTranslation } from 'react-i18next';
+import { useAbortableFetch } from '../../lib/useAbortableFetch';
 
 const STATUS_TABS = [
   { key: 'all', labelKey: 'superConversations.tabAll' },
@@ -35,35 +36,26 @@ function timeAgo(iso, t) {
 
 function ThreadDetail({ conv, onStatusChange, actionBusy, breakGlassReason }) {
   const { t } = useTranslation();
-  const [thread,   setThread]   = useState(null);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState('');
   const [reason,   setReason]   = useState('');
   const [pendingStatus, setPendingStatus] = useState(null);
   const messagesEndRef = useRef(null);
 
-  const loadThread = useCallback(async () => {
+  // Break-glass access: audited POST with the reason in the body (never a query param).
+  const { data: thread, loading, error: fetchError, reload: reloadThread } = useAbortableFetch(async (signal) => {
     if (!breakGlassReason || String(breakGlassReason).trim().length < 10) {
-      setError(t('superConversations.errorThreadReason'));
-      setLoading(false);
-      return;
+      throw new Error(t('superConversations.errorThreadReason'));
     }
-    setLoading(true);
-    setError('');
-    try {
-      const { data } = await adminApi.get(`/admin/super/conversations/${conv.id}`, {
-        params: { reason: breakGlassReason },
-      });
-      setThread(data);
-    } catch (err) {
-      console.error('Failed to load thread:', err);
-      setError(err?.response?.data?.error || t('superConversations.errorLoadThread'));
-    } finally {
-      setLoading(false);
-    }
+    const { data } = await adminApi.post(
+      `/admin/super/conversations/${conv.id}/break-glass`,
+      { reason: breakGlassReason },
+      { signal }
+    );
+    return data;
   }, [conv.id, breakGlassReason]);
+  const error = !loading && fetchError
+    ? (fetchError.response?.data?.error || fetchError.message || t('superConversations.errorLoadThread'))
+    : '';
 
-  useEffect(() => { loadThread(); }, [loadThread]);
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [thread?.messages?.length]);
@@ -73,7 +65,7 @@ function ThreadDetail({ conv, onStatusChange, actionBusy, breakGlassReason }) {
     await onStatusChange(conv.id, pendingStatus, reason.trim());
     setPendingStatus(null);
     setReason('');
-    loadThread();
+    reloadThread();
   };
 
   if (loading) {
@@ -90,7 +82,7 @@ function ThreadDetail({ conv, onStatusChange, actionBusy, breakGlassReason }) {
         <p>{error || t('superConversations.errorLoadThread')}</p>
         <button
           type="button"
-          onClick={loadThread}
+          onClick={reloadThread}
           className="inline-flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-gray-200 hover:bg-gray-700 transition"
         >
           <RefreshCw size={14} /> {t('superConversations.tryAgain')}
@@ -158,7 +150,7 @@ function ThreadDetail({ conv, onStatusChange, actionBusy, breakGlassReason }) {
             </button>
           ))}
           <button
-            onClick={loadThread}
+            onClick={reloadThread}
             className="p-1.5 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition ml-auto"
           >
             <RefreshCw size={13} />
@@ -322,42 +314,33 @@ function LinkedArtifacts({ thread }) {
 
 export default function ConversationsAdmin() {
   const { t } = useTranslation();
-  const [convs,      setConvs]      = useState([]);
-  const [total,      setTotal]      = useState(0);
-  const [loading,    setLoading]    = useState(true);
   const [selected,   setSelected]   = useState(null); // conv object
   const [breakGlassReason, setBreakGlassReason] = useState('');
   const [pendingConv, setPendingConv] = useState(null);
   const [reasonDraft, setReasonDraft] = useState('');
   const [showDetail, setShowDetail] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
-  const [error,      setError]      = useState('');
   const [lastUpdated, setLastUpdated] = useState(null);
 
   const [search,     setSearch]     = useState('');
   const [statusTab,  setStatusTab]  = useState('all');
 
-  const loadConvs = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const params = {};
-      if (search)                           params.search = search;
-      if (statusTab && statusTab !== 'all') params.status = statusTab;
-      const { data } = await adminApi.get('/admin/super/conversations', { params });
-      setConvs(data.conversations || []);
-      setTotal(data.total || 0);
-      setLastUpdated(new Date());
-    } catch (err) {
-      console.error('Failed to load conversations:', err);
-      setError(err?.response?.data?.error || t('superConversations.errorLoad'));
-      setConvs([]);
-    } finally {
-      setLoading(false);
-    }
+  const { data, loading, error: fetchError, reload } = useAbortableFetch(async (signal) => {
+    const params = {};
+    if (search)                           params.search = search;
+    if (statusTab && statusTab !== 'all') params.status = statusTab;
+    const { data: payload } = await adminApi.get('/admin/super/conversations', { params, signal });
+    return payload;
   }, [search, statusTab]);
+  const convs = data?.conversations || [];
+  const total = data?.total || 0;
+  const error = !loading && fetchError
+    ? (fetchError.response?.data?.error || t('superConversations.errorLoad'))
+    : '';
 
-  useEffect(() => { loadConvs(); }, [loadConvs]);
+  useEffect(() => {
+    if (data) setLastUpdated(new Date());
+  }, [data]);
 
   const handleStatusChange = async (convId, status, reason) => {
     setActionBusy(true);
@@ -414,7 +397,7 @@ export default function ConversationsAdmin() {
               )}
               <button
                 type="button"
-              onClick={loadConvs}
+              onClick={reload}
                 aria-label={loading ? t('superConversations.refreshing') : t('superConversations.refresh')}
                 title={loading ? t('superConversations.refreshing') : t('superConversations.refresh')}
                 className="p-1.5 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition disabled:opacity-50"
@@ -461,7 +444,7 @@ export default function ConversationsAdmin() {
           {error && (
             <div className="m-3 flex items-center justify-between gap-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200" role="alert">
               <span>{error}</span>
-              <button type="button" onClick={loadConvs} className="font-semibold underline underline-offset-2 hover:text-white">
+              <button type="button" onClick={reload} className="font-semibold underline underline-offset-2 hover:text-white">
                 {t('superConversations.tryAgain')}
               </button>
             </div>

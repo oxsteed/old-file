@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { adminListShipments, adminAddMilestone, adminUploadShipmentDoc } from '../../../api/logistics';
 import toast from 'react-hot-toast';
 import '../../../styles/logistics/LogisticsHomePage.css';
+import AdminErrorState from '../../lib/AdminErrorState';
 
 const STATUS_COLOR = {
   planned:'#94a3b8', booked:'#3b82f6', origin_received:'#fbbf24', consolidating:'#fb923c',
@@ -23,6 +24,7 @@ const DOC_TYPES = ['bill_of_lading','commercial_invoice','packing_list','certifi
 export default function ShipmentsAdmin() {
   const [shipments, setShipments] = useState([]);
   const [loading, setLoading]     = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [statusFilter, setStatusFilter] = useState('');
   const [selected, setSelected]   = useState(null);
   const [view, setView]           = useState('milestone'); // milestone | doc
@@ -32,9 +34,10 @@ export default function ShipmentsAdmin() {
 
   const load = () => {
     setLoading(true);
+    setLoadError(null);
     adminListShipments({ status: statusFilter||undefined, limit:200 })
       .then(r => setShipments(r.data||[]))
-      .catch(() => {})
+      .catch((err) => setLoadError(err))
       .finally(() => setLoading(false));
   };
   useEffect(() => { load(); }, [statusFilter]);
@@ -84,6 +87,7 @@ export default function ShipmentsAdmin() {
       </div>
 
       {loading && <div className="lx-loading">Loading…</div>}
+      {!loading && loadError && <AdminErrorState onRetry={load} />}
 
       <div className="lx-table-wrap">
         <table className="lx-table">
@@ -122,7 +126,7 @@ export default function ShipmentsAdmin() {
                 </td>
               </tr>
             ))}
-            {shipments.length === 0 && !loading && (
+            {shipments.length === 0 && !loading && !loadError && (
               <tr><td colSpan={8} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>No shipments found.</td></tr>
             )}
           </tbody>

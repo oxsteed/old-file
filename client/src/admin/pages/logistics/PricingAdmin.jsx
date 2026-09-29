@@ -3,21 +3,24 @@ import { useTranslation } from 'react-i18next';
 import { adminListMarkupRules, adminUpdateMarkupRule, adminListFeeRules, adminUpdateFeeRule } from '../../../api/logistics';
 import toast from 'react-hot-toast';
 import '../../../styles/logistics/LogisticsHomePage.css';
+import AdminErrorState from '../../lib/AdminErrorState';
 
 export default function PricingAdmin() {
   const { t } = useTranslation();
   const [markupRules, setMarkupRules] = useState([]);
   const [feeRules, setFeeRules]       = useState([]);
   const [loading, setLoading]         = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [tab, setTab]                 = useState('markup');
   const [editing, setEditing]         = useState(null);
   const [editForm, setEditForm]       = useState({});
 
   const load = () => {
     setLoading(true);
+    setLoadError(null);
     Promise.all([adminListMarkupRules(), adminListFeeRules()])
       .then(([mRes, fRes]) => { setMarkupRules(mRes.data||[]); setFeeRules(fRes.data||[]); })
-      .catch(() => {})
+      .catch((err) => setLoadError(err))
       .finally(() => setLoading(false));
   };
   useEffect(() => { load(); }, []);
@@ -63,6 +66,7 @@ export default function PricingAdmin() {
       </div>
 
       {loading && <div className="lx-loading">Loading…</div>}
+      {!loading && loadError && <AdminErrorState onRetry={load} />}
 
       {tab === 'markup' && (
         <div className="lx-table-wrap">

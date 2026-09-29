@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { adminListCampaigns, adminUpdateCampaignStatus, adminListLanes } from '../../../api/logistics';
 import toast from 'react-hot-toast';
 import '../../../styles/logistics/LogisticsHomePage.css';
+import AdminErrorState from '../../lib/AdminErrorState';
 
 const STATUS_COLOR = {
   draft:'#94a3b8', open:'#22c55e', pledging:'#f59e0b', deposit_phase:'#fb923c',
@@ -26,6 +27,7 @@ export default function CampaignsAdmin() {
   const [campaigns, setCampaigns] = useState([]);
   const [lanes, setLanes]         = useState([]);
   const [loading, setLoading]     = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [statusFilter, setStatusFilter] = useState('');
   const [selected, setSelected]   = useState(null);
   const [transition, setTransition] = useState('');
@@ -33,13 +35,14 @@ export default function CampaignsAdmin() {
 
   const load = () => {
     setLoading(true);
+    setLoadError(null);
     Promise.all([
       adminListCampaigns({ status: statusFilter||undefined }),
       adminListLanes(),
     ]).then(([cRes, lRes]) => {
       setCampaigns(cRes.data||[]);
       setLanes(lRes.data||[]);
-    }).catch(() => {}).finally(() => setLoading(false));
+    }).catch((err) => setLoadError(err)).finally(() => setLoading(false));
   };
   useEffect(() => { load(); }, [statusFilter]);
 
@@ -76,6 +79,7 @@ export default function CampaignsAdmin() {
       </div>
 
       {loading && <div className="lx-loading">Loading…</div>}
+      {!loading && loadError && <AdminErrorState onRetry={load} />}
 
       <div className="lx-table-wrap">
         <table className="lx-table">
@@ -122,7 +126,7 @@ export default function CampaignsAdmin() {
                 </tr>
               );
             })}
-            {campaigns.length === 0 && !loading && (
+            {campaigns.length === 0 && !loading && !loadError && (
               <tr><td colSpan={8} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>No campaigns found.</td></tr>
             )}
           </tbody>

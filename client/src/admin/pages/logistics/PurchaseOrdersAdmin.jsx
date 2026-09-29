@@ -1,6 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { adminListPurchaseOrders, adminTransitionPOStatus } from '../../../api/logistics';
+import React, { useState } from 'react';
+import { adminTransitionPOStatus } from '../../../api/logistics';
+import axios from '../../../api/axios';
 import toast from 'react-hot-toast';
+import { useAbortableFetch } from '../../lib/useAbortableFetch';
+import AdminErrorState from '../../lib/AdminErrorState';
 import '../../../styles/logistics/LogisticsHomePage.css';
 
 const STATUS_COLOR = {
@@ -30,22 +33,21 @@ const VALID_TRANSITIONS = {
 };
 
 export default function PurchaseOrdersAdmin() {
-  const [orders, setOrders]     = useState([]);
-  const [loading, setLoading]   = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
   const [selected, setSelected] = useState(null);
   const [toStatus, setToStatus] = useState('');
   const [notes, setNotes]       = useState('');
   const [saving, setSaving]     = useState(false);
 
-  const load = () => {
-    setLoading(true);
-    adminListPurchaseOrders({ status: statusFilter||undefined, limit:200 })
-      .then(r => setOrders(r.data||[]))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  };
-  useEffect(() => { load(); }, [statusFilter]);
+  const { data, loading, error, reload } = useAbortableFetch(async (signal) => {
+    // Direct request (not the api wrapper) so the abort signal reaches the network call.
+    const { data: payload } = await axios.get('/logistics/orders', {
+      params: { status: statusFilter || undefined, limit: 200 },
+      signal,
+    });
+    return payload.data || [];
+  }, [statusFilter]);
+  const orders = data || [];
 
   const doTransition = async () => {
     if (!toStatus) { toast.error('Select a target status'); return; }
@@ -54,7 +56,7 @@ export default function PurchaseOrdersAdmin() {
       await adminTransitionPOStatus(selected.id, { to_status: toStatus, notes });
       toast.success(`PO moved to ${toStatus}`);
       setSelected(null);
-      load();
+      reload();
     } catch (err) { toast.error(err.response?.data?.message || err.message); }
     finally { setSaving(false); }
   };
@@ -76,6 +78,7 @@ export default function PurchaseOrdersAdmin() {
       </div>
 
       {loading && <div className="lx-loading">Loading…</div>}
+      {!loading && error && <AdminErrorState onRetry={reload} />}
 
       <div className="lx-table-wrap">
         <table className="lx-table">
@@ -110,7 +113,7 @@ export default function PurchaseOrdersAdmin() {
                 </td>
               </tr>
             ))}
-            {orders.length === 0 && !loading && (
+            {orders.length === 0 && !loading && !error && (
               <tr><td colSpan={9} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>No purchase orders found.</td></tr>
             )}
           </tbody>

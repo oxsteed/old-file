@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { adminListShipments, adminAddMilestone } from '../../../api/logistics';
 import toast from 'react-hot-toast';
 import '../../../styles/logistics/LogisticsHomePage.css';
+import AdminErrorState from '../../lib/AdminErrorState';
 
 // Customs admin focuses on shipments at customs stages
 const CUSTOMS_STATUSES = ['arrived_destination','customs_hold','customs_cleared'];
@@ -9,6 +10,7 @@ const CUSTOMS_STATUSES = ['arrived_destination','customs_hold','customs_cleared'
 export default function CustomsAdmin() {
   const [shipments, setShipments] = useState([]);
   const [loading, setLoading]     = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [statusFilter, setStatusFilter] = useState('');
   const [selected, setSelected]   = useState(null);
   const [form, setForm]           = useState({ action:'', notes:'' });
@@ -16,6 +18,7 @@ export default function CustomsAdmin() {
 
   const load = () => {
     setLoading(true);
+    setLoadError(null);
     // Filter to customs-relevant statuses
     const filterStatus = statusFilter || undefined;
     adminListShipments({ status: filterStatus, customs_queue: true })
@@ -27,7 +30,7 @@ export default function CustomsAdmin() {
         );
         setShipments(rows);
       })
-      .catch(() => {})
+      .catch((err) => setLoadError(err))
       .finally(() => setLoading(false));
   };
   useEffect(() => { load(); }, [statusFilter]);
@@ -69,6 +72,7 @@ export default function CustomsAdmin() {
       </div>
 
       {loading && <div className="lx-loading">Loading…</div>}
+      {!loading && loadError && <AdminErrorState onRetry={load} />}
 
       <div className="lx-table-wrap">
         <table className="lx-table">
@@ -121,7 +125,7 @@ export default function CustomsAdmin() {
                 </td>
               </tr>
             ))}
-            {shipments.length === 0 && !loading && (
+            {shipments.length === 0 && !loading && !loadError && (
               <tr><td colSpan={8} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>No shipments in customs queue.</td></tr>
             )}
           </tbody>
