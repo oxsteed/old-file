@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Check, Loader2, MapPinned, Pencil, Plus, RefreshCw, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import adminApi from '../lib/adminApi';
 
 const EMPTY_FORM = {
@@ -45,6 +46,7 @@ function Input({ className = '', ...props }) {
 }
 
 export default function DirectServiceAreas() {
+  const { t } = useTranslation();
   const [areas, setAreas] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
@@ -60,7 +62,7 @@ export default function DirectServiceAreas() {
       const { data } = await adminApi.get('/direct/admin/service-areas');
       setAreas(data.serviceAreas || []);
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Could not load Direct service areas.');
+      toast.error(error.response?.data?.error || t('directCatalogAdmin.couldNotLoadServiceAreas', { defaultValue: 'Could not load Direct service areas.' }));
     } finally {
       setLoading(false);
     }
@@ -79,7 +81,7 @@ export default function DirectServiceAreas() {
   const findZipCoordinates = async () => {
     const zipCode = form.anchorZip.trim();
     if (!/^\d{5}$/.test(zipCode)) {
-      toast.error('Enter a five-digit ZIP code first.');
+      toast.error(t('directCatalogAdmin.enterFiveDigitZip', { defaultValue: 'Enter a five-digit ZIP code first.' }));
       return;
     }
     setLocating(true);
@@ -92,9 +94,9 @@ export default function DirectServiceAreas() {
         anchorLng: String(location.lng),
         label: current.label || location.label?.replace(/\s+\d{5}$/, '') || '',
       }));
-      toast.success(`Coordinates found for ${location.label || zipCode}.`);
+      toast.success(t('directCatalogAdmin.coordinatesFound', { defaultValue: 'Coordinates found for {{label}}.' }).replace('{{label}}', location.label || zipCode));
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Could not find that ZIP code.');
+      toast.error(error.response?.data?.error || t('directCatalogAdmin.couldNotFindZip', { defaultValue: 'Could not find that ZIP code.' }));
     } finally {
       setLocating(false);
     }
@@ -117,7 +119,7 @@ export default function DirectServiceAreas() {
       notes: form.notes.trim() || null,
     };
     if (!payload.label || !/^\d{5}$/.test(payload.anchorZip) || !Number.isFinite(payload.anchorLat) || !Number.isFinite(payload.anchorLng) || !Number.isFinite(payload.radiusMiles) || payload.radiusMiles <= 0) {
-      toast.error('Add a label, valid ZIP, map coordinates, and a positive radius.');
+      toast.error(t('directCatalogAdmin.areaValidationError', { defaultValue: 'Add a label, valid ZIP, map coordinates, and a positive radius.' }));
       return;
     }
 
@@ -130,10 +132,10 @@ export default function DirectServiceAreas() {
       setAreas((current) => editingId
         ? current.map((area) => area.id === editingId ? saved : area)
         : [...current, saved]);
-      toast.success(editingId ? 'Service area updated.' : 'Service area added.');
+      toast.success(editingId ? t('directCatalogAdmin.serviceAreaUpdated', { defaultValue: 'Service area updated.' }) : t('directCatalogAdmin.serviceAreaAdded', { defaultValue: 'Service area added.' }));
       resetForm();
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Could not save the service area.');
+      toast.error(error.response?.data?.error || t('directCatalogAdmin.couldNotSaveServiceArea', { defaultValue: 'Could not save the service area.' }));
     } finally {
       setSaving(false);
     }
@@ -145,15 +147,15 @@ export default function DirectServiceAreas() {
         <div className="flex items-start gap-3">
           <div className="rounded-xl bg-orange-500/10 p-2 text-orange-400"><MapPinned size={22} /></div>
           <div>
-            <h1 className="text-2xl font-bold text-white">Direct service areas</h1>
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-400">Manage the active locations and radius used by the public Direct coverage checker and quote intake.</p>
+            <h1 className="text-2xl font-bold text-white">{t('directCatalogAdmin.serviceAreasTitle', { defaultValue: 'Direct service areas' })}</h1>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-400">{t('directCatalogAdmin.serviceAreasSubtitle', { defaultValue: 'Manage the active locations and radius used by the public Direct coverage checker and quote intake.' })}</p>
           </div>
         </div>
         <div className="flex gap-2">
           <button type="button" onClick={loadAreas} disabled={loading} className="inline-flex items-center gap-2 rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:border-gray-500 hover:text-white disabled:opacity-50">
-            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> Refresh
+            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> {t('directCatalogAdmin.refresh', { defaultValue: 'Refresh' })}
           </button>
-          <a href="/direct/service-area" target="_blank" rel="noreferrer" className="inline-flex items-center rounded-lg border border-orange-500/30 px-3 py-2 text-sm text-orange-300 hover:bg-orange-500/10">View public checker</a>
+          <a href="/direct/service-area" target="_blank" rel="noreferrer" className="inline-flex items-center rounded-lg border border-orange-500/30 px-3 py-2 text-sm text-orange-300 hover:bg-orange-500/10">{t('directCatalogAdmin.viewPublicChecker', { defaultValue: 'View public checker' })}</a>
         </div>
       </div>
 
@@ -161,38 +163,38 @@ export default function DirectServiceAreas() {
         <form onSubmit={saveArea} className="rounded-xl border border-gray-800 bg-gray-900 p-6">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold text-white">{editingId ? 'Edit service area' : 'Add service area'}</h2>
-              <p className="mt-1 text-sm text-gray-500">A ZIP lookup fills the map coordinates for you.</p>
+              <h2 className="text-lg font-semibold text-white">{editingId ? t('directCatalogAdmin.editServiceArea', { defaultValue: 'Edit service area' }) : t('directCatalogAdmin.addServiceArea', { defaultValue: 'Add service area' })}</h2>
+              <p className="mt-1 text-sm text-gray-500">{t('directCatalogAdmin.zipLookupHint', { defaultValue: 'A ZIP lookup fills the map coordinates for you.' })}</p>
             </div>
-            {editingId && <button type="button" onClick={resetForm} className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-white"><X size={15} /> Cancel</button>}
+            {editingId && <button type="button" onClick={resetForm} className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-white"><X size={15} /> {t('directCatalogAdmin.cancel', { defaultValue: 'Cancel' })}</button>}
           </div>
           <div className="space-y-4">
-            <Field label="Area name" hint="Example: Dayton, OH">
-              <Input value={form.label} onChange={(event) => updateForm('label', event.target.value)} placeholder="Dayton, OH" required />
+            <Field label={t('directCatalogAdmin.areaNameLabel', { defaultValue: 'Area name' })} hint={t('directCatalogAdmin.areaNameHint', { defaultValue: 'Example: Dayton, OH' })}>
+              <Input value={form.label} onChange={(event) => updateForm('label', event.target.value)} placeholder={t('directCatalogAdmin.areaNamePlaceholder', { defaultValue: 'Dayton, OH' })} required />
             </Field>
-            <Field label="Anchor ZIP code" hint="The center point used for distance checks.">
+            <Field label={t('directCatalogAdmin.anchorZipLabel', { defaultValue: 'Anchor ZIP code' })} hint={t('directCatalogAdmin.anchorZipHint', { defaultValue: 'The center point used for distance checks.' })}>
               <div className="flex gap-2">
-                <Input value={form.anchorZip} onChange={(event) => updateForm('anchorZip', event.target.value.replace(/\D/g, '').slice(0, 5))} inputMode="numeric" placeholder="45402" required />
+                <Input value={form.anchorZip} onChange={(event) => updateForm('anchorZip', event.target.value.replace(/\D/g, '').slice(0, 5))} inputMode="numeric" placeholder={t('directCatalogAdmin.anchorZipPlaceholder', { defaultValue: '45402' })} required />
                 <button type="button" onClick={findZipCoordinates} disabled={locating} className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-gray-700 px-3 text-sm font-semibold text-white hover:bg-gray-600 disabled:opacity-50">
-                  {locating ? <Loader2 size={15} className="animate-spin" /> : <MapPinned size={15} />} Find ZIP
+                  {locating ? <Loader2 size={15} className="animate-spin" /> : <MapPinned size={15} />} {t('directCatalogAdmin.findZip', { defaultValue: 'Find ZIP' })}
                 </button>
               </div>
             </Field>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Latitude"><Input value={form.anchorLat} onChange={(event) => updateForm('anchorLat', event.target.value)} type="number" step="any" placeholder="39.7589" required /></Field>
-              <Field label="Longitude"><Input value={form.anchorLng} onChange={(event) => updateForm('anchorLng', event.target.value)} type="number" step="any" placeholder="-84.1916" required /></Field>
+              <Field label={t('directCatalogAdmin.latitudeLabel', { defaultValue: 'Latitude' })}><Input value={form.anchorLat} onChange={(event) => updateForm('anchorLat', event.target.value)} type="number" step="any" placeholder="39.7589" required /></Field>
+              <Field label={t('directCatalogAdmin.longitudeLabel', { defaultValue: 'Longitude' })}><Input value={form.anchorLng} onChange={(event) => updateForm('anchorLng', event.target.value)} type="number" step="any" placeholder="-84.1916" required /></Field>
             </div>
-            <Field label="Radius in miles" hint="Only locations inside this radius are considered available.">
+            <Field label={t('directCatalogAdmin.radiusMilesLabel', { defaultValue: 'Radius in miles' })} hint={t('directCatalogAdmin.radiusMilesHint', { defaultValue: 'Only locations inside this radius are considered available.' })}>
               <Input value={form.radiusMiles} onChange={(event) => updateForm('radiusMiles', event.target.value)} type="number" min="1" step="0.1" required />
             </Field>
-            <Field label="Internal notes"><textarea value={form.notes} onChange={(event) => updateForm('notes', event.target.value)} rows={3} className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white outline-none placeholder:text-gray-500 focus:border-orange-500 focus:ring-1 focus:ring-orange-500" placeholder="Dispatch notes or launch context" /></Field>
+            <Field label={t('directCatalogAdmin.internalNotesLabel', { defaultValue: 'Internal notes' })}><textarea value={form.notes} onChange={(event) => updateForm('notes', event.target.value)} rows={3} className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white outline-none placeholder:text-gray-500 focus:border-orange-500 focus:ring-1 focus:ring-orange-500" placeholder={t('directCatalogAdmin.notesPlaceholder', { defaultValue: 'Dispatch notes or launch context' })} /></Field>
             <label className="flex items-center gap-3 rounded-lg border border-gray-800 bg-gray-950/50 p-3 text-sm text-gray-300">
               <input type="checkbox" checked={form.active} onChange={(event) => updateForm('active', event.target.checked)} className="h-4 w-4 accent-orange-500" />
-              Active on the public coverage checker
+              {t('directCatalogAdmin.activeOnPublicChecker', { defaultValue: 'Active on the public coverage checker' })}
             </label>
             <button type="submit" disabled={saving} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-3 text-sm font-semibold text-white hover:bg-orange-500 disabled:opacity-50">
               {saving ? <Loader2 size={16} className="animate-spin" /> : editingId ? <Check size={16} /> : <Plus size={16} />}
-              {editingId ? 'Save changes' : 'Add service area'}
+              {editingId ? t('directCatalogAdmin.saveChanges', { defaultValue: 'Save changes' }) : t('directCatalogAdmin.addServiceArea', { defaultValue: 'Add service area' })}
             </button>
           </div>
         </form>
@@ -200,28 +202,28 @@ export default function DirectServiceAreas() {
         <section className="rounded-xl border border-gray-800 bg-gray-900 p-6">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold text-white">Configured coverage</h2>
-              <p className="mt-1 text-sm text-gray-500">Inactive areas stay available for future relaunches but do not affect customers.</p>
+              <h2 className="text-lg font-semibold text-white">{t('directCatalogAdmin.configuredCoverage', { defaultValue: 'Configured coverage' })}</h2>
+              <p className="mt-1 text-sm text-gray-500">{t('directCatalogAdmin.configuredCoverageSub', { defaultValue: 'Inactive areas stay available for future relaunches but do not affect customers.' })}</p>
             </div>
-            <span className="rounded-full border border-gray-700 px-3 py-1 text-xs font-semibold text-gray-300">{areas.filter((area) => area.active).length} active</span>
+            <span className="rounded-full border border-gray-700 px-3 py-1 text-xs font-semibold text-gray-300">{t('directCatalogAdmin.activeCount', { defaultValue: '{{count}} active' }).replace('{{count}}', String(areas.filter((area) => area.active).length))}</span>
           </div>
           <div className="mb-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
             <label className="relative block">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-              <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search area name or ZIP" className="pl-9" aria-label="Search configured service areas" />
+              <Search size={15} className="absolute start-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('directCatalogAdmin.searchAreaPlaceholder', { defaultValue: 'Search area name or ZIP' })} className="ps-9" aria-label={t('directCatalogAdmin.searchAreasAria', { defaultValue: 'Search configured service areas' })} />
             </label>
-            <select value={activeFilter} onChange={(event) => setActiveFilter(event.target.value)} className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-gray-300 outline-none focus:border-orange-500" aria-label="Filter service areas">
-              <option value="all">All areas</option>
-              <option value="active">Active only</option>
-              <option value="inactive">Inactive only</option>
+            <select value={activeFilter} onChange={(event) => setActiveFilter(event.target.value)} className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-gray-300 outline-none focus:border-orange-500" aria-label={t('directCatalogAdmin.filterAreasAria', { defaultValue: 'Filter service areas' })}>
+              <option value="all">{t('directCatalogAdmin.allAreas', { defaultValue: 'All areas' })}</option>
+              <option value="active">{t('directCatalogAdmin.activeOnly', { defaultValue: 'Active only' })}</option>
+              <option value="inactive">{t('directCatalogAdmin.inactiveOnly', { defaultValue: 'Inactive only' })}</option>
             </select>
           </div>
           {loading ? (
             <div className="flex h-48 items-center justify-center text-orange-400"><Loader2 className="animate-spin" /></div>
           ) : areas.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-gray-700 p-8 text-center text-sm text-gray-500">No service areas configured.</div>
+            <div className="rounded-lg border border-dashed border-gray-700 p-8 text-center text-sm text-gray-500">{t('directCatalogAdmin.noServiceAreas', { defaultValue: 'No service areas configured.' })}</div>
           ) : visibleAreas.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-gray-700 p-8 text-center text-sm text-gray-500">No service areas match this view.</div>
+            <div className="rounded-lg border border-dashed border-gray-700 p-8 text-center text-sm text-gray-500">{t('directCatalogAdmin.noAreasMatchView', { defaultValue: 'No service areas match this view.' })}</div>
           ) : (
             <div className="space-y-3">
               {visibleAreas.map((area) => (
@@ -232,10 +234,10 @@ export default function DirectServiceAreas() {
                         <span className={`h-2.5 w-2.5 rounded-full ${area.active ? 'bg-emerald-400' : 'bg-gray-600'}`} />
                         {area.label}
                       </div>
-                      <p className="mt-1 text-sm text-gray-400">ZIP {area.anchorZip} · {area.radiusMiles} mile radius</p>
-                      <p className="mt-1 text-xs text-gray-600">Center: {area.lat}, {area.lng}</p>
+                      <p className="mt-1 text-sm text-gray-400">{t('directCatalogAdmin.areaZipRadius', { defaultValue: 'ZIP {{zip}}, {{radius}} mile radius' }).replace('{{zip}}', area.anchorZip).replace('{{radius}}', String(area.radiusMiles))}</p>
+                      <p className="mt-1 text-xs text-gray-600">{t('directCatalogAdmin.centerCoords', { defaultValue: 'Center: {{lat}}, {{lng}}' }).replace('{{lat}}', String(area.lat ?? '')).replace('{{lng}}', String(area.lng ?? ''))}</p>
                     </div>
-                    <button type="button" onClick={() => { setEditingId(area.id); setForm(formFromArea(area)); }} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:border-orange-500/50 hover:text-white"><Pencil size={14} /> Edit</button>
+                    <button type="button" onClick={() => { setEditingId(area.id); setForm(formFromArea(area)); }} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:border-orange-500/50 hover:text-white"><Pencil size={14} /> {t('directCatalogAdmin.editWord', { defaultValue: 'Edit' })}</button>
                   </div>
                   {area.notes && <p className="mt-3 border-t border-gray-800 pt-3 text-sm leading-5 text-gray-500">{area.notes}</p>}
                 </article>

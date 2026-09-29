@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   CalendarDays,
@@ -50,27 +50,30 @@ import {
   sendDirectAdminTestEmail,
 } from '../api/direct';
 
-const DEFAULT_PROFILE = {
-  companyName: 'OxSteed',
-  headline: 'Food, tools, and local service work under one company.',
-  minimumPriceCents: 10000,
-  availabilityText: 'Monday through Thursday',
-  baseCity: 'Springfield, OH',
-  publicNote: 'Company-run service portal for customers who want a direct quote, a scheduled visit, and in-app proof/history.',
-  serviceAreas: ['Springfield', 'Dayton', 'Columbus', 'Beavercreek', 'Fairborn', 'Urbana'],
-  tools: [
-    'Truck and hauling gear',
-    'Power drill and bit set',
-    'Ladders and step stools',
-    'Pressure washer',
-    'Hand tools and repair kit',
-    'Measuring and layout tools',
-    'Cleanup and janitorial supplies',
-    'Phone and photo inspection kit',
-  ],
-  travelDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday'],
-  travelCities: ['Springfield', 'Dayton', 'Columbus', 'Beavercreek', 'Fairborn', 'Urbana'],
-};
+function useDefaultProfile() {
+  const { t } = useTranslation();
+  return useMemo(() => ({
+    companyName: t('directAdminPortal.defaultCompanyName', { defaultValue: 'OxSteed' }),
+    headline: t('directAdminPortal.defaultHeadline', { defaultValue: 'Food, tools, and local service work under one company.' }),
+    minimumPriceCents: 10000,
+    availabilityText: t('directAdminPortal.defaultAvailabilityText', { defaultValue: 'Monday through Thursday' }),
+    baseCity: t('directAdminPortal.defaultBaseCity', { defaultValue: 'Springfield, OH' }),
+    publicNote: t('directAdminPortal.defaultPublicNote', { defaultValue: 'Company-run service portal for customers who want a direct quote, a scheduled visit, and in-app proof/history.' }),
+    serviceAreas: t('directAdminPortal.defaultServiceAreas', { returnObjects: true, defaultValue: ['Springfield', 'Dayton', 'Columbus', 'Beavercreek', 'Fairborn', 'Urbana'] }),
+    tools: t('directAdminPortal.defaultTools', { returnObjects: true, defaultValue: [
+      'Truck and hauling gear',
+      'Power drill and bit set',
+      'Ladders and step stools',
+      'Pressure washer',
+      'Hand tools and repair kit',
+      'Measuring and layout tools',
+      'Cleanup and janitorial supplies',
+      'Phone and photo inspection kit',
+    ] }),
+    travelDays: t('directAdminPortal.defaultTravelDays', { returnObjects: true, defaultValue: ['Monday', 'Tuesday', 'Wednesday', 'Thursday'] }),
+    travelCities: t('directAdminPortal.defaultTravelCities', { returnObjects: true, defaultValue: ['Springfield', 'Dayton', 'Columbus', 'Beavercreek', 'Fairborn', 'Urbana'] }),
+  }), [t]);
+}
 
 const STATUS_OPTIONS = [
   'new',
@@ -116,22 +119,45 @@ function formatDateTime(value) {
   return date.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
-function statusLabel(status) {
-  const map = {
-    new: 'Requested',
-    reviewing: 'Reviewing',
-    quoted: 'Quoted',
-    contacted: 'Contacted',
-    accepted: 'Accepted',
-    scheduled: 'Scheduled',
-    en_route: 'En route',
-    started: 'Started',
-    waiting_customer: 'Waiting',
-    completed: 'Completed',
-    closed: 'Closed',
-    cancelled: 'Cancelled',
-  };
-  return map[String(status || 'new').toLowerCase()] || status || 'Requested';
+const STATUS_I18N = {
+  new: ['directAdminPortal.statusNew', 'Requested'],
+  reviewing: ['directAdminPortal.statusReviewing', 'Reviewing'],
+  quoted: ['directAdminPortal.statusQuoted', 'Quoted'],
+  contacted: ['directAdminPortal.statusContacted', 'Contacted'],
+  accepted: ['directAdminPortal.statusAccepted', 'Accepted'],
+  scheduled: ['directAdminPortal.statusScheduled', 'Scheduled'],
+  en_route: ['directAdminPortal.statusEnRoute', 'En route'],
+  started: ['directAdminPortal.statusStarted', 'Started'],
+  waiting_customer: ['directAdminPortal.statusWaitingCustomer', 'Waiting'],
+  completed: ['directAdminPortal.statusCompleted', 'Completed'],
+  closed: ['directAdminPortal.statusClosed', 'Closed'],
+  cancelled: ['directAdminPortal.statusCancelled', 'Cancelled'],
+};
+
+function statusLabel(status, t) {
+  const key = String(status || 'new').toLowerCase();
+  const entry = STATUS_I18N[key];
+  if (entry && t) return t(entry[0], { defaultValue: entry[1] });
+  if (entry) return entry[1];
+  return status || (t ? t('directAdminPortal.statusNew', { defaultValue: 'Requested' }) : 'Requested');
+}
+
+const PAYMENT_I18N = {
+  unpaid: ['directAdminPortal.paymentUnpaid', 'Unpaid'],
+  proof_submitted: ['directAdminPortal.paymentProofSubmitted', 'Proof submitted'],
+  confirmed: ['directAdminPortal.paymentConfirmed', 'Confirmed'],
+  partially_paid: ['directAdminPortal.paymentPartiallyPaid', 'Partially paid'],
+  paid: ['directAdminPortal.paymentPaid', 'Paid'],
+  disputed: ['directAdminPortal.paymentDisputed', 'Disputed'],
+  refunded: ['directAdminPortal.paymentRefunded', 'Refunded'],
+  cancelled: ['directAdminPortal.paymentCancelled', 'Cancelled'],
+};
+
+function paymentLabel(status, t) {
+  const key = String(status || 'unpaid').toLowerCase();
+  const entry = PAYMENT_I18N[key] || PAYMENT_I18N.unpaid;
+  if (t) return t(entry[0], { defaultValue: entry[1] });
+  return entry[1];
 }
 
 function statusTone(status) {
@@ -188,6 +214,7 @@ function Chip({ children, tone = 'default' }) {
 }
 
 function AdminShell({ title, subtitle, profile, children, right }) {
+  const { t } = useTranslation();
   const path = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}` : '/direct/admin';
   return (
     <PageShell>
@@ -197,12 +224,12 @@ function AdminShell({ title, subtitle, profile, children, right }) {
           <div className="grid gap-6 px-5 py-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:py-8">
             <div className="space-y-4">
               <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/25 bg-orange-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-200">
-                Direct admin console
+                {t('directAdminPortal.adminConsole', { defaultValue: 'Direct admin console' })}
               </div>
               <h1 className="max-w-4xl text-4xl font-semibold tracking-tight text-white sm:text-5xl">{title}</h1>
               <p className="max-w-3xl text-base leading-7 text-slate-300 sm:text-lg">{subtitle}</p>
               <div className="flex flex-wrap gap-2">
-                <Chip tone="orange">${Math.round(profile.minimumPriceCents / 100)} minimum</Chip>
+                <Chip tone="orange">{t('directAdminPortal.minimumChip', { amount: `$${Math.round(profile.minimumPriceCents / 100)}`, defaultValue: '{{amount}} minimum' })}</Chip>
                 <Chip tone="blue">{profile.availabilityText}</Chip>
                 <Chip tone="emerald">{profile.baseCity}</Chip>
               </div>
@@ -219,14 +246,15 @@ function AdminShell({ title, subtitle, profile, children, right }) {
 }
 
 function NoAccess() {
+  const { t } = useTranslation();
   return (
     <div className="rounded-[28px] border border-white/10 bg-slate-950/80 p-8 text-center text-slate-300">
       <ShieldCheck className="mx-auto text-orange-300" size={32} />
-      <h2 className="mt-4 text-2xl font-semibold text-white">Direct admin access only</h2>
-      <p className="mt-2 text-sm leading-6 text-slate-400">This section is reserved for OxSteed staff who can quote, dispatch, and confirm payments.</p>
+      <h2 className="mt-4 text-2xl font-semibold text-white">{t('directAdminPortal.accessOnly', { defaultValue: 'Direct admin access only' })}</h2>
+      <p className="mt-2 text-sm leading-6 text-slate-400">{t('directAdminPortal.accessOnlyBody', { defaultValue: 'This section is reserved for OxSteed staff who can quote, dispatch, and confirm payments.' })}</p>
       <div className="mt-5 flex justify-center gap-3">
-        <Link to="/dashboard" className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white">Go to dashboard</Link>
-        <Link to="/direct" className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">View Direct landing</Link>
+        <Link to="/dashboard" className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white">{t('directAdminPortal.goToDashboard', { defaultValue: 'Go to dashboard' })}</Link>
+        <Link to="/direct" className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">{t('directAdminPortal.viewDirectLanding', { defaultValue: 'View Direct landing' })}</Link>
       </div>
     </div>
   );
@@ -250,15 +278,16 @@ function MiniStat({ label, value, icon: Icon, tone = 'default' }) {
 }
 
 function RequestSnapshot({ request }) {
+  const { t } = useTranslation();
   if (!request) return null;
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      <InfoRow label="Service" value={request.serviceCategory} />
-      <InfoRow label="Location" value={request.serviceLocation || request.serviceCity} />
-      <InfoRow label="Requested" value={formatDateTime(request.createdAt)} />
-      <InfoRow label="Preferred date" value={formatDate(request.preferredDate)} />
-      <InfoRow label="Status" value={statusLabel(request.status)} />
-      <InfoRow label="Payment" value={request.paymentStatus || 'unpaid'} />
+      <InfoRow label={t('directAdminPortal.snapshotService', { defaultValue: 'Service' })} value={request.serviceCategory} />
+      <InfoRow label={t('directAdminPortal.snapshotLocation', { defaultValue: 'Location' })} value={request.serviceLocation || request.serviceCity} />
+      <InfoRow label={t('directAdminPortal.snapshotRequested', { defaultValue: 'Requested' })} value={formatDateTime(request.createdAt)} />
+      <InfoRow label={t('directAdminPortal.snapshotPreferredDate', { defaultValue: 'Preferred date' })} value={formatDate(request.preferredDate)} />
+      <InfoRow label={t('directAdminPortal.snapshotStatus', { defaultValue: 'Status' })} value={statusLabel(request.status, t)} />
+      <InfoRow label={t('directAdminPortal.snapshotPayment', { defaultValue: 'Payment' })} value={paymentLabel(request.paymentStatus, t)} />
     </div>
   );
 }
@@ -273,7 +302,8 @@ function InfoRow({ label, value }) {
 }
 
 function useDirectAdminProfile() {
-  const [profile, setProfile] = useState(DEFAULT_PROFILE);
+  const defaultProfile = useDefaultProfile();
+  const [profile, setProfile] = useState(defaultProfile);
   useEffect(() => {
     let active = true;
     getDirectAdminSettings()
@@ -281,14 +311,14 @@ function useDirectAdminProfile() {
         if (!active) return;
         if (data?.settings) {
           setProfile({
-            ...DEFAULT_PROFILE,
+            ...defaultProfile,
             ...data.settings,
           });
         }
       })
       .catch(() => {});
     return () => { active = false; };
-  }, []);
+  }, [defaultProfile]);
   return [profile, setProfile];
 }
 
@@ -299,12 +329,16 @@ function useAdminAccess() {
 }
 
 function useDirectRequestList({ status = '', search = '', page = 1 } = {}) {
+  const { t } = useTranslation();
   const [requests, setRequests] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const requestIdRef = useRef(0);
 
   const load = async (next = { status, search, page }) => {
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
     setLoading(true);
     setError('');
     try {
@@ -314,12 +348,14 @@ function useDirectRequestList({ status = '', search = '', page = 1 } = {}) {
         page: next.page || 1,
         limit: 20,
       });
+      if (requestIdRef.current !== requestId) return;
       setRequests(Array.isArray(data?.requests) ? data.requests : []);
       setTotal(Number(data?.total || 0));
     } catch (err) {
-      setError(err?.response?.data?.error || 'Failed to load inbox');
+      if (requestIdRef.current !== requestId) return;
+      setError(err?.response?.data?.error || t('directAdminPortal.inboxLoadError', { defaultValue: 'Failed to load inbox' }));
     } finally {
-      setLoading(false);
+      if (requestIdRef.current === requestId) setLoading(false);
     }
   };
 
@@ -348,8 +384,9 @@ function DirectAdminDashboardView() {
       })
       .catch((error) => {
         if (active) {
-          setError(error?.response?.data?.error || 'Failed to load Direct dashboard');
-          toast.error(error?.response?.data?.error || 'Failed to load Direct dashboard');
+          const message = error?.response?.data?.error || t('directAdminPortal.dashboardLoadError', { defaultValue: 'Failed to load Direct dashboard' });
+          setError(message);
+          toast.error(message);
         }
       })
       .finally(() => {
@@ -373,7 +410,7 @@ function DirectAdminDashboardView() {
             <Link to="/direct/admin/settings" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white text-center">{t('directAdminPortal.settings', { defaultValue: 'Settings' })}</Link>
           </div>
           <button type="button" onClick={() => setReloadKey((current) => current + 1)} disabled={loading} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-orange-500/40 disabled:opacity-50">
-            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> {loading ? 'Refreshing…' : 'Refresh dashboard'}
+            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> {loading ? t('directAdminPortal.refreshing', { defaultValue: 'Refreshing…' }) : t('directAdminPortal.refreshDashboard', { defaultValue: 'Refresh dashboard' })}
           </button>
         </div>
       )}
@@ -383,22 +420,22 @@ function DirectAdminDashboardView() {
           <div className="text-sm text-slate-400">{t('directAdminPortal.fetchingData', { defaultValue: 'Fetching Direct operations data…' })}</div>
         </SectionCard>
       ) : error ? (
-        <SectionCard title="Direct dashboard unavailable" eyebrow="Recovery">
+        <SectionCard title={t('directAdminPortal.dashboardErrorTitle', { defaultValue: 'Direct dashboard unavailable' })} eyebrow={t('directAdminPortal.dashboardErrorEyebrow', { defaultValue: 'Recovery' })}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-red-200">{error}</p>
-            <button type="button" onClick={() => setReloadKey((current) => current + 1)} className="rounded-xl border border-red-400/30 px-3 py-2 text-xs font-semibold text-red-100 hover:bg-red-500/10">Try again</button>
+            <button type="button" onClick={() => setReloadKey((current) => current + 1)} className="rounded-xl border border-red-400/30 px-3 py-2 text-xs font-semibold text-red-100 hover:bg-red-500/10">{t('directAdminPortal.retry', { defaultValue: 'Try again' })}</button>
           </div>
         </SectionCard>
       ) : (
         <div className="grid gap-4">
-          {lastUpdated && <div className="text-right text-xs text-slate-600">Updated {lastUpdated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</div>}
+          {lastUpdated && <div className="text-right text-xs text-slate-600">{t('directAdminPortal.updatedAt', { time: lastUpdated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }), defaultValue: 'Updated {{time}}' })}</div>}
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-            <MiniStat label="Total requests" value={data?.totals?.total_requests || 0} icon={ClipboardList} tone="blue" />
-            <MiniStat label="Intake" value={data?.totals?.intake_requests || 0} icon={Search} tone="violet" />
-            <MiniStat label="Quoted" value={data?.totals?.quoted_requests || 0} icon={FileText} tone="orange" />
-            <MiniStat label="Scheduled" value={data?.totals?.scheduled_requests || 0} icon={CalendarDays} tone="emerald" />
-            <MiniStat label="Active" value={data?.totals?.active_requests || 0} icon={Clock3} tone="blue" />
-            <MiniStat label="Unpaid" value={data?.totals?.unpaid_requests || 0} icon={DollarSign} tone="orange" />
+            <MiniStat label={t('directAdminPortal.miniTotalRequests', { defaultValue: 'Total requests' })} value={data?.totals?.total_requests || 0} icon={ClipboardList} tone="blue" />
+            <MiniStat label={t('directAdminPortal.miniIntake', { defaultValue: 'Intake' })} value={data?.totals?.intake_requests || 0} icon={Search} tone="violet" />
+            <MiniStat label={t('directAdminPortal.miniQuoted', { defaultValue: 'Quoted' })} value={data?.totals?.quoted_requests || 0} icon={FileText} tone="orange" />
+            <MiniStat label={t('directAdminPortal.miniScheduled', { defaultValue: 'Scheduled' })} value={data?.totals?.scheduled_requests || 0} icon={CalendarDays} tone="emerald" />
+            <MiniStat label={t('directAdminPortal.miniActive', { defaultValue: 'Active' })} value={data?.totals?.active_requests || 0} icon={Clock3} tone="blue" />
+            <MiniStat label={t('directAdminPortal.miniUnpaid', { defaultValue: 'Unpaid' })} value={data?.totals?.unpaid_requests || 0} icon={DollarSign} tone="orange" />
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">
@@ -444,6 +481,8 @@ function DirectAdminDashboardView() {
   );
 }
 
+const EMPTY_INBOX_DRAFT = { status: 'new', admin_notes: '', quote_amount_cents: '', payment_status: 'unpaid' };
+
 function DirectAdminInboxView() {
   const { t } = useTranslation();
   const [profile] = useDirectAdminProfile();
@@ -453,7 +492,8 @@ function DirectAdminInboxView() {
   const page = Number(searchParams.get('page') || '1');
   const [selectedId, setSelectedId] = useState(null);
   const [detail, setDetail] = useState(null);
-  const [draft, setDraft] = useState({ status: 'new', admin_notes: '', quote_amount_cents: '', payment_status: 'unpaid' });
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [draft, setDraft] = useState({ ...EMPTY_INBOX_DRAFT });
   const [saving, setSaving] = useState(false);
   const list = useDirectRequestList({ status, search: query, page });
   const updateSearch = (updates) => {
@@ -471,13 +511,31 @@ function DirectAdminInboxView() {
   }, [status, query, page]);
 
   useEffect(() => {
-    const current = list.requests[0];
-    if (!selectedId && current) setSelectedId(current.id);
-  }, [list.requests, selectedId]);
+    if (list.loading) return;
+    if (!selectedId) {
+      const current = list.requests[0];
+      if (current) setSelectedId(current.id);
+      return;
+    }
+    const stillListed = list.requests.some((item) => String(item.id) === String(selectedId));
+    if (!stillListed) {
+      setSelectedId(null);
+      setDetail(null);
+      setDraft({ ...EMPTY_INBOX_DRAFT });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [list.loading, list.requests, selectedId]);
 
   useEffect(() => {
-    if (!selectedId) return;
+    if (!selectedId) {
+      setDetail(null);
+      setDetailLoading(false);
+      return;
+    }
     let active = true;
+    setDetail(null);
+    setDetailLoading(true);
+    setDraft({ ...EMPTY_INBOX_DRAFT });
     getDirectAdminRequest(selectedId)
       .then((data) => {
         if (!active) return;
@@ -489,10 +547,15 @@ function DirectAdminInboxView() {
           quote_amount_cents: req?.quoteAmountCents ?? '',
           payment_status: req?.paymentStatus || 'unpaid',
         });
+        setDetailLoading(false);
       })
-      .catch((error) => toast.error(error?.response?.data?.error || 'Failed to load request'));
+      .catch((error) => {
+        if (!active) return;
+        setDetailLoading(false);
+        toast.error(error?.response?.data?.error || t('directAdminPortal.failedToLoadRequest', { defaultValue: 'Failed to load request' }));
+      });
     return () => { active = false; };
-  }, [selectedId]);
+  }, [selectedId, t]);
 
   const save = async () => {
     if (!selectedId) return;
@@ -507,9 +570,9 @@ function DirectAdminInboxView() {
       const { request } = await updateDirectAdminRequest(selectedId, payload);
       setDetail(request);
       list.setRequests((current) => current.map((item) => (String(item.id) === String(selectedId) ? request : item)));
-      toast.success('Request updated.');
+      toast.success(t('directAdminPortal.requestUpdated', { defaultValue: 'Request updated.' }));
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Could not update request.');
+      toast.error(error?.response?.data?.error || t('directAdminPortal.couldNotUpdateRequest', { defaultValue: 'Could not update request.' }));
     } finally {
       setSaving(false);
     }
@@ -537,20 +600,20 @@ function DirectAdminInboxView() {
         <SectionCard title={t('directAdminPortal.filters', { defaultValue: 'Filters' })} eyebrow={t('directAdminPortal.inboxEyebrow', { defaultValue: 'Inbox' })}>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="grid gap-2">
-              <span className="text-xs uppercase tracking-[0.18em] text-slate-500">{t('directAdminPortal.search', { defaultValue: 'Search' })}</span>
-              <Input value={query} onChange={(e) => updateSearch({ q: e.target.value, page: 1 })} placeholder={t('directAdminPortal.searchPlaceholder', { defaultValue: 'Name, email, city, company...' })} />
+              <label htmlFor="direct-inbox-search" className="text-xs uppercase tracking-[0.18em] text-slate-500">{t('directAdminPortal.search', { defaultValue: 'Search' })}</label>
+              <Input id="direct-inbox-search" value={query} onChange={(e) => updateSearch({ q: e.target.value, page: 1 })} placeholder={t('directAdminPortal.searchPlaceholder', { defaultValue: 'Name, email, city, company...' })} />
             </div>
             <div className="grid gap-2">
-              <span className="text-xs uppercase tracking-[0.18em] text-slate-500">{t('directAdminPortal.status', { defaultValue: 'Status' })}</span>
-              <Select value={status} onChange={(e) => updateSearch({ status: e.target.value, page: 1 })}>
+              <label htmlFor="direct-inbox-status" className="text-xs uppercase tracking-[0.18em] text-slate-500">{t('directAdminPortal.status', { defaultValue: 'Status' })}</label>
+              <Select id="direct-inbox-status" value={status} onChange={(e) => updateSearch({ status: e.target.value, page: 1 })}>
                 <option value="">{t('directAdminPortal.allStatuses', { defaultValue: 'All statuses' })}</option>
-                {STATUS_OPTIONS.map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}
+                {STATUS_OPTIONS.map((item) => <option key={item} value={item}>{statusLabel(item, t)}</option>)}
               </Select>
             </div>
           </div>
           <div className="mt-4 flex items-center gap-3">
             <button type="button" onClick={() => list.load({ status, search: query, page })} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">{t('directAdminPortal.refresh', { defaultValue: 'Refresh' })}</button>
-            <div className="text-sm text-slate-500">{list.total || 0} request(s)</div>
+            <div className="text-sm text-slate-500">{t('directAdminPortal.requestsCount', { count: list.total || 0, defaultValue_one: '{{count}} request', defaultValue_other: '{{count}} requests' })}</div>
           </div>
         </SectionCard>
 
@@ -569,8 +632,8 @@ function DirectAdminInboxView() {
                       <div className="mt-1 text-xs text-slate-500">{item.serviceCategory} · {item.serviceLocation || item.serviceCity || '—'}</div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <Chip tone="blue">{statusLabel(item.status)}</Chip>
-                      <Chip tone="orange">{item.paymentStatus || 'unpaid'}</Chip>
+                      <Chip tone="blue">{statusLabel(item.status, t)}</Chip>
+                      <Chip tone="orange">{paymentLabel(item.paymentStatus, t)}</Chip>
                     </div>
                   </div>
                 </button>
@@ -580,13 +643,25 @@ function DirectAdminInboxView() {
         </SectionCard>
       </div>
 
-      {selected && (
+      {!selected && !list.loading && (
+        <SectionCard title={t('directAdminPortal.selectRequestTitle', { defaultValue: 'Select a request' })} eyebrow={t('directAdminPortal.requestQueue', { defaultValue: 'Request queue' })}>
+          <div className="text-sm text-slate-500">{t('directAdminPortal.selectRequestBody', { defaultValue: 'Choose a request from the queue to view its details and build a quote.' })}</div>
+        </SectionCard>
+      )}
+
+      {selected && detailLoading && (
+        <SectionCard title={t('directAdminPortal.loadingRequestDetails', { defaultValue: 'Loading request details…' })} eyebrow={t('directAdminPortal.requestNumber', { id: selected.id, defaultValue: 'Request #{{id}}' })}>
+          <div className="flex items-center gap-3 text-sm text-slate-400"><Loader2 size={16} className="animate-spin text-orange-300" />{t('directAdminPortal.loadingRequestDetails', { defaultValue: 'Loading request details…' })}</div>
+        </SectionCard>
+      )}
+
+      {selected && !detailLoading && (
         <div className="mt-6 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-          <SectionCard title={`${selected.firstName} ${selected.lastName}`} eyebrow={`Request #${selected.id}`}>
+          <SectionCard title={`${selected.firstName} ${selected.lastName}`} eyebrow={t('directAdminPortal.requestNumber', { id: selected.id, defaultValue: 'Request #{{id}}' })}>
             <RequestSnapshot request={selected} />
             <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
               <div className="text-xs uppercase tracking-[0.18em] text-slate-500">{t('directAdminPortal.notes', { defaultValue: 'Notes' })}</div>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-300">{selected.details || 'No details provided.'}</p>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-300">{selected.details || t('directAdminPortal.noDetails', { defaultValue: 'No details provided.' })}</p>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
               {selected.events?.slice?.(0, 6)?.map?.((event) => (
@@ -601,14 +676,14 @@ function DirectAdminInboxView() {
 
           <SectionCard title={t('directAdminPortal.editRequest', { defaultValue: 'Edit request' })} eyebrow={t('directAdminPortal.quoteBuilder', { defaultValue: 'Quote builder' })}>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label={t('directAdminPortal.statusLabel', { defaultValue: 'Status' })}><Select value={draft.status} onChange={(e) => setDraft((current) => ({ ...current, status: e.target.value }))}>{STATUS_OPTIONS.map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}</Select></Field>
-              <Field label={t('directAdminPortal.paymentStatus', { defaultValue: 'Payment status' })}><Select value={draft.payment_status} onChange={(e) => setDraft((current) => ({ ...current, payment_status: e.target.value }))}>{PAYMENT_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}</Select></Field>
+              <Field label={t('directAdminPortal.statusLabel', { defaultValue: 'Status' })}><Select value={draft.status} onChange={(e) => setDraft((current) => ({ ...current, status: e.target.value }))}>{STATUS_OPTIONS.map((item) => <option key={item} value={item}>{statusLabel(item, t)}</option>)}</Select></Field>
+              <Field label={t('directAdminPortal.paymentStatus', { defaultValue: 'Payment status' })}><Select value={draft.payment_status} onChange={(e) => setDraft((current) => ({ ...current, payment_status: e.target.value }))}>{PAYMENT_OPTIONS.map((item) => <option key={item} value={item}>{paymentLabel(item, t)}</option>)}</Select></Field>
               <Field label={t('directAdminPortal.quoteAmount', { defaultValue: 'Quote amount (cents)' })}><Input type="number" value={draft.quote_amount_cents} onChange={(e) => setDraft((current) => ({ ...current, quote_amount_cents: e.target.value }))} /></Field>
               <Field label={t('directAdminPortal.preferredDate', { defaultValue: 'Preferred date' })}><Input type="date" value={selected.preferredDate || ''} readOnly /></Field>
             </div>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <Field label={t('directAdminPortal.scheduledStart', { defaultValue: 'Scheduled start' })}><Input type="datetime-local" value={selected.scheduledStartAt ? String(selected.scheduledStartAt).slice(0, 16) : ''} readOnly /></Field>
-              <Field label={t('directAdminPortal.scheduledEnd', { defaultValue: 'Scheduled end' })}><Input type="datetime-local" value={selected.scheduledEndAt ? String(selected.scheduledEndAt).slice(0, 16) : ''} readOnly /></Field>
+              <Field label={t('directAdminPortal.scheduledStart', { defaultValue: 'Scheduled start' })}><Input type="datetime-local" value={calendarDateTimeInputValue(selected.scheduledStartAt)} readOnly /></Field>
+              <Field label={t('directAdminPortal.scheduledEnd', { defaultValue: 'Scheduled end' })}><Input type="datetime-local" value={calendarDateTimeInputValue(selected.scheduledEndAt)} readOnly /></Field>
             </div>
             <div className="mt-4">
               <Field label={t('directAdminPortal.adminNotes', { defaultValue: 'Admin notes' })}><Textarea rows={5} value={draft.admin_notes} onChange={(e) => setDraft((current) => ({ ...current, admin_notes: e.target.value }))} /></Field>
@@ -676,22 +751,24 @@ function calendarRangeLabel(viewMode, days) {
   return `${first} – ${last}`;
 }
 
-function googleCalendarUrl(item) {
+function googleCalendarUrl(item, t) {
   const start = new Date(item.scheduled_start_at);
   const end = item.scheduled_end_at ? new Date(item.scheduled_end_at) : new Date(start.getTime() + (60 * 60 * 1000));
   const format = (date) => date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-  const title = `${item.service_category || 'Direct service'} - ${item.first_name || ''} ${item.last_name || ''}`.trim();
+  const serviceName = item.service_category || (t ? t('directAdminPortal.directServiceFallback', { defaultValue: 'Direct service' }) : 'Direct service');
+  const title = `${serviceName} - ${item.first_name || ''} ${item.last_name || ''}`.trim();
   const params = new URLSearchParams({
     action: 'TEMPLATE',
     text: title,
     dates: `${format(start)}/${format(end)}`,
     location: item.service_location || item.service_city || '',
-    details: `OxSteed Direct work order #${item.id}.`,
+    details: t ? t('directAdminPortal.workOrderDetails', { id: item.id, defaultValue: 'OxSteed Direct work order #{{id}}.' }) : `OxSteed Direct work order #${item.id}.`,
   });
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
 function CalendarJobCard({ item, compact = false, conflict = false, onSelect }) {
+  const { t } = useTranslation();
   return (
     <button
       type="button"
@@ -704,19 +781,19 @@ function CalendarJobCard({ item, compact = false, conflict = false, onSelect }) 
             {item.first_name} {item.last_name}
           </div>
           <div className={`mt-1 truncate text-slate-400 ${compact ? 'text-[10px]' : 'text-xs'}`}>
-            {formatDateTime(item.scheduled_start_at)} · {item.service_city || item.service_location || 'No city'}
+            {formatDateTime(item.scheduled_start_at)} · {item.service_city || item.service_location || t('directAdminPortal.noCity', { defaultValue: 'No city' })}
           </div>
         </div>
         <div className="flex shrink-0 flex-wrap justify-end gap-1">
-          <Chip tone={item.status === 'scheduled' ? 'orange' : 'blue'}>{statusLabel(item.status)}</Chip>
-          {conflict && <Chip tone="orange">Conflict</Chip>}
+          <Chip tone={item.status === 'scheduled' ? 'orange' : 'blue'}>{statusLabel(item.status, t)}</Chip>
+          {conflict && <Chip tone="orange">{t('directAdminPortal.conflict', { defaultValue: 'Conflict' })}</Chip>}
         </div>
       </div>
       {!compact && (
         <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
-          <span>{item.service_category || 'Direct service'}</span>
+          <span>{item.service_category || t('directAdminPortal.directServiceFallback', { defaultValue: 'Direct service' })}</span>
           <span>·</span>
-          <span>{item.payment_status || 'unpaid'}</span>
+          <span>{paymentLabel(item.payment_status, t)}</span>
           {item.quote_amount_cents != null && <><span>·</span><span>{currencyLabel(item.quote_amount_cents, item.quote_currency_code)}</span></>}
         </div>
       )}
@@ -725,6 +802,7 @@ function CalendarJobCard({ item, compact = false, conflict = false, onSelect }) 
 }
 
 function DirectAdminCalendarView() {
+  const { t, i18n } = useTranslation();
   const [profile] = useDirectAdminProfile();
   const [data, setData] = useState(null);
   const [viewMode, setViewMode] = useState(() => (typeof window !== 'undefined' && window.innerWidth < 768 ? 'agenda' : 'month'));
@@ -732,6 +810,7 @@ function DirectAdminCalendarView() {
   const [status, setStatus] = useState('');
   const [city, setCity] = useState('');
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedJob, setSelectedJob] = useState(null);
@@ -774,7 +853,7 @@ function DirectAdminCalendarView() {
         to: rangeEnd.toISOString(),
         status: status || undefined,
         city: city || undefined,
-        search: search.trim() || undefined,
+        search: debouncedSearch.trim() || undefined,
         page: nextPage,
         pageSize: 100,
       };
@@ -791,16 +870,21 @@ function DirectAdminCalendarView() {
       setBlocks(blockData?.blocks || []);
       setAuditEntries(auditData?.audit || []);
     } catch (requestError) {
-      setError(requestError?.response?.data?.error || 'Failed to load the dispatch calendar.');
+      setError(requestError?.response?.data?.error || t('directAdminPortal.failedToLoadCalendar', { defaultValue: 'Failed to load the dispatch calendar.' }));
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search), 400);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
     setCalendarPage(1);
     loadCalendar({ nextPage: 1 });
-  }, [viewMode, cursorDate, status, city, search]);
+  }, [viewMode, cursorDate, status, city, debouncedSearch]);
 
   useEffect(() => {
     getDirectAdminAssignees().then((response) => setAssignees(response?.members || [])).catch(() => setAssignees([]));
@@ -862,6 +946,20 @@ function DirectAdminCalendarView() {
     else next.setDate(next.getDate() + (viewMode === 'week' ? amount * 7 : amount));
     setCursorDate(next);
   };
+  const weekdayNames = useMemo(() => {
+    const sunday = new Date(2026, 7, 2);
+    return Array.from({ length: 7 }, (_, index) => {
+      const day = new Date(sunday);
+      day.setDate(sunday.getDate() + index);
+      return day.toLocaleDateString(i18n.resolvedLanguage || undefined, { weekday: 'short' });
+    });
+  }, [i18n.resolvedLanguage]);
+  const viewModes = [
+    { id: 'day', label: t('directAdminPortal.viewDay', { defaultValue: 'Day' }) },
+    { id: 'week', label: t('directAdminPortal.viewWeek', { defaultValue: 'Week' }) },
+    { id: 'month', label: t('directAdminPortal.viewMonth', { defaultValue: 'Month' }) },
+    { id: 'agenda', label: t('directAdminPortal.viewAgenda', { defaultValue: 'Agenda' }) },
+  ];
 
   const updateSelectedJob = async (nextStatus = selectedJob?.status) => {
     if (!selectedJob) return;
@@ -883,7 +981,7 @@ function DirectAdminCalendarView() {
         setData((current) => current ? { ...current, upcoming: (current.upcoming || []).map((item) => item.id === updated.id ? { ...item, ...updated } : item) } : current);
       }
     } catch (requestError) {
-      setActionError(requestError?.response?.data?.error || 'Could not update this job.');
+      setActionError(requestError?.response?.data?.error || t('directAdminPortal.couldNotUpdateJob', { defaultValue: 'Could not update this job.' }));
     } finally {
       setActionSaving(false);
     }
@@ -905,7 +1003,7 @@ function DirectAdminCalendarView() {
       setBlockForm((current) => ({ ...current, title: '', notes: '' }));
       await loadCalendar();
     } catch (requestError) {
-      setBlockError(requestError?.response?.data?.error || 'Could not save this calendar block.');
+      setBlockError(requestError?.response?.data?.error || t('directAdminPortal.couldNotSaveBlock', { defaultValue: 'Could not save this calendar block.' }));
     } finally {
       setBlockSaving(false);
     }
@@ -937,7 +1035,7 @@ function DirectAdminCalendarView() {
       await deleteDirectAdminCalendarBlock(id);
       setBlocks((current) => current.filter((block) => block.id !== id));
     } catch (requestError) {
-      setBlockError(requestError?.response?.data?.error || 'Could not remove this calendar block.');
+      setBlockError(requestError?.response?.data?.error || t('directAdminPortal.couldNotRemoveBlock', { defaultValue: 'Could not remove this calendar block.' }));
     } finally {
       setBlockSaving(false);
     }
@@ -951,7 +1049,7 @@ function DirectAdminCalendarView() {
         to: rangeEnd.toISOString(),
         status: status || undefined,
         city: city || undefined,
-        search: search.trim() || undefined,
+        search: debouncedSearch.trim() || undefined,
       });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -960,7 +1058,7 @@ function DirectAdminCalendarView() {
       link.click();
       URL.revokeObjectURL(url);
     } catch (requestError) {
-      setError(requestError?.response?.data?.error || 'Could not export this calendar range.');
+      setError(requestError?.response?.data?.error || t('directAdminPortal.couldNotExportCalendar', { defaultValue: 'Could not export this calendar range.' }));
     } finally {
       setExportSaving(false);
     }
@@ -973,49 +1071,49 @@ function DirectAdminCalendarView() {
 
   return (
     <AdminShell
-      title="Dispatch calendar"
-      subtitle="See upcoming work by date, city, and urgency so you can route travel days without opening every request."
+      title={t('directAdminPortal.calendarTitle', { defaultValue: 'Dispatch calendar' })}
+      subtitle={t('directAdminPortal.calendarSubtitle', { defaultValue: 'See upcoming work by date, city, and urgency so you can route travel days without opening every request.' })}
       profile={profile}
-      right={<div className="space-y-3 text-sm leading-6 text-slate-300"><div>Showing future, active scheduled work only.</div><div className="flex flex-wrap gap-2"><button type="button" onClick={loadCalendar} disabled={loading} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 font-semibold text-white disabled:opacity-50"><RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> Refresh</button><button type="button" onClick={exportCalendar} disabled={exportSaving || loading} className="inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-4 py-2 font-semibold text-orange-100 disabled:opacity-50"><Download size={15} /> {exportSaving ? 'Exporting…' : 'Export ICS'}</button></div></div>}
+      right={<div className="space-y-3 text-sm leading-6 text-slate-300"><div>{t('directAdminPortal.calendarRightNote', { defaultValue: 'Showing future, active scheduled work only.' })}</div><div className="flex flex-wrap gap-2"><button type="button" onClick={loadCalendar} disabled={loading} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 font-semibold text-white disabled:opacity-50"><RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> {t('directAdminPortal.refresh', { defaultValue: 'Refresh' })}</button><button type="button" onClick={exportCalendar} disabled={exportSaving || loading} className="inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-4 py-2 font-semibold text-orange-100 disabled:opacity-50"><Download size={15} /> {exportSaving ? t('directAdminPortal.exportingIcs', { defaultValue: 'Exporting…' }) : t('directAdminPortal.exportIcs', { defaultValue: 'Export ICS' })}</button></div></div>}
     >
-      <SectionCard title="Schedule" eyebrow="Calendar">
+      <SectionCard title={t('directAdminPortal.calendarScheduleTitle', { defaultValue: 'Schedule' })} eyebrow={t('directAdminPortal.calendarScheduleEyebrow', { defaultValue: 'Calendar' })}>
         <div className="flex flex-col gap-3 border-b border-white/10 pb-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={() => setCursorDate(new Date())} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-white">Today</button>
-            <button type="button" onClick={() => moveCursor(-1)} aria-label="Previous period" className="rounded-xl border border-white/10 bg-white/5 p-2 text-white"><ChevronLeft size={17} /></button>
-            <button type="button" onClick={() => moveCursor(1)} aria-label="Next period" className="rounded-xl border border-white/10 bg-white/5 p-2 text-white"><ChevronRight size={17} /></button>
+            <button type="button" onClick={() => setCursorDate(new Date())} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-white">{t('directAdminPortal.today', { defaultValue: 'Today' })}</button>
+            <button type="button" onClick={() => moveCursor(-1)} aria-label={t('directAdminPortal.previousPeriod', { defaultValue: 'Previous period' })} className="rounded-xl border border-white/10 bg-white/5 p-2 text-white"><ChevronLeft size={17} /></button>
+            <button type="button" onClick={() => moveCursor(1)} aria-label={t('directAdminPortal.nextPeriod', { defaultValue: 'Next period' })} className="rounded-xl border border-white/10 bg-white/5 p-2 text-white"><ChevronRight size={17} /></button>
             <span className="ml-1 text-sm font-semibold text-slate-200">{rangeLabel}</span>
           </div>
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Calendar view">
-            {['day', 'week', 'month', 'agenda'].map((mode) => (
-              <button key={mode} type="button" onClick={() => setViewMode(mode)} aria-pressed={viewMode === mode} className={`rounded-xl border px-3 py-2 text-xs font-semibold capitalize transition ${viewMode === mode ? 'border-orange-500/40 bg-orange-500/15 text-orange-200' : 'border-white/10 bg-white/5 text-slate-400 hover:text-white'}`}>{mode}</button>
+          <div className="flex flex-wrap gap-2" role="group" aria-label={t('directAdminPortal.calendarViewAria', { defaultValue: 'Calendar view' })}>
+            {viewModes.map((mode) => (
+              <button key={mode.id} type="button" onClick={() => setViewMode(mode.id)} aria-pressed={viewMode === mode.id} className={`rounded-xl border px-3 py-2 text-xs font-semibold capitalize transition ${viewMode === mode.id ? 'border-orange-500/40 bg-orange-500/15 text-orange-200' : 'border-white/10 bg-white/5 text-slate-400 hover:text-white'}`}>{mode.label}</button>
             ))}
           </div>
         </div>
 
         <div className="mt-4 grid gap-3 md:grid-cols-3">
-          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search customer, service, or city..." aria-label="Search calendar" />
-          <Select value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Filter by status">
-            <option value="">All active statuses</option>
-            {['scheduled', 'accepted', 'en_route', 'started', 'waiting_customer'].map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}
+          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('directAdminPortal.calendarSearchPlaceholder', { defaultValue: 'Search customer, service, or city...' })} aria-label={t('directAdminPortal.calendarSearchAria', { defaultValue: 'Search calendar' })} />
+          <Select value={status} onChange={(event) => setStatus(event.target.value)} aria-label={t('directAdminPortal.filterByStatus', { defaultValue: 'Filter by status' })}>
+            <option value="">{t('directAdminPortal.allActiveStatuses', { defaultValue: 'All active statuses' })}</option>
+            {['scheduled', 'accepted', 'en_route', 'started', 'waiting_customer'].map((item) => <option key={item} value={item}>{statusLabel(item, t)}</option>)}
           </Select>
-          <Select value={city} onChange={(event) => setCity(event.target.value)} aria-label="Filter by city">
-            <option value="">All service cities</option>
+          <Select value={city} onChange={(event) => setCity(event.target.value)} aria-label={t('directAdminPortal.filterByCity', { defaultValue: 'Filter by city' })}>
+            <option value="">{t('directAdminPortal.allServiceCities', { defaultValue: 'All service cities' })}</option>
             {cities.map((item) => <option key={item} value={item}>{item}</option>)}
           </Select>
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
-          <span>{viewMode === 'agenda' ? 'Agenda view keeps dispatch details readable on smaller screens.' : 'Select Agenda for a compact mobile-friendly list.'}</span>
-          {data?.pagination && <span>{jobs.length} loaded · {data.pagination.total} in range</span>}
+          <span>{viewMode === 'agenda' ? t('directAdminPortal.agendaHint', { defaultValue: 'Agenda view keeps dispatch details readable on smaller screens.' }) : t('directAdminPortal.calendarHint', { defaultValue: 'Select Agenda for a compact mobile-friendly list.' })}</span>
+          {data?.pagination && <span>{t('directAdminPortal.loadedInRange', { loaded: jobs.length, total: data.pagination.total, defaultValue: '{{loaded}} loaded · {{total}} in range' })}</span>}
         </div>
 
         {error ? (
           <div role="alert" className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-200"><span>{error}</span><button type="button" onClick={loadCalendar} className="rounded-xl border border-red-400/30 px-3 py-2 font-semibold text-red-100">Retry</button></div>
         ) : loading ? (
-          <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-10 text-center text-sm text-slate-400"><Loader2 className="mx-auto mb-3 animate-spin text-orange-300" size={20} />Loading scheduled work…</div>
+          <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-10 text-center text-sm text-slate-400"><Loader2 className="mx-auto mb-3 animate-spin text-orange-300" size={20} />{t('directAdminPortal.loadingScheduledWork', { defaultValue: 'Loading scheduled work…' })}</div>
         ) : viewMode === 'agenda' ? (
           <div className="mt-4 space-y-4">
-            {jobs.length === 0 ? <div className="rounded-2xl border border-dashed border-white/10 p-10 text-center text-sm text-slate-500">No future scheduled jobs match these filters.</div> : Array.from(new Set(jobs.map((item) => calendarDateKey(item.scheduled_start_at))).values()).map((key) => (
+            {jobs.length === 0 ? <div className="rounded-2xl border border-dashed border-white/10 p-10 text-center text-sm text-slate-500">{t('directAdminPortal.noFutureJobs', { defaultValue: 'No future scheduled jobs match these filters.' })}</div> : Array.from(new Set(jobs.map((item) => calendarDateKey(item.scheduled_start_at))).values()).map((key) => (
               <div key={key}>
                 <div className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-orange-300">{new Date(`${key}T12:00:00`).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</div>
                 <div className="grid gap-2 lg:grid-cols-2">{(jobsByDay[key] || []).map((item) => <CalendarJobCard key={item.id} item={item} conflict={conflictIds.has(item.id)} onSelect={setSelectedJob} />)}</div>
@@ -1025,7 +1123,7 @@ function DirectAdminCalendarView() {
         ) : (
           <div className="mt-4 overflow-hidden rounded-2xl border border-white/10">
             <div className="grid grid-cols-7 border-b border-white/10 bg-white/5 text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((item) => <div key={item} className="p-2">{item}</div>)}
+              {weekdayNames.map((item) => <div key={item} className="p-2">{item}</div>)}
             </div>
             <div className={`grid grid-cols-7 gap-px bg-white/10 ${viewMode === 'day' ? 'grid-cols-1' : ''}`}>
               {days.map((day) => {
@@ -1035,9 +1133,9 @@ function DirectAdminCalendarView() {
                 return (
                   <div key={key} className={`min-h-[140px] bg-slate-950 p-2 ${outsideMonth ? 'opacity-40' : ''} ${viewMode === 'day' ? 'min-h-[320px]' : ''}`}>
                     <div className="mb-2 flex items-center justify-between gap-2"><span className="text-xs font-semibold text-slate-300">{day.getDate()}</span>{dayJobs.length > 0 && <span className="rounded-full bg-orange-500/15 px-2 py-0.5 text-[10px] font-semibold text-orange-200">{dayJobs.length}</span>}</div>
-                    {(blocksByDay[key] || []).map((block) => <div key={block.id} className="mb-1 truncate rounded-lg border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-[10px] font-semibold text-amber-200" title={`${block.title}${block.city ? ` · ${block.city}` : ''}`}>{block.blockType === 'availability' ? 'Open' : 'Blocked'} · {block.title}</div>)}
+                    {(blocksByDay[key] || []).map((block) => <div key={block.id} className="mb-1 truncate rounded-lg border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-[10px] font-semibold text-amber-200" title={`${block.title}${block.city ? ` · ${block.city}` : ''}`}>{block.blockType === 'availability' ? t('directAdminPortal.blockOpen', { defaultValue: 'Open' }) : t('directAdminPortal.blockBlocked', { defaultValue: 'Blocked' })} · {block.title}</div>)}
                     <div className="space-y-1.5">{dayJobs.slice(0, viewMode === 'day' ? 20 : 3).map((item) => <CalendarJobCard key={item.id} item={item} compact={viewMode !== 'day'} conflict={conflictIds.has(item.id)} onSelect={setSelectedJob} />)}</div>
-                    {dayJobs.length > (viewMode === 'day' ? 20 : 3) && <div className="mt-2 text-center text-[10px] text-slate-500">+{dayJobs.length - (viewMode === 'day' ? 20 : 3)} more</div>}
+                    {dayJobs.length > (viewMode === 'day' ? 20 : 3) && <div className="mt-2 text-center text-[10px] text-slate-500">{t('directAdminPortal.moreJobs', { count: dayJobs.length - (viewMode === 'day' ? 20 : 3), defaultValue_one: '+{{count}} more', defaultValue_other: '+{{count}} more' })}</div>}
                   </div>
                 );
               })}
@@ -1047,8 +1145,8 @@ function DirectAdminCalendarView() {
 
         {data?.pagination?.total > 0 && (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-slate-400">
-            <span>Showing {jobs.length} of {data.pagination.total} scheduled jobs</span>
-            {data.pagination.hasNext && <button type="button" onClick={loadNextCalendarPage} disabled={loading} className="rounded-xl border border-orange-500/30 bg-orange-500/10 px-3 py-2 font-semibold text-orange-100 disabled:opacity-50">{loading ? 'Loading…' : 'Load more jobs'}</button>}
+            <span>{t('directAdminPortal.showingJobs', { loaded: jobs.length, total: data.pagination.total, defaultValue: 'Showing {{loaded}} of {{total}} scheduled jobs' })}</span>
+            {data.pagination.hasNext && <button type="button" onClick={loadNextCalendarPage} disabled={loading} className="rounded-xl border border-orange-500/30 bg-orange-500/10 px-3 py-2 font-semibold text-orange-100 disabled:opacity-50">{loading ? t('directAdminPortal.loading', { defaultValue: 'Loading…' }) : t('directAdminPortal.loadMoreJobs', { defaultValue: 'Load more jobs' })}</button>}
           </div>
         )}
 
@@ -1056,68 +1154,68 @@ function DirectAdminCalendarView() {
           <div className="mt-4 rounded-2xl border border-orange-500/25 bg-orange-500/5 p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-300">Selected work order</div>
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-300">{t('directAdminPortal.selectedWorkOrder', { defaultValue: 'Selected work order' })}</div>
                 <h3 className="mt-1 text-xl font-semibold text-white">{selectedJob.first_name} {selectedJob.last_name}</h3>
-                <p className="mt-1 text-sm text-slate-400">{selectedJob.service_category || 'Direct service'} · {selectedJob.service_city || selectedJob.service_location || 'No location'}</p>
+                <p className="mt-1 text-sm text-slate-400">{selectedJob.service_category || t('directAdminPortal.directServiceFallback', { defaultValue: 'Direct service' })} · {selectedJob.service_city || selectedJob.service_location || t('directAdminPortal.noLocation', { defaultValue: 'No location' })}</p>
               </div>
-              <button type="button" onClick={() => setSelectedJob(null)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-slate-300 hover:text-white">Close</button>
+              <button type="button" onClick={() => setSelectedJob(null)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-slate-300 hover:text-white">{t('directAdminPortal.close', { defaultValue: 'Close' })}</button>
             </div>
             {actionError && <div role="alert" className="mt-3 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-200">{actionError}</div>}
             <div className="mt-4 grid gap-3 md:grid-cols-5">
-              <Field label="Status"><Select value={selectedJob.status || 'scheduled'} onChange={(event) => setSelectedJob((current) => ({ ...current, status: event.target.value }))}>{STATUS_OPTIONS.map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}</Select></Field>
-              <Field label="Start"><Input type="datetime-local" value={calendarDateTimeInputValue(selectedJob.scheduled_start_at)} onChange={(event) => setSelectedJob((current) => event.target.value ? { ...current, scheduled_start_at: new Date(event.target.value).toISOString() } : current)} /></Field>
-              <Field label="End"><Input type="datetime-local" value={calendarDateTimeInputValue(selectedJob.scheduled_end_at || selectedJob.scheduled_start_at)} onChange={(event) => setSelectedJob((current) => event.target.value ? { ...current, scheduled_end_at: new Date(event.target.value).toISOString() } : current)} /></Field>
-              <Field label="Assigned to"><Select value={selectedJob.assigned_to || ''} onChange={(event) => setSelectedJob((current) => ({ ...current, assigned_to: event.target.value || null }))}><option value="">Unassigned</option>{assignees.map((member) => <option key={member.id} value={member.id}>{member.name} · {member.role}</option>)}</Select></Field>
-              <div className="flex items-end"><button type="button" onClick={() => updateSelectedJob()} disabled={actionSaving} className="w-full rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{actionSaving ? 'Saving…' : 'Save schedule'}</button></div>
+              <Field label={t('directAdminPortal.statusLabel', { defaultValue: 'Status' })}><Select value={selectedJob.status || 'scheduled'} onChange={(event) => setSelectedJob((current) => ({ ...current, status: event.target.value }))}>{STATUS_OPTIONS.map((item) => <option key={item} value={item}>{statusLabel(item, t)}</option>)}</Select></Field>
+              <Field label={t('directAdminPortal.calendarStart', { defaultValue: 'Start' })}><Input type="datetime-local" value={calendarDateTimeInputValue(selectedJob.scheduled_start_at)} onChange={(event) => setSelectedJob((current) => event.target.value ? { ...current, scheduled_start_at: new Date(event.target.value).toISOString() } : current)} /></Field>
+              <Field label={t('directAdminPortal.calendarEnd', { defaultValue: 'End' })}><Input type="datetime-local" value={calendarDateTimeInputValue(selectedJob.scheduled_end_at || selectedJob.scheduled_start_at)} onChange={(event) => setSelectedJob((current) => event.target.value ? { ...current, scheduled_end_at: new Date(event.target.value).toISOString() } : current)} /></Field>
+              <Field label={t('directAdminPortal.assignedTo', { defaultValue: 'Assigned to' })}><Select value={selectedJob.assigned_to || ''} onChange={(event) => setSelectedJob((current) => ({ ...current, assigned_to: event.target.value || null }))}><option value="">{t('directAdminPortal.unassigned', { defaultValue: 'Unassigned' })}</option>{assignees.map((member) => <option key={member.id} value={member.id}>{member.name} · {member.role}</option>)}</Select></Field>
+              <div className="flex items-end"><button type="button" onClick={() => updateSelectedJob()} disabled={actionSaving} className="w-full rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{actionSaving ? t('directAdminPortal.saving', { defaultValue: 'Saving…' }) : t('directAdminPortal.saveSchedule', { defaultValue: 'Save schedule' })}</button></div>
             </div>
-            <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-400"><span>{selectedJob.service_location || 'Address not provided'}</span><span>·</span><span>Payment: {selectedJob.payment_status || 'unpaid'}</span>{conflictIds.has(selectedJob.id) && <Chip tone="orange">Overlapping schedule</Chip>}</div>
-            <p className="mt-2 text-xs text-slate-500">Double-booking protection allows one overlapping job per assigned dispatch member. Unassigned jobs share a provisional capacity slot.</p>
+            <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-400"><span>{selectedJob.service_location || t('directAdminPortal.addressNotProvided', { defaultValue: 'Address not provided' })}</span><span>·</span><span>{t('directAdminPortal.paymentWithStatus', { payment: t('directAdminPortal.paymentWord', { defaultValue: 'Payment' }), status: paymentLabel(selectedJob.payment_status, t), defaultValue: '{{payment}}: {{status}}' })}</span>{conflictIds.has(selectedJob.id) && <Chip tone="orange">{t('directAdminPortal.overlappingSchedule', { defaultValue: 'Overlapping schedule' })}</Chip>}</div>
+            <p className="mt-2 text-xs text-slate-500">{t('directAdminPortal.doubleBookingNote', { defaultValue: 'Double-booking protection allows one overlapping job per assigned dispatch member. Unassigned jobs share a provisional capacity slot.' })}</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <InfoRow label="Customer email" value={selectedJob.email} />
-              <InfoRow label="Customer phone" value={selectedJob.phone || selectedJob.on_site_contact_phone} />
+              <InfoRow label={t('directAdminPortal.customerEmail', { defaultValue: 'Customer email' })} value={selectedJob.email} />
+              <InfoRow label={t('directAdminPortal.customerPhone', { defaultValue: 'Customer phone' })} value={selectedJob.phone || selectedJob.on_site_contact_phone} />
             </div>
-            {selectedJob.user_id && <div className="mt-3 flex flex-wrap items-center gap-3 text-sm"><Link to={`/direct/admin/customers/${selectedJob.user_id}`} className="font-semibold text-orange-300 hover:text-orange-200">Open customer history <ChevronRight size={15} className="inline" /></Link><span className="text-slate-500">{customerContext ? `${customerContext.requests?.length || 0} prior Direct request${customerContext.requests?.length === 1 ? '' : 's'} · ${customerContext.locations?.length || 0} saved location${customerContext.locations?.length === 1 ? '' : 's'}` : 'Loading customer context…'}</span></div>}
+            {selectedJob.user_id && <div className="mt-3 flex flex-wrap items-center gap-3 text-sm"><Link to={`/direct/admin/customers/${selectedJob.user_id}`} className="font-semibold text-orange-300 hover:text-orange-200">{t('directAdminPortal.openCustomerHistory', { defaultValue: 'Open customer history' })} <ChevronRight size={15} className="inline" /></Link><span className="text-slate-500">{customerContext ? t('directAdminPortal.customerContextStats', { requests: customerContext.requests?.length || 0, locations: customerContext.locations?.length || 0, defaultValue: '{{requests}} prior Direct requests · {{locations}} saved locations' }) : t('directAdminPortal.loadingCustomerContext', { defaultValue: 'Loading customer context…' })}</span></div>}
             <div className="mt-3 flex flex-wrap items-center gap-3">
-              <button type="button" onClick={() => updateSelectedJob('completed')} disabled={actionSaving} className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-200 disabled:opacity-50">Mark complete</button>
-              <button type="button" onClick={() => updateSelectedJob('cancelled')} disabled={actionSaving} className="rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-200 disabled:opacity-50">Cancel job</button>
-              <Link to={`/direct/admin/jobs/${selectedJob.id}`} className="inline-flex items-center gap-2 text-sm font-semibold text-orange-300 hover:text-orange-200">Open full work order <ChevronRight size={15} /></Link>
-              <a href={googleCalendarUrl(selectedJob)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold text-orange-300 hover:text-orange-200">Open in Google Calendar <ChevronRight size={15} /></a>
+              <button type="button" onClick={() => updateSelectedJob('completed')} disabled={actionSaving} className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-200 disabled:opacity-50">{t('directAdminPortal.markComplete', { defaultValue: 'Mark complete' })}</button>
+              <button type="button" onClick={() => updateSelectedJob('cancelled')} disabled={actionSaving} className="rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-200 disabled:opacity-50">{t('directAdminPortal.cancelJob', { defaultValue: 'Cancel job' })}</button>
+              <Link to={`/direct/admin/jobs/${selectedJob.id}`} className="inline-flex items-center gap-2 text-sm font-semibold text-orange-300 hover:text-orange-200">{t('directAdminPortal.openFullWorkOrder', { defaultValue: 'Open full work order' })} <ChevronRight size={15} /></Link>
+              <a href={googleCalendarUrl(selectedJob, t)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold text-orange-300 hover:text-orange-200">{t('directAdminPortal.openInGoogleCalendar', { defaultValue: 'Open in Google Calendar' })} <ChevronRight size={15} /></a>
             </div>
           </div>
         )}
       </SectionCard>
 
-      <SectionCard title="Availability & blackout blocks" eyebrow="Dispatch rules">
-        <p className="text-sm leading-6 text-slate-400">Reserve time for holidays, planned closures, staffing limits, or open availability. Unavailable blocks prevent overlapping schedules.</p>
+      <SectionCard title={t('directAdminPortal.blocksTitle', { defaultValue: 'Availability & blackout blocks' })} eyebrow={t('directAdminPortal.dispatchRules', { defaultValue: 'Dispatch rules' })}>
+        <p className="text-sm leading-6 text-slate-400">{t('directAdminPortal.blocksIntro', { defaultValue: 'Reserve time for holidays, planned closures, staffing limits, or open availability. Unavailable blocks prevent overlapping schedules.' })}</p>
         <form onSubmit={saveCalendarBlock} className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-          <Field label="Block type"><Select value={blockForm.block_type} onChange={(event) => setBlockForm((current) => ({ ...current, block_type: event.target.value }))}><option value="unavailable">Unavailable</option><option value="holiday">Holiday</option><option value="blackout">Blackout</option><option value="availability">Availability</option></Select></Field>
-          <Field label="Title" required><Input required maxLength={200} value={blockForm.title} onChange={(event) => setBlockForm((current) => ({ ...current, title: event.target.value }))} placeholder="Team day off" /></Field>
-          <Field label="Starts" required><Input required type="datetime-local" value={blockForm.starts_at} onChange={(event) => setBlockForm((current) => ({ ...current, starts_at: event.target.value }))} /></Field>
-          <Field label="Ends" required><Input required type="datetime-local" value={blockForm.ends_at} onChange={(event) => setBlockForm((current) => ({ ...current, ends_at: event.target.value }))} /></Field>
-          <Field label="City"><Input maxLength={120} value={blockForm.city} onChange={(event) => setBlockForm((current) => ({ ...current, city: event.target.value }))} placeholder="All cities" /></Field>
-          <div className="flex items-end gap-2"><button type="submit" disabled={blockSaving} className="flex-1 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{blockSaving ? 'Saving…' : editingBlockId ? 'Save changes' : 'Add block'}</button>{editingBlockId && <button type="button" onClick={cancelCalendarBlockEdit} disabled={blockSaving} className="rounded-2xl border border-white/10 px-3 py-3 text-sm font-semibold text-slate-300 disabled:opacity-50">Cancel</button>}</div>
-          <div className="md:col-span-2 xl:col-span-6"><Field label="Notes"><Textarea rows={2} maxLength={5000} value={blockForm.notes} onChange={(event) => setBlockForm((current) => ({ ...current, notes: event.target.value }))} placeholder="Optional dispatch note" /></Field></div>
+          <Field label={t('directAdminPortal.blockTypeLabel', { defaultValue: 'Block type' })}><Select value={blockForm.block_type} onChange={(event) => setBlockForm((current) => ({ ...current, block_type: event.target.value }))}><option value="unavailable">{t('directAdminPortal.blockTypeUnavailable', { defaultValue: 'Unavailable' })}</option><option value="holiday">{t('directAdminPortal.blockTypeHoliday', { defaultValue: 'Holiday' })}</option><option value="blackout">{t('directAdminPortal.blockTypeBlackout', { defaultValue: 'Blackout' })}</option><option value="availability">{t('directAdminPortal.blockTypeAvailability', { defaultValue: 'Availability' })}</option></Select></Field>
+          <Field label={t('directAdminPortal.blockTitleLabel', { defaultValue: 'Title' })} required><Input required maxLength={200} value={blockForm.title} onChange={(event) => setBlockForm((current) => ({ ...current, title: event.target.value }))} placeholder={t('directAdminPortal.blockTitlePlaceholder', { defaultValue: 'Team day off' })} /></Field>
+          <Field label={t('directAdminPortal.blockStartsLabel', { defaultValue: 'Starts' })} required><Input required type="datetime-local" value={blockForm.starts_at} onChange={(event) => setBlockForm((current) => ({ ...current, starts_at: event.target.value }))} /></Field>
+          <Field label={t('directAdminPortal.blockEndsLabel', { defaultValue: 'Ends' })} required><Input required type="datetime-local" value={blockForm.ends_at} onChange={(event) => setBlockForm((current) => ({ ...current, ends_at: event.target.value }))} /></Field>
+          <Field label={t('directAdminPortal.blockCityLabel', { defaultValue: 'City' })}><Input maxLength={120} value={blockForm.city} onChange={(event) => setBlockForm((current) => ({ ...current, city: event.target.value }))} placeholder={t('directAdminPortal.allCities', { defaultValue: 'All cities' })} /></Field>
+          <div className="flex items-end gap-2"><button type="submit" disabled={blockSaving} className="flex-1 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{blockSaving ? t('directAdminPortal.saving', { defaultValue: 'Saving…' }) : editingBlockId ? t('directAdminPortal.saveChanges', { defaultValue: 'Save changes' }) : t('directAdminPortal.addBlock', { defaultValue: 'Add block' })}</button>{editingBlockId && <button type="button" onClick={cancelCalendarBlockEdit} disabled={blockSaving} className="rounded-2xl border border-white/10 px-3 py-3 text-sm font-semibold text-slate-300 disabled:opacity-50">{t('directAdminPortal.cancel', { defaultValue: 'Cancel' })}</button>}</div>
+          <div className="md:col-span-2 xl:col-span-6"><Field label={t('directAdminPortal.blockNotesLabel', { defaultValue: 'Notes' })}><Textarea rows={2} maxLength={5000} value={blockForm.notes} onChange={(event) => setBlockForm((current) => ({ ...current, notes: event.target.value }))} placeholder={t('directAdminPortal.dispatchNotePlaceholder', { defaultValue: 'Optional dispatch note' })} /></Field></div>
         </form>
         {blockError && <div role="alert" className="mt-3 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-200">{blockError}</div>}
         <div className="mt-5 space-y-2">
-          {safeBlocks.length === 0 ? <div className="rounded-2xl border border-dashed border-white/10 p-5 text-sm text-slate-500">No availability or blackout blocks overlap this calendar range.</div> : safeBlocks.map((block) => (
+          {safeBlocks.length === 0 ? <div className="rounded-2xl border border-dashed border-white/10 p-5 text-sm text-slate-500">{t('directAdminPortal.noBlocks', { defaultValue: 'No availability or blackout blocks overlap this calendar range.' })}</div> : safeBlocks.map((block) => (
             <div key={block.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
               <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><Chip tone={block.blockType === 'availability' ? 'emerald' : 'orange'}>{block.blockType}</Chip><span className="font-semibold text-white">{block.title}</span>{block.city && <span className="text-xs text-slate-500">{block.city}</span>}</div><div className="mt-1 text-xs text-slate-400">{formatDateTime(block.startsAt)} – {formatDateTime(block.endsAt)}{block.notes ? ` · ${block.notes}` : ''}</div></div>
-              <div className="flex items-center gap-2"><button type="button" onClick={() => editCalendarBlock(block)} disabled={blockSaving} className="inline-flex items-center gap-1 rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-slate-300 disabled:opacity-50"><Pencil size={13} /> Edit</button><button type="button" onClick={() => removeCalendarBlock(block.id)} disabled={blockSaving} className="rounded-xl border border-red-500/20 px-3 py-2 text-xs font-semibold text-red-200 disabled:opacity-50">Remove</button></div>
+              <div className="flex items-center gap-2"><button type="button" onClick={() => editCalendarBlock(block)} disabled={blockSaving} className="inline-flex items-center gap-1 rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-slate-300 disabled:opacity-50"><Pencil size={13} /> {t('directAdminPortal.edit', { defaultValue: 'Edit' })}</button><button type="button" onClick={() => removeCalendarBlock(block.id)} disabled={blockSaving} className="rounded-xl border border-red-500/20 px-3 py-2 text-xs font-semibold text-red-200 disabled:opacity-50">{t('directAdminPortal.remove', { defaultValue: 'Remove' })}</button></div>
             </div>
           ))}
         </div>
-        {safeAuditEntries.length > 0 && <div className="mt-5 border-t border-white/10 pt-4"><div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Recent calendar history</div><div className="mt-2 space-y-2">{safeAuditEntries.slice(0, 8).map((entry) => <div key={entry.id} className="rounded-xl border border-white/10 bg-slate-900/50 p-3 text-xs text-slate-400"><div className="flex flex-wrap items-center justify-between gap-2"><span className="font-semibold text-slate-200">{String(entry.action || 'calendar_change').replaceAll('_', ' ')}</span><span>{formatDateTime(entry.createdAt)}</span></div><div className="mt-1">{entry.actor?.name || 'System'}{entry.request ? ` · ${entry.request.customerName || entry.request.serviceCategory}` : entry.blockTitle ? ` · ${entry.blockTitle}` : ''}</div></div>)}</div></div>}
+        {safeAuditEntries.length > 0 && <div className="mt-5 border-t border-white/10 pt-4"><div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{t('directAdminPortal.recentCalendarHistory', { defaultValue: 'Recent calendar history' })}</div><div className="mt-2 space-y-2">{safeAuditEntries.slice(0, 8).map((entry) => <div key={entry.id} className="rounded-xl border border-white/10 bg-slate-900/50 p-3 text-xs text-slate-400"><div className="flex flex-wrap items-center justify-between gap-2"><span className="font-semibold text-slate-200">{String(entry.action || 'calendar_change').replaceAll('_', ' ')}</span><span>{formatDateTime(entry.createdAt)}</span></div><div className="mt-1">{entry.actor?.name || 'System'}{entry.request ? ` · ${entry.request.customerName || entry.request.serviceCategory}` : entry.blockTitle ? ` · ${entry.blockTitle}` : ''}</div></div>)}</div></div>}
       </SectionCard>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-        <SectionCard title="Travel density" eyebrow="Route planning">
-          {safeTravelDensity.length === 0 ? <div className="text-sm text-slate-500">No future route data for this range.</div> : <div className="grid gap-2 sm:grid-cols-2">{safeTravelDensity.map((item) => <div key={item.city} className="rounded-2xl border border-white/10 bg-white/5 p-4"><div className="flex items-center justify-between gap-3"><span className="font-semibold text-white">{item.city}</span><Chip tone="emerald">{item.job_count} job{item.job_count === 1 ? '' : 's'}</Chip></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-900"><div className="h-full rounded-full bg-orange-500" style={{ width: `${Math.min(100, (Number(item.job_count) / Math.max(1, jobs.length)) * 100)}%` }} /></div></div>)}</div>}
-          {safeRoutePlan.length > 0 && <div className="mt-5 space-y-2"><div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Suggested daily route</div>{safeRoutePlan.map((plan) => <div key={plan.date} className="rounded-2xl border border-white/10 bg-slate-900/60 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><span className="font-semibold text-white">{new Date(`${plan.date}T12:00:00`).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</span><span className="text-xs text-slate-400">{plan.estimatedMiles} mi · about {plan.estimatedDriveMinutes} min</span></div><div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-300"><span className="text-slate-500">Start: {plan.baseCity || 'Base city'}</span>{(Array.isArray(plan.stops) ? plan.stops.filter(Boolean) : []).map((stop) => <Chip key={`${plan.date}-${stop.city}`} tone={stop.mapped ? 'blue' : 'orange'}>{stop.city} · {stop.jobCount}</Chip>)}</div>{plan.hasUnmappedStops && <div className="mt-2 text-[11px] text-amber-200">Some stops are not mapped to an active service-area coordinate.</div>}</div>)}</div>}
+        <SectionCard title={t('directAdminPortal.travelDensity', { defaultValue: 'Travel density' })} eyebrow={t('directAdminPortal.routePlanning', { defaultValue: 'Route planning' })}>
+          {safeTravelDensity.length === 0 ? <div className="text-sm text-slate-500">{t('directAdminPortal.noRouteData', { defaultValue: 'No future route data for this range.' })}</div> : <div className="grid gap-2 sm:grid-cols-2">{safeTravelDensity.map((item) => <div key={item.city} className="rounded-2xl border border-white/10 bg-white/5 p-4"><div className="flex items-center justify-between gap-3"><span className="font-semibold text-white">{item.city}</span><Chip tone="emerald">{t('directAdminPortal.jobsCount', { count: item.job_count, defaultValue_one: '{{count}} job', defaultValue_other: '{{count}} jobs' })}</Chip></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-900"><div className="h-full rounded-full bg-orange-500" style={{ width: `${Math.min(100, (Number(item.job_count) / Math.max(1, jobs.length)) * 100)}%` }} /></div></div>)}</div>}
+          {safeRoutePlan.length > 0 && <div className="mt-5 space-y-2"><div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{t('directAdminPortal.suggestedRoute', { defaultValue: 'Suggested daily route' })}</div>{safeRoutePlan.map((plan) => <div key={plan.date} className="rounded-2xl border border-white/10 bg-slate-900/60 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><span className="font-semibold text-white">{new Date(`${plan.date}T12:00:00`).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</span><span className="text-xs text-slate-400">{t('directAdminPortal.routeEstimates', { miles: plan.estimatedMiles, minutes: plan.estimatedDriveMinutes, defaultValue: '{{miles}} mi · about {{minutes}} min' })}</span></div><div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-300"><span className="text-slate-500">{t('directAdminPortal.routeStart', { city: plan.baseCity || t('directAdminPortal.baseCityWord', { defaultValue: 'Base city' }), defaultValue: 'Start: {{city}}' })}</span>{(Array.isArray(plan.stops) ? plan.stops.filter(Boolean) : []).map((stop) => <Chip key={`${plan.date}-${stop.city}`} tone={stop.mapped ? 'blue' : 'orange'}>{stop.city} · {t('directAdminPortal.jobsCount', { count: stop.jobCount, defaultValue_one: '{{count}} job', defaultValue_other: '{{count}} jobs' })}</Chip>)}</div>{plan.hasUnmappedStops && <div className="mt-2 text-[11px] text-amber-200">{t('directAdminPortal.unmappedStops', { defaultValue: 'Some stops are not mapped to an active service-area coordinate.' })}</div>}</div>)}</div>}
         </SectionCard>
-        <SectionCard title="Dispatch summary" eyebrow="Operations">
-          <div className="grid grid-cols-2 gap-3"><MiniStat label="Jobs in range" value={jobs.length} icon={CalendarDays} tone="blue" /><MiniStat label="Cities" value={safeTravelDensity.length} icon={MapPin} tone="emerald" /></div>
-          <p className="mt-4 text-xs leading-5 text-slate-500">Counts exclude completed, canceled, and closed requests. Drive estimates use active service-area coordinates and a planning-speed assumption; confirm live traffic before departure.</p>
+        <SectionCard title={t('directAdminPortal.dispatchSummary', { defaultValue: 'Dispatch summary' })} eyebrow={t('directAdminPortal.operationsWord', { defaultValue: 'Operations' })}>
+          <div className="grid grid-cols-2 gap-3"><MiniStat label={t('directAdminPortal.jobsInRange', { defaultValue: 'Jobs in range' })} value={jobs.length} icon={CalendarDays} tone="blue" /><MiniStat label={t('directAdminPortal.citiesWord', { defaultValue: 'Cities' })} value={safeTravelDensity.length} icon={MapPin} tone="emerald" /></div>
+          <p className="mt-4 text-xs leading-5 text-slate-500">{t('directAdminPortal.dispatchSummaryNote', { defaultValue: 'Counts exclude completed, canceled, and closed requests. Drive estimates use active service-area coordinates and a planning-speed assumption; confirm live traffic before departure.' })}</p>
         </SectionCard>
       </div>
     </AdminShell>
@@ -1125,6 +1223,7 @@ function DirectAdminCalendarView() {
 }
 
 function DirectAdminCaseView({ mode }) {
+  const { t } = useTranslation();
   const { id } = useParams();
   const [profile] = useDirectAdminProfile();
   const [request, setRequest] = useState(null);
@@ -1169,17 +1268,17 @@ function DirectAdminCaseView({ mode }) {
           payment_reference: req?.paymentReference || '',
         });
       })
-      .catch((error) => toast.error(error?.response?.data?.error || 'Failed to load Direct record'))
+      .catch((error) => toast.error(error?.response?.data?.error || t('directAdminPortal.failedToLoadRecord', { defaultValue: 'Failed to load Direct record' })))
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [id]);
 
   const header = useMemo(() => {
     switch (mode) {
-      case 'quote': return { title: 'Quote builder', subtitle: 'Turn the customer request into a clean estimate with the next steps attached.' };
-      case 'job': return { title: 'Work order', subtitle: 'Track the active job, status changes, notes, and service details.' };
-      case 'payment': return { title: 'Payment proof review', subtitle: 'Confirm direct payment proof, mark paid, or flag a dispute.' };
-      default: return { title: 'Direct request', subtitle: 'Review and manage the request.' };
+      case 'quote': return { title: t('directAdminPortal.caseQuoteTitle', { defaultValue: 'Quote builder' }), subtitle: t('directAdminPortal.caseQuoteSubtitle', { defaultValue: 'Turn the customer request into a clean estimate with the next steps attached.' }) };
+      case 'job': return { title: t('directAdminPortal.caseJobTitle', { defaultValue: 'Work order' }), subtitle: t('directAdminPortal.caseJobSubtitle', { defaultValue: 'Track the active job, status changes, notes, and service details.' }) };
+      case 'payment': return { title: t('directAdminPortal.casePaymentTitle', { defaultValue: 'Payment proof review' }), subtitle: t('directAdminPortal.casePaymentSubtitle', { defaultValue: 'Confirm direct payment proof, mark paid, or flag a dispute.' }) };
+      default: return { title: t('directAdminPortal.caseDefaultTitle', { defaultValue: 'Direct request' }), subtitle: t('directAdminPortal.caseDefaultSubtitle', { defaultValue: 'Review and manage the request.' }) };
     }
   }, [mode]);
 
@@ -1204,9 +1303,9 @@ function DirectAdminCaseView({ mode }) {
       };
       const { request: updated } = await updateDirectAdminRequest(id, payload);
       setRequest(updated);
-      toast.success('Work order saved.');
+      toast.success(t('directAdminPortal.workOrderSaved', { defaultValue: 'Work order saved.' }));
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Could not save work order.');
+      toast.error(error?.response?.data?.error || t('directAdminPortal.couldNotSaveWorkOrder', { defaultValue: 'Could not save work order.' }));
     } finally {
       setSaving(false);
     }
@@ -1217,9 +1316,9 @@ function DirectAdminCaseView({ mode }) {
     try {
       const { request: updated } = await confirmDirectProof(id, { note: 'Confirmed by Direct admin.' });
       setRequest(updated);
-      toast.success('Proof confirmed.');
+      toast.success(t('directAdminPortal.proofConfirmed', { defaultValue: 'Proof confirmed.' }));
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Could not confirm proof.');
+      toast.error(error?.response?.data?.error || t('directAdminPortal.couldNotConfirmProof', { defaultValue: 'Could not confirm proof.' }));
     } finally {
       setSaving(false);
     }
@@ -1227,9 +1326,9 @@ function DirectAdminCaseView({ mode }) {
 
   if (loading) {
     return (
-      <AdminShell title={header.title} subtitle={header.subtitle} profile={profile} right={<div className="text-sm text-slate-300">Loading…</div>}>
-        <SectionCard title="Loading…" eyebrow="Direct">
-          <div className="text-sm text-slate-400">Fetching the record…</div>
+      <AdminShell title={header.title} subtitle={header.subtitle} profile={profile} right={<div className="text-sm text-slate-300">{t('directAdminPortal.loading', { defaultValue: 'Loading…' })}</div>}>
+        <SectionCard title={t('directAdminPortal.loading', { defaultValue: 'Loading…' })} eyebrow={t('directAdminPortal.directWord', { defaultValue: 'Direct' })}>
+          <div className="text-sm text-slate-400">{t('directAdminPortal.fetchingRecord', { defaultValue: 'Fetching the record…' })}</div>
         </SectionCard>
       </AdminShell>
     );
@@ -1237,9 +1336,9 @@ function DirectAdminCaseView({ mode }) {
 
   if (!request) {
     return (
-      <AdminShell title={header.title} subtitle={header.subtitle} profile={profile} right={<div className="text-sm text-slate-300">No record found.</div>}>
-        <SectionCard title="No record found" eyebrow="Direct">
-          <div className="text-sm text-slate-400">This request is not available.</div>
+      <AdminShell title={header.title} subtitle={header.subtitle} profile={profile} right={<div className="text-sm text-slate-300">{t('directAdminPortal.noRecordFound', { defaultValue: 'No record found.' })}</div>}>
+        <SectionCard title={t('directAdminPortal.noRecordFound', { defaultValue: 'No record found.' })} eyebrow={t('directAdminPortal.directWord', { defaultValue: 'Direct' })}>
+          <div className="text-sm text-slate-400">{t('directAdminPortal.requestNotAvailable', { defaultValue: 'This request is not available.' })}</div>
         </SectionCard>
       </AdminShell>
     );
@@ -1252,27 +1351,27 @@ function DirectAdminCaseView({ mode }) {
       profile={profile}
       right={(
         <div className="space-y-3 text-sm leading-6 text-slate-300">
-          <div><strong className="text-white">Customer:</strong> {request.firstName} {request.lastName}</div>
-          <div><strong className="text-white">Status:</strong> {statusLabel(request.status)}</div>
-          <div><strong className="text-white">Payment:</strong> {request.paymentStatus || 'unpaid'}</div>
+          <div><strong className="text-white">{t('directAdminPortal.customerWord', { defaultValue: 'Customer' })}:</strong> {request.firstName} {request.lastName}</div>
+          <div><strong className="text-white">{t('directAdminPortal.statusWord', { defaultValue: 'Status' })}:</strong> {statusLabel(request.status, t)}</div>
+          <div><strong className="text-white">{t('directAdminPortal.paymentWord', { defaultValue: 'Payment' })}:</strong> {paymentLabel(request.paymentStatus, t)}</div>
           <div className="flex flex-wrap gap-2">
-            <Link to={`/direct/jobs/${request.id}`} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white">Public job view</Link>
-            <Link to="/direct/admin/inbox" className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">Back to inbox</Link>
+            <Link to={`/direct/jobs/${request.id}`} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white">{t('directAdminPortal.publicJobView', { defaultValue: 'Open public job view' })}</Link>
+            <Link to="/direct/admin/inbox" className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">{t('directAdminPortal.backToInbox', { defaultValue: 'Back to inbox' })}</Link>
           </div>
         </div>
       )}
     >
       <div className="grid gap-4 xl:grid-cols-[1fr_0.95fr]">
-        <SectionCard title={request.serviceCategory || 'Direct request'} eyebrow="Record">
+        <SectionCard title={request.serviceCategory || t('directAdminPortal.caseDefaultTitle', { defaultValue: 'Direct request' })} eyebrow={t('directAdminPortal.recordWord', { defaultValue: 'Record' })}>
           <RequestSnapshot request={request} />
           <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
-            <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Details</div>
-            <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-300">{request.details || 'No details provided.'}</p>
+            <div className="text-xs uppercase tracking-[0.18em] text-slate-500">{t('directAdminPortal.notes', { defaultValue: 'Notes' })}</div>
+            <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-300">{request.details || t('directAdminPortal.noDetails', { defaultValue: 'No details provided.' })}</p>
           </div>
           {request.proofAttachment?.url && (
             <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
-              <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Payment proof</div>
-              <a href={request.proofAttachment.url} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-orange-300 underline">Open uploaded proof</a>
+              <div className="text-xs uppercase tracking-[0.18em] text-slate-500">{t('directAdminPortal.paymentProof', { defaultValue: 'Payment proof' })}</div>
+              <a href={request.proofAttachment.url} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-orange-300 underline">{t('directAdminPortal.openUploadedProof', { defaultValue: 'Open uploaded proof' })}</a>
             </div>
           )}
           <div className="mt-4 flex flex-wrap gap-2">
@@ -1284,32 +1383,32 @@ function DirectAdminCaseView({ mode }) {
           </div>
         </SectionCard>
 
-        <SectionCard title="Edit fields" eyebrow="Ops">
+        <SectionCard title={t('directAdminPortal.editFields', { defaultValue: 'Edit fields' })} eyebrow={t('directAdminPortal.ops', { defaultValue: 'Ops' })}>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Status"><Select value={draft.status} onChange={(e) => setDraft((current) => ({ ...current, status: e.target.value }))}>{STATUS_OPTIONS.map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}</Select></Field>
-            <Field label="Payment status"><Select value={draft.payment_status} onChange={(e) => setDraft((current) => ({ ...current, payment_status: e.target.value }))}>{PAYMENT_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}</Select></Field>
-            <Field label="Quote amount (cents)"><Input type="number" value={draft.quote_amount_cents} onChange={(e) => setDraft((current) => ({ ...current, quote_amount_cents: e.target.value }))} /></Field>
-            <Field label="Payment method"><Input value={draft.payment_method} onChange={(e) => setDraft((current) => ({ ...current, payment_method: e.target.value }))} /></Field>
-            <Field label="Payment reference"><Input value={draft.payment_reference} onChange={(e) => setDraft((current) => ({ ...current, payment_reference: e.target.value }))} /></Field>
-            <Field label="Preferred date"><Input type="date" value={draft.preferred_date} onChange={(e) => setDraft((current) => ({ ...current, preferred_date: e.target.value }))} /></Field>
-            <Field label="Time window"><Input value={draft.preferred_time_window} onChange={(e) => setDraft((current) => ({ ...current, preferred_time_window: e.target.value }))} /></Field>
-            <Field label="Service city"><Input value={draft.service_city} onChange={(e) => setDraft((current) => ({ ...current, service_city: e.target.value }))} /></Field>
-            <Field label="Contact name"><Input value={draft.on_site_contact_name} onChange={(e) => setDraft((current) => ({ ...current, on_site_contact_name: e.target.value }))} /></Field>
-            <Field label="Contact phone"><Input value={draft.on_site_contact_phone} onChange={(e) => setDraft((current) => ({ ...current, on_site_contact_phone: e.target.value }))} /></Field>
-            <Field label="Service address"><Input value={draft.service_address} onChange={(e) => setDraft((current) => ({ ...current, service_address: e.target.value }))} /></Field>
+            <Field label={t('directAdminPortal.statusLabel', { defaultValue: 'Status' })}><Select value={draft.status} onChange={(e) => setDraft((current) => ({ ...current, status: e.target.value }))}>{STATUS_OPTIONS.map((item) => <option key={item} value={item}>{statusLabel(item, t)}</option>)}</Select></Field>
+            <Field label={t('directAdminPortal.paymentStatus', { defaultValue: 'Payment status' })}><Select value={draft.payment_status} onChange={(e) => setDraft((current) => ({ ...current, payment_status: e.target.value }))}>{PAYMENT_OPTIONS.map((item) => <option key={item} value={item}>{paymentLabel(item, t)}</option>)}</Select></Field>
+            <Field label={t('directAdminPortal.quoteAmount', { defaultValue: 'Quote amount (cents)' })}><Input type="number" value={draft.quote_amount_cents} onChange={(e) => setDraft((current) => ({ ...current, quote_amount_cents: e.target.value }))} /></Field>
+            <Field label={t('directAdminPortal.paymentMethod', { defaultValue: 'Payment method' })}><Input value={draft.payment_method} onChange={(e) => setDraft((current) => ({ ...current, payment_method: e.target.value }))} /></Field>
+            <Field label={t('directAdminPortal.paymentReference', { defaultValue: 'Payment reference' })}><Input value={draft.payment_reference} onChange={(e) => setDraft((current) => ({ ...current, payment_reference: e.target.value }))} /></Field>
+            <Field label={t('directAdminPortal.preferredDate', { defaultValue: 'Preferred date' })}><Input type="date" value={draft.preferred_date} onChange={(e) => setDraft((current) => ({ ...current, preferred_date: e.target.value }))} /></Field>
+            <Field label={t('directAdminPortal.timeWindow', { defaultValue: 'Time window' })}><Input value={draft.preferred_time_window} onChange={(e) => setDraft((current) => ({ ...current, preferred_time_window: e.target.value }))} /></Field>
+            <Field label={t('directAdminPortal.serviceCity', { defaultValue: 'Service city' })}><Input value={draft.service_city} onChange={(e) => setDraft((current) => ({ ...current, service_city: e.target.value }))} /></Field>
+            <Field label={t('directAdminPortal.contactName', { defaultValue: 'Contact name' })}><Input value={draft.on_site_contact_name} onChange={(e) => setDraft((current) => ({ ...current, on_site_contact_name: e.target.value }))} /></Field>
+            <Field label={t('directAdminPortal.contactPhone', { defaultValue: 'Contact phone' })}><Input value={draft.on_site_contact_phone} onChange={(e) => setDraft((current) => ({ ...current, on_site_contact_phone: e.target.value }))} /></Field>
+            <Field label={t('directAdminPortal.serviceAddress', { defaultValue: 'Service address' })}><Input value={draft.service_address} onChange={(e) => setDraft((current) => ({ ...current, service_address: e.target.value }))} /></Field>
           </div>
           <div className="mt-4">
-            <Field label="Access notes"><Textarea rows={4} value={draft.access_notes} onChange={(e) => setDraft((current) => ({ ...current, access_notes: e.target.value }))} /></Field>
+            <Field label={t('directAdminPortal.accessNotes', { defaultValue: 'Access notes' })}><Textarea rows={4} value={draft.access_notes} onChange={(e) => setDraft((current) => ({ ...current, access_notes: e.target.value }))} /></Field>
           </div>
           <div className="mt-4">
-            <Field label="Internal note"><Textarea rows={4} value={note} onChange={(e) => setNote(e.target.value)} hint="Visible to staff, not exposed publicly." /></Field>
+            <Field label={t('directAdminPortal.internalNote', { defaultValue: 'Internal note' })}><Textarea rows={4} value={note} onChange={(e) => setNote(e.target.value)} hint={t('directAdminPortal.internalNoteHint', { defaultValue: 'Visible to staff, not exposed publicly.' })} /></Field>
           </div>
           <div className="mt-4 flex flex-wrap gap-3">
-            <button type="button" onClick={save} disabled={saving} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{saving ? 'Saving…' : 'Save changes'}</button>
+            <button type="button" onClick={save} disabled={saving} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{saving ? t('directAdminPortal.saving', { defaultValue: 'Saving…' }) : t('directAdminPortal.saveChanges', { defaultValue: 'Save changes' })}</button>
             {mode === 'payment' && (
               <>
-                <button type="button" onClick={confirmProof} disabled={saving} className="rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">Confirm proof</button>
-                <button type="button" onClick={() => setDraft((current) => ({ ...current, payment_status: 'disputed' }))} disabled={saving} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">Mark disputed</button>
+                <button type="button" onClick={confirmProof} disabled={saving} className="rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{t('directAdminPortal.confirmProof', { defaultValue: 'Confirm proof' })}</button>
+                <button type="button" onClick={() => setDraft((current) => ({ ...current, payment_status: 'disputed' }))} disabled={saving} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">{t('directAdminPortal.markDisputed', { defaultValue: 'Mark disputed' })}</button>
               </>
             )}
           </div>
@@ -1320,25 +1419,46 @@ function DirectAdminCaseView({ mode }) {
 }
 
 function DirectAdminCustomerView() {
+  const { t } = useTranslation();
   const { userId } = useParams();
   const [profile] = useDirectAdminProfile();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
   useEffect(() => {
     let active = true;
     setLoading(true);
+    setError('');
     getDirectAdminCustomer(userId)
-      .then((next) => { if (active) setData(next?.customer || null); })
-      .catch((error) => toast.error(error?.response?.data?.error || 'Failed to load customer'));
-    return () => { active = false; setLoading(false); };
-  }, [userId]);
+      .then((next) => {
+        if (!active) return;
+        setData(next?.customer || null);
+        setLoading(false);
+      })
+      .catch((loadError) => {
+        if (!active) return;
+        const message = loadError?.response?.data?.error || t('directAdminPortal.failedToLoadCustomer', { defaultValue: 'Failed to load customer' });
+        setError(message);
+        toast.error(message);
+        setLoading(false);
+      });
+    return () => { active = false; };
+  }, [userId, reloadKey, t]);
   return (
-    <AdminShell title={`Customer CRM ${userId ? `#${userId}` : ''}`} subtitle="See repeat work, preferences, and saved locations for a customer." profile={profile} right={<div className="text-sm text-slate-300">Use this to understand repeat work and preferences.</div>}>
-      {loading || !data ? (
-        <SectionCard title="Loading…" eyebrow="Customer"><div className="text-sm text-slate-400">Fetching customer details…</div></SectionCard>
-      ) : (
+    <AdminShell title={t('directAdminPortal.customerCrmTitle', { id: userId || '', defaultValue: 'Customer CRM #{{id}}' })} subtitle={t('directAdminPortal.customerCrmSubtitle', { defaultValue: 'See repeat work, preferences, and saved locations for a customer.' })} profile={profile} right={<div className="text-sm text-slate-300">{t('directAdminPortal.customerCrmRight', { defaultValue: 'Use this to understand repeat work and preferences.' })}</div>}>
+      {loading ? (
+        <SectionCard title={t('directAdminPortal.loading', { defaultValue: 'Loading…' })} eyebrow={t('directAdminPortal.customerWord', { defaultValue: 'Customer' })}><div className="text-sm text-slate-400">{t('directAdminPortal.fetchingCustomer', { defaultValue: 'Fetching customer details…' })}</div></SectionCard>
+      ) : error ? (
+        <SectionCard title={t('directAdminPortal.customerErrorTitle', { defaultValue: 'Customer details unavailable' })} eyebrow={t('directAdminPortal.customerWord', { defaultValue: 'Customer' })}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-red-200">{error}</p>
+            <button type="button" onClick={() => setReloadKey((current) => current + 1)} className="rounded-xl border border-red-400/30 px-3 py-2 text-xs font-semibold text-red-100 hover:bg-red-500/10">{t('directAdminPortal.retry', { defaultValue: 'Try again' })}</button>
+          </div>
+        </SectionCard>
+      ) : data ? (
         <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-          <SectionCard title="Requests" eyebrow="History">
+          <SectionCard title={t('directAdminPortal.requestsWord', { defaultValue: 'Requests' })} eyebrow={t('directAdminPortal.historyWord', { defaultValue: 'History' })}>
             <div className="space-y-2">
               {(data.requests || []).map((item) => (
                 <Link key={item.id} to={`/direct/admin/jobs/${item.id}`} className="block rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -1347,17 +1467,17 @@ function DirectAdminCustomerView() {
                       <div className="font-semibold text-white">{item.serviceCategory}</div>
                       <div className="mt-1 text-sm text-slate-400">{item.serviceLocation || item.serviceCity || '—'}</div>
                     </div>
-                    <Chip tone="blue">{statusLabel(item.status)}</Chip>
+                    <Chip tone="blue">{statusLabel(item.status, t)}</Chip>
                   </div>
                 </Link>
               ))}
             </div>
           </SectionCard>
-          <SectionCard title="Locations" eyebrow="CRM">
+          <SectionCard title={t('directAdminPortal.locationsWord', { defaultValue: 'Locations' })} eyebrow={t('directAdminPortal.crmWord', { defaultValue: 'CRM' })}>
             <div className="space-y-2">
               {(data.locations || []).map((location) => (
                 <div key={location.id} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
-                  <div className="font-semibold text-white">{location.label}{location.isDefault ? ' · default' : ''}</div>
+                  <div className="font-semibold text-white">{location.label}{location.isDefault ? t('directAdminPortal.defaultSuffix', { defaultValue: ' · default' }) : ''}</div>
                   <div className="mt-1">{location.addressLine1}{location.addressLine2 ? `, ${location.addressLine2}` : ''}</div>
                   <div>{location.city}{location.region ? `, ${location.region}` : ''} {location.postalCode}</div>
                 </div>
@@ -1365,12 +1485,17 @@ function DirectAdminCustomerView() {
             </div>
           </SectionCard>
         </div>
+      ) : (
+        <SectionCard title={t('directAdminPortal.noRecordFound', { defaultValue: 'No record found.' })} eyebrow={t('directAdminPortal.customerWord', { defaultValue: 'Customer' })}>
+          <div className="text-sm text-slate-400">{t('directAdminPortal.requestNotAvailable', { defaultValue: 'This request is not available.' })}</div>
+        </SectionCard>
       )}
     </AdminShell>
   );
 }
 
 function DirectAdminSettingsView() {
+  const { t } = useTranslation();
   const [profile, setProfile] = useDirectAdminProfile();
   const [saving, setSaving] = useState(false);
   const update = (key) => (e) => setProfile((current) => ({ ...current, [key]: e.target.value }));
@@ -1391,54 +1516,54 @@ function DirectAdminSettingsView() {
         supportEmail: profile.supportEmail,
         supportPhone: profile.supportPhone,
       });
-      toast.success('Direct settings saved.');
+      toast.success(t('directAdminPortal.settingsSaved', { defaultValue: 'Direct settings saved.' }));
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Could not save settings.');
+      toast.error(error?.response?.data?.error || t('directAdminPortal.couldNotSaveSettings', { defaultValue: 'Could not save settings.' }));
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <AdminShell title="Service area and tools" subtitle="Update the company-owned Direct offer without redesigning the page." profile={profile} right={<div className="text-sm text-slate-300">These settings drive the public Direct landing page.</div>}>
+    <AdminShell title={t('directAdminPortal.serviceAreaTitle', { defaultValue: 'Service area and tools' })} subtitle={t('directAdminPortal.serviceAreaBody', { defaultValue: 'Update the company-owned Direct offer without redesigning the page.' })} profile={profile} right={<div className="text-sm text-slate-300">{t('directAdminPortal.settingsRight', { defaultValue: 'These settings drive the public Direct landing page.' })}</div>}>
       <div className="grid gap-4 xl:grid-cols-[1fr_0.9fr]">
-        <SectionCard title="Public settings" eyebrow="Direct">
+        <SectionCard title={t('directAdminPortal.publicSettings', { defaultValue: 'Public settings' })} eyebrow={t('directAdminPortal.directWord', { defaultValue: 'Direct' })}>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Company name"><Input value={profile.companyName} onChange={update('companyName')} /></Field>
-            <Field label="Base city"><Input value={profile.baseCity} onChange={update('baseCity')} /></Field>
-            <Field label="Starting price (cents)"><Input type="number" value={profile.minimumPriceCents} onChange={(e) => setProfile((current) => ({ ...current, minimumPriceCents: Number(e.target.value) || 0 }))} /></Field>
-            <Field label="Availability text"><Input value={profile.availabilityText} onChange={update('availabilityText')} /></Field>
+            <Field label={t('directAdminPortal.companyName', { defaultValue: 'Company name' })}><Input value={profile.companyName} onChange={update('companyName')} /></Field>
+            <Field label={t('directAdminPortal.baseCityWord', { defaultValue: 'Base city' })}><Input value={profile.baseCity} onChange={update('baseCity')} /></Field>
+            <Field label={t('directAdminPortal.startingPriceCents', { defaultValue: 'Starting price (cents)' })}><Input type="number" value={profile.minimumPriceCents} onChange={(e) => setProfile((current) => ({ ...current, minimumPriceCents: Number(e.target.value) || 0 }))} /></Field>
+            <Field label={t('directAdminPortal.availabilityTextLabel', { defaultValue: 'Availability text' })}><Input value={profile.availabilityText} onChange={update('availabilityText')} /></Field>
           </div>
           <div className="mt-4">
-            <Field label="Headline"><Textarea rows={3} value={profile.headline} onChange={update('headline')} /></Field>
+            <Field label={t('directAdminPortal.headlineLabel', { defaultValue: 'Headline' })}><Textarea rows={3} value={profile.headline} onChange={update('headline')} /></Field>
           </div>
           <div className="mt-4">
-            <Field label="Public note"><Textarea rows={4} value={profile.publicNote} onChange={update('publicNote')} /></Field>
+            <Field label={t('directAdminPortal.publicNoteLabel', { defaultValue: 'Public note' })}><Textarea rows={4} value={profile.publicNote} onChange={update('publicNote')} /></Field>
           </div>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <Field label="Service areas (comma separated)"><Textarea rows={4} value={profile.serviceAreas.join(', ')} onChange={(e) => setProfile((current) => ({ ...current, serviceAreas: e.target.value.split(',').map((item) => item.trim()).filter(Boolean) }))} /></Field>
-            <Field label="Tools (comma separated)"><Textarea rows={4} value={profile.tools.join(', ')} onChange={(e) => setProfile((current) => ({ ...current, tools: e.target.value.split(',').map((item) => item.trim()).filter(Boolean) }))} /></Field>
+            <Field label={t('directAdminPortal.serviceAreasLabel', { defaultValue: 'Service areas (comma separated)' })}><Textarea rows={4} value={profile.serviceAreas.join(', ')} onChange={(e) => setProfile((current) => ({ ...current, serviceAreas: e.target.value.split(',').map((item) => item.trim()).filter(Boolean) }))} /></Field>
+            <Field label={t('directAdminPortal.toolsLabel', { defaultValue: 'Tools (comma separated)' })}><Textarea rows={4} value={profile.tools.join(', ')} onChange={(e) => setProfile((current) => ({ ...current, tools: e.target.value.split(',').map((item) => item.trim()).filter(Boolean) }))} /></Field>
           </div>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <Field label="Travel days"><Textarea rows={3} value={profile.travelDays.join(', ')} onChange={(e) => setProfile((current) => ({ ...current, travelDays: e.target.value.split(',').map((item) => item.trim()).filter(Boolean) }))} /></Field>
-            <Field label="Travel cities"><Textarea rows={3} value={profile.travelCities.join(', ')} onChange={(e) => setProfile((current) => ({ ...current, travelCities: e.target.value.split(',').map((item) => item.trim()).filter(Boolean) }))} /></Field>
+            <Field label={t('directAdminPortal.travelDays', { defaultValue: 'Travel days' })}><Textarea rows={3} value={profile.travelDays.join(', ')} onChange={(e) => setProfile((current) => ({ ...current, travelDays: e.target.value.split(',').map((item) => item.trim()).filter(Boolean) }))} /></Field>
+            <Field label={t('directAdminPortal.travelCities', { defaultValue: 'Travel cities' })}><Textarea rows={3} value={profile.travelCities.join(', ')} onChange={(e) => setProfile((current) => ({ ...current, travelCities: e.target.value.split(',').map((item) => item.trim()).filter(Boolean) }))} /></Field>
           </div>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <Field label="Support email"><Input value={profile.supportEmail || ''} onChange={update('supportEmail')} /></Field>
-            <Field label="Support phone"><Input value={profile.supportPhone || ''} onChange={update('supportPhone')} /></Field>
+            <Field label={t('directAdminPortal.supportEmail', { defaultValue: 'Support email' })}><Input value={profile.supportEmail || ''} onChange={update('supportEmail')} /></Field>
+            <Field label={t('directAdminPortal.supportPhone', { defaultValue: 'Support phone' })}><Input value={profile.supportPhone || ''} onChange={update('supportPhone')} /></Field>
           </div>
           <div className="mt-4">
-            <button type="button" onClick={save} disabled={saving} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{saving ? 'Saving…' : 'Save settings'}</button>
+            <button type="button" onClick={save} disabled={saving} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{saving ? t('directAdminPortal.saving', { defaultValue: 'Saving…' }) : t('directAdminPortal.saveSettings', { defaultValue: 'Save settings' })}</button>
           </div>
         </SectionCard>
 
-        <SectionCard title="Preview" eyebrow="Public page">
+        <SectionCard title={t('directAdminPortal.preview', { defaultValue: 'Preview' })} eyebrow={t('directAdminPortal.publicPageWord', { defaultValue: 'Public page' })}>
           <div className="space-y-4 text-sm leading-6 text-slate-300">
-            <div><strong className="text-white">Minimum price:</strong> {currencyLabel(profile.minimumPriceCents)}</div>
-            <div><strong className="text-white">Service area:</strong> {(profile.serviceAreas || []).join(', ')}</div>
-            <div><strong className="text-white">Tools:</strong> {(profile.tools || []).slice(0, 6).join(', ')}{(profile.tools || []).length > 6 ? '…' : ''}</div>
-            <div><strong className="text-white">Travel days:</strong> {(profile.travelDays || []).join(', ')}</div>
-            <div><strong className="text-white">Travel cities:</strong> {(profile.travelCities || []).join(', ')}</div>
+            <div><strong className="text-white">{t('directAdminPortal.minimumPrice', { defaultValue: 'Minimum price' })}:</strong> {currencyLabel(profile.minimumPriceCents)}</div>
+            <div><strong className="text-white">{t('directAdminPortal.serviceArea', { defaultValue: 'Service area' })}:</strong> {(profile.serviceAreas || []).join(', ')}</div>
+            <div><strong className="text-white">{t('directAdminPortal.toolsWord', { defaultValue: 'Tools' })}:</strong> {(profile.tools || []).slice(0, 6).join(', ')}{(profile.tools || []).length > 6 ? '…' : ''}</div>
+            <div><strong className="text-white">{t('directAdminPortal.travelDays', { defaultValue: 'Travel days' })}:</strong> {(profile.travelDays || []).join(', ')}</div>
+            <div><strong className="text-white">{t('directAdminPortal.travelCities', { defaultValue: 'Travel cities' })}:</strong> {(profile.travelCities || []).join(', ')}</div>
           </div>
         </SectionCard>
       </div>
@@ -1447,47 +1572,105 @@ function DirectAdminSettingsView() {
 }
 
 function DirectAdminReportsView() {
+  const { t } = useTranslation();
   const [profile] = useDirectAdminProfile();
   const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
   useEffect(() => {
-    getDirectAdminReports().then((data) => setReport(data?.report || null)).catch(() => {});
-  }, []);
+    let active = true;
+    setLoading(true);
+    setError('');
+    getDirectAdminReports()
+      .then((data) => {
+        if (!active) return;
+        setReport(data?.report || null);
+        setLoading(false);
+      })
+      .catch((loadError) => {
+        if (!active) return;
+        setError(loadError?.response?.data?.error || t('directAdminPortal.reportsLoadError', { defaultValue: 'Could not load reports.' }));
+        setLoading(false);
+      });
+    return () => { active = false; };
+  }, [reloadKey, t]);
   return (
-    <AdminShell title="Reporting" subtitle="Leads, conversion, completed work, and payment status at a glance." profile={profile} right={<div className="text-sm text-slate-300">Use this for weekly review.</div>}>
+    <AdminShell title={t('directAdminPortal.reporting', { defaultValue: 'Reporting' })} subtitle={t('directAdminPortal.reportingSubtitle', { defaultValue: 'Leads, conversion, completed work, and payment status at a glance.' })} profile={profile} right={<div className="text-sm text-slate-300">{t('directAdminPortal.weeklyReview', { defaultValue: 'Use this for weekly review.' })}</div>}>
+      {loading ? (
+        <SectionCard title={t('directAdminPortal.loading', { defaultValue: 'Loading…' })} eyebrow={t('directAdminPortal.reporting', { defaultValue: 'Reporting' })}>
+          <div className="text-sm text-slate-400">{t('directAdminPortal.fetchingData', { defaultValue: 'Fetching Direct operations data…' })}</div>
+        </SectionCard>
+      ) : error ? (
+        <SectionCard title={t('directAdminPortal.reportsErrorTitle', { defaultValue: 'Reports unavailable' })} eyebrow={t('directAdminPortal.reporting', { defaultValue: 'Reporting' })}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-red-200">{error}</p>
+            <button type="button" onClick={() => setReloadKey((current) => current + 1)} className="rounded-xl border border-red-400/30 px-3 py-2 text-xs font-semibold text-red-100 hover:bg-red-500/10">{t('directAdminPortal.retry', { defaultValue: 'Try again' })}</button>
+          </div>
+        </SectionCard>
+      ) : (
+      <>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MiniStat label="Total requests" value={report?.total_requests || 0} icon={ClipboardList} tone="blue" />
-        <MiniStat label="Accepted" value={report?.accepted_requests || 0} icon={CheckCircle2} tone="emerald" />
-        <MiniStat label="Completed" value={report?.completed_requests || 0} icon={TrendingUp} tone="violet" />
-        <MiniStat label="Outstanding" value={report?.outstanding_payments || 0} icon={AlertTriangle} tone="orange" />
+        <MiniStat label={t('directAdminPortal.miniTotalRequests', { defaultValue: 'Total requests' })} value={report?.total_requests || 0} icon={ClipboardList} tone="blue" />
+        <MiniStat label={t('directAdminPortal.miniAccepted', { defaultValue: 'Accepted' })} value={report?.accepted_requests || 0} icon={CheckCircle2} tone="emerald" />
+        <MiniStat label={t('directAdminPortal.miniCompleted', { defaultValue: 'Completed' })} value={report?.completed_requests || 0} icon={TrendingUp} tone="violet" />
+        <MiniStat label={t('directAdminPortal.miniOutstanding', { defaultValue: 'Outstanding' })} value={report?.outstanding_payments || 0} icon={AlertTriangle} tone="orange" />
       </div>
       <div className="mt-4">
-        <SectionCard title="Summary" eyebrow="Ops">
+        <SectionCard title={t('directAdminPortal.summary', { defaultValue: 'Summary' })} eyebrow={t('directAdminPortal.ops', { defaultValue: 'Ops' })}>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 text-sm text-slate-300">
-            <InfoRow label="Requested" value={report?.requested_requests || 0} />
-            <InfoRow label="Quoted" value={report?.quoted_requests || 0} />
-            <InfoRow label="Scheduled" value={report?.scheduled_requests || 0} />
-            <InfoRow label="Confirmed payments" value={report?.confirmed_payments || 0} />
-            <InfoRow label="Outstanding payments" value={report?.outstanding_payments || 0} />
-            <InfoRow label="Total" value={report?.total_requests || 0} />
+            <InfoRow label={t('directAdminPortal.infoRequested', { defaultValue: 'Requested' })} value={report?.requested_requests || 0} />
+            <InfoRow label={t('directAdminPortal.infoQuoted', { defaultValue: 'Quoted' })} value={report?.quoted_requests || 0} />
+            <InfoRow label={t('directAdminPortal.infoScheduled', { defaultValue: 'Scheduled' })} value={report?.scheduled_requests || 0} />
+            <InfoRow label={t('directAdminPortal.infoConfirmedPayments', { defaultValue: 'Confirmed payments' })} value={report?.confirmed_payments || 0} />
+            <InfoRow label={t('directAdminPortal.infoOutstandingPayments', { defaultValue: 'Outstanding payments' })} value={report?.outstanding_payments || 0} />
+            <InfoRow label={t('directAdminPortal.infoTotal', { defaultValue: 'Total' })} value={report?.total_requests || 0} />
           </div>
         </SectionCard>
       </div>
+      </>
+      )}
     </AdminShell>
   );
 }
 
 function DirectAdminTeamView() {
+  const { t } = useTranslation();
   const [profile] = useDirectAdminProfile();
   const [team, setTeam] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
   useEffect(() => {
-    getDirectAdminTeam().then((data) => setTeam(Array.isArray(data?.members) ? data.members : [])).catch(() => {});
-  }, []);
+    let active = true;
+    setLoading(true);
+    setError('');
+    getDirectAdminTeam()
+      .then((data) => {
+        if (!active) return;
+        setTeam(Array.isArray(data?.members) ? data.members : []);
+        setLoading(false);
+      })
+      .catch((loadError) => {
+        if (!active) return;
+        setError(loadError?.response?.data?.error || t('directAdminPortal.teamLoadError', { defaultValue: 'Could not load team.' }));
+        setLoading(false);
+      });
+    return () => { active = false; };
+  }, [reloadKey, t]);
   return (
-    <AdminShell title="Team access" subtitle="See which staff members can access the Direct ops flow." profile={profile} right={<div className="text-sm text-slate-300">Grant access from your main admin user management later if needed.</div>}>
-      <SectionCard title="Staff" eyebrow="Access">
+    <AdminShell title={t('directAdminPortal.teamAccess', { defaultValue: 'Team access' })} subtitle={t('directAdminPortal.teamAccessSubtitle', { defaultValue: 'See which staff members can access the Direct ops flow.' })} profile={profile} right={<div className="text-sm text-slate-300">{t('directAdminPortal.grantAccess', { defaultValue: 'Grant access from your main admin user management later if needed.' })}</div>}>
+      <SectionCard title={t('directAdminPortal.staff', { defaultValue: 'Staff' })} eyebrow={t('directAdminPortal.access', { defaultValue: 'Access' })}>
         <div className="space-y-2">
-          {team.length === 0 ? (
-            <div className="text-sm text-slate-500">No team members found.</div>
+          {loading ? (
+            <div className="text-sm text-slate-400">{t('directAdminPortal.loading', { defaultValue: 'Loading…' })}</div>
+          ) : error ? (
+            <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-200">
+              <span>{error}</span>
+              <button type="button" onClick={() => setReloadKey((current) => current + 1)} className="rounded-xl border border-red-400/30 px-3 py-2 text-xs font-semibold text-red-100 hover:bg-red-500/10">{t('directAdminPortal.retry', { defaultValue: 'Try again' })}</button>
+            </div>
+          ) : team.length === 0 ? (
+            <div className="text-sm text-slate-500">{t('directAdminPortal.noTeamMembers', { defaultValue: 'No team members found.' })}</div>
           ) : team.map((member) => (
             <div key={member.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
               <div className="flex items-center justify-between gap-3">
@@ -1506,11 +1689,12 @@ function DirectAdminTeamView() {
 }
 
 function DirectAdminEmailTestView() {
+  const { t } = useTranslation();
   const [profile] = useDirectAdminProfile();
   const { user, loading, isStaff } = useAdminAccess();
   const [recipientEmail, setRecipientEmail] = useState('');
-  const [subject, setSubject] = useState('OxSteed email test');
-  const [message, setMessage] = useState('If you received this, the OxSteed email system is working.');
+  const [subject, setSubject] = useState(() => t('directAdminPortal.emailTestDefaultSubject', { defaultValue: 'OxSteed email test' }));
+  const [message, setMessage] = useState(() => t('directAdminPortal.emailTestDefaultMessage', { defaultValue: 'If you received this, the OxSteed email system is working.' }));
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState(null);
 
@@ -1521,7 +1705,7 @@ function DirectAdminEmailTestView() {
   if (loading) {
     return (
       <PageShell>
-        <div className="mx-auto max-w-4xl px-4 py-10 text-slate-300">Loading…</div>
+        <div className="mx-auto max-w-4xl px-4 py-10 text-slate-300">{t('directAdminPortal.loading', { defaultValue: 'Loading…' })}</div>
       </PageShell>
     );
   }
@@ -1531,7 +1715,7 @@ function DirectAdminEmailTestView() {
   const handleSend = async () => {
     const nextRecipient = recipientEmail.trim() || user?.email || '';
     if (!nextRecipient) {
-      toast.error('Recipient email is required.');
+      toast.error(t('directAdminPortal.recipientRequired', { defaultValue: 'Recipient email is required.' }));
       return;
     }
 
@@ -1540,13 +1724,13 @@ function DirectAdminEmailTestView() {
     try {
       const data = await sendDirectAdminTestEmail({
         recipientEmail: nextRecipient,
-        subject: subject.trim() || 'OxSteed email test',
-        message: message.trim() || 'If you received this, the OxSteed email system is working.',
+        subject: subject.trim() || t('directAdminPortal.emailTestDefaultSubject', { defaultValue: 'OxSteed email test' }),
+        message: message.trim() || t('directAdminPortal.emailTestDefaultMessage', { defaultValue: 'If you received this, the OxSteed email system is working.' }),
       });
       setResult({ status: 'success', ...data });
-      toast.success(`Test email sent to ${data.recipientEmail || nextRecipient}.`);
+      toast.success(t('directAdminPortal.testEmailSent', { defaultValue: 'Test email sent to {{email}}' }).replace('{{email}}', data.recipientEmail || nextRecipient));
     } catch (error) {
-      const errorMessage = error?.response?.data?.error || 'Could not send test email.';
+      const errorMessage = error?.response?.data?.error || t('directAdminPortal.couldNotSendTestEmail', { defaultValue: 'Could not send test email.' });
       setResult({ status: 'error', error: errorMessage });
       toast.error(errorMessage);
     } finally {
@@ -1556,54 +1740,54 @@ function DirectAdminEmailTestView() {
 
   return (
     <AdminShell
-      title="Email test"
-      subtitle="Send a real email through the live Direct mail configuration and confirm delivery before using it in production flows."
+      title={t('directAdminPortal.emailTestTitle', { defaultValue: 'Email test' })}
+      subtitle={t('directAdminPortal.emailTestSubtitle', { defaultValue: 'Send a real email through the live Direct mail configuration and confirm delivery before using it in production flows.' })}
       profile={profile}
       right={(
         <div className="space-y-3 text-sm leading-6 text-slate-300">
-          <div>This page uses the same mail transport Direct requests rely on.</div>
-          <div>Default recipient: your signed-in admin email.</div>
-          <div>If it fails, check the provider keys and from-address settings in Coolify.</div>
+          <div>{t('directAdminPortal.emailTestRight1', { defaultValue: 'This page uses the same mail transport Direct requests rely on.' })}</div>
+          <div>{t('directAdminPortal.emailTestRight2', { defaultValue: 'Default recipient: your signed-in admin email.' })}</div>
+          <div>{t('directAdminPortal.emailTestRight3', { defaultValue: 'If it fails, check the provider keys and from-address settings in Coolify.' })}</div>
         </div>
       )}
     >
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <SectionCard title="Send a test email" eyebrow="Email">
+        <SectionCard title={t('directAdminPortal.sendTestEmail', { defaultValue: 'Send a test email' })} eyebrow={t('directAdminPortal.emailWord', { defaultValue: 'Email' })}>
           <div className="grid gap-4">
-            <Field label="Recipient email" required hint="Defaults to your signed-in admin email.">
+            <Field label={t('directAdminPortal.recipientEmail', { defaultValue: 'Recipient email' })} required hint={t('directAdminPortal.recipientHint', { defaultValue: 'Defaults to your signed-in admin email.' })}>
               <Input
                 type="email"
                 value={recipientEmail}
                 onChange={(event) => setRecipientEmail(event.target.value)}
-                placeholder={user?.email || 'name@example.com'}
+                placeholder={user?.email || t('directAdminPortal.emailPlaceholder', { defaultValue: 'name@example.com' })}
               />
             </Field>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Subject" required>
+              <Field label={t('directAdminPortal.subjectWord', { defaultValue: 'Subject' })} required>
                 <Input value={subject} onChange={(event) => setSubject(event.target.value)} />
               </Field>
-              <Field label="Quick actions">
+              <Field label={t('directAdminPortal.quickActions', { defaultValue: 'Quick actions' })}>
                 <div className="flex flex-wrap gap-3">
                   <button
                     type="button"
                     onClick={() => setRecipientEmail(user?.email || '')}
                     className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10"
                   >
-                    Use my email
+                    {t('directAdminPortal.useMyEmail', { defaultValue: 'Use my email' })}
                   </button>
                   <button
                     type="button"
-                    onClick={() => setSubject('OxSteed email test')}
+                    onClick={() => setSubject(t('directAdminPortal.emailTestDefaultSubject', { defaultValue: 'OxSteed email test' }))}
                     className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10"
                   >
-                    Reset subject
+                    {t('directAdminPortal.resetSubject', { defaultValue: 'Reset subject' })}
                   </button>
                 </div>
               </Field>
             </div>
 
-            <Field label="Message" required hint="This becomes the body of the email.">
+            <Field label={t('directAdminPortal.messageWord', { defaultValue: 'Message' })} required hint={t('directAdminPortal.messageHint', { defaultValue: 'This becomes the body of the email.' })}>
               <Textarea rows={7} value={message} onChange={(event) => setMessage(event.target.value)} />
             </Field>
 
@@ -1615,40 +1799,40 @@ function DirectAdminEmailTestView() {
                 className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Mail size={15} />
-                {sending ? 'Sending…' : 'Send test email'}
+                {sending ? t('directAdminPortal.sending', { defaultValue: 'Sending…' }) : t('directAdminPortal.sendTestEmail', { defaultValue: 'Send a test email' })}
               </button>
             </div>
           </div>
         </SectionCard>
 
         <div className="space-y-6">
-          <SectionCard title="What this checks" eyebrow="Verification">
+          <SectionCard title={t('directAdminPortal.whatThisChecks', { defaultValue: 'What this checks' })} eyebrow={t('directAdminPortal.verificationWord', { defaultValue: 'Verification' })}>
             <div className="space-y-3 text-sm leading-6 text-slate-300">
-              <p>It sends a real transactional email using the live Direct mail configuration.</p>
-              <p>It confirms the sender, recipient, subject, and HTML rendering all work together.</p>
-              <p>Use it after changing API keys, from-address settings, or deployment env vars.</p>
+              <p>{t('directAdminPortal.emailCheck1', { defaultValue: 'It sends a real transactional email using the live Direct mail configuration.' })}</p>
+              <p>{t('directAdminPortal.emailCheck2', { defaultValue: 'It confirms the sender, recipient, subject, and HTML rendering all work together.' })}</p>
+              <p>{t('directAdminPortal.emailCheck3', { defaultValue: 'Use it after changing API keys, from-address settings, or deployment env vars.' })}</p>
             </div>
           </SectionCard>
 
-          <SectionCard title="Latest result" eyebrow="Status">
+          <SectionCard title={t('directAdminPortal.latestResult', { defaultValue: 'Latest result' })} eyebrow={t('directAdminPortal.statusWord', { defaultValue: 'Status' })}>
             {result ? (
               result.status === 'success' ? (
                 <div className="space-y-3 text-sm leading-6 text-slate-300">
                   <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-emerald-100">
-                    Test email sent successfully.
+                    {t('directAdminPortal.emailSentSuccess', { defaultValue: 'Test email sent successfully.' })}
                   </div>
-                  <InfoRow label="Recipient" value={result.recipientEmail} />
-                  <InfoRow label="Subject" value={result.subject} />
-                  <InfoRow label="Provider message ID" value={result.providerMessageId || '—'} />
+                  <InfoRow label={t('directAdminPortal.recipientEmail', { defaultValue: 'Recipient email' })} value={result.recipientEmail} />
+                  <InfoRow label={t('directAdminPortal.subjectWord', { defaultValue: 'Subject' })} value={result.subject} />
+                  <InfoRow label={t('directAdminPortal.providerMessageId', { defaultValue: 'Provider message ID' })} value={result.providerMessageId || '—'} />
                 </div>
               ) : (
                 <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm leading-6 text-red-100">
-                  {result.error || 'The email test failed.'}
+                  {result.error || t('directAdminPortal.emailTestFailed', { defaultValue: 'The email test failed.' })}
                 </div>
               )
             ) : (
               <div className="text-sm leading-6 text-slate-400">
-                No test has been sent yet. Use the button above to confirm the mail stack.
+                {t('directAdminPortal.noTestSentYet', { defaultValue: 'No test has been sent yet. Use the button above to confirm the mail stack.' })}
               </div>
             )}
           </SectionCard>
@@ -1659,6 +1843,7 @@ function DirectAdminEmailTestView() {
 }
 
 function DirectAdminLanding() {
+  const { t } = useTranslation();
   const [profile] = useDirectAdminProfile();
   const [isStaff, setIsStaff] = useState(true);
   const { user, loading } = useAdminAccess();
@@ -1668,48 +1853,48 @@ function DirectAdminLanding() {
   if (loading) {
     return (
       <PageShell>
-        <div className="mx-auto max-w-4xl px-4 py-10 text-slate-300">Loading…</div>
+        <div className="mx-auto max-w-4xl px-4 py-10 text-slate-300">{t('directAdminPortal.loading', { defaultValue: 'Loading…' })}</div>
       </PageShell>
     );
   }
   if (!isStaff) return <Navigate to="/dashboard" replace />;
   return (
     <AdminShell
-      title="OxSteed Direct admin"
-      subtitle="Internal operations for company-owned Direct service: quote, schedule, proof, and customer history."
+      title={t('directAdminPortal.directAdminLandingTitle', { defaultValue: 'OxSteed Direct admin' })}
+      subtitle={t('directAdminPortal.directAdminLandingSubtitle', { defaultValue: 'Internal operations for company-owned Direct service: quote, schedule, proof, and customer history.' })}
       profile={profile}
       right={(
         <div className="space-y-3 text-sm text-slate-300">
-          <div>Quote requests, dispatch, payment proof, and service records live here.</div>
-          <Link to="/direct/admin/inbox" className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 font-semibold text-white">Open inbox <ChevronRight size={16} /></Link>
+          <div>{t('directAdminPortal.landingBody', { defaultValue: 'Quote requests, dispatch, payment proof, and service records live here.' })}</div>
+          <Link to="/direct/admin/inbox" className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 font-semibold text-white">{t('directAdminPortal.openInbox', { defaultValue: 'Open inbox' })} <ChevronRight size={16} /></Link>
         </div>
       )}
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <Link to="/direct/admin/dashboard" className="rounded-[24px] border border-white/10 bg-white/5 p-5">
-          <div className="text-sm uppercase tracking-[0.2em] text-slate-500">Dashboard</div>
-          <div className="mt-2 text-xl font-semibold text-white">Pipeline and urgent items</div>
-          <p className="mt-2 text-sm leading-6 text-slate-400">Open counts, upcoming jobs, and unpaid work.</p>
+          <div className="text-sm uppercase tracking-[0.2em] text-slate-500">{t('directAdminPortal.dashboardEyebrow', { defaultValue: 'Dashboard' })}</div>
+          <div className="mt-2 text-xl font-semibold text-white">{t('directAdminPortal.landingCardPipeline', { defaultValue: 'Pipeline and urgent items' })}</div>
+          <p className="mt-2 text-sm leading-6 text-slate-400">{t('directAdminPortal.landingCardPipelineBody', { defaultValue: 'Open counts, upcoming jobs, and unpaid work.' })}</p>
         </Link>
         <Link to="/direct/admin/inbox" className="rounded-[24px] border border-white/10 bg-white/5 p-5">
-          <div className="text-sm uppercase tracking-[0.2em] text-slate-500">Inbox</div>
-          <div className="mt-2 text-xl font-semibold text-white">Quote requests queue</div>
-          <p className="mt-2 text-sm leading-6 text-slate-400">Review requests and turn them into estimates.</p>
+          <div className="text-sm uppercase tracking-[0.2em] text-slate-500">{t('directAdminPortal.inboxEyebrow', { defaultValue: 'Inbox' })}</div>
+          <div className="mt-2 text-xl font-semibold text-white">{t('directAdminPortal.landingCardQueue', { defaultValue: 'Quote requests queue' })}</div>
+          <p className="mt-2 text-sm leading-6 text-slate-400">{t('directAdminPortal.landingCardQueueBody', { defaultValue: 'Review requests and turn them into estimates.' })}</p>
         </Link>
         <Link to="/direct/admin/settings" className="rounded-[24px] border border-white/10 bg-white/5 p-5">
-          <div className="text-sm uppercase tracking-[0.2em] text-slate-500">Settings</div>
-          <div className="mt-2 text-xl font-semibold text-white">Service area and tools</div>
-          <p className="mt-2 text-sm leading-6 text-slate-400">Update minimums, cities, travel days, and tools.</p>
+          <div className="text-sm uppercase tracking-[0.2em] text-slate-500">{t('directAdminPortal.settings', { defaultValue: 'Settings' })}</div>
+          <div className="mt-2 text-xl font-semibold text-white">{t('directAdminPortal.landingCardServiceArea', { defaultValue: 'Service area and tools' })}</div>
+          <p className="mt-2 text-sm leading-6 text-slate-400">{t('directAdminPortal.landingCardServiceAreaBody', { defaultValue: 'Update minimums, cities, travel days, and tools.' })}</p>
         </Link>
         <a href="/admin/direct-service-areas" className="rounded-[24px] border border-orange-500/20 bg-orange-500/5 p-5">
-          <div className="text-sm uppercase tracking-[0.2em] text-orange-300">Coverage controls</div>
-          <div className="mt-2 text-xl font-semibold text-white">Manage service areas</div>
-          <p className="mt-2 text-sm leading-6 text-slate-400">Add or update live map coverage and distance radii.</p>
+          <div className="text-sm uppercase tracking-[0.2em] text-orange-300">{t('directAdminPortal.coverageControls', { defaultValue: 'Coverage controls' })}</div>
+          <div className="mt-2 text-xl font-semibold text-white">{t('directAdminPortal.landingCardCoverage', { defaultValue: 'Manage service areas' })}</div>
+          <p className="mt-2 text-sm leading-6 text-slate-400">{t('directAdminPortal.landingCardCoverageBody', { defaultValue: 'Add or update live map coverage and distance radii.' })}</p>
         </a>
         <Link to="/direct/admin/email-test" className="rounded-[24px] border border-white/10 bg-white/5 p-5">
-          <div className="text-sm uppercase tracking-[0.2em] text-slate-500">Email</div>
-          <div className="mt-2 text-xl font-semibold text-white">Send a test message</div>
-          <p className="mt-2 text-sm leading-6 text-slate-400">Confirm the live mail provider is sending customer emails correctly.</p>
+          <div className="text-sm uppercase tracking-[0.2em] text-slate-500">{t('directAdminPortal.emailWord', { defaultValue: 'Email' })}</div>
+          <div className="mt-2 text-xl font-semibold text-white">{t('directAdminPortal.landingCardEmail', { defaultValue: 'Send a test message' })}</div>
+          <p className="mt-2 text-sm leading-6 text-slate-400">{t('directAdminPortal.landingCardEmailBody', { defaultValue: 'Confirm the live mail provider is sending customer emails correctly.' })}</p>
         </Link>
       </div>
     </AdminShell>

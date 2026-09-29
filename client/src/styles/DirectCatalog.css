@@ -12,7 +12,7 @@
   min-height: 0;
   flex: 1 1 auto;
   overflow-y: auto;
-  padding-right: .35rem;
+  padding-inline-end: .35rem;
   scrollbar-width: thin;
   scrollbar-color: rgba(148, 163, 184, .55) transparent;
 }
@@ -21,7 +21,7 @@
   content: '';
   position: sticky;
   z-index: 1;
-  right: 0;
+  inset-inline-end: 0;
   bottom: 0;
   display: block;
   height: 2.25rem;
