@@ -130,8 +130,9 @@ describe('custom off-platform payment_details validation', () => {
       updated_at: new Date('2026-09-28T12:00:00Z'),
     };
     mockQuery
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [storedPolicy] });
+      .mockResolvedValueOnce({ rows: [] }) // SELECT previous: no row yet
+      .mockResolvedValueOnce({ rows: [] }) // UPDATE: no row to update
+      .mockResolvedValueOnce({ rows: [storedPolicy] }); // INSERT policy
     const req = {
       user: { id: USER_A },
       body: {
@@ -145,8 +146,15 @@ describe('custom off-platform payment_details validation', () => {
     const next = jest.fn();
     await policiesCtrl.updatePolicies(req, res, next);
     expect(next).not.toHaveBeenCalled();
-    const insertParams = mockQuery.mock.calls[1][1];
+    const insertParams = mockQuery.mock.calls[2][1];
     expect(insertParams[3].payment_details).toEqual([{ label: 'Mobile money' }]);
+    // A history entry records the newly added payment method
+    const historyParams = mockQuery.mock.calls[3][1];
+    expect(historyParams[0]).toBe(USER_A);
+    expect(JSON.parse(historyParams[1])).toEqual([
+      { kind: 'payment_method_added', label: 'Mobile money' },
+      { kind: 'custom_enabled' },
+    ]);
   });
 });
 

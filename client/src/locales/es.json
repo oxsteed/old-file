@@ -12270,7 +12270,21 @@
     "addPaymentDetail": "Agregar método de pago",
     "removePaymentDetail": "Eliminar",
     "paymentDetailMax": "Puedes agregar hasta 5 métodos de pago.",
-    "paymentDetailLabelRequired": "Agrega una etiqueta para cada método de pago."
+    "paymentDetailLabelRequired": "Agrega una etiqueta para cada método de pago.",
+    "historyTitle": "Historial",
+    "historyDescription": "Un registro permanente de cada cambio en la forma en que recibes pagos. Las entradas no se pueden editar ni eliminar.",
+    "historyPaymentMethodAdded": "Se agregó el método de pago \"{{label}}\"",
+    "historyPaymentMethodRemoved": "Se eliminó el método de pago \"{{label}}\"",
+    "historyPaymentMethodUpdated": "Se actualizó el método de pago \"{{label}}\"",
+    "historyDepositChanged": "Depósito cambiado de {{from}}% a {{to}}%",
+    "historyNoticeChanged": "Aviso mínimo cambiado de {{from}} a {{to}} horas",
+    "historyTermsChanged": "Términos de pago actualizados",
+    "historyCustomEnabled": "Pago directo personalizado activado",
+    "historyCustomDisabled": "Pago directo personalizado desactivado",
+    "historyUnknownChange": "Configuración actualizada",
+    "historyEmpty": "Aún no hay cambios registrados.",
+    "historyLoadError": "No se pudo cargar el historial.",
+    "historyRetry": "Reintentar"
   },
   "howOxsteedWorks": {
     "experience": {

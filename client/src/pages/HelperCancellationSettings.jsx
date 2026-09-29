@@ -11,6 +11,7 @@ import {
   Clock3,
   Wallet,
   FileText,
+  History,
 } from 'lucide-react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
@@ -44,11 +45,57 @@ function StatusPill({ active, t }) {
   );
 }
 
+function formatHistoryDate(iso, locale) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso || '';
+  try {
+    return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(d);
+  } catch {
+    return d.toLocaleString();
+  }
+}
+
+function historyChangeText(change, t) {
+  const kind = change?.kind;
+  const label = change?.label || '';
+  switch (kind) {
+    case 'payment_method_added':
+      return t('cancellationSettings.historyPaymentMethodAdded', 'Added payment method "{{label}}"', { label });
+    case 'payment_method_removed':
+      return t('cancellationSettings.historyPaymentMethodRemoved', 'Removed payment method "{{label}}"', { label });
+    case 'payment_method_updated':
+      return t('cancellationSettings.historyPaymentMethodUpdated', 'Updated payment method "{{label}}"', { label });
+    case 'deposit_changed':
+      return t(
+        'cancellationSettings.historyDepositChanged',
+        'Changed deposit from {{from}}% to {{to}}%',
+        { from: change.from, to: change.to }
+      );
+    case 'notice_changed':
+      return t(
+        'cancellationSettings.historyNoticeChanged',
+        'Changed minimum notice from {{from}} to {{to}} hours',
+        { from: change.from, to: change.to }
+      );
+    case 'terms_changed':
+      return t('cancellationSettings.historyTermsChanged', 'Updated payment terms');
+    case 'custom_enabled':
+      return t('cancellationSettings.historyCustomEnabled', 'Turned on custom off-platform payment');
+    case 'custom_disabled':
+      return t('cancellationSettings.historyCustomDisabled', 'Turned off custom off-platform payment');
+    default:
+      return t('cancellationSettings.historyUnknownChange', 'Setting updated');
+  }
+}
+
 export default function HelperCancellationSettings() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyFailed, setHistoryFailed] = useState(false);
   const [oxsteedEnabled, setOxsteedEnabled] = useState(true);
   const [customEnabled, setCustomEnabled] = useState(false);
   const [customPolicy, setCustomPolicy] = useState(DEFAULT_CUSTOM_POLICY);
@@ -111,8 +158,24 @@ export default function HelperCancellationSettings() {
     }
   };
 
+  const loadHistory = async () => {
+    setHistoryLoading(true);
+    setHistoryFailed(false);
+    try {
+      const { data } = await api.get('/helper-settings/policies/history');
+      const entries = data?.data?.history ?? data?.history ?? [];
+      setHistory(Array.isArray(entries) ? entries : []);
+    } catch (err) {
+      setHistoryFailed(true);
+      console.error('Error loading policy history:', err);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadPolicies();
+    loadHistory();
   }, []);
 
   const dirty = useMemo(() => {
@@ -163,6 +226,7 @@ export default function HelperCancellationSettings() {
         custom: customEnabled,
         policy: customPolicy,
       });
+      loadHistory();
     } catch (err) {
       const errorMsg =
         err.response?.data?.message ||
@@ -517,6 +581,64 @@ export default function HelperCancellationSettings() {
               </div>
             </div>
           )}
+        </section>
+
+        {/* Payment details change history */}
+        <section className="pcs-card" aria-labelledby="pcs-history-title">
+          <div className="pcs-card-head">
+            <div className="pcs-card-identity">
+              <span className="pcs-icon-tile pcs-icon-tile-neutral" aria-hidden="true">
+                <History size={22} />
+              </span>
+              <div>
+                <h2 id="pcs-history-title">{t('cancellationSettings.historyTitle', 'History')}</h2>
+                <p>
+                  {t(
+                    'cancellationSettings.historyDescription',
+                    'A permanent record of every change to how you receive payment. Entries cannot be edited or deleted.'
+                  )}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="pcs-card-body">
+            {historyLoading ? (
+              <div aria-busy="true" aria-label={t('cancellationSettings.historyTitle', 'History')}>
+                <div className="pcs-skeleton pcs-skeleton-line" />
+                <div className="pcs-skeleton pcs-skeleton-line" />
+                <div className="pcs-skeleton pcs-skeleton-line" />
+              </div>
+            ) : historyFailed ? (
+              <div className="pcs-history-error">
+                <p>{t('cancellationSettings.historyLoadError', 'Could not load history.')}</p>
+                <button type="button" className="pcs-btn pcs-btn-secondary" onClick={loadHistory}>
+                  <RotateCcw size={16} aria-hidden="true" /> {t('cancellationSettings.historyRetry', 'Retry')}
+                </button>
+              </div>
+            ) : history.length === 0 ? (
+              <p className="pcs-history-empty">
+                {t('cancellationSettings.historyEmpty', 'No changes recorded yet.')}
+              </p>
+            ) : (
+              <ol className="pcs-history">
+                {history.map((entry) => (
+                  <li key={entry.id} className="pcs-history-item">
+                    <span className="pcs-history-dot" aria-hidden="true" />
+                    <div className="pcs-history-content">
+                      <time className="pcs-history-time" dateTime={entry.created_at}>
+                        {formatHistoryDate(entry.created_at, i18n.language)}
+                      </time>
+                      <ul className="pcs-history-changes">
+                        {(entry.changes || []).map((change, idx) => (
+                          <li key={idx}>{historyChangeText(change, t)}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
         </section>
 
         <div className="pcs-callout pcs-callout-info">

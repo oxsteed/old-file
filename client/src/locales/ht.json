@@ -12577,7 +12577,21 @@
     "addPaymentDetail": "Ajoute metòd peman",
     "removePaymentDetail": "Retire",
     "paymentDetailMax": "Ou ka ajoute jiska 5 metòd peman.",
-    "paymentDetailLabelRequired": "Ajoute yon non pou chak metòd peman."
+    "paymentDetailLabelRequired": "Ajoute yon non pou chak metòd peman.",
+    "historyTitle": "Istwa",
+    "historyDescription": "Yon dosye pèmanan sou chak chanjman nan fason ou resevwa peman. Ou pa ka modifye oswa efase antre yo.",
+    "historyPaymentMethodAdded": "Te ajoute metòd peman \"{{label}}\"",
+    "historyPaymentMethodRemoved": "Te retire metòd peman \"{{label}}\"",
+    "historyPaymentMethodUpdated": "Te mete metòd peman \"{{label}}\" ajou",
+    "historyDepositChanged": "Te chanje depo soti {{from}}% pou rive {{to}}%",
+    "historyNoticeChanged": "Te chanje avi minimòm soti {{from}} pou rive {{to}} èdtan",
+    "historyTermsChanged": "Tèm peman yo mete ajou",
+    "historyCustomEnabled": "Peman dirèk pèsonalize aktive",
+    "historyCustomDisabled": "Peman dirèk pèsonalize dezaktive",
+    "historyUnknownChange": "Paramèt mete ajou",
+    "historyEmpty": "Pa gen okenn chanjman anrejistre pou kounye a.",
+    "historyLoadError": "Pa t ka chaje istwa a.",
+    "historyRetry": "Eseye ankò"
   },
   "howOxsteedWorks": {
     "experience": {

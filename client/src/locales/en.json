@@ -11813,7 +11813,21 @@
     "addPaymentDetail": "Add payment method",
     "removePaymentDetail": "Remove",
     "paymentDetailMax": "You can add up to 5 payment methods.",
-    "paymentDetailLabelRequired": "Add a label for each payment method."
+    "paymentDetailLabelRequired": "Add a label for each payment method.",
+    "historyTitle": "History",
+    "historyDescription": "A permanent record of every change to how you receive payment. Entries cannot be edited or deleted.",
+    "historyPaymentMethodAdded": "Added payment method \"{{label}}\"",
+    "historyPaymentMethodRemoved": "Removed payment method \"{{label}}\"",
+    "historyPaymentMethodUpdated": "Updated payment method \"{{label}}\"",
+    "historyDepositChanged": "Changed deposit from {{from}}% to {{to}}%",
+    "historyNoticeChanged": "Changed minimum notice from {{from}} to {{to}} hours",
+    "historyTermsChanged": "Updated payment terms",
+    "historyCustomEnabled": "Turned on custom off-platform payment",
+    "historyCustomDisabled": "Turned off custom off-platform payment",
+    "historyUnknownChange": "Setting updated",
+    "historyEmpty": "No changes recorded yet.",
+    "historyLoadError": "Could not load history.",
+    "historyRetry": "Retry"
   },
   "cancellationModal": {
     "cancelJob": "Cancel Job",

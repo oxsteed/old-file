@@ -12117,7 +12117,21 @@
     "addPaymentDetail": "إضافة طريقة دفع",
     "removePaymentDetail": "إزالة",
     "paymentDetailMax": "يمكنك إضافة ما يصل إلى 5 طرق دفع.",
-    "paymentDetailLabelRequired": "أضف تسمية لكل طريقة دفع."
+    "paymentDetailLabelRequired": "أضف تسمية لكل طريقة دفع.",
+    "historyTitle": "السجل",
+    "historyDescription": "سجل دائم لكل تغيير في طريقة استلامك للمدفوعات. لا يمكن تعديل الإدخالات أو حذفها.",
+    "historyPaymentMethodAdded": "تمت إضافة طريقة الدفع \"{{label}}\"",
+    "historyPaymentMethodRemoved": "تمت إزالة طريقة الدفع \"{{label}}\"",
+    "historyPaymentMethodUpdated": "تم تحديث طريقة الدفع \"{{label}}\"",
+    "historyDepositChanged": "تم تغيير العربون من {{from}}٪ إلى {{to}}٪",
+    "historyNoticeChanged": "تم تغيير الحد الأدنى للإشعار من {{from}} إلى {{to}} ساعة",
+    "historyTermsChanged": "تم تحديث شروط الدفع",
+    "historyCustomEnabled": "تم تفعيل الدفع المباشر المخصص",
+    "historyCustomDisabled": "تم إيقاف الدفع المباشر المخصص",
+    "historyUnknownChange": "تم تحديث الإعداد",
+    "historyEmpty": "لا توجد تغييرات مسجلة بعد.",
+    "historyLoadError": "تعذّر تحميل السجل.",
+    "historyRetry": "إعادة المحاولة"
   },
   "cancellationModal": {
     "cancelJob": "إلغاء الوظيفة",

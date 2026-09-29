@@ -12577,7 +12577,21 @@
     "addPaymentDetail": "Ajouter un moyen de paiement",
     "removePaymentDetail": "Supprimer",
     "paymentDetailMax": "Vous pouvez ajouter jusqu’à 5 moyens de paiement.",
-    "paymentDetailLabelRequired": "Ajoutez un libellé pour chaque moyen de paiement."
+    "paymentDetailLabelRequired": "Ajoutez un libellé pour chaque moyen de paiement.",
+    "historyTitle": "Historique",
+    "historyDescription": "Un enregistrement permanent de chaque modification de votre mode de réception des paiements. Les entrées ne peuvent être ni modifiées ni supprimées.",
+    "historyPaymentMethodAdded": "Moyen de paiement « {{label}} » ajouté",
+    "historyPaymentMethodRemoved": "Moyen de paiement « {{label}} » supprimé",
+    "historyPaymentMethodUpdated": "Moyen de paiement « {{label}} » mis à jour",
+    "historyDepositChanged": "Acompte modifié de {{from}} % à {{to}} %",
+    "historyNoticeChanged": "Préavis minimum modifié de {{from}} à {{to}} heures",
+    "historyTermsChanged": "Conditions de paiement mises à jour",
+    "historyCustomEnabled": "Paiement direct personnalisé activé",
+    "historyCustomDisabled": "Paiement direct personnalisé désactivé",
+    "historyUnknownChange": "Paramètre mis à jour",
+    "historyEmpty": "Aucune modification enregistrée pour le moment.",
+    "historyLoadError": "Impossible de charger l’historique.",
+    "historyRetry": "Réessayer"
   },
   "howOxsteedWorks": {
     "experience": {

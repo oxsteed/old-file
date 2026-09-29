@@ -55,11 +55,118 @@ function sanitizePaymentDetails(paymentDetails) {
 }
 
 /**
+ * Normalize a payment method label for matching entries across versions.
+ */
+function normalizePaymentLabel(label) {
+  return String(label ?? '').trim().toLowerCase();
+}
+
+/**
+ * Index a custom_policy's payment_details by normalized label.
+ */
+function paymentDetailIndex(policy) {
+  const raw = policy && Array.isArray(policy.payment_details) ? policy.payment_details : [];
+  const index = new Map();
+  for (const entry of raw) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
+    const key = normalizePaymentLabel(entry.label);
+    if (!key || index.has(key)) continue;
+    index.set(key, {
+      label: String(entry.label).trim(),
+      link_url: entry.link_url ? String(entry.link_url) : undefined,
+      handle: entry.handle ? String(entry.handle) : undefined,
+      instructions: entry.instructions ? String(entry.instructions) : undefined,
+    });
+  }
+  return index;
+}
+
+/**
+ * Diff old vs new custom off-platform payment settings.
+ * Each argument is { oxsteed_enabled, custom_enabled, custom_policy } or null.
+ * Returns an array of change objects; empty when nothing changed.
+ * Payment methods are matched by label (case-insensitive, trimmed).
+ */
+function diffPaymentPolicyChanges(oldState, newState) {
+  const changes = [];
+  const oldPolicy = (oldState && oldState.custom_policy) || {};
+  const newPolicy = (newState && newState.custom_policy) || {};
+
+  // Receiving methods: added / removed / updated (link, handle, or instructions changed)
+  const oldMethods = paymentDetailIndex(oldPolicy);
+  const newMethods = paymentDetailIndex(newPolicy);
+  for (const [key, entry] of newMethods) {
+    const prev = oldMethods.get(key);
+    if (!prev) {
+      changes.push({ kind: 'payment_method_added', label: entry.label });
+    } else if (
+      prev.link_url !== entry.link_url ||
+      prev.handle !== entry.handle ||
+      prev.instructions !== entry.instructions
+    ) {
+      changes.push({ kind: 'payment_method_updated', label: entry.label });
+    }
+  }
+  for (const [key, entry] of oldMethods) {
+    if (!newMethods.has(key)) {
+      changes.push({ kind: 'payment_method_removed', label: entry.label });
+    }
+  }
+
+  // Deposit percent
+  const oldDeposit = oldPolicy.deposit_percent ?? null;
+  const newDeposit = newPolicy.deposit_percent ?? null;
+  if (oldDeposit !== newDeposit) {
+    changes.push({ kind: 'deposit_changed', from: oldDeposit, to: newDeposit });
+  }
+
+  // Minimum notice hours
+  const oldNotice = oldPolicy.min_notice_hours ?? null;
+  const newNotice = newPolicy.min_notice_hours ?? null;
+  if (oldNotice !== newNotice) {
+    changes.push({ kind: 'notice_changed', from: oldNotice, to: newNotice });
+  }
+
+  // Terms text changed; the text itself lives in the snapshot, not in changes
+  if ((oldPolicy.terms ?? null) !== (newPolicy.terms ?? null)) {
+    changes.push({ kind: 'terms_changed' });
+  }
+
+  // Custom off-platform payment toggled
+  const wasCustom = Boolean(oldState && oldState.custom_enabled);
+  const isCustom = Boolean(newState && newState.custom_enabled);
+  if (!wasCustom && isCustom) changes.push({ kind: 'custom_enabled' });
+  if (wasCustom && !isCustom) changes.push({ kind: 'custom_disabled' });
+
+  return changes;
+}
+
+/**
+ * Append an immutable history entry for a policy change.
+ * The history table is protected by DB rules against UPDATE/DELETE.
+ * History writes must never break a policy update: warn and continue on failure.
+ */
+async function recordPaymentPolicyHistory(helperId, changes, snapshot) {
+  if (!Array.isArray(changes) || changes.length === 0) return;
+  try {
+    await pool.query(
+      `INSERT INTO helper_payment_policy_history (helper_id, changes, snapshot)
+       VALUES ($1, $2::jsonb, $3::jsonb)`,
+      [helperId, JSON.stringify(changes), snapshot ? JSON.stringify(snapshot) : null]
+    );
+  } catch (err) {
+    logger.warn('Failed to record payment policy history', {
+      helperId,
+      error: err && err.message,
+    });
+  }
+}
+
+/**
  * Get helper's current cancellation policies
  * GET /api/helper-settings/policies
  */
-exports.getPolicies = async (req, res, next) => {
-  try {
+exports.getPolicies = async (req, res, next) => {  try {
     const userId = req.user.id;
 
     const result = await pool.query(
@@ -132,13 +239,38 @@ exports.updatePolicies = async (req, res, next) => {
       }
     }
 
+    // Capture the previous settings so the change history can diff old vs new
+    const previousResult = await pool.query(
+      `SELECT custom_policy, custom_enabled, oxsteed_enabled
+       FROM helper_cancellation_policies WHERE helper_id = $1`,
+      [userId]
+    );
+    const previousRow = previousResult.rows[0] || null;
+
+    const storedOxsteedEnabled = oxsteed_enabled ?? true;
+    const storedCustomEnabled = custom_enabled ?? false;
+    const storedCustomPolicy = custom_policy || {};
+
     const result = await pool.query(
       `UPDATE helper_cancellation_policies
        SET oxsteed_enabled = $1, custom_enabled = $2, custom_policy = $3, updated_at = NOW()
        WHERE helper_id = $4
        RETURNING *`,
-      [oxsteed_enabled ?? true, custom_enabled ?? false, custom_policy || {}, userId]
+      [storedOxsteedEnabled, storedCustomEnabled, storedCustomPolicy, userId]
     );
+
+    const oldState = previousRow
+      ? {
+          oxsteed_enabled: previousRow.oxsteed_enabled,
+          custom_enabled: previousRow.custom_enabled,
+          custom_policy: previousRow.custom_policy || {},
+        }
+      : { oxsteed_enabled: true, custom_enabled: false, custom_policy: {} };
+    const newState = {
+      oxsteed_enabled: storedOxsteedEnabled,
+      custom_enabled: storedCustomEnabled,
+      custom_policy: storedCustomPolicy,
+    };
 
     if (result.rows.length === 0) {
       // If update returned no rows, the helper doesn't have a policy yet - create one
@@ -146,10 +278,17 @@ exports.updatePolicies = async (req, res, next) => {
         `INSERT INTO helper_cancellation_policies (helper_id, oxsteed_enabled, custom_enabled, custom_policy)
          VALUES ($1, $2, $3, $4)
          RETURNING *`,
-        [userId, oxsteed_enabled ?? true, custom_enabled ?? false, custom_policy || {}]
+        [userId, storedOxsteedEnabled, storedCustomEnabled, storedCustomPolicy]
       );
 
       logger.info('Created new cancellation policies', { userId });
+
+      // Permanent record of what the first policy contains
+      await recordPaymentPolicyHistory(
+        userId,
+        diffPaymentPolicyChanges(oldState, newState),
+        storedCustomPolicy
+      );
 
       return res.json({
         success: true,
@@ -165,6 +304,13 @@ exports.updatePolicies = async (req, res, next) => {
     }
 
     logger.info('Updated cancellation policies', { userId, oxsteed_enabled, custom_enabled });
+
+    // Permanent record of what changed
+    await recordPaymentPolicyHistory(
+      userId,
+      diffPaymentPolicyChanges(oldState, newState),
+      storedCustomPolicy
+    );
 
     res.json({
       success: true,
@@ -183,6 +329,33 @@ exports.updatePolicies = async (req, res, next) => {
     }
     logger.error('Error updating cancellation policies', { error: err, userId: req.user.id });
     next(new AppError('Failed to update cancellation policies', 500));
+  }
+};
+
+/**
+ * Permanent change history for the helper's own custom off-platform payment settings.
+ * GET /api/helper-settings/policies/history
+ */
+exports.getPolicyHistory = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+
+    const result = await pool.query(
+      `SELECT id, created_at, changes, snapshot
+       FROM helper_payment_policy_history
+       WHERE helper_id = $1
+       ORDER BY created_at DESC, id DESC
+       LIMIT 50`,
+      [userId]
+    );
+
+    res.json({
+      success: true,
+      data: { history: result.rows }
+    });
+  } catch (err) {
+    logger.error('Error getting payment policy history', { error: err, userId: req.user.id });
+    next(new AppError('Failed to load payment policy history', 500));
   }
 };
 
@@ -223,5 +396,7 @@ exports.getOxsteadDefaultPolicy = async (req, res, next) => {
   }
 };
 
-// Exported for unit testing the brand-neutral payment detail validation.
+// Exported for unit testing the brand-neutral payment detail validation
+// and the permanent policy change history diff.
 exports.sanitizePaymentDetails = sanitizePaymentDetails;
+exports.diffPaymentPolicyChanges = diffPaymentPolicyChanges;
