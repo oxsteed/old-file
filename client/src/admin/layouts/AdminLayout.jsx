@@ -3,6 +3,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth }   from '../../hooks/useAuth';
 import { useTheme }  from '../../context/ThemeContext';
 import useAdminSupportAvailability from '../hooks/useAdminSupportAvailability';
+import { OxSteedIcon } from '../../components/OxSteedIcon';
 import {
   LayoutDashboard, Users, Briefcase,
   Flag, Shield, DollarSign, Settings,
@@ -218,7 +219,7 @@ export default function AdminLayout() {
       <div className="px-5 py-4 border-b border-gray-800 flex items-center
                       justify-between">
         <div className="flex items-center gap-2">
-          <img src="/logo.png" alt="" className="h-7 w-7" />
+          <OxSteedIcon size={28} />
           <div>
             <p className="font-bold text-white text-sm">OxSteed Admin</p>
             <p className={`text-xs font-medium mt-0.5 ${
@@ -459,7 +460,7 @@ export default function AdminLayout() {
             <Menu size={20} />
           </button>
           <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="" className="h-6 w-6" />
+            <OxSteedIcon size={24} />
             <span className="font-bold text-white text-sm">OxSteed Admin</span>
           </div>
           {/* Mobile search bar */}

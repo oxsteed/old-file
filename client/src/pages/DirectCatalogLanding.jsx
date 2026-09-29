@@ -4,6 +4,7 @@ import { ArrowRight, CheckCircle2, ChevronRight, Clock3, Droplets, Gauge, Hammer
 import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
+import { OxSteedIcon } from '../components/OxSteedIcon';
 import { DEFAULT_DIRECT_PROFILE, getDirectCatalog, loadDirectProfile } from '../api/direct';
 import '../styles/DirectCatalog.css';
 
@@ -132,7 +133,7 @@ export function DirectCatalogContent({ profile, embedded = false }) {
   return (
     <div className={`direct-catalog-content ${embedded ? 'w-full' : 'mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8'}`} aria-labelledby="direct-catalog-title">
       <header className="direct-catalog-header mb-6 flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-white/10 bg-slate-950/80 px-5 py-4 shadow-lg">
-        <div className="flex items-center gap-3"><img src="/logo.png" alt="OxSteed" className="h-10 w-10 rounded-xl" /><div><div className="text-xl font-bold text-white">OxSteed</div><div className="text-xs uppercase tracking-[0.2em] text-orange-300">OxSteed Direct</div></div></div>
+        <div className="flex items-center gap-3"><OxSteedIcon size={40} /><div><div className="text-xl font-bold text-white">OxSteed</div><div className="text-xs uppercase tracking-[0.2em] text-orange-300">OxSteed Direct</div></div></div>
         <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-300" aria-label={t('directCatalog.navigation', { defaultValue: 'Direct navigation' })}>
           <Link to="/direct/request-quote" className="rounded-full bg-orange-500 px-4 py-2 text-white hover:bg-orange-600">{t('homePage.company.requestQuote', { defaultValue: 'Request a quote' })}</Link>
           <Link to="/direct/view-quote" className="rounded-full border border-white/10 px-4 py-2 hover:bg-white/10">{t('homePage.company.viewQuote', { defaultValue: 'View quote' })}</Link>
