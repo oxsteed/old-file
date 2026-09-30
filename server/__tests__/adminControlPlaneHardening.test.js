@@ -145,4 +145,83 @@ describe('admin control-plane hardening', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'rollback_unavailable' }));
     expect(mockQuery.mock.calls.some(([sql]) => /UPDATE platform_settings/.test(sql))).toBe(false);
   });
+
+  test('accepts a zero escrow delay when the row carries migration 591 metadata', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [{
+        key: 'escrow_release_delay_hrs',
+        value: '48',
+        value_type: 'number',
+        min_numeric_value: 0,
+        max_numeric_value: 720,
+        version: 2,
+      }] })
+      .mockResolvedValueOnce({ rows: [] }) // update
+      .mockResolvedValueOnce({ rows: [] }) // audit insert
+      .mockResolvedValueOnce({ rows: [] }); // COMMIT
+
+    const res = responseDouble();
+    await superAdminController.updateSetting(
+      requestDouble({ key: 'escrow_release_delay_hrs' }, { value: '0' }),
+      res,
+    );
+
+    expect(res.status).not.toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ message: 'Setting "escrow_release_delay_hrs" updated.' });
+    const updateCall = mockQuery.mock.calls.find(([sql]) => /UPDATE platform_settings/.test(sql));
+    expect(updateCall?.[1]?.[0]).toBe('0');
+  });
+
+  test('accepts a zero escrow delay via fallback bounds when row metadata is absent', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [{
+        key: 'escrow_release_delay_hrs',
+        value: '48',
+        value_type: 'number',
+        min_numeric_value: null,
+        max_numeric_value: null,
+        version: 2,
+      }] })
+      .mockResolvedValueOnce({ rows: [] }) // update
+      .mockResolvedValueOnce({ rows: [] }) // audit insert
+      .mockResolvedValueOnce({ rows: [] }); // COMMIT
+
+    const res = responseDouble();
+    await superAdminController.updateSetting(
+      requestDouble({ key: 'escrow_release_delay_hrs' }, { value: 0 }),
+      res,
+    );
+
+    expect(res.status).not.toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ message: 'Setting "escrow_release_delay_hrs" updated.' });
+  });
+
+  test('still rejects out-of-range escrow delays on both sides of the reconciled bounds', async () => {
+    for (const badValue of ['-1', '721']) {
+      resetMocks();
+      mockQuery
+        .mockResolvedValueOnce({ rows: [] }) // BEGIN
+        .mockResolvedValueOnce({ rows: [{
+          key: 'escrow_release_delay_hrs',
+          value: '48',
+          value_type: 'number',
+          min_numeric_value: null,
+          max_numeric_value: null,
+          version: 2,
+        }] })
+        .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
+
+      const res = responseDouble();
+      await superAdminController.updateSetting(
+        requestDouble({ key: 'escrow_release_delay_hrs' }, { value: badValue }),
+        res,
+      );
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'invalid_setting_value' }));
+      expect(mockQuery.mock.calls.some(([sql]) => /UPDATE platform_settings/.test(sql))).toBe(false);
+    }
+  });
 });

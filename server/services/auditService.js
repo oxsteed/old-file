@@ -7,8 +7,13 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-
  * Log every admin action for compliance and audit (general action log).
  *
  * Writes to `admin_audit_log` - the legacy, free-form action log used by
- * existing controllers (permission grants, user bans, etc.). This is kept
- * unchanged for backward compatibility.
+ * existing controllers (permission grants, user bans, etc.).
+ *
+ * Failure contract: the write fails closed (throws) when the caller passes
+ * `throwOnError: true` or a transaction `client`. A transactional audit
+ * write must never be silently dropped, because the caller's transaction
+ * rolls back on throw. Standalone calls without either flag keep the
+ * historical best-effort behavior: the error is logged and swallowed.
  */
 exports.logAdminAction = async ({
   adminId,
@@ -49,7 +54,10 @@ exports.logAdminAction = async ({
     ]);
   } catch (err) {
     logger.error('Failed to log admin action', { adminId, action, error: err.message });
-    if (throwOnError) throw err;
+    // Fail closed for transactional audit writes: a caller inside a
+    // transaction passes its client so the mutation and its audit row
+    // commit or roll back together. Never silently drop those.
+    if (throwOnError || client) throw err;
   }
 };
 
@@ -62,8 +70,12 @@ exports.logAdminAction = async ({
  * before/after capture for compliance and export.
  *
  * Pass an existing `client` when running inside a transaction; otherwise
- * the shared `db` pool is used. Errors are swallowed and logged - audit
- * failures must never break the main action.
+ * the shared `db` pool is used.
+ *
+ * Failure contract: the write fails closed (throws) when the caller passes
+ * a transaction `client`, so the mutation and its audit row commit or roll
+ * back together. Standalone calls keep the historical best-effort behavior:
+ * the error is logged and `null` is returned.
  *
  * @param {Object}   options
  * @param {Object}   [options.client]         pg client (for transactional logging)
@@ -114,6 +126,9 @@ exports.logUserAction = async ({
     logger.error('Failed to log user action', {
       adminId, targetUserId, actionType, error: err.message
     });
+    // Fail closed for transactional audit writes: never let a mutation
+    // commit while its audit row is silently dropped.
+    if (client) throw err;
     return null;
   }
 };

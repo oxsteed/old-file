@@ -29,7 +29,10 @@ const NUMERIC_SETTING_LIMITS = {
   broker_cut_rate: [0, 1],
   max_job_budget: [0.01, 1000000],
   bid_expiry_hours: [1, 720],
-  escrow_release_delay_hrs: [1, 720],
+  // Reconciled with migration 591: a zero escrow delay (immediate release)
+  // is a valid legacy value, so the fallback bounds allow 0 when a row
+  // carries no min/max metadata of its own.
+  escrow_release_delay_hrs: [0, 720],
   min_helper_rating: [0, 5],
 };
 
