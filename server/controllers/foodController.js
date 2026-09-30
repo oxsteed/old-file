@@ -1420,6 +1420,7 @@ exports.listMarkets = async (req, res, next) => {
          JOIN businesses b ON b.id = fr.business_id
         WHERE fr.status = 'active'
           AND fr.discovery_status = 'visible'
+          AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
           AND b.is_active = TRUE
           AND b.is_listed = TRUE
           AND COALESCE(b.setup_status, 'active') = 'active'
@@ -1709,7 +1710,8 @@ exports.getRestaurant = async (req, res, next) => {
          JOIN businesses b ON b.id = fr.business_id
         WHERE fr.id = $1
           AND fr.status IN ('active', 'paused')
-          AND fr.discovery_status = 'visible'
+                    AND fr.discovery_status = 'visible'
+                    AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
           AND b.is_active = TRUE
           AND b.is_listed = TRUE
           AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
@@ -1966,7 +1968,8 @@ exports.quoteOrder = async (req, res, next) => {
          LEFT JOIN businesses b ON b.id = fr.business_id
         WHERE fr.id = $1
           AND fr.status IN ('active','paused')
-          AND fr.discovery_status = 'visible'
+                    AND fr.discovery_status = 'visible'
+                    AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
           AND b.is_active = TRUE
           AND b.is_listed = TRUE
           AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
@@ -2289,7 +2292,8 @@ exports.createOrder = async (req, res, next) => {
            LEFT JOIN businesses b ON b.id = fr.business_id
           WHERE fr.id = $1
             AND fr.status = 'active'
-            AND fr.discovery_status = 'visible'
+                      AND fr.discovery_status = 'visible'
+                      AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
             AND b.is_active = TRUE
             AND b.is_listed = TRUE
             AND COALESCE(b.setup_status, 'active') = 'active'
@@ -4410,7 +4414,8 @@ exports.getQueueBoard = async (req, res, next) => {
          JOIN businesses b ON b.id = fr.business_id
         WHERE fr.id = $1
           AND fr.status IN ('active','paused')
-          AND fr.discovery_status = 'visible'
+                    AND fr.discovery_status = 'visible'
+                    AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
           AND b.is_active = TRUE
           AND b.is_listed = TRUE
           AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
@@ -5150,7 +5155,8 @@ exports.listRestaurantPromotions = async (req, res, next) => {
            JOIN businesses b ON b.id = fr.business_id
           WHERE p.restaurant_id = $1
             AND fr.status IN ('active', 'paused')
-            AND fr.discovery_status = 'visible'
+                      AND fr.discovery_status = 'visible'
+                      AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
             AND b.is_active = TRUE
             AND b.is_listed = TRUE
             AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
@@ -5443,7 +5449,8 @@ exports.listRestaurantLocations = async (req, res, next) => {
            JOIN businesses b ON b.id = fr.business_id
           WHERE fr.id = $1
             AND fr.status = 'active'
-            AND fr.discovery_status = 'visible'
+                      AND fr.discovery_status = 'visible'
+                      AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
             AND b.is_active = TRUE
             AND b.is_listed = TRUE
             AND COALESCE(b.setup_status, 'active') = 'active'

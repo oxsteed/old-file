@@ -20,6 +20,7 @@ const PERMISSION_SCOPES = {
   manage_operations:      'Retry queues and webhooks, test and reconnect integrations, manage incidents',
   approve_settings:       'Approve or reject staged platform settings changes',
   view_visitor_analytics: 'View site visitor history and visitor locations',
+  manage_profile_visibility: 'Hide or restore public visibility of helper, business, and restaurant profiles',
 };
 
 const VALID_PERMISSIONS = Object.keys(PERMISSION_SCOPES);

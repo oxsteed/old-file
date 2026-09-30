@@ -1313,6 +1313,7 @@ async function getBusinessPublicProfile(req, res) {
        WHERE b.id        = $1
          AND b.is_active = TRUE
          AND b.is_listed = TRUE
+         AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
          AND b.setup_status = 'active'
          AND b.business_kind = 'service'
          AND u.deleted_at IS NULL

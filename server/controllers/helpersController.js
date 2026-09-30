@@ -141,6 +141,7 @@ async function listHelpers(req, res, next) {
       'u.email_verified = TRUE',
       'u.onboarding_completed = TRUE',
       'COALESCE(hp.is_listed, TRUE) = TRUE',
+      'COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE',
     ];
     const params     = ['helper'];
     let pIdx         = 2;
@@ -666,7 +667,8 @@ async function getHelperProfile(req, res, next) {
            AND u.role IN ('helper', 'helper_pro', 'broker')
            AND u.email_verified = TRUE
            AND u.onboarding_completed = TRUE
-           AND COALESCE(hp.is_listed, TRUE) = TRUE`,
+           AND COALESCE(hp.is_listed, TRUE) = TRUE
+           AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
         [id],
       ),
       pool.query(

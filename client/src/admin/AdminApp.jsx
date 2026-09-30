@@ -130,6 +130,7 @@ const AdminCCPARequestsPage = lazyWithRetry(() => import('./pages/AdminCCPAReque
 const AdminReportsDashboard = lazyWithRetry(() => import('./pages/AdminReportsDashboard'));
 const AdminEnforcementDashboard = lazyWithRetry(() => import('./pages/AdminEnforcementDashboard'));
 const VisitorHistoryPage = lazyWithRetry(() => import('./pages/VisitorHistoryPage'));
+const ProfileVisibilityPage = lazyWithRetry(() => import('./pages/ProfileVisibilityPage'));
 const LearnSubmissionsAdmin = lazyWithRetry(() => import('./pages/LearnSubmissionsAdmin'));
 const LearnProductLinksAdmin = lazyWithRetry(() => import('./pages/LearnProductLinksAdmin'));
 const OperationsOverview = lazyWithRetry(() => import('./pages/OperationsOverview'));
@@ -287,6 +288,9 @@ export default function AdminApp() {
           } />
           <Route path={adminRoute('visitors').relative} element={
             <GrantGuard grant={adminRoute('visitors').grant}><VisitorHistoryPage /></GrantGuard>
+          } />
+          <Route path={adminRoute('profileVisibility').relative} element={
+            <GrantGuard grant={adminRoute('profileVisibility').grant}><ProfileVisibilityPage /></GrantGuard>
           } />
           <Route path={adminRoute('payouts').relative} element={
             <GrantGuard grant={adminRoute('payouts').grant}><Payouts /></GrantGuard>

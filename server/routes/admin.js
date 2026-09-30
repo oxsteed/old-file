@@ -10,6 +10,7 @@ const supportCtrl     = require('../controllers/supportController');
 const searchCtrl      = require('../controllers/adminSearchController');
 const permCtrl        = require('../controllers/adminPermissionController');
 const bizModCtrl      = require('../controllers/businessModerationController');
+const profileVisCtrl  = require('../controllers/profileVisibilityController');
 const convAdminCtrl   = require('../controllers/conversationsAdminController');
 const paymentsCtrl    = require('../controllers/paymentsAdminController');
 const adminMsgCtrl    = require('../controllers/adminMessageController');
@@ -70,6 +71,12 @@ router.put('/businesses/:id/toggle',           requireAdmin, bizModCtrl.toggleBu
 router.put('/businesses/:id/flag',             requireAdmin, bizModCtrl.flagBusiness);
 router.put('/businesses/:id/admin-notes',      requireAdmin, bizModCtrl.updateAdminNotes);
 router.put('/businesses/:id/delete',           requireAdmin, bizModCtrl.deleteBusiness);
+
+// ── Public profile visibility (admin override) ─────────────────────────────
+// Sticky hide/restore for helper, business, and restaurant public profiles.
+// The override survives owner self-toggles of is_listed/discovery_status.
+router.get('/profile-visibility/search', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.searchProfiles);
+router.put('/profile-visibility',        requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.setProfileVisibility);
 
 // Tool Rentals
 router.get('/tool-rentals',             requireAdmin, bizModCtrl.listToolRentals);
