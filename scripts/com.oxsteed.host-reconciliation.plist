@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>__LABEL__</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__NODE__</string>
+    <string>__SCRIPT__</string>
+    <string>--apply</string>
+    <string>--application</string>
+    <string>__APPLICATION_UUID__</string>
+  </array>
+  <key>StartInterval</key><integer>300</integer>
+  <key>RunAtLoad</key><true/>
+  <key>ProcessType</key><string>Background</string>
+  <key>WorkingDirectory</key><string>__INSTALL_ROOT__</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>DOCKER_CONTEXT</key><string>colima</string>
+    <key>PATH</key><string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+  <key>StandardOutPath</key><string>__STDOUT__</string>
+  <key>StandardErrorPath</key><string>__STDERR__</string>
+</dict>
+</plist>
