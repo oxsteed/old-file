@@ -25,7 +25,7 @@ function deploymentConfig(env) {
 }
 
 async function deployCoolify({ env = process.env, fetchImpl = fetch, sleep = delay, now = Date.now,
-  timeoutMs = 15 * 60 * 1000, checkOnly = false, log = console.log } = {}) {
+  timeoutMs = 15 * 60 * 1000, checkOnly = false, log = console.log, provisionMetadata = null } = {}) {
   const { url, uuid, token } = deploymentConfig(env);
   const deadline = now() + timeoutMs;
   async function request(target, method = 'GET') {
@@ -83,6 +83,11 @@ async function deployCoolify({ env = process.env, fetchImpl = fetch, sleep = del
         throw new Error('Coolify finished a different commit; verify the deployed release before marking this workflow successful.');
       }
       log('Coolify finished the requested deployment.');
+      if (provisionMetadata) {
+        const provenance = await provisionMetadata({ applicationUuid: uuid,
+          expected: { gitSha: result.commit, deploymentId: deployment.deployment_uuid } });
+        log(`Release metadata provisioned; unavailable fields: ${provenance.missing.join(', ') || 'none'}.`);
+      }
       return { deploymentUuid: deployment.deployment_uuid };
     }
     if (!['queued', 'in_progress'].includes(result.status)) {
@@ -101,7 +106,11 @@ if (require.main === module) {
     console.error('Usage: node scripts/deploy-coolify.cjs --check|--deploy');
     process.exitCode = 1;
   } else {
-    deployCoolify({ checkOnly: args[0] === '--check' }).catch((error) => {
+    // Enable only on the MacBook/Colima runner. GitHub-hosted runners cannot
+    // provision local Docker provenance. No Coolify environment API writes.
+    const provisionMetadata = process.env.COOLIFY_PROVISION_LOCAL_METADATA === 'true'
+      ? require('./provision-release-metadata.cjs').provisionReleaseMetadata : null;
+    deployCoolify({ checkOnly: args[0] === '--check', provisionMetadata }).catch((error) => {
       console.error(error.message);
       process.exitCode = 1;
     });

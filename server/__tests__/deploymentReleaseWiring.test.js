@@ -11,8 +11,9 @@ describe('deployment release identity wiring', () => {
     expect(dockerfile).toContain('ARG SENTRY_RELEASE');
     expect(dockerfile).toContain('ARG COMMIT_SHA');
     expect(dockerfile).toContain('ARG SOURCE_COMMIT');
-    expect(dockerfile).toContain('release="${SENTRY_RELEASE:-${COMMIT_SHA:-$SOURCE_COMMIT}}";');
-    expect(dockerfile).toContain('release="$(node scripts/compute-content-release.cjs)"');
+    expect(dockerfile).toContain('ARG GIT_SHA');
+    expect(dockerfile).toContain('RUN node scripts/build-release-metadata.cjs');
+    expect(dockerfile).toContain('COPY --from=release-meta /release-metadata.json /app/server/.release-metadata.json');
     expect(dockerfile).toContain('COPY --from=release-meta /release /app/server/.release');
     expect(dockerfile).toContain('VITE_SENTRY_RELEASE="$release"');
     expect(dockerfile).toContain('ENV COMMIT_SHA=${COMMIT_SHA}');
@@ -35,6 +36,10 @@ describe('deployment release identity wiring', () => {
     expect(compose).toContain('SENTRY_RELEASE: ${SENTRY_RELEASE}');
     expect(compose).toContain('COMMIT_SHA: ${COMMIT_SHA}');
     expect(compose).toContain('SOURCE_COMMIT: ${SOURCE_COMMIT}');
+    expect(compose).toContain('GIT_SHA: ${GIT_SHA:-}');
+    expect(compose).toContain('IMAGE_DIGEST: ${IMAGE_DIGEST:-}');
+    expect(compose).toContain('COOLIFY_DEPLOYMENT_ID: ${COOLIFY_DEPLOYMENT_ID:-${DEPLOYMENT_ID:-}}');
+    expect(compose).toContain('oxsteed-release-metadata:/app/server/runtime/release-metadata:ro');
     expect(compose).toContain('OXSTEED_CREDIT_LEDGER_HMAC_KEY_VERSION: ${OXSTEED_CREDIT_LEDGER_HMAC_KEY_VERSION:-v1}');
     expect(compose).toContain('OXSTEED_CREDIT_LEDGER_HMAC_KEYS_JSON: ${OXSTEED_CREDIT_LEDGER_HMAC_KEYS_JSON}');
     expect(compose).toContain('OXSTEED_CREDIT_SUPPORTED_CURRENCIES: ${OXSTEED_CREDIT_SUPPORTED_CURRENCIES}');

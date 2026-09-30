@@ -121,3 +121,24 @@ test('transport errors do not leak secret values or endpoint URLs', async () => 
     return true;
   });
 });
+
+test('local provisioning receives only the verified completed deployment identity', async () => {
+  const calls = [];
+  const f = fixture([application, queued, finished]);
+  await f.run({ provisionMetadata: async (options) => { calls.push(options); return { missing: ['imageDigest'] }; } });
+  assert.deepEqual(calls, [{ applicationUuid: application.uuid,
+    expected: { gitSha: env.GITHUB_SHA, deploymentId: 'deploy123' } }]);
+  assert.match(f.logs.at(-1), /unavailable fields: imageDigest/);
+});
+
+test('checking or failing deployment never provisions host metadata', async () => {
+  const provisionMetadata = () => { throw new Error('must not run'); };
+  await fixture([application]).run({ checkOnly: true, provisionMetadata });
+  await assert.rejects(fixture([application, queued, { ...finished, status: 'failed' }]).run({ provisionMetadata }), /deployment failed/);
+});
+
+test('provenance failure is surfaced without retrying a deployment', async () => {
+  const f = fixture([application, queued, finished]);
+  await assert.rejects(f.run({ provisionMetadata: () => { throw new Error('image mismatch'); } }), /image mismatch/);
+  assert.equal(f.calls.filter((call) => call.method === 'POST').length, 1);
+});

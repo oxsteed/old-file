@@ -6,9 +6,8 @@ COPY . .
 ARG SENTRY_RELEASE
 ARG COMMIT_SHA
 ARG SOURCE_COMMIT
-RUN release="${SENTRY_RELEASE:-${COMMIT_SHA:-$SOURCE_COMMIT}}"; \
-    if [ -z "$release" ]; then release="$(node scripts/compute-content-release.cjs)"; fi; \
-    printf '%s\n' "$release" > /release
+ARG GIT_SHA
+RUN node scripts/build-release-metadata.cjs
 
 # Stage 2: Build client (Vite)
 FROM node:22-alpine AS client-build
@@ -68,6 +67,7 @@ COPY --from=client-build /app/client/src/locales /app/client/src/locales
 COPY --from=client-build /app/client/src/i18n/locales /app/client/src/i18n/locales
 # Keep a non-secret content release when Coolify does not inject commit metadata.
 COPY --from=release-meta /release /app/server/.release
+COPY --from=release-meta /release-metadata.json /app/server/.release-metadata.json
 
 WORKDIR /app/server
 
