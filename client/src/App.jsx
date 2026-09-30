@@ -12,6 +12,7 @@ import InternalWorkspaceGuard from './components/InternalWorkspaceGuard';
 import ErrorBoundary, { RouterAwareErrorBoundary } from './components/ErrorBoundary';
 import RouteErrorBoundary from './components/RouteErrorBoundary';
 import ScrollToTop from './components/ScrollToTop';
+import PageviewBeacon from './components/PageviewBeacon';
 import ImpersonationBanner from './components/ImpersonationBanner';
 import { lazyWithRetry } from './utils/lazyWithRetry';
 import { routeLoaders } from './utils/routePrefetch';
@@ -272,6 +273,7 @@ export default function App() {
               <RouterAwareErrorBoundary>
                 <AuthProvider>
                 <ScrollToTop />
+                <PageviewBeacon />
                 <ImpersonationBanner />
                 <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
                 <TermsGate>

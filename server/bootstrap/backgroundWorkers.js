@@ -12,6 +12,7 @@ const { startPlannedNeedsScheduler } = require('../jobs/plannedNeedsScheduler');
 const { startDiscoverDigestJob } = require('../jobs/discoverDigest');
 const { startConversationRetentionCleanup } = require('../jobs/conversationRetentionCleanup');
 const { startGuestChatSessionTimeoutJob } = require('../jobs/guestChatSessionTimeout');
+const { startSiteVisitRetentionJob } = require('../jobs/siteVisitRetention');
 const { startConsultingSessionReminders } = require('../jobs/consultingSessionReminders');
 const { startConsultingPostSessionFollowup } = require('../jobs/consultingPostSessionFollowup');
 const { startConsultingNoShowFollowup } = require('../jobs/consultingNoShowFollowup');
@@ -69,6 +70,7 @@ class BackgroundWorkers {
       startDiscoverDigestJob();
       startConversationRetentionCleanup();
       startGuestChatSessionTimeoutJob();
+      startSiteVisitRetentionJob();
       startConsultingSessionReminders();
       startConsultingPostSessionFollowup();
       startConsultingNoShowFollowup();

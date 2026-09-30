@@ -118,6 +118,7 @@ const ADMIN_SPA_ROUTES = Object.freeze([
   '/admin/super/corporate/departments',
   '/admin/super/mode-policies',
   '/admin/super/mode-approvals',
+  '/admin/super/visitors',
 ]);
 
 const routePatterns = ADMIN_SPA_ROUTES.map((route) => new RegExp(

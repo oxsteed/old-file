@@ -19,6 +19,7 @@ const PERMISSION_SCOPES = {
   create_users:          'Create new regular user accounts (customer/helper/broker)',
   manage_operations:      'Retry queues and webhooks, test and reconnect integrations, manage incidents',
   approve_settings:       'Approve or reject staged platform settings changes',
+  view_visitor_analytics: 'View site visitor history and visitor locations',
 };
 
 const VALID_PERMISSIONS = Object.keys(PERMISSION_SCOPES);
