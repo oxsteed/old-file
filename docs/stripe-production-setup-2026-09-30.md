@@ -3,9 +3,10 @@
 ## Verified current state
 
 - OxSteed live Stripe account: `acct_1TB0hBGo54BMlgSy`.
-- One active platform webhook: `https://oxsteed.com/api/webhooks/stripe`,
-  snapshot version `2026-02-25.clover`. Initially subscribed to five events;
-  the expanded event selection is prepared but must not be called live until saved.
+- The active platform webhook `we_1TI0MBGo54BMlgSyb0eBydfp` at
+  `https://oxsteed.com/api/webhooks/stripe` now listens to the contract's 22
+  events, snapshot version `2026-02-25.clover`. Saved after explicit approval
+  and verified active in Stripe. No signed live delivery has yet been verified.
 - Existing Pro recurring prices match the production plans exactly:
   monthly USD 14.99 (`price_1THyAiGo54BMlgSyPzPoIOk6`) and yearly USD 79.99
   (`price_1THyCDGo54BMlgSyzrRM6Swt`). Migration 615 replaces only the known
@@ -13,8 +14,13 @@
 - Production has zero connected helper payout accounts. Individual recipients
   must complete Stripe onboarding; platform setup cannot supply their consent,
   identity verification or bank details.
-- Basic is a zero-cost plan, not a paid Stripe product. Broker's configured price
-  still requires verification; no replacement or price change is assumed.
+- Basic is a zero-cost plan, not a paid Stripe product. Broker's configured
+  `price_1THs8GGo54BMlgSyGjMDOWo7` was checked in the live dashboard and returns
+  "Price not found". No replacement or price change is assumed.
+- Production image `4e3611176b1267db82744e15cc6cf9bfafba17b8` is deployed and
+  healthy. `/ready` reports 615/615 migrations, no pending migrations, healthy
+  database, Redis, realtime and workers. Release metadata identifiers still
+  require their deploy-time environment configuration.
 
 ## Changes in this release
 
@@ -23,6 +29,8 @@
 - Retry renewal reconciliation when Stripe retrieval fails.
 - Separate Connect signature verification at `/api/webhooks/stripe/connect`.
   Reject account-source mismatches and fail closed if its secret is missing.
+- Correct connected-account readiness updates to bind all five SQL parameters
+  and match both the Stripe account and its stored user owner.
 - Repair refund audit and ledger writes using existing authoritative services/schema.
 - Verify current cumulative refund evidence instead of double-counting refunds
   when a webhook arrives before request settlement. Partial refunds retain the
@@ -44,6 +52,26 @@ bounded event lists, not all events.
 Never reuse a signing secret between destinations. Enter new secrets directly
 into Coolify, not a public repository, browser storage or chat. Do not replace
 the working platform signing secret when adding the other destinations.
+
+### Remaining environment setup
+
+Only presence booleans were checked; no secret values were printed or copied.
+The live platform secret is present. The following are still absent:
+
+| Variable | Impact / next step |
+| --- | --- |
+| `STRIPE_PUBLISHABLE_KEY` | Marketplace/mobile card payment setup needs the live account's public key in runtime configuration |
+| `STRIPE_CONNECT_WEBHOOK_SECRET` | The prepared 12-event Connect destination must be saved, then its distinct secret entered directly into Coolify |
+| `STRIPE_IDENTITY_WEBHOOK_SECRET` | The prepared 2-event Identity destination must be saved, then its distinct secret entered directly into Coolify |
+| `STRIPE_CLIENT_ID` | Existing business OAuth onboarding requires the platform's Connect client ID and approved callback configuration |
+| `STRIPE_CLIENT_SECRET` | Existing business OAuth callback requires its configured client secret |
+
+Do not add empty values and claim completion. Restart/deploy after saving real
+configuration, verify presence without revealing values, and verify actual
+signed event acceptance. Helper Express onboarding is separate from business
+OAuth: a missing business client ID does not disable every Connect flow.
+Startup diagnostics now report the names used by the actual controllers rather
+than the unused `STRIPE_CONNECT_CLIENT_ID` alias.
 
 ## Site coverage and remaining live acceptance
 

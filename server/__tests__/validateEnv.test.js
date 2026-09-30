@@ -7,6 +7,47 @@ jest.mock('../utils/logger', () => ({
 }));
 
 const { getProductionConfigurationErrors } = require('../utils/validateEnv');
+const validateEnv = require('../utils/validateEnv');
+const logger = require('../utils/logger');
+
+test('reports the exact Stripe configuration names consumed by enabled workflows', () => {
+  const originalEnv = process.env;
+  const stripeVariables = [
+    'STRIPE_PUBLISHABLE_KEY', 'STRIPE_CONNECT_WEBHOOK_SECRET',
+    'STRIPE_IDENTITY_WEBHOOK_SECRET', 'STRIPE_CLIENT_ID', 'STRIPE_CLIENT_SECRET',
+  ];
+  try {
+    process.env = {
+      NODE_ENV: 'test', JWT_SECRET: 'a'.repeat(64),
+      DATABASE_URL: 'postgresql://test:test@localhost/test_db',
+      STRIPE_SECRET_KEY: 'sk_test_environment_validation',
+      STRIPE_WEBHOOK_SECRET: 'whsec_environment_validation',
+      ENCRYPTION_KEY: 'b'.repeat(64),
+    };
+    logger.warn.mockClear();
+    validateEnv();
+    for (const key of stripeVariables) {
+      expect(logger.warn).toHaveBeenCalledWith(
+        'Optional environment variable not set',
+        expect.objectContaining({ key }),
+      );
+    }
+    expect(logger.warn).not.toHaveBeenCalledWith(
+      'Optional environment variable not set',
+      expect.objectContaining({ key: 'STRIPE_CONNECT_CLIENT_ID' }),
+    );
+    for (const key of stripeVariables) process.env[key] = 'configured_for_test';
+    logger.warn.mockClear();
+    validateEnv();
+    for (const key of stripeVariables) {
+      expect(logger.warn).not.toHaveBeenCalledWith(
+        'Optional environment variable not set', expect.objectContaining({ key }),
+      );
+    }
+  } finally {
+    process.env = originalEnv;
+  }
+});
 
 test('rejects placeholder and test credentials in production', () => {
   const errors = getProductionConfigurationErrors({

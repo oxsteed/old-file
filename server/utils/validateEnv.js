@@ -13,7 +13,7 @@ const REQUIRED = [
   'ENCRYPTION_KEY',
 ];
 
-// Missing these degrades features but doesn't break auth / payments
+// Missing these disables the corresponding feature, not the entire API.
 const OPTIONAL = [
   ['SENTRY_DSN',               'Server error monitoring unavailable; Credit production activation disabled'],
   ['SECURITY_ALERT_EMAIL',     'Security incident email alerts use the default recipient'],
@@ -30,7 +30,11 @@ const OPTIONAL = [
   ['CHECKR_API_KEY',           'Background checks disabled'],
   ['OPENAI_API_KEY',           'AI support chat disabled'],
   ['GOOGLE_MAPS_API_KEY',      'Geocoding / distance features disabled'],
-  ['STRIPE_CONNECT_CLIENT_ID', 'Stripe Connect onboarding disabled'],
+  ['STRIPE_PUBLISHABLE_KEY', 'Marketplace card checkout and mobile payment setup unavailable'],
+  ['STRIPE_CONNECT_WEBHOOK_SECRET', 'Connected-account webhook reconciliation unavailable'],
+  ['STRIPE_IDENTITY_WEBHOOK_SECRET', 'Stripe Identity webhook verification unavailable'],
+  ['STRIPE_CLIENT_ID', 'Business Stripe OAuth onboarding unavailable; helper Express onboarding is separate'],
+  ['STRIPE_CLIENT_SECRET', 'Business Stripe OAuth callback unavailable'],
 ];
 
 function looksLikePlaceholder(value) {
