@@ -20,4 +20,17 @@ function getRelease(env = process.env, releaseFile = RELEASE_FILE) {
   }
 }
 
-module.exports = { RELEASE_FILE, getRelease };
+// Structured release metadata for /ready. All fields are safe operational
+// metadata (never secrets). Values come from deploy-time environment
+// variables (Coolify can inject GIT_SHA, IMAGE_DIGEST, and
+// COOLIFY_DEPLOYMENT_ID); absent values are null rather than guessed.
+function getReleaseMetadata(env = process.env) {
+  return {
+    release: getRelease(env),
+    gitSha: firstNonEmpty(env.GIT_SHA, env.COMMIT_SHA, env.SOURCE_COMMIT),
+    imageDigest: firstNonEmpty(env.IMAGE_DIGEST),
+    deploymentId: firstNonEmpty(env.COOLIFY_DEPLOYMENT_ID, env.DEPLOYMENT_ID),
+  };
+}
+
+module.exports = { RELEASE_FILE, getRelease, getReleaseMetadata };

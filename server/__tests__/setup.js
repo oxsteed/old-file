@@ -105,7 +105,7 @@ jest.mock('../utils/transaction', () => {
     withSubscriptionTransaction: runWithClient,
   };
 });
-jest.mock('../services/paymentQueue', () => ({ queuePaymentCapture: jest.fn().mockResolvedValue('job-123'), addJob: jest.fn().mockResolvedValue('job-id'), getNextJob: jest.fn(), retryJob: jest.fn(), deadLetterJob: jest.fn(), completeJob: jest.fn() }));
+jest.mock('../services/paymentQueue', () => ({ QUEUES: { PAYMENT_CAPTURE: 'queue:payment-capture', STRIPE_WEBHOOK: 'queue:stripe-webhook', NOTIFICATIONS: 'queue:notifications' }, queuePaymentCapture: jest.fn().mockResolvedValue('job-123'), addJob: jest.fn().mockResolvedValue('job-id'), getNextJob: jest.fn(), retryJob: jest.fn(), deadLetterJob: jest.fn(), completeJob: jest.fn() }));
 jest.mock('stripe', () => {
   const mockInstance = {
     paymentIntents: { create: jest.fn(), capture: jest.fn() },

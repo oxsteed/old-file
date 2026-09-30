@@ -6,7 +6,7 @@ const runtimeState = require('./runtimeState');
 const logger = require('../utils/logger');
 const { getCreditRailPrerequisites, getLedgerHashKeyConfiguration } = require('./oxsteedCreditService');
 const { getProductionConfigurationErrors } = require('../utils/validateEnv');
-const { getRelease } = require('../utils/release');
+const { getRelease, getReleaseMetadata } = require('../utils/release');
 
 const migrationsDirectory = path.join(__dirname, '../migrations');
 
@@ -94,6 +94,7 @@ async function checkReadiness({ pool, redis, includeTrafficState = true }) {
   const runtime = runtimeState.snapshot();
   const productionConfigurationErrors = getProductionConfigurationErrors();
   const release = getRelease();
+  const releaseMetadata = getReleaseMetadata();
   const production = (process.env.NODE_ENV || 'production') === 'production';
   const result = {
     status: 'ready',
@@ -101,6 +102,7 @@ async function checkReadiness({ pool, redis, includeTrafficState = true }) {
     // Release identifiers are safe operational metadata; never expose secrets
     // or the full deployment environment through readiness.
     release,
+    releaseMetadata,
     checks: {
       release: {
         ok: !production || Boolean(String(release || '').trim()),
