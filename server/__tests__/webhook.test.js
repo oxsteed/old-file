@@ -126,6 +126,26 @@ describe('Stripe destination isolation and modern snapshots', () => {
       ['active', 1700000000, 1702678400, false, 'sub_clover']);
   });
 
+  test('connected-account updates bind all parameters and scope the current account', async () => {
+    const previous = process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
+    process.env.STRIPE_CONNECT_WEBHOOK_SECRET = 'whsec_isolated_connect_fixture';
+    try {
+      stripe.webhooks.constructEvent.mockReturnValueOnce({ account: 'acct_connected', type: 'account.updated', data: {
+        object: { id: 'acct_connected', charges_enabled: true, payouts_enabled: true, details_submitted: true },
+      } });
+      mockQuery.mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ user_id: 'user_fixture' }] });
+      const response = await request(buildApp()).post('/api/webhooks/stripe/connect')
+        .set('Content-Type', 'application/json').send('{}');
+      expect(response.status).toBe(200);
+      expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining('WHERE stripe_account_id = $1 AND user_id = $5'),
+        ['acct_connected', true, true, true, 'user_fixture']);
+    } finally {
+      if (previous === undefined) delete process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
+      else process.env.STRIPE_CONNECT_WEBHOOK_SECRET = previous;
+    }
+  });
+
   test('renewal provider failure is retried instead of acknowledging an unapplied renewal', async () => {
     stripe.subscriptions.retrieve.mockRejectedValueOnce(new Error('temporary provider failure'));
     const response = await sendEvent(buildApp(), { type: 'invoice.paid', data: { object: { subscription: 'sub_retry' } } });

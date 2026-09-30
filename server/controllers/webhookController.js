@@ -305,8 +305,8 @@ async function syncConnectAccountState(account) {
             payouts_enabled = $3,
             onboarding_complete = $4,
             updated_at = NOW()
-      WHERE user_id = $5`,
-    [!!account.charges_enabled, !!account.payouts_enabled, onboardingComplete, userId]
+      WHERE stripe_account_id = $1 AND user_id = $5`,
+    [accountId, !!account.charges_enabled, !!account.payouts_enabled, onboardingComplete, userId]
   );
 
   logger.info('[Stripe] Connect account synced', {
