@@ -1663,9 +1663,16 @@ async function handleLogisticsCampaign(campaignId, template, res, req) {
 
 function prerenderPublicPages(req, res, next) {
   if (process.env.NODE_ENV !== 'production') return next();
+  const p = req.path;
+  // Admin documents belong to the admin shell contract, never the public SEO
+  // template. This also keeps HEAD responses private before the SPA mounts.
+  if (/^\/admin(?:\/|$)/i.test(p)) {
+    res.set('X-Robots-Tag', 'noindex, nofollow');
+    return next();
+  }
+  if (/^\/api(?:\/|$)/i.test(p)) return next();
   if (req.method !== 'GET') return next();
 
-  const p = req.path;
   const canonicalPath = p.length > 1 ? p.replace(/\/+$/, '') : p;
   if (canonicalPath !== p && (MARKETING_PAGES[canonicalPath] || isPublicSeoPath(canonicalPath))) {
     const target = new URL(req.originalUrl, base());

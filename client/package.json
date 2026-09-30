@@ -43,7 +43,7 @@
     "test:admin-support-analytics": "node scripts/adminSupportAnalytics.test.mjs",
     "test:admin-accessibility-contracts": "node --test scripts/adminAccessibilityContracts.test.mjs",
     "test:admin-logistics-localization": "node --test scripts/adminLogisticsLocalization.test.mjs",
-    "test:i18n-bootstrap": "node --test scripts/i18nBootstrap.test.mjs",
+    "test:i18n-bootstrap": "node --test scripts/i18nBootstrap.test.mjs scripts/adminLocaleNamespaces.test.mjs",
     "test:admin-marketplace-refund-idempotency": "node --test scripts/adminMarketplaceRefundIdempotency.test.mjs",
     "test:no-duplicate-json-keys": "node scripts/noDuplicateJsonKeys.test.mjs",
     "test:admin-operations-browser": "node --test scripts/adminOperations.browser-check.cjs",

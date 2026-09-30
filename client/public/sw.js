@@ -4,7 +4,6 @@
 // isolated caches without a manually maintained version constant.
 const CACHE_VERSION = new URL(self.location.href).searchParams.get('v') || 'dev';
 const STATIC_CACHE  = `oxsteed-static-${CACHE_VERSION}`;
-const API_CACHE     = `oxsteed-api-${CACHE_VERSION}`;
 
 // Shell assets to pre-cache on install
 const PRECACHE_URLS = [
@@ -27,7 +26,7 @@ self.addEventListener('activate', event => {
     caches.keys().then(keys =>
       Promise.all(
         keys
-          .filter(k => k !== STATIC_CACHE && k !== API_CACHE)
+          .filter(k => k.startsWith('oxsteed-') && k !== STATIC_CACHE)
           .map(k => caches.delete(k))
       )
     ).then(() => self.clients.claim())
@@ -44,9 +43,10 @@ self.addEventListener('fetch', event => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname === '/sw.js') return;
 
-  // API calls: network-first, cache fallback for safe GETs
+  // API responses contain account-specific and financial data. Never persist
+  // them or replay a previous account's response after a session change.
   if (url.pathname.startsWith('/api/')) {
-    event.respondWith(networkFirst(request, API_CACHE));
+    event.respondWith(networkOnly(request));
     return;
   }
 
@@ -54,43 +54,46 @@ self.addEventListener('fetch', event => {
   // broken or stale module from a long-lived cache. Cached assets remain the
   // offline fallback when the network is unavailable.
   if (
+    (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/icons/')) &&
     url.pathname.match(/\.(js|css|woff2?|ttf|otf|png|jpg|jpeg|svg|ico|webp)$/)
   ) {
     event.respondWith(networkFirst(request, STATIC_CACHE));
     return;
   }
 
-  // HTML navigation: network-first, fall back to cached '/' or offline page
-  event.respondWith(navigationHandler(request));
+  // Do not turn socket handshakes, uploads, or non-document requests into HTML.
+  if (request.mode === 'navigate') {
+    event.respondWith(navigationHandler(request));
+  }
 });
 
 // ── Strategy helpers ──────────────────────────────────────────────────────────
 
-async function cacheFirst(request, cacheName) {
-  const cached = await caches.match(request);
-  if (cached) return cached;
+async function networkOnly(request) {
   try {
-    const response = await fetch(request);
-    if (response.ok) {
-      const cache = await caches.open(cacheName);
-      cache.put(request, response.clone());
-    }
-    return response;
+    return await fetch(request);
   } catch {
-    return new Response('Offline', { status: 503 });
+    return new Response(JSON.stringify({ error: 'You are offline.' }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+    });
   }
 }
 
 async function networkFirst(request, cacheName) {
   try {
     const response = await fetch(request);
-    if (response.ok) {
-      const cache = await caches.open(cacheName);
-      cache.put(request, response.clone());
+    if (response.ok && !request.headers.has('Authorization') &&
+        !/no-store|private/i.test(response.headers.get('Cache-Control') || '')) {
+      try {
+        const cache = await caches.open(cacheName);
+        await cache.put(request, response.clone());
+      } catch { /* Cache failures must not discard a successful network response. */ }
     }
     return response;
   } catch {
-    const cached = await caches.match(request);
+    let cached;
+    try { cached = await caches.match(request); } catch { /* Cache unavailable. */ }
     if (cached) return cached;
     return new Response(JSON.stringify({ error: 'You are offline.' }), {
       status: 503,
@@ -105,7 +108,12 @@ async function navigationHandler(request) {
   } catch {
     // Keep application HTML network-first so a deployment can publish a new
     // asset manifest without an older route shell masking it.
-    return caches.match('/offline.html');
+    let offline;
+    try { offline = await caches.match('/offline.html'); } catch { /* Cache unavailable. */ }
+    return offline || new Response('Offline. Please reconnect and try again.', {
+      status: 503,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' },
+    });
   }
 }
 

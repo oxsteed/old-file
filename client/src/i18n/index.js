@@ -10,6 +10,7 @@ export const LANGUAGES = [
 ];
 
 const LANGUAGE_QUERY_PARAMS = ['lang', 'lng', 'locale'];
+const NAMESPACES = ['translation', 'common', 'translator', 'credit', 'support', 'adminQuoteRequests'];
 
 // Translation is split into independently cached chunks. The legacy catalog
 // is required to render the application; these smaller namespaces are
@@ -90,15 +91,20 @@ const legalLocalePromises = new Map();
 
 function getLocaleResources(modules) {
   const [legacyPartOne, legacyPartTwo, legacyPartThree, common, translator, credit] = modules;
+  const translation = {
+    ...legacyPartOne.default,
+    ...legacyPartTwo.default,
+    ...legacyPartThree.default,
+  };
   return {
-    translation: {
-      ...legacyPartOne.default,
-      ...legacyPartTwo.default,
-      ...legacyPartThree.default,
-    },
+    translation,
     common: common.default,
     translator: translator.default,
     credit: credit.default,
+    // Project canonical catalogs into explicit namespaces as well as the
+    // legacy dotted paths. Both lookup styles share one translation source.
+    support: translation.support || {},
+    adminQuoteRequests: translation.adminQuoteRequests || {},
   };
 }
 
@@ -190,7 +196,7 @@ export const i18nReady = Promise.all([
     lng: initialLanguage,
     fallbackLng: 'en',
     supportedLngs: LANGUAGES.map((language) => language.code),
-    ns: ['translation', 'common', 'translator', 'credit'],
+    ns: [...NAMESPACES],
     defaultNS: 'translation',
     fallbackNS: ['common'],
     interpolation: { escapeValue: false },
@@ -201,12 +207,11 @@ export const i18nReady = Promise.all([
 export function ensureLanguageLoaded(code) {
   const normalizedCode = normalizeInitialLanguage(code);
   return i18nReady.then(() => {
-    if (i18n.hasResourceBundle(normalizedCode, 'translation')) return;
+    if (NAMESPACES.every((namespace) => i18n.hasResourceBundle(normalizedCode, namespace))) return;
     return loadLanguageResources(normalizedCode).then((resourcesForLanguage) => {
-      i18n.addResourceBundle(normalizedCode, 'translation', resourcesForLanguage.translation, true, true);
-      i18n.addResourceBundle(normalizedCode, 'common', resourcesForLanguage.common, true, true);
-      i18n.addResourceBundle(normalizedCode, 'translator', resourcesForLanguage.translator, true, true);
-      i18n.addResourceBundle(normalizedCode, 'credit', resourcesForLanguage.credit, true, true);
+      Object.entries(resourcesForLanguage).forEach(([namespace, resources]) => {
+        i18n.addResourceBundle(normalizedCode, namespace, resources, true, true);
+      });
     });
   });
 }
@@ -216,26 +221,30 @@ export function ensureLanguageLoaded(code) {
  * from the same split shards as the normal startup path, so the bundler
  * never emits a monolithic catalog chunk and every locale asset stays under
  * the size budget. Each shard fails soft; when no shard loads at all the
- * promise rejects so the caller renders the safe retry state instead of an
- * admin full of raw keys.
+ * promise rejects so the caller renders the safe retry state. The affected
+ * admin catalogs must also be available before mounting the admin shell.
  */
 export function initializeEnglishFallback() {
   return Promise.all([
     optionalLocaleModule(import('../locales/generated/en-0.json')),
     optionalLocaleModule(import('../locales/generated/en-1.json')),
     optionalLocaleModule(import('../locales/generated/en-2.json')),
-  ]).then((parts) => {
-    const translation = Object.assign({}, ...parts.map((part) => part.default));
-    if (Object.keys(translation).length === 0) {
+    optionalLocaleModule(import('./locales/en/common.json')),
+    optionalLocaleModule(import('./locales/en/translator.json')),
+    optionalLocaleModule(import('./locales/en/credit.json')),
+  ]).then((modules) => {
+    const resources = getLocaleResources(modules);
+    if (!resources.support.workspace || !resources.adminQuoteRequests.statusNew) {
       throw new Error('English fallback resources unavailable');
     }
     return i18n.use(initReactI18next).init({
-      resources: { en: { translation } },
+      resources: { en: resources },
       lng: 'en',
       fallbackLng: 'en',
       supportedLngs: ['en'],
-      ns: ['translation'],
+      ns: [...NAMESPACES],
       defaultNS: 'translation',
+      fallbackNS: ['common'],
       interpolation: { escapeValue: false },
       react: { useSuspense: false },
     });

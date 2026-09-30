@@ -33,6 +33,7 @@ const { generalLimiter, authenticatedLimiter, authLimiter, strictLimiter, channe
 const { authenticate, requireRole } = require('./middleware/auth');
 const { requireAdmin } = require('./middleware/adminAuth');
 const prerenderHelperProfile = require('./middleware/prerenderHelperProfile');
+const { createSpaFallback } = require('./middleware/spaFallback');
 
 // ── ROUTES ───────────────────────────────────────────────────
 const sitemapRoutes = require('./routes/sitemap');
@@ -704,16 +705,9 @@ if (process.env.NODE_ENV === 'production' || process.env.CREDIT_TEST_SERVE_STATI
     },
   }));
 
-  // Admin SPA - serve admin.html for the bare entry point and all nested routes.
-  // Express does not match `/admin` with the `/admin/*` pattern.
-  app.get(['/admin', '/admin/*'], (req, res) => {
-    res.sendFile(path.join(clientDist, 'admin.html'));
-  });
-
-  // Main SPA - catch-all for everything else
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(clientDist, 'index.html'));
-  });
+  // Canonical admin document contract, then the main SPA. Missing API/file
+  // requests terminate here with a real 404 rather than either HTML shell.
+  app.use(createSpaFallback(clientDist));
 }
 
 // ── ERROR HANDLER ────────────────────────────────────────────
