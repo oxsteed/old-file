@@ -140,10 +140,24 @@ export default function DirectCatalogDirectoryPage({ view = 'services' }) {
             <span className="text-slate-600" aria-hidden="true">/</span>
             <span>{title}</span>
           </div>
-          <nav className="flex flex-wrap items-center gap-2" aria-label={t('directCatalog.directoryNavigation', { defaultValue: 'Direct directories' })}>
-            <Link to={directCatalogHref('skills')} className="rounded-full border border-white/10 px-3 py-2 text-xs text-slate-300 hover:border-orange-400/50">{t('directCatalog.viewAllCategories', { defaultValue: 'View all skills' })}</Link>
-            <Link to={directCatalogHref('services')} className="rounded-full border border-white/10 px-3 py-2 text-xs text-slate-300 hover:border-orange-400/50">{t('directCatalog.viewAllServices', { defaultValue: 'View all services' })}</Link>
-            <Link to={directCatalogHref('tools')} className="rounded-full border border-white/10 px-3 py-2 text-xs text-slate-300 hover:border-orange-400/50">{t('directCatalog.viewAllTools', { defaultValue: 'View all tools' })}</Link>
+          <nav className="flex min-w-0 max-w-full items-center gap-2 overflow-x-auto" aria-label={t('directCatalog.directoryNavigation', { defaultValue: 'Direct directories' })}>
+            {[
+              { key: 'skills', label: t('directCatalog.skillsTab', { defaultValue: 'Skills' }) },
+              { key: 'tools', label: t('directCatalog.toolsTab', { defaultValue: 'Tools' }) },
+              { key: 'services', label: t('directCatalog.servicesTab', { defaultValue: 'Services' }) },
+            ].map((tab) => {
+              const active = tab.key === view;
+              return (
+                <Link
+                  key={tab.key}
+                  to={directCatalogHref(tab.key, { categorySlug: category })}
+                  aria-current={active ? 'page' : undefined}
+                  className={`shrink-0 whitespace-nowrap rounded-full border px-4 py-2 text-xs font-semibold ${active ? 'border-orange-400 bg-orange-500 text-white' : 'border-white/10 text-slate-300 hover:border-orange-400/50'}`}
+                >
+                  {tab.label}
+                </Link>
+              );
+            })}
           </nav>
         </header>
 

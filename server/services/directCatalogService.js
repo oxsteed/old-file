@@ -398,10 +398,14 @@ async function getCatalog({ locale = 'en', includeUnpublished = false, view = nu
     ) AS tool_rows
     ${toolBounded ? `WHERE tool_rank >= $${toolParams.length - 1} AND tool_rank < $${toolParams.length}` : ''}
     ORDER BY COALESCE(display_order, sort_order), created_at, id`;
+  // The per-view placeholder query ('SELECT NULL::text AS id WHERE FALSE') binds
+  // no parameters. Passing the other view's params (category slug, search, or
+  // pagination bounds) makes PostgreSQL reject the bind and the whole catalog
+  // request 500s, so the placeholder query always runs with an empty array.
   const [{ rows: categories }, { rows: services }, { rows: tools }] = await Promise.all([
     db.query(`SELECT * FROM direct_catalog_categories c ${includeUnpublished ? '' : `WHERE c.is_active = TRUE AND c.lifecycle_status IN (${PUBLIC_CATEGORY_STATUSES.map((status) => `'${status}'`).join(', ')})`} ORDER BY COALESCE(c.display_order, c.sort_order), c.created_at`),
-    db.query(serviceQuery, serviceParams),
-    db.query(toolQuery, toolParams),
+    db.query(serviceQuery, view === 'tools' ? [] : serviceParams),
+    db.query(toolQuery, view === 'services' ? [] : toolParams),
   ]);
   const categoryMap = new Map(categories.map((row) => [String(row.id), {
     ...adminCategory(row), name: localized(row.name_i18n, safeLocale), services: [], liveServiceCount: 0, availableServiceCount: 0, visibleServiceCount: 0, bookableServiceCount: 0,

@@ -20378,6 +20378,9 @@
   },
   "directCatalog": {
     "skillCategories": "Catégories de compétences",
+    "skillsTab": "Compétences",
+    "toolsTab": "Outils",
+    "servicesTab": "Services",
     "searchCategories": "Rechercher des catégories...",
     "searchCategoriesAria": "Rechercher des catégories",
     "noCategories": "Aucune catégorie publiée pour le moment.",

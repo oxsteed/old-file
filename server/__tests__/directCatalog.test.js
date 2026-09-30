@@ -207,6 +207,26 @@ describe('Direct catalog', () => {
     expect(mockQuery.mock.calls[2][0]).toContain('tool_total_count');
   });
 
+  test('binds no params to the inactive view placeholder query', async () => {
+    // Regression: PostgreSQL rejects a bind when the placeholder
+    // ('SELECT NULL::text AS id WHERE FALSE') receives the other view's params,
+    // which 500d every tools/services directory request with a category or pagination.
+    mockQuery.mockResolvedValue({ rows: [], rowCount: 0 });
+
+    await getCatalog({ ...parseCatalogQuery({ view: 'tools', category: 'Electrical', limit: '24', offset: '0' }) });
+
+    expect(mockQuery.mock.calls[1][0]).toContain('WHERE FALSE');
+    expect(mockQuery.mock.calls[1][1]).toEqual([]);
+
+    mockQuery.mockClear();
+    mockQuery.mockResolvedValue({ rows: [], rowCount: 0 });
+
+    await getCatalog({ ...parseCatalogQuery({ view: 'services', category: 'Electrical', limit: '24', offset: '0' }) });
+
+    expect(mockQuery.mock.calls[2][0]).toContain('WHERE FALSE');
+    expect(mockQuery.mock.calls[2][1]).toEqual([]);
+  });
+
   test('rejects unsafe catalog pagination values', () => {
     expect(() => parseCatalogQuery({ limit: '0' })).toThrow(/limit must be between/);
     expect(() => parseCatalogQuery({ limit: '101' })).toThrow(/limit must be between/);

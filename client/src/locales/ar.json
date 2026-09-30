@@ -20381,6 +20381,9 @@
   },
   "directCatalog": {
     "skillCategories": "فئات المهارات",
+    "skillsTab": "المهارات",
+    "toolsTab": "الأدوات",
+    "servicesTab": "الخدمات",
     "searchCategories": "البحث في الفئات...",
     "searchCategoriesAria": "البحث في الفئات",
     "noCategories": "لا توجد فئات منشورة بعد.",

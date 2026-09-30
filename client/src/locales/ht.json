@@ -20378,6 +20378,9 @@
   },
   "directCatalog": {
     "skillCategories": "Kategori konpetans",
+    "skillsTab": "Konpetans",
+    "toolsTab": "Zouti",
+    "servicesTab": "Sèvis",
     "searchCategories": "Chèche kategori...",
     "searchCategoriesAria": "Chèche kategori",
     "noCategories": "Pa gen kategori ki pibliye ankò.",

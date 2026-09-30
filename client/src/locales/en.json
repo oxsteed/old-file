@@ -20388,6 +20388,9 @@
   },
   "directCatalog": {
     "skillCategories": "Skill categories",
+    "skillsTab": "Skills",
+    "toolsTab": "Tools",
+    "servicesTab": "Services",
     "searchCategories": "Search categories...",
     "searchCategoriesAria": "Search categories",
     "noCategories": "No published categories yet.",
