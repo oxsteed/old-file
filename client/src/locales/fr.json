@@ -25411,5 +25411,78 @@
     },
     "title": "Client 360"
   }
+,
+
+  "adminSettingsChanges": {
+    "buttons": {
+      "approve": "Approuver",
+      "cancelRequest": "Annuler la demande",
+      "reject": "Rejeter",
+      "schedule": "Planifier"
+    },
+    "fieldEffectiveAt": "Effectif le",
+    "fieldKey": "Clé",
+    "fieldProposedBy": "Proposé par",
+    "fieldProposedValue": "Valeur proposée",
+    "fieldReason": "Motif",
+    "fieldRollout": "Déploiement",
+    "historyEmpty": "Aucune demande de changement terminée ou annulée pour le moment.",
+    "noApproveRights": "Vous n'avez pas les droits d'approbation pour les changements de paramètres.",
+    "preview": {
+      "consumers": "Consommateurs concernés",
+      "current": "Actuelle",
+      "loadFailed": "Impossible de charger l'aperçu d'impact.",
+      "loading": "Chargement de l'aperçu d'impact…",
+      "noConsumers": "Aucun consommateur en aval signalé.",
+      "proposed": "Proposée",
+      "title": "Examiner l'impact du changement"
+    },
+    "propose": {
+      "currentValue": "Valeur actuelle",
+      "effectiveAt": "Effectif le",
+      "effectiveAtHint": "Facultatif. Laissez vide pour proposer une application immédiate.",
+      "proposedValue": "Valeur proposée",
+      "reason": "Motif",
+      "reasonPlaceholder": "Pourquoi ce changement est-il nécessaire ?",
+      "reasonRequired": "Un motif est requis.",
+      "rollout": "Pourcentage de déploiement",
+      "rolloutHint": "Indicateurs uniquement. Déploiement progressif de 0 à 100.",
+      "submit": "Envoyer la proposition",
+      "title": "Proposer un changement"
+    },
+    "proposeButton": "Proposer",
+    "proposedEmpty": "Aucune demande de changement en attente de révision.",
+    "schedule": {
+      "effectiveAt": "Effectif le",
+      "effectiveAtRequired": "Une date et une heure d'effet sont requises.",
+      "rollout": "Pourcentage de déploiement",
+      "submit": "Planifier",
+      "title": "Planifier le changement"
+    },
+    "sodError": "Vous ne pouvez pas approuver un changement que vous avez proposé vous-même. Demandez à un autre approbateur.",
+    "status": {
+      "applied": "Appliquée",
+      "approved": "Approuvée",
+      "cancelled": "Annulée",
+      "proposed": "Proposée",
+      "rejected": "Rejetée",
+      "scheduled": "Planifiée"
+    },
+    "tabHint": "Les modifications directes s'appliquent immédiatement. Ce qui est proposé ici passe d'abord par une approbation.",
+    "tabs": {
+      "direct": "Modification directe",
+      "history": "Historique",
+      "proposed": "Propositions"
+    },
+    "toast": {
+      "actionFailed": "L'action n'a pas pu être effectuée.",
+      "approved": "Demande de changement approuvée.",
+      "cancelled": "Demande de changement annulée.",
+      "loadFailed": "Impossible de charger les demandes de changement.",
+      "proposed": "Demande de changement soumise pour approbation.",
+      "rejected": "Demande de changement rejetée.",
+      "scheduled": "Demande de changement planifiée."
+    }
+  }
 
 }

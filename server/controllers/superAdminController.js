@@ -3923,3 +3923,9 @@ exports.getUserSupportTickets = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch support tickets.' });
   }
 };
+
+// Shared with the settings-change workflow (settingsChangeController.js) so
+// change requests validate values through the exact same parse path as the
+// direct updateSetting / updateFeatureFlag routes. Additive export only.
+module.exports.parsePlatformSettingValue = parsePlatformSettingValue;
+module.exports.parseStrictBoolean = parseStrictBoolean;

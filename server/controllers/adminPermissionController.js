@@ -18,6 +18,7 @@ const PERMISSION_SCOPES = {
   message_users:         'Send direct admin-to-user messages',
   create_users:          'Create new regular user accounts (customer/helper/broker)',
   manage_operations:      'Retry queues and webhooks, test and reconnect integrations, manage incidents',
+  approve_settings:       'Approve or reject staged platform settings changes',
 };
 
 const VALID_PERMISSIONS = Object.keys(PERMISSION_SCOPES);

@@ -25421,5 +25421,78 @@
     },
     "title": "Customer 360"
   }
+,
+
+  "adminSettingsChanges": {
+    "buttons": {
+      "approve": "Approve",
+      "cancelRequest": "Cancel request",
+      "reject": "Reject",
+      "schedule": "Schedule"
+    },
+    "fieldEffectiveAt": "Effective at",
+    "fieldKey": "Key",
+    "fieldProposedBy": "Proposed by",
+    "fieldProposedValue": "Proposed value",
+    "fieldReason": "Reason",
+    "fieldRollout": "Rollout",
+    "historyEmpty": "No completed or cancelled change requests yet.",
+    "noApproveRights": "You do not have approval rights for settings changes.",
+    "preview": {
+      "consumers": "Affected consumers",
+      "current": "Current",
+      "loadFailed": "Could not load the impact preview.",
+      "loading": "Loading impact preview…",
+      "noConsumers": "No downstream consumers reported.",
+      "proposed": "Proposed",
+      "title": "Review change impact"
+    },
+    "propose": {
+      "currentValue": "Current value",
+      "effectiveAt": "Effective at",
+      "effectiveAtHint": "Optional. Leave empty to propose immediate application.",
+      "proposedValue": "Proposed value",
+      "reason": "Reason",
+      "reasonPlaceholder": "Why is this change needed?",
+      "reasonRequired": "A reason is required.",
+      "rollout": "Rollout percent",
+      "rolloutHint": "Flags only. Staged rollout from 0 to 100.",
+      "submit": "Submit proposal",
+      "title": "Propose a change"
+    },
+    "proposeButton": "Propose",
+    "proposedEmpty": "No change requests awaiting review.",
+    "schedule": {
+      "effectiveAt": "Effective at",
+      "effectiveAtRequired": "An effective date and time is required.",
+      "rollout": "Rollout percent",
+      "submit": "Schedule",
+      "title": "Schedule change"
+    },
+    "sodError": "You cannot approve a change you proposed yourself. Ask another approver.",
+    "status": {
+      "applied": "Applied",
+      "approved": "Approved",
+      "cancelled": "Cancelled",
+      "proposed": "Proposed",
+      "rejected": "Rejected",
+      "scheduled": "Scheduled"
+    },
+    "tabHint": "Direct edits apply immediately. Anything proposed below goes through approval first.",
+    "tabs": {
+      "direct": "Direct edit",
+      "history": "History",
+      "proposed": "Proposed"
+    },
+    "toast": {
+      "actionFailed": "The action could not be completed.",
+      "approved": "Change request approved.",
+      "cancelled": "Change request cancelled.",
+      "loadFailed": "Could not load change requests.",
+      "proposed": "Change request submitted for approval.",
+      "rejected": "Change request rejected.",
+      "scheduled": "Change request scheduled."
+    }
+  }
 
 }

@@ -25411,5 +25411,78 @@
     },
     "title": "Cliente 360"
   }
+,
+
+  "adminSettingsChanges": {
+    "buttons": {
+      "approve": "Aprobar",
+      "cancelRequest": "Cancelar solicitud",
+      "reject": "Rechazar",
+      "schedule": "Programar"
+    },
+    "fieldEffectiveAt": "Vigente desde",
+    "fieldKey": "Clave",
+    "fieldProposedBy": "Propuesto por",
+    "fieldProposedValue": "Valor propuesto",
+    "fieldReason": "Motivo",
+    "fieldRollout": "Lanzamiento",
+    "historyEmpty": "Aún no hay solicitudes de cambio completadas ni canceladas.",
+    "noApproveRights": "No tiene derechos de aprobación para cambios de configuración.",
+    "preview": {
+      "consumers": "Consumidores afectados",
+      "current": "Actual",
+      "loadFailed": "No se pudo cargar la vista previa del impacto.",
+      "loading": "Cargando vista previa del impacto…",
+      "noConsumers": "No se informaron consumidores derivados.",
+      "proposed": "Propuesta",
+      "title": "Revisar el impacto del cambio"
+    },
+    "propose": {
+      "currentValue": "Valor actual",
+      "effectiveAt": "Vigente desde",
+      "effectiveAtHint": "Opcional. Déjelo vacío para proponer una aplicación inmediata.",
+      "proposedValue": "Valor propuesto",
+      "reason": "Motivo",
+      "reasonPlaceholder": "¿Por qué es necesario este cambio?",
+      "reasonRequired": "El motivo es obligatorio.",
+      "rollout": "Porcentaje de lanzamiento",
+      "rolloutHint": "Solo indicadores. Lanzamiento gradual de 0 a 100.",
+      "submit": "Enviar propuesta",
+      "title": "Proponer un cambio"
+    },
+    "proposeButton": "Proponer",
+    "proposedEmpty": "No hay solicitudes de cambio pendientes de revisión.",
+    "schedule": {
+      "effectiveAt": "Vigente desde",
+      "effectiveAtRequired": "Se requiere fecha y hora de vigencia.",
+      "rollout": "Porcentaje de lanzamiento",
+      "submit": "Programar",
+      "title": "Programar cambio"
+    },
+    "sodError": "No puede aprobar un cambio que usted mismo propuso. Pida a otro aprobador.",
+    "status": {
+      "applied": "Aplicada",
+      "approved": "Aprobada",
+      "cancelled": "Cancelada",
+      "proposed": "Propuesta",
+      "rejected": "Rechazada",
+      "scheduled": "Programada"
+    },
+    "tabHint": "Los cambios directos se aplican de inmediato. Lo que se proponga aquí requiere aprobación previa.",
+    "tabs": {
+      "direct": "Edición directa",
+      "history": "Historial",
+      "proposed": "Propuestas"
+    },
+    "toast": {
+      "actionFailed": "La acción no pudo completarse.",
+      "approved": "Solicitud de cambio aprobada.",
+      "cancelled": "Solicitud de cambio cancelada.",
+      "loadFailed": "No se pudieron cargar las solicitudes de cambio.",
+      "proposed": "Solicitud de cambio enviada para aprobación.",
+      "rejected": "Solicitud de cambio rechazada.",
+      "scheduled": "Solicitud de cambio programada."
+    }
+  }
 
 }

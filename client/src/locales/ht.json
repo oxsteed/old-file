@@ -25411,5 +25411,78 @@
     },
     "title": "Kliyan 360"
   }
+,
+
+  "adminSettingsChanges": {
+    "buttons": {
+      "approve": "Apwouve",
+      "cancelRequest": "Anile demann",
+      "reject": "Rejte",
+      "schedule": "Pwograme"
+    },
+    "fieldEffectiveAt": "An vigè depi",
+    "fieldKey": "Kle",
+    "fieldProposedBy": "Pwopoze pa",
+    "fieldProposedValue": "Valè pwopoze",
+    "fieldReason": "Rezon",
+    "fieldRollout": "Deplwaman",
+    "historyEmpty": "Poko gen demann chanjman ki fini oswa anile.",
+    "noApproveRights": "Ou pa gen dwa apwobasyon pou chanjman paramèt yo.",
+    "preview": {
+      "consumers": "Konsomatè konsène",
+      "current": "Aktyèl",
+      "loadFailed": "Pa t kapab chaje apèsi enpak la.",
+      "loading": "Ap chaje apèsi enpak la…",
+      "noConsumers": "Okenn konsomatè anba rapòte.",
+      "proposed": "Pwopoze",
+      "title": "Revize enpak chanjman an"
+    },
+    "propose": {
+      "currentValue": "Valè aktyèl",
+      "effectiveAt": "An vigè depi",
+      "effectiveAtHint": "Opsyonèl. Kite l vid pou pwopoze aplikasyon imedyat.",
+      "proposedValue": "Valè pwopoze",
+      "reason": "Rezon",
+      "reasonPlaceholder": "Poukisa chanjman sa a nesesè?",
+      "reasonRequired": "Yon rezon obligatwa.",
+      "rollout": "Pousantaj deplwaman",
+      "rolloutHint": "Selman pou flag. Deplwaman pwogresif soti 0 rive 100.",
+      "submit": "Voye pwopozisyon",
+      "title": "Pwopoze yon chanjman"
+    },
+    "proposeButton": "Pwopoze",
+    "proposedEmpty": "Okenn demann chanjman ap tann revizyon.",
+    "schedule": {
+      "effectiveAt": "An vigè depi",
+      "effectiveAtRequired": "Yon dat ak lè an vigè obligatwa.",
+      "rollout": "Pousantaj deplwaman",
+      "submit": "Pwograme",
+      "title": "Pwograme chanjman"
+    },
+    "sodError": "Ou pa ka apwouve yon chanjman ou te pwopoze tèt ou. Mande yon lòt apwobatè.",
+    "status": {
+      "applied": "Aplike",
+      "approved": "Apwouve",
+      "cancelled": "Anile",
+      "proposed": "Pwopoze",
+      "rejected": "Rejte",
+      "scheduled": "Pwograme"
+    },
+    "tabHint": "Modifikasyon dirèk yo aplike touswit. Tout sa ki pwopoze isit la bezwen apwobasyon anvan.",
+    "tabs": {
+      "direct": "Modifikasyon dirèk",
+      "history": "Istwa",
+      "proposed": "Pwopozisyon"
+    },
+    "toast": {
+      "actionFailed": "Aksyon an pa t kapab fini.",
+      "approved": "Demann chanjman apwouve.",
+      "cancelled": "Demann chanjman anile.",
+      "loadFailed": "Pa t kapab chaje demann chanjman yo.",
+      "proposed": "Demann chanjman voye pou apwobasyon.",
+      "rejected": "Demann chanjman rejte.",
+      "scheduled": "Demann chanjman pwograme."
+    }
+  }
 
 }

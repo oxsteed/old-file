@@ -25414,5 +25414,78 @@
     },
     "title": "العميل 360"
   }
+,
+
+  "adminSettingsChanges": {
+    "buttons": {
+      "approve": "اعتماد",
+      "cancelRequest": "إلغاء الطلب",
+      "reject": "رفض",
+      "schedule": "جدولة"
+    },
+    "fieldEffectiveAt": "ساري اعتبارًا من",
+    "fieldKey": "المفتاح",
+    "fieldProposedBy": "اقترحه",
+    "fieldProposedValue": "القيمة المقترحة",
+    "fieldReason": "السبب",
+    "fieldRollout": "النشر",
+    "historyEmpty": "لا توجد طلبات تغيير مكتملة أو ملغاة بعد.",
+    "noApproveRights": "ليس لديك صلاحيات اعتماد لتغييرات الإعدادات.",
+    "preview": {
+      "consumers": "المستهلكون المتأثرون",
+      "current": "الحالية",
+      "loadFailed": "تعذّر تحميل معاينة الأثر.",
+      "loading": "جارٍ تحميل معاينة الأثر…",
+      "noConsumers": "لم يتم الإبلاغ عن مستهلكين متأثرين.",
+      "proposed": "المقترحة",
+      "title": "مراجعة أثر التغيير"
+    },
+    "propose": {
+      "currentValue": "القيمة الحالية",
+      "effectiveAt": "ساري اعتبارًا من",
+      "effectiveAtHint": "اختياري. اتركه فارغًا لاقتراح التطبيق الفوري.",
+      "proposedValue": "القيمة المقترحة",
+      "reason": "السبب",
+      "reasonPlaceholder": "لماذا هذا التغيير ضروري؟",
+      "reasonRequired": "السبب مطلوب.",
+      "rollout": "نسبة النشر",
+      "rolloutHint": "للمؤشرات فقط. نشر تدريجي من 0 إلى 100.",
+      "submit": "إرسال الاقتراح",
+      "title": "اقتراح تغيير"
+    },
+    "proposeButton": "اقتراح",
+    "proposedEmpty": "لا توجد طلبات تغيير بانتظار المراجعة.",
+    "schedule": {
+      "effectiveAt": "ساري اعتبارًا من",
+      "effectiveAtRequired": "التاريخ والوقت مطلوبان.",
+      "rollout": "نسبة النشر",
+      "submit": "جدولة",
+      "title": "جدولة التغيير"
+    },
+    "sodError": "لا يمكنك اعتماد تغيير اقترحته بنفسك. اطلب من معتمد آخر.",
+    "status": {
+      "applied": "مطبقة",
+      "approved": "معتمدة",
+      "cancelled": "ملغاة",
+      "proposed": "مقترحة",
+      "rejected": "مرفوضة",
+      "scheduled": "مجدولة"
+    },
+    "tabHint": "تُطبَّق التعديلات المباشرة فورًا. أي تغيير مقترح هنا يحتاج إلى موافقة أولًا.",
+    "tabs": {
+      "direct": "تعديل مباشر",
+      "history": "السجل",
+      "proposed": "مقترحة"
+    },
+    "toast": {
+      "actionFailed": "تعذّر إكمال الإجراء.",
+      "approved": "تم اعتماد طلب التغيير.",
+      "cancelled": "تم إلغاء طلب التغيير.",
+      "loadFailed": "تعذّر تحميل طلبات التغيير.",
+      "proposed": "تم إرسال طلب التغيير للاعتماد.",
+      "rejected": "تم رفض طلب التغيير.",
+      "scheduled": "تمت جدولة طلب التغيير."
+    }
+  }
 
 }
