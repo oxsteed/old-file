@@ -20,6 +20,7 @@ const adminQueryClient = new QueryClient({
 // Super Admin pages
 const SuperDashboard = lazyWithRetry(() => import('./pages/super/Dashboard'));
 const UserDetail = lazyWithRetry(() => import('./pages/super/UserDetail'));
+const Customer360 = lazyWithRetry(() => import('./pages/Customer360'));
 const ConversationsAdmin = lazyWithRetry(() => import('./pages/super/ConversationsAdmin'));
 const Financials = lazyWithRetry(() => import('./pages/super/Financials'));
 const PlatformSettings = lazyWithRetry(() => import('./pages/super/PlatformSettings'));
@@ -77,6 +78,7 @@ const UsersList = lazyWithRetry(() => import('./pages/UsersList'));
 const ReportsList = lazyWithRetry(() => import('./pages/ReportsList'));
 const BusinessModeration = lazyWithRetry(() => import('./pages/BusinessModeration'));
 const BusinessDetail = lazyWithRetry(() => import('./pages/BusinessDetail'));
+const Business360 = lazyWithRetry(() => import('./pages/Business360'));
 const ToolRentalModeration = lazyWithRetry(() => import('./pages/ToolRentalModeration'));
 const PlannedNeedsAdmin = lazyWithRetry(() => import('./pages/PlannedNeedsAdmin'));
 const PaymentsList = lazyWithRetry(() => import('./pages/PaymentsList'));
@@ -192,6 +194,7 @@ export default function AdminApp() {
           } />
           <Route path={adminRoute('users').relative} element={<UsersList />} />
           <Route path={adminRoute('userDetail').relative} element={<UserDetail />} />
+          <Route path={adminRoute('customer360').relative} element={<Customer360 />} />
           <Route path={adminRoute('jobs').relative} element={<JobsList />} />
           <Route path={adminRoute('jobDetail').relative} element={<JobDetail />} />
           <Route path={adminRoute('reports').relative} element={<ReportsList />} />
@@ -213,6 +216,7 @@ export default function AdminApp() {
           } />
           <Route path={adminRoute('businesses').relative} element={<BusinessModeration />} />
           <Route path={adminRoute('businessDetail').relative} element={<BusinessDetail />} />
+          <Route path={adminRoute('business360').relative} element={<Business360 />} />
           <Route path={adminRoute('toolRentals').relative} element={<ToolRentalModeration />} />
           <Route path={adminRoute('plannedNeeds').relative} element={<PlannedNeedsAdmin />} />
           <Route path={adminRoute('payments').relative} element={

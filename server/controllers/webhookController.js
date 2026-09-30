@@ -17,6 +17,7 @@ const {
 } = require('../services/restaurantPosPaymentLedgerService');
 const socketService = require('../services/socketService');
 const localDeliveryPayments = require('../services/localDeliveryPaymentService');
+const { createFraudCase } = require('../services/fraudCaseService');
 
 function extractFoodOrderId(metadata) {
   const raw = metadata?.food_order_id
@@ -26,6 +27,161 @@ function extractFoodOrderId(metadata) {
     || metadata?.restaurantOrderId;
   const parsed = Number.parseInt(String(raw || ''), 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+// ── Charge dispute -> fraud case helpers ──────────────────────────────
+
+// Pull a user/business subject directly out of Stripe metadata.
+// For job payments the payer is the client; helper_id only identifies the
+// payout recipient, so it stays last in precedence.
+function extractSubjectFromMetadata(metadata) {
+  if (!metadata || typeof metadata !== 'object') return null;
+  const userId = metadata.user_id
+    || metadata.userId
+    || metadata.payer_id
+    || metadata.client_id
+    || metadata.customer_id
+    || metadata.customer_user_id
+    || metadata.helper_id;
+  if (userId) return { subjectType: 'user', subjectId: String(userId) };
+  const businessId = metadata.business_id || metadata.businessId;
+  if (businessId) return { subjectType: 'business', subjectId: String(businessId) };
+  return null;
+}
+
+// Map a Stripe dispute to the local user/business the charge belongs to.
+// Returns { subjectType, subjectId } or null when nothing maps; callers must
+// skip case creation in that case (never invent an 'unknown' subject).
+async function resolveDisputeSubject(dispute) {
+  const chargeRef = dispute?.charge;
+  const metadataSources = [dispute?.metadata];
+
+  if (chargeRef && typeof chargeRef === 'object') {
+    metadataSources.push(chargeRef.metadata);
+  } else if (typeof chargeRef === 'string' && chargeRef
+      && stripe.charges && typeof stripe.charges.retrieve === 'function') {
+    // Dispute events carry the charge id, not its metadata; fetch it so the
+    // metadata-based resolution below (job_id, order ids) can run.
+    try {
+      const charge = await stripe.charges.retrieve(chargeRef);
+      metadataSources.push(charge?.metadata);
+    } catch (err) {
+      logger.warn('[Stripe] Failed to retrieve charge for dispute subject resolution', {
+        chargeId: chargeRef,
+        error: err.message,
+      });
+    }
+  }
+
+  for (const metadata of metadataSources) {
+    const subject = extractSubjectFromMetadata(metadata);
+    if (subject) return subject;
+  }
+
+  // Job escrow payments: payments row maps PI id / charge id to the payer.
+  const piId = typeof dispute?.payment_intent === 'string'
+    ? dispute.payment_intent
+    : dispute?.payment_intent?.id;
+  const chargeId = typeof chargeRef === 'string' ? chargeRef : chargeRef?.id;
+  if (piId || chargeId) {
+    const { rows } = await db.query(
+      `SELECT payer_id FROM payments
+        WHERE stripe_payment_intent_id = $1 OR stripe_charge_id = $2
+        LIMIT 1`,
+      [piId || null, chargeId || null]
+    );
+    if (rows[0]?.payer_id) {
+      return { subjectType: 'user', subjectId: String(rows[0].payer_id) };
+    }
+  }
+
+  // Order-id metadata carried on the charge: food, marketplace, then jobs.
+  const metadata = Object.assign({}, ...metadataSources.filter(Boolean));
+  const foodOrderId = extractFoodOrderId(metadata);
+  if (foodOrderId) {
+    const { rows } = await db.query(
+      'SELECT customer_id FROM food_orders WHERE id = $1::bigint',
+      [foodOrderId]
+    );
+    if (rows[0]?.customer_id) {
+      return { subjectType: 'user', subjectId: String(rows[0].customer_id) };
+    }
+  }
+  const marketplaceOrderId = metadata.orderId || metadata.order_id;
+  if (marketplaceOrderId) {
+    const { rows } = await db.query(
+      'SELECT customer_id FROM marketplace_orders WHERE id = $1',
+      [marketplaceOrderId]
+    );
+    if (rows[0]?.customer_id) {
+      return { subjectType: 'user', subjectId: String(rows[0].customer_id) };
+    }
+  }
+  const jobId = metadata.job_id;
+  if (jobId) {
+    const { rows } = await db.query(
+      'SELECT client_id FROM jobs WHERE id = $1',
+      [jobId]
+    );
+    if (rows[0]?.client_id) {
+      return { subjectType: 'user', subjectId: String(rows[0].client_id) };
+    }
+  }
+
+  return null;
+}
+
+function buildDisputeEvidence(dispute) {
+  const evidence = {
+    dispute_id: dispute.id,
+    amount_cents: dispute.amount,
+    currency: dispute.currency,
+    reason: dispute.reason || null,
+    status: dispute.status,
+    charge_id: typeof dispute.charge === 'string' ? dispute.charge : dispute.charge?.id || null,
+    payment_intent_id: typeof dispute.payment_intent === 'string'
+      ? dispute.payment_intent
+      : dispute.payment_intent?.id || null,
+  };
+  if (dispute.status === 'lost') {
+    evidence.escalation_note = 'Dispute lost: funds withdrawn. Recommend escalating case severity to critical.';
+  }
+  return evidence;
+}
+
+// Open (or return the existing) fraud case for a charge dispute, then merge
+// the latest dispute evidence into the row so out-of-order events stay fresh.
+async function recordChargeDisputeCase(dispute) {
+  const subject = await resolveDisputeSubject(dispute);
+  if (!subject) {
+    logger.warn('[Stripe] charge.dispute without a resolvable user/business subject; skipping fraud case', {
+      disputeId: dispute?.id,
+    });
+    return null;
+  }
+  const amount = dispute.amount != null && dispute.currency
+    ? `${(dispute.amount / 100).toFixed(2)} ${String(dispute.currency).toUpperCase()}`
+    : 'unknown amount';
+  const caseRow = await createFraudCase({
+    subjectType: subject.subjectType,
+    subjectId: subject.subjectId,
+    category: 'chargeback',
+    severity: 'high',
+    source: 'stripe_webhook',
+    sourceRef: dispute.id,
+    summary: `Stripe dispute ${dispute.id} (${amount}${dispute.reason ? `, reason: ${dispute.reason}` : ''})`,
+    evidence: buildDisputeEvidence(dispute),
+  });
+  if (caseRow) {
+    await db.query(
+      `UPDATE fraud_cases
+          SET evidence = COALESCE(evidence, '{}'::jsonb) || $1::jsonb,
+              updated_at = NOW()
+        WHERE id = $2`,
+      [JSON.stringify(buildDisputeEvidence(dispute)), caseRow.id]
+    );
+  }
+  return caseRow;
 }
 
 function emitFoodOrderUpdate(order) {
@@ -691,6 +847,37 @@ exports.stripeWebhook = async (req, res, next) => {
           });
         }
         await withTransaction(db, (client) => applyStripeChargeRefund(client, charge));
+        break;
+      }
+
+      case 'charge.dispute.created': {
+        // Cardholder opened a dispute: open a fraud case for investigation.
+        // Fraud-case bookkeeping must not fail the webhook itself.
+        const dispute = event.data.object;
+        try {
+          await recordChargeDisputeCase(dispute);
+        } catch (err) {
+          logger.error('[Stripe] Failed to record charge dispute fraud case', {
+            disputeId: dispute?.id,
+            error: err.message,
+          });
+        }
+        break;
+      }
+
+      case 'charge.dispute.updated': {
+        // Dispute status changed (e.g. evidence submitted, won/lost).
+        // recordChargeDisputeCase dedupes on the dispute id and merges the
+        // latest evidence into the existing case instead of duplicating it.
+        const dispute = event.data.object;
+        try {
+          await recordChargeDisputeCase(dispute);
+        } catch (err) {
+          logger.error('[Stripe] Failed to update charge dispute fraud case', {
+            disputeId: dispute?.id,
+            error: err.message,
+          });
+        }
         break;
       }
 

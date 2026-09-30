@@ -3,6 +3,7 @@
 
 const pool = require('../db');
 const logger = require('../utils/logger');
+const { createFraudCase } = require('./fraudCaseService');
 
 /**
  * Detect suspicious affiliate patterns that indicate fraud
@@ -96,6 +97,35 @@ async function detectAffiliateeFraud(orderId, affiliateId) {
         severity: 'high',
         message: 'Order refunded shortly after commission payment'
       });
+    }
+
+    // Open a fraud case for investigation when any flag is raised. Dedupe in
+    // createFraudCase collapses repeat detections for the same order/affiliate.
+    // Case creation must not change the detection result on failure.
+    if (fraudFlags.length > 0) {
+      try {
+        const severityRank = { low: 0, medium: 1, high: 2, critical: 3 };
+        const maxSeverity = fraudFlags.reduce(
+          (max, f) => (severityRank[f.severity] ?? 0) > (severityRank[max] ?? 0) ? f.severity : max,
+          'low'
+        );
+        await createFraudCase({
+          subjectType: 'user',
+          subjectId: affiliateId,
+          category: 'affiliate_fraud',
+          severity: maxSeverity,
+          source: 'auto_rule',
+          sourceRef: `affiliate_fraud:${affiliateId}:${orderId}`,
+          summary: `Affiliate fraud flags for affiliate ${affiliateId} on order ${orderId}: ${fraudFlags.map((f) => f.flag).join(', ')}`,
+          evidence: {
+            order_id: orderId,
+            affiliate_id: affiliateId,
+            flags: fraudFlags,
+          },
+        });
+      } catch (err) {
+        logger.error('Failed to create affiliate fraud case', { orderId, affiliateId, error: err.message });
+      }
     }
 
     return {

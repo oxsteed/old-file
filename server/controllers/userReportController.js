@@ -1,6 +1,7 @@
 const db = require('../db');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
+const { createFraudCase } = require('../services/fraudCaseService');
 
 // Map report types to severity levels
 const SEVERITY_MAP = {
@@ -66,6 +67,33 @@ const submitReport = async (req, res, next) => {
       reportedUserId,
       reportType
     });
+
+    // Fraud-type reports also open a fraud case for investigation. Case
+    // creation must not fail the report submission itself.
+    if (reportType === 'fraud') {
+      try {
+        await createFraudCase({
+          subjectType: 'user',
+          subjectId: reportedUserId,
+          category: 'abuse_report',
+          severity: 'critical',
+          source: 'user_report',
+          sourceRef: `user_report:${report.id}`,
+          summary: `User fraud report #${report.id} against user ${reportedUserId}`,
+          evidence: {
+            report_id: report.id,
+            reporter_id: reporterId,
+            booking_id: bookingId || null,
+            description: description.trim(),
+          },
+        });
+      } catch (err) {
+        logger.error('Failed to create fraud case for fraud report', {
+          reportId: report.id,
+          error: err.message,
+        });
+      }
+    }
 
     res.json({
       reportId: report.id,

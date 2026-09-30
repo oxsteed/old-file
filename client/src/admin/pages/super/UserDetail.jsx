@@ -848,6 +848,14 @@ export default function UserDetail() {
               <MessageSquare size={13} />{t('adminUserDetail.actions.message')}
             </button>
 
+            {/* Customer 360 view */}
+            <Link
+              to={`/admin/customers/${userId}/360`}
+              className="flex items-center gap-1.5 px-4 py-2 bg-transparent border border-sky-700/60 text-sky-300 hover:border-sky-500 hover:text-sky-200 rounded-lg text-xs font-semibold transition"
+            >
+              <Eye size={13} />{t('adminCustomer360.open360')}
+            </Link>
+
             {isAdmin && (
               <button
                 onClick={triggerPhoneVerification}

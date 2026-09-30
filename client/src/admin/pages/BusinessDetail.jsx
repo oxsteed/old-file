@@ -157,6 +157,12 @@ export default function BusinessDetail() {
           >
             <ExternalLink size={14} /> {t('adminBusinessDetail.viewPublicProfile')}
           </button>
+          <Link
+            to={`/admin/businesses/${id}/360`}
+            className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg transition text-sm font-medium"
+          >
+            <ExternalLink size={14} /> {t('adminBusiness360.open360')}
+          </Link>
         </div>
       </div>
 
