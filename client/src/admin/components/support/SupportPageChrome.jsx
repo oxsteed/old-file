@@ -1,7 +1,9 @@
 import { ChevronRight, ArrowLeft } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 export function SupportPageShell({ children }) {
+  const { t } = useTranslation();
   const { pathname } = useLocation();
   const isInbox = pathname === '/admin/support';
 
@@ -14,7 +16,7 @@ export function SupportPageShell({ children }) {
             className="inline-flex w-fit items-center gap-2 rounded-xl border border-gray-800 bg-gray-950/70 px-3 py-2 text-sm text-gray-400 transition hover:border-orange-500/40 hover:text-white"
           >
             <ArrowLeft size={15} />
-            Back to Support Inbox
+            {t('supportPageChrome.backToInbox')}
           </Link>
         ) : null}
         {children}

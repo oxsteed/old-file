@@ -1,17 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ExternalLink, FileText, Mail, Phone, RefreshCw, Search, User, MessageSquare, CalendarDays, MapPin, Tag } from 'lucide-react';
 import toast from 'react-hot-toast';
 import adminApi from '../../lib/adminApi';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 
-const STATUS_OPTIONS = [
-  { value: 'new', label: 'New' },
-  { value: 'reviewing', label: 'Reviewing' },
-  { value: 'quoted', label: 'Quoted' },
-  { value: 'contacted', label: 'Contacted' },
-  { value: 'closed', label: 'Closed' },
-  { value: 'cancelled', label: 'Cancelled' },
-];
+const STATUS_VALUES = ['new', 'reviewing', 'quoted', 'contacted', 'closed', 'cancelled'];
+
+const STATUS_KEY_SUFFIX = {
+  new: 'New',
+  reviewing: 'Reviewing',
+  quoted: 'Quoted',
+  contacted: 'Contacted',
+  closed: 'Closed',
+  cancelled: 'Cancelled',
+};
 
 const STATUS_BADGES = {
   new: 'bg-blue-500/15 text-blue-300 border-blue-500/25',
@@ -55,6 +58,7 @@ function FieldCard({ icon: Icon, label, value, href }) {
 }
 
 export default function QuoteRequestsInbox() {
+  const { t } = useTranslation();
   const [requests, setRequests] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -67,6 +71,11 @@ export default function QuoteRequestsInbox() {
 
   const pageSize = 20;
   const totalPages = Math.max(Math.ceil(total / pageSize), 1);
+
+  const STATUS_OPTIONS = STATUS_VALUES.map((value) => ({
+    value,
+    label: t(`adminQuoteRequests.status${STATUS_KEY_SUFFIX[value]}`),
+  }));
 
   // Detail fetch is sequence-guarded + abortable: a slow response for a
   // previously selected request can never populate the pane (or the editable
@@ -97,9 +106,9 @@ export default function QuoteRequestsInbox() {
 
   useEffect(() => {
     if (detailError) {
-      toast.error(detailError?.response?.data?.error || 'Failed to load quote request');
+      toast.error(detailError?.response?.data?.error || t('adminQuoteRequests.loadDetailFailed'));
     }
-  }, [detailError]);
+  }, [detailError, t]);
 
   const selectedRequest = useMemo(
     () => detail || requests.find((item) => String(item.id) === String(selectedId)) || null,
@@ -129,7 +138,7 @@ export default function QuoteRequestsInbox() {
         setSelectedId(nextRequests[0].id);
       }
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Failed to load quote requests');
+      toast.error(error?.response?.data?.error || t('adminQuoteRequests.loadListFailed'));
     } finally {
       setLoading(false);
     }
@@ -157,9 +166,9 @@ export default function QuoteRequestsInbox() {
       )));
       // Re-fetch the pane so the draft resyncs from the saved request.
       reloadDetail();
-      toast.success('Quote request updated.');
+      toast.success(t('adminQuoteRequests.updated'));
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Failed to update quote request');
+      toast.error(error?.response?.data?.error || t('adminQuoteRequests.updateFailed'));
     } finally {
       setSaving(false);
     }
@@ -178,30 +187,30 @@ export default function QuoteRequestsInbox() {
         <div>
           <div className="flex items-center gap-2 text-sm font-medium text-orange-300">
             <FileText size={15} />
-            Quote request inbox
+            {t('adminQuoteRequests.inboxLabel')}
           </div>
-          <h1 className="mt-2 text-3xl font-semibold">Review simple quote requests</h1>
+          <h1 className="mt-2 text-3xl font-semibold">{t('adminQuoteRequests.heading')}</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-400">
-            See every request, open one for the full details, and update its status or internal notes without leaving the admin panel.
+            {t('adminQuoteRequests.description')}
           </p>
         </div>
 
         <div className="grid grid-cols-3 gap-3">
           <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-3">
             <div className="text-2xl font-semibold text-white">{total}</div>
-            <div className="mt-1 text-xs uppercase tracking-[0.16em] text-gray-500">Total</div>
+            <div className="mt-1 text-xs uppercase tracking-[0.16em] text-gray-500">{t('adminQuoteRequests.statTotal')}</div>
           </div>
           <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-3">
             <div className="text-2xl font-semibold text-blue-300">
               {requests.filter((item) => item.status === 'new').length}
             </div>
-            <div className="mt-1 text-xs uppercase tracking-[0.16em] text-gray-500">New</div>
+            <div className="mt-1 text-xs uppercase tracking-[0.16em] text-gray-500">{t('adminQuoteRequests.statNew')}</div>
           </div>
           <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-3">
             <div className="text-2xl font-semibold text-orange-300">
               {requests.filter((item) => ['reviewing', 'quoted', 'contacted'].includes(item.status)).length}
             </div>
-            <div className="mt-1 text-xs uppercase tracking-[0.16em] text-gray-500">Active</div>
+            <div className="mt-1 text-xs uppercase tracking-[0.16em] text-gray-500">{t('adminQuoteRequests.statActive')}</div>
           </div>
         </div>
       </div>
@@ -215,7 +224,7 @@ export default function QuoteRequestsInbox() {
                 <input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search name, email, city, company..."
+                  placeholder={t('adminQuoteRequests.searchPlaceholder')}
                   className="w-full bg-transparent text-sm text-white outline-none placeholder:text-gray-600"
                 />
               </div>
@@ -225,13 +234,13 @@ export default function QuoteRequestsInbox() {
                   onChange={(event) => setStatusFilter(event.target.value)}
                   className="rounded-xl border border-gray-800 bg-gray-950/70 px-3 py-2 text-sm text-white outline-none"
                 >
-                  <option value="">All statuses</option>
+                  <option value="">{t('adminQuoteRequests.allStatuses')}</option>
                   {STATUS_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
                 <button type="submit" className="rounded-xl border border-gray-800 bg-gray-950/70 px-3 py-2 text-sm text-gray-200 transition hover:border-orange-500/40 hover:text-white">
-                  Search
+                  {t('common.search')}
                 </button>
                 <button
                   type="button"
@@ -249,7 +258,7 @@ export default function QuoteRequestsInbox() {
                   }}
                   className="rounded-xl border border-gray-800 bg-gray-950/70 px-3 py-2 text-sm text-gray-200 transition hover:border-gray-700 hover:text-white"
                 >
-                  Clear
+                  {t('adminQuoteRequests.clear')}
                 </button>
                 <button
                   type="button"
@@ -257,7 +266,7 @@ export default function QuoteRequestsInbox() {
                   className="inline-flex items-center gap-2 rounded-xl border border-gray-800 bg-gray-950/70 px-3 py-2 text-sm text-gray-200 transition hover:border-gray-700 hover:text-white"
                 >
                   <RefreshCw size={14} />
-                  Refresh
+                  {t('adminQuoteRequests.refresh')}
                 </button>
               </div>
             </div>
@@ -265,10 +274,10 @@ export default function QuoteRequestsInbox() {
 
           <div className="min-h-0 flex-1 overflow-y-auto p-2">
             {loading ? (
-              <div className="flex items-center justify-center py-16 text-sm text-gray-500">Loading quote requests…</div>
+              <div className="flex items-center justify-center py-16 text-sm text-gray-500">{t('adminQuoteRequests.loadingList')}</div>
             ) : requests.length === 0 ? (
               <div className="flex h-full items-center justify-center py-16 text-center text-sm text-gray-500">
-                No quote requests found.
+                {t('adminQuoteRequests.noResults')}
               </div>
             ) : (
               <div className="space-y-2">
@@ -313,16 +322,16 @@ export default function QuoteRequestsInbox() {
               disabled={page <= 1}
               className="rounded-xl border border-gray-800 bg-gray-950/70 px-3 py-2 disabled:opacity-40"
             >
-              Previous
+              {t('adminQuoteRequests.previous')}
             </button>
-            <span>Page {page} of {totalPages}</span>
+            <span>{t('adminQuoteRequests.pageOf', { page, total: totalPages })}</span>
             <button
               type="button"
               onClick={() => goToPage(page + 1)}
               disabled={page >= totalPages}
               className="rounded-xl border border-gray-800 bg-gray-950/70 px-3 py-2 disabled:opacity-40"
             >
-              Next
+              {t('adminQuoteRequests.next')}
             </button>
           </div>
         </aside>
@@ -330,11 +339,11 @@ export default function QuoteRequestsInbox() {
         <main className="min-h-0 flex-1 rounded-[28px] border border-gray-800 bg-gray-900/70 p-5">
           {!visibleRequest ? (
             <div className="flex h-full items-center justify-center text-sm text-gray-500">
-              Pick a quote request to review the details.
+              {t('adminQuoteRequests.pickRequest')}
             </div>
           ) : detailLoading ? (
             <div className="flex h-full items-center justify-center text-sm text-gray-500">
-              Loading request…
+              {t('adminQuoteRequests.loadingRequest')}
             </div>
           ) : (
             <div className="flex h-full min-h-0 flex-col gap-5">
@@ -342,13 +351,13 @@ export default function QuoteRequestsInbox() {
                 <div>
                   <div className="flex items-center gap-2 text-sm font-medium text-orange-300">
                     <User size={15} />
-                    Quote #{selectedRequest.id}
+                    {t('adminQuoteRequests.quoteNumber', { id: selectedRequest.id })}
                   </div>
                   <h2 className="mt-2 text-2xl font-semibold text-white">
                     {selectedRequest.first_name} {selectedRequest.last_name}
                   </h2>
                   <p className="mt-2 text-sm text-gray-400">
-                    {selectedRequest.company_name || 'No company name provided'}
+                    {selectedRequest.company_name || t('adminQuoteRequests.noCompany')}
                   </p>
                 </div>
 
@@ -357,33 +366,33 @@ export default function QuoteRequestsInbox() {
                     {selectedRequest.status}
                   </span>
                   <div className="rounded-full border border-gray-800 bg-gray-950/70 px-3 py-1.5 text-xs text-gray-400">
-                    Updated {formatDate(selectedRequest.updated_at)}
+                    {t('adminQuoteRequests.updatedAt', { date: formatDate(selectedRequest.updated_at) })}
                   </div>
                 </div>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
-                <FieldCard icon={Mail} label="Email" value={selectedRequest.email} href={`mailto:${selectedRequest.email}`} />
-                <FieldCard icon={Phone} label="Phone" value={selectedRequest.phone} href={selectedRequest.phone ? `tel:${selectedRequest.phone}` : undefined} />
-                <FieldCard icon={Tag} label="Service category" value={selectedRequest.service_category} />
-                <FieldCard icon={MapPin} label="Location" value={selectedRequest.service_location} />
-                <FieldCard icon={CalendarDays} label="Budget / Timeline" value={`${selectedRequest.budget_range || 'No budget'} · ${selectedRequest.timeline || 'No timeline'}`} />
-                <FieldCard icon={MessageSquare} label="Preferred contact" value={selectedRequest.preferred_contact_method} />
+                <FieldCard icon={Mail} label={t('adminQuoteRequests.fieldEmail')} value={selectedRequest.email} href={`mailto:${selectedRequest.email}`} />
+                <FieldCard icon={Phone} label={t('adminQuoteRequests.fieldPhone')} value={selectedRequest.phone} href={selectedRequest.phone ? `tel:${selectedRequest.phone}` : undefined} />
+                <FieldCard icon={Tag} label={t('adminQuoteRequests.fieldCategory')} value={selectedRequest.service_category} />
+                <FieldCard icon={MapPin} label={t('adminQuoteRequests.fieldLocation')} value={selectedRequest.service_location} />
+                <FieldCard icon={CalendarDays} label={t('adminQuoteRequests.fieldBudget')} value={`${selectedRequest.budget_range || t('adminQuoteRequests.noBudget')} · ${selectedRequest.timeline || t('adminQuoteRequests.noTimeline')}`} />
+                <FieldCard icon={MessageSquare} label={t('adminQuoteRequests.fieldContact')} value={selectedRequest.preferred_contact_method} />
               </div>
 
               <div className="grid min-h-0 gap-4 xl:grid-cols-[1.2fr_0.8fr]">
                 <section className="min-h-0 rounded-2xl border border-gray-800 bg-gray-950/60 p-4">
-                  <h3 className="text-sm font-semibold text-white">Request details</h3>
+                  <h3 className="text-sm font-semibold text-white">{t('adminQuoteRequests.requestDetails')}</h3>
                   <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-gray-300">
                     {selectedRequest.details}
                   </p>
                 </section>
 
                 <section className="min-h-0 rounded-2xl border border-gray-800 bg-gray-950/60 p-4">
-                  <h3 className="text-sm font-semibold text-white">Admin actions</h3>
+                  <h3 className="text-sm font-semibold text-white">{t('adminQuoteRequests.adminActions')}</h3>
                   <div className="mt-4 grid gap-3">
                     <label className="grid gap-2 text-sm">
-                      <span className="text-gray-400">Status</span>
+                      <span className="text-gray-400">{t('adminQuoteRequests.statusLabel')}</span>
                       <select
                         value={draft.status}
                         onChange={(event) => setDraft((current) => ({ ...current, status: event.target.value }))}
@@ -396,13 +405,13 @@ export default function QuoteRequestsInbox() {
                     </label>
 
                     <label className="grid gap-2 text-sm">
-                      <span className="text-gray-400">Internal notes</span>
+                      <span className="text-gray-400">{t('adminQuoteRequests.internalNotes')}</span>
                       <textarea
                         value={draft.admin_notes}
                         onChange={(event) => setDraft((current) => ({ ...current, admin_notes: event.target.value }))}
                         rows={10}
                         className="rounded-xl border border-gray-800 bg-gray-950/70 px-3 py-2 text-sm text-white outline-none"
-                        placeholder="Write notes here for your team..."
+                        placeholder={t('adminQuoteRequests.notesPlaceholder')}
                       />
                     </label>
 
@@ -413,14 +422,14 @@ export default function QuoteRequestsInbox() {
                         disabled={saving}
                         className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-orange-600 disabled:opacity-50"
                       >
-                        {saving ? 'Saving…' : 'Save changes'}
+                        {saving ? t('adminQuoteRequests.saving') : t('adminQuoteRequests.saveChanges')}
                       </button>
                       <a
                         href={`mailto:${selectedRequest.email}?subject=Re%3A%20OxSteed%20quote%20request%20%23${selectedRequest.id}`}
                         className="inline-flex items-center gap-2 rounded-xl border border-gray-800 bg-gray-950/70 px-4 py-2 text-sm text-gray-200 transition hover:border-gray-700 hover:text-white"
                       >
                         <ExternalLink size={14} />
-                        Email requester
+                        {t('adminQuoteRequests.emailRequester')}
                       </a>
                     </div>
                   </div>

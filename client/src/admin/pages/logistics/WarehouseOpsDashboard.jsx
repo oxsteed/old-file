@@ -1,10 +1,12 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from '../../../api/axios';
 import { useAbortableFetch } from '../../lib/useAbortableFetch';
 import AdminErrorState from '../../lib/AdminErrorState';
 import '../../../styles/logistics/LogisticsHomePage.css';
 
 export default function WarehouseOpsDashboard() {
+  const { t } = useTranslation();
   const { data, loading, error, reload } = useAbortableFetch(async (signal) => {
     // Direct requests (not the api wrappers) so the abort signal reaches the network calls.
     const [warehouses, receipts, allocations, deliveries] = await Promise.all([
@@ -29,19 +31,19 @@ export default function WarehouseOpsDashboard() {
   return (
     <div className="lx-page">
       <div className="lx-page-header">
-        <h1 className="lx-page-title">Warehouse Ops Workspace</h1>
-        <p className="lx-page-sub">Monitor receiving, reconcile discrepancies, and move inventory into release-ready allocations and delivery orders.</p>
+        <h1 className="lx-page-title">{t('adminWarehouseOps.title')}</h1>
+        <p className="lx-page-sub">{t('adminWarehouseOps.subtitle')}</p>
       </div>
-      {loading && <div className="lx-loading">Loading…</div>}
+      {loading && <div className="lx-loading">{t('common.loading')}</div>}
       {!loading && error && <AdminErrorState onRetry={reload} />}
       {!loading && !error && (
       <>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:'1rem', marginBottom:'1.5rem' }}>
         {[
-          ['Warehouses', warehouses.length, '🏗'],
-          ['Open receipts', receipts.filter((row) => row.status !== 'reconciled').length, '📥'],
-          ['Allocations', allocations.length, '📊'],
-          ['Deliveries', deliveries.length, '🚚'],
+          [t('adminWarehouseOps.stats.warehouses'), warehouses.length, '🏗'],
+          [t('adminWarehouseOps.stats.openReceipts'), receipts.filter((row) => row.status !== 'reconciled').length, '📥'],
+          [t('adminWarehouseOps.stats.allocations'), allocations.length, '📊'],
+          [t('adminWarehouseOps.stats.deliveries'), deliveries.length, '🚚'],
         ].map(([label, value, icon]) => (
           <div key={label} className="lx-card" style={{ textAlign:'center' }}>
             <div style={{ fontSize:'1.4rem' }}>{icon}</div>
@@ -52,7 +54,7 @@ export default function WarehouseOpsDashboard() {
       </div>
       <div className="lx-table-wrap">
         <table className="lx-table">
-          <thead><tr><th>Warehouse</th><th>Country</th><th>Open receipts</th><th>Pending allocations</th></tr></thead>
+          <thead><tr><th>{t('adminWarehouseOps.table.warehouse')}</th><th>{t('adminWarehouseOps.table.country')}</th><th>{t('adminWarehouseOps.table.openReceipts')}</th><th>{t('adminWarehouseOps.table.pendingAllocations')}</th></tr></thead>
           <tbody>
             {warehouses.map((warehouse) => (
               <tr key={warehouse.id}>
@@ -62,7 +64,7 @@ export default function WarehouseOpsDashboard() {
                 <td>{allocations.filter((row) => row.warehouse_id === warehouse.id && row.status !== 'released').length}</td>
               </tr>
             ))}
-            {warehouses.length === 0 && <tr><td colSpan={4} style={{ textAlign:'center', color:'#94a3b8' }}>No warehouses found.</td></tr>}
+            {warehouses.length === 0 && <tr><td colSpan={4} style={{ textAlign:'center', color:'#94a3b8' }}>{t('adminWarehouseOps.noWarehouses')}</td></tr>}
           </tbody>
         </table>
       </div>

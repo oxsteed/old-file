@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { adminListShipments, adminAddMilestone } from '../../../api/logistics';
 import toast from 'react-hot-toast';
 import '../../../styles/logistics/LogisticsHomePage.css';
@@ -8,6 +9,7 @@ import AdminErrorState from '../../lib/AdminErrorState';
 const CUSTOMS_STATUSES = ['arrived_destination','customs_hold','customs_cleared'];
 
 export default function CustomsAdmin() {
+  const { t } = useTranslation();
   const [shipments, setShipments] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [loadError, setLoadError] = useState(null);
@@ -36,7 +38,7 @@ export default function CustomsAdmin() {
   useEffect(() => { load(); }, [statusFilter]);
 
   const applyAction = async () => {
-    if (!form.action) { toast.error('Select an action'); return; }
+    if (!form.action) { toast.error(t('adminCustoms.selectAction')); return; }
     setSaving(true);
     try {
       // Map action → milestone status
@@ -46,7 +48,7 @@ export default function CustomsAdmin() {
         location: 'Customs',
         notes: form.notes,
       });
-      toast.success(form.action === 'clear' ? 'Marked customs cleared' : 'Marked customs hold');
+      toast.success(form.action === 'clear' ? t('adminCustoms.markedCleared') : t('adminCustoms.markedHold'));
       setSelected(null);
       load();
     } catch (err) { toast.error(err.response?.data?.message || err.message); }
@@ -58,28 +60,28 @@ export default function CustomsAdmin() {
   return (
     <div className="lx-page">
       <div className="lx-page-header">
-        <h1 className="lx-page-title">📋 Customs Review</h1>
-        <p className="lx-page-sub">Manage shipments at customs: review declarations, clear or flag holds.</p>
+        <h1 className="lx-page-title">{t('adminCustoms.title')}</h1>
+        <p className="lx-page-sub">{t('adminCustoms.subtitle')}</p>
       </div>
 
       <div className="lx-filter-bar">
         <select className="lx-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-          <option value="">All Customs Stages</option>
+          <option value="">{t('adminCustoms.allStages')}</option>
           {CUSTOMS_STATUSES.map(s => (
             <option key={s} value={s}>{s.replace(/_/g,' ')}</option>
           ))}
         </select>
       </div>
 
-      {loading && <div className="lx-loading">Loading…</div>}
+      {loading && <div className="lx-loading">{t('common.loading')}</div>}
       {!loading && loadError && <AdminErrorState onRetry={load} />}
 
       <div className="lx-table-wrap">
         <table className="lx-table">
           <thead>
             <tr>
-              <th>Shipment</th><th>Route</th><th>Freight</th>
-              <th>Lane Risk</th><th>Customs Complexity</th><th>ETA</th><th>Status</th><th></th>
+              <th>{t('adminCustoms.table.shipment')}</th><th>{t('adminCustoms.table.route')}</th><th>{t('adminCustoms.table.freight')}</th>
+              <th>{t('adminCustoms.table.laneRisk')}</th><th>{t('adminCustoms.table.complexity')}</th><th>{t('adminCustoms.table.eta')}</th><th>{t('adminCustoms.table.status')}</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -119,14 +121,14 @@ export default function CustomsAdmin() {
                   {s.status !== 'customs_cleared' && (
                     <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem' }}
                       onClick={() => { setSelected(s); setForm({ action:'', notes:'' }); }}>
-                      Review
+{t('adminCustoms.review')}
                     </button>
                   )}
                 </td>
               </tr>
             ))}
             {shipments.length === 0 && !loading && !loadError && (
-              <tr><td colSpan={8} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>No shipments in customs queue.</td></tr>
+              <tr><td colSpan={8} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>{t('adminCustoms.noShipments')}</td></tr>
             )}
           </tbody>
         </table>
@@ -135,40 +137,40 @@ export default function CustomsAdmin() {
       {selected && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999 }}>
           <div style={{ background:'var(--card-bg,#fff)', borderRadius:'1rem', padding:'1.5rem', width:460, maxWidth:'90vw' }}>
-            <h3 style={{ fontWeight:700, marginBottom:'.5rem' }}>Customs Review: {selected.reference}</h3>
+            <h3 style={{ fontWeight:700, marginBottom:'.5rem' }}>{t('adminCustoms.modal.title', { reference: selected.reference })}</h3>
             <div style={{ fontSize:'.82rem', color:'#64748b', marginBottom:'1rem' }}>
-              <strong>Route:</strong> {selected.origin_country} → {selected.destination_country}<br/>
-              <strong>Freight:</strong> {selected.freight_mode?.replace(/_/g,' ') || '—'}<br/>
-              <strong>Lane Risk:</strong> {selected.lane_risk_tier || '—'} &nbsp;|&nbsp;
-              <strong>Complexity:</strong> {selected.customs_complexity || '—'}/5
+              <strong>{t('adminCustoms.modal.route')}</strong> {selected.origin_country} → {selected.destination_country}<br/>
+              <strong>{t('adminCustoms.modal.freight')}</strong> {selected.freight_mode?.replace(/_/g,' ') || '—'}<br/>
+              <strong>{t('adminCustoms.modal.laneRisk')}</strong> {selected.lane_risk_tier || '—'} &nbsp;|&nbsp;
+              <strong>{t('adminCustoms.modal.complexity')}</strong> {selected.customs_complexity || '—'}/5
             </div>
 
             {selected.status === 'customs_hold' && (
               <div style={{ background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'.5rem', padding:'.75rem', marginBottom:'1rem', fontSize:'.82rem', color:'#b91c1c' }}>
-                ⚠️ This shipment is currently on customs hold.
+                {t('adminCustoms.modal.holdWarning')}
               </div>
             )}
 
             <div className="lx-form-group">
-              <label className="lx-label">Action</label>
+              <label className="lx-label">{t('adminCustoms.modal.action')}</label>
               <select className="lx-select" value={form.action}
                 onChange={e => setForm(f=>({...f,action:e.target.value}))}>
-                <option value="">— Select —</option>
-                <option value="clear">✅ Clear Customs</option>
-                <option value="hold">⚠️ Place on Hold</option>
+                <option value="">{t('adminCustoms.modal.selectOption')}</option>
+                <option value="clear">{t('adminCustoms.modal.clearCustoms')}</option>
+                <option value="hold">{t('adminCustoms.modal.placeOnHold')}</option>
               </select>
             </div>
             <div className="lx-form-group">
-              <label className="lx-label">Notes / Reason</label>
+              <label className="lx-label">{t('adminCustoms.modal.notes')}</label>
               <textarea className="lx-textarea" rows={3} value={form.notes}
                 onChange={e => setForm(f=>({...f,notes:e.target.value}))}
-                placeholder="Customs reference number, hold reason, etc." />
+                placeholder={t('adminCustoms.modal.notesPlaceholder')} />
             </div>
             <div style={{ display:'flex', gap:'.75rem' }}>
               <button className="lx-btn-primary" onClick={applyAction} disabled={saving}>
-                {saving ? 'Saving…' : 'Apply'}
+                {saving ? t('common.saving') : t('adminCustoms.modal.apply')}
               </button>
-              <button className="lx-btn-secondary" onClick={() => setSelected(null)}>Cancel</button>
+              <button className="lx-btn-secondary" onClick={() => setSelected(null)}>{t('common.cancel')}</button>
             </div>
           </div>
         </div>

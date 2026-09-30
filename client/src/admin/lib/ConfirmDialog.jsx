@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AlertTriangle } from 'lucide-react';
 
 /**
@@ -20,15 +21,19 @@ export default function ConfirmDialog({
   open,
   title,
   message,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel,
+  cancelLabel,
   danger = false,
   requireReason = false,
-  reasonLabel = 'Reason',
+  reasonLabel,
   reasonPlaceholder = '',
   onConfirm,
   onClose,
 }) {
+  const { t } = useTranslation();
+  const resolvedConfirmLabel = confirmLabel ?? t('common.confirm');
+  const resolvedCancelLabel = cancelLabel ?? t('common.cancel');
+  const resolvedReasonLabel = reasonLabel ?? t('adminConfirmDialog.reason');
   const titleId = useId();
   const reasonId = useId();
   const dialogRef = useRef(null);
@@ -51,7 +56,7 @@ export default function ConfirmDialog({
       onClose();
     } catch (err) {
       // Keep the dialog open on failure so the action is not mistaken for success.
-      setError(err?.response?.data?.error || err?.message || 'Action failed');
+      setError(err?.response?.data?.error || err?.message || t('adminConfirmDialog.actionFailed'));
     } finally {
       setBusy(false);
     }
@@ -131,7 +136,7 @@ export default function ConfirmDialog({
         {requireReason && (
           <div className="mt-4">
             <label htmlFor={reasonId} className="block text-sm font-medium text-gray-300 mb-1">
-              {reasonLabel} <span className="text-red-400">*</span>
+              {resolvedReasonLabel} <span className="text-red-400">*</span>
             </label>
             <textarea
               id={reasonId}
@@ -157,7 +162,7 @@ export default function ConfirmDialog({
             disabled={busy}
             className="px-4 py-2 rounded-md text-sm font-medium text-gray-300 bg-gray-800 border border-gray-700 hover:bg-gray-700 disabled:opacity-50"
           >
-            {cancelLabel}
+            {resolvedCancelLabel}
           </button>
           <button
             type="button"
@@ -167,7 +172,7 @@ export default function ConfirmDialog({
               danger ? 'bg-red-600 hover:bg-red-500' : 'bg-blue-600 hover:bg-blue-500'
             }`}
           >
-            {busy ? 'Working…' : confirmLabel}
+            {busy ? t('adminConfirmDialog.working') : resolvedConfirmLabel}
           </button>
         </div>
       </div>

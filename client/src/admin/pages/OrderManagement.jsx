@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import adminApi from '../../lib/adminApi';
 import PageMeta from '../../components/PageMeta';
@@ -8,6 +9,7 @@ import OrderDetailModal from '../components/OrderDetailModal';
 import OrderFilters from '../components/OrderFilters';
 
 export default function OrderManagement() {
+  const { t } = useTranslation();
   const [filters, setFilters] = useState({
     status: '',
     search: '',
@@ -68,10 +70,10 @@ export default function OrderManagement() {
   if (error) {
     return (
       <div className="p-6">
-        <PageMeta title="Order Management" description="Manage marketplace orders" />
+        <PageMeta title={t('adminOrderManagement.metaTitle')} description={t('adminOrderManagement.metaDescription')} />
         <AdminErrorState
-          title="Error loading orders"
-          message={error?.response?.data?.error || error?.message || 'Could not load orders.'}
+          title={t('adminOrderManagement.errorTitle')}
+          message={error?.response?.data?.error || error?.message || t('adminOrderManagement.errorMessage')}
           onRetry={() => refetch()}
         />
       </div>
@@ -80,31 +82,31 @@ export default function OrderManagement() {
 
   return (
     <div className="p-6">
-      <PageMeta title="Order Management" description="Manage marketplace orders" />
+      <PageMeta title={t('adminOrderManagement.metaTitle')} description={t('adminOrderManagement.metaDescription')} />
 
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Order Management</h1>
-          <p className="text-gray-600 dark:text-gray-400">View, filter, and manage all marketplace orders</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{t('adminOrderManagement.heading')}</h1>
+          <p className="text-gray-600 dark:text-gray-400">{t('adminOrderManagement.subheading')}</p>
         </div>
         <button
           onClick={handleRefresh}
           className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 transition"
         >
-          Refresh
+          {t('adminOrderManagement.refresh')}
         </button>
       </div>
 
       {/* Statistics Cards */}
       {stats && (
         <div className="mb-6 grid gap-4 md:grid-cols-6">
-          <StatCard label="Total Orders" value={stats.totalOrders} />
-          <StatCard label="Pending" value={stats.pendingOrders} variant="warning" />
-          <StatCard label="Processing" value={stats.processingOrders} variant="info" />
-          <StatCard label="Completed" value={stats.completedOrders} variant="success" />
-          <StatCard label="Cancelled" value={stats.cancelledOrders} variant="danger" />
-          <StatCard label="Revenue" value={`$${(stats.totalRevenueCents / 100).toFixed(2)}`} variant="success" />
+          <StatCard label={t('adminOrderManagement.statTotalOrders')} value={stats.totalOrders} />
+          <StatCard label={t('adminOrderManagement.statPending')} value={stats.pendingOrders} variant="warning" />
+          <StatCard label={t('adminOrderManagement.statProcessing')} value={stats.processingOrders} variant="info" />
+          <StatCard label={t('adminOrderManagement.statCompleted')} value={stats.completedOrders} variant="success" />
+          <StatCard label={t('adminOrderManagement.statCancelled')} value={stats.cancelledOrders} variant="danger" />
+          <StatCard label={t('adminOrderManagement.statRevenue')} value={`$${(stats.totalRevenueCents / 100).toFixed(2)}`} variant="success" />
         </div>
       )}
 
@@ -116,11 +118,11 @@ export default function OrderManagement() {
         {isLoading ? (
           <div className="p-8 text-center">
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
-            <p className="mt-2 text-gray-600 dark:text-gray-400">Loading orders...</p>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">{t('adminOrderManagement.loadingOrders')}</p>
           </div>
         ) : !data?.data || data?.data?.length === 0 ? (
           <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-            <p>No orders found</p>
+            <p>{t('adminOrderManagement.noOrders')}</p>
           </div>
         ) : (
           <>
@@ -171,13 +173,18 @@ function StatCard({ label, value, variant = 'default' }) {
 }
 
 function Pagination({ pagination, onPageChange }) {
+  const { t } = useTranslation();
   const currentPage = Math.floor(pagination.skip / pagination.limit) + 1;
   const totalPages = Math.ceil(pagination.total / pagination.limit);
 
   return (
     <div className="flex items-center justify-between border-t border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-700">
       <div className="text-sm text-gray-600 dark:text-gray-400">
-        Showing {pagination.skip + 1} to {Math.min(pagination.skip + pagination.limit, pagination.total)} of {pagination.total}
+        {t('adminOrderManagement.paginationShowing', {
+          from: pagination.skip + 1,
+          to: Math.min(pagination.skip + pagination.limit, pagination.total),
+          total: pagination.total,
+        })}
       </div>
       <div className="flex gap-2">
         <button
@@ -185,17 +192,17 @@ function Pagination({ pagination, onPageChange }) {
           onClick={() => onPageChange(Math.max(0, pagination.skip - pagination.limit))}
           className="rounded px-3 py-1 text-sm font-medium disabled:opacity-50 hover:bg-gray-200 dark:hover:bg-gray-600"
         >
-          Previous
+          {t('adminOrderManagement.previous')}
         </button>
         <span className="px-3 py-1 text-sm">
-          Page {currentPage} of {totalPages}
+          {t('adminOrderManagement.pageOf', { current: currentPage, total: totalPages })}
         </span>
         <button
           disabled={!pagination.hasMore}
           onClick={() => onPageChange(pagination.skip + pagination.limit)}
           className="rounded px-3 py-1 text-sm font-medium disabled:opacity-50 hover:bg-gray-200 dark:hover:bg-gray-600"
         >
-          Next
+          {t('adminOrderManagement.next')}
         </button>
       </div>
     </div>

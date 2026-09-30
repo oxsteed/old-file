@@ -1,10 +1,12 @@
 import React, { useRef, useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import { createStableIdempotencyKeyStore } from '../../lib/idempotency';
 
 export default function OrderDetailModal({ order, onClose, onRefresh }) {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('details');
   const [showMarkShipped, setShowMarkShipped] = useState(false);
   const [showRefund, setShowRefund] = useState(false);
@@ -32,11 +34,11 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
     onSuccess: () => {
       setShowMarkShipped(false);
       setTrackingNumber('');
-      toast.success('Order marked shipped');
+      toast.success(t('adminOrderDetail.markedShipped'));
       onRefresh();
     },
     onError: (error) => {
-      toast.error(error.response?.data?.error || error.message || 'Could not mark order shipped');
+      toast.error(error.response?.data?.error || error.message || t('adminOrderDetail.markShippedFailed'));
     },
   });
 
@@ -61,11 +63,11 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
       refundIdempotencyKeysRef.current.clear('marketplace-refund', variables.keyPayload);
       setShowRefund(false);
       setRefundReason('');
-      toast.success('Refund processed');
+      toast.success(t('adminOrderDetail.refundProcessed'));
       onRefresh();
     },
     onError: (error) => {
-      toast.error(error.response?.data?.error || error.message || 'Could not process refund');
+      toast.error(error.response?.data?.error || error.message || t('adminOrderDetail.refundFailed'));
     },
   });
 
@@ -77,11 +79,11 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
       });
     },
     onSuccess: () => {
-      toast.success('Order cancelled');
+      toast.success(t('adminOrderDetail.orderCancelled'));
       onRefresh();
     },
     onError: (error) => {
-      toast.error(error.response?.data?.error || error.message || 'Could not cancel order');
+      toast.error(error.response?.data?.error || error.message || t('adminOrderDetail.cancelFailed'));
     },
   });
 
@@ -120,9 +122,9 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
       <div className="border-b border-gray-200 dark:border-gray-700 pb-4 mb-4">
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Order #{d.id}</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('adminOrderDetail.orderTitle', { id: d.id })}</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              Created {formatDate(d.dates?.createdAt || d.createdAt)}
+              {t('adminOrderDetail.createdAt', { date: formatDate(d.dates?.createdAt || d.createdAt) })}
             </p>
           </div>
           <div className="flex gap-2">
@@ -131,6 +133,7 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
             </span>
             <button
               onClick={onClose}
+              aria-label={t('common.aria.closeButton')}
               className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
             >
               ✕
@@ -151,7 +154,7 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
             }`}
           >
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            {t(`adminOrderDetail.tabs.${tab}`)}
           </button>
         ))}
       </div>
@@ -161,15 +164,15 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
         {activeTab === 'details' && (
           <div className="space-y-4">
             {/* Customer Info */}
-            <Section title="Customer Information">
-              <InfoRow label="Name" value={d.customer?.firstName + ' ' + d.customer?.lastName} />
-              <InfoRow label="Email" value={d.customer?.email} />
-              <InfoRow label="Phone" value={d.customer?.phone || 'N/A'} />
+            <Section title={t('adminOrderDetail.customerInformation')}>
+              <InfoRow label={t('adminOrderDetail.name')} value={d.customer?.firstName + ' ' + d.customer?.lastName} />
+              <InfoRow label={t('adminOrderDetail.email')} value={d.customer?.email} />
+              <InfoRow label={t('adminOrderDetail.phone')} value={d.customer?.phone || 'N/A'} />
             </Section>
 
             {/* Shipping Info */}
             {d.shippingAddress && Object.keys(d.shippingAddress).length > 0 && (
-              <Section title="Shipping Address">
+              <Section title={t('adminOrderDetail.shippingAddress')}>
                 <div className="space-y-1 text-sm">
                   <p>{d.shippingAddress.street}</p>
                   <p>{d.shippingAddress.city}, {d.shippingAddress.state} {d.shippingAddress.zip}</p>
@@ -180,14 +183,14 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
 
             {/* Tracking Info */}
             {d.shipping && (
-              <Section title="Shipping Status">
+              <Section title={t('adminOrderDetail.shippingStatus')}>
                 {d.shipping.trackingNumber ? (
                   <>
-                    <InfoRow label="Tracking Number" value={d.shipping.trackingNumber} />
-                    <InfoRow label="Shipped At" value={formatDate(d.shipping.shippedAt)} />
+                    <InfoRow label={t('adminOrderDetail.trackingNumber')} value={d.shipping.trackingNumber} />
+                    <InfoRow label={t('adminOrderDetail.shippedAt')} value={formatDate(d.shipping.shippedAt)} />
                   </>
                 ) : (
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Not yet shipped</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{t('adminOrderDetail.notYetShipped')}</p>
                 )}
               </Section>
             )}
@@ -195,7 +198,7 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
         )}
 
         {activeTab === 'items' && (
-          <Section title="Order Items">
+          <Section title={t('adminOrderDetail.orderItems')}>
             <div className="space-y-3">
               {d.items?.map((item) => (
                 <div key={item.id} className="flex gap-4 pb-3 border-b border-gray-200 dark:border-gray-700 last:border-0">
@@ -223,34 +226,34 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
 
         {activeTab === 'payment' && (
           <div className="space-y-4">
-            <Section title="Order Totals">
-              <InfoRow label="Subtotal" value={formatPrice(d.totals?.subtotalCents || 0)} />
-              <InfoRow label="Tax" value={formatPrice(d.totals?.taxCents || 0)} />
-              <InfoRow label="Shipping" value={formatPrice(d.totals?.shippingCents || 0)} />
-              <InfoRow label="Discount" value={`-${formatPrice(d.totals?.discountCents || 0)}`} />
+            <Section title={t('adminOrderDetail.orderTotals')}>
+              <InfoRow label={t('adminOrderDetail.subtotal')} value={formatPrice(d.totals?.subtotalCents || 0)} />
+              <InfoRow label={t('adminOrderDetail.tax')} value={formatPrice(d.totals?.taxCents || 0)} />
+              <InfoRow label={t('adminOrderDetail.shipping')} value={formatPrice(d.totals?.shippingCents || 0)} />
+              <InfoRow label={t('adminOrderDetail.discount')} value={`-${formatPrice(d.totals?.discountCents || 0)}`} />
               <hr className="my-2 border-gray-300 dark:border-gray-600" />
               <InfoRow
-                label="Total"
+                label={t('adminOrderDetail.total')}
                 value={formatPrice(d.totals?.totalCents || 0)}
                 className="font-bold text-lg"
               />
             </Section>
 
             {d.transaction && (
-              <Section title="Payment Transaction">
-                <InfoRow label="Payment Intent" value={d.transaction.paymentIntentId} monospace />
-                <InfoRow label="Amount" value={formatPrice(d.transaction.amountCents)} />
-                <InfoRow label="Status" value={d.transaction.status?.toUpperCase()} />
+              <Section title={t('adminOrderDetail.paymentTransaction')}>
+                <InfoRow label={t('adminOrderDetail.paymentIntent')} value={d.transaction.paymentIntentId} monospace />
+                <InfoRow label={t('adminOrderDetail.amount')} value={formatPrice(d.transaction.amountCents)} />
+                <InfoRow label={t('adminOrderDetail.status')} value={d.transaction.status?.toUpperCase()} />
                 {d.transaction.completedAt && (
-                  <InfoRow label="Completed" value={formatDate(d.transaction.completedAt)} />
+                  <InfoRow label={t('adminOrderDetail.completed')} value={formatDate(d.transaction.completedAt)} />
                 )}
               </Section>
             )}
 
             {d.refund?.refundedAt && (
-              <Section title="Refund Information">
-                <InfoRow label="Refunded At" value={formatDate(d.refund.refundedAt)} />
-                <InfoRow label="Reason" value={d.refund.refundReason} />
+              <Section title={t('adminOrderDetail.refundInformation')}>
+                <InfoRow label={t('adminOrderDetail.refundedAt')} value={formatDate(d.refund.refundedAt)} />
+                <InfoRow label={t('adminOrderDetail.reason')} value={d.refund.refundReason} />
               </Section>
             )}
           </div>
@@ -265,13 +268,13 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
                     onClick={() => setShowMarkShipped(true)}
                     className="w-full rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 font-medium"
                   >
-                    Mark as Shipped
+                    {t('adminOrderDetail.markAsShipped')}
                   </button>
                 ) : (
                   <div className="space-y-3">
                     <input
                       type="text"
-                      placeholder="Tracking number (optional)"
+                      placeholder={t('adminOrderDetail.trackingNumberPlaceholder')}
                       value={trackingNumber}
                       onChange={(e) => setTrackingNumber(e.target.value)}
                       className="w-full rounded border border-gray-300 px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
@@ -282,7 +285,7 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
                         disabled={markShippedMutation.isPending}
                         className="flex-1 rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50 font-medium"
                       >
-                        {markShippedMutation.isPending ? 'Saving...' : 'Confirm'}
+                        {markShippedMutation.isPending ? t('adminOrderDetail.saving') : t('common.confirm')}
                       </button>
                       <button
                         onClick={() => {
@@ -291,7 +294,7 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
                         }}
                         className="flex-1 rounded border border-gray-300 px-4 py-2 hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-700"
                       >
-                        Cancel
+                        {t('common.cancel')}
                       </button>
                     </div>
                   </div>
@@ -306,12 +309,12 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
                     onClick={() => setShowRefund(true)}
                     className="w-full rounded bg-orange-600 px-4 py-2 text-white hover:bg-orange-700 font-medium"
                   >
-                    Process Refund
+                    {t('adminOrderDetail.processRefund')}
                   </button>
                 ) : (
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-sm font-medium mb-1">Refund Amount</label>
+                      <label className="block text-sm font-medium mb-1">{t('adminOrderDetail.refundAmount')}</label>
                       <input
                         type="number"
                         value={refundAmount / 100}
@@ -321,9 +324,9 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">Reason</label>
+                      <label className="block text-sm font-medium mb-1">{t('adminOrderDetail.reason')}</label>
                       <textarea
-                        placeholder="Reason for refund..."
+                        placeholder={t('adminOrderDetail.refundReasonPlaceholder')}
                         value={refundReason}
                         onChange={(e) => setRefundReason(e.target.value)}
                         className="w-full rounded border border-gray-300 px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
@@ -336,7 +339,7 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
                         disabled={!refundReason || refundMutation.isPending}
                         className="flex-1 rounded bg-orange-600 px-4 py-2 text-white hover:bg-orange-700 disabled:opacity-50 font-medium"
                       >
-                        {refundMutation.isPending ? 'Processing...' : 'Process Refund'}
+                        {refundMutation.isPending ? t('adminOrderDetail.processing') : t('adminOrderDetail.processRefund')}
                       </button>
                       <button
                         onClick={() => {
@@ -345,7 +348,7 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
                         }}
                         className="flex-1 rounded border border-gray-300 px-4 py-2 hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-700"
                       >
-                        Cancel
+                        {t('common.cancel')}
                       </button>
                     </div>
                   </div>
@@ -357,14 +360,14 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
               <div className="p-4 bg-red-50 dark:bg-red-900 rounded-lg">
                 <button
                   onClick={() => {
-                    if (confirm('Are you sure you want to cancel this order?')) {
+                    if (confirm(t('adminOrderDetail.confirmCancelOrder'))) {
                       cancelMutation.mutate();
                     }
                   }}
                   disabled={cancelMutation.isPending}
                   className="w-full rounded bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:opacity-50 font-medium"
                 >
-                  {cancelMutation.isPending ? 'Cancelling...' : 'Cancel Order'}
+                  {cancelMutation.isPending ? t('adminOrderDetail.cancelling') : t('adminOrderDetail.cancelOrder')}
                 </button>
               </div>
             )}

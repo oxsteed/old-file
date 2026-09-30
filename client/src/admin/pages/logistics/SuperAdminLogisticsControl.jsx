@@ -1,10 +1,12 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from '../../../api/axios';
 import { useAbortableFetch } from '../../lib/useAbortableFetch';
 import AdminErrorState from '../../lib/AdminErrorState';
 import '../../../styles/logistics/LogisticsHomePage.css';
 
 export default function SuperAdminLogisticsControl() {
+  const { t } = useTranslation();
   const { data, loading, error, reload } = useAbortableFetch(async (signal) => {
     // Direct requests (not the api wrappers) so the abort signal reaches the network calls.
     const [markup, fees, restrictions, stats] = await Promise.all([
@@ -29,19 +31,19 @@ export default function SuperAdminLogisticsControl() {
   return (
     <div className="lx-page">
       <div className="lx-page-header">
-        <h1 className="lx-page-title">Super Admin Logistics Control</h1>
-        <p className="lx-page-sub">See the branch-level pricing engine, restriction fabric, and operational volume from one super-admin control room.</p>
+        <h1 className="lx-page-title">{t('adminLogisticsControl.title')}</h1>
+        <p className="lx-page-sub">{t('adminLogisticsControl.subtitle')}</p>
       </div>
-      {loading && <div className="lx-loading">Loading…</div>}
+      {loading && <div className="lx-loading">{t('common.loading')}</div>}
       {!loading && error && <AdminErrorState onRetry={reload} />}
       {!loading && !error && (
       <>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:'1rem', marginBottom:'1.5rem' }}>
         {[
-          ['Markup rules', markup.length, '📈'],
-          ['Fee rules', fees.length, '💸'],
-          ['Country restrictions', restrictions.length, '⛔'],
-          ['PO statuses', stats?.purchaseOrders?.length || 0, '📦'],
+          [t('adminLogisticsControl.stats.markupRules'), markup.length, '📈'],
+          [t('adminLogisticsControl.stats.feeRules'), fees.length, '💸'],
+          [t('adminLogisticsControl.stats.countryRestrictions'), restrictions.length, '⛔'],
+          [t('adminLogisticsControl.stats.poStatuses'), stats?.purchaseOrders?.length || 0, '📦'],
         ].map(([label, value, icon]) => (
           <div key={label} className="lx-card" style={{ textAlign:'center' }}>
             <div style={{ fontSize:'1.4rem' }}>{icon}</div>
@@ -52,10 +54,10 @@ export default function SuperAdminLogisticsControl() {
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1.5rem' }}>
         <div className="lx-card">
-          <h2 style={{ marginTop:0 }}>Markup hierarchy</h2>
+          <h2 style={{ marginTop:0 }}>{t('adminLogisticsControl.markupTitle')}</h2>
           <div className="lx-table-wrap">
             <table className="lx-table">
-              <thead><tr><th>Scope</th><th>Category</th><th>Markup %</th><th>Priority</th></tr></thead>
+              <thead><tr><th>{t('adminLogisticsControl.markupTable.scope')}</th><th>{t('adminLogisticsControl.markupTable.category')}</th><th>{t('adminLogisticsControl.markupTable.markupPct')}</th><th>{t('adminLogisticsControl.markupTable.priority')}</th></tr></thead>
               <tbody>
                 {markup.slice(0, 12).map((rule) => (
                   <tr key={rule.id}>
@@ -70,26 +72,26 @@ export default function SuperAdminLogisticsControl() {
           </div>
         </div>
         <div className="lx-card">
-          <h2 style={{ marginTop:0 }}>Fee stack + restrictions</h2>
+          <h2 style={{ marginTop:0 }}>{t('adminLogisticsControl.feesTitle')}</h2>
           <div style={{ fontSize:'.85rem', color:'#64748b', lineHeight:1.8, marginBottom:'1rem' }}>
-            Super-admin control covers markup policy, fee policy, lane restrictions, approval thresholds, and the overall profitability posture of the logistics branch.
+            {t('adminLogisticsControl.feesDescription')}
           </div>
           <div className="lx-table-wrap">
             <table className="lx-table">
-              <thead><tr><th>Fee type / category</th><th>Scope</th><th>Active</th></tr></thead>
+              <thead><tr><th>{t('adminLogisticsControl.feesTable.feeType')}</th><th>{t('adminLogisticsControl.feesTable.scope')}</th><th>{t('adminLogisticsControl.feesTable.active')}</th></tr></thead>
               <tbody>
                 {fees.slice(0, 6).map((fee) => (
                   <tr key={`f-${fee.id}`}>
                     <td>{fee.fee_type}</td>
                     <td>{fee.scope}</td>
-                    <td>{fee.is_active ? 'Yes' : 'No'}</td>
+                    <td>{fee.is_active ? t('common.yes') : t('common.no')}</td>
                   </tr>
                 ))}
                 {restrictions.slice(0, 6).map((rule) => (
                   <tr key={`r-${rule.category}-${rule.country_code}`}>
                     <td>{rule.category} ({rule.country_code})</td>
-                    <td>restriction</td>
-                    <td>{rule.requires_approval ? 'Approval' : 'Open'}</td>
+                    <td>{t('adminLogisticsControl.restrictionScope')}</td>
+                    <td>{rule.requires_approval ? t('adminLogisticsControl.approvalRequired') : t('adminLogisticsControl.approvalOpen')}</td>
                   </tr>
                 ))}
               </tbody>

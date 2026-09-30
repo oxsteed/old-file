@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { MapPin, Plus, X, Loader2 } from 'lucide-react';
 import adminApi from '../../lib/adminApi';
 import toast from 'react-hot-toast';
@@ -7,6 +8,7 @@ import AdminErrorState from '../lib/AdminErrorState';
 import ConfirmDialog from '../lib/ConfirmDialog';
 
 export default function MarketZipCodes() {
+  const { t } = useTranslation();
   const [markets, setMarkets] = useState([]);
   const [newZips, setNewZips] = useState({});
   const [adding, setAdding] = useState({});
@@ -26,7 +28,7 @@ export default function MarketZipCodes() {
     const zips = raw.split(/[,\s]+/).map(z => z.trim()).filter(Boolean);
     const invalid = zips.filter(z => !/^\d{5}$/.test(z));
     if (invalid.length) {
-      toast.error(`Invalid zip codes: ${invalid.join(', ')}`);
+      toast.error(t('adminMarketZipCodes.invalidZips', { zips: invalid.join(', ') }));
       return;
     }
     setAdding(p => ({ ...p, [marketId]: true }));
@@ -34,9 +36,9 @@ export default function MarketZipCodes() {
       const { data } = await adminApi.post(`/admin/markets/${marketId}/zip-codes`, { zipCodes: zips });
       setMarkets(prev => prev.map(m => m.id === marketId ? data.market : m));
       setNewZips(p => ({ ...p, [marketId]: '' }));
-      toast.success(`Added ${zips.length} zip code(s)`);
+      toast.success(t('adminMarketZipCodes.addedCount', { count: zips.length }));
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to add zip codes');
+      toast.error(err.response?.data?.error || t('adminMarketZipCodes.addFailed'));
     } finally {
       setAdding(p => ({ ...p, [marketId]: false }));
     }
@@ -51,7 +53,7 @@ export default function MarketZipCodes() {
       data: { zipCodes: [zip] }
     });
     setMarkets(prev => prev.map(m => m.id === marketId ? data.market : m));
-    toast.success(`Removed ${zip}`);
+    toast.success(t('adminMarketZipCodes.removedZip', { zip }));
   };
 
   if (loading) {
@@ -67,7 +69,7 @@ export default function MarketZipCodes() {
       <div className="space-y-6">
         <div className="flex items-center gap-3">
           <MapPin className="w-6 h-6 text-orange-500" />
-          <h1 className="text-2xl font-bold text-white">Market Zip Codes</h1>
+          <h1 className="text-2xl font-bold text-white">{t('adminMarketZipCodes.title')}</h1>
         </div>
         <AdminErrorState onRetry={reload} />
       </div>
@@ -78,7 +80,7 @@ export default function MarketZipCodes() {
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <MapPin className="w-6 h-6 text-orange-500" />
-        <h1 className="text-2xl font-bold text-white">Market Zip Codes</h1>
+        <h1 className="text-2xl font-bold text-white">{t('adminMarketZipCodes.title')}</h1>
       </div>
 
       {markets.map(market => (
@@ -89,7 +91,7 @@ export default function MarketZipCodes() {
                 {market.name}, {market.state}
               </h2>
               <p className="text-sm text-zinc-400">
-                {market.active ? 'Active' : 'Inactive'} &middot; {market.zipcodes?.length || 0} zip codes
+                {market.active ? t('adminMarketZipCodes.statusActive') : t('adminMarketZipCodes.statusInactive')} &middot; {t('adminMarketZipCodes.zipCount', { count: market.zipcodes?.length || 0 })}
               </p>
             </div>
           </div>
@@ -103,8 +105,8 @@ export default function MarketZipCodes() {
                 <button
                   onClick={() => setRemoving({ marketId: market.id, zip })}
                   className="ml-1 text-zinc-500 hover:text-red-400 transition-colors"
-                  title={`Remove ${zip}`}
-                  aria-label={`Remove zip code ${zip}`}
+                  title={t('adminMarketZipCodes.removeZipTitle', { zip })}
+                  aria-label={t('adminMarketZipCodes.removeZipAria', { zip })}
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -116,7 +118,7 @@ export default function MarketZipCodes() {
           <div className="flex gap-2">
             <input
               type="text"
-              placeholder="Enter zip codes (comma or space separated)"
+              placeholder={t('adminMarketZipCodes.zipPlaceholder')}
               value={newZips[market.id] || ''}
               onChange={e => setNewZips(p => ({ ...p, [market.id]: e.target.value }))}
               onKeyDown={e => e.key === 'Enter' && handleAddZips(market.id)}
@@ -134,7 +136,7 @@ export default function MarketZipCodes() {
               {adding[market.id]
                 ? <Loader2 className="w-4 h-4 animate-spin" />
                 : <Plus className="w-4 h-4" />}
-              Add
+              {t('common.add')}
             </button>
           </div>
         </div>
@@ -142,7 +144,7 @@ export default function MarketZipCodes() {
 
       {markets.length === 0 && (
         <div className="text-center py-12 text-zinc-500">
-          No markets found. Create a market first.
+          {t('adminMarketZipCodes.emptyMarkets')}
         </div>
       )}
 
@@ -151,9 +153,9 @@ export default function MarketZipCodes() {
         <ConfirmDialog
           open
           danger
-          title={`Remove zip code ${removing.zip}?`}
-          message={`Remove ${removing.zip} from this market's coverage?`}
-          confirmLabel="Remove"
+          title={t('adminMarketZipCodes.removeDialogTitle', { zip: removing.zip })}
+          message={t('adminMarketZipCodes.removeDialogMessage', { zip: removing.zip })}
+          confirmLabel={t('common.remove')}
           onConfirm={confirmRemoveZip}
           onClose={() => setRemoving(null)}
         />

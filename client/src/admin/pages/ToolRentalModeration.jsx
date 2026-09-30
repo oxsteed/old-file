@@ -1,24 +1,22 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Wrench, Search, ToggleLeft, ToggleRight, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import adminApi from '../../lib/adminApi';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
 
-const AVAIL_FILTERS = [
-  { value: '',          label: 'All'       },
-  { value: 'available', label: 'Available' },
-  { value: 'hidden',    label: 'Hidden'    },
-];
+const AVAIL_FILTER_VALUES = ['', 'available', 'hidden'];
 
 // ─── reason modal ─────────────────────────────────────────────────────────────
 
 function ReasonModal({ tool, onConfirm, onClose, loading }) {
+  const { t } = useTranslation();
   const [reason, setReason] = useState('');
   const [error,  setError]  = useState('');
 
   const handle = () => {
-    if (!reason.trim()) { setError('A reason is required.'); return; }
+    if (!reason.trim()) { setError(t('adminToolRentalModeration.reasonRequired')); return; }
     onConfirm(reason.trim());
   };
 
@@ -34,7 +32,7 @@ function ReasonModal({ tool, onConfirm, onClose, loading }) {
         <div className="flex items-start justify-between mb-4">
           <div>
             <h3 className="font-bold text-white text-base">
-              {tool.is_available ? 'Hide' : 'Show'} Listing
+              {tool.is_available ? t('adminToolRentalModeration.modalTitleHide') : t('adminToolRentalModeration.modalTitleShow')}
             </h3>
             <p className="text-gray-400 text-sm mt-0.5 truncate max-w-xs">{tool.name}</p>
           </div>
@@ -45,13 +43,13 @@ function ReasonModal({ tool, onConfirm, onClose, loading }) {
 
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-300 mb-1.5">
-            Reason <span className="text-red-400">*</span>
+            {t('adminToolRentalModeration.reasonLabel')} <span className="text-red-400">*</span>
           </label>
           <textarea
             rows={3}
             value={reason}
             onChange={e => { setReason(e.target.value); setError(''); }}
-            placeholder="Explain why this listing is being toggled…"
+            placeholder={t('adminToolRentalModeration.reasonPlaceholder')}
             className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white text-sm
                        p-2.5 placeholder-gray-500 focus:border-orange-500 focus:outline-none resize-none"
           />
@@ -65,7 +63,7 @@ function ReasonModal({ tool, onConfirm, onClose, loading }) {
             className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 text-gray-300
                        rounded-lg text-sm font-medium hover:bg-gray-700 transition disabled:opacity-50"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             onClick={handle}
@@ -76,7 +74,7 @@ function ReasonModal({ tool, onConfirm, onClose, loading }) {
                           ? 'bg-red-600 hover:bg-red-700'
                           : 'bg-green-600 hover:bg-green-700'}`}
           >
-            {loading ? 'Saving…' : tool.is_available ? 'Hide Listing' : 'Show Listing'}
+            {loading ? t('adminToolRentalModeration.saving') : tool.is_available ? t('adminToolRentalModeration.hideListingBtn') : t('adminToolRentalModeration.showListingBtn')}
           </button>
         </div>
       </div>
@@ -87,6 +85,7 @@ function ReasonModal({ tool, onConfirm, onClose, loading }) {
 // ─── main page ────────────────────────────────────────────────────────────────
 
 export default function ToolRentalModeration() {
+  const { t } = useTranslation();
   const [search,     setSearch]     = useState('');
   const [availFilter, setAvailFilter] = useState('');
   const [page,       setPage]       = useState(1);
@@ -114,10 +113,10 @@ export default function ToolRentalModeration() {
     try {
       await adminApi.put(`/admin/tool-rentals/${toggling.id}/toggle`, { reason });
       setToggling(null);
-      toast.success('Tool listing updated.');
+      toast.success(t('adminToolRentalModeration.updated'));
       reload();
     } catch (err) {
-      toast.error(err?.response?.data?.error || 'Action failed.');
+      toast.error(err?.response?.data?.error || t('adminToolRentalModeration.actionFailed'));
     } finally {
       setActionBusy(false);
     }
@@ -125,14 +124,20 @@ export default function ToolRentalModeration() {
 
   const col = 'px-4 py-3 text-sm';
 
+  const AVAIL_FILTERS = [
+    { value: '',          label: t('adminToolRentalModeration.filterAll')       },
+    { value: 'available', label: t('adminToolRentalModeration.filterAvailable') },
+    { value: 'hidden',    label: t('adminToolRentalModeration.filterHidden')    },
+  ];
+
   return (
     <div className="p-6 lg:p-8">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <Wrench size={22} className="text-orange-400" />
         <div>
-          <h1 className="text-2xl font-bold text-white">Tool Rental Moderation</h1>
-          <p className="text-gray-400 text-sm mt-0.5">{total} listings</p>
+          <h1 className="text-2xl font-bold text-white">{t('adminToolRentalModeration.title')}</h1>
+          <p className="text-gray-400 text-sm mt-0.5">{t('adminToolRentalModeration.listingsCount', { count: total })}</p>
         </div>
       </div>
 
@@ -142,7 +147,7 @@ export default function ToolRentalModeration() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
           <input
             type="text"
-            placeholder="Search by name, category, owner…"
+            placeholder={t('adminToolRentalModeration.searchPlaceholder')}
             value={search}
             onChange={e => resetPage(setSearch)(e.target.value)}
             className="w-full pl-9 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg

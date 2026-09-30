@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
 import toast from 'react-hot-toast';
 import { MessageSquare, Plus, Edit2, Trash2, Search, RefreshCw, Copy, TrendingUp } from 'lucide-react';
 
 export default function SupportTemplates() {
+  const { t } = useTranslation();
   const { businessId } = useParams();
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,7 +21,13 @@ export default function SupportTemplates() {
   });
   const [copiedId, setCopiedId] = useState(null);
 
-  const categories = ['general', 'greeting', 'farewell', 'troubleshooting', 'escalation'];
+  const categories = [
+    { value: 'general', label: t('adminSupportTemplates.categoryGeneral') },
+    { value: 'greeting', label: t('adminSupportTemplates.categoryGreeting') },
+    { value: 'farewell', label: t('adminSupportTemplates.categoryFarewell') },
+    { value: 'troubleshooting', label: t('adminSupportTemplates.categoryTroubleshooting') },
+    { value: 'escalation', label: t('adminSupportTemplates.categoryEscalation') },
+  ];
 
   const loadTemplates = useCallback(async () => {
     setLoading(true);
@@ -40,11 +48,11 @@ export default function SupportTemplates() {
 
   const handleSave = async () => {
     if (!formData.name.trim()) {
-      toast.error('Template name is required');
+      toast.error(t('adminSupportTemplates.toastNameRequired'));
       return;
     }
     if (!formData.content.trim()) {
-      toast.error('Template content is required');
+      toast.error(t('adminSupportTemplates.toastContentRequired'));
       return;
     }
     try {
@@ -65,12 +73,12 @@ export default function SupportTemplates() {
       loadTemplates();
     } catch (err) {
       console.error('Failed to save template:', err);
-      toast.error(err?.response?.data?.error || 'Failed to save template');
+      toast.error(err?.response?.data?.error || t('adminSupportTemplates.toastSaveFailed'));
     }
   };
 
   const handleDelete = async (templateId) => {
-    if (!window.confirm('Delete this template?')) return;
+    if (!window.confirm(t('adminSupportTemplates.confirmDelete'))) return;
     try {
       await adminApi.delete(`/support/templates/${templateId}`);
       loadTemplates();
@@ -97,7 +105,7 @@ export default function SupportTemplates() {
       setTimeout(() => setCopiedId(null), 2000);
     } catch (err) {
       console.error('Failed to copy template:', err);
-      toast.error('Failed to copy template content');
+      toast.error(t('adminSupportTemplates.toastCopyFailed'));
     }
   };
 
@@ -105,8 +113,8 @@ export default function SupportTemplates() {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 className="text-white font-bold text-3xl mb-2">Response Templates</h1>
-          <p className="text-gray-400 text-sm">Create and manage pre-written response templates.</p>
+          <h1 className="text-white font-bold text-3xl mb-2">{t('adminSupportTemplates.title')}</h1>
+          <p className="text-gray-400 text-sm">{t('adminSupportTemplates.description')}</p>
         </div>
         <div className="flex gap-3">
           <button
@@ -125,7 +133,7 @@ export default function SupportTemplates() {
             className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition"
           >
             <Plus size={18} />
-            New Template
+            {t('adminSupportTemplates.newTemplate')}
           </button>
         </div>
       </div>
@@ -135,7 +143,7 @@ export default function SupportTemplates() {
           <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
           <input
             type="text"
-            placeholder="Search templates..."
+            placeholder={t('adminSupportTemplates.searchPlaceholder')}
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="w-full pl-12 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
@@ -147,7 +155,7 @@ export default function SupportTemplates() {
         {templates.length === 0 ? (
           <div className="text-center py-12 bg-gray-800 border border-gray-700 rounded-xl">
             <MessageSquare size={40} className="mx-auto mb-3 text-gray-600" />
-            <p className="text-gray-400">No templates found</p>
+            <p className="text-gray-400">{t('adminSupportTemplates.emptyTemplates')}</p>
           </div>
         ) : (
           templates.map(template => (
@@ -163,14 +171,14 @@ export default function SupportTemplates() {
                     )}
                   </div>
                   <span className="px-2 py-1 bg-gray-700 rounded text-xs text-gray-300 capitalize">
-                    {template.category}
+                    {categories.find((cat) => cat.value === template.category)?.label || template.category}
                   </span>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleCopy(template.content, template.id)}
                     className="p-2 hover:bg-gray-700 rounded transition"
-                    title="Copy to clipboard"
+                    title={t('adminSupportTemplates.copyTitle')}
                   >
                     <Copy
                       size={16}
@@ -199,7 +207,7 @@ export default function SupportTemplates() {
               {template.usage_count && (
                 <div className="mt-3 flex items-center gap-1 text-gray-500 text-xs">
                   <TrendingUp size={12} />
-                  {template.usage_count} uses
+                  {t('adminSupportTemplates.usesCount', { count: template.usage_count })}
                 </div>
               )}
             </div>
@@ -212,7 +220,7 @@ export default function SupportTemplates() {
           <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="border-b border-gray-700 p-6 flex items-center justify-between sticky top-0 bg-gray-800">
               <h2 className="text-white font-bold text-xl">
-                {selectedTemplate ? 'Edit Template' : 'New Template'}
+                {selectedTemplate ? t('adminSupportTemplates.modalEditTitle') : t('adminSupportTemplates.modalNewTitle')}
               </h2>
               <button
                 onClick={() => setShowForm(false)}
@@ -223,32 +231,32 @@ export default function SupportTemplates() {
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-gray-400 text-sm mb-2">Template Name</label>
+                <label className="block text-gray-400 text-sm mb-2">{t('adminSupportTemplates.labelName')}</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
-                  placeholder="e.g., Welcome Message"
+                  placeholder={t('adminSupportTemplates.namePlaceholder')}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-gray-400 text-sm mb-2">Category</label>
+                  <label className="block text-gray-400 text-sm mb-2">{t('adminSupportTemplates.labelCategory')}</label>
                   <select
                     value={formData.category}
                     onChange={e => setFormData({ ...formData, category: e.target.value })}
                     className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
                   >
                     {categories.map(cat => (
-                      <option key={cat} value={cat} className="capitalize">
-                        {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                      <option key={cat.value} value={cat.value} className="capitalize">
+                        {cat.label}
                       </option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-gray-400 text-sm mb-2">Keyboard Shortcut</label>
+                  <label className="block text-gray-400 text-sm mb-2">{t('adminSupportTemplates.labelShortcut')}</label>
                   <input
                     type="text"
                     value={formData.shortcut}
@@ -259,12 +267,12 @@ export default function SupportTemplates() {
                 </div>
               </div>
               <div>
-                <label className="block text-gray-400 text-sm mb-2">Content</label>
+                <label className="block text-gray-400 text-sm mb-2">{t('adminSupportTemplates.labelContent')}</label>
                 <textarea
                   value={formData.content}
                   onChange={e => setFormData({ ...formData, content: e.target.value })}
                   className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500 h-48"
-                  placeholder="Template content..."
+                  placeholder={t('adminSupportTemplates.contentPlaceholder')}
                 />
               </div>
               <div className="flex gap-3 pt-4 border-t border-gray-700">
@@ -272,13 +280,13 @@ export default function SupportTemplates() {
                   onClick={() => setShowForm(false)}
                   className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   onClick={handleSave}
                   className="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition font-medium"
                 >
-                  {selectedTemplate ? 'Update Template' : 'Create Template'}
+                  {selectedTemplate ? t('adminSupportTemplates.updateTemplate') : t('adminSupportTemplates.createTemplate')}
                 </button>
               </div>
             </div>

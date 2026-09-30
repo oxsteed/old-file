@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   BookOpen, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp,
   RefreshCw, Filter, ExternalLink, MessageSquare,
@@ -41,32 +42,39 @@ const DIFFICULTY_COLORS = {
   Hard:   'text-red-600    dark:text-red-400',
 };
 
-const CATEGORY_LABELS = {
-  plumbing:    'Plumbing',
-  electrical:  'Electrical',
-  carpentry:   'Carpentry',
-  hvac:        'HVAC',
-  painting:    'Painting',
-  'car-care':  'Car Care',
-  landscaping: 'Landscaping',
-  maintenance: 'Maintenance',
-};
+const getCategoryLabels = (t) => ({
+  plumbing:    t('adminLearnSubmissions.categoryPlumbing'),
+  electrical:  t('adminLearnSubmissions.categoryElectrical'),
+  carpentry:   t('adminLearnSubmissions.categoryCarpentry'),
+  hvac:        t('adminLearnSubmissions.categoryHvac'),
+  painting:    t('adminLearnSubmissions.categoryPainting'),
+  'car-care':  t('adminLearnSubmissions.categoryCarCare'),
+  landscaping: t('adminLearnSubmissions.categoryLandscaping'),
+  maintenance: t('adminLearnSubmissions.categoryMaintenance'),
+});
 
 // ── Helper components ──────────────────────────────────────────────────────────
 
 function StatusBadge({ status }) {
+  const { t } = useTranslation();
   const c = STATUS_COLORS[status] ?? STATUS_COLORS.pending;
+  const label =
+    status === 'pending' ? t('adminLearnSubmissions.statusPending') :
+    status === 'approved' ? t('adminLearnSubmissions.statusApproved') :
+    status === 'rejected' ? t('adminLearnSubmissions.statusRejected') :
+    status.charAt(0).toUpperCase() + status.slice(1);
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-700 ${c.bg} ${c.dark}`}>
       {status === 'pending'  && <Clock      size={11} />}
       {status === 'approved' && <CheckCircle size={11} />}
       {status === 'rejected' && <XCircle    size={11} />}
-      {status.charAt(0).toUpperCase() + status.slice(1)}
+      {label}
     </span>
   );
 }
 
 function ExpandedSubmission({ sub, onReview }) {
+  const { t } = useTranslation();
   const [note, setNote]         = useState('');
   const [loading, setLoading]   = useState(false);
   const [localErr, setLocalErr] = useState('');
@@ -77,7 +85,7 @@ function ExpandedSubmission({ sub, onReview }) {
     try {
       await onReview(sub.id, action, note.trim() || undefined);
     } catch (e) {
-      setLocalErr(e?.response?.data?.message ?? 'Action failed. Try again.');
+      setLocalErr(e?.response?.data?.message ?? t('adminLearnSubmissions.actionFailed'));
     } finally {
       setLoading(false);
     }
@@ -86,6 +94,12 @@ function ExpandedSubmission({ sub, onReview }) {
   const steps  = safeList(sub.steps);
   const skills = safeList(sub.skills);
   const tools  = safeList(sub.tools);
+  const CATEGORY_LABELS = getCategoryLabels(t);
+  const difficultyLabels = {
+    Easy:   t('adminLearnSubmissions.difficultyEasy'),
+    Medium: t('adminLearnSubmissions.difficultyMedium'),
+    Hard:   t('adminLearnSubmissions.difficultyHard'),
+  };
 
   return (
     <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 px-5 py-4 space-y-4">
@@ -93,19 +107,19 @@ function ExpandedSubmission({ sub, onReview }) {
       {/* Meta row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
         <div>
-          <p className="text-xs font-700 uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-0.5">Category</p>
+          <p className="text-xs font-700 uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-0.5">{t('adminLearnSubmissions.labelCategory')}</p>
           <p className="font-600 text-gray-800 dark:text-gray-200">{CATEGORY_LABELS[sub.category] ?? sub.category}</p>
         </div>
         <div>
-          <p className="text-xs font-700 uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-0.5">Difficulty</p>
-          <p className={`font-700 ${DIFFICULTY_COLORS[sub.difficulty] ?? ''}`}>{sub.difficulty}</p>
+          <p className="text-xs font-700 uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-0.5">{t('adminLearnSubmissions.labelDifficulty')}</p>
+          <p className={`font-700 ${DIFFICULTY_COLORS[sub.difficulty] ?? ''}`}>{difficultyLabels[sub.difficulty] ?? sub.difficulty}</p>
         </div>
         <div>
-          <p className="text-xs font-700 uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-0.5">Est. time</p>
-          <p className="font-600 text-gray-800 dark:text-gray-200">{sub.estimated_minutes} min</p>
+          <p className="text-xs font-700 uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-0.5">{t('adminLearnSubmissions.labelEstTime')}</p>
+          <p className="font-600 text-gray-800 dark:text-gray-200">{t('adminLearnSubmissions.estMinutes', { minutes: sub.estimated_minutes })}</p>
         </div>
         <div>
-          <p className="text-xs font-700 uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-0.5">Submitted</p>
+          <p className="text-xs font-700 uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-0.5">{t('adminLearnSubmissions.labelSubmitted')}</p>
           <p className="font-600 text-gray-800 dark:text-gray-200">
             {new Date(sub.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
           </p>
@@ -114,14 +128,14 @@ function ExpandedSubmission({ sub, onReview }) {
 
       {/* Intro */}
       <div>
-        <p className="text-xs font-700 uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Intro</p>
+        <p className="text-xs font-700 uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">{t('adminLearnSubmissions.labelIntro')}</p>
         <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{sub.intro}</p>
       </div>
 
       {/* Steps */}
       <div>
         <p className="text-xs font-700 uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
-          Steps ({steps.length})
+          {t('adminLearnSubmissions.stepsCount', { count: steps.length })}
         </p>
         <ol className="space-y-1.5">
           {steps.map((s, i) => (
@@ -137,7 +151,7 @@ function ExpandedSubmission({ sub, onReview }) {
 
       {/* Skills */}
       <div>
-        <p className="text-xs font-700 uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">Skills</p>
+        <p className="text-xs font-700 uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">{t('adminLearnSubmissions.labelSkills')}</p>
         <div className="flex flex-wrap gap-1.5">
           {skills.map((sk, i) => (
             <span key={i} className="px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-600">
@@ -150,7 +164,7 @@ function ExpandedSubmission({ sub, onReview }) {
       {/* Tools (if any) */}
       {tools.length > 0 && (
         <div>
-          <p className="text-xs font-700 uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">Tools</p>
+          <p className="text-xs font-700 uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">{t('adminLearnSubmissions.labelTools')}</p>
           <div className="space-y-1">
             {tools.map((t, i) => (
               <div key={i} className="flex items-center gap-2 text-sm">
@@ -158,13 +172,13 @@ function ExpandedSubmission({ sub, onReview }) {
                 {t.buy_url && (
                   <a href={t.buy_url} target="_blank" rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-xs font-700 text-orange-600 dark:text-orange-400 hover:underline">
-                    Buy <ExternalLink size={10} />
+                    {t('adminLearnSubmissions.buy')} <ExternalLink size={10} />
                   </a>
                 )}
                 {t.rent_url && (
                   <a href={t.rent_url} target="_blank" rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-xs font-700 text-sky-600 dark:text-sky-400 hover:underline">
-                    Rent <ExternalLink size={10} />
+                    {t('adminLearnSubmissions.rent')} <ExternalLink size={10} />
                   </a>
                 )}
               </div>
@@ -176,7 +190,7 @@ function ExpandedSubmission({ sub, onReview }) {
       {/* Video */}
       {sub.video_url && (
         <div>
-          <p className="text-xs font-700 uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Video</p>
+          <p className="text-xs font-700 uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">{t('adminLearnSubmissions.labelVideo')}</p>
           <a href={sub.video_url} target="_blank" rel="noopener noreferrer"
             className="inline-flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:underline">
             {sub.video_url.slice(0, 60)}{sub.video_url.length > 60 ? '…' : ''}
@@ -188,7 +202,7 @@ function ExpandedSubmission({ sub, onReview }) {
       {/* License note */}
       {sub.license_note && (
         <div>
-          <p className="text-xs font-700 uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">License Note</p>
+          <p className="text-xs font-700 uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">{t('adminLearnSubmissions.labelLicenseNote')}</p>
           <p className="text-sm text-yellow-800 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg px-3 py-2">
             {sub.license_note}
           </p>
@@ -198,7 +212,7 @@ function ExpandedSubmission({ sub, onReview }) {
       {/* Existing reviewer note */}
       {sub.reviewer_note && (
         <div>
-          <p className="text-xs font-700 uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Prior Reviewer Note</p>
+          <p className="text-xs font-700 uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">{t('adminLearnSubmissions.labelPriorReviewerNote')}</p>
           <p className="text-sm text-gray-600 dark:text-gray-400 italic">{sub.reviewer_note}</p>
         </div>
       )}
@@ -207,13 +221,13 @@ function ExpandedSubmission({ sub, onReview }) {
       {sub.status === 'pending' && (
         <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-3">
           <p className="text-xs font-700 uppercase tracking-wide text-gray-500 dark:text-gray-400 flex items-center gap-1">
-            <MessageSquare size={12} /> Review Note (optional)
+            <MessageSquare size={12} /> {t('adminLearnSubmissions.labelReviewNote')}
           </p>
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={2}
-            placeholder="Feedback for the submitter…"
+            placeholder={t('adminLearnSubmissions.reviewNotePlaceholder')}
             className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600
               bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200
               text-sm resize-none focus:outline-none focus:border-orange-500"
@@ -228,7 +242,7 @@ function ExpandedSubmission({ sub, onReview }) {
               className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-green-600
                 hover:bg-green-700 text-white text-sm font-700 transition-colors disabled:opacity-50">
               <CheckCircle size={14} />
-              {loading ? 'Saving…' : 'Approve'}
+              {loading ? t('adminLearnSubmissions.saving') : t('adminLearnSubmissions.approve')}
             </button>
             <button
               disabled={loading}
@@ -236,7 +250,7 @@ function ExpandedSubmission({ sub, onReview }) {
               className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-red-600
                 hover:bg-red-700 text-white text-sm font-700 transition-colors disabled:opacity-50">
               <XCircle size={14} />
-              {loading ? 'Saving…' : 'Reject'}
+              {loading ? t('adminLearnSubmissions.saving') : t('adminLearnSubmissions.reject')}
             </button>
           </div>
         </div>
@@ -248,6 +262,7 @@ function ExpandedSubmission({ sub, onReview }) {
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 export default function LearnSubmissionsAdmin() {
+  const { t } = useTranslation();
   const [submissions, setSubmissions] = useState([]);
   const [total,       setTotal]       = useState(0);
   const [status,      setStatus]      = useState('pending');
@@ -255,6 +270,18 @@ export default function LearnSubmissionsAdmin() {
   const [page,        setPage]        = useState(0);
 
   const PAGE_SIZE = 25;
+  const CATEGORY_LABELS = getCategoryLabels(t);
+  const difficultyLabels = {
+    Easy:   t('adminLearnSubmissions.difficultyEasy'),
+    Medium: t('adminLearnSubmissions.difficultyMedium'),
+    Hard:   t('adminLearnSubmissions.difficultyHard'),
+  };
+  const statusLabels = {
+    pending:  t('adminLearnSubmissions.statusPending'),
+    approved: t('adminLearnSubmissions.statusApproved'),
+    rejected: t('adminLearnSubmissions.statusRejected'),
+    all:      t('adminLearnSubmissions.statusAll'),
+  };
 
   // Abortable submissions load. A failed refetch keeps the previous list on
   // screen and surfaces a retryable error instead of clearing it.
@@ -292,10 +319,10 @@ export default function LearnSubmissionsAdmin() {
         <div>
           <h1 className="text-2xl font-900 text-gray-900 dark:text-white flex items-center gap-2">
             <BookOpen size={22} className="text-orange-500" />
-            Learn Guide Submissions
+            {t('adminLearnSubmissions.title')}
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            Review user-submitted guides before publishing to Learn Mode.
+            {t('adminLearnSubmissions.description')}
           </p>
         </div>
 
@@ -306,7 +333,7 @@ export default function LearnSubmissionsAdmin() {
             dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400
             text-sm font-600 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors disabled:opacity-50">
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          Refresh
+          {t('common.refresh')}
         </button>
       </div>
 
@@ -322,14 +349,14 @@ export default function LearnSubmissionsAdmin() {
                 ? 'bg-orange-500 text-white'
                 : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
             }`}>
-            {s}
+            {statusLabels[s] ?? s}
             {s === 'pending' && total > 0 && status !== 'pending' && (
               <span className="ml-1 opacity-70">·</span>
             )}
           </button>
         ))}
         <span className="ml-auto text-xs text-gray-400">
-          {total} {total === 1 ? 'submission' : 'submissions'}
+          {t('adminLearnSubmissions.totalCount', { count: total })}
         </span>
       </div>
 
@@ -344,13 +371,13 @@ export default function LearnSubmissionsAdmin() {
       {loading && submissions.length === 0 ? (
         <div className="flex items-center justify-center py-12 text-gray-400">
           <RefreshCw size={18} className="animate-spin mr-2" />
-          Loading…
+          {t('adminLearnSubmissions.loading')}
         </div>
       ) : !error && submissions.length === 0 ? (
         <div className="text-center py-14 text-gray-400">
           <BookOpen size={36} className="mx-auto mb-3 opacity-40" />
-          <p className="font-600">No {status === 'all' ? '' : status} submissions</p>
-          <p className="text-sm mt-1">Check back later or change the filter.</p>
+          <p className="font-600">{status === 'all' ? t('adminLearnSubmissions.emptyAll') : t('adminLearnSubmissions.emptyFiltered', { status: statusLabels[status] ?? status })}</p>
+          <p className="text-sm mt-1">{t('adminLearnSubmissions.emptyHint')}</p>
         </div>
       ) : submissions.length > 0 ? (
         <div className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -358,10 +385,10 @@ export default function LearnSubmissionsAdmin() {
           <div className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-x-4 px-5 py-2.5
             bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700
             text-xs font-700 uppercase tracking-wide text-gray-500 dark:text-gray-400">
-            <span>Title / Submitter</span>
-            <span>Category</span>
-            <span>Difficulty</span>
-            <span>Status</span>
+            <span>{t('adminLearnSubmissions.colTitleSubmitter')}</span>
+            <span>{t('adminLearnSubmissions.colCategory')}</span>
+            <span>{t('adminLearnSubmissions.colDifficulty')}</span>
+            <span>{t('adminLearnSubmissions.colStatus')}</span>
             <span />
           </div>
 
@@ -382,7 +409,7 @@ export default function LearnSubmissionsAdmin() {
                   <div className="min-w-0">
                     <p className="text-sm font-700 text-gray-900 dark:text-white truncate">{sub.title}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                      {sub.submitter_name ?? 'Unknown'} · {sub.submitter_email ?? ''}
+                      {sub.submitter_name ?? t('adminLearnSubmissions.unknownSubmitter')} · {sub.submitter_email ?? ''}
                     </p>
                   </div>
 
@@ -393,7 +420,7 @@ export default function LearnSubmissionsAdmin() {
 
                   {/* Difficulty */}
                   <span className={`text-sm font-700 ${DIFFICULTY_COLORS[sub.difficulty] ?? ''}`}>
-                    {sub.difficulty}
+                    {difficultyLabels[sub.difficulty] ?? sub.difficulty}
                   </span>
 
                   {/* Status */}
@@ -426,10 +453,10 @@ export default function LearnSubmissionsAdmin() {
             className="px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600
               text-sm font-600 text-gray-600 dark:text-gray-400 disabled:opacity-40
               hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-            ← Prev
+            {t('adminLearnSubmissions.prev')}
           </button>
           <span className="text-sm text-gray-500 dark:text-gray-400">
-            Page {page + 1} of {totalPages}
+            {t('adminLearnSubmissions.pageOf', { page: page + 1, pages: totalPages })}
           </span>
           <button
             disabled={page >= totalPages - 1}
@@ -437,7 +464,7 @@ export default function LearnSubmissionsAdmin() {
             className="px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600
               text-sm font-600 text-gray-600 dark:text-gray-400 disabled:opacity-40
               hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-            Next →
+            {t('adminLearnSubmissions.next')}
           </button>
         </div>
       )}

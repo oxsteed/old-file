@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks/useAuth';
 import api, { clearStoredSession, persistSessionPayload } from '../../api/auth';
 import { startAuthentication } from '@simplewebauthn/browser';
@@ -8,6 +9,7 @@ const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 15 * 60 * 1000;
 
 export default function AdminLogin() {
+  const { t } = useTranslation();
   const { login, setUser, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -71,12 +73,12 @@ export default function AdminLogin() {
 
     if (isLocked) {
       const mins = Math.ceil((lockedUntil - Date.now()) / 60000);
-      setError(`Too many failed attempts. Try again in ${mins} minute(s).`);
+      setError(t('adminLogin.tooManyAttempts', { mins }));
       return;
     }
 
     if (!internalName.trim() || !securityKey.trim()) {
-      setError('Name and security key are required.');
+      setError(t('adminLogin.nameAndKeyRequired'));
       return;
     }
 
@@ -98,19 +100,19 @@ export default function AdminLogin() {
       // Server-side 24h lockout (423) — authoritative across page reloads.
       if (status === 423 && payload.lockedUntil) {
         setLockedUntil(new Date(payload.lockedUntil).getTime());
-        setError(payload.message || 'Access temporarily locked. Request a recovery email or contact a super-admin.');
+        setError(payload.message || t('adminLogin.lockedRecovery'));
       } else if (status === 401 && payload.lockedUntil) {
         // We were just locked on this attempt.
         setLockedUntil(new Date(payload.lockedUntil).getTime());
-        setError('Too many failed attempts. Locked until the timer expires.');
+        setError(t('adminLogin.lockedUntilTimer'));
       } else if (status === 401 && typeof payload.attemptsLeft === 'number') {
         // Surface server's remaining count instead of the local one.
         setAttempts(MAX_ATTEMPTS - payload.attemptsLeft);
-        setError(`Invalid credentials. ${payload.attemptsLeft} attempt${payload.attemptsLeft === 1 ? '' : 's'} remaining before lockout.`);
+        setError(t('adminLogin.invalidCredentials', { left: payload.attemptsLeft }));
       } else {
         const newAttempts = attempts + 1;
         setAttempts(newAttempts);
-        setError(payload.error || 'Internal access verification failed.');
+        setError(payload.error || t('adminLogin.internalAccessFailed'));
       }
     } finally {
       setLoading(false);
@@ -119,16 +121,16 @@ export default function AdminLogin() {
 
   async function handleRequestRecovery() {
     setError('');
-    const email = (window.prompt('Enter the recovery email on file:') || '').trim();
+    const email = (window.prompt(t('adminLogin.recoveryPrompt')) || '').trim();
     if (!email) return;
     try {
       await api.post('/auth/internal-access/recovery/request', {
         email,
         internal_name: internalName.trim() || undefined,
       });
-      setError('If that email is authorised for recovery, a one-time link has been sent. Check your inbox.');
+      setError(t('adminLogin.recoverySent'));
     } catch (err) {
-      setError(err.response?.data?.error || 'Could not request recovery email.');
+      setError(err.response?.data?.error || t('adminLogin.recoveryFailed'));
     }
   }
 
@@ -138,17 +140,17 @@ export default function AdminLogin() {
 
     if (isLocked) {
       const mins = Math.ceil((lockedUntil - Date.now()) / 60000);
-      setError(`Too many failed attempts. Try again in ${mins} minute(s).`);
+      setError(t('adminLogin.tooManyAttempts', { mins }));
       return;
     }
 
     if (gateEnforced) {
       if (!internalAccessToken || !approvedIdentity) {
-        setError('Complete the internal access verification first.');
+        setError(t('adminLogin.completeInternalAccess'));
         return;
       }
       if (!password) {
-        setError('Password is required.');
+        setError(t('adminLogin.passwordRequired'));
         return;
       }
 
@@ -176,9 +178,9 @@ export default function AdminLogin() {
         if (newAttempts >= MAX_ATTEMPTS) {
           const lockTime = Date.now() + LOCKOUT_MS;
           setLockedUntil(lockTime);
-          setError('Access temporarily locked due to too many failed attempts.');
+          setError(t('adminLogin.lockedTooManyAttempts'));
         } else {
-          setError(err.response?.data?.error || 'Login failed. Please check your password.');
+          setError(err.response?.data?.error || t('adminLogin.loginFailedPassword'));
         }
       } finally {
         setLoading(false);
@@ -187,7 +189,7 @@ export default function AdminLogin() {
     }
 
     if (!email || !password) {
-      setError('Email and password are required.');
+      setError(t('adminLogin.emailPasswordRequired'));
       return;
     }
 
@@ -204,7 +206,7 @@ export default function AdminLogin() {
 
       const loggedInUser = data.user;
       if (!['admin', 'super_admin'].includes(loggedInUser.role)) {
-        setError('Access denied. Admin privileges required.');
+        setError(t('adminLogin.accessDenied'));
         clearStoredSession();
         setUser(null);
         setLoading(false);
@@ -219,9 +221,9 @@ export default function AdminLogin() {
       if (newAttempts >= MAX_ATTEMPTS) {
         const lockTime = Date.now() + LOCKOUT_MS;
         setLockedUntil(lockTime);
-        setError('Account temporarily locked due to too many failed attempts.');
+        setError(t('adminLogin.accountLocked'));
       } else {
-        setError(err.response?.data?.error || 'Login failed. Please check your credentials.');
+        setError(err.response?.data?.error || t('adminLogin.loginFailedCredentials'));
       }
     } finally {
       setLoading(false);
@@ -233,7 +235,7 @@ export default function AdminLogin() {
     setError('');
 
     if (!twoFACode || !mfaToken) {
-      setError(!mfaToken ? 'Your 2FA session expired. Please sign in again.' : 'Please enter your 2FA code.');
+      setError(!mfaToken ? t('adminLogin.sessionExpired') : t('adminLogin.enter2FACode'));
       return;
     }
 
@@ -246,7 +248,7 @@ export default function AdminLogin() {
       });
 
       if (!['admin', 'super_admin'].includes(data.user.role)) {
-        setError('Access denied. Admin privileges required.');
+        setError(t('adminLogin.accessDenied'));
         clearStoredSession();
         setUser(null);
         setLoading(false);
@@ -258,7 +260,7 @@ export default function AdminLogin() {
       setAttempts(0);
       navigate('/admin/dashboard', { replace: true });
     } catch (err) {
-      setError(err.response?.data?.error || 'Invalid 2FA code.');
+      setError(err.response?.data?.error || t('adminLogin.invalid2FACode'));
     } finally {
       setLoading(false);
     }
@@ -275,14 +277,14 @@ export default function AdminLogin() {
       if (!['admin', 'super_admin'].includes(data.user?.role)) {
         clearStoredSession();
         setUser(null);
-        throw new Error('Access denied. Admin privileges required.');
+        throw new Error(t('adminLogin.accessDenied'));
       }
       persistSessionPayload(data);
       setUser(data.user);
       navigate('/admin/dashboard', { replace: true });
     } catch (err) {
       if (err?.name !== 'NotAllowedError') {
-        setError(err.response?.data?.error || err.message || 'Passkey sign-in failed. Use your authenticator code instead.');
+        setError(err.response?.data?.error || err.message || t('adminLogin.passkeyFailed'));
       }
     } finally {
       setPasskeyBusy(false);
@@ -302,17 +304,15 @@ export default function AdminLogin() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-orange-500">OxSteed</h1>
-          <p className="text-gray-400 mt-2">Admin Portal</p>
+          <p className="text-gray-400 mt-2">{t('adminLogin.portalTitle')}</p>
         </div>
 
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8">
           <h2 className="text-xl font-semibold text-white mb-2">
-            {requires2FA ? 'Two-Factor Authentication' : 'Sign In'}
+            {requires2FA ? t('adminLogin.twoFactor') : t('adminLogin.signIn')}
           </h2>
           <p className="text-sm text-gray-400 mb-6">
-            {gateEnforced
-              ? 'Admin access requires your assigned internal name and security key before password sign-in.'
-              : 'Admin access is currently using the existing password login while internal access enrollment is completed.'}
+            {gateEnforced ? t('adminLogin.gateEnforcedDesc') : t('adminLogin.gateOpenDesc')}
           </p>
 
           {error && (
@@ -324,10 +324,10 @@ export default function AdminLogin() {
           {requires2FA ? (
             <form onSubmit={handle2FASubmit} className="space-y-4">
               <p className="text-sm text-gray-400 mb-2">
-                Enter the 6-digit code from your authenticator app, or a backup code.
+                {t('adminLogin.twoFactorHelp')}
               </p>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">2FA Code</label>
+                <label className="block text-sm text-gray-400 mb-1">{t('adminLogin.twoFactorLabel')}</label>
                 <input
                   type="text"
                   value={twoFACode}
@@ -345,7 +345,7 @@ export default function AdminLogin() {
                 disabled={loading}
                 className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-lg transition"
               >
-                {loading ? 'Verifying...' : 'Verify'}
+                {loading ? t('adminLogin.verifying') : t('adminLogin.verify')}
               </button>
               {typeof window !== 'undefined' && window.PublicKeyCredential && (
                 <button
@@ -354,7 +354,7 @@ export default function AdminLogin() {
                   disabled={loading || passkeyBusy}
                   className="w-full border border-orange-500/60 text-orange-400 hover:bg-orange-500/10 disabled:opacity-50 font-semibold py-3 rounded-lg transition"
                 >
-                  {passkeyBusy ? 'Checking passkey...' : 'Use a passkey instead'}
+                  {passkeyBusy ? t('adminLogin.checkingPasskey') : t('adminLogin.usePasskey')}
                 </button>
               )}
               <button
@@ -362,32 +362,32 @@ export default function AdminLogin() {
                 onClick={() => { setRequires2FA(false); setTwoFACode(''); setMfaToken(null); setError(''); }}
                 className="w-full text-gray-400 hover:text-white text-sm py-2 transition"
               >
-                Back to login
+                {t('adminLogin.backToLogin')}
               </button>
             </form>
           ) : gateEnforced && !approvedIdentity ? (
             <form onSubmit={handleInternalAccessSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Internal name</label>
+                <label className="block text-sm text-gray-400 mb-1">{t('adminLogin.internalNameLabel')}</label>
                 <input
                   type="text"
                   value={internalName}
                   onChange={(e) => setInternalName(e.target.value)}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition"
-                  placeholder="Your assigned internal name"
+                  placeholder={t('adminLogin.internalNamePlaceholder')}
                   autoComplete="username"
                   disabled={loading || isLocked}
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Security key</label>
+                <label className="block text-sm text-gray-400 mb-1">{t('adminLogin.securityKeyLabel')}</label>
                 <input
                   type="password"
                   value={securityKey}
                   onChange={(e) => setSecurityKey(e.target.value)}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition"
-                  placeholder="Security key provided by super-admin"
+                  placeholder={t('adminLogin.securityKeyPlaceholder')}
                   autoComplete="one-time-code"
                   disabled={loading || isLocked}
                   required
@@ -398,7 +398,7 @@ export default function AdminLogin() {
                 disabled={loading || isLocked}
                 className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-lg transition mt-2"
               >
-                {loading ? 'Checking...' : isLocked ? 'Access Locked' : 'Continue'}
+                {loading ? t('adminLogin.checking') : isLocked ? t('adminLogin.accessLocked') : t('adminLogin.continue')}
               </button>
               {isLocked && (
                 <button
@@ -406,7 +406,7 @@ export default function AdminLogin() {
                   onClick={handleRequestRecovery}
                   className="w-full mt-2 text-sm text-orange-400 hover:text-orange-300 underline"
                 >
-                  Request a recovery email
+                  {t('adminLogin.requestRecovery')}
                 </button>
               )}
             </form>
@@ -414,15 +414,15 @@ export default function AdminLogin() {
             <form onSubmit={handleSubmit} className="space-y-4">
               {gateEnforced ? (
                 <div className="bg-gray-800/60 border border-gray-700 rounded-lg px-4 py-3">
-                  <div className="text-xs uppercase tracking-wide text-gray-500 mb-1">Approved account</div>
+                  <div className="text-xs uppercase tracking-wide text-gray-500 mb-1">{t('adminLogin.approvedAccount')}</div>
                   <div className="text-white font-medium">{approvedIdentity?.email_masked || approvedIdentity?.email}</div>
                   <div className="text-xs text-gray-400 mt-1">
-                    This login can only continue with the OxSteed account linked to <strong>{approvedIdentity?.internal_name}</strong>.
+                    {t('adminLogin.linkedAccountNote', { name: approvedIdentity?.internal_name })}
                   </div>
                 </div>
               ) : (
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">Email</label>
+                  <label className="block text-sm text-gray-400 mb-1">{t('adminLogin.emailLabel')}</label>
                   <input
                     type="email"
                     value={email}
@@ -436,13 +436,13 @@ export default function AdminLogin() {
                 </div>
               )}
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Password</label>
+                <label className="block text-sm text-gray-400 mb-1">{t('adminLogin.passwordLabel')}</label>
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition"
-                  placeholder="Enter your password"
+                  placeholder={t('adminLogin.passwordPlaceholder')}
                   autoComplete="current-password"
                   disabled={loading || isLocked}
                   required
@@ -453,7 +453,7 @@ export default function AdminLogin() {
                 disabled={loading || isLocked}
                 className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-lg transition mt-2"
               >
-                {loading ? 'Signing in...' : isLocked ? 'Account Locked' : 'Sign In'}
+                {loading ? t('adminLogin.signingIn') : isLocked ? t('adminLogin.accountLockedBtn') : t('adminLogin.signIn')}
               </button>
               {gateEnforced && (
                 <button
@@ -461,7 +461,7 @@ export default function AdminLogin() {
                   onClick={resetToFirstStep}
                   className="w-full text-gray-400 hover:text-white text-sm py-2 transition"
                 >
-                  Use a different internal access identity
+                  {t('adminLogin.useDifferentIdentity')}
                 </button>
               )}
             </form>
@@ -469,7 +469,7 @@ export default function AdminLogin() {
         </div>
 
         <p className="text-center text-gray-600 text-xs mt-6">
-          Authorized personnel only. All access is monitored and logged.
+          {t('adminLogin.footerNote')}
         </p>
       </div>
     </div>

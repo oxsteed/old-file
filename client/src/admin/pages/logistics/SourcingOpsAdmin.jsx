@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { adminListSourcingRequests, adminListQuotes, adminAssignSourcingOperator, adminUpdateSourcingRequestStatus, adminListRecurringPrograms } from '../../../api/logistics';
 import '../../../styles/logistics/LogisticsHomePage.css';
@@ -7,6 +8,7 @@ import AdminErrorState from '../../lib/AdminErrorState';
 const REQUEST_STATUSES = ['draft', 'quoted', 'pooled', 'procurement', 'private_label', 'cancelled', 'closed'];
 
 export default function SourcingOpsAdmin() {
+  const { t } = useTranslation();
   const [requests, setRequests] = useState([]);
   const [quotes, setQuotes] = useState([]);
   const [programs, setPrograms] = useState([]);
@@ -43,7 +45,7 @@ export default function SourcingOpsAdmin() {
       if (form.status) {
         await adminUpdateSourcingRequestStatus(selected.id, { status: form.status, notes: form.notes });
       }
-      toast.success('Sourcing request updated');
+      toast.success(t('adminSourcingOps.sourcingUpdated'));
       setSelected(null);
       setForm({ operator_user_id: '', status: '', notes: '' });
       load();
@@ -55,15 +57,15 @@ export default function SourcingOpsAdmin() {
   return (
     <div className="lx-page">
       <div className="lx-page-header">
-        <h1 className="lx-page-title">Sourcing Ops Workspace</h1>
-        <p className="lx-page-sub">Run sourcing intake, manage quote-ready requests, and monitor recurring procurement demand from the operator side.</p>
+        <h1 className="lx-page-title">{t('adminSourcingOps.title')}</h1>
+        <p className="lx-page-sub">{t('adminSourcingOps.subtitle')}</p>
       </div>
 
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:'1rem', marginBottom:'1.5rem' }}>
         {[
-          ['Open requests', requests.filter((row) => !['closed', 'cancelled'].includes(row.status)).length, '🔍'],
-          ['Submitted quotes', quotes.filter((row) => row.status === 'submitted').length, '💬'],
-          ['Active recurring programs', programs.length, '🔁'],
+          [t('adminSourcingOps.stats.openRequests'), requests.filter((row) => !['closed', 'cancelled'].includes(row.status)).length, '🔍'],
+          [t('adminSourcingOps.stats.submittedQuotes'), quotes.filter((row) => row.status === 'submitted').length, '💬'],
+          [t('adminSourcingOps.stats.activePrograms'), programs.length, '🔁'],
         ].map(([label, value, icon]) => (
           <div key={label} className="lx-card" style={{ textAlign:'center' }}>
             <div style={{ fontSize:'1.4rem' }}>{icon}</div>
@@ -76,10 +78,10 @@ export default function SourcingOpsAdmin() {
       {!loading && loadError && <AdminErrorState onRetry={load} />}
 
       <div className="lx-card" style={{ marginBottom:'1.5rem' }}>
-        <div className="lx-section-header"><h2>Sourcing request queue</h2></div>
+        <div className="lx-section-header"><h2>{t('adminSourcingOps.queueTitle')}</h2></div>
         <div className="lx-table-wrap">
           <table className="lx-table">
-            <thead><tr><th>Reference</th><th>Request</th><th>Status</th><th>Quotes</th><th>Operator</th><th></th></tr></thead>
+            <thead><tr><th>{t('adminSourcingOps.queueTable.reference')}</th><th>{t('adminSourcingOps.queueTable.request')}</th><th>{t('adminSourcingOps.queueTable.status')}</th><th>{t('adminSourcingOps.queueTable.quotes')}</th><th>{t('adminSourcingOps.queueTable.operator')}</th><th></th></tr></thead>
             <tbody>
               {requests.map((request) => (
                 <tr key={request.id}>
@@ -88,31 +90,31 @@ export default function SourcingOpsAdmin() {
                   <td><span className="lx-status-pill" style={{ background:'#64748b' }}>{request.status}</span></td>
                   <td>{request.quote_count || 0}</td>
                   <td>{request.assigned_operator || '—'}</td>
-                  <td><button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem' }} onClick={() => setSelected(request)}>Manage</button></td>
+                  <td><button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem' }} onClick={() => setSelected(request)}>{t('adminSourcingOps.manage')}</button></td>
                 </tr>
               ))}
-              {!loading && !loadError && requests.length === 0 && <tr><td colSpan={6} style={{ textAlign:'center', color:'#94a3b8' }}>No sourcing requests found.</td></tr>}
+              {!loading && !loadError && requests.length === 0 && <tr><td colSpan={6} style={{ textAlign:'center', color:'#94a3b8' }}>{t('adminSourcingOps.noRequests')}</td></tr>}
             </tbody>
           </table>
         </div>
       </div>
 
       <div className="lx-card">
-        <div className="lx-section-header"><h2>Recurring procurement programs</h2></div>
+        <div className="lx-section-header"><h2>{t('adminSourcingOps.programsTitle')}</h2></div>
         <div className="lx-table-wrap">
           <table className="lx-table">
-            <thead><tr><th>Program</th><th>Cadence</th><th>Next run</th><th>Lane</th><th>Status</th></tr></thead>
+            <thead><tr><th>{t('adminSourcingOps.programsTable.program')}</th><th>{t('adminSourcingOps.programsTable.cadence')}</th><th>{t('adminSourcingOps.programsTable.nextRun')}</th><th>{t('adminSourcingOps.programsTable.lane')}</th><th>{t('adminSourcingOps.programsTable.status')}</th></tr></thead>
             <tbody>
               {programs.slice(0, 12).map((program) => (
                 <tr key={program.id}>
                   <td>{program.title}</td>
                   <td>{program.cadence}</td>
                   <td>{program.next_run_date ? new Date(program.next_run_date).toLocaleDateString() : '—'}</td>
-                  <td>{program.lane_name || 'Unassigned'}</td>
+                  <td>{program.lane_name || t('adminSourcingOps.unassigned')}</td>
                   <td><span className="lx-status-pill" style={{ background: program.status === 'active' ? '#22c55e' : '#64748b' }}>{program.status}</span></td>
                 </tr>
               ))}
-              {!loading && !loadError && programs.length === 0 && <tr><td colSpan={5} style={{ textAlign:'center', color:'#94a3b8' }}>No recurring procurement programs yet.</td></tr>}
+              {!loading && !loadError && programs.length === 0 && <tr><td colSpan={5} style={{ textAlign:'center', color:'#94a3b8' }}>{t('adminSourcingOps.noPrograms')}</td></tr>}
             </tbody>
           </table>
         </div>
@@ -121,25 +123,25 @@ export default function SourcingOpsAdmin() {
       {selected && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999 }}>
           <div style={{ background:'var(--card-bg,#fff)', borderRadius:'1rem', padding:'1.5rem', width:440, maxWidth:'90vw' }}>
-            <h3 style={{ fontWeight:700, marginBottom:'1rem' }}>Manage {selected.reference}</h3>
+            <h3 style={{ fontWeight:700, marginBottom:'1rem' }}>{t('adminSourcingOps.modal.manageTitle', { reference: selected.reference })}</h3>
             <div className="lx-form-group">
-              <label className="lx-label">Assign operator UUID</label>
-              <input className="lx-input" value={form.operator_user_id} onChange={(e) => setForm((f) => ({ ...f, operator_user_id: e.target.value }))} placeholder="Internal operator user id" />
+              <label className="lx-label">{t('adminSourcingOps.modal.assignOperator')}</label>
+              <input className="lx-input" value={form.operator_user_id} onChange={(e) => setForm((f) => ({ ...f, operator_user_id: e.target.value }))} placeholder={t('adminSourcingOps.modal.operatorPlaceholder')} />
             </div>
             <div className="lx-form-group">
-              <label className="lx-label">Update status</label>
+              <label className="lx-label">{t('adminSourcingOps.modal.updateStatus')}</label>
               <select className="lx-select" value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>
-                <option value="">No status change</option>
+                <option value="">{t('adminSourcingOps.modal.noStatusChange')}</option>
                 {REQUEST_STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
               </select>
             </div>
             <div className="lx-form-group">
-              <label className="lx-label">Notes</label>
+              <label className="lx-label">{t('adminSourcingOps.modal.notes')}</label>
               <textarea className="lx-textarea" rows={3} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
             </div>
             <div style={{ display:'flex', gap:'.75rem' }}>
-              <button className="lx-btn-primary" onClick={apply}>Apply</button>
-              <button className="lx-btn-secondary" onClick={() => setSelected(null)}>Cancel</button>
+              <button className="lx-btn-primary" onClick={apply}>{t('adminSourcingOps.modal.apply')}</button>
+              <button className="lx-btn-secondary" onClick={() => setSelected(null)}>{t('common.cancel')}</button>
             </div>
           </div>
         </div>

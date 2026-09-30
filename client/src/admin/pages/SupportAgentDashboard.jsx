@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
 import {
   Users,
@@ -40,8 +41,8 @@ function formatDuration(value) {
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
 
-function formatDateTime(value) {
-  if (!value) return 'Not available';
+function formatDateTime(value, fallback) {
+  if (!value) return fallback;
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: 'medium',
     timeStyle: 'short',
@@ -49,10 +50,11 @@ function formatDateTime(value) {
 }
 
 function MissedConversationCard({ conversation, onUpdated }) {
+  const { t } = useTranslation();
   const [showEmail, setShowEmail] = useState(false);
-  const [subject, setSubject] = useState('Following up on your OxSteed support request');
+  const [subject, setSubject] = useState(t('adminSupportAgentDashboard.defaultEmailSubject'));
   const [content, setContent] = useState(
-    `Hi ${conversation.customer_name || 'there'},\n\nI’m following up because we missed you when you requested live support. How can we help?\n\nOxSteed Support`
+    t('adminSupportAgentDashboard.defaultEmailBody', { customer: conversation.customer_name || t('adminSupportAgentDashboard.customerFallback') })
   );
   const [sending, setSending] = useState(false);
   const [requestId, setRequestId] = useState(() => crypto.randomUUID());
@@ -67,12 +69,12 @@ function MissedConversationCard({ conversation, onUpdated }) {
         content: content.trim(),
         requestId,
       });
-      toast.success(`Email sent to ${conversation.customer_email}`);
+      toast.success(t('adminSupportAgentDashboard.toastEmailSent', { email: conversation.customer_email }));
       setShowEmail(false);
       await onUpdated();
     } catch (err) {
       setRequestId(crypto.randomUUID());
-      toast.error(err?.response?.data?.error || 'Failed to send follow-up email.');
+      toast.error(err?.response?.data?.error || t('adminSupportAgentDashboard.toastEmailFailed'));
     } finally {
       setSending(false);
     }
@@ -85,11 +87,14 @@ function MissedConversationCard({ conversation, onUpdated }) {
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-base font-semibold text-white">{conversation.customer_name}</h3>
             {conversation.guest_verified_at && (
-              <SupportTag tone="green"><ShieldCheck size={12} /> Email verified</SupportTag>
+              <SupportTag tone="green"><ShieldCheck size={12} /> {t('adminSupportAgentDashboard.tagEmailVerified')}</SupportTag>
             )}
             {conversation.followed_up_at && (
               <SupportTag tone="blue">
-                {conversation.follow_up_count} email{Number(conversation.follow_up_count) === 1 ? '' : 's'} · latest {formatDateTime(conversation.followed_up_at)}
+                {t('adminSupportAgentDashboard.followUpMeta', {
+                  count: conversation.follow_up_count,
+                  date: formatDateTime(conversation.followed_up_at, t('adminSupportAgentDashboard.notAvailable')),
+                })}
               </SupportTag>
             )}
           </div>
@@ -101,30 +106,30 @@ function MissedConversationCard({ conversation, onUpdated }) {
               <Mail size={14} /> {conversation.customer_email}
             </a>
           ) : (
-            <div className="mt-2 text-sm text-gray-500">No verified email is available.</div>
+            <div className="mt-2 text-sm text-gray-500">{t('adminSupportAgentDashboard.noVerifiedEmail')}</div>
           )}
           <dl className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
             <div>
-              <dt className="text-xs uppercase tracking-wider text-gray-600">Requested</dt>
-              <dd className="mt-1 text-gray-300">{formatDateTime(conversation.created_at)}</dd>
+              <dt className="text-xs uppercase tracking-wider text-gray-600">{t('adminSupportAgentDashboard.labelRequested')}</dt>
+              <dd className="mt-1 text-gray-300">{formatDateTime(conversation.created_at, t('adminSupportAgentDashboard.notAvailable'))}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-wider text-gray-600">Wait ended</dt>
-              <dd className="mt-1 text-gray-300">{formatDateTime(conversation.live_wait_ended_at)}</dd>
+              <dt className="text-xs uppercase tracking-wider text-gray-600">{t('adminSupportAgentDashboard.labelWaitEnded')}</dt>
+              <dd className="mt-1 text-gray-300">{formatDateTime(conversation.live_wait_ended_at, t('adminSupportAgentDashboard.notAvailable'))}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-wider text-gray-600">Status</dt>
+              <dt className="text-xs uppercase tracking-wider text-gray-600">{t('adminSupportAgentDashboard.labelStatus')}</dt>
               <dd className="mt-1 capitalize text-gray-300">{String(conversation.status || '').replaceAll('_', ' ')}</dd>
             </div>
           </dl>
           <div className="mt-4 rounded-xl border border-gray-800 bg-gray-950/70 p-4">
-            <div className="text-xs uppercase tracking-wider text-gray-600">Their latest message</div>
+            <div className="text-xs uppercase tracking-wider text-gray-600">{t('adminSupportAgentDashboard.labelLatestMessage')}</div>
             <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-gray-300">
-              {conversation.last_message || 'No message was provided.'}
+              {conversation.last_message || t('adminSupportAgentDashboard.noMessageProvided')}
             </p>
           </div>
           <div className="mt-3 break-all font-mono text-[11px] text-gray-600">
-            Conversation {conversation.id}
+            {t('adminSupportAgentDashboard.conversationId', { id: conversation.id })}
           </div>
         </div>
         <button
@@ -133,14 +138,14 @@ function MissedConversationCard({ conversation, onUpdated }) {
           disabled={!conversation.customer_email}
           className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          <Mail size={15} /> {showEmail ? 'Close email' : 'Email customer'}
+          <Mail size={15} /> {showEmail ? t('adminSupportAgentDashboard.closeEmail') : t('adminSupportAgentDashboard.emailCustomer')}
         </button>
       </div>
 
       {showEmail && (
         <form onSubmit={sendFollowUp} className="mt-5 space-y-3 border-t border-gray-800 pt-5">
           <div>
-            <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-gray-500">To</label>
+            <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-gray-500">{t('adminSupportAgentDashboard.labelTo')}</label>
             <input
               value={conversation.customer_email}
               readOnly
@@ -148,7 +153,7 @@ function MissedConversationCard({ conversation, onUpdated }) {
             />
           </div>
           <div>
-            <label htmlFor={`subject-${conversation.id}`} className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-gray-500">Subject</label>
+            <label htmlFor={`subject-${conversation.id}`} className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-gray-500">{t('adminSupportAgentDashboard.labelSubject')}</label>
             <input
               id={`subject-${conversation.id}`}
               value={subject}
@@ -159,7 +164,7 @@ function MissedConversationCard({ conversation, onUpdated }) {
             />
           </div>
           <div>
-            <label htmlFor={`message-${conversation.id}`} className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-gray-500">Message</label>
+            <label htmlFor={`message-${conversation.id}`} className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-gray-500">{t('adminSupportAgentDashboard.labelMessage')}</label>
             <textarea
               id={`message-${conversation.id}`}
               value={content}
@@ -171,14 +176,14 @@ function MissedConversationCard({ conversation, onUpdated }) {
             />
           </div>
           <div className="flex items-center justify-between gap-4">
-            <p className="text-xs text-gray-600">The sent email is recorded in this support conversation.</p>
+            <p className="text-xs text-gray-600">{t('adminSupportAgentDashboard.emailRecordedNote')}</p>
             <button
               type="submit"
               disabled={sending || !subject.trim() || !content.trim()}
               className="inline-flex items-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-500 disabled:opacity-40"
             >
               {sending ? <RefreshCw size={15} className="animate-spin" /> : <Send size={15} />}
-              {sending ? 'Sending…' : 'Send email'}
+              {sending ? t('adminSupportAgentDashboard.sending') : t('adminSupportAgentDashboard.sendEmail')}
             </button>
           </div>
         </form>
@@ -188,6 +193,7 @@ function MissedConversationCard({ conversation, onUpdated }) {
 }
 
 export default function SupportAgentDashboard() {
+  const { t } = useTranslation();
   const { businessId } = useParams();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -230,40 +236,40 @@ export default function SupportAgentDashboard() {
     <SupportPageShell>
       <SupportHero
         icon={Headphones}
-        eyebrow="Support Operations"
-        title="Agent dashboard"
-        description="Monitor live staffing, current conversations, and response health so leads can see whether the team is keeping pace right now."
+        eyebrow={t('adminSupportAgentDashboard.heroEyebrow')}
+        title={t('adminSupportAgentDashboard.heroTitle')}
+        description={t('adminSupportAgentDashboard.heroDescription')}
         actions={(
           <SupportActionButton icon={RefreshCw} onClick={loadData} tone="secondary">
-            Refresh
+            {t('common.refresh')}
           </SupportActionButton>
         )}
         stats={[
           {
             icon: Users,
-            label: 'Live-ready agents',
+            label: t('adminSupportAgentDashboard.statLiveReady'),
             value: stats.agents_online || 0,
-            detail: `${stats.available_capacity || 0} open chat slot${stats.available_capacity === 1 ? '' : 's'} across live-ready agents.`,
+            detail: t('adminSupportAgentDashboard.statLiveReadyDetail', { count: stats.available_capacity || 0 }),
           },
           {
             icon: MessageSquare,
-            label: 'Live conversations',
+            label: t('adminSupportAgentDashboard.statLiveConversations'),
             value: stats.active_conversations || 0,
-            detail: 'Customer conversations happening right now.',
+            detail: t('adminSupportAgentDashboard.statLiveConversationsDetail'),
             tone: 'text-orange-300',
           },
           {
             icon: Clock,
-            label: 'Avg response',
+            label: t('adminSupportAgentDashboard.statAvgResponse'),
             value: formatSeconds(stats.avg_response_time_seconds),
-            detail: 'Current average time to reply across the team.',
+            detail: t('adminSupportAgentDashboard.statAvgResponseDetail'),
             tone: 'text-blue-300',
           },
           {
             icon: TrendingUp,
-            label: 'Resolution rate',
+            label: t('adminSupportAgentDashboard.statResolutionRate'),
             value: `${stats.resolution_rate || 0}%`,
-            detail: 'Today’s resolution performance.',
+            detail: t('adminSupportAgentDashboard.statResolutionRateDetail'),
             tone: 'text-green-300',
           },
         ]}
@@ -271,14 +277,14 @@ export default function SupportAgentDashboard() {
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.05fr_0.95fr]">
         <SupportPanel
-          title="Online agent roster"
-          subtitle={`${agents.length} agent${agents.length === 1 ? '' : 's'} visible in the live roster.`}
+          title={t('adminSupportAgentDashboard.rosterTitle')}
+          subtitle={t('adminSupportAgentDashboard.rosterSubtitle', { count: agents.length })}
         >
           {agents.length === 0 ? (
             <SupportEmptyState
               icon={Users}
-              title="No agents online"
-              body="Once agents log in and begin taking work, their live status and chat load will appear here."
+              title={t('adminSupportAgentDashboard.rosterEmpty')}
+              body={t('adminSupportAgentDashboard.rosterEmptyBody')}
             />
           ) : (
             <div className="space-y-3">
@@ -292,7 +298,7 @@ export default function SupportAgentDashboard() {
                         <div className="mt-1 text-xs text-gray-500">{agent.role}</div>
                       </div>
                     </div>
-                    <SupportTag tone={agent.live_ready ? 'orange' : 'default'}>{agent.live_ready ? `${agent.active_chats || 0} active chats` : (agent.availability_reason || 'Not live-ready').replaceAll('_', ' ')}</SupportTag>
+                    <SupportTag tone={agent.live_ready ? 'orange' : 'default'}>{agent.live_ready ? t('adminSupportAgentDashboard.activeChats', { count: agent.active_chats || 0 }) : (agent.availability_reason || t('adminSupportAgentDashboard.notLiveReady')).replaceAll('_', ' ')}</SupportTag>
                   </div>
                 </div>
               ))}
@@ -301,14 +307,14 @@ export default function SupportAgentDashboard() {
         </SupportPanel>
 
         <SupportPanel
-          title="Active conversation flow"
-          subtitle="Who is handling customers right now and what each thread looks like at a glance."
+          title={t('adminSupportAgentDashboard.activeTitle')}
+          subtitle={t('adminSupportAgentDashboard.activeSubtitle')}
         >
           {activeConversations.length === 0 ? (
             <SupportEmptyState
               icon={MessageSquare}
-              title="No active conversations"
-              body="When a customer is in a live support session, it will appear here with the assigned agent and latest message."
+              title={t('adminSupportAgentDashboard.activeEmpty')}
+              body={t('adminSupportAgentDashboard.activeEmptyBody')}
             />
           ) : (
             <div className="space-y-3">
@@ -322,7 +328,7 @@ export default function SupportAgentDashboard() {
                     <SupportTag tone="blue">{formatDuration(conv.duration_seconds)}</SupportTag>
                   </div>
                   <div className="mt-3 rounded-xl border border-gray-800 bg-gray-950/70 px-3 py-2 text-sm leading-6 text-gray-400">
-                    {conv.last_message || 'No recent message preview available.'}
+                    {conv.last_message || t('adminSupportAgentDashboard.noPreview')}
                   </div>
                 </div>
               ))}
@@ -332,14 +338,14 @@ export default function SupportAgentDashboard() {
       </div>
 
       <SupportPanel
-        title="Missed live-support follow-ups"
-        subtitle="Verified customers whose five-minute live-support wait ended before an agent responded."
+        title={t('adminSupportAgentDashboard.missedTitle')}
+        subtitle={t('adminSupportAgentDashboard.missedSubtitle')}
       >
         {missedConversations.length === 0 ? (
           <SupportEmptyState
             icon={Mail}
-            title="No missed follow-ups"
-            body="Customers who finish the verified live-support wait without an agent response will appear here with their contact details and message."
+            title={t('adminSupportAgentDashboard.missedEmpty')}
+            body={t('adminSupportAgentDashboard.missedEmptyBody')}
           />
         ) : (
           <div className="space-y-4">
@@ -355,35 +361,35 @@ export default function SupportAgentDashboard() {
       </SupportPanel>
 
       <SupportPanel
-        title="Operational pulse"
-        subtitle="A compact snapshot for shift leads reviewing the floor."
+        title={t('adminSupportAgentDashboard.pulseTitle')}
+        subtitle={t('adminSupportAgentDashboard.pulseSubtitle')}
       >
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div className="rounded-2xl border border-gray-800 bg-gray-900/70 p-4">
             <div className="flex items-center gap-2 text-sm font-medium text-gray-300">
               <Activity size={15} className="text-orange-300" />
-              Queue pressure
+              {t('adminSupportAgentDashboard.pulseQueue')}
             </div>
             <div className="mt-2 text-sm leading-6 text-gray-500">
-              Compare online agents against live conversations to see whether the team is underloaded, balanced, or at risk of delay.
+              {t('adminSupportAgentDashboard.pulseQueueBody')}
             </div>
           </div>
           <div className="rounded-2xl border border-gray-800 bg-gray-900/70 p-4">
             <div className="flex items-center gap-2 text-sm font-medium text-gray-300">
               <Clock size={15} className="text-blue-300" />
-              Response health
+              {t('adminSupportAgentDashboard.pulseResponse')}
             </div>
             <div className="mt-2 text-sm leading-6 text-gray-500">
-              Use average response time as the first signal of customer wait pain before CSAT or escalations start slipping.
+              {t('adminSupportAgentDashboard.pulseResponseBody')}
             </div>
           </div>
           <div className="rounded-2xl border border-gray-800 bg-gray-900/70 p-4">
             <div className="flex items-center gap-2 text-sm font-medium text-gray-300">
               <TrendingUp size={15} className="text-green-300" />
-              Resolution quality
+              {t('adminSupportAgentDashboard.pulseResolution')}
             </div>
             <div className="mt-2 text-sm leading-6 text-gray-500">
-              Rising resolution rate usually means triage, staffing, and documentation are all working together effectively.
+              {t('adminSupportAgentDashboard.pulseResolutionBody')}
             </div>
           </div>
         </div>

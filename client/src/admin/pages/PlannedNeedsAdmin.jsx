@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ClipboardList, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import adminApi from '../../lib/adminApi';
@@ -39,14 +40,15 @@ function formatCost(value) {
 // ─── Action modal ─────────────────────────────────────────────────────────────
 
 function ActionModal({ item, actionType, onConfirm, onClose, loading }) {
+  const { t } = useTranslation();
   const [reason, setReason] = useState('');
   const [error,  setError]  = useState('');
 
   const isCancel = actionType === 'force-cancel';
-  const title = isCancel ? 'Force Cancel Planned Need' : 'Cancel Auto-publish';
+  const title = isCancel ? t('adminPlannedNeeds.modalTitleForceCancel') : t('adminPlannedNeeds.modalTitleCancelAutopublish');
 
   const handle = () => {
-    if (!reason.trim()) { setError('A reason is required.'); return; }
+    if (!reason.trim()) { setError(t('adminPlannedNeeds.reasonRequired')); return; }
     onConfirm(reason.trim());
   };
 
@@ -72,20 +74,20 @@ function ActionModal({ item, actionType, onConfirm, onClose, loading }) {
         {isCancel && item.published_job_id && (
           <div className="mb-4 p-3 bg-yellow-900/30 border border-yellow-700/40 rounded-lg">
             <p className="text-yellow-300 text-xs">
-              Warning: this need has a published job (ID: {item.published_job_id}). Cancel that job separately if needed.
+              {t('adminPlannedNeeds.publishedJobWarning', { id: item.published_job_id })}
             </p>
           </div>
         )}
 
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-300 mb-1.5">
-            Reason <span className="text-red-400">*</span>
+            {t('adminPlannedNeeds.reasonLabel')} <span className="text-red-400">*</span>
           </label>
           <textarea
             rows={3}
             value={reason}
             onChange={e => { setReason(e.target.value); setError(''); }}
-            placeholder={`Explain why you are performing this action…`}
+            placeholder={t('adminPlannedNeeds.reasonPlaceholder')}
             className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white text-sm
                        p-2.5 placeholder-gray-500 focus:border-orange-500 focus:outline-none resize-none"
           />
@@ -99,7 +101,7 @@ function ActionModal({ item, actionType, onConfirm, onClose, loading }) {
             className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 text-gray-300
                        rounded-lg text-sm font-medium hover:bg-gray-700 transition disabled:opacity-50"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             onClick={handle}
@@ -107,7 +109,7 @@ function ActionModal({ item, actionType, onConfirm, onClose, loading }) {
             className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm
                        font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Saving…' : 'Confirm'}
+            {loading ? t('adminPlannedNeeds.saving') : t('common.confirm')}
           </button>
         </div>
       </div>
@@ -118,6 +120,7 @@ function ActionModal({ item, actionType, onConfirm, onClose, loading }) {
 // ─── main page ────────────────────────────────────────────────────────────────
 
 export default function PlannedNeedsAdmin() {
+  const { t } = useTranslation();
   const [needs,       setNeeds]       = useState([]);
   const [total,       setTotal]       = useState(0);
   const [loading,     setLoading]     = useState(true);
@@ -157,7 +160,7 @@ export default function PlannedNeedsAdmin() {
       setModal(null);
       fetchNeeds();
     } catch (err) {
-      toast.error(err?.response?.data?.error || 'Action failed.');
+      toast.error(err?.response?.data?.error || t('adminPlannedNeeds.actionFailed'));
     } finally {
       setActionBusy(false);
     }
@@ -165,14 +168,25 @@ export default function PlannedNeedsAdmin() {
 
   const col = 'px-4 py-3 text-sm';
 
+  const STATUS_LABELS = {
+    all: t('adminPlannedNeeds.statusAll'),
+    planned: t('adminPlannedNeeds.statusPlanned'),
+    funding: t('adminPlannedNeeds.statusFunding'),
+    activating_soon: t('adminPlannedNeeds.statusActivatingSoon'),
+    published: t('adminPlannedNeeds.statusPublished'),
+    cancelled: t('adminPlannedNeeds.statusCancelled'),
+    completed: t('adminPlannedNeeds.statusCompleted'),
+    regenerated: t('adminPlannedNeeds.statusRegenerated'),
+  };
+
   return (
     <div className="p-6 lg:p-8">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <ClipboardList size={22} className="text-orange-400" />
         <div>
-          <h1 className="text-2xl font-bold text-white">Planned Needs</h1>
-          <p className="text-gray-400 text-sm mt-0.5">{total} records</p>
+          <h1 className="text-2xl font-bold text-white">{t('adminPlannedNeeds.title')}</h1>
+          <p className="text-gray-400 text-sm mt-0.5">{t('adminPlannedNeeds.recordsCount', { count: total })}</p>
         </div>
       </div>
 
@@ -182,7 +196,7 @@ export default function PlannedNeedsAdmin() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
           <input
             type="text"
-            placeholder="Search by title, owner…"
+            placeholder={t('adminPlannedNeeds.searchPlaceholder')}
             value={search}
             onChange={e => resetPage(setSearch)(e.target.value)}
             className="w-full pl-9 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg
@@ -197,7 +211,7 @@ export default function PlannedNeedsAdmin() {
         >
           {ALL_STATUSES.map(s => (
             <option key={s} value={s}>
-              {s === 'all' ? 'All Statuses' : s.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+              {STATUS_LABELS[s] || s}
             </option>
           ))}
         </select>
@@ -209,24 +223,24 @@ export default function PlannedNeedsAdmin() {
           <table className="w-full text-sm min-w-[1000px]">
             <thead>
               <tr className="border-b border-gray-700">
-                <th className="text-left text-gray-400 font-medium px-4 py-3">TITLE</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">OWNER</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">CATEGORY</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">STATUS</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">DUE</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">COST</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">RECURRENCE</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">ACTIONS</th>
+                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminPlannedNeeds.colTitle')}</th>
+                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminPlannedNeeds.colOwner')}</th>
+                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminPlannedNeeds.colCategory')}</th>
+                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminPlannedNeeds.colStatus')}</th>
+                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminPlannedNeeds.colDue')}</th>
+                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminPlannedNeeds.colCost')}</th>
+                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminPlannedNeeds.colRecurrence')}</th>
+                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminPlannedNeeds.colActions')}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="text-center text-gray-400 py-12">Loading…</td>
+                  <td colSpan={8} className="text-center text-gray-400 py-12">{t('adminPlannedNeeds.loading')}</td>
                 </tr>
               ) : needs.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center text-gray-400 py-12">No planned needs found.</td>
+                  <td colSpan={8} className="text-center text-gray-400 py-12">{t('adminPlannedNeeds.noResults')}</td>
                 </tr>
               ) : needs.map(n => (
                 <tr key={n.id} className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors">
@@ -262,7 +276,7 @@ export default function PlannedNeedsAdmin() {
                           className="px-2.5 py-1.5 bg-yellow-900/40 text-yellow-400 hover:bg-yellow-900/70
                                      text-xs font-medium rounded-lg transition whitespace-nowrap"
                         >
-                          Cancel Auto-publish
+                          {t('adminPlannedNeeds.cancelAutopublish')}
                         </button>
                       )}
                       {!TERMINAL.includes(n.status) && (
@@ -271,7 +285,7 @@ export default function PlannedNeedsAdmin() {
                           className="px-2.5 py-1.5 bg-red-500/10 text-red-400 hover:bg-red-500/20
                                      text-xs font-medium rounded-lg transition whitespace-nowrap"
                         >
-                          Force Cancel
+                          {t('adminPlannedNeeds.forceCancel')}
                         </button>
                       )}
                     </div>
@@ -286,7 +300,7 @@ export default function PlannedNeedsAdmin() {
       {/* Pagination */}
       {total > 25 && (
         <div className="flex items-center justify-between mt-4 text-sm text-gray-400">
-          <span>Page {page} · {total} total</span>
+          <span>{t('adminPlannedNeeds.pageTotal', { page, total })}</span>
           <div className="flex gap-2">
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
@@ -294,7 +308,7 @@ export default function PlannedNeedsAdmin() {
               className="px-3 py-1 bg-gray-800 border border-gray-700 rounded-lg
                          disabled:opacity-40 hover:bg-gray-700 transition-colors"
             >
-              ← Prev
+              {t('adminPlannedNeeds.prev')}
             </button>
             <button
               onClick={() => setPage(p => p + 1)}
@@ -302,7 +316,7 @@ export default function PlannedNeedsAdmin() {
               className="px-3 py-1 bg-gray-800 border border-gray-700 rounded-lg
                          disabled:opacity-40 hover:bg-gray-700 transition-colors"
             >
-              Next →
+              {t('adminPlannedNeeds.next')}
             </button>
           </div>
         </div>

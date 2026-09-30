@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { adminListCampaigns, adminUpdateCampaignStatus, adminListLanes } from '../../../api/logistics';
 import toast from 'react-hot-toast';
 import '../../../styles/logistics/LogisticsHomePage.css';
@@ -24,6 +25,7 @@ const NEXT_STATUS = {
 };
 
 export default function CampaignsAdmin() {
+  const { t } = useTranslation();
   const [campaigns, setCampaigns] = useState([]);
   const [lanes, setLanes]         = useState([]);
   const [loading, setLoading]     = useState(true);
@@ -49,11 +51,11 @@ export default function CampaignsAdmin() {
   const laneMap = Object.fromEntries(lanes.map(l => [l.id, l.name]));
 
   const doTransition = async () => {
-    if (!transition) { toast.error('Select a status'); return; }
+    if (!transition) { toast.error(t('adminCampaigns.selectStatus')); return; }
     setSaving(true);
     try {
       await adminUpdateCampaignStatus(selected.id, transition);
-      toast.success('Campaign updated');
+      toast.success(t('adminCampaigns.campaignUpdated'));
       setSelected(null);
       load();
     } catch (err) { toast.error(err.response?.data?.message || err.message); }
@@ -67,26 +69,26 @@ export default function CampaignsAdmin() {
   return (
     <div className="lx-page">
       <div className="lx-page-header">
-        <h1 className="lx-page-title">🤝 Campaigns Management</h1>
-        <p className="lx-page-sub">Manage pooled order campaigns: open, lock, ship, close.</p>
+        <h1 className="lx-page-title">{t('adminCampaigns.title')}</h1>
+        <p className="lx-page-sub">{t('adminCampaigns.subtitle')}</p>
       </div>
 
       <div className="lx-filter-bar">
         <select className="lx-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-          <option value="">All Statuses</option>
+          <option value="">{t('adminCampaigns.allStatuses')}</option>
           {Object.keys(STATUS_COLOR).map(s => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>
 
-      {loading && <div className="lx-loading">Loading…</div>}
+      {loading && <div className="lx-loading">{t('common.loading')}</div>}
       {!loading && loadError && <AdminErrorState onRetry={load} />}
 
       <div className="lx-table-wrap">
         <table className="lx-table">
           <thead>
             <tr>
-              <th>Campaign</th><th>Lane</th><th>Product</th>
-              <th>MOQ Progress</th><th>Participants</th><th>Close Date</th><th>Status</th><th></th>
+              <th>{t('adminCampaigns.table.campaign')}</th><th>{t('adminCampaigns.table.lane')}</th><th>{t('adminCampaigns.table.product')}</th>
+              <th>{t('adminCampaigns.table.moqProgress')}</th><th>{t('adminCampaigns.table.participants')}</th><th>{t('adminCampaigns.table.closeDate')}</th><th>{t('adminCampaigns.table.status')}</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -105,7 +107,7 @@ export default function CampaignsAdmin() {
                       <div className="lx-moq-bar" style={{ width:`${pct}%` }} />
                     </div>
                     <div style={{ fontSize:'.72rem', color:'#64748b', marginTop:'.2rem' }}>
-                      {c.current_committed_qty||0} / {c.moq_quantity} units ({pct}%)
+                      {t('adminCampaigns.moqProgressText', { committed: c.current_committed_qty||0, moq: c.moq_quantity, pct })}
                     </div>
                   </td>
                   <td>{c.current_participants||0}</td>
@@ -120,14 +122,14 @@ export default function CampaignsAdmin() {
                   <td>
                     <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem' }}
                       onClick={() => { setSelected(c); setTransition(''); }}>
-                      Manage
+                      {t('adminCampaigns.manage')}
                     </button>
                   </td>
                 </tr>
               );
             })}
             {campaigns.length === 0 && !loading && !loadError && (
-              <tr><td colSpan={8} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>No campaigns found.</td></tr>
+              <tr><td colSpan={8} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>{t('adminCampaigns.noCampaigns')}</td></tr>
             )}
           </tbody>
         </table>
@@ -138,17 +140,17 @@ export default function CampaignsAdmin() {
           <div style={{ background:'var(--card-bg,#fff)', borderRadius:'1rem', padding:'1.5rem', width:460, maxWidth:'90vw' }}>
             <h3 style={{ fontWeight:700, marginBottom:'.5rem' }}>{selected.title}</h3>
             <div style={{ fontSize:'.82rem', color:'#64748b', marginBottom:'1rem' }}>
-              <strong>Status:</strong> {selected.status} &nbsp;|&nbsp;
-              <strong>Participants:</strong> {selected.current_participants||0} &nbsp;|&nbsp;
-              <strong>Committed Qty:</strong> {selected.current_committed_qty||0}
+              <strong>{t('adminCampaigns.modal.status')}</strong> {selected.status} &nbsp;|&nbsp;
+              <strong>{t('adminCampaigns.modal.participants')}</strong> {selected.current_participants||0} &nbsp;|&nbsp;
+              <strong>{t('adminCampaigns.modal.committedQty')}</strong> {selected.current_committed_qty||0}
             </div>
 
             {NEXT_STATUS[selected.status]?.length > 0 ? (
               <>
                 <div className="lx-form-group">
-                  <label className="lx-label">Transition To</label>
+                  <label className="lx-label">{t('adminCampaigns.modal.transitionTo')}</label>
                   <select className="lx-select" value={transition} onChange={e => setTransition(e.target.value)}>
-                    <option value="">— Select —</option>
+                    <option value="">{t('adminCampaigns.modal.selectOption')}</option>
                     {NEXT_STATUS[selected.status].map(s => (
                       <option key={s} value={s}>{s}</option>
                     ))}
@@ -156,18 +158,18 @@ export default function CampaignsAdmin() {
                 </div>
                 <div style={{ display:'flex', gap:'.75rem' }}>
                   <button className="lx-btn-primary" onClick={doTransition} disabled={saving}>
-                    {saving ? 'Saving…' : 'Apply'}
+{saving ? t('common.saving') : t('adminCampaigns.modal.apply')}
                   </button>
-                  <button className="lx-btn-secondary" onClick={() => setSelected(null)}>Close</button>
+                  <button className="lx-btn-secondary" onClick={() => setSelected(null)}>{t('common.close')}</button>
                 </div>
               </>
             ) : (
               <div style={{ color:'#94a3b8', fontSize:'.85rem', marginBottom:'1rem' }}>
-                No further transitions available for status <strong>{selected.status}</strong>.
+                {t('adminCampaigns.modal.noTransitions', { status: selected.status })}
               </div>
             )}
             {!NEXT_STATUS[selected.status]?.length && (
-              <button className="lx-btn-secondary" onClick={() => setSelected(null)}>Close</button>
+              <button className="lx-btn-secondary" onClick={() => setSelected(null)}>{t('common.close')}</button>
             )}
           </div>
         </div>

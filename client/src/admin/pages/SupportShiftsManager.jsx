@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
 import toast from 'react-hot-toast';
 import {
@@ -23,6 +24,7 @@ import {
 const DAY_OPTIONS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
 export default function SupportShiftsManager() {
+  const { t } = useTranslation();
   const { businessId } = useParams();
   const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +37,10 @@ export default function SupportShiftsManager() {
     max_agents: 10,
     days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
   });
+
+  // Day identifiers are API values; display labels are localized.
+  const dayName = (day) => t(`adminSupportShifts.day${day.charAt(0).toUpperCase()}${day.slice(1)}`);
+  const dayShort = (day) => t(`adminSupportShifts.day${day.charAt(0).toUpperCase()}${day.slice(1)}Short`);
 
   const loadShifts = useCallback(async () => {
     setLoading(true);
@@ -57,20 +63,20 @@ export default function SupportShiftsManager() {
 
   const handleSave = async () => {
     if (!formData.name.trim()) {
-      toast.error('Shift name is required');
+      toast.error(t('adminSupportShifts.toastNameRequired'));
       return;
     }
     if (!formData.start_time || !formData.end_time) {
-      toast.error('Start and end time are required');
+      toast.error(t('adminSupportShifts.toastTimesRequired'));
       return;
     }
     if (formData.end_time <= formData.start_time) {
-      toast.error('End time must be after start time');
+      toast.error(t('adminSupportShifts.toastEndAfterStart'));
       return;
     }
     const maxAgents = parseInt(formData.max_agents, 10);
     if (!Number.isInteger(maxAgents) || maxAgents < 1) {
-      toast.error('Max agents must be at least 1');
+      toast.error(t('adminSupportShifts.toastMinAgents'));
       return;
     }
 
@@ -103,10 +109,10 @@ export default function SupportShiftsManager() {
         days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
       });
       loadShifts();
-      toast.success(editingShiftId ? 'Shift updated' : 'Shift created');
+      toast.success(editingShiftId ? t('adminSupportShifts.toastUpdated') : t('adminSupportShifts.toastCreated'));
     } catch (err) {
       console.error('Failed to save shift:', err);
-      toast.error('Failed to save shift');
+      toast.error(t('adminSupportShifts.toastSaveFailed'));
     }
   };
 
@@ -149,7 +155,7 @@ export default function SupportShiftsManager() {
   };
 
   const handleDelete = async (shiftId) => {
-    if (!window.confirm('Delete this shift?')) return;
+    if (!window.confirm(t('adminSupportShifts.confirmDelete'))) return;
     try {
       await adminApi.delete(`/support/shifts/${shiftId}`);
       loadShifts();
@@ -164,62 +170,62 @@ export default function SupportShiftsManager() {
     <SupportPageShell>
       <SupportHero
         icon={Calendar}
-        eyebrow="Coverage Planning"
-        title="Support shifts"
-        description="Plan shift windows, capacity, and recurring coverage so the support queue always has the right staffing rhythm behind it."
+        eyebrow={t('adminSupportShifts.heroEyebrow')}
+        title={t('adminSupportShifts.heroTitle')}
+        description={t('adminSupportShifts.heroDescription')}
         actions={(
           <>
               <SupportActionButton icon={RefreshCw} onClick={loadShifts} tone="secondary">
-                Refresh
+                {t('common.refresh')}
               </SupportActionButton>
             <SupportActionButton icon={Plus} onClick={handleNewShift} tone="primary">
-              New shift
+              {t('adminSupportShifts.newShift')}
             </SupportActionButton>
           </>
         )}
         stats={[
           {
             icon: Calendar,
-            label: 'Shifts',
+            label: t('adminSupportShifts.statShifts'),
             value: shifts.length,
-            detail: 'Configured recurring support shifts.',
+            detail: t('adminSupportShifts.statShiftsDetail'),
           },
           {
             icon: Users,
-            label: 'Capacity',
+            label: t('adminSupportShifts.statCapacity'),
             value: totalCapacity,
-            detail: 'Total max-agent capacity across all shifts.',
+            detail: t('adminSupportShifts.statCapacityDetail'),
             tone: 'text-orange-300',
           },
           {
             icon: Clock,
-            label: 'Coverage',
-            value: shifts.length ? 'Scheduled' : 'Unset',
-            detail: shifts.length ? 'At least one recurring coverage window exists.' : 'Create a shift to start coverage planning.',
+            label: t('adminSupportShifts.statCoverage'),
+            value: shifts.length ? t('adminSupportShifts.coverageScheduled') : t('adminSupportShifts.coverageUnset'),
+            detail: shifts.length ? t('adminSupportShifts.coverageScheduledDetail') : t('adminSupportShifts.coverageUnsetDetail'),
             tone: 'text-blue-300',
           },
           {
             icon: Calendar,
-            label: 'Workweek',
-            value: '7-day',
-            detail: 'Supports weekday and weekend coverage patterns.',
+            label: t('adminSupportShifts.statWorkweek'),
+            value: t('adminSupportShifts.workweekValue'),
+            detail: t('adminSupportShifts.workweekDetail'),
             tone: 'text-green-300',
           },
         ]}
       />
 
       <SupportPanel
-        title="Shift schedule"
-        subtitle="Review recurring coverage blocks and the staffing capacity each one provides."
+        title={t('adminSupportShifts.panelTitle')}
+        subtitle={t('adminSupportShifts.panelSubtitle')}
       >
         {shifts.length === 0 ? (
           <SupportEmptyState
             icon={Calendar}
-            title="No shifts configured"
-            body="Create the first support shift to start defining queue coverage and staffing capacity."
+            title={t('adminSupportShifts.emptyTitle')}
+            body={t('adminSupportShifts.emptyBody')}
             action={(
               <SupportActionButton icon={Plus} onClick={handleNewShift} tone="primary">
-                Create first shift
+                {t('adminSupportShifts.emptyAction')}
               </SupportActionButton>
             )}
           />
@@ -234,11 +240,11 @@ export default function SupportShiftsManager() {
                       <SupportTag tone="blue">
                         {shift.start_time} - {shift.end_time}
                       </SupportTag>
-                      <SupportTag tone="orange">{shift.max_agents} max agents</SupportTag>
+                      <SupportTag tone="orange">{t('adminSupportShifts.maxAgents', { count: shift.max_agents || 0 })}</SupportTag>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
                       {(shift.days || []).map((day) => (
-                        <SupportTag key={day}>{day.slice(0, 3)}</SupportTag>
+                        <SupportTag key={day}>{dayShort(day)}</SupportTag>
                       ))}
                     </div>
                   </div>
@@ -247,13 +253,13 @@ export default function SupportShiftsManager() {
                     <button
                       onClick={() => handleEditShift(shift)}
                       className="rounded-xl border border-gray-700 bg-gray-900 p-2 text-gray-400 transition hover:text-white"
-                      aria-label={`Edit ${shift.name} shift`}
+                      aria-label={t('adminSupportShifts.editShiftAria', { name: shift.name })}
                     >
                       <Edit2 size={15} />
                     </button>
                     <button
                       onClick={() => handleDelete(shift.id)}
-                      aria-label={`Delete ${shift.name} shift`}
+                      aria-label={t('adminSupportShifts.deleteShiftAria', { name: shift.name })}
                       className="rounded-xl border border-red-900/40 bg-red-950/30 p-2 text-red-400 transition hover:bg-red-900/30"
                     >
                       <Trash2 size={15} />
@@ -271,27 +277,27 @@ export default function SupportShiftsManager() {
           <div className="w-full max-w-xl rounded-[28px] border border-gray-700 bg-gray-900 shadow-2xl">
             <div className="flex items-center justify-between border-b border-gray-800 px-6 py-5">
               <div>
-            <div className="text-xl font-semibold text-white">{editingShiftId ? 'Edit shift' : 'New shift'}</div>
-            <div className="mt-1 text-sm text-gray-500">{editingShiftId ? 'Update coverage details to adjust staffing and availability.' : 'Define a recurring support coverage block.'}</div>
+            <div className="text-xl font-semibold text-white">{editingShiftId ? t('adminSupportShifts.modalEditTitle') : t('adminSupportShifts.modalNewTitle')}</div>
+            <div className="mt-1 text-sm text-gray-500">{editingShiftId ? t('adminSupportShifts.modalEditSubtitle') : t('adminSupportShifts.modalNewSubtitle')}</div>
           </div>
             <button onClick={handleCancelForm} className="text-2xl text-gray-500 hover:text-white">x</button>
             </div>
 
             <div className="space-y-5 px-6 py-6">
               <div>
-                <label className="mb-2 block text-sm text-gray-400">Shift name</label>
+                <label className="mb-2 block text-sm text-gray-400">{t('adminSupportShifts.labelName')}</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(event) => setFormData({ ...formData, name: event.target.value })}
                   className="w-full rounded-2xl border border-gray-700 bg-gray-950 px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
-                  placeholder="e.g. Morning Support"
+                  placeholder={t('adminSupportShifts.namePlaceholder')}
                 />
               </div>
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                  <label className="mb-2 block text-sm text-gray-400">Start time</label>
+                  <label className="mb-2 block text-sm text-gray-400">{t('adminSupportShifts.labelStart')}</label>
                   <input
                     type="time"
                     value={formData.start_time}
@@ -300,7 +306,7 @@ export default function SupportShiftsManager() {
                   />
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm text-gray-400">End time</label>
+                  <label className="mb-2 block text-sm text-gray-400">{t('adminSupportShifts.labelEnd')}</label>
                   <input
                     type="time"
                     value={formData.end_time}
@@ -311,7 +317,7 @@ export default function SupportShiftsManager() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm text-gray-400">Max agents</label>
+                <label className="mb-2 block text-sm text-gray-400">{t('adminSupportShifts.labelMaxAgents')}</label>
                 <input
                   type="number"
                   value={formData.max_agents}
@@ -322,7 +328,7 @@ export default function SupportShiftsManager() {
               </div>
 
               <div>
-                <div className="mb-3 text-sm text-gray-400">Coverage days</div>
+                <div className="mb-3 text-sm text-gray-400">{t('adminSupportShifts.labelDays')}</div>
                 <div className="flex flex-wrap gap-2">
                   {DAY_OPTIONS.map((day) => {
                     const selected = formData.days.includes(day);
@@ -339,7 +345,7 @@ export default function SupportShiftsManager() {
                             : 'border-gray-700 bg-gray-950 text-gray-400 hover:border-gray-600'
                         }`}
                       >
-                        {day}
+                        {dayName(day)}
                       </button>
                     );
                   })}
@@ -348,10 +354,10 @@ export default function SupportShiftsManager() {
 
               <div className="flex gap-3 border-t border-gray-800 pt-5">
               <SupportActionButton tone="secondary" onClick={handleCancelForm}>
-                Cancel
+                {t('common.cancel')}
               </SupportActionButton>
               <SupportActionButton tone="primary" onClick={handleSave}>
-                  {editingShiftId ? 'Save changes' : 'Create shift'}
+                  {editingShiftId ? t('adminSupportShifts.saveChanges') : t('adminSupportShifts.createShift')}
               </SupportActionButton>
               </div>
             </div>

@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { adminListRestrictions, adminListShipments } from '../../../api/logistics';
 import '../../../styles/logistics/LogisticsHomePage.css';
 import AdminErrorState from '../../lib/AdminErrorState';
 
 export default function ComplianceReviewAdmin() {
+  const { t } = useTranslation();
   const [rules, setRules] = useState([]);
   const [shipments, setShipments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,8 +28,8 @@ export default function ComplianceReviewAdmin() {
   return (
     <div className="lx-page">
       <div className="lx-page-header">
-        <h1 className="lx-page-title">Compliance Reviewer Workspace</h1>
-        <p className="lx-page-sub">Review customs-sensitive shipments, country access restrictions, and the rules that gate market-specific logistics lanes.</p>
+        <h1 className="lx-page-title">{t('adminComplianceReview.title')}</h1>
+        <p className="lx-page-sub">{t('adminComplianceReview.subtitle')}</p>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1.5rem' }}>
         {(!loading && loadError) ? (
@@ -35,10 +37,10 @@ export default function ComplianceReviewAdmin() {
         ) : (
         <>
         <div className="lx-card">
-          <h2 style={{ marginTop:0 }}>Customs-sensitive shipments</h2>
+          <h2 style={{ marginTop:0 }}>{t('adminComplianceReview.customsShipments')}</h2>
           <div className="lx-table-wrap">
             <table className="lx-table">
-              <thead><tr><th>Reference</th><th>Status</th><th>Route</th></tr></thead>
+              <thead><tr><th>{t('adminComplianceReview.table.reference')}</th><th>{t('adminComplianceReview.table.status')}</th><th>{t('adminComplianceReview.table.route')}</th></tr></thead>
               <tbody>
                 {shipments.slice(0, 12).map((shipment) => (
                   <tr key={shipment.id}>
@@ -47,26 +49,26 @@ export default function ComplianceReviewAdmin() {
                     <td>{shipment.origin_country} → {shipment.destination_country}</td>
                   </tr>
                 ))}
-                {!loading && !loadError && shipments.length === 0 && <tr><td colSpan={3} style={{ textAlign:'center', color:'#94a3b8' }}>No customs-sensitive shipments right now.</td></tr>}
+                {!loading && !loadError && shipments.length === 0 && <tr><td colSpan={3} style={{ textAlign:'center', color:'#94a3b8' }}>{t('adminComplianceReview.noShipments')}</td></tr>}
               </tbody>
             </table>
           </div>
         </div>
         <div className="lx-card">
-          <h2 style={{ marginTop:0 }}>Country restrictions snapshot</h2>
+          <h2 style={{ marginTop:0 }}>{t('adminComplianceReview.countryRestrictions')}</h2>
           <div className="lx-table-wrap">
             <table className="lx-table">
-              <thead><tr><th>Category</th><th>Country</th><th>Approval</th><th>Risk</th></tr></thead>
+              <thead><tr><th>{t('adminComplianceReview.rulesTable.category')}</th><th>{t('adminComplianceReview.rulesTable.country')}</th><th>{t('adminComplianceReview.rulesTable.approval')}</th><th>{t('adminComplianceReview.rulesTable.risk')}</th></tr></thead>
               <tbody>
                 {rules.slice(0, 12).map((rule) => (
                   <tr key={`${rule.category}-${rule.country_code}`}>
                     <td>{rule.category}</td>
                     <td>{rule.country_code}</td>
-                    <td>{rule.requires_approval ? 'Required' : 'Open'}</td>
+                    <td>{rule.requires_approval ? t('adminComplianceReview.approvalRequired') : t('adminComplianceReview.approvalOpen')}</td>
                     <td><span className="lx-status-pill" style={{ background: rule.risk_tier === 'prohibited' ? '#7f1d1d' : rule.risk_tier === 'restricted' ? '#ef4444' : rule.risk_tier === 'managed' ? '#f59e0b' : '#22c55e' }}>{rule.risk_tier}</span></td>
                   </tr>
                 ))}
-                {!loading && !loadError && rules.length === 0 && <tr><td colSpan={4} style={{ textAlign:'center', color:'#94a3b8' }}>No country access rules found.</td></tr>}
+                {!loading && !loadError && rules.length === 0 && <tr><td colSpan={4} style={{ textAlign:'center', color:'#94a3b8' }}>{t('adminComplianceReview.noRules')}</td></tr>}
               </tbody>
             </table>
           </div>

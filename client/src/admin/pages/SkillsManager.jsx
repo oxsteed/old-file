@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Plus, Search, Pencil, Trash2, ToggleLeft, ToggleRight, X, Check } from 'lucide-react';
 import adminApi from '../../lib/adminApi';
 import toast from 'react-hot-toast';
@@ -7,6 +8,7 @@ import { useAbortableFetch } from '../lib/useAbortableFetch';
 const EMPTY_FORM = { name: '', category: '', is_active: true };
 
 export default function SkillsManager() {
+  const { t } = useTranslation();
   const [categories, setCategories] = useState([]);
   const [filters,   setFilters]   = useState({ q: '', category: '', offset: 0, limit: 50 });
   const [showForm,  setShowForm]  = useState(false);
@@ -83,21 +85,21 @@ export default function SkillsManager() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (!form.name.trim()) return toast.error('Skill name is required');
+    if (!form.name.trim()) return toast.error(t('adminSkillsManager.nameRequired'));
     setSaving(true);
     try {
       if (editing) {
         await adminApi.put(`/admin/skills-lookup/${editing.id}`, form);
-        toast.success('Skill updated');
+        toast.success(t('adminSkillsManager.updated'));
       } else {
         await adminApi.post('/admin/skills-lookup', form);
-        toast.success('Skill added');
+        toast.success(t('adminSkillsManager.added'));
       }
       setShowForm(false);
       fetchSkills();
       fetchCategories();
     } catch (err) {
-      toast.error(err?.response?.data?.error || 'Failed to save skill');
+      toast.error(err?.response?.data?.error || t('adminSkillsManager.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -106,22 +108,22 @@ export default function SkillsManager() {
   const handleToggle = async (skill) => {
     try {
       await adminApi.put(`/admin/skills-lookup/${skill.id}`, { is_active: !skill.is_active });
-      toast.success(skill.is_active ? 'Skill hidden from autocomplete' : 'Skill restored');
+      toast.success(skill.is_active ? t('adminSkillsManager.hidden') : t('adminSkillsManager.restored'));
       fetchSkills();
     } catch {
-      toast.error('Failed to toggle skill');
+      toast.error(t('adminSkillsManager.toggleFailed'));
     }
   };
 
   const handleDelete = async (skill) => {
-    if (!confirm(`Hard delete "${skill.name}"? This cannot be undone.`)) return;
+    if (!confirm(t('adminSkillsManager.hardDeleteConfirm', { name: skill.name }))) return;
     try {
       await adminApi.delete(`/admin/skills-lookup/${skill.id}?hard=true`);
-      toast.success('Skill deleted');
+      toast.success(t('adminSkillsManager.deleted'));
       fetchSkills();
       fetchCategories();
     } catch {
-      toast.error('Failed to delete skill');
+      toast.error(t('adminSkillsManager.deleteFailed'));
     }
   };
 
@@ -130,16 +132,16 @@ export default function SkillsManager() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-white">Skills &amp; Categories</h1>
+          <h1 className="text-xl font-bold text-white">{t('adminSkillsManager.title')}</h1>
           <p className="text-sm text-gray-400 mt-0.5">
-            Manage the skill autocomplete list shown to all users. {total} entries total.
+            {t('adminSkillsManager.subtitle', { count: total })}
           </p>
         </div>
         <button
           onClick={openAdd}
           className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-lg transition"
         >
-          <Plus size={16} /> Add Skill
+          <Plus size={16} /> {t('adminSkillsManager.addSkill')}
         </button>
       </div>
 
@@ -150,7 +152,7 @@ export default function SkillsManager() {
           <input
             value={qInput}
             onChange={e => setQInput(e.target.value)}
-            placeholder="Search skill names…"
+            placeholder={t('adminSkillsManager.searchPlaceholder')}
             className="w-full pl-8 pr-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none"
           />
         </div>
@@ -159,7 +161,7 @@ export default function SkillsManager() {
           onChange={e => setFilters(p => ({ ...p, category: e.target.value, offset: 0 }))}
           className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
         >
-          <option value="">All Categories</option>
+          <option value="">{t('adminSkillsManager.allCategories')}</option>
           {categories.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
@@ -169,47 +171,47 @@ export default function SkillsManager() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-800 text-xs uppercase tracking-wider text-gray-500">
-              <th className="text-left px-4 py-3 font-medium">Skill Name</th>
-              <th className="text-left px-4 py-3 font-medium">Category</th>
-              <th className="text-left px-4 py-3 font-medium">Status</th>
-              <th className="text-right px-4 py-3 font-medium">Actions</th>
+              <th className="text-left px-4 py-3 font-medium">{t('adminSkillsManager.colName')}</th>
+              <th className="text-left px-4 py-3 font-medium">{t('adminSkillsManager.colCategory')}</th>
+              <th className="text-left px-4 py-3 font-medium">{t('adminSkillsManager.colStatus')}</th>
+              <th className="text-right px-4 py-3 font-medium">{t('adminSkillsManager.colActions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800">
             {loading ? (
-              <tr><td colSpan={4} className="text-center py-10 text-gray-500">Loading…</td></tr>
+              <tr><td colSpan={4} className="text-center py-10 text-gray-500">{t('adminSkillsManager.loading')}</td></tr>
             ) : skills.length === 0 ? (
-              <tr><td colSpan={4} className="text-center py-10 text-gray-500">No skills found</td></tr>
+              <tr><td colSpan={4} className="text-center py-10 text-gray-500">{t('adminSkillsManager.noSkills')}</td></tr>
             ) : skills.map(skill => (
               <tr key={skill.id} className={`hover:bg-gray-800/50 transition ${!skill.is_active ? 'opacity-50' : ''}`}>
                 <td className="px-4 py-3 text-white font-medium">{skill.name}</td>
-                <td className="px-4 py-3 text-gray-400">{skill.category || <span className="text-gray-600 italic">none</span>}</td>
+                <td className="px-4 py-3 text-gray-400">{skill.category || <span className="text-gray-600 italic">{t('adminSkillsManager.none')}</span>}</td>
                 <td className="px-4 py-3">
                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
                     skill.is_active ? 'bg-green-500/10 text-green-400' : 'bg-gray-700 text-gray-500'
                   }`}>
-                    {skill.is_active ? 'Active' : 'Hidden'}
+                    {skill.is_active ? t('adminSkillsManager.active') : t('adminSkillsManager.hiddenBadge')}
                   </span>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-1">
                     <button
                       onClick={() => handleToggle(skill)}
-                      title={skill.is_active ? 'Hide from autocomplete' : 'Restore'}
+                      title={skill.is_active ? t('adminSkillsManager.hideTitle') : t('adminSkillsManager.restoreTitle')}
                       className="p-1.5 text-gray-500 hover:text-orange-400 transition rounded hover:bg-gray-800"
                     >
                       {skill.is_active ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
                     </button>
                     <button
                       onClick={() => openEdit(skill)}
-                      title="Edit"
+                      title={t('adminSkillsManager.editTitle')}
                       className="p-1.5 text-gray-500 hover:text-white transition rounded hover:bg-gray-800"
                     >
                       <Pencil size={14} />
                     </button>
                     <button
                       onClick={() => handleDelete(skill)}
-                      title="Hard delete"
+                      title={t('adminSkillsManager.deleteTitle')}
                       className="p-1.5 text-gray-500 hover:text-red-400 transition rounded hover:bg-gray-800"
                     >
                       <Trash2 size={14} />
@@ -225,18 +227,18 @@ export default function SkillsManager() {
       {/* Pagination */}
       {total > filters.limit && (
         <div className="flex items-center justify-between mt-4 text-sm text-gray-400">
-          <span>Showing {filters.offset + 1}–{Math.min(filters.offset + filters.limit, total)} of {total}</span>
+          <span>{t('adminSkillsManager.showing', { from: filters.offset + 1, to: Math.min(filters.offset + filters.limit, total), total })}</span>
           <div className="flex gap-2">
             <button
               disabled={filters.offset === 0}
               onClick={() => setFilters(p => ({ ...p, offset: Math.max(0, p.offset - p.limit) }))}
               className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 disabled:opacity-40 transition"
-            >Previous</button>
+            >{t('adminSkillsManager.previous')}</button>
             <button
               disabled={filters.offset + filters.limit >= total}
               onClick={() => setFilters(p => ({ ...p, offset: p.offset + p.limit }))}
               className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 disabled:opacity-40 transition"
-            >Next</button>
+            >{t('adminSkillsManager.next')}</button>
           </div>
         </div>
       )}
@@ -246,7 +248,7 @@ export default function SkillsManager() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="font-bold text-white">{editing ? 'Edit Skill' : 'Add New Skill'}</h3>
+              <h3 className="font-bold text-white">{editing ? t('adminSkillsManager.editSkill') : t('adminSkillsManager.addNewSkill')}</h3>
               <button onClick={() => setShowForm(false)} className="text-gray-500 hover:text-white transition">
                 <X size={18} />
               </button>
@@ -255,7 +257,7 @@ export default function SkillsManager() {
             <form onSubmit={handleSave} className="space-y-4">
               <div>
                 <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">
-                  Skill Name <span className="text-orange-500">*</span>
+                  {t('adminSkillsManager.nameLabel')} <span className="text-orange-500">*</span>
                 </label>
                 <input
                   required
@@ -268,7 +270,7 @@ export default function SkillsManager() {
 
               <div ref={catRef} className="relative">
                 <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">
-                  Category
+                  {t('adminSkillsManager.categoryLabel')}
                 </label>
                 <input
                   value={catSearch}
@@ -303,7 +305,7 @@ export default function SkillsManager() {
                   onChange={e => setForm(p => ({ ...p, is_active: e.target.checked }))}
                   className="accent-orange-500"
                 />
-                <span className="text-sm text-gray-400">Active (visible in autocomplete)</span>
+                <span className="text-sm text-gray-400">{t('adminSkillsManager.activeLabel')}</span>
               </label>
 
               <div className="flex gap-3 pt-1">
@@ -311,13 +313,13 @@ export default function SkillsManager() {
                   type="button"
                   onClick={() => setShowForm(false)}
                   className="flex-1 py-2.5 border border-gray-700 text-gray-400 hover:text-white rounded-lg text-sm transition"
-                >Cancel</button>
+                >{t('common.cancel')}</button>
                 <button
                   type="submit"
                   disabled={saving}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg text-sm disabled:opacity-50 transition"
                 >
-                  <Check size={16} /> {saving ? 'Saving…' : (editing ? 'Save Changes' : 'Add Skill')}
+                  <Check size={16} /> {saving ? t('adminSkillsManager.saving') : (editing ? t('adminSkillsManager.saveChanges') : t('adminSkillsManager.addSkill'))}
                 </button>
               </div>
             </form>

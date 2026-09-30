@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend
@@ -10,10 +11,15 @@ function fmt$(cents) {
 }
 
 export default function RevenueChart({ period }) {
+  const { t } = useTranslation();
   const [data,    setData]    = useState([]);
   const [totals,  setTotals]  = useState(null);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState(false);
+
+  const jobFeesLabel = t('adminRevenueChart.jobFees');
+  const subscriptionsLabel = t('adminRevenueChart.subscriptions');
+  const refundsLabel = t('adminRevenueChart.refunds');
 
   useEffect(() => {
     let cancelled = false;
@@ -26,9 +32,9 @@ export default function RevenueChart({ period }) {
             month: 'short',
             day:   period === '1y' ? undefined : 'numeric',
           }),
-          'Job Fees':      parseFloat(((row.job_fee_cents      || 0) / 100).toFixed(2)),
-          'Subscriptions': parseFloat(((row.subscription_cents || 0) / 100).toFixed(2)),
-          'Refunds':       parseFloat(((row.refunds_cents      || 0) / 100).toFixed(2)),
+          [jobFeesLabel]:      parseFloat(((row.job_fee_cents      || 0) / 100).toFixed(2)),
+          [subscriptionsLabel]: parseFloat(((row.subscription_cents || 0) / 100).toFixed(2)),
+          [refundsLabel]:       parseFloat(((row.refunds_cents      || 0) / 100).toFixed(2)),
         }));
         setData(formatted);
         setTotals(res.totals || { job_fee: 0, subscription: 0, refunds: 0 });
@@ -36,23 +42,23 @@ export default function RevenueChart({ period }) {
       .catch(() => { if (!cancelled) setError(true); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [period]);
+  }, [period, jobFeesLabel, subscriptionsLabel, refundsLabel]);
 
   const isEmpty = !loading && !error && data.length === 0;
   const hasData = !loading && !error && data.length > 0 && (
-    data.some(d => d['Job Fees'] > 0 || d['Subscriptions'] > 0)
+    data.some(d => d[jobFeesLabel] > 0 || d[subscriptionsLabel] > 0)
   );
 
   return (
     <div className="bg-[#111318] border border-gray-800 rounded-2xl p-5 sm:p-6">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
-        <h3 className="font-semibold text-white text-sm">Revenue Breakdown</h3>
+        <h3 className="font-semibold text-white text-sm">{t('adminRevenueChart.title')}</h3>
         {totals && (
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
-            <span>Total: <span className="text-white font-semibold">{fmt$(totals.job_fee + totals.subscription)}</span></span>
-            <span>Job Fees: <span className="text-orange-400 font-medium">{fmt$(totals.job_fee)}</span></span>
-            <span>Subscriptions: <span className="text-purple-400 font-medium">{fmt$(totals.subscription)}</span></span>
-            {totals.refunds > 0 && <span>Refunds: <span className="text-red-400 font-medium">-{fmt$(totals.refunds)}</span></span>}
+            <span>{t('adminRevenueChart.total')}: <span className="text-white font-semibold">{fmt$(totals.job_fee + totals.subscription)}</span></span>
+            <span>{t('adminRevenueChart.jobFees')}: <span className="text-orange-400 font-medium">{fmt$(totals.job_fee)}</span></span>
+            <span>{t('adminRevenueChart.subscriptions')}: <span className="text-purple-400 font-medium">{fmt$(totals.subscription)}</span></span>
+            {totals.refunds > 0 && <span>{t('adminRevenueChart.refunds')}: <span className="text-red-400 font-medium">-{fmt$(totals.refunds)}</span></span>}
           </div>
         )}
       </div>
@@ -65,7 +71,7 @@ export default function RevenueChart({ period }) {
 
       {error && (
         <div className="h-64 flex items-center justify-center text-gray-500 text-sm">
-          Failed to load chart data.
+          {t('adminRevenueChart.loadFailed')}
         </div>
       )}
 
@@ -78,16 +84,16 @@ export default function RevenueChart({ period }) {
             ))}
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center">
-                <p className="text-sm font-medium text-gray-400">No revenue data yet</p>
-                <p className="text-xs text-gray-600 mt-1 max-w-xs">Revenue will appear here once the first transaction is recorded for this period.</p>
+                <p className="text-sm font-medium text-gray-400">{t('adminRevenueChart.noData')}</p>
+                <p className="text-xs text-gray-600 mt-1 max-w-xs">{t('adminRevenueChart.noDataHint')}</p>
               </div>
             </div>
           </div>
           {!totals && (
             <div className="flex gap-4 text-xs text-gray-600">
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orange-500" />Job Fees</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-500" />Subscriptions</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500" />Refunds</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orange-500" />{t('adminRevenueChart.jobFees')}</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-500" />{t('adminRevenueChart.subscriptions')}</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500" />{t('adminRevenueChart.refunds')}</span>
             </div>
           )}
         </div>
@@ -118,9 +124,9 @@ export default function RevenueChart({ period }) {
               formatter={(value, name) => [`$${value.toFixed(2)}`, name]}
             />
             <Legend wrapperStyle={{ color: '#6b7280', fontSize: 12, paddingTop: 8 }} />
-            <Area type="monotone" dataKey="Job Fees"      stroke="#f97316" strokeWidth={2} fill="url(#jobFee)"    />
-            <Area type="monotone" dataKey="Subscriptions" stroke="#a855f7" strokeWidth={2} fill="url(#subGrad)"   />
-            <Area type="monotone" dataKey="Refunds"       stroke="#ef4444" strokeWidth={1.5} fill="url(#refundGrad)" strokeDasharray="4 2" />
+            <Area type="monotone" dataKey={jobFeesLabel}      stroke="#f97316" strokeWidth={2} fill="url(#jobFee)"    />
+            <Area type="monotone" dataKey={subscriptionsLabel} stroke="#a855f7" strokeWidth={2} fill="url(#subGrad)"   />
+            <Area type="monotone" dataKey={refundsLabel}       stroke="#ef4444" strokeWidth={1.5} fill="url(#refundGrad)" strokeDasharray="4 2" />
           </AreaChart>
         </ResponsiveContainer>
       )}

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 const statusColors = {
   pending: 'bg-yellow-100 text-yellow-800',
@@ -10,6 +11,7 @@ const statusColors = {
 };
 
 export default function OrderManagementTable({ orders, onRowClick }) {
+  const { t } = useTranslation();
   const formatDate = (date) => {
     return new Date(date).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -27,12 +29,12 @@ export default function OrderManagementTable({ orders, onRowClick }) {
       <table className="w-full">
         <thead>
           <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
-            <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Order ID</th>
-            <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Customer</th>
-            <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Email</th>
-            <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Status</th>
-            <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900 dark:text-white">Amount</th>
-            <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Date</th>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">{t('adminOrderTable.orderId')}</th>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">{t('adminOrderTable.customer')}</th>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">{t('adminOrderTable.email')}</th>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">{t('adminOrderTable.status')}</th>
+            <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900 dark:text-white">{t('adminOrderTable.amount')}</th>
+            <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">{t('adminOrderTable.date')}</th>
           </tr>
         </thead>
         <tbody>
@@ -51,7 +53,7 @@ export default function OrderManagementTable({ orders, onRowClick }) {
               </td>
               <td className="px-6 py-4 text-sm">
                 <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${statusColors[order.status] || 'bg-gray-100 text-gray-800'}`}>
-                  {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                  {t(`adminOrderFilters.statuses.${order.status}`, { defaultValue: order.status.charAt(0).toUpperCase() + order.status.slice(1) })}
                 </span>
               </td>
               <td className="px-6 py-4 text-sm text-right font-semibold text-gray-900 dark:text-white">

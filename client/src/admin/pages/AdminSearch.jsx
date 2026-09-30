@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Search, User, Briefcase, MessageSquare, Loader2,
   AlertTriangle, CreditCard, LifeBuoy, Star, Gavel,
@@ -33,6 +34,7 @@ function money(val) {
 // ── Result section components ─────────────────────────────────────────────────
 
 function UserResults({ users }) {
+  const { t } = useTranslation();
   if (!users?.length) return <Empty />;
   return (
     <div className="divide-y divide-gray-800">
@@ -53,8 +55,8 @@ function UserResults({ users }) {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <Badge text={u.role} colorClass="bg-gray-700 text-gray-300" />
-            {u.is_banned  && <Badge text="Banned"   colorClass="bg-red-900 text-red-300" />}
-            {!u.is_active && <Badge text="Inactive" colorClass="bg-yellow-900 text-yellow-300" />}
+            {u.is_banned  && <Badge text={t('adminSearch.badgeBanned')}   colorClass="bg-red-900 text-red-300" />}
+            {!u.is_active && <Badge text={t('adminSearch.badgeInactive')} colorClass="bg-yellow-900 text-yellow-300" />}
             <span className="text-xs text-gray-500">{ts(u.created_at)}</span>
           </div>
         </Link>
@@ -118,6 +120,7 @@ function MessageResults({ messages }) {
 }
 
 function DisputeResults({ disputes }) {
+  const { t } = useTranslation();
   if (!disputes?.length) return <Empty />;
   const STATUS_COLOR = {
     open:         'bg-yellow-900 text-yellow-300',
@@ -154,7 +157,7 @@ function DisputeResults({ disputes }) {
             {d.description}
           </p>
           {d.refund_amount && (
-            <p className="text-xs text-blue-400 mt-0.5">Refund: {money(d.refund_amount)}</p>
+            <p className="text-xs text-blue-400 mt-0.5">{t('adminSearch.refundLabel')} {money(d.refund_amount)}</p>
           )}
         </Link>
       ))}
@@ -251,6 +254,7 @@ function SupportResults({ tickets }) {
 }
 
 function ReviewResults({ reviews }) {
+  const { t } = useTranslation();
   if (!reviews?.length) return <Empty />;
   return (
     <div className="divide-y divide-gray-800">
@@ -265,7 +269,7 @@ function ReviewResults({ reviews }) {
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-yellow-400 text-xs font-semibold">{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</span>
-              {!r.is_public && <Badge text="Hidden" colorClass="bg-gray-700 text-gray-400" />}
+              {!r.is_public && <Badge text={t('adminSearch.badgeHidden')} colorClass="bg-gray-700 text-gray-400" />}
               <span className="text-xs text-gray-500">{ts(r.created_at)}</span>
             </div>
           </div>
@@ -312,18 +316,20 @@ function BidResults({ bids }) {
 }
 
 function Empty() {
-  return <p className="text-sm text-gray-500 py-4 text-center">No results found.</p>;
+  const { t } = useTranslation();
+  return <p className="text-sm text-gray-500 py-4 text-center">{t('adminSearch.empty')}</p>;
 }
 
 // ── Pagination control ────────────────────────────────────────────────────────
 
 function Pagination({ type, page, total, limit, onPage }) {
+  const { t } = useTranslation();
   const pages = Math.ceil(total / limit);
   if (pages <= 1) return null;
   return (
     <div className="flex items-center justify-between px-4 py-2 border-t border-gray-800 text-xs text-gray-500">
       <span>
-        Page {page} of {pages} ({total} total)
+        {t('adminSearch.pagination', { page, pages, total })}
       </span>
       <div className="flex gap-1">
         <button
@@ -352,16 +358,16 @@ const ALL_TYPES = [
   'disputes', 'payments', 'support_tickets', 'reviews', 'bids',
 ];
 
-const TYPE_META = {
-  users:           { icon: User,          label: 'Users',           color: 'text-blue-400'   },
-  jobs:            { icon: Briefcase,     label: 'Jobs',            color: 'text-green-400'  },
-  messages:        { icon: MessageSquare, label: 'Messages',        color: 'text-purple-400' },
-  disputes:        { icon: AlertTriangle, label: 'Disputes',        color: 'text-orange-400' },
-  payments:        { icon: CreditCard,    label: 'Payments',        color: 'text-emerald-400'},
-  support_tickets: { icon: LifeBuoy,      label: 'Support',         color: 'text-sky-400'    },
-  reviews:         { icon: Star,          label: 'Reviews',         color: 'text-yellow-400' },
-  bids:            { icon: Gavel,         label: 'Bids',            color: 'text-rose-400'   },
-};
+const getTypeMeta = (t) => ({
+  users:           { icon: User,          label: t('adminSearch.typeUsers'),           color: 'text-blue-400'   },
+  jobs:            { icon: Briefcase,     label: t('adminSearch.typeJobs'),            color: 'text-green-400'  },
+  messages:        { icon: MessageSquare, label: t('adminSearch.typeMessages'),        color: 'text-purple-400' },
+  disputes:        { icon: AlertTriangle, label: t('adminSearch.typeDisputes'),        color: 'text-orange-400' },
+  payments:        { icon: CreditCard,    label: t('adminSearch.typePayments'),        color: 'text-emerald-400'},
+  support_tickets: { icon: LifeBuoy,      label: t('adminSearch.typeSupportTickets'),  color: 'text-sky-400'    },
+  reviews:         { icon: Star,          label: t('adminSearch.typeReviews'),         color: 'text-yellow-400' },
+  bids:            { icon: Gavel,         label: t('adminSearch.typeBids'),            color: 'text-rose-400'   },
+});
 
 const RESULT_COMPONENT = {
   users:           (rows) => <UserResults    users={rows}    />,
@@ -375,6 +381,7 @@ const RESULT_COMPONENT = {
 };
 
 export default function AdminSearch() {
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [query,   setQuery]   = useState(searchParams.get('q') || '');
   const [input,   setInput]   = useState(searchParams.get('q') || '');
@@ -389,6 +396,7 @@ export default function AdminSearch() {
   const initialMountRef = useRef(true);
   const searchRequestRef = useRef({ controller: null, seq: 0 });
   const LIMIT = 10;
+  const TYPE_META = getTypeMeta(t);
 
   // Abort the in-flight search when this page unmounts.
   useEffect(() => () => {
@@ -455,7 +463,7 @@ export default function AdminSearch() {
       setResults(payload);
     } catch (err) {
       if (controller.signal.aborted || searchRequestRef.current.seq !== seq) return;
-      setError(err.response?.data?.error || 'Search failed.');
+      setError(err.response?.data?.error || t('adminSearch.searchFailed'));
       setResults(null);
     } finally {
       if (searchRequestRef.current.seq === seq) setLoading(false);
@@ -510,10 +518,9 @@ export default function AdminSearch() {
   return (
     <div className="p-4 sm:p-8 max-w-4xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">Search</h1>
+        <h1 className="text-2xl font-bold text-white">{t('adminSearch.title')}</h1>
         <p className="text-gray-400 text-sm mt-1">
-          Search across users, jobs, messages, disputes, payments, support tickets, reviews, and bids.
-          All searches are logged.
+          {t('adminSearch.description')}
         </p>
       </div>
 
@@ -525,7 +532,7 @@ export default function AdminSearch() {
             autoFocus
             value={input}
             onChange={e => setInput(e.target.value)}
-            placeholder="Search users, jobs, disputes, payments…"
+            placeholder={t('adminSearch.searchPlaceholder')}
             className="w-full pl-9 pr-3 py-2.5 bg-gray-800 border border-gray-700 rounded-lg
                        text-sm text-white placeholder-gray-500 focus:outline-none focus:border-orange-500"
           />
@@ -536,7 +543,7 @@ export default function AdminSearch() {
           className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm
                      font-semibold rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          Search
+          {t('adminSearch.submit')}
         </button>
       </form>
 
@@ -587,8 +594,7 @@ export default function AdminSearch() {
       {!loading && results && (
         <>
           <p className="text-xs text-gray-500 mb-4">
-            {results.total} result{results.total !== 1 ? 's' : ''} for{' '}
-            <span className="text-white font-medium">"{results.query}"</span>
+            {t('adminSearch.resultsFor', { count: results.total, query: results.query })}
           </p>
 
           {ALL_TYPES.filter(t => types.includes(t)).map(t => {
@@ -602,7 +608,7 @@ export default function AdminSearch() {
                   <Icon size={14} className={color} />
                   <h2 className="text-sm font-semibold text-white">{label}</h2>
                   <span className="ml-auto text-xs text-gray-500">
-                    {rows.length} of {total}
+                    {t('adminSearch.rowsOf', { shown: rows.length, total })}
                   </span>
                 </div>
                 {RESULT_COMPONENT[t](rows)}
@@ -620,7 +626,7 @@ export default function AdminSearch() {
           {results.total === 0 && (
             <div className="py-16 text-center">
               <Search size={36} className="mx-auto mb-3 text-gray-700" />
-              <p className="text-gray-500 text-sm">No results for "{results.query}"</p>
+              <p className="text-gray-500 text-sm">{t('adminSearch.noResultsFor', { query: results.query })}</p>
             </div>
           )}
         </>
@@ -630,7 +636,7 @@ export default function AdminSearch() {
       {!loading && !results && !error && (
         <div className="py-16 text-center">
           <Search size={36} className="mx-auto mb-3 text-gray-700" />
-          <p className="text-gray-500 text-sm">Enter at least 2 characters to search.</p>
+          <p className="text-gray-500 text-sm">{t('adminSearch.emptyHint')}</p>
         </div>
       )}
     </div>

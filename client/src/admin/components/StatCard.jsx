@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 /**
@@ -18,9 +19,11 @@ import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
  */
 export default function StatCard({
   label, value, icon: Icon, color,
-  delta, deltaLabel = 'vs last period',
+  delta, deltaLabel,
   subtitle, format = 'number', href, highlight = false,
 }) {
+  const { t } = useTranslation();
+  const resolvedDeltaLabel = deltaLabel ?? t('adminStatCard.vsLastPeriod');
   const formatted = (() => {
     if (value === null || value === undefined) return '-';
     if (typeof value === 'string') return value;
@@ -36,17 +39,17 @@ export default function StatCard({
     const abs = Math.abs(delta);
     if (delta === 0) return (
       <span className="flex items-center gap-0.5 text-xs text-gray-500">
-        <Minus size={11} />{abs} {deltaLabel}
+        <Minus size={11} />{abs} {resolvedDeltaLabel}
       </span>
     );
     if (delta > 0) return (
       <span className="flex items-center gap-0.5 text-xs text-emerald-400">
-        <TrendingUp size={11} />+{format === 'currency' ? `$${(abs / 100).toFixed(2)}` : abs} {deltaLabel}
+        <TrendingUp size={11} />+{format === 'currency' ? `$${(abs / 100).toFixed(2)}` : abs} {resolvedDeltaLabel}
       </span>
     );
     return (
       <span className="flex items-center gap-0.5 text-xs text-red-400">
-        <TrendingDown size={11} />{format === 'currency' ? `-$${(abs / 100).toFixed(2)}` : `-${abs}`} {deltaLabel}
+        <TrendingDown size={11} />{format === 'currency' ? `-$${(abs / 100).toFixed(2)}` : `-${abs}`} {resolvedDeltaLabel}
       </span>
     );
   })();
