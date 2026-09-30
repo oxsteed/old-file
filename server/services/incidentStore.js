@@ -82,9 +82,28 @@ async function recordIncident({ type, severity, message, details = {}, dedupeKey
   }
 }
 
-async function listIncidents({ hours = 24, limit = 100 } = {}) {
+const INCIDENT_STATUSES = Object.freeze(['open', 'acknowledged', 'resolved']);
+
+function invalidStatusError() {
+  const err = new Error('Invalid status filter.');
+  err.statusCode = 400;
+  err.code = 'invalid_status';
+  return err;
+}
+
+async function listIncidents({ hours = 24, limit = 100, status } = {}) {
   const safeHours = Math.min(720, Math.max(1, Number.parseInt(hours, 10) || 24));
   const safeLimit = Math.min(MAX_LIST_LIMIT, Math.max(1, Number.parseInt(limit, 10) || 100));
+  if (status !== undefined && !INCIDENT_STATUSES.includes(status)) {
+    throw invalidStatusError();
+  }
+  const statusClause = status === 'resolved'
+    ? 'AND resolved_at IS NOT NULL'
+    : status === 'acknowledged'
+      ? 'AND resolved_at IS NULL AND acknowledged_at IS NOT NULL'
+      : status === 'open'
+        ? 'AND resolved_at IS NULL AND acknowledged_at IS NULL'
+        : '';
   const result = await db.query(
     `SELECT id, type, severity, message, details, dedupe_key,
             occurrence_count, created_at, last_seen_at,
@@ -92,6 +111,7 @@ async function listIncidents({ hours = 24, limit = 100 } = {}) {
             last_notified_at, notification_count
      FROM incident_log
      WHERE last_seen_at >= NOW() - ($1::integer * INTERVAL '1 hour')
+     ${statusClause}
      ORDER BY last_seen_at DESC, id DESC
      LIMIT $2`,
     [safeHours, safeLimit]
@@ -160,6 +180,7 @@ async function resolveOpenIncidentsByDedupeKeys(dedupeKeys, resolutionNotes = nu
 
 module.exports = {
   DEFAULT_NOTIFICATION_COOLDOWN_MINUTES,
+  INCIDENT_STATUSES,
   incidentDedupeKey,
   recordIncident,
   listIncidents,

@@ -14,7 +14,10 @@
 const db = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { logAdminAction } = require('../services/auditService');
-const { createFraudCase } = require('../services/fraudCaseService');
+const {
+  createFraudCase,
+  listFraudCases: listFraudCasesQuery,
+} = require('../services/fraudCaseService');
 const logger = require('../utils/logger');
 
 const SUBJECT_TYPES = Object.freeze(['user', 'business']);
@@ -73,61 +76,8 @@ function requireTransition(kase, allowedFrom, actionLabel) {
 // Admin list with filters and pagination.
 exports.listFraudCases = async (req, res, next) => {
   try {
-    const { category, severity, status, subject_type, subject_id } = req.query || {};
-
-    const fields = {};
-    if (category !== undefined && !CATEGORIES.includes(category)) {
-      fields.category = `Invalid category. Must be one of: ${CATEGORIES.join(', ')}`;
-    }
-    if (severity !== undefined && !SEVERITIES.includes(severity)) {
-      fields.severity = `Invalid severity. Must be one of: ${SEVERITIES.join(', ')}`;
-    }
-    if (status !== undefined && !STATUSES.includes(status)) {
-      fields.status = `Invalid status. Must be one of: ${STATUSES.join(', ')}`;
-    }
-    if (subject_type !== undefined && !SUBJECT_TYPES.includes(subject_type)) {
-      fields.subject_type = `Invalid subject_type. Must be one of: ${SUBJECT_TYPES.join(', ')}`;
-    }
-    if (Object.keys(fields).length) {
-      throw new AppError('Validation failed', 400, 'validation_failed', fields);
-    }
-
-    const page = Math.max(1, parseInt(req.query?.page, 10) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query?.limit, 10) || 20));
-    const offset = (page - 1) * limit;
-
-    const conditions = [];
-    const params = [];
-    const addCondition = (clause, value) => {
-      params.push(value);
-      conditions.push(`${clause} $${params.length}`);
-    };
-    if (category !== undefined) addCondition('category =', category);
-    if (severity !== undefined) addCondition('severity =', severity);
-    if (status !== undefined) addCondition('status =', status);
-    if (subject_type !== undefined) addCondition('subject_type =', subject_type);
-    if (subject_id !== undefined) addCondition('subject_id =', subject_id);
-    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-
-    const [{ rows: countRows }, { rows: caseRows }] = await Promise.all([
-      db.query(`SELECT COUNT(*) AS total FROM fraud_cases ${where}`, params),
-      db.query(
-        `SELECT * FROM fraud_cases ${where}
-          ORDER BY created_at DESC, id DESC
-         LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
-        [...params, limit, offset]
-      ),
-    ]);
-
-    res.json({
-      success: true,
-      data: {
-        cases: caseRows,
-        total: Number(countRows[0]?.total || 0),
-        page,
-        limit,
-      },
-    });
+    const data = await listFraudCasesQuery(req.query || {});
+    res.json({ success: true, data });
   } catch (err) {
     next(err);
   }

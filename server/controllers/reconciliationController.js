@@ -10,13 +10,7 @@
 
 const pool = require('../db');
 const logger = require('../utils/logger');
-const { logAdminAction } = require('../services/auditService');
-
-const DOMAINS = new Set(['credit', 'payment_refund', 'marketplace_refund', 'external_refund', 'payout_settlement']);
-const STATUSES = new Set(['open', 'acknowledged', 'resolved']);
-const SEVERITIES = new Set(['info', 'warning', 'critical']);
-const DEFAULT_LIMIT = 20;
-const MAX_LIMIT = 100;
+const reconService = require('../services/reconciliationExceptions');
 
 const REFUND_ATTEMPT_TABLES = [
   'payment_refund_attempts',
@@ -24,11 +18,17 @@ const REFUND_ATTEMPT_TABLES = [
   'external_refund_attempts',
 ];
 
-const SEVERITY_ORDER_SQL = `CASE severity WHEN 'critical' THEN 0 WHEN 'warning' THEN 1 ELSE 2 END`;
-
-function parsePositiveInt(value, fallback) {
-  const parsed = Number.parseInt(String(value), 10);
-  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
+/**
+ * Map a coded service error to the admin HTTP contract.
+ * Returns true when the error was handled.
+ */
+function sendServiceError(res, error) {
+  if (!error || !Number.isInteger(error.statusCode)) return false;
+  const body = { error: error.message };
+  if (error.code) body.code = error.code;
+  if (error.currentStatus) body.currentStatus = error.currentStatus;
+  res.status(error.statusCode).json(body);
+  return true;
 }
 
 /**
@@ -36,45 +36,9 @@ function parsePositiveInt(value, fallback) {
  */
 async function listExceptions(req, res, next) {
   try {
-    const { domain, status, severity } = req.query;
-
-    if (domain && !DOMAINS.has(domain)) {
-      return res.status(400).json({ error: 'Invalid domain filter.' });
-    }
-    if (status && !STATUSES.has(status)) {
-      return res.status(400).json({ error: 'Invalid status filter.' });
-    }
-    if (severity && !SEVERITIES.has(severity)) {
-      return res.status(400).json({ error: 'Invalid severity filter.' });
-    }
-
-    const page = parsePositiveInt(req.query.page, 1);
-    const limit = Math.min(MAX_LIMIT, parsePositiveInt(req.query.limit, DEFAULT_LIMIT));
-    const offset = (page - 1) * limit;
-
-    const filters = [];
-    const params = [];
-    if (domain) { params.push(domain); filters.push(`domain = $${params.length}`); }
-    if (status) { params.push(status); filters.push(`status = $${params.length}`); }
-    if (severity) { params.push(severity); filters.push(`severity = $${params.length}`); }
-    const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
-
-    const totalRes = await pool.query(
-      `SELECT COUNT(*) AS total FROM reconciliation_exceptions ${where}`,
-      params
-    );
-    const total = Number(totalRes.rows[0]?.total || 0);
-
-    const { rows } = await pool.query(
-      `SELECT id, domain, reference_id, severity, status, owner_admin_id,
-              summary, details, source_run_id,
-              created_at, updated_at, resolved_at
-         FROM reconciliation_exceptions
-        ${where}
-        ORDER BY ${SEVERITY_ORDER_SQL}, created_at DESC, id DESC
-        LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
-      [...params, limit, offset]
-    );
+    const { domain, status, severity, page, limit } = req.query || {};
+    const { rows, total, page: safePage, limit: safeLimit } =
+      await reconService.listExceptions({ domain, status, severity, page, limit });
 
     const counts = {
       stuck_refund_attempts: await safeCountStuckRefundAttempts(),
@@ -84,10 +48,11 @@ async function listExceptions(req, res, next) {
 
     return res.json({
       data: rows,
-      pagination: { page, limit, total },
+      pagination: { page: safePage, limit: safeLimit, total },
       counts,
     });
   } catch (error) {
+    if (sendServiceError(res, error)) return;
     return next(error);
   }
 }
@@ -145,119 +110,36 @@ async function safeCountUnsettledPayouts() {
  * POST /exceptions/:id/assign - set the owner admin of an exception.
  */
 async function assignException(req, res, next) {
-  const client = await pool.connect();
   try {
-    const { id } = req.params;
     const { admin_id } = req.body || {};
     if (!admin_id) {
       return res.status(400).json({ error: 'admin_id is required.' });
     }
-
-    await client.query('BEGIN');
-    const { rows } = await client.query(
-      `SELECT * FROM reconciliation_exceptions WHERE id = $1 FOR UPDATE`,
-      [id]
-    );
-    if (!rows.length) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Reconciliation exception not found.' });
-    }
-    const before = rows[0];
-    const updated = await client.query(
-      `UPDATE reconciliation_exceptions
-          SET owner_admin_id = $2, updated_at = NOW()
-        WHERE id = $1
-        RETURNING *`,
-      [id, admin_id]
-    );
-
-    await logAdminAction({
-      adminId: req.user.id,
-      action: 'reconciliation_exception_assigned',
-      targetType: 'reconciliation_exception',
-      targetId: id,
-      description: `Exception assigned to admin ${admin_id}`,
-      before,
-      after: updated.rows[0],
+    const data = await reconService.assignException({
+      id: req.params.id,
+      ownerAdminId: admin_id,
+      actorId: req.user.id,
       req,
-      client,
-      throwOnError: true,
     });
-
-    await client.query('COMMIT');
-    return res.json({ data: updated.rows[0] });
+    return res.json({ data });
   } catch (error) {
-    try { await client.query('ROLLBACK'); } catch (rollbackError) {
-      logger.warn('assignException rollback failed', { error: rollbackError.message });
-    }
+    if (sendServiceError(res, error)) return;
     return next(error);
-  } finally {
-    client.release();
   }
 }
 
-const FORWARD_TRANSITIONS = {
-  acknowledge: { from: ['open'], to: 'acknowledged', action: 'reconciliation_exception_acknowledged' },
-  resolve: { from: ['open', 'acknowledged'], to: 'resolved', action: 'reconciliation_exception_resolved' },
-};
-
-async function transitionException(req, res, next, kind) {
-  const client = await pool.connect();
+async function transitionRequest(req, res, next, kind) {
   try {
-    const { id } = req.params;
-    const transition = FORWARD_TRANSITIONS[kind];
-
-    await client.query('BEGIN');
-    const { rows } = await client.query(
-      `SELECT * FROM reconciliation_exceptions WHERE id = $1 FOR UPDATE`,
-      [id]
-    );
-    if (!rows.length) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Reconciliation exception not found.' });
-    }
-    const before = rows[0];
-    if (!transition.from.includes(before.status)) {
-      await client.query('ROLLBACK');
-      return res.status(409).json({
-        error: `Cannot move a ${before.status} exception to ${transition.to}.`,
-        code: 'reconciliation_transition_invalid',
-        currentStatus: before.status,
-      });
-    }
-
-    const updated = await client.query(
-      `UPDATE reconciliation_exceptions
-          SET status = $2,
-              resolved_at = CASE WHEN $2 = 'resolved' THEN NOW() ELSE resolved_at END,
-              updated_at = NOW()
-        WHERE id = $1
-        RETURNING *`,
-      [id, transition.to]
-    );
-
-    await logAdminAction({
-      adminId: req.user.id,
-      action: transition.action,
-      targetType: 'reconciliation_exception',
-      targetId: id,
-      description: `Exception moved from ${before.status} to ${transition.to}`,
-      before,
-      after: updated.rows[0],
+    const data = await reconService.transitionException({
+      id: req.params.id,
+      kind,
+      actorId: req.user.id,
       req,
-      client,
-      throwOnError: true,
     });
-
-    await client.query('COMMIT');
-    return res.json({ data: updated.rows[0] });
+    return res.json({ data });
   } catch (error) {
-    try { await client.query('ROLLBACK'); } catch (rollbackError) {
-      logger.warn(`${kind}Exception rollback failed`, { error: rollbackError.message });
-    }
+    if (sendServiceError(res, error)) return;
     return next(error);
-  } finally {
-    client.release();
   }
 }
 
@@ -265,14 +147,14 @@ async function transitionException(req, res, next, kind) {
  * POST /exceptions/:id/acknowledge - open -> acknowledged.
  */
 async function acknowledgeException(req, res, next) {
-  return transitionException(req, res, next, 'acknowledge');
+  return transitionRequest(req, res, next, 'acknowledge');
 }
 
 /**
  * POST /exceptions/:id/resolve - open -> resolved or acknowledged -> resolved.
  */
 async function resolveException(req, res, next) {
-  return transitionException(req, res, next, 'resolve');
+  return transitionRequest(req, res, next, 'resolve');
 }
 
 module.exports = {

@@ -56,6 +56,7 @@ async function validateApiKey(req, res, next) {
     req.apiKey = {
       id: key.id,
       productId: key.api_product_id,
+      customerId: key.customer_id,
       maxRequests: key.max_requests_per_month,
       currentRequests: key.requests_this_month,
       issuedAt: key.created_at

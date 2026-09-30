@@ -78,16 +78,35 @@ async function getChangeRequest(id) {
   return rows[0] || null;
 }
 
-async function auditChangeRequest({ client = null, req = null, adminId, action, request, before, after, description }) {
+/**
+ * Mark an audit payload with the originating surface.
+ * Admin UI calls keep the historical shape; connector calls get a
+ * [connector] description prefix and source: 'connector' in after_state.
+ */
+function withAuditSource({ description, after }, auditSource) {
+  if (auditSource !== 'connector') {
+    return { description, after };
+  }
+  return {
+    description: `[connector] ${description}`,
+    after: { ...(after || {}), source: 'connector' },
+  };
+}
+
+async function auditChangeRequest({ client = null, req = null, adminId, action, request, before, after, description, auditSource = 'admin' }) {
+  const marked = withAuditSource({
+    description: description || `Change request ${action.replace('settings_change_', '')} for ${request.kind} "${request.key}"`,
+    after: after || null,
+  }, auditSource);
   await logAdminAction({
     client,
     adminId,
     action,
     targetType: 'settings_change_request',
     targetId: request.id,
-    description: description || `Change request ${action.replace('settings_change_', '')} for ${request.kind} "${request.key}"`,
+    description: marked.description,
     before: before || null,
-    after: after || null,
+    after: marked.after,
     req,
     throwOnError: true,
   });
@@ -99,10 +118,11 @@ async function auditChangeRequest({ client = null, req = null, adminId, action, 
  * @param {object} client  pg client (from db.connect()); transaction is managed here
  * @param {object} request change-request row (id at minimum; re-read under FOR UPDATE)
  * @param {string} adminId acting admin id for updated_by / audit (falls back to reviewed_by)
+ * @param {string} [auditSource] 'admin' (default) or 'connector'; marks audit rows
  * @returns {Promise<object>} the updated change-request row (status 'applied')
  * @throws changeError with statusCode/code on any validation or applicability failure
  */
-async function applyChangeRequest(client, request, adminId) {
+async function applyChangeRequest(client, request, adminId, auditSource = 'admin') {
   if (!request || !isUuid(request.id)) {
     throw changeError(404, 'change_request_not_found', 'Change request not found.');
   }
@@ -151,15 +171,19 @@ async function applyChangeRequest(client, request, adminId) {
         'UPDATE platform_settings SET value = $1, version = COALESCE(version, 1) + 1, updated_by = $2, updated_at = now() WHERE key = $3',
         [parsed.value, actorId, change.key]
       );
+      const settingAudit = withAuditSource({
+        description: `Setting "${change.key}" updated via change request ${change.id}`,
+        after: { value: parsed.value, version: previousVersion + 1 },
+      }, auditSource);
       await logAdminAction({
         client,
         adminId: actorId,
         action: 'platform_setting_updated',
         targetType: 'platform_setting',
         targetKey: change.key,
-        description: `Setting "${change.key}" updated via change request ${change.id}`,
+        description: settingAudit.description,
         before: { value: before[0].value, version: previousVersion },
-        after: { value: parsed.value, version: previousVersion + 1 },
+        after: settingAudit.after,
         throwOnError: true,
       });
     } else if (change.kind === 'flag') {
@@ -179,15 +203,19 @@ async function applyChangeRequest(client, request, adminId) {
         'UPDATE feature_flags SET is_enabled = $1, updated_by = $2, updated_at = now() WHERE key = $3',
         [newEnabled, actorId, change.key]
       );
+      const flagAudit = withAuditSource({
+        description: `Feature flag "${change.key}" set to ${newEnabled} via change request ${change.id}`,
+        after: { is_enabled: newEnabled },
+      }, auditSource);
       await logAdminAction({
         client,
         adminId: actorId,
         action: 'feature_flag_updated',
         targetType: 'feature_flag',
         targetKey: change.key,
-        description: `Feature flag "${change.key}" set to ${newEnabled} via change request ${change.id}`,
+        description: flagAudit.description,
         before: { is_enabled: before[0].is_enabled },
-        after: { is_enabled: newEnabled },
+        after: flagAudit.after,
         throwOnError: true,
       });
     } else {
@@ -198,15 +226,19 @@ async function applyChangeRequest(client, request, adminId) {
       "UPDATE settings_change_requests SET status = 'applied', updated_at = now() WHERE id = $1 RETURNING *",
       [change.id]
     );
+    const appliedAudit = withAuditSource({
+      description: `Change request for ${change.kind} "${change.key}" applied`,
+      after: { status: 'applied' },
+    }, auditSource);
     await logAdminAction({
       client,
       adminId: actorId,
       action: 'settings_change_applied',
       targetType: 'settings_change_request',
       targetId: change.id,
-      description: `Change request for ${change.kind} "${change.key}" applied`,
+      description: appliedAudit.description,
       before: { status: change.status },
-      after: { status: 'applied' },
+      after: appliedAudit.after,
       throwOnError: true,
     });
 
@@ -345,30 +377,45 @@ async function proposeChange(req, res) {
 }
 
 // GET /  ?status=&page=&limit=  newest first
+/**
+ * List change requests with an optional status filter and bounded pagination.
+ * Shared by the admin settings UI and the connector API.
+ *
+ * @param {object} args
+ * @param {string} [args.status]
+ * @param {object} [args.pagination] raw query object for parseBoundedPagination
+ * @returns {Promise<{requests: object[], page: number, limit: number, total: number}>}
+ * @throws changeError (400 invalid_status) on a bad status filter
+ */
+async function listChangeRequests({ status, pagination = {} } = {}) {
+  if (status !== undefined && status !== '' && !STATUSES.includes(status)) {
+    throw changeError(400, 'invalid_status', 'Invalid status filter.');
+  }
+  const { page, limit, offset } = parseBoundedPagination(pagination, { defaultLimit: 25 });
+  const params = [];
+  let whereSql = '';
+  if (status) {
+    params.push(status);
+    whereSql = `WHERE status = $${params.length}`;
+  }
+  const [{ rows }, { rows: countRows }] = await Promise.all([
+    db.query(
+      `SELECT * FROM settings_change_requests ${whereSql} ORDER BY created_at DESC, id DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset]
+    ),
+    db.query(
+      `SELECT COUNT(*)::int AS total FROM settings_change_requests ${whereSql}`,
+      params
+    ),
+  ]);
+  return { requests: rows, page, limit, total: countRows[0] ? countRows[0].total : rows.length };
+}
+
 async function listChanges(req, res) {
   try {
-    const { status } = req.query;
-    if (status !== undefined && status !== '' && !STATUSES.includes(status)) {
-      return res.status(400).json({ error: 'Invalid status filter.', code: 'invalid_status' });
-    }
-    const { page, limit, offset } = parseBoundedPagination(req.query, { defaultLimit: 25 });
-    const params = [];
-    let whereSql = '';
-    if (status) {
-      params.push(status);
-      whereSql = `WHERE status = $${params.length}`;
-    }
-    const [{ rows }, { rows: countRows }] = await Promise.all([
-      db.query(
-        `SELECT * FROM settings_change_requests ${whereSql} ORDER BY created_at DESC, id DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
-        [...params, limit, offset]
-      ),
-      db.query(
-        `SELECT COUNT(*)::int AS total FROM settings_change_requests ${whereSql}`,
-        params
-      ),
-    ]);
-    return res.json({ requests: rows, page, limit, total: countRows[0] ? countRows[0].total : rows.length });
+    const { status } = req.query || {};
+    const result = await listChangeRequests({ status, pagination: req.query || {} });
+    return res.json(result);
   } catch (err) {
     return sendChangeError(err, res, 'Failed to list change requests.', 'listChanges error');
   }
@@ -400,28 +447,41 @@ async function previewChange(req, res) {
 }
 
 // POST /:id/approve  (approve_settings grant; separation of duties enforced)
-async function approveChange(req, res) {
+/**
+ * Approve a change request as the given admin. Applies immediately when due.
+ * Shared by the admin settings UI and the connector API.
+ *
+ * @param {object} args
+ * @param {string} args.id change-request id
+ * @param {string} args.approverId acting admin id
+ * @param {object} [args.req] express req for audit metadata
+ * @param {string} [args.auditSource] 'admin' (default) or 'connector'
+ * @returns {Promise<{request: object, applied: boolean}>}
+ * @throws changeError (404/403/409) on any rule violation
+ */
+async function approveChangeRequest({ id, approverId, req = null, auditSource = 'admin' }) {
+  const adminId = approverId;
+  const request = await getChangeRequest(id);
+  if (!request) {
+    throw changeError(404, 'change_request_not_found', 'Change request not found.');
+  }
+  if (request.proposed_by === adminId) {
+    throw changeError(
+      403,
+      'separation_of_duties',
+      'The admin who proposed a change cannot approve it (separation of duties).'
+    );
+  }
+  if (!DECIDABLE_STATUSES.includes(request.status)) {
+    throw changeError(
+      409,
+      'change_request_not_applicable',
+      `Change request cannot be approved from status "${request.status}".`
+    );
+  }
+
   let client;
   try {
-    const { id } = req.params;
-    const adminId = req.user.id;
-    const request = await getChangeRequest(id);
-    if (!request) {
-      return res.status(404).json({ error: 'Change request not found.', code: 'change_request_not_found' });
-    }
-    if (request.proposed_by === adminId) {
-      return res.status(403).json({
-        error: 'The admin who proposed a change cannot approve it (separation of duties).',
-        code: 'separation_of_duties',
-      });
-    }
-    if (!DECIDABLE_STATUSES.includes(request.status)) {
-      return res.status(409).json({
-        error: `Change request cannot be approved from status "${request.status}".`,
-        code: 'change_request_not_applicable',
-      });
-    }
-
     client = await db.connect();
     const due = !request.effective_at || new Date(request.effective_at) <= new Date();
 
@@ -436,7 +496,8 @@ async function approveChange(req, res) {
       const applied = await applyChangeRequest(
         client,
         { ...request, status: 'approved', reviewed_by: adminId },
-        adminId
+        adminId,
+        auditSource
       );
       await auditChangeRequest({
         client,
@@ -447,8 +508,9 @@ async function approveChange(req, res) {
         before: { status: request.status },
         after: { status: 'applied' },
         description: `Change request for ${request.kind} "${request.key}" approved and applied`,
+        auditSource,
       });
-      return res.json({ request: applied, applied: true });
+      return { request: applied, applied: true };
     }
 
     const { rows: updated } = await client.query(
@@ -463,46 +525,82 @@ async function approveChange(req, res) {
       request,
       before: { status: request.status },
       after: { status: 'approved', effective_at: request.effective_at },
+      auditSource,
     });
-    return res.json({ request: updated[0], applied: false });
-  } catch (err) {
-    return sendChangeError(err, res, 'Failed to approve change request.', 'approveChange error');
+    return { request: updated[0], applied: false };
   } finally {
     if (client) { try { client.release(); } catch { /* ignore */ } }
   }
 }
 
+async function approveChange(req, res) {
+  try {
+    const { request, applied } = await approveChangeRequest({
+      id: req.params.id,
+      approverId: req.user.id,
+      req,
+    });
+    return res.json({ request, applied });
+  } catch (err) {
+    return sendChangeError(err, res, 'Failed to approve change request.', 'approveChange error');
+  }
+}
+
 // POST /:id/reject  body: { reason } (required)
+/**
+ * Reject a change request with a required reason.
+ * Shared by the admin settings UI and the connector API.
+ *
+ * @param {object} args
+ * @param {string} args.id change-request id
+ * @param {string} args.reason rejection reason (required, non-blank)
+ * @param {string} args.rejectorId acting admin id
+ * @param {object} [args.req] express req for audit metadata
+ * @param {string} [args.auditSource] 'admin' (default) or 'connector'
+ * @returns {Promise<object>} updated change-request row
+ * @throws changeError (400/404/409) on any rule violation
+ */
+async function rejectChangeRequest({ id, reason, rejectorId, req = null, auditSource = 'admin' }) {
+  const cleanReason = String(reason || '').trim();
+  if (!cleanReason) {
+    throw changeError(400, 'reason_required', 'A reason is required to reject a change.');
+  }
+  const request = await getChangeRequest(id);
+  if (!request) {
+    throw changeError(404, 'change_request_not_found', 'Change request not found.');
+  }
+  if (!DECIDABLE_STATUSES.includes(request.status)) {
+    throw changeError(
+      409,
+      'change_request_not_applicable',
+      `Change request cannot be rejected from status "${request.status}".`
+    );
+  }
+  const { rows: updated } = await db.query(
+    "UPDATE settings_change_requests SET status = 'rejected', reviewed_by = $1, decided_at = now(), updated_at = now() WHERE id = $2 RETURNING *",
+    [rejectorId, id]
+  );
+  await auditChangeRequest({
+    req,
+    adminId: rejectorId,
+    action: 'settings_change_rejected',
+    request,
+    before: { status: request.status },
+    after: { status: 'rejected', reason: cleanReason },
+    auditSource,
+  });
+  return updated[0];
+}
+
 async function rejectChange(req, res) {
   try {
-    const { id } = req.params;
-    const cleanReason = String((req.body && req.body.reason) || '').trim();
-    if (!cleanReason) {
-      return res.status(400).json({ error: 'A reason is required to reject a change.', code: 'reason_required' });
-    }
-    const request = await getChangeRequest(id);
-    if (!request) {
-      return res.status(404).json({ error: 'Change request not found.', code: 'change_request_not_found' });
-    }
-    if (!DECIDABLE_STATUSES.includes(request.status)) {
-      return res.status(409).json({
-        error: `Change request cannot be rejected from status "${request.status}".`,
-        code: 'change_request_not_applicable',
-      });
-    }
-    const { rows: updated } = await db.query(
-      "UPDATE settings_change_requests SET status = 'rejected', reviewed_by = $1, decided_at = now(), updated_at = now() WHERE id = $2 RETURNING *",
-      [req.user.id, id]
-    );
-    await auditChangeRequest({
+    const result = await rejectChangeRequest({
+      id: req.params.id,
+      reason: req.body && req.body.reason,
+      rejectorId: req.user.id,
       req,
-      adminId: req.user.id,
-      action: 'settings_change_rejected',
-      request,
-      before: { status: request.status },
-      after: { status: 'rejected', reason: cleanReason },
     });
-    return res.json({ request: updated[0] });
+    return res.json({ request: result });
   } catch (err) {
     return sendChangeError(err, res, 'Failed to reject change request.', 'rejectChange error');
   }
@@ -589,9 +687,12 @@ module.exports = {
   buildPreview,
   proposeChange,
   listChanges,
+  listChangeRequests,
   previewChange,
   approveChange,
+  approveChangeRequest,
   rejectChange,
+  rejectChangeRequest,
   scheduleChange,
   cancelChange,
 };

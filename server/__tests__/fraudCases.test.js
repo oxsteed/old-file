@@ -10,9 +10,10 @@
 
 const { mockQuery, resetMocks } = require('./setup');
 
-jest.mock('../services/fraudCaseService', () => ({
-  createFraudCase: jest.fn(),
-}));
+jest.mock('../services/fraudCaseService', () => {
+  const actual = jest.requireActual('../services/fraudCaseService');
+  return { ...actual, createFraudCase: jest.fn() };
+});
 
 const fraudCaseService = require('../services/fraudCaseService');
 const controller = require('../controllers/fraudCaseController');

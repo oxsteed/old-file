@@ -136,4 +136,100 @@ async function createFraudCase({
   return inserted[0];
 }
 
-module.exports = { createFraudCase };
+const LIST_SUBJECT_TYPES = Object.freeze(['user', 'business']);
+const LIST_CATEGORIES = Object.freeze([
+  'affiliate_fraud',
+  'collusion',
+  'account_takeover',
+  'chargeback',
+  'abuse_report',
+  'other',
+]);
+const LIST_SEVERITIES = Object.freeze(['low', 'medium', 'high', 'critical']);
+const LIST_STATUSES = Object.freeze(['open', 'investigating', 'resolved', 'dismissed']);
+
+/**
+ * List fraud cases with optional filters and pagination.
+ * Query layer shared by the admin fraud routes and the connector API.
+ *
+ * @param {object} args
+ * @param {string} [args.category]
+ * @param {string} [args.severity]
+ * @param {string} [args.status]
+ * @param {string} [args.subject_type]
+ * @param {string} [args.subject_id]
+ * @param {number|string} [args.page]
+ * @param {number|string} [args.limit]
+ * @returns {Promise<{cases: object[], total: number, page: number, limit: number}>}
+ * @throws AppError (400 validation_failed) on an invalid filter value
+ */
+async function listFraudCases({
+  category,
+  severity,
+  status,
+  subject_type,
+  subject_id,
+  page,
+  limit,
+} = {}) {
+  const { AppError } = require('../middleware/errorHandler');
+  const fields = {};
+  if (category !== undefined && !LIST_CATEGORIES.includes(category)) {
+    fields.category = `Invalid category. Must be one of: ${LIST_CATEGORIES.join(', ')}`;
+  }
+  if (severity !== undefined && !LIST_SEVERITIES.includes(severity)) {
+    fields.severity = `Invalid severity. Must be one of: ${LIST_SEVERITIES.join(', ')}`;
+  }
+  if (status !== undefined && !LIST_STATUSES.includes(status)) {
+    fields.status = `Invalid status. Must be one of: ${LIST_STATUSES.join(', ')}`;
+  }
+  if (subject_type !== undefined && !LIST_SUBJECT_TYPES.includes(subject_type)) {
+    fields.subject_type = `Invalid subject_type. Must be one of: ${LIST_SUBJECT_TYPES.join(', ')}`;
+  }
+  if (Object.keys(fields).length) {
+    throw new AppError('Validation failed', 400, 'validation_failed', fields);
+  }
+
+  const safePage = Math.max(1, parseInt(page, 10) || 1);
+  const safeLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+  const offset = (safePage - 1) * safeLimit;
+
+  const conditions = [];
+  const params = [];
+  const addCondition = (clause, value) => {
+    params.push(value);
+    conditions.push(`${clause} $${params.length}`);
+  };
+  if (category !== undefined) addCondition('category =', category);
+  if (severity !== undefined) addCondition('severity =', severity);
+  if (status !== undefined) addCondition('status =', status);
+  if (subject_type !== undefined) addCondition('subject_type =', subject_type);
+  if (subject_id !== undefined) addCondition('subject_id =', subject_id);
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  const [{ rows: countRows }, { rows: caseRows }] = await Promise.all([
+    defaultPool.query(`SELECT COUNT(*) AS total FROM fraud_cases ${where}`, params),
+    defaultPool.query(
+      `SELECT * FROM fraud_cases ${where}
+        ORDER BY created_at DESC, id DESC
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, safeLimit, offset]
+    ),
+  ]);
+
+  return {
+    cases: caseRows,
+    total: Number(countRows[0]?.total || 0),
+    page: safePage,
+    limit: safeLimit,
+  };
+}
+
+module.exports = {
+  createFraudCase,
+  listFraudCases,
+  LIST_SUBJECT_TYPES,
+  LIST_CATEGORIES,
+  LIST_SEVERITIES,
+  LIST_STATUSES,
+};

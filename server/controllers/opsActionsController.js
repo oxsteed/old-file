@@ -140,38 +140,184 @@ async function listDeadLetter(req, res) {
 }
 
 /**
+ * Requeue one dead-lettered job by id. When no queue is supplied, every known
+ * queue's dead-letter list is searched.
+ * Shared by the admin ops endpoint and the connector API.
+ *
+ * @param {object} args
+ * @param {string} args.jobId dead-lettered job id
+ * @param {string} [args.queue] queue key; must be known when supplied
+ * @param {string} args.actorId acting admin id for audit
+ * @param {object} [args.req] express req for audit metadata
+ * @param {string} [args.auditSource] 'admin' (default) or 'connector'
+ * @returns {Promise<{queue: string, job: object}>}
+ * @throws coded error (400 invalid_queue, 404 not_found)
+ */
+async function requeueDeadLetterById({ jobId, queue, actorId, req = null, auditSource = 'admin' }) {
+  if (!jobId) {
+    throw codedError(400, 'invalid_job_id', 'Job id is required');
+  }
+  if (queue !== undefined && queue !== null && queue !== '' && !isKnownQueueKey(queue)) {
+    throw codedError(400, 'invalid_queue', `Queue must be one of: ${[...KNOWN_QUEUE_KEYS].join(', ')}`);
+  }
+
+  let recoveredJob = null;
+  let foundQueue = null;
+  if (queue) {
+    recoveredJob = await requeueDeadLetterJob(queue, jobId);
+    foundQueue = queue;
+  } else {
+    for (const queueKey of KNOWN_QUEUE_KEYS) {
+      // eslint-disable-next-line no-await-in-loop
+      const candidate = await requeueDeadLetterJob(queueKey, jobId);
+      if (candidate) {
+        recoveredJob = candidate;
+        foundQueue = queueKey;
+        break;
+      }
+    }
+  }
+  if (!recoveredJob) {
+    throw codedError(404, 'not_found', 'Dead-lettered job not found');
+  }
+
+  const audit = markConnectorAudit({
+    description: `Dead-lettered job requeued from queue ${foundQueue}`,
+    after: { status: recoveredJob.status, queue: foundQueue },
+  }, auditSource);
+  await logAdminAction({
+    adminId: actorId,
+    action: 'ops_dead_letter_requeued',
+    targetType: 'queue_job',
+    targetId: String(jobId),
+    description: audit.description,
+    after: audit.after,
+    req,
+  });
+  logger.info('Dead-lettered job requeued', { queue: foundQueue, jobId, adminId: actorId, source: auditSource });
+  return { queue: foundQueue, job: recoveredJob };
+}
+
+/**
  * POST /api/admin/ops/queues/dead-letter/:jobId/requeue  { queue }
  */
 async function requeueDeadLetter(req, res) {
   const { jobId } = req.params || {};
   const { queue } = req.body || {};
-  if (!isKnownQueueKey(queue)) {
-    return sendValidationError(res, {
-      queue: `Must be one of: ${[...KNOWN_QUEUE_KEYS].join(', ')}`,
-    });
-  }
-  if (!jobId) {
-    return sendValidationError(res, { jobId: 'Job id is required' });
-  }
   try {
-    const recoveredJob = await requeueDeadLetterJob(queue, jobId);
-    if (!recoveredJob) {
-      return sendError(res, 404, 'Dead-lettered job not found', 'not_found');
-    }
-    await logAdminAction({
-      adminId: req.user.id,
-      action: 'ops_dead_letter_requeued',
-      targetType: 'queue_job',
-      targetId: String(jobId),
-      description: `Dead-lettered job requeued from queue ${queue}`,
+    const { job } = await requeueDeadLetterById({
+      jobId,
+      queue,
+      actorId: req.user.id,
       req,
     });
-    logger.info('Dead-lettered job requeued', { queue, jobId, adminId: req.user.id });
-    return res.json({ success: true, job: recoveredJob });
+    return res.json({ success: true, job });
   } catch (error) {
+    if (sendCodedError(res, error)) return;
     logger.error('Requeue dead-letter job failed', { queue, jobId, error: error.message });
     return sendError(res, 500, 'Failed to requeue job');
   }
+}
+
+function codedError(statusCode, code, message) {
+  const err = new Error(message);
+  err.statusCode = statusCode;
+  err.code = code;
+  return err;
+}
+
+function markConnectorAudit({ description, after }, auditSource) {
+  if (auditSource !== 'connector') return { description, after };
+  return {
+    description: `[connector] ${description}`,
+    after: { ...(after || {}), source: 'connector' },
+  };
+}
+
+/**
+ * Retry one webhook delivery by id: load the delivery + webhook rows,
+ * perform a single redelivery attempt, and audit it.
+ * Shared by the admin ops endpoint and the connector API.
+ *
+ * @param {object} args
+ * @param {string} args.deliveryId webhook_delivery_log id (UUID)
+ * @param {string} args.actorId acting admin id for audit
+ * @param {object} [args.req] express req for audit metadata
+ * @param {string} [args.auditSource] 'admin' (default) or 'connector'
+ * @returns {Promise<object>} the updated delivery row
+ * @throws coded error (400 invalid_delivery_id, 404 not_found, 409 already_completed)
+ */
+async function retryWebhookDeliveryById({ deliveryId, actorId, req = null, auditSource = 'admin' }) {
+  if (!deliveryId || !UUID_RE.test(deliveryId)) {
+    throw codedError(400, 'invalid_delivery_id', 'deliveryId must be a valid UUID');
+  }
+  const loaded = await pool.query(
+    `SELECT d.*,
+            w.webhook_url,
+            w.custom_headers,
+            w.timeout_seconds,
+            w.is_active AS webhook_is_active
+       FROM webhook_delivery_log d
+       JOIN business_webhooks w ON w.id = d.webhook_id
+      WHERE d.id = $1`,
+    [deliveryId]
+  );
+  const row = loaded.rows[0];
+  if (!row) {
+    throw codedError(404, 'not_found', 'Webhook delivery not found');
+  }
+  if (row.completed_at) {
+    throw codedError(409, 'already_completed', 'Webhook delivery is already completed');
+  }
+
+  const deliveryRow = {
+    id: row.id,
+    webhook_id: row.webhook_id,
+    event_type: row.event_type,
+    payload: row.payload,
+    attempt_number: row.attempt_number,
+  };
+  const webhookRow = {
+    webhook_url: row.webhook_url,
+    custom_headers: row.custom_headers,
+    timeout_seconds: row.timeout_seconds,
+  };
+  const updated = await attemptWebhookRedelivery(deliveryRow, webhookRow);
+
+  const audit = markConnectorAudit({
+    description: `Webhook delivery retried (attempt ${updated ? updated.attempt_number : 'unknown'})`,
+    after: updated ? { status: updated.status, attempt_number: updated.attempt_number } : null,
+  }, auditSource);
+  await logAdminAction({
+    adminId: actorId,
+    action: 'ops_webhook_delivery_retried',
+    targetType: 'webhook_delivery',
+    targetId: String(deliveryId),
+    description: audit.description,
+    after: audit.after,
+    req,
+  });
+  logger.info('Webhook delivery retried by admin', {
+    deliveryId,
+    adminId: actorId,
+    completed: Boolean(updated && updated.completed_at),
+    source: auditSource,
+  });
+  return updated;
+}
+
+/**
+ * Map a coded service error to the ops HTTP contract.
+ * Returns true when the error was handled.
+ */
+function sendCodedError(res, error) {
+  if (!error || !Number.isInteger(error.statusCode)) return false;
+  if (error.statusCode === 400 && error.code === 'invalid_delivery_id') {
+    sendValidationError(res, { deliveryId: 'Must be a valid UUID' });
+  } else {
+    sendError(res, error.statusCode, error.message, error.code);
+  }
+  return true;
 }
 
 /**
@@ -179,58 +325,15 @@ async function requeueDeadLetter(req, res) {
  */
 async function retryWebhookDelivery(req, res) {
   const { deliveryId } = req.params || {};
-  if (!deliveryId || !UUID_RE.test(deliveryId)) {
-    return sendValidationError(res, { deliveryId: 'Must be a valid UUID' });
-  }
   try {
-    const loaded = await pool.query(
-      `SELECT d.*,
-              w.webhook_url,
-              w.custom_headers,
-              w.timeout_seconds,
-              w.is_active AS webhook_is_active
-         FROM webhook_delivery_log d
-         JOIN business_webhooks w ON w.id = d.webhook_id
-        WHERE d.id = $1`,
-      [deliveryId]
-    );
-    const row = loaded.rows[0];
-    if (!row) {
-      return sendError(res, 404, 'Webhook delivery not found', 'not_found');
-    }
-    if (row.completed_at) {
-      return sendError(res, 409, 'Webhook delivery is already completed', 'already_completed');
-    }
-
-    const deliveryRow = {
-      id: row.id,
-      webhook_id: row.webhook_id,
-      event_type: row.event_type,
-      payload: row.payload,
-      attempt_number: row.attempt_number,
-    };
-    const webhookRow = {
-      webhook_url: row.webhook_url,
-      custom_headers: row.custom_headers,
-      timeout_seconds: row.timeout_seconds,
-    };
-    const updated = await attemptWebhookRedelivery(deliveryRow, webhookRow);
-
-    await logAdminAction({
-      adminId: req.user.id,
-      action: 'ops_webhook_delivery_retried',
-      targetType: 'webhook_delivery',
-      targetId: String(deliveryId),
-      description: `Webhook delivery retried (attempt ${updated ? updated.attempt_number : 'unknown'})`,
-      req,
-    });
-    logger.info('Webhook delivery retried by admin', {
+    const updated = await retryWebhookDeliveryById({
       deliveryId,
-      adminId: req.user.id,
-      completed: Boolean(updated && updated.completed_at),
+      actorId: req.user.id,
+      req,
     });
     return res.json({ success: true, delivery: updated });
   } catch (error) {
+    if (sendCodedError(res, error)) return;
     logger.error('Retry webhook delivery failed', { deliveryId, error: error.message });
     return sendError(res, 500, 'Failed to retry webhook delivery');
   }
@@ -239,6 +342,8 @@ async function retryWebhookDelivery(req, res) {
 module.exports = {
   MAX_WEBHOOK_ATTEMPTS,
   attemptWebhookRedelivery,
+  retryWebhookDeliveryById,
+  requeueDeadLetterById,
   listDeadLetter,
   requeueDeadLetter,
   retryWebhookDelivery,
