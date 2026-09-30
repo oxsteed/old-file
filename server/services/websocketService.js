@@ -17,7 +17,7 @@ const CLIENT_MESSAGE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][
 // ─────────────────────────────────────────────────────────────────
 // NOTE: `current_user` is a reserved keyword in Postgres and cannot be used
 // as an unquoted table alias, so the users self-join below uses `cu`.
-function buildTicketJoinQuery(ticketId, userId, userRole, guestConversationId) {
+function buildTicketJoinQuery(ticketId, userId, guestConversationId) {
   return {
     text: `SELECT 1
            FROM support_conversations sc
@@ -28,7 +28,7 @@ function buildTicketJoinQuery(ticketId, userId, userRole, guestConversationId) {
             AND cu.deleted_at IS NULL
            WHERE sc.id = $1
              AND (
-               ($2 IS NULL AND $4 = sc.id)
+               ($2 IS NULL AND $3 = sc.id)
                OR (
                  cu.id IS NOT NULL
                  AND ($2 = sc.customer_id
@@ -36,7 +36,7 @@ function buildTicketJoinQuery(ticketId, userId, userRole, guestConversationId) {
                    OR cu.role IN ('admin', 'super_admin'))
                )
              )`,
-    params: [ticketId, userId, userRole, guestConversationId],
+    params: [ticketId, userId, guestConversationId],
   };
 }
 
@@ -180,7 +180,7 @@ class WebSocketService {
         const { ticketId } = data || {};
         if (!ticketId || (!socket.userId && socket.guestConversationId !== ticketId)) return;
         const { text, params } = buildTicketJoinQuery(
-          ticketId, socket.userId, socket.userRole, socket.guestConversationId
+          ticketId, socket.userId, socket.guestConversationId
         );
         const { rows } = await pool.query(text, params);
         if (!rows.length) return;
