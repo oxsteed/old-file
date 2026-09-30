@@ -195,3 +195,18 @@ test('sensitive admin exports are rate-limited and non-cacheable', () => {
   assert.match(controller, /res\.set\('Cache-Control', 'private, no-store'\)/);
   assert.match(controller, /res\.set\('X-Content-Type-Options', 'nosniff'\)/);
 });
+
+test('every manifest route except documented external surfaces is registered in AdminApp', () => {
+  const app = read('src/admin/AdminApp.jsx');
+  const referenced = new Set([...app.matchAll(/adminRoute\('([^']+)'\)/g)].map(([, key]) => key));
+  // directOps (/direct/admin) is a separate product surface with its own
+  // audience, intentionally not mounted inside the admin router.
+  const intentionallyExternal = new Set(['directOps']);
+  const unregistered = Object.keys(ADMIN_ROUTE_MANIFEST).filter(
+    (key) => !intentionallyExternal.has(key) && !referenced.has(key),
+  );
+  assert.deepEqual(unregistered, [], 'manifest routes missing from AdminApp');
+  for (const key of intentionallyExternal) {
+    assert.equal(ADMIN_ROUTE_MANIFEST[key].audience, 'direct', `${key} must stay a direct-audience route`);
+  }
+});

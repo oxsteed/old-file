@@ -42,6 +42,21 @@ node scripts/release-check.cjs --base https://oxsteed.com
 - [ ] `/api/health/deep` returns 200 with `status: ok` and database ok.
 - [ ] Paste the script output into the release record below.
 
+With an admin bearer token the script also runs the authenticated
+operational gate (`/api/monitoring/release-gate`), which `/ready`
+intentionally does not cover:
+
+```bash
+node scripts/release-check.cjs --base https://oxsteed.com --token "$OXSTEED_ADMIN_TOKEN"
+```
+
+- [ ] Gate status is `pass` (200). `warn` keeps the release healthy but
+      every warning must be recorded below with an owner.
+- [ ] Gate `fail` (503) blocks the release: audit-chain integrity, backup
+      freshness, failed webhooks, or failed refunds. A backup failure may
+      only be waived with a named owner and expiry via
+      `RELEASE_GATE_BACKUP_WAIVER_OWNER` / `RELEASE_GATE_BACKUP_WAIVER_UNTIL`.
+
 ## 4. Post-deploy: operations review (admin session)
 
 Open the Admin Operations overview (`/admin/operations`).

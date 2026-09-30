@@ -31,15 +31,20 @@ test('service worker uses a network-first static asset strategy', () => {
 test('optional translation namespaces fail soft while the legacy catalog stays required', () => {
   const source = read('src/i18n/index.js');
   assert.match(source, /const optionalLocaleModule/);
-  assert.equal((source.match(/optionalLocaleModule\(import\(/g) || []).length, 15);
+  assert.equal((source.match(/optionalLocaleModule\(import\(/g) || []).length, 18);
   assert.match(source, /import\('\.\.\/locales\/generated\/en-0\.json'\)/);
 });
 
-test('admin has a complete English fallback for split-catalog failures', () => {
+test('admin English fallback reassembles split shards instead of a monolithic catalog', () => {
   const i18nSource = read('src/i18n/index.js');
   const adminSource = read('src/admin/main.jsx');
   assert.match(i18nSource, /export function initializeEnglishFallback/);
-  assert.match(i18nSource, /import\('\.\.\/locales\/en\.json'\)/);
+  const fallbackFn = i18nSource.slice(i18nSource.indexOf('export function initializeEnglishFallback'));
+  for (const shard of ['en-0', 'en-1', 'en-2']) {
+    assert.match(fallbackFn, new RegExp(`locales/generated/${shard}\\.json`));
+  }
+  assert.doesNotMatch(i18nSource, /locales\/en\.json/);
+  assert.match(fallbackFn, /English fallback resources unavailable/);
   assert.match(adminSource, /initializeEnglishFallback/);
   assert.match(adminSource, /renderAdminBootstrapFailure/);
 });

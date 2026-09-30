@@ -569,3 +569,201 @@ async function _readSecurityPosture() {
 
   return { status, summary, checks };
 }
+
+/**
+ * GET /api/monitoring/release-gate
+ * Authenticated operational release gate. Consolidates the release-blocking
+ * signals that /ready intentionally does not cover: audit-chain integrity,
+ * backup freshness, webhook/delivery failures, queue backlog, and
+ * reconciliation backlog.
+ *
+ * Overall status is "fail" when any signal fails, "warn" when any signal
+ * warns or is unknown, and "pass" otherwise. The backup signal fails closed
+ * when no successful backup is recorded; it supports one explicit,
+ * time-boxed waiver with a named owner via RELEASE_GATE_BACKUP_WAIVER_OWNER
+ * and RELEASE_GATE_BACKUP_WAIVER_UNTIL (ISO timestamp).
+ */
+exports.getReleaseGate = async (req, res, next) => {
+  const checkedAt = new Date().toISOString();
+  const signals = {};
+
+  const tableExists = async (name) => {
+    const { rows } = await pool.query('SELECT to_regclass($1) AS reg', [`public.${name}`]);
+    return rows[0]?.reg !== null;
+  };
+
+  const countWhere = async (table, where, params = []) => {
+    if (!(await tableExists(table))) return null;
+    const { rows } = await pool.query(`SELECT COUNT(*)::int AS n FROM ${table} WHERE ${where}`, params);
+    return rows[0]?.n ?? 0;
+  };
+
+  // 1. Audit-chain integrity: fails closed.
+  try {
+    const { rows } = await pool.query('SELECT * FROM verify_admin_audit_hash_chain()');
+    const result = rows[0] || { valid: true, checked_count: 0, broken_count: 0 };
+    const brokenCount = Number(result.broken_count || 0);
+    signals.auditIntegrity = result.valid
+      ? { status: 'pass', detail: `${Number(result.checked_count || 0)} entries verified` }
+      : {
+          status: 'fail',
+          detail: `${brokenCount} admin audit chain ${brokenCount === 1 ? 'entry is' : 'entries are'} invalid`,
+          brokenCount,
+          firstBrokenId: result.first_broken_id || null,
+        };
+  } catch (err) {
+    logger.warn('Release gate: audit integrity check unavailable', { error: err.message });
+    signals.auditIntegrity = { status: 'unknown', detail: 'audit integrity check unavailable' };
+  }
+
+  // 2. Backup freshness: fails closed unless an explicit waiver is active.
+  try {
+    const status = await backupMonitor.getStatus();
+    const waiverOwner = String(process.env.RELEASE_GATE_BACKUP_WAIVER_OWNER || '').trim();
+    const waiverUntil = String(process.env.RELEASE_GATE_BACKUP_WAIVER_UNTIL || '').trim();
+    const waiverActive = waiverOwner && waiverUntil && new Date(waiverUntil).getTime() > Date.now();
+    if (status.backupHealthy) {
+      signals.backup = {
+        status: 'pass',
+        detail: `last successful backup ${status.hoursSinceBackup ?? '?'}h ago`,
+        hoursSinceBackup: status.hoursSinceBackup ?? null,
+        offsite: status.lastBackupOffsite ?? null,
+      };
+    } else if (waiverActive) {
+      signals.backup = {
+        status: 'waived',
+        detail: `no healthy backup; waived by ${waiverOwner} until ${waiverUntil}`,
+        waiverOwner,
+        waiverUntil,
+      };
+    } else {
+      signals.backup = {
+        status: 'fail',
+        detail: status.lastBackupTime
+          ? `last backup ${status.hoursSinceBackup ?? '?'}h ago was not healthy`
+          : 'no successful backup recorded',
+        hoursSinceBackup: status.hoursSinceBackup ?? null,
+      };
+    }
+  } catch (err) {
+    logger.warn('Release gate: backup status unavailable', { error: err.message });
+    signals.backup = { status: 'unknown', detail: 'backup status unavailable' };
+  }
+
+  // 3. Webhook delivery health.
+  try {
+    const failed24h = await countWhere(
+      'webhook_delivery_log',
+      "completed_at IS NULL AND error_message IS NOT NULL AND created_at >= NOW() - INTERVAL '24 hours'",
+    );
+    const overdue = await countWhere(
+      'webhook_delivery_log',
+      'completed_at IS NULL AND (next_retry_at IS NULL OR next_retry_at <= NOW())',
+    );
+    signals.webhooks = failed24h === null
+      ? { status: 'unknown', detail: 'webhook_delivery_log unavailable' }
+      : failed24h > 0
+        ? { status: 'fail', detail: `${failed24h} webhooks failed in the last 24h`, failed24h, overdue: overdue ?? 0 }
+        : overdue > 0
+          ? { status: 'warn', detail: `${overdue} webhooks awaiting retry`, failed24h, overdue }
+          : { status: 'pass', detail: 'no failed or overdue webhooks', failed24h, overdue: 0 };
+  } catch (err) {
+    logger.warn('Release gate: webhook health unavailable', { error: err.message });
+    signals.webhooks = { status: 'unknown', detail: 'webhook health unavailable' };
+  }
+
+  // 4. Delivery event failures.
+  try {
+    const failed = await countWhere('delivery_event_deliveries', "status = 'failed'");
+    signals.deliveryEvents = failed === null
+      ? { status: 'unknown', detail: 'delivery_event_deliveries unavailable' }
+      : failed > 0
+        ? { status: 'warn', detail: `${failed} failed delivery events`, failed }
+        : { status: 'pass', detail: 'no failed delivery events' };
+  } catch (err) {
+    logger.warn('Release gate: delivery event health unavailable', { error: err.message });
+    signals.deliveryEvents = { status: 'unknown', detail: 'delivery event health unavailable' };
+  }
+
+  // 5. Reconciliation backlog: failed refunds fail the gate, stuck pending warns.
+  try {
+    const refundTables = ['marketplace_transaction_refunds', 'payment_refund_attempts', 'external_refund_attempts'];
+    let failed = 0;
+    let stuckPending = 0;
+    const perTable = {};
+    for (const table of refundTables) {
+      const tFailed = await countWhere(table, "status = 'failed'");
+      const tStuck = await countWhere(table, "status = 'pending' AND updated_at < NOW() - INTERVAL '1 hour'");
+      if (tFailed === null) continue;
+      perTable[table] = { failed: tFailed, stuckPending: tStuck ?? 0 };
+      failed += tFailed;
+      stuckPending += tStuck ?? 0;
+    }
+    let creditRun = null;
+    if (await tableExists('oxsteed_credit_reconciliation_runs')) {
+      const { rows } = await pool.query(
+        `SELECT status, started_at FROM oxsteed_credit_reconciliation_runs ORDER BY started_at DESC, id DESC LIMIT 1`,
+      );
+      creditRun = rows[0] || null;
+    }
+    const creditBad = creditRun && ['failed', 'difference'].includes(creditRun.status);
+    signals.reconciliation = failed > 0 || creditBad
+      ? {
+          status: 'fail',
+          detail: `${failed} failed refunds${creditBad ? `; latest credit reconciliation run: ${creditRun.status}` : ''}`,
+          failedRefunds: failed,
+          stuckPendingRefunds: stuckPending,
+          perTable,
+        }
+      : stuckPending > 0
+        ? {
+            status: 'warn',
+            detail: `${stuckPending} refunds stuck pending over 1h`,
+            failedRefunds: 0,
+            stuckPendingRefunds: stuckPending,
+            perTable,
+          }
+        : {
+            status: 'pass',
+            detail: 'no failed or stuck refunds',
+            failedRefunds: 0,
+            stuckPendingRefunds: 0,
+            perTable,
+          };
+  } catch (err) {
+    logger.warn('Release gate: reconciliation backlog unavailable', { error: err.message });
+    signals.reconciliation = { status: 'unknown', detail: 'reconciliation backlog unavailable' };
+  }
+
+  // 6. Queue backlog: support items waiting longer than 24h.
+  try {
+    const stale = await countWhere(
+      'support_queue',
+      "status = 'waiting' AND queued_at < NOW() - INTERVAL '24 hours'",
+    );
+    signals.queues = stale === null
+      ? { status: 'unknown', detail: 'support_queue unavailable' }
+      : stale > 0
+        ? { status: 'warn', detail: `${stale} support items waiting over 24h`, staleWaiting: stale }
+        : { status: 'pass', detail: 'no stale queued items', staleWaiting: 0 };
+  } catch (err) {
+    logger.warn('Release gate: queue backlog unavailable', { error: err.message });
+    signals.queues = { status: 'unknown', detail: 'queue backlog unavailable' };
+  }
+
+  const statuses = Object.values(signals).map((signal) => signal.status);
+  const overall = statuses.includes('fail')
+    ? 'fail'
+    : statuses.includes('warn') || statuses.includes('unknown')
+      ? 'warn'
+      : 'pass';
+
+  if (overall === 'fail') {
+    logger.error('Release gate FAILED', {
+      checkedAt,
+      failing: Object.entries(signals).filter(([, s]) => s.status === 'fail').map(([k]) => k),
+    });
+  }
+
+  res.status(overall === 'fail' ? 503 : 200).json({ status: overall, checkedAt, signals });
+};

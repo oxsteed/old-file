@@ -212,21 +212,34 @@ export function ensureLanguageLoaded(code) {
 }
 
 /**
- * Last-resort bootstrap for an asset-cache failure. The legacy catalog is
- * intentionally kept out of the normal startup path, but it provides a
- * complete English surface if a split catalog cannot be fetched.
+ * Last-resort bootstrap for an asset-cache failure. English is reassembled
+ * from the same split shards as the normal startup path, so the bundler
+ * never emits a monolithic catalog chunk and every locale asset stays under
+ * the size budget. Each shard fails soft; when no shard loads at all the
+ * promise rejects so the caller renders the safe retry state instead of an
+ * admin full of raw keys.
  */
 export function initializeEnglishFallback() {
-  return import('../locales/en.json').then((module) => i18n.use(initReactI18next).init({
-    resources: { en: { translation: module.default } },
-    lng: 'en',
-    fallbackLng: 'en',
-    supportedLngs: ['en'],
-    ns: ['translation'],
-    defaultNS: 'translation',
-    interpolation: { escapeValue: false },
-    react: { useSuspense: false },
-  }));
+  return Promise.all([
+    optionalLocaleModule(import('../locales/generated/en-0.json')),
+    optionalLocaleModule(import('../locales/generated/en-1.json')),
+    optionalLocaleModule(import('../locales/generated/en-2.json')),
+  ]).then((parts) => {
+    const translation = Object.assign({}, ...parts.map((part) => part.default));
+    if (Object.keys(translation).length === 0) {
+      throw new Error('English fallback resources unavailable');
+    }
+    return i18n.use(initReactI18next).init({
+      resources: { en: { translation } },
+      lng: 'en',
+      fallbackLng: 'en',
+      supportedLngs: ['en'],
+      ns: ['translation'],
+      defaultNS: 'translation',
+      interpolation: { escapeValue: false },
+      react: { useSuspense: false },
+    });
+  });
 }
 
 export function ensureLegalContentLoaded(code) {

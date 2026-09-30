@@ -48,4 +48,8 @@ router.get('/incident-summary', monitoringController.getIncidentSummary);
 router.post('/incidents/:incidentId/acknowledge', monitoringController.acknowledgeIncident);
 router.post('/incidents/:incidentId/resolve', monitoringController.resolveIncident);
 
+// Authenticated operational release gate: audit integrity, backup freshness,
+// webhook/delivery failures, queue backlog, reconciliation backlog.
+router.get('/release-gate', monitoringController.getReleaseGate);
+
 module.exports = router;

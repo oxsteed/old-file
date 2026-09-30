@@ -220,3 +220,112 @@ describe('monitoring routes', () => {
     expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('release gate', () => {
+  const backupMonitor = require('../services/backupMonitor');
+
+  function gateQueryMock({ chainValid = true, failedWebhooks24h = 0, overdueWebhooks = 0, failedRefunds = 0 } = {}) {
+    return (sql) => {
+      if (/FROM users WHERE id/.test(sql)) {
+        return Promise.resolve({ rows: [{ id: ADMIN_ID, role: 'super_admin', is_active: true, totp_enabled: true }] });
+      }
+      if (/verify_admin_audit_hash_chain/.test(sql)) {
+        return Promise.resolve({
+          rows: [{ valid: chainValid, checked_count: '12', broken_count: chainValid ? '0' : '3', first_broken_id: chainValid ? null : '9' }],
+        });
+      }
+      if (/to_regclass/.test(sql)) {
+        return Promise.resolve({ rows: [{ reg: 'public.some_table' }] });
+      }
+      if (/FROM webhook_delivery_log/.test(sql)) {
+        const n = /error_message IS NOT NULL/.test(sql) ? failedWebhooks24h : overdueWebhooks;
+        return Promise.resolve({ rows: [{ n }] });
+      }
+      if (/FROM delivery_event_deliveries/.test(sql)) {
+        return Promise.resolve({ rows: [{ n: 0 }] });
+      }
+      if (/FROM (marketplace_transaction_refunds|payment_refund_attempts|external_refund_attempts)/.test(sql)) {
+        const n = /status = 'failed'/.test(sql) ? failedRefunds : 0;
+        return Promise.resolve({ rows: [{ n }] });
+      }
+      if (/FROM oxsteed_credit_reconciliation_runs/.test(sql)) {
+        return Promise.resolve({ rows: [{ status: 'balanced', started_at: '2026-09-30T00:00:00.000Z' }] });
+      }
+      if (/FROM support_queue/.test(sql)) {
+        return Promise.resolve({ rows: [{ n: 0 }] });
+      }
+      return Promise.resolve({ rows: [] });
+    };
+  }
+
+  test('passes when every operational signal is healthy', async () => {
+    backupMonitor.getStatus.mockResolvedValue({ backupHealthy: true, hoursSinceBackup: '3.50', lastBackupOffsite: true });
+    mockQuery.mockImplementation(gateQueryMock());
+
+    const res = await request(buildApp())
+      .get('/api/monitoring/release-gate')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('pass');
+    expect(res.body.signals.auditIntegrity.status).toBe('pass');
+    expect(res.body.signals.backup.status).toBe('pass');
+    expect(res.body.signals.webhooks.status).toBe('pass');
+    expect(res.body.signals.reconciliation.status).toBe('pass');
+    expect(res.body.signals.queues.status).toBe('pass');
+    expect(res.body.checkedAt).toBeTruthy();
+  });
+
+  test('fails closed with 503 when the audit chain is broken and no backup exists', async () => {
+    backupMonitor.getStatus.mockResolvedValue({ backupHealthy: false, lastBackupTime: undefined, hoursSinceBackup: null });
+    mockQuery.mockImplementation(gateQueryMock({ chainValid: false }));
+
+    const res = await request(buildApp())
+      .get('/api/monitoring/release-gate')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(503);
+    expect(res.body.status).toBe('fail');
+    expect(res.body.signals.auditIntegrity).toMatchObject({ status: 'fail', brokenCount: 3 });
+    expect(res.body.signals.backup).toMatchObject({ status: 'fail' });
+    expect(res.body.signals.backup.detail).toMatch(/no successful backup/);
+  });
+
+  test('backup waiver with a named owner and future expiry downgrades the backup signal', async () => {
+    backupMonitor.getStatus.mockResolvedValue({ backupHealthy: false, lastBackupTime: undefined, hoursSinceBackup: null });
+    mockQuery.mockImplementation(gateQueryMock());
+    process.env.RELEASE_GATE_BACKUP_WAIVER_OWNER = 'Emile';
+    process.env.RELEASE_GATE_BACKUP_WAIVER_UNTIL = '2099-01-01T00:00:00.000Z';
+    try {
+      const res = await request(buildApp())
+        .get('/api/monitoring/release-gate')
+        .set('Authorization', adminAuthHeader());
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('pass');
+      expect(res.body.signals.backup).toMatchObject({ status: 'waived', waiverOwner: 'Emile' });
+    } finally {
+      delete process.env.RELEASE_GATE_BACKUP_WAIVER_OWNER;
+      delete process.env.RELEASE_GATE_BACKUP_WAIVER_UNTIL;
+    }
+  });
+
+  test('failed webhooks and failed refunds fail the gate', async () => {
+    backupMonitor.getStatus.mockResolvedValue({ backupHealthy: true, hoursSinceBackup: '1.00' });
+    mockQuery.mockImplementation(gateQueryMock({ failedWebhooks24h: 2, failedRefunds: 1 }));
+
+    const res = await request(buildApp())
+      .get('/api/monitoring/release-gate')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(503);
+    expect(res.body.status).toBe('fail');
+    expect(res.body.signals.webhooks).toMatchObject({ status: 'fail', failed24h: 2 });
+    expect(res.body.signals.reconciliation).toMatchObject({ status: 'fail', failedRefunds: 3 });
+  });
+
+  test('requires admin authentication', async () => {
+    const res = await request(buildApp()).get('/api/monitoring/release-gate');
+    expect(res.status).toBe(401);
+  });
+});
