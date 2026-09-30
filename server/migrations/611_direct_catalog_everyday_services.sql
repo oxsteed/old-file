@@ -375,7 +375,7 @@ WITH seeded(category_slug, slug, name_i18n, description_i18n, display_order) AS 
         'ht', 'Enspekte epi trete chanm ak mèb kont pis lit, ak estimasyon anvan.',
         'ar', 'فحص ومعالجة غرف النوم والأثاث ضد بق الفراش، مع عرض سعر مسبق.'
       ), 50
-    )
+    ),
     -- Locksmith
     (
       'locksmith', 'emergency-lockout-service',
