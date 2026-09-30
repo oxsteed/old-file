@@ -25003,5 +25003,165 @@
     "freightMultimodal": "multimodal",
     "freightCourier": "courier",
     "freightExpress": "express"
+  },
+
+  "adminReconciliation": {
+    "actions": {
+      "acknowledge": "Acknowledge",
+      "acknowledgeFailed": "Could not acknowledge the exception.",
+      "acknowledged": "Exception acknowledged.",
+      "adminIdPlaceholder": "Admin ID",
+      "assignFailed": "Could not assign the exception.",
+      "assignLabel": "Assign owner",
+      "assignPlaceholder": "Assign...",
+      "assigned": "Exception assigned.",
+      "drillDown": "Open {{domain}} records",
+      "resolve": "Resolve",
+      "resolveFailed": "Could not resolve the exception.",
+      "resolveMessage": "Mark this exception as resolved? This confirms the underlying issue was handled.",
+      "resolveTitle": "Resolve exception",
+      "resolved": "Exception resolved."
+    },
+    "age": {
+      "days": "{{count}}d",
+      "hours": "{{count}}h",
+      "justNow": "now",
+      "minutes": "{{count}}m"
+    },
+    "domain": {
+      "credit": "Credit",
+      "externalRefund": "External refund",
+      "marketplaceRefund": "Marketplace refund",
+      "paymentRefund": "Payment refund",
+      "payoutSettlement": "Payout settlement"
+    },
+    "filters": {
+      "domain": "Domain",
+      "domainAll": "All domains",
+      "severity": "Severity",
+      "severityAll": "All severities",
+      "status": "Status",
+      "statusAll": "All statuses",
+      "title": "Filters"
+    },
+    "owner": {
+      "unassigned": "Unassigned"
+    },
+    "pagination": {
+      "next": "Next",
+      "previous": "Previous",
+      "showing": "{{from}} to {{to}} of {{total}}"
+    },
+    "severity": {
+      "critical": "Critical",
+      "info": "Info",
+      "warning": "Warning"
+    },
+    "stats": {
+      "failedCreditRuns": "Failed credit runs (7d)",
+      "stuckRefundAttempts": "Stuck refund attempts",
+      "unsettledPayouts": "Unsettled payouts (48h)"
+    },
+    "status": {
+      "acknowledged": "Acknowledged",
+      "open": "Open",
+      "resolved": "Resolved"
+    },
+    "subtitle": "Stuck refunds, failed credit runs, and unsettled payouts that need human review.",
+    "table": {
+      "actions": "Actions",
+      "age": "Age",
+      "domain": "Domain",
+      "empty": "No reconciliation exceptions match these filters.",
+      "owner": "Owner",
+      "reference": "Ref {{id}}",
+      "severity": "Severity",
+      "status": "Status",
+      "summary": "Summary"
+    },
+    "title": "Reconciliation Exceptions"
   }
+,
+
+  "adminIncidents": {
+    "acknowledge": "Acknowledge",
+    "acknowledgeFailed": "Could not acknowledge the incident",
+    "acknowledged": "Incident acknowledged",
+    "acknowledgedBy": "by {{id}}",
+    "acknowledging": "Acknowledging...",
+    "cancel": "Cancel",
+    "confirmResolve": "Confirm resolution",
+    "description": "Review, acknowledge, and resolve platform incidents. Data refreshes automatically while this tab is visible.",
+    "emptyMessage": "There are no incidents matching the current filters. Try clearing the filters or check back later.",
+    "emptyTitle": "No incidents match",
+    "eyebrow": "Observability",
+    "filterSearch": "Search",
+    "filterSeverity": "Severity",
+    "filterStatus": "Status",
+    "loadErrorMessage": "The incident list failed to load. Please try again.",
+    "loadErrorTitle": "Could not load incidents",
+    "loading": "Loading incidents",
+    "notAcknowledged": "Not acknowledged",
+    "refresh": "Refresh",
+    "resolve": "Resolve",
+    "resolveFailed": "Could not resolve the incident",
+    "resolveNotesLabel": "Resolution notes",
+    "resolveNotesPlaceholder": "What was done to resolve this incident? (optional)",
+    "resolved": "Incident resolved",
+    "resolving": "Resolving...",
+    "searchPlaceholder": "Search by type or message...",
+    "severity": {
+      "all": "All severities",
+      "critical": "Critical",
+      "high": "High",
+      "info": "Info",
+      "low": "Low",
+      "medium": "Medium",
+      "unknown": "Unknown",
+      "warning": "Warning"
+    },
+    "status": {
+      "acknowledged": "Acknowledged",
+      "all": "All statuses",
+      "open": "Open",
+      "resolved": "Resolved"
+    },
+    "summaryActiveAlerts": "Active alerts",
+    "summaryLast24h": "Incidents in last 24h",
+    "summaryOpenIncidents": "Open incidents",
+    "table": {
+      "acknowledged": "Acknowledged",
+      "actions": "Actions",
+      "firstSeen": "First seen",
+      "lastSeen": "Last seen",
+      "message": "Message",
+      "occurrences": "Occurrences",
+      "severity": "Severity",
+      "status": "Status",
+      "type": "Type"
+    },
+    "title": "Incident Management",
+    "updated": "Updated {{time}}"
+  },
+  "adminOpsActions": {
+    "attempts": "{{count}} attempts",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "confirmRequeue": "Requeue this message?",
+    "confirmRetry": "Retry this webhook?",
+    "deadLetter": "Dead letter",
+    "error": "Action failed",
+    "lastAttempt": "Last attempt {{time}}",
+    "processing": "Processing...",
+    "requeue": "Requeue",
+    "requeueFailed": "Could not requeue the message.",
+    "requeueSuccess": "Message requeued.",
+    "retry": "Retry",
+    "retryFailed": "Could not schedule the retry.",
+    "retryNow": "Retry now",
+    "retrySuccess": "Retry scheduled.",
+    "success": "Action completed",
+    "title": "Queue and webhook actions"
+  }
+
 }

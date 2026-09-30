@@ -5,6 +5,7 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 const { withJobLock } = require('./jobLockingService');
 const { reconcileExternalRefundAttempt } = require('../services/externalRefundService');
+const { recordException } = require('../services/reconciliationExceptions');
 
 const CRON_EXPRESSION = '*/5 * * * *';
 const CRON_TIMEZONE = 'UTC';
@@ -39,7 +40,16 @@ async function runExternalRefundReconciliation({ limit = BATCH_SIZE } = {}) {
         result.settled += 1;
       } catch (error) {
         result.failed += 1;
+        const attempts = (Number(row.reconciliation_attempts) || 0) + 1;
         logger.warn('External refund reconciliation attempt failed', { refundId: row.id, error: error.message });
+        await recordException({
+          domain: 'external_refund',
+          referenceId: row.id,
+          severity: attempts >= 3 ? 'critical' : 'warning',
+          summary: `External refund reconciliation attempt failed for attempt ${row.id}`,
+          details: { error: String(error.message || 'Reconciliation failed').slice(0, 1000), attempts },
+          sourceRunId: JOB_NAME,
+        });
       }
     }
   }, 300, { throwOnLockError: true });

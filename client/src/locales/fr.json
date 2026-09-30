@@ -24993,5 +24993,165 @@
     "freightMultimodal": "multimodal",
     "freightCourier": "coursier",
     "freightExpress": "express"
+  },
+
+  "adminReconciliation": {
+    "actions": {
+      "acknowledge": "Accuser réception",
+      "acknowledgeFailed": "Impossible de confirmer l'exception.",
+      "acknowledged": "Exception confirmée.",
+      "adminIdPlaceholder": "ID administrateur",
+      "assignFailed": "Impossible d'assigner l'exception.",
+      "assignLabel": "Assigner un responsable",
+      "assignPlaceholder": "Assigner...",
+      "assigned": "Exception assignée.",
+      "drillDown": "Ouvrir les enregistrements {{domain}}",
+      "resolve": "Résoudre",
+      "resolveFailed": "Impossible de résoudre l'exception.",
+      "resolveMessage": "Marquer cette exception comme résolue ? Cela confirme que le problème sous-jacent a été traité.",
+      "resolveTitle": "Résoudre l'exception",
+      "resolved": "Exception résolue."
+    },
+    "age": {
+      "days": "{{count}}j",
+      "hours": "{{count}}h",
+      "justNow": "à l'instant",
+      "minutes": "{{count}}min"
+    },
+    "domain": {
+      "credit": "Crédit",
+      "externalRefund": "Remboursement externe",
+      "marketplaceRefund": "Remboursement marketplace",
+      "paymentRefund": "Remboursement de paiement",
+      "payoutSettlement": "Règlement des paiements"
+    },
+    "filters": {
+      "domain": "Domaine",
+      "domainAll": "Tous les domaines",
+      "severity": "Gravité",
+      "severityAll": "Toutes les gravités",
+      "status": "Statut",
+      "statusAll": "Tous les statuts",
+      "title": "Filtres"
+    },
+    "owner": {
+      "unassigned": "Non assignée"
+    },
+    "pagination": {
+      "next": "Suivant",
+      "previous": "Précédent",
+      "showing": "{{from}} à {{to}} sur {{total}}"
+    },
+    "severity": {
+      "critical": "Critique",
+      "info": "Info",
+      "warning": "Avertissement"
+    },
+    "stats": {
+      "failedCreditRuns": "Exécutions de crédit échouées (7j)",
+      "stuckRefundAttempts": "Tentatives de remboursement bloquées",
+      "unsettledPayouts": "Paiements non réglés (48h)"
+    },
+    "status": {
+      "acknowledged": "Confirmée",
+      "open": "Ouverte",
+      "resolved": "Résolue"
+    },
+    "subtitle": "Remboursements bloqués, exécutions de crédit échouées et paiements non réglés nécessitant une révision humaine.",
+    "table": {
+      "actions": "Actions",
+      "age": "Ancienneté",
+      "domain": "Domaine",
+      "empty": "Aucune exception de rapprochement ne correspond à ces filtres.",
+      "owner": "Responsable",
+      "reference": "Réf. {{id}}",
+      "severity": "Gravité",
+      "status": "Statut",
+      "summary": "Résumé"
+    },
+    "title": "Exceptions de rapprochement"
   }
+,
+
+  "adminIncidents": {
+    "acknowledge": "Confirmer",
+    "acknowledgeFailed": "Impossible de confirmer l'incident",
+    "acknowledged": "Incident confirmé",
+    "acknowledgedBy": "par {{id}}",
+    "acknowledging": "Confirmation...",
+    "cancel": "Annuler",
+    "confirmResolve": "Confirmer la résolution",
+    "description": "Examinez, confirmez et résolvez les incidents de la plateforme. Les données s'actualisent automatiquement tant que cet onglet est visible.",
+    "emptyMessage": "Aucun incident ne correspond aux filtres actuels. Essayez d'effacer les filtres ou revenez plus tard.",
+    "emptyTitle": "Aucun incident correspondant",
+    "eyebrow": "Observabilité",
+    "filterSearch": "Rechercher",
+    "filterSeverity": "Gravité",
+    "filterStatus": "Statut",
+    "loadErrorMessage": "Le chargement de la liste des incidents a échoué. Veuillez réessayer.",
+    "loadErrorTitle": "Impossible de charger les incidents",
+    "loading": "Chargement des incidents",
+    "notAcknowledged": "Non confirmé",
+    "refresh": "Actualiser",
+    "resolve": "Résoudre",
+    "resolveFailed": "Impossible de résoudre l'incident",
+    "resolveNotesLabel": "Notes de résolution",
+    "resolveNotesPlaceholder": "Qu'a-t-il été fait pour résoudre cet incident ? (facultatif)",
+    "resolved": "Incident résolu",
+    "resolving": "Résolution...",
+    "searchPlaceholder": "Rechercher par type ou message...",
+    "severity": {
+      "all": "Toutes les gravités",
+      "critical": "Critique",
+      "high": "Élevée",
+      "info": "Info",
+      "low": "Faible",
+      "medium": "Moyenne",
+      "unknown": "Inconnue",
+      "warning": "Avertissement"
+    },
+    "status": {
+      "acknowledged": "Confirmé",
+      "all": "Tous les statuts",
+      "open": "Ouvert",
+      "resolved": "Résolu"
+    },
+    "summaryActiveAlerts": "Alertes actives",
+    "summaryLast24h": "Incidents des dernières 24 h",
+    "summaryOpenIncidents": "Incidents ouverts",
+    "table": {
+      "acknowledged": "Confirmé",
+      "actions": "Actions",
+      "firstSeen": "Première détection",
+      "lastSeen": "Dernière détection",
+      "message": "Message",
+      "occurrences": "Occurrences",
+      "severity": "Gravité",
+      "status": "Statut",
+      "type": "Type"
+    },
+    "title": "Gestion des incidents",
+    "updated": "Mis à jour {{time}}"
+  },
+  "adminOpsActions": {
+    "attempts": "{{count}} tentatives",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "confirmRequeue": "Remettre ce message en file ?",
+    "confirmRetry": "Réessayer ce webhook ?",
+    "deadLetter": "Lettre morte",
+    "error": "Échec de l'action",
+    "lastAttempt": "Dernière tentative {{time}}",
+    "processing": "Traitement...",
+    "requeue": "Remettre en file",
+    "requeueFailed": "Impossible de remettre le message en file.",
+    "requeueSuccess": "Message remis en file.",
+    "retry": "Réessayer",
+    "retryFailed": "Impossible de planifier la nouvelle tentative.",
+    "retryNow": "Réessayer maintenant",
+    "retrySuccess": "Nouvelle tentative planifiée.",
+    "success": "Action terminée",
+    "title": "Actions des files et webhooks"
+  }
+
 }

@@ -17,6 +17,7 @@ const PERMISSION_SCOPES = {
   manage_admin_accounts: 'Create and enable/disable admin accounts',
   message_users:         'Send direct admin-to-user messages',
   create_users:          'Create new regular user accounts (customer/helper/broker)',
+  manage_operations:      'Retry queues and webhooks, test and reconnect integrations, manage incidents',
 };
 
 const VALID_PERMISSIONS = Object.keys(PERMISSION_SCOPES);

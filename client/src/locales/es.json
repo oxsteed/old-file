@@ -24993,5 +24993,165 @@
     "freightMultimodal": "multimodal",
     "freightCourier": "mensajería",
     "freightExpress": "exprés"
+  },
+
+  "adminReconciliation": {
+    "actions": {
+      "acknowledge": "Reconocer",
+      "acknowledgeFailed": "No se pudo reconocer la excepción.",
+      "acknowledged": "Excepción reconocida.",
+      "adminIdPlaceholder": "ID de administrador",
+      "assignFailed": "No se pudo asignar la excepción.",
+      "assignLabel": "Asignar responsable",
+      "assignPlaceholder": "Asignar...",
+      "assigned": "Excepción asignada.",
+      "drillDown": "Abrir registros de {{domain}}",
+      "resolve": "Resolver",
+      "resolveFailed": "No se pudo resolver la excepción.",
+      "resolveMessage": "¿Marcar esta excepción como resuelta? Esto confirma que el problema subyacente fue atendido.",
+      "resolveTitle": "Resolver excepción",
+      "resolved": "Excepción resuelta."
+    },
+    "age": {
+      "days": "{{count}}d",
+      "hours": "{{count}}h",
+      "justNow": "ahora",
+      "minutes": "{{count}}min"
+    },
+    "domain": {
+      "credit": "Crédito",
+      "externalRefund": "Reembolso externo",
+      "marketplaceRefund": "Reembolso de marketplace",
+      "paymentRefund": "Reembolso de pago",
+      "payoutSettlement": "Liquidación de pagos"
+    },
+    "filters": {
+      "domain": "Dominio",
+      "domainAll": "Todos los dominios",
+      "severity": "Severidad",
+      "severityAll": "Todas las severidades",
+      "status": "Estado",
+      "statusAll": "Todos los estados",
+      "title": "Filtros"
+    },
+    "owner": {
+      "unassigned": "Sin asignar"
+    },
+    "pagination": {
+      "next": "Siguiente",
+      "previous": "Anterior",
+      "showing": "{{from}} a {{to}} de {{total}}"
+    },
+    "severity": {
+      "critical": "Crítica",
+      "info": "Informativa",
+      "warning": "Advertencia"
+    },
+    "stats": {
+      "failedCreditRuns": "Ejecuciones de crédito fallidas (7d)",
+      "stuckRefundAttempts": "Intentos de reembolso bloqueados",
+      "unsettledPayouts": "Pagos no liquidados (48h)"
+    },
+    "status": {
+      "acknowledged": "Reconocida",
+      "open": "Abierta",
+      "resolved": "Resuelta"
+    },
+    "subtitle": "Reembolsos bloqueados, ejecuciones de crédito fallidas y pagos no liquidados que requieren revisión humana.",
+    "table": {
+      "actions": "Acciones",
+      "age": "Antigüedad",
+      "domain": "Dominio",
+      "empty": "No hay excepciones de conciliación que coincidan con estos filtros.",
+      "owner": "Responsable",
+      "reference": "Ref. {{id}}",
+      "severity": "Severidad",
+      "status": "Estado",
+      "summary": "Resumen"
+    },
+    "title": "Excepciones de conciliación"
   }
+,
+
+  "adminIncidents": {
+    "acknowledge": "Confirmar",
+    "acknowledgeFailed": "No se pudo confirmar el incidente",
+    "acknowledged": "Incidente confirmado",
+    "acknowledgedBy": "por {{id}}",
+    "acknowledging": "Confirmando...",
+    "cancel": "Cancelar",
+    "confirmResolve": "Confirmar resolución",
+    "description": "Revisa, confirma y resuelve los incidentes de la plataforma. Los datos se actualizan automáticamente mientras esta pestaña está visible.",
+    "emptyMessage": "No hay incidentes que coincidan con los filtros actuales. Prueba a borrar los filtros o vuelve más tarde.",
+    "emptyTitle": "Sin incidentes coincidentes",
+    "eyebrow": "Observabilidad",
+    "filterSearch": "Buscar",
+    "filterSeverity": "Severidad",
+    "filterStatus": "Estado",
+    "loadErrorMessage": "No se pudo cargar la lista de incidentes. Inténtalo de nuevo.",
+    "loadErrorTitle": "No se pudieron cargar los incidentes",
+    "loading": "Cargando incidentes",
+    "notAcknowledged": "Sin confirmar",
+    "refresh": "Actualizar",
+    "resolve": "Resolver",
+    "resolveFailed": "No se pudo resolver el incidente",
+    "resolveNotesLabel": "Notas de resolución",
+    "resolveNotesPlaceholder": "¿Qué se hizo para resolver este incidente? (opcional)",
+    "resolved": "Incidente resuelto",
+    "resolving": "Resolviendo...",
+    "searchPlaceholder": "Buscar por tipo o mensaje...",
+    "severity": {
+      "all": "Todas las severidades",
+      "critical": "Crítica",
+      "high": "Alta",
+      "info": "Informativa",
+      "low": "Baja",
+      "medium": "Media",
+      "unknown": "Desconocida",
+      "warning": "Advertencia"
+    },
+    "status": {
+      "acknowledged": "Confirmado",
+      "all": "Todos los estados",
+      "open": "Abierto",
+      "resolved": "Resuelto"
+    },
+    "summaryActiveAlerts": "Alertas activas",
+    "summaryLast24h": "Incidentes en las últimas 24 h",
+    "summaryOpenIncidents": "Incidentes abiertos",
+    "table": {
+      "acknowledged": "Confirmado",
+      "actions": "Acciones",
+      "firstSeen": "Primera vez",
+      "lastSeen": "Última vez",
+      "message": "Mensaje",
+      "occurrences": "Ocurrencias",
+      "severity": "Severidad",
+      "status": "Estado",
+      "type": "Tipo"
+    },
+    "title": "Gestión de incidentes",
+    "updated": "Actualizado {{time}}"
+  },
+  "adminOpsActions": {
+    "attempts": "{{count}} intentos",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "confirmRequeue": "¿Reencolar este mensaje?",
+    "confirmRetry": "¿Reintentar este webhook?",
+    "deadLetter": "Carta muerta",
+    "error": "La acción falló",
+    "lastAttempt": "Último intento {{time}}",
+    "processing": "Procesando...",
+    "requeue": "Reencolar",
+    "requeueFailed": "No se pudo reencolar el mensaje.",
+    "requeueSuccess": "Mensaje reencolado.",
+    "retry": "Reintentar",
+    "retryFailed": "No se pudo programar el reintento.",
+    "retryNow": "Reintentar ahora",
+    "retrySuccess": "Reintento programado.",
+    "success": "Acción completada",
+    "title": "Acciones de colas y webhooks"
+  }
+
 }

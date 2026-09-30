@@ -33,6 +33,7 @@ const ModeApprovals = lazyWithRetry(() => import('./pages/super/ModeApprovals'))
 const Revenue = lazyWithRetry(() => import('./pages/super/Revenue'));
 const MoneyPage = lazyWithRetry(() => import('./pages/super/MoneyPage'));
 const Payouts = lazyWithRetry(() => import('./pages/super/Payouts'));
+const ReconciliationExceptions = lazyWithRetry(() => import('./pages/ReconciliationExceptions'));
 const AdminAccounts = lazyWithRetry(() => import('./pages/super/AdminAccounts'));
 const SearchLogs = lazyWithRetry(() => import('./pages/super/SearchLogs'));
 const PermissionGrants = lazyWithRetry(() => import('./pages/super/PermissionGrants'));
@@ -129,6 +130,7 @@ const AdminEnforcementDashboard = lazyWithRetry(() => import('./pages/AdminEnfor
 const LearnSubmissionsAdmin = lazyWithRetry(() => import('./pages/LearnSubmissionsAdmin'));
 const LearnProductLinksAdmin = lazyWithRetry(() => import('./pages/LearnProductLinksAdmin'));
 const OperationsOverview = lazyWithRetry(() => import('./pages/OperationsOverview'));
+const IncidentManagement = lazyWithRetry(() => import('./pages/IncidentManagement'));
 
 function AdminGuard({ children, superOnly = false }) {
   const { user, loading } = useAuth();
@@ -185,6 +187,9 @@ export default function AdminApp() {
           {/* Regular admin */}
           <Route path={adminRoute('dashboard').relative} element={<SuperDashboard />} />
           <Route path={adminRoute('operations').relative} element={<OperationsOverview />} />
+          <Route path={adminRoute('incidents').relative} element={
+            <GrantGuard grant={adminRoute('incidents').grant}><IncidentManagement /></GrantGuard>
+          } />
           <Route path={adminRoute('users').relative} element={<UsersList />} />
           <Route path={adminRoute('userDetail').relative} element={<UserDetail />} />
           <Route path={adminRoute('jobs').relative} element={<JobsList />} />
@@ -277,6 +282,9 @@ export default function AdminApp() {
           } />
           <Route path={adminRoute('payouts').relative} element={
             <GrantGuard grant={adminRoute('payouts').grant}><Payouts /></GrantGuard>
+          } />
+          <Route path={adminRoute('reconciliationExceptions').relative} element={
+            <GrantGuard grant={adminRoute('reconciliationExceptions').grant}><ReconciliationExceptions /></GrantGuard>
           } />
           <Route path={adminRoute('conversations').relative} element={
             <AdminGuard superOnly={adminRoute('conversations').superOnly}><ConversationsAdmin /></AdminGuard>

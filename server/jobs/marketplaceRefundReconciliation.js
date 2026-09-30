@@ -5,6 +5,7 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 const { withJobLock } = require('./jobLockingService');
 const { reconcileMarketplaceRefundReservation } = require('../services/marketplaceRefundService');
+const { recordException } = require('../services/reconciliationExceptions');
 
 const CRON_EXPRESSION = '*/5 * * * *';
 const CRON_TIMEZONE = 'UTC';
@@ -58,13 +59,23 @@ async function runMarketplaceRefundReconciliation({ limit = BATCH_SIZE } = {}) {
         result.settled += 1;
       } catch (error) {
         result.failed += 1;
+        const attempts = (Number(row.reconciliation_attempts) || 0) + 1;
+        const errorMessage = String(error.message || 'Reconciliation failed').slice(0, 1000);
         await pool.query(
           `UPDATE marketplace_transaction_refunds
               SET last_error = $2, updated_at = CURRENT_TIMESTAMP
             WHERE id = $1 AND status = 'pending'`,
-          [row.id, String(error.message || 'Reconciliation failed').slice(0, 1000)]
+          [row.id, errorMessage]
         );
         logger.warn('Marketplace refund reconciliation attempt failed', { refundId: row.id, error: error.message });
+        await recordException({
+          domain: 'marketplace_refund',
+          referenceId: row.id,
+          severity: attempts >= 3 ? 'critical' : 'warning',
+          summary: `Marketplace refund reconciliation attempt failed for refund ${row.id}`,
+          details: { error: errorMessage, attempts },
+          sourceRunId: JOB_NAME,
+        });
       }
     }
   }, 300, { throwOnLockError: true });

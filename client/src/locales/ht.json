@@ -24993,5 +24993,165 @@
     "freightMultimodal": "miltimodal",
     "freightCourier": "kourye",
     "freightExpress": "eksprè"
+  },
+
+  "adminReconciliation": {
+    "actions": {
+      "acknowledge": "Rekonèt",
+      "acknowledgeFailed": "Pa t kapab rekonèt eksepsyon an.",
+      "acknowledged": "Eksepsyon an rekonèt.",
+      "adminIdPlaceholder": "ID administratè",
+      "assignFailed": "Pa t kapab asiyen eksepsyon an.",
+      "assignLabel": "Asiyen responsab",
+      "assignPlaceholder": "Asiyen...",
+      "assigned": "Eksepsyon an asiyen.",
+      "drillDown": "Louvri dosye {{domain}} yo",
+      "resolve": "Rezoud",
+      "resolveFailed": "Pa t kapab rezoud eksepsyon an.",
+      "resolveMessage": "Make eksepsyon sa a kòm rezoud? Sa konfime pwoblèm nan te regle.",
+      "resolveTitle": "Rezoud eksepsyon",
+      "resolved": "Eksepsyon an rezoud."
+    },
+    "age": {
+      "days": "{{count}}j",
+      "hours": "{{count}}è",
+      "justNow": "kounye a",
+      "minutes": "{{count}}min"
+    },
+    "domain": {
+      "credit": "Kredi",
+      "externalRefund": "Ranbousman ekstèn",
+      "marketplaceRefund": "Ranbousman marketplace",
+      "paymentRefund": "Ranbousman peman",
+      "payoutSettlement": "Règleman peman"
+    },
+    "filters": {
+      "domain": "Domèn",
+      "domainAll": "Tout domèn yo",
+      "severity": "Gravite",
+      "severityAll": "Tout gravite yo",
+      "status": "Estati",
+      "statusAll": "Tout estati yo",
+      "title": "Filt"
+    },
+    "owner": {
+      "unassigned": "Pa asiyen"
+    },
+    "pagination": {
+      "next": "Apre",
+      "previous": "Anvan",
+      "showing": "{{from}} rive {{to}} sou {{total}}"
+    },
+    "severity": {
+      "critical": "Kritik",
+      "info": "Enfòmasyon",
+      "warning": "Avètisman"
+    },
+    "stats": {
+      "failedCreditRuns": "Ekzekisyon kredi ki echwe (7j)",
+      "stuckRefundAttempts": "Tantativ ranbousman ki bloke",
+      "unsettledPayouts": "Peman ki poko regle (48è)"
+    },
+    "status": {
+      "acknowledged": "Rekonèt",
+      "open": "Louvri",
+      "resolved": "Rezoud"
+    },
+    "subtitle": "Ranbousman ki bloke, ekzekisyon kredi ki echwe, ak peman ki poko regle ki bezwen revizyon moun.",
+    "table": {
+      "actions": "Aksyon",
+      "age": "Laj",
+      "domain": "Domèn",
+      "empty": "Okenn eksepsyon rekonsilyasyon pa koresponn ak filt sa yo.",
+      "owner": "Responsab",
+      "reference": "Ref {{id}}",
+      "severity": "Gravite",
+      "status": "Estati",
+      "summary": "Rezime"
+    },
+    "title": "Eksepsyon rekonsilyasyon"
   }
+,
+
+  "adminIncidents": {
+    "acknowledge": "Konfime",
+    "acknowledgeFailed": "Pa t kapab konfime ensidan an",
+    "acknowledged": "Ensidan an konfime",
+    "acknowledgedBy": "pa {{id}}",
+    "acknowledging": "Ap konfime...",
+    "cancel": "Anile",
+    "confirmResolve": "Konfime rezolisyon an",
+    "description": "Gade, konfime epi rezoud ensidan platfòm yo. Done yo mete ajou otomatikman pandan onglet sa a vizib.",
+    "emptyMessage": "Pa gen ensidan ki koresponn ak filtè aktyèl yo. Eseye efase filtè yo oswa tounen pita.",
+    "emptyTitle": "Pa gen ensidan ki koresponn",
+    "eyebrow": "Obzèvabilite",
+    "filterSearch": "Chèche",
+    "filterSeverity": "Gravite",
+    "filterStatus": "Estati",
+    "loadErrorMessage": "Lis ensidan yo pa t chaje. Eseye ankò.",
+    "loadErrorTitle": "Pa t kapab chaje ensidan yo",
+    "loading": "Ap chaje ensidan yo",
+    "notAcknowledged": "Pa konfime",
+    "refresh": "Rafrechi",
+    "resolve": "Rezoud",
+    "resolveFailed": "Pa t kapab rezoud ensidan an",
+    "resolveNotesLabel": "Nòt rezolisyon",
+    "resolveNotesPlaceholder": "Kisa ou te fè pou rezoud ensidan sa a? (si ou vle)",
+    "resolved": "Ensidan an rezoud",
+    "resolving": "Ap rezoud...",
+    "searchPlaceholder": "Chèche pa tip oswa mesaj...",
+    "severity": {
+      "all": "Tout gravite yo",
+      "critical": "Kritik",
+      "high": "Wo",
+      "info": "Enfòmasyon",
+      "low": "Ba",
+      "medium": "Mwayen",
+      "unknown": "Enkoni",
+      "warning": "Avètisman"
+    },
+    "status": {
+      "acknowledged": "Konfime",
+      "all": "Tout estati yo",
+      "open": "Ouvè",
+      "resolved": "Rezoud"
+    },
+    "summaryActiveAlerts": "Alèt aktif",
+    "summaryLast24h": "Ensidan nan dènye 24 èdtan yo",
+    "summaryOpenIncidents": "Ensidan ki ouvè",
+    "table": {
+      "acknowledged": "Konfime",
+      "actions": "Aksyon",
+      "firstSeen": "Premye fwa",
+      "lastSeen": "Dènye fwa",
+      "message": "Mesaj",
+      "occurrences": "Frekans",
+      "severity": "Gravite",
+      "status": "Estati",
+      "type": "Tip"
+    },
+    "title": "Jesyon ensidan",
+    "updated": "Mete ajou {{time}}"
+  },
+  "adminOpsActions": {
+    "attempts": "{{count}} esè",
+    "cancel": "Anile",
+    "confirm": "Konfime",
+    "confirmRequeue": "Remete mesaj sa a nan ke?",
+    "confirmRetry": "Eseye webhook sa a ankò?",
+    "deadLetter": "Lèt mouri",
+    "error": "Aksyon an echwe",
+    "lastAttempt": "Dènye esè {{time}}",
+    "processing": "Ap trete...",
+    "requeue": "Remete nan ke",
+    "requeueFailed": "Pa t kapab remete mesaj la nan ke.",
+    "requeueSuccess": "Mesaj la remete nan ke.",
+    "retry": "Eseye ankò",
+    "retryFailed": "Pa t kapab pwograme nouvo esè a.",
+    "retryNow": "Eseye kounye a",
+    "retrySuccess": "Nouvo esè a pwograme.",
+    "success": "Aksyon an fini",
+    "title": "Aksyon ke ak webhook"
+  }
+
 }

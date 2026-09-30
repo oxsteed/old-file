@@ -24996,5 +24996,165 @@
     "freightMultimodal": "متعدد الوسائط",
     "freightCourier": "بريد سريع",
     "freightExpress": "سريع"
+  },
+
+  "adminReconciliation": {
+    "actions": {
+      "acknowledge": "تأكيد",
+      "acknowledgeFailed": "تعذر تأكيد الاستثناء.",
+      "acknowledged": "تم تأكيد الاستثناء.",
+      "adminIdPlaceholder": "معرّف المسؤول",
+      "assignFailed": "تعذر إسناد الاستثناء.",
+      "assignLabel": "إسناد مسؤول",
+      "assignPlaceholder": "إسناد...",
+      "assigned": "تم إسناد الاستثناء.",
+      "drillDown": "فتح سجلات {{domain}}",
+      "resolve": "حل",
+      "resolveFailed": "تعذر حل الاستثناء.",
+      "resolveMessage": "وضع علامة على هذا الاستثناء كمحلول؟ هذا يؤكد معالجة المشكلة الأساسية.",
+      "resolveTitle": "حل الاستثناء",
+      "resolved": "تم حل الاستثناء."
+    },
+    "age": {
+      "days": "{{count}} يوم",
+      "hours": "{{count}} س",
+      "justNow": "الآن",
+      "minutes": "{{count}} د"
+    },
+    "domain": {
+      "credit": "الائتمان",
+      "externalRefund": "استرداد خارجي",
+      "marketplaceRefund": "استرداد السوق",
+      "paymentRefund": "استرداد الدفع",
+      "payoutSettlement": "تسوية المدفوعات"
+    },
+    "filters": {
+      "domain": "المجال",
+      "domainAll": "كل المجالات",
+      "severity": "الخطورة",
+      "severityAll": "كل درجات الخطورة",
+      "status": "الحالة",
+      "statusAll": "كل الحالات",
+      "title": "عوامل التصفية"
+    },
+    "owner": {
+      "unassigned": "غير مُسند"
+    },
+    "pagination": {
+      "next": "التالي",
+      "previous": "السابق",
+      "showing": "{{from}} إلى {{to}} من {{total}}"
+    },
+    "severity": {
+      "critical": "حرجة",
+      "info": "معلوماتية",
+      "warning": "تحذير"
+    },
+    "stats": {
+      "failedCreditRuns": "تشغيلات ائتمان فاشلة (7 أيام)",
+      "stuckRefundAttempts": "محاولات استرداد متعثرة",
+      "unsettledPayouts": "مدفوعات غير مسواة (48 ساعة)"
+    },
+    "status": {
+      "acknowledged": "مؤكدة",
+      "open": "مفتوحة",
+      "resolved": "محلولة"
+    },
+    "subtitle": "عمليات استرداد متعثرة، وتشغيلات ائتمان فاشلة، ومدفوعات غير مسواة تحتاج إلى مراجعة بشرية.",
+    "table": {
+      "actions": "الإجراءات",
+      "age": "العمر",
+      "domain": "المجال",
+      "empty": "لا توجد استثناءات تسوية تطابق عوامل التصفية هذه.",
+      "owner": "المسؤول",
+      "reference": "مرجع {{id}}",
+      "severity": "الخطورة",
+      "status": "الحالة",
+      "summary": "الملخص"
+    },
+    "title": "استثناءات التسوية"
   }
+,
+
+  "adminIncidents": {
+    "acknowledge": "تأكيد",
+    "acknowledgeFailed": "تعذّر تأكيد الحادثة",
+    "acknowledged": "تم تأكيد الحادثة",
+    "acknowledgedBy": "بواسطة {{id}}",
+    "acknowledging": "جارٍ التأكيد...",
+    "cancel": "إلغاء",
+    "confirmResolve": "تأكيد الحل",
+    "description": "راجع الحوادث وأكّدها وحلّها على المنصة. تُحدَّث البيانات تلقائيًا أثناء عرض هذه التبويبة.",
+    "emptyMessage": "لا توجد حوادث تطابق المرشحات الحالية. جرّب مسح المرشحات أو عُد لاحقًا.",
+    "emptyTitle": "لا توجد حوادث مطابقة",
+    "eyebrow": "قابلية الملاحظة",
+    "filterSearch": "بحث",
+    "filterSeverity": "الخطورة",
+    "filterStatus": "الحالة",
+    "loadErrorMessage": "تعذّر تحميل قائمة الحوادث. حاول مرة أخرى.",
+    "loadErrorTitle": "تعذّر تحميل الحوادث",
+    "loading": "جارٍ تحميل الحوادث",
+    "notAcknowledged": "غير مؤكد",
+    "refresh": "تحديث",
+    "resolve": "حلّ",
+    "resolveFailed": "تعذّر حل الحادثة",
+    "resolveNotesLabel": "ملاحظات الحل",
+    "resolveNotesPlaceholder": "ما الذي تم فعله لحل هذه الحادثة؟ (اختياري)",
+    "resolved": "تم حل الحادثة",
+    "resolving": "جارٍ الحلّ...",
+    "searchPlaceholder": "ابحث بالنوع أو الرسالة...",
+    "severity": {
+      "all": "كل درجات الخطورة",
+      "critical": "حرجة",
+      "high": "عالية",
+      "info": "معلومة",
+      "low": "منخفضة",
+      "medium": "متوسطة",
+      "unknown": "غير معروفة",
+      "warning": "تحذير"
+    },
+    "status": {
+      "acknowledged": "مؤكد",
+      "all": "كل الحالات",
+      "open": "مفتوح",
+      "resolved": "محلول"
+    },
+    "summaryActiveAlerts": "تنبيهات نشطة",
+    "summaryLast24h": "حوادث آخر 24 ساعة",
+    "summaryOpenIncidents": "حوادث مفتوحة",
+    "table": {
+      "acknowledged": "التأكيد",
+      "actions": "الإجراءات",
+      "firstSeen": "أول ظهور",
+      "lastSeen": "آخر ظهور",
+      "message": "الرسالة",
+      "occurrences": "التكرار",
+      "severity": "الخطورة",
+      "status": "الحالة",
+      "type": "النوع"
+    },
+    "title": "إدارة الحوادث",
+    "updated": "آخر تحديث {{time}}"
+  },
+  "adminOpsActions": {
+    "attempts": "{{count}} محاولات",
+    "cancel": "إلغاء",
+    "confirm": "تأكيد",
+    "confirmRequeue": "إعادة إدراج هذه الرسالة في الطابور؟",
+    "confirmRetry": "إعادة محاولة خطاف الويب هذا؟",
+    "deadLetter": "رسالة ميتة",
+    "error": "فشل الإجراء",
+    "lastAttempt": "آخر محاولة {{time}}",
+    "processing": "جارٍ المعالجة...",
+    "requeue": "إعادة الإدراج في الطابور",
+    "requeueFailed": "تعذّرت إعادة إدراج الرسالة في الطابور.",
+    "requeueSuccess": "أُعيد إدراج الرسالة في الطابور.",
+    "retry": "إعادة المحاولة",
+    "retryFailed": "تعذّرت جدولة إعادة المحاولة.",
+    "retryNow": "إعادة المحاولة الآن",
+    "retrySuccess": "تمت جدولة إعادة المحاولة.",
+    "success": "اكتمل الإجراء",
+    "title": "إجراءات الطوابير وخطافات الويب"
+  }
+
 }
