@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, ChevronRight, Clock3, Droplets, Gauge, Hammer, MapPin, Paintbrush, Ruler, Search, ShieldCheck, Trees, Truck, Wrench, Zap } from 'lucide-react';
+import { AirVent, ArrowRight, Bug, Car, CheckCircle2, ChevronRight, Clock3, Droplets, Gauge, Hammer, KeyRound, MapPin, MonitorSmartphone, Package, Paintbrush, Refrigerator, Ruler, Search, ShieldCheck, Sparkles, Trees, Truck, Wrench, Zap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
@@ -9,7 +9,7 @@ import { DEFAULT_DIRECT_PROFILE, getDirectCatalog, loadDirectProfile } from '../
 import { directCatalogHref } from '../utils/directCatalogNavigation';
 import '../styles/DirectCatalog.css';
 
-const ICONS = { wrench: Wrench, zap: Zap, droplets: Droplets, hammer: Hammer, paintbrush: Paintbrush, trees: Trees, ruler: Ruler, drill: Gauge, truck: Truck, 'shield-check': ShieldCheck };
+const ICONS = { wrench: Wrench, zap: Zap, droplets: Droplets, hammer: Hammer, paintbrush: Paintbrush, trees: Trees, ruler: Ruler, drill: Gauge, truck: Truck, 'shield-check': ShieldCheck, refrigerator: Refrigerator, 'air-vent': AirVent, sparkles: Sparkles, bug: Bug, 'key-round': KeyRound, package: Package, car: Car, 'monitor-smartphone': MonitorSmartphone };
 const SERVICE_PAGE_SIZE = 24;
 
 function priceLabel(cents, currency = 'USD', quoteRequired) {

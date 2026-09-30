@@ -10,7 +10,7 @@ const {
 } = require('./directSlotEngine');
 
 const LOCALES = ['en', 'es', 'fr', 'ht', 'ar'];
-const ICONS = new Set(['wrench', 'zap', 'droplets', 'hammer', 'paintbrush', 'trees', 'ruler', 'drill', 'truck', 'shield-check']);
+const ICONS = new Set(['wrench', 'zap', 'droplets', 'hammer', 'paintbrush', 'trees', 'ruler', 'drill', 'truck', 'shield-check', 'refrigerator', 'air-vent', 'sparkles', 'bug', 'key-round', 'package', 'car', 'monitor-smartphone']);
 const DAYS = new Set(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']);
 const LIFECYCLE_STATUSES = ['planned', 'coming_soon', 'live', 'paused', 'retired'];
 const PUBLIC_CATEGORY_STATUSES = ['coming_soon', 'live', 'paused'];
