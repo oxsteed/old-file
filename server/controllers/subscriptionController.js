@@ -7,6 +7,7 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../db');
 const { withTransaction } = require('../utils/transaction');
 const pricingService = require('../services/pricingService');
+const { subscriptionPeriod } = require('../utils/stripePayload');
 
 let plansActiveColumn = null;
 
@@ -128,7 +129,9 @@ exports.createCheckout = async (req, res, next) => {
 
     // Get location-based pricing if available
     let locationPricing = null;
-    if (user.country) {
+    // Regional premium pricing is a separate product contract, as getPlans
+    // already exposes. Never substitute its monthly price for Pro yearly/broker.
+    if (user.country && plan.slug === 'premium') {
       try {
         locationPricing = await pricingService.getPremiumPrice(user.country);
         logger.info('Using location-based pricing', {
@@ -285,7 +288,7 @@ exports.cancelSubscription = async (req, res, next) => {
              updated_at           = NOW()
          WHERE id = $2 AND cancel_at_period_end = FALSE
          RETURNING id`,
-        [stripeSub.current_period_end, subscription.id]
+        [subscriptionPeriod(stripeSub).end, subscription.id]
       );
 
       if (!updateRows.length) {
@@ -297,7 +300,8 @@ exports.cancelSubscription = async (req, res, next) => {
 
     res.json({
       message: 'Subscription cancellation scheduled successfully.',
-      cancel_at: new Date(stripeSub.current_period_end * 1000).toISOString()
+      cancel_at: subscriptionPeriod(stripeSub).end == null ? null
+        : new Date(subscriptionPeriod(stripeSub).end * 1000).toISOString()
     });
   } catch (err) {
     next(err);

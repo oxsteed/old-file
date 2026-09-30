@@ -18,6 +18,9 @@ const {
 const socketService = require('../services/socketService');
 const localDeliveryPayments = require('../services/localDeliveryPaymentService');
 const { createFraudCase } = require('../services/fraudCaseService');
+const { stripeObjectId, invoiceSubscriptionId, subscriptionPeriod } = require('../utils/stripePayload');
+const { applyChargeRefund, verifiedChargeRefundTotal } = require('../services/paymentRefundStateService');
+const stripeWebhookContract = require('../config/stripeWebhookContract');
 
 function extractFoodOrderId(metadata) {
   const raw = metadata?.food_order_id
@@ -52,7 +55,7 @@ function extractSubjectFromMetadata(metadata) {
 // Map a Stripe dispute to the local user/business the charge belongs to.
 // Returns { subjectType, subjectId } or null when nothing maps; callers must
 // skip case creation in that case (never invent an 'unknown' subject).
-async function resolveDisputeSubject(dispute) {
+async function resolveDisputeSubject(dispute, accountId) {
   const chargeRef = dispute?.charge;
   const metadataSources = [dispute?.metadata];
 
@@ -63,7 +66,7 @@ async function resolveDisputeSubject(dispute) {
     // Dispute events carry the charge id, not its metadata; fetch it so the
     // metadata-based resolution below (job_id, order ids) can run.
     try {
-      const charge = await stripe.charges.retrieve(chargeRef);
+      const charge = await stripe.charges.retrieve(chargeRef, accountId ? { stripeAccount: accountId } : {});
       metadataSources.push(charge?.metadata);
     } catch (err) {
       logger.warn('[Stripe] Failed to retrieve charge for dispute subject resolution', {
@@ -151,8 +154,8 @@ function buildDisputeEvidence(dispute) {
 
 // Open (or return the existing) fraud case for a charge dispute, then merge
 // the latest dispute evidence into the row so out-of-order events stay fresh.
-async function recordChargeDisputeCase(dispute) {
-  const subject = await resolveDisputeSubject(dispute);
+async function recordChargeDisputeCase(dispute, accountId) {
+  const subject = await resolveDisputeSubject(dispute, accountId);
   if (!subject) {
     logger.warn('[Stripe] charge.dispute without a resolvable user/business subject; skipping fraud case', {
       disputeId: dispute?.id,
@@ -321,14 +324,11 @@ async function beginWebhookEvent(provider, event) {
 
   const object = event.data?.object || {};
   const eventType = String(event.type || 'unknown');
-  const objectType = eventType.split('.', 1)[0] || 'unknown';
+  const objectType = eventType.startsWith('charge.dispute.') ? 'dispute'
+    : eventType.split('.', 1)[0] || 'unknown';
   const objectId = (() => {
-    if (['charge', 'refund'].includes(objectType) && typeof object.payment_intent === 'string') {
-      return object.payment_intent;
-    }
-    if (objectType === 'checkout' && typeof object.payment_intent === 'string') {
-      return object.payment_intent;
-    }
+    // Each refund/dispute/session has an independent lifecycle. Sharing the PI
+    // watermark loses a valid older refund when another refund arrives first.
     return object.id ? String(object.id) : null;
   })();
   const eventCreated = Number.isSafeInteger(Number(event.created)) ? Number(event.created) : null;
@@ -415,16 +415,31 @@ exports.stripeWebhook = async (req, res, next) => {
   const sig = req.headers['stripe-signature'];
   let event;
   let receiptId;
+  const destination = req.stripeWebhookDestination === 'connect' ? 'connect' : 'platform';
+  const contract = stripeWebhookContract[destination];
+  const signingSecret = process.env[contract.secretEnv];
+  if (!signingSecret) {
+    return next(new AppError('Webhook destination is not configured', 503, 'webhook_not_configured'));
+  }
 
   try {
     event = stripe.webhooks.constructEvent(
       req.body,
       sig,
-      process.env.STRIPE_WEBHOOK_SECRET
+      signingSecret
     );
   } catch (err) {
     logger.error('Webhook signature verification failed', { error: err.message });
     return next(new AppError('Invalid signature', 400, 'invalid_webhook_signature'));
+  }
+
+  // A platform secret must not authenticate connected-account events, or vice
+  // versa. Missing Connect configuration fails closed without breaking startup.
+  if ((destination === 'connect') !== !!event.account) {
+    return next(new AppError('Webhook account source mismatch', 400, 'webhook_account_mismatch'));
+  }
+  if (destination === 'connect' && !contract.events.includes(event.type)) {
+    return next(new AppError('Unsupported connected-account event', 400, 'webhook_event_not_supported'));
   }
 
   try {
@@ -469,16 +484,17 @@ exports.stripeWebhook = async (req, res, next) => {
           break;
         }
         if (session.mode === 'subscription') {
-          const subscriptionId = session.subscription;
+          const subscriptionId = stripeObjectId(session.subscription);
           const userId = session.metadata.userId;
           const planId = parseInt(session.metadata.planId);
           const sub = await stripe.subscriptions.retrieve(subscriptionId);
+          const period = subscriptionPeriod(sub);
           await db.query(
             `INSERT INTO subscriptions (user_id, plan_id, stripe_subscription_id, stripe_customer_id, status, current_period_start, current_period_end)
              VALUES ($1, $2, $3, $4, $5, to_timestamp($6), to_timestamp($7))
              ON CONFLICT (stripe_subscription_id) DO UPDATE SET status = $5`,
-            [userId, planId, subscriptionId, session.customer, sub.status,
-             sub.current_period_start, sub.current_period_end]
+            [userId, planId, subscriptionId, stripeObjectId(session.customer), sub.status,
+             period.start, period.end]
           );
           // Get plan tier
           const { rows: plans } = await db.query(
@@ -504,6 +520,7 @@ exports.stripeWebhook = async (req, res, next) => {
         // This case exists for subscriptions created via the Stripe dashboard
         // or API - without it, those subscriptions are invisible to the app.
         const sub = event.data.object;
+        const period = subscriptionPeriod(sub);
         const { rows: existing } = await db.query(
           'SELECT id FROM subscriptions WHERE stripe_subscription_id = $1', [sub.id]
         );
@@ -512,7 +529,7 @@ exports.stripeWebhook = async (req, res, next) => {
         // Look up the user via their Stripe customer ID
         const { rows: userRows } = await db.query(
           'SELECT id FROM users WHERE stripe_customer_id = $1 LIMIT 1',
-          [sub.customer]
+          [stripeObjectId(sub.customer)]
         );
         if (!userRows.length) {
           logger.warn('[webhook] customer.subscription.created: no user found for Stripe customer', {
@@ -537,8 +554,8 @@ exports.stripeWebhook = async (req, res, next) => {
               status, current_period_start, current_period_end)
            VALUES ($1, $2, $3, $4, $5, to_timestamp($6), to_timestamp($7))
            ON CONFLICT (stripe_subscription_id) DO NOTHING`,
-          [userRows[0].id, planId, sub.id, sub.customer, sub.status,
-           sub.current_period_start, sub.current_period_end]
+          [userRows[0].id, planId, sub.id, stripeObjectId(sub.customer), sub.status,
+           period.start, period.end]
         );
 
         if (planId) {
@@ -558,11 +575,12 @@ exports.stripeWebhook = async (req, res, next) => {
       }
       case 'customer.subscription.updated': {
         const sub = event.data.object;
+        const period = subscriptionPeriod(sub);
         await db.query(
           `UPDATE subscriptions SET status = $1, current_period_start = to_timestamp($2),
            current_period_end = to_timestamp($3), cancel_at_period_end = $4, updated_at = NOW()
            WHERE stripe_subscription_id = $5`,
-          [sub.status, sub.current_period_start, sub.current_period_end,
+          [sub.status, period.start, period.end,
            sub.cancel_at_period_end, sub.id]
         );
         const { rows } = await db.query(
@@ -600,6 +618,7 @@ exports.stripeWebhook = async (req, res, next) => {
         }
         break;
       }
+      case 'invoice.paid':
       case 'invoice.payment_succeeded': {
         // Fires on every successful charge — initial subscription AND all renewals.
         // `customer.subscription.updated` also fires on renewal, but that event
@@ -607,12 +626,14 @@ exports.stripeWebhook = async (req, res, next) => {
         // ensures the subscription row and user tier are authoritative after each
         // billing cycle regardless of event ordering.
         const invoice = event.data.object;
-        const subId = invoice.subscription;
+        const subId = invoiceSubscriptionId(invoice);
         if (!subId) break; // one-off invoice, not a subscription charge
 
         // Retrieve the live subscription object to get fresh period dates
-        const sub = await stripe.subscriptions.retrieve(subId).catch(() => null);
-        if (!sub) break;
+        // A temporary provider failure must cause a retry, not acknowledge a
+        // renewal without updating the customer's entitlement.
+        const sub = await stripe.subscriptions.retrieve(subId);
+        const period = subscriptionPeriod(sub);
 
         await db.query(
           `UPDATE subscriptions
@@ -622,7 +643,7 @@ exports.stripeWebhook = async (req, res, next) => {
                cancel_at_period_end  = $4,
                updated_at            = NOW()
            WHERE stripe_subscription_id = $5`,
-          [sub.status, sub.current_period_start, sub.current_period_end,
+          [sub.status, period.start, period.end,
            sub.cancel_at_period_end, subId]
         );
 
@@ -650,14 +671,15 @@ exports.stripeWebhook = async (req, res, next) => {
           }
           await recalculateBadges(user_id);
           logger.info('[webhook] invoice.payment_succeeded — subscription renewed', {
-            subscriptionId: subId, userId: user_id, periodEnd: sub.current_period_end,
+            subscriptionId: subId, userId: user_id, periodEnd: period.end,
           });
         }
         break;
       }
       case 'invoice.payment_failed': {
         const invoice = event.data.object;
-        const subId = invoice.subscription;
+        const subId = invoiceSubscriptionId(invoice);
+        if (!subId) break;
         await db.query(
           `UPDATE subscriptions SET status = 'past_due', updated_at = NOW()
            WHERE stripe_subscription_id = $1`,
@@ -827,17 +849,14 @@ exports.stripeWebhook = async (req, res, next) => {
       case 'charge.refunded': {
         // Refund processed (full or partial).
         const charge = event.data.object;
-        const piId = charge.payment_intent;
+        const piId = stripeObjectId(charge.payment_intent);
+        const refundedCents = verifiedChargeRefundTotal(charge);
         const foodOrderId = extractFoodOrderId(charge.metadata);
         if (piId) {
-          await db.query(
-            `UPDATE payments SET status = 'refunded', payment_hold_status = 'refunded',
-             updated_at = NOW() WHERE stripe_payment_intent_id = $1`,
-            [piId]
-          );
+          await withTransaction(db, client => applyChargeRefund(client, charge));
           logger.info(`[Stripe] Charge refunded for PaymentIntent ${piId}`);
         }
-        if (foodOrderId) {
+        if (foodOrderId && refundedCents === Number(charge.amount)) {
           await withTransaction(db, async (client) => {
             await applyFoodOrderPaymentState(client, {
               orderId: foodOrderId,
@@ -855,7 +874,7 @@ exports.stripeWebhook = async (req, res, next) => {
         // Fraud-case bookkeeping must not fail the webhook itself.
         const dispute = event.data.object;
         try {
-          await recordChargeDisputeCase(dispute);
+          await recordChargeDisputeCase(dispute, event.account);
         } catch (err) {
           logger.error('[Stripe] Failed to record charge dispute fraud case', {
             disputeId: dispute?.id,
@@ -865,13 +884,14 @@ exports.stripeWebhook = async (req, res, next) => {
         break;
       }
 
+      case 'charge.dispute.closed':
       case 'charge.dispute.updated': {
         // Dispute status changed (e.g. evidence submitted, won/lost).
         // recordChargeDisputeCase dedupes on the dispute id and merges the
         // latest evidence into the existing case instead of duplicating it.
         const dispute = event.data.object;
         try {
-          await recordChargeDisputeCase(dispute);
+          await recordChargeDisputeCase(dispute, event.account);
         } catch (err) {
           logger.error('[Stripe] Failed to update charge dispute fraud case', {
             disputeId: dispute?.id,

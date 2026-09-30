@@ -4,6 +4,8 @@ const pool = require('../db');
 const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
 const AppError = require('../utils/appError');
 const { withTransaction } = require('../utils/transaction');
+const { logAdminAction } = require('./auditService');
+const { verifiedChargeRefundTotal } = require('./paymentRefundStateService');
 
 function centsFromDollars(value) {
   const number = Number(value);
@@ -112,6 +114,24 @@ async function reservePaymentRefund({ paymentId, requestedAmountCents, reason, r
 async function settlePaymentRefund(reservation, providerRefund) {
   verifyProviderRefund(providerRefund, reservation);
   const status = providerStatus(providerRefund);
+  let providerRefundedCents = null;
+  if (status === 'succeeded') {
+    const chargeId = providerPaymentIntentId(providerRefund.charge) || reservation.payment.stripe_charge_id;
+    if (!chargeId || !stripe) {
+      throw new AppError('Refund charge needs reconciliation', 503, 'payment_refund_reconciliation_required');
+    }
+    // Retrieve current cumulative evidence outside the DB transaction. Adding a
+    // refund to refunded_amount double-counts when its webhook arrives first.
+    const charge = await stripe.charges.retrieve(chargeId, reservation.payment.stripe_account_id
+      ? { stripeAccount: reservation.payment.stripe_account_id } : {});
+    if (charge?.id !== chargeId) {
+      throw new AppError('Refund charge identity mismatch', 503, 'payment_refund_reconciliation_required');
+    }
+    providerRefundedCents = verifiedChargeRefundTotal(charge, reservation.payment);
+    if (providerRefundedCents < Number(reservation.attempt.amount_cents)) {
+      throw new AppError('Refund charge total needs reconciliation', 503, 'payment_refund_reconciliation_required');
+    }
+  }
   return withTransaction(pool, async (client) => {
     const attemptResult = await client.query(
       'SELECT * FROM payment_refund_attempts WHERE id = $1 FOR UPDATE',
@@ -142,7 +162,7 @@ async function settlePaymentRefund(reservation, providerRefund) {
 
     const originalCents = centsFromDollars(payment.amount);
     const currentRefundedCents = centsFromDollars(payment.refunded_amount) || 0;
-    const nextRefundedCents = currentRefundedCents + Number(attempt.amount_cents);
+    const nextRefundedCents = Math.max(currentRefundedCents, providerRefundedCents);
     if (!originalCents || nextRefundedCents > originalCents) {
       throw new AppError('Refund would exceed the payment total', 409, 'payment_refund_amount_conflict');
     }
@@ -171,15 +191,15 @@ async function settlePaymentRefund(reservation, providerRefund) {
         providerRefund.id, fullyRefunded]
     );
 
+    await logAdminAction({
+      client, adminId: attempt.actor_user_id,
+      action: fullyRefunded ? 'refund_payment' : 'partial_refund_payment',
+      targetType: 'payment', targetId: payment.id,
+      after: { amount_cents: Number(attempt.amount_cents), cumulative_refunded_amount_cents: nextRefundedCents,
+        refund_id: providerRefund.id, reason: attempt.reason, reverse_application_fee: attempt.reverse_application_fee },
+    });
     await client.query(
-      `INSERT INTO admin_audit_log (admin_id, action, entity_type, entity_id, changes, timestamp)
-       VALUES ($1, $2, 'payment', $3, $4, CURRENT_TIMESTAMP)`,
-      [attempt.actor_user_id, fullyRefunded ? 'refund_payment' : 'partial_refund_payment', payment.id,
-        JSON.stringify({ amount_cents: Number(attempt.amount_cents), cumulative_refunded_amount_cents: nextRefundedCents,
-          refund_id: providerRefund.id, reason: attempt.reason, reverse_application_fee: attempt.reverse_application_fee })]
-    );
-    await client.query(
-      `INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata)
+      `INSERT INTO platform_ledger (user_id, source_type, amount_cents, description, metadata)
        VALUES (NULL, 'payment_refunded', $1, $2, $3)`,
       [-Number(attempt.amount_cents), `Payment #${payment.id} refund ${providerRefund.id}`,
         JSON.stringify({ payment_id: payment.id, job_id: payment.job_id, refund_id: providerRefund.id,

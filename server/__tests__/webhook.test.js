@@ -78,7 +78,73 @@ describe('Stripe webhook signature', () => {
   });
 });
 
+describe('Stripe destination isolation and modern snapshots', () => {
+  test('platform destination rejects connected-account events before database writes', async () => {
+    const response = await sendEvent(buildApp(), { account: 'acct_connected', type: 'account.updated', data: { object: { id: 'acct_connected' } } });
+    expect(response.status).toBe(400);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  test('unconfigured Connect destination fails closed without database writes', async () => {
+    const previous = process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
+    delete process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
+    try {
+      const response = await request(buildApp()).post('/api/webhooks/stripe/connect')
+        .set('Content-Type', 'application/json').send('{}');
+      expect(response.status).toBe(503);
+      expect(mockQuery).not.toHaveBeenCalled();
+    } finally {
+      if (previous !== undefined) process.env.STRIPE_CONNECT_WEBHOOK_SECRET = previous;
+    }
+  });
+
+  test('Connect uses its own signing secret and requires an account source', async () => {
+    const previous = process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
+    process.env.STRIPE_CONNECT_WEBHOOK_SECRET = 'whsec_isolated_connect_fixture';
+    try {
+      stripe.webhooks.constructEvent.mockReturnValueOnce({ type: 'account.updated', data: { object: { id: 'acct_platform' } } });
+      const response = await request(buildApp()).post('/api/webhooks/stripe/connect')
+        .set('stripe-signature', 'fixture').set('Content-Type', 'application/json').send('{}');
+      expect(response.status).toBe(400);
+      expect(stripe.webhooks.constructEvent).toHaveBeenCalledWith(expect.any(Buffer), 'fixture', 'whsec_isolated_connect_fixture');
+      expect(mockQuery).not.toHaveBeenCalled();
+    } finally {
+      if (previous === undefined) delete process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
+      else process.env.STRIPE_CONNECT_WEBHOOK_SECRET = previous;
+    }
+  });
+
+  test('invoice.paid recognizes the Clover parent subscription and item billing period', async () => {
+    stripe.subscriptions.retrieve.mockResolvedValueOnce({ id: 'sub_clover', status: 'active', cancel_at_period_end: false,
+      items: { data: [{ current_period_start: 1700000000, current_period_end: 1702678400 }] } });
+    const response = await sendEvent(buildApp(), { type: 'invoice.paid', data: { object: {
+      id: 'in_clover', parent: { subscription_details: { subscription: { id: 'sub_clover' } } },
+    } } });
+    expect(response.status).toBe(200);
+    expect(stripe.subscriptions.retrieve).toHaveBeenCalledWith('sub_clover');
+    expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining('UPDATE subscriptions'),
+      ['active', 1700000000, 1702678400, false, 'sub_clover']);
+  });
+
+  test('renewal provider failure is retried instead of acknowledging an unapplied renewal', async () => {
+    stripe.subscriptions.retrieve.mockRejectedValueOnce(new Error('temporary provider failure'));
+    const response = await sendEvent(buildApp(), { type: 'invoice.paid', data: { object: { subscription: 'sub_retry' } } });
+    expect(response.status).toBe(500);
+    expect(mockQuery.mock.calls.some(([sql]) => sql.includes('UPDATE subscriptions'))).toBe(false);
+  });
+});
+
 describe('Stripe webhook replay protection', () => {
+  test('different refunds on the same intent use independent watermarks', async () => {
+    const event = { id: 'evt_refund_independent', created: 100, type: 'refund.updated',
+      data: { object: { id: 're_independent', payment_intent: 'pi_shared', status: 'pending' } } };
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 81 }] })
+      .mockResolvedValueOnce({ rows: [{ event_id: event.id }] });
+    const response = await sendEvent(buildApp(), event);
+    expect(response.status).toBe(200);
+    const watermark = mockQuery.mock.calls.find(([sql]) => sql.includes('INSERT INTO webhook_event_watermarks'));
+    expect(watermark[1]).toEqual(['stripe', 'refund', 're_independent', 100, event.id]);
+  });
   test('ignores already processed event ids without running side effects', async () => {
     const event = {
       id: 'evt_duplicate',
@@ -425,7 +491,7 @@ describe('charge.refunded', () => {
   test('marks payment refunded', async () => {
     const event = {
       type: 'charge.refunded',
-      data: { object: { payment_intent: 'pi_test' } },
+      data: { object: { id: 'ch_test', payment_intent: 'pi_test', amount: 1000, amount_refunded: 1000, currency: 'usd' } },
     };
     mockQuery.mockResolvedValueOnce({ rows: [] }); // UPDATE payments
 

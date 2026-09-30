@@ -111,6 +111,7 @@ jest.mock('stripe', () => {
     paymentIntents: { create: jest.fn(), capture: jest.fn() },
     checkout: { sessions: { create: jest.fn(), retrieve: jest.fn() } },
     refunds:       { create: jest.fn(), retrieve: jest.fn() },
+    charges:       { retrieve: jest.fn() },
     customers:      { create: jest.fn(), retrieve: jest.fn() },
     prices:         { create: jest.fn() },
     subscriptions:  { retrieve: jest.fn() },

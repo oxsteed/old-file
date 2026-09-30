@@ -8,6 +8,8 @@ const { withTransaction } = require('../utils/transaction');
 const { captureAuthorizedPayment } = require('../services/paymentCaptureService');
 const { sendNotification } = require('../services/notificationService');
 const localDeliveryPayments = require('../services/localDeliveryPaymentService');
+const { applyChargeRefund } = require('../services/paymentRefundStateService');
+const { stripeObjectId } = require('../utils/stripePayload');
 
 /**
  * Process payment capture job
@@ -67,7 +69,7 @@ const handlePaymentIntentSucceeded = async (intent) => {
        `UPDATE payments
        SET status = $1, stripe_charge_id = $2, updated_at = now()
        WHERE stripe_payment_intent_id = $3`,
-      ['succeeded', intent.charges?.data?.[0]?.id || null, intent.id]
+      ['succeeded', stripeObjectId(intent.latest_charge) || intent.charges?.data?.[0]?.id || null, intent.id]
     );
     requirePaymentUpdate(result, intent.id);
   });
@@ -91,12 +93,7 @@ const handlePaymentIntentFailed = async (intent) => {
 
 const handleChargeRefunded = async (charge) => {
   await withTransaction(pool, async (client) => {
-    const result = await client.query(
-      `UPDATE payments
-       SET status = $1, refunded_amount = $2, updated_at = now()
-       WHERE stripe_charge_id = $3`,
-      ['refunded', charge.amount_refunded / 100, charge.id]
-    );
+    const result = await applyChargeRefund(client, charge);
     requirePaymentUpdate(result, charge.id);
   });
   logger.info('Webhook: charge.refunded processed', { chargeId: charge.id });
