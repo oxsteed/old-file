@@ -30,6 +30,23 @@ function listMigrationFiles(migrationsDir) {
     .sort();
 }
 
+// Decides what to do with a migration file given its recorded state.
+// Pure function so the policy is unit-testable without a database.
+//   skip  - already applied; verify the checksum below.
+//   abort - a previous run died mid-migration ('applying'); the database may
+//           be partially migrated, so a human must reconcile before retrying.
+//   retry - a previous run recorded a clean failure ('failed'); the runner
+//           rolls back after a failure and repo migrations are written
+//           idempotently, so re-attempting is safe and lets a later repair
+//           migration unblock the next deploy instead of halting every boot.
+//   apply - never attempted before.
+function resolveMigrationPlan(state) {
+  if (state?.status === 'applied') return 'skip';
+  if (state?.status === 'applying') return 'abort';
+  if (state?.status === 'failed') return 'retry';
+  return 'apply';
+}
+
 async function migrate() {
   // Hold one database-level lock for the complete run. This protects both the
   // pending-migration read and the marker writes across multiple deploy
@@ -73,8 +90,9 @@ async function migrate() {
       const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
       const checksum = migrationChecksum(sql);
       const state = migrationStates.get(file);
+      const plan = resolveMigrationPlan(state);
 
-      if (state?.status === 'applied') {
+      if (plan === 'skip') {
         if (state.checksum && state.checksum !== checksum) {
           throw new Error(`Migration ${file} checksum changed after it was applied; restore the original file or add a new migration.`);
         }
@@ -82,8 +100,15 @@ async function migrate() {
         continue;
       }
 
-      if (state?.status === 'applying' || state?.status === 'failed') {
-        throw new Error(`Migration ${file} is marked ${state.status}; reconcile the database before retrying. Previous error: ${state.error || 'none recorded'}`);
+      if (plan === 'abort') {
+        throw new Error(`Migration ${file} is marked applying; reconcile the database before retrying. Previous error: ${state.error || 'none recorded'}`);
+      }
+
+      if (plan === 'retry') {
+        logger.warn('Retrying previously failed migration', {
+          filename: file,
+          previousError: state.error || null,
+        });
       }
 
       // Persist intent before executing SQL. If a migration contains its own
@@ -137,7 +162,7 @@ async function migrate() {
   }
 }
 
-module.exports = { MIGRATION_LOCK_KEY, migrationChecksum, listMigrationFiles, migrate };
+module.exports = { MIGRATION_LOCK_KEY, migrationChecksum, listMigrationFiles, resolveMigrationPlan, migrate };
 
 if (require.main === module) migrate().catch(async (err) => {
   const databaseFailure = classifyDatabaseError(err);
