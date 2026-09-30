@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Search, Truck } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock3, Search, Truck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
@@ -22,6 +22,55 @@ function priceLabel(cents, currency = 'USD', quoteRequired) {
 
 function CatalogDirectoryCard({ children, className = '' }) {
   return <section className={`direct-catalog-card rounded-3xl border border-white/10 bg-slate-900/75 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.18)] ${className}`}>{children}</section>;
+}
+
+function ScrollableResults({ children, className = '' }) {
+  const regionRef = useRef(null);
+  const [canScrollDown, setCanScrollDown] = useState(false);
+  const { t } = useTranslation();
+
+  const updateScrollState = useCallback(() => {
+    const el = regionRef.current;
+    if (!el) return;
+    setCanScrollDown(el.scrollHeight - el.scrollTop - el.clientHeight > 24);
+  }, []);
+
+  useEffect(() => {
+    updateScrollState();
+    const el = regionRef.current;
+    if (!el) return undefined;
+    el.addEventListener('scroll', updateScrollState, { passive: true });
+    window.addEventListener('resize', updateScrollState);
+    return () => {
+      el.removeEventListener('scroll', updateScrollState);
+      window.removeEventListener('resize', updateScrollState);
+    };
+  }, [updateScrollState]);
+
+  useEffect(() => { updateScrollState(); });
+
+  const scrollDown = () => {
+    const el = regionRef.current;
+    if (el) el.scrollBy({ top: Math.max(el.clientHeight * 0.75, 240), behavior: 'smooth' });
+  };
+
+  return (
+    <div className={`relative flex min-h-0 flex-1 flex-col ${className}`}>
+      <div ref={regionRef} className="direct-catalog-scroll-region">
+        {children}
+      </div>
+      {canScrollDown && (
+        <button
+          type="button"
+          onClick={scrollDown}
+          aria-label={t('directCatalog.scrollForMore', { defaultValue: 'Scroll for more' })}
+          className="absolute bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-full border border-orange-400/40 bg-slate-950/90 p-2.5 text-orange-200 shadow-[0_10px_25px_rgba(0,0,0,0.45)] transition hover:bg-slate-900"
+        >
+          <ChevronDown size={18} aria-hidden="true" />
+        </button>
+      )}
+    </div>
+  );
 }
 
 function EmptyState({ children, tone = 'default' }) {
@@ -183,7 +232,8 @@ export default function DirectCatalogDirectoryPage({ view = 'services' }) {
             </div>
             <label className="relative mt-4 block"><Search size={17} className="absolute start-3 top-3.5 text-slate-500" /><input value={search} onChange={(event) => updateParams(setSearchParams, { q: event.target.value, offset: null })} aria-label={t('directCatalog.searchCategories', { defaultValue: 'Search categories...' })} placeholder={t('directCatalog.searchCategories', { defaultValue: 'Search categories...' })} className="w-full rounded-xl border border-white/10 bg-slate-950/80 py-3 ps-10 pe-3 text-sm text-white outline-none focus:border-orange-500" /></label>
 
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-live="polite">
+            <ScrollableResults className="mt-5">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-live="polite">
               {loading && !skillCategories.length && <EmptyState>{t('directCatalog.loadingDirectory', { defaultValue: 'Loading Direct catalog...' })}</EmptyState>}
               {!loading && error && <EmptyState tone="error"><span>{error}</span><button type="button" onClick={() => setRetryCount((count) => count + 1)} className="ms-2 font-semibold underline">{t('directCatalog.retry', { defaultValue: 'Try again' })}</button></EmptyState>}
               {!loading && !error && !skillCategories.length && <EmptyState>{t('directCatalog.noSkillCategories', { defaultValue: 'No skill categories match this search.' })}</EmptyState>}
@@ -200,18 +250,21 @@ export default function DirectCatalogDirectoryPage({ view = 'services' }) {
                   : <Link key={item.id} to={directCatalogHref('services', { categorySlug: item.slug })} className={tileClassName}>{tileBody}</Link>;
               })}
             </div>
+            </ScrollableResults>
           </CatalogDirectoryCard>
         ) : (
         <div className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
           <CatalogDirectoryCard>
             <h2 className="text-sm font-bold uppercase tracking-[0.16em] text-white">{t('directCatalog.skillCategories', { defaultValue: 'Skill categories' })}</h2>
-            <div className="mt-4 space-y-2">
+            <ScrollableResults className="mt-4">
+            <div className="space-y-2">
               <button type="button" onClick={() => updateParams(setSearchParams, { category: null, offset: null })} className={`w-full rounded-xl border px-3 py-3 text-left text-sm font-semibold ${!category ? 'border-orange-400 bg-orange-500 text-white' : 'border-white/10 bg-white/5 text-slate-300 hover:border-orange-400/50'}`}>{t('directCatalog.allCategories', { defaultValue: 'All categories' })}</button>
               {categories.map((item) => {
                 const active = item.slug === category;
                 return <button type="button" key={item.slug} onClick={() => updateParams(setSearchParams, { category: item.slug, offset: null })} className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-3 text-left text-sm font-semibold ${active ? 'border-orange-400 bg-orange-500 text-white' : 'border-white/10 bg-white/5 text-slate-300 hover:border-orange-400/50'}`}><span>{item.name}</span><span className="text-xs opacity-70">{view === 'tools' ? (item.slug === category ? items.length : '') : item.visibleServiceCount || ''}</span></button>;
               })}
             </div>
+            </ScrollableResults>
           </CatalogDirectoryCard>
 
           <CatalogDirectoryCard className="min-w-0">
@@ -224,7 +277,8 @@ export default function DirectCatalogDirectoryPage({ view = 'services' }) {
             </div>
             <label className="relative mt-4 block"><Search size={17} className="absolute start-3 top-3.5 text-slate-500" /><input value={search} onChange={(event) => updateParams(setSearchParams, { q: event.target.value, offset: null })} aria-label={view === 'tools' ? t('directCatalog.searchToolsAria', { defaultValue: 'Search tools' }) : t('directCatalog.searchServicesAria', { defaultValue: 'Search services' })} placeholder={view === 'tools' ? t('directCatalog.searchTools', { defaultValue: 'Search tools...' }) : t('directCatalog.searchServices', { category: selectedCategory?.name || t('directCatalog.directServices', { defaultValue: 'Direct' }), defaultValue: 'Search {{category}} services...' })} className="w-full rounded-xl border border-white/10 bg-slate-950/80 py-3 ps-10 pe-3 text-sm text-white outline-none focus:border-orange-500" /></label>
 
-            <div className="mt-5 space-y-3" aria-live="polite">
+            <ScrollableResults className="mt-5">
+            <div className="space-y-3" aria-live="polite">
               {loading && !items.length && <EmptyState>{t('directCatalog.loadingDirectory', { defaultValue: 'Loading Direct catalog...' })}</EmptyState>}
               {!loading && error && <EmptyState tone="error"><span>{error}</span><button type="button" onClick={() => updateParams(setSearchParams, { offset: null })} className="ms-2 font-semibold underline">{t('directCatalog.retry', { defaultValue: 'Try again' })}</button></EmptyState>}
               {!loading && !error && !items.length && <EmptyState tone={selectedCategory?.lifecycleStatus === 'coming_soon' ? 'notice' : 'default'}>{selectedCategory?.lifecycleStatus === 'coming_soon' ? t('directCatalog.categoryComingSoon', { defaultValue: 'Services in this category are coming soon.' }) : view === 'tools' ? t('directCatalog.noTools', { defaultValue: 'No published tools match your search.' }) : t('directCatalog.noServices', { defaultValue: 'No published services match this search.' })}</EmptyState>}
@@ -236,6 +290,7 @@ export default function DirectCatalogDirectoryPage({ view = 'services' }) {
               {view === 'tools' && items.map((tool) => { const ToolIcon = directCatalogIcon(tool.iconKey); return <article key={tool.id} className="flex gap-3 rounded-2xl border border-white/10 bg-slate-950/60 p-4"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-orange-300"><ToolIcon size={19} /></div><div className="min-w-0"><h3 className="font-semibold text-white">{tool.name}</h3><p className="mt-1 text-sm leading-5 text-slate-400">{tool.description}</p><span className={`mt-2 inline-flex items-center gap-1 text-xs ${tool.isOperationallyAvailable ? 'text-emerald-300' : 'text-amber-200'}`}><CheckCircle2 size={13} />{tool.isOperationallyAvailable ? t('directCatalog.availableWhenScheduled', { defaultValue: 'Available when scheduled' }) : t('directCatalog.currentlyUnavailable', { defaultValue: 'Currently unavailable' })}</span></div></article>; })}
               {hasMore && <button type="button" onClick={() => updateParams(setSearchParams, { offset: offset + PAGE_SIZE })} disabled={loading} className="w-full rounded-xl border border-orange-500/30 px-4 py-3 text-sm font-semibold text-orange-200 hover:bg-orange-500/10 disabled:opacity-50">{t('directCatalog.showMoreServices', { count: `${offset + items.length}/${pagination.total}`, defaultValue: 'Show more ({{count}})' })}</button>}
             </div>
+            </ScrollableResults>
             {view === 'tools' && <div className="mt-5 rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4 text-sm text-slate-300"><p>{t('directCatalog.toolsDirectoryRentalNote', { defaultValue: 'These are OxSteed Direct tools and equipment. For peer-owned tools available for rental, visit the separate rental marketplace.' })}</p><Link to="/tool-rentals" className="mt-3 inline-flex items-center gap-2 font-semibold text-orange-300">{t('directCatalog.browseToolRentals', { defaultValue: 'Browse tool rentals' })} <ArrowRight size={14} /></Link></div>}
           </CatalogDirectoryCard>
         </div>

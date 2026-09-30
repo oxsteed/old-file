@@ -37,3 +37,11 @@ test('route contract is registered in the application and landing links use it',
   assert.equal((landingSource.match(/directCatalogHref\('services'/g) || []).length, 1);
   assert.equal((landingSource.match(/directCatalogHref\('tools'/g) || []).length, 1);
 });
+
+test('directory result lists scroll inside the card and expose a scroll-for-more button', () => {
+  const pageSource = fs.readFileSync(path.resolve('src/pages/DirectCatalogDirectoryPage.jsx'), 'utf8');
+  assert.match(pageSource, /direct-catalog-scroll-region/);
+  assert.match(pageSource, /directCatalog\.scrollForMore/);
+  const wrapped = (pageSource.match(/<ScrollableResults/g) || []).length;
+  assert.equal(wrapped, 3, 'expected ScrollableResults around the skills grid, category sidebar, and results list');
+});
