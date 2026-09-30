@@ -7,24 +7,24 @@ import AdminErrorState from '../lib/AdminErrorState';
 import ConfirmDialog from '../lib/ConfirmDialog';
 import { LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-// Document type options
+// Document type options (values stay stable for the API; only labels translate)
 const DOCUMENT_TYPES = [
-  { value: '', label: 'All Documents' },
-  { value: 'contractor_agreement', label: 'Contractor Agreement' },
-  { value: 'dispute_resolution', label: 'Dispute Resolution' },
-  { value: 'account_termination', label: 'Account Termination' },
-  { value: 'privacy_policy', label: 'Privacy Policy' },
-  { value: 'biometric_data', label: 'Biometric Data' },
-  { value: 'harassment_policy', label: 'Harassment Policy' },
-  { value: 'background_check', label: 'Background Check' },
-  { value: 'arbitration', label: 'Arbitration' },
-  { value: 'escrow_policy', label: 'Escrow Policy' },
+  { value: '', labelKey: 'adminLegalAcceptancesPage.docAll' },
+  { value: 'contractor_agreement', labelKey: 'adminLegalAcceptancesPage.docContractorAgreement' },
+  { value: 'dispute_resolution', labelKey: 'adminLegalAcceptancesPage.docDisputeResolution' },
+  { value: 'account_termination', labelKey: 'adminLegalAcceptancesPage.docAccountTermination' },
+  { value: 'privacy_policy', labelKey: 'adminLegalAcceptancesPage.docPrivacyPolicy' },
+  { value: 'biometric_data', labelKey: 'adminLegalAcceptancesPage.docBiometricData' },
+  { value: 'harassment_policy', labelKey: 'adminLegalAcceptancesPage.docHarassmentPolicy' },
+  { value: 'background_check', labelKey: 'adminLegalAcceptancesPage.docBackgroundCheck' },
+  { value: 'arbitration', labelKey: 'adminLegalAcceptancesPage.docArbitration' },
+  { value: 'escrow_policy', labelKey: 'adminLegalAcceptancesPage.docEscrowPolicy' },
 ];
 
 const SORT_OPTIONS = [
-  { value: 'newest', label: 'Newest First' },
-  { value: 'oldest', label: 'Oldest First' },
-  { value: 'name_asc', label: 'By Name (A-Z)' },
+  { value: 'newest', labelKey: 'adminLegalAcceptancesPage.sortNewest' },
+  { value: 'oldest', labelKey: 'adminLegalAcceptancesPage.sortOldest' },
+  { value: 'name_asc', labelKey: 'adminLegalAcceptancesPage.sortNameAsc' },
 ];
 
 // ─── Detail Modal ─────────────────────────────────────────────────────────────
@@ -35,63 +35,63 @@ function DetailModal({ acceptance, onClose }) {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-auto">
         <div className="sticky top-0 bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-white font-bold">Acceptance Details</h2>
+          <h2 className="text-white font-bold">{t('adminLegalAcceptancesPage.modalTitle')}</h2>
           <button onClick={onClose} aria-label={t('common.aria.closeButton')} className="text-gray-400 hover:text-white">✕</button>
         </div>
 
         <div className="p-6 space-y-6">
           <div>
-            <h3 className="text-gray-300 text-sm font-semibold mb-3">User Information</h3>
+            <h3 className="text-gray-300 text-sm font-semibold mb-3">{t('adminLegalAcceptancesPage.userInfoTitle')}</h3>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <p className="text-gray-500">Name</p>
+                <p className="text-gray-500">{t('adminLegalAcceptancesPage.fieldName')}</p>
                 <p className="text-white">{acceptance.user_name}</p>
               </div>
               <div>
-                <p className="text-gray-500">Email</p>
+                <p className="text-gray-500">{t('adminLegalAcceptancesPage.fieldEmail')}</p>
                 <p className="text-white">{acceptance.user_email}</p>
               </div>
               <div>
-                <p className="text-gray-500">User ID</p>
+                <p className="text-gray-500">{t('adminLegalAcceptancesPage.fieldUserId')}</p>
                 <p className="text-gray-300 font-mono text-xs">{acceptance.user_id}</p>
               </div>
             </div>
           </div>
 
           <div className="border-t border-gray-700 pt-4">
-            <h3 className="text-gray-300 text-sm font-semibold mb-3">Document Information</h3>
+            <h3 className="text-gray-300 text-sm font-semibold mb-3">{t('adminLegalAcceptancesPage.docInfoTitle')}</h3>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <p className="text-gray-500">Document Type</p>
+                <p className="text-gray-500">{t('adminLegalAcceptancesPage.fieldDocType')}</p>
                 <p className="text-white capitalize">{acceptance.document_type?.replace(/_/g, ' ')}</p>
               </div>
               <div>
-                <p className="text-gray-500">Version</p>
-                <p className="text-white">{acceptance.document_version || 'N/A'}</p>
+                <p className="text-gray-500">{t('adminLegalAcceptancesPage.fieldVersion')}</p>
+                <p className="text-white">{acceptance.document_version || t('adminLegalAcceptancesPage.notAvailable')}</p>
               </div>
             </div>
           </div>
 
           <div className="border-t border-gray-700 pt-4">
-            <h3 className="text-gray-300 text-sm font-semibold mb-3">Signature Details</h3>
+            <h3 className="text-gray-300 text-sm font-semibold mb-3">{t('adminLegalAcceptancesPage.signatureTitle')}</h3>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <p className="text-gray-500">Signed Name</p>
+                <p className="text-gray-500">{t('adminLegalAcceptancesPage.fieldSignedName')}</p>
                 <p className="text-white">{acceptance.signed_first_name} {acceptance.signed_last_name}</p>
               </div>
               <div>
-                <p className="text-gray-500">Accepted Date</p>
+                <p className="text-gray-500">{t('adminLegalAcceptancesPage.fieldAcceptedDate')}</p>
                 <p className="text-white">{new Date(acceptance.created_at).toLocaleString()}</p>
               </div>
               <div>
-                <p className="text-gray-500">IP Address</p>
+                <p className="text-gray-500">{t('adminLegalAcceptancesPage.fieldIpAddress')}</p>
                 <p className="text-gray-300 font-mono text-xs">{acceptance.ip_address}</p>
               </div>
             </div>
           </div>
 
           <div className="border-t border-gray-700 pt-4">
-            <h3 className="text-gray-300 text-sm font-semibold mb-3">User Agent</h3>
+            <h3 className="text-gray-300 text-sm font-semibold mb-3">{t('adminLegalAcceptancesPage.userAgentTitle')}</h3>
             <p className="text-gray-300 text-xs font-mono bg-gray-900 p-3 rounded border border-gray-700 overflow-auto max-h-24">
               {acceptance.user_agent}
             </p>
@@ -103,7 +103,7 @@ function DetailModal({ acceptance, onClose }) {
             onClick={onClose}
             className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition"
           >
-            Close
+            {t('adminLegalAcceptancesPage.close')}
           </button>
         </div>
       </div>
@@ -137,7 +137,7 @@ function ActionMenu({ acceptance, onRevoke, revoking }) {
             disabled={revoking}
             className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-gray-600 transition disabled:opacity-50"
           >
-            {revoking ? 'Revoking...' : 'Revoke Acceptance'}
+            {revoking ? t('adminLegalAcceptancesPage.revoking') : t('adminLegalAcceptancesPage.revokeAcceptance')}
           </button>
         </div>
       )}
@@ -214,7 +214,7 @@ export default function AdminLegalAcceptancesPage() {
       link.download = `legal-acceptances-${new Date().toISOString().split('T')[0]}.csv`;
       link.click();
     } catch (err) {
-      setExportError('Failed to export CSV');
+      setExportError(t('adminLegalAcceptancesPage.exportError'));
     }
   };
 
@@ -226,8 +226,8 @@ export default function AdminLegalAcceptancesPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-white font-bold text-3xl mb-2">Legal Acceptances</h1>
-          <p className="text-gray-400 text-sm">View all legal document acceptances across users and document types.</p>
+          <h1 className="text-white font-bold text-3xl mb-2">{t('adminLegalAcceptancesPage.pageTitle')}</h1>
+          <p className="text-gray-400 text-sm">{t('adminLegalAcceptancesPage.pageSubtitle')}</p>
         </div>
         <button
           onClick={reload}
@@ -254,27 +254,27 @@ export default function AdminLegalAcceptancesPage() {
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <p className="text-gray-400 text-sm mb-2">Total Acceptances</p>
+            <p className="text-gray-400 text-sm mb-2">{t('adminLegalAcceptancesPage.statTotal')}</p>
             <p className="text-white text-3xl font-bold">{stats.total_acceptances}</p>
-            <p className="text-gray-500 text-xs mt-2">All time</p>
+            <p className="text-gray-500 text-xs mt-2">{t('adminLegalAcceptancesPage.statTotalHint')}</p>
           </div>
 
           <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <p className="text-gray-400 text-sm mb-2">Unique Users</p>
+            <p className="text-gray-400 text-sm mb-2">{t('adminLegalAcceptancesPage.statUniqueUsers')}</p>
             <p className="text-white text-3xl font-bold">{stats.unique_users}</p>
-            <p className="text-gray-500 text-xs mt-2">Signed documents</p>
+            <p className="text-gray-500 text-xs mt-2">{t('adminLegalAcceptancesPage.statUniqueUsersHint')}</p>
           </div>
 
           <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <p className="text-gray-400 text-sm mb-2">This Month</p>
+            <p className="text-gray-400 text-sm mb-2">{t('adminLegalAcceptancesPage.statThisMonth')}</p>
             <p className="text-white text-3xl font-bold">{stats.this_month}</p>
-            <p className="text-gray-500 text-xs mt-2">New acceptances</p>
+            <p className="text-gray-500 text-xs mt-2">{t('adminLegalAcceptancesPage.statThisMonthHint')}</p>
           </div>
 
           <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <p className="text-gray-400 text-sm mb-2">Acceptance Rate</p>
+            <p className="text-gray-400 text-sm mb-2">{t('adminLegalAcceptancesPage.statAcceptanceRate')}</p>
             <p className="text-white text-3xl font-bold">{stats.acceptance_rate}%</p>
-            <p className="text-gray-500 text-xs mt-2">Active users</p>
+            <p className="text-gray-500 text-xs mt-2">{t('adminLegalAcceptancesPage.statAcceptanceRateHint')}</p>
           </div>
         </div>
       )}
@@ -284,7 +284,7 @@ export default function AdminLegalAcceptancesPage() {
         {/* Trend Chart */}
         {chartData.length > 0 && (
           <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <h3 className="text-white font-semibold mb-4">Acceptances Trend (90 Days)</h3>
+            <h3 className="text-white font-semibold mb-4">{t('adminLegalAcceptancesPage.trendTitle')}</h3>
             <ResponsiveContainer width="100%" height={250}>
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -292,7 +292,7 @@ export default function AdminLegalAcceptancesPage() {
                 <YAxis stroke="#9ca3af" style={{ fontSize: '12px' }} />
                 <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151' }} />
                 <Legend />
-                <Line type="monotone" dataKey="count" stroke="#f97316" strokeWidth={2} name="Acceptances" />
+                <Line type="monotone" dataKey="count" stroke="#f97316" strokeWidth={2} name={t('adminLegalAcceptancesPage.trendSeriesName')} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -301,7 +301,7 @@ export default function AdminLegalAcceptancesPage() {
         {/* Breakdown Pie Chart */}
         {pieData.length > 0 && (
           <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <h3 className="text-white font-semibold mb-4">By Document Type</h3>
+            <h3 className="text-white font-semibold mb-4">{t('adminLegalAcceptancesPage.breakdownTitle')}</h3>
             <ResponsiveContainer width="100%" height={250}>
               <PieChart>
                 <Pie
@@ -329,13 +329,13 @@ export default function AdminLegalAcceptancesPage() {
       <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 space-y-4">
         <div className="flex items-center gap-2 mb-3">
           <Filter size={16} className="text-gray-400" />
-          <span className="text-gray-300 font-semibold">Filters & Search</span>
+          <span className="text-gray-300 font-semibold">{t('adminLegalAcceptancesPage.filtersTitle')}</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Document Type Filter */}
           <div>
-            <label className="block text-gray-400 text-sm mb-2">Document Type</label>
+            <label className="block text-gray-400 text-sm mb-2">{t('adminLegalAcceptancesPage.docTypeLabel')}</label>
             <select
               value={documentType}
               onChange={(e) => {
@@ -345,19 +345,19 @@ export default function AdminLegalAcceptancesPage() {
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:border-orange-500"
             >
               {DOCUMENT_TYPES.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                <option key={opt.value} value={opt.value}>{t(opt.labelKey)}</option>
               ))}
             </select>
           </div>
 
           {/* Search Input */}
           <div className="md:col-span-2">
-            <label className="block text-gray-400 text-sm mb-2">Search by Email or Name</label>
+            <label className="block text-gray-400 text-sm mb-2">{t('adminLegalAcceptancesPage.searchLabel')}</label>
             <div className="relative">
               <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Email or user name..."
+                placeholder={t('adminLegalAcceptancesPage.searchPlaceholder')}
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
@@ -370,7 +370,7 @@ export default function AdminLegalAcceptancesPage() {
 
           {/* Sort */}
           <div>
-            <label className="block text-gray-400 text-sm mb-2">Sort By</label>
+            <label className="block text-gray-400 text-sm mb-2">{t('adminLegalAcceptancesPage.sortLabel')}</label>
             <select
               value={sort}
               onChange={(e) => {
@@ -380,7 +380,7 @@ export default function AdminLegalAcceptancesPage() {
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:border-orange-500"
             >
               {SORT_OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                <option key={opt.value} value={opt.value}>{t(opt.labelKey)}</option>
               ))}
             </select>
           </div>
@@ -392,7 +392,7 @@ export default function AdminLegalAcceptancesPage() {
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition"
           >
             <Download size={16} />
-            Export CSV
+            {t('adminLegalAcceptancesPage.exportCsv')}
           </button>
         </div>
       </div>
@@ -403,12 +403,12 @@ export default function AdminLegalAcceptancesPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-900 border-b border-gray-700">
               <tr>
-                <th className="px-6 py-4 text-left text-gray-400 font-semibold">USER</th>
-                <th className="px-6 py-4 text-left text-gray-400 font-semibold">DOCUMENT TYPE</th>
-                <th className="px-6 py-4 text-left text-gray-400 font-semibold">VERSION</th>
-                <th className="px-6 py-4 text-left text-gray-400 font-semibold">ACCEPTED DATE</th>
-                <th className="px-6 py-4 text-left text-gray-400 font-semibold">IP ADDRESS</th>
-                <th className="px-6 py-4 text-center text-gray-400 font-semibold">ACTIONS</th>
+                <th className="px-6 py-4 text-left text-gray-400 font-semibold">{t('adminLegalAcceptancesPage.thUser')}</th>
+                <th className="px-6 py-4 text-left text-gray-400 font-semibold">{t('adminLegalAcceptancesPage.thDocType')}</th>
+                <th className="px-6 py-4 text-left text-gray-400 font-semibold">{t('adminLegalAcceptancesPage.thVersion')}</th>
+                <th className="px-6 py-4 text-left text-gray-400 font-semibold">{t('adminLegalAcceptancesPage.thAcceptedDate')}</th>
+                <th className="px-6 py-4 text-left text-gray-400 font-semibold">{t('adminLegalAcceptancesPage.thIpAddress')}</th>
+                <th className="px-6 py-4 text-center text-gray-400 font-semibold">{t('adminLegalAcceptancesPage.thActions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-700">
@@ -423,7 +423,7 @@ export default function AdminLegalAcceptancesPage() {
               ) : error ? null : acceptances.length === 0 ? (
                 <tr>
                   <td colSpan="6" className="px-6 py-12 text-center text-gray-400">
-                    No acceptances found
+                    {t('adminLegalAcceptancesPage.emptyState')}
                   </td>
                 </tr>
               ) : (
@@ -458,7 +458,7 @@ export default function AdminLegalAcceptancesPage() {
                         className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-xs transition"
                       >
                         <Eye size={14} />
-                        View
+                        {t('adminLegalAcceptancesPage.view')}
                       </button>
                       <ActionMenu
                         acceptance={acceptance}
@@ -476,7 +476,11 @@ export default function AdminLegalAcceptancesPage() {
         {/* Pagination */}
         <div className="bg-gray-900 border-t border-gray-700 px-6 py-4 flex items-center justify-between">
           <p className="text-gray-400 text-sm">
-            Showing {(page - 1) * limit + 1} to {Math.min(page * limit, totalCount)} of {totalCount} acceptances
+            {t('adminLegalAcceptancesPage.pagination', {
+              from: (page - 1) * limit + 1,
+              to: Math.min(page * limit, totalCount),
+              total: totalCount,
+            })}
           </p>
           <div className="flex gap-2">
             <button
@@ -484,7 +488,7 @@ export default function AdminLegalAcceptancesPage() {
               disabled={page === 1}
               className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Previous
+              {t('adminLegalAcceptancesPage.previous')}
             </button>
             <div className="flex items-center gap-2">
               {Array.from({ length: pages }, (_, i) => i + 1).map(p => (
@@ -506,7 +510,7 @@ export default function AdminLegalAcceptancesPage() {
               disabled={page === pages}
               className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Next
+              {t('adminLegalAcceptancesPage.next')}
             </button>
           </div>
         </div>

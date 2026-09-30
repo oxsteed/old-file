@@ -64,7 +64,7 @@ export default function BusinessDetail() {
       reload();
       setModal(null);
     } catch (err) {
-      toast.error(err?.response?.data?.error || 'Action failed.');
+      toast.error(err?.response?.data?.error || t('adminBusinessDetail.actionFailed'));
     } finally {
       setActionBusy(false);
     }
@@ -74,9 +74,9 @@ export default function BusinessDetail() {
     try {
       await adminApi.put(`/admin/businesses/${id}/admin-notes`, { notes: adminNotes });
       setEditingNotes(false);
-      toast.success('Notes saved.');
+      toast.success(t('adminBusinessDetail.notesSaved'));
     } catch (err) {
-      toast.error('Failed to save notes.');
+      toast.error(t('adminBusinessDetail.notesSaveFailed'));
     }
   };
 
@@ -87,9 +87,9 @@ export default function BusinessDetail() {
           onClick={() => navigate('/admin/businesses')}
           className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition"
         >
-          <ArrowLeft size={18} /> Back to Businesses
+          <ArrowLeft size={18} /> {t('adminBusinessDetail.backToBusinesses')}
         </button>
-        <div className="text-center text-gray-400 py-12">Loading…</div>
+        <div className="text-center text-gray-400 py-12">{t('adminBusinessDetail.loading')}</div>
       </div>
     );
   }
@@ -101,12 +101,12 @@ export default function BusinessDetail() {
           onClick={() => navigate('/admin/businesses')}
           className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition"
         >
-          <ArrowLeft size={18} /> Back to Businesses
+          <ArrowLeft size={18} /> {t('adminBusinessDetail.backToBusinesses')}
         </button>
         {error ? (
           <AdminErrorState onRetry={reload} />
         ) : (
-          <div className="text-center text-gray-400 py-12">Business not found.</div>
+          <div className="text-center text-gray-400 py-12">{t('adminBusinessDetail.notFound')}</div>
         )}
       </div>
     );
@@ -119,7 +119,7 @@ export default function BusinessDetail() {
         onClick={() => navigate('/admin/businesses')}
         className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition"
       >
-        <ArrowLeft size={18} /> Back to Businesses
+        <ArrowLeft size={18} /> {t('adminBusinessDetail.backToBusinesses')}
       </button>
 
       {/* Header */}
@@ -128,9 +128,9 @@ export default function BusinessDetail() {
           <BusinessAvatar business={business} />
           <div>
             <h1 className="text-3xl font-bold text-white">{business.business_name}</h1>
-            <p className="text-gray-400 text-sm mt-1">{business.category || 'Uncategorized'}</p>
+            <p className="text-gray-400 text-sm mt-1">{business.category || t('adminBusinessDetail.uncategorized')}</p>
             <p className="text-gray-500 text-sm mt-2">
-              ID: <code className="bg-gray-900 px-2 py-1 rounded text-xs">{business.id}</code>
+              {t('adminBusinessDetail.idLabel')} <code className="bg-gray-900 px-2 py-1 rounded text-xs">{business.id}</code>
             </p>
             <div className="flex items-center gap-2 mt-3">
               <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
@@ -138,11 +138,11 @@ export default function BusinessDetail() {
                   ? 'bg-green-500/20 text-green-400'
                   : 'bg-red-500/20 text-red-400'
               }`}>
-                {business.is_active ? 'Active' : 'Inactive'}
+                {business.is_active ? t('adminBusinessDetail.statusActive') : t('adminBusinessDetail.statusInactive')}
               </span>
               {business.is_primary && (
                 <span className="px-3 py-1 rounded-full text-xs font-semibold bg-orange-500/20 text-orange-400">
-                  Primary
+                  {t('adminBusinessDetail.primaryBadge')}
                 </span>
               )}
             </div>
@@ -155,7 +155,7 @@ export default function BusinessDetail() {
             onClick={() => window.open(`/business/${business.id}`, '_blank', 'noopener,noreferrer')}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm font-medium"
           >
-            <ExternalLink size={14} /> View Public Profile
+            <ExternalLink size={14} /> {t('adminBusinessDetail.viewPublicProfile')}
           </button>
         </div>
       </div>
@@ -167,20 +167,20 @@ export default function BusinessDetail() {
           {/* Business Information */}
           <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
             <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-              <Building2 size={18} /> Business Information
+              <Building2 size={18} /> {t('adminBusinessDetail.businessInfoTitle')}
             </h2>
             <div className="space-y-4">
               <div>
-                <p className="text-gray-400 text-sm mb-1">Description</p>
+                <p className="text-gray-400 text-sm mb-1">{t('adminBusinessDetail.descriptionLabel')}</p>
                 <p className="text-gray-200">{business.description || '-'}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-gray-400 text-sm mb-1">Business Type</p>
+                  <p className="text-gray-400 text-sm mb-1">{t('adminBusinessDetail.businessTypeLabel')}</p>
                   <p className="text-gray-200 capitalize">{business.business_type || '-'}</p>
                 </div>
                 <div>
-                  <p className="text-gray-400 text-sm mb-1">Website</p>
+                  <p className="text-gray-400 text-sm mb-1">{t('adminBusinessDetail.websiteLabel')}</p>
                   <p className="text-gray-200">
                     {business.website ? (
                       <a href={business.website} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
@@ -196,26 +196,26 @@ export default function BusinessDetail() {
           {/* Location Information */}
           <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
             <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-              <MapPin size={18} /> Location
+              <MapPin size={18} /> {t('adminBusinessDetail.locationTitle')}
             </h2>
             <div className="space-y-3">
               <div>
-                <p className="text-gray-400 text-sm mb-1">Address</p>
+                <p className="text-gray-400 text-sm mb-1">{t('adminBusinessDetail.addressLabel')}</p>
                 <p className="text-gray-200">
                   {business.address_street || '-'}
                 </p>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <p className="text-gray-400 text-sm mb-1">City</p>
+                  <p className="text-gray-400 text-sm mb-1">{t('adminBusinessDetail.cityLabel')}</p>
                   <p className="text-gray-200">{business.address_city || '-'}</p>
                 </div>
                 <div>
-                  <p className="text-gray-400 text-sm mb-1">State</p>
+                  <p className="text-gray-400 text-sm mb-1">{t('adminBusinessDetail.stateLabel')}</p>
                   <p className="text-gray-200">{business.address_state || '-'}</p>
                 </div>
                 <div>
-                  <p className="text-gray-400 text-sm mb-1">ZIP</p>
+                  <p className="text-gray-400 text-sm mb-1">{t('adminBusinessDetail.zipLabel')}</p>
                   <p className="text-gray-200">{business.address_zip || '-'}</p>
                 </div>
               </div>
@@ -224,7 +224,7 @@ export default function BusinessDetail() {
 
           {/* Jobs */}
           <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <h2 className="text-lg font-bold text-white mb-4">Jobs Posted ({business.job_count || 0})</h2>
+            <h2 className="text-lg font-bold text-white mb-4">{t('adminBusinessDetail.jobsPosted', { count: business.job_count || 0 })}</h2>
             {business.jobs && business.jobs.length > 0 ? (
               <div className="space-y-2">
                 {business.jobs.map(job => (
@@ -244,7 +244,7 @@ export default function BusinessDetail() {
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500 text-sm">No jobs posted</p>
+              <p className="text-gray-500 text-sm">{t('adminBusinessDetail.noJobs')}</p>
             )}
           </div>
         </div>
@@ -254,46 +254,46 @@ export default function BusinessDetail() {
           {/* Owner Information */}
           <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
             <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-              <User size={18} /> Owner Information
+              <User size={18} /> {t('adminBusinessDetail.ownerInfoTitle')}
             </h2>
             <div className="space-y-3">
               <div>
-                <p className="text-gray-400 text-sm mb-1">Name</p>
+                <p className="text-gray-400 text-sm mb-1">{t('adminBusinessDetail.nameLabel')}</p>
                 <p className="text-gray-200">{business.owner_name || '-'}</p>
               </div>
               <div>
-                <p className="text-gray-400 text-sm mb-1">Email</p>
+                <p className="text-gray-400 text-sm mb-1">{t('adminBusinessDetail.emailLabel')}</p>
                 <p className="text-blue-400 text-sm">
                   <a href={`mailto:${business.owner_email}`}>{business.owner_email}</a>
                 </p>
               </div>
               <div>
-                <p className="text-gray-400 text-sm mb-1">Phone</p>
+                <p className="text-gray-400 text-sm mb-1">{t('adminBusinessDetail.phoneLabel')}</p>
                 <p className="text-gray-200">{business.owner_phone || '-'}</p>
               </div>
               <Link
                 to={`/admin/users/${business.owner_id}`}
                 className="flex items-center gap-2 text-blue-400 hover:text-blue-300 transition mt-3"
               >
-                View Owner Profile <ExternalLink size={14} />
+                {t('adminBusinessDetail.viewOwnerProfile')} <ExternalLink size={14} />
               </Link>
             </div>
           </div>
 
           {/* Statistics */}
           <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <h2 className="text-lg font-bold text-white mb-4">Statistics</h2>
+            <h2 className="text-lg font-bold text-white mb-4">{t('adminBusinessDetail.statsTitle')}</h2>
             <div className="space-y-3">
               <div>
-                <p className="text-gray-400 text-sm mb-1">Members</p>
+                <p className="text-gray-400 text-sm mb-1">{t('adminBusinessDetail.membersLabel')}</p>
                 <p className="text-2xl font-bold text-white">{business.member_count || 0}</p>
               </div>
               <div>
-                <p className="text-gray-400 text-sm mb-1">Total Earnings</p>
+                <p className="text-gray-400 text-sm mb-1">{t('adminBusinessDetail.earningsLabel')}</p>
                 <p className="text-2xl font-bold text-green-400">${(business.total_earnings_cents || 0) / 100}</p>
               </div>
               <div>
-                <p className="text-gray-400 text-sm mb-1">Profile Complete</p>
+                <p className="text-gray-400 text-sm mb-1">{t('adminBusinessDetail.profileCompleteLabel')}</p>
                 <div className="w-full bg-gray-700 rounded-full h-2 mt-2">
                   <div
                     className="bg-blue-500 h-2 rounded-full transition"
@@ -307,14 +307,14 @@ export default function BusinessDetail() {
 
           {/* Dates */}
           <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <h2 className="text-lg font-bold text-white mb-4">Timeline</h2>
+            <h2 className="text-lg font-bold text-white mb-4">{t('adminBusinessDetail.timelineTitle')}</h2>
             <div className="space-y-3 text-sm">
               <div>
-                <p className="text-gray-400 mb-1">Created</p>
+                <p className="text-gray-400 mb-1">{t('adminBusinessDetail.createdLabel')}</p>
                 <p className="text-gray-300">{new Date(business.created_at).toLocaleString()}</p>
               </div>
               <div>
-                <p className="text-gray-400 mb-1">Last Updated</p>
+                <p className="text-gray-400 mb-1">{t('adminBusinessDetail.updatedLabel')}</p>
                 <p className="text-gray-300">{new Date(business.updated_at).toLocaleString()}</p>
               </div>
             </div>
@@ -322,7 +322,7 @@ export default function BusinessDetail() {
 
           {/* Admin Actions */}
           <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <h2 className="text-lg font-bold text-white mb-4">Admin Actions</h2>
+            <h2 className="text-lg font-bold text-white mb-4">{t('adminBusinessDetail.actionsTitle')}</h2>
             <div className="space-y-2">
               <button
                 onClick={() => setModal({ type: 'toggle' })}
@@ -333,19 +333,19 @@ export default function BusinessDetail() {
                 }`}
               >
                 {business.is_active ? <ToggleLeft size={16} /> : <ToggleRight size={16} />}
-                {business.is_active ? 'Deactivate' : 'Reactivate'}
+                {business.is_active ? t('adminBusinessDetail.deactivate') : t('adminBusinessDetail.reactivate')}
               </button>
               <button
                 onClick={() => setModal({ type: 'flag' })}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition font-medium"
               >
-                <Flag size={16} /> Flag for Review
+                <Flag size={16} /> {t('adminBusinessDetail.flagReview')}
               </button>
               <button
                 onClick={() => setModal({ type: 'delete' })}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition font-medium"
               >
-                <Trash2 size={16} /> Delete
+                <Trash2 size={16} /> {t('adminBusinessDetail.delete')}
               </button>
             </div>
           </div>
@@ -356,14 +356,14 @@ export default function BusinessDetail() {
       <div className="mt-6 bg-gray-800 border border-gray-700 rounded-xl p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <AlertCircle size={18} /> Admin Notes (Internal)
+            <AlertCircle size={18} /> {t('adminBusinessDetail.notesTitle')}
           </h2>
           {!editingNotes && (
             <button
               onClick={() => setEditingNotes(true)}
               className="flex items-center gap-1 text-blue-400 hover:text-blue-300 transition text-sm"
             >
-              <Edit2 size={14} /> Edit
+              <Edit2 size={14} /> {t('adminBusinessDetail.edit')}
             </button>
           )}
         </div>
@@ -375,14 +375,14 @@ export default function BusinessDetail() {
               rows={4}
               className="w-full bg-gray-900 border border-gray-700 rounded-lg text-white p-3 text-sm
                          focus:border-orange-500 focus:outline-none resize-none"
-              placeholder="Add internal notes about this business…"
+              placeholder={t('adminBusinessDetail.notesPlaceholder')}
             />
             <div className="flex gap-2 mt-3">
               <button
                 onClick={handleSaveNotes}
                 className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition font-medium text-sm"
               >
-                Save
+                {t('adminBusinessDetail.save')}
               </button>
               <button
                 onClick={() => {
@@ -391,12 +391,12 @@ export default function BusinessDetail() {
                 }}
                 className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition font-medium text-sm"
               >
-                Cancel
+                {t('adminBusinessDetail.cancel')}
               </button>
             </div>
           </div>
         ) : (
-          <p className="text-gray-300 text-sm whitespace-pre-wrap">{adminNotes || '(No notes)'}</p>
+          <p className="text-gray-300 text-sm whitespace-pre-wrap">{adminNotes || t('adminBusinessDetail.noNotes')}</p>
         )}
       </div>
 
@@ -415,31 +415,37 @@ export default function BusinessDetail() {
 }
 
 function ActionModal({ business, actionType, onConfirm, onClose, loading }) {
+  const { t } = useTranslation();
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
 
   const labels = {
-    toggle: business.is_active ? 'Deactivate' : 'Reactivate',
-    flag: 'Flag for Review',
-    delete: 'Delete',
+    toggle: business.is_active ? t('adminBusinessDetail.deactivate') : t('adminBusinessDetail.reactivate'),
+    flag: t('adminBusinessDetail.flagReview'),
+    delete: t('adminBusinessDetail.delete'),
+  };
+  const verbKeys = {
+    toggle: business.is_active ? 'adminBusinessDetail.reasonVerbDeactivate' : 'adminBusinessDetail.reasonVerbReactivate',
+    flag: 'adminBusinessDetail.reasonVerbFlag',
+    delete: 'adminBusinessDetail.reasonVerbDelete',
   };
 
   const handle = () => {
-    if (!reason.trim()) { setError('A reason is required.'); return; }
+    if (!reason.trim()) { setError(t('adminBusinessDetail.reasonRequired')); return; }
     onConfirm(reason.trim());
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => !loading && onClose()}>
       <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
-        <h3 className="font-bold text-white text-lg mb-4">{labels[actionType]} Business?</h3>
+        <h3 className="font-bold text-white text-lg mb-4">{t('adminBusinessDetail.actionTitle', { action: labels[actionType] })}</h3>
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-300 mb-2">Reason *</label>
+          <label className="block text-sm font-medium text-gray-300 mb-2">{t('adminBusinessDetail.reasonLabel')}</label>
           <textarea
             rows={3}
             value={reason}
             onChange={e => { setReason(e.target.value); setError(''); }}
-            placeholder={`Explain why you're ${labels[actionType].toLowerCase()}ing…`}
+            placeholder={t('adminBusinessDetail.reasonPlaceholder', { verb: t(verbKeys[actionType]) })}
             className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white p-3 text-sm focus:border-orange-500 focus:outline-none resize-none"
           />
           {error && <p className="text-red-400 text-xs mt-1">{error}</p>}
@@ -450,7 +456,7 @@ function ActionModal({ business, actionType, onConfirm, onClose, loading }) {
             disabled={loading}
             className="flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition disabled:opacity-50"
           >
-            Cancel
+            {t('adminBusinessDetail.cancel')}
           </button>
           <button
             onClick={handle}
@@ -459,7 +465,7 @@ function ActionModal({ business, actionType, onConfirm, onClose, loading }) {
               actionType === 'delete' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
             }`}
           >
-            {loading ? 'Saving…' : labels[actionType]}
+            {loading ? t('adminBusinessDetail.saving') : labels[actionType]}
           </button>
         </div>
       </div>

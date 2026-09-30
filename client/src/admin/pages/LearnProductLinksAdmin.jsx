@@ -19,6 +19,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Link2, Plus, Pencil, Trash2, AlertTriangle, CheckCircle,
   RefreshCw, Search, ShoppingBag, Tag, X,
@@ -32,10 +33,10 @@ import ConfirmDialog from '../lib/ConfirmDialog';
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const LINK_TYPES = [
-  { value: 'amazon_affiliate', label: 'Amazon Affiliate',         color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' },
-  { value: 'own_inventory',    label: 'Own Inventory (OxSteed)',  color: 'bg-green-100  text-green-800  dark:bg-green-900/30  dark:text-green-300'  },
-  { value: 'partner',          label: 'Partner Affiliate',        color: 'bg-blue-100   text-blue-800   dark:bg-blue-900/30   dark:text-blue-300'   },
-  { value: 'rental',           label: 'Rental',                   color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' },
+  { value: 'amazon_affiliate', i18nKey: 'amazonAffiliate', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' },
+  { value: 'own_inventory',    i18nKey: 'ownInventory',    color: 'bg-green-100  text-green-800  dark:bg-green-900/30  dark:text-green-300'  },
+  { value: 'partner',          i18nKey: 'partner',         color: 'bg-blue-100   text-blue-800   dark:bg-blue-900/30   dark:text-blue-300'   },
+  { value: 'rental',           i18nKey: 'rental',          color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' },
 ];
 
 const LINK_TYPE_MAP = Object.fromEntries(LINK_TYPES.map(t => [t.value, t]));
@@ -43,7 +44,7 @@ const DEFAULT_TAG   = 'oxsteed-20';
 
 // ── Compliance check ──────────────────────────────────────────────────────────
 
-function checkCompliance(link) {
+function checkCompliance(link, t) {
   if (!link.link_type || link.link_type !== 'amazon_affiliate') return { ok: true };
   if (!link.buy_url) return { ok: true };
 
@@ -54,9 +55,9 @@ function checkCompliance(link) {
 
   if (!isDirect || !hasTag || !noCloak) {
     const issues = [];
-    if (!isDirect) issues.push('URL must go directly to amazon.com');
-    if (!hasTag)   issues.push(`Missing affiliate tag (&tag=${link.affiliate_tag || DEFAULT_TAG})`);
-    if (!noCloak)  issues.push('URL shorteners and /go/ redirects not allowed');
+    if (!isDirect) issues.push(t('adminLearnProductLinks.compliance.urlNotDirect'));
+    if (!hasTag)   issues.push(t('adminLearnProductLinks.compliance.missingTag', { tag: link.affiliate_tag || DEFAULT_TAG }));
+    if (!noCloak)  issues.push(t('adminLearnProductLinks.compliance.noShorteners'));
     return { ok: false, issues };
   }
   return { ok: true };
@@ -65,21 +66,23 @@ function checkCompliance(link) {
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function LinkTypeBadge({ type }) {
-  const t = LINK_TYPE_MAP[type];
-  if (!t) return <span className="text-zinc-400 text-xs">{type}</span>;
+  const { t } = useTranslation();
+  const info = LINK_TYPE_MAP[type];
+  if (!info) return <span className="text-zinc-400 text-xs">{type}</span>;
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${t.color}`}>
-      {t.label}
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${info.color}`}>
+      {t(`adminLearnProductLinks.linkType.${info.i18nKey}`)}
     </span>
   );
 }
 
 function ComplianceBadge({ link }) {
-  const result = checkCompliance(link);
+  const { t } = useTranslation();
+  const result = checkCompliance(link, t);
   if (result.ok) {
     return (
       <span className="inline-flex items-center gap-1 text-green-600 dark:text-green-400 text-xs font-medium">
-        <CheckCircle size={12} /> OK
+        <CheckCircle size={12} /> {t('adminLearnProductLinks.compliance.ok')}
       </span>
     );
   }
@@ -88,7 +91,7 @@ function ComplianceBadge({ link }) {
       className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 text-xs font-medium cursor-help"
       title={result.issues?.join('\n')}
     >
-      <AlertTriangle size={12} /> Check URL
+      <AlertTriangle size={12} /> {t('adminLearnProductLinks.compliance.checkUrl')}
     </span>
   );
 }
@@ -96,6 +99,7 @@ function ComplianceBadge({ link }) {
 // ── Modal form ────────────────────────────────────────────────────────────────
 
 function ProductLinkModal({ initial, onSave, onClose }) {
+  const { t } = useTranslation();
   const editing = !!initial?.id;
   const [form, setForm] = useState({
     guide_id:      initial?.guide_id      ?? '',
@@ -110,15 +114,15 @@ function ProductLinkModal({ initial, onSave, onClose }) {
   const [err, setErr]       = useState('');
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const compliance = checkCompliance(form);
+  const compliance = checkCompliance(form, t);
 
   const handleSave = async () => {
-    if (!form.tool_name.trim()) { setErr('Tool name is required.'); return; }
+    if (!form.tool_name.trim()) { setErr(t('adminLearnProductLinks.form.toolNameRequired')); return; }
 
     // Enforce compliance before sending to server
     if (form.link_type === 'amazon_affiliate' && form.buy_url) {
       if (!compliance.ok) {
-        setErr('Fix compliance issues before saving:\n' + compliance.issues?.join('\n'));
+        setErr(t('adminLearnProductLinks.form.fixCompliancePrefix') + '\n' + compliance.issues?.join('\n'));
         return;
       }
     }
@@ -144,7 +148,7 @@ function ProductLinkModal({ initial, onSave, onClose }) {
         onSave(data.product, false);
       }
     } catch (e) {
-      setErr(e.response?.data?.message || e.response?.data?.error || 'Save failed.');
+      setErr(e.response?.data?.message || e.response?.data?.error || t('adminLearnProductLinks.form.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -157,8 +161,8 @@ function ProductLinkModal({ initial, onSave, onClose }) {
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-zinc-200 dark:border-zinc-700">
-          <h2 className="text-base font-bold">{editing ? 'Edit' : 'Add'} Product Link</h2>
-          <button onClick={onClose} aria-label="Close" className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
+          <h2 className="text-base font-bold">{t(editing ? 'adminLearnProductLinks.modal.editTitle' : 'adminLearnProductLinks.modal.addTitle')}</h2>
+          <button onClick={onClose} aria-label={t('adminLearnProductLinks.modal.close')} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
             <X size={18} />
           </button>
         </div>
@@ -167,51 +171,50 @@ function ProductLinkModal({ initial, onSave, onClose }) {
           {/* Tool name */}
           <div>
             <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1.5">
-              Tool Name <span className="text-red-500">*</span>
+              {t('adminLearnProductLinks.form.toolName')} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={form.tool_name}
               onChange={e => set('tool_name', e.target.value)}
-              placeholder="e.g. Adjustable wrench"
+              placeholder={t('adminLearnProductLinks.form.toolNamePlaceholder')}
               className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:border-orange-400"
             />
-            <p className="text-xs text-zinc-400 mt-1">Must match the tool name in the guide catalog (case-insensitive).</p>
+            <p className="text-xs text-zinc-400 mt-1">{t('adminLearnProductLinks.form.toolNameHelp')}</p>
           </div>
 
           {/* Guide scope */}
           <div>
             <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1.5">
-              Guide Scope
+              {t('adminLearnProductLinks.form.guideScope')}
             </label>
             <input
               type="text"
               value={form.guide_id}
               onChange={e => set('guide_id', e.target.value)}
-              placeholder="Leave blank to apply to ALL guides"
+              placeholder={t('adminLearnProductLinks.form.guideScopePlaceholder')}
               className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:border-orange-400"
             />
             <p className="text-xs text-zinc-400 mt-1">
-              e.g. <code className="bg-zinc-100 dark:bg-zinc-800 px-1 rounded">fix-leaky-faucet</code>.
-              Blank = global override. Guide-scoped rows take priority over global ones.
+              {t('adminLearnProductLinks.form.guideScopeHelpPrefix')} <code className="bg-zinc-100 dark:bg-zinc-800 px-1 rounded">fix-leaky-faucet</code>{t('adminLearnProductLinks.form.guideScopeHelpSuffix')}
             </p>
           </div>
 
           {/* Link type */}
           <div>
             <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1.5">
-              Link Type <span className="text-red-500">*</span>
+              {t('adminLearnProductLinks.form.linkType')} <span className="text-red-500">*</span>
             </label>
             <select
               value={form.link_type}
               onChange={e => set('link_type', e.target.value)}
               className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:border-orange-400"
             >
-              {LINK_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              {LINK_TYPES.map(lt => <option key={lt.value} value={lt.value}>{t(`adminLearnProductLinks.linkType.${lt.i18nKey}`)}</option>)}
             </select>
             {form.link_type === 'own_inventory' && (
               <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
-                <CheckCircle size={11} /> App shows "Shop OxSteed": no affiliate disclosure required.
+                <CheckCircle size={11} /> {t('adminLearnProductLinks.form.ownInventoryNote')}
               </p>
             )}
           </div>
@@ -219,7 +222,7 @@ function ProductLinkModal({ initial, onSave, onClose }) {
           {/* Buy URL */}
           <div>
             <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1.5">
-              Buy URL
+              {t('adminLearnProductLinks.form.buyUrl')}
             </label>
             <input
               type="url"
@@ -227,22 +230,20 @@ function ProductLinkModal({ initial, onSave, onClose }) {
               onChange={e => set('buy_url', e.target.value)}
               placeholder={isAmazon ? 'https://www.amazon.com/s?k=...&tag=oxsteed-20' : 'https://shop.oxsteed.com/...'}
               className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none bg-zinc-50 dark:bg-zinc-800
-                ${isAmazon && form.buy_url && !checkCompliance(form).ok
+                ${isAmazon && form.buy_url && !compliance.ok
                   ? 'border-amber-400 focus:border-amber-500'
                   : 'border-zinc-200 dark:border-zinc-700 focus:border-orange-400'}`}
             />
             {isAmazon && (
               <p className="text-xs text-zinc-400 mt-1">
-                Must be a direct <code className="bg-zinc-100 dark:bg-zinc-800 px-1 rounded">amazon.com</code> URL.
-                Append <code className="bg-zinc-100 dark:bg-zinc-800 px-1 rounded">&tag={form.affiliate_tag || DEFAULT_TAG}</code>.
-                No redirects or URL shorteners (Amazon Associates policy).
+                {t('adminLearnProductLinks.form.buyUrlHelp1')} <code className="bg-zinc-100 dark:bg-zinc-800 px-1 rounded">amazon.com</code> {t('adminLearnProductLinks.form.buyUrlHelp2')} <code className="bg-zinc-100 dark:bg-zinc-800 px-1 rounded">&tag={form.affiliate_tag || DEFAULT_TAG}</code>{t('adminLearnProductLinks.form.buyUrlHelp3')}
               </p>
             )}
           </div>
 
           {/* Rent URL */}
           <div>
-            <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1.5">Rent URL</label>
+            <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1.5">{t('adminLearnProductLinks.form.rentUrl')}</label>
             <input
               type="text"
               value={form.rent_url}
@@ -250,13 +251,13 @@ function ProductLinkModal({ initial, onSave, onClose }) {
               placeholder="/tool-rentals?category=hand-tools"
               className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:border-orange-400"
             />
-            <p className="text-xs text-zinc-400 mt-1">Internal OxSteed path (no host). Leave blank if not rentable.</p>
+            <p className="text-xs text-zinc-400 mt-1">{t('adminLearnProductLinks.form.rentUrlHelp')}</p>
           </div>
 
           {/* Affiliate tag — Amazon / partner only */}
           {(isAmazon || isPartner) && (
             <div>
-              <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1.5">Affiliate Tag</label>
+              <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1.5">{t('adminLearnProductLinks.form.affiliateTag')}</label>
               <input
                 type="text"
                 value={form.affiliate_tag}
@@ -271,7 +272,7 @@ function ProductLinkModal({ initial, onSave, onClose }) {
           {isAmazon && form.buy_url && !compliance.ok && (
             <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 p-3">
               <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300 font-semibold text-xs mb-1">
-                <AlertTriangle size={13} /> Compliance Issues
+                <AlertTriangle size={13} /> {t('adminLearnProductLinks.compliance.title')}
               </div>
               <ul className="text-xs text-amber-700 dark:text-amber-400 space-y-0.5 list-disc list-inside">
                 {compliance.issues?.map(i => <li key={i}>{i}</li>)}
@@ -284,7 +285,7 @@ function ProductLinkModal({ initial, onSave, onClose }) {
             <button
               type="button"
               onClick={() => set('is_active', !form.is_active)}
-              aria-label={form.is_active ? 'Deactivate link' : 'Activate link'}
+              aria-label={t(form.is_active ? 'adminLearnProductLinks.form.deactivateLink' : 'adminLearnProductLinks.form.activateLink')}
               aria-pressed={form.is_active}
               className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
                 form.is_active ? 'bg-orange-500' : 'bg-zinc-300 dark:bg-zinc-600'
@@ -294,7 +295,7 @@ function ProductLinkModal({ initial, onSave, onClose }) {
                 form.is_active ? 'translate-x-4' : 'translate-x-1'
               }`} />
             </button>
-            <span className="text-sm">{form.is_active ? 'Active: visible to app users' : 'Inactive: hidden from app'}</span>
+            <span className="text-sm">{t(form.is_active ? 'adminLearnProductLinks.form.activeToggle' : 'adminLearnProductLinks.form.inactiveToggle')}</span>
           </div>
 
           {err && (
@@ -306,14 +307,14 @@ function ProductLinkModal({ initial, onSave, onClose }) {
 
         <div className="flex justify-end gap-3 p-6 border-t border-zinc-200 dark:border-zinc-700">
           <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800">
-            Cancel
+            {t('adminLearnProductLinks.form.cancel')}
           </button>
           <button
             onClick={handleSave}
             disabled={saving}
             className="px-4 py-2 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50"
           >
-            {saving ? 'Saving…' : editing ? 'Save Changes' : 'Add Link'}
+            {saving ? t('adminLearnProductLinks.form.saving') : editing ? t('adminLearnProductLinks.form.saveChanges') : t('adminLearnProductLinks.form.addLink')}
           </button>
         </div>
       </div>
@@ -324,6 +325,7 @@ function ProductLinkModal({ initial, onSave, onClose }) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function LearnProductLinksAdmin() {
+  const { t } = useTranslation();
   const [links,      setLinks]      = useState([]);
   const [search,     setSearch]     = useState('');
   const [filterType, setFilterType] = useState('');
@@ -371,7 +373,7 @@ export default function LearnProductLinksAdmin() {
   const active   = links.filter(l => l.is_active).length;
   const amazon   = links.filter(l => l.link_type === 'amazon_affiliate').length;
   const ownInv   = links.filter(l => l.link_type === 'own_inventory').length;
-  const nonComp  = links.filter(l => l.is_active && !checkCompliance(l).ok).length;
+  const nonComp  = links.filter(l => l.is_active && !checkCompliance(l, t).ok).length;
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -381,43 +383,43 @@ export default function LearnProductLinksAdmin() {
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2">
             <Link2 size={20} className="text-orange-500" />
-            Learn · Product Links
+            {t('adminLearnProductLinks.title')}
           </h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-            Manage affiliate and product links shown in the app's Learn tab. Changes take effect on the next app refresh, no update required.
+            {t('adminLearnProductLinks.subtitle')}
           </p>
         </div>
         <button
           onClick={() => setModal({ initial: null })}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold"
         >
-          <Plus size={15} /> Add Product Link
+          <Plus size={15} /> {t('adminLearnProductLinks.addProductLink')}
         </button>
       </div>
 
       {/* Compliance banner */}
       <div className="rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 p-4 text-sm">
         <div className="font-semibold text-amber-800 dark:text-amber-300 mb-1 flex items-center gap-1.5">
-          <AlertTriangle size={14} /> Amazon Associates Compliance (April 2026)
+          <AlertTriangle size={14} /> {t('adminLearnProductLinks.banner.title')}
         </div>
         <ul className="text-amber-700 dark:text-amber-400 space-y-0.5 list-disc list-inside text-xs">
-          <li><strong>No link cloaking</strong>: Amazon links must be direct <code>amazon.com</code> URLs. No /go/ redirects or URL shorteners.</li>
-          <li><strong>Affiliate tag required</strong>: append <code>&tag=oxsteed-20</code> to every Amazon buy URL.</li>
-          <li>The app auto-renders <em>"(paid link)"</em> and <em>"As an Amazon Associate, OxSteed earns from qualifying purchases."</em>: do not remove from app code.</li>
-          <li>Set <code>link_type = own_inventory</code> for OxSteed-stocked items: no disclosure shown, button reads "Shop OxSteed".</li>
+          <li><strong>{t('adminLearnProductLinks.banner.noCloakingTitle')}</strong>{t('adminLearnProductLinks.banner.noCloakingMid')}<code>amazon.com</code>{t('adminLearnProductLinks.banner.noCloakingEnd')}</li>
+          <li><strong>{t('adminLearnProductLinks.banner.tagTitle')}</strong>{t('adminLearnProductLinks.banner.tagMid')}<code>&tag=oxsteed-20</code>{t('adminLearnProductLinks.banner.tagEnd')}</li>
+          <li>{t('adminLearnProductLinks.banner.autoRenderA')}<em>"(paid link)"</em>{t('adminLearnProductLinks.banner.autoRenderB')}<em>"As an Amazon Associate, OxSteed earns from qualifying purchases."</em>{t('adminLearnProductLinks.banner.autoRenderC')}</li>
+          <li>{t('adminLearnProductLinks.banner.ownInventoryA')}<code>link_type = own_inventory</code>{t('adminLearnProductLinks.banner.ownInventoryB')}</li>
         </ul>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {[
-          { label: 'Total',          val: total,   color: '' },
-          { label: 'Active',         val: active,  color: 'text-green-600 dark:text-green-400' },
-          { label: 'Amazon',         val: amazon,  color: 'text-amber-600 dark:text-amber-400' },
-          { label: 'Own Inventory',  val: ownInv,  color: 'text-green-600 dark:text-green-400' },
-          { label: 'Compliance ⚠',  val: nonComp, color: nonComp > 0 ? 'text-red-600 dark:text-red-400' : 'text-zinc-400' },
+          { key: 'total',         label: t('adminLearnProductLinks.stats.total'),         val: total,   color: '' },
+          { key: 'active',        label: t('adminLearnProductLinks.stats.active'),        val: active,  color: 'text-green-600 dark:text-green-400' },
+          { key: 'amazon',        label: t('adminLearnProductLinks.stats.amazon'),        val: amazon,  color: 'text-amber-600 dark:text-amber-400' },
+          { key: 'ownInventory',  label: t('adminLearnProductLinks.stats.ownInventory'),  val: ownInv,  color: 'text-green-600 dark:text-green-400' },
+          { key: 'compliance',    label: t('adminLearnProductLinks.stats.compliance'),    val: nonComp, color: nonComp > 0 ? 'text-red-600 dark:text-red-400' : 'text-zinc-400' },
         ].map(s => (
-          <div key={s.label} className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/50 p-3">
+          <div key={s.key} className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/50 p-3">
             <div className={`text-2xl font-black ${s.color}`}>{s.val}</div>
             <div className="text-xs text-zinc-400 uppercase tracking-wide mt-0.5">{s.label}</div>
           </div>
@@ -432,7 +434,7 @@ export default function LearnProductLinksAdmin() {
             type="search"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search tool or guide…"
+            placeholder={t('adminLearnProductLinks.toolbar.searchPlaceholder')}
             className="w-full pl-8 pr-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-sm focus:outline-none focus:border-orange-400"
           />
         </div>
@@ -441,24 +443,24 @@ export default function LearnProductLinksAdmin() {
           onChange={e => setFilterType(e.target.value)}
           className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none"
         >
-          <option value="">All types</option>
-          {LINK_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+          <option value="">{t('adminLearnProductLinks.toolbar.allTypes')}</option>
+          {LINK_TYPES.map(lt => <option key={lt.value} value={lt.value}>{t(`adminLearnProductLinks.linkType.${lt.i18nKey}`)}</option>)}
         </select>
         <select
           value={filterActive}
           onChange={e => setFilterActive(e.target.value)}
           className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none"
         >
-          <option value="">All statuses</option>
-          <option value="true">Active</option>
-          <option value="false">Inactive</option>
+          <option value="">{t('adminLearnProductLinks.toolbar.allStatuses')}</option>
+          <option value="true">{t('adminLearnProductLinks.status.active')}</option>
+          <option value="false">{t('adminLearnProductLinks.status.inactive')}</option>
         </select>
         <button
           onClick={load}
           disabled={loading}
           className="p-2 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-500"
-          title="Refresh"
-          aria-label="Refresh"
+          title={t('adminLearnProductLinks.toolbar.refresh')}
+          aria-label={t('adminLearnProductLinks.toolbar.refresh')}
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
         </button>
@@ -476,12 +478,12 @@ export default function LearnProductLinksAdmin() {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-200 dark:border-zinc-700">
-              <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Tool</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Type</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Buy URL</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wide hidden lg:table-cell">Tag</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Status</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Compliant</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wide">{t('adminLearnProductLinks.table.tool')}</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wide">{t('adminLearnProductLinks.table.type')}</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wide">{t('adminLearnProductLinks.table.buyUrl')}</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wide hidden lg:table-cell">{t('adminLearnProductLinks.table.tag')}</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wide">{t('adminLearnProductLinks.table.status')}</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wide">{t('adminLearnProductLinks.table.compliant')}</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -490,7 +492,7 @@ export default function LearnProductLinksAdmin() {
               <tr>
                 <td colSpan={7} className="px-4 py-12 text-center text-zinc-400">
                   <RefreshCw size={20} className="animate-spin mx-auto mb-2" />
-                  Loading…
+                  {t('adminLearnProductLinks.table.loading')}
                 </td>
               </tr>
             )}
@@ -498,7 +500,7 @@ export default function LearnProductLinksAdmin() {
               <tr>
                 <td colSpan={7} className="px-4 py-12 text-center text-zinc-400">
                   <ShoppingBag size={32} className="mx-auto mb-2 opacity-30" />
-                  No product links found. Add one to start managing affiliate links without app updates.
+                  {t('adminLearnProductLinks.table.empty')}
                 </td>
               </tr>
             )}
@@ -507,7 +509,7 @@ export default function LearnProductLinksAdmin() {
                 <td className="px-4 py-3">
                   <div className="font-semibold text-zinc-900 dark:text-zinc-100">{link.tool_name}</div>
                   <div className="text-xs text-zinc-400 mt-0.5">
-                    {link.guide_id ? `Guide: ${link.guide_id}` : 'Global (all guides)'}
+                    {link.guide_id ? t('adminLearnProductLinks.table.guideLabel', { guideId: link.guide_id }) : t('adminLearnProductLinks.table.globalGuides')}
                   </div>
                 </td>
                 <td className="px-4 py-3">
@@ -533,7 +535,7 @@ export default function LearnProductLinksAdmin() {
                       : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'
                   }`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${link.is_active ? 'bg-green-500' : 'bg-zinc-400'}`} />
-                    {link.is_active ? 'Active' : 'Inactive'}
+                    {t(link.is_active ? 'adminLearnProductLinks.status.active' : 'adminLearnProductLinks.status.inactive')}
                   </span>
                 </td>
                 <td className="px-4 py-3">
@@ -544,16 +546,16 @@ export default function LearnProductLinksAdmin() {
                     <button
                       onClick={() => setModal({ initial: link })}
                       className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
-                      title="Edit"
-                      aria-label={`Edit ${link.tool_name}`}
+                      title={t('adminLearnProductLinks.row.editTitle')}
+                      aria-label={t('adminLearnProductLinks.row.editAria', { name: link.tool_name })}
                     >
                       <Pencil size={13} />
                     </button>
                     <button
                       onClick={() => setDeactivating(link)}
                       className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-zinc-400 hover:text-red-500"
-                      title="Deactivate"
-                      aria-label={`Deactivate ${link.tool_name}`}
+                      title={t('adminLearnProductLinks.row.deactivateTitle')}
+                      aria-label={t('adminLearnProductLinks.row.deactivateAria', { name: link.tool_name })}
                     >
                       <Trash2 size={13} />
                     </button>
@@ -567,13 +569,13 @@ export default function LearnProductLinksAdmin() {
 
       {/* How it works */}
       <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/40 p-5 text-sm space-y-2">
-        <div className="font-semibold flex items-center gap-2"><Tag size={14} className="text-orange-500" /> How this works</div>
+        <div className="font-semibold flex items-center gap-2"><Tag size={14} className="text-orange-500" /> {t('adminLearnProductLinks.how.title')}</div>
         <ul className="text-zinc-500 dark:text-zinc-400 space-y-1 list-disc list-inside text-xs">
-          <li>The iOS app fetches <code className="bg-zinc-100 dark:bg-zinc-800 px-1 rounded">GET /api/learn/product-links</code> on every refresh.</li>
-          <li>Active rows here override the hardcoded tool links in the app's Learn catalog, no app update needed.</li>
-          <li>A <strong>guide-scoped</strong> row (guide ID set) takes priority over a <strong>global</strong> row (guide ID blank) for the same tool name.</li>
-          <li>Setting <code className="bg-zinc-100 dark:bg-zinc-800 px-1 rounded">link_type = own_inventory</code> is how you switch a tool from Amazon to the OxSteed store: the app renders "Shop OxSteed" and suppresses the affiliate disclosure.</li>
-          <li>Deactivating a row makes the app fall back to the hardcoded catalog URL immediately.</li>
+          <li>{t('adminLearnProductLinks.how.item1a')}<code className="bg-zinc-100 dark:bg-zinc-800 px-1 rounded">GET /api/learn/product-links</code>{t('adminLearnProductLinks.how.item1b')}</li>
+          <li>{t('adminLearnProductLinks.how.item2')}</li>
+          <li>{t('adminLearnProductLinks.how.item3a')}<strong>{t('adminLearnProductLinks.how.item3scoped')}</strong>{t('adminLearnProductLinks.how.item3b')}<strong>{t('adminLearnProductLinks.how.item3global')}</strong>{t('adminLearnProductLinks.how.item3c')}</li>
+          <li>{t('adminLearnProductLinks.how.item4a')}<code className="bg-zinc-100 dark:bg-zinc-800 px-1 rounded">link_type = own_inventory</code>{t('adminLearnProductLinks.how.item4b')}</li>
+          <li>{t('adminLearnProductLinks.how.item5')}</li>
         </ul>
       </div>
 
@@ -591,9 +593,9 @@ export default function LearnProductLinksAdmin() {
         <ConfirmDialog
           open
           danger
-          title="Deactivate product link"
-          message={`Deactivate "${deactivating.tool_name}"? The app will fall back to the hardcoded catalog entry.`}
-          confirmLabel="Deactivate"
+          title={t('adminLearnProductLinks.deactivate.title')}
+          message={t('adminLearnProductLinks.deactivate.message', { name: deactivating.tool_name })}
+          confirmLabel={t('adminLearnProductLinks.deactivate.confirm')}
           onConfirm={handleDeactivate}
           onClose={() => setDeactivating(null)}
         />

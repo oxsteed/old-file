@@ -8,6 +8,7 @@ import AdminErrorState from '../../lib/AdminErrorState';
 
 // ─── Create Admin Modal ──────────────────────────────────────
 function CreateAdminModal({ onCreated, onClose }) {
+  const { t } = useTranslation();
   const { user: me } = useAuth();
   const [form, setForm] = useState({
     email: '', first_name: '', last_name: '',
@@ -22,7 +23,7 @@ function CreateAdminModal({ onCreated, onClose }) {
   async function handleSubmit(e) {
     e.preventDefault();
     if (form.temporary_password.length < 12) {
-      setErr('Temporary password must be at least 12 characters.');
+      setErr(t('adminAdminAccounts.tempPasswordTooShort'));
       return;
     }
     setSaving(true); setErr('');
@@ -31,7 +32,7 @@ function CreateAdminModal({ onCreated, onClose }) {
       setCreated(data?.admin ?? null);
       onCreated();
     } catch (e) {
-      setErr(e?.response?.data?.error || 'Failed to create account.');
+      setErr(e?.response?.data?.error || t('adminAdminAccounts.createFailed'));
     } finally {
       setSaving(false);
     }
@@ -41,55 +42,55 @@ function CreateAdminModal({ onCreated, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
       <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-md shadow-2xl">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-white font-semibold text-lg">Create Admin Account</h2>
-          <button onClick={onClose} aria-label="Close" className="text-gray-500 hover:text-gray-300"><X size={18} /></button>
+          <h2 className="text-white font-semibold text-lg">{t('adminAdminAccounts.modalTitle')}</h2>
+          <button onClick={onClose} aria-label={t('adminAdminAccounts.closeAriaLabel')} className="text-gray-500 hover:text-gray-300"><X size={18} /></button>
         </div>
 
         {created ? (
           <div className="text-center py-4">
             <div className="text-green-400 text-4xl mb-3">✓</div>
-            <p className="text-white font-medium mb-1">Account created</p>
+            <p className="text-white font-medium mb-1">{t('adminAdminAccounts.accountCreatedTitle')}</p>
             <p className="text-gray-400 text-sm mb-4">{created.email}</p>
             <p className="text-yellow-400 text-xs bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-3 py-2">
-              Share the temporary password securely. The admin should change it on first login.
+              {t('adminAdminAccounts.tempPasswordWarning')}
             </p>
             <button onClick={onClose}
               className="mt-4 w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg text-sm">
-              Close
+              {t('adminAdminAccounts.closeButton')}
             </button>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-gray-400 mb-1">First Name</label>
+                <label className="block text-xs text-gray-400 mb-1">{t('adminAdminAccounts.fieldFirstName')}</label>
                 <input value={form.first_name} onChange={e => setF('first_name', e.target.value)} required
                   className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:outline-none" />
               </div>
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Last Name</label>
+                <label className="block text-xs text-gray-400 mb-1">{t('adminAdminAccounts.fieldLastName')}</label>
                 <input value={form.last_name} onChange={e => setF('last_name', e.target.value)} required
                   className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:outline-none" />
               </div>
             </div>
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Email</label>
+              <label className="block text-xs text-gray-400 mb-1">{t('adminAdminAccounts.fieldEmail')}</label>
               <input type="email" value={form.email} onChange={e => setF('email', e.target.value)} required
                 className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:outline-none" />
             </div>
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Role</label>
+              <label className="block text-xs text-gray-400 mb-1">{t('adminAdminAccounts.fieldRole')}</label>
               <select value={form.role} onChange={e => setF('role', e.target.value)}
                 className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:outline-none">
-                <option value="admin">Admin - content moderation + user management</option>
+                <option value="admin">{t('adminAdminAccounts.roleAdminOption')}</option>
                 {me?.role === 'super_admin' && (
-                  <option value="super_admin">Super Admin - full platform access</option>
+                  <option value="super_admin">{t('adminAdminAccounts.roleSuperAdminOption')}</option>
                 )}
               </select>
             </div>
             <div>
               <label className="block text-xs text-gray-400 mb-1">
-                Temporary Password <span className="text-gray-500">(min 12 chars)</span>
+                {t('adminAdminAccounts.fieldTempPassword')} <span className="text-gray-500">({t('adminAdminAccounts.minCharsHint')})</span>
               </label>
               <input type="password" value={form.temporary_password}
                 onChange={e => setF('temporary_password', e.target.value)} required minLength={12}
@@ -99,11 +100,11 @@ function CreateAdminModal({ onCreated, onClose }) {
             <div className="flex gap-3 pt-1">
               <button type="submit" disabled={saving}
                 className="flex-1 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white py-2 rounded-lg text-sm font-medium">
-                {saving ? 'Creating…' : 'Create Account'}
+                {saving ? t('adminAdminAccounts.creatingButton') : t('adminAdminAccounts.createAccountButton')}
               </button>
               <button type="button" onClick={onClose}
                 className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg text-sm font-medium">
-                Cancel
+                {t('adminAdminAccounts.cancelButton')}
               </button>
             </div>
           </form>
@@ -115,6 +116,7 @@ function CreateAdminModal({ onCreated, onClose }) {
 
 // ─── Activity Drawer ─────────────────────────────────────────
 function ActivityDrawer({ admin, onClose }) {
+  const { t } = useTranslation();
   const { data, loading, error, reload } = useAbortableFetch(async (signal) => {
     const { data } = await adminApi.get(`/admin/super/admin-activity/${admin.id}`, { signal });
     return { log: data.log || [], total: data.total || 0 };
@@ -144,16 +146,16 @@ function ActivityDrawer({ admin, onClose }) {
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700 sticky top-0 bg-gray-900">
           <div>
             <h2 className="text-white font-semibold">{admin.first_name} {admin.last_name}</h2>
-            <p className="text-gray-400 text-xs">{total} logged actions</p>
+            <p className="text-gray-400 text-xs">{t('adminAdminAccounts.loggedActionsCount', { count: total })}</p>
           </div>
-          <button onClick={onClose} aria-label="Close" className="text-gray-500 hover:text-gray-300"><X size={18} /></button>
+          <button onClick={onClose} aria-label={t('adminAdminAccounts.closeAriaLabel')} className="text-gray-500 hover:text-gray-300"><X size={18} /></button>
         </div>
 
         <div className="flex-1 p-5">
-          {loading && <p className="text-gray-400 text-sm">Loading…</p>}
+          {loading && <p className="text-gray-400 text-sm">{t('adminAdminAccounts.loadingText')}</p>}
           {!loading && error && <AdminErrorState onRetry={reload} />}
           {!loading && !error && log.length === 0 && (
-            <p className="text-gray-500 text-sm">No logged actions yet.</p>
+            <p className="text-gray-500 text-sm">{t('adminAdminAccounts.emptyActivity')}</p>
           )}
           {!error && (
           <div className="space-y-2">
@@ -201,22 +203,24 @@ export default function AdminAccounts() {
   function showToast(msg) { setToast(msg); setTimeout(() => setToast(''), 3500); }
 
   async function toggleStatus(admin) {
-    const action = admin.is_active ? 'disable' : 'enable';
     const reason = admin.is_active
-      ? window.prompt(`Reason for disabling ${admin.email}:`)
+      ? window.prompt(t('adminAdminAccounts.disableReasonPrompt', { email: admin.email }))
       : null;
     if (admin.is_active && reason === null) return; // cancelled
     try {
       await adminApi.put(`/admin/super/admin-accounts/${admin.id}/status`, { reason: reason || undefined });
-      showToast(`Account ${action}d. Sessions invalidated.`);
+      const actionLabel = admin.is_active
+        ? t('adminAdminAccounts.disabledLabel')
+        : t('adminAdminAccounts.enabledLabel');
+      showToast(t('adminAdminAccounts.accountToggled', { action: actionLabel }));
       reload();
     } catch (e) {
-      showToast(e?.response?.data?.error || 'Failed to update status.');
+      showToast(e?.response?.data?.error || t('adminAdminAccounts.updateStatusFailed'));
     }
   }
 
   async function forceLogout(admin) {
-    if (!window.confirm(`Force logout all sessions for ${admin.email}?`)) return;
+    if (!window.confirm(t('adminAdminAccounts.forceLogoutConfirm', { email: admin.email }))) return;
     try {
       await adminApi.post(`/admin/super/force-logout/${admin.id}`, { reason: 'Force logout by super admin' });
       showToast(t('admin.sessionsInvalidated'));
@@ -235,12 +239,12 @@ export default function AdminAccounts() {
 
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Admin Accounts</h1>
-          <p className="text-gray-400 text-sm mt-1">Manage who has admin access to this platform.</p>
+          <h1 className="text-2xl font-bold text-white">{t('adminAdminAccounts.title')}</h1>
+          <p className="text-gray-400 text-sm mt-1">{t('adminAdminAccounts.subtitle')}</p>
         </div>
         <button onClick={() => setShowCreate(true)}
           className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
-          <UserPlus size={16} /> New Admin
+          <UserPlus size={16} /> {t('adminAdminAccounts.newAdminButton')}
         </button>
       </div>
 
@@ -252,19 +256,19 @@ export default function AdminAccounts() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-700">
-              <th className="text-left text-gray-400 font-medium px-4 py-3">Admin</th>
-              <th className="text-left text-gray-400 font-medium px-4 py-3">Role</th>
-              <th className="text-left text-gray-400 font-medium px-4 py-3">Status</th>
-              <th className="text-left text-gray-400 font-medium px-4 py-3">Actions Logged</th>
-              <th className="text-left text-gray-400 font-medium px-4 py-3">Last Action</th>
-              <th className="text-left text-gray-400 font-medium px-4 py-3">Controls</th>
+              <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminAdminAccounts.tableAdmin')}</th>
+              <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminAdminAccounts.tableRole')}</th>
+              <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminAdminAccounts.tableStatus')}</th>
+              <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminAdminAccounts.tableActionsLogged')}</th>
+              <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminAdminAccounts.tableLastAction')}</th>
+              <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminAdminAccounts.tableControls')}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} className="text-center text-gray-400 py-12">Loading…</td></tr>
+              <tr><td colSpan={6} className="text-center text-gray-400 py-12">{t('adminAdminAccounts.loadingText')}</td></tr>
             ) : admins.length === 0 ? (
-              <tr><td colSpan={6} className="text-center text-gray-400 py-12">No admin accounts found.</td></tr>
+              <tr><td colSpan={6} className="text-center text-gray-400 py-12">{t('adminAdminAccounts.emptyState')}</td></tr>
             ) : admins.map(admin => {
               const isMe = admin.id === me?.id;
               return (
@@ -272,7 +276,7 @@ export default function AdminAccounts() {
                   <td className="px-4 py-3">
                     <p className="text-white font-medium">
                       {admin.first_name} {admin.last_name}
-                      {isMe && <span className="ml-2 text-xs text-orange-400">(you)</span>}
+                      {isMe && <span className="ml-2 text-xs text-orange-400">{t('adminAdminAccounts.youLabel')}</span>}
                     </p>
                     <p className="text-gray-500 text-xs">{admin.email}</p>
                   </td>
@@ -282,14 +286,14 @@ export default function AdminAccounts() {
                         ? 'bg-purple-500/20 text-purple-400'
                         : 'bg-blue-500/20 text-blue-400'
                     }`}>
-                      {admin.role === 'super_admin' ? '⭐ Super Admin' : 'Admin'}
+                      {admin.role === 'super_admin' ? t('adminAdminAccounts.roleSuperAdmin') : t('adminAdminAccounts.roleAdmin')}
                     </span>
                   </td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-0.5 rounded-full text-xs ${
                       admin.is_active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
                     }`}>
-                      {admin.is_active ? 'Active' : 'Disabled'}
+                      {admin.is_active ? t('adminAdminAccounts.statusActive') : t('adminAdminAccounts.statusDisabled')}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-gray-300">{admin.action_count || 0}</td>
@@ -300,7 +304,7 @@ export default function AdminAccounts() {
                     <div className="flex items-center gap-2">
                       <button onClick={() => setActivity(admin)}
                         className="flex items-center gap-1 text-blue-400 hover:text-blue-300 text-xs font-medium">
-                        <Activity size={13} /> Activity
+                        <Activity size={13} /> {t('adminAdminAccounts.activityButton')}
                       </button>
                       {!isMe && (
                         <>
@@ -312,8 +316,8 @@ export default function AdminAccounts() {
                                 : 'text-green-400 hover:text-green-300'
                             }`}>
                             {admin.is_active
-                              ? <><PowerOff size={13} /> Disable</>
-                              : <><Power size={13} /> Enable</>
+                              ? <><PowerOff size={13} /> {t('adminAdminAccounts.disableButton')}</>
+                              : <><Power size={13} /> {t('adminAdminAccounts.enableButton')}</>
                             }
                           </button>
                           {admin.is_active && (
@@ -321,7 +325,7 @@ export default function AdminAccounts() {
                               <span className="text-gray-700">|</span>
                               <button onClick={() => forceLogout(admin)}
                                 className="text-yellow-400 hover:text-yellow-300 text-xs font-medium">
-                                Force Logout
+                                {t('adminAdminAccounts.forceLogoutButton')}
                               </button>
                             </>
                           )}

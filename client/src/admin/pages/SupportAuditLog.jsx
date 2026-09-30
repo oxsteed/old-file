@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
 import {
   History, Download, RefreshCw, Search, Filter, Calendar, User, FileText, Trash2,
@@ -7,6 +8,7 @@ import {
 
 // Audit Log Entry
 function AuditLogEntry({ entry }) {
+  const { t } = useTranslation();
   const getActionColor = (action) => {
     if (action.includes('create') || action.includes('add')) return 'text-green-400 bg-green-900/20';
     if (action.includes('delete') || action.includes('remove')) return 'text-red-400 bg-red-900/20';
@@ -23,7 +25,7 @@ function AuditLogEntry({ entry }) {
             {entry.user_name?.[0] || '?'}
           </div>
           <div className="flex-1">
-            <p className="text-white font-medium">{entry.user_name || 'System'}</p>
+            <p className="text-white font-medium">{entry.user_name || t('adminSupportAuditLog.systemFallback')}</p>
             <p className="text-gray-400 text-sm">{entry.email || 'system@oxsteed.com'}</p>
           </div>
         </div>
@@ -54,21 +56,22 @@ function AuditLogEntry({ entry }) {
 
 // Filter Panel
 function FilterPanel({ filters, onFilterChange }) {
+  const { t } = useTranslation();
   return (
     <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 mb-6 space-y-4">
       <h3 className="text-white font-semibold flex items-center gap-2">
         <Filter size={16} />
-        Filters
+        {t('adminSupportAuditLog.filtersTitle')}
       </h3>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div>
-          <label className="block text-gray-400 text-sm mb-2">Search</label>
+          <label className="block text-gray-400 text-sm mb-2">{t('adminSupportAuditLog.fieldSearch')}</label>
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
             <input
               type="text"
-              placeholder="Search by user or action..."
+              placeholder={t('adminSupportAuditLog.placeholderSearch')}
               value={filters.search}
               onChange={e => onFilterChange({ ...filters, search: e.target.value })}
               className="w-full pl-9 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg
@@ -78,34 +81,34 @@ function FilterPanel({ filters, onFilterChange }) {
         </div>
 
         <div>
-          <label className="block text-gray-400 text-sm mb-2">Action Type</label>
+          <label className="block text-gray-400 text-sm mb-2">{t('adminSupportAuditLog.fieldActionType')}</label>
           <select
             value={filters.action}
             onChange={e => onFilterChange({ ...filters, action: e.target.value })}
             className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white
                        text-sm focus:outline-none focus:border-orange-500"
           >
-            <option value="">All Actions</option>
-            <option value="create">Create</option>
-            <option value="update">Update</option>
-            <option value="delete">Delete</option>
-            <option value="login">Login</option>
-            <option value="export">Export</option>
+            <option value="">{t('adminSupportAuditLog.allActionsOption')}</option>
+            <option value="create">{t('adminSupportAuditLog.actionCreate')}</option>
+            <option value="update">{t('adminSupportAuditLog.actionUpdate')}</option>
+            <option value="delete">{t('adminSupportAuditLog.actionDelete')}</option>
+            <option value="login">{t('adminSupportAuditLog.actionLogin')}</option>
+            <option value="export">{t('adminSupportAuditLog.actionExport')}</option>
           </select>
         </div>
 
         <div>
-          <label className="block text-gray-400 text-sm mb-2">Date Range</label>
+          <label className="block text-gray-400 text-sm mb-2">{t('adminSupportAuditLog.fieldDateRange')}</label>
           <select
             value={filters.dateRange}
             onChange={e => onFilterChange({ ...filters, dateRange: e.target.value })}
             className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white
                        text-sm focus:outline-none focus:border-orange-500"
           >
-            <option value="7d">Last 7 days</option>
-            <option value="30d">Last 30 days</option>
-            <option value="90d">Last 90 days</option>
-            <option value="all">All time</option>
+            <option value="7d">{t('adminSupportAuditLog.range7d')}</option>
+            <option value="30d">{t('adminSupportAuditLog.range30d')}</option>
+            <option value="90d">{t('adminSupportAuditLog.range90d')}</option>
+            <option value="all">{t('adminSupportAuditLog.rangeAll')}</option>
           </select>
         </div>
 
@@ -115,7 +118,7 @@ function FilterPanel({ filters, onFilterChange }) {
             className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg
                        text-sm transition"
           >
-            Clear Filters
+            {t('adminSupportAuditLog.clearFiltersButton')}
           </button>
         </div>
       </div>
@@ -125,6 +128,7 @@ function FilterPanel({ filters, onFilterChange }) {
 
 // Main Audit Log
 export default function SupportAuditLog() {
+  const { t } = useTranslation();
   const { businessId } = useParams();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -192,9 +196,9 @@ export default function SupportAuditLog() {
         <div>
           <h1 className="text-white font-bold text-3xl mb-2 flex items-center gap-2">
             <History size={28} className="text-orange-400" />
-            Audit Log
+            {t('adminSupportAuditLog.title')}
           </h1>
-          <p className="text-gray-400 text-sm">Track all system activities and changes for compliance.</p>
+          <p className="text-gray-400 text-sm">{t('adminSupportAuditLog.subtitle')}</p>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -211,7 +215,7 @@ export default function SupportAuditLog() {
                        text-white rounded-lg transition font-medium"
           >
             <Download size={16} />
-            Export CSV
+            {t('adminSupportAuditLog.exportCsvButton')}
           </button>
         </div>
       </div>
@@ -219,35 +223,35 @@ export default function SupportAuditLog() {
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-          <p className="text-gray-400 text-sm mb-2">Total Entries</p>
+          <p className="text-gray-400 text-sm mb-2">{t('adminSupportAuditLog.statsTotalEntries')}</p>
           <p className="text-white text-3xl font-bold">{stats.total_entries || 0}</p>
-          <p className="text-gray-500 text-xs mt-2">Lifetime</p>
+          <p className="text-gray-500 text-xs mt-2">{t('adminSupportAuditLog.lifetimeCaption')}</p>
         </div>
 
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
           <p className="text-gray-400 text-sm mb-2 flex items-center gap-2">
             <User size={14} />
-            Active Users
+            {t('adminSupportAuditLog.statsActiveUsers')}
           </p>
           <p className="text-white text-3xl font-bold">{stats.users_active || 0}</p>
-          <p className="text-gray-500 text-xs mt-2">This period</p>
+          <p className="text-gray-500 text-xs mt-2">{t('adminSupportAuditLog.thisPeriodCaption')}</p>
         </div>
 
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
           <p className="text-gray-400 text-sm mb-2 flex items-center gap-2">
             <FileText size={14} />
-            Actions Today
+            {t('adminSupportAuditLog.statsActionsToday')}
           </p>
           <p className="text-white text-3xl font-bold">{stats.actions_today || 0}</p>
-          <p className="text-gray-500 text-xs mt-2">Last 24 hours</p>
+          <p className="text-gray-500 text-xs mt-2">{t('adminSupportAuditLog.last24HoursCaption')}</p>
         </div>
 
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-          <p className="text-gray-400 text-sm mb-2">Last Entry</p>
+          <p className="text-gray-400 text-sm mb-2">{t('adminSupportAuditLog.statsLastEntry')}</p>
           <p className="text-white font-semibold">
             {stats.last_entry ? new Date(stats.last_entry).toLocaleTimeString() : '–'}
           </p>
-          <p className="text-gray-500 text-xs mt-2">Most recent activity</p>
+          <p className="text-gray-500 text-xs mt-2">{t('adminSupportAuditLog.mostRecentCaption')}</p>
         </div>
       </div>
 
@@ -258,7 +262,7 @@ export default function SupportAuditLog() {
       <div>
         <h2 className="text-white font-bold text-xl mb-4 flex items-center gap-2">
           <Calendar size={20} className="text-orange-400" />
-          Activity Timeline
+          {t('adminSupportAuditLog.timelineTitle')}
         </h2>
 
         {loading ? (
@@ -268,7 +272,7 @@ export default function SupportAuditLog() {
         ) : logs.length === 0 ? (
           <div className="text-center py-12 bg-gray-800 border border-gray-700 rounded-xl">
             <FileText size={40} className="mx-auto mb-3 text-gray-600" />
-            <p className="text-gray-400">No audit log entries found</p>
+            <p className="text-gray-400">{t('adminSupportAuditLog.emptyState')}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -281,10 +285,9 @@ export default function SupportAuditLog() {
 
       {/* Compliance Info */}
       <div className="bg-blue-900/20 border border-blue-700 rounded-xl p-6 mt-8">
-        <h3 className="text-blue-400 font-bold mb-2">Compliance Information</h3>
+        <h3 className="text-blue-400 font-bold mb-2">{t('adminSupportAuditLog.complianceTitle')}</h3>
         <p className="text-gray-300 text-sm">
-          This audit log tracks all system activities including user logins, data modifications, and administrative actions.
-          Logs are retained for 90 days and can be exported for compliance and security audits.
+          {t('adminSupportAuditLog.complianceText')}
         </p>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
 import { useAuth } from '../../hooks/useAuth';
 import { useSocket } from '../../hooks/useSocket';
@@ -32,58 +33,59 @@ import {
   ClipboardCheck,
 } from 'lucide-react';
 
-const STATUS_LABELS = {
-  open: { label: 'Open', color: 'bg-blue-500/15 text-blue-300 border-blue-500/25' },
-  assigned: { label: 'Assigned', color: 'bg-yellow-500/15 text-yellow-300 border-yellow-500/25' },
-  in_progress: { label: 'In Progress', color: 'bg-orange-500/15 text-orange-300 border-orange-500/25' },
-  waiting_user: { label: 'Waiting User', color: 'bg-purple-500/15 text-purple-300 border-purple-500/25' },
-  resolved: { label: 'Resolved', color: 'bg-green-500/15 text-green-300 border-green-500/25' },
-  closed: { label: 'Closed', color: 'bg-gray-500/15 text-gray-400 border-gray-500/20' },
+const STATUS_META = {
+  open: { i18nKey: 'status.open', color: 'bg-blue-500/15 text-blue-300 border-blue-500/25' },
+  assigned: { i18nKey: 'status.assigned', color: 'bg-yellow-500/15 text-yellow-300 border-yellow-500/25' },
+  in_progress: { i18nKey: 'status.inProgress', color: 'bg-orange-500/15 text-orange-300 border-orange-500/25' },
+  waiting_user: { i18nKey: 'status.waitingUser', color: 'bg-purple-500/15 text-purple-300 border-purple-500/25' },
+  resolved: { i18nKey: 'status.resolved', color: 'bg-green-500/15 text-green-300 border-green-500/25' },
+  closed: { i18nKey: 'status.closed', color: 'bg-gray-500/15 text-gray-400 border-gray-500/20' },
 };
 
-const PRIORITY_LABELS = {
-  urgent: { label: 'Urgent', color: 'bg-red-500/15 text-red-300 border-red-500/25' },
-  high: { label: 'High', color: 'bg-orange-500/15 text-orange-300 border-orange-500/25' },
-  normal: { label: 'Normal', color: 'bg-gray-500/15 text-gray-300 border-gray-500/20' },
-  low: { label: 'Low', color: 'bg-slate-500/15 text-slate-400 border-slate-500/20' },
+const PRIORITY_META = {
+  urgent: { i18nKey: 'priority.urgent', color: 'bg-red-500/15 text-red-300 border-red-500/25' },
+  high: { i18nKey: 'priority.high', color: 'bg-orange-500/15 text-orange-300 border-orange-500/25' },
+  normal: { i18nKey: 'priority.normal', color: 'bg-gray-500/15 text-gray-300 border-gray-500/20' },
+  low: { i18nKey: 'priority.low', color: 'bg-slate-500/15 text-slate-400 border-slate-500/20' },
 };
 
 const SUPPORT_TOOLS = [
-  { label: 'Agent Dashboard', to: '/admin/support/agent-dashboard', icon: Users },
-  { label: 'Agents', to: '/admin/support/agents', icon: Users },
-  { label: 'Onboarding', to: '/admin/support/agent-onboarding', icon: User },
-  { label: 'Shifts', to: '/admin/support/shifts', icon: Clock },
-  { label: 'Live Chat', to: '/admin/support/chat', icon: MessageSquare },
-  { label: 'Knowledge Base', to: '/admin/support/kb', icon: BookOpen },
-  { label: 'Templates', to: '/admin/support/templates', icon: FileText },
-  { label: 'Metrics', to: '/admin/support/metrics', icon: BarChart3 },
-  { label: 'SLA', to: '/admin/support/sla', icon: AlertCircle },
-  { label: 'Performance', to: '/admin/support/performance', icon: TrendingUp },
-  { label: 'CSAT', to: '/admin/support/csat', icon: BarChart3 },
-  { label: 'QA Reviews', to: '/admin/support/qa', icon: ClipboardCheck },
-  { label: 'Escalations', to: '/admin/support/escalations', icon: AlertTriangle },
-  { label: 'Hierarchy', to: '/admin/support/team-hierarchy', icon: Layers },
-  { label: 'Settings', to: '/admin/support/settings', icon: Settings },
-  { label: 'Audit', to: '/admin/support/audit', icon: FileText },
+  { i18nKey: 'tools.agentDashboard', to: '/admin/support/agent-dashboard', icon: Users },
+  { i18nKey: 'tools.agents', to: '/admin/support/agents', icon: Users },
+  { i18nKey: 'tools.onboarding', to: '/admin/support/agent-onboarding', icon: User },
+  { i18nKey: 'tools.shifts', to: '/admin/support/shifts', icon: Clock },
+  { i18nKey: 'tools.liveChat', to: '/admin/support/chat', icon: MessageSquare },
+  { i18nKey: 'tools.knowledgeBase', to: '/admin/support/kb', icon: BookOpen },
+  { i18nKey: 'tools.templates', to: '/admin/support/templates', icon: FileText },
+  { i18nKey: 'tools.metrics', to: '/admin/support/metrics', icon: BarChart3 },
+  { i18nKey: 'tools.sla', to: '/admin/support/sla', icon: AlertCircle },
+  { i18nKey: 'tools.performance', to: '/admin/support/performance', icon: TrendingUp },
+  { i18nKey: 'tools.csat', to: '/admin/support/csat', icon: BarChart3 },
+  { i18nKey: 'tools.qaReviews', to: '/admin/support/qa', icon: ClipboardCheck },
+  { i18nKey: 'tools.escalations', to: '/admin/support/escalations', icon: AlertTriangle },
+  { i18nKey: 'tools.hierarchy', to: '/admin/support/team-hierarchy', icon: Layers },
+  { i18nKey: 'tools.settings', to: '/admin/support/settings', icon: Settings },
+  { i18nKey: 'tools.audit', to: '/admin/support/audit', icon: FileText },
 ];
 
 function Badge({ map, value }) {
-  const cfg = map[value] || { label: value, color: 'bg-gray-500/15 text-gray-400 border-gray-500/20' };
+  const { t } = useTranslation();
+  const cfg = map[value] || { i18nKey: null, color: 'bg-gray-500/15 text-gray-400 border-gray-500/20' };
   return (
     <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${cfg.color}`}>
-      {cfg.label}
+      {cfg.i18nKey ? t(`adminSupportTickets.${cfg.i18nKey}`) : value}
     </span>
   );
 }
 
-function timeAgo(iso) {
+function timeAgo(iso, t) {
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diff / 60000);
-  if (m < 1) return 'just now';
-  if (m < 60) return `${m}m ago`;
+  if (m < 1) return t('adminSupportTickets.time.justNow');
+  if (m < 60) return t('adminSupportTickets.time.minutesAgo', { count: m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
+  if (h < 24) return t('adminSupportTickets.time.hoursAgo', { count: h });
+  return t('adminSupportTickets.time.daysAgo', { count: Math.floor(h / 24) });
 }
 
 function StatCard({ icon: Icon, label, value, tone = 'text-gray-300', detail }) {
@@ -123,49 +125,46 @@ function EmptyState({ title, body, icon: Icon = Inbox }) {
 }
 
 function DetailPlaceholder({ total, unassigned, mine, onNavigate }) {
+  const { t } = useTranslation();
   return (
     <div className="flex min-h-0 flex-1 flex-col rounded-[28px] border border-gray-800 bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-2xl">
           <div className="flex items-center gap-2 text-sm font-medium text-orange-300">
             <MessageSquare size={15} />
-            Conversation Workspace
+            {t('adminSupportTickets.placeholder.eyebrow')}
           </div>
-          <h2 className="mt-2 text-2xl font-semibold text-white">Your support team's active workbench</h2>
+          <h2 className="mt-2 text-2xl font-semibold text-white">{t('adminSupportTickets.placeholder.title')}</h2>
           <p className="mt-3 text-sm leading-6 text-gray-400">
-            Select a ticket from the queue to review the conversation, claim ownership, update priority, and reply to the customer. When the queue is quiet, this space becomes your operational overview.
+            {t('adminSupportTickets.placeholder.body')}
           </p>
         </div>
 
         <div className="grid min-w-[240px] grid-cols-3 gap-3">
-          <MiniStat label="Queue" value={total} />
-          <MiniStat label="Unassigned" value={unassigned} tone="text-blue-300" />
-          <MiniStat label="Mine" value={mine} tone="text-orange-300" />
+          <MiniStat label={t('adminSupportTickets.placeholder.queue')} value={total} />
+          <MiniStat label={t('adminSupportTickets.stats.unassigned')} value={unassigned} tone="text-blue-300" />
+          <MiniStat label={t('adminSupportTickets.placeholder.mine')} value={mine} tone="text-orange-300" />
         </div>
       </div>
 
       <div className="mt-6 grid flex-1 min-h-0 grid-cols-1 gap-4 xl:grid-cols-[1.1fr_0.9fr]">
         <div className="rounded-[24px] border border-gray-800 bg-gray-950/70 p-5">
-          <div className="text-sm font-medium text-white">When a new ticket arrives</div>
+          <div className="text-sm font-medium text-white">{t('adminSupportTickets.placeholder.stepsTitle')}</div>
           <div className="mt-4 space-y-3">
-            {[
-              'Scan the queue for urgency, waiting-user tickets, and unassigned conversations.',
-              'Claim the ticket, set the right priority, and move it into a clear owner workflow.',
-              'Reply to the customer or leave an internal note so the next agent has context.',
-            ].map((step, index) => (
-              <div key={step} className="flex gap-3 rounded-2xl border border-gray-800 bg-gray-900/70 p-4">
+            {['placeholder.step1', 'placeholder.step2', 'placeholder.step3'].map((key, index) => (
+              <div key={key} className="flex gap-3 rounded-2xl border border-gray-800 bg-gray-900/70 p-4">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-orange-500/15 text-sm font-semibold text-orange-300">
                   {index + 1}
                 </div>
-                <div className="text-sm leading-6 text-gray-400">{step}</div>
+                <div className="text-sm leading-6 text-gray-400">{t(`adminSupportTickets.${key}`)}</div>
               </div>
             ))}
           </div>
         </div>
 
         <div className="rounded-[24px] border border-gray-800 bg-gray-950/70 p-5">
-          <div className="text-sm font-medium text-white">Jump to support operations</div>
-          <div className="mt-1 text-xs text-gray-500">Use these when you are not actively in a conversation.</div>
+          <div className="text-sm font-medium text-white">{t('adminSupportTickets.placeholder.routesTitle')}</div>
+          <div className="mt-1 text-xs text-gray-500">{t('adminSupportTickets.placeholder.routesSubtitle')}</div>
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {SUPPORT_TOOLS.slice(0, 6).map((item) => {
               const Icon = item.icon;
@@ -179,7 +178,7 @@ function DetailPlaceholder({ total, unassigned, mine, onNavigate }) {
                     <div className="rounded-xl bg-gray-800 p-2 text-gray-300">
                       <Icon size={14} />
                     </div>
-                    <div className="text-sm font-medium text-gray-200">{item.label}</div>
+                    <div className="text-sm font-medium text-gray-200">{t(`adminSupportTickets.${item.i18nKey}`)}</div>
                   </div>
                   <ChevronRight size={14} className="text-gray-600" />
                 </button>
@@ -193,6 +192,7 @@ function DetailPlaceholder({ total, unassigned, mine, onNavigate }) {
 }
 
 function TicketRow({ ticket, selected, onClick }) {
+  const { t } = useTranslation();
   const hasUnread = parseInt(ticket.unread_user_replies, 10) > 0;
   const preview = ticket.latest_message_preview || ticket.message_preview || ticket.description || '';
 
@@ -216,7 +216,7 @@ function TicketRow({ ticket, selected, onClick }) {
           </div>
         </div>
         <div className="shrink-0 text-right">
-          <div className="text-xs text-gray-500">{timeAgo(ticket.created_at)}</div>
+          <div className="text-xs text-gray-500">{timeAgo(ticket.created_at, t)}</div>
           {ticket.assignee_id && (
             <div className="mt-1 text-[11px] text-gray-600">
               {ticket.assignee_first} {ticket.assignee_last}
@@ -232,8 +232,8 @@ function TicketRow({ ticket, selected, onClick }) {
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <Badge map={STATUS_LABELS} value={ticket.status} />
-        <Badge map={PRIORITY_LABELS} value={ticket.priority} />
+        <Badge map={STATUS_META} value={ticket.status} />
+        <Badge map={PRIORITY_META} value={ticket.priority} />
         {ticket.category && (
           <span className="rounded-full border border-gray-700 bg-gray-800/70 px-2.5 py-1 text-xs text-gray-400">
             {ticket.category}
@@ -245,6 +245,7 @@ function TicketRow({ ticket, selected, onClick }) {
 }
 
 function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
+  const { t } = useTranslation();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [reply, setReply] = useState('');
@@ -277,7 +278,7 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
       await load();
       onUpdated();
     } catch (err) {
-      toast.error(err?.response?.data?.error || 'Action failed.');
+      toast.error(err?.response?.data?.error || t('adminSupportTickets.detail.actionFailed'));
     } finally {
       setActionBusy(false);
     }
@@ -301,7 +302,7 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
       await load();
       onUpdated();
     } catch (err) {
-      toast.error(err?.response?.data?.error || 'Failed to send reply.');
+      toast.error(err?.response?.data?.error || t('adminSupportTickets.detail.replyFailed'));
     } finally {
       setSending(false);
     }
@@ -318,8 +319,8 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
   if (!data) {
     return (
       <EmptyState
-        title="Ticket details unavailable"
-        body="This conversation could not be loaded right now. Refresh the inbox or reopen the ticket."
+        title={t('adminSupportTickets.detail.unavailableTitle')}
+        body={t('adminSupportTickets.detail.unavailableBody')}
         icon={AlertTriangle}
       />
     );
@@ -335,8 +336,8 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge map={STATUS_LABELS} value={ticket.status} />
-              <Badge map={PRIORITY_LABELS} value={ticket.priority} />
+              <Badge map={STATUS_META} value={ticket.status} />
+              <Badge map={PRIORITY_META} value={ticket.priority} />
               {ticket.category && (
                 <span className="rounded-full border border-gray-700 bg-gray-800/70 px-2.5 py-1 text-xs text-gray-400">
                   {ticket.category}
@@ -346,12 +347,12 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
             <h2 className="mt-3 text-xl font-semibold text-white">{ticket.subject}</h2>
             <p className="mt-2 text-sm text-gray-400">
               #{ticket.ticket_number} · {ticket.name} &lt;{ticket.email}&gt;
-              {ticket.user_first && ` · registered as ${ticket.user_first} ${ticket.user_last}`}
+              {ticket.user_first && <> · {t('adminSupportTickets.detail.registeredAs', { first: ticket.user_first, last: ticket.user_last })}</>}
             </p>
             <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-500">
-              <span>Opened {timeAgo(ticket.created_at)}</span>
-              {ticket.first_response_at && <span>First response {timeAgo(ticket.first_response_at)}</span>}
-              {ticket.assignee_id && <span>Assigned to {ticket.assignee_first} {ticket.assignee_last}</span>}
+              <span>{t('adminSupportTickets.detail.opened', { time: timeAgo(ticket.created_at, t) })}</span>
+              {ticket.first_response_at && <span>{t('adminSupportTickets.detail.firstResponse', { time: timeAgo(ticket.first_response_at, t) })}</span>}
+              {ticket.assignee_id && <span>{t('adminSupportTickets.detail.assignedTo', { first: ticket.assignee_first, last: ticket.assignee_last })}</span>}
             </div>
           </div>
 
@@ -362,7 +363,7 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
                 disabled={actionBusy}
                 className="flex items-center gap-1.5 rounded-xl bg-orange-600 px-3 py-2 text-xs font-medium text-white transition hover:bg-orange-700 disabled:opacity-50"
               >
-                <Lock size={12} /> Claim
+                <Lock size={12} /> {t('adminSupportTickets.detail.claim')}
               </button>
             )}
             {!isClosed && ticket.assigned_to && (isMine || isSuper) && (
@@ -371,7 +372,7 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
                 disabled={actionBusy}
                 className="flex items-center gap-1.5 rounded-xl bg-gray-800 px-3 py-2 text-xs font-medium text-gray-200 transition hover:bg-gray-700 disabled:opacity-50"
               >
-                <Unlock size={12} /> Unclaim
+                <Unlock size={12} /> {t('adminSupportTickets.detail.unclaim')}
               </button>
             )}
             {!isClosed && ticket.assigned_to && !isMine && isSuper && (
@@ -380,7 +381,7 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
                 disabled={actionBusy}
                 className="flex items-center gap-1.5 rounded-xl bg-purple-700 px-3 py-2 text-xs font-medium text-white transition hover:bg-purple-600 disabled:opacity-50"
               >
-                <Lock size={12} /> Take over
+                <Lock size={12} /> {t('adminSupportTickets.detail.takeOver')}
               </button>
             )}
             <button
@@ -400,21 +401,21 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
                 disabled={actionBusy || ticket.status === 'waiting_user'}
                 className="rounded-xl border border-gray-700 bg-gray-900 px-3 py-2 text-xs text-gray-300 transition hover:border-gray-600 hover:bg-gray-800 disabled:opacity-40"
               >
-                Waiting user
+                {t('adminSupportTickets.status.waitingUser')}
               </button>
               <button
                 onClick={() => handleStatus('resolved')}
                 disabled={actionBusy}
                 className="flex items-center gap-1 rounded-xl bg-green-500/15 px-3 py-2 text-xs text-green-300 transition hover:bg-green-500/20 disabled:opacity-40"
               >
-                <CheckCircle size={11} /> Resolve
+                <CheckCircle size={11} /> {t('adminSupportTickets.detail.resolve')}
               </button>
               <button
                 onClick={() => handleStatus('closed')}
                 disabled={actionBusy}
                 className="flex items-center gap-1 rounded-xl bg-gray-800 px-3 py-2 text-xs text-gray-400 transition hover:bg-gray-700 disabled:opacity-40"
               >
-                <X size={11} /> Close
+                <X size={11} /> {t('adminSupportTickets.detail.close')}
               </button>
             </>
           )}
@@ -425,7 +426,7 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
               disabled={actionBusy}
               className="rounded-xl bg-blue-500/15 px-3 py-2 text-xs text-blue-300 transition hover:bg-blue-500/20 disabled:opacity-40"
             >
-              Re-open
+              {t('adminSupportTickets.detail.reopen')}
             </button>
           )}
 
@@ -435,10 +436,10 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
             disabled={actionBusy}
             className="rounded-xl border border-gray-700 bg-gray-900 px-3 py-2 text-xs text-gray-300 focus:border-orange-500 focus:outline-none disabled:opacity-40"
           >
-            <option value="low">Low priority</option>
-            <option value="normal">Normal priority</option>
-            <option value="high">High priority</option>
-            <option value="urgent">Urgent priority</option>
+            <option value="low">{t('adminSupportTickets.detail.priorityLow')}</option>
+            <option value="normal">{t('adminSupportTickets.detail.priorityNormal')}</option>
+            <option value="high">{t('adminSupportTickets.detail.priorityHigh')}</option>
+            <option value="urgent">{t('adminSupportTickets.detail.priorityUrgent')}</option>
           </select>
         </div>
       </div>
@@ -455,13 +456,13 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
 
               <div className={`max-w-[82%] ${msg.is_from_admin ? 'items-end' : 'items-start'} flex flex-col`}>
                 <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                  <span>{msg.sender_name || 'Unknown'}</span>
+                  <span>{msg.sender_name || t('adminSupportTickets.detail.unknownSender')}</span>
                   {msg.is_internal && (
                     <span className="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2 py-0.5 text-yellow-300">
-                      Internal note
+                      {t('adminSupportTickets.detail.internalNote')}
                     </span>
                   )}
-                  <span>{timeAgo(msg.created_at)}</span>
+                  <span>{timeAgo(msg.created_at, t)}</span>
                 </div>
 
                 <div
@@ -498,7 +499,7 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
               }`}
             >
               <MessageSquare size={11} className="mr-1 inline" />
-              Reply to user
+              {t('adminSupportTickets.detail.replyToUser')}
             </button>
             <button
               onClick={() => setIsInternal(true)}
@@ -507,7 +508,7 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
               }`}
             >
               <FileText size={11} className="mr-1 inline" />
-              Internal note
+              {t('adminSupportTickets.detail.internalNote')}
             </button>
           </div>
 
@@ -515,7 +516,7 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
             <textarea
               value={reply}
               onChange={(event) => setReply(event.target.value)}
-              placeholder={isInternal ? 'Add a private note for the support team…' : 'Write a reply to the customer…'}
+              placeholder={isInternal ? t('adminSupportTickets.detail.notePlaceholder') : t('adminSupportTickets.detail.replyPlaceholder')}
               rows={4}
               style={{ resize: 'none' }}
               className={`flex-1 rounded-2xl border bg-gray-900 px-4 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none ${
@@ -537,7 +538,7 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
               )}
             </button>
           </form>
-          <div className="mt-2 text-xs text-gray-600">Cmd/Ctrl + Enter to send</div>
+          <div className="mt-2 text-xs text-gray-600">{t('adminSupportTickets.detail.sendHint')}</div>
         </div>
       )}
     </div>
@@ -545,6 +546,7 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
 }
 
 export default function SupportTickets() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { socket } = useSocket();
   const navigate = useNavigate();
@@ -599,14 +601,14 @@ export default function SupportTickets() {
       setTickets([]);
       setStats(null);
       setTotal(0);
-      setLoadError(error?.response?.data?.error || 'Could not load the support inbox.');
+      setLoadError(error?.response?.data?.error || t('adminSupportTickets.loadFailed'));
     } finally {
       if (ticketLoadingRequestRef.current === requestId) {
         ticketLoadingRequestRef.current = null;
         setLoading(false);
       }
     }
-  }, [search, status, priority, assigned]);
+  }, [search, status, priority, assigned, t]);
 
   useEffect(() => { loadTickets(); }, [loadTickets]);
 
@@ -624,9 +626,9 @@ export default function SupportTickets() {
     try {
       const nextValue = !availability;
       await updateAvailability();
-      toast.success(nextValue ? 'You are now available for support.' : 'You are now unavailable for support.');
+      toast.success(nextValue ? t('adminSupportTickets.availability.available') : t('adminSupportTickets.availability.unavailable'));
     } catch (err) {
-      toast.error(err?.response?.data?.error || 'Failed to update availability.');
+      toast.error(err?.response?.data?.error || t('adminSupportTickets.availability.failed'));
     }
   };
   useEffect(() => {
@@ -668,18 +670,18 @@ export default function SupportTickets() {
               <div className="max-w-3xl">
                 <div className="flex items-center gap-2 text-sm font-medium text-orange-300">
                   <Inbox size={15} />
-                  Support Command Center
+                  {t('adminSupportTickets.header.eyebrow')}
                 </div>
-                <h1 className="mt-2 text-2xl font-semibold text-white">Admin support inbox</h1>
+                <h1 className="mt-2 text-2xl font-semibold text-white">{t('adminSupportTickets.title')}</h1>
                 <p className="mt-3 text-sm leading-6 text-gray-400">
-                  Review incoming customer issues, claim ownership fast, and move conversations from first response to resolution with clearer operational context.
+                  {t('adminSupportTickets.subtitle')}
                 </p>
                 <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-blue-500/25 bg-blue-500/5 p-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-start gap-3">
                     <MessageSquare size={16} className="mt-0.5 shrink-0 text-blue-300" />
                     <div>
-                      <div className="text-sm font-semibold text-blue-100">Looking for real-time customer conversations?</div>
-                      <div className="mt-1 text-xs leading-5 text-blue-200/70">This is the legacy ticket queue. Live customer replies and internal notes are managed in the Live Support workspace.</div>
+                      <div className="text-sm font-semibold text-blue-100">{t('adminSupportTickets.banner.title')}</div>
+                      <div className="mt-1 text-xs leading-5 text-blue-200/70">{t('adminSupportTickets.banner.body')}</div>
                     </div>
                   </div>
                   <button
@@ -687,7 +689,7 @@ export default function SupportTickets() {
                     onClick={() => navigate('/admin/support/chat')}
                     className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-blue-400/30 bg-blue-500/10 px-3 py-2 text-xs font-semibold text-blue-100 transition hover:bg-blue-500/20"
                   >
-                    Open Live Support
+                    {t('adminSupportTickets.banner.open')}
                     <ChevronRight size={14} />
                   </button>
                 </div>
@@ -699,7 +701,7 @@ export default function SupportTickets() {
                   className="flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-gray-300 transition hover:border-gray-600 hover:text-white"
                 >
                   <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-                  Refresh
+                  {t('adminSupportTickets.refresh')}
                 </button>
               <button
                 onClick={toggleAvailability}
@@ -711,11 +713,11 @@ export default function SupportTickets() {
                 }`}
               >
                 <span className={`h-2 w-2 rounded-full ${availability ? 'bg-green-400' : 'bg-gray-600'}`} />
-                {availability ? 'Available for support' : 'Unavailable for support'}
+                {availability ? t('adminSupportTickets.availability.availableShort') : t('adminSupportTickets.availability.unavailableShort')}
               </button>
                 {stats?.unassigned > 0 && (
                   <div className="rounded-full bg-orange-500 px-3 py-1 text-xs font-medium text-white">
-                    {stats.unassigned} unassigned
+                    {t('adminSupportTickets.unassignedBadge', { count: stats.unassigned })}
                   </div>
                 )}
               </div>
@@ -724,31 +726,31 @@ export default function SupportTickets() {
             <div className="mt-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
               <StatCard
                 icon={Inbox}
-                label="Open queue"
+                label={t('adminSupportTickets.stats.openQueue')}
                 value={totalOpen}
                 tone="text-white"
-                detail="Open, assigned, and in-progress tickets."
+                detail={t('adminSupportTickets.stats.openQueueDetail')}
               />
               <StatCard
                 icon={User}
-                label="My tickets"
+                label={t('adminSupportTickets.stats.myTickets')}
                 value={stats?.my_open ?? '–'}
                 tone="text-orange-300"
-                detail="Conversations currently owned by you."
+                detail={t('adminSupportTickets.stats.myTicketsDetail')}
               />
               <StatCard
                 icon={AlertTriangle}
-                label="Unassigned"
+                label={t('adminSupportTickets.stats.unassigned')}
                 value={stats?.unassigned ?? '–'}
                 tone="text-blue-300"
-                detail="Tickets waiting for first owner assignment."
+                detail={t('adminSupportTickets.stats.unassignedDetail')}
               />
               <StatCard
                 icon={CheckCircle}
-                label="Resolved today"
+                label={t('adminSupportTickets.stats.resolvedToday')}
                 value={stats?.resolved_today ?? stats?.today_resolved ?? '–'}
                 tone="text-green-300"
-                detail="Resolved volume if provided by the stats endpoint."
+                detail={t('adminSupportTickets.stats.resolvedTodayDetail')}
               />
             </div>
           </div>
@@ -756,8 +758,8 @@ export default function SupportTickets() {
           <div className="rounded-[28px] border border-gray-800 bg-gray-950/90 p-5">
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <div className="text-sm font-medium text-white">Quick routes</div>
-                <div className="mt-1 text-xs text-gray-500">Fast access to the rest of support ops.</div>
+                <div className="text-sm font-medium text-white">{t('adminSupportTickets.quickRoutes.title')}</div>
+                <div className="mt-1 text-xs text-gray-500">{t('adminSupportTickets.quickRoutes.subtitle')}</div>
               </div>
               <Flag size={15} className="text-gray-600" />
             </div>
@@ -774,7 +776,7 @@ export default function SupportTickets() {
                     <div className="rounded-xl bg-gray-800 p-2 text-gray-300">
                       <Icon size={14} />
                     </div>
-                    <div className="text-sm font-medium text-gray-200">{item.label}</div>
+                    <div className="text-sm font-medium text-gray-200">{t(`adminSupportTickets.${item.i18nKey}`)}</div>
                   </div>
                   <ChevronRight size={14} className="text-gray-600" />
                 </button>
@@ -789,14 +791,14 @@ export default function SupportTickets() {
             <div className="border-b border-gray-800 px-5 py-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-lg font-semibold text-white">Inbox queue</div>
+                  <div className="text-lg font-semibold text-white">{t('adminSupportTickets.inbox.title')}</div>
                   <div className="mt-1 text-sm text-gray-500">
-                    {total} ticket{total === 1 ? '' : 's'} matching the current view.
+                    {t('adminSupportTickets.inbox.count', { count: total })}
                   </div>
-                  {lastUpdated && <div className="mt-1 text-xs text-gray-600">Updated {lastUpdated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</div>}
+                  {lastUpdated && <div className="mt-1 text-xs text-gray-600">{t('adminSupportTickets.inbox.updated', { time: lastUpdated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) })}</div>}
                 </div>
                 <div className="rounded-full border border-gray-700 bg-gray-900 px-3 py-1 text-xs text-gray-400">
-                  {activeFilterCount} filter{activeFilterCount === 1 ? '' : 's'}
+                  {t('adminSupportTickets.inbox.filters', { count: activeFilterCount })}
                 </div>
               </div>
 
@@ -805,7 +807,7 @@ export default function SupportTickets() {
                   <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                   <input
                     type="text"
-                    placeholder="Search by subject, ticket #, name, or email"
+                    placeholder={t('adminSupportTickets.inbox.searchPlaceholder')}
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
                     className="w-full rounded-xl border border-gray-700 bg-gray-950 py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-gray-500 focus:border-orange-500 focus:outline-none"
@@ -814,7 +816,7 @@ export default function SupportTickets() {
 
                 <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
                   <Filter size={12} />
-                  Filter the queue to focus on ownership, urgency, or waiting states.
+                  {t('adminSupportTickets.inbox.filterHint')}
                 </div>
 
                 <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -823,33 +825,33 @@ export default function SupportTickets() {
                     onChange={(event) => setStatus(event.target.value)}
                     className="rounded-xl border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-gray-300 focus:border-orange-500 focus:outline-none"
                   >
-                    <option value="">All statuses</option>
-                    <option value="open">Open</option>
-                    <option value="assigned">Assigned</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="waiting_user">Waiting User</option>
-                    <option value="resolved">Resolved</option>
-                    <option value="closed">Closed</option>
+                    <option value="">{t('adminSupportTickets.filters.allStatuses')}</option>
+                    <option value="open">{t('adminSupportTickets.status.open')}</option>
+                    <option value="assigned">{t('adminSupportTickets.status.assigned')}</option>
+                    <option value="in_progress">{t('adminSupportTickets.status.inProgress')}</option>
+                    <option value="waiting_user">{t('adminSupportTickets.status.waitingUser')}</option>
+                    <option value="resolved">{t('adminSupportTickets.status.resolved')}</option>
+                    <option value="closed">{t('adminSupportTickets.status.closed')}</option>
                   </select>
                   <select
                     value={priority}
                     onChange={(event) => setPriority(event.target.value)}
                     className="rounded-xl border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-gray-300 focus:border-orange-500 focus:outline-none"
                   >
-                    <option value="">All priorities</option>
-                    <option value="urgent">Urgent</option>
-                    <option value="high">High</option>
-                    <option value="normal">Normal</option>
-                    <option value="low">Low</option>
+                    <option value="">{t('adminSupportTickets.filters.allPriorities')}</option>
+                    <option value="urgent">{t('adminSupportTickets.priority.urgent')}</option>
+                    <option value="high">{t('adminSupportTickets.priority.high')}</option>
+                    <option value="normal">{t('adminSupportTickets.priority.normal')}</option>
+                    <option value="low">{t('adminSupportTickets.priority.low')}</option>
                   </select>
                   <select
                     value={assigned}
                     onChange={(event) => setAssigned(event.target.value)}
                     className="rounded-xl border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-gray-300 focus:border-orange-500 focus:outline-none"
                   >
-                    <option value="">All agents</option>
-                    <option value="me">Mine</option>
-                    <option value="unassigned">Unassigned</option>
+                    <option value="">{t('adminSupportTickets.filters.allAgents')}</option>
+                    <option value="me">{t('adminSupportTickets.filters.mine')}</option>
+                    <option value="unassigned">{t('adminSupportTickets.filters.unassigned')}</option>
                   </select>
                 </div>
               </div>
@@ -859,22 +861,22 @@ export default function SupportTickets() {
               {loadError && (
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
                   <span>{loadError}</span>
-                  <button type="button" onClick={loadTickets} disabled={loading} className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/10 disabled:opacity-50">Try again</button>
+                  <button type="button" onClick={loadTickets} disabled={loading} className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/10 disabled:opacity-50">{t('adminSupportTickets.inbox.tryAgain')}</button>
                 </div>
               )}
               {loading && !tickets.length ? (
                 <div className="flex h-32 items-center justify-center text-sm text-gray-500">
                   <div className="mr-2 h-5 w-5 animate-spin rounded-full border-2 border-orange-500 border-t-transparent" />
-                  Loading support inbox…
+                  {t('adminSupportTickets.inbox.loading')}
                 </div>
               ) : tickets.length === 0 ? (
                 <div className="flex h-full min-h-[260px] flex-col items-center justify-center rounded-[24px] border border-dashed border-gray-800 bg-gray-900/40 px-6 text-center">
                   <div className="mb-4 rounded-2xl border border-gray-800 bg-gray-900 p-4 text-gray-500">
                     <CheckCircle size={28} />
                   </div>
-                  <div className="text-base font-medium text-gray-200">{loadError ? 'Support inbox unavailable' : 'No tickets match this view'}</div>
+                  <div className="text-base font-medium text-gray-200">{loadError ? t('adminSupportTickets.empty.unavailableTitle') : t('adminSupportTickets.empty.noMatchTitle')}</div>
                   <div className="mt-2 max-w-sm text-sm leading-6 text-gray-500">
-                    Try widening the filters, switching assignment scope, or searching for a different customer or subject.
+                    {t('adminSupportTickets.empty.noMatchBody')}
                   </div>
                 </div>
               ) : (
@@ -900,7 +902,7 @@ export default function SupportTickets() {
                     onClick={closeTicketDetail}
                     className="rounded-xl border border-gray-800 bg-gray-950 px-3 py-2 text-sm text-gray-400 transition hover:text-white"
                   >
-                    ← Back to inbox
+                    ← {t('adminSupportTickets.detail.backToInbox')}
                   </button>
                 </div>
                 <TicketDetail

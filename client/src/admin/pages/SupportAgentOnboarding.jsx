@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
 import toast from 'react-hot-toast';
 import {
@@ -25,7 +26,32 @@ const SUPPORT_BUSINESS_STORAGE_KEY = 'oxs:support_business_id';
 const skills = ['billing', 'technical', 'account', 'general', 'escalations'];
 const languages = ['English', 'Spanish', 'French', 'German', 'Portuguese'];
 
+// Skill/language ids stay stable for the API; only the displayed labels translate.
+const SKILL_LABEL_KEYS = {
+  billing: 'adminSupportOnboarding.skillBilling',
+  technical: 'adminSupportOnboarding.skillTechnical',
+  account: 'adminSupportOnboarding.skillAccount',
+  general: 'adminSupportOnboarding.skillGeneral',
+  escalations: 'adminSupportOnboarding.skillEscalations',
+};
+
+const LANGUAGE_LABEL_KEYS = {
+  English: 'adminSupportOnboarding.languageEnglish',
+  Spanish: 'adminSupportOnboarding.languageSpanish',
+  French: 'adminSupportOnboarding.languageFrench',
+  German: 'adminSupportOnboarding.languageGerman',
+  Portuguese: 'adminSupportOnboarding.languagePortuguese',
+};
+
+const STEP_TITLE_KEYS = [
+  'adminSupportOnboarding.stepBasicInfo',
+  'adminSupportOnboarding.stepAvailability',
+  'adminSupportOnboarding.stepSkillsLanguages',
+  'adminSupportOnboarding.stepReviewConfirm',
+];
+
 function StepPill({ stepNumber, title, active, complete, onClick }) {
+  const { t } = useTranslation();
   return (
     <button
       onClick={onClick}
@@ -37,13 +63,14 @@ function StepPill({ stepNumber, title, active, complete, onClick }) {
             : 'border-gray-800 bg-gray-900/70 text-gray-400'
       }`}
     >
-      <div className="text-xs uppercase tracking-[0.18em]">{complete ? 'Done' : `Step ${stepNumber}`}</div>
+      <div className="text-xs uppercase tracking-[0.18em]">{complete ? t('adminSupportOnboarding.stepDone') : t('adminSupportOnboarding.stepLabel', { stepNumber })}</div>
       <div className="mt-1 text-sm font-medium">{title}</div>
     </button>
   );
 }
 
 export default function SupportAgentOnboarding() {
+  const { t } = useTranslation();
   const { businessId: businessIdFromRoute } = useParams();
   const [businessIdManual, setBusinessIdManual] = useState(() => {
     try {
@@ -93,19 +120,19 @@ export default function SupportAgentOnboarding() {
 
     try {
       if (!formData.first_name || !formData.last_name || !formData.email) {
-        setError('First name, last name, and email are required.');
+        setError(t('adminSupportOnboarding.errorRequiredFields'));
         setLoading(false);
         return;
       }
 
       if (formData.skills.length === 0) {
-        setError('Please select at least one skill.');
+        setError(t('adminSupportOnboarding.errorSkillRequired'));
         setLoading(false);
         return;
       }
 
       if (!businessId) {
-        setError('Business ID is required. Enter the business UUID above or open this page from a business-scoped route.');
+        setError(t('adminSupportOnboarding.errorBusinessIdRequired'));
         setLoading(false);
         return;
       }
@@ -121,7 +148,7 @@ export default function SupportAgentOnboarding() {
         /* ignore */
       }
 
-      toast.success('Agent onboarded successfully.');
+      toast.success(t('adminSupportOnboarding.onboardedSuccess'));
       setStep(1);
       setFormData({
         first_name: '',
@@ -136,15 +163,15 @@ export default function SupportAgentOnboarding() {
         experience_level: 'junior',
       });
     } catch (err) {
-      let errorMessage = 'Error onboarding agent';
+      let errorMessage = t('adminSupportOnboarding.errorDefault');
 
       if (err.response?.data?.message) errorMessage = err.response.data.message;
       else if (err.response?.data?.error) errorMessage = err.response.data.error;
-      else if (err.response?.status === 404) errorMessage = 'Server endpoint not found. Please contact support.';
-      else if (err.response?.status === 400) errorMessage = 'Invalid data provided. Please check the form and try again.';
-      else if (err.response?.status === 401) errorMessage = 'You are not authorized to perform this action.';
-      else if (err.response?.status === 500) errorMessage = 'Server error. Please try again later.';
-      else if (err.message === 'Network Error') errorMessage = 'Network error. Please check your connection and try again.';
+      else if (err.response?.status === 404) errorMessage = t('adminSupportOnboarding.errorEndpointNotFound');
+      else if (err.response?.status === 400) errorMessage = t('adminSupportOnboarding.errorInvalidData');
+      else if (err.response?.status === 401) errorMessage = t('adminSupportOnboarding.errorUnauthorized');
+      else if (err.response?.status === 500) errorMessage = t('adminSupportOnboarding.errorServer');
+      else if (err.message === 'Network Error') errorMessage = t('adminSupportOnboarding.errorNetwork');
       else if (err.message) errorMessage = err.message;
 
       console.error('Agent onboarding failed:', err);
@@ -158,35 +185,35 @@ export default function SupportAgentOnboarding() {
     <SupportPageShell>
       <SupportHero
         icon={UserPlus}
-        eyebrow="Hiring Workflow"
-        title="Agent onboarding"
-        description="Guide new support hires through profile setup, availability, and specialization so they enter the team with clean operational data."
+        eyebrow={t('adminSupportOnboarding.heroEyebrow')}
+        title={t('adminSupportOnboarding.heroTitle')}
+        description={t('adminSupportOnboarding.heroDescription')}
         stats={[
           {
             icon: UserPlus,
-            label: 'Profile',
+            label: t('adminSupportOnboarding.statProfile'),
             value: `${formData.first_name ? 1 : 0}/1`,
-            detail: 'Basic identity captured.',
+            detail: t('adminSupportOnboarding.statProfileDetail'),
           },
           {
             icon: Clock3,
-            label: 'Availability',
-            value: `${formData.availability_start} - ${formData.availability_end}`,
-            detail: 'Shift window being assigned.',
+            label: t('adminSupportOnboarding.statAvailability'),
+            value: t('adminSupportOnboarding.availabilityValue', { start: formData.availability_start, end: formData.availability_end }),
+            detail: t('adminSupportOnboarding.statAvailabilityDetail'),
             tone: 'text-blue-300',
           },
           {
             icon: Globe2,
-            label: 'Timezone',
+            label: t('adminSupportOnboarding.statTimezone'),
             value: formData.timezone,
-            detail: 'Working timezone for scheduling.',
+            detail: t('adminSupportOnboarding.statTimezoneDetail'),
             tone: 'text-orange-300',
           },
           {
             icon: Languages,
-            label: 'Languages',
+            label: t('adminSupportOnboarding.statLanguages'),
             value: formData.languages.length,
-            detail: 'Languages currently selected.',
+            detail: t('adminSupportOnboarding.statLanguagesDetail'),
             tone: 'text-green-300',
           },
         ]}
@@ -194,19 +221,19 @@ export default function SupportAgentOnboarding() {
 
       {!businessIdFromRoute && (
         <SupportPanel
-          title="Business scope"
-          subtitle="Some support tools need a business UUID when the route is not already scoped."
+          title={t('adminSupportOnboarding.businessScopeTitle')}
+          subtitle={t('adminSupportOnboarding.businessScopeSubtitle')}
         >
-          <label className="mb-2 block text-sm font-medium text-gray-300">Business ID (UUID)</label>
+          <label className="mb-2 block text-sm font-medium text-gray-300">{t('adminSupportOnboarding.businessIdLabel')}</label>
           <input
             type="text"
             value={businessIdManual}
             onChange={(event) => setBusinessIdManual(event.target.value)}
-            placeholder="e.g. 550e8400-e29b-41d4-a716-446655440000"
+            placeholder={t('adminSupportOnboarding.businessIdPlaceholder')}
             className="w-full rounded-2xl border border-gray-700 bg-gray-900 px-4 py-3 font-mono text-sm text-white focus:border-orange-500 focus:outline-none"
           />
           <div className="mt-2 text-xs leading-6 text-gray-500">
-            Saved in this browser after a successful onboarding so future support flows can reuse the same business scope.
+            {t('adminSupportOnboarding.businessIdHint')}
           </div>
         </SupportPanel>
       )}
@@ -216,7 +243,7 @@ export default function SupportAgentOnboarding() {
           <div className="flex items-start gap-3">
             <AlertCircle className="mt-0.5 text-red-400" size={20} />
             <div>
-              <div className="font-medium text-red-300">Onboarding error</div>
+              <div className="font-medium text-red-300">{t('adminSupportOnboarding.onboardingErrorTitle')}</div>
               <div className="mt-1 text-sm leading-6 text-red-200">{error}</div>
             </div>
           </div>
@@ -224,20 +251,15 @@ export default function SupportAgentOnboarding() {
       )}
 
       <SupportPanel
-        title="Four-step onboarding"
-        subtitle="Capture the information a support lead needs before turning a new agent loose on the queue."
+        title={t('adminSupportOnboarding.panelTitle')}
+        subtitle={t('adminSupportOnboarding.panelSubtitle')}
       >
         <div className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-4">
-          {[
-            'Basic info',
-            'Availability',
-            'Skills and languages',
-            'Review and confirm',
-          ].map((title, index) => (
+          {STEP_TITLE_KEYS.map((titleKey, index) => (
             <StepPill
-              key={title}
+              key={titleKey}
               stepNumber={index + 1}
-              title={title}
+              title={t(titleKey)}
               active={step === index + 1}
               complete={step > index + 1}
               onClick={() => step >= index + 1 && setStep(index + 1)}
@@ -250,12 +272,12 @@ export default function SupportAgentOnboarding() {
             {step === 1 && (
               <div className="space-y-6">
                 <div>
-                  <div className="text-xl font-semibold text-white">Basic information</div>
-                  <div className="mt-2 text-sm text-gray-500">Start with identity and contact information for the new agent.</div>
+                  <div className="text-xl font-semibold text-white">{t('adminSupportOnboarding.sectionBasicInfo')}</div>
+                  <div className="mt-2 text-sm text-gray-500">{t('adminSupportOnboarding.sectionBasicInfoDesc')}</div>
                 </div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div>
-                    <label className="mb-2 block text-sm text-gray-400">First name</label>
+                    <label className="mb-2 block text-sm text-gray-400">{t('adminSupportOnboarding.firstName')}</label>
                     <input
                       type="text"
                       value={formData.first_name}
@@ -264,7 +286,7 @@ export default function SupportAgentOnboarding() {
                     />
                   </div>
                   <div>
-                    <label className="mb-2 block text-sm text-gray-400">Last name</label>
+                    <label className="mb-2 block text-sm text-gray-400">{t('adminSupportOnboarding.lastName')}</label>
                     <input
                       type="text"
                       value={formData.last_name}
@@ -274,7 +296,7 @@ export default function SupportAgentOnboarding() {
                   </div>
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm text-gray-400">Email</label>
+                  <label className="mb-2 block text-sm text-gray-400">{t('adminSupportOnboarding.email')}</label>
                   <input
                     type="email"
                     value={formData.email}
@@ -283,7 +305,7 @@ export default function SupportAgentOnboarding() {
                   />
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm text-gray-400">Phone</label>
+                  <label className="mb-2 block text-sm text-gray-400">{t('adminSupportOnboarding.phone')}</label>
                   <input
                     type="tel"
                     value={formData.phone}
@@ -292,7 +314,7 @@ export default function SupportAgentOnboarding() {
                   />
                 </div>
                 <SupportActionButton icon={ChevronRight} tone="primary" onClick={() => setStep(2)}>
-                  Continue to availability
+                  {t('adminSupportOnboarding.continueToAvailability')}
                 </SupportActionButton>
               </div>
             )}
@@ -300,25 +322,25 @@ export default function SupportAgentOnboarding() {
             {step === 2 && (
               <div className="space-y-6">
                 <div>
-                  <div className="text-xl font-semibold text-white">Availability and timezone</div>
-                  <div className="mt-2 text-sm text-gray-500">Set the working timezone and the base availability window this agent should start with.</div>
+                  <div className="text-xl font-semibold text-white">{t('adminSupportOnboarding.sectionAvailability')}</div>
+                  <div className="mt-2 text-sm text-gray-500">{t('adminSupportOnboarding.sectionAvailabilityDesc')}</div>
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm text-gray-400">Timezone</label>
+                  <label className="mb-2 block text-sm text-gray-400">{t('adminSupportOnboarding.timezoneLabel')}</label>
                   <select
                     value={formData.timezone}
                     onChange={(event) => setFormData({ ...formData, timezone: event.target.value })}
                     className="w-full rounded-2xl border border-gray-700 bg-gray-950 px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
                   >
                     <option value="UTC">UTC</option>
-                    <option value="EST">Eastern Time</option>
-                    <option value="CST">Central Time</option>
-                    <option value="PST">Pacific Time</option>
+                    <option value="EST">{t('adminSupportOnboarding.timezoneEastern')}</option>
+                    <option value="CST">{t('adminSupportOnboarding.timezoneCentral')}</option>
+                    <option value="PST">{t('adminSupportOnboarding.timezonePacific')}</option>
                   </select>
                 </div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div>
-                    <label className="mb-2 block text-sm text-gray-400">Availability start</label>
+                    <label className="mb-2 block text-sm text-gray-400">{t('adminSupportOnboarding.availabilityStart')}</label>
                     <input
                       type="time"
                       value={formData.availability_start}
@@ -327,7 +349,7 @@ export default function SupportAgentOnboarding() {
                     />
                   </div>
                   <div>
-                    <label className="mb-2 block text-sm text-gray-400">Availability end</label>
+                    <label className="mb-2 block text-sm text-gray-400">{t('adminSupportOnboarding.availabilityEnd')}</label>
                     <input
                       type="time"
                       value={formData.availability_end}
@@ -337,9 +359,9 @@ export default function SupportAgentOnboarding() {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-3">
-                  <SupportActionButton tone="secondary" onClick={() => setStep(1)}>Back</SupportActionButton>
+                  <SupportActionButton tone="secondary" onClick={() => setStep(1)}>{t('adminSupportOnboarding.back')}</SupportActionButton>
                   <SupportActionButton icon={ChevronRight} tone="primary" onClick={() => setStep(3)}>
-                    Continue to skills
+                    {t('adminSupportOnboarding.continueToSkills')}
                   </SupportActionButton>
                 </div>
               </div>
@@ -348,11 +370,11 @@ export default function SupportAgentOnboarding() {
             {step === 3 && (
               <div className="space-y-6">
                 <div>
-                  <div className="text-xl font-semibold text-white">Skills and languages</div>
-                  <div className="mt-2 text-sm text-gray-500">Define what this agent can confidently handle on day one and which customers they can support directly.</div>
+                  <div className="text-xl font-semibold text-white">{t('adminSupportOnboarding.sectionSkills')}</div>
+                  <div className="mt-2 text-sm text-gray-500">{t('adminSupportOnboarding.sectionSkillsDesc')}</div>
                 </div>
                 <div>
-                  <div className="mb-3 text-sm text-gray-400">Support skills</div>
+                  <div className="mb-3 text-sm text-gray-400">{t('adminSupportOnboarding.supportSkillsLabel')}</div>
                   <div className="flex flex-wrap gap-2">
                     {skills.map((skill) => (
                       <button
@@ -364,13 +386,13 @@ export default function SupportAgentOnboarding() {
                             : 'border-gray-700 bg-gray-950 text-gray-400 hover:border-gray-600'
                         }`}
                       >
-                        {skill}
+                        {t(SKILL_LABEL_KEYS[skill])}
                       </button>
                     ))}
                   </div>
                 </div>
                 <div>
-                  <div className="mb-3 text-sm text-gray-400">Languages</div>
+                  <div className="mb-3 text-sm text-gray-400">{t('adminSupportOnboarding.languagesLabel')}</div>
                   <div className="flex flex-wrap gap-2">
                     {languages.map((lang) => (
                       <button
@@ -382,15 +404,15 @@ export default function SupportAgentOnboarding() {
                             : 'border-gray-700 bg-gray-950 text-gray-400 hover:border-gray-600'
                         }`}
                       >
-                        {lang}
+                        {t(LANGUAGE_LABEL_KEYS[lang])}
                       </button>
                     ))}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-3">
-                  <SupportActionButton tone="secondary" onClick={() => setStep(2)}>Back</SupportActionButton>
+                  <SupportActionButton tone="secondary" onClick={() => setStep(2)}>{t('adminSupportOnboarding.back')}</SupportActionButton>
                   <SupportActionButton icon={ChevronRight} tone="primary" onClick={() => setStep(4)}>
-                    Continue to review
+                    {t('adminSupportOnboarding.continueToReview')}
                   </SupportActionButton>
                 </div>
               </div>
@@ -399,49 +421,49 @@ export default function SupportAgentOnboarding() {
             {step === 4 && (
               <div className="space-y-6">
                 <div>
-                  <div className="text-xl font-semibold text-white">Review and confirm</div>
-                  <div className="mt-2 text-sm text-gray-500">Check the final summary before creating the support-agent profile.</div>
+                  <div className="text-xl font-semibold text-white">{t('adminSupportOnboarding.sectionReview')}</div>
+                  <div className="mt-2 text-sm text-gray-500">{t('adminSupportOnboarding.sectionReviewDesc')}</div>
                 </div>
                 <div className="rounded-[24px] border border-gray-800 bg-gray-950/70 p-5">
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
-                      <div className="text-xs uppercase tracking-[0.18em] text-gray-500">Name</div>
+                      <div className="text-xs uppercase tracking-[0.18em] text-gray-500">{t('adminSupportOnboarding.reviewName')}</div>
                       <div className="mt-1 text-white">{formData.first_name} {formData.last_name}</div>
                     </div>
                     <div>
-                      <div className="text-xs uppercase tracking-[0.18em] text-gray-500">Email</div>
+                      <div className="text-xs uppercase tracking-[0.18em] text-gray-500">{t('adminSupportOnboarding.reviewEmail')}</div>
                       <div className="mt-1 text-white">{formData.email}</div>
                     </div>
                     <div>
-                      <div className="text-xs uppercase tracking-[0.18em] text-gray-500">Availability</div>
+                      <div className="text-xs uppercase tracking-[0.18em] text-gray-500">{t('adminSupportOnboarding.reviewAvailability')}</div>
                       <div className="mt-1 text-white">{formData.availability_start} - {formData.availability_end}</div>
                     </div>
                     <div>
-                      <div className="text-xs uppercase tracking-[0.18em] text-gray-500">Timezone</div>
+                      <div className="text-xs uppercase tracking-[0.18em] text-gray-500">{t('adminSupportOnboarding.reviewTimezone')}</div>
                       <div className="mt-1 text-white">{formData.timezone}</div>
                     </div>
                   </div>
                   <div className="mt-5">
-                    <div className="mb-2 text-xs uppercase tracking-[0.18em] text-gray-500">Skills</div>
+                    <div className="mb-2 text-xs uppercase tracking-[0.18em] text-gray-500">{t('adminSupportOnboarding.reviewSkills')}</div>
                     <div className="flex flex-wrap gap-2">
                       {formData.skills.map((skill) => (
-                        <SupportTag key={skill} tone="orange">{skill}</SupportTag>
+                        <SupportTag key={skill} tone="orange">{t(SKILL_LABEL_KEYS[skill])}</SupportTag>
                       ))}
                     </div>
                   </div>
                   <div className="mt-5">
-                    <div className="mb-2 text-xs uppercase tracking-[0.18em] text-gray-500">Languages</div>
+                    <div className="mb-2 text-xs uppercase tracking-[0.18em] text-gray-500">{t('adminSupportOnboarding.reviewLanguages')}</div>
                     <div className="flex flex-wrap gap-2">
                       {formData.languages.map((lang) => (
-                        <SupportTag key={lang} tone="blue">{lang}</SupportTag>
+                        <SupportTag key={lang} tone="blue">{t(LANGUAGE_LABEL_KEYS[lang])}</SupportTag>
                       ))}
                     </div>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-3">
-                  <SupportActionButton tone="secondary" onClick={() => setStep(3)}>Back</SupportActionButton>
+                  <SupportActionButton tone="secondary" onClick={() => setStep(3)}>{t('adminSupportOnboarding.back')}</SupportActionButton>
                   <SupportActionButton icon={Save} tone="success" onClick={handleSubmit} disabled={loading}>
-                    Complete onboarding
+                    {t('adminSupportOnboarding.completeOnboarding')}
                   </SupportActionButton>
                 </div>
               </div>
@@ -449,37 +471,37 @@ export default function SupportAgentOnboarding() {
           </div>
 
           <div className="rounded-[24px] border border-gray-800 bg-gray-900/70 p-6">
-            <div className="text-lg font-semibold text-white">Onboarding snapshot</div>
+            <div className="text-lg font-semibold text-white">{t('adminSupportOnboarding.snapshotTitle')}</div>
             <div className="mt-2 text-sm leading-6 text-gray-500">
-              Keep the setup consistent so staffing, routing, and language coverage all work from the start.
+              {t('adminSupportOnboarding.snapshotDesc')}
             </div>
 
             <div className="mt-5 space-y-4">
               <div className="rounded-2xl border border-gray-800 bg-gray-950/70 p-4">
-                <div className="text-xs uppercase tracking-[0.18em] text-gray-500">Business scope</div>
-                <div className="mt-2 break-all text-sm text-white">{businessId || 'Not set yet'}</div>
+                <div className="text-xs uppercase tracking-[0.18em] text-gray-500">{t('adminSupportOnboarding.snapshotBusinessScope')}</div>
+                <div className="mt-2 break-all text-sm text-white">{businessId || t('adminSupportOnboarding.notSetYet')}</div>
               </div>
               <div className="rounded-2xl border border-gray-800 bg-gray-950/70 p-4">
-                <div className="text-xs uppercase tracking-[0.18em] text-gray-500">Selected skills</div>
+                <div className="text-xs uppercase tracking-[0.18em] text-gray-500">{t('adminSupportOnboarding.selectedSkills')}</div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {formData.skills.length
-                    ? formData.skills.map((skill) => <SupportTag key={skill} tone="orange">{skill}</SupportTag>)
-                    : <span className="text-sm text-gray-500">No skills selected yet.</span>}
+                    ? formData.skills.map((skill) => <SupportTag key={skill} tone="orange">{t(SKILL_LABEL_KEYS[skill])}</SupportTag>)
+                    : <span className="text-sm text-gray-500">{t('adminSupportOnboarding.noSkillsSelected')}</span>}
                 </div>
               </div>
               <div className="rounded-2xl border border-gray-800 bg-gray-950/70 p-4">
-                <div className="text-xs uppercase tracking-[0.18em] text-gray-500">Selected languages</div>
+                <div className="text-xs uppercase tracking-[0.18em] text-gray-500">{t('adminSupportOnboarding.selectedLanguages')}</div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {formData.languages.length
-                    ? formData.languages.map((lang) => <SupportTag key={lang} tone="blue">{lang}</SupportTag>)
-                    : <span className="text-sm text-gray-500">No languages selected yet.</span>}
+                    ? formData.languages.map((lang) => <SupportTag key={lang} tone="blue">{t(LANGUAGE_LABEL_KEYS[lang])}</SupportTag>)
+                    : <span className="text-sm text-gray-500">{t('adminSupportOnboarding.noLanguagesSelected')}</span>}
                 </div>
               </div>
               <div className="rounded-2xl border border-gray-800 bg-gray-950/70 p-4">
                 <div className="flex items-start gap-3">
                   <CheckCircle size={18} className="mt-0.5 text-green-300" />
                   <div className="text-sm leading-6 text-gray-500">
-                    Capture enough specialization here so scheduling, routing, and future performance reporting all start from clean baseline data.
+                    {t('adminSupportOnboarding.snapshotTip')}
                   </div>
                 </div>
               </div>

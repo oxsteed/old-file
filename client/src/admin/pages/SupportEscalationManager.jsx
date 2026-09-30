@@ -8,6 +8,7 @@ import {
 
 // Escalation Rule Card
 function EscalationRuleCard({ rule, onEdit, onDelete, onToggle }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
   const getPriorityColor = (priority) => {
@@ -46,27 +47,27 @@ function EscalationRuleCard({ rule, onEdit, onDelete, onToggle }) {
         className="flex items-center gap-2 text-gray-400 text-sm hover:text-gray-300 mb-3"
       >
         <ChevronDown size={16} className={`transition-transform ${expanded ? 'rotate-180' : ''}`} />
-        {expanded ? 'Hide details' : 'Show details'}
+        {expanded ? t('adminSupportEscalation.hideDetails') : t('adminSupportEscalation.showDetails')}
       </button>
 
       {expanded && (
         <div className="bg-gray-700/30 rounded-lg p-4 mb-4 space-y-2 text-sm">
           <div>
-            <p className="text-gray-400">Trigger Condition:</p>
+            <p className="text-gray-400">{t('adminSupportEscalation.triggerConditionLabel')}</p>
             <p className="text-white">{rule.trigger_condition}</p>
           </div>
           <div>
-            <p className="text-gray-400">Escalate To:</p>
+            <p className="text-gray-400">{t('adminSupportEscalation.escalateToLabel')}</p>
             <p className="text-white">{rule.escalate_to}</p>
           </div>
           <div>
-            <p className="text-gray-400">After (minutes):</p>
-            <p className="text-white">{rule.escalate_after_minutes} minutes</p>
+            <p className="text-gray-400">{t('adminSupportEscalation.afterMinutesLabel')}</p>
+            <p className="text-white">{t('adminSupportEscalation.minutesValue', { minutes: rule.escalate_after_minutes })}</p>
           </div>
           {rule.notify_managers && (
             <div>
-              <p className="text-gray-400">Manager Notification:</p>
-              <p className="text-white">✓ Enabled</p>
+              <p className="text-gray-400">{t('adminSupportEscalation.managerNotificationLabel')}</p>
+              <p className="text-white">{t('adminSupportEscalation.managerNotificationEnabled')}</p>
             </div>
           )}
         </div>
@@ -79,7 +80,7 @@ function EscalationRuleCard({ rule, onEdit, onDelete, onToggle }) {
                      text-gray-300 rounded-lg transition text-sm"
         >
           <Edit2 size={14} />
-          Edit
+          {t('adminSupportEscalation.editButton')}
         </button>
         <button
           onClick={() => onDelete(rule.id)}
@@ -87,7 +88,7 @@ function EscalationRuleCard({ rule, onEdit, onDelete, onToggle }) {
                      text-red-400 rounded-lg transition text-sm"
         >
           <Trash2 size={14} />
-          Delete
+          {t('adminSupportEscalation.deleteButton')}
         </button>
       </div>
     </div>
@@ -96,6 +97,7 @@ function EscalationRuleCard({ rule, onEdit, onDelete, onToggle }) {
 
 // Escalation Rule Form Modal
 function EscalationRuleModal({ rule, onClose, onSave }) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState(rule || {
     rule_name: '',
     description: '',
@@ -117,55 +119,55 @@ function EscalationRuleModal({ rule, onClose, onSave }) {
       <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div className="border-b border-gray-700 p-6 flex items-center justify-between sticky top-0 bg-gray-800">
           <h2 className="text-white font-bold text-xl">
-            {rule ? 'Edit Escalation Rule' : 'Create Escalation Rule'}
+            {rule ? t('adminSupportEscalation.modalEditTitle') : t('adminSupportEscalation.modalCreateTitle')}
           </h2>
           <button onClick={onClose} className="text-gray-500 hover:text-white text-2xl">×</button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-gray-400 text-sm mb-2">Rule Name</label>
+            <label className="block text-gray-400 text-sm mb-2">{t('adminSupportEscalation.fieldRuleName')}</label>
             <input
               type="text"
               value={formData.rule_name}
               onChange={e => setFormData({ ...formData, rule_name: e.target.value })}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white
                          focus:outline-none focus:border-orange-500"
-              placeholder="e.g., Long Wait Time Escalation"
+              placeholder={t('adminSupportEscalation.placeholderRuleName')}
               required
             />
           </div>
 
           <div>
-            <label className="block text-gray-400 text-sm mb-2">Description</label>
+            <label className="block text-gray-400 text-sm mb-2">{t('adminSupportEscalation.fieldDescription')}</label>
             <textarea
               value={formData.description}
               onChange={e => setFormData({ ...formData, description: e.target.value })}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white
                          focus:outline-none focus:border-orange-500 resize-none"
-              placeholder="Brief description of when this rule triggers"
+              placeholder={t('adminSupportEscalation.placeholderDescription')}
               rows="2"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-gray-400 text-sm mb-2">Priority</label>
+              <label className="block text-gray-400 text-sm mb-2">{t('adminSupportEscalation.fieldPriority')}</label>
               <select
                 value={formData.priority}
                 onChange={e => setFormData({ ...formData, priority: e.target.value })}
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white
                            focus:outline-none focus:border-orange-500"
               >
-                <option value="critical">Critical</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
+                <option value="critical">{t('adminSupportEscalation.priorityCritical')}</option>
+                <option value="high">{t('adminSupportEscalation.priorityHigh')}</option>
+                <option value="medium">{t('adminSupportEscalation.priorityMedium')}</option>
+                <option value="low">{t('adminSupportEscalation.priorityLow')}</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-gray-400 text-sm mb-2">Escalate After (min)</label>
+              <label className="block text-gray-400 text-sm mb-2">{t('adminSupportEscalation.fieldEscalateAfter')}</label>
               <input
                 type="number"
                 value={formData.escalate_after_minutes}
@@ -179,20 +181,20 @@ function EscalationRuleModal({ rule, onClose, onSave }) {
           </div>
 
           <div>
-            <label className="block text-gray-400 text-sm mb-2">Trigger Condition</label>
+            <label className="block text-gray-400 text-sm mb-2">{t('adminSupportEscalation.fieldTriggerCondition')}</label>
             <input
               type="text"
               value={formData.trigger_condition}
               onChange={e => setFormData({ ...formData, trigger_condition: e.target.value })}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white
                          focus:outline-none focus:border-orange-500"
-              placeholder="e.g., Wait time > 30 minutes"
+              placeholder={t('adminSupportEscalation.placeholderTriggerCondition')}
               required
             />
           </div>
 
           <div>
-            <label className="block text-gray-400 text-sm mb-2">Escalate To</label>
+            <label className="block text-gray-400 text-sm mb-2">{t('adminSupportEscalation.fieldEscalateTo')}</label>
             <select
               value={formData.escalate_to}
               onChange={e => setFormData({ ...formData, escalate_to: e.target.value })}
@@ -200,11 +202,11 @@ function EscalationRuleModal({ rule, onClose, onSave }) {
                          focus:outline-none focus:border-orange-500"
               required
             >
-              <option value="">Select escalation target</option>
-              <option value="supervisor">Supervisor</option>
-              <option value="manager">Manager</option>
-              <option value="director">Director</option>
-              <option value="support_team">Support Team</option>
+              <option value="">{t('adminSupportEscalation.selectEscalationTarget')}</option>
+              <option value="supervisor">{t('adminSupportEscalation.targetSupervisor')}</option>
+              <option value="manager">{t('adminSupportEscalation.targetManager')}</option>
+              <option value="director">{t('adminSupportEscalation.targetDirector')}</option>
+              <option value="support_team">{t('adminSupportEscalation.targetSupportTeam')}</option>
             </select>
           </div>
 
@@ -216,7 +218,7 @@ function EscalationRuleModal({ rule, onClose, onSave }) {
                 onChange={e => setFormData({ ...formData, notify_managers: e.target.checked })}
                 className="w-4 h-4 accent-orange-500"
               />
-              <span className="text-gray-300 text-sm">Notify managers when escalated</span>
+              <span className="text-gray-300 text-sm">{t('adminSupportEscalation.notifyManagersLabel')}</span>
             </label>
 
             <label className="flex items-center gap-3 cursor-pointer">
@@ -226,7 +228,7 @@ function EscalationRuleModal({ rule, onClose, onSave }) {
                 onChange={e => setFormData({ ...formData, is_active: e.target.checked })}
                 className="w-4 h-4 accent-orange-500"
               />
-              <span className="text-gray-300 text-sm">Rule is active</span>
+              <span className="text-gray-300 text-sm">{t('adminSupportEscalation.ruleActiveLabel')}</span>
             </label>
           </div>
 
@@ -236,13 +238,13 @@ function EscalationRuleModal({ rule, onClose, onSave }) {
               onClick={onClose}
               className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition"
             >
-              Cancel
+              {t('adminSupportEscalation.cancelButton')}
             </button>
             <button
               type="submit"
               className="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition font-medium"
             >
-              {rule ? 'Update Rule' : 'Create Rule'}
+              {rule ? t('adminSupportEscalation.updateRuleButton') : t('adminSupportEscalation.createRuleButton')}
             </button>
           </div>
         </form>
@@ -336,8 +338,8 @@ export default function SupportEscalationManager() {
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 className="text-white font-bold text-3xl mb-2">Escalation Management</h1>
-          <p className="text-gray-400 text-sm">Configure rules for automatic ticket escalation.</p>
+          <h1 className="text-white font-bold text-3xl mb-2">{t('adminSupportEscalation.title')}</h1>
+          <p className="text-gray-400 text-sm">{t('adminSupportEscalation.subtitle')}</p>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -357,7 +359,7 @@ export default function SupportEscalationManager() {
                        text-white rounded-lg transition font-medium"
           >
             <Plus size={18} />
-            New Rule
+            {t('adminSupportEscalation.newRuleButton')}
           </button>
         </div>
       </div>
@@ -365,21 +367,21 @@ export default function SupportEscalationManager() {
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-          <p className="text-gray-400 text-sm mb-2">Total Rules</p>
+          <p className="text-gray-400 text-sm mb-2">{t('adminSupportEscalation.statsTotalRules')}</p>
           <p className="text-white text-3xl font-bold">{stats.total_rules || 0}</p>
-          <p className="text-gray-500 text-xs mt-2">{stats.active_rules || 0} active</p>
+          <p className="text-gray-500 text-xs mt-2">{t('adminSupportEscalation.activeRulesCount', { count: stats.active_rules || 0 })}</p>
         </div>
 
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-          <p className="text-gray-400 text-sm mb-2">Escalations This Week</p>
+          <p className="text-gray-400 text-sm mb-2">{t('adminSupportEscalation.statsEscalationsWeek')}</p>
           <p className="text-white text-3xl font-bold">{stats.escalations_this_week || 0}</p>
-          <p className="text-gray-500 text-xs mt-2">Last 7 days</p>
+          <p className="text-gray-500 text-xs mt-2">{t('adminSupportEscalation.last7DaysCaption')}</p>
         </div>
 
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-          <p className="text-gray-400 text-sm mb-2">Avg Escalation Time</p>
-          <p className="text-white text-3xl font-bold">{stats.avg_escalation_minutes || '–'}m</p>
-          <p className="text-gray-500 text-xs mt-2">From trigger to escalation</p>
+          <p className="text-gray-400 text-sm mb-2">{t('adminSupportEscalation.statsAvgTime')}</p>
+          <p className="text-white text-3xl font-bold">{t('adminSupportEscalation.avgEscalationValue', { value: stats.avg_escalation_minutes || '–' })}</p>
+          <p className="text-gray-500 text-xs mt-2">{t('adminSupportEscalation.avgTimeCaption')}</p>
         </div>
       </div>
 
@@ -387,18 +389,18 @@ export default function SupportEscalationManager() {
       <div>
         <h2 className="text-white font-bold text-xl mb-4 flex items-center gap-2">
           <AlertTriangle size={20} className="text-orange-400" />
-          Active Escalation Rules
+          {t('adminSupportEscalation.rulesSectionTitle')}
         </h2>
 
         {rules.length === 0 ? (
           <div className="text-center py-12 bg-gray-800 border border-gray-700 rounded-xl">
             <AlertTriangle size={40} className="mx-auto mb-3 text-gray-600" />
-            <p className="text-gray-400">No escalation rules configured</p>
+            <p className="text-gray-400">{t('adminSupportEscalation.emptyState')}</p>
             <button
               onClick={() => setShowForm(true)}
               className="mt-4 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition"
             >
-              Create your first rule
+              {t('adminSupportEscalation.createFirstRuleButton')}
             </button>
           </div>
         ) : (

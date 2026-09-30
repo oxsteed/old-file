@@ -117,7 +117,7 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
         if (request.package_price) params.set('package_price', request.package_price);
         return axios.get(`/consulting/business-launch/consultants?${params}`, { signal }).then(r => r.data.consultants || []);
       },
-      { setData: setConsultants, setLoading: setConsultantsLoading, onError: () => toast.error('Failed to load consultants') }
+      { setData: setConsultants, setLoading: setConsultantsLoading, onError: () => toast.error(t('adminBusinessLaunchDetail.loadConsultantsFailed')) }
     );
   }
 
@@ -184,7 +184,7 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
 
   async function assignConsultant() {
     if (!assignmentForm.consultant_user_id) {
-      toast.error('Select a consultant first');
+      toast.error(t('adminBusinessLaunchDetail.selectConsultantFirst'));
       return;
     }
 
@@ -201,10 +201,10 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
         ...assignmentForm,
         assigned_oxsteed_cut_bps: bps,
       });
-      toast.success('Consultant assigned');
+      toast.success(t('adminBusinessLaunchDetail.consultantAssigned'));
       onStatusUpdate?.();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to assign consultant');
+      toast.error(err.response?.data?.error || t('adminBusinessLaunchDetail.assignConsultantFailed'));
     } finally {
       setAssignmentLoading(false);
     }
@@ -320,19 +320,19 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
           style={tabButtonStyle(activeTab === 'overview')}
           onClick={() => setActiveTab('overview')}
         >
-          Overview
+          {t('adminBusinessLaunchDetail.tabOverview')}
         </button>
         <button
           style={tabButtonStyle(activeTab === 'notes')}
           onClick={() => setActiveTab('notes')}
         >
-          Internal Notes ({notes.length})
+          {t('adminBusinessLaunchDetail.tabNotes', { count: notes.length })}
         </button>
         <button
           style={tabButtonStyle(activeTab === 'messages')}
           onClick={() => setActiveTab('messages')}
         >
-          Messages ({messages.length})
+          {t('adminBusinessLaunchDetail.tabMessages', { count: messages.length })}
         </button>
       </div>
 
@@ -340,24 +340,24 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
       {activeTab === 'overview' && (
         <div>
           <div style={sectionStyle}>
-            <div style={sectionTitleStyle}>Contact Information</div>
-            <p><strong>Email:</strong> {request.email}</p>
-            <p><strong>Phone:</strong> {request.phone || '-'}</p>
-            <p><strong>Referral Source:</strong> {request.referral_source || '-'}</p>
+            <div style={sectionTitleStyle}>{t('adminBusinessLaunchDetail.sectionContactInfo')}</div>
+            <p><strong>{t('adminBusinessLaunchDetail.labelEmail')}</strong> {request.email}</p>
+            <p><strong>{t('adminBusinessLaunchDetail.labelPhone')}</strong> {request.phone || '-'}</p>
+            <p><strong>{t('adminBusinessLaunchDetail.labelReferralSource')}</strong> {request.referral_source || '-'}</p>
           </div>
 
           <div style={sectionStyle}>
-            <div style={sectionTitleStyle}>Business Details</div>
-            <p><strong>Skill:</strong> {request.skill_description}</p>
-            <p><strong>Target Market:</strong> {request.target_market}</p>
-            <p><strong>Country:</strong> {request.operating_country || '-'}</p>
-            <p><strong>State:</strong> {request.operating_state || '-'}</p>
-            <p><strong>Current Phase:</strong> {request.current_phase || 'Not specified'} / 25</p>
-            {request.business_name && <p><strong>Business Name:</strong> {request.business_name}</p>}
+            <div style={sectionTitleStyle}>{t('adminBusinessLaunchDetail.sectionBusinessDetails')}</div>
+            <p><strong>{t('adminBusinessLaunchDetail.labelSkill')}</strong> {request.skill_description}</p>
+            <p><strong>{t('adminBusinessLaunchDetail.labelTargetMarket')}</strong> {request.target_market}</p>
+            <p><strong>{t('adminBusinessLaunchDetail.labelCountry')}</strong> {request.operating_country || '-'}</p>
+            <p><strong>{t('adminBusinessLaunchDetail.labelState')}</strong> {request.operating_state || '-'}</p>
+            <p><strong>{t('adminBusinessLaunchDetail.labelCurrentPhase')}</strong> {request.current_phase || t('adminBusinessLaunchDetail.notSpecified')} / 25</p>
+            {request.business_name && <p><strong>{t('adminBusinessLaunchDetail.labelBusinessName')}</strong> {request.business_name}</p>}
           </div>
 
           <div style={sectionStyle}>
-            <div style={sectionTitleStyle}>Local Consultant Match</div>
+            <div style={sectionTitleStyle}>{t('adminBusinessLaunchDetail.sectionConsultantMatch')}</div>
             {request.consultant_first_name ? (
               <div style={{ ...noteCardStyle, borderLeft: '4px solid #10B981', marginBottom: '1rem' }}>
                 <p style={{ margin: '0 0 0.35rem' }}>
@@ -365,38 +365,41 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
                   {request.consultant_headline ? `: ${request.consultant_headline}` : ''}
                 </p>
                 <p style={{ margin: '0.2rem 0', color: 'var(--color-text-muted)' }}>
-                  Assignment status: {request.consultant_assignment_status || 'assigned'}
+                  {t('adminBusinessLaunchDetail.assignmentStatusLine', {
+                    status: request.consultant_assignment_status || t('adminBusinessLaunchDetail.defaultAssignmentStatus'),
+                  })}
                 </p>
                 <p style={{ margin: '0.2rem 0', color: 'var(--color-text-muted)' }}>
-                  OxSteed cut: {((request.assigned_oxsteed_cut_bps || 0) / 100).toFixed(2)}%
-                  {' • '}
-                  Consultant share: ${(((request.estimated_consultant_share_cents || 0) / 100)).toFixed(2)}
+                  {t('adminBusinessLaunchDetail.consultantShareLine', {
+                    cut: ((request.assigned_oxsteed_cut_bps || 0) / 100).toFixed(2),
+                    share: ((request.estimated_consultant_share_cents || 0) / 100).toFixed(2),
+                  })}
                 </p>
               </div>
             ) : (
-              <p style={{ color: 'var(--color-text-muted)' }}>No consultant assigned yet. Match this lead to a local contractor or a virtual consultant.</p>
+              <p style={{ color: 'var(--color-text-muted)' }}>{t('adminBusinessLaunchDetail.noConsultantText')}</p>
             )}
 
             <div style={{ display: 'grid', gap: '0.75rem', marginBottom: '0.75rem' }}>
               <div>
-                <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600 }}>Consultant</label>
+                <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600 }}>{t('adminBusinessLaunchDetail.fieldConsultant')}</label>
                 <select
                   value={assignmentForm.consultant_user_id}
                   onChange={(e) => setAssignmentForm((prev) => ({ ...prev, consultant_user_id: e.target.value }))}
                   style={inputStyle}
                   disabled={consultantsLoading}
                 >
-                  <option value="">Select a consultant</option>
+                  <option value="">{t('adminBusinessLaunchDetail.selectConsultantOption')}</option>
                   {consultants.map((consultant) => (
                     <option key={consultant.user_id} value={consultant.user_id}>
-                      {consultant.first_name} {consultant.last_name} • {consultant.home_country || 'Global'} • {consultant.active_referrals} active
+                      {consultant.first_name} {consultant.last_name} • {consultant.home_country || t('adminBusinessLaunchDetail.globalScope')} • {t('adminBusinessLaunchDetail.activeReferralsCount', { count: consultant.active_referrals })}
                     </option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600 }}>OxSteed referral cut (bps)</label>
+                <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600 }}>{t('adminBusinessLaunchDetail.fieldReferralCut')}</label>
                 <input
                   type="number"
                   min="0"
@@ -408,11 +411,11 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
               </div>
 
               <div>
-                <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600 }}>Assignment note</label>
+                <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600 }}>{t('adminBusinessLaunchDetail.fieldAssignmentNote')}</label>
                 <textarea
                   value={assignmentForm.note_text}
                   onChange={(e) => setAssignmentForm((prev) => ({ ...prev, note_text: e.target.value }))}
-                  placeholder="Optional handoff note for the consultant"
+                  placeholder={t('adminBusinessLaunchDetail.placeholderAssignmentNote')}
                   style={{ ...inputStyle, minHeight: '90px', resize: 'vertical' }}
                 />
               </div>
@@ -420,20 +423,20 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
 
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
               <button style={buttonStyle} onClick={assignConsultant} disabled={assignmentLoading || consultantsLoading}>
-                {assignmentLoading ? 'Assigning...' : 'Assign Consultant'}
+                {assignmentLoading ? t('adminBusinessLaunchDetail.assigningButton') : t('adminBusinessLaunchDetail.assignConsultantButton')}
               </button>
               <button
                 type="button"
                 onClick={loadConsultants}
                 style={{ ...buttonStyle, background: 'var(--color-bg)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
               >
-                Refresh Matches
+                {t('adminBusinessLaunchDetail.refreshMatchesButton')}
               </button>
             </div>
           </div>
 
           <div style={sectionStyle}>
-            <div style={sectionTitleStyle}>Setup Items ({request.setup_items_selected?.length || 0})</div>
+            <div style={sectionTitleStyle}>{t('adminBusinessLaunchDetail.sectionSetupItems', { count: request.setup_items_selected?.length || 0 })}</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
               {request.setup_items_selected?.map((item, idx) => (
                 <span
@@ -458,11 +461,11 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
       {activeTab === 'notes' && (
         <div>
           <div style={sectionStyle}>
-            <div style={sectionTitleStyle}>Add Internal Note</div>
+            <div style={sectionTitleStyle}>{t('adminBusinessLaunchDetail.sectionAddNote')}</div>
             <textarea
               value={newNote}
               onChange={e => setNewNote(e.target.value)}
-              placeholder="Add a private note (only visible to admins)..."
+              placeholder={t('adminBusinessLaunchDetail.placeholderNewNote')}
               style={{
                 ...inputStyle,
                 minHeight: '100px',
@@ -475,16 +478,16 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
               onClick={addNote}
               disabled={noteLoading}
             >
-              {noteLoading ? 'Adding...' : 'Add Note'}
+              {noteLoading ? t('adminBusinessLaunchDetail.addingButton') : t('adminBusinessLaunchDetail.addNoteButton')}
             </button>
           </div>
 
           <div style={sectionStyle}>
-            <div style={sectionTitleStyle}>Notes</div>
+            <div style={sectionTitleStyle}>{t('adminBusinessLaunchDetail.sectionNotes')}</div>
             {notesLoading ? (
               <p style={{ color: 'var(--color-text-muted)' }}>{t('common.loading')}</p>
             ) : notes.length === 0 ? (
-              <p style={{ color: 'var(--color-text-muted)' }}>No notes yet</p>
+              <p style={{ color: 'var(--color-text-muted)' }}>{t('adminBusinessLaunchDetail.emptyNotes')}</p>
             ) : (
               notes.map(note => (
                 <div key={note.id} style={noteCardStyle}>
@@ -514,7 +517,7 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
                         fontSize: '0.85rem',
                       }}
                     >
-                      Delete
+                      {t('adminBusinessLaunchDetail.deleteButton')}
                     </button>
                   </div>
                   <p style={{ margin: '0.75rem 0 0', whiteSpace: 'pre-wrap' }}>
@@ -531,11 +534,11 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
       {activeTab === 'messages' && (
         <div>
           <div style={sectionStyle}>
-            <div style={sectionTitleStyle}>Send Message to Client</div>
+            <div style={sectionTitleStyle}>{t('adminBusinessLaunchDetail.sectionSendMessage')}</div>
 
             <div style={{ marginBottom: '1rem' }}>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>
-                Use Template (Optional)
+                {t('adminBusinessLaunchDetail.fieldUseTemplate')}
               </label>
               <select
                 value={selectedTemplate}
@@ -543,7 +546,7 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
                 style={inputStyle}
                 disabled={templatesLoading}
               >
-                <option value="">{templatesLoading ? t('common.loading') : '- Create Custom Message -'}</option>
+                <option value="">{templatesLoading ? t('common.loading') : t('adminBusinessLaunchDetail.customMessageOption')}</option>
                 {templates.map(template => (
                   <option key={template.id} value={template.id}>
                     {template.name}
@@ -555,23 +558,23 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
             {!selectedTemplate && (
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>
-                  Subject
+                  {t('adminBusinessLaunchDetail.fieldSubject')}
                 </label>
                 <input
                   type="text"
                   value={customMessage.subject}
                   onChange={e => setCustomMessage({ ...customMessage, subject: e.target.value })}
-                  placeholder="Email subject"
+                  placeholder={t('adminBusinessLaunchDetail.placeholderSubject')}
                   style={inputStyle}
                 />
 
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>
-                  Message (HTML)
+                  {t('adminBusinessLaunchDetail.fieldMessageHtml')}
                 </label>
                 <textarea
                   value={customMessage.message_html}
                   onChange={e => setCustomMessage({ ...customMessage, message_html: e.target.value })}
-                  placeholder="Email message (supports HTML)"
+                  placeholder={t('adminBusinessLaunchDetail.placeholderMessageHtml')}
                   style={{
                     ...inputStyle,
                     minHeight: '150px',
@@ -587,16 +590,16 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
               onClick={sendMessage}
               disabled={messageLoading}
             >
-              {messageLoading ? 'Sending...' : 'Send Message'}
+              {messageLoading ? t('adminBusinessLaunchDetail.sendingButton') : t('adminBusinessLaunchDetail.sendMessageButton')}
             </button>
           </div>
 
           <div style={sectionStyle}>
-            <div style={sectionTitleStyle}>Message History</div>
+            <div style={sectionTitleStyle}>{t('adminBusinessLaunchDetail.sectionMessageHistory')}</div>
             {messagesLoading ? (
               <p style={{ color: 'var(--color-text-muted)' }}>{t('common.loading')}</p>
             ) : messages.length === 0 ? (
-              <p style={{ color: 'var(--color-text-muted)' }}>No messages sent yet</p>
+              <p style={{ color: 'var(--color-text-muted)' }}>{t('adminBusinessLaunchDetail.emptyMessages')}</p>
             ) : (
               messages.map(msg => (
                 <div key={msg.id} style={messageCardStyle}>
@@ -633,7 +636,7 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
                       color: 'var(--color-error)',
                       fontSize: '0.85rem',
                     }}>
-                      Error: {msg.error_message}
+                      {t('adminBusinessLaunchDetail.messageErrorLine', { error: msg.error_message })}
                     </p>
                   )}
                 </div>
@@ -655,7 +658,7 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
         }}
         onClick={onClose}
       >
-        Close
+        {t('adminBusinessLaunchDetail.closeButton')}
       </button>
 
       <ConfirmDialog

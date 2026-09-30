@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { adminListRestrictions, adminUpsertRestriction } from '../../../api/logistics';
 import toast from 'react-hot-toast';
 import '../../../styles/logistics/LogisticsHomePage.css';
@@ -9,7 +10,13 @@ const RISK_TIERS      = ['low','managed','restricted','prohibited'];
 const ACCESS_COLOR    = { open:'#22c55e', business_only:'#3b82f6', verified_only:'#f59e0b', invite_only:'#8b5cf6', blocked:'#ef4444' };
 const RISK_COLOR      = { low:'#22c55e', managed:'#f59e0b', restricted:'#dc2626', prohibited:'#7f1d1d' };
 
+const NS = 'adminLogisticsRestrictions';
+const ACCESS_LEVEL_I18N = { open:'accessOpen', business_only:'accessBusinessOnly', verified_only:'accessVerifiedOnly', invite_only:'accessInviteOnly', blocked:'accessBlocked' };
+const RISK_I18N         = { low:'riskLow', managed:'riskManaged', restricted:'riskRestricted', prohibited:'riskProhibited' };
+const DIRECTION_I18N    = { import:'dirImportShort', export:'dirExportShort', both:'dirBothShort' };
+
 export default function RestrictionsAdmin() {
+  const { t } = useTranslation();
   const [rules, setRules]       = useState([]);
   const [loading, setLoading]   = useState(true);
   const [loadError, setLoadError] = useState(null);
@@ -56,13 +63,13 @@ export default function RestrictionsAdmin() {
 
   const save = async () => {
     if (!form.country_code || form.country_code.length !== 2) {
-      toast.error('Country code must be 2 letters (e.g. US, CN, HT)');
+      toast.error(t(`${NS}.invalidCountryCode`));
       return;
     }
     setSaving(true);
     try {
       await adminUpsertRestriction(form);
-      toast.success('Restriction rule saved');
+      toast.success(t(`${NS}.ruleSaved`));
       setShowForm(false);
       load();
     } catch (err) { toast.error(err.response?.data?.message || err.message); }
@@ -70,101 +77,102 @@ export default function RestrictionsAdmin() {
   };
 
   const set = (k, v) => setForm(f=>({...f,[k]:v}));
+  const labelFor = (map, value) => (map[value] ? t(`${NS}.${map[value]}`) : value);
 
   return (
     <div className="lx-page">
       <div className="lx-page-header">
         <div style={{ display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:'1rem' }}>
           <div>
-            <h1 className="lx-page-title">⛔ Country Restrictions</h1>
-            <p className="lx-page-sub">Configure import/export access levels and compliance requirements per country.</p>
+            <h1 className="lx-page-title">⛔ {t(`${NS}.title`)}</h1>
+            <p className="lx-page-sub">{t(`${NS}.subtitle`)}</p>
           </div>
-          <button className="lx-btn-primary" onClick={openNew}>+ Add Rule</button>
+          <button className="lx-btn-primary" onClick={openNew}>{t(`${NS}.addRule`)}</button>
         </div>
       </div>
 
       {/* Info box */}
       <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:'.75rem', padding:'1rem', marginBottom:'1.5rem', fontSize:'.875rem' }}>
-        <strong>ℹ️ Country Access Rules</strong> control who can buy from or ship to a given country.
-        Rules are evaluated per-request against the user's verification level, business status, and the lane's risk tier.
-        A country not listed here defaults to <strong>open</strong>.
+        <strong>ℹ️ {t(`${NS}.infoTitle`)}</strong> {t(`${NS}.infoBody1`)}
+        {t(`${NS}.infoBody2`)}
+        {t(`${NS}.infoBody3`)} <strong>{t(`${NS}.openWord`)}</strong>.
       </div>
 
       {showForm && (
         <div className="lx-card" style={{ marginBottom:'1.5rem', border:'2px solid #f97316' }}>
           <h3 style={{ fontWeight:700, marginBottom:'1.25rem' }}>
-            {editing ? `Edit: ${editing.country_code} (${editing.direction})` : 'New Country Rule'}
+            {editing ? t(`${NS}.editTitle`, { code: editing.country_code, direction: editing.direction }) : t(`${NS}.newTitle`)}
           </h3>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1rem' }}>
             <div className="lx-form-group">
-              <label className="lx-label">Country Code *</label>
+              <label className="lx-label">{t(`${NS}.countryCode`)}</label>
               <input className="lx-input" maxLength={2} value={form.country_code}
-                placeholder="e.g. HT, CN, US"
+                placeholder={t(`${NS}.countryCodePlaceholder`)}
                 onChange={e => set('country_code', e.target.value.toUpperCase())}
                 disabled={!!editing} />
             </div>
             <div className="lx-form-group">
-              <label className="lx-label">Direction</label>
+              <label className="lx-label">{t(`${NS}.direction`)}</label>
               <select className="lx-select" value={form.direction} onChange={e => set('direction', e.target.value)}>
-                <option value="import">Import (into this country)</option>
-                <option value="export">Export (from this country)</option>
-                <option value="both">Both</option>
+                <option value="import">{t(`${NS}.dirImport`)}</option>
+                <option value="export">{t(`${NS}.dirExport`)}</option>
+                <option value="both">{t(`${NS}.dirBoth`)}</option>
               </select>
             </div>
             <div className="lx-form-group">
-              <label className="lx-label">Access Level</label>
+              <label className="lx-label">{t(`${NS}.accessLevel`)}</label>
               <select className="lx-select" value={form.access_level} onChange={e => set('access_level', e.target.value)}>
-                {ACCESS_LEVELS.map(a => <option key={a} value={a}>{a.replace(/_/g,' ')}</option>)}
+                {ACCESS_LEVELS.map(a => <option key={a} value={a}>{t(`${NS}.${ACCESS_LEVEL_I18N[a]}`)}</option>)}
               </select>
             </div>
             <div className="lx-form-group">
-              <label className="lx-label">Risk Tier</label>
+              <label className="lx-label">{t(`${NS}.riskTier`)}</label>
               <select className="lx-select" value={form.risk_tier} onChange={e => set('risk_tier', e.target.value)}>
-                {RISK_TIERS.map(r => <option key={r} value={r}>{r}</option>)}
+                {RISK_TIERS.map(r => <option key={r} value={r}>{t(`${NS}.${RISK_I18N[r]}`)}</option>)}
               </select>
             </div>
             <div className="lx-form-group">
-              <label className="lx-label">Max Order Value (USD)</label>
+              <label className="lx-label">{t(`${NS}.maxOrderValue`)}</label>
               <input type="number" className="lx-input" value={form.max_order_value_usd}
-                placeholder="Leave blank for no limit"
+                placeholder={t(`${NS}.maxOrderValuePlaceholder`)}
                 onChange={e => set('max_order_value_usd', e.target.value)} />
             </div>
           </div>
           <div style={{ display:'flex', gap:'1.5rem', flexWrap:'wrap', marginBottom:'1rem' }}>
             {[
-              ['requires_license','Requires Import/Export License'],
-              ['requires_certificate','Requires Certificate of Origin'],
-              ['requires_business_only','Business Buyers Only'],
-            ].map(([k,label]) => (
+              ['requires_license','requiresLicense'],
+              ['requires_certificate','requiresCertificate'],
+              ['requires_business_only','requiresBusinessOnly'],
+            ].map(([k,labelKey]) => (
               <label key={k} style={{ display:'flex', gap:'.4rem', alignItems:'center', fontWeight:600, fontSize:'.85rem', cursor:'pointer' }}>
                 <input type="checkbox" checked={form[k]} onChange={e => set(k, e.target.checked)} />
-                {label}
+                {t(`${NS}.${labelKey}`)}
               </label>
             ))}
           </div>
           <div className="lx-form-group">
-            <label className="lx-label">Notes</label>
+            <label className="lx-label">{t(`${NS}.notes`)}</label>
             <textarea className="lx-textarea" value={form.notes} onChange={e => set('notes', e.target.value)}
-              placeholder="Regulatory references, exceptions, OFAC status, etc." />
+              placeholder={t(`${NS}.notesPlaceholder`)} />
           </div>
           <div style={{ display:'flex', gap:'.75rem' }}>
             <button className="lx-btn-primary" onClick={save} disabled={saving}>
-              {saving ? 'Saving…' : 'Save Rule'}
+              {saving ? t(`${NS}.saving`) : t(`${NS}.saveRule`)}
             </button>
-            <button className="lx-btn-secondary" onClick={() => setShowForm(false)}>Cancel</button>
+            <button className="lx-btn-secondary" onClick={() => setShowForm(false)}>{t(`${NS}.cancel`)}</button>
           </div>
         </div>
       )}
 
-      {loading && <div className="lx-loading">Loading…</div>}
+      {loading && <div className="lx-loading">{t(`${NS}.loading`)}</div>}
       {!loading && loadError && <AdminErrorState onRetry={load} />}
 
       <div className="lx-table-wrap">
         <table className="lx-table">
           <thead>
             <tr>
-              <th>Country</th><th>Direction</th><th>Access Level</th><th>Risk Tier</th>
-              <th>Max Value</th><th>Flags</th><th>Notes</th><th></th>
+              <th>{t(`${NS}.thCountry`)}</th><th>{t(`${NS}.direction`)}</th><th>{t(`${NS}.accessLevel`)}</th><th>{t(`${NS}.riskTier`)}</th>
+              <th>{t(`${NS}.thMaxValue`)}</th><th>{t(`${NS}.thFlags`)}</th><th>{t(`${NS}.notes`)}</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -175,17 +183,17 @@ export default function RestrictionsAdmin() {
                 </td>
                 <td>
                   <span style={{ background:'#f1f5f9', borderRadius:'.375rem', padding:'.15rem .5rem', fontSize:'.75rem', fontWeight:700 }}>
-                    {r.direction}
+                    {labelFor(DIRECTION_I18N, r.direction)}
                   </span>
                 </td>
                 <td>
                   <span className="lx-status-pill" style={{ background: ACCESS_COLOR[r.access_level]||'#64748b' }}>
-                    {r.access_level?.replace(/_/g,' ')}
+                    {labelFor(ACCESS_LEVEL_I18N, r.access_level)}
                   </span>
                 </td>
                 <td>
                   <span className="lx-status-pill" style={{ background: RISK_COLOR[r.risk_tier]||'#64748b' }}>
-                    {r.risk_tier}
+                    {labelFor(RISK_I18N, r.risk_tier)}
                   </span>
                 </td>
                 <td style={{ fontSize:'.82rem' }}>
@@ -202,13 +210,13 @@ export default function RestrictionsAdmin() {
                 <td>
                   <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem' }}
                     onClick={() => openEdit(r)}>
-                    Edit
+                    {t(`${NS}.edit`)}
                   </button>
                 </td>
               </tr>
             ))}
             {rules.length === 0 && !loading && !loadError && (
-              <tr><td colSpan={8} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>No country rules defined. All countries default to open.</td></tr>
+              <tr><td colSpan={8} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>{t(`${NS}.emptyState`)}</td></tr>
             )}
           </tbody>
         </table>

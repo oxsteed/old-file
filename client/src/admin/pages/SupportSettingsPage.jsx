@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
 import AdminErrorState from '../lib/AdminErrorState';
 import {
@@ -8,12 +9,13 @@ import {
 
 // Settings Tab Navigation
 function SettingsTabs({ activeTab, setActiveTab }) {
+  const { t } = useTranslation();
   const tabs = [
-    { id: 'general', label: 'General', icon: Settings },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'integrations', label: 'Integrations', icon: Link2 },
-    { id: 'automation', label: 'Automation', icon: Zap },
-    { id: 'working-hours', label: 'Working Hours', icon: Clock },
+    { id: 'general', label: t('adminSupportSettings.tabGeneral'), icon: Settings },
+    { id: 'notifications', label: t('adminSupportSettings.tabNotifications'), icon: Bell },
+    { id: 'integrations', label: t('adminSupportSettings.tabIntegrations'), icon: Link2 },
+    { id: 'automation', label: t('adminSupportSettings.tabAutomation'), icon: Zap },
+    { id: 'working-hours', label: t('adminSupportSettings.tabWorkingHours'), icon: Clock },
   ];
 
   return (
@@ -41,6 +43,7 @@ function SettingsTabs({ activeTab, setActiveTab }) {
 
 // General Settings
 function GeneralSettings({ settings, onUpdate }) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState(settings.general || {
     company_name: '',
     support_email: '',
@@ -56,7 +59,7 @@ function GeneralSettings({ settings, onUpdate }) {
   return (
     <div className="space-y-6">
       <div>
-        <label className="block text-gray-400 text-sm mb-2">Company Name</label>
+        <label className="block text-gray-400 text-sm mb-2">{t('adminSupportSettings.companyName')}</label>
         <input
           type="text"
           value={formData.company_name}
@@ -68,7 +71,7 @@ function GeneralSettings({ settings, onUpdate }) {
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-gray-400 text-sm mb-2">Support Email</label>
+          <label className="block text-gray-400 text-sm mb-2">{t('adminSupportSettings.supportEmail')}</label>
           <input
             type="email"
             value={formData.support_email}
@@ -79,7 +82,7 @@ function GeneralSettings({ settings, onUpdate }) {
         </div>
 
         <div>
-          <label className="block text-gray-400 text-sm mb-2">Support Phone</label>
+          <label className="block text-gray-400 text-sm mb-2">{t('adminSupportSettings.supportPhone')}</label>
           <input
             type="tel"
             value={formData.support_phone}
@@ -92,7 +95,7 @@ function GeneralSettings({ settings, onUpdate }) {
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-gray-400 text-sm mb-2">Timezone</label>
+          <label className="block text-gray-400 text-sm mb-2">{t('adminSupportSettings.timezone')}</label>
           <select
             value={formData.timezone}
             onChange={e => setFormData({ ...formData, timezone: e.target.value })}
@@ -100,25 +103,25 @@ function GeneralSettings({ settings, onUpdate }) {
                        focus:outline-none focus:border-orange-500"
           >
             <option value="UTC">UTC</option>
-            <option value="EST">Eastern Standard Time (EST)</option>
-            <option value="CST">Central Standard Time (CST)</option>
-            <option value="MST">Mountain Standard Time (MST)</option>
-            <option value="PST">Pacific Standard Time (PST)</option>
+            <option value="EST">{t('adminSupportSettings.timezoneEastern')}</option>
+            <option value="CST">{t('adminSupportSettings.timezoneCentral')}</option>
+            <option value="MST">{t('adminSupportSettings.timezoneMountain')}</option>
+            <option value="PST">{t('adminSupportSettings.timezonePacific')}</option>
           </select>
         </div>
 
         <div>
-          <label className="block text-gray-400 text-sm mb-2">Default Language</label>
+          <label className="block text-gray-400 text-sm mb-2">{t('adminSupportSettings.defaultLanguage')}</label>
           <select
             value={formData.language}
             onChange={e => setFormData({ ...formData, language: e.target.value })}
             className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white
                        focus:outline-none focus:border-orange-500"
           >
-            <option value="en">English</option>
-            <option value="es">Spanish</option>
-            <option value="fr">French</option>
-            <option value="de">German</option>
+            <option value="en">{t('adminSupportSettings.languageEnglish')}</option>
+            <option value="es">{t('adminSupportSettings.languageSpanish')}</option>
+            <option value="fr">{t('adminSupportSettings.languageFrench')}</option>
+            <option value="de">{t('adminSupportSettings.languageGerman')}</option>
           </select>
         </div>
       </div>
@@ -129,7 +132,7 @@ function GeneralSettings({ settings, onUpdate }) {
                    text-white rounded-lg transition font-medium"
       >
         <Save size={16} />
-        Save Changes
+        {t('adminSupportSettings.saveChanges')}
       </button>
     </div>
   );
@@ -137,6 +140,7 @@ function GeneralSettings({ settings, onUpdate }) {
 
 // Notification Settings
 function NotificationSettings({ settings, onUpdate }) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState(settings.notifications || {
     email_notifications: true,
     sms_notifications: false,
@@ -153,7 +157,7 @@ function NotificationSettings({ settings, onUpdate }) {
   return (
     <div className="space-y-4">
       <div className="bg-gray-700 rounded-lg p-4 space-y-3">
-        <h3 className="text-white font-semibold">Notification Channels</h3>
+        <h3 className="text-white font-semibold">{t('adminSupportSettings.notificationChannels')}</h3>
 
         <label className="flex items-center gap-3 cursor-pointer">
           <input
@@ -162,7 +166,7 @@ function NotificationSettings({ settings, onUpdate }) {
             onChange={e => setFormData({ ...formData, email_notifications: e.target.checked })}
             className="w-4 h-4 accent-orange-500"
           />
-          <span className="text-gray-300">Email Notifications</span>
+          <span className="text-gray-300">{t('adminSupportSettings.emailNotifications')}</span>
         </label>
 
         <label className="flex items-center gap-3 cursor-pointer">
@@ -172,7 +176,7 @@ function NotificationSettings({ settings, onUpdate }) {
             onChange={e => setFormData({ ...formData, sms_notifications: e.target.checked })}
             className="w-4 h-4 accent-orange-500"
           />
-          <span className="text-gray-300">SMS Notifications</span>
+          <span className="text-gray-300">{t('adminSupportSettings.smsNotifications')}</span>
         </label>
 
         <label className="flex items-center gap-3 cursor-pointer">
@@ -182,12 +186,12 @@ function NotificationSettings({ settings, onUpdate }) {
             onChange={e => setFormData({ ...formData, in_app_notifications: e.target.checked })}
             className="w-4 h-4 accent-orange-500"
           />
-          <span className="text-gray-300">In-App Notifications</span>
+          <span className="text-gray-300">{t('adminSupportSettings.inAppNotifications')}</span>
         </label>
       </div>
 
       <div className="bg-gray-700 rounded-lg p-4 space-y-3">
-        <h3 className="text-white font-semibold">Event Notifications</h3>
+        <h3 className="text-white font-semibold">{t('adminSupportSettings.eventNotifications')}</h3>
 
         <label className="flex items-center gap-3 cursor-pointer">
           <input
@@ -196,7 +200,7 @@ function NotificationSettings({ settings, onUpdate }) {
             onChange={e => setFormData({ ...formData, notify_on_escalation: e.target.checked })}
             className="w-4 h-4 accent-orange-500"
           />
-          <span className="text-gray-300">Notify on Escalation</span>
+          <span className="text-gray-300">{t('adminSupportSettings.notifyOnEscalation')}</span>
         </label>
 
         <label className="flex items-center gap-3 cursor-pointer">
@@ -206,7 +210,7 @@ function NotificationSettings({ settings, onUpdate }) {
             onChange={e => setFormData({ ...formData, notify_on_assignment: e.target.checked })}
             className="w-4 h-4 accent-orange-500"
           />
-          <span className="text-gray-300">Notify on Assignment</span>
+          <span className="text-gray-300">{t('adminSupportSettings.notifyOnAssignment')}</span>
         </label>
 
         <label className="flex items-center gap-3 cursor-pointer">
@@ -216,7 +220,7 @@ function NotificationSettings({ settings, onUpdate }) {
             onChange={e => setFormData({ ...formData, daily_digest: e.target.checked })}
             className="w-4 h-4 accent-orange-500"
           />
-          <span className="text-gray-300">Daily Digest Email</span>
+          <span className="text-gray-300">{t('adminSupportSettings.dailyDigestEmail')}</span>
         </label>
       </div>
 
@@ -226,7 +230,7 @@ function NotificationSettings({ settings, onUpdate }) {
                    text-white rounded-lg transition font-medium"
       >
         <Save size={16} />
-        Save Changes
+        {t('adminSupportSettings.saveChanges')}
       </button>
     </div>
   );
@@ -234,6 +238,7 @@ function NotificationSettings({ settings, onUpdate }) {
 
 // Integration Settings
 function IntegrationSettings({ settings, onUpdate }) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState(settings.integrations || {
     slack_webhook_url: '',
     zapier_webhook_url: '',
@@ -250,7 +255,7 @@ function IntegrationSettings({ settings, onUpdate }) {
       <div className="bg-gray-700 rounded-lg p-4">
         <div className="flex items-center gap-2 mb-3">
           <MessageSquare size={16} className="text-blue-400" />
-          <h3 className="text-white font-semibold">Slack Integration</h3>
+          <h3 className="text-white font-semibold">{t('adminSupportSettings.slackIntegration')}</h3>
         </div>
         <input
           type="url"
@@ -260,13 +265,13 @@ function IntegrationSettings({ settings, onUpdate }) {
           className="w-full px-4 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white
                      focus:outline-none focus:border-orange-500 text-sm"
         />
-        <p className="text-gray-400 text-xs mt-2">Enter your Slack webhook URL for notifications</p>
+        <p className="text-gray-400 text-xs mt-2">{t('adminSupportSettings.slackWebhookHint')}</p>
       </div>
 
       <div className="bg-gray-700 rounded-lg p-4">
         <div className="flex items-center gap-2 mb-3">
           <Link2 size={16} className="text-purple-400" />
-          <h3 className="text-white font-semibold">Zapier Integration</h3>
+          <h3 className="text-white font-semibold">{t('adminSupportSettings.zapierIntegration')}</h3>
         </div>
         <input
           type="url"
@@ -276,14 +281,14 @@ function IntegrationSettings({ settings, onUpdate }) {
           className="w-full px-4 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white
                      focus:outline-none focus:border-orange-500 text-sm"
         />
-        <p className="text-gray-400 text-xs mt-2">Enter your Zapier webhook URL for automation</p>
+        <p className="text-gray-400 text-xs mt-2">{t('adminSupportSettings.zapierWebhookHint')}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-gray-700 rounded-lg p-4">
           <label className="block text-gray-300 text-sm font-semibold mb-2">
             <Mail size={14} className="inline mr-2" />
-            Email Provider
+            {t('adminSupportSettings.emailProvider')}
           </label>
           <select
             value={formData.email_provider}
@@ -300,7 +305,7 @@ function IntegrationSettings({ settings, onUpdate }) {
         <div className="bg-gray-700 rounded-lg p-4">
           <label className="block text-gray-300 text-sm font-semibold mb-2">
             <MessageSquare size={14} className="inline mr-2" />
-            SMS Provider
+            {t('adminSupportSettings.smsProvider')}
           </label>
           <select
             value={formData.sms_provider}
@@ -320,7 +325,7 @@ function IntegrationSettings({ settings, onUpdate }) {
                    text-white rounded-lg transition font-medium"
       >
         <Save size={16} />
-        Save Changes
+        {t('adminSupportSettings.saveChanges')}
       </button>
     </div>
   );
@@ -328,6 +333,7 @@ function IntegrationSettings({ settings, onUpdate }) {
 
 // Automation Settings
 function AutomationSettings({ settings, onUpdate }) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState(settings.automation || {
     auto_response_enabled: true,
     auto_response_message: 'Thank you for contacting us. We will respond shortly.',
@@ -350,12 +356,12 @@ function AutomationSettings({ settings, onUpdate }) {
             onChange={e => setFormData({ ...formData, auto_response_enabled: e.target.checked })}
             className="w-4 h-4 accent-orange-500"
           />
-          <span className="text-gray-300 font-semibold">Enable Auto-Response</span>
+          <span className="text-gray-300 font-semibold">{t('adminSupportSettings.enableAutoResponse')}</span>
         </label>
 
         {formData.auto_response_enabled && (
           <div>
-            <label className="block text-gray-400 text-sm mb-2">Auto-Response Message</label>
+            <label className="block text-gray-400 text-sm mb-2">{t('adminSupportSettings.autoResponseMessage')}</label>
             <textarea
               value={formData.auto_response_message}
               onChange={e => setFormData({ ...formData, auto_response_message: e.target.value })}
@@ -375,7 +381,7 @@ function AutomationSettings({ settings, onUpdate }) {
             onChange={e => setFormData({ ...formData, auto_assign_enabled: e.target.checked })}
             className="w-4 h-4 accent-orange-500"
           />
-          <span className="text-gray-300">Enable Auto-Assignment</span>
+          <span className="text-gray-300">{t('adminSupportSettings.enableAutoAssignment')}</span>
         </label>
 
         <label className="flex items-center gap-3 cursor-pointer">
@@ -385,12 +391,12 @@ function AutomationSettings({ settings, onUpdate }) {
             onChange={e => setFormData({ ...formData, skill_based_routing: e.target.checked })}
             className="w-4 h-4 accent-orange-500"
           />
-          <span className="text-gray-300">Skill-Based Routing</span>
+          <span className="text-gray-300">{t('adminSupportSettings.skillBasedRouting')}</span>
         </label>
       </div>
 
       <div className="bg-gray-700 rounded-lg p-4">
-        <label className="block text-gray-400 text-sm mb-2">Auto-Close Conversations After (days)</label>
+        <label className="block text-gray-400 text-sm mb-2">{t('adminSupportSettings.autoCloseAfterDays')}</label>
         <input
           type="number"
           value={formData.auto_close_after_days}
@@ -414,14 +420,25 @@ function AutomationSettings({ settings, onUpdate }) {
                    text-white rounded-lg transition font-medium"
       >
         <Save size={16} />
-        Save Changes
+        {t('adminSupportSettings.saveChanges')}
       </button>
     </div>
   );
 }
 
 // Working Hours Settings
+const DAY_LABEL_KEYS = {
+  monday: 'adminSupportSettings.dayMonday',
+  tuesday: 'adminSupportSettings.dayTuesday',
+  wednesday: 'adminSupportSettings.dayWednesday',
+  thursday: 'adminSupportSettings.dayThursday',
+  friday: 'adminSupportSettings.dayFriday',
+  saturday: 'adminSupportSettings.daySaturday',
+  sunday: 'adminSupportSettings.daySunday',
+};
+
 function WorkingHoursSettings({ settings, onUpdate }) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState(settings.working_hours || {
     monday_start: '09:00',
     monday_end: '17:00',
@@ -466,7 +483,7 @@ function WorkingHoursSettings({ settings, onUpdate }) {
           return (
             <div key={day} className="bg-gray-700 rounded-lg p-4">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-white font-semibold capitalize">{day}</h3>
+                <h3 className="text-white font-semibold capitalize">{t(DAY_LABEL_KEYS[day])}</h3>
                 <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer">
                   <input
                     type="checkbox"
@@ -474,7 +491,7 @@ function WorkingHoursSettings({ settings, onUpdate }) {
                     onChange={toggleDay}
                     className="w-4 h-4 accent-orange-500"
                   />
-                  Open
+                  {t('adminSupportSettings.dayOpen')}
                 </label>
               </div>
               <div className="space-y-2">
@@ -487,7 +504,7 @@ function WorkingHoursSettings({ settings, onUpdate }) {
                                focus:outline-none focus:border-orange-500 disabled:opacity-40"
                     disabled={!isOpen}
                   />
-                  <span className="text-gray-400">to</span>
+                  <span className="text-gray-400">{t('adminSupportSettings.dayTo')}</span>
                   <input
                     type="time"
                     value={end}
@@ -509,7 +526,7 @@ function WorkingHoursSettings({ settings, onUpdate }) {
                    text-white rounded-lg transition font-medium"
       >
         <Save size={16} />
-        Save Changes
+        {t('adminSupportSettings.saveChanges')}
       </button>
     </div>
   );
@@ -517,6 +534,7 @@ function WorkingHoursSettings({ settings, onUpdate }) {
 
 // Main Settings Page
 export default function SupportSettingsPage() {
+  const { t } = useTranslation();
   const { businessId } = useParams();
   const [activeTab, setActiveTab] = useState('general');
   const [settings, setSettings] = useState({});
@@ -573,8 +591,8 @@ export default function SupportSettingsPage() {
     return (
       <div className="p-6 max-w-5xl mx-auto">
         <AdminErrorState
-          title="Failed to load settings"
-          message={loadError?.response?.data?.error || 'Could not load support settings.'}
+          title={t('adminSupportSettings.loadErrorTitle')}
+          message={loadError?.response?.data?.error || t('adminSupportSettings.loadErrorMessage')}
           onRetry={loadSettings}
         />
       </div>
@@ -588,9 +606,9 @@ export default function SupportSettingsPage() {
         <div>
           <h1 className="text-white font-bold text-3xl mb-2 flex items-center gap-2">
             <Settings size={28} className="text-orange-400" />
-            Settings
+            {t('adminSupportSettings.pageTitle')}
           </h1>
-          <p className="text-gray-400 text-sm">Manage support system configuration and integrations.</p>
+          <p className="text-gray-400 text-sm">{t('adminSupportSettings.pageSubtitle')}</p>
         </div>
         {saveStatus && (
           <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
@@ -599,7 +617,7 @@ export default function SupportSettingsPage() {
               : 'bg-red-900/30 text-red-400'
           }`}>
             {saveStatus === 'success' ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
-            {saveStatus === 'success' ? 'Saved successfully' : 'Error saving settings'}
+            {saveStatus === 'success' ? t('adminSupportSettings.savedSuccessfully') : t('adminSupportSettings.saveError')}
           </div>
         )}
       </div>
