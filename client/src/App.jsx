@@ -318,7 +318,7 @@ export default function App() {
                     <Route path="/jobs/public/:jobId"      element={<JobPublicPage />} />
                     <Route path="/profile/:id"             element={<Guarded><PublicProfile /></Guarded>} />
                     <Route path="/helpers"                 element={<Guarded><HelpersDirectoryPage /></Guarded>} />
-                    <Route path="/direct/skills"            element={<Guarded><HelpersDirectoryPage entryPoint="direct" /></Guarded>} />
+                    <Route path="/direct/skills"            element={<Guarded><DirectCatalogDirectoryPage view="skills" /></Guarded>} />
                     <Route path="/helpers/public/:helperId" element={<LegacyHelperProfileRedirect />} />
                     <Route path="/h/:helperId"        element={<LegacyHelperProfileRedirect />} />
                     <Route path="/discover"                element={<Guarded><DiscoverPage /></Guarded>} />

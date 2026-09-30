@@ -20450,7 +20450,12 @@
     "browseToolRentals": "Explorar alquileres de herramientas",
     "skillsDirectoryEyebrow": "OxSteed Direct",
     "skillsDirectoryTitle": "Encuentra las habilidades y los ayudantes adecuados",
-    "skillsDirectorySubtitle": "Explora habilidades de ayudantes de confianza conectadas con el trabajo Direct."
+    "skillsDirectorySubtitle": "Explora habilidades de ayudantes de confianza conectadas con el trabajo Direct.",
+    "categoryDirectoryTitle": "Habilidades de Direct",
+    "categoryDirectorySubtitle": "Explora cada categoría de habilidades de Direct, con conteos de servicios y herramientas en vivo.",
+    "categoryServiceCount": "{{count}} servicios",
+    "categoryToolCount": "{{count}} herramientas",
+    "noSkillCategories": "Ninguna categoría de habilidades coincide con esta búsqueda."
   },
   "directCatalogAdmin": {
     "activeCount": "{{count}} activas",

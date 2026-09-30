@@ -9,9 +9,16 @@ import {
 } from './directCatalogNavigation.js';
 
 test('catalog links use separate canonical destinations', () => {
-  assert.equal(directCatalogHref('skills', { categorySlug: 'Electrical' }), '/direct/skills?skill=electrical');
+  assert.equal(directCatalogHref('skills', { categorySlug: 'Electrical' }), '/direct/skills');
+  assert.equal(directCatalogHref('skills', { search: 'plumb' }), '/direct/skills?q=plumb');
   assert.equal(directCatalogHref('services', { categorySlug: 'Electrical' }), '/direct/services?category=electrical');
   assert.equal(directCatalogHref('tools', { categorySlug: 'Electrical' }), '/direct/tools?category=electrical');
+});
+
+test('skills view is the Direct category directory', () => {
+  assert.equal(DIRECT_CATALOG_VIEWS.skills.path, '/direct/skills');
+  assert.equal(DIRECT_CATALOG_VIEWS.skills.dataSource, 'direct-catalog-categories');
+  assert.deepEqual(DIRECT_CATALOG_VIEWS.skills.relatedRoutes, ['/direct/services', '/direct/tools']);
 });
 
 test('category-to-skill mapping uses stable ids', () => {
@@ -23,7 +30,7 @@ test('category-to-skill mapping uses stable ids', () => {
 test('route contract is registered in the application and landing links use it', () => {
   const appSource = fs.readFileSync(path.resolve('src/App.jsx'), 'utf8');
   const landingSource = fs.readFileSync(path.resolve('src/pages/DirectCatalogLanding.jsx'), 'utf8');
-  assert.match(appSource, /path="\/direct\/skills"/);
+  assert.match(appSource, /path="\/direct\/skills"\s+element=\{<Guarded><DirectCatalogDirectoryPage view="skills"/);
   assert.match(appSource, /path="\/direct\/services"\s+element=\{<Guarded><DirectCatalogDirectoryPage view="services"/);
   assert.match(appSource, /path="\/direct\/tools"\s+element=\{<Guarded><DirectCatalogDirectoryPage view="tools"/);
   assert.equal((landingSource.match(/directCatalogHref\('skills'/g) || []).length, 1);

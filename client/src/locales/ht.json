@@ -20450,7 +20450,12 @@
     "browseToolRentals": "Gade lokasyon zouti yo",
     "skillsDirectoryEyebrow": "OxSteed Direct",
     "skillsDirectoryTitle": "Jwenn bon konpetans ak bon moun pou ede w",
-    "skillsDirectorySubtitle": "Browse konpetans moun ou ka fè konfyans ki konekte ak travay Direct yo."
+    "skillsDirectorySubtitle": "Browse konpetans moun ou ka fè konfyans ki konekte ak travay Direct yo.",
+    "categoryDirectoryTitle": "Konpetans Direct",
+    "categoryDirectorySubtitle": "Gade chak kategori konpetans Direct, ak kantite sèvis ak zouti an dirèk.",
+    "categoryServiceCount": "{{count}} sèvis",
+    "categoryToolCount": "{{count}} zouti",
+    "noSkillCategories": "Okenn kategori konpetans pa koresponn ak rechèch sa a."
   },
   "directCatalogAdmin": {
     "activeCount": "{{count}} aktif",

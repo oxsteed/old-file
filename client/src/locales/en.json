@@ -20460,7 +20460,12 @@
     "browseToolRentals": "Browse tool rentals",
     "skillsDirectoryEyebrow": "OxSteed Direct",
     "skillsDirectoryTitle": "Find the right skills and helpers",
-    "skillsDirectorySubtitle": "Browse trusted helper skills connected to Direct work."
+    "skillsDirectorySubtitle": "Browse trusted helper skills connected to Direct work.",
+    "categoryDirectoryTitle": "Direct skills",
+    "categoryDirectorySubtitle": "Browse every Direct skill category, with live service and tool counts.",
+    "categoryServiceCount": "{{count}} services",
+    "categoryToolCount": "{{count}} tools",
+    "noSkillCategories": "No skill categories match this search."
   },
   "directCatalogAdmin": {
     "activeCount": "{{count}} active",

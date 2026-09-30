@@ -599,7 +599,7 @@ const HelpersDirectoryPage: React.FC<{ entryPoint?: 'helpers' | 'direct' }> = ({
       <PageMeta
         title={isDirect ? t('directCatalog.skillsDirectoryTitle', { defaultValue: 'Find the right skills and helpers' }) : t('helpersDir.heroTitle')}
         description={isDirect ? t('directCatalog.skillsDirectorySubtitle', { defaultValue: 'Browse trusted helper skills connected to Direct work.' }) : t('helpersDir.metaDescription')}
-        url={`${getPublicSiteUrl()}${isDirect ? '/direct/skills' : '/helpers'}`}
+        url={`${getPublicSiteUrl()}/helpers`}
       />
       <Navbar />
 

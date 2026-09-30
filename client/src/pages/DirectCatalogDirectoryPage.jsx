@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, ChevronLeft, Clock3, Search, Truck, Wrench } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Search, Truck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
+import { directCatalogIcon } from '../components/DirectCatalogIcons';
 import { getDirectCatalog } from '../api/direct';
 import { directCatalogHref, DIRECT_CATALOG_VIEWS } from '../utils/directCatalogNavigation';
 import '../styles/DirectCatalog.css';
@@ -47,25 +48,34 @@ export default function DirectCatalogDirectoryPage({ view = 'services' }) {
   const { t, i18n } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const definition = DIRECT_CATALOG_VIEWS[view] || DIRECT_CATALOG_VIEWS.services;
+  const isSkillsView = view === 'skills';
   const category = searchParams.get('category') || '';
   const search = searchParams.get('q') || '';
   const offset = Math.max(Number(searchParams.get('offset') || 0), 0);
   const [catalog, setCatalog] = useState({ categories: [], tools: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [retryCount, setRetryCount] = useState(0);
+
+  // The skills view lists every category at once (no pagination, no category
+  // filter); search filters the loaded categories on the client.
+  const stableSearch = isSkillsView ? '' : search;
 
   useEffect(() => {
     let active = true;
     setLoading(true);
     setError('');
     const timer = window.setTimeout(() => {
-      getDirectCatalog(i18n.resolvedLanguage, {
-        view,
-        category: category || undefined,
-        search: search.trim() || undefined,
-        limit: PAGE_SIZE,
-        offset,
-      }).then((data) => {
+      const params = isSkillsView
+        ? {}
+        : {
+          view,
+          category: category || undefined,
+          search: stableSearch.trim() || undefined,
+          limit: PAGE_SIZE,
+          offset,
+        };
+      getDirectCatalog(i18n.resolvedLanguage, params).then((data) => {
         if (!active) return;
         setCatalog(data.catalog || { categories: [], tools: [] });
       }).catch((requestError) => {
@@ -79,22 +89,41 @@ export default function DirectCatalogDirectoryPage({ view = 'services' }) {
       active = false;
       window.clearTimeout(timer);
     };
-  }, [category, i18n.resolvedLanguage, offset, search, t, view]);
+  }, [category, i18n.resolvedLanguage, offset, stableSearch, t, view, isSkillsView, retryCount]);
 
   const categories = catalog.categories || [];
   const selectedCategory = categories.find((item) => item.slug === category);
   const items = useMemo(() => {
+    if (isSkillsView) return [];
     if (view === 'tools') return catalog.tools || [];
     return categories.flatMap((item) => (item.services || []).map((service) => ({ ...service, categoryName: item.name })));
-  }, [catalog.tools, categories, view]);
-  const pagination = view === 'tools' ? catalog.toolPagination : catalog.servicePagination;
+  }, [catalog.tools, categories, view, isSkillsView]);
+  const pagination = isSkillsView ? null : view === 'tools' ? catalog.toolPagination : catalog.servicePagination;
+  const skillCategories = useMemo(() => {
+    if (!isSkillsView) return [];
+    const query = search.trim().toLowerCase();
+    return categories.filter((item) => !query || item.name.toLowerCase().includes(query));
+  }, [isSkillsView, categories, search]);
+  const toolCountByCategory = useMemo(() => {
+    const counts = new Map();
+    for (const tool of catalog.tools || []) {
+      const key = tool.categorySlug || '';
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    return counts;
+  }, [catalog.tools]);
+  const listedCount = isSkillsView ? skillCategories.length : (pagination?.total ?? 0);
   const hasMore = Boolean(pagination && offset + items.length < pagination.total);
-  const title = view === 'tools'
-    ? t('directCatalog.toolsDirectoryTitle', { defaultValue: 'Direct tools and equipment' })
-    : t('directCatalog.servicesDirectoryTitle', { defaultValue: 'Direct services' });
-  const subtitle = view === 'tools'
-    ? t('directCatalog.toolsDirectorySubtitle', { defaultValue: 'See the equipment OxSteed uses to support Direct work.' })
-    : t('directCatalog.servicesDirectorySubtitle', { defaultValue: 'Browse published Direct services, availability, and next steps.' });
+  const title = isSkillsView
+    ? t('directCatalog.categoryDirectoryTitle', { defaultValue: 'Direct skills' })
+    : view === 'tools'
+      ? t('directCatalog.toolsDirectoryTitle', { defaultValue: 'Direct tools and equipment' })
+      : t('directCatalog.servicesDirectoryTitle', { defaultValue: 'Direct services' });
+  const subtitle = isSkillsView
+    ? t('directCatalog.categoryDirectorySubtitle', { defaultValue: 'Browse every Direct skill category, with live service and tool counts.' })
+    : view === 'tools'
+      ? t('directCatalog.toolsDirectorySubtitle', { defaultValue: 'See the equipment OxSteed uses to support Direct work.' })
+      : t('directCatalog.servicesDirectorySubtitle', { defaultValue: 'Browse published Direct services, availability, and next steps.' });
 
   useEffect(() => {
     if (!category || !categories.length || selectedCategory) return;
@@ -129,6 +158,36 @@ export default function DirectCatalogDirectoryPage({ view = 'services' }) {
           </div>
         </section>
 
+        {isSkillsView ? (
+          <CatalogDirectoryCard className="min-w-0">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="text-xs font-bold uppercase tracking-[0.16em] text-orange-300">{t('directCatalog.skillCategories', { defaultValue: 'Skill categories' })}</div>
+                <h2 className="mt-1 text-2xl font-bold text-white">{t('directCatalog.directoryResults', { defaultValue: 'Available now' })}</h2>
+              </div>
+              <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-400">{t('directCatalog.listed', { count: listedCount, defaultValue: '{{count}} listed' })}</span>
+            </div>
+            <label className="relative mt-4 block"><Search size={17} className="absolute start-3 top-3.5 text-slate-500" /><input value={search} onChange={(event) => updateParams(setSearchParams, { q: event.target.value, offset: null })} aria-label={t('directCatalog.searchCategories', { defaultValue: 'Search categories...' })} placeholder={t('directCatalog.searchCategories', { defaultValue: 'Search categories...' })} className="w-full rounded-xl border border-white/10 bg-slate-950/80 py-3 ps-10 pe-3 text-sm text-white outline-none focus:border-orange-500" /></label>
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-live="polite">
+              {loading && !skillCategories.length && <EmptyState>{t('directCatalog.loadingDirectory', { defaultValue: 'Loading Direct catalog...' })}</EmptyState>}
+              {!loading && error && <EmptyState tone="error"><span>{error}</span><button type="button" onClick={() => setRetryCount((count) => count + 1)} className="ms-2 font-semibold underline">{t('directCatalog.retry', { defaultValue: 'Try again' })}</button></EmptyState>}
+              {!loading && !error && !skillCategories.length && <EmptyState>{t('directCatalog.noSkillCategories', { defaultValue: 'No skill categories match this search.' })}</EmptyState>}
+              {!loading && !error && skillCategories.map((item) => {
+                const CategoryIcon = directCatalogIcon(item.iconKey);
+                const comingSoon = item.lifecycleStatus === 'coming_soon';
+                const serviceCount = Number(item.visibleServiceCount || 0);
+                const toolCount = toolCountByCategory.get(item.slug) || 0;
+                const countsLabel = `${t('directCatalog.categoryServiceCount', { count: serviceCount, defaultValue: '{{count}} services' })} · ${t('directCatalog.categoryToolCount', { count: toolCount, defaultValue: '{{count}} tools' })}`;
+                const tileClassName = `flex items-center gap-4 rounded-2xl border border-white/10 bg-slate-950/60 p-4 ${comingSoon ? 'opacity-70' : 'transition hover:border-orange-400/50'}`;
+                const tileBody = <><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-orange-300"><CategoryIcon size={22} /></div><div className="min-w-0 flex-1"><h3 className="font-semibold text-white">{item.name}</h3><p className="mt-1 text-xs text-slate-400">{countsLabel}</p>{comingSoon && <span className="mt-2 inline-block rounded-full border border-orange-400/30 bg-orange-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-orange-200">{t('directCatalog.comingSoon', { defaultValue: 'Coming soon' })}</span>}</div>{!comingSoon && <ChevronRight size={18} className="shrink-0 text-slate-500" aria-hidden="true" />}</>;
+                return comingSoon
+                  ? <div key={item.id} className={tileClassName} aria-disabled="true">{tileBody}</div>
+                  : <Link key={item.id} to={directCatalogHref('services', { categorySlug: item.slug })} className={tileClassName}>{tileBody}</Link>;
+              })}
+            </div>
+          </CatalogDirectoryCard>
+        ) : (
         <div className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
           <CatalogDirectoryCard>
             <h2 className="text-sm font-bold uppercase tracking-[0.16em] text-white">{t('directCatalog.skillCategories', { defaultValue: 'Skill categories' })}</h2>
@@ -160,12 +219,13 @@ export default function DirectCatalogDirectoryPage({ view = 'services' }) {
                 const bookHref = `/direct/book-slot?serviceId=${encodeURIComponent(service.id)}&serviceSlug=${encodeURIComponent(service.slug)}&service=${encodeURIComponent(service.name)}`;
                 return <article key={service.id} className="rounded-2xl border border-white/10 bg-slate-950/60 p-4"><div className="flex items-start justify-between gap-4"><div><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold text-white">{service.name}</h3>{service.lifecycleStatus === 'paused' && <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-200">{t('directCatalog.paused', { defaultValue: 'Temporarily unavailable' })}</span>}</div><p className="mt-1 text-sm leading-5 text-slate-400">{service.description}</p></div><strong className="shrink-0 text-sm text-white">{priceLabel(service.priceCents, service.currencyCode, t('directCatalog.quoteRequired', { defaultValue: 'Quote required' }))}</strong></div><div className="mt-3 flex flex-wrap items-center justify-between gap-2"><span className="inline-flex items-center gap-1.5 text-xs text-slate-500"><Clock3 size={14} />{service.typicalWorkdays?.length ? service.typicalWorkdays.join(' · ') : t('directCatalog.scheduleByQuote', { defaultValue: 'Schedule by quote' })}</span><div className="flex flex-wrap gap-2">{service.bookable && <Link to={bookHref} className="inline-flex items-center gap-1 rounded-lg bg-orange-500 px-3 py-2 text-xs font-bold text-white">{t('directCatalog.book', { defaultValue: 'Book' })} <ArrowRight size={14} /></Link>}{service.requestable && <Link to={requestHref} className="inline-flex items-center gap-1 rounded-lg border border-orange-500/40 px-3 py-2 text-xs font-bold text-orange-100">{t('directCatalog.request', { defaultValue: 'Request' })} <ArrowRight size={14} /></Link>}{!service.requestable && !service.bookable && <span className="text-xs font-semibold text-amber-200">{t('directCatalog.currentlyUnavailable', { defaultValue: 'Currently unavailable' })}</span>}</div></div></article>;
               })}
-              {view === 'tools' && items.map((tool) => <article key={tool.id} className="flex gap-3 rounded-2xl border border-white/10 bg-slate-950/60 p-4"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-orange-300"><Wrench size={19} /></div><div className="min-w-0"><h3 className="font-semibold text-white">{tool.name}</h3><p className="mt-1 text-sm leading-5 text-slate-400">{tool.description}</p><span className={`mt-2 inline-flex items-center gap-1 text-xs ${tool.isOperationallyAvailable ? 'text-emerald-300' : 'text-amber-200'}`}><CheckCircle2 size={13} />{tool.isOperationallyAvailable ? t('directCatalog.availableWhenScheduled', { defaultValue: 'Available when scheduled' }) : t('directCatalog.currentlyUnavailable', { defaultValue: 'Currently unavailable' })}</span></div></article>)}
+              {view === 'tools' && items.map((tool) => { const ToolIcon = directCatalogIcon(tool.iconKey); return <article key={tool.id} className="flex gap-3 rounded-2xl border border-white/10 bg-slate-950/60 p-4"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-orange-300"><ToolIcon size={19} /></div><div className="min-w-0"><h3 className="font-semibold text-white">{tool.name}</h3><p className="mt-1 text-sm leading-5 text-slate-400">{tool.description}</p><span className={`mt-2 inline-flex items-center gap-1 text-xs ${tool.isOperationallyAvailable ? 'text-emerald-300' : 'text-amber-200'}`}><CheckCircle2 size={13} />{tool.isOperationallyAvailable ? t('directCatalog.availableWhenScheduled', { defaultValue: 'Available when scheduled' }) : t('directCatalog.currentlyUnavailable', { defaultValue: 'Currently unavailable' })}</span></div></article>; })}
               {hasMore && <button type="button" onClick={() => updateParams(setSearchParams, { offset: offset + PAGE_SIZE })} disabled={loading} className="w-full rounded-xl border border-orange-500/30 px-4 py-3 text-sm font-semibold text-orange-200 hover:bg-orange-500/10 disabled:opacity-50">{t('directCatalog.showMoreServices', { count: `${offset + items.length}/${pagination.total}`, defaultValue: 'Show more ({{count}})' })}</button>}
             </div>
             {view === 'tools' && <div className="mt-5 rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4 text-sm text-slate-300"><p>{t('directCatalog.toolsDirectoryRentalNote', { defaultValue: 'These are OxSteed Direct tools and equipment. For peer-owned tools available for rental, visit the separate rental marketplace.' })}</p><Link to="/tool-rentals" className="mt-3 inline-flex items-center gap-2 font-semibold text-orange-300">{t('directCatalog.browseToolRentals', { defaultValue: 'Browse tool rentals' })} <ArrowRight size={14} /></Link></div>}
           </CatalogDirectoryCard>
         </div>
+        )}
       </main>
     </PageShell>
   );

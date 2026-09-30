@@ -24,8 +24,8 @@ export const DIRECT_CATALOG_VIEWS = Object.freeze({
   skills: Object.freeze({
     key: 'skills',
     path: '/direct/skills',
-    dataSource: 'helpers',
-    relatedRoutes: ['/helpers', '/post-job'],
+    dataSource: 'direct-catalog-categories',
+    relatedRoutes: ['/direct/services', '/direct/tools'],
   }),
   services: Object.freeze({
     key: 'services',
@@ -55,8 +55,9 @@ export function directCatalogHref(view, { categorySlug = '', skillId = '', searc
 
   const params = new URLSearchParams();
   if (view === 'skills') {
-    const skill = clean(skillId) || directSkillIdForCategory(categorySlug);
-    if (skill) params.set('skill', skill);
+    // The skills view is the category directory itself: every category is
+    // listed, so there is no per-category filter to carry over. Only the
+    // free-text search applies.
   } else if (categorySlug) {
     params.set('category', clean(categorySlug));
   }

@@ -20450,7 +20450,12 @@
     "browseToolRentals": "Parcourir les locations d’outils",
     "skillsDirectoryEyebrow": "OxSteed Direct",
     "skillsDirectoryTitle": "Trouvez les bonnes compétences et les bons intervenants",
-    "skillsDirectorySubtitle": "Parcourez les compétences d’intervenants de confiance liées aux travaux Direct."
+    "skillsDirectorySubtitle": "Parcourez les compétences d’intervenants de confiance liées aux travaux Direct.",
+    "categoryDirectoryTitle": "Compétences Direct",
+    "categoryDirectorySubtitle": "Parcourez chaque catégorie de compétences Direct, avec les nombres de services et d’outils en direct.",
+    "categoryServiceCount": "{{count}} services",
+    "categoryToolCount": "{{count}} outils",
+    "noSkillCategories": "Aucune catégorie de compétences ne correspond à cette recherche."
   },
   "directCatalogAdmin": {
     "activeCount": "{{count}} actives",

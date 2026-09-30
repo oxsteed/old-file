@@ -20453,7 +20453,12 @@
     "browseToolRentals": "تصفح إيجارات الأدوات",
     "skillsDirectoryEyebrow": "OxSteed Direct",
     "skillsDirectoryTitle": "اعثر على المهارات والمساعدين المناسبين",
-    "skillsDirectorySubtitle": "تصفح مهارات المساعدين الموثوقين المرتبطة بأعمال Direct."
+    "skillsDirectorySubtitle": "تصفح مهارات المساعدين الموثوقين المرتبطة بأعمال Direct.",
+    "categoryDirectoryTitle": "مهارات دايركت",
+    "categoryDirectorySubtitle": "تصفح كل فئة من فئات مهارات دايركت، مع أعداد الخدمات والأدوات المباشرة.",
+    "categoryServiceCount": "{{count}} خدمات",
+    "categoryToolCount": "{{count}} أدوات",
+    "noSkillCategories": "لا توجد فئات مهارات تطابق هذا البحث."
   },
   "directCatalogAdmin": {
     "activeCount": "{{count}} نشطة",
