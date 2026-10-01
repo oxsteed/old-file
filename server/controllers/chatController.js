@@ -167,7 +167,7 @@ async function callWithFallback(messages, ollamaOptions, logTag) {
   const attempts = [
     {
       name: `Meta (${getMetaModel()})`,
-      run: () => fetchMetaChat(getMetaModel(), messages, { temperature: 0.65, maxTokens: 400 }),
+      run: () => fetchMetaChat(getMetaModel(), messages, { temperature: 0.65, maxTokens: 2000 }),
       skip: () => !isMetaConfigured(),
     },
     {

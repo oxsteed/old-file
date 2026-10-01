@@ -21,6 +21,10 @@ const logger = require('../utils/logger');
 const DEFAULT_BASE_URL = 'https://api.meta.ai/v1';
 const DEFAULT_MODEL = 'muse-spark-1.3';
 const DEFAULT_TIMEOUT_MS = 20_000;
+// Muse Spark is a reasoning model: a few hundred reasoning tokens are spent
+// before any visible output, so the default completion budget is generous.
+// Callers that pass maxTokens explicitly (tests, tight budgets) keep theirs.
+const DEFAULT_MAX_TOKENS = 2000;
 
 function getConfig() {
   return {
@@ -66,7 +70,7 @@ async function fetchMetaChat(model, messages, options = {}) {
         model,
         messages,
         temperature: options.temperature ?? 0.65,
-        max_tokens: options.maxTokens ?? 400,
+        max_tokens: options.maxTokens ?? DEFAULT_MAX_TOKENS,
       }),
     });
     if (!res.ok) {
@@ -99,4 +103,5 @@ module.exports = {
   fetchMetaChat,
   DEFAULT_MODEL,
   DEFAULT_BASE_URL,
+  DEFAULT_MAX_TOKENS,
 };

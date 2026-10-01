@@ -83,6 +83,19 @@ describe('fetchMetaChat', () => {
     expect(body.max_tokens).toBe(500);
   });
 
+  test('defaults max_tokens to the reasoning-safe budget', async () => {
+    process.env.META_AI_API_KEY = 'LLM|app|secret';
+    mockFetchOnce(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ choices: [{ message: { content: 'ok' } }] }),
+    }));
+
+    await fetchMetaChat('muse-spark-1.3', [{ role: 'user', content: 'hi' }]);
+    const [, init] = global.fetch.mock.calls[0];
+    expect(JSON.parse(init.body).max_tokens).toBe(2000);
+  });
+
   test('honors META_AI_BASE_URL override', async () => {
     process.env.META_AI_API_KEY = 'LLM|app|secret';
     process.env.META_AI_BASE_URL = 'https://api.ai.meta.com/v1/';

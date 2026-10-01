@@ -413,7 +413,7 @@ async function callMetaAI(content, language) {
   const result = await fetchMetaChat(model, [
     { role: 'system', content: systemPrompt },
     { role: 'user', content },
-  ], { temperature: 0.7, maxTokens: 500 });
+  ], { temperature: 0.7, maxTokens: 1500 });
 
   if (!result.ok) {
     const err = new Error(`Meta AI draft failed: ${result.error}`);
