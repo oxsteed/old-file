@@ -7,6 +7,7 @@ const WebSocketService = require('../services/websocketService');
 const { logAdminAction } = require('../services/auditService');
 const { withTransaction } = require('../utils/transaction');
 const { sendNotification } = require('../services/notificationService');
+const { isMetaConfigured, getMetaModel, fetchMetaChat } = require('../services/aiChatProvider');
 
 const SUPPORTED_LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
 
@@ -61,14 +62,14 @@ async function sendMessage(req, res) {
     }
 
     try {
-      const response = await callOpenRouter(String(content).trim(), selectedLanguage);
+      const { text: response, model: aiModel } = await callAiSupportDraft(String(content).trim(), selectedLanguage);
       const draft = await query(
         `INSERT INTO support_ai_reply_drafts
-         (business_id, conversation_id, requested_by, source_content, draft_content, language)
-         VALUES ($1, $2, $3, $4, $5, $6)
+         (business_id, conversation_id, requested_by, source_content, draft_content, language, ai_model)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING id, business_id, conversation_id, requested_by, source_content,
                    draft_content, language, ai_model, status, created_at, updated_at`,
-        [businessId, conversationId, req.user.id, String(content).trim(), response, selectedLanguage]
+        [businessId, conversationId, req.user.id, String(content).trim(), response, selectedLanguage, aiModel]
       );
       await logAdminAction({
         adminId: req.user.id,
@@ -396,6 +397,54 @@ async function callOpenRouter(content, language) {
     logger.error('OpenRouter API call failed', { error: err.message });
     throw err;
   }
+}
+
+/**
+ * Same support-draft contract as callOpenRouter, but served by the Meta
+ * Model API (Muse Spark). Applies the same output guardrails: non-empty,
+ * max 5000 chars, no HTML markup.
+ */
+async function callMetaAI(content, language) {
+  const model = getMetaModel();
+  const systemPrompt = `You are a helpful support chatbot. Keep responses concise and professional.
+    Be empathetic and try to solve the customer's issue. If you cannot help, suggest escalation to a human agent.
+    Language: ${language}`;
+
+  const result = await fetchMetaChat(model, [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content },
+  ], { temperature: 0.7, maxTokens: 500 });
+
+  if (!result.ok) {
+    const err = new Error(`Meta AI draft failed: ${result.error}`);
+    err.code = 'META_AI_FAILED';
+    throw err;
+  }
+  const normalized = result.reply.trim();
+  if (!normalized || normalized.length > 5000) {
+    throw new Error('Meta AI returned an invalid response');
+  }
+  if (/<\/?[a-z][^>]*>/i.test(normalized)) {
+    throw new Error('Meta AI returned unsupported markup');
+  }
+  return { text: normalized, model: `meta/${model}` };
+}
+
+/**
+ * Support-draft provider chain: Meta (Muse Spark) first when configured,
+ * OpenRouter as fallback. Returns { text, model } so the draft row records
+ * which provider actually generated it.
+ */
+async function callAiSupportDraft(content, language) {
+  if (isMetaConfigured()) {
+    try {
+      return await callMetaAI(content, language);
+    } catch (err) {
+      logger.warn('Meta AI support draft failed, falling back to OpenRouter', { error: err.message });
+    }
+  }
+  const text = await callOpenRouter(content, language);
+  return { text, model: 'openrouter' };
 }
 
 module.exports = {

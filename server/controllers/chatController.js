@@ -18,6 +18,7 @@ const { sanitizeMessage } = require('../utils/messageSanitizer');
 const { ensureBusinessConversation, mirrorMessage } = require('../services/businessConversationSync');
 const { sendNotification } = require('../services/notificationService');
 const { enqueueConversationMessageNotifications } = require('../services/messageNotificationService');
+const { isMetaConfigured, getMetaModel, fetchMetaChat } = require('../services/aiChatProvider');
 
 function isUuid(value) {
   return typeof value === 'string'
@@ -157,13 +158,18 @@ async function fetchOllamaChat(messages, options) {
 }
 
 /**
- * Multi-provider fallback: OpenRouter → OpenRouter auto → Ollama → OpenRouter Tongyi.
+ * Multi-provider fallback: Meta (Muse Spark) → OpenRouter → OpenRouter auto → Ollama → OpenRouter Tongyi.
  * @param {Array<{role:string,content:string}>} messages - full message list including system
  * @param {object} ollamaOptions - passed to Ollama `options` (temperature, num_predict, etc.)
  * @param {string} logTag - prefix for structured logs e.g. '[Chat]' or '[ProfileChat]'
  */
 async function callWithFallback(messages, ollamaOptions, logTag) {
   const attempts = [
+    {
+      name: `Meta (${getMetaModel()})`,
+      run: () => fetchMetaChat(getMetaModel(), messages, { temperature: 0.65, maxTokens: 400 }),
+      skip: () => !isMetaConfigured(),
+    },
     {
       name: `OpenRouter (${OPENROUTER_CHAT_MODEL})`,
       run: () => fetchOpenRouterChat(OPENROUTER_CHAT_MODEL, messages),

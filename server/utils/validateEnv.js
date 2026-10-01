@@ -29,6 +29,7 @@ const OPTIONAL = [
   ['DIDIT_WEBHOOK_SECRET',     'Didit identity webhooks disabled'],
   ['CHECKR_API_KEY',           'Background checks disabled'],
   ['OPENAI_API_KEY',           'AI support chat disabled'],
+  ['META_AI_API_KEY',          'Meta AI chat provider disabled; OpenRouter fallback used when configured'],
   ['GOOGLE_MAPS_API_KEY',      'Geocoding / distance features disabled'],
   ['STRIPE_PUBLISHABLE_KEY', 'Marketplace card checkout and mobile payment setup unavailable'],
   ['STRIPE_CONNECT_WEBHOOK_SECRET', 'Connected-account webhook reconciliation unavailable'],
