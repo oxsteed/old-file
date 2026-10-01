@@ -46,34 +46,55 @@ test('per-step Ask AI buttons are labeled and prefilled in every language', () =
   assert.equal(catalog('en').learn.page.askAi, 'Ask AI');
 });
 
-test('per-step buttons use Ask AI and the end-of-steps card offers only the human option', () => {
+test('per-step buttons use Ask AI and the end-of-steps card offers only the AI option', () => {
   const source = read('src/pages/LearnModePage.jsx');
   // Per-step buttons open the AI chat, so they are labeled Ask AI.
   assert.match(source, /learn\.page\.askAiPrefill/);
   assert.match(source, /handleAskAI/);
   assert.doesNotMatch(source, /learn\.page\.askSupportPrefill/);
   assert.doesNotMatch(source, /handleAskSupport/);
-  // The end-of-steps "Still need help?" card carries only the paid
-  // "Talk to a human for help" option ($25 minimum, then per hour).
+  // The end-of-steps "Still need help?" card carries only the Ask AI option
+  // plus the industry-standard AI disclaimer. The paid human option is hidden.
   assert.match(source, /learn\.page\.stillNeedHelp/);
-  assert.match(source, /learn\.page\.talkToHuman/);
-  assert.match(source, /learn\.page\.talkToHumanPrice/);
-  assert.doesNotMatch(source, /learn\.page\.askAiGuidePrefill/);
-  assert.doesNotMatch(source, /learn\.page\.askAiSub/);
-  assert.doesNotMatch(source, /handleAskAiGuide/);
-  assert.doesNotMatch(source, /lrn-still-help-ai/);
+  assert.match(source, /learn\.page\.askAiGuidePrefill/);
+  assert.match(source, /learn\.page\.aiDisclaimer/);
+  assert.match(source, /handleAskAIGuide/);
+  assert.match(source, /lrn-still-help-ai/);
+  assert.doesNotMatch(source, /learn\.page\.talkToHuman/);
+  assert.doesNotMatch(source, /learn\.page\.talkToHumanPrice/);
+  assert.doesNotMatch(source, /lrn-still-help-human/);
+  assert.doesNotMatch(source, /'human-help'/);
 });
 
-test('end-of-steps human-help option is fully localized in every language', () => {
+test('end-of-steps AI option and disclaimer are fully localized in every language', () => {
   for (const lang of LANGUAGES) {
     const page = catalog(lang).learn?.page ?? {};
-    for (const key of ['stillNeedHelp', 'talkToHuman', 'talkToHumanPrice']) {
+    for (const key of ['stillNeedHelp', 'askAi', 'askAiGuidePrefill', 'aiDisclaimer']) {
       assert.equal(typeof page[key], 'string', `${lang}: learn.page.${key} missing`);
       assert.ok(page[key].trim().length > 0, `${lang}: learn.page.${key} is empty`);
     }
+    assert.deepEqual(placeholders(page.askAiGuidePrefill), ['title']);
+    assert.ok(!('talkToHuman' in page), `${lang}: learn.page.talkToHuman should be removed`);
+    assert.ok(!('talkToHumanPrice' in page), `${lang}: learn.page.talkToHumanPrice should be removed`);
   }
-  assert.equal(catalog('en').learn.page.talkToHuman, 'Talk to a human for help');
-  assert.equal(catalog('en').learn.page.talkToHumanPrice, '$25 minimum, then per hour');
+  assert.equal(catalog('en').learn.page.askAiGuidePrefill, 'I\'m following the "{{title}}" guide. I have a question about it.');
+  assert.equal(catalog('en').learn.page.aiDisclaimer, 'AI can make mistakes. Verify important information before acting.');
+});
+
+test('support widget tags one-shot guide context for the Redis cache', () => {
+  const source = read('src/components/SupportWidget.jsx');
+  assert.match(source, /guideHelpRef/);
+  assert.match(source, /guide_help/);
+  // One-shot: cleared on every send so follow-up messages are never cached.
+  assert.match(source, /guideHelpRef\.current = null/);
+});
+
+test('chat endpoint serves per-guide AI answers from the Redis cache', () => {
+  const source = read('../server/controllers/chatController.js');
+  assert.match(source, /guide_help/);
+  assert.match(source, /getCachedGuideReply/);
+  assert.match(source, /setCachedGuideReply/);
+  assert.match(source, /cached: true/);
 });
 
 test('support widget applies the contextual prefill without clobbering user input', () => {

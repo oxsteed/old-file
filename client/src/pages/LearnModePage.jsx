@@ -26,7 +26,6 @@ import {
   Package,
   Paintbrush,
   PlayCircle,
-  Phone,
   Search,
   Headphones,
   Send,
@@ -4264,6 +4263,16 @@ export default function LearnModePage() {
     }));
   }, [t]);
 
+  // AI guide prompt: opens the AI chat with the whole guide as context, so the
+  // user can ask anything about it after finishing the steps.
+  const handleAskAIGuide = useCallback((guide) => {
+    const prefill = t('learn.page.askAiGuidePrefill', { title: guide.title });
+    window.dispatchEvent(new CustomEvent('oxsteed:open-support', {
+      detail: { prefill, guide_id: guide.id, step: 0 },
+    }));
+    trackLearnClick(guide.id, 'ask-ai', null);
+  }, [t]);
+
   const dismissAppBanner = () => {
     setShowAppBanner(false);
     localStorage.setItem(APP_BANNER_KEY, '1');
@@ -5106,21 +5115,19 @@ export default function LearnModePage() {
                               ))}
                             </ol>
 
-                            {/* Still need help? Talk to a human */}
+                            {/* Still need help? Ask AI */}
                             <div className="lrn-still-help">
                               <p className="lrn-still-help-title">{t('learn.page.stillNeedHelp')}</p>
                               <div className="lrn-still-help-actions">
-                                <Link
-                                  to={guide.hireHref}
-                                  className="lrn-still-help-human"
-                                  onClick={() => trackLearnClick(guide.id, 'human-help', guide.hireHref)}
+                                <button
+                                  type="button"
+                                  className="lrn-still-help-ai"
+                                  onClick={() => handleAskAIGuide(guide)}
                                 >
-                                  <Phone size={16} aria-hidden="true" />
-                                  <span>
-                                    <strong>{t('learn.page.talkToHuman')}</strong>
-                                    <small>{t('learn.page.talkToHumanPrice')}</small>
-                                  </span>
-                                </Link>
+                                  <MessageCircle size={16} aria-hidden="true" />
+                                  <span>{t('learn.page.askAi')}</span>
+                                </button>
+                                <p className="lrn-ai-disclaimer">{t('learn.page.aiDisclaimer')}</p>
                               </div>
                             </div>
 

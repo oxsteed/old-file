@@ -1841,14 +1841,16 @@ html.dark .lrn-ask-ai-btn:hover {
   gap: .6rem;
 }
 
-.lrn-still-help-human {
+.lrn-still-help-ai {
   display: flex;
   align-items: center;
-  gap: .7rem;
+  justify-content: center;
+  gap: .5rem;
   padding: .7rem .9rem;
   border-radius: .7rem;
   font: inherit;
-  text-decoration: none;
+  font-size: .9rem;
+  font-weight: 800;
   cursor: pointer;
   transition: background .15s, border-color .15s;
   background: #f97316;
@@ -1856,26 +1858,21 @@ html.dark .lrn-ask-ai-btn:hover {
   color: #ffffff;
 }
 
-.lrn-still-help-human:hover {
+.lrn-still-help-ai:hover {
   background: #ea580c;
   border-color: #ea580c;
 }
 
-.lrn-still-help-human span {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: .1rem;
+.lrn-ai-disclaimer {
+  margin: .1rem 0 0;
+  font-size: .72rem;
+  line-height: 1.4;
+  color: #9a3412;
+  opacity: .8;
 }
 
-.lrn-still-help-human strong {
-  font-size: .9rem;
-  font-weight: 800;
-}
-
-.lrn-still-help-human small {
-  font-size: .75rem;
-  opacity: .85;
+html.dark .lrn-ai-disclaimer {
+  color: #fdba74;
 }
 
 html.dark .lrn-still-help {

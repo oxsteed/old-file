@@ -19,6 +19,8 @@ const { ensureBusinessConversation, mirrorMessage } = require('../services/busin
 const { sendNotification } = require('../services/notificationService');
 const { enqueueConversationMessageNotifications } = require('../services/messageNotificationService');
 const { isMetaConfigured, getMetaModel, fetchMetaChat } = require('../services/aiChatProvider');
+const redis = require('../utils/redis');
+const { getCachedGuideReply, setCachedGuideReply } = require('../services/guideHelpCache');
 
 function isUuid(value) {
   return typeof value === 'string'
@@ -301,7 +303,7 @@ For payment questions, refer users to contact OxSteed support team for the most 
 
 exports.chatMessage = async (req, res, next) => {
   try {
-    const { messages, pageContext, language } = req.body;
+    const { messages, pageContext, language, guide_help } = req.body;
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       throw new AppError('messages array is required', 400, 'validation_failed', { messages: 'messages array is required' });
     }
@@ -335,6 +337,23 @@ exports.chatMessage = async (req, res, next) => {
       ...history,
     ];
 
+    // Learn guide help cache: the first user to ask about a guide+step in a
+    // language triggers the provider call; identical requests are then served
+    // from Redis for one year instead of calling the provider again.
+    let guideCacheCtx = null;
+    if (guide_help?.guide_id) {
+      guideCacheCtx = {
+        guide_id: guide_help.guide_id,
+        step: guide_help.step ?? 0,
+        language,
+      };
+      const hit = await getCachedGuideReply(redis, guideCacheCtx.guide_id, guideCacheCtx.step, guideCacheCtx.language);
+      if (hit) {
+        logger.info('[Chat] guide help cache hit', { guide_id: String(guideCacheCtx.guide_id).slice(0, 64) });
+        return res.json({ reply: hit, cached: true });
+      }
+    }
+
     const ai = await callWithFallback(
       ollamaMessages,
       {
@@ -348,6 +367,11 @@ exports.chatMessage = async (req, res, next) => {
 
     if (!ai.ok) {
       throw new AppError('AI service temporarily unavailable', 502, 'external_service_error');
+    }
+
+    if (guideCacheCtx) {
+      // Fire-and-forget: the reply is already ready, never block it on Redis.
+      setCachedGuideReply(redis, guideCacheCtx.guide_id, guideCacheCtx.step, guideCacheCtx.language, ai.reply);
     }
 
     res.json({ reply: ai.reply });

@@ -186,6 +186,10 @@ function AISupportWidget() {
   const inputRef    = useRef(null);
   const atBottomRef = useRef(true);
   const scrollRef   = useRef(null);
+  // One-shot Learn guide context: set by the `oxsteed:open-support` event when
+  // the Learn page prefills the composer. Consumed by the next send so the
+  // server can serve the cached per-guide AI answer.
+  const guideHelpRef  = useRef(null);
   const windowFocused     = useRef(true);
   const proactiveTriggered = useRef(false);
 
@@ -241,6 +245,15 @@ function AISupportWidget() {
       if (typeof prefill === 'string' && prefill.trim()) {
         setInput((prev) => (prev && prev.trim() ? prev : prefill));
       }
+      // Remember the Learn guide context for the next send only. The server
+      // uses it to serve the cached per-guide AI answer from Redis.
+      if (event?.detail?.guide_id) {
+        guideHelpRef.current = {
+          prefill: typeof prefill === 'string' ? prefill : '',
+          guide_id: event.detail.guide_id,
+          step: event.detail.step ?? 0,
+        };
+      }
       setOpen(true); setMinimized(false); setUnread(0);
     };
     window.addEventListener('oxsteed:open-support', handler);
@@ -281,7 +294,20 @@ function AISupportWidget() {
   const send = useCallback(async (text, isRetry = false) => {
     if (!text.trim() || loading) return;
 
-    const userMsg = { role: 'user', content: text.trim(), ts: new Date().toISOString() };
+    // One-shot Learn guide tag: when this send carries the prefill the Learn
+    // page set, tell the server which guide+step it is about so the cached
+    // per-guide AI answer can be served instead of calling the provider again.
+    // Cleared on every send so follow-up messages are never cached.
+    const pendingGuideHelp = guideHelpRef.current;
+    guideHelpRef.current = null;
+    const trimmed = text.trim();
+    const guideHelpPayload = (
+      pendingGuideHelp?.guide_id &&
+      pendingGuideHelp.prefill.trim() &&
+      trimmed.startsWith(pendingGuideHelp.prefill.trim())
+    ) ? { guide_help: { guide_id: pendingGuideHelp.guide_id, step: pendingGuideHelp.step ?? 0 } } : {};
+
+    const userMsg = { role: 'user', content: trimmed, ts: new Date().toISOString() };
 
     // 5. On retry, strip the last error message before re-sending
     const base = isRetry
@@ -305,6 +331,7 @@ function AISupportWidget() {
         messages:    updated.map(m => ({ role: m.role, content: m.content })),
         pageContext,
         language:    localStorage.getItem('oxs:language') || 'en',
+        ...guideHelpPayload,
       });
       const reply = { role: 'assistant', content: data.reply, ts: new Date().toISOString() };
       setMessages(prev => [...prev, reply]);
