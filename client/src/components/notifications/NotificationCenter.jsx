@@ -119,7 +119,7 @@ export default function NotificationCenter() {
       >
         <Bell size={20} />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[18px]
+          <span className="absolute -top-0.5 -end-0.5 min-w-[18px]
                            h-[18px] bg-orange-500 text-white text-xs
                            font-bold rounded-full flex items-center
                            justify-center px-1">
@@ -130,7 +130,7 @@ export default function NotificationCenter() {
 
       {/* Dropdown panel */}
       {open && (
-        <div className="absolute right-0 top-12 w-96 bg-white border
+        <div className="absolute end-0 top-12 w-96 bg-white border
                         border-gray-200 rounded-2xl shadow-xl z-50
                         overflow-hidden">
 

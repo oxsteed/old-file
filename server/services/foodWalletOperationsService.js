@@ -308,6 +308,12 @@ async function captureWalletHold(client, {
   actorType = 'system',
   description,
   metadata = {},
+  // C6: let the caller override the captured debit's reference so it matches
+  // the business object being paid for (e.g. food_order/<orderId>). Without
+  // this, a hold created for a wallet_payment_session captures under that
+  // reference and refundWalletDebitForReference can never find it by order.
+  referenceType = null,
+  referenceId = null,
 }) {
   const { rows: initialRows } = await client.query(
     `SELECT * FROM food_customer_wallet_holds
@@ -356,8 +362,8 @@ async function captureWalletHold(client, {
     currencyCode: hold.currency_code,
     amountCents: hold.amount_cents,
     description: description || 'Restaurant credit authorization captured',
-    referenceType: hold.reference_type || 'wallet_hold',
-    referenceId: hold.reference_id || String(hold.id),
+    referenceType: referenceType || hold.reference_type || 'wallet_hold',
+    referenceId: referenceId || hold.reference_id || String(hold.id),
     idempotencyKey: `wallet-hold-capture:${hold.id}`,
     createdByUserId,
     correlationId: hold.correlation_id || String(hold.id),

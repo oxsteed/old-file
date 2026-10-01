@@ -98,7 +98,7 @@ export function ReviewManager({ businessId }) {
           </div>
 
           {r.owner_reply ? (
-            <div style={{ background: 'var(--app-bg)', borderLeft: '3px solid #f97316', padding: '0.75rem', borderRadius: '0 0.5rem 0.5rem 0', marginTop: '0.75rem' }}>
+            <div style={{ background: 'var(--app-bg)', borderInlineStart: '3px solid #f97316', padding: '0.75rem', borderRadius: '0 0.5rem 0.5rem 0', marginTop: '0.75rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#f97316', marginBottom: '0.25rem' }}>{t('businessHub.reviews.yourReply')}</div>

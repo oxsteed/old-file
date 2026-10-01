@@ -80,9 +80,9 @@ export const PricingBlock: React.FC<{ helperId: string }> = ({ helperId }) => {
               ? `–$${data.hourlyRateMax}`
               : ''}
           </span>
-          <span className="text-sm text-gray-400 ml-1">{t('helperProfile.chat.perHour')}</span>
+          <span className="text-sm text-gray-400 ms-1">{t('helperProfile.chat.perHour')}</span>
           {data.flatRateAvailable && (
-            <span className="ml-2 text-xs bg-gray-800 text-gray-400 px-2 py-0.5 rounded-full">
+            <span className="ms-2 text-xs bg-gray-800 text-gray-400 px-2 py-0.5 rounded-full">
               {t('helperProfile.chat.flatRatesAvailable')}
             </span>
           )}

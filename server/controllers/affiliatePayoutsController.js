@@ -4,6 +4,7 @@ const { withTransaction } = require('../utils/transaction');
 const logger = require('../utils/logger');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const { AppError } = require('../middleware/errorHandler');
+const { logAdminAction } = require('../services/auditService');
 
 async function getAffiliateProgram(req, res) {
   try {
@@ -183,34 +184,69 @@ async function calculateAndCreatePayout(req, res, next) {
       throw new AppError('Affiliate program not found', 404, 'program_not_found');
     }
 
-    // Calculate commissions for period
-    const commissions = await pool.query(
-      `SELECT SUM(commission_cents) as total_cents, COUNT(*) as count
-       FROM affiliate_commissions
-       WHERE affiliate_program_id = $1
-       AND status = $2
-       AND created_at >= $3 AND created_at < $4`,
-      [programId, 'pending', new Date(periodStart), new Date(periodEnd)]
-    );
+    // Idempotency key: an explicit client key wins; otherwise a deterministic
+    // key per (program, period) so a concurrent double-submit replays the
+    // original payout instead of creating a duplicate.
+    const headerKey = typeof req.get === 'function' ? req.get('Idempotency-Key') : null;
+    const idempotencyKey = String(req.body.idempotencyKey || headerKey || '').trim()
+      || `affiliate-payout:${programId}:${periodStart}:${periodEnd}`;
 
-    const totalCommissionCents = commissions.rows[0]?.total_cents || 0;
-    const commissionCount = commissions.rows[0]?.count || 0;
-
-    if (totalCommissionCents === 0) {
-      throw new AppError('No commissions to payout for this period', 400, 'no_commissions');
-    }
-
-    const payout = await withTransaction(pool, async (client) => {
-      // Create payout record
-      const payoutResult = await client.query(
-        `INSERT INTO affiliate_payouts
-         (affiliate_program_id, period_start, period_end, total_commission_cents, commission_count, status)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING *`,
-        [programId, periodStart, periodEnd, totalCommissionCents, commissionCount, 'pending']
+    const { payout, replayed } = await withTransaction(pool, async (client) => {
+      // Row-level claim: serialize concurrent calculate calls for this program
+      // so two requests cannot read the same pending commission set.
+      await client.query(
+        'SELECT id FROM affiliate_programs WHERE id = $1 FOR UPDATE',
+        [programId]
       );
 
-      const payoutId = payoutResult.rows[0].id;
+      // Replay guard: an identical request that already produced a payout
+      // returns the original row.
+      const prior = await client.query(
+        'SELECT * FROM affiliate_payouts WHERE idempotency_key = $1',
+        [idempotencyKey]
+      );
+      if (prior.rows.length) {
+        return { payout: prior.rows[0], replayed: true };
+      }
+
+      // Calculate commissions for the period inside the claim, so a concurrent
+      // request cannot observe the same pending rows before they are marked.
+      const commissions = await client.query(
+        `SELECT SUM(commission_cents) as total_cents, COUNT(*) as count
+         FROM affiliate_commissions
+         WHERE affiliate_program_id = $1
+         AND status = $2
+         AND created_at >= $3 AND created_at < $4`,
+        [programId, 'pending', new Date(periodStart), new Date(periodEnd)]
+      );
+
+      const totalCommissionCents = commissions.rows[0]?.total_cents || 0;
+      const commissionCount = commissions.rows[0]?.count || 0;
+
+      if (totalCommissionCents === 0) {
+        throw new AppError('No commissions to payout for this period', 400, 'no_commissions');
+      }
+
+      const payoutResult = await client.query(
+        `INSERT INTO affiliate_payouts
+         (affiliate_program_id, period_start, period_end, total_commission_cents, commission_count, status, idempotency_key)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
+         RETURNING *`,
+        [programId, periodStart, periodEnd, totalCommissionCents, commissionCount, 'pending', idempotencyKey]
+      );
+
+      let row = payoutResult.rows[0];
+      if (!row) {
+        // Another holder inserted the same key without the claim; replay it.
+        const raced = await client.query(
+          'SELECT * FROM affiliate_payouts WHERE idempotency_key = $1',
+          [idempotencyKey]
+        );
+        return { payout: raced.rows[0], replayed: true };
+      }
+
+      const payoutId = row.id;
 
       // Update commissions to reference payout
       await client.query(
@@ -230,14 +266,15 @@ async function calculateAndCreatePayout(req, res, next) {
         [totalCommissionCents, programId]
       );
 
-      return payoutResult.rows[0];
+      return { payout: row, replayed: false };
     });
 
-    logger.info('Payout calculated', { payoutId: payout.id, total: totalCommissionCents });
+    logger.info('Payout calculated', { payoutId: payout.id, total: payout.total_commission_cents, replayed });
 
     res.json({
       success: true,
-      data: payout
+      data: payout,
+      replayed: Boolean(replayed)
     });
   } catch (error) {
     next(error);
@@ -338,6 +375,26 @@ async function processPayout(req, res, next) {
     );
 
     logger.info('Payout processed', { payoutId, reference: payoutReference });
+
+    // H7: every real money movement gets a durable audit row. The actor here
+    // is the payout owner (not an admin), recorded as-is. Fails closed: an
+    // unlogged payout stays 'processing' for reconciliation.
+    await logAdminAction({
+      adminId: userId,
+      action: 'affiliate_payout_processed',
+      targetType: 'affiliate_payout',
+      targetId: payoutId,
+      description: `Affiliate payout ${payoutId} sent via Stripe (${payoutReference})`,
+      before: { status: 'pending' },
+      after: {
+        status: 'processing',
+        payoutReference,
+        payoutMethod: payout_method,
+        amountCents: payout.rows[0].total_commission_cents,
+      },
+      req,
+      throwOnError: true,
+    });
 
     res.json({
       success: true,

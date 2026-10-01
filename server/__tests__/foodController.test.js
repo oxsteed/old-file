@@ -417,6 +417,7 @@ describe('food controller', () => {
 
   test('creates order totals from menu prices and assigns next queue number', async () => {
     mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (pre-lock)
       .mockResolvedValueOnce({
         rows: [{
           id: 3,
@@ -426,6 +427,7 @@ describe('food controller', () => {
           prep_time_min: 12,
         }],
       })
+      .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (post-lock recheck)
       .mockResolvedValueOnce({
         rows: [{ id: '11', name: 'Classic Burger', price_cents: 899, currency_code: 'USD', is_available: true }],
       })
@@ -445,6 +447,7 @@ describe('food controller', () => {
 
     const res = await request(buildApp())
       .post('/api/food/restaurants/3/orders')
+      .set('Idempotency-Key', 'test-key-order-totals')
       .send({
         fulfillmentType: 'pickup',
         discount_cents: 1000,
@@ -452,7 +455,7 @@ describe('food controller', () => {
       });
 
     expect(res.status).toBe(201);
-    expect(mockQuery.mock.calls[0][0]).toMatch(/b\.is_active = TRUE/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/b\.is_active = TRUE/);
     expect(mockQuery.mock.calls.some(([sql]) => /MAX\(queue_number\)/.test(sql))).toBe(true);
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_orders/.test(sql))).toBe(true);
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_order_items/.test(sql))).toBe(true);
@@ -461,18 +464,22 @@ describe('food controller', () => {
   });
 
   test('rejects online checkout mode until the restaurant connects Stripe', async () => {
-    mockQuery.mockResolvedValueOnce({
-      rows: [{
-        id: 3,
-        business_id: 42,
-        accepts_online_orders: true,
-        currency_code: 'USD',
-        prep_time_min: 12,
-      }],
-    });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (pre-lock)
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 3,
+          business_id: 42,
+          accepts_online_orders: true,
+          currency_code: 'USD',
+          prep_time_min: 12,
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] }); // H12 replay lookup (post-lock recheck)
 
     const res = await request(buildApp())
       .post('/api/food/restaurants/3/orders')
+      .set('Idempotency-Key', 'test-key-stripe-unconnected')
       .send({
         fulfillmentType: 'pickup',
         paymentMode: 'pay_now',
@@ -482,8 +489,8 @@ describe('food controller', () => {
     expect(res.status).toBe(409);
     expect(res.body.code).toBe('restaurant_card_payments_unavailable');
     expect(res.body.error).toMatch(/connected Stripe/i);
-    expect(mockQuery.mock.calls[0][0]).toMatch(/LEFT JOIN businesses b ON b.id = fr.business_id/);
-    expect(mockQuery.mock.calls).toHaveLength(1);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/LEFT JOIN businesses b ON b.id = fr.business_id/);
+    expect(mockQuery.mock.calls).toHaveLength(3);
   });
 
   test('creates a hosted Stripe checkout session for pay_now orders when the restaurant is connected', async () => {
@@ -495,6 +502,7 @@ describe('food controller', () => {
     });
 
     mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (pre-lock)
       .mockResolvedValueOnce({
         rows: [{
           id: 3,
@@ -508,10 +516,10 @@ describe('food controller', () => {
           business_stripe_account_status: 'active',
         }],
       })
+      .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (post-lock recheck)
       .mockResolvedValueOnce({
         rows: [{ id: '11', name: 'Classic Burger', price_cents: 899, currency_code: 'USD', is_available: true }],
       })
-      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ next_queue: 5 }] })
       .mockResolvedValueOnce({
         rows: [{
@@ -526,6 +534,8 @@ describe('food controller', () => {
         }],
       })
       .mockResolvedValueOnce({ rows: [{ id: 200 }] })
+      .mockResolvedValueOnce({ rows: [] }) // inventory item lookup: none tracked
+      .mockResolvedValueOnce({ rows: [] }) // inventory mapping lookup: none
       .mockResolvedValueOnce({
         rows: [{
           id: 100,
@@ -543,6 +553,7 @@ describe('food controller', () => {
 
     const res = await request(buildApp())
       .post('/api/food/restaurants/3/orders')
+      .set('Idempotency-Key', 'test-key-paynow-checkout')
       .send({
         fulfillmentType: 'pickup',
         paymentMode: 'pay_now',
@@ -556,12 +567,16 @@ describe('food controller', () => {
     expect(res.body.payment.checkoutSessionId).toBe('cs_test_123');
     expect(stripe.__mockInstance.checkout.sessions.create).toHaveBeenCalledTimes(1);
     expect(stripe.__mockInstance.checkout.sessions.create.mock.calls[0][0].metadata.connected_account_id).toBe('acct_123');
-    expect(stripe.__mockInstance.checkout.sessions.create.mock.calls[0][1]).toEqual({ stripeAccount: 'acct_123' });
+    expect(stripe.__mockInstance.checkout.sessions.create.mock.calls[0][1]).toEqual({
+      stripeAccount: 'acct_123',
+      idempotencyKey: 'food-order-checkout:100',
+    });
     expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_orders/.test(sql))).toBe(true);
   });
 
   test('rejects discount codes on pay-at-counter orders during restaurant-credit launch', async () => {
     mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (pre-lock)
       .mockResolvedValueOnce({
         rows: [{
           id: 3,
@@ -571,12 +586,14 @@ describe('food controller', () => {
           prep_time_min: 12,
         }],
       })
+      .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (post-lock recheck)
       .mockResolvedValueOnce({
         rows: [{ id: '11', name: 'Classic Burger', price_cents: 899, currency_code: 'USD', is_available: true }],
       });
 
     const res = await request(buildApp())
       .post('/api/food/restaurants/3/orders')
+      .set('Idempotency-Key', 'test-key-discount-reject')
       .send({
         fulfillmentType: 'pickup',
         paymentMode: 'pay_at_counter',

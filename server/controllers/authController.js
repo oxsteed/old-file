@@ -29,6 +29,65 @@ const TERMS_IP_HASH_MAX_LEN = 45;
 const JWT_SECRET = process.env.JWT_SECRET;
 const SUPPORTED_LANGUAGE_CODES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
 
+// H10: minimum interval between OTP sends for the same account (users and
+// pending_registrations). Stops OTP email/SMS bombing via re-request.
+const OTP_RESEND_COOLDOWN_MS = 60 * 1000;
+
+// ── H8d: refresh-token cookie transport ──────────────────────────────────────
+// Web clients receive the refresh token as an httpOnly + Secure + SameSite
+// cookie so XSS cannot steal it out of localStorage. Native/mobile and
+// pre-existing clients keep working: the JSON body still carries the token
+// and /auth/refresh + /auth/logout accept it from the body OR the cookie.
+// SameSite=Lax is the CSRF defense for the cookie path (cross-site POSTs do
+// not carry it); the explicit Authorization: Bearer header flow is untouched.
+const REFRESH_COOKIE_NAME = 'oxsteed_rt';
+const REFRESH_COOKIE_MAX_AGE_S = 7 * 24 * 60 * 60;       // 7 days
+const REFRESH_COOKIE_MAX_AGE_REMEMBER_S = 30 * 24 * 60 * 60; // 30 days
+
+function parseCookies(req) {
+  const header = req.headers?.cookie;
+  const out = {};
+  if (!header || typeof header !== 'string') return out;
+  for (const part of header.split(';')) {
+    const idx = part.indexOf('=');
+    if (idx === -1) continue;
+    const name = part.slice(0, idx).trim();
+    if (!name) continue;
+    try {
+      out[name] = decodeURIComponent(part.slice(idx + 1).trim());
+    } catch {
+      out[name] = part.slice(idx + 1).trim();
+    }
+  }
+  return out;
+}
+
+function setRefreshTokenCookie(res, refreshToken, { rememberMe = false } = {}) {
+  const maxAge = (rememberMe ? REFRESH_COOKIE_MAX_AGE_REMEMBER_S : REFRESH_COOKIE_MAX_AGE_S) * 1000;
+  res.cookie(REFRESH_COOKIE_NAME, refreshToken, {
+    httpOnly: true,
+    secure: process.env.COOKIE_SECURE === 'true' || process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge,
+  });
+}
+
+function clearRefreshTokenCookie(res) {
+  res.clearCookie(REFRESH_COOKIE_NAME, {
+    httpOnly: true,
+    secure: process.env.COOKIE_SECURE === 'true' || process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+  });
+}
+
+// Refresh token source: explicit body value first (native/mobile + existing
+// web sessions), httpOnly cookie second (current web sessions).
+function getRefreshTokenFromRequest(req) {
+  return req.body?.refreshToken || parseCookies(req)[REFRESH_COOKIE_NAME] || null;
+}
+
 // Modes a user may self-select when signing up through the unified /join flow.
 // Mirrors the CHECK constraint on pending_registrations.default_mode (mig 270).
 const SELF_SELECTABLE_MODES = Object.freeze([
@@ -233,6 +292,7 @@ async function login(req, res, next) {
               u.city, u.state, u.zip_code, u.totp_enabled,
               u.trial_started_at, u.trial_ends_at, u.didit_status, u.didit_verified_at,
               u.default_mode,
+              u.failed_login_attempts, u.login_locked_until,
               COALESCE(u.didit_enforcement_required, FALSE) AS didit_enforcement_required,
               ca.stripe_account_id AS connect_stripe_account_id,
               ca.charges_enabled AS connect_charges_enabled,
@@ -252,9 +312,50 @@ async function login(req, res, next) {
       throw new AppError('Your account has been deactivated', 403, 'account_deactivated');
     }
 
+    // H10: per-account lockout. The IP-based authLimiter alone cannot stop
+    // credential guessing spread across IPs.
+    if (user.login_locked_until && new Date(user.login_locked_until) > new Date()) {
+      throw new AppError(
+        'Too many failed login attempts. Please try again later.',
+        429, 'account_locked'
+      );
+    }
+
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) {
+      // H10: per-email failed-attempt counter with escalating lockout.
+      // Non-fatal: a counter write failure must not mask the 401.
+      try {
+        const attempts = (user.failed_login_attempts || 0) + 1;
+        let lockMs = 0;
+        if (attempts >= 15)      lockMs = 60 * 60 * 1000;
+        else if (attempts >= 10) lockMs = 15 * 60 * 1000;
+        else if (attempts >= 5)  lockMs = 5 * 60 * 1000;
+        const lockUntil = lockMs ? new Date(Date.now() + lockMs) : null;
+        await pool.query(
+          'UPDATE users SET failed_login_attempts = $1, login_locked_until = $2 WHERE id = $3',
+          [attempts, lockUntil, user.id]
+        );
+        if (lockUntil) {
+          throw new AppError(
+            'Too many failed login attempts. Please try again later.',
+            429, 'account_locked'
+          );
+        }
+      } catch (lockErr) {
+        if (lockErr instanceof AppError) throw lockErr;
+        logger.warn('Failed to record failed login attempt', { userId: user.id, error: lockErr.message });
+      }
       throw new AppError('Invalid email or password', 401, 'auth_failed');
+    }
+
+    // Password was correct: clear the failed-attempt counter (MFA may still
+    // be pending, but the credential check passed).
+    if (user.failed_login_attempts || user.login_locked_until) {
+      pool.query(
+        'UPDATE users SET failed_login_attempts = 0, login_locked_until = NULL WHERE id = $1',
+        [user.id]
+      ).catch((e) => logger.warn('Failed to reset login attempts', { userId: user.id, error: e.message }));
     }
 
     // Signature must match the name on the account (case- and whitespace-insensitive)
@@ -309,6 +410,10 @@ async function login(req, res, next) {
       ? "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '30 days')"
       : "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')";
     await pool.query(sessionSql, [user.id, hashedRefresh]);
+
+    // H8d: web clients get the refresh token as an httpOnly cookie; the JSON
+    // body still carries it for native/mobile clients.
+    setRefreshTokenCookie(res, tokens.refreshToken, { rememberMe: rememberMe === true });
 
     // Log terms agreement for legal/compliance record
     try {
@@ -405,7 +510,7 @@ async function loginWith2FA(req, res, next) {
     let userId;
     let rememberMe = false;
     try {
-      const decoded = jwt.verify(mfaToken, JWT_SECRET);
+      const decoded = jwt.verify(mfaToken, JWT_SECRET, { algorithms: ['HS256'] });
       if (!decoded.isMfaToken) throw new Error('Invalid token type');
       userId = decoded.id;
       rememberMe = decoded.rememberMe === true;
@@ -503,6 +608,9 @@ async function loginWith2FA(req, res, next) {
       : "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')";
     await pool.query(sessionSql, [user.id, hashedRefresh]);
 
+    // H8d: refresh token as httpOnly cookie for web clients (JSON fallback kept).
+    setRefreshTokenCookie(res, tokens.refreshToken, { rememberMe });
+
     // Record last_login_at and login history (non-fatal)
     try {
       const loginIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
@@ -559,14 +667,35 @@ async function requestOTP(req, res) {
     // Verify user exists before generating or sending anything.
     // Return the same response regardless to avoid email enumeration.
     const { rows: userRows } = await pool.query(
-      'SELECT id, preferred_language FROM users WHERE email = $1', [email.toLowerCase()]
+      'SELECT id, preferred_language, otp_locked_until, otp_last_sent_at FROM users WHERE email = $1',
+      [email.toLowerCase()]
     );
     const otp = crypto.randomInt(100000, 1000000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     if (userRows[0]) {
+      const pending = userRows[0];
+      // H10: never clear an active OTP lockout via re-request. The 3-strikes
+      // lockout from verifyOTP cannot be bypassed by asking for a new code.
+      if (pending.otp_locked_until && new Date(pending.otp_locked_until) > new Date()) {
+        return res.status(429).json({
+          error: 'Too many failed attempts. Please try again later.',
+          lockUntil: pending.otp_locked_until,
+        });
+      }
+      // H10: per-account send cooldown (60s) to stop OTP email/SMS bombing.
+      if (pending.otp_last_sent_at
+          && Date.now() - new Date(pending.otp_last_sent_at).getTime() < OTP_RESEND_COOLDOWN_MS) {
+        return res.status(429).json({
+          error: 'Please wait before requesting another code.',
+          retryAfterMs: OTP_RESEND_COOLDOWN_MS - (Date.now() - new Date(pending.otp_last_sent_at).getTime()),
+        });
+      }
       const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
       await pool.query(
-        'UPDATE users SET otp_code = $1, otp_expires_at = $2, otp_attempts = 0, otp_locked_until = NULL WHERE email = $3',
+        `UPDATE users
+            SET otp_code = $1, otp_expires_at = $2, otp_attempts = 0,
+                otp_locked_until = NULL, otp_last_sent_at = NOW()
+          WHERE email = $3`,
         [hashedOtp, expiresAt, email.toLowerCase()]
       );
       if (phone) await sendOTPSMS(phone, otp);
@@ -631,7 +760,9 @@ async function verifyOTP(req, res) {
 
 async function refreshToken(req, res, next) {
   try {
-    const { refreshToken: token } = req.body;
+    // H8d: accept the refresh token from the JSON body (native/mobile and
+    // pre-existing web sessions) or the httpOnly cookie (current web).
+    const token = getRefreshTokenFromRequest(req);
     if (!token) {
       throw new AppError('Refresh token is required', 401, 'no_token');
     }
@@ -678,6 +809,8 @@ async function refreshToken(req, res, next) {
       "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
       [user.id, hashedRefresh]
     );
+    // H8d: rotate the httpOnly refresh cookie alongside the session.
+    setRefreshTokenCookie(res, tokens.refreshToken);
     res.json({
       success: true,
       user: formatAuthUser(user),
@@ -691,7 +824,8 @@ async function refreshToken(req, res, next) {
 
 async function logout(req, res) {
   try {
-    const { refreshToken: token } = req.body;
+    // H8d: the refresh token may arrive via body or the httpOnly cookie.
+    const token = getRefreshTokenFromRequest(req);
     let didInvalidateSession = false;
     let userId = null;
     const hadRefreshToken = !!token;
@@ -715,7 +849,7 @@ async function logout(req, res) {
     if (authHeader.startsWith('Bearer ')) {
       const accessToken = authHeader.slice(7);
       try {
-        const decoded = jwt.verify(accessToken, JWT_SECRET);
+        const decoded = jwt.verify(accessToken, JWT_SECRET, { algorithms: ['HS256'] });
         if (decoded?.id) {
           userId = decoded.id;
           const { rows: invalidateRows } = await pool.query(
@@ -746,6 +880,10 @@ async function logout(req, res) {
       await tokenRevocationService.revokeAllUserTokens(userId);
     }
 
+    // H8d: drop the httpOnly refresh cookie so the browser session ends even
+    // when the token arrived via cookie.
+    clearRefreshTokenCookie(res);
+
     res.json({ message: 'Logged out' });
   } catch (err) {
     logger.error('Logout error', { err });
@@ -754,12 +892,15 @@ async function logout(req, res) {
 }
 
 // ===== CUSTOMER REGISTRATION FLOW (3-Step) =====
+// Audit L1: this endpoint used to be an account-enumeration oracle (409 when
+// the email exists, 200 when it does not). It now always returns the same
+// 200 shape so it cannot be used to test whether an address is registered.
+// The authoritative duplicate check stays at POST /auth/register/start,
+// which returns 409 only after the rate-limited registration attempt.
 async function checkEmail(req, res) {
   try {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: 'Email required' });
-    const { rows } = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
-    if (rows.length > 0) return res.status(409).json({ available: false, error: 'Email already registered' });
     res.json({ available: true });
   } catch (err) {
     logger.error('Check email error', { err });
@@ -938,7 +1079,11 @@ async function acceptTerms(req, res) {
     const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
     const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
     await pool.query(
-      'UPDATE pending_registrations SET terms_accepted_at = NOW(), terms_version = $2, terms_acceptance_ip = $3, terms_acceptance_ua = $4, otp_code = $5, otp_expires_at = $6, otp_attempts = 0 WHERE token = $1',
+      `UPDATE pending_registrations
+          SET terms_accepted_at = NOW(), terms_version = $2, terms_acceptance_ip = $3,
+              terms_acceptance_ua = $4, otp_code = $5, otp_expires_at = $6,
+              otp_attempts = 0, otp_last_sent_at = NOW()
+        WHERE token = $1`,
       [token, termsVersion, ip, userAgent, otpHash, otpExpires]
     );
     await sendOTPEmail(pending.email, otp, resolveRequestLanguage(req));
@@ -1105,6 +1250,8 @@ async function verifyRegistrationOTP(req, res) {
       "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
       [user.id, hashedRefresh]
     );
+    // H8d: registration completes a login — set the httpOnly cookie too.
+    setRefreshTokenCookie(res, tokens.refreshToken);
     res.status(201).json({ user: formatAuthUser(user), ...tokens });
   } catch (err) {
     logger.error('Verify registration OTP error', { err });
@@ -1120,14 +1267,24 @@ async function resendRegistrationOTP(req, res) {
     );
     if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration' });
     const pending = rows[0];
+    // H10: an active OTP lockout survives re-requests; requesting a new code
+    // must not clear it (previously otp_attempts was reset to 0 here).
     if (pending.otp_locked_until && new Date(pending.otp_locked_until) > new Date()) {
       return res.status(429).json({ error: 'Account locked' });
+    }
+    // H10: per-registration send cooldown.
+    if (pending.otp_last_sent_at
+        && Date.now() - new Date(pending.otp_last_sent_at).getTime() < OTP_RESEND_COOLDOWN_MS) {
+      return res.status(429).json({ error: 'Please wait before requesting another code.' });
     }
     const otp = crypto.randomInt(100000, 1000000).toString();
     const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
     const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
     await pool.query(
-      'UPDATE pending_registrations SET otp_code = $2, otp_expires_at = $3, otp_attempts = 0 WHERE token = $1',
+      `UPDATE pending_registrations
+          SET otp_code = $2, otp_expires_at = $3, otp_attempts = 0,
+              otp_locked_until = NULL, otp_last_sent_at = NOW()
+        WHERE token = $1`,
       [token, otpHash, otpExpires]
     );
     await sendOTPEmail(pending.email, otp, resolveRequestLanguage(req));
@@ -1163,11 +1320,14 @@ async function forgotPassword(req, res) {
     const resetToken = crypto.randomBytes(32).toString('hex');
     const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
+    // M1: store only the SHA-256 of the reset token (mirrors the email-change
+    // flow). The plaintext token travels only inside the emailed link.
+    const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
     await pool.query(
       `UPDATE users
        SET reset_token = $1, reset_token_expires = $2, updated_at = NOW()
        WHERE id = $3`,
-      [resetToken, resetExpires, rows[0].id]
+      [resetTokenHash, resetExpires, rows[0].id]
     );
 
     const appUrl = process.env.APP_URL || process.env.CLIENT_URL || '';
@@ -1193,11 +1353,14 @@ async function resetPassword(req, res) {
     if (pwErrs) return res.status(400).json({ error: 'validation_failed', fields: pwErrs });
 
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    // M1: compare against the stored SHA-256; the plaintext token never
+    // touches the database.
+    const presentedTokenHash = crypto.createHash('sha256').update(token).digest('hex');
     const { rows: resetUsers } = await pool.query(
       `SELECT id FROM users
        WHERE reset_token = $1
          AND reset_token_expires > NOW()`,
-      [token],
+      [presentedTokenHash],
     );
     if (resetUsers.length === 0) {
       return res.status(400).json({ error: 'Reset link is invalid or expired.' });
@@ -1226,7 +1389,7 @@ async function resetPassword(req, res) {
          AND reset_token = $2
          AND reset_token_expires > NOW()
        RETURNING id`,
-      [passwordHash, token, resetUsers[0].id]
+      [passwordHash, presentedTokenHash, resetUsers[0].id]
     );
 
     if (rows.length === 0) {
@@ -1860,6 +2023,9 @@ async function switchRole(req, res) {
     await client.query('COMMIT');
 
     logger.info('Mode switch', { userId, fromMode: currentMode, toMode: newMode, fromRole: currentRole, toRole: updatedUser.role });
+    // H8d: rotate the httpOnly refresh cookie too — switch-role issues a
+    // fresh refresh token, so the cookie must follow.
+    setRefreshTokenCookie(res, tokens.refreshToken);
     return res.json({
       success: true,
       user: formatAuthUser(updatedUser),

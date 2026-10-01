@@ -41,6 +41,10 @@ test('grantConsent creates a consent row', async () => {
   };
   route([
     ['FROM delivery_jobs', () => ({ rows: [jobRow()], rowCount: 1 })],
+    ['FROM delivery_tracking_devices', () => ({
+      rows: [{ id: 5, kind: 'driver_phone', status: 'active', driver_user_id: 'drv-1' }],
+      rowCount: 1,
+    })],
     ['INTO delivery_tracking_consent', () => ({ rows: [consentRow], rowCount: 1 })],
   ]);
 
@@ -55,6 +59,10 @@ test('grantConsent re-grant upserts the single active row (uniqueness)', async (
   };
   route([
     ['FROM delivery_jobs', () => ({ rows: [jobRow()], rowCount: 1 })],
+    ['FROM delivery_tracking_devices', () => ({
+      rows: [{ id: 9, kind: 'driver_phone', status: 'active', driver_user_id: 'drv-1' }],
+      rowCount: 1,
+    })],
     ['INTO delivery_tracking_consent', (params) => {
       expect(params[2]).toBe(9); // device_id carried into the upsert
       return { rows: [updated], rowCount: 1 };
@@ -127,7 +135,7 @@ test('startTracking maps a duplicate active assignment to a 409', async () => {
     ['FROM delivery_jobs', () => ({ rows: [jobRow()], rowCount: 1 })],
     ['FROM delivery_tracking_consent', () => ({ rows: [{ id: 1 }], rowCount: 1 })],
     ['FROM delivery_tracking_devices', () => ({
-      rows: [{ id: 5, kind: 'driver_phone', status: 'active' }], rowCount: 1,
+      rows: [{ id: 5, kind: 'driver_phone', status: 'active', driver_user_id: 'drv-1' }], rowCount: 1,
     })],
     ['INTO delivery_tracking_assignments', () => {
       const err = new Error('duplicate key value violates unique constraint "uq_tracking_assignment_active"');
@@ -146,7 +154,7 @@ test('startTracking success writes the assignment and a tracking_started event',
     ['FROM delivery_jobs', () => ({ rows: [jobRow()], rowCount: 1 })],
     ['FROM delivery_tracking_consent', () => ({ rows: [{ id: 1 }], rowCount: 1 })],
     ['FROM delivery_tracking_devices', () => ({
-      rows: [{ id: 5, kind: 'driver_phone', status: 'active' }], rowCount: 1,
+      rows: [{ id: 5, kind: 'driver_phone', status: 'active', driver_user_id: 'drv-1' }], rowCount: 1,
     })],
     ['INTO delivery_tracking_assignments', () => ({ rows: [assignment], rowCount: 1 })],
     ['INTO delivery_tracking_events', (params) => {

@@ -1062,7 +1062,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
             <button type="button" onClick={() => loadConversations()} disabled={loading} className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/10 disabled:opacity-50">{copy('tryAgain')}</button>
           </div>
         )}
-        {queueUpdatedAt && !queueError && <div className="mt-2 text-right text-[11px] text-slate-600">{copy('queueUpdated')} {queueUpdatedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</div>}
+        {queueUpdatedAt && !queueError && <div className="mt-2 text-end text-[11px] text-slate-600">{copy('queueUpdated')} {queueUpdatedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</div>}
         <div className="mt-5 grid grid-cols-3 gap-3">
           {[
             [copy('stats.active'), openCount, Inbox],
@@ -1079,15 +1079,15 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
       </div>
 
       <div className="grid min-h-[620px] grid-cols-1 xl:grid-cols-[390px_minmax(0,1fr)]">
-        <aside className="border-b border-slate-800 p-4 xl:border-b-0 xl:border-r">
+        <aside className="border-b border-slate-800 p-4 xl:border-b-0 xl:border-e">
           <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-500" />
             <input
               ref={queueSearchRef}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder={copy('searchPlaceholder')}
-              className="w-full rounded-xl border border-slate-700 bg-slate-900 py-3 pl-10 pr-3 text-sm outline-none focus:border-orange-500"
+              className="w-full rounded-xl border border-slate-700 bg-slate-900 py-3 ps-10 pe-3 text-sm outline-none focus:border-orange-500"
             />
           </div>
           <p className="mt-2 text-[11px] text-slate-600">{copy('shortcuts')}: <span className="text-slate-400">/</span> search · <span className="text-slate-400">j/k</span> move · <span className="text-slate-400">r</span> reply</p>
@@ -1134,7 +1134,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
             </select>
           </div>
 
-          <div className="mt-4 max-h-[520px] space-y-2 overflow-y-auto pr-1">
+          <div className="mt-4 max-h-[520px] space-y-2 overflow-y-auto pe-1">
             {!loading && visibleConversations.length === 0 && (
               <div className="rounded-2xl border border-dashed border-slate-700 p-6 text-center text-sm text-slate-500">
                 {queueError ? copy('queueUnavailable') : copy('noMatches')}
@@ -1145,7 +1145,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                 type="button"
                 key={conversation.id}
                 onClick={() => setSelectedId(conversation.id)}
-                className={`w-full rounded-2xl border p-4 text-left transition ${selectedId === conversation.id ? 'border-orange-500/50 bg-orange-500/10' : 'border-slate-800 bg-slate-900/65 hover:border-slate-700'}`}
+                className={`w-full rounded-2xl border p-4 text-start transition ${selectedId === conversation.id ? 'border-orange-500/50 bg-orange-500/10' : 'border-slate-800 bg-slate-900/65 hover:border-slate-700'}`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -1310,7 +1310,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                       <div className="mt-3 space-y-2">
                         {followUpReminders.map((reminder) => (
                           <div key={reminder.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs">
-                            <div className="min-w-0"><span className="font-medium text-slate-200">{formatWhen(reminder.due_at)}</span><span className="ml-2 capitalize text-slate-500">{reminder.status}</span>{reminder.note && <div className="mt-1 truncate text-slate-400">{reminder.note}</div>}</div>
+                            <div className="min-w-0"><span className="font-medium text-slate-200">{formatWhen(reminder.due_at)}</span><span className="ms-2 capitalize text-slate-500">{reminder.status}</span>{reminder.note && <div className="mt-1 truncate text-slate-400">{reminder.note}</div>}</div>
                             {reminder.status === 'pending' && <div className="flex gap-2"><button type="button" disabled={followUpBusy} onClick={() => updateFollowUpReminder(reminder.id, 'completed')} className="rounded-lg border border-emerald-500/30 px-2 py-1 text-emerald-200 hover:bg-emerald-500/10">{copy('complete')}</button><button type="button" disabled={followUpBusy} onClick={() => updateFollowUpReminder(reminder.id, 'cancelled')} className="rounded-lg border border-slate-700 px-2 py-1 text-slate-400 hover:text-slate-200">{copy('cancel')}</button></div>}
                           </div>
                         ))}
@@ -1329,7 +1329,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                     {!isClosed && <label className="block max-w-2xl text-xs text-slate-400">{copy('resolutionSummary')} <span className="text-slate-500">{copy('shownWhenResolved')}</span>
                       <textarea value={resolutionSummary} onChange={(event) => setResolutionSummary(event.target.value)} maxLength={2000} rows={2} className="mt-1 w-full resize-none rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 outline-none focus:border-orange-500" placeholder={copy('resolutionSummaryPlaceholder')} />
                     </label>}
-                    {selected.resolution_summary && isClosed && <div className="max-w-2xl rounded-xl border border-orange-500/25 bg-orange-500/10 px-3 py-2 text-xs text-orange-100"><span className="font-semibold">{copy('resolutionSummary')}:</span> {selected.resolution_summary}{selected.resolution_reason_code && <span className="ml-2 text-orange-200/70">({selected.resolution_reason_code})</span>}</div>}
+                    {selected.resolution_summary && isClosed && <div className="max-w-2xl rounded-xl border border-orange-500/25 bg-orange-500/10 px-3 py-2 text-xs text-orange-100"><span className="font-semibold">{copy('resolutionSummary')}:</span> {selected.resolution_summary}{selected.resolution_reason_code && <span className="ms-2 text-orange-200/70">({selected.resolution_reason_code})</span>}</div>}
                     {!isClosed && <label className="block max-w-2xl text-xs text-slate-400">{copy('resolutionReason')}
                       <select value={resolutionReasonCode} onChange={(event) => setResolutionReasonCode(event.target.value)} disabled={busy} className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 outline-none focus:border-orange-500">
                         <option value="resolved">{copy('status.resolved')}</option>
@@ -1425,9 +1425,9 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                                       <div className="mb-1 flex items-center gap-2 text-[10px] opacity-70">
                                         <span>{message.sender_name || (fromAgent ? copy('supportTeam') : history.customer_name || copy('customer'))}</span>
                                         {isNote && <span className="rounded-full border border-amber-400/30 px-1.5 py-0.5">{copy('internalNote')}</span>}
-                                        <span className="ml-auto">{formatWhen(message.created_at)}</span>
+                                        <span className="ms-auto">{formatWhen(message.created_at)}</span>
                                       </div>
-                                      {message.attachment_url && <a href={message.attachment_url} download={message.attachment_name || undefined} target="_blank" rel="noreferrer" className="group relative mb-2 block w-fit" aria-label={copy('downloadAttachment', { name: message.attachment_name || copy('supportAttachment') })}><img src={message.attachment_url} alt={message.attachment_name || copy('supportAttachment')} className="max-h-40 max-w-full rounded-lg object-contain transition group-hover:opacity-90" /><span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-lg bg-slate-950/85 px-2 py-1 text-[11px] font-semibold text-white opacity-0 shadow transition group-hover:opacity-100 group-focus-visible:opacity-100"><Download size={12} /> {copy('download')}</span></a>}
+                                      {message.attachment_url && <a href={message.attachment_url} download={message.attachment_name || undefined} target="_blank" rel="noreferrer" className="group relative mb-2 block w-fit" aria-label={copy('downloadAttachment', { name: message.attachment_name || copy('supportAttachment') })}><img src={message.attachment_url} alt={message.attachment_name || copy('supportAttachment')} className="max-h-40 max-w-full rounded-lg object-contain transition group-hover:opacity-90" /><span className="absolute bottom-2 end-2 inline-flex items-center gap-1 rounded-lg bg-slate-950/85 px-2 py-1 text-[11px] font-semibold text-white opacity-0 shadow transition group-hover:opacity-100 group-focus-visible:opacity-100"><Download size={12} /> {copy('download')}</span></a>}
                                       {messageBody(message) && <div className="whitespace-pre-wrap leading-5">{messageBody(message)}</div>}
                                       {message.edited_at && <div className="mt-1 text-[10px] opacity-60">{copy('edited')} {formatWhen(message.edited_at)}</div>}
                                     </div>
@@ -1461,7 +1461,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                               {isChannelReply && channelDeliveryStatus === 'sending' && <span className="rounded-full border border-blue-400/30 px-2 py-0.5 text-blue-100">{copy('deliveringVia', { channel: message.channel || selected.channel })}</span>}
                               {isChannelReply && channelDeliveryStatus === 'failed' && <span className="rounded-full border border-red-400/30 px-2 py-0.5 text-red-100">{copy('deliveryFailed')}</span>}
                             </div>
-                            {message.attachment_url && <a href={message.attachment_url} download={message.attachment_name || undefined} target="_blank" rel="noreferrer" className="group relative mb-2 block w-fit" aria-label={copy('downloadAttachment', { name: message.attachment_name || copy('supportAttachment') })}><img src={message.attachment_url} alt={message.attachment_name || copy('supportAttachment')} onLoad={() => { if (stickToBottomRef.current) messageListRef.current?.scrollTo({ top: messageListRef.current.scrollHeight, behavior: 'auto' }); }} className="max-h-64 max-w-full rounded-xl object-contain transition group-hover:opacity-90" /><span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-lg bg-slate-950/85 px-2 py-1 text-[11px] font-semibold text-white opacity-0 shadow transition group-hover:opacity-100 group-focus-visible:opacity-100"><Download size={12} /> {copy('download')}</span></a>}
+                            {message.attachment_url && <a href={message.attachment_url} download={message.attachment_name || undefined} target="_blank" rel="noreferrer" className="group relative mb-2 block w-fit" aria-label={copy('downloadAttachment', { name: message.attachment_name || copy('supportAttachment') })}><img src={message.attachment_url} alt={message.attachment_name || copy('supportAttachment')} onLoad={() => { if (stickToBottomRef.current) messageListRef.current?.scrollTo({ top: messageListRef.current.scrollHeight, behavior: 'auto' }); }} className="max-h-64 max-w-full rounded-xl object-contain transition group-hover:opacity-90" /><span className="absolute bottom-2 end-2 inline-flex items-center gap-1 rounded-lg bg-slate-950/85 px-2 py-1 text-[11px] font-semibold text-white opacity-0 shadow transition group-hover:opacity-100 group-focus-visible:opacity-100"><Download size={12} /> {copy('download')}</span></a>}
                             {editingMessageId === message.id ? (
                               <div className="space-y-2">
                                 <textarea value={editingContent} onChange={(event) => setEditingContent(event.target.value)} maxLength={5000} rows={3} className="w-full rounded-xl bg-slate-900 px-3 py-2 text-white" />
@@ -1498,8 +1498,8 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                   </div>
                 )}
                     <div className="mb-3 flex gap-2">
-                  <button type="button" onClick={() => setInternalNote(false)} className={`rounded-xl px-3 py-2 text-xs font-semibold ${!internalNote ? 'bg-orange-600 text-white' : 'bg-slate-900 text-slate-400'}`}><MessageSquare size={12} className="mr-1 inline" /> {copy('customerReply')}</button>
-                  <button type="button" onClick={() => setInternalNote(true)} className={`rounded-xl px-3 py-2 text-xs font-semibold ${internalNote ? 'bg-amber-600 text-white' : 'bg-slate-900 text-slate-400'}`}><Lock size={12} className="mr-1 inline" /> {copy('internalNote')}</button>
+                  <button type="button" onClick={() => setInternalNote(false)} className={`rounded-xl px-3 py-2 text-xs font-semibold ${!internalNote ? 'bg-orange-600 text-white' : 'bg-slate-900 text-slate-400'}`}><MessageSquare size={12} className="me-1 inline" /> {copy('customerReply')}</button>
+                  <button type="button" onClick={() => setInternalNote(true)} className={`rounded-xl px-3 py-2 text-xs font-semibold ${internalNote ? 'bg-amber-600 text-white' : 'bg-slate-900 text-slate-400'}`}><Lock size={12} className="me-1 inline" /> {copy('internalNote')}</button>
                   <select
                     value={quickReply}
                     onChange={(event) => {
@@ -1508,7 +1508,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                       if (next) setReply((current) => current.trim() ? `${current.trim()}\n\n${next.content}` : next.content);
                     }}
                     disabled={!canReply || busy}
-                    className="ml-auto max-w-[180px] rounded-xl bg-slate-900 px-3 py-2 text-xs text-slate-300 disabled:opacity-50"
+                    className="ms-auto max-w-[180px] rounded-xl bg-slate-900 px-3 py-2 text-xs text-slate-300 disabled:opacity-50"
                     aria-label={copy('insertQuickReply')}
                   >
                     <option value="">{templatesLoading ? copy('loadingSavedReplies') : responseTemplates.length ? copy('insertSavedReply') : copy('noSavedReplies')}</option>

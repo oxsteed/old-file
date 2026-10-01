@@ -6,7 +6,7 @@ import { Plus, Trash2, Edit2, RefreshCw, Pause, Play } from 'lucide-react';
 
 export function RecurringBillingManager({ businessId }) {
   const { t } = useTranslation();
-  const tRecurring = (key, options) => t(`professionalIntakePage.continuityIntakePage.form.businessRecurringBilling.${key}`, options);
+  const tRecurring = (key, options) => t(`continuityIntakePage.form.businessRecurringBilling.${key}`, options);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);

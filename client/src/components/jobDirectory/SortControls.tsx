@@ -31,7 +31,7 @@ const SortControls: React.FC<SortControlsProps> = ({ value, onChange, resultCoun
         <select
           value={value}
           onChange={(e) => onChange(e.target.value as JobSortOption)}
-          className="directory-sort-select min-w-0 appearance-none bg-gray-800 border border-gray-700 text-white text-sm rounded-xl pl-3 pr-8 py-2 focus:outline-none focus:ring-1 focus:ring-brand-500 cursor-pointer"
+          className="directory-sort-select min-w-0 appearance-none bg-gray-800 border border-gray-700 text-white text-sm rounded-xl ps-3 pe-8 py-2 focus:outline-none focus:ring-1 focus:ring-brand-500 cursor-pointer"
           aria-label={t('jobsDir.sortByAria')}
         >
           {visibleOptions.map((opt) => (
@@ -41,7 +41,7 @@ const SortControls: React.FC<SortControlsProps> = ({ value, onChange, resultCoun
           ))}
         </select>
         <svg
-          className="absolute right-2.5 w-3.5 h-3.5 text-gray-500 pointer-events-none"
+          className="absolute end-2.5 w-3.5 h-3.5 text-gray-500 pointer-events-none"
           viewBox="0 0 20 20"
           fill="currentColor"
           aria-hidden="true"

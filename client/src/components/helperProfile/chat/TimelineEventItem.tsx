@@ -108,7 +108,7 @@ const TimelineEventItem: React.FC<TimelineEventItemProps> = ({ event }) => {
       >
         <IconComponent className={`w-3.5 h-3.5 flex-shrink-0 ${style.iconColor}`} aria-hidden="true" />
         <span>{event.content}</span>
-        <time dateTime={event.timestamp} className="text-xs opacity-60 ml-1">
+        <time dateTime={event.timestamp} className="text-xs opacity-60 ms-1">
           {formatTimestamp(event.timestamp, i18n.resolvedLanguage || i18n.language || 'en')}
         </time>
       </div>

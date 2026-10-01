@@ -150,14 +150,16 @@ describe('profile chat delivery', () => {
 
   test('replays a committed live message without duplicate side effects', async () => {
     mockQuery
-      // First request: availability, conversation, insert, timestamp, sender.
+      // First request: admin-hidden check, availability, conversation, insert, timestamp, sender.
+      .mockResolvedValueOnce({ rows: [] }) // not admin-hidden
       .mockResolvedValueOnce({ rows: [{ is_available_now: true }] })
       .mockResolvedValueOnce({ rows: [{ id: 'conversation-1' }] })
       .mockResolvedValueOnce({ rows: [message] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ first_name: 'Customer', last_name: 'One', profile_photo_url: null }] })
       .mockResolvedValueOnce({ rows: [] }) // message notification outbox
-      // Retry: availability, conversation, conflict, original message, sender.
+      // Retry: admin-hidden check, availability, conversation, conflict, original message, sender.
+      .mockResolvedValueOnce({ rows: [] }) // not admin-hidden
       .mockResolvedValueOnce({ rows: [{ is_available_now: true }] })
       .mockResolvedValueOnce({ rows: [{ id: 'conversation-1' }] })
       .mockResolvedValueOnce({ rows: [] })

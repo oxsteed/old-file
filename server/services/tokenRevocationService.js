@@ -12,6 +12,12 @@ const logger = require('../utils/logger');
 // TTL: matches JWT expiry times (15m for access, 7d for refresh)
 
 const tokenBlacklist = new Set(); // Fallback for non-Redis environments
+// H18 fix: user-level revocation markers for the in-memory branch.
+// revokeAllUserTokens records userId -> revokedAtMs here; isRevoked consults
+// it with the same iat comparison as the Redis branch, so a revoked user's
+// old tokens are rejected while tokens issued after the revocation (fresh
+// login) keep working.
+const userRevocationMarkers = new Map(); // userId -> revokedAtMs
 
 function revocationUnavailable(operation, cause) {
   const error = new Error(`Token revocation service unavailable during ${operation}`);
@@ -83,8 +89,15 @@ class TokenRevocationService {
         await redis.set(key, timestamp, 'EX', 7 * 24 * 60 * 60); // 7 days
         logger.info('Revoked all user tokens', { userId });
       } else {
-        // In-memory fallback: store user ID as marker
-        tokenBlacklist.add(`user:${userId}:${Date.now()}`);
+        // In-memory fallback: record the user-level revocation timestamp so
+        // isRevoked's in-memory branch can honor it (previously it stored a
+        // marker string that nothing ever read).
+        userRevocationMarkers.set(String(userId), Date.now());
+        // Bound the map like the blacklist below.
+        if (userRevocationMarkers.size > 10000) {
+          const oldest = Array.from(userRevocationMarkers.keys()).slice(0, 1000);
+          oldest.forEach((k) => userRevocationMarkers.delete(k));
+        }
         logger.info('Revoked all user tokens (in-memory)', { userId });
       }
     } catch (err) {
@@ -124,7 +137,14 @@ class TokenRevocationService {
         }
         return false;
       } else {
-        return tokenBlacklist.has(tokenId);
+        if (tokenBlacklist.has(tokenId)) return true;
+        // H18: honor user-level revocation in the in-memory branch, mirroring
+        // the Redis branch semantics. Tokens issued at or before the
+        // revocation moment are rejected; newer tokens (fresh login) pass.
+        const revokedAtMs = userRevocationMarkers.get(String(userId));
+        if (revokedAtMs == null) return false;
+        if (typeof tokenIat !== 'number') return true;
+        return tokenIat * 1000 <= revokedAtMs;
       }
     } catch (err) {
       logger.error('Failed to check token revocation', { tokenId, error: err.message });

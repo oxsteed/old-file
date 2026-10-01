@@ -259,7 +259,7 @@ export function PhotographerTemplate({ profileData }) {
                   {s.description && <p className="text-xs mt-0.5 italic" style={{ color: '#737373' }}>{s.description}</p>}
                 </div>
                 {s.price > 0 && (
-                  <span className="text-sm font-bold text-white ml-4">
+                  <span className="text-sm font-bold text-white ms-4">
                     ${s.price.toFixed(0)}
                   </span>
                 )}
@@ -458,7 +458,7 @@ export function AutoMechanicTemplate({ profileData }) {
             <div className="relative">
               <Avatar src={helper.avatar} name={helper.ownerName} size={80}
                 className="ring-2" style={{ '--tw-ring-color': ORANGE }} />
-              <Wrench size={18} className="absolute -bottom-1 -right-1 rounded-full p-1"
+              <Wrench size={18} className="absolute -bottom-1 -end-1 rounded-full p-1"
                 style={{ background: ORANGE, color: '#fff' }} />
             </div>
             <div className="flex-1">
@@ -1009,7 +1009,7 @@ export function HairStylistTemplate({ profileData }) {
                         <p className="text-sm font-semibold text-gray-900">{s.name}</p>
                         {s.description && <p className="text-xs text-gray-500 mt-0.5">{s.description}</p>}
                       </div>
-                      {s.price > 0 && <span className="text-sm font-black ml-4" style={{ color: ROSE_DARK }}>${s.price.toFixed(0)}+</span>}
+                      {s.price > 0 && <span className="text-sm font-black ms-4" style={{ color: ROSE_DARK }}>${s.price.toFixed(0)}+</span>}
                     </div>
                   ))}
                 </div>
@@ -1040,7 +1040,7 @@ export function HairStylistTemplate({ profileData }) {
             <p className="font-black text-white text-sm">{helper.ownerName}</p>
             <div className="flex items-center gap-1 mt-1">
               <StarRating rating={helper.rating} size={12} color={ROSE} />
-              <span className="text-xs text-gray-400 ml-1">{helper.reviewCount} reviews</span>
+              <span className="text-xs text-gray-400 ms-1">{helper.reviewCount} reviews</span>
             </div>
             <p className="text-xs text-gray-500 mt-1">{helper.jobsCompleted} clients served</p>
             <LocationChip city={helper.city} state={helper.state} className="text-gray-500 mt-2 text-xs" />
@@ -1521,7 +1521,7 @@ export function PartyEntertainerTemplate({ profileData }) {
                 </p>
                 <p className="text-3xl font-black">${p.price}</p>
                 <p className="text-xs mt-0.5 mb-4 opacity-70">{p.duration}</p>
-                <div className="space-y-1.5 text-left">
+                <div className="space-y-1.5 text-start">
                   {p.features.map(f => (
                     <div key={f} className="flex items-center gap-2 text-xs">
                       <Check size={11} style={{ flexShrink: 0, opacity: 0.8 }} />

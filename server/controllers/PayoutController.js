@@ -1,6 +1,14 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { sendError, sendValidationError } = require('../utils/apiError');
+const { logAdminAction } = require('../services/auditService');
+
+// C9: Idempotency-Key must be caller-supplied, URL-safe, and bounded.
+function normalizeIdempotencyKey(value) {
+  const candidate = String(value || '').trim();
+  if (!/^[A-Za-z0-9:._-]{8,255}$/.test(candidate)) return null;
+  return candidate;
+}
 
 class PayoutController {
   // Get all payouts for a helper
@@ -263,7 +271,8 @@ class PayoutController {
   static async getPayoutStats(req, res) {
     try {
       const { helper_id } = req.user;
-      const { days = 30 } = req.query;
+      // C2: validate days as a positive integer before it reaches SQL.
+      const days = Math.min(Math.max(parseInt(req.query.days, 10) || 30, 1), 3650);
 
       const query = `
         SELECT
@@ -272,12 +281,12 @@ class PayoutController {
           SUM(CASE WHEN status IN ('pending', 'processing') THEN net_payout_cents ELSE 0 END) / 100.0 as total_pending,
           AVG(CASE WHEN status = 'completed' THEN net_payout_cents ELSE NULL END) / 100.0 as average_payout,
           MAX(CASE WHEN status = 'completed' THEN period_end ELSE NULL END) as last_payout_date,
-          COUNT(DISTINCT CASE WHEN created_at >= NOW() - INTERVAL '${days} days' THEN id ELSE NULL END) as payouts_this_period
+          COUNT(DISTINCT CASE WHEN created_at >= NOW() - make_interval(days => $2) THEN id ELSE NULL END) as payouts_this_period
         FROM affiliate_payouts
         WHERE helper_id = $1
       `;
 
-      const result = await pool.query(query, [helper_id]);
+      const result = await pool.query(query, [helper_id, days]);
 
       res.json({
         success: true,
@@ -290,41 +299,86 @@ class PayoutController {
   }
 
   // Admin: Process payout
+  // C9: gated behind admin + the view_financials grant at the route level, and
+  // additionally guarded here: no real money processor is wired yet, so this
+  // endpoint refuses to mark payouts completed until PAYOUT_PROCESSOR_ENABLED
+  // is set by an operator who has connected a processor.
   static async processPayout(req, res) {
     try {
       const { payout_id } = req.params;
       const { payment_processor = 'stripe' } = req.body;
+
+      if (process.env.PAYOUT_PROCESSOR_ENABLED !== 'true') {
+        return sendError(res, 503, 'Payout processing is not wired to a money processor yet');
+      }
+
+      const idempotencyKey = normalizeIdempotencyKey(
+        req.get('Idempotency-Key') || req.body.idempotencyKey || req.body.idempotency_key
+      );
+      if (!idempotencyKey) {
+        return sendError(res, 400, 'Idempotency-Key is required for payout processing');
+      }
 
       // Start transaction
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
 
-        // Get payout details
-        const payoutQuery = `
-          SELECT ap.*, pm.stripe_account_id, pm.paypal_email, u.email
-          FROM affiliate_payouts ap
-          LEFT JOIN payout_methods pm ON ap.payout_method_id = pm.id
-          LEFT JOIN users u ON ap.helper_id = u.id
-          WHERE ap.id = $1
-        `;
+        // C9 idempotency: a replayed key returns the original result without
+        // touching money movement again.
+        const { rows: [existingTxn] } = await client.query(
+          `SELECT pt.*, ap.status AS payout_status
+             FROM payout_transactions pt
+             JOIN affiliate_payouts ap ON ap.id = pt.payout_id
+            WHERE pt.idempotency_key = $1`,
+          [idempotencyKey]
+        );
+        if (existingTxn) {
+          await client.query('ROLLBACK');
+          logger.info('Payout process idempotency replay', { payout_id, idempotencyKey });
+          return res.json({ success: true, replayed: true, transaction: existingTxn });
+        }
 
-        const payoutResult = await client.query(payoutQuery, [payout_id]);
+        // Get payout details with a row lock and claim it atomically: only a
+        // pending payout may move to processing, so concurrent requests (or a
+        // double click) cannot send the same payout twice.
+        const payoutResult = await client.query(
+          `SELECT ap.*, pm.stripe_account_id, pm.paypal_email, u.email
+             FROM affiliate_payouts ap
+             LEFT JOIN payout_methods pm ON ap.payout_method_id = pm.id
+             LEFT JOIN users u ON ap.helper_id = u.id
+            WHERE ap.id = $1
+            FOR UPDATE`,
+          [payout_id]
+        );
 
         if (!payoutResult.rows.length) {
+          await client.query('ROLLBACK');
           return sendError(res, 404, 'Payout not found');
         }
 
         const payout = payoutResult.rows[0];
+        if (payout.status !== 'pending') {
+          await client.query('ROLLBACK');
+          return sendError(res, 409, 'Payout is not pending');
+        }
 
-        // Update payout status to processing
-        await client.query(
-          `UPDATE affiliate_payouts SET status = 'processing', updated_at = NOW() WHERE id = $1`,
+        // Claim the row before touching the processor.
+        const { rows: [claimed] } = await client.query(
+          `UPDATE affiliate_payouts
+              SET status = 'processing', updated_at = NOW()
+            WHERE id = $1 AND status = 'pending'
+            RETURNING *`,
           [payout_id]
         );
+        if (!claimed) {
+          await client.query('ROLLBACK');
+          return sendError(res, 409, 'Payout is already being processed');
+        }
 
-        // In production, integrate with Stripe/PayPal API
-        // For now, just update to completed
+        // Wire the real processor here (Stripe Connect / PayPal) before this
+        // endpoint is enabled in production. Until then PAYOUT_PROCESSOR_ENABLED
+        // stays unset and the guard above keeps this path unreachable.
         const updateQuery = `
           UPDATE affiliate_payouts
           SET status = 'completed', payment_processor = $2, updated_at = NOW()
@@ -336,9 +390,26 @@ class PayoutController {
 
         // Log transaction
         await client.query(
-          `INSERT INTO payout_transactions (payout_id, transaction_status) VALUES ($1, 'completed')`,
-          [payout_id]
+          `INSERT INTO payout_transactions (payout_id, transaction_status, idempotency_key)
+           VALUES ($1, 'completed', $2)`,
+          [payout_id, idempotencyKey]
         );
+
+        // H7: transactional audit row; fails closed because a client is passed.
+        await logAdminAction({
+          client,
+          adminId: req.user?.id || null,
+          action: 'process_payout',
+          targetType: 'affiliate_payout',
+          targetId: String(payout_id),
+          after: {
+            status: 'completed',
+            payment_processor,
+            helper_id: payout.helper_id || null,
+            net_payout_cents: payout.net_payout_cents || null,
+            idempotency_key: idempotencyKey,
+          },
+        });
 
         await client.query('COMMIT');
 

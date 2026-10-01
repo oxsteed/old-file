@@ -743,8 +743,15 @@ exports.uploadDirectAsset = async (req, res) => {
       return res.status(400).json({ error: 'A file is required' });
     }
 
-    const purpose = cleanText(req.body.purpose || req.query.purpose || 'quote', 40) || 'quote';
-    const draftId = cleanText(req.body.draftId || req.query.draftId || req.body.draft_id || req.query.draft_id || 'public', 120) || 'public';
+    // Audit L11: draftId/purpose are interpolated into the storage key, so
+    // restrict them to a safe charset at the boundary. Anything else falls
+    // back to the defaults instead of reaching normalizeKey as ".." etc.
+    const safeKeySegment = (value, fallback) => {
+      const s = cleanText(value, 120);
+      return /^[A-Za-z0-9_-]{1,120}$/.test(s) ? s : fallback;
+    };
+    const purpose = safeKeySegment(req.body.purpose || req.query.purpose || 'quote', 'quote');
+    const draftId = safeKeySegment(req.body.draftId || req.query.draftId || req.body.draft_id || req.query.draft_id || 'public', 'public');
     const requestId = cleanText(req.body.requestId || req.query.requestId || req.body.request_id || req.query.request_id || '', 120);
 
     // A request-scoped upload must name a real quote request the caller can

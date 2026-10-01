@@ -16,6 +16,12 @@ function stripTags(str) {
     .trim();
 }
 
+// Keys that must never be copied onto a plain-object accumulator: assigning
+// `__proto__` via the setter would mutate the accumulator's prototype
+// (per-request prototype pollution when the key arrives from JSON input).
+// `constructor`/`prototype` are dropped too for defense in depth.
+const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
 function sanitizeObject(obj) {
   if (obj === null || obj === undefined) return obj;
   if (typeof obj === 'string') return stripTags(obj);
@@ -23,6 +29,7 @@ function sanitizeObject(obj) {
   if (typeof obj === 'object') {
     const sanitized = {};
     for (const [key, value] of Object.entries(obj)) {
+      if (FORBIDDEN_KEYS.has(key)) continue;
       sanitized[key] = sanitizeObject(value);
     }
     return sanitized;
@@ -38,3 +45,4 @@ function sanitizeInputs(req, res, next) {
 }
 
 module.exports = sanitizeInputs;
+module.exports.sanitizeObject = sanitizeObject;

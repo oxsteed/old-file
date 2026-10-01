@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
+const logger = require('../utils/logger');
 
 const CREDIT_CURRENCY = 'USD';
 // Credit amounts are stored as integer minor units. Keep this map explicit:
@@ -63,6 +64,18 @@ const DEFAULT_STATEMENT_DAYS = 90;
 const MAX_STATEMENT_DAYS = 366;
 const MAX_STATEMENT_EXPORT_ROWS = 5000;
 const LEDGER_HASH_ALGORITHM = 'hmac_sha256_v1';
+
+// Explicit, non-JWT fallback for non-production environments. This is a
+// documented development/test constant, never a live secret, so ledger
+// hashes stay deterministic locally without borrowing the JWT signing key.
+const DEV_LEDGER_HMAC_FALLBACK = 'oxsteed-credit-dev-ledger-hmac-fallback-not-a-secret';
+let devLedgerFallbackWarned = false;
+
+function warnDevLedgerFallback() {
+  if (devLedgerFallbackWarned) return;
+  devLedgerFallbackWarned = true;
+  logger.warn('[oxsteed-credit] OXSTEED_CREDIT_LEDGER_HMAC_SECRET is not set; using the explicit development ledger HMAC fallback. Configure a dedicated 32+ character secret before production use.');
+}
 const DEFAULT_LEDGER_HASH_KEY_VERSION = 'v1';
 const LEGACY_CREDIT_REASON = 'Legacy transaction: reason unavailable';
 const CUSTOMER_TRANSFERS_ENABLED = String(process.env.OXSTEED_CREDIT_ALLOW_CUSTOMER_TRANSFERS || '').toLowerCase() === 'true';
@@ -244,9 +257,15 @@ function getLedgerSecret(keyVersion = getLedgerHashKeyVersion()) {
     if (!previousSecret) throw new Error(`No OxSteed Credit ledger key is configured for version ${keyVersion}`);
     return previousSecret;
   }
-  const secret = dedicatedSecret || process.env.JWT_SECRET;
-  if (!secret || secret.length < 32) throw new Error('Missing or weak OxSteed Credit ledger HMAC secret');
-  return secret;
+  if (dedicatedSecret) {
+    if (dedicatedSecret.length < 32) throw new Error('Weak OxSteed Credit ledger HMAC secret: OXSTEED_CREDIT_LEDGER_HMAC_SECRET must be at least 32 characters');
+    return dedicatedSecret;
+  }
+  // Fail closed in production (handled above). Outside production, fall back
+  // to an explicit dev-only constant with a loud warning -- never JWT_SECRET,
+  // so a JWT signing-key rotation or leak can never forge ledger hashes.
+  warnDevLedgerFallback();
+  return DEV_LEDGER_HMAC_FALLBACK;
 }
 
 function getLedgerHashKeyConfiguration() {
@@ -1987,9 +2006,34 @@ async function createCreditHold({ customerId, partnerId, amountCents, currencyCo
          (account_id, customer_id, partner_id, agreement_id, amount_cents, currency_code, purpose,
           reference_type, reference_id, idempotency_key, correlation_id, created_by, metadata, expires_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14)
+       ON CONFLICT (account_id, idempotency_key) DO NOTHING
        RETURNING *`,
       [account.id, customerId, partnerId, agreement.id, amount, settlementCurrency, normalizeString(purpose, 100), normalizeString(referenceType, 80), normalizeString(referenceId, 160), normalizedIdempotencyKey, normalizeString(correlationId, 160), actorUserId || null, JSON.stringify(holdMetadata), requestedExpiry]
     );
+    // A concurrent duplicate can lose the insert race after the first request
+    // commits. Re-read the winner and return it as a normal idempotent replay
+    // instead of surfacing a raw unique-violation 500 -- and do not touch the
+    // reservation again, the winner already holds it.
+    if (!holdRows[0]) {
+      const { rows: winnerRows } = await client.query(
+        `SELECT * FROM oxsteed_credit_holds WHERE account_id = $1 AND idempotency_key = $2 FOR UPDATE`,
+        [account.id, normalizedIdempotencyKey]
+      );
+      if (!winnerRows[0]) {
+        throw new AppError('Credit hold could not be confirmed after an idempotent retry', 409, 'credit_idempotency_retry_required');
+      }
+      assertHoldIdempotencyReplayMatches(winnerRows[0], {
+        amount_cents: amount,
+        partner_id: partnerId,
+        agreement_id: agreement.id,
+        currency_code: settlementCurrency,
+        purpose: normalizeString(purpose, 100),
+        reference_type: normalizeString(referenceType, 80),
+        reference_id: normalizeString(referenceId, 160),
+        ...holdReplayRequest,
+      });
+      return { hold: formatHold(winnerRows[0]), replayed: true };
+    }
     await client.query(
       `UPDATE oxsteed_credit_accounts SET reserved_cents = reserved_cents + $1, updated_at = NOW() WHERE id = $2`,
       [amount, account.id]
@@ -2196,35 +2240,73 @@ async function captureCreditHoldInTransaction(client, { holdId, amountCents, cur
   const { rows: accountRows } = await client.query(`SELECT * FROM oxsteed_credit_accounts WHERE id = $1 FOR UPDATE`, [hold.account_id]);
   const account = accountRows[0];
   if (!account || Number(account.reserved_cents || 0) < requestedAmount) throw new AppError('Credit hold reservation is inconsistent', 409, 'credit_hold_reservation_invalid');
-  await releaseHoldReservation(client, { ...hold, amount_cents: requestedAmount });
-  const transactionResult = await purchaseWithCreditInTransaction(client, {
-      customerId: hold.customer_id,
-      partnerId: hold.partner_id,
-      agreementId: hold.agreement_id,
-      amountCents: requestedAmount,
-      currencyCode: hold.currency_code,
-      idempotencyKey: captureKey,
-      actorUserId,
-      actorType: normalizedActorType,
-      orderType,
-      category,
-      categories,
-      menuItemId,
-      menuItemIds,
-      city,
-      state,
-      postalCode,
-      country,
-      excludeHoldId: hold.id,
-      referenceType: requestedReferenceType,
-      referenceId: requestedReferenceId,
-      correlationId,
-      requestIp,
-      description: requestedDescription,
-      reason: normalizedReason || 'System hold capture',
-      metadata: requestedMetadata,
+  // Namespace capture keys away from direct-purchase keys: reusing a
+  // direct-purchase idempotency key on an admin capture must not let the
+  // capture replay that unrelated purchase and mark this hold captured with
+  // no funds moving for it. The raw key stays on the hold row for retries.
+  const capturePurchaseKey = `capture:${crypto.createHash('sha256').update(captureKey).digest('hex')}`;
+  let transactionResult;
+  const legacyCapturePurchase = await findLegacyCapturePurchase(client, {
+    captureKey,
+    holdId: hold.id,
+    customerId: hold.customer_id,
   });
-  const { rows: capturedRows } = await client.query(
+  if (legacyCapturePurchase) {
+    transactionResult = {
+      transaction: { ...formatTransaction(legacyCapturePurchase, await loadAccountEntries(client, legacyCapturePurchase.id)), replayed: true },
+      replayed: true,
+    };
+  } else {
+    await releaseHoldReservation(client, { ...hold, amount_cents: requestedAmount });
+    try {
+      transactionResult = await purchaseWithCreditInTransaction(client, {
+        customerId: hold.customer_id,
+        partnerId: hold.partner_id,
+        agreementId: hold.agreement_id,
+        amountCents: requestedAmount,
+        currencyCode: hold.currency_code,
+        idempotencyKey: capturePurchaseKey,
+        actorUserId,
+        actorType: normalizedActorType,
+        orderType,
+        category,
+        categories,
+        menuItemId,
+        menuItemIds,
+        city,
+        state,
+        postalCode,
+        country,
+        excludeHoldId: hold.id,
+        referenceType: requestedReferenceType,
+        referenceId: requestedReferenceId,
+        correlationId,
+        requestIp,
+        description: requestedDescription,
+        reason: normalizedReason || 'System hold capture',
+        metadata: requestedMetadata,
+      });
+    } catch (purchaseError) {
+      // The reservation was already released above. Restore it so the hold
+      // stays active with its reservation intact; otherwise the hold is
+      // stranded with re-capture and release both failing.
+      await client.query(
+        `UPDATE oxsteed_credit_accounts
+            SET reserved_cents = reserved_cents + $1, updated_at = NOW()
+          WHERE id = $2`,
+        [requestedAmount, hold.account_id]
+      );
+      throw purchaseError;
+    }
+  }
+  // Claim the capture key on the hold row under a savepoint: a concurrent
+  // capture of a *different* hold with the same key raises a unique
+  // violation, which must surface as a 409 conflict instead of aborting the
+  // whole transaction as a raw 500.
+  await client.query('SAVEPOINT credit_hold_capture_claim');
+  let capturedRows;
+  try {
+    ({ rows: capturedRows } = await client.query(
       `UPDATE oxsteed_credit_holds
           SET status = 'captured', capture_idempotency_key = $1, captured_transaction_id = $2,
               capture_actor_type = $3, captured_by = $4, capture_reason = $5,
@@ -2232,7 +2314,15 @@ async function captureCreditHoldInTransaction(client, { holdId, amountCents, cur
         WHERE id = $6 AND status = 'active'
         RETURNING *`,
       [captureKey, transactionResult.transaction.id, normalizedActorType, actorUserId || null, normalizedReason || 'System hold capture', hold.id]
-    );
+    ));
+    await client.query('RELEASE SAVEPOINT credit_hold_capture_claim');
+  } catch (captureClaimError) {
+    await client.query('ROLLBACK TO SAVEPOINT credit_hold_capture_claim');
+    if (captureClaimError && captureClaimError.code === '23505') {
+      throw new AppError('Credit hold capture key was already used for a different hold', 409, 'credit_hold_capture_idempotency_conflict');
+    }
+    throw captureClaimError;
+  }
   await client.query(
       `INSERT INTO oxsteed_credit_audit_events
          (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id, reason, correlation_id, request_ip, after_state)
@@ -2251,6 +2341,32 @@ async function getExistingTransactionById(client, transactionId) {
   return rows[0] || null;
 }
 
+// A capture issued before capture idempotency keys were namespaced stored the
+// caller's raw key on the purchase transaction. If such a capture is retried
+// after the namespacing change, the namespaced lookup misses; this finds the
+// legacy purchase so the retry reuses it instead of moving funds twice. Only
+// a purchase this hold's capture created (metadata.capturedHoldId) matches --
+// a raw key reused for an unrelated direct purchase is intentionally ignored
+// so the namespaced capture gets its own transaction.
+async function findLegacyCapturePurchase(client, { captureKey, holdId, customerId }) {
+  const { rows } = await client.query(
+    `SELECT t.*, debit_account.customer_id AS debit_account_customer_id
+       FROM oxsteed_credit_transactions t
+       JOIN oxsteed_credit_accounts debit_account ON debit_account.id = t.debit_account_id
+      WHERE t.idempotency_key = $1
+        AND t.transaction_type = 'purchase'
+        AND t.status = 'posted'
+      FOR UPDATE`,
+    [captureKey]
+  );
+  const existing = rows[0];
+  if (!existing) return null;
+  if (String(existing.debit_account_customer_id) !== String(customerId)) return null;
+  const metadata = normalizeMetadata(existing.metadata);
+  if (String(metadata.capturedHoldId || '') !== String(holdId)) return null;
+  return existing;
+}
+
 async function expireCreditHolds({ limit = 100, actorUserId = null } = {}) {
   const batchSize = Math.max(1, Math.min(Number.parseInt(String(limit), 10) || 100, 500));
   return withTransaction(pool, async (client) => {
@@ -2264,26 +2380,44 @@ async function expireCreditHolds({ limit = 100, actorUserId = null } = {}) {
       [batchSize]
     );
     const expired = [];
+    const failed = [];
     for (const hold of rows) {
-      await releaseHoldReservation(client, hold);
-      const { rows: updatedRows } = await client.query(
-        `UPDATE oxsteed_credit_holds
-            SET status = 'expired', released_at = NOW(), release_actor_type = 'system',
-                release_reason = 'Scheduled hold expiry', updated_at = NOW()
-          WHERE id = $1 AND status = 'active'
-          RETURNING *`,
-        [hold.id]
-      );
-      if (!updatedRows[0]) continue;
-      await client.query(
-        `INSERT INTO oxsteed_credit_audit_events
-           (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id, reason, after_state)
-         VALUES ('credit.hold.expired', $1, $2, $3, 'credit_hold', $4, 'Scheduled hold expiry', $5::jsonb)`,
-        [actorUserId, hold.customer_id, hold.partner_id, String(hold.id), JSON.stringify({ amountCents: Number(hold.amount_cents) })]
-      );
-      expired.push(formatHold(updatedRows[0]));
+      // One bad hold must not poison the batch: each hold expires under its
+      // own savepoint so a single failure rolls back to just before that
+      // hold instead of aborting (and forever retrying) the whole batch.
+      await client.query('SAVEPOINT credit_expire_hold');
+      try {
+        await releaseHoldReservation(client, hold);
+        const { rows: updatedRows } = await client.query(
+          `UPDATE oxsteed_credit_holds
+              SET status = 'expired', released_at = NOW(), release_actor_type = 'system',
+                  release_reason = 'Scheduled hold expiry', updated_at = NOW()
+            WHERE id = $1 AND status = 'active'
+            RETURNING *`,
+          [hold.id]
+        );
+        if (!updatedRows[0]) {
+          await client.query('RELEASE SAVEPOINT credit_expire_hold');
+          continue;
+        }
+        await client.query(
+          `INSERT INTO oxsteed_credit_audit_events
+             (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id, reason, after_state)
+           VALUES ('credit.hold.expired', $1, $2, $3, 'credit_hold', $4, 'Scheduled hold expiry', $5::jsonb)`,
+          [actorUserId, hold.customer_id, hold.partner_id, String(hold.id), JSON.stringify({ amountCents: Number(hold.amount_cents) })]
+        );
+        await client.query('RELEASE SAVEPOINT credit_expire_hold');
+        expired.push(formatHold(updatedRows[0]));
+      } catch (holdError) {
+        await client.query('ROLLBACK TO SAVEPOINT credit_expire_hold');
+        logger.warn('Scheduled credit hold expiry failed for a single hold; continuing with the batch', {
+          holdId: String(hold.id),
+          error: holdError.message,
+        });
+        failed.push({ holdId: String(hold.id), error: holdError.message, code: holdError.code || null });
+      }
     }
-    return { expired, count: expired.length };
+    return { expired, count: expired.length, failed, failedCount: failed.length };
   }, 'credit_expire_holds');
 }
 

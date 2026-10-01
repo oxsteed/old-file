@@ -4,6 +4,7 @@ const pool = require('../db');
 const crypto = require('crypto');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
+const { assertPublicWebhookTarget } = require('../utils/webhookUrlSafety');
 
 const TYPE_LABELS = {
   api_access: 'API Access',
@@ -223,6 +224,12 @@ async function getIntegrations(req, res, next) {
     const apiKey = (apiAccess.config_json && apiAccess.config_json.api_key)
       ? apiAccess.config_json.api_key
       : null;
+    // M21b: never return the full API key on a read. The persistent DOM must
+    // only ever see the masked form; the full key is returned once, at
+    // (re)generation time, and the owner is told to store it securely.
+    const apiKeyMasked = apiKey
+      ? `••••••••${String(apiKey).slice(-4)}`
+      : null;
     const businessStripe = getStripeBusinessStatus(businessRows[0] || {});
     const integrationStripeAccountId = (stripe.config_json && stripe.config_json.account_id) || null;
     const stripeAccountId = businessStripe.accountId || integrationStripeAccountId;
@@ -239,7 +246,7 @@ async function getIntegrations(req, res, next) {
       sms_enabled:            !!(sms.is_enabled),
       calendar_sync_enabled:  !!(calendar.is_enabled || calendar.is_connected),
       calendar_setup_status:  (calendar.config_json && calendar.config_json.setup_status) || null,
-      api_key:                apiKey
+      api_key_masked:        apiKeyMasked
     });
   } catch (err) {
     next(err);
@@ -372,22 +379,34 @@ async function createWebhook(req, res, next) {
     return res.status(400).json({ error: 'Webhook URL must use HTTPS' });
   }
 
+  // SSRF guard: the target must resolve to public IPs only. DNS failures and
+  // timeouts fail closed. Requires migration 622 (business_webhooks.pinned_ip).
+  const safety = await assertPublicWebhookTarget(url);
+  if (!safety.ok) {
+    return res.status(400).json({
+      error: 'Webhook URL must resolve to a public HTTPS endpoint',
+      code: 'webhook_url_not_public',
+      reason: safety.reason,
+    });
+  }
+  const pinnedIp = safety.ips[0];
+
   try {
     const secret = 'whsec_' + crypto.randomBytes(20).toString('hex');
     const { rows } = await pool.query(
       `INSERT INTO business_webhooks
-         (business_id, webhook_url, webhook_secret, event_types, created_by_id)
-       VALUES ($1::text::integer, $2, $3, $4, $5)
+         (business_id, webhook_url, webhook_secret, event_types, created_by_id, pinned_ip)
+       VALUES ($1::text::integer, $2, $3, $4, $5, $6)
        RETURNING id, webhook_url AS url, event_types AS events, is_active, created_at`,
-      [businessId, url, secret, events, req.user.id]
+      [businessId, url, secret, events, req.user.id, pinnedIp]
     ).catch(async () => {
       // Fallback: business_id might be UUID type in older DBs
       return pool.query(
         `INSERT INTO business_webhooks
-           (business_id, webhook_url, webhook_secret, event_types, created_by_id)
-         VALUES ($1, $2, $3, $4, $5)
+           (business_id, webhook_url, webhook_secret, event_types, created_by_id, pinned_ip)
+         VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING id, webhook_url AS url, event_types AS events, is_active, created_at`,
-        [businessId, url, secret, events, req.user.id]
+        [businessId, url, secret, events, req.user.id, pinnedIp]
       );
     });
     res.status(201).json(rows[0]);

@@ -259,7 +259,7 @@ export default function UserEditForm({ user, onSaved }) {
       </section>
 
       <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-800">
-        <span className="text-xs text-gray-500 mr-auto">
+        <span className="text-xs text-gray-500 me-auto">
           {dirty
             ? copy('unsaved', { count: Object.keys(buildDiff()).length })
             : copy('noChanges')}

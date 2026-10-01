@@ -194,8 +194,10 @@ async function getPublicMarkets() {
        JOIN businesses b ON b.id = fr.business_id
       WHERE fr.status = 'active'
         AND fr.discovery_status = 'visible'
+        AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
         AND b.is_active = TRUE
         AND b.is_listed = TRUE
+        AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
         AND COALESCE(b.setup_status, 'active') = 'active'
         AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
         AND b.deleted_at IS NULL
@@ -225,8 +227,10 @@ async function getPublicRestaurants(filters) {
   const where = [
     `fr.status = 'active'`,
     `fr.discovery_status = 'visible'`,
+    `COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE`,
     `b.is_active = TRUE`,
     `b.is_listed = TRUE`,
+    `COALESCE(b.is_hidden_by_admin, FALSE) = FALSE`,
     `COALESCE(b.setup_status, 'active') = 'active'`,
     `COALESCE(b.business_kind, 'restaurant') = 'restaurant'`,
     `b.deleted_at IS NULL`,
@@ -266,8 +270,10 @@ async function getPublicMenuHighlights(filters) {
   const where = [
     `fr.status = 'active'`,
     `fr.discovery_status = 'visible'`,
+    `COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE`,
     `b.is_active = TRUE`,
     `b.is_listed = TRUE`,
+    `COALESCE(b.is_hidden_by_admin, FALSE) = FALSE`,
     `COALESCE(b.setup_status, 'active') = 'active'`,
     `COALESCE(b.business_kind, 'restaurant') = 'restaurant'`,
     `b.deleted_at IS NULL`,
@@ -347,6 +353,7 @@ async function getPublicHelpers(filters) {
     `u.onboarding_completed = TRUE`,
     `u.role IN ('helper', 'helper_pro', 'broker')`,
     `COALESCE(hp.is_listed, TRUE) = TRUE`,
+    `COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
   ];
   if (filters.city) {
     params.push(`%${filters.city}%`);

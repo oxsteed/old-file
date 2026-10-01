@@ -254,7 +254,7 @@ export default function AccountForm({ role, onSuccess }: Props) {
   // ── Shared input classes ──────────────────────────────
   const inputBase =
     'w-full py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white text-sm placeholder-gray-500 transition-all hover:border-gray-600 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20';
-  const inputWithIcon = `${inputBase} pl-10 pr-3`;
+  const inputWithIcon = `${inputBase} ps-10 pe-3`;
 
   return (
     <form onSubmit={handleSubmit} noValidate>
@@ -326,10 +326,10 @@ export default function AccountForm({ role, onSuccess }: Props) {
           {/* ── Business name (optional) ─────────────── */}
           <div className="flex flex-col gap-1">
             <label htmlFor="bizName" className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">
-              {t('register.businessName')} <span className="font-normal text-gray-500 normal-case tracking-normal ml-1">{t('register.optional')}</span>
+              {t('register.businessName')} <span className="font-normal text-gray-500 normal-case tracking-normal ms-1">{t('register.optional')}</span>
             </label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+              <span className="absolute start-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
                 <Briefcase size={16} />
               </span>
               <input
@@ -350,7 +350,7 @@ export default function AccountForm({ role, onSuccess }: Props) {
               {t('register.emailAddress')}
             </label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+              <span className="absolute start-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
                 <Mail size={16} />
               </span>
               <input
@@ -402,7 +402,7 @@ export default function AccountForm({ role, onSuccess }: Props) {
               {t('register.phone')}
             </label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+              <span className="absolute start-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
                 <Phone size={16} />
               </span>
               <input

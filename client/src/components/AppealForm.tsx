@@ -102,7 +102,7 @@ const AppealForm: React.FC<AppealFormProps> = ({
           <div>
             <label className="block text-sm font-semibold text-white mb-2">
               {t('appeal.textLabel')}
-              <span className="text-red-500 ml-1">*</span>
+              <span className="text-red-500 ms-1">*</span>
             </label>
             <textarea
               value={appealText}
@@ -132,7 +132,7 @@ const AppealForm: React.FC<AppealFormProps> = ({
                   <button
                     type="button"
                     onClick={() => handleRemoveEvidence(idx)}
-                    className="ml-2 p-1 hover:bg-gray-700 rounded transition-colors text-gray-400"
+                    className="ms-2 p-1 hover:bg-gray-700 rounded transition-colors text-gray-400"
                   >
                     <X className="w-4 h-4" />
                   </button>

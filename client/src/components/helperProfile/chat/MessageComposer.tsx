@@ -194,7 +194,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
         >
           <Image className="w-4 h-4" aria-hidden="true" />
         </button>
-        <span className="text-xs text-gray-600 ml-auto hidden sm:block">{t('messages.shiftEnter')}</span>
+        <span className="text-xs text-gray-600 ms-auto hidden sm:block">{t('messages.shiftEnter')}</span>
       </div>
       )}
 

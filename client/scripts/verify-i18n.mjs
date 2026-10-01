@@ -5,13 +5,39 @@ import process from 'node:process';
 const root = process.cwd();
 const languages = ['en', 'es', 'fr', 'ht', 'ar'];
 
+// Catalog files are read many times across checks; cache parsed JSON so the
+// new whole-catalog scans stay fast.
+const jsonCache = new Map();
+
 function readJson(relativePath) {
-  const fullPath = path.join(root, relativePath);
-  try {
-    return JSON.parse(fs.readFileSync(fullPath, 'utf8'));
-  } catch (error) {
-    throw new Error(`${relativePath}: ${error.message}`);
+  if (!jsonCache.has(relativePath)) {
+    const fullPath = path.join(root, relativePath);
+    try {
+      jsonCache.set(relativePath, JSON.parse(fs.readFileSync(fullPath, 'utf8')));
+    } catch (error) {
+      throw new Error(`${relativePath}: ${error.message}`);
+    }
   }
+  return jsonCache.get(relativePath);
+}
+
+// Mirrors i18next's deepFind key lookup: at each level the full remaining
+// dotted path is tried as a flat key first (the catalogs mix truly nested
+// objects and flat dotted keys like "adminSupportTickets.time.justNow"),
+// then lookup descends one token.
+function resolveCatalogKey(catalog, dottedKey) {
+  let node = catalog;
+  let rest = dottedKey;
+  while (node !== null && typeof node === 'object') {
+    if (Object.prototype.hasOwnProperty.call(node, rest)) return node[rest];
+    const dot = rest.indexOf('.');
+    if (dot === -1) return undefined;
+    const head = rest.slice(0, dot);
+    if (!Object.prototype.hasOwnProperty.call(node, head)) return undefined;
+    node = node[head];
+    rest = rest.slice(dot + 1);
+  }
+  return undefined;
 }
 
 function flattenKeys(value, prefix = '') {
@@ -375,6 +401,338 @@ function verifyCreditTranslationSurface() {
   if (failures.length) throw new Error(`Credit translation surface failed:\n${failures.join('\n')}`);
   console.log(`ok Credit customer, receipt, and admin pages use the credit namespace (${creditKeys.size} keys)`);
 }
+
+function collectArrays(value, prefix = '') {
+  if (Array.isArray(value)) return [[prefix, value]];
+  if (!value || typeof value !== 'object') return [];
+  return Object.entries(value).flatMap(([key, child]) =>
+    collectArrays(child, prefix ? `${prefix}.${key}` : key));
+}
+
+// Audit C2: the old verifier flattened arrays to a single key, so a locale
+// with a doubled array (duplicated content) passed key parity. Assert every
+// array in en has an array of the SAME length at the same path in every
+// locale, and flag arrays whose first half deep-equals the second half.
+function verifyArrayParity(label, pathForLanguage) {
+  const english = collectArrays(readJson(pathForLanguage('en')));
+  const failures = [];
+  const deepEqual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const hasDuplicatedHalves = (array) =>
+    array.length >= 2
+    && array.length % 2 === 0
+    && deepEqual(array.slice(0, array.length / 2), array.slice(array.length / 2));
+
+  for (const language of languages) {
+    const catalog = readJson(pathForLanguage(language));
+    for (const [arrayPath, englishArray] of english) {
+      const value = resolveCatalogKey(catalog, arrayPath);
+      if (!Array.isArray(value)) {
+        failures.push(`${label} ${language} ${arrayPath}: expected array of length ${englishArray.length}, got ${value === undefined ? 'missing' : typeof value}`);
+        continue;
+      }
+      if (value.length !== englishArray.length) {
+        failures.push(`${label} ${language} ${arrayPath}: expected length ${englishArray.length}, got ${value.length}`);
+        continue;
+      }
+      if (hasDuplicatedHalves(value)) {
+        failures.push(`${label} ${language} ${arrayPath}: length ${value.length} array is two identical halves (duplicated content)`);
+      }
+    }
+  }
+
+  if (failures.length) {
+    throw new Error(`Array parity failed:\n${failures.join('\n')}`);
+  }
+  console.log(`ok ${label}: ${english.length} arrays have matching lengths across ${languages.join('/')}`);
+}
+
+function collectStringEntries(value, prefix = '') {
+  if (typeof value === 'string') return [[prefix, value]];
+  if (Array.isArray(value)) return value.flatMap((child, index) => collectStringEntries(child, `${prefix}.${index}`));
+  if (!value || typeof value !== 'object') return [];
+  return Object.entries(value).flatMap(([key, child]) =>
+    collectStringEntries(child, prefix ? `${prefix}.${key}` : key));
+}
+
+// Audit M9: scan EVERY namespace (not just the homepage surface) for string
+// values >= 25 chars that are byte-identical to the English source.
+// Pure URLs (href/src fields) and strings without any alphabetic characters
+// (codes, phone numbers) are legitimately identical and are excluded; there
+// is deliberately no per-sentence allowlist so new untranslated copy is
+// always surfaced.
+//
+// Reported as warnings, not failures: the audit found ~150 such strings per
+// locale already in the tree. Flip to a hard failure once that backlog is
+// cleared so regressions break the build.
+const STILL_ENGLISH_MIN_LENGTH = 25;
+const STILL_ENGLISH_URL_PATTERN = /^https?:\/\/\S+$/;
+
+function verifyStillEnglishValues() {
+  const catalogs = [
+    ['legacy translation', (language) => `src/locales/${language}.json`],
+    ['common namespace', (language) => `src/i18n/locales/${language}/common.json`],
+    ['translator namespace', (language) => `src/i18n/locales/${language}/translator.json`],
+    ['credit namespace', (language) => `src/i18n/locales/${language}/credit.json`],
+    ['terms content', (language) => `src/locales/terms/${language}.content.json`],
+    ['privacy content', (language) => `src/locales/privacy/${language}.content.json`],
+  ];
+  const warnings = [];
+
+  for (const [label, pathForLanguage] of catalogs) {
+    const english = collectStringEntries(readJson(pathForLanguage('en')));
+    for (const language of languages.filter((entry) => entry !== 'en')) {
+      const catalog = readJson(pathForLanguage(language));
+      const samples = [];
+      let count = 0;
+      for (const [key, englishValue] of english) {
+        if (englishValue.length < STILL_ENGLISH_MIN_LENGTH) continue;
+        if (STILL_ENGLISH_URL_PATTERN.test(englishValue)) continue;
+        if (!/[a-zA-Z]/.test(englishValue)) continue;
+        if (resolveCatalogKey(catalog, key) === englishValue) {
+          count += 1;
+          if (samples.length < 8) {
+            samples.push(`${key} = ${JSON.stringify(englishValue.slice(0, 80))}`);
+          }
+        }
+      }
+      if (count) warnings.push({ label, language, count, samples });
+    }
+  }
+
+  const total = warnings.reduce((sum, warning) => sum + warning.count, 0);
+  if (total) {
+    console.warn(`warn still-English values: ${total} strings >= ${STILL_ENGLISH_MIN_LENGTH} chars identical to en (pre-existing translation debt, not failing the build):`);
+    for (const { label, language, count, samples } of warnings) {
+      console.warn(`  ${label} ${language}: ${count}`);
+      for (const sample of samples) console.warn(`    - ${sample}`);
+    }
+  } else {
+    console.log('ok no still-English values across namespaces');
+  }
+  return total;
+}
+
+function stripJsComments(source) {
+  let out = '';
+  let index = 0;
+  let quote = null;
+  while (index < source.length) {
+    const ch = source[index];
+    const next = source[index + 1];
+    if (quote) {
+      out += ch;
+      if (ch === '\\') {
+        out += next || '';
+        index += 2;
+        continue;
+      }
+      if (ch === quote) quote = null;
+      index += 1;
+    } else if (ch === '"' || ch === "'" || ch === '`') {
+      quote = ch;
+      out += ch;
+      index += 1;
+    } else if (ch === '/' && next === '/') {
+      while (index < source.length && source[index] !== '\n') index += 1;
+    } else if (ch === '/' && next === '*') {
+      index += 2;
+      while (index < source.length && !(source[index] === '*' && source[index + 1] === '/')) index += 1;
+      index += 2;
+    } else {
+      out += ch;
+      index += 1;
+    }
+  }
+  return out;
+}
+
+function findMatchingParen(source, openIndex) {
+  let depth = 0;
+  let quote = null;
+  for (let index = openIndex; index < source.length; index += 1) {
+    const ch = source[index];
+    if (quote) {
+      if (ch === '\\') {
+        index += 1;
+        continue;
+      }
+      if (ch === quote) quote = null;
+    } else if (ch === '"' || ch === "'" || ch === '`') {
+      quote = ch;
+    } else if (ch === '(') {
+      depth += 1;
+    } else if (ch === ')') {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+  }
+  return -1;
+}
+
+function listSourceFiles(directory) {
+  const files = [];
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const fullPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name !== 'node_modules') files.push(...listSourceFiles(fullPath));
+    } else if (/\.(js|jsx|ts|tsx)$/.test(entry.name)) {
+      files.push(fullPath);
+    }
+  }
+  return files;
+}
+
+// Map each t-like identifier in a file to its i18next namespace, from
+// useTranslation('ns') / useTranslation(['ns']) destructuring (including
+// `t: alias` renames) and withTranslation('ns'). Files without any
+// translation hook are skipped.
+function parseTranslationAliases(source) {
+  const aliases = new Map();
+  // [^{}]* (not [^}]*) so an earlier block brace cannot swallow the
+  // destructure; the optional [...] covers useTranslation(['ns1', 'ns2']).
+  const hookPattern = /\{([^{}]*)\}\s*=\s*useTranslation\(\s*(?:\[?\s*(['"])([^'"]*)\2\s*\]?)?/g;
+  let match;
+  while ((match = hookPattern.exec(source))) {
+    const namespace = match[3] || 'translation';
+    for (const part of match[1].split(',')) {
+      const tMatch = part.match(/^\s*t\s*(?::\s*([A-Za-z_][A-Za-z0-9_]*))?\s*$/);
+      if (tMatch && !aliases.has(tMatch[1] || 't')) aliases.set(tMatch[1] || 't', namespace);
+    }
+  }
+  const hocMatch = source.match(/withTranslation\(\s*(['"])([^'"]*)\1\s*\)/);
+  if (hocMatch) {
+    aliases.set('__withTranslationNs', hocMatch[2] || 'translation');
+    // withTranslation injects t as a prop, commonly destructured as bare `t`.
+    if (!aliases.has('t')) aliases.set('t', hocMatch[2] || 'translation');
+  }
+  if (/\bi18n\.t\(/.test(source) && !aliases.has('i18n.t')) aliases.set('i18n.t', 'translation');
+  return aliases;
+}
+
+function getResolutionCatalogs() {
+  const translation = readJson('src/locales/en.json');
+  return {
+    translation,
+    common: readJson('src/i18n/locales/en/common.json'),
+    translator: readJson('src/i18n/locales/en/translator.json'),
+    credit: readJson('src/i18n/locales/en/credit.json'),
+    // The runtime projects these legacy subtrees as explicit namespaces
+    // (see src/i18n/index.js getLocaleResources).
+    support: resolveCatalogKey(translation, 'support') || {},
+    adminQuoteRequests: resolveCatalogKey(translation, 'adminQuoteRequests') || {},
+  };
+}
+
+const I18N_KNOWN_NAMESPACES = ['translation', 'common', 'translator', 'credit', 'support', 'adminQuoteRequests'];
+const I18N_PLURAL_SUFFIXES = ['_zero', '_one', '_two', '_few', '_many', '_other'];
+
+function translationKeyExists(catalogs, namespace, key) {
+  const catalog = catalogs[namespace];
+  if (catalog) {
+    if (resolveCatalogKey(catalog, key) !== undefined) return true;
+    if (I18N_PLURAL_SUFFIXES.some((suffix) => resolveCatalogKey(catalog, `${key}${suffix}`) !== undefined)) return true;
+  }
+  // The app configures fallbackNS: ['common'], so a key absent from the
+  // requested namespace still resolves when common defines it.
+  if (namespace !== 'common') {
+    if (resolveCatalogKey(catalogs.common, key) !== undefined) return true;
+    if (I18N_PLURAL_SUFFIXES.some((suffix) => resolveCatalogKey(catalogs.common, `${key}${suffix}`) !== undefined)) return true;
+  }
+  return false;
+}
+
+// Audit H2: scan EVERY file under client/src for static t('a.b.c') /
+// t("ns:key") calls and assert each resolves in the catalog, respecting the
+// file's useTranslation('ns') context, returnObjects parent paths, and
+// plural stems. Dynamic keys (template literals, concatenation, variables)
+// are skipped. Reported as warnings, not failures: the misses found are
+// pre-existing, and failing the build on them would block unrelated work;
+// the warning counts make regressions visible.
+function verifyStaticTranslationKeyReferences() {
+  const catalogs = getResolutionCatalogs();
+  const files = listSourceFiles(path.join(root, 'src'));
+  const missing = [];
+  let checked = 0;
+  let skippedDynamic = 0;
+  let rawKeyCount = 0;
+
+  for (const file of files) {
+    const raw = fs.readFileSync(file, 'utf8');
+    const source = stripJsComments(raw);
+    const relativePath = path.relative(root, file);
+    const aliases = parseTranslationAliases(source);
+    aliases.delete('__withTranslationNs');
+    if (!aliases.size) continue;
+
+    for (const [alias, hookNamespace] of aliases) {
+      const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const callPattern = new RegExp(`\\b${escaped}\\(\\s*(['"])((?:(?!\\1).)+)\\1`, 'g');
+      let match;
+      while ((match = callPattern.exec(source))) {
+        // Skip concatenation like t('a' + b): the char after the closing
+        // quote must be , or ). Template literals never match the pattern.
+        const after = source.slice(match.index + match[0].length).match(/^\s*(.)/);
+        if (!after || (after[1] !== ',' && after[1] !== ')')) {
+          skippedDynamic += 1;
+          continue;
+        }
+        const key = match[2];
+        if (!key) continue;
+        checked += 1;
+        const openParen = source.indexOf('(', match.index);
+        const closeParen = findMatchingParen(source, openParen);
+        const argsSlice = closeParen > 0 ? source.slice(openParen, closeParen) : '';
+        // returnObjects parent paths resolve through resolveCatalogKey, which
+        // returns objects/arrays as well as leaf strings.
+        const hasFallback = /^\s*,\s*['"]/.test(source.slice(match.index + match[0].length))
+          || /defaultValue\s*:/.test(argsSlice);
+
+        let namespace = hookNamespace;
+        let lookupKey = key;
+        const colon = key.indexOf(':');
+        if (colon > 0 && I18N_KNOWN_NAMESPACES.includes(key.slice(0, colon))) {
+          namespace = key.slice(0, colon);
+          lookupKey = key.slice(colon + 1);
+        }
+        // An unregistered namespace (e.g. useTranslation('somePage')) cannot
+        // resolve at runtime either; resolve against the default catalog so
+        // it is reported missing instead of silently skipped.
+        if (!I18N_KNOWN_NAMESPACES.includes(namespace)) namespace = 'translation';
+
+        if (!translationKeyExists(catalogs, namespace, lookupKey)) {
+          const line = raw.slice(0, match.index).split('\n').length;
+          missing.push({ relativePath, line, namespace, key: lookupKey, hasFallback });
+          if (!hasFallback) rawKeyCount += 1;
+        }
+      }
+    }
+  }
+
+  const filesWithMissing = new Set(missing.map((entry) => entry.relativePath)).size;
+  if (missing.length) {
+    console.warn(`warn static t() key references: ${missing.length} of ${checked} static calls resolve to no catalog key across ${filesWithMissing} files (${rawKeyCount} render raw keys, ${missing.length - rawKeyCount} have a defaultValue fallback); skipped ${skippedDynamic} dynamic keys:`);
+    const shown = missing.slice(0, 80);
+    for (const { relativePath, line, namespace, key, hasFallback } of shown) {
+      console.warn(`  ${relativePath}:${line}: [${namespace}] ${key}${hasFallback ? ' (defaultValue fallback)' : ' (RAW KEY RENDERED)'}`);
+    }
+    if (missing.length > shown.length) console.warn(`  ... and ${missing.length - shown.length} more`);
+  } else {
+    console.log(`ok all ${checked} static t() references resolve in the catalog (skipped ${skippedDynamic} dynamic keys)`);
+  }
+  return { checked, missing: missing.length, rawKeyCount };
+}
+
+// Audit follow-up checks (C2 array parity, M9 still-English scan, H2 static
+// t() key references). They run before the legacy suite so their signal is
+// visible even when unrelated in-flight edits break older checks.
+verifyArrayParity('legacy translation', (language) => `src/locales/${language}.json`);
+verifyArrayParity('common namespace', (language) => `src/i18n/locales/${language}/common.json`);
+verifyArrayParity('translator namespace', (language) => `src/i18n/locales/${language}/translator.json`);
+verifyArrayParity('credit namespace', (language) => `src/i18n/locales/${language}/credit.json`);
+verifyArrayParity('terms content', (language) => `src/locales/terms/${language}.content.json`);
+verifyArrayParity('privacy content', (language) => `src/locales/privacy/${language}.content.json`);
+verifyStillEnglishValues();
+verifyStaticTranslationKeyReferences();
 
 compareKeySets('legacy translation', (language) => `src/locales/${language}.json`);
 compareKeySets('common namespace', (language) => `src/i18n/locales/${language}/common.json`);

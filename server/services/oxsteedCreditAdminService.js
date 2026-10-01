@@ -1823,9 +1823,31 @@ async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, all
           daily_customer_limit_cents, lifetime_customer_limit_cents, metadata,
           requires_customer_entitlement, creation_idempotency_key, creation_request_hash, created_by)
        VALUES ($1, $2, $3, $4, $5, $6::text[], $7::text[], $8::bigint[], $9::jsonb, $10, $11, $12, $13::jsonb, $14, $15, $16, $17)
+       ON CONFLICT (creation_idempotency_key) WHERE creation_idempotency_key IS NOT NULL DO NOTHING
        RETURNING *`,
       [normalizedPartnerId, Number(versionRows[0].next_version), starts, ends, normalizedCustomerTerms, normalizedAllowedOrderTypes, normalizedAllowedCategories, normalizedAllowedMenuItemIds, JSON.stringify(normalizedGeography), normalizedMaxTransactionCents, normalizedDailyCustomerLimitCents, normalizedLifetimeCustomerLimitCents, JSON.stringify(normalizedMetadata), normalizedRequiresCustomerEntitlement, normalizedIdempotencyKey, requestHash, actorUserId || null]
     );
+    // A concurrent duplicate can lose the insert race after the first request
+    // commits. Re-read the winner and return it as a normal idempotent replay
+    // instead of surfacing a raw unique-violation 500.
+    if (!rows[0]) {
+      const { rows: winnerRows } = await client.query(
+        `SELECT a.*, p.restaurant_id, p.settlement_currency_code, fr.display_name AS restaurant_name
+           FROM oxsteed_credit_partner_agreements a
+           JOIN oxsteed_credit_partners p ON p.id = a.partner_id
+           JOIN food_restaurants fr ON fr.id = p.restaurant_id
+          WHERE a.creation_idempotency_key = $1
+          FOR UPDATE`,
+        [normalizedIdempotencyKey]
+      );
+      if (!winnerRows[0]) {
+        throw new AppError('Credit agreement could not be confirmed after an idempotent retry', 409, 'credit_idempotency_retry_required');
+      }
+      if (winnerRows[0].creation_request_hash !== requestHash) {
+        throw new AppError('Agreement idempotency key was already used for different agreement details', 409, 'credit_agreement_idempotency_conflict');
+      }
+      return { agreement: formatAgreement(winnerRows[0]), replayed: true };
+    }
     await insertAudit(client, { actionType: 'credit.agreement.created', actorUserId, partnerId: normalizedPartnerId, resourceType: 'credit_agreement', resourceId: rows[0].id, reason: normalizedReason, correlationId, requestIp, afterState: rows[0] });
     return { agreement: formatAgreement({ ...rows[0], partner_id: normalizedPartnerId }), replayed: false };
   }, 'credit_admin_create_agreement');

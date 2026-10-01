@@ -97,6 +97,7 @@ export default function AIPreviewPage({ profileType = 'helper' }) {
   const [promptPreview, setPromptPreview] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [denied, setDenied] = useState(false);
 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -107,7 +108,24 @@ export default function AIPreviewPage({ profileType = 'helper' }) {
   const loadContext = useCallback(async () => {
     setLoading(true);
     setError('');
+    setDenied(false);
     try {
+      // Audit L9: /business/:id/ai-preview takes the business id from the
+      // URL. The server gate (canEditProfile: owner or active manager) is
+      // authoritative; this pre-check shows a clear denied state instead of
+      // a generic load error when the caller has no access to the business.
+      // GET /api/businesses/:id answers 404 for non-owners/managers.
+      if (profileType === 'business') {
+        try {
+          await api.get(`/businesses/${businessId}`);
+        } catch (accessErr) {
+          if ([403, 404].includes(accessErr?.response?.status)) {
+            setDenied(true);
+            return;
+          }
+          throw accessErr; // transient: surface as a load error below
+        }
+      }
       const path = profileType === 'helper'
         ? `/chat/profile-context/helper/${user.id}`
         : `/chat/profile-context/business/${businessId}`;
@@ -178,6 +196,14 @@ export default function AIPreviewPage({ profileType = 'helper' }) {
     return (
       <PageShell>
         <p className="text-gray-400 p-8">{t('aiPreview.invalidBusiness')}</p>
+      </PageShell>
+    );
+  }
+
+  if (denied) {
+    return (
+      <PageShell>
+        <p className="text-gray-400 p-8">{t('aiPreview.notAuthorized')}</p>
       </PageShell>
     );
   }

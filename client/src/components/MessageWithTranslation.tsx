@@ -70,7 +70,7 @@ export default function MessageWithTranslation({
             type="button"
             onClick={() => setShowTranslated(!showTranslated)}
             disabled={isLoading}
-            className="ml-auto px-2 py-0.5 text-xs font-medium rounded text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="ms-auto px-2 py-0.5 text-xs font-medium rounded text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {showTranslated
               ? t('messageWithTranslation.showOriginal', {

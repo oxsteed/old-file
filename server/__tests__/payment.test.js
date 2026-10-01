@@ -114,6 +114,7 @@ describe('POST /api/payments/intent', () => {
     mockAuth(
       { rows: [{ id: 10, client_id: 1, job_value: 100, assigned_helper_id: 2, title: 'Job' }] }, // job
       { rows: [{ stripe_account_id: 'acct_x', charges_enabled: true, payouts_enabled: true, onboarding_complete: true }] }, // connect
+      { rows: [] },                                                                                // advisory lock
       { rows: [{ balance_cents: 0 }] },                                                           // customer credit balance
       { rows: [] },                                                                                // existing payment check
       { rows: [{ attempt_count: 0 }] },                                                           // payment attempt count

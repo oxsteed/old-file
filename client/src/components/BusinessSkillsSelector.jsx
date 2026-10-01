@@ -177,7 +177,7 @@ export default function BusinessSkillsSelector({
                 {!readOnly && (
                   <button
                     onClick={() => handleRemoveSkill(skill.skill_id)}
-                    className="ml-2 p-1 text-gray-400 hover:text-red-400 transition-colors"
+                    className="ms-2 p-1 text-gray-400 hover:text-red-400 transition-colors"
                     aria-label={t('businessSkills.removeSkillAria', { defaultValue: 'Remove skill' })}
                   >
                     <X className="w-4 h-4" />
@@ -204,13 +204,13 @@ export default function BusinessSkillsSelector({
       {showSearch && !readOnly && (
         <div className="space-y-2">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+            <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
             <input
               type="text"
               placeholder={t('businessSkills.searchPlaceholder') || 'Search skills...'}
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full ps-10 pe-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
               autoFocus
             />
           </div>
@@ -230,7 +230,7 @@ export default function BusinessSkillsSelector({
                 <button
                   key={skill.id}
                   onClick={() => handleAddSkill(skill)}
-                  className="w-full flex items-center justify-between px-3 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg text-left text-sm transition-colors"
+                  className="w-full flex items-center justify-between px-3 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg text-start text-sm transition-colors"
                 >
                   <div>
                     <div className="text-white">{skill.name}</div>

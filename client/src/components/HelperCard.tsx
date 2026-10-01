@@ -50,7 +50,7 @@ export default function HelperCard({ helper }: HelperCardProps) {
 
         {/* Availability Badge */}
         {helper.availableToday && (
-          <div className="absolute top-2 right-2 flex items-center gap-1 bg-emerald-500 dark:bg-emerald-400 px-2 py-1 rounded-full shadow-sm">
+          <div className="absolute top-2 end-2 flex items-center gap-1 bg-emerald-500 dark:bg-emerald-400 px-2 py-1 rounded-full shadow-sm">
             <div className="w-2 h-2 bg-white dark:bg-emerald-950 rounded-full animate-pulse" />
             <span className="text-xs font-semibold text-white dark:text-emerald-950">
               {t('liveHelpers.availableNow', 'Available now')}
@@ -60,7 +60,7 @@ export default function HelperCard({ helper }: HelperCardProps) {
 
         {/* Verification Badges */}
         {(helper.verified || helper.backgroundChecked) && (
-          <div className="absolute bottom-2 left-2 flex gap-1">
+          <div className="absolute bottom-2 start-2 flex gap-1">
             {helper.verified && (
               <CheckCircle2
                 className="w-5 h-5 text-teal-300 dark:text-emerald-300 drop-shadow-lg"

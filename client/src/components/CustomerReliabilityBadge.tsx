@@ -111,7 +111,7 @@ const CustomerReliabilityBadge: React.FC<CustomerReliabilityBadgeProps> = ({
         </button>
 
         {showTooltip && (
-          <div className="absolute bottom-full left-0 mb-2 bg-gray-950 border border-gray-700 rounded-lg p-3 text-xs text-gray-300 z-10 whitespace-nowrap">
+          <div className="absolute bottom-full start-0 mb-2 bg-gray-950 border border-gray-700 rounded-lg p-3 text-xs text-gray-300 z-10 whitespace-nowrap">
             <div className="font-semibold text-white mb-1">{getLabel()}</div>
             <div className="space-y-0.5">
               <div>{t('customerReliability.completionRate')}: {reliability.completionRate}%</div>

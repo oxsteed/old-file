@@ -12,6 +12,7 @@
 // GET    /api/qr-payments/pay/:code/receipt  → receipt data for success page
 
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
@@ -19,6 +20,47 @@ const { paymentsLimiter, strictLimiter, generalLimiter } = require('../middlewar
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { calculateTier3Fees } = require('../utils/feeCalculator');
+
+// Route-local Redis store option, mirroring server/middleware/rateLimiter.js.
+// Falls back to in-memory when Redis is unavailable.
+const redisClient = require('../utils/redis');
+let RedisStore = null;
+if (redisClient) {
+  try {
+    RedisStore = require('rate-limit-redis').default;
+  } catch (err) {
+    logger.warn('qrPayments: rate-limit-redis unavailable - using in-memory rate limits', { message: err.message });
+  }
+}
+
+function createQrStoreOption(prefix) {
+  if (redisClient && RedisStore) {
+    return {
+      store: new RedisStore({
+        sendCommand: (...args) => redisClient.call(...args),
+        prefix,
+      }),
+    };
+  }
+  return {};
+}
+
+// Public checkout limiter: POST /pay/:code/checkout has no authenticate
+// middleware (shoppers are unauthenticated), so the shared paymentsLimiter
+// never applies to it (its `skip: (req) => !req.user` skips every
+// unauthenticated request). 20 checkouts per hour per IP.
+const qrCheckoutLimiter = rateLimit({
+  ...createQrStoreOption('rl:qr_checkout:'),
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 20,
+  keyGenerator: (req) => req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many payment attempts. Please try again later.',
+    retryAfter: '1 hour',
+  },
+});
 
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
@@ -174,7 +216,7 @@ router.get('/codes', authenticate, async (req, res, next) => {
 });
 
 // ── Update a code (owner only) ────────────────────────────────────
-router.patch('/codes/:id', authenticate, async (req, res, next) => {
+router.patch('/codes/:id', authenticate, paymentsLimiter, async (req, res, next) => {
   try {
     const { rows: existing } = await pool.query(
       'SELECT id FROM qr_payment_codes WHERE id = $1 AND owner_user_id = $2',
@@ -243,7 +285,7 @@ router.patch('/codes/:id', authenticate, async (req, res, next) => {
 });
 
 // ── Deactivate a code (owner only, soft delete) ──────────────────
-router.delete('/codes/:id', authenticate, async (req, res, next) => {
+router.delete('/codes/:id', authenticate, paymentsLimiter, async (req, res, next) => {
   try {
     const { rows } = await pool.query(
       `UPDATE qr_payment_codes
@@ -281,7 +323,7 @@ router.get('/pay/:code', strictLimiter, async (req, res, next) => {
 });
 
 // ── Create a Stripe Checkout Session for a code ──────────────────
-router.post('/pay/:code/checkout', paymentsLimiter, async (req, res, next) => {
+router.post('/pay/:code/checkout', qrCheckoutLimiter, async (req, res, next) => {
   try {
     const clientRequestId = String(
       req.get('Idempotency-Key') || req.body?.client_request_id || ''

@@ -82,13 +82,13 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
         </svg>
         {/* Category color accent */}
         <div
-          className={`absolute inset-y-0 left-0 w-1 ${isBusiness ? 'bg-indigo-400' : isExactMatch ? 'bg-brand-400' : 'bg-brand-500'}`}
+          className={`absolute inset-y-0 start-0 w-1 ${isBusiness ? 'bg-indigo-400' : isExactMatch ? 'bg-brand-400' : 'bg-brand-500'}`}
           aria-hidden="true"
         />
 
         {/* Business badge */}
         {isBusiness && (
-          <span className="absolute top-2.5 left-3 inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-900/70 text-indigo-300 border border-indigo-700 rounded-full text-xs font-medium backdrop-blur-sm">
+          <span className="absolute top-2.5 start-3 inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-900/70 text-indigo-300 border border-indigo-700 rounded-full text-xs font-medium backdrop-blur-sm">
             <Briefcase className="w-2.5 h-2.5" aria-hidden="true" />
             {t('helpersDir.businessBadge')}
           </span>
@@ -96,7 +96,7 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
 
         {/* Exact match badge */}
         {!isBusiness && isExactMatch && (
-          <span className="absolute top-2.5 left-3 inline-flex items-center gap-1 px-2 py-0.5 bg-brand-900/70 text-brand-300 border border-brand-700 rounded-full text-xs font-medium backdrop-blur-sm">
+          <span className="absolute top-2.5 start-3 inline-flex items-center gap-1 px-2 py-0.5 bg-brand-900/70 text-brand-300 border border-brand-700 rounded-full text-xs font-medium backdrop-blur-sm">
             <Zap className="w-2.5 h-2.5" aria-hidden="true" />
             {t('helpersDir.exactMatch')}
           </span>
@@ -104,7 +104,7 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
 
         {/* Available today badge */}
         {helper.availableToday && (
-          <span className="absolute top-2.5 right-3 inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-900/70 text-emerald-400 border border-emerald-800 rounded-full text-xs font-medium backdrop-blur-sm">
+          <span className="absolute top-2.5 end-3 inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-900/70 text-emerald-400 border border-emerald-800 rounded-full text-xs font-medium backdrop-blur-sm">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true" />
             {t('helpersDir.availableTodayBadge')}
           </span>
@@ -124,7 +124,7 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
           </div>
           {helper.verified && (
             <span
-              className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center border-2 border-gray-900"
+              className="absolute -bottom-1 -end-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center border-2 border-gray-900"
               title={t('helpersDir.verifiedIdentityTitle')}
               aria-label={t('helpersDir.verifiedIdentityAria')}
             >
@@ -134,7 +134,7 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
         </div>
 
         {/* Right - starting price */}
-        <div className="text-right pb-1">
+        <div className="text-end pb-1">
           <p className="text-xs text-gray-500 leading-none">{t('helpersDir.startingFrom')}</p>
           <p className="text-lg font-bold text-white leading-tight">
             {formatPrice(helper.startingPrice, helper.startingPriceUnit)}
@@ -164,7 +164,7 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
         <div className="flex items-center gap-3 text-sm">
           <span className="flex items-center gap-1">
             <StarRating rating={helper.rating} size="sm" />
-            <span className="font-semibold text-white ml-1">
+            <span className="font-semibold text-white ms-1">
               {(Number.isFinite(helper.rating) ? helper.rating : 0).toFixed(1)}
             </span>
             <span className="text-gray-500 text-xs">({helper.reviewCount})</span>
@@ -240,7 +240,7 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
             const priceUnit = row?.priceUnit ?? helper.startingPriceUnit;
             return (
               <li key={`${name}-${idx}`} className="flex items-center justify-between text-xs">
-                <span className="text-gray-400 truncate pr-2">{name}</span>
+                <span className="text-gray-400 truncate pe-2">{name}</span>
                 <span className="font-medium text-white whitespace-nowrap flex-shrink-0">
                   {formatPrice(price, priceUnit)}
                 </span>
@@ -277,7 +277,7 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
             <MapPin className="w-3 h-3" aria-hidden="true" />
             {helper.city}, {helper.state}
             {helper.distanceMiles !== undefined && (
-              <span className="text-gray-600 ml-1">· {t('helpersDir.milesAway', { miles: helper.distanceMiles.toFixed(0) })}</span>
+              <span className="text-gray-600 ms-1">· {t('helpersDir.milesAway', { miles: helper.distanceMiles.toFixed(0) })}</span>
             )}
           </span>
           <span className="flex items-center gap-1">

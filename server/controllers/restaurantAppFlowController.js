@@ -26,6 +26,12 @@ const {
   captureWalletHold,
   releaseWalletHold,
 } = require('../services/foodWalletOperationsService');
+// M14: runner handoff completion obeys the runner transition map and the
+// unpaid pay_now gate, shared with restaurantRunnerController.
+const {
+  assertLegalRunnerCompletion,
+  assertFoodOrderPaidForHandoff,
+} = require('./restaurantRunnerController');
 const {
   refundCreditInTransaction,
   captureCreditHoldInTransaction,
@@ -4695,6 +4701,11 @@ exports.recordPosPayment = async (req, res, next) => {
               createdByUserId: req.user.id,
               actorType: 'restaurant_pos',
               description: `POS payment for ${restaurant.display_name || 'restaurant'} order ${order.queue_number || order.id}`,
+              // C6: capture under the order reference so refunds and
+              // reconciliation find the debit by food_order/<orderId>, matching
+              // the direct-debit path below.
+              referenceType: 'food_order',
+              referenceId: String(orderId),
               metadata: {
                 ...safeJson(req.body.metadata),
                 source: 'pos_restaurant_credit',
@@ -7223,9 +7234,9 @@ exports.completeRunnerHandoff = async (req, res, next) => {
       if (!currentTask.assigned_to) {
         throw new AppError('Runner handoff requires an assigned runner', 409, 'runner_task_unassigned');
       }
-      if (['Completed', 'Cancelled'].includes(currentTask.status)) {
-        throw new AppError('Runner task is already terminal', 409, 'runner_task_terminal');
-      }
+      // M14: only 'En route' may move to 'Completed' (transition map), which
+      // also rejects already-terminal tasks.
+      assertLegalRunnerCompletion(currentTask.status);
       const { rows: [task] } = await client.query(
         `UPDATE restaurant_runner_tasks
             SET status = 'Completed',
@@ -7255,6 +7266,15 @@ exports.completeRunnerHandoff = async (req, res, next) => {
       }
       let order = null;
       if (task.food_order_id) {
+        // M14: unpaid pay_now orders must not complete on runner handoff.
+        const { rows: [orderForHandoff] } = await client.query(
+          `SELECT id, payment_status, metadata
+             FROM food_orders
+            WHERE id = $1 AND restaurant_id = $2 AND fulfillment_type = 'delivery'
+            FOR UPDATE`,
+          [task.food_order_id, restaurantId]
+        );
+        if (orderForHandoff) assertFoodOrderPaidForHandoff(orderForHandoff);
         const { rows: [completedOrder] } = await client.query(
           `UPDATE food_orders
               SET status = 'completed',

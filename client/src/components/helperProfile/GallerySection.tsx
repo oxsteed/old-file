@@ -99,7 +99,7 @@ const GallerySection: React.FC<GallerySectionProps> = ({ images }) => {
           {/* Close */}
           <button
             onClick={closeLightbox}
-            className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+            className="absolute top-4 end-4 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
             aria-label={t('helperProfile.gallery.closeLightbox')}
           >
             <X className="w-5 h-5" />
@@ -109,7 +109,7 @@ const GallerySection: React.FC<GallerySectionProps> = ({ images }) => {
           {images.length > 1 && (
             <button
               onClick={(e) => { e.stopPropagation(); prev(); }}
-              className="absolute left-4 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+              className="absolute start-4 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
               aria-label={t('helperProfile.gallery.prevPhoto')}
             >
               <ChevronLeft className="w-6 h-6" />
@@ -141,7 +141,7 @@ const GallerySection: React.FC<GallerySectionProps> = ({ images }) => {
           {images.length > 1 && (
             <button
               onClick={(e) => { e.stopPropagation(); next(); }}
-              className="absolute right-4 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+              className="absolute end-4 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
               aria-label={t('helperProfile.gallery.nextPhoto')}
             >
               <ChevronRight className="w-6 h-6" />

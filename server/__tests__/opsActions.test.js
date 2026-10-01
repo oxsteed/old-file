@@ -2,6 +2,20 @@
 
 const { mockQuery, resetMocks } = require('./setup');
 
+// Webhook delivery now re-validates the target hostname at send time and
+// fails closed when DNS cannot be resolved. Resolve the test webhook host
+// to a public IP so delivery tests exercise the fetch path.
+jest.mock('dns', () => {
+  const actual = jest.requireActual('dns');
+  return {
+    ...actual,
+    promises: {
+      ...actual.promises,
+      lookup: jest.fn().mockResolvedValue([{ address: '93.184.216.34', family: 4 }]),
+    },
+  };
+});
+
 jest.mock('../services/paymentQueue', () => ({
   QUEUES: {
     PAYMENT_CAPTURE: 'queue:payment-capture',

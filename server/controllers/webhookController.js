@@ -18,6 +18,7 @@ const {
 const socketService = require('../services/socketService');
 const localDeliveryPayments = require('../services/localDeliveryPaymentService');
 const { createFraudCase } = require('../services/fraudCaseService');
+const { recordException } = require('../services/reconciliationExceptions');
 const { stripeObjectId, invoiceSubscriptionId, subscriptionPeriod } = require('../utils/stripePayload');
 const { applyChargeRefund, verifiedChargeRefundTotal } = require('../services/paymentRefundStateService');
 const stripeWebhookContract = require('../config/stripeWebhookContract');
@@ -185,6 +186,97 @@ async function recordChargeDisputeCase(dispute, accountId) {
     );
   }
   return caseRow;
+}
+
+// C8: a lost chargeback is a real money movement, not just a fraud-case note.
+// Mark the payment disputed (which blocks escrow release — the release path
+// only proceeds while funds are held), stamp the Stripe dispute id, and post
+// the loss to the platform ledger so the P&L reflects it.
+async function recordLostDisputeFinancials(dispute, accountId) {
+  if (dispute?.status !== 'lost') return null;
+  const chargeId = typeof dispute?.charge === 'string' ? dispute.charge : dispute?.charge?.id || null;
+  const piId = typeof dispute?.payment_intent === 'string'
+    ? dispute.payment_intent
+    : dispute?.payment_intent?.id || null;
+  if (!chargeId && !piId) {
+    logger.warn('[Stripe] lost dispute without charge/payment_intent reference; skipping financials', {
+      disputeId: dispute?.id,
+    });
+    return null;
+  }
+  return withTransaction(db, async (client) => {
+    const { rows } = await client.query(
+      `SELECT * FROM payments
+        WHERE ($1::text IS NOT NULL AND stripe_charge_id = $1)
+           OR ($2::text IS NOT NULL AND stripe_payment_intent_id = $2)
+        ORDER BY id DESC
+        LIMIT 1
+        FOR UPDATE`,
+      [chargeId, piId]
+    );
+    const payment = rows[0];
+    if (!payment) {
+      await recordException({
+        domain: 'payment_refund',
+        referenceId: `stripe-dispute:${dispute.id}`,
+        severity: 'warning',
+        summary: 'Lost Stripe dispute has no matching payments row',
+        details: { disputeId: dispute.id, chargeId, paymentIntentId: piId, stripeAccountId: accountId },
+      });
+      logger.warn('[Stripe] lost dispute with no matching payment; reconciliation exception recorded', {
+        disputeId: dispute?.id,
+      });
+      return null;
+    }
+    if (payment.dispute_status === 'lost') {
+      return { payment, replayed: true };
+    }
+    const { rows: updatedRows } = await client.query(
+      `UPDATE payments
+          SET status = 'disputed',
+              payment_hold_status = 'disputed',
+              escrow_status = CASE WHEN escrow_status = 'released' THEN escrow_status ELSE 'disputed' END,
+              stripe_dispute_id = $2,
+              dispute_status = 'lost',
+              updated_at = NOW()
+        WHERE id = $1
+        RETURNING *`,
+      [payment.id, dispute.id]
+    );
+    // Post the loss once, deduped on the dispute id in metadata.
+    const { rows: existingLoss } = await client.query(
+      `SELECT id FROM platform_ledger
+        WHERE type = 'dispute_lost'
+          AND metadata->>'stripeDisputeId' = $1
+        LIMIT 1`,
+      [dispute.id]
+    );
+    if (!existingLoss[0]) {
+      await client.query(
+        `INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata)
+         VALUES ($1, 'dispute_lost', $2, $3, $4::jsonb)`,
+        [
+          payment.payee_id,
+          -Math.abs(Number(dispute.amount || 0)),
+          `Lost dispute ${dispute.id} on charge ${chargeId || piId}`,
+          JSON.stringify({
+            stripeDisputeId: dispute.id,
+            paymentId: payment.id,
+            chargeId,
+            paymentIntentId: piId,
+            stripeAccountId: accountId,
+            reason: dispute.reason || null,
+          }),
+        ]
+      );
+    }
+    logger.info('[Stripe] recorded lost-dispute financials', {
+      disputeId: dispute.id,
+      paymentId: payment.id,
+      amountCents: dispute.amount,
+    });
+    return { payment: updatedRows[0], replayed: false };
+  }, 'stripe_dispute_lost');
 }
 
 function emitFoodOrderUpdate(order) {
@@ -897,6 +989,18 @@ exports.stripeWebhook = async (req, res, next) => {
             error: err.message,
           });
         }
+        // C8: a lost dispute moves real money. Record the financial impact
+        // (payment marked disputed, loss posted to the ledger) on closed.
+        if (event.type === 'charge.dispute.closed' && dispute?.status === 'lost') {
+          try {
+            await recordLostDisputeFinancials(dispute, event.account);
+          } catch (err) {
+            logger.error('[Stripe] Failed to record lost-dispute financials', {
+              disputeId: dispute?.id,
+              error: err.message,
+            });
+          }
+        }
         break;
       }
 
@@ -1320,15 +1424,32 @@ async function applyQrPaymentSucceeded(session) {
   const paymentIntentId = typeof session.payment_intent === 'string'
     ? session.payment_intent
     : session.payment_intent?.id || null;
+  // H14 completion: a QR payment is marked succeeded only when the Stripe
+  // session is actually paid AND the paid amount matches what we recorded.
+  // Unpaid or amount-mismatched sessions are never marked succeeded.
+  if (session.payment_status !== 'paid') {
+    logger.warn('[webhook] QR payment session not paid; not marking succeeded', {
+      sessionId: session.id, paymentStatus: session.payment_status,
+    });
+    return 0;
+  }
   const { rowCount } = await db.query(
     `UPDATE qr_payments
         SET status = 'succeeded',
             succeeded_at = NOW(),
             stripe_payment_intent_id = COALESCE($2, stripe_payment_intent_id)
       WHERE stripe_checkout_session_id = $1
-        AND status <> 'succeeded'`,
-    [session.id, paymentIntentId]
+        AND status <> 'succeeded'
+        AND amount_cents = $3`,
+    [session.id, paymentIntentId, session.amount_total]
   );
+  if (rowCount === 0) {
+    logger.warn('[webhook] QR payment amount mismatch or already succeeded; not marking succeeded', {
+      sessionId: session.id, amountTotal: session.amount_total,
+    });
+  }
   return rowCount;
 }
 exports.applyQrPaymentSucceeded = applyQrPaymentSucceeded;
+// Test seam: exported so the lost-dispute financial path can be unit-tested.
+exports.recordLostDisputeFinancials = recordLostDisputeFinancials;

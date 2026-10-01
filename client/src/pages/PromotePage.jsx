@@ -1069,6 +1069,24 @@ function PerformanceTab({ trackedClicks, onReset }) {
  * Toolkit tab - signature, embed widget, SEO checklist, drip, reviews
  * ------------------------------------------------------------------------- */
 
+// Audit L11: the signature/embed HTML below interpolates user-controlled
+// business profile fields (name, description, city) and the preview renders
+// it with dangerouslySetInnerHTML. Escape text content and allow only
+// https: URLs so a crafted profile field cannot break out into markup,
+// attributes, or event handlers (self-XSS in the live preview).
+function escapeToolkitHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+function safeToolkitUrl(value) {
+  const s = String(value ?? '');
+  return /^https:\/\//i.test(s) ? escapeToolkitHtml(s) : '#';
+}
+
 function ToolkitTab({ target, qrSrc, tone, seoChecks, setSeoChecks, onTrackedClick }) {
   const { t } = useTranslation();
   const [requestingPlacement, setRequestingPlacement] = useState(false);
@@ -1076,32 +1094,44 @@ function ToolkitTab({ target, qrSrc, tone, seoChecks, setSeoChecks, onTrackedCli
   const sigName = target.providerName;
   const sigTitle = target.serviceText;
   const sigLine = target.locationText ? `${sigTitle} | ${target.locationText}` : sigTitle;
-  const signatureHtml = useMemo(() => (
-    `<table style="font-family:Arial, sans-serif;color:#111827;font-size:14px">
+  const signatureHtml = useMemo(() => {
+    // Audit L11: escape user-controlled fields (see helpers above).
+    const name = escapeToolkitHtml(sigName);
+    const line = escapeToolkitHtml(sigLine);
+    const profileUrl = safeToolkitUrl(target.profileUrl);
+    const bookingUrl = safeToolkitUrl(target.bookingUrl);
+    return (
+      `<table style="font-family:Arial, sans-serif;color:#111827;font-size:14px">
   <tr>
     <td style="padding-right:14px;border-right:3px solid #f97316">
-      <strong style="font-size:16px">${sigName}</strong><br/>
-      <span style="color:#64748b">${sigLine}</span><br/>
-      <a href="${target.profileUrl}" style="color:#f97316;text-decoration:none">${target.profileUrl}</a>
+      <strong style="font-size:16px">${name}</strong><br/>
+      <span style="color:#64748b">${line}</span><br/>
+      <a href="${profileUrl}" style="color:#f97316;text-decoration:none">${profileUrl}</a>
     </td>
     <td style="padding-left:14px">
-      <a href="${target.bookingUrl}" style="display:inline-block;background:#f97316;color:#111827;text-decoration:none;padding:6px 12px;border-radius:6px;font-weight:bold">Book on OxSteed</a>
+      <a href="${bookingUrl}" style="display:inline-block;background:#f97316;color:#111827;text-decoration:none;padding:6px 12px;border-radius:6px;font-weight:bold">Book on OxSteed</a>
     </td>
   </tr>
 </table>`
-  ), [sigName, sigLine, target.profileUrl, target.bookingUrl]);
+    );
+  }, [sigName, sigLine, target.profileUrl, target.bookingUrl]);
 
   // Embed widget code ------------------------------------------------------
-  const embedCode = useMemo(() => (
-    `<!-- Book me on OxSteed -->
-<a href="${target.bookingUrl}?utm_source=website&utm_medium=widget&utm_campaign=book_widget"
+  const embedCode = useMemo(() => {
+    // Audit L11: escape user-controlled fields (see helpers above).
+    const bookingUrl = safeToolkitUrl(target.bookingUrl);
+    const providerName = escapeToolkitHtml(target.providerName);
+    return (
+      `<!-- Book me on OxSteed -->
+<a href="${bookingUrl}?utm_source=website&utm_medium=widget&utm_campaign=book_widget"
    style="display:inline-flex;align-items:center;gap:10px;background:#f97316;color:#111827;
           font-family:system-ui,sans-serif;font-weight:700;padding:12px 18px;border-radius:10px;
           text-decoration:none;box-shadow:0 4px 14px rgba(249,115,22,0.35)">
-  Book ${target.providerName} on OxSteed
+  Book ${providerName} on OxSteed
   <span style="background:#111827;color:#fff;padding:2px 8px;border-radius:99px;font-size:11px">Verified</span>
 </a>`
-  ), [target.bookingUrl, target.providerName]);
+    );
+  }, [target.bookingUrl, target.providerName]);
 
   // Drip sequence ----------------------------------------------------------
   const dripDay1 = `Day 1 - Hi {first_name}, this is ${target.providerName} on OxSteed. Saw you were looking for ${target.serviceText}. I have one window open this week if you want it: ${target.bookingUrl}`;

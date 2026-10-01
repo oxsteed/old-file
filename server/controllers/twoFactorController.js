@@ -1,6 +1,7 @@
 // Two-Factor Authentication Controller (TOTP)
 // OxSteed v2
 const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
 const { authenticator } = require('@otplib/v12-adapter');
 const bcrypt = require('bcrypt');
 const QRCode = require('qrcode');
@@ -8,6 +9,10 @@ const pool = require('../db');
 const { encrypt, decrypt, hashIP } = require('../utils/encryption');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
+
+const JWT_SECRET = process.env.JWT_SECRET;
+const MAX_2FA_FAILURES = 5;
+const LOCKOUT_WINDOW = '15 minutes';
 
 const APP_NAME = 'OxSteed';
 const BACKUP_CODE_COUNT = 8;
@@ -130,11 +135,46 @@ async function verifySetup(req, res, next) {
 }
 
 // POST /api/2fa/validate - Validate a TOTP code during login
+//
+// H11 fix: this endpoint previously accepted an arbitrary `userId` with no
+// authentication, letting anyone brute-force TOTP/backup codes for any
+// account. It now requires the short-lived pre-auth `mfaToken` issued by
+// POST /api/auth/login (same contract as POST /api/auth/login/2fa), and
+// enforces the same 5-failures/15-minute lockout.
 async function validate2FA(req, res, next) {
   try {
-    const { userId, token, isBackupCode } = req.body;
-    if (!userId || !token) {
-      throw new AppError('User ID and verification code required', 400, 'validation_failed', { userId: 'Required', token: 'Required' });
+    const mfaToken = req.body.mfaToken || req.body.mfa_token;
+    const { token, isBackupCode } = req.body;
+    if (!mfaToken) {
+      throw new AppError('MFA token required', 401, 'mfa_token_required');
+    }
+    if (!token) {
+      throw new AppError('Verification code required', 400, 'validation_failed', { token: 'Verification code is required' });
+    }
+
+    let userId;
+    try {
+      const decoded = jwt.verify(mfaToken, JWT_SECRET, { algorithms: ['HS256'] });
+      if (!decoded.isMfaToken) throw new Error('Invalid token type');
+      userId = decoded.id;
+    } catch (err) {
+      throw new AppError('Invalid or expired MFA token', 401, 'invalid_mfa_token');
+    }
+
+    // The caller must not be able to substitute a different userId.
+    if (req.body.userId && String(req.body.userId) !== String(userId)) {
+      throw new AppError('User ID does not match the MFA session', 400, 'validation_failed');
+    }
+
+    // 5 failures in 15 minutes locks the endpoint, mirroring /auth/login/2fa.
+    const { rows: auditRows } = await pool.query(
+      `SELECT COUNT(*) FROM two_factor_audit_log
+       WHERE user_id = $1 AND success = false
+       AND created_at > NOW() - INTERVAL '15 minutes'`,
+      [userId]
+    );
+    if (parseInt(auditRows[0].count, 10) >= MAX_2FA_FAILURES) {
+      throw new AppError('Too many failed 2FA attempts. Please try again in 15 minutes.', 429, 'too_many_attempts');
     }
 
     const { rows } = await pool.query(

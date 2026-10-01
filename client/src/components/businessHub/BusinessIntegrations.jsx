@@ -150,7 +150,10 @@ export function BusinessIntegrations({ businessId }) {
       );
       const apiKey = response.data?.api_key || '';
       setNewApiKey(apiKey);
-      setIntegrations((current) => ({ ...current, api_key: apiKey }));
+      // The full key is shown once (newApiKey). The persistent record only
+      // ever carries the masked form, so refresh it from a re-fetch instead
+      // of storing the secret in component state.
+      setIntegrations((current) => ({ ...current, api_key: undefined, api_key_masked: undefined }));
       toast.success(t('businessHub.integrations.apiKeyRegenerated'));
     } catch (error) {
       toast.error(error.response?.data?.error || t('businessHub.integrations.apiKeyRegenerateFailed'));
@@ -338,11 +341,12 @@ export function BusinessIntegrations({ businessId }) {
             <p>{newApiKey ? t('businessHub.integrations.copyKeyHint') : t('businessHub.integrations.apiKeyHint')}</p>
           </div>
           <div className="bi-setting-value">
-            <code>{integrations.api_key || t('businessHub.integrations.noApiKey')}</code>
+            <code>{newApiKey || integrations.api_key_masked || t('businessHub.integrations.noApiKey')}</code>
             <button
-              onClick={() => copyToClipboard(integrations.api_key || '')}
+              onClick={() => copyToClipboard(newApiKey || '')}
               className="bi-btn-copy"
-              disabled={!integrations.api_key}
+              disabled={!newApiKey}
+              title={newApiKey ? undefined : t('businessHub.integrations.maskedKeyNoCopy')}
             >
               <Copy size={14} />
             </button>

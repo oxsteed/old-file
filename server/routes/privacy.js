@@ -96,10 +96,19 @@ function buildExportArchive(exportData) {
 
 const EXPORT_VERIFICATION_TTL_MINUTES = 15;
 const EXPORT_VERIFICATION_MAX_ATTEMPTS = 5;
-const EXPORT_VERIFICATION_SECRET = process.env.ENCRYPTION_KEY || process.env.JWT_SECRET || 'export-verification-secret';
+
+// L3: no hardcoded dev fallback. A missing secret fails closed at signing
+// time (loud 500) instead of silently HMAC-ing with a public constant.
+function getExportVerificationSecret() {
+  const secret = String(process.env.EXPORT_VERIFICATION_SECRET || '').trim();
+  if (!secret) {
+    throw new Error('EXPORT_VERIFICATION_SECRET is not configured');
+  }
+  return secret;
+}
 
 function hashExportVerificationValue(value) {
-  return crypto.createHmac('sha256', EXPORT_VERIFICATION_SECRET).update(String(value)).digest('hex');
+  return crypto.createHmac('sha256', getExportVerificationSecret()).update(String(value)).digest('hex');
 }
 
 function valuesMatch(left, right) {

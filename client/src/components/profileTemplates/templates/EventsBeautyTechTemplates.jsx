@@ -147,7 +147,7 @@ export function CateringFoodTemplate({ profileData }) {
       {/* Warm restaurant header */}
       <div style={{ background: 'linear-gradient(135deg, #78350f 0%, #92400e 60%, #b45309 100%)' }}>
         <div className="max-w-5xl mx-auto px-6 py-10 text-white">
-          <div className="flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
+          <div className="flex flex-col sm:flex-row items-center gap-5 text-center sm:text-start">
             <Avatar src={helper.avatar} name={helper.ownerName} size={88}
               className="border-4 flex-shrink-0"
               style={{ borderColor: 'rgba(255,255,255,0.35)', background: '#431407', color: '#fcd34d' }} />
@@ -278,7 +278,7 @@ export function WeddingServicesTemplate({ profileData }) {
           ? <img src={gallery[0].url} alt="wedding" className="w-full h-80 object-cover" />
           : <div className="h-72" style={{ background: 'linear-gradient(135deg, #fce7f3 0%, #fda4af 50%, #fb7185 100%)' }} />}
         <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 30%, rgba(45,21,21,0.85) 100%)' }} />
-        <div className="absolute bottom-0 left-0 right-0 px-8 py-6 text-white text-center">
+        <div className="absolute bottom-0 start-0 end-0 px-8 py-6 text-white text-center">
           <span className="text-xs font-bold uppercase tracking-[0.4em]" style={{ color: '#fda4af' }}>
             Wedding & Event Services
           </span>
@@ -398,7 +398,7 @@ export function BeautyStyleTemplate({ profileData }) {
           ? <img src={helper.coverImage} alt="beauty" className="w-full h-64 object-cover opacity-60" />
           : <div className="h-48" style={{ background: 'linear-gradient(135deg, #1a0a12 0%, #3d0a24 100%)' }} />}
         <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 20%, rgba(10,10,10,0.95) 85%)' }} />
-        <div className="absolute bottom-0 left-0 right-0 px-6 pb-6">
+        <div className="absolute bottom-0 start-0 end-0 px-6 pb-6">
           <div className="max-w-4xl mx-auto flex items-end gap-4">
             <Avatar src={helper.avatar} name={helper.ownerName} size={80}
               className="border-4 flex-shrink-0" style={{ borderColor: '#f9a8d4', background: '#1a0a12', color: '#f9a8d4' }} />
@@ -446,7 +446,7 @@ export function BeautyStyleTemplate({ profileData }) {
                       {s.description && <p className="text-xs text-gray-500 mt-0.5">{s.description}</p>}
                     </div>
                     {s.price > 0 && (
-                      <span className="text-sm font-bold whitespace-nowrap ml-4" style={{ color: '#f9a8d4' }}>
+                      <span className="text-sm font-bold whitespace-nowrap ms-4" style={{ color: '#f9a8d4' }}>
                         ${s.price.toFixed(0)}+
                       </span>
                     )}
@@ -762,7 +762,7 @@ export function TechITTemplate({ profileData }) {
                 <LocationChip city={helper.city} state={helper.state} className="text-green-700 text-xs font-mono" />
               </div>
             </div>
-            <div className="text-right font-mono">
+            <div className="text-end font-mono">
               <div className="text-xs text-green-700">uptime</div>
               <div className="text-2xl font-bold text-green-400">{helper.jobsCompleted}+</div>
               <div className="text-xs text-green-700">tickets resolved</div>
@@ -783,7 +783,7 @@ export function TechITTemplate({ profileData }) {
                   <div className="flex-1 h-1.5 rounded-full" style={{ background: '#21262d' }}>
                     <div className="h-full rounded-full" style={{ width: `${s.level}%`, background: '#238636' }} />
                   </div>
-                  <span className="text-xs font-mono text-green-600 w-8 text-right">{s.level}%</span>
+                  <span className="text-xs font-mono text-green-600 w-8 text-end">{s.level}%</span>
                 </div>
               ))}
             </div>
@@ -1018,7 +1018,7 @@ export function ConsultingCoachingTemplate({ profileData }) {
       {/* Authority header */}
       <div style={{ background: 'linear-gradient(135deg, #0f1923 0%, #1e2d3d 60%, #243447 100%)' }}>
         <div className="max-w-5xl mx-auto px-6 py-10 text-white">
-          <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
+          <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-start">
             <Avatar src={helper.avatar} name={helper.ownerName} size={96}
               className="border-4 flex-shrink-0" style={{ borderColor: '#d4a853', background: '#1a2433', color: '#fcd34d' }} />
             <div className="flex-1">
@@ -1133,7 +1133,7 @@ export function LegalAdminTemplate({ profileData }) {
       {/* Professional navy header */}
       <div style={{ background: '#0a1628', borderBottom: '4px solid #d4a853' }}>
         <div className="max-w-5xl mx-auto px-6 py-10 text-white">
-          <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
+          <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-start">
             <Avatar src={helper.avatar} name={helper.ownerName} size={96}
               className="border-4 flex-shrink-0" style={{ borderColor: '#d4a853', background: '#0f2240', color: '#fcd34d' }} />
             <div className="flex-1">

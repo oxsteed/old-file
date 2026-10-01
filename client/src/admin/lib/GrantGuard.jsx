@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks/useAuth';
 import adminApi from './adminApi';
@@ -32,19 +32,26 @@ function LoadingSpinner() {
   );
 }
 
-// Session cache keyed by admin id: { scopes: string[] }
+// Audit L9: the old session cache never expired, so a grant revoked
+// mid-session stayed visible to the client until logout. Entries now carry
+// a fetchedAt timestamp and are revalidated at most every
+// GRANT_CACHE_TTL_MS, plus on each navigation (see useHasGrant).
+const GRANT_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+// Session cache keyed by admin id: { scopes: string[], fetchedAt: number }
 const scopesCache = new Map();
 const inflightByUser = new Map();
 
 function fetchMyScopes(userId) {
   const cached = scopesCache.get(userId);
-  if (cached) return Promise.resolve(cached);
+  const fresh = cached && (Date.now() - cached.fetchedAt) < GRANT_CACHE_TTL_MS;
+  if (fresh) return Promise.resolve(cached);
   const inflight = inflightByUser.get(userId);
   if (inflight) return inflight;
   const request = adminApi.get('/admin/permission-grants/me')
     .then(({ data }) => {
       const scopes = [...new Set((data.scopes || []).filter(s => typeof s === 'string'))];
-      const entry = { scopes };
+      const entry = { scopes, fetchedAt: Date.now() };
       scopesCache.set(userId, entry);
       return entry;
     })
@@ -63,8 +70,12 @@ function fetchMyScopes(userId) {
 /** Hook: does the signed-in admin hold at least one of the required scopes? */
 export function useHasGrant(required) {
   const { user, loading: authLoading } = useAuth();
+  const { pathname } = useLocation();
   const [state, setState] = useState({ loading: true, allowed: false });
 
+  // Re-evaluated on navigation (pathname dep) so grant changes surface as
+  // the admin moves through the SPA; fetchMyScopes refetches when the TTL
+  // entry is stale.
   useEffect(() => {
     if (authLoading) return;
     if (!user || !['admin', 'super_admin'].includes(user.role)) {
@@ -88,7 +99,7 @@ export function useHasGrant(required) {
       setState({ loading: false, allowed: need.some(s => scopes.includes(s)) });
     });
     return () => { cancelled = true; };
-  }, [authLoading, user, required && JSON.stringify(required)]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [authLoading, user, pathname, required && JSON.stringify(required)]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return state;
 }

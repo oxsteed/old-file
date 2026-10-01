@@ -1,4 +1,5 @@
 const rateLimit = require('express-rate-limit');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
 
@@ -31,13 +32,40 @@ function createStoreOption(prefix) {
   return {};
 }
 
+// SECURITY: verifies the Authorization Bearer token for real instead of
+// trusting the syntactic presence of a "Bearer ..." header. A bogus or
+// plausible-but-invalid token (expired, wrong signature, wrong secret) must
+// NOT promote a request into the larger authenticated bucket; such requests
+// stay in the anonymous bucket so the limiter actually limits them.
+//
+// Returns the JWT subject id when the header carries a valid HS256 JWT,
+// otherwise null. The result is cached on the request so skip() and
+// keyGenerator() share a single verification per request.
+function getVerifiedBearerUserId(req) {
+  if (req._verifiedBearer !== undefined) return req._verifiedBearer;
+  const header = req.headers.authorization;
+  let userId = null;
+  if (typeof header === 'string' && header.startsWith('Bearer ')) {
+    try {
+      const decoded = jwt.verify(header.slice('Bearer '.length), process.env.JWT_SECRET, { algorithms: ['HS256'] });
+      if (decoded && decoded.id != null) userId = decoded.id;
+    } catch {
+      // Expired, malformed, or wrongly-signed token - treat as anonymous.
+      userId = null;
+    }
+  }
+  req._verifiedBearer = userId;
+  return userId;
+}
+
 // General API rate limiter: 200 requests per 15 minutes per IP (unauthenticated only)
 const generalLimiter = rateLimit({
   ...createStoreOption('rl:general:'),
   windowMs: 15 * 60 * 1000,
   max: 200,
-  // Skip requests that carry a Bearer token - those are handled by authenticatedLimiter.
-  skip: (req) => !!req.headers.authorization?.startsWith('Bearer '),
+  // Skip only requests with a VERIFIED Bearer token - those are handled by
+  // authenticatedLimiter. Garbage or invalid tokens stay in this bucket.
+  skip: (req) => getVerifiedBearerUserId(req) !== null,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -49,22 +77,15 @@ const generalLimiter = rateLimit({
 // Authenticated API rate limiter: 500 requests per 15 minutes per user ID.
 // Keyed by user ID so each account gets its own bucket regardless of IP
 // (avoids penalising everyone on a shared network).
-// Falls back to IP if the token is expired or invalid.
 const authenticatedLimiter = rateLimit({
   ...createStoreOption('rl:auth_user:'),
   windowMs: 15 * 60 * 1000,
   max: 500,
-  skip: (req) => !req.headers.authorization?.startsWith('Bearer '),
-  keyGenerator: (req) => {
-    try {
-      const token = req.headers.authorization.split(' ')[1];
-      const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
-      return `user:${decoded.id}`;
-    } catch {
-      // Expired / invalid token - fall back to IP so the request still gets limited.
-      return req.ip;
-    }
-  },
+  // Applies only to requests with a verified token. Requests without one, or
+  // with an invalid one, are limited by generalLimiter instead (no IP fallback
+  // bucket here - the skip guarantees the cached id is non-null).
+  skip: (req) => getVerifiedBearerUserId(req) === null,
+  keyGenerator: (req) => `user:${getVerifiedBearerUserId(req)}`,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -112,6 +133,30 @@ const passwordResetLimiter = rateLimit({
     // This prevents attackers from using multiple IPs to reset the same account
     const email = (req.body?.email || req.query?.email || '').toLowerCase();
     return email || req.ip; // Fallback to IP if email not provided
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many password reset attempts. Please try again in 1 hour.',
+    retryAfter: '1 hour',
+  },
+});
+
+// L2 fix: POST /api/auth/reset-password only reads {token, password}, so the
+// email-keyed passwordResetLimiter above always missed and fell back to IP —
+// one shared 3/hour budget across every user behind an IP, and reset attempts
+// consumed the forgot-password budget. This limiter keys by a hash of the
+// presented token instead, throttling token-guessing per token.
+const passwordResetVerifyLimiter = rateLimit({
+  ...createStoreOption('rl:password_reset_verify:'),
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  keyGenerator: (req) => {
+    const token = req.body?.token;
+    if (typeof token === 'string' && token.length > 0) {
+      return crypto.createHash('sha256').update(token).digest('hex').slice(0, 32);
+    }
+    return req.ip; // Fallback to IP when no token was presented
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -192,7 +237,7 @@ const discoverLimiter = rateLimit({
   ...createStoreOption('rl:discover:'),
   windowMs: 15 * 60 * 1000,
   max: 40,
-  skip: (req) => !!req.headers.authorization?.startsWith('Bearer '),
+  skip: (req) => getVerifiedBearerUserId(req) !== null,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -206,16 +251,8 @@ const discoverAuthLimiter = rateLimit({
   ...createStoreOption('rl:discover_auth:'),
   windowMs: 15 * 60 * 1000,
   max: 200,
-  skip: (req) => !req.headers.authorization?.startsWith('Bearer '),
-  keyGenerator: (req) => {
-    try {
-      const token = req.headers.authorization.split(' ')[1];
-      const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
-      return `discover:${decoded.id}`;
-    } catch {
-      return req.ip;
-    }
-  },
+  skip: (req) => getVerifiedBearerUserId(req) === null,
+  keyGenerator: (req) => `discover:${getVerifiedBearerUserId(req)}`,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -465,12 +502,31 @@ const adminPhoneVerificationLimiter = rateLimit({
   },
 });
 
+// M28: the connector API is a machine-facing admin surface authenticated by
+// API key. Mutations (acknowledge/assign/resolve, dead-letter requeue,
+// webhook retry, settings approve/reject) get a per-connector-user bucket so
+// one automation client cannot exhaust a shared bucket for other operators.
+const connectorMutationLimiter = rateLimit({
+  ...createStoreOption('rl:connector_mutation:'),
+  windowMs: 60 * 60 * 1000,
+  max: 120,
+  keyGenerator: (req) => req.connectorUser?.id ? `connector:${req.connectorUser.id}` : req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many connector mutation requests. Please try again later.',
+    retryAfter: '1 hour',
+  },
+});
+
 module.exports = {
+  getVerifiedBearerUserId,
   generalLimiter,
   authenticatedLimiter,
   authLimiter,
   strictLimiter,
   passwordResetLimiter,
+  passwordResetVerifyLimiter,
   chatLimiter,
   conversationMessageLimiter,
   channelWebhookLimiter,
@@ -491,4 +547,5 @@ module.exports = {
   creditAdminMutationLimiter,
   creditExportLimiter,
   adminPhoneVerificationLimiter,
+  connectorMutationLimiter,
 };

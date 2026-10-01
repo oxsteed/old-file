@@ -105,7 +105,9 @@ describe('business integrations controls', () => {
     const res = await request(buildApp()).get('/api/businesses/12/integrations');
 
     expect(res.status).toBe(200);
-    expect(res.body.api_key).toBe('oxs_live_existing');
+    // M21b: the full API key is never returned on read; only the masked form.
+    expect(res.body.api_key).toBeUndefined();
+    expect(res.body.api_key_masked).toBe('••••••••ting');
     expect(res.body.sms_enabled).toBe(true);
     expect(res.body.calendar_sync_enabled).toBe(true);
     expect(res.body.calendar_setup_status).toBe('setup_requested');

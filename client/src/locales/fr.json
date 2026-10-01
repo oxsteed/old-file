@@ -6185,6 +6185,7 @@
       "apiSettings": "Réglages API et développeur",
       "apiKey": "Clé API",
       "copyKeyHint": "Copiez cette clé et conservez-la en sécurité.",
+      "maskedKeyNoCopy": "Seule la clé masquée est affichée. Régénérez-la pour obtenir une nouvelle clé complète.",
       "apiKeyHint": "Utilisez une clé générée pour accéder directement à l'API.",
       "noApiKey": "Aucune clé API générée",
       "regenerateApiKey": "Régénérer la clé API",
@@ -7071,51 +7072,6 @@
       "expiresOnText": "expire le {{date}}",
       "deleteRecordConfirm": "Supprimer ce registre ?",
       "trustRecordDeleted": "Registre de confiance supprimé"
-    },
-    "businessMessageTemplates": {
-      "title": "Modèles de messages",
-      "subtitle": "Messages réutilisables pour les communications courantes",
-      "newTemplate": "Nouveau modèle",
-      "editTemplate": "Modifier le modèle",
-      "all": "Tous",
-      "category": {
-        "general": "Général",
-        "appointment": "Rendez-vous",
-        "follow_up": "Suivi",
-        "invoice": "Facture",
-        "promotion": "Promotion",
-        "review_request": "Demande d avis",
-        "welcome": "Bienvenue",
-        "cancellation": "Annulation"
-      },
-      "form": {
-        "templateName": "Nom du modèle *",
-        "emailSubject": "Objet du message (facultatif)",
-        "category": "Catégorie",
-        "messageBody": "Corps du message *",
-        "bodyPlaceholder": "Écris ton message ici. Utilise des variables comme {client_name} pour personnaliser."
-      },
-      "insertVariables": "Inserer:",
-      "saveTemplate": "Enregistrer le modèle",
-      "cancel": "Annuler",
-      "loading": "Chargement...",
-      "emptyTitle": "Aucun modèle pour le moment. Crée des messages réutilisables pour les situations courantes.",
-      "emptyBody": "Idées : rappels de rendez-vous, suivis, demandes de paiement, demandes d avis",
-      "usesLabel_one": "{{count}} utilisation",
-      "usesLabel_other": "{{count}} utilisations",
-      "copy": "Copier",
-      "edit": "Modifier",
-      "delete": "Supprimer",
-      "toastLoadFailed": "Impossible de charger les modèles",
-      "toastNameAndBodyRequired": "Nom et message obligatoires",
-      "toastCreated": "Modèle créé",
-      "toastUpdated": "Modèle mis à jour",
-      "toastSaveFailed": "Échec de l'enregistrement",
-      "deleteConfirm": "Supprimer ce modèle ?",
-      "deleteSuccess": "Supprimé",
-      "deleteFailed": "Échec",
-      "toastCopied": "Copié dans le presse-papiers",
-      "subjectPrefix": "Objet :"
     },
     "switchTemplate": "Changer de modele",
     "switchTemplateTitle": "Basculer cette entreprise vers un autre modele de profil",
@@ -10794,11 +10750,6 @@
             "Évaluation commerciale et audit des opportunités",
             "Feuille de route de mise en œuvre et calendrier",
             "Recommandation personnalisée pour les prochaines étapes",
-            "Questions et réponses sur votre situation spécifique",
-            "Appel de plongée stratégique (jusqu'à 2 heures)",
-            "Évaluation commerciale et audit des opportunités",
-            "Feuille de route de mise en œuvre et calendrier",
-            "Recommandation personnalisée pour les prochaines étapes",
             "Questions et réponses sur votre situation spécifique"
           ]
         },
@@ -10808,13 +10759,6 @@
           "timeline": "1–2 semaines",
           "forWho": "Les personnes qui ont seulement besoin de configurer la couche juridique et identitaire",
           "features": [
-            "Orientation sur le nom d'entreprise",
-            "Enregistrement du domaine",
-            "Configuration de l'email professionnel",
-            "Numéro de téléphone professionnel",
-            "Configuration de l'adresse professionnelle",
-            "Orientation de dépôt SARL + support EIN",
-            "Dossier de documents organisé",
             "Orientation sur le nom d'entreprise",
             "Enregistrement du domaine",
             "Configuration de l'email professionnel",
@@ -10838,14 +10782,6 @@
             "Configuration de la planification en ligne",
             "Configuration du processeur de paiement",
             "Modèle de facture",
-            "Liste de contrôle de lancement et examen du lancement",
-            "Tout en Fondation plus :",
-            "Logo et kit de marque basique",
-            "Site web de 4 pages (Accueil, Services, À propos, Contact)",
-            "Formulaire de contact et capture de prospects",
-            "Configuration de la planification en ligne",
-            "Configuration du processeur de paiement",
-            "Modèle de facture",
             "Liste de contrôle de lancement et examen du lancement"
           ]
         },
@@ -10855,15 +10791,6 @@
           "timeline": "3–4 semaines",
           "forWho": "Les personnes qui veulent que tout soit fait et un système pour croître",
           "features": [
-            "Tout en Lancement plus :",
-            "Configuration du Profil Google Business",
-            "Réservation de poignée de réseaux sociaux",
-            "Flux de travail d'admission client",
-            "Système de comptabilité initial",
-            "Système de demande de recommandation",
-            "Configuration des annonces en ligne",
-            "Appel de suivi post-lancement de 30 jours",
-            "Modèles de communication du premier client",
             "Tout en Lancement plus :",
             "Configuration du Profil Google Business",
             "Réservation de poignée de réseaux sociaux",
@@ -11975,6 +11902,7 @@
     "noFAQs": "Aucune FAQ enregistrée pour l'instant.",
     "productsLabel": "Produits envoyés au modèle",
     "noProducts": "Aucun produit au dossier pour l'instant.",
+    "notAuthorized": "Vous n'avez pas accès à cette entreprise.",
     "knowledgeLabel": "Votre bloc de connaissances IA",
     "noKnowledge": "Aucune connaissance personnalisée en IA n'a encore été enregistrée.",
     "sectionContext": "Contexte structuré",
@@ -12137,7 +12065,8 @@
     "cautionCaution": "Attention",
     "cautionRestricted": "Restreint",
     "feeHistory": "Frais d'annulation payés",
-    "feesCount": "{{n}} frais d'annulation payé(s)",
+        "feesCount_one": "{{count}} frais d'annulation payé",
+    "feesCount_other": "{{count}} frais d'annulation payés",
     "feesTotal": "total",
     "feesNone": "Aucun frais d'annulation, excellent historique.",
     "feesShow": "Afficher",
@@ -12278,7 +12207,8 @@
     "customerReliabilityLabel": "Fiabilité du client",
     "newCustomer": "Nouveau client, aucun historique d'annulations.",
     "custCompletedOf": "{{completed}} / {{total}} travaux effectués",
-    "custCancellations": "{{n}} annulation(s) au cours de la dernière année",
+        "custCancellations_one": "{{count}} annulation au cours de la dernière année",
+    "custCancellations_other": "{{count}} annulations au cours de la dernière année",
     "patternEarly": "Annule généralement suffisamment à l'avance.",
     "patternLate": "Annule souvent dans la semaine précédant la date de début.",
     "impactNote": "Annuler maintenant signifie que {{customer}} devra trouver quelqu'un d'autre à la dernière minute.",
@@ -13029,9 +12959,6 @@
         "steps": [
           "Décrivez une mission, un besoin planifié, une réservation ou une location d’outil.",
           "Comparez prestataires, devis, messages, planning et signaux de confiance.",
-          "Payez, laissez un avis, gardez l’historique et planifiez le prochain besoin depuis votre tableau de bord.",
-          "Décrivez une mission, un besoin planifié, une réservation ou une location d’outil.",
-          "Comparez prestataires, devis, messages, planning et signaux de confiance.",
           "Payez, laissez un avis, gardez l’historique et planifiez le prochain besoin depuis votre tableau de bord."
         ],
         "cta": "Publier une mission"
@@ -13040,9 +12967,6 @@
         "label": "Pour les prestataires",
         "title": "Transformez vos compétences en travail local",
         "steps": [
-          "Créez un profil avec services, photos, modèles, QR et disponibilités.",
-          "Trouvez des missions, recevez des réservations directes, échangez avec les clients et envoyez des offres.",
-          "Utilisez paiements, factures, réputation et calendrier pour rendre votre activité répétable.",
           "Créez un profil avec services, photos, modèles, QR et disponibilités.",
           "Trouvez des missions, recevez des réservations directes, échangez avec les clients et envoyez des offres.",
           "Utilisez paiements, factures, réputation et calendrier pour rendre votre activité répétable."
@@ -13055,9 +12979,6 @@
         "steps": [
           "Gérez services, prospects, produits, factures, politiques et demandes clients.",
           "Utilisez Business Hub, analyses, modèles, conseil et support pour grandir.",
-          "Gardez les dossiers de confiance, litiges, messages, paiements et suivis au même endroit.",
-          "Gérez services, prospects, produits, factures, politiques et demandes clients.",
-          "Utilisez Business Hub, analyses, modèles, conseil et support pour grandir.",
           "Gardez les dossiers de confiance, litiges, messages, paiements et suivis au même endroit."
         ],
         "cta": "Ouvrir Business Hub"
@@ -13066,9 +12987,6 @@
         "label": "Pour les propriétaires d’outils",
         "title": "Rentabilisez votre équipement",
         "steps": [
-          "Publiez des outils avec photos, tarifs, dépôts, conditions, retrait et livraison.",
-          "Recevez des réservations, envoyez des factures, suivez les statuts et gérez les signalements.",
-          "Utilisez les analyses pour comprendre locations, revenus et qualité des annonces.",
           "Publiez des outils avec photos, tarifs, dépôts, conditions, retrait et livraison.",
           "Recevez des réservations, envoyez des factures, suivez les statuts et gérez les signalements.",
           "Utilisez les analyses pour comprendre locations, revenus et qualité des annonces."
@@ -13085,12 +13003,6 @@
         "Engager",
         "Programmer",
         "Payer",
-        "Se souvenir",
-        "Besoin",
-        "Planifier",
-        "Engager",
-        "Programmer",
-        "Payer",
         "Se souvenir"
       ],
       "aria": "Comment OxSteed se connecte",
@@ -13100,12 +13012,6 @@
       "title": "Exemples réels",
       "body": "OxSteed doit sembler utile dès la première visite. Voici les parcours que la plateforme est conçue pour soutenir.",
       "items": [
-        "J’ai besoin d’un prestataire fiable pour une réparation à domicile.",
-        "Je veux gagner de l’argent avec mes compétences.",
-        "J’ai besoin d’un outil pour un week-end.",
-        "Je veux développer une entreprise de services.",
-        "Je dois planifier des dépenses futures avant qu’elles deviennent urgentes.",
-        "J’ai besoin d’un dossier si quelque chose se passe mal.",
         "J’ai besoin d’un prestataire fiable pour une réparation à domicile.",
         "Je veux gagner de l’argent avec mes compétences.",
         "J’ai besoin d’un outil pour un week-end.",
@@ -16085,9 +15991,6 @@
       "checklist": [
         "Vérifiez les missions ouvertes et la charge de planification.",
         "Vérifiez les conversations non lues nécessitant une réponse de l’équipe.",
-        "Ouvrez l’espace de travail pour coordonner calendrier, personnel et opérations.",
-        "Vérifiez les missions ouvertes et la charge de planification.",
-        "Vérifiez les conversations non lues nécessitant une réponse de l’équipe.",
         "Ouvrez l’espace de travail pour coordonner calendrier, personnel et opérations."
       ]
     },
@@ -16100,9 +16003,6 @@
       "checklist": [
         "Consultez d’abord les fils clients non lus.",
         "Ouvrez les messages et onglets clients pour faire avancer le suivi.",
-        "Surveillez les missions ouvertes pour que les transferts vers l’équipe opérations restent fluides.",
-        "Consultez d’abord les fils clients non lus.",
-        "Ouvrez les messages et onglets clients pour faire avancer le suivi.",
         "Surveillez les missions ouvertes pour que les transferts vers l’équipe opérations restent fluides."
       ]
     },
@@ -16113,9 +16013,6 @@
       "primaryCta": "Ouvrir l’espace attribué",
       "checklistTitle": "Priorités de l’employé",
       "checklist": [
-        "Consultez d’abord l’espace attribué et le calendrier.",
-        "Vérifiez messages ou mises à jour de l’équipe avant de commencer.",
-        "Utilisez l’espace partagé pour rester aligné sur les horaires et prochaines étapes.",
         "Consultez d’abord l’espace attribué et le calendrier.",
         "Vérifiez messages ou mises à jour de l’équipe avant de commencer.",
         "Utilisez l’espace partagé pour rester aligné sur les horaires et prochaines étapes."
@@ -16300,14 +16197,6 @@
       "Portes / Verrous",
       "Problème de nuisibles",
       "Problème de sécurité",
-      "Réparation générale",
-      "Plomberie",
-      "Électricité",
-      "Appareil",
-      "Chauffage / Climatisation",
-      "Portes / Verrous",
-      "Problème de nuisibles",
-      "Problème de sécurité",
       "Réparation générale"
     ],
     "urgency": {
@@ -16443,20 +16332,9 @@
       "Réseaux sociaux",
       "Recherche",
       "Presse ou podcast",
-      "Autre",
-      "Plateforme OxSteed",
-      "Parrainage",
-      "Réseaux sociaux",
-      "Recherche",
-      "Presse ou podcast",
       "Autre"
     ],
     "timelineOptions": [
-      "Immédiatement",
-      "Dans les 30 jours",
-      "Dans les 90 jours",
-      "Dans les 6 mois",
-      "En phase d’exploration",
       "Immédiatement",
       "Dans les 30 jours",
       "Dans les 90 jours",
@@ -16480,9 +16358,6 @@
       "submitFailed": "Impossible de soumettre la demande de franchise."
     },
     "heroCardsFallback": [
-      "Revue par territoire",
-      "Préparation du capital",
-      "Liste de contrôle de lancement",
       "Revue par territoire",
       "Préparation du capital",
       "Liste de contrôle de lancement"
@@ -16666,430 +16541,6 @@
       "actions": {
         "sending": "Envoi en cours...",
         "submit": "Envoyer la demande"
-      }
-    },
-    "creativeIntakePage": {
-      "loading": "Chargement de la découverte créative...",
-      "businessNameFallback": "ce business créatif",
-      "errors": {
-        "loadFailed": "Impossible de charger ce profil créatif.",
-        "missingProjectType": "Dites-nous le type de projet que vous souhaitez.",
-        "submitFailed": "Impossible d'envoyer la découverte créative."
-      },
-      "messages": {
-        "submitted": "Demande de découverte créative envoyée."
-      },
-      "submitted": {
-        "pageTitle": "Découverte créative envoyée - OxSteed",
-        "eyebrow": "Demande envoyée",
-        "description": "{{business}} peut maintenant examiner l'objectif du projet, la direction artistique, la formule choisie et le calendrier de livraison avant de passer à la découverte, la proposition ou la production.",
-        "backToProfile": "Retour au profil",
-        "goToDashboard": "Aller au tableau de bord"
-      },
-      "page": {
-        "title": "Découverte créative - {{business}}"
-      },
-      "hero": {
-        "eyebrow": "Découverte créative",
-        "title": "Lancer un projet avec {{business}}",
-        "subtitle": "Partagez l’objectif du projet, la direction artistique, les références et l’échéance pour que l’équipe puisse vous orienter vers la bonne formule créative.",
-        "cardTitle": "Demande de découverte créative",
-        "cardDescription": "Conçu pour la découverte, la clarté de la proposition, les validations et le suivi de livraison, au lieu de messages de contact génériques."
-      },
-      "sections": {
-        "projectBrief": "Brief du projet",
-        "assetsAndDelivery": "Ressources et livraison",
-        "contactAndProcess": "Contact et processus"
-      },
-      "form": {
-        "projectType": {
-          "label": "Type de projet",
-          "placeholderDefault": "Campagne, système de contenu, direction artistique",
-          "placeholderPhotographer": "Séance photo, shooting de marque, couverture événement",
-          "placeholderDesigner": "Système de logo, packaging, pitch deck"
-        },
-        "projectGoal": {
-          "label": "Objectif du projet",
-          "placeholder": "Que voulez-vous accomplir, pour qui, et quel résultat compte le plus ?"
-        },
-        "styleDirection": {
-          "label": "Direction artistique",
-          "placeholder": "Décrivez l’esthétique, l’ambiance, les références de marque ou le langage visuel souhaité."
-        },
-        "deadlineNotes": {
-          "label": "Notes d’échéance",
-          "placeholder": "Date de lancement, date d’événement, timing de remise"
-        },
-        "packageInterest": {
-          "label": "Formule d’intérêt",
-          "placeholder": "Forfait de séance, système de marque, accompagnement"
-        },
-        "assetsNeeded": {
-          "label": "Ressources ou livrables nécessaires",
-          "placeholder": "Quels fichiers, formats, scènes, livrables ou outputs souhaitez-vous ?"
-        },
-        "revisionScope": {
-          "label": "Attentes de révisions",
-          "placeholder": "Tours de révisions, choix, besoins d’épreuves"
-        },
-        "budgetNotes": {
-          "label": "Notes de budget",
-          "placeholder": "Budget optionnel ou limites tarifaires"
-        },
-        "referenceLinks": {
-          "label": "Liens de référence",
-          "placeholder": "Un lien par ligne : tableau Pinterest, moodboard, précédents visuels de marque, travaux d’exemple"
-        },
-        "uploadReferences": {
-          "label": "Télécharger des références"
-        },
-        "contactName": {
-          "label": "Nom du contact",
-          "placeholder": "Votre nom ou contact d’équipe"
-        },
-        "contactEmail": {
-          "label": "E-mail",
-          "placeholder": "votre@email.com"
-        },
-        "contactPhone": {
-          "label": "Téléphone",
-          "placeholder": "Numéro optionnel"
-        },
-        "contactChannel": {
-          "label": "Canal de contact préféré",
-          "options": {
-            "email": "E-mail",
-            "call": "Appel",
-            "meeting": "Rendez-vous",
-            "message": "Message"
-          }
-        },
-        "labels": {
-          "revisionPolicy": "Politique de révision :",
-          "approvalPolicy": "Processus d’approbation :"
-        },
-        "fallbacks": {
-          "configuredInsideHub": "Configuré dans l’espace Business Hub."
-        },
-        "actions": {
-          "sending": "Envoi en cours...",
-          "submit": "Envoyer la découverte créative"
-        }
-      }
-    },
-    "beautyIntakePage": {
-      "loading": "Chargement de la demande beauté...",
-      "businessNameFallback": "ce commerce de beauté",
-      "errors": {
-        "loadFailed": "Impossible de charger ce profil beauté.",
-        "missingService": "Dites-nous le service souhaité.",
-        "missingAcknowledgement": "Merci d’abord d’accepter les attentes de préparation et d’annulation.",
-        "submitFailed": "Impossible d'envoyer la demande beauté."
-      },
-      "messages": {
-        "submitted": "Demande beauté envoyée."
-      },
-      "submitted": {
-        "pageTitle": "Demande beauté envoyée - OxSteed",
-        "eyebrow": "Demande envoyée",
-        "description": "{{business}} peut maintenant revoir vos objectifs, besoins de préparation, timing et formule avant de passer à la réservation, la confirmation ou le suivi de re-réservation.",
-        "backToProfile": "Retour au profil",
-        "goToDashboard": "Aller au tableau de bord"
-      },
-      "page": {
-        "title": "Demande beauté - {{business}}"
-      },
-      "hero": {
-        "eyebrow": "Demande beauté",
-        "title": "Commencer votre demande beauté avec {{business}}",
-        "subtitle": "Partagez le look souhaité, votre timing et toute note de préparation ou de sensibilité pour que le business vous oriente vers le bon parcours de service.",
-        "cardTitle": "Demande beauté et planification de rendez-vous",
-        "cardDescription": "Pensé pour les objectifs visuels, les attentes de préparation, le bon choix de formule et le suivi de réabonnement, au lieu de notes de réservation génériques."
-      },
-      "sections": {
-        "serviceGoals": "Objectifs du service",
-        "prepSensitivities": "Préparation et sensibilités",
-        "policyAndConsent": "Préparation, règles et consentement"
-      },
-      "form": {
-        "desiredService": {
-          "label": "Service souhaité",
-          "placeholderDefault": "Coupe, rafraîchissement couleur, pressage au séchage",
-          "placeholderBarber": "Dégradé, taille de barbe, rasage au gant chaud",
-          "placeholderSpa": "Soin du visage, peel, rituel peau"
-        },
-        "desiredLook": {
-          "label": "Look ou résultat recherché",
-          "placeholderDefault": "Couches douces avec un contour de visage plus lumineux",
-          "placeholderBarber": "Dégradé net avec barbe structurée",
-          "placeholderSpa": "Hydratation apaisante et éclaircissante"
-        },
-        "inspirationNotes": {
-          "label": "Inspiration ou notes détaillées",
-          "placeholder": "Dites à l’équipe ce que vous voulez, ce que vous évitez et ce qui compte d’après vos visites précédentes."
-        },
-        "preferredStaff": {
-          "label": "Membre du personnel préféré",
-          "placeholder": "Facultatif"
-        },
-        "preferredTimeNotes": {
-          "label": "Notes de timing",
-          "placeholder": "Meilleurs jours, date limite d’événement, même jour si possible"
-        },
-        "packageInterest": {
-          "label": "Intérêt pour un forfait",
-          "placeholder": "Adhésion, préparation de mariage, plan d’entretien de couleur"
-        },
-        "budgetNotes": {
-          "label": "Notes de budget",
-          "placeholder": "Budget optionnel ou note de formule"
-        },
-        "hairLength": {
-          "label": "Longueur / densité des cheveux",
-          "placeholder": "Court, mi-long, épais, extensions"
-        },
-        "hairHistory": {
-          "label": "Historique capillaire",
-          "placeholder": "Coloration, défrisant, décoloration, dégradation, dernier soin"
-        },
-        "beardPreferences": {
-          "label": "Préférences barbe / grooming",
-          "placeholder": "Contour, longueur, forme, zones sensibles au rasoir"
-        },
-        "skinSensitivities": {
-          "label": "Sensibilités cutanées",
-          "placeholder": "Acné, rosacée, sécheresse, sensibilité aux parfums"
-        },
-        "contraindications": {
-          "label": "Contre-indications ou médicaments",
-          "placeholder": "Rétinol, peeling récent, allergies, grossesse"
-        },
-        "referencePhotos": {
-          "label": "Photos de référence"
-        },
-        "contactName": {
-          "label": "Nom du contact",
-          "placeholder": "Votre nom"
-        },
-        "contactEmail": {
-          "label": "E-mail",
-          "placeholder": "votre@email.com"
-        },
-        "contactPhone": {
-          "label": "Téléphone",
-          "placeholder": "Numéro de contact préféré"
-        },
-        "consent": {
-          "patchTest": "Un test de tolérance ou un contrôle de sensibilité peut être nécessaire avant la venue.",
-          "photoRelease": "Je suis d'accord pour discuter de photos avant/après si le prestataire le demande.",
-          "fragranceSensitivity": "J’ai des sensibilités aux parfums ou produits que le prestataire doit connaître."
-        },
-        "labels": {
-          "depositPolicy": "Acompte / annulation :",
-          "prepGuidance": "Consignes de préparation :"
-        },
-        "acknowledgement": {
-          "prep": "J’ai lu les recommandations de préparation et suivrai les consignes du jour J.",
-          "noShow": "Je comprends qu’il peut y avoir des attentes en matière d’annulation ou d’absence avant confirmation de l’horaire."
-        },
-        "fallbacks": {
-          "configuredInsideHub": "Configuré dans l’espace Business Hub."
-        },
-        "actions": {
-          "sending": "Envoi en cours...",
-          "submit": "Envoyer la demande beauté"
-        }
-      }
-    },
-    "continuityIntakePage": {
-      "loading": "Chargement de la demande accompagnée...",
-      "businessNameFallback": "ce commerce",
-      "errors": {
-        "loadFailed": "Impossible de charger ce profil d’accompagnement.",
-        "missingGoal": "Dites d’abord au business quel est votre objectif ou votre préoccupation principale.",
-        "missingAcknowledgement": "Acceptez d’abord la demande et les attentes de communication.",
-        "submitFailed": "Impossible d’envoyer la demande accompagnée."
-      },
-      "messages": {
-        "submitted": "Demande accompagnée envoyée."
-      },
-      "submitted": {
-        "pageTitle": "Demande accompagnée envoyée - OxSteed",
-        "eyebrow": "Demande envoyée",
-        "description": "{{business}} peut maintenant réviser l’objectif, le contexte, le rythme récurrent et les exigences de confiance avant de vous orienter vers la planification, la revue des progrès ou un plan de continuité plus long.",
-        "backToProfile": "Retour au profil",
-        "goToDashboard": "Aller au tableau de bord"
-      },
-      "page": {
-        "title": "Demande accompagnée - {{business}}"
-      },
-      "hero": {
-        "eyebrow": "Demande accompagnée",
-        "title": "Commencer une demande accompagnée avec {{business}}",
-        "subtitle": "Partagez l’objectif, le contexte de soutien, le rythme de planification et les considérations de confiance pour que le business vous dirige vers le bon parcours récurrent.",
-        "cardTitle": "Demande accompagnée et planification continue",
-        "cardDescription": "Conçu pour des sessions récurrentes, une revue des progrès et un suivi sensible à la confiance, au lieu d’une simple demande de réservation."
-      },
-      "sections": {
-        "goalContext": "Objectif et contexte de soutien",
-        "routineTrust": "Routine, confiance, et considérations",
-        "contactAcknowledgement": "Contact et reconnaissance"
-      },
-      "form": {
-        "primaryGoal": {
-          "label": "Objectif ou préoccupation principale",
-          "placeholderDefault": "Programme de renforcement, soutien à la récupération, gestion du stress, remise à niveau nutritionnelle",
-          "placeholderEducation": "Soutien en lecture, révision d’examen, confiance en algèbre",
-          "placeholderCare": "Soutien récurrent, routine de pet, aide familiale, soins fiables"
-        },
-        "supportContext": {
-          "label": "Contexte de soutien",
-          "placeholder": "Expliquez la situation, les difficultés actuelles et à quoi ressemblerait un bon progrès."
-        },
-        "scheduleNotes": {
-          "label": "Notes de planning",
-          "placeholder": "Meilleurs jours, fréquence, urgence, créneaux horaires"
-        },
-        "progressTarget": {
-          "label": "Objectif de progression",
-          "placeholder": "Marche hebdomadaire, objectif de note d’examen, moins de poussées, jalon de mobilité"
-        },
-        "packageInterest": {
-          "label": "Intérêt pour un forfait ou un plan",
-          "placeholder": "Abonnement, séances hebdomadaires, forfait de soutien"
-        },
-        "ageOrLevel": {
-          "label": "Âge, niveau ou étape de vie",
-          "placeholderDefault": "Débutant, post-partum, adulte plus âgé",
-          "placeholderEducation": "CM2, préparation SAT, petite enfance",
-          "placeholderCare": "Débutant, post-partum, adulte plus âgé",
-          "placeholderPet": "Chiot, chien âgé, promenades réactives"
-        },
-        "currentRoutine": {
-          "label": "Routine ou point de référence actuel",
-          "placeholder": "À quoi ressemble actuellement votre routine, votre planning ou votre base de référence ?"
-        },
-        "specialConsiderations": {
-          "label": "Considérations particulières",
-          "placeholder": "Allergies, sensibilités, besoins d’accessibilité, notes de comportement, aménagements ou préférences de communication."
-        },
-        "guardianName": {
-          "label": "Tuteur / contact familial",
-          "placeholder": "Parent, tuteur ou responsable familial facultatif"
-        },
-        "guardianPhone": {
-          "label": "Téléphone du tuteur",
-          "placeholder": "Numéro de contact optionnel"
-        },
-        "budgetNotes": {
-          "label": "Notes de budget",
-          "placeholder": "Budget facultatif ou note d’engagement"
-        },
-        "labels": {
-          "trustSignals": "Signaux de confiance :",
-          "prepExpectations": "Préparation et attentes :"
-        },
-        "fallbacks": {
-          "configuredInsideHub": "Configuré dans Business Hub."
-        },
-        "contactName": {
-          "label": "Nom de contact",
-          "placeholder": "Contact principal"
-        },
-        "contactEmail": {
-          "label": "E-mail",
-          "placeholder": "votre@email.com"
-        },
-        "contactPhone": {
-          "label": "Téléphone",
-          "placeholder": "Meilleur numéro"
-        },
-        "contactChannel": {
-          "label": "Canal de contact préféré",
-          "options": {
-            "message": "Message",
-            "email": "E-mail",
-            "call": "Appel",
-            "text": "SMS",
-            "meeting": "Rendez-vous"
-          }
-        },
-        "relationshipType": {
-          "label": "Type de relation",
-          "options": {
-            "client": "Client",
-            "student": "Étudiant",
-            "family": "Famille",
-            "pet": "Animal",
-            "patient": "Patient",
-            "athlete": "Athlète"
-          }
-        },
-        "acknowledgement": {
-          "guardian": "Je comprends qu’un tuteur ou un membre de la famille peut être nécessaire pour un soutien récurrent si pertinent.",
-          "safety": "J’ai partagé les informations clés sur la sécurité, le comportement, l’accessibilité ou les aménagements importants.",
-          "policy": "Je comprends que cette demande permet au business de définir le bon plan, le bon horaire et la prochaine étape avant la confirmation du service."
-        },
-        "actions": {
-          "sending": "Envoi en cours...",
-          "submit": "Envoyer la demande accompagnée"
-        },
-        "businessRecurringBilling": {
-          "title": "Facturation récurrente",
-          "subtitle": "Gérez les retenues et la facturation par abonnement",
-          "addRecurring": "Ajouter une facturation récurrente",
-          "createRecurring": "Nouvelle facturation récurrente",
-          "editRecurring": "Modifier la facturation récurrente",
-          "description": "Description",
-          "amount": "Montant (€)",
-          "frequency": "Fréquence",
-          "startDate": "Date de début",
-          "notes": "Remarques",
-          "save": "Enregistrer",
-          "loading": "Chargement...",
-          "emptyState": "Aucune facturation récurrente configurée. Idéal pour les clients fidèles et les abonnements.",
-          "fallbackDescription": "Facturation récurrente",
-          "next": "Prochain :",
-          "pause": "Pause",
-          "resume": "Reprendre",
-          "statusActive": "Actif",
-          "statusPausedStatus": "En pause",
-          "statusUnknown": "Inconnu",
-          "statusPaused": "Mise en pause",
-          "statusResumed": "Reprise",
-          "created": "Facturation récurrente créée",
-          "updated": "Mis à jour",
-          "deleted": "Annulé",
-          "deleteConfirm": "Annuler cette facturation récurrente ?",
-          "deleteError": "Échec",
-          "updateError": "Échec de la mise à jour",
-          "loadError": "Échec du chargement de la facturation récurrente",
-          "saveError": "Échec de l’enregistrement",
-          "requiredFields": "Le montant, la fréquence et la date de début sont obligatoires",
-          "frequencies": {
-            "weekly": "Hebdomadaire",
-            "biweekly": "Bimensuel",
-            "monthly": "Mensuel",
-            "quarterly": "Trimestriel",
-            "annually": "Annuel"
-          },
-          "all": "Tous",
-          "activeContracts": "Contrats actifs",
-          "monthlyRecurringRevenue": "Revenus mensuels récurrents",
-          "dueThisMonth": "Échéances ce mois-ci",
-          "dueNext30Days": "Échéance dans les 30 prochains jours",
-          "tableClient": "Client",
-          "tableDescription": "Description",
-          "tableAmount": "Montant",
-          "tableNextBilling": "Prochaine facturation",
-          "tableStatus": "Statut",
-          "tableActions": "Actes",
-          "nextDateLabel": "Prochaine date de facturation *",
-          "generateInvoice": "Générer une facture",
-          "invoiceGenerated": "Facture générée",
-          "descriptionPlaceholder": "Description du service",
-          "notesPlaceholder": "Notes facultatives"
-        }
       }
     }
   },
@@ -17869,60 +17320,6 @@
       "step2Body": "La commission OxSteed convenue est appliquée au lead au moment de l’attribution, pour verrouiller votre part et la part plateforme sur ce lead.",
       "step3Title": "3. Exécution du pipeline",
       "step3Body": "Utilisez votre tableau de bord pour faire passer les leads de l’introduction à la découverte, la proposition, l’engagement puis la finalisation tout en gardant OxSteed en boucle."
-    },
-    "consultantAvailabilityPage": {
-      "metaTitle": "Disponibilité",
-      "metaDescription": "Gérez votre planning hebdomadaire récurrent, vos blocs de temps et vos jours de pause.",
-      "badge": "Disponibilité du consultant",
-      "heading": "Votre disponibilité hebdomadaire",
-      "intro": "Définissez vos heures de travail régulières et gérez vos indisponibilités pour que les clients ne réservent que sur des créneaux ouverts.",
-      "backToDashboard": "Retour au tableau de bord",
-      "summaryActiveDays": "Jours actifs",
-      "summaryActiveDaysHint": "Jours avec au moins une plage hebdomadaire active",
-      "summaryWeeklySlots": "Plages hebdomadaires",
-      "summaryWeeklySlotsHint": "Nombre total de plages récurrentes configurées",
-      "summaryBlockedDates": "Dates bloquées",
-      "summaryBlockedDatesHint": "Dates spécifiques marquées comme indisponibles",
-      "nextTimeOff": "Prochaine indisponibilité",
-      "summaryNextTimeOffHint": "Prochaine date bloquée à venir",
-      "none": "Aucune",
-      "scheduleBuilder": "Construction de planning",
-      "liveWeeklyView": "Aperçu hebdomadaire en direct",
-      "loadedNow": "Éléments chargés",
-      "controlsHeading": "Options",
-      "controlsBody": "Ajoutez, modifiez et suivez la disponibilité récurrente par jour.",
-      "slotActiveDesc": "Cette plage est active.",
-      "slotInactiveDesc": "Cette plage est inactive.",
-      "noRecurringHours": "Aucune heure récurrente définie",
-      "timeOff": "Temps libre",
-      "useFor": "À utiliser pour les vacances, les congés, etc.",
-      "useForBody": "Indiquez les jours où vous n’êtes pas disponible pour afficher une disponibilité précise.",
-      "protectedDates": "Dates protégées",
-      "reasonPlaceholder": "Raison (facultatif)",
-      "noReasonAdded": "Temps bloqué sans raison ajoutée.",
-      "noBlockedDates": "Aucune date bloquée pour le moment",
-      "noBlockedDatesBody": "Ajoutez au moins une date bloquée pour empêcher les réservations ce jour-là.",
-      "notSet": "Non défini",
-      "saveAvailability": "Enregistrer la disponibilité",
-      "noScheduleSaved": "Aucun horaire enregistré",
-      "noScheduleSavedBody": "Utilisez le formulaire à gauche pour ajouter votre première plage récurrente.",
-      "addBlockedDate": "Ajouter une date bloquée",
-      "dayLabels": {
-        "sunday": "Dimanche",
-        "monday": "Lundi",
-        "tuesday": "Mardi",
-        "wednesday": "Mercredi",
-        "thursday": "Jeudi",
-        "friday": "Vendredi",
-        "saturday": "Samedi"
-      },
-      "errorLoadingAvailability": "Échec du chargement de la disponibilité.",
-      "errorLoadingBlockedDates": "Échec du chargement des dates bloquées.",
-      "errorTimeRange": "Définissez l’heure de début et l’heure de fin.",
-      "errorSavingAvailability": "Impossible d’enregistrer la disponibilité.",
-      "errorAddingBlockedDate": "Impossible d’ajouter la date bloquée.",
-      "errorRemovingBlockedDate": "Impossible de supprimer la date bloquée.",
-      "dateRequired": "Veuillez sélectionner une date."
     }
   },
   "learn": {
@@ -26703,4 +26100,631 @@
     "reconcileFailed": "Échec du rapprochement"
   }
 
-}
+,
+  "beautyIntakePage": {
+    "loading": "Chargement de la demande beauté...",
+    "businessNameFallback": "ce commerce de beauté",
+    "errors": {
+      "loadFailed": "Impossible de charger ce profil beauté.",
+      "missingService": "Dites-nous le service souhaité.",
+      "missingAcknowledgement": "Merci d’abord d’accepter les attentes de préparation et d’annulation.",
+      "submitFailed": "Impossible d'envoyer la demande beauté."
+    },
+    "messages": {
+      "submitted": "Demande beauté envoyée."
+    },
+    "submitted": {
+      "pageTitle": "Demande beauté envoyée - OxSteed",
+      "eyebrow": "Demande envoyée",
+      "description": "{{business}} peut maintenant revoir vos objectifs, besoins de préparation, timing et formule avant de passer à la réservation, la confirmation ou le suivi de re-réservation.",
+      "backToProfile": "Retour au profil",
+      "goToDashboard": "Aller au tableau de bord"
+    },
+    "page": {
+      "title": "Demande beauté - {{business}}"
+    },
+    "hero": {
+      "eyebrow": "Demande beauté",
+      "title": "Commencer votre demande beauté avec {{business}}",
+      "subtitle": "Partagez le look souhaité, votre timing et toute note de préparation ou de sensibilité pour que le business vous oriente vers le bon parcours de service.",
+      "cardTitle": "Demande beauté et planification de rendez-vous",
+      "cardDescription": "Pensé pour les objectifs visuels, les attentes de préparation, le bon choix de formule et le suivi de réabonnement, au lieu de notes de réservation génériques."
+    },
+    "sections": {
+      "serviceGoals": "Objectifs du service",
+      "prepSensitivities": "Préparation et sensibilités",
+      "policyAndConsent": "Préparation, règles et consentement"
+    },
+    "form": {
+      "desiredService": {
+        "label": "Service souhaité",
+        "placeholderDefault": "Coupe, rafraîchissement couleur, pressage au séchage",
+        "placeholderBarber": "Dégradé, taille de barbe, rasage au gant chaud",
+        "placeholderSpa": "Soin du visage, peel, rituel peau"
+      },
+      "desiredLook": {
+        "label": "Look ou résultat recherché",
+        "placeholderDefault": "Couches douces avec un contour de visage plus lumineux",
+        "placeholderBarber": "Dégradé net avec barbe structurée",
+        "placeholderSpa": "Hydratation apaisante et éclaircissante"
+      },
+      "inspirationNotes": {
+        "label": "Inspiration ou notes détaillées",
+        "placeholder": "Dites à l’équipe ce que vous voulez, ce que vous évitez et ce qui compte d’après vos visites précédentes."
+      },
+      "preferredStaff": {
+        "label": "Membre du personnel préféré",
+        "placeholder": "Facultatif"
+      },
+      "preferredTimeNotes": {
+        "label": "Notes de timing",
+        "placeholder": "Meilleurs jours, date limite d’événement, même jour si possible"
+      },
+      "packageInterest": {
+        "label": "Intérêt pour un forfait",
+        "placeholder": "Adhésion, préparation de mariage, plan d’entretien de couleur"
+      },
+      "budgetNotes": {
+        "label": "Notes de budget",
+        "placeholder": "Budget optionnel ou note de formule"
+      },
+      "hairLength": {
+        "label": "Longueur / densité des cheveux",
+        "placeholder": "Court, mi-long, épais, extensions"
+      },
+      "hairHistory": {
+        "label": "Historique capillaire",
+        "placeholder": "Coloration, défrisant, décoloration, dégradation, dernier soin"
+      },
+      "beardPreferences": {
+        "label": "Préférences barbe / grooming",
+        "placeholder": "Contour, longueur, forme, zones sensibles au rasoir"
+      },
+      "skinSensitivities": {
+        "label": "Sensibilités cutanées",
+        "placeholder": "Acné, rosacée, sécheresse, sensibilité aux parfums"
+      },
+      "contraindications": {
+        "label": "Contre-indications ou médicaments",
+        "placeholder": "Rétinol, peeling récent, allergies, grossesse"
+      },
+      "referencePhotos": {
+        "label": "Photos de référence"
+      },
+      "contactName": {
+        "label": "Nom du contact",
+        "placeholder": "Votre nom"
+      },
+      "contactEmail": {
+        "label": "E-mail",
+        "placeholder": "votre@email.com"
+      },
+      "contactPhone": {
+        "label": "Téléphone",
+        "placeholder": "Numéro de contact préféré"
+      },
+      "consent": {
+        "patchTest": "Un test de tolérance ou un contrôle de sensibilité peut être nécessaire avant la venue.",
+        "photoRelease": "Je suis d'accord pour discuter de photos avant/après si le prestataire le demande.",
+        "fragranceSensitivity": "J’ai des sensibilités aux parfums ou produits que le prestataire doit connaître."
+      },
+      "labels": {
+        "depositPolicy": "Acompte / annulation :",
+        "prepGuidance": "Consignes de préparation :"
+      },
+      "acknowledgement": {
+        "prep": "J’ai lu les recommandations de préparation et suivrai les consignes du jour J.",
+        "noShow": "Je comprends qu’il peut y avoir des attentes en matière d’annulation ou d’absence avant confirmation de l’horaire."
+      },
+      "fallbacks": {
+        "configuredInsideHub": "Configuré dans l’espace Business Hub."
+      },
+      "actions": {
+        "sending": "Envoi en cours...",
+        "submit": "Envoyer la demande beauté"
+      }
+    }
+  },
+  "continuityIntakePage": {
+    "loading": "Chargement de la demande accompagnée...",
+    "businessNameFallback": "ce commerce",
+    "errors": {
+      "loadFailed": "Impossible de charger ce profil d’accompagnement.",
+      "missingGoal": "Dites d’abord au business quel est votre objectif ou votre préoccupation principale.",
+      "missingAcknowledgement": "Acceptez d’abord la demande et les attentes de communication.",
+      "submitFailed": "Impossible d’envoyer la demande accompagnée."
+    },
+    "messages": {
+      "submitted": "Demande accompagnée envoyée."
+    },
+    "submitted": {
+      "pageTitle": "Demande accompagnée envoyée - OxSteed",
+      "eyebrow": "Demande envoyée",
+      "description": "{{business}} peut maintenant réviser l’objectif, le contexte, le rythme récurrent et les exigences de confiance avant de vous orienter vers la planification, la revue des progrès ou un plan de continuité plus long.",
+      "backToProfile": "Retour au profil",
+      "goToDashboard": "Aller au tableau de bord"
+    },
+    "page": {
+      "title": "Demande accompagnée - {{business}}"
+    },
+    "hero": {
+      "eyebrow": "Demande accompagnée",
+      "title": "Commencer une demande accompagnée avec {{business}}",
+      "subtitle": "Partagez l’objectif, le contexte de soutien, le rythme de planification et les considérations de confiance pour que le business vous dirige vers le bon parcours récurrent.",
+      "cardTitle": "Demande accompagnée et planification continue",
+      "cardDescription": "Conçu pour des sessions récurrentes, une revue des progrès et un suivi sensible à la confiance, au lieu d’une simple demande de réservation."
+    },
+    "sections": {
+      "goalContext": "Objectif et contexte de soutien",
+      "routineTrust": "Routine, confiance, et considérations",
+      "contactAcknowledgement": "Contact et reconnaissance"
+    },
+    "form": {
+      "primaryGoal": {
+        "label": "Objectif ou préoccupation principale",
+        "placeholderDefault": "Programme de renforcement, soutien à la récupération, gestion du stress, remise à niveau nutritionnelle",
+        "placeholderEducation": "Soutien en lecture, révision d’examen, confiance en algèbre",
+        "placeholderCare": "Soutien récurrent, routine de pet, aide familiale, soins fiables"
+      },
+      "supportContext": {
+        "label": "Contexte de soutien",
+        "placeholder": "Expliquez la situation, les difficultés actuelles et à quoi ressemblerait un bon progrès."
+      },
+      "scheduleNotes": {
+        "label": "Notes de planning",
+        "placeholder": "Meilleurs jours, fréquence, urgence, créneaux horaires"
+      },
+      "progressTarget": {
+        "label": "Objectif de progression",
+        "placeholder": "Marche hebdomadaire, objectif de note d’examen, moins de poussées, jalon de mobilité"
+      },
+      "packageInterest": {
+        "label": "Intérêt pour un forfait ou un plan",
+        "placeholder": "Abonnement, séances hebdomadaires, forfait de soutien"
+      },
+      "ageOrLevel": {
+        "label": "Âge, niveau ou étape de vie",
+        "placeholderDefault": "Débutant, post-partum, adulte plus âgé",
+        "placeholderEducation": "CM2, préparation SAT, petite enfance",
+        "placeholderCare": "Débutant, post-partum, adulte plus âgé",
+        "placeholderPet": "Chiot, chien âgé, promenades réactives"
+      },
+      "currentRoutine": {
+        "label": "Routine ou point de référence actuel",
+        "placeholder": "À quoi ressemble actuellement votre routine, votre planning ou votre base de référence ?"
+      },
+      "specialConsiderations": {
+        "label": "Considérations particulières",
+        "placeholder": "Allergies, sensibilités, besoins d’accessibilité, notes de comportement, aménagements ou préférences de communication."
+      },
+      "guardianName": {
+        "label": "Tuteur / contact familial",
+        "placeholder": "Parent, tuteur ou responsable familial facultatif"
+      },
+      "guardianPhone": {
+        "label": "Téléphone du tuteur",
+        "placeholder": "Numéro de contact optionnel"
+      },
+      "budgetNotes": {
+        "label": "Notes de budget",
+        "placeholder": "Budget facultatif ou note d’engagement"
+      },
+      "labels": {
+        "trustSignals": "Signaux de confiance :",
+        "prepExpectations": "Préparation et attentes :"
+      },
+      "fallbacks": {
+        "configuredInsideHub": "Configuré dans Business Hub."
+      },
+      "contactName": {
+        "label": "Nom de contact",
+        "placeholder": "Contact principal"
+      },
+      "contactEmail": {
+        "label": "E-mail",
+        "placeholder": "votre@email.com"
+      },
+      "contactPhone": {
+        "label": "Téléphone",
+        "placeholder": "Meilleur numéro"
+      },
+      "contactChannel": {
+        "label": "Canal de contact préféré",
+        "options": {
+          "message": "Message",
+          "email": "E-mail",
+          "call": "Appel",
+          "text": "SMS",
+          "meeting": "Rendez-vous"
+        }
+      },
+      "relationshipType": {
+        "label": "Type de relation",
+        "options": {
+          "client": "Client",
+          "student": "Étudiant",
+          "family": "Famille",
+          "pet": "Animal",
+          "patient": "Patient",
+          "athlete": "Athlète"
+        }
+      },
+      "acknowledgement": {
+        "guardian": "Je comprends qu’un tuteur ou un membre de la famille peut être nécessaire pour un soutien récurrent si pertinent.",
+        "safety": "J’ai partagé les informations clés sur la sécurité, le comportement, l’accessibilité ou les aménagements importants.",
+        "policy": "Je comprends que cette demande permet au business de définir le bon plan, le bon horaire et la prochaine étape avant la confirmation du service."
+      },
+      "actions": {
+        "sending": "Envoi en cours...",
+        "submit": "Envoyer la demande accompagnée"
+      },
+      "businessRecurringBilling": {
+        "title": "Facturation récurrente",
+        "subtitle": "Gérez les retenues et la facturation par abonnement",
+        "addRecurring": "Ajouter une facturation récurrente",
+        "createRecurring": "Nouvelle facturation récurrente",
+        "editRecurring": "Modifier la facturation récurrente",
+        "description": "Description",
+        "amount": "Montant (€)",
+        "frequency": "Fréquence",
+        "startDate": "Date de début",
+        "notes": "Remarques",
+        "save": "Enregistrer",
+        "loading": "Chargement...",
+        "emptyState": "Aucune facturation récurrente configurée. Idéal pour les clients fidèles et les abonnements.",
+        "fallbackDescription": "Facturation récurrente",
+        "next": "Prochain :",
+        "pause": "Pause",
+        "resume": "Reprendre",
+        "statusActive": "Actif",
+        "statusPausedStatus": "En pause",
+        "statusUnknown": "Inconnu",
+        "statusPaused": "Mise en pause",
+        "statusResumed": "Reprise",
+        "created": "Facturation récurrente créée",
+        "updated": "Mis à jour",
+        "deleted": "Annulé",
+        "deleteConfirm": "Annuler cette facturation récurrente ?",
+        "deleteError": "Échec",
+        "updateError": "Échec de la mise à jour",
+        "loadError": "Échec du chargement de la facturation récurrente",
+        "saveError": "Échec de l’enregistrement",
+        "requiredFields": "Le montant, la fréquence et la date de début sont obligatoires",
+        "frequencies": {
+          "weekly": "Hebdomadaire",
+          "biweekly": "Bimensuel",
+          "monthly": "Mensuel",
+          "quarterly": "Trimestriel",
+          "annually": "Annuel"
+        },
+        "all": "Tous",
+        "activeContracts": "Contrats actifs",
+        "monthlyRecurringRevenue": "Revenus mensuels récurrents",
+        "dueThisMonth": "Échéances ce mois-ci",
+        "dueNext30Days": "Échéance dans les 30 prochains jours",
+        "tableClient": "Client",
+        "tableDescription": "Description",
+        "tableAmount": "Montant",
+        "tableNextBilling": "Prochaine facturation",
+        "tableStatus": "Statut",
+        "tableActions": "Actes",
+        "nextDateLabel": "Prochaine date de facturation *",
+        "generateInvoice": "Générer une facture",
+        "invoiceGenerated": "Facture générée",
+        "descriptionPlaceholder": "Description du service",
+        "notesPlaceholder": "Notes facultatives"
+      }
+    }
+  },
+  "creativeIntakePage": {
+    "loading": "Chargement de la découverte créative...",
+    "businessNameFallback": "ce business créatif",
+    "errors": {
+      "loadFailed": "Impossible de charger ce profil créatif.",
+      "missingProjectType": "Dites-nous le type de projet que vous souhaitez.",
+      "submitFailed": "Impossible d'envoyer la découverte créative."
+    },
+    "messages": {
+      "submitted": "Demande de découverte créative envoyée."
+    },
+    "submitted": {
+      "pageTitle": "Découverte créative envoyée - OxSteed",
+      "eyebrow": "Demande envoyée",
+      "description": "{{business}} peut maintenant examiner l'objectif du projet, la direction artistique, la formule choisie et le calendrier de livraison avant de passer à la découverte, la proposition ou la production.",
+      "backToProfile": "Retour au profil",
+      "goToDashboard": "Aller au tableau de bord"
+    },
+    "page": {
+      "title": "Découverte créative - {{business}}"
+    },
+    "hero": {
+      "eyebrow": "Découverte créative",
+      "title": "Lancer un projet avec {{business}}",
+      "subtitle": "Partagez l’objectif du projet, la direction artistique, les références et l’échéance pour que l’équipe puisse vous orienter vers la bonne formule créative.",
+      "cardTitle": "Demande de découverte créative",
+      "cardDescription": "Conçu pour la découverte, la clarté de la proposition, les validations et le suivi de livraison, au lieu de messages de contact génériques."
+    },
+    "sections": {
+      "projectBrief": "Brief du projet",
+      "assetsAndDelivery": "Ressources et livraison",
+      "contactAndProcess": "Contact et processus"
+    },
+    "form": {
+      "projectType": {
+        "label": "Type de projet",
+        "placeholderDefault": "Campagne, système de contenu, direction artistique",
+        "placeholderPhotographer": "Séance photo, shooting de marque, couverture événement",
+        "placeholderDesigner": "Système de logo, packaging, pitch deck"
+      },
+      "projectGoal": {
+        "label": "Objectif du projet",
+        "placeholder": "Que voulez-vous accomplir, pour qui, et quel résultat compte le plus ?"
+      },
+      "styleDirection": {
+        "label": "Direction artistique",
+        "placeholder": "Décrivez l’esthétique, l’ambiance, les références de marque ou le langage visuel souhaité."
+      },
+      "deadlineNotes": {
+        "label": "Notes d’échéance",
+        "placeholder": "Date de lancement, date d’événement, timing de remise"
+      },
+      "packageInterest": {
+        "label": "Formule d’intérêt",
+        "placeholder": "Forfait de séance, système de marque, accompagnement"
+      },
+      "assetsNeeded": {
+        "label": "Ressources ou livrables nécessaires",
+        "placeholder": "Quels fichiers, formats, scènes, livrables ou outputs souhaitez-vous ?"
+      },
+      "revisionScope": {
+        "label": "Attentes de révisions",
+        "placeholder": "Tours de révisions, choix, besoins d’épreuves"
+      },
+      "budgetNotes": {
+        "label": "Notes de budget",
+        "placeholder": "Budget optionnel ou limites tarifaires"
+      },
+      "referenceLinks": {
+        "label": "Liens de référence",
+        "placeholder": "Un lien par ligne : tableau Pinterest, moodboard, précédents visuels de marque, travaux d’exemple"
+      },
+      "uploadReferences": {
+        "label": "Télécharger des références"
+      },
+      "contactName": {
+        "label": "Nom du contact",
+        "placeholder": "Votre nom ou contact d’équipe"
+      },
+      "contactEmail": {
+        "label": "E-mail",
+        "placeholder": "votre@email.com"
+      },
+      "contactPhone": {
+        "label": "Téléphone",
+        "placeholder": "Numéro optionnel"
+      },
+      "contactChannel": {
+        "label": "Canal de contact préféré",
+        "options": {
+          "email": "E-mail",
+          "call": "Appel",
+          "meeting": "Rendez-vous",
+          "message": "Message"
+        }
+      },
+      "labels": {
+        "revisionPolicy": "Politique de révision :",
+        "approvalPolicy": "Processus d’approbation :"
+      },
+      "fallbacks": {
+        "configuredInsideHub": "Configuré dans l’espace Business Hub."
+      },
+      "actions": {
+        "sending": "Envoi en cours...",
+        "submit": "Envoyer la découverte créative"
+      }
+    }
+  },
+  "consultantAvailabilityPage": {
+    "metaTitle": "Disponibilité",
+    "metaDescription": "Gérez votre planning hebdomadaire récurrent, vos blocs de temps et vos jours de pause.",
+    "badge": "Disponibilité du consultant",
+    "heading": "Votre disponibilité hebdomadaire",
+    "intro": "Définissez vos heures de travail régulières et gérez vos indisponibilités pour que les clients ne réservent que sur des créneaux ouverts.",
+    "backToDashboard": "Retour au tableau de bord",
+    "summaryActiveDays": "Jours actifs",
+    "summaryActiveDaysHint": "Jours avec au moins une plage hebdomadaire active",
+    "summaryWeeklySlots": "Plages hebdomadaires",
+    "summaryWeeklySlotsHint": "Nombre total de plages récurrentes configurées",
+    "summaryBlockedDates": "Dates bloquées",
+    "summaryBlockedDatesHint": "Dates spécifiques marquées comme indisponibles",
+    "nextTimeOff": "Prochaine indisponibilité",
+    "summaryNextTimeOffHint": "Prochaine date bloquée à venir",
+    "none": "Aucune",
+    "scheduleBuilder": "Construction de planning",
+    "liveWeeklyView": "Aperçu hebdomadaire en direct",
+    "loadedNow": "Éléments chargés",
+    "controlsHeading": "Options",
+    "controlsBody": "Ajoutez, modifiez et suivez la disponibilité récurrente par jour.",
+    "slotActiveDesc": "Cette plage est active.",
+    "slotInactiveDesc": "Cette plage est inactive.",
+    "noRecurringHours": "Aucune heure récurrente définie",
+    "timeOff": "Temps libre",
+    "useFor": "À utiliser pour les vacances, les congés, etc.",
+    "useForBody": "Indiquez les jours où vous n’êtes pas disponible pour afficher une disponibilité précise.",
+    "protectedDates": "Dates protégées",
+    "reasonPlaceholder": "Raison (facultatif)",
+    "noReasonAdded": "Temps bloqué sans raison ajoutée.",
+    "noBlockedDates": "Aucune date bloquée pour le moment",
+    "noBlockedDatesBody": "Ajoutez au moins une date bloquée pour empêcher les réservations ce jour-là.",
+    "notSet": "Non défini",
+    "saveAvailability": "Enregistrer la disponibilité",
+    "noScheduleSaved": "Aucun horaire enregistré",
+    "noScheduleSavedBody": "Utilisez le formulaire à gauche pour ajouter votre première plage récurrente.",
+    "addBlockedDate": "Ajouter une date bloquée",
+    "dayLabels": {
+      "sunday": "Dimanche",
+      "monday": "Lundi",
+      "tuesday": "Mardi",
+      "wednesday": "Mercredi",
+      "thursday": "Jeudi",
+      "friday": "Vendredi",
+      "saturday": "Samedi"
+    },
+    "errorLoadingAvailability": "Échec du chargement de la disponibilité.",
+    "errorLoadingBlockedDates": "Échec du chargement des dates bloquées.",
+    "errorTimeRange": "Définissez l’heure de début et l’heure de fin.",
+    "errorSavingAvailability": "Impossible d’enregistrer la disponibilité.",
+    "errorAddingBlockedDate": "Impossible d’ajouter la date bloquée.",
+    "errorRemovingBlockedDate": "Impossible de supprimer la date bloquée.",
+    "dateRequired": "Veuillez sélectionner une date."
+  },
+  "businessMessageTemplates": {
+    "title": "Modèles de messages",
+    "subtitle": "Messages réutilisables pour les communications courantes",
+    "newTemplate": "Nouveau modèle",
+    "editTemplate": "Modifier le modèle",
+    "all": "Tous",
+    "category": {
+      "general": "Général",
+      "appointment": "Rendez-vous",
+      "follow_up": "Suivi",
+      "invoice": "Facture",
+      "promotion": "Promotion",
+      "review_request": "Demande d avis",
+      "welcome": "Bienvenue",
+      "cancellation": "Annulation"
+    },
+    "form": {
+      "templateName": "Nom du modèle *",
+      "emailSubject": "Objet du message (facultatif)",
+      "category": "Catégorie",
+      "messageBody": "Corps du message *",
+      "bodyPlaceholder": "Écris ton message ici. Utilise des variables comme {client_name} pour personnaliser."
+    },
+    "insertVariables": "Inserer:",
+    "saveTemplate": "Enregistrer le modèle",
+    "cancel": "Annuler",
+    "loading": "Chargement...",
+    "emptyTitle": "Aucun modèle pour le moment. Crée des messages réutilisables pour les situations courantes.",
+    "emptyBody": "Idées : rappels de rendez-vous, suivis, demandes de paiement, demandes d avis",
+    "usesLabel_one": "{{count}} utilisation",
+    "usesLabel_other": "{{count}} utilisations",
+    "copy": "Copier",
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "toastLoadFailed": "Impossible de charger les modèles",
+    "toastNameAndBodyRequired": "Nom et message obligatoires",
+    "toastCreated": "Modèle créé",
+    "toastUpdated": "Modèle mis à jour",
+    "toastSaveFailed": "Échec de l'enregistrement",
+    "deleteConfirm": "Supprimer ce modèle ?",
+    "deleteSuccess": "Supprimé",
+    "deleteFailed": "Échec",
+    "toastCopied": "Copié dans le presse-papiers",
+    "subjectPrefix": "Objet :"
+  },
+  "accessGateRecovery": {
+    "title": "Access Gate Recovery",
+    "validating": "Validating recovery link…",
+    "missingToken": "This recovery link is missing its token.",
+    "lifted_one": "Lifted the access restriction on {{count}} entry.",
+    "lifted_other": "Lifted access restrictions on {{count}} entries.",
+    "consumed": "This recovery link was already used, so nothing changed.",
+    "postClearHelp": "Your access should now be restored. Sign in again from the admin login.",
+    "errors": {
+      "alreadyUsed": "This recovery link has already been used.",
+      "expired": "This recovery link has expired.",
+      "failed": "Recovery failed. Please try again or request a new link."
+    },
+    "cta": {
+      "adminLogin": "Go to admin login",
+      "logisticsHome": "Logistics home"
+    }
+  },
+  "impersonatePage": {
+    "title": "Impersonate user",
+    "loading": "Loading impersonation session…",
+    "errors": {
+      "invalidToken": "This impersonation link is invalid.",
+      "expiredToken": "This impersonation link has expired.",
+      "noToken": "No impersonation token was provided."
+    },
+    "actions": {
+      "closeTab": "Close this tab"
+    }
+  },
+  "orderErrorBoundary": {
+    "title": "Something went wrong",
+    "unexpectedMessage": "An unexpected error occurred in {{componentName}}.",
+    "defaultComponentName": "this section",
+    "errorDetails": "Error details",
+    "tryAgain": "Try again",
+    "backToOrders": "Back to orders",
+    "persistentErrors": "This keeps happening. Please contact support if the problem persists."
+  },
+  "productReviews": {
+    "timeAgo": {
+      "justNow": "just now",
+      "minutesAgo_one": "{{value}} minute ago",
+      "minutesAgo_other": "{{value}} minutes ago",
+      "hoursAgo_one": "{{value}} hour ago",
+      "hoursAgo_other": "{{value}} hours ago",
+      "daysAgo_one": "{{value}} day ago",
+      "daysAgo_other": "{{value}} days ago",
+      "monthsAgo_one": "{{value}} month ago",
+      "monthsAgo_other": "{{value}} months ago",
+      "yearsAgo_one": "{{value}} year ago",
+      "yearsAgo_other": "{{value}} years ago"
+    },
+    "ratingStarsAria": "{{count}} out of 5 stars"
+  },
+  "pricing": {
+    "addRule": "Add Rule",
+    "adjustment": "Adjustment",
+    "bundleOffer": "Bundle",
+    "createFirst": "Create your first rule",
+    "createNewRule": "New Pricing Rule",
+    "customerSegment": "Customer Segment",
+    "fixedAmount": "Fixed amount off ($)",
+    "multiplier": "Price multiplier",
+    "noRules": "No pricing rules yet",
+    "percentage": "Percentage off",
+    "priority": "Priority",
+    "productRulesDesc": "Volume discounts, promotions, bundles, and seasonal pricing for your products.",
+    "productRulesTitle": "Product Pricing Rules",
+    "ruleCreated": "Pricing rule created",
+    "seasonal": "Seasonal",
+    "timeLimited": "Promotion",
+    "type": "Type",
+    "validFrom": "Valid from",
+    "validUntil": "Valid until",
+    "volumeBased": "Volume-Based"
+  },
+  "products": {
+    "addProduct": "Add Product",
+    "addVariant": "Add Variant",
+    "category": "Category",
+    "cost": "Cost (optional)",
+    "createFirst": "Create your first product",
+    "createNew": "New Product",
+    "created": "Product created",
+    "management": "Product Management",
+    "noProducts": "No products yet",
+    "priceAdjustment": "Price Adjustment ($)",
+    "sku": "SKU",
+    "variantCreated": "Variant created",
+    "variantName": "Variant Name",
+    "variants": "Variants"
+  },
+  "inventory": {
+    "initialStock": "Initial Stock",
+    "lowStock": "Low",
+    "lowStockAlerts": "Low Stock Alerts",
+    "reorderLevel": "Reorder Level",
+    "stock": "Stock",
+    "updated": "Inventory updated"
+  },
+  "closeMenu": "Close menu",
+  "openMenu": "Open menu",
+  "mainNavigation": "Main navigation"}

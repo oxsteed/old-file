@@ -843,6 +843,16 @@ exports.refundChatCreditPayment = async (req, res, next) => {
       return bad(res, 400, 'conversationId required for refund', 'validation_failed');
     }
 
+    // A body-supplied pop/paymentRequest must belong to the requested
+    // conversation; otherwise one provider could refund a payment from a
+    // conversation they were never part of.
+    const requestedConversationId = req.body?.conversationId || req.body?.conversation_id || null;
+    for (const [label, record] of [['payment', pop], ['paymentRequest', paymentRequest]]) {
+      if (record && requestedConversationId && record.conversation_id && String(record.conversation_id) !== String(requestedConversationId)) {
+        return bad(res, 403, `This ${label} does not belong to the requested conversation`, 'forbidden');
+      }
+    }
+
     const conv = await assertConversationParticipant(userId, conversationId);
     if (!conv) return bad(res, 403, 'Not a conversation participant', 'forbidden');
 
@@ -853,12 +863,35 @@ exports.refundChatCreditPayment = async (req, res, next) => {
       return bad(res, 403, 'Only the provider can refund chat credit payments', 'provider_only');
     }
 
-    const purchaseTxnId =
-      normalized.creditTxnId ||
+    // Bind the refund to this payment's own purchase transaction. A
+    // body-supplied creditTxnId must equal the pop/payment-request's recorded
+    // transaction; a colluding provider could otherwise refund another
+    // customer's purchase through this conversation.
+    const boundPurchaseTxnId =
       pop?.credit_txn_id ||
       pop?.transaction_id ||
       paymentRequest?.credit_txn_id ||
       null;
+    if (normalized.creditTxnId && boundPurchaseTxnId && String(normalized.creditTxnId) !== String(boundPurchaseTxnId)) {
+      return bad(res, 409, 'The supplied credit transaction does not belong to this payment', 'credit_txn_mismatch');
+    }
+    let purchaseTxnId = boundPurchaseTxnId || normalized.creditTxnId || null;
+    if (purchaseTxnId && !boundPurchaseTxnId) {
+      // No pop or payment request binds this transaction to the payment, so
+      // verify it is a chat payment for this conversation before refunding.
+      const { rows: txnRows } = await pool.query(
+        `SELECT id, reference_type, reference_id, metadata
+           FROM oxsteed_credit_transactions
+          WHERE id = $1`,
+        [purchaseTxnId]
+      );
+      const txn = txnRows[0];
+      const txnConversationId = txn?.metadata?.conversationId || txn?.metadata?.conversation_id || null;
+      if (!txn || txn.reference_type !== 'chat_payment'
+        || (String(txn.reference_id) !== String(conversationId) && String(txnConversationId) !== String(conversationId))) {
+        return bad(res, 409, 'The supplied credit transaction does not belong to this conversation', 'credit_txn_mismatch');
+      }
+    }
     if (!purchaseTxnId) {
       return bad(res, 409, 'No OxSteed Credit transaction found for this payment', 'no_credit_txn');
     }

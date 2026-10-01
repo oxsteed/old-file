@@ -73,7 +73,7 @@ export default function Customer360Panel({ data, loading, lifecycle = [], lifecy
                 </div>
                 <div className="mt-1 text-slate-500">{conversation.status || copy('open')} · {conversation.agent_name || copy('unassigned')} · {conversation.channel || copy('webChat')} · {formatWhen(conversation.updated_at || conversation.created_at)}</div>
                 {(messagesByConversation.get(conversation.id) || []).slice(0, 4).map((message) => (
-                  <div key={message.id} className="mt-2 border-l-2 border-slate-700 pl-2 text-slate-400">
+                  <div key={message.id} className="mt-2 border-s-2 border-slate-700 ps-2 text-slate-400">
                     <div className="text-[10px] uppercase tracking-wide text-slate-500">{message.is_agent ? (message.is_ai ? copy('aiSupport') : message.sender_name || copy('agent')) : copy('customer')} · {formatWhen(message.created_at)}</div>
                     <div className="mt-0.5 whitespace-pre-wrap">{message.content || `[${message.message_type || copy('message')}]`}</div>
                   </div>

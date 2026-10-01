@@ -131,6 +131,7 @@ test('completes the runner task, order, inventory, and kitchen event in one flow
     .mockResolvedValueOnce({ rows: [{ id: 81, restaurant_id: 7, assigned_to: USER_ID, status: 'En route', food_order_id: 501, requires_proof: false }] })
     .mockResolvedValueOnce({ rows: [{ id: 81, restaurant_id: 7, assigned_to: USER_ID, status: 'En route', food_order_id: 501, requires_proof: false }] })
     .mockResolvedValueOnce({ rows: [{ id: 81, status: 'Completed', food_order_id: 501 }] })
+    .mockResolvedValueOnce({ rows: [{ id: 501, payment_status: 'paid', metadata: { paymentMode: 'pay_at_restaurant' } }] }) // M14 payment gate
     .mockResolvedValueOnce({ rows: [{ id: 501, restaurant_id: 7, status: 'completed', fulfillment_type: 'delivery', business_id: 40 }] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [] });
@@ -143,8 +144,9 @@ test('completes the runner task, order, inventory, and kitchen event in one flow
   expect(res.body.task).toMatchObject({ id: 81, status: 'Completed' });
   expect(mockQuery.mock.calls[2][0]).toMatch(/FOR UPDATE/);
   expect(mockQuery.mock.calls[3][0]).toMatch(/UPDATE restaurant_runner_tasks/);
-  expect(mockQuery.mock.calls[4][0]).toMatch(/UPDATE food_orders/);
-  expect(mockQuery.mock.calls[6][0]).toMatch(/restaurant_kitchen_events/);
+  expect(mockQuery.mock.calls[4][0]).toMatch(/SELECT id, payment_status, metadata/);
+  expect(mockQuery.mock.calls[5][0]).toMatch(/UPDATE food_orders/);
+  expect(mockQuery.mock.calls[7][0]).toMatch(/restaurant_kitchen_events/);
 });
 
 test('returns restaurant-labelled offers and assigned tasks across workspaces', async () => {

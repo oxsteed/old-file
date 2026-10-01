@@ -145,6 +145,24 @@ async function generateApiKey(req, res) {
 
     if (!userId) return sendError(res, 401, 'Unauthorized');
 
+    // H4: an admin API key is a connector credential. Admin/super_admin
+    // issuers must have 2FA enrolled, matching the interactive admin
+    // hard-block; otherwise the key could be used on /api/connector/v1
+    // while bypassing the 2FA requirement.
+    if (['admin', 'super_admin'].includes(req.user?.role)) {
+      const holder = await pool.query(
+        'SELECT COALESCE(totp_enabled, FALSE) AS totp_enabled FROM users WHERE id = $1',
+        [userId]
+      );
+      if (!holder.rows[0]?.totp_enabled) {
+        return res.status(403).json({
+          error: 'Two-factor authentication is required before an admin account can generate API keys. Enroll 2FA at /admin/2fa-setup and try again.',
+          code: 'admin_2fa_required',
+          redirect: '/admin/2fa-setup',
+        });
+      }
+    }
+
     // Verify product exists and user has access
     const product = await pool.query(
       'SELECT * FROM api_products WHERE id = $1',

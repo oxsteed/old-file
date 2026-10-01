@@ -36,7 +36,6 @@ const {
   assertCreditRailEnabled,
   ensureAccount,
   findCustomerAccount,
-  getExistingTransaction,
   loadAccountEntries,
   normalizeMetadata,
   normalizeString,
@@ -435,7 +434,7 @@ async function getCardAccount(cardId, customerId) {
 // PIN management (required before a card can be used for kiosk cash-out)
 // ---------------------------------------------------------------------------
 
-async function setCardPin({ cardId, customerId, pin, actorUserId, correlationId, requestIp }) {
+async function setCardPin({ cardId, customerId, pin, currentPin, actorUserId, correlationId, requestIp }) {
   requireCardOwner(actorUserId, customerId);
   const normalizedPin = normalizeString(pin, 12);
   if (!normalizedPin || !/^\d{4,8}$/.test(normalizedPin)) {
@@ -447,6 +446,14 @@ async function setCardPin({ cardId, customerId, pin, actorUserId, correlationId,
     const card = rows[0];
     assertCardMutable(card);
     if (card.status !== 'active') throw new AppError('Only an active card can have a PIN set', 409, 'credit_card_not_active');
+    if (card.pin_hash) {
+      // Changing an existing PIN requires proving knowledge of the current
+      // one. There is no verified recovery flow; a forgotten PIN means
+      // reporting the card lost/stolen and activating its replacement.
+      const normalizedCurrentPin = normalizeString(currentPin, 12);
+      if (!normalizedCurrentPin) throw new AppError('The current PIN is required to change the card PIN', 400, 'credit_card_current_pin_required');
+      await verifyCardPin(client, card, normalizedCurrentPin);
+    }
 
     const salt = crypto.randomBytes(16).toString('hex');
     const pinHash = sha256Hex(`${salt}:${normalizedPin}`);
@@ -508,17 +515,80 @@ async function resolveCardByCredential(client, rawCredential) {
   const normalized = normalizeString(rawCredential, 200);
   if (!normalized) throw new AppError('A card credential is required', 400, 'credit_card_credential_required');
   const { rows } = await client.query(
-    `SELECT * FROM oxsteed_credit_cards WHERE credential_hash = $1 FOR UPDATE`,
+    `SELECT c.*, owner.is_active AS owner_is_active
+       FROM oxsteed_credit_cards c
+       JOIN users owner ON owner.id = c.customer_id
+      WHERE c.credential_hash = $1
+      FOR UPDATE`,
     [sha256Hex(normalized)]
   );
   const card = rows[0];
   if (!card) throw new AppError('Card not recognized', 404, 'credit_card_not_found');
+  // The kiosk has no customer session, so this is the one spend flow where
+  // the card lookup must enforce the customer status gate itself.
+  if (!card.owner_is_active) throw new AppError('This card belongs to a deactivated customer account', 403, 'credit_card_customer_inactive');
   if (card.status === 'frozen') throw new AppError('This card is frozen', 409, 'credit_card_frozen');
   if (card.status !== 'active') throw new AppError('This card is not active', 409, 'credit_card_inactive');
   if (card.expires_at && new Date(card.expires_at).getTime() < Date.now()) {
     throw new AppError('This card has expired', 410, 'credit_card_expired');
   }
   return card;
+}
+
+// Lightweight card identity for idempotent-replay binding: no status gate,
+// so a legitimate retry of a completed cash-out still replays after the
+// card's status changed.
+async function resolveCardIdentityByCredential(client, rawCredential) {
+  const normalized = normalizeString(rawCredential, 200);
+  if (!normalized) throw new AppError('A card credential is required', 400, 'credit_card_credential_required');
+  const { rows } = await client.query(
+    `SELECT id, customer_id FROM oxsteed_credit_cards WHERE credential_hash = $1`,
+    [sha256Hex(normalized)]
+  );
+  if (!rows[0]) throw new AppError('Card not recognized', 404, 'credit_card_not_found');
+  return rows[0];
+}
+
+async function assertCardOwnerIsActive(client, customerId) {
+  const { rows } = await client.query(`SELECT is_active FROM users WHERE id = $1`, [customerId]);
+  if (!rows[0] || rows[0].is_active !== true) {
+    throw new AppError('This card belongs to a deactivated customer account', 403, 'credit_card_customer_inactive');
+  }
+}
+
+function assertCashOutReplayMatches(existing, { cardId, customerId, amountCents, currencyCode }) {
+  const mismatches = {};
+  if (existing.transaction_type !== 'cash_out') {
+    mismatches.transaction_type = { existing: existing.transaction_type, requested: 'cash_out' };
+  }
+  if (String(existing.debit_customer_id) !== String(customerId)) {
+    mismatches.customer_id = { existing: existing.debit_customer_id, requested: customerId };
+  }
+  if (Number(existing.amount_cents) !== Number(amountCents)) {
+    mismatches.amount_cents = { existing: Number(existing.amount_cents), requested: Number(amountCents) };
+  }
+  if (String(existing.currency_code).toUpperCase() !== String(currencyCode).toUpperCase()) {
+    mismatches.currency_code = { existing: existing.currency_code, requested: currencyCode };
+  }
+  const metadataCardId = normalizeMetadata(existing.metadata).cardId;
+  if (String(metadataCardId) !== String(cardId)) {
+    mismatches.card_id = { existing: metadataCardId, requested: cardId };
+  }
+  if (Object.keys(mismatches).length) {
+    throw new AppError('Credit idempotency key was already used for a different cash-out', 409, 'credit_idempotency_conflict', { mismatches });
+  }
+}
+
+async function getExistingCashOutTransaction(client, idempotencyKey) {
+  const { rows } = await client.query(
+    `SELECT t.*, debit_account.customer_id AS debit_customer_id
+       FROM oxsteed_credit_transactions t
+       JOIN oxsteed_credit_accounts debit_account ON debit_account.id = t.debit_account_id
+      WHERE t.idempotency_key = $1
+      FOR UPDATE`,
+    [idempotencyKey]
+  );
+  return rows[0] || null;
 }
 
 async function listCustomerCards(customerId) {
@@ -551,13 +621,16 @@ async function adminListCards({ customerId, status, cardType, limit = 50, offset
 // customer is identified.
 // ---------------------------------------------------------------------------
 
-async function redeemCardAtPartner({ credential, partnerId, amountCents, currencyCode = null, idempotencyKey, orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, referenceType = 'credit_kiosk_redemption', referenceId, correlationId, requestIp, description, actorType = 'kiosk', metadata = {} }) {
+async function redeemCardAtPartner({ credential, pin, partnerId, amountCents, currencyCode = null, idempotencyKey, orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, referenceType = 'credit_kiosk_redemption', referenceId, correlationId, requestIp, description, actorType = 'kiosk', metadata = {} }) {
   const amount = parseAmountCents(amountCents);
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
   if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required to redeem a card', 400, 'credit_idempotency_key_required');
+  const normalizedPin = normalizeString(pin, 12);
+  if (!normalizedPin) throw new AppError('A card PIN is required to redeem at the kiosk', 400, 'credit_card_pin_required');
 
   return withTransaction(pool, async (client) => {
     const card = await resolveCardByCredential(client, credential);
+    await verifyCardPin(client, card, normalizedPin);
     const result = await purchaseWithCreditInTransaction(client, {
       customerId: card.customer_id,
       partnerId,
@@ -639,22 +712,30 @@ async function cashOutWithCardInTransaction(client, { credential, pin, kioskDevi
   if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required to cash out', 400, 'credit_idempotency_key_required');
   if (!kioskDeviceId) throw new AppError('A kiosk device is required to cash out', 400, 'credit_cash_out_kiosk_required');
 
-  const existing = await getExistingTransaction(client, normalizedIdempotencyKey);
+  // Resolve the card identity (no status gate) and the settlement currency
+  // before the replay check, so the replay can be bound to the same card,
+  // customer, amount, and currency.
+  const cardIdentity = await resolveCardIdentityByCredential(client, credential);
+  const customerAccount = await findCustomerAccount(client, cardIdentity.customer_id, currencyCode || CREDIT_CURRENCY, true);
+  if (!customerAccount) throw new AppError('OxSteed Credit account not found', 404, 'credit_customer_not_found');
+  const currency = assertSupportedCreditCurrency(currencyCode || customerAccount.currency_code);
+
+  const existing = await getExistingCashOutTransaction(client, normalizedIdempotencyKey);
   if (existing) {
-    if (existing.transaction_type !== 'cash_out') {
-      throw new AppError('Credit idempotency key was already used for a different transaction', 409, 'credit_idempotency_conflict');
-    }
+    assertCashOutReplayMatches(existing, {
+      cardId: cardIdentity.id,
+      customerId: cardIdentity.customer_id,
+      amountCents: amount,
+      currencyCode: currency,
+    });
     return { transaction: { ...formatTransaction(existing, await loadAccountEntries(client, existing.id)), replayed: true }, replayed: true };
   }
 
   const card = await resolveCardByCredential(client, credential);
+  await assertCardOwnerIsActive(client, card.customer_id);
   await verifyCardPin(client, card, pin);
   await assertCreditRailEnabled(client);
   await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit-cashout:${card.customer_id}`]);
-
-  const customerAccount = await findCustomerAccount(client, card.customer_id, currencyCode || CREDIT_CURRENCY, true);
-  if (!customerAccount) throw new AppError('OxSteed Credit account not found', 404, 'credit_customer_not_found');
-  const currency = assertSupportedCreditCurrency(currencyCode || customerAccount.currency_code);
 
   await assertCustomerCashOutCapacity(client, { customerId: card.customer_id, amountCents: amount, currencyCode: currency });
   const treasuryAccount = await ensureAccount(client, { accountType: 'platform_treasury', currencyCode: currency });

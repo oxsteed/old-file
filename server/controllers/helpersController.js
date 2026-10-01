@@ -975,7 +975,8 @@ async function getHelperStatus(req, res, next) {
     const { rows: [hp] } = await pool.query(
       `SELECT hp.is_available_now FROM helper_profiles hp
        JOIN users u ON u.id = hp.user_id
-       WHERE hp.user_id = $1 AND u.deleted_at IS NULL`,
+       WHERE hp.user_id = $1 AND u.deleted_at IS NULL
+         AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [id]
     );
     const available = hp ? hp.is_available_now : false;
@@ -1003,7 +1004,8 @@ async function getHelperAvailability(req, res, next) {
        JOIN users u ON u.id = hp.user_id
        WHERE hp.user_id = $1
          AND u.deleted_at IS NULL
-         AND u.email_verified = TRUE`,
+         AND u.email_verified = TRUE
+         AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [id]
     );
     if (!hp) throw new AppError('Helper not found', 404, 'not_found');
@@ -1073,7 +1075,8 @@ async function getHelperAvailabilitySummary(req, res, next) {
          JOIN users u ON u.id = hp.user_id
         WHERE hp.user_id = $1
           AND u.deleted_at IS NULL
-          AND u.email_verified = TRUE`,
+          AND u.email_verified = TRUE
+          AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [id]
     );
     if (!hp) throw new AppError('Helper not found', 404, 'not_found');
@@ -1108,7 +1111,8 @@ async function getHelperPricing(req, res, next) {
        JOIN users u ON u.id = hp.user_id
        WHERE hp.user_id = $1
          AND u.deleted_at IS NULL
-         AND u.email_verified = TRUE`,
+         AND u.email_verified = TRUE
+         AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [id]
     );
     if (!hp) throw new AppError('Helper not found', 404, 'not_found');
@@ -1155,7 +1159,8 @@ async function getHelperSlots(req, res, next) {
        JOIN users u ON u.id = hp.user_id
        WHERE hp.user_id = $1
          AND u.deleted_at IS NULL
-         AND u.email_verified = TRUE`,
+         AND u.email_verified = TRUE
+         AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [id]
     );
     if (!hp) throw new AppError('Helper not found', 404, 'not_found');

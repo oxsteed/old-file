@@ -56,7 +56,7 @@ export default function TranscriptConfidenceIndicator({
           type="button"
           onClick={onRequestImprovement}
           disabled={isImproving}
-          className="ml-auto flex items-center gap-1.5 px-2 py-1 text-xs font-medium rounded bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="ms-auto flex items-center gap-1.5 px-2 py-1 text-xs font-medium rounded bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <Sparkles className="w-3 h-3" />
           {isImproving ? t('transcriptConfidence.improving') : t('transcriptConfidence.improve')}
@@ -64,7 +64,7 @@ export default function TranscriptConfidenceIndicator({
       )}
 
       {isHighConfidence && (
-        <span className="ml-auto text-xs text-green-600 dark:text-green-400 font-medium">
+        <span className="ms-auto text-xs text-green-600 dark:text-green-400 font-medium">
           {t('transcriptConfidence.highAccuracy')}
         </span>
       )}

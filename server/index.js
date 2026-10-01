@@ -30,6 +30,7 @@ const { otelRequestContext } = require('./middleware/otelRequestContext');
 const { attachCsrfToken, validateCsrfToken } = require('./middleware/csrf');
 const sanitizeInputs = require('./middleware/sanitize');
 const { generalLimiter, authenticatedLimiter, authLimiter, strictLimiter, channelWebhookLimiter } = require('./middleware/rateLimiter');
+const { webhookRateLimit } = require('./middleware/webhookAuth');
 const { authenticate, requireRole } = require('./middleware/auth');
 const { requireAdmin } = require('./middleware/adminAuth');
 const prerenderHelperProfile = require('./middleware/prerenderHelperProfile');
@@ -181,11 +182,18 @@ const modePlatformApprovalRoutes = require('./routes/modePlatformApprovals');
 
 const app = express();
 const httpServer = http.createServer(app);
-// SECURITY (H-34): trust proxy = 1
-// We trust only the first hop (the Render reverse proxy or AWS load balancer).
-// This ensures req.ip represents the real client IP (needed for rate limiting) 
-// and cannot be spoofed by sending a fake X-Forwarded-For header.
-app.set('trust proxy', 1); // Required for Render reverse proxy
+// SECURITY: number of trusted proxy hops for req.ip resolution.
+// Production path is Cloudflare -> Coolify/Traefik -> app, i.e. 2 hops, so
+// the default is 2. TRUST_PROXY_HOPS overrides it (e.g. "1" for a single
+// reverse proxy in local Docker setups). Non-numeric, non-finite, or negative
+// values fall back to the default so req.ip cannot be spoofed by a crafted
+// X-Forwarded-For header.
+function resolveTrustProxyHops() {
+  const parsed = Number.parseInt(process.env.TRUST_PROXY_HOPS || '2', 10);
+  if (!Number.isFinite(parsed) || parsed < 0) return 2;
+  return parsed;
+}
+app.set('trust proxy', resolveTrustProxyHops());
 const PORT = process.env.PORT || 5000;
 const canonicalHostRedirect = require('./middleware/canonicalHost');
 app.use(canonicalHostRedirect);
@@ -248,20 +256,23 @@ app.use(cors({
   credentials: true,
 }));
 
-// ── WEBHOOK ROUTES (before rate limiting AND body parsing) ───
+// ── WEBHOOK ROUTES (before global rate limiters AND body parsing) ───
 // Stripe needs raw body for signature verification.
-// Webhooks must skip the rate limiter - Stripe/Didit IPs can burst
-// during batch events and a 429 can cause Stripe to disable the endpoint.
-app.use('/api/webhooks', webhookRoutes);
+// These routes skip the global API limiters, but each gets the dedicated
+// inbound webhook limiter (600 req / 5 min per IP): generous enough that a
+// provider retry burst never hits a 429, while still capping abuse.
+// The limiter runs before express.raw() and signature verification so
+// rejected traffic is counted cheaply.
+app.use('/api/webhooks', webhookRateLimit, webhookRoutes);
 
 // Verification & Didit webhooks also need raw body for HMAC verification.
 // Must be mounted before express.json() to prevent body-parser from consuming
 // the request stream (same pattern as Stripe above).
 const verificationCtrl = require('./controllers/verificationController');
-app.post('/api/verification/webhooks/checkr', express.raw({ type: 'application/json' }), verificationCtrl.checkrWebhook);
-app.post('/api/verification/webhooks/identity', express.raw({ type: 'application/json' }), verificationCtrl.identityWebhook);
+app.post('/api/verification/webhooks/checkr', webhookRateLimit, express.raw({ type: 'application/json' }), verificationCtrl.checkrWebhook);
+app.post('/api/verification/webhooks/identity', webhookRateLimit, express.raw({ type: 'application/json' }), verificationCtrl.identityWebhook);
 // Backwards-compatible alias. Configure Didit to use /api/webhooks/didit.
-app.post('/api/didit/webhook', express.raw({ type: 'application/json' }), diditWebhook);
+app.post('/api/didit/webhook', webhookRateLimit, express.raw({ type: 'application/json' }), diditWebhook);
 
 // Provider-agnostic support channel ingress uses its own bounded limiter and
 // raw body so HMAC signatures cover the exact bytes sent by the provider.
@@ -273,7 +284,7 @@ app.use('/api/support/webhooks', channelWebhookLimiter, express.raw({ type: 'app
 // the JSON-parser mount inside localDeliveryRoutes was removed to avoid
 // double-registration.
 const telematicsWebhookCtrl = require('./controllers/deliveryTelematicsWebhookController');
-app.post('/api/delivery/webhooks/telematics/:provider', express.raw({ type: 'application/json' }), telematicsWebhookCtrl.receiveWebhook);
+app.post('/api/delivery/webhooks/telematics/:provider', webhookRateLimit, express.raw({ type: 'application/json' }), telematicsWebhookCtrl.receiveWebhook);
 
 // ── RATE LIMITING ────────────────────────────────────────────
 // Unauthenticated requests: 200 req / 15 min / IP
@@ -783,4 +794,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { app, httpServer, realtime, runtime, startServer };
+module.exports = { app, httpServer, realtime, runtime, startServer, resolveTrustProxyHops };

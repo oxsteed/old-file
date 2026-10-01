@@ -4,7 +4,7 @@ const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const socketService = require('../services/socketService');
-const { absoluteUrl } = require('../utils/publicSiteUrl');
+const { absoluteUrl, getPublicSiteUrl } = require('../utils/publicSiteUrl');
 const crypto = require('crypto');
 const logger = require('../utils/logger');
 const notificationService = require('../services/notificationService');
@@ -514,8 +514,23 @@ function parseMoneyCents(value, field = 'priceCents') {
 function safeReturnUrl(value) {
   const raw = normalizeString(value, 1000);
   if (!raw) return null;
-  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(raw)) return raw;
+  // M12: the old code accepted ANY absolute URL on the unauthenticated
+  // checkout complete/cancel endpoints — a phishing-ready open redirect.
+  // Relative paths are anchored to the public site; absolute URLs must stay
+  // on the site's own host.
+  // Protocol-relative URLs ("//evil.example/...") are not same-site links.
+  if (raw.startsWith('//')) return null;
   if (raw.startsWith('/')) return absoluteUrl(raw);
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      const siteHost = new URL(getPublicSiteUrl()).host.toLowerCase();
+      const targetHost = new URL(raw).host.toLowerCase();
+      if (targetHost === siteHost) return raw;
+    } catch {
+      return null;
+    }
+    return null;
+  }
   return null;
 }
 
@@ -791,6 +806,63 @@ async function earnFoodLoyaltyOnComplete(client, order) {
       [account.id, order.id, points]
     );
     return account;
+  } catch (err) {
+    if (isMissingRelationError(err)) return null;
+    throw err;
+  }
+}
+
+// M13: points earned on completion must be clawed back when the order is
+// cancelled/refunded, or customers can farm loyalty points on refunded
+// orders. Idempotent on the ledger: only claws back an 'order_completed'
+// award that has no matching 'order_refunded' row, and never drives the
+// balance below zero.
+async function clawBackFoodLoyaltyOnRefund(client, order) {
+  if (!order.customer_id) return null;
+  try {
+    const { rows: [account] } = await client.query(
+      `SELECT id FROM food_loyalty_accounts
+        WHERE restaurant_id = $1 AND customer_id = $2
+        FOR UPDATE`,
+      [order.restaurant_id, order.customer_id]
+    );
+    if (!account) return null;
+    const { rows: [earned] } = await client.query(
+      `SELECT id, delta_points
+         FROM food_loyalty_ledger
+        WHERE account_id = $1 AND order_id = $2 AND reason = 'order_completed'
+        ORDER BY id DESC
+        LIMIT 1`,
+      [account.id, order.id]
+    );
+    if (!earned) return null;
+    const { rows: [alreadyClawedBack] } = await client.query(
+      `SELECT id FROM food_loyalty_ledger
+        WHERE account_id = $1 AND order_id = $2 AND reason = 'order_refunded'
+        LIMIT 1`,
+      [account.id, order.id]
+    );
+    if (alreadyClawedBack) return null;
+    const points = Math.max(0, Number(earned.delta_points || 0));
+    if (points <= 0) return null;
+    await client.query(
+      `UPDATE food_loyalty_accounts
+          SET points_balance = GREATEST(0, points_balance - $1),
+              updated_at = NOW()
+        WHERE id = $2`,
+      [points, account.id]
+    );
+    await client.query(
+      `INSERT INTO food_loyalty_ledger (account_id, order_id, delta_points, reason)
+       VALUES ($1, $2, $3, 'order_refunded')`,
+      [account.id, order.id, -points]
+    );
+    logger.info('Clawed back food loyalty points for refunded order', {
+      orderId: order.id,
+      accountId: account.id,
+      points,
+    });
+    return { accountId: account.id, points };
   } catch (err) {
     if (isMissingRelationError(err)) return null;
     throw err;
@@ -1078,6 +1150,23 @@ async function createFoodCheckoutSession({
   }
   const stripeAccountId = normalizeString(connectedAccountId, 255);
 
+  // H12: never create a second Checkout Session for an order that already has
+  // one. The session id is stamped on the order at creation; retries and the
+  // resume endpoint replay the existing session instead of charging twice.
+  const existingSessionId = normalizeString(order.metadata?.checkoutSessionId, 255);
+  if (existingSessionId) {
+    return {
+      order,
+      payment: {
+        mode: 'hosted_checkout',
+        status: 'requires_payment',
+        checkoutSessionId: existingSessionId,
+        replayed: true,
+      },
+      replayed: true,
+    };
+  }
+
   const lineItems = [{
     quantity: 1,
     price_data: {
@@ -1125,7 +1214,13 @@ async function createFoodCheckoutSession({
         connected_account_id: stripeAccountId || '',
       },
     },
-  }, stripeAccountId ? { stripeAccount: stripeAccountId } : undefined);
+  }, {
+    // H12: deterministic per-order key. A retried order creation that replays
+    // the same order id resolves to the same Stripe session instead of
+    // authorizing a second charge.
+    ...(stripeAccountId ? { stripeAccount: stripeAccountId } : {}),
+    idempotencyKey: `food-order-checkout:${order.id}`,
+  });
 
   const { rows: [updatedOrder] } = await pool.query(
     `UPDATE food_orders
@@ -1168,6 +1263,60 @@ async function createFoodCheckoutSession({
       expiresAt: session.expires_at ? new Date(session.expires_at * 1000).toISOString() : null,
     },
   };
+}
+
+// C5: Refund the Stripe charge behind a paid pay_now food order when the order
+// is cancelled or refunded. The refund is idempotency-keyed per order and the
+// POS refund row dedupes on (restaurant_id, idempotency_key), so retries and
+// the charge.refunded webhook cannot double-refund. Runs inside the caller's
+// transaction so a failed refund rolls back the status transition.
+async function refundFoodOrderStripePayment(client, { order, restaurantId, createdByUserId = null, status = 'refunded' }) {
+  if (!hasRestaurantStripeCheckout()) {
+    throw new AppError('Stripe payments are not configured', 503, 'stripe_not_configured');
+  }
+  const connectedAccountId = normalizeString(
+    order.metadata?.stripeCheckout?.connectedAccountId
+      || order.metadata?.stripe_checkout?.connectedAccountId,
+    255
+  );
+  let refund;
+  try {
+    refund = await stripe.refunds.create(
+      { payment_intent: order.stripe_payment_intent_id },
+      {
+        stripeAccount: connectedAccountId || undefined,
+        idempotencyKey: `food-order:${order.id}:refund`,
+      }
+    );
+  } catch (refundErr) {
+    logger.error('Stripe refund failed for food order', {
+      orderId: order.id,
+      paymentIntentId: order.stripe_payment_intent_id,
+      error: refundErr.message,
+    });
+    throw new AppError('The card refund could not be processed', 502, 'stripe_refund_failed', { orderId: order.id });
+  }
+  const chargeId = typeof refund.charge === 'string' ? refund.charge : refund.charge?.id || null;
+  const { rows: posRows } = await client.query(
+    `INSERT INTO restaurant_pos_payments
+       (restaurant_id, food_order_id, shift_id, payment_type, amount_cents, status,
+        provider, provider_payment_intent_id, provider_charge_id, idempotency_key,
+        reference, note, metadata)
+     VALUES ($1, $2, NULL, 'refund', $3, 'refunded', 'stripe_checkout', $4, $5, $6, $5, $7, $8::jsonb)
+     ON CONFLICT (restaurant_id, idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
+     RETURNING *`,
+    [
+      restaurantId,
+      order.id,
+      Number(refund.amount || 0),
+      order.stripe_payment_intent_id,
+      chargeId,
+      `food-order-refund:${order.id}`,
+      'Card refund for cancelled order',
+      JSON.stringify({ stripeRefundId: refund.id, orderStatus: status, createdByUserId }),
+    ]
+  );
+  return { refund, chargeId, posPayment: posRows[0] || null };
 }
 
 exports.getPaymentConfig = async (req, res, next) => {
@@ -1460,6 +1609,8 @@ exports.listRestaurants = async (req, res, next) => {
     const filters = [
       `fr.status = 'active'`,
       `fr.discovery_status = 'visible'`,
+      // H5: admin-hidden restaurants stay out of public discovery.
+      `COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE`,
     ];
 
     const q = normalizeString(req.query.q || req.query.search, 120);
@@ -2245,8 +2396,11 @@ exports.createOrder = async (req, res, next) => {
       throw new AppError('Idempotency-Key does not match clientOrderId', 400, 'food_order_idempotency_conflict');
     }
     const clientOrderId = headerClientOrderId || bodyClientOrderId;
-    if (['restaurant_credit', 'oxsteed_credit'].includes(paymentContract.canonical) && !clientOrderId) {
-      throw new AppError('Idempotency-Key is required for stored-value food orders', 400, 'food_order_idempotency_required');
+    // H12: every food order needs a client-supplied idempotency key, not just
+    // stored-value modes. Without it, retried pay_now checkouts can create
+    // duplicate orders and duplicate Stripe sessions.
+    if (!clientOrderId) {
+      throw new AppError('Idempotency-Key is required for food orders', 400, 'food_order_idempotency_required');
     }
     const idempotencyFingerprint = clientOrderId
       ? buildFoodOrderIdempotencyFingerprint({
@@ -3284,7 +3438,7 @@ exports.updateOrderStatus = async (req, res, next) => {
                 handed_off_by = CASE WHEN $1 = 'completed' THEN COALESCE(fo.handed_off_by, $5) ELSE fo.handed_off_by END,
                 payment_status = CASE
                   WHEN $1 IN ('cancelled', 'refunded')
-                    AND COALESCE(fo.metadata->>'paymentMode', '') IN ('wallet_credit', 'oxsteed_credit')
+                    AND COALESCE(fo.metadata->>'paymentMode', '') IN ('wallet_credit', 'oxsteed_credit', 'pay_now')
                     AND fo.payment_status = 'paid'
                     THEN 'refunded'
                   ELSE fo.payment_status
@@ -3307,7 +3461,8 @@ exports.updateOrderStatus = async (req, res, next) => {
               )
             )
           RETURNING fo.*, current.status AS previous_status,
-                    current.kitchen_stage AS previous_kitchen_stage
+                    current.kitchen_stage AS previous_kitchen_stage,
+                    current.payment_status AS previous_payment_status
          )
          SELECT * FROM updated`,
         [
@@ -3403,6 +3558,8 @@ exports.updateOrderStatus = async (req, res, next) => {
 
       delete order.previous_status;
       delete order.previous_kitchen_stage;
+      const previousPaymentStatus = order.previous_payment_status || null;
+      delete order.previous_payment_status;
 
       let walletRefund = null;
       let payment = null;
@@ -3482,6 +3639,32 @@ exports.updateOrderStatus = async (req, res, next) => {
         });
       }
 
+      // C5: pay_now orders are charged through Stripe at placement. Cancelling or
+      // refunding a paid card order must refund the charge, not just flip the
+      // status. The refund is idempotency-keyed per order so retries and the
+      // charge.refunded webhook cannot double-refund.
+      if (['cancelled', 'refunded'].includes(status)
+        && paymentMode === 'pay_now'
+        && previousPaymentStatus === 'paid'
+        && order.stripe_payment_intent_id) {
+        const cardRefund = await refundFoodOrderStripePayment(client, {
+          order,
+          restaurantId,
+          createdByUserId: req.user?.id || null,
+          status,
+        });
+        payment = {
+          mode: 'pay_now',
+          status: 'refunded',
+          amountCents: Number(order.total_cents || 0),
+          amount: Number(order.total_cents || 0) / 100,
+          currencyCode: normalizeCurrency(order.currency_code),
+          refundId: cardRefund.refund?.id || null,
+          stripeChargeId: cardRefund.chargeId,
+          posPayment: formatPosPayment(cardRefund.posPayment),
+        };
+      }
+
       if (status === 'completed') {
         await consumeInventoryForOrder(client, {
           restaurantId,
@@ -3493,6 +3676,9 @@ exports.updateOrderStatus = async (req, res, next) => {
           restaurantId,
           orderId: order.id,
         });
+        // M13: claw back loyalty points earned on completion so refunded
+        // orders cannot farm points.
+        await clawBackFoodLoyaltyOnRefund(client, order);
       }
 
       return { order, walletRefund, payment };
@@ -3561,6 +3747,64 @@ exports.updateOrderPayment = async (req, res, next) => {
         paymentStatusPath: `/api/restaurants/${restaurantId}/pos/payments/:paymentId`,
       }
     );
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.resumeFoodCheckoutSession = async (req, res, next) => {
+  // H12: if checkout session creation failed after the order was placed (or
+  // the customer abandoned the tab), the customer resumes payment here instead
+  // of placing a duplicate order. Replays the existing session when one is
+  // already stamped on the order.
+  try {
+    const orderId = parsePositiveInt(req.params.orderId);
+    if (!orderId) throw new AppError('Order not found', 404, 'order_not_found');
+    const { rows: orderRows } = await pool.query(
+      `SELECT fo.*,
+              b.stripe_account_id AS business_stripe_account_id
+         FROM food_orders fo
+         LEFT JOIN businesses b ON b.id = fo.business_id
+        WHERE fo.id = $1`,
+      [orderId]
+    );
+    const order = orderRows[0];
+    if (!order) throw new AppError('Order not found', 404, 'order_not_found');
+    const isCustomer = order.customer_id && req.user?.id === order.customer_id;
+    if (!isCustomer) throw new AppError('Order not found', 404, 'order_not_found');
+    const paymentMode = order.metadata?.paymentMode || order.metadata?.payment_mode || null;
+    if (paymentMode && paymentMode !== 'pay_now') {
+      throw new AppError('This order does not use online checkout', 409, 'checkout_not_applicable');
+    }
+    if (order.payment_status === 'paid') {
+      throw new AppError('This order is already paid', 409, 'order_already_paid');
+    }
+    const { rows: itemRows } = await pool.query(
+      `SELECT foi.quantity, foi.item_name AS name
+         FROM food_order_items foi
+        WHERE foi.order_id = $1
+        ORDER BY foi.id`,
+      [orderId]
+    );
+    const orderItems = itemRows.map((row) => ({
+      quantity: Number(row.quantity || 1),
+      menuItem: { name: row.name || 'Item' },
+    }));
+    const result = await createFoodCheckoutSession({
+      order,
+      orderItems,
+      customerEmail: normalizeString(req.user?.email || req.body.guestEmail || req.body.guest_email, 255),
+      returnUrl: safeReturnUrl(req.body.returnUrl || req.body.return_url),
+      connectedAccountId: order.business_stripe_account_id
+        || order.metadata?.stripeCheckout?.connectedAccountId
+        || order.metadata?.stripe_checkout?.connectedAccountId
+        || null,
+    });
+    res.status(result.replayed ? 200 : 201).json({
+      order: result.order,
+      payment: result.payment,
+      replayed: Boolean(result.replayed),
+    });
   } catch (err) {
     next(err);
   }
@@ -4831,7 +5075,11 @@ exports.toggleCustomerFavoriteRestaurant = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     const { rows: restaurants } = await pool.query(
-      `SELECT id FROM food_restaurants WHERE id = $1 AND status IN ('active', 'paused', 'draft')`,
+      // H5: admin-hidden restaurants cannot be (re-)favorited.
+      `SELECT id FROM food_restaurants
+        WHERE id = $1
+          AND status IN ('active', 'paused', 'draft')
+          AND COALESCE(is_hidden_by_admin, FALSE) = FALSE`,
       [restaurantId]
     );
     if (!restaurants[0]) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
@@ -5621,7 +5869,9 @@ exports.createRestaurantCustomerMessage = async (req, res, next) => {
         WHERE fr.id = $1
           AND fr.status IN ('active', 'paused', 'draft')
           AND b.is_active = TRUE
-          AND b.deleted_at IS NULL`,
+          AND b.deleted_at IS NULL
+          -- H5: admin-hidden restaurants are not contactable.
+          AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE`,
       [restaurantId]
     );
     if (!restaurant) {
@@ -6018,3 +6268,8 @@ exports.createRestaurantReport = async (req, res, next) => {
     next(err);
   }
 };
+
+// ── Test seams (exported for unit tests) ────────────────────────────────
+exports._refundFoodOrderStripePayment = refundFoodOrderStripePayment;
+exports._clawBackFoodLoyaltyOnRefund = clawBackFoodLoyaltyOnRefund;
+exports._safeReturnUrl = safeReturnUrl;

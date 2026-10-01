@@ -91,7 +91,7 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
                   <button
                     onClick={() => setOpen(false)}
                     aria-label={t('common.aria.closeButton')}
-                    className="p-2 -mr-1 text-gray-400 hover:text-gray-600 transition rounded-lg"
+                    className="p-2 -me-1 text-gray-400 hover:text-gray-600 transition rounded-lg"
                   >
                     ✕
                   </button>
@@ -124,7 +124,7 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
                         </button>
                       ))}
                       {(hovered || rating) > 0 && (
-                        <span className="ml-2 text-sm font-semibold text-gray-700">
+                        <span className="ms-2 text-sm font-semibold text-gray-700">
                           {RATING_LABELS[hovered || rating]}
                         </span>
                       )}
@@ -135,7 +135,7 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
                   <div>
                     <label htmlFor="review-title" className="block text-sm font-medium text-gray-700 mb-1">
                       {t('jobDetail.headline')}
-                      <span className="text-gray-400 font-normal ml-1">
+                      <span className="text-gray-400 font-normal ms-1">
                         ({t('common.optional')})
                       </span>
                     </label>
@@ -156,7 +156,7 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
                   <div>
                     <label htmlFor="review-body" className="block text-sm font-medium text-gray-700 mb-1">
                       {t('jobDetail.writtenReview')}
-                      <span className="text-gray-400 font-normal ml-1">
+                      <span className="text-gray-400 font-normal ms-1">
                         ({t('common.optional')})
                       </span>
                     </label>
@@ -172,7 +172,7 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
                                  focus:ring-orange-400 focus:outline-none
                                  resize-none"
                     />
-                    <p className="text-xs text-gray-400 text-right mt-1">
+                    <p className="text-xs text-gray-400 text-end mt-1">
                       {body.length}/1000
                     </p>
                   </div>

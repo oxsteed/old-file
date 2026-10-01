@@ -10,7 +10,7 @@ router.get('/packages', generalLimiter, consultingPaymentController.getPackages)
 // Authenticated payment endpoints. Strict rate limit on intent creation to
 // prevent payment-intent flooding (each one creates a real Stripe object).
 router.post('/payment-intent', strictLimiter, authenticate, consultingPaymentController.createPaymentIntent);
-router.post('/confirm-payment', authenticate, consultingPaymentController.confirmPayment);
+router.post('/confirm-payment', strictLimiter, authenticate, consultingPaymentController.confirmPayment);
 router.get('/payment/:paymentId/status', authenticate, consultingPaymentController.getPaymentStatus);
 router.post('/refund', strictLimiter, authenticate, consultingPaymentController.refundPayment);
 

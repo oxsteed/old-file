@@ -37,8 +37,9 @@ router.get('/backup-status', monitoringController.getBackupStatus);
 // API latency percentiles
 router.get('/latency-percentiles', monitoringController.getLatencyPercentiles);
 
-// Compliance report (SOC 2, ISO 27001, GDPR)
-router.get('/compliance-report', monitoringController.getComplianceReport);
+// REMOVED (H7): /compliance-report derived SOC 2/ISO status from the
+// writerless compliance_audit_log (always COMPLIANT); table dropped in
+// migration 624. See monitoringController for the removal note.
 
 // Recent incidents and anomalies
 router.get('/incident-summary', monitoringController.getIncidentSummary);

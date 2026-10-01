@@ -5710,6 +5710,7 @@
       "apiSettings": "Paramèt API ak devlopè",
       "apiKey": "Kle API",
       "copyKeyHint": "Kopye kle sa a epi sere li an sekirite.",
+      "maskedKeyNoCopy": "Se kle kache a ki parèt. Jenere yon lòt pou jwenn yon nouvo kle konplè.",
       "apiKeyHint": "Sèvi ak yon kle jenere pou aksè API dirèk.",
       "noApiKey": "Poko gen kle API ki jenere",
       "regenerateApiKey": "Jenere kle API ankò",
@@ -7240,51 +7241,6 @@
       "expiresOnText": "ekspire {{date}}",
       "deleteRecordConfirm": "Efase dosye sa a?",
       "trustRecordDeleted": "Dosye konfyans lan efase"
-    },
-    "businessMessageTemplates": {
-      "title": "Modèl mesaj",
-      "subtitle": "Mesaj ki ka sèvi anpil fwa pou kominikasyon ki nòmal",
-      "newTemplate": "Nouvo modèl",
-      "editTemplate": "Modifye modèl",
-      "all": "Tout",
-      "category": {
-        "general": "Jeneral",
-        "appointment": "Randevou",
-        "follow_up": "Swiv",
-        "invoice": "Bòdwo",
-        "promotion": "Pwomosyon",
-        "review_request": "Mande revizyon",
-        "welcome": "Byenvini",
-        "cancellation": "Anilasyon"
-      },
-      "form": {
-        "templateName": "Non modèl *",
-        "emailSubject": "Sijè imel (opsyonèl)",
-        "category": "Kategori",
-        "messageBody": "Kò mesaj la *",
-        "bodyPlaceholder": "Ekri modèl ou la a. Sèvi ak varyab tankou {client_name} pou pèsonalize."
-      },
-      "insertVariables": "Mete:",
-      "saveTemplate": "Sove modèl",
-      "cancel": "Anile",
-      "loading": "Ap chaje...",
-      "emptyTitle": "Pa gen modèl ankò. Kreye mesaj ki ka repwodwi pou sitiyasyon komen.",
-      "emptyBody": "Ide: rapèl randevou, swiv, demann peman, demann revizyon",
-      "usesLabel_one": "{{count}} itilizasyon",
-      "usesLabel_other": "{{count}} itilizasyon",
-      "copy": "Kopi",
-      "edit": "Modifye",
-      "delete": "Efase",
-      "toastLoadFailed": "Pa t ka chaje modèl yo",
-      "toastNameAndBodyRequired": "Non ak kò mesaj obligatwa",
-      "toastCreated": "Modèl kreye",
-      "toastUpdated": "Modèl ajou",
-      "toastSaveFailed": "Pa t ka sove",
-      "deleteConfirm": "Efase modèl sa a?",
-      "deleteSuccess": "Efase",
-      "deleteFailed": "Echwe",
-      "toastCopied": "Kopye sou clipboard",
-      "subjectPrefix": "Sijè:"
     },
     "switchTemplate": "Chanje model",
     "switchTemplateTitle": "Chanje biznis sa a pou yon lot model pwofil",
@@ -10789,11 +10745,6 @@
             "Evalyasyon biznis ak oditi oportunite",
             "Fèy wout imlemantasyon ak tannif",
             "Rekomandasyon pèsonalize pou pwochen etap",
-            "Kesyon ak repons sou sitiyasyon ou",
-            "Apèl pwofon estrateji (jiska 2 èdonn)",
-            "Evalyasyon biznis ak oditi oportunite",
-            "Fèy wout imlemantasyon ak tannif",
-            "Rekomandasyon pèsonalize pou pwochen etap",
             "Kesyon ak repons sou sitiyasyon ou"
           ]
         },
@@ -10803,13 +10754,6 @@
           "timeline": "1–2 semèn",
           "forWho": "Moun ki jis bezwen kouch legal ak idantite konfigire",
           "features": [
-            "Oryantasyon non biznis",
-            "Enjistreman domèn",
-            "Konfigirasyon imel pwofesyonèl",
-            "Nimewo telefòn biznis",
-            "Konfigirasyon adrès biznis",
-            "Oryantasyon dipo LLC + sipò EIN",
-            "Dosye dokiman òganize",
             "Oryantasyon non biznis",
             "Enjistreman domèn",
             "Konfigirasyon imel pwofesyonèl",
@@ -10833,14 +10777,6 @@
             "Konfigirasyon planifikasyon sou entènèt",
             "Konfigirasyon pwosesè peyman",
             "Modèl fakti",
-            "Lis kontròl lansman ak revizyon lanse",
-            "Tout sa nan Fondsman plis:",
-            "Logo ak kit mak basik",
-            "Sit web 4-paj (Akwèy, Sèvis, Sou, Kontakt)",
-            "Fòm kontakt ak kapt izè",
-            "Konfigirasyon planifikasyon sou entènèt",
-            "Konfigirasyon pwosesè peyman",
-            "Modèl fakti",
             "Lis kontròl lansman ak revizyon lanse"
           ]
         },
@@ -10850,15 +10786,6 @@
           "timeline": "3–4 semèn",
           "forWho": "Moun ki vle tout sa fè ak yon sistèm pou grandi",
           "features": [
-            "Tout sa nan Lansman plis:",
-            "Konfigirasyon Pwofil Google Biznis",
-            "Rezèvasyon manch rezo sosyal",
-            "Koule travay asepsyon kliyant",
-            "Sistèm kontabilite inicial",
-            "Sistèm demann rekomandasyon",
-            "Konfigirasyon lis sou entènèt",
-            "Apèl swivi lansman 30-jou",
-            "Modèl aten kliyant premye",
             "Tout sa nan Lansman plis:",
             "Konfigirasyon Pwofil Google Biznis",
             "Rezèvasyon manch rezo sosyal",
@@ -11975,6 +11902,7 @@
     "noFAQs": "Pa gen FAQ sou dosye ankò.",
     "productsLabel": "Pwodwi yo voye bay modèl la",
     "noProducts": "Pa gen okenn pwodwi nan dosye ankò.",
+    "notAuthorized": "Ou pa gen aksè a biznis sa a.",
     "knowledgeLabel": "Blòk konesans AI ou a",
     "noKnowledge": "Pa gen okenn konesans AI koutim sove ankò.",
     "sectionContext": "Kontèks estriktire",
@@ -12137,7 +12065,8 @@
     "cautionCaution": "Atansyon",
     "cautionRestricted": "Restrè",
     "feeHistory": "Frè anilasyon peye",
-    "feesCount": "{{n}} frè anilasyon peye",
+        "feesCount_one": "{{count}} frè anilasyon peye",
+    "feesCount_other": "{{count}} frè anilasyon peye",
     "feesTotal": "total",
     "feesNone": "Pa gen frè anilasyon, bon istwa.",
     "feesShow": "Montre",
@@ -12278,7 +12207,8 @@
     "customerReliabilityLabel": "Fiabilite kliyan",
     "newCustomer": "Nouvo kliyan, pa gen istwa anilasyon ankò.",
     "custCompletedOf": "{{completed}} / {{total}} travay konplete",
-    "custCancellations": "{{n}} anilasyon nan ane pase a",
+        "custCancellations_one": "{{count}} anilasyon nan ane pase a",
+    "custCancellations_other": "{{count}} anilasyon nan ane pase a",
     "patternEarly": "Anjeneral anile avanse lè li anile.",
     "patternLate": "Souvan anile nan semèn anvan dat kòmansman an.",
     "impactNote": "Anile kounye a vle di {{customer}} pral bezwen jwenn yon lòt moun dènyè minit.",
@@ -13029,9 +12959,6 @@
         "steps": [
           "Dekri yon travay, yon bezwen planifye, yon rezèvasyon, oswa yon zouti pou lwe.",
           "Konpare moun k ap ede yo, pri, mesaj, orè, ak siy konfyans.",
-          "Peye, bay revizyon, kenbe dosye a, epi planifye pwochen bezwen an nan tablo kontwòl ou.",
-          "Dekri yon travay, yon bezwen planifye, yon rezèvasyon, oswa yon zouti pou lwe.",
-          "Konpare moun k ap ede yo, pri, mesaj, orè, ak siy konfyans.",
           "Peye, bay revizyon, kenbe dosye a, epi planifye pwochen bezwen an nan tablo kontwòl ou."
         ],
         "cta": "Pibliye yon travay"
@@ -13040,9 +12967,6 @@
         "label": "Pou moun k ap bay sèvis",
         "title": "Fè konpetans ou tounen travay lokal",
         "steps": [
-          "Bati yon pwofil ak sèvis, foto, modèl, QR, ak disponiblite.",
-          "Jwenn travay, resevwa rezèvasyon dirèk, ekri kliyan, epi voye òf.",
-          "Sèvi ak peman, fakti, repitasyon, ak kalandriye pou travay la vin regilye.",
           "Bati yon pwofil ak sèvis, foto, modèl, QR, ak disponiblite.",
           "Jwenn travay, resevwa rezèvasyon dirèk, ekri kliyan, epi voye òf.",
           "Sèvi ak peman, fakti, repitasyon, ak kalandriye pou travay la vin regilye."
@@ -13055,9 +12979,6 @@
         "steps": [
           "Jere sèvis, kliyan potansyèl, pwodwi, fakti, règleman, ak demann kliyan.",
           "Sèvi ak Business Hub, analiz, modèl, konsiltasyon, ak sipò pou grandi.",
-          "Kenbe dosye konfyans, diskisyon, mesaj, peman, ak swivi ansanm.",
-          "Jere sèvis, kliyan potansyèl, pwodwi, fakti, règleman, ak demann kliyan.",
-          "Sèvi ak Business Hub, analiz, modèl, konsiltasyon, ak sipò pou grandi.",
           "Kenbe dosye konfyans, diskisyon, mesaj, peman, ak swivi ansanm."
         ],
         "cta": "Louvri Business Hub"
@@ -13066,9 +12987,6 @@
         "label": "Pou moun ki gen zouti",
         "title": "Fè lajan ak ekipman itil",
         "steps": [
-          "Mete zouti sou lis ak foto, pri, depo, kondisyon, ranmasaj, ak livrezon.",
-          "Resevwa rezèvasyon, voye fakti, swiv estati, epi jere rapò.",
-          "Sèvi ak analiz pou konprann lokasyon, revni, ak kalite lis yo.",
           "Mete zouti sou lis ak foto, pri, depo, kondisyon, ranmasaj, ak livrezon.",
           "Resevwa rezèvasyon, voye fakti, swiv estati, epi jere rapò.",
           "Sèvi ak analiz pou konprann lokasyon, revni, ak kalite lis yo."
@@ -13085,12 +13003,6 @@
         "Anplwaye",
         "Mete orè",
         "Peye",
-        "Sonje",
-        "Bezwen",
-        "Planifye",
-        "Anplwaye",
-        "Mete orè",
-        "Peye",
         "Sonje"
       ],
       "aria": "Kijan OxSteed konekte",
@@ -13100,12 +13012,6 @@
       "title": "Egzanp nan lavi reyèl",
       "body": "OxSteed dwe santi li itil depi premye vizit la. Men kalite chemen platfòm nan fèt pou sipòte.",
       "items": [
-        "Mwen bezwen yon moun serye pou repare kay mwen.",
-        "Mwen vle fè lajan ak konpetans mwen.",
-        "Mwen bezwen yon zouti pou yon wikenn.",
-        "Mwen vle grandi yon biznis sèvis.",
-        "Mwen bezwen planifye depans lavni anvan yo vin ijans.",
-        "Mwen bezwen yon dosye si gen yon pwoblèm.",
         "Mwen bezwen yon moun serye pou repare kay mwen.",
         "Mwen vle fè lajan ak konpetans mwen.",
         "Mwen bezwen yon zouti pou yon wikenn.",
@@ -16085,9 +15991,6 @@
       "checklist": [
         "Revize travay ouvè ak presyon nan planifikasyon.",
         "Revize konvèsasyon ki pa li ki bezwen repons ekip la.",
-        "Louvri espas travay la pou kowòdone kalandriye, pèsonèl, ak operasyon.",
-        "Revize travay ouvè ak presyon nan planifikasyon.",
-        "Revize konvèsasyon ki pa li ki bezwen repons ekip la.",
         "Louvri espas travay la pou kowòdone kalandriye, pèsonèl, ak operasyon."
       ]
     },
@@ -16100,9 +16003,6 @@
       "checklist": [
         "Gade premye diskisyon kliyan ki pa li yo.",
         "Louvri mesaj ak onglet kliyan pou kenbe swivi a ap mache.",
-        "Gade travay ouvè pou asire pas sa a tounen nan ekip operasyon yo fèt byen.",
-        "Gade premye diskisyon kliyan ki pa li yo.",
-        "Louvri mesaj ak onglet kliyan pou kenbe swivi a ap mache.",
         "Gade travay ouvè pou asire pas sa a tounen nan ekip operasyon yo fèt byen."
       ]
     },
@@ -16113,9 +16013,6 @@
       "primaryCta": "Louvri espas afebe",
       "checklistTitle": "Prayorite anplwaye",
       "checklist": [
-        "Gade premye espas travay ak kalandriye ki afebe ou.",
-        "Revize mesaj oswa mizajou ekip la avan ou kòmanse travay.",
-        "Sèvi ak espas pataje a pou rete aligne sou orè ak pwochen etape yo.",
         "Gade premye espas travay ak kalandriye ki afebe ou.",
         "Revize mesaj oswa mizajou ekip la avan ou kòmanse travay.",
         "Sèvi ak espas pataje a pou rete aligne sou orè ak pwochen etape yo."
@@ -16300,14 +16197,6 @@
       "Pòt / Fèmen",
       "Preokipasyon ensèk",
       "Preokipasyon sekirite",
-      "Reparasyon an jeneral",
-      "Plonbri",
-      "Elektrisite",
-      "Aparèy",
-      "Chofaj / Refwadisman",
-      "Pòt / Fèmen",
-      "Preokipasyon ensèk",
-      "Preokipasyon sekirite",
       "Reparasyon an jeneral"
     ],
     "urgency": {
@@ -16443,20 +16332,9 @@
       "Rezo sosyal",
       "Rechèch",
       "Piblikasyon oswa podcast",
-      "Lòt",
-      "Platfòm OxSteed",
-      "Referans",
-      "Rezo sosyal",
-      "Rechèch",
-      "Piblikasyon oswa podcast",
       "Lòt"
     ],
     "timelineOptions": [
-      "Imedyatman",
-      "Nan 30 jou",
-      "Nan 90 jou",
-      "Nan 6 mwa",
-      "Jis ap eksplore",
       "Imedyatman",
       "Nan 30 jou",
       "Nan 90 jou",
@@ -16480,9 +16358,6 @@
       "submitFailed": "Nou pa t ka soumèt aplikasyon frankti a."
     },
     "heroCardsFallback": [
-      "Revizyon anvan teritwa",
-      "Prè pou kapital",
-      "Lis vérifikasyon lansman",
       "Revizyon anvan teritwa",
       "Prè pou kapital",
       "Lis vérifikasyon lansman"
@@ -16666,430 +16541,6 @@
       "actions": {
         "sending": "Nap soumèt...",
         "submit": "Soumèt demann"
-      }
-    },
-    "creativeIntakePage": {
-      "loading": "Ap chaje dekouvri kreyatif la...",
-      "businessNameFallback": "biznis kreyatif sa a",
-      "errors": {
-        "loadFailed": "Nou pa t ka chaje pwofil kreyatif sa a.",
-        "missingProjectType": "Tanpri di nou ki kalite pwojè ou bezwen an.",
-        "submitFailed": "Nou pa t ka voye dekouvri kreyatif la."
-      },
-      "messages": {
-        "submitted": "Nou voye dekouvri kreyatif la."
-      },
-      "submitted": {
-        "pageTitle": "Dekouvri kreyatif la voye - OxSteed",
-        "eyebrow": "Dekouvri voye",
-        "description": "{{business}} ap revize objektif pwojè a, direksyon estetik, plan pake, ak tan livrezon anvan yo mennen ou nan dekouvri, pwopozisyon, oswa pwodiksyon.",
-        "backToProfile": "Retounen sou pwofil la",
-        "goToDashboard": "Ale sou tablodbò a"
-      },
-      "page": {
-        "title": "Dekouvri kreyatif - {{business}}"
-      },
-      "hero": {
-        "eyebrow": "Dekouvri kreyatif",
-        "title": "Kòmanse yon pwojè avèk {{business}}",
-        "subtitle": "Pataje objektif pwojè a, direksyon estetik, referans, ak delè pou biznis la ka mete ou nan bon pake kreyatif la.",
-        "cardTitle": "Fòmilè dekouvri kreyatif la",
-        "cardDescription": "Fè pou faz dekouvri, klète pwopozisyon, apwobasyon, ak swiv livrezon olye de mesaj jeneral."
-      },
-      "sections": {
-        "projectBrief": "Rezime pwojè",
-        "assetsAndDelivery": "Aktif ak livrezon",
-        "contactAndProcess": "Kontak ak pwosesis"
-      },
-      "form": {
-        "projectType": {
-          "label": "Kalite pwojè",
-          "placeholderDefault": "Kanpay, sistèm kontni, direksyon kreyatif",
-          "placeholderPhotographer": "Sesyon pòtrè, foto mak, kouvèti evènman",
-          "placeholderDesigner": "Sistèm logo, anbalaj, pitch deck"
-        },
-        "projectGoal": {
-          "label": "Objektif pwojè",
-          "placeholder": "Kisa ou vle fè, pou kilès, e kisa ki pi enpòtan pou ou?"
-        },
-        "styleDirection": {
-          "label": "Direksyon estil",
-          "placeholder": "Dekri sa ki fè l bèl, mood, referans mak, oswa lang vizyèl ou vle a."
-        },
-        "deadlineNotes": {
-          "label": "Nòt sou delè",
-          "placeholder": "Dat lansman, dat evènman, moman remèt"
-        },
-        "packageInterest": {
-          "label": "Enterè nan pake",
-          "placeholder": "Pake sesyon, sistèm mak, retainer"
-        },
-        "assetsNeeded": {
-          "label": "Dokiman oswa livrables ki bezwen",
-          "placeholder": "Ki fichye, fòma, sèn, livrables, oswa rezilta ki bezwen?"
-        },
-        "revisionScope": {
-          "label": "Atant sou revizyon",
-          "placeholder": "Nimewo koreksyon, chwa, bezwen pou tès apwobasyon"
-        },
-        "budgetNotes": {
-          "label": "Nòt sou bidjè",
-          "placeholder": "Bidjè opsyonèl oswa limit pri"
-        },
-        "referenceLinks": {
-          "label": "Lyen referans",
-          "placeholder": "Yon lyen pa liy: tablo Pinterest, moodboard, dosye mak anvan, travay egzanp"
-        },
-        "uploadReferences": {
-          "label": "Telechaje referans"
-        },
-        "contactName": {
-          "label": "Non kontak",
-          "placeholder": "Non ou oswa kontak ekip la"
-        },
-        "contactEmail": {
-          "label": "Imèl",
-          "placeholder": "ou@egzanp.com"
-        },
-        "contactPhone": {
-          "label": "Telefòn",
-          "placeholder": "Opsyonèl telefòn"
-        },
-        "contactChannel": {
-          "label": "Kanal kontak preferans",
-          "options": {
-            "email": "Imèl",
-            "call": "Apèl",
-            "meeting": "Randevou",
-            "message": "Mesaj"
-          }
-        },
-        "labels": {
-          "revisionPolicy": "Règ sou revizyon:",
-          "approvalPolicy": "Pwosesis apwobasyon:"
-        },
-        "fallbacks": {
-          "configuredInsideHub": "Konfigire nan Business Hub."
-        },
-        "actions": {
-          "sending": "Nap soumèt...",
-          "submit": "Voye dekouvri kreyatif"
-        }
-      }
-    },
-    "beautyIntakePage": {
-      "loading": "Ap chaje demann bote...",
-      "businessNameFallback": "biznis bote sa a",
-      "errors": {
-        "loadFailed": "Nou pa t ka chaje pwofil bote sa a.",
-        "missingService": "Di nou ki sèvis ou ta renmen an.",
-        "missingAcknowledgement": "Konfime kondisyon preparasyon ak anilasyon anvan kontinye.",
-        "submitFailed": "Nou pa t ka voye demann bote a."
-      },
-      "messages": {
-        "submitted": "Demann bote a voye."
-      },
-      "submitted": {
-        "pageTitle": "Demann bote voye - OxSteed",
-        "eyebrow": "Demann voye",
-        "description": "{{business}} ap ka revize objektif ou yo, kondisyon prepare, tan, ak pake ki koresponn avan yo ale nan randevou, konfime, oswa swivi re-randvwa.",
-        "backToProfile": "Retounen sou pwofil la",
-        "goToDashboard": "Ale sou tablodbò a"
-      },
-      "page": {
-        "title": "Demann bote - {{business}}"
-      },
-      "hero": {
-        "eyebrow": "Demann bote",
-        "title": "Kòmanse demann bote ou avèk {{business}}",
-        "subtitle": "Pataje aparans ou vle, kilè, epi nenpòt nòt sou preparasyon oswa sansiblite pou biznis la ka oryante ou nan bon chemen sèvis la.",
-        "cardTitle": "Demann bote ak planifikasyon randevou",
-        "cardDescription": "Fòme pou objektif aparans, kondisyon preparasyon, ajisteman pake, ak retansyon kliyan olye de nòt randevou jeneral."
-      },
-      "sections": {
-        "serviceGoals": "Objektif sèvis la",
-        "prepSensitivities": "Preparasyon ak sansibilite",
-        "policyAndConsent": "Preparasyon, règ, ak konsantman"
-      },
-      "form": {
-        "desiredService": {
-          "label": "Sèvis ou vle a",
-          "placeholderDefault": "Koupe, refè koulè, silk press",
-          "placeholderBarber": "Fade, kout bab, netwaye ak rad dlo cho",
-          "placeholderSpa": "Moso vizaj, peeling, rituel po"
-        },
-        "desiredLook": {
-          "label": "Aparans oswa rezilta ou vle",
-          "placeholderDefault": "Kouch dou ak kad figi ki pi klere",
-          "placeholderBarber": "Fade pwòp ak fòm bab",
-          "placeholderSpa": "Idratasyon ki kalme epi limen po a"
-        },
-        "inspirationNotes": {
-          "label": "Enspirasyon oswa nòt detay",
-          "placeholder": "Di ekip la sa ou vle, sa w evite, e sa ki enpòtan aprè vizit pase yo."
-        },
-        "preferredStaff": {
-          "label": "Anplwaye favori",
-          "placeholder": "Opsyonèl"
-        },
-        "preferredTimeNotes": {
-          "label": "Nòt tan",
-          "placeholder": "Pi bon jou, dat limit evènman, menm jou si posib"
-        },
-        "packageInterest": {
-          "label": "Enterè nan pake oswa plan",
-          "placeholder": "Manm, preparasyon maryaj, plan antretyen koulè"
-        },
-        "budgetNotes": {
-          "label": "Nòt bidjè",
-          "placeholder": "Nòt sou bidjè oswa pake"
-        },
-        "hairLength": {
-          "label": "Longè / dansite cheve",
-          "placeholder": "Kout, jiska zepòl, epè, pwlonje"
-        },
-        "hairHistory": {
-          "label": "Istwa cheve",
-          "placeholder": "Koulè, relaxer, kloris, domaj, dènye sèvis"
-        },
-        "beardPreferences": {
-          "label": "Preferans bab / grooming",
-          "placeholder": "Kote, longè, fòm, zòn razè sansib"
-        },
-        "skinSensitivities": {
-          "label": "Sansiblite po",
-          "placeholder": "Akne, rosase, sechrès, sansiblite ak bon sant"
-        },
-        "contraindications": {
-          "label": "Kontra-endikasyon oswa medikaman",
-          "placeholder": "Retinòl, peeling resan, alèji, gwosès"
-        },
-        "referencePhotos": {
-          "label": "Foto referans"
-        },
-        "contactName": {
-          "label": "Non kontak",
-          "placeholder": "Non ou"
-        },
-        "contactEmail": {
-          "label": "Imèl",
-          "placeholder": "ou@egzanp.com"
-        },
-        "contactPhone": {
-          "label": "Telefòn",
-          "placeholder": "Nimewo mesaj preferans"
-        },
-        "consent": {
-          "patchTest": "Mwen ka bezwen rekòmandasyon patch-test oswa revizyon sansiblite avan vizit la.",
-          "photoRelease": "Mwen ouvè pou pale de foto anvan/apre si founisè a mande.",
-          "fragranceSensitivity": "Mwen gen sansiblite ak odè oswa pwodwi ke founisè a dwe konnen."
-        },
-        "labels": {
-          "depositPolicy": "Depo / anilasyon:",
-          "prepGuidance": "Gid preparasyon:"
-        },
-        "acknowledgement": {
-          "prep": "Mwen li gid preparasyon an epi mwen suiv tout enstriksyon jou an.",
-          "noShow": "Mwen konprann ka gen kondisyon sou anilasyon oswa absans anvan biznis la konfime tan an."
-        },
-        "fallbacks": {
-          "configuredInsideHub": "Konfigire nan Business Hub."
-        },
-        "actions": {
-          "sending": "Nap soumèt...",
-          "submit": "Voye demann bote"
-        }
-      }
-    },
-    "continuityIntakePage": {
-      "loading": "Ap chaje demann swivi...",
-      "businessNameFallback": "biznis sa a",
-      "errors": {
-        "loadFailed": "Nou pa t ka chaje pwofil swivi sa a.",
-        "missingGoal": "Tanpri di biznis la objektif prensipal ou oswa pwoblèm ki pi enpòtan an an premye.",
-        "missingAcknowledgement": "Konfime demann nan ak atant kominikasyon an an premye.",
-        "submitFailed": "Nou pa t ka voye demann swivi a."
-      },
-      "messages": {
-        "submitted": "Demann swivi voye."
-      },
-      "submitted": {
-        "pageTitle": "Demann swivi voye - OxSteed",
-        "eyebrow": "Demann voye",
-        "description": "{{business}} ka revize objektif la, kontèks la, ritm repete a, ak kondisyon konfyans anvan ou pase nan pwogramasyon, revizyon pwogrè, oswa yon plan kontinwite pi long.",
-        "backToProfile": "Retounen sou pwofil la",
-        "goToDashboard": "Ale sou tablodbò a"
-      },
-      "page": {
-        "title": "Demann swivi - {{business}}"
-      },
-      "hero": {
-        "eyebrow": "Demann swivi",
-        "title": "Kòmanse demann swivi ou ak {{business}}",
-        "subtitle": "Pataje objektif la, kontèks sipò a, ritm orè a, ak konsiderasyon sou konfyans pou biznis la ka dirije w sou chemen sipò repete ki kòrèk la.",
-        "cardTitle": "Demann swivi ak planifikasyon kontinyèl",
-        "cardDescription": "Konsantre sou sesyon repete, revizyon pwogrè, ak suiv ki sansib ak konfyans olye de yon sèl demand rezèvasyon."
-      },
-      "sections": {
-        "goalContext": "Objektif ak kontèks sipò",
-        "routineTrust": "Routin, konfyans, ak konsiderasyon",
-        "contactAcknowledgement": "Kontak ak rekonèsans"
-      },
-      "form": {
-        "primaryGoal": {
-          "label": "Objektif oswa pwoblèm prensipal",
-          "placeholderDefault": "Plan fòs, sipò rekiperasyon, rediksyon estrès, ajisteman nitrisyon",
-          "placeholderEducation": "Sipò lekti, preparasyon tès, ogmante konfyans nan aljeb",
-          "placeholderCare": "Sipò repete, woutin bèt, èd fanmi, swen fyab"
-        },
-        "supportContext": {
-          "label": "Kontèks sipò",
-          "placeholder": "Eksplike sitiyasyon an, defi aktyèl yo, epi sa ki ta vle di pwogrè ki bon."
-        },
-        "scheduleNotes": {
-          "label": "Nòt orè",
-          "placeholder": "Pi bon jou yo, frekans, ijans, fenèt tan"
-        },
-        "progressTarget": {
-          "label": "Objektif pwogrè",
-          "placeholder": "Mach semèn chak, objektif nòt egzamen, mwens kriz, yon etap mobilite"
-        },
-        "packageInterest": {
-          "label": "Enterè pou pake oswa plan",
-          "placeholder": "Manm, sesyon chak semèn, pake sipò"
-        },
-        "ageOrLevel": {
-          "label": "Laj, nivo, oswa etap lavi",
-          "placeholderDefault": "Kòmanse, aprè gwosès, granmoun ki gen plis laj",
-          "placeholderEducation": "Nivo 6, preparasyon SAT, anfans bonè",
-          "placeholderCare": "Kòmanse, aprè gwosès, granmoun ki gen plis laj",
-          "placeholderPet": "Papiyon, chen granmoun, mache pou chen reaktif"
-        },
-        "currentRoutine": {
-          "label": "Routin oswa baz aktyèl",
-          "placeholder": "Kijan rutin aktyèl la, orè a, oswa pwen depa a ye kounye a?"
-        },
-        "specialConsiderations": {
-          "label": "Konsiderasyon espesyal",
-          "placeholder": "Alèji, sansiblite, bezwen aksesiblite, nòt konpòtman, ajisteman, oswa preferans kominikasyon."
-        },
-        "guardianName": {
-          "label": "Kontak gad/ fanmi",
-          "placeholder": "Manman, gadyen, oswa responsab fanmi opsyonèl"
-        },
-        "guardianPhone": {
-          "label": "Telefòn gad la",
-          "placeholder": "Nimewo kontak opsyonèl"
-        },
-        "budgetNotes": {
-          "label": "Nòt bidjè",
-          "placeholder": "Nòt bidjè oswa angajman opsyonèl"
-        },
-        "labels": {
-          "trustSignals": "Siy konfyans yo:",
-          "prepExpectations": "Preparasyon ak atant:"
-        },
-        "fallbacks": {
-          "configuredInsideHub": "Konfigire nan Business Hub."
-        },
-        "contactName": {
-          "label": "Non kontak",
-          "placeholder": "Kontak prensipal"
-        },
-        "contactEmail": {
-          "label": "Imèl",
-          "placeholder": "ou@egzanp.com"
-        },
-        "contactPhone": {
-          "label": "Telefòn",
-          "placeholder": "Pi bon nimewo"
-        },
-        "contactChannel": {
-          "label": "Kanal kontak preferans",
-          "options": {
-            "message": "Mesaj",
-            "email": "Imèl",
-            "call": "Aplikasyon apèl",
-            "text": "Tekst",
-            "meeting": "Randevou"
-          }
-        },
-        "relationshipType": {
-          "label": "Kalite relasyon",
-          "options": {
-            "client": "Kliyan",
-            "student": "Etidyan",
-            "family": "Fanmi",
-            "pet": "Bèt",
-            "patient": "Pasyan",
-            "athlete": "Atlèt"
-          }
-        },
-        "acknowledgement": {
-          "guardian": "Mwen konprann ke yon gadyen oswa kontak fanmi ka nesesè pou sipò repete lè sa aji.",
-          "safety": "Mwen pataje nòt kle ki gen rapò ak sekirite, konpòtman, aksesiblite, oswa akomodasyon ki enpòtan.",
-          "policy": "Mwen konprann demann sa ede biznis la deside plan, orè, ak pwochen etap kòrèk la anvan yo konfime sèvis la."
-        },
-        "actions": {
-          "sending": "Nap soumèt...",
-          "submit": "Voye demann swivi"
-        },
-        "businessRecurringBilling": {
-          "title": "Bòdwo repete",
-          "subtitle": "Jere peman retni ak bòdwo modèl abònman an",
-          "addRecurring": "Ajoute bòdwo repete",
-          "createRecurring": "Nouvo bòdwo repete",
-          "editRecurring": "Edit bòdwo repete",
-          "description": "Deskripsyon",
-          "amount": "Kantite lajan ($)",
-          "frequency": "Frekans",
-          "startDate": "Kalandriye kòmansman",
-          "notes": "Nòt",
-          "save": "Sove",
-          "loading": "Ap chaje...",
-          "emptyState": "Pa gen bòdwo repete ki byen prepare. Bon pou kliyan ki retni ak abònman.",
-          "fallbackDescription": "Bòdwo repete",
-          "next": "Pwochen:",
-          "pause": "Fè poz",
-          "resume": "Rekòmanse",
-          "statusActive": "Aktif",
-          "statusPausedStatus": "Anpeze",
-          "statusUnknown": "Enkoni",
-          "statusPaused": "Anpeze",
-          "statusResumed": "Rekòmanse",
-          "created": "Bòdwo repete kreye",
-          "updated": "Mete ajou",
-          "deleted": "Anile",
-          "deleteConfirm": "Ou vle anile bòdwo repete sa a?",
-          "deleteError": "Echwe",
-          "updateError": "Echwe pou mete ajou",
-          "loadError": "Echwe pou chaje bòdwo repete",
-          "saveError": "Echwe pou sove",
-          "requiredFields": "Kantite lajan, frekans ak dat kòmansman obligatwa",
-          "frequencies": {
-            "weekly": "Chak semèn",
-            "biweekly": "De semèn",
-            "monthly": "Chak mwa",
-            "quarterly": "Trimestre",
-            "annually": "Chak ane"
-          },
-          "all": "Tout",
-          "activeContracts": "Kontra aktif",
-          "monthlyRecurringRevenue": "Revni chak mwa ki repete",
-          "dueThisMonth": "Kisa dèt pou mwa a",
-          "dueNext30Days": "Dwat nan pwochen 30 jou yo",
-          "tableClient": "Kliyan",
-          "tableDescription": "Deskripsyon",
-          "tableAmount": "Kantite lajan",
-          "tableNextBilling": "Pwochen dat fakti",
-          "tableStatus": "Estat",
-          "tableActions": "Aksyon",
-          "nextDateLabel": "Pwochen dat bòdwo *",
-          "generateInvoice": "Jenere fakti",
-          "invoiceGenerated": "Fakti jenere",
-          "descriptionPlaceholder": "Deskripsyon sèvis",
-          "notesPlaceholder": "Nòt opsyonèl"
-        }
       }
     }
   },
@@ -17869,60 +17320,6 @@
       "step2Body": "Pousantaj OxSteed ki dakò a kopye sou lead la lè li asiyen, pou pati ou ak pati platfòm la rete fikse.",
       "step3Title": "3. Egzekisyon tiyo",
       "step3Body": "Sèvi ak tablodbò a pou deplase leads soti nan entwodiksyon rive dekouvèt, pwopozisyon, angajman, ak fini pandan w ap kenbe OxSteed nan sik la."
-    },
-    "consultantAvailabilityPage": {
-      "metaTitle": "Disponiblite",
-      "metaDescription": "Jere orè repete semènal ou, dat pwoteje, ak tan repo.",
-      "badge": "Disponiblite konsiltan",
-      "heading": "Disponiblite semèn ou",
-      "intro": "Mete èdtan travay ou regilye epi jere tan repo pou kliyan sèlman ka pran randevou lè ou disponib.",
-      "backToDashboard": "Retounen nan tablodbò a",
-      "summaryActiveDays": "Jou aktif",
-      "summaryActiveDaysHint": "Jou ki gen omwen yon èd semènal aktif",
-      "summaryWeeklySlots": "Plage semènal",
-      "summaryWeeklySlotsHint": "Total èd repete ki mete",
-      "summaryBlockedDates": "Dat bloke",
-      "summaryBlockedDatesHint": "Dat espesifik ou make kòm pa disponib",
-      "nextTimeOff": "Pwochen tan repo",
-      "summaryNextTimeOffHint": "Pwochen dat bloke k ap vini",
-      "none": "Okenn",
-      "scheduleBuilder": "Konstriksyon orè",
-      "liveWeeklyView": "Gade semènan aktif",
-      "loadedNow": "Atik chaje",
-      "controlsHeading": "Kontwòl",
-      "controlsBody": "Ajoute, modifye, epi swiv disponiblite repete pa jou.",
-      "slotActiveDesc": "Peryòd sa a aktif.",
-      "slotInactiveDesc": "Peryòd sa a inaktif.",
-      "noRecurringHours": "Pa gen èdtan repete kounye a",
-      "timeOff": "Tan repo",
-      "useFor": "Pou vakans, jou selebrasyon elatriye.",
-      "useForBody": "Make jou kote ou pa disponib pou kliyan wè orè presi.",
-      "protectedDates": "Dat pwoteje",
-      "reasonPlaceholder": "Rezon (opsyonèl)",
-      "noReasonAdded": "Tan bloke san rezon ajoute.",
-      "noBlockedDates": "Pa gen dat bloke ankò",
-      "noBlockedDatesBody": "Ajoute omwen yon dat bloke pou anpeche livrezon randevou nan jou sa a.",
-      "notSet": "Pa defini",
-      "saveAvailability": "Sove disponiblite",
-      "noScheduleSaved": "Pa gen orè ki anrejistre ankò",
-      "noScheduleSavedBody": "Sèvi ak fòmilè sou bò gòch la pou w ajoute premye èd repete ou.",
-      "addBlockedDate": "Ajoute dat bloke",
-      "dayLabels": {
-        "sunday": "Dimanch",
-        "monday": "Lendi",
-        "tuesday": "Madi",
-        "wednesday": "Mèkredi",
-        "thursday": "Jedi",
-        "friday": "Vandredi",
-        "saturday": "Samdi"
-      },
-      "errorLoadingAvailability": "Echèk chaje disponiblite.",
-      "errorLoadingBlockedDates": "Echèk chaje dat bloke yo.",
-      "errorTimeRange": "Antre de toude lè kòmanse ak lè fini.",
-      "errorSavingAvailability": "Echèk pou sove disponiblite.",
-      "errorAddingBlockedDate": "Echèk pou ajoute dat bloke.",
-      "errorRemovingBlockedDate": "Echèk pou retire dat bloke.",
-      "dateRequired": "Tanpri chwazi yon dat."
     }
   },
   "learn": {
@@ -26703,4 +26100,631 @@
     "reconcileFailed": "Rekonsilyasyon an echwe"
   }
 
-}
+,
+  "beautyIntakePage": {
+    "loading": "Ap chaje demann bote...",
+    "businessNameFallback": "biznis bote sa a",
+    "errors": {
+      "loadFailed": "Nou pa t ka chaje pwofil bote sa a.",
+      "missingService": "Di nou ki sèvis ou ta renmen an.",
+      "missingAcknowledgement": "Konfime kondisyon preparasyon ak anilasyon anvan kontinye.",
+      "submitFailed": "Nou pa t ka voye demann bote a."
+    },
+    "messages": {
+      "submitted": "Demann bote a voye."
+    },
+    "submitted": {
+      "pageTitle": "Demann bote voye - OxSteed",
+      "eyebrow": "Demann voye",
+      "description": "{{business}} ap ka revize objektif ou yo, kondisyon prepare, tan, ak pake ki koresponn avan yo ale nan randevou, konfime, oswa swivi re-randvwa.",
+      "backToProfile": "Retounen sou pwofil la",
+      "goToDashboard": "Ale sou tablodbò a"
+    },
+    "page": {
+      "title": "Demann bote - {{business}}"
+    },
+    "hero": {
+      "eyebrow": "Demann bote",
+      "title": "Kòmanse demann bote ou avèk {{business}}",
+      "subtitle": "Pataje aparans ou vle, kilè, epi nenpòt nòt sou preparasyon oswa sansiblite pou biznis la ka oryante ou nan bon chemen sèvis la.",
+      "cardTitle": "Demann bote ak planifikasyon randevou",
+      "cardDescription": "Fòme pou objektif aparans, kondisyon preparasyon, ajisteman pake, ak retansyon kliyan olye de nòt randevou jeneral."
+    },
+    "sections": {
+      "serviceGoals": "Objektif sèvis la",
+      "prepSensitivities": "Preparasyon ak sansibilite",
+      "policyAndConsent": "Preparasyon, règ, ak konsantman"
+    },
+    "form": {
+      "desiredService": {
+        "label": "Sèvis ou vle a",
+        "placeholderDefault": "Koupe, refè koulè, silk press",
+        "placeholderBarber": "Fade, kout bab, netwaye ak rad dlo cho",
+        "placeholderSpa": "Moso vizaj, peeling, rituel po"
+      },
+      "desiredLook": {
+        "label": "Aparans oswa rezilta ou vle",
+        "placeholderDefault": "Kouch dou ak kad figi ki pi klere",
+        "placeholderBarber": "Fade pwòp ak fòm bab",
+        "placeholderSpa": "Idratasyon ki kalme epi limen po a"
+      },
+      "inspirationNotes": {
+        "label": "Enspirasyon oswa nòt detay",
+        "placeholder": "Di ekip la sa ou vle, sa w evite, e sa ki enpòtan aprè vizit pase yo."
+      },
+      "preferredStaff": {
+        "label": "Anplwaye favori",
+        "placeholder": "Opsyonèl"
+      },
+      "preferredTimeNotes": {
+        "label": "Nòt tan",
+        "placeholder": "Pi bon jou, dat limit evènman, menm jou si posib"
+      },
+      "packageInterest": {
+        "label": "Enterè nan pake oswa plan",
+        "placeholder": "Manm, preparasyon maryaj, plan antretyen koulè"
+      },
+      "budgetNotes": {
+        "label": "Nòt bidjè",
+        "placeholder": "Nòt sou bidjè oswa pake"
+      },
+      "hairLength": {
+        "label": "Longè / dansite cheve",
+        "placeholder": "Kout, jiska zepòl, epè, pwlonje"
+      },
+      "hairHistory": {
+        "label": "Istwa cheve",
+        "placeholder": "Koulè, relaxer, kloris, domaj, dènye sèvis"
+      },
+      "beardPreferences": {
+        "label": "Preferans bab / grooming",
+        "placeholder": "Kote, longè, fòm, zòn razè sansib"
+      },
+      "skinSensitivities": {
+        "label": "Sansiblite po",
+        "placeholder": "Akne, rosase, sechrès, sansiblite ak bon sant"
+      },
+      "contraindications": {
+        "label": "Kontra-endikasyon oswa medikaman",
+        "placeholder": "Retinòl, peeling resan, alèji, gwosès"
+      },
+      "referencePhotos": {
+        "label": "Foto referans"
+      },
+      "contactName": {
+        "label": "Non kontak",
+        "placeholder": "Non ou"
+      },
+      "contactEmail": {
+        "label": "Imèl",
+        "placeholder": "ou@egzanp.com"
+      },
+      "contactPhone": {
+        "label": "Telefòn",
+        "placeholder": "Nimewo mesaj preferans"
+      },
+      "consent": {
+        "patchTest": "Mwen ka bezwen rekòmandasyon patch-test oswa revizyon sansiblite avan vizit la.",
+        "photoRelease": "Mwen ouvè pou pale de foto anvan/apre si founisè a mande.",
+        "fragranceSensitivity": "Mwen gen sansiblite ak odè oswa pwodwi ke founisè a dwe konnen."
+      },
+      "labels": {
+        "depositPolicy": "Depo / anilasyon:",
+        "prepGuidance": "Gid preparasyon:"
+      },
+      "acknowledgement": {
+        "prep": "Mwen li gid preparasyon an epi mwen suiv tout enstriksyon jou an.",
+        "noShow": "Mwen konprann ka gen kondisyon sou anilasyon oswa absans anvan biznis la konfime tan an."
+      },
+      "fallbacks": {
+        "configuredInsideHub": "Konfigire nan Business Hub."
+      },
+      "actions": {
+        "sending": "Nap soumèt...",
+        "submit": "Voye demann bote"
+      }
+    }
+  },
+  "continuityIntakePage": {
+    "loading": "Ap chaje demann swivi...",
+    "businessNameFallback": "biznis sa a",
+    "errors": {
+      "loadFailed": "Nou pa t ka chaje pwofil swivi sa a.",
+      "missingGoal": "Tanpri di biznis la objektif prensipal ou oswa pwoblèm ki pi enpòtan an an premye.",
+      "missingAcknowledgement": "Konfime demann nan ak atant kominikasyon an an premye.",
+      "submitFailed": "Nou pa t ka voye demann swivi a."
+    },
+    "messages": {
+      "submitted": "Demann swivi voye."
+    },
+    "submitted": {
+      "pageTitle": "Demann swivi voye - OxSteed",
+      "eyebrow": "Demann voye",
+      "description": "{{business}} ka revize objektif la, kontèks la, ritm repete a, ak kondisyon konfyans anvan ou pase nan pwogramasyon, revizyon pwogrè, oswa yon plan kontinwite pi long.",
+      "backToProfile": "Retounen sou pwofil la",
+      "goToDashboard": "Ale sou tablodbò a"
+    },
+    "page": {
+      "title": "Demann swivi - {{business}}"
+    },
+    "hero": {
+      "eyebrow": "Demann swivi",
+      "title": "Kòmanse demann swivi ou ak {{business}}",
+      "subtitle": "Pataje objektif la, kontèks sipò a, ritm orè a, ak konsiderasyon sou konfyans pou biznis la ka dirije w sou chemen sipò repete ki kòrèk la.",
+      "cardTitle": "Demann swivi ak planifikasyon kontinyèl",
+      "cardDescription": "Konsantre sou sesyon repete, revizyon pwogrè, ak suiv ki sansib ak konfyans olye de yon sèl demand rezèvasyon."
+    },
+    "sections": {
+      "goalContext": "Objektif ak kontèks sipò",
+      "routineTrust": "Routin, konfyans, ak konsiderasyon",
+      "contactAcknowledgement": "Kontak ak rekonèsans"
+    },
+    "form": {
+      "primaryGoal": {
+        "label": "Objektif oswa pwoblèm prensipal",
+        "placeholderDefault": "Plan fòs, sipò rekiperasyon, rediksyon estrès, ajisteman nitrisyon",
+        "placeholderEducation": "Sipò lekti, preparasyon tès, ogmante konfyans nan aljeb",
+        "placeholderCare": "Sipò repete, woutin bèt, èd fanmi, swen fyab"
+      },
+      "supportContext": {
+        "label": "Kontèks sipò",
+        "placeholder": "Eksplike sitiyasyon an, defi aktyèl yo, epi sa ki ta vle di pwogrè ki bon."
+      },
+      "scheduleNotes": {
+        "label": "Nòt orè",
+        "placeholder": "Pi bon jou yo, frekans, ijans, fenèt tan"
+      },
+      "progressTarget": {
+        "label": "Objektif pwogrè",
+        "placeholder": "Mach semèn chak, objektif nòt egzamen, mwens kriz, yon etap mobilite"
+      },
+      "packageInterest": {
+        "label": "Enterè pou pake oswa plan",
+        "placeholder": "Manm, sesyon chak semèn, pake sipò"
+      },
+      "ageOrLevel": {
+        "label": "Laj, nivo, oswa etap lavi",
+        "placeholderDefault": "Kòmanse, aprè gwosès, granmoun ki gen plis laj",
+        "placeholderEducation": "Nivo 6, preparasyon SAT, anfans bonè",
+        "placeholderCare": "Kòmanse, aprè gwosès, granmoun ki gen plis laj",
+        "placeholderPet": "Papiyon, chen granmoun, mache pou chen reaktif"
+      },
+      "currentRoutine": {
+        "label": "Routin oswa baz aktyèl",
+        "placeholder": "Kijan rutin aktyèl la, orè a, oswa pwen depa a ye kounye a?"
+      },
+      "specialConsiderations": {
+        "label": "Konsiderasyon espesyal",
+        "placeholder": "Alèji, sansiblite, bezwen aksesiblite, nòt konpòtman, ajisteman, oswa preferans kominikasyon."
+      },
+      "guardianName": {
+        "label": "Kontak gad/ fanmi",
+        "placeholder": "Manman, gadyen, oswa responsab fanmi opsyonèl"
+      },
+      "guardianPhone": {
+        "label": "Telefòn gad la",
+        "placeholder": "Nimewo kontak opsyonèl"
+      },
+      "budgetNotes": {
+        "label": "Nòt bidjè",
+        "placeholder": "Nòt bidjè oswa angajman opsyonèl"
+      },
+      "labels": {
+        "trustSignals": "Siy konfyans yo:",
+        "prepExpectations": "Preparasyon ak atant:"
+      },
+      "fallbacks": {
+        "configuredInsideHub": "Konfigire nan Business Hub."
+      },
+      "contactName": {
+        "label": "Non kontak",
+        "placeholder": "Kontak prensipal"
+      },
+      "contactEmail": {
+        "label": "Imèl",
+        "placeholder": "ou@egzanp.com"
+      },
+      "contactPhone": {
+        "label": "Telefòn",
+        "placeholder": "Pi bon nimewo"
+      },
+      "contactChannel": {
+        "label": "Kanal kontak preferans",
+        "options": {
+          "message": "Mesaj",
+          "email": "Imèl",
+          "call": "Aplikasyon apèl",
+          "text": "Tekst",
+          "meeting": "Randevou"
+        }
+      },
+      "relationshipType": {
+        "label": "Kalite relasyon",
+        "options": {
+          "client": "Kliyan",
+          "student": "Etidyan",
+          "family": "Fanmi",
+          "pet": "Bèt",
+          "patient": "Pasyan",
+          "athlete": "Atlèt"
+        }
+      },
+      "acknowledgement": {
+        "guardian": "Mwen konprann ke yon gadyen oswa kontak fanmi ka nesesè pou sipò repete lè sa aji.",
+        "safety": "Mwen pataje nòt kle ki gen rapò ak sekirite, konpòtman, aksesiblite, oswa akomodasyon ki enpòtan.",
+        "policy": "Mwen konprann demann sa ede biznis la deside plan, orè, ak pwochen etap kòrèk la anvan yo konfime sèvis la."
+      },
+      "actions": {
+        "sending": "Nap soumèt...",
+        "submit": "Voye demann swivi"
+      },
+      "businessRecurringBilling": {
+        "title": "Bòdwo repete",
+        "subtitle": "Jere peman retni ak bòdwo modèl abònman an",
+        "addRecurring": "Ajoute bòdwo repete",
+        "createRecurring": "Nouvo bòdwo repete",
+        "editRecurring": "Edit bòdwo repete",
+        "description": "Deskripsyon",
+        "amount": "Kantite lajan ($)",
+        "frequency": "Frekans",
+        "startDate": "Kalandriye kòmansman",
+        "notes": "Nòt",
+        "save": "Sove",
+        "loading": "Ap chaje...",
+        "emptyState": "Pa gen bòdwo repete ki byen prepare. Bon pou kliyan ki retni ak abònman.",
+        "fallbackDescription": "Bòdwo repete",
+        "next": "Pwochen:",
+        "pause": "Fè poz",
+        "resume": "Rekòmanse",
+        "statusActive": "Aktif",
+        "statusPausedStatus": "Anpeze",
+        "statusUnknown": "Enkoni",
+        "statusPaused": "Anpeze",
+        "statusResumed": "Rekòmanse",
+        "created": "Bòdwo repete kreye",
+        "updated": "Mete ajou",
+        "deleted": "Anile",
+        "deleteConfirm": "Ou vle anile bòdwo repete sa a?",
+        "deleteError": "Echwe",
+        "updateError": "Echwe pou mete ajou",
+        "loadError": "Echwe pou chaje bòdwo repete",
+        "saveError": "Echwe pou sove",
+        "requiredFields": "Kantite lajan, frekans ak dat kòmansman obligatwa",
+        "frequencies": {
+          "weekly": "Chak semèn",
+          "biweekly": "De semèn",
+          "monthly": "Chak mwa",
+          "quarterly": "Trimestre",
+          "annually": "Chak ane"
+        },
+        "all": "Tout",
+        "activeContracts": "Kontra aktif",
+        "monthlyRecurringRevenue": "Revni chak mwa ki repete",
+        "dueThisMonth": "Kisa dèt pou mwa a",
+        "dueNext30Days": "Dwat nan pwochen 30 jou yo",
+        "tableClient": "Kliyan",
+        "tableDescription": "Deskripsyon",
+        "tableAmount": "Kantite lajan",
+        "tableNextBilling": "Pwochen dat fakti",
+        "tableStatus": "Estat",
+        "tableActions": "Aksyon",
+        "nextDateLabel": "Pwochen dat bòdwo *",
+        "generateInvoice": "Jenere fakti",
+        "invoiceGenerated": "Fakti jenere",
+        "descriptionPlaceholder": "Deskripsyon sèvis",
+        "notesPlaceholder": "Nòt opsyonèl"
+      }
+    }
+  },
+  "creativeIntakePage": {
+    "loading": "Ap chaje dekouvri kreyatif la...",
+    "businessNameFallback": "biznis kreyatif sa a",
+    "errors": {
+      "loadFailed": "Nou pa t ka chaje pwofil kreyatif sa a.",
+      "missingProjectType": "Tanpri di nou ki kalite pwojè ou bezwen an.",
+      "submitFailed": "Nou pa t ka voye dekouvri kreyatif la."
+    },
+    "messages": {
+      "submitted": "Nou voye dekouvri kreyatif la."
+    },
+    "submitted": {
+      "pageTitle": "Dekouvri kreyatif la voye - OxSteed",
+      "eyebrow": "Dekouvri voye",
+      "description": "{{business}} ap revize objektif pwojè a, direksyon estetik, plan pake, ak tan livrezon anvan yo mennen ou nan dekouvri, pwopozisyon, oswa pwodiksyon.",
+      "backToProfile": "Retounen sou pwofil la",
+      "goToDashboard": "Ale sou tablodbò a"
+    },
+    "page": {
+      "title": "Dekouvri kreyatif - {{business}}"
+    },
+    "hero": {
+      "eyebrow": "Dekouvri kreyatif",
+      "title": "Kòmanse yon pwojè avèk {{business}}",
+      "subtitle": "Pataje objektif pwojè a, direksyon estetik, referans, ak delè pou biznis la ka mete ou nan bon pake kreyatif la.",
+      "cardTitle": "Fòmilè dekouvri kreyatif la",
+      "cardDescription": "Fè pou faz dekouvri, klète pwopozisyon, apwobasyon, ak swiv livrezon olye de mesaj jeneral."
+    },
+    "sections": {
+      "projectBrief": "Rezime pwojè",
+      "assetsAndDelivery": "Aktif ak livrezon",
+      "contactAndProcess": "Kontak ak pwosesis"
+    },
+    "form": {
+      "projectType": {
+        "label": "Kalite pwojè",
+        "placeholderDefault": "Kanpay, sistèm kontni, direksyon kreyatif",
+        "placeholderPhotographer": "Sesyon pòtrè, foto mak, kouvèti evènman",
+        "placeholderDesigner": "Sistèm logo, anbalaj, pitch deck"
+      },
+      "projectGoal": {
+        "label": "Objektif pwojè",
+        "placeholder": "Kisa ou vle fè, pou kilès, e kisa ki pi enpòtan pou ou?"
+      },
+      "styleDirection": {
+        "label": "Direksyon estil",
+        "placeholder": "Dekri sa ki fè l bèl, mood, referans mak, oswa lang vizyèl ou vle a."
+      },
+      "deadlineNotes": {
+        "label": "Nòt sou delè",
+        "placeholder": "Dat lansman, dat evènman, moman remèt"
+      },
+      "packageInterest": {
+        "label": "Enterè nan pake",
+        "placeholder": "Pake sesyon, sistèm mak, retainer"
+      },
+      "assetsNeeded": {
+        "label": "Dokiman oswa livrables ki bezwen",
+        "placeholder": "Ki fichye, fòma, sèn, livrables, oswa rezilta ki bezwen?"
+      },
+      "revisionScope": {
+        "label": "Atant sou revizyon",
+        "placeholder": "Nimewo koreksyon, chwa, bezwen pou tès apwobasyon"
+      },
+      "budgetNotes": {
+        "label": "Nòt sou bidjè",
+        "placeholder": "Bidjè opsyonèl oswa limit pri"
+      },
+      "referenceLinks": {
+        "label": "Lyen referans",
+        "placeholder": "Yon lyen pa liy: tablo Pinterest, moodboard, dosye mak anvan, travay egzanp"
+      },
+      "uploadReferences": {
+        "label": "Telechaje referans"
+      },
+      "contactName": {
+        "label": "Non kontak",
+        "placeholder": "Non ou oswa kontak ekip la"
+      },
+      "contactEmail": {
+        "label": "Imèl",
+        "placeholder": "ou@egzanp.com"
+      },
+      "contactPhone": {
+        "label": "Telefòn",
+        "placeholder": "Opsyonèl telefòn"
+      },
+      "contactChannel": {
+        "label": "Kanal kontak preferans",
+        "options": {
+          "email": "Imèl",
+          "call": "Apèl",
+          "meeting": "Randevou",
+          "message": "Mesaj"
+        }
+      },
+      "labels": {
+        "revisionPolicy": "Règ sou revizyon:",
+        "approvalPolicy": "Pwosesis apwobasyon:"
+      },
+      "fallbacks": {
+        "configuredInsideHub": "Konfigire nan Business Hub."
+      },
+      "actions": {
+        "sending": "Nap soumèt...",
+        "submit": "Voye dekouvri kreyatif"
+      }
+    }
+  },
+  "consultantAvailabilityPage": {
+    "metaTitle": "Disponiblite",
+    "metaDescription": "Jere orè repete semènal ou, dat pwoteje, ak tan repo.",
+    "badge": "Disponiblite konsiltan",
+    "heading": "Disponiblite semèn ou",
+    "intro": "Mete èdtan travay ou regilye epi jere tan repo pou kliyan sèlman ka pran randevou lè ou disponib.",
+    "backToDashboard": "Retounen nan tablodbò a",
+    "summaryActiveDays": "Jou aktif",
+    "summaryActiveDaysHint": "Jou ki gen omwen yon èd semènal aktif",
+    "summaryWeeklySlots": "Plage semènal",
+    "summaryWeeklySlotsHint": "Total èd repete ki mete",
+    "summaryBlockedDates": "Dat bloke",
+    "summaryBlockedDatesHint": "Dat espesifik ou make kòm pa disponib",
+    "nextTimeOff": "Pwochen tan repo",
+    "summaryNextTimeOffHint": "Pwochen dat bloke k ap vini",
+    "none": "Okenn",
+    "scheduleBuilder": "Konstriksyon orè",
+    "liveWeeklyView": "Gade semènan aktif",
+    "loadedNow": "Atik chaje",
+    "controlsHeading": "Kontwòl",
+    "controlsBody": "Ajoute, modifye, epi swiv disponiblite repete pa jou.",
+    "slotActiveDesc": "Peryòd sa a aktif.",
+    "slotInactiveDesc": "Peryòd sa a inaktif.",
+    "noRecurringHours": "Pa gen èdtan repete kounye a",
+    "timeOff": "Tan repo",
+    "useFor": "Pou vakans, jou selebrasyon elatriye.",
+    "useForBody": "Make jou kote ou pa disponib pou kliyan wè orè presi.",
+    "protectedDates": "Dat pwoteje",
+    "reasonPlaceholder": "Rezon (opsyonèl)",
+    "noReasonAdded": "Tan bloke san rezon ajoute.",
+    "noBlockedDates": "Pa gen dat bloke ankò",
+    "noBlockedDatesBody": "Ajoute omwen yon dat bloke pou anpeche livrezon randevou nan jou sa a.",
+    "notSet": "Pa defini",
+    "saveAvailability": "Sove disponiblite",
+    "noScheduleSaved": "Pa gen orè ki anrejistre ankò",
+    "noScheduleSavedBody": "Sèvi ak fòmilè sou bò gòch la pou w ajoute premye èd repete ou.",
+    "addBlockedDate": "Ajoute dat bloke",
+    "dayLabels": {
+      "sunday": "Dimanch",
+      "monday": "Lendi",
+      "tuesday": "Madi",
+      "wednesday": "Mèkredi",
+      "thursday": "Jedi",
+      "friday": "Vandredi",
+      "saturday": "Samdi"
+    },
+    "errorLoadingAvailability": "Echèk chaje disponiblite.",
+    "errorLoadingBlockedDates": "Echèk chaje dat bloke yo.",
+    "errorTimeRange": "Antre de toude lè kòmanse ak lè fini.",
+    "errorSavingAvailability": "Echèk pou sove disponiblite.",
+    "errorAddingBlockedDate": "Echèk pou ajoute dat bloke.",
+    "errorRemovingBlockedDate": "Echèk pou retire dat bloke.",
+    "dateRequired": "Tanpri chwazi yon dat."
+  },
+  "businessMessageTemplates": {
+    "title": "Modèl mesaj",
+    "subtitle": "Mesaj ki ka sèvi anpil fwa pou kominikasyon ki nòmal",
+    "newTemplate": "Nouvo modèl",
+    "editTemplate": "Modifye modèl",
+    "all": "Tout",
+    "category": {
+      "general": "Jeneral",
+      "appointment": "Randevou",
+      "follow_up": "Swiv",
+      "invoice": "Bòdwo",
+      "promotion": "Pwomosyon",
+      "review_request": "Mande revizyon",
+      "welcome": "Byenvini",
+      "cancellation": "Anilasyon"
+    },
+    "form": {
+      "templateName": "Non modèl *",
+      "emailSubject": "Sijè imel (opsyonèl)",
+      "category": "Kategori",
+      "messageBody": "Kò mesaj la *",
+      "bodyPlaceholder": "Ekri modèl ou la a. Sèvi ak varyab tankou {client_name} pou pèsonalize."
+    },
+    "insertVariables": "Mete:",
+    "saveTemplate": "Sove modèl",
+    "cancel": "Anile",
+    "loading": "Ap chaje...",
+    "emptyTitle": "Pa gen modèl ankò. Kreye mesaj ki ka repwodwi pou sitiyasyon komen.",
+    "emptyBody": "Ide: rapèl randevou, swiv, demann peman, demann revizyon",
+    "usesLabel_one": "{{count}} itilizasyon",
+    "usesLabel_other": "{{count}} itilizasyon",
+    "copy": "Kopi",
+    "edit": "Modifye",
+    "delete": "Efase",
+    "toastLoadFailed": "Pa t ka chaje modèl yo",
+    "toastNameAndBodyRequired": "Non ak kò mesaj obligatwa",
+    "toastCreated": "Modèl kreye",
+    "toastUpdated": "Modèl ajou",
+    "toastSaveFailed": "Pa t ka sove",
+    "deleteConfirm": "Efase modèl sa a?",
+    "deleteSuccess": "Efase",
+    "deleteFailed": "Echwe",
+    "toastCopied": "Kopye sou clipboard",
+    "subjectPrefix": "Sijè:"
+  },
+  "accessGateRecovery": {
+    "title": "Access Gate Recovery",
+    "validating": "Validating recovery link…",
+    "missingToken": "This recovery link is missing its token.",
+    "lifted_one": "Lifted the access restriction on {{count}} entry.",
+    "lifted_other": "Lifted access restrictions on {{count}} entries.",
+    "consumed": "This recovery link was already used, so nothing changed.",
+    "postClearHelp": "Your access should now be restored. Sign in again from the admin login.",
+    "errors": {
+      "alreadyUsed": "This recovery link has already been used.",
+      "expired": "This recovery link has expired.",
+      "failed": "Recovery failed. Please try again or request a new link."
+    },
+    "cta": {
+      "adminLogin": "Go to admin login",
+      "logisticsHome": "Logistics home"
+    }
+  },
+  "impersonatePage": {
+    "title": "Impersonate user",
+    "loading": "Loading impersonation session…",
+    "errors": {
+      "invalidToken": "This impersonation link is invalid.",
+      "expiredToken": "This impersonation link has expired.",
+      "noToken": "No impersonation token was provided."
+    },
+    "actions": {
+      "closeTab": "Close this tab"
+    }
+  },
+  "orderErrorBoundary": {
+    "title": "Something went wrong",
+    "unexpectedMessage": "An unexpected error occurred in {{componentName}}.",
+    "defaultComponentName": "this section",
+    "errorDetails": "Error details",
+    "tryAgain": "Try again",
+    "backToOrders": "Back to orders",
+    "persistentErrors": "This keeps happening. Please contact support if the problem persists."
+  },
+  "productReviews": {
+    "timeAgo": {
+      "justNow": "just now",
+      "minutesAgo_one": "{{value}} minute ago",
+      "minutesAgo_other": "{{value}} minutes ago",
+      "hoursAgo_one": "{{value}} hour ago",
+      "hoursAgo_other": "{{value}} hours ago",
+      "daysAgo_one": "{{value}} day ago",
+      "daysAgo_other": "{{value}} days ago",
+      "monthsAgo_one": "{{value}} month ago",
+      "monthsAgo_other": "{{value}} months ago",
+      "yearsAgo_one": "{{value}} year ago",
+      "yearsAgo_other": "{{value}} years ago"
+    },
+    "ratingStarsAria": "{{count}} out of 5 stars"
+  },
+  "pricing": {
+    "addRule": "Add Rule",
+    "adjustment": "Adjustment",
+    "bundleOffer": "Bundle",
+    "createFirst": "Create your first rule",
+    "createNewRule": "New Pricing Rule",
+    "customerSegment": "Customer Segment",
+    "fixedAmount": "Fixed amount off ($)",
+    "multiplier": "Price multiplier",
+    "noRules": "No pricing rules yet",
+    "percentage": "Percentage off",
+    "priority": "Priority",
+    "productRulesDesc": "Volume discounts, promotions, bundles, and seasonal pricing for your products.",
+    "productRulesTitle": "Product Pricing Rules",
+    "ruleCreated": "Pricing rule created",
+    "seasonal": "Seasonal",
+    "timeLimited": "Promotion",
+    "type": "Type",
+    "validFrom": "Valid from",
+    "validUntil": "Valid until",
+    "volumeBased": "Volume-Based"
+  },
+  "products": {
+    "addProduct": "Add Product",
+    "addVariant": "Add Variant",
+    "category": "Category",
+    "cost": "Cost (optional)",
+    "createFirst": "Create your first product",
+    "createNew": "New Product",
+    "created": "Product created",
+    "management": "Product Management",
+    "noProducts": "No products yet",
+    "priceAdjustment": "Price Adjustment ($)",
+    "sku": "SKU",
+    "variantCreated": "Variant created",
+    "variantName": "Variant Name",
+    "variants": "Variants"
+  },
+  "inventory": {
+    "initialStock": "Initial Stock",
+    "lowStock": "Low",
+    "lowStockAlerts": "Low Stock Alerts",
+    "reorderLevel": "Reorder Level",
+    "stock": "Stock",
+    "updated": "Inventory updated"
+  },
+  "closeMenu": "Close menu",
+  "openMenu": "Open menu",
+  "mainNavigation": "Main navigation"}

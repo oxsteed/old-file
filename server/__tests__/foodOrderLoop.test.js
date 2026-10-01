@@ -113,7 +113,9 @@ function mockRestaurantAccess(restaurantOverrides = {}) {
 function mockKioskCreateOrderQueries(orderOverrides = {}) {
   const order = orderRow(orderOverrides);
   mockQuery
+    .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (pre-lock)
     .mockResolvedValueOnce({ rows: [restaurantRow()] })
+    .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (post-lock recheck)
     .mockResolvedValueOnce({
       rows: [{
         id: MENU_ITEM_ID,
@@ -227,6 +229,7 @@ describe('food order loop E2E (F7)', () => {
 
     const createRes = await request(app)
       .post(`/api/food/restaurants/${RESTAURANT_ID}/orders`)
+      .set('Idempotency-Key', 'loop-kiosk-1')
       .send({
         orderSource: 'kiosk',
         fulfillmentType: 'pickup',
@@ -321,6 +324,7 @@ describe('food order loop E2E (F7)', () => {
 
     const createRes = await request(app)
       .post(`/api/food/restaurants/${RESTAURANT_ID}/orders`)
+      .set('Idempotency-Key', 'loop-counter-1')
       .send({
         orderSource: 'counter',
         fulfillmentType: 'pickup',
@@ -371,6 +375,7 @@ describe('food order loop E2E (F7)', () => {
 
     await request(app)
       .post(`/api/food/restaurants/${RESTAURANT_ID}/orders`)
+      .set('Idempotency-Key', 'loop-mobile-1')
       .send({
         orderSource: 'mobile',
         fulfillmentType: 'pickup',
@@ -469,6 +474,7 @@ describe('food order loop E2E (F7)', () => {
 
     await request(app)
       .post(`/api/food/restaurants/${RESTAURANT_ID}/orders`)
+      .set('Idempotency-Key', 'loop-kiosk-email-1')
       .send({
         orderSource: 'kiosk',
         fulfillmentType: 'pickup',

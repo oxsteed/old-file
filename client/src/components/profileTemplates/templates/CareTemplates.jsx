@@ -21,7 +21,7 @@ export function CareTrustTemplate({ profileData }) {
           <div className="flex flex-col sm:flex-row items-center gap-5">
             <Avatar src={helper.avatar} name={helper.ownerName} size={88}
               className="border-4 flex-shrink-0" style={{ borderColor: 'rgba(255,255,255,0.4)', background: '#3b0764', color: '#ddd6fe' }} />
-            <div className="text-center sm:text-left flex-1">
+            <div className="text-center sm:text-start flex-1">
               <span className="text-xs font-bold uppercase tracking-[0.3em] text-purple-200 block mb-1">
                 Trusted Caregiver
               </span>
@@ -119,7 +119,7 @@ export function CareTrustTemplate({ profileData }) {
           {/* Availability */}
           <div className="bg-white rounded-2xl p-5 border border-purple-100 shadow-sm">
             <p className="text-xs font-bold uppercase tracking-wider text-purple-600 mb-3">
-              <Clock size={11} className="inline mr-1" />Availability
+              <Clock size={11} className="inline me-1" />Availability
             </p>
             {['Mornings (7am-12pm)', 'Afternoons (12pm-6pm)', 'Evenings (6pm-10pm)', 'Weekends'].map(a => (
               <ChecklistRow key={a} iconColor="#6d28d9" textClass="text-purple-900 text-xs">{a}</ChecklistRow>
@@ -153,7 +153,7 @@ export function PetServicesTemplate({ profileData }) {
       {/* Playful nature hero */}
       <div style={{ background: 'linear-gradient(135deg, #16a34a 0%, #15803d 60%, #14532d 100%)' }}>
         <div className="max-w-4xl mx-auto px-6 py-10 text-white">
-          <div className="flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
+          <div className="flex flex-col sm:flex-row items-center gap-5 text-center sm:text-start">
             <div className="relative">
               <Avatar src={helper.avatar} name={helper.ownerName} size={88}
                 className="border-4 flex-shrink-0" style={{ borderColor: '#86efac', background: '#14532d', color: '#bbf7d0' }} />
@@ -278,7 +278,7 @@ export function TutoringEducationTemplate({ profileData }) {
           <div className="flex flex-col sm:flex-row items-center gap-5">
             <Avatar src={helper.avatar} name={helper.ownerName} size={88}
               className="border-4 flex-shrink-0" style={{ borderColor: 'rgba(255,255,255,0.4)', background: '#312e81', color: '#c7d2fe' }} />
-            <div className="flex-1 text-center sm:text-left">
+            <div className="flex-1 text-center sm:text-start">
               <div className="flex items-center gap-2 mb-1 justify-center sm:justify-start">
                 <BookOpen size={13} className="text-indigo-200" />
                 <span className="text-xs font-bold uppercase tracking-[0.3em] text-indigo-200">Academic Tutor & Educator</span>
@@ -408,7 +408,7 @@ export function ChildDevelopmentTemplate({ profileData }) {
       {/* Warm, friendly hero */}
       <div style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}>
         <div className="max-w-5xl mx-auto px-6 py-10 text-white">
-          <div className="flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
+          <div className="flex flex-col sm:flex-row items-center gap-5 text-center sm:text-start">
             <Avatar src={helper.avatar} name={helper.ownerName} size={88}
               className="border-4 flex-shrink-0" style={{ borderColor: 'rgba(255,255,255,0.5)', background: '#92400e', color: '#fef3c7' }} />
             <div className="flex-1">

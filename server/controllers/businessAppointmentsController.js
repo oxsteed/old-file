@@ -4,6 +4,62 @@
 const pool = require('../db');
 const { AppError } = require('../utils/apiError');
 const logger = require('../utils/logger');
+const { withTransaction } = require('../utils/transaction');
+
+// Shared appointment-window guards (audit M11): capacity per service, no
+// staff double-booking across services, and no booking over the staff
+// member's blocked time. excludeAppointmentId skips one row (reschedule).
+async function assertAppointmentWindowFree(client, { businessId, serviceId, staffId, startTime, endTime, excludeAppointmentId = null }) {
+  // Capacity: overlapping non-cancelled appointments for this service.
+  const serviceRes = await client.query(
+    'SELECT max_capacity FROM business_services WHERE id = $1 AND business_id = $2',
+    [serviceId, businessId]
+  );
+  const maxCapacity = serviceRes.rows[0] ? Number(serviceRes.rows[0].max_capacity) || 1 : 1;
+  const overlapParams = [serviceId, startTime, endTime];
+  let overlapSql = `SELECT COUNT(*)::int AS n FROM business_appointments
+       WHERE service_id = $1 AND status <> 'cancelled'
+         AND start_time < $3 AND end_time > $2`;
+  if (excludeAppointmentId) {
+    overlapParams.push(excludeAppointmentId);
+    overlapSql += ` AND id <> $${overlapParams.length}`;
+  }
+  const overlapRes = await client.query(overlapSql, overlapParams);
+  if (Number(overlapRes.rows[0].n) >= maxCapacity) {
+    throw new AppError('No availability at this time', 409);
+  }
+
+  if (staffId) {
+    // Staff double-booking: the same staff member cannot hold two
+    // non-cancelled appointments at overlapping times, even across services.
+    const staffParams = [staffId, startTime, endTime];
+    let staffSql = `SELECT id FROM business_appointments
+       WHERE staff_id = $1 AND status <> 'cancelled'
+         AND start_time < $3 AND end_time > $2 LIMIT 1`;
+    if (excludeAppointmentId) {
+      staffParams.push(excludeAppointmentId);
+      staffSql = `SELECT id FROM business_appointments
+       WHERE staff_id = $1 AND status <> 'cancelled'
+         AND start_time < $3 AND end_time > $2 AND id <> $4 LIMIT 1`;
+    }
+    const staffRes = await client.query(staffSql, staffParams);
+    if (staffRes.rows.length) {
+      throw new AppError('Staff member is already booked at this time', 409);
+    }
+
+    // Blocked time: the staff member's availability blocks are the
+    // authoritative "do not book" signal.
+    const blockRes = await client.query(
+      `SELECT id FROM availability_blocks
+       WHERE helper_id = $1 AND type IN ('unavailable', 'busy')
+         AND start_time < $3 AND end_time > $2 LIMIT 1`,
+      [staffId, startTime, endTime]
+    );
+    if (blockRes.rows.length) {
+      throw new AppError('Staff member is unavailable at this time', 409);
+    }
+  }
+}
 
 // Create appointment (booking)
 async function createAppointment(req, res, next) {
@@ -18,48 +74,56 @@ async function createAppointment(req, res, next) {
     if (!service_id || !start_time || !end_time || base_price_cents === undefined) {
       return next(new AppError('Service, start time, end time, and price are required', 400));
     }
-
-    // Check service exists
-    const serviceResult = await pool.query(
-      'SELECT * FROM business_services WHERE id = $1 AND business_id = $2',
-      [service_id, businessId]
-    );
-
-    if (!serviceResult.rows.length) {
-      return next(new AppError('Service not found', 404));
+    if (new Date(end_time) <= new Date(start_time)) {
+      return next(new AppError('End time must be after start time', 400));
     }
 
-    const service = serviceResult.rows[0];
+    const appointment = await withTransaction(pool, async (client) => {
+      // Check service exists and take a row-level claim so concurrent
+      // creates for the same service serialize instead of racing.
+      const serviceResult = await client.query(
+        'SELECT * FROM business_services WHERE id = $1 AND business_id = $2 FOR UPDATE',
+        [service_id, businessId]
+      );
 
-    // Check for conflicts with existing appointments
-    const conflictCheck = await pool.query(
-      `SELECT id FROM business_appointments
-       WHERE service_id = $1 AND status != 'cancelled'
-       AND start_time < $3 AND end_time > $2`,
-      [service_id, start_time, end_time]
-    );
+      if (!serviceResult.rows.length) {
+        throw new AppError('Service not found', 404);
+      }
 
-    if (conflictCheck.rows.length >= service.max_capacity) {
-      return next(new AppError('No availability at this time', 409));
-    }
+      // Conflict / capacity / staff double-booking / blocked-time guards.
+      await assertAppointmentWindowFree(client, {
+        businessId,
+        serviceId: service_id,
+        staffId: staff_id || null,
+        startTime: start_time,
+        endTime: end_time,
+      });
 
-    // Create appointment
-    const appointmentResult = await pool.query(
-      `INSERT INTO business_appointments
-       (business_id, service_id, staff_id, customer_id, customer_name, customer_email,
-        customer_phone, customer_notes, start_time, end_time, base_price_cents, final_price_cents, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pending')
-       RETURNING *`,
-      [businessId, service_id, staff_id || null, customer_id || null, customer_name || null,
-       customer_email || null, customer_phone || null, customer_notes || null,
-       start_time, end_time, base_price_cents, base_price_cents]
-    );
+      // Create appointment
+      const appointmentResult = await client.query(
+        `INSERT INTO business_appointments
+         (business_id, service_id, staff_id, customer_id, customer_name, customer_email,
+          customer_phone, customer_notes, start_time, end_time, base_price_cents, final_price_cents, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pending')
+         RETURNING *`,
+        [businessId, service_id, staff_id || null, customer_id || null, customer_name || null,
+         customer_email || null, customer_phone || null, customer_notes || null,
+         start_time, end_time, base_price_cents, base_price_cents]
+      );
+      return appointmentResult.rows[0];
+    });
 
     // Set up reminders
-    await setupReminderSchedule(appointmentResult.rows[0].id, start_time);
+    await setupReminderSchedule(appointment.id, start_time);
 
-    res.status(201).json(appointmentResult.rows[0]);
+    res.status(201).json(appointment);
   } catch (error) {
+    // DB-level backstop (ba_no_staff_double_booking exclusion) fired: the
+    // window was taken between check and insert.
+    if (error && error.code === '23P01') {
+      return next(new AppError('Time slot is no longer available', 409));
+    }
+    if (error instanceof AppError) return next(error);
     logger.error('Error creating appointment', { error });
     next(new AppError('Failed to create appointment', 500));
   }
@@ -235,38 +299,70 @@ async function rescheduleAppointment(req, res, next) {
     if (!new_start_time || !new_end_time) {
       return next(new AppError('New start and end times are required', 400));
     }
-
-    // Get original appointment
-    const origResult = await pool.query(
-      'SELECT * FROM business_appointments WHERE id = $1 AND business_id = $2',
-      [appointmentId, businessId]
-    );
-
-    if (!origResult.rows.length) {
-      return next(new AppError('Appointment not found', 404));
+    if (new Date(new_end_time) <= new Date(new_start_time)) {
+      return next(new AppError('End time must be after start time', 400));
     }
 
-    const orig = origResult.rows[0];
+    const updated = await withTransaction(pool, async (client) => {
+      // Get original appointment and take a claim on the service row so
+      // concurrent reschedules/creates for the same service serialize.
+      const origResult = await client.query(
+        'SELECT * FROM business_appointments WHERE id = $1 AND business_id = $2 FOR UPDATE',
+        [appointmentId, businessId]
+      );
 
-    // Update appointment
-    const updateResult = await pool.query(
-      `UPDATE business_appointments
-       SET start_time = $1, end_time = $2, updated_at = NOW()
-       WHERE id = $3
-       RETURNING *`,
-      [new_start_time, new_end_time, appointmentId]
-    );
+      if (!origResult.rows.length) {
+        throw new AppError('Appointment not found', 404);
+      }
 
-    // Log reschedule
-    await pool.query(
-      `INSERT INTO business_appointment_reschedule_history
-       (appointment_id, original_start_time, original_end_time, new_start_time, new_end_time, rescheduled_by_id, rescheduled_by_type)
-       VALUES ($1, $2, $3, $4, $5, $6, 'business')`,
-      [appointmentId, orig.start_time, orig.end_time, new_start_time, new_end_time, req.user.id]
-    );
+      const orig = origResult.rows[0];
+      if (orig.status === 'cancelled') {
+        throw new AppError('Cannot reschedule a cancelled appointment', 409);
+      }
 
-    res.json(updateResult.rows[0]);
+      await client.query(
+        'SELECT id FROM business_services WHERE id = $1 AND business_id = $2 FOR UPDATE',
+        [orig.service_id, businessId]
+      );
+
+      // Conflict / capacity / staff double-booking / blocked-time guards,
+      // excluding the appointment being moved.
+      await assertAppointmentWindowFree(client, {
+        businessId,
+        serviceId: orig.service_id,
+        staffId: orig.staff_id,
+        startTime: new_start_time,
+        endTime: new_end_time,
+        excludeAppointmentId: appointmentId,
+      });
+
+      // Update appointment
+      const updateResult = await client.query(
+        `UPDATE business_appointments
+         SET start_time = $1, end_time = $2, updated_at = NOW()
+         WHERE id = $3
+         RETURNING *`,
+        [new_start_time, new_end_time, appointmentId]
+      );
+
+      // Log reschedule
+      await client.query(
+        `INSERT INTO business_appointment_reschedule_history
+         (appointment_id, original_start_time, original_end_time, new_start_time, new_end_time, rescheduled_by_id, rescheduled_by_type)
+         VALUES ($1, $2, $3, $4, $5, $6, 'business')`,
+        [appointmentId, orig.start_time, orig.end_time, new_start_time, new_end_time, req.user.id]
+      );
+
+      return updateResult.rows[0];
+    });
+
+    res.json(updated);
   } catch (error) {
+    // DB-level backstop (ba_no_staff_double_booking exclusion) fired.
+    if (error && error.code === '23P01') {
+      return next(new AppError('Time slot is no longer available', 409));
+    }
+    if (error instanceof AppError) return next(error);
     logger.error('Error rescheduling appointment', { error });
     next(new AppError('Failed to reschedule appointment', 500));
   }

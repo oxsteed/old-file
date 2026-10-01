@@ -14,6 +14,19 @@ const QR_EXPORT_PRICE_CENTS = 100;
 const QR_EXPORT_CURRENCY = 'usd';
 const QR_EXPORT_FORMATS = new Set(['png', 'svg', 'promo-png', 'promo-svg']);
 const QR_WORKSPACES = new Set(['custom', 'warehouse', 'restaurant']);
+// Uploaded logo images: only PNG is accepted. SVG must never be accepted here
+// because the decoded bytes are written to disk and served same-origin via
+// /qr-codes, which would turn an attacker-controlled SVG into stored XSS.
+// (Server-side SVG export is rendered in the browser from QR data, not from
+// an uploaded file, and is unaffected by this restriction.)
+const QR_UPLOAD_IMAGE_MAX_BYTES = 2 * 1024 * 1024; // 2 MB decoded cap
+const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+function isPngBuffer(buffer) {
+  return Buffer.isBuffer(buffer)
+    && buffer.length >= PNG_MAGIC.length
+    && buffer.subarray(0, PNG_MAGIC.length).equals(PNG_MAGIC);
+}
 const QR_TEMPLATE_KEYS = new Set([
   'custom', 'warehouse-location', 'dock-door', 'inventory-bin', 'pallet-asset',
   'restaurant-table', 'kitchen-station', 'pickup-order', 'menu-promo',
@@ -81,8 +94,8 @@ exports.createQRCode = async (req, res, next) => {
       return res.status(400).json({ error: 'size must be between 100 and 1000' });
     }
 
-    if (!['png', 'svg'].includes(imageFormat)) {
-      return res.status(400).json({ error: 'imageFormat must be png or svg' });
+    if (imageFormat !== 'png') {
+      return res.status(400).json({ error: 'imageFormat must be png', code: 'invalid_image_format' });
     }
 
     if (!QR_WORKSPACES.has(workspace) || !QR_TEMPLATE_KEYS.has(templateKey)) {
@@ -104,12 +117,18 @@ exports.createQRCode = async (req, res, next) => {
       return res.status(400).json({ error: 'invalid color format (must be hex)' });
     }
 
-    // Save QR code image if provided
+    // Save QR code image if provided. The decoded bytes must be a real PNG
+    // within the size cap before they are written to disk; anything else
+    // (SVG, scripts, oversized payloads) is rejected with a 400.
     let imageUrl = null;
     if (imageData) {
+      if (typeof imageData !== 'string' || !imageData.length) {
+        return res.status(400).json({ error: 'imageData must be a base64 string or data URL', code: 'invalid_image_data' });
+      }
+
+      let buffer;
       try {
         // imageData should be base64 or data URL
-        let buffer;
         if (imageData.startsWith('data:')) {
           // Remove data URL prefix
           const base64Data = imageData.split(',')[1];
@@ -117,8 +136,21 @@ exports.createQRCode = async (req, res, next) => {
         } else {
           buffer = Buffer.from(imageData, 'base64');
         }
+      } catch (err) {
+        logger.warn('qrCodesController.createQRCode: invalid base64 image data', { userId, err: err.message });
+        return res.status(400).json({ error: 'imageData is not valid base64', code: 'invalid_image_data' });
+      }
 
-        const filename = `${uuidv4()}.${imageFormat}`;
+      if (buffer.length > QR_UPLOAD_IMAGE_MAX_BYTES) {
+        return res.status(400).json({ error: 'Image must be 2 MB or smaller', code: 'image_too_large' });
+      }
+
+      if (!isPngBuffer(buffer)) {
+        return res.status(400).json({ error: 'Uploaded image must be a PNG file', code: 'invalid_image_format' });
+      }
+
+      try {
+        const filename = `${uuidv4()}.png`;
         const filepath = path.join(QR_UPLOAD_DIR, filename);
         await fs.mkdir(QR_UPLOAD_DIR, { recursive: true });
         await fs.writeFile(filepath, buffer);

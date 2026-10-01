@@ -710,6 +710,48 @@ async function cancelLinkedAppointment(booking, helperId, db = pool) {
   return rows[0] || null;
 }
 
+// Audit M11: never rewrite a linked appointment into a window that now
+// overlaps another live appointment. Throws a 409 conflict error.
+async function assertBusinessAppointmentWindowFree(db, appointmentId, businessId, startDate, endDate) {
+  const { rows: [appt] } = await db.query(
+    `SELECT service_id, staff_id FROM business_appointments
+      WHERE id = $1 AND business_id = $2`,
+    [appointmentId, businessId],
+  );
+  if (!appt) return;
+  const { rows } = await db.query(
+    `SELECT id FROM business_appointments
+      WHERE business_id = $1 AND id <> $2 AND status <> 'cancelled'
+        AND start_time < $4 AND end_time > $3
+        AND (service_id = $5 OR (staff_id IS NOT NULL AND staff_id = $6))
+      LIMIT 1`,
+    [businessId, appointmentId, startDate, endDate, appt.service_id, appt.staff_id],
+  );
+  if (rows.length) {
+    const err = new Error('Proposed time conflicts with another appointment');
+    err.code = 'appointment_conflict';
+    err.status = 409;
+    throw err;
+  }
+}
+
+async function assertHelperAppointmentWindowFree(db, appointmentId, helperId, startDate, endDate) {
+  if (!helperId) return;
+  const { rows } = await db.query(
+    `SELECT id FROM appointments
+      WHERE helper_id = $1 AND id <> $2 AND status IN ('requested', 'confirmed', 'in_progress')
+        AND scheduled_start_time < $4 AND scheduled_end_time > $3
+      LIMIT 1`,
+    [helperId, appointmentId, startDate, endDate],
+  );
+  if (rows.length) {
+    const err = new Error('Proposed time conflicts with another appointment');
+    err.code = 'appointment_conflict';
+    err.status = 409;
+    throw err;
+  }
+}
+
 async function syncAppointmentTimes(booking, date, start, end, db = pool) {
   const startDate = new Date(`${date}T${start}:00`);
   const endDate = new Date(`${date}T${end}:00`);
@@ -717,6 +759,9 @@ async function syncAppointmentTimes(booking, date, start, end, db = pool) {
     return null;
   }
   if (booking.business_appointment_id && booking.business_id) {
+    await assertBusinessAppointmentWindowFree(
+      db, booking.business_appointment_id, booking.business_id, startDate, endDate,
+    );
     const { rows } = await db.query(
       `UPDATE business_appointments
           SET start_time = $2,
@@ -729,6 +774,9 @@ async function syncAppointmentTimes(booking, date, start, end, db = pool) {
     return rows[0] || null;
   }
   if (!booking.appointment_id) return null;
+  await assertHelperAppointmentWindowFree(
+    db, booking.appointment_id, booking.helper_id, startDate, endDate,
+  );
   const duration = Math.max(15, Math.min(480, Math.round((endDate - startDate) / 60000) || 60));
   const { rows } = await db.query(
     `UPDATE appointments
@@ -1161,6 +1209,9 @@ async function proposeBookingTime({ booking, actorId, actorType = 'helper', date
   try {
     await syncAppointmentTimes(updated, d, s, e);
   } catch (syncErr) {
+    // A real conflict must fail the counter, otherwise the booking and its
+    // linked appointment end up on different times (audit M11).
+    if (syncErr && syncErr.status === 409) throw syncErr;
     logger.warn('[bookingLifecycle] appointment time sync failed', { error: syncErr.message });
   }
 

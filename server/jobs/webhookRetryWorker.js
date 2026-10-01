@@ -41,7 +41,7 @@ async function runWebhookRetryWorker({ limit = BATCH_SIZE } = {}) {
 
     for (const delivery of due.rows) {
       const webhookResult = await pool.query(
-        `SELECT id, webhook_url, custom_headers, timeout_seconds, is_active
+        `SELECT id, webhook_url, custom_headers, timeout_seconds, is_active, pinned_ip
            FROM business_webhooks
           WHERE id = $1`,
         [delivery.webhook_id]

@@ -155,3 +155,87 @@ describe('chat credit refund + order-type helpers', () => {
     expect(stripCreditRefundMarkers(`Hi\n${marker}\nBye`)).not.toMatch(/\[credit_refund:/);
   });
 });
+
+jest.mock('../services/chatThreadAccess', () => ({
+  assertConversationParticipant: jest.fn(),
+  assertGuestInquiryAccess: jest.fn(),
+  assertBusinessAccess: jest.fn(),
+  isProviderOnConversation: jest.fn(),
+  isCustomerOnConversation: jest.fn(),
+}));
+
+describe('chat credit refund transaction binding (M10)', () => {
+  const chatThreadAccess = require('../services/chatThreadAccess');
+  const controller = require('../controllers/chatOxsteedCreditPaymentController');
+  const { mockQuery, resetMocks } = require('./setup');
+
+  function mockReqRes(body) {
+    const res = {};
+    res.status = jest.fn().mockReturnValue(res);
+    res.json = jest.fn().mockReturnValue(res);
+    const req = { params: {}, body, query: {}, user: { id: 'help-1' }, headers: {}, ip: '127.0.0.1', socket: {} };
+    return { req, res, next: jest.fn() };
+  }
+
+  beforeEach(() => {
+    resetMocks();
+    jest.clearAllMocks();
+    chatThreadAccess.assertConversationParticipant.mockResolvedValue({ id: 'conv-1', customer_id: 'cust-1', helper_id: 'help-1' });
+    chatThreadAccess.isProviderOnConversation.mockReturnValue(true);
+    chatThreadAccess.assertBusinessAccess.mockResolvedValue(true);
+  });
+
+  test('rejects a body-supplied creditTxnId that differs from the pop transaction', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{
+      id: 'pop-1', conversation_id: 'conv-1', credit_txn_id: 'txn-real',
+      amount_cents: 1000, refunded_amount_cents: 0,
+    }] });
+    const { req, res, next } = mockReqRes({
+      popId: 'pop-1',
+      creditTxnId: 'txn-evil',
+      reason: 'Customer cancelled the job',
+      idempotencyKey: 'refund-key-m10-1',
+    });
+
+    await controller.refundChatCreditPayment(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'credit_txn_mismatch' }));
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  test('rejects a pop that belongs to a different conversation', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{
+      id: 'pop-1', conversation_id: 'conv-1', credit_txn_id: 'txn-real',
+      amount_cents: 1000, refunded_amount_cents: 0,
+    }] });
+    const { req, res, next } = mockReqRes({
+      popId: 'pop-1',
+      conversationId: 'conv-2',
+      reason: 'Customer cancelled the job',
+      idempotencyKey: 'refund-key-m10-2',
+    });
+
+    await controller.refundChatCreditPayment(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'forbidden' }));
+  });
+
+  test('rejects a standalone creditTxnId that is not a chat payment for this conversation', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{
+      id: 'txn-x', reference_type: 'purchase', reference_id: 'some-other-conv', metadata: {},
+    }] });
+    const { req, res, next } = mockReqRes({
+      creditTxnId: 'txn-x',
+      conversationId: 'conv-1',
+      reason: 'Customer cancelled the job',
+      idempotencyKey: 'refund-key-m10-3',
+    });
+
+    await controller.refundChatCreditPayment(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'credit_txn_mismatch' }));
+  });
+});

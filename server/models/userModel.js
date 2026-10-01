@@ -342,6 +342,8 @@ exports.touchLastLogin = async (userId, ip) => {
 // ─── Password Reset ───────────────────────────────────────────
 exports.setResetToken = async (email) => {
   const token   = crypto.randomBytes(32).toString('hex');
+  // M1: store only the SHA-256 hash; the plaintext goes out in the email only.
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
   const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
   const { rows } = await db.query(
@@ -352,7 +354,7 @@ exports.setResetToken = async (email) => {
      WHERE LOWER(email) = LOWER($3)
        AND deleted_at IS NULL
      RETURNING id, email, first_name`,
-    [token, expires, email]
+    [tokenHash, expires, email]
   );
 
   return rows[0] ? { user: rows[0], token } : null;
@@ -360,6 +362,8 @@ exports.setResetToken = async (email) => {
 
 exports.resetPassword = async (token, newPassword) => {
   const hash = await hashPassword(newPassword);
+  // M1: compare the hash of the presented token, never the plaintext.
+  const tokenHash = crypto.createHash('sha256').update(String(token)).digest('hex');
 
   const { rows } = await db.query(
     `UPDATE users
@@ -370,7 +374,7 @@ exports.resetPassword = async (token, newPassword) => {
      WHERE reset_token         = $2
        AND reset_token_expires > now()
      RETURNING id, email, first_name`,
-    [hash, token]
+    [hash, tokenHash]
   );
 
   return rows[0] ?? null;

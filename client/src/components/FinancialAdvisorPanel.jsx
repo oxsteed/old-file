@@ -64,7 +64,7 @@ export default function FinancialAdvisorPanel({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed bottom-0 right-4 sm:right-6 z-50 w-full max-w-sm flex flex-col shadow-2xl rounded-t-2xl overflow-hidden bg-gray-900 border border-gray-700">
+    <div className="fixed bottom-0 end-4 sm:end-6 z-50 w-full max-w-sm flex flex-col shadow-2xl rounded-t-2xl overflow-hidden bg-gray-900 border border-gray-700">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 bg-emerald-900/60 border-b border-emerald-800/60 flex-shrink-0">
         <DollarSign className="w-4 h-4 text-emerald-400 flex-shrink-0" aria-hidden="true" />
@@ -96,7 +96,7 @@ export default function FinancialAdvisorPanel({ isOpen, onClose }) {
       <div className="flex-shrink-0">
         <button
           onClick={() => setDisclaimerOpen(v => !v)}
-          className="w-full flex items-center gap-2 px-4 py-2 bg-amber-900/30 border-b border-amber-800/30 hover:bg-amber-900/40 transition text-left"
+          className="w-full flex items-center gap-2 px-4 py-2 bg-amber-900/30 border-b border-amber-800/30 hover:bg-amber-900/40 transition text-start"
           aria-expanded={disclaimerOpen}
         >
           <AlertTriangle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" aria-hidden="true" />

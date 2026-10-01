@@ -5,7 +5,6 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 const metricsService = require('../services/metricsService');
 const backupMonitor = require('../services/backupMonitor');
-const complianceAuditLogger = require('../services/complianceAuditLogger');
 const fileScanService = require('../services/fileScanService');
 const incidentStore = require('../services/incidentStore');
 const { sendError, sendValidationError } = require('../utils/apiError');
@@ -166,13 +165,23 @@ exports.getSecurityEvents = async (req, res, next) => {
 
 /**
  * GET /api/monitoring/audit-trail
- * Compliance audit trail for user
+ * The signed-in admin's own actions from the real admin_audit_log.
+ * (Previously read the writerless compliance_audit_log, which was always
+ * empty; the dead table was dropped in migration 624.)
  */
 exports.getAuditTrail = async (req, res, next) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
 
-    const trail = await complianceAuditLogger.getAuditTrail(req.user.id, 100);
+    const { rows: trail } = await pool.query(
+      `SELECT id, action, target_type, target_id, target_key, description,
+              before_state, after_state, created_at
+         FROM admin_audit_log
+        WHERE admin_id = $1
+        ORDER BY created_at DESC
+        LIMIT 100`,
+      [req.user.id]
+    );
 
     res.json({
       userId: req.user.id,
@@ -307,53 +316,13 @@ exports.getLatencyPercentiles = async (req, res, next) => {
 };
 
 /**
- * GET /api/monitoring/compliance-report
- * SOC 2, ISO 27001, GDPR compliance status
- */
-exports.getComplianceReport = async (req, res, next) => {
-  try {
-    const days = Math.min(parseInt(req.query.days) || 30, 365);
-
-    // Audit log summary
-    const auditEvents = await complianceAuditLogger.getEventsByAction('*', days);
-    const failuresByUser = {};
-    const criticalsCount = auditEvents.filter(e => e.severity === 'critical').length;
-    const highsCount = auditEvents.filter(e => e.severity === 'high').length;
-
-    // Backup compliance
-    const backupStats = await backupMonitor.getComplianceStats(days);
-
-    // Security events
-    const securityEvents = metricsService.getSecurityEvents();
-    const recentCriticals = securityEvents
-      .filter(e => e.severity === 'critical')
-      .slice(-10);
-
-    res.json({
-      period: `Last ${days} days`,
-      compliance: {
-        soc2: {
-          status: criticalsCount === 0 ? 'COMPLIANT' : 'AT_RISK',
-          failedControls: criticalsCount,
-          recommendations: _generateSOC2Recommendations(criticalsCount),
-        },
-        iso27001: {
-          status: (criticalsCount + highsCount) < 10 ? 'COMPLIANT' : 'AT_RISK',
-          violations: criticalsCount + highsCount,
-        },
-        backup: {
-          status: backupStats.status,
-          stats: backupStats,
-        },
-      },
-      recentCriticalEvents: recentCriticals,
-      lastReported: new Date().toISOString(),
-    });
-  } catch (err) {
-    logger.error('Compliance report error', { error: err.message });
-    res.status(500).json({ error: 'Failed to generate compliance report' });
-  }
-};
+ * NOTE (H7, 2026-09-30): GET /api/monitoring/compliance-report was removed.
+ * It derived SOC 2 / ISO 27001 status from compliance_audit_log -- a table
+ * with zero writers, queried with action = '*' (which matches nothing) -- so
+ * it reported COMPLIANT forever. The table was dropped in migration 624.
+ * Do not reintroduce a compliance-status endpoint without real control
+ * evidence behind it. Backup posture remains at /backup-status; security
+ * events remain at /incident-summary.
 
 /**
  * GET /api/monitoring/incident-summary
@@ -489,18 +458,6 @@ function _generateLatencyAlerts(httpStats, dbStats) {
   }
 
   return alerts;
-}
-
-function _generateSOC2Recommendations(criticalCount) {
-  if (criticalCount === 0) {
-    return ['✓ No critical control failures in compliance window'];
-  }
-
-  return [
-    `⚠️ ${criticalCount} critical control issue(s) require remediation`,
-    'Review audit logs for details on failures',
-    'Implement corrective action and document resolution',
-  ];
 }
 
 function _countEventTypes(events) {

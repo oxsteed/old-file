@@ -22,7 +22,7 @@ export function FitnessProTemplate({ profileData }) {
           : <div className="h-72" style={{ background: 'linear-gradient(135deg, #1a0a0a 0%, #3d0000 50%, #7f1d1d 100%)' }} />}
         <div className="absolute inset-0"
           style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(10,10,10,0.95) 90%)' }} />
-        <div className="absolute bottom-0 left-0 right-0 px-6 pb-6">
+        <div className="absolute bottom-0 start-0 end-0 px-6 pb-6">
           <div className="max-w-4xl mx-auto">
             <div className="flex items-end gap-5">
               <Avatar src={helper.avatar} name={helper.ownerName} size={88}
@@ -204,7 +204,7 @@ export function WellnessTherapyTemplate({ profileData }) {
                       {s.description && <p className="text-xs mt-0.5" style={{ color: '#4a7c59' }}>{s.description}</p>}
                     </div>
                   </div>
-                  {s.price > 0 && <p className="text-sm font-bold ml-4" style={{ color: '#2d5a40' }}>${s.price.toFixed(0)}/{s.priceUnit}</p>}
+                  {s.price > 0 && <p className="text-sm font-bold ms-4" style={{ color: '#2d5a40' }}>${s.price.toFixed(0)}/{s.priceUnit}</p>}
                 </div>
               ))}
             </div>
@@ -275,7 +275,7 @@ export function NutritionDietTemplate({ profileData }) {
           <div className="flex flex-col sm:flex-row items-center gap-5">
             <Avatar src={helper.avatar} name={helper.ownerName} size={88}
               className="border-4 flex-shrink-0" style={{ borderColor: 'rgba(255,255,255,0.4)', background: '#9a3412', color: '#fed7aa' }} />
-            <div className="text-center sm:text-left">
+            <div className="text-center sm:text-start">
               <span className="text-xs font-bold uppercase tracking-[0.3em] text-orange-200 block mb-1">
                 Registered Nutritionist & Diet Coach
               </span>
@@ -453,7 +453,7 @@ export function MentalHealthTemplate({ profileData }) {
                     <p className="font-semibold text-sm text-teal-900">{s.name}</p>
                     {s.description && <p className="text-xs text-teal-600 mt-0.5">{s.description}</p>}
                   </div>
-                  {s.price > 0 && <p className="text-sm font-bold text-teal-700 ml-4 whitespace-nowrap">${s.price.toFixed(0)}/{s.priceUnit}</p>}
+                  {s.price > 0 && <p className="text-sm font-bold text-teal-700 ms-4 whitespace-nowrap">${s.price.toFixed(0)}/{s.priceUnit}</p>}
                 </div>
               ))}
             </div>

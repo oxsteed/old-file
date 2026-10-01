@@ -52,7 +52,7 @@ test('rolls back partner reserve setup when the journal post fails', async () =>
     if (statement.includes('FROM oxsteed_credit_partners')) return { rows: [{ id: 41, settlement_currency_code: 'USD', status: 'active' }] };
     if (statement.includes('INSERT INTO oxsteed_credit_partner_ledgers')) return { rows: [] };
     if (statement.includes('SELECT l.id AS ledger_id')) {
-      return { rows: [{ ledger_id: 900, partner_id: 41, ledger_status: 'active', currency_code: 'USD', reserve_account_id: 702 }] };
+      return { rows: [{ ledger_id: 900, partner_id: 41, ledger_status: 'active', partner_status: 'active', currency_code: 'USD', reserve_account_id: 702 }] };
     }
     throw new Error(`Unexpected SQL in funding failure test: ${statement}`);
   });

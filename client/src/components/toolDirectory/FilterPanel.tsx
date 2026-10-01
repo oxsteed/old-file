@@ -43,7 +43,7 @@ const FilterSection: React.FC<{
     <div className="border-b border-gray-800 last:border-0">
       <button
         onClick={() => setOpen((p) => !p)}
-        className="w-full flex items-center justify-between py-3.5 px-1 text-left group"
+        className="w-full flex items-center justify-between py-3.5 px-1 text-start group"
         aria-expanded={open}
       >
         <span className="flex items-center gap-2 text-sm font-semibold text-gray-200 group-hover:text-white transition-colors">
@@ -147,8 +147,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
               }`}
             >
               <span
-                className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                  filters.availableNow ? 'translate-x-4' : ''
+                className={`absolute top-0.5 start-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                  filters.availableNow ? 'translate-x-4 rtl:-translate-x-4' : ''
                 }`}
               />
             </button>
@@ -167,8 +167,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
               }`}
             >
               <span
-                className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                  filters.deliveryAvailable ? 'translate-x-4' : ''
+                className={`absolute top-0.5 start-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                  filters.deliveryAvailable ? 'translate-x-4 rtl:-translate-x-4' : ''
                 }`}
               />
             </button>
@@ -237,7 +237,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
           icon={Layers}
           badge={filters.categories.length}
         >
-          <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+          <div className="space-y-1.5 max-h-72 overflow-y-auto pe-1">
             {TOOL_CATEGORIES.map((cat) => (
               <CheckboxRow
                 key={cat}

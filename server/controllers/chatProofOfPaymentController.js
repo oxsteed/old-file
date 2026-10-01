@@ -3,7 +3,7 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const socketService = require('../services/socketService');
-const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
+const { uploadFile, getSignedDownloadUrl, normalizeStorageKey } = require('../utils/storage');
 const {
   assertConversationParticipant,
   assertGuestInquiryAccess,
@@ -26,6 +26,31 @@ const { withTransaction } = require('../utils/transaction');
 
 function bad(res, status, error, code) {
   return res.status(status).json({ error, code: code || 'error' });
+}
+
+function sanitizeScopeId(id) {
+  return String(id).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64);
+}
+
+// Uploads are scoped to the conversation (or guest session) they belong to, so
+// a caller-supplied attachment key is only accepted when it was minted for this
+// scope. This prevents attachment_key escalation across conversations.
+function scopedUploadFolder(baseFolder, { conversationId, guestSessionId, businessId, userId }) {
+  let scope;
+  if (conversationId) scope = `c-${sanitizeScopeId(conversationId)}`;
+  else if (guestSessionId) scope = `g-${sanitizeScopeId(guestSessionId)}`;
+  else if (businessId) scope = `b-${sanitizeScopeId(businessId)}`;
+  else scope = `u-${sanitizeScopeId(userId)}`;
+  return `${baseFolder}/${scope}`;
+}
+
+// Returns the normalized key when it was minted under this scope's folder,
+// otherwise null. Uploaded file bytes always win (minted under the same folder
+// by construction); this only gates caller-supplied keys.
+function scopedAttachmentKey(attachmentKey, uploadFolder) {
+  const normalized = normalizeStorageKey(attachmentKey);
+  if (!normalized || !normalized.startsWith(`${uploadFolder}/`)) return null;
+  return normalized;
 }
 
 function getClientRequestId(req) {
@@ -262,11 +287,13 @@ exports.sharePop = async (req, res, next) => {
     let attachmentMime = req.body.attachment_mime || req.body.attachmentMime || null;
     let attachmentSize = req.body.attachment_size || req.body.attachmentSize || null;
 
+    const uploadFolder = scopedUploadFolder('chat-pop', { conversationId, guestSessionId });
+
     if (req.file && !pop) {
       if (!ALLOWED_POP_MIMES.has(req.file.mimetype)) {
         return bad(res, 400, 'File type not allowed for proof of payment', 'invalid_file_type');
       }
-      const key = await uploadFile(req.file.buffer, 'chat-pop', req.file.originalname, req.file.mimetype);
+      const key = await uploadFile(req.file.buffer, uploadFolder, req.file.originalname, req.file.mimetype);
       if (key) {
         attachmentKey = key;
         attachmentName = req.file.originalname;
@@ -275,6 +302,16 @@ exports.sharePop = async (req, res, next) => {
       } else {
         return bad(res, 503, 'File storage unavailable', 'storage_unavailable');
       }
+    }
+
+    // No file uploaded in this request but a caller-supplied attachment key is
+    // present: only honor it when it was minted for this conversation scope.
+    if (!pop && !req.file && attachmentKey) {
+      const scopedKey = scopedAttachmentKey(attachmentKey, uploadFolder);
+      if (!scopedKey) {
+        return bad(res, 400, 'attachment_key was not issued for this conversation', 'attachment_key_not_issued_here');
+      }
+      attachmentKey = scopedKey;
     }
 
     if (!pop) {

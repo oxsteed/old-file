@@ -26,6 +26,8 @@ describe('affiliate dashboard backend wiring', () => {
   test('POST /affiliate/calculate creates payout inside a transaction', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 7, helper_id: 'user-123' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 7 }] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ total_cents: 2500, count: 2 }] })
       .mockResolvedValueOnce({ rows: [{ id: 11, total_commission_cents: 2500, commission_count: 2 }] })
       .mockResolvedValueOnce({ rows: [], rowCount: 2 })
@@ -41,9 +43,33 @@ describe('affiliate dashboard backend wiring', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.id).toBe(11);
-    expect(mockQuery.mock.calls[2][0]).toContain('INSERT INTO affiliate_payouts');
-    expect(mockQuery.mock.calls[3][0]).toContain('UPDATE affiliate_commissions');
-    expect(mockQuery.mock.calls[4][0]).toContain('UPDATE affiliate_programs');
+    expect(mockQuery.mock.calls[1][0]).toContain('FOR UPDATE');
+    expect(mockQuery.mock.calls[2][0]).toContain('idempotency_key');
+    expect(mockQuery.mock.calls[4][0]).toContain('INSERT INTO affiliate_payouts');
+    expect(mockQuery.mock.calls[5][0]).toContain('UPDATE affiliate_commissions');
+    expect(mockQuery.mock.calls[6][0]).toContain('UPDATE affiliate_programs');
+  });
+
+  test('POST /affiliate/calculate replays the original payout for a duplicate idempotency key', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 7, helper_id: 'user-123' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 7 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 11, total_commission_cents: 2500, commission_count: 2 }] });
+
+    const res = await request(buildApp())
+      .post('/api/affiliate/calculate')
+      .set('Idempotency-Key', 'client-key-123')
+      .send({
+        programId: 7,
+        periodStart: '2026-06-01T00:00:00.000Z',
+        periodEnd: '2026-06-02T00:00:00.000Z',
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.id).toBe(11);
+    expect(res.body.replayed).toBe(true);
+    // No INSERT happened on replay
+    expect(mockQuery.mock.calls.some((c) => c[0].includes('INSERT INTO affiliate_payouts'))).toBe(false);
   });
 
   test('GET /affiliate/:id/analytics/products uses safe params and marketplace product name', async () => {

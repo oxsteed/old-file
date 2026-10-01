@@ -2,9 +2,11 @@ import { Suspense } from 'react';
 import { lazyWithRetry } from '../utils/lazyWithRetry';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import AdminLayout from './layouts/AdminLayout';
 import GrantGuard from './lib/GrantGuard';
+import AdminErrorState from './lib/AdminErrorState';
 import { adminRoute } from './adminRouteManifest';
 import TwoFactorSetup from '../pages/Settings/TwoFactorSetup';
 
@@ -138,6 +140,7 @@ const IncidentManagement = lazyWithRetry(() => import('./pages/IncidentManagemen
 
 function AdminGuard({ children, superOnly = false }) {
   const { user, loading } = useAuth();
+  const { t } = useTranslation();
 
   if (loading) return (
     <div className="h-screen flex items-center justify-center">
@@ -148,7 +151,21 @@ function AdminGuard({ children, superOnly = false }) {
 
   if (!user) return <Navigate to="/admin/login" replace />;
   if (!['admin','super_admin'].includes(user.role)) {
-    return <Navigate to="/" replace />;
+    // Audit L9: an authenticated non-admin must NOT be bounced to "/".
+    // "/" is not a route in the admin SPA, so the "*" catch-all sent them
+    // back to /admin/dashboard -> AdminGuard -> "/" ... an infinite
+    // redirect loop. Render an access-denied panel instead, which
+    // terminates the navigation.
+    return (
+      <div className="min-h-screen bg-gray-950 p-6 flex items-start justify-center">
+        <div className="w-full max-w-xl mt-16">
+          <AdminErrorState
+            title={t('adminGrantGuard.title')}
+            message={t('adminGrantGuard.message', { grant: 'admin' })}
+          />
+        </div>
+      </div>
+    );
   }
   if (superOnly && user.role !== 'super_admin') {
     return <Navigate to="/admin/dashboard" replace />;

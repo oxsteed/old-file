@@ -233,7 +233,7 @@ export default function DiditPanel({ onVerified, onBack }: Props) {
                 <path d="M8 12a4 4 0 1 0 8 0" />
               </svg>
             </div>
-            <div className="absolute -bottom-1 -right-1 w-[26px] h-[26px] rounded-full bg-gray-900 border-2 border-gray-900 flex items-center justify-center">
+            <div className="absolute -bottom-1 -end-1 w-[26px] h-[26px] rounded-full bg-gray-900 border-2 border-gray-900 flex items-center justify-center">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-orange-500">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
@@ -248,7 +248,7 @@ export default function DiditPanel({ onVerified, onBack }: Props) {
               {t('didit.subtitle')}
             </p>
           </div>
-          <div className="flex flex-col gap-3 w-full text-left">
+          <div className="flex flex-col gap-3 w-full text-start">
             {STEPS.map((s, i) => (
               <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-gray-800/50 border border-gray-700/60">
                 <span className="w-6 h-6 rounded-full bg-orange-500 text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">
@@ -261,7 +261,7 @@ export default function DiditPanel({ onVerified, onBack }: Props) {
               </div>
             ))}
           </div>
-          <div className="flex items-start gap-2 text-xs text-gray-500 text-left max-w-[36ch]">
+          <div className="flex items-start gap-2 text-xs text-gray-500 text-start max-w-[36ch]">
             <Shield size={14} className="text-orange-500 shrink-0 mt-0.5" />
             <span>{t('didit.notice')}</span>
           </div>

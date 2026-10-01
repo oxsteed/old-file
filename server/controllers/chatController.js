@@ -615,7 +615,9 @@ exports.profileChatMessage = async (req, res, next) => {
 
     if (resolvedBusinessId) {
       const bizRes = await pool.query(
-        `SELECT user_id FROM businesses WHERE id = $1 AND is_active = TRUE`,
+        `SELECT user_id FROM businesses
+          WHERE id = $1 AND is_active = TRUE
+            AND COALESCE(is_hidden_by_admin, FALSE) = FALSE`,
         [resolvedBusinessId]
       );
       if (!bizRes.rows.length) {
@@ -625,6 +627,14 @@ exports.profileChatMessage = async (req, res, next) => {
     }
 
     if (!resolvedHelperId) throw new AppError('helperId or businessId is required', 400, 'validation_failed', { helperId: 'helperId or businessId is required' });
+
+    // Admin-hidden profiles cannot receive new profile-page messages (compliance hold).
+    const { rows: hiddenRows } = await pool.query(
+      `SELECT 1 FROM helper_profiles hp
+        WHERE hp.user_id = $1 AND COALESCE(hp.is_hidden_by_admin, FALSE) = TRUE`,
+      [resolvedHelperId]
+    );
+    if (hiddenRows.length) throw new AppError('Helper not found', 404, 'not_found');
 
     const userId = req.user?.id;
     const guestContact = {
@@ -637,7 +647,8 @@ exports.profileChatMessage = async (req, res, next) => {
     const { rows: [helperProfile] } = await pool.query(
       `SELECT hp.is_available_now FROM helper_profiles hp
        JOIN users u ON u.id = hp.user_id
-       WHERE hp.user_id = $1 AND u.deleted_at IS NULL`,
+       WHERE hp.user_id = $1 AND u.deleted_at IS NULL
+         AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [resolvedHelperId]
     ).catch(() => ({ rows: [{ is_available_now: false }] }));
     const helperAvailable = helperProfile?.is_available_now || false;
@@ -1126,7 +1137,9 @@ exports.guestProfileChatSession = async (req, res, next) => {
 
     if (resolvedBusinessId) {
       const bizRes = await pool.query(
-        `SELECT user_id FROM businesses WHERE id = $1 AND is_active = TRUE`,
+        `SELECT user_id FROM businesses
+          WHERE id = $1 AND is_active = TRUE
+            AND COALESCE(is_hidden_by_admin, FALSE) = FALSE`,
         [resolvedBusinessId]
       );
       if (!bizRes.rows.length) {
@@ -1160,7 +1173,8 @@ exports.guestProfileChatSession = async (req, res, next) => {
       `SELECT COALESCE(hp.allow_guest_contact, TRUE) AS allow_guest_contact
        FROM users u
        JOIN helper_profiles hp ON hp.user_id = u.id
-       WHERE u.id = $1 AND u.deleted_at IS NULL`,
+       WHERE u.id = $1 AND u.deleted_at IS NULL
+         AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [resolvedHelperId]
     );
     if (!gate.rows.length) {

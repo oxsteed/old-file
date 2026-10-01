@@ -60,7 +60,7 @@ export default function ImpersonationBanner() {
   return (
     <div
       style={{ zIndex: 99999 }}
-      className="fixed top-0 left-0 right-0 flex items-center justify-between
+      className="fixed top-0 start-0 end-0 flex items-center justify-between
                  gap-3 px-4 py-2.5
                  bg-orange-500 text-white text-sm font-semibold shadow-lg"
       role="alert"

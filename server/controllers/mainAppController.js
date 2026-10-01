@@ -504,6 +504,7 @@ async function queryFeaturedHelpers(limit) {
         AND u.role IN ('helper', 'helper_pro', 'broker')
         AND u.email_verified = TRUE
         AND COALESCE(hp.is_listed, TRUE) = TRUE
+        AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE
       ORDER BY hp.avg_rating DESC NULLS LAST, hp.total_reviews DESC, u.created_at DESC
       LIMIT $1`,
     [limit]
@@ -574,6 +575,8 @@ async function queryPopularRestaurants(limit) {
       WHERE fr.status = 'active'
         AND b.is_active = TRUE
         AND b.deleted_at IS NULL
+        AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
+        AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
         AND COALESCE(fr.discovery_status, 'visible') = 'visible'
         AND COALESCE(fr.accepts_online_orders, TRUE) = TRUE
         AND COALESCE(fr.is_accepting_orders_now, TRUE) = TRUE

@@ -213,7 +213,7 @@ export default function ActionItemsPanel({ sessionId, isEditable = false }) {
     padding: '1.25rem',
     borderRadius: '8px',
     marginBottom: '1rem',
-    borderLeft: '4px solid var(--color-primary)',
+    borderInlineStart: '4px solid var(--color-primary)',
   };
 
   const itemTitleStyle = {
@@ -397,7 +397,7 @@ export default function ActionItemsPanel({ sessionId, isEditable = false }) {
               key={item.id}
               style={{
                 ...itemCardStyle,
-                borderLeft: `4px solid ${item.completed ? '#10b981' : 'var(--color-primary)'}`,
+                borderInlineStart: `4px solid ${item.completed ? '#10b981' : 'var(--color-primary)'}`,
                 opacity: item.completed ? 0.7 : 1,
               }}
             >

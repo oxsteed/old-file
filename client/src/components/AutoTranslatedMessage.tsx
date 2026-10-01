@@ -131,7 +131,7 @@ export default function AutoTranslatedMessage({
           <button
             type="button"
             onClick={toggle}
-            className="underline hover:opacity-100 text-left font-medium"
+            className="underline hover:opacity-100 text-start font-medium"
           >
             {showTranslated
               ? t('messages.showOriginalMessage')

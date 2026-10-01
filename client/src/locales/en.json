@@ -6279,6 +6279,7 @@
       "apiSettings": "API & Developer Settings",
       "apiKey": "API Key",
       "copyKeyHint": "Copy this key now and store it securely.",
+      "maskedKeyNoCopy": "Only the masked key is shown. Regenerate to get a new full key.",
       "apiKeyHint": "Use a generated key for direct API access.",
       "noApiKey": "No API key generated yet",
       "regenerateApiKey": "Regenerate API Key",
@@ -7165,51 +7166,6 @@
       "expiresOnText": "expires {{date}}",
       "deleteRecordConfirm": "Delete this record?",
       "trustRecordDeleted": "Trust record deleted"
-    },
-    "businessMessageTemplates": {
-      "title": "Message Templates",
-      "subtitle": "Reusable messages for common communications",
-      "newTemplate": "New Template",
-      "editTemplate": "Edit Template",
-      "all": "All",
-      "category": {
-        "general": "General",
-        "appointment": "Appointment",
-        "follow_up": "Follow Up",
-        "invoice": "Invoice",
-        "promotion": "Promotion",
-        "review_request": "Review Request",
-        "welcome": "Welcome",
-        "cancellation": "Cancellation"
-      },
-      "form": {
-        "templateName": "Template Name *",
-        "emailSubject": "Email Subject (optional)",
-        "category": "Category",
-        "messageBody": "Message Body *",
-        "bodyPlaceholder": "Write your template here. Use variables like {client_name} for personalization."
-      },
-      "insertVariables": "Insert:",
-      "saveTemplate": "Save Template",
-      "cancel": "Cancel",
-      "loading": "Loading...",
-      "emptyTitle": "No templates yet. Create reusable messages for common situations.",
-      "emptyBody": "Ideas: appointment reminders, follow-ups, payment requests, review asks",
-      "usesLabel_one": "{{count}} use",
-      "usesLabel_other": "{{count}} uses",
-      "copy": "Copy",
-      "edit": "Edit",
-      "delete": "Delete",
-      "toastLoadFailed": "Failed to load templates",
-      "toastNameAndBodyRequired": "Name and body are required",
-      "toastCreated": "Template created",
-      "toastUpdated": "Template updated",
-      "toastSaveFailed": "Failed to save",
-      "deleteConfirm": "Delete this template?",
-      "deleteSuccess": "Deleted",
-      "deleteFailed": "Failed",
-      "toastCopied": "Copied to clipboard",
-      "subjectPrefix": "Subject:"
     },
     "switchTemplate": "Switch template",
     "switchTemplateTitle": "Switch this business to a different profile template",
@@ -12223,7 +12179,8 @@
     "sandboxClear": "Clear",
     "promptTruncated": "First 3000 characters of the system prompt. Live replies may vary slightly.",
     "sandboxDisclaimer": "This is a test chat using the same AI as your public profile. It is not visible to customers.",
-    "invalidBusiness": "Invalid business."
+    "invalidBusiness": "Invalid business.",
+    "notAuthorized": "You do not have access to this business."
   },
   "bidAccept": {
     "title": "Pick a time with {{name}}",
@@ -12450,7 +12407,8 @@
     "cautionCaution": "Caution",
     "cautionRestricted": "Restricted",
     "feeHistory": "Cancellation fees paid",
-    "feesCount": "{{n}} cancellation fee{{s}} paid",
+    "feesCount_one": "{{count}} cancellation fee paid",
+    "feesCount_other": "{{count}} cancellation fees paid",
     "feesTotal": "total",
     "feesNone": "No cancellation fees. Great track record.",
     "feesShow": "Show",
@@ -12591,7 +12549,8 @@
     "customerReliabilityLabel": "Customer reliability",
     "newCustomer": "New customer. No cancellation history yet.",
     "custCompletedOf": "{{completed}} / {{total}} jobs completed",
-    "custCancellations": "{{n}} cancellation{{s}} in the past year",
+    "custCancellations_one": "{{count}} cancellation in the past year",
+    "custCancellations_other": "{{count}} cancellations in the past year",
     "patternEarly": "Usually cancels well in advance when they do cancel.",
     "patternLate": "Often cancels within a week of the start date.",
     "impactNote": "Cancelling now means {{customer}} will need to find someone else at the last minute.",
@@ -16677,430 +16636,6 @@
         "sending": "Submitting...",
         "submit": "Submit request"
       }
-    },
-    "creativeIntakePage": {
-      "loading": "Loading creative discovery...",
-      "businessNameFallback": "this creative business",
-      "errors": {
-        "loadFailed": "Could not load this creative profile.",
-        "missingProjectType": "Tell the business what kind of project you need.",
-        "submitFailed": "Could not send creative discovery."
-      },
-      "messages": {
-        "submitted": "Creative discovery sent."
-      },
-      "submitted": {
-        "pageTitle": "Creative discovery sent - OxSteed",
-        "eyebrow": "Discovery sent",
-        "description": "{{business}} can now review the project goal, style direction, package fit, and delivery timing before moving you into discovery, proposal, or production.",
-        "backToProfile": "Back to profile",
-        "goToDashboard": "Go to dashboard"
-      },
-      "page": {
-        "title": "Creative discovery - {{business}}"
-      },
-      "hero": {
-        "eyebrow": "Creative discovery",
-        "title": "Start a project with {{business}}",
-        "subtitle": "Share the project goal, style direction, references, and deadline so the business can route you into the right creative package or proposal.",
-        "cardTitle": "Creative discovery intake",
-        "cardDescription": "Built for discovery, proposal clarity, approvals, and delivery follow-through instead of generic contact messages."
-      },
-      "sections": {
-        "projectBrief": "Project brief",
-        "assetsAndDelivery": "Assets and delivery",
-        "contactAndProcess": "Contact and process"
-      },
-      "form": {
-        "projectType": {
-          "label": "Project type",
-          "placeholderDefault": "Campaign, content system, creative direction",
-          "placeholderPhotographer": "Portrait session, brand shoot, event coverage",
-          "placeholderDesigner": "Logo system, packaging, pitch deck"
-        },
-        "projectGoal": {
-          "label": "Project goal",
-          "placeholder": "What are you trying to achieve, who is it for, and what outcome matters most?"
-        },
-        "styleDirection": {
-          "label": "Style direction",
-          "placeholder": "Describe the aesthetic, mood, brand references, or visual language you want."
-        },
-        "deadlineNotes": {
-          "label": "Deadline notes",
-          "placeholder": "Launch date, event date, handoff timing"
-        },
-        "packageInterest": {
-          "label": "Package interest",
-          "placeholder": "Session package, brand system, retainer"
-        },
-        "assetsNeeded": {
-          "label": "Assets or deliverables needed",
-          "placeholder": "What files, formats, scenes, deliverables, or outputs do you need?"
-        },
-        "revisionScope": {
-          "label": "Revision scope expectations",
-          "placeholder": "Rounds of revisions, selects, proofing needs"
-        },
-        "budgetNotes": {
-          "label": "Budget notes",
-          "placeholder": "Optional budget or pricing guardrails"
-        },
-        "referenceLinks": {
-          "label": "Reference links",
-          "placeholder": "One link per line: Pinterest board, moodboard, prior brand assets, example work"
-        },
-        "uploadReferences": {
-          "label": "Upload references"
-        },
-        "contactName": {
-          "label": "Contact name",
-          "placeholder": "Your name or team contact"
-        },
-        "contactEmail": {
-          "label": "Email",
-          "placeholder": "you@example.com"
-        },
-        "contactPhone": {
-          "label": "Phone",
-          "placeholder": "Optional phone"
-        },
-        "contactChannel": {
-          "label": "Preferred contact channel",
-          "options": {
-            "email": "Email",
-            "call": "Call",
-            "meeting": "Meeting",
-            "message": "Message"
-          }
-        },
-        "labels": {
-          "revisionPolicy": "Revision policy:",
-          "approvalPolicy": "Approval process:"
-        },
-        "fallbacks": {
-          "configuredInsideHub": "Configured inside Business Hub."
-        },
-        "actions": {
-          "sending": "Sending...",
-          "submit": "Send creative discovery"
-        }
-      }
-    },
-    "beautyIntakePage": {
-      "loading": "Loading beauty intake...",
-      "businessNameFallback": "this beauty business",
-      "errors": {
-        "loadFailed": "Could not load this beauty profile.",
-        "missingService": "Tell the business what service you want.",
-        "missingAcknowledgement": "Acknowledge the prep and cancellation expectations first.",
-        "submitFailed": "Could not send beauty intake."
-      },
-      "messages": {
-        "submitted": "Beauty intake sent."
-      },
-      "submitted": {
-        "pageTitle": "Beauty intake sent - OxSteed",
-        "eyebrow": "Intake sent",
-        "description": "{{business}} can now review your goals, prep needs, timing, and package fit before moving you into booking, confirmation, or rebook follow-up.",
-        "backToProfile": "Back to profile",
-        "goToDashboard": "Go to dashboard"
-      },
-      "page": {
-        "title": "Beauty intake - {{business}}"
-      },
-      "hero": {
-        "eyebrow": "Beauty intake",
-        "title": "Start your beauty intake with {{business}}",
-        "subtitle": "Share the look you want, your timing, and any prep or sensitivity notes so the business can route you into the right service path.",
-        "cardTitle": "Beauty intake and appointment planning",
-        "cardDescription": "Built for look goals, prep expectations, package fit, and repeat-booking follow-through instead of generic booking notes."
-      },
-      "sections": {
-        "serviceGoals": "Service goals",
-        "prepSensitivities": "Prep and sensitivities",
-        "policyAndConsent": "Prep, policy, and consent"
-      },
-      "form": {
-        "desiredService": {
-          "label": "Desired service",
-          "placeholderDefault": "Cut, color refresh, silk press",
-          "placeholderBarber": "Fade, beard trim, hot towel shave",
-          "placeholderSpa": "Facial, peel, skin ritual"
-        },
-        "desiredLook": {
-          "label": "Desired look or outcome",
-          "placeholderDefault": "Soft layers with brighter face frame",
-          "placeholderBarber": "Clean skin fade with beard shape-up",
-          "placeholderSpa": "Calming hydration and brightening"
-        },
-        "inspirationNotes": {
-          "label": "Inspiration or detail notes",
-          "placeholder": "Tell the team what you want, what you are avoiding, and anything from prior visits that matters."
-        },
-        "preferredStaff": {
-          "label": "Preferred staff member",
-          "placeholder": "Optional"
-        },
-        "preferredTimeNotes": {
-          "label": "Timing notes",
-          "placeholder": "Best days, event deadline, same-day if possible"
-        },
-        "packageInterest": {
-          "label": "Package or plan interest",
-          "placeholder": "Membership, bridal prep, color maintenance plan"
-        },
-        "budgetNotes": {
-          "label": "Budget notes",
-          "placeholder": "Optional budget or package note"
-        },
-        "hairLength": {
-          "label": "Hair length / density",
-          "placeholder": "Short, shoulder length, thick, extensions"
-        },
-        "hairHistory": {
-          "label": "Hair history",
-          "placeholder": "Color, relaxer, bleach, damage, last service"
-        },
-        "beardPreferences": {
-          "label": "Beard / grooming preferences",
-          "placeholder": "Line-up, length, shape, razor sensitive areas"
-        },
-        "skinSensitivities": {
-          "label": "Skin sensitivities",
-          "placeholder": "Acne, rosacea, dryness, fragrance sensitivity"
-        },
-        "contraindications": {
-          "label": "Contraindications or medications",
-          "placeholder": "Retinol, recent peel, allergies, pregnancy note"
-        },
-        "referencePhotos": {
-          "label": "Reference photos"
-        },
-        "contactName": {
-          "label": "Contact name",
-          "placeholder": "Your name"
-        },
-        "contactEmail": {
-          "label": "Email",
-          "placeholder": "you@example.com"
-        },
-        "contactPhone": {
-          "label": "Phone",
-          "placeholder": "Best text number"
-        },
-        "consent": {
-          "patchTest": "I may need patch-test or sensitivity review guidance before the visit.",
-          "photoRelease": "I am open to before/after photo discussion if the provider asks.",
-          "fragranceSensitivity": "I have fragrance or product sensitivities the provider should know about."
-        },
-        "labels": {
-          "depositPolicy": "Deposit / cancellation:",
-          "prepGuidance": "Prep guidance:"
-        },
-        "acknowledgement": {
-          "prep": "I read the prep guidance and will follow any day-of instructions.",
-          "noShow": "I understand there may be cancellation or no-show expectations before the business confirms timing."
-        },
-        "fallbacks": {
-          "configuredInsideHub": "Configured inside Business Hub."
-        },
-        "actions": {
-          "sending": "Sending...",
-          "submit": "Send beauty intake"
-        }
-      }
-    },
-    "continuityIntakePage": {
-      "loading": "Loading guided intake...",
-      "businessNameFallback": "this business",
-      "errors": {
-        "loadFailed": "Could not load this guided-intake profile.",
-        "missingGoal": "Tell the business the main goal or concern first.",
-        "missingAcknowledgement": "Acknowledge the intake and communication expectations first.",
-        "submitFailed": "Could not send guided intake."
-      },
-      "messages": {
-        "submitted": "Guided intake sent."
-      },
-      "submitted": {
-        "pageTitle": "Guided intake sent - OxSteed",
-        "eyebrow": "Intake sent",
-        "description": "{{business}} can now review the goal, context, recurring cadence, and trust requirements before moving you into scheduling, progress review, or a longer continuity plan.",
-        "backToProfile": "Back to profile",
-        "goToDashboard": "Go to dashboard"
-      },
-      "page": {
-        "title": "Guided intake - {{business}}"
-      },
-      "hero": {
-        "eyebrow": "Guided intake",
-        "title": "Start guided intake with {{business}}",
-        "subtitle": "Share the goal, support context, schedule rhythm, and trust considerations so the business can route you into the right recurring support path.",
-        "cardTitle": "Guided intake and continuity planning",
-        "cardDescription": "Built for recurring sessions, progress review, and trust-sensitive follow-up instead of a one-off booking request."
-      },
-      "sections": {
-        "goalContext": "Goal and support context",
-        "routineTrust": "Routine, trust, and considerations",
-        "contactAcknowledgement": "Contact and acknowledgement"
-      },
-      "form": {
-        "primaryGoal": {
-          "label": "Primary goal or concern",
-          "placeholderDefault": "Strength plan, recovery support, stress relief, nutrition reset",
-          "placeholderEducation": "Reading support, test prep, confidence with algebra",
-          "placeholderCare": "Recurring support, pet routine, family help, dependable care"
-        },
-        "supportContext": {
-          "label": "Support context",
-          "placeholder": "Explain the situation, current challenges, and what good progress would look like."
-        },
-        "scheduleNotes": {
-          "label": "Schedule notes",
-          "placeholder": "Best days, frequency, urgency, time windows"
-        },
-        "progressTarget": {
-          "label": "Progress target",
-          "placeholder": "Weekly walks, exam score goal, fewer flare-ups, mobility milestone"
-        },
-        "packageInterest": {
-          "label": "Package or plan interest",
-          "placeholder": "Membership, weekly sessions, support package"
-        },
-        "ageOrLevel": {
-          "label": "Age, level, or life stage",
-          "placeholderDefault": "Beginner, postpartum, older adult",
-          "placeholderEducation": "Grade 6, SAT prep, early childhood",
-          "placeholderCare": "Beginner, postpartum, older adult",
-          "placeholderPet": "Puppy, senior dog, reactive walker"
-        },
-        "currentRoutine": {
-          "label": "Current routine or baseline",
-          "placeholder": "What does the current routine, schedule, or baseline look like right now?"
-        },
-        "specialConsiderations": {
-          "label": "Special considerations",
-          "placeholder": "Allergies, sensitivities, accessibility needs, behavior notes, accommodations, or communication preferences."
-        },
-        "guardianName": {
-          "label": "Guardian / family contact",
-          "placeholder": "Optional parent, guardian, or family lead"
-        },
-        "guardianPhone": {
-          "label": "Guardian phone",
-          "placeholder": "Optional contact number"
-        },
-        "budgetNotes": {
-          "label": "Budget notes",
-          "placeholder": "Optional budget or commitment note"
-        },
-        "labels": {
-          "trustSignals": "Trust signals:",
-          "prepExpectations": "Prep and expectations:"
-        },
-        "fallbacks": {
-          "configuredInsideHub": "Configured inside Business Hub."
-        },
-        "contactName": {
-          "label": "Contact name",
-          "placeholder": "Primary contact"
-        },
-        "contactEmail": {
-          "label": "Email",
-          "placeholder": "you@example.com"
-        },
-        "contactPhone": {
-          "label": "Phone",
-          "placeholder": "Best number"
-        },
-        "contactChannel": {
-          "label": "Preferred contact channel",
-          "options": {
-            "message": "Message",
-            "email": "Email",
-            "call": "Call",
-            "text": "Text",
-            "meeting": "Meeting"
-          }
-        },
-        "relationshipType": {
-          "label": "Relationship type",
-          "options": {
-            "client": "Client",
-            "student": "Student",
-            "family": "Family",
-            "pet": "Pet",
-            "patient": "Patient",
-            "athlete": "Athlete"
-          }
-        },
-        "acknowledgement": {
-          "guardian": "I understand a guardian or family point of contact may be needed for recurring support when relevant.",
-          "safety": "I shared any key safety, behavior, accessibility, or accommodation notes that matter.",
-          "policy": "I understand this intake helps the business decide the right plan, timing, and next step before confirming service."
-        },
-        "actions": {
-          "sending": "Sending...",
-          "submit": "Send guided intake"
-        },
-        "businessRecurringBilling": {
-          "title": "Recurring Billing",
-          "subtitle": "Manage retainers and subscription-style billing",
-          "addRecurring": "Add recurring",
-          "createRecurring": "New recurring billing",
-          "editRecurring": "Edit recurring billing",
-          "description": "Description",
-          "amount": "Amount ($)",
-          "frequency": "Frequency",
-          "startDate": "Start date",
-          "notes": "Notes",
-          "save": "Save",
-          "loading": "Loading...",
-          "emptyState": "No recurring billing set up. Great for retainer clients and subscriptions.",
-          "fallbackDescription": "Recurring Billing",
-          "next": "Next:",
-          "pause": "Pause",
-          "resume": "Resume",
-          "statusActive": "Active",
-          "statusPausedStatus": "Paused",
-          "statusUnknown": "Unknown",
-          "statusPaused": "Paused",
-          "statusResumed": "Resumed",
-          "created": "Recurring billing created",
-          "updated": "Updated",
-          "deleted": "Cancelled",
-          "deleteConfirm": "Cancel this recurring billing?",
-          "deleteError": "Failed",
-          "updateError": "Failed to update",
-          "loadError": "Failed to load recurring billing",
-          "saveError": "Failed to save",
-          "requiredFields": "Amount, frequency and start date are required",
-          "frequencies": {
-            "weekly": "Weekly",
-            "biweekly": "Biweekly",
-            "monthly": "Monthly",
-            "quarterly": "Quarterly",
-            "annually": "Annually"
-          },
-          "all": "All",
-          "activeContracts": "Active Contracts",
-          "monthlyRecurringRevenue": "Monthly Recurring Revenue",
-          "dueThisMonth": "Due This Month",
-          "dueNext30Days": "Due in Next 30 Days",
-          "tableClient": "Client",
-          "tableDescription": "Description",
-          "tableAmount": "Amount",
-          "tableNextBilling": "Next Billing",
-          "tableStatus": "Status",
-          "tableActions": "Actions",
-          "nextDateLabel": "Next Billing Date *",
-          "generateInvoice": "Generate Invoice",
-          "invoiceGenerated": "Invoice generated",
-          "descriptionPlaceholder": "Service description",
-          "notesPlaceholder": "Optional notes"
-        }
-      }
     }
   },
   "affiliateDashboard": {
@@ -17879,60 +17414,6 @@
       "step2Body": "The agreed OxSteed referral cut is copied onto the lead at assignment time, so your share and the platform share stay locked for that referral.",
       "step3Title": "3. Pipeline execution",
       "step3Body": "Use your dashboard to move leads from intro to discovery, proposal, engagement, and completion while keeping OxSteed in the loop."
-    },
-    "consultantAvailabilityPage": {
-      "metaTitle": "Availability",
-      "metaDescription": "Manage your recurring weekly schedule, time blocks, and time off dates.",
-      "badge": "Consultant Availability",
-      "heading": "Your Weekly Availability",
-      "intro": "Set your regular working hours and manage time off so customers only book within available windows.",
-      "backToDashboard": "Back to Dashboard",
-      "summaryActiveDays": "Active Days",
-      "summaryActiveDaysHint": "Days with at least one active weekly slot",
-      "summaryWeeklySlots": "Weekly Slots",
-      "summaryWeeklySlotsHint": "Total configured recurring slots",
-      "summaryBlockedDates": "Blocked Dates",
-      "summaryBlockedDatesHint": "Specific dates you have marked unavailable",
-      "nextTimeOff": "Next Time Off",
-      "summaryNextTimeOffHint": "Earliest upcoming blocked date",
-      "none": "None",
-      "scheduleBuilder": "Schedule Builder",
-      "liveWeeklyView": "Live Weekly View",
-      "loadedNow": "Items loaded",
-      "controlsHeading": "Controls",
-      "controlsBody": "Add, edit, and track recurring availability by day.",
-      "slotActiveDesc": "This slot is active.",
-      "slotInactiveDesc": "This slot is inactive.",
-      "noRecurringHours": "No recurring hours set",
-      "timeOff": "Time Off",
-      "useFor": "Use for vacations, holidays, etc.",
-      "useForBody": "Mark days you are not available so customers and clients see accurate availability.",
-      "protectedDates": "Protected Dates",
-      "reasonPlaceholder": "Optional reason",
-      "noReasonAdded": "Time blocked with no reason added yet.",
-      "noBlockedDates": "No blocked dates yet",
-      "noBlockedDatesBody": "Add at least one blocked date to keep your availability from showing for that day.",
-      "notSet": "Not set",
-      "saveAvailability": "Save Availability",
-      "noScheduleSaved": "No schedule entries yet",
-      "noScheduleSavedBody": "Use the form on the left to add your first recurring slot.",
-      "addBlockedDate": "Add Blocked Date",
-      "dayLabels": {
-        "sunday": "Sunday",
-        "monday": "Monday",
-        "tuesday": "Tuesday",
-        "wednesday": "Wednesday",
-        "thursday": "Thursday",
-        "friday": "Friday",
-        "saturday": "Saturday"
-      },
-      "errorLoadingAvailability": "Failed to load availability.",
-      "errorLoadingBlockedDates": "Failed to load blocked dates.",
-      "errorTimeRange": "Set both start and end time.",
-      "errorSavingAvailability": "Could not save availability.",
-      "errorAddingBlockedDate": "Could not add blocked date.",
-      "errorRemovingBlockedDate": "Could not remove blocked date.",
-      "dateRequired": "Please select a date."
     }
   },
   "learn": {
@@ -26713,4 +26194,632 @@
     "reconcileFailed": "Reconcile failed"
   }
 
+,
+  "beautyIntakePage": {
+    "loading": "Loading beauty intake...",
+    "businessNameFallback": "this beauty business",
+    "errors": {
+      "loadFailed": "Could not load this beauty profile.",
+      "missingService": "Tell the business what service you want.",
+      "missingAcknowledgement": "Acknowledge the prep and cancellation expectations first.",
+      "submitFailed": "Could not send beauty intake."
+    },
+    "messages": {
+      "submitted": "Beauty intake sent."
+    },
+    "submitted": {
+      "pageTitle": "Beauty intake sent - OxSteed",
+      "eyebrow": "Intake sent",
+      "description": "{{business}} can now review your goals, prep needs, timing, and package fit before moving you into booking, confirmation, or rebook follow-up.",
+      "backToProfile": "Back to profile",
+      "goToDashboard": "Go to dashboard"
+    },
+    "page": {
+      "title": "Beauty intake - {{business}}"
+    },
+    "hero": {
+      "eyebrow": "Beauty intake",
+      "title": "Start your beauty intake with {{business}}",
+      "subtitle": "Share the look you want, your timing, and any prep or sensitivity notes so the business can route you into the right service path.",
+      "cardTitle": "Beauty intake and appointment planning",
+      "cardDescription": "Built for look goals, prep expectations, package fit, and repeat-booking follow-through instead of generic booking notes."
+    },
+    "sections": {
+      "serviceGoals": "Service goals",
+      "prepSensitivities": "Prep and sensitivities",
+      "policyAndConsent": "Prep, policy, and consent"
+    },
+    "form": {
+      "desiredService": {
+        "label": "Desired service",
+        "placeholderDefault": "Cut, color refresh, silk press",
+        "placeholderBarber": "Fade, beard trim, hot towel shave",
+        "placeholderSpa": "Facial, peel, skin ritual"
+      },
+      "desiredLook": {
+        "label": "Desired look or outcome",
+        "placeholderDefault": "Soft layers with brighter face frame",
+        "placeholderBarber": "Clean skin fade with beard shape-up",
+        "placeholderSpa": "Calming hydration and brightening"
+      },
+      "inspirationNotes": {
+        "label": "Inspiration or detail notes",
+        "placeholder": "Tell the team what you want, what you are avoiding, and anything from prior visits that matters."
+      },
+      "preferredStaff": {
+        "label": "Preferred staff member",
+        "placeholder": "Optional"
+      },
+      "preferredTimeNotes": {
+        "label": "Timing notes",
+        "placeholder": "Best days, event deadline, same-day if possible"
+      },
+      "packageInterest": {
+        "label": "Package or plan interest",
+        "placeholder": "Membership, bridal prep, color maintenance plan"
+      },
+      "budgetNotes": {
+        "label": "Budget notes",
+        "placeholder": "Optional budget or package note"
+      },
+      "hairLength": {
+        "label": "Hair length / density",
+        "placeholder": "Short, shoulder length, thick, extensions"
+      },
+      "hairHistory": {
+        "label": "Hair history",
+        "placeholder": "Color, relaxer, bleach, damage, last service"
+      },
+      "beardPreferences": {
+        "label": "Beard / grooming preferences",
+        "placeholder": "Line-up, length, shape, razor sensitive areas"
+      },
+      "skinSensitivities": {
+        "label": "Skin sensitivities",
+        "placeholder": "Acne, rosacea, dryness, fragrance sensitivity"
+      },
+      "contraindications": {
+        "label": "Contraindications or medications",
+        "placeholder": "Retinol, recent peel, allergies, pregnancy note"
+      },
+      "referencePhotos": {
+        "label": "Reference photos"
+      },
+      "contactName": {
+        "label": "Contact name",
+        "placeholder": "Your name"
+      },
+      "contactEmail": {
+        "label": "Email",
+        "placeholder": "you@example.com"
+      },
+      "contactPhone": {
+        "label": "Phone",
+        "placeholder": "Best text number"
+      },
+      "consent": {
+        "patchTest": "I may need patch-test or sensitivity review guidance before the visit.",
+        "photoRelease": "I am open to before/after photo discussion if the provider asks.",
+        "fragranceSensitivity": "I have fragrance or product sensitivities the provider should know about."
+      },
+      "labels": {
+        "depositPolicy": "Deposit / cancellation:",
+        "prepGuidance": "Prep guidance:"
+      },
+      "acknowledgement": {
+        "prep": "I read the prep guidance and will follow any day-of instructions.",
+        "noShow": "I understand there may be cancellation or no-show expectations before the business confirms timing."
+      },
+      "fallbacks": {
+        "configuredInsideHub": "Configured inside Business Hub."
+      },
+      "actions": {
+        "sending": "Sending...",
+        "submit": "Send beauty intake"
+      }
+    }
+  },
+  "continuityIntakePage": {
+    "loading": "Loading guided intake...",
+    "businessNameFallback": "this business",
+    "errors": {
+      "loadFailed": "Could not load this guided-intake profile.",
+      "missingGoal": "Tell the business the main goal or concern first.",
+      "missingAcknowledgement": "Acknowledge the intake and communication expectations first.",
+      "submitFailed": "Could not send guided intake."
+    },
+    "messages": {
+      "submitted": "Guided intake sent."
+    },
+    "submitted": {
+      "pageTitle": "Guided intake sent - OxSteed",
+      "eyebrow": "Intake sent",
+      "description": "{{business}} can now review the goal, context, recurring cadence, and trust requirements before moving you into scheduling, progress review, or a longer continuity plan.",
+      "backToProfile": "Back to profile",
+      "goToDashboard": "Go to dashboard"
+    },
+    "page": {
+      "title": "Guided intake - {{business}}"
+    },
+    "hero": {
+      "eyebrow": "Guided intake",
+      "title": "Start guided intake with {{business}}",
+      "subtitle": "Share the goal, support context, schedule rhythm, and trust considerations so the business can route you into the right recurring support path.",
+      "cardTitle": "Guided intake and continuity planning",
+      "cardDescription": "Built for recurring sessions, progress review, and trust-sensitive follow-up instead of a one-off booking request."
+    },
+    "sections": {
+      "goalContext": "Goal and support context",
+      "routineTrust": "Routine, trust, and considerations",
+      "contactAcknowledgement": "Contact and acknowledgement"
+    },
+    "form": {
+      "primaryGoal": {
+        "label": "Primary goal or concern",
+        "placeholderDefault": "Strength plan, recovery support, stress relief, nutrition reset",
+        "placeholderEducation": "Reading support, test prep, confidence with algebra",
+        "placeholderCare": "Recurring support, pet routine, family help, dependable care"
+      },
+      "supportContext": {
+        "label": "Support context",
+        "placeholder": "Explain the situation, current challenges, and what good progress would look like."
+      },
+      "scheduleNotes": {
+        "label": "Schedule notes",
+        "placeholder": "Best days, frequency, urgency, time windows"
+      },
+      "progressTarget": {
+        "label": "Progress target",
+        "placeholder": "Weekly walks, exam score goal, fewer flare-ups, mobility milestone"
+      },
+      "packageInterest": {
+        "label": "Package or plan interest",
+        "placeholder": "Membership, weekly sessions, support package"
+      },
+      "ageOrLevel": {
+        "label": "Age, level, or life stage",
+        "placeholderDefault": "Beginner, postpartum, older adult",
+        "placeholderEducation": "Grade 6, SAT prep, early childhood",
+        "placeholderCare": "Beginner, postpartum, older adult",
+        "placeholderPet": "Puppy, senior dog, reactive walker"
+      },
+      "currentRoutine": {
+        "label": "Current routine or baseline",
+        "placeholder": "What does the current routine, schedule, or baseline look like right now?"
+      },
+      "specialConsiderations": {
+        "label": "Special considerations",
+        "placeholder": "Allergies, sensitivities, accessibility needs, behavior notes, accommodations, or communication preferences."
+      },
+      "guardianName": {
+        "label": "Guardian / family contact",
+        "placeholder": "Optional parent, guardian, or family lead"
+      },
+      "guardianPhone": {
+        "label": "Guardian phone",
+        "placeholder": "Optional contact number"
+      },
+      "budgetNotes": {
+        "label": "Budget notes",
+        "placeholder": "Optional budget or commitment note"
+      },
+      "labels": {
+        "trustSignals": "Trust signals:",
+        "prepExpectations": "Prep and expectations:"
+      },
+      "fallbacks": {
+        "configuredInsideHub": "Configured inside Business Hub."
+      },
+      "contactName": {
+        "label": "Contact name",
+        "placeholder": "Primary contact"
+      },
+      "contactEmail": {
+        "label": "Email",
+        "placeholder": "you@example.com"
+      },
+      "contactPhone": {
+        "label": "Phone",
+        "placeholder": "Best number"
+      },
+      "contactChannel": {
+        "label": "Preferred contact channel",
+        "options": {
+          "message": "Message",
+          "email": "Email",
+          "call": "Call",
+          "text": "Text",
+          "meeting": "Meeting"
+        }
+      },
+      "relationshipType": {
+        "label": "Relationship type",
+        "options": {
+          "client": "Client",
+          "student": "Student",
+          "family": "Family",
+          "pet": "Pet",
+          "patient": "Patient",
+          "athlete": "Athlete"
+        }
+      },
+      "acknowledgement": {
+        "guardian": "I understand a guardian or family point of contact may be needed for recurring support when relevant.",
+        "safety": "I shared any key safety, behavior, accessibility, or accommodation notes that matter.",
+        "policy": "I understand this intake helps the business decide the right plan, timing, and next step before confirming service."
+      },
+      "actions": {
+        "sending": "Sending...",
+        "submit": "Send guided intake"
+      },
+      "businessRecurringBilling": {
+        "title": "Recurring Billing",
+        "subtitle": "Manage retainers and subscription-style billing",
+        "addRecurring": "Add recurring",
+        "createRecurring": "New recurring billing",
+        "editRecurring": "Edit recurring billing",
+        "description": "Description",
+        "amount": "Amount ($)",
+        "frequency": "Frequency",
+        "startDate": "Start date",
+        "notes": "Notes",
+        "save": "Save",
+        "loading": "Loading...",
+        "emptyState": "No recurring billing set up. Great for retainer clients and subscriptions.",
+        "fallbackDescription": "Recurring Billing",
+        "next": "Next:",
+        "pause": "Pause",
+        "resume": "Resume",
+        "statusActive": "Active",
+        "statusPausedStatus": "Paused",
+        "statusUnknown": "Unknown",
+        "statusPaused": "Paused",
+        "statusResumed": "Resumed",
+        "created": "Recurring billing created",
+        "updated": "Updated",
+        "deleted": "Cancelled",
+        "deleteConfirm": "Cancel this recurring billing?",
+        "deleteError": "Failed",
+        "updateError": "Failed to update",
+        "loadError": "Failed to load recurring billing",
+        "saveError": "Failed to save",
+        "requiredFields": "Amount, frequency and start date are required",
+        "frequencies": {
+          "weekly": "Weekly",
+          "biweekly": "Biweekly",
+          "monthly": "Monthly",
+          "quarterly": "Quarterly",
+          "annually": "Annually"
+        },
+        "all": "All",
+        "activeContracts": "Active Contracts",
+        "monthlyRecurringRevenue": "Monthly Recurring Revenue",
+        "dueThisMonth": "Due This Month",
+        "dueNext30Days": "Due in Next 30 Days",
+        "tableClient": "Client",
+        "tableDescription": "Description",
+        "tableAmount": "Amount",
+        "tableNextBilling": "Next Billing",
+        "tableStatus": "Status",
+        "tableActions": "Actions",
+        "nextDateLabel": "Next Billing Date *",
+        "generateInvoice": "Generate Invoice",
+        "invoiceGenerated": "Invoice generated",
+        "descriptionPlaceholder": "Service description",
+        "notesPlaceholder": "Optional notes"
+      }
+    }
+  },
+  "creativeIntakePage": {
+    "loading": "Loading creative discovery...",
+    "businessNameFallback": "this creative business",
+    "errors": {
+      "loadFailed": "Could not load this creative profile.",
+      "missingProjectType": "Tell the business what kind of project you need.",
+      "submitFailed": "Could not send creative discovery."
+    },
+    "messages": {
+      "submitted": "Creative discovery sent."
+    },
+    "submitted": {
+      "pageTitle": "Creative discovery sent - OxSteed",
+      "eyebrow": "Discovery sent",
+      "description": "{{business}} can now review the project goal, style direction, package fit, and delivery timing before moving you into discovery, proposal, or production.",
+      "backToProfile": "Back to profile",
+      "goToDashboard": "Go to dashboard"
+    },
+    "page": {
+      "title": "Creative discovery - {{business}}"
+    },
+    "hero": {
+      "eyebrow": "Creative discovery",
+      "title": "Start a project with {{business}}",
+      "subtitle": "Share the project goal, style direction, references, and deadline so the business can route you into the right creative package or proposal.",
+      "cardTitle": "Creative discovery intake",
+      "cardDescription": "Built for discovery, proposal clarity, approvals, and delivery follow-through instead of generic contact messages."
+    },
+    "sections": {
+      "projectBrief": "Project brief",
+      "assetsAndDelivery": "Assets and delivery",
+      "contactAndProcess": "Contact and process"
+    },
+    "form": {
+      "projectType": {
+        "label": "Project type",
+        "placeholderDefault": "Campaign, content system, creative direction",
+        "placeholderPhotographer": "Portrait session, brand shoot, event coverage",
+        "placeholderDesigner": "Logo system, packaging, pitch deck"
+      },
+      "projectGoal": {
+        "label": "Project goal",
+        "placeholder": "What are you trying to achieve, who is it for, and what outcome matters most?"
+      },
+      "styleDirection": {
+        "label": "Style direction",
+        "placeholder": "Describe the aesthetic, mood, brand references, or visual language you want."
+      },
+      "deadlineNotes": {
+        "label": "Deadline notes",
+        "placeholder": "Launch date, event date, handoff timing"
+      },
+      "packageInterest": {
+        "label": "Package interest",
+        "placeholder": "Session package, brand system, retainer"
+      },
+      "assetsNeeded": {
+        "label": "Assets or deliverables needed",
+        "placeholder": "What files, formats, scenes, deliverables, or outputs do you need?"
+      },
+      "revisionScope": {
+        "label": "Revision scope expectations",
+        "placeholder": "Rounds of revisions, selects, proofing needs"
+      },
+      "budgetNotes": {
+        "label": "Budget notes",
+        "placeholder": "Optional budget or pricing guardrails"
+      },
+      "referenceLinks": {
+        "label": "Reference links",
+        "placeholder": "One link per line: Pinterest board, moodboard, prior brand assets, example work"
+      },
+      "uploadReferences": {
+        "label": "Upload references"
+      },
+      "contactName": {
+        "label": "Contact name",
+        "placeholder": "Your name or team contact"
+      },
+      "contactEmail": {
+        "label": "Email",
+        "placeholder": "you@example.com"
+      },
+      "contactPhone": {
+        "label": "Phone",
+        "placeholder": "Optional phone"
+      },
+      "contactChannel": {
+        "label": "Preferred contact channel",
+        "options": {
+          "email": "Email",
+          "call": "Call",
+          "meeting": "Meeting",
+          "message": "Message"
+        }
+      },
+      "labels": {
+        "revisionPolicy": "Revision policy:",
+        "approvalPolicy": "Approval process:"
+      },
+      "fallbacks": {
+        "configuredInsideHub": "Configured inside Business Hub."
+      },
+      "actions": {
+        "sending": "Sending...",
+        "submit": "Send creative discovery"
+      }
+    }
+  },
+  "consultantAvailabilityPage": {
+    "metaTitle": "Availability",
+    "metaDescription": "Manage your recurring weekly schedule, time blocks, and time off dates.",
+    "badge": "Consultant Availability",
+    "heading": "Your Weekly Availability",
+    "intro": "Set your regular working hours and manage time off so customers only book within available windows.",
+    "backToDashboard": "Back to Dashboard",
+    "summaryActiveDays": "Active Days",
+    "summaryActiveDaysHint": "Days with at least one active weekly slot",
+    "summaryWeeklySlots": "Weekly Slots",
+    "summaryWeeklySlotsHint": "Total configured recurring slots",
+    "summaryBlockedDates": "Blocked Dates",
+    "summaryBlockedDatesHint": "Specific dates you have marked unavailable",
+    "nextTimeOff": "Next Time Off",
+    "summaryNextTimeOffHint": "Earliest upcoming blocked date",
+    "none": "None",
+    "scheduleBuilder": "Schedule Builder",
+    "liveWeeklyView": "Live Weekly View",
+    "loadedNow": "Items loaded",
+    "controlsHeading": "Controls",
+    "controlsBody": "Add, edit, and track recurring availability by day.",
+    "slotActiveDesc": "This slot is active.",
+    "slotInactiveDesc": "This slot is inactive.",
+    "noRecurringHours": "No recurring hours set",
+    "timeOff": "Time Off",
+    "useFor": "Use for vacations, holidays, etc.",
+    "useForBody": "Mark days you are not available so customers and clients see accurate availability.",
+    "protectedDates": "Protected Dates",
+    "reasonPlaceholder": "Optional reason",
+    "noReasonAdded": "Time blocked with no reason added yet.",
+    "noBlockedDates": "No blocked dates yet",
+    "noBlockedDatesBody": "Add at least one blocked date to keep your availability from showing for that day.",
+    "notSet": "Not set",
+    "saveAvailability": "Save Availability",
+    "noScheduleSaved": "No schedule entries yet",
+    "noScheduleSavedBody": "Use the form on the left to add your first recurring slot.",
+    "addBlockedDate": "Add Blocked Date",
+    "dayLabels": {
+      "sunday": "Sunday",
+      "monday": "Monday",
+      "tuesday": "Tuesday",
+      "wednesday": "Wednesday",
+      "thursday": "Thursday",
+      "friday": "Friday",
+      "saturday": "Saturday"
+    },
+    "errorLoadingAvailability": "Failed to load availability.",
+    "errorLoadingBlockedDates": "Failed to load blocked dates.",
+    "errorTimeRange": "Set both start and end time.",
+    "errorSavingAvailability": "Could not save availability.",
+    "errorAddingBlockedDate": "Could not add blocked date.",
+    "errorRemovingBlockedDate": "Could not remove blocked date.",
+    "dateRequired": "Please select a date."
+  },
+  "businessMessageTemplates": {
+    "title": "Message Templates",
+    "subtitle": "Reusable messages for common communications",
+    "newTemplate": "New Template",
+    "editTemplate": "Edit Template",
+    "all": "All",
+    "category": {
+      "general": "General",
+      "appointment": "Appointment",
+      "follow_up": "Follow Up",
+      "invoice": "Invoice",
+      "promotion": "Promotion",
+      "review_request": "Review Request",
+      "welcome": "Welcome",
+      "cancellation": "Cancellation"
+    },
+    "form": {
+      "templateName": "Template Name *",
+      "emailSubject": "Email Subject (optional)",
+      "category": "Category",
+      "messageBody": "Message Body *",
+      "bodyPlaceholder": "Write your template here. Use variables like {client_name} for personalization."
+    },
+    "insertVariables": "Insert:",
+    "saveTemplate": "Save Template",
+    "cancel": "Cancel",
+    "loading": "Loading...",
+    "emptyTitle": "No templates yet. Create reusable messages for common situations.",
+    "emptyBody": "Ideas: appointment reminders, follow-ups, payment requests, review asks",
+    "usesLabel_one": "{{count}} use",
+    "usesLabel_other": "{{count}} uses",
+    "copy": "Copy",
+    "edit": "Edit",
+    "delete": "Delete",
+    "toastLoadFailed": "Failed to load templates",
+    "toastNameAndBodyRequired": "Name and body are required",
+    "toastCreated": "Template created",
+    "toastUpdated": "Template updated",
+    "toastSaveFailed": "Failed to save",
+    "deleteConfirm": "Delete this template?",
+    "deleteSuccess": "Deleted",
+    "deleteFailed": "Failed",
+    "toastCopied": "Copied to clipboard",
+    "subjectPrefix": "Subject:"
+  },
+  "accessGateRecovery": {
+    "title": "Access Gate Recovery",
+    "validating": "Validating recovery link…",
+    "missingToken": "This recovery link is missing its token.",
+    "lifted_one": "Lifted the access restriction on {{count}} entry.",
+    "lifted_other": "Lifted access restrictions on {{count}} entries.",
+    "consumed": "This recovery link was already used, so nothing changed.",
+    "postClearHelp": "Your access should now be restored. Sign in again from the admin login.",
+    "errors": {
+      "alreadyUsed": "This recovery link has already been used.",
+      "expired": "This recovery link has expired.",
+      "failed": "Recovery failed. Please try again or request a new link."
+    },
+    "cta": {
+      "adminLogin": "Go to admin login",
+      "logisticsHome": "Logistics home"
+    }
+  },
+  "impersonatePage": {
+    "title": "Impersonate user",
+    "loading": "Loading impersonation session…",
+    "errors": {
+      "invalidToken": "This impersonation link is invalid.",
+      "expiredToken": "This impersonation link has expired.",
+      "noToken": "No impersonation token was provided."
+    },
+    "actions": {
+      "closeTab": "Close this tab"
+    }
+  },
+  "orderErrorBoundary": {
+    "title": "Something went wrong",
+    "unexpectedMessage": "An unexpected error occurred in {{componentName}}.",
+    "defaultComponentName": "this section",
+    "errorDetails": "Error details",
+    "tryAgain": "Try again",
+    "backToOrders": "Back to orders",
+    "persistentErrors": "This keeps happening. Please contact support if the problem persists."
+  },
+  "productReviews": {
+    "timeAgo": {
+      "justNow": "just now",
+      "minutesAgo_one": "{{value}} minute ago",
+      "minutesAgo_other": "{{value}} minutes ago",
+      "hoursAgo_one": "{{value}} hour ago",
+      "hoursAgo_other": "{{value}} hours ago",
+      "daysAgo_one": "{{value}} day ago",
+      "daysAgo_other": "{{value}} days ago",
+      "monthsAgo_one": "{{value}} month ago",
+      "monthsAgo_other": "{{value}} months ago",
+      "yearsAgo_one": "{{value}} year ago",
+      "yearsAgo_other": "{{value}} years ago"
+    },
+    "ratingStarsAria": "{{count}} out of 5 stars"
+  },
+  "pricing": {
+    "addRule": "Add Rule",
+    "adjustment": "Adjustment",
+    "bundleOffer": "Bundle",
+    "createFirst": "Create your first rule",
+    "createNewRule": "New Pricing Rule",
+    "customerSegment": "Customer Segment",
+    "fixedAmount": "Fixed amount off ($)",
+    "multiplier": "Price multiplier",
+    "noRules": "No pricing rules yet",
+    "percentage": "Percentage off",
+    "priority": "Priority",
+    "productRulesDesc": "Volume discounts, promotions, bundles, and seasonal pricing for your products.",
+    "productRulesTitle": "Product Pricing Rules",
+    "ruleCreated": "Pricing rule created",
+    "seasonal": "Seasonal",
+    "timeLimited": "Promotion",
+    "type": "Type",
+    "validFrom": "Valid from",
+    "validUntil": "Valid until",
+    "volumeBased": "Volume-Based"
+  },
+  "products": {
+    "addProduct": "Add Product",
+    "addVariant": "Add Variant",
+    "category": "Category",
+    "cost": "Cost (optional)",
+    "createFirst": "Create your first product",
+    "createNew": "New Product",
+    "created": "Product created",
+    "management": "Product Management",
+    "noProducts": "No products yet",
+    "priceAdjustment": "Price Adjustment ($)",
+    "sku": "SKU",
+    "variantCreated": "Variant created",
+    "variantName": "Variant Name",
+    "variants": "Variants"
+  },
+  "inventory": {
+    "initialStock": "Initial Stock",
+    "lowStock": "Low",
+    "lowStockAlerts": "Low Stock Alerts",
+    "reorderLevel": "Reorder Level",
+    "stock": "Stock",
+    "updated": "Inventory updated"
+  },
+  "closeMenu": "Close menu",
+  "openMenu": "Open menu",
+  "mainNavigation": "Main navigation"
 }

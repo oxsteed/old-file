@@ -4,6 +4,17 @@ import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '../styles/AwsLocationMap.css';
 
+// Audit L11: this is a BROWSER key and ships in the client bundle, so it is
+// public by construction. It must stay a least-privilege key:
+//  - AWS Console > Location Service > API keys: restrict "Referers" to the
+//    production domains (oxsteed.com, www.oxsteed.com) so stolen keys cannot
+//    be used from other sites.
+//  - Allow only the maps/tiles actions the app needs (no Places write, no
+//    geofence write).
+//  - Rotate on a schedule and after any suspected abuse; the app reads it
+//    from VITE_AWS_LOCATION_API_KEY at build time, so rotation = new key +
+//    rebuild + redeploy. CloudWatch billing alarms on the key's usage catch
+//    quota theft early.
 const API_KEY = import.meta.env.VITE_AWS_LOCATION_API_KEY;
 const REGION = import.meta.env.VITE_AWS_LOCATION_REGION || 'us-east-1';
 

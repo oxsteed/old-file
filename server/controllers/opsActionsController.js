@@ -13,6 +13,7 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { sendError, sendValidationError } = require('../utils/apiError');
+const { assertPublicWebhookTarget } = require('../utils/webhookUrlSafety');
 const { QUEUES, listDeadLetterJobs, requeueDeadLetterJob } = require('../services/paymentQueue');
 const { logAdminAction } = require('../services/auditService');
 
@@ -61,15 +62,46 @@ async function attemptWebhookRedelivery(deliveryRow, webhookRow) {
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   let status = null;
   let bodyText = '';
+  let safetyBlockReason = null;
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(deliveryRow.payload),
-      signal: controller.signal,
-    });
-    status = response.status;
-    bodyText = (await response.text()).slice(0, MAX_RESPONSE_BODY_CHARS);
+    // SSRF guard (delivery time): re-resolve the target on every attempt so
+    // DNS rebinding between registration and delivery cannot redirect the
+    // POST at internal infrastructure. A failed check records the attempt
+    // as failed without performing any fetch (fail closed).
+    const safety = await assertPublicWebhookTarget(url);
+    if (!safety.ok) {
+      safetyBlockReason = safety.reason;
+      logger.warn('Webhook redelivery blocked: target failed safety check', {
+        deliveryId: deliveryRow.id,
+        webhookId: deliveryRow.webhook_id,
+        reason: safety.reason,
+        ip: safety.ip,
+      });
+    } else {
+      // DNS-change detection only: log it, do not break legit CDN rotations.
+      // The public-IP check above is the enforcement.
+      const pinned = webhookRow.pinned_ip ? String(webhookRow.pinned_ip) : null;
+      if (pinned && !safety.ips.includes(pinned)) {
+        logger.warn('Webhook target IP changed since registration', {
+          deliveryId: deliveryRow.id,
+          webhookId: deliveryRow.webhook_id,
+          pinnedIp: pinned,
+          resolvedIps: safety.ips,
+        });
+      }
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(deliveryRow.payload),
+        signal: controller.signal,
+        // Never follow redirects automatically: a 3xx to an internal URL
+        // would bypass the safety check above. 3xx responses are recorded
+        // as failed attempts by the status check below.
+        redirect: 'manual',
+      });
+      status = response.status;
+      bodyText = (await response.text()).slice(0, MAX_RESPONSE_BODY_CHARS);
+    }
   } catch (error) {
     bodyText = String((error && error.message) || 'Redelivery request failed').slice(0, MAX_RESPONSE_BODY_CHARS);
   } finally {
@@ -97,8 +129,9 @@ async function attemptWebhookRedelivery(deliveryRow, webhookRow) {
   }
 
   const attemptNumber = (Number(deliveryRow.attempt_number) || 0) + 1;
-  const errorMessage =
-    bodyText || (status === null ? 'Redelivery request failed' : `Webhook endpoint returned HTTP ${status}`);
+  const errorMessage = safetyBlockReason
+    ? `Webhook target blocked by safety check: ${safetyBlockReason}`
+    : (bodyText || (status === null ? 'Redelivery request failed' : `Webhook endpoint returned HTTP ${status}`));
   const backoffMinutes = Math.min(Math.pow(2, attemptNumber), BACKOFF_CAP_MINUTES);
   const result = await pool.query(
     `UPDATE webhook_delivery_log
@@ -256,6 +289,7 @@ async function retryWebhookDeliveryById({ deliveryId, actorId, req = null, audit
             w.webhook_url,
             w.custom_headers,
             w.timeout_seconds,
+            w.pinned_ip,
             w.is_active AS webhook_is_active
        FROM webhook_delivery_log d
        JOIN business_webhooks w ON w.id = d.webhook_id
@@ -281,6 +315,7 @@ async function retryWebhookDeliveryById({ deliveryId, actorId, req = null, audit
     webhook_url: row.webhook_url,
     custom_headers: row.custom_headers,
     timeout_seconds: row.timeout_seconds,
+    pinned_ip: row.pinned_ip,
   };
   const updated = await attemptWebhookRedelivery(deliveryRow, webhookRow);
 

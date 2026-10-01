@@ -298,7 +298,7 @@ export default function TemplateWorkflowSystemTab({
                 key={item.key}
                 type="button"
                 onClick={() => onJumpTab?.(item.tab)}
-                className="w-full rounded-2xl border border-gray-800 bg-gray-950 px-4 py-3 text-left transition hover:border-orange-400/25 hover:bg-gray-900"
+                className="w-full rounded-2xl border border-gray-800 bg-gray-950 px-4 py-3 text-start transition hover:border-orange-400/25 hover:bg-gray-900"
               >
                 <div className="flex items-start gap-3">
                   <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${item.done ? 'bg-emerald-400/15 text-emerald-300' : 'bg-orange-400/15 text-orange-300'}`}>
@@ -330,7 +330,7 @@ export default function TemplateWorkflowSystemTab({
                 key={item.id}
                 type="button"
                 onClick={() => onJumpTab?.(item.tab)}
-                className="w-full rounded-2xl border border-gray-800 bg-gray-950 px-4 py-4 text-left transition hover:border-orange-400/25 hover:bg-gray-900"
+                className="w-full rounded-2xl border border-gray-800 bg-gray-950 px-4 py-4 text-start transition hover:border-orange-400/25 hover:bg-gray-900"
               >
                 <div className="flex items-start gap-3">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-400 text-sm font-semibold text-gray-950">
@@ -392,7 +392,7 @@ export default function TemplateWorkflowSystemTab({
                 key={`${item.tab}-${item.label}`}
                 type="button"
                 onClick={() => onJumpTab?.(item.tab)}
-                className="w-full rounded-2xl border border-gray-800 bg-gray-950 px-4 py-3 text-left transition hover:border-orange-400/30 hover:bg-gray-900"
+                className="w-full rounded-2xl border border-gray-800 bg-gray-950 px-4 py-3 text-start transition hover:border-orange-400/30 hover:bg-gray-900"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>

@@ -47,8 +47,8 @@ services:
       NODE_ENV: production
       LOG_LEVEL: info
       
-      # Auth
-      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-min-32-characters-long}
+      # Auth (M19b: no dev default - boot FAILS validation unless JWT_SECRET is set)
+      JWT_SECRET: ${JWT_SECRET:-CHANGE-ME__set_JWT_SECRET_env_var}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-dev-encryption-key-32-bytes}
       
       # Stripe (configure with real keys in production)

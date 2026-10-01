@@ -377,6 +377,8 @@ describe('QR payment webhook completion', () => {
   const session = {
     id: 'cs_test_1',
     payment_intent: 'pi_test_1',
+    payment_status: 'paid',
+    amount_total: 5000,
     metadata: { qr_payment: 'true', qr_code_id: 'qr-code-1' },
   };
 
@@ -387,7 +389,8 @@ describe('QR payment webhook completion', () => {
     const [sql, params] = mockQuery.mock.calls[0];
     expect(sql).toMatch(/UPDATE qr_payments/);
     expect(sql).toMatch(/status <> 'succeeded'/);
-    expect(params).toEqual(['cs_test_1', 'pi_test_1']);
+    expect(sql).toMatch(/amount_cents = \$3/);
+    expect(params).toEqual(['cs_test_1', 'pi_test_1', 5000]);
   });
 
   test('duplicate delivery is a no-op (idempotent)', async () => {

@@ -77,7 +77,7 @@ const ChatDestinationDropdown: React.FC<ChatDestinationDropdownProps> = ({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={t('helperProfile.chat.selectChatDest')}
-        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700/80 border border-gray-700 transition-colors w-full text-left"
+        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700/80 border border-gray-700 transition-colors w-full text-start"
       >
         <div className="flex-1 min-w-0">
           <p className="text-xs text-gray-500 leading-none mb-0.5">{t('helperProfile.chat.chattingWith')}</p>
@@ -94,7 +94,7 @@ const ChatDestinationDropdown: React.FC<ChatDestinationDropdownProps> = ({
         <div
           role="listbox"
           aria-label={t('helperProfile.chat.chatDestOptions')}
-          className="absolute top-full left-0 right-0 mt-1.5 bg-gray-800 border border-gray-700 rounded-xl shadow-xl z-20 overflow-hidden"
+          className="absolute top-full start-0 end-0 mt-1.5 bg-gray-800 border border-gray-700 rounded-xl shadow-xl z-20 overflow-hidden"
         >
           {DEST_KEYS.map(({ key, icon: Icon }) => {
             const status = key === 'helper' ? helperStatus : oxsteedStatus;
@@ -116,10 +116,10 @@ const ChatDestinationDropdown: React.FC<ChatDestinationDropdownProps> = ({
                 role="option"
                 aria-selected={selected}
                 onClick={() => { onChange(key); setOpen(false); }}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
+                className={`w-full flex items-center gap-3 px-4 py-3 text-start transition-colors ${
                   selected
-                    ? 'bg-brand-500/10 border-l-2 border-brand-500'
-                    : 'hover:bg-gray-700/60 border-l-2 border-transparent'
+                    ? 'bg-brand-500/10 border-s-2 border-brand-500'
+                    : 'hover:bg-gray-700/60 border-s-2 border-transparent'
                 }`}
               >
                 <div

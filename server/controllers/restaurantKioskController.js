@@ -87,6 +87,7 @@ exports.getPublicKioskConfig = async (req, res, next) => {
         WHERE fr.id = $1
           AND fr.status IN ('active', 'paused')
           AND fr.discovery_status = 'visible'
+          AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
           AND b.is_active = TRUE
           AND b.is_listed = TRUE
           AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')

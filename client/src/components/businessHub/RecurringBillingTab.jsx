@@ -202,7 +202,7 @@ export function RecurringBillingTab({ businessId, currency = 'USD' }) {
               >
                 <div>
                   <span className="font-medium text-white">{contract.client_name}</span>
-                  <span className="text-gray-400 text-sm ml-2">- {contract.description}</span>
+                  <span className="text-gray-400 text-sm ms-2">- {contract.description}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-orange-400 font-bold">{fmtCents(contract.amount_cents, currency)}</span>
@@ -320,39 +320,39 @@ export function RecurringBillingTab({ businessId, currency = 'USD' }) {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-700 text-gray-400 text-left">
-                <th className="pb-2 pr-4">{tRecurring('tableClient')}</th>
-                <th className="pb-2 pr-4">{tRecurring('tableDescription')}</th>
-                <th className="pb-2 pr-4">{tRecurring('amount')}</th>
-                <th className="pb-2 pr-4">{tRecurring('frequency')}</th>
-                <th className="pb-2 pr-4">{tRecurring('tableNextBilling')}</th>
-                <th className="pb-2 pr-4">{tRecurring('tableStatus')}</th>
-                <th className="pb-2 text-right">{tRecurring('tableActions')}</th>
+              <tr className="border-b border-gray-700 text-gray-400 text-start">
+                <th className="pb-2 pe-4">{tRecurring('tableClient')}</th>
+                <th className="pb-2 pe-4">{tRecurring('tableDescription')}</th>
+                <th className="pb-2 pe-4">{tRecurring('amount')}</th>
+                <th className="pb-2 pe-4">{tRecurring('frequency')}</th>
+                <th className="pb-2 pe-4">{tRecurring('tableNextBilling')}</th>
+                <th className="pb-2 pe-4">{tRecurring('tableStatus')}</th>
+                <th className="pb-2 text-end">{tRecurring('tableActions')}</th>
               </tr>
             </thead>
             <tbody>
               {contracts.map((contract) => (
                 <tr key={contract.id} className="border-b border-gray-800 hover:bg-gray-800/40">
-                  <td className="py-3 pr-4 font-medium text-white">{contract.client_name}</td>
-                  <td className="py-3 pr-4 text-gray-300 max-w-xs truncate">{contract.description}</td>
-                  <td className="py-3 pr-4 text-orange-400 font-medium">{fmtCents(contract.amount_cents, currency)}</td>
-                  <td className="py-3 pr-4 text-gray-300 capitalize">{frequencyLabel(contract.frequency)}</td>
-                  <td className="py-3 pr-4 text-gray-300">{contract.next_billing_date?.split('T')[0]}</td>
-                  <td className="py-3 pr-4">
+                  <td className="py-3 pe-4 font-medium text-white">{contract.client_name}</td>
+                  <td className="py-3 pe-4 text-gray-300 max-w-xs truncate">{contract.description}</td>
+                  <td className="py-3 pe-4 text-orange-400 font-medium">{fmtCents(contract.amount_cents, currency)}</td>
+                  <td className="py-3 pe-4 text-gray-300 capitalize">{frequencyLabel(contract.frequency)}</td>
+                  <td className="py-3 pe-4 text-gray-300">{contract.next_billing_date?.split('T')[0]}</td>
+                  <td className="py-3 pe-4">
                     <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${STATUS_COLORS[contract.status]}`}>
                       {statusLabel(contract.status)}
                     </span>
                   </td>
-                  <td className="py-3 text-right">
+                  <td className="py-3 text-end">
                     <button
                       onClick={() => openEdit(contract)}
-                      className="text-blue-400 hover:text-blue-300 text-xs mr-2"
+                      className="text-blue-400 hover:text-blue-300 text-xs me-2"
                     >
                       {t('businessHub.btnEdit')}
                     </button>
                     <button
                       onClick={() => handleToggle(contract)}
-                      className="text-yellow-400 hover:text-yellow-300 text-xs mr-2"
+                      className="text-yellow-400 hover:text-yellow-300 text-xs me-2"
                     >
                       {contract.status === 'active' ? tRecurring('pause') : tRecurring('resume')}
                     </button>

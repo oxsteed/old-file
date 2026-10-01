@@ -4,7 +4,8 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
-const { authLimiter, strictLimiter, passwordResetLimiter } = require('../middleware/rateLimiter');
+const { authLimiter, strictLimiter, passwordResetLimiter, passwordResetVerifyLimiter } = require('../middleware/rateLimiter');
+const { verifyCaptcha } = require('../middleware/verifyCaptcha'); // audit L1 hook point (off by default)
 const {
   login,
   loginWith2FA,
@@ -54,12 +55,14 @@ router.post('/otp/verify', authLimiter, verifyOTP);
 router.post('/request-otp', authLimiter, requestOTP);
 router.post('/verify-otp', authLimiter, verifyOTP);
 router.post('/forgot-password', passwordResetLimiter, forgotPassword);
-router.post('/reset-password', passwordResetLimiter, resetPassword);
+// L2: /reset-password only reads {token, password}; it gets its own
+// token-keyed limiter (the email-keyed one above always missed here).
+router.post('/reset-password', passwordResetVerifyLimiter, resetPassword);
 router.post('/refresh', authLimiter, refreshToken);
 router.post('/logout', authLimiter, logout);
 
 // Customer registration flow (3-step)
-router.post('/check-email', authLimiter, checkEmail);
+router.post('/check-email', authLimiter, verifyCaptcha, checkEmail);
 router.post('/check-zip', authLimiter, checkZip);
 router.post('/waitlist', authLimiter, addToWaitlist);
 router.post('/register/start', authLimiter, startRegistration);

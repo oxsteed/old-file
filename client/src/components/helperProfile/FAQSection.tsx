@@ -17,7 +17,7 @@ const FAQItem: React.FC<{ faq: FAQ; isOpen: boolean; onToggle: () => void }> = (
     <button
       id={`faq-btn-${faq.id}`}
       onClick={onToggle}
-      className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left bg-gray-800/40 hover:bg-gray-800/70 transition-colors"
+      className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-start bg-gray-800/40 hover:bg-gray-800/70 transition-colors"
       aria-expanded={isOpen}
       aria-controls={`faq-body-${faq.id}`}
     >

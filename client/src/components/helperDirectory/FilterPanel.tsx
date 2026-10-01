@@ -49,7 +49,7 @@ const FilterSection: React.FC<{
     <div className="border-b border-gray-800 last:border-0">
       <button
         onClick={() => setOpen((p) => !p)}
-        className="w-full flex items-center justify-between py-3.5 px-1 text-left group"
+        className="w-full flex items-center justify-between py-3.5 px-1 text-start group"
         aria-expanded={open}
       >
         <span className="flex items-center gap-2 text-sm font-semibold text-gray-200 group-hover:text-white transition-colors">
@@ -127,7 +127,7 @@ const SkillGroup: React.FC<{
         {open ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
       </button>
       {open && (
-        <div className="pl-3 mt-1 space-y-1.5 border-l border-gray-800">
+        <div className="ps-3 mt-1 space-y-1.5 border-s border-gray-800">
           {skills.map((sk) => (
             <CheckboxRow
               key={sk}
@@ -206,8 +206,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
               }`}
             >
               <span
-                className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                  filters.availableToday ? 'translate-x-4' : ''
+                className={`absolute top-0.5 start-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                  filters.availableToday ? 'translate-x-4 rtl:-translate-x-4' : ''
                 }`}
               />
             </button>
@@ -226,8 +226,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
               }`}
             >
               <span
-                className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                  filters.backgroundChecked ? 'translate-x-4' : ''
+                className={`absolute top-0.5 start-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                  filters.backgroundChecked ? 'translate-x-4 rtl:-translate-x-4' : ''
                 }`}
               />
             </button>
@@ -246,8 +246,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
               }`}
             >
               <span
-                className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                  filters.verified ? 'translate-x-4' : ''
+                className={`absolute top-0.5 start-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                  filters.verified ? 'translate-x-4 rtl:-translate-x-4' : ''
                 }`}
               />
             </button>

@@ -351,5 +351,6 @@
     "offlineHint": "Live updates are unavailable. You can still send messages; replies may be delayed.",
     "searchFailed": "Search couldn’t be completed. Try again."
   },
-  "updated": "Updated"
+  "updated": "Updated",
+  "loading": "Loading…"
 }

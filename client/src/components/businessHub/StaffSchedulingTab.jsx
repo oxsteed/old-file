@@ -145,7 +145,7 @@ export function StaffSchedulingTab({ businessId }) {
               <table className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-gray-700">
-                    <th className="text-left pb-2 pr-2 text-gray-400">{t('businessHub.staffScheduling.staff')}</th>
+                    <th className="text-start pb-2 pe-2 text-gray-400">{t('businessHub.staffScheduling.staff')}</th>
                     {days.map((d, i) => (
                       <th key={d} className="pb-2 px-1 text-gray-400 text-center">
                         {t(`common.weekdays.${DAYS[new Date(d + 'T00:00:00').getDay()]}`)}<br />
@@ -161,7 +161,7 @@ export function StaffSchedulingTab({ businessId }) {
                     </tr>
                   ) : schedule.map(person => (
                     <tr key={person.user_id} className="border-b border-gray-800">
-                      <td className="py-2 pr-2 font-medium text-white whitespace-nowrap">{person.first_name} {person.last_name?.charAt(0)}.</td>
+                      <td className="py-2 pe-2 font-medium text-white whitespace-nowrap">{person.first_name} {person.last_name?.charAt(0)}.</td>
                       {days.map(d => {
                         const shift = person.shifts.find(s => s.shift_date?.split('T')[0] === d);
                         return (
@@ -307,7 +307,7 @@ export function StaffSchedulingTab({ businessId }) {
                 <div key={e.id} className="bg-gray-800 border border-gray-700 rounded px-3 py-2 flex justify-between items-center text-sm">
                   <div>
                     <span className="font-medium text-white">{e.first_name} {e.last_name}</span>
-                    <span className="text-gray-400 ml-2">{e.entry_date?.split('T')[0]}</span>
+                    <span className="text-gray-400 ms-2">{e.entry_date?.split('T')[0]}</span>
                     {e.description && <div className="text-gray-400 text-xs">{e.description}</div>}
                   </div>
                   <div className="flex items-center gap-2">

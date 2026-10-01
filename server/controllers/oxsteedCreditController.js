@@ -1778,6 +1778,7 @@ async function createAdminCurrencyQuote(req, res, next) {
       expiresAt: req.body?.expiresAt || req.body?.expires_at,
       idempotencyKey: getIdempotencyKey(req),
       actorUserId: req.user.id,
+      customerId: req.body?.customerId || req.body?.customer_id,
       reason: req.body?.reason,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
       metadata: req.body?.metadata,

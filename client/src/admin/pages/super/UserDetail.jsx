@@ -379,7 +379,11 @@ export default function UserDetail() {
     setImpersonating(true);
     try {
       const { data: res } = await adminApi.post(`/admin/users/${userId}/impersonate`);
-      const url = `${window.location.origin}/impersonate?token=${encodeURIComponent(res.impersonationToken)}`;
+      // H8b: prefer the one-time exchange code (the JWT never touches the
+      // URL). Fall back to ?token= while the server still issues raw tokens.
+      const url = res.exchangeCode
+        ? `${window.location.origin}/impersonate?code=${encodeURIComponent(res.exchangeCode)}`
+        : `${window.location.origin}/impersonate?token=${encodeURIComponent(res.impersonationToken)}`;
       window.open(url, '_blank', 'noopener,noreferrer');
     } catch (err) {
       flash('error', parseApiError(err, t('adminUserDetail.impersonate.failed')));

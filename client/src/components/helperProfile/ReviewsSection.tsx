@@ -33,7 +33,7 @@ const RatingDistribution: React.FC<{ reviews: Review[] }> = ({ reviews }) => {
     <div className="space-y-1.5" aria-label={t('helperProfile.reviews.ratingDistribution')}>
       {dist.map(({ star, count }) => (
         <div key={star} className="flex items-center gap-2 text-xs">
-          <span className="text-gray-400 w-3 text-right">{star}</span>
+          <span className="text-gray-400 w-3 text-end">{star}</span>
           <svg className="w-3 h-3 text-orange-400 flex-shrink-0" viewBox="0 0 20 20" aria-hidden="true">
             <path
               fill="currentColor"
@@ -47,7 +47,7 @@ const RatingDistribution: React.FC<{ reviews: Review[] }> = ({ reviews }) => {
               role="presentation"
             />
           </div>
-          <span className="text-gray-500 w-4 text-right">{count}</span>
+          <span className="text-gray-500 w-4 text-end">{count}</span>
         </div>
       ))}
     </div>
@@ -135,7 +135,7 @@ const ReviewCard: React.FC<{ review: Review }> = ({ review }) => {
       {review.helperReply && replyOpen && (
         <div
           id={`reply-${review.id}`}
-          className="mt-1 pl-3 border-l-2 border-brand-500/50 space-y-1"
+          className="mt-1 ps-3 border-s-2 border-brand-500/50 space-y-1"
         >
           <p className="text-xs font-semibold text-brand-400">{t('helperProfile.reviews.responseFromHelper')}</p>
           <p className="text-xs text-gray-400 leading-relaxed">{review.helperReply.content}</p>
@@ -178,7 +178,7 @@ const ReviewsSection: React.FC<ReviewsSectionProps> = ({
         </div>
       ) : (
       <div className="flex flex-col sm:flex-row gap-6 mb-6 p-4 bg-gray-800/40 rounded-xl border border-gray-700/50">
-        <div className="flex flex-col items-center justify-center sm:border-r border-gray-700 sm:pr-6 sm:min-w-[96px]">
+        <div className="flex flex-col items-center justify-center sm:border-e border-gray-700 sm:pe-6 sm:min-w-[96px]">
           <p className="text-5xl font-bold text-white">{overallRating.toFixed(1)}</p>
           <StarRating rating={overallRating} size="md" className="mt-1" />
           <p className="text-xs text-gray-500 mt-1">{t('helperProfile.reviews.reviewCount', { count: totalCount })}</p>

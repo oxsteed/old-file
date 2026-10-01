@@ -23,7 +23,7 @@ interface ActiveFilterTagsProps {
 const Tag: React.FC<{ label: string; onRemove: () => void }> = ({ label, onRemove }) => {
   const { t } = useTranslation();
   return (
-    <span className="inline-flex min-h-[40px] items-center gap-1.5 pl-3 pr-0.5 py-0.5 bg-brand-900/40 text-brand-300 border border-brand-800/60 rounded-full text-xs font-medium">
+    <span className="inline-flex min-h-[40px] items-center gap-1.5 ps-3 pe-0.5 py-0.5 bg-brand-900/40 text-brand-300 border border-brand-800/60 rounded-full text-xs font-medium">
       {label}
       <button
         onClick={onRemove}

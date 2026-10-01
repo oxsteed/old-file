@@ -86,6 +86,8 @@ export default function JoinPage() {
   const set = useCallback((field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
     setErrors(prev => ({ ...prev, [field]: '' }));
+    // Reset the duplicate-email block when the address changes (audit L1).
+    if (field === 'email') setEmailAvailable(null);
   }, []);
 
   // ── Email availability check ───────────────────────────
@@ -180,9 +182,17 @@ export default function JoinPage() {
       setOtpSent(true);
       toast.success(t('register.codeSentToast'));
     } catch (err) {
-      const msg = err?.response?.data?.error || err?.response?.data?.message || t('register.registrationFailed');
-      setErrors(prev => ({ ...prev, general: typeof msg === 'string' ? msg : t('register.registrationFailed') }));
-      toast.error(typeof msg === 'string' ? msg : t('register.registrationFailed'));
+      // Audit L1: /auth/check-email no longer reveals whether an address is
+      // registered, so the duplicate-email signal arrives here at submit.
+      if (err?.response?.status === 409) {
+        setEmailAvailable(false);
+        setErrors(prev => ({ ...prev, email: t('register.emailTaken') }));
+        toast.error(t('register.emailTaken'));
+      } else {
+        const msg = err?.response?.data?.error || err?.response?.data?.message || t('register.registrationFailed');
+        setErrors(prev => ({ ...prev, general: typeof msg === 'string' ? msg : t('register.registrationFailed') }));
+        toast.error(typeof msg === 'string' ? msg : t('register.registrationFailed'));
+      }
     } finally {
       setSubmitting(false);
     }

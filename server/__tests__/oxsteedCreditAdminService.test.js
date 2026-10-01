@@ -1589,3 +1589,45 @@ test('prevents two active agreements for one credit partner', async () => {
   })).rejects.toMatchObject({ code: 'credit_active_agreement_conflict', status: 409 });
   expect(mockQuery).toHaveBeenCalledTimes(2);
 });
+
+test('concurrent agreement creation loses the insert race and replays the winner (M26)', async () => {
+  let capturedRequestHash = null;
+  let winnerLookupCalls = 0;
+  mockQuery.mockImplementation(async (text, params = []) => {
+    const sql = String(text);
+    if (sql.includes('INSERT INTO oxsteed_credit_partner_agreements')) {
+      capturedRequestHash = params[15]; // creation_request_hash position
+      return { rows: [] }; // lost the race: ON CONFLICT DO NOTHING
+    }
+    if (sql.includes('a.creation_idempotency_key = $1')) {
+      winnerLookupCalls += 1;
+      // The pre-insert replay check misses; the post-race re-read finds the winner.
+      if (winnerLookupCalls === 1) return { rows: [] };
+      return {
+        rows: [{
+          id: 'agr-race-1', partner_id: 41, version: 2, status: 'active',
+          restaurant_id: 9, restaurant_name: 'OxSteed Cafe', settlement_currency_code: 'USD',
+          creation_idempotency_key: 'agreement-race-1',
+          creation_request_hash: capturedRequestHash,
+        }],
+      };
+    }
+    if (sql.includes('FROM oxsteed_credit_partners WHERE id')) return { rows: [{ id: 41, status: 'active' }] };
+    if (sql.includes('COALESCE(MAX(version)')) return { rows: [{ next_version: 2 }] };
+    return { rows: [], rowCount: 0 };
+  });
+
+  const result = await createAgreement({
+    partnerId: 41,
+    startsAt: '2026-09-12T00:00:00.000Z',
+    reason: 'Agreement race test',
+    idempotencyKey: 'agreement-race-1',
+    actorUserId: '22222222-2222-4222-8222-222222222222',
+  });
+
+  expect(result.replayed).toBe(true);
+  expect(result.agreement.id).toBe('agr-race-1');
+  // No duplicate agreement and no audit event for the losing attempt.
+  expect(mockQuery.mock.calls.filter(([sql]) => String(sql).includes('INSERT INTO oxsteed_credit_partner_agreements'))).toHaveLength(1);
+  expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('credit.agreement.created'))).toBe(false);
+});

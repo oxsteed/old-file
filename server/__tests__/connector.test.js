@@ -32,6 +32,12 @@ jest.mock('../services/paymentQueue', () => ({
   requeueDeadLetterJob: jest.fn(),
 }));
 
+// The SSRF guard does real DNS; the connector contract test pins it to pass
+// so the retry path reaches fetch deterministically.
+jest.mock('../utils/webhookUrlSafety', () => ({
+  assertPublicWebhookTarget: jest.fn().mockResolvedValue({ ok: true, ips: [] }),
+}));
+
 const { logAdminAction } = require('../services/auditService');
 const paymentQueue = require('../services/paymentQueue');
 const connectorRoutes = require('../routes/connector');
@@ -78,17 +84,32 @@ function userRow(overrides = {}) {
       role: 'admin',
       email: 'admin@example.com',
       is_active: true,
+      // H4: the connector is an admin surface; the 2FA hard-block in
+      // loadConnectorUser rejects key holders without enrolled 2FA.
+      totp_enabled: true,
       ...overrides,
     }],
   };
 }
 
-/** Queue the three auth queries: api key lookup, usage update, user lookup. */
+/** Queue the three auth queries: api key lookup, usage update, user lookup.
+ * H4: grant-gated endpoints run a fourth query (admin_permission_grants).
+ * That query is NOT queued here; the beforeEach default implementation
+ * below answers it with a global grant, so test-queued controller
+ * responses stay aligned. Deny-path tests queue their own grant row
+ * (empty / regional) immediately after authSequence(). */
 function authSequence(userOverrides) {
   mockQuery
     .mockResolvedValueOnce(keyRow())
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce(userRow(userOverrides));
+}
+
+/** Queue the requireConnectorGrant lookup (the 4th query) for grant-gated
+ * endpoints whose tests also queue controller DB responses. Call immediately
+ * after authSequence(). Pass { rows: [] } to simulate a missing grant. */
+function grantSequence(grantRows = [{ id: 'grant-1', region_id: null }]) {
+  mockQuery.mockResolvedValueOnce({ rows: grantRows });
 }
 
 function apiKeyHeader() {
@@ -99,6 +120,16 @@ const originalFetch = global.fetch;
 
 beforeEach(() => {
   resetMocks();
+  // H4: grant-gated connector endpoints fall through to this default for
+  // the admin_permission_grants lookup: tests run as a granted admin.
+  // Deny-path tests queue their own grant row via mockResolvedValueOnce
+  // immediately after authSequence() (queued values beat the default).
+  mockQuery.mockImplementation(async (text) => {
+    if (typeof text === 'string' && text.includes('admin_permission_grants')) {
+      return { rows: [{ id: 'grant-1', region_id: null }], rowCount: 1 };
+    }
+    return { rows: [], rowCount: 0 };
+  });
   logAdminAction.mockClear();
   paymentQueue.requeueDeadLetterJob.mockReset();
   global.fetch = jest.fn();
@@ -146,6 +177,15 @@ describe('connector auth', () => {
       .set('Authorization', apiKeyHeader());
     expect(res.status).toBe(200);
     expect(res.body.user).toEqual({ id: ADMIN_ID, role: 'admin', email: 'admin@example.com' });
+  });
+
+  test('rejects a key holder without enrolled 2FA (H4 hard-block)', async () => {
+    authSequence({ totp_enabled: false });
+    const res = await request(buildApp())
+      .get('/api/connector/v1/me')
+      .set('Authorization', apiKeyHeader());
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('connector_2fa_required');
   });
 });
 
@@ -213,6 +253,7 @@ describe('connector reads', () => {
 
   test('GET /payouts returns the list shape with transaction_status', async () => {
     authSequence();
+    grantSequence();
     mockQuery
       .mockResolvedValueOnce({ rows: [{ total: 2 }] })
       .mockResolvedValueOnce({
@@ -236,6 +277,7 @@ describe('connector reads', () => {
 
   test('GET /payouts rejects an invalid status with 400 and a code', async () => {
     authSequence();
+    grantSequence();
     const res = await request(buildApp())
       .get('/api/connector/v1/payouts?status=bogus')
       .set('Authorization', apiKeyHeader());
@@ -296,6 +338,7 @@ describe('connector reads', () => {
 
   test('GET /fraud-cases returns the service list shape', async () => {
     authSequence();
+    grantSequence();
     mockQuery
       .mockResolvedValueOnce({ rows: [{ total: 1 }] })
       .mockResolvedValueOnce({
@@ -315,6 +358,7 @@ describe('connector reads', () => {
 
   test('GET /fraud-cases rejects an invalid status with 400 and a code', async () => {
     authSequence();
+    grantSequence();
     const res = await request(buildApp())
       .get('/api/connector/v1/fraud-cases?status=bogus')
       .set('Authorization', apiKeyHeader());
@@ -366,6 +410,7 @@ describe('reconciliation exception actions', () => {
 
   function reconTransitionSequence(updated) {
     authSequence();
+    grantSequence();
     mockQuery
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
       .mockResolvedValueOnce({ rows: [openException] }) // SELECT .. FOR UPDATE
@@ -395,6 +440,7 @@ describe('reconciliation exception actions', () => {
   test('assign sets the owner and audits with source connector', async () => {
     const updated = { ...openException, owner_admin_id: OTHER_ADMIN_ID };
     authSequence();
+    grantSequence();
     mockQuery
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
       .mockResolvedValueOnce({ rows: [openException] }) // SELECT .. FOR UPDATE
@@ -451,6 +497,7 @@ describe('reconciliation exception actions', () => {
 
   test('acknowledge on a resolved exception -> 409', async () => {
     authSequence();
+    grantSequence();
     mockQuery
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
       .mockResolvedValueOnce({ rows: [{ ...openException, status: 'resolved' }] }) // SELECT
@@ -516,9 +563,11 @@ describe('webhook retry action', () => {
 
   test('retries the delivery and audits with source connector', async () => {
     authSequence();
+    grantSequence();
     const updatedRow = { ...joinRow, attempt_number: 3, completed_at: '2026-09-30T00:00:00.000Z' };
     mockQuery.mockImplementation(async (sql) => {
       const text = String(sql);
+      if (text.includes('admin_permission_grants')) return { rows: [{ id: 'grant-1', region_id: null }] };
       if (text.includes('FROM webhook_delivery_log d')) return { rows: [joinRow] };
       if (text.includes('UPDATE webhook_delivery_log')) return { rows: [updatedRow] };
       return { rows: [] };
@@ -566,6 +615,7 @@ describe('settings change actions', () => {
 
   test('approve applies a due change and audits with source connector', async () => {
     authSequence();
+    grantSequence();
     const approvedRow = { ...proposedChange, status: 'approved' };
     const appliedRow = { ...proposedChange, status: 'applied' };
     mockQuery.mockImplementation(async (sql) => {
@@ -611,6 +661,7 @@ describe('settings change actions', () => {
 
   test('a key owner cannot approve their own proposal (separation of duties)', async () => {
     authSequence();
+    grantSequence();
     mockQuery.mockImplementation(async (sql) => {
       if (String(sql).includes('FROM settings_change_requests WHERE id = $1')) {
         return { rows: [{ ...proposedChange, proposed_by: ADMIN_ID }] };
@@ -628,6 +679,7 @@ describe('settings change actions', () => {
 
   test('reject records the reason and audits with source connector', async () => {
     authSequence();
+    grantSequence();
     const rejectedRow = { ...proposedChange, status: 'rejected' };
     mockQuery.mockImplementation(async (sql) => {
       const text = String(sql);

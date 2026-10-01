@@ -4569,9 +4569,18 @@ export default function LearnModePage() {
                     {isExpanded && (
                       <div className="lrn-guide-detail">
                         {/* Video */}
-                        {guide.video_url ? (
+                        {/* Audit L11: video_url is admin-entered and unsigned, so the embed is
+                            sandboxed (scripts + same-origin + presentation only, no top-level
+                            navigation, no forms) and restricted to https: URLs. */}
+                        {typeof guide.video_url === 'string' && guide.video_url.toLowerCase().startsWith('https://') ? (
                           <div className="lrn-video-wrap">
-                            <iframe src={guide.video_url} title={`Video: ${guide.title}`} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+                            <iframe
+                              src={guide.video_url}
+                              title={`Video: ${guide.title}`}
+                              sandbox="allow-scripts allow-same-origin allow-presentation"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                            />
                           </div>
                         ) : (
                           <div className="lrn-video-placeholder">

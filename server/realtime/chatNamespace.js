@@ -1,6 +1,9 @@
 'use strict';
 
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const tokenRevocationService = require('../services/tokenRevocationService');
+const { validateBeforeHandler } = require('../utils/socketAuthValidator');
 
 // Logistics roles admitted to the operations workspace (mirrors
 // server/middleware/requireInternalLogisticsWorkspace.js). Holders with an
@@ -24,7 +27,6 @@ function createChatAuthenticator({ pool, jwtSecret }) {
     const guestSessionId = socket.handshake.auth?.guestSessionId;
     if (guestToken && guestSessionId) {
       try {
-        const crypto = require('crypto');
         const tokenHash = crypto.createHash('sha256').update(String(guestToken)).digest('hex');
         const { rows } = await pool.query(
           `SELECT id, helper_id, business_id, guest_name, guest_email
@@ -49,11 +51,26 @@ function createChatAuthenticator({ pool, jwtSecret }) {
       }
     }
 
-    const token = socket.handshake.auth?.token || socket.handshake.query?.token;
+    // H8a: auth tokens are accepted ONLY via the Socket.IO `auth` payload.
+    // The old `handshake.query?.token` fallback is removed: query strings end
+    // up in proxy/access logs, and every in-repo client already connects with
+    // `auth: { token }`.
+    const token = socket.handshake.auth?.token;
     if (!token) return next(new Error('Authentication required'));
 
     try {
-      const decoded = jwt.verify(token, jwtSecret);
+      // M22: pin the algorithm. H9: reject MFA/refresh tokens outright.
+      const decoded = jwt.verify(token, jwtSecret, { algorithms: ['HS256'] });
+      if (decoded.isMfaToken || decoded.type === 'refresh') {
+        return next(new Error('Invalid chat token'));
+      }
+      // H9: consult the revocation store, mirroring /support's authenticate().
+      // The iat is passed so user-level revocation (logout) only invalidates
+      // tokens issued before the revocation moment.
+      const tokenId = crypto.createHash('sha256').update(token).digest('hex');
+      if (await tokenRevocationService.isRevoked(tokenId, decoded.id, decoded.iat)) {
+        return next(new Error('Token has been revoked'));
+      }
       const { rows } = await pool.query(
         'SELECT is_active, role, logistics_role FROM users WHERE id = $1 AND deleted_at IS NULL',
         [decoded.id]
@@ -63,6 +80,9 @@ function createChatAuthenticator({ pool, jwtSecret }) {
       socket.userId = decoded.id;
       socket.userRole = rows[0].role;
       socket.logisticsRole = rows[0].logistics_role;
+      // Kept for validateBeforeHandler re-validation on sensitive events.
+      socket.accessToken = token;
+      socket.tokenIssuedAt = decoded.iat;
       return next();
     } catch (err) {
       return next(new Error(err.name === 'JsonWebTokenError' ? 'Invalid token' : 'Auth check failed'));
@@ -126,7 +146,11 @@ function bindChatNamespace(namespace, { pool, socketService, logger }) {
     //   GET /api/delivery/jobs/:id/tracking/customer-state
     // (or the ops exact-state endpoint), never reconstructing position
     // history from cached socket events.
-    socket.on('delivery:join', async (deliveryJobId) => {
+    // H9: room joins gate access to data streams, so re-validate the socket's
+    // token/account before honoring them (mirrors /support's sensitive
+    // handlers). validateSocketUser refreshes the role from the DB, so
+    // privilege changes take effect without a reconnect.
+    socket.on('delivery:join', validateBeforeHandler(async (deliveryJobId) => {
       const userId = socket.userId;
       if (!deliveryJobId || !userId) return;
       try {
@@ -147,7 +171,7 @@ function bindChatNamespace(namespace, { pool, socketService, logger }) {
       } catch (err) {
         logger.error('socket delivery:join error', { message: err.message });
       }
-    });
+    }));
 
     socket.on('delivery:leave', (deliveryJobId) => {
       if (deliveryJobId) socket.leave(`delivery_${deliveryJobId}`);
@@ -157,7 +181,7 @@ function bindChatNamespace(namespace, { pool, socketService, logger }) {
     // names are intentionally ignored to prevent cross-account subscriptions.
     socket.on('join', () => {});
 
-    socket.on('conversation:join', async (conversationId) => {
+    socket.on('conversation:join', validateBeforeHandler(async (conversationId) => {
       if (!conversationId) return;
       try {
         const start = Date.now();
@@ -186,7 +210,7 @@ function bindChatNamespace(namespace, { pool, socketService, logger }) {
       } catch (err) {
         logger.error('socket conversation:join error', { message: err.message });
       }
-    });
+    }));
 
     socket.on('conversation:leave', (conversationId) => {
       if (conversationId) socket.leave(`conv_${conversationId}`);

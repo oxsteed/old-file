@@ -124,14 +124,14 @@ exports.createBookingRequest = async (req, res) => {
     let business = null;
     if (businessId) {
       const bizRes = await pool.query(
-        `SELECT id, user_id, business_name, is_active, is_listed
+        `SELECT id, user_id, business_name, is_active, is_listed, is_hidden_by_admin
            FROM businesses
           WHERE id = $1`,
         [businessId]
       );
       business = bizRes.rows[0];
       if (!business) return sendError(res, 404, 'Business not found', 'BUSINESS_NOT_FOUND');
-      if (!business.is_active || business.is_listed === false) {
+      if (!business.is_active || business.is_listed === false || business.is_hidden_by_admin) {
         return sendError(res, 400, 'Business is not accepting bookings', 'BUSINESS_INACTIVE');
       }
       if (!helperId) helperId = business.user_id;
@@ -204,14 +204,17 @@ exports.createBookingRequest = async (req, res) => {
     }
 
     const helperResult = await pool.query(
-      'SELECT id, is_active FROM users WHERE id = $1',
+      `SELECT u.id, u.is_active, COALESCE(hp.is_hidden_by_admin, FALSE) AS is_hidden_by_admin
+         FROM users u
+         LEFT JOIN helper_profiles hp ON hp.user_id = u.id
+        WHERE u.id = $1`,
       [helperId]
     );
     if (helperResult.rows.length === 0) {
       return sendError(res, 404, 'Helper not found', 'HELPER_NOT_FOUND');
     }
-    if (!helperResult.rows[0].is_active) {
-      return sendError(res, 400, 'Helper account is inactive', 'HELPER_INACTIVE');
+    if (!helperResult.rows[0].is_active || helperResult.rows[0].is_hidden_by_admin) {
+      return sendError(res, 400, 'Helper is not accepting bookings', 'HELPER_INACTIVE');
     }
 
     // A scheduled request commits to a concrete time: verify it is truly free
@@ -811,13 +814,13 @@ exports.getBusinessAvailableSlots = async (req, res) => {
     if (Number.isNaN(dateObj.getTime())) return sendValidationError(res, { date: 'Invalid date' });
 
     const businessResult = await pool.query(
-      `SELECT id, is_active, is_listed FROM businesses
+      `SELECT id, is_active, is_listed, is_hidden_by_admin FROM businesses
         WHERE id = $1 AND business_kind = 'service'`,
       [businessId]
     );
     const business = businessResult.rows[0];
     if (!business) return sendError(res, 404, 'Business not found', 'BUSINESS_NOT_FOUND');
-    if (!business.is_active || business.is_listed === false) {
+    if (!business.is_active || business.is_listed === false || business.is_hidden_by_admin) {
       return sendError(res, 400, 'Business is not accepting bookings', 'BUSINESS_INACTIVE');
     }
 

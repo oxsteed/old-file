@@ -157,7 +157,7 @@ const LocationSection: React.FC<LocationSectionProps> = ({ location }) => {
             </div>
           )}
 
-          <p className="absolute bottom-2 left-2 right-2 text-[10px] text-gray-500 z-[10] pointer-events-none bg-gray-950/70 rounded px-2 py-1">
+          <p className="absolute bottom-2 start-2 end-2 text-[10px] text-gray-500 z-[10] pointer-events-none bg-gray-950/70 rounded px-2 py-1">
             {t('helperProfile.location.mapDisclaimer')}
           </p>
         </div>

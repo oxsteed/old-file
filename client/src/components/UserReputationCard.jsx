@@ -220,12 +220,7 @@ const UserReputationCard = ({ userId, showFeeHistory = false, className = '' }) 
               {feeHistory.cancellationCount > 0 ? (
                 <>
                   <span className="rep-fee-count">
-                    {t('reputation.feesCount',
-                      '{{n}} cancellation fee{{s}} paid',
-                      {
-                        n: feeHistory.cancellationCount,
-                        s: feeHistory.cancellationCount !== 1 ? 's' : ''
-                      }
+                    {t('reputation.feesCount', { count: feeHistory.cancellationCount }
                     )}
                   </span>
                   <span className="rep-fee-total">

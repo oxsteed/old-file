@@ -50,9 +50,15 @@ if (ACCESS_KEY_ID && SECRET_ACCESS_KEY) {
 }
 
 function generateKey(folder, originalName) {
+  // Audit L11: normalize the folder so a caller-supplied path segment
+  // (e.g. draftId) cannot smuggle ".." into the stored key. normalizeKey
+  // rejects escapes; containment under the storage root is enforced by
+  // localFilePath on the local backend.
+  const safeFolder = normalizeKey(folder);
+  if (!safeFolder) throw new Error('Invalid storage folder');
   const ext = path.extname(originalName);
   const hash = crypto.randomBytes(16).toString('hex');
-  return `${folder}/${hash}${ext}`;
+  return `${safeFolder}/${hash}${ext}`;
 }
 
 function normalizeKey(key) {

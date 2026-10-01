@@ -55,6 +55,7 @@ router.get('/helpers/search', async (req, res, next) => {
          AND u.email_verified = TRUE
          AND u.onboarding_completed = TRUE
          AND COALESCE(hp.is_listed, TRUE) = TRUE
+         AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE
          AND (
            LOWER(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, ''))) LIKE $1
            OR LOWER(COALESCE(hp.bio_short, '')) LIKE $1
@@ -111,6 +112,7 @@ router.get('/:id/profile', async (req, res, next) => {
          AND u.onboarding_completed = TRUE
          AND u.role = ANY($2::text[])
          AND COALESCE(hp.is_listed, TRUE) = TRUE
+         AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE
        GROUP BY u.id, hp.bio_short, hp.service_city, hp.service_state, hp.service_zip, hp.jobs_completed`,
       [req.params.id, ['helper', 'helper_pro', 'broker']]
     );

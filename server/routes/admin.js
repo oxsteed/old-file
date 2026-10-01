@@ -164,6 +164,7 @@ router.post('/users/:userId/password', requireSuperAdmin, superCtrl.setUserPassw
 
 // Impersonation (super-admin only)
 router.post('/users/:userId/impersonate',     requireSuperAdmin, superCtrl.impersonateUser);
+router.post('/users/impersonate/exchange', requireSuperAdmin, superCtrl.exchangeImpersonationCode);
 router.post('/users/:userId/impersonate/end', requireSuperAdmin, superCtrl.endImpersonation);
 
 // Activity log & admin notes (all admins can read; super-admin can delete any note)

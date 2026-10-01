@@ -48,7 +48,7 @@ export default function TrialBanner() {
       {/* Upgrade CTA */}
       <Link
         to="/upgrade"
-        className={`ml-auto flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
+        className={`ms-auto flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
           urgent
             ? 'bg-red-500 hover:bg-red-600 text-white'
             : 'bg-white/10 hover:bg-white/20 text-white border border-white/20'

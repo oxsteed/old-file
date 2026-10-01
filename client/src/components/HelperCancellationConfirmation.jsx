@@ -205,10 +205,7 @@ export default function HelperCancellationConfirmation({
 
               {custCancelled > 0 && (
                 <p className="hcc-stat-text hcc-stat-muted">
-                  {t('helperCancelConfirm.custCancellations',
-                    '{{n}} cancellation{{s}} in the past year',
-                    { n: custCancelled, s: custCancelled !== 1 ? 's' : '' }
-                  )}
+                  {t('helperCancelConfirm.custCancellations', { count: custCancelled })}
                 </p>
               )}
 

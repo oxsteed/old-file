@@ -63,6 +63,37 @@ const TASK_TRANSITIONS = {
   Cancelled: new Set(),
 };
 
+// M14: runner-driven order completion must respect the same transition map as
+// the generic status endpoint — only 'En route' may move to 'Completed'.
+// Exported so completeRunnerHandoff enforces the identical rule.
+function assertLegalRunnerCompletion(currentStatus) {
+  if (!TASK_TRANSITIONS[currentStatus]?.has('Completed')) {
+    throw new AppError(
+      `Runner task cannot move from ${currentStatus} to Completed`,
+      409,
+      'illegal_runner_status_transition'
+    );
+  }
+}
+
+// M14: an order the customer pays online (pay_now) must actually be paid
+// before a runner handoff can mark it completed. Cash/pay-later orders are
+// settled at handoff by design and are unaffected.
+function assertFoodOrderPaidForHandoff(order) {
+  const paymentMode = order?.metadata?.paymentMode || order?.metadata?.payment_mode || null;
+  if (paymentMode === 'pay_now' && order.payment_status !== 'paid') {
+    throw new AppError(
+      'This order has not been paid yet and cannot be completed',
+      409,
+      'order_unpaid'
+    );
+  }
+}
+
+exports.TASK_TRANSITIONS = TASK_TRANSITIONS;
+exports.assertLegalRunnerCompletion = assertLegalRunnerCompletion;
+exports.assertFoodOrderPaidForHandoff = assertFoodOrderPaidForHandoff;
+
 async function requireRestaurantAccess(userId, restaurantId) {
   if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
   const { rows } = await pool.query(
@@ -339,6 +370,15 @@ exports.updateTaskStatus = async (req, res, next) => {
 
       let completedOrder = null;
       if (status === 'Completed' && task.food_order_id) {
+        // M14: unpaid pay_now orders must not complete via status transition.
+        const { rows: [orderForHandoff] } = await client.query(
+          `SELECT id, payment_status, metadata
+             FROM food_orders
+            WHERE id = $1 AND restaurant_id = $2 AND fulfillment_type = 'delivery'
+            FOR UPDATE`,
+          [task.food_order_id, restaurantId]
+        );
+        if (orderForHandoff) assertFoodOrderPaidForHandoff(orderForHandoff);
         const { rows: [updatedOrder] } = await client.query(
           `UPDATE food_orders
               SET status = 'completed',
@@ -383,9 +423,9 @@ exports.logProof = async (req, res, next) => {
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     const task = await assertTask(restaurantId, taskId);
     assertTaskActor(restaurant, task, req.user.id);
-    if (!['Picked up', 'En route', 'Issue'].includes(task.status)) {
-      throw new AppError('Proof can only complete an active handoff', 409, 'runner_proof_not_allowed');
-    }
+    // M14: logProof completes the task, so it must obey the transition map
+    // (only 'En route' -> 'Completed' is legal), not a wider allowlist.
+    assertLegalRunnerCompletion(task.status);
     const result = await withTransaction(pool, async (client) => {
       const { rows: [proof] } = await client.query(
         `INSERT INTO restaurant_runner_proofs
@@ -404,6 +444,15 @@ exports.logProof = async (req, res, next) => {
       );
       if (!updatedTask) throw new AppError('Runner task changed before proof was submitted', 409, 'runner_task_conflict');
       if (updatedTask.food_order_id) {
+        // M14: unpaid pay_now orders must not complete on proof submission.
+        const { rows: [orderForHandoff] } = await client.query(
+          `SELECT id, payment_status, metadata
+             FROM food_orders
+            WHERE id = $1 AND restaurant_id = $2 AND fulfillment_type = 'delivery'
+            FOR UPDATE`,
+          [updatedTask.food_order_id, restaurantId]
+        );
+        if (orderForHandoff) assertFoodOrderPaidForHandoff(orderForHandoff);
         const { rows: [completedOrder] } = await client.query(
           `UPDATE food_orders
               SET status = 'completed',

@@ -200,6 +200,18 @@ class ComplianceAuditLogger {
 
   // ── QUERIES ────────────────────────────────────────────────
 
+  /**
+   * Coerce a caller-supplied day window to a finite non-negative integer.
+   * Garbage (NaN, Infinity, non-numeric) falls back to the caller's default;
+   * the result is clamped to a sane upper bound. The value is always passed
+   * as a bound parameter, never interpolated into SQL text.
+   */
+  static coerceDays(value, fallback) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.min(3650, Math.max(0, Math.floor(n)));
+  }
+
   static async getAuditTrail(userId, limit = 100) {
     try {
       const { rows } = await pool.query(
@@ -217,13 +229,14 @@ class ComplianceAuditLogger {
   }
 
   static async getEventsByAction(action, days = 7) {
+    const safeDays = ComplianceAuditLogger.coerceDays(days, 7);
     try {
       const { rows } = await pool.query(
         `SELECT * FROM compliance_audit_log
          WHERE action = $1
-         AND created_at > NOW() - INTERVAL '${days} days'
+         AND created_at > NOW() - ($2 * INTERVAL '1 day')
          ORDER BY created_at DESC`,
-        [action]
+        [action, safeDays]
       );
       return rows;
     } catch (err) {
@@ -233,14 +246,15 @@ class ComplianceAuditLogger {
   }
 
   static async getFailuresByUser(userId, days = 30) {
+    const safeDays = ComplianceAuditLogger.coerceDays(days, 30);
     try {
       const { rows } = await pool.query(
         `SELECT * FROM compliance_audit_log
          WHERE user_id = $1
          AND result = 'failure'
-         AND created_at > NOW() - INTERVAL '${days} days'
+         AND created_at > NOW() - ($2 * INTERVAL '1 day')
          ORDER BY created_at DESC`,
-        [userId]
+        [userId, safeDays]
       );
       return rows;
     } catch (err) {

@@ -64,13 +64,13 @@ const HoursSection: React.FC<HoursSectionProps> = ({ hours }) => {
               <span className={`font-medium w-28 ${isToday ? 'text-white' : 'text-gray-300'}`}>
                 {getDayDisplayName(entry.day)}
                 {isToday && (
-                  <span className="ml-2 text-xs text-brand-400 font-normal">{t('helperProfile.hours.today')}</span>
+                  <span className="ms-2 text-xs text-brand-400 font-normal">{t('helperProfile.hours.today')}</span>
                 )}
               </span>
               {entry.closed ? (
                 <span className="text-gray-600">{t('helperProfile.hours.closed')}</span>
               ) : (
-                <span className="flex items-center gap-1 text-right">
+                <span className="flex items-center gap-1 text-end">
                   <Clock className="w-3.5 h-3.5 text-gray-500" aria-hidden="true" />
                   {entry.open} – {entry.close}
                 </span>

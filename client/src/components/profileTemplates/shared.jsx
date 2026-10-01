@@ -120,7 +120,7 @@ export function FAQList({ faqs = [], itemClass = '', questionClass = '', answerC
         <details key={f.id} className={`rounded-xl overflow-hidden ${itemClass}`}>
           <summary className={`cursor-pointer px-4 py-3 text-sm font-semibold list-none flex justify-between items-center ${questionClass}`}>
             {f.question}
-            <span className="ml-2 text-lg leading-none select-none">+</span>
+            <span className="ms-2 text-lg leading-none select-none">+</span>
           </summary>
           <p className={`px-4 pb-3 text-sm ${answerClass}`}>{f.answer}</p>
         </details>
@@ -213,7 +213,7 @@ export function ChecklistRow({ children, checked = true, iconColor = '#22c55e', 
 export function HorizontalServiceBar({ service, accentColor = '#3b82f6', bgClass = '', textClass = '', priceClass = '' }) {
   const { t } = useTranslation();
   return (
-    <div className={`flex justify-between items-center px-4 py-3 rounded-xl border-l-4 ${bgClass}`}
+    <div className={`flex justify-between items-center px-4 py-3 rounded-xl border-s-4 ${bgClass}`}
       style={{ borderLeftColor: accentColor }}>
       <div className="flex-1 min-w-0">
         {service.popular && <span className="text-xs font-bold uppercase tracking-wide opacity-60 block">{t('profileTemplates.popular')}</span>}
@@ -221,7 +221,7 @@ export function HorizontalServiceBar({ service, accentColor = '#3b82f6', bgClass
         {service.description && <p className="text-xs opacity-60 mt-0.5 line-clamp-1">{service.description}</p>}
       </div>
       {service.price > 0 && (
-        <span className={`ml-4 text-sm font-bold whitespace-nowrap ${priceClass}`}>
+        <span className={`ms-4 text-sm font-bold whitespace-nowrap ${priceClass}`}>
           ${service.price.toFixed(0)}/{service.priceUnit || 'hr'}
         </span>
       )}
@@ -277,7 +277,7 @@ export function ProcessStep({ number, title, description, numBg = '#3b82f6', tex
 /** Italic block quote for testimonials */
 export function QuoteBlock({ text, author, accentColor = '#d4af6a', textClass = '', authorClass = '' }) {
   return (
-    <div className="pl-4" style={{ borderLeft: `3px solid ${accentColor}` }}>
+    <div className="ps-4" style={{ borderInlineStart: `3px solid ${accentColor}` }}>
       <p className={`italic text-sm leading-relaxed ${textClass}`}>"{text}"</p>
       {author && <p className={`text-xs mt-1.5 font-semibold ${authorClass}`}>— {author}</p>}
     </div>

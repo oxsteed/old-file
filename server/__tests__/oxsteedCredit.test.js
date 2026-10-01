@@ -3306,3 +3306,210 @@ test('returns the customer ledger balance after a transaction on its receipt', a
   });
   expect(mockQuery.mock.calls[0][0]).toContain('oxsteed_credit_transaction_entries');
 });
+
+// ---------------------------------------------------------------------------
+// Workstream 4 remediation tests (H2, H16-deletion-guard note, M9, M25, M26)
+// ---------------------------------------------------------------------------
+
+test('ledger HMAC never derives from JWT_SECRET outside production (M25)', () => {
+  const payload = { transactionId: 'tx-m25', accountId: 7, entrySide: 'debit', amountCents: 1 };
+  const originalJwt = process.env.JWT_SECRET;
+  const originalLedger = process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET;
+  delete process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET;
+
+  process.env.JWT_SECRET = 'a'.repeat(40);
+  const hashA = service.computeEntryHash(payload);
+  process.env.JWT_SECRET = 'b'.repeat(40);
+  const hashB = service.computeEntryHash(payload);
+  // Rotating or leaking the JWT signing key must not change (or forge) ledger hashes.
+  expect(hashA).toBe(hashB);
+
+  process.env.JWT_SECRET = originalJwt;
+  if (originalLedger === undefined) delete process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET;
+  else process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET = originalLedger;
+});
+
+test('expireCreditHolds isolates a poison hold instead of aborting the batch (H2)', async () => {
+  const holdA = { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', account_id: 501, customer_id: CUSTOMER_ID, partner_id: 41, amount_cents: 1000, currency_code: 'USD', status: 'active' };
+  const holdB = { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', account_id: 502, customer_id: CUSTOMER_ID, partner_id: 41, amount_cents: 2000, currency_code: 'USD', status: 'active' };
+  mockQuery.mockImplementation(async (text, params = []) => {
+    const sql = String(text);
+    if (sql.includes('FROM oxsteed_credit_holds h')) return { rows: [holdA, holdB] };
+    if (sql.includes('reserved_cents = reserved_cents - $1')) {
+      if (params[1] === 501) throw new Error('simulated poison reservation row');
+      return { rows: [{ id: params[1] }] };
+    }
+    if (sql.includes('UPDATE oxsteed_credit_holds')) return { rows: [{ ...holdB, status: 'expired' }] };
+    return { rows: [], rowCount: 0 };
+  });
+
+  const result = await service.expireCreditHolds({ limit: 10 });
+  expect(result.count).toBe(1);
+  expect(result.failedCount).toBe(1);
+  expect(result.failed[0].holdId).toBe(holdA.id);
+  expect(result.expired[0].id).toBe(holdB.id);
+});
+
+// Shared dispatcher for hold-capture flows: hold row, account, rail, agreement,
+// capacity, journal, and the capture-claim update. The purchase leg can be made
+// to fail or the legacy pre-namespace purchase can be injected.
+function installHoldCaptureMocks({ rawKey, legacyPurchase = null, purchaseError = null } = {}) {
+  const crypto = require('crypto');
+  const HOLD_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const hold = {
+    id: HOLD_ID, account_id: 501, customer_id: CUSTOMER_ID, partner_id: 41, agreement_id: null,
+    amount_cents: 2000, currency_code: 'USD', status: 'active',
+    expires_at: new Date(Date.now() + 3600000).toISOString(),
+    capture_idempotency_key: null, captured_transaction_id: null,
+    reference_type: 'credit_hold', reference_id: 'hold-ref', purpose: 'test hold',
+    metadata: {}, account_currency_code: 'USD',
+  };
+  const customerAccount = { id: 501, account_type: 'customer_wallet', customer_id: CUSTOMER_ID, currency_code: 'USD', balance_cents: 10000, reserved_cents: 5000, status: 'active', ledger_version: 3, last_entry_hash: 'abc' };
+  const partnerAccount = { id: 502, account_type: 'partner_payable', partner_id: 41, currency_code: 'USD', balance_cents: 0, reserved_cents: 0, status: 'active', ledger_version: 1, last_entry_hash: null };
+  const agreement = { id: 'agr-1', settlement_currency_code: 'USD', restaurant_currency_code: 'USD', allowed_order_types: [], allowed_categories: [], allowed_menu_item_ids: [] };
+  mockQuery.mockImplementation(async (text, params = []) => {
+    const sql = String(text);
+    if (sql.includes('FROM oxsteed_credit_holds h') && sql.includes('JOIN oxsteed_credit_accounts')) return { rows: [hold] };
+    if (sql.includes('id = ANY($1::bigint[])')) return { rows: [customerAccount, partnerAccount] };
+    if (sql.includes('FROM oxsteed_credit_accounts WHERE id = $1')) return { rows: [customerAccount] };
+    if (sql.includes("t.status = 'posted'")) return { rows: legacyPurchase ? [legacyPurchase] : [] }; // findLegacyCapturePurchase
+    if (sql.includes('reserved_cents = reserved_cents - $1')) return { rows: [{ id: 501 }] };
+    if (sql.includes('reserved_cents = reserved_cents + $1')) return { rows: [{ id: 501 }] }; // H2 compensation
+    if (sql.includes('credit_account.partner_id AS credit_account_partner_id')) return { rows: [] }; // findExistingPurchaseForReplay
+    if (sql.includes("FROM feature_flags WHERE key = 'oxsteed_credit_enabled'")) return { rows: [{ is_enabled: true }] };
+    if (sql.includes('FROM oxsteed_credit_partner_agreements a')) return { rows: [agreement] };
+    if (sql.includes('active_hold_usage')) return { rows: [{ movement_count: 0, movement_cents: '0' }] };
+    if (sql.includes('INSERT INTO oxsteed_credit_accounts')) return { rows: [], rowCount: 0 };
+    if (sql.includes('FROM oxsteed_credit_accounts a') && sql.includes('a.customer_id = $2')) return { rows: [customerAccount] };
+    if (sql.includes('FROM oxsteed_credit_accounts a') && sql.includes('a.partner_id = $2')) return { rows: [partnerAccount] };
+    if (sql.includes('INSERT INTO oxsteed_credit_transactions')) {
+      if (purchaseError) throw purchaseError;
+      return { rows: [{ id: 'txn-9', transaction_type: 'purchase', status: 'posted', debit_account_id: 501, credit_account_id: 502, amount_cents: 2000, currency_code: 'USD', partner_id: 41, idempotency_key: params[7], metadata: {} }] };
+    }
+    if (sql.includes('oxsteed_credit_transactions WHERE idempotency_key')) return { rows: [] };
+    if (sql.includes('UPDATE oxsteed_credit_accounts') && sql.includes('RETURNING *')) return { rows: [customerAccount] };
+    if (sql.includes('INSERT INTO oxsteed_credit_transaction_entries')) return { rows: [{ id: 1 }] };
+    if (sql.includes('UPDATE oxsteed_credit_holds')) {
+      return { rows: [{ ...hold, status: 'captured', capture_idempotency_key: params[0], captured_transaction_id: params[1] }] };
+    }
+    return { rows: [], rowCount: 0 };
+  });
+  return { holdId: HOLD_ID, expectedPurchaseKey: `capture:${crypto.createHash('sha256').update(rawKey).digest('hex')}` };
+}
+
+test('hold capture namespaces the purchase idempotency key away from direct purchases (M9)', async () => {
+  const rawKey = 'raw-capture-key-1';
+  const { holdId, expectedPurchaseKey } = installHoldCaptureMocks({ rawKey });
+
+  const result = await service.captureCreditHold({
+    holdId,
+    idempotencyKey: rawKey,
+    actorType: 'admin',
+    actorUserId: ADMIN_ID,
+    reason: 'M9 namespacing test',
+  });
+
+  expect(result.replayed).toBe(false);
+  const txnInsert = mockQuery.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO oxsteed_credit_transactions'));
+  expect(txnInsert).toBeTruthy();
+  expect(txnInsert[1][7]).toBe(expectedPurchaseKey);
+  expect(txnInsert[1][7]).not.toBe(rawKey);
+  // The raw caller key is still claimed on the hold row for retries.
+  const holdUpdate = mockQuery.mock.calls.find(([sql]) => String(sql).includes('UPDATE oxsteed_credit_holds'));
+  expect(holdUpdate[1][0]).toBe(rawKey);
+});
+
+test('hold capture retry reuses the pre-namespace legacy purchase instead of double-posting (M9)', async () => {
+  const rawKey = 'legacy-capture-key';
+  const { holdId } = installHoldCaptureMocks({
+    rawKey,
+    legacyPurchase: {
+      id: 'txn-legacy', transaction_type: 'purchase', status: 'posted',
+      debit_account_id: 501, credit_account_id: 502, amount_cents: 2000,
+      currency_code: 'USD', partner_id: 41, idempotency_key: rawKey,
+      debit_account_customer_id: CUSTOMER_ID,
+      metadata: { capturedHoldId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' },
+    },
+  });
+
+  const result = await service.captureCreditHold({
+    holdId,
+    idempotencyKey: rawKey,
+    actorType: 'admin',
+    actorUserId: ADMIN_ID,
+    reason: 'M9 legacy retry test',
+  });
+
+  expect(result.transaction.replayed).toBe(true);
+  expect(result.transaction.id).toBe('txn-legacy');
+  const txnInsert = mockQuery.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO oxsteed_credit_transactions'));
+  expect(txnInsert).toBeUndefined();
+});
+
+test('hold capture restores the reservation when the purchase leg fails (H2)', async () => {
+  const rawKey = 'capture-purchase-fails';
+  const { holdId } = installHoldCaptureMocks({ rawKey, purchaseError: Object.assign(new Error('settlement exploded'), { code: 'credit_test_boom' }) });
+
+  await expect(service.captureCreditHold({
+    holdId,
+    idempotencyKey: rawKey,
+    actorType: 'admin',
+    actorUserId: ADMIN_ID,
+    reason: 'H2 compensation test',
+  })).rejects.toMatchObject({ code: 'credit_test_boom' });
+
+  // The released reservation is restored before the error propagates.
+  const compensation = mockQuery.mock.calls.find(([sql]) => String(sql).includes('reserved_cents = reserved_cents + $1'));
+  expect(compensation).toBeTruthy();
+  expect(compensation[1]).toEqual([2000, 501]);
+  // The hold is never marked captured.
+  const holdUpdate = mockQuery.mock.calls.find(([sql]) => String(sql).includes('UPDATE oxsteed_credit_holds'));
+  expect(holdUpdate).toBeUndefined();
+});
+
+test('concurrent hold creation loses the insert race and replays the winner without a second reservation (M26)', async () => {
+  const winnerHold = {
+    id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', account_id: 501, customer_id: CUSTOMER_ID,
+    partner_id: 41, agreement_id: 'agr-1', amount_cents: 1500, currency_code: 'USD',
+    status: 'active', purpose: 'race test', reference_type: null, reference_id: null,
+    metadata: { _oxsteedCreditRequest: { orderType: null, category: null, menuItemId: null, city: null, state: null, postalCode: null, country: null } },
+    idempotency_key: 'hold-race-1',
+    expires_at: new Date(Date.now() + 3600000).toISOString(),
+  };
+  let holdReadCalls = 0;
+  mockQuery.mockImplementation(async (text, params = []) => {
+    const sql = String(text);
+    if (sql.includes('INSERT INTO oxsteed_credit_holds')) return { rows: [] }; // lost the race: ON CONFLICT DO NOTHING
+    if (sql.includes('FROM oxsteed_credit_holds') && sql.includes('idempotency_key')) {
+      holdReadCalls += 1;
+      // Pre-check and winner pre-check miss; the winner re-read returns the row the
+      // concurrent request committed.
+      return holdReadCalls <= 2 ? { rows: [] } : { rows: [winnerHold] };
+    }
+    if (sql.includes("FROM feature_flags WHERE key = 'oxsteed_credit_enabled'")) return { rows: [{ is_enabled: true }] };
+    if (sql.includes('FROM oxsteed_credit_partner_agreements a')) {
+      return { rows: [{ id: 'agr-1', settlement_currency_code: 'USD', restaurant_currency_code: 'USD', allowed_order_types: [], allowed_categories: [], allowed_menu_item_ids: [] }] };
+    }
+    if (sql.includes('active_hold_usage')) return { rows: [{ movement_count: 0, movement_cents: '0' }] };
+    if (sql.includes('INSERT INTO oxsteed_credit_accounts')) return { rows: [], rowCount: 0 };
+    if (sql.includes('FROM oxsteed_credit_accounts a')) {
+      return { rows: [{ id: 501, account_type: 'customer_wallet', customer_id: CUSTOMER_ID, currency_code: 'USD', balance_cents: 10000, reserved_cents: 0, status: 'active' }] };
+    }
+    return { rows: [], rowCount: 0 };
+  });
+
+  const result = await service.createCreditHold({
+    customerId: CUSTOMER_ID,
+    partnerId: 41,
+    amountCents: 1500,
+    idempotencyKey: 'hold-race-1',
+    actorUserId: CUSTOMER_ID,
+    purpose: 'race test',
+  });
+
+  expect(result.replayed).toBe(true);
+  expect(result.hold.id).toBe(winnerHold.id);
+  // The reservation is touched exactly once (by the winner), not by this retry.
+  const reservationTouches = mockQuery.mock.calls.filter(([sql]) => String(sql).includes('reserved_cents = reserved_cents + $1'));
+  expect(reservationTouches).toHaveLength(0);
+});

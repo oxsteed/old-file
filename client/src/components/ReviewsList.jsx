@@ -70,7 +70,7 @@ export default function ReviewsList({ businessId, maxReviews = 10 }) {
                   style={{ width: `${percent}%` }}
                 />
               </div>
-              <span className="text-xs text-gray-400 w-6 text-right">{count}</span>
+              <span className="text-xs text-gray-400 w-6 text-end">{count}</span>
             </div>
           );
         })}

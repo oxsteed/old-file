@@ -39,6 +39,14 @@ function expectPublicPublicationGuard(sql) {
   expect(sql).toMatch(/COALESCE\(b\.business_kind, 'restaurant'\) = 'restaurant'/);
 }
 
+function findPublicationGuardSql() {
+  const call = mockQuery.mock.calls.find(([sql]) =>
+    String(sql).includes('JOIN businesses b ON b.id = fr.business_id')
+  );
+  expect(call).toBeTruthy();
+  return call[0];
+}
+
 beforeEach(() => resetMocks());
 
 describe('public restaurant visibility', () => {
@@ -50,7 +58,7 @@ describe('public restaurant visibility', () => {
 
     expect(res.status).toBe(200);
     expect(res.body[responseKey]).toEqual([]);
-    expectActiveBusinessGuard(mockQuery.mock.calls[0][0]);
+    expectActiveBusinessGuard(findPublicationGuardSql());
   });
 
   test.each([
@@ -64,14 +72,14 @@ describe('public restaurant visibility', () => {
 
     expect(res.status).toBe(404);
     expect(res.body.code).toBe('restaurant_not_found');
-    expectPublicPublicationGuard(mockQuery.mock.calls[0][0]);
+    expectPublicPublicationGuard(findPublicationGuardSql());
   });
 
   test('direct restaurant lookup applies the public publication guard', async () => {
     const res = await request(buildApp()).get('/api/food/restaurants/3');
 
     expect(res.status).toBe(404);
-    const sql = mockQuery.mock.calls[0][0];
+    const sql = findPublicationGuardSql();
     expectPublicPublicationGuard(sql);
   });
 
@@ -82,13 +90,18 @@ describe('public restaurant visibility', () => {
     ['/api/food/restaurants/3/orders/quote', 'post', 404],
     ['/api/food/restaurants/3/orders', 'post', 404],
   ])('%s applies the public publication guard', async (path, method, expectedStatus) => {
-    const res = await request(buildApp())[method](path)
-      .send(method === 'post' && path.endsWith('/quote')
+    const req = request(buildApp())[method](path);
+    // H12: food orders require an idempotency key; supply one so the request
+    // reaches the publication guard instead of failing validation first.
+    if (method === 'post' && path.endsWith('/orders')) {
+      req.set('Idempotency-Key', 'test-guard-key-1');
+    }
+    const res = await req.send(method === 'post' && path.endsWith('/quote')
         ? { items: [{ menuItemId: 11, quantity: 1 }] }
         : method === 'post' ? { fulfillmentType: 'pickup', items: [{ menuItemId: 11, quantity: 1 }] } : undefined);
 
     expect(res.status).toBe(expectedStatus);
-    expectPublicPublicationGuard(mockQuery.mock.calls[0][0]);
+    expectPublicPublicationGuard(findPublicationGuardSql());
   });
 
   test('public promotions cannot leak from an inactive business', async () => {
@@ -96,7 +109,7 @@ describe('public restaurant visibility', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.promotions).toEqual([]);
-    expectActiveBusinessGuard(mockQuery.mock.calls[0][0]);
+    expectActiveBusinessGuard(findPublicationGuardSql());
   });
 
   test('public queue board keeps guest names hidden unless explicitly enabled', async () => {
@@ -135,14 +148,15 @@ describe('public restaurant visibility', () => {
       .send({ items: [{ menuItemId: 11, quantity: 1 }] });
 
     expect(quote.status).toBe(404);
-    expectActiveBusinessGuard(mockQuery.mock.calls[0][0]);
+    expectActiveBusinessGuard(findPublicationGuardSql());
 
     resetMocks();
     const order = await request(buildApp())
       .post('/api/food/restaurants/3/orders')
+      .set('Idempotency-Key', 'test-guard-key-2')
       .send({ fulfillmentType: 'pickup', items: [{ menuItemId: 11, quantity: 1 }] });
 
     expect(order.status).toBe(404);
-    expectActiveBusinessGuard(mockQuery.mock.calls[0][0]);
+    expectActiveBusinessGuard(findPublicationGuardSql());
   });
 });

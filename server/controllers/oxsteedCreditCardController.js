@@ -139,7 +139,7 @@ async function reportMyCardLost(req, res, next) {
 async function setMyCardPin(req, res, next) {
   try {
     const cardId = parseUuid(req.params.cardId, 'cardId');
-    const result = await cardService.setCardPin({ cardId, customerId: req.user.id, pin: req.body?.pin, ...getRequestContext(req) });
+    const result = await cardService.setCardPin({ cardId, customerId: req.user.id, pin: req.body?.pin, currentPin: req.body?.currentPin || req.body?.current_pin, ...getRequestContext(req) });
     res.json(result);
   } catch (error) {
     next(error);
@@ -264,10 +264,18 @@ async function requireCreditPartnerForRestaurant(restaurantId) {
 
 async function kioskRedeemCard(req, res, next) {
   try {
+    // Kiosk money movement requires a caller-supplied idempotency key. The
+    // old constant fallback (kiosk:<deviceId>:) let a second redemption
+    // collide on the same key, and the cash-out fallback let one customer
+    // replay another customer's transaction.
+    const idempotencyKey = getIdempotencyKey(req);
+    if (!idempotencyKey) {
+      throw new AppError('An Idempotency-Key is required for kiosk card redemption', 400, 'credit_idempotency_key_required');
+    }
     const partnerId = await requireCreditPartnerForRestaurant(req.creditKioskRestaurantId);
-    const idempotencyKey = getIdempotencyKey(req) || `kiosk:${req.creditKioskDevice.id}:${req.body?.clientRequestId || ''}`;
     const result = await cardService.redeemCardAtPartner({
       credential: req.body?.credential,
+      pin: req.body?.pin,
       partnerId,
       amountCents: req.body?.amountCents ?? req.body?.amount_cents,
       currencyCode: req.body?.currencyCode || req.body?.currency_code,
@@ -289,7 +297,10 @@ async function kioskRedeemCard(req, res, next) {
 
 async function kioskCashOut(req, res, next) {
   try {
-    const idempotencyKey = getIdempotencyKey(req) || `kiosk-cashout:${req.creditKioskDevice.id}:${req.body?.clientRequestId || ''}`;
+    const idempotencyKey = getIdempotencyKey(req);
+    if (!idempotencyKey) {
+      throw new AppError('An Idempotency-Key is required for kiosk cash-out', 400, 'credit_idempotency_key_required');
+    }
     const result = await cardService.cashOutWithCard({
       credential: req.body?.credential,
       pin: req.body?.pin,

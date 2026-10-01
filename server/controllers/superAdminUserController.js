@@ -160,6 +160,31 @@ function normalizeLogisticsRole(raw, fallback = null) {
   return LOGISTICS_ROLE_VALUES.includes(value) ? value : '__invalid__';
 }
 
+// ── C1 fix: privilege gates for edit-full ────────────────────────────────────
+// A regular or regional admin must never be able to touch an admin account,
+// nor change any user's password or role. Super-admins always pass. Other
+// admins may change passwords/roles only with the `manage_admin_accounts`
+// grant, and may never edit admin/super_admin targets at all.
+const ADMIN_ROLES = new Set(['admin', 'super_admin']);
+
+function isSuperCaller(req) {
+  return req.isSuper === true || req.user?.role === 'super_admin';
+}
+
+async function hasGlobalGrant(client, adminId, permission) {
+  const { rows } = await client.query(
+    `SELECT 1 FROM admin_permission_grants
+      WHERE grantee_id = $1
+        AND permissions ? $2
+        AND region_id IS NULL
+        AND expires_at > NOW()
+        AND revoked_at IS NULL
+      LIMIT 1`,
+    [adminId, permission]
+  );
+  return rows.length > 0;
+}
+
 async function regionAccessOrFail(req, targetUser) {
   if (req.isSuper) return null;
   if (req.region_scope_unavailable) {
@@ -379,6 +404,28 @@ exports.editUserFull = async (req, res) => {
       ? body.password
       : null;
 
+    // ── C1: privilege gates ─────────────────────────────────────────────
+    // Fail closed before any write: non-super callers cannot touch admin
+    // accounts, and password/role changes additionally require the
+    // `manage_admin_accounts` grant.
+    const callerIsSuper = isSuperCaller(req);
+    const wantsPasswordChange = newPassword !== null;
+    const wantsRoleChange = Object.prototype.hasOwnProperty.call(body, 'role')
+      && body.role !== undefined && body.role !== null
+      && String(body.role) !== String(current.role);
+    if (ADMIN_ROLES.has(current.role) && !callerIsSuper) {
+      return res.status(403).json({ error: 'Only a super-admin can modify admin accounts.' });
+    }
+    if ((wantsPasswordChange || wantsRoleChange) && !callerIsSuper) {
+      const granted = await hasGlobalGrant(db, adminId, 'manage_admin_accounts');
+      if (!granted) {
+        return res.status(403).json({
+          error: 'Changing passwords or roles requires super-admin access or the manage_admin_accounts grant.',
+          code: 'privilege_required',
+        });
+      }
+    }
+
     const result = await withTransaction(db, async (client) => {
       const updates = [];
       const values  = [];
@@ -388,6 +435,15 @@ exports.editUserFull = async (req, res) => {
       // Re-fetch inside transaction for consistency
       const fresh = await getUserSnapshot(client, userId);
       if (!fresh) throw new Error('User disappeared mid-edit');
+
+      // ── C1: re-verify the target-role guard inside the transaction ──────
+      // (the target's role may have changed between the pre-check and here).
+      if (ADMIN_ROLES.has(fresh.role) && !callerIsSuper) {
+        throw Object.assign(
+          new Error('Only a super-admin can modify admin accounts.'),
+          { httpStatus: 403 }
+        );
+      }
 
       // ── Country / state / zip cross-validation ──────────────────────────
       // Country defaults to the user's current value when not in the body.

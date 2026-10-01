@@ -89,25 +89,50 @@ exports.createPaymentIntent = async (req, res) => {
 
     const pkg = packageRows[0];
 
-    // Create Stripe payment intent
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: pkg.base_price,
-      currency: 'usd',
-      metadata: {
-        sessionId: String(session.id),
-        sessionScheduledId: String(session.scheduled_id),
-        packageId: String(pkg.id),
-        userId: String(req.user.id),
+    // Create Stripe payment intent.
+    // The idempotency key is deterministic per (scheduled session, package), so a
+    // retried or double-submitted request replays the same PaymentIntent on
+    // Stripe's side instead of creating a duplicate charge.
+    const paymentIntent = await stripe.paymentIntents.create(
+      {
+        amount: pkg.base_price,
+        currency: 'usd',
+        metadata: {
+          sessionId: String(session.id),
+          sessionScheduledId: String(session.scheduled_id),
+          packageId: String(pkg.id),
+          userId: String(req.user.id),
+        },
       },
-    });
+      { idempotencyKey: `consulting:${session.scheduled_id}:${pkg.id}` }
+    );
 
-    // Store payment in DB
+    // Store payment in DB. The INSERT is the atomic guard: a partial unique
+    // index on (session_scheduled_id) WHERE status IN ('pending','processing')
+    // (migration 622) serializes concurrent requests here, so the early SELECT
+    // above is only a fast-path UX check.
     const { rows: paymentRows } = await db.query(
       `INSERT INTO consulting_payments (session_scheduled_id, amount_cents, service_tier, status, stripe_payment_intent_id)
        VALUES ($1, $2, $3, 'processing', $4)
+       ON CONFLICT (session_scheduled_id) WHERE status IN ('pending', 'processing') DO NOTHING
        RETURNING id, session_scheduled_id, amount_cents, service_tier, status, created_at`,
       [session.scheduled_id, pkg.base_price, pkg.service_tier, paymentIntent.id]
     );
+
+    if (paymentRows.length === 0) {
+      // Lost the race: a concurrent request created the processing payment
+      // between our fast-path SELECT and this INSERT. Re-read the live row so
+      // the client gets the same 409 shape as the fast-path guard.
+      const { rows: raced } = await db.query(
+        `SELECT id, stripe_payment_intent_id FROM consulting_payments
+         WHERE session_scheduled_id = $1 AND status IN ('pending', 'processing')`,
+        [session.scheduled_id]
+      );
+      return res.status(409).json({
+        error: 'Payment already in progress for this session',
+        paymentId: raced[0] ? raced[0].id : null,
+      });
+    }
 
     res.json({
       clientSecret: paymentIntent.client_secret,

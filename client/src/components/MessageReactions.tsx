@@ -120,7 +120,7 @@ export default function MessageReactions({
           {r.user_reacted && (
             <X
               size={12}
-              className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="ms-1 opacity-0 group-hover:opacity-100 transition-opacity"
             />
           )}
         </div>

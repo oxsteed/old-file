@@ -341,7 +341,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
           {/* Keep delivery and read receipts distinct. */}
           {isUser && message.isRead ? (
-            <div className="text-xs text-gray-500 mt-1 text-right" role="status">
+            <div className="text-xs text-gray-500 mt-1 text-end" role="status">
               {t('helperProfile.chat.seen')}
             </div>
           ) : isUser && message.deliveryStatus ? (

@@ -2,6 +2,9 @@
 
 const { mockQuery, resetMocks } = require('./setup');
 
+// L3: export verification HMAC fails closed without a dedicated secret.
+process.env.EXPORT_VERIFICATION_SECRET = 'test-export-verification-secret';
+
 const express = require('express');
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
@@ -36,7 +39,8 @@ function binaryParser(response, callback) {
 }
 
 function hashVerificationValue(value) {
-  return crypto.createHmac('sha256', process.env.ENCRYPTION_KEY).update(String(value)).digest('hex');
+  // Mirrors the server's hashExportVerificationValue (L3: dedicated secret).
+  return crypto.createHmac('sha256', process.env.EXPORT_VERIFICATION_SECRET).update(String(value)).digest('hex');
 }
 
 beforeEach(() => {

@@ -146,7 +146,7 @@ async function ensurePartnerLedger(client, { partnerId, currencyCode, createdBy 
     `SELECT l.id AS ledger_id, l.partner_id, l.ledger_code, l.currency_code,
             l.status AS ledger_status, l.created_at AS ledger_created_at,
             l.updated_at AS ledger_updated_at,
-            p.restaurant_id, fr.display_name AS restaurant_name,
+            p.restaurant_id, p.status AS partner_status, fr.display_name AS restaurant_name,
             l.payable_account_id, payable.balance_cents AS payable_balance_cents,
             payable.reserved_cents AS payable_reserved_cents, payable.status AS payable_status,
             payable.ledger_version AS payable_ledger_version, payable.last_entry_hash AS payable_last_entry_hash,
@@ -164,7 +164,7 @@ async function ensurePartnerLedger(client, { partnerId, currencyCode, createdBy 
        JOIN oxsteed_credit_accounts reserve ON reserve.id = l.reserve_account_id
        LEFT JOIN oxsteed_credit_partner_funding_records f ON f.partner_ledger_id = l.id
       WHERE l.partner_id = $1
-      GROUP BY l.id, p.restaurant_id, fr.display_name, payable.id, reserve.id`,
+      GROUP BY l.id, p.restaurant_id, p.status, fr.display_name, payable.id, reserve.id`,
     [normalizedPartnerId]
   );
   if (!ledgerRows[0]) throw new AppError('Credit partner ledger could not be initialized', 500, 'credit_partner_ledger_create_failed');
@@ -253,6 +253,7 @@ async function recordPartnerFundingInTransaction(client, { partnerId, currencyCo
     createdBy: actorUserId,
   });
   if (ledger.ledger_status !== 'active') throw new AppError('Partner ledger is not active', 409, 'credit_partner_ledger_inactive');
+  if (ledger.partner_status !== 'active') throw new AppError('Credit partner is not active', 409, 'credit_partner_not_active', { partnerStatus: ledger.partner_status });
   const transactionType = normalizedDirection === 'fund' ? 'funding' : 'reserve_release';
   const treasury = await ensureAccount(client, {
     accountType: 'platform_treasury',
@@ -287,9 +288,30 @@ async function recordPartnerFundingInTransaction(client, { partnerId, currencyCo
         amount_cents, currency_code, external_reference, idempotency_key, reason,
         actor_user_id, correlation_id, metadata)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb)
+     ON CONFLICT (idempotency_key) DO NOTHING
      RETURNING *`,
     [ledger.ledger_id, normalizedPartnerId, ledger.reserve_account_id, transaction.transaction.id, normalizedDirection, amount, ledger.currency_code, normalizedReference, normalizedIdempotencyKey, normalizedReason, actorUserId, normalizeString(correlationId, 160), JSON.stringify(normalizedMetadata)]
   );
+  // A concurrent duplicate can lose the insert race after the first request
+  // commits. Re-read the winner and return it as a normal idempotent replay
+  // instead of surfacing a raw unique-violation 500.
+  if (!rows[0]) {
+    const { rows: winnerRows } = await client.query(
+      `SELECT * FROM oxsteed_credit_partner_funding_records WHERE idempotency_key = $1 FOR UPDATE`,
+      [normalizedIdempotencyKey]
+    );
+    if (!winnerRows[0]) {
+      throw new AppError('Partner funding could not be confirmed after an idempotent retry', 409, 'credit_idempotency_retry_required');
+    }
+    assertFundingReplayMatches(winnerRows[0], {
+      partner_id: normalizedPartnerId,
+      direction: normalizedDirection,
+      amount_cents: amount,
+      currency_code: currency || winnerRows[0].currency_code,
+      external_reference: normalizedReference,
+    });
+    return { record: formatFundingRecord(winnerRows[0]), replayed: true };
+  }
   await client.query(
     `INSERT INTO oxsteed_credit_audit_events
        (action_type, actor_user_id, partner_id, resource_type, resource_id, reason, correlation_id, request_ip, after_state, metadata)

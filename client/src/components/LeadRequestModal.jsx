@@ -85,7 +85,7 @@ export default function LeadRequestModal({ businessId, services = [], onClose, o
                     <span className="text-sm text-gray-300">
                       {service.name}
                       {service.price > 0 && (
-                        <span className="text-gray-500 ml-1">
+                        <span className="text-gray-500 ms-1">
                           (${service.price.toFixed(2)})
                         </span>
                       )}

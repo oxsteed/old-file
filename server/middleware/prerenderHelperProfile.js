@@ -1094,7 +1094,8 @@ async function handleHelperProfile(idOrSlug, template, res, next, req) {
        AND u.role IN ('helper', 'helper_pro', 'broker')
        AND u.email_verified = TRUE
        AND u.onboarding_completed = TRUE
-       AND COALESCE(hp.is_listed, TRUE) = TRUE`,
+       AND COALESCE(hp.is_listed, TRUE) = TRUE
+       AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
     [helperId],
   );
   if (!rows[0]) {
@@ -1226,7 +1227,8 @@ async function handleBusinessProfile(idOrSlug, template, res, next, req) {
        AND b.is_active = TRUE
        AND u.email_verified = TRUE
        AND u.onboarding_completed = TRUE
-       AND (hp.user_id IS NULL OR COALESCE(hp.is_listed, TRUE) = TRUE)`,
+       AND (hp.user_id IS NULL OR COALESCE(hp.is_listed, TRUE) = TRUE)
+       AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE`,
     [businessId],
   );
   if (!rows[0]) {
@@ -1422,7 +1424,8 @@ async function handleRestaurantProfile(restaurantId, template, res, next, req) {
         AND b.is_listed = TRUE
         AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
         AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
-        AND b.deleted_at IS NULL`,
+        AND b.deleted_at IS NULL
+        AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE`,
     [restaurantId],
   );
   if (!rows[0]) {

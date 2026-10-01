@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
+const { recordException } = require('./reconciliationExceptions');
 
 const MAX_WALLET_ENTRY_CENTS = Math.max(1, Number.parseInt(process.env.FOOD_WALLET_MAX_ENTRY_CENTS || '250000', 10));
 const MAX_WALLET_BALANCE_CENTS = Math.max(MAX_WALLET_ENTRY_CENTS, Number.parseInt(process.env.FOOD_WALLET_MAX_BALANCE_CENTS || '1000000', 10));
@@ -483,8 +484,34 @@ async function refundWalletDebitForReference(client, {
       LIMIT 1`,
     [account.id, normalizeString(orderReferenceId, 120)]
   );
-  const debitEntry = debitRows[0];
+  // C6 fallback: debits captured from a QR/hold payment session before the
+  // capture reference override landed carry reference_type='wallet_hold' (the
+  // hold's own reference was 'wallet_payment_session'). Match those by the
+  // orderId the capture call wrote into metadata.
+  let debitEntry = debitRows[0];
   if (!debitEntry) {
+    const { rows: legacyRows } = await client.query(
+      `SELECT *
+         FROM food_customer_wallet_ledger
+        WHERE account_id = $1
+          AND entry_type = 'debit'
+          AND reference_type IN ('wallet_hold', 'wallet_payment_session')
+          AND metadata->>'orderId' = $2
+        ORDER BY created_at DESC
+        LIMIT 1`,
+      [account.id, normalizeString(orderReferenceId, 120)]
+    );
+    debitEntry = legacyRows[0] || null;
+  }
+  if (!debitEntry) {
+    // Never silently drop a refund: surface it to the reconciliation workspace.
+    await recordException({
+      domain: 'payment_refund',
+      referenceId: `food-order:${normalizeString(orderReferenceId, 120)}`,
+      severity: 'warning',
+      summary: 'Wallet debit not found for cancelled/refunded food order',
+      details: { restaurantId, customerId, currencyCode, orderReferenceId },
+    });
     return { refunded: false, reason: 'debit_not_found' };
   }
 

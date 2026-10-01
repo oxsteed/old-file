@@ -72,6 +72,7 @@ const createInvoice = async (req, res) => {
     // Get booking details + owner email
     const bookingResult = await client.query(
       `SELECT trb.*, tr.name, tr.daily_rate, cu.email as customer_email, cu.first_name as customer_first, cu.last_name as customer_last,
+              cu.preferred_language as customer_language, cu.preferred_currency as customer_currency,
               ou.email as owner_email, ou.first_name as owner_first, ou.last_name as owner_last
        FROM tool_rentals_bookings trb
        JOIN tool_rentals tr ON trb.tool_id = tr.id
@@ -175,10 +176,12 @@ const createInvoice = async (req, res) => {
         customer_last: booking.customer_last || '',
         tool_name: booking.name,
         daily_rate: booking.daily_rate,
+        customer_language: booking.customer_language || 'en',
+        customer_currency: booking.customer_currency || 'USD',
       };
 
-      // Attempt to send email (with retries)
-      const emailResult = await sendInvoiceEmail(invoiceForEmail, recipientEmail || booking.customer_email);
+      // Attempt to send email (with retries) in the recipient's preferred language
+      const emailResult = await sendInvoiceEmail(invoiceForEmail, recipientEmail || booking.customer_email, 3, invoiceForEmail.customer_language);
 
       if (!emailResult.success) {
         // Email failed - don't mark as sent

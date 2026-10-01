@@ -70,7 +70,7 @@ function renderMarkdown(text) {
   const flushBullets = (key) => {
     if (!bullets.length) return;
     result.push(
-      <ul key={`ul-${key}`} className="list-disc list-inside space-y-0.5 my-1 ml-0.5">
+      <ul key={`ul-${key}`} className="list-disc list-inside space-y-0.5 my-1 ms-0.5">
         {bullets.map((item, i) => (
           <li key={i} className="leading-relaxed">{renderInline(item, `b${key}-${i}`)}</li>
         ))}
@@ -366,14 +366,14 @@ function AISupportWidget() {
         <button
           onClick={() => { setOpen(true); setMinimized(false); setUnread(0); }}
           aria-label={t('supportWidget.openAssistant')}
-          className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40 flex items-center gap-2 px-3.5 py-2.5 bg-action hover:bg-action-hover text-on-action rounded-full shadow-md shadow-orange-500/20 font-semibold text-xs transition-all hover:scale-105 active:scale-95 backdrop-blur-sm"
+          className="fixed bottom-20 end-4 sm:bottom-6 sm:end-6 z-40 flex items-center gap-2 px-3.5 py-2.5 bg-action hover:bg-action-hover text-on-action rounded-full shadow-md shadow-orange-500/20 font-semibold text-xs transition-all hover:scale-105 active:scale-95 backdrop-blur-sm"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
           </svg>
           {t('supportWidget.askAi')}
           {unread > 0 && !open && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+            <span className="absolute -top-1 -end-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
               {unread}
             </span>
           )}
@@ -405,7 +405,7 @@ function AISupportWidget() {
                       <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
                     </svg>
                   </div>
-                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-gray-900"/>
+                  <span className="absolute -bottom-0.5 -end-0.5 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-gray-900"/>
                 </div>
                 <div>
                   <p className="font-semibold text-white text-sm leading-none">{t('supportWidget.assistantTitle')}</p>
@@ -643,7 +643,7 @@ function AISupportWidget() {
                       className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-orange-500 disabled:opacity-50 placeholder-gray-500 transition"
                     />
                     {input.length > 400 && (
-                      <span className={`absolute bottom-1 right-2 text-[10px] ${input.length > 900 ? 'text-red-400' : 'text-gray-500'}`}>
+                      <span className={`absolute bottom-1 end-2 text-[10px] ${input.length > 900 ? 'text-red-400' : 'text-gray-500'}`}>
                         {input.length}/1000
                       </span>
                     )}
@@ -698,7 +698,7 @@ export default function SupportWidget() {
       <button
         type="button"
         onClick={() => navigate('/support/escalation')}
-        className="support-contact-fab fixed bottom-[4.75rem] lg:bottom-5 right-5 z-40 rounded-full bg-action px-4 py-3 text-sm font-semibold text-on-action shadow-xl transition hover:bg-action-hover"
+        className="support-contact-fab fixed bottom-[4.75rem] lg:bottom-5 end-5 z-40 rounded-full bg-action px-4 py-3 text-sm font-semibold text-on-action shadow-xl transition hover:bg-action-hover"
         aria-label={t('supportWidget.talkToHuman')}
       >
         {t('supportWidget.talkToHuman')}

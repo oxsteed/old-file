@@ -117,7 +117,7 @@ export function GraphicDesignTemplate({ profileData }) {
               </div>}
           <div className="absolute inset-0"
             style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.1) 60%)' }} />
-          <div className="absolute bottom-0 left-0 right-0 p-8">
+          <div className="absolute bottom-0 start-0 end-0 p-8">
             <span className="text-xs font-bold uppercase tracking-[0.3em]" style={{ color: '#e11d48' }}>Graphic Design</span>
             <h1 className="text-3xl font-black text-white mt-1">{helper.businessName}</h1>
             <p className="text-gray-300 text-sm mt-1">{helper.tagline}</p>
@@ -130,7 +130,7 @@ export function GraphicDesignTemplate({ profileData }) {
             </div>
           </div>
           {gallery.length > 1 && (
-            <div className="absolute top-4 right-4 flex flex-col gap-2">
+            <div className="absolute top-4 end-4 flex flex-col gap-2">
               {gallery.slice(1, 4).map(img => (
                 <div key={img.id} className="w-16 h-16 rounded-lg overflow-hidden border border-white/20">
                   <img src={img.url} alt={img.alt} className="w-full h-full object-cover" loading="lazy" />
@@ -230,7 +230,7 @@ export function MusicAudioTemplate({ profileData }) {
           : <div className="h-64" style={{ background: 'linear-gradient(135deg, #0d001a 0%, #1a0030 50%, #2d0050 100%)' }} />}
         <div className="absolute inset-0"
           style={{ background: 'linear-gradient(to bottom, transparent 0%, rgba(8,8,8,0.95) 85%)' }} />
-        <div className="absolute bottom-0 left-0 right-0 px-6 pb-6">
+        <div className="absolute bottom-0 start-0 end-0 px-6 pb-6">
           <div className="max-w-4xl mx-auto flex items-end gap-5">
             <Avatar src={helper.avatar} name={helper.ownerName} size={80}
               className="border-4 flex-shrink-0"
@@ -282,7 +282,7 @@ export function MusicAudioTemplate({ profileData }) {
                       </div>
                     </div>
                     {s.price > 0 && (
-                      <span className="text-sm font-bold whitespace-nowrap ml-4" style={{ color: '#e879f9' }}>
+                      <span className="text-sm font-bold whitespace-nowrap ms-4" style={{ color: '#e879f9' }}>
                         ${s.price.toFixed(0)}/{s.priceUnit}
                       </span>
                     )}

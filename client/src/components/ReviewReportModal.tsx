@@ -96,7 +96,7 @@ const ReviewReportModal: React.FC<ReviewReportModalProps> = ({
           <div>
             <label className="block text-sm font-semibold text-white mb-3">
               {t('reviewReport.reasonLabel')}
-              <span className="text-red-500 ml-1">*</span>
+              <span className="text-red-500 ms-1">*</span>
             </label>
             <div className="space-y-2">
               {REPORT_REASONS.map((reason) => (
@@ -124,7 +124,7 @@ const ReviewReportModal: React.FC<ReviewReportModalProps> = ({
           <div>
             <label className="block text-sm font-semibold text-white mb-2">
               {t('reviewReport.descriptionLabel')}
-              <span className="text-red-500 ml-1">*</span>
+              <span className="text-red-500 ms-1">*</span>
             </label>
             <textarea
               value={description}

@@ -79,7 +79,7 @@ export default function ReviewsList({ userId }) {
               return (
                 <div key={star}
                      className="flex items-center gap-2 text-xs">
-                  <span className="text-gray-500 w-6 text-right shrink-0">
+                  <span className="text-gray-500 w-6 text-end shrink-0">
                     {star}
                   </span>
                   <Star size={10}

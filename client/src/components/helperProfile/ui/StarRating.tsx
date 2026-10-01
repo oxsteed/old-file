@@ -65,7 +65,7 @@ const StarRating: React.FC<StarRatingProps> = ({
         );
       })}
       {showValue && (
-        <span className="ml-1 text-sm font-semibold text-white">{rating.toFixed(1)}</span>
+        <span className="ms-1 text-sm font-semibold text-white">{rating.toFixed(1)}</span>
       )}
     </span>
   );

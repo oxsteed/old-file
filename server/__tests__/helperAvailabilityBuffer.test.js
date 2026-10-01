@@ -19,6 +19,7 @@ describe('helper availability booking buffer', () => {
     const helperId = '11111111-1111-4111-8111-111111111111';
 
     mockQuery
+      .mockResolvedValueOnce({ rows: [{ '?column?': 1 }] }) // H5: hidden-by-admin visibility guard
       .mockResolvedValueOnce({ rows: [{ timezone: null }] }) // getHelperTimeZone
       .mockResolvedValueOnce({
         rows: [

@@ -90,6 +90,14 @@ function requireActor(actorUserId, message = 'An identified administrator is req
   return actor;
 }
 
+function requireQuoteCustomerId(customerId) {
+  const normalized = normalizeString(customerId, 160);
+  if (!normalized || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(normalized)) {
+    throw new AppError('A valid customerId is required to issue a currency quote', 400, 'credit_conversion_quote_customer_required');
+  }
+  return normalized.toLowerCase();
+}
+
 function requireIdempotencyKey(value) {
   const key = normalizeString(value, 160);
   if (!key) throw new AppError('Idempotency-Key is required for currency conversions', 400, 'credit_idempotency_key_required');
@@ -114,6 +122,7 @@ function stableJson(value) {
 function formatCurrencyQuote(row) {
   return {
     id: String(row.id),
+    customerId: row.customer_id || null,
     sourceCurrencyCode: row.source_currency_code,
     targetCurrencyCode: row.target_currency_code,
     sourceAmountMinorUnits: Number(row.source_amount_minor_units),
@@ -185,6 +194,7 @@ function assertQuoteReplayMatches(existing, requested) {
 function assertCurrencyQuoteReplayMatches(existing, requested) {
   const mismatches = {};
   const fields = [
+    ['customer_id', requested.customerId],
     ['source_currency_code', requested.sourceCurrencyCode],
     ['target_currency_code', requested.targetCurrencyCode],
     ['source_amount_minor_units', requested.sourceAmountMinorUnits],
@@ -228,6 +238,7 @@ async function createCurrencyQuote({
   expiresAt,
   idempotencyKey,
   actorUserId,
+  customerId,
   reason,
   correlationId,
   metadata = {},
@@ -251,6 +262,7 @@ async function createCurrencyQuote({
   if (!normalizedReason) throw new AppError('A reason is required for currency quotes', 400, 'credit_conversion_reason_required');
   const actor = requireActor(actorUserId);
   const key = requireIdempotencyKey(idempotencyKey);
+  const quoteCustomerId = requireQuoteCustomerId(customerId);
   const expiry = resolveQuoteExpiry(expiresAt);
 
   return withTransaction(pool, async (client) => {
@@ -262,6 +274,7 @@ async function createCurrencyQuote({
     if (existingRows[0]) {
       const existing = existingRows[0];
       assertCurrencyQuoteReplayMatches(existing, {
+        customerId: quoteCustomerId,
         sourceCurrencyCode: sourceCurrency,
         targetCurrencyCode: targetCurrency,
         sourceAmountMinorUnits: sourceAmount,
@@ -281,14 +294,44 @@ async function createCurrencyQuote({
     await assertCreditRailEnabled(client);
     const { rows } = await client.query(
       `INSERT INTO oxsteed_credit_currency_quotes
-        (source_currency_code, target_currency_code, source_amount_minor_units,
+        (customer_id, source_currency_code, target_currency_code, source_amount_minor_units,
          target_amount_minor_units, fee_amount_minor_units, rate_numerator,
          rate_denominator, rounding_mode, provider, provider_quote_reference,
          expires_at, created_by, reason, metadata, idempotency_key)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb, $15)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16)
+       ON CONFLICT (idempotency_key) DO NOTHING
        RETURNING *`,
-      [sourceCurrency, targetCurrency, sourceAmount, targetAmount, feeAmount, numerator, denominator, roundingMode, providerName, providerReference, expiry, actor, normalizedReason, JSON.stringify(normalizeMetadata(metadata)), key]
+      [quoteCustomerId, sourceCurrency, targetCurrency, sourceAmount, targetAmount, feeAmount, numerator, denominator, roundingMode, providerName, providerReference, expiry, actor, normalizedReason, JSON.stringify(normalizeMetadata(metadata)), key]
     );
+    // A concurrent duplicate can lose the insert race after the first request
+    // commits. Re-read the winner and return it as a normal idempotent replay
+    // instead of surfacing a raw unique-violation 500.
+    if (!rows[0]) {
+      const { rows: winnerRows } = await client.query(
+        `SELECT * FROM oxsteed_credit_currency_quotes WHERE idempotency_key = $1 FOR UPDATE`,
+        [key]
+      );
+      if (!winnerRows[0]) {
+        throw new AppError('Currency quote could not be confirmed after an idempotent retry', 409, 'credit_idempotency_retry_required');
+      }
+      assertCurrencyQuoteReplayMatches(winnerRows[0], {
+        customerId: quoteCustomerId,
+        sourceCurrencyCode: sourceCurrency,
+        targetCurrencyCode: targetCurrency,
+        sourceAmountMinorUnits: sourceAmount,
+        targetAmountMinorUnits: targetAmount,
+        feeAmountMinorUnits: feeAmount,
+        rateNumerator: numerator,
+        rateDenominator: denominator,
+        roundingMode,
+        provider: providerName,
+        providerQuoteReference: providerReference,
+        reason: normalizedReason,
+        metadata: normalizeMetadata(metadata),
+        expiresAt: expiresAt ? expiry : null,
+      });
+      return { quote: formatCurrencyQuote(winnerRows[0]), replayed: true };
+    }
     return { quote: formatCurrencyQuote(rows[0]), replayed: false };
   }, 'credit_create_currency_quote');
 }
@@ -370,6 +413,9 @@ async function convertCustomerCreditInTransaction(client, { customerId, quoteId,
   );
   const quote = quoteRows[0];
   if (!quote) throw new AppError('Currency quote not found', 404, 'credit_conversion_quote_not_found');
+  if (!quote.customer_id || String(quote.customer_id).toLowerCase() !== String(normalizedCustomerId).toLowerCase()) {
+    throw new AppError('This currency quote was issued for a different customer', 409, 'credit_conversion_quote_customer_mismatch');
+  }
   if (quote.status !== 'open') throw new AppError('Currency quote is no longer available', 409, 'credit_conversion_quote_unavailable');
   if (new Date(quote.expires_at) <= new Date()) {
     await client.query(`UPDATE oxsteed_credit_currency_quotes SET status = 'expired', updated_at = NOW() WHERE id = $1`, [normalizedQuoteId]);

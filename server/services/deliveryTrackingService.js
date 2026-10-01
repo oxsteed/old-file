@@ -64,6 +64,21 @@ function isUniqueViolation(err) {
   return err && err.code === '23505';
 }
 
+// M14: a driver_phone device is bound to one driver. Never let driver A start
+// tracking (or grant consent) on driver B's phone — that would leak B's live
+// GPS to A's delivery. vehicle_tracker fleet assets are exempt: they are bound
+// to a vehicle, not a driver, and the delivery assignment authorizes use.
+function verifyDeviceForDriver(device, driverUserId) {
+  if (!device || device.status !== 'active') {
+    throw trackingError('tracking_device_not_active', 'Tracking device is not active', 409);
+  }
+  if (device.kind === 'driver_phone'
+    && String(device.driver_user_id || '') !== String(driverUserId || '')) {
+    throw trackingError('tracking_device_not_owned', 'This tracking device belongs to another driver', 403);
+  }
+  return device;
+}
+
 function haversineMeters(lat1, lng1, lat2, lng2) {
   const R = 6371000;
   const toRad = (deg) => (deg * Math.PI) / 180;
@@ -109,6 +124,16 @@ async function grantConsent({ deliveryJobId, driverUserId, deviceId = null, cons
   const job = await getDeliveryJob(pool, deliveryJobId);
   if (!job) {
     throw trackingError('tracking_delivery_not_found', 'Delivery job not found', 404);
+  }
+
+  // M14: consent must name a device the driver actually owns. Otherwise driver
+  // A could consent tracking on driver B's phone.
+  if (deviceId) {
+    const { rows: deviceRows } = await pool.query(
+      'SELECT id, kind, status, driver_user_id FROM delivery_tracking_devices WHERE id = $1',
+      [deviceId]
+    );
+    verifyDeviceForDriver(deviceRows[0], driverUserId);
   }
 
   const { rows } = await pool.query(
@@ -239,10 +264,7 @@ async function startTracking({ deliveryJobId, deviceId, driverUserId, vehicleId 
       'SELECT id, kind, status, driver_user_id FROM delivery_tracking_devices WHERE id = $1',
       [deviceId]
     );
-    const device = deviceRows[0];
-    if (!device || device.status !== 'active') {
-      throw trackingError('tracking_device_not_active', 'Tracking device is not active', 409);
-    }
+    verifyDeviceForDriver(deviceRows[0], driverUserId);
 
     let assignment;
     try {
@@ -721,4 +743,5 @@ module.exports = {
   // exported for testing
   _validatePoint: validatePoint,
   _haversineMeters: haversineMeters,
+  _verifyDeviceForDriver: verifyDeviceForDriver,
 };

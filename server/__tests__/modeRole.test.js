@@ -43,6 +43,7 @@ describe('mode role policy', () => {
     const res = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn().mockReturnThis(),
+      cookie: jest.fn().mockReturnThis(),
     };
 
     await authController.switchRole(req, res);
@@ -67,6 +68,7 @@ describe('mode role policy', () => {
     const res = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn().mockReturnThis(),
+      cookie: jest.fn().mockReturnThis(),
     };
     mockQuery
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
@@ -106,6 +108,7 @@ describe('mode role policy', () => {
     const res = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn().mockReturnThis(),
+      cookie: jest.fn().mockReturnThis(),
     };
     mockQuery
       .mockResolvedValueOnce({ rows: [] }) // BEGIN

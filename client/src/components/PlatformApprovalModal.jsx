@@ -223,7 +223,7 @@ export default function PlatformApprovalModal({
                   {fields.map((f) => (
                     <div key={f.name} className="flex flex-col gap-1">
                       <label htmlFor={`pa-${f.name}`} className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">
-                        {f.label}{f.required && <span className="text-red-400 ml-0.5">*</span>}
+                        {f.label}{f.required && <span className="text-red-400 ms-0.5">*</span>}
                       </label>
                       <FieldInput field={f} value={formData[f.name]} onChange={handleChange} error={errors[f.name]} />
                       {f.hint && <span className="text-[11px] text-gray-500">{f.hint}</span>}

@@ -29,13 +29,10 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${token}`;
-  } else {
-    // Log missing token for debugging
-    console.warn('[axios] No access token found for request:', {
-      method: config.method,
-      url: config.url,
-    });
   }
+  // Audit L11: no console logging of request URLs here. URLs can carry
+  // tokens/ids in query strings, and console output is visible to anyone
+  // with the devtools open (plus some extensions scrape it).
 
   config.headers = config.headers || {};
   const preferredLanguage = getPreferredLanguage();

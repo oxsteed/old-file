@@ -1378,8 +1378,20 @@ exports.issueManualRefund = async (req, res) => {
         after: { refund_cents: refundAmountCents == null ? capturedCents : refundAmountCents, stripe_refund_id: refund.id, request_id: requestId },
         req,
       });
-    } catch (e) {}
-    res.json({ message: `Refund issued successfully.`, refundId: refund.id });
+    } catch (e) {
+      // The refund has already succeeded at this point, so the response
+      // stays 200; but a missing manual_refund_issued audit row is a
+      // compliance gap. Log loudly (was: catch (e) {}) so the gap is
+      // visible and can be backfilled from the Stripe refund id.
+      logger.error('manual_refund_issued audit write failed AFTER refund issued', {
+        jobId,
+        paymentId: payment.id,
+        adminId,
+        stripeRefundId: refund.id,
+        requestId,
+        error: e.message,
+      });
+    }
   } catch (err) { logger.error('issueManualRefund error', { err }); res.status(500).json({ error: 'Refund failed.' }); }
 };
 
@@ -3313,7 +3325,7 @@ exports.impersonateUser = async (req, res) => {
     }
 
     const { rows } = await db.query(
-      `SELECT id, first_name, last_name, email, role FROM users WHERE id = $1 AND deleted_at IS NULL`,
+      `SELECT id, first_name, last_name, email, role, is_active FROM users WHERE id = $1 AND deleted_at IS NULL`,
       [userId]
     );
     if (!rows.length) return res.status(404).json({ error: 'User not found.' });
@@ -3323,26 +3335,31 @@ exports.impersonateUser = async (req, res) => {
     if (['admin', 'super_admin'].includes(target.role)) {
       return res.status(403).json({ error: 'Cannot impersonate admin accounts.' });
     }
+    // H8b/M23: refuse impersonating deactivated accounts.
+    if (target.is_active === false) {
+      return res.status(403).json({ error: 'Cannot impersonate a deactivated account.' });
+    }
 
     const jti = crypto.randomUUID();
-    const impersonationToken = jwt.sign(
-      {
-        id:              target.id,
-        email:           target.email,
-        role:            target.role,
-        impersonation:   true,
-        impersonated_by: adminId,
-        jti,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: '30m', algorithm: 'HS256' }
-    );
 
     // Log the session
     await db.query(
       `INSERT INTO user_impersonation_log (admin_id, target_user_id, token_jti, ip_address, user_agent)
        VALUES ($1, $2, $3, $4, $5)`,
       [adminId, userId, jti, req.ip || null, req.headers['user-agent'] || null]
+    );
+
+    // H8b: the JWT never goes in the URL. Issue a one-time, 60s exchange code;
+    // the /impersonate page swaps it for the JWT via an authenticated POST.
+    const exchangeCode = crypto.randomBytes(32).toString('hex');
+    const exchangeCodeHash = crypto.createHash('sha256').update(exchangeCode).digest('hex');
+    await db.query(
+      `UPDATE user_impersonation_log
+          SET exchange_code_hash = $1,
+              exchange_code_expires_at = NOW() + INTERVAL '60 seconds',
+              exchange_code_used_at = NULL
+        WHERE admin_id = $2 AND token_jti = $3`,
+      [exchangeCodeHash, adminId, jti]
     );
 
     await logAdminAction({
@@ -3356,8 +3373,9 @@ exports.impersonateUser = async (req, res) => {
 
     logger.info('Admin impersonation started', { adminId, targetUserId: userId, jti });
 
+    // H8b: return the one-time exchange code, not the JWT.
     res.json({
-      impersonationToken,
+      exchangeCode,
       userId,
       user: {
         id:         target.id,
@@ -3374,6 +3392,44 @@ exports.impersonateUser = async (req, res) => {
 };
 
 /**
+ * POST /admin/users/impersonate/exchange
+ * Swaps a one-time exchange code for the impersonation JWT. Authenticated by
+ * the admin's own Bearer token; code is single-use, 60s expiry, admin-bound.
+ */
+exports.exchangeImpersonationCode = async (req, res) => {
+  try {
+    const adminId = req.user.id;
+    const { code } = req.body || {};
+    if (!code) return res.status(400).json({ error: 'Exchange code required.' });
+    const codeHash = crypto.createHash('sha256').update(String(code)).digest('hex');
+    const { rows } = await db.query(
+      `UPDATE user_impersonation_log
+          SET exchange_code_used_at = NOW()
+        WHERE exchange_code_hash = $1 AND admin_id = $2
+          AND exchange_code_expires_at > NOW()
+          AND exchange_code_used_at IS NULL AND ended_at IS NULL
+        RETURNING token_jti, target_user_id`,
+      [codeHash, adminId]
+    );
+    if (!rows.length) return res.status(410).json({ error: 'Exchange code invalid, expired, or already used.' });
+    const { rows: trows } = await db.query(
+      `SELECT id, first_name, last_name, email, role FROM users WHERE id = $1 AND deleted_at IS NULL`,
+      [rows[0].target_user_id]
+    );
+    if (!trows.length) return res.status(404).json({ error: 'User not found.' });
+    const target = trows[0];
+    const impersonationToken = jwt.sign(
+      { id: target.id, email: target.email, role: target.role, impersonation: true, impersonated_by: adminId, jti: rows[0].token_jti },
+      process.env.JWT_SECRET, { expiresIn: '30m', algorithm: 'HS256' }
+    );
+    res.json({ impersonationToken, userId: target.id });
+  } catch (err) {
+    logger.error('exchangeImpersonationCode error', { err });
+    res.status(500).json({ error: 'Failed to exchange impersonation code.' });
+  }
+};
+
+/**
  * POST /admin/users/:userId/impersonate/end
  * Marks the impersonation session ended (by jti).
  */
@@ -3381,10 +3437,12 @@ exports.endImpersonation = async (req, res) => {
   try {
     const { jti } = req.body;
     if (!jti) return res.status(400).json({ error: 'jti required.' });
+    const adminId = req.user.id;
 
+    // M23: only the admin who started the session can end it.
     await db.query(
-      `UPDATE user_impersonation_log SET ended_at = NOW() WHERE token_jti = $1 AND ended_at IS NULL`,
-      [jti]
+      `UPDATE user_impersonation_log SET ended_at = NOW() WHERE token_jti = $1 AND admin_id = $2 AND ended_at IS NULL`,
+      [jti, adminId]
     );
 
     // Revoke the JWT itself: impersonation tokens skip the standard token

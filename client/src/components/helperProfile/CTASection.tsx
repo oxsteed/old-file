@@ -71,7 +71,7 @@ const CTASection: React.FC<CTASectionProps> = ({
         aria-expanded={isExpanded}
         aria-label={isExpanded ? t('helperProfile.cta.hideDetails') : t('helperProfile.cta.showDetails')}
       >
-        <div className="flex items-baseline gap-1 text-left">
+        <div className="flex items-baseline gap-1 text-start">
           <span className="text-2xl font-bold text-white">{priceLabel}</span>
           {priceUnitLabel && <span className="text-gray-400 text-sm">{priceUnitLabel}</span>}
         </div>

@@ -133,20 +133,22 @@ exports.setTemplate = async (req, res, next) => {
 // Backed by availability_blocks (the ONE dated-exceptions store). Mapped to
 // the historical override shape so existing clients keep working.
 // ─────────────────────────────────────────────────────────────────
-function blockToOverride(b) {
+// Render stored UTC block bounds back into the helper's wall-clock time so the
+// override round-trips with createOverride (audit M11).
+function blockToOverride(b, timeZone = null) {
   const start = new Date(b.start_time);
   const end = new Date(b.end_time);
   const pad = (n) => String(n).padStart(2, '0');
-  const fullDay =
-    start.getUTCHours() === 0 && start.getUTCMinutes() === 0 &&
-    end.getUTCHours() === 0 && end.getUTCMinutes() === 0;
+  const sp = availabilityService.zonedParts(start, timeZone);
+  const ep = availabilityService.zonedParts(end, timeZone);
+  const fullDay = sp.hour === 0 && sp.minute === 0 && ep.hour === 0 && ep.minute === 0;
   return {
     id: b.id,
     helper_id: b.helper_id,
-    override_date: start.toISOString().split('T')[0],
+    override_date: availabilityService.zonedDateStr(start, timeZone),
     is_blocked: b.type !== 'available',
-    start_time: fullDay ? null : `${pad(start.getUTCHours())}:${pad(start.getUTCMinutes())}`,
-    end_time: fullDay ? null : `${pad(end.getUTCHours())}:${pad(end.getUTCMinutes())}`,
+    start_time: fullDay ? null : `${pad(sp.hour)}:${pad(sp.minute)}`,
+    end_time: fullDay ? null : `${pad(ep.hour)}:${pad(ep.minute)}`,
     reason: b.title || b.notes || null,
     type: b.type,
   };
@@ -168,7 +170,8 @@ exports.getOverrides = async (req, res, next) => {
         ORDER BY start_time`,
       params
     );
-    res.json({ overrides: rows.map(blockToOverride) });
+    const helperTimeZone = await availabilityService.getHelperTimeZone(pool, req.user.id);
+    res.json({ overrides: rows.map((row) => blockToOverride(row, helperTimeZone)) });
   } catch (err) {
     next(err);
   }
@@ -197,15 +200,21 @@ exports.createOverride = async (req, res, next) => {
   }
 
   try {
-    const startTs = `${override_date}T${start_time || '00:00'}:00Z`;
-    const endTs = end_time
-      ? `${override_date}T${end_time}:00Z`
-      : `${override_date}T00:00:00Z`;
-    // Full-day block when no times given: end is the next midnight.
-    const endIso = !start_time && !end_time
-      ? new Date(new Date(`${override_date}T00:00:00Z`).getTime() + 86_400_000).toISOString()
-      : new Date(endTs).toISOString();
-    if (!(new Date(endIso) > new Date(startTs))) {
+    // Interpret the override's wall-clock times in the helper's timezone
+    // (audit M11): they were previously stored as UTC, but the availability
+    // engine buckets blocks by helper-local wall clock, so non-UTC helpers
+    // got shifted blocks.
+    const helperTimeZone = await availabilityService.getHelperTimeZone(pool, helperId);
+    const startUtcMs = start_time
+      ? availabilityService.zonedLocalToUTC(override_date, toMinutes(start_time), helperTimeZone)
+      : availabilityService.zonedDayStartUTC(override_date, helperTimeZone);
+    // Full-day block when no times given: end is the next local midnight.
+    const endUtcMs = !start_time && !end_time
+      ? availabilityService.zonedDayStartUTC(availabilityService.addDaysISO(override_date, 1), helperTimeZone)
+      : availabilityService.zonedLocalToUTC(override_date, toMinutes(end_time || '00:00'), helperTimeZone);
+    const startIso = new Date(startUtcMs).toISOString();
+    const endIso = new Date(endUtcMs).toISOString();
+    if (!(new Date(endIso) > new Date(startIso))) {
       return next(new AppError('end_time must be after start_time', 400, 'validation_failed', {
         end_time: 'Must be after start_time',
       }));
@@ -216,9 +225,9 @@ exports.createOverride = async (req, res, next) => {
          (helper_id, start_time, end_time, type, title, notes)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id, helper_id, start_time, end_time, type, title, notes`,
-      [helperId, new Date(startTs).toISOString(), endIso, is_blocked ? 'unavailable' : 'available', reason, reason]
+      [helperId, startIso, endIso, is_blocked ? 'unavailable' : 'available', reason, reason]
     );
-    res.status(201).json(blockToOverride(row));
+    res.status(201).json(blockToOverride(row, helperTimeZone));
   } catch (err) {
     next(err);
   }
@@ -274,6 +283,19 @@ exports.getAvailableSlots = async (req, res, next) => {
   }
 
   try {
+    // Hidden-by-admin profiles must not surface bookable slots.
+    const { rows: visRows } = await pool.query(
+      `SELECT 1 FROM helper_profiles hp
+       JOIN users u ON u.id = hp.user_id
+       WHERE hp.user_id = $1
+         AND u.deleted_at IS NULL
+         AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
+      [helperId]
+    );
+    if (!visRows.length) {
+      return next(new AppError('Helper not found', 404, 'not_found'));
+    }
+
     // Single-system computation: weekly template − dated blocks − appointments.
     // Anchored in the helper's timezone so "today" and block dates follow the
     // helper's wall clock, not the server's.

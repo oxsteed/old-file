@@ -213,6 +213,7 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
        WHERE u.deleted_at IS NULL AND u.is_active = TRUE AND u.role IN ('helper', 'helper_pro', 'broker')
          AND u.email_verified = TRUE AND u.onboarding_completed = TRUE
          AND COALESCE(hp.is_listed, TRUE) = TRUE
+         AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE
          AND (
            (
              CASE
@@ -359,6 +360,7 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
          AND u.email_verified = TRUE
          AND u.onboarding_completed = TRUE
          AND (hp.user_id IS NULL OR COALESCE(hp.is_listed, TRUE) = TRUE)
+         AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
          AND (
            LOWER(b.business_name) LIKE ANY($1::text[])
            OR LOWER(COALESCE(b.description, '')) LIKE ANY($1::text[])
@@ -508,6 +510,7 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
            WHERE u.deleted_at IS NULL AND u.role IN ('helper', 'helper_pro', 'broker')
              AND u.email_verified AND u.onboarding_completed
              AND COALESCE(hp.is_listed, TRUE) = TRUE
+             AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE
              AND LOWER(hs.skill_name) LIKE ANY($1::text[])
            GROUP BY u.id, u.first_name, u.last_name, u.display_name_preference, pb.business_name
            LIMIT 4`,
@@ -623,6 +626,7 @@ exports.discoverPopular = async (req, res) => {
        WHERE u.deleted_at IS NULL AND u.is_active = TRUE AND u.role IN ('helper', 'helper_pro', 'broker')
          AND u.email_verified AND u.onboarding_completed
          AND COALESCE(hp.is_listed, TRUE) = TRUE
+         AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE
          ${helperGeo}
        ORDER BY hp.total_reviews DESC NULLS LAST, hp.avg_rating DESC NULLS LAST
        LIMIT 6`,
@@ -730,6 +734,7 @@ exports.discoverPopular = async (req, res) => {
          AND u.email_verified = TRUE
          AND u.onboarding_completed = TRUE
          AND (hp.user_id IS NULL OR COALESCE(hp.is_listed, TRUE) = TRUE)
+         AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
          ${bizGeo}
        ORDER BY b.updated_at DESC NULLS LAST LIMIT 4`,
       bp,

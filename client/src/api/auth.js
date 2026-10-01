@@ -12,10 +12,12 @@ function setStoredAccessToken(token) {
   }
 }
 
-function setStoredRefreshToken(token) {
-  if (token) {
-    localStorage.setItem(REFRESH_TOKEN_KEY, token);
-  }
+// H8d: the refresh token is no longer persisted to localStorage on web. The
+// server sets it as an httpOnly + Secure + SameSite cookie on login/refresh,
+// so XSS cannot steal it. This helper is kept as a no-op for API
+// compatibility; native clients receive the token in the JSON body as before.
+function setStoredRefreshToken(_token) {
+  // Intentionally not stored: refresh travels via the httpOnly cookie.
 }
 
 function setStoredUser(user) {
@@ -49,6 +51,10 @@ export function getAccessToken() {
   return localStorage.getItem(ACCESS_TOKEN_KEY);
 }
 
+// Returns a locally stored refresh token if one exists (pre-migration
+// sessions). New sessions rely on the httpOnly cookie, which JS cannot read;
+// the refresh interceptor sends the cookie automatically via withCredentials
+// and only includes the body token when one is stored.
 export function getRefreshToken() {
   return localStorage.getItem(REFRESH_TOKEN_KEY);
 }
@@ -91,9 +97,10 @@ api.interceptors.response.use(
 
     const refreshToken = getRefreshToken();
     if (!refreshToken) {
-      clearStoredSession();
-      // Don't hard-redirect - let ProtectedRoute handle navigation
-      return Promise.reject(error);
+      // H8d: no stored token — the httpOnly cookie (sent automatically via
+      // withCredentials) is the refresh credential for current web sessions.
+      // Keep the local session; the refresh attempt below will clear it on a
+      // genuine 401.
     }
 
     originalRequest._retry = true;
@@ -101,11 +108,13 @@ api.interceptors.response.use(
     try {
       refreshPromise =
         refreshPromise ||
-        api.post('/auth/refresh', { refreshToken });
+        // withCredentials sends the httpOnly refresh cookie automatically.
+        // Include the body token only when a legacy stored token exists
+        // (native/mobile clients and pre-migration web sessions).
+        api.post('/auth/refresh', refreshToken ? { refreshToken } : {});
 
       const response = await refreshPromise;
       const newAccessToken = response.data?.accessToken;
-      const newRefreshToken = response.data?.refreshToken;
 
       if (!newAccessToken) {
         clearStoredSession();
@@ -116,9 +125,8 @@ api.interceptors.response.use(
       // (which reads accessToken from localStorage on every call) picks up
       // the new token.
       localStorage.setItem(ACCESS_TOKEN_KEY, newAccessToken);
-      if (newRefreshToken) {
-        localStorage.setItem(REFRESH_TOKEN_KEY, newRefreshToken);
-      }
+      // H8d: do NOT persist the refresh token — the server rotated the
+      // httpOnly cookie; keeping a localStorage copy would defeat the point.
       if (response.data?.user) {
         localStorage.setItem(USER_KEY, JSON.stringify(response.data.user));
       }

@@ -19,7 +19,7 @@ export function DefaultTemplate({ profileData }) {
         {helper.coverImage && (
           <img src={helper.coverImage} alt="cover" className="w-full h-52 object-cover opacity-40" />
         )}
-        <div className={`${helper.coverImage ? 'absolute bottom-0 left-0 right-0' : ''} p-6`}>
+        <div className={`${helper.coverImage ? 'absolute bottom-0 start-0 end-0' : ''} p-6`}>
           <div className="max-w-4xl mx-auto flex items-end gap-5">
             <Avatar src={helper.avatar} name={helper.ownerName} size={90}
               className="border-4 border-gray-900 bg-gray-800 text-gray-300" />
@@ -230,7 +230,7 @@ export function HandymanTemplate({ profileData }) {
           <div className="flex flex-col sm:flex-row items-center gap-5 mb-6">
             <Avatar src={helper.avatar} name={helper.ownerName} size={88}
               className="border-4 bg-amber-800 text-white shadow-xl" style={{ borderColor: 'rgba(255,255,255,0.4)' }} />
-            <div className="text-center sm:text-left">
+            <div className="text-center sm:text-start">
               <span className="text-xs font-bold uppercase tracking-widest opacity-70">Your Neighborhood Handyman</span>
               <h1 className="text-3xl font-black mt-1">{helper.businessName}</h1>
               <p className="opacity-85 text-sm mt-1">{helper.tagline}</p>
@@ -345,7 +345,7 @@ export function HomeGardenTemplate({ profileData }) {
           ? <img src={helper.coverImage} alt="cover" className="w-full h-56 object-cover" />
           : <div className="h-56" style={{ background: 'linear-gradient(135deg, #15803d 0%, #166534 60%, #052e16 100%)' }} />}
         <div className="absolute inset-0 bg-gradient-to-b from-black/10 to-black/60" />
-        <div className="absolute bottom-0 left-0 right-0 px-6 py-5">
+        <div className="absolute bottom-0 start-0 end-0 px-6 py-5">
           <div className="max-w-5xl mx-auto flex items-end gap-4">
             <Avatar src={helper.avatar} name={helper.ownerName} size={84}
               className="border-4 bg-green-800 text-white shadow-xl flex-shrink-0"
@@ -449,7 +449,7 @@ export function CleaningServiceTemplate({ profileData }) {
           <div className="flex flex-col sm:flex-row items-center gap-5">
             <Avatar src={helper.avatar} name={helper.ownerName} size={88}
               className="border-4 bg-teal-700 text-white" style={{ borderColor: 'rgba(255,255,255,0.4)' }} />
-            <div className="text-center sm:text-left">
+            <div className="text-center sm:text-start">
               <div className="flex items-center gap-1.5 mb-1 justify-center sm:justify-start">
                 <Sparkles size={13} className="text-teal-200" />
                 <span className="text-xs font-bold uppercase tracking-widest text-teal-200">Professional Cleaning</span>
@@ -579,10 +579,10 @@ export function PestControlTemplate({ profileData }) {
             <div className="relative">
               <Avatar src={helper.avatar} name={helper.ownerName} size={96}
                 className="border-4 bg-red-900 text-white" style={{ borderColor: '#ef4444' }} />
-              <Bug size={18} className="absolute -bottom-1 -right-1 rounded-full p-1 text-white"
+              <Bug size={18} className="absolute -bottom-1 -end-1 rounded-full p-1 text-white"
                 style={{ background: '#ef4444' }} />
             </div>
-            <div className="flex-1 text-center md:text-left">
+            <div className="flex-1 text-center md:text-start">
               <span className="text-xs font-bold uppercase tracking-widest" style={{ color: '#fca5a5' }}>
                 Certified Pest Elimination Specialists
               </span>
@@ -708,10 +708,10 @@ export function MovingHaulingTemplate({ profileData }) {
               <Avatar src={helper.avatar} name={helper.ownerName} size={96}
                 className="border-4 bg-blue-800 text-white shadow-xl"
                 style={{ borderColor: '#facc15' }} />
-              <Truck size={18} className="absolute -bottom-1 -right-1 rounded-full p-1"
+              <Truck size={18} className="absolute -bottom-1 -end-1 rounded-full p-1"
                 style={{ background: '#facc15', color: '#1e3a5f' }} />
             </div>
-            <div className="flex-1 text-center md:text-left">
+            <div className="flex-1 text-center md:text-start">
               <span className="text-xs font-bold uppercase tracking-widest text-yellow-300">Moving & Hauling</span>
               <h1 className="text-3xl font-black mt-1">{helper.businessName}</h1>
               <p className="text-blue-100 text-sm mt-1">{helper.tagline}</p>
@@ -816,7 +816,7 @@ export function InteriorDesignTemplate({ profileData }) {
           ? <img src={heroImg.url} alt="featured interior" className="w-full h-full object-cover" />
           : <div className="w-full h-full" style={{ background: 'linear-gradient(135deg, #d4a853, #92620c)' }} />}
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 px-8 py-6">
+        <div className="absolute bottom-0 start-0 end-0 px-8 py-6">
           <span className="font-sans text-xs font-bold uppercase tracking-[0.3em] text-amber-300">Interior Design Studio</span>
           <h1 className="text-4xl font-serif font-bold text-white mt-1 drop-shadow-lg">{helper.businessName}</h1>
         </div>
@@ -837,7 +837,7 @@ export function InteriorDesignTemplate({ profileData }) {
               <LocationChip city={helper.city} state={helper.state} className="font-sans text-xs text-amber-700" />
             </div>
           </div>
-          <div className="ml-auto text-right hidden sm:block">
+          <div className="ms-auto text-end hidden sm:block">
             <ContactRow phone={phone} website={website} linkClass="text-amber-700 text-sm font-sans hover:text-amber-900" />
           </div>
         </div>

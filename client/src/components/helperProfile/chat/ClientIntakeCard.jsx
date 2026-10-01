@@ -33,7 +33,7 @@ export default function ClientIntakeCard({
   };
 
   return (
-    <div className="client-intake-card rounded-xl border border-orange-400/30 bg-orange-950/20 p-3.5 text-left">
+    <div className="client-intake-card rounded-xl border border-orange-400/30 bg-orange-950/20 p-3.5 text-start">
       <div className="flex items-start gap-2">
         <ClipboardList className="mt-0.5 h-5 w-5 flex-shrink-0 text-orange-300" aria-hidden="true" />
         <div className="min-w-0 flex-1">

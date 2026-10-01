@@ -251,29 +251,29 @@ export function ExpenseTrackingTab({ businessId, currency = 'USD' }) {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-700 text-gray-400 text-left">
-                <th className="pb-2 pr-4">{t('businessHub.expenseTracking.date')}</th>
-                <th className="pb-2 pr-4">{t('businessHub.expenseTracking.category')}</th>
-                <th className="pb-2 pr-4">{t('businessHub.expenseTracking.descriptionHeader')}</th>
-                <th className="pb-2 pr-4 text-right">{t('businessHub.expenseTracking.amountHeader')}</th>
-                <th className="pb-2 text-right">{t('businessHub.expenseTracking.actions')}</th>
+              <tr className="border-b border-gray-700 text-gray-400 text-start">
+                <th className="pb-2 pe-4">{t('businessHub.expenseTracking.date')}</th>
+                <th className="pb-2 pe-4">{t('businessHub.expenseTracking.category')}</th>
+                <th className="pb-2 pe-4">{t('businessHub.expenseTracking.descriptionHeader')}</th>
+                <th className="pb-2 pe-4 text-end">{t('businessHub.expenseTracking.amountHeader')}</th>
+                <th className="pb-2 text-end">{t('businessHub.expenseTracking.actions')}</th>
               </tr>
             </thead>
             <tbody>
               {expenses.map(exp => (
                 <tr key={exp.id} className="border-b border-gray-800 hover:bg-gray-800/40">
-                  <td className="py-3 pr-4 text-gray-300 whitespace-nowrap">
+                  <td className="py-3 pe-4 text-gray-300 whitespace-nowrap">
                     {exp.expense_date ? formatDate(`${exp.expense_date}T00:00:00`, { month: 'short', day: 'numeric', year: undefined }) : '-'}
                   </td>
-                  <td className="py-3 pr-4">
+                  <td className="py-3 pe-4">
                     <span className="capitalize bg-gray-700 text-orange-300 text-xs px-2 py-0.5 rounded-full">
                       {t(`businessHub.expenseTracking.categories.${exp.category}`, exp.category)}
                     </span>
                   </td>
-                  <td className="py-3 pr-4 text-gray-200">{exp.description}</td>
-                  <td className="py-3 pr-4 text-right font-medium text-white">{fmtCents(exp.amount_cents, currency)}</td>
-                  <td className="py-3 text-right">
-                    <button onClick={() => openEdit(exp)} className="text-blue-400 hover:text-blue-300 mr-3 text-xs">{t('common.edit')}</button>
+                  <td className="py-3 pe-4 text-gray-200">{exp.description}</td>
+                  <td className="py-3 pe-4 text-end font-medium text-white">{fmtCents(exp.amount_cents, currency)}</td>
+                  <td className="py-3 text-end">
+                    <button onClick={() => openEdit(exp)} className="text-blue-400 hover:text-blue-300 me-3 text-xs">{t('common.edit')}</button>
                     <button onClick={() => handleDelete(exp.id)} className="text-red-400 hover:text-red-300 text-xs">{t('common.delete')}</button>
                   </td>
                 </tr>

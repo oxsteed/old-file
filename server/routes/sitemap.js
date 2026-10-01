@@ -85,6 +85,7 @@ router.get('/', async (_req, res) => {
          AND u.email_verified = TRUE
          AND u.onboarding_completed = TRUE
          AND COALESCE(hp.is_listed, TRUE) = TRUE
+         AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE
        ORDER BY hp.updated_at DESC
        LIMIT 5000`,
     );
@@ -98,6 +99,7 @@ router.get('/', async (_req, res) => {
          AND u.email_verified = TRUE
          AND u.onboarding_completed = TRUE
          AND (hp.user_id IS NULL OR COALESCE(hp.is_listed, TRUE) = TRUE)
+         AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
        ORDER BY b.updated_at DESC NULLS LAST
       LIMIT 2000`,
     );
@@ -128,6 +130,7 @@ router.get('/', async (_req, res) => {
           AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
           AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
           AND b.deleted_at IS NULL
+          AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
         ORDER BY fr.updated_at DESC NULLS LAST
         LIMIT 2000`,
     );

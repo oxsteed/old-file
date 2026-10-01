@@ -50,7 +50,9 @@ beforeEach(() => resetMocks());
 describe('food loyalty redeem (B4)', () => {
   test('applies loyalty points as checkout discount and writes ledger debit', async () => {
     mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // replay lookup (pre-lock): no existing order
       .mockResolvedValueOnce({ rows: [restaurantRow()] })
+      .mockResolvedValueOnce({ rows: [] }) // replay lookup (post-lock recheck): no existing order
       .mockResolvedValueOnce({
         rows: [{
           id: MENU_ITEM_ID,
@@ -84,6 +86,7 @@ describe('food loyalty redeem (B4)', () => {
 
     const res = await request(buildApp())
       .post(`/api/food/restaurants/${RESTAURANT_ID}/orders`)
+      .set('Idempotency-Key', 'test-key-1')
       .send({
         fulfillmentType: 'pickup',
         loyaltyPointsToRedeem: 500,
@@ -93,8 +96,8 @@ describe('food loyalty redeem (B4)', () => {
     expect(res.status).toBe(201);
     expect(res.body.order.discount_cents).toBe(500);
     expect(res.body.order.total_cents).toBe(399);
-    expect(mockQuery.mock.calls[2][0]).toMatch(/FROM food_loyalty_accounts/);
-    expect(mockQuery.mock.calls[2][0]).toMatch(/FOR UPDATE/);
+    expect(mockQuery.mock.calls[4][0]).toMatch(/FROM food_loyalty_accounts/);
+    expect(mockQuery.mock.calls[4][0]).toMatch(/FOR UPDATE/);
     const loyaltyAccountUpdateCall = mockQuery.mock.calls.find(([sql]) => /UPDATE food_loyalty_accounts/.test(sql));
     const loyaltyLedgerInsertCall = mockQuery.mock.calls.find(([sql]) => /INSERT INTO food_loyalty_ledger/.test(sql));
     expect(loyaltyAccountUpdateCall?.[0]).toMatch(/UPDATE food_loyalty_accounts/);
@@ -104,7 +107,9 @@ describe('food loyalty redeem (B4)', () => {
 
   test('caps redemption at subtotal and ignores requests below minimum', async () => {
     mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // replay lookup (pre-lock): no existing order
       .mockResolvedValueOnce({ rows: [restaurantRow()] })
+      .mockResolvedValueOnce({ rows: [] }) // replay lookup (post-lock recheck): no existing order
       .mockResolvedValueOnce({
         rows: [{
           id: MENU_ITEM_ID,
@@ -132,6 +137,7 @@ describe('food loyalty redeem (B4)', () => {
 
     const res = await request(buildApp())
       .post(`/api/food/restaurants/${RESTAURANT_ID}/orders`)
+      .set('Idempotency-Key', 'test-key-1')
       .send({
         fulfillmentType: 'pickup',
         loyaltyPointsToRedeem: 50,
@@ -145,7 +151,9 @@ describe('food loyalty redeem (B4)', () => {
 
   test('guest orders cannot redeem loyalty points', async () => {
     mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // replay lookup (pre-lock): no existing order
       .mockResolvedValueOnce({ rows: [restaurantRow()] })
+      .mockResolvedValueOnce({ rows: [] }) // replay lookup (post-lock recheck): no existing order
       .mockResolvedValueOnce({
         rows: [{
           id: MENU_ITEM_ID,
@@ -178,6 +186,7 @@ describe('food loyalty redeem (B4)', () => {
 
     const res = await request(app)
       .post(`/api/food/restaurants/${RESTAURANT_ID}/orders`)
+      .set('Idempotency-Key', 'test-key-1')
       .send({
         fulfillmentType: 'pickup',
         guestName: 'Guest Shopper',

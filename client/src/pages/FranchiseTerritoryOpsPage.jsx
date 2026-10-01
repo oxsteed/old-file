@@ -69,7 +69,7 @@ const TRAINING_LABEL_KEYS = {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function FranchiseTerritoryOpsPage() {
-  const { t } = useTranslation('franchiseTerritoryPage');
+  const { t } = useTranslation();
   const [stats, setStats]     = useState(null);
   const [helpers, setHelpers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -86,7 +86,7 @@ export default function FranchiseTerritoryOpsPage() {
       setStats(sRes.data);
       setHelpers(hRes.data?.helpers ?? []);
     } catch (e) {
-      setError(t('errors.loadFailure'));
+      setError(t('franchiseTerritoryPage.errors.loadFailure'));
     } finally {
       setLoading(false);
     }
@@ -109,18 +109,18 @@ export default function FranchiseTerritoryOpsPage() {
           <div className="max-w-lg text-center space-y-5">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-orange-500/10 text-orange-400 border border-orange-500/20">
               <Building2 size={13} />
-              {t('noTerritory.badge')}
+              {t('franchiseTerritoryPage.noTerritory.badge')}
             </div>
-            <h1 className="text-2xl font-bold">{t('noTerritory.title')}</h1>
+            <h1 className="text-2xl font-bold">{t('franchiseTerritoryPage.noTerritory.title')}</h1>
             <p className="text-gray-400 text-sm leading-relaxed">
-              {t('noTerritory.description')}
+              {t('franchiseTerritoryPage.noTerritory.description')}
             </p>
             <div className="flex gap-3 justify-center flex-wrap">
               <Link to="/franchise/status" className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition">
-                {t('noTerritory.viewApplication')} <ArrowRight size={14} />
+                {t('franchiseTerritoryPage.noTerritory.viewApplication')} <ArrowRight size={14} />
               </Link>
               <Link to="/franchise/apply" className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-gray-700 text-sm font-semibold hover:bg-gray-800 transition">
-                {t('noTerritory.applyNow')}
+                {t('franchiseTerritoryPage.noTerritory.applyNow')}
               </Link>
             </div>
           </div>
@@ -140,17 +140,17 @@ export default function FranchiseTerritoryOpsPage() {
               <div className="flex items-center gap-2 mb-1">
                 <MapPin size={14} className="text-orange-400" />
                 <p className="text-xs text-orange-400 font-semibold uppercase tracking-wide">
-                  {loading ? '…' : territory || t('header.territoryFallback')}
+                  {loading ? '…' : territory || t('franchiseTerritoryPage.header.territoryFallback')}
                 </p>
               </div>
-              <h1 className="text-2xl font-bold">{t('header.title')}</h1>
+              <h1 className="text-2xl font-bold">{t('franchiseTerritoryPage.header.title')}</h1>
             </div>
             <button
               onClick={load}
               className="self-start flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-800 bg-gray-900 text-gray-400 hover:text-white text-sm transition"
             >
               <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-              {t('actions.refresh')}
+              {t('franchiseTerritoryPage.actions.refresh')}
             </button>
           </div>
 
@@ -170,27 +170,27 @@ export default function FranchiseTerritoryOpsPage() {
                 <span className="text-sm font-semibold text-white">{app.brand_name}</span>
               )}
               <span className="text-xs text-gray-500 ml-auto">
-                {t('status.agreementLabel')}: <span className="text-gray-300 capitalize">{app.agreement_status ?? '—'}</span>
+                {t('franchiseTerritoryPage.status.agreementLabel')}: <span className="text-gray-300 capitalize">{app.agreement_status ?? '—'}</span>
                 {'  ·  '}
-                {t('status.trainingLabel')}: <span className="text-gray-300">{trainingLabel}</span>
+                {t('franchiseTerritoryPage.status.trainingLabel')}: <span className="text-gray-300">{trainingLabel}</span>
               </span>
             </div>
           )}
 
           {/* ── KPI grid ───────────────────────────────────────────── */}
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-            <KpiTile icon={Users}      label={t('kpis.helpers')} loading={loading}
-              value={fmt(kpis.helpers_total)}   sub={t('kpis.helpersVerified', { count: fmt(kpis.helpers_verified) })} accent="blue" />
-            <KpiTile icon={Star}       label={t('kpis.avgRating')}    loading={loading}
+            <KpiTile icon={Users}      label={t('franchiseTerritoryPage.kpis.helpers')} loading={loading}
+              value={fmt(kpis.helpers_total)}   sub={t('franchiseTerritoryPage.kpis.helpersVerified', { count: fmt(kpis.helpers_verified) })} accent="blue" />
+            <KpiTile icon={Star}       label={t('franchiseTerritoryPage.kpis.avgRating')}    loading={loading}
               value={kpis.avg_rating ? kpis.avg_rating.toFixed(2) : '—'} accent="orange" />
-            <KpiTile icon={Hammer}     label={t('kpis.jobsPosted')}    loading={loading}
-              value={fmt(kpis.jobs_posted_30d)} sub={t('kpis.jobsActive', { count: fmt(kpis.jobs_active) })} accent="emerald" />
-            <KpiTile icon={CheckCircle2} label={t('kpis.completionRate')}    loading={loading}
-              value={pct(kpis.completion_rate)} sub={t('kpis.completedJobs', { count: fmt(kpis.jobs_completed) })} accent="emerald" />
-            <KpiTile icon={DollarSign} label={t('kpis.revenue')}        loading={loading}
-              value={fmtCents(kpis.revenue_30d_cents)} sub={t('kpis.revenueTotal', { amount: fmtCents(kpis.revenue_total_cents) })} accent="purple" />
-            <KpiTile icon={ShieldCheck} label={t('kpis.compliance')}          loading={loading}
-              value={pct(app.compliance_pct)} sub={t('compliance.stepsComplete', {
+            <KpiTile icon={Hammer}     label={t('franchiseTerritoryPage.kpis.jobsPosted')}    loading={loading}
+              value={fmt(kpis.jobs_posted_30d)} sub={t('franchiseTerritoryPage.kpis.jobsActive', { count: fmt(kpis.jobs_active) })} accent="emerald" />
+            <KpiTile icon={CheckCircle2} label={t('franchiseTerritoryPage.kpis.completionRate')}    loading={loading}
+              value={pct(kpis.completion_rate)} sub={t('franchiseTerritoryPage.kpis.completedJobs', { count: fmt(kpis.jobs_completed) })} accent="emerald" />
+            <KpiTile icon={DollarSign} label={t('franchiseTerritoryPage.kpis.revenue')}        loading={loading}
+              value={fmtCents(kpis.revenue_30d_cents)} sub={t('franchiseTerritoryPage.kpis.revenueTotal', { amount: fmtCents(kpis.revenue_total_cents) })} accent="purple" />
+            <KpiTile icon={ShieldCheck} label={t('franchiseTerritoryPage.kpis.compliance')}          loading={loading}
+              value={pct(app.compliance_pct)} sub={t('franchiseTerritoryPage.compliance.stepsComplete', {
                 done: app.checklist_done ?? 0,
                 total: app.checklist_all ?? 0,
               })} accent="emerald" />
@@ -202,14 +202,14 @@ export default function FranchiseTerritoryOpsPage() {
             {/* Compliance card */}
             <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
               <h2 className="text-sm font-semibold text-gray-200 mb-4 flex items-center gap-2">
-                <ShieldCheck size={14} className="text-emerald-400" /> {t('compliance.title')}
+                <ShieldCheck size={14} className="text-emerald-400" /> {t('franchiseTerritoryPage.compliance.title')}
               </h2>
               {loading
                 ? <Skeleton className="h-3 w-full" />
                 : (
                   <>
                     <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5">
-                      <span>{t('compliance.stepsComplete', {
+                      <span>{t('franchiseTerritoryPage.compliance.stepsComplete', {
                         done: app.checklist_done ?? 0,
                         total: app.checklist_all ?? 0,
                       })}</span>
@@ -223,9 +223,9 @@ export default function FranchiseTerritoryOpsPage() {
                     </div>
                     <div className="mt-3 space-y-1.5 text-xs text-gray-400">
                       {[
-                        [t('compliance.labels.agreement'),      app.agreement_status === 'signed',   app.agreement_status],
-                        [t('compliance.labels.training'),       app.training_status === 'completed',  trainingLabel],
-                        [t('compliance.labels.launchReadiness'), app.launch_readiness_status === 'launched' || app.launch_readiness_status === 'ready', app.launch_readiness_status],
+                        [t('franchiseTerritoryPage.compliance.labels.agreement'),      app.agreement_status === 'signed',   app.agreement_status],
+                        [t('franchiseTerritoryPage.compliance.labels.training'),       app.training_status === 'completed',  trainingLabel],
+                        [t('franchiseTerritoryPage.compliance.labels.launchReadiness'), app.launch_readiness_status === 'launched' || app.launch_readiness_status === 'ready', app.launch_readiness_status],
                       ].map(([label, done, val]) => (
                         <div key={label} className="flex items-center gap-2">
                           {done
@@ -245,14 +245,14 @@ export default function FranchiseTerritoryOpsPage() {
             {/* Quick actions */}
             <div className="lg:col-span-2 rounded-2xl border border-gray-800 bg-gray-900 p-5">
               <h2 className="text-sm font-semibold text-gray-200 mb-4 flex items-center gap-2">
-                <TrendingUp size={14} className="text-orange-400" /> {t('actionsCard.title')}
+                <TrendingUp size={14} className="text-orange-400" /> {t('franchiseTerritoryPage.actionsCard.title')}
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {[
-                  { to: '/franchise/status', icon: Building2, label: t('actionsCard.viewApplication.title'), sub: t('actionsCard.viewApplication.sub'), color: 'text-orange-400' },
-                  { to: '/growth',           icon: TrendingUp, label: t('actionsCard.growth.title'),       sub: t('actionsCard.growth.sub'),       color: 'text-emerald-400' },
-                  { to: '/learn',            icon: Star,       label: t('actionsCard.training.title'),     sub: t('actionsCard.training.sub'),     color: 'text-blue-400' },
-                  { to: '/jobs',             icon: Hammer,     label: t('actionsCard.jobs.title'),        sub: t('actionsCard.jobs.sub'),        color: 'text-purple-400' },
+                  { to: '/franchise/status', icon: Building2, label: t('franchiseTerritoryPage.actionsCard.viewApplication.title'), sub: t('franchiseTerritoryPage.actionsCard.viewApplication.sub'), color: 'text-orange-400' },
+                  { to: '/growth',           icon: TrendingUp, label: t('franchiseTerritoryPage.actionsCard.growth.title'),       sub: t('franchiseTerritoryPage.actionsCard.growth.sub'),       color: 'text-emerald-400' },
+                  { to: '/learn',            icon: Star,       label: t('franchiseTerritoryPage.actionsCard.training.title'),     sub: t('franchiseTerritoryPage.actionsCard.training.sub'),     color: 'text-blue-400' },
+                  { to: '/jobs',             icon: Hammer,     label: t('franchiseTerritoryPage.actionsCard.jobs.title'),        sub: t('franchiseTerritoryPage.actionsCard.jobs.sub'),        color: 'text-purple-400' },
                 ].map(({ to, icon: Icon, label, sub, color }) => (
                   <Link key={to} to={to} className="flex items-center gap-3 p-3 rounded-xl bg-gray-800/50 hover:bg-gray-800 border border-gray-700/50 hover:border-gray-600 transition group">
                     <Icon size={16} className={`${color} shrink-0`} />
@@ -271,17 +271,17 @@ export default function FranchiseTerritoryOpsPage() {
           <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-gray-200 flex items-center gap-2">
-                <Users size={14} className="text-blue-400" /> {t('helpersSection.title')}
+                <Users size={14} className="text-blue-400" /> {t('franchiseTerritoryPage.helpersSection.title')}
               </h2>
-              <span className="text-xs text-gray-500">{t('helpersSection.found', { count: helpers.length })}</span>
+              <span className="text-xs text-gray-500">{t('franchiseTerritoryPage.helpersSection.found', { count: helpers.length })}</span>
             </div>
             {loading
               ? <div className="space-y-2">{[1,2,3].map(i => <Skeleton key={i} className="h-12" />)}</div>
               : helpers.length === 0
                 ? (
                   <div className="text-center py-8">
-                    <p className="text-sm text-gray-500">{t('helpersSection.emptyTitle')}</p>
-                    <p className="text-xs text-gray-600 mt-1">{t('helpersSection.emptyDescription')}</p>
+                    <p className="text-sm text-gray-500">{t('franchiseTerritoryPage.helpersSection.emptyTitle')}</p>
+                    <p className="text-xs text-gray-600 mt-1">{t('franchiseTerritoryPage.helpersSection.emptyDescription')}</p>
                   </div>
                 )
                 : (
@@ -289,12 +289,12 @@ export default function FranchiseTerritoryOpsPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="text-xs text-gray-500 border-b border-gray-800">
-                          <th className="text-left pb-2 font-normal">{t('helpersSection.table.helper')}</th>
-                          <th className="text-left pb-2 font-normal">{t('helpersSection.table.location')}</th>
-                          <th className="text-right pb-2 font-normal">{t('helpersSection.table.rating')}</th>
-                          <th className="text-right pb-2 font-normal">{t('helpersSection.table.reviews')}</th>
-                          <th className="text-right pb-2 font-normal">{t('helpersSection.table.verified')}</th>
-                          <th className="text-right pb-2 font-normal">{t('helpersSection.table.available')}</th>
+                          <th className="text-left pb-2 font-normal">{t('franchiseTerritoryPage.helpersSection.table.helper')}</th>
+                          <th className="text-left pb-2 font-normal">{t('franchiseTerritoryPage.helpersSection.table.location')}</th>
+                          <th className="text-right pb-2 font-normal">{t('franchiseTerritoryPage.helpersSection.table.rating')}</th>
+                          <th className="text-right pb-2 font-normal">{t('franchiseTerritoryPage.helpersSection.table.reviews')}</th>
+                          <th className="text-right pb-2 font-normal">{t('franchiseTerritoryPage.helpersSection.table.verified')}</th>
+                          <th className="text-right pb-2 font-normal">{t('franchiseTerritoryPage.helpersSection.table.available')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -321,7 +321,7 @@ export default function FranchiseTerritoryOpsPage() {
                       </tbody>
                     </table>
                     {helpers.length > 20 && (
-                      <p className="text-xs text-gray-500 text-center mt-3">{t('helpersSection.showingTop', { count: helpers.length })}</p>
+                      <p className="text-xs text-gray-500 text-center mt-3">{t('franchiseTerritoryPage.helpersSection.showingTop', { count: helpers.length })}</p>
                     )}
                   </div>
                 )

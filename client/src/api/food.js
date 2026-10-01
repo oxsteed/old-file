@@ -6,6 +6,14 @@
 import api from './axios';
 import { formatCreditMinorUnits } from '../lib/creditCurrency';
 
+// H12: the server requires an order idempotency key for every payment mode.
+// Always send one so callers that do not manage their own key (kiosk,
+// offline replays) stay safe instead of failing with a 400.
+function orderRequestKey() {
+  if (globalThis.crypto?.randomUUID) return `food-order:${globalThis.crypto.randomUUID()}`;
+  return `food-order:${Date.now()}:${Math.random().toString(16).slice(2)}`;
+}
+
 export const uploadFoodAsset = (file, purpose = 'food-general') => {
   const formData = new FormData();
   formData.append('file', file);
@@ -57,7 +65,8 @@ export const placeFoodOrder = (restaurantId, payload, options = {}) => {
   const idempotencyKey = options.idempotencyKey
     || options.idempotency_key
     || payload?.clientOrderId
-    || payload?.client_order_id;
+    || payload?.client_order_id
+    || orderRequestKey();
   return api.post(
     `/food/restaurants/${restaurantId}/orders`,
     payload,

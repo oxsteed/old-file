@@ -2,8 +2,39 @@
 // Validates webhook signatures and rate limits webhook processing
 
 const crypto = require('crypto');
+const rateLimit = require('express-rate-limit');
 const logger = require('../utils/logger');
 const { AppError } = require('./errorHandler');
+
+// Shared Redis client - created once in utils/redis.js, reused here.
+// Falls back gracefully to in-memory when Redis is unavailable.
+// Same store pattern as server/middleware/rateLimiter.js.
+const redisClient = require('../utils/redis');
+let RedisStore = null;
+
+if (redisClient) {
+  try {
+    RedisStore = require('rate-limit-redis').default;
+    logger.info('Webhook rate limiter: using Redis store');
+  } catch (err) {
+    logger.warn('Webhook rate limiter: rate-limit-redis unavailable - falling back to memory', { message: err.message });
+  }
+} else {
+  logger.info('Webhook rate limiter: Redis not available - using in-memory store (not suitable for multi-instance)');
+}
+
+// Helper to create a unique RedisStore per limiter
+function createStoreOption(prefix) {
+  if (redisClient && RedisStore) {
+    return {
+      store: new RedisStore({
+        sendCommand: (...args) => redisClient.call(...args),
+        prefix: prefix,
+      }),
+    };
+  }
+  return {};
+}
 
 /**
  * ATTACK #3 FIX: Strict Webhook Signature Validation
@@ -68,20 +99,29 @@ function validateStripeSignature(req, res, next) {
 }
 
 /**
- * Webhook rate limiting
- * Prevents abuse of webhook endpoints by limiting retries
+ * Inbound webhook rate limiter: 600 requests per 5 minutes per IP.
+ *
+ * The previous version of this function was a no-op that called next() in
+ * every branch, so webhook endpoints had no abuse protection at all.
+ *
+ * The bucket is deliberately generous so legitimate provider retry bursts
+ * (Stripe redelivers failed events) are never answered with a 429, which
+ * could cause Stripe to disable the endpoint. Signature/HMAC verification
+ * still runs after this limiter, so rejected traffic is counted cheaply.
+ * Keyed by IP because inbound webhooks are unauthenticated by design.
  */
-function webhookRateLimit(req, res, next) {
-  // Each webhook event has a unique ID - log it for idempotency
-  const eventId = req.stripeEvent?.id;
-  if (!eventId) {
-    return next();
-  }
-
-  // Track webhook processing to prevent duplicate processing
-  // (Stripe retries failed webhooks up to 3 times)
-  next();
-}
+const webhookRateLimit = rateLimit({
+  ...createStoreOption('rl:inbound_webhook:'),
+  windowMs: 5 * 60 * 1000,
+  max: 600,
+  keyGenerator: (req) => req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many webhook requests. Please retry later.',
+    retryAfter: '5 minutes',
+  },
+});
 
 module.exports = {
   validateStripeSignature,

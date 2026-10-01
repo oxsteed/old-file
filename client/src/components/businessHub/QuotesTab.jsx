@@ -222,7 +222,7 @@ export function QuotesTab({ businessId, setTab }) {
               <input type="number" value={form.tax_rate} onChange={e => setForm(f => ({ ...f, tax_rate: e.target.value }))}
                 className="w-24 bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 text-sm" min="0" max="100" step="0.01" />
             </div>
-              <div className="ml-auto text-right text-sm">
+              <div className="ms-auto text-end text-sm">
               <div className="text-gray-400">{t('businessQuotes.subtotal')}: ${subtotal.toFixed(2)}</div>
               <div className="text-white font-bold">{t('businessQuotes.total')}: ${grandTotal.toFixed(2)}</div>
             </div>
@@ -272,7 +272,7 @@ export function QuotesTab({ businessId, setTab }) {
                   {q.valid_until && `${t('businessQuotes.validUntilPrefix')} ${new Date(q.valid_until + 'T00:00:00').toLocaleDateString()}`}
                 </div>
               </div>
-              <div className="text-right">
+              <div className="text-end">
                 <div className="text-lg font-bold text-orange-400">{fmtCents(q.total_cents)}</div>
                 <div className="flex gap-2 mt-2 flex-wrap justify-end">
                   {q.status === 'draft' && (

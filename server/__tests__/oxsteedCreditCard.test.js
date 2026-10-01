@@ -234,8 +234,11 @@ describe('admin card issuance', () => {
 describe('cashOutWithCard PIN handling', () => {
   it('rejects cash-out when the card has no PIN configured', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [] }) // getExistingTransaction: no replay
-      .mockResolvedValueOnce({ rows: [{ id: CARD_ID, customer_id: CUSTOMER_ID, account_id: 501, status: 'active', pin_hash: null, pin_salt: null, failed_pin_attempts: 0, pin_locked_until: null, expires_at: null, credential_last4: 'AB12' }] }); // resolveCardByCredential
+      .mockResolvedValueOnce({ rows: [{ id: CARD_ID, customer_id: CUSTOMER_ID }] }) // resolveCardIdentityByCredential
+      .mockResolvedValueOnce({ rows: [{ id: 501, customer_id: CUSTOMER_ID, currency_code: 'USD' }] }) // findCustomerAccount
+      .mockResolvedValueOnce({ rows: [] }) // getExistingCashOutTransaction: no replay
+      .mockResolvedValueOnce({ rows: [{ id: CARD_ID, customer_id: CUSTOMER_ID, account_id: 501, status: 'active', owner_is_active: true, pin_hash: null, pin_salt: null, failed_pin_attempts: 0, pin_locked_until: null, expires_at: null, credential_last4: 'AB12' }] }) // resolveCardByCredential
+      .mockResolvedValueOnce({ rows: [{ is_active: true }] }); // assertCardOwnerIsActive
 
     await expect(cardService.cashOutWithCard({
       credential: 'raw-credential',
@@ -245,5 +248,250 @@ describe('cashOutWithCard PIN handling', () => {
       currencyCode: 'USD',
       idempotencyKey: 'cash-out-1',
     })).rejects.toMatchObject({ code: 'credit_card_pin_not_set' });
+  });
+
+  it('rejects cash-out when the card owner is deactivated (H17)', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: CARD_ID, customer_id: CUSTOMER_ID }] }) // resolveCardIdentityByCredential
+      .mockResolvedValueOnce({ rows: [{ id: 501, customer_id: CUSTOMER_ID, currency_code: 'USD' }] }) // findCustomerAccount
+      .mockResolvedValueOnce({ rows: [] }) // getExistingCashOutTransaction: no replay
+      .mockResolvedValueOnce({ rows: [{ id: CARD_ID, customer_id: CUSTOMER_ID, account_id: 501, status: 'active', owner_is_active: false, pin_hash: 'x', pin_salt: 'y', failed_pin_attempts: 0, pin_locked_until: null, expires_at: null, credential_last4: 'AB12' }] }); // resolveCardByCredential
+
+    await expect(cardService.cashOutWithCard({
+      credential: 'raw-credential',
+      pin: '1234',
+      kioskDeviceId: 42,
+      amountCents: 2000,
+      currencyCode: 'USD',
+      idempotencyKey: 'cash-out-inactive',
+    })).rejects.toMatchObject({ code: 'credit_card_customer_inactive', statusCode: 403 });
+  });
+
+  it('rejects an idempotent replay whose key was used by a different card (H3)', async () => {
+    const otherCardId = '88888888-8888-4888-8888-888888888888';
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: CARD_ID, customer_id: CUSTOMER_ID }] }) // resolveCardIdentityByCredential
+      .mockResolvedValueOnce({ rows: [{ id: 501, customer_id: CUSTOMER_ID, currency_code: 'USD' }] }) // findCustomerAccount
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'txn-1',
+          transaction_type: 'cash_out',
+          debit_customer_id: CUSTOMER_ID,
+          amount_cents: 2000,
+          currency_code: 'USD',
+          metadata: { cardId: otherCardId },
+        }],
+      }); // getExistingCashOutTransaction: replay bound to another card
+
+    await expect(cardService.cashOutWithCard({
+      credential: 'raw-credential',
+      pin: '1234',
+      kioskDeviceId: 42,
+      amountCents: 2000,
+      currencyCode: 'USD',
+      idempotencyKey: 'cash-out-replay-mismatch',
+    })).rejects.toMatchObject({ code: 'credit_idempotency_conflict', statusCode: 409 });
+  });
+
+  it('rejects an idempotent replay whose key was used for a different amount (H3)', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: CARD_ID, customer_id: CUSTOMER_ID }] }) // resolveCardIdentityByCredential
+      .mockResolvedValueOnce({ rows: [{ id: 501, customer_id: CUSTOMER_ID, currency_code: 'USD' }] }) // findCustomerAccount
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'txn-1',
+          transaction_type: 'cash_out',
+          debit_customer_id: CUSTOMER_ID,
+          amount_cents: 9999,
+          currency_code: 'USD',
+          metadata: { cardId: CARD_ID },
+        }],
+      }); // getExistingCashOutTransaction: replay with different amount
+
+    await expect(cardService.cashOutWithCard({
+      credential: 'raw-credential',
+      pin: '1234',
+      kioskDeviceId: 42,
+      amountCents: 2000,
+      currencyCode: 'USD',
+      idempotencyKey: 'cash-out-replay-amount',
+    })).rejects.toMatchObject({ code: 'credit_idempotency_conflict', statusCode: 409 });
+  });
+
+  it('replays a matching cash-out idempotently without re-verifying card status (H3)', async () => {
+    const replayedTxn = {
+      id: 'txn-1',
+      transaction_type: 'cash_out',
+      debit_customer_id: CUSTOMER_ID,
+      amount_cents: 2000,
+      currency_code: 'USD',
+      metadata: { cardId: CARD_ID },
+    };
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: CARD_ID, customer_id: CUSTOMER_ID }] }) // resolveCardIdentityByCredential
+      .mockResolvedValueOnce({ rows: [{ id: 501, customer_id: CUSTOMER_ID, currency_code: 'USD' }] }) // findCustomerAccount
+      .mockResolvedValueOnce({ rows: [replayedTxn] }) // getExistingCashOutTransaction
+      .mockResolvedValueOnce({ rows: [] }); // loadAccountEntries
+
+    const result = await cardService.cashOutWithCard({
+      credential: 'raw-credential',
+      pin: '1234',
+      kioskDeviceId: 42,
+      amountCents: 2000,
+      currencyCode: 'USD',
+      idempotencyKey: 'cash-out-replay-ok',
+    });
+    expect(result.replayed).toBe(true);
+    expect(result.transaction.replayed).toBe(true);
+  });
+});
+
+describe('redeemCardAtPartner PIN requirement (H17)', () => {
+  it('rejects redemption without a PIN before any database call', async () => {
+    await expect(cardService.redeemCardAtPartner({
+      credential: 'raw-credential',
+      partnerId: 9,
+      amountCents: 1500,
+      idempotencyKey: 'redeem-no-pin',
+    })).rejects.toMatchObject({ code: 'credit_card_pin_required', statusCode: 400 });
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it('rejects redemption for a deactivated customer', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: CARD_ID, customer_id: CUSTOMER_ID, account_id: 501, status: 'active', owner_is_active: false, pin_hash: 'x', pin_salt: 'y', failed_pin_attempts: 0, pin_locked_until: null, expires_at: null, credential_last4: 'AB12' }],
+    }); // resolveCardByCredential
+
+    await expect(cardService.redeemCardAtPartner({
+      credential: 'raw-credential',
+      pin: '1234',
+      partnerId: 9,
+      amountCents: 1500,
+      idempotencyKey: 'redeem-inactive',
+    })).rejects.toMatchObject({ code: 'credit_card_customer_inactive', statusCode: 403 });
+  });
+});
+
+describe('setCardPin current-PIN requirement (M27b)', () => {
+  const cardWithPin = (overrides = {}) => ({
+    id: CARD_ID,
+    customer_id: CUSTOMER_ID,
+    account_id: 501,
+    status: 'active',
+    card_type: 'virtual',
+    fulfillment_status: 'not_applicable',
+    credential_last4: 'AB12',
+    failed_pin_attempts: 0,
+    pin_locked_until: null,
+    ...overrides,
+  });
+
+  it('allows the initial PIN enrollment without a current PIN', async () => {
+    const updated = cardWithPin({ pin_hash: 'newhash', pin_salt: 'newsalt' });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [cardWithPin({ pin_hash: null, pin_salt: null })] }) // SELECT card FOR UPDATE
+      .mockResolvedValueOnce({ rows: [updated] }) // UPDATE ... RETURNING *
+      .mockResolvedValueOnce({ rows: [] }); // audit insert
+
+    const result = await cardService.setCardPin({
+      cardId: CARD_ID,
+      customerId: CUSTOMER_ID,
+      pin: '1234',
+      actorUserId: CUSTOMER_ID,
+    });
+    expect(result.card.hasPin).toBe(true);
+  });
+
+  it('rejects a PIN change without the current PIN', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [cardWithPin({ pin_hash: 'oldhash', pin_salt: 'oldsalt' })],
+    }); // SELECT card FOR UPDATE
+
+    await expect(cardService.setCardPin({
+      cardId: CARD_ID,
+      customerId: CUSTOMER_ID,
+      pin: '5678',
+      actorUserId: CUSTOMER_ID,
+    })).rejects.toMatchObject({ code: 'credit_card_current_pin_required', statusCode: 400 });
+  });
+
+  it('rejects a PIN change with the wrong current PIN', async () => {
+    const salt = 'salty';
+    const pinHash = cardService.sha256Hex(`${salt}:1234`);
+    mockQuery.mockResolvedValueOnce({
+      rows: [cardWithPin({ pin_hash: pinHash, pin_salt: salt })],
+    }); // SELECT card FOR UPDATE
+    // verifyCardPin UPDATE of failed attempts uses the default empty rows
+
+    await expect(cardService.setCardPin({
+      cardId: CARD_ID,
+      customerId: CUSTOMER_ID,
+      pin: '5678',
+      currentPin: '0000',
+      actorUserId: CUSTOMER_ID,
+    })).rejects.toMatchObject({ code: 'credit_card_pin_incorrect', statusCode: 401 });
+  });
+
+  it('accepts a PIN change with the correct current PIN', async () => {
+    const salt = 'salty';
+    const pinHash = cardService.sha256Hex(`${salt}:1234`);
+    const updated = cardWithPin({ pin_hash: 'newhash', pin_salt: 'newsalt' });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [cardWithPin({ pin_hash: pinHash, pin_salt: salt })] }) // SELECT card FOR UPDATE
+      .mockResolvedValueOnce({ rows: [updated] }) // UPDATE ... RETURNING *
+      .mockResolvedValueOnce({ rows: [] }); // audit insert
+
+    const result = await cardService.setCardPin({
+      cardId: CARD_ID,
+      customerId: CUSTOMER_ID,
+      pin: '5678',
+      currentPin: '1234',
+      actorUserId: CUSTOMER_ID,
+    });
+    expect(result.card.hasPin).toBe(true);
+  });
+});
+
+describe('kiosk idempotency key requirement (H3)', () => {
+  function createKioskApp() {
+    const app = express();
+    app.use(express.json());
+    app.use((req, _res, next) => {
+      req.creditKioskRestaurantId = 7;
+      req.creditKioskDevice = { id: 42 };
+      req.correlationId = 'kiosk-idempotency-test';
+      next();
+    });
+    app.post('/kiosk/redeem', cardController.kioskRedeemCard);
+    app.post('/kiosk/cashout', cardController.kioskCashOut);
+    app.use(errorHandler);
+    return app;
+  }
+
+  it('rejects kiosk redemption without an Idempotency-Key', async () => {
+    const app = createKioskApp();
+    const res = await request(app).post('/kiosk/redeem').send({ credential: 'raw', pin: '1234', amountCents: 1500 });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('credit_idempotency_key_required');
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it('rejects kiosk cash-out without an Idempotency-Key', async () => {
+    const app = createKioskApp();
+    const res = await request(app).post('/kiosk/cashout').send({ credential: 'raw', pin: '1234', amountCents: 1500 });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('credit_idempotency_key_required');
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it('rejects kiosk redemption without a PIN', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 9 }] }); // requireCreditPartnerForRestaurant
+    const app = createKioskApp();
+    const res = await request(app)
+      .post('/kiosk/redeem')
+      .set('Idempotency-Key', 'kiosk-redeem-pin-test')
+      .send({ credential: 'raw', amountCents: 1500 });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('credit_card_pin_required');
   });
 });

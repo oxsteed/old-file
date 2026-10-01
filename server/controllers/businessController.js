@@ -827,9 +827,11 @@ async function getBusinessMediaAsset(req, res, next) {
       throw new AppError('Media not found', 404, 'not_found');
     }
     const { rows: [asset] } = await pool.query(
-      `SELECT content_type, content, size_bytes, sha256, updated_at
-         FROM business_media_assets
-        WHERE id = $1`,
+      `SELECT a.content_type, a.content, a.size_bytes, a.sha256, a.updated_at
+         FROM business_media_assets a
+         JOIN businesses b ON b.id = a.business_id
+        WHERE a.id = $1
+          AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE`,
       [assetId]
     );
     if (!asset) throw new AppError('Media not found', 404, 'not_found');

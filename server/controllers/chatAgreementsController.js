@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const pool = require('../db');
 const logger = require('../utils/logger');
 const socketService = require('../services/socketService');
-const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
+const { uploadFile, getSignedDownloadUrl, normalizeStorageKey } = require('../utils/storage');
 const {
   assertConversationParticipant,
   assertGuestInquiryAccess,
@@ -31,6 +31,31 @@ const { withTransaction } = require('../utils/transaction');
 
 function bad(res, status, error, code) {
   return res.status(status).json({ error, code: code || 'error' });
+}
+
+function sanitizeScopeId(id) {
+  return String(id).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64);
+}
+
+// Uploads are scoped to the conversation (or guest session) they belong to, so
+// a caller-supplied attachment key is only accepted when it was minted for this
+// scope. This prevents attachment_key escalation across conversations.
+function scopedUploadFolder(baseFolder, { conversationId, guestSessionId, businessId, userId }) {
+  let scope;
+  if (conversationId) scope = `c-${sanitizeScopeId(conversationId)}`;
+  else if (guestSessionId) scope = `g-${sanitizeScopeId(guestSessionId)}`;
+  else if (businessId) scope = `b-${sanitizeScopeId(businessId)}`;
+  else scope = `u-${sanitizeScopeId(userId)}`;
+  return `${baseFolder}/${scope}`;
+}
+
+// Returns the normalized key when it was minted under this scope's folder,
+// otherwise null. Uploaded file bytes always win (minted under the same folder
+// by construction); this only gates caller-supplied keys.
+function scopedAttachmentKey(attachmentKey, uploadFolder) {
+  const normalized = normalizeStorageKey(attachmentKey);
+  if (!normalized || !normalized.startsWith(`${uploadFolder}/`)) return null;
+  return normalized;
 }
 
 function hashIp(ip) {
@@ -307,16 +332,34 @@ exports.shareAgreement = async (req, res, next) => {
     let attachmentName = req.body.attachment_name || req.body.attachmentName || null;
     let attachmentMime = req.body.attachment_mime || req.body.attachmentMime || null;
     let attachmentSize = req.body.attachment_size || req.body.attachmentSize || null;
+
+    const uploadFolder = scopedUploadFolder('chat-agreements', {
+      conversationId: access.conversationId || conversationId,
+      guestSessionId: access.guestSessionId || guestSessionId,
+      businessId: access.businessId || businessId,
+      userId,
+    });
+
     if (req.file && !agreement) {
       if (!ALLOWED_AGREEMENT_MIMES.has(req.file.mimetype)) {
         return bad(res, 400, 'File type not allowed for agreements', 'invalid_file_type');
       }
-      const key = await uploadFile(req.file.buffer, 'chat-agreements', req.file.originalname, req.file.mimetype);
+      const key = await uploadFile(req.file.buffer, uploadFolder, req.file.originalname, req.file.mimetype);
       if (!key) return bad(res, 503, 'File storage unavailable', 'storage_unavailable');
       attachmentKey = key;
       attachmentName = req.file.originalname;
       attachmentMime = req.file.mimetype;
       attachmentSize = req.file.size;
+    }
+
+    // No file uploaded in this request but a caller-supplied attachment key is
+    // present: only honor it when it was minted for this conversation scope.
+    if (!agreement && !req.file && attachmentKey) {
+      const scopedKey = scopedAttachmentKey(attachmentKey, uploadFolder);
+      if (!scopedKey) {
+        return bad(res, 400, 'attachment_key was not issued for this conversation', 'attachment_key_not_issued_here');
+      }
+      attachmentKey = scopedKey;
     }
 
     const senderName = `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || 'Provider';
@@ -575,16 +618,38 @@ exports.reviseAgreement = async (req, res, next) => {
     let attachmentName = parent.attachment_name;
     let attachmentMime = parent.attachment_mime;
     let attachmentSize = parent.attachment_size;
+
+    const uploadFolder = scopedUploadFolder('chat-agreements', {
+      conversationId: parent.conversation_id,
+      guestSessionId: parent.guest_session_id,
+      businessId: parent.business_id,
+      userId: parent.helper_id,
+    });
+
     if (req.file) {
       if (!ALLOWED_AGREEMENT_MIMES.has(req.file.mimetype)) {
         return bad(res, 400, 'File type not allowed for agreements', 'invalid_file_type');
       }
-      const key = await uploadFile(req.file.buffer, 'chat-agreements', req.file.originalname, req.file.mimetype);
+      const key = await uploadFile(req.file.buffer, uploadFolder, req.file.originalname, req.file.mimetype);
       if (!key) return bad(res, 503, 'File storage unavailable', 'storage_unavailable');
       attachmentKey = key;
       attachmentName = req.file.originalname;
       attachmentMime = req.file.mimetype;
       attachmentSize = req.file.size;
+    }
+
+    // No file uploaded in this request but a caller-supplied attachment key is
+    // present: only honor it when it was minted for this conversation scope.
+    // The parent's stored key is kept as-is (old unscoped keys keep working).
+    if (!req.file) {
+      const callerKey = req.body.attachment_key || req.body.attachmentKey || null;
+      if (callerKey) {
+        const scopedKey = scopedAttachmentKey(callerKey, uploadFolder);
+        if (!scopedKey) {
+          return bad(res, 400, 'attachment_key was not issued for this conversation', 'attachment_key_not_issued_here');
+        }
+        attachmentKey = scopedKey;
+      }
     }
 
     await pool.query(

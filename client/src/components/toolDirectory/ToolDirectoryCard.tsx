@@ -81,32 +81,32 @@ const ToolDirectoryCard: React.FC<ToolDirectoryCardProps> = ({
         )}
         {/* Category color accent */}
         <div
-          className={`absolute inset-y-0 left-0 w-1 ${isExactMatch ? 'bg-brand-400' : 'bg-brand-500'}`}
+          className={`absolute inset-y-0 start-0 w-1 ${isExactMatch ? 'bg-brand-400' : 'bg-brand-500'}`}
           aria-hidden="true"
         />
 
         {/* Available now badge */}
         {tool.is_available && (
-          <span className="absolute top-2.5 left-3 inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-900/70 text-emerald-300 border border-emerald-800 rounded-full text-xs font-medium backdrop-blur-sm">
+          <span className="absolute top-2.5 start-3 inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-900/70 text-emerald-300 border border-emerald-800 rounded-full text-xs font-medium backdrop-blur-sm">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true" />
             {t('toolRentalsDir.availableNowBadge')}
           </span>
         )}
         {!tool.is_available && (
-          <span className="absolute top-2.5 left-3 inline-flex items-center gap-1 px-2 py-0.5 bg-gray-900/80 text-gray-300 border border-gray-700 rounded-full text-xs font-medium backdrop-blur-sm">
+          <span className="absolute top-2.5 start-3 inline-flex items-center gap-1 px-2 py-0.5 bg-gray-900/80 text-gray-300 border border-gray-700 rounded-full text-xs font-medium backdrop-blur-sm">
             {t('toolRentalsDir.unavailableBadge')}
           </span>
         )}
 
         {/* Exact match badge */}
         {tool.is_available && isExactMatch && (
-          <span className="absolute bottom-2.5 left-3 inline-flex items-center gap-1 px-2 py-0.5 bg-brand-900/70 text-brand-300 border border-brand-700 rounded-full text-xs font-medium backdrop-blur-sm">
+          <span className="absolute bottom-2.5 start-3 inline-flex items-center gap-1 px-2 py-0.5 bg-brand-900/70 text-brand-300 border border-brand-700 rounded-full text-xs font-medium backdrop-blur-sm">
             {t('toolRentalsDir.exactMatch')}
           </span>
         )}
 
         {/* Favorite button */}
-        <div className="absolute top-2.5 right-3 z-10">
+        <div className="absolute top-2.5 end-3 z-10">
           <ToolFavoriteButton toolId={tool.id} />
         </div>
       </div>
@@ -119,7 +119,7 @@ const ToolDirectoryCard: React.FC<ToolDirectoryCardProps> = ({
           <div className="min-w-0">
             <button
               onClick={() => onViewDetails(tool)}
-              className="text-left font-semibold text-white text-base hover:text-brand-400 transition-colors line-clamp-1"
+              className="text-start font-semibold text-white text-base hover:text-brand-400 transition-colors line-clamp-1"
             >
               {tool.name}
             </button>
@@ -128,7 +128,7 @@ const ToolDirectoryCard: React.FC<ToolDirectoryCardProps> = ({
               {tool.brand ? ` - ${tool.brand}` : ''}
             </p>
           </div>
-          <div className="text-right flex-shrink-0 pb-0.5">
+          <div className="text-end flex-shrink-0 pb-0.5">
             <p className="text-xs text-gray-500 leading-none">{t('toolRentalsDir.startingFrom')}</p>
             <p className="text-lg font-bold text-white leading-tight">
               ${Number(tool.daily_rate || 0).toFixed(0)}
