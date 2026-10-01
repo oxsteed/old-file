@@ -2,6 +2,12 @@
 
 jest.mock('../services/oxsteedCreditAdminService', () => ({
   reconcileCreditLedger: jest.fn(),
+  reconcileSubBankAggregates: jest.fn(async () => ({
+    currencyCode: 'USD',
+    checkedCount: 0,
+    divergences: [],
+    missingSubBanks: [],
+  })),
 }));
 jest.mock('../services/incidentStore', () => ({
   recordIncident: jest.fn().mockResolvedValue({ persisted: true, incident: { id: 1 }, notificationClaimed: true }),
@@ -13,7 +19,7 @@ jest.mock('../services/oxsteedCreditWorkerHeartbeat', () => ({
   recordOxsteedCreditWorkerRun: jest.fn().mockResolvedValue({ persisted: true }),
 }));
 
-const { reconcileCreditLedger } = require('../services/oxsteedCreditAdminService');
+const { reconcileCreditLedger, reconcileSubBankAggregates } = require('../services/oxsteedCreditAdminService');
 const incidentStore = require('../services/incidentStore');
 const { withJobLock } = require('../jobs/jobLockingService');
 const {
@@ -83,6 +89,43 @@ test('creates a durable critical incident when balances differ', async () => {
     severity: 'critical',
     details: expect.objectContaining({ runId: 'run-2', differenceCents: 100 }),
   }));
+});
+
+test('creates a durable critical incident when sub-bank aggregates diverge', async () => {
+  reconcileCreditLedger.mockResolvedValueOnce({
+    run: { id: 'run-3', status: 'balanced', currencyCode: 'USD', accountCount: 3, entryCount: 6 },
+  });
+  reconcileSubBankAggregates.mockResolvedValueOnce({
+    currencyCode: 'USD',
+    checkedCount: 2,
+    divergences: [{
+      restaurantId: 3,
+      currencyCode: 'USD',
+      subBankBalanceCents: 4000,
+      walletTotalBalanceCents: 4500,
+      differenceCents: -500,
+    }],
+    missingSubBanks: [{ restaurantId: 4, currencyCode: 'USD', walletTotalBalanceCents: 1200 }],
+  });
+
+  const result = await runOxsteedCreditReconciliation({ now: '2026-09-12T04:00:00.000Z' });
+
+  expect(reconcileSubBankAggregates).toHaveBeenCalledWith({ currencyCode: 'USD' });
+  expect(incidentStore.recordIncident).toHaveBeenCalledWith(expect.objectContaining({
+    type: 'oxsteed_credit_sub_bank_divergence',
+    severity: 'critical',
+    details: expect.objectContaining({
+      currencyCode: 'USD',
+      checkedCount: 2,
+      divergences: expect.arrayContaining([
+        expect.objectContaining({ restaurantId: 3, differenceCents: -500 }),
+      ]),
+      missingSubBanks: expect.arrayContaining([
+        expect.objectContaining({ restaurantId: 4 }),
+      ]),
+    }),
+  }));
+  expect(result.incident).toMatchObject({ persisted: true });
 });
 
 test('records a durable incident when reconciliation fails', async () => {

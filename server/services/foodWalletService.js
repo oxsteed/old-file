@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { recordException } = require('./reconciliationExceptions');
+const { postFoodWalletDualEntry } = require('./oxsteedCreditSubBankService');
 
 const MAX_WALLET_ENTRY_CENTS = Math.max(1, Number.parseInt(process.env.FOOD_WALLET_MAX_ENTRY_CENTS || '250000', 10));
 const MAX_WALLET_BALANCE_CENTS = Math.max(MAX_WALLET_ENTRY_CENTS, Number.parseInt(process.env.FOOD_WALLET_MAX_BALANCE_CENTS || '1000000', 10));
@@ -445,10 +446,32 @@ async function applyWalletLedgerEntry(client, {
       CURRENT_WALLET_HASH_ALGORITHM,
     ]
   );
+  const ledgerEntry = ledgerRows[0];
+
+  // Phase 1 central-bank model: dual-post every food-wallet money movement to
+  // the OxSteed Credit central journal in the SAME transaction. Same-restaurant
+  // customer transfers leave the aggregate unchanged and need no posting.
+  // Any central posting failure (including a disabled credit rail) throws here
+  // and rolls back the wallet write: dual-posting fails closed, never silent.
+  await postFoodWalletDualEntry(client, {
+    ledgerEntryId: ledgerEntry.id,
+    restaurantId,
+    customerId,
+    currencyCode: normalizedCurrency,
+    amountCents: normalizedAmount,
+    entryType,
+    referenceType: normalizedReferenceType,
+    referenceId: normalizedReferenceId,
+    actorType: normalizedActorType,
+    actorUserId: createdByUserId,
+    createdByUserId,
+    correlationId: normalizedCorrelationId,
+    metadata: normalizedMetadata,
+  });
 
   return {
     account: updatedAccount,
-    entry: ledgerRows[0],
+    entry: ledgerEntry,
     replayed: false,
   };
 }
@@ -786,4 +809,5 @@ module.exports = {
   computeWalletEntryHash,
   CURRENT_WALLET_HASH_ALGORITHM,
   LEGACY_WALLET_HASH_ALGORITHM,
+  applyWalletLedgerEntry,
 };

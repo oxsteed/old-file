@@ -25,6 +25,7 @@
     "verify:direct-catalog-public": "node scripts/verify-direct-catalog-public-api.js",
     "verify:direct-catalog-performance": "node scripts/verify-direct-catalog-performance.js",
     "queue:replay-dead-letter": "node scripts/replay-payment-job.js",
+    "backfill:sub-banks": "node scripts/backfill-restaurant-sub-banks.js",
     "verify:queue-recovery": "node scripts/verify-payment-queue-recovery.js",
     "verify:stripe-webhook-delivery": "node scripts/verify-stripe-webhook-delivery.js",
     "verify:credit-failure-injection": "node scripts/verify-credit-failure-injection.js",

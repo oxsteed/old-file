@@ -2,7 +2,7 @@
 
 const cron = require('node-cron');
 const logger = require('../utils/logger');
-const { reconcileCreditLedger } = require('../services/oxsteedCreditAdminService');
+const { reconcileCreditLedger, reconcileSubBankAggregates } = require('../services/oxsteedCreditAdminService');
 const { SUPPORTED_CREDIT_CURRENCIES = ['USD'] } = require('../services/oxsteedCreditService');
 const incidentStore = require('../services/incidentStore');
 const { withJobLock } = require('./jobLockingService');
@@ -81,7 +81,38 @@ async function reconcileCurrency({ currencyCode, period }) {
         entryCount: run.entryCount,
       });
     }
-    return { currencyCode, run, error: null, incident };
+    // Phase 1 central-bank invariant: each restaurant sub-bank balance must
+    // equal the aggregate outstanding food-wallet balances at that restaurant.
+    const subBankCheck = await reconcileSubBankAggregates({ currencyCode });
+    const subBankDivergent = subBankCheck.divergences.length > 0 || subBankCheck.missingSubBanks.length > 0;
+    if (subBankDivergent) {
+      const subBankIncident = await incidentStore.recordIncident({
+        type: 'oxsteed_credit_sub_bank_divergence',
+        severity: 'critical',
+        message: 'OxSteed Credit restaurant sub-bank balances diverge from food-wallet outstanding',
+        dedupeKey: `oxsteed-credit-sub-bank-divergence:${currencyCode}`,
+        details: {
+          currencyCode,
+          periodStart: period.start.toISOString(),
+          periodEnd: period.end.toISOString(),
+          checkedCount: subBankCheck.checkedCount,
+          divergences: subBankCheck.divergences,
+          missingSubBanks: subBankCheck.missingSubBanks,
+        },
+      });
+      logger.error('OxSteed Credit sub-bank divergence', {
+        currencyCode,
+        divergenceCount: subBankCheck.divergences.length,
+        missingCount: subBankCheck.missingSubBanks.length,
+      });
+      incident = incident || subBankIncident;
+    } else {
+      logger.info('OxSteed Credit sub-bank aggregates balanced', {
+        currencyCode,
+        checkedCount: subBankCheck.checkedCount,
+      });
+    }
+    return { currencyCode, run, error: null, incident, subBankCheck };
   } catch (error) {
     const incident = await incidentStore.recordIncident({
       type: 'oxsteed_credit_reconciliation_failed',

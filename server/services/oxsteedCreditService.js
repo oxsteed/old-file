@@ -84,6 +84,7 @@ const POSTABLE_CREDIT_TRANSACTION_TYPES = Object.freeze([
   'settlement_reversal',
   'funding', 'reserve_release', 'conversion_debit', 'conversion_fee', 'conversion_credit',
   'cash_out',
+  'sub_bank_load', 'sub_bank_redemption', 'sub_bank_refund', 'sub_bank_opening_balance',
 ]);
 
 function positiveEnv(name, fallback) {
@@ -592,38 +593,58 @@ async function findExistingCreditHoldForReplay(client, { customerId, partnerId, 
   return existing;
 }
 
-async function ensureAccount(client, { accountType, customerId = null, partnerId = null, currencyCode = CREDIT_CURRENCY }) {
+async function ensureAccount(client, { accountType, customerId = null, partnerId = null, restaurantId = null, currencyCode = CREDIT_CURRENCY }) {
   const currency = assertSupportedCreditCurrency(currencyCode);
-  if (!['customer_wallet', 'partner_payable', 'partner_reserve', 'platform_treasury', 'platform_revenue'].includes(accountType)) {
+  if (!['customer_wallet', 'partner_payable', 'partner_reserve', 'platform_treasury', 'platform_revenue', 'restaurant_sub_bank'].includes(accountType)) {
     throw new AppError('Unsupported credit account type', 400, 'credit_account_type_invalid');
+  }
+  if (accountType === 'restaurant_sub_bank') {
+    const normalizedRestaurantId = Number(restaurantId);
+    if (!Number.isSafeInteger(normalizedRestaurantId) || normalizedRestaurantId <= 0) {
+      throw new AppError('A restaurant is required for a restaurant sub-bank account', 400, 'credit_account_restaurant_required');
+    }
+    if (customerId !== null && customerId !== undefined) {
+      throw new AppError('A restaurant sub-bank account cannot have a customer owner', 400, 'credit_account_owner_invalid');
+    }
+    if (partnerId !== null && partnerId !== undefined) {
+      throw new AppError('A restaurant sub-bank account cannot have a partner owner', 400, 'credit_account_owner_invalid');
+    }
   }
 
   const insertQuery = accountType === 'customer_wallet'
-    ? `INSERT INTO oxsteed_credit_accounts (account_type, customer_id, partner_id, currency_code)
-         SELECT $1, $2, $3, $4
+    ? `INSERT INTO oxsteed_credit_accounts (account_type, customer_id, partner_id, restaurant_id, currency_code)
+         SELECT $1, $2, $3, $4, $5
           WHERE EXISTS (
             SELECT 1 FROM users
              WHERE id = $2 AND role = 'customer' AND is_active = TRUE
           )
          ON CONFLICT DO NOTHING`
-    : `INSERT INTO oxsteed_credit_accounts (account_type, customer_id, partner_id, currency_code)
-       VALUES ($1, $2, $3, $4)
+    : `INSERT INTO oxsteed_credit_accounts (account_type, customer_id, partner_id, restaurant_id, currency_code)
+       VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT DO NOTHING`;
-  await client.query(insertQuery, [accountType, customerId, partnerId, currency]);
+  const insertRestaurantId = accountType === 'restaurant_sub_bank' ? Number(restaurantId) : null;
+  await client.query(insertQuery, [accountType, customerId, partnerId, insertRestaurantId, currency]);
 
   const scopedOwnershipFilter = accountType === 'customer_wallet'
-    ? 'a.customer_id = $2 AND a.partner_id IS NULL'
+    ? 'a.customer_id = $2 AND a.partner_id IS NULL AND a.restaurant_id IS NULL'
     : ['partner_payable', 'partner_reserve'].includes(accountType)
-      ? 'a.partner_id = $2 AND a.customer_id IS NULL'
-      : 'a.customer_id IS NULL AND a.partner_id IS NULL';
-  const ownerValue = accountType === 'customer_wallet' || ['partner_payable', 'partner_reserve'].includes(accountType)
-    ? (accountType === 'customer_wallet' ? customerId : partnerId)
-    : accountType;
+      ? 'a.partner_id = $2 AND a.customer_id IS NULL AND a.restaurant_id IS NULL'
+      : accountType === 'restaurant_sub_bank'
+        ? 'a.restaurant_id = $2 AND a.customer_id IS NULL AND a.partner_id IS NULL'
+        : 'a.customer_id IS NULL AND a.partner_id IS NULL AND a.restaurant_id IS NULL';
+  const ownerValue = accountType === 'customer_wallet'
+    ? customerId
+    : accountType === 'restaurant_sub_bank'
+      ? Number(restaurantId)
+      : ['partner_payable', 'partner_reserve'].includes(accountType)
+        ? partnerId
+        : accountType;
   const ownerJoin = accountType === 'customer_wallet'
     ? `JOIN users owner ON owner.id = a.customer_id AND owner.role = 'customer' AND owner.is_active = TRUE`
     : '';
-  const currencyPlaceholder = ['customer_wallet', 'partner_payable', 'partner_reserve'].includes(accountType) ? '$3' : '$2';
-  const selectValues = ['customer_wallet', 'partner_payable', 'partner_reserve'].includes(accountType)
+  const ownerScopedTypes = ['customer_wallet', 'partner_payable', 'partner_reserve', 'restaurant_sub_bank'];
+  const currencyPlaceholder = ownerScopedTypes.includes(accountType) ? '$3' : '$2';
+  const selectValues = ownerScopedTypes.includes(accountType)
     ? [accountType, ownerValue, currency]
     : [accountType, currency];
   const { rows } = await client.query(
@@ -984,6 +1005,34 @@ async function postJournalTransaction(client, input) {
       || (input.agreementId !== null && input.agreementId !== undefined)
     ) {
       throw new AppError('Credit cash-out account direction is invalid', 400, 'credit_cash_out_direction_invalid');
+    }
+  }
+  if (['sub_bank_load', 'sub_bank_redemption', 'sub_bank_refund', 'sub_bank_opening_balance'].includes(input.transactionType)) {
+    // Restaurant sub-bank dual-postings (Phase 1 central-bank model). These
+    // mirror the DB trigger branches added in migration 632 so a misrouted
+    // posting fails with a clear application error before reaching the DB.
+    const subBankValid =
+      (input.transactionType === 'sub_bank_load'
+        && ['platform_treasury', 'customer_wallet'].includes(debitAccount.account_type)
+        && creditAccount.account_type === 'restaurant_sub_bank')
+      || (input.transactionType === 'sub_bank_redemption'
+        && debitAccount.account_type === 'restaurant_sub_bank'
+        && creditAccount.account_type === 'partner_payable'
+        && input.partnerId !== null && input.partnerId !== undefined
+        && String(creditAccount.partner_id) === String(input.partnerId))
+      || (input.transactionType === 'sub_bank_refund'
+        && debitAccount.account_type === 'partner_payable'
+        && creditAccount.account_type === 'restaurant_sub_bank'
+        && input.partnerId !== null && input.partnerId !== undefined
+        && String(debitAccount.partner_id) === String(input.partnerId))
+      || (input.transactionType === 'sub_bank_opening_balance'
+        && debitAccount.account_type === 'platform_treasury'
+        && creditAccount.account_type === 'restaurant_sub_bank');
+    if (
+      !subBankValid
+      || (input.agreementId !== null && input.agreementId !== undefined)
+    ) {
+      throw new AppError('Credit sub-bank account direction is invalid', 400, 'credit_sub_bank_direction_invalid');
     }
   }
   if (normalizeCurrency(debitAccount.currency_code) !== requested.currency_code || normalizeCurrency(creditAccount.currency_code) !== requested.currency_code) {

@@ -83,9 +83,85 @@ function buildMerchantApp(user = { id: OWNER_ID, email: 'owner@example.com' }) {
 
 beforeEach(() => resetMocks());
 
+/**
+ * Phase 1 central-bank model (migration 632): every food-wallet money mutation
+ * dual-posts a balanced sub-bank journal pair inside the same transaction.
+ * This shared fixture answers the dual-post SQL sequence so controller tests
+ * that write wallet ledger entries keep working without a live credit journal.
+ */
+function dualPostCreditFixture(sql, params = []) {
+  const normalized = String(sql);
+  const subBank = {
+    id: 900, account_type: 'restaurant_sub_bank', customer_id: null, partner_id: null,
+    restaurant_id: RESTAURANT_ID, currency_code: 'USD', balance_cents: 5000,
+    reserved_cents: 0, status: 'active', ledger_version: 0, last_entry_hash: null,
+  };
+  const treasury = {
+    id: 901, account_type: 'platform_treasury', customer_id: null, partner_id: null,
+    restaurant_id: null, currency_code: 'USD', balance_cents: 1000000,
+    reserved_cents: 0, status: 'active', ledger_version: 0, last_entry_hash: null,
+  };
+  const payable = {
+    id: 902, account_type: 'partner_payable', customer_id: null, partner_id: 41,
+    restaurant_id: null, currency_code: 'USD', balance_cents: 0,
+    reserved_cents: 0, status: 'active', ledger_version: 0, last_entry_hash: null,
+  };
+  const byType = { restaurant_sub_bank: subBank, platform_treasury: treasury, partner_payable: payable };
+  if (normalized.includes('pg_advisory_xact_lock(hashtext')) return { rows: [{}] };
+  if (normalized.includes("FROM feature_flags WHERE key = 'oxsteed_credit_enabled'")) {
+    return { rows: [{ is_enabled: true }] };
+  }
+  if (normalized.includes('FROM oxsteed_credit_partners p WHERE p.restaurant_id')) {
+    return { rows: [{ id: 41, restaurant_id: RESTAURANT_ID, business_id: BUSINESS_ID, status: 'pending' }] };
+  }
+  if (normalized.includes('INSERT INTO oxsteed_credit_accounts')) return { rows: [] };
+  if (normalized.includes('FROM oxsteed_credit_accounts a')) {
+    return { rows: [byType[params[0]] || subBank] };
+  }
+  if (normalized.includes('SELECT * FROM oxsteed_credit_transactions WHERE idempotency_key')) return { rows: [] };
+  if (normalized.includes('SELECT id, status, transaction_type FROM oxsteed_credit_transactions')) return { rows: [] };
+  if (normalized.includes('WHERE id = ANY($1::bigint[])')) {
+    const requestedIds = new Set((params[0] || []).map(String));
+    const accounts = [subBank, treasury, payable].filter((account) => requestedIds.has(String(account.id)));
+    return { rows: accounts.sort((a, b) => a.id - b.id) };
+  }
+  if (normalized.includes('INSERT INTO oxsteed_credit_transactions')) {
+    return {
+      rows: [{
+        id: 7000,
+        transaction_type: params[0],
+        debit_account_id: params[1],
+        credit_account_id: params[2],
+        amount_cents: params[3],
+        currency_code: params[4],
+        partner_id: params[5],
+        agreement_id: params[6],
+        idempotency_key: params[7],
+        reference_type: params[8],
+        reference_id: params[9],
+        reason: params[10],
+        description: params[11],
+        actor_type: params[12],
+        actor_user_id: params[13],
+        metadata: params[14],
+        status: 'posted',
+        posted_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+      }],
+    };
+  }
+  if (normalized.includes('WITH ledger_write AS')) return { rows: [{ ...treasury }] };
+  if (normalized.includes('INSERT INTO oxsteed_credit_transaction_entries')) return { rows: [{ id: 1 }] };
+  if (normalized.includes('INSERT INTO oxsteed_credit_audit_events')) return { rows: [] };
+  if (normalized.includes('oxsteed_credit_notifications')) return { rows: [] };
+  return null;
+}
+
 describe('food wallet security wiring', () => {
   test('createOrder uses wallet credit ledger and marks delivery order paid', async () => {
     mockQuery.mockImplementation(async (sql, params) => {
+      const creditFixture = dualPostCreditFixture(sql, params);
+      if (creditFixture) return creditFixture;
       if (/FROM food_restaurants fr/.test(sql) && /LEFT JOIN businesses b ON b.id = fr.business_id/.test(sql) && /FOR UPDATE/.test(sql)) {
         return { rows: [restaurantRow()] };
       }
@@ -364,6 +440,8 @@ describe('food wallet security wiring', () => {
 
   test('cancelled wallet-funded orders write a refund ledger entry', async () => {
     mockQuery.mockImplementation(async (sql, params) => {
+      const creditFixture = dualPostCreditFixture(sql, params);
+      if (creditFixture) return creditFixture;
       if (/SELECT fr\.\*, b\.user_id AS business_owner_id/.test(sql) && /JOIN businesses b/.test(sql)) {
         return {
           rows: [{
@@ -663,6 +741,8 @@ describe('food wallet security wiring', () => {
 
   test('merchant wallet loads write an operator audit event', async () => {
     mockQuery.mockImplementation(async (sql, params) => {
+      const creditFixture = dualPostCreditFixture(sql, params);
+      if (creditFixture) return creditFixture;
       if (/SELECT fr\.id, fr\.business_id, fr\.owner_user_id/.test(sql)) {
         return {
           rows: [{
@@ -1032,7 +1112,9 @@ describe('food wallet security wiring', () => {
   });
 
   test('second wallet operator can approve a pending load and post ledger credit', async () => {
-    mockQuery.mockImplementation(async (sql) => {
+    mockQuery.mockImplementation(async (sql, params) => {
+      const creditFixture = dualPostCreditFixture(sql, params);
+      if (creditFixture) return creditFixture;
       if (/SELECT fr\.id, fr\.business_id, fr\.owner_user_id/.test(sql)) {
         return {
           rows: [{

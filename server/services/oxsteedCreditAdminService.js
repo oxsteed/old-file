@@ -1762,6 +1762,86 @@ async function reconcileCreditLedger({ currencyCode = 'USD', periodStart, period
   }, 'credit_admin_reconcile');
 }
 
+/**
+ * Phase 1 central-bank invariant check: for every restaurant sub-bank account,
+ * sub_bank.balance_cents must equal the aggregate outstanding customer
+ * food-wallet balances at that restaurant in the same currency. Also flags
+ * restaurants with outstanding wallet balances but no sub-bank account.
+ * Returns { currencyCode, checkedCount, divergences, missingSubBanks }.
+ */
+async function reconcileSubBankAggregates({ currencyCode = 'USD' }) {
+  const currency = assertSupportedCreditCurrency(currencyCode);
+  return withTransaction(pool, async (client) => {
+    const { rows: divergences } = await client.query(
+      `WITH wallet_totals AS (
+         SELECT restaurant_id,
+                currency_code,
+                COALESCE(SUM(balance_cents), 0)::bigint AS total_balance_cents
+           FROM food_customer_wallet_accounts
+          GROUP BY restaurant_id, currency_code
+       )
+       SELECT s.restaurant_id,
+              s.currency_code,
+              s.balance_cents AS sub_bank_balance_cents,
+              COALESCE(w.total_balance_cents, 0)::bigint AS wallet_total_balance_cents,
+              (s.balance_cents - COALESCE(w.total_balance_cents, 0))::bigint AS difference_cents
+         FROM oxsteed_credit_accounts s
+         LEFT JOIN wallet_totals w
+           ON w.restaurant_id = s.restaurant_id
+          AND w.currency_code = s.currency_code
+        WHERE s.account_type = 'restaurant_sub_bank'
+          AND s.currency_code = $1
+          AND s.balance_cents <> COALESCE(w.total_balance_cents, 0)
+        ORDER BY s.restaurant_id`,
+      [currency]
+    );
+    const { rows: missingSubBanks } = await client.query(
+      `WITH wallet_totals AS (
+         SELECT restaurant_id,
+                currency_code,
+                COALESCE(SUM(balance_cents), 0)::bigint AS total_balance_cents
+           FROM food_customer_wallet_accounts
+          GROUP BY restaurant_id, currency_code
+       )
+       SELECT w.restaurant_id,
+              w.currency_code,
+              w.total_balance_cents AS wallet_total_balance_cents
+         FROM wallet_totals w
+         LEFT JOIN oxsteed_credit_accounts s
+           ON s.account_type = 'restaurant_sub_bank'
+          AND s.restaurant_id = w.restaurant_id
+          AND s.currency_code = w.currency_code
+        WHERE w.currency_code = $1
+          AND s.id IS NULL
+          AND w.total_balance_cents <> 0
+        ORDER BY w.restaurant_id`,
+      [currency]
+    );
+    const { rows: countRows } = await client.query(
+      `SELECT COUNT(*)::int AS checked_count
+         FROM oxsteed_credit_accounts
+        WHERE account_type = 'restaurant_sub_bank' AND currency_code = $1`,
+      [currency]
+    );
+    return {
+      currencyCode: currency,
+      checkedCount: Number(countRows[0]?.checked_count || 0),
+      divergences: divergences.map((row) => ({
+        restaurantId: Number(row.restaurant_id),
+        currencyCode: row.currency_code,
+        subBankBalanceCents: Number(row.sub_bank_balance_cents),
+        walletTotalBalanceCents: Number(row.wallet_total_balance_cents),
+        differenceCents: Number(row.difference_cents),
+      })),
+      missingSubBanks: missingSubBanks.map((row) => ({
+        restaurantId: Number(row.restaurant_id),
+        currencyCode: row.currency_code,
+        walletTotalBalanceCents: Number(row.wallet_total_balance_cents),
+      })),
+    };
+  }, 'credit_admin_reconcile_sub_banks');
+}
+
 async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, allowedOrderTypes, allowedCategories, allowedMenuItemIds, geography, maxTransactionCents, dailyCustomerLimitCents, lifetimeCustomerLimitCents, requiresCustomerEntitlement = false, metadata, reason, idempotencyKey, actorUserId, correlationId, requestIp }) {
   const normalizedPartnerId = parsePositiveInt(partnerId, 'partnerId');
   const starts = parseDate(startsAt, 'startsAt', true);
@@ -2388,6 +2468,7 @@ module.exports = {
   transitionSettlement,
   reverseSettlement,
   reconcileCreditLedger,
+  reconcileSubBankAggregates,
   verifyCreditLedgerHashes,
   createAgreement,
   transitionAgreement,
