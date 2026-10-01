@@ -28,7 +28,7 @@ const OPTIONAL = [
   ['TWILIO_ACCOUNT_SID',       'SMS / OTP via Twilio disabled'],
   ['DIDIT_WEBHOOK_SECRET',     'Didit identity webhooks disabled'],
   ['CHECKR_API_KEY',           'Background checks disabled'],
-  ['OPENAI_API_KEY',           'AI support chat disabled'],
+  ['OPENAI_API_KEY',           'AI support chat disabled unless META_AI_API_KEY, OPENROUTER_API_KEY, or OLLAMA_URL is set'],
   ['META_AI_API_KEY',          'Meta AI chat provider disabled; OpenRouter fallback used when configured'],
   ['GOOGLE_MAPS_API_KEY',      'Geocoding / distance features disabled'],
   ['STRIPE_PUBLISHABLE_KEY', 'Marketplace card checkout and mobile payment setup unavailable'],

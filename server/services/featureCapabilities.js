@@ -20,7 +20,14 @@ function getPublicCapabilities() {
     backgroundChecks: capability(
       present('CHECKR_API_KEY') && present('CHECKR_WEBHOOK_SECRET')
     ),
-    aiSupport: capability(present('OPENAI_API_KEY')),
+    // The AI support chat tries Meta -> OpenRouter -> Ollama, so it is available
+    // when any provider is configured, not just the legacy OpenAI key.
+    aiSupport: capability(
+      present('OPENAI_API_KEY') ||
+      present('META_AI_API_KEY') ||
+      present('OPENROUTER_API_KEY') ||
+      present('OLLAMA_URL')
+    ),
     geocoding: capability(present('GOOGLE_MAPS_API_KEY')),
   };
 }
