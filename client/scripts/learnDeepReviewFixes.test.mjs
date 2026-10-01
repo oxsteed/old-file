@@ -34,43 +34,45 @@ test('learn page renders ladder steps through static translation keys', () => {
   assert.doesNotMatch(source, /\['learn\.step\.1', 'learn\.step\.2'/);
 });
 
-test('ask-support button is honestly labeled and prefilled in every language', () => {
+test('per-step Ask AI buttons are labeled and prefilled in every language', () => {
   for (const lang of LANGUAGES) {
     const page = catalog(lang).learn?.page ?? {};
-    for (const key of ['askSupport', 'askSupportTitle', 'askSupportPrefill']) {
+    for (const key of ['askAi', 'askAiTitle', 'askAiPrefill']) {
       assert.equal(typeof page[key], 'string', `${lang}: learn.page.${key} missing`);
       assert.ok(page[key].trim().length > 0, `${lang}: learn.page.${key} is empty`);
     }
-    assert.deepEqual(placeholders(page.askSupportPrefill), ['title', 'step', 'excerpt']);
-  }
-  assert.equal(catalog('en').learn.page.askSupport, 'Ask support');
-});
-
-test('per-step buttons stay honestly labeled while the end-of-steps card offers Ask AI', () => {
-  const source = read('src/pages/LearnModePage.jsx');
-  // The per-step buttons open the support widget, so they stay labeled
-  // "Ask support" (see the ask-support test above).
-  assert.match(source, /learn\.page\.askSupportPrefill/);
-  assert.match(source, /handleAskSupport/);
-  // The end-of-steps "Still need help?" card intentionally brings back Ask AI
-  // as a genuine AI entry point (guide-level prefill into the AI chat),
-  // alongside the paid "Talk to a human for help" option.
-  assert.match(source, /learn\.page\.stillNeedHelp/);
-  assert.match(source, /learn\.page\.askAiGuidePrefill/);
-  assert.match(source, /learn\.page\.talkToHuman/);
-  assert.match(source, /handleAskAiGuide/);
-});
-
-test('end-of-steps help card is fully localized in every language', () => {
-  for (const lang of LANGUAGES) {
-    const page = catalog(lang).learn?.page ?? {};
-    for (const key of ['stillNeedHelp', 'askAi', 'askAiSub', 'askAiGuidePrefill', 'talkToHuman', 'talkToHumanPrice']) {
-      assert.equal(typeof page[key], 'string', `${lang}: learn.page.${key} missing`);
-      assert.ok(page[key].trim().length > 0, `${lang}: learn.page.${key} is empty`);
-    }
-    assert.deepEqual(placeholders(page.askAiGuidePrefill), ['title']);
+    assert.deepEqual(placeholders(page.askAiPrefill), ['title', 'step', 'excerpt']);
   }
   assert.equal(catalog('en').learn.page.askAi, 'Ask AI');
+});
+
+test('per-step buttons use Ask AI and the end-of-steps card offers only the human option', () => {
+  const source = read('src/pages/LearnModePage.jsx');
+  // Per-step buttons open the AI chat, so they are labeled Ask AI.
+  assert.match(source, /learn\.page\.askAiPrefill/);
+  assert.match(source, /handleAskAI/);
+  assert.doesNotMatch(source, /learn\.page\.askSupportPrefill/);
+  assert.doesNotMatch(source, /handleAskSupport/);
+  // The end-of-steps "Still need help?" card carries only the paid
+  // "Talk to a human for help" option ($25 minimum, then per hour).
+  assert.match(source, /learn\.page\.stillNeedHelp/);
+  assert.match(source, /learn\.page\.talkToHuman/);
+  assert.match(source, /learn\.page\.talkToHumanPrice/);
+  assert.doesNotMatch(source, /learn\.page\.askAiGuidePrefill/);
+  assert.doesNotMatch(source, /learn\.page\.askAiSub/);
+  assert.doesNotMatch(source, /handleAskAiGuide/);
+  assert.doesNotMatch(source, /lrn-still-help-ai/);
+});
+
+test('end-of-steps human-help option is fully localized in every language', () => {
+  for (const lang of LANGUAGES) {
+    const page = catalog(lang).learn?.page ?? {};
+    for (const key of ['stillNeedHelp', 'talkToHuman', 'talkToHumanPrice']) {
+      assert.equal(typeof page[key], 'string', `${lang}: learn.page.${key} missing`);
+      assert.ok(page[key].trim().length > 0, `${lang}: learn.page.${key} is empty`);
+    }
+  }
+  assert.equal(catalog('en').learn.page.talkToHuman, 'Talk to a human for help');
   assert.equal(catalog('en').learn.page.talkToHumanPrice, '$25 minimum, then per hour');
 });
 

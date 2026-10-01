@@ -32,7 +32,6 @@ import {
   Send,
   ShoppingBag,
   Smartphone,
-  Sparkles,
   Thermometer,
   ThumbsUp,
   TrendingUp,
@@ -4251,26 +4250,17 @@ export default function LearnModePage() {
     }
   };
 
-  // Support step prompt (Priority 7): opens the human support widget with
-  // guide context prefilled, so the user can ask about the current step.
-  const handleAskSupport = useCallback((guide, stepIndex, stepText) => {
+  // AI step prompt: opens the AI chat with guide context prefilled, so the
+  // user can ask about the current step.
+  const handleAskAI = useCallback((guide, stepIndex, stepText) => {
     const excerpt = stepText.length > 120 ? `${stepText.slice(0, 120)}…` : stepText;
-    const prefill = t('learn.page.askSupportPrefill', {
+    const prefill = t('learn.page.askAiPrefill', {
       title: guide.title,
       step: stepIndex + 1,
       excerpt,
     });
     window.dispatchEvent(new CustomEvent('oxsteed:open-support', {
       detail: { prefill, guide_id: guide.id, step: stepIndex + 1 },
-    }));
-  }, [t]);
-
-  // Ask AI about the whole guide (end-of-steps help card): opens the AI chat
-  // with guide-level context prefilled.
-  const handleAskAiGuide = useCallback((guide) => {
-    const prefill = t('learn.page.askAiGuidePrefill', { title: guide.title });
-    window.dispatchEvent(new CustomEvent('oxsteed:open-support', {
-      detail: { prefill, guide_id: guide.id },
     }));
   }, [t]);
 
@@ -5100,37 +5090,26 @@ export default function LearnModePage() {
                                   <span className="lrn-step-num">{i + 1}</span>
                                   <span className="lrn-step-body">
                                     {step}
-                                    {/* Ask support about this step (Priority 7) */}
+                                    {/* Ask AI about this step */}
                                     <button
                                       type="button"
                                       className="lrn-ask-ai-btn"
-                                      onClick={() => handleAskSupport(guide, i, step)}
-                                      title={t('learn.page.askSupportTitle')}
-                                      aria-label={`${t('learn.page.askSupportTitle')} ${i + 1}`}
+                                      onClick={() => handleAskAI(guide, i, step)}
+                                      title={t('learn.page.askAiTitle')}
+                                      aria-label={`${t('learn.page.askAiTitle')} ${i + 1}`}
                                     >
                                       <MessageCircle size={12} aria-hidden="true" />
-                                      {t('learn.page.askSupport')}
+                                      {t('learn.page.askAi')}
                                     </button>
                                   </span>
                                 </li>
                               ))}
                             </ol>
 
-                            {/* Still need help? Ask AI or talk to a human */}
+                            {/* Still need help? Talk to a human */}
                             <div className="lrn-still-help">
                               <p className="lrn-still-help-title">{t('learn.page.stillNeedHelp')}</p>
                               <div className="lrn-still-help-actions">
-                                <button
-                                  type="button"
-                                  className="lrn-still-help-ai"
-                                  onClick={() => { trackLearnClick(guide.id, 'ask-ai', 'guide-help'); handleAskAiGuide(guide); }}
-                                >
-                                  <Sparkles size={16} aria-hidden="true" />
-                                  <span>
-                                    <strong>{t('learn.page.askAi')}</strong>
-                                    <small>{t('learn.page.askAiSub')}</small>
-                                  </span>
-                                </button>
                                 <Link
                                   to={guide.hireHref}
                                   className="lrn-still-help-human"
