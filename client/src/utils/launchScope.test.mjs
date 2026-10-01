@@ -12,3 +12,9 @@ test('hiring is available in Business Hub for owners and managers', () => {
   assert.equal(LAUNCH_BUSINESS_HUB_TABS.has('hiring'), true);
   assert.equal(LAUNCH_BUSINESS_HUB_TABS.has('team'), true);
 });
+
+test('launched surfaces are not redirected (footer links stay live)', () => {
+  assert.equal(getLaunchRedirect('/learn'), null);
+  assert.equal(getLaunchRedirect('/learn/some-guide'), null);
+  assert.equal(getLaunchRedirect('/products'), null);
+});

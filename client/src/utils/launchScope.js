@@ -83,9 +83,7 @@ export function isLaunchSelfSelectableMode(mode) {
 
 const LAUNCH_ROUTE_REDIRECTS = Object.freeze([
   { prefix: '/discover', to: '/jobs' },
-  { prefix: '/learn', to: '/jobs' },
   { prefix: '/translator', to: '/' },
-  { prefix: '/products', to: '/restaurants' },
   { prefix: '/cart', to: '/restaurants' },
   { prefix: '/shared-cart', to: '/restaurants' },
   { prefix: '/checkout', to: '/restaurants' },
