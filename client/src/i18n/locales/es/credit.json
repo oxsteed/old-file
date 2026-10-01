@@ -1124,5 +1124,11 @@
   "adminWalletState": "Wallet state",
   "restaurantConversionNoneEligible": "Aún no hay restaurantes habilitados para convertir su crédito en OxSteed Credit.",
   "restaurantConversionRestaurantNotEnabled": "Este restaurante no está habilitado para convertir su crédito en OxSteed Credit.",
-  "restaurantConversionRestaurantNotAccepting": "Este restaurante no acepta conversiones a OxSteed Credit en este momento."
+  "restaurantConversionRestaurantNotAccepting": "Este restaurante no acepta conversiones a OxSteed Credit en este momento.",
+  "adminCreditSubnavOverview": "Resumen",
+  "adminCreditSubnavHealth": "Salud del riel",
+  "adminCreditSubnavCards": "Tarjetas",
+  "adminCreditHealthTitle": "Salud del riel y los workers",
+  "adminCreditHealthDescription": "Controles de emergencia para congelar y suspender, actividad de los workers en segundo plano y requisitos previos de activación en producción para el riel de crédito.",
+  "adminCreditSectionsTitle": "Secciones de crédito"
 }

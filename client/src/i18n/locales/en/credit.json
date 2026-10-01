@@ -1126,5 +1126,11 @@
   "adminWalletState": "Wallet state",
   "restaurantConversionNoneEligible": "No restaurants are enabled for conversion of their credit into OxSteed Credit yet.",
   "restaurantConversionRestaurantNotEnabled": "This restaurant is not enabled for conversion of its credit into OxSteed Credit.",
-  "restaurantConversionRestaurantNotAccepting": "This restaurant does not currently accept OxSteed Credit conversions."
+  "restaurantConversionRestaurantNotAccepting": "This restaurant does not currently accept OxSteed Credit conversions.",
+  "adminCreditSubnavOverview": "Overview",
+  "adminCreditSubnavHealth": "Rail health",
+  "adminCreditSubnavCards": "Cards",
+  "adminCreditHealthTitle": "Rail and worker health",
+  "adminCreditHealthDescription": "Emergency freeze and suspend controls, background worker heartbeats, and production activation prerequisites for the Credit rail.",
+  "adminCreditSectionsTitle": "Credit sections"
 }

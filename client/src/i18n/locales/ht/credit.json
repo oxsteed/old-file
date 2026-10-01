@@ -1124,5 +1124,11 @@
   "adminWalletState": "Wallet state",
   "restaurantConversionNoneEligible": "Okenn restoran poko otorize pou konvèti kredi yo an OxSteed Credit.",
   "restaurantConversionRestaurantNotEnabled": "Restoran sa a pa otorize pou konvèti kredi li an OxSteed Credit.",
-  "restaurantConversionRestaurantNotAccepting": "Restoran sa a pa aksepte konvèsyon an OxSteed Credit pou kounye a."
+  "restaurantConversionRestaurantNotAccepting": "Restoran sa a pa aksepte konvèsyon an OxSteed Credit pou kounye a.",
+  "adminCreditSubnavOverview": "Apèsi",
+  "adminCreditSubnavHealth": "Sante ray la",
+  "adminCreditSubnavCards": "Kat",
+  "adminCreditHealthTitle": "Sante ray la ak travayè yo",
+  "adminCreditHealthDescription": "Kontwòl ijans pou jele ak sispann, batman kè travayè background yo, ak kondisyon aktivasyon pwodiksyon pou ray kredi a.",
+  "adminCreditSectionsTitle": "Seksyon kredi yo"
 }

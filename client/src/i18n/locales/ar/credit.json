@@ -1124,5 +1124,11 @@
   "adminWalletState": "Wallet state",
   "restaurantConversionNoneEligible": "لا توجد مطاعم مفعّلة بعد لتحويل رصيدها إلى OxSteed Credit.",
   "restaurantConversionRestaurantNotEnabled": "هذا المطعم غير مفعّل لتحويل رصيده إلى OxSteed Credit.",
-  "restaurantConversionRestaurantNotAccepting": "هذا المطعم لا يقبل تحويلات رصيد OxSteed حالياً."
+  "restaurantConversionRestaurantNotAccepting": "هذا المطعم لا يقبل تحويلات رصيد OxSteed حالياً.",
+  "adminCreditSubnavOverview": "نظرة عامة",
+  "adminCreditSubnavHealth": "حالة المسار",
+  "adminCreditSubnavCards": "البطاقات",
+  "adminCreditHealthTitle": "حالة المسار والعمال",
+  "adminCreditHealthDescription": "عناصر التحكم في التجميد والتعليق في حالات الطوارئ، ونبضات العمال في الخلفية، ومتطلبات التفعيل الإنتاجي الأساسية لمسار الائتمان.",
+  "adminCreditSectionsTitle": "أقسام الائتمان"
 }

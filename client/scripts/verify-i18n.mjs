@@ -381,7 +381,21 @@ function verifyCreditTranslationSurface() {
     'src/pages/food/OxsteedCreditCardsPage.jsx',
     'src/admin/pages/super/OxsteedCreditCards.jsx',
     'src/admin/pages/super/OxsteedCreditEntitlements.jsx',
-    'src/admin/pages/super/OxsteedCreditAdmin.jsx',
+    'src/admin/pages/super/oxsteedCredit/shared.jsx',
+    'src/admin/pages/super/oxsteedCredit/OverviewPage.jsx',
+    'src/admin/pages/super/oxsteedCredit/ApprovalsPage.jsx',
+    'src/admin/pages/super/oxsteedCredit/DisputesPage.jsx',
+    'src/admin/pages/super/oxsteedCredit/SettlementsPage.jsx',
+    'src/admin/pages/super/oxsteedCredit/ReconciliationPage.jsx',
+    'src/admin/pages/super/oxsteedCredit/CompliancePage.jsx',
+    'src/admin/pages/super/oxsteedCredit/ReservesPage.jsx',
+    'src/admin/pages/super/oxsteedCredit/PartnersPage.jsx',
+    'src/admin/pages/super/oxsteedCredit/HealthPage.jsx',
+    'src/admin/pages/super/oxsteedCredit/AuditPage.jsx',
+    'src/admin/pages/super/oxsteedCredit/CustomersPage.jsx',
+    'src/admin/pages/super/oxsteedCredit/MoneyOutPage.jsx',
+    'src/admin/pages/super/oxsteedCredit/CardsPage.jsx',
+    'src/admin/pages/super/oxsteedCredit/LedgerPage.jsx',
   ];
   const failures = [];
 

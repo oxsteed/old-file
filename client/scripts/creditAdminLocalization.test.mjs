@@ -3,8 +3,12 @@ import path from 'node:path';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const sourcePath = path.resolve('src/admin/pages/super/OxsteedCreditAdmin.jsx');
-const source = fs.readFileSync(sourcePath, 'utf8');
+const creditDir = path.resolve('src/admin/pages/super/oxsteedCredit');
+const source = fs.readdirSync(creditDir)
+  .filter((file) => file.endsWith('.jsx'))
+  .sort()
+  .map((file) => fs.readFileSync(path.join(creditDir, file), 'utf8'))
+  .join('\n');
 const customerDetailSource = fs.readFileSync(path.resolve('src/admin/pages/super/OxsteedCreditCustomerDetail.jsx'), 'utf8');
 
 test('Credit admin operator surfaces use translated labels', () => {
