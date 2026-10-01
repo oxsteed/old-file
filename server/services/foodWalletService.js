@@ -35,11 +35,19 @@ function stableStringify(value) {
 }
 
 function getWalletLedgerSecret() {
-  const secret = process.env.FOOD_WALLET_LEDGER_HMAC_SECRET || process.env.JWT_SECRET;
-  if (!secret) {
+  // M25: no cross-purpose key reuse. In production the dedicated wallet HMAC
+  // secret is required; falling back to JWT_SECRET would let a JWT signer
+  // forge ledger hashes. Non-production keeps the fallback for dev parity.
+  const dedicated = process.env.FOOD_WALLET_LEDGER_HMAC_SECRET;
+  if (dedicated) return dedicated;
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Missing FOOD_WALLET_LEDGER_HMAC_SECRET for wallet ledger hashing');
+  }
+  const fallback = process.env.JWT_SECRET;
+  if (!fallback) {
     throw new Error('Missing FOOD_WALLET_LEDGER_HMAC_SECRET or JWT_SECRET for wallet ledger hashing');
   }
-  return secret;
+  return fallback;
 }
 
 function buildWalletHashPayload({

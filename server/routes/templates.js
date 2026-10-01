@@ -3,7 +3,7 @@
 
 const router = require('express').Router();
 const { authenticate } = require('../middleware/auth');
-const { requireAdmin } = require('../middleware/adminAuth');
+const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const ctrl = require('../controllers/templateController');
 
 // ── Public ─────────────────────────────────────────────────────────────────
@@ -25,7 +25,7 @@ router.post('/purchase/lifetime', authenticate, ctrl.purchaseLifetime);
 
 // ── Admin ───────────────────────────────────────────────────────────────────
 // GET /api/templates/admin/pricing
-router.get('/admin/pricing', authenticate, requireAdmin, ctrl.adminGetPricing);
+router.get('/admin/pricing', authenticate, requireAdmin, requirePermission('manage_settings'), ctrl.adminGetPricing);
 
 // GET /api/templates/admin/stats
 router.get('/admin/stats', authenticate, requireAdmin, ctrl.adminTemplateStats);
@@ -34,10 +34,10 @@ router.get('/admin/stats', authenticate, requireAdmin, ctrl.adminTemplateStats);
 router.get('/admin/grants', authenticate, requireAdmin, ctrl.adminListGrants);
 
 // PATCH /api/templates/admin/pricing/:slug
-router.patch('/admin/pricing/:slug', authenticate, requireAdmin, ctrl.adminUpdatePricing);
+router.patch('/admin/pricing/:slug', authenticate, requireAdmin, requirePermission('manage_settings'), ctrl.adminUpdatePricing);
 
 // PUT /api/templates/admin/pricing/bulk
-router.put('/admin/pricing/bulk', authenticate, requireAdmin, ctrl.adminBulkUpdatePricing);
+router.put('/admin/pricing/bulk', authenticate, requireAdmin, requirePermission('manage_settings'), ctrl.adminBulkUpdatePricing);
 
 // POST /api/templates/admin/grants — grant access to a user
 router.post('/admin/grants', authenticate, requireAdmin, ctrl.adminGrantAccess);

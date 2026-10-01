@@ -113,7 +113,7 @@ router.get('/payments', requireAdmin, requirePermission('view_financials'), paym
 router.get('/users',            requireAdmin, superCtrl.getUsers);
 router.get('/users/:userId',    requireAdmin, superCtrl.getUserDetail);
 router.put('/users/:userId/name',  requireAdmin, superCtrl.updateUserName);
-router.put('/users/:userId/didit-enforcement', requireAdmin, superCtrl.setUserDiditEnforcement);
+router.put('/users/:userId/didit-enforcement', requireAdmin, requirePermission('verify_users'), superCtrl.setUserDiditEnforcement);
 router.post('/users/:userId/ban',  requireAdmin, superCtrl.toggleUserBan);
 router.post(
   '/users/:userId/phone-verification-code',
@@ -143,10 +143,12 @@ router.get('/super/dashboard/geo',      requireSuperAdmin, superCtrl.getDashboar
 router.use('/super/restaurant-credit', noStoreCreditResponse);
 router.get('/super/restaurant-credit/overview', requireSuperAdmin, restaurantCreditAdminCtrl.getOverview);
 router.get('/super/restaurant-credit/wallets/:accountId', requireSuperAdmin, restaurantCreditAdminCtrl.getWalletDetail);
-router.post('/super/restaurant-credit/wallets/:accountId/status', requireSuperAdmin, restaurantCreditAdminCtrl.updateWalletStatus);
-router.post('/super/restaurant-credit/holds/:holdId/release', requireSuperAdmin, restaurantCreditAdminCtrl.releaseHold);
-router.post('/super/restaurant-credit/load-requests/:requestId/approve', requireSuperAdmin, restaurantCreditAdminCtrl.approveLoadRequest);
-router.post('/super/restaurant-credit/load-requests/:requestId/decline', requireSuperAdmin, restaurantCreditAdminCtrl.declineLoadRequest);
+// M28: restaurant-credit admin mutations carry the same limiter as their
+// OxSteed Credit siblings.
+router.post('/super/restaurant-credit/wallets/:accountId/status', requireSuperAdmin, creditAdminMutationLimiter, restaurantCreditAdminCtrl.updateWalletStatus);
+router.post('/super/restaurant-credit/holds/:holdId/release', requireSuperAdmin, creditAdminMutationLimiter, restaurantCreditAdminCtrl.releaseHold);
+router.post('/super/restaurant-credit/load-requests/:requestId/approve', requireSuperAdmin, creditAdminMutationLimiter, restaurantCreditAdminCtrl.approveLoadRequest);
+router.post('/super/restaurant-credit/load-requests/:requestId/decline', requireSuperAdmin, creditAdminMutationLimiter, restaurantCreditAdminCtrl.declineLoadRequest);
 
 // OxSteed Credit holds are captured only by an authorized operator. Customer
 // clients can create and release their own reservations, but never capture value.
@@ -245,14 +247,14 @@ router.post('/support/tickets/:ticketId/claim',       requireAdmin, supportCtrl.
 router.post('/support/tickets/:ticketId/unclaim',     requireAdmin, supportCtrl.unclaimTicket);
 router.put('/support/tickets/:ticketId/status',       requireAdmin, supportCtrl.updateStatus);
 router.put('/support/tickets/:ticketId/priority',     requireAdmin, supportCtrl.updatePriority);
-router.post('/support/tickets/:ticketId/reply',       requireAdmin, supportCtrl.adminReply);
+router.post('/support/tickets/:ticketId/reply',       requireAdmin, requirePermission('message_users'), supportCtrl.adminReply);
 
 // ══════════════════════════════════════════════════════════════
 // SEARCH ENGINE (admin + super_admin)
 // ══════════════════════════════════════════════════════════════
 
 // Global search - all admins (results logged automatically)
-router.get('/search',                  requireAdmin, searchCtrl.search);
+router.get('/search',                  requireAdmin, requirePermission('view_search_logs'), searchCtrl.search);
 
 // Search audit log - super-admin or admins with view_search_logs permission
 router.get('/super/search-logs',       requireSuperAdmin, searchCtrl.getSearchLogs);

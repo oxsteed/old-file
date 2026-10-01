@@ -36,52 +36,85 @@ async function resolveOwner(profileType, profileId) {
   if (profileType === 'helper') {
     const { rows } = await db.query(
       `SELECT hp.user_id AS owner_id,
-              COALESCE(NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), ''), u.email) AS display_name
+              COALESCE(NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), ''), u.email) AS display_name,
+              u.preferred_language AS language
          FROM helper_profiles hp
          JOIN users u ON u.id = hp.user_id
         WHERE hp.user_id::text = $1
         LIMIT 1`,
       [id]
     );
-    return rows[0] ? { ownerUserId: rows[0].owner_id, displayName: rows[0].display_name } : null;
+    return rows[0] ? { ownerUserId: rows[0].owner_id, displayName: rows[0].display_name, language: rows[0].language } : null;
   }
   if (profileType === 'business') {
     const { rows } = await db.query(
-      `SELECT user_id AS owner_id, business_name AS display_name
-         FROM businesses
-        WHERE id::text = $1
+      `SELECT b.user_id AS owner_id, b.business_name AS display_name,
+              u.preferred_language AS language
+         FROM businesses b
+         LEFT JOIN users u ON u.id = b.user_id
+        WHERE b.id::text = $1
         LIMIT 1`,
       [id]
     );
-    return rows[0] ? { ownerUserId: rows[0].owner_id, displayName: rows[0].display_name } : null;
+    return rows[0] ? { ownerUserId: rows[0].owner_id, displayName: rows[0].display_name, language: rows[0].language } : null;
   }
   if (profileType === 'restaurant') {
     const { rows } = await db.query(
       `SELECT fr.owner_user_id AS owner_id,
-              COALESCE(fr.display_name, b.business_name) AS display_name
+              COALESCE(fr.display_name, b.business_name) AS display_name,
+              u.preferred_language AS language
          FROM food_restaurants fr
          JOIN businesses b ON b.id = fr.business_id
+         LEFT JOIN users u ON u.id = fr.owner_user_id
         WHERE fr.id::text = $1
         LIMIT 1`,
       [id]
     );
-    return rows[0] ? { ownerUserId: rows[0].owner_id, displayName: rows[0].display_name } : null;
+    return rows[0] ? { ownerUserId: rows[0].owner_id, displayName: rows[0].display_name, language: rows[0].language } : null;
   }
   return null;
 }
 
-function buildCopy(profileType, isVisible, displayName) {
+const VISIBILITY_COPY = {
+  en: {
+    restoredTitle: 'Your profile is visible again',
+    restoredBody: (label) => `OxSteed has restored public visibility for ${label}. No action is needed.`,
+    hiddenTitle: 'Your profile was hidden by OxSteed',
+    hiddenBody: (label) => `OxSteed has hidden ${label} from public listings. If you have questions, contact support.`,
+  },
+  es: {
+    restoredTitle: 'Tu perfil es visible de nuevo',
+    restoredBody: (label) => `OxSteed ha restaurado la visibilidad pública de ${label}. No necesitas hacer nada.`,
+    hiddenTitle: 'OxSteed ha ocultado tu perfil',
+    hiddenBody: (label) => `OxSteed ha ocultado ${label} de los listados públicos. Si tienes preguntas, contacta con soporte.`,
+  },
+  fr: {
+    restoredTitle: 'Votre profil est de nouveau visible',
+    restoredBody: (label) => `OxSteed a restauré la visibilité publique de ${label}. Aucune action n'est requise.`,
+    hiddenTitle: 'Votre profil a été masqué par OxSteed',
+    hiddenBody: (label) => `OxSteed a masqué ${label} des annonces publiques. Si vous avez des questions, contactez l'assistance.`,
+  },
+  ht: {
+    restoredTitle: 'Pwofil ou vizib ankò',
+    restoredBody: (label) => `OxSteed retabli vizibilite piblik pou ${label}. Ou pa bezwen fè anyen.`,
+    hiddenTitle: 'OxSteed kache pwofil ou',
+    hiddenBody: (label) => `OxSteed kache ${label} nan lis piblik yo. Si ou gen kesyon, kontakte sipò.`,
+  },
+  ar: {
+    restoredTitle: 'ملفك الشخصي مرئي مرة أخرى',
+    restoredBody: (label) => `أعاد OxSteed الظهور العام لـ ${label}. لا يلزم اتخاذ أي إجراء.`,
+    hiddenTitle: 'أخفى OxSteed ملفك الشخصي',
+    hiddenBody: (label) => `أخفى OxSteed ${label} من القوائم العامة. إذا كانت لديك أسئلة، اتصل بالدعم.`,
+  },
+};
+
+function buildCopy(profileType, isVisible, displayName, language) {
   const label = displayName || 'your profile';
+  const copy = VISIBILITY_COPY[language] || VISIBILITY_COPY.en;
   if (isVisible) {
-    return {
-      title: 'Your profile is visible again',
-      body: `OxSteed has restored public visibility for ${label}. No action is needed.`,
-    };
+    return { title: copy.restoredTitle, body: copy.restoredBody(label) };
   }
-  return {
-    title: 'Your profile was hidden by OxSteed',
-    body: `OxSteed has hidden ${label} from public listings. If you have questions, contact support.`,
-  };
+  return { title: copy.hiddenTitle, body: copy.hiddenBody(label) };
 }
 
 /**
@@ -138,7 +171,7 @@ async function notifyOwnerOfVisibilityChange({ profileType, profileId, isVisible
     return { delivered: true, duplicate: true, notification: row };
   }
 
-  const copy = buildCopy(type, isVisible, owner.displayName);
+  const copy = buildCopy(type, isVisible, owner.displayName, owner.language);
   const mark = async (status, lastError) => {
     const { rows } = await db.query(
       `UPDATE profile_visibility_owner_notifications

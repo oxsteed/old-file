@@ -4,7 +4,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
-const { requireAdmin } = require('../middleware/adminAuth');
+const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const { generalLimiter, strictLimiter } = require('../middleware/rateLimiter');
 const legalController = require('../controllers/legalDocumentsController');
 const ccpaController = require('../controllers/ccpaController');
@@ -258,7 +258,7 @@ router.get('/acceptances',
 
 router.get('/acceptances/export/csv',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('export_data'),
   async (req, res, next) => {
     try {
       const { rows } = await db.query(
@@ -292,13 +292,13 @@ router.get('/compliance-metrics',
 
 router.get('/audit-log',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('view_audit_log'),
   legalController.getAuditLog
 );
 
 router.get('/audit-log/export/csv',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('export_data'),
   async (req, res, next) => {
     try {
       const { rows } = await db.query(
@@ -378,7 +378,7 @@ router.get('/admin/compliance',
 // GET  /api/legal/admin/audit-log
 router.get('/admin/audit-log',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('view_audit_log'),
   legalController.getAuditLog
 );
 

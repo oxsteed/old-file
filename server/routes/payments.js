@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { authenticate } = require('../middleware/auth');
-const { requireAdmin } = require('../middleware/adminAuth');
+const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const { paymentsLimiter, connectAccountLimiter } = require('../middleware/rateLimiter');
 const { requireFeatureEnabled } = require('../middleware/featureFlags');
 const {
@@ -30,7 +30,7 @@ router.get('/investor-summary', authenticate, getInvestorSummary);
 router.get('/me', authenticate, requirePaymentsEnabled, getMyPayments);
 router.post('/intent', authenticate, requirePaymentsEnabled, paymentsLimiter, createPaymentIntent);
 router.post('/capture', authenticate, requirePaymentsEnabled, paymentsLimiter, capturePayment);
-router.post('/refund', authenticate, requirePaymentsEnabled, paymentsLimiter, requireAdmin, refundPayment);
+router.post('/refund', authenticate, requirePaymentsEnabled, paymentsLimiter, requireAdmin, requirePermission('issue_refunds'), refundPayment);
 router.get('/job/:job_id', authenticate, requirePaymentsEnabled, getJobPayment);
 
 // Route-local JSON error handler for consistent API responses when this router

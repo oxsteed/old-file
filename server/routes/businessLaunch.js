@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
-const { requireAdmin } = require('../middleware/adminAuth');
+const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const { generalLimiter, strictLimiter } = require('../middleware/rateLimiter');
 const {
   submitBusinessLaunchRequest,
@@ -108,7 +108,7 @@ router.delete(
 router.post(
   '/requests/:id/send-message',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('message_users'),
   sendCustomMessage
 );
 

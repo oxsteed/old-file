@@ -14,36 +14,36 @@
 const express = require('express');
 const router = express.Router();
 
-const { requireAdmin } = require('../middleware/adminAuth');
+const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const ctrl = require('../controllers/corporateRolesController');
 
 // Catalog + caller introspection
-router.get('/catalog',     requireAdmin, ctrl.getCatalog);
-router.get('/me',          requireAdmin, ctrl.getMe);
+router.get('/catalog',     requireAdmin, requirePermission('manage_admin_accounts'), ctrl.getCatalog);
+router.get('/me',          requireAdmin, requirePermission('manage_admin_accounts'), ctrl.getMe);
 
 // Departments (super-admin only for write)
-router.get('/departments',         requireAdmin, ctrl.listDepartments);
-router.post('/departments',        requireAdmin, ctrl.upsertDepartment);
-router.put('/departments/:id',     requireAdmin, ctrl.upsertDepartment);
-router.put('/departments/:id/permissions', requireAdmin, ctrl.setDepartmentDefaults);
+router.get('/departments',         requireAdmin, requirePermission('manage_admin_accounts'), ctrl.listDepartments);
+router.post('/departments',        requireAdmin, requirePermission('manage_admin_accounts'), ctrl.upsertDepartment);
+router.put('/departments/:id',     requireAdmin, requirePermission('manage_admin_accounts'), ctrl.upsertDepartment);
+router.put('/departments/:id/permissions', requireAdmin, requirePermission('manage_admin_accounts'), ctrl.setDepartmentDefaults);
 
 // Titles (super-admin only for write)
-router.get('/titles',         requireAdmin, ctrl.listTitles);
-router.post('/titles',        requireAdmin, ctrl.upsertTitle);
-router.put('/titles/:id',     requireAdmin, ctrl.upsertTitle);
+router.get('/titles',         requireAdmin, requirePermission('manage_admin_accounts'), ctrl.listTitles);
+router.post('/titles',        requireAdmin, requirePermission('manage_admin_accounts'), ctrl.upsertTitle);
+router.put('/titles/:id',     requireAdmin, requirePermission('manage_admin_accounts'), ctrl.upsertTitle);
 
 // Assignments
-router.get('/assignments',          requireAdmin, ctrl.listAssignments);
-router.get('/assignments/:id',      requireAdmin, ctrl.getAssignment);
-router.post('/assignments',         requireAdmin, ctrl.createAssignment);
-router.patch('/assignments/:id',    requireAdmin, ctrl.updateAssignment);
-router.delete('/assignments/:id',   requireAdmin, ctrl.endAssignment);
-router.put('/assignments/:id/overrides', requireAdmin, ctrl.setOverrides);
+router.get('/assignments',          requireAdmin, requirePermission('manage_admin_accounts'), ctrl.listAssignments);
+router.get('/assignments/:id',      requireAdmin, requirePermission('manage_admin_accounts'), ctrl.getAssignment);
+router.post('/assignments',         requireAdmin, requirePermission('manage_admin_accounts'), ctrl.createAssignment);
+router.patch('/assignments/:id',    requireAdmin, requirePermission('manage_admin_accounts'), ctrl.updateAssignment);
+router.delete('/assignments/:id',   requireAdmin, requirePermission('manage_admin_accounts'), ctrl.endAssignment);
+router.put('/assignments/:id/overrides', requireAdmin, requirePermission('manage_admin_accounts'), ctrl.setOverrides);
 
 // Org chart
-router.get('/org-chart', requireAdmin, ctrl.getOrgChart);
+router.get('/org-chart', requireAdmin, requirePermission('manage_admin_accounts'), ctrl.getOrgChart);
 
 // Audit log (super-admin only)
-router.get('/audit', requireAdmin, ctrl.listAudit);
+router.get('/audit', requireAdmin, requirePermission('manage_admin_accounts'), ctrl.listAudit);
 
 module.exports = router;

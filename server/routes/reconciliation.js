@@ -7,12 +7,12 @@
  */
 
 const router = require('express').Router();
-const { requireAdmin } = require('../middleware/adminAuth');
+const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const reconciliationController = require('../controllers/reconciliationController');
 
-router.get('/', requireAdmin, reconciliationController.listExceptions);
-router.post('/exceptions/:id/assign', requireAdmin, reconciliationController.assignException);
-router.post('/exceptions/:id/acknowledge', requireAdmin, reconciliationController.acknowledgeException);
-router.post('/exceptions/:id/resolve', requireAdmin, reconciliationController.resolveException);
+router.get('/', requireAdmin, requirePermission('view_financials'), reconciliationController.listExceptions);
+router.post('/exceptions/:id/assign', requireAdmin, requirePermission('view_financials'), reconciliationController.assignException);
+router.post('/exceptions/:id/acknowledge', requireAdmin, requirePermission('view_financials'), reconciliationController.acknowledgeException);
+router.post('/exceptions/:id/resolve', requireAdmin, requirePermission('view_financials'), reconciliationController.resolveException);
 
 module.exports = router;

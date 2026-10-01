@@ -155,6 +155,7 @@ router.post('/:restaurantId/crew/tasks/:taskId/review', appFlow.reviewCrewTask);
 router.get('/:restaurantId/crew/tasks/:taskId/proofs', appFlow.listCrewTaskProofs);
 router.post(
   '/:restaurantId/crew/tasks/:taskId/proofs/upload',
+  authenticate,
   upload.single('file'),
   validateFileUpload,
   appFlow.uploadCrewTaskProof

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const adminConsultingController = require('../controllers/adminConsultingController');
 const { authenticate } = require('../middleware/auth');
-const { requireAdmin } = require('../middleware/adminAuth');
+const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 
 const auth = [authenticate, requireAdmin];
 
@@ -19,11 +19,11 @@ router.post('/assign', ...auth, adminConsultingController.assignConsultantToRequ
 router.get('/consultants', ...auth, adminConsultingController.getAvailableConsultants);
 
 // Invoices & packages
-router.post('/invoices/generate', ...auth, adminConsultingController.generateInvoice);
-router.post('/invoices/generate-manual', ...auth, adminConsultingController.generateManualInvoice);
-router.get('/invoices/:invoiceId/download', ...auth, adminConsultingController.downloadInvoice);
-router.get('/invoices', ...auth, adminConsultingController.listInvoices);
-router.get('/purchases', ...auth, adminConsultingController.listPurchases);
+router.post('/invoices/generate', ...auth, requirePermission('view_financials'), adminConsultingController.generateInvoice);
+router.post('/invoices/generate-manual', ...auth, requirePermission('view_financials'), adminConsultingController.generateManualInvoice);
+router.get('/invoices/:invoiceId/download', ...auth, requirePermission('view_financials'), adminConsultingController.downloadInvoice);
+router.get('/invoices', ...auth, requirePermission('view_financials'), adminConsultingController.listInvoices);
+router.get('/purchases', ...auth, requirePermission('view_financials'), adminConsultingController.listPurchases);
 router.patch('/packages/:id', ...auth, adminConsultingController.updatePackage);
 
 // Sessions management

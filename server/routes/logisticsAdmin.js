@@ -26,8 +26,11 @@ const requireAdminRole = requireRole('admin', 'super_admin');
 const requireSuperAdminRole = requireRole('super_admin');
 
 router.use((req, _res, next) => {
-  req.isAdmin = true;
-  req.isSuperAdmin = req.user?.role === 'super_admin';
+  // L4: derive admin flags from the authenticated user instead of asserting
+  // them unconditionally. Per-route middleware still enforces access.
+  const role = req.user?.role;
+  req.isAdmin = role === 'admin' || role === 'super_admin';
+  req.isSuperAdmin = role === 'super_admin';
   next();
 });
 
