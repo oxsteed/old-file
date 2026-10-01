@@ -91,6 +91,16 @@ function installDbRouter() {
     if (s.includes('id = ANY')) {
       return { rows: [accountRowFor('partner_payable'), accountRowFor('platform_treasury')] };
     }
+    if (s.includes('FROM oxsteed_credit_reserve_policies')) {
+      // Phase 3 reserve regime: default policy (10% ratio, $500 floor).
+      return { rows: [{ id: 1, partner_id: null, currency_code: 'USD', ratio_bps: 1000, floor_cents: 50000, is_default: true }] };
+    }
+    if (s.includes('FROM oxsteed_credit_accounts') && !s.includes('FROM oxsteed_credit_accounts a')) {
+      // Phase 3 reserve balance reads (no table alias in that query shape).
+      // The reserve is funded above the default floor so the payout gate passes.
+      const balances = { partner_reserve: 100000, partner_payable: 0 };
+      return { rows: [{ balance_cents: balances[params[0]] ?? 0 }] };
+    }
     if (s.includes('FROM oxsteed_credit_accounts a')) {
       return { rows: [accountRowFor(params[0])] };
     }

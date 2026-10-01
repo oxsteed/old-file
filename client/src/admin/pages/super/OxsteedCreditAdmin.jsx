@@ -36,6 +36,7 @@ const CREDIT_WORKER_NAMES = [
   'oxsteed-credit-hold-expiry',
   'oxsteed-credit-entitlement-expiry',
   'oxsteed-credit-reconciliation',
+  'oxsteed-credit-settlement-cycle',
   'oxsteed-credit-integrity',
   'restaurant-credit-wallet-watchdog',
 ];
@@ -372,14 +373,16 @@ function SettlementControls({
         </div>}
       </form>
       <div className="overflow-x-auto rounded-xl border border-gray-800">
-        <table className="min-w-[920px] w-full text-left text-xs">
-          <thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">{t('adminRestaurant')}</th><th className="px-3 py-3 font-medium">{t('adminSettlementPeriod')}</th><th className="px-3 py-3 font-medium">{t('adminNetPayable')}</th><th className="px-3 py-3 font-medium">{t('adminSettlementStatusProvenance')}</th><th className="px-3 py-3 font-medium">{t('adminControls')}</th></tr></thead>
+        <table className="min-w-[1080px] w-full text-left text-xs">
+          <thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">{t('adminRestaurant')}</th><th className="px-3 py-3 font-medium">{t('adminSettlementPeriod')}</th><th className="px-3 py-3 font-medium">{t('adminCycle')}</th><th className="px-3 py-3 font-medium">{t('adminValueDate')}</th><th className="px-3 py-3 font-medium">{t('adminNetPayable')}</th><th className="px-3 py-3 font-medium">{t('adminSettlementStatusProvenance')}</th><th className="px-3 py-3 font-medium">{t('adminControls')}</th></tr></thead>
           <tbody className="divide-y divide-gray-800">
-            {!settlements.length ? <tr><td colSpan="5" className="px-3 py-10 text-center text-gray-500">{t('adminNoSettlementSnapshots')}</td></tr> : settlements.map((settlement) => <tr key={settlement.id}>
+            {!settlements.length ? <tr><td colSpan="7" className="px-3 py-10 text-center text-gray-500">{t('adminNoSettlementSnapshots')}</td></tr> : settlements.map((settlement) => <tr key={settlement.id}>
               <td className="px-3 py-3 text-white">{settlement.restaurantName || t('adminPartnerFallback', { id: settlement.partnerId })}<p className="mt-1 text-gray-600">{t('adminGrossAmount')} {money(settlement.grossCents, settlement.currencyCode)} · {t('adminRefunds')} {money(settlement.refundCents, settlement.currencyCode)}</p></td>
               <td className="px-3 py-3 text-gray-400">{dateTime(settlement.periodStart)}<br />{t('adminTo')} {dateTime(settlement.periodEnd)}</td>
+              <td className="px-3 py-3 text-gray-400">{settlement.cycleId ? <span title={settlement.cycleId}>{String(settlement.cycleId).slice(0, 8)}</span> : t('adminCycleManual')}</td>
+              <td className="px-3 py-3 text-gray-400">{settlement.valueDate ? dateTime(settlement.valueDate) : t('adminUnknownDate')}</td>
               <td className="px-3 py-3 font-semibold text-emerald-300">{money(settlement.netCents, settlement.currencyCode)}</td>
-              <td className="px-3 py-3"><Badge status={settlement.status} /><p className="mt-1 break-all text-[10px] text-gray-600">{t('adminCreatedBy')} {settlement.createdBy || t('adminSystem')}</p>{settlement.approvedBy && <p className="mt-1 break-all text-[10px] text-sky-300">{t('adminApprovedBy')} {settlement.approvedBy}</p>}</td>
+              <td className="px-3 py-3"><Badge status={settlement.status} /><p className="mt-1 break-all text-[10px] text-gray-600">{t('adminPayoutStatus')}: {localizeCreditStatus(settlement.payoutStatus || 'none', t)}</p><p className="mt-1 break-all text-[10px] text-gray-600">{t('adminCreatedBy')} {settlement.createdBy || t('adminSystem')}</p>{settlement.approvedBy && <p className="mt-1 break-all text-[10px] text-sky-300">{t('adminApprovedBy')} {settlement.approvedBy}</p>}</td>
               <td className="px-3 py-3"><div className="flex flex-wrap gap-2">{settlement.status === 'pending' && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'approved')} className="rounded-lg bg-sky-600 px-2.5 py-2 font-semibold text-white hover:bg-sky-500 disabled:opacity-50">{t('adminApprove')}</button>}{settlement.status === 'approved' && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'paid')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">{t('adminMarkPaid')}</button>}{['pending', 'approved'].includes(settlement.status) && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'voided')} className="rounded-lg border border-red-500/30 px-2.5 py-2 font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50">{t('adminVoid')}</button>}</div></td>
             </tr>)}
           </tbody>
@@ -447,6 +450,7 @@ const WORKER_TRANSLATION_KEYS = {
   'oxsteed-credit-hold-expiry': 'adminWorkerHoldExpiry',
   'oxsteed-credit-entitlement-expiry': 'adminWorkerEntitlementExpiry',
   'oxsteed-credit-reconciliation': 'adminWorkerReconciliation',
+  'oxsteed-credit-settlement-cycle': 'adminWorkerSettlementCycle',
   'oxsteed-credit-integrity': 'adminWorkerIntegrity',
   'restaurant-credit-wallet-watchdog': 'adminWorkerRestaurantWalletWatchdog',
 };

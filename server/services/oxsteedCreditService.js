@@ -5,6 +5,7 @@ const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const logger = require('../utils/logger');
+const { assertReserveFloorForPosting } = require('./oxsteedCreditReserveService');
 
 const CREDIT_CURRENCY = 'USD';
 // Credit amounts are stored as integer minor units. Keep this map explicit:
@@ -1062,6 +1063,13 @@ async function postJournalTransaction(client, input) {
     throw new AppError('Customer credit balance limit exceeded', 409, 'credit_balance_limit_exceeded', {
       maxBalanceCents: String(MAX_CUSTOMER_BALANCE_CENTS),
     });
+  }
+  // Partner reserve floor (Phase 3 reserve regime). Both locked rows are
+  // SELECT ... FOR UPDATE above, so the policy read and the floor check are
+  // race-safe inside this posting transaction. Only reserve debits are
+  // gated: funding a reserve (treasury -> reserve) can only raise it.
+  if (debitAccount.account_type === 'partner_reserve') {
+    await assertReserveFloorForPosting(client, { debitAccount, nextBalanceCents: nextDebitBalance });
   }
 
   const { rows: transactionRows } = await client.query(

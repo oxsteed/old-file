@@ -1488,6 +1488,8 @@ async function listAdminSettlements(req, res, next) {
       partnerId: req.query.partnerId || req.query.partner_id,
       status: req.query.status,
       currencyCode: req.query.currencyCode || req.query.currency_code,
+      cycleId: req.query.cycleId || req.query.cycle_id,
+      payoutStatus: req.query.payoutStatus || req.query.payout_status,
       limit: req.query.limit,
       includePagination: true,
     };
@@ -1504,6 +1506,8 @@ async function downloadAdminSettlements(req, res, next) {
       partnerId: req.query.partnerId || req.query.partner_id,
       status: req.query.status,
       currencyCode: req.query.currencyCode || req.query.currency_code,
+      cycleId: req.query.cycleId || req.query.cycle_id,
+      payoutStatus: req.query.payoutStatus || req.query.payout_status,
       limit: 250,
       offset: 0,
       includePagination: true,
@@ -1522,6 +1526,7 @@ async function downloadAdminSettlements(req, res, next) {
     }
     const headers = [
       'Settlement ID', 'Partner ID', 'Restaurant', 'Agreement ID', 'Period start', 'Period end',
+      'Cycle ID', 'Value date', 'Settlement date', 'Payout status', 'Stripe transfer ID',
       'Gross cents', 'Refund cents', 'Fee cents', 'Net cents', 'Status', 'Currency',
       'Payment reference', 'Created by', 'Approved by', 'Paid at', 'Created at', 'Updated at',
     ];
@@ -1534,6 +1539,11 @@ async function downloadAdminSettlements(req, res, next) {
         settlement.agreementId,
         settlement.periodStart,
         settlement.periodEnd,
+        settlement.cycleId,
+        settlement.valueDate,
+        settlement.settlementDate,
+        settlement.payoutStatus,
+        settlement.stripeTransferId,
         settlement.grossCents,
         settlement.refundCents,
         settlement.feeCents,

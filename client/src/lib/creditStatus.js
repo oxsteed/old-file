@@ -28,6 +28,8 @@ const STATUS_TRANSLATION_KEYS = Object.freeze({
   released: 'releasedStatus',
   refunded: 'statusRefunded',
   closed: 'closedStatus',
+  none: 'statusNone',
+  initiated: 'statusInitiated',
 });
 
 const ORDER_TYPE_TRANSLATION_KEYS = Object.freeze({

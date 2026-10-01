@@ -30,6 +30,7 @@ const { startOxsteedCreditHoldExpiryJob } = require('../jobs/oxsteedCreditHoldEx
 const { startDirectSlotHoldExpiryJob } = require('../jobs/directSlotHoldExpiry');
 const { startOxsteedCreditEntitlementExpiryJob } = require('../jobs/oxsteedCreditEntitlementExpiry');
 const { startOxsteedCreditReconciliationJob } = require('../jobs/oxsteedCreditReconciliation');
+const { startOxsteedCreditSettlementCycleJob } = require('../jobs/oxsteedCreditSettlementCycle');
 const { startOxsteedCreditIntegrityJob } = require('../jobs/oxsteedCreditIntegrity');
 const { startAdminAuditChainVerificationJob } = require('../jobs/adminAuditChainVerification');
 const { startOxsteedCreditNotificationOutboxJob } = require('../jobs/oxsteedCreditNotificationOutbox');
@@ -89,6 +90,7 @@ class BackgroundWorkers {
       startDirectSlotHoldExpiryJob();
       startOxsteedCreditEntitlementExpiryJob();
       startOxsteedCreditReconciliationJob();
+      startOxsteedCreditSettlementCycleJob();
       startOxsteedCreditIntegrityJob();
       startAdminAuditChainVerificationJob();
       startOxsteedCreditNotificationOutboxJob();

@@ -5,6 +5,7 @@ const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const { assertSupportedCreditCurrency, computeEntryHash, ensureAccount, getCustomerCreditLimitSummary, listCreditDisputes, postJournalTransaction } = require('./oxsteedCreditService');
+const { getReserveStatus } = require('./oxsteedCreditReserveService');
 const incidentStore = require('./incidentStore');
 
 const PARTNER_STATUSES = new Set(['pending', 'active', 'suspended', 'terminated']);
@@ -54,6 +55,32 @@ function requireAuditReason(value) {
 function requireAdministrativeActor(value, message = 'An identified administrator is required for this Credit change', code = 'credit_admin_actor_required') {
   if (!normalizeString(value, 160)) throw new AppError(message, 400, code);
   return value;
+}
+
+/**
+ * System actor for the automated settlement cycle (Phase 3).
+ *
+ * Background jobs have no users(id) row, so the UUID actor columns
+ * (created_by, approved_by, payout_initiated_by) stay NULL for job-created
+ * records. The actor label is recorded in the row's metadata and the audit
+ * trail instead. requireAdministrativeActorAllowingSystem accepts this
+ * constant where a job legitimately performs an admin-shaped action
+ * (creating cycle settlements and their standing agreements); every other
+ * caller still needs a real admin identity.
+ */
+const CREDIT_SYSTEM_ACTOR = 'system:oxsteed-credit-settlement-cycle';
+
+function isSystemActor(value) {
+  return normalizeString(value, 160) === CREDIT_SYSTEM_ACTOR;
+}
+
+function requireAdministrativeActorAllowingSystem(value, message, code) {
+  if (isSystemActor(value)) return CREDIT_SYSTEM_ACTOR;
+  return requireAdministrativeActor(value, message, code);
+}
+
+function actorUserIdForStorage(value) {
+  return isSystemActor(value) ? null : value || null;
 }
 
 function assertEntitlementAgreementCanBeActive(agreement) {
@@ -220,7 +247,8 @@ function snapshotEntitlement(row) {
   };
 }
 
-function formatSettlement(row) {
+function formatSettlement(row, { reserveStatus = null } = {}) {
+  const metadata = row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata) ? row.metadata : {};
   return {
     id: row.id,
     partnerId: String(row.partner_id),
@@ -230,18 +258,27 @@ function formatSettlement(row) {
     currencyCode: row.currency_code,
     periodStart: row.period_start,
     periodEnd: row.period_end,
+    cycleId: row.cycle_id || null,
+    valueDate: row.value_date || null,
+    settlementDate: row.settlement_date || null,
     grossCents: Number(row.gross_cents || 0),
     refundCents: Number(row.refund_cents || 0),
     feeCents: Number(row.fee_cents || 0),
     netCents: Number(row.net_cents || 0),
+    nettingBreakdown: metadata.netting_breakdown && typeof metadata.netting_breakdown === 'object' ? metadata.netting_breakdown : null,
     status: row.status,
+    payoutStatus: row.payout_status || 'none',
+    stripeTransferId: row.stripe_transfer_id || null,
+    payoutInitiatedBy: row.payout_initiated_by || null,
+    payoutInitiatedAt: row.payout_initiated_at || null,
     paymentReference: row.payment_reference || null,
+    reserveStatus: reserveStatus || null,
     creationReason: row.creation_reason || null,
     creationRequestHash: row.creation_request_hash || null,
     createdBy: row.created_by || null,
     approvedBy: row.approved_by || null,
     paidAt: row.paid_at || null,
-    metadata: row.metadata || {},
+    metadata,
     createdAt: row.created_at || null,
     updatedAt: row.updated_at || null,
   };
@@ -1227,7 +1264,34 @@ async function listEntitlements({ search, customerId, agreementId, status, limit
   return { entitlements: rows.map(formatEntitlement), total, limit: safeLimit, offset: safeOffset, hasMore: safeOffset + rows.length < total };
 }
 
-async function listSettlements({ partnerId, status, currencyCode, limit = 100, offset = 0, includePagination = false } = {}) {
+/**
+ * Batch reserve-status enrichment for settlement list views. One
+ * getReserveStatus per distinct (partner, currency) pair, null-safe: a
+ * missing policy or transient read failure degrades to reserveStatus: null
+ * rather than failing the settlements query.
+ */
+async function attachSettlementReserveStatuses(settlements) {
+  if (!settlements.length) return settlements;
+  const pairs = new Map();
+  for (const settlement of settlements) {
+    const key = `${settlement.partnerId}:${settlement.currencyCode}`;
+    if (!pairs.has(key)) pairs.set(key, { partnerId: settlement.partnerId, currencyCode: settlement.currencyCode });
+  }
+  const statuses = new Map();
+  await Promise.all([...pairs.entries()].map(async ([key, pair]) => {
+    try {
+      statuses.set(key, await getReserveStatus(pool, pair));
+    } catch (error) {
+      statuses.set(key, null);
+    }
+  }));
+  for (const settlement of settlements) {
+    settlement.reserveStatus = statuses.get(`${settlement.partnerId}:${settlement.currencyCode}`) || null;
+  }
+  return settlements;
+}
+
+async function listSettlements({ partnerId, status, currencyCode, cycleId, payoutStatus, limit = 100, offset = 0, includePagination = false } = {}) {
   const params = [];
   const filters = [];
   if (partnerId !== undefined && partnerId !== null && partnerId !== '') {
@@ -1243,6 +1307,16 @@ async function listSettlements({ partnerId, status, currencyCode, limit = 100, o
   if (currencyCode) {
     params.push(assertSupportedCreditCurrency(currencyCode));
     filters.push(`s.currency_code = $${params.length}`);
+  }
+  if (cycleId !== undefined && cycleId !== null && cycleId !== '') {
+    params.push(normalizeUuid(cycleId, 'cycleId'));
+    filters.push(`s.cycle_id = $${params.length}`);
+  }
+  if (payoutStatus !== undefined && payoutStatus !== null && payoutStatus !== '') {
+    const normalizedPayoutStatus = normalizeString(payoutStatus, 24);
+    if (!['none', 'initiated', 'paid', 'failed'].includes(normalizedPayoutStatus)) throw new AppError('Invalid settlement payout status', 400, 'invalid_credit_settlement_payout_status');
+    params.push(normalizedPayoutStatus);
+    filters.push(`s.payout_status = $${params.length}`);
   }
   const safeLimit = Math.max(1, Math.min(Number.parseInt(String(limit), 10) || 100, 250));
   const parsedOffset = Number.parseInt(String(offset), 10);
@@ -1262,7 +1336,8 @@ async function listSettlements({ partnerId, status, currencyCode, limit = 100, o
     params
   );
   const hasMore = includePagination && rows.length > safeLimit;
-  const settlements = rows.slice(0, safeLimit).map(formatSettlement);
+  const settlements = rows.slice(0, safeLimit).map((row) => formatSettlement(row));
+  await attachSettlementReserveStatuses(settlements);
   if (!includePagination) return settlements;
   return {
     settlements,
@@ -1275,7 +1350,41 @@ async function listSettlements({ partnerId, status, currencyCode, limit = 100, o
   };
 }
 
-async function createSettlement({ partnerId, agreementId, periodStart, periodEnd, idempotencyKey, actorUserId, paymentReference, reason, metadata, correlationId, requestIp }) {
+function normalizeUuid(value, fieldName) {
+  const normalized = normalizeString(value, 80);
+  if (!normalized) return null;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalized)) {
+    throw new AppError(`Invalid ${fieldName}`, 400, `invalid_${fieldName}`);
+  }
+  return normalized;
+}
+
+function normalizeSettlementDate(value, fieldName) {
+  const normalized = normalizeString(value, 10);
+  if (!normalized) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized) || Number.isNaN(new Date(`${normalized}T00:00:00Z`).getTime())) {
+    throw new AppError(`Invalid ${fieldName}`, 400, `invalid_${fieldName}`);
+  }
+  return normalized;
+}
+
+function normalizeSettlementTotals(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    throw new AppError('Invalid settlement totals override', 400, 'credit_settlement_totals_invalid');
+  }
+  const totals = {};
+  for (const key of ['grossCents', 'refundCents', 'feeCents']) {
+    const amount = value[key] === undefined || value[key] === null ? 0 : Number(value[key]);
+    if (!Number.isSafeInteger(amount) || amount < 0) {
+      throw new AppError('Invalid settlement totals override', 400, 'credit_settlement_totals_invalid', { [key]: value[key] });
+    }
+    totals[key] = amount;
+  }
+  return totals;
+}
+
+async function createSettlement({ partnerId, agreementId, periodStart, periodEnd, idempotencyKey, actorUserId, paymentReference, reason, metadata, correlationId, requestIp, cycleId = null, valueDate = null, settlementDate = null, settlementTotals = null, netAgainstPayable = false }) {
   const normalizedPartnerId = parsePositiveInt(partnerId, 'partnerId');
   const starts = parseDate(periodStart, 'periodStart', true);
   const ends = parseDate(periodEnd, 'periodEnd', true);
@@ -1286,6 +1395,13 @@ async function createSettlement({ partnerId, agreementId, periodStart, periodEnd
   const normalizedPaymentReference = normalizeString(paymentReference, 160);
   const normalizedReason = normalizeString(reason, 1000);
   const normalizedMetadata = metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : {};
+  // Phase 3 (automated settlement cycle) options. All default off so manual
+  // admin settlements behave exactly as before.
+  const normalizedCycleId = normalizeUuid(cycleId, 'cycleId');
+  const normalizedValueDate = normalizeSettlementDate(valueDate, 'valueDate');
+  const normalizedSettlementDate = normalizeSettlementDate(settlementDate, 'settlementDate');
+  const totalsOverride = normalizeSettlementTotals(settlementTotals);
+  const applyPayableNetting = netAgainstPayable === true;
   return withTransaction(pool, async (client) => {
     const { rows: agreementRows } = await client.query(
       `SELECT a.*, p.status AS partner_status, p.restaurant_id, p.settlement_currency_code,
@@ -1299,6 +1415,10 @@ async function createSettlement({ partnerId, agreementId, periodStart, periodEnd
     );
     const agreement = agreementRows[0];
     if (!agreement) throw new AppError('Credit agreement not found for settlement', 404, 'credit_agreement_not_found');
+    // The request hash binds the caller's request identity only. Derived
+    // annotations (netting breakdown, system actor) are merged into the
+    // stored metadata afterwards so a cross-run idempotent replay (where the
+    // payable balance may legitimately have moved) still matches.
     const requestHash = settlementRequestHash({
       partnerId: normalizedPartnerId,
       agreementId,
@@ -1309,6 +1429,8 @@ async function createSettlement({ partnerId, agreementId, periodStart, periodEnd
       reason: normalizedReason,
       metadata: normalizedMetadata,
     });
+    const storedMetadata = { ...normalizedMetadata };
+    if (isSystemActor(actorUserId)) storedMetadata.systemActor = CREDIT_SYSTEM_ACTOR;
     // Serialize settlement periods for one agreement so concurrent admins cannot
     // both pass the overlap check before either transaction inserts a row.
     await client.query(
@@ -1349,34 +1471,81 @@ async function createSettlement({ partnerId, agreementId, periodStart, periodEnd
       [normalizedPartnerId, agreementId, starts, ends]
     );
     if (overlapRows[0]) throw new AppError('Settlement period overlaps an existing non-voided settlement', 409, 'credit_settlement_period_overlap', { settlementId: String(overlapRows[0].id), status: overlapRows[0].status });
-    const { rows: totals } = await client.query(
-      `SELECT
-         COALESCE(SUM(t.amount_cents) FILTER (WHERE t.transaction_type = 'purchase'), 0) AS gross_cents,
-         COALESCE(SUM(t.amount_cents) FILTER (WHERE t.transaction_type = 'refund'), 0) AS refund_cents,
-         COALESCE(SUM(t.amount_cents) FILTER (WHERE t.transaction_type = 'fee'), 0) AS fee_cents
-       FROM oxsteed_credit_transactions t
-       WHERE t.partner_id = $1 AND t.agreement_id = $2 AND t.status = 'posted'
-         AND COALESCE(t.posted_at, t.created_at) >= $3
-         AND COALESCE(t.posted_at, t.created_at) < $4
-         AND t.currency_code = $5`,
-      [normalizedPartnerId, agreementId, starts, ends, agreement.settlement_currency_code]
-    );
-    const grossCents = Number(totals[0]?.gross_cents || 0);
-    const refundCents = Number(totals[0]?.refund_cents || 0);
-    const feeCents = Number(totals[0]?.fee_cents || 0);
-    const netCents = Math.max(0, grossCents - refundCents - feeCents);
-    if (!actorUserId) {
-      throw new AppError('An identified administrator is required to create a Credit settlement', 400, 'credit_settlement_creator_required');
+    requireAdministrativeActorAllowingSystem(actorUserId, 'An identified administrator is required to create a Credit settlement', 'credit_settlement_creator_required');
+    // Totals are read after the overlap check so a doomed request never pays
+    // for the aggregation. The payable-netting balance read (Phase 3, job
+    // only) carries its own FOR UPDATE row lock, race-safe inside this
+    // transaction.
+    let grossCents;
+    let refundCents;
+    let feeCents;
+    if (totalsOverride) {
+      // Cycle-computed totals: the job aggregates every obligation-bearing
+      // journal type (purchase/refund/fee plus the restaurant sub-bank
+      // types) per (partner, currency) over the same half-open period.
+      grossCents = totalsOverride.grossCents;
+      refundCents = totalsOverride.refundCents;
+      feeCents = totalsOverride.feeCents;
+    } else {
+      const { rows: totals } = await client.query(
+        `SELECT
+           COALESCE(SUM(t.amount_cents) FILTER (WHERE t.transaction_type = 'purchase'), 0) AS gross_cents,
+           COALESCE(SUM(t.amount_cents) FILTER (WHERE t.transaction_type = 'refund'), 0) AS refund_cents,
+           COALESCE(SUM(t.amount_cents) FILTER (WHERE t.transaction_type = 'fee'), 0) AS fee_cents
+         FROM oxsteed_credit_transactions t
+         WHERE t.partner_id = $1 AND t.agreement_id = $2 AND t.status = 'posted'
+           AND COALESCE(t.posted_at, t.created_at) >= $3
+           AND COALESCE(t.posted_at, t.created_at) < $4
+           AND t.currency_code = $5`,
+        [normalizedPartnerId, agreementId, starts, ends, agreement.settlement_currency_code]
+      );
+      grossCents = Number(totals[0]?.gross_cents || 0);
+      refundCents = Number(totals[0]?.refund_cents || 0);
+      feeCents = Number(totals[0]?.fee_cents || 0);
+    }
+    // Per-partner-per-currency netting (Phase 3): a negative partner_payable
+    // balance is a receivable from the partner (e.g. refunds posted after a
+    // prior settlement paid out). It offsets this period's gross so the
+    // obligation nets down instead of double-paying. Positive balances are
+    // never netted away; netting never crosses currencies (the balance read
+    // is scoped to this settlement's currency). True multilateral
+    // cross-partner clearing does not fit the bilateral settlement record
+    // and remains a future extension.
+    let priorPayableBalanceCents = null;
+    if (applyPayableNetting) {
+      const { rows: payableRows } = await client.query(
+        `SELECT balance_cents
+           FROM oxsteed_credit_accounts
+          WHERE account_type = 'partner_payable' AND partner_id = $1 AND currency_code = $2
+          LIMIT 1
+          FOR UPDATE`,
+        [normalizedPartnerId, agreement.settlement_currency_code]
+      );
+      priorPayableBalanceCents = Number(payableRows[0]?.balance_cents || 0);
+    }
+    const nettingOffsetCents = priorPayableBalanceCents === null ? 0 : Math.min(0, priorPayableBalanceCents);
+    const netCents = Math.max(0, grossCents - refundCents - feeCents + nettingOffsetCents);
+    if (applyPayableNetting) {
+      storedMetadata.netting_breakdown = {
+        gross_cents: grossCents,
+        refund_cents: refundCents,
+        fee_cents: feeCents,
+        prior_payable_balance_cents: priorPayableBalanceCents,
+        net_cents: netCents,
+        currency_code: agreement.settlement_currency_code,
+        cycle_id: normalizedCycleId,
+      };
     }
     const { rows } = await client.query(
       `INSERT INTO oxsteed_credit_settlements
          (partner_id, agreement_id, currency_code, period_start, period_end,
           gross_cents, refund_cents, fee_cents, net_cents, payment_reference,
-          idempotency_key, metadata, creation_reason, creation_request_hash, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13, $14, $15)
+          idempotency_key, metadata, creation_reason, creation_request_hash, created_by,
+          cycle_id, value_date, settlement_date)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13, $14, $15, $16, $17, $18)
        ON CONFLICT (idempotency_key) DO NOTHING
        RETURNING *`,
-      [normalizedPartnerId, agreementId, agreement.settlement_currency_code, starts, ends, grossCents, refundCents, feeCents, netCents, normalizedPaymentReference, normalizedIdempotencyKey, JSON.stringify(normalizedMetadata), requiredReason, requestHash, actorUserId || null]
+      [normalizedPartnerId, agreementId, agreement.settlement_currency_code, starts, ends, grossCents, refundCents, feeCents, netCents, normalizedPaymentReference, normalizedIdempotencyKey, JSON.stringify(storedMetadata), requiredReason, requestHash, actorUserIdForStorage(actorUserId), normalizedCycleId, normalizedValueDate, normalizedSettlementDate]
     );
     if (!rows[0]) {
       const { rows: conflictRows } = await client.query(
@@ -1402,7 +1571,7 @@ async function createSettlement({ partnerId, agreementId, periodStart, periodEnd
       });
       return { settlement: formatSettlement(conflictRows[0]), replayed: true };
     }
-    await insertAudit(client, { actionType: 'credit.settlement.created', actorUserId, partnerId: normalizedPartnerId, resourceType: 'credit_settlement', resourceId: rows[0].id, reason: requiredReason, correlationId, requestIp, afterState: rows[0] });
+    await insertAudit(client, { actionType: 'credit.settlement.created', actorUserId: actorUserIdForStorage(actorUserId), partnerId: normalizedPartnerId, resourceType: 'credit_settlement', resourceId: rows[0].id, reason: requiredReason, correlationId, requestIp, afterState: rows[0] });
     return { settlement: formatSettlement({ ...rows[0], restaurant_id: agreement.restaurant_id, restaurant_name: agreement.restaurant_name }), replayed: false };
   }, 'credit_admin_create_settlement');
 }
@@ -1895,7 +2064,12 @@ async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, all
     if (!partnerRows[0]) throw new AppError('Credit partner not found', 404, 'credit_partner_not_found');
     if (partnerRows[0].status === 'terminated') throw new AppError('Terminated credit partners cannot receive new agreements', 409, 'credit_partner_terminated');
     const normalizedReason = requireAuditReason(reason);
-    requireAdministrativeActor(actorUserId, 'An identified administrator is required to create a Credit agreement', 'credit_agreement_creator_required');
+    requireAdministrativeActorAllowingSystem(actorUserId, 'An identified administrator is required to create a Credit agreement', 'credit_agreement_creator_required');
+    // The request hash binds the caller's agreement terms; the system-actor
+    // label is a derived annotation merged afterwards so job replays match.
+    const storedAgreementMetadata = isSystemActor(actorUserId)
+      ? { ...normalizedMetadata, systemActor: CREDIT_SYSTEM_ACTOR }
+      : normalizedMetadata;
     const { rows: versionRows } = await client.query(`SELECT COALESCE(MAX(version), 0) + 1 AS next_version FROM oxsteed_credit_partner_agreements WHERE partner_id = $1`, [normalizedPartnerId]);
     const { rows } = await client.query(
       `INSERT INTO oxsteed_credit_partner_agreements
@@ -1906,7 +2080,7 @@ async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, all
        VALUES ($1, $2, $3, $4, $5, $6::text[], $7::text[], $8::bigint[], $9::jsonb, $10, $11, $12, $13::jsonb, $14, $15, $16, $17)
        ON CONFLICT (creation_idempotency_key) WHERE creation_idempotency_key IS NOT NULL DO NOTHING
        RETURNING *`,
-      [normalizedPartnerId, Number(versionRows[0].next_version), starts, ends, normalizedCustomerTerms, normalizedAllowedOrderTypes, normalizedAllowedCategories, normalizedAllowedMenuItemIds, JSON.stringify(normalizedGeography), normalizedMaxTransactionCents, normalizedDailyCustomerLimitCents, normalizedLifetimeCustomerLimitCents, JSON.stringify(normalizedMetadata), normalizedRequiresCustomerEntitlement, normalizedIdempotencyKey, requestHash, actorUserId || null]
+      [normalizedPartnerId, Number(versionRows[0].next_version), starts, ends, normalizedCustomerTerms, normalizedAllowedOrderTypes, normalizedAllowedCategories, normalizedAllowedMenuItemIds, JSON.stringify(normalizedGeography), normalizedMaxTransactionCents, normalizedDailyCustomerLimitCents, normalizedLifetimeCustomerLimitCents, JSON.stringify(storedAgreementMetadata), normalizedRequiresCustomerEntitlement, normalizedIdempotencyKey, requestHash, actorUserIdForStorage(actorUserId)]
     );
     // A concurrent duplicate can lose the insert race after the first request
     // commits. Re-read the winner and return it as a normal idempotent replay
@@ -1929,7 +2103,7 @@ async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, all
       }
       return { agreement: formatAgreement(winnerRows[0]), replayed: true };
     }
-    await insertAudit(client, { actionType: 'credit.agreement.created', actorUserId, partnerId: normalizedPartnerId, resourceType: 'credit_agreement', resourceId: rows[0].id, reason: normalizedReason, correlationId, requestIp, afterState: rows[0] });
+    await insertAudit(client, { actionType: 'credit.agreement.created', actorUserId: actorUserIdForStorage(actorUserId), partnerId: normalizedPartnerId, resourceType: 'credit_agreement', resourceId: rows[0].id, reason: normalizedReason, correlationId, requestIp, afterState: rows[0] });
     return { agreement: formatAgreement({ ...rows[0], partner_id: normalizedPartnerId }), replayed: false };
   }, 'credit_admin_create_agreement');
 }
@@ -1983,7 +2157,7 @@ async function transitionAgreement({ agreementId, targetStatus, expectedStatus, 
       }
     }
     const normalizedReason = requireAuditReason(reason);
-    requireAdministrativeActor(actorUserId, 'An identified administrator is required to change a Credit agreement', 'credit_agreement_actor_required');
+    requireAdministrativeActorAllowingSystem(actorUserId, 'An identified administrator is required to change a Credit agreement', 'credit_agreement_actor_required');
     const { rows: updatedRows } = await client.query(
       `UPDATE oxsteed_credit_partner_agreements
           SET status = $1,
@@ -1991,9 +2165,9 @@ async function transitionAgreement({ agreementId, targetStatus, expectedStatus, 
               updated_at = NOW()
         WHERE id = $3
         RETURNING *`,
-      [normalizedTarget, actorUserId || null, agreementId]
+      [normalizedTarget, actorUserIdForStorage(actorUserId), agreementId]
     );
-    await insertAudit(client, { actionType: 'credit.agreement.transitioned', actorUserId, partnerId: agreement.partner_id, resourceType: 'credit_agreement', resourceId: agreement.id, reason: normalizedReason, correlationId, requestIp, beforeState: { status: agreement.status }, afterState: { status: normalizedTarget } });
+    await insertAudit(client, { actionType: 'credit.agreement.transitioned', actorUserId: actorUserIdForStorage(actorUserId), partnerId: agreement.partner_id, resourceType: 'credit_agreement', resourceId: agreement.id, reason: normalizedReason, correlationId, requestIp, beforeState: { status: agreement.status }, afterState: { status: normalizedTarget } });
     return { agreement: formatAgreement({ ...updatedRows[0], partner_id: agreement.partner_id, restaurant_id: agreement.restaurant_id, restaurant_name: agreement.restaurant_name }), replayed: false };
   }, 'credit_admin_transition_agreement');
 }
@@ -2559,6 +2733,31 @@ async function initiateSettlementPayout({ settlementId, actorUserId, idempotency
         payoutStatus: settlement.payout_status,
       });
     }
+    // Phase 3 reserve regime: the partner reserve is prefunding, not a
+    // sidecar. A payout may not be initiated while the reserve is below
+    // max(floor, ratio * net / 10000). The reserve must be topped up first
+    // via recordPartnerFunding (explicit admin action).
+    const netCents = Number(settlement.net_cents);
+    const reserveStatus = await getReserveStatus(client, {
+      partnerId: settlement.partner_id,
+      currencyCode: settlement.currency_code,
+    });
+    const requiredReserveCents = Math.max(
+      reserveStatus.floorCents,
+      Math.floor((reserveStatus.ratioBps * netCents) / 10000)
+    );
+    if (reserveStatus.balanceCents < requiredReserveCents) {
+      throw new AppError('Settlement payout is blocked until the partner reserve is funded to its policy requirement', 409, 'credit_settlement_payout_reserve_breach', {
+        settlementId: String(settlement.id),
+        partnerId: String(settlement.partner_id),
+        currencyCode: settlement.currency_code,
+        netCents: String(netCents),
+        reserveBalanceCents: String(reserveStatus.balanceCents),
+        reserveFloorCents: String(reserveStatus.floorCents),
+        reserveRatioBps: String(reserveStatus.ratioBps),
+        requiredReserveCents: String(requiredReserveCents),
+      });
+    }
     const destination = await resolveSettlementStripeAccount(client, { restaurantId: settlement.restaurant_id });
     if (!destination) {
       throw new AppError('No Stripe Connect account with payouts enabled is linked to this settlement\'s restaurant', 409, 'credit_settlement_payout_no_connected_account', {
@@ -2567,7 +2766,6 @@ async function initiateSettlementPayout({ settlementId, actorUserId, idempotency
       });
     }
     const stripe = getSettlementStripeClient();
-    const netCents = Number(settlement.net_cents);
     const currency = String(settlement.currency_code || '').toLowerCase();
     const transfer = await stripe.transfers.create(
       {
@@ -2803,6 +3001,8 @@ module.exports = {
   formatEntitlement,
   formatSettlement,
   formatReconciliationRun,
+  attachSettlementReserveStatuses,
+  CREDIT_SYSTEM_ACTOR,
   CREDIT_TRANSACTION_TYPES,
   CREDIT_TRANSACTION_STATUSES,
   MAX_BULK_ENTITLEMENTS,
