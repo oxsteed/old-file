@@ -1818,6 +1818,101 @@ html.dark .lrn-ask-ai-btn:hover {
   background: rgba(249,115,22,.18);
 }
 
+/* ── Still need help? end-of-steps card ─────────────────────────────────────── */
+
+.lrn-still-help {
+  margin-top: 1.25rem;
+  border: 1px solid #fed7aa;
+  border-radius: .9rem;
+  background: #fff7ed;
+  padding: 1rem 1.1rem;
+}
+
+.lrn-still-help-title {
+  margin: 0 0 .75rem;
+  font-weight: 800;
+  font-size: .95rem;
+  color: #9a3412;
+}
+
+.lrn-still-help-actions {
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+}
+
+.lrn-still-help-ai,
+.lrn-still-help-human {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  padding: .7rem .9rem;
+  border-radius: .7rem;
+  border: 1px solid #fed7aa;
+  background: #ffffff;
+  color: #9a3412;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+
+.lrn-still-help-ai:hover,
+.lrn-still-help-human:hover {
+  background: #ffedd5;
+  border-color: #f97316;
+}
+
+.lrn-still-help-human {
+  background: #f97316;
+  border-color: #f97316;
+  color: #ffffff;
+}
+
+.lrn-still-help-human:hover {
+  background: #ea580c;
+  border-color: #ea580c;
+}
+
+.lrn-still-help-ai span,
+.lrn-still-help-human span {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: .1rem;
+}
+
+.lrn-still-help-ai strong,
+.lrn-still-help-human strong {
+  font-size: .9rem;
+  font-weight: 800;
+}
+
+.lrn-still-help-ai small,
+.lrn-still-help-human small {
+  font-size: .75rem;
+  opacity: .85;
+}
+
+html.dark .lrn-still-help {
+  background: rgba(249,115,22,.08);
+  border-color: rgba(249,115,22,.3);
+}
+
+html.dark .lrn-still-help-title {
+  color: #fdba74;
+}
+
+html.dark .lrn-still-help-ai {
+  background: rgba(249,115,22,.1);
+  border-color: rgba(249,115,22,.3);
+  color: #fb923c;
+}
+
+html.dark .lrn-still-help-ai:hover {
+  background: rgba(249,115,22,.18);
+}
+
 /* ── UGC Submit modal ─────────────────────────────────────────────────────────── */
 
 .lrn-modal-overlay {

@@ -26,11 +26,13 @@ import {
   Package,
   Paintbrush,
   PlayCircle,
+  Phone,
   Search,
   Headphones,
   Send,
   ShoppingBag,
   Smartphone,
+  Sparkles,
   Thermometer,
   ThumbsUp,
   TrendingUp,
@@ -4263,6 +4265,15 @@ export default function LearnModePage() {
     }));
   }, [t]);
 
+  // Ask AI about the whole guide (end-of-steps help card): opens the AI chat
+  // with guide-level context prefilled.
+  const handleAskAiGuide = useCallback((guide) => {
+    const prefill = t('learn.page.askAiGuidePrefill', { title: guide.title });
+    window.dispatchEvent(new CustomEvent('oxsteed:open-support', {
+      detail: { prefill, guide_id: guide.id },
+    }));
+  }, [t]);
+
   const dismissAppBanner = () => {
     setShowAppBanner(false);
     localStorage.setItem(APP_BANNER_KEY, '1');
@@ -5104,6 +5115,35 @@ export default function LearnModePage() {
                                 </li>
                               ))}
                             </ol>
+
+                            {/* Still need help? Ask AI or talk to a human */}
+                            <div className="lrn-still-help">
+                              <p className="lrn-still-help-title">{t('learn.page.stillNeedHelp')}</p>
+                              <div className="lrn-still-help-actions">
+                                <button
+                                  type="button"
+                                  className="lrn-still-help-ai"
+                                  onClick={() => { trackLearnClick(guide.id, 'ask-ai', 'guide-help'); handleAskAiGuide(guide); }}
+                                >
+                                  <Sparkles size={16} aria-hidden="true" />
+                                  <span>
+                                    <strong>{t('learn.page.askAi')}</strong>
+                                    <small>{t('learn.page.askAiSub')}</small>
+                                  </span>
+                                </button>
+                                <Link
+                                  to={guide.hireHref}
+                                  className="lrn-still-help-human"
+                                  onClick={() => trackLearnClick(guide.id, 'human-help', guide.hireHref)}
+                                >
+                                  <Phone size={16} aria-hidden="true" />
+                                  <span>
+                                    <strong>{t('learn.page.talkToHuman')}</strong>
+                                    <small>{t('learn.page.talkToHumanPrice')}</small>
+                                  </span>
+                                </Link>
+                              </div>
+                            </div>
 
                             {/* Completion */}
                             {done ? (
