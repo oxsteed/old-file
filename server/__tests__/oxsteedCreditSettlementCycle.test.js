@@ -598,6 +598,16 @@ describe('settlement payout reserve gate', () => {
       if (sql.includes('UPDATE oxsteed_credit_settlements')) {
         return { rows: [settlementRow({ status: 'approved', payout_status: 'initiated', stripe_transfer_id: 'tr_test_cycle_123' })] };
       }
+      // Phase 7 (gap 11): payout reserves the net on the partner payable.
+      if (sql.includes('SELECT a.* FROM oxsteed_credit_accounts')) {
+        return { rows: [{ id: 101, account_type: 'partner_payable', balance_cents: 100000, reserved_cents: 0, status: 'active' }] };
+      }
+      if (sql.includes('SELECT id, balance_cents, reserved_cents, status')) {
+        return { rows: [{ id: 101, balance_cents: 100000, reserved_cents: 0, status: 'active' }] };
+      }
+      if (sql.includes('INSERT INTO oxsteed_credit_reservations')) {
+        return { rows: [{ id: 'res-cycle-1', account_id: 101, status: 'active' }] };
+      }
       if (sql.includes('INSERT INTO oxsteed_credit_audit_events')) return { rows: [{}] };
       return { rows: [] };
     });

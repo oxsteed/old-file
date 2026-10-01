@@ -23,16 +23,11 @@ const {
   MAX_DAILY_CUSTOMER_SPEND_COUNT,
   getCustomerCreditTransaction,
   createCreditHold,
-  captureCreditHold,
   releaseCreditHold,
   transferCredit,
-  adjustCustomerCredit,
   updateCustomerCreditAccountStatus,
   openCreditDispute,
   listCreditDisputes,
-  resolveCreditDispute,
-  loadCustomerCredit,
-  refundCredit,
   getCreditRailStatus,
   getCustomerCreditRailStatus,
   setCreditRailStatus,
@@ -46,6 +41,14 @@ const { reviewIdentityVerification } = require('../services/identityVerification
 const { decideSanctionsScreening } = require('../services/sanctionsScreeningService');
 const { getComplianceQueue, transitionComplianceCase } = require('../services/complianceCaseService');
 const { issueStepupChallenge, verifyStepupChallenge, amountRequiresStepup } = require('../services/stepupChallengeService');
+// Phase 7 (gap 9): maker-checker wraps every admin money movement.
+const {
+  requestPendingAction,
+  decidePendingAction,
+  listPendingActions,
+} = require('../services/oxsteedCreditPendingActionService');
+// Phase 7 (gap 10): compensated dispute resolutions.
+const { resolveDisputeWithCompensation } = require('../services/oxsteedCreditDisputeService');
 const {
   listPartners,
   listAdminCustomerCreditAccounts,
@@ -60,7 +63,6 @@ const {
   listReconciliationRuns,
   createSettlement,
   transitionSettlement,
-  reverseSettlement,
   reconcileCreditLedger,
   createAgreement,
   transitionAgreement,
@@ -73,14 +75,13 @@ const {
 const {
   getPartnerLedger,
   listPartnerFundingRecords,
-  recordPartnerFunding,
 } = require('../services/oxsteedCreditPartnerLedgerService');
 const {
-  createCurrencyQuote,
-  createLiveRateCurrencyQuote,
+  calculateQuotedTargetAmount,
   getCurrencyQuote,
   convertCustomerCredit,
 } = require('../services/oxsteedCreditCurrencyConversionService');
+const { getFxQuote } = require('../services/fxRateProvider');
 const {
   listExternalReconciliationRuns,
   triggerExternalReconciliation,
@@ -131,6 +132,40 @@ function parseBoolean(value, fieldName) {
 
 function getIdempotencyKey(req) {
   return normalizeString(req.get('Idempotency-Key') || req.body?.idempotencyKey || req.body?.idempotency_key, 160);
+}
+
+/**
+ * Phase 7 (gap 9): maker-checker. The requesting admin (maker) queues a
+ * pending action; a different admin (checker) approves or rejects it via
+ * POST /super/oxsteed-credit/pending-actions/:id/decision. Below the
+ * maker-checker threshold (env, default 0 = everything needs dual
+ * approval) the movement executes immediately under the requesting admin.
+ * Returns the service result: { executed, pendingAction, result, replayed }.
+ */
+async function requestMoneyMovement(req, actionType, payload) {
+  return requestPendingAction({
+    actionType,
+    payload: payload || {},
+    requestedBy: req.user.id,
+    idempotencyKey: getIdempotencyKey(req),
+    requestIp: req.ip || null,
+    correlationId: req.correlationId || req.get('X-Request-ID') || null,
+  });
+}
+
+/**
+ * Sends a maker-checker result: 202 with the pending receipt when queued,
+ * or the execution result when the threshold bypass ran it immediately.
+ */
+function sendMoneyMovementResult(res, result, executedStatus = 201) {
+  if (result.executed) {
+    const executedReplayed = Boolean(result.result && result.result.replayed);
+    return res.status(executedReplayed ? 200 : executedStatus).json(result.result);
+  }
+  return res.status(result.replayed ? 200 : 202).json({
+    pendingAction: result.pendingAction,
+    replayed: Boolean(result.replayed),
+  });
 }
 
 function getRequestContext(req) {
@@ -470,13 +505,10 @@ async function releaseMyHold(req, res, next) {
 async function adminCaptureHold(req, res, next) {
   try {
     const holdId = parseUuid(req.params.holdId, 'holdId');
-    const result = await captureCreditHold({
+    const result = await requestMoneyMovement(req, 'credit_hold_capture', {
       holdId,
       amountCents: req.body?.amountCents ?? req.body?.amount_cents,
       currencyCode: req.body?.currencyCode || req.body?.currency_code,
-      idempotencyKey: getIdempotencyKey(req),
-      actorUserId: req.user.id,
-      actorType: 'admin',
       orderType: req.body?.orderType || req.body?.order_type,
       category: req.body?.category,
       categories: req.body?.categories,
@@ -488,14 +520,14 @@ async function adminCaptureHold(req, res, next) {
       country: req.body?.country,
       referenceType: req.body?.referenceType || req.body?.reference_type,
       referenceId: req.body?.referenceId || req.body?.reference_id,
-      correlationId: req.correlationId || req.get('X-Request-ID') || null,
-      requestIp: req.ip || null,
       description: req.body?.description,
       reason: req.body?.reason,
       metadata: { source: 'super_admin_api', ...(req.body?.metadata || {}) },
     });
-    if (result.expired) return res.status(409).json({ ...result, code: 'credit_hold_expired' });
-    res.status(result.replayed ? 200 : 201).json(result);
+    if (result.executed && result.result?.expired) {
+      return res.status(409).json({ ...result.result, code: 'credit_hold_expired' });
+    }
+    sendMoneyMovementResult(res, result);
   } catch (error) {
     next(error);
   }
@@ -585,20 +617,15 @@ async function adminLoadCredit(req, res, next) {
       requestIp: req.ip || null,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
     });
-    const result = await loadCustomerCredit({
+    const result = await requestMoneyMovement(req, 'credit_load', {
       customerId,
       amountCents: req.body?.amountCents ?? req.body?.amount_cents,
       currencyCode: req.body?.currencyCode || req.body?.currency_code,
-      idempotencyKey: getIdempotencyKey(req),
-      actorUserId: req.user.id,
-      correlationId: req.correlationId || req.get('X-Request-ID') || null,
-      requestIp: req.ip || null,
       reason: req.body?.reason,
-      referenceType: 'admin_load',
       referenceId,
       metadata: { source: 'super_admin_api', fundingReference: referenceId },
     });
-    res.status(result.replayed ? 200 : 201).json(result);
+    sendMoneyMovementResult(res, result);
   } catch (error) {
     next(error);
   }
@@ -614,21 +641,16 @@ async function adminAdjustCredit(req, res, next) {
     if (!referenceId) {
       throw new AppError('A funding reference is required for an administrative credit adjustment', 400, 'credit_funding_reference_required');
     }
-    const result = await adjustCustomerCredit({
+    const result = await requestMoneyMovement(req, 'credit_adjustment', {
       customerId,
       amountCents: req.body?.amountCents ?? req.body?.amount_cents,
       currencyCode: req.body?.currencyCode || req.body?.currency_code,
       direction,
-      idempotencyKey: getIdempotencyKey(req),
-      actorUserId: req.user.id,
       reason: req.body?.reason,
-      referenceType: 'admin_adjustment',
       referenceId,
-      correlationId: req.correlationId || req.get('X-Request-ID') || null,
-      requestIp: req.ip || null,
       metadata: { source: 'super_admin_api', ...(req.body?.metadata || {}) },
     });
-    res.status(result.replayed ? 200 : 201).json(result);
+    sendMoneyMovementResult(res, result);
   } catch (error) {
     next(error);
   }
@@ -637,18 +659,17 @@ async function adminAdjustCredit(req, res, next) {
 async function refundAdminCredit(req, res, next) {
   try {
     const purchaseTransactionId = parseUuid(req.params.transactionId, 'transactionId');
-    const result = await refundCredit({
+    // Validate at the boundary before queueing: the reason is required for
+    // the audit trail whether the refund executes now or at approval time.
+    const reason = String(req.body?.reason || '').trim();
+    if (!reason) throw new AppError('A reason is required to refund a credit transaction', 400, 'credit_refund_reason_required');
+    const result = await requestMoneyMovement(req, 'credit_refund', {
       purchaseTransactionId,
       amountCents: req.body?.amountCents ?? req.body?.amount_cents,
-      idempotencyKey: getIdempotencyKey(req),
-      actorUserId: req.user.id,
-      actorType: 'admin',
-      reason: req.body?.reason,
-      correlationId: req.correlationId || req.get('X-Request-ID') || null,
-      requestIp: req.ip || null,
+      reason,
       metadata: { source: 'super_admin_api', ...(req.body?.metadata || {}) },
     });
-    res.status(result.replayed ? 200 : 201).json(result);
+    sendMoneyMovementResult(res, result);
   } catch (error) {
     next(error);
   }
@@ -746,8 +767,78 @@ async function downloadAdminCreditDisputes(req, res, next) {
 async function resolveAdminDispute(req, res, next) {
   try {
     const disputeId = parseUuid(req.params.disputeId, 'disputeId');
-    const result = await resolveCreditDispute({ disputeId, status: req.body?.status, resolution: req.body?.resolution, actorUserId: req.user.id, requestIp: req.ip || null });
+    const rawStatus = req.body?.status;
+    // Phase 7 (gap 10): compensated resolutions. The legacy 'resolved'
+    // status maps to 'resolved_merchant' (resolution against the customer
+    // claim without compensation); the new statuses are resolved_customer
+    // (with optional compensation) and resolved_merchant. Disputes are
+    // never auto-resolved in the customer's favor.
+    const decision = rawStatus === 'resolved' ? 'resolved_merchant' : rawStatus;
+    const result = await resolveDisputeWithCompensation({
+      disputeId,
+      adminId: req.user.id,
+      decision,
+      reason: req.body?.resolution || req.body?.reason,
+      compensationCents: req.body?.compensationCents ?? req.body?.compensation_cents ?? 0,
+      requestIp: req.ip || null,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+    });
     res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /admin/super/oxsteed-credit/pending-actions
+ * Generic maker endpoint: queue any supported money movement for checker
+ * approval. The converted money routes call requestMoneyMovement instead,
+ * which funnels here with a fixed action type.
+ */
+async function requestAdminPendingAction(req, res, next) {
+  try {
+    const result = await requestMoneyMovement(req, req.body?.actionType || req.body?.action_type, req.body?.payload || {});
+    sendMoneyMovementResult(res, result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /admin/super/oxsteed-credit/pending-actions/:id/decision
+ * Checker endpoint: approve (with a fresh step-up challenge) or reject
+ * (with a required reason). Self-approval is forbidden.
+ */
+async function decideAdminPendingAction(req, res, next) {
+  try {
+    const result = await decidePendingAction({
+      actionId: parseUuid(req.params.id, 'id'),
+      decidedBy: req.user.id,
+      decision: req.body?.decision,
+      reason: req.body?.reason,
+      stepupChallengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+      stepupCode: req.body?.stepupCode || req.body?.stepup_code,
+      requestIp: req.ip || null,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+    });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * GET /admin/super/oxsteed-credit/pending-actions?status=&limit=&offset=
+ * Checker queue: list pending (or decided) actions.
+ */
+async function listAdminPendingActions(req, res, next) {
+  try {
+    const pendingActions = await listPendingActions({
+      status: req.query.status || null,
+      limit: req.query.limit,
+      offset: req.query.offset,
+    });
+    res.json({ pendingActions });
   } catch (error) {
     next(error);
   }
@@ -1132,8 +1223,11 @@ async function transitionAdminComplianceCase(req, res, next) {
  * Issue a step-up challenge for the calling super-admin (used before
  * settlement payout initiation and withdrawal approval). Code is emailed;
  * never in the response.
+ *
+ * Phase 7 (gap 9): 'pending_action_approve' is the challenge a checker
+ * proves before approving a pending money movement.
  */
-const ADMIN_STEPUP_ACTION_TYPES = new Set(['settlement_payout', 'withdrawal']);
+const ADMIN_STEPUP_ACTION_TYPES = new Set(['settlement_payout', 'withdrawal', 'pending_action_approve']);
 async function issueAdminStepupChallenge(req, res, next) {
   try {
     const requestedActionType = String(req.body?.actionType || req.body?.action_type || 'settlement_payout').trim();
@@ -1921,9 +2015,24 @@ async function createAdminSettlement(req, res, next) {
 async function transitionAdminSettlement(req, res, next) {
   try {
     const settlementId = parseUuid(req.params.settlementId, 'settlementId');
+    const targetStatus = req.body?.status || req.body?.targetStatus || req.body?.target_status;
+    // Phase 7 (gap 9): only the pending -> approved transition moves money
+    // (it releases the settlement for payout), so only it needs a checker.
+    // Rejections and other non-money transitions stay single-admin.
+    if (targetStatus === 'approved') {
+      const result = await requestMoneyMovement(req, 'credit_settlement_approval', {
+        settlementId,
+        targetStatus,
+        expectedStatus: req.body?.expectedStatus ?? req.body?.expected_status,
+        reason: req.body?.reason,
+        paymentReference: req.body?.paymentReference || req.body?.payment_reference,
+      });
+      sendMoneyMovementResult(res, result, 200);
+      return;
+    }
     const result = await transitionSettlement({
       settlementId,
-      targetStatus: req.body?.status || req.body?.targetStatus || req.body?.target_status,
+      targetStatus,
       expectedStatus: req.body?.expectedStatus ?? req.body?.expected_status,
       actorUserId: req.user.id,
       reason: req.body?.reason,
@@ -1940,17 +2049,13 @@ async function transitionAdminSettlement(req, res, next) {
 async function reverseAdminSettlement(req, res, next) {
   try {
     const settlementId = parseUuid(req.params.settlementId, 'settlementId');
-    const result = await reverseSettlement({
+    const result = await requestMoneyMovement(req, 'credit_settlement_reversal', {
       settlementId,
-      idempotencyKey: getIdempotencyKey(req),
-      actorUserId: req.user.id,
       reason: req.body?.reason,
       recoveryReference: req.body?.recoveryReference || req.body?.recovery_reference,
-      correlationId: req.correlationId || req.get('X-Request-ID') || null,
-      requestIp: req.ip || null,
       metadata: req.body?.metadata,
     });
-    res.status(result.replayed ? 200 : 201).json(result);
+    sendMoneyMovementResult(res, result);
   } catch (error) {
     next(error);
   }
@@ -1994,20 +2099,16 @@ async function getAdminPartnerLedger(req, res, next) {
 async function recordAdminPartnerFunding(req, res, next) {
   try {
     const partnerId = parsePositiveInt(req.params.partnerId, 'partnerId');
-    const result = await recordPartnerFunding({
+    const result = await requestMoneyMovement(req, 'credit_partner_funding', {
       partnerId,
       currencyCode: req.body?.currencyCode || req.body?.currency_code,
       amountCents: req.body?.amountCents || req.body?.amount_cents,
       direction: req.body?.direction,
       externalReference: req.body?.externalReference || req.body?.external_reference,
-      idempotencyKey: getIdempotencyKey(req),
-      actorUserId: req.user.id,
       reason: req.body?.reason,
-      correlationId: req.correlationId || req.get('X-Request-ID') || null,
-      requestIp: req.ip || null,
       metadata: req.body?.metadata,
     });
-    res.status(result.replayed ? 200 : 201).json(result);
+    sendMoneyMovementResult(res, result);
   } catch (error) {
     next(error);
   }
@@ -2015,43 +2116,57 @@ async function recordAdminPartnerFunding(req, res, next) {
 
 async function createAdminCurrencyQuote(req, res, next) {
   try {
+    // Phase 7 (gap 9): quote creation is dual-approved. The live-rate
+    // branch resolves the market rate at request time (as it does today)
+    // and stores the concrete terms in the payload, so the checker
+    // approves exactly the terms the maker saw.
+    let payload;
     if (req.body?.useLiveRate === true) {
-      const result = await createLiveRateCurrencyQuote({
-        sourceCurrency: req.body?.sourceCurrency || req.body?.source_currency,
-        targetCurrency: req.body?.targetCurrency || req.body?.target_currency,
-        sourceAmountCents: req.body?.sourceAmountCents ?? req.body?.source_amount_cents,
+      const from = String(req.body?.sourceCurrency || req.body?.source_currency || '').toUpperCase();
+      const to = String(req.body?.targetCurrency || req.body?.target_currency || '').toUpperCase();
+      const sourceAmountCents = req.body?.sourceAmountCents ?? req.body?.source_amount_cents;
+      const fx = await getFxQuote(from, to);
+      payload = {
+        sourceCurrencyCode: from,
+        targetCurrencyCode: to,
+        sourceAmountMinorUnits: sourceAmountCents,
+        targetAmountMinorUnits: calculateQuotedTargetAmount({
+          sourceAmountMinorUnits: sourceAmountCents,
+          rateNumerator: fx.rateNumerator,
+          rateDenominator: fx.rateDenominator,
+          roundingMode: 'half_up',
+        }),
+        feeAmountMinorUnits: 0,
+        rateNumerator: fx.rateNumerator,
+        rateDenominator: fx.rateDenominator,
+        roundingMode: 'half_up',
+        provider: fx.provider,
+        providerQuoteReference: `${fx.provider}:${from}:${to}:${fx.quotedAt}`,
+        expiresAt: req.body?.expiresAt || req.body?.expires_at,
         customerId: req.body?.customerId || req.body?.customer_id,
         reason: req.body?.reason,
-        actor: req.user.id,
-        idempotencyKey: getIdempotencyKey(req),
+        metadata: { ...(req.body?.metadata || {}), fxProvider: fx.provider, fxQuotedAt: fx.quotedAt },
+      };
+    } else {
+      payload = {
+        sourceCurrencyCode: req.body?.sourceCurrencyCode || req.body?.source_currency_code,
+        targetCurrencyCode: req.body?.targetCurrencyCode || req.body?.target_currency_code,
+        sourceAmountMinorUnits: req.body?.sourceAmountMinorUnits || req.body?.source_amount_minor_units,
+        targetAmountMinorUnits: req.body?.targetAmountMinorUnits || req.body?.target_amount_minor_units,
+        feeAmountMinorUnits: req.body?.feeAmountMinorUnits ?? req.body?.fee_amount_minor_units ?? 0,
+        rateNumerator: req.body?.rateNumerator || req.body?.rate_numerator,
+        rateDenominator: req.body?.rateDenominator || req.body?.rate_denominator,
+        roundingMode: req.body?.roundingMode || req.body?.rounding_mode || 'half_up',
+        provider: req.body?.provider,
+        providerQuoteReference: req.body?.providerQuoteReference || req.body?.provider_quote_reference,
         expiresAt: req.body?.expiresAt || req.body?.expires_at,
-        requestIp: req.ip || null,
-        correlationId: req.correlationId || req.get('X-Request-ID') || null,
+        customerId: req.body?.customerId || req.body?.customer_id,
+        reason: req.body?.reason,
         metadata: req.body?.metadata,
-      });
-      res.status(result.replayed ? 200 : 201).json(result);
-      return;
+      };
     }
-    const result = await createCurrencyQuote({
-      sourceCurrencyCode: req.body?.sourceCurrencyCode || req.body?.source_currency_code,
-      targetCurrencyCode: req.body?.targetCurrencyCode || req.body?.target_currency_code,
-      sourceAmountMinorUnits: req.body?.sourceAmountMinorUnits || req.body?.source_amount_minor_units,
-      targetAmountMinorUnits: req.body?.targetAmountMinorUnits || req.body?.target_amount_minor_units,
-      feeAmountMinorUnits: req.body?.feeAmountMinorUnits ?? req.body?.fee_amount_minor_units ?? 0,
-      rateNumerator: req.body?.rateNumerator || req.body?.rate_numerator,
-      rateDenominator: req.body?.rateDenominator || req.body?.rate_denominator,
-      roundingMode: req.body?.roundingMode || req.body?.rounding_mode || 'half_up',
-      provider: req.body?.provider,
-      providerQuoteReference: req.body?.providerQuoteReference || req.body?.provider_quote_reference,
-      expiresAt: req.body?.expiresAt || req.body?.expires_at,
-      idempotencyKey: getIdempotencyKey(req),
-      actorUserId: req.user.id,
-      customerId: req.body?.customerId || req.body?.customer_id,
-      reason: req.body?.reason,
-      correlationId: req.correlationId || req.get('X-Request-ID') || null,
-      metadata: req.body?.metadata,
-    });
-    res.status(result.replayed ? 200 : 201).json(result);
+    const result = await requestMoneyMovement(req, 'credit_currency_quote', payload);
+    sendMoneyMovementResult(res, result);
   } catch (error) {
     next(error);
   }
@@ -2169,6 +2284,9 @@ module.exports = {
   listAdminDisputes,
   downloadAdminCreditDisputes,
   resolveAdminDispute,
+  requestAdminPendingAction,
+  decideAdminPendingAction,
+  listAdminPendingActions,
   getAdminOverview,
   retryAdminCreditNotification,
   getAdminCreditRail,

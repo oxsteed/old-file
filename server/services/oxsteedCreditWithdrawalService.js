@@ -18,8 +18,9 @@
  * Compliance (Phase 5) on every money step: rail kill switch, identity
  * verification tier (tier 0 cannot withdraw), sanctions screening of the
  * customer, and a fresh step-up challenge for large withdrawals. The admin
- * approval is single-admin for now; maker-checker (dual approval) is a
- * later phase and is noted where the approval happens.
+ * approval is maker-checked at the route layer (Phase 7, gap 9): the route
+ * converts an approval into a pending action that a second admin decides;
+ * the reviewer is recorded on the row and in the audit trail.
  *
  * Fees (Phase 6, gap 12): the fee is quoted at request time, stored on the
  * row, and the posted fee leg equals the quote exactly. The customer
@@ -41,6 +42,7 @@ const { assertIdentityVerificationTier } = require('./identityVerificationServic
 const { quoteFee } = require('./oxsteedCreditFeeScheduleService');
 const { recordIncident } = require('./incidentStore');
 const { insertAudit } = require('./oxsteedCreditAdminService');
+const { reserveFunds, releaseReservation } = require('./oxsteedCreditReservationService');
 
 const MIN_WITHDRAWAL_CENTS = Number.parseInt(process.env.OXSTEED_CREDIT_WITHDRAWAL_MIN_CENTS || '500', 10);
 const DAILY_WITHDRAWAL_CAP_CENTS = Number.parseInt(process.env.OXSTEED_CREDIT_WITHDRAWAL_DAILY_CAP_CENTS || '250000', 10);
@@ -202,12 +204,46 @@ async function requestWithdrawal({ customerId, amountCents, currencyCode, idempo
        RETURNING *`,
       [customerId, amount, feeCents, netCents, currency, destination, normalizedKey, String(WITHDRAWAL_REQUEST_EXPIRY_HOURS)]
     );
-    if (rows[0]) return { row: rows[0], created: true };
+    if (rows[0]) {
+      // Phase 7 (gap 11): reserve the full gross amount (net + fee, the
+      // total wallet debit) inside the request transaction, so the customer
+      // cannot spend it while the withdrawal is in flight. Fails closed
+      // with credit_insufficient_funds when amount exceeds balance -
+      // reserved. Released on approval (the journal lock legs take over),
+      // rejection, cancellation, or expiry.
+      const wallet = await ensureAccount(client, {
+        accountType: 'customer_wallet', customerId, currencyCode: currency,
+      });
+      await reserveFunds(client, {
+        accountId: wallet.id,
+        reservationType: 'withdrawal',
+        referenceType: 'credit_withdrawal',
+        referenceId: String(rows[0].id),
+        amountCents: amount,
+      });
+      return { row: rows[0], created: true };
+    }
     const { rows: existingRows } = await client.query(
       `SELECT * FROM oxsteed_credit_withdrawals WHERE idempotency_key = $1`,
       [normalizedKey]
     );
-    return { row: existingRows[0] || null, created: false };
+    const existing = existingRows[0] || null;
+    if (existing && existing.status === 'requested') {
+      // Idempotent replay: the reservation was created with the original
+      // request; replay it so the caller gets a consistent receipt. Later
+      // statuses already moved the money, so nothing is reserved.
+      const replayWallet = await ensureAccount(client, {
+        accountType: 'customer_wallet', customerId, currencyCode: currency,
+      });
+      await reserveFunds(client, {
+        accountId: replayWallet.id,
+        reservationType: 'withdrawal',
+        referenceType: 'credit_withdrawal',
+        referenceId: String(existing.id),
+        amountCents: Number(existing.amount_cents),
+      });
+    }
+    return { row: existing, created: false };
   }, 'credit_withdrawal_request');
 
   if (!insertedOrExisting) {
@@ -250,9 +286,9 @@ async function requestWithdrawal({ customerId, amountCents, currencyCode, idempo
  * but the journal fails, the row parks as requires_attention with a critical
  * incident (mirror of the top-up path).
  *
- * NOTE (maker-checker): this is a single-admin approval. Dual approval on
- * money-out is a later phase; the reviewer is recorded on the row and in
- * the audit trail.
+ * NOTE (maker-checker, Phase 7 gap 9): the admin route wraps this in a
+ * pending action so a second admin decides; this function is the executor
+ * and runs with the checker's identity as actor.
  */
 async function approveWithdrawal({ withdrawalId, actorUserId, idempotencyKey, requestIp, correlationId, getStripe = defaultGetStripe }) {
   requireAdministrativeActor(actorUserId);
@@ -274,6 +310,13 @@ async function approveWithdrawal({ withdrawalId, actorUserId, idempotencyKey, re
         `UPDATE oxsteed_credit_withdrawals SET status = 'cancelled', updated_at = NOW() WHERE id = $1`,
         [withdrawal.id]
       );
+      // Phase 7 (gap 11): the expired request never moves money, so its
+      // reservation is released (no-op for pre-Phase-7 rows).
+      await releaseReservation(client, {
+        referenceType: 'credit_withdrawal',
+        referenceId: String(withdrawal.id),
+        reason: 'withdrawal request expired',
+      });
       fail('Withdrawal request has expired', 'credit_withdrawal_expired', 409);
     }
 
@@ -308,6 +351,16 @@ async function approveWithdrawal({ withdrawalId, actorUserId, idempotencyKey, re
     });
     const treasury = await ensureAccount(client, {
       accountType: 'platform_treasury', currencyCode: currency,
+    });
+
+    // Phase 7 (gap 11): release the request-time reservation before the
+    // journal lock legs take over the protection. Releasing first keeps
+    // reserved_cents exact: the cash_out + fee legs debit the same gross
+    // amount the reservation held.
+    await releaseReservation(client, {
+      referenceType: 'credit_withdrawal',
+      referenceId: String(withdrawal.id),
+      reason: 'withdrawal approved; journal lock legs posted',
     });
 
     // External call first: on Stripe failure the DB transaction rolls back
@@ -421,13 +474,30 @@ async function approveWithdrawal({ withdrawalId, actorUserId, idempotencyKey, re
       return { withdrawal: formatWithdrawal(updatedRows[0]), stripeTransferId: transfer.id };
     } catch (err) {
       // Stripe moved (or may have moved) money but the lock journal failed:
-      // park for operator attention exactly like the top-up path.
+      // park for operator attention exactly like the top-up path. Phase 7
+      // (gap 11): re-reserve the gross amount so the in-flight money stays
+      // protected while the row is parked (mirror of the hold
+      // release -> post -> re-reserve pattern).
       await client.query(
         `UPDATE oxsteed_credit_withdrawals
             SET status = 'requires_attention', stripe_transfer_id = $2, updated_at = NOW()
           WHERE id = $1`,
         [withdrawal.id, transfer.id]
       );
+      try {
+        await reserveFunds(client, {
+          accountId: wallet.id,
+          reservationType: 'withdrawal',
+          referenceType: 'credit_withdrawal',
+          referenceId: String(withdrawal.id),
+          amountCents: amount,
+        });
+      } catch (reserveErr) {
+        logger.error('[oxsteed-credit] Failed to re-reserve withdrawal after journal failure', {
+          withdrawalId: String(withdrawal.id),
+          error: reserveErr.message,
+        });
+      }
       journalError = err;
       return { withdrawal: null, requiresAttention: true, stripeTransferId: transfer.id };
     }
@@ -473,6 +543,13 @@ async function rejectWithdrawal({ withdrawalId, actorUserId, reason, requestIp, 
         RETURNING *`,
       [withdrawal.id, actorUserId, normalizedReason]
     );
+    // Phase 7 (gap 11): the rejected request never moves money; release its
+    // reservation (no-op for pre-Phase-7 rows that never reserved).
+    await releaseReservation(client, {
+      referenceType: 'credit_withdrawal',
+      referenceId: String(withdrawal.id),
+      reason: 'withdrawal rejected',
+    });
     await insertAudit(client, {
       actionType: 'credit.withdrawal.rejected',
       actorUserId,
@@ -507,6 +584,13 @@ async function cancelWithdrawal({ withdrawalId, customerId }) {
         RETURNING *`,
       [withdrawal.id]
     );
+    // Phase 7 (gap 11): the cancelled request never moves money; release its
+    // reservation (no-op for pre-Phase-7 rows that never reserved).
+    await releaseReservation(client, {
+      referenceType: 'credit_withdrawal',
+      referenceId: String(withdrawal.id),
+      reason: 'withdrawal cancelled by customer',
+    });
     return { withdrawal: formatWithdrawal(updatedRows[0]) };
   }, 'credit_withdrawal_cancel');
 }

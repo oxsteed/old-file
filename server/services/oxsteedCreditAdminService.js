@@ -7,6 +7,7 @@ const { withTransaction } = require('../utils/transaction');
 const { assertSupportedCreditCurrency, computeEntryHash, ensureAccount, getCustomerCreditLimitSummary, listCreditDisputes, postJournalTransaction, assertCreditRailEnabled } = require('./oxsteedCreditService');
 const { getReserveStatus } = require('./oxsteedCreditReserveService');
 const incidentStore = require('./incidentStore');
+const { reserveFunds, releaseReservation } = require('./oxsteedCreditReservationService');
 
 const PARTNER_STATUSES = new Set(['pending', 'active', 'suspended', 'terminated']);
 const AGREEMENT_STATUSES = new Set(['draft', 'pending_approval', 'active', 'suspended', 'expired', 'terminated']);
@@ -1900,8 +1901,54 @@ async function reconcileCreditLedger({ currencyCode = 'USD', periodStart, period
     const differenceCents = Number(result.difference_cents || 0);
     const hashIntegrity = await verifyCreditLedgerHashes(client, currency);
     const hashesValid = Object.values(hashIntegrity).every((count) => count === 0);
-    const status = !hashesValid ? 'failed' : differenceCents === 0 ? 'balanced' : 'difference';
-    const integrityMetadata = { scope: reconciliationScope, requestedPeriodStart: starts.toISOString(), requestedPeriodEnd: ends.toISOString(), hashIntegrity };
+    // Phase 7 (gap 11): reserved_cents must equal the sum of active holds
+    // plus active non-hold reservations per account. Holds live in
+    // oxsteed_credit_holds; withdrawals/payouts live in
+    // oxsteed_credit_reservations. Either side diverging is a critical
+    // finding, surfaced on the run and its metadata.
+    const { rows: reservationRows } = await client.query(
+      `WITH hold_totals AS (
+         SELECT h.account_id, COALESCE(SUM(h.amount_cents), 0)::bigint AS cents
+           FROM oxsteed_credit_holds h
+          WHERE h.status = 'active' AND h.currency_code = $1
+          GROUP BY h.account_id
+       ),
+       reservation_totals AS (
+         SELECT r.account_id, COALESCE(SUM(r.amount_cents), 0)::bigint AS cents
+           FROM oxsteed_credit_reservations r
+           JOIN oxsteed_credit_accounts a ON a.id = r.account_id
+          WHERE r.status = 'active' AND a.currency_code = $1
+          GROUP BY r.account_id
+       ),
+       checks AS (
+         SELECT a.id,
+                a.reserved_cents,
+                (COALESCE(h.cents, 0) + COALESCE(r.cents, 0))::bigint AS expected_cents,
+                ABS(a.reserved_cents - (COALESCE(h.cents, 0) + COALESCE(r.cents, 0)))::bigint AS difference
+           FROM oxsteed_credit_accounts a
+           LEFT JOIN hold_totals h ON h.account_id = a.id
+           LEFT JOIN reservation_totals r ON r.account_id = a.id
+          WHERE a.currency_code = $1
+       )
+       SELECT COALESCE(SUM(difference), 0)::bigint AS reservation_difference_cents,
+              COUNT(*) FILTER (WHERE difference <> 0)::int AS divergent_account_count,
+              COALESCE(json_agg(json_build_object('accountId', id, 'reservedCents', reserved_cents, 'expectedCents', expected_cents, 'differenceCents', difference)) FILTER (WHERE difference <> 0), '[]'::json) AS divergences
+         FROM checks`,
+      [currency]
+    );
+    const reservationDifferenceCents = Number(reservationRows[0]?.reservation_difference_cents || 0);
+    const reservationDivergentAccounts = Number(reservationRows[0]?.divergent_account_count || 0);
+    const reservationDivergences = reservationRows[0]?.divergences || [];
+    const status = !hashesValid ? 'failed' : (differenceCents !== 0 || reservationDifferenceCents !== 0) ? 'difference' : 'balanced';
+    const integrityMetadata = {
+      scope: reconciliationScope,
+      requestedPeriodStart: starts.toISOString(),
+      requestedPeriodEnd: ends.toISOString(),
+      hashIntegrity,
+      reservationDifferenceCents,
+      reservationDivergentAccounts,
+      reservationDivergences,
+    };
     const { rows } = await client.query(
       `INSERT INTO oxsteed_credit_reconciliation_runs
          (currency_code, period_start, period_end, status, account_balance_cents,
@@ -1926,6 +1973,9 @@ async function reconcileCreditLedger({ currencyCode = 'USD', periodStart, period
         entryCount: Number(rows[0].entry_count),
         scope: reconciliationScope,
         integrity: hashIntegrity,
+        reservationDifferenceCents,
+        reservationDivergentAccounts,
+        reservationDivergences,
         completedAt: rows[0].completed_at,
       },
     };
@@ -2805,6 +2855,22 @@ async function initiateSettlementPayout({ settlementId, actorUserId, idempotency
         settlementId: String(settlement.id),
       });
     }
+    // Phase 7 (gap 11): reserve the net payout on the partner_payable
+    // account while the Stripe transfer is in flight, so the payable
+    // cannot be double-committed. Released when the payout is confirmed
+    // (the paid journal takes over) or fails.
+    const payable = await ensureAccount(client, {
+      accountType: 'partner_payable',
+      partnerId: settlement.partner_id,
+      currencyCode: settlement.currency_code,
+    });
+    await reserveFunds(client, {
+      accountId: payable.id,
+      reservationType: 'payout',
+      referenceType: 'credit_settlement_payout',
+      referenceId: String(settlement.id),
+      amountCents: netCents,
+    });
     await insertAudit(client, {
       actionType: 'credit.settlement.payout_initiated',
       actorUserId,
@@ -2891,15 +2957,46 @@ async function confirmSettlementPayoutFromTransfer(stripeTransferId) {
     });
   }
   const paymentReference = `stripe_transfer:${normalizedTransferId}`;
-  const transitioned = await transitionSettlement({
-    settlementId: settlement.id,
-    targetStatus: 'paid',
-    actorUserId: settlement.payout_initiated_by,
-    paymentReference,
-    reason: SETTLEMENT_PAYOUT_CONFIRM_AUDIT_REASON,
-    correlationId: `credit-settlement-payout:${settlement.id}`,
-    requestIp: null,
-  });
+  // Phase 7 (gap 11): release the in-flight payout reservation before the
+  // paid journal posts (the journal takes over the protection). If the
+  // transition throws, re-reserve so the payable stays protected while
+  // the payout is still initiated, mirroring the hold
+  // release -> post -> re-reserve pattern.
+  await withTransaction(pool, async (client) => {
+    await releaseReservation(client, {
+      referenceType: 'credit_settlement_payout',
+      referenceId: String(settlement.id),
+      reason: 'settlement payout confirmed; paid journal posted',
+    });
+  }, 'credit_admin_settlement_payout_release');
+  let transitioned;
+  try {
+    transitioned = await transitionSettlement({
+      settlementId: settlement.id,
+      targetStatus: 'paid',
+      actorUserId: settlement.payout_initiated_by,
+      paymentReference,
+      reason: SETTLEMENT_PAYOUT_CONFIRM_AUDIT_REASON,
+      correlationId: `credit-settlement-payout:${settlement.id}`,
+      requestIp: null,
+    });
+  } catch (err) {
+    await withTransaction(pool, async (client) => {
+      const payable = await ensureAccount(client, {
+        accountType: 'partner_payable',
+        partnerId: settlement.partner_id,
+        currencyCode: settlement.currency_code,
+      });
+      await reserveFunds(client, {
+        accountId: payable.id,
+        reservationType: 'payout',
+        referenceType: 'credit_settlement_payout',
+        referenceId: String(settlement.id),
+        amountCents: Number(settlement.net_cents),
+      });
+    }, 'credit_admin_settlement_payout_rereserve');
+    throw err;
+  }
   const { rows: paidRows } = await pool.query(
     `UPDATE oxsteed_credit_settlements
         SET payout_status = 'paid', updated_at = NOW()
@@ -2945,6 +3042,13 @@ async function failSettlementPayoutFromTransfer(stripeTransferId, reason) {
           WHERE id = $1`,
         [settlement.id]
       );
+      // Phase 7 (gap 11): the failed payout never moves money; release its
+      // reservation (no-op for pre-Phase-7 payouts that never reserved).
+      await releaseReservation(client, {
+        referenceType: 'credit_settlement_payout',
+        referenceId: String(settlement.id),
+        reason: 'settlement payout failed',
+      });
     }
     await insertAudit(client, {
       actionType: 'credit.settlement.payout_failed',

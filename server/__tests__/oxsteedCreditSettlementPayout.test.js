@@ -102,6 +102,15 @@ function installDbRouter() {
       // payout sanctions gate passes in these success-path tests.
       return { rows: [{ id: 'san-1', subject_type: 'partner', subject_id: PARTNER_ID, provider: 'manual_review', result: 'clear', hit_context: null, payload_hash: 'h', screened_at: new Date().toISOString(), cleared_at: null, cleared_by: null, clear_reason: null, created_at: new Date().toISOString() }] };
     }
+    if (s.includes('SELECT id, balance_cents, reserved_cents, status')) {
+      // Phase 7 (gap 11): reserveFunds locks the account; the partner
+      // payable is well funded in these tests.
+      return { rows: [{ id: 101, balance_cents: 10000, reserved_cents: 0, status: 'active' }] };
+    }
+    if (s.includes('INSERT INTO oxsteed_credit_reservations')) {
+      // Phase 7 (gap 11): payout reservation on the partner payable.
+      return { rows: [{ id: 'res-payout-1', account_id: 101, reservation_type: 'payout', reference_type: 'credit_settlement_payout', reference_id: params[3], amount_cents: params[4], status: 'active' }] };
+    }
     if (s.includes('FROM oxsteed_credit_accounts') && !s.includes('FROM oxsteed_credit_accounts a')) {
       // Phase 3 reserve balance reads (no table alias in that query shape).
       // The reserve is funded above the default floor so the payout gate passes.

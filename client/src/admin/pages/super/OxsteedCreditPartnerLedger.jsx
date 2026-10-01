@@ -105,7 +105,7 @@ export default function OxsteedCreditPartnerLedger({ partners, currencyOptions, 
     setSaving(true);
     setError('');
     try {
-      await adminApi.post(`/admin/super/oxsteed-credit/partners/${partnerId}/funding`, {
+      const response = await adminApi.post(`/admin/super/oxsteed-credit/partners/${partnerId}/funding`, {
         direction: form.direction,
         amountCents,
         currencyCode,
@@ -114,7 +114,11 @@ export default function OxsteedCreditPartnerLedger({ partners, currencyOptions, 
       }, { headers: { 'Idempotency-Key': mutationKeyRef.current.key } });
       mutationKeyRef.current = null;
       setForm({ direction: form.direction, amount: '', externalReference: '', reason: '' });
-      onNotice?.(form.direction === 'fund' ? t('adminReserveFundedNotice') : t('adminReserveReleasedNotice'));
+      // Phase 7 (gap 9): 202 means the funding movement queued as a pending
+      // action for a second admin instead of posting immediately.
+      onNotice?.(response.status === 202
+        ? t('adminMakerCheckerQueued', { defaultValue: 'Queued for a second admin to approve. Nothing moved yet.' })
+        : (form.direction === 'fund' ? t('adminReserveFundedNotice') : t('adminReserveReleasedNotice')));
       await load(partnerId);
     } catch (err) {
       const message = safeCreditErrorMessage(err, t('adminReserveMovementFailed'));

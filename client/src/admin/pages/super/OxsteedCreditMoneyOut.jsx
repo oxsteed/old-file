@@ -149,11 +149,15 @@ export default function OxsteedCreditMoneyOut({ busy = false }) {
     setError('');
     try {
       const key = idempotencyKeysRef.current.get(`withdrawal-approve:${pendingApproval.withdrawalId}`);
-      await adminApi.post(`/admin/super/oxsteed-credit/withdrawals/${pendingApproval.withdrawalId}/approve`, {
+      const response = await adminApi.post(`/admin/super/oxsteed-credit/withdrawals/${pendingApproval.withdrawalId}/approve`, {
         stepupChallengeId: pendingApproval.challengeId,
         stepupCode,
       }, { headers: { 'Idempotency-Key': key } });
-      setNotice(t('moneyOut.approved', { defaultValue: 'Withdrawal approved and payout initiated.' }));
+      // Phase 7 (gap 9): approval now queues as a pending action for a
+      // second admin instead of executing immediately; 202 means queued.
+      setNotice(response.status === 202
+        ? t('moneyOut.approveQueued', { defaultValue: 'Approval request queued. A second admin must approve it before anything moves.' })
+        : t('moneyOut.approved', { defaultValue: 'Withdrawal approved and payout initiated.' }));
       setPendingApproval(null);
       setStepupCode('');
       await loadWithdrawals();
@@ -201,11 +205,15 @@ export default function OxsteedCreditMoneyOut({ busy = false }) {
     setSaving(true);
     setError('');
     try {
-      await adminApi.put(`/admin/super/oxsteed-credit/fee-schedule/${row.id}`, {
+      const response = await adminApi.put(`/admin/super/oxsteed-credit/fee-schedule/${row.id}`, {
         fixedCents, percentageBps, minFeeCents, maxFeeCents,
         reason: 'Fee schedule updated from the admin money-out page',
       });
-      setNotice(t('moneyOut.feeSaved', { defaultValue: 'Fee schedule updated.' }));
+      // Phase 7 (gap 9): fee schedule updates now queue as pending actions
+      // for a second admin instead of applying immediately; 202 means queued.
+      setNotice(response.status === 202
+        ? t('moneyOut.feeQueued', { defaultValue: 'Fee schedule change queued. A second admin must approve it before it takes effect.' })
+        : t('moneyOut.feeSaved', { defaultValue: 'Fee schedule updated.' }));
       await loadFees();
     } catch (err) {
       setError(safeCreditErrorMessage(err, t('moneyOut.errors.saveFee', { defaultValue: 'Could not save the fee schedule.' })));

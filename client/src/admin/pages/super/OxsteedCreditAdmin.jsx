@@ -258,6 +258,11 @@ const ADMIN_SECTION_TRANSLATIONS = {
     title: 'adminCreditDisputeQueue',
     detail: 'adminDisputeQueueDescription',
   },
+  'Pending actions': {
+    eyebrow: 'adminMakerCheckerQueue',
+    title: 'adminPendingActionQueue',
+    detail: 'adminPendingActionQueueDescription',
+  },
   'Audit history': {
     eyebrow: 'adminAuditHistory',
     title: 'adminCreditControlTrail',
@@ -460,12 +465,14 @@ function CreditDisputeQueue({
   load,
   disputeResolutionDrafts,
   setDisputeResolutionDrafts,
+  disputeCompensationDrafts,
+  setDisputeCompensationDrafts,
   inspectDisputeCustomer,
   resolveDispute,
 }) {
   const { t } = useTranslation('credit');
-  return <Section eyebrow="Disputes" title="Credit dispute queue" detail="Disputes preserve the original journal transaction. Filter by lifecycle state and load older cases from the server; resolve with a documented outcome and use a separate compensating refund or adjustment rather than editing history." action={<div className="flex flex-wrap items-center gap-2"><button type="button" onClick={downloadDisputeHistory} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><Download className="h-3.5 w-3.5" /> {t('adminDownloadCsv')}</button><label className="flex items-center gap-2 text-xs font-semibold text-gray-500"><span>{t('adminStatus')}</span><select aria-label={t('adminDisputeStatusFilter')} value={disputeStatus} onChange={(event) => setDisputeStatus(event.target.value)} disabled={loading || busy} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 outline-none focus:border-orange-400"><option value="">{t('adminAllStatuses')}</option><option value="open">{t('openStatus')}</option><option value="in_review">{t('underReviewStatus')}</option><option value="resolved">{t('resolvedStatus')}</option><option value="rejected">{t('rejectedStatus')}</option></select></label>{disputePagination.hasMore && <button type="button" onClick={() => load({ quiet: true, appendDisputes: true, disputeOffset: disputePagination.nextOffset || 0 })} disabled={loadingMoreDisputes || loading || busy} className="rounded-lg border border-sky-500/30 px-3 py-2 text-xs font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{loadingMoreDisputes ? t('adminLoading') : t('adminLoadOlder')}</button>}</div>}>
-    <div className="mt-5 overflow-x-auto rounded-xl border border-gray-800"><table className="min-w-[1120px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">{t('adminCustomerRestaurant')}</th><th className="px-3 py-3 font-medium">{t('adminTransaction')}</th><th className="px-3 py-3 font-medium">{t('adminReason')}</th><th className="px-3 py-3 font-medium">{t('adminDescription')}</th><th className="px-3 py-3 font-medium">{t('adminOpened')}</th><th className="px-3 py-3 font-medium">{t('adminControls')}</th></tr></thead><tbody className="divide-y divide-gray-800">{!disputes.length ? <tr><td colSpan="6" className="px-3 py-10 text-center text-gray-500">{t('adminNoDisputesForStatus')}</td></tr> : disputes.map((dispute) => <tr key={dispute.id}><td className="px-3 py-3 text-white"><span className="font-mono text-[11px]">{dispute.customerId}</span><p className="mt-1 text-gray-600">{dispute.restaurantName || t('adminCredit')}</p><button type="button" disabled={busy} onClick={() => inspectDisputeCustomer(dispute)} className="mt-2 rounded-lg border border-sky-500/30 px-2.5 py-2 font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{t('adminOpenCustomer360')}</button></td><td className="px-3 py-3 text-gray-400">{dispute.amountCents !== null && dispute.amountCents !== undefined ? <strong className="block text-emerald-300">{money(dispute.amountCents, dispute.currencyCode || 'USD')}</strong> : <strong className="block text-gray-600">{t('adminAmountUnavailable')}</strong>}<span className="mt-1 block font-mono text-[10px] text-gray-600">{creditTransactionLabel({ transactionType: dispute.transactionType }, t)} · {dispute.transactionId}</span>{dispute.referenceId && <span className="mt-1 block break-all font-mono text-[10px] text-gray-700">{t('adminReference')} {dispute.referenceId}</span>}</td><td className="px-3 py-3"><Badge status={dispute.status} /><p className="mt-1 text-gray-500">{disputeReasonLabel(dispute.reasonCode, t)}</p></td><td className="max-w-[280px] px-3 py-3 text-gray-400">{dispute.description}<textarea aria-label={t('adminResolution')} value={disputeResolutionDrafts[dispute.id] || ''} onChange={(event) => setDisputeResolutionDrafts((current) => ({ ...current, [dispute.id]: event.target.value }))} maxLength={4000} rows={2} placeholder={t('adminResolutionNotePlaceholder')} className="mt-3 w-full min-w-[220px] resize-y rounded-lg border border-gray-700 bg-gray-950 px-2.5 py-2 text-xs text-white outline-none focus:border-orange-400" /></td><td className="px-3 py-3 text-gray-500">{dateTime(dispute.openedAt)}{dispute.postedAt && <p className="mt-1 text-gray-600">{t('adminPosted')} {dateTime(dispute.postedAt)}</p>}</td><td className="px-3 py-3"><div className="flex flex-wrap gap-2"><button disabled={busy} onClick={() => resolveDispute(dispute, 'in_review')} className="rounded-lg bg-sky-600 px-2.5 py-2 font-semibold text-white hover:bg-sky-500 disabled:opacity-50">{t('adminReview')}</button><button disabled={busy || !String(disputeResolutionDrafts[dispute.id] || '').trim()} onClick={() => resolveDispute(dispute, 'resolved')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">{t('adminResolve')}</button><button disabled={busy || !String(disputeResolutionDrafts[dispute.id] || '').trim()} onClick={() => resolveDispute(dispute, 'rejected')} className="rounded-lg border border-red-500/30 px-2.5 py-2 font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50">{t('adminReject')}</button></div></td></tr>)}</tbody></table></div>
+  return <Section eyebrow="Disputes" title="Credit dispute queue" detail="Disputes preserve the original journal transaction. Filter by lifecycle state and load older cases from the server; resolve with a documented outcome and use a separate compensating refund or adjustment rather than editing history." action={<div className="flex flex-wrap items-center gap-2"><button type="button" onClick={downloadDisputeHistory} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><Download className="h-3.5 w-3.5" /> {t('adminDownloadCsv')}</button><label className="flex items-center gap-2 text-xs font-semibold text-gray-500"><span>{t('adminStatus')}</span><select aria-label={t('adminDisputeStatusFilter')} value={disputeStatus} onChange={(event) => setDisputeStatus(event.target.value)} disabled={loading || busy} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 outline-none focus:border-orange-400"><option value="">{t('adminAllStatuses')}</option><option value="open">{t('openStatus')}</option><option value="in_review">{t('underReviewStatus')}</option><option value="resolved_customer">{t('adminDisputeResolvedCustomer')}</option><option value="resolved_merchant">{t('adminDisputeResolvedMerchant')}</option><option value="resolved">{t('resolvedStatus')}</option><option value="rejected">{t('rejectedStatus')}</option></select></label>{disputePagination.hasMore && <button type="button" onClick={() => load({ quiet: true, appendDisputes: true, disputeOffset: disputePagination.nextOffset || 0 })} disabled={loadingMoreDisputes || loading || busy} className="rounded-lg border border-sky-500/30 px-3 py-2 text-xs font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{loadingMoreDisputes ? t('adminLoading') : t('adminLoadOlder')}</button>}</div>}>
+    <div className="mt-5 overflow-x-auto rounded-xl border border-gray-800"><table className="min-w-[1120px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">{t('adminCustomerRestaurant')}</th><th className="px-3 py-3 font-medium">{t('adminTransaction')}</th><th className="px-3 py-3 font-medium">{t('adminReason')}</th><th className="px-3 py-3 font-medium">{t('adminDescription')}</th><th className="px-3 py-3 font-medium">{t('adminOpened')}</th><th className="px-3 py-3 font-medium">{t('adminControls')}</th></tr></thead><tbody className="divide-y divide-gray-800">{!disputes.length ? <tr><td colSpan="6" className="px-3 py-10 text-center text-gray-500">{t('adminNoDisputesForStatus')}</td></tr> : disputes.map((dispute) => <tr key={dispute.id}><td className="px-3 py-3 text-white"><span className="font-mono text-[11px]">{dispute.customerId}</span><p className="mt-1 text-gray-600">{dispute.restaurantName || t('adminCredit')}</p><button type="button" disabled={busy} onClick={() => inspectDisputeCustomer(dispute)} className="mt-2 rounded-lg border border-sky-500/30 px-2.5 py-2 font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{t('adminOpenCustomer360')}</button></td><td className="px-3 py-3 text-gray-400">{dispute.amountCents !== null && dispute.amountCents !== undefined ? <strong className="block text-emerald-300">{money(dispute.amountCents, dispute.currencyCode || 'USD')}</strong> : <strong className="block text-gray-600">{t('adminAmountUnavailable')}</strong>}<span className="mt-1 block font-mono text-[10px] text-gray-600">{creditTransactionLabel({ transactionType: dispute.transactionType }, t)} · {dispute.transactionId}</span>{dispute.referenceId && <span className="mt-1 block break-all font-mono text-[10px] text-gray-700">{t('adminReference')} {dispute.referenceId}</span>}</td><td className="px-3 py-3"><Badge status={dispute.status} /><p className="mt-1 text-gray-500">{disputeReasonLabel(dispute.reasonCode, t)}</p></td><td className="max-w-[280px] px-3 py-3 text-gray-400">{dispute.description}<textarea aria-label={t('adminResolution')} value={disputeResolutionDrafts[dispute.id] || ''} onChange={(event) => setDisputeResolutionDrafts((current) => ({ ...current, [dispute.id]: event.target.value }))} maxLength={4000} rows={2} placeholder={t('adminResolutionNotePlaceholder')} className="mt-3 w-full min-w-[220px] resize-y rounded-lg border border-gray-700 bg-gray-950 px-2.5 py-2 text-xs text-white outline-none focus:border-orange-400" /><label className="mt-2 block"><span className="mb-1 block text-[10px] font-semibold text-gray-600">{t('adminDisputeCompensationLabel')}</span><input inputMode="numeric" value={disputeCompensationDrafts[dispute.id] || ''} onChange={(event) => setDisputeCompensationDrafts((current) => ({ ...current, [dispute.id]: event.target.value.replace(/[^\d]/g, '').slice(0, 10) }))} placeholder={t('adminDisputeCompensationPlaceholder')} className="w-full min-w-[140px] rounded-lg border border-gray-700 bg-gray-950 px-2.5 py-2 font-mono text-xs text-white outline-none placeholder:text-gray-600 focus:border-orange-400" /></label></td><td className="px-3 py-3 text-gray-500">{dateTime(dispute.openedAt)}{dispute.postedAt && <p className="mt-1 text-gray-600">{t('adminPosted')} {dateTime(dispute.postedAt)}</p>}</td><td className="px-3 py-3"><div className="flex flex-wrap gap-2"><button disabled={busy} onClick={() => resolveDispute(dispute, 'in_review')} className="rounded-lg bg-sky-600 px-2.5 py-2 font-semibold text-white hover:bg-sky-500 disabled:opacity-50">{t('adminReview')}</button><button disabled={busy || !String(disputeResolutionDrafts[dispute.id] || '').trim()} onClick={() => resolveDispute(dispute, 'resolved_customer')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">{t('adminDisputeResolveCustomer')}</button><button disabled={busy || !String(disputeResolutionDrafts[dispute.id] || '').trim()} onClick={() => resolveDispute(dispute, 'resolved_merchant')} className="rounded-lg bg-teal-600 px-2.5 py-2 font-semibold text-white hover:bg-teal-500 disabled:opacity-50">{t('adminDisputeResolveMerchant')}</button><button disabled={busy || !String(disputeResolutionDrafts[dispute.id] || '').trim()} onClick={() => resolveDispute(dispute, 'rejected')} className="rounded-lg border border-red-500/30 px-2.5 py-2 font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50">{t('adminReject')}</button></div></td></tr>)}</tbody></table></div>
   </Section>;
 }
 
@@ -500,6 +507,106 @@ function ComplianceQueue({ queue, busy, decideCompliance }) {
     <div className="mt-3 overflow-x-auto rounded-xl border border-gray-800"><table className="min-w-[900px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">{t('adminComplianceSubject')}</th><th className="px-3 py-3 font-medium">{t('adminComplianceHitContext')}</th><th className="px-3 py-3 font-medium">{t('adminComplianceScreenedAt')}</th><th className="px-3 py-3 font-medium">{t('adminControls')}</th></tr></thead><tbody className="divide-y divide-gray-800">{!sanctions.length ? <tr><td colSpan="4" className="px-3 py-10 text-center text-gray-500">{t('adminComplianceNoSanctions')}</td></tr> : sanctions.map((hit) => <tr key={hit.id}><td className="px-3 py-3 text-white"><Badge status={hit.subjectType} /><span className="ml-2 font-mono text-[11px]">{hit.subjectId}</span>{hit.subjectEmail && <p className="mt-1 text-gray-500">{hit.subjectEmail}</p>}</td><td className="px-3 py-3 text-amber-300">{hit.hitContext || t('adminComplianceManualReview')}</td><td className="px-3 py-3 text-gray-500">{dateTime(hit.screenedAt)}</td><td className="px-3 py-3"><div className="flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={() => decideCompliance('sanction', hit, 'clear')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">{t('adminComplianceClearHit')}</button><button type="button" disabled={busy} onClick={() => decideCompliance('sanction', hit, 'confirm')} className="rounded-lg border border-red-500/30 px-2.5 py-2 font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50">{t('adminComplianceConfirmHit')}</button></div></td></tr>)}</tbody></table></div>
     <h3 className="mt-6 text-sm font-semibold text-white">{t('adminComplianceCases')}</h3>
     <div className="mt-3 overflow-x-auto rounded-xl border border-gray-800"><table className="min-w-[1080px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">{t('adminComplianceCaseType')}</th><th className="px-3 py-3 font-medium">{t('adminComplianceSubject')}</th><th className="px-3 py-3 font-medium">{t('adminComplianceSeverity')}</th><th className="px-3 py-3 font-medium">{t('adminStatus')}</th><th className="px-3 py-3 font-medium">{t('adminComplianceSla')}</th><th className="px-3 py-3 font-medium">{t('adminComplianceEvidence')}</th><th className="px-3 py-3 font-medium">{t('adminControls')}</th></tr></thead><tbody className="divide-y divide-gray-800">{!cases.length ? <tr><td colSpan="7" className="px-3 py-10 text-center text-gray-500">{t('adminComplianceNoCases')}</td></tr> : cases.map((c) => <tr key={c.id}><td className="px-3 py-3"><span className="font-mono text-[11px] text-orange-300">{c.caseType}</span><p className="mt-1 font-mono text-[10px] text-gray-700">{c.id.slice(0, 8)}</p></td><td className="px-3 py-3 text-white"><Badge status={c.subjectType} /><span className="ml-2 font-mono text-[11px]">{c.subjectId}</span>{c.subjectEmail && <p className="mt-1 text-gray-500">{c.subjectEmail}</p>}</td><td className="px-3 py-3"><Badge status={c.severity} /></td><td className="px-3 py-3"><Badge status={c.status} /></td><td className="px-3 py-3">{c.slaBreached ? <span className="font-semibold text-red-300">{t('adminComplianceSlaBreachedLabel')}</span> : <span className="text-gray-400">{c.slaHoursRemaining !== null ? t('adminComplianceSlaHours', { hours: Math.max(0, Math.round(c.slaHoursRemaining)) }) : '-'}</span>}<p className="mt-1 text-gray-600">{t('adminComplianceDue')} {dateTime(c.slaDueAt)}</p></td><td className="px-3 py-3 text-gray-500"><details><summary className="cursor-pointer text-sky-300">{t('adminViewState')}</summary><pre className="mt-2 max-w-[320px] whitespace-pre-wrap break-words text-[10px] leading-4 text-gray-500">{JSON.stringify(c.evidence || {}, null, 2)}</pre></details></td><td className="px-3 py-3"><div className="flex flex-wrap gap-2">{c.status === 'open' && <button type="button" disabled={busy} onClick={() => decideCompliance('case', c, 'investigating')} className="rounded-lg bg-sky-600 px-2.5 py-2 font-semibold text-white hover:bg-sky-500 disabled:opacity-50">{t('adminReview')}</button>}<button type="button" disabled={busy} onClick={() => decideCompliance('case', c, 'escalated')} className="rounded-lg border border-amber-500/30 px-2.5 py-2 font-semibold text-amber-300 hover:bg-amber-500/10 disabled:opacity-50">{t('adminComplianceEscalate')}</button><button type="button" disabled={busy} onClick={() => decideCompliance('case', c, 'resolved')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">{t('adminResolve')}</button></div></td></tr>)}</tbody></table></div>
+  </Section>;
+}
+
+// Phase 7 (gap 9): maker-checker queue. The maker (the admin who queued the
+// action) cannot approve it; the checker approves with a fresh step-up code.
+function PendingActionQueue({ busy, setBusy, setNotice, setError, requestDialog }) {
+  const { t } = useTranslation('credit');
+  const [actions, setActions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [stepup, setStepup] = useState(null);
+  const [stepupCode, setStepupCode] = useState('');
+
+  const loadActions = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await adminApi.get('/admin/super/oxsteed-credit/pending-actions', { params: { status: 'pending', limit: 50 } });
+      setActions(response.data?.pendingActions || []);
+    } catch (err) {
+      setError(safeCreditErrorMessage(err, t('adminMakerCheckerLoadFailed')));
+    } finally {
+      setLoading(false);
+    }
+  }, [setError, t]);
+
+  useEffect(() => { loadActions(); }, [loadActions]);
+
+  const payloadSummary = (action) => {
+    const payload = action.payload || {};
+    const parts = [];
+    if (payload.amountCents !== undefined && payload.amountCents !== null) parts.push(money(payload.amountCents, payload.currencyCode || 'USD'));
+    const ids = ['settlementId', 'withdrawalId', 'customerId', 'accountId', 'disputeId', 'id'];
+    for (const key of ids) {
+      if (payload[key]) { parts.push(`${key}: ${String(payload[key]).slice(0, 12)}`); break; }
+    }
+    if (payload.operationType) parts.push(payload.operationType);
+    return parts.length ? parts.join(' · ') : t('adminMakerCheckerNoPayloadSummary');
+  };
+
+  const issueApproveChallenge = async (action) => {
+    setBusy(true); setNotice(''); setError('');
+    try {
+      const response = await adminApi.post('/admin/super/oxsteed-credit/stepup-challenges', {
+        actionType: 'pending_action_approve',
+        amountCents: action.amountCents || undefined,
+        currencyCode: action.currencyCode || undefined,
+      });
+      setStepup({ actionId: action.id, challengeId: response.data?.challenge?.id, expiresAt: response.data?.challenge?.expiresAt });
+      setStepupCode('');
+      setNotice(t('adminMakerCheckerStepupIssued'));
+    } catch (err) {
+      setError(safeCreditErrorMessage(err, t('adminMakerCheckerChallengeFailed')));
+    } finally { setBusy(false); }
+  };
+
+  const confirmApprove = async () => {
+    if (!stepup) return;
+    setBusy(true); setNotice(''); setError('');
+    try {
+      await adminApi.post(`/admin/super/oxsteed-credit/pending-actions/${stepup.actionId}/decision`, {
+        decision: 'approve',
+        stepupChallengeId: stepup.challengeId,
+        stepupCode,
+      });
+      setNotice(t('adminMakerCheckerApproved'));
+      setStepup(null); setStepupCode('');
+      await loadActions();
+    } catch (err) {
+      setError(safeCreditErrorMessage(err, t('adminMakerCheckerDecisionFailed')));
+    } finally { setBusy(false); }
+  };
+
+  const rejectAction = async (action) => {
+    const reason = await requestDialog({
+      kind: 'text',
+      title: t('adminMakerCheckerRejectTitle'),
+      description: t('adminMakerCheckerRejectDescription', { type: action.actionType }),
+      label: t('adminRequiredAuditReason'),
+    });
+    if (!reason?.trim()) { setError(t('adminMakerCheckerReasonRequired')); return; }
+    setBusy(true); setNotice(''); setError('');
+    try {
+      await adminApi.post(`/admin/super/oxsteed-credit/pending-actions/${action.id}/decision`, { decision: 'rejected', reason: reason.trim() });
+      setNotice(t('adminMakerCheckerRejected'));
+      await loadActions();
+    } catch (err) {
+      setError(safeCreditErrorMessage(err, t('adminMakerCheckerDecisionFailed')));
+    } finally { setBusy(false); }
+  };
+
+  return <Section eyebrow="Pending actions" title="Maker-checker queue" detail="Money-moving actions queued by one admin wait here for a different admin to approve. Approving needs a fresh verification code; rejecting needs a reason. Nothing executes until a second identity approves it.">
+    <div className="mt-5 overflow-x-auto rounded-xl border border-gray-800"><table className="min-w-[1080px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">{t('adminMakerCheckerAction')}</th><th className="px-3 py-3 font-medium">{t('adminMakerCheckerMaker')}</th><th className="px-3 py-3 font-medium">{t('adminMakerCheckerPayload')}</th><th className="px-3 py-3 font-medium">{t('adminMakerCheckerExpires')}</th><th className="px-3 py-3 font-medium">{t('adminControls')}</th></tr></thead><tbody className="divide-y divide-gray-800">{loading ? <tr><td colSpan="5" className="px-3 py-10 text-center text-gray-500">{t('adminLoading')}</td></tr> : !actions.length ? <tr><td colSpan="5" className="px-3 py-10 text-center text-gray-500">{t('adminMakerCheckerEmpty')}</td></tr> : actions.map((action) => <tr key={action.id}><td className="px-3 py-3"><span className="font-mono text-[11px] text-orange-300">{action.actionType}</span><p className="mt-1 font-mono text-[10px] text-gray-700">{action.id.slice(0, 8)}</p></td><td className="px-3 py-3 text-white"><span className="font-mono text-[11px]">{action.requestedBy || t('adminUnknown')}</span><p className="mt-1 text-gray-600">{dateTime(action.requestedAt)}</p></td><td className="px-3 py-3 text-gray-400">{payloadSummary(action)}<details><summary className="cursor-pointer text-sky-300">{t('adminViewState')}</summary><pre className="mt-2 max-w-[320px] whitespace-pre-wrap break-words text-[10px] leading-4 text-gray-500">{JSON.stringify(action.payload || {}, null, 2)}</pre></details></td><td className="px-3 py-3 text-gray-500">{dateTime(action.expiresAt)}</td><td className="px-3 py-3"><div className="flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={() => issueApproveChallenge(action)} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">{t('adminApprove')}</button><button type="button" disabled={busy} onClick={() => rejectAction(action)} className="rounded-lg border border-red-500/30 px-2.5 py-2 font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50">{t('adminReject')}</button></div></td></tr>)}</tbody></table></div>
+    {stepup && <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
+      <p className="text-xs text-amber-200">{t('adminMakerCheckerStepupPrompt')}</p>
+      <p className="mt-1 font-mono text-[10px] text-gray-500">{t('adminMakerCheckerExpires')}: {dateTime(stepup.expiresAt)}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <input value={stepupCode} onChange={(event) => setStepupCode(event.target.value.replace(/\D/g, '').slice(0, 12))} inputMode="numeric" placeholder={t('adminMakerCheckerCodePlaceholder')} className="w-44 rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 font-mono text-sm text-white outline-none placeholder:text-gray-600 focus:border-amber-400" />
+        <button type="button" onClick={confirmApprove} disabled={busy || stepupCode.length < 4} className="rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-500 disabled:opacity-50">{t('adminMakerCheckerConfirmApprove')}</button>
+        <button type="button" onClick={() => { setStepup(null); setStepupCode(''); }} disabled={busy} className="rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-400 hover:bg-gray-800 disabled:opacity-50">{t('cancel')}</button>
+      </div>
+    </div>}
   </Section>;
 }
 
@@ -713,6 +820,9 @@ export default function OxsteedCreditAdmin() {
   const [notificationRetryReason, setNotificationRetryReason] = useState('');
   const [retryingNotificationId, setRetryingNotificationId] = useState('');
   const [disputeResolutionDrafts, setDisputeResolutionDrafts] = useState({});
+  // Phase 7 (gap 10): per-dispute compensation (cents) entered by the admin
+  // when resolving in the customer's favor; only that path pays money out.
+  const [disputeCompensationDrafts, setDisputeCompensationDrafts] = useState({});
   const loadRequestRef = useRef(0);
   const partnerLookupRequestRef = useRef(0);
   const settlementAgreementRequestRef = useRef(0);
@@ -1047,8 +1157,12 @@ export default function OxsteedCreditAdmin() {
     }
     setBusy(true); setNotice(''); setError('');
     try {
-      await adminApi.post(`/admin/super/oxsteed-credit/settlements/${settlement.id}/status`, { status, expectedStatus: settlement.status, reason: reason.trim(), paymentReference: paymentReference.trim() || undefined });
-      setNotice(t('adminSettlementStatusChanged', { partner: settlement.restaurantName || t('adminPartner'), status: localizeCreditStatus(status, t) }));
+      const response = await adminApi.post(`/admin/super/oxsteed-credit/settlements/${settlement.id}/status`, { status, expectedStatus: settlement.status, reason: reason.trim(), paymentReference: paymentReference.trim() || undefined });
+      // Phase 7 (gap 9): approval (status=approved) queues as a pending action
+      // for a second admin; every other transition executes immediately.
+      setNotice(response.status === 202
+        ? t('adminMakerCheckerQueued')
+        : t('adminSettlementStatusChanged', { partner: settlement.restaurantName || t('adminPartner'), status: localizeCreditStatus(status, t) }));
       await load({ quiet: true });
     } catch (err) {
       setError(safeCreditErrorMessage(err, t('adminSettlementStatusChangeFailed')));
@@ -1112,9 +1226,11 @@ export default function OxsteedCreditAdmin() {
     const payload = { amountCents: dollarsToCents(customerForm.amount, customerForm.currencyCode), currencyCode: customerForm.currencyCode, fundingReference: customerForm.fundingReference, reason: customerForm.reason };
     const keyPayload = { customerId: customerForm.customerId, ...payload };
     try {
-      await adminApi.post(`/admin/super/oxsteed-credit/customers/${customerForm.customerId}/loads`, payload, { headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-load', keyPayload) } });
+      const response = await adminApi.post(`/admin/super/oxsteed-credit/customers/${customerForm.customerId}/loads`, payload, { headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-load', keyPayload) } });
       idempotencyKeysRef.current.clear('credit-load', keyPayload);
-      setNotice(t('adminCustomerGrantPosted'));
+      // Phase 7 (gap 9): 202 means the load queued as a pending action for a
+      // second admin instead of posting immediately.
+      setNotice(response.status === 202 ? t('adminMakerCheckerQueued') : t('adminCustomerGrantPosted'));
       setCustomerForm({ customerId: '', amount: '', currencyCode: 'USD', fundingReference: '', reason: '' });
       await load({ quiet: true });
     } catch (err) {
@@ -1130,9 +1246,11 @@ export default function OxsteedCreditAdmin() {
     const payload = { amountCents: dollarsToCents(customerForm.amount, customerForm.currencyCode), currencyCode: customerForm.currencyCode, direction: 'debit', reason: customerForm.reason };
     const keyPayload = { customerId: customerForm.customerId, ...payload };
     try {
-      await adminApi.post(`/admin/super/oxsteed-credit/customers/${customerForm.customerId}/adjustments`, payload, { headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-adjustment', keyPayload) } });
+      const response = await adminApi.post(`/admin/super/oxsteed-credit/customers/${customerForm.customerId}/adjustments`, payload, { headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-adjustment', keyPayload) } });
       idempotencyKeysRef.current.clear('credit-adjustment', keyPayload);
-      setNotice(t('adminCustomerClawbackPosted'));
+      // Phase 7 (gap 9): 202 means the adjustment queued as a pending action
+      // for a second admin instead of posting immediately.
+      setNotice(response.status === 202 ? t('adminMakerCheckerQueued') : t('adminCustomerClawbackPosted'));
       setCustomerForm({ customerId: '', amount: '', currencyCode: 'USD', fundingReference: '', reason: '' });
       await load({ quiet: true });
     } catch (err) {
@@ -1237,17 +1355,31 @@ export default function OxsteedCreditAdmin() {
     } finally { setRetryingNotificationId(''); }
   };
 
+  // Phase 7 (gap 10): resolutions are now customer / merchant / rejected /
+  // in-review. Only resolved_customer may carry compensationCents, which the
+  // server posts as a compensating credit without touching journal history.
   const resolveDispute = async (dispute, status) => {
     const resolution = String(disputeResolutionDrafts[dispute.id] || '').trim();
     if (!resolution) {
       setError(t('adminDisputeResolutionRequired'));
       return;
     }
+    const rawCompensation = String(disputeCompensationDrafts[dispute.id] ?? '').trim();
+    const compensationCents = rawCompensation === '' ? 0 : Number.parseInt(rawCompensation, 10);
+    if (status === 'resolved_customer' && (Number.isNaN(compensationCents) || compensationCents < 0)) {
+      setError(t('adminDisputeCompensationInvalid'));
+      return;
+    }
     setBusy(true); setNotice(''); setError('');
     try {
-      await adminApi.post(`/admin/super/oxsteed-credit/disputes/${dispute.id}/resolve`, { status, resolution: resolution || undefined });
+      await adminApi.post(`/admin/super/oxsteed-credit/disputes/${dispute.id}/resolve`, {
+        status,
+        resolution: resolution || undefined,
+        compensationCents: status === 'resolved_customer' ? compensationCents : undefined,
+      });
       setNotice(t('adminDisputeStatusChanged', { id: dispute.id.slice(0, 8), status: localizeCreditStatus(status, t) }));
       setDisputeResolutionDrafts((current) => ({ ...current, [dispute.id]: '' }));
+      setDisputeCompensationDrafts((current) => ({ ...current, [dispute.id]: '' }));
       await load({ quiet: true });
     } catch (err) {
       setError(safeCreditErrorMessage(err, t('adminDisputeUpdateFailed')));
@@ -1389,7 +1521,9 @@ export default function OxsteedCreditAdmin() {
       const response = await adminApi.post(`/admin/super/oxsteed-credit/transactions/${transactionDetail.id}/refund`, payload, { headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-refund', keyPayload) } });
       idempotencyKeysRef.current.clear('credit-refund', keyPayload);
       setRefundForm({ amount: '', reason: '' });
-      setNotice(response.data?.replayed ? t('adminCreditRefundAlreadyRecorded') : t('adminCreditRefundPosted'));
+      // Phase 7 (gap 9): 202 means the refund queued as a pending action for
+      // a second admin instead of posting immediately.
+      setNotice(response.status === 202 ? t('adminMakerCheckerQueued') : (response.data?.replayed ? t('adminCreditRefundAlreadyRecorded') : t('adminCreditRefundPosted')));
       await inspectTransaction(transactionDetail);
       await load({ quiet: true });
     } catch (err) {
@@ -1802,6 +1936,14 @@ export default function OxsteedCreditAdmin() {
       decideCompliance={decideCompliance}
     />
 
+    <PendingActionQueue
+      busy={busy}
+      setBusy={setBusy}
+      setNotice={setNotice}
+      setError={setError}
+      requestDialog={requestDialog}
+    />
+
     <CreditDisputeQueue
       disputes={disputes}
       disputeStatus={disputeStatus}
@@ -1813,6 +1955,9 @@ export default function OxsteedCreditAdmin() {
       downloadDisputeHistory={downloadDisputeHistory}
       load={load}
       disputeResolutionDrafts={disputeResolutionDrafts}
+      setDisputeResolutionDrafts={setDisputeResolutionDrafts}
+      disputeCompensationDrafts={disputeCompensationDrafts}
+      setDisputeCompensationDrafts={setDisputeCompensationDrafts}
       setDisputeResolutionDrafts={setDisputeResolutionDrafts}
       inspectDisputeCustomer={inspectDisputeCustomer}
       resolveDispute={resolveDispute}

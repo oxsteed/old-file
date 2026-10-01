@@ -17,6 +17,8 @@ const STATUS_TRANSLATION_KEYS = Object.freeze({
   open: 'openStatus',
   in_review: 'underReviewStatus',
   resolved: 'resolvedStatus',
+  resolved_customer: 'adminDisputeResolvedCustomer',
+  resolved_merchant: 'adminDisputeResolvedMerchant',
   rejected: 'rejectedStatus',
   disputed: 'statusDisputed',
   reversed: 'statusReversed',

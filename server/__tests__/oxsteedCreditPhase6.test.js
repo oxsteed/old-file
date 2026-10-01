@@ -210,6 +210,10 @@ describe('withdrawal request guards', () => {
       { match: 'FROM oxsteed_credit_withdrawals', rows: [{ day_total: '0' }] },
       { match: 'FROM oxsteed_credit_fee_schedule', rows: [feeScheduleRow('withdrawal')] },
       { match: 'INSERT INTO oxsteed_credit_withdrawals', rows: [inserted] },
+      // Phase 7 (gap 11): the request reserves the gross amount on the wallet.
+      { match: 'SELECT a.* FROM oxsteed_credit_accounts', rows: [{ id: 11, account_type: 'customer_wallet', customer_id: CUSTOMER_ID, balance_cents: 100000, reserved_cents: 0, status: 'active', currency_code: 'USD' }] },
+      { match: 'SELECT id, balance_cents, reserved_cents, status', rows: [{ id: 11, balance_cents: 100000, reserved_cents: 0, status: 'active' }] },
+      { match: 'INSERT INTO oxsteed_credit_reservations', rows: [{ id: 'res-w1', account_id: 11, status: 'active' }] },
     ]);
     const { withdrawal, replayed } = await withdrawalService.requestWithdrawal({
       customerId: CUSTOMER_ID, amountCents: 5000, currencyCode: 'USD', idempotencyKey: 'idem-w5',

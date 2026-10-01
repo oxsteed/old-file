@@ -3106,12 +3106,29 @@ function formatDispute(row) {
     openedAt: row.opened_at,
     resolvedAt: row.resolved_at || null,
     updatedAt: row.updated_at,
+    // Phase 7 (gap 10): dispute automation fields. Nullable on old rows.
+    disputeType: row.dispute_type || null,
+    slaDueAt: row.sla_due_at || null,
+    resolutionEntries: row.resolution_entries || {},
   };
 }
 
-async function openCreditDispute({ customerId, transactionId, reasonCode, description, actorUserId, idempotencyKey, requestIp }) {
+// Phase 7 (gap 10): dispute SLA in hours. The canonical constant lives in
+// oxsteedCreditDisputeService.js (DISPUTE_SLA_HOURS); this file cannot
+// require it (circular import), so the same env default is read here.
+const DISPUTE_SLA_HOURS_FALLBACK = Math.max(
+  1,
+  Number.parseInt(process.env.OXSTEED_CREDIT_DISPUTE_SLA_HOURS || '72', 10) || 72
+);
+const DISPUTE_TYPE_VALUES = ['unauthorized_topup', 'failed_payout', 'duplicate_charge', 'incorrect_amount'];
+
+async function openCreditDispute({ customerId, transactionId, reasonCode, description, actorUserId, idempotencyKey, requestIp, disputeType }) {
   const normalizedReason = normalizeString(reasonCode, 60);
   const normalizedDescription = normalizeString(description, 4000);
+  const normalizedDisputeType = disputeType ? normalizeString(disputeType, 40) : null;
+  if (normalizedDisputeType && !DISPUTE_TYPE_VALUES.includes(normalizedDisputeType)) {
+    throw new AppError('Invalid credit dispute type', 400, 'credit_dispute_type_invalid');
+  }
   if (!customerId || !actorUserId || String(actorUserId) !== String(customerId)) throw new AppError('A customer identity is required to open a credit dispute', 403, 'credit_dispute_actor_required');
   if (!normalizedReason || !normalizedDescription) throw new AppError('A dispute reason and description are required', 400, 'credit_dispute_details_required');
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
@@ -3144,7 +3161,8 @@ async function openCreditDispute({ customerId, transactionId, reasonCode, descri
       if (String(existing.customer_id) !== String(customerId)
         || String(existing.transaction_id) !== String(transaction.id)
         || existing.reason_code !== normalizedReason
-        || existing.description !== normalizedDescription) {
+        || existing.description !== normalizedDescription
+        || (existing.dispute_type || null) !== normalizedDisputeType) {
         throw new AppError('Credit dispute idempotency key was already used for different details', 409, 'credit_dispute_idempotency_conflict');
       }
       return { dispute: formatDispute(existing), replayed: true };
@@ -3161,11 +3179,11 @@ async function openCreditDispute({ customerId, transactionId, reasonCode, descri
     if (existingRows[0]) return { dispute: formatDispute(existingRows[0]), replayed: true };
     const { rows } = await client.query(
       `INSERT INTO oxsteed_credit_disputes
-         (transaction_id, customer_id, partner_id, reason_code, description, opened_by, idempotency_key)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+         (transaction_id, customer_id, partner_id, reason_code, description, opened_by, idempotency_key, dispute_type, sla_due_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW() + ($9 || ' hours')::interval)
        ON CONFLICT (transaction_id) WHERE status IN ('open', 'in_review') DO NOTHING
        RETURNING *`,
-      [transaction.id, customerId, transaction.partner_id || null, normalizedReason, normalizedDescription, actorUserId || customerId, normalizedIdempotencyKey]
+      [transaction.id, customerId, transaction.partner_id || null, normalizedReason, normalizedDescription, actorUserId || customerId, normalizedIdempotencyKey, normalizedDisputeType, String(DISPUTE_SLA_HOURS_FALLBACK)]
     );
     if (!rows[0]) {
       const { rows: concurrentRows } = await client.query(
@@ -3190,7 +3208,7 @@ async function openCreditDispute({ customerId, transactionId, reasonCode, descri
   }, 'credit_open_dispute');
 }
 
-const CREDIT_DISPUTE_STATUSES = new Set(['open', 'in_review', 'resolved', 'rejected']);
+const CREDIT_DISPUTE_STATUSES = new Set(['open', 'in_review', 'resolved', 'rejected', 'resolved_customer', 'resolved_merchant']);
 
 async function listCreditDisputes({ customerId, partnerId, status, limit = 100, offset = 0, includePagination = false } = {}) {
   const params = [];

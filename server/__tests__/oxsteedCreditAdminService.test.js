@@ -1051,6 +1051,7 @@ test('reconciliation uses the same posted-transaction currency invariant as veri
       account_count: 1,
       entry_count: 2,
     }] })
+    .mockResolvedValueOnce({ rows: [] }) // Phase 7: reservation divergence scan (none)
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{
@@ -1085,8 +1086,10 @@ test('reconciliation uses the same posted-transaction currency invariant as veri
   expect(mockQuery.mock.calls[0][0]).toContain("t.status = 'posted'");
   expect(mockQuery.mock.calls[0][0]).toContain("t.currency_code = $1");
   expect(mockQuery.mock.calls[0][1]).toEqual(['USD']);
-  expect(mockQuery.mock.calls[4][0]).toContain('correlation_id');
-  expect(mockQuery.mock.calls[4][1][7]).toBe('reconciliation-request-1');
+  // Phase 7: call index 5 is the audit insert (a reservation-divergence scan
+  // now runs as call 1, shifting later indices by one).
+  expect(mockQuery.mock.calls[5][0]).toContain('correlation_id');
+  expect(mockQuery.mock.calls[5][1][7]).toBe('reconciliation-request-1');
 });
 
 test('reconciliation hash verification detects a tampered entry', async () => {

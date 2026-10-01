@@ -21,19 +21,34 @@ const logisticsInternalAccessCtrl = require('../controllers/logisticsInternalAcc
 const restaurantCreditAdminCtrl = require('../controllers/restaurantCreditAdminController');
 const oxsteedCreditCtrl = require('../controllers/oxsteedCreditController');
 const oxsteedCreditCardCtrl = require('../controllers/oxsteedCreditCardController');
-const oxsteedCreditAdminService = require('../services/oxsteedCreditAdminService');
 const oxsteedCreditWithdrawalService = require('../services/oxsteedCreditWithdrawalService');
+// Phase 7 (gap 9): maker-checker wraps payout initiation, withdrawal
+// approval, and fee schedule updates.
+const { requestPendingAction } = require('../services/oxsteedCreditPendingActionService');
 const oxsteedCreditRestaurantConversionService = require('../services/oxsteedCreditRestaurantConversionService');
 const oxsteedCreditFeeScheduleService = require('../services/oxsteedCreditFeeScheduleService');
 const { verifyStepupChallenge } = require('../services/stepupChallengeService');
 const { AppError } = require('../middleware/errorHandler');
-const { withTransaction } = require('../utils/transaction');
 const { creditAdminMutationLimiter, creditExportLimiter, adminPhoneVerificationLimiter, strictLimiter } = require('../middleware/rateLimiter');
 
 function noStoreCreditResponse(_req, res, next) {
   res.set('Cache-Control', 'private, no-store');
   res.set('Pragma', 'no-cache');
   next();
+}
+
+// Phase 7 (gap 9): sends a maker-checker result from the inline money
+// routes: 202 with the pending receipt when queued, or the execution
+// result when the threshold bypass ran it immediately.
+function sendPendingActionResult(res, result, executedStatus = 201) {
+  if (result.executed) {
+    const executedReplayed = Boolean(result.result && result.result.replayed);
+    return res.status(executedReplayed ? 200 : executedStatus).json(result.result);
+  }
+  return res.status(result.replayed ? 200 : 202).json({
+    pendingAction: result.pendingAction,
+    replayed: Boolean(result.replayed),
+  });
 }
 
 // —— Admin live-support availability toggle ——
@@ -388,6 +403,10 @@ router.post('/super/oxsteed-credit/settlements/:settlementId/status', requireSup
 router.post('/super/oxsteed-credit/settlements/:settlementId/reversal', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.reverseAdminSettlement);
 // Verified Stripe payout for an approved settlement. The manual mark-paid path
 // above stays untouched as the fallback for non-Stripe payouts.
+//
+// Phase 7 (gap 9): the maker still proves a fresh step-up challenge here
+// (intent), but the payout now queues as a pending action for a second
+// admin to decide instead of executing immediately.
 router.post('/super/oxsteed-credit/settlements/:settlementId/payout', requireSuperAdmin, creditAdminMutationLimiter, async (req, res, next) => {
   try {
     // Phase 5: payout initiation always requires a fresh step-up challenge
@@ -398,17 +417,23 @@ router.post('/super/oxsteed-credit/settlements/:settlementId/payout', requireSup
       actionType: 'settlement_payout',
       code: req.body?.stepupCode || req.body?.stepup_code,
     });
-    const result = await oxsteedCreditAdminService.initiateSettlementPayout({
-      settlementId: req.params.settlementId,
-      actorUserId: req.user?.id || null,
+    const result = await requestPendingAction({
+      actionType: 'credit_settlement_payout',
+      payload: { settlementId: req.params.settlementId },
+      requestedBy: req.user?.id || null,
       idempotencyKey: req.get('Idempotency-Key') || req.body?.idempotencyKey || req.body?.idempotency_key,
       requestIp: req.ip || null,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
     });
-    res.status(201).json(result);
+    sendPendingActionResult(res, result, 201);
   } catch (err) {
     next(err);
   }
 });
+// Phase 7 (gap 9): maker-checker queue endpoints.
+router.post('/super/oxsteed-credit/pending-actions', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.requestAdminPendingAction);
+router.get('/super/oxsteed-credit/pending-actions', requireSuperAdmin, oxsteedCreditCtrl.listAdminPendingActions);
+router.post('/super/oxsteed-credit/pending-actions/:id/decision', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.decideAdminPendingAction);
 router.post('/super/oxsteed-credit/reconciliation', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.reconcileAdminCredit);
 // Phase 5 compliance queue: identity verifications, sanctions hits, cases.
 router.get('/super/oxsteed-credit/compliance-queue', requireSuperAdmin, oxsteedCreditCtrl.getAdminComplianceQueue);
@@ -437,14 +462,17 @@ router.post('/super/oxsteed-credit/withdrawals/:id/approve', requireSuperAdmin, 
       actionType: 'withdrawal',
       code: req.body?.stepupCode || req.body?.stepup_code,
     });
-    const withdrawal = await oxsteedCreditWithdrawalService.approveWithdrawal({
-      withdrawalId: req.params.id,
-      actorUserId: req.user?.id || null,
+    // Phase 7 (gap 9): the maker proves intent with the step-up above; the
+    // approval itself queues as a pending action for a second admin.
+    const result = await requestPendingAction({
+      actionType: 'credit_withdrawal_approval',
+      payload: { withdrawalId: req.params.id },
+      requestedBy: req.user?.id || null,
       idempotencyKey: req.get('Idempotency-Key') || req.body?.idempotencyKey || req.body?.idempotency_key,
       requestIp: req.ip || null,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
     });
-    res.json({ withdrawal });
+    sendPendingActionResult(res, result, 200);
   } catch (err) { next(err); }
 });
 router.post('/super/oxsteed-credit/withdrawals/:id/reject', requireSuperAdmin, creditAdminMutationLimiter, async (req, res, next) => {
@@ -478,39 +506,33 @@ router.get('/super/oxsteed-credit/fee-schedule', requireSuperAdmin, async (req, 
     res.json({ schedule });
   } catch (err) { next(err); }
 });
+// Phase 6: fee schedule (gap 12). Reads are plain; updates are audited.
+// Phase 7 (gap 9): updates queue as pending actions for checker approval;
+// fee schedule changes have no amount, so they always need dual approval.
 router.put('/super/oxsteed-credit/fee-schedule/:id', requireSuperAdmin, creditAdminMutationLimiter, async (req, res, next) => {
   try {
-    const result = await withTransaction(pool, async (client) => {
-      const row = await oxsteedCreditFeeScheduleService.updateFeeScheduleRow(client, {
+    // Fast 404 for the maker when the row does not exist.
+    const schedule = await oxsteedCreditFeeScheduleService.listFeeSchedule();
+    if (!schedule.some((row) => String(row.id) === String(req.params.id))) {
+      throw new AppError('Fee schedule row was not found', 404, 'credit_fee_schedule_not_found');
+    }
+    const result = await requestPendingAction({
+      actionType: 'credit_fee_schedule_update',
+      payload: {
         id: req.params.id,
         fixedCents: req.body?.fixedCents ?? req.body?.fixed_cents,
         percentageBps: req.body?.percentageBps ?? req.body?.percentage_bps,
         minFeeCents: req.body?.minFeeCents ?? req.body?.min_fee_cents,
         maxFeeCents: req.body?.maxFeeCents ?? req.body?.max_fee_cents ?? undefined,
         isActive: req.body?.isActive ?? req.body?.is_active,
-      });
-      if (!row) throw new AppError('Fee schedule row was not found', 404, 'credit_fee_schedule_not_found');
-      await oxsteedCreditAdminService.insertAudit(client, {
-        actionType: 'credit.fee_schedule.updated',
-        actorUserId: req.user?.id || null,
-        resourceType: 'fee_schedule',
-        resourceId: String(row.id),
         reason: req.body?.reason || 'Fee schedule updated',
-        correlationId: req.correlationId || req.get('X-Request-ID') || null,
-        requestIp: req.ip || null,
-        afterState: {
-          operationType: row.operation_type,
-          currencyCode: row.currency_code,
-          fixedCents: Number(row.fixed_cents),
-          percentageBps: Number(row.percentage_bps),
-          minFeeCents: Number(row.min_fee_cents),
-          maxFeeCents: row.max_fee_cents === null ? null : Number(row.max_fee_cents),
-          isActive: row.is_active,
-        },
-      });
-      return row;
-    }, 'credit_fee_schedule_admin_update');
-    res.json({ feeScheduleRow: result });
+      },
+      requestedBy: req.user?.id || null,
+      idempotencyKey: req.get('Idempotency-Key') || req.body?.idempotencyKey || req.body?.idempotency_key,
+      requestIp: req.ip || null,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+    });
+    sendPendingActionResult(res, result, 200);
   } catch (err) { next(err); }
 });
 

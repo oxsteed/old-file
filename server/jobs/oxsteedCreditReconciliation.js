@@ -56,7 +56,7 @@ async function reconcileCurrency({ currencyCode, period }) {
       incident = await incidentStore.recordIncident({
         type: 'oxsteed_credit_reconciliation_difference',
         severity: 'critical',
-        message: 'OxSteed Credit ledger reconciliation found a balance difference',
+        message: 'OxSteed Credit ledger reconciliation found a balance or reservation difference',
         dedupeKey: `oxsteed-credit-reconciliation:${currencyCode}`,
         details: {
           runId: run.id,
@@ -68,11 +68,16 @@ async function reconcileCurrency({ currencyCode, period }) {
           differenceCents: run.differenceCents,
           accountCount: run.accountCount,
           entryCount: run.entryCount,
+          // Phase 7 (gap 11): reserved_cents vs active holds+reservations.
+          reservationDifferenceCents: run.reservationDifferenceCents || 0,
+          reservationDivergentAccounts: run.reservationDivergentAccounts || 0,
+          reservationDivergences: run.reservationDivergences || [],
         },
       });
       logger.error('OxSteed Credit reconciliation difference', {
         runId: run.id,
         differenceCents: run.differenceCents,
+        reservationDifferenceCents: run.reservationDifferenceCents || 0,
       });
     } else {
       logger.info('OxSteed Credit reconciliation balanced', {

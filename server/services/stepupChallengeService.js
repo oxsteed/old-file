@@ -40,12 +40,15 @@ const STEPUP_CODE_TTL_MINUTES = Math.max(
 const STEPUP_MAX_ATTEMPTS = 5;
 // Phase 6 adds withdrawal, customer_transfer, and restaurant_conversion:
 // the same fresh-challenge bar as large top-ups and settlement payouts.
+// Phase 7 (gap 9) adds pending_action_approve: the checker proves a fresh
+// challenge before approving a pending money movement.
 const STEPUP_ACTION_TYPES = Object.freeze([
   'topup',
   'settlement_payout',
   'withdrawal',
   'customer_transfer',
   'restaurant_conversion',
+  'pending_action_approve',
 ]);
 
 function getStepupPepper() {
