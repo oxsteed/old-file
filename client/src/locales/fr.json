@@ -21339,7 +21339,7 @@
     "amountFixed": "Montant fixe",
     "amountFixedHint": "Chaque scan paie le même montant.",
     "amountLabel": "Montant (USD)",
-    "amountInvalid": "Saisissez un montant entre 1 $ et 100 000 $.",
+    "amountInvalid": "Saisissez un montant entre 6 $ et 100 000 $.",
     "createCta": "Créer le QR code",
     "creating": "Création en cours...",
     "createError": "Impossible de créer le QR code. Veuillez réessayer.",

@@ -23,7 +23,7 @@ import usePayments from '../hooks/usePayments';
 import './QrPaySetupPage.css';
 
 const MAX_LABEL_LENGTH = 80;
-const MIN_AMOUNT_CENTS = 100; // $1
+const MIN_AMOUNT_CENTS = 600; // $6
 const MAX_AMOUNT_CENTS = 10_000_000; // $100,000
 
 function formatMoney(cents, currency = 'USD', language = 'en') {
@@ -190,12 +190,12 @@ export default function QrPaySetupPage() {
     if (amountMode === 'fixed') {
       const parsed = Number.parseFloat(amountDollars);
       if (!Number.isFinite(parsed)) {
-        setFormError(t('qrPay.amountInvalid', { defaultValue: 'Enter an amount between $1 and $100,000.' }));
+        setFormError(t('qrPay.amountInvalid', { defaultValue: 'Enter an amount between $6 and $100,000.' }));
         return;
       }
       amountCents = Math.round(parsed * 100);
       if (amountCents < MIN_AMOUNT_CENTS || amountCents > MAX_AMOUNT_CENTS) {
-        setFormError(t('qrPay.amountInvalid', { defaultValue: 'Enter an amount between $1 and $100,000.' }));
+        setFormError(t('qrPay.amountInvalid', { defaultValue: 'Enter an amount between $6 and $100,000.' }));
         return;
       }
     }

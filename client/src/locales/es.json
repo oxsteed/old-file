@@ -21339,7 +21339,7 @@
     "amountFixed": "Monto fijo",
     "amountFixedHint": "Cada escaneo paga el mismo monto.",
     "amountLabel": "Monto (USD)",
-    "amountInvalid": "Ingresa un monto entre $1 y $100,000.",
+    "amountInvalid": "Ingresa un monto entre $6 y $100,000.",
     "createCta": "Crear código QR",
     "creating": "Creando...",
     "createError": "No se pudo crear el código QR. Inténtalo de nuevo.",

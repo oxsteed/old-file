@@ -21339,7 +21339,7 @@
     "amountFixed": "Montan fiks",
     "amountFixedHint": "Chak eskan peye menm montan an.",
     "amountLabel": "Montan (USD)",
-    "amountInvalid": "Antre yon montan ant $1 ak $100,000.",
+    "amountInvalid": "Antre yon montan ant $6 ak $100,000.",
     "createCta": "Kreye kòd QR",
     "creating": "Ap kreye...",
     "createError": "Nou pa t ka kreye kòd QR a. Tanpri eseye ankò.",

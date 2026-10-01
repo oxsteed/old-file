@@ -65,7 +65,7 @@ const qrCheckoutLimiter = rateLimit({
 
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
-const MIN_AMOUNT_CENTS = 100;        // $1.00
+const MIN_AMOUNT_CENTS = 600;        // $6.00 (must exceed the $5.00 minimum platform fee)
 const MAX_AMOUNT_CENTS = 10_000_000; // $100,000.00
 const CODE_BYTES = 9;                // 9 bytes -> 12 base64url chars
 

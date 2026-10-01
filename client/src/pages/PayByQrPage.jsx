@@ -17,7 +17,7 @@ import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 import './PayByQrPage.css';
 
-const MIN_AMOUNT_CENTS = 100; // $1
+const MIN_AMOUNT_CENTS = 600; // $6
 const MAX_AMOUNT_CENTS = 10_000_000; // $100,000
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RECEIPT_POLL_INTERVAL_MS = 2000;
@@ -55,7 +55,7 @@ function PayForm({ info }) {
     let cents = info.amount_cents;
     if (!isFixed) {
       if (cents == null || cents < MIN_AMOUNT_CENTS || cents > MAX_AMOUNT_CENTS) {
-        setFormError(t('qrPay.amountInvalid', { defaultValue: 'Enter an amount between $1 and $100,000.' }));
+        setFormError(t('qrPay.amountInvalid', { defaultValue: 'Enter an amount between $6 and $100,000.' }));
         return;
       }
     }

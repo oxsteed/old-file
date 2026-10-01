@@ -67,10 +67,10 @@ describe('POST /api/qr-payments/codes', () => {
     expect(res.body.code).toBe('label_too_long');
   });
 
-  test('rejects fixed amounts below $1.00', async () => {
+  test('rejects fixed amounts below $6.00 (the platform fee floor)', async () => {
     const res = await request(buildApp())
       .post('/api/qr-payments/codes')
-      .send({ label: 'Mowing', amount_cents: 50 });
+      .send({ label: 'Mowing', amount_cents: 500 });
     expect(res.status).toBe(400);
     expect(res.body.code).toBe('invalid_amount');
   });
@@ -212,12 +212,12 @@ describe('POST /api/qr-payments/pay/:code/checkout', () => {
     expect(res.body.code).toBe('invalid_amount');
   });
 
-  test('rejects amounts below the minimum and above the maximum', async () => {
+  test('rejects amounts below the $6.00 minimum and above the maximum', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ ...CODE_ROW, amount_cents: null }], rowCount: 1 });
     const low = await request(buildApp())
       .post('/api/qr-payments/pay/AbCdEfGhIjKl/checkout')
       .set('Idempotency-Key', 'qr-invalid-amount-2')
-      .send({ amount_cents: 50 });
+      .send({ amount_cents: 500 });
     expect(low.status).toBe(400);
     expect(low.body.code).toBe('invalid_amount');
 

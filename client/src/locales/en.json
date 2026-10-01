@@ -21433,7 +21433,7 @@
     "amountFixed": "Fixed amount",
     "amountFixedHint": "Every scan pays the same amount.",
     "amountLabel": "Amount (USD)",
-    "amountInvalid": "Enter an amount between $1 and $100,000.",
+    "amountInvalid": "Enter an amount between $6 and $100,000.",
     "createCta": "Create QR code",
     "creating": "Creating...",
     "createError": "Could not create the QR code. Please try again.",

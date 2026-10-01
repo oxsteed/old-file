@@ -21350,7 +21350,7 @@
     "amountFixed": "مبلغ ثابت",
     "amountFixedHint": "كل عملية مسح تدفع نفس المبلغ.",
     "amountLabel": "المبلغ (دولار)",
-    "amountInvalid": "أدخل مبلغاً بين 1$ و 100,000$.",
+    "amountInvalid": "أدخل مبلغاً بين 6$ و 100,000$.",
     "createCta": "إنشاء رمز QR",
     "creating": "جارٍ الإنشاء...",
     "createError": "تعذّر إنشاء رمز QR. حاول مرة أخرى.",
