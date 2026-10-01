@@ -7,6 +7,7 @@ const { errorHandler } = require('../middleware/errorHandler');
 const {
   getSearchSuggestions,
   syncFromHomeDepot,
+  matchTools,
 } = require('../controllers/marketplaceProductsController');
 
 function buildApp() {
@@ -18,6 +19,7 @@ function buildApp() {
   });
   app.get('/api/marketplace/products/suggestions', getSearchSuggestions);
   app.post('/api/marketplace/products/sync-homedepot', syncFromHomeDepot);
+  app.post('/api/marketplace/products/match-tools', matchTools);
   app.use(errorHandler);
   return app;
 }
@@ -62,5 +64,66 @@ describe('marketplace products backend wiring', () => {
     expect(res.status).toBe(200);
     expect(res.body.message).toMatch(/configuration found/);
     expect(res.body.nextStep).toMatch(/feed worker/);
+  });
+});
+
+describe('POST /api/marketplace/products/match-tools', () => {
+  test('returns the best in-house match per tool name with a /products URL', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{ id: 12, name: 'DEWALT 20V Cordless Drill', price_cents: 9900, product_image_url: 'https://img/x.png', relevance: 0.9 }],
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .post('/api/marketplace/products/match-tools')
+      .send({ names: ['Cordless Drill', 'Unicorn Glue'] });
+
+    expect(res.status).toBe(200);
+    expect(res.body.matches['Cordless Drill']).toMatchObject({
+      product_id: 12,
+      name: 'DEWALT 20V Cordless Drill',
+      price_cents: 9900,
+    });
+    expect(res.body.matches['Cordless Drill'].url).toBe('/products?search=Cordless%20Drill');
+    expect(res.body.matches['Unicorn Glue']).toBeNull();
+    // Only available, active products are ever considered.
+    expect(mockQuery.mock.calls[0][0]).toMatch(/is_active = TRUE/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/is_available = TRUE/);
+  });
+
+  test('rejects a top hit that does not visibly contain the tool name', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: 7, name: 'Garden Hose Nozzle', price_cents: 1200, product_image_url: null, relevance: 0.4 }],
+    });
+
+    const res = await request(buildApp())
+      .post('/api/marketplace/products/match-tools')
+      .send({ names: ['Hammer'] });
+
+    expect(res.status).toBe(200);
+    expect(res.body.matches['Hammer']).toBeNull();
+  });
+
+  test('dedupes repeated names into a single query', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .post('/api/marketplace/products/match-tools')
+      .send({ names: ['Hammer', 'Hammer', '  Hammer '] });
+
+    expect(res.status).toBe(200);
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    expect(Object.keys(res.body.matches)).toEqual(['Hammer']);
+  });
+
+  test('rejects missing, empty, and oversized name lists', async () => {
+    for (const body of [{}, { names: [] }, { names: 'Hammer' }, { names: Array(26).fill('Hammer') }, { names: [1, null, 'x'] }]) {
+      const res = await request(buildApp())
+        .post('/api/marketplace/products/match-tools')
+        .send(body);
+      expect(res.status).toBe(400);
+    }
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 });

@@ -44,6 +44,7 @@ import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
+import { marketplaceApi } from '../api/marketplaceApi';
 import './LearnModePage.css';
 
 const COMPLETIONS_KEY  = 'oxs:learn:completions';
@@ -3905,6 +3906,7 @@ export default function LearnModePage() {
   const [completing, setCompleting]       = useState(null);
   const [remoteCatalog, setRemoteCatalog] = useState(null); // { guides: [...] } from /api/learn/guides
   const [productLinks,  setProductLinks]  = useState([]);   // admin-managed link overrides
+  const [inHouseMatches, setInHouseMatches] = useState({}); // tool name -> in-house product match (expanded guide)
 
   // App banner (Priority 13)
   const [showAppBanner, setShowAppBanner] = useState(false);
@@ -4086,6 +4088,25 @@ export default function LearnModePage() {
 
     return applyOverrides([...merged, ...extras]);
   }, [remoteCatalog, productLinks]);
+
+  // In-house product matches for the expanded guide's kit: Buy buttons prefer the
+  // OxSteed marketplace over external affiliate links when we stock the tool.
+  const expandedGuide = useMemo(
+    () => activeGuides.find((g) => g.id === expandedId) || null,
+    [activeGuides, expandedId]
+  );
+  useEffect(() => {
+    const tools = Array.isArray(expandedGuide?.tools) ? expandedGuide.tools : [];
+    const names = [...new Set(
+      tools.map((t) => t?.name).filter((n) => typeof n === 'string' && n.trim().length >= 2)
+    )];
+    if (!expandedGuide || !names.length) { setInHouseMatches({}); return; }
+    let cancelled = false;
+    marketplaceApi.matchTools(names)
+      .then((res) => { if (!cancelled) setInHouseMatches(res?.data?.matches || {}); })
+      .catch(() => { if (!cancelled) setInHouseMatches({}); });
+    return () => { cancelled = true; };
+  }, [expandedGuide]);
 
   // Inject HowTo JSON-LD (SEO, Priority 10) from the merged guide catalog.
   // Keep the <script> node stable; just update its contents as the catalog updates.
@@ -4664,7 +4685,9 @@ export default function LearnModePage() {
                             </h3>
                             <ul className="lrn-kit-grid">
                               {guide.tools.map((tool) => {
-                                const isAffiliate = Boolean(tool.buy)
+                                const inHouse = inHouseMatches[tool.name] || null;
+                                const isAffiliate = !inHouse
+                                  && Boolean(tool.buy)
                                   && tool.link_type !== 'own_inventory'
                                   && tool.link_type !== 'rental';
                                 return (
@@ -4680,7 +4703,16 @@ export default function LearnModePage() {
                                           {t('learn.page.rent', { defaultValue: 'Rent' })}
                                         </Link>
                                       )}
-                                      {tool.buy && (
+                                      {inHouse ? (
+                                        <Link
+                                          to={inHouse.url}
+                                          className="lrn-kit-buy"
+                                          aria-label={`${t('learn.page.buy', { defaultValue: 'Buy' })} ${tool.name}`}
+                                          onClick={() => { try { window.gtag && window.gtag('event', 'learn_buy_clicked', { tool_name: tool.name, link_type: 'own_inventory' }); } catch(_) {} trackLearnClick(guide.id, 'buy', inHouse.url); }}
+                                        >
+                                          {t('learn.page.buy', { defaultValue: 'Buy' })}
+                                        </Link>
+                                      ) : tool.buy && (
                                         <a
                                           href={tool.buy}
                                           target="_blank"
@@ -4702,7 +4734,7 @@ export default function LearnModePage() {
                               })}
                             </ul>
                             {/* Amazon Associates site-wide disclosure, required when any affiliate link is present */}
-                            {guide.tools.some((tool) => tool.buy && tool.link_type !== 'own_inventory' && tool.link_type !== 'rental') && (
+                            {guide.tools.some((tool) => !inHouseMatches[tool.name] && tool.buy && tool.link_type !== 'own_inventory' && tool.link_type !== 'rental') && (
                               <p className="lrn-affiliate-disclosure">
                                 {t('learn.page.amazonDisclosure', { defaultValue: 'As an Amazon Associate, OxSteed earns from qualifying purchases.' })}
                               </p>

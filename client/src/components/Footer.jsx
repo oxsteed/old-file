@@ -81,6 +81,7 @@ export default function Footer() {
                 {t('footer.platform')}
               </span>
               <FooterLink to="/direct">{t('footer.direct')}</FooterLink>
+              <FooterLink to="/products">{t('footer.products')}</FooterLink>
               <FooterLink to="/delivery">{t('footer.delivery')}</FooterLink>
               <FooterLink to="/consulting-intake">{t('footer.consultingIntake')}</FooterLink>
               <span className="site-footer__heading site-footer__heading--nested">

@@ -713,6 +713,72 @@ const syncFromHomeDepot = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/marketplace-products/match-tools
+ * Public. Given a list of tool/material names (e.g. a Learn guide's kit),
+ * returns the best in-house product match for each name so Learn Buy buttons
+ * can prefer the OxSteed marketplace over external affiliate links.
+ * Body: { names: string[] } (1..25). Names with no confident match map to null.
+ */
+const MATCH_TOOLS_SQL = `
+  SELECT mp.id, mp.name, mp.price_cents, mp.product_image_url,
+    ts_rank(to_tsvector('english', mp.name || ' ' || COALESCE(mp.description, '')),
+            plainto_tsquery('english', $1)) as relevance
+  FROM marketplace_products mp
+  WHERE mp.is_active = TRUE
+    AND mp.is_available = TRUE
+    AND to_tsvector('english', mp.name || ' ' || COALESCE(mp.description, ''))
+        @@ plainto_tsquery('english', $1)
+  ORDER BY relevance DESC
+  LIMIT 1
+`;
+
+// A match only counts when the product name visibly contains the tool's name:
+// full-text rank alone can surface description-only mentions of unrelated items.
+function isConfidentMatch(toolName, productName) {
+  const hay = String(productName || '').toLowerCase();
+  const needle = String(toolName || '').toLowerCase().trim();
+  if (!needle || !hay) return false;
+  const tokens = needle.split(/[^a-z0-9]+/).filter((t) => t.length >= 4);
+  if (tokens.length) return tokens.some((t) => hay.includes(t));
+  return hay.includes(needle);
+}
+
+const matchTools = async (req, res) => {
+  try {
+    const raw = req.body && req.body.names;
+    if (!Array.isArray(raw) || raw.length === 0 || raw.length > 25) {
+      return sendError(res, 400, 'Provide 1 to 25 tool names in "names".');
+    }
+    const names = [...new Set(
+      raw.filter((n) => typeof n === 'string').map((n) => n.trim()).filter((n) => n.length >= 2)
+    )].slice(0, 25);
+    if (!names.length) {
+      return sendError(res, 400, 'Provide at least one valid tool name.');
+    }
+
+    const results = await Promise.all(
+      names.map(async (name) => {
+        const { rows } = await pool.query(MATCH_TOOLS_SQL, [name]);
+        const top = rows[0];
+        if (!top || !isConfidentMatch(name, top.name)) return [name, null];
+        return [name, {
+          product_id: top.id,
+          name: top.name,
+          price_cents: top.price_cents,
+          product_image_url: top.product_image_url,
+          url: `/products?search=${encodeURIComponent(name)}`,
+        }];
+      })
+    );
+
+    return sendSuccess(res, { matches: Object.fromEntries(results) });
+  } catch (err) {
+    logger.error('Error matching tools to products', err);
+    return sendError(res, 500, 'Failed to match tools to products');
+  }
+};
+
 module.exports = {
   browseProducts,
   getProduct,
@@ -727,4 +793,5 @@ module.exports = {
   submitProductReview,
   getRecommendedProducts,
   syncFromHomeDepot,
+  matchTools,
 };

@@ -25,6 +25,9 @@ router.get('/by-skill/:skillId', optionalAuth, marketplaceProductsController.get
 // Get recommended products for authenticated helper's skills
 router.get('/recommended', authenticate, marketplaceProductsController.getRecommendedProducts);
 
+// Match Learn kit tool names to in-house products (public; Learn is anonymous-friendly)
+router.post('/match-tools', marketplaceProductsController.matchTools);
+
 // Get single product with full details
 router.get('/:productId', optionalAuth, marketplaceProductsController.getProductDetail);
 

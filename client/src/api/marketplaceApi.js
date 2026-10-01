@@ -63,6 +63,9 @@ export const marketplaceApi = {
 
   syncFromHomeDepot: () => api.post('/marketplace/products/sync-homedepot'),
 
+  // Match Learn kit tool names to in-house products (best match per name, or null)
+  matchTools: (names) => api.post('/marketplace/products/match-tools', { names }),
+
   // Product reviews
   getProductReviews: (productId, page = 1) =>
     api.get(`/marketplace/products/${productId}/reviews?page=${page}&limit=5`),
