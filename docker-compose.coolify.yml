@@ -37,7 +37,9 @@ services:
       GIT_SHA: ${GIT_SHA:-}
       IMAGE_DIGEST: ${IMAGE_DIGEST:-}
       COOLIFY_DEPLOYMENT_ID: ${COOLIFY_DEPLOYMENT_ID:-${DEPLOYMENT_ID:-}}
-      CLAMAV_HOST: ${CLAMAV_HOST}
+      # Keep the scanner on the private Compose network. When it is unavailable,
+      # fileScanService fails closed for uploads without taking the web app down.
+      CLAMAV_HOST: ${CLAMAV_HOST:-clamav}
       CLAMAV_PORT: ${CLAMAV_PORT:-3310}
       CLAMAV_TIMEOUT_MS: ${CLAMAV_TIMEOUT_MS:-5000}
       DATABASE_URL: ${DATABASE_URL}
@@ -66,7 +68,7 @@ services:
       OXSTEED_CREDIT_MAX_HOLD_TTL_MINUTES: ${OXSTEED_CREDIT_MAX_HOLD_TTL_MINUTES:-1440}
       OXSTEED_CREDIT_MAX_AGREEMENT_LIMIT_CENTS: ${OXSTEED_CREDIT_MAX_AGREEMENT_LIMIT_CENTS}
       OXSTEED_CREDIT_NOTIFICATION_RETENTION_DAYS: ${OXSTEED_CREDIT_NOTIFICATION_RETENTION_DAYS:-90}
-      FILE_SCAN_REQUIRE_MALWARE: ${FILE_SCAN_REQUIRE_MALWARE:-false}
+      FILE_SCAN_REQUIRE_MALWARE: ${FILE_SCAN_REQUIRE_MALWARE:-true}
       JWT_SECRET: ${JWT_SECRET}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
@@ -96,6 +98,8 @@ services:
       SMTP_SECURE: ${SMTP_SECURE:-true}
       SMTP_USER: ${SMTP_USER}
       SUPPORT_AI_TIMEOUT_MS: ${SUPPORT_AI_TIMEOUT_MS:-2500}
+      # Production path is Cloudflare -> Traefik -> app.
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-2}
       STRIPE_CONNECT_CLIENT_ID: ${STRIPE_CONNECT_CLIENT_ID}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
@@ -120,11 +124,28 @@ services:
       start_period: 90s
       retries: 5
 
+  clamav:
+    # Pin to a ClamAV feature release so a future feature upgrade is deliberate.
+    # The official image includes clamd and freshclam with a preloaded database.
+    image: clamav/clamav:1.5-debian13-slim
+    restart: unless-stopped
+    environment:
+      CLAMD_STARTUP_TIMEOUT: 1800
+      CLAMAV_NO_MILTERD: "true"
+    volumes:
+      - oxsteed-clamav-database:/var/lib/clamav
+    expose:
+      - "3310"
+    networks:
+      - oxsteed-production
+
 volumes:
   oxsteed-release-metadata:
     name: oxsteed-release-metadata
   oxsteed-web-assets:
     name: oxsteed-web-assets
+  oxsteed-clamav-database:
+    name: oxsteed-clamav-database
 
 networks:
   oxsteed-production:

@@ -46,6 +46,20 @@ describe('deployment release identity wiring', () => {
     expect(compose).toContain('OXSTEED_CREDIT_MAX_TOTAL_ISSUANCE_CENTS: ${OXSTEED_CREDIT_MAX_TOTAL_ISSUANCE_CENTS:-5000000}');
     expect(compose).toContain('OXSTEED_CREDIT_MAX_AGREEMENT_LIMIT_CENTS: ${OXSTEED_CREDIT_MAX_AGREEMENT_LIMIT_CENTS}');
     expect(compose).toContain('DB_CONNECTION_TIMEOUT_MS: ${DB_CONNECTION_TIMEOUT_MS:-5000}');
+    expect(compose).toContain('TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-2}');
+  });
+
+  test('keeps the malware scanner private and persistent in the Coolify deployment', () => {
+    const compose = fs.readFileSync(path.join(repositoryRoot, 'docker-compose.coolify.yml'), 'utf8');
+
+    expect(compose).toContain('image: clamav/clamav:1.5-debian13-slim');
+    expect(compose).toContain('CLAMAV_HOST: ${CLAMAV_HOST:-clamav}');
+    expect(compose).toContain('CLAMAV_PORT: ${CLAMAV_PORT:-3310}');
+    expect(compose).toContain('FILE_SCAN_REQUIRE_MALWARE: ${FILE_SCAN_REQUIRE_MALWARE:-true}');
+    expect(compose).toContain('oxsteed-clamav-database:/var/lib/clamav');
+    expect(compose).toContain('oxsteed-clamav-database:');
+    expect(compose).toContain('CLAMAV_NO_MILTERD: "true"');
+    expect(compose).not.toMatch(/clamav:[\s\S]{0,900}ports:/);
   });
 
   test('keeps browser and source-map Sentry releases on the same identity', () => {
