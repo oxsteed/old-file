@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Building2, Eye, EyeOff, Search, Store, User } from 'lucide-react';
 import api from '../../api/axios';
@@ -20,7 +20,7 @@ const REASONS = ['incomplete_profile', 'non_compliance', 'admin_decision', 'othe
 
 export default function ProfileVisibilityPage() {
   const { t } = useTranslation();
-  const copy = (key, options) => t(`adminProfileVisibility.${key}`, options);
+  const copy = useCallback((key, options) => t(`adminProfileVisibility.${key}`, options), [t]);
 
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -33,25 +33,56 @@ export default function ProfileVisibilityPage() {
   const [hideNote, setHideNote] = useState('');
   const [restoreTarget, setRestoreTarget] = useState(null);
   const [saving, setSaving] = useState(false);
+  const searchRequest = useRef(0);
 
-  const search = useCallback(async () => {
-    const q = query.trim();
-    if (q.length < 2) return;
+  const search = useCallback(async (nextQuery, nextType) => {
+    const q = nextQuery.trim();
+    const requestId = ++searchRequest.current;
+    if (q.length < 2) {
+      setResults([]);
+      setSearched(false);
+      setError('');
+      return;
+    }
     setLoading(true);
     setError('');
     try {
       const { data } = await api.get('/admin/profile-visibility/search', {
-        params: { q, type: typeFilter },
+        params: { q, type: nextType },
       });
+      if (requestId !== searchRequest.current) return;
       setResults(data.results || []);
       setSearched(true);
     } catch (err) {
+      if (requestId !== searchRequest.current) return;
       logger.error('profile visibility search failed', { message: err.message });
       setError(copy('error', { defaultValue: 'Something went wrong. Please try again.' }));
     } finally {
-      setLoading(false);
+      if (requestId === searchRequest.current) setLoading(false);
     }
-  }, [query, typeFilter, copy]);
+  }, [copy]);
+
+  // Keep the explicit Search button for keyboard and assistive-technology
+  // users, but also refresh after typing pauses so the list feels immediate.
+  useEffect(() => {
+    const trimmedQuery = query.trim();
+    if (trimmedQuery.length < 2) {
+      // Invalidate an in-flight request so it cannot repopulate results after
+      // the administrator clears or shortens the query.
+      searchRequest.current += 1;
+      setResults([]);
+      setSearched(false);
+      setError('');
+      setLoading(false);
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      search(trimmedQuery, typeFilter);
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, [query, typeFilter, search]);
 
   const applyVisibility = useCallback(async (profile, isVisible) => {
     setSaving(true);
@@ -120,7 +151,7 @@ export default function ProfileVisibilityPage() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') search(); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') search(query, typeFilter); }}
             placeholder={copy('searchPlaceholder', { defaultValue: 'Search by name or email (min 2 characters)' })}
             aria-label={copy('searchPlaceholder', { defaultValue: 'Search by name or email (min 2 characters)' })}
             style={{ ...input, width: '100%', paddingLeft: '2.2rem' }}
@@ -137,7 +168,7 @@ export default function ProfileVisibilityPage() {
           <option value="business">{copy('typeBusiness', { defaultValue: 'Businesses' })}</option>
           <option value="restaurant">{copy('typeRestaurant', { defaultValue: 'Restaurants' })}</option>
         </select>
-        <button type="button" style={btnPrimary} onClick={search} disabled={loading || query.trim().length < 2}>
+        <button type="button" style={btnPrimary} onClick={() => search(query, typeFilter)} disabled={loading || query.trim().length < 2}>
           {loading ? copy('searching', { defaultValue: 'Searching' }) : copy('search', { defaultValue: 'Search' })}
         </button>
       </div>
