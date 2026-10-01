@@ -17339,7 +17339,7 @@
       "searchAriaLabel": "Buscar guías",
       "clearSearch": "Borrar búsqueda",
       "dismissBanner": "Cerrar banner",
-      "appBannerText": "Accede a todas las guías sin conexión",
+      "appBannerText": "Lleva OxSteed a todas partes",
       "appBannerCta": "Descarga la app OxSteed",
       "appStore": "Tienda de aplicaciones",
       "startHere": "Empieza aquí",
@@ -17353,9 +17353,12 @@
       "moreComingSoon": "Más guías de {{category}} próximamente",
       "videoComingSoon": "Videoclase próximamente",
       "stepsHeading": "Pasos",
-      "askAiTitle": "Preguntarle a la IA sobre este paso",
-      "askAi": "Preguntar a la IA",
+      "askSupportTitle": "Pregunta a soporte sobre este paso",
+      "askSupport": "Preguntar a soporte",
+      "askSupportPrefill": "Estoy siguiendo la guía \"{{title}}\" (paso {{step}}): \"{{excerpt}}\". Tengo una pregunta sobre este paso.",
       "guideCompleted": "Guía completada · +{{xp}} XP ganados",
+      "progressCompleted": "{{done}} de {{total}} guías completadas",
+      "progressXp": "+{{xp}} XP ganados",
       "saving": "Guardando…",
       "markComplete": "✓ Marcar como completado",
       "skillsHeading": "Habilidades que aprenderás",
@@ -17483,6 +17486,12 @@
         "manager": "Vista del gerente de instalaciones",
         "support_agent": "Manual del agente de soporte"
       }
+    },
+    "step": {
+      "1": "Aprende una habilidad",
+      "2": "Hazlo tú mismo",
+      "3": "Ofrécelo como servicio",
+      "4": "Haz crecer tu negocio"
     }
   },
   "cancellationStats": {

@@ -17339,7 +17339,7 @@
       "searchAriaLabel": "Chèche gid",
       "clearSearch": "Efase rechèch",
       "dismissBanner": "Fèmen banyè",
-      "appBannerText": "Jwenn aksè a tout gid san entènèt",
+      "appBannerText": "Mennen OxSteed toupatou",
       "appBannerCta": "Telechaje app OxSteed la",
       "appStore": "App Store",
       "startHere": "Kòmanse la",
@@ -17353,9 +17353,12 @@
       "moreComingSoon": "Plis gid {{category}} ap vini byento",
       "videoComingSoon": "Videyo gid ap vini byento",
       "stepsHeading": "Etap",
-      "askAiTitle": "Mande AI sou etap sa a",
-      "askAi": "Mande IA",
+      "askSupportTitle": "Poze sipò yon kesyon sou etap sa a",
+      "askSupport": "Mande sipò",
+      "askSupportPrefill": "M ap swiv gid \"{{title}}\" la (etap {{step}}): \"{{excerpt}}\". M gen yon kesyon sou etap sa a.",
       "guideCompleted": "Gid fini · +{{xp}} XP ou touche",
+      "progressCompleted": "{{done}} sou {{total}} gid fini",
+      "progressXp": "+{{xp}} XP ou genyen",
       "saving": "Ap sove…",
       "markComplete": "✓ Mete kòm Fini",
       "skillsHeading": "Konpetans ou pral aprann",
@@ -17483,6 +17486,12 @@
         "manager": "Wè direktè enstalasyon",
         "support_agent": "Manyèl ajan sipò"
       }
+    },
+    "step": {
+      "1": "Aprann yon konpetans",
+      "2": "Fè l ou menm",
+      "3": "Mete l kòm sèvis",
+      "4": "Devlope biznis ou"
     }
   },
   "cancellationStats": {

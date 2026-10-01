@@ -17350,7 +17350,7 @@
       "searchAriaLabel": "ابحث في الأدلة",
       "clearSearch": "مسح البحث",
       "dismissBanner": "إغلاق البانر",
-      "appBannerText": "احصل على وصول غير متصل بالإنترنت لجميع الأدلة",
+      "appBannerText": "خُذ OxSteed معك أينما ذهبت",
       "appBannerCta": "حمّل تطبيق OxSteed",
       "appStore": "متجر التطبيقات",
       "startHere": "ابدأ هنا",
@@ -17364,9 +17364,12 @@
       "moreComingSoon": "المزيد من أدلة {{category}} قريبًا",
       "videoComingSoon": "فيديو الدليل قريبًا",
       "stepsHeading": "الخطوات",
-      "askAiTitle": "اسأل الذكاء الاصطناعي عن هذه الخطوة",
-      "askAi": "اسأل الذكاء الاصطناعي",
+      "askSupportTitle": "اسأل الدعم عن هذه الخطوة",
+      "askSupport": "اسأل الدعم",
+      "askSupportPrefill": "أتابع دليل \"{{title}}\" (الخطوة {{step}}): \"{{excerpt}}\". لدي سؤال عن هذه الخطوة.",
       "guideCompleted": "اكتمل الدليل · +{{xp}} XP مكتسبة",
+      "progressCompleted": "أنجزت {{done}} من أصل {{total}} دليلًا",
+      "progressXp": "+{{xp}} نقطة خبرة مكتسبة",
       "saving": "جارٍ الحفظ…",
       "markComplete": "✓ وضع علامة مكتمل",
       "skillsHeading": "المهارات التي ستتعلمها",
@@ -17494,6 +17497,12 @@
         "manager": "رؤية مدير المرافق",
         "support_agent": "دليل عامل الدعم"
       }
+    },
+    "step": {
+      "1": "تعلّم مهارة",
+      "2": "نفّذها بنفسك",
+      "3": "اعرضها كخدمة",
+      "4": "طوّر عملك"
     }
   },
   "cancellationStats": {

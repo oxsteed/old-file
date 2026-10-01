@@ -4229,13 +4229,19 @@ export default function LearnModePage() {
     }
   };
 
-  // AI step prompt (Priority 7), opens the Ask AI widget with guide context
-  const handleAskAI = useCallback((guide, stepIndex, stepText) => {
-    const prefill = `I'm following the "${guide.title}" guide (step ${stepIndex + 1}): "${stepText.slice(0, 120)}"${stepText.length > 120 ? '…' : ''}. I have a question about this step.`;
+  // Support step prompt (Priority 7): opens the human support widget with
+  // guide context prefilled, so the user can ask about the current step.
+  const handleAskSupport = useCallback((guide, stepIndex, stepText) => {
+    const excerpt = stepText.length > 120 ? `${stepText.slice(0, 120)}…` : stepText;
+    const prefill = t('learn.page.askSupportPrefill', {
+      title: guide.title,
+      step: stepIndex + 1,
+      excerpt,
+    });
     window.dispatchEvent(new CustomEvent('oxsteed:open-support', {
       detail: { prefill, guide_id: guide.id, step: stepIndex + 1 },
     }));
-  }, []);
+  }, [t]);
 
   const dismissAppBanner = () => {
     setShowAppBanner(false);
@@ -4351,10 +4357,10 @@ export default function LearnModePage() {
             </div>
           </div>
           <div className="lrn-ladder">
-            {['learn.step.1', 'learn.step.2', 'learn.step.3', 'learn.step.4'].map((stepKey, i) => (
-              <span key={stepKey} className="lrn-ladder-step">
+            {[t('learn.step.1'), t('learn.step.2'), t('learn.step.3'), t('learn.step.4')].map((label, i) => (
+              <span key={`lrn-ladder-${i + 1}`} className="lrn-ladder-step">
                 <span className="lrn-ladder-num">{i + 1}</span>
-                {t(stepKey)}
+                {label}
               </span>
             ))}
           </div>
@@ -4365,16 +4371,18 @@ export default function LearnModePage() {
           <div className="lrn-progress-strip">
             <div className="lrn-progress-left">
               <CheckCircle size={16} aria-hidden="true" />
-              <span>{completedCount} of {totalGuides} guides completed</span>
+              <span>{t('learn.page.progressCompleted', { done: completedCount, total: totalGuides })}</span>
             </div>
             <div className="lrn-progress-bar-wrap" role="progressbar" aria-valuenow={completedCount} aria-valuemax={totalGuides}>
               <div className="lrn-progress-bar" style={{ width: `${(completedCount / totalGuides) * 100}%` }} />
             </div>
             <span className="lrn-progress-xp">
-              +{Object.keys(completions).reduce((sum, id) => {
-                const g = activeGuides.find((g) => g.id === id);
-                return sum + (g ? DIFFICULTY_XP[g.difficulty] ?? 0 : 0);
-              }, 0)} XP earned
+              {t('learn.page.progressXp', {
+                xp: Object.keys(completions).reduce((sum, id) => {
+                  const g = activeGuides.find((g) => g.id === id);
+                  return sum + (g ? DIFFICULTY_XP[g.difficulty] ?? 0 : 0);
+                }, 0),
+              })}
             </span>
           </div>
         )}
@@ -4752,16 +4760,16 @@ export default function LearnModePage() {
                                   <span className="lrn-step-num">{i + 1}</span>
                                   <span className="lrn-step-body">
                                     {step}
-                                    {/* Ask AI about this step (Priority 7) */}
+                                    {/* Ask support about this step (Priority 7) */}
                                     <button
                                       type="button"
                                       className="lrn-ask-ai-btn"
-                                      onClick={() => handleAskAI(guide, i, step)}
-                                      title={t('learn.page.askAiTitle')}
-                                      aria-label={`${t('learn.page.askAiTitle')} ${i + 1}`}
+                                      onClick={() => handleAskSupport(guide, i, step)}
+                                      title={t('learn.page.askSupportTitle')}
+                                      aria-label={`${t('learn.page.askSupportTitle')} ${i + 1}`}
                                     >
                                       <MessageCircle size={12} aria-hidden="true" />
-                                      {t('learn.page.askAi')}
+                                      {t('learn.page.askSupport')}
                                     </button>
                                   </span>
                                 </li>

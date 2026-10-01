@@ -17433,7 +17433,7 @@
       "searchAriaLabel": "Search guides",
       "clearSearch": "Clear search",
       "dismissBanner": "Dismiss app banner",
-      "appBannerText": "Get offline access to all guides",
+      "appBannerText": "Take OxSteed anywhere",
       "appBannerCta": "Download the OxSteed app",
       "appStore": "App Store",
       "startHere": "Start Here",
@@ -17447,9 +17447,12 @@
       "moreComingSoon": "More {{category}} guides coming soon",
       "videoComingSoon": "Video guide coming soon",
       "stepsHeading": "Steps",
-      "askAiTitle": "Ask AI about this step",
-      "askAi": "Ask AI",
+      "askSupportTitle": "Ask support about this step",
+      "askSupport": "Ask support",
+      "askSupportPrefill": "I'm following the \"{{title}}\" guide (step {{step}}): \"{{excerpt}}\". I have a question about this step.",
       "guideCompleted": "Guide completed · +{{xp}} XP earned",
+      "progressCompleted": "{{done}} of {{total}} guides completed",
+      "progressXp": "+{{xp}} XP earned",
       "saving": "Saving…",
       "markComplete": "✓ Mark as Complete",
       "skillsHeading": "Skills you'll learn",
@@ -17577,6 +17580,12 @@
         "manager": "Facilities Manager View",
         "support_agent": "Support Agent Playbook"
       }
+    },
+    "step": {
+      "1": "Learn a skill",
+      "2": "Do it yourself",
+      "3": "List as a service",
+      "4": "Grow your business"
     }
   },
   "cancellationStats": {

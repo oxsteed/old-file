@@ -17339,7 +17339,7 @@
       "searchAriaLabel": "Rechercher des guides",
       "clearSearch": "Effacer la recherche",
       "dismissBanner": "Fermer la bannière",
-      "appBannerText": "Accédez à tous les guides hors ligne",
+      "appBannerText": "Emportez OxSteed partout",
       "appBannerCta": "Téléchargez l'application OxSteed",
       "appStore": "Magasin d'applications",
       "startHere": "Commencez ici",
@@ -17353,9 +17353,12 @@
       "moreComingSoon": "D'autres guides {{category}} bientôt disponibles",
       "videoComingSoon": "Vidéo guide bientôt disponible",
       "stepsHeading": "Étapes",
-      "askAiTitle": "Demander à l'IA à propos de cette étape",
-      "askAi": "Demander à l’IA",
+      "askSupportTitle": "Poser une question à l'assistance sur cette étape",
+      "askSupport": "Demander à l'assistance",
+      "askSupportPrefill": "Je suis le guide « {{title}} » (étape {{step}}) : « {{excerpt}} ». J'ai une question sur cette étape.",
       "guideCompleted": "Guide terminé · +{{xp}} XP gagnés",
+      "progressCompleted": "{{done}} guides terminés sur {{total}}",
+      "progressXp": "+{{xp}} XP gagnés",
       "saving": "Enregistrement…",
       "markComplete": "✓ Marquer comme terminé",
       "skillsHeading": "Compétences que vous allez acquérir",
@@ -17483,6 +17486,12 @@
         "manager": "Vue gestionnaire de sites",
         "support_agent": "Manuel agent support"
       }
+    },
+    "step": {
+      "1": "Apprenez une compétence",
+      "2": "Faites-le vous-même",
+      "3": "Proposez-le comme service",
+      "4": "Développez votre activité"
     }
   },
   "cancellationStats": {

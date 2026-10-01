@@ -231,10 +231,16 @@ function AISupportWidget() {
   // Persist history
   useEffect(() => { saveHistory(messages); }, [messages]);
 
-  // Custom open event from other components
+  // Custom open event from other components. The event may carry a
+  // `detail.prefill` string (e.g. the Learn page's per-step support prompt);
+  // it fills the composer only when the user has not already typed something.
   useEffect(() => {
-    const handler = () => {
+    const handler = (event) => {
       if (isHelperPublicProfilePath(window.location.pathname)) return;
+      const prefill = event?.detail?.prefill;
+      if (typeof prefill === 'string' && prefill.trim()) {
+        setInput((prev) => (prev && prev.trim() ? prev : prefill));
+      }
       setOpen(true); setMinimized(false); setUnread(0);
     };
     window.addEventListener('oxsteed:open-support', handler);
