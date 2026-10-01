@@ -17,8 +17,8 @@ export default function usePayments() {
     }
   }, []);
 
-  const createConnectAccount = async () => {
-    const { data } = await api.post('/payments/connect');
+  const createConnectAccount = async (returnPath) => {
+    const { data } = await api.post('/payments/connect', returnPath ? { return_path: returnPath } : {});
     return data;
   };
 

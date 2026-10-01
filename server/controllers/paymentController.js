@@ -107,11 +107,31 @@ async function refreshConnectAccountStatus(userId, accountRow) {
  */
 
 // Create Connect account for helper (onboarding)
+
+/**
+ * Stripe only allows pre-registered redirect hosts, so the onboarding return
+ * URL must stay on our own origin. Accept an optional caller-supplied
+ * `return_path` (e.g. '/qr-payments') and fall back to the helper dashboard
+ * for anything that is not a plain same-origin path.
+ */
+function sanitizeOnboardingReturnPath(value) {
+  if (typeof value !== 'string') return '/helper-dashboard';
+  const clean = value.trim().split('?')[0].split('#')[0];
+  if (!clean.startsWith('/') || clean.startsWith('//') || clean.includes('\\') || /[\r\n]/.test(clean)) {
+    return '/helper-dashboard';
+  }
+  return clean || '/helper-dashboard';
+}
+
 exports.createConnectAccount = async (req, res, next) => {
   try {
     if (!process.env.STRIPE_SECRET_KEY) {
       throw new AppError('Stripe is not configured on the server.', 503, 'stripe_not_configured');
     }
+    const returnPath = sanitizeOnboardingReturnPath(req.body && req.body.return_path);
+    const appBase = resolveAppBaseUrl(req);
+    const refreshUrl = `${appBase}${returnPath}?refresh=true`;
+    const returnUrl = `${appBase}${returnPath}?onboarding=complete`;
     const existing = await pool.query('SELECT * FROM connect_accounts WHERE user_id = $1', [req.user.id]);
     if (existing.rows[0]) {
       const freshExisting = await refreshConnectAccountStatus(req.user.id, existing.rows[0]);
@@ -122,8 +142,8 @@ exports.createConnectAccount = async (req, res, next) => {
       if (!freshExisting.onboarding_complete || !freshExisting.charges_enabled || !freshExisting.payouts_enabled || requirements.currently_due?.length || requirements.past_due?.length) {
         const link = await stripe.accountLinks.create({
           account: freshExisting.stripe_account_id,
-          refresh_url: `${resolveAppBaseUrl(req)}/helper-dashboard?refresh=true`,
-          return_url: `${resolveAppBaseUrl(req)}/helper-dashboard?onboarding=complete`,
+          refresh_url: refreshUrl,
+          return_url: returnUrl,
           type: 'account_onboarding'
         });
         return res.json({
@@ -164,8 +184,8 @@ exports.createConnectAccount = async (req, res, next) => {
     if (!accountId) throw new AppError('Payment account could not be saved. Please retry.', 503, 'connect_account_persistence_failed');
     const link = await stripe.accountLinks.create({
       account: accountId,
-      refresh_url: `${resolveAppBaseUrl(req)}/helper-dashboard?refresh=true`,
-      return_url: `${resolveAppBaseUrl(req)}/helper-dashboard?onboarding=complete`,
+      refresh_url: refreshUrl,
+      return_url: returnUrl,
       type: 'account_onboarding'
     });
     res.json({

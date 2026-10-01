@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { X, MessageCircle, User, Star, MapPin, HelpCircle, Calendar } from 'lucide-react';
+import { X, MessageCircle, User, Star, MapPin, HelpCircle, Calendar, HardHat } from 'lucide-react';
 import ToolReviewsList from './ToolReviewsList';
 import BookingModal from './BookingModal';
 import './ToolDetailModal.css';
@@ -235,6 +236,15 @@ const ToolDetailModal: React.FC<ToolDetailModalProps> = ({
               avgRating={Number(tool.avg_rating) || 0}
               reviewCount={tool.review_count ?? 0}
             />
+
+            {/* Operator upsell: renting the tool is step one, hiring someone to run it is step two */}
+            <Link to="/helpers" className="tool-modal-operator-upsell">
+              <HardHat className="w-5 h-5" aria-hidden="true" />
+              <span className="tool-modal-operator-upsell-text">
+                <strong>{t('toolRentals.hireOperatorTitle', { defaultValue: 'Need someone to operate it?' })}</strong>
+                <span>{t('toolRentals.hireOperatorCta', { defaultValue: 'Hire a helper for this job' })}</span>
+              </span>
+            </Link>
           </div>
         </div>
       </div>

@@ -135,7 +135,17 @@ export default function QrPaySetupPage() {
 
   useEffect(() => {
     loadStatus();
-  }, [loadStatus]);
+    // Fresh return from Stripe onboarding: confirm it and drop the param.
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('onboarding') === 'complete') {
+        toast.success(t('qrPay.onboardingComplete', { defaultValue: 'Payout setup complete. You can now create QR codes.' }));
+        params.delete('onboarding');
+        const next = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
+        window.history.replaceState(null, '', next);
+      }
+    } catch { /* non-fatal */ }
+  }, [loadStatus, t]);
 
   useEffect(() => {
     if (connectState === 'ready') loadCodes();
@@ -163,7 +173,7 @@ export default function QrPaySetupPage() {
   const handleConnect = async () => {
     setConnecting(true);
     try {
-      const data = await createConnectAccount();
+      const data = await createConnectAccount('/qr-payments');
       const url = data?.url || data?.onboarding_url;
       if (url) {
         window.location.href = url;

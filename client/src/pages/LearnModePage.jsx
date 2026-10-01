@@ -4823,6 +4823,7 @@ export default function LearnModePage() {
                                 <>
                                   <p className="lrn-cta-label"><User size={13} aria-hidden="true" />{t('learn.page.ctaRatherNotDiy')}</p>
                                   <Link to={guide.hireHref} className="lrn-cta-primary" onClick={() => trackLearnClick(guide.id, 'helper', guide.hireHref)}>{t('learn.page.findHelper')}</Link>
+                                  <Link to={`/direct/services?category=${encodeURIComponent(guide.category || '')}`} className="lrn-cta-secondary" onClick={() => trackLearnClick(guide.id, 'direct', 'direct-services')}>{t('learn.page.bookInstantly', { defaultValue: 'Book instantly' })}</Link>
                                   <Link to={guide.toolsHref} className="lrn-cta-secondary">{t('learn.page.rentTools')}</Link>
                                 </>
                               ) : (

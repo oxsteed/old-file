@@ -320,6 +320,38 @@ describe('POST /api/payments/connect', () => {
     expect(stripe.accountLinks.create).toHaveBeenCalledWith(expect.objectContaining({ account: 'acct_resume' }));
   });
 
+  test('honors a same-origin return_path for the onboarding round-trip', async () => {
+    stripe.accounts.create.mockResolvedValueOnce({ id: 'acct_qr' });
+    stripe.accountLinks.create.mockResolvedValueOnce({ url: 'https://stripe.test/onboard' });
+    mockAuth({ rows: [] }, { rows: [{ stripe_account_id: 'acct_qr' }] });
+
+    const res = await auth(request(buildApp()).post('/api/payments/connect').send({ return_path: '/qr-payments' }));
+
+    expect(res.status).toBe(200);
+    expect(stripe.accountLinks.create).toHaveBeenCalledWith(expect.objectContaining({
+      refresh_url: expect.stringMatching(/\/qr-payments\?refresh=true$/),
+      return_url: expect.stringMatching(/\/qr-payments\?onboarding=complete$/),
+    }));
+  });
+
+  test('falls back to the helper dashboard for off-origin or malformed return_path', async () => {
+    for (const return_path of ['https://attacker.invalid/evil', '//evil.invalid', '/\\evil', '/ok?x=1#frag']) {
+      stripe.accounts.create.mockResolvedValueOnce({ id: 'acct_qr2' });
+      stripe.accountLinks.create.mockResolvedValueOnce({ url: 'https://stripe.test/onboard' });
+      mockAuth({ rows: [] }, { rows: [{ stripe_account_id: 'acct_qr2' }] });
+
+      const res = await auth(request(buildApp()).post('/api/payments/connect').send({ return_path }));
+
+      expect(res.status).toBe(200);
+      const lastCall = stripe.accountLinks.create.mock.calls.at(-1)[0];
+      if (return_path === '/ok?x=1#frag') {
+        expect(lastCall.return_url).toMatch(/\/ok\?onboarding=complete$/);
+      } else {
+        expect(lastCall.return_url).toMatch(/\/helper-dashboard\?onboarding=complete$/);
+      }
+    }
+  });
+
   test('provider status failure is retryable and does not create a duplicate account', async () => {
     stripe.accounts.retrieve.mockRejectedValueOnce(new Error('provider unavailable'));
     mockAuth({ rows: [{ stripe_account_id: 'acct_x', onboarding_complete: true }] });
