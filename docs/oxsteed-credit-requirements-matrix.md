@@ -1117,6 +1117,43 @@ publication remains blocked by unavailable GitHub credentials; the next exact
 action is to audit support-channel and external-message delivery adapters for
 the same post-commit loss and duplicate-delivery risks.
 
+OxSteed Credit Phase 8 hardening evidence (2026-10-01 UTC): top-up expiry
+sweeper (`expireCreditTopups` in `server/services/oxsteedCreditTopupService.js`,
+job `server/jobs/oxsteedCreditTopupExpiry.js` on cron `20 * * * * *`, watchdog
+entry `oxsteed-credit-topup-expiry` in
+`server/services/oxsteedCreditWorkerConfig.js`) expires only past-due pending
+top-ups under per-row savepoints with best-effort Stripe intent cancellation;
+a Stripe-reported `succeeded` intent still expires the row but pages a critical
+incident (`oxsteed_credit_topup_paid_but_expired`), and the webhook completion
+path refuses expired pending rows (`credit.topup.expired_at_webhook`) so a
+late `payment_intent.succeeded` can never double-credit. Reserve policies are
+now editable by Super Admins through maker-checker: `GET`/`PUT
+/super/oxsteed-credit/reserve-policies` in `server/routes/admin.js` validates
+input with 400 before queueing, the `credit_reserve_policy_update` executor in
+`server/services/oxsteedCreditPendingActionService.js` re-validates at approval
+time and always requires dual approval, with a `ReservePolicySection` in
+`client/src/admin/pages/super/OxsteedCreditAdmin.jsx` (26 new keys across the
+five locale catalogs). Stripe chargeback ingestion
+(`server/services/oxsteedCreditChargebackService.js`) maps
+`charge.dispute.created/updated/closed` to system-opened disputes of type
+`chargeback` on the linked top-up journal transaction (idempotency key
+`credit-dispute-chargeback:<stripeDisputeId>`; non-credit disputes ignored even
+when the rail is frozen); closed+lost resolves in the customer's favor with
+compensating entries that never edit the originals, closed+won resolves in the
+merchant's favor with no money movement, and a human terminal decision always
+wins over a later webhook (critical incident, no overwrite). Migration `641`
+adds the partial sweeper index, widens the dispute-type CHECK with
+`chargeback`, and narrows the journal status CHECK to `('posted')` after
+verifying no code or migration ever wrote another value; `migration 465`
+triggers untouched. `server/__tests__/oxsteedCreditPhase8.test.js` covers all
+four items `23/23`; oxsteed-credit, food-wallet, restaurant-credit, payments/QR,
+webhook, settlement, reconciliation, compliance, withdrawal, and governance
+suites remain green; client `tsc` and `verify:i18n` pass. This is source-only:
+migration 641 has not been rehearsed against real PostgreSQL, the KYC/AML
+perimeter remains unbuilt and required before real-money activation, and
+`oxsteed_credit_enabled` stays off. The next exact action is the
+real-PostgreSQL migration rehearsal for 641 plus a deployment decision.
+
 ## Completion Gate
 
 The code-completion goal is complete only when every `implemented` row has been

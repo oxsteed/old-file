@@ -46,6 +46,7 @@ const {
 } = require('./oxsteedCreditService');
 const { approveWithdrawal } = require('./oxsteedCreditWithdrawalService');
 const { updateFeeScheduleRow } = require('./oxsteedCreditFeeScheduleService');
+const { upsertReservePolicy } = require('./oxsteedCreditReserveService');
 const { recordPartnerFundingInTransaction } = require('./oxsteedCreditPartnerLedgerService');
 const { createCurrencyQuote } = require('./oxsteedCreditCurrencyConversionService');
 const { verifyStepupChallenge } = require('./stepupChallengeService');
@@ -117,6 +118,7 @@ async function resolveActionAmountCents(actionType, payload) {
       return rows[0] ? parseAmount(rows[0].net_cents) : null;
     }
     case 'credit_fee_schedule_update':
+    case 'credit_reserve_policy_update':
     default:
       return null;
   }
@@ -254,6 +256,35 @@ const ACTION_EXECUTORS = {
       metadata: { approvedBy: actorUserId },
     });
     return row;
+  },
+  // Phase 8: reserve policy updates (default per currency or per-partner
+  // override) queue for dual approval like fee schedule updates: they carry
+  // no amount, so they always need a checker.
+  credit_reserve_policy_update: async ({ client, payload, actorUserId, requestIp, correlationId }) => {
+    const policy = await upsertReservePolicy(client, {
+      partnerId: payload.partnerId ?? payload.partner_id ?? null,
+      currencyCode: payload.currencyCode ?? payload.currency_code,
+      ratioBps: payload.ratioBps ?? payload.ratio_bps,
+      floorCents: payload.floorCents ?? payload.floor_cents,
+    });
+    await insertAudit(client, {
+      actionType: 'credit.reserve_policy.updated',
+      actorUserId,
+      resourceType: 'reserve_policy',
+      resourceId: String(policy.id),
+      reason: payload.reason || 'Reserve policy updated',
+      correlationId: correlationId || null,
+      requestIp: requestIp || null,
+      metadata: {
+        approvedBy: actorUserId,
+        partnerId: policy.partnerId,
+        currencyCode: policy.currencyCode,
+        ratioBps: policy.ratioBps,
+        floorCents: policy.floorCents,
+        isDefault: policy.isDefault,
+      },
+    });
+    return policy;
   },
   credit_partner_funding: async ({ client, payload, actorUserId, requestIp, correlationId }) =>
     recordPartnerFundingInTransaction(client, {

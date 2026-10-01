@@ -18,6 +18,7 @@ const {
 const socketService = require('../services/socketService');
 const localDeliveryPayments = require('../services/localDeliveryPaymentService');
 const topupService = require('../services/oxsteedCreditTopupService');
+const { ingestStripeChargeback } = require('../services/oxsteedCreditChargebackService');
 const { createFraudCase } = require('../services/fraudCaseService');
 const { recordException } = require('../services/reconciliationExceptions');
 const { stripeObjectId, invoiceSubscriptionId, subscriptionPeriod } = require('../utils/stripePayload');
@@ -987,6 +988,12 @@ exports.stripeWebhook = async (req, res, next) => {
             error: err.message,
           });
         }
+        // Phase 8: OxSteed Credit chargeback ingestion. Runs after the
+        // legacy fraud-case bookkeeping and never disturbs it: it only
+        // touches disputes whose PaymentIntent backs a credit top-up, and a
+        // throw here marks the webhook failed so Stripe retries (the
+        // ingestion is idempotent on the Stripe dispute id).
+        await ingestStripeChargeback({ eventType: event.type, dispute });
         break;
       }
 
@@ -1016,6 +1023,9 @@ exports.stripeWebhook = async (req, res, next) => {
             });
           }
         }
+        // Phase 8: OxSteed Credit chargeback ingestion (see
+        // charge.dispute.created above for the contract).
+        await ingestStripeChargeback({ eventType: event.type, dispute });
         break;
       }
 

@@ -54,7 +54,7 @@ const baseTopupRow = {
   stripe_payment_intent_id: null,
   idempotency_key: 'idem-key-1',
   journal_transaction_id: null,
-  expires_at: '2026-10-01T14:30:00.000Z',
+  expires_at: '2031-10-01T14:30:00.000Z',
   created_at: '2026-10-01T14:00:00.000Z',
   updated_at: '2026-10-01T14:00:00.000Z',
 };

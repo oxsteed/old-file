@@ -62,6 +62,114 @@ function formatPolicy(row) {
 }
 
 /**
+ * Phase 8: validate a reserve-policy write payload. Shared by the admin
+ * route (reject bad input with 400 before queueing) and the maker-checker
+ * executor (re-validate at execution time). Returns the normalized
+ * { partnerId: string|null, currencyCode, ratioBps, floorCents }.
+ */
+function parseRatioBps(value) {
+  const n = Number(value);
+  if (!Number.isSafeInteger(n) || n < 0 || n > 10000) {
+    throw new AppError('Reserve ratio must be an integer between 0 and 10000 basis points', 400, 'credit_reserve_ratio_invalid', {
+      ratioBps: String(value ?? ''),
+    });
+  }
+  return n;
+}
+
+function parseFloorCents(value) {
+  const n = Number(value);
+  if (!Number.isSafeInteger(n) || n < 0) {
+    throw new AppError('Reserve floor must be a non-negative integer number of cents', 400, 'credit_reserve_floor_invalid', {
+      floorCents: String(value ?? ''),
+    });
+  }
+  return n;
+}
+
+function validateReservePolicyInput({ partnerId = null, currencyCode, ratioBps, floorCents } = {}) {
+  const raw = partnerId === undefined || partnerId === null || String(partnerId).trim() === ''
+    ? null
+    : String(partnerId).trim();
+  // The column is a BIGINT FK: a non-numeric id can never match a partner.
+  if (raw !== null && !/^\d+$/.test(raw)) {
+    throw new AppError('Invalid reserve partner', 400, 'credit_reserve_partner_invalid');
+  }
+  return {
+    partnerId: raw,
+    currencyCode: normalizeCurrencyCode(currencyCode),
+    ratioBps: parseRatioBps(ratioBps),
+    floorCents: parseFloorCents(floorCents),
+  };
+}
+
+/**
+ * Phase 8: admin read model for reserve policies. Optional filters:
+ * currencyCode (validated 3-letter code) and partnerId (a partner id, or
+ * the string 'default' for the per-currency default rows).
+ */
+async function listReservePolicies(client, { currencyCode = null, partnerId = null } = {}) {
+  const conditions = [];
+  const params = [];
+  if (currencyCode !== null && currencyCode !== undefined && currencyCode !== '') {
+    conditions.push(`currency_code = $${params.length + 1}`);
+    params.push(normalizeCurrencyCode(currencyCode));
+  }
+  if (partnerId !== null && partnerId !== undefined && partnerId !== '') {
+    if (String(partnerId) === 'default') {
+      conditions.push('partner_id IS NULL');
+    } else {
+      conditions.push(`partner_id = $${params.length + 1}`);
+      params.push(parsePartnerId(partnerId));
+    }
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const { rows } = await client.query(
+    `SELECT *
+       FROM oxsteed_credit_reserve_policies
+      ${where}
+      ORDER BY currency_code ASC, is_default DESC, partner_id ASC NULLS LAST`,
+    params
+  );
+  return rows.map(formatPolicy);
+}
+
+/**
+ * Phase 8: create-or-update a reserve policy. A null partnerId writes the
+ * per-currency default row (is_default = true); a partner id writes the
+ * partner override. Runs inside the caller's transaction (the maker-checker
+ * executor runs it inside the decision transaction); callers must run the
+ * rail gate first, as the pending-action path does.
+ */
+async function upsertReservePolicy(client, { partnerId = null, currencyCode, ratioBps, floorCents } = {}) {
+  const normalized = validateReservePolicyInput({ partnerId, currencyCode, ratioBps, floorCents });
+  let rows;
+  if (normalized.partnerId === null) {
+    ({ rows } = await client.query(
+      `INSERT INTO oxsteed_credit_reserve_policies
+         (partner_id, currency_code, ratio_bps, floor_cents, is_default)
+       VALUES (NULL, $1, $2, $3, true)
+       ON CONFLICT (currency_code) WHERE is_default AND partner_id IS NULL
+       DO UPDATE SET ratio_bps = EXCLUDED.ratio_bps, floor_cents = EXCLUDED.floor_cents
+       RETURNING *`,
+      [normalized.currencyCode, normalized.ratioBps, normalized.floorCents]
+    ));
+  } else {
+    ({ rows } = await client.query(
+      `INSERT INTO oxsteed_credit_reserve_policies
+         (partner_id, currency_code, ratio_bps, floor_cents, is_default)
+       VALUES ($1, $2, $3, $4, false)
+       ON CONFLICT (partner_id, currency_code)
+       DO UPDATE SET ratio_bps = EXCLUDED.ratio_bps, floor_cents = EXCLUDED.floor_cents
+       RETURNING *`,
+      [normalized.partnerId, normalized.currencyCode, normalized.ratioBps, normalized.floorCents]
+    ));
+  }
+  if (!rows[0]) throw new AppError('Reserve policy could not be saved', 500, 'credit_reserve_policy_save_failed');
+  return formatPolicy(rows[0]);
+}
+
+/**
  * Partner-specific policy wins; otherwise the per-currency default.
  * Fails closed when no policy exists at all.
  */
@@ -164,4 +272,7 @@ module.exports = {
   getReservePolicy,
   getReserveStatus,
   assertReserveFloorForPosting,
+  validateReservePolicyInput,
+  listReservePolicies,
+  upsertReservePolicy,
 };

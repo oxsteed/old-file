@@ -2,6 +2,7 @@
 
 const NOTIFICATION_WORKER_NAME = 'oxsteed-credit-notification-outbox';
 const HOLD_EXPIRY_WORKER_NAME = 'oxsteed-credit-hold-expiry';
+const TOPUP_EXPIRY_WORKER_NAME = 'oxsteed-credit-topup-expiry';
 const ENTITLEMENT_EXPIRY_WORKER_NAME = 'oxsteed-credit-entitlement-expiry';
 const RECONCILIATION_WORKER_NAME = 'oxsteed-credit-reconciliation';
 const EXTERNAL_RECONCILIATION_WORKER_NAME = 'oxsteed-credit-external-reconciliation';
@@ -16,6 +17,7 @@ const NOTIFICATION_BACKLOG_STALE_AFTER_MINUTES = 15;
 const WORKER_CONFIG = Object.freeze([
   { jobName: NOTIFICATION_WORKER_NAME, label: 'notification worker', staleAfterMinutes: STALE_AFTER_MINUTES },
   { jobName: HOLD_EXPIRY_WORKER_NAME, label: 'hold expiry worker', staleAfterMinutes: STALE_AFTER_MINUTES },
+  { jobName: TOPUP_EXPIRY_WORKER_NAME, label: 'top-up expiry worker', staleAfterMinutes: STALE_AFTER_MINUTES },
   { jobName: ENTITLEMENT_EXPIRY_WORKER_NAME, label: 'entitlement expiry worker', staleAfterMinutes: STALE_AFTER_MINUTES },
   { jobName: RECONCILIATION_WORKER_NAME, label: 'reconciliation worker', staleAfterMinutes: DAILY_WORKER_STALE_AFTER_MINUTES },
   { jobName: EXTERNAL_RECONCILIATION_WORKER_NAME, label: 'external reconciliation worker', staleAfterMinutes: DAILY_WORKER_STALE_AFTER_MINUTES },
@@ -37,6 +39,7 @@ const FAST_WORKER_NAMES_SQL = sqlQuotedList(WORKER_CONFIG
 module.exports = {
   NOTIFICATION_WORKER_NAME,
   HOLD_EXPIRY_WORKER_NAME,
+  TOPUP_EXPIRY_WORKER_NAME,
   ENTITLEMENT_EXPIRY_WORKER_NAME,
   RECONCILIATION_WORKER_NAME,
   EXTERNAL_RECONCILIATION_WORKER_NAME,

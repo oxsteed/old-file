@@ -313,6 +313,11 @@ const ADMIN_SECTION_TRANSLATIONS = {
     title: 'adminFundingSpendingTransferLimits',
     detail: 'adminFundingSpendingTransferLimitsDetail',
   },
+  'Reserve policy': {
+    eyebrow: 'adminReservePolicyEyebrow',
+    title: 'adminReservePolicySectionTitle',
+    detail: 'adminReservePolicySectionDetail',
+  },
 };
 
 function Section({ eyebrow, title, detail, children, action }) {
@@ -610,9 +615,89 @@ function PendingActionQueue({ busy, setBusy, setNotice, setError, requestDialog 
   </Section>;
 }
 
+function ReservePolicySection({ busy, setBusy, setNotice, setError, currencyOptions }) {
+  const { t } = useTranslation('credit');
+  const [policies, setPolicies] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [currency, setCurrency] = useState('USD');
+  const [partnerId, setPartnerId] = useState('');
+  const [ratioBps, setRatioBps] = useState('1000');
+  const [floorCents, setFloorCents] = useState('50000');
+
+  const loadPolicies = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await adminApi.get('/admin/super/oxsteed-credit/reserve-policies', { params: { currencyCode: currency } });
+      setPolicies(response.data?.policies || []);
+    } catch (err) {
+      setError(safeCreditErrorMessage(err, t('adminReservePolicyLoadFailed')));
+    } finally {
+      setLoading(false);
+    }
+  }, [currency, setError, t]);
+
+  useEffect(() => { loadPolicies(); }, [loadPolicies]);
+
+  const queueUpdate = async () => {
+    const normalizedCurrency = String(currency || '').trim().toUpperCase();
+    const ratio = Number(ratioBps);
+    const floor = Number(floorCents);
+    if (!normalizedCurrency) { setError(t('adminReservePolicyFormCurrencyRequired')); return; }
+    if (!Number.isSafeInteger(ratio) || ratio < 0 || ratio > 10000) { setError(t('adminReservePolicyValidationHint')); return; }
+    if (!Number.isSafeInteger(floor) || floor < 0) { setError(t('adminReservePolicyValidationHint')); return; }
+    setBusy(true); setNotice(''); setError('');
+    try {
+      await adminApi.put('/admin/super/oxsteed-credit/reserve-policies', {
+        currencyCode: normalizedCurrency,
+        partnerId: partnerId.trim() === '' ? null : partnerId.trim(),
+        ratioBps: ratio,
+        floorCents: floor,
+      });
+      setNotice(t('adminReservePolicyQueued'));
+      await loadPolicies();
+    } catch (err) {
+      setError(safeCreditErrorMessage(err, t('adminReservePolicyQueueFailed')));
+    } finally { setBusy(false); }
+  };
+
+  return <Section eyebrow="Reserve policy" title="Reserve policies" detail="Reserve ratios and floors are per currency, with optional per-partner overrides. Changes queue for a second admin to approve in the maker-checker queue below; nothing applies until then.">
+    <div className="mt-5 grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+      <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-4">
+        <h3 className="text-sm font-semibold text-white">{t('adminReservePolicyUpdateTitle')}</h3>
+        <p className="mt-1 text-xs leading-5 text-gray-500">{t('adminReservePolicyUpdateDescription')}</p>
+        <div className="mt-4 grid gap-3">
+          <label>
+            <span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminReservePolicyCurrency')}</span>
+            <select value={currency} onChange={(event) => setCurrency(event.target.value)} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400">{(currencyOptions && currencyOptions.length ? currencyOptions : ['USD']).map((option) => <option key={option}>{option}</option>)}</select>
+          </label>
+          <label>
+            <span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminReservePolicyPartner')}</span>
+            <input value={partnerId} onChange={(event) => setPartnerId(event.target.value.replace(/[^0-9]/g, '').slice(0, 20))} inputMode="numeric" placeholder={t('adminReservePolicyPartnerPlaceholder')} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none placeholder:text-gray-600 focus:border-orange-400" />
+          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label>
+              <span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminReservePolicyRatio')}</span>
+              <input value={ratioBps} onChange={(event) => setRatioBps(event.target.value.replace(/[^0-9]/g, '').slice(0, 5))} inputMode="numeric" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" />
+              <span className="mt-1 block text-[11px] leading-4 text-gray-600">{t('adminReservePolicyRatioHint')}</span>
+            </label>
+            <label>
+              <span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminReservePolicyFloor')}</span>
+              <input value={floorCents} onChange={(event) => setFloorCents(event.target.value.replace(/[^0-9]/g, '').slice(0, 12))} inputMode="numeric" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" />
+              <span className="mt-1 block text-[11px] leading-4 text-gray-600">{t('adminReservePolicyFloorHint')}</span>
+            </label>
+          </div>
+          <button type="button" disabled={busy} onClick={queueUpdate} className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-50"><ShieldCheck className="h-4 w-4" /> {t('adminReservePolicyQueueUpdate')}</button>
+        </div>
+      </div>
+      <div className="overflow-x-auto rounded-xl border border-gray-800"><table className="min-w-[520px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">{t('adminReservePolicyScope')}</th><th className="px-3 py-3 font-medium">{t('adminReservePolicyRatioShort')}</th><th className="px-3 py-3 font-medium">{t('adminReservePolicyFloorShort')}</th><th className="px-3 py-3 font-medium">{t('adminReservePolicyCurrencyShort')}</th></tr></thead><tbody className="divide-y divide-gray-800">{loading ? <tr><td colSpan="4" className="px-3 py-10 text-center text-gray-500">{t('adminLoading')}</td></tr> : !policies.length ? <tr><td colSpan="4" className="px-3 py-10 text-center text-gray-500">{t('adminReservePolicyEmpty')}</td></tr> : policies.map((policy) => <tr key={policy.id}><td className="px-3 py-3 text-white">{policy.partnerId ? t('adminReservePolicyPartnerScope', { partnerId: policy.partnerId }) : <span className="font-semibold text-sky-300">{t('adminReservePolicyDefaultScope')}</span>}</td><td className="px-3 py-3 text-gray-400">{policy.ratioBps} bps</td><td className="px-3 py-3 text-gray-400">{money(policy.floorCents, policy.currencyCode)}</td><td className="px-3 py-3 font-mono text-[11px] text-gray-500">{policy.currencyCode}</td></tr>)}</tbody></table></div>
+    </div>
+  </Section>;
+}
+
 const WORKER_TRANSLATION_KEYS = {
   'oxsteed-credit-notification-outbox': 'adminWorkerNotificationOutbox',
   'oxsteed-credit-hold-expiry': 'adminWorkerHoldExpiry',
+  'oxsteed-credit-topup-expiry': 'adminWorkerTopupExpiry',
   'oxsteed-credit-entitlement-expiry': 'adminWorkerEntitlementExpiry',
   'oxsteed-credit-reconciliation': 'adminWorkerReconciliation',
   'oxsteed-credit-external-reconciliation': 'adminWorkerExternalReconciliation',
@@ -1934,6 +2019,14 @@ export default function OxsteedCreditAdmin() {
       queue={complianceQueue}
       busy={busy}
       decideCompliance={decideCompliance}
+    />
+
+    <ReservePolicySection
+      busy={busy}
+      setBusy={setBusy}
+      setNotice={setNotice}
+      setError={setError}
+      currencyOptions={currencyOptions}
     />
 
     <PendingActionQueue

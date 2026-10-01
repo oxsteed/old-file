@@ -2172,9 +2172,11 @@ async function transferCredit(args) {
   return withTransaction(pool, (client) => transferCreditInTransaction(client, args), 'credit_transfer');
 }
 
-async function adjustCustomerCreditInTransaction(client, { customerId, amountCents, currencyCode = CREDIT_CURRENCY, direction = 'credit', idempotencyKey, actorUserId, reason, referenceType = 'admin_adjustment', referenceId, correlationId, requestIp, metadata = {} }) {
+async function adjustCustomerCreditInTransaction(client, { customerId, amountCents, currencyCode = CREDIT_CURRENCY, direction = 'credit', idempotencyKey, actorUserId, actorType = 'admin', reason, referenceType = 'admin_adjustment', referenceId, correlationId, requestIp, metadata = {} }) {
   const amount = parseAmountCents(amountCents);
   const currency = assertSupportedCreditCurrency(currencyCode);
+  const normalizedActorType = normalizeString(actorType, 32) || 'admin';
+  if (!['admin', 'system'].includes(normalizedActorType)) throw new AppError('Invalid credit adjustment actor', 400, 'credit_adjustment_actor_invalid');
   if (!normalizeString(idempotencyKey, 160)) throw new AppError('Idempotency-Key is required for credit adjustments', 400, 'credit_idempotency_key_required');
   if (!['credit', 'debit'].includes(direction)) throw new AppError('Adjustment direction must be credit or debit', 400, 'credit_adjustment_direction_invalid');
   if (!normalizeString(reason, 2)) throw new AppError('A reason is required for credit adjustments', 400, 'credit_adjustment_reason_required');
@@ -2182,7 +2184,7 @@ async function adjustCustomerCreditInTransaction(client, { customerId, amountCen
   const customerAccount = await ensureAccount(client, { accountType: 'customer_wallet', customerId, currencyCode: currency });
   const treasuryAccount = await ensureAccount(client, { accountType: 'platform_treasury', currencyCode: currency });
   const existing = await getExistingTransaction(client, normalizeString(idempotencyKey, 160));
-  if (!existing) {
+  if (!existing && normalizedActorType === 'admin') {
     requireAdministrativeActor(actorUserId, 'An identified administrator is required to adjust customer Credit', 'credit_adjustment_actor_required');
   }
   if (!existing && direction === 'credit') await assertIssuanceCapacity(client, amount, currency, customerId);
@@ -2194,8 +2196,8 @@ async function adjustCustomerCreditInTransaction(client, { customerId, amountCen
     amountCents: amount,
     currencyCode: currency,
     idempotencyKey,
-    actorType: 'admin',
-    actorUserId,
+    actorType: normalizedActorType,
+    actorUserId: normalizedActorType === 'admin' ? actorUserId : null,
     reason,
     referenceType,
     referenceId,
@@ -3120,7 +3122,7 @@ const DISPUTE_SLA_HOURS_FALLBACK = Math.max(
   1,
   Number.parseInt(process.env.OXSTEED_CREDIT_DISPUTE_SLA_HOURS || '72', 10) || 72
 );
-const DISPUTE_TYPE_VALUES = ['unauthorized_topup', 'failed_payout', 'duplicate_charge', 'incorrect_amount'];
+const DISPUTE_TYPE_VALUES = ['unauthorized_topup', 'failed_payout', 'duplicate_charge', 'incorrect_amount', 'chargeback'];
 
 async function openCreditDispute({ customerId, transactionId, reasonCode, description, actorUserId, idempotencyKey, requestIp, disputeType }) {
   const normalizedReason = normalizeString(reasonCode, 60);
@@ -3206,6 +3208,94 @@ async function openCreditDispute({ customerId, transactionId, reasonCode, descri
     );
     return { dispute: formatDispute(rows[0]), replayed: false };
   }, 'credit_open_dispute');
+}
+
+// Phase 8: privileged/system variant of openCreditDispute for Stripe
+// chargeback ingestion. openCreditDispute requires the customer as the actor
+// (403 for system callers); a verified Stripe webhook is a system event, so
+// this variant opens the dispute with actor_type 'system', NULL opened_by,
+// and the same idempotency + one-open-dispute-per-transaction guarantees.
+// The row it produces is identical in shape to a customer-opened dispute,
+// so the normal admin resolution path (resolveDisputeWithCompensation)
+// applies unchanged.
+async function openSystemCreditDispute({ customerId, transactionId, reasonCode, description, idempotencyKey, requestIp, disputeType }) {
+  const normalizedReason = normalizeString(reasonCode, 60);
+  const normalizedDescription = normalizeString(description, 4000);
+  const normalizedDisputeType = disputeType ? normalizeString(disputeType, 40) : null;
+  if (normalizedDisputeType && !DISPUTE_TYPE_VALUES.includes(normalizedDisputeType)) {
+    throw new AppError('Invalid credit dispute type', 400, 'credit_dispute_type_invalid');
+  }
+  if (!customerId) throw new AppError('A customer identity is required to open a credit dispute', 400, 'credit_dispute_customer_required');
+  if (!normalizedReason || !normalizedDescription) throw new AppError('A dispute reason and description are required', 400, 'credit_dispute_details_required');
+  const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
+  if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required for credit disputes', 400, 'credit_idempotency_key_required');
+  return withTransaction(pool, async (client) => {
+    const { rows: transactionRows } = await client.query(
+      `SELECT id, partner_id
+         FROM oxsteed_credit_transactions
+        WHERE id = $1 AND status = 'posted'
+        FOR SHARE`,
+      [transactionId]
+    );
+    const transaction = transactionRows[0];
+    if (!transaction) throw new AppError('Credit transaction not found', 404, 'credit_transaction_not_found');
+    const { rows: keyRows } = await client.query(
+      `SELECT d.*, fr.display_name AS restaurant_name
+         FROM oxsteed_credit_disputes d
+         LEFT JOIN oxsteed_credit_partners p ON p.id = d.partner_id
+         LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
+        WHERE d.idempotency_key = $1
+        FOR UPDATE`,
+      [normalizedIdempotencyKey]
+    );
+    if (keyRows[0]) {
+      const existing = keyRows[0];
+      if (String(existing.customer_id) !== String(customerId)
+        || String(existing.transaction_id) !== String(transaction.id)
+        || (existing.dispute_type || null) !== normalizedDisputeType) {
+        throw new AppError('Credit dispute idempotency key was already used for different details', 409, 'credit_dispute_idempotency_conflict');
+      }
+      return { dispute: formatDispute(existing), replayed: true };
+    }
+    const { rows: existingRows } = await client.query(
+      `SELECT d.*, fr.display_name AS restaurant_name
+         FROM oxsteed_credit_disputes d
+         LEFT JOIN oxsteed_credit_partners p ON p.id = d.partner_id
+         LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
+        WHERE d.transaction_id = $1 AND d.status IN ('open', 'in_review')
+        FOR UPDATE`,
+      [transaction.id]
+    );
+    if (existingRows[0]) return { dispute: formatDispute(existingRows[0]), replayed: true };
+    const { rows } = await client.query(
+      `INSERT INTO oxsteed_credit_disputes
+         (transaction_id, customer_id, partner_id, reason_code, description, opened_by, idempotency_key, dispute_type, sla_due_at)
+       VALUES ($1, $2, $3, $4, $5, NULL, $6, $7, NOW() + ($8 || ' hours')::interval)
+       ON CONFLICT (transaction_id) WHERE status IN ('open', 'in_review') DO NOTHING
+       RETURNING *`,
+      [transaction.id, customerId, transaction.partner_id || null, normalizedReason, normalizedDescription, normalizedIdempotencyKey, normalizedDisputeType, String(DISPUTE_SLA_HOURS_FALLBACK)]
+    );
+    if (!rows[0]) {
+      const { rows: concurrentRows } = await client.query(
+        `SELECT d.*, fr.display_name AS restaurant_name
+           FROM oxsteed_credit_disputes d
+           LEFT JOIN oxsteed_credit_partners p ON p.id = d.partner_id
+           LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
+          WHERE d.transaction_id = $1 AND d.status IN ('open', 'in_review')
+          FOR UPDATE`,
+        [transaction.id]
+      );
+      if (!concurrentRows[0]) throw new AppError('Credit dispute could not be opened; please try again', 409, 'credit_dispute_conflict');
+      return { dispute: formatDispute(concurrentRows[0]), replayed: true };
+    }
+    await client.query(
+      `INSERT INTO oxsteed_credit_audit_events
+         (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id, reason, request_ip, after_state)
+       VALUES ('credit.dispute.opened', NULL, $1, $2, 'credit_dispute', $3, $4, $5, $6::jsonb)`,
+      [customerId, transaction.partner_id || null, rows[0].id, normalizedReason, requestIp || null, JSON.stringify({ transactionId: transaction.id, status: 'open', source: 'stripe_chargeback' })]
+    );
+    return { dispute: formatDispute(rows[0]), replayed: false };
+  }, 'credit_open_system_dispute');
 }
 
 const CREDIT_DISPUTE_STATUSES = new Set(['open', 'in_review', 'resolved', 'rejected', 'resolved_customer', 'resolved_merchant']);
@@ -3379,6 +3469,7 @@ module.exports = {
   refundCredit,
   formatDispute,
   openCreditDispute,
+  openSystemCreditDispute,
   listCreditDisputes,
   resolveCreditDispute,
 };

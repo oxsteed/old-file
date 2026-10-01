@@ -27,6 +27,7 @@ const oxsteedCreditWithdrawalService = require('../services/oxsteedCreditWithdra
 const { requestPendingAction } = require('../services/oxsteedCreditPendingActionService');
 const oxsteedCreditRestaurantConversionService = require('../services/oxsteedCreditRestaurantConversionService');
 const oxsteedCreditFeeScheduleService = require('../services/oxsteedCreditFeeScheduleService');
+const oxsteedCreditReserveService = require('../services/oxsteedCreditReserveService');
 const { verifyStepupChallenge } = require('../services/stepupChallengeService');
 const { AppError } = require('../middleware/errorHandler');
 const { creditAdminMutationLimiter, creditExportLimiter, adminPhoneVerificationLimiter, strictLimiter } = require('../middleware/rateLimiter');
@@ -526,6 +527,45 @@ router.put('/super/oxsteed-credit/fee-schedule/:id', requireSuperAdmin, creditAd
         maxFeeCents: req.body?.maxFeeCents ?? req.body?.max_fee_cents ?? undefined,
         isActive: req.body?.isActive ?? req.body?.is_active,
         reason: req.body?.reason || 'Fee schedule updated',
+      },
+      requestedBy: req.user?.id || null,
+      idempotencyKey: req.get('Idempotency-Key') || req.body?.idempotencyKey || req.body?.idempotency_key,
+      requestIp: req.ip || null,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+    });
+    sendPendingActionResult(res, result, 200);
+  } catch (err) { next(err); }
+});
+
+// Phase 8: reserve policies (gap 2). Reads are plain; updates queue as
+// pending actions for checker approval (amount-less, so always dual).
+router.get('/super/oxsteed-credit/reserve-policies', requireSuperAdmin, async (req, res, next) => {
+  try {
+    const policies = await oxsteedCreditReserveService.listReservePolicies(pool, {
+      currencyCode: req.query.currencyCode || req.query.currency_code || null,
+      partnerId: req.query.partnerId || req.query.partner_id || null,
+    });
+    res.json({ policies });
+  } catch (err) { next(err); }
+});
+router.put('/super/oxsteed-credit/reserve-policies', requireSuperAdmin, creditAdminMutationLimiter, async (req, res, next) => {
+  try {
+    // Reject bad input with 400 before queueing: the checker must only ever
+    // see a valid payload. The executor re-validates at execution time.
+    const normalized = oxsteedCreditReserveService.validateReservePolicyInput({
+      partnerId: req.body?.partnerId ?? req.body?.partner_id ?? null,
+      currencyCode: req.body?.currencyCode ?? req.body?.currency_code,
+      ratioBps: req.body?.ratioBps ?? req.body?.ratio_bps,
+      floorCents: req.body?.floorCents ?? req.body?.floor_cents,
+    });
+    const result = await requestPendingAction({
+      actionType: 'credit_reserve_policy_update',
+      payload: {
+        partnerId: normalized.partnerId,
+        currencyCode: normalized.currencyCode,
+        ratioBps: normalized.ratioBps,
+        floorCents: normalized.floorCents,
+        reason: req.body?.reason || 'Reserve policy updated',
       },
       requestedBy: req.user?.id || null,
       idempotencyKey: req.get('Idempotency-Key') || req.body?.idempotencyKey || req.body?.idempotency_key,

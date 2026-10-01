@@ -49,6 +49,7 @@ const DISPUTE_TYPES = Object.freeze([
   'failed_payout',
   'duplicate_charge',
   'incorrect_amount',
+  'chargeback',
 ]);
 
 const DISPUTE_DECISIONS = Object.freeze(['in_review', 'resolved_customer', 'resolved_merchant', 'rejected']);
@@ -71,17 +72,25 @@ async function resolveDisputeWithCompensation({
   compensationCents = 0,
   requestIp,
   correlationId,
+  // Phase 8: Stripe chargeback ingestion resolves as a system actor (no
+  // admin identity). Money still moves only through the same append-only
+  // compensation legs; the audit trail records the system actor.
+  actorType = 'admin',
 }) {
   // Fail closed when the credit rail is frozen: resolutions (and their
   // compensation legs) are money movement.
   await assertCreditRailEnabled(pool);
   const normalizedDecision = normalizeString(decision, 20);
   const normalizedReason = normalizeString(reason, 4000);
+  const normalizedActorType = normalizeString(actorType, 20) || 'admin';
+  if (!['admin', 'system'].includes(normalizedActorType)) {
+    throw new AppError('Invalid credit dispute resolution actor', 400, 'credit_dispute_actor_invalid');
+  }
   if (!DISPUTE_DECISIONS.includes(normalizedDecision)) {
     throw new AppError('Invalid dispute resolution decision', 400, 'credit_dispute_decision_invalid');
   }
   if (!normalizedReason) throw new AppError('A resolution note is required', 400, 'credit_dispute_resolution_required');
-  if (!adminId) throw new AppError('An administrator identity is required to resolve a credit dispute', 403, 'credit_dispute_actor_required');
+  if (normalizedActorType === 'admin' && !adminId) throw new AppError('An administrator identity is required to resolve a credit dispute', 403, 'credit_dispute_actor_required');
   const compensation = parsePositiveInt(compensationCents);
   if (compensationCents !== 0 && compensationCents !== null && compensationCents !== undefined && compensation === 0 && Number(compensationCents) !== 0) {
     throw new AppError('Compensation must be a positive integer number of cents', 400, 'credit_dispute_compensation_invalid');
@@ -152,7 +161,7 @@ async function resolveDisputeWithCompensation({
             amountCents: compensation,
             idempotencyKey,
             actorUserId: adminId,
-            actorType: 'admin',
+            actorType: normalizedActorType,
             reason: normalizedReason,
             correlationId: correlationId || null,
             requestIp: requestIp || null,
@@ -173,6 +182,7 @@ async function resolveDisputeWithCompensation({
           direction: 'credit',
           idempotencyKey,
           actorUserId: adminId,
+          actorType: normalizedActorType,
           reason: normalizedReason,
           referenceType: 'oxsteed_credit_dispute',
           referenceId: String(dispute.id),
@@ -189,9 +199,10 @@ async function resolveDisputeWithCompensation({
     }
 
     const isTerminal = DISPUTE_TERMINAL_STATUSES.includes(normalizedDecision);
+    const decidedBy = normalizedActorType === 'system' ? 'system:stripe_chargeback' : adminId;
     const resolutionEntries = {
       ...(dispute.resolution_entries || {}),
-      ...(compensationEntry ? { compensation: { ...compensationEntry, decidedBy: adminId, decidedAt: new Date().toISOString() } } : {}),
+      ...(compensationEntry ? { compensation: { ...compensationEntry, decidedBy, decidedAt: new Date().toISOString() } } : {}),
     };
     const { rows: updatedRows } = await client.query(
       `UPDATE oxsteed_credit_disputes

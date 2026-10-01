@@ -13,7 +13,7 @@ const PARTNER_STATUSES = new Set(['pending', 'active', 'suspended', 'terminated'
 const AGREEMENT_STATUSES = new Set(['draft', 'pending_approval', 'active', 'suspended', 'expired', 'terminated']);
 const ENTITLEMENT_STATUSES = new Set(['active', 'suspended', 'revoked', 'expired']);
 const CREDIT_TRANSACTION_TYPES = new Set(['load', 'purchase', 'refund', 'transfer', 'adjustment', 'settlement', 'settlement_reversal', 'fee', 'expiration', 'chargeback', 'funding', 'reserve_release']);
-const CREDIT_TRANSACTION_STATUSES = new Set(['pending', 'posted', 'reversed', 'voided']);
+const CREDIT_TRANSACTION_STATUSES = new Set(['posted']);
 const MAX_AGREEMENT_LIMIT_CENTS = Number.isSafeInteger(Number.parseInt(process.env.OXSTEED_CREDIT_MAX_AGREEMENT_LIMIT_CENTS || '', 10))
   ? Number.parseInt(process.env.OXSTEED_CREDIT_MAX_AGREEMENT_LIMIT_CENTS, 10)
   : 5000000;
