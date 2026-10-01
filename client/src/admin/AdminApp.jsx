@@ -135,6 +135,7 @@ const VisitorHistoryPage = lazyWithRetry(() => import('./pages/VisitorHistoryPag
 const ProfileVisibilityPage = lazyWithRetry(() => import('./pages/ProfileVisibilityPage'));
 const LearnSubmissionsAdmin = lazyWithRetry(() => import('./pages/LearnSubmissionsAdmin'));
 const LearnProductLinksAdmin = lazyWithRetry(() => import('./pages/LearnProductLinksAdmin'));
+const LearnAiSuggestionsAdmin = lazyWithRetry(() => import('./pages/LearnAiSuggestionsAdmin'));
 const OperationsOverview = lazyWithRetry(() => import('./pages/OperationsOverview'));
 const IncidentManagement = lazyWithRetry(() => import('./pages/IncidentManagement'));
 
@@ -268,6 +269,7 @@ export default function AdminApp() {
           {/* Learn Mode */}
           <Route path={adminRoute('learnSubmissions').relative} element={<LearnSubmissionsAdmin />} />
           <Route path={adminRoute('learnProductLinks').relative} element={<LearnProductLinksAdmin />} />
+          <Route path={adminRoute('learnAiSuggestions').relative} element={<LearnAiSuggestionsAdmin />} />
 
           {/* Reputation & Enforcement */}
           <Route path={adminRoute('reportsDashboard').relative} element={<AdminReportsDashboard />} />

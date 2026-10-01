@@ -53,6 +53,22 @@ const AFFILIATE_TAG    = 'oxsteed-20';
 const fmtCount = (n) => n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(n);
 const amz = (q) => `https://www.amazon.com/s?k=${encodeURIComponent(q)}&tag=${AFFILIATE_TAG}`;
 
+// Fire-and-forget click tracking for marketplace conversion events.
+// Uses fetch with keepalive so the beacon survives navigation; every
+// failure is swallowed so tracking never breaks the user flow.
+function trackLearnClick(guideId, kind, target) {
+  try {
+    const base = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || '/api';
+    fetch(`${base}/learn/track`, {
+      method: 'POST',
+      keepalive: true,
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ guide_id: guideId, kind, target: target ?? null }),
+    }).catch(() => {});
+  } catch (_) { /* never break navigation */ }
+}
+
 // Convert a YouTube watch/shorts or Vimeo URL to its embed form for the
 // sandboxed iframe. Returns null for anything else (including non-https
 // URLs) so the caller falls back to the placeholder. video_provider
@@ -4659,7 +4675,7 @@ export default function LearnModePage() {
                                         <Link
                                           to={tool.rent}
                                           className="lrn-kit-rent"
-                                          onClick={() => { try { window.gtag && window.gtag('event', 'learn_rent_clicked', { tool_name: tool.name }); } catch(_) {} }}
+                                          onClick={() => { try { window.gtag && window.gtag('event', 'learn_rent_clicked', { tool_name: tool.name }); } catch(_) {} trackLearnClick(guide.id, 'rent', tool.rent); }}
                                         >
                                           {t('learn.page.rent', { defaultValue: 'Rent' })}
                                         </Link>
@@ -4671,7 +4687,7 @@ export default function LearnModePage() {
                                           rel="noopener sponsored"
                                           className="lrn-kit-buy"
                                           aria-label={`${t('learn.page.buy', { defaultValue: 'Buy' })} ${tool.name}`}
-                                          onClick={() => { try { window.gtag && window.gtag('event', 'learn_buy_clicked', { tool_name: tool.name, link_type: tool.link_type || 'affiliate' }); } catch(_) {} }}
+                                          onClick={() => { try { window.gtag && window.gtag('event', 'learn_buy_clicked', { tool_name: tool.name, link_type: tool.link_type || 'affiliate' }); } catch(_) {} trackLearnClick(guide.id, 'buy', tool.buy); }}
                                         >
                                           {t('learn.page.buy', { defaultValue: 'Buy' })} <ExternalLink size={11} aria-hidden="true" />
                                         </a>
@@ -4769,18 +4785,18 @@ export default function LearnModePage() {
                                 <>
                                   <p className="lrn-cta-label"><User size={13} aria-hidden="true" />{t('learn.page.ctaYouKnowSkill')}</p>
                                   <Link to="/helper-profile/skills" className="lrn-cta-primary">{t('learn.page.addToProfile')}</Link>
-                                  <Link to={guide.hireHref} className="lrn-cta-secondary">{t('jobs.postJob', { defaultValue: 'Post a job in this category' })}</Link>
+                                  <Link to={guide.hireHref} className="lrn-cta-secondary" onClick={() => trackLearnClick(guide.id, 'quote', guide.hireHref)}>{t('jobs.postJob', { defaultValue: 'Post a job in this category' })}</Link>
                                 </>
                               ) : persona === 'customer' ? (
                                 <>
                                   <p className="lrn-cta-label"><User size={13} aria-hidden="true" />{t('learn.page.ctaRatherNotDiy')}</p>
-                                  <Link to={guide.hireHref} className="lrn-cta-primary">{t('learn.page.findHelper')}</Link>
+                                  <Link to={guide.hireHref} className="lrn-cta-primary" onClick={() => trackLearnClick(guide.id, 'helper', guide.hireHref)}>{t('learn.page.findHelper')}</Link>
                                   <Link to={guide.toolsHref} className="lrn-cta-secondary">{t('learn.page.rentTools')}</Link>
                                 </>
                               ) : (
                                 <>
                                   <p className="lrn-cta-label"><User size={13} aria-hidden="true" />{t('learn.page.ctaNeedHelp')}</p>
-                                  <Link to={guide.hireHref} className="lrn-cta-primary">{t('learn.page.findHelper')}</Link>
+                                  <Link to={guide.hireHref} className="lrn-cta-primary" onClick={() => trackLearnClick(guide.id, 'helper', guide.hireHref)}>{t('learn.page.findHelper')}</Link>
                                   <Link to="/join?mode=helper" className="lrn-cta-secondary">{t('learn.page.offerAsService')}</Link>
                                 </>
                               )}

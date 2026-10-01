@@ -4,9 +4,38 @@
  */
 
 const express  = require('express');
+const rateLimit = require('express-rate-limit');
 const router   = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { requireAdmin, requirePermission }  = require('../middleware/adminAuth');
+
+// Click tracking is a public, anonymous endpoint — give it its own tight
+// bucket (60 requests per minute per IP) instead of the shared general pool.
+// Route-local Redis store option, mirroring server/routes/qrPayments.js.
+// Falls back to in-memory when Redis is unavailable.
+const redisClient = require('../utils/redis');
+let RedisStore = null;
+if (redisClient) {
+  try {
+    RedisStore = require('rate-limit-redis').default;
+  } catch { /* in-memory fallback */ }
+}
+function createTrackStoreOption(prefix) {
+  if (redisClient && RedisStore) {
+    return { store: new RedisStore({ sendCommand: (...args) => redisClient.call(...args), prefix }) };
+  }
+  return {};
+}
+const marketplaceTrackLimiter = rateLimit({
+  ...createTrackStoreOption('rl:learn_track:'),
+  windowMs: 60 * 1000, // 1 minute
+  max: 60,
+  keyGenerator: (req) => req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please try again later.', retryAfter: '1 minute' },
+});
+
 const {
   getGuides,
   getGuideStats,
@@ -16,6 +45,7 @@ const {
   submitGuide,
   getMySubmissions,
   getBadges,
+  trackMarketplaceClick,
   adminListSubmissions,
   adminGetSubmission,
   adminReviewSubmission,
@@ -24,6 +54,12 @@ const {
   adminCreateGuide,
   adminUpdateGuide,
   adminDeleteGuide,
+  adminTagGuide,
+  // Phase 2: AI tagging review queue
+  adminListAiSuggestions,
+  adminApproveSuggestion,
+  adminRejectSuggestion,
+  adminMarketplaceStats,
   // Product link overrides
   getProductLinks,
   adminListProductLinks,
@@ -36,6 +72,7 @@ const {
 router.get('/guides',                getGuides);
 router.get('/stats',                 getGuideStats);
 router.post('/views',                recordView);          // auth optional — req.user may be null
+router.post('/track',                marketplaceTrackLimiter, trackMarketplaceClick);
 // Product link overrides — fetched by the iOS app on every refresh.
 // Returns active rows only; fails open (empty array) if table absent.
 router.get('/product-links',         getProductLinks);
@@ -58,6 +95,12 @@ router.get('/admin/guides',        authenticate, requireAdmin, requirePermission
 router.post('/admin/guides',       authenticate, requireAdmin, requirePermission('moderate_content'), adminCreateGuide);
 router.put('/admin/guides/:id',    authenticate, requireAdmin, requirePermission('moderate_content'), adminUpdateGuide);
 router.delete('/admin/guides/:id', authenticate, requireAdmin, requirePermission('moderate_content'), adminDeleteGuide);
+// Phase 2: AI tagging — manual re-tag, review queue, marketplace stats
+router.post('/admin/guides/:id/tag',        authenticate, requireAdmin, requirePermission('moderate_content'), adminTagGuide);
+router.get('/admin/ai-suggestions',         authenticate, requireAdmin, requirePermission('moderate_content'), adminListAiSuggestions);
+router.post('/admin/ai-suggestions/:id/approve', authenticate, requireAdmin, requirePermission('moderate_content'), adminApproveSuggestion);
+router.post('/admin/ai-suggestions/:id/reject',  authenticate, requireAdmin, requirePermission('moderate_content'), adminRejectSuggestion);
+router.get('/admin/marketplace-stats',      authenticate, requireAdmin, requirePermission('moderate_content'), adminMarketplaceStats);
 
 // Product link CRUD — admin only
 router.get('/admin/product-links',        authenticate, requireAdmin, requirePermission('moderate_content'), adminListProductLinks);

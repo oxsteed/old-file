@@ -16,7 +16,7 @@ import {
   Search, Key, ClipboardList, Building2, CreditCard, MessageSquare,
   HeartHandshake, Calendar, UserPlus, Map, MapPinned, ShoppingCart, Layers, Fingerprint,
   AlertTriangle, Crown, Globe, Network, Package, Truck, ShieldAlert, BookOpen, Link2,
-  Settings2, Check, Wallet, Activity, Eye, EyeOff,
+  Settings2, Check, Wallet, Activity, Eye, EyeOff, Sparkles,
 } from 'lucide-react';
 
 const ADMIN_NAV_MODE_KEY = 'oxsteed:admin-nav-mode';
@@ -56,6 +56,7 @@ const REGULAR_NAV = [
   { to: routePath('logistics'),            icon: Truck,              labelKey: 'adminNav.logisticsOps'    },
   { to: routePath('learnSubmissions'),    icon: BookOpen,           labelKey: 'adminNav.learnSubmissions'},
   { to: routePath('learnProductLinks'), icon: Link2,              labelKey: 'adminNav.learnProductLinks'},
+  { to: routePath('learnAiSuggestions'), icon: Sparkles,          labelKey: 'adminNav.learnAiSuggestions'},
 ];
 
 const SUPER_NAV = [

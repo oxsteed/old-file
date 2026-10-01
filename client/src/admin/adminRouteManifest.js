@@ -53,6 +53,7 @@ export const ADMIN_ROUTE_MANIFEST = Object.freeze({
   logisticsControl: defineRoute('/admin/logistics/control', { superOnly: true }),
   learnSubmissions: defineRoute('/admin/learn/submissions'),
   learnProductLinks: defineRoute('/admin/learn/product-links'),
+  learnAiSuggestions: defineRoute('/admin/learn/ai-suggestions'),
   templatePreview: defineRoute('/admin/template-preview'),
   twoFactorSetup: defineRoute('/admin/2fa-setup'),
   userDetail: defineRoute('/admin/users/:userId'),

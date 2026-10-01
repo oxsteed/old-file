@@ -5,6 +5,7 @@
 
 const pool = require('../db');
 const AppError = require('../utils/appError');
+const { tagGuideWithAI, tagGuideInBackground, LEARN_CATEGORIES } = require('../services/learnTagging');
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -488,6 +489,7 @@ exports.adminReviewSubmission = async (req, res, next) => {
     }
 
     await client.query('COMMIT');
+    if (publishedGuideId) tagGuideInBackground(publishedGuideId);
     res.json({ success: true, submission: rows[0], published_guide_id: publishedGuideId });
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
@@ -838,6 +840,9 @@ exports.adminCreateGuide = async (req, res, next) => {
        RETURNING ${GUIDE_COLUMNS}`,
       guideInsertValues(req.body)
     );
+    // Phase 2: kick off AI tagging in the background. Publishing never waits
+    // on (or fails because of) the tagging pipeline.
+    if (rows[0].status === 'published') tagGuideInBackground(rows[0].id);
     res.status(201).json({ success: true, guide: dbRowToGuide(rows[0]) });
   } catch (err) {
     if (err.code === '23505') return next(new AppError('A guide with this id already exists', 409, 'duplicate_guide_id'));
@@ -884,6 +889,11 @@ exports.adminUpdateGuide = async (req, res, next) => {
       values
     );
     if (!rows.length) return next(new AppError('Guide not found', 404, 'not_found'));
+    // Re-tag in the background only when the guide is published and its
+    // content changed; pending-suggestion dedupe keeps this idempotent.
+    if (rows[0].status === 'published' && (b.title !== undefined || b.intro !== undefined)) {
+      tagGuideInBackground(rows[0].id);
+    }
     res.json({ success: true, guide: dbRowToGuide(rows[0]) });
   } catch (err) {
     next(new AppError('Failed to update guide', 500, 'update_guide_failed'));
@@ -901,5 +911,208 @@ exports.adminDeleteGuide = async (req, res, next) => {
     res.json({ success: true, deleted: true, id: req.params.id });
   } catch (err) {
     next(new AppError('Failed to delete guide', 500, 'delete_guide_failed'));
+  }
+};
+
+/* ── Phase 2: OpenRouter AI tagging pipeline ─────────────────────────────── */
+
+/**
+ * POST /api/admin/learn/guides/:id/tag
+ * Admin — run AI tagging for a guide on demand. Awaits the pipeline and
+ * returns its result ({ ok, created } or { skipped }).
+ */
+exports.adminTagGuide = async (req, res, next) => {
+  try {
+    const { rows } = await pool.query('SELECT id FROM learn_guides WHERE id = $1', [req.params.id]);
+    if (!rows.length) return next(new AppError('Guide not found', 404, 'not_found'));
+    const result = await tagGuideWithAI(req.params.id);
+    res.json({ success: true, guide_id: req.params.id, ...result });
+  } catch (err) {
+    next(new AppError('Failed to tag guide', 500, 'tag_guide_failed'));
+  }
+};
+
+const VALID_SUGGESTION_STATUSES = ['pending', 'approved', 'rejected'];
+
+/**
+ * GET /api/admin/learn/ai-suggestions?status=pending&guide_id=
+ * Admin — list AI suggestions (the review queue). Defaults to pending.
+ */
+exports.adminListAiSuggestions = async (req, res, next) => {
+  try {
+    const status = req.query.status || 'pending';
+    if (status !== 'all' && !VALID_SUGGESTION_STATUSES.includes(status)) {
+      return next(new AppError('status must be pending, approved, rejected, or all', 400, 'validation_failed'));
+    }
+    const guideId = req.query.guide_id ? String(req.query.guide_id) : null;
+    const { rows } = await pool.query(
+      `SELECT s.*, g.title AS guide_title
+         FROM learn_guide_ai_suggestions s
+         LEFT JOIN learn_guides g ON g.id = s.guide_id
+        WHERE ($1 = 'all' OR s.status = $1)
+          AND ($2::text IS NULL OR s.guide_id = $2)
+        ORDER BY s.created_at DESC
+        LIMIT 200`,
+      [status, guideId]
+    );
+    res.json({ success: true, suggestions: rows });
+  } catch (err) {
+    next(new AppError('Failed to list AI suggestions', 500, 'list_suggestions_failed'));
+  }
+};
+
+/**
+ * POST /api/admin/learn/ai-suggestions/:id/approve
+ * Admin — approve a suggestion and merge it into the guide catalog:
+ *  - tool/material: append { name, rent, buy } to guide.tools unless a
+ *    case-insensitive name match already exists.
+ *  - service: set guide.category to the matched Learn category slug.
+ */
+exports.adminApproveSuggestion = async (req, res, next) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows: sugRows } = await client.query(
+      'SELECT * FROM learn_guide_ai_suggestions WHERE id = $1 FOR UPDATE',
+      [req.params.id]
+    );
+    if (!sugRows.length) {
+      await client.query('ROLLBACK');
+      return next(new AppError('Suggestion not found', 404, 'not_found'));
+    }
+    const sug = sugRows[0];
+    if (sug.status !== 'pending') {
+      await client.query('ROLLBACK');
+      return next(new AppError('Suggestion is no longer pending', 409, 'suggestion_not_pending'));
+    }
+
+    if (sug.kind === 'service') {
+      let category = LEARN_CATEGORIES.includes(sug.matched_direct_category)
+        ? sug.matched_direct_category
+        : null;
+      if (!category && sug.name) {
+        const norm = String(sug.name).toLowerCase().replace(/[\s_]+/g, '-');
+        category = LEARN_CATEGORIES.includes(norm) ? norm : null;
+      }
+      if (!category) {
+        await client.query('ROLLBACK');
+        return next(new AppError('Service suggestion has no valid Learn category', 422, 'invalid_category'));
+      }
+      await client.query(
+        'UPDATE learn_guides SET category = $1, updated_at = NOW() WHERE id = $2',
+        [category, sug.guide_id]
+      );
+    } else {
+      const { rows: guideRows } = await client.query(
+        'SELECT tools FROM learn_guides WHERE id = $1 FOR UPDATE',
+        [sug.guide_id]
+      );
+      if (!guideRows.length) {
+        await client.query('ROLLBACK');
+        return next(new AppError('Guide not found', 404, 'not_found'));
+      }
+      const tools = Array.isArray(guideRows[0].tools) ? guideRows[0].tools : [];
+      const exists = tools.some(
+        (t) => String(t?.name || '').toLowerCase() === String(sug.name).toLowerCase()
+      );
+      if (!exists) {
+        tools.push({
+          name: sug.name,
+          rent: sug.suggested_rent_url || null,
+          buy: sug.suggested_buy_url || null,
+        });
+        await client.query(
+          'UPDATE learn_guides SET tools = $1::jsonb, updated_at = NOW() WHERE id = $2',
+          [JSON.stringify(tools), sug.guide_id]
+        );
+      }
+    }
+
+    await client.query(
+      `UPDATE learn_guide_ai_suggestions
+          SET status = 'approved', reviewed_at = NOW(), reviewed_by = $1
+        WHERE id = $2`,
+      [req.user.id, sug.id]
+    );
+    await client.query('COMMIT');
+    res.json({ success: true, approved: true, id: sug.id, guide_id: sug.guide_id });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    next(new AppError('Failed to approve suggestion', 500, 'approve_suggestion_failed'));
+  } finally {
+    client.release();
+  }
+};
+
+/**
+ * POST /api/admin/learn/ai-suggestions/:id/reject
+ * Admin — reject a pending suggestion (kept for audit, never published).
+ */
+exports.adminRejectSuggestion = async (req, res, next) => {
+  try {
+    const { rowCount } = await pool.query(
+      `UPDATE learn_guide_ai_suggestions
+          SET status = 'rejected', reviewed_at = NOW(), reviewed_by = $1
+        WHERE id = $2 AND status = 'pending'`,
+      [req.user.id, req.params.id]
+    );
+    if (!rowCount) return next(new AppError('Suggestion not found or not pending', 404, 'not_found'));
+    res.json({ success: true, rejected: true, id: req.params.id });
+  } catch (err) {
+    next(new AppError('Failed to reject suggestion', 500, 'reject_suggestion_failed'));
+  }
+};
+
+const VALID_CLICK_KINDS = ['rent', 'buy', 'direct', 'quote', 'helper'];
+
+/**
+ * POST /api/learn/track
+ * Public — record a marketplace click (rent / buy / direct / quote / helper).
+ * Rate-limited per IP. Validates the guide exists; never exposes anything.
+ */
+exports.trackMarketplaceClick = async (req, res, next) => {
+  const { guide_id, kind, target } = req.body || {};
+  if (!guide_id || typeof guide_id !== 'string') {
+    return next(new AppError('guide_id is required', 400, 'validation_failed'));
+  }
+  if (!VALID_CLICK_KINDS.includes(kind)) {
+    return next(new AppError('kind must be rent, buy, direct, quote, or helper', 400, 'validation_failed'));
+  }
+  try {
+    const { rows } = await pool.query('SELECT 1 FROM learn_guides WHERE id = $1', [guide_id]);
+    if (!rows.length) return next(new AppError('Guide not found', 404, 'not_found'));
+    await pool.query(
+      `INSERT INTO learn_marketplace_clicks (guide_id, kind, target, user_id)
+       VALUES ($1, $2, $3, $4)`,
+      [
+        guide_id,
+        kind,
+        target ? String(target).slice(0, 500) : null,
+        req.user?.id || null,
+      ]
+    );
+    res.json({ success: true, tracked: true });
+  } catch (err) {
+    next(new AppError('Failed to track click', 500, 'track_click_failed'));
+  }
+};
+
+/**
+ * GET /api/admin/learn/marketplace-stats
+ * Admin — clicks per guide per kind for the last 30 days.
+ */
+exports.adminMarketplaceStats = async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT c.guide_id, g.title AS guide_title, c.kind, COUNT(*)::int AS clicks
+         FROM learn_marketplace_clicks c
+         LEFT JOIN learn_guides g ON g.id = c.guide_id
+        WHERE c.created_at >= NOW() - INTERVAL '30 days'
+        GROUP BY c.guide_id, g.title, c.kind
+        ORDER BY c.guide_id, c.kind`
+    );
+    res.json({ success: true, stats: rows });
+  } catch (err) {
+    next(new AppError('Failed to load marketplace stats', 500, 'marketplace_stats_failed'));
   }
 };

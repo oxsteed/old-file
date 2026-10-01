@@ -40,6 +40,7 @@ const ADMIN_SPA_ROUTES = Object.freeze([
   '/admin/logistics/control',
   '/admin/learn/submissions',
   '/admin/learn/product-links',
+  '/admin/learn/ai-suggestions',
   '/admin/template-preview',
   '/admin/2fa-setup',
   '/admin/users/:userId',
