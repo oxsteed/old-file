@@ -303,6 +303,113 @@ function HistorySection({ title, count, children }) {
   return <section className="rounded-2xl border border-gray-800 bg-gray-950/20 p-4"><div className="mb-3 flex items-center justify-between gap-3"><h3 className="text-sm font-semibold text-white">{title}</h3><span className="text-xs text-gray-600">{count || 0}</span></div>{children}</section>;
 }
 
+function ConversionPolicySection({ restaurants }) {
+  const { t } = useTranslation();
+  const [policies, setPolicies] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState(null);
+  const [notice, setNotice] = useState('');
+  const [error, setError] = useState('');
+
+  const loadPolicies = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await adminApi.get('/admin/super/oxsteed-credit/restaurant-conversion-policies');
+      setPolicies(response.data?.policies || []);
+    } catch (err) {
+      setError(getErrorMessage(err, t('adminConversionPolicyLoadFailed'), t));
+    } finally {
+      setLoading(false);
+    }
+  }, [t]);
+
+  useEffect(() => { loadPolicies(); }, [loadPolicies]);
+
+  const policyByRestaurantId = new Map((policies || []).map((policy) => [String(policy.restaurantId), policy]));
+
+  const togglePolicy = async (restaurant, allow) => {
+    setBusyId(restaurant.id);
+    setNotice('');
+    setError('');
+    try {
+      await adminApi.put('/admin/super/oxsteed-credit/restaurant-conversion-policies', {
+        restaurantId: restaurant.id,
+        allowRestaurantToOxsteed: allow,
+      });
+      setNotice(t('adminConversionPolicyQueued'));
+      await loadPolicies();
+    } catch (err) {
+      setError(getErrorMessage(err, t('adminConversionPolicyQueueFailed'), t));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <section className="rounded-2xl border border-gray-800 bg-[#111318] p-4 sm:p-5">
+      <SectionHeader
+        eyebrow={t('adminConversionPolicyEyebrow')}
+        title={t('adminConversionPolicyTitle')}
+        detail={t('adminConversionPolicyDetail')}
+        action={
+          <button type="button" onClick={loadPolicies} disabled={loading} className="inline-flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-900/70 px-4 py-3 text-sm font-semibold text-gray-200 hover:bg-gray-800 disabled:opacity-50">
+            <RefreshCw className={loading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} /> {t('common.retry')}
+          </button>
+        }
+      />
+      {notice && <p className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-950/30 px-3 py-2 text-sm text-emerald-300">{notice}</p>}
+      {error && <p className="mt-4 rounded-xl border border-red-500/30 bg-red-950/30 px-3 py-2 text-sm text-red-300">{error}</p>}
+      <div className="mt-5">
+        {loading ? (
+          <div className="flex items-center justify-center py-12 text-gray-500"><Loader2 className="h-6 w-6 animate-spin text-orange-400" /></div>
+        ) : !restaurants.length ? (
+          <EmptyState title={t('adminConversionPolicyEmpty')} />
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-gray-800">
+            <table className="min-w-[560px] w-full text-left text-xs">
+              <thead className="bg-gray-950/70 text-gray-500">
+                <tr>
+                  <th className="px-3 py-3 font-medium">{t('adminConversionPolicyColRestaurant')}</th>
+                  <th className="px-3 py-3 font-medium">{t('adminConversionPolicyColStatus')}</th>
+                  <th className="px-3 py-3 font-medium">{t('adminConversionPolicyColAction')}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800">
+                {restaurants.map((restaurant) => {
+                  const policy = policyByRestaurantId.get(String(restaurant.id));
+                  const enabled = policy?.allowRestaurantToOxsteed === true;
+                  return (
+                    <tr key={restaurant.id} className="text-gray-300">
+                      <td className="max-w-[260px] truncate px-3 py-3 font-semibold text-white">{restaurant.name || restaurant.id}</td>
+                      <td className="px-3 py-3">
+                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${enabled ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-gray-700 bg-gray-800/70 text-gray-400'}`}>
+                          {enabled ? t('adminConversionPolicyEnabled') : t('adminConversionPolicyDisabled')}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3">
+                        <button
+                          type="button"
+                          disabled={busyId === restaurant.id}
+                          onClick={() => togglePolicy(restaurant, !enabled)}
+                          className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold disabled:opacity-50 ${enabled ? 'border border-red-500/30 text-red-300 hover:bg-red-500/10' : 'bg-emerald-600 text-white hover:bg-emerald-500'}`}
+                        >
+                          {busyId === restaurant.id && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                          {enabled ? t('adminConversionPolicyDisable') : t('adminConversionPolicyEnable')}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export default function RestaurantCreditAdmin() {
   const { t } = useTranslation();
   const [data, setData] = useState(null);
@@ -458,6 +565,8 @@ export default function RestaurantCreditAdmin() {
           {detailLoading ? <div className="flex items-center justify-center py-24 text-gray-500"><Loader2 className="h-6 w-6 animate-spin text-orange-400" /></div> : detailError ? <div className="space-y-3 py-16 text-center"><AlertTriangle className="mx-auto h-8 w-8 text-red-400" /><p className="text-sm text-red-300">{detailError}</p><button type="button" onClick={() => loadDetail(selectedAccountId)} className="rounded-lg border border-gray-700 px-3 py-2 text-sm font-semibold text-gray-300 hover:bg-gray-800">{t('common.retry')}</button></div> : detail ? <WalletDetail detail={detail} onStatus={(wallet) => openModal({ kind: 'status', title: wallet.status === 'active' ? t('adminRestaurantCreditSuspendWallet') : t('adminRestaurantCreditReactivateWallet'), wallet, status: wallet.status === 'active' ? 'suspended' : 'active', reason: '' })} onRelease={(hold) => openModal({ kind: 'release', title: t('adminRestaurantCreditReleaseHold'), hold, reason: '' })} /> : <div className="flex min-h-[360px] flex-col items-center justify-center text-center"><FileText className="h-9 w-9 text-gray-700" /><h2 className="mt-4 text-lg font-semibold text-white">{t('adminRestaurantCreditSelectWallet')}</h2><p className="mt-2 max-w-sm text-sm leading-6 text-gray-500">{t('adminRestaurantCreditSelectWalletText')}</p></div>}
         </aside>
       </div>
+
+      <ConversionPolicySection restaurants={data?.restaurants || []} />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <section className="rounded-2xl border border-gray-800 bg-[#111318] p-4 sm:p-5"><SectionHeader eyebrow={t('adminRestaurantCreditMakerChecker')} title={t('adminRestaurantCreditPendingRequests')} detail={t('adminRestaurantCreditPendingRequestsText')} />{!pendingRequests.length ? <div className="mt-5"><EmptyState title={t('adminRestaurantCreditNoPendingRequests')} detail={t('adminRestaurantCreditNoPendingRequestsText')} /></div> : <div className="mt-5 space-y-3">{pendingRequests.slice(0, 8).map((request) => <div key={request.id} className="rounded-xl border border-gray-800 bg-gray-950/35 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><StatusBadge status={request.status} /><span className="text-base font-semibold text-white">{money(request.amountCents, request.currencyCode)}</span></div><p className="mt-2 text-sm text-gray-300">{request.customerName || request.customerEmail || shortId(request.customerId)}</p><p className="mt-1 text-xs text-gray-500">{request.restaurantName || shortId(request.restaurantId)} · requested by {request.requestedByName || shortId(request.requestedByUserId)} · {dateTime(request.createdAt, t)}</p>{request.note && <p className="mt-2 text-xs leading-5 text-gray-500">{request.note}</p>}</div><div className="flex shrink-0 gap-2"><button type="button" onClick={() => openModal({ kind: 'decline', title: t('adminRestaurantCreditDeclineLoad'), request, reason: '' })} className="rounded-lg border border-red-500/30 px-3 py-2 text-xs font-semibold text-red-300 hover:bg-red-500/10">{t('adminRestaurantCreditDecline')}</button><button type="button" onClick={() => openModal({ kind: 'approve', title: t('adminRestaurantCreditApproveLoad'), request, approvalNote: '' })} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500">{t('common.approve')}</button></div></div></div>)}</div>}</section>

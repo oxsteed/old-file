@@ -26862,4 +26862,19 @@
   },
   "closeMenu": "Close menu",
   "openMenu": "Open menu",
-  "mainNavigation": "Main navigation"}
+  "mainNavigation": "Main navigation",
+  "adminConversionPolicyColAction": "إجراء",
+  "adminConversionPolicyColRestaurant": "المطعم",
+  "adminConversionPolicyColStatus": "التحويل إلى OxSteed Credit",
+  "adminConversionPolicyDisable": "إلغاء التفعيل",
+  "adminConversionPolicyDisabled": "غير مفعّل",
+  "adminConversionPolicyEmpty": "لا توجد مطاعم لعرضها.",
+  "adminConversionPolicyEnable": "تفعيل",
+  "adminConversionPolicyEnabled": "مفعّل",
+  "adminConversionPolicyEyebrow": "قائمة المطاعم المصرّح لها",
+  "adminConversionPolicyLoadFailed": "تعذر تحميل سياسات التحويل.",
+  "adminConversionPolicyQueued": "تم إدراج التغيير في قائمة الانتظار. يجب أن يعتمده مشرف ثانٍ في قائمة المراجعة قبل تطبيقه.",
+  "adminConversionPolicyQueueFailed": "تعذر إدراج تغيير السياسة في قائمة الانتظار.",
+  "adminConversionPolicyTitle": "سياسة التحويل من المطعم إلى OxSteed",
+  "adminConversionPolicyDetail": "فقط المطاعم المفعّلة يمكن تحويل رصيدها إلى OxSteed Credit. يتطلب تحويل OxSteed Credit إلى رصيد المطعم شريكاً نشطاً في OxSteed Credit. تُدرج التغييرات في قائمة انتظار ليعتمدها مشرف ثانٍ؛ ولا يُطبَّق أي شيء قبل ذلك."
+}

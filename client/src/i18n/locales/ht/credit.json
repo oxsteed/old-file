@@ -1121,5 +1121,8 @@
   },
   "adminLedgerVersion": "Ledger v{{version}} · {{currency}}",
   "adminOxsteedCredit": "OxSteed credit",
-  "adminWalletState": "Wallet state"
+  "adminWalletState": "Wallet state",
+  "restaurantConversionNoneEligible": "Okenn restoran poko otorize pou konvèti kredi yo an OxSteed Credit.",
+  "restaurantConversionRestaurantNotEnabled": "Restoran sa a pa otorize pou konvèti kredi li an OxSteed Credit.",
+  "restaurantConversionRestaurantNotAccepting": "Restoran sa a pa aksepte konvèsyon an OxSteed Credit pou kounye a."
 }

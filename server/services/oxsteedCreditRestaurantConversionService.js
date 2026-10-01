@@ -40,6 +40,7 @@ const {
   postJournalTransaction,
 } = require('./oxsteedCreditService');
 const { debitFoodWallet, creditFoodWallet } = require('./foodWalletService');
+const { assertRestaurantConversionToOxsteedEnabled } = require('./oxsteedCreditRestaurantConversionPolicyService');
 const { postFoodWalletDualEntry } = require('./oxsteedCreditSubBankService');
 const { insertAudit } = require('./oxsteedCreditAdminService');
 
@@ -129,6 +130,14 @@ async function convertRestaurantToOxsteed({
       }
       return { conversion: formatConversion(existing), replayed: true };
     }
+
+    // Emile's requirement: OxSteed controls which restaurants' credit may
+    // be converted INTO OxSteed Credit. The gate sits after the idempotency
+    // replay (an already-executed conversion keeps returning its stored
+    // result) but before sanctions screening and the wallet debit, so a
+    // non-enabled restaurant moves no money at all. Missing policy row =
+    // deny (403 credit_conversion_restaurant_not_enabled).
+    await assertRestaurantConversionToOxsteedEnabled(client, restaurantIdNum);
 
     // Sanctions screening on the customer receiving OxSteed credit.
     const { assertSanctionsClear } = require('./sanctionsScreeningService');
@@ -278,6 +287,24 @@ async function convertOxsteedToRestaurant({
         fail('Conversion idempotency key was already used with different parameters', 'credit_conversion_idempotency_conflict', 409);
       }
       return { conversion: formatConversion(existing), replayed: true };
+    }
+
+    // Converting OxSteed Credit into a restaurant wallet makes the credit
+    // spendable at that restaurant, so it needs the same active-partner gate
+    // as direct spend. Mirrors the food checkout oxsteed_credit charge path in
+    // controllers/foodController.js: only an active partner row satisfies the
+    // gate (pending rows fail closed), and nothing here auto-activates a
+    // partner; that transition stays on the existing admin partner-status
+    // action. Runs before any money moves.
+    const { rows: partnerRows } = await client.query(
+      `SELECT id
+         FROM oxsteed_credit_partners
+        WHERE restaurant_id = $1 AND status = 'active'
+        LIMIT 1`,
+      [restaurantIdNum]
+    );
+    if (!partnerRows[0]) {
+      fail('This restaurant does not currently accept OxSteed Credit conversions', 'credit_conversion_restaurant_not_enabled', 403);
     }
 
     const { assertSanctionsClear } = require('./sanctionsScreeningService');

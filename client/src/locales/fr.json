@@ -26851,4 +26851,19 @@
   },
   "closeMenu": "Close menu",
   "openMenu": "Open menu",
-  "mainNavigation": "Main navigation"}
+  "mainNavigation": "Main navigation",
+  "adminConversionPolicyColAction": "Action",
+  "adminConversionPolicyColRestaurant": "Restaurant",
+  "adminConversionPolicyColStatus": "Conversion en OxSteed Credit",
+  "adminConversionPolicyDisable": "Révoquer",
+  "adminConversionPolicyDisabled": "Non autorisé",
+  "adminConversionPolicyEmpty": "Aucun restaurant à afficher.",
+  "adminConversionPolicyEnable": "Autoriser",
+  "adminConversionPolicyEnabled": "Autorisé",
+  "adminConversionPolicyEyebrow": "Liste des restaurants autorisés",
+  "adminConversionPolicyLoadFailed": "Impossible de charger les politiques de conversion.",
+  "adminConversionPolicyQueued": "Modification mise en file. Un second administrateur doit l'approuver dans la file de contrôle avant son application.",
+  "adminConversionPolicyQueueFailed": "Impossible de mettre la modification en file.",
+  "adminConversionPolicyTitle": "Politique de conversion restaurant vers OxSteed",
+  "adminConversionPolicyDetail": "Seuls les restaurants autorisés peuvent voir leur crédit converti en OxSteed Credit. La conversion d'OxSteed Credit en crédit restaurant nécessite un partenaire OxSteed Credit actif. Les modifications sont mises en file pour approbation par un second administrateur ; rien ne s'applique avant cela."
+}

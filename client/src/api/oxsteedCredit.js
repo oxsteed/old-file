@@ -104,6 +104,13 @@ export const listOxsteedCreditRestaurantConversions = (params = {}) =>
   api.get('/oxsteed-credit/restaurant-conversions', { params })
     .then((response) => response.data?.conversions || []);
 
+// Restaurant conversion allowlist: restaurant ids with the from_restaurant
+// direction enabled by OxSteed (gated server-side too; to_restaurant is gated
+// server-side on an active credit-partner row).
+export const getRestaurantConversionEligibility = () =>
+  api.get('/oxsteed-credit/restaurant-conversion-eligibility')
+    .then((response) => response.data || { enabledRestaurantIds: [], count: 0 });
+
 export const issueOxsteedCreditMoneyOutStepup = (payload) =>
   api.post('/oxsteed-credit/money-out/stepup-challenges', payload).then((response) => response.data);
 

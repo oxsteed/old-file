@@ -1123,5 +1123,8 @@
   },
   "adminLedgerVersion": "Ledger v{{version}} · {{currency}}",
   "adminOxsteedCredit": "OxSteed credit",
-  "adminWalletState": "Wallet state"
+  "adminWalletState": "Wallet state",
+  "restaurantConversionNoneEligible": "No restaurants are enabled for conversion of their credit into OxSteed Credit yet.",
+  "restaurantConversionRestaurantNotEnabled": "This restaurant is not enabled for conversion of its credit into OxSteed Credit.",
+  "restaurantConversionRestaurantNotAccepting": "This restaurant does not currently accept OxSteed Credit conversions."
 }

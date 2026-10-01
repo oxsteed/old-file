@@ -28,6 +28,7 @@ const { requestPendingAction } = require('../services/oxsteedCreditPendingAction
 const oxsteedCreditRestaurantConversionService = require('../services/oxsteedCreditRestaurantConversionService');
 const oxsteedCreditFeeScheduleService = require('../services/oxsteedCreditFeeScheduleService');
 const oxsteedCreditReserveService = require('../services/oxsteedCreditReserveService');
+const oxsteedCreditRestaurantConversionPolicyService = require('../services/oxsteedCreditRestaurantConversionPolicyService');
 const { verifyStepupChallenge } = require('../services/stepupChallengeService');
 const { AppError } = require('../middleware/errorHandler');
 const { creditAdminMutationLimiter, creditExportLimiter, adminPhoneVerificationLimiter, strictLimiter } = require('../middleware/rateLimiter');
@@ -566,6 +567,42 @@ router.put('/super/oxsteed-credit/reserve-policies', requireSuperAdmin, creditAd
         ratioBps: normalized.ratioBps,
         floorCents: normalized.floorCents,
         reason: req.body?.reason || 'Reserve policy updated',
+      },
+      requestedBy: req.user?.id || null,
+      idempotencyKey: req.get('Idempotency-Key') || req.body?.idempotencyKey || req.body?.idempotency_key,
+      requestIp: req.ip || null,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+    });
+    sendPendingActionResult(res, result, 200);
+  } catch (err) { next(err); }
+});
+
+// Restaurant conversion allowlist (from_restaurant direction). Reads are
+// plain; updates queue as pending actions for checker approval
+// (amount-less, so always dual). The to_restaurant direction is gated on an
+// active credit-partner row via the existing partner-status transition.
+router.get('/super/oxsteed-credit/restaurant-conversion-policies', requireSuperAdmin, async (req, res, next) => {
+  try {
+    const policies = await oxsteedCreditRestaurantConversionPolicyService.listConversionPolicies(pool, {
+      restaurantId: req.query.restaurantId || req.query.restaurant_id || null,
+    });
+    res.json({ policies });
+  } catch (err) { next(err); }
+});
+router.put('/super/oxsteed-credit/restaurant-conversion-policies', requireSuperAdmin, creditAdminMutationLimiter, async (req, res, next) => {
+  try {
+    // Reject bad input with 400 before queueing: the checker must only ever
+    // see a valid payload. The executor re-validates at execution time.
+    const normalized = oxsteedCreditRestaurantConversionPolicyService.validateConversionPolicyInput({
+      restaurantId: req.body?.restaurantId ?? req.body?.restaurant_id,
+      allowRestaurantToOxsteed: req.body?.allowRestaurantToOxsteed ?? req.body?.allow_restaurant_to_oxsteed,
+    });
+    const result = await requestPendingAction({
+      actionType: 'credit_restaurant_conversion_policy_update',
+      payload: {
+        restaurantId: normalized.restaurantId,
+        allowRestaurantToOxsteed: normalized.allowRestaurantToOxsteed,
+        reason: req.body?.reason || 'Restaurant conversion policy updated',
       },
       requestedBy: req.user?.id || null,
       idempotencyKey: req.get('Idempotency-Key') || req.body?.idempotencyKey || req.body?.idempotency_key,

@@ -47,6 +47,7 @@ const {
 const { approveWithdrawal } = require('./oxsteedCreditWithdrawalService');
 const { updateFeeScheduleRow } = require('./oxsteedCreditFeeScheduleService');
 const { upsertReservePolicy } = require('./oxsteedCreditReserveService');
+const { upsertRestaurantConversionPolicy } = require('./oxsteedCreditRestaurantConversionPolicyService');
 const { recordPartnerFundingInTransaction } = require('./oxsteedCreditPartnerLedgerService');
 const { createCurrencyQuote } = require('./oxsteedCreditCurrencyConversionService');
 const { verifyStepupChallenge } = require('./stepupChallengeService');
@@ -119,6 +120,7 @@ async function resolveActionAmountCents(actionType, payload) {
     }
     case 'credit_fee_schedule_update':
     case 'credit_reserve_policy_update':
+    case 'credit_restaurant_conversion_policy_update':
     default:
       return null;
   }
@@ -282,6 +284,31 @@ const ACTION_EXECUTORS = {
         ratioBps: policy.ratioBps,
         floorCents: policy.floorCents,
         isDefault: policy.isDefault,
+      },
+    });
+    return policy;
+  },
+  // Restaurant conversion allowlist: a per-restaurant toggle enabling the
+  // from_restaurant direction. Amount-less, so it always needs a checker,
+  // like fee schedule and reserve policy updates.
+  credit_restaurant_conversion_policy_update: async ({ client, payload, actorUserId, requestIp, correlationId }) => {
+    const policy = await upsertRestaurantConversionPolicy(client, {
+      restaurantId: payload.restaurantId ?? payload.restaurant_id,
+      allowRestaurantToOxsteed: payload.allowRestaurantToOxsteed ?? payload.allow_restaurant_to_oxsteed,
+      updatedByUserId: actorUserId,
+    });
+    await insertAudit(client, {
+      actionType: 'credit.restaurant_conversion_policy.updated',
+      actorUserId,
+      resourceType: 'restaurant_conversion_policy',
+      resourceId: String(policy.restaurantId),
+      reason: payload.reason || 'Restaurant conversion policy updated',
+      correlationId: correlationId || null,
+      requestIp: requestIp || null,
+      metadata: {
+        approvedBy: actorUserId,
+        restaurantId: policy.restaurantId,
+        allowRestaurantToOxsteed: policy.allowRestaurantToOxsteed,
       },
     });
     return policy;

@@ -40,6 +40,7 @@ import {
   listOxsteedCreditWithdrawals,
   cancelOxsteedCreditWithdrawal,
   createOxsteedCreditRestaurantConversion,
+  getRestaurantConversionEligibility,
   issueOxsteedCreditMoneyOutStepup,
 } from '../../api/oxsteedCredit';
 import toast from 'react-hot-toast';
@@ -183,6 +184,9 @@ export default function OxsteedCreditPage() {
   const [restaurantConversionAmount, setRestaurantConversionAmount] = useState('');
   const [restaurantConversionSubmitting, setRestaurantConversionSubmitting] = useState(false);
   const [createdRestaurantConversion, setCreatedRestaurantConversion] = useState(null);
+  // Null until loaded: the from_restaurant dropdown is filtered to the
+  // restaurant ids OxSteed has enabled for conversion into OxSteed Credit.
+  const [conversionEligibility, setConversionEligibility] = useState(null);
   const withdrawalQuoteTimerRef = useRef(null);
   const loadRequestRef = useRef(0);
   const partnerPageRequestRef = useRef(0);
@@ -204,13 +208,16 @@ export default function OxsteedCreditPage() {
       // selected wallet first so a new currency cannot race the directory and
       // render a false empty state.
       const accountResult = await getOxsteedCreditAccount({ currencyCode: preferredCurrency });
-      const [partnerResult, holdResult, railResult, statementResult, disputeResult, limitResult] = await Promise.all([
+      const [partnerResult, holdResult, railResult, statementResult, disputeResult, limitResult, eligibilityResult] = await Promise.all([
         getOxsteedCreditEligiblePartnerPage({ currencyCode: preferredCurrency, limit: 50, offset: 0 }),
         listOxsteedCreditHolds({ currencyCode: preferredCurrency, status: 'all', limit: 50, offset: 0 }).catch(() => null),
         getOxsteedCreditStatus().catch(() => null),
         getOxsteedCreditStatement({ limit: 50, currencyCode: preferredCurrency }).catch(() => null),
         getOxsteedCreditDisputePage({ limit: 50, offset: 0 }).catch(() => null),
         getOxsteedCreditLimitSummary({ currencyCode: preferredCurrency }).catch(() => null),
+        // The from_restaurant conversion allowlist; a fetch failure leaves
+        // the dropdown unfiltered and the server gate still enforces.
+        getRestaurantConversionEligibility().catch(() => null),
       ]);
       if (!isCurrentRequest()) return;
       const knownAccounts = Array.isArray(existingAccounts) ? existingAccounts : [];
@@ -222,6 +229,12 @@ export default function OxsteedCreditPage() {
       if (holdRequestId === holdPageRequestRef.current) setHoldPagination(holdResult?.pagination || null);
       setRailStatus(railResult);
       setLimitSummary(limitResult);
+      if (isCurrentRequest()) {
+        const ids = Array.isArray(eligibilityResult?.enabledRestaurantIds)
+          ? eligibilityResult.enabledRestaurantIds
+          : null;
+        setConversionEligibility(ids ? ids.map((id) => String(id)) : null);
+      }
       if (partnerRequestId === partnerPageRequestRef.current) {
         setPartners(Array.isArray(partnerResult?.partners) ? partnerResult.partners : []);
         setPartnerPagination(partnerResult?.pagination || null);
@@ -620,7 +633,17 @@ export default function OxsteedCreditPage() {
       await load({ quiet: true, currencyCode: selectedCurrency });
       toast.success(t('restaurantConversionCompleted'));
     } catch (error) {
-      toast.error(safeCreditErrorMessage(error, t('errorLoad')));
+      // Both conversion gates fail closed server-side (the from_restaurant
+      // allowlist and the to_restaurant active-partner requirement), even
+      // when the dropdown was not filtered (e.g. the eligibility fetch
+      // failed): surface the friendly message matching the direction, not
+      // the raw error.
+      const errorCode = error?.response?.data?.code;
+      toast.error(errorCode === 'credit_conversion_restaurant_not_enabled'
+        ? t(restaurantConversionDirection === 'to_restaurant'
+          ? 'restaurantConversionRestaurantNotAccepting'
+          : 'restaurantConversionRestaurantNotEnabled')
+        : safeCreditErrorMessage(error, t('errorLoad')));
     } finally {
       setRestaurantConversionSubmitting(false);
     }
@@ -646,6 +669,18 @@ export default function OxsteedCreditPage() {
     return matchesSearch && matchesOrderType;
   });
   const selectedHoldPartner = partners.find((partner) => String(partner.partnerId) === String(holdPartnerId));
+  // The from_restaurant direction only offers restaurants OxSteed enabled
+  // for conversion into OxSteed Credit. The to_restaurant dropdown is
+  // untouched (the server enforces the active-partner gate on submit).
+  // While the eligibility list is loading (null), the dropdown
+  // is unfiltered; the server gate still enforces the allowlist.
+  const isFromRestaurantDirection = restaurantConversionDirection === 'from_restaurant';
+  const conversionEligiblePartners = isFromRestaurantDirection && Array.isArray(conversionEligibility)
+    ? partners.filter((partner) => conversionEligibility.includes(String(partner.restaurantId || partner.partnerId)))
+    : partners;
+  const noConversionEligiblePartners = isFromRestaurantDirection
+    && Array.isArray(conversionEligibility)
+    && conversionEligiblePartners.length === 0;
   const holdOrderTypes = selectedHoldPartner?.allowedOrderTypes?.length
     ? selectedHoldPartner.allowedOrderTypes
     : ['pickup', 'dine_in', 'delivery'];
@@ -703,7 +738,7 @@ export default function OxsteedCreditPage() {
 
               {accountStatus === 'active' && <section className="ox-credit-panel ox-credit-withdraw-panel" aria-labelledby="credit-withdraw-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('moneyOutEyebrow')}</p><h2 id="credit-withdraw-heading">{t('withdrawToBank')}</h2></div><ShieldCheck size={20} /></div><p className="ox-credit-panel-copy">{t('withdrawCopy')}</p><form className="ox-credit-authorize-form" onSubmit={(event) => submitWithdrawal(event)}><label>{t('amount')}<input required inputMode="decimal" value={withdrawalAmount} onChange={onWithdrawalAmountChange} placeholder={amountPlaceholder(currency, railStatus?.currencyMetadata)} /></label><button type="submit" disabled={withdrawalSubmitting}>{withdrawalSubmitting ? t('requestingWithdrawal') : t('requestWithdrawal')}</button></form>{withdrawalFeeQuote && <div className="ox-credit-fee-quote" role="status"><span>{t('withdrawalFeeBreakdown', { fee: money(withdrawalFeeQuote.feeCents, withdrawalFeeQuote.currencyCode), net: money(Math.max(0, (parseCreditMajorAmount(withdrawalAmount, selectedCurrency, railStatus?.currencyMetadata) || 0) - withdrawalFeeQuote.feeCents), withdrawalFeeQuote.currencyCode) })}</span></div>}{withdrawalChallenge && <form className="ox-credit-stepup-form" onSubmit={confirmWithdrawalStepup}><strong>{t('verificationRequired')}</strong><span>{t('verificationCodeSentCopy')}</span><label>{t('verificationCode')}<input required inputMode="numeric" value={withdrawalCode} onChange={(event) => setWithdrawalCode(event.target.value.replace(/\D/g, '').slice(0, 12))} placeholder={t('verificationCodePlaceholder')} /></label><button type="submit" disabled={withdrawalSubmitting}>{withdrawalSubmitting ? t('confirmingWithdrawal') : t('confirmWithdrawal')}</button></form>}{createdWithdrawal?.id && <div className="ox-credit-created-hold"><strong>{t('withdrawalRequested')}</strong><span>{t('withdrawalRequestedCopy', { amount: money(createdWithdrawal.amountCents, createdWithdrawal.currencyCode), net: money(createdWithdrawal.netAmountCents, createdWithdrawal.currencyCode) })}</span><code>{createdWithdrawal.id}</code></div>}{!!withdrawals.length && <div className="ox-credit-hold-group"><div className="ox-credit-hold-group-title"><strong>{t('withdrawalHistory')}</strong><span>{withdrawals.length}</span></div><div className="ox-credit-hold-list">{withdrawals.map((withdrawal) => <article key={withdrawal.id}><div><strong>{money(withdrawal.amountCents, withdrawal.currencyCode)}</strong><span>{t('withdrawalStatusLabel', { status: withdrawal.status })}{withdrawal.feeCents ? ` · ${t('feeLabel', { fee: money(withdrawal.feeCents, withdrawal.currencyCode) })}` : ''}</span><small>{dateTime(withdrawal.createdAt, t)}</small></div><div className="ox-credit-hold-end"><span className={`ox-credit-hold-status ${withdrawal.status}`}>{withdrawal.status}</span>{['requested'].includes(withdrawal.status) && <button type="button" onClick={() => cancelWithdrawal(withdrawal)} disabled={cancellingWithdrawalId === withdrawal.id}>{cancellingWithdrawalId === withdrawal.id ? t('cancelling') : t('cancel')}</button>}</div></article>)}</div></div>}</section>}
 
-              {accountStatus === 'active' && <section className="ox-credit-panel ox-credit-restaurant-conversion-panel" aria-labelledby="credit-restaurant-conversion-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('restaurantCreditEyebrow')}</p><h2 id="credit-restaurant-conversion-heading">{t('convertRestaurantCredit')}</h2></div><ShieldCheck size={20} /></div><p className="ox-credit-panel-copy">{t('restaurantConversionCopy')}</p><form className="ox-credit-authorize-form" onSubmit={submitRestaurantConversion}><label>{t('direction')}<select value={restaurantConversionDirection} onChange={(event) => setRestaurantConversionDirection(event.target.value)}><option value="to_restaurant">{t('directionToRestaurant')}</option><option value="from_restaurant">{t('directionFromRestaurant')}</option></select></label><label>{t('restaurant')}<select required value={restaurantConversionRestaurantId} onChange={(event) => setRestaurantConversionRestaurantId(event.target.value)}><option value="">{t('selectRestaurant')}</option>{partners.map((partner) => <option key={partner.partnerId} value={partner.restaurantId || partner.partnerId}>{partner.restaurantName}{partner.city ? ` · ${partner.city}` : ''}</option>)}</select></label><label>{t('amount')}<input required inputMode="decimal" value={restaurantConversionAmount} onChange={(event) => { setRestaurantConversionAmount(event.target.value); setCreatedRestaurantConversion(null); }} placeholder={amountPlaceholder(currency, railStatus?.currencyMetadata)} /></label><button type="submit" disabled={restaurantConversionSubmitting}>{restaurantConversionSubmitting ? t('convertingRestaurantCredit') : t('convertRestaurantCredit')}</button></form>{createdRestaurantConversion?.id && <div className="ox-credit-created-hold"><strong>{t('restaurantConversionCompleted')}</strong><span>{t('restaurantConversionDetails', { source: money(createdRestaurantConversion.sourceAmountCents, createdRestaurantConversion.currencyCode), target: money(createdRestaurantConversion.convertedAmountCents, createdRestaurantConversion.currencyCode) })}</span><code>{createdRestaurantConversion.id}</code></div>}</section>}
+              {accountStatus === 'active' && <section className="ox-credit-panel ox-credit-restaurant-conversion-panel" aria-labelledby="credit-restaurant-conversion-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('restaurantCreditEyebrow')}</p><h2 id="credit-restaurant-conversion-heading">{t('convertRestaurantCredit')}</h2></div><ShieldCheck size={20} /></div><p className="ox-credit-panel-copy">{t('restaurantConversionCopy')}</p><form className="ox-credit-authorize-form" onSubmit={submitRestaurantConversion}><label>{t('direction')}<select value={restaurantConversionDirection} onChange={(event) => { setRestaurantConversionDirection(event.target.value); setRestaurantConversionRestaurantId(''); }}><option value="to_restaurant">{t('directionToRestaurant')}</option><option value="from_restaurant">{t('directionFromRestaurant')}</option></select></label><label>{t('restaurant')}<select required value={restaurantConversionRestaurantId} onChange={(event) => setRestaurantConversionRestaurantId(event.target.value)} disabled={noConversionEligiblePartners}><option value="">{t('selectRestaurant')}</option>{conversionEligiblePartners.map((partner) => <option key={partner.partnerId} value={partner.restaurantId || partner.partnerId}>{partner.restaurantName}{partner.city ? ` · ${partner.city}` : ''}</option>)}</select></label>{noConversionEligiblePartners && <p className="ox-credit-panel-copy" role="status">{t('restaurantConversionNoneEligible')}</p>}<label>{t('amount')}<input required inputMode="decimal" value={restaurantConversionAmount} onChange={(event) => { setRestaurantConversionAmount(event.target.value); setCreatedRestaurantConversion(null); }} placeholder={amountPlaceholder(currency, railStatus?.currencyMetadata)} /></label><button type="submit" disabled={restaurantConversionSubmitting || noConversionEligiblePartners}>{restaurantConversionSubmitting ? t('convertingRestaurantCredit') : t('convertRestaurantCredit')}</button></form>{createdRestaurantConversion?.id && <div className="ox-credit-created-hold"><strong>{t('restaurantConversionCompleted')}</strong><span>{t('restaurantConversionDetails', { source: money(createdRestaurantConversion.sourceAmountCents, createdRestaurantConversion.currencyCode), target: money(createdRestaurantConversion.convertedAmountCents, createdRestaurantConversion.currencyCode) })}</span><code>{createdRestaurantConversion.id}</code></div>}</section>}
 
                   {accountStatus === 'active' && partners.length > 0 && <section className="ox-credit-panel ox-credit-authorize-panel" aria-labelledby="credit-authorize-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('customerAuthorization')}</p><h2 id="credit-authorize-heading">{t('authorizeInStorePayment')}</h2></div><ShieldCheck size={20} /></div><p className="ox-credit-panel-copy">{t('authorizeCopy')}</p><form className="ox-credit-authorize-form" onSubmit={submitHold}><label>{t('restaurant')}<select required value={holdPartnerId} onChange={(event) => { const nextPartnerId = event.target.value; const nextPartner = partners.find((partner) => String(partner.partnerId) === String(nextPartnerId)); setHoldPartnerId(nextPartnerId); setHoldOrderType(nextPartner?.allowedOrderTypes?.[0] || 'pickup'); }}><option value="">{t('selectRestaurant')}</option>{partners.map((partner) => <option key={partner.partnerId} value={partner.partnerId}>{partner.restaurantName}{partner.city ? ` · ${partner.city}` : ''}</option>)}</select></label><label>{t('orderType')}<select required value={holdOrderType} onChange={(event) => setHoldOrderType(event.target.value)}>{holdOrderTypes.map((type) => <option key={type} value={type}>{localizeCreditOrderType(type, t)}</option>)}</select></label><label>{t('amount')}<input required inputMode="decimal" value={holdAmount} onChange={(event) => setHoldAmount(event.target.value)} placeholder={amountPlaceholder(currency, railStatus?.currencyMetadata)} /></label><label>{t('purposeOptional')}<input value={holdPurpose} onChange={(event) => setHoldPurpose(event.target.value)} maxLength={100} placeholder={t('restaurantPurchase')} /></label><button type="submit" disabled={holdSubmitting}>{holdSubmitting ? t('creatingAuthorization') : t('createAuthorization')}</button></form>{createdHold?.id && <div className="ox-credit-created-hold"><strong>{t('holdIdInstruction')}</strong><code>{createdHold.id}</code><span>{t('holdDetails', { amount: money(createdHold.amountCents, createdHold.currencyCode || currency), date: dateTime(createdHold.expiresAt, t) })}</span><button type="button" onClick={copyHoldId}>{t('copyHoldId')}</button></div>}</section>}
 

@@ -50,6 +50,10 @@ router.post('/withdrawals/:id/cancel', creditMutationLimiter, withdrawalControll
 // Restaurant credit conversions (Phase 6): OxSteed <-> restaurant food wallet.
 router.post('/restaurant-conversions', creditMutationLimiter, withdrawalController.createRestaurantConversion);
 router.get('/restaurant-conversions', withdrawalController.listMyRestaurantConversions);
+// Restaurant conversion allowlist: restaurant ids with the from_restaurant
+// direction enabled by OxSteed (gated server-side too; to_restaurant is gated
+// server-side on an active credit-partner row).
+router.get('/restaurant-conversion-eligibility', withdrawalController.getRestaurantConversionEligibility);
 // Fee quotes (Phase 6): what a money-out operation will cost, before confirming.
 router.get('/fee-quotes', withdrawalController.getFeeQuote);
 // Step-up challenge issuance for customer money-out actions (Phase 6).

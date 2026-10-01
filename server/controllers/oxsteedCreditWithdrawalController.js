@@ -9,6 +9,7 @@ const { AppError } = require('../middleware/errorHandler');
 const withdrawalService = require('../services/oxsteedCreditWithdrawalService');
 const conversionService = require('../services/oxsteedCreditRestaurantConversionService');
 const { quoteFee } = require('../services/oxsteedCreditFeeScheduleService');
+const { listConversionEnabledRestaurantIds } = require('../services/oxsteedCreditRestaurantConversionPolicyService');
 const { verifyStepupChallenge, amountRequiresStepup, issueStepupChallenge } = require('../services/stepupChallengeService');
 
 function getIdempotencyKey(req, what) {
@@ -150,6 +151,23 @@ async function listMyRestaurantConversions(req, res, next) {
   }
 }
 
+/**
+ * The set of restaurant ids with the from_restaurant direction currently
+ * enabled by OxSteed. The customer page filters the conversion dropdown to
+ * this set; the service still enforces the gate server-side.
+ */
+async function getRestaurantConversionEligibility(req, res, next) {
+  try {
+    if (req.user.role !== 'customer') {
+      throw new AppError('Only customer accounts can convert restaurant credit', 403, 'credit_conversion_customer_only');
+    }
+    const enabledRestaurantIds = await listConversionEnabledRestaurantIds();
+    res.json({ enabledRestaurantIds, count: enabledRestaurantIds.length });
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function getFeeQuote(req, res, next) {
   try {
     const operationType = String(req.query.operation || req.query.operationType || '').trim();
@@ -171,6 +189,7 @@ module.exports = {
   cancelMyWithdrawal,
   createRestaurantConversion,
   listMyRestaurantConversions,
+  getRestaurantConversionEligibility,
   getFeeQuote,
   issueMoneyOutStepupChallenge,
 };

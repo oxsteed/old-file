@@ -26851,4 +26851,19 @@
   },
   "closeMenu": "Close menu",
   "openMenu": "Open menu",
-  "mainNavigation": "Main navigation"}
+  "mainNavigation": "Main navigation",
+  "adminConversionPolicyColAction": "Aksyon",
+  "adminConversionPolicyColRestaurant": "Restoran",
+  "adminConversionPolicyColStatus": "Konvèsyon an OxSteed Credit",
+  "adminConversionPolicyDisable": "Retire otorizasyon",
+  "adminConversionPolicyDisabled": "Pa otorize",
+  "adminConversionPolicyEmpty": "Pa gen restoran pou montre.",
+  "adminConversionPolicyEnable": "Otorize",
+  "adminConversionPolicyEnabled": "Otorize",
+  "adminConversionPolicyEyebrow": "Lis restoran otorize yo",
+  "adminConversionPolicyLoadFailed": "Pa t kapab chaje règ konvèsyon yo.",
+  "adminConversionPolicyQueued": "Chanjman an nan liy datant. Yon dezyèm administratè dwe apwouve l nan liy kontwòl la anvan li aplike.",
+  "adminConversionPolicyQueueFailed": "Pa t kapab mete chanjman an nan liy datant.",
+  "adminConversionPolicyTitle": "Règ konvèsyon restoran pou OxSteed",
+  "adminConversionPolicyDetail": "Se restoran ki otorize sèlman ki ka konvèti kredi yo an OxSteed Credit. Konvèti OxSteed Credit an kredi restoran mande yon patnè OxSteed Credit ki aktif. Chanjman yo ale nan liy datant pou yon dezyèm administratè apwouve yo; anyen pa aplike anvan sa."
+}
