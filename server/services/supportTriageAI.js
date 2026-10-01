@@ -28,7 +28,7 @@ function providerConfig() {
     return {
       baseUrl: process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1',
       apiKey: process.env.OPENROUTER_API_KEY,
-      model: process.env.OPENROUTER_SUPPORT_MODEL || process.env.OPENROUTER_TRANSLATION_MODEL || 'openai/gpt-4o-mini',
+      model: process.env.OPENROUTER_SUPPORT_MODEL || process.env.OPENROUTER_TRANSLATION_MODEL || 'openrouter/free',
       provider: 'openrouter',
     };
   }

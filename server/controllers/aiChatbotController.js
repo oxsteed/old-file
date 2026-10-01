@@ -366,7 +366,9 @@ async function callOpenRouter(content, language) {
         'X-Title': 'OxSteed Support'
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
+        model: process.env.OPENROUTER_CHAT_MODEL
+          || process.env.OPENROUTER_SUPPORT_MODEL
+          || 'openrouter/free',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: content }

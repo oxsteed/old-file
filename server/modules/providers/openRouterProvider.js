@@ -14,7 +14,7 @@ const {
  *
  * Env vars:
  *   OPENROUTER_API_KEY              (required)
- *   OPENROUTER_TRANSLATION_MODEL    (optional, default 'openai/gpt-4o-mini')
+ *   OPENROUTER_TRANSLATION_MODEL    (optional, default 'openrouter/free')
  *   OPENROUTER_BASE_URL             (optional, default 'https://openrouter.ai/api/v1')
  *   OPENROUTER_TIMEOUT_MS           (optional, default 20000)
  *   OPENROUTER_APP_URL              (optional, sent as HTTP-Referer per OpenRouter etiquette)
@@ -25,7 +25,7 @@ const {
  * `getSupportedLanguages`.
  */
 
-const DEFAULT_MODEL = process.env.OPENROUTER_TRANSLATION_MODEL || 'openai/gpt-4o-mini';
+const DEFAULT_MODEL = process.env.OPENROUTER_TRANSLATION_MODEL || 'openrouter/free';
 const BASE_URL = (process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1').replace(/\/$/, '');
 const TIMEOUT_MS = Math.max(1000, Number(process.env.OPENROUTER_TIMEOUT_MS) || 20_000);
 

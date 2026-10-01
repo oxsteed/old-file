@@ -86,6 +86,9 @@ const OLLAMA_URL = (() => {
 })();
 
 const OPENROUTER_CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const OPENROUTER_CHAT_MODEL = process.env.OPENROUTER_CHAT_MODEL
+  || process.env.OPENROUTER_SUPPORT_MODEL
+  || 'openrouter/free';
 
 /**
  * Try OpenRouter (OpenAI-compatible chat completions). Requires OPENROUTER_API_KEY.
@@ -162,21 +165,13 @@ async function fetchOllamaChat(messages, options) {
 async function callWithFallback(messages, ollamaOptions, logTag) {
   const attempts = [
     {
-      name: 'OpenRouter (nvidia/nemotron-3-nano-30b-a3b:free)',
-      run: () => fetchOpenRouterChat('nvidia/nemotron-3-nano-30b-a3b:free', messages),
-    },
-    {
-      name: 'OpenRouter (openrouter/auto)',
-      run: () => fetchOpenRouterChat('openrouter/auto', messages),
+      name: `OpenRouter (${OPENROUTER_CHAT_MODEL})`,
+      run: () => fetchOpenRouterChat(OPENROUTER_CHAT_MODEL, messages),
     },
     {
       name: `Ollama (${process.env.OLLAMA_MODEL || 'qwen2.5:3b'})`,
       run: () => fetchOllamaChat(messages, ollamaOptions),
       skip: () => !OLLAMA_URL,
-    },
-    {
-      name: 'OpenRouter (alibaba/tongyi-deepresearch-30b-a3b:free)',
-      run: () => fetchOpenRouterChat('alibaba/tongyi-deepresearch-30b-a3b:free', messages),
     },
   ];
 
