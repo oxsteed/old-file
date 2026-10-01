@@ -330,6 +330,53 @@ export default function LearnSubmissionsAdmin() {
     reloadVideos();
   };
 
+  // ── Flagged community videos (dismiss / move to the right guide / delete) ──
+  const [flagStatus, setFlagStatus] = useState('open');
+  const [flags, setFlags] = useState([]);
+  const [moveTarget, setMoveTarget] = useState({});
+  const [guideOptions, setGuideOptions] = useState([]);
+  const { data: flagsData, error: flagsError, loading: flagsLoading, reload: reloadFlags } =
+    useAbortableFetch(async (signal) => {
+      const { data } = await adminApi.get('/learn/admin/video-flags', {
+        params: { status: flagStatus },
+        signal,
+      });
+      return { flags: data.flags ?? [] };
+    }, [flagStatus]);
+
+  useEffect(() => {
+    if (flagsData) setFlags(flagsData.flags);
+  }, [flagsData]);
+
+  // Guide options for the "move to the right guide" picker — loaded once.
+  useEffect(() => {
+    let cancelled = false;
+    adminApi.get('/learn/admin/guides')
+      .then(({ data }) => {
+        if (!cancelled) setGuideOptions((data.guides ?? []).map((g) => ({ id: g.id, title: g.title })));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleFlagDecision = async (id, action, body) => {
+    await adminApi.post(`/learn/admin/video-flags/${id}/${action}`, body);
+    reloadFlags();
+  };
+
+  const flagStatusLabels = {
+    open:      t('adminLearnSubmissions.flagStatusOpen'),
+    resolved:  t('adminLearnSubmissions.flagStatusResolved'),
+    dismissed: t('adminLearnSubmissions.flagStatusDismissed'),
+  };
+
+  const flagReasonLabels = {
+    unrelated:    t('adminLearnSubmissions.flagReasonUnrelated'),
+    spam:         t('adminLearnSubmissions.flagReasonSpam'),
+    broken:       t('adminLearnSubmissions.flagReasonBroken'),
+    inappropriate:t('adminLearnSubmissions.flagReasonInappropriate'),
+  };
+
   const videoStatusLabels = {
     pending:    t('adminLearnSubmissions.videoStatusPending'),
     live:       t('adminLearnSubmissions.videoStatusLive'),
@@ -447,6 +494,127 @@ export default function LearnSubmissionsAdmin() {
                 ) : (
                   <span className="text-xs font-700 capitalize text-gray-500 dark:text-gray-400">
                     {videoStatusLabels[videoStatus] ?? videoStatus}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* Flagged community videos — dismiss, move, or delete */}
+      <section className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="px-5 py-4 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h2 className="text-base font-800 text-gray-900 dark:text-white">
+                {t('adminLearnSubmissions.flagSectionTitle')}
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                {t('adminLearnSubmissions.flagSectionDesc')}
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5">
+              {['open', 'resolved', 'dismissed'].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setFlagStatus(s)}
+                  className={`px-2.5 py-1 rounded-full text-xs font-700 capitalize transition-colors ${
+                    flagStatus === s
+                      ? 'bg-orange-500 text-white'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}>
+                  {flagStatusLabels[s] ?? s}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        {flagsError ? (
+          <div className="px-5 py-4"><AdminErrorState onRetry={reloadFlags} /></div>
+        ) : flagsLoading && flags.length === 0 ? (
+          <div className="flex items-center justify-center py-8 text-gray-400">
+            <RefreshCw size={16} className="animate-spin mr-2" />
+            {t('adminLearnSubmissions.loading')}
+          </div>
+        ) : flags.length === 0 ? (
+          <p className="px-5 py-8 text-center text-sm text-gray-400">
+            {t('adminLearnSubmissions.flagEmpty')}
+          </p>
+        ) : (
+          <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+            {flags.map((f) => (
+              <li key={f.id} className="px-5 py-3 flex items-start gap-4 flex-wrap">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-700 text-gray-900 dark:text-white">
+                    {t('adminLearnSubmissions.flagReasonLabel')}: {flagReasonLabels[f.reason] ?? f.reason}
+                    {f.open_flags > 1 && (
+                      <span className="ml-2 text-xs font-600 text-gray-400">
+                        {t('adminLearnSubmissions.flagCount', { count: f.open_flags })}
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    {f.guide_title || f.guide_id}
+                  </p>
+                  <a
+                    href={f.video_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline break-all"
+                  >
+                    <ExternalLink size={12} />
+                    {f.video_url.length > 70 ? `${f.video_url.slice(0, 70)}…` : f.video_url}
+                  </a>
+                  {f.note && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 italic">
+                      {f.note}
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {f.flagged_by_email || t('adminLearnSubmissions.videoAnonymous')}
+                    {' · '}
+                    {f.created_at ? new Date(f.created_at).toLocaleString() : ''}
+                  </p>
+                </div>
+                {flagStatus === 'open' ? (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={() => handleFlagDecision(f.id, 'dismiss')}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-xs font-700 hover:bg-gray-300 dark:hover:bg-gray-600"
+                    >
+                      {t('adminLearnSubmissions.flagDismiss')}
+                    </button>
+                    <select
+                      value={moveTarget[f.id] || ''}
+                      onChange={(e) => setMoveTarget((p) => ({ ...p, [f.id]: e.target.value }))}
+                      className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs text-gray-700 dark:text-gray-200 max-w-44"
+                      aria-label={t('adminLearnSubmissions.flagMoveTo')}
+                    >
+                      <option value="">{t('adminLearnSubmissions.flagMoveTo')}</option>
+                      {guideOptions.filter((g) => g.id !== f.guide_id).map((g) => (
+                        <option key={g.id} value={g.id}>{g.title}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => moveTarget[f.id] && handleFlagDecision(f.id, 'move', { guide_id: moveTarget[f.id] })}
+                      disabled={!moveTarget[f.id]}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-700 hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {t('adminLearnSubmissions.flagMove')}
+                    </button>
+                    <button
+                      onClick={() => handleFlagDecision(f.id, 'delete')}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-700 hover:bg-red-700"
+                    >
+                      <XCircle size={13} />
+                      {t('adminLearnSubmissions.flagDelete')}
+                    </button>
+                  </div>
+                ) : (
+                  <span className="text-xs font-700 capitalize text-gray-500 dark:text-gray-400">
+                    {flagStatusLabels[flagStatus] ?? flagStatus}
+                    {f.decided_by_email ? ` · ${f.decided_by_email}` : ''}
                   </span>
                 )}
               </li>

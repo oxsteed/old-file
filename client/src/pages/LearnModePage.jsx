@@ -10,6 +10,7 @@ import {
   Building2,
   Car,
   CheckCircle,
+  ChevronLeft,
   ChevronRight,
   ClipboardList,
   Clock,
@@ -31,6 +32,7 @@ import {
   ShoppingBag,
   Smartphone,
   Thermometer,
+  ThumbsUp,
   TrendingUp,
   Truck,
   User,
@@ -3925,6 +3927,14 @@ export default function LearnModePage() {
   const [videoUrlInput, setVideoUrlInput]       = useState('');
   const [videoSubmitting, setVideoSubmitting]   = useState(false);
   const [videoError, setVideoError]             = useState('');
+  // Playlist carousel: current video index per guide.
+  const [videoIdxByGuide, setVideoIdxByGuide]   = useState({});
+  // Flag form state: which video is being flagged, reason, note, status.
+  const [flagVideoKey, setFlagVideoKey]         = useState(null);
+  const [flagReason, setFlagReason]             = useState('unrelated');
+  const [flagNote, setFlagNote]                 = useState('');
+  const [flagSubmitting, setFlagSubmitting]     = useState(false);
+  const [flagError, setFlagError]               = useState('');
 
   // Social proof stats (Priority 8)
   const [guideStats, setGuideStats] = useState({});  // { [guide_id]: { completions, views } }
@@ -4313,12 +4323,73 @@ export default function LearnModePage() {
       const code = err?.response?.data?.code;
       setVideoError(
         code === 'invalid_video_url' ? t('learn.page.videoInvalidUrl')
-        : code === 'video_pending_exists' ? t('learn.page.videoAlreadyPending')
-        : code === 'video_exists' ? t('learn.page.videoAlreadyLive')
+        : code === 'video_duplicate' ? t('learn.page.videoDuplicate')
         : t('learn.page.videoSubmitError')
       );
     } finally {
       setVideoSubmitting(false);
+    }
+  };
+
+  // Build a guide's video playlist: server-provided `videos` when present,
+  // otherwise the legacy single video_url so the bundled catalog still plays.
+  const guidePlaylist = (guide) => {
+    if (Array.isArray(guide.videos) && guide.videos.length) return guide.videos;
+    const embedUrl = toEmbedUrl(guide.video_url, guide.video_provider);
+    return embedUrl ? [{
+      id: `admin:${guide.id}`,
+      url: guide.video_url,
+      provider: guide.video_provider,
+      votes: 0,
+      pinned: true,
+      viewerVoted: false,
+    }] : [];
+  };
+
+  const patchGuideVideos = (guideId, patch) => {
+    setRemoteCatalog((prev) => Array.isArray(prev)
+      ? prev.map((r) => (r.id === guideId
+          ? { ...r, videos: (r.videos || []).map((v) => patch(v)) }
+          : r))
+      : prev);
+  };
+
+  // Toggle "most helpful" vote on a community video.
+  const handleVideoVote = async (guideId, video) => {
+    if (!user || video.pinned) return;
+    try {
+      const { data } = await api.post(`/learn/videos/${encodeURIComponent(video.id)}/vote`);
+      patchGuideVideos(guideId, (v) => (v.id === video.id
+        ? { ...v, votes: data.votes, viewerVoted: data.voted }
+        : v));
+    } catch {
+      // Silent — the vote button simply does not change state.
+    }
+  };
+
+  // Flag a community video for admin review.
+  const handleFlagSubmit = async (guideId, video) => {
+    if (!user || video.pinned || flagSubmitting) return;
+    setFlagSubmitting(true);
+    setFlagError('');
+    try {
+      await api.post(`/learn/videos/${encodeURIComponent(video.id)}/flags`, {
+        reason: flagReason,
+        note: flagNote.trim() || undefined,
+      });
+      patchGuideVideos(guideId, (v) => (v.id === video.id ? { ...v, viewerFlagged: true } : v));
+      setFlagVideoKey(null);
+      setFlagNote('');
+    } catch (err) {
+      const code = err?.response?.data?.code;
+      if (code === 'flag_duplicate') {
+        patchGuideVideos(guideId, (v) => (v.id === video.id ? { ...v, viewerFlagged: true } : v));
+        setFlagVideoKey(null);
+      } else {
+        setFlagError(t('learn.page.videoFlagError', { defaultValue: 'Could not send the flag. Please try again.' }));
+      }
+    } finally {
+      setFlagSubmitting(false);
     }
   };
 
@@ -4662,7 +4733,7 @@ export default function LearnModePage() {
                       <span className="lrn-guide-text">
                         <span className="lrn-guide-name">
                           {guide.title}
-                          {guide.video_url && <PlayCircle size={13} className="lrn-video-badge" aria-label="Has video" />}
+                          {guidePlaylist(guide).length > 0 && <PlayCircle size={13} className="lrn-video-badge" aria-label="Has video" />}
                         </span>
                         <span className="lrn-guide-meta">
                           <span className="lrn-difficulty" style={{ color: DIFFICULTY_COLOR[guide.difficulty] }}>{guide.difficulty}</span>
@@ -4690,26 +4761,200 @@ export default function LearnModePage() {
                             sandboxed (scripts + same-origin + presentation only, no top-level
                             navigation, no forms) and restricted to https: embed hosts. */}
                         {(() => {
-                          const embedUrl = toEmbedUrl(guide.video_url, guide.video_provider);
-                          return embedUrl ? (
+                          const playlist = guidePlaylist(guide);
+                          const idx = Math.min(videoIdxByGuide[guide.id] || 0, Math.max(playlist.length - 1, 0));
+                          const current = playlist[idx];
+                          const embedUrl = current ? toEmbedUrl(current.url, current.provider) : null;
+                          const flagKey = current ? `${guide.id}:${current.id}` : null;
+                          if (!embedUrl) {
+                            return (
+                              <div className="lrn-video-placeholder">
+                                <PlayCircle size={28} aria-hidden="true" />
+                                <span>{t('learn.page.videoComingSoon', { defaultValue: 'Video coming soon' })}</span>
+                                {guide.video_pending ? (
+                                  <span className="lrn-video-pending" role="status">
+                                    {t('learn.page.videoPendingNotice')}
+                                  </span>
+                                ) : user && videoFormGuideId === guide.id ? (
+                                  <form
+                                    className="lrn-video-form"
+                                    onSubmit={(e) => { e.preventDefault(); handleVideoSubmit(guide.id); }}
+                                  >
+                                    <label className="lrn-video-form-label" htmlFor={`lrn-video-url-${guide.id}`}>
+                                      {t('learn.page.videoUrlLabel')}
+                                    </label>
+                                    <input
+                                      id={`lrn-video-url-${guide.id}`}
+                                      type="url"
+                                      inputMode="url"
+                                      value={videoUrlInput}
+                                      onChange={(e) => setVideoUrlInput(e.target.value)}
+                                      placeholder="https://www.youtube.com/watch?v=..."
+                                      className="lrn-video-form-input"
+                                    />
+                                    {videoError && (
+                                      <span className="lrn-video-form-error" role="alert">{videoError}</span>
+                                    )}
+                                    <div className="lrn-video-form-actions">
+                                      <button type="submit" className="lrn-video-form-submit" disabled={videoSubmitting}>
+                                        {videoSubmitting ? t('learn.page.videoSubmitting') : t('learn.page.videoSubmit')}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="lrn-video-form-cancel"
+                                        onClick={() => { setVideoFormGuideId(null); setVideoError(''); }}
+                                      >
+                                        {t('common.cancel', { defaultValue: 'Cancel' })}
+                                      </button>
+                                    </div>
+                                  </form>
+                                ) : user ? (
+                                  <button
+                                    type="button"
+                                    className="lrn-add-video-btn"
+                                    onClick={() => { setVideoFormGuideId(guide.id); setVideoUrlInput(''); setVideoError(''); }}
+                                  >
+                                    {t('learn.page.addVideo')}
+                                  </button>
+                                ) : null}
+                              </div>
+                            );
+                          }
+                          return (
                             <div className="lrn-video-wrap">
-                              <iframe
-                                src={embedUrl}
-                                title={t('learn.page.videoTitle', { title: guide.title, defaultValue: `Video: ${guide.title}` })}
-                                sandbox="allow-scripts allow-same-origin allow-presentation"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                allowFullScreen
-                              />
-                            </div>
-                          ) : (
-                            <div className="lrn-video-placeholder">
-                              <PlayCircle size={28} aria-hidden="true" />
-                              <span>{t('learn.page.videoComingSoon', { defaultValue: 'Video coming soon' })}</span>
-                              {guide.video_pending ? (
+                              <div className="lrn-video-frame">
+                                <iframe
+                                  src={embedUrl}
+                                  title={t('learn.page.videoTitle', { title: guide.title, defaultValue: `Video: ${guide.title}` })}
+                                  sandbox="allow-scripts allow-same-origin allow-presentation"
+                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                  allowFullScreen
+                                />
+                              </div>
+                              {playlist.length > 1 && (
+                                <div className="lrn-video-nav">
+                                  <button
+                                    type="button"
+                                    className="lrn-video-nav-btn"
+                                    disabled={idx === 0}
+                                    aria-label={t('learn.page.videoPrev', { defaultValue: 'Previous video' })}
+                                    onClick={() => setVideoIdxByGuide((p) => ({ ...p, [guide.id]: idx - 1 }))}
+                                  >
+                                    <ChevronLeft size={16} aria-hidden="true" />
+                                  </button>
+                                  <span className="lrn-video-counter">
+                                    {t('learn.page.videoCounter', {
+                                      current: idx + 1,
+                                      total: playlist.length,
+                                      defaultValue: `Video ${idx + 1} of ${playlist.length}`,
+                                    })}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className="lrn-video-nav-btn"
+                                    disabled={idx === playlist.length - 1}
+                                    aria-label={t('learn.page.videoNext', { defaultValue: 'Next video' })}
+                                    onClick={() => setVideoIdxByGuide((p) => ({ ...p, [guide.id]: idx + 1 }))}
+                                  >
+                                    <ChevronRight size={16} aria-hidden="true" />
+                                  </button>
+                                </div>
+                              )}
+                              <div className="lrn-video-actions">
+                                {!current.pinned && user && (
+                                  <button
+                                    type="button"
+                                    className={`lrn-video-vote${current.viewerVoted ? ' is-active' : ''}`}
+                                    aria-pressed={!!current.viewerVoted}
+                                    onClick={() => handleVideoVote(guide.id, current)}
+                                  >
+                                    <ThumbsUp size={14} aria-hidden="true" />
+                                    <span>
+                                      {t('learn.page.videoHelpful', { defaultValue: 'Helpful' })}
+                                      {` (${current.votes || 0})`}
+                                    </span>
+                                  </button>
+                                )}
+                                {!current.pinned && user && !current.viewerFlagged && (
+                                  <button
+                                    type="button"
+                                    className="lrn-video-flag"
+                                    onClick={() => {
+                                      setFlagVideoKey(flagKey);
+                                      setFlagReason('unrelated');
+                                      setFlagNote('');
+                                      setFlagError('');
+                                    }}
+                                  >
+                                    <Flag size={14} aria-hidden="true" />
+                                    <span>{t('learn.page.videoFlag', { defaultValue: 'Flag' })}</span>
+                                  </button>
+                                )}
+                                {!current.pinned && current.viewerFlagged && (
+                                  <span className="lrn-video-flagged" role="status">
+                                    {t('learn.page.videoFlagged', { defaultValue: 'Flagged for review' })}
+                                  </span>
+                                )}
+                              </div>
+                              {flagVideoKey === flagKey && (
+                                <form
+                                  className="lrn-flag-form"
+                                  onSubmit={(e) => { e.preventDefault(); handleFlagSubmit(guide.id, current); }}
+                                >
+                                  <span className="lrn-flag-form-title">
+                                    {t('learn.page.videoFlagTitle', { defaultValue: 'Flag this video' })}
+                                  </span>
+                                  <label className="lrn-video-form-label" htmlFor={`lrn-flag-reason-${flagKey}`}>
+                                    {t('learn.page.videoFlagReason', { defaultValue: 'Reason' })}
+                                  </label>
+                                  <select
+                                    id={`lrn-flag-reason-${flagKey}`}
+                                    className="lrn-video-form-input"
+                                    value={flagReason}
+                                    onChange={(e) => setFlagReason(e.target.value)}
+                                  >
+                                    {['unrelated', 'spam', 'broken', 'inappropriate'].map((r) => (
+                                      <option key={r} value={r}>
+                                        {t(`learn.page.videoFlagReason${r[0].toUpperCase()}${r.slice(1)}`, { defaultValue: r })}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <label className="lrn-video-form-label" htmlFor={`lrn-flag-note-${flagKey}`}>
+                                    {t('learn.page.videoFlagNote', { defaultValue: 'Details (optional)' })}
+                                  </label>
+                                  <textarea
+                                    id={`lrn-flag-note-${flagKey}`}
+                                    className="lrn-video-form-input"
+                                    rows={2}
+                                    maxLength={500}
+                                    value={flagNote}
+                                    onChange={(e) => setFlagNote(e.target.value)}
+                                  />
+                                  {flagError && (
+                                    <span className="lrn-video-form-error" role="alert">{flagError}</span>
+                                  )}
+                                  <div className="lrn-video-form-actions">
+                                    <button type="submit" className="lrn-video-form-submit" disabled={flagSubmitting}>
+                                      {flagSubmitting
+                                        ? t('learn.page.videoSubmitting')
+                                        : t('learn.page.videoFlagSubmit', { defaultValue: 'Send flag' })}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="lrn-video-form-cancel"
+                                      onClick={() => { setFlagVideoKey(null); setFlagError(''); }}
+                                    >
+                                      {t('common.cancel', { defaultValue: 'Cancel' })}
+                                    </button>
+                                  </div>
+                                </form>
+                              )}
+                              {guide.video_pending && (
                                 <span className="lrn-video-pending" role="status">
                                   {t('learn.page.videoPendingNotice')}
                                 </span>
-                              ) : user && videoFormGuideId === guide.id ? (
+                              )}
+                              {user && videoFormGuideId === guide.id ? (
                                 <form
                                   className="lrn-video-form"
                                   onSubmit={(e) => { e.preventDefault(); handleVideoSubmit(guide.id); }}
@@ -4745,10 +4990,10 @@ export default function LearnModePage() {
                               ) : user ? (
                                 <button
                                   type="button"
-                                  className="lrn-add-video-btn"
+                                  className="lrn-add-video-btn lrn-add-video-btn--inline"
                                   onClick={() => { setVideoFormGuideId(guide.id); setVideoUrlInput(''); setVideoError(''); }}
                                 >
-                                  {t('learn.page.addVideo')}
+                                  {t('learn.page.addAnotherVideo', { defaultValue: 'Add another video' })}
                                 </button>
                               ) : null}
                             </div>

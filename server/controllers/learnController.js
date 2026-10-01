@@ -61,7 +61,7 @@ function dbRowToGuide(row) {
  * Reads published guides from learn_guides; falls back to the bundled
  * JSON catalog if the table is missing or empty (fail open).
  */
-exports.getGuides = async (_req, res) => {
+exports.getGuides = async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT id, title, category, difficulty, minutes, featured, intro,
@@ -72,8 +72,18 @@ exports.getGuides = async (_req, res) => {
     );
     if (rows.length) {
       const pending = await pendingVideoGuideIds(pool, rows.map((r) => r.id));
+      const playlists = await getGuideVideos(
+        rows.map((r) => r.id), req.user?.id || null
+      );
       return res.json({
-        guides: rows.map((r) => ({ ...dbRowToGuide(r), video_pending: pending.has(r.id) })),
+        guides: rows.map((r) => {
+          const guide = dbRowToGuide(r);
+          return {
+            ...guide,
+            video_pending: pending.has(r.id),
+            videos: withPinnedVideo(guide, playlists[r.id] || []),
+          };
+        }),
       });
     }
   } catch (_) {
@@ -1162,6 +1172,61 @@ async function pendingVideoGuideIds(db, guideIds) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Video playlists
+// ---------------------------------------------------------------------------
+// A guide's playlist is the admin-curated video (learn_guides.video_url,
+// pinned first) followed by community videos ordered by "most helpful"
+// votes (descending), then oldest first. Returned as guide.videos:
+// [{ id, url, provider, votes, pinned, viewerVoted }].
+const getGuideVideos = async (guideIds, viewerId = null) => {
+  if (!guideIds.length) return {};
+  const params = viewerId ? [guideIds, viewerId] : [guideIds];
+  try {
+    const { rows } = await pool.query(
+      `SELECT v.id, v.guide_id, v.video_url, v.video_provider,
+              COUNT(vt.user_id)::int AS votes,
+              ${viewerId ? 'BOOL_OR(vt.user_id = $2)' : 'FALSE'} AS viewer_voted
+         FROM learn_guide_videos v
+         LEFT JOIN learn_guide_video_votes vt ON vt.video_id = v.id
+        WHERE v.guide_id = ANY($1)
+        GROUP BY v.id, v.guide_id, v.video_url, v.video_provider, v.created_at
+        ORDER BY COUNT(vt.user_id) DESC, v.created_at ASC`,
+      params
+    );
+    const byGuide = {};
+    for (const r of rows) {
+      (byGuide[r.guide_id] = byGuide[r.guide_id] || []).push({
+        id: r.id,
+        url: r.video_url,
+        provider: r.video_provider,
+        votes: r.votes,
+        pinned: false,
+        viewerVoted: !!r.viewer_voted,
+      });
+    }
+    return byGuide;
+  } catch (_) {
+    return {}; // table absent (migration not yet applied) — fail open
+  }
+};
+
+// Prepend the pinned admin video (if any) to a guide's community playlist.
+const withPinnedVideo = (guide, community) => {
+  const videos = [...community];
+  if (guide.video_url) {
+    videos.unshift({
+      id: `admin:${guide.id}`,
+      url: guide.video_url,
+      provider: guide.video_provider,
+      votes: 0,
+      pinned: true,
+      viewerVoted: false,
+    });
+  }
+  return videos;
+};
+
 /**
  * POST /api/learn/guides/:id/videos
  * Auth required. Body: { video_url }
@@ -1176,12 +1241,28 @@ exports.submitGuideVideo = async (req, res, next) => {
       ));
     }
     const { rows: guideRows } = await pool.query(
-      `SELECT id, video_url FROM learn_guides WHERE id = $1 AND status = 'published'`,
+      `SELECT id FROM learn_guides WHERE id = $1 AND status = 'published'`,
       [guideId]
     );
     if (!guideRows.length) return next(new AppError('Guide not found.', 404, 'guide_not_found'));
-    if (guideRows[0].video_url) {
-      return next(new AppError('This guide already has a video.', 409, 'video_exists'));
+    // Same link cannot be submitted twice for one guide — whether it is
+    // already pending or already live in the playlist.
+    const { rows: dupRows } = await pool.query(
+      `SELECT 1 FROM learn_guide_video_submissions
+        WHERE guide_id = $1 AND video_url = $2 AND status = 'pending'
+       UNION
+       SELECT 1 FROM learn_guide_videos
+        WHERE guide_id = $1 AND video_url = $2
+       UNION
+       SELECT 1 FROM learn_guides
+        WHERE id = $1 AND video_url = $2
+       LIMIT 1`,
+      [guideId, normalized.url]
+    ).catch(() => ({ rows: [] }));
+    if (dupRows.length) {
+      return next(new AppError(
+        'This video is already on this guide.', 409, 'video_duplicate'
+      ));
     }
     try {
       const { rows } = await pool.query(
@@ -1195,7 +1276,7 @@ exports.submitGuideVideo = async (req, res, next) => {
     } catch (err) {
       if (err.code === '23505') {
         return next(new AppError(
-          'A video is already pending review for this guide.', 409, 'video_pending_exists'
+          'This video is already pending review for this guide.', 409, 'video_duplicate'
         ));
       }
       throw err;
@@ -1246,12 +1327,17 @@ async function decideVideoSubmission(id, decision, adminId) {
     if (!sub) { await client.query('ROLLBACK'); return { error: 'not_found' }; }
     if (sub.status !== 'pending') { await client.query('ROLLBACK'); return { error: 'already_decided' }; }
     if (decision === 'approve') {
-      const attached = await client.query(
-        `UPDATE learn_guides SET video_url = $1, video_provider = $2
-          WHERE id = $3 AND video_url IS NULL`,
-        [sub.video_url, sub.video_provider, sub.guide_id]
+      // Append to the guide's playlist. If the same link landed meanwhile
+      // (auto-publish race), the submission is superseded.
+      const inserted = await client.query(
+        `INSERT INTO learn_guide_videos
+           (guide_id, video_url, video_provider, source, submitted_by)
+         VALUES ($1, $2, $3, 'community', $4)
+         ON CONFLICT (guide_id, video_url) DO NOTHING
+         RETURNING id`,
+        [sub.guide_id, sub.video_url, sub.video_provider, sub.submitted_by]
       );
-      const finalStatus = attached.rowCount > 0 ? 'live' : 'superseded';
+      const finalStatus = inserted.rowCount > 0 ? 'live' : 'superseded';
       await client.query(
         `UPDATE learn_guide_video_submissions
             SET status = $1, decided_at = NOW(), decided_by = $2 WHERE id = $3`,
@@ -1324,14 +1410,19 @@ exports.publishDueGuideVideos = async (db = pool, { limit = 100 } = {}) => {
     const client = await db.connect();
     try {
       await client.query('BEGIN');
-      const attached = await client.query(
-        `UPDATE learn_guides SET video_url = $1, video_provider = $2
-          WHERE id = $3 AND video_url IS NULL
-            AND EXISTS (SELECT 1 FROM learn_guide_video_submissions
-                        WHERE id = $4 AND status = 'pending')`,
-        [sub.video_url, sub.video_provider, sub.guide_id, sub.id]
+      // Append to the playlist; a duplicate link (submitted twice, or an
+      // admin approve racing the worker) supersedes this submission.
+      const inserted = await client.query(
+        `INSERT INTO learn_guide_videos
+           (guide_id, video_url, video_provider, source, submitted_by)
+         SELECT $1, $2, $3, 'community', $4
+          WHERE EXISTS (SELECT 1 FROM learn_guide_video_submissions
+                        WHERE id = $5 AND status = 'pending')
+         ON CONFLICT (guide_id, video_url) DO NOTHING
+         RETURNING id`,
+        [sub.guide_id, sub.video_url, sub.video_provider, sub.submitted_by, sub.id]
       );
-      const finalStatus = attached.rowCount > 0 ? 'live' : 'superseded';
+      const finalStatus = inserted.rowCount > 0 ? 'live' : 'superseded';
       await client.query(
         `UPDATE learn_guide_video_submissions
             SET status = $1, decided_at = NOW(), decided_by = NULL
@@ -1348,4 +1439,232 @@ exports.publishDueGuideVideos = async (db = pool, { limit = 100 } = {}) => {
     }
   }
   return { published, superseded };
+};
+
+// ── Video votes ("most helpful") ─────────────────────────────────────────────
+
+/**
+ * POST /api/learn/videos/:videoId/vote
+ * Auth required. Toggles the viewer's "most helpful" vote on a community
+ * video. The pinned admin video (id "admin:<guideId>") cannot be voted on.
+ */
+exports.toggleVideoVote = async (req, res, next) => {
+  try {
+    const videoId = String(req.params.videoId || '');
+    if (videoId.startsWith('admin:')) {
+      return next(new AppError('The featured video cannot be voted on.', 400, 'video_vote_pinned'));
+    }
+    const { rows: vrows } = await pool.query(
+      'SELECT id FROM learn_guide_videos WHERE id = $1', [videoId]
+    );
+    if (!vrows.length) return next(new AppError('Video not found.', 404, 'video_not_found'));
+    const { rows: existing } = await pool.query(
+      'SELECT 1 FROM learn_guide_video_votes WHERE video_id = $1 AND user_id = $2',
+      [videoId, req.user.id]
+    );
+    let voted;
+    if (existing.length) {
+      await pool.query(
+        'DELETE FROM learn_guide_video_votes WHERE video_id = $1 AND user_id = $2',
+        [videoId, req.user.id]
+      );
+      voted = false;
+    } else {
+      await pool.query(
+        `INSERT INTO learn_guide_video_votes (video_id, user_id)
+         VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+        [videoId, req.user.id]
+      );
+      voted = true;
+    }
+    const { rows } = await pool.query(
+      'SELECT COUNT(*)::int AS votes FROM learn_guide_video_votes WHERE video_id = $1',
+      [videoId]
+    );
+    res.json({ success: true, voted, votes: rows[0].votes });
+  } catch (err) {
+    next(new AppError('Failed to record vote', 500, 'video_vote_failed'));
+  }
+};
+
+// ── Video flags ──────────────────────────────────────────────────────────────
+
+const FLAG_REASONS = new Set(['unrelated', 'spam', 'broken', 'inappropriate']);
+
+/**
+ * POST /api/learn/videos/:videoId/flags
+ * Auth required. Body: { reason, note? }. One open flag per user per video.
+ */
+exports.flagVideo = async (req, res, next) => {
+  try {
+    const videoId = String(req.params.videoId || '');
+    if (videoId.startsWith('admin:')) {
+      return next(new AppError('The featured video cannot be flagged.', 400, 'video_flag_pinned'));
+    }
+    const reason = String(req.body?.reason || '');
+    if (!FLAG_REASONS.has(reason)) {
+      return next(new AppError('Please choose a reason for the flag.', 400, 'invalid_flag_reason'));
+    }
+    const note = typeof req.body?.note === 'string'
+      ? req.body.note.trim().slice(0, 500) || null
+      : null;
+    const { rows: vrows } = await pool.query(
+      'SELECT id FROM learn_guide_videos WHERE id = $1', [videoId]
+    );
+    if (!vrows.length) return next(new AppError('Video not found.', 404, 'video_not_found'));
+    try {
+      await pool.query(
+        `INSERT INTO learn_guide_video_flags (video_id, user_id, reason, note)
+         VALUES ($1, $2, $3, $4)`,
+        [videoId, req.user.id, reason, note]
+      );
+    } catch (err) {
+      if (err.code === '23505') {
+        return next(new AppError(
+          'You have already flagged this video.', 409, 'flag_duplicate'
+        ));
+      }
+      throw err;
+    }
+    res.status(201).json({ success: true });
+  } catch (err) {
+    next(new AppError('Failed to flag video', 500, 'video_flag_failed'));
+  }
+};
+
+/**
+ * GET /api/learn/admin/video-flags?status=open
+ * Admin — flagged videos awaiting review.
+ */
+exports.adminListVideoFlags = async (req, res, next) => {
+  try {
+    const status = String(req.query.status || 'open');
+    const allowed = new Set(['open', 'resolved', 'dismissed']);
+    if (!allowed.has(status)) return next(new AppError('Invalid status filter.', 400, 'bad_status'));
+    const { rows } = await pool.query(
+      `SELECT f.id, f.video_id, f.reason, f.note, f.status, f.created_at,
+              v.guide_id, g.title AS guide_title, v.video_url, v.video_provider,
+              (SELECT COUNT(*)::int FROM learn_guide_video_flags
+                WHERE video_id = f.video_id AND status = 'open') AS open_flags,
+              u.email AS flagged_by_email, d.email AS decided_by_email
+         FROM learn_guide_video_flags f
+         JOIN learn_guide_videos v ON v.id = f.video_id
+         LEFT JOIN learn_guides g ON g.id = v.guide_id
+         LEFT JOIN users u ON u.id = f.user_id
+         LEFT JOIN users d ON d.id = f.decided_by
+        WHERE f.status = $1
+        ORDER BY f.created_at DESC
+        LIMIT 200`,
+      [status]
+    );
+    res.json({ success: true, flags: rows });
+  } catch (err) {
+    next(new AppError('Failed to load video flags', 500, 'video_flags_failed'));
+  }
+};
+
+async function decideVideoFlag(flagId, adminId, action, targetGuideId = null) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `SELECT id, video_id, status FROM learn_guide_video_flags
+        WHERE id = $1 FOR UPDATE`,
+      [flagId]
+    );
+    const flag = rows[0];
+    if (!flag) { await client.query('ROLLBACK'); return { error: 'not_found' }; }
+    if (flag.status !== 'open') { await client.query('ROLLBACK'); return { error: 'already_decided' }; }
+
+    if (action === 'dismiss') {
+      await client.query(
+        `UPDATE learn_guide_video_flags
+            SET status = 'dismissed', decided_at = NOW(), decided_by = $1
+          WHERE id = $2`,
+        [adminId, flagId]
+      );
+    } else if (action === 'move') {
+      const { rows: grows } = await client.query(
+        `SELECT id FROM learn_guides WHERE id = $1 AND status = 'published'`,
+        [targetGuideId]
+      );
+      if (!grows.length) { await client.query('ROLLBACK'); return { error: 'bad_guide' }; }
+      try {
+        await client.query(
+          'UPDATE learn_guide_videos SET guide_id = $1 WHERE id = $2',
+          [targetGuideId, flag.video_id]
+        );
+      } catch (err) {
+        await client.query('ROLLBACK');
+        if (err.code === '23505') return { error: 'duplicate' };
+        throw err;
+      }
+      // Votes travel with the video; close all its open flags as resolved.
+      await client.query(
+        `UPDATE learn_guide_video_flags
+            SET status = 'resolved', decided_at = NOW(), decided_by = $1
+          WHERE video_id = $2 AND status = 'open'`,
+        [adminId, flag.video_id]
+      );
+    } else if (action === 'delete') {
+      await client.query('DELETE FROM learn_guide_videos WHERE id = $1', [flag.video_id]);
+      await client.query(
+        `UPDATE learn_guide_video_flags
+            SET status = 'resolved', decided_at = NOW(), decided_by = $1
+          WHERE video_id = $2 AND status = 'open'`,
+        [adminId, flag.video_id]
+      );
+    }
+    await client.query('COMMIT');
+    return { ok: true };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+const videoFlagDecisionError = (r, next, action) => {
+  if (r.error === 'not_found') return next(new AppError('Flag not found.', 404, 'video_flag_not_found'));
+  if (r.error === 'already_decided') return next(new AppError('Flag was already decided.', 409, 'video_flag_already_decided'));
+  if (r.error === 'bad_guide') return next(new AppError('Target guide not found.', 404, 'guide_not_found'));
+  if (r.error === 'duplicate') return next(new AppError('That guide already has this video.', 409, 'video_duplicate'));
+  return next(new AppError(`Failed to ${action} video flag`, 500, 'video_flag_decision_failed'));
+};
+
+/** POST /api/learn/admin/video-flags/:id/dismiss */
+exports.adminDismissVideoFlag = async (req, res, next) => {
+  try {
+    const r = await decideVideoFlag(req.params.id, req.user.id, 'dismiss');
+    if (r.error) return videoFlagDecisionError(r, next, 'dismiss');
+    res.json({ success: true });
+  } catch (err) {
+    next(new AppError('Failed to dismiss video flag', 500, 'video_flag_decision_failed'));
+  }
+};
+
+/**
+ * POST /api/learn/admin/video-flags/:id/move  Body: { guide_id }
+ * Moves the flagged video to the right guide; its votes travel with it.
+ */
+exports.adminMoveVideoFlag = async (req, res, next) => {
+  try {
+    const r = await decideVideoFlag(req.params.id, req.user.id, 'move', String(req.body?.guide_id || ''));
+    if (r.error) return videoFlagDecisionError(r, next, 'move');
+    res.json({ success: true });
+  } catch (err) {
+    next(new AppError('Failed to move video', 500, 'video_flag_decision_failed'));
+  }
+};
+
+/** POST /api/learn/admin/video-flags/:id/delete — deletes the flagged video. */
+exports.adminDeleteVideoFlag = async (req, res, next) => {
+  try {
+    const r = await decideVideoFlag(req.params.id, req.user.id, 'delete');
+    if (r.error) return videoFlagDecisionError(r, next, 'delete');
+    res.json({ success: true });
+  } catch (err) {
+    next(new AppError('Failed to delete video', 500, 'video_flag_decision_failed'));
+  }
 };

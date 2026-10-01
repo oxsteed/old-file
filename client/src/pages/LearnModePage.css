@@ -743,21 +743,121 @@ html.dark .lrn-guide-detail {
 
 /* Video */
 .lrn-video-wrap {
+  margin-bottom: 1.25rem;
+}
+
+.lrn-video-frame {
   position: relative;
   width: 100%;
   aspect-ratio: 16/9;
   border-radius: .75rem;
   overflow: hidden;
-  margin-bottom: 1.25rem;
   background: #000;
 }
 
-.lrn-video-wrap iframe {
+.lrn-video-frame iframe {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   border: none;
+}
+
+/* Playlist navigation (previous / next / counter) */
+.lrn-video-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .75rem;
+  margin-top: .6rem;
+}
+.lrn-video-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  background: transparent;
+  color: var(--app-text, #0f172a);
+  cursor: pointer;
+}
+.lrn-video-nav-btn:disabled {
+  opacity: .35;
+  cursor: default;
+}
+.lrn-video-nav-btn:not(:disabled):hover {
+  background: var(--border-color, #f1f5f9);
+}
+.lrn-video-counter {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--app-text-faint, #64748b);
+  min-width: 5.5rem;
+  text-align: center;
+}
+
+/* Vote + flag actions under the player */
+.lrn-video-actions {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-top: .6rem;
+  flex-wrap: wrap;
+}
+.lrn-video-vote,
+.lrn-video-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .4rem .8rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  background: transparent;
+  color: var(--app-text, #0f172a);
+  font-size: .78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.lrn-video-vote:hover,
+.lrn-video-flag:hover {
+  background: var(--border-color, #f1f5f9);
+}
+.lrn-video-vote.is-active {
+  border-color: #16a34a;
+  color: #16a34a;
+  background: #16a34a14;
+}
+.lrn-video-flagged {
+  font-size: .78rem;
+  font-weight: 500;
+  color: var(--app-text-faint, #64748b);
+}
+
+/* Flag form */
+.lrn-flag-form {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  margin-top: .6rem;
+  padding: .75rem;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: .75rem;
+  text-align: left;
+}
+.lrn-flag-form-title {
+  font-size: .82rem;
+  font-weight: 700;
+  color: var(--app-text, #0f172a);
+}
+.lrn-flag-form textarea.lrn-video-form-input {
+  resize: vertical;
+  min-height: 3rem;
+}
+.lrn-add-video-btn--inline {
+  flex-basis: auto;
+  margin-top: .6rem;
 }
 
 .lrn-video-placeholder {

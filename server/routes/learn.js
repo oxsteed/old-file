@@ -6,7 +6,7 @@
 const express  = require('express');
 const rateLimit = require('express-rate-limit');
 const router   = express.Router();
-const { authenticate } = require('../middleware/auth');
+const { authenticate, optionalAuth } = require('../middleware/auth');
 const { requireAdmin, requirePermission }  = require('../middleware/adminAuth');
 
 // Click tracking is a public, anonymous endpoint — give it its own tight
@@ -45,6 +45,12 @@ const {
   submitGuide,
   getMySubmissions,
   submitGuideVideo,
+  toggleVideoVote,
+  flagVideo,
+  adminListVideoFlags,
+  adminDismissVideoFlag,
+  adminMoveVideoFlag,
+  adminDeleteVideoFlag,
   getBadges,
   trackMarketplaceClick,
   adminListSubmissions,
@@ -73,7 +79,8 @@ const {
 } = require('../controllers/learnController');
 
 // ── Public routes (no auth) ────────────────────────────────────
-router.get('/guides',                getGuides);
+// optionalAuth lets signed-in users see their own votes on each video.
+router.get('/guides',                optionalAuth, getGuides);
 router.get('/stats',                 getGuideStats);
 router.post('/views',                recordView);          // auth optional — req.user may be null
 router.post('/track',                marketplaceTrackLimiter, trackMarketplaceClick);
@@ -103,6 +110,27 @@ router.post('/submissions',          authenticate, submitGuide);
 router.get('/submissions/mine',      authenticate, getMySubmissions);
 // Community video for an existing guide — 24h auto-publish unless blocked.
 router.post('/guides/:id/videos',    authenticate, videoSubmitLimiter, submitGuideVideo);
+// Video votes and flags — tighter buckets per account.
+const videoVoteLimiter = rateLimit({
+  ...createTrackStoreOption('rl:learn_video_vote:'),
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 100,
+  keyGenerator: (req) => (req.user ? `u:${req.user.id}` : req.ip),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please try again later.', retryAfter: '1 hour' },
+});
+const videoFlagLimiter = rateLimit({
+  ...createTrackStoreOption('rl:learn_video_flag:'),
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 30,
+  keyGenerator: (req) => (req.user ? `u:${req.user.id}` : req.ip),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please try again later.', retryAfter: '1 hour' },
+});
+router.post('/videos/:videoId/vote',  authenticate, videoVoteLimiter, toggleVideoVote);
+router.post('/videos/:videoId/flags', authenticate, videoFlagLimiter, flagVideo);
 
 // ── Admin routes ───────────────────────────────────────────────
 router.get('/admin/submissions',         authenticate, requireAdmin, requirePermission('moderate_content'), adminListSubmissions);
@@ -112,6 +140,11 @@ router.patch('/admin/submissions/:id',   authenticate, requireAdmin, requirePerm
 router.get('/admin/video-submissions',              authenticate, requireAdmin, requirePermission('moderate_content'), adminListVideoSubmissions);
 router.post('/admin/video-submissions/:id/approve', authenticate, requireAdmin, requirePermission('moderate_content'), adminApproveVideoSubmission);
 router.post('/admin/video-submissions/:id/block',   authenticate, requireAdmin, requirePermission('moderate_content'), adminBlockVideoSubmission);
+// Flagged community videos — dismiss, move to the right guide, or delete
+router.get('/admin/video-flags',                 authenticate, requireAdmin, requirePermission('moderate_content'), adminListVideoFlags);
+router.post('/admin/video-flags/:id/dismiss',    authenticate, requireAdmin, requirePermission('moderate_content'), adminDismissVideoFlag);
+router.post('/admin/video-flags/:id/move',       authenticate, requireAdmin, requirePermission('moderate_content'), adminMoveVideoFlag);
+router.post('/admin/video-flags/:id/delete',     authenticate, requireAdmin, requirePermission('moderate_content'), adminDeleteVideoFlag);
 
 // Guide catalog CRUD — admin only
 router.get('/admin/guides',        authenticate, requireAdmin, requirePermission('moderate_content'), adminListGuides);
