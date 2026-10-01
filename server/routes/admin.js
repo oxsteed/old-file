@@ -329,6 +329,14 @@ router.post('/super/oxsteed-credit/cards/:cardId/fulfillment', requireSuperAdmin
 router.post('/super/oxsteed-credit/cards/:cardId/revoke', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCardCtrl.revokeAdminCard);
 router.get('/super/oxsteed-credit/rail', requireSuperAdmin, oxsteedCreditCtrl.getAdminCreditRail);
 router.post('/super/oxsteed-credit/rail', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.updateAdminCreditRail);
+// Operator freeze on money initiation (external reconciliation, migration
+// 637). Independent of the rail enabled/suspended toggle above.
+router.post('/super/oxsteed-credit/rail/freeze', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.freezeAdminCreditRail);
+router.post('/super/oxsteed-credit/rail/unfreeze', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.unfreezeAdminCreditRail);
+// External reconciliation vs Stripe (Phase 4): run history and manual
+// triggers. Manual periods are capped at 31 days by the service.
+router.get('/super/oxsteed-credit/external-reconciliation', requireSuperAdmin, oxsteedCreditCtrl.listAdminCreditExternalReconciliationRuns);
+router.post('/super/oxsteed-credit/external-reconciliation', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.runAdminCreditExternalReconciliation);
 router.get('/super/oxsteed-credit/overview', requireSuperAdmin, oxsteedCreditCtrl.getAdminOverview);
 router.post('/super/oxsteed-credit/notifications/:notificationId/retry', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.retryAdminCreditNotification);
 router.get('/super/oxsteed-credit/accounts', requireSuperAdmin, oxsteedCreditCtrl.listAdminCustomerAccounts);

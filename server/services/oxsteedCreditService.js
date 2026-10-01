@@ -295,11 +295,185 @@ async function lockCreditRail(client) {
   );
 }
 
-async function assertCreditRailEnabled(client) {
+async function assertCreditRailEnabled(client, { bypassFreeze = false } = {}) {
   await lockCreditRail(client);
   if (!(await isCreditRailEnabled(client))) {
     throw new AppError('OxSteed Credit is temporarily suspended', 503, 'credit_rail_suspended');
   }
+  // Operator freeze (migration 637): fail closed on every money-initiation
+  // path. Webhook-driven COMPLETIONS of already-initiated external events
+  // pass bypassFreeze: true (completeCreditTopupFromWebhook,
+  // confirmSettlementPayoutFromTransfer): they resolve in-flight money that
+  // Stripe already moved, and blocking them would manufacture the
+  // missing-in-ledger condition this reconciliation exists to catch. The
+  // rail-enabled gate above is never bypassed.
+  if (!bypassFreeze) {
+    await assertCreditRailNotFrozen(client);
+  }
+}
+
+/**
+ * Phase 4 operator freeze (migration 637). Distinct from the rail
+ * enabled/suspended kill switch: a freeze is engaged automatically by a
+ * material external-reconciliation finding, or manually by a super-admin,
+ * and blocks new money initiation while in-flight completions keep
+ * resolving. Unknown freeze state fails closed (503 credit_rail_frozen).
+ */
+async function assertCreditRailNotFrozen(client) {
+  let rows;
+  try {
+    ({ rows } = await client.query(
+      `SELECT id, reason, frozen_at
+         FROM oxsteed_credit_rail_freezes
+        WHERE cleared_at IS NULL
+        LIMIT 1`
+    ));
+  } catch (error) {
+    // Fail closed: if the freeze state cannot be read, money must not move
+    // until an operator can prove the rail is clear.
+    throw new AppError('OxSteed Credit freeze state is unavailable', 503, 'credit_rail_frozen');
+  }
+  if (rows[0]) {
+    throw new AppError(
+      'OxSteed Credit is temporarily frozen pending external reconciliation review',
+      503,
+      'credit_rail_frozen',
+      { freezeId: String(rows[0].id), frozenAt: rows[0].frozen_at }
+    );
+  }
+}
+
+function formatRailFreeze(row) {
+  if (!row) return null;
+  return {
+    id: String(row.id),
+    reason: row.reason || null,
+    incidentRef: row.incident_ref || null,
+    frozenBy: row.frozen_by ? String(row.frozen_by) : null,
+    frozenAt: row.frozen_at || null,
+    clearedAt: row.cleared_at || null,
+    clearedBy: row.cleared_by ? String(row.cleared_by) : null,
+    clearReason: row.clear_reason || null,
+  };
+}
+
+async function getOpenCreditRailFreeze(client = pool) {
+  const { rows } = await client.query(
+    `SELECT id, reason, incident_ref, frozen_by, frozen_at,
+            cleared_at, cleared_by, clear_reason
+       FROM oxsteed_credit_rail_freezes
+      WHERE cleared_at IS NULL
+      ORDER BY frozen_at DESC
+      LIMIT 1`
+  );
+  return rows[0] || null;
+}
+
+async function isCreditRailFrozen(client = pool) {
+  return (await getOpenCreditRailFreeze(client)) !== null;
+}
+
+async function insertRailFreezeAudit(client, { actionType, actorUserId, reason, correlationId, requestIp, beforeState, afterState, systemEngaged = false }) {
+  await client.query(
+    `INSERT INTO oxsteed_credit_audit_events
+       (action_type, actor_user_id, resource_type, resource_id, reason,
+        correlation_id, request_ip, before_state, after_state, metadata)
+     VALUES ($1, $2, 'credit_rail', 'oxsteed_credit_rail_freeze', $3, $4, $5, $6::jsonb, $7::jsonb, $8::jsonb)`,
+    [
+      actionType,
+      actorUserId || null,
+      reason,
+      normalizeString(correlationId, 160),
+      requestIp || null,
+      JSON.stringify(beforeState || {}),
+      JSON.stringify(afterState || {}),
+      JSON.stringify({ operatorFreeze: true, systemEngaged: systemEngaged === true }),
+    ]
+  );
+}
+
+/**
+ * Engage the operator freeze. Idempotent: when a freeze is already open it
+ * is returned as a replay instead of creating a second row (the partial
+ * unique index uq_credit_rail_freeze_open is the backstop; the advisory
+ * lock makes the check-then-insert safe under concurrency).
+ *
+ * Manual freezes require an identified admin actor. The external
+ * reconciliation job engages automatically (systemEngaged: true) when a
+ * material finding crosses the threshold; there is no admin actor in that
+ * path, so the actor check is skipped and the audit trail records the
+ * automatic engagement.
+ */
+async function freezeCreditRail({ reason, incidentRef = null, actorUserId = null, systemEngaged = false, correlationId = null, requestIp = null }) {
+  const normalizedReason = normalizeString(reason, 1000);
+  if (!normalizedReason) {
+    throw new AppError('A reason is required to freeze the Credit rail', 400, 'credit_rail_freeze_reason_required');
+  }
+  if (!systemEngaged) {
+    requireAdministrativeActor(actorUserId, 'An identified administrator is required to freeze the Credit rail', 'credit_rail_freeze_actor_required');
+  }
+  return withTransaction(pool, async (client) => {
+    await client.query(`SELECT pg_advisory_xact_lock(hashtext('oxsteed-credit-rail-freeze'))`);
+    const existing = await getOpenCreditRailFreeze(client);
+    if (existing) {
+      return { freeze: formatRailFreeze(existing), engaged: false, replayed: true };
+    }
+    const { rows } = await client.query(
+      `INSERT INTO oxsteed_credit_rail_freezes (reason, incident_ref, frozen_by)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+      [normalizedReason, normalizeString(incidentRef, 255), systemEngaged ? null : (actorUserId || null)]
+    );
+    const freeze = formatRailFreeze(rows[0]);
+    await insertRailFreezeAudit(client, {
+      actionType: 'credit.rail.frozen',
+      actorUserId: systemEngaged ? null : actorUserId,
+      reason: normalizedReason,
+      correlationId,
+      requestIp,
+      beforeState: { frozen: false },
+      afterState: { frozen: true, freezeId: freeze.id, incidentRef: freeze.incidentRef, systemEngaged },
+      systemEngaged,
+    });
+    return { freeze, engaged: true, replayed: false };
+  }, 'credit_rail_freeze');
+}
+
+/**
+ * Clear the open operator freeze. Records cleared_by/cleared_at and the
+ * audit event credit.rail.unfrozen; no-op replay when nothing is frozen.
+ */
+async function unfreezeCreditRail({ reason, actorUserId = null, correlationId = null, requestIp = null }) {
+  const normalizedReason = normalizeString(reason, 1000);
+  if (!normalizedReason) {
+    throw new AppError('A reason is required to unfreeze the Credit rail', 400, 'credit_rail_unfreeze_reason_required');
+  }
+  requireAdministrativeActor(actorUserId, 'An identified administrator is required to unfreeze the Credit rail', 'credit_rail_unfreeze_actor_required');
+  return withTransaction(pool, async (client) => {
+    await client.query(`SELECT pg_advisory_xact_lock(hashtext('oxsteed-credit-rail-freeze'))`);
+    const existing = await getOpenCreditRailFreeze(client);
+    if (!existing) {
+      return { freeze: null, cleared: false, replayed: true };
+    }
+    const { rows } = await client.query(
+      `UPDATE oxsteed_credit_rail_freezes
+          SET cleared_at = NOW(), cleared_by = $2, clear_reason = $3
+        WHERE id = $1 AND cleared_at IS NULL
+        RETURNING *`,
+      [existing.id, actorUserId || null, normalizedReason]
+    );
+    const freeze = formatRailFreeze(rows[0]);
+    await insertRailFreezeAudit(client, {
+      actionType: 'credit.rail.unfrozen',
+      actorUserId,
+      reason: normalizedReason,
+      correlationId,
+      requestIp,
+      beforeState: { frozen: true, freezeId: freeze.id },
+      afterState: { frozen: false, freezeId: freeze.id },
+    });
+    return { freeze, cleared: true, replayed: false };
+  }, 'credit_rail_unfreeze');
 }
 
 function formatCreditRailStatus(row) {
@@ -348,8 +522,19 @@ async function getCreditRailStatus() {
         LIMIT 1`
     );
     if (!rows[0]) throw new Error('OxSteed Credit feature flag is missing');
+    // Freeze state is best-effort on the read path (the enforcement gate
+    // fails closed instead). A lookup failure must not break the status
+    // endpoint or older callers.
+    let openFreeze = null;
+    try {
+      openFreeze = formatRailFreeze(await getOpenCreditRailFreeze());
+    } catch (freezeError) {
+      logger.warn('OxSteed Credit freeze state unavailable for rail status', { error: freezeError.message });
+    }
     return {
       ...formatCreditRailStatus(rows[0]),
+      frozen: openFreeze !== null,
+      freeze: openFreeze,
       prerequisites: getCreditRailPrerequisites(),
     };
   } catch (error) {
@@ -3050,6 +3235,11 @@ module.exports = {
   CARD_PIN_LOCKOUT_MINUTES,
   isCreditRailEnabled,
   assertCreditRailEnabled,
+  assertCreditRailNotFrozen,
+  isCreditRailFrozen,
+  getOpenCreditRailFreeze,
+  freezeCreditRail,
+  unfreezeCreditRail,
   getCreditRailStatus,
   getCreditRailPrerequisites,
   getCustomerCreditRailStatus,

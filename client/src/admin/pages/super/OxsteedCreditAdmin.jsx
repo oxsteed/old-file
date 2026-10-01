@@ -12,6 +12,7 @@ import {
   Power,
   RefreshCw,
   ShieldCheck,
+  Snowflake,
   Store,
   WalletCards,
 } from 'lucide-react';
@@ -240,6 +241,11 @@ const ADMIN_SECTION_TRANSLATIONS = {
     title: 'adminLedgerCheckHistory',
     detail: 'adminReconciliationHistoryDescription',
   },
+  'External reconciliation': {
+    eyebrow: 'adminExternalReconciliationHistory',
+    title: 'adminExternalReconciliationTitle',
+    detail: 'adminExternalReconciliationDescription',
+  },
   Disputes: {
     eyebrow: 'adminCreditDisputes',
     title: 'adminCreditDisputeQueue',
@@ -412,6 +418,29 @@ function ReconciliationHistory({
   </Section>;
 }
 
+function ExternalReconciliationHistory({
+  externalReconRuns,
+  externalReconStatus,
+  setExternalReconStatus,
+  externalReconCurrency,
+  setExternalReconCurrency,
+  currencyOptions,
+  externalReconPagination,
+  loadingMoreExternalReconRuns,
+  loading,
+  busy,
+  load,
+  externalReconReason,
+  setExternalReconReason,
+  triggerExternalReconciliation,
+}) {
+  const { t } = useTranslation('credit');
+  const findingCount = (run) => Number(run?.metadata?.findings?.length || 0);
+  return <Section eyebrow="External reconciliation" title="Stripe check history" detail="Each run compares the journal against Stripe top-ups, partner payouts, and partner commitments for the selected currency and period. A material finding freezes the Credit rail automatically; unfreeze it from the rail section only after the finding is resolved." action={<div className="flex flex-wrap items-center gap-2"><form onSubmit={triggerExternalReconciliation} className="flex flex-wrap items-center gap-2"><input aria-label={t('adminRequiredAuditReason')} value={externalReconReason} onChange={(event) => setExternalReconReason(event.target.value)} maxLength={1000} placeholder={t('adminReasonForReconciliationPlaceholder')} className="w-56 rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-gray-200 outline-none placeholder:text-gray-600 focus:border-orange-400" /><button type="submit" disabled={loading || busy || !externalReconReason.trim()} className="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-3 py-2 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-50"><History className="h-3.5 w-3.5" /> {t('adminTriggerExternalReconciliation')}</button></form><label className="flex items-center gap-2 text-xs font-semibold text-gray-500"><span>{t('adminStatus')}</span><select aria-label={t('adminStatus')} value={externalReconStatus} onChange={(event) => setExternalReconStatus(event.target.value)} disabled={loading || busy} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 outline-none focus:border-orange-400"><option value="">{t('adminAllStatuses')}</option><option value="completed">completed</option><option value="completed_with_findings">completed_with_findings</option><option value="running">running</option><option value="failed">failed</option></select></label><label className="flex items-center gap-2 text-xs font-semibold text-gray-500"><span>{t('adminCurrency')}</span><select aria-label={t('adminCurrency')} value={externalReconCurrency} onChange={(event) => setExternalReconCurrency(event.target.value)} disabled={loading || busy} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 outline-none focus:border-orange-400"><option value="all">{t('adminAllCurrencies')}</option>{currencyOptions.map((currency) => <option key={currency} value={currency}>{currency}</option>)}</select></label>{externalReconPagination.hasMore && <button type="button" onClick={() => load({ quiet: true, appendExternalReconRuns: true, externalReconOffset: externalReconPagination.nextOffset || 0 })} disabled={loadingMoreExternalReconRuns || loading || busy} className="rounded-lg border border-sky-500/30 px-3 py-2 text-xs font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{loadingMoreExternalReconRuns ? t('adminLoading') : t('adminLoadOlder')}</button>}</div>}>
+    <div className="mt-5 overflow-x-auto rounded-xl border border-gray-800"><table className="min-w-[1080px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">{t('adminRun')}</th><th className="px-3 py-3 font-medium">{t('adminRequestedPeriod')}</th><th className="px-3 py-3 font-medium">{t('adminResult')}</th><th className="px-3 py-3 font-medium">{t('adminTopups')}</th><th className="px-3 py-3 font-medium">{t('adminPayouts')}</th><th className="px-3 py-3 font-medium">{t('adminPartners')}</th><th className="px-3 py-3 font-medium">{t('adminRailFreeze')}</th></tr></thead><tbody className="divide-y divide-gray-800">{!externalReconRuns.length ? <tr><td colSpan="7" className="px-3 py-10 text-center text-gray-500">{t('adminNoExternalReconciliationRuns')}</td></tr> : externalReconRuns.map((run) => <tr key={run.id}><td className="px-3 py-3 text-gray-400">{dateTime(run.startedAt)}<p className="mt-1 font-mono text-[10px] text-gray-700">{run.id}</p></td><td className="px-3 py-3 text-gray-400">{dateTime(run.periodStart)}<br />{t('adminTo')} {dateTime(run.periodEnd)}<p className="mt-1 text-gray-600">{run.currencyCode}</p></td><td className="px-3 py-3"><Badge status={run.status} />{findingCount(run) > 0 && <p className={`mt-1 font-semibold ${run.material ? 'text-red-300' : 'text-amber-300'}`}>{findingCount(run)} {t('adminFindings')}{run.material ? ` · ${t('adminMaterial')}` : ''}</p>}{run.errorMessage && <p className="mt-1 break-all text-red-400">{run.errorMessage}</p>}</td><td className="px-3 py-3 text-gray-400">{t('statusMatched')} {run.topupsMatched} / {run.topupsChecked}<p className="mt-1 text-gray-600">{t('adminMissingInStripe')}: {run.topupsMissingInStripe} · {t('adminMissingInLedger')}: {run.topupsMissingInLedger}</p></td><td className="px-3 py-3 text-gray-400">{t('statusMatched')} {run.payoutsMatched} / {run.payoutsChecked}<p className="mt-1 text-gray-600">{t('adminMissingInStripe')}: {run.payoutsMissingInStripe} · {t('statusReversed')}: {run.payoutsReversedInStripe}</p></td><td className="px-3 py-3 text-gray-400">{t('statusMismatch')} {run.partnerMismatches} / {run.partnerChecks}</td><td className="px-3 py-3">{run.freezeEngaged ? <span className="inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-red-300"><Snowflake className="h-3 w-3" /> {t('adminRailFrozenBanner')}</span> : <span className="text-gray-600">-</span>}</td></tr>)}</tbody></table></div>
+  </Section>;
+}
+
 function CreditDisputeQueue({
   disputes,
   disputeStatus,
@@ -450,6 +479,7 @@ const WORKER_TRANSLATION_KEYS = {
   'oxsteed-credit-hold-expiry': 'adminWorkerHoldExpiry',
   'oxsteed-credit-entitlement-expiry': 'adminWorkerEntitlementExpiry',
   'oxsteed-credit-reconciliation': 'adminWorkerReconciliation',
+  'oxsteed-credit-external-reconciliation': 'adminWorkerExternalReconciliation',
   'oxsteed-credit-settlement-cycle': 'adminWorkerSettlementCycle',
   'oxsteed-credit-integrity': 'adminWorkerIntegrity',
   'restaurant-credit-wallet-watchdog': 'adminWorkerRestaurantWalletWatchdog',
@@ -624,6 +654,13 @@ export default function OxsteedCreditAdmin() {
   const [reconciliationPagination, setReconciliationPagination] = useState({ limit: 50, offset: 0, hasMore: false, nextOffset: null });
   const [loadingMoreReconciliationRuns, setLoadingMoreReconciliationRuns] = useState(false);
   const [reconciliationReason, setReconciliationReason] = useState('');
+  const [externalReconRuns, setExternalReconRuns] = useState([]);
+  const [externalReconStatus, setExternalReconStatus] = useState('');
+  const [externalReconCurrency, setExternalReconCurrency] = useState('all');
+  const [externalReconPagination, setExternalReconPagination] = useState({ limit: 50, offset: 0, hasMore: false, nextOffset: null });
+  const [loadingMoreExternalReconRuns, setLoadingMoreExternalReconRuns] = useState(false);
+  const [externalReconReason, setExternalReconReason] = useState('');
+  const [railFreezeReason, setRailFreezeReason] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -664,7 +701,7 @@ export default function OxsteedCreditAdmin() {
     resolve?.(value);
   };
 
-  const load = useCallback(async ({ quiet = false, customerAccountsParams, appendPartnerDirectory = false, partnerDirectoryOffset = 0, appendSettlements = false, settlementOffset = 0, appendTransactions = false, transactionOffset = 0, appendDisputes = false, disputeOffset = 0, appendAuditEvents = false, auditOffset = 0, appendReconciliationRuns = false, reconciliationOffset = 0 } = {}) => {
+  const load = useCallback(async ({ quiet = false, customerAccountsParams, appendPartnerDirectory = false, partnerDirectoryOffset = 0, appendSettlements = false, settlementOffset = 0, appendTransactions = false, transactionOffset = 0, appendDisputes = false, disputeOffset = 0, appendAuditEvents = false, auditOffset = 0, appendReconciliationRuns = false, reconciliationOffset = 0, appendExternalReconRuns = false, externalReconOffset = 0 } = {}) => {
     const requestId = ++loadRequestRef.current;
     if (!quiet) setLoading(true);
     if (appendPartnerDirectory) setLoadingMorePartnerDirectory(true);
@@ -673,6 +710,7 @@ export default function OxsteedCreditAdmin() {
     if (appendDisputes) setLoadingMoreDisputes(true);
     if (appendAuditEvents) setLoadingMoreAuditEvents(true);
     if (appendReconciliationRuns) setLoadingMoreReconciliationRuns(true);
+    if (appendExternalReconRuns) setLoadingMoreExternalReconRuns(true);
     setError('');
     try {
       const walletQuery = customerAccountsParams || customerAccountQuery;
@@ -704,7 +742,10 @@ export default function OxsteedCreditAdmin() {
       const reconciliationParams = { limit: 50, offset: appendReconciliationRuns ? reconciliationOffset : 0 };
       if (reconciliationStatus) reconciliationParams.status = reconciliationStatus;
       if (reconciliationCurrency !== 'all') reconciliationParams.currencyCode = reconciliationCurrency;
-      const [overviewResponse, customerAccountsResponse, partnersResponse, partnerDirectoryResponse, agreementsResponse, settlementsResponse, transactionsResponse, disputesResponse, auditEventsResponse, reconciliationResponse, railResponse] = await Promise.all([
+      const externalReconParams = { limit: 50, offset: appendExternalReconRuns ? externalReconOffset : 0 };
+      if (externalReconStatus) externalReconParams.status = externalReconStatus;
+      if (externalReconCurrency !== 'all') externalReconParams.currencyCode = externalReconCurrency;
+      const [overviewResponse, customerAccountsResponse, partnersResponse, partnerDirectoryResponse, agreementsResponse, settlementsResponse, transactionsResponse, disputesResponse, auditEventsResponse, reconciliationResponse, externalReconResponse, railResponse] = await Promise.all([
         adminApi.get('/admin/super/oxsteed-credit/overview'),
         adminApi.get('/admin/super/oxsteed-credit/accounts', { params: walletParams }),
         adminApi.get('/admin/super/oxsteed-credit/partners'),
@@ -715,6 +756,7 @@ export default function OxsteedCreditAdmin() {
         adminApi.get('/admin/super/oxsteed-credit/disputes', { params: disputeParams }),
         adminApi.get('/admin/super/oxsteed-credit/audit-events', { params: auditParams }),
         adminApi.get('/admin/super/oxsteed-credit/reconciliation', { params: reconciliationParams }),
+        adminApi.get('/admin/super/oxsteed-credit/external-reconciliation', { params: externalReconParams }),
         adminApi.get('/admin/super/oxsteed-credit/rail'),
       ]);
       if (requestId !== loadRequestRef.current) return;
@@ -750,6 +792,10 @@ export default function OxsteedCreditAdmin() {
       if (appendReconciliationRuns) setReconciliationRuns((current) => [...current, ...loadedReconciliationRuns]);
       else setReconciliationRuns(loadedReconciliationRuns);
       setReconciliationPagination(reconciliationResponse.data?.pagination || { limit: reconciliationParams.limit, offset: reconciliationParams.offset, hasMore: false, nextOffset: null });
+      const loadedExternalReconRuns = externalReconResponse.data?.runs || [];
+      if (appendExternalReconRuns) setExternalReconRuns((current) => [...current, ...loadedExternalReconRuns]);
+      else setExternalReconRuns(loadedExternalReconRuns);
+      setExternalReconPagination(externalReconResponse.data?.pagination || { limit: externalReconParams.limit, offset: externalReconParams.offset, hasMore: false, nextOffset: null });
       setRail(railResponse.data?.rail || null);
     } catch (err) {
       if (requestId === loadRequestRef.current) {
@@ -764,9 +810,10 @@ export default function OxsteedCreditAdmin() {
         if (appendDisputes) setLoadingMoreDisputes(false);
         if (appendAuditEvents) setLoadingMoreAuditEvents(false);
         if (appendReconciliationRuns) setLoadingMoreReconciliationRuns(false);
+        if (appendExternalReconRuns) setLoadingMoreExternalReconRuns(false);
       }
     }
-  }, [auditActionType, auditCorrelationId, auditPartnerId, auditResourceType, customerAccountQuery, disputeStatus, partnerDirectoryQuery, reconciliationCurrency, reconciliationStatus, settlementPartnerId, settlementStatus, transactionCurrency, transactionStatus, transactionType]);
+  }, [auditActionType, auditCorrelationId, auditPartnerId, auditResourceType, customerAccountQuery, disputeStatus, externalReconCurrency, externalReconStatus, partnerDirectoryQuery, reconciliationCurrency, reconciliationStatus, settlementPartnerId, settlementStatus, transactionCurrency, transactionStatus, transactionType]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -1092,6 +1139,54 @@ export default function OxsteedCreditAdmin() {
     } finally { setBusy(false); }
   };
 
+  const triggerExternalReconciliation = async (event) => {
+    event.preventDefault();
+    if (!externalReconReason.trim()) return setError(t('adminRailReasonRequired'));
+    setBusy(true); setNotice(''); setError('');
+    try {
+      const response = await adminApi.post('/admin/super/oxsteed-credit/external-reconciliation', {
+        currencyCode: externalReconCurrency !== 'all' ? externalReconCurrency : undefined,
+        reason: externalReconReason.trim(),
+      });
+      const runs = response.data?.runs || [];
+      setNotice(t('adminExternalReconciliationTriggered', { count: runs.length }));
+      setExternalReconReason('');
+      await load({ quiet: true });
+    } catch (err) {
+      setError(safeCreditErrorMessage(err, t('adminExternalReconciliationFailed')));
+    } finally { setBusy(false); }
+  };
+
+  const freezeRail = async (event) => {
+    event.preventDefault();
+    if (!railFreezeReason.trim()) return setError(t('adminRailReasonRequired'));
+    setBusy(true); setNotice(''); setError('');
+    try {
+      const response = await adminApi.post('/admin/super/oxsteed-credit/rail/freeze', { reason: railFreezeReason.trim() });
+      setRail((current) => current ? { ...current, frozen: true, freeze: response.data?.freeze || current.freeze } : current);
+      setRailFreezeReason('');
+      setNotice(t('adminRailFrozen'));
+      await load({ quiet: true });
+    } catch (err) {
+      setError(safeCreditErrorMessage(err, t('adminRailFreezeFailed')));
+    } finally { setBusy(false); }
+  };
+
+  const unfreezeRail = async (event) => {
+    event.preventDefault();
+    if (!railFreezeReason.trim()) return setError(t('adminRailReasonRequired'));
+    setBusy(true); setNotice(''); setError('');
+    try {
+      await adminApi.post('/admin/super/oxsteed-credit/rail/unfreeze', { reason: railFreezeReason.trim() });
+      setRail((current) => current ? { ...current, frozen: false, freeze: null } : current);
+      setRailFreezeReason('');
+      setNotice(t('adminRailUnfrozen'));
+      await load({ quiet: true });
+    } catch (err) {
+      setError(safeCreditErrorMessage(err, t('adminRailUnfreezeFailed')));
+    } finally { setBusy(false); }
+  };
+
   const retryNotification = async (notification) => {
     const reason = notificationRetryReason.trim();
     if (!reason) {
@@ -1399,7 +1494,7 @@ export default function OxsteedCreditAdmin() {
   };
   return <><AdminActionDialog dialog={dialog} onResolve={resolveDialog} /><AdminCreditTransactionDetail transaction={transactionDetail} onClose={() => { setTransactionDetail(null); setRefundForm({ amount: '', reason: '' }); }} onRefund={refundAdminCredit} refundForm={refundForm} setRefundForm={setRefundForm} busy={busy} /><main className="mx-auto w-full max-w-[1500px] space-y-6 pb-10">
     <header className="rounded-3xl border border-gray-800 bg-gradient-to-br from-[#17131d] via-[#111318] to-[#101923] p-5 sm:p-7"><div className="flex flex-wrap items-start justify-between gap-5"><div className="max-w-3xl"><div className="flex flex-wrap items-center gap-2"><span className="rounded-full border border-orange-500/30 bg-orange-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-orange-300">{t('adminSuperAdmin')}</span><span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-emerald-300"><ShieldCheck className="h-3.5 w-3.5" /> {t('adminStoredValueControl')}</span></div><h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">{t('adminPageTitle')}</h1><p className="mt-3 text-sm leading-6 text-gray-400 sm:text-base">{t('adminPageDescription')}</p></div><button type="button" onClick={() => load({ quiet: true })} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-900/70 px-4 py-3 text-sm font-semibold text-gray-200 hover:bg-gray-800 disabled:opacity-50"><RefreshCw className={loading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} /> {t('adminRefresh')}</button></div></header>
-    <section className="rounded-2xl border border-amber-500/25 bg-amber-950/15 p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-4"><div className="max-w-3xl"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">{t('adminEmergencyControl')}</p><h2 className="mt-1 text-lg font-semibold text-white">{t('adminCreditRail')}</h2><p className="mt-1 text-xs leading-5 text-gray-400">{t('adminCreditRailDescription')}</p></div><Badge status={rail ? (rail.enabled ? 'enabled' : 'suspended') : 'unknown'} /></div><form onSubmit={updateRail} className="mt-4 flex flex-col gap-3 border-t border-amber-500/15 pt-4 sm:flex-row sm:items-end"><label className="min-w-0 flex-1"><span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminRequiredAuditReason')}</span><input value={railReason} onChange={(event) => setRailReason(event.target.value)} maxLength={1000} placeholder={rail?.enabled ? t('adminSuspendRailPlaceholder') : t('adminEnableRailPlaceholder')} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-amber-300" /></label><button type="submit" disabled={!rail || busy || !railReason.trim()} className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-50 ${rail?.enabled ? 'bg-amber-600 hover:bg-amber-500' : 'bg-emerald-600 hover:bg-emerald-500'}`}><Power className="h-4 w-4" />{rail?.enabled ? t('adminSuspendRail') : t('adminEnableRail')}</button></form></section>
+    <section className="rounded-2xl border border-amber-500/25 bg-amber-950/15 p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-4"><div className="max-w-3xl"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">{t('adminEmergencyControl')}</p><h2 className="mt-1 text-lg font-semibold text-white">{t('adminCreditRail')}</h2><p className="mt-1 text-xs leading-5 text-gray-400">{t('adminCreditRailDescription')}</p></div><Badge status={rail ? (rail.enabled ? 'enabled' : 'suspended') : 'unknown'} /></div>{rail?.frozen && <div role="alert" className="mt-4 flex flex-wrap items-start gap-3 rounded-xl border border-red-500/30 bg-red-950/25 px-4 py-3 text-sm text-red-300"><Snowflake className="mt-0.5 h-4 w-4 shrink-0" /><div><strong>{t('adminRailFrozenBanner')}</strong><p className="mt-1 text-xs text-red-300/80">{t('adminRailFreezeReasonLabel')}: {rail.freeze?.reason || t('adminUnknown')}</p>{rail.freeze?.incidentRef && <p className="mt-1 font-mono text-[11px] text-red-300/70">{rail.freeze.incidentRef}</p>}<p className="mt-1 text-[11px] text-red-300/70">{t('adminRailFrozenAt')} {dateTime(rail.freeze?.frozenAt)}</p></div></div>}<form onSubmit={rail?.frozen ? unfreezeRail : freezeRail} className="mt-4 flex flex-col gap-3 border-t border-amber-500/15 pt-4 sm:flex-row sm:items-end"><label className="min-w-0 flex-1"><span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminRequiredAuditReason')}</span><input value={railFreezeReason} onChange={(event) => setRailFreezeReason(event.target.value)} maxLength={1000} placeholder={rail?.frozen ? t('adminUnfreezeRailPlaceholder') : t('adminFreezeRailPlaceholder')} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-amber-300" /></label><button type="submit" disabled={!rail || busy || !railFreezeReason.trim()} className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-50 ${rail?.frozen ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-red-600 hover:bg-red-500'}`}><Snowflake className="h-4 w-4" />{rail?.frozen ? t('adminUnfreezeRail') : t('adminFreezeRail')}</button></form><form onSubmit={updateRail} className="mt-4 flex flex-col gap-3 border-t border-amber-500/15 pt-4 sm:flex-row sm:items-end"><label className="min-w-0 flex-1"><span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminRequiredAuditReason')}</span><input value={railReason} onChange={(event) => setRailReason(event.target.value)} maxLength={1000} placeholder={rail?.enabled ? t('adminSuspendRailPlaceholder') : t('adminEnableRailPlaceholder')} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-amber-300" /></label><button type="submit" disabled={!rail || busy || !railReason.trim()} className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-50 ${rail?.enabled ? 'bg-amber-600 hover:bg-amber-500' : 'bg-emerald-600 hover:bg-emerald-500'}`}><Power className="h-4 w-4" />{rail?.enabled ? t('adminSuspendRail') : t('adminEnableRail')}</button></form></section>
     {rail?.prerequisites && <CreditRailPrerequisites prerequisites={rail.prerequisites} />}
     {error && <div role="alert" aria-live="assertive" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-950/25 px-4 py-3 text-sm text-red-300"><span className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 shrink-0" />{error}</span><button type="button" onClick={() => load({ quiet: true })} disabled={loading || busy} className="rounded-lg border border-red-400/30 px-3 py-2 text-xs font-semibold text-red-200 hover:bg-red-500/10 disabled:opacity-50">{t('adminRetryDashboard')}</button></div>}
     {notice && <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-950/25 px-4 py-3 text-sm text-emerald-300"><CheckCircle2 className="h-4 w-4 shrink-0" />{notice}</div>}
@@ -1619,6 +1714,23 @@ export default function OxsteedCreditAdmin() {
       busy={busy}
       downloadReconciliationHistory={downloadReconciliationHistory}
       load={load}
+    />
+
+    <ExternalReconciliationHistory
+      externalReconRuns={externalReconRuns}
+      externalReconStatus={externalReconStatus}
+      setExternalReconStatus={setExternalReconStatus}
+      externalReconCurrency={externalReconCurrency}
+      setExternalReconCurrency={setExternalReconCurrency}
+      currencyOptions={currencyOptions}
+      externalReconPagination={externalReconPagination}
+      loadingMoreExternalReconRuns={loadingMoreExternalReconRuns}
+      loading={loading}
+      busy={busy}
+      load={load}
+      externalReconReason={externalReconReason}
+      setExternalReconReason={setExternalReconReason}
+      triggerExternalReconciliation={triggerExternalReconciliation}
     />
 
     <CreditDisputeQueue

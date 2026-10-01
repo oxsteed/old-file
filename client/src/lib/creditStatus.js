@@ -30,6 +30,8 @@ const STATUS_TRANSLATION_KEYS = Object.freeze({
   closed: 'closedStatus',
   none: 'statusNone',
   initiated: 'statusInitiated',
+  matched: 'statusMatched',
+  mismatch: 'statusMismatch',
 });
 
 const ORDER_TYPE_TRANSLATION_KEYS = Object.freeze({

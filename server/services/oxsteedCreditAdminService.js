@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
-const { assertSupportedCreditCurrency, computeEntryHash, ensureAccount, getCustomerCreditLimitSummary, listCreditDisputes, postJournalTransaction } = require('./oxsteedCreditService');
+const { assertSupportedCreditCurrency, computeEntryHash, ensureAccount, getCustomerCreditLimitSummary, listCreditDisputes, postJournalTransaction, assertCreditRailEnabled } = require('./oxsteedCreditService');
 const { getReserveStatus } = require('./oxsteedCreditReserveService');
 const incidentStore = require('./incidentStore');
 
@@ -2784,10 +2784,11 @@ async function initiateSettlementPayout({ settlementId, actorUserId, idempotency
     const { rows: updatedRows } = await client.query(
       `UPDATE oxsteed_credit_settlements
           SET stripe_transfer_id = $1, payout_status = 'initiated',
-              payout_initiated_by = $2, payout_initiated_at = NOW(), updated_at = NOW()
-        WHERE id = $3 AND payout_status = 'none'
+              payout_destination_account = $2,
+              payout_initiated_by = $3, payout_initiated_at = NOW(), updated_at = NOW()
+        WHERE id = $4 AND payout_status = 'none'
         RETURNING *`,
-      [transfer.id, actorUserId, settlement.id]
+      [transfer.id, destination.stripeAccountId, actorUserId, settlement.id]
     );
     if (!updatedRows[0]) {
       throw new AppError('Settlement payout was initiated by another request; refresh before retrying', 409, 'credit_settlement_payout_state_conflict', {
@@ -2826,6 +2827,16 @@ async function initiateSettlementPayout({ settlementId, actorUserId, idempotency
 async function confirmSettlementPayoutFromTransfer(stripeTransferId) {
   const normalizedTransferId = normalizeString(stripeTransferId, 255);
   if (!normalizedTransferId) throw new AppError('Stripe transfer id is required', 400, 'credit_settlement_payout_transfer_required');
+  // Webhook-driven completion of an already-initiated external payout: keep
+  // the rail-enabled gate but bypass the operator freeze, so in-flight
+  // money that Stripe already moved keeps resolving instead of
+  // manufacturing a missing-in-ledger finding at the next reconciliation.
+  const railClient = await pool.connect();
+  try {
+    await assertCreditRailEnabled(railClient, { bypassFreeze: true });
+  } finally {
+    railClient.release();
+  }
   const { rows } = await pool.query(
     `SELECT s.* FROM oxsteed_credit_settlements s WHERE s.stripe_transfer_id = $1`,
     [normalizedTransferId]

@@ -214,7 +214,12 @@ async function completeCreditTopupFromWebhook({ paymentIntentId }) {
       return { outcome: 'ignored', reason: `status_${topup.status}`, topupId };
     }
 
-    await assertCreditRailEnabled(client);
+    // Webhook-driven completion of an already-initiated external event:
+    // keep the rail-enabled gate but bypass the operator freeze, so
+    // in-flight money that Stripe already moved keeps resolving. Blocking
+    // this path would manufacture the missing-in-ledger condition the
+    // external reconciliation exists to catch.
+    await assertCreditRailEnabled(client, { bypassFreeze: true });
     const amount = Number(topup.amount_cents);
     const currency = assertSupportedCreditCurrency(topup.currency_code);
     await assertIssuanceCapacity(client, amount, currency, topup.customer_id);

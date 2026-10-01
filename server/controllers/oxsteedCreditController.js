@@ -36,6 +36,8 @@ const {
   getCreditRailStatus,
   getCustomerCreditRailStatus,
   setCreditRailStatus,
+  freezeCreditRail,
+  unfreezeCreditRail,
   SUPPORTED_CREDIT_CURRENCIES,
   SUPPORTED_CREDIT_CURRENCY_META,
 } = require('../services/oxsteedCreditService');
@@ -74,6 +76,10 @@ const {
   getCurrencyQuote,
   convertCustomerCredit,
 } = require('../services/oxsteedCreditCurrencyConversionService');
+const {
+  listExternalReconciliationRuns,
+  triggerExternalReconciliation,
+} = require('../services/oxsteedCreditExternalReconciliation');
 const {
   NOTIFICATION_WORKER_NAME,
   STALE_AFTER_MINUTES,
@@ -917,6 +923,65 @@ async function updateAdminCreditRail(req, res, next) {
       requestIp: req.ip || null,
     });
     res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function freezeAdminCreditRail(req, res, next) {
+  try {
+    const result = await freezeCreditRail({
+      reason: req.body?.reason,
+      actorUserId: req.user.id,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+      requestIp: req.ip || null,
+    });
+    res.status(result.replayed ? 200 : 201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function unfreezeAdminCreditRail(req, res, next) {
+  try {
+    const result = await unfreezeCreditRail({
+      reason: req.body?.reason,
+      actorUserId: req.user.id,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+      requestIp: req.ip || null,
+    });
+    res.status(result.replayed ? 200 : 200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function listAdminCreditExternalReconciliationRuns(req, res, next) {
+  try {
+    const result = await listExternalReconciliationRuns({
+      currencyCode: req.query.currencyCode || req.query.currency_code,
+      status: req.query.status,
+      limit: req.query.limit,
+      offset: req.query.offset,
+    });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function runAdminCreditExternalReconciliation(req, res, next) {
+  try {
+    const result = await triggerExternalReconciliation({
+      periodStart: req.body?.periodStart || req.body?.period_start,
+      periodEnd: req.body?.periodEnd || req.body?.period_end,
+      currencyCode: req.body?.currencyCode || req.body?.currency_code,
+      actorUserId: req.user.id,
+      reason: req.body?.reason,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+      requestIp: req.ip || null,
+    });
+    res.status(201).json(result);
   } catch (error) {
     next(error);
   }
@@ -1966,4 +2031,8 @@ module.exports = {
   getAdminCurrencyQuote,
   listAdminCreditReconciliationRuns,
   downloadAdminCreditReconciliationRuns,
+  listAdminCreditExternalReconciliationRuns,
+  runAdminCreditExternalReconciliation,
+  freezeAdminCreditRail,
+  unfreezeAdminCreditRail,
 };

@@ -1232,6 +1232,7 @@ test('checks restaurant checkout eligibility with the same agreement policy as s
     .mockResolvedValueOnce({ rows: [{ partner_id: 41 }] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{ is_enabled: true }] })
+    .mockResolvedValueOnce({ rows: [] }) // Phase 4: operator freeze check (oxsteed_credit_rail_freezes)
     .mockResolvedValueOnce({ rows: [{
       id: 'agreement-41',
       partner_id: 41,
@@ -1264,7 +1265,7 @@ test('checks restaurant checkout eligibility with the same agreement policy as s
   expect(response.status).toBe(200);
   expect(response.body).toMatchObject({ eligible: true, partnerId: '41', agreementId: 'agreement-41', currencyCode: 'USD' });
   expect(mockQuery.mock.calls[0][1]).toEqual([7]);
-  expect(mockQuery.mock.calls[3][1]).toEqual([CUSTOMER_ID, 41, null]);
+  expect(mockQuery.mock.calls[4][1]).toEqual([CUSTOMER_ID, 41, null]);
 });
 
 test('uses the verified restaurant location when creating a hold without customer location input', async () => {
@@ -1716,6 +1717,7 @@ test('serializes the global outstanding issuance cap before a new load', async (
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{ is_enabled: true }] })
+    .mockResolvedValueOnce({ rows: [] }) // Phase 4: operator freeze check (oxsteed_credit_rail_freezes)
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [customerAccount] })
     .mockResolvedValueOnce({ rows: [] })
@@ -1741,11 +1743,11 @@ test('serializes the global outstanding issuance cap before a new load', async (
   });
 
   expect(result.transaction.amountCents).toBe(100);
-  expect(mockQuery.mock.calls[7][0]).toContain('pg_advisory_xact_lock');
-  expect(mockQuery.mock.calls[7][1]).toEqual(['oxsteed-credit:issuance-limit:USD']);
-  expect(mockQuery.mock.calls[8][0]).toContain('SUM(balance_cents)');
-  expect(mockQuery.mock.calls[9][0]).toContain('CURRENT_DATE');
-  expect(mockQuery.mock.calls[9][1]).toEqual(['USD', CUSTOMER_ID]);
+  expect(mockQuery.mock.calls[8][0]).toContain('pg_advisory_xact_lock');
+  expect(mockQuery.mock.calls[8][1]).toEqual(['oxsteed-credit:issuance-limit:USD']);
+  expect(mockQuery.mock.calls[9][0]).toContain('SUM(balance_cents)');
+  expect(mockQuery.mock.calls[10][0]).toContain('CURRENT_DATE');
+  expect(mockQuery.mock.calls[10][1]).toEqual(['USD', CUSTOMER_ID]);
 });
 
 test('replays a committed credit load while the rail is suspended', async () => {
@@ -2476,6 +2478,7 @@ test('passes the requested agreement through purchase authorization', async () =
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{ is_enabled: true }] })
+    .mockResolvedValueOnce({ rows: [] }) // Phase 4: operator freeze check (oxsteed_credit_rail_freezes)
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{ id: agreementId, partner_id: 41, status: 'active', starts_at: '2026-09-01T00:00:00.000Z', ends_at: null, allowed_order_types: [], allowed_categories: [], allowed_menu_item_ids: [], geography: {}, settlement_currency_code: 'USD', restaurant_currency_code: 'USD', daily_customer_limit_cents: '10000', entitlement_id: null, entitlement_status: null }] })
     .mockResolvedValueOnce({ rows: [{ daily_cents: '0', lifetime_cents: '0' }] })
@@ -2505,9 +2508,9 @@ test('passes the requested agreement through purchase authorization', async () =
     referenceId: 'order-1',
   });
 
-  expect(mockQuery.mock.calls[4][0]).toContain('AND ($3::uuid IS NULL OR a.id = $3::uuid)');
-  expect(mockQuery.mock.calls[4][1]).toEqual([CUSTOMER_ID, 41, agreementId]);
-  expect(mockQuery.mock.calls[5][1]).toEqual([41, agreementId, CUSTOMER_ID, 'cccccccc-cccc-4ccc-8ccc-cccccccccccc']);
+  expect(mockQuery.mock.calls[5][0]).toContain('AND ($3::uuid IS NULL OR a.id = $3::uuid)');
+  expect(mockQuery.mock.calls[5][1]).toEqual([CUSTOMER_ID, 41, agreementId]);
+  expect(mockQuery.mock.calls[6][1]).toEqual([41, agreementId, CUSTOMER_ID, 'cccccccc-cccc-4ccc-8ccc-cccccccccccc']);
 });
 
 test('replays a committed purchase while the credit rail is suspended', async () => {
@@ -2623,6 +2626,7 @@ test('does not create a new hold for a suspended credit account', async () => {
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{ is_enabled: true }] })
+    .mockResolvedValueOnce({ rows: [] }) // Phase 4: operator freeze check (oxsteed_credit_rail_freezes)
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{
       id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
@@ -2676,6 +2680,7 @@ test('rejects credit hold idempotency reuse for a different agreement or referen
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{ is_enabled: true }] })
+    .mockResolvedValueOnce({ rows: [] }) // Phase 4: operator freeze check (oxsteed_credit_rail_freezes)
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{
       id: 'agreement-current',
@@ -2731,6 +2736,7 @@ test('replays a non-USD credit hold when the settlement currency matches', async
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{ is_enabled: true }] })
+    .mockResolvedValueOnce({ rows: [] }) // Phase 4: operator freeze check (oxsteed_credit_rail_freezes)
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{
       id: 'agreement-eur',

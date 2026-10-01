@@ -144,6 +144,7 @@ describe('issueVirtualCard', () => {
       .mockResolvedValueOnce({ rows: [] }) // idempotency lookup: no existing card
       .mockResolvedValueOnce({ rows: [] }) // lockCreditRail advisory lock
       .mockResolvedValueOnce({ rows: [{ is_enabled: true }] }) // isCreditRailEnabled
+      .mockResolvedValueOnce({ rows: [] }) // assertCreditRailNotFrozen: no open freeze (Phase 4)
       .mockResolvedValueOnce({ rows: [] }) // ensureAccount insert ON CONFLICT DO NOTHING
       .mockResolvedValueOnce({ rows: [{ id: 501, account_type: 'customer_wallet', customer_id: CUSTOMER_ID, currency_code: 'USD', status: 'active', balance_cents: 0, reserved_cents: 0 }] }) // ensureAccount select
       .mockResolvedValueOnce({ rows: [{ id: CARD_ID, customer_id: CUSTOMER_ID, account_id: 501, card_type: 'virtual', status: 'active', fulfillment_status: 'not_applicable', credential_hash: 'x'.repeat(64), credential_last4: 'AB12', issued_at: new Date() }] }) // card insert
@@ -212,6 +213,7 @@ describe('admin card issuance', () => {
       .mockResolvedValueOnce({ rows: [] }) // idempotency lookup: no existing card
       .mockResolvedValueOnce({ rows: [] }) // lockCreditRail advisory lock
       .mockResolvedValueOnce({ rows: [{ is_enabled: true }] }) // isCreditRailEnabled
+      .mockResolvedValueOnce({ rows: [] }) // assertCreditRailNotFrozen: no open freeze (Phase 4)
       .mockResolvedValueOnce({ rows: [] }) // ensureAccount insert ON CONFLICT DO NOTHING
       .mockResolvedValueOnce({ rows: [{ id: 501, account_type: 'customer_wallet', customer_id: CUSTOMER_ID, currency_code: 'USD', status: 'active', balance_cents: 0, reserved_cents: 0 }] }) // ensureAccount select
       .mockResolvedValueOnce({ rows: [{ id: CARD_ID, customer_id: CUSTOMER_ID, account_id: 501, card_type: 'virtual', status: 'active', fulfillment_status: 'not_applicable', credential_hash: 'y'.repeat(64), credential_last4: 'CD34' }] }) // card insert

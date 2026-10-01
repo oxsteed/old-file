@@ -83,6 +83,7 @@ test('creates a quote only after the Credit rail is enabled', async () => {
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{ is_enabled: true }] })
+    .mockResolvedValueOnce({ rows: [] }) // Phase 4: operator freeze check (oxsteed_credit_rail_freezes)
     .mockResolvedValueOnce({ rows: [{
       id: 7,
       source_currency_code: 'USD',

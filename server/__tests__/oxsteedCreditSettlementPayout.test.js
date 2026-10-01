@@ -66,6 +66,8 @@ function installDbRouter() {
   mockQuery.mockImplementation((sql, params = []) => {
     const s = String(sql);
     if (s === 'BEGIN' || s === 'COMMIT' || s === 'ROLLBACK') return { rows: [] };
+    if (s.includes('FROM feature_flags')) return { rows: [{ is_enabled: true }] };
+    if (s.includes('FROM oxsteed_credit_rail_freezes')) return { rows: [] };
     if (s.includes('FROM oxsteed_credit_settlements s')) return { rows: [settlementRow] };
     if (s.includes('FROM food_restaurants')) return { rows: [restaurantRow] };
     if (s.includes('FROM businesses b')) return { rows: businessRow ? [businessRow] : [] };
@@ -149,7 +151,9 @@ describe('initiateSettlementPayout', () => {
     );
     expect(updateCall).toBeDefined();
     expect(updateCall[1][0]).toBe(TRANSFER_ID);
-    expect(updateCall[1][1]).toBe(ADMIN_ID);
+    expect(updateCall[1][1]).toBe('acct_business_1');
+    expect(updateCall[1][2]).toBe(ADMIN_ID);
+    expect(updateCall[0]).toContain('payout_destination_account');
 
     const auditCall = mockQuery.mock.calls.find(([sql]) => sql.includes('oxsteed_credit_audit_events') && String(sql).includes('INSERT'));
     expect(auditCall).toBeDefined();
@@ -273,6 +277,8 @@ describe('confirmSettlementPayoutFromTransfer', () => {
     mockQuery.mockImplementation((sql) => {
       const s = String(sql);
       if (s === 'BEGIN' || s === 'COMMIT' || s === 'ROLLBACK') return { rows: [] };
+      if (s.includes('FROM feature_flags')) return { rows: [{ is_enabled: true }] };
+      if (s.includes('FROM oxsteed_credit_rail_freezes')) return { rows: [] };
       return { rows: [] };
     });
 
