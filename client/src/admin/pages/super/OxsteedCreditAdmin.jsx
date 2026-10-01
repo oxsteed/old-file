@@ -22,6 +22,7 @@ import i18n from '../../../i18n';
 import { DEFAULT_CREDIT_CURRENCIES, formatCreditMinorUnits, parseCreditMajorAmount, parseOptionalCreditMajorAmount } from '../../../lib/creditCurrency';
 import OxsteedCreditEntitlements from './OxsteedCreditEntitlements';
 import OxsteedCreditCards from './OxsteedCreditCards';
+import OxsteedCreditMoneyOut from './OxsteedCreditMoneyOut';
 import OxsteedCreditCustomerDetail from './OxsteedCreditCustomerDetail';
 import OxsteedCreditPartnerLedger from './OxsteedCreditPartnerLedger';
 import { createStableIdempotencyKeyStore } from './creditIdempotency';
@@ -1710,6 +1711,8 @@ export default function OxsteedCreditAdmin() {
     <OxsteedCreditEntitlements agreements={agreements} customerAccounts={customerAccounts} currencyMetadata={overview?.currencyMetadata} busy={busy} />
 
     <OxsteedCreditCards currencyOptions={currencyOptions} busy={busy} />
+
+    <OxsteedCreditMoneyOut busy={busy} />
 
     <SettlementEvidence settlements={settlements} />
 

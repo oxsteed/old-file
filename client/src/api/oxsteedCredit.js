@@ -76,6 +76,37 @@ export const getOxsteedCreditDisputePage = (params = {}) =>
   api.get('/oxsteed-credit/disputes', { params })
     .then((response) => response.data || { disputes: [], pagination: { limit: 25, offset: 0, hasMore: false, nextOffset: null } });
 
+// -- OxSteed Credit money OUT (Phase 6) -----------------------------------
+// Withdrawals to the customer's connected bank account, restaurant credit
+// conversions, and fee quotes shown before confirming.
+
+export const getOxsteedCreditFeeQuote = (params = {}) =>
+  api.get('/oxsteed-credit/fee-quotes', { params }).then((response) => response.data?.quote || null);
+
+export const requestOxsteedCreditWithdrawal = (payload, idempotencyKey) =>
+  api.post('/oxsteed-credit/withdrawals', payload, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  }).then((response) => response.data);
+
+export const listOxsteedCreditWithdrawals = (params = {}) =>
+  api.get('/oxsteed-credit/withdrawals', { params })
+    .then((response) => response.data?.withdrawals || []);
+
+export const cancelOxsteedCreditWithdrawal = (withdrawalId) =>
+  api.post(`/oxsteed-credit/withdrawals/${withdrawalId}/cancel`).then((response) => response.data);
+
+export const createOxsteedCreditRestaurantConversion = (payload, idempotencyKey) =>
+  api.post('/oxsteed-credit/restaurant-conversions', payload, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  }).then((response) => response.data);
+
+export const listOxsteedCreditRestaurantConversions = (params = {}) =>
+  api.get('/oxsteed-credit/restaurant-conversions', { params })
+    .then((response) => response.data?.conversions || []);
+
+export const issueOxsteedCreditMoneyOutStepup = (payload) =>
+  api.post('/oxsteed-credit/money-out/stepup-challenges', payload).then((response) => response.data);
+
 // -- OxSteed Credit cards --------------------------------------------------
 // A card is only a credential onto the customer's existing wallet above; it
 // never represents a second balance.

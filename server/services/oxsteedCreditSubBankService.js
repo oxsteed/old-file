@@ -51,21 +51,31 @@ const SUB_BANK_LOAD = 'sub_bank_load';
 const SUB_BANK_REDEMPTION = 'sub_bank_redemption';
 const SUB_BANK_REFUND = 'sub_bank_refund';
 const SUB_BANK_OPENING_BALANCE = 'sub_bank_opening_balance';
+const SUB_BANK_CONVERSION = 'sub_bank_conversion';
 
 // Food-wallet reference types that issue new restaurant credit.
-const LOAD_REFERENCE_TYPES = new Set(['merchant_load', 'merchant_load_request']);
+// 'restaurant_conversion_in' is the Phase 6 OxSteed -> restaurant
+// conversion: it posts as a sub_bank_load funded from the customer's
+// OxSteed wallet (metadata fundingSource='oxsteed_credit').
+const LOAD_REFERENCE_TYPES = new Set(['merchant_load', 'merchant_load_request', 'restaurant_conversion_in']);
 // Food-wallet reference types that spend restaurant credit (redemption/capture).
 const REDEMPTION_REFERENCE_TYPES = new Set(['food_order', 'wallet_hold', 'wallet_payment_session']);
 // Same-restaurant customer transfers: aggregate unchanged, no central posting.
 const TRANSFER_REFERENCE_TYPES = new Set(['wallet_transfer_in', 'wallet_transfer_out']);
+// Phase 6: restaurant -> OxSteed conversions dual-post here as a real
+// central leg (restaurant_sub_bank -> customer_wallet). The converted
+// amount travels in metadata (conversionConvertedAmountCents) because the
+// wallet debit is the pre-rate source amount.
+const CONVERSION_OUT_REFERENCE_TYPES = new Set(['restaurant_conversion_out']);
 
 /**
  * Map a food-wallet ledger entry to its central-journal action.
- * Returns 'load' | 'redemption' | 'refund' | 'skip_transfer'.
+ * Returns 'load' | 'redemption' | 'refund' | 'conversion_out' | 'skip_transfer'.
  * Throws for any money-moving entry without a defined posting rule (fail closed).
  */
 function resolveDualPostingAction(entryType, referenceType) {
   if (TRANSFER_REFERENCE_TYPES.has(referenceType)) return 'skip_transfer';
+  if (entryType === 'debit' && CONVERSION_OUT_REFERENCE_TYPES.has(referenceType)) return 'conversion_out';
   if (entryType === 'credit' && LOAD_REFERENCE_TYPES.has(referenceType)) return 'load';
   if (entryType === 'debit' && REDEMPTION_REFERENCE_TYPES.has(referenceType)) return 'redemption';
   if (entryType === 'refund') return 'refund';
@@ -249,6 +259,31 @@ async function postFoodWalletDualEntry(client, {
       debitAccountId: debitAccount.id,
       creditAccountId: subBank.id,
       description: `Restaurant credit issuance dual-posting (wallet ledger entry ${ledgerEntryId})`,
+      metadata: postingMetadata,
+    };
+  } else if (action === 'conversion_out') {
+    // Phase 6: restaurant -> OxSteed conversion. The food wallet was
+    // debited the pre-rate source amount; the central leg moves the
+    // post-rate converted amount from the restaurant's sub-bank to the
+    // customer's OxSteed wallet. partner_id is NULL: conversions are
+    // customer-scoped, not partner-scoped.
+    const convertedAmount = Math.round(Number(postingMetadata.conversionConvertedAmountCents || 0));
+    if (!Number.isSafeInteger(convertedAmount) || convertedAmount <= 0) {
+      throw new AppError('Conversion dual-posting requires a positive converted amount', 500, 'sub_bank_conversion_amount_invalid');
+    }
+    const wallet = await ensureAccount(client, {
+      accountType: 'customer_wallet',
+      customerId,
+      currencyCode: currency,
+    });
+    spec = {
+      ...shared,
+      partnerId: null,
+      amountCents: convertedAmount,
+      transactionType: SUB_BANK_CONVERSION,
+      debitAccountId: subBank.id,
+      creditAccountId: wallet.id,
+      description: `Restaurant credit conversion dual-posting (wallet ledger entry ${ledgerEntryId})`,
       metadata: postingMetadata,
     };
   } else if (action === 'redemption') {

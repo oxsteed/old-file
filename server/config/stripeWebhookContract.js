@@ -13,6 +13,7 @@ module.exports = Object.freeze({
     path: '/api/webhooks/stripe', secretEnv: 'STRIPE_WEBHOOK_SECRET',
     events: Object.freeze([
       ...paymentEvents, 'account.updated',
+      'transfer.created', 'transfer.updated', 'transfer.reversed',
       'checkout.session.completed', 'checkout.session.async_payment_succeeded',
       'checkout.session.async_payment_failed', 'checkout.session.expired',
       'customer.subscription.created', 'customer.subscription.updated', 'customer.subscription.deleted',

@@ -22,7 +22,12 @@ const restaurantCreditAdminCtrl = require('../controllers/restaurantCreditAdminC
 const oxsteedCreditCtrl = require('../controllers/oxsteedCreditController');
 const oxsteedCreditCardCtrl = require('../controllers/oxsteedCreditCardController');
 const oxsteedCreditAdminService = require('../services/oxsteedCreditAdminService');
+const oxsteedCreditWithdrawalService = require('../services/oxsteedCreditWithdrawalService');
+const oxsteedCreditRestaurantConversionService = require('../services/oxsteedCreditRestaurantConversionService');
+const oxsteedCreditFeeScheduleService = require('../services/oxsteedCreditFeeScheduleService');
 const { verifyStepupChallenge } = require('../services/stepupChallengeService');
+const { AppError } = require('../middleware/errorHandler');
+const { withTransaction } = require('../utils/transaction');
 const { creditAdminMutationLimiter, creditExportLimiter, adminPhoneVerificationLimiter, strictLimiter } = require('../middleware/rateLimiter');
 
 function noStoreCreditResponse(_req, res, next) {
@@ -411,6 +416,103 @@ router.post('/super/oxsteed-credit/compliance/verifications/:id/decision', requi
 router.post('/super/oxsteed-credit/compliance/sanctions/:id/decision', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.decideAdminComplianceSanction);
 router.post('/super/oxsteed-credit/compliance/cases/:id/transition', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.transitionAdminComplianceCase);
 router.post('/super/oxsteed-credit/stepup-challenges', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.issueAdminStepupChallenge);
+// Phase 6 money-out: customer withdrawal queue. Approval moves money, so it
+// requires a fresh admin step-up challenge, verified before any side effect.
+router.get('/super/oxsteed-credit/withdrawals', requireSuperAdmin, async (req, res, next) => {
+  try {
+    const withdrawals = await oxsteedCreditWithdrawalService.listWithdrawals({
+      customerId: req.query.customerId || req.query.customer_id || null,
+      status: req.query.status || null,
+      limit: req.query.limit,
+      offset: req.query.offset,
+    });
+    res.json({ withdrawals });
+  } catch (err) { next(err); }
+});
+router.post('/super/oxsteed-credit/withdrawals/:id/approve', requireSuperAdmin, creditAdminMutationLimiter, async (req, res, next) => {
+  try {
+    await verifyStepupChallenge({
+      challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+      actorUserId: req.user?.id || null,
+      actionType: 'withdrawal',
+      code: req.body?.stepupCode || req.body?.stepup_code,
+    });
+    const withdrawal = await oxsteedCreditWithdrawalService.approveWithdrawal({
+      withdrawalId: req.params.id,
+      actorUserId: req.user?.id || null,
+      idempotencyKey: req.get('Idempotency-Key') || req.body?.idempotencyKey || req.body?.idempotency_key,
+      requestIp: req.ip || null,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+    });
+    res.json({ withdrawal });
+  } catch (err) { next(err); }
+});
+router.post('/super/oxsteed-credit/withdrawals/:id/reject', requireSuperAdmin, creditAdminMutationLimiter, async (req, res, next) => {
+  try {
+    const withdrawal = await oxsteedCreditWithdrawalService.rejectWithdrawal({
+      withdrawalId: req.params.id,
+      actorUserId: req.user?.id || null,
+      reason: req.body?.reason || null,
+      requestIp: req.ip || null,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+    });
+    res.json({ withdrawal });
+  } catch (err) { next(err); }
+});
+// Phase 6: restaurant conversion history.
+router.get('/super/oxsteed-credit/restaurant-conversions', requireSuperAdmin, async (req, res, next) => {
+  try {
+    const conversions = await oxsteedCreditRestaurantConversionService.listRestaurantConversions({
+      customerId: req.query.customerId || req.query.customer_id || null,
+      restaurantId: req.query.restaurantId || req.query.restaurant_id || null,
+      limit: req.query.limit,
+      offset: req.query.offset,
+    });
+    res.json({ conversions });
+  } catch (err) { next(err); }
+});
+// Phase 6: fee schedule (gap 12). Reads are plain; updates are audited.
+router.get('/super/oxsteed-credit/fee-schedule', requireSuperAdmin, async (req, res, next) => {
+  try {
+    const schedule = await oxsteedCreditFeeScheduleService.listFeeSchedule();
+    res.json({ schedule });
+  } catch (err) { next(err); }
+});
+router.put('/super/oxsteed-credit/fee-schedule/:id', requireSuperAdmin, creditAdminMutationLimiter, async (req, res, next) => {
+  try {
+    const result = await withTransaction(pool, async (client) => {
+      const row = await oxsteedCreditFeeScheduleService.updateFeeScheduleRow(client, {
+        id: req.params.id,
+        fixedCents: req.body?.fixedCents ?? req.body?.fixed_cents,
+        percentageBps: req.body?.percentageBps ?? req.body?.percentage_bps,
+        minFeeCents: req.body?.minFeeCents ?? req.body?.min_fee_cents,
+        maxFeeCents: req.body?.maxFeeCents ?? req.body?.max_fee_cents ?? undefined,
+        isActive: req.body?.isActive ?? req.body?.is_active,
+      });
+      if (!row) throw new AppError('Fee schedule row was not found', 404, 'credit_fee_schedule_not_found');
+      await oxsteedCreditAdminService.insertAudit(client, {
+        actionType: 'credit.fee_schedule.updated',
+        actorUserId: req.user?.id || null,
+        resourceType: 'fee_schedule',
+        resourceId: String(row.id),
+        reason: req.body?.reason || 'Fee schedule updated',
+        correlationId: req.correlationId || req.get('X-Request-ID') || null,
+        requestIp: req.ip || null,
+        afterState: {
+          operationType: row.operation_type,
+          currencyCode: row.currency_code,
+          fixedCents: Number(row.fixed_cents),
+          percentageBps: Number(row.percentage_bps),
+          minFeeCents: Number(row.min_fee_cents),
+          maxFeeCents: row.max_fee_cents === null ? null : Number(row.max_fee_cents),
+          isActive: row.is_active,
+        },
+      });
+      return row;
+    }, 'credit_fee_schedule_admin_update');
+    res.json({ feeScheduleRow: result });
+  } catch (err) { next(err); }
+});
 
 // User-action audit log - super-admin or admins with view_audit_log grant
 router.get(

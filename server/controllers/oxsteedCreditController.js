@@ -45,7 +45,7 @@ const { evaluateFundingCompliance } = require('../services/fiatComplianceService
 const { reviewIdentityVerification } = require('../services/identityVerificationService');
 const { decideSanctionsScreening } = require('../services/sanctionsScreeningService');
 const { getComplianceQueue, transitionComplianceCase } = require('../services/complianceCaseService');
-const { issueStepupChallenge } = require('../services/stepupChallengeService');
+const { issueStepupChallenge, verifyStepupChallenge, amountRequiresStepup } = require('../services/stepupChallengeService');
 const {
   listPartners,
   listAdminCustomerCreditAccounts,
@@ -507,6 +507,16 @@ async function transferMyCredit(req, res, next) {
       throw new AppError('Only customer accounts can transfer OxSteed Credit', 403, 'credit_transfer_customer_only');
     }
     const recipientCustomerId = parseUuid(req.body?.recipientCustomerId || req.body?.recipient_customer_id, 'recipientCustomerId');
+    // Phase 6 (gap 6): large transfers require a fresh step-up challenge,
+    // verified before any persistent side effect (same bar as top-ups).
+    if (amountRequiresStepup(req.body?.amountCents ?? req.body?.amount_cents)) {
+      await verifyStepupChallenge({
+        challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+        actorUserId: req.user.id,
+        actionType: 'customer_transfer',
+        code: req.body?.stepupCode || req.body?.stepup_code,
+      });
+    }
     const result = await transferCredit({
       senderCustomerId: req.user.id,
       recipientCustomerId,
@@ -1120,14 +1130,20 @@ async function transitionAdminComplianceCase(req, res, next) {
 /**
  * POST /admin/super/oxsteed-credit/stepup-challenges
  * Issue a step-up challenge for the calling super-admin (used before
- * settlement payout initiation). Code is emailed; never in the response.
+ * settlement payout initiation and withdrawal approval). Code is emailed;
+ * never in the response.
  */
+const ADMIN_STEPUP_ACTION_TYPES = new Set(['settlement_payout', 'withdrawal']);
 async function issueAdminStepupChallenge(req, res, next) {
   try {
+    const requestedActionType = String(req.body?.actionType || req.body?.action_type || 'settlement_payout').trim();
+    if (!ADMIN_STEPUP_ACTION_TYPES.has(requestedActionType)) {
+      throw new AppError('Unsupported admin step-up action', 400, 'credit_stepup_action_invalid');
+    }
     const { challenge, delivery } = await issueStepupChallenge({
       actorUserId: req.user.id,
       actorEmail: req.user?.email,
-      actionType: 'settlement_payout',
+      actionType: requestedActionType,
       amountCents: req.body?.amountCents || req.body?.amount_cents || 1,
       currencyCode: req.body?.currencyCode || req.body?.currency_code || 'USD',
     });

@@ -86,6 +86,9 @@ const POSTABLE_CREDIT_TRANSACTION_TYPES = Object.freeze([
   'funding', 'reserve_release', 'conversion_debit', 'conversion_fee', 'conversion_credit',
   'cash_out',
   'sub_bank_load', 'sub_bank_redemption', 'sub_bank_refund', 'sub_bank_opening_balance',
+  // Phase 6: fee legs for withdrawals and customer transfers (mirroring
+  // conversion_fee), and restaurant-credit -> OxSteed-credit conversions.
+  'withdrawal_fee', 'transfer_fee', 'sub_bank_conversion',
 ]);
 
 function positiveEnv(name, fallback) {
@@ -1193,6 +1196,30 @@ async function postJournalTransaction(client, input) {
       throw new AppError('Credit cash-out account direction is invalid', 400, 'credit_cash_out_direction_invalid');
     }
   }
+  if (input.transactionType === 'withdrawal_fee' || input.transactionType === 'transfer_fee') {
+    // Phase 6 fee legs: the fee schedule amount leaves the customer's
+    // wallet for platform_revenue, exactly like conversion_fee.
+    const validDirection = debitAccount.account_type === 'customer_wallet' && creditAccount.account_type === 'platform_revenue';
+    if (
+      !validDirection
+      || (input.partnerId !== null && input.partnerId !== undefined)
+      || (input.agreementId !== null && input.agreementId !== undefined)
+    ) {
+      throw new AppError('Credit fee account direction is invalid', 400, 'credit_fee_direction_invalid');
+    }
+  }
+  if (input.transactionType === 'sub_bank_conversion') {
+    // Phase 6: restaurant credit converted into OxSteed credit. Value moves
+    // from the restaurant's sub-bank into the customer's OxSteed wallet.
+    const validDirection = debitAccount.account_type === 'restaurant_sub_bank' && creditAccount.account_type === 'customer_wallet';
+    if (
+      !validDirection
+      || (input.partnerId !== null && input.partnerId !== undefined)
+      || (input.agreementId !== null && input.agreementId !== undefined)
+    ) {
+      throw new AppError('Credit restaurant conversion account direction is invalid', 400, 'credit_sub_bank_conversion_direction_invalid');
+    }
+  }
   if (['sub_bank_load', 'sub_bank_redemption', 'sub_bank_refund', 'sub_bank_opening_balance'].includes(input.transactionType)) {
     // Restaurant sub-bank dual-postings (Phase 1 central-bank model). These
     // mirror the DB trigger branches added in migration 632 so a misrouted
@@ -2072,6 +2099,21 @@ async function transferCreditInTransaction(client, { senderCustomerId, recipient
     [recipientCustomerId]
   );
   if (!recipientRows[0]) throw new AppError('Recipient customer was not found', 404, 'credit_recipient_not_found');
+  // Phase 6 (gap 6): sanctions screening on BOTH parties. A hit on either
+  // side blocks the transfer until an admin explicitly clears it; a
+  // provider error fails closed. Lazy require to avoid a require cycle
+  // with insertAudit.
+  const { assertSanctionsClear } = require('./sanctionsScreeningService');
+  await assertSanctionsClear(client, {
+    subjectType: 'customer',
+    subjectId: senderCustomerId,
+    context: { operation: 'customer_transfer', role: 'sender' },
+  });
+  await assertSanctionsClear(client, {
+    subjectType: 'customer',
+    subjectId: recipientCustomerId,
+    context: { operation: 'customer_transfer', role: 'recipient' },
+  });
   await assertCustomerTransferCapacity(client, {
     customerId: senderCustomerId,
     amountCents: amount,
@@ -2079,7 +2121,7 @@ async function transferCreditInTransaction(client, { senderCustomerId, recipient
   });
   const sender = await ensureAccount(client, { accountType: 'customer_wallet', customerId: senderCustomerId, currencyCode: currency });
   const recipient = await ensureAccount(client, { accountType: 'customer_wallet', customerId: recipientCustomerId, currencyCode: currency });
-  return postJournalTransaction(client, {
+  const transferResult = await postJournalTransaction(client, {
     transactionType: 'transfer',
     debitAccountId: sender.id,
     creditAccountId: recipient.id,
@@ -2096,6 +2138,34 @@ async function transferCreditInTransaction(client, { senderCustomerId, recipient
     description,
     metadata: { ...normalizeMetadata(metadata), recipientCustomerId },
   });
+  // Phase 6 (gap 12): the fee-schedule amount for transfers posts as its
+  // own `transfer_fee` leg (sender wallet -> platform_revenue) in the same
+  // transaction. Quoted and posted in one step, so they cannot diverge.
+  const { quoteFee } = require('./oxsteedCreditFeeScheduleService');
+  const { feeCents } = await quoteFee({ operationType: 'transfer', currencyCode: currency, amountCents: amount }, client);
+  let feeTransactionId = null;
+  if (feeCents > 0) {
+    const revenue = await ensureAccount(client, { accountType: 'platform_revenue', currencyCode: currency });
+    const { transaction: feeTx } = await postJournalTransaction(client, {
+      transactionType: 'transfer_fee',
+      debitAccountId: sender.id,
+      creditAccountId: revenue.id,
+      customerId: senderCustomerId,
+      amountCents: feeCents,
+      currencyCode: currency,
+      idempotencyKey: `${normalizedIdempotencyKey}:fee`,
+      actorType: 'user',
+      actorUserId,
+      referenceType: 'customer_transfer_fee',
+      referenceId,
+      correlationId,
+      requestIp,
+      description: 'Customer transfer fee',
+      metadata: { ...normalizeMetadata(metadata), recipientCustomerId, quotedFeeCents: feeCents },
+    });
+    feeTransactionId = feeTx.id;
+  }
+  return { ...transferResult, feeCents, feeTransactionId };
 }
 
 async function transferCredit(args) {

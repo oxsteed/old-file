@@ -329,31 +329,62 @@ async function applyCreditTopupWebhookEvent({ type, object }) {
     }
     case 'transfer.created':
     case 'transfer.updated': {
-      if (!metadata.oxsteed_credit_settlement_id) return false;
-      try {
-        // Builder B's contract: confirm payout status from the Stripe transfer.
-        await require('./oxsteedCreditAdminService').confirmSettlementPayoutFromTransfer(object.id);
-      } catch (err) {
-        logger.error('[oxsteed-credit] Settlement payout confirmation failed; leaving for Stripe retry', {
-          transferId: object.id,
-          error: err.message,
-        });
-        throw err;
+      // Builder B's contract: confirm payout status from the Stripe transfer.
+      if (metadata.oxsteed_credit_settlement_id) {
+        try {
+          await require('./oxsteedCreditAdminService').confirmSettlementPayoutFromTransfer(object.id);
+        } catch (err) {
+          logger.error('[oxsteed-credit] Settlement payout confirmation failed; leaving for Stripe retry', {
+            transferId: object.id,
+            error: err.message,
+          });
+          throw err;
+        }
+        return true;
       }
-      return true;
+      // Phase 6: customer withdrawal payouts confirm the same way.
+      if (metadata.oxsteed_credit_withdrawal_id) {
+        try {
+          await require('./oxsteedCreditWithdrawalService').confirmWithdrawalFromTransfer(object.id);
+        } catch (err) {
+          logger.error('[oxsteed-credit] Withdrawal payout confirmation failed; leaving for Stripe retry', {
+            transferId: object.id,
+            error: err.message,
+          });
+          throw err;
+        }
+        return true;
+      }
+      return false;
     }
     case 'transfer.reversed': {
-      if (!metadata.oxsteed_credit_settlement_id) return false;
-      try {
-        await require('./oxsteedCreditAdminService').failSettlementPayoutFromTransfer(object.id, 'transfer_reversed');
-      } catch (err) {
-        logger.error('[oxsteed-credit] Settlement payout failure recording failed; leaving for Stripe retry', {
-          transferId: object.id,
-          error: err.message,
-        });
-        throw err;
+      if (metadata.oxsteed_credit_settlement_id) {
+        try {
+          await require('./oxsteedCreditAdminService').failSettlementPayoutFromTransfer(object.id, 'transfer_reversed');
+        } catch (err) {
+          logger.error('[oxsteed-credit] Settlement payout failure recording failed; leaving for Stripe retry', {
+            transferId: object.id,
+            error: err.message,
+          });
+          throw err;
+        }
+        return true;
       }
-      return true;
+      // Phase 6: a reversed withdrawal transfer fails the withdrawal and
+      // posts a compensating reversal of the lock leg (append-only).
+      if (metadata.oxsteed_credit_withdrawal_id) {
+        try {
+          await require('./oxsteedCreditWithdrawalService').failWithdrawalFromTransfer(object.id, 'transfer_reversed');
+        } catch (err) {
+          logger.error('[oxsteed-credit] Withdrawal payout failure recording failed; leaving for Stripe retry', {
+            transferId: object.id,
+            error: err.message,
+          });
+          throw err;
+        }
+        return true;
+      }
+      return false;
     }
     default:
       return false;

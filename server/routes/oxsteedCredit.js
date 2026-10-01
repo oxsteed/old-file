@@ -6,6 +6,7 @@ const { creditMutationLimiter, creditExportLimiter } = require('../middleware/ra
 const controller = require('../controllers/oxsteedCreditController');
 const cardController = require('../controllers/oxsteedCreditCardController');
 const topupController = require('../controllers/oxsteedCreditTopupController');
+const withdrawalController = require('../controllers/oxsteedCreditWithdrawalController');
 
 function noStoreCreditResponse(_req, res, next) {
   res.set('Cache-Control', 'private, no-store');
@@ -41,6 +42,18 @@ router.post('/topups', creditMutationLimiter, topupController.createTopup);
 router.get('/topups/:id', topupController.getTopup);
 // Step-up challenge issuance for large top-ups (Phase 5 compliance).
 router.post('/stepup-challenges', creditMutationLimiter, topupController.issueTopupStepupChallenge);
+
+// Fiat money OUT: customer withdrawals to their connected bank account.
+router.post('/withdrawals', creditMutationLimiter, withdrawalController.requestWithdrawal);
+router.get('/withdrawals', withdrawalController.listMyWithdrawals);
+router.post('/withdrawals/:id/cancel', creditMutationLimiter, withdrawalController.cancelMyWithdrawal);
+// Restaurant credit conversions (Phase 6): OxSteed <-> restaurant food wallet.
+router.post('/restaurant-conversions', creditMutationLimiter, withdrawalController.createRestaurantConversion);
+router.get('/restaurant-conversions', withdrawalController.listMyRestaurantConversions);
+// Fee quotes (Phase 6): what a money-out operation will cost, before confirming.
+router.get('/fee-quotes', withdrawalController.getFeeQuote);
+// Step-up challenge issuance for customer money-out actions (Phase 6).
+router.post('/money-out/stepup-challenges', creditMutationLimiter, withdrawalController.issueMoneyOutStepupChallenge);
 
 // OxSteed Credit card ecosystem: issuance, activation, lifecycle, and PIN
 // management. Redemption/cash-out happen from device-authenticated kiosk

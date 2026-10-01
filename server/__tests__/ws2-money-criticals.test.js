@@ -21,6 +21,15 @@ jest.mock('../services/reconciliationExceptions', () => ({
   recordException: jest.fn().mockResolvedValue(1),
 }));
 
+// C6: refundWalletDebitForReference dual-posts to the OxSteed Credit central
+// journal, which fails closed when the credit rail is disabled. These tests
+// cover the wallet refund fallback logic, not the central posting, so stub
+// the posting while keeping the rest of the real module intact.
+jest.mock('../services/oxsteedCreditSubBankService', () => ({
+  ...jest.requireActual('../services/oxsteedCreditSubBankService'),
+  postFoodWalletDualEntry: jest.fn().mockResolvedValue({ posted: true }),
+}));
+
 const stripeMock = require('stripe').__mockInstance;
 // The shared stripe mock has no balance/payouts namespaces; the payout paths
 // under test need them.
@@ -38,6 +47,7 @@ const {
 } = require('../controllers/restaurantRunnerController');
 const { _verifyDeviceForDriver } = require('../services/deliveryTrackingService');
 const { refundWalletDebitForReference } = require('../services/foodWalletService');
+const { postFoodWalletDualEntry } = require('../services/oxsteedCreditSubBankService');
 const { settlePaymentRefund } = require('../services/paymentRefundService');
 
 function mockRes() {
@@ -57,6 +67,7 @@ function keyed(impl) {
 beforeEach(() => {
   resetMocks();
   recordException.mockClear();
+  postFoodWalletDualEntry.mockClear();
   Object.values(stripeMock).forEach((ns) => {
     if (ns && typeof ns === 'object') Object.values(ns).forEach((fn) => fn && fn.mockReset && fn.mockReset());
   });

@@ -38,7 +38,15 @@ const STEPUP_CODE_TTL_MINUTES = Math.max(
   Number.parseInt(process.env.OXSTEED_CREDIT_STEPUP_CODE_TTL_MINUTES || '10', 10) || 10
 );
 const STEPUP_MAX_ATTEMPTS = 5;
-const STEPUP_ACTION_TYPES = Object.freeze(['topup', 'settlement_payout']);
+// Phase 6 adds withdrawal, customer_transfer, and restaurant_conversion:
+// the same fresh-challenge bar as large top-ups and settlement payouts.
+const STEPUP_ACTION_TYPES = Object.freeze([
+  'topup',
+  'settlement_payout',
+  'withdrawal',
+  'customer_transfer',
+  'restaurant_conversion',
+]);
 
 function getStepupPepper() {
   return process.env.OXSTEED_CREDIT_STEPUP_PEPPER || process.env.JWT_SECRET || null;
@@ -187,10 +195,15 @@ async function verifyStepupChallenge({ challengeId, actorUserId, actionType, cod
 
 /**
  * Whether a top-up amount needs step-up. Payout initiation always needs it.
+ * The threshold is amount-based and applies identically to withdrawals,
+ * customer transfers, and restaurant conversions (Phase 6).
  */
 function topupRequiresStepup(amountCents) {
   return Number(amountCents) >= STEPUP_THRESHOLD_CENTS;
 }
+
+// Generic alias: the rule is amount-based, not top-up-specific.
+const amountRequiresStepup = topupRequiresStepup;
 
 module.exports = {
   STEPUP_THRESHOLD_CENTS,
@@ -200,5 +213,6 @@ module.exports = {
   issueStepupChallenge,
   verifyStepupChallenge,
   topupRequiresStepup,
+  amountRequiresStepup,
   formatChallenge,
 };
