@@ -4,6 +4,19 @@ const path = require('path');
 const repositoryRoot = path.resolve(__dirname, '../..');
 const workflowPath = path.join(repositoryRoot, '.github/workflows/ci.yml');
 
+// The Credit admin UI was split from a single monolith page into one page
+// per working area under client/src/admin/pages/super/oxsteedCredit/.
+// Tests that assert on admin UI source read the concatenated pages so the
+// wiring assertions keep covering every section.
+function readCreditAdminSources() {
+  const dir = path.join(repositoryRoot, 'client/src/admin/pages/super/oxsteedCredit');
+  return fs.readdirSync(dir)
+    .filter((file) => file.endsWith('.jsx'))
+    .sort()
+    .map((file) => fs.readFileSync(path.join(dir, file), 'utf8'))
+    .join('\n');
+}
+
 describe('deployment release identity wiring', () => {
   test('passes Sentry release and commit SHA through both Docker build stages', () => {
     const dockerfile = fs.readFileSync(path.join(repositoryRoot, 'Dockerfile'), 'utf8');
@@ -146,7 +159,7 @@ describe('deployment release identity wiring', () => {
   });
 
   test('binds Credit rail changes to the state observed by the operator', () => {
-    const adminSource = fs.readFileSync(path.join(repositoryRoot, 'client/src/admin/pages/super/OxsteedCreditAdmin.jsx'), 'utf8');
+    const adminSource = readCreditAdminSources();
     const controllerSource = fs.readFileSync(path.join(repositoryRoot, 'server/controllers/oxsteedCreditController.js'), 'utf8');
     const serviceSource = fs.readFileSync(path.join(repositoryRoot, 'server/services/oxsteedCreditService.js'), 'utf8');
 
@@ -158,7 +171,7 @@ describe('deployment release identity wiring', () => {
   });
 
   test('binds settlement transitions to the status observed by the operator', () => {
-    const adminSource = fs.readFileSync(path.join(repositoryRoot, 'client/src/admin/pages/super/OxsteedCreditAdmin.jsx'), 'utf8');
+    const adminSource = readCreditAdminSources();
     const controllerSource = fs.readFileSync(path.join(repositoryRoot, 'server/controllers/oxsteedCreditController.js'), 'utf8');
     const serviceSource = fs.readFileSync(path.join(repositoryRoot, 'server/services/oxsteedCreditAdminService.js'), 'utf8');
 
@@ -169,7 +182,7 @@ describe('deployment release identity wiring', () => {
   });
 
   test('binds partner and agreement transitions to observed lifecycle state', () => {
-    const adminSource = fs.readFileSync(path.join(repositoryRoot, 'client/src/admin/pages/super/OxsteedCreditAdmin.jsx'), 'utf8');
+    const adminSource = readCreditAdminSources();
     const controllerSource = fs.readFileSync(path.join(repositoryRoot, 'server/controllers/oxsteedCreditController.js'), 'utf8');
     const serviceSource = fs.readFileSync(path.join(repositoryRoot, 'server/services/oxsteedCreditAdminService.js'), 'utf8');
 
@@ -183,7 +196,7 @@ describe('deployment release identity wiring', () => {
   });
 
   test('keeps Credit dialogs keyboard-contained and visibly focused', () => {
-    const adminSource = fs.readFileSync(path.join(repositoryRoot, 'client/src/admin/pages/super/OxsteedCreditAdmin.jsx'), 'utf8');
+    const adminSource = readCreditAdminSources();
     const globalStyles = fs.readFileSync(path.join(repositoryRoot, 'client/src/index.css'), 'utf8');
 
     expect(adminSource).toContain('useCreditDialogFocusTrap');
@@ -202,7 +215,6 @@ describe('deployment release identity wiring', () => {
       'client/src/pages/food/OxsteedCreditTransactionPage.jsx',
       'client/src/pages/food/RestaurantCreditPage.jsx',
       'client/src/pages/food/RestaurantCreditManager.jsx',
-      'client/src/admin/pages/super/OxsteedCreditAdmin.jsx',
       'client/src/admin/pages/super/OxsteedCreditEntitlements.jsx',
       'client/src/admin/pages/super/OxsteedCreditCustomerDetail.jsx',
       'client/src/admin/pages/super/OxsteedCreditPartnerLedger.jsx',
@@ -216,12 +228,17 @@ describe('deployment release identity wiring', () => {
       expect(source).toContain('formatCreditDateTime');
       expect(source).not.toContain('Intl.DateTimeFormat(undefined');
     }
+    // The former admin monolith is now one page per working area; the
+    // timestamp wiring lives in the shared module the pages import.
+    const creditAdminSource = readCreditAdminSources();
+    expect(creditAdminSource).toContain('formatCreditDateTime');
+    expect(creditAdminSource).not.toContain('Intl.DateTimeFormat(undefined');
 
     const customerDetail = fs.readFileSync(path.join(repositoryRoot, 'client/src/admin/pages/super/OxsteedCreditCustomerDetail.jsx'), 'utf8');
     const entitlements = fs.readFileSync(path.join(repositoryRoot, 'client/src/admin/pages/super/OxsteedCreditEntitlements.jsx'), 'utf8');
     const customerCredit = fs.readFileSync(path.join(repositoryRoot, 'client/src/pages/food/OxsteedCreditPage.jsx'), 'utf8');
     const partnerManager = fs.readFileSync(path.join(repositoryRoot, 'client/src/pages/food/OxsteedCreditPartnerManager.jsx'), 'utf8');
-    const admin = fs.readFileSync(path.join(repositoryRoot, 'client/src/admin/pages/super/OxsteedCreditAdmin.jsx'), 'utf8');
+    const admin = readCreditAdminSources();
     expect(customerDetail).toContain('const language = typeof t === \'function\' ? t.lng : undefined;');
     expect(customerDetail).toContain('formatCreditDateTime(value, fallback, language)');
     expect(entitlements).toContain("formatCreditDateTime(value, value ? t('statusUnknown') : t('notAvailable'), t.lng)");
@@ -245,7 +262,7 @@ describe('deployment release identity wiring', () => {
   });
 
   test('rejects invalid optional agreement limits before the admin form submits', () => {
-    const source = fs.readFileSync(path.join(repositoryRoot, 'client/src/admin/pages/super/OxsteedCreditAdmin.jsx'), 'utf8');
+    const source = readCreditAdminSources();
 
     expect(source).toContain('parseOptionalCreditMajorAmount');
     expect(source).toContain('const maxTransaction = parseOptionalCreditMajorAmount(agreementForm.maxTransaction');
@@ -274,7 +291,7 @@ describe('deployment release identity wiring', () => {
   });
 
   test('keeps settlement controls localized and connected to guarded mutations', () => {
-    const source = fs.readFileSync(path.join(repositoryRoot, 'client/src/admin/pages/super/OxsteedCreditAdmin.jsx'), 'utf8');
+    const source = readCreditAdminSources();
     const requiredTranslationKeys = [
       'adminSettlementPartner', 'adminSelectPartner', 'adminSettlementAgreement',
       'adminLoadingAgreements', 'adminSelectAgreement', 'adminPeriodStarts',
