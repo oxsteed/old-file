@@ -77,12 +77,13 @@ describe('deployment release identity wiring', () => {
     expect(viteConfig).toContain("'/api': {");
   });
 
-  test('gates Coolify deploys on the expanded public Direct catalog contract', () => {
+  test('leaves production deployment ownership with native Coolify', () => {
     const workflow = fs.readFileSync(workflowPath, 'utf8');
 
-    expect(workflow).toContain('PUBLIC_READY_URL: https://oxsteed.com/ready');
-    expect(workflow).toContain('DIRECT_CATALOG_PUBLIC_API_URL=https://oxsteed.com/api/direct/catalog');
-    expect(workflow).toContain('node server/scripts/verify-direct-catalog-public-api.js');
+    expect(workflow).toContain('node --test scripts/deploy-coolify.test.cjs');
+    expect(workflow).not.toContain('name: Deploy to Coolify');
+    expect(workflow).not.toContain('COOLIFY_WEBHOOK_URL: ${{ secrets.COOLIFY_WEBHOOK_URL }}');
+    expect(workflow).not.toContain('COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}');
   });
 
   test('runs the Direct catalog database verifier when CI has a database', () => {
@@ -92,11 +93,12 @@ describe('deployment release identity wiring', () => {
     expect(workflow).toContain('set CI_DATABASE_URL secret for active-job, Credit schema, and Direct catalog checks');
   });
 
-  test('runs bounded Direct catalog performance verification after publication', () => {
+  test('does not run duplicate post-deploy checks from GitHub Actions', () => {
     const workflow = fs.readFileSync(workflowPath, 'utf8');
 
-    expect(workflow).toContain('DIRECT_CATALOG_PERFORMANCE_LIVE=true');
-    expect(workflow).toContain('node server/scripts/verify-direct-catalog-performance.js');
+    expect(workflow).not.toContain('DIRECT_CATALOG_PERFORMANCE_LIVE=true');
+    expect(workflow).not.toContain('node server/scripts/verify-direct-catalog-performance.js');
+    expect(workflow).not.toContain('PUBLIC_READY_URL: https://oxsteed.com/ready');
   });
 
   test('keeps the expanded Direct catalog browser surface bounded and request-safe', () => {
@@ -327,17 +329,15 @@ describe('deployment release identity wiring', () => {
     expect(dockerignore).toContain('**/node_modules');
   });
 
-  test('runs the post-deploy validator from the production branch checkout', () => {
+  test('does not duplicate the native Coolify deployment from GitHub Actions', () => {
     const workflow = fs.readFileSync(workflowPath, 'utf8');
 
     expect(workflow).toContain('branches: [old-files-claude]');
-    expect(workflow).toContain('if: github.ref == \'refs/heads/old-files-claude\' && github.event_name == \'push\'');
     expect(workflow).toContain('uses: actions/checkout@v4');
-    expect(workflow).toContain('run: node scripts/deploy-coolify.cjs --deploy');
     expect(workflow).toContain('run: node --test scripts/deploy-coolify.test.cjs');
-    expect(workflow).toContain('COOLIFY_WEBHOOK_URL: ${{ secrets.COOLIFY_WEBHOOK_URL }}');
-    expect(workflow).toContain('COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}');
-    expect(workflow).toContain('printf \'%s\' "$ready_payload" | node server/scripts/verify-readiness-payload.js');
+    expect(workflow).not.toContain('run: node scripts/deploy-coolify.cjs --deploy');
+    expect(workflow).not.toContain('COOLIFY_WEBHOOK_URL: ${{ secrets.COOLIFY_WEBHOOK_URL }}');
+    expect(workflow).not.toContain('COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}');
   });
 
   test('keeps the isolated restore verifier in the production repository', () => {

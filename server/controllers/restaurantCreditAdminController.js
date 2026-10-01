@@ -228,7 +228,7 @@ exports.getOverview = async (req, res, next) => {
            JOIN users u ON u.id = a.customer_id
           WHERE ${filters.where}
           ORDER BY a.updated_at DESC, a.id DESC
-          LIMIT ${limitPlaceholder} OFFSET ${offsetPlaceholder}`,
+          LIMIT $${limitPlaceholder} OFFSET $${offsetPlaceholder}`,
         [...filters.params, pageSize, offset]
       ),
       pool.query(

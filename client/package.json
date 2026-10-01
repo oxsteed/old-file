@@ -47,6 +47,7 @@
     "test:admin-marketplace-refund-idempotency": "node --test scripts/adminMarketplaceRefundIdempotency.test.mjs",
     "test:no-duplicate-json-keys": "node scripts/noDuplicateJsonKeys.test.mjs",
     "test:admin-operations-browser": "node --test scripts/adminOperations.browser-check.cjs",
+    "test:admin-authenticated": "node --test scripts/adminAuthenticated.browser-check.cjs",
     "test:how-it-works": "node --test src/utils/howItWorksRoleModel.test.mjs",
     "test:experience-guides": "node --test src/utils/experienceGuideModel.test.mjs",
     "test:direct-catalog-navigation": "node --test src/utils/directCatalogNavigation.test.mjs",

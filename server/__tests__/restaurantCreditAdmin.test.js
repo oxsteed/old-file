@@ -105,6 +105,11 @@ test('returns a global restaurant-credit overview contract for super admins', as
   });
   expect(response.body.restaurants[0]).toMatchObject({ id: String(RESTAURANT_ID), walletCount: 1 });
   expect(response.body.recentActivity[0]).toMatchObject({ entryType: 'credit', amountCents: 12500 });
+
+  const walletQuery = mockQuery.mock.calls.find(([sql]) => String(sql).includes('ORDER BY a.updated_at DESC'));
+  expect(walletQuery).toBeTruthy();
+  expect(walletQuery[0]).toContain('LIMIT $1 OFFSET $2');
+  expect(walletQuery[1]).toEqual([25, 0]);
 });
 
 test('rejects an invalid wallet status filter before querying the database', async () => {

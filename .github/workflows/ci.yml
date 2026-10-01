@@ -49,6 +49,16 @@ jobs:
         working-directory: client
         run: node --test scripts/*.browser-check.cjs
 
+      - name: Authenticated admin browser matrix
+        working-directory: client
+        env:
+          OXSTEED_E2E_BASE_URL: ${{ secrets.OXSTEED_E2E_BASE_URL }}
+          OXSTEED_E2E_EMAIL: ${{ secrets.OXSTEED_E2E_EMAIL }}
+          OXSTEED_E2E_PASSWORD: ${{ secrets.OXSTEED_E2E_PASSWORD }}
+          OXSTEED_E2E_SIGNATURE_NAME: ${{ secrets.OXSTEED_E2E_SIGNATURE_NAME }}
+          OXSTEED_E2E_2FA_CODE: ${{ secrets.OXSTEED_E2E_2FA_CODE }}
+        run: npm run test:admin-authenticated
+
       - name: Client localization, type, and production build checks
         working-directory: client
         run: npm run build:ci
@@ -78,17 +88,26 @@ jobs:
             echo "Skipping live database verification (set CI_DATABASE_URL secret for active-job, Credit schema, and Direct catalog checks)."
           fi
 
-  deploy:
-    name: Deploy to Coolify
+  migration-rehearsal:
+    name: PostgreSQL migration rehearsal
     runs-on: ubuntu-latest
     needs: install-check
-    if: github.ref == 'refs/heads/old-files-claude' && github.event_name == 'push'
-    timeout-minutes: 25
     permissions:
       contents: read
-    concurrency:
-      group: coolify-production-deploy
-      cancel-in-progress: false
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4-alpine
+        env:
+          POSTGRES_USER: oxsteed
+          POSTGRES_PASSWORD: migration-rehearsal-password
+          POSTGRES_DB: oxsteed_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U oxsteed -d oxsteed_db"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
 
     steps:
       - name: Checkout code
@@ -99,50 +118,15 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Verify Coolify target and deploy
-        env:
-          COOLIFY_WEBHOOK_URL: ${{ secrets.COOLIFY_WEBHOOK_URL }}
-          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
-        run: node scripts/deploy-coolify.cjs --deploy
+      - name: Install server dependencies
+        working-directory: server
+        run: npm ci
 
-      - name: Verify production recovered after deploy
+      - name: Apply every migration twice
+        working-directory: server
         env:
-          PUBLIC_READY_URL: https://oxsteed.com/ready
-          API_HEALTH_URL: https://api.oxsteed.com/health
+          DATABASE_URL: postgresql://oxsteed:migration-rehearsal-password@127.0.0.1:5432/oxsteed_db?sslmode=disable
+          NODE_ENV: test
         run: |
-          set -euo pipefail
-
-          wait_for_healthy_endpoint() {
-            local url="$1"
-            local label="$2"
-            local status=""
-
-            for attempt in $(seq 1 30); do
-              status="$(curl --silent --show-error --max-time 10 --output /dev/null --write-out '%{http_code}' "$url" || true)"
-              if [ "$status" = "200" ]; then
-                echo "$label is healthy (attempt $attempt)."
-                return 0
-              fi
-              echo "$label is not ready yet (HTTP $status, attempt $attempt/30); waiting 10s."
-              sleep 10
-            done
-
-            echo "$label did not become healthy within the deployment window."
-            return 1
-          }
-
-          wait_for_healthy_endpoint "$PUBLIC_READY_URL" "Public readiness"
-          wait_for_healthy_endpoint "$API_HEALTH_URL" "API health"
-
-          ready_payload="$(curl --silent --show-error --fail --max-time 15 "$PUBLIC_READY_URL")"
-          expected_content_release="$(node scripts/compute-content-release.cjs)"
-          printf '%s' "$ready_payload" | node server/scripts/verify-readiness-payload.js \
-            --expected-release="$GITHUB_SHA" \
-            --expected-release="$expected_content_release"
-
-          DIRECT_CATALOG_PUBLIC_API_URL=https://oxsteed.com/api/direct/catalog \
-            node server/scripts/verify-direct-catalog-public-api.js
-
-          DIRECT_CATALOG_PUBLIC_API_URL=https://oxsteed.com/api/direct/catalog \
-          DIRECT_CATALOG_PERFORMANCE_LIVE=true \
-            node server/scripts/verify-direct-catalog-performance.js
+          npm run migrate
+          npm run migrate
