@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Store,
   UtensilsCrossed,
+  WalletCards,
   Wrench,
 } from 'lucide-react';
 import '../styles/Dashboard.css';
@@ -30,6 +31,7 @@ const link = (to, labelKey, defaultLabel, Icon, tone = '', activityKey = '', act
 
 const QR_GENERATOR_LINK = link('/qr-generator', 'nav.qrGenerator', 'QR Generator', QrCode, '', '', '', true);
 const QR_PAY_LINK = link('/qr-payments', 'qrPay.quickLink', 'Get paid by QR', QrCode);
+const WALLET_LINK = link('/oxsteed-credit', 'nav.wallet', 'Wallet', WalletCards);
 
 export const DASHBOARD_QUICK_LINKS = {
   helper: [
@@ -42,6 +44,7 @@ export const DASHBOARD_QUICK_LINKS = {
     link('/helper/messages', 'nav.messages', 'Messages', MessageSquare, '', 'messages'),
     link('/disputes', 'helperDashboard.disputes', 'Disputes', ShieldCheck, '', 'disputes'),
     QR_GENERATOR_LINK,
+    WALLET_LINK,
     QR_PAY_LINK,
     link('/settings', 'nav.settings', 'Settings', Settings),
   ],
@@ -50,6 +53,7 @@ export const DASHBOARD_QUICK_LINKS = {
     link('/calendar', 'nav.calendar', 'Calendar', CalendarDays),
     link('/planned-needs', 'dashboards.life.plannedNeeds', 'Planned needs', FileText),
     QR_GENERATOR_LINK,
+    WALLET_LINK,
     link('/settings', 'nav.settings', 'Account settings', Settings),
   ],
   toolOwner: [
@@ -57,6 +61,7 @@ export const DASHBOARD_QUICK_LINKS = {
     link('/tool-rentals/analytics', 'toolRentals.analytics', 'Rental analytics', Activity),
     link('/calendar', 'nav.calendar', 'Calendar', CalendarDays),
     QR_GENERATOR_LINK,
+    WALLET_LINK,
     link('/settings', 'nav.settings', 'Settings', Settings),
   ],
   franchise: [
@@ -64,6 +69,7 @@ export const DASHBOARD_QUICK_LINKS = {
     link('/franchise/territory', 'franchiseApplicantDashboard.territory', 'Territory', Store),
     link('/support/escalation', 'nav.support', 'Support', ShieldCheck),
     QR_GENERATOR_LINK,
+    WALLET_LINK,
     link('/settings', 'nav.settings', 'Settings', Settings),
   ],
   consultant: [
@@ -71,6 +77,7 @@ export const DASHBOARD_QUICK_LINKS = {
     link('/consulting', 'nav.consulting', 'Consulting', Briefcase),
     link('/messages', 'nav.messages', 'Messages', MessageSquare),
     QR_GENERATOR_LINK,
+    WALLET_LINK,
     link('/settings', 'nav.settings', 'Settings', Settings),
   ],
   businessOwner: [
@@ -81,6 +88,7 @@ export const DASHBOARD_QUICK_LINKS = {
     link('/messages', 'nav.messages', 'Messages', MessageSquare),
     link('/calendar', 'nav.calendar', 'Calendar', CalendarDays),
     QR_GENERATOR_LINK,
+    WALLET_LINK,
     QR_PAY_LINK,
     link('/settings', 'nav.settings', 'Settings', Settings),
   ],
@@ -89,6 +97,7 @@ export const DASHBOARD_QUICK_LINKS = {
     link('/calendar', 'nav.calendar', 'Calendar', CalendarDays),
     link('/vortex', 'businessRoleDashboard.viewAllWorkspaces', 'Workspaces', Store),
     QR_GENERATOR_LINK,
+    WALLET_LINK,
     link('/settings', 'nav.settings', 'Settings', Settings),
   ],
 };
