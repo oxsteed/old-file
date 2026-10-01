@@ -1137,6 +1137,122 @@ html.dark .lrn-affiliate-disclosure {
   color: #71717a;
 }
 
+/* What you'll need — marketplace kit panel */
+.lrn-kit {
+  margin: 0 0 1.25rem;
+  padding: 1rem 1.125rem;
+  border-radius: .75rem;
+  background: #f8fafc;
+  border: 1px solid var(--border-color, #e2e8f0);
+}
+
+html.dark .lrn-kit {
+  background: #0f172a;
+  border-color: #1e293b;
+}
+
+.lrn-kit .lrn-detail-heading {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  margin: 0 0 .75rem;
+  font-size: .85rem;
+  font-weight: 700;
+  color: var(--app-text, #1e293b);
+}
+
+html.dark .lrn-kit .lrn-detail-heading {
+  color: #e2e8f0;
+}
+
+.lrn-kit-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: .625rem;
+}
+
+.lrn-kit-card {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  padding: .75rem .875rem;
+  border-radius: .625rem;
+  background: #ffffff;
+  border: 1px solid var(--border-color, #e2e8f0);
+}
+
+html.dark .lrn-kit-card {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.lrn-kit-name {
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--app-text, #1e293b);
+  line-height: 1.4;
+}
+
+html.dark .lrn-kit-name {
+  color: #e2e8f0;
+}
+
+.lrn-kit-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .4rem;
+  margin-top: auto;
+}
+
+.lrn-kit-rent,
+.lrn-kit-buy {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  padding: .35rem .7rem;
+  border-radius: .5rem;
+  font-size: .75rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background .15s, transform .1s;
+}
+
+.lrn-kit-rent {
+  background: #f0f9ff;
+  color: #0284c7;
+}
+
+.lrn-kit-rent:hover {
+  background: #e0f2fe;
+}
+
+html.dark .lrn-kit-rent {
+  background: rgba(2,132,199,.15);
+  color: #38bdf8;
+}
+
+.lrn-kit-buy {
+  background: #f97316;
+  color: #ffffff;
+}
+
+.lrn-kit-buy:hover {
+  background: #ea6a0a;
+}
+
+html.dark .lrn-kit-buy {
+  background: #f97316;
+  color: #ffffff;
+}
+
+.lrn-kit .lrn-affiliate-disclosure {
+  margin-bottom: 0;
+}
+
 /* CTAs panel */
 .lrn-detail-ctas {
   padding: .875rem 1rem;

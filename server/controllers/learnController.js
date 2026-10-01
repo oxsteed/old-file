@@ -34,12 +34,45 @@ for (const [id, cat] of Object.entries(GUIDE_CATEGORY)) {
 
 // ── Guide catalog ─────────────────────────────────────────────────────────────
 
+// Map a learn_guides DB row to the public guide shape.
+function dbRowToGuide(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    category: row.category,
+    difficulty: row.difficulty,
+    minutes: row.minutes,
+    featured: !!row.featured,
+    intro: row.intro,
+    steps: Array.isArray(row.steps) ? row.steps : [],
+    skills: Array.isArray(row.skills) ? row.skills : [],
+    tools: Array.isArray(row.tools) ? row.tools : [],
+    xp: row.xp,
+    video_url: row.video_url || null,
+    video_provider: row.video_provider || null,
+  };
+}
+
 /**
  * GET /api/learn/guides
  * Public — no auth required.
  * Returns the Learn guide catalog so web + native stay in sync.
+ * Reads published guides from learn_guides; falls back to the bundled
+ * JSON catalog if the table is missing or empty (fail open).
  */
 exports.getGuides = async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, title, category, difficulty, minutes, featured, intro,
+              steps, skills, tools, xp, video_url, video_provider
+         FROM learn_guides
+        WHERE status = 'published'
+        ORDER BY featured DESC, created_at ASC`
+    );
+    if (rows.length) return res.json({ guides: rows.map(dbRowToGuide) });
+  } catch (_) {
+    // Table missing — fall through to the JSON catalog.
+  }
   res.json({ guides: GUIDES });
 };
 
@@ -417,9 +450,22 @@ exports.adminReviewSubmission = async (req, res, next) => {
   }
 
   const status = action === 'approve' ? 'approved' : 'rejected';
-
+  const client = await pool.connect();
   try {
-    const { rows } = await pool.query(
+    await client.query('BEGIN');
+    const { rows: subRows } = await client.query(
+      `SELECT id, title, category, difficulty, estimated_minutes, intro,
+              steps, skills, tools, video_url
+         FROM guide_submissions WHERE id = $1`,
+      [id]
+    );
+    if (!subRows.length) {
+      await client.query('ROLLBACK');
+      return next(new AppError('Submission not found', 404, 'not_found'));
+    }
+    const sub = subRows[0];
+
+    const { rows } = await client.query(
       `UPDATE guide_submissions
        SET status = $1, reviewer_id = $2, reviewed_at = NOW(),
            reviewer_note = $3
@@ -427,12 +473,81 @@ exports.adminReviewSubmission = async (req, res, next) => {
        RETURNING id, status`,
       [status, req.user.id, reviewer_note?.trim() || null, id],
     );
-    if (!rows.length) return next(new AppError('Submission not found', 404, 'not_found'));
-    res.json({ success: true, submission: rows[0] });
+
+    // On approval, also publish the guide to the catalog. Savepoint-guarded:
+    // a publish failure never breaks the approval itself.
+    let publishedGuideId = null;
+    if (status === 'approved') {
+      try {
+        await client.query('SAVEPOINT sp_publish');
+        publishedGuideId = await publishSubmissionAsGuide(client, sub);
+        await client.query('RELEASE SAVEPOINT sp_publish');
+      } catch (_pubErr) {
+        await client.query('ROLLBACK TO SAVEPOINT sp_publish').catch(() => {});
+      }
+    }
+
+    await client.query('COMMIT');
+    res.json({ success: true, submission: rows[0], published_guide_id: publishedGuideId });
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     next(new AppError('Failed to review submission', 500, 'review_failed'));
+  } finally {
+    client.release();
   }
 };
+
+/**
+ * Publish an approved UGC submission into the learn_guides catalog.
+ * Generates a URL-safe id from the title, uniquifying on collision.
+ * Returns the new guide id, or null when the catalog table is absent.
+ */
+async function publishSubmissionAsGuide(client, sub) {
+  const base = String(sub.title || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60) || 'guide';
+  let guideId = base;
+  for (let n = 2; ; n += 1) {
+    const { rows } = await client.query('SELECT 1 FROM learn_guides WHERE id = $1', [guideId]);
+    if (!rows.length) break;
+    guideId = `${base}-${n}`;
+    if (n > 99) throw new Error('could not uniquify guide id');
+  }
+  const skills = Array.isArray(sub.skills) ? sub.skills.map(String).slice(0, 20) : [];
+  const videoUrl = sub.video_url ? String(sub.video_url).slice(0, 500) : null;
+  const { rows } = await client.query(
+    `INSERT INTO learn_guides
+       (id, title, category, difficulty, minutes, featured, intro, steps,
+        skills, tools, xp, video_url, video_provider, status)
+     VALUES ($1,$2,$3,$4,$5,FALSE,$6,$7::jsonb,$8,$9::jsonb,$10,$11,$12,'published')
+     RETURNING id`,
+    [
+      guideId,
+      String(sub.title).slice(0, 300),
+      String(sub.category).slice(0, 50),
+      sub.difficulty,
+      sub.estimated_minutes,
+      sub.intro ? String(sub.intro).slice(0, 4000) : null,
+      JSON.stringify(Array.isArray(sub.steps) ? sub.steps.slice(0, 40) : []),
+      skills,
+      JSON.stringify(Array.isArray(sub.tools) ? sub.tools.slice(0, 20) : []),
+      XP_BY_DIFFICULTY[sub.difficulty] ?? 10,
+      videoUrl,
+      detectVideoProvider(videoUrl),
+    ]
+  );
+  return rows[0]?.id || null;
+}
+
+function detectVideoProvider(url) {
+  if (!url) return null;
+  const u = url.toLowerCase();
+  if (u.includes('youtube.com') || u.includes('youtu.be')) return 'youtube';
+  if (u.includes('vimeo.com')) return 'vimeo';
+  return 'embed';
+}
 
 // ── Badges ─────────────────────────────────────────────────────────────────────
 
@@ -631,5 +746,160 @@ exports.adminDeleteProductLink = async (req, res, next) => {
     res.json({ success: true, product: rows[0] });
   } catch (err) {
     next(new AppError('Failed to delete product link', 500, 'delete_failed'));
+  }
+};
+
+// ── Admin guide catalog CRUD ──────────────────────────────────────────────────
+
+const GUIDE_ID_RE = /^[a-z0-9-]+$/;
+const GUIDE_COLUMNS = `id, title, category, difficulty, minutes, featured, intro,
+  steps, skills, tools, xp, video_url, video_provider, status, created_at, updated_at`;
+
+function validateGuideBody(body, { requireId = true } = {}) {
+  const errors = [];
+  if (requireId && !GUIDE_ID_RE.test(String(body.id || ''))) {
+    errors.push('id must match /^[a-z0-9-]+$/');
+  }
+  if (body.title !== undefined && !String(body.title).trim()) errors.push('title is required');
+  if (body.category !== undefined && !String(body.category).trim()) errors.push('category is required');
+  if (body.difficulty !== undefined && !VALID_DIFFICULTIES.includes(body.difficulty)) {
+    errors.push('difficulty must be Easy, Medium, or Hard');
+  }
+  if (body.minutes !== undefined && body.minutes !== null &&
+      (!Number.isInteger(body.minutes) || body.minutes < 1)) {
+    errors.push('minutes must be a positive integer');
+  }
+  if (body.steps !== undefined && !Array.isArray(body.steps)) errors.push('steps must be an array');
+  if (body.skills !== undefined && !Array.isArray(body.skills)) errors.push('skills must be an array');
+  if (body.tools !== undefined && !Array.isArray(body.tools)) errors.push('tools must be an array');
+  if (body.xp !== undefined && (!Number.isInteger(body.xp) || body.xp < 0)) {
+    errors.push('xp must be a non-negative integer');
+  }
+  if (body.status !== undefined && !['published', 'draft'].includes(body.status)) {
+    errors.push("status must be 'published' or 'draft'");
+  }
+  if (body.video_url !== undefined && body.video_url !== null &&
+      typeof body.video_url === 'string' && body.video_url.length > 500) {
+    errors.push('video_url must be 500 characters or fewer');
+  }
+  return errors;
+}
+
+function guideInsertValues(body) {
+  return [
+    String(body.id),
+    String(body.title).trim().slice(0, 300),
+    String(body.category).trim().slice(0, 50),
+    body.difficulty || 'Easy',
+    body.minutes ?? null,
+    body.featured === true,
+    body.intro ? String(body.intro).slice(0, 4000) : null,
+    JSON.stringify(Array.isArray(body.steps) ? body.steps.slice(0, 40) : []),
+    (Array.isArray(body.skills) ? body.skills : []).map(String).slice(0, 20),
+    JSON.stringify(Array.isArray(body.tools) ? body.tools.slice(0, 20) : []),
+    Number.isInteger(body.xp) ? body.xp : (XP_BY_DIFFICULTY[body.difficulty] ?? 10),
+    body.video_url ? String(body.video_url).slice(0, 500) : null,
+    body.video_provider ? String(body.video_provider).slice(0, 20) : null,
+    body.status || 'published',
+  ];
+}
+
+/**
+ * GET /api/admin/learn/guides
+ * Admin — all guides including drafts.
+ */
+exports.adminListGuides = async (_req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT ${GUIDE_COLUMNS} FROM learn_guides ORDER BY created_at DESC`
+    );
+    res.json({ guides: rows.map(dbRowToGuide) });
+  } catch (err) {
+    next(new AppError('Failed to list guides', 500, 'list_guides_failed'));
+  }
+};
+
+/**
+ * POST /api/admin/learn/guides
+ * Admin — create a guide.
+ */
+exports.adminCreateGuide = async (req, res, next) => {
+  const errors = validateGuideBody(req.body || {}, { requireId: true });
+  if (!req.body?.title?.trim() || !req.body?.category?.trim()) {
+    errors.push('title and category are required');
+  }
+  if (errors.length) return next(new AppError(errors.join('; '), 400, 'validation_failed'));
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO learn_guides
+         (id, title, category, difficulty, minutes, featured, intro, steps,
+          skills, tools, xp, video_url, video_provider, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10::jsonb,$11,$12,$13,$14)
+       RETURNING ${GUIDE_COLUMNS}`,
+      guideInsertValues(req.body)
+    );
+    res.status(201).json({ success: true, guide: dbRowToGuide(rows[0]) });
+  } catch (err) {
+    if (err.code === '23505') return next(new AppError('A guide with this id already exists', 409, 'duplicate_guide_id'));
+    next(new AppError('Failed to create guide', 500, 'create_guide_failed'));
+  }
+};
+
+/**
+ * PUT /api/admin/learn/guides/:id
+ * Admin — update a guide (partial update; only provided fields change).
+ */
+exports.adminUpdateGuide = async (req, res, next) => {
+  const errors = validateGuideBody(req.body || {}, { requireId: false });
+  if (errors.length) return next(new AppError(errors.join('; '), 400, 'validation_failed'));
+
+  const sets = [];
+  const values = [];
+  let idx = 1;
+  const field = (col, val, cast = '') => {
+    sets.push(`${col} = $${idx++}${cast}`);
+    values.push(val);
+  };
+  const b = req.body;
+  if (b.title !== undefined) field('title', String(b.title).trim().slice(0, 300));
+  if (b.category !== undefined) field('category', String(b.category).trim().slice(0, 50));
+  if (b.difficulty !== undefined) field('difficulty', b.difficulty);
+  if (b.minutes !== undefined) field('minutes', b.minutes);
+  if (b.featured !== undefined) field('featured', b.featured === true);
+  if (b.intro !== undefined) field('intro', b.intro ? String(b.intro).slice(0, 4000) : null);
+  if (b.steps !== undefined) field('steps', JSON.stringify(b.steps.slice(0, 40)), '::jsonb');
+  if (b.skills !== undefined) field('skills', b.skills.map(String).slice(0, 20));
+  if (b.tools !== undefined) field('tools', JSON.stringify(b.tools.slice(0, 20)), '::jsonb');
+  if (b.xp !== undefined) field('xp', b.xp);
+  if (b.video_url !== undefined) field('video_url', b.video_url ? String(b.video_url).slice(0, 500) : null);
+  if (b.video_provider !== undefined) field('video_provider', b.video_provider ? String(b.video_provider).slice(0, 20) : null);
+  if (b.status !== undefined) field('status', b.status);
+  if (!sets.length) return next(new AppError('Nothing to update', 400, 'validation_failed'));
+
+  try {
+    values.push(req.params.id);
+    const { rows } = await pool.query(
+      `UPDATE learn_guides SET ${sets.join(', ')}, updated_at = NOW()
+       WHERE id = $${idx} RETURNING ${GUIDE_COLUMNS}`,
+      values
+    );
+    if (!rows.length) return next(new AppError('Guide not found', 404, 'not_found'));
+    res.json({ success: true, guide: dbRowToGuide(rows[0]) });
+  } catch (err) {
+    next(new AppError('Failed to update guide', 500, 'update_guide_failed'));
+  }
+};
+
+/**
+ * DELETE /api/admin/learn/guides/:id
+ * Admin — hard delete a guide.
+ */
+exports.adminDeleteGuide = async (req, res, next) => {
+  try {
+    const { rowCount } = await pool.query('DELETE FROM learn_guides WHERE id = $1', [req.params.id]);
+    if (!rowCount) return next(new AppError('Guide not found', 404, 'not_found'));
+    res.json({ success: true, deleted: true, id: req.params.id });
+  } catch (err) {
+    next(new AppError('Failed to delete guide', 500, 'delete_guide_failed'));
   }
 };

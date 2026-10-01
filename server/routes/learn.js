@@ -19,6 +19,11 @@ const {
   adminListSubmissions,
   adminGetSubmission,
   adminReviewSubmission,
+  // Admin guide catalog CRUD
+  adminListGuides,
+  adminCreateGuide,
+  adminUpdateGuide,
+  adminDeleteGuide,
   // Product link overrides
   getProductLinks,
   adminListProductLinks,
@@ -47,6 +52,12 @@ router.get('/submissions/mine',      authenticate, getMySubmissions);
 router.get('/admin/submissions',         authenticate, requireAdmin, requirePermission('moderate_content'), adminListSubmissions);
 router.get('/admin/submissions/:id',     authenticate, requireAdmin, requirePermission('moderate_content'), adminGetSubmission);
 router.patch('/admin/submissions/:id',   authenticate, requireAdmin, requirePermission('moderate_content'), adminReviewSubmission);
+
+// Guide catalog CRUD — admin only
+router.get('/admin/guides',        authenticate, requireAdmin, requirePermission('moderate_content'), adminListGuides);
+router.post('/admin/guides',       authenticate, requireAdmin, requirePermission('moderate_content'), adminCreateGuide);
+router.put('/admin/guides/:id',    authenticate, requireAdmin, requirePermission('moderate_content'), adminUpdateGuide);
+router.delete('/admin/guides/:id', authenticate, requireAdmin, requirePermission('moderate_content'), adminDeleteGuide);
 
 // Product link CRUD — admin only
 router.get('/admin/product-links',        authenticate, requireAdmin, requirePermission('moderate_content'), adminListProductLinks);

@@ -53,6 +53,36 @@ const AFFILIATE_TAG    = 'oxsteed-20';
 const fmtCount = (n) => n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(n);
 const amz = (q) => `https://www.amazon.com/s?k=${encodeURIComponent(q)}&tag=${AFFILIATE_TAG}`;
 
+// Convert a YouTube watch/shorts or Vimeo URL to its embed form for the
+// sandboxed iframe. Returns null for anything else (including non-https
+// URLs) so the caller falls back to the placeholder. video_provider
+// ('youtube'|'vimeo'|null) is a hint; the URL host is also sniffed so
+// provider-less rows still resolve.
+const toEmbedUrl = (url, provider) => {
+  if (typeof url !== 'string') return null;
+  const trimmed = url.trim();
+  if (!/^https:\/\//i.test(trimmed)) return null;
+  let host = '';
+  try {
+    host = new URL(trimmed).hostname.toLowerCase();
+  } catch (_) {
+    return null;
+  }
+  const isYouTube = provider === 'youtube'
+    || host === 'youtube.com' || host.endsWith('.youtube.com') || host === 'youtu.be';
+  if (isYouTube) {
+    const m = trimmed.match(/(?:youtube\.com\/(?:watch\?[^#\s]*v=|shorts\/|embed\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+    return m ? `https://www.youtube.com/embed/${m[1]}` : null;
+  }
+  const isVimeo = provider === 'vimeo'
+    || host === 'vimeo.com' || host.endsWith('.vimeo.com') || host === 'player.vimeo.com';
+  if (isVimeo) {
+    const m = trimmed.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+    return m ? `https://player.vimeo.com/video/${m[1]}` : null;
+  }
+  return null;
+};
+
 // ── Categories ────────────────────────────────────────────────────────────────
 
 const CATEGORIES = [
@@ -3984,6 +4014,8 @@ export default function LearnModePage() {
         steps: Array.isArray(r.steps) && r.steps.length ? r.steps : g.steps,
         skills: Array.isArray(r.skills) && r.skills.length ? r.skills : g.skills,
         tools: mergeTools(g.tools, r.tools),
+        video_url: r.video_url ?? g.video_url,
+        video_provider: r.video_provider ?? g.video_provider ?? null,
         xp: r.xp ?? g.xp,
       };
     });
@@ -3998,7 +4030,8 @@ export default function LearnModePage() {
         difficulty: r.difficulty || 'Easy',
         minutes: r.minutes ?? 30,
         featured: !!r.featured,
-        video_url: null,
+        video_url: r.video_url || null,
+        video_provider: r.video_provider || null,
         license_note: null,
         gradient: 'linear-gradient(135deg, #0b1220, #111827)',
         intro: r.intro || '',
@@ -4568,26 +4601,30 @@ export default function LearnModePage() {
 
                     {isExpanded && (
                       <div className="lrn-guide-detail">
-                        {/* Video */}
+                        {/* Video — YouTube/Vimeo URLs are normalized to embed form;
+                            anything else falls back to the placeholder. */}
                         {/* Audit L11: video_url is admin-entered and unsigned, so the embed is
                             sandboxed (scripts + same-origin + presentation only, no top-level
-                            navigation, no forms) and restricted to https: URLs. */}
-                        {typeof guide.video_url === 'string' && guide.video_url.toLowerCase().startsWith('https://') ? (
-                          <div className="lrn-video-wrap">
-                            <iframe
-                              src={guide.video_url}
-                              title={`Video: ${guide.title}`}
-                              sandbox="allow-scripts allow-same-origin allow-presentation"
-                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                              allowFullScreen
-                            />
-                          </div>
-                        ) : (
-                          <div className="lrn-video-placeholder">
-                            <PlayCircle size={28} aria-hidden="true" />
-                            <span>{t('learn.page.videoComingSoon')}</span>
-                          </div>
-                        )}
+                            navigation, no forms) and restricted to https: embed hosts. */}
+                        {(() => {
+                          const embedUrl = toEmbedUrl(guide.video_url, guide.video_provider);
+                          return embedUrl ? (
+                            <div className="lrn-video-wrap">
+                              <iframe
+                                src={embedUrl}
+                                title={t('learn.page.videoTitle', { title: guide.title, defaultValue: `Video: ${guide.title}` })}
+                                sandbox="allow-scripts allow-same-origin allow-presentation"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                              />
+                            </div>
+                          ) : (
+                            <div className="lrn-video-placeholder">
+                              <PlayCircle size={28} aria-hidden="true" />
+                              <span>{t('learn.page.videoComingSoon', { defaultValue: 'Video coming soon' })}</span>
+                            </div>
+                          );
+                        })()}
 
                         <p className="lrn-guide-intro">{guide.intro}</p>
 
@@ -4597,6 +4634,64 @@ export default function LearnModePage() {
                             <AlertTriangle size={15} aria-hidden="true" />
                             <span>{guide.license_note}</span>
                           </div>
+                        )}
+
+                        {/* What you'll need — marketplace kit panel */}
+                        {Array.isArray(guide.tools) && guide.tools.length > 0 && (
+                          <section
+                            className="lrn-kit"
+                            aria-label={t('learn.page.kitHeading', { defaultValue: "What you'll need" })}
+                          >
+                            <h3 className="lrn-detail-heading">
+                              <ShoppingBag size={14} aria-hidden="true" />
+                              {t('learn.page.kitHeading', { defaultValue: "What you'll need" })}
+                            </h3>
+                            <ul className="lrn-kit-grid">
+                              {guide.tools.map((tool) => {
+                                const isAffiliate = Boolean(tool.buy)
+                                  && tool.link_type !== 'own_inventory'
+                                  && tool.link_type !== 'rental';
+                                return (
+                                  <li key={tool.name} className="lrn-kit-card">
+                                    <span className="lrn-kit-name">{tool.name}</span>
+                                    <span className="lrn-kit-actions">
+                                      {tool.rent && (
+                                        <Link
+                                          to={tool.rent}
+                                          className="lrn-kit-rent"
+                                          onClick={() => { try { window.gtag && window.gtag('event', 'learn_rent_clicked', { tool_name: tool.name }); } catch(_) {} }}
+                                        >
+                                          {t('learn.page.rent', { defaultValue: 'Rent' })}
+                                        </Link>
+                                      )}
+                                      {tool.buy && (
+                                        <a
+                                          href={tool.buy}
+                                          target="_blank"
+                                          rel="noopener sponsored"
+                                          className="lrn-kit-buy"
+                                          aria-label={`${t('learn.page.buy', { defaultValue: 'Buy' })} ${tool.name}`}
+                                          onClick={() => { try { window.gtag && window.gtag('event', 'learn_buy_clicked', { tool_name: tool.name, link_type: tool.link_type || 'affiliate' }); } catch(_) {} }}
+                                        >
+                                          {t('learn.page.buy', { defaultValue: 'Buy' })} <ExternalLink size={11} aria-hidden="true" />
+                                        </a>
+                                      )}
+                                      {/* FTC + Amazon: "(paid link)" must appear near each affiliate link */}
+                                      {isAffiliate && (
+                                        <span className="lrn-tool-paid-label">{t('learn.page.paidLink', { defaultValue: '(paid link)' })}</span>
+                                      )}
+                                    </span>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                            {/* Amazon Associates site-wide disclosure, required when any affiliate link is present */}
+                            {guide.tools.some((tool) => tool.buy && tool.link_type !== 'own_inventory' && tool.link_type !== 'rental') && (
+                              <p className="lrn-affiliate-disclosure">
+                                {t('learn.page.amazonDisclosure', { defaultValue: 'As an Amazon Associate, OxSteed earns from qualifying purchases.' })}
+                              </p>
+                            )}
+                          </section>
                         )}
 
                         <div className="lrn-detail-grid">
@@ -4667,57 +4762,6 @@ export default function LearnModePage() {
                                 </div>
                               );
                             })()}
-
-                            <div className="lrn-detail-panel">
-                              <h3 className="lrn-detail-heading">
-                                <ShoppingBag size={14} aria-hidden="true" />
-                                {t('learn.page.toolsHeading')}
-                              </h3>
-                              <ul className="lrn-tool-list">
-                                {guide.tools.map((tool) => (
-                                  <li key={tool.name} className="lrn-tool-row">
-                                    <span className="lrn-tool-name">{tool.name}</span>
-                                    <span className="lrn-tool-links">
-                                      {tool.buy && (() => {
-                                        const isOwn      = tool.link_type === 'own_inventory';
-                                        const isAffiliate = !isOwn && tool.link_type !== 'rental';
-                                        const label      = isOwn ? t('learn.page.shopOxsteed') : t('learn.page.buy');
-                                        const ariaLabel  = isOwn
-                                          ? `Shop ${tool.name} on OxSteed`
-                                          : `Buy ${tool.name}`;
-                                        return (
-                                          <>
-                                            <a
-                                              href={tool.buy}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className={isOwn ? 'lrn-tool-buy lrn-tool-buy--own' : 'lrn-tool-buy'}
-                                              aria-label={ariaLabel}
-                                              onClick={() => { try { window.gtag && window.gtag('event', 'learn_buy_clicked', { tool_name: tool.name, link_type: tool.link_type || (isAffiliate ? 'amazon_affiliate' : 'partner') }); } catch(_){} }}
-                                            >
-                                              {label} <ExternalLink size={11} aria-hidden="true" />
-                                            </a>
-                                            {/* FTC + Amazon: "(paid link)" must appear near each affiliate link */}
-                                            {isAffiliate && (
-                                              <span className="lrn-tool-paid-label">{t('learn.page.paidLink')}</span>
-                                            )}
-                                          </>
-                                        );
-                                      })()}
-                                      {tool.rent && (
-                                        <Link to={tool.rent} className="lrn-tool-rent">{t('learn.page.rent')}</Link>
-                                      )}
-                                    </span>
-                                  </li>
-                                ))}
-                              </ul>
-                              {/* Amazon Associates site-wide disclosure, required when any affiliate link is present */}
-                              {guide.tools.some((t) => t.buy && t.link_type !== 'own_inventory' && t.link_type !== 'rental') && (
-                                <p className="lrn-affiliate-disclosure">
-                                  {t('learn.page.amazonDisclosure')}
-                                </p>
-                              )}
-                            </div>
 
                             {/* Persona CTA */}
                             <div className="lrn-detail-ctas">
