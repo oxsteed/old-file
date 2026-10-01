@@ -41,6 +41,8 @@ const { startExternalRefundReconciliationJob } = require('../jobs/externalRefund
 const { startPayoutSettlementReconciliationJob } = require('../jobs/payoutSettlementReconciliation');
 const { startWebhookRetryJob } = require('../jobs/webhookRetryWorker');
 const { startSettingsChangeApplierJob } = require('../jobs/settingsChangeApplier');
+const { startProfileVisibilityScheduler } = require('../jobs/profileVisibilityScheduledActions');
+const { startProfileVisibilityNotificationRetryJob } = require('../jobs/profileVisibilityNotificationRetry');
 const { runSupportSlaMonitor } = require('../services/supportSlaMonitor');
 const { processSupportEmailOutbox } = require('../services/supportEmailOutbox');
 const { processSupportFollowUpReminders } = require('../services/supportFollowUpReminderWorker');
@@ -97,6 +99,8 @@ class BackgroundWorkers {
       startPayoutSettlementReconciliationJob();
       startWebhookRetryJob();
       startSettingsChangeApplierJob();
+      startProfileVisibilityScheduler();
+      startProfileVisibilityNotificationRetryJob();
       cron.schedule('*/10 * * * * *', () => {
         require('../services/supportWaitService').processWaiting().catch((error) => {
           this.log.error('Support waiting worker failed', { error: error.message });

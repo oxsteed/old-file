@@ -11,6 +11,7 @@ const searchCtrl      = require('../controllers/adminSearchController');
 const permCtrl        = require('../controllers/adminPermissionController');
 const bizModCtrl      = require('../controllers/businessModerationController');
 const profileVisCtrl  = require('../controllers/profileVisibilityController');
+const profileVisApprCtrl = require('../controllers/profileVisibilityApprovalsController');
 const convAdminCtrl   = require('../controllers/conversationsAdminController');
 const paymentsCtrl    = require('../controllers/paymentsAdminController');
 const adminMsgCtrl    = require('../controllers/adminMessageController');
@@ -76,7 +77,19 @@ router.put('/businesses/:id/delete',           requireAdmin, bizModCtrl.deleteBu
 // Sticky hide/restore for helper, business, and restaurant public profiles.
 // The override survives owner self-toggles of is_listed/discovery_status.
 router.get('/profile-visibility/search', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.searchProfiles);
+router.get('/profile-visibility/export', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.exportAllProfiles);
+router.get('/profile-visibility/scheduled', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.listScheduledActions);
+router.post('/profile-visibility/schedule', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.scheduleVisibilityAction);
+router.delete('/profile-visibility/scheduled/:id', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.cancelScheduledAction);
+router.post('/profile-visibility/bulk', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.bulkUpdateVisibility);
+router.post('/profile-visibility/approvals/request', requireAdmin, requirePermission('manage_profile_visibility'), profileVisApprCtrl.requestApprovalCtrl);
+router.post('/profile-visibility/approvals/:id/review', requireAdmin, requirePermission('manage_profile_visibility'), profileVisApprCtrl.reviewApprovalCtrl);
+router.get('/profile-visibility/approvals', requireAdmin, requirePermission('manage_profile_visibility'), profileVisApprCtrl.listApprovals);
 router.get('/profile-visibility/:type/:id/history', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.getProfileHistory);
+router.get('/profile-visibility/:type/:id/notifications', requireAdmin, requirePermission('manage_profile_visibility'), profileVisApprCtrl.listOwnerNotifications);
+router.get('/profile-visibility/:type/:id/active-work', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.getProfileActiveWork);
+router.get('/profile-visibility/:type/:id/preview', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.getProfilePreview);
+router.post('/profile-visibility/:type/:id/undo', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.undoVisibilityChange);
 router.put('/profile-visibility',        requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.setProfileVisibility);
 
 // Tool Rentals

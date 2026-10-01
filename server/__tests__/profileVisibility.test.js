@@ -120,7 +120,13 @@ describe('setProfileVisibility', () => {
 
   test('hiding sets the sticky admin flag with reason, actor, and timestamp', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ is_hidden_by_admin: true, hidden_reason: 'non_compliance', hidden_at: '2026-09-30' }] })
+      .mockResolvedValueOnce({ rows: [{ is_hidden_by_admin: false, hidden_reason: null }] }) // current state
+      .mockResolvedValueOnce({ rows: [{ user_id: 'helper-1' }] }) // active-work owner lookup
+      .mockResolvedValueOnce({ rows: [] }) // active jobs
+      .mockResolvedValueOnce({ rows: [] }) // upcoming appointments
+      .mockResolvedValueOnce({ rows: [] }) // booking requests
+      .mockResolvedValueOnce({ rows: [] }) // recent payments
+      .mockResolvedValueOnce({ rows: [{ is_hidden_by_admin: true, hidden_reason: 'non_compliance', hidden_at: '2026-09-30' }] }) // UPDATE
       .mockResolvedValueOnce({ rows: [] }); // audit log insert
     const res = resDouble();
     await profileVisibility.setProfileVisibility(reqDouble({
@@ -129,16 +135,17 @@ describe('setProfileVisibility', () => {
 
     expect(res.payload.success).toBe(true);
     expect(res.payload.is_hidden_by_admin).toBe(true);
-    const updateSql = mockQuery.mock.calls[0][0];
-    expect(updateSql).toMatch(/UPDATE helper_profiles/);
-    expect(updateSql).toMatch(/is_hidden_by_admin/);
-    expect(mockQuery.mock.calls[0][1]).toEqual([true, 'non_compliance', 'admin-1', 'helper-1']);
+    const updateCall = mockQuery.mock.calls.find(([sql]) => /UPDATE helper_profiles/.test(sql));
+    expect(updateCall).toBeDefined();
+    expect(updateCall[0]).toMatch(/is_hidden_by_admin/);
+    expect(updateCall[1]).toEqual([true, 'non_compliance', 'admin-1', 'helper-1']);
   });
 
   test('restoring clears the flag, reason, actor, and timestamp', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ is_hidden_by_admin: false, hidden_reason: null, hidden_at: null }] })
-      .mockResolvedValueOnce({ rows: [] });
+      .mockResolvedValueOnce({ rows: [{ is_hidden_by_admin: true, hidden_reason: 'non_compliance' }] }) // current state
+      .mockResolvedValueOnce({ rows: [{ is_hidden_by_admin: false, hidden_reason: null, hidden_at: null }] }) // UPDATE
+      .mockResolvedValueOnce({ rows: [] }); // audit log insert
     const res = resDouble();
     await profileVisibility.setProfileVisibility(reqDouble({
       body: { profile_type: 'restaurant', profile_id: 7, is_visible: true },
@@ -146,9 +153,31 @@ describe('setProfileVisibility', () => {
 
     expect(res.payload.is_visible).toBe(true);
     expect(res.payload.is_hidden_by_admin).toBe(false);
-    const updateSql = mockQuery.mock.calls[0][0];
-    expect(updateSql).toMatch(/UPDATE food_restaurants/);
-    expect(mockQuery.mock.calls[0][1]).toEqual([false, null, 'admin-1', 7]);
+    const updateCall = mockQuery.mock.calls.find(([sql]) => /UPDATE food_restaurants/.test(sql));
+    expect(updateCall).toBeDefined();
+    expect(updateCall[1]).toEqual([false, null, 'admin-1', 7]);
+  });
+
+  test('hiding a profile with active work requires an approval', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ is_hidden_by_admin: false, hidden_reason: null }] }) // current state
+      .mockResolvedValueOnce({ rows: [{ user_id: 'helper-1' }] }) // active-work owner lookup
+      .mockResolvedValueOnce({ rows: [{ id: 'job-1' }] }) // active jobs -> has_active_work
+      .mockResolvedValueOnce({ rows: [] }) // upcoming appointments
+      .mockResolvedValueOnce({ rows: [] }) // booking requests
+      .mockResolvedValueOnce({ rows: [] }) // recent payments
+      .mockResolvedValueOnce({ rows: [] }) // approval request insert (no row)
+      .mockResolvedValueOnce({ rows: [] }); // approval request lookup (none)
+    const res = resDouble();
+    await profileVisibility.setProfileVisibility(reqDouble({
+      body: { profile_type: 'helper', profile_id: 'helper-1', is_visible: false, reason: 'non_compliance' },
+    }), res);
+
+    expect(res.statusCode).toBe(409);
+    expect(res.payload.approval_required).toBe(true);
+    expect(res.payload.active_work.has_active_work).toBe(true);
+    expect(res.payload.active_work.active_jobs).toBe(1);
+    expect(mockQuery.mock.calls.some(([sql]) => /^UPDATE helper_profiles/.test(sql))).toBe(false);
   });
 
   test('returns 404 when the profile does not exist', async () => {
