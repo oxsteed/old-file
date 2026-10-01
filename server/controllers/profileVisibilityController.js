@@ -15,117 +15,137 @@ const { logAdminAction } = require('../services/auditService');
 const PROFILE_TYPES = ['helper', 'business', 'restaurant'];
 const REASONS = ['incomplete_profile', 'non_compliance', 'admin_decision', 'other'];
 
-// ─── GET /api/admin/profile-visibility/search?q=…&type=… ─────────────────────
-// Searches helpers, businesses, and restaurants by name/email and returns the
-// current public-visibility state for each match.
+// ─── GET /api/admin/profile-visibility/search ────────────────────────────────
+// Returns a bounded, unified directory. An empty q intentionally means
+// "browse" so the admin page can show the first page without an unbounded
+// query. Filters and pagination are applied to the combined profile stream.
 
 exports.searchProfiles = async (req, res) => {
   try {
     const q = String(req.query.q || '').trim();
     const type = String(req.query.type || 'all').toLowerCase();
-    if (q.length < 2) {
-      return res.json({ results: [] });
-    }
+    const visibility = String(req.query.visibility || 'all').toLowerCase();
+    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, Number.parseInt(req.query.limit, 10) || 25));
+    const offset = (page - 1) * limit;
+    if (q.length === 1) return res.json({ results: [] });
     if (!['all', ...PROFILE_TYPES].includes(type)) {
       return res.status(400).json({ error: 'Invalid profile type.' });
     }
-    const like = `%${q}%`;
-    const results = [];
+    if (!['all', 'visible', 'hidden', 'unlisted', 'active', 'inactive'].includes(visibility)) {
+      return res.status(400).json({ error: 'Invalid visibility filter.' });
+    }
 
-    if (type === 'all' || type === 'helper') {
-      const { rows } = await db.query(
-        `SELECT u.id AS profile_id,
-                TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) AS display_name,
-                u.email AS detail,
-                hp.is_hidden_by_admin, hp.hidden_reason,
-                COALESCE(hp.is_listed, TRUE) AS owner_listed
+    const like = `%${q}%`;
+    const { rows } = await db.query(
+      `WITH profiles AS (
+         SELECT 'helper'::text AS profile_type,
+                u.id::text AS profile_id,
+                COALESCE(NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), ''), u.email) AS display_name,
+                u.email::text AS detail,
+                COALESCE(hp.is_hidden_by_admin, FALSE) AS is_hidden_by_admin,
+                hp.hidden_reason,
+                COALESCE(hp.is_listed, TRUE) AS owner_visible,
+                (u.deleted_at IS NULL) AS is_active,
+                u.created_at AS created_at
            FROM users u
            JOIN helper_profiles hp ON hp.user_id = u.id
-          WHERE (u.first_name ILIKE $1 OR u.last_name ILIKE $1 OR u.email ILIKE $1
-                 OR (COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) ILIKE $1)
-            AND u.deleted_at IS NULL
-          ORDER BY u.created_at DESC
-          LIMIT 15`,
-        [like]
-      );
-      for (const r of rows) {
-        results.push({
-          profile_type: 'helper',
-          profile_id: r.profile_id,
-          display_name: r.display_name || r.detail,
-          detail: r.detail,
-          is_hidden_by_admin: !!r.is_hidden_by_admin,
-          hidden_reason: r.hidden_reason,
-          owner_visible: !!r.owner_listed,
-          is_visible: !r.is_hidden_by_admin && !!r.owner_listed,
-        });
-      }
-    }
-
-    if (type === 'all' || type === 'business') {
-      const { rows } = await db.query(
-        `SELECT b.id AS profile_id,
-                b.business_name AS display_name,
-                u.email AS detail,
-                b.is_hidden_by_admin, b.hidden_reason,
-                COALESCE(b.is_listed, TRUE) AS owner_listed,
-                COALESCE(b.is_active, TRUE) AS owner_active
+         UNION ALL
+         SELECT 'business'::text,
+                b.id::text,
+                b.business_name::text,
+                u.email::text,
+                COALESCE(b.is_hidden_by_admin, FALSE),
+                b.hidden_reason,
+                COALESCE(b.is_listed, TRUE),
+                COALESCE(b.is_active, TRUE),
+                b.created_at
            FROM businesses b
            LEFT JOIN users u ON u.id = b.user_id
-          WHERE b.business_name ILIKE $1
-            AND b.deleted_at IS NULL
-          ORDER BY b.created_at DESC
-          LIMIT 15`,
-        [like]
-      );
-      for (const r of rows) {
-        results.push({
-          profile_type: 'business',
-          profile_id: r.profile_id,
-          display_name: r.display_name,
-          detail: r.detail,
-          is_hidden_by_admin: !!r.is_hidden_by_admin,
-          hidden_reason: r.hidden_reason,
-          owner_visible: !!r.owner_listed && !!r.owner_active,
-          is_visible: !r.is_hidden_by_admin && !!r.owner_listed && !!r.owner_active,
-        });
-      }
-    }
-
-    if (type === 'all' || type === 'restaurant') {
-      const { rows } = await db.query(
-        `SELECT fr.id AS profile_id,
-                fr.display_name AS display_name,
-                b.business_name AS detail,
-                fr.is_hidden_by_admin, fr.hidden_reason,
-                fr.discovery_status
+         WHERE b.deleted_at IS NULL
+         UNION ALL
+         SELECT 'restaurant'::text,
+                fr.id::text,
+                COALESCE(fr.display_name, b.business_name)::text,
+                b.business_name::text,
+                COALESCE(fr.is_hidden_by_admin, FALSE),
+                fr.hidden_reason,
+                (fr.discovery_status = 'visible'),
+                TRUE,
+                fr.created_at
            FROM food_restaurants fr
            JOIN businesses b ON b.id = fr.business_id
-          WHERE (fr.display_name ILIKE $1 OR b.business_name ILIKE $1)
-            AND b.deleted_at IS NULL
-          ORDER BY fr.id DESC
-          LIMIT 15`,
-        [like]
-      );
-      for (const r of rows) {
-        const ownerVisible = r.discovery_status === 'visible';
-        results.push({
-          profile_type: 'restaurant',
-          profile_id: r.profile_id,
-          display_name: r.display_name || r.detail,
-          detail: r.detail,
-          is_hidden_by_admin: !!r.is_hidden_by_admin,
-          hidden_reason: r.hidden_reason,
-          owner_visible: ownerVisible,
-          is_visible: !r.is_hidden_by_admin && ownerVisible,
-        });
-      }
-    }
+          WHERE b.deleted_at IS NULL
+       ), filtered AS (
+         SELECT *, COUNT(*) OVER()::int AS total_count
+           FROM profiles
+          WHERE ($1 = '' OR display_name ILIKE $2 OR detail ILIKE $2)
+            AND ($3 = 'all' OR profile_type = $3)
+            AND ($4 = 'all'
+              OR ($4 = 'hidden' AND is_hidden_by_admin)
+              OR ($4 = 'visible' AND NOT is_hidden_by_admin AND owner_visible AND is_active)
+              OR ($4 = 'unlisted' AND NOT is_hidden_by_admin AND NOT owner_visible)
+              OR ($4 = 'active' AND is_active)
+              OR ($4 = 'inactive' AND NOT is_active))
+       )
+       SELECT * FROM filtered
+        ORDER BY created_at DESC NULLS LAST, display_name ASC
+        LIMIT $5 OFFSET $6`,
+      [q, like, type, visibility, limit, offset]
+    );
 
-    return res.json({ results });
+    const total = rows[0]?.total_count || 0;
+    return res.json({
+      results: rows.map((r) => ({
+        profile_type: r.profile_type,
+        profile_id: r.profile_id,
+        display_name: r.display_name,
+        detail: r.detail,
+        is_hidden_by_admin: !!r.is_hidden_by_admin,
+        hidden_reason: r.hidden_reason,
+        owner_visible: !!r.owner_visible,
+        is_active: !!r.is_active,
+        is_visible: !r.is_hidden_by_admin && !!r.owner_visible && !!r.is_active,
+      })),
+      page,
+      limit,
+      total,
+      hasMore: offset + rows.length < total,
+    });
   } catch (err) {
     logger.error('profileVisibility search error', { err, adminId: req.user?.id });
     return res.status(500).json({ error: 'Search failed.' });
+  }
+};
+
+// ─── GET /api/admin/profile-visibility/:type/:id/history ────────────────────
+// Visibility changes are recorded in the append-only admin audit log. Expose a
+// narrow, read-only projection here instead of allowing the page to query the
+// general audit endpoint or reveal unrelated administrative activity.
+exports.getProfileHistory = async (req, res) => {
+  try {
+    const profileType = String(req.params.type || '').toLowerCase();
+    const profileId = String(req.params.id || '').trim();
+    const spec = TABLE_BY_TYPE[profileType];
+    if (!spec || !profileId) return res.status(400).json({ error: 'Invalid profile reference.' });
+
+    const { rows } = await db.query(
+      `SELECT a.id, a.action, a.description, a.before_state, a.after_state,
+              a.created_at, a.admin_id,
+              COALESCE(NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), ''), u.email, 'Admin') AS actor_name
+         FROM admin_audit_log a
+         LEFT JOIN users u ON u.id = a.admin_id
+        WHERE a.target_type = $1
+          AND (a.target_id::text = $2 OR a.target_key = $2)
+          AND a.action IN ('profile_visibility_hidden', 'profile_visibility_restored')
+        ORDER BY a.created_at DESC
+        LIMIT 50`,
+      [spec.targetType, profileId]
+    );
+    return res.json({ history: rows });
+  } catch (err) {
+    logger.error('profileVisibility history error', { err, adminId: req.user?.id });
+    return res.status(500).json({ error: 'Could not load profile history.' });
   }
 };
 

@@ -57,19 +57,20 @@ describe('searchProfiles', () => {
   });
 
   test('unifies helpers, businesses, and restaurants with computed visibility', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [{
-        profile_id: 'helper-1', display_name: 'Marie J', detail: 'marie@example.com',
-        is_hidden_by_admin: true, hidden_reason: 'non_compliance', owner_listed: true,
-      }] })
-      .mockResolvedValueOnce({ rows: [{
-        profile_id: 'biz-1', display_name: 'Top Plumbing', detail: 'owner@example.com',
-        is_hidden_by_admin: false, hidden_reason: null, owner_listed: false, owner_active: true,
-      }] })
-      .mockResolvedValueOnce({ rows: [{
-        profile_id: 7, display_name: 'Chez Marie', detail: 'Top Plumbing',
-        is_hidden_by_admin: false, hidden_reason: null, discovery_status: 'visible',
-      }] });
+    mockQuery.mockResolvedValueOnce({ rows: [
+      {
+        profile_type: 'helper', profile_id: 'helper-1', display_name: 'Marie J', detail: 'marie@example.com',
+        is_hidden_by_admin: true, hidden_reason: 'non_compliance', owner_visible: true, is_active: true, total_count: 3,
+      },
+      {
+        profile_type: 'business', profile_id: 'biz-1', display_name: 'Top Plumbing', detail: 'owner@example.com',
+        is_hidden_by_admin: false, hidden_reason: null, owner_visible: false, is_active: true, total_count: 3,
+      },
+      {
+        profile_type: 'restaurant', profile_id: '7', display_name: 'Chez Marie', detail: 'Top Plumbing',
+        is_hidden_by_admin: false, hidden_reason: null, owner_visible: true, is_active: true, total_count: 3,
+      },
+    ] });
 
     const res = resDouble();
     await profileVisibility.searchProfiles(reqDouble({ query: { q: 'marie' } }), res);
@@ -85,6 +86,20 @@ describe('searchProfiles', () => {
     expect(business.is_visible).toBe(false);
     expect(restaurant.profile_type).toBe('restaurant');
     expect(restaurant.is_visible).toBe(true);
+  });
+
+  test('supports bounded browse pagination and visibility filters', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{
+      profile_type: 'business', profile_id: 'b-1', display_name: 'Active Co', detail: 'owner@example.com',
+      is_hidden_by_admin: false, hidden_reason: null, owner_visible: true, is_active: true, total_count: 26,
+    }] });
+    const res = resDouble();
+    await profileVisibility.searchProfiles(reqDouble({ query: {
+      q: '', type: 'business', visibility: 'active', page: '2', limit: '100',
+    } }), res);
+    expect(res.payload).toMatchObject({ page: 2, limit: 50, total: 26, hasMore: false });
+    expect(res.payload.results[0].profile_type).toBe('business');
+    expect(mockQuery.mock.calls[0][1]).toEqual(['', '%%', 'business', 'active', 50, 50]);
   });
 });
 
@@ -143,6 +158,24 @@ describe('setProfileVisibility', () => {
       body: { profile_type: 'business', profile_id: 'nope', is_visible: false },
     }), res);
     expect(res.statusCode).toBe(404);
+  });
+});
+
+describe('getProfileHistory', () => {
+  test('returns only visibility actions for the requested profile', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 1, action: 'profile_visibility_hidden', actor_name: 'Admin' }] });
+    const res = resDouble();
+    await profileVisibility.getProfileHistory(reqDouble({ params: { type: 'business', id: 'b-1' } }), res);
+    expect(res.payload.history).toHaveLength(1);
+    expect(mockQuery.mock.calls[0][1]).toEqual(['business', 'b-1']);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/profile_visibility_hidden/);
+  });
+
+  test('rejects invalid profile references', async () => {
+    const res = resDouble();
+    await profileVisibility.getProfileHistory(reqDouble({ params: { type: 'unknown', id: 'x' } }), res);
+    expect(res.statusCode).toBe(400);
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 });
 

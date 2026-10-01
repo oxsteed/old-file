@@ -76,6 +76,7 @@ router.put('/businesses/:id/delete',           requireAdmin, bizModCtrl.deleteBu
 // Sticky hide/restore for helper, business, and restaurant public profiles.
 // The override survives owner self-toggles of is_listed/discovery_status.
 router.get('/profile-visibility/search', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.searchProfiles);
+router.get('/profile-visibility/:type/:id/history', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.getProfileHistory);
 router.put('/profile-visibility',        requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.setProfileVisibility);
 
 // Tool Rentals
