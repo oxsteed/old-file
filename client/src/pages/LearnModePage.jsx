@@ -3918,6 +3918,14 @@ export default function LearnModePage() {
   const [submitSuccess, setSubmitSuccess]   = useState(false);
   const [submitError, setSubmitError]       = useState('');
 
+  // Community video submissions — attach a YouTube/Vimeo link to an
+  // existing guide. Goes live automatically 24h after submit unless
+  // an admin blocks it.
+  const [videoFormGuideId, setVideoFormGuideId] = useState(null);
+  const [videoUrlInput, setVideoUrlInput]       = useState('');
+  const [videoSubmitting, setVideoSubmitting]   = useState(false);
+  const [videoError, setVideoError]             = useState('');
+
   // Social proof stats (Priority 8)
   const [guideStats, setGuideStats] = useState({});  // { [guide_id]: { completions, views } }
 
@@ -4034,6 +4042,7 @@ export default function LearnModePage() {
         tools: mergeTools(g.tools, r.tools),
         video_url: r.video_url ?? g.video_url,
         video_provider: r.video_provider ?? g.video_provider ?? null,
+        video_pending: r.video_pending ?? g.video_pending ?? false,
         xp: r.xp ?? g.xp,
       };
     });
@@ -4050,6 +4059,7 @@ export default function LearnModePage() {
         featured: !!r.featured,
         video_url: r.video_url || null,
         video_provider: r.video_provider || null,
+        video_pending: !!r.video_pending,
         license_note: null,
         gradient: 'linear-gradient(135deg, #0b1220, #111827)',
         intro: r.intro || '',
@@ -4281,6 +4291,34 @@ export default function LearnModePage() {
       setSubmitError(err?.response?.data?.message || t('learn.page.submissionFailed'));
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Community video submit — paste a YouTube/Vimeo link for an existing
+  // guide. The video goes live automatically 24h after submit unless an
+  // admin blocks it.
+  const handleVideoSubmit = async (guideId) => {
+    const url = videoUrlInput.trim();
+    if (!url || videoSubmitting) return;
+    setVideoSubmitting(true);
+    setVideoError('');
+    try {
+      await api.post(`/learn/guides/${encodeURIComponent(guideId)}/videos`, { video_url: url });
+      setRemoteCatalog((prev) => Array.isArray(prev)
+        ? prev.map((r) => (r.id === guideId ? { ...r, video_pending: true } : r))
+        : prev);
+      setVideoFormGuideId(null);
+      setVideoUrlInput('');
+    } catch (err) {
+      const code = err?.response?.data?.code;
+      setVideoError(
+        code === 'invalid_video_url' ? t('learn.page.videoInvalidUrl')
+        : code === 'video_pending_exists' ? t('learn.page.videoAlreadyPending')
+        : code === 'video_exists' ? t('learn.page.videoAlreadyLive')
+        : t('learn.page.videoSubmitError')
+      );
+    } finally {
+      setVideoSubmitting(false);
     }
   };
 
@@ -4667,6 +4705,52 @@ export default function LearnModePage() {
                             <div className="lrn-video-placeholder">
                               <PlayCircle size={28} aria-hidden="true" />
                               <span>{t('learn.page.videoComingSoon', { defaultValue: 'Video coming soon' })}</span>
+                              {guide.video_pending ? (
+                                <span className="lrn-video-pending" role="status">
+                                  {t('learn.page.videoPendingNotice')}
+                                </span>
+                              ) : user && videoFormGuideId === guide.id ? (
+                                <form
+                                  className="lrn-video-form"
+                                  onSubmit={(e) => { e.preventDefault(); handleVideoSubmit(guide.id); }}
+                                >
+                                  <label className="lrn-video-form-label" htmlFor={`lrn-video-url-${guide.id}`}>
+                                    {t('learn.page.videoUrlLabel')}
+                                  </label>
+                                  <input
+                                    id={`lrn-video-url-${guide.id}`}
+                                    type="url"
+                                    inputMode="url"
+                                    value={videoUrlInput}
+                                    onChange={(e) => setVideoUrlInput(e.target.value)}
+                                    placeholder="https://www.youtube.com/watch?v=..."
+                                    className="lrn-video-form-input"
+                                  />
+                                  {videoError && (
+                                    <span className="lrn-video-form-error" role="alert">{videoError}</span>
+                                  )}
+                                  <div className="lrn-video-form-actions">
+                                    <button type="submit" className="lrn-video-form-submit" disabled={videoSubmitting}>
+                                      {videoSubmitting ? t('learn.page.videoSubmitting') : t('learn.page.videoSubmit')}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="lrn-video-form-cancel"
+                                      onClick={() => { setVideoFormGuideId(null); setVideoError(''); }}
+                                    >
+                                      {t('common.cancel', { defaultValue: 'Cancel' })}
+                                    </button>
+                                  </div>
+                                </form>
+                              ) : user ? (
+                                <button
+                                  type="button"
+                                  className="lrn-add-video-btn"
+                                  onClick={() => { setVideoFormGuideId(guide.id); setVideoUrlInput(''); setVideoError(''); }}
+                                >
+                                  {t('learn.page.addVideo')}
+                                </button>
+                              ) : null}
                             </div>
                           );
                         })()}

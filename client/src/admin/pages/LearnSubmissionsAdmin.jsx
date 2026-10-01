@@ -309,6 +309,34 @@ export default function LearnSubmissionsAdmin() {
     setExpanded(null);
   };
 
+  // ── Community video submissions (24h auto-publish unless blocked) ──
+  const [videoStatus, setVideoStatus] = useState('pending');
+  const [videos, setVideos] = useState([]);
+  const { data: videosData, error: videosError, loading: videosLoading, reload: reloadVideos } =
+    useAbortableFetch(async (signal) => {
+      const { data } = await adminApi.get('/learn/admin/video-submissions', {
+        params: { status: videoStatus },
+        signal,
+      });
+      return { submissions: data.submissions ?? [] };
+    }, [videoStatus]);
+
+  useEffect(() => {
+    if (videosData) setVideos(videosData.submissions);
+  }, [videosData]);
+
+  const handleVideoDecision = async (id, decision) => {
+    await adminApi.post(`/learn/admin/video-submissions/${id}/${decision}`);
+    reloadVideos();
+  };
+
+  const videoStatusLabels = {
+    pending:    t('adminLearnSubmissions.videoStatusPending'),
+    live:       t('adminLearnSubmissions.videoStatusLive'),
+    blocked:    t('adminLearnSubmissions.videoStatusBlocked'),
+    superseded: t('adminLearnSubmissions.videoStatusSuperseded'),
+  };
+
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
@@ -336,6 +364,96 @@ export default function LearnSubmissionsAdmin() {
           {t('common.refresh')}
         </button>
       </div>
+
+      {/* Community video submissions — 24h auto-publish unless blocked */}
+      <section className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="px-5 py-4 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h2 className="text-base font-800 text-gray-900 dark:text-white">
+                {t('adminLearnSubmissions.videoSectionTitle')}
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                {t('adminLearnSubmissions.videoSectionDesc')}
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5">
+              {['pending', 'live', 'blocked', 'superseded'].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setVideoStatus(s)}
+                  className={`px-2.5 py-1 rounded-full text-xs font-700 capitalize transition-colors ${
+                    videoStatus === s
+                      ? 'bg-orange-500 text-white'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}>
+                  {videoStatusLabels[s] ?? s}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        {videosError ? (
+          <div className="px-5 py-4"><AdminErrorState onRetry={reloadVideos} /></div>
+        ) : videosLoading && videos.length === 0 ? (
+          <div className="flex items-center justify-center py-8 text-gray-400">
+            <RefreshCw size={16} className="animate-spin mr-2" />
+            {t('adminLearnSubmissions.loading')}
+          </div>
+        ) : videos.length === 0 ? (
+          <p className="px-5 py-8 text-center text-sm text-gray-400">
+            {t('adminLearnSubmissions.videoEmpty')}
+          </p>
+        ) : (
+          <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+            {videos.map((v) => (
+              <li key={v.id} className="px-5 py-3 flex items-center gap-4 flex-wrap">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-700 text-gray-900 dark:text-white truncate">
+                    {v.guide_title || v.guide_id}
+                  </p>
+                  <a
+                    href={v.video_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline break-all"
+                  >
+                    <ExternalLink size={12} />
+                    {v.video_url.length > 70 ? `${v.video_url.slice(0, 70)}…` : v.video_url}
+                  </a>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {v.submitted_by_email || t('adminLearnSubmissions.videoAnonymous')}
+                    {' · '}
+                    {v.created_at ? new Date(v.created_at).toLocaleString() : ''}
+                  </p>
+                </div>
+                {videoStatus === 'pending' ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleVideoDecision(v.id, 'approve')}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-700 hover:bg-green-700"
+                    >
+                      <CheckCircle size={13} />
+                      {t('adminLearnSubmissions.videoApprove')}
+                    </button>
+                    <button
+                      onClick={() => handleVideoDecision(v.id, 'block')}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-700 hover:bg-red-700"
+                    >
+                      <XCircle size={13} />
+                      {t('adminLearnSubmissions.videoBlock')}
+                    </button>
+                  </div>
+                ) : (
+                  <span className="text-xs font-700 capitalize text-gray-500 dark:text-gray-400">
+                    {videoStatusLabels[videoStatus] ?? videoStatus}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       {/* Filter bar */}
       <div className="flex items-center gap-2 flex-wrap">

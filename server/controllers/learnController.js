@@ -70,7 +70,12 @@ exports.getGuides = async (_req, res) => {
         WHERE status = 'published'
         ORDER BY featured DESC, created_at ASC`
     );
-    if (rows.length) return res.json({ guides: rows.map(dbRowToGuide) });
+    if (rows.length) {
+      const pending = await pendingVideoGuideIds(pool, rows.map((r) => r.id));
+      return res.json({
+        guides: rows.map((r) => ({ ...dbRowToGuide(r), video_pending: pending.has(r.id) })),
+      });
+    }
   } catch (_) {
     // Table missing — fall through to the JSON catalog.
   }
@@ -1115,4 +1120,232 @@ exports.adminMarketplaceStats = async (req, res, next) => {
   } catch (err) {
     next(new AppError('Failed to load marketplace stats', 500, 'marketplace_stats_failed'));
   }
+};
+
+// ── Community video submissions (24h auto-publish) ───────────────────────────
+// Signed-in users may attach a YouTube/Vimeo video to an existing guide.
+// The submission goes live automatically 24 hours after creation unless an
+// admin blocks it first. Only YouTube/Vimeo URLs are accepted; the client
+// renders them in a sandboxed iframe with no top-level navigation.
+
+const VIDEO_URL_MAX_LEN = 500;
+const VIDEO_HOSTS = new Set([
+  'youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be',
+  'vimeo.com', 'www.vimeo.com', 'player.vimeo.com',
+]);
+
+function normalizeSubmittedVideoUrl(raw) {
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim().slice(0, VIDEO_URL_MAX_LEN);
+  if (!trimmed) return null;
+  let parsed;
+  try {
+    parsed = new URL(trimmed);
+  } catch { return null; }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return null;
+  if (!VIDEO_HOSTS.has(parsed.hostname.toLowerCase())) return null;
+  parsed.protocol = 'https:';
+  return { url: parsed.toString(), provider: detectVideoProvider(parsed.toString()) };
+}
+
+async function pendingVideoGuideIds(db, guideIds) {
+  if (!guideIds.length) return new Set();
+  try {
+    const { rows } = await db.query(
+      `SELECT guide_id FROM learn_guide_video_submissions
+        WHERE status = 'pending' AND guide_id = ANY($1)`,
+      [guideIds]
+    );
+    return new Set(rows.map((r) => r.guide_id));
+  } catch (_) {
+    return new Set(); // table absent (migration not yet applied) — fail open
+  }
+}
+
+/**
+ * POST /api/learn/guides/:id/videos
+ * Auth required. Body: { video_url }
+ */
+exports.submitGuideVideo = async (req, res, next) => {
+  try {
+    const guideId = String(req.params.id);
+    const normalized = normalizeSubmittedVideoUrl(req.body?.video_url);
+    if (!normalized) {
+      return next(new AppError(
+        'Please provide a valid YouTube or Vimeo link (https).', 400, 'invalid_video_url'
+      ));
+    }
+    const { rows: guideRows } = await pool.query(
+      `SELECT id, video_url FROM learn_guides WHERE id = $1 AND status = 'published'`,
+      [guideId]
+    );
+    if (!guideRows.length) return next(new AppError('Guide not found.', 404, 'guide_not_found'));
+    if (guideRows[0].video_url) {
+      return next(new AppError('This guide already has a video.', 409, 'video_exists'));
+    }
+    try {
+      const { rows } = await pool.query(
+        `INSERT INTO learn_guide_video_submissions
+           (guide_id, video_url, video_provider, submitted_by)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id, guide_id, video_url, video_provider, status, created_at`,
+        [guideId, normalized.url, normalized.provider, req.user.id]
+      );
+      return res.status(201).json({ success: true, submission: rows[0] });
+    } catch (err) {
+      if (err.code === '23505') {
+        return next(new AppError(
+          'A video is already pending review for this guide.', 409, 'video_pending_exists'
+        ));
+      }
+      throw err;
+    }
+  } catch (err) {
+    next(new AppError('Failed to submit video', 500, 'video_submit_failed'));
+  }
+};
+
+/**
+ * GET /api/learn/admin/video-submissions
+ * Admin — pending first, then recently decided.
+ */
+exports.adminListVideoSubmissions = async (req, res, next) => {
+  try {
+    const status = String(req.query.status || 'pending');
+    const allowed = new Set(['pending', 'live', 'blocked', 'superseded']);
+    if (!allowed.has(status)) return next(new AppError('Invalid status filter.', 400, 'bad_status'));
+    const { rows } = await pool.query(
+      `SELECT s.id, s.guide_id, g.title AS guide_title, s.video_url, s.video_provider,
+              s.status, s.created_at, s.decided_at,
+              u.email AS submitted_by_email, d.email AS decided_by_email
+         FROM learn_guide_video_submissions s
+         LEFT JOIN learn_guides g ON g.id = s.guide_id
+         LEFT JOIN users u ON u.id = s.submitted_by
+         LEFT JOIN users d ON d.id = s.decided_by
+        WHERE s.status = $1
+        ORDER BY s.created_at DESC
+        LIMIT 200`,
+      [status]
+    );
+    res.json({ success: true, submissions: rows });
+  } catch (err) {
+    next(new AppError('Failed to load video submissions', 500, 'video_submissions_failed'));
+  }
+};
+
+async function decideVideoSubmission(id, decision, adminId) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `SELECT id, guide_id, video_url, video_provider, status
+         FROM learn_guide_video_submissions WHERE id = $1 FOR UPDATE`,
+      [id]
+    );
+    const sub = rows[0];
+    if (!sub) { await client.query('ROLLBACK'); return { error: 'not_found' }; }
+    if (sub.status !== 'pending') { await client.query('ROLLBACK'); return { error: 'already_decided' }; }
+    if (decision === 'approve') {
+      const attached = await client.query(
+        `UPDATE learn_guides SET video_url = $1, video_provider = $2
+          WHERE id = $3 AND video_url IS NULL`,
+        [sub.video_url, sub.video_provider, sub.guide_id]
+      );
+      const finalStatus = attached.rowCount > 0 ? 'live' : 'superseded';
+      await client.query(
+        `UPDATE learn_guide_video_submissions
+            SET status = $1, decided_at = NOW(), decided_by = $2 WHERE id = $3`,
+        [finalStatus, adminId, id]
+      );
+    } else {
+      await client.query(
+        `UPDATE learn_guide_video_submissions
+            SET status = 'blocked', decided_at = NOW(), decided_by = $1 WHERE id = $2`,
+        [adminId, id]
+      );
+    }
+    await client.query('COMMIT');
+    return { ok: true };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * POST /api/learn/admin/video-submissions/:id/approve  (early publish)
+ * POST /api/learn/admin/video-submissions/:id/block
+ */
+exports.adminApproveVideoSubmission = async (req, res, next) => {
+  try {
+    const r = await decideVideoSubmission(req.params.id, 'approve', req.user.id);
+    if (r.error === 'not_found') return next(new AppError('Submission not found.', 404, 'video_submission_not_found'));
+    if (r.error === 'already_decided') return next(new AppError('Submission was already decided.', 409, 'video_already_decided'));
+    res.json({ success: true });
+  } catch (err) {
+    next(new AppError('Failed to approve video submission', 500, 'video_approve_failed'));
+  }
+};
+
+exports.adminBlockVideoSubmission = async (req, res, next) => {
+  try {
+    const r = await decideVideoSubmission(req.params.id, 'block', req.user.id);
+    if (r.error === 'not_found') return next(new AppError('Submission not found.', 404, 'video_submission_not_found'));
+    if (r.error === 'already_decided') return next(new AppError('Submission was already decided.', 409, 'video_already_decided'));
+    res.json({ success: true });
+  } catch (err) {
+    next(new AppError('Failed to block video submission', 500, 'video_block_failed'));
+  }
+};
+
+/**
+ * Publishes video submissions pending for >= 24h without an admin block.
+ * Runs on the worker loop; exported for tests. Fails open when the
+ * migration has not been applied yet.
+ */
+exports.publishDueGuideVideos = async (db = pool, { limit = 100 } = {}) => {
+  let rows;
+  try {
+    ({ rows } = await db.query(
+      `SELECT id, guide_id, video_url, video_provider
+         FROM learn_guide_video_submissions
+        WHERE status = 'pending' AND created_at <= NOW() - INTERVAL '24 hours'
+        ORDER BY created_at ASC
+        LIMIT $1`,
+      [limit]
+    ));
+  } catch (_) {
+    return { skipped: true, published: 0, superseded: 0 }; // table absent
+  }
+  let published = 0, superseded = 0;
+  for (const sub of rows) {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const attached = await client.query(
+        `UPDATE learn_guides SET video_url = $1, video_provider = $2
+          WHERE id = $3 AND video_url IS NULL
+            AND EXISTS (SELECT 1 FROM learn_guide_video_submissions
+                        WHERE id = $4 AND status = 'pending')`,
+        [sub.video_url, sub.video_provider, sub.guide_id, sub.id]
+      );
+      const finalStatus = attached.rowCount > 0 ? 'live' : 'superseded';
+      await client.query(
+        `UPDATE learn_guide_video_submissions
+            SET status = $1, decided_at = NOW(), decided_by = NULL
+          WHERE id = $2 AND status = 'pending'`,
+        [finalStatus, sub.id]
+      );
+      await client.query('COMMIT');
+      if (finalStatus === 'live') published += 1; else superseded += 1;
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {});
+      // leave pending for the next pass; do not fail the whole batch
+    } finally {
+      client.release();
+    }
+  }
+  return { published, superseded };
 };

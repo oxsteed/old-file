@@ -778,6 +778,88 @@ html.dark .lrn-video-placeholder {
   background: #1e293b;
 }
 
+/* Community video submission */
+.lrn-video-placeholder {
+  flex-wrap: wrap;
+}
+.lrn-add-video-btn {
+  flex-basis: 100%;
+  margin-top: .25rem;
+  padding: .5rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  background: transparent;
+  color: var(--app-text, #0f172a);
+  font-size: .8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.lrn-add-video-btn:hover {
+  background: var(--border-color, #f1f5f9);
+}
+.lrn-video-pending {
+  flex-basis: 100%;
+  margin-top: .25rem;
+  font-size: .78rem;
+  font-weight: 500;
+  color: var(--app-text-faint, #64748b);
+  text-align: center;
+}
+.lrn-video-form {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  margin-top: .5rem;
+  text-align: left;
+}
+.lrn-video-form-label {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--app-text, #0f172a);
+}
+.lrn-video-form-input {
+  width: 100%;
+  padding: .6rem .75rem;
+  border-radius: .5rem;
+  border: 1px solid var(--border-color, #e2e8f0);
+  background: var(--app-bg, #fff);
+  color: var(--app-text, #0f172a);
+  font-size: .85rem;
+}
+.lrn-video-form-error {
+  font-size: .78rem;
+  color: #dc2626;
+}
+.lrn-video-form-actions {
+  display: flex;
+  gap: .5rem;
+}
+.lrn-video-form-submit {
+  padding: .5rem 1.1rem;
+  border: none;
+  border-radius: 999px;
+  background: #16a34a;
+  color: #fff;
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.lrn-video-form-submit:disabled {
+  opacity: .6;
+  cursor: default;
+}
+.lrn-video-form-cancel {
+  padding: .5rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  background: transparent;
+  color: var(--app-text, #0f172a);
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 /* Intro */
 .lrn-guide-intro {
   font-size: .9rem;

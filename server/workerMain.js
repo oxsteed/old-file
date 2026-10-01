@@ -36,6 +36,7 @@ const {
   enforceRetention,
 } = require('./workers/deliveryTrackingWorkers');
 const { clearStaleAvailableNow } = require('./workers/availabilityWorkers');
+const { publishDueGuideVideos } = require('./controllers/learnController');
 
 // Map queue to processor function
 const processors = {
@@ -199,6 +200,9 @@ const TRACKING_WORKER_SCHEDULE = [
   ['enforceRetention', enforceRetention, 60 * 60 * 1000, { limit: 5000 }],
   // Clear stale "available now" readiness flags (12h TTL), every 15 minutes.
   ['clearStaleAvailableNow', clearStaleAvailableNow, 15 * 60 * 1000, { limit: 500 }],
+  // Publish Learn guide video submissions pending 24h without an admin
+  // block (Emile's decision 2026-10-01), every 5 minutes.
+  ['publishDueGuideVideos', publishDueGuideVideos, 5 * 60 * 1000, { limit: 100 }],
 ];
 
 /**

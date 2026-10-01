@@ -44,11 +44,15 @@ const {
   recordCompletion,
   submitGuide,
   getMySubmissions,
+  submitGuideVideo,
   getBadges,
   trackMarketplaceClick,
   adminListSubmissions,
   adminGetSubmission,
   adminReviewSubmission,
+  adminListVideoSubmissions,
+  adminApproveVideoSubmission,
+  adminBlockVideoSubmission,
   // Admin guide catalog CRUD
   adminListGuides,
   adminCreateGuide,
@@ -77,6 +81,19 @@ router.post('/track',                marketplaceTrackLimiter, trackMarketplaceCl
 // Returns active rows only; fails open (empty array) if table absent.
 router.get('/product-links',         getProductLinks);
 
+// Community video submissions — tighter bucket: 20 per hour per account.
+// Videos go live automatically after 24h unless an admin blocks them, so
+// spam here has a direct path to the public guide page.
+const videoSubmitLimiter = rateLimit({
+  ...createTrackStoreOption('rl:learn_video_submit:'),
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 20,
+  keyGenerator: (req) => (req.user ? `u:${req.user.id}` : req.ip),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please try again later.', retryAfter: '1 hour' },
+});
+
 // ── Authenticated user routes ──────────────────────────────────
 router.get('/completions',           authenticate, getCompletions);
 router.post('/completions',          authenticate, recordCompletion);
@@ -84,11 +101,17 @@ router.get('/badges',                authenticate, getBadges);
 router.post('/guides/submit',        authenticate, submitGuide);
 router.post('/submissions',          authenticate, submitGuide);
 router.get('/submissions/mine',      authenticate, getMySubmissions);
+// Community video for an existing guide — 24h auto-publish unless blocked.
+router.post('/guides/:id/videos',    authenticate, videoSubmitLimiter, submitGuideVideo);
 
 // ── Admin routes ───────────────────────────────────────────────
 router.get('/admin/submissions',         authenticate, requireAdmin, requirePermission('moderate_content'), adminListSubmissions);
 router.get('/admin/submissions/:id',     authenticate, requireAdmin, requirePermission('moderate_content'), adminGetSubmission);
 router.patch('/admin/submissions/:id',   authenticate, requireAdmin, requirePermission('moderate_content'), adminReviewSubmission);
+// Community video submissions — 24h auto-publish unless blocked
+router.get('/admin/video-submissions',              authenticate, requireAdmin, requirePermission('moderate_content'), adminListVideoSubmissions);
+router.post('/admin/video-submissions/:id/approve', authenticate, requireAdmin, requirePermission('moderate_content'), adminApproveVideoSubmission);
+router.post('/admin/video-submissions/:id/block',   authenticate, requireAdmin, requirePermission('moderate_content'), adminBlockVideoSubmission);
 
 // Guide catalog CRUD — admin only
 router.get('/admin/guides',        authenticate, requireAdmin, requirePermission('moderate_content'), adminListGuides);
