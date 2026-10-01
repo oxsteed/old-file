@@ -83,7 +83,10 @@ function scanBuffer(buffer) {
     });
 
     socket.on('connect', () => {
-      socket.write(Buffer.from('zINSTREAM\\0'));
+      // clamd expects a NUL-terminated command, not the two literal bytes
+      // "\\" and "0". Keeping this as an explicit escape avoids silently
+      // closing the stream before clamd returns its verdict.
+      socket.write(Buffer.from('zINSTREAM\0'));
       for (let offset = 0; offset < buffer.length; offset += CHUNK_SIZE) {
         const chunk = buffer.subarray(offset, Math.min(offset + CHUNK_SIZE, buffer.length));
         const length = Buffer.alloc(4);

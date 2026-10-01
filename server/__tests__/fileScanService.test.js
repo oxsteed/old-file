@@ -67,4 +67,29 @@ describe('file scan service policy', () => {
       provider: 'static',
     });
   });
+
+  test('terminates the clamd INSTREAM command with a NUL byte', async () => {
+    const { EventEmitter } = require('events');
+    const socket = new EventEmitter();
+    const writes = [];
+    socket.setTimeout = jest.fn();
+    socket.destroy = jest.fn();
+    socket.write = jest.fn((value) => writes.push(Buffer.from(value)));
+
+    jest.resetModules();
+    jest.doMock('net', () => ({ createConnection: jest.fn(() => socket) }));
+    process.env.CLAMAV_HOST = 'clamav';
+    delete process.env.FILE_SCAN_REQUIRE_MALWARE;
+    const service = require('../services/fileScanService');
+
+    const scan = service.scanBuffer(Buffer.from('safe upload'));
+    socket.emit('connect');
+    socket.emit('data', Buffer.from('stream: OK\0'));
+
+    await expect(scan).resolves.toMatchObject({
+      clean: true,
+      provider: 'clamav',
+    });
+    expect(writes[0]).toEqual(Buffer.from('zINSTREAM\0'));
+  });
 });
