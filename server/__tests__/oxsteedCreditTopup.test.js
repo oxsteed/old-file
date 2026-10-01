@@ -19,6 +19,11 @@ jest.mock('../controllers/verificationController', () => ({
 jest.mock('../services/fiatComplianceService', () => ({
   evaluateFundingCompliance: jest.fn(),
 }));
+jest.mock('../services/stepupChallengeService', () => ({
+  ...jest.requireActual('../services/stepupChallengeService'),
+  issueStepupChallenge: jest.fn(),
+  verifyStepupChallenge: jest.fn(),
+}));
 jest.mock('../services/oxsteedCreditAdminService', () => ({
   confirmSettlementPayoutFromTransfer: jest.fn(),
   failSettlementPayoutFromTransfer: jest.fn(),
@@ -32,6 +37,7 @@ const topupService = require('../services/oxsteedCreditTopupService');
 const topupController = require('../controllers/oxsteedCreditTopupController');
 const webhookRoutes = require('../routes/webhook');
 const complianceService = require('../services/fiatComplianceService');
+const stepupService = require('../services/stepupChallengeService');
 const adminService = require('../services/oxsteedCreditAdminService');
 
 const CUSTOMER_ID = '11111111-1111-4111-8111-111111111111';
@@ -182,6 +188,7 @@ beforeEach(() => {
   resetMocks();
   jest.clearAllMocks();
   complianceService.evaluateFundingCompliance.mockResolvedValue({ allowed: true, checkedAt: '2026-10-01T14:00:00.000Z' });
+  stepupService.verifyStepupChallenge.mockResolvedValue({ verified: true });
   adminService.confirmSettlementPayoutFromTransfer.mockResolvedValue({ confirmed: true });
   adminService.failSettlementPayoutFromTransfer.mockResolvedValue({ failed: true });
 });
@@ -503,6 +510,37 @@ describe('top-up controller', () => {
     }));
     expect(createSpy.mock.invocationCallOrder[0])
       .toBeGreaterThan(complianceService.evaluateFundingCompliance.mock.invocationCallOrder[0]);
+  });
+
+  test('POST verifies a step-up challenge for large top-ups before the compliance gate', async () => {
+    const createSpy = jest.spyOn(topupService, 'createTopup')
+      .mockResolvedValue({ topup: { ...baseTopupRow, amount_cents: 150000 }, clientSecret: 'cs_big', replayed: false });
+    const res = await request(buildTopupApp())
+      .post('/topups')
+      .set('Idempotency-Key', 'idem-big-1')
+      .send({ amountCents: 150000, currencyCode: 'USD', stepupChallengeId: 'chal-1', stepupCode: '123456' });
+    expect(res.status).toBe(201);
+    expect(stepupService.verifyStepupChallenge).toHaveBeenCalledWith(expect.objectContaining({
+      challengeId: 'chal-1',
+      actorUserId: CUSTOMER_ID,
+      actionType: 'topup',
+      code: '123456',
+    }));
+    expect(stepupService.verifyStepupChallenge.mock.invocationCallOrder[0])
+      .toBeLessThan(complianceService.evaluateFundingCompliance.mock.invocationCallOrder[0]);
+    expect(createSpy).toHaveBeenCalled();
+  });
+
+  test('POST rejects a large top-up when step-up verification fails', async () => {
+    stepupService.verifyStepupChallenge.mockRejectedValueOnce(new AppError('Verification code is incorrect', 403, 'credit_stepup_challenge_invalid'));
+    const createSpy = jest.spyOn(topupService, 'createTopup');
+    const res = await request(buildTopupApp())
+      .post('/topups')
+      .set('Idempotency-Key', 'idem-big-2')
+      .send({ amountCents: 150000, currencyCode: 'USD', stepupChallengeId: 'chal-2', stepupCode: '000000' });
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('credit_stepup_challenge_invalid');
+    expect(createSpy).not.toHaveBeenCalled();
   });
 
   test('POST returns 200 on idempotent replay', async () => {

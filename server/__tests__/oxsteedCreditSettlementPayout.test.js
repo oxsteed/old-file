@@ -97,6 +97,11 @@ function installDbRouter() {
       // Phase 3 reserve regime: default policy (10% ratio, $500 floor).
       return { rows: [{ id: 1, partner_id: null, currency_code: 'USD', ratio_bps: 1000, floor_cents: 50000, is_default: true }] };
     }
+    if (s.includes('FROM oxsteed_credit_sanctions_screenings')) {
+      // Phase 5: the payout beneficiary screens clear (fresh), so the
+      // payout sanctions gate passes in these success-path tests.
+      return { rows: [{ id: 'san-1', subject_type: 'partner', subject_id: PARTNER_ID, provider: 'manual_review', result: 'clear', hit_context: null, payload_hash: 'h', screened_at: new Date().toISOString(), cleared_at: null, cleared_by: null, clear_reason: null, created_at: new Date().toISOString() }] };
+    }
     if (s.includes('FROM oxsteed_credit_accounts') && !s.includes('FROM oxsteed_credit_accounts a')) {
       // Phase 3 reserve balance reads (no table alias in that query shape).
       // The reserve is funded above the default floor so the payout gate passes.

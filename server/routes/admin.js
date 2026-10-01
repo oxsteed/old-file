@@ -22,6 +22,7 @@ const restaurantCreditAdminCtrl = require('../controllers/restaurantCreditAdminC
 const oxsteedCreditCtrl = require('../controllers/oxsteedCreditController');
 const oxsteedCreditCardCtrl = require('../controllers/oxsteedCreditCardController');
 const oxsteedCreditAdminService = require('../services/oxsteedCreditAdminService');
+const { verifyStepupChallenge } = require('../services/stepupChallengeService');
 const { creditAdminMutationLimiter, creditExportLimiter, adminPhoneVerificationLimiter, strictLimiter } = require('../middleware/rateLimiter');
 
 function noStoreCreditResponse(_req, res, next) {
@@ -384,6 +385,14 @@ router.post('/super/oxsteed-credit/settlements/:settlementId/reversal', requireS
 // above stays untouched as the fallback for non-Stripe payouts.
 router.post('/super/oxsteed-credit/settlements/:settlementId/payout', requireSuperAdmin, creditAdminMutationLimiter, async (req, res, next) => {
   try {
+    // Phase 5: payout initiation always requires a fresh step-up challenge
+    // for the acting admin, verified before any money moves.
+    await verifyStepupChallenge({
+      challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+      actorUserId: req.user?.id || null,
+      actionType: 'settlement_payout',
+      code: req.body?.stepupCode || req.body?.stepup_code,
+    });
     const result = await oxsteedCreditAdminService.initiateSettlementPayout({
       settlementId: req.params.settlementId,
       actorUserId: req.user?.id || null,
@@ -396,6 +405,12 @@ router.post('/super/oxsteed-credit/settlements/:settlementId/payout', requireSup
   }
 });
 router.post('/super/oxsteed-credit/reconciliation', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.reconcileAdminCredit);
+// Phase 5 compliance queue: identity verifications, sanctions hits, cases.
+router.get('/super/oxsteed-credit/compliance-queue', requireSuperAdmin, oxsteedCreditCtrl.getAdminComplianceQueue);
+router.post('/super/oxsteed-credit/compliance/verifications/:id/decision', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.decideAdminComplianceVerification);
+router.post('/super/oxsteed-credit/compliance/sanctions/:id/decision', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.decideAdminComplianceSanction);
+router.post('/super/oxsteed-credit/compliance/cases/:id/transition', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.transitionAdminComplianceCase);
+router.post('/super/oxsteed-credit/stepup-challenges', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.issueAdminStepupChallenge);
 
 // User-action audit log - super-admin or admins with view_audit_log grant
 router.get(

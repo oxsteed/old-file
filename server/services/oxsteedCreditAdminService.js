@@ -2765,6 +2765,16 @@ async function initiateSettlementPayout({ settlementId, actorUserId, idempotency
         restaurantId: String(settlement.restaurant_id),
       });
     }
+    // Phase 5: sanctions screening on the payout beneficiary (partner).
+    // A hit blocks the payout until an admin explicitly clears it; a
+    // provider error fails closed. Required lazily to avoid a require
+    // cycle with sanctionsScreeningService (which uses insertAudit here).
+    const { assertSanctionsClear } = require('./sanctionsScreeningService');
+    await assertSanctionsClear(client, {
+      subjectType: 'partner',
+      subjectId: settlement.partner_id,
+      context: { settlementId: String(settlement.id) },
+    });
     const stripe = getSettlementStripeClient();
     const currency = String(settlement.currency_code || '').toLowerCase();
     const transfer = await stripe.transfers.create(
@@ -3013,6 +3023,7 @@ module.exports = {
   formatSettlement,
   formatReconciliationRun,
   attachSettlementReserveStatuses,
+  insertAudit,
   CREDIT_SYSTEM_ACTOR,
   CREDIT_TRANSACTION_TYPES,
   CREDIT_TRANSACTION_STATUSES,

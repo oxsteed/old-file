@@ -41,6 +41,11 @@ const {
   SUPPORTED_CREDIT_CURRENCIES,
   SUPPORTED_CREDIT_CURRENCY_META,
 } = require('../services/oxsteedCreditService');
+const { evaluateFundingCompliance } = require('../services/fiatComplianceService');
+const { reviewIdentityVerification } = require('../services/identityVerificationService');
+const { decideSanctionsScreening } = require('../services/sanctionsScreeningService');
+const { getComplianceQueue, transitionComplianceCase } = require('../services/complianceCaseService');
+const { issueStepupChallenge } = require('../services/stepupChallengeService');
 const {
   listPartners,
   listAdminCustomerCreditAccounts,
@@ -282,6 +287,52 @@ async function getCustomerEligibility(req, res, next) {
   }
 }
 
+const {
+  requestIdentityVerification,
+  getCustomerVerificationTier,
+  TIER1_TOPUP_MAX_CENTS: CUSTOMER_TIER1_MAX,
+  TIER2_TOPUP_MAX_CENTS: CUSTOMER_TIER2_MAX,
+} = require('../services/identityVerificationService');
+
+/**
+ * GET /api/oxsteed-credit/identity-verification
+ * Current verification tier and per-tier fiat funding limits.
+ */
+async function getMyIdentityVerification(req, res, next) {
+  try {
+    const client = await pool.connect();
+    try {
+      const tier = await getCustomerVerificationTier(client, req.user.id);
+      res.json({
+        ...tier,
+        tierLimitsCents: { tier1: CUSTOMER_TIER1_MAX, tier2: CUSTOMER_TIER2_MAX },
+      });
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /api/oxsteed-credit/identity-verification
+ * Open a verification request (manual review queue). Body: { requestedTier }.
+ */
+async function requestMyIdentityVerification(req, res, next) {
+  try {
+    const result = await requestIdentityVerification({
+      customerId: req.user.id,
+      requestedTier: req.body?.requestedTier ?? req.body?.requested_tier ?? 2,
+      actorUserId: req.user.id,
+      requestIp: req.ip || null,
+    });
+    res.status(result.replayed ? 200 : 201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function getMyTransactions(req, res, next) {
   try {
     const transactions = await listCustomerCreditTransactions(req.user.id, {
@@ -510,6 +561,20 @@ async function adminLoadCredit(req, res, next) {
     const customerId = parseUuid(req.params.customerId, 'customerId');
     const referenceId = normalizeString(req.body?.referenceId || req.body?.reference_id || req.body?.fundingReference, 160);
     if (!referenceId) throw new AppError('A funding reference is required for an administrative credit load', 400, 'credit_funding_reference_required');
+    // Cheap validation stays before the compliance gate so 400s never touch the DB.
+    if (!normalizeString(req.body?.reason, 500)) throw new AppError('A reason is required for administrative credit loads', 400, 'credit_load_reason_required');
+    // Phase 5: admin loads are fiat funding too, so they pass through the
+    // same compliance choke point as Stripe top-ups (identity tier +
+    // sanctions screening), recorded as fundingMethod 'admin_load'.
+    await evaluateFundingCompliance({
+      customerId,
+      amountCents: req.body?.amountCents ?? req.body?.amount_cents,
+      currencyCode: req.body?.currencyCode || req.body?.currency_code,
+      fundingMethod: 'admin_load',
+      actorUserId: req.user.id,
+      requestIp: req.ip || null,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+    });
     const result = await loadCustomerCredit({
       customerId,
       amountCents: req.body?.amountCents ?? req.body?.amount_cents,
@@ -982,6 +1047,100 @@ async function runAdminCreditExternalReconciliation(req, res, next) {
       requestIp: req.ip || null,
     });
     res.status(201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+// Phase 5 compliance queue: pending identity verifications, uncleared
+// sanctions hits, and open compliance cases with SLA state.
+async function getAdminComplianceQueue(req, res, next) {
+  try {
+    const client = await pool.connect();
+    try {
+      const queue = await getComplianceQueue(client, {
+        limit: req.query.limit,
+        offset: req.query.offset,
+      });
+      res.json(queue);
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function decideAdminComplianceVerification(req, res, next) {
+  try {
+    const result = await reviewIdentityVerification({
+      verificationId: req.params.id,
+      decision: req.body?.decision,
+      actorUserId: req.user.id,
+      reason: req.body?.reason,
+      requestIp: req.ip || null,
+    });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function decideAdminComplianceSanction(req, res, next) {
+  try {
+    const result = await decideSanctionsScreening({
+      screeningId: req.params.id,
+      decision: req.body?.decision,
+      actorUserId: req.user.id,
+      reason: req.body?.reason,
+      requestIp: req.ip || null,
+    });
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function transitionAdminComplianceCase(req, res, next) {
+  try {
+    const result = await transitionComplianceCase({
+      caseId: req.params.id,
+      toStatus: req.body?.toStatus || req.body?.to_status,
+      actorUserId: req.user.id,
+      reason: req.body?.reason,
+      assignedTo: req.body?.assignedTo || req.body?.assigned_to || null,
+      requestIp: req.ip || null,
+    });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /admin/super/oxsteed-credit/stepup-challenges
+ * Issue a step-up challenge for the calling super-admin (used before
+ * settlement payout initiation). Code is emailed; never in the response.
+ */
+async function issueAdminStepupChallenge(req, res, next) {
+  try {
+    const { challenge, delivery } = await issueStepupChallenge({
+      actorUserId: req.user.id,
+      actorEmail: req.user?.email,
+      actionType: 'settlement_payout',
+      amountCents: req.body?.amountCents || req.body?.amount_cents || 1,
+      currencyCode: req.body?.currencyCode || req.body?.currency_code || 'USD',
+    });
+    res.status(201).json({
+      challenge: {
+        id: challenge.id,
+        actionType: challenge.actionType,
+        amountCents: challenge.amountCents,
+        currencyCode: challenge.currencyCode,
+        expiresAt: challenge.expiresAt,
+      },
+      delivery,
+    });
   } catch (error) {
     next(error);
   }
@@ -1974,6 +2133,8 @@ module.exports = {
   listMyHolds,
   getEligiblePartners,
   getCustomerEligibility,
+  getMyIdentityVerification,
+  requestMyIdentityVerification,
   getMyTransactions,
   getMyStatement,
   downloadMyStatement,
@@ -2033,6 +2194,11 @@ module.exports = {
   downloadAdminCreditReconciliationRuns,
   listAdminCreditExternalReconciliationRuns,
   runAdminCreditExternalReconciliation,
+  getAdminComplianceQueue,
+  decideAdminComplianceVerification,
+  decideAdminComplianceSanction,
+  transitionAdminComplianceCase,
+  issueAdminStepupChallenge,
   freezeAdminCreditRail,
   unfreezeAdminCreditRail,
 };

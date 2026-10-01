@@ -14,6 +14,7 @@
 
 const { AppError } = require('../middleware/errorHandler');
 const { evaluateFundingCompliance } = require('../services/fiatComplianceService');
+const { verifyStepupChallenge, topupRequiresStepup, issueStepupChallenge } = require('../services/stepupChallengeService');
 const topupService = require('../services/oxsteedCreditTopupService');
 
 function getIdempotencyKey(req) {
@@ -55,6 +56,17 @@ async function createTopup(req, res, next) {
     const idempotencyKey = getIdempotencyKey(req);
     const { amountCents, currencyCode } = req.body || {};
     const { requestIp, correlationId } = getRequestContext(req);
+
+    // Step-up authentication (Phase 5): large top-ups require a fresh
+    // single-use challenge verified before any persistent side effect.
+    if (topupRequiresStepup(amountCents)) {
+      await verifyStepupChallenge({
+        challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+        actorUserId: customerId,
+        actionType: 'topup',
+        code: req.body?.stepupCode || req.body?.stepup_code,
+      });
+    }
 
     // Compliance gate first: no persistent side effect happens before this.
     await evaluateFundingCompliance({
@@ -99,7 +111,47 @@ async function getTopup(req, res, next) {
   }
 }
 
+/**
+ * POST /api/oxsteed-credit/stepup-challenges
+ *
+ * Issue a step-up challenge for a large top-up. The 6-digit code is emailed
+ * to the customer; the response carries only the challenge id and expiry.
+ * The client then calls POST /topups with { stepupChallengeId, stepupCode }.
+ */
+async function issueTopupStepupChallenge(req, res, next) {
+  try {
+    const customerId = req.user?.id;
+    if (!customerId) {
+      throw new AppError('Authentication is required', 401, 'auth_required');
+    }
+    const { amountCents, currencyCode } = req.body || {};
+    if (!topupRequiresStepup(amountCents)) {
+      throw new AppError('A step-up challenge is not required for this amount', 400, 'credit_stepup_not_required');
+    }
+    const { challenge, delivery } = await issueStepupChallenge({
+      actorUserId: customerId,
+      actorEmail: req.user?.email,
+      actionType: 'topup',
+      amountCents,
+      currencyCode: currencyCode || 'USD',
+    });
+    res.status(201).json({
+      challenge: {
+        id: challenge.id,
+        actionType: challenge.actionType,
+        amountCents: challenge.amountCents,
+        currencyCode: challenge.currencyCode,
+        expiresAt: challenge.expiresAt,
+      },
+      delivery,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   createTopup,
   getTopup,
+  issueTopupStepupChallenge,
 };

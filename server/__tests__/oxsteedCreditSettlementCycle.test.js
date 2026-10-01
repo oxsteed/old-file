@@ -586,6 +586,11 @@ describe('settlement payout reserve gate', () => {
         return { rows: [settlementRow({ status: 'approved', payout_status: 'none', net_cents: 100000 })] };
       }
       if (sql.includes('FROM oxsteed_credit_reserve_policies')) return { rows: [defaultPolicyRow()] };
+      if (sql.includes('FROM oxsteed_credit_sanctions_screenings')) {
+        // Phase 5: the payout beneficiary screens clear (fresh), so the
+        // payout sanctions gate passes in these success-path tests.
+        return { rows: [{ id: 'san-2', subject_type: 'partner', subject_id: 'partner-1', provider: 'manual_review', result: 'clear', hit_context: null, payload_hash: 'h', screened_at: new Date().toISOString(), cleared_at: null, cleared_by: null, clear_reason: null, created_at: new Date().toISOString() }] };
+      }
       if (sql.includes('SELECT balance_cents') && params[0] === 'partner_reserve') return { rows: [{ balance_cents: reserveBalanceCents }] };
       if (sql.includes('SELECT balance_cents') && params[0] === 'partner_payable') return { rows: [{ balance_cents: 0 }] };
       if (sql.includes('FROM food_restaurants fr')) return { rows: [{ business_id: 5, owner_user_id: 'owner-1' }] };

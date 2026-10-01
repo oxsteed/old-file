@@ -21,6 +21,14 @@ function mockHealthyRail() {
     if (sql.includes("FROM feature_flags WHERE key = 'oxsteed_credit_enabled'")) return { rows: [{ is_enabled: true }] };
     if (sql.includes('FROM oxsteed_credit_accounts')) return { rows: [{ total_cents: '0' }] };
     if (sql.includes('FROM oxsteed_credit_transactions')) return { rows: [{ total_cents: '0' }] };
+    if (sql.includes('FROM oxsteed_credit_identity_verifications')) {
+      // Phase 5: the customer is verified at tier 2 (unexpired).
+      return { rows: [{ id: 'ver-1', tier: 2, status: 'verified', expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() }] };
+    }
+    if (sql.includes('FROM oxsteed_credit_sanctions_screenings')) {
+      // Phase 5: the customer screens clear (fresh).
+      return { rows: [{ id: 'san-1', subject_type: 'customer', subject_id: CUSTOMER_ID, provider: 'manual_review', result: 'clear', hit_context: null, payload_hash: 'h', screened_at: new Date().toISOString(), cleared_at: null, cleared_by: null, clear_reason: null, created_at: new Date().toISOString() }] };
+    }
     if (sql.includes('INSERT INTO oxsteed_credit_audit_events')) return { rows: [] };
     return { rows: [], rowCount: 0 };
   });

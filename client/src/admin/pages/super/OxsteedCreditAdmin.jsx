@@ -39,6 +39,7 @@ const CREDIT_WORKER_NAMES = [
   'oxsteed-credit-reconciliation',
   'oxsteed-credit-settlement-cycle',
   'oxsteed-credit-integrity',
+  'oxsteed-credit-compliance-monitor',
   'restaurant-credit-wallet-watchdog',
 ];
 
@@ -245,6 +246,11 @@ const ADMIN_SECTION_TRANSLATIONS = {
     eyebrow: 'adminExternalReconciliationHistory',
     title: 'adminExternalReconciliationTitle',
     detail: 'adminExternalReconciliationDescription',
+  },
+  'Compliance queue': {
+    eyebrow: 'adminComplianceQueue',
+    title: 'adminComplianceQueueTitle',
+    detail: 'adminComplianceQueueDescription',
   },
   Disputes: {
     eyebrow: 'adminCreditDisputes',
@@ -474,6 +480,28 @@ function CreditPayoutRecovery({ settlements, busy, reverseSettlement }) {
   return <Section eyebrow="Payout recovery" title="Reverse a paid settlement" detail="Use this only when the external payout failed or was returned. The operation requires recovery evidence and creates a compensating ledger entry; it never edits the original payment transaction."><div className="grid gap-3 md:grid-cols-2">{settlements.filter((settlement) => settlement.status === 'paid' && Number(settlement.netCents || 0) > 0).slice(0, 6).map((settlement) => <article key={`reversal-${settlement.id}`} className="rounded-xl border border-amber-500/20 bg-amber-950/10 p-4"><div className="flex items-start justify-between gap-3"><div><h3 className="font-semibold text-white">{settlement.restaurantName || t('adminPartnerFallback', { id: settlement.partnerId })}</h3><p className="mt-1 text-xs text-gray-500">{money(settlement.netCents, settlement.currencyCode)} · {settlement.paymentReference || t('adminNoPaymentReference')}</p></div><button type="button" disabled={busy} onClick={() => reverseSettlement(settlement)} className="rounded-lg border border-amber-500/40 px-2.5 py-2 text-xs font-semibold text-amber-300 hover:bg-amber-500/10 disabled:opacity-50">{t('adminReversePayout')}</button></div></article>)}</div></Section>;
 }
 
+function ComplianceQueue({ queue, busy, decideCompliance }) {
+  const { t } = useTranslation('credit');
+  const verifications = queue?.verifications || [];
+  const sanctions = queue?.sanctions || [];
+  const cases = queue?.cases || [];
+  const counts = queue?.counts || {};
+  return <Section eyebrow="Compliance queue" title="Identity, sanctions, and monitoring cases" detail="Pending identity verifications, uncleared sanctions hits, and open transaction-monitoring cases with SLA state. Every decision records the admin, the reason, and an audit event.">
+    <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-3"><p className="text-[10px] uppercase tracking-[0.14em] text-gray-600">{t('adminCompliancePendingVerifications')}</p><strong className="mt-1 block text-lg text-amber-300">{Number(counts.pendingVerifications || 0)}</strong></div>
+      <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-3"><p className="text-[10px] uppercase tracking-[0.14em] text-gray-600">{t('adminCompliancePendingSanctions')}</p><strong className="mt-1 block text-lg text-red-300">{Number(counts.pendingSanctions || 0)}</strong></div>
+      <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-3"><p className="text-[10px] uppercase tracking-[0.14em] text-gray-600">{t('adminComplianceOpenCases')}</p><strong className="mt-1 block text-lg text-sky-300">{Number(counts.openCases || 0)}</strong></div>
+      <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-3"><p className="text-[10px] uppercase tracking-[0.14em] text-gray-600">{t('adminComplianceSlaBreached')}</p><strong className={`mt-1 block text-lg ${Number(counts.slaBreachedCases || 0) > 0 ? 'text-red-300' : 'text-emerald-300'}`}>{Number(counts.slaBreachedCases || 0)}</strong></div>
+    </div>
+    <h3 className="mt-6 text-sm font-semibold text-white">{t('adminComplianceVerifications')}</h3>
+    <div className="mt-3 overflow-x-auto rounded-xl border border-gray-800"><table className="min-w-[900px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">{t('adminCustomer')}</th><th className="px-3 py-3 font-medium">{t('adminComplianceRequestedTier')}</th><th className="px-3 py-3 font-medium">{t('adminComplianceProvider')}</th><th className="px-3 py-3 font-medium">{t('adminOpened')}</th><th className="px-3 py-3 font-medium">{t('adminControls')}</th></tr></thead><tbody className="divide-y divide-gray-800">{!verifications.length ? <tr><td colSpan="5" className="px-3 py-10 text-center text-gray-500">{t('adminComplianceNoVerifications')}</td></tr> : verifications.map((verification) => <tr key={verification.id}><td className="px-3 py-3 text-white"><span className="font-mono text-[11px]">{verification.customerId}</span>{verification.customerEmail && <p className="mt-1 text-gray-500">{verification.customerEmail}</p>}</td><td className="px-3 py-3 text-gray-400">{t('adminComplianceTier', { tier: verification.requestedTier })}</td><td className="px-3 py-3 text-gray-500">{verification.provider}</td><td className="px-3 py-3 text-gray-500">{dateTime(verification.createdAt)}</td><td className="px-3 py-3"><div className="flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={() => decideCompliance('verification', verification, 'approve')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">{t('adminApprove')}</button><button type="button" disabled={busy} onClick={() => decideCompliance('verification', verification, 'reject')} className="rounded-lg border border-red-500/30 px-2.5 py-2 font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50">{t('adminReject')}</button></div></td></tr>)}</tbody></table></div>
+    <h3 className="mt-6 text-sm font-semibold text-white">{t('adminComplianceSanctions')}</h3>
+    <div className="mt-3 overflow-x-auto rounded-xl border border-gray-800"><table className="min-w-[900px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">{t('adminComplianceSubject')}</th><th className="px-3 py-3 font-medium">{t('adminComplianceHitContext')}</th><th className="px-3 py-3 font-medium">{t('adminComplianceScreenedAt')}</th><th className="px-3 py-3 font-medium">{t('adminControls')}</th></tr></thead><tbody className="divide-y divide-gray-800">{!sanctions.length ? <tr><td colSpan="4" className="px-3 py-10 text-center text-gray-500">{t('adminComplianceNoSanctions')}</td></tr> : sanctions.map((hit) => <tr key={hit.id}><td className="px-3 py-3 text-white"><Badge status={hit.subjectType} /><span className="ml-2 font-mono text-[11px]">{hit.subjectId}</span>{hit.subjectEmail && <p className="mt-1 text-gray-500">{hit.subjectEmail}</p>}</td><td className="px-3 py-3 text-amber-300">{hit.hitContext || t('adminComplianceManualReview')}</td><td className="px-3 py-3 text-gray-500">{dateTime(hit.screenedAt)}</td><td className="px-3 py-3"><div className="flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={() => decideCompliance('sanction', hit, 'clear')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">{t('adminComplianceClearHit')}</button><button type="button" disabled={busy} onClick={() => decideCompliance('sanction', hit, 'confirm')} className="rounded-lg border border-red-500/30 px-2.5 py-2 font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50">{t('adminComplianceConfirmHit')}</button></div></td></tr>)}</tbody></table></div>
+    <h3 className="mt-6 text-sm font-semibold text-white">{t('adminComplianceCases')}</h3>
+    <div className="mt-3 overflow-x-auto rounded-xl border border-gray-800"><table className="min-w-[1080px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">{t('adminComplianceCaseType')}</th><th className="px-3 py-3 font-medium">{t('adminComplianceSubject')}</th><th className="px-3 py-3 font-medium">{t('adminComplianceSeverity')}</th><th className="px-3 py-3 font-medium">{t('adminStatus')}</th><th className="px-3 py-3 font-medium">{t('adminComplianceSla')}</th><th className="px-3 py-3 font-medium">{t('adminComplianceEvidence')}</th><th className="px-3 py-3 font-medium">{t('adminControls')}</th></tr></thead><tbody className="divide-y divide-gray-800">{!cases.length ? <tr><td colSpan="7" className="px-3 py-10 text-center text-gray-500">{t('adminComplianceNoCases')}</td></tr> : cases.map((c) => <tr key={c.id}><td className="px-3 py-3"><span className="font-mono text-[11px] text-orange-300">{c.caseType}</span><p className="mt-1 font-mono text-[10px] text-gray-700">{c.id.slice(0, 8)}</p></td><td className="px-3 py-3 text-white"><Badge status={c.subjectType} /><span className="ml-2 font-mono text-[11px]">{c.subjectId}</span>{c.subjectEmail && <p className="mt-1 text-gray-500">{c.subjectEmail}</p>}</td><td className="px-3 py-3"><Badge status={c.severity} /></td><td className="px-3 py-3"><Badge status={c.status} /></td><td className="px-3 py-3">{c.slaBreached ? <span className="font-semibold text-red-300">{t('adminComplianceSlaBreachedLabel')}</span> : <span className="text-gray-400">{c.slaHoursRemaining !== null ? t('adminComplianceSlaHours', { hours: Math.max(0, Math.round(c.slaHoursRemaining)) }) : '-'}</span>}<p className="mt-1 text-gray-600">{t('adminComplianceDue')} {dateTime(c.slaDueAt)}</p></td><td className="px-3 py-3 text-gray-500"><details><summary className="cursor-pointer text-sky-300">{t('adminViewState')}</summary><pre className="mt-2 max-w-[320px] whitespace-pre-wrap break-words text-[10px] leading-4 text-gray-500">{JSON.stringify(c.evidence || {}, null, 2)}</pre></details></td><td className="px-3 py-3"><div className="flex flex-wrap gap-2">{c.status === 'open' && <button type="button" disabled={busy} onClick={() => decideCompliance('case', c, 'investigating')} className="rounded-lg bg-sky-600 px-2.5 py-2 font-semibold text-white hover:bg-sky-500 disabled:opacity-50">{t('adminReview')}</button>}<button type="button" disabled={busy} onClick={() => decideCompliance('case', c, 'escalated')} className="rounded-lg border border-amber-500/30 px-2.5 py-2 font-semibold text-amber-300 hover:bg-amber-500/10 disabled:opacity-50">{t('adminComplianceEscalate')}</button><button type="button" disabled={busy} onClick={() => decideCompliance('case', c, 'resolved')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">{t('adminResolve')}</button></div></td></tr>)}</tbody></table></div>
+  </Section>;
+}
+
 const WORKER_TRANSLATION_KEYS = {
   'oxsteed-credit-notification-outbox': 'adminWorkerNotificationOutbox',
   'oxsteed-credit-hold-expiry': 'adminWorkerHoldExpiry',
@@ -481,6 +509,7 @@ const WORKER_TRANSLATION_KEYS = {
   'oxsteed-credit-reconciliation': 'adminWorkerReconciliation',
   'oxsteed-credit-external-reconciliation': 'adminWorkerExternalReconciliation',
   'oxsteed-credit-settlement-cycle': 'adminWorkerSettlementCycle',
+  'oxsteed-credit-compliance-monitor': 'adminWorkerComplianceMonitor',
   'oxsteed-credit-integrity': 'adminWorkerIntegrity',
   'restaurant-credit-wallet-watchdog': 'adminWorkerRestaurantWalletWatchdog',
 };
@@ -655,6 +684,7 @@ export default function OxsteedCreditAdmin() {
   const [loadingMoreReconciliationRuns, setLoadingMoreReconciliationRuns] = useState(false);
   const [reconciliationReason, setReconciliationReason] = useState('');
   const [externalReconRuns, setExternalReconRuns] = useState([]);
+  const [complianceQueue, setComplianceQueue] = useState(null);
   const [externalReconStatus, setExternalReconStatus] = useState('');
   const [externalReconCurrency, setExternalReconCurrency] = useState('all');
   const [externalReconPagination, setExternalReconPagination] = useState({ limit: 50, offset: 0, hasMore: false, nextOffset: null });
@@ -745,7 +775,7 @@ export default function OxsteedCreditAdmin() {
       const externalReconParams = { limit: 50, offset: appendExternalReconRuns ? externalReconOffset : 0 };
       if (externalReconStatus) externalReconParams.status = externalReconStatus;
       if (externalReconCurrency !== 'all') externalReconParams.currencyCode = externalReconCurrency;
-      const [overviewResponse, customerAccountsResponse, partnersResponse, partnerDirectoryResponse, agreementsResponse, settlementsResponse, transactionsResponse, disputesResponse, auditEventsResponse, reconciliationResponse, externalReconResponse, railResponse] = await Promise.all([
+      const [overviewResponse, customerAccountsResponse, partnersResponse, partnerDirectoryResponse, agreementsResponse, settlementsResponse, transactionsResponse, disputesResponse, auditEventsResponse, reconciliationResponse, externalReconResponse, complianceResponse, railResponse] = await Promise.all([
         adminApi.get('/admin/super/oxsteed-credit/overview'),
         adminApi.get('/admin/super/oxsteed-credit/accounts', { params: walletParams }),
         adminApi.get('/admin/super/oxsteed-credit/partners'),
@@ -757,6 +787,7 @@ export default function OxsteedCreditAdmin() {
         adminApi.get('/admin/super/oxsteed-credit/audit-events', { params: auditParams }),
         adminApi.get('/admin/super/oxsteed-credit/reconciliation', { params: reconciliationParams }),
         adminApi.get('/admin/super/oxsteed-credit/external-reconciliation', { params: externalReconParams }),
+        adminApi.get('/admin/super/oxsteed-credit/compliance-queue'),
         adminApi.get('/admin/super/oxsteed-credit/rail'),
       ]);
       if (requestId !== loadRequestRef.current) return;
@@ -796,6 +827,7 @@ export default function OxsteedCreditAdmin() {
       if (appendExternalReconRuns) setExternalReconRuns((current) => [...current, ...loadedExternalReconRuns]);
       else setExternalReconRuns(loadedExternalReconRuns);
       setExternalReconPagination(externalReconResponse.data?.pagination || { limit: externalReconParams.limit, offset: externalReconParams.offset, hasMore: false, nextOffset: null });
+      setComplianceQueue(complianceResponse.data || null);
       setRail(railResponse.data?.rail || null);
     } catch (err) {
       if (requestId === loadRequestRef.current) {
@@ -1218,6 +1250,34 @@ export default function OxsteedCreditAdmin() {
       await load({ quiet: true });
     } catch (err) {
       setError(safeCreditErrorMessage(err, t('adminDisputeUpdateFailed')));
+    } finally { setBusy(false); }
+  };
+
+  const decideCompliance = async (kind, item, decision) => {
+    const reason = await requestDialog({
+      kind: 'text',
+      title: t('adminComplianceDecisionTitle', { decision }),
+      description: t('adminComplianceDecisionDescription', { kind, id: String(item.id).slice(0, 8) }),
+      label: t('adminRequiredAuditReason'),
+    });
+    if (!reason?.trim()) {
+      setError(t('adminComplianceReasonRequired'));
+      return;
+    }
+    setBusy(true); setNotice(''); setError('');
+    try {
+      const endpoints = {
+        verification: `/admin/super/oxsteed-credit/compliance/verifications/${item.id}/decision`,
+        sanction: `/admin/super/oxsteed-credit/compliance/sanctions/${item.id}/decision`,
+        case: `/admin/super/oxsteed-credit/compliance/cases/${item.id}/transition`,
+      };
+      const payload = kind === 'case' ? { toStatus: decision, reason: reason.trim() } : { decision, reason: reason.trim() };
+      await adminApi.post(endpoints[kind], payload, { headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-compliance', { kind, id: item.id, decision }) } });
+      idempotencyKeysRef.current.clear('credit-compliance', { kind, id: item.id, decision });
+      setNotice(t('adminComplianceDecided', { kind, decision }));
+      await load({ quiet: true });
+    } catch (err) {
+      setError(safeCreditErrorMessage(err, t('adminComplianceDecisionFailed')));
     } finally { setBusy(false); }
   };
 
@@ -1731,6 +1791,12 @@ export default function OxsteedCreditAdmin() {
       externalReconReason={externalReconReason}
       setExternalReconReason={setExternalReconReason}
       triggerExternalReconciliation={triggerExternalReconciliation}
+    />
+
+    <ComplianceQueue
+      queue={complianceQueue}
+      busy={busy}
+      decideCompliance={decideCompliance}
     />
 
     <CreditDisputeQueue

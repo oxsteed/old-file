@@ -1791,6 +1791,40 @@ of this engineering pass.
 Keep one compact current checkpoint in the progress index; avoid appending another
 large duplicate history to AGENTS.md after every small edit.
 
+Current implementation checkpoint (2026-10-01 UTC): Phase 5 of the OxSteed
+Credit central-bank model built the code machinery for the KYC/AML/sanctions
+compliance perimeter (gap 8), on branch `old-files-claude`. Migration 638
+adds `oxsteed_credit_identity_verifications` (tiers 0/1/2, provider references
+only, no raw ID documents), `oxsteed_credit_sanctions_screenings`
+(customer|partner, fail-closed manual review), `oxsteed_credit_compliance_cases`
+(open/investigating/resolved/escalated with SLA), and
+`oxsteed_credit_stepup_challenges` (HMAC code hashes only). The fiat funding
+choke point now checks rail, amount, identity tier (tier 0 blocks all fiat,
+tier 1 caps per top-up), and sanctions before any persistent side effect;
+denials write `fiat.funding_compliance_denied` outside the rolled-back check
+transaction. Settlement payouts require a fresh admin step-up challenge plus a
+fresh sanctions screen of the beneficiary partner. The nightly
+`oxsteed-credit-compliance-monitor` job runs four transaction-monitoring rules
+(structuring, velocity spike, rapid fund-out, first large payout) with
+per-rule/per-subject/per-period dedupe and raises critical incidents on SLA
+breaches. A super-admin compliance queue UI (verifications, sanctions hits,
+cases) ships with decisions recorded with reason plus audit events, and five
+locales carry the new keys (en/es/fr/ht/ar). Verification: new
+`server/__tests__/oxsteedCreditCompliance.test.js` `24/24`; fiat compliance,
+top-up, settlement payout, settlement cycle, credit, reconciliation, food
+wallet, webhook, payment, and QR suites green; `verify:i18n` passed and client
+`build:ci` passed. Two real defects were found and fixed during the build: the
+new services destructured an unexported `insertAudit` (now exported from
+`oxsteedCreditAdminService`), and the admin-load compliance gate ran before the
+cheap reason validation (reason check moved ahead of the gate). Human launch
+actions that remain outside code: legal/compliance review sign-off, sanctions
+and identity vendor contracts, regulatory filings, and jurisdiction licensing;
+the rail stays disabled (migration 422) until those complete, and migration
+638 has not been rehearsed against a real PostgreSQL instance (standing
+caveat for all recent credit migrations). Next exact action: commit the
+Phase 5 files and push on `old-files-claude`, then verify the remote tip
+matches the local HEAD.
+
 ```text
 Package / criterion:
 Current source or artifact identity:

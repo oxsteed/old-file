@@ -23,6 +23,8 @@ router.get('/accounts', controller.getMyAccounts);
 router.get('/status', controller.getMyCreditStatus);
 router.get('/holds', controller.listMyHolds);
 router.get('/eligibility', controller.getCustomerEligibility);
+router.get('/identity-verification', controller.getMyIdentityVerification);
+router.post('/identity-verification', creditMutationLimiter, controller.requestMyIdentityVerification);
 router.get('/eligible-partners', controller.getEligiblePartners);
 router.get('/statement.csv', creditExportLimiter, controller.downloadMyStatement);
 router.get('/statement', controller.getMyStatement);
@@ -37,6 +39,8 @@ router.post('/disputes', creditMutationLimiter, controller.openMyDispute);
 // Stripe top-ups (fiat money IN): create a top-up intent and read its status.
 router.post('/topups', creditMutationLimiter, topupController.createTopup);
 router.get('/topups/:id', topupController.getTopup);
+// Step-up challenge issuance for large top-ups (Phase 5 compliance).
+router.post('/stepup-challenges', creditMutationLimiter, topupController.issueTopupStepupChallenge);
 
 // OxSteed Credit card ecosystem: issuance, activation, lifecycle, and PIN
 // management. Redemption/cash-out happen from device-authenticated kiosk
