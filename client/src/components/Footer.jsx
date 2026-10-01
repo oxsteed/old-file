@@ -83,13 +83,12 @@ export default function Footer() {
               <FooterLink to="/direct">{t('footer.direct')}</FooterLink>
               <FooterLink to="/delivery">{t('footer.delivery')}</FooterLink>
               <FooterLink to="/consulting-intake">{t('footer.consultingIntake')}</FooterLink>
+              <span className="site-footer__heading site-footer__heading--nested">
+                {t('footer.resource')}
+              </span>
+              <FooterLink to="/learn">{t('nav.learnToDiy')}</FooterLink>
               {showQrGenerator && (
-                <>
-                  <span className="site-footer__heading site-footer__heading--nested">
-                    {t('footer.resource')}
-                  </span>
-                  <FooterLink to="/qr-generator">{t('footer.qrGenerator')}</FooterLink>
-                </>
+                <FooterLink to="/qr-generator">{t('footer.qrGenerator')}</FooterLink>
               )}
             </div>
           </div>
