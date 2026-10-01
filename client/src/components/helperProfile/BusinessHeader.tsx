@@ -158,7 +158,7 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
             className={btnSecondary}
             style={{ textDecoration: 'none' }}
           >
-            {t('helperProfile.header.pay', { defaultValue: 'Pay' })}
+            {t('helperProfile.header.pay')}
           </a>
         )}
       </div>
