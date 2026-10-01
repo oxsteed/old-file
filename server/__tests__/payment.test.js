@@ -9,6 +9,13 @@ jest.mock('../utils/feeCalculator', () => ({
   }),
 }));
 
+// Exercise controller retries without spending the shared five-link daily quota.
+// Production limiter behavior remains covered by its dedicated middleware tests.
+jest.mock('../middleware/rateLimiter', () => ({
+  ...jest.requireActual('../middleware/rateLimiter'),
+  connectAccountLimiter: (_req, _res, next) => next(),
+}));
+
 const express = require('express');
 const request = require('supertest');
 const jwt     = require('jsonwebtoken');
@@ -97,13 +104,16 @@ describe('POST /api/payments/intent', () => {
   });
 
   test('creates payment intent and returns client_secret', async () => {
+    stripe.accounts.retrieve.mockResolvedValueOnce({
+      id: 'acct_x', charges_enabled: true, payouts_enabled: true, details_submitted: true,
+    });
     stripe.paymentIntents.create.mockResolvedValueOnce({
       id: 'pi_test123',
       client_secret: 'pi_test123_secret_abc',
     });
     mockAuth(
       { rows: [{ id: 10, client_id: 1, job_value: 100, assigned_helper_id: 2, title: 'Job' }] }, // job
-      { rows: [{ stripe_account_id: 'acct_x', charges_enabled: true }] },                         // connect
+      { rows: [{ stripe_account_id: 'acct_x', charges_enabled: true, payouts_enabled: true, onboarding_complete: true }] }, // connect
       { rows: [{ balance_cents: 0 }] },                                                           // customer credit balance
       { rows: [] },                                                                                // existing payment check
       { rows: [{ attempt_count: 0 }] },                                                           // payment attempt count
@@ -231,6 +241,18 @@ describe('GET /api/payments/connect/status', () => {
     expect(res.body.charges_enabled).toBe(true);
     expect(res.body.onboarding_complete).toBe(true);
     expect(mockQuery.mock.calls[2][0]).toContain('UPDATE connect_accounts');
+    expect(mockQuery.mock.calls[2][1]).toEqual([1, true, true, true, 'acct_x']);
+    expect(res.body.stripe_connect_payouts_ready).toBe(true);
+  });
+
+  test('does not present cached readiness as verified during a Stripe outage', async () => {
+    stripe.accounts.retrieve.mockRejectedValueOnce(new Error('provider unavailable'));
+    mockAuth({ rows: [{ stripe_account_id: 'acct_x', charges_enabled: true, payouts_enabled: true, onboarding_complete: true }] });
+    const res = await auth(request(buildApp()).get('/api/payments/connect/status'));
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ connected: true, status_verified: false, status_unavailable: true,
+      stripe_connect_ready: false, stripe_connect_payouts_ready: false, last_known_charges_enabled: true });
+    expect(mockQuery.mock.calls.some(([sql]) => sql.includes('UPDATE connect_accounts'))).toBe(false);
   });
 });
 
@@ -247,13 +269,16 @@ describe('POST /api/payments/connect', () => {
 
       mockAuth(
         { rows: [] }, // existing connect account lookup
-        { rows: [] }, // INSERT connect account
+        { rows: [{ stripe_account_id: 'acct_new' }] }, // persisted account
       );
 
       const res = await auth(request(buildApp()).post('/api/payments/connect'));
 
       expect(res.status).toBe(200);
       expect(res.body.url).toBe('https://stripe.test/onboard');
+      expect(stripe.accounts.create).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'express', metadata: { oxsteed_user_id: '1' },
+      }), { idempotencyKey: 'oxsteed-connect-account:1' });
       expect(stripe.accountLinks.create).toHaveBeenCalledWith(expect.objectContaining({
         refresh_url: expect.stringMatching(/\/helper-dashboard\?refresh=true$/),
         return_url: expect.stringMatching(/\/helper-dashboard\?onboarding=complete$/),
@@ -262,6 +287,53 @@ describe('POST /api/payments/connect', () => {
       process.env.APP_URL = prevAppUrl;
       process.env.CLIENT_URL = prevClientUrl;
     }
+  });
+
+  test('links the persisted winner and ignores untrusted redirect headers', async () => {
+    stripe.accounts.create.mockResolvedValueOnce({ id: 'acct_candidate' });
+    stripe.accountLinks.create.mockResolvedValueOnce({ url: 'https://stripe.test/onboard' });
+    mockAuth({ rows: [] }, { rows: [{ stripe_account_id: 'acct_winner' }] });
+    const res = await auth(request(buildApp()).post('/api/payments/connect')
+      .set('Origin', 'https://attacker.invalid').set('Referer', 'https://attacker.invalid/path').set('Host', 'attacker.invalid'));
+    expect(res.status).toBe(200);
+    expect(res.body.account_id).toBe('acct_winner');
+    expect(mockQuery.mock.calls[2][0]).toContain('ON CONFLICT (user_id)');
+    expect(stripe.accountLinks.create).toHaveBeenCalledWith({ account: 'acct_winner', type: 'account_onboarding',
+      refresh_url: 'https://oxsteed.com/helper-dashboard?refresh=true',
+      return_url: 'https://oxsteed.com/helper-dashboard?onboarding=complete' });
+  });
+
+  test.each([
+    { charges_enabled: true, payouts_enabled: false, requirements: {} },
+    { charges_enabled: true, payouts_enabled: true, requirements: { currently_due: ['external_account'] } },
+    { charges_enabled: true, payouts_enabled: true, requirements: { past_due: ['individual.verification.document'] } },
+  ])('resumes submitted onboarding when capabilities or requirements remain: %j', async account => {
+    stripe.accounts.retrieve.mockResolvedValueOnce({ id: 'acct_resume', details_submitted: true, ...account });
+    stripe.accountLinks.create.mockResolvedValueOnce({ url: 'https://stripe.test/resume' });
+    mockAuth({ rows: [{ stripe_account_id: 'acct_resume', onboarding_complete: true,
+      charges_enabled: account.charges_enabled, payouts_enabled: account.payouts_enabled }] });
+    const res = await auth(request(buildApp()).post('/api/payments/connect'));
+    expect(res.status).toBe(200);
+    expect(res.body.url).toBe('https://stripe.test/resume');
+    expect(stripe.accounts.create).not.toHaveBeenCalled();
+    expect(stripe.accountLinks.create).toHaveBeenCalledWith(expect.objectContaining({ account: 'acct_resume' }));
+  });
+
+  test('provider status failure is retryable and does not create a duplicate account', async () => {
+    stripe.accounts.retrieve.mockRejectedValueOnce(new Error('provider unavailable'));
+    mockAuth({ rows: [{ stripe_account_id: 'acct_x', onboarding_complete: true }] });
+    const res = await auth(request(buildApp()).post('/api/payments/connect'));
+    expect(res.status).toBe(503);
+    expect(stripe.accounts.create).not.toHaveBeenCalled();
+    expect(stripe.accountLinks.create).not.toHaveBeenCalled();
+  });
+
+  test('failed persistence never produces an onboarding link', async () => {
+    stripe.accounts.create.mockResolvedValueOnce({ id: 'acct_candidate' });
+    mockAuth({ rows: [] }, { rows: [] });
+    const res = await auth(request(buildApp()).post('/api/payments/connect'));
+    expect(res.status).toBe(503);
+    expect(stripe.accountLinks.create).not.toHaveBeenCalled();
   });
 });
 

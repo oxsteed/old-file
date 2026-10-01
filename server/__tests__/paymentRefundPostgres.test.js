@@ -84,3 +84,21 @@ integration('Pro price mapping migration is repeatable and preserves custom mapp
   expect(output).toContain('mapping:pro-yearly:price_1THyCDGo54BMlgSyzrRM6Swt');
   expect(output).toContain('mapping:pro:price_custom');
 });
+
+integration('Broker price mapping preserves custom contracts and is repeatable', () => {
+  const migration = fs.readFileSync(path.join(__dirname, '../migrations/616_stripe_broker_catalog_mapping.sql'), 'utf8');
+  const output = postgres(`BEGIN;
+    CREATE TEMP TABLE plans (slug TEXT, amount_cents INT, currency TEXT, interval TEXT,
+      stripe_price_id TEXT, stripe_product_id TEXT, updated_at TIMESTAMPTZ);
+    INSERT INTO plans VALUES
+      ('broker',3900,'usd','month','price_1THs8GGo54BMlgSyGjMDOWo7',NULL,NOW()),
+      ('broker',3900,'usd','month','price_custom',NULL,NOW()),
+      ('broker',2900,'usd','month','price_1THs8GGo54BMlgSyGjMDOWo7',NULL,NOW());
+    ${migration}
+    ${migration}
+    SELECT 'mapping:' || amount_cents || ':' || stripe_price_id FROM plans ORDER BY amount_cents;
+    ROLLBACK;`);
+  expect(output).toContain('mapping:3900:price_1ULXZLGo54BMlgSyEbdvgz2f');
+  expect(output).toContain('mapping:3900:price_custom');
+  expect(output).toContain('mapping:2900:price_1THs8GGo54BMlgSyGjMDOWo7');
+});

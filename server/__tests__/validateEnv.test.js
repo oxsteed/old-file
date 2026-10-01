@@ -14,7 +14,7 @@ test('reports the exact Stripe configuration names consumed by enabled workflows
   const originalEnv = process.env;
   const stripeVariables = [
     'STRIPE_PUBLISHABLE_KEY', 'STRIPE_CONNECT_WEBHOOK_SECRET',
-    'STRIPE_IDENTITY_WEBHOOK_SECRET', 'STRIPE_CLIENT_ID', 'STRIPE_CLIENT_SECRET',
+    'STRIPE_IDENTITY_WEBHOOK_SECRET', 'STRIPE_CLIENT_ID',
   ];
   try {
     process.env = {

@@ -17,32 +17,21 @@ function getAppBaseUrl() {
   return process.env.APP_URL || process.env.CLIENT_URL || 'https://oxsteed.com';
 }
 
-function resolveAppBaseUrl(req) {
+function resolveAppBaseUrl() {
   const candidates = [
-    req?.headers?.origin,
-    req?.headers?.referer ? (() => {
-      try {
-        return new URL(req.headers.referer).origin;
-      } catch (_) {
-        return null;
-      }
-    })() : null,
-    req?.protocol && req?.get?.('host') ? `${req.protocol}://${req.get('host')}` : null,
     process.env.APP_URL,
     process.env.CLIENT_URL,
-    getAppBaseUrl(),
+    'https://oxsteed.com',
   ];
 
   for (const candidate of candidates) {
     if (!candidate) continue;
     try {
-      return new URL(candidate).origin;
+      const url = new URL(candidate);
+      if (url.protocol !== 'https:' && !(process.env.NODE_ENV !== 'production' && url.protocol === 'http:')) continue;
+      return url.origin;
     } catch (_) {
-      try {
-        return new URL(`https://${String(candidate).replace(/^\/+/, '')}`).origin;
-      } catch (_) {
-        // keep trying the next candidate
-      }
+      // Do not use untrusted request Origin, Referer or Host for Stripe redirects.
     }
   }
 
@@ -52,8 +41,18 @@ function resolveAppBaseUrl(req) {
 async function refreshConnectAccountStatus(userId, accountRow) {
   if (!accountRow) return null;
 
+  const unavailable = {
+    ...accountRow,
+    status_verified: false,
+    status_unavailable: true,
+    last_known_charges_enabled: !!accountRow.charges_enabled,
+    last_known_payouts_enabled: !!accountRow.payouts_enabled,
+    charges_enabled: false,
+    payouts_enabled: false,
+  };
+
   if (!process.env.STRIPE_SECRET_KEY || !accountRow.stripe_account_id) {
-    return accountRow;
+    return unavailable;
   }
 
   try {
@@ -78,13 +77,14 @@ async function refreshConnectAccountStatus(userId, accountRow) {
                 payouts_enabled = $3,
                 onboarding_complete = $4,
                 updated_at = NOW()
-          WHERE user_id = $1`,
-        [userId, chargesEnabled, payoutsEnabled, onboardingComplete]
+          WHERE user_id = $1 AND stripe_account_id = $5`,
+        [userId, chargesEnabled, payoutsEnabled, onboardingComplete, accountRow.stripe_account_id]
       );
     }
 
     return {
       ...accountRow,
+      status_verified: true,
       charges_enabled: chargesEnabled,
       payouts_enabled: payoutsEnabled,
       onboarding_complete: onboardingComplete,
@@ -100,7 +100,7 @@ async function refreshConnectAccountStatus(userId, accountRow) {
       accountId: accountRow.stripe_account_id,
       error: err.message,
     });
-    return accountRow;
+    return unavailable;
   }
 }
 
@@ -124,7 +124,12 @@ exports.createConnectAccount = async (req, res, next) => {
     const existing = await pool.query('SELECT * FROM connect_accounts WHERE user_id = $1', [req.user.id]);
     if (existing.rows[0]) {
       const freshExisting = await refreshConnectAccountStatus(req.user.id, existing.rows[0]);
-      if (!freshExisting.onboarding_complete) {
+      if (freshExisting.status_verified === false) {
+        throw new AppError('Stripe account status is temporarily unavailable. Please retry.', 503, 'connect_status_unavailable');
+      }
+      const requirements = freshExisting.requirements || {};
+      if (!freshExisting.onboarding_complete || !freshExisting.charges_enabled || !freshExisting.payouts_enabled
+          || requirements.currently_due?.length || requirements.past_due?.length) {
         const link = await stripe.accountLinks.create({
           account: freshExisting.stripe_account_id,
           refresh_url: `${resolveAppBaseUrl(req)}/helper-dashboard?refresh=true`,
@@ -141,23 +146,28 @@ exports.createConnectAccount = async (req, res, next) => {
       country: 'US',
       email: req.user.email,
       capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
-    });
+      metadata: { oxsteed_user_id: String(req.user.id) },
+    }, { idempotencyKey: `oxsteed-connect-account:${req.user.id}` });
 
-    await pool.query(
-      'INSERT INTO connect_accounts (user_id, stripe_account_id) VALUES ($1, $2)',
+    const { rows: persisted } = await pool.query(
+      `INSERT INTO connect_accounts (user_id, stripe_account_id) VALUES ($1, $2)
+       ON CONFLICT (user_id) DO UPDATE SET stripe_account_id = connect_accounts.stripe_account_id
+       RETURNING stripe_account_id`,
       [req.user.id, account.id]
     );
+    const accountId = persisted[0]?.stripe_account_id;
+    if (!accountId) throw new AppError('Payment account could not be saved. Please retry.', 503, 'connect_account_persistence_failed');
 
     const link = await stripe.accountLinks.create({
-      account: account.id,
+      account: accountId,
       refresh_url: `${resolveAppBaseUrl(req)}/helper-dashboard?refresh=true`,
       return_url: `${resolveAppBaseUrl(req)}/helper-dashboard?onboarding=complete`,
       type: 'account_onboarding',
     });
-    res.json({ url: link.url, onboarding_url: link.url, account_id: account.id });
+    res.json({ url: link.url, onboarding_url: link.url, account_id: accountId });
   } catch (err) {
     logger.error('Create connect account error', { userId: req.user?.id, error: err.message });
-    next(new AppError('Failed to create payment account', 502, 'connect_account_create_failed'));
+    next(err instanceof AppError ? err : new AppError('Failed to create payment account', 502, 'connect_account_create_failed'));
   }
 };
 
@@ -174,6 +184,7 @@ exports.getConnectStatus = async (req, res, next) => {
       connected: true,
       ...refreshed,
       stripe_connect_ready: !!refreshed.charges_enabled,
+      stripe_connect_payouts_ready: !!refreshed.payouts_enabled,
       stripe_connect_onboarded: !!refreshed.onboarding_complete,
     });
   } catch (err) {

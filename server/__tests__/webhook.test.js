@@ -503,6 +503,36 @@ describe('account.updated', () => {
     const res = await sendEvent(buildApp(), event);
     expect(res.status).toBe(200);
     expect(mockQuery.mock.calls.some(([sql]) => /UPDATE businesses/.test(sql))).toBe(true);
+    const integrationUpdate = mockQuery.mock.calls.find(([sql]) => sql.includes('UPDATE business_integrations'));
+    expect(integrationUpdate[0]).toContain("config_json->>'account_id' = $1::text");
+    expect(integrationUpdate[0]).not.toContain('is_enabled = TRUE');
+    expect(integrationUpdate[1][0]).toBe('acct_123');
+    expect(integrationUpdate[1][2]).toBe(42);
+  });
+
+  test('updates every business mapped to the account, not an arbitrary first match', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 11 }, { id: 12 }] });
+    const res = await sendEvent(buildApp(), { type: 'account.updated', data: { object: {
+      id: 'acct_shared', charges_enabled: true, payouts_enabled: false, details_submitted: true,
+    } } });
+    expect(res.status).toBe(200);
+    const updates = mockQuery.mock.calls.filter(([sql]) => sql.includes('UPDATE businesses'));
+    expect(updates.map(([, values]) => values[4])).toEqual([11, 12]);
+    const lookup = mockQuery.mock.calls[0][0];
+    expect(lookup).toContain('FOR UPDATE OF b');
+    expect(lookup).not.toContain('LIMIT 1');
+  });
+
+  test('integration update failure is not swallowed and remains retryable', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 81 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 42 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockRejectedValueOnce(new Error('integration write unavailable'));
+    const res = await sendEvent(buildApp(), { id: 'evt_business_retry', type: 'account.updated',
+      data: { object: { id: 'acct_retry', charges_enabled: true, payouts_enabled: true } } });
+    expect(res.status).toBe(500);
+    expect(mockQuery.mock.calls.some(([sql]) => sql.includes("SET status = 'failed'"))).toBe(true);
+    expect(mockQuery.mock.calls.some(([sql]) => sql.includes("SET status = 'processed'"))).toBe(false);
   });
 });
 

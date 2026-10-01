@@ -230,40 +230,37 @@ async function syncBusinessStripeAccountState(account) {
       ? 'restricted'
       : 'pending');
 
-  const { rows: businesses } = await db.query(
-    `SELECT id
-       FROM businesses
-      WHERE stripe_account_id = $1
-      UNION
-      SELECT business_id AS id
-        FROM business_integrations
-       WHERE integration_type = 'stripe'
-         AND config_json->>'account_id' = $1::text
-      LIMIT 1`,
+  await withTransaction(db, async client => {
+  const { rows: businesses } = await client.query(
+    `SELECT b.id FROM businesses b
+       LEFT JOIN business_integrations bi ON bi.business_id = b.id AND bi.integration_type = 'stripe'
+      WHERE b.stripe_account_id = $1
+         OR (b.stripe_account_id IS NULL AND bi.is_connected = TRUE
+             AND bi.config_json->>'account_id' = $1::text)
+      FOR UPDATE OF b`,
     [accountId]
   );
-  const businessId = businesses[0]?.id || null;
-  if (!businessId) return;
+  for (const { id: businessId } of businesses) {
 
-  await db.query(
+  await client.query(
     `UPDATE businesses
         SET stripe_account_id = COALESCE(stripe_account_id, $1),
             stripe_charges_enabled = $2,
             stripe_payouts_enabled = $3,
             stripe_account_status = $4,
             updated_at = NOW()
-      WHERE id = $5`,
+      WHERE id = $5 AND (stripe_account_id IS NULL OR stripe_account_id = $1)`,
     [accountId, !!account.charges_enabled, !!account.payouts_enabled, accountStatus, businessId]
   );
 
-  await db.query(
+  await client.query(
     `UPDATE business_integrations
         SET is_connected = TRUE,
-            is_enabled = TRUE,
             config_json = COALESCE(config_json, '{}'::jsonb) || $2::jsonb,
             updated_at = NOW()
       WHERE business_id = $3
-        AND integration_type = 'stripe'`,
+        AND integration_type = 'stripe'
+        AND (config_json->>'account_id' IS NULL OR config_json->>'account_id' = $1::text)`,
     [accountId, JSON.stringify({
       account_id: accountId,
       charges_enabled: !!account.charges_enabled,
@@ -275,7 +272,9 @@ async function syncBusinessStripeAccountState(account) {
       requirements: account.requirements || null,
       last_synced_at: new Date().toISOString(),
     }), businessId]
-  ).catch(() => {});
+  );
+  }
+  }, 'sync_business_stripe_account');
 }
 
 async function syncConnectAccountState(account) {

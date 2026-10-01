@@ -23,6 +23,7 @@ function buildApp() {
   app.get('/api/businesses/:businessId/integrations', getIntegrations);
   app.post('/api/businesses/:businessId/integrations/api-key/regenerate', regenerateApiKey);
   app.post('/api/businesses/:businessId/integrations/stripe/auth', stripeAuthUrl);
+  app.get('/api/businesses/integrations/stripe/callback', stripeCallback);
   app.get('/api/businesses/:businessId/integrations/stripe/callback', stripeCallback);
   app.post('/api/businesses/:businessId/integrations/stripe/disconnect', disconnectStripe);
   app.patch('/api/businesses/:businessId/integrations/:integrationType', updateIntegration);
@@ -30,7 +31,48 @@ function buildApp() {
   return app;
 }
 
-beforeEach(() => resetMocks());
+let originalEnv;
+let originalFetch;
+const envKeys = ['CLIENT_URL', 'STRIPE_CLIENT_ID', 'STRIPE_CLIENT_SECRET', 'STRIPE_SECRET_KEY', 'NODE_ENV'];
+beforeEach(() => {
+  resetMocks();
+  originalEnv = Object.fromEntries(envKeys.map(key => [key, process.env[key]]));
+  originalFetch = global.fetch;
+});
+afterEach(() => {
+  for (const key of envKeys) {
+    if (originalEnv[key] === undefined) delete process.env[key];
+    else process.env[key] = originalEnv[key];
+  }
+  global.fetch = originalFetch;
+});
+
+async function beginOAuth(businessId = '12') {
+  process.env.CLIENT_URL = 'https://app.oxsteed.test';
+  process.env.STRIPE_CLIENT_ID = 'ca_test_realclient';
+  process.env.STRIPE_SECRET_KEY = 'sk_test_dummy';
+  const response = await request(buildApp())
+    .post(`/api/businesses/${businessId}/integrations/stripe/auth`).send({});
+  expect(response.status).toBe(200);
+  return {
+    state: new URL(response.body.auth_url).searchParams.get('state'),
+    cookie: response.headers['set-cookie'][0].split(';')[0],
+    response,
+  };
+}
+
+function mockStripeConnection(livemode = false) {
+  global.fetch = jest.fn()
+    .mockResolvedValueOnce({ ok: true, json: async () => ({
+      access_token: 'synthetic_access_token', refresh_token: 'synthetic_refresh_token',
+      scope: 'read_write', livemode, token_type: 'bearer', stripe_user_id: 'acct_123',
+    }) })
+    .mockResolvedValueOnce({ ok: true, json: async () => ({
+      id: 'acct_123', charges_enabled: true, payouts_enabled: true,
+      details_submitted: true, default_currency: 'usd', country: 'US',
+      requirements: { currently_due: [] },
+    }) });
+}
 
 describe('business integrations controls', () => {
   test('returns API access, SMS, calendar, and webhook status', async () => {
@@ -157,67 +199,125 @@ describe('business integrations controls', () => {
     expect(res.body.auth_url).toContain('client_id=ca_test_realclient');
     expect(res.body.auth_url).toContain('state=');
     expect(res.body.auth_url).not.toContain('ca_placeholder');
+    const redirect = new URL(res.body.auth_url).searchParams.get('redirect_uri');
+    expect(redirect).toBe('https://app.oxsteed.test/api/businesses/integrations/stripe/callback');
+    expect(res.headers['set-cookie'][0]).toMatch(/HttpOnly/);
+    expect(res.headers['set-cookie'][0]).toMatch(/SameSite=Lax/);
+    const pending = JSON.parse(mockQuery.mock.calls[0][1][2]);
+    expect(pending.userId).toBe('user-123');
+    expect(pending.fingerprint).toMatch(/^[a-f0-9]{64}$/);
+    expect(JSON.stringify(pending)).not.toContain('nonce');
     expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 
   test('exchanges the Stripe Connect callback code and persists the connected account', async () => {
-    process.env.CLIENT_URL = 'https://app.oxsteed.test';
-    process.env.STRIPE_CLIENT_ID = 'ca_test_realclient';
-    process.env.STRIPE_CLIENT_SECRET = 'sk_test_realclient';
-    process.env.STRIPE_SECRET_KEY = 'sk_test_dummy';
-    const previousFetch = global.fetch;
+    const { state, cookie } = await beginOAuth();
+    delete process.env.STRIPE_CLIENT_SECRET;
+    mockStripeConnection();
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ business_id: 12 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 12 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+    const res = await request(buildApp())
+      .get(`/api/businesses/integrations/stripe/callback?code=oauth_code_123&state=${state}`)
+      .set('Cookie', cookie);
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toContain('/restaurants/merchant?stripe=connected&businessId=12');
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(new URLSearchParams(global.fetch.mock.calls[0][1].body).get('client_secret')).toBe('sk_test_dummy');
+    expect(mockQuery.mock.calls[1][0]).toMatch(/config_json - 'stripe_oauth_pending'/);
+    expect(mockQuery.mock.calls[1][1][2]).toBe('user-123');
+    expect(mockQuery.mock.calls[2][0]).toMatch(/FOR UPDATE OF b/);
+    expect(mockQuery.mock.calls[3][1].slice(1, 4)).toEqual([null, null, null]);
+    expect(mockQuery.mock.calls[4][0]).toMatch(/UPDATE businesses/);
+    expect(res.headers['set-cookie'][0]).toContain('Expires=Thu, 01 Jan 1970');
+  });
 
-    try {
-      const statePayload = Buffer.from(JSON.stringify({
-        businessId: '12',
-        ts: Date.now(),
-        nonce: 'nonce-test',
-      })).toString('base64url');
-      const stateSig = require('crypto')
-        .createHmac('sha256', process.env.JWT_SECRET)
-        .update(statePayload)
-        .digest('base64url');
+  test.each(['missing', 'wrong', 'duplicate'])('rejects %s browser cookie before any provider call', async kind => {
+    const { state, cookie } = await beginOAuth();
+    mockQuery.mockClear();
+    global.fetch = jest.fn();
+    let call = request(buildApp()).get(`/api/businesses/integrations/stripe/callback?code=code&state=${state}`);
+    if (kind === 'wrong') call = call.set('Cookie', 'oxsteed_stripe_oauth=wrong');
+    if (kind === 'duplicate') call = call.set('Cookie', `${cookie}; ${cookie}`);
+    const res = await call;
+    expect(res.headers.location).toContain('stripe=error');
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
 
-      global.fetch = jest.fn()
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            access_token: 'acct_access_token',
-            refresh_token: 'acct_refresh_token',
-            expires_in: 3600,
-            scope: 'read_write',
-            livemode: false,
-            token_type: 'bearer',
-            stripe_user_id: 'acct_123',
-          }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            id: 'acct_123',
-            charges_enabled: true,
-            payouts_enabled: true,
-            details_submitted: true,
-            default_currency: 'usd',
-            country: 'US',
-            requirements: { currently_due: [] },
-          }),
-        });
+  test.each(['expired', 'future', 'invalid-time', 'extra-segment', 'wrong-business'])
+  ('rejects %s state without consuming authorization', async kind => {
+    const begun = await beginOAuth();
+    const payload = JSON.parse(Buffer.from(begun.state.split('.')[0], 'base64url').toString());
+    if (kind === 'expired') payload.ts = Date.now() - 16 * 60 * 1000;
+    if (kind === 'future') payload.ts = Date.now() + 10000;
+    if (kind === 'invalid-time') payload.ts = 'not-a-timestamp';
+    const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url');
+    const signature = require('crypto').createHmac('sha256', process.env.JWT_SECRET).update(encoded).digest('base64url');
+    const state = `${encoded}.${signature}${kind === 'extra-segment' ? '.extra' : ''}`;
+    mockQuery.mockClear();
+    global.fetch = jest.fn();
+    const route = kind === 'wrong-business' ? '/api/businesses/99/integrations/stripe/callback' : '/api/businesses/integrations/stripe/callback';
+    const res = await request(buildApp()).get(`${route}?code=code&state=${state}`).set('Cookie', begun.cookie);
+    expect(res.headers.location).toContain('stripe=error');
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
 
-      mockQuery
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [] });
+  test('never re-exchanges an already-consumed authorization code', async () => {
+    const { state, cookie } = await beginOAuth();
+    global.fetch = jest.fn();
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    const res = await request(buildApp())
+      .get(`/api/businesses/integrations/stripe/callback?code=code&state=${state}`).set('Cookie', cookie);
+    expect(res.headers.location).toContain('already%20used');
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
 
-      const res = await request(buildApp())
-        .get(`/api/businesses/12/integrations/stripe/callback?code=oauth_code_123&state=${statePayload}.${stateSig}`);
+  test('validates and consumes denied consent without linking any account', async () => {
+    const { state, cookie } = await beginOAuth();
+    global.fetch = jest.fn();
+    mockQuery.mockResolvedValueOnce({ rows: [{ business_id: 12 }] });
+    const res = await request(buildApp())
+      .get(`/api/businesses/integrations/stripe/callback?error=access_denied&state=${state}`).set('Cookie', cookie);
+    expect(res.headers.location).toContain('stripe=error&businessId=12');
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+  });
 
-      expect(res.status).toBe(302);
-      expect(res.headers.location).toContain('/restaurants/merchant?stripe=connected&businessId=12');
-      expect(global.fetch).toHaveBeenCalledTimes(2);
-      expect(mockQuery.mock.calls[1][0]).toMatch(/UPDATE businesses/);
-    } finally {
-      global.fetch = previousFetch;
-    }
+  test('preserves the legacy callback route with the same validation', async () => {
+    const { state, cookie } = await beginOAuth();
+    mockStripeConnection();
+    mockQuery.mockResolvedValueOnce({ rows: [{ business_id: 12 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 12 }] });
+    const res = await request(buildApp())
+      .get(`/api/businesses/12/integrations/stripe/callback?code=code&state=${state}`).set('Cookie', cookie);
+    expect(res.headers.location).toContain('stripe=connected&businessId=12');
+  });
+
+  test('rejects an ownership change before persisting connection state', async () => {
+    const { state, cookie } = await beginOAuth();
+    mockStripeConnection();
+    mockQuery.mockResolvedValueOnce({ rows: [{ business_id: 12 }] })
+      .mockResolvedValueOnce({ rows: [] });
+    const res = await request(buildApp())
+      .get(`/api/businesses/integrations/stripe/callback?code=code&state=${state}`).set('Cookie', cookie);
+    expect(res.headers.location).toContain('stripe=error');
+    expect(mockQuery).toHaveBeenCalledTimes(3);
+  });
+
+  test('rejects test-mode connections in production', async () => {
+    const { state, cookie } = await beginOAuth();
+    process.env.NODE_ENV = 'production';
+    mockStripeConnection(false);
+    mockQuery.mockResolvedValueOnce({ rows: [{ business_id: 12 }] });
+    const res = await request(buildApp())
+      .get(`/api/businesses/integrations/stripe/callback?code=code&state=${state}`).set('Cookie', cookie);
+    expect(res.headers.location).toContain('test-mode');
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(mockQuery).toHaveBeenCalledTimes(2);
   });
 
   test('rejects a Stripe Connect callback with invalid state', async () => {
@@ -228,5 +328,39 @@ describe('business integrations controls', () => {
 
     expect(res.status).toBe(302);
     expect(res.headers.location).toContain('/restaurants/merchant?stripe=error&businessId=12');
+  });
+
+  test('authenticates provider revocation and clears both local records together', async () => {
+    process.env.STRIPE_CLIENT_ID = 'ca_fixture';
+    process.env.STRIPE_SECRET_KEY = 'sk_test_fixture';
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ stripe_user_id: 'acct_fixture' }) });
+    mockQuery.mockResolvedValueOnce({ rows: [{ stripe_account_id: 'acct_fixture', shared_connection: false }] })
+      .mockResolvedValueOnce({ rows: [{ stripe_account_id: 'acct_fixture' }] });
+    const res = await request(buildApp()).post('/api/businesses/12/integrations/stripe/disconnect');
+    expect(res.status).toBe(200);
+    expect(global.fetch).toHaveBeenCalledWith('https://connect.stripe.com/oauth/deauthorize', expect.objectContaining({
+      headers: expect.objectContaining({ Authorization: 'Bearer sk_test_fixture' }),
+    }));
+    expect(mockQuery.mock.calls[1][0]).toContain('FOR UPDATE');
+    expect(mockQuery.mock.calls[2][0]).toContain('UPDATE business_integrations');
+    expect(mockQuery.mock.calls[3][0]).toContain('UPDATE businesses');
+  });
+
+  test('does not erase a connection when provider revocation fails', async () => {
+    process.env.STRIPE_CLIENT_ID = 'ca_fixture';
+    global.fetch = jest.fn().mockResolvedValue({ ok: false, json: async () => ({ error: 'invalid_client' }) });
+    mockQuery.mockResolvedValueOnce({ rows: [{ stripe_account_id: 'acct_fixture' }] });
+    const res = await request(buildApp()).post('/api/businesses/12/integrations/stripe/disconnect');
+    expect(res.status).toBe(502);
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+
+  test('cannot revoke another business\'s shared account access', async () => {
+    global.fetch = jest.fn();
+    mockQuery.mockResolvedValueOnce({ rows: [{ stripe_account_id: 'acct_shared', shared_connection: true }] });
+    const res = await request(buildApp()).post('/api/businesses/12/integrations/stripe/disconnect');
+    expect(res.status).toBe(409);
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 });

@@ -3,7 +3,7 @@
 const pool = require('../db');
 const crypto = require('crypto');
 const { AppError } = require('../middleware/errorHandler');
-const logger = require('../utils/logger');
+const { withTransaction } = require('../utils/transaction');
 
 const TYPE_LABELS = {
   api_access: 'API Access',
@@ -15,31 +15,53 @@ const STRIPE_CONNECT_AUTHORIZE_URL = 'https://connect.stripe.com/oauth/authorize
 const STRIPE_CONNECT_TOKEN_URL = 'https://connect.stripe.com/oauth/token';
 const STRIPE_CONNECT_DEAUTHORIZE_URL = 'https://connect.stripe.com/oauth/deauthorize';
 const STRIPE_CONNECT_ACCOUNT_BASE_URL = 'https://api.stripe.com/v1/accounts';
+const STRIPE_STATE_COOKIE = 'oxsteed_stripe_oauth';
+const STRIPE_STATE_MAX_AGE = 15 * 60 * 1000;
 
-function getStripeConnectStateSecret() {
-  return process.env.STRIPE_CONNECT_STATE_SECRET
-    || process.env.JWT_SECRET
-    || process.env.APP_SECRET
-    || process.env.SESSION_SECRET
-    || 'oxsteed-stripe-connect-state';
+function stripeStateCookieOptions() {
+  return { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/api/businesses' };
 }
 
-function createStripeConnectState(businessId) {
+function stateFingerprint(state) {
+  return crypto.createHash('sha256').update(state).digest('hex');
+}
+
+function stripeCookieMatches(req, nonce) {
+  const cookies = String(req.headers.cookie || '').split(';').map(part => part.trim())
+    .filter(part => part.startsWith(`${STRIPE_STATE_COOKIE}=`));
+  if (cookies.length !== 1) return false;
+  const actual = Buffer.from(cookies[0].slice(STRIPE_STATE_COOKIE.length + 1));
+  const expected = Buffer.from(nonce);
+  return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
+}
+
+function getStripeConnectStateSecret() {
+  const secret = process.env.STRIPE_CONNECT_STATE_SECRET
+    || process.env.JWT_SECRET
+    || process.env.APP_SECRET
+    || process.env.SESSION_SECRET;
+  if (!secret) throw new AppError('Stripe Connect state signing is not configured.', 424, 'configuration_missing');
+  return secret;
+}
+
+function createStripeConnectState(businessId, userId) {
+  const nonce = crypto.randomBytes(24).toString('hex');
   const payload = JSON.stringify({
     businessId: String(businessId),
+    userId: String(userId),
     ts: Date.now(),
-    nonce: crypto.randomBytes(12).toString('hex'),
+    nonce,
   });
   const encoded = Buffer.from(payload).toString('base64url');
   const signature = crypto
     .createHmac('sha256', getStripeConnectStateSecret())
     .update(encoded)
     .digest('base64url');
-  return `${encoded}.${signature}`;
+  return { state: `${encoded}.${signature}`, nonce };
 }
 
 function verifyStripeConnectState(state) {
-  if (typeof state !== 'string' || !state.includes('.')) return null;
+  if (typeof state !== 'string' || state.length > 4096 || state.split('.').length !== 2) return null;
   const [encoded, signature] = state.split('.', 2);
   const expected = crypto
     .createHmac('sha256', getStripeConnectStateSecret())
@@ -52,12 +74,17 @@ function verifyStripeConnectState(state) {
   }
   try {
     const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'));
-    if (!payload?.businessId || !payload?.ts) return null;
-    if (Date.now() - Number(payload.ts) > 15 * 60 * 1000) return null;
+    if (typeof payload?.businessId !== 'string' || !payload.businessId
+        || typeof payload.userId !== 'string' || !payload.userId
+        || !/^[a-f0-9]{48}$/.test(payload.nonce || '')) return null;
+    const timestamp = Number(payload.ts);
+    if (!Number.isFinite(timestamp) || timestamp <= 0 || timestamp > Date.now()
+        || Date.now() - timestamp > STRIPE_STATE_MAX_AGE) return null;
     return {
       businessId: String(payload.businessId),
-      ts: Number(payload.ts),
-      nonce: payload.nonce || null,
+      userId: payload.userId,
+      ts: timestamp,
+      nonce: payload.nonce,
     };
   } catch {
     return null;
@@ -69,7 +96,10 @@ async function stripeFormRequest(url, body) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
+      ...(url === STRIPE_CONNECT_DEAUTHORIZE_URL
+        ? { Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}` } : {}),
     },
+    signal: AbortSignal.timeout(15000),
     body: new URLSearchParams(body).toString(),
   });
   const data = await response.json().catch(() => ({}));
@@ -90,6 +120,7 @@ async function stripeGetRequest(url) {
     headers: {
       Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}`,
     },
+    signal: AbortSignal.timeout(15000),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -391,7 +422,7 @@ async function stripeAuthUrl(req, res, next) {
   const { businessId } = req.params;
   try {
     const clientId = process.env.STRIPE_CLIENT_ID;
-    if (!clientId) {
+    if (!clientId || !process.env.STRIPE_SECRET_KEY) {
       throw new AppError(
         'Stripe Connect is not configured for this environment.',
         424,
@@ -400,21 +431,26 @@ async function stripeAuthUrl(req, res, next) {
       );
     }
 
-    // Upsert integration row as "pending"
+    const { state, nonce } = createStripeConnectState(businessId, req.user.id);
+    const pending = { fingerprint: stateFingerprint(state), userId: String(req.user.id), expiresAt: Date.now() + STRIPE_STATE_MAX_AGE };
+    // Store only a fingerprint; consume it atomically before exchanging a code.
     await pool.query(
       `INSERT INTO business_integrations
-         (business_id, integration_type, integration_name, is_connected, is_enabled, created_by_id)
-       VALUES ($1, 'stripe', 'Stripe Connect', FALSE, TRUE, $2)
-       ON CONFLICT (business_id, integration_type) DO NOTHING`,
-      [businessId, req.user.id]
+         (business_id, integration_type, integration_name, is_connected, is_enabled, created_by_id, config_json)
+       VALUES ($1, 'stripe', 'Stripe Connect', FALSE, TRUE, $2, jsonb_build_object('stripe_oauth_pending', $3::jsonb))
+       ON CONFLICT (business_id, integration_type) DO UPDATE SET
+         config_json = COALESCE(business_integrations.config_json, '{}'::jsonb)
+                       || jsonb_build_object('stripe_oauth_pending', $3::jsonb),
+         updated_at = NOW()`,
+      [businessId, req.user.id, JSON.stringify(pending)]
     );
 
-    const state = createStripeConnectState(businessId);
     const redirectUri = encodeURIComponent(
-      `${process.env.CLIENT_URL || process.env.APP_URL || 'http://localhost:3000'}/api/businesses/${businessId}/integrations/stripe/callback`
+      `${process.env.CLIENT_URL || process.env.APP_URL || 'http://localhost:3000'}/api/businesses/integrations/stripe/callback`
     );
     const authUrl = `${STRIPE_CONNECT_AUTHORIZE_URL}?response_type=code&client_id=${encodeURIComponent(clientId)}&scope=read_write&state=${encodeURIComponent(state)}&redirect_uri=${redirectUri}`;
 
+    res.cookie(STRIPE_STATE_COOKIE, nonce, { ...stripeStateCookieOptions(), maxAge: STRIPE_STATE_MAX_AGE });
     res.json({ auth_url: authUrl });
   } catch (err) {
     next(err);
@@ -426,7 +462,7 @@ async function stripeAuthUrl(req, res, next) {
  * Stripe redirects here after the merchant approves access.
  */
 async function stripeCallback(req, res, next) {
-  const { businessId } = req.params;
+  let { businessId } = req.params;
   const {
     code,
     state,
@@ -437,31 +473,58 @@ async function stripeCallback(req, res, next) {
   const appBaseUrl = process.env.CLIENT_URL || process.env.APP_URL || 'http://localhost:3000';
 
   try {
+    const parsedState = verifyStripeConnectState(state);
+    if (!parsedState || (businessId && parsedState.businessId !== String(businessId))
+        || !stripeCookieMatches(req, parsedState.nonce)) {
+      throw new AppError('Invalid Stripe Connect state', 403, 'stripe_connect_state_invalid');
+    }
+    businessId = parsedState.businessId;
+    if (!error && (typeof code !== 'string' || !code)) {
+      throw new AppError('Stripe authorization code is missing', 400, 'stripe_connect_code_missing');
+    }
+    if (!process.env.STRIPE_CLIENT_ID || !process.env.STRIPE_SECRET_KEY) {
+      throw new AppError('Stripe Connect is not configured for this environment.', 424, 'configuration_missing');
+    }
+
+    const { rows: pendingRows } = await pool.query(
+      `UPDATE business_integrations AS bi
+          SET config_json = config_json - 'stripe_oauth_pending', updated_at = NOW()
+        WHERE business_id::text = $1 AND integration_type = 'stripe'
+          AND config_json->'stripe_oauth_pending'->>'fingerprint' = $2
+          AND config_json->'stripe_oauth_pending'->>'userId' = $3
+          AND (config_json->'stripe_oauth_pending'->>'expiresAt')::bigint > $4
+          AND EXISTS (
+            SELECT 1 FROM businesses b WHERE b.id = bi.business_id
+              AND b.deleted_at IS NULL AND b.is_active IS NOT FALSE
+              AND (b.user_id::text = $3 OR EXISTS (
+                SELECT 1 FROM business_members bm WHERE bm.business_id = b.id
+                  AND bm.member_id::text = $3 AND bm.role = 'owner' AND bm.status = 'active'
+              ))
+          )
+        RETURNING business_id`,
+      [businessId, stateFingerprint(state), parsedState.userId, Date.now()]
+    );
+    if (!pendingRows.length) {
+      throw new AppError('Stripe Connect authorization expired or already used.', 403, 'stripe_connect_state_invalid');
+    }
+    res.clearCookie(STRIPE_STATE_COOKIE, stripeStateCookieOptions());
     if (error) {
       return res.redirect(
         `${appBaseUrl}/restaurants/merchant?stripe=error&businessId=${encodeURIComponent(businessId)}&message=${encodeURIComponent(errorDescription || errorMessage || error)}`
       );
     }
 
-    const parsedState = verifyStripeConnectState(state);
-    if (!parsedState || String(parsedState.businessId) !== String(businessId)) {
-      throw new AppError('Invalid Stripe Connect state', 403, 'stripe_connect_state_invalid');
-    }
-    if (!code) {
-      throw new AppError('Stripe authorization code is missing', 400, 'stripe_connect_code_missing');
-    }
-    if (!process.env.STRIPE_CLIENT_ID || !process.env.STRIPE_CLIENT_SECRET || !process.env.STRIPE_SECRET_KEY) {
-      throw new AppError('Stripe Connect is not configured for this environment.', 424, 'configuration_missing');
-    }
-
     const token = await stripeFormRequest(STRIPE_CONNECT_TOKEN_URL, {
-      client_secret: process.env.STRIPE_CLIENT_SECRET,
+      client_secret: process.env.STRIPE_CLIENT_SECRET || process.env.STRIPE_SECRET_KEY,
       code,
       grant_type: 'authorization_code',
     });
     const accountId = token.account_id || token.stripe_user_id || null;
     if (!accountId) {
       throw new AppError('Stripe did not return a connected account id', 502, 'stripe_connect_account_missing');
+    }
+    if (process.env.NODE_ENV === 'production' && token.livemode !== true) {
+      throw new AppError('Stripe returned a test-mode account connection.', 502, 'stripe_connect_mode_mismatch');
     }
 
     const account = await stripeGetRequest(`${STRIPE_CONNECT_ACCOUNT_BASE_URL}/${encodeURIComponent(accountId)}`);
@@ -486,7 +549,18 @@ async function stripeCallback(req, res, next) {
       connected_at: new Date().toISOString(),
     };
 
-    await pool.query(
+    await withTransaction(pool, async client => {
+      const { rows: ownerRows } = await client.query(
+        `SELECT b.id FROM businesses b WHERE b.id::text = $1
+           AND b.deleted_at IS NULL AND b.is_active IS NOT FALSE
+           AND (b.user_id::text = $2 OR EXISTS (
+             SELECT 1 FROM business_members bm WHERE bm.business_id = b.id
+               AND bm.member_id::text = $2 AND bm.role = 'owner' AND bm.status = 'active'
+           )) FOR UPDATE OF b`,
+        [businessId, parsedState.userId]
+      );
+      if (!ownerRows.length) throw new AppError('Business owner access changed.', 403, 'business_role_required');
+      await client.query(
       `INSERT INTO business_integrations
          (business_id, integration_type, integration_name, is_connected, is_enabled,
           auth_token, auth_refresh_token, auth_expires_at, config_json, created_by_id)
@@ -503,14 +577,14 @@ async function stripeCallback(req, res, next) {
          updated_at = NOW()`,
       [
         businessId,
-        token.access_token || null,
-        token.refresh_token || null,
-        token.expires_in ? new Date(Date.now() + (Number(token.expires_in) * 1000)).toISOString() : null,
+        null,
+        null,
+        null,
         JSON.stringify(configJson),
       ]
     );
 
-    await pool.query(
+      await client.query(
       `UPDATE businesses
           SET stripe_account_id = $1,
               stripe_charges_enabled = $2,
@@ -520,6 +594,7 @@ async function stripeCallback(req, res, next) {
         WHERE id = $5`,
       [accountId, !!account.charges_enabled, !!account.payouts_enabled, accountStatus, businessId]
     );
+    }, 'connect_business_stripe');
 
     return res.redirect(
       `${appBaseUrl}/restaurants/merchant?stripe=connected&businessId=${encodeURIComponent(businessId)}`
@@ -527,7 +602,7 @@ async function stripeCallback(req, res, next) {
   } catch (err) {
     if (err instanceof AppError) {
       return res.redirect(
-        `${appBaseUrl}/restaurants/merchant?stripe=error&businessId=${encodeURIComponent(businessId)}&message=${encodeURIComponent(err.message)}`
+        `${appBaseUrl}/restaurants/merchant?stripe=error&businessId=${encodeURIComponent(businessId || '')}&message=${encodeURIComponent(err.message)}`
       );
     }
     next(err);
@@ -541,32 +616,42 @@ async function disconnectStripe(req, res, next) {
   const { businessId } = req.params;
   try {
     const { rows: businessRows } = await pool.query(
-      `SELECT stripe_account_id FROM businesses WHERE id = $1`,
+      `SELECT b.stripe_account_id,
+          EXISTS (SELECT 1 FROM businesses other
+                    WHERE other.id <> b.id AND other.stripe_account_id = b.stripe_account_id) AS shared_connection
+         FROM businesses b WHERE b.id = $1`,
       [businessId]
-    ).catch(() => ({ rows: [] }));
+    );
     const businessStripeAccountId = businessRows[0]?.stripe_account_id || null;
-
-    if (process.env.STRIPE_CLIENT_ID && businessStripeAccountId) {
-      try {
-        await stripeFormRequest(STRIPE_CONNECT_DEAUTHORIZE_URL, {
-          client_id: process.env.STRIPE_CLIENT_ID,
-          stripe_user_id: businessStripeAccountId,
-        });
-      } catch (disconnectErr) {
-        // Best-effort disconnect: we still clear the local integration state so
-        // the UI can recover even if Stripe already cleared the authorization.
-        logger?.warn?.('Stripe deauthorize request failed', { businessId, error: disconnectErr.message });
+    if (businessStripeAccountId) {
+      if (businessRows[0].shared_connection) {
+        throw new AppError('This Stripe account serves multiple businesses. Contact support before revoking its shared access.', 409, 'stripe_connect_shared_account');
       }
+      if (!process.env.STRIPE_CLIENT_ID || !process.env.STRIPE_SECRET_KEY) {
+        throw new AppError('Stripe Connect is not configured for this environment.', 424, 'configuration_missing');
+      }
+      // Stripe requires platform authentication. Do not report a successful
+      // revocation or erase local evidence when the provider request fails.
+      await stripeFormRequest(STRIPE_CONNECT_DEAUTHORIZE_URL, {
+        client_id: process.env.STRIPE_CLIENT_ID,
+        stripe_user_id: businessStripeAccountId,
+      });
     }
-
-    await pool.query(
+    await withTransaction(pool, async client => {
+      const { rows: current } = await client.query(
+        'SELECT stripe_account_id FROM businesses WHERE id = $1 FOR UPDATE', [businessId]
+      );
+      if ((current[0]?.stripe_account_id || null) !== businessStripeAccountId) {
+        throw new AppError('The Stripe connection changed. Reload before retrying.', 409, 'stripe_connect_changed');
+      }
+      await client.query(
       `UPDATE business_integrations
        SET is_connected = FALSE, auth_token = NULL, auth_refresh_token = NULL,
            config_json = NULL, updated_at = NOW()
        WHERE business_id = $1 AND integration_type = 'stripe'`,
       [businessId]
     );
-    await pool.query(
+      await client.query(
       `UPDATE businesses
           SET stripe_account_id = NULL,
               stripe_charges_enabled = FALSE,
@@ -575,7 +660,8 @@ async function disconnectStripe(req, res, next) {
               updated_at = NOW()
         WHERE id = $1`,
       [businessId]
-    ).catch(() => {});
+      );
+    }, 'disconnect_business_stripe');
     res.json({ success: true });
   } catch (err) {
     next(err);

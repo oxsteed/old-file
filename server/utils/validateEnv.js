@@ -34,7 +34,6 @@ const OPTIONAL = [
   ['STRIPE_CONNECT_WEBHOOK_SECRET', 'Connected-account webhook reconciliation unavailable'],
   ['STRIPE_IDENTITY_WEBHOOK_SECRET', 'Stripe Identity webhook verification unavailable'],
   ['STRIPE_CLIENT_ID', 'Business Stripe OAuth onboarding unavailable; helper Express onboarding is separate'],
-  ['STRIPE_CLIENT_SECRET', 'Business Stripe OAuth callback unavailable'],
 ];
 
 function looksLikePlaceholder(value) {

@@ -7,6 +7,13 @@
   `https://oxsteed.com/api/webhooks/stripe` now listens to the contract's 22
   events, snapshot version `2026-02-25.clover`. Saved after explicit approval
   and verified active in Stripe. No signed live delivery has yet been verified.
+- The 12-event Connected accounts destination `we_1ULXPkGo54BMlgSypMqXTeTr`
+  and 2-event Identity destination `we_1ULXR1Go54BMlgSyty3kL7zw` are saved
+  and active, also using snapshot version `2026-02-25.clover`. Their distinct
+  signing secrets still require direct entry into Coolify and live acceptance.
+- Business OAuth is enabled in the live Stripe dashboard. Its saved default
+  redirect is `https://oxsteed.com/api/businesses/integrations/stripe/callback`.
+  No business was connected automatically and no owner consent was supplied.
 - Existing Pro recurring prices match the production plans exactly:
   monthly USD 14.99 (`price_1THyAiGo54BMlgSyPzPoIOk6`) and yearly USD 79.99
   (`price_1THyCDGo54BMlgSyzrRM6Swt`). Migration 615 replaces only the known
@@ -14,10 +21,13 @@
 - Production has zero connected helper payout accounts. Individual recipients
   must complete Stripe onboarding; platform setup cannot supply their consent,
   identity verification or bank details.
-- Basic is a zero-cost plan, not a paid Stripe product. Broker's configured
-  `price_1THs8GGo54BMlgSyGjMDOWo7` was checked in the live dashboard and returns
-  "Price not found". No replacement or price change is assumed.
-- Production image `4e3611176b1267db82744e15cc6cf9bfafba17b8` is deployed and
+- Basic is a zero-cost plan, not a paid Stripe product. The old Broker price
+  returned "Price not found". With explicit approval, live product
+  `prod_VMG57RImt3RZiM` and USD 39/month recurring price
+  `price_1ULXZLGo54BMlgSyEbdvgz2f` were saved. Migration 616 replaces only
+  that known missing price at unchanged amount, currency and billing interval.
+  Custom contracts and historical payments are not rewritten.
+- Last verified production image `fd24d1a211471680acdbc079199d3df51010bd4f` is deployed and
   healthy. `/ready` reports 615/615 migrations, no pending migrations, healthy
   database, Redis, realtime and workers. Release metadata identifiers still
   require their deploy-time environment configuration.
@@ -37,6 +47,23 @@
   payment's captured state; delayed lower totals cannot reduce refunded amounts.
 - Record dispute closure through the existing fraud-case path.
 - Keep regional Premium overrides separate from Pro yearly and Broker contracts.
+- Business OAuth now has one registered callback for all businesses, signed
+  state, a browser-bound HttpOnly cookie, expiry validation, single-use atomic
+  consumption and current-owner checks before both exchange and persistence.
+  Integration and business readiness are saved transactionally. Deprecated
+  OAuth access/refresh tokens are not persisted. Legacy callback URLs retain
+  the same validation. Test-mode connections are rejected in production.
+- Helper Express creation uses provider idempotency and conflict-safe local
+  persistence. Onboarding resumes for missing capabilities or outstanding
+  requirements; unverified cached status is not presented as current readiness.
+  Redirects use trusted application configuration, not request headers.
+- Business webhook synchronization covers every mapped business in a transaction,
+  binds every SQL parameter, preserves deliberately disabled integrations and
+  propagates write failures for retry instead of silently acknowledging them.
+- Business disconnect authenticates Stripe revocation, leaves local evidence
+  intact on provider failure and clears both local records transactionally.
+  Revoking shared account access requires support review rather than silently
+  breaking another business's payment connection.
 
 ## Destination contract
 
@@ -61,10 +88,13 @@ The live platform secret is present. The following are still absent:
 | Variable | Impact / next step |
 | --- | --- |
 | `STRIPE_PUBLISHABLE_KEY` | Marketplace/mobile card payment setup needs the live account's public key in runtime configuration |
-| `STRIPE_CONNECT_WEBHOOK_SECRET` | The prepared 12-event Connect destination must be saved, then its distinct secret entered directly into Coolify |
-| `STRIPE_IDENTITY_WEBHOOK_SECRET` | The prepared 2-event Identity destination must be saved, then its distinct secret entered directly into Coolify |
-| `STRIPE_CLIENT_ID` | Existing business OAuth onboarding requires the platform's Connect client ID and approved callback configuration |
-| `STRIPE_CLIENT_SECRET` | Existing business OAuth callback requires its configured client secret |
+| `STRIPE_CONNECT_WEBHOOK_SECRET` | Enter the saved 12-event Connect destination's distinct signing secret directly into Coolify |
+| `STRIPE_IDENTITY_WEBHOOK_SECRET` | Enter the saved 2-event Identity destination's distinct signing secret directly into Coolify |
+| `STRIPE_CLIENT_ID` | Enter the visible live Connect client ID from the enabled OAuth settings; the callback is already saved |
+
+`STRIPE_CLIENT_SECRET` is only an optional legacy override. The repaired OAuth
+exchange uses the existing `STRIPE_SECRET_KEY` by default, as required by Stripe;
+no additional private OAuth client secret needs to be created.
 
 Do not add empty values and claim completion. Restart/deploy after saving real
 configuration, verify presence without revealing values, and verify actual
@@ -96,13 +126,16 @@ charges or new financial products merely to make setup appear complete.
 ## Verification
 
 Client `npm run build:ci` passed, including translation checks, typecheck and 692
-verified emitted assets. The final full server run passed 279 suites / 2632 tests
+verified emitted assets. The final full server run passed 280 suites / 2665 tests
 with the optional PGlite delivery fixture skipped (37 tests). Refund SQL and audit
-schema checks ran against an isolated PostgreSQL 15 container with no production
-network access. Migration 615 is separately rehearsed there for repeatability and
-custom-mapping preservation. No production data was used in these fixtures.
+schema checks ran against isolated PostgreSQL 15 containers with no production
+network access. Migrations 615 and 616 were separately rehearsed for repeatability
+and custom-mapping preservation. Actual concurrent OAuth consumption, expiry,
+revoked ownership and granted-owner authorization were checked in PostgreSQL.
+The focused six-suite Stripe run passed 91 tests. No production data was used
+in these fixtures. This change does not modify frontend code.
 
-After deploying, verify migration 615, container health, readiness, actual revision,
+After deploying this change, verify migration 616, container health, readiness, actual revision,
 the public plans response and each destination's delivery result. Do not mark
 Connect/Identity complete until their secrets are installed and a signed event is
 accepted. No real charges, refunds, transfers or subscriptions were initiated during setup.

@@ -63,6 +63,8 @@ router.post(
 );
 
 // GET /:businessId/integrations/stripe/callback — Stripe redirect target
+// One registered redirect for every business; the verified state resolves its id.
+router.get('/integrations/stripe/callback', ctrl.stripeCallback);
 router.get(
   '/:businessId/integrations/stripe/callback',
   ctrl.stripeCallback
