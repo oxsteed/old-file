@@ -1220,7 +1220,12 @@ function SettingsTab({ t, restaurant, onUpdated, onSetupChanged }) {
           )}
         </div>
         {externalPaymentEnabled && <div className="fd-direct-payment-settings">
-        <div className="fd-row" style={{ flexWrap: 'wrap' }}>
+        {String(restaurant?.oxsteed_pay_url ?? '').trim() && (
+          <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 10, background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: 13, color: '#166534', lineHeight: 1.5 }}>
+            {t('food.merchant.oxsteedPayReplacesQr')}{' '}
+            <a href="/qr-payments" style={{ color: '#15803d', fontWeight: 800 }}>{t('food.merchant.manageQrPayCodes')}</a>
+          </div>
+        )}        <div className="fd-row" style={{ flexWrap: 'wrap' }}>
           <div className="fd-field" style={{ flex: 1, minWidth: 220 }}>
             <label htmlFor="fd-ext-label">{t('food.merchant.externalPaymentLabel', 'Payment label')}</label>
             <input

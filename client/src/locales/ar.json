@@ -17931,6 +17931,8 @@
       "paymentAccountCopyError": "تعذر نسخ حساب الدفع.",
       "copy": "نسخ",
       "paymentQrAlt": "رمز QR لدفع المطعم",
+      "payWithOxsteed": "ادفع بأمان مع OxSteed",
+      "oxsteedPayHint": "يفتح الدفع الآمن من OxSteed في علامة تبويب جديدة. عُد إلى هنا لتأكيد الدفع.",
       "confirmPaymentQuestion": "كيف تريد تأكيد الدفع؟",
       "uploadReceipt": "رفع إيصال",
       "enterConfirmation": "إدخال التأكيد",
@@ -18033,6 +18035,8 @@
     },
     "merchant": {
       "title": "لوحة تحكم المطعم",
+      "oxsteedPayReplacesQr": "يظهر رابط الدفع QR الخاص بـ OxSteed للعملاء هنا بدلاً من صورة QR المرفوعة.",
+      "manageQrPayCodes": "إدارة رموز QR للدفع",
       "subtitle": "أدر الطلبات عبر الإنترنت وداخل المطعم لمطعمك.",
       "addRestaurant": "أضف مطعمك",
       "name": "اسم المطعم",

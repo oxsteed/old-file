@@ -17920,6 +17920,8 @@
       "paymentAccountCopyError": "No se pudo copiar la cuenta de pago.",
       "copy": "Copiar",
       "paymentQrAlt": "Código QR de pago del restaurante",
+      "payWithOxsteed": "Paga de forma segura con OxSteed",
+      "oxsteedPayHint": "Abre el pago seguro de OxSteed en una pestaña nueva. Vuelve aquí para confirmar tu pago.",
       "confirmPaymentQuestion": "¿Cómo quieres confirmar el pago?",
       "uploadReceipt": "Subir recibo",
       "enterConfirmation": "Ingresar confirmación",
@@ -18022,6 +18024,8 @@
     },
     "merchant": {
       "title": "Panel del restaurante",
+      "oxsteedPayReplacesQr": "Tu enlace de pago QR de OxSteed se muestra a los clientes aquí en lugar de la imagen QR subida.",
+      "manageQrPayCodes": "Gestionar códigos QR de pago",
       "subtitle": "Gestiona pedidos en línea y en el local para tu restaurante.",
       "addRestaurant": "Agrega tu restaurante",
       "name": "Nombre del restaurante",

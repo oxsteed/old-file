@@ -154,6 +154,61 @@ describe('food controller', () => {
     expect(res.body.restaurant.settings).not.toHaveProperty('privateProcessorSecret');
   });
 
+  test('public restaurant exposes the owner OxSteed pay URL when a QR code is active', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 3,
+          business_id: 42,
+          display_name: 'Ox Burger Lab',
+          status: 'active',
+          discovery_status: 'visible',
+          settings: {},
+          operating_hours: {},
+          timezone: 'UTC',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [{ avg_rating: 4.5, review_count: 8 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ code: 'PAYABC123' }] });
+
+    const res = await request(buildApp()).get('/api/food/restaurants/3');
+
+    expect(res.status).toBe(200);
+    expect(res.body.restaurant.oxsteed_pay_url).toBe('https://oxsteed.com/pay/PAYABC123');
+    const qrCall = mockQuery.mock.calls.find(([sql]) => String(sql).includes('qr_payment_codes'));
+    expect(qrCall).toBeDefined();
+    expect(qrCall[1]).toEqual([42]);
+  });
+
+  test('public restaurant has a null OxSteed pay URL when the owner has no QR code', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 3,
+          business_id: 42,
+          display_name: 'Ox Burger Lab',
+          status: 'active',
+          discovery_status: 'visible',
+          settings: {},
+          operating_hours: {},
+          timezone: 'UTC',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [{ avg_rating: 4.5, review_count: 8 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+    // The QR lookup falls through to the default empty-rows mock.
+
+    const res = await request(buildApp()).get('/api/food/restaurants/3');
+
+    expect(res.status).toBe(200);
+    expect(res.body.restaurant.oxsteed_pay_url).toBeNull();
+  });
+
   test('public order tracking returns only customer-safe fields', async () => {
     mockQuery.mockResolvedValueOnce({
       rows: [{

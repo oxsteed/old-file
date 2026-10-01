@@ -17920,6 +17920,8 @@
       "paymentAccountCopyError": "Nou pa t kapab kopye kont peman an.",
       "copy": "Kopye",
       "paymentQrAlt": "Kòd QR peman restoran an",
+      "payWithOxsteed": "Peye an sekirite ak OxSteed",
+      "oxsteedPayHint": "Louvri peman sekirize OxSteed nan yon nouvo onglè. Tounen isit la pou konfime peman ou.",
       "confirmPaymentQuestion": "Kijan ou vle konfime peman an?",
       "uploadReceipt": "Telechaje resi",
       "enterConfirmation": "Antre konfimasyon",
@@ -18022,6 +18024,8 @@
     },
     "merchant": {
       "title": "Tablodbò restoran",
+      "oxsteedPayReplacesQr": "Lyen peman QR OxSteed ou a parèt pou kliyan yo isit la olye imaj QR ou te telechaje a.",
+      "manageQrPayCodes": "Jere kòd QR peman yo",
       "subtitle": "Jere kòmand sou entènèt ak nan restoran an pou restoran w lan.",
       "addRestaurant": "Ajoute restoran w lan",
       "name": "Non restoran an",

@@ -100,6 +100,31 @@ function hasRestaurantStripeCheckout() {
   return Boolean(stripe && process.env.STRIPE_SECRET_KEY);
 }
 
+// Returns the restaurant owner's most recent active QR pay URL, or null.
+// Lets restaurant direct payments ride the OxSteed QR rail (Stripe Connect
+// direct charge, platform fee captured) instead of an uploaded external QR
+// image. Fails soft so the restaurant page never breaks when the QR tables
+// are absent or the owner has no active code.
+async function getOwnerOxsteedPayUrl(businessId) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT qpc.code
+         FROM qr_payment_codes qpc
+         JOIN businesses b ON b.user_id = qpc.owner_user_id
+        WHERE b.id = $1 AND qpc.is_active = TRUE
+        ORDER BY qpc.created_at DESC
+        LIMIT 1`,
+      [businessId]
+    );
+    const code = rows[0]?.code;
+    if (!code) return null;
+    return absoluteUrl(`/pay/${code}`);
+  } catch (err) {
+    if (!isMissingRelationError(err)) throw err;
+    return null;
+  }
+}
+
 function getRestaurantStripeStatus(restaurant) {
   const accountId = normalizeString(
     restaurant?.stripe_account_id
@@ -1890,8 +1915,11 @@ exports.getRestaurant = async (req, res, next) => {
 
     const menuData = await loadRestaurantMenu(restaurantId);
 
+    const payload = publicRestaurantPayload(attachRestaurantHours(restaurant));
+    payload.oxsteed_pay_url = await getOwnerOxsteedPayUrl(restaurant.business_id);
+
     res.json({
-      restaurant: publicRestaurantPayload(attachRestaurantHours(restaurant)),
+      restaurant: payload,
       ...menuData,
     });
   } catch (err) {
@@ -3943,8 +3971,9 @@ exports.listMyRestaurants = async (req, res, next) => {
       [req.user.id]
     );
     const restaurants = await Promise.all(rows.map(async (restaurant) => {
+      const oxsteed_pay_url = await getOwnerOxsteedPayUrl(restaurant.business_id);
       if (restaurant.effective_role === 'owner') {
-        return { ...restaurant, permissions: ['*'] };
+        return { ...restaurant, permissions: ['*'], oxsteed_pay_url };
       }
       const { permissions } = await permissionsService.getEffectivePermissions({
         businessId: restaurant.business_id,
@@ -3952,7 +3981,7 @@ exports.listMyRestaurants = async (req, res, next) => {
         role: restaurant.effective_role,
         membershipId: restaurant.effective_membership_id,
       });
-      return { ...restaurant, permissions: [...permissions].sort() };
+      return { ...restaurant, permissions: [...permissions].sort(), oxsteed_pay_url };
     }));
     res.json({ restaurants });
   } catch (err) {

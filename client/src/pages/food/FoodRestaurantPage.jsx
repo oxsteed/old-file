@@ -466,6 +466,7 @@ export default function FoodRestaurantPage() {
   const externalPaymentInstructions = String(settings.externalPaymentInstructions ?? settings.external_payment_instructions ?? '').trim();
   const externalPaymentReferenceHint = String(settings.externalPaymentReferenceHint ?? settings.external_payment_reference_hint ?? t('food.restaurant.paymentReferenceHint')).trim();
   const externalPaymentQrUrl = String(settings.externalPaymentQrUrl ?? settings.external_payment_qr_url ?? '').trim();
+  const oxsteedPayUrl = String(restaurant?.oxsteed_pay_url ?? '').trim();
 
   useEffect(() => {
     if (paymentMethod === 'direct_payment' && !externalPaymentEnabled) {
@@ -1848,13 +1849,27 @@ export default function FoodRestaurantPage() {
                             {externalPaymentInstructions}
                           </p>
                         )}
-                        {externalPaymentQrUrl && (
+                        {oxsteedPayUrl ? (
+                          <div style={{ marginBottom: 12 }}>
+                            <a
+                              href={oxsteedPayUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ display: 'block', textAlign: 'center', padding: '13px 16px', borderRadius: 12, background: accent, color: '#fff', fontSize: 15, fontWeight: 800, textDecoration: 'none' }}
+                            >
+                              {t('food.restaurant.payWithOxsteed')}
+                            </a>
+                            <p style={{ fontSize: 12, color: '#64748b', margin: '8px 2px 0', lineHeight: 1.5 }}>
+                              {t('food.restaurant.oxsteedPayHint')}
+                            </p>
+                          </div>
+                        ) : externalPaymentQrUrl ? (
                           <img
                             src={externalPaymentQrUrl}
                             alt={t('food.restaurant.paymentQrAlt')}
                             style={{ width: 156, height: 156, objectFit: 'cover', borderRadius: 14, border: '1px solid #e2e8f0', background: '#fff', marginBottom: 12 }}
                           />
-                        )}
+                        ) : null}
                         <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: '4px 0 8px' }}>
                           {t('food.restaurant.confirmPaymentQuestion')}
                         </p>
