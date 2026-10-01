@@ -74,6 +74,7 @@ const HelperBusinessProfilePage: React.FC = () => {
   const [activeTemplate, setActiveTemplate] = useState<string>('default');
   const [chatOpen, setChatOpen] = useState(false);
   const [savedHelperId, setSavedHelperId] = useState<number | null>(null);
+  const [payUrl, setPayUrl] = useState<string | null>(null);
   const [savingHelper, setSavingHelper] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [guestSignInModalOpen, setGuestSignInModalOpen] = useState(false);
@@ -111,6 +112,21 @@ const HelperBusinessProfilePage: React.FC = () => {
     loadProfile(controller.signal);
     return () => controller.abort();
   }, [loadProfile]);
+
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    // Recipient's public QR pay link; the header shows a Pay button when present.
+    api
+      .get(`/qr-payments/public/user/${encodeURIComponent(id)}/pay-code`)
+      .then((res) => {
+        if (!cancelled && res.data?.pay_url) setPayUrl(res.data.pay_url);
+      })
+      .catch(() => {
+        /* no pay link; the Pay button stays hidden */
+      });
+    return () => { cancelled = true; };
+  }, [id]);
 
   useEffect(() => {
     if (!user || !id) {
@@ -327,6 +343,7 @@ const HelperBusinessProfilePage: React.FC = () => {
         onToggleSaved={handleToggleSavedHelper}
         isSaved={!!savedHelperId}
         savingHelper={savingHelper}
+        payUrl={payUrl}
         shareUrl={`${getPublicSiteUrl()}/helpers/${id}`}
         shareTitle={helper.businessName || helper.ownerName}
       />

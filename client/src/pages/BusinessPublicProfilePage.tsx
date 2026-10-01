@@ -22,10 +22,26 @@ export default function BusinessPublicProfilePage() {
   const [business, setBusiness] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [payUrl, setPayUrl] = useState(null);
 
   useEffect(() => {
     loadBusiness();
   }, [businessId]);
+
+  // Owner's public QR pay link; the header shows a Pay button when present.
+  useEffect(() => {
+    if (!business?.owner_id) return;
+    let cancelled = false;
+    api
+      .get(`/qr-payments/public/user/${encodeURIComponent(business.owner_id)}/pay-code`)
+      .then((res) => {
+        if (!cancelled && res.data?.pay_url) setPayUrl(res.data.pay_url);
+      })
+      .catch(() => {
+        /* no pay link; the Pay button stays hidden */
+      });
+    return () => { cancelled = true; };
+  }, [business?.owner_id]);
 
   const loadBusiness = async () => {
     try {
@@ -121,9 +137,16 @@ export default function BusinessPublicProfilePage() {
             })}
             surface="public"
             footer={(
-              <button className="cta-button" type="button" onClick={() => navigate(`/book/business/${businessId}`)}>
-                {t('businessProfile.contactBusiness')}
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <button className="cta-button" type="button" onClick={() => navigate(`/book/business/${businessId}`)}>
+                  {t('businessProfile.contactBusiness')}
+                </button>
+                {payUrl && (
+                  <a className="cta-button cta-button-secondary" href={payUrl} style={{ textDecoration: 'none' }}>
+                    {t('businessProfile.pay', { defaultValue: 'Pay' })}
+                  </a>
+                )}
+              </div>
             )}
           />
 

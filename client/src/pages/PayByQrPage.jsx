@@ -12,6 +12,7 @@ import {
   Mail,
 } from 'lucide-react';
 import api from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
 import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 import './PayByQrPage.css';
@@ -176,6 +177,7 @@ function PayForm({ info }) {
 
 function SuccessView({ code }) {
   const { t, i18n } = useTranslation();
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const [status, setStatus] = useState('polling'); // polling | succeeded | pending
   const [receipt, setReceipt] = useState(null);
@@ -248,9 +250,16 @@ function SuccessView({ code }) {
           })}
         </p>
         {receipt.label && <p className="pbq-for-label">{receipt.label}</p>}
-        <Link to="/" className="pbq-btn pbq-btn-secondary">
-          {t('qrPay.backHome', { defaultValue: 'Back to home' })}
-        </Link>
+        <div className="pbq-success-actions">
+          {user && (
+            <Link to="/my-bookings" className="pbq-btn pbq-btn-primary">
+              {t('qrPay.viewMyBookings', { defaultValue: 'View my bookings' })}
+            </Link>
+          )}
+          <Link to="/" className="pbq-btn pbq-btn-secondary">
+            {t('qrPay.backHome', { defaultValue: 'Back to home' })}
+          </Link>
+        </div>
       </div>
     );
   }

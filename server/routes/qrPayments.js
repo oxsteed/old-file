@@ -8,6 +8,7 @@
 // PATCH  /api/qr-payments/codes/:id          → update a code (auth, owner)
 // DELETE /api/qr-payments/codes/:id          → deactivate a code (auth, owner)
 // GET    /api/qr-payments/pay/:code          → public pay-page data
+// GET    /api/qr-payments/public/user/:userId/pay-code → public active pay link
 // POST   /api/qr-payments/pay/:code/checkout → create Stripe Checkout Session
 // GET    /api/qr-payments/pay/:code/receipt  → receipt data for success page
 
@@ -300,6 +301,36 @@ router.delete('/codes/:id', authenticate, paymentsLimiter, async (req, res, next
     return res.json({ id: rows[0].id, is_active: false });
   } catch (err) {
     logger.error('qrPayments: deactivate code failed', { userId: req.user?.id, error: err.message });
+    return next(err);
+  }
+});
+
+// ── Public: a user's active pay link (powers "Pay now" on bookings/profiles)
+// Returns the most recently created active code, or { pay_url: null }.
+// Pay links are public shareable URLs, so revealing that a user accepts
+// QR payments exposes nothing beyond what the link itself shows.
+router.get('/public/user/:userId/pay-code', strictLimiter, async (req, res, next) => {
+  try {
+    const userId = String(req.params.userId || '');
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+      return res.status(400).json({ error: 'Invalid user id.', code: 'invalid_user_id' });
+    }
+    const { rows } = await pool.query(
+      `SELECT code, label
+         FROM qr_payment_codes
+        WHERE owner_user_id = $1 AND is_active = TRUE
+        ORDER BY created_at DESC
+        LIMIT 1`,
+      [userId]
+    );
+    if (!rows[0]) return res.json({ pay_url: null });
+    return res.json({
+      pay_url: `${publicBaseUrl()}/pay/${rows[0].code}`,
+      code: rows[0].code,
+      label: rows[0].label,
+    });
+  } catch (err) {
+    logger.error('qrPayments: public pay-code lookup failed', { error: err.message });
     return next(err);
   }
 });

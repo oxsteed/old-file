@@ -186,6 +186,16 @@
   background: #c2410c;
 }
 
+.cta-button-secondary {
+  background: transparent;
+  color: #ea580c;
+  border: 1px solid #ea580c;
+}
+
+.cta-button-secondary:hover {
+  background: rgba(234, 88, 12, 0.08);
+}
+
 .hours-list {
   display: flex;
   flex-direction: column;

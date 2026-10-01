@@ -21,6 +21,8 @@ interface BusinessHeaderProps {
   onBookNow: () => void;
   /** Broad job post (optional second CTA) */
   onPostJobPublic?: () => void;
+  /** Recipient's public QR pay link; renders a Pay button when present */
+  payUrl?: string | null;
   onToggleSaved?: () => void;
   isSaved?: boolean;
   savingHelper?: boolean;
@@ -56,6 +58,7 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
   onBookNow,
   onPostJobPublic,
   onToggleSaved,
+  payUrl,
   isSaved = false,
   savingHelper = false,
   shareUrl,
@@ -148,6 +151,15 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
           >
             {t('helperProfile.header.postJobPublic')}
           </button>
+        )}
+        {payUrl && (
+          <a
+            href={payUrl}
+            className={btnSecondary}
+            style={{ textDecoration: 'none' }}
+          >
+            {t('helperProfile.header.pay', { defaultValue: 'Pay' })}
+          </a>
         )}
       </div>
       {onToggleSaved && (

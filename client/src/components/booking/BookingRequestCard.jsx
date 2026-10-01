@@ -35,11 +35,28 @@ export default function BookingRequestCard({ booking, onConvertToJob }) {
   const [timeRemaining, setTimeRemaining] = useState(null);
   const [expanded, setExpanded] = useState(false);
   const [live, setLive] = useState(booking);
+  // Recipient's public QR pay link, loaded lazily once the booking is accepted.
+  const [payUrl, setPayUrl] = useState(null);
+  const [payUrlChecked, setPayUrlChecked] = useState(false);
 
   // Sync when parent passes a fresh booking (BookingFlow owns the poll cycle)
   useEffect(() => {
     setLive(booking);
   }, [booking]);
+
+  // Once accepted, offer a direct pay path via the recipient's QR pay link.
+  useEffect(() => {
+    if (live.status !== 'accepted' || payUrlChecked || !live.helperId) return;
+    setPayUrlChecked(true);
+    api
+      .get(`/qr-payments/public/user/${encodeURIComponent(live.helperId)}/pay-code`)
+      .then((res) => {
+        if (res.data?.pay_url) setPayUrl(res.data.pay_url);
+      })
+      .catch(() => {
+        /* no pay link available; the card simply omits the button */
+      });
+  }, [live.status, live.helperId, payUrlChecked]);
 
   useEffect(() => {
     if (live.status !== 'pending') return;
@@ -199,13 +216,32 @@ export default function BookingRequestCard({ booking, onConvertToJob }) {
                 <RefreshCw size={16} />
                 {t('booking.refreshStatus')}
               </button>
+              <Link
+                to="/my-bookings"
+                className="booking-btn-secondary"
+                style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              >
+                {t('booking.viewMyBookings', { defaultValue: 'View my bookings' })}
+              </Link>
             </>
           )}
 
           {live.status === 'accepted' && (
             <div className="booking-accepted-actions">
-              <Link to="/calendar" className="booking-btn-primary" style={{ textDecoration: 'none' }}>
+              {payUrl && (
+                <a
+                  href={payUrl}
+                  className="booking-btn-primary"
+                  style={{ textDecoration: 'none' }}
+                >
+                  {t('booking.payNow', { defaultValue: 'Pay now' })}
+                </a>
+              )}
+              <Link to="/calendar" className="booking-btn-secondary" style={{ textDecoration: 'none' }}>
                 {t('booking.viewCalendar')}
+              </Link>
+              <Link to="/my-bookings" className="booking-btn-secondary" style={{ textDecoration: 'none' }}>
+                {t('booking.viewMyBookings', { defaultValue: 'View my bookings' })}
               </Link>
             </div>
           )}

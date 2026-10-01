@@ -155,6 +155,40 @@ describe('GET /api/qr-payments/pay/:code', () => {
   });
 });
 
+describe('GET /api/qr-payments/public/user/:userId/pay-code', () => {
+  const USER_ID = '123e4567-e89b-12d3-a456-426614174000';
+
+  test('rejects a non-UUID user id', async () => {
+    const res = await request(buildApp()).get('/api/qr-payments/public/user/not-a-uuid/pay-code');
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('invalid_user_id');
+  });
+
+  test('returns pay_url null when the user has no active code', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+    const res = await request(buildApp()).get(`/api/qr-payments/public/user/${USER_ID}/pay-code`);
+    expect(res.status).toBe(200);
+    expect(res.body.pay_url).toBeNull();
+  });
+
+  test('returns the active pay link without exposing owner internals', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ code: 'AbCdEfGhIjKl', label: 'Lawn mowing' }],
+      rowCount: 1,
+    });
+    const res = await request(buildApp()).get(`/api/qr-payments/public/user/${USER_ID}/pay-code`);
+    expect(res.status).toBe(200);
+    expect(res.body.pay_url).toMatch(/\/pay\/AbCdEfGhIjKl$/);
+    expect(res.body.label).toBe('Lawn mowing');
+    expect(res.body.owner_user_id).toBeUndefined();
+    expect(res.body.stripe_account_id).toBeUndefined();
+    // The query must only ever read active codes for that user.
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(sql).toMatch(/is_active = TRUE/);
+    expect(params[0]).toBe(USER_ID);
+  });
+});
+
 describe('POST /api/qr-payments/pay/:code/checkout', () => {
   test('requires an idempotency key before creating a checkout session', async () => {
     const res = await request(buildApp())
