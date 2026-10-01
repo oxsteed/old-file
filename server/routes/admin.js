@@ -21,6 +21,7 @@ const logisticsInternalAccessCtrl = require('../controllers/logisticsInternalAcc
 const restaurantCreditAdminCtrl = require('../controllers/restaurantCreditAdminController');
 const oxsteedCreditCtrl = require('../controllers/oxsteedCreditController');
 const oxsteedCreditCardCtrl = require('../controllers/oxsteedCreditCardController');
+const oxsteedCreditAdminService = require('../services/oxsteedCreditAdminService');
 const { creditAdminMutationLimiter, creditExportLimiter, adminPhoneVerificationLimiter, strictLimiter } = require('../middleware/rateLimiter');
 
 function noStoreCreditResponse(_req, res, next) {
@@ -371,6 +372,21 @@ router.get('/super/oxsteed-credit/reconciliation.csv', requireSuperAdmin, credit
 router.post('/super/oxsteed-credit/settlements', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.createAdminSettlement);
 router.post('/super/oxsteed-credit/settlements/:settlementId/status', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.transitionAdminSettlement);
 router.post('/super/oxsteed-credit/settlements/:settlementId/reversal', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.reverseAdminSettlement);
+// Verified Stripe payout for an approved settlement. The manual mark-paid path
+// above stays untouched as the fallback for non-Stripe payouts.
+router.post('/super/oxsteed-credit/settlements/:settlementId/payout', requireSuperAdmin, creditAdminMutationLimiter, async (req, res, next) => {
+  try {
+    const result = await oxsteedCreditAdminService.initiateSettlementPayout({
+      settlementId: req.params.settlementId,
+      actorUserId: req.user?.id || null,
+      idempotencyKey: req.get('Idempotency-Key') || req.body?.idempotencyKey || req.body?.idempotency_key,
+      requestIp: req.ip || null,
+    });
+    res.status(201).json(result);
+  } catch (err) {
+    next(err);
+  }
+});
 router.post('/super/oxsteed-credit/reconciliation', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.reconcileAdminCredit);
 
 // User-action audit log - super-admin or admins with view_audit_log grant

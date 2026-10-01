@@ -5,6 +5,7 @@ const { authenticate, requireRole } = require('../middleware/auth');
 const { creditMutationLimiter, creditExportLimiter } = require('../middleware/rateLimiter');
 const controller = require('../controllers/oxsteedCreditController');
 const cardController = require('../controllers/oxsteedCreditCardController');
+const topupController = require('../controllers/oxsteedCreditTopupController');
 
 function noStoreCreditResponse(_req, res, next) {
   res.set('Cache-Control', 'private, no-store');
@@ -32,6 +33,10 @@ router.post('/holds/:holdId/release', creditMutationLimiter, controller.releaseM
 router.post('/transfers', creditMutationLimiter, controller.transferMyCredit);
 router.get('/disputes', controller.listMyDisputes);
 router.post('/disputes', creditMutationLimiter, controller.openMyDispute);
+
+// Stripe top-ups (fiat money IN): create a top-up intent and read its status.
+router.post('/topups', creditMutationLimiter, topupController.createTopup);
+router.get('/topups/:id', topupController.getTopup);
 
 // OxSteed Credit card ecosystem: issuance, activation, lifecycle, and PIN
 // management. Redemption/cash-out happen from device-authenticated kiosk

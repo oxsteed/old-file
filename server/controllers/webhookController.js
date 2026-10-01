@@ -17,6 +17,7 @@ const {
 } = require('../services/restaurantPosPaymentLedgerService');
 const socketService = require('../services/socketService');
 const localDeliveryPayments = require('../services/localDeliveryPaymentService');
+const topupService = require('../services/oxsteedCreditTopupService');
 const { createFraudCase } = require('../services/fraudCaseService');
 const { recordException } = require('../services/reconciliationExceptions');
 const { stripeObjectId, invoiceSubscriptionId, subscriptionPeriod } = require('../utils/stripePayload');
@@ -817,6 +818,12 @@ exports.stripeWebhook = async (req, res, next) => {
       }
 
       case 'payment_intent.succeeded': {
+        // OxSteed Credit top-up (fiat money IN). Handled and acknowledged
+        // here; PaymentIntents that are not ours fall through to the
+        // flows below.
+        if (await topupService.applyCreditTopupWebhookEvent({ type: event.type, object: event.data.object })) {
+          break;
+        }
         // Capture completed - money is on its way to the helper or order is complete.
         const pi = event.data.object;
         const foodOrderId = extractFoodOrderId(pi.metadata);
@@ -874,6 +881,10 @@ exports.stripeWebhook = async (req, res, next) => {
       }
 
       case 'payment_intent.payment_failed': {
+        // OxSteed Credit top-up (fiat money IN) that did not go through.
+        if (await topupService.applyCreditTopupWebhookEvent({ type: event.type, object: event.data.object })) {
+          break;
+        }
         // Authorization or capture failed.
         const pi = event.data.object;
         const foodOrderId = extractFoodOrderId(pi.metadata);
@@ -924,6 +935,10 @@ exports.stripeWebhook = async (req, res, next) => {
       }
 
       case 'payment_intent.canceled': {
+        // OxSteed Credit top-up (fiat money IN) that was canceled.
+        if (await topupService.applyCreditTopupWebhookEvent({ type: event.type, object: event.data.object })) {
+          break;
+        }
         const pi = event.data.object;
         await withTransaction(db, (client) => applyStripePaymentIntent(client, pi));
         break;
@@ -1000,6 +1015,20 @@ exports.stripeWebhook = async (req, res, next) => {
               error: err.message,
             });
           }
+        }
+        break;
+      }
+
+      case 'transfer.created':
+      case 'transfer.updated':
+      case 'transfer.reversed': {
+        // OxSteed Credit settlement payouts (fiat money OUT). Builder B's
+        // confirm/fail functions in oxsteedCreditAdminService reconcile
+        // payout_status against the Stripe transfer. Events without our
+        // settlement metadata are not ours.
+        const handled = await topupService.applyCreditTopupWebhookEvent({ type: event.type, object: event.data.object });
+        if (!handled) {
+          logger.info(`Unhandled Stripe event: ${event.type}`);
         }
         break;
       }

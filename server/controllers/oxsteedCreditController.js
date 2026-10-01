@@ -70,6 +70,7 @@ const {
 } = require('../services/oxsteedCreditPartnerLedgerService');
 const {
   createCurrencyQuote,
+  createLiveRateCurrencyQuote,
   getCurrencyQuote,
   convertCustomerCredit,
 } = require('../services/oxsteedCreditCurrencyConversionService');
@@ -1764,6 +1765,23 @@ async function recordAdminPartnerFunding(req, res, next) {
 
 async function createAdminCurrencyQuote(req, res, next) {
   try {
+    if (req.body?.useLiveRate === true) {
+      const result = await createLiveRateCurrencyQuote({
+        sourceCurrency: req.body?.sourceCurrency || req.body?.source_currency,
+        targetCurrency: req.body?.targetCurrency || req.body?.target_currency,
+        sourceAmountCents: req.body?.sourceAmountCents ?? req.body?.source_amount_cents,
+        customerId: req.body?.customerId || req.body?.customer_id,
+        reason: req.body?.reason,
+        actor: req.user.id,
+        idempotencyKey: getIdempotencyKey(req),
+        expiresAt: req.body?.expiresAt || req.body?.expires_at,
+        requestIp: req.ip || null,
+        correlationId: req.correlationId || req.get('X-Request-ID') || null,
+        metadata: req.body?.metadata,
+      });
+      res.status(result.replayed ? 200 : 201).json(result);
+      return;
+    }
     const result = await createCurrencyQuote({
       sourceCurrencyCode: req.body?.sourceCurrencyCode || req.body?.source_currency_code,
       targetCurrencyCode: req.body?.targetCurrencyCode || req.body?.target_currency_code,

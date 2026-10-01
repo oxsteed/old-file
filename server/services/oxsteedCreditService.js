@@ -3024,6 +3024,7 @@ module.exports = {
   formatCreditAmount,
   DEFAULT_LEDGER_HASH_KEY_VERSION,
   assertSupportedCreditCurrency,
+  assertIssuanceCapacity,
   MAX_TRANSACTION_CENTS,
   MAX_CUSTOMER_BALANCE_CENTS,
   MAX_TOTAL_ISSUANCE_CENTS,

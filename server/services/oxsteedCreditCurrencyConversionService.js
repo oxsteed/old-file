@@ -13,6 +13,7 @@ const {
   MAX_TRANSACTION_CENTS,
   MAX_CUSTOMER_BALANCE_CENTS,
 } = require('./oxsteedCreditService');
+const { getFxQuote } = require('./fxRateProvider');
 
 const DEFAULT_QUOTE_TTL_MINUTES = 15;
 const MAX_QUOTE_TTL_MINUTES = 1440;
@@ -336,6 +337,61 @@ async function createCurrencyQuote({
   }, 'credit_create_currency_quote');
 }
 
+/**
+ * Create a currency quote priced from the live FX feed (Frankfurter).
+ *
+ * Fetches a live rate via getFxQuote, derives the target amount with the
+ * exact BigInt half-up math that createCurrencyQuote validates against
+ * (reusing calculateQuotedTargetAmount so the delegation can never trip
+ * credit_conversion_quote_math_invalid), then delegates to
+ * createCurrencyQuote with provider 'frankfurter'.
+ *
+ * Provider failures propagate (fail closed): no quote row is created.
+ */
+async function createLiveRateCurrencyQuote({
+  sourceCurrency,
+  targetCurrency,
+  sourceAmountCents,
+  customerId,
+  reason,
+  actor,
+  actorUserId,
+  idempotencyKey,
+  expiresAt,
+  requestIp,
+  correlationId,
+  metadata = {},
+}) {
+  const from = String(sourceCurrency || '').toUpperCase();
+  const to = String(targetCurrency || '').toUpperCase();
+  const fx = await getFxQuote(from, to);
+  const targetAmountMinorUnits = calculateQuotedTargetAmount({
+    sourceAmountMinorUnits: sourceAmountCents,
+    rateNumerator: fx.rateNumerator,
+    rateDenominator: fx.rateDenominator,
+    roundingMode: 'half_up',
+  });
+  return createCurrencyQuote({
+    sourceCurrencyCode: from,
+    targetCurrencyCode: to,
+    sourceAmountMinorUnits: sourceAmountCents,
+    targetAmountMinorUnits,
+    rateNumerator: fx.rateNumerator,
+    rateDenominator: fx.rateDenominator,
+    roundingMode: 'half_up',
+    provider: fx.provider,
+    providerQuoteReference: `${fx.provider}:${from}:${to}:${fx.quotedAt}`,
+    expiresAt,
+    idempotencyKey,
+    actorUserId: actorUserId || actor,
+    customerId,
+    reason,
+    correlationId,
+    requestIp,
+    metadata: { ...normalizeMetadata(metadata), fxProvider: fx.provider, fxQuotedAt: fx.quotedAt },
+  });
+}
+
 async function getCurrencyQuote({ quoteId, audience = 'admin' }) {
   const normalizedQuoteId = parsePositiveInt(quoteId, 'quoteId');
   const { rows } = await pool.query(`SELECT * FROM oxsteed_credit_currency_quotes WHERE id = $1`, [normalizedQuoteId]);
@@ -514,6 +570,7 @@ module.exports = {
   formatCurrencyConversion,
   assertDailyConversionCapacity,
   createCurrencyQuote,
+  createLiveRateCurrencyQuote,
   getCurrencyQuote,
   convertCustomerCreditInTransaction,
   convertCustomerCredit,

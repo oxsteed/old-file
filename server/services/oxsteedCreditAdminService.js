@@ -5,6 +5,7 @@ const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const { assertSupportedCreditCurrency, computeEntryHash, ensureAccount, getCustomerCreditLimitSummary, listCreditDisputes, postJournalTransaction } = require('./oxsteedCreditService');
+const incidentStore = require('./incidentStore');
 
 const PARTNER_STATUSES = new Set(['pending', 'active', 'suspended', 'terminated']);
 const AGREEMENT_STATUSES = new Set(['draft', 'pending_approval', 'active', 'suspended', 'expired', 'terminated']);
@@ -2450,6 +2451,320 @@ async function expireCreditAgreements({ limit = 250, now = new Date(), actorUser
   }, 'credit_expire_agreements');
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Verified Stripe settlement payouts (fiat money OUT).
+//
+// The existing manual mark-paid path (transitionSettlement to 'paid' with an
+// off-rail payment reference) stays untouched as the fallback for non-Stripe
+// payouts. These functions add a verified rail: initiateSettlementPayout
+// creates a Stripe Connect transfer for an approved settlement, and the
+// webhook-driven confirm/fail functions (called by webhookController from the
+// transfer event branches; Builder A owns those) reconcile payout_status
+// against the Stripe transfer object.
+//
+// payout_status transitions: none -> initiated -> paid | failed.
+// Money moves ONLY through transitionSettlement's mark-paid path (settlement
+// journal leg debit partner_payable -> credit platform_treasury); these
+// functions never post journal entries directly.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SETTLEMENT_PAYOUT_AUDIT_REASON = 'Stripe transfer payout for approved Credit settlement';
+const SETTLEMENT_PAYOUT_CONFIRM_AUDIT_REASON = 'Stripe transfer payout confirmed by provider webhook';
+
+function getSettlementStripeClient() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new AppError('Stripe is unavailable for settlement payouts', 503, 'credit_stripe_unavailable');
+  }
+  return require('stripe')(process.env.STRIPE_SECRET_KEY);
+}
+
+// Resolve the partner's Stripe Connect account for a verified payout.
+// Path: oxsteed_credit_partners.restaurant_id -> food_restaurants
+// (business_id, owner_user_id) -> Stripe account, preferring the
+// per-business Connect account (businesses.stripe_account_id, treated as
+// payout-ready only when its Stripe business integration is connected and
+// enabled), then the owner's personal Connect account
+// (connect_accounts with payouts_enabled = TRUE).
+async function resolveSettlementStripeAccount(client, { restaurantId }) {
+  const { rows } = await client.query(
+    `SELECT fr.business_id, fr.owner_user_id
+       FROM food_restaurants fr
+      WHERE fr.id = $1`,
+    [restaurantId]
+  );
+  const restaurant = rows[0];
+  if (!restaurant) return null;
+  const { rows: businessRows } = await client.query(
+    `SELECT b.stripe_account_id
+       FROM businesses b
+       JOIN business_integrations bi ON bi.business_id = b.id
+        AND bi.integration_type = 'stripe'
+        AND bi.is_connected = TRUE
+        AND bi.is_enabled = TRUE
+      WHERE b.id = $1
+        AND b.stripe_account_id IS NOT NULL
+      LIMIT 1`,
+    [restaurant.business_id]
+  );
+  if (businessRows[0]?.stripe_account_id) {
+    return { stripeAccountId: businessRows[0].stripe_account_id, source: 'business' };
+  }
+  const { rows: ownerRows } = await client.query(
+    `SELECT ca.stripe_account_id
+       FROM connect_accounts ca
+      WHERE ca.user_id = $1
+        AND ca.payouts_enabled = TRUE
+        AND ca.stripe_account_id IS NOT NULL
+      LIMIT 1`,
+    [restaurant.owner_user_id]
+  );
+  if (ownerRows[0]?.stripe_account_id) {
+    return { stripeAccountId: ownerRows[0].stripe_account_id, source: 'owner' };
+  }
+  return null;
+}
+
+async function initiateSettlementPayout({ settlementId, actorUserId, idempotencyKey, requestIp }) {
+  requireAdministrativeActor(actorUserId, 'An identified administrator is required to initiate a settlement payout', 'credit_settlement_payout_actor_required');
+  const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
+  if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required for settlement payouts', 400, 'credit_idempotency_key_required');
+  return withTransaction(pool, async (client) => {
+    const { rows } = await client.query(
+      `SELECT s.*, p.restaurant_id, p.settlement_currency_code,
+              fr.display_name AS restaurant_name
+         FROM oxsteed_credit_settlements s
+         JOIN oxsteed_credit_partners p ON p.id = s.partner_id
+         JOIN food_restaurants fr ON fr.id = p.restaurant_id
+        WHERE s.id = $1
+        FOR UPDATE`,
+      [settlementId]
+    );
+    const settlement = rows[0];
+    if (!settlement) throw new AppError('Credit settlement not found', 404, 'credit_settlement_not_found');
+    if (settlement.status !== 'approved') {
+      throw new AppError(`Only an approved settlement can be paid out (current status: '${settlement.status}')`, 409, 'credit_settlement_payout_not_approved', {
+        settlementId: String(settlement.id),
+        status: settlement.status,
+      });
+    }
+    if (Number(settlement.net_cents || 0) <= 0) {
+      throw new AppError('Settlement has no net amount to pay out', 409, 'credit_settlement_payout_zero_net', {
+        settlementId: String(settlement.id),
+        netCents: Number(settlement.net_cents || 0),
+      });
+    }
+    if (settlement.payout_status && settlement.payout_status !== 'none') {
+      throw new AppError(`Settlement payout is already ${settlement.payout_status}`, 409, 'credit_settlement_payout_state_conflict', {
+        settlementId: String(settlement.id),
+        payoutStatus: settlement.payout_status,
+      });
+    }
+    const destination = await resolveSettlementStripeAccount(client, { restaurantId: settlement.restaurant_id });
+    if (!destination) {
+      throw new AppError('No Stripe Connect account with payouts enabled is linked to this settlement\'s restaurant', 409, 'credit_settlement_payout_no_connected_account', {
+        settlementId: String(settlement.id),
+        restaurantId: String(settlement.restaurant_id),
+      });
+    }
+    const stripe = getSettlementStripeClient();
+    const netCents = Number(settlement.net_cents);
+    const currency = String(settlement.currency_code || '').toLowerCase();
+    const transfer = await stripe.transfers.create(
+      {
+        amount: netCents,
+        currency,
+        destination: destination.stripeAccountId,
+        metadata: { oxsteed_credit_settlement_id: String(settlement.id) },
+      },
+      { idempotencyKey: `credit-settlement-payout:${settlement.id}` }
+    );
+    if (!transfer?.id) {
+      throw new AppError('Stripe did not return a transfer id', 502, 'credit_settlement_payout_transfer_failed', {
+        settlementId: String(settlement.id),
+      });
+    }
+    const { rows: updatedRows } = await client.query(
+      `UPDATE oxsteed_credit_settlements
+          SET stripe_transfer_id = $1, payout_status = 'initiated',
+              payout_initiated_by = $2, payout_initiated_at = NOW(), updated_at = NOW()
+        WHERE id = $3 AND payout_status = 'none'
+        RETURNING *`,
+      [transfer.id, actorUserId, settlement.id]
+    );
+    if (!updatedRows[0]) {
+      throw new AppError('Settlement payout was initiated by another request; refresh before retrying', 409, 'credit_settlement_payout_state_conflict', {
+        settlementId: String(settlement.id),
+      });
+    }
+    await insertAudit(client, {
+      actionType: 'credit.settlement.payout_initiated',
+      actorUserId,
+      partnerId: settlement.partner_id,
+      resourceType: 'credit_settlement',
+      resourceId: settlement.id,
+      reason: SETTLEMENT_PAYOUT_AUDIT_REASON,
+      correlationId: normalizedIdempotencyKey,
+      requestIp,
+      beforeState: { payoutStatus: 'none' },
+      afterState: { payoutStatus: 'initiated', stripeTransferId: transfer.id },
+      metadata: {
+        stripeAccountId: destination.stripeAccountId,
+        stripeAccountSource: destination.source,
+        netCents,
+        currencyCode: settlement.currency_code,
+      },
+    });
+    return {
+      settlement: formatSettlement({ ...updatedRows[0], restaurant_id: settlement.restaurant_id, restaurant_name: settlement.restaurant_name }),
+      stripeTransferId: transfer.id,
+      replayed: false,
+    };
+  }, 'credit_admin_initiate_settlement_payout');
+}
+
+// Webhook-driven confirmation: reconcile an approved settlement against its
+// Stripe transfer. Idempotent; fails closed (throws) when the Stripe API
+// verification cannot complete, so the webhook 500s and Stripe retries.
+async function confirmSettlementPayoutFromTransfer(stripeTransferId) {
+  const normalizedTransferId = normalizeString(stripeTransferId, 255);
+  if (!normalizedTransferId) throw new AppError('Stripe transfer id is required', 400, 'credit_settlement_payout_transfer_required');
+  const { rows } = await pool.query(
+    `SELECT s.* FROM oxsteed_credit_settlements s WHERE s.stripe_transfer_id = $1`,
+    [normalizedTransferId]
+  );
+  const settlement = rows[0];
+  if (!settlement) return { ignored: true };
+  if (settlement.payout_status === 'paid') return { ignored: true, replayed: true };
+  if (settlement.payout_status !== 'initiated') {
+    throw new AppError(`Settlement payout cannot be confirmed from status '${settlement.payout_status}'`, 409, 'credit_settlement_payout_state_conflict', {
+      settlementId: String(settlement.id),
+      payoutStatus: settlement.payout_status,
+    });
+  }
+  const stripe = getSettlementStripeClient();
+  let transfer;
+  try {
+    transfer = await stripe.transfers.retrieve(normalizedTransferId);
+  } catch (err) {
+    if (err instanceof AppError) throw err;
+    throw new AppError('Stripe transfer verification failed', 502, 'credit_settlement_payout_verification_failed', {
+      transferId: normalizedTransferId,
+      settlementId: String(settlement.id),
+    });
+  }
+  if (transfer?.reversed === true) {
+    return failSettlementPayoutFromTransfer(normalizedTransferId, 'stripe_transfer_reversed');
+  }
+  const verifiedSettlementId = transfer?.metadata?.oxsteed_credit_settlement_id;
+  if (verifiedSettlementId && verifiedSettlementId !== String(settlement.id)) {
+    throw new AppError('Stripe transfer is linked to a different settlement', 409, 'credit_settlement_payout_verification_mismatch', {
+      transferId: normalizedTransferId,
+      settlementId: String(settlement.id),
+      transferSettlementId: verifiedSettlementId,
+    });
+  }
+  if (Number(transfer?.amount || 0) !== Number(settlement.net_cents || 0)) {
+    throw new AppError('Stripe transfer amount does not match the settlement net', 409, 'credit_settlement_payout_verification_mismatch', {
+      transferId: normalizedTransferId,
+      settlementId: String(settlement.id),
+      transferAmount: transfer?.amount,
+      settlementNetCents: settlement.net_cents,
+    });
+  }
+  const paymentReference = `stripe_transfer:${normalizedTransferId}`;
+  const transitioned = await transitionSettlement({
+    settlementId: settlement.id,
+    targetStatus: 'paid',
+    actorUserId: settlement.payout_initiated_by,
+    paymentReference,
+    reason: SETTLEMENT_PAYOUT_CONFIRM_AUDIT_REASON,
+    correlationId: `credit-settlement-payout:${settlement.id}`,
+    requestIp: null,
+  });
+  const { rows: paidRows } = await pool.query(
+    `UPDATE oxsteed_credit_settlements
+        SET payout_status = 'paid', updated_at = NOW()
+      WHERE id = $1 AND payout_status = 'initiated'
+      RETURNING *`,
+    [settlement.id]
+  );
+  if (!paidRows[0]) {
+    const { rows: reread } = await pool.query(
+      `SELECT payout_status FROM oxsteed_credit_settlements WHERE id = $1`,
+      [settlement.id]
+    );
+    if (reread[0]?.payout_status === 'paid') return { ignored: true, replayed: true, settlementId: String(settlement.id) };
+    throw new AppError('Settlement payout could not be marked paid; refresh before retrying', 409, 'credit_settlement_payout_state_conflict', {
+      settlementId: String(settlement.id),
+    });
+  }
+  return { settlement: transitioned.settlement, stripeTransferId: normalizedTransferId, paymentReference, replayed: transitioned.replayed === true };
+}
+
+// Webhook-driven failure path for a payout transfer.
+// IMPORTANT: this never auto-reverses the settlement journal. If the
+// settlement was already marked paid, the money correction belongs to the
+// operator's existing reverseSettlement flow; this function only records the
+// failed payout and raises a critical incident for follow-up.
+async function failSettlementPayoutFromTransfer(stripeTransferId, reason) {
+  const normalizedTransferId = normalizeString(stripeTransferId, 255);
+  if (!normalizedTransferId) throw new AppError('Stripe transfer id is required', 400, 'credit_settlement_payout_transfer_required');
+  const normalizedReason = normalizeString(reason, 255);
+  return withTransaction(pool, async (client) => {
+    const { rows } = await client.query(
+      `SELECT s.* FROM oxsteed_credit_settlements s WHERE s.stripe_transfer_id = $1 FOR UPDATE`,
+      [normalizedTransferId]
+    );
+    const settlement = rows[0];
+    if (!settlement) return { ignored: true };
+    if (settlement.payout_status === 'failed') return { ignored: true, replayed: true, settlementId: String(settlement.id) };
+    const alreadyPaid = settlement.payout_status === 'paid';
+    if (!alreadyPaid) {
+      await client.query(
+        `UPDATE oxsteed_credit_settlements
+            SET payout_status = 'failed', updated_at = NOW()
+          WHERE id = $1`,
+        [settlement.id]
+      );
+    }
+    await insertAudit(client, {
+      actionType: 'credit.settlement.payout_failed',
+      actorUserId: settlement.payout_initiated_by,
+      partnerId: settlement.partner_id,
+      resourceType: 'credit_settlement',
+      resourceId: settlement.id,
+      reason: normalizedReason || 'Stripe transfer payout failed',
+      correlationId: `credit-settlement-payout:${settlement.id}`,
+      requestIp: null,
+      beforeState: { payoutStatus: settlement.payout_status },
+      afterState: { payoutStatus: alreadyPaid ? 'paid' : 'failed', stripeTransferId: normalizedTransferId },
+      metadata: { reason: normalizedReason || null },
+    });
+    await incidentStore.recordIncident({
+      type: 'oxsteed_credit_settlement_payout_failed',
+      severity: 'critical',
+      message: alreadyPaid
+        ? `OxSteed Credit settlement ${settlement.id} was already marked paid when its Stripe payout transfer failed; use reverseSettlement for the money correction`
+        : `OxSteed Credit settlement ${settlement.id} Stripe payout transfer failed`,
+      dedupeKey: `credit-settlement-payout-failed:${settlement.id}`,
+      details: {
+        settlementId: String(settlement.id),
+        partnerId: String(settlement.partner_id),
+        stripeTransferId: normalizedTransferId,
+        reason: normalizedReason || null,
+        payoutStatus: settlement.payout_status,
+        requiresManualReview: alreadyPaid,
+      },
+    });
+    return {
+      ignored: alreadyPaid,
+      payoutStatus: alreadyPaid ? 'paid' : 'failed',
+      requiresManualReversal: alreadyPaid,
+      settlementId: String(settlement.id),
+    };
+  }, 'credit_admin_settlement_payout_failed');
+}
+
 module.exports = {
   listPartners,
   listAdminCustomerCreditAccounts,
@@ -2467,6 +2782,9 @@ module.exports = {
   createSettlement,
   transitionSettlement,
   reverseSettlement,
+  initiateSettlementPayout,
+  confirmSettlementPayoutFromTransfer,
+  failSettlementPayoutFromTransfer,
   reconcileCreditLedger,
   reconcileSubBankAggregates,
   verifyCreditLedgerHashes,
