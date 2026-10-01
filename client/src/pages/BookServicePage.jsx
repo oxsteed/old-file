@@ -143,7 +143,7 @@ export default function BookServicePage() {
       );
 
       toast.success(t('bookService.success'));
-      navigate(`/bookings/${response.data.id}`);
+      navigate('/my-bookings');
     } catch (error) {
       toast.error(error.response?.data?.message || t('bookService.errors.createBooking'));
     } finally {

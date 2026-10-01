@@ -298,6 +298,11 @@ export default function App() {
                     <Route path="/how-it-works"            element={<Guarded><FeatureGuidePage /></Guarded>} />
                     <Route path="/how-it-works/:area"      element={<Guarded><ExperienceGuidePage /></Guarded>} />
                     <Route path="/features"                element={<Navigate to="/how-it-works" replace />} />
+                    {/* /hire is the Learn guides' "Find a helper" CTA target. */}
+                    <Route path="/hire"                    element={<Navigate to="/helpers" replace />} />
+                    {/* /direct/service-area was linked but never built; the Direct */}
+                    {/* landing page already shows coverage areas. */}
+                    <Route path="/direct/service-area"     element={<Navigate to="/direct" replace />} />
                     <Route path="/help/crew"               element={<Guarded><InventoryHelpCenterPage appKey="crew" /></Guarded>} />
                     <Route path="/help/display"            element={<Guarded><InventoryHelpCenterPage appKey="display" /></Guarded>} />
                     <Route path="/help/inventory"          element={<Guarded><InventoryHelpCenterPage appKey="inventory" /></Guarded>} />
