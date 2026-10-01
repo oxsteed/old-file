@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 const consultingController = require('../controllers/allPhasesConsultingController');
 const { authenticate } = require('../middleware/auth');
-const { requireAdmin } = require('../middleware/adminAuth');
+const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const { generalLimiter } = require('../middleware/rateLimiter');
 
-const adminAuth = [authenticate, requireAdmin];
+const adminAuth = [authenticate, requireAdmin, requirePermission('manage_operations')];
 
 // PHASE 1: Consultant Management (admin only)
 router.post('/consultants', ...adminAuth, consultingController.createConsultant);

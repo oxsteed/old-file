@@ -127,7 +127,7 @@ router.post('/documents/:documentType/accept',
 
 router.get('/documents',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_operations'),
   (req, res) => {
     const status = req.query.status;
     const documents = getAdminDocuments().filter((doc) => !status || doc.status === status);
@@ -137,7 +137,7 @@ router.get('/documents',
 
 router.post('/documents',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_operations'),
   (req, res) => {
     const id = `${req.body.category || 'document'}_${Date.now()}`;
     const now = new Date().toISOString();
@@ -161,7 +161,7 @@ router.post('/documents',
 
 router.get('/documents/:id',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_operations'),
   (req, res) => {
     getAdminDocuments();
     const draft = legalDrafts.get(req.params.id);
@@ -172,7 +172,7 @@ router.get('/documents/:id',
 
 router.put('/documents/:id',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_operations'),
   (req, res) => {
     getAdminDocuments();
     const draft = legalDrafts.get(req.params.id);
@@ -200,7 +200,7 @@ router.put('/documents/:id',
 
 router.post('/documents/:id/request-approval',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_operations'),
   (req, res) => {
     getAdminDocuments();
     const draft = legalDrafts.get(req.params.id);
@@ -214,7 +214,7 @@ router.post('/documents/:id/request-approval',
 
 router.post('/documents/:id/approve',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_operations'),
   (req, res) => {
     getAdminDocuments();
     const draft = legalDrafts.get(req.params.id);
@@ -252,7 +252,7 @@ router.get('/my-acceptances',
 
 router.get('/acceptances',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_operations'),
   legalController.listAllAcceptances
 );
 
@@ -286,7 +286,7 @@ router.get('/acceptances/export/csv',
 
 router.get('/compliance-metrics',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_operations'),
   legalController.getComplianceMetrics
 );
 
@@ -324,7 +324,7 @@ router.get('/audit-log/export/csv',
 
 router.get('/ccpa-requests',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_operations'),
   (req, res, next) => {
     req.query.requestType = req.query.requestType || req.query.type;
     return ccpaController.listCCPARequests(req, res, next);
@@ -333,19 +333,19 @@ router.get('/ccpa-requests',
 
 router.put('/ccpa-requests/:requestId',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_operations'),
   ccpaController.updateCCPARequest
 );
 
 router.post('/ccpa-requests/:requestId/send-notification',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_operations'),
   ccpaController.sendCCPANotification
 );
 
 router.delete('/acceptances/:id/revoke',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_operations'),
   (req, res, next) => {
     req.params.acceptanceId = req.params.id;
     return legalController.revokeAcceptance(req, res, next);
@@ -354,7 +354,7 @@ router.delete('/acceptances/:id/revoke',
 
 router.post('/acceptances/:id/revoke',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_operations'),
   (req, res, next) => {
     req.params.acceptanceId = req.params.id;
     return legalController.revokeAcceptance(req, res, next);
@@ -364,14 +364,14 @@ router.post('/acceptances/:id/revoke',
 // GET  /api/legal/admin/acceptances
 router.get('/admin/acceptances',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_operations'),
   legalController.listAllAcceptances
 );
 
 // GET  /api/legal/admin/compliance
 router.get('/admin/compliance',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_operations'),
   legalController.getComplianceMetrics
 );
 
@@ -385,7 +385,7 @@ router.get('/admin/audit-log',
 // DELETE /api/legal/admin/acceptances/:id
 router.delete('/admin/acceptances/:id',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_operations'),
   legalController.revokeAcceptance
 );
 

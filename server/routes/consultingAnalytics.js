@@ -7,7 +7,7 @@ const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 // All consulting analytics routes are admin-only.
 // Business intelligence (consultant performance, revenue, conversion funnels,
 // feedback trends, service tier analytics) must not leak to unauthenticated users.
-router.use(authenticate, requireAdmin);
+router.use(authenticate, requireAdmin, requirePermission('manage_operations'));
 
 router.get('/platform-stats', consultingAnalyticsController.getPlatformStats);
 router.get('/consultants', consultingAnalyticsController.getConsultantsList);

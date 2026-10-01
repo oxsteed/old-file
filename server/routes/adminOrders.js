@@ -5,7 +5,7 @@ const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const adminOrdersController = require('../controllers/adminOrdersController');
 
 // All admin order routes require authentication and admin role
-router.use(requireAuth, requireAdmin);
+router.use(requireAuth, requireAdmin, requirePermission('manage_operations'));
 
 // Get orders list with filtering and pagination
 router.get('/', adminOrdersController.getOrders);

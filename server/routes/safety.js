@@ -1,7 +1,7 @@
 const express       = require('express');
 const router        = express.Router();
 const { authenticate } = require('../middleware/auth');
-const { requireAdmin } = require('../middleware/adminAuth');
+const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const { strictLimiter } = require('../middleware/rateLimiter');
 const { sendSOS, listSOS } = require('../controllers/safetyController');
 
@@ -9,6 +9,6 @@ const { sendSOS, listSOS } = require('../controllers/safetyController');
 router.post('/sos', authenticate, strictLimiter, sendSOS);
 
 // Admin: view all SOS events
-router.get('/sos', authenticate, requireAdmin, listSOS);
+router.get('/sos', authenticate, requireAdmin, requirePermission('manage_support'), listSOS);
 
 module.exports = router;

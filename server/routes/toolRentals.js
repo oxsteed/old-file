@@ -10,7 +10,7 @@ const express = require('express');
 const crypto = require('crypto');
 const router  = express.Router();
 const { authenticate } = require('../middleware/auth');
-const { requireAdmin } = require('../middleware/adminAuth');
+const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const { generalLimiter, invoiceLimiter, reportLimiter, termsLimiter } = require('../middleware/rateLimiter');
@@ -630,8 +630,8 @@ router.post('/invoices/:invoiceId/confirm-payment', authenticate, invoiceLimiter
 router.post('/reports', authenticate, reportLimiter, userReportController.submitReport);
 router.get('/reports/me/submitted', authenticate, userReportController.getMyReports);
 router.get('/reports/me/against', authenticate, userReportController.getReportsAgainstMe);
-router.get('/admin/reports', authenticate, requireAdmin, userReportController.adminGetReports);
-router.put('/admin/reports/:reportId', authenticate, requireAdmin, userReportController.adminUpdateReportStatus);
+router.get('/admin/reports', authenticate, requireAdmin, requirePermission('moderate_content'), userReportController.adminGetReports);
+router.put('/admin/reports/:reportId', authenticate, requireAdmin, requirePermission('moderate_content'), userReportController.adminUpdateReportStatus);
 
 // TERMS & CONDITIONS (Option C)
 router.get('/terms', termsController.getTerms);

@@ -30,13 +30,13 @@ router.get('/my',
 // /admin/all look like a customer request for disputeId="admin".
 router.get('/admin/all',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_disputes'),
   adminDisputeCtrl.getAllDisputes
 );
 
 router.post('/admin/:disputeId/review',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_disputes'),
   adminDisputeCtrl.startReview
 );
 

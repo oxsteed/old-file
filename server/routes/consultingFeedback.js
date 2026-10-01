@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const feedbackController = require('../controllers/consultingFeedbackController');
 const { authenticate } = require('../middleware/auth');
-const { requireAdmin } = require('../middleware/adminAuth');
+const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const { generalLimiter, strictLimiter } = require('../middleware/rateLimiter');
 
 // Public endpoint - the emailed, single-use token proves access to this session.
@@ -16,7 +16,7 @@ router.get(
   '/consultant/:consultantId',
   generalLimiter,
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_operations'),
   feedbackController.getConsultantFeedback,
 );
 

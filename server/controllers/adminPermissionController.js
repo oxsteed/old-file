@@ -21,6 +21,11 @@ const PERMISSION_SCOPES = {
   approve_settings:       'Approve or reject staged platform settings changes',
   view_visitor_analytics: 'View site visitor history and visitor locations',
   manage_profile_visibility: 'Hide or restore public visibility of helper, business, and restaurant profiles',
+  manage_users:         'Ban, suspend, flag, edit, and annotate user/helper/business accounts',
+  moderate_content:      'Moderate reviews, review queue, user reports, and content flags',
+  manage_disputes:       'Run the dispute lifecycle: evidence review and resolutions',
+  manage_support:        'Work support tickets, restaurant support cases, and safety/SOS triage',
+  manage_marketing:      'Manage discount codes, promotions, and campaigns',
 };
 
 const VALID_PERMISSIONS = Object.keys(PERMISSION_SCOPES);

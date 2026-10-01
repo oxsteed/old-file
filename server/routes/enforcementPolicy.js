@@ -6,7 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
-const { requireAdmin } = require('../middleware/adminAuth');
+const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const ctrl = require('../controllers/enforcementPolicyController');
 
 // ── Public: enforcement policy ──────────────────────────────────
@@ -18,6 +18,6 @@ router.post('/appeals', requireAuth, ctrl.submitAppeal);
 router.get('/my-appeals', requireAuth, ctrl.getMyAppeals);
 
 // ── Admin: review appeals ───────────────────────────────────────
-router.put('/admin/appeals/:appealId/review', requireAuth, requireAdmin, ctrl.reviewAppeal);
+router.put('/admin/appeals/:appealId/review', requireAuth, requireAdmin, requirePermission('manage_disputes'), ctrl.reviewAppeal);
 
 module.exports = router;

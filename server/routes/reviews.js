@@ -1,6 +1,6 @@
 const router      = require('express').Router();
 const { authenticate } = require('../middleware/auth');
-const { requireAdmin } = require('../middleware/adminAuth');
+const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const { errorHandler } = require('../middleware/errorHandler');
 const reviewCtrl = require('../controllers/reviewController');
 
@@ -26,7 +26,7 @@ router.put('/:id/respond',
 // Admin only
 router.put('/:id/hide',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('moderate_content'),
   reviewCtrl.adminHideReview
 );
 

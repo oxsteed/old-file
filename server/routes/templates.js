@@ -28,7 +28,7 @@ router.post('/purchase/lifetime', authenticate, ctrl.purchaseLifetime);
 router.get('/admin/pricing', authenticate, requireAdmin, requirePermission('manage_settings'), ctrl.adminGetPricing);
 
 // GET /api/templates/admin/stats
-router.get('/admin/stats', authenticate, requireAdmin, ctrl.adminTemplateStats);
+router.get('/admin/stats', authenticate, requireAdmin, requirePermission('manage_operations'), ctrl.adminTemplateStats);
 
 // GET /api/templates/admin/grants
 router.get('/admin/grants', authenticate, requireAdmin, ctrl.adminListGrants);

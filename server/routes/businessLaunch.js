@@ -50,35 +50,35 @@ router.get(
 router.get(
   '/consultants',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_operations'),
   getMatchedConsultants
 );
 
 router.get(
   '/requests',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_operations'),
   getBusinessLaunchRequests
 );
 
 router.get(
   '/requests/:id',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_operations'),
   getBusinessLaunchRequest
 );
 
 router.patch(
   '/requests/:id',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_operations'),
   updateBusinessLaunchRequestStatus
 );
 
 router.post(
   '/requests/:id/assign-consultant',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_operations'),
   assignConsultant
 );
 
@@ -86,21 +86,21 @@ router.post(
 router.post(
   '/requests/:id/notes',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_operations'),
   addNote
 );
 
 router.get(
   '/requests/:id/notes',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_operations'),
   getNotes
 );
 
 router.delete(
   '/notes/:noteId',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_operations'),
   deleteNote
 );
 
@@ -115,7 +115,7 @@ router.post(
 router.get(
   '/requests/:id/messages',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_operations'),
   getMessages
 );
 
@@ -123,7 +123,7 @@ router.get(
 router.get(
   '/message-templates',
   authenticate,
-  requireAdmin,
+  requireAdmin, requirePermission('manage_operations'),
   getMessageTemplates
 );
 

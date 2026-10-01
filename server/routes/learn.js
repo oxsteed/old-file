@@ -6,7 +6,7 @@
 const express  = require('express');
 const router   = express.Router();
 const { authenticate } = require('../middleware/auth');
-const { requireAdmin }  = require('../middleware/adminAuth');
+const { requireAdmin, requirePermission }  = require('../middleware/adminAuth');
 const {
   getGuides,
   getGuideStats,
@@ -44,14 +44,14 @@ router.post('/submissions',          authenticate, submitGuide);
 router.get('/submissions/mine',      authenticate, getMySubmissions);
 
 // ── Admin routes ───────────────────────────────────────────────
-router.get('/admin/submissions',         authenticate, requireAdmin, adminListSubmissions);
-router.get('/admin/submissions/:id',     authenticate, requireAdmin, adminGetSubmission);
-router.patch('/admin/submissions/:id',   authenticate, requireAdmin, adminReviewSubmission);
+router.get('/admin/submissions',         authenticate, requireAdmin, requirePermission('moderate_content'), adminListSubmissions);
+router.get('/admin/submissions/:id',     authenticate, requireAdmin, requirePermission('moderate_content'), adminGetSubmission);
+router.patch('/admin/submissions/:id',   authenticate, requireAdmin, requirePermission('moderate_content'), adminReviewSubmission);
 
 // Product link CRUD — admin only
-router.get('/admin/product-links',        authenticate, requireAdmin, adminListProductLinks);
-router.post('/admin/product-links',       authenticate, requireAdmin, adminCreateProductLink);
-router.put('/admin/product-links/:id',    authenticate, requireAdmin, adminUpdateProductLink);
-router.delete('/admin/product-links/:id', authenticate, requireAdmin, adminDeleteProductLink);
+router.get('/admin/product-links',        authenticate, requireAdmin, requirePermission('moderate_content'), adminListProductLinks);
+router.post('/admin/product-links',       authenticate, requireAdmin, requirePermission('moderate_content'), adminCreateProductLink);
+router.put('/admin/product-links/:id',    authenticate, requireAdmin, requirePermission('moderate_content'), adminUpdateProductLink);
+router.delete('/admin/product-links/:id', authenticate, requireAdmin, requirePermission('moderate_content'), adminDeleteProductLink);
 
 module.exports = router;

@@ -38,40 +38,40 @@ router.put('/support/availability', requireAdmin, supportCtrl.setMyAvailability)
 // ══════════════════════════════════════════════════════════════
 
 // Dashboard
-router.get('/dashboard',         requireAdmin, adminCtrl.getDashboardStats);
+router.get('/dashboard',         requireAdmin, requirePermission('manage_operations'), adminCtrl.getDashboardStats);
 // Read-only cross-domain command center. Each section reports its own
 // availability and permission state; domain pages remain authoritative.
-router.get('/operations/overview', requireAdmin, adminOperationsCtrl.getOverview);
+router.get('/operations/overview', requireAdmin, requirePermission('manage_operations'), adminOperationsCtrl.getOverview);
 
 // Content moderation
-router.get('/reports',           requireAdmin, adminCtrl.getReports);
-router.put('/reports/:reportId', requireAdmin, adminCtrl.reviewReport);
-router.get('/moderation-queue',  requireAdmin, adminCtrl.getModerationQueue);
+router.get('/reports',           requireAdmin, requirePermission('manage_operations'), adminCtrl.getReports);
+router.put('/reports/:reportId', requireAdmin, requirePermission('manage_operations'), adminCtrl.reviewReport);
+router.get('/moderation-queue',  requireAdmin, requirePermission('moderate_content'), adminCtrl.getModerationQueue);
 
 // Jobs (read + moderate - all admins)
-router.get('/jobs',                    requireAdmin,      superCtrl.getJobs);
-router.get('/jobs/:jobId',             requireAdmin,      superCtrl.getJobDetail);
-router.post('/jobs/:jobId/action',     requireAdmin,      superCtrl.forceJobAction);
+router.get('/jobs',                    requireAdmin, requirePermission('manage_operations'),      superCtrl.getJobs);
+router.get('/jobs/:jobId',             requireAdmin, requirePermission('manage_operations'),      superCtrl.getJobDetail);
+router.post('/jobs/:jobId/action',     requireAdmin, requirePermission('manage_operations'),      superCtrl.forceJobAction);
 // Hard delete - delegatable via delete_jobs grant
 router.delete('/jobs/:jobId',          requireAdmin, requirePermission('delete_jobs'), superCtrl.deleteJob);
 
 // Content removal - bids and reviews (always logged for super-admin review)
-router.get('/content',                         requireAdmin, adminCtrl.getContent);
-router.post('/bids/:bidId/remove',             requireAdmin, adminCtrl.removeBid);
-router.post('/reviews/:reviewId/remove',       requireAdmin, adminCtrl.removeReview);
-router.post('/reviews/:reviewId/restore',      requireAdmin, adminCtrl.restoreReview);
+router.get('/content',                         requireAdmin, requirePermission('moderate_content'), adminCtrl.getContent);
+router.post('/bids/:bidId/remove',             requireAdmin, requirePermission('moderate_content'), adminCtrl.removeBid);
+router.post('/reviews/:reviewId/remove',       requireAdmin, requirePermission('moderate_content'), adminCtrl.removeReview);
+router.post('/reviews/:reviewId/restore',      requireAdmin, requirePermission('moderate_content'), adminCtrl.restoreReview);
 
 // ══════════════════════════════════════════════════════════════
 // ENTITY MODERATION - admin + super_admin
 // ══════════════════════════════════════════════════════════════
 
 // Businesses
-router.get('/businesses',                      requireAdmin, bizModCtrl.listBusinesses);
-router.get('/businesses/:id',                  requireAdmin, bizModCtrl.getBusinessDetail);
-router.put('/businesses/:id/toggle',           requireAdmin, bizModCtrl.toggleBusiness);
-router.put('/businesses/:id/flag',             requireAdmin, bizModCtrl.flagBusiness);
-router.put('/businesses/:id/admin-notes',      requireAdmin, bizModCtrl.updateAdminNotes);
-router.put('/businesses/:id/delete',           requireAdmin, bizModCtrl.deleteBusiness);
+router.get('/businesses',                      requireAdmin, requirePermission('manage_users'), bizModCtrl.listBusinesses);
+router.get('/businesses/:id',                  requireAdmin, requirePermission('manage_users'), bizModCtrl.getBusinessDetail);
+router.put('/businesses/:id/toggle',           requireAdmin, requirePermission('manage_users'), bizModCtrl.toggleBusiness);
+router.put('/businesses/:id/flag',             requireAdmin, requirePermission('manage_users'), bizModCtrl.flagBusiness);
+router.put('/businesses/:id/admin-notes',      requireAdmin, requirePermission('manage_users'), bizModCtrl.updateAdminNotes);
+router.put('/businesses/:id/delete',           requireAdmin, requirePermission('manage_users'), bizModCtrl.deleteBusiness);
 
 // ── Public profile visibility (admin override) ─────────────────────────────
 // Sticky hide/restore for helper, business, and restaurant public profiles.
@@ -93,14 +93,14 @@ router.post('/profile-visibility/:type/:id/undo', requireAdmin, requirePermissio
 router.put('/profile-visibility',        requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.setProfileVisibility);
 
 // Tool Rentals
-router.get('/tool-rentals',             requireAdmin, bizModCtrl.listToolRentals);
-router.put('/tool-rentals/:id/toggle',  requireAdmin, bizModCtrl.toggleToolRental);
+router.get('/tool-rentals',             requireAdmin, requirePermission('manage_operations'), bizModCtrl.listToolRentals);
+router.put('/tool-rentals/:id/toggle',  requireAdmin, requirePermission('manage_operations'), bizModCtrl.toggleToolRental);
 
 // Planned Needs
-router.get('/planned-needs',                         requireAdmin, bizModCtrl.listPlannedNeeds);
-router.post('/planned-needs/:id/cancel-autopublish', requireAdmin, bizModCtrl.cancelAutopublish);
-router.post('/planned-needs/:id/force-cancel',       requireAdmin, bizModCtrl.forceCancel);
-router.post('/planned-needs/:id/:action',            requireAdmin, (req, res, next) => {
+router.get('/planned-needs',                         requireAdmin, requirePermission('manage_operations'), bizModCtrl.listPlannedNeeds);
+router.post('/planned-needs/:id/cancel-autopublish', requireAdmin, requirePermission('manage_operations'), bizModCtrl.cancelAutopublish);
+router.post('/planned-needs/:id/force-cancel',       requireAdmin, requirePermission('manage_operations'), bizModCtrl.forceCancel);
+router.post('/planned-needs/:id/:action',            requireAdmin, requirePermission('manage_operations'), (req, res, next) => {
   if (req.params.action === 'cancel-autopublish') return bizModCtrl.cancelAutopublish(req, res, next);
   if (req.params.action === 'force-cancel') return bizModCtrl.forceCancel(req, res, next);
   return res.status(404).json({ error: 'Unknown planned need action.' });
@@ -110,11 +110,11 @@ router.post('/planned-needs/:id/:action',            requireAdmin, (req, res, ne
 router.get('/payments', requireAdmin, requirePermission('view_financials'), paymentsCtrl.listPayments);
 
 // Users - read + write actions (ban/unban logged; admins cannot ban other admins)
-router.get('/users',            requireAdmin, superCtrl.getUsers);
-router.get('/users/:userId',    requireAdmin, superCtrl.getUserDetail);
-router.put('/users/:userId/name',  requireAdmin, superCtrl.updateUserName);
+router.get('/users',            requireAdmin, requirePermission('manage_users'), superCtrl.getUsers);
+router.get('/users/:userId',    requireAdmin, requirePermission('manage_users'), superCtrl.getUserDetail);
+router.put('/users/:userId/name',  requireAdmin, requirePermission('manage_users'), superCtrl.updateUserName);
 router.put('/users/:userId/didit-enforcement', requireAdmin, requirePermission('verify_users'), superCtrl.setUserDiditEnforcement);
-router.post('/users/:userId/ban',  requireAdmin, superCtrl.toggleUserBan);
+router.post('/users/:userId/ban',  requireAdmin, requirePermission('manage_users'), superCtrl.toggleUserBan);
 router.post(
   '/users/:userId/phone-verification-code',
   requireAdmin,
@@ -124,10 +124,10 @@ router.post(
 );
 
 // Market / Zip Code management
-router.get('/regions',                       requireAdmin, regionCtrl.listRegions);
-router.get('/markets',                        requireAdmin, adminCtrl.getMarkets);
-router.post('/markets/:marketId/zip-codes',   requireAdmin, adminCtrl.addZipCodes);
-router.delete('/markets/:marketId/zip-codes', requireAdmin, adminCtrl.removeZipCodes);
+router.get('/regions',                       requireAdmin, requirePermission('manage_operations'), regionCtrl.listRegions);
+router.get('/markets',                        requireAdmin, requirePermission('manage_operations'), adminCtrl.getMarkets);
+router.post('/markets/:marketId/zip-codes',   requireAdmin, requirePermission('manage_operations'), adminCtrl.addZipCodes);
+router.delete('/markets/:marketId/zip-codes', requireAdmin, requirePermission('manage_operations'), adminCtrl.removeZipCodes);
 
 // ══════════════════════════════════════════════════════════════
 // SUPER ADMIN ONLY
@@ -170,11 +170,11 @@ router.post('/users/impersonate/exchange', requireSuperAdmin, superCtrl.exchange
 router.post('/users/:userId/impersonate/end', requireSuperAdmin, superCtrl.endImpersonation);
 
 // Activity log & admin notes (all admins can read; super-admin can delete any note)
-router.get('/users/:userId/activity',               requireAdmin, superCtrl.getUserActivityLog);
-router.get('/users/:userId/notes',                  requireAdmin, superCtrl.getUserNotes);
-router.post('/users/:userId/notes',                 requireAdmin, superCtrl.addUserNote);
-router.put('/users/:userId/notes/:noteId',          requireAdmin, superCtrl.updateUserNote);
-router.delete('/users/:userId/notes/:noteId',       requireAdmin, superCtrl.deleteUserNote);
+router.get('/users/:userId/activity',               requireAdmin, requirePermission('manage_users'), superCtrl.getUserActivityLog);
+router.get('/users/:userId/notes',                  requireAdmin, requirePermission('manage_users'), superCtrl.getUserNotes);
+router.post('/users/:userId/notes',                 requireAdmin, requirePermission('manage_users'), superCtrl.addUserNote);
+router.put('/users/:userId/notes/:noteId',          requireAdmin, requirePermission('manage_users'), superCtrl.updateUserNote);
+router.delete('/users/:userId/notes/:noteId',       requireAdmin, requirePermission('manage_users'), superCtrl.deleteUserNote);
 
 // Granular status controls (super-admin only)
 router.post('/users/:userId/suspend',    requireSuperAdmin, superCtrl.suspendUser);
@@ -186,7 +186,7 @@ router.post('/users/:userId/reactivate', requireSuperAdmin, superCtrl.reactivate
 router.put('/users/:userId/profile', requireSuperAdmin, superCtrl.updateUserProfile);
 
 // Support tickets for a user (all admins)
-router.get('/users/:userId/support-tickets', requireAdmin, superCtrl.getUserSupportTickets);
+router.get('/users/:userId/support-tickets', requireAdmin, requirePermission('manage_support'), superCtrl.getUserSupportTickets);
 
 // Conversations (super-admin only - every read is audited)
 router.get('/super/conversations',              requireSuperAdmin, convAdminCtrl.listConversations);
@@ -240,13 +240,13 @@ router.get('/export/:type',          requireAdmin, requirePermission('export_dat
 // SUPPORT TICKETS (admin + super_admin)
 // ══════════════════════════════════════════════════════════════
 
-router.get('/support/stats',                          requireAdmin, supportCtrl.getStats);
-router.get('/support/tickets',                        requireAdmin, supportCtrl.listTickets);
-router.get('/support/tickets/:ticketId',              requireAdmin, supportCtrl.getTicketAdmin);
-router.post('/support/tickets/:ticketId/claim',       requireAdmin, supportCtrl.claimTicket);
-router.post('/support/tickets/:ticketId/unclaim',     requireAdmin, supportCtrl.unclaimTicket);
-router.put('/support/tickets/:ticketId/status',       requireAdmin, supportCtrl.updateStatus);
-router.put('/support/tickets/:ticketId/priority',     requireAdmin, supportCtrl.updatePriority);
+router.get('/support/stats',                          requireAdmin, requirePermission('manage_support'), supportCtrl.getStats);
+router.get('/support/tickets',                        requireAdmin, requirePermission('manage_support'), supportCtrl.listTickets);
+router.get('/support/tickets/:ticketId',              requireAdmin, requirePermission('manage_support'), supportCtrl.getTicketAdmin);
+router.post('/support/tickets/:ticketId/claim',       requireAdmin, requirePermission('manage_support'), supportCtrl.claimTicket);
+router.post('/support/tickets/:ticketId/unclaim',     requireAdmin, requirePermission('manage_support'), supportCtrl.unclaimTicket);
+router.put('/support/tickets/:ticketId/status',       requireAdmin, requirePermission('manage_support'), supportCtrl.updateStatus);
+router.put('/support/tickets/:ticketId/priority',     requireAdmin, requirePermission('manage_support'), supportCtrl.updatePriority);
 router.post('/support/tickets/:ticketId/reply',       requireAdmin, requirePermission('message_users'), supportCtrl.adminReply);
 
 // ══════════════════════════════════════════════════════════════
@@ -298,7 +298,7 @@ router.post(
 // Region-scoped users list (admin or super-admin)
 router.get(
   '/super/users/in-region',
-  requireAdmin,
+  requireAdmin, requirePermission('manage_users'),
   loadAssignedRegions,
   superUserCtrl.getUsersInRegion
 );
@@ -306,7 +306,7 @@ router.get(
 // Full account edit (super-admin or regional admin with region access)
 router.put(
   '/super/users/:userId/edit-full',
-  requireAdmin,
+  requireAdmin, requirePermission('manage_users'),
   loadAssignedRegions,
   requireRegionAccessForUser('userId'),
   superUserCtrl.editUserFull
@@ -406,7 +406,7 @@ router.post('/messages/conversations/:userId/send', requireAdmin, requirePermiss
 const pool = require('../db');
 
 // GET /api/admin/skills-lookup?q=&category=&limit=50&offset=0
-router.get('/skills-lookup', requireAdmin, async (req, res) => {
+router.get('/skills-lookup', requireAdmin, requirePermission('manage_operations'), async (req, res) => {
   try {
     const { q = '', category = '', limit = 50, offset = 0 } = req.query;
     const limitN  = Math.min(Math.max(1, parseInt(limit)  || 50), 200);
@@ -432,7 +432,7 @@ router.get('/skills-lookup', requireAdmin, async (req, res) => {
 });
 
 // GET /api/admin/skills-lookup/categories
-router.get('/skills-lookup/categories', requireAdmin, async (req, res) => {
+router.get('/skills-lookup/categories', requireAdmin, requirePermission('manage_operations'), async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT DISTINCT category FROM skills_lookup
@@ -445,7 +445,7 @@ router.get('/skills-lookup/categories', requireAdmin, async (req, res) => {
 });
 
 // POST /api/admin/skills-lookup
-router.post('/skills-lookup', requireAdmin, async (req, res) => {
+router.post('/skills-lookup', requireAdmin, requirePermission('manage_operations'), async (req, res) => {
   try {
     const { name, category, is_active = true } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'name is required' });
@@ -472,7 +472,7 @@ router.post('/skills-lookup', requireAdmin, async (req, res) => {
 });
 
 // PUT /api/admin/skills-lookup/:id
-router.put('/skills-lookup/:id', requireAdmin, async (req, res) => {
+router.put('/skills-lookup/:id', requireAdmin, requirePermission('manage_operations'), async (req, res) => {
   try {
     const { name, category, is_active } = req.body;
     const result = await pool.query(
@@ -493,7 +493,7 @@ router.put('/skills-lookup/:id', requireAdmin, async (req, res) => {
 
 // DELETE /api/admin/skills-lookup/:id  - soft delete (sets is_active=false)
 // ?hard=true is a permanent hard delete - super-admin only
-router.delete('/skills-lookup/:id', requireAdmin, async (req, res) => {
+router.delete('/skills-lookup/:id', requireAdmin, requirePermission('manage_operations'), async (req, res) => {
   try {
     const { hard } = req.query;
     let result;
@@ -521,7 +521,7 @@ router.delete('/skills-lookup/:id', requireAdmin, async (req, res) => {
 // Mirrors the skills-lookup block exactly for licenses_lookup table.
 
 // GET /api/admin/licenses-lookup?q=&category=&limit=50&offset=0
-router.get('/licenses-lookup', requireAdmin, async (req, res) => {
+router.get('/licenses-lookup', requireAdmin, requirePermission('manage_operations'), async (req, res) => {
   try {
     const { q = '', category = '', limit = 50, offset = 0 } = req.query;
     const limitN  = Math.min(Math.max(1, parseInt(limit)  || 50), 200);
@@ -548,7 +548,7 @@ router.get('/licenses-lookup', requireAdmin, async (req, res) => {
 });
 
 // GET /api/admin/licenses-lookup/categories
-router.get('/licenses-lookup/categories', requireAdmin, async (req, res) => {
+router.get('/licenses-lookup/categories', requireAdmin, requirePermission('manage_operations'), async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT DISTINCT category FROM licenses_lookup
@@ -562,7 +562,7 @@ router.get('/licenses-lookup/categories', requireAdmin, async (req, res) => {
 });
 
 // POST /api/admin/licenses-lookup
-router.post('/licenses-lookup', requireAdmin, async (req, res) => {
+router.post('/licenses-lookup', requireAdmin, requirePermission('manage_operations'), async (req, res) => {
   try {
     const { name, category, is_active = true } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'name is required' });
@@ -584,7 +584,7 @@ router.post('/licenses-lookup', requireAdmin, async (req, res) => {
 });
 
 // PUT /api/admin/licenses-lookup/:id
-router.put('/licenses-lookup/:id', requireAdmin, async (req, res) => {
+router.put('/licenses-lookup/:id', requireAdmin, requirePermission('manage_operations'), async (req, res) => {
   try {
     const { name, category, is_active } = req.body;
     const result = await pool.query(
@@ -605,7 +605,7 @@ router.put('/licenses-lookup/:id', requireAdmin, async (req, res) => {
 
 // DELETE /api/admin/licenses-lookup/:id  - soft delete (sets is_active=false)
 // ?hard=true is a permanent hard delete - super-admin only
-router.delete('/licenses-lookup/:id', requireAdmin, async (req, res) => {
+router.delete('/licenses-lookup/:id', requireAdmin, requirePermission('manage_operations'), async (req, res) => {
   try {
     const { hard } = req.query;
     let result;

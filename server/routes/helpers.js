@@ -12,10 +12,10 @@ const {
 } = require('../controllers/businessInvoiceController');
 const { generalLimiter, directoryLimiter } = require('../middleware/rateLimiter');
 const { authenticate } = require('../middleware/auth');
-const { requireAdmin } = require('../middleware/adminAuth');
+const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 
 // ── Admin-only endpoints (must come before /:id wildcards) ────────────────────
-router.post('/:id/remove-credential', requireAdmin, removeCredential);
+router.post('/:id/remove-credential', requireAdmin, requirePermission('manage_users'), removeCredential);
 
 // ── Authenticated helper-owner endpoints (must come before /:id wildcards) ──
 router.get('/me/listing',       authenticate, getMyListingStatus);
