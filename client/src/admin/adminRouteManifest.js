@@ -147,6 +147,7 @@ export const ADMIN_ROUTE_MANIFEST = Object.freeze({
   corporateSetup: defineRoute('/admin/super/corporate/departments', { superOnly: true }),
   modePolicies: defineRoute('/admin/super/mode-policies', { superOnly: true }),
   modeApprovals: defineRoute('/admin/super/mode-approvals', { superOnly: true }),
+  reliability: defineRoute('/admin/super/reliability', { grant: 'manage_operations' }),
   visitors: defineRoute('/admin/super/visitors', { grant: 'view_visitor_analytics' }),
   profileVisibility: defineRoute('/admin/super/profile-visibility', { grant: 'manage_profile_visibility' }),
 });

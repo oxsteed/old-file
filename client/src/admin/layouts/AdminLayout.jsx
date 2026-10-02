@@ -92,6 +92,7 @@ const SUPER_NAV = [
   { to: routePath('corporateSetup'),  icon: Building2,     labelKey: 'adminNav.corporateSetup' },
   { to: routePath('modePolicies'),          icon: Key,           labelKey: 'adminNav.modePolicies'   },
   { to: routePath('modeApprovals'),         icon: AlertTriangle, labelKey: 'adminNav.modeApprovals'  },
+  { to: routePath('reliability'),          icon: Activity,      labelKey: 'adminNav.reliability',    grant: adminRoute('reliability').grant },
 ];
 
 // Simple mode keeps the operational paths close at hand without removing access
