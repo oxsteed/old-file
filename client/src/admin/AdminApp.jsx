@@ -42,6 +42,7 @@ const ReconciliationExceptions = lazyWithRetry(() => import('./pages/Reconciliat
 const AdminAccounts = lazyWithRetry(() => import('./pages/super/AdminAccounts'));
 const SearchLogs = lazyWithRetry(() => import('./pages/super/SearchLogs'));
 const PermissionGrants = lazyWithRetry(() => import('./pages/super/PermissionGrants'));
+const WorkforcePage = lazyWithRetry(() => import('./pages/super/workspaces/WorkforcePage'));
 const CreateUser = lazyWithRetry(() => import('./pages/super/CreateUser'));
 const RegionsManager = lazyWithRetry(() => import('./pages/super/RegionsManager'));
 const LogisticsInternalAccess = lazyWithRetry(() => import('./pages/super/LogisticsInternalAccess'));
@@ -409,6 +410,9 @@ export default function AdminApp() {
           } />
           <Route path={adminRoute('permissions').relative} element={
             <GrantGuard grant={adminRoute('permissions').grant}><PermissionGrants /></GrantGuard>
+          } />
+          <Route path={adminRoute('workforce').relative} element={
+            <GrantGuard grant={adminRoute('workforce').grant}><WorkforcePage /></GrantGuard>
           } />
           <Route path={adminRoute('treasury').relative} element={
             <GrantGuard grant={adminRoute('treasury').grant}><TreasuryPage /></GrantGuard>

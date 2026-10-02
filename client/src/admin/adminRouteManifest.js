@@ -132,6 +132,7 @@ export const ADMIN_ROUTE_MANIFEST = Object.freeze({
   conversations: defineRoute('/admin/super/conversations', { superOnly: true }),
   adminAccounts: defineRoute('/admin/super/admin-accounts', { grant: 'manage_admin_accounts' }),
   permissions: defineRoute('/admin/super/permissions', { grant: 'manage_admin_accounts' }),
+  workforce: defineRoute('/admin/super/workforce', { grant: 'manage_admin_accounts' }),
   regions: defineRoute('/admin/super/regions', { superOnly: true }),
   internalAccess: defineRoute('/admin/super/logistics-internal-access', { superOnly: true }),
   gateLockouts: defineRoute('/admin/super/access-gate-lockouts', { superOnly: true }),

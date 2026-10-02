@@ -118,6 +118,7 @@ const ADMIN_SPA_ROUTES = Object.freeze([
   '/admin/super/conversations',
   '/admin/super/admin-accounts',
   '/admin/super/permissions',
+  '/admin/super/workforce',
   '/admin/super/regions',
   '/admin/super/logistics-internal-access',
   '/admin/super/access-gate-lockouts',

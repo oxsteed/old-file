@@ -74,6 +74,7 @@ const SUPER_NAV = [
   { to: routePath('conversations'),   icon: MessageSquare,  labelKey: 'adminNav.conversations'    },
   { to: routePath('adminAccounts'),  icon: UserCog,        labelKey: 'adminNav.adminAccounts',   grant: adminRoute('adminAccounts').grant },
   { to: routePath('permissions'),    icon: Key,           labelKey: 'adminNav.permissions',      grant: adminRoute('permissions').grant },
+  { to: routePath('workforce'),     icon: Users,         labelKey: 'adminNav.workforce',        grant: adminRoute('workforce').grant },
   { to: routePath('regions'),        icon: Map,           labelKey: 'adminNav.regions'          },
   { to: routePath('internalAccess'), icon: Key, labelKey: 'adminNav.internalAccess' },
   { to: routePath('gateLockouts'), icon: ShieldAlert, labelKey: 'adminNav.gateLockouts' },
