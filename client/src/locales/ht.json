@@ -27200,5 +27200,13 @@
     "toastTitleRequired": "Tit atik la obligatwa",
     "updateArticle": "Mete atik la ajou",
     "viewsCount": "{{count}} vi"
+  },
+  "destructiveConfirm": {
+    "title": "Konfime aksyon destriktif la",
+    "irreversible": "Aksyon sa a pa ka anile.",
+    "cancel": "Anile",
+    "confirm": "Konfime",
+    "typeToConfirm": "Ekri {{text}} pou konfime:",
+    "typePlaceholder": "Ekri {{text}}"
   }
 }

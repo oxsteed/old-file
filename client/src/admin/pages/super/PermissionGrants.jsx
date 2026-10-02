@@ -5,6 +5,7 @@ import adminApi from '../../../lib/adminApi';
 import { useAbortableFetch } from '../../lib/useAbortableFetch';
 import AdminErrorState from '../../lib/AdminErrorState';
 import { adminDate } from '../../lib/formatters';
+import useDestructiveConfirm from '../../hooks/useDestructiveConfirm';
 
 function ts(d, fallback = '-') {
   if (!d) return fallback;
@@ -263,6 +264,7 @@ function CreateGrantModal({ scopes, onClose, onCreated }) {
 
 export default function PermissionGrants() {
   const { t } = useTranslation();
+  const { confirmDestructive, dialog: confirmDialog } = useDestructiveConfirm();
   const [showCreate,  setShowCreate]  = useState(false);
   const [revoking,    setRevoking]    = useState(null);
   const [flash,       setFlash]       = useState(null);
@@ -290,7 +292,14 @@ export default function PermissionGrants() {
   const scopes = data?.scopes || [];
 
   const handleRevoke = async (grantId) => {
-    if (!window.confirm(t('adminPermissionGrantsRevokeConfirm'))) return;
+    // E12: destructive action goes through the shared confirm dialog.
+    // Type-to-confirm: revoking access is high-blast-radius.
+    const ok = await confirmDestructive({
+      description: t('adminPermissionGrantsRevokeConfirm'),
+      confirmLabel: t('adminPermissionGrantsRevoke'),
+      requireTypeText: 'REVOKE',
+    });
+    if (!ok) return;
     setRevoking(grantId);
     try {
       await adminApi.delete(`/admin/super/permission-grants/${grantId}`);
@@ -308,6 +317,7 @@ export default function PermissionGrants() {
 
   return (
     <div className="p-4 sm:p-8 max-w-5xl">
+      {confirmDialog}
       <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-2">

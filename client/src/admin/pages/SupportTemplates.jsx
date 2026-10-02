@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import useDestructiveConfirm from '../hooks/useDestructiveConfirm';
 import adminApi from '../../lib/adminApi';
 import toast from 'react-hot-toast';
 import { MessageSquare, Plus, Edit2, Trash2, Search, RefreshCw, Copy, TrendingUp } from 'lucide-react';
@@ -8,6 +9,7 @@ import SupportSubNav from '../components/SupportSubNav';
 
 export default function SupportTemplates() {
   const { t } = useTranslation();
+  const { confirmDestructive, dialog: confirmDialog } = useDestructiveConfirm();
   const { businessId } = useParams();
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -79,7 +81,9 @@ export default function SupportTemplates() {
   };
 
   const handleDelete = async (templateId) => {
-    if (!window.confirm(t('adminSupportTemplates.confirmDelete'))) return;
+    // E12: destructive action goes through the shared confirm dialog.
+    const ok = await confirmDestructive({ description: t('adminSupportTemplates.confirmDelete') });
+    if (!ok) return;
     try {
       await adminApi.delete(`/support/templates/${templateId}`);
       loadTemplates();
@@ -111,6 +115,8 @@ export default function SupportTemplates() {
   };
 
   return (
+    <>
+      {confirmDialog}
     <div className="p-6 max-w-7xl mx-auto">
       <SupportSubNav />
       <div className="flex items-start justify-between mb-8">
@@ -301,5 +307,6 @@ export default function SupportTemplates() {
         </div>
       )}
     </div>
+    </>
   );
 }

@@ -27200,5 +27200,13 @@
     "toastTitleRequired": "Le titre de l'article est requis",
     "updateArticle": "Mettre à jour l'article",
     "viewsCount": "{{count}} vues"
+  },
+  "destructiveConfirm": {
+    "title": "Confirmer l’action destructive",
+    "irreversible": "Cette action est irréversible.",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "typeToConfirm": "Tapez {{text}} pour confirmer :",
+    "typePlaceholder": "Tapez {{text}}"
   }
 }

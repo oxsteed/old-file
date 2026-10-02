@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import useDestructiveConfirm from '../hooks/useDestructiveConfirm';
 import { Check } from 'lucide-react';
 import { adminRoute } from '../adminRouteManifest';
 import adminApi              from '../../lib/adminApi';
@@ -19,6 +20,7 @@ const REASON_COLORS = {
 
 export default function ReportsList() {
   const { t } = useTranslation();
+  const { confirmDestructive, dialog: confirmDialog } = useDestructiveConfirm();
   const [tab,     setTab]      = useState('pending');
   const [acting,  setActing]   = useState(null);
   const [message, setMessage]  = useState(null);
@@ -43,7 +45,12 @@ export default function ReportsList() {
 
   const handleAction = async (reportId, action) => {
     const actionLabel = t(`adminReports.action.${action}`, { defaultValue: action });
-    if (!window.confirm(`${actionLabel}?`)) return;
+    // E12: destructive action goes through the shared confirm dialog.
+    const ok = await confirmDestructive({
+      description: `${actionLabel}?`,
+      confirmLabel: actionLabel,
+    });
+    if (!ok) return;
 
     setActing(reportId);
     setMessage(null);
@@ -66,6 +73,7 @@ export default function ReportsList() {
 
   return (
     <div className="p-8">
+      {confirmDialog}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-white">{t('adminReports.title')}</h1>

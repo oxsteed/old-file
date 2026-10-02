@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import useDestructiveConfirm from '../hooks/useDestructiveConfirm';
 import adminApi from '../../lib/adminApi';
 import toast from 'react-hot-toast';
 import {
@@ -25,6 +26,7 @@ const DAY_OPTIONS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'sa
 
 export default function SupportShiftsManager() {
   const { t } = useTranslation();
+  const { confirmDestructive, dialog: confirmDialog } = useDestructiveConfirm();
   const { businessId } = useParams();
   const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -155,7 +157,9 @@ export default function SupportShiftsManager() {
   };
 
   const handleDelete = async (shiftId) => {
-    if (!window.confirm(t('adminSupportShifts.confirmDelete'))) return;
+    // E12: destructive action goes through the shared confirm dialog.
+    const ok = await confirmDestructive({ description: t('adminSupportShifts.confirmDelete') });
+    if (!ok) return;
     try {
       await adminApi.delete(`/support/shifts/${shiftId}`);
       toast.success(t('adminSupportShifts.toastDeleted', { defaultValue: 'Shift deleted.' }));
@@ -169,6 +173,8 @@ export default function SupportShiftsManager() {
   const totalCapacity = shifts.reduce((sum, shift) => sum + (shift.max_agents || 0), 0);
 
   return (
+    <>
+      {confirmDialog}
     <SupportPageShell>
       <SupportHero
         icon={Calendar}
@@ -367,5 +373,6 @@ export default function SupportShiftsManager() {
         </div>
       )}
     </SupportPageShell>
+    </>
   );
 }

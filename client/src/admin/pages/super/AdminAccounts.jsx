@@ -5,6 +5,7 @@ import { UserPlus, Power, PowerOff, Activity, X, CheckCircle2 } from 'lucide-rea
 import adminApi from '../../../lib/adminApi';
 import { useAbortableFetch } from '../../lib/useAbortableFetch';
 import AdminErrorState from '../../lib/AdminErrorState';
+import useDestructiveConfirm from '../../hooks/useDestructiveConfirm';
 
 // ─── Create Admin Modal ──────────────────────────────────────
 function CreateAdminModal({ onCreated, onClose }) {
@@ -191,6 +192,7 @@ function ActivityDrawer({ admin, onClose }) {
 export default function AdminAccounts() {
   const { t } = useTranslation();
   const { user: me }          = useAuth();
+  const { confirmDestructive, dialog: confirmDialog } = useDestructiveConfirm();
   const [showCreate, setShowCreate] = useState(false);
   const [activity, setActivity]     = useState(null);
   const [toast, setToast]     = useState('');
@@ -220,7 +222,12 @@ export default function AdminAccounts() {
   }
 
   async function forceLogout(admin) {
-    if (!window.confirm(t('adminAdminAccounts.forceLogoutConfirm', { email: admin.email }))) return;
+    // E12: destructive action goes through the shared confirm dialog.
+    const ok = await confirmDestructive({
+      description: t('adminAdminAccounts.forceLogoutConfirm', { email: admin.email }),
+      confirmLabel: t('adminAdminAccounts.forceLogoutButton'),
+    });
+    if (!ok) return;
     try {
       await adminApi.post(`/admin/super/force-logout/${admin.id}`, { reason: t('adminAdminAccounts.forceLogoutReason', { defaultValue: 'Force logout by super admin' }) });
       showToast(t('admin.sessionsInvalidated'));
@@ -231,6 +238,7 @@ export default function AdminAccounts() {
 
   return (
     <div className="p-6">
+      {confirmDialog}
       {toast && (
         <div className="fixed top-6 right-6 z-50 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm">
           {toast}

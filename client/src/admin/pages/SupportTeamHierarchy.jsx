@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import useDestructiveConfirm from '../hooks/useDestructiveConfirm';
 import adminApi from '../../lib/adminApi';
 import toast from 'react-hot-toast';
 import {
@@ -241,6 +242,7 @@ function MemberFormModal({ member, roles, skills, departmentName, onClose, onSav
 // Main Team Hierarchy
 export default function SupportTeamHierarchy() {
   const { t } = useTranslation();
+  const { confirmDestructive, dialog: confirmDialog } = useDestructiveConfirm();
   const { businessId } = useParams();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -286,7 +288,9 @@ export default function SupportTeamHierarchy() {
   };
 
   const handleRemoveMember = async (memberId) => {
-    if (!window.confirm(t('adminSupportTeam.confirmRemove'))) return;
+    // E12: destructive action goes through the shared confirm dialog.
+    const ok = await confirmDestructive({ description: t('adminSupportTeam.confirmRemove') });
+    if (!ok) return;
     try {
       await adminApi.delete(`/support/team/members/${memberId}`);
       toast.success(t('adminSupportTeam.toastRemoved', { defaultValue: 'Team member removed.' }));
@@ -312,6 +316,8 @@ export default function SupportTeamHierarchy() {
   const skills = teamData.available_skills || [];
 
   return (
+    <>
+      {confirmDialog}
     <div className="p-6 max-w-7xl mx-auto">
       <SupportSubNav />
       {/* Header */}
@@ -423,5 +429,6 @@ export default function SupportTeamHierarchy() {
         />
       )}
     </div>
+    </>
   );
 }

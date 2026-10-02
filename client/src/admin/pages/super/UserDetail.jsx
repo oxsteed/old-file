@@ -14,6 +14,7 @@ import { useAuth } from '../../../hooks/useAuth';
 import { useAbortableFetch } from '../../lib/useAbortableFetch';
 import { useHasGrant } from '../../lib/GrantGuard';
 import { adminDate } from '../../lib/formatters';
+import useDestructiveConfirm from '../../hooks/useDestructiveConfirm';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -220,6 +221,7 @@ export default function UserDetail() {
   const { userId }   = useParams();
   const navigate     = useNavigate();
   const { user: me } = useAuth();
+  const { confirmDestructive, dialog: confirmDialog } = useDestructiveConfirm();
   const isSuper = me?.role === 'super_admin';
   const isAdmin = me?.role === 'admin' || me?.role === 'super_admin';
   // POST /admin/super/users/:id/message is grant-gated (message_users); hide
@@ -364,7 +366,12 @@ export default function UserDetail() {
   };
 
   const doAction = async (endpoint, payload = {}, label = '') => {
-    if (!window.confirm(t('adminUserDetail.confirmAction', { label }))) return;
+    // E12: destructive action goes through the shared confirm dialog.
+    const ok = await confirmDestructive({
+      description: t('adminUserDetail.confirmAction', { label }),
+      confirmLabel: label || undefined,
+    });
+    if (!ok) return;
     setWorking(true); setMessage(null);
     try {
       const { data: res } = await adminApi.post(`/admin/users/${userId}/${endpoint}`, payload);
@@ -376,9 +383,10 @@ export default function UserDetail() {
   // ── impersonation ─────────────────────────────────────────────────────────
 
   const startImpersonation = async () => {
-    if (!window.confirm(
-      t('adminUserDetail.impersonate.confirm', { name: `${data?.user?.first_name} ${data?.user?.last_name}` })
-    )) return;
+    const ok = await confirmDestructive({
+      description: t('adminUserDetail.impersonate.confirm', { name: `${data?.user?.first_name} ${data?.user?.last_name}` }),
+    });
+    if (!ok) return;
     setImpersonating(true);
     try {
       const { data: res } = await adminApi.post(`/admin/users/${userId}/impersonate`);
@@ -424,7 +432,10 @@ export default function UserDetail() {
     }
     const reason = window.prompt(t('adminUserDetail.phone.reasonPrompt'), t('adminUserDetail.phone.defaultReason')) ?? '';
     if (!reason.trim()) return;
-    if (!window.confirm(t('adminUserDetail.phone.sendConfirm', { last4: String(user.phone).slice(-4) }))) return;
+    const ok = await confirmDestructive({
+      description: t('adminUserDetail.phone.sendConfirm', { last4: String(user.phone).slice(-4) }),
+    });
+    if (!ok) return;
 
     setPhoneVerificationSaving(true);
     try {
@@ -440,7 +451,11 @@ export default function UserDetail() {
   // ── role ──────────────────────────────────────────────────────────────────
 
   const changeRole = async (role) => {
-    if (!window.confirm(t('adminUserDetail.role.changeConfirm', { role: t(`adminUserDetail.${ROLE_I18N_KEYS[role] || 'role.unknown'}`) }))) return;
+    const ok = await confirmDestructive({
+      description: t('adminUserDetail.role.changeConfirm', { role: t(`adminUserDetail.${ROLE_I18N_KEYS[role] || 'role.unknown'}`) }),
+      confirmLabel: t(`adminUserDetail.${ROLE_I18N_KEYS[role] || 'role.unknown'}`),
+    });
+    if (!ok) return;
     setWorking(true);
     try {
       const { data: res } = await adminApi.put(`/admin/users/${userId}/role`, { role });
@@ -490,7 +505,10 @@ export default function UserDetail() {
   };
 
   const deleteNote = async (noteId) => {
-    if (!window.confirm(t('adminUserDetail.notes.deleteConfirm'))) return;
+    const ok = await confirmDestructive({
+      description: t('adminUserDetail.notes.deleteConfirm'),
+    });
+    if (!ok) return;
     try {
       await adminApi.delete(`/admin/users/${userId}/notes/${noteId}`);
       setNotes(prev => prev.filter(n => n.id !== noteId));
@@ -500,7 +518,10 @@ export default function UserDetail() {
   // ── didit ─────────────────────────────────────────────────────────────────
 
   const setDiditEnforcement = async (required) => {
-    if (!window.confirm(t(required ? 'admin.diditRequireConfirm' : 'admin.diditRelaxConfirm'))) return;
+    const ok = await confirmDestructive({
+      description: t(required ? 'admin.diditRequireConfirm' : 'admin.diditRelaxConfirm'),
+    });
+    if (!ok) return;
     setDiditSaving(true);
     try {
       await adminApi.put(`/admin/users/${userId}/didit-enforcement`, { required });
@@ -531,7 +552,10 @@ export default function UserDetail() {
     e.preventDefault();
     if (newPw.length < 8)    { flash('error', t('admin.setPasswordTooShort')); return; }
     if (newPw !== confirmPw) { flash('error', t('admin.setPasswordMismatch'));  return; }
-    if (!window.confirm(t('admin.setPasswordPrompt'))) return;
+    const ok = await confirmDestructive({
+      description: t('admin.setPasswordPrompt'),
+    });
+    if (!ok) return;
     setPwSaving(true);
     try {
       const { data: res } = await adminApi.post(`/admin/users/${userId}/password`, { password: newPw });
@@ -546,17 +570,12 @@ export default function UserDetail() {
   const deleteUserAccount = async () => {
     const user = data?.user;
     if (!user) return;
-    // Step 1: confirm intent
-    if (!window.confirm(
-      t('adminUserDetail.delete.scheduleConfirm', { email: user.email })
-    )) return;
-    // Step 2: type the email to confirm identity
-    const typed = window.prompt(t('adminUserDetail.delete.typeEmailPrompt'), '');
-    if (typed === null) return;
-    if (typed.trim().toLowerCase() !== (user.email ?? '').toLowerCase()) {
-      flash('error', t('adminUserDetail.delete.emailMismatch'));
-      return;
-    }
+    // E12: one dialog replaces the old confirm + type-the-email steps.
+    const ok = await confirmDestructive({
+      description: t('adminUserDetail.delete.scheduleConfirm', { email: user.email }),
+      requireTypeText: user.email || '',
+    });
+    if (!ok) return;
     // Step 3: reason
     const reason = window.prompt(t('adminUserDetail.delete.reasonPrompt'), '') ?? '';
     if (!reason.trim()) { flash('error', t('adminUserDetail.delete.reasonRequired')); return; }
@@ -573,9 +592,9 @@ export default function UserDetail() {
       if (serverErr?.canForce && serverErr?.activeJobs) {
         // Active jobs — ask admin to force-override
         const jobList = serverErr.activeJobs.map(j => `• ${j.title} (${j.status})`).join('\n');
-        const forceIt = window.confirm(
-          t('adminUserDetail.delete.forceJobsConfirm', { count: serverErr.activeJobs.length, jobList })
-        );
+        const forceIt = await confirmDestructive({
+          description: t('adminUserDetail.delete.forceJobsConfirm', { count: serverErr.activeJobs.length, jobList }),
+        });
         if (forceIt) {
           try {
             const { data: res2 } = await adminApi.delete(`/admin/users/${userId}`, {
@@ -589,9 +608,9 @@ export default function UserDetail() {
         }
       } else if (serverErr?.canForce && serverErr?.pendingPaymentCount) {
         // Pending payments — same force pattern
-        const forceIt = window.confirm(
-          t('adminUserDetail.delete.forcePaymentsConfirm', { count: serverErr.pendingPaymentCount })
-        );
+        const forceIt = await confirmDestructive({
+          description: t('adminUserDetail.delete.forcePaymentsConfirm', { count: serverErr.pendingPaymentCount }),
+        });
         if (forceIt) {
           try {
             const { data: res2 } = await adminApi.delete(`/admin/users/${userId}`, {
@@ -671,6 +690,7 @@ export default function UserDetail() {
 
   return (
     <div className="p-4 sm:p-8 max-w-5xl space-y-6" style={{ background: 'transparent' }}>
+      {confirmDialog}
 
       {/* Back link */}
       <Link to="/admin/users" className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-300 transition">

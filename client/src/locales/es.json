@@ -27200,5 +27200,13 @@
     "toastTitleRequired": "Se requiere el título del artículo",
     "updateArticle": "Actualizar artículo",
     "viewsCount": "{{count}} vistas"
+  },
+  "destructiveConfirm": {
+    "title": "Confirmar acción destructiva",
+    "irreversible": "Esta acción no se puede deshacer.",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "typeToConfirm": "Escribe {{text}} para confirmar:",
+    "typePlaceholder": "Escribe {{text}}"
   }
 }

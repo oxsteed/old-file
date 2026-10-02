@@ -27211,5 +27211,13 @@
     "toastTitleRequired": "عنوان المقال مطلوب",
     "updateArticle": "تحديث المقال",
     "viewsCount": "{{count}} مشاهدات"
+  },
+  "destructiveConfirm": {
+    "title": "تأكيد الإجراء المدمر",
+    "irreversible": "لا يمكن التراجع عن هذا الإجراء.",
+    "cancel": "إلغاء",
+    "confirm": "تأكيد",
+    "typeToConfirm": "اكتب {{text}} للتأكيد:",
+    "typePlaceholder": "اكتب {{text}}"
   }
 }

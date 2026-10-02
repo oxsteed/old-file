@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import useDestructiveConfirm from '../hooks/useDestructiveConfirm';
 import { AlertTriangle, Bell, Building2, CalendarClock, CheckCircle2, CheckSquare, ChevronLeft, ChevronRight, Download, Eye, EyeOff, History, MonitorPlay, RefreshCw, Save, Search, ShieldCheck, Store, Trash2, Undo2, User, X } from 'lucide-react';
 import api from '../../api/axios';
 import logger from '../../utils/logger';
@@ -132,6 +133,7 @@ export default function ProfileVisibilityPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const copy = useCallback((key, options) => t(`adminProfileVisibility.${key}`, options), [t]);
+  const { confirmDestructive, dialog: confirmDialog } = useDestructiveConfirm();
 
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -478,7 +480,9 @@ export default function ProfileVisibilityPage() {
   const cancelScheduled = useCallback(async (action) => {
     const id = action.id;
     if (!id) return;
-    if (!window.confirm(copy('cancelScheduledConfirm', { defaultValue: 'Cancel this scheduled action?' }))) return;
+    // E12: destructive action goes through the shared confirm dialog.
+    const okCancel = await confirmDestructive({ description: copy('cancelScheduledConfirm', { defaultValue: 'Cancel this scheduled action?' }) });
+    if (!okCancel) return;
     try {
       await api.delete(`/admin/profile-visibility/scheduled/${id}`);
       setScheduledActions((prev) => prev.filter((item) => item.id !== id));
@@ -611,7 +615,9 @@ export default function ProfileVisibilityPage() {
       return;
     }
 
-    if (!window.confirm(copy(isVisible ? 'bulkRestoreConfirm' : 'bulkHideConfirm', { count: targets.length, defaultValue: `Apply this action to ${targets.length} profiles?` }))) return;
+    // E12: destructive action goes through the shared confirm dialog.
+    const okBulk = await confirmDestructive({ description: copy(isVisible ? 'bulkRestoreConfirm' : 'bulkHideConfirm', { count: targets.length }) });
+    if (!okBulk) return;
     setSaving(true);
     try {
       const { data } = await api.post('/admin/profile-visibility/bulk', { items, idempotency_key: idempotencyKey });
@@ -859,6 +865,8 @@ export default function ProfileVisibilityPage() {
   const timezoneOptions = TIMEZONES.includes(scheduleTz) ? TIMEZONES : [scheduleTz, ...TIMEZONES];
 
   return (
+    <>
+      {confirmDialog}
     <div className="pv-admin" style={{ padding: '2rem', background: 'var(--color-bg)', minHeight: '100vh' }}>
       <style>{`
         .pv-admin button:focus-visible, .pv-admin input:focus-visible, .pv-admin select:focus-visible, .pv-admin a:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
@@ -1572,5 +1580,6 @@ export default function ProfileVisibilityPage() {
         onConfirm={undoLastChange}
       />
     </div>
+    </>
   );
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import useDestructiveConfirm from '../hooks/useDestructiveConfirm';
 import adminApi from '../../lib/adminApi';
 import toast from 'react-hot-toast';
 import {
@@ -28,6 +29,7 @@ const NS = 'adminSupportKnowledgeBase';
 
 export default function SupportKnowledgeBase() {
   const { t } = useTranslation();
+  const { confirmDestructive, dialog: confirmDialog } = useDestructiveConfirm();
   const { businessId } = useParams();
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -93,7 +95,9 @@ export default function SupportKnowledgeBase() {
   };
 
   const handleDelete = async (articleId) => {
-    if (!window.confirm(t('supportAdmin.knowledgeBase.confirmDeleteArticle'))) return;
+    // E12: destructive action goes through the shared confirm dialog.
+    const ok = await confirmDestructive({ description: t('supportAdmin.knowledgeBase.confirmDeleteArticle') });
+    if (!ok) return;
     try {
       await adminApi.delete(`/support/kb/${articleId}`);
       toast.success(t(`${NS}.toastDeleted`, { defaultValue: 'Article deleted.' }));
@@ -119,6 +123,8 @@ export default function SupportKnowledgeBase() {
   const totalHelpful = articles.reduce((sum, article) => sum + Number(article.helpful_count || 0), 0);
 
   return (
+    <>
+      {confirmDialog}
     <SupportPageShell>
       <SupportHero
         icon={LibraryBig}
@@ -334,5 +340,6 @@ export default function SupportKnowledgeBase() {
         </div>
       )}
     </SupportPageShell>
+    </>
   );
 }

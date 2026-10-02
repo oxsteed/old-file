@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import useDestructiveConfirm from '../hooks/useDestructiveConfirm';
 import adminApi from '../../lib/adminApi';
 import toast from 'react-hot-toast';
 import {
@@ -260,6 +261,7 @@ function EscalationRuleModal({ rule, onClose, onSave }) {
 // Main Escalation Manager
 export default function SupportEscalationManager() {
   const { t } = useTranslation();
+  const { confirmDestructive, dialog: confirmDialog } = useDestructiveConfirm();
   const { businessId } = useParams();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -309,7 +311,9 @@ export default function SupportEscalationManager() {
   };
 
   const handleDelete = async (ruleId) => {
-    if (!window.confirm(t('supportAdmin.escalation.confirmDeleteRule'))) return;
+    // E12: destructive action goes through the shared confirm dialog.
+    const ok = await confirmDestructive({ description: t('supportAdmin.escalation.confirmDeleteRule') });
+    if (!ok) return;
     try {
       await adminApi.delete(`/support/escalation/rules/${ruleId}`);
       toast.success(t('adminSupportEscalation.toastDeleted', { defaultValue: 'Escalation rule deleted.' }));
@@ -343,6 +347,8 @@ export default function SupportEscalationManager() {
   const stats = escalationData.stats || {};
 
   return (
+    <>
+      {confirmDialog}
     <div className="p-6 max-w-7xl mx-auto">
       <SupportSubNav />
       {/* Header */}
@@ -440,5 +446,6 @@ export default function SupportEscalationManager() {
         />
       )}
     </div>
+    </>
   );
 }

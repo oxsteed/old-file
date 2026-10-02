@@ -12,6 +12,7 @@ import adminApi from '../../lib/adminApi';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import { useHasGrant } from '../lib/GrantGuard';
 import { adminDate } from '../lib/formatters';
+import useDestructiveConfirm from '../hooks/useDestructiveConfirm';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -249,6 +250,7 @@ function ResetPasswordModal({ user, onClose }) {
 // ---------------------------------------------------------------------------
 function QuickActionsMenu({ user, isSuper, canMessage, onMessage, onToggleBan, onResetPw, onRefresh, onCancelPendingDeletion }) {
   const { t } = useTranslation();
+  const { confirmDestructive, dialog: confirmDialog } = useDestructiveConfirm();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const ref = useRef(null);
@@ -262,6 +264,7 @@ function QuickActionsMenu({ user, isSuper, canMessage, onMessage, onToggleBan, o
 
   return (
     <div ref={ref} className="relative">
+      {confirmDialog}
       <button onClick={() => setOpen(o => !o)} disabled={busy}
         aria-label={t('common.moreActions', { defaultValue: 'More actions' })}
         className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-700 transition disabled:opacity-40">
@@ -287,7 +290,11 @@ function QuickActionsMenu({ user, isSuper, canMessage, onMessage, onToggleBan, o
               type="button"
               onClick={async () => {
                 setOpen(false);
-                if (!window.confirm(t('adminUsers.list.cancelDeletionConfirm', { email: user.email }))) return;
+                // E12: destructive action goes through the shared confirm dialog.
+                const ok = await confirmDestructive({
+                  description: t('adminUsers.list.cancelDeletionConfirm', { email: user.email }),
+                });
+                if (!ok) return;
                 setBusy(true);
                 try {
                   await onCancelPendingDeletion(user);

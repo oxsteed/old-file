@@ -6,6 +6,7 @@
 const AppError = require('../utils/appError');
 const countryPackService = require('../services/countryPackService');
 const logger = require('../utils/logger');
+const { logAdminAction } = require('../services/auditService');
 
 /**
  * GET /api/country-config/countries  (public)
@@ -67,12 +68,26 @@ exports.adminListCountryPacks = async (req, res, next) => {
  */
 exports.adminUpdateCountryPack = async (req, res, next) => {
   try {
+    // E12: capture the before-state so the audit row shows what changed.
+    const before = (await countryPackService.listAllCountryPacks())
+      .find((p) => p.code === countryPackService.normalizeCode(req.params.code)) || null;
     const updated = await countryPackService.updateCountryPack(req.params.code, req.body || {});
     if (!updated) return next(new AppError('Country not found', 404, 'country_not_found'));
     logger.info('country pack updated', {
       code: updated.code,
       status: updated.status,
       by: req.user?.id,
+    });
+    // E12: destructive admin action recorded in the audit log.
+    await logAdminAction({
+      adminId: req.user?.id,
+      action: 'country_pack_update',
+      targetType: 'country_pack',
+      targetKey: updated.code,
+      description: `Country pack ${updated.code} updated`,
+      before: before ? { status: before.status, name: before.name } : null,
+      after: { status: updated.status, name: updated.name },
+      req,
     });
     res.json({ success: true, data: updated });
   } catch (err) {

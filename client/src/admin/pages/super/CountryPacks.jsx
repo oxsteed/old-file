@@ -3,6 +3,7 @@ import { Globe, Loader2, Power, Clock, EyeOff } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
+import useDestructiveConfirm from '../../hooks/useDestructiveConfirm';
 
 // Super-admin country pack registry (docs/oxsteed-pack-architecture.md §5).
 // Activating a country is a one-row status flip — never a deploy.
@@ -21,6 +22,7 @@ const STATUS_LABEL_KEYS = {
 
 export default function CountryPacks() {
   const { t } = useTranslation();
+  const { confirmDestructive, dialog: confirmDialog } = useDestructiveConfirm();
   const [packs, setPacks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(null); // country code mid-update
@@ -44,8 +46,12 @@ export default function CountryPacks() {
 
   const setStatus = async (pack, status) => {
     const verb = t(STATUS_LABEL_KEYS[status]).toLowerCase();
-    // eslint-disable-next-line no-alert
-    if (!window.confirm(t('superCountryPacks.confirmSet', { name: pack.name, code: pack.code, status: verb }))) return;
+    // E12: destructive change goes through the shared confirm dialog.
+    const ok = await confirmDestructive({
+      description: t('superCountryPacks.confirmSet', { name: pack.name, code: pack.code, status: verb }),
+      confirmLabel: t(STATUS_LABEL_KEYS[status]),
+    });
+    if (!ok) return;
     setUpdating(pack.code);
     try {
       await adminApi.patch(`/country-config/admin/${pack.code}`, { status });
@@ -68,6 +74,7 @@ export default function CountryPacks() {
 
   return (
     <div className="space-y-6">
+      {confirmDialog}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
           <Globe size={20} className="text-orange-400" />

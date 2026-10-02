@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import useDestructiveConfirm from '../hooks/useDestructiveConfirm';
 import adminApi from '../../lib/adminApi';
 import toast from 'react-hot-toast';
 import {
@@ -25,6 +26,7 @@ import {
 
 export default function SupportAgentManagement() {
   const { t } = useTranslation();
+  const { confirmDestructive, dialog: confirmDialog } = useDestructiveConfirm();
   const { businessId } = useParams();
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,7 +65,9 @@ export default function SupportAgentManagement() {
   };
 
   const handleDelete = async (agentId) => {
-    if (!window.confirm(t('supportAdmin.agentManagement.confirmDeleteAgent'))) return;
+    // E12: destructive action goes through the shared confirm dialog.
+    const ok = await confirmDestructive({ description: t('supportAdmin.agentManagement.confirmDeleteAgent') });
+    if (!ok) return;
     try {
       await adminApi.delete(`/support/agents/${agentId}`);
       toast.success(t('supportAdmin.agentManagement.agentDeleted', { defaultValue: 'Agent deleted' }));
@@ -78,6 +82,8 @@ export default function SupportAgentManagement() {
   const skillCount = new Set(agents.flatMap((agent) => agent.skills || [])).size;
 
   return (
+    <>
+      {confirmDialog}
     <SupportPageShell>
       <SupportHero
         icon={Users}
@@ -255,5 +261,6 @@ export default function SupportAgentManagement() {
         </div>
       )}
     </SupportPageShell>
+    </>
   );
 }
