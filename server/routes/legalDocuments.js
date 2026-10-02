@@ -10,8 +10,44 @@ const legalController = require('../controllers/legalDocumentsController');
 const ccpaController = require('../controllers/ccpaController');
 const db = require('../db');
 
-const legalDrafts = new Map();
 const TERMS_DOCUMENT_TYPE = 'terms_of_service';
+
+// T56-F04: legal drafts are persisted in the database, not a process-local
+// Map, so restarts and multi-node deployments share the same state.
+
+async function getDraft(id) {
+  const { rows } = await db.query('SELECT * FROM legal_document_drafts WHERE id = $1', [id]);
+  return rows[0] || null;
+}
+
+async function listDrafts() {
+  // Seed the terms document from the bundled locale content if absent.
+  const existing = await getDraft(TERMS_DOCUMENT_TYPE);
+  if (!existing) {
+    const sections = loadTermsDocument({ query: {} }).sections;
+    await db.query(
+      `INSERT INTO legal_document_drafts (id, title, category, description, version, status, sections, updated_at)
+       VALUES ($1, $2, $3, $4, 1, 'live', $5::jsonb, '2026-06-02T00:00:00.000Z')
+       ON CONFLICT (id) DO NOTHING`,
+      [TERMS_DOCUMENT_TYPE, 'Terms of Service', TERMS_DOCUMENT_TYPE, 'Current public OxSteed terms.', JSON.stringify(sections)]
+    );
+  }
+  const { rows } = await db.query('SELECT * FROM legal_document_drafts ORDER BY updated_at DESC');
+  return rows;
+}
+
+function adminDocumentFromRow(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    category: row.category,
+    description: row.description || '',
+    version: row.version,
+    status: row.status,
+    updatedAt: row.updated_at,
+    changeSummary: row.change_summary || '',
+  };
+}
 
 function termsSectionHtml(blocks = []) {
   return blocks.map((block) => {
@@ -54,33 +90,6 @@ function loadTermsDocument(req) {
   };
 }
 
-function adminDocumentFromDraft(id, draft) {
-  return {
-    id,
-    title: draft.title,
-    category: draft.category,
-    description: draft.description || '',
-    version: draft.version || 1,
-    status: draft.status || 'draft',
-    updatedAt: draft.updatedAt,
-    changeSummary: draft.changeSummary || '',
-  };
-}
-
-function getAdminDocuments() {
-  if (!legalDrafts.has(TERMS_DOCUMENT_TYPE)) {
-    legalDrafts.set(TERMS_DOCUMENT_TYPE, {
-      title: 'Terms of Service',
-      category: TERMS_DOCUMENT_TYPE,
-      description: 'Current public OxSteed terms.',
-      version: 1,
-      status: 'live',
-      sections: loadTermsDocument({ query: {} }).sections,
-      updatedAt: '2026-06-02T00:00:00.000Z',
-    });
-  }
-  return Array.from(legalDrafts.entries()).map(([id, draft]) => adminDocumentFromDraft(id, draft));
-}
 
 function csvEscape(value) {
   const s = value == null ? '' : String(value);
@@ -128,9 +137,10 @@ router.post('/documents/:documentType/accept',
 router.get('/documents',
   authenticate,
   requireAdmin, requirePermission('manage_operations'),
-  (req, res) => {
-    const status = req.query.status;
-    const documents = getAdminDocuments().filter((doc) => !status || doc.status === status);
+  async (req, res) => {
+    const { status } = req.query;
+    const rows = await listDrafts();
+    const documents = rows.map(adminDocumentFromRow).filter((doc) => !status || doc.status === status);
     return res.json({ documents });
   }
 );
@@ -138,46 +148,39 @@ router.get('/documents',
 router.post('/documents',
   authenticate,
   requireAdmin, requirePermission('manage_operations'),
-  (req, res) => {
+  async (req, res) => {
     const id = `${req.body.category || 'document'}_${Date.now()}`;
-    const now = new Date().toISOString();
     const sections = String(req.body.content || '')
       .split(/\n{2,}/)
       .filter(Boolean)
       .map((content, index) => ({ key: `section_${index + 1}`, title: `Section ${index + 1}`, content }));
-    legalDrafts.set(id, {
-      title: req.body.title || 'Untitled legal document',
-      category: req.body.category || 'terms_of_service',
-      description: req.body.description || '',
-      version: 1,
-      status: 'draft',
-      changeSummary: req.body.changeSummary || '',
-      sections,
-      updatedAt: now,
-    });
-    return res.status(201).json({ document: adminDocumentFromDraft(id, legalDrafts.get(id)) });
+    const { rows } = await db.query(
+      `INSERT INTO legal_document_drafts (id, title, category, description, version, status, sections, change_summary, updated_by)
+       VALUES ($1, $2, $3, $4, 1, 'draft', $5::jsonb, $6, $7)
+       RETURNING *`,
+      [id, req.body.title || 'Untitled legal document', req.body.category || 'terms_of_service',
+       req.body.description || '', JSON.stringify(sections), req.body.changeSummary || '', req.user.id]
+    );
+    return res.status(201).json({ document: adminDocumentFromRow(rows[0]) });
   }
 );
 
 router.get('/documents/:id',
   authenticate,
   requireAdmin, requirePermission('manage_operations'),
-  (req, res) => {
-    getAdminDocuments();
-    const draft = legalDrafts.get(req.params.id);
+  async (req, res) => {
+    const draft = await getDraft(req.params.id);
     if (!draft) return res.status(404).json({ error: 'Document not found' });
-    return res.json({ document: adminDocumentFromDraft(req.params.id, draft), sections: draft.sections || [] });
+    return res.json({ document: adminDocumentFromRow(draft), sections: draft.sections || [] });
   }
 );
 
 router.put('/documents/:id',
   authenticate,
   requireAdmin, requirePermission('manage_operations'),
-  (req, res) => {
-    getAdminDocuments();
-    const draft = legalDrafts.get(req.params.id);
+  async (req, res) => {
+    const draft = await getDraft(req.params.id);
     if (!draft) return res.status(404).json({ error: 'Document not found' });
-    const now = new Date().toISOString();
     const sections = req.body.content
       ? String(req.body.content).split(/\n{2,}/).filter(Boolean).map((content, index) => ({
           key: `section_${index + 1}`,
@@ -185,43 +188,48 @@ router.put('/documents/:id',
           content,
         }))
       : draft.sections;
-    const updated = {
-      ...draft,
-      title: req.body.title ?? draft.title,
-      description: req.body.description ?? draft.description,
-      changeSummary: req.body.changeSummary ?? draft.changeSummary,
-      sections,
-      updatedAt: now,
-    };
-    legalDrafts.set(req.params.id, updated);
-    return res.json({ document: adminDocumentFromDraft(req.params.id, updated), sections: updated.sections || [] });
+    const { rows } = await db.query(
+      `UPDATE legal_document_drafts
+          SET title = $2, description = $3, change_summary = $4, sections = $5::jsonb,
+              updated_at = NOW(), updated_by = $6
+        WHERE id = $1 RETURNING *`,
+      [req.params.id, req.body.title ?? draft.title, req.body.description ?? draft.description,
+       req.body.changeSummary ?? draft.change_summary, JSON.stringify(sections), req.user.id]
+    );
+    return res.json({ document: adminDocumentFromRow(rows[0]), sections: rows[0].sections || [] });
   }
 );
 
 router.post('/documents/:id/request-approval',
   authenticate,
   requireAdmin, requirePermission('manage_operations'),
-  (req, res) => {
-    getAdminDocuments();
-    const draft = legalDrafts.get(req.params.id);
+  async (req, res) => {
+    const draft = await getDraft(req.params.id);
     if (!draft) return res.status(404).json({ error: 'Document not found' });
-    draft.status = 'pending_review';
-    draft.changeSummary = req.body.changeSummary || draft.changeSummary || '';
-    draft.updatedAt = new Date().toISOString();
-    return res.json({ document: adminDocumentFromDraft(req.params.id, draft) });
+    const { rows } = await db.query(
+      `UPDATE legal_document_drafts
+          SET status = 'pending_review', change_summary = $2, updated_at = NOW(), updated_by = $3
+        WHERE id = $1 RETURNING *`,
+      [req.params.id, req.body.changeSummary || draft.change_summary || '', req.user.id]
+    );
+    return res.json({ document: adminDocumentFromRow(rows[0]) });
   }
 );
 
 router.post('/documents/:id/approve',
   authenticate,
   requireAdmin, requirePermission('manage_operations'),
-  (req, res) => {
-    getAdminDocuments();
-    const draft = legalDrafts.get(req.params.id);
+  async (req, res) => {
+    const draft = await getDraft(req.params.id);
     if (!draft) return res.status(404).json({ error: 'Document not found' });
-    draft.status = req.body.scheduledPublishDate ? 'scheduled' : 'live';
-    draft.updatedAt = new Date().toISOString();
-    return res.json({ document: adminDocumentFromDraft(req.params.id, draft) });
+    const status = req.body.scheduledPublishDate ? 'scheduled' : 'live';
+    const { rows } = await db.query(
+      `UPDATE legal_document_drafts
+          SET status = $2, version = version + 1, updated_at = NOW(), updated_by = $3
+        WHERE id = $1 RETURNING *`,
+      [req.params.id, status, req.user.id]
+    );
+    return res.json({ document: adminDocumentFromRow(rows[0]) });
   }
 );
 

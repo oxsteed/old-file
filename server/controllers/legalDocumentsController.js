@@ -261,8 +261,10 @@ async function listAllAcceptances(req, res, next) {
     dataQuery += ` LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
     params.push(parseInt(limit), offset);
 
+    // T56-F01: the count query takes only the filter params (no LIMIT/OFFSET).
+    // paramCount is 1-based, so the filter count is paramCount - 1.
     const [countResult, dataResult] = await Promise.all([
-      pool.query(countQuery, params.slice(0, paramCount - 2)),
+      pool.query(countQuery, params.slice(0, paramCount - 1)),
       pool.query(dataQuery, params)
     ]);
 
@@ -445,8 +447,9 @@ async function getAuditLog(req, res, next) {
     dataQuery += ` LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
     params.push(parseInt(limit), offset);
 
+    // T56-F01: the count query takes only the filter params (no LIMIT/OFFSET).
     const [countResult, dataResult] = await Promise.all([
-      pool.query(countQuery, params.slice(0, paramCount - 2)),
+      pool.query(countQuery, params.slice(0, paramCount - 1)),
       pool.query(dataQuery, params)
     ]);
 
