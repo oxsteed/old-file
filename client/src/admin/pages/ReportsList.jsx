@@ -38,7 +38,6 @@ export default function ReportsList() {
   const reports = data?.reports || [];
   const total = data?.total || 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const total = data?.total || 0;
 
   const fetchReports = () => reload();
 
