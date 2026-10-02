@@ -238,9 +238,11 @@ exports.cancelAutopublish = async (req, res) => {
       return res.status(409).json({ error: `Cannot cancel auto-publish: status is '${rows[0].status}', must be 'activating_soon'.` });
     }
 
-    // Update with safeguard to prevent race conditions
+    // Update with safeguard to prevent race conditions.
+    // T20-F01: cancelling auto-publish must durably pause the need, otherwise
+    // the scheduler re-promotes it to activating_soon on the next run.
     const updateResult = await db.query(
-      "UPDATE planned_needs SET status = 'planned', updated_at = NOW() WHERE id = $1 AND status = 'activating_soon' RETURNING id",
+      "UPDATE planned_needs SET status = 'planned', is_paused = TRUE, updated_at = NOW() WHERE id = $1 AND status = 'activating_soon' RETURNING id",
       [id]
     );
 

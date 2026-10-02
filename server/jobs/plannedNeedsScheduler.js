@@ -19,6 +19,146 @@ const { sendNotification } = require('../services/notificationService');
  *   Jobs whose hold_expires_at has passed: clear held_for_helper_id,
  *   notify customer.
  */
+/**
+ * Attempt to publish a single planned need.
+ *
+ * T20-F02: the candidate row is re-read under FOR UPDATE and its full
+ * eligibility (unpublished, publishable status, not paused) is revalidated
+ * before any job INSERT. A need cancelled or paused after candidate selection
+ * but before this lock is skipped, never published.
+ *
+ * @returns {Promise<{published: boolean, jobId?: string, reason?: string}>}
+ */
+async function tryPublishPlannedNeed(need) {
+  // Wrap the publish in a transaction so the INSERT-job / UPDATE-planned-need
+  // pair is atomic. Without this, a crash between the two statements would
+  // leave an orphan job AND a planned_need row with NULL published_job_id -
+  // which the next cron run would then publish AGAIN, creating a duplicate.
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Re-check eligibility under FOR UPDATE so two concurrent scheduler runs
+    // (e.g., manual + cron) can't both publish, and so a cancellation or
+    // pause committed after candidate selection is honored.
+    const { rows: lockRows } = await client.query(
+      `SELECT id, published_job_id, status, COALESCE(is_paused, FALSE) AS is_paused
+       FROM planned_needs
+       WHERE id = $1 FOR UPDATE`,
+      [need.id]
+    );
+    const locked = lockRows[0];
+    const eligible = locked
+      && !locked.published_job_id
+      && ['planned', 'funding', 'activating_soon'].includes(locked.status)
+      && !locked.is_paused;
+    if (!eligible) {
+      await client.query('ROLLBACK');
+      return { published: false, reason: 'not eligible under lock' };
+    }
+
+    const categoryName = categoryToJobName(need.category);
+    const cost = parseFloat(need.estimated_cost || 0);
+    const budgetMin = cost > 0 ? Math.round(cost * 0.8 * 100) / 100 : null;
+    const budgetMax = cost > 0 ? cost : null;
+    const description = need.description
+      || `Auto-scheduled: ${need.title}. Posted automatically from Planned Needs.`;
+
+    // Task 10: Skip inactive preferred helpers
+    const hasPreferred = !!need.preferred_helper_id && need.helper_is_active !== false;
+
+    // Task 1: ALL jobs are created as 'published' now.
+    // If there's a preferred helper, we set held_for_helper_id + hold_expires_at.
+    const { rows: jobRows } = await client.query(`
+      INSERT INTO jobs
+        (client_id, title, description, category_name, status,
+         budget_min, budget_max,
+         location_city, location_state, location_zip,
+         scheduled_date, expires_at,
+         planned_need_id,
+         held_for_helper_id, held_at, hold_expires_at,
+         metadata)
+      VALUES ($1,$2,$3,$4,'published',
+              $5,$6,$7,$8,$9,$10,
+              NOW() + INTERVAL '30 days',
+              $11,
+              $12, CASE WHEN $12::uuid IS NOT NULL THEN NOW() ELSE NULL END,
+              CASE WHEN $12::uuid IS NOT NULL THEN NOW() + INTERVAL '72 hours' ELSE NULL END,
+              jsonb_build_object('source','planned_need','planned_need_id',$11))
+      RETURNING id
+    `, [
+      need.user_id, need.title, description, categoryName,
+      budgetMin, budgetMax,
+      need.location_city || null, need.location_state || null, need.location_zip || null,
+      need.due_date,
+      need.id,
+      hasPreferred ? need.preferred_helper_id : null,
+    ]);
+    const jobId = jobRows[0].id;
+
+    if (hasPreferred) {
+      await client.query(`
+        UPDATE planned_needs
+        SET status = 'published',
+            published_job_id = $2,
+            published_at     = NOW(),
+            preferred_helper_status = 'pending',
+            helper_notified_at      = NOW(),
+            updated_at       = NOW()
+        WHERE id = $1
+      `, [need.id, jobId]);
+
+      await client.query('COMMIT');
+
+      // Notification is fire-and-forget AFTER the commit so a transient
+      // notification failure doesn't roll back a successful publish.
+      sendNotification({
+        userId: need.preferred_helper_id,
+        type:   'planned_need_request',
+        title:  'A customer wants to hire you',
+        body:   `${need.title} is scheduled and they'd like you to handle it. You can accept or decline within 72 hours.`,
+        data:   { job_id: jobId, planned_need_id: need.id },
+        action_url: `/jobs/${jobId}`,
+      }).catch(err => logger.warn('Preferred-helper notification failed', { plannedNeedId: need.id, error: err.message }));
+
+      logger.info('Planned need published with helper hold', {
+        plannedNeedId: need.id,
+        jobId,
+        helperId: need.preferred_helper_id,
+      });
+    } else {
+      // Broadcast immediately (no hold)
+      await client.query(`
+        UPDATE planned_needs
+        SET status = 'published',
+            published_job_id = $2,
+            published_at     = NOW(),
+            updated_at       = NOW()
+        WHERE id = $1
+      `, [need.id, jobId]);
+
+      await client.query('COMMIT');
+
+      logger.info('Planned need published (no hold)', {
+        plannedNeedId: need.id,
+        jobId,
+        title: need.title,
+      });
+    }
+
+    return { published: true, jobId };
+  } catch (innerErr) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* ignore rollback errors */ }
+    logger.error('Failed to publish planned need', {
+      plannedNeedId: need.id,
+      error: innerErr.message,
+    });
+    return { published: false, reason: innerErr.message };
+  } finally {
+    client.release();
+  }
+}
+
 const startPlannedNeedsScheduler = () => {
   cron.schedule('0 6 * * *', async () => {
     logger.info('Planned needs scheduler started');
@@ -62,124 +202,7 @@ const startPlannedNeedsScheduler = () => {
       logger.info('Planned needs ready for auto-publish', { count: toPublish.length });
 
       for (const need of toPublish) {
-        // Wrap each need's publish in a transaction so an INSERT-job /
-        // UPDATE-planned-need pair is atomic. Without this, a crash between
-        // the two statements would leave an orphan job AND a planned_need
-        // row with NULL published_job_id - which the next cron run would
-        // then publish AGAIN, creating a duplicate.
-        const client = await db.connect();
-        try {
-          await client.query('BEGIN');
-
-          // Re-check published_job_id under FOR UPDATE so two concurrent
-          // scheduler runs (e.g., manual + cron) can't both publish.
-          const { rows: lockRows } = await client.query(
-            `SELECT id, published_job_id FROM planned_needs
-              WHERE id = $1 FOR UPDATE`,
-            [need.id]
-          );
-          if (!lockRows.length || lockRows[0].published_job_id) {
-            await client.query('ROLLBACK');
-            continue;
-          }
-
-          const categoryName = categoryToJobName(need.category);
-          const cost = parseFloat(need.estimated_cost || 0);
-          const budgetMin = cost > 0 ? Math.round(cost * 0.8 * 100) / 100 : null;
-          const budgetMax = cost > 0 ? cost : null;
-          const description = need.description
-            || `Auto-scheduled: ${need.title}. Posted automatically from Planned Needs.`;
-
-          // Task 10: Skip inactive preferred helpers
-          const hasPreferred = !!need.preferred_helper_id && need.helper_is_active !== false;
-
-          // Task 1: ALL jobs are created as 'published' now.
-          // If there's a preferred helper, we set held_for_helper_id + hold_expires_at.
-          const { rows: jobRows } = await client.query(`
-            INSERT INTO jobs
-              (client_id, title, description, category_name, status,
-               budget_min, budget_max,
-               location_city, location_state, location_zip,
-               scheduled_date, expires_at,
-               planned_need_id,
-               held_for_helper_id, held_at, hold_expires_at,
-               metadata)
-            VALUES ($1,$2,$3,$4,'published',
-                    $5,$6,$7,$8,$9,$10,
-                    NOW() + INTERVAL '30 days',
-                    $11,
-                    $12, CASE WHEN $12::uuid IS NOT NULL THEN NOW() ELSE NULL END,
-                    CASE WHEN $12::uuid IS NOT NULL THEN NOW() + INTERVAL '72 hours' ELSE NULL END,
-                    jsonb_build_object('source','planned_need','planned_need_id',$11))
-            RETURNING id
-          `, [
-            need.user_id, need.title, description, categoryName,
-            budgetMin, budgetMax,
-            need.location_city || null, need.location_state || null, need.location_zip || null,
-            need.due_date,
-            need.id,
-            hasPreferred ? need.preferred_helper_id : null,
-          ]);
-          const jobId = jobRows[0].id;
-
-          if (hasPreferred) {
-            await client.query(`
-              UPDATE planned_needs
-              SET status = 'published',
-                  published_job_id = $2,
-                  published_at     = NOW(),
-                  preferred_helper_status = 'pending',
-                  helper_notified_at      = NOW(),
-                  updated_at       = NOW()
-              WHERE id = $1
-            `, [need.id, jobId]);
-
-            await client.query('COMMIT');
-
-            // Notification is fire-and-forget AFTER the commit so a transient
-            // notification failure doesn't roll back a successful publish.
-            sendNotification({
-              userId: need.preferred_helper_id,
-              type:   'planned_need_request',
-              title:  'A customer wants to hire you',
-              body:   `${need.title} is scheduled and they'd like you to handle it. You can accept or decline within 72 hours.`,
-              data:   { job_id: jobId, planned_need_id: need.id },
-              action_url: `/jobs/${jobId}`,
-            }).catch(err => logger.warn('Preferred-helper notification failed', { plannedNeedId: need.id, error: err.message }));
-
-            logger.info('Planned need published with helper hold', {
-              plannedNeedId: need.id,
-              jobId,
-              helperId: need.preferred_helper_id,
-            });
-          } else {
-            // Broadcast immediately (no hold)
-            await client.query(`
-              UPDATE planned_needs
-              SET status = 'published',
-                  published_job_id = $2,
-                  published_at     = NOW(),
-                  updated_at       = NOW()
-              WHERE id = $1
-            `, [need.id, jobId]);
-
-            await client.query('COMMIT');
-
-            logger.info('Planned need published (no hold)', {
-              plannedNeedId: need.id,
-              jobId,
-              title: need.title,
-            });
-          }
-        } catch (innerErr) {
-          try { await client.query('ROLLBACK'); } catch (_) { /* ignore rollback errors */ }
-          logger.error('Failed to publish planned need', {
-            plannedNeedId: need.id,
-            error: innerErr.message,
-          });
-        } finally {
-          client.release();
-        }
+        await tryPublishPlannedNeed(need);
       }
 
       // ── Pass 3: 72-hour preferred-helper expiry ─────────────────────
@@ -264,4 +287,4 @@ function categoryToJobName(category) {
   return map[category] || 'Other / Specify in Description';
 }
 
-module.exports = { startPlannedNeedsScheduler };
+module.exports = { startPlannedNeedsScheduler, tryPublishPlannedNeed };
