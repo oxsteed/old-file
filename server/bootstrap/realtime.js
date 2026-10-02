@@ -12,6 +12,62 @@ const tokenRevocationService = require('../services/tokenRevocationService');
 
 const REALTIME_INSTANCE = Symbol.for('oxsteed.realtime.instance');
 
+/**
+ * Attach the shared Socket.IO Redis adapter when REDIS_URL is set, so
+ * broadcasts reach sockets on every Node process.
+ *
+ * Fail-closed design:
+ *  - REDIS_URL set + attach succeeds: cross-process delivery enabled.
+ *  - REDIS_URL set + attach fails: the service is marked unhealthy and all
+ *    notify* calls return false instead of silently dropping messages.
+ *  - REDIS_URL unset: single-process mode; a warning is logged.
+ */
+function attachSharedAdapter(io, { supportService, log }) {
+  if (!process.env.REDIS_URL) {
+    log.warn('Realtime: REDIS_URL not set, running single-process mode (no shared adapter)');
+    return null;
+  }
+  let createAdapter;
+  try {
+    ({ createAdapter } = require('@socket.io/redis-adapter'));
+  } catch (err) {
+    log.error('Realtime: @socket.io/redis-adapter is not installed; refusing to run multi-process-blind');
+    supportService.setRealtimeHealth?.(false);
+    return null;
+  }
+  const Redis = require('ioredis');
+  const clientOptions = {
+    maxRetriesPerRequest: 3,
+    retryStrategy(times) {
+      return Math.min(Math.max(times * 200, 200), 5000);
+    },
+  };
+  const pubClient = new Redis(process.env.REDIS_URL, clientOptions);
+  const subClient = new Redis(process.env.REDIS_URL, clientOptions);
+
+  const markUnhealthy = (reason) => {
+    log.error('Realtime: adapter unhealthy, delivery will be refused (fail-closed)', { reason });
+    supportService.setRealtimeHealth?.(false);
+  };
+  const markHealthy = () => supportService.setRealtimeHealth?.(true);
+
+  for (const client of [pubClient, subClient]) {
+    client.on('error', (err) => markUnhealthy(err.message));
+    client.on('reconnecting', () => markUnhealthy('reconnecting'));
+    client.on('ready', () => markHealthy());
+  }
+
+  Promise.all([pubClient.ping(), subClient.ping()])
+    .then(() => {
+      io.adapter(createAdapter(pubClient, subClient));
+      log.info('Realtime: shared Redis adapter attached (cross-process delivery enabled)');
+      markHealthy();
+    })
+    .catch((err) => markUnhealthy(`attach failed: ${err.message}`));
+
+  return { pubClient, subClient };
+}
+
 function createRealtimeServer({
   httpServer,
   allowedOrigins,
@@ -95,6 +151,10 @@ function createRealtimeServer({
     });
     supportService.initialize(support);
 
+    // Shared adapter for cross-process delivery (E02). Async attach; the
+    // service fails closed on notify* until the adapter reports healthy.
+    const adapterClients = attachSharedAdapter(io, { supportService, log });
+
     const restaurantDisplay = io.of('/restaurant-display');
     bindRestaurantDisplayNamespace(restaurantDisplay);
     socketService.initRestaurantDisplay(restaurantDisplay);
@@ -112,6 +172,9 @@ function createRealtimeServer({
         closed = true;
         supportService.shutdown?.();
         socketService.shutdown?.();
+        for (const client of [adapterClients?.pubClient, adapterClients?.subClient]) {
+          try { await client?.quit(); } catch (err) { log.warn('Realtime: adapter client quit failed', { error: err.message }); }
+        }
         io.disconnectSockets(true);
         await new Promise((resolve) => io.close(resolve));
       },

@@ -9,6 +9,14 @@ const pool = require('../db');
 const { withTransaction } = require('../utils/transaction');
 const { validateBeforeHandler } = require('../utils/socketAuthValidator');
 const { sendNotification } = require('./notificationService');
+const presence = require('./realtimePresence');
+
+// Per-user / per-agent rooms used for cross-process delivery. With the Redis
+// adapter attached, `io.to(room)` reaches sockets on every process; the old
+// socket-id Maps below are kept for per-process stats only.
+const userRoom = (userId) => `user:${userId}`;
+const agentRoom = (agentId) => `agent:${agentId}`;
+const HEARTBEAT_INTERVAL_MS = 15000;
 
 const CLIENT_MESSAGE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -43,10 +51,36 @@ function buildTicketJoinQuery(ticketId, userId, guestConversationId) {
 class WebSocketService {
   constructor() {
     this.io = null;
+    // Per-process stats only. Cross-process delivery uses user:/agent: rooms
+    // and the shared presence contract (services/realtimePresence).
     this.customerConnections = new Map(); // userId -> socketId
     this.agentConnections = new Map(); // agentId -> Set<socketId>
     this.ticketSockets = new Map(); // ticketId -> [socketIds]
     this.ticketViewers = new Map(); // ticketId -> Map<socketId, true>
+    this.realtimeHealthy = true;
+    this.heartbeatTimer = null;
+  }
+
+  /**
+   * Fail-closed delivery gate. Set by bootstrap/realtime.js from the Redis
+   * adapter health; when false, notify* calls return false instead of
+   * silently pretending a cross-process broadcast was delivered.
+   */
+  setRealtimeHealth(healthy) {
+    this.realtimeHealthy = Boolean(healthy);
+    if (!healthy) {
+      logger.error('Realtime delivery marked unhealthy: notifications will be refused, not silently dropped');
+    }
+  }
+
+  startHeartbeat() {
+    if (this.heartbeatTimer) return;
+    this.heartbeatTimer = setInterval(() => {
+      presence.heartbeat().catch((err) => {
+        logger.warn('Presence heartbeat failed', { error: err.message });
+      });
+    }, HEARTBEAT_INTERVAL_MS);
+    if (typeof this.heartbeatTimer.unref === 'function') this.heartbeatTimer.unref();
   }
 
   broadcastTicketViewerPresence(ticketId) {
@@ -131,7 +165,11 @@ class WebSocketService {
       socket.on('customer:join', (data) => {
         const { visitorEmail, visitorName } = data || {};
         const userId = socket.userId;
-        if (userId) this.customerConnections.set(userId, socket.id);
+        if (userId) {
+          this.customerConnections.set(userId, socket.id);
+          // Room-based routing: works across processes with the shared adapter.
+          socket.join(userRoom(userId));
+        }
         socket.data.userId = userId;
         socket.data.type = 'customer';
         socket.data.email = visitorEmail;
@@ -156,6 +194,16 @@ class WebSocketService {
         this.agentConnections.set(agentId, agentSocketIds);
         socket.data.agentId = agentId;
         socket.data.type = 'agent';
+        // Room-based routing (cross-process) + shared presence contract.
+        socket.join(agentRoom(agentId));
+        this.startHeartbeat();
+        // Presence is per (agent, process): announce once when this process
+        // gains its first socket for the agent; withdraw when the last leaves.
+        if (wasOffline) {
+          presence.markOnline('agent', agentId).catch((err) => {
+            logger.warn('Agent presence registration failed', { agentId, error: err.message });
+          });
+        }
         logger.info('Agent joined dashboard', { agentId, socketId: socket.id });
 
         if (wasOffline) {
@@ -549,6 +597,11 @@ class WebSocketService {
 
           if (!agentSocketIds?.size) {
             this.agentConnections.delete(agentId);
+            // Withdraw this process's presence announcement. Other processes
+            // keep their own registrations; crashed processes expire via TTL.
+            presence.markOffline('agent', agentId).catch((err) => {
+              logger.warn('Agent presence withdrawal failed', { agentId, error: err.message });
+            });
             namespace.to('admins').emit('agent:status-changed', {
               agentId,
               status: 'offline',
@@ -570,35 +623,60 @@ class WebSocketService {
   }
 
   shutdown() {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
     this.customerConnections.clear();
     this.agentConnections.clear();
     this.ticketSockets.clear();
     this.ticketViewers.clear();
+    this.realtimeHealthy = true;
+    presence.shutdown();
     this.io = null;
   }
 
   /**
-   * Send notification to customer
+   * Fail-closed emit. Returns true when the event was handed to the adapter,
+   * false when realtime is not initialized or the adapter is unhealthy.
+   * Callers MUST treat false as "not delivered" (queue a fallback instead of
+   * assuming the user saw it).
    */
-  notifyCustomer(userId, event, data) {
-    if (!this.io) return;
-    const socketId = this.customerConnections.get(userId);
-    if (socketId) {
-      this.io.to(socketId).emit(event, data);
+  emitToRoom(room, event, data) {
+    if (!this.io) {
+      logger.warn('Realtime emit refused: service not initialized', { room, event });
+      return false;
     }
+    if (!this.realtimeHealthy) {
+      logger.error('Realtime emit refused: adapter unhealthy, not silently dropping', { room, event });
+      return false;
+    }
+    this.io.to(room).emit(event, data);
+    return true;
   }
 
   /**
-   * Send notification to agent
+   * Send notification to customer (cross-process via the user: room).
+   * Returns delivery acceptance, not receipt.
+   */
+  notifyCustomer(userId, event, data) {
+    if (userId == null) {
+      logger.warn('notifyCustomer refused: missing userId', { event });
+      return false;
+    }
+    return this.emitToRoom(userRoom(userId), event, data);
+  }
+
+  /**
+   * Send notification to agent (cross-process via the agent: room).
+   * Returns delivery acceptance, not receipt.
    */
   notifyAgent(agentId, event, data) {
-    if (!this.io) return;
-    const socketIds = this.agentConnections.get(agentId);
-    if (socketIds) {
-      for (const socketId of socketIds) {
-        this.io.to(socketId).emit(event, data);
-      }
+    if (agentId == null) {
+      logger.warn('notifyAgent refused: missing agentId', { event });
+      return false;
     }
+    return this.emitToRoom(agentRoom(agentId), event, data);
   }
 
   /**
@@ -618,14 +696,18 @@ class WebSocketService {
   }
 
   /**
-   * Check if agent is online
+   * Check if agent is online.
+   * Synchronous by design (used in routing hot paths): consults the local
+   * registry OR the last refreshed cross-process presence snapshot.
    */
   isAgentOnline(agentId) {
-    return this.agentConnections.has(agentId);
+    if (this.agentConnections.has(agentId)) return true;
+    return presence.isOnline('agent', agentId);
   }
 
   /**
-   * Get active agent count
+   * Get active agent count (this process only; cross-process totals come
+   * from the presence contract's getOnlineIds).
    */
   getActiveAgentCount() {
     return this.agentConnections.size;
