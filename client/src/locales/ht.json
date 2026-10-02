@@ -1,4 +1,5 @@
 {
+  "adminRegionsMilesUnit": "mil",
   "businessCreation": {
     "eyebrow": "Konfigirasyon biznis",
     "title": "Kreye biznis ou",
@@ -324,7 +325,12 @@
   },
   "supportAdmin": {
     "agentManagement": {
-      "confirmDeleteAgent": "Efase ajan sa a?"
+      "confirmDeleteAgent": "Efase ajan sa a?",
+      "agentDeleted": "Ajan efase",
+      "deleteFailed": "Sipresyon ajan an echwe",
+      "loadFailed": "Chajman ajan yo echwe",
+      "statusFailed": "Mizajou estati ajan an echwe",
+      "statusUpdated": "Estati ajan an mete ajou"
     },
     "knowledgeBase": {
       "confirmDeleteArticle": "Efase atik sa a?"
@@ -580,7 +586,9 @@
     "done": "Fè",
     "failedToCancel": "Echwe pou anile. Tanpri eseye ankò.",
     "fillRequiredFields": "Tanpri ranpli tout jaden obligatwa yo.",
-    "failedToDelete": "Echèk pou efase. Tanpri eseye ankò."
+    "failedToDelete": "Echèk pou efase. Tanpri eseye ankò.",
+    "notAvailable": "N/D",
+    "updated": "Mete ajou"
   },
   "trial": {
     "active": "Esè aktif",
@@ -5262,7 +5270,9 @@
       }
     },
     "list": {
-      "createFailed": "Nou pa t kapab kreye itilizatè a.", "createTitle": "Kreye kont itilizatè", "firstName": "Non", "lastName": "Siyati", "email": "Imèl", "password": "Modpas", "minChars": "(omwen 8 karaktè)", "accountType": "Kalite kont", "cancel": "Anile", "creating": "Y ap kreye…", "createUser": "Kreye itilizatè", "resetFailed": "Nou pa t kapab chanje modpas la.", "resetPassword": "Chanje modpas", "resetSuccess": "Modpas la chanje avèk siksè.", "sessionsInvalidated": "Tout sesyon {{name}} yo anile.", "settingPassword": "Y ap mete yon nouvo modpas pou {{name}}. Sesyon aktif li yo ap anile.", "newPassword": "Nouvo modpas", "resetting": "Y ap chanje…", "reset": "Chanje", "viewProfile": "Gade pwofil", "sendMessage": "Voye mesaj", "cancelDeletionConfirm": "Anile efasman ki an atant pou {{email}}? Kont lan ap parèt Aktif ankò.", "cancelDeletion": "Anile efasman ki an atant", "suspend": "Sispann kont", "reactivate": "Reaktive kont", "resetPasswordAction": "Chanje modpas", "neverLoggedIn": "Pa janm konekte", "onlineRecently": "Sou entènèt dènyèman", "activeThisWeek": "Aktif semèn sa a", "activeThisMonth": "Aktif mwa sa a", "inactiveThirtyDays": "Inaktif plis pase 30 jou", "justNow": "Kounye a", "hoursAgo": "Gen {{count}} èdtan", "daysAgo": "Gen {{count}} jou", "weeksAgo": "Gen {{count}} semèn", "monthsAgo": "Gen {{count}} mwa", "yearsAgo": "Gen {{count}} ane", "totalUsers": "Total itilizatè", "active": "Aktif", "suspended": "Sispann", "reactivated": "Reaktive", "helpers": "Èdè", "customers": "Kliyan", "newThisWeek": "Nouvo semèn sa a", "userStatusChanged": "{{name}}: {{status}}.", "pendingDeletionCleared": "Efasman anile pou {{name}}.", "cancelDeletionFailed": "Nou pa t kapab anile efasman an.", "bulkStatusChanged": "{{count}} itilizatè {{status}}.", "messageSent": "Mesaj voye bay {{name}}.", "sendFailed": "Nou pa t kapab voye l.", "title": "Itilizatè", "matchingFilters": "{{count}} itilizatè mache ak filtè yo", "updated": "Mizajou {{time}}", "refresh": "Rafrechi", "exportCsv": "Ekspòte CSV", "tryAgain": "Eseye ankò", "searchPlaceholder": "Chèche non, imèl, telefòn...", "locationPlaceholder": "Vil, eta, kòd postal...", "allRoles": "Tout wòl", "allStatus": "Tout estati", "allPlans": "Tout plan", "sortBy": "Triye: {{label}}", "sort": { "first_name": "Non", "created_at": "Antre", "last_login_at": "Dènye aktivite", "avg_rating": "Nòt" }, "perPage": "{{count}} pa paj", "selected": "{{count}} chwazi", "suspendSelected": "Sispann sa ki chwazi yo", "reactivateSelected": "Reaktive sa ki chwazi yo", "user": "Itilizatè", "location": "Kote", "role": "Wòl", "plan": "Plan", "rating": "Nòt", "jobs": "Travay", "verified": "Verifye", "status": "Estati", "joined": "Antre", "lastActive": "Dènye aktivite", "loading": "Y ap chaje…", "unavailable": "Done itilizatè yo pa disponib.", "noUsers": "Pa jwenn itilizatè.", "free": "Gratis", "posted": "Pibliye", "completedAsHelper": "Fini kòm èdè", "emailVerified": "Imèl verifye", "idVerified": "Idantite verifye", "backgroundChecked": "Verifikasyon antesedan fini", "selfDeleted": "Itilizatè a efase", "pendingDeletion": "Efasman an atant", "pageSummary": "Paj {{page}} sou {{pages}} · {{count}} rezilta", "previous": "← Anvan", "next": "Pwochen →", "messageTitle": "Mesaj pou {{name}}", "messageAudit": "Mesaj sa a ap parèt nan bwat resepsyon {{name}} kòm yon mesaj sistèm epi l ap antre nan jounal odit la.", "messagePlaceholder": "Ekri yon mesaj pou {{name}}…", "sending": "Y ap voye…"
+      "createFailed": "Nou pa t kapab kreye itilizatè a.", "createTitle": "Kreye kont itilizatè", "firstName": "Non", "lastName": "Siyati", "email": "Imèl", "password": "Modpas", "minChars": "(omwen 8 karaktè)", "accountType": "Kalite kont", "cancel": "Anile", "creating": "Y ap kreye…", "createUser": "Kreye itilizatè", "resetFailed": "Nou pa t kapab chanje modpas la.", "resetPassword": "Chanje modpas", "resetSuccess": "Modpas la chanje avèk siksè.", "sessionsInvalidated": "Tout sesyon {{name}} yo anile.", "settingPassword": "Y ap mete yon nouvo modpas pou {{name}}. Sesyon aktif li yo ap anile.", "newPassword": "Nouvo modpas", "resetting": "Y ap chanje…", "reset": "Chanje", "viewProfile": "Gade pwofil", "sendMessage": "Voye mesaj", "cancelDeletionConfirm": "Anile efasman ki an atant pou {{email}}? Kont lan ap parèt Aktif ankò.", "cancelDeletion": "Anile efasman ki an atant", "suspend": "Sispann kont", "reactivate": "Reaktive kont", "resetPasswordAction": "Chanje modpas", "neverLoggedIn": "Pa janm konekte", "onlineRecently": "Sou entènèt dènyèman", "activeThisWeek": "Aktif semèn sa a", "activeThisMonth": "Aktif mwa sa a", "inactiveThirtyDays": "Inaktif plis pase 30 jou", "justNow": "Kounye a", "hoursAgo": "Gen {{count}} èdtan", "daysAgo": "Gen {{count}} jou", "weeksAgo": "Gen {{count}} semèn", "monthsAgo": "Gen {{count}} mwa", "yearsAgo": "Gen {{count}} ane", "totalUsers": "Total itilizatè", "active": "Aktif", "suspended": "Sispann", "reactivated": "Reaktive", "helpers": "Èdè", "customers": "Kliyan", "newThisWeek": "Nouvo semèn sa a", "userStatusChanged": "{{name}}: {{status}}.", "pendingDeletionCleared": "Efasman anile pou {{name}}.", "cancelDeletionFailed": "Nou pa t kapab anile efasman an.", "bulkStatusChanged": "{{count}} itilizatè {{status}}.", "messageSent": "Mesaj voye bay {{name}}.", "sendFailed": "Nou pa t kapab voye l.", "title": "Itilizatè", "matchingFilters": "{{count}} itilizatè mache ak filtè yo", "updated": "Mizajou {{time}}", "refresh": "Rafrechi", "exportCsv": "Ekspòte CSV", "tryAgain": "Eseye ankò", "searchPlaceholder": "Chèche non, imèl, telefòn...", "locationPlaceholder": "Vil, eta, kòd postal...", "allRoles": "Tout wòl", "allStatus": "Tout estati", "allPlans": "Tout plan", "sortBy": "Triye: {{label}}", "sort": { "first_name": "Non", "created_at": "Antre", "last_login_at": "Dènye aktivite", "avg_rating": "Nòt" }, "perPage": "{{count}} pa paj", "selected": "{{count}} chwazi", "suspendSelected": "Sispann sa ki chwazi yo", "reactivateSelected": "Reaktive sa ki chwazi yo", "user": "Itilizatè", "location": "Kote", "role": "Wòl", "plan": "Plan", "rating": "Nòt", "jobs": "Travay", "verified": "Verifye", "status": "Estati", "joined": "Antre", "lastActive": "Dènye aktivite", "loading": "Y ap chaje…", "unavailable": "Done itilizatè yo pa disponib.", "noUsers": "Pa jwenn itilizatè.", "free": "Gratis", "posted": "Pibliye", "completedAsHelper": "Fini kòm èdè", "emailVerified": "Imèl verifye", "idVerified": "Idantite verifye", "backgroundChecked": "Verifikasyon antesedan fini", "selfDeleted": "Itilizatè a efase", "pendingDeletion": "Efasman an atant", "pageSummary": "Paj {{page}} sou {{pages}} · {{count}} rezilta", "previous": "← Anvan", "next": "Pwochen →", "messageTitle": "Mesaj pou {{name}}", "messageAudit": "Mesaj sa a ap parèt nan bwat resepsyon {{name}} kòm yon mesaj sistèm epi l ap antre nan jounal odit la.", "messagePlaceholder": "Ekri yon mesaj pou {{name}}…", "sending": "Y ap voye…",
+      "actionFailed": "Aksyon an echwe",
+      "never": "Janm"
     }
   },
   "adminLegal": {
@@ -9436,7 +9446,21 @@
     "templateSaveFailed": "Sove modèl la echwe",
     "toolRentalsLoadFailedMessage": "Pa t ka chaje lokasyon zouti yo.",
     "toolRentalsLoadFailedTitle": "Chaje lokasyon zouti yo echwe",
-    "workingHoursDayOpen": "Louvri"
+    "workingHoursDayOpen": "Louvri",
+    "moderation": {
+      "by": "Pa:",
+      "dismiss": "Voye jete",
+      "dismissTitle": "Voye jete - retire mak admin an",
+      "emptyQueue": "Ke a vid - okenn djòb make oswa rapòte.",
+      "flag": "Make",
+      "flagTitle": "Make pou plis revizyon",
+      "loading": "Ap chaje…",
+      "queueSubtitle": "{{count}} djòb{{plural}} make oswa rapòte",
+      "remove": "Retire",
+      "removeTitle": "Anile djòb la - retire li nan mache a",
+      "reportCount": "{{count}} rapò{{plural}}",
+      "title": "Moderasyon kontni"
+    }
   },
   "auditLogFilter": {
     "filter": "Filtre",
@@ -11023,7 +11047,42 @@
     "confirmStatusTitle": "Chanje estati",
     "deleteNoteTitle": "Efase nòt",
     "invalidBps": "Antre yon to referans valab ant 0 ak 10000 pwen baz.",
-    "statusMenuLabel": "Chanje estati demann lan"
+    "statusMenuLabel": "Chanje estati demann lan",
+    "archive": "Achive",
+    "breadcrumbAdmin": "Admin",
+    "breadcrumbConsulting": "Konsiltasyon",
+    "breadcrumbCurrent": "Lansman biznis",
+    "clearAll": "Efase tout",
+    "countryPlaceholder": "Kòd peyi",
+    "emptyBody": "Eseye ajiste filtè oswa tèm rechèch ou yo.",
+    "emptyTitle": "Okenn demann pa jwenn",
+    "exportCsv": "Ekspòte CSV",
+    "filterAllPackages": "Tout pake yo",
+    "filterAllStates": "Tout estati yo",
+    "filterAllUrgency": "Tout ijans",
+    "nextPage": "Swivan",
+    "packageAccelerator": "Accelerator ($3,000)",
+    "packageFoundation": "Foundation ($750)",
+    "packageLaunch": "Launch ($1,500)",
+    "pageOf": "Paj {{page}} sou {{pages}}",
+    "previousPage": "Presedan",
+    "requestArchived": "Demann achive",
+    "searchPlaceholder": "Chèche non, imèl...",
+    "statusArchived": "Achive",
+    "statusButton": "Estati",
+    "statusCompleted": "Konplete",
+    "statusContacted": "Kontakte",
+    "statusInProgress": "An kou",
+    "statusKickoffScheduled": "Sesyon pwograme",
+    "statusNew": "Nouvo",
+    "title": "Pwogram Devlopman Fondatè",
+    "totalRequests": "{{count}} demann an tou",
+    "unassigned": "Pa asiyen",
+    "urgencyAsap": "Osi vit ke posib",
+    "urgencyExploring": "Jis ap eksplore",
+    "urgencyOneMonth": "1 mwa",
+    "urgencyTwoWeeks": "2 semèn",
+    "view": "Wè"
   },
   "businessLaunchStatus": {
     "trackYourBusiness": "Swiv Lancement Biznis ou",
@@ -12151,7 +12210,9 @@
     "reportedBy": "Rapòte pa:",
     "anonymous": "Anonim",
     "actionTaken": "Aksyon ki fèt",
-    "by": "pa"
+    "by": "pa",
+    "viewReportedJob": "Wè djòb yo rapòte a",
+    "viewReportedUser": "Wè itilizatè yo rapòte a"
   },
   "adminEnforcement": {
     "title": "Aksyon Aplikasyon",
@@ -14846,7 +14907,18 @@
         "reminders": "Rapèl",
         "actions": "Aksyon"
       }
-    }
+    },
+    "nextWeek": "Apre",
+    "noPendingSessions": "Okenn sesyon an atant. Tout demann yo trete.",
+    "pendingBadge": "An atant",
+    "phoneLabel": "Telefòn",
+    "prevWeek": "Anvan",
+    "tierFoundation": "Fondasyon",
+    "tierImplementation": "Aplikasyon",
+    "tierInitial": "Inisyal ($100)",
+    "tierLabel": "Nivo",
+    "tierTransformation": "Transfòmasyon",
+    "today": "Jodi a"
   },
   "adminConsultingSessions": {
     "title": "Sesyon konsiltasyon",
@@ -22279,7 +22351,24 @@
     "userActionLog": "Jounal aksyon itilizatè",
     "users": "Itilizatè",
     "visitors": "Vizitè",
-    "profileVisibility": "Vizibilite pwofil"
+    "profileVisibility": "Vizibilite pwofil",
+    "sidebarLabel": "Navigasyon admin",
+    "supportSection": "Seksyon sipò",
+    "supportAgentDashboard": "Tablo bò ajan",
+    "supportAgents": "Ajan",
+    "supportAgentOnboarding": "Entegrasyon",
+    "supportShifts": "Ka",
+    "supportTeam": "Ekip",
+    "supportEscalations": "Eskalasyon",
+    "supportSla": "SLA",
+    "supportKnowledgeBase": "Baz konesans",
+    "supportTemplates": "Modèl",
+    "supportMetrics": "Metrik",
+    "supportPerformance": "Pèfòmans",
+    "supportCsat": "CSAT",
+    "supportQa": "Revizyon kalite",
+    "supportSettings": "Paramèt",
+    "supportAuditLog": "Jounal odit"
   },
   "adminProfileVisibility": {
     "title": "Vizibilite pwofil",
@@ -22481,7 +22570,8 @@
     "openBreaches": "Vyolasyon SLA ki louvri", "openIncidents": "Ensidan ki louvri",
     "riskDescription": "Ensidan, rapò ak echèk sekirite ki resan.", "riskTitle": "Risk ak sekirite",
     "securityFailures24h": "Echèk sekirite, 24 èdtan", "slaDescription": "Konvèsasyon sipò ki prèt pou depase oswa ki depase objektif sèvis yo.", "slaTitle": "Sante SLA",
-    "crmDescription": "Kliyan potansyèl ak relasyon biznis ki bezwen swivi.", "crmTitle": "CRM"
+    "crmDescription": "Kliyan potansyèl ak relasyon biznis ki bezwen swivi.", "crmTitle": "CRM",
+    "manageIncidents": "Jere ensidan"
   },
   "adminMessages": {
     "admin": "Administratè",
@@ -22504,7 +22594,8 @@
     "startConversation": "Kòmanse konvèsasyon ak {{name}}",
     "superAdmin": "Super administratè",
     "title": "Mesaj administrasyon",
-    "yesterday": "Yè"
+    "yesterday": "Yè",
+    "sendFailed": "Voye mesaj la echwe. Tanpri eseye ankò."
   },
   "superAuditLog": {
     "allTypes": "Tout tip",
@@ -22528,7 +22619,8 @@
     "typeJob": "Travay",
     "typePayout": "Peman",
     "typeSetting": "Paramèt",
-    "typeUser": "Itilizatè"
+    "typeUser": "Itilizatè",
+    "updatedAt": "Mete ajou {{time}}"
   },
   "superConversations": {
     "actionFailed": "Aksyon an echwe.",
@@ -22713,7 +22805,11 @@
     "usersSection": "Itilizatè",
     "viewLink": "Wè",
     "vsPrev": "kont anvan",
-    "vsPrevPeriod": "kont peryòd anvan"
+    "vsPrevPeriod": "kont peryòd anvan",
+    "resolveIncidentMessage": "Dekri kijan ensidan sa a te rezoud. Nòt sa a obligatwa.",
+    "resolveIncidentReasonLabel": "Nòt rezolisyon",
+    "resolveIncidentReasonPlaceholder": "Kisa ki te fèt pou rezoud ensidan sa a?",
+    "resolveIncidentTitle": "Rezoud ensidan an"
   },
   "superFeeConfig": {
     "colChangedBy": "Chanje pa",
@@ -22747,7 +22843,12 @@
     "trialRange": "Min: {{min}} jou | Maks: {{max}} jou",
     "trialTitle": "Konfigirasyon dire esè",
     "updateFailed": "Mizajou a echwe",
-    "whyPlaceholder": "Poukisa chanjman sa a?"
+    "whyPlaceholder": "Poukisa chanjman sa a?",
+    "confirmMessage": "Anrejistre chanjman frè sa a pou {{label}}? Sa pran efè touswit.",
+    "confirmTitle": "Anrejistre chanjman frè a",
+    "invalidNumber": "Antre yon nimewo ki valab.",
+    "valueOutOfRange": "Valè a dwe ant {{min}} ak {{max}}.",
+    "valueOutsideRange": "Valè a deyò limit yo otorize a."
   },
   "superFinancials": {
     "colAmount": "Montan",
@@ -22999,7 +23100,9 @@
     "tier2Price": "Pri nivo 2",
     "tier3Label": "Etikèt nivo 3",
     "tier3Price": "Pri nivo 3",
-    "title": "Konfigirasyon pri pa nivo"
+    "title": "Konfigirasyon pri pa nivo",
+    "confirmMessage": "Anrejistre chanjman pri sa yo? Yo pran efè touswit sou tout platfòm nan.",
+    "confirmTitle": "Anrejistre chanjman pri yo"
   },
   "superPricingOverrides": {
     "active": "Aktif",
@@ -23179,7 +23282,10 @@
     "status": { "published": "Pibliye", "accepted": "Aksepte", "in_progress": "An pwogrè", "completed": "Fini", "cancelled": "Anile", "disputed": "Nan diskisyon", "unknown": "Enkoni" }
   },
   "adminSupportPerformance": {
-    "title": "Analiz pèfòmans", "subtitle": "Mezi pèfòmans ekip la ak chak ajan.", "refresh": "Rafrechi done pèfòmans", "totalAgents": "Total ajan", "active": "Aktif", "avgRating": "Nòt mwayèn", "teamAverage": "Mwayèn ekip la", "avgResponseTime": "Tan repons mwayèn", "totalChats": "Total chat", "allTime": "Tout tan", "searchPlaceholder": "Chèche ajan dapre non...", "sortByRating": "Klase dapre nòt", "sortByResponseTime": "Klase dapre tan repons", "sortByChats": "Klase dapre chat", "sortByResolutionRate": "Klase dapre pousantaj rezolisyon", "responseTime": "Tan repons", "resolutionRate": "Pousantaj rezolisyon", "satisfaction": "Satisfaksyon", "performanceDetails": "Detay pèfòmans", "close": "Fèmen detay pèfòmans", "loadingDetails": "Chaje detay pèfòmans…", "overallRating": "Nòt jeneral", "satisfactionScore": "Nòt satisfaksyon", "sevenDayTrend": "Tandans pèfòmans sou 7 jou", "detailedStatistics": "Estatistik detaye", "totalConversations": "Total konvèsasyon", "resolved": "Rezoud", "avgHandlingTime": "Tan tretman mwayèn", "firstContactResolution": "Rezolisyon nan premye kontak", "qualityScore": "Nòt kalite"
+    "title": "Analiz pèfòmans", "subtitle": "Mezi pèfòmans ekip la ak chak ajan.", "refresh": "Rafrechi done pèfòmans", "totalAgents": "Total ajan", "active": "Aktif", "avgRating": "Nòt mwayèn", "teamAverage": "Mwayèn ekip la", "avgResponseTime": "Tan repons mwayèn", "totalChats": "Total chat", "allTime": "Tout tan", "searchPlaceholder": "Chèche ajan dapre non...", "sortByRating": "Klase dapre nòt", "sortByResponseTime": "Klase dapre tan repons", "sortByChats": "Klase dapre chat", "sortByResolutionRate": "Klase dapre pousantaj rezolisyon", "responseTime": "Tan repons", "resolutionRate": "Pousantaj rezolisyon", "satisfaction": "Satisfaksyon", "performanceDetails": "Detay pèfòmans", "close": "Fèmen detay pèfòmans", "loadingDetails": "Chaje detay pèfòmans…", "overallRating": "Nòt jeneral", "satisfactionScore": "Nòt satisfaksyon", "sevenDayTrend": "Tandans pèfòmans sou 7 jou", "detailedStatistics": "Estatistik detaye", "totalConversations": "Total konvèsasyon", "resolved": "Rezoud", "avgHandlingTime": "Tan tretman mwayèn", "firstContactResolution": "Rezolisyon nan premye kontak", "qualityScore": "Nòt kalite",
+    "loadFailed": "Chajman done pèfòmans yo echwe.",
+    "noAgents": "Okenn done pèfòmans ajan pou kounye a.",
+    "sortBy": "Triye pa"
   },
   "adminSupportAgents": {
     "eyebrow": "Anyè ekip la", "title": "Ajan sipò", "description": "Revize anplwaye yo, gade konpetans yo, epi jere ajan ki aktif san ou pa kite lis ekip sipò a.", "refresh": "Rafrechi", "agents": "Ajan", "agentsDetail": "Ajan sipò ki nan lis la kounye a.", "active": "Aktif", "activeDetail": "Ajan ki otorize pou travay sipò kounye a.", "skillAreas": "Domèn konpetans", "skillAreasDetail": "Espesyalite sipò diferan ki reprezante nan ekip la.", "searchMode": "Mòd rechèch", "filtered": "Filtre", "all": "Tout", "currentQuery": "Rechèch aktyèl: {{query}}", "browsingAll": "W ap gade tout lis ekip la.", "rosterTitle": "Lis ajan yo", "rosterSubtitle": "Chèche dapre non oswa imel, epi verifye konpetans ak estati aktivasyon an.", "searchPlaceholder": "Chèche ajan dapre non oswa imel...", "noAgents": "Pa jwenn ajan", "noAgentsBody": "Eseye yon lòt rechèch oswa ajoute nouvo anplwaye sipò pou kòmanse konstwi ekip la.", "activeStatus": "Aktif", "inactiveStatus": "Inaktif", "chatsToday": "Chat jodi a", "viewAgent": "Gade {{name}}", "toggleStatus": "Chanje estati {{name}}", "deleteAgent": "Efase {{name}}", "profileTitle": "Pwofil ajan an", "profileDescription": "Rezime pèfòmans ak espesyalite sipò yo.", "close": "Fèmen pwofil ajan an", "avgRating": "Nòt mwayèn", "skillCoverage": "Kouvèti konpetans"
@@ -23975,7 +24081,8 @@
     "noSkillsSelected": "Pokò chwazi okenn konpetans.",
     "selectedLanguages": "Lang ki chwazi",
     "noLanguagesSelected": "Pokò chwazi okenn lang.",
-    "snapshotTip": "Pran ase espesyalizasyon isit la pou planifikasyon, woutaj, ak rapò pèfòmans nan lavni yo kòmanse sou done debaz pwòp."
+    "snapshotTip": "Pran ase espesyalizasyon isit la pou planifikasyon, woutaj, ak rapò pèfòmans nan lavni yo kòmanse sou done debaz pwòp.",
+    "errorInvalidEmail": "Antre yon adrès imèl ki valab."
   },
   "adminLegalAcceptancesPage": {
     "docAll": "Tout dokiman yo",
@@ -24199,7 +24306,14 @@
     "avgTimeCaption": "Soti nan deklanchman rive nan eskalasyon",
     "rulesSectionTitle": "Règ eskalasyon aktive yo",
     "emptyState": "Okenn règ eskalasyon konfigire",
-    "createFirstRuleButton": "Kreye premye règ ou"
+    "createFirstRuleButton": "Kreye premye règ ou",
+    "toastCreated": "Règ eskalasyon kreye.",
+    "toastDeleteFailed": "Sipresyon règ eskalasyon an echwe.",
+    "toastDeleted": "Règ eskalasyon efase.",
+    "toastSaveFailed": "Anrejistreman règ eskalasyon an echwe.",
+    "toastToggleFailed": "Aktivasyon règ eskalasyon an echwe.",
+    "toastUpdated": "Règ eskalasyon mete ajou.",
+    "toggleRuleAria": "Aktive règ la: {{name}}"
   },
   "adminCorporateAssignments": {
     "statusActive": "Aktif",
@@ -24354,7 +24468,8 @@
     "activityButton": "Aktivite",
     "disableButton": "Dezaktive",
     "enableButton": "Aktive",
-    "forceLogoutButton": "Fòse dekoneksyon"
+    "forceLogoutButton": "Fòse dekoneksyon",
+    "forceLogoutReason": "Dekoneksyon fòse pa super admin"
   },
   "adminSupportAuditLog": {
     "systemFallback": "Sistèm",
@@ -24388,7 +24503,9 @@
     "timelineTitle": "Kwonoloji aktivite",
     "emptyState": "Pa jwenn okenn antre nan jounal odit la",
     "complianceTitle": "Enfòmasyon konfòmite",
-    "complianceText": "Jounal odit sa a swiv tout aktivite sistèm nan, tankou koneksyon itilizatè yo, modifikasyon done yo, ak aksyon administratif yo. Yo kenbe jounal yo pandan 90 jou epi yo ka ekspòte yo pou odit konfòmite ak sekirite."
+    "complianceText": "Jounal odit sa a swiv tout aktivite sistèm nan, tankou koneksyon itilizatè yo, modifikasyon done yo, ak aksyon administratif yo. Yo kenbe jounal yo pandan 90 jou epi yo ka ekspòte yo pou odit konfòmite ak sekirite.",
+    "exportFailed": "Ekspòtasyon jounal odit la echwe.",
+    "systemEmailFallback": "system@oxsteed.com"
   },
   "adminLogisticsRestrictions": {
     "invalidCountryCode": "Kòd peyi a dwe gen 2 lèt (pa egzanp US, CN, HT)",
@@ -24679,7 +24796,8 @@
     "freightRail": "tren",
     "freightMultimodal": "miltimodal",
     "freightCourier": "kourye",
-    "freightExpress": "eksprè"
+    "freightExpress": "eksprè",
+    "emptyLanes": "Okenn wout konfigire pou kounye a."
   },
 
   "adminReconciliation": {
@@ -25443,7 +25561,9 @@
     "labelMessage": "Mesaj",
     "emailRecordedNote": "Imèl ki voye a anrejistre nan konvèsasyon sipò sa a.",
     "sending": "Ap voye…",
-    "sendEmail": "Voye imèl"
+    "sendEmail": "Voye imèl",
+    "loadFailed": "Nou pa t kapab chaje tablo bò ajan an",
+    "loadFailedBody": "Nou pa t kapab chaje done ajan yo an dirèk. Tcheke koneksyon ou epi eseye ankò."
   },
   "adminSupportCSAT": {
     "title": "Analiz CSAT",
@@ -25487,7 +25607,9 @@
     "subjectFallback": "Konvèsasyon sipò",
     "teamFallback": "Ekip sipò",
     "npsValue": "NPS {{score}}/10",
-    "foundHelpful": "{{count}} te jwenn li itil"
+    "foundHelpful": "{{count}} te jwenn li itil",
+    "noAgentData": "Okenn done ajan pou peryòd sa a.",
+    "noSentimentData": "Okenn done santiman pou peryòd sa a."
   },
   "adminSupportQA": {
     "eyebrow": "Kalite sipò",
@@ -25575,7 +25697,9 @@
     "daySaturday": "samdi",
     "daySaturdayShort": "sam",
     "daySunday": "dimanch",
-    "daySundayShort": "dim"
+    "daySundayShort": "dim",
+    "toastDeleteFailed": "Sipresyon ka a echwe.",
+    "toastDeleted": "Ka efase."
   },
   "adminSupportTeam": {
     "title": "Iyèrarchi ekip la",
@@ -25610,7 +25734,12 @@
     "roleAgent": "Ajan",
     "roleSupervisor": "Sivèyè",
     "roleManager": "Manadjè",
-    "roleDirector": "Direktè"
+    "roleDirector": "Direktè",
+    "toastAdded": "Manm ekip ajoute.",
+    "toastRemoveFailed": "Retire manm ekip la echwe.",
+    "toastRemoved": "Manm ekip retire.",
+    "toastSaveFailed": "Anrejistreman manm ekip la echwe.",
+    "toastUpdated": "Manm ekip mete ajou."
   },
   "adminSupportTemplates": {
     "title": "Modèl repons",
@@ -25640,7 +25769,9 @@
     "toastContentRequired": "Kontni modèl la obligatwa",
     "toastSaveFailed": "Pa te kapab anrejistre modèl la",
     "confirmDelete": "Efase modèl sa a?",
-    "toastCopyFailed": "Pa te kapab kopye kontni modèl la"
+    "toastCopyFailed": "Pa te kapab kopye kontni modèl la",
+    "deleteTemplateAria": "Efase modèl la: {{name}}",
+    "editTemplateAria": "Modifye modèl la: {{name}}"
   }
 ,
 
@@ -25804,7 +25935,11 @@
     "categoryLabel": "Kategori",
     "activeLabel": "Aktif (vizib nan oto-konpletman an)",
     "saving": "Ap anrejistre…",
-    "saveChanges": "Anrejistre Chanjman yo"
+    "saveChanges": "Anrejistre Chanjman yo",
+    "categoryPlaceholder": "pa egzanp Elektrisite",
+    "loadFailedMessage": "Nou pa t kapab chaje lis konpetans yo.",
+    "loadFailedTitle": "Chajman konpetans yo echwe",
+    "namePlaceholder": "pa egzanp Repare miray sèch"
   },
   "adminToolRentalModeration": {
     "reasonRequired": "Yon rezon obligatwa.",
@@ -25822,7 +25957,17 @@
     "searchPlaceholder": "Chèche pa non, kategori, pwopriyetè…",
     "filterAll": "Tout",
     "filterAvailable": "Disponib",
-    "filterHidden": "Kache"
+    "filterHidden": "Kache",
+    "emptyTools": "Okenn lokasyon zouti pa jwenn.",
+    "loadFailedMessage": "Nou pa t kapab chaje lokasyon zouti yo.",
+    "loadFailedTitle": "Chajman lokasyon zouti yo echwe",
+    "thActions": "AKSYON",
+    "thCreated": "KREYE",
+    "thLocation": "KOTE LI YE",
+    "thOwner": "PWOPRIYETÈ",
+    "thRate": "PRI",
+    "thStatus": "ESTATI",
+    "thTool": "ZOUTI"
   },
   "adminLogin": {
     "tooManyAttempts": "Twòp tantativ ki echwe. Eseye ankò nan {{mins}} minit.",
@@ -26078,7 +26223,10 @@
       "selectOption": "Chwazi…",
       "notesOptional": "Nòt (si ou vle)",
       "applyTransition": "Aplike tranzisyon an",
-      "noTransitions": "Pa gen tranzisyon disponib pou {{status}}."
+      "noTransitions": "Pa gen tranzisyon disponib pou {{status}}.",
+      "buyer": "Achtè:",
+      "qty": "Kantite:",
+      "supplier": "Founisè:"
     },
     "selectTargetStatus": "Chwazi yon estati sib",
     "poMoved": "Lòd acha a deplase pou {{status}}"
@@ -26147,7 +26295,9 @@
     },
     "restrictionScope": "restriksyon",
     "approvalRequired": "Apwobasyon",
-    "approvalOpen": "Louvri"
+    "approvalOpen": "Louvri",
+    "noFeeRules": "Okenn règ frè oswa restriksyon konfigire.",
+    "noMarkupRules": "Okenn règ maj konfigire."
   },
   "adminWarehouseOps": {
     "title": "Espas operasyon depo",
@@ -26874,5 +27024,176 @@
   "adminConversionPolicyQueued": "Chanjman an nan liy datant. Yon dezyèm administratè dwe apwouve l nan liy kontwòl la anvan li aplike.",
   "adminConversionPolicyQueueFailed": "Pa t kapab mete chanjman an nan liy datant.",
   "adminConversionPolicyTitle": "Règ konvèsyon restoran pou OxSteed",
-  "adminConversionPolicyDetail": "Se restoran ki otorize sèlman ki ka konvèti kredi yo an OxSteed Credit. Konvèti OxSteed Credit an kredi restoran mande yon patnè OxSteed Credit ki aktif. Chanjman yo ale nan liy datant pou yon dezyèm administratè apwouve yo; anyen pa aplike anvan sa."
+  "adminConversionPolicyDetail": "Se restoran ki otorize sèlman ki ka konvèti kredi yo an OxSteed Credit. Konvèti OxSteed Credit an kredi restoran mande yon patnè OxSteed Credit ki aktif. Chanjman yo ale nan liy datant pou yon dezyèm administratè apwouve yo; anyen pa aplike anvan sa.",
+  "adminBusinessModeration": {
+    "actionDeactivate": "Dezaktive",
+    "actionDelete": "Efase",
+    "actionFlag": "Make pou revizyon",
+    "actionReactivate": "Reaktive",
+    "actionSuspend": "Sispann",
+    "activeBadge": "Aktif",
+    "colActions": "AKSYON",
+    "colBusiness": "BIZNIS",
+    "colCategory": "KATEGORI",
+    "colCreated": "KREYE",
+    "colJobs": "DJÒB",
+    "colLocation": "KOTE",
+    "colMembers": "MANM",
+    "colOwner": "PWOPRIYETÈ",
+    "colStatus": "ESTATI",
+    "inactiveBadge": "Pa aktif",
+    "loading": "Ap chaje…",
+    "modalTitle": "{{action}} biznis la",
+    "moreActions": "Plis aksyon",
+    "next": "Swivan →",
+    "noBusinesses": "Okenn biznis pa jwenn.",
+    "pageSummary": "Paj {{page}} · {{total}} an tou",
+    "previous": "← Anvan",
+    "reasonLabel": "Rezon",
+    "reasonPlaceholder": "Eksplike poukisa w ap pran aksyon sa a…",
+    "reasonRequired": "Yon rezon obligatwa.",
+    "searchPlaceholder": "Chèche pa non, pwopriyetè, imèl…",
+    "statActive": "AKTIF",
+    "statDormant": "ANDÒMI",
+    "statInactive": "PA AKTIF",
+    "statNewThisMonth": "NOUVO MWA SA A",
+    "statTotal": "TOTAL",
+    "subtitle": "Jere epi siveye tout biznis sou platfòm nan",
+    "title": "Moderasyon biznis",
+    "unknownType": "Enkoni",
+    "viewProfile": "Wè pwofil"
+  },
+  "adminComplianceMetricsPage": {
+    "acceptanceRatesTitle": "To akseptasyon pa kalite dokiman",
+    "cardAccepted": "Aksepte",
+    "cardNa": "N/D",
+    "cardPending": "An atant",
+    "cardSigned": "Siyen",
+    "cardUpdated": "Mete ajou {{date}}",
+    "noDocuments": "Okenn dokiman",
+    "subtitle": "To adopsyon dokiman legal, risk konfòmite, ak tandans.",
+    "title": "Metrik konfòmite"
+  },
+  "adminPricing": {
+    "activeLabel": "Aktif",
+    "edit": "Modifye",
+    "editFeeTitle": "Modifye règ frè",
+    "editMarkupTitle": "Modifye règ maj",
+    "emptyFees": "Okenn règ frè konfigire.",
+    "emptyMarkup": "Okenn règ maj konfigire.",
+    "feeUpdatedToast": "Règ frè a mete ajou",
+    "fixedAmountLabel": "Kantite fiks (santim)",
+    "markupPctLabel": "Maj % (desimal pa egzanp 0.20)",
+    "markupUpdatedToast": "Règ maj la mete ajou",
+    "pctOfProductLabel": "% nan pwodui (desimal)",
+    "stackOrder": "Kou pwodui → Manyen orijin → Frè apwovizyonman → Maj OxSteed → Fret est. → Ladwàn/Admin → Depo → Egzekisyon divize → Dènye km → Siplis risk",
+    "stackOrderLabel": "Lòd pil pri yo:",
+    "subtitle": "Kontwole kouch maj ak frè ki ka anpile nan branch lojistik la. Chanjman yo aplike nan tout kalkil kou nan lavni.",
+    "tabFees": "Règ frè",
+    "tabMarkup": "Règ maj",
+    "thActive": "Aktif",
+    "thCategory": "Kategori",
+    "thFeeType": "Kalite frè",
+    "thFixedCents": "Fiks (¢)",
+    "thMarkupPct": "Maj %",
+    "thMaxCents": "Max (¢)",
+    "thPctOfProduct": "% nan pwodui",
+    "thPriority": "Priyorite",
+    "thScope": "Dimansyon",
+    "thScopeId": "ID dimansyon",
+    "title": "Règ pri ak frè"
+  },
+  "adminSuppliers": {
+    "actionFailed": "Aksyon an echwe",
+    "allStatus": "Tout estati",
+    "allTrustRatings": "Tout nòt konfyans",
+    "approve": "Apwouve",
+    "approvedCategories": "Kategori apwouve",
+    "approvedToast": "Founisè apwouve",
+    "complianceNotes": "Nòt konfòmite:",
+    "confirmApproveButton": "Apwouve founisè a",
+    "confirmApproveMessage": "Apwouve {{name}} kòm founisè apwouve?",
+    "confirmApproveTitle": "Apwouve founisè a",
+    "confirmDeactivateMessage": "Dezaktive {{name}}? Yo pap disponib pou nouvo apwovizyonman.",
+    "confirmDeactivateTitle": "Dezaktive founisè a",
+    "countryPlaceholder": "Peyi (pa egzanp CN)",
+    "deactivate": "Dezaktive",
+    "deactivatedToast": "Founisè dezaktive",
+    "detailAddress": "Adrès",
+    "detailApproved": "Apwouve",
+    "detailCity": "Vil",
+    "detailCommunication": "Kominikasyon",
+    "detailContact": "Kontak",
+    "detailCountry": "Peyi",
+    "detailDisputes": "Diskisyon",
+    "detailEmail": "Imèl",
+    "detailKybVerified": "KYB verifye",
+    "detailLegalName": "Non legal",
+    "detailOnTimeRate": "To alè",
+    "detailPaymentTerms": "Kondisyon peman",
+    "detailPhone": "Telefòn",
+    "detailQualityScore": "Nòt kalite",
+    "detailTrustRating": "Nòt konfyans",
+    "detailWebsite": "Sit entènèt",
+    "kybYes": "Wi ({{date}})",
+    "minStars": "≥ {{n}} zetwal",
+    "noSuppliers": "Okenn founisè pa jwenn.",
+    "pendingApproval": "An atant",
+    "statusActive": "Aktif",
+    "statusInactive": "Pa aktif",
+    "subtitle": "Apwouve, bay nòt, epi jere pwofil founisè yo ak katalòg pwodui yo.",
+    "thActions": "Aksyon",
+    "thCategories": "Kategori",
+    "thCountry": "Peyi",
+    "thKyb": "KYB",
+    "thProducts": "Pwodui",
+    "thQuality": "Kalite",
+    "thStatus": "Estati",
+    "thSupplier": "Founisè",
+    "thTrust": "Konfyans",
+    "title": "Jesyon founisè",
+    "thisSupplier": "founisè sa a"
+  },
+  "adminSupportKnowledgeBase": {
+    "allCategories": "Tout",
+    "contentPlaceholder": "Kontni atik la...",
+    "createArticle": "Kreye atik",
+    "deleteArticleAria": "Efase atik la: {{title}}",
+    "description": "Òganize repons ou ka reitilize, gid depanaj, ak referans politik pou ajan yo ka rezoud pwoblèm pi vit epi pi konsistan.",
+    "editArticleAria": "Modifye atik la: {{title}}",
+    "emptyBody": "Kreye yon atik oswa elaji kritè rechèch yo pou rebati vi bibliyotèk sipò a.",
+    "emptyTitle": "Okenn atik baz konesans pa jwenn",
+    "eyebrow": "Sistèm konesans",
+    "helpfulCount": "{{count}} itil",
+    "labelCategory": "Kategori",
+    "labelContent": "Kontni",
+    "labelTags": "Etikèt",
+    "labelTitle": "Tit",
+    "librarySubtitle": "Chèche pa kontni oswa etwat bibliyotèk la pa kategori pou jwenn bon gid la vit.",
+    "libraryTitle": "Bibliyotèk atik",
+    "modalEditTitle": "Modifye atik la",
+    "modalNewTitle": "Nouvo atik",
+    "modalSubtitle": "Bati repons ou ka reitilize tout ekip sipò a ka konte sou yo.",
+    "newArticle": "Nouvo atik",
+    "searchPlaceholder": "Chèche atik...",
+    "statArticles": "Atik",
+    "statArticlesDetail": "Atik sipò pibliye oswa bouyon nan vi sa a.",
+    "statCategory": "Kategori",
+    "statCategoryAll": "Ap gade tout kategori sipò yo.",
+    "statCategoryFiltered": "Ap filtre sou {{category}}.",
+    "statHelpful": "Itil",
+    "statHelpfulDetail": "Vòt itil ki vizib nan rezilta aktyèl yo.",
+    "statViews": "Vi",
+    "statViewsDetail": "Total vi anrejistre nan rezilta aktyèl yo.",
+    "tagsPlaceholder": "fakti, depanaj (separe pa vigil)",
+    "title": "Baz konesans sipò",
+    "titlePlaceholder": "Tit atik la...",
+    "toastContentRequired": "Kontni atik la obligatwa",
+    "toastDeleteFailed": "Sipresyon atik la echwe.",
+    "toastDeleted": "Atik efase.",
+    "toastSaveFailed": "Anrejistreman atik la echwe",
+    "toastTitleRequired": "Tit atik la obligatwa",
+    "updateArticle": "Mete atik la ajou",
+    "viewsCount": "{{count}} vi"
+  }
 }

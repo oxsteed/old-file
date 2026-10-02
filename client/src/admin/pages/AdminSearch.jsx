@@ -66,6 +66,7 @@ function UserResults({ users }) {
 }
 
 function JobResults({ jobs }) {
+  const { t } = useTranslation();
   if (!jobs?.length) return <Empty />;
   const STATUS_COLOR = {
     published:   'bg-green-900 text-green-300',
@@ -76,16 +77,20 @@ function JobResults({ jobs }) {
   return (
     <div className="divide-y divide-gray-800">
       {jobs.map(j => (
-        <div key={j.id} className="py-3 px-4">
+        <Link
+          key={j.id}
+          to={`/admin/jobs/${j.id}`}
+          className="block py-3 px-4 hover:bg-gray-800/50 transition group"
+        >
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">{j.title}</p>
+              <p className="text-sm font-medium text-white truncate group-hover:text-orange-300 transition">{j.title}</p>
               <p className="text-xs text-gray-400 mt-0.5">
                 {j.client_name} · {j.location_city}{j.location_state ? `, ${j.location_state}` : ''}
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <Badge text={j.status} colorClass={STATUS_COLOR[j.status] || 'bg-gray-700 text-gray-300'} />
+              <Badge text={t(`adminJobs.status.${j.status || 'unknown'}`, { defaultValue: (j.status || 'unknown').replace(/_/g, ' ') })} colorClass={STATUS_COLOR[j.status] || 'bg-gray-700 text-gray-300'} />
               <span className="text-xs text-gray-500">{ts(j.created_at)}</span>
             </div>
           </div>
@@ -93,7 +98,7 @@ function JobResults({ jobs }) {
             {j.category_name && <span className="mr-2">{j.category_name}</span>}
             {j.budget_min != null && <span>{money(j.budget_min)}–{money(j.budget_max)}</span>}
           </p>
-        </div>
+        </Link>
       ))}
     </div>
   );
@@ -208,7 +213,15 @@ function PaymentResults({ payments }) {
 }
 
 function SupportResults({ tickets }) {
+  const { t: tt } = useTranslation();
   if (!tickets?.length) return <Empty />;
+  const PRIORITY_KEY = {
+    low: 'priority.low', normal: 'priority.normal', high: 'priority.high', urgent: 'priority.urgent',
+  };
+  const STATUS_KEY = {
+    open: 'status.open', assigned: 'status.assigned', in_progress: 'status.inProgress',
+    waiting_user: 'status.waitingUser', resolved: 'status.resolved', closed: 'status.closed',
+  };
   const PRIORITY_COLOR = {
     low:    'bg-gray-700 text-gray-400',
     normal: 'bg-blue-900 text-blue-300',
@@ -228,7 +241,7 @@ function SupportResults({ tickets }) {
       {tickets.map(t => (
         <Link
           key={t.id}
-          to={`/admin/support`}
+          to={`/admin/support?ticket=${encodeURIComponent(t.id)}`}
           className="block py-3 px-4 hover:bg-gray-800/50 transition group"
         >
           <div className="flex items-start justify-between gap-3">
@@ -241,8 +254,8 @@ function SupportResults({ tickets }) {
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <Badge text={t.priority} colorClass={PRIORITY_COLOR[t.priority] || 'bg-gray-700 text-gray-300'} />
-              <Badge text={t.status}   colorClass={STATUS_COLOR[t.status]     || 'bg-gray-700 text-gray-300'} />
+              <Badge text={tt(`adminSupportTickets.${PRIORITY_KEY[t.priority] || 'priority.normal'}`, { defaultValue: t.priority })} colorClass={PRIORITY_COLOR[t.priority] || 'bg-gray-700 text-gray-300'} />
+              <Badge text={tt(`adminSupportTickets.${STATUS_KEY[t.status] || 'status.open'}`, { defaultValue: t.status })} colorClass={STATUS_COLOR[t.status]     || 'bg-gray-700 text-gray-300'} />
               <span className="text-xs text-gray-500">{ts(t.created_at)}</span>
             </div>
           </div>

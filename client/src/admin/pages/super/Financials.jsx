@@ -184,7 +184,7 @@ export default function Financials() {
                         ? 'bg-red-900 text-red-300'
                         : 'bg-gray-700 text-gray-400'
                     }`}>
-                      {entry.source_type}
+                      {t(`superFinancials.type.${entry.source_type}`, { defaultValue: String(entry.source_type).replace(/_/g, ' ') })}
                     </span>
                   </td>
                   <td className="px-4 py-3">

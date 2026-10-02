@@ -5,6 +5,7 @@ import adminApi from '../../lib/adminApi';
 import AdminErrorState from '../lib/AdminErrorState';
 import { Clock, AlertCircle, TrendingUp, CheckCircle, RefreshCw, Target } from 'lucide-react';
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import SupportSubNav from '../components/SupportSubNav';
 
 export default function SupportSLADashboard() {
   const { businessId } = useParams();
@@ -82,6 +83,7 @@ export default function SupportSLADashboard() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
+      <SupportSubNav />
       <div className="flex items-start justify-between mb-8">
         <div>
           <h1 className="text-white font-bold text-3xl mb-2">{t('adminSupportSla.title')}</h1>

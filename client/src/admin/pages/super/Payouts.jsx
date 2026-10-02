@@ -21,7 +21,7 @@ function PayoutDrawer({ payout, fmt, onClose }) {
     ['superPayouts.rowHelper', payout.helper_name || payout.helper?.name || payout.helperEmail || 'N/A'],
     ['superPayouts.rowAmount', fmt(payout.amount)],
     ['superPayouts.rowMethod', payout.method || 'N/A'],
-    ['superPayouts.rowStatus', payout.status || 'N/A'],
+    ['superPayouts.rowStatus', t(`superPayouts.status.${payout.status}`, { defaultValue: String(payout.status || 'N/A').replace(/_/g, ' ') })],
     ['superPayouts.rowRequested', requested ? new Date(requested).toLocaleString() : 'N/A'],
     ['superPayouts.rowFailureReason', payout.failure_reason || payout.failure_message || payout.error || 'N/A'],
     ['superPayouts.rowReference', payout.reference || payout.id || payout._id || 'N/A'],
@@ -152,7 +152,8 @@ export default function Payouts() {
 
       {!error && (
       <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px] text-sm">
           <thead>
             <tr className="border-b border-slate-700">
               <th className="text-left text-gray-400 font-medium px-4 py-3">{t('superPayouts.colHelper')}</th>
@@ -182,7 +183,7 @@ export default function Payouts() {
                     p.status === 'pending'   ? 'bg-yellow-500/20 text-yellow-400' :
                     p.status === 'processing'? 'bg-blue-500/20 text-blue-400' :
                     'bg-red-500/20 text-red-400'
-                  }`}>{p.status}</span>
+                  }`}>{t(`superPayouts.status.${p.status}`, { defaultValue: String(p.status).replace(/_/g, ' ') })}</span>
                 </td>
                 <td className="px-4 py-3 text-gray-400">
                   {p.created_at || p.createdAt
@@ -202,7 +203,7 @@ export default function Payouts() {
                         onClick={() => setRetryTarget(pid)}
                         className="px-2.5 py-1 text-xs bg-orange-600 hover:bg-orange-700 text-white rounded font-medium"
                       >
-                        {t('superFinancials.retry')}
+                        {t('superPayouts.retry')}
                       </button>
                     )}
                   </div>
@@ -212,6 +213,7 @@ export default function Payouts() {
             })}
           </tbody>
         </table>
+        </div>
       </div>
       )}
 

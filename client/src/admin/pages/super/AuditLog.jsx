@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { RefreshCw, RotateCcw, ScrollText } from 'lucide-react';
 import adminApi                from '../../../lib/adminApi';
 import { useTranslation } from 'react-i18next';
+import { adminDate } from '../../lib/formatters';
 
 export default function AuditLog() {
   const { t } = useTranslation();
@@ -55,7 +56,7 @@ export default function AuditLog() {
   };
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <div className="flex items-start justify-between gap-4 mb-6">
         <div>
           <div className="flex items-center gap-3">
@@ -76,11 +77,11 @@ export default function AuditLog() {
             className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-700 bg-gray-800 text-sm text-gray-200 hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 transition"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            {loading ? t('superConversations.refreshing') : t('superPlatformSettings.refresh')}
+            {t('common.refresh')}
           </button>
           {lastLoadedAt && !loading && (
             <span className="text-[11px] text-gray-600">
-              {t('superConversations.updatedAt', { time: lastLoadedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) })}
+              {t('superAuditLog.updatedAt', { defaultValue: 'Updated {{time}}', time: lastLoadedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) })}
             </span>
           )}
         </div>
@@ -131,7 +132,7 @@ export default function AuditLog() {
         <div className="flex items-center justify-between gap-3 mb-6 px-4 py-3 bg-red-900/30 border border-red-700/60 rounded-xl text-red-300 text-sm">
           <span>{error}</span>
           <button onClick={() => setRetry(value => value + 1)} className="px-3 py-1.5 rounded-lg bg-red-700/60 hover:bg-red-700 text-white text-xs font-semibold">
-            {t('superFinancials.retry')}
+            {t('common.retry')}
           </button>
         </div>
       )}
@@ -156,7 +157,7 @@ export default function AuditLog() {
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center
                                              text-gray-500">
-                    {t('superFinancials.loading')}
+                    {t('common.loading')}
                   </td>
                 </tr>
               ) : log.length === 0 ? (
@@ -168,10 +169,10 @@ export default function AuditLog() {
                 </tr>
               ) : log.map(entry => (
                 <tr key={entry.id}
-                    className="hover:bg-gray-750 transition-colors group">
+                    className="hover:bg-gray-800/40 transition-colors group">
                   <td className="px-4 py-3 text-gray-400 text-xs
                                  whitespace-nowrap font-mono">
-                    {new Date(entry.created_at).toLocaleString('en-US', {
+                    {adminDate(entry.created_at, {
                       month:  'short', day:    'numeric',
                       hour:   '2-digit', minute: '2-digit',
                       second: '2-digit'
@@ -201,7 +202,7 @@ export default function AuditLog() {
                     {(entry.target_id || entry.target_key) && (
                       <p className="font-mono text-gray-600 text-xs
                                     truncate max-w-24">
-                        {entry.target_key || `${entry.target_id.split('-')[0]}...`}
+                        {entry.target_key || `${String(entry.target_id).split('-')[0]}...`}
                       </p>
                     )}
                   </td>

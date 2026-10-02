@@ -111,8 +111,9 @@ function boundaryCount(def) {
   }
 }
 
-function boundaryHighlights(def) {
+function boundaryHighlights(def, t) {
   if (!def || !def.type) return [];
+  const milesUnit = t ? t('adminRegionsMilesUnit', { defaultValue: 'miles' }) : 'miles';
   switch (def.type) {
     case 'zip_range':
       return (def.ranges || []).slice(0, 3).map((range) => `${range.start}-${range.end}`);
@@ -123,7 +124,7 @@ function boundaryHighlights(def) {
     case 'country_only':
       return (def.countries || []).slice(0, 4);
     case 'geo_radius':
-      return [`${def.radius_miles} miles`, `Lat ${def.center?.lat ?? 0}`, `Lng ${def.center?.lng ?? 0}`];
+      return [`${def.radius_miles} ${milesUnit}`, `Lat ${def.center?.lat ?? 0}`, `Lng ${def.center?.lng ?? 0}`];
     default:
       return [];
   }
@@ -162,7 +163,7 @@ function RegionCard({ region, onEdit, onDelete, deleting }) {
   };
   const typeLabel = known ? t(TYPE_LABEL_KEY[type]) : type;
   const typeDescription = known ? t(TYPE_DESC_KEY[type]) : t('adminRegionsTypeCustomDesc');
-  const chips = boundaryHighlights(region.boundary_definition);
+  const chips = boundaryHighlights(region.boundary_definition, t);
 
   return (
     <article className="rounded-[28px] border border-white/10 bg-slate-950/80 p-5 shadow-[0_22px_60px_rgba(2,6,23,0.28)]">
@@ -289,7 +290,7 @@ export default function RegionsManager() {
         region.description,
         type,
         summarizeBoundary(region.boundary_definition, t),
-        ...boundaryHighlights(region.boundary_definition),
+        ...boundaryHighlights(region.boundary_definition, t),
       ]
         .filter(Boolean)
         .join(' ')
@@ -504,6 +505,7 @@ export default function RegionsManager() {
               </div>
               <button
                 onClick={() => setEditing(null)}
+                aria-label={t('common.close')}
                 className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10"
               >
                 <X size={16} />

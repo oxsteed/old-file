@@ -20,6 +20,7 @@ function ReservePolicySection({ busy, setBusy, setNotice, setError, currencyOpti
   const { t } = useTranslation('credit');
   const [policies, setPolicies] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [currency, setCurrency] = useState('USD');
   const [partnerId, setPartnerId] = useState('');
   const [ratioBps, setRatioBps] = useState('1000');
@@ -27,15 +28,16 @@ function ReservePolicySection({ busy, setBusy, setNotice, setError, currencyOpti
 
   const loadPolicies = useCallback(async () => {
     setLoading(true);
+    setLoadError('');
     try {
       const response = await adminApi.get('/admin/super/oxsteed-credit/reserve-policies', { params: { currencyCode: currency } });
       setPolicies(response.data?.policies || []);
     } catch (err) {
-      setError(safeCreditErrorMessage(err, t('adminReservePolicyLoadFailed')));
+      setLoadError(safeCreditErrorMessage(err, t('adminReservePolicyLoadFailed')));
     } finally {
       setLoading(false);
     }
-  }, [currency, setError, t]);
+  }, [currency, t]);
 
   useEffect(() => { loadPolicies(); }, [loadPolicies]);
 
@@ -62,6 +64,7 @@ function ReservePolicySection({ busy, setBusy, setNotice, setError, currencyOpti
   };
 
   return <Section eyebrow="Reserve policy" title="Reserve policies" detail="Reserve ratios and floors are per currency, with optional per-partner overrides. Changes queue for a second admin to approve in the maker-checker queue below; nothing applies until then.">
+    {loadError && <div role="alert" aria-live="assertive" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-sm text-amber-200"><span className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 shrink-0" />{loadError}</span><button type="button" onClick={loadPolicies} disabled={loading || busy} className="rounded-lg border border-amber-400/30 px-3 py-2 text-xs font-semibold text-amber-200 hover:bg-amber-500/10 disabled:opacity-50">{t('adminRetry')}</button></div>}
     <div className="mt-5 grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
       <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-4">
         <h3 className="text-sm font-semibold text-white">{t('adminReservePolicyUpdateTitle')}</h3>

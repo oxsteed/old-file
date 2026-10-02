@@ -30,7 +30,7 @@ export default function PricingOverrides() {
 
   const handleEdit = (override) => {
     setEditing(override.country_code);
-    setEditPrice((override.price_cents / 100).toFixed(2));
+    setEditPrice((Number(override.price_cents || 0) / 100).toFixed(2));
     setEditCurrency(override.currency_code);
     setEditReason('');
   };
@@ -43,7 +43,8 @@ export default function PricingOverrides() {
   };
 
   const handleSave = () => {
-    if (!editPrice || parseFloat(editPrice) < 0) {
+    const parsedPrice = parseFloat(editPrice);
+    if (!editPrice || Number.isNaN(parsedPrice) || parsedPrice < 0) {
       toast.error(t('superPricingOverrides.invalidPrice'));
       return;
     }

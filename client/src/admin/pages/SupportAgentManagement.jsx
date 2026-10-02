@@ -40,7 +40,7 @@ export default function SupportAgentManagement() {
       setAgents(res.data.agents || []);
     } catch (err) {
       console.error('Failed to load agents:', err);
-      toast.error(err?.response?.data?.error || 'Failed to load agents');
+      toast.error(err?.response?.data?.error || t('supportAdmin.agentManagement.loadFailed', { defaultValue: 'Failed to load agents' }));
       setAgents([]);
     } finally {
       setLoading(false);
@@ -54,9 +54,11 @@ export default function SupportAgentManagement() {
   const handleToggleStatus = async (agentId) => {
     try {
       await adminApi.patch(`/support/agents/${agentId}/toggle-status`);
+      toast.success(t('supportAdmin.agentManagement.statusUpdated', { defaultValue: 'Agent status updated' }));
       loadAgents();
     } catch (err) {
       console.error('Failed to toggle status:', err);
+      toast.error(err?.response?.data?.error || t('supportAdmin.agentManagement.statusFailed', { defaultValue: 'Failed to update agent status' }));
     }
   };
 
@@ -64,9 +66,11 @@ export default function SupportAgentManagement() {
     if (!window.confirm(t('supportAdmin.agentManagement.confirmDeleteAgent'))) return;
     try {
       await adminApi.delete(`/support/agents/${agentId}`);
+      toast.success(t('supportAdmin.agentManagement.agentDeleted', { defaultValue: 'Agent deleted' }));
       loadAgents();
     } catch (err) {
       console.error('Failed to delete agent:', err);
+      toast.error(err?.response?.data?.error || t('supportAdmin.agentManagement.deleteFailed', { defaultValue: 'Failed to delete agent' }));
     }
   };
 

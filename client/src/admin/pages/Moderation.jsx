@@ -53,28 +53,28 @@ export default function Moderation() {
       <div className="flex items-center gap-3 mb-6">
         <Shield size={22} className="text-orange-400" />
         <div>
-          <h1 className="text-2xl font-bold text-white">Content Moderation</h1>
+          <h1 className="text-2xl font-bold text-white">{t('admin.moderation.title', { defaultValue: 'Content Moderation' })}</h1>
           <p className="text-gray-400 text-sm">
-            {items.length} job{items.length !== 1 ? 's' : ''} flagged or reported
+            {t('admin.moderation.queueSubtitle', { defaultValue: '{{count}} job{{plural}} flagged or reported', count: items.length, plural: items.length !== 1 ? 's' : '' })}
           </p>
         </div>
       </div>
 
       <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
         {loading ? (
-          <div className="text-center text-gray-400 py-16">Loading...</div>
+          <div className="text-center text-gray-400 py-16">{t('admin.moderation.loading', { defaultValue: 'Loading…' })}</div>
         ) : error ? (
           <div className="p-6">
             <AdminErrorState
-              title="Failed to load moderation queue"
-              message={error?.response?.data?.error || 'Could not load the moderation queue.'}
+              title={t('admin.moderationQueueLoadFailedTitle')}
+              message={error?.response?.data?.error || t('admin.moderationQueueLoadFailedMessage')}
               onRetry={reload}
             />
           </div>
         ) : items.length === 0 ? (
           <div className="text-center py-16">
             <CheckCircle className="mx-auto mb-3 text-green-400" size={48} />
-            <p className="text-gray-400 font-medium">Queue is clear - no flagged or reported jobs.</p>
+            <p className="text-gray-400 font-medium">{t('admin.moderation.emptyQueue', { defaultValue: 'Queue is clear - no flagged or reported jobs.' })}</p>
           </div>
         ) : (
           <div className="divide-y divide-slate-700">
@@ -92,13 +92,13 @@ export default function Moderation() {
                       {item.report_count > 0 && (
                         <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-900/60 text-red-400 shrink-0">
                           <AlertTriangle size={11} />
-                          {item.report_count} report{Number(item.report_count) !== 1 ? 's' : ''}
+                          {t('admin.moderation.reportCount', { defaultValue: '{{count}} report{{plural}}', count: item.report_count, plural: Number(item.report_count) !== 1 ? 's' : '' })}
                         </span>
                       )}
                     </div>
                     <p className="text-gray-400 text-sm line-clamp-2">{item.description}</p>
                     <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-500 flex-wrap">
-                      <span>By: <span className="text-gray-300">{item.client_name}</span></span>
+                      <span>{t('admin.moderation.by', { defaultValue: 'By:' })} <span className="text-gray-300">{item.client_name}</span></span>
                       {item.category_name && <span>{item.category_name}</span>}
                       <span className="capitalize">{item.status}</span>
                       <span>{new Date(item.created_at).toLocaleDateString()}</span>
@@ -109,26 +109,26 @@ export default function Moderation() {
                     <button
                       onClick={() => handleAction(item.id, 'unflag')}
                       disabled={!!acting}
-                      title="Dismiss - remove admin flag"
+                      title={t('admin.moderation.dismissTitle', { defaultValue: 'Dismiss - remove admin flag' })}
                       className="flex items-center gap-1 px-3 py-1.5 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 text-xs font-medium disabled:opacity-50 transition-colors"
                     >
-                      <CheckCircle size={14} /> Dismiss
+                      <CheckCircle size={14} /> {t('admin.moderation.dismiss', { defaultValue: 'Dismiss' })}
                     </button>
                     <button
                       onClick={() => handleAction(item.id, 'flag')}
                       disabled={!!acting}
-                      title="Flag for further review"
+                      title={t('admin.moderation.flagTitle', { defaultValue: 'Flag for further review' })}
                       className="flex items-center gap-1 px-3 py-1.5 bg-yellow-500/20 text-yellow-400 rounded-lg hover:bg-yellow-500/30 text-xs font-medium disabled:opacity-50 transition-colors"
                     >
-                      <Flag size={14} /> Flag
+                      <Flag size={14} /> {t('admin.moderation.flag', { defaultValue: 'Flag' })}
                     </button>
                     <button
                       onClick={() => handleAction(item.id, 'cancel')}
                       disabled={!!acting}
-                      title="Cancel job - removes from marketplace"
+                      title={t('admin.moderation.removeTitle', { defaultValue: 'Cancel job - removes from marketplace' })}
                       className="flex items-center gap-1 px-3 py-1.5 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 text-xs font-medium disabled:opacity-50 transition-colors"
                     >
-                      <XCircle size={14} /> Remove
+                      <XCircle size={14} /> {t('admin.moderation.remove', { defaultValue: 'Remove' })}
                     </button>
                   </div>
                 </div>

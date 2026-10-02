@@ -282,10 +282,10 @@ function NewSessionModal({ consultants, onClose, onCreated }) {
           <div style={fieldStyle}>
             <label style={labelStyle}>{t('adminConsultingScheduler.newSessionModal.fields.serviceTier')}</label>
             <select style={inputStyle} value={form.service_tier} onChange={e => setForm({ ...form, service_tier: e.target.value })}>
-              <option value="initial">Initial ($100)</option>
-              <option value="foundation">Foundation</option>
-              <option value="implementation">Implementation</option>
-              <option value="transformation">Transformation</option>
+              <option value="initial">{t('adminConsultingScheduler.tierInitial', { defaultValue: 'Initial ($100)' })}</option>
+              <option value="foundation">{t('adminConsultingScheduler.tierFoundation', { defaultValue: 'Foundation' })}</option>
+              <option value="implementation">{t('adminConsultingScheduler.tierImplementation', { defaultValue: 'Implementation' })}</option>
+              <option value="transformation">{t('adminConsultingScheduler.tierTransformation', { defaultValue: 'Transformation' })}</option>
             </select>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 1rem' }}>
@@ -415,9 +415,9 @@ export default function ConsultingScheduler() {
       <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '10px', overflow: 'hidden', marginBottom: '2.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', borderBottom: '1px solid var(--color-border)', flexWrap: 'wrap', gap: '0.5rem' }}>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <button onClick={prevWeek} style={{ padding: '0.4rem 0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'none', cursor: 'pointer', color: 'var(--color-text)' }}>← Prev</button>
-            <button onClick={today} style={{ padding: '0.4rem 0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'none', cursor: 'pointer', color: 'var(--color-text)' }}>Today</button>
-            <button onClick={nextWeek} style={{ padding: '0.4rem 0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'none', cursor: 'pointer', color: 'var(--color-text)' }}>Next →</button>
+            <button onClick={prevWeek} style={{ padding: '0.4rem 0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'none', cursor: 'pointer', color: 'var(--color-text)' }}>{'← '}{t('adminConsultingScheduler.prevWeek', { defaultValue: 'Prev' })}</button>
+            <button onClick={today} style={{ padding: '0.4rem 0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'none', cursor: 'pointer', color: 'var(--color-text)' }}>{t('adminConsultingScheduler.today', { defaultValue: 'Today' })}</button>
+            <button onClick={nextWeek} style={{ padding: '0.4rem 0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'none', cursor: 'pointer', color: 'var(--color-text)' }}>{t('adminConsultingScheduler.nextWeek', { defaultValue: 'Next' })} {'→'}</button>
           </div>
           <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>
             Week of {weekStart.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
@@ -460,7 +460,7 @@ export default function ConsultingScheduler() {
 
       {pendingSessions.length === 0 ? (
         <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '10px', padding: '2.5rem', textAlign: 'center', marginBottom: '2.5rem' }}>
-          <p style={{ color: 'var(--color-text-muted)' }}>No pending sessions. All requests have been processed.</p>
+          <p style={{ color: 'var(--color-text-muted)' }}>{t('adminConsultingScheduler.noPendingSessions', { defaultValue: 'No pending sessions. All requests have been processed.' })}</p>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.25rem', marginBottom: '2.5rem' }}>
@@ -471,10 +471,10 @@ export default function ConsultingScheduler() {
                   <div style={{ fontWeight: 700, fontSize: '1rem' }}>{session.first_name} {session.last_name}</div>
                   <div style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>{session.email}</div>
                 </div>
-                <span style={{ background: '#FFA500', color: 'white', padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 }}>Pending</span>
+                <span style={{ background: '#FFA500', color: 'white', padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 }}>{t('adminConsultingScheduler.pendingBadge', { defaultValue: 'Pending' })}</span>
               </div>
               <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>
-                <strong>Tier:</strong> {session.service_tier} &nbsp;|&nbsp; <strong>Phone:</strong> {session.phone || 'N/A'}
+                <strong>{t('adminConsultingScheduler.tierLabel', { defaultValue: 'Tier' })}:</strong> {session.service_tier} &nbsp;|&nbsp; <strong>{t('adminConsultingScheduler.phoneLabel', { defaultValue: 'Phone' })}:</strong> {session.phone || 'N/A'}
               </div>
               <div style={{ fontSize: '0.85rem', marginBottom: '0.5rem' }}>
                 <strong>Submitted:</strong> {new Date(session.created_at).toLocaleDateString()}

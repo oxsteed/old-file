@@ -105,8 +105,8 @@ export default function PricingConfig() {
 
         <ConfirmDialog
           open={confirmSave}
-          title="Save pricing changes"
-          message="Save these pricing changes? They take effect immediately across the platform."
+          title={t('superPricingConfig.confirmTitle', { defaultValue: 'Save pricing changes' })}
+          message={t('superPricingConfig.confirmMessage', { defaultValue: 'Save these pricing changes? They take effect immediately across the platform.' })}
           confirmLabel={t('superPricingConfig.saveChanges')}
           onConfirm={doSave}
           onClose={() => setConfirmSave(false)}

@@ -46,18 +46,19 @@ export default function OxsteedCreditCompliancePage() {
   const { t } = useTranslation('credit');
   const { loading, setLoading, busy, setBusy, error, setError, notice, setNotice, idempotencyKeysRef, loadRequestRef } = useCreditPageState();
   const [complianceQueue, setComplianceQueue] = useState(null);
+  const [queueError, setQueueError] = useState('');
   const { dialog, requestDialog, resolveDialog } = useCreditDialog();
 
   const load = useCallback(async ({ quiet = false } = {}) => {
     const requestId = ++loadRequestRef.current;
     if (!quiet) setLoading(true);
-    setError('');
+    setQueueError('');
     try {
       const complianceResponse = await adminApi.get('/admin/super/oxsteed-credit/compliance-queue');
       if (requestId !== loadRequestRef.current) return;
       setComplianceQueue(complianceResponse.data || null);
     } catch (err) {
-      if (requestId === loadRequestRef.current) setError(safeCreditErrorMessage(err, t('adminLoadFailed')));
+      if (requestId === loadRequestRef.current) setQueueError(safeCreditErrorMessage(err, t('adminLoadFailed')));
     } finally {
       if (requestId === loadRequestRef.current) setLoading(false);
     }
@@ -109,6 +110,7 @@ export default function OxsteedCreditCompliancePage() {
       </header>
       {error && <div role="alert" aria-live="assertive" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-950/25 px-4 py-3 text-sm text-red-300"><span className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 shrink-0" />{error}</span><button type="button" onClick={() => load({ quiet: true })} disabled={loading || busy} className="rounded-lg border border-red-400/30 px-3 py-2 text-xs font-semibold text-red-200 hover:bg-red-500/10 disabled:opacity-50">{t('adminRetryDashboard')}</button></div>}
       {notice && <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-950/25 px-4 py-3 text-sm text-emerald-300"><CheckCircle2 className="h-4 w-4 shrink-0" />{notice}</div>}
+      {queueError && <div role="alert" aria-live="assertive" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-sm text-amber-200"><span className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 shrink-0" />{queueError}</span><button type="button" onClick={() => load({ quiet: true })} disabled={loading || busy} className="rounded-lg border border-amber-400/30 px-3 py-2 text-xs font-semibold text-amber-200 hover:bg-amber-500/10 disabled:opacity-50">{t('adminRetry')}</button></div>}
       <ComplianceQueue
         queue={complianceQueue}
         busy={busy}

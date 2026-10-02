@@ -30,6 +30,11 @@ function money(val, locale) {
   }
 }
 
+function jobStatusLabel(status, t) {
+  const s = status || 'unknown';
+  return t(`adminJobs.status.${s}`, { defaultValue: s.replace(/_/g, ' ') });
+}
+
 const STATUS_COLOR = {
   published:   'bg-blue-900 text-blue-300',
   accepted:    'bg-orange-900 text-orange-300',
@@ -69,6 +74,7 @@ function Section({ title, children }) {
 // ── Action modals ─────────────────────────────────────────────────────────────
 
 function ActionModal({ title, description, danger = false, confirmLabel, onConfirm, onClose, loading, error, children }) {
+  const { t } = useTranslation();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       onClick={() => !loading && onClose()}>
@@ -81,7 +87,7 @@ function ActionModal({ title, description, danger = false, confirmLabel, onConfi
         <div className="flex gap-3 mt-4">
           <button onClick={onClose} disabled={loading}
             className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-700 transition disabled:opacity-50">
-            Cancel
+            {t('common.cancel')}
           </button>
           <button onClick={onConfirm} disabled={loading}
             className={`flex-1 px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50 ${
@@ -89,7 +95,7 @@ function ActionModal({ title, description, danger = false, confirmLabel, onConfi
                 ? 'bg-red-600 hover:bg-red-700 text-white'
                 : 'bg-orange-500 hover:bg-orange-600 text-white'
             }`}>
-            {loading ? 'Working…' : confirmLabel}
+            {loading ? t('adminConfirmDialog.working') : confirmLabel}
           </button>
         </div>
       </div>
@@ -139,7 +145,7 @@ export default function JobDetail() {
     setModalBusy(true); setModalErr('');
     try {
       if (action === 'delete') {
-        if (!modalReason.trim()) { setModalErr('A reason is required.'); setModalBusy(false); return; }
+        if (!modalReason.trim()) { setModalErr(t('adminJobs.reasonRequired')); setModalBusy(false); return; }
         await adminApi.delete(`/admin/jobs/${jobId}`, { data: { reason: modalReason } });
         navigate('/admin/jobs');
         return;
@@ -149,7 +155,7 @@ export default function JobDetail() {
       reload();
       closeModal();
     } catch (err) {
-      setModalErr(err.response?.data?.error || 'Action failed.');
+      setModalErr(err.response?.data?.error || t('adminConfirmDialog.actionFailed'));
     } finally {
       setModalBusy(false);
     }
@@ -198,7 +204,7 @@ export default function JobDetail() {
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-bold text-white">{job.title}</h1>
             <Badge
-              text={(job.status || 'unknown').replace(/_/g, ' ')}
+              text={jobStatusLabel(job.status, t)}
               colorClass={STATUS_COLOR[job.status] || 'bg-gray-700 text-gray-300'}
             />
             {isFlagged && <Badge text={t('adminJobDetail.flagged')} colorClass="bg-yellow-900 text-yellow-300" />}
@@ -278,7 +284,7 @@ export default function JobDetail() {
                       <div className="flex items-center gap-2 shrink-0">
                         <span className="text-sm font-semibold text-white">{money(b.amount, locale)}</span>
                         <Badge
-                          text={b.status}
+                          text={jobStatusLabel(b.status, t)}
                           colorClass={BID_COLOR[b.status] || 'bg-gray-700 text-gray-300'}
                         />
                       </div>

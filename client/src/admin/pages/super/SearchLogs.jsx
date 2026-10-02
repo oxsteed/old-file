@@ -4,10 +4,11 @@ import { Search, BarChart2, Loader2 } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
 import { useAbortableFetch } from '../../lib/useAbortableFetch';
 import AdminErrorState from '../../lib/AdminErrorState';
+import { adminDate } from '../../lib/formatters';
 
 function ts(d) {
   if (!d) return '-';
-  return new Date(d).toLocaleString('en-US', {
+  return adminDate(d, {
     month: 'short', day: 'numeric', year: 'numeric',
     hour: 'numeric', minute: '2-digit',
   });

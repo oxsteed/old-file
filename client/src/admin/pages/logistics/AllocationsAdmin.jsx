@@ -101,7 +101,7 @@ export default function AllocationsAdmin() {
       {showDoForm && tab === 'deliveries' && (
         <div className="lx-card" style={{ marginBottom:'1.5rem', border:'2px solid #f97316' }}>
           <h3 style={{ fontWeight:700, marginBottom:'1rem' }}>{t('adminAllocations.createDeliveryOrder')}</h3>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1rem' }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:'1rem' }}>
             <div className="lx-form-group">
               <label className="lx-label">{t('adminAllocations.form.allocation')}</label>
               <select className="lx-select" value={doForm.allocation_id}
@@ -167,7 +167,7 @@ export default function AllocationsAdmin() {
                   </td>
                   <td>
                     <span className="lx-status-pill" style={{ background: ALLOC_STATUS_COLOR[a.status]||'#64748b' }}>
-                      {a.status}
+                      {t(`logistics.status.${a.status}`, { defaultValue: a.status?.replace(/_/g,' ') || t('logistics.admin.unknownStatus') })}
                     </span>
                   </td>
                   <td>
@@ -216,7 +216,7 @@ export default function AllocationsAdmin() {
                   </td>
                   <td>
                     <span className="lx-status-pill" style={{ background: DO_STATUS_COLOR[d.status]||'#64748b' }}>
-                      {d.status}
+                      {t(`logistics.status.${d.status}`, { defaultValue: d.status?.replace(/_/g,' ') || t('logistics.admin.unknownStatus') })}
                     </span>
                   </td>
                 </tr>

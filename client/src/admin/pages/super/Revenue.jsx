@@ -108,7 +108,8 @@ export default function Revenue() {
         <div className="px-4 py-3 border-b border-slate-700">
           <h2 className="text-white font-medium">{t('superRevenue.recentTransactions')}</h2>
         </div>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px] text-sm">
           <thead>
             <tr className="border-b border-slate-700">
               <th className="text-left text-gray-400 font-medium px-4 py-3">{t('superRevenue.colDate')}</th>
@@ -126,7 +127,7 @@ export default function Revenue() {
             ) : transactions.map(tx => (
               <tr key={tx._id} className="border-b border-slate-700/50 hover:bg-slate-700/30">
                 <td className="px-4 py-3 text-gray-400">{new Date(tx.createdAt).toLocaleDateString()}</td>
-                <td className="px-4 py-3 text-white capitalize">{tx.type}</td>
+                <td className="px-4 py-3 text-white capitalize">{t(`superRevenue.type.${tx.type}`, { defaultValue: String(tx.type || '').replace(/_/g, ' ') || 'N/A' })}</td>
                 <td className="px-4 py-3 text-gray-300">{tx.user?.name || tx.userEmail || 'N/A'}</td>
                 <td className="px-4 py-3 text-white">{fmt(tx.amount)}</td>
                 <td className="px-4 py-3">
@@ -134,12 +135,13 @@ export default function Revenue() {
                     tx.status === 'completed' ? 'bg-green-500/20 text-green-400' :
                     tx.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
                     'bg-red-500/20 text-red-400'
-                  }`}>{tx.status}</span>
+                  }`}>{t(`superRevenue.status.${tx.status}`, { defaultValue: String(tx.status || '').replace(/_/g, ' ') || 'N/A' })}</span>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

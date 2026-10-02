@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
 import toast from 'react-hot-toast';
 import { MessageSquare, Plus, Edit2, Trash2, Search, RefreshCw, Copy, TrendingUp } from 'lucide-react';
+import SupportSubNav from '../components/SupportSubNav';
 
 export default function SupportTemplates() {
   const { t } = useTranslation();
@@ -111,6 +112,7 @@ export default function SupportTemplates() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
+      <SupportSubNav />
       <div className="flex items-start justify-between mb-8">
         <div>
           <h1 className="text-white font-bold text-3xl mb-2">{t('adminSupportTemplates.title')}</h1>
@@ -179,6 +181,7 @@ export default function SupportTemplates() {
                     onClick={() => handleCopy(template.content, template.id)}
                     className="p-2 hover:bg-gray-700 rounded transition"
                     title={t('adminSupportTemplates.copyTitle')}
+                    aria-label={t('adminSupportTemplates.copyTitle')}
                   >
                     <Copy
                       size={16}
@@ -190,12 +193,16 @@ export default function SupportTemplates() {
                   <button
                     onClick={() => handleEdit(template)}
                     className="p-2 hover:bg-gray-700 rounded transition"
+                    title={t('adminSupportTemplates.editTemplateAria', { defaultValue: 'Edit template: {{name}}', name: template.name })}
+                    aria-label={t('adminSupportTemplates.editTemplateAria', { defaultValue: 'Edit template: {{name}}', name: template.name })}
                   >
                     <Edit2 size={16} className="text-gray-400" />
                   </button>
                   <button
                     onClick={() => handleDelete(template.id)}
                     className="p-2 hover:bg-red-900/30 rounded transition"
+                    title={t('adminSupportTemplates.deleteTemplateAria', { defaultValue: 'Delete template: {{name}}', name: template.name })}
+                    aria-label={t('adminSupportTemplates.deleteTemplateAria', { defaultValue: 'Delete template: {{name}}', name: template.name })}
                   >
                     <Trash2 size={16} className="text-red-400" />
                   </button>

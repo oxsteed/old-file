@@ -9,7 +9,7 @@ import AdminErrorState from '../../lib/AdminErrorState';
 const CUSTOMS_STATUSES = ['arrived_destination','customs_hold','customs_cleared'];
 
 export default function CustomsAdmin() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [shipments, setShipments] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [loadError, setLoadError] = useState(null);
@@ -68,7 +68,7 @@ export default function CustomsAdmin() {
         <select className="lx-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="">{t('adminCustoms.allStages')}</option>
           {CUSTOMS_STATUSES.map(s => (
-            <option key={s} value={s}>{s.replace(/_/g,' ')}</option>
+            <option key={s} value={s}>{t(`logistics.status.${s}`, { defaultValue: s.replace(/_/g,' ') })}</option>
           ))}
         </select>
       </div>
@@ -99,7 +99,7 @@ export default function CustomsAdmin() {
                 <td>
                   {s.lane_risk_tier && (
                     <span className="lx-status-pill" style={{ background: RISK_COLOR[s.lane_risk_tier]||'#64748b' }}>
-                      {s.lane_risk_tier}
+                      {t(`adminLogisticsRestrictions.${{ low:'riskLow', managed:'riskManaged', restricted:'riskRestricted', prohibited:'riskProhibited' }[s.lane_risk_tier] || 'riskLow'}`, { defaultValue: s.lane_risk_tier })}
                     </span>
                   )}
                 </td>
@@ -107,14 +107,14 @@ export default function CustomsAdmin() {
                   {s.customs_complexity ? `${s.customs_complexity}/5` : '—'}
                 </td>
                 <td style={{ fontSize:'.8rem' }}>
-                  {s.eta ? new Date(s.eta).toLocaleDateString() : '—'}
+                  {s.eta ? new Date(s.eta).toLocaleDateString(i18n.language) : '—'}
                 </td>
                 <td>
                   <span className="lx-status-pill" style={{
                     background: s.status === 'customs_cleared' ? '#22c55e'
                       : s.status === 'customs_hold' ? '#dc2626' : '#f59e0b'
                   }}>
-                    {s.status?.replace(/_/g,' ')}
+                    {t(`logistics.status.${s.status}`, { defaultValue: s.status?.replace(/_/g,' ') })}
                   </span>
                 </td>
                 <td>
@@ -141,7 +141,7 @@ export default function CustomsAdmin() {
             <div style={{ fontSize:'.82rem', color:'#64748b', marginBottom:'1rem' }}>
               <strong>{t('adminCustoms.modal.route')}</strong> {selected.origin_country} → {selected.destination_country}<br/>
               <strong>{t('adminCustoms.modal.freight')}</strong> {selected.freight_mode?.replace(/_/g,' ') || '—'}<br/>
-              <strong>{t('adminCustoms.modal.laneRisk')}</strong> {selected.lane_risk_tier || '—'} &nbsp;|&nbsp;
+              <strong>{t('adminCustoms.modal.laneRisk')}</strong> {selected.lane_risk_tier ? t(`adminLogisticsRestrictions.${{ low:'riskLow', managed:'riskManaged', restricted:'riskRestricted', prohibited:'riskProhibited' }[selected.lane_risk_tier] || 'riskLow'}`, { defaultValue: selected.lane_risk_tier }) : '—'} &nbsp;|&nbsp;
               <strong>{t('adminCustoms.modal.complexity')}</strong> {selected.customs_complexity || '—'}/5
             </div>
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { listLanes, adminCreateLane, adminUpdateLane, listTradeRules } from '../../../api/logistics';
+import { listLanes, adminCreateLane, adminUpdateLane } from '../../../api/logistics';
 import toast from 'react-hot-toast';
 import '../../../styles/logistics/LogisticsHomePage.css';
 import AdminErrorState from '../../lib/AdminErrorState';
@@ -17,7 +17,6 @@ const FREIGHT_I18N = { air:'freightAir', sea_fcl:'freightSeaFcl', sea_lcl:'freig
 export default function LanesManagement() {
   const { t } = useTranslation();
   const [lanes, setLanes]   = useState([]);
-  const [rules, setRules]   = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -34,8 +33,8 @@ export default function LanesManagement() {
   const load = () => {
     setLoading(true);
     setLoadError(null);
-    Promise.all([listLanes({ isActive: null }), listTradeRules()])
-      .then(([lRes, rRes]) => { setLanes(lRes.data||[]); setRules(rRes.data||[]); })
+    Promise.all([listLanes({ isActive: null })])
+      .then(([lRes]) => { setLanes(lRes.data||[]); })
       .catch((err) => setLoadError(err))
       .finally(() => setLoading(false));
   };
@@ -96,7 +95,7 @@ export default function LanesManagement() {
       {showForm && (
         <div className="lx-card" style={{ marginBottom:'1.5rem', border:'2px solid #f97316' }}>
           <h3 style={{ fontWeight:700, marginBottom:'1.25rem' }}>{editLane ? t(`${NS}.formEditTitle`) : t(`${NS}.formCreateTitle`)}</h3>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1rem' }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:'1rem' }}>
             {!editLane && <div className="lx-form-group">
               <label className="lx-label">{t(`${NS}.code`)}</label>
               <input className="lx-input" value={form.code} placeholder="cn_us_wholesale"
@@ -223,6 +222,9 @@ export default function LanesManagement() {
                 </td>
               </tr>
             ))}
+            {lanes.length === 0 && !loading && !loadError && (
+              <tr><td colSpan={10} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>{t(`${NS}.emptyLanes`, { defaultValue: 'No lanes configured yet.' })}</td></tr>
+            )}
           </tbody>
         </table>
       </div>

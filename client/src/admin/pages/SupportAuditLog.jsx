@@ -2,9 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
+import toast from 'react-hot-toast';
 import {
   History, Download, RefreshCw, Search, Filter, Calendar, User, FileText, Trash2,
 } from 'lucide-react';
+import SupportSubNav from '../components/SupportSubNav';
 
 // Audit Log Entry
 function AuditLogEntry({ entry }) {
@@ -26,7 +28,7 @@ function AuditLogEntry({ entry }) {
           </div>
           <div className="flex-1">
             <p className="text-white font-medium">{entry.user_name || t('adminSupportAuditLog.systemFallback')}</p>
-            <p className="text-gray-400 text-sm">{entry.email || 'system@oxsteed.com'}</p>
+            <p className="text-gray-400 text-sm">{entry.email || t('adminSupportAuditLog.systemEmailFallback', { defaultValue: 'system@oxsteed.com' })}</p>
           </div>
         </div>
         <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getActionColor(entry.action)}`}>
@@ -186,11 +188,13 @@ export default function SupportAuditLog() {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Failed to export logs:', err);
+      toast.error(err?.response?.data?.error || t('adminSupportAuditLog.exportFailed', { defaultValue: 'Failed to export the audit log.' }));
     }
   };
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
+      <SupportSubNav />
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>

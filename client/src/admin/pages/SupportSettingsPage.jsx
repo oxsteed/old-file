@@ -6,6 +6,7 @@ import AdminErrorState from '../lib/AdminErrorState';
 import {
   Settings, Bell, Zap, Clock, Mail, MessageSquare, Link2, Save, RefreshCw, CheckCircle, AlertCircle,
 } from 'lucide-react';
+import SupportSubNav from '../components/SupportSubNav';
 
 // Settings Tab Navigation
 function SettingsTabs({ activeTab, setActiveTab }) {
@@ -19,7 +20,7 @@ function SettingsTabs({ activeTab, setActiveTab }) {
   ];
 
   return (
-    <div className="flex gap-4 mb-8 border-b border-gray-700">
+    <div className="flex gap-4 mb-8 border-b border-gray-700 overflow-x-auto">
       {tabs.map(tab => {
         const Icon = tab.icon;
         return (
@@ -69,7 +70,7 @@ function GeneralSettings({ settings, onUpdate }) {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-gray-400 text-sm mb-2">{t('adminSupportSettings.supportEmail')}</label>
           <input
@@ -93,7 +94,7 @@ function GeneralSettings({ settings, onUpdate }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-gray-400 text-sm mb-2">{t('adminSupportSettings.timezone')}</label>
           <select
@@ -284,7 +285,7 @@ function IntegrationSettings({ settings, onUpdate }) {
         <p className="text-gray-400 text-xs mt-2">{t('adminSupportSettings.zapierWebhookHint')}</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-gray-700 rounded-lg p-4">
           <label className="block text-gray-300 text-sm font-semibold mb-2">
             <Mail size={14} className="inline mr-2" />
@@ -541,6 +542,9 @@ export default function SupportSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [saveStatus, setSaveStatus] = useState(null);
+  // Bump after every successful save so the tab form remounts from the
+  // freshly reloaded settings instead of showing stale pre-save values.
+  const [settingsEpoch, setSettingsEpoch] = useState(0);
 
   const loadSettings = useCallback(async () => {
     setLoading(true);
@@ -571,7 +575,8 @@ export default function SupportSettingsPage() {
       });
       setSaveStatus('success');
       setTimeout(() => setSaveStatus(null), 3000);
-      loadSettings();
+      await loadSettings();
+      setSettingsEpoch((epoch) => epoch + 1);
     } catch (err) {
       console.error('Failed to save settings:', err);
       setSaveStatus('error');
@@ -601,6 +606,7 @@ export default function SupportSettingsPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
+      <SupportSubNav />
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>
@@ -626,7 +632,7 @@ export default function SupportSettingsPage() {
       <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
         <SettingsTabs activeTab={activeTab} setActiveTab={setActiveTab} />
 
-        <div>
+        <div key={`${activeTab}-${settingsEpoch}`}>
           {activeTab === 'general' && <GeneralSettings settings={settings} onUpdate={handleUpdate} />}
           {activeTab === 'notifications' && <NotificationSettings settings={settings} onUpdate={handleUpdate} />}
           {activeTab === 'integrations' && <IntegrationSettings settings={settings} onUpdate={handleUpdate} />}

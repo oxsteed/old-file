@@ -2,9 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
+import toast from 'react-hot-toast';
 import {
   Users, Plus, Edit2, Trash2, RefreshCw, Shield, ChevronRight, Zap,
 } from 'lucide-react';
+import SupportSubNav from '../components/SupportSubNav';
 
 // Member Card
 function MemberCard({ member, onEdit, onRemove }) {
@@ -276,8 +278,10 @@ export default function SupportTeamHierarchy() {
       setShowForm(false);
       setEditingMember(null);
       loadData();
+      toast.success(editingMember ? t('adminSupportTeam.toastUpdated', { defaultValue: 'Team member updated.' }) : t('adminSupportTeam.toastAdded', { defaultValue: 'Team member added.' }));
     } catch (err) {
       console.error('Failed to save member:', err);
+      toast.error(err?.response?.data?.error || t('adminSupportTeam.toastSaveFailed', { defaultValue: 'Failed to save the team member.' }));
     }
   };
 
@@ -285,9 +289,11 @@ export default function SupportTeamHierarchy() {
     if (!window.confirm(t('adminSupportTeam.confirmRemove'))) return;
     try {
       await adminApi.delete(`/support/team/members/${memberId}`);
+      toast.success(t('adminSupportTeam.toastRemoved', { defaultValue: 'Team member removed.' }));
       loadData();
     } catch (err) {
       console.error('Failed to remove member:', err);
+      toast.error(err?.response?.data?.error || t('adminSupportTeam.toastRemoveFailed', { defaultValue: 'Failed to remove the team member.' }));
     }
   };
 
@@ -307,6 +313,7 @@ export default function SupportTeamHierarchy() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
+      <SupportSubNav />
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>

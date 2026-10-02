@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useSocket } from '../../hooks/useSocket';
 import api from '../../api/axios';
+import toast from 'react-hot-toast';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
 import { useTranslation } from 'react-i18next';
@@ -137,8 +138,11 @@ export default function AdminMessages() {
         m.id === optimistic.id ? { ...optimistic, id: data.message_id, created_at: data.created_at } : m
       ));
       reloadConversations();
-    } catch {
+    } catch (err) {
+      // Roll back the optimistic bubble AND surface the failure: previously
+      // the message vanished silently with no indication it never sent.
       setThread(prev => prev.filter(m => m.id !== optimistic.id));
+      toast.error(err?.response?.data?.error || t('adminMessages.sendFailed', { defaultValue: 'Message failed to send. Please try again.' }));
     } finally {
       setSending(false);
     }

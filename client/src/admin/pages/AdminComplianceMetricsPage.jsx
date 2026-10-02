@@ -38,6 +38,7 @@ const normalizeAcceptanceRate = (rate, totalUsers = 0) => {
 // ─── Acceptance Rate Card ─────────────────────────────────────────────────────
 
 function AcceptanceCard({ title, percentage, accepted, total, acceptedDate }) {
+  const { t } = useTranslation();
   const getStatus = (pct) => {
     if (pct >= 90) return { color: 'bg-green-500/20', textColor: 'text-green-400', icon: '✓' };
     if (pct >= 80) return { color: 'bg-yellow-500/20', textColor: 'text-yellow-400', icon: '⚠' };
@@ -56,21 +57,21 @@ function AcceptanceCard({ title, percentage, accepted, total, acceptedDate }) {
 
       <div className="flex items-baseline gap-2 mb-2">
         <p className={`text-3xl font-bold ${status.textColor}`}>{percentage}%</p>
-        <p className="text-gray-400 text-sm">Accepted</p>
+        <p className="text-gray-400 text-sm">{t('adminComplianceMetricsPage.cardAccepted', { defaultValue: 'Accepted' })}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-2 text-xs text-gray-400 mb-3">
         <div>
-          <p className="text-gray-500">Signed</p>
+          <p className="text-gray-500">{t('adminComplianceMetricsPage.cardSigned', { defaultValue: 'Signed' })}</p>
           <p className={`text-lg font-semibold ${status.textColor}`}>{accepted}</p>
         </div>
         <div>
-          <p className="text-gray-500">Pending</p>
+          <p className="text-gray-500">{t('adminComplianceMetricsPage.cardPending', { defaultValue: 'Pending' })}</p>
           <p className="text-lg font-semibold text-gray-300">{notAccepted}</p>
         </div>
       </div>
 
-      <p className="text-gray-500 text-xs">Updated {acceptedDate}</p>
+      <p className="text-gray-500 text-xs">{t('adminComplianceMetricsPage.cardUpdated', { date: acceptedDate, defaultValue: 'Updated {{date}}' })}</p>
     </div>
   );
 }
@@ -78,6 +79,7 @@ function AcceptanceCard({ title, percentage, accepted, total, acceptedDate }) {
 // ─── Document Status Column ───────────────────────────────────────────────────
 
 function DocumentStatusColumn({ title, count, docs, status }) {
+  const { t } = useTranslation();
   const bgColor = {
     created: 'bg-blue-500/20',
     draft: 'bg-blue-500/20',
@@ -105,7 +107,7 @@ function DocumentStatusColumn({ title, count, docs, status }) {
 
       <div className="space-y-2 max-h-48 overflow-y-auto">
         {(docs || []).length === 0 ? (
-          <p className="text-gray-500 text-xs py-4 text-center">No documents</p>
+          <p className="text-gray-500 text-xs py-4 text-center">{t('adminComplianceMetricsPage.noDocuments', { defaultValue: 'No documents' })}</p>
         ) : (
           (docs || []).map((doc, idx) => (
             <div key={idx} className="bg-gray-900/50 rounded p-2 text-xs">
@@ -265,8 +267,8 @@ export default function AdminComplianceMetricsPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-white font-bold text-3xl mb-2">Compliance Metrics</h1>
-          <p className="text-gray-400 text-sm">Legal document adoption rates, compliance risks, and trends.</p>
+          <h1 className="text-white font-bold text-3xl mb-2">{t('adminComplianceMetricsPage.title', { defaultValue: 'Compliance Metrics' })}</h1>
+          <p className="text-gray-400 text-sm">{t('adminComplianceMetricsPage.subtitle', { defaultValue: 'Legal document adoption rates, compliance risks, and trends.' })}</p>
         </div>
         <button
           onClick={reload}
@@ -286,7 +288,7 @@ export default function AdminComplianceMetricsPage() {
 
       {/* Acceptance Rates Grid */}
       <div>
-        <h2 className="text-white font-bold text-lg mb-4">Acceptance Rates by Document Type</h2>
+        <h2 className="text-white font-bold text-lg mb-4">{t('adminComplianceMetricsPage.acceptanceRatesTitle', { defaultValue: 'Acceptance Rates by Document Type' })}</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {Object.entries(acceptanceRates).map(([key, rate]) => {
             const normalizedRate = normalizeAcceptanceRate(rate, totalActiveUsers);
@@ -297,7 +299,7 @@ export default function AdminComplianceMetricsPage() {
                 percentage={normalizedRate.percentage}
                 accepted={normalizedRate.accepted}
                 total={normalizedRate.total}
-                acceptedDate={normalizedRate.total ? new Date().toLocaleDateString() : 'N/A'}
+                acceptedDate={normalizedRate.total ? new Date().toLocaleDateString() : t('adminComplianceMetricsPage.cardNa', { defaultValue: 'N/A' })}
               />
             );
           })}

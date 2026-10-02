@@ -473,7 +473,8 @@ export default function UsersList() {
     setSearchParams(next, { replace: true });
   };
 
-  // Export (respects current filters)
+  // Export (note: the server export endpoint ignores query params, so this
+  // downloads the full dataset rather than the filtered view)
   const handleExport = async () => {
     try {
       const params = Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== ''));
@@ -484,7 +485,10 @@ export default function UsersList() {
       a.download = `oxsteed_users_${new Date().toISOString().split('T')[0]}.csv`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+      showToast('User export failed. Please try again.', 'error');
+    }
   };
 
   // Selection helpers
@@ -601,7 +605,7 @@ export default function UsersList() {
 
       {error && (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-          <span>{error?.response?.data?.error || error?.message || 'Could not load users.'}</span>
+          <span>{error?.response?.data?.error || error?.message || t('adminUsers.list.unavailable')}</span>
           <button type="button" onClick={fetchUsers} disabled={loading} className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/10 disabled:opacity-50">{t('adminUsers.list.tryAgain')}</button>
         </div>
       )}
@@ -612,7 +616,7 @@ export default function UsersList() {
       {/* ── Filters ── */}
       <div className="flex flex-wrap gap-2.5 mb-4">
         {/* Search */}
-        <div className="relative flex-1 min-w-52">
+        <div className="relative flex-1 min-w-[13rem]">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
           <input type="text" placeholder={t('adminUsers.list.searchPlaceholder')}
             value={filters.search} onChange={e => update('search', e.target.value)}
@@ -716,7 +720,7 @@ export default function UsersList() {
                 const isSelected = selected.has(user.id);
                 return (
                   <tr key={user.id}
-                    className={`transition-colors ${isSelected ? 'bg-orange-500/5' : 'hover:bg-gray-750'}`}>
+                    className={`transition-colors ${isSelected ? 'bg-orange-500/5' : 'hover:bg-gray-700/40'}`}>
 
                     {/* Checkbox */}
                     <td className="px-4 py-3">

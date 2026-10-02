@@ -21,6 +21,14 @@ function convStatusBadge(status) {
   }
 }
 
+// Human-readable, translated status label. Unknown statuses fall back to the
+// raw value so nothing renders blank if the server adds a new state.
+function convStatusLabel(status, t) {
+  const key = 'superConversations.status' + String(status || '').charAt(0).toUpperCase() + String(status || '').slice(1);
+  const label = t(key);
+  return label === key ? String(status || '') : label;
+}
+
 function timeAgo(iso, t) {
   if (!iso) return '-';
   const diff = Date.now() - new Date(iso).getTime();
@@ -119,7 +127,7 @@ function ThreadDetail({ conv, onStatusChange, actionBusy, breakGlassReason }) {
             </p>
           </div>
           <span className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${convStatusBadge(currentStatus)}`}>
-            {currentStatus}
+            {convStatusLabel(currentStatus, t)}
           </span>
         </div>
 
@@ -244,7 +252,7 @@ function ConvRow({ conv, selected, onClick }) {
           {conv.customer_email}
         </span>
         <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${convStatusBadge(conv.status)}`}>
-          {conv.status}
+          {convStatusLabel(conv.status, t)}
         </span>
       </div>
       {conv.job_title && (

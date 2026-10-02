@@ -78,8 +78,10 @@ export default function OxsteedCreditCustomersPage() {
 
   const loadCustomerCredit = async (event) => {
     event.preventDefault();
+    const amountCents = dollarsToCents(customerForm.amount, customerForm.currencyCode);
+    if (amountCents === null) { setError(t('adminCreditAmountInvalid')); return; }
     setBusy(true); setNotice(''); setError('');
-    const payload = { amountCents: dollarsToCents(customerForm.amount, customerForm.currencyCode), currencyCode: customerForm.currencyCode, fundingReference: customerForm.fundingReference, reason: customerForm.reason };
+    const payload = { amountCents, currencyCode: customerForm.currencyCode, fundingReference: customerForm.fundingReference, reason: customerForm.reason };
     const keyPayload = { customerId: customerForm.customerId, ...payload };
     try {
       const response = await adminApi.post(`/admin/super/oxsteed-credit/customers/${customerForm.customerId}/loads`, payload, { headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-load', keyPayload) } });
@@ -97,8 +99,10 @@ export default function OxsteedCreditCustomersPage() {
     event.preventDefault();
     const confirmed = await requestDialog({ kind: 'confirm', title: t('adminConfirmCustomerClawback'), description: t('adminCustomerClawbackDescription', { amount: customerForm.amount || t('adminThisAmount'), wallet: customerForm.customerId || t('adminThisWallet') }) });
     if (!confirmed) return;
+    const amountCents = dollarsToCents(customerForm.amount, customerForm.currencyCode);
+    if (amountCents === null) { setError(t('adminCreditAmountInvalid')); return; }
     setBusy(true); setNotice(''); setError('');
-    const payload = { amountCents: dollarsToCents(customerForm.amount, customerForm.currencyCode), currencyCode: customerForm.currencyCode, direction: 'debit', reason: customerForm.reason };
+    const payload = { amountCents, currencyCode: customerForm.currencyCode, direction: 'debit', reason: customerForm.reason };
     const keyPayload = { customerId: customerForm.customerId, ...payload };
     try {
       const response = await adminApi.post(`/admin/super/oxsteed-credit/customers/${customerForm.customerId}/adjustments`, payload, { headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-adjustment', keyPayload) } });

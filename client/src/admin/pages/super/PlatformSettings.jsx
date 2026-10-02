@@ -125,7 +125,7 @@ function SettingsSection({ sectionKey, config, settings, editing, setEditing, on
         <div className="max-w-2xl">
           <div className="mb-3 flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-black/20">
-              <Icon className="h-4.5 w-4.5 text-white" />
+              <Icon className="h-5 w-5 text-white" />
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t(config.labelKey)}</p>
@@ -1481,7 +1481,7 @@ export default function PlatformSettings() {
             <div>
               <div className="mb-3 flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-indigo-500/20 bg-indigo-500/10">
-                  <ToggleLeft className="h-4.5 w-4.5 text-indigo-300" />
+                  <ToggleLeft className="h-5 w-5 text-indigo-300" />
                 </div>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('superPlatformSettings.rolloutsEyebrow')}</p>
@@ -1528,8 +1528,8 @@ export default function PlatformSettings() {
                 <div className="mb-3 flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-sky-500/20 bg-sky-500/10">
                     {activeTab === 'proposed'
-                      ? <ClipboardList className="h-4.5 w-4.5 text-sky-300" />
-                      : <History className="h-4.5 w-4.5 text-sky-300" />}
+                      ? <ClipboardList className="h-5 w-5 text-sky-300" />
+                      : <History className="h-5 w-5 text-sky-300" />}
                   </div>
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">

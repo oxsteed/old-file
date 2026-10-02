@@ -12,6 +12,8 @@ import {
 import adminApi from '../../../lib/adminApi';
 import { useAuth } from '../../../hooks/useAuth';
 import { useAbortableFetch } from '../../lib/useAbortableFetch';
+import { useHasGrant } from '../../lib/GrantGuard';
+import { adminDate } from '../../lib/formatters';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -20,18 +22,14 @@ function humanize(str) {
   return String(str).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
+// Locale-aware dates (ht falls back to fr-HT); '—' for missing/invalid values,
+// matching the previous en-US hardcoded behaviour.
 function formatDate(val) {
-  if (!val) return '—';
-  const d = new Date(val);
-  if (isNaN(d)) return '—';
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return adminDate(val, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 function formatDateShort(val) {
-  if (!val) return '—';
-  const d = new Date(val);
-  if (isNaN(d)) return '—';
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return adminDate(val, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 // Standardized status badge — consistent padding, radius, font, color system
@@ -224,6 +222,11 @@ export default function UserDetail() {
   const { user: me } = useAuth();
   const isSuper = me?.role === 'super_admin';
   const isAdmin = me?.role === 'admin' || me?.role === 'super_admin';
+  // POST /admin/super/users/:id/message is grant-gated (message_users); hide
+  // the button entirely for admins without the grant instead of letting the
+  // submit fail with a 403.
+  const { allowed: canMessage } = useHasGrant('message_users');
+  const showMessageBtn = isSuper || canMessage;
 
   const { data: res, loading, error, reload } = useAbortableFetch(async (signal) => {
     const { data } = await adminApi.get(`/admin/users/${userId}`, { signal });
@@ -844,13 +847,15 @@ export default function UserDetail() {
             )}
 
             {/* Secondary: Message */}
-            <button
-              onClick={() => setShowMsgModal(true)}
-              disabled={['admin', 'super_admin'].includes(user.role)}
-              className="flex items-center gap-1.5 px-4 py-2 bg-transparent border border-gray-600 text-gray-300 hover:border-gray-400 hover:text-white rounded-lg text-xs font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <MessageSquare size={13} />{t('adminUserDetail.actions.message')}
-            </button>
+            {showMessageBtn && (
+              <button
+                onClick={() => setShowMsgModal(true)}
+                disabled={['admin', 'super_admin'].includes(user.role)}
+                className="flex items-center gap-1.5 px-4 py-2 bg-transparent border border-gray-600 text-gray-300 hover:border-gray-400 hover:text-white rounded-lg text-xs font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <MessageSquare size={13} />{t('adminUserDetail.actions.message')}
+              </button>
+            )}
 
             {/* Customer 360 view */}
             <Link
@@ -1449,7 +1454,7 @@ export default function UserDetail() {
                 <div key={i} className="flex items-center justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-white capitalize">{humanize((item.event_type || '').replace('invoice.', ''))}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{item.period_start ? new Date(item.period_start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{item.period_start ? adminDate(item.period_start, { month: 'short', day: 'numeric' }) : '—'}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-sm font-semibold text-white">${((item.amount_cents || 0) / 100).toFixed(2)}</span>

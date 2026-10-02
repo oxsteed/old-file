@@ -74,7 +74,7 @@ export default function PurchaseOrdersAdmin() {
         <select className="lx-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="">{t('adminPurchaseOrders.allStatuses')}</option>
           {Object.keys(STATUS_COLOR).map(s => (
-            <option key={s} value={s}>{s.replace(/_/g,' ')}</option>
+            <option key={s} value={s}>{t(`logistics.admin.purchaseOrders.statuses.${s}`, { defaultValue: s.replace(/_/g,' ') })}</option>
           ))}
         </select>
       </div>
@@ -104,7 +104,7 @@ export default function PurchaseOrdersAdmin() {
                 </td>
                 <td>
                   <span className="lx-status-pill" style={{ background: STATUS_COLOR[o.status]||'#64748b' }}>
-                    {o.status?.replace(/_/g,' ')}
+                    {t(`logistics.admin.purchaseOrders.statuses.${o.status}`, { defaultValue: o.status?.replace(/_/g,' ') || t('logistics.admin.unknownStatus') })}
                   </span>
                 </td>
                 <td>
@@ -127,9 +127,9 @@ export default function PurchaseOrdersAdmin() {
           <div style={{ background:'var(--card-bg,#fff)', borderRadius:'1rem', padding:'1.5rem', width:520, maxWidth:'90vw' }}>
             <h3 style={{ fontWeight:700, marginBottom:'.25rem' }}>{selected.reference}</h3>
             <div style={{ fontSize:'.82rem', color:'#64748b', marginBottom:'1rem' }}>
-              <strong>Buyer:</strong> {selected.buyer_name} &nbsp;|&nbsp;
-              <strong>Supplier:</strong> {selected.supplier_name || '—'} &nbsp;|&nbsp;
-              <strong>Qty:</strong> {selected.quantity?.toLocaleString()}
+              <strong>{t('adminPurchaseOrders.modal.buyer', { defaultValue: 'Buyer:' })}</strong> {selected.buyer_name || selected.buyer_user_id} &nbsp;|&nbsp;
+              <strong>{t('adminPurchaseOrders.modal.supplier', { defaultValue: 'Supplier:' })}</strong> {selected.supplier_name || '—'} &nbsp;|&nbsp;
+              <strong>{t('adminPurchaseOrders.modal.qty', { defaultValue: 'Qty:' })}</strong> {selected.quantity?.toLocaleString()}
             </div>
 
             {/* Cost breakdown */}
@@ -158,7 +158,7 @@ export default function PurchaseOrdersAdmin() {
             </div>
 
             <div className="lx-form-group">
-              <label className="lx-label">{t('adminPurchaseOrders.modal.currentStatus')} <strong>{selected.status?.replace(/_/g,' ')}</strong></label>
+              <label className="lx-label">{t('adminPurchaseOrders.modal.currentStatus')} <strong>{t(`logistics.admin.purchaseOrders.statuses.${selected.status}`, { defaultValue: selected.status?.replace(/_/g,' ') || '' })}</strong></label>
             </div>
 
             {VALID_TRANSITIONS[selected.status]?.length > 0 ? (
@@ -168,7 +168,7 @@ export default function PurchaseOrdersAdmin() {
                   <select className="lx-select" value={toStatus} onChange={e => setToStatus(e.target.value)}>
                     <option value="">{t('adminPurchaseOrders.modal.selectOption')}</option>
                     {VALID_TRANSITIONS[selected.status].map(s => (
-                      <option key={s} value={s}>{s.replace(/_/g,' ')}</option>
+                      <option key={s} value={s}>{t(`logistics.admin.purchaseOrders.statuses.${s}`, { defaultValue: s.replace(/_/g,' ') })}</option>
                     ))}
                   </select>
                 </div>

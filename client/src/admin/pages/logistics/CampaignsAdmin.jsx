@@ -25,7 +25,7 @@ const NEXT_STATUS = {
 };
 
 export default function CampaignsAdmin() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [campaigns, setCampaigns] = useState([]);
   const [lanes, setLanes]         = useState([]);
   const [loading, setLoading]     = useState(true);
@@ -76,7 +76,7 @@ export default function CampaignsAdmin() {
       <div className="lx-filter-bar">
         <select className="lx-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="">{t('adminCampaigns.allStatuses')}</option>
-          {Object.keys(STATUS_COLOR).map(s => <option key={s} value={s}>{s}</option>)}
+          {Object.keys(STATUS_COLOR).map(s => <option key={s} value={s}>{t(`logistics.admin.campaigns.statuses.${s}`, { defaultValue: s.replace(/_/g,' ') })}</option>)}
         </select>
       </div>
 
@@ -112,11 +112,11 @@ export default function CampaignsAdmin() {
                   </td>
                   <td>{c.current_participants||0}</td>
                   <td style={{ fontSize:'.8rem' }}>
-                    {c.closes_at ? new Date(c.closes_at).toLocaleDateString() : '—'}
+                    {c.closes_at ? new Date(c.closes_at).toLocaleDateString(i18n.language) : '—'}
                   </td>
                   <td>
                     <span className="lx-status-pill" style={{ background: STATUS_COLOR[c.status]||'#64748b' }}>
-                      {c.status}
+                      {t(`logistics.admin.campaigns.statuses.${c.status}`, { defaultValue: c.status?.replace(/_/g,' ') || t('logistics.admin.unknownStatus') })}
                     </span>
                   </td>
                   <td>
@@ -140,7 +140,7 @@ export default function CampaignsAdmin() {
           <div style={{ background:'var(--card-bg,#fff)', borderRadius:'1rem', padding:'1.5rem', width:460, maxWidth:'90vw' }}>
             <h3 style={{ fontWeight:700, marginBottom:'.5rem' }}>{selected.title}</h3>
             <div style={{ fontSize:'.82rem', color:'#64748b', marginBottom:'1rem' }}>
-              <strong>{t('adminCampaigns.modal.status')}</strong> {selected.status} &nbsp;|&nbsp;
+              <strong>{t('adminCampaigns.modal.status')}</strong> {t(`logistics.admin.campaigns.statuses.${selected.status}`, { defaultValue: selected.status?.replace(/_/g,' ') || '' })} &nbsp;|&nbsp;
               <strong>{t('adminCampaigns.modal.participants')}</strong> {selected.current_participants||0} &nbsp;|&nbsp;
               <strong>{t('adminCampaigns.modal.committedQty')}</strong> {selected.current_committed_qty||0}
             </div>
@@ -152,7 +152,7 @@ export default function CampaignsAdmin() {
                   <select className="lx-select" value={transition} onChange={e => setTransition(e.target.value)}>
                     <option value="">{t('adminCampaigns.modal.selectOption')}</option>
                     {NEXT_STATUS[selected.status].map(s => (
-                      <option key={s} value={s}>{s}</option>
+                      <option key={s} value={s}>{t(`logistics.admin.campaigns.statuses.${s}`, { defaultValue: s.replace(/_/g,' ') })}</option>
                     ))}
                   </select>
                 </div>

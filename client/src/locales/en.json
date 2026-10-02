@@ -1,4 +1,5 @@
 {
+  "adminRegionsMilesUnit": "miles",
   "businessCreation": {
     "eyebrow": "Business setup",
     "title": "Create your business",
@@ -324,7 +325,12 @@
   },
   "supportAdmin": {
     "agentManagement": {
-      "confirmDeleteAgent": "Delete this agent?"
+      "confirmDeleteAgent": "Delete this agent?",
+      "agentDeleted": "Agent deleted",
+      "deleteFailed": "Failed to delete agent",
+      "loadFailed": "Failed to load agents",
+      "statusFailed": "Failed to update agent status",
+      "statusUpdated": "Agent status updated"
     },
     "knowledgeBase": {
       "confirmDeleteArticle": "Delete this article?"
@@ -580,7 +586,9 @@
     "done": "Done",
     "failedToCancel": "Failed to cancel. Please try again.",
     "fillRequiredFields": "Please fill in all required fields.",
-    "failedToDelete": "Failed to delete. Please try again."
+    "failedToDelete": "Failed to delete. Please try again.",
+    "notAvailable": "N/A",
+    "updated": "Updated"
   },
   "jobs": {
     "title": "Job Details",
@@ -5271,7 +5279,9 @@
       "messageTitle": "Message {{name}}",
       "messageAudit": "This message will appear in {{name}}'s inbox as a system message and is logged in the audit trail.",
       "messagePlaceholder": "Write a message to {{name}}…",
-      "sending": "Sending…"
+      "sending": "Sending…",
+      "actionFailed": "Action failed",
+      "never": "Never"
     }
   },
   "adminLegal": {
@@ -9530,7 +9540,21 @@
     "templateSaveFailed": "Failed to save template",
     "toolRentalsLoadFailedMessage": "Could not load tool rentals.",
     "toolRentalsLoadFailedTitle": "Failed to load tool rentals",
-    "workingHoursDayOpen": "Open"
+    "workingHoursDayOpen": "Open",
+    "moderation": {
+      "by": "By:",
+      "dismiss": "Dismiss",
+      "dismissTitle": "Dismiss - remove admin flag",
+      "emptyQueue": "Queue is clear - no flagged or reported jobs.",
+      "flag": "Flag",
+      "flagTitle": "Flag for further review",
+      "loading": "Loading…",
+      "queueSubtitle": "{{count}} job{{plural}} flagged or reported",
+      "remove": "Remove",
+      "removeTitle": "Cancel job - removes from marketplace",
+      "reportCount": "{{count}} report{{plural}}",
+      "title": "Content Moderation"
+    }
   },
   "auditLogFilter": {
     "filter": "Filter",
@@ -11117,7 +11141,42 @@
     "confirmStatusTitle": "Change Status",
     "deleteNoteTitle": "Delete Note",
     "invalidBps": "Enter a valid referral rate between 0 and 10000 basis points.",
-    "statusMenuLabel": "Change request status"
+    "statusMenuLabel": "Change request status",
+    "archive": "Archive",
+    "breadcrumbAdmin": "Admin",
+    "breadcrumbConsulting": "Consulting",
+    "breadcrumbCurrent": "Business Launch",
+    "clearAll": "Clear All",
+    "countryPlaceholder": "Country code",
+    "emptyBody": "Try adjusting your filters or search terms.",
+    "emptyTitle": "No requests found",
+    "exportCsv": "Export CSV",
+    "filterAllPackages": "All Packages",
+    "filterAllStates": "All States",
+    "filterAllUrgency": "All Urgency",
+    "nextPage": "Next",
+    "packageAccelerator": "Accelerator ($3,000)",
+    "packageFoundation": "Foundation ($750)",
+    "packageLaunch": "Launch ($1,500)",
+    "pageOf": "Page {{page}} of {{pages}}",
+    "previousPage": "Previous",
+    "requestArchived": "Request archived",
+    "searchPlaceholder": "Search name, email...",
+    "statusArchived": "Archived",
+    "statusButton": "Status",
+    "statusCompleted": "Completed",
+    "statusContacted": "Contacted",
+    "statusInProgress": "In Progress",
+    "statusKickoffScheduled": "Session Scheduled",
+    "statusNew": "New",
+    "title": "Founder Development Program",
+    "totalRequests": "{{count}} total requests",
+    "unassigned": "Unassigned",
+    "urgencyAsap": "ASAP",
+    "urgencyExploring": "Just Exploring",
+    "urgencyOneMonth": "1 Month",
+    "urgencyTwoWeeks": "2 Weeks",
+    "view": "View"
   },
   "businessLaunchStatus": {
     "trackYourBusiness": "Track Your Business Launch",
@@ -12495,7 +12554,9 @@
     "reportedBy": "Reported by:",
     "anonymous": "Anonymous",
     "actionTaken": "Action taken",
-    "by": "by"
+    "by": "by",
+    "viewReportedJob": "View reported job",
+    "viewReportedUser": "View reported user"
   },
   "adminEnforcement": {
     "title": "Enforcement Actions",
@@ -14940,7 +15001,18 @@
         "reminders": "Reminders",
         "actions": "Actions"
       }
-    }
+    },
+    "nextWeek": "Next",
+    "noPendingSessions": "No pending sessions. All requests have been processed.",
+    "pendingBadge": "Pending",
+    "phoneLabel": "Phone",
+    "prevWeek": "Prev",
+    "tierFoundation": "Foundation",
+    "tierImplementation": "Implementation",
+    "tierInitial": "Initial ($100)",
+    "tierLabel": "Tier",
+    "tierTransformation": "Transformation",
+    "today": "Today"
   },
   "adminConsultingSessions": {
     "title": "Consulting Sessions",
@@ -22373,7 +22445,24 @@
     "userActionLog": "User Action Log",
     "users": "Users",
     "visitors": "Visitors",
-    "profileVisibility": "Profile visibility"
+    "profileVisibility": "Profile visibility",
+    "sidebarLabel": "Admin navigation",
+    "supportSection": "Support section",
+    "supportAgentDashboard": "Agent Dashboard",
+    "supportAgents": "Agents",
+    "supportAgentOnboarding": "Onboarding",
+    "supportShifts": "Shifts",
+    "supportTeam": "Team",
+    "supportEscalations": "Escalations",
+    "supportSla": "SLA",
+    "supportKnowledgeBase": "Knowledge Base",
+    "supportTemplates": "Templates",
+    "supportMetrics": "Metrics",
+    "supportPerformance": "Performance",
+    "supportCsat": "CSAT",
+    "supportQa": "QA Reviews",
+    "supportSettings": "Settings",
+    "supportAuditLog": "Audit Log"
   },
   "adminProfileVisibility": {
     "title": "Profile visibility",
@@ -22575,7 +22664,8 @@
     "openBreaches": "Open SLA breaches", "openIncidents": "Open incidents",
     "riskDescription": "Open incidents, reports, and recent security failures.", "riskTitle": "Risk & Security",
     "securityFailures24h": "Security failures, 24h", "slaDescription": "Support conversations approaching or missing service targets.", "slaTitle": "SLA Health",
-    "crmDescription": "Leads and business client relationships needing follow-up.", "crmTitle": "CRM"
+    "crmDescription": "Leads and business client relationships needing follow-up.", "crmTitle": "CRM",
+    "manageIncidents": "Manage incidents"
   },
   "adminMessages": {
     "admin": "Admin",
@@ -22598,7 +22688,8 @@
     "startConversation": "Start conversation with {{name}}",
     "superAdmin": "Super Admin",
     "title": "Admin Messages",
-    "yesterday": "Yesterday"
+    "yesterday": "Yesterday",
+    "sendFailed": "Message failed to send. Please try again."
   },
   "superAuditLog": {
     "allTypes": "All Types",
@@ -22622,7 +22713,8 @@
     "typeJob": "Job",
     "typePayout": "Payout",
     "typeSetting": "Setting",
-    "typeUser": "User"
+    "typeUser": "User",
+    "updatedAt": "Updated {{time}}"
   },
   "superConversations": {
     "actionFailed": "Action failed.",
@@ -22807,7 +22899,11 @@
     "usersSection": "Users",
     "viewLink": "View",
     "vsPrev": "vs prev",
-    "vsPrevPeriod": "vs prev period"
+    "vsPrevPeriod": "vs prev period",
+    "resolveIncidentMessage": "Describe how this incident was resolved. This note is required.",
+    "resolveIncidentReasonLabel": "Resolution note",
+    "resolveIncidentReasonPlaceholder": "What was done to resolve this incident?",
+    "resolveIncidentTitle": "Resolve incident"
   },
   "superFeeConfig": {
     "colChangedBy": "Changed By",
@@ -22841,7 +22937,12 @@
     "trialRange": "Min: {{min}} days | Max: {{max}} days",
     "trialTitle": "Trial Duration Configuration",
     "updateFailed": "Update failed",
-    "whyPlaceholder": "Why this change?"
+    "whyPlaceholder": "Why this change?",
+    "confirmMessage": "Save this fee change for {{label}}? This takes effect immediately.",
+    "confirmTitle": "Save fee change",
+    "invalidNumber": "Enter a valid number.",
+    "valueOutOfRange": "Value must be between {{min}} and {{max}}.",
+    "valueOutsideRange": "Value is outside the allowed range."
   },
   "superFinancials": {
     "colAmount": "Amount",
@@ -23093,7 +23194,9 @@
     "tier2Price": "Tier 2 Price",
     "tier3Label": "Tier 3 Label",
     "tier3Price": "Tier 3 Price",
-    "title": "Tier Pricing Configuration"
+    "title": "Tier Pricing Configuration",
+    "confirmMessage": "Save these pricing changes? They take effect immediately across the platform.",
+    "confirmTitle": "Save pricing changes"
   },
   "superPricingOverrides": {
     "active": "Active",
@@ -23273,7 +23376,10 @@
     "status": { "published": "Published", "accepted": "Accepted", "in_progress": "In progress", "completed": "Completed", "cancelled": "Cancelled", "disputed": "Disputed", "unknown": "Unknown" }
   },
   "adminSupportPerformance": {
-    "title": "Performance Analytics", "subtitle": "Team and individual agent performance metrics.", "refresh": "Refresh performance data", "totalAgents": "Total Agents", "active": "Active", "avgRating": "Avg Rating", "teamAverage": "Team average", "avgResponseTime": "Avg Response Time", "totalChats": "Total Chats", "allTime": "All time", "searchPlaceholder": "Search agents by name...", "sortByRating": "Sort by Rating", "sortByResponseTime": "Sort by Response Time", "sortByChats": "Sort by Chats", "sortByResolutionRate": "Sort by Resolution Rate", "responseTime": "Response Time", "resolutionRate": "Resolution Rate", "satisfaction": "Satisfaction", "performanceDetails": "Performance Details", "close": "Close performance details", "loadingDetails": "Loading performance details…", "overallRating": "Overall Rating", "satisfactionScore": "Satisfaction Score", "sevenDayTrend": "7-Day Performance Trend", "detailedStatistics": "Detailed Statistics", "totalConversations": "Total Conversations", "resolved": "Resolved", "avgHandlingTime": "Avg Handling Time", "firstContactResolution": "First Contact Resolution", "qualityScore": "Quality Score"
+    "title": "Performance Analytics", "subtitle": "Team and individual agent performance metrics.", "refresh": "Refresh performance data", "totalAgents": "Total Agents", "active": "Active", "avgRating": "Avg Rating", "teamAverage": "Team average", "avgResponseTime": "Avg Response Time", "totalChats": "Total Chats", "allTime": "All time", "searchPlaceholder": "Search agents by name...", "sortByRating": "Sort by Rating", "sortByResponseTime": "Sort by Response Time", "sortByChats": "Sort by Chats", "sortByResolutionRate": "Sort by Resolution Rate", "responseTime": "Response Time", "resolutionRate": "Resolution Rate", "satisfaction": "Satisfaction", "performanceDetails": "Performance Details", "close": "Close performance details", "loadingDetails": "Loading performance details…", "overallRating": "Overall Rating", "satisfactionScore": "Satisfaction Score", "sevenDayTrend": "7-Day Performance Trend", "detailedStatistics": "Detailed Statistics", "totalConversations": "Total Conversations", "resolved": "Resolved", "avgHandlingTime": "Avg Handling Time", "firstContactResolution": "First Contact Resolution", "qualityScore": "Quality Score",
+    "loadFailed": "Failed to load performance data.",
+    "noAgents": "No agent performance data yet.",
+    "sortBy": "Sort by"
   },
   "adminSupportAgents": {
     "eyebrow": "Team Directory", "title": "Support agents", "description": "Review staffing, inspect skills, and manage who is active in the support operation without leaving the team roster.", "refresh": "Refresh", "agents": "Agents", "agentsDetail": "Total support agents currently in the roster.", "active": "Active", "activeDetail": "Agents currently enabled for support work.", "skillAreas": "Skill areas", "skillAreasDetail": "Unique support specialties represented on the team.", "searchMode": "Search mode", "filtered": "Filtered", "all": "All", "currentQuery": "Current query: {{query}}", "browsingAll": "Browsing the full team roster.", "rosterTitle": "Agent roster", "rosterSubtitle": "Search by name or email, then inspect skills and activation status.", "searchPlaceholder": "Search agents by name or email...", "noAgents": "No agents found", "noAgentsBody": "Try a different search or onboard new support staff to begin building out the team roster.", "activeStatus": "Active", "inactiveStatus": "Inactive", "chatsToday": "Chats today", "viewAgent": "View {{name}}", "toggleStatus": "Toggle status for {{name}}", "deleteAgent": "Delete {{name}}", "profileTitle": "Agent profile", "profileDescription": "Support performance and specialization snapshot.", "close": "Close agent profile", "avgRating": "Avg rating", "skillCoverage": "Skill coverage"
@@ -24069,7 +24175,8 @@
     "noSkillsSelected": "No skills selected yet.",
     "selectedLanguages": "Selected languages",
     "noLanguagesSelected": "No languages selected yet.",
-    "snapshotTip": "Capture enough specialization here so scheduling, routing, and future performance reporting all start from clean baseline data."
+    "snapshotTip": "Capture enough specialization here so scheduling, routing, and future performance reporting all start from clean baseline data.",
+    "errorInvalidEmail": "Enter a valid email address."
   },
   "adminLegalAcceptancesPage": {
     "docAll": "All Documents",
@@ -24293,7 +24400,14 @@
     "avgTimeCaption": "From trigger to escalation",
     "rulesSectionTitle": "Active Escalation Rules",
     "emptyState": "No escalation rules configured",
-    "createFirstRuleButton": "Create your first rule"
+    "createFirstRuleButton": "Create your first rule",
+    "toastCreated": "Escalation rule created.",
+    "toastDeleteFailed": "Failed to delete the escalation rule.",
+    "toastDeleted": "Escalation rule deleted.",
+    "toastSaveFailed": "Failed to save the escalation rule.",
+    "toastToggleFailed": "Failed to toggle the escalation rule.",
+    "toastUpdated": "Escalation rule updated.",
+    "toggleRuleAria": "Toggle rule: {{name}}"
   },
   "adminCorporateAssignments": {
     "statusActive": "Active",
@@ -24448,7 +24562,8 @@
     "activityButton": "Activity",
     "disableButton": "Disable",
     "enableButton": "Enable",
-    "forceLogoutButton": "Force Logout"
+    "forceLogoutButton": "Force Logout",
+    "forceLogoutReason": "Force logout by super admin"
   },
   "adminSupportAuditLog": {
     "systemFallback": "System",
@@ -24482,7 +24597,9 @@
     "timelineTitle": "Activity Timeline",
     "emptyState": "No audit log entries found",
     "complianceTitle": "Compliance Information",
-    "complianceText": "This audit log tracks all system activities including user logins, data modifications, and administrative actions. Logs are retained for 90 days and can be exported for compliance and security audits."
+    "complianceText": "This audit log tracks all system activities including user logins, data modifications, and administrative actions. Logs are retained for 90 days and can be exported for compliance and security audits.",
+    "exportFailed": "Failed to export the audit log.",
+    "systemEmailFallback": "system@oxsteed.com"
   },
   "adminLogisticsRestrictions": {
     "invalidCountryCode": "Country code must be 2 letters (e.g. US, CN, HT)",
@@ -24773,7 +24890,8 @@
     "freightRail": "rail",
     "freightMultimodal": "multimodal",
     "freightCourier": "courier",
-    "freightExpress": "express"
+    "freightExpress": "express",
+    "emptyLanes": "No lanes configured yet."
   },
 
   "adminReconciliation": {
@@ -25537,7 +25655,9 @@
     "labelMessage": "Message",
     "emailRecordedNote": "The sent email is recorded in this support conversation.",
     "sending": "Sending…",
-    "sendEmail": "Send email"
+    "sendEmail": "Send email",
+    "loadFailed": "Could not load the agent dashboard",
+    "loadFailedBody": "The live agent data could not be loaded. Check your connection and try again."
   },
   "adminSupportCSAT": {
     "title": "CSAT Analytics",
@@ -25581,7 +25701,9 @@
     "subjectFallback": "Support conversation",
     "teamFallback": "Support team",
     "npsValue": "NPS {{score}}/10",
-    "foundHelpful": "{{count}} found helpful"
+    "foundHelpful": "{{count}} found helpful",
+    "noAgentData": "No agent data for this period.",
+    "noSentimentData": "No sentiment data for this period."
   },
   "adminSupportQA": {
     "eyebrow": "Support quality",
@@ -25669,7 +25791,9 @@
     "daySaturday": "Saturday",
     "daySaturdayShort": "Sat",
     "daySunday": "Sunday",
-    "daySundayShort": "Sun"
+    "daySundayShort": "Sun",
+    "toastDeleteFailed": "Failed to delete the shift.",
+    "toastDeleted": "Shift deleted."
   },
   "adminSupportTeam": {
     "title": "Team Hierarchy",
@@ -25704,7 +25828,12 @@
     "roleAgent": "Agent",
     "roleSupervisor": "Supervisor",
     "roleManager": "Manager",
-    "roleDirector": "Director"
+    "roleDirector": "Director",
+    "toastAdded": "Team member added.",
+    "toastRemoveFailed": "Failed to remove the team member.",
+    "toastRemoved": "Team member removed.",
+    "toastSaveFailed": "Failed to save the team member.",
+    "toastUpdated": "Team member updated."
   },
   "adminSupportTemplates": {
     "title": "Response Templates",
@@ -25734,7 +25863,9 @@
     "toastContentRequired": "Template content is required",
     "toastSaveFailed": "Failed to save template",
     "confirmDelete": "Delete this template?",
-    "toastCopyFailed": "Failed to copy template content"
+    "toastCopyFailed": "Failed to copy template content",
+    "deleteTemplateAria": "Delete template: {{name}}",
+    "editTemplateAria": "Edit template: {{name}}"
   }
 ,
 
@@ -25898,7 +26029,11 @@
     "categoryLabel": "Category",
     "activeLabel": "Active (visible in autocomplete)",
     "saving": "Saving…",
-    "saveChanges": "Save Changes"
+    "saveChanges": "Save Changes",
+    "categoryPlaceholder": "e.g. Electrical",
+    "loadFailedMessage": "Could not load the skills list.",
+    "loadFailedTitle": "Failed to load skills",
+    "namePlaceholder": "e.g. Drywall Repair"
   },
   "adminToolRentalModeration": {
     "reasonRequired": "A reason is required.",
@@ -25916,7 +26051,17 @@
     "searchPlaceholder": "Search by name, category, owner…",
     "filterAll": "All",
     "filterAvailable": "Available",
-    "filterHidden": "Hidden"
+    "filterHidden": "Hidden",
+    "emptyTools": "No tool rentals found.",
+    "loadFailedMessage": "Could not load tool rentals.",
+    "loadFailedTitle": "Failed to load tool rentals",
+    "thActions": "ACTIONS",
+    "thCreated": "CREATED",
+    "thLocation": "LOCATION",
+    "thOwner": "OWNER",
+    "thRate": "RATE",
+    "thStatus": "STATUS",
+    "thTool": "TOOL"
   },
   "adminLogin": {
     "tooManyAttempts": "Too many failed attempts. Try again in {{mins}} minute(s).",
@@ -26172,7 +26317,10 @@
       "selectOption": "Select…",
       "notesOptional": "Notes (optional)",
       "applyTransition": "Apply Transition",
-      "noTransitions": "No transitions available for {{status}}."
+      "noTransitions": "No transitions available for {{status}}.",
+      "buyer": "Buyer:",
+      "qty": "Qty:",
+      "supplier": "Supplier:"
     },
     "selectTargetStatus": "Select a target status",
     "poMoved": "PO moved to {{status}}"
@@ -26241,7 +26389,9 @@
     },
     "restrictionScope": "restriction",
     "approvalRequired": "Approval",
-    "approvalOpen": "Open"
+    "approvalOpen": "Open",
+    "noFeeRules": "No fee or restriction rules configured.",
+    "noMarkupRules": "No markup rules configured."
   },
   "adminWarehouseOps": {
     "title": "Warehouse Ops Workspace",
@@ -26968,5 +27118,176 @@
   "adminConversionPolicyQueued": "Change queued. A second admin must approve it in the maker-checker queue before it applies.",
   "adminConversionPolicyQueueFailed": "Could not queue the policy change.",
   "adminConversionPolicyTitle": "Restaurant to OxSteed conversion policy",
-  "adminConversionPolicyDetail": "Only enabled restaurants can have their credit converted into OxSteed Credit. Converting OxSteed Credit into restaurant credit requires an active OxSteed Credit partner. Changes queue for a second admin to approve; nothing applies until then."
+  "adminConversionPolicyDetail": "Only enabled restaurants can have their credit converted into OxSteed Credit. Converting OxSteed Credit into restaurant credit requires an active OxSteed Credit partner. Changes queue for a second admin to approve; nothing applies until then.",
+  "adminBusinessModeration": {
+    "actionDeactivate": "Deactivate",
+    "actionDelete": "Delete",
+    "actionFlag": "Flag for Review",
+    "actionReactivate": "Reactivate",
+    "actionSuspend": "Suspend",
+    "activeBadge": "Active",
+    "colActions": "ACTIONS",
+    "colBusiness": "BUSINESS",
+    "colCategory": "CATEGORY",
+    "colCreated": "CREATED",
+    "colJobs": "JOBS",
+    "colLocation": "LOCATION",
+    "colMembers": "MEMBERS",
+    "colOwner": "OWNER",
+    "colStatus": "STATUS",
+    "inactiveBadge": "Inactive",
+    "loading": "Loading…",
+    "modalTitle": "{{action}} business",
+    "moreActions": "More actions",
+    "next": "Next →",
+    "noBusinesses": "No businesses found.",
+    "pageSummary": "Page {{page}} · {{total}} total",
+    "previous": "← Prev",
+    "reasonLabel": "Reason",
+    "reasonPlaceholder": "Explain why you are taking this action…",
+    "reasonRequired": "A reason is required.",
+    "searchPlaceholder": "Search by name, owner, email…",
+    "statActive": "ACTIVE",
+    "statDormant": "DORMANT",
+    "statInactive": "INACTIVE",
+    "statNewThisMonth": "NEW THIS MONTH",
+    "statTotal": "TOTAL",
+    "subtitle": "Manage and monitor all businesses on the platform",
+    "title": "Business Moderation",
+    "unknownType": "Unknown",
+    "viewProfile": "View Profile"
+  },
+  "adminComplianceMetricsPage": {
+    "acceptanceRatesTitle": "Acceptance Rates by Document Type",
+    "cardAccepted": "Accepted",
+    "cardNa": "N/A",
+    "cardPending": "Pending",
+    "cardSigned": "Signed",
+    "cardUpdated": "Updated {{date}}",
+    "noDocuments": "No documents",
+    "subtitle": "Legal document adoption rates, compliance risks, and trends.",
+    "title": "Compliance Metrics"
+  },
+  "adminPricing": {
+    "activeLabel": "Active",
+    "edit": "Edit",
+    "editFeeTitle": "Edit Fee Rule",
+    "editMarkupTitle": "Edit Markup Rule",
+    "emptyFees": "No fee rules configured.",
+    "emptyMarkup": "No markup rules configured.",
+    "feeUpdatedToast": "Fee rule updated",
+    "fixedAmountLabel": "Fixed Amount (cents)",
+    "markupPctLabel": "Markup % (decimal e.g. 0.20)",
+    "markupUpdatedToast": "Markup rule updated",
+    "pctOfProductLabel": "% of Product (decimal)",
+    "stackOrder": "Product Cost → Origin Handling → Sourcing Fee → OxSteed Markup → Freight Est. → Customs/Admin → Warehouse → Split Fulfillment → Last Mile → Risk Surcharge",
+    "stackOrderLabel": "Pricing Stack Order:",
+    "subtitle": "Control stackable markup and fee layers across the logistics branch. Changes apply to all future cost calculations.",
+    "tabFees": "Fee Rules",
+    "tabMarkup": "Markup Rules",
+    "thActive": "Active",
+    "thCategory": "Category",
+    "thFeeType": "Fee Type",
+    "thFixedCents": "Fixed (¢)",
+    "thMarkupPct": "Markup %",
+    "thMaxCents": "Max (¢)",
+    "thPctOfProduct": "% of Product",
+    "thPriority": "Priority",
+    "thScope": "Scope",
+    "thScopeId": "Scope ID",
+    "title": "Pricing & Fee Rules"
+  },
+  "adminSuppliers": {
+    "actionFailed": "Action failed",
+    "allStatus": "All Status",
+    "allTrustRatings": "All Trust Ratings",
+    "approve": "Approve",
+    "approvedCategories": "Approved Categories",
+    "approvedToast": "Supplier approved",
+    "complianceNotes": "Compliance Notes:",
+    "confirmApproveButton": "Approve supplier",
+    "confirmApproveMessage": "Approve {{name}} as an approved supplier?",
+    "confirmApproveTitle": "Approve supplier",
+    "confirmDeactivateMessage": "Deactivate {{name}}? They will no longer be available for new sourcing.",
+    "confirmDeactivateTitle": "Deactivate supplier",
+    "countryPlaceholder": "Country (e.g. CN)",
+    "deactivate": "Deactivate",
+    "deactivatedToast": "Supplier deactivated",
+    "detailAddress": "Address",
+    "detailApproved": "Approved",
+    "detailCity": "City",
+    "detailCommunication": "Communication",
+    "detailContact": "Contact",
+    "detailCountry": "Country",
+    "detailDisputes": "Disputes",
+    "detailEmail": "Email",
+    "detailKybVerified": "KYB Verified",
+    "detailLegalName": "Legal Name",
+    "detailOnTimeRate": "On-Time Rate",
+    "detailPaymentTerms": "Payment Terms",
+    "detailPhone": "Phone",
+    "detailQualityScore": "Quality Score",
+    "detailTrustRating": "Trust Rating",
+    "detailWebsite": "Website",
+    "kybYes": "Yes ({{date}})",
+    "minStars": "≥ {{n}} stars",
+    "noSuppliers": "No suppliers found.",
+    "pendingApproval": "Pending",
+    "statusActive": "Active",
+    "statusInactive": "Inactive",
+    "subtitle": "Approve, rate, and manage supplier profiles and their product catalogs.",
+    "thActions": "Actions",
+    "thCategories": "Categories",
+    "thCountry": "Country",
+    "thKyb": "KYB",
+    "thProducts": "Products",
+    "thQuality": "Quality",
+    "thStatus": "Status",
+    "thSupplier": "Supplier",
+    "thTrust": "Trust",
+    "title": "Suppliers Management",
+    "thisSupplier": "this supplier"
+  },
+  "adminSupportKnowledgeBase": {
+    "allCategories": "All",
+    "contentPlaceholder": "Article content...",
+    "createArticle": "Create article",
+    "deleteArticleAria": "Delete article: {{title}}",
+    "description": "Organize reusable answers, troubleshooting guides, and policy references so agents can resolve issues faster and more consistently.",
+    "editArticleAria": "Edit article: {{title}}",
+    "emptyBody": "Create an article or widen the search criteria to rebuild the support library view.",
+    "emptyTitle": "No knowledge base articles found",
+    "eyebrow": "Knowledge System",
+    "helpfulCount": "{{count}} helpful",
+    "labelCategory": "Category",
+    "labelContent": "Content",
+    "labelTags": "Tags",
+    "labelTitle": "Title",
+    "librarySubtitle": "Search by content or narrow the library by category to find the right playbook fast.",
+    "libraryTitle": "Article library",
+    "modalEditTitle": "Edit article",
+    "modalNewTitle": "New article",
+    "modalSubtitle": "Build reusable answers the whole support team can rely on.",
+    "newArticle": "New article",
+    "searchPlaceholder": "Search articles...",
+    "statArticles": "Articles",
+    "statArticlesDetail": "Published or draft support articles in this view.",
+    "statCategory": "Category",
+    "statCategoryAll": "Browsing every support category.",
+    "statCategoryFiltered": "Filtering to {{category}}.",
+    "statHelpful": "Helpful",
+    "statHelpfulDetail": "Helpful votes visible in the current result set.",
+    "statViews": "Views",
+    "statViewsDetail": "Total recorded views across the current result set.",
+    "tagsPlaceholder": "billing, troubleshooting (comma separated)",
+    "title": "Support knowledge base",
+    "titlePlaceholder": "Article title...",
+    "toastContentRequired": "Article content is required",
+    "toastDeleteFailed": "Failed to delete the article.",
+    "toastDeleted": "Article deleted.",
+    "toastSaveFailed": "Failed to save article",
+    "toastTitleRequired": "Article title is required",
+    "updateArticle": "Update article",
+    "viewsCount": "{{count}} views"
+  }
 }

@@ -8,7 +8,7 @@ import AdminErrorState from '../../lib/AdminErrorState';
 const REQUEST_STATUSES = ['draft', 'quoted', 'pooled', 'procurement', 'private_label', 'cancelled', 'closed'];
 
 export default function SourcingOpsAdmin() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [requests, setRequests] = useState([]);
   const [quotes, setQuotes] = useState([]);
   const [programs, setPrograms] = useState([]);
@@ -87,7 +87,7 @@ export default function SourcingOpsAdmin() {
                 <tr key={request.id}>
                   <td>{request.reference}</td>
                   <td>{request.title}</td>
-                  <td><span className="lx-status-pill" style={{ background:'#64748b' }}>{request.status}</span></td>
+                  <td><span className="lx-status-pill" style={{ background:'#64748b' }}>{t(`logistics.status.${request.status}`, { defaultValue: request.status })}</span></td>
                   <td>{request.quote_count || 0}</td>
                   <td>{request.assigned_operator || '—'}</td>
                   <td><button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem' }} onClick={() => setSelected(request)}>{t('adminSourcingOps.manage')}</button></td>
@@ -109,7 +109,7 @@ export default function SourcingOpsAdmin() {
                 <tr key={program.id}>
                   <td>{program.title}</td>
                   <td>{program.cadence}</td>
-                  <td>{program.next_run_date ? new Date(program.next_run_date).toLocaleDateString() : '—'}</td>
+                  <td>{program.next_run_date ? new Date(program.next_run_date).toLocaleDateString(i18n.language) : '—'}</td>
                   <td>{program.lane_name || t('adminSourcingOps.unassigned')}</td>
                   <td><span className="lx-status-pill" style={{ background: program.status === 'active' ? '#22c55e' : '#64748b' }}>{program.status}</span></td>
                 </tr>
@@ -132,7 +132,7 @@ export default function SourcingOpsAdmin() {
               <label className="lx-label">{t('adminSourcingOps.modal.updateStatus')}</label>
               <select className="lx-select" value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>
                 <option value="">{t('adminSourcingOps.modal.noStatusChange')}</option>
-                {REQUEST_STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
+                {REQUEST_STATUSES.map((status) => <option key={status} value={status}>{t(`logistics.status.${status}`, { defaultValue: status.replace(/_/g,' ') })}</option>)}
               </select>
             </div>
             <div className="lx-form-group">

@@ -6,6 +6,7 @@ import adminApi from '../../../lib/adminApi';
 import { useAbortableFetch } from '../../lib/useAbortableFetch';
 import AdminErrorState from '../../lib/AdminErrorState';
 import AuditLogFilter from '../../../components/AuditLogFilter';
+import { adminDate } from '../../lib/formatters';
 
 const PAGE_SIZE = 50;
 
@@ -20,7 +21,7 @@ const EMPTY_FILTERS = {
 
 function ts(d) {
   if (!d) return '-';
-  return new Date(d).toLocaleString('en-US', {
+  return adminDate(d, {
     month: 'short', day: 'numeric', year: 'numeric',
     hour: 'numeric', minute: '2-digit',
   });
@@ -212,6 +213,7 @@ export default function AuditLogUserActions() {
               <button
                 onClick={() => setPage(p => Math.max(0, p - 1))}
                 disabled={page === 0}
+                aria-label={t('common.previous')}
                 className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-30"
               >
                 <ChevronLeft size={14} />
@@ -222,6 +224,7 @@ export default function AuditLogUserActions() {
               <button
                 onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
                 disabled={page >= totalPages - 1}
+                aria-label={t('common.next')}
                 className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-30"
               >
                 <ChevronRight size={14} />

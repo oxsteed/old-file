@@ -44,6 +44,7 @@ export default function OrganizerApprovalsAdmin() {
         <p className="lx-page-sub">{t('adminOrganizerApprovals.subtitle')}</p>
       </div>
       {!loading && loadError && <AdminErrorState onRetry={load} />}
+      {loading && <div className="lx-loading">{t('common.loading')}</div>}
       <div className="lx-table-wrap">
         <table className="lx-table">
           <thead><tr><th>{t('adminOrganizerApprovals.table.reference')}</th><th>{t('adminOrganizerApprovals.table.campaign')}</th><th>{t('adminOrganizerApprovals.table.organizer')}</th><th>{t('adminOrganizerApprovals.table.lane')}</th><th>{t('adminOrganizerApprovals.table.moq')}</th><th>{t('adminOrganizerApprovals.table.actions')}</th></tr></thead>

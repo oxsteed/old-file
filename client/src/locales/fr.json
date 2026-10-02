@@ -1,4 +1,5 @@
 {
+  "adminRegionsMilesUnit": "miles",
   "businessCreation": {
     "eyebrow": "Configuration de l’entreprise",
     "title": "Créer votre entreprise",
@@ -324,7 +325,12 @@
   },
   "supportAdmin": {
     "agentManagement": {
-      "confirmDeleteAgent": "Supprimer cet agent ?"
+      "confirmDeleteAgent": "Supprimer cet agent ?",
+      "agentDeleted": "Agent supprimé",
+      "deleteFailed": "Échec de la suppression de l'agent",
+      "loadFailed": "Échec du chargement des agents",
+      "statusFailed": "Échec de la mise à jour du statut de l'agent",
+      "statusUpdated": "Statut de l'agent mis à jour"
     },
     "knowledgeBase": {
       "confirmDeleteArticle": "Supprimer cet article ?"
@@ -580,7 +586,9 @@
     "done": "Fait",
     "failedToCancel": "Échec de l'annulation. Veuillez réessayer.",
     "fillRequiredFields": "Veuillez remplir tous les champs obligatoires.",
-    "failedToDelete": "Échec de la suppression. Veuillez réessayer."
+    "failedToDelete": "Échec de la suppression. Veuillez réessayer.",
+    "notAvailable": "N/D",
+    "updated": "Mis à jour"
   },
   "jobs": {
     "title": "Détails de la mission",
@@ -5177,7 +5185,9 @@
       }
     },
     "list": {
-      "createFailed": "Impossible de créer l’utilisateur.", "createTitle": "Créer un compte utilisateur", "firstName": "Prénom", "lastName": "Nom", "email": "E-mail", "password": "Mot de passe", "minChars": "(8 caractères min.)", "accountType": "Type de compte", "cancel": "Annuler", "creating": "Création…", "createUser": "Créer l’utilisateur", "resetFailed": "Impossible de réinitialiser le mot de passe.", "resetPassword": "Réinitialiser le mot de passe", "resetSuccess": "Mot de passe réinitialisé.", "sessionsInvalidated": "Toutes les sessions de {{name}} ont été invalidées.", "settingPassword": "Nouveau mot de passe pour {{name}}. Ses sessions actives seront invalidées.", "newPassword": "Nouveau mot de passe", "resetting": "Réinitialisation…", "reset": "Réinitialiser", "viewProfile": "Voir le profil", "sendMessage": "Envoyer un message", "cancelDeletionConfirm": "Annuler la suppression en attente de {{email}} ? Le compte redeviendra actif.", "cancelDeletion": "Annuler la suppression en attente", "suspend": "Suspendre le compte", "reactivate": "Réactiver le compte", "resetPasswordAction": "Réinitialiser le mot de passe", "neverLoggedIn": "Jamais connecté", "onlineRecently": "En ligne récemment", "activeThisWeek": "Actif cette semaine", "activeThisMonth": "Actif ce mois-ci", "inactiveThirtyDays": "Inactif depuis plus de 30 jours", "justNow": "À l’instant", "hoursAgo": "Il y a {{count}} h", "daysAgo": "Il y a {{count}} j", "weeksAgo": "Il y a {{count}} sem.", "monthsAgo": "Il y a {{count}} mois", "yearsAgo": "Il y a {{count}} ans", "totalUsers": "Total des utilisateurs", "active": "Actif", "suspended": "Suspendu", "reactivated": "Réactivé", "helpers": "Aidants", "customers": "Clients", "newThisWeek": "Nouveaux cette semaine", "userStatusChanged": "{{name}} : {{status}}.", "pendingDeletionCleared": "Suppression en attente annulée pour {{name}}.", "cancelDeletionFailed": "Impossible d’annuler la suppression en attente.", "bulkStatusChanged": "{{count}} utilisateur(s) {{status}}.", "messageSent": "Message envoyé à {{name}}.", "sendFailed": "Impossible d’envoyer le message.", "title": "Utilisateurs", "matchingFilters": "{{count}} utilisateurs correspondent aux filtres actuels", "updated": "Mis à jour à {{time}}", "refresh": "Actualiser", "exportCsv": "Exporter en CSV", "tryAgain": "Réessayer", "searchPlaceholder": "Rechercher un nom, un e-mail ou un téléphone...", "locationPlaceholder": "Ville, région, code postal...", "allRoles": "Tous les rôles", "allStatus": "Tous les statuts", "allPlans": "Tous les forfaits", "sortBy": "Trier : {{label}}", "sort": { "first_name": "Nom", "created_at": "Inscription", "last_login_at": "Dernière activité", "avg_rating": "Note" }, "perPage": "{{count}} par page", "selected": "{{count}} sélectionnés", "suspendSelected": "Suspendre la sélection", "reactivateSelected": "Réactiver la sélection", "user": "Utilisateur", "location": "Lieu", "role": "Rôle", "plan": "Forfait", "rating": "Note", "jobs": "Travaux", "verified": "Vérifié", "status": "Statut", "joined": "Inscription", "lastActive": "Dernière activité", "loading": "Chargement…", "unavailable": "Les données utilisateurs sont indisponibles.", "noUsers": "Aucun utilisateur trouvé.", "free": "Gratuit", "posted": "Publiés", "completedAsHelper": "Terminés comme aidant", "emailVerified": "E-mail vérifié", "idVerified": "Identité vérifiée", "backgroundChecked": "Antécédents vérifiés", "selfDeleted": "Supprimé par l’utilisateur", "pendingDeletion": "Suppression en attente", "pageSummary": "Page {{page}} sur {{pages}} · {{count}} résultats", "previous": "← Précédent", "next": "Suivant →", "messageTitle": "Message à {{name}}", "messageAudit": "Ce message apparaîtra dans la boîte de réception de {{name}} comme message système et sera inscrit dans le journal d’audit.", "messagePlaceholder": "Écrire un message à {{name}}…", "sending": "Envoi…"
+      "createFailed": "Impossible de créer l’utilisateur.", "createTitle": "Créer un compte utilisateur", "firstName": "Prénom", "lastName": "Nom", "email": "E-mail", "password": "Mot de passe", "minChars": "(8 caractères min.)", "accountType": "Type de compte", "cancel": "Annuler", "creating": "Création…", "createUser": "Créer l’utilisateur", "resetFailed": "Impossible de réinitialiser le mot de passe.", "resetPassword": "Réinitialiser le mot de passe", "resetSuccess": "Mot de passe réinitialisé.", "sessionsInvalidated": "Toutes les sessions de {{name}} ont été invalidées.", "settingPassword": "Nouveau mot de passe pour {{name}}. Ses sessions actives seront invalidées.", "newPassword": "Nouveau mot de passe", "resetting": "Réinitialisation…", "reset": "Réinitialiser", "viewProfile": "Voir le profil", "sendMessage": "Envoyer un message", "cancelDeletionConfirm": "Annuler la suppression en attente de {{email}} ? Le compte redeviendra actif.", "cancelDeletion": "Annuler la suppression en attente", "suspend": "Suspendre le compte", "reactivate": "Réactiver le compte", "resetPasswordAction": "Réinitialiser le mot de passe", "neverLoggedIn": "Jamais connecté", "onlineRecently": "En ligne récemment", "activeThisWeek": "Actif cette semaine", "activeThisMonth": "Actif ce mois-ci", "inactiveThirtyDays": "Inactif depuis plus de 30 jours", "justNow": "À l’instant", "hoursAgo": "Il y a {{count}} h", "daysAgo": "Il y a {{count}} j", "weeksAgo": "Il y a {{count}} sem.", "monthsAgo": "Il y a {{count}} mois", "yearsAgo": "Il y a {{count}} ans", "totalUsers": "Total des utilisateurs", "active": "Actif", "suspended": "Suspendu", "reactivated": "Réactivé", "helpers": "Aidants", "customers": "Clients", "newThisWeek": "Nouveaux cette semaine", "userStatusChanged": "{{name}} : {{status}}.", "pendingDeletionCleared": "Suppression en attente annulée pour {{name}}.", "cancelDeletionFailed": "Impossible d’annuler la suppression en attente.", "bulkStatusChanged": "{{count}} utilisateur(s) {{status}}.", "messageSent": "Message envoyé à {{name}}.", "sendFailed": "Impossible d’envoyer le message.", "title": "Utilisateurs", "matchingFilters": "{{count}} utilisateurs correspondent aux filtres actuels", "updated": "Mis à jour à {{time}}", "refresh": "Actualiser", "exportCsv": "Exporter en CSV", "tryAgain": "Réessayer", "searchPlaceholder": "Rechercher un nom, un e-mail ou un téléphone...", "locationPlaceholder": "Ville, région, code postal...", "allRoles": "Tous les rôles", "allStatus": "Tous les statuts", "allPlans": "Tous les forfaits", "sortBy": "Trier : {{label}}", "sort": { "first_name": "Nom", "created_at": "Inscription", "last_login_at": "Dernière activité", "avg_rating": "Note" }, "perPage": "{{count}} par page", "selected": "{{count}} sélectionnés", "suspendSelected": "Suspendre la sélection", "reactivateSelected": "Réactiver la sélection", "user": "Utilisateur", "location": "Lieu", "role": "Rôle", "plan": "Forfait", "rating": "Note", "jobs": "Travaux", "verified": "Vérifié", "status": "Statut", "joined": "Inscription", "lastActive": "Dernière activité", "loading": "Chargement…", "unavailable": "Les données utilisateurs sont indisponibles.", "noUsers": "Aucun utilisateur trouvé.", "free": "Gratuit", "posted": "Publiés", "completedAsHelper": "Terminés comme aidant", "emailVerified": "E-mail vérifié", "idVerified": "Identité vérifiée", "backgroundChecked": "Antécédents vérifiés", "selfDeleted": "Supprimé par l’utilisateur", "pendingDeletion": "Suppression en attente", "pageSummary": "Page {{page}} sur {{pages}} · {{count}} résultats", "previous": "← Précédent", "next": "Suivant →", "messageTitle": "Message à {{name}}", "messageAudit": "Ce message apparaîtra dans la boîte de réception de {{name}} comme message système et sera inscrit dans le journal d’audit.", "messagePlaceholder": "Écrire un message à {{name}}…", "sending": "Envoi…",
+      "actionFailed": "L'action a échoué",
+      "never": "Jamais"
     }
   },
   "adminLegal": {
@@ -9436,7 +9446,21 @@
     "templateSaveFailed": "Échec de l'enregistrement du modèle",
     "toolRentalsLoadFailedMessage": "Impossible de charger les locations d'outils.",
     "toolRentalsLoadFailedTitle": "Échec du chargement des locations d'outils",
-    "workingHoursDayOpen": "Ouvert"
+    "workingHoursDayOpen": "Ouvert",
+    "moderation": {
+      "by": "Par :",
+      "dismiss": "Rejeter",
+      "dismissTitle": "Rejeter - retirer le signalement admin",
+      "emptyQueue": "File vide - aucune mission signalée.",
+      "flag": "Signaler",
+      "flagTitle": "Signaler pour révision ultérieure",
+      "loading": "Chargement…",
+      "queueSubtitle": "{{count}} mission{{plural}} signalée{{plural}}",
+      "remove": "Retirer",
+      "removeTitle": "Annuler la mission - la retire de la place de marché",
+      "reportCount": "{{count}} signalement{{plural}}",
+      "title": "Modération de contenu"
+    }
   },
   "auditLogFilter": {
     "filter": "Filtrer",
@@ -11023,7 +11047,42 @@
     "confirmStatusTitle": "Modifier le statut",
     "deleteNoteTitle": "Supprimer la note",
     "invalidBps": "Saisissez un taux de parrainage valide entre 0 et 10 000 points de base.",
-    "statusMenuLabel": "Modifier le statut de la demande"
+    "statusMenuLabel": "Modifier le statut de la demande",
+    "archive": "Archiver",
+    "breadcrumbAdmin": "Admin",
+    "breadcrumbConsulting": "Conseil",
+    "breadcrumbCurrent": "Lancement d'entreprise",
+    "clearAll": "Tout effacer",
+    "countryPlaceholder": "Code pays",
+    "emptyBody": "Essayez d'ajuster vos filtres ou termes de recherche.",
+    "emptyTitle": "Aucune demande trouvée",
+    "exportCsv": "Exporter CSV",
+    "filterAllPackages": "Tous les forfaits",
+    "filterAllStates": "Tous les statuts",
+    "filterAllUrgency": "Toute urgence",
+    "nextPage": "Suivant",
+    "packageAccelerator": "Accelerator ($3,000)",
+    "packageFoundation": "Foundation ($750)",
+    "packageLaunch": "Launch ($1,500)",
+    "pageOf": "Page {{page}} sur {{pages}}",
+    "previousPage": "Précédent",
+    "requestArchived": "Demande archivée",
+    "searchPlaceholder": "Rechercher nom, e-mail...",
+    "statusArchived": "Archivé",
+    "statusButton": "Statut",
+    "statusCompleted": "Terminé",
+    "statusContacted": "Contacté",
+    "statusInProgress": "En cours",
+    "statusKickoffScheduled": "Séance planifiée",
+    "statusNew": "Nouveau",
+    "title": "Programme de développement des fondateurs",
+    "totalRequests": "{{count}} demandes au total",
+    "unassigned": "Non assigné",
+    "urgencyAsap": "Dès que possible",
+    "urgencyExploring": "En exploration",
+    "urgencyOneMonth": "1 mois",
+    "urgencyTwoWeeks": "2 semaines",
+    "view": "Voir"
   },
   "businessLaunchStatus": {
     "trackYourBusiness": "Suivre votre Lancement d'Entreprise",
@@ -12151,7 +12210,9 @@
     "reportedBy": "Signalé par :",
     "anonymous": "Anonyme",
     "actionTaken": "Action effectuée",
-    "by": "par"
+    "by": "par",
+    "viewReportedJob": "Voir la mission signalée",
+    "viewReportedUser": "Voir l'utilisateur signalé"
   },
   "adminEnforcement": {
     "title": "Actions d'Application",
@@ -14846,7 +14907,18 @@
         "reminders": "Rappels",
         "actions": "Actes"
       }
-    }
+    },
+    "nextWeek": "Suiv",
+    "noPendingSessions": "Aucune séance en attente. Toutes les demandes ont été traitées.",
+    "pendingBadge": "En attente",
+    "phoneLabel": "Téléphone",
+    "prevWeek": "Préc",
+    "tierFoundation": "Fondation",
+    "tierImplementation": "Mise en œuvre",
+    "tierInitial": "Initial ($100)",
+    "tierLabel": "Niveau",
+    "tierTransformation": "Transformation",
+    "today": "Aujourd'hui"
   },
   "adminConsultingSessions": {
     "title": "Sessions de conseil",
@@ -22279,7 +22351,24 @@
     "userActionLog": "Journal d’actions utilisateur",
     "users": "Utilisateurs",
     "visitors": "Visiteurs",
-    "profileVisibility": "Visibilité des profils"
+    "profileVisibility": "Visibilité des profils",
+    "sidebarLabel": "Navigation d'administration",
+    "supportSection": "Section d'assistance",
+    "supportAgentDashboard": "Tableau de bord des agents",
+    "supportAgents": "Agents",
+    "supportAgentOnboarding": "Intégration",
+    "supportShifts": "Quarts",
+    "supportTeam": "Équipe",
+    "supportEscalations": "Escalades",
+    "supportSla": "SLA",
+    "supportKnowledgeBase": "Base de connaissances",
+    "supportTemplates": "Modèles",
+    "supportMetrics": "Métriques",
+    "supportPerformance": "Performance",
+    "supportCsat": "CSAT",
+    "supportQa": "Contrôles qualité",
+    "supportSettings": "Paramètres",
+    "supportAuditLog": "Journal d'audit"
   },
   "adminProfileVisibility": {
     "title": "Visibilité des profils",
@@ -22481,7 +22570,8 @@
     "openBreaches": "Violations SLA ouvertes", "openIncidents": "Incidents ouverts",
     "riskDescription": "Incidents ouverts, signalements et échecs de sécurité récents.", "riskTitle": "Risque et sécurité",
     "securityFailures24h": "Échecs de sécurité, 24 h", "slaDescription": "Conversations d’assistance proches ou au-delà des objectifs de service.", "slaTitle": "Santé des SLA",
-    "crmDescription": "Prospects et relations clients nécessitant un suivi.", "crmTitle": "CRM"
+    "crmDescription": "Prospects et relations clients nécessitant un suivi.", "crmTitle": "CRM",
+    "manageIncidents": "Gérer les incidents"
   },
   "adminMessages": {
     "admin": "Administrateur",
@@ -22504,7 +22594,8 @@
     "startConversation": "Commencer une conversation avec {{name}}",
     "superAdmin": "Super administrateur",
     "title": "Messages administratifs",
-    "yesterday": "Hier"
+    "yesterday": "Hier",
+    "sendFailed": "Échec de l'envoi du message. Veuillez réessayer."
   },
   "superAuditLog": {
     "allTypes": "Tous les types",
@@ -22528,7 +22619,8 @@
     "typeJob": "Mission",
     "typePayout": "Paiement",
     "typeSetting": "Paramètre",
-    "typeUser": "Utilisateur"
+    "typeUser": "Utilisateur",
+    "updatedAt": "Mis à jour {{time}}"
   },
   "superConversations": {
     "actionFailed": "L’action a échoué.",
@@ -22713,7 +22805,11 @@
     "usersSection": "Utilisateurs",
     "viewLink": "Voir",
     "vsPrev": "vs précédent",
-    "vsPrevPeriod": "vs période précédente"
+    "vsPrevPeriod": "vs période précédente",
+    "resolveIncidentMessage": "Décrivez comment cet incident a été résolu. Cette note est obligatoire.",
+    "resolveIncidentReasonLabel": "Note de résolution",
+    "resolveIncidentReasonPlaceholder": "Qu'a-t-il été fait pour résoudre cet incident ?",
+    "resolveIncidentTitle": "Résoudre l'incident"
   },
   "superFeeConfig": {
     "colChangedBy": "Modifié par",
@@ -22747,7 +22843,12 @@
     "trialRange": "Min : {{min}} jours | Max : {{max}} jours",
     "trialTitle": "Configuration de la durée d’essai",
     "updateFailed": "La mise à jour a échoué",
-    "whyPlaceholder": "Pourquoi ce changement ?"
+    "whyPlaceholder": "Pourquoi ce changement ?",
+    "confirmMessage": "Enregistrer cette modification de commission pour {{label}} ? Elle prend effet immédiatement.",
+    "confirmTitle": "Enregistrer la modification de commission",
+    "invalidNumber": "Saisissez un nombre valide.",
+    "valueOutOfRange": "La valeur doit être comprise entre {{min}} et {{max}}.",
+    "valueOutsideRange": "La valeur est hors de la plage autorisée."
   },
   "superFinancials": {
     "colAmount": "Montant",
@@ -22999,7 +23100,9 @@
     "tier2Price": "Prix du niveau 2",
     "tier3Label": "Étiquette du niveau 3",
     "tier3Price": "Prix du niveau 3",
-    "title": "Configuration des prix par niveau"
+    "title": "Configuration des prix par niveau",
+    "confirmMessage": "Enregistrer ces modifications tarifaires ? Elles prennent effet immédiatement sur toute la plateforme.",
+    "confirmTitle": "Enregistrer les modifications tarifaires"
   },
   "superPricingOverrides": {
     "active": "Actif",
@@ -23179,7 +23282,10 @@
     "status": { "published": "Publié", "accepted": "Accepté", "in_progress": "En cours", "completed": "Terminé", "cancelled": "Annulé", "disputed": "Contesté", "unknown": "Inconnu" }
   },
   "adminSupportPerformance": {
-    "title": "Analyse des performances", "subtitle": "Indicateurs de performance de l’équipe et de chaque agent.", "refresh": "Actualiser les performances", "totalAgents": "Agents au total", "active": "Actifs", "avgRating": "Note moyenne", "teamAverage": "Moyenne de l’équipe", "avgResponseTime": "Temps de réponse moyen", "totalChats": "Chats au total", "allTime": "Depuis toujours", "searchPlaceholder": "Rechercher un agent par nom...", "sortByRating": "Trier par note", "sortByResponseTime": "Trier par temps de réponse", "sortByChats": "Trier par chats", "sortByResolutionRate": "Trier par taux de résolution", "responseTime": "Temps de réponse", "resolutionRate": "Taux de résolution", "satisfaction": "Satisfaction", "performanceDetails": "Détails des performances", "close": "Fermer les détails des performances", "loadingDetails": "Chargement des détails des performances…", "overallRating": "Note globale", "satisfactionScore": "Score de satisfaction", "sevenDayTrend": "Tendance des performances sur 7 jours", "detailedStatistics": "Statistiques détaillées", "totalConversations": "Conversations au total", "resolved": "Résolues", "avgHandlingTime": "Durée moyenne de traitement", "firstContactResolution": "Résolution au premier contact", "qualityScore": "Score de qualité"
+    "title": "Analyse des performances", "subtitle": "Indicateurs de performance de l’équipe et de chaque agent.", "refresh": "Actualiser les performances", "totalAgents": "Agents au total", "active": "Actifs", "avgRating": "Note moyenne", "teamAverage": "Moyenne de l’équipe", "avgResponseTime": "Temps de réponse moyen", "totalChats": "Chats au total", "allTime": "Depuis toujours", "searchPlaceholder": "Rechercher un agent par nom...", "sortByRating": "Trier par note", "sortByResponseTime": "Trier par temps de réponse", "sortByChats": "Trier par chats", "sortByResolutionRate": "Trier par taux de résolution", "responseTime": "Temps de réponse", "resolutionRate": "Taux de résolution", "satisfaction": "Satisfaction", "performanceDetails": "Détails des performances", "close": "Fermer les détails des performances", "loadingDetails": "Chargement des détails des performances…", "overallRating": "Note globale", "satisfactionScore": "Score de satisfaction", "sevenDayTrend": "Tendance des performances sur 7 jours", "detailedStatistics": "Statistiques détaillées", "totalConversations": "Conversations au total", "resolved": "Résolues", "avgHandlingTime": "Durée moyenne de traitement", "firstContactResolution": "Résolution au premier contact", "qualityScore": "Score de qualité",
+    "loadFailed": "Échec du chargement des données de performance.",
+    "noAgents": "Aucune donnée de performance d'agent pour le moment.",
+    "sortBy": "Trier par"
   },
   "adminSupportAgents": {
     "eyebrow": "Annuaire de l’équipe", "title": "Agents du support", "description": "Examinez l’effectif, les compétences et les agents actifs sans quitter l’annuaire de l’équipe support.", "refresh": "Actualiser", "agents": "Agents", "agentsDetail": "Agents support actuellement inscrits.", "active": "Actifs", "activeDetail": "Agents actuellement habilités pour le support.", "skillAreas": "Domaines de compétence", "skillAreasDetail": "Spécialités support uniques représentées dans l’équipe.", "searchMode": "Mode de recherche", "filtered": "Filtré", "all": "Tous", "currentQuery": "Recherche actuelle : {{query}}", "browsingAll": "Consultation de tout l’annuaire de l’équipe.", "rosterTitle": "Annuaire des agents", "rosterSubtitle": "Recherchez par nom ou e-mail, puis consultez les compétences et le statut.", "searchPlaceholder": "Rechercher un agent par nom ou e-mail...", "noAgents": "Aucun agent trouvé", "noAgentsBody": "Essayez une autre recherche ou intégrez du personnel support pour développer l’équipe.", "activeStatus": "Actif", "inactiveStatus": "Inactif", "chatsToday": "Chats aujourd’hui", "viewAgent": "Voir {{name}}", "toggleStatus": "Modifier le statut de {{name}}", "deleteAgent": "Supprimer {{name}}", "profileTitle": "Profil de l’agent", "profileDescription": "Aperçu des performances et des spécialités support.", "close": "Fermer le profil de l’agent", "avgRating": "Note moyenne", "skillCoverage": "Couverture des compétences"
@@ -23975,7 +24081,8 @@
     "noSkillsSelected": "Aucune compétence sélectionnée pour le moment.",
     "selectedLanguages": "Langues sélectionnées",
     "noLanguagesSelected": "Aucune langue sélectionnée pour le moment.",
-    "snapshotTip": "Capturez suffisamment de spécialisation ici pour que la planification, le routage et les futurs rapports de performance partent de données de base propres."
+    "snapshotTip": "Capturez suffisamment de spécialisation ici pour que la planification, le routage et les futurs rapports de performance partent de données de base propres.",
+    "errorInvalidEmail": "Saisissez une adresse e-mail valide."
   },
   "adminLegalAcceptancesPage": {
     "docAll": "Tous les documents",
@@ -24199,7 +24306,14 @@
     "avgTimeCaption": "Du déclenchement à l'escalade",
     "rulesSectionTitle": "Règles d'escalade actives",
     "emptyState": "Aucune règle d'escalade configurée",
-    "createFirstRuleButton": "Créez votre première règle"
+    "createFirstRuleButton": "Créez votre première règle",
+    "toastCreated": "Règle d'escalade créée.",
+    "toastDeleteFailed": "Échec de la suppression de la règle d'escalade.",
+    "toastDeleted": "Règle d'escalade supprimée.",
+    "toastSaveFailed": "Échec de l'enregistrement de la règle d'escalade.",
+    "toastToggleFailed": "Échec de l'activation de la règle d'escalade.",
+    "toastUpdated": "Règle d'escalade mise à jour.",
+    "toggleRuleAria": "Activer la règle : {{name}}"
   },
   "adminCorporateAssignments": {
     "statusActive": "Actif",
@@ -24354,7 +24468,8 @@
     "activityButton": "Activité",
     "disableButton": "Désactiver",
     "enableButton": "Activer",
-    "forceLogoutButton": "Forcer la déconnexion"
+    "forceLogoutButton": "Forcer la déconnexion",
+    "forceLogoutReason": "Déconnexion forcée par le super admin"
   },
   "adminSupportAuditLog": {
     "systemFallback": "Système",
@@ -24388,7 +24503,9 @@
     "timelineTitle": "Chronologie des activités",
     "emptyState": "Aucune entrée de journal d'audit trouvée",
     "complianceTitle": "Informations de conformité",
-    "complianceText": "Ce journal d'audit suit toutes les activités du système, y compris les connexions des utilisateurs, les modifications de données et les actions administratives. Les journaux sont conservés 90 jours et peuvent être exportés pour des audits de conformité et de sécurité."
+    "complianceText": "Ce journal d'audit suit toutes les activités du système, y compris les connexions des utilisateurs, les modifications de données et les actions administratives. Les journaux sont conservés 90 jours et peuvent être exportés pour des audits de conformité et de sécurité.",
+    "exportFailed": "Échec de l'exportation du journal d'audit.",
+    "systemEmailFallback": "system@oxsteed.com"
   },
   "adminLogisticsRestrictions": {
     "invalidCountryCode": "Le code pays doit comporter 2 lettres (p. ex. US, CN, HT)",
@@ -24679,7 +24796,8 @@
     "freightRail": "ferroviaire",
     "freightMultimodal": "multimodal",
     "freightCourier": "coursier",
-    "freightExpress": "express"
+    "freightExpress": "express",
+    "emptyLanes": "Aucun itinéraire configuré pour le moment."
   },
 
   "adminReconciliation": {
@@ -25443,7 +25561,9 @@
     "labelMessage": "Message",
     "emailRecordedNote": "L'e-mail envoyé est enregistré dans cette conversation de support.",
     "sending": "Envoi…",
-    "sendEmail": "Envoyer l'e-mail"
+    "sendEmail": "Envoyer l'e-mail",
+    "loadFailed": "Impossible de charger le tableau de bord des agents",
+    "loadFailedBody": "Les données des agents en direct n'ont pas pu être chargées. Vérifiez votre connexion et réessayez."
   },
   "adminSupportCSAT": {
     "title": "Analytiques CSAT",
@@ -25487,7 +25607,9 @@
     "subjectFallback": "Conversation de support",
     "teamFallback": "Équipe de support",
     "npsValue": "NPS {{score}}/10",
-    "foundHelpful": "{{count}} l'ont trouvé utile"
+    "foundHelpful": "{{count}} l'ont trouvé utile",
+    "noAgentData": "Aucune donnée d'agent pour cette période.",
+    "noSentimentData": "Aucune donnée de sentiment pour cette période."
   },
   "adminSupportQA": {
     "eyebrow": "Qualité du support",
@@ -25575,7 +25697,9 @@
     "daySaturday": "samedi",
     "daySaturdayShort": "sam.",
     "daySunday": "dimanche",
-    "daySundayShort": "dim."
+    "daySundayShort": "dim.",
+    "toastDeleteFailed": "Échec de la suppression du quart.",
+    "toastDeleted": "Quart supprimé."
   },
   "adminSupportTeam": {
     "title": "Hiérarchie de l'équipe",
@@ -25610,7 +25734,12 @@
     "roleAgent": "Agent",
     "roleSupervisor": "Superviseur",
     "roleManager": "Manager",
-    "roleDirector": "Directeur"
+    "roleDirector": "Directeur",
+    "toastAdded": "Membre de l'équipe ajouté.",
+    "toastRemoveFailed": "Échec de la suppression du membre de l'équipe.",
+    "toastRemoved": "Membre de l'équipe supprimé.",
+    "toastSaveFailed": "Échec de l'enregistrement du membre de l'équipe.",
+    "toastUpdated": "Membre de l'équipe mis à jour."
   },
   "adminSupportTemplates": {
     "title": "Modèles de réponse",
@@ -25640,7 +25769,9 @@
     "toastContentRequired": "Le contenu du modèle est requis",
     "toastSaveFailed": "Échec de l'enregistrement du modèle",
     "confirmDelete": "Supprimer ce modèle ?",
-    "toastCopyFailed": "Échec de la copie du contenu du modèle"
+    "toastCopyFailed": "Échec de la copie du contenu du modèle",
+    "deleteTemplateAria": "Supprimer le modèle : {{name}}",
+    "editTemplateAria": "Modifier le modèle : {{name}}"
   }
 ,
 
@@ -25804,7 +25935,11 @@
     "categoryLabel": "Catégorie",
     "activeLabel": "Active (visible dans la saisie semi-automatique)",
     "saving": "Enregistrement…",
-    "saveChanges": "Enregistrer les modifications"
+    "saveChanges": "Enregistrer les modifications",
+    "categoryPlaceholder": "p. ex. Électricité",
+    "loadFailedMessage": "Impossible de charger la liste des compétences.",
+    "loadFailedTitle": "Échec du chargement des compétences",
+    "namePlaceholder": "p. ex. Réparation de placoplâtre"
   },
   "adminToolRentalModeration": {
     "reasonRequired": "Un motif est requis.",
@@ -25822,7 +25957,17 @@
     "searchPlaceholder": "Rechercher par nom, catégorie, propriétaire…",
     "filterAll": "Tous",
     "filterAvailable": "Disponibles",
-    "filterHidden": "Masqués"
+    "filterHidden": "Masqués",
+    "emptyTools": "Aucune location d'outil trouvée.",
+    "loadFailedMessage": "Impossible de charger les locations d'outils.",
+    "loadFailedTitle": "Échec du chargement des locations d'outils",
+    "thActions": "ACTIONS",
+    "thCreated": "CRÉÉ",
+    "thLocation": "EMPLACEMENT",
+    "thOwner": "PROPRIÉTAIRE",
+    "thRate": "TARIF",
+    "thStatus": "STATUT",
+    "thTool": "OUTIL"
   },
   "adminLogin": {
     "tooManyAttempts": "Trop de tentatives échouées. Réessayez dans {{mins}} minute(s).",
@@ -26078,7 +26223,10 @@
       "selectOption": "Sélectionner…",
       "notesOptional": "Notes (facultatif)",
       "applyTransition": "Appliquer la transition",
-      "noTransitions": "Aucune transition disponible pour {{status}}."
+      "noTransitions": "Aucune transition disponible pour {{status}}.",
+      "buyer": "Acheteur :",
+      "qty": "Qté :",
+      "supplier": "Fournisseur :"
     },
     "selectTargetStatus": "Sélectionnez un statut cible",
     "poMoved": "BC passé à {{status}}"
@@ -26147,7 +26295,9 @@
     },
     "restrictionScope": "restriction",
     "approvalRequired": "Approbation",
-    "approvalOpen": "Ouverte"
+    "approvalOpen": "Ouverte",
+    "noFeeRules": "Aucune règle de commission ou de restriction configurée.",
+    "noMarkupRules": "Aucune règle de marge configurée."
   },
   "adminWarehouseOps": {
     "title": "Espace des opérations d’entrepôt",
@@ -26874,5 +27024,176 @@
   "adminConversionPolicyQueued": "Modification mise en file. Un second administrateur doit l'approuver dans la file de contrôle avant son application.",
   "adminConversionPolicyQueueFailed": "Impossible de mettre la modification en file.",
   "adminConversionPolicyTitle": "Politique de conversion restaurant vers OxSteed",
-  "adminConversionPolicyDetail": "Seuls les restaurants autorisés peuvent voir leur crédit converti en OxSteed Credit. La conversion d'OxSteed Credit en crédit restaurant nécessite un partenaire OxSteed Credit actif. Les modifications sont mises en file pour approbation par un second administrateur ; rien ne s'applique avant cela."
+  "adminConversionPolicyDetail": "Seuls les restaurants autorisés peuvent voir leur crédit converti en OxSteed Credit. La conversion d'OxSteed Credit en crédit restaurant nécessite un partenaire OxSteed Credit actif. Les modifications sont mises en file pour approbation par un second administrateur ; rien ne s'applique avant cela.",
+  "adminBusinessModeration": {
+    "actionDeactivate": "Désactiver",
+    "actionDelete": "Supprimer",
+    "actionFlag": "Signaler pour révision",
+    "actionReactivate": "Réactiver",
+    "actionSuspend": "Suspendre",
+    "activeBadge": "Actif",
+    "colActions": "ACTIONS",
+    "colBusiness": "ENTREPRISE",
+    "colCategory": "CATÉGORIE",
+    "colCreated": "CRÉÉ",
+    "colJobs": "MISSIONS",
+    "colLocation": "LIEU",
+    "colMembers": "MEMBRES",
+    "colOwner": "PROPRIÉTAIRE",
+    "colStatus": "STATUT",
+    "inactiveBadge": "Inactif",
+    "loading": "Chargement…",
+    "modalTitle": "{{action}} l'entreprise",
+    "moreActions": "Plus d'actions",
+    "next": "Suivant →",
+    "noBusinesses": "Aucune entreprise trouvée.",
+    "pageSummary": "Page {{page}} · {{total}} au total",
+    "previous": "← Préc",
+    "reasonLabel": "Motif",
+    "reasonPlaceholder": "Expliquez pourquoi vous prenez cette mesure…",
+    "reasonRequired": "Un motif est requis.",
+    "searchPlaceholder": "Rechercher par nom, propriétaire, e-mail…",
+    "statActive": "ACTIVES",
+    "statDormant": "DORMANTES",
+    "statInactive": "INACTIF",
+    "statNewThisMonth": "NOUVEAUX CE MOIS-CI",
+    "statTotal": "TOTAL",
+    "subtitle": "Gérez et surveillez toutes les entreprises de la plateforme",
+    "title": "Modération des entreprises",
+    "unknownType": "Inconnu",
+    "viewProfile": "Voir le profil"
+  },
+  "adminComplianceMetricsPage": {
+    "acceptanceRatesTitle": "Taux d'acceptation par type de document",
+    "cardAccepted": "Accepté",
+    "cardNa": "N/D",
+    "cardPending": "En attente",
+    "cardSigned": "Signé",
+    "cardUpdated": "Mis à jour {{date}}",
+    "noDocuments": "Aucun document",
+    "subtitle": "Taux d'adoption des documents juridiques, risques de conformité et tendances.",
+    "title": "Indicateurs de conformité"
+  },
+  "adminPricing": {
+    "activeLabel": "Actif",
+    "edit": "Modifier",
+    "editFeeTitle": "Modifier la règle de commission",
+    "editMarkupTitle": "Modifier la règle de marge",
+    "emptyFees": "Aucune règle de commission configurée.",
+    "emptyMarkup": "Aucune règle de marge configurée.",
+    "feeUpdatedToast": "Règle de commission mise à jour",
+    "fixedAmountLabel": "Montant fixe (centimes)",
+    "markupPctLabel": "Marge % (décimal p. ex. 0,20)",
+    "markupUpdatedToast": "Règle de marge mise à jour",
+    "pctOfProductLabel": "% du produit (décimal)",
+    "stackOrder": "Coût produit → Manutention origine → Commission sourcing → Marge OxSteed → Fret est. → Douanes/Admin → Entrepôt → Exécution divisée → Dernier km → Surcharge risque",
+    "stackOrderLabel": "Ordre de la pile tarifaire :",
+    "subtitle": "Contrôlez les couches cumulables de marges et de commissions dans la branche logistique. Les modifications s'appliquent à tous les calculs de coûts futurs.",
+    "tabFees": "Règles de commission",
+    "tabMarkup": "Règles de marge",
+    "thActive": "Actif",
+    "thCategory": "Catégorie",
+    "thFeeType": "Type de commission",
+    "thFixedCents": "Fixe (¢)",
+    "thMarkupPct": "Marge %",
+    "thMaxCents": "Max (¢)",
+    "thPctOfProduct": "% du produit",
+    "thPriority": "Priorité",
+    "thScope": "Portée",
+    "thScopeId": "ID de portée",
+    "title": "Règles de tarification et de commission"
+  },
+  "adminSuppliers": {
+    "actionFailed": "L'action a échoué",
+    "allStatus": "Tous les statuts",
+    "allTrustRatings": "Toutes les notes de confiance",
+    "approve": "Approuver",
+    "approvedCategories": "Catégories approuvées",
+    "approvedToast": "Fournisseur approuvé",
+    "complianceNotes": "Notes de conformité :",
+    "confirmApproveButton": "Approuver le fournisseur",
+    "confirmApproveMessage": "Approuver {{name}} comme fournisseur agréé ?",
+    "confirmApproveTitle": "Approuver le fournisseur",
+    "confirmDeactivateMessage": "Désactiver {{name}} ? Il ne sera plus disponible pour le sourcing.",
+    "confirmDeactivateTitle": "Désactiver le fournisseur",
+    "countryPlaceholder": "Pays (p. ex. CN)",
+    "deactivate": "Désactiver",
+    "deactivatedToast": "Fournisseur désactivé",
+    "detailAddress": "Adresse",
+    "detailApproved": "Approuvé",
+    "detailCity": "Ville",
+    "detailCommunication": "Communication",
+    "detailContact": "Contact",
+    "detailCountry": "Pays",
+    "detailDisputes": "Litiges",
+    "detailEmail": "E-mail",
+    "detailKybVerified": "KYB vérifié",
+    "detailLegalName": "Raison sociale",
+    "detailOnTimeRate": "Taux de ponctualité",
+    "detailPaymentTerms": "Conditions de paiement",
+    "detailPhone": "Téléphone",
+    "detailQualityScore": "Score qualité",
+    "detailTrustRating": "Note de confiance",
+    "detailWebsite": "Site web",
+    "kybYes": "Oui ({{date}})",
+    "minStars": "≥ {{n}} étoiles",
+    "noSuppliers": "Aucun fournisseur trouvé.",
+    "pendingApproval": "En attente",
+    "statusActive": "Actif",
+    "statusInactive": "Inactif",
+    "subtitle": "Approuvez, évaluez et gérez les profils fournisseurs et leurs catalogues produits.",
+    "thActions": "Actions",
+    "thCategories": "Catégories",
+    "thCountry": "Pays",
+    "thKyb": "KYB",
+    "thProducts": "Produits",
+    "thQuality": "Qualité",
+    "thStatus": "Statut",
+    "thSupplier": "Fournisseur",
+    "thTrust": "Confiance",
+    "title": "Gestion des fournisseurs",
+    "thisSupplier": "ce fournisseur"
+  },
+  "adminSupportKnowledgeBase": {
+    "allCategories": "Toutes",
+    "contentPlaceholder": "Contenu de l'article...",
+    "createArticle": "Créer un article",
+    "deleteArticleAria": "Supprimer l'article : {{title}}",
+    "description": "Organisez des réponses réutilisables, des guides de dépannage et des références de politiques pour que les agents résolvent les problèmes plus vite et de façon plus cohérente.",
+    "editArticleAria": "Modifier l'article : {{title}}",
+    "emptyBody": "Créez un article ou élargissez les critères de recherche pour reconstruire la vue de la bibliothèque d'assistance.",
+    "emptyTitle": "Aucun article de base de connaissances trouvé",
+    "eyebrow": "Système de connaissances",
+    "helpfulCount": "{{count}} utiles",
+    "labelCategory": "Catégorie",
+    "labelContent": "Contenu",
+    "labelTags": "Étiquettes",
+    "labelTitle": "Titre",
+    "librarySubtitle": "Recherchez par contenu ou filtrez la bibliothèque par catégorie pour trouver rapidement le bon guide.",
+    "libraryTitle": "Bibliothèque d'articles",
+    "modalEditTitle": "Modifier l'article",
+    "modalNewTitle": "Nouvel article",
+    "modalSubtitle": "Créez des réponses réutilisables sur lesquelles toute l'équipe d'assistance peut compter.",
+    "newArticle": "Nouvel article",
+    "searchPlaceholder": "Rechercher des articles...",
+    "statArticles": "Articles",
+    "statArticlesDetail": "Articles d'assistance publiés ou brouillons dans cette vue.",
+    "statCategory": "Catégorie",
+    "statCategoryAll": "Parcours de toutes les catégories d'assistance.",
+    "statCategoryFiltered": "Filtrage sur {{category}}.",
+    "statHelpful": "Utile",
+    "statHelpfulDetail": "Votes utiles visibles dans le jeu de résultats actuel.",
+    "statViews": "Vues",
+    "statViewsDetail": "Total des vues enregistrées dans le jeu de résultats actuel.",
+    "tagsPlaceholder": "facturation, dépannage (séparés par des virgules)",
+    "title": "Base de connaissances d'assistance",
+    "titlePlaceholder": "Titre de l'article...",
+    "toastContentRequired": "Le contenu de l'article est requis",
+    "toastDeleteFailed": "Échec de la suppression de l'article.",
+    "toastDeleted": "Article supprimé.",
+    "toastSaveFailed": "Échec de l'enregistrement de l'article",
+    "toastTitleRequired": "Le titre de l'article est requis",
+    "updateArticle": "Mettre à jour l'article",
+    "viewsCount": "{{count}} vues"
+  }
 }

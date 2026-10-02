@@ -76,6 +76,8 @@ export default function LogisticsInternalAccess() {
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const [saving, setSaving] = useState(false);
   const [confirmSave, setConfirmSave] = useState(false);
   const [query, setQuery] = useState('');
@@ -88,6 +90,8 @@ export default function LogisticsInternalAccess() {
 
   useEffect(() => {
     let active = true;
+    setLoading(true);
+    setLoadError(false);
     adminApi.get('/admin/super/logistics-internal-access')
       .then(({ data }) => {
         if (!active) return;
@@ -98,6 +102,8 @@ export default function LogisticsInternalAccess() {
         setForm(makeForm(preferred));
       })
       .catch((err) => {
+        if (!active) return;
+        setLoadError(true);
         toast.error(err?.response?.data?.error || t('adminLogisticsAccessLoadFailed'));
       })
       .finally(() => {
@@ -106,7 +112,7 @@ export default function LogisticsInternalAccess() {
     return () => {
       active = false;
     };
-  }, [me?.id]);
+  }, [me?.id, retryKey]);
 
   useEffect(() => {
     setForm(makeForm(selectedRecord));
@@ -245,6 +251,17 @@ export default function LogisticsInternalAccess() {
       <section className="rounded-xl border border-gray-800 bg-gray-900/40 p-5">
         {loading ? (
           <div className="text-sm text-gray-400">{t('adminLogisticsAccessLoading')}</div>
+        ) : loadError ? (
+          <div className="flex flex-col items-start gap-3">
+            <p className="text-sm text-red-300">{t('adminLogisticsAccessLoadFailed')}</p>
+            <button
+              type="button"
+              onClick={() => setRetryKey((key) => key + 1)}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-xs font-semibold text-gray-300 transition hover:border-gray-500 hover:text-white"
+            >
+              {t('common.retry')}
+            </button>
+          </div>
         ) : (
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(380px,460px)_1fr]">
             <div className="space-y-5">

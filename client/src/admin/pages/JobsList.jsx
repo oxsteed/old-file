@@ -195,7 +195,7 @@ export default function JobsList() {
                       <button
                         onClick={() => { setDeleting(job); setDeleteReason(''); setDeleteError(''); }}
                         className="flex items-center gap-1 text-red-400 hover:text-red-300 hover:bg-red-500/10 px-2 py-1 rounded-lg text-xs font-medium transition-colors"
-                        title="Permanently delete this job"
+                        title={t('adminJobs.deleteTitle')}
                       >
                         <Trash2 size={13} /> {t('common.delete')}
                       </button>

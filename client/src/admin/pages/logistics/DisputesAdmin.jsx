@@ -65,7 +65,7 @@ export default function DisputesAdmin() {
       </div>
 
       <div className="lx-filter-bar">
-        <select className="lx-select" value={tab} onChange={e => setTab(e.target.value)}>
+        <select className="lx-select" value={tab} onChange={e => { setTab(e.target.value); setStatus(''); }}>
           <option value="claims">{t(`${NS}.tabClaims`)}</option>
           <option value="refunds">{t(`${NS}.tabRefunds`)}</option>
         </select>
@@ -92,7 +92,7 @@ export default function DisputesAdmin() {
                 <td><code style={{ fontSize:'.78rem' }}>{c.reference}</code></td>
                 <td>
                   <span style={{ background:'#f1f5f9', borderRadius:'.375rem', padding:'.15rem .5rem', fontSize:'.72rem', fontWeight:700 }}>
-                    {c.claim_type?.replace(/_/g,' ')}
+                    {t(`${NS}.claimType.${c.claim_type}`, { defaultValue: c.claim_type?.replace(/_/g,' ') || '' })}
                   </span>
                 </td>
                 <td style={{ fontSize:'.82rem' }}>{c.claimant_name || '—'}</td>
@@ -159,7 +159,7 @@ export default function DisputesAdmin() {
             <div style={{ fontSize:'.82rem', color:'#64748b', marginBottom:'1rem' }}>
               {tab === 'claims' ? (
                 <>
-                  <strong>{t(`${NS}.modalClaimType`)}</strong> {selected.claim_type?.replace(/_/g,' ')}<br/>
+                  <strong>{t(`${NS}.modalClaimType`)}</strong> {t(`${NS}.claimType.${selected.claim_type}`, { defaultValue: selected.claim_type?.replace(/_/g,' ') || '' })}<br/>
                   <strong>{t(`${NS}.modalDescription`)}</strong> {selected.description}
                 </>
               ) : (

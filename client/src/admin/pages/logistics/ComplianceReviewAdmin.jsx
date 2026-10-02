@@ -31,7 +31,7 @@ export default function ComplianceReviewAdmin() {
         <h1 className="lx-page-title">{t('adminComplianceReview.title')}</h1>
         <p className="lx-page-sub">{t('adminComplianceReview.subtitle')}</p>
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1.5rem' }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(340px, 1fr))', gap:'1.5rem' }}>
         {(!loading && loadError) ? (
           <div style={{ gridColumn:'1 / -1' }}><AdminErrorState onRetry={load} /></div>
         ) : (
@@ -45,7 +45,7 @@ export default function ComplianceReviewAdmin() {
                 {shipments.slice(0, 12).map((shipment) => (
                   <tr key={shipment.id}>
                     <td>{shipment.reference}</td>
-                    <td><span className="lx-status-pill" style={{ background: shipment.status === 'customs_hold' || shipment.status === 'exception' ? '#ef4444' : '#64748b' }}>{shipment.status}</span></td>
+                    <td><span className="lx-status-pill" style={{ background: shipment.status === 'customs_hold' || shipment.status === 'exception' ? '#ef4444' : '#64748b' }}>{t(`logistics.status.${shipment.status}`, { defaultValue: shipment.status })}</span></td>
                     <td>{shipment.origin_country} → {shipment.destination_country}</td>
                   </tr>
                 ))}
@@ -65,7 +65,7 @@ export default function ComplianceReviewAdmin() {
                     <td>{rule.category}</td>
                     <td>{rule.country_code}</td>
                     <td>{rule.requires_approval ? t('adminComplianceReview.approvalRequired') : t('adminComplianceReview.approvalOpen')}</td>
-                    <td><span className="lx-status-pill" style={{ background: rule.risk_tier === 'prohibited' ? '#7f1d1d' : rule.risk_tier === 'restricted' ? '#ef4444' : rule.risk_tier === 'managed' ? '#f59e0b' : '#22c55e' }}>{rule.risk_tier}</span></td>
+                    <td><span className="lx-status-pill" style={{ background: rule.risk_tier === 'prohibited' ? '#7f1d1d' : rule.risk_tier === 'restricted' ? '#ef4444' : rule.risk_tier === 'managed' ? '#f59e0b' : '#22c55e' }}>{t(`adminLogisticsRestrictions.${{ low:'riskLow', managed:'riskManaged', restricted:'riskRestricted', prohibited:'riskProhibited' }[rule.risk_tier] || 'riskLow'}`, { defaultValue: rule.risk_tier })}</span></td>
                   </tr>
                 ))}
                 {!loading && !loadError && rules.length === 0 && <tr><td colSpan={4} style={{ textAlign:'center', color:'#94a3b8' }}>{t('adminComplianceReview.noRules')}</td></tr>}

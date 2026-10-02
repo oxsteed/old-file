@@ -484,7 +484,7 @@ export default function MoneyPage() {
                             {item.source}
                           </span>
                           <span className="rounded-full border border-gray-700 bg-black/20 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-300">
-                            {String(item.label || 'money event').replace(/_/g, ' ')}
+                            {String(item.label || t('superMoney.movementFallback')).replace(/_/g, ' ')}
                           </span>
                         </div>
                         <p className="text-sm text-gray-300">

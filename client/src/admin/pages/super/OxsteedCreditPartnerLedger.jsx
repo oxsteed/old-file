@@ -45,6 +45,17 @@ export default function OxsteedCreditPartnerLedger({ partners, currencyOptions, 
     [partners]
   );
 
+  const selectedPartner = useMemo(
+    () => availablePartners.find((partner) => String(partner.partnerId) === String(partnerId)) || null,
+    [availablePartners, partnerId]
+  );
+
+  // The amount field is parsed in submitFunding against ledger?.currencyCode
+  // (falling back to USD), so the label must resolve the same way: prefer the
+  // loaded ledger currency, then the selected partner's settlement currency,
+  // then USD. Never the global default currency list.
+  const fundingCurrencyCode = ledger?.currencyCode || selectedPartner?.settlementCurrencyCode || 'USD';
+
   useEffect(() => {
     if (!partnerId && availablePartners[0]?.partnerId) setPartnerId(String(availablePartners[0].partnerId));
     if (partnerId && !availablePartners.some((partner) => String(partner.partnerId) === String(partnerId))) {
@@ -157,7 +168,7 @@ export default function OxsteedCreditPartnerLedger({ partners, currencyOptions, 
       <form onSubmit={submitFunding} className="grid gap-3 rounded-xl border border-gray-800 bg-gray-950/40 p-4 sm:grid-cols-2">
         <div className="sm:col-span-2"><h3 className="text-sm font-semibold text-white">{t('adminRecordReserveMovement')}</h3><p className="mt-1 text-xs leading-5 text-gray-600">{t('adminReserveMovementDescription')}</p></div>
         <label><span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminDirection')}</span><select required value={form.direction} onChange={(event) => setForm((current) => ({ ...current, direction: event.target.value }))} disabled={!ledger || loading || saving || busy} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-amber-300"><option value="fund">{t('fundReserve')}</option><option value="release">{t('releaseReserve')}</option></select></label>
-        <label><span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminAmount', { currency: ledger?.currencyCode || currencyOptions?.[0] || 'USD' })}</span><input required inputMode="decimal" min="0.01" value={form.amount} onChange={(event) => setForm((current) => ({ ...current, amount: event.target.value }))} disabled={!ledger || loading || saving || busy} placeholder={t('adminAmountPlaceholder')} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-amber-300" /></label>
+        <label><span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminAmount', { currency: fundingCurrencyCode })}</span><input required inputMode="decimal" min="0.01" value={form.amount} onChange={(event) => setForm((current) => ({ ...current, amount: event.target.value }))} disabled={!ledger || loading || saving || busy} placeholder={t('adminAmountPlaceholder')} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-amber-300" /></label>
         <label className="sm:col-span-2"><span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminExternalReference')}</span><input required maxLength={160} value={form.externalReference} onChange={(event) => setForm((current) => ({ ...current, externalReference: event.target.value }))} disabled={!ledger || loading || saving || busy} placeholder={t('adminExternalReferencePlaceholder')} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-amber-300" /></label>
         <label className="sm:col-span-2"><span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminRequiredReason')}</span><textarea required maxLength={1000} rows={2} value={form.reason} onChange={(event) => setForm((current) => ({ ...current, reason: event.target.value }))} disabled={!ledger || loading || saving || busy} placeholder={t('adminReserveReasonPlaceholder')} className="w-full resize-y rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-amber-300" /></label>
         <button type="submit" disabled={!ledger || loading || saving || busy} className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white hover:bg-amber-500 disabled:opacity-50 sm:col-span-2">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />} {form.direction === 'fund' ? t('fundReserve') : t('releaseReserve')}</button>

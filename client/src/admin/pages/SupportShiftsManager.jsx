@@ -158,9 +158,11 @@ export default function SupportShiftsManager() {
     if (!window.confirm(t('adminSupportShifts.confirmDelete'))) return;
     try {
       await adminApi.delete(`/support/shifts/${shiftId}`);
+      toast.success(t('adminSupportShifts.toastDeleted', { defaultValue: 'Shift deleted.' }));
       loadShifts();
     } catch (err) {
       console.error('Failed to delete shift:', err);
+      toast.error(err?.response?.data?.error || t('adminSupportShifts.toastDeleteFailed', { defaultValue: 'Failed to delete the shift.' }));
     }
   };
 

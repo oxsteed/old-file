@@ -27,6 +27,11 @@ export default function SuperAdminLogisticsControl() {
   const fees         = data?.fees         || [];
   const restrictions = data?.restrictions || [];
   const stats        = data?.stats        || null;
+  // stats.purchaseOrders is an array of { status, count } rows: sum the
+  // counts instead of counting the status groups.
+  const poTotal = Array.isArray(stats?.purchaseOrders)
+    ? stats.purchaseOrders.reduce((sum, row) => sum + (parseInt(row.count, 10) || 0), 0)
+    : 0;
 
   return (
     <div className="lx-page">
@@ -43,7 +48,7 @@ export default function SuperAdminLogisticsControl() {
           [t('adminLogisticsControl.stats.markupRules'), markup.length, '📈'],
           [t('adminLogisticsControl.stats.feeRules'), fees.length, '💸'],
           [t('adminLogisticsControl.stats.countryRestrictions'), restrictions.length, '⛔'],
-          [t('adminLogisticsControl.stats.poStatuses'), stats?.purchaseOrders?.length || 0, '📦'],
+          [t('adminLogisticsControl.stats.poStatuses'), poTotal, '📦'],
         ].map(([label, value, icon]) => (
           <div key={label} className="lx-card" style={{ textAlign:'center' }}>
             <div style={{ fontSize:'1.4rem' }}>{icon}</div>
@@ -52,7 +57,7 @@ export default function SuperAdminLogisticsControl() {
           </div>
         ))}
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1.5rem' }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(340px, 1fr))', gap:'1.5rem' }}>
         <div className="lx-card">
           <h2 style={{ marginTop:0 }}>{t('adminLogisticsControl.markupTitle')}</h2>
           <div className="lx-table-wrap">
@@ -63,10 +68,11 @@ export default function SuperAdminLogisticsControl() {
                   <tr key={rule.id}>
                     <td>{rule.scope}</td>
                     <td>{rule.category || '—'}</td>
-                    <td>{rule.markup_pct !== null ? `${(Number(rule.markup_pct) * 100).toFixed(1)}%` : '—'}</td>
+                    <td>{rule.markup_pct != null ? `${(Number(rule.markup_pct) * 100).toFixed(1)}%` : '—'}</td>
                     <td>{rule.priority}</td>
                   </tr>
                 ))}
+                {markup.length === 0 && <tr><td colSpan={4} style={{ textAlign:'center', color:'#94a3b8' }}>{t('adminLogisticsControl.noMarkupRules', { defaultValue: 'No markup rules configured.' })}</td></tr>}
               </tbody>
             </table>
           </div>
@@ -94,6 +100,7 @@ export default function SuperAdminLogisticsControl() {
                     <td>{rule.requires_approval ? t('adminLogisticsControl.approvalRequired') : t('adminLogisticsControl.approvalOpen')}</td>
                   </tr>
                 ))}
+                {fees.length === 0 && restrictions.length === 0 && <tr><td colSpan={3} style={{ textAlign:'center', color:'#94a3b8' }}>{t('adminLogisticsControl.noFeeRules', { defaultValue: 'No fee or restriction rules configured.' })}</td></tr>}
               </tbody>
             </table>
           </div>

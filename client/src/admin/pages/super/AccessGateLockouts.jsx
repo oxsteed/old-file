@@ -69,7 +69,7 @@ export default function AccessGateLockouts() {
         </p>
       </div>
 
-      <section className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
+      <section className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 overflow-x-auto">
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
           <h2 className="font-semibold">{t('adminAccessGateCurrentlyLocked')}</h2>
           <button
@@ -87,7 +87,7 @@ export default function AccessGateLockouts() {
         ) : lockouts.length === 0 ? (
           <div className="px-4 py-6 text-sm text-gray-500">{t('adminAccessGateNoLockouts')}</div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[720px]">
             <thead className="bg-gray-50 dark:bg-gray-800 text-left text-xs uppercase tracking-wide text-gray-500">
               <tr>
                 <th className="px-4 py-2">{t('adminAccessGateColIp')}</th>
@@ -124,7 +124,7 @@ export default function AccessGateLockouts() {
         )}
       </section>
 
-      <section className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
+      <section className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 overflow-x-auto">
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
           <h2 className="font-semibold">{t('adminAccessGateRecentAttempts')}</h2>
           <label className="text-sm text-gray-500 flex items-center gap-2">
@@ -143,7 +143,7 @@ export default function AccessGateLockouts() {
         ) : attempts.length === 0 ? (
           <div className="px-4 py-6 text-sm text-gray-500">{t('adminAccessGateNoAttempts')}</div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[640px]">
             <thead className="bg-gray-50 dark:bg-gray-800 text-left text-xs uppercase tracking-wide text-gray-500">
               <tr>
                 <th className="px-4 py-2">{t('adminAccessGateColWhen')}</th>

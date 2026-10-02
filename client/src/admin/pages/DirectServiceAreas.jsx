@@ -96,7 +96,7 @@ export default function DirectServiceAreas() {
         anchorLng: String(location.lng),
         label: current.label || location.label?.replace(/\s+\d{5}$/, '') || '',
       }));
-      toast.success(t('directCatalogAdmin.coordinatesFound', { defaultValue: 'Coordinates found for {{label}}.' }).replace('{{label}}', location.label || zipCode));
+      toast.success(t('directCatalogAdmin.coordinatesFound', { defaultValue: 'Coordinates found for {{label}}.', label: location.label || zipCode }));
     } catch (error) {
       toast.error(error.response?.data?.error || t('directCatalogAdmin.couldNotFindZip', { defaultValue: 'Could not find that ZIP code.' }));
     } finally {
@@ -207,7 +207,7 @@ export default function DirectServiceAreas() {
               <h2 className="text-lg font-semibold text-white">{t('directCatalogAdmin.configuredCoverage', { defaultValue: 'Configured coverage' })}</h2>
               <p className="mt-1 text-sm text-gray-500">{t('directCatalogAdmin.configuredCoverageSub', { defaultValue: 'Inactive areas stay available for future relaunches but do not affect customers.' })}</p>
             </div>
-            <span className="rounded-full border border-gray-700 px-3 py-1 text-xs font-semibold text-gray-300">{t('directCatalogAdmin.activeCount', { defaultValue: '{{count}} active' }).replace('{{count}}', String(areas.filter((area) => area.active).length))}</span>
+            <span className="rounded-full border border-gray-700 px-3 py-1 text-xs font-semibold text-gray-300">{t('directCatalogAdmin.activeCount', { defaultValue: '{{count}} active', count: areas.filter((area) => area.active).length })}</span>
           </div>
           <div className="mb-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
             <label className="relative block">
@@ -238,8 +238,8 @@ export default function DirectServiceAreas() {
                         <span className={`h-2.5 w-2.5 rounded-full ${area.active ? 'bg-emerald-400' : 'bg-gray-600'}`} />
                         {area.label}
                       </div>
-                      <p className="mt-1 text-sm text-gray-400">{t('directCatalogAdmin.areaZipRadius', { defaultValue: 'ZIP {{zip}}, {{radius}} mile radius' }).replace('{{zip}}', area.anchorZip).replace('{{radius}}', String(area.radiusMiles))}</p>
-                      <p className="mt-1 text-xs text-gray-600">{t('directCatalogAdmin.centerCoords', { defaultValue: 'Center: {{lat}}, {{lng}}' }).replace('{{lat}}', String(area.lat ?? '')).replace('{{lng}}', String(area.lng ?? ''))}</p>
+                      <p className="mt-1 text-sm text-gray-400">{t('directCatalogAdmin.areaZipRadius', { defaultValue: 'ZIP {{zip}}, {{radius}} mile radius', zip: area.anchorZip, radius: String(area.radiusMiles) })}</p>
+                      <p className="mt-1 text-xs text-gray-600">{t('directCatalogAdmin.centerCoords', { defaultValue: 'Center: {{lat}}, {{lng}}', lat: String(area.lat ?? ''), lng: String(area.lng ?? '') })}</p>
                     </div>
                     <button type="button" onClick={() => { setEditingId(area.id); setForm(formFromArea(area)); }} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:border-orange-500/50 hover:text-white"><Pencil size={14} /> {t('directCatalogAdmin.editWord', { defaultValue: 'Edit' })}</button>
                   </div>

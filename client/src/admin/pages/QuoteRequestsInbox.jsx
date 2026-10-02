@@ -298,7 +298,7 @@ export default function QuoteRequestsInbox() {
                             {request.first_name} {request.last_name}
                           </span>
                           <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${STATUS_BADGES[request.status] || STATUS_BADGES.new}`}>
-                            {request.status}
+                            {STATUS_KEY_SUFFIX[request.status] ? t(`adminQuoteRequests.status${STATUS_KEY_SUFFIX[request.status]}`) : request.status}
                           </span>
                         </div>
                         <div className="mt-1 truncate text-xs text-gray-500">{request.email}</div>
@@ -363,7 +363,7 @@ export default function QuoteRequestsInbox() {
 
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={`rounded-full border px-3 py-1.5 text-xs font-medium ${STATUS_BADGES[selectedRequest.status] || STATUS_BADGES.new}`}>
-                    {selectedRequest.status}
+                    {STATUS_KEY_SUFFIX[selectedRequest.status] ? t(`adminQuoteRequests.status${STATUS_KEY_SUFFIX[selectedRequest.status]}`) : selectedRequest.status}
                   </span>
                   <div className="rounded-full border border-gray-800 bg-gray-950/70 px-3 py-1.5 text-xs text-gray-400">
                     {t('adminQuoteRequests.updatedAt', { date: formatDate(selectedRequest.updated_at) })}

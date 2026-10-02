@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Filter, RefreshCw, ChevronDown, Download } from 'lucide-react';
+import { Search, Filter, RefreshCw, ChevronDown, Download, AlertTriangle } from 'lucide-react';
 import adminApi from '../../lib/adminApi';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
@@ -170,7 +170,7 @@ export default function AdminLegalAuditLogPage() {
     }
   };
 
-  const pages = Math.ceil(totalCount / limit);
+  const pages = Math.max(1, Math.ceil(totalCount / limit));
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -197,7 +197,7 @@ export default function AdminLegalAuditLogPage() {
       )}
       {exportError && (
         <div className="bg-red-500/20 border border-red-500/50 text-red-300 px-4 py-3 rounded-lg text-sm flex items-start gap-2">
-          <span>⚠️</span>
+          <AlertTriangle size={16} className="shrink-0 mt-0.5" />
           <span>{exportError}</span>
         </div>
       )}
@@ -382,7 +382,7 @@ export default function AdminLegalAuditLogPage() {
                 <tr>
                   <td colSpan="8" className="px-6 py-12 text-center">
                     <div className="flex justify-center">
-                      <div className="animate-spin w-6 h-6 border-3 border-orange-500 border-t-transparent rounded-full" />
+                      <div className="animate-spin w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full" />
                     </div>
                   </td>
                 </tr>

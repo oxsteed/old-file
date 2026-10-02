@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../../hooks/useAuth';
-import { UserPlus, Power, PowerOff, Activity, X } from 'lucide-react';
+import { UserPlus, Power, PowerOff, Activity, X, CheckCircle2 } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
 import { useAbortableFetch } from '../../lib/useAbortableFetch';
 import AdminErrorState from '../../lib/AdminErrorState';
@@ -39,7 +39,7 @@ function CreateAdminModal({ onCreated, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-md shadow-2xl">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-white font-semibold text-lg">{t('adminAdminAccounts.modalTitle')}</h2>
@@ -48,7 +48,7 @@ function CreateAdminModal({ onCreated, onClose }) {
 
         {created ? (
           <div className="text-center py-4">
-            <div className="text-green-400 text-4xl mb-3">✓</div>
+            <div className="flex justify-center mb-3"><CheckCircle2 size={40} className="text-green-400" /></div>
             <p className="text-white font-medium mb-1">{t('adminAdminAccounts.accountCreatedTitle')}</p>
             <p className="text-gray-400 text-sm mb-4">{created.email}</p>
             <p className="text-yellow-400 text-xs bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-3 py-2">
@@ -222,7 +222,7 @@ export default function AdminAccounts() {
   async function forceLogout(admin) {
     if (!window.confirm(t('adminAdminAccounts.forceLogoutConfirm', { email: admin.email }))) return;
     try {
-      await adminApi.post(`/admin/super/force-logout/${admin.id}`, { reason: 'Force logout by super admin' });
+      await adminApi.post(`/admin/super/force-logout/${admin.id}`, { reason: t('adminAdminAccounts.forceLogoutReason', { defaultValue: 'Force logout by super admin' }) });
       showToast(t('admin.sessionsInvalidated'));
     } catch {
       showToast(t('admin.forceLogoutFailed'));
@@ -248,12 +248,12 @@ export default function AdminAccounts() {
         </button>
       </div>
 
-      <div className="bg-gray-800/50 border border-gray-700 rounded-xl overflow-hidden">
+      <div className="bg-gray-800/50 border border-gray-700 rounded-xl overflow-x-auto">
         {!loading && error && (
           <div className="p-4"><AdminErrorState onRetry={reload} /></div>
         )}
         {!error && (
-        <table className="w-full text-sm">
+        <table className="w-full text-sm min-w-[760px]">
           <thead>
             <tr className="border-b border-gray-700">
               <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminAdminAccounts.tableAdmin')}</th>

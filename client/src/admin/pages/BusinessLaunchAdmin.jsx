@@ -19,19 +19,19 @@ const STATUS_COLORS = {
 };
 
 const STATUS_PIPELINE = [
-  { key: 'pending', label: 'New' },
-  { key: 'contacted', label: 'Contacted' },
-  { key: 'kickoff_scheduled', label: 'Session Scheduled' },
-  { key: 'in_progress', label: 'In Progress' },
-  { key: 'completed', label: 'Completed' },
-  { key: 'archived', label: 'Archived' },
+  { key: 'pending', labelKey: 'businessLaunchAdmin.statusNew', defaultLabel: 'New' },
+  { key: 'contacted', labelKey: 'businessLaunchAdmin.statusContacted', defaultLabel: 'Contacted' },
+  { key: 'kickoff_scheduled', labelKey: 'businessLaunchAdmin.statusKickoffScheduled', defaultLabel: 'Session Scheduled' },
+  { key: 'in_progress', labelKey: 'businessLaunchAdmin.statusInProgress', defaultLabel: 'In Progress' },
+  { key: 'completed', labelKey: 'businessLaunchAdmin.statusCompleted', defaultLabel: 'Completed' },
+  { key: 'archived', labelKey: 'businessLaunchAdmin.statusArchived', defaultLabel: 'Archived' },
 ];
 
 const URGENCY_LABELS = {
-  exploring: 'Just Exploring',
-  two_weeks: '2 Weeks',
-  one_month: '1 Month',
-  asap: 'ASAP',
+  exploring: { key: 'businessLaunchAdmin.urgencyExploring', fallback: 'Just Exploring' },
+  two_weeks: { key: 'businessLaunchAdmin.urgencyTwoWeeks', fallback: '2 Weeks' },
+  one_month: { key: 'businessLaunchAdmin.urgencyOneMonth', fallback: '1 Month' },
+  asap: { key: 'businessLaunchAdmin.urgencyAsap', fallback: 'ASAP' },
 };
 
 const URGENT_COLORS = {
@@ -55,7 +55,9 @@ function StatusBadge({ status }) {
 }
 
 function UrgencyBadge({ urgency }) {
-  return <Badge color={URGENT_COLORS[urgency] || '#6B7280'}>{URGENCY_LABELS[urgency] || urgency}</Badge>;
+  const { t } = useTranslation();
+  const entry = URGENCY_LABELS[urgency];
+  return <Badge color={URGENT_COLORS[urgency] || '#6B7280'}>{entry ? t(entry.key, { defaultValue: entry.fallback }) : urgency}</Badge>;
 }
 
 // Every status change goes through a parent-level confirmation dialog:
@@ -76,13 +78,13 @@ function QuickStatusMenu({ request, onStatusRequest }) {
         aria-label={t('businessLaunchAdmin.statusMenuLabel')}
         style={{ padding: '0.3rem 0.6rem', borderRadius: '5px', border: '1px solid var(--color-border)', background: 'none', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--color-text)' }}
       >
-        Status ▾
+        {t('businessLaunchAdmin.statusButton', { defaultValue: 'Status' })} ▾
       </button>
       {open && (
         <div style={{ position: 'absolute', right: 0, top: '100%', zIndex: 100, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', minWidth: '160px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', overflow: 'hidden' }}>
           {STATUS_PIPELINE.map(s => (
             <button key={s.key} onClick={() => requestUpdate(s.key)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.6rem 1rem', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.85rem', color: STATUS_COLORS[s.key], fontWeight: request.status === s.key ? 700 : 400 }}>
-              {request.status === s.key ? '✓ ' : ''}{s.label}
+              {request.status === s.key ? '✓ ' : ''}{t(s.labelKey, { defaultValue: s.defaultLabel })}
             </button>
           ))}
         </div>
@@ -124,7 +126,7 @@ export default function BusinessLaunchAdmin() {
   const confirmStatusChange = async () => {
     const { request, newStatus } = statusTarget;
     await axios.patch(`/consulting/business-launch/requests/${request.id}`, { status: newStatus });
-    toast.success('Status updated');
+    toast.success(t('businessLaunchAdmin.statusUpdated'));
     setStatusTarget(null);
     reload();
   };
@@ -134,7 +136,7 @@ export default function BusinessLaunchAdmin() {
   const confirmArchive = async () => {
     const req = archiveTarget;
     await axios.patch(`/consulting/business-launch/requests/${req.id}`, { status: 'archived' });
-    toast.success('Request archived');
+    toast.success(t('businessLaunchAdmin.requestArchived', { defaultValue: 'Request archived' }));
     setArchiveTarget(null);
     reload();
   };
@@ -148,7 +150,7 @@ export default function BusinessLaunchAdmin() {
       r.package_selected || '',
       r.operating_country || '',
       r.operating_state || '',
-      URGENCY_LABELS[r.urgency] || r.urgency || '',
+      ((r.urgency && URGENCY_LABELS[r.urgency] && t(URGENCY_LABELS[r.urgency].key, { defaultValue: URGENCY_LABELS[r.urgency].fallback })) || r.urgency) || '',
       r.status,
       r.created_at ? new Date(r.created_at).toLocaleDateString() : '',
     ]);
@@ -173,23 +175,23 @@ export default function BusinessLaunchAdmin() {
     <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '2rem' }}>
       {/* Breadcrumb */}
       <nav style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '1.25rem' }}>
-        <Link to="/admin" style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>Admin</Link>
+        <Link to="/admin" style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>{t('businessLaunchAdmin.breadcrumbAdmin', { defaultValue: 'Admin' })}</Link>
         {' / '}
-        <Link to="/admin/consulting" style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>Consulting</Link>
+        <Link to="/admin/consulting" style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>{t('businessLaunchAdmin.breadcrumbConsulting', { defaultValue: 'Consulting' })}</Link>
         {' / '}
-        <span>Business Launch</span>
+        <span>{t('businessLaunchAdmin.breadcrumbCurrent', { defaultValue: 'Business Launch' })}</span>
       </nav>
 
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 style={{ margin: '0 0 0.25rem', fontSize: '1.75rem', fontWeight: 700 }}>Founder Development Program</h1>
+          <h1 style={{ margin: '0 0 0.25rem', fontSize: '1.75rem', fontWeight: 700 }}>{t('businessLaunchAdmin.title', { defaultValue: 'Founder Development Program' })}</h1>
           <p style={{ margin: 0, color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
-            {pagination.total || 0} total requests
+            {t('businessLaunchAdmin.totalRequests', { defaultValue: '{{count}} total requests', count: pagination.total || 0 })}
           </p>
         </div>
         <button onClick={exportCSV} style={{ ...btnStyle, background: 'none', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}>
-          Export CSV
+          {t('businessLaunchAdmin.exportCsv', { defaultValue: 'Export CSV' })}
         </button>
       </div>
 
@@ -201,7 +203,7 @@ export default function BusinessLaunchAdmin() {
               onClick={() => { setFilters(f => ({ ...f, status: f.status === s.key ? '' : s.key })); setPage(1); }}
               style={{ padding: '0.4rem 0.85rem', borderRadius: '20px', border: `2px solid ${STATUS_COLORS[s.key]}`, background: filters.status === s.key ? STATUS_COLORS[s.key] : 'transparent', color: filters.status === s.key ? 'white' : STATUS_COLORS[s.key], fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', whiteSpace: 'nowrap' }}
             >
-              {s.label}
+              {t(s.labelKey, { defaultValue: s.defaultLabel })}
             </button>
             {i < STATUS_PIPELINE.length - 1 && <span style={{ color: 'var(--color-border)', fontWeight: 700 }}>→</span>}
           </div>
@@ -211,58 +213,58 @@ export default function BusinessLaunchAdmin() {
       {/* Search & Filters */}
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
         <input
-          type="text" placeholder="Search name, email..."
+          type="text" placeholder={t('businessLaunchAdmin.searchPlaceholder', { defaultValue: 'Search name, email...' })}
           value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
           style={{ ...inputStyle, minWidth: '200px' }}
         />
         <select style={inputStyle} value={filters.package} onChange={e => { setFilters(f => ({ ...f, package: e.target.value })); setPage(1); }}>
-          <option value="">All Packages</option>
-          <option value="foundation">Foundation ($750)</option>
-          <option value="launch">Launch ($1,500)</option>
-          <option value="accelerator">Accelerator ($3,000)</option>
+          <option value="">{t('businessLaunchAdmin.filterAllPackages', { defaultValue: 'All Packages' })}</option>
+          <option value="foundation">{t('businessLaunchAdmin.packageFoundation', { defaultValue: 'Foundation ($750)' })}</option>
+          <option value="launch">{t('businessLaunchAdmin.packageLaunch', { defaultValue: 'Launch ($1,500)' })}</option>
+          <option value="accelerator">{t('businessLaunchAdmin.packageAccelerator', { defaultValue: 'Accelerator ($3,000)' })}</option>
         </select>
         <select style={inputStyle} value={filters.urgency} onChange={e => { setFilters(f => ({ ...f, urgency: e.target.value })); setPage(1); }}>
-          <option value="">All Urgency</option>
-          <option value="exploring">Just Exploring</option>
+          <option value="">{t('businessLaunchAdmin.filterAllUrgency', { defaultValue: 'All Urgency' })}</option>
+          <option value="exploring">{t('businessLaunchAdmin.urgencyExploring', { defaultValue: 'Just Exploring' })}</option>
           <option value="two_weeks">2 Weeks</option>
           <option value="one_month">1 Month</option>
           <option value="asap">ASAP</option>
         </select>
         <select style={inputStyle} value={filters.state} onChange={e => { setFilters(f => ({ ...f, state: e.target.value })); setPage(1); }}>
-          <option value="">All States</option>
+          <option value="">{t('businessLaunchAdmin.filterAllStates', { defaultValue: 'All States' })}</option>
           {['CA', 'TX', 'FL', 'NY', 'PA', 'IL', 'OH', 'GA', 'NC', 'MI', 'NJ', 'VA', 'WA', 'AZ', 'MA', 'TN', 'IN', 'MO', 'MD', 'WI', 'CO', 'MN', 'SC', 'AL', 'LA', 'KY', 'OR', 'OK', 'CT', 'UT', 'IA', 'NV', 'AR', 'MS', 'KS', 'NM', 'NE', 'WV', 'ID', 'HI', 'NH', 'ME', 'RI', 'MT', 'DE', 'SD', 'ND', 'AK', 'DC', 'VT', 'WY'].map(st => <option key={st} value={st}>{st}</option>)}
         </select>
         <input
           type="text"
-          placeholder="Country code"
+          placeholder={t('businessLaunchAdmin.countryPlaceholder', { defaultValue: 'Country code' })}
           value={filters.country}
           onChange={e => { setFilters(f => ({ ...f, country: e.target.value.toUpperCase() })); setPage(1); }}
           style={{ ...inputStyle, minWidth: '120px' }}
         />
         {(search || filters.status || filters.package || filters.urgency || filters.state || filters.country) && (
           <button onClick={() => { setSearch(''); setFilters({ status: '', package: '', urgency: '', state: '', country: '' }); setPage(1); }} style={{ ...inputStyle, background: 'none', cursor: 'pointer', color: 'var(--color-text-muted)' }}>
-            Clear All
+            {t('businessLaunchAdmin.clearAll', { defaultValue: 'Clear All' })}
           </button>
         )}
       </div>
 
       {/* Table */}
       {loading && page === 1 ? (
-        <div style={{ color: 'var(--color-text-muted)' }}>Loading...</div>
+        <div style={{ color: 'var(--color-text-muted)' }}>{t('common.loading')}</div>
       ) : error ? (
         <AdminErrorState onRetry={reload} />
       ) : requests.length === 0 ? (
         <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '10px', padding: '3rem', textAlign: 'center' }}>
-          <p style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>No requests found</p>
-          <p style={{ color: 'var(--color-text-muted)' }}>Try adjusting your filters or search terms.</p>
+          <p style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>{t('businessLaunchAdmin.emptyTitle', { defaultValue: 'No requests found' })}</p>
+          <p style={{ color: 'var(--color-text-muted)' }}>{t('businessLaunchAdmin.emptyBody', { defaultValue: 'Try adjusting your filters or search terms.' })}</p>
         </div>
       ) : (
         <div style={{ overflowX: 'auto', marginBottom: '2rem' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', background: 'var(--color-surface)', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
             <thead>
               <tr>
-                {['Name', 'Email', 'Phone', 'Package', 'Market', 'Consultant', 'Urgency', 'Status', 'Submitted', 'Actions'].map(h => (
-                  <th key={h} style={{ background: 'var(--color-bg)', padding: '0.85rem 1rem', textAlign: 'left', borderBottom: '2px solid var(--color-border)', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{h}</th>
+                {[['businessLaunchAdmin.thName','Name'],['businessLaunchAdmin.thEmail','Email'],['businessLaunchAdmin.thPhone','Phone'],['businessLaunchAdmin.thPackage','Package'],['businessLaunchAdmin.thMarket','Market'],['businessLaunchAdmin.thConsultant','Consultant'],['businessLaunchAdmin.thUrgency','Urgency'],['businessLaunchAdmin.thStatus','Status'],['businessLaunchAdmin.thSubmitted','Submitted'],['businessLaunchAdmin.thActions','Actions']].map(([hk, h]) => (
+                  <th key={h} style={{ background: 'var(--color-bg)', padding: '0.85rem 1rem', textAlign: 'left', borderBottom: '2px solid var(--color-border)', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{t(hk, { defaultValue: h })}</th>
                 ))}
               </tr>
             </thead>
@@ -289,7 +291,7 @@ export default function BusinessLaunchAdmin() {
                         <div style={{ color: 'var(--color-text-muted)' }}>{req.consultant_assignment_status || 'assigned'}</div>
                       </div>
                     ) : (
-                      <span style={{ color: 'var(--color-text-muted)' }}>Unassigned</span>
+                      <span style={{ color: 'var(--color-text-muted)' }}>{t('businessLaunchAdmin.unassigned', { defaultValue: 'Unassigned' })}</span>
                     )}
                   </td>
                   <td style={{ padding: '0.85rem 1rem' }}>
@@ -304,11 +306,11 @@ export default function BusinessLaunchAdmin() {
                   <td style={{ padding: '0.85rem 1rem' }}>
                     <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', alignItems: 'center' }}>
                       <button onClick={() => setSelectedRequest(req)} style={{ padding: '0.3rem 0.6rem', borderRadius: '5px', border: '1px solid var(--color-primary)', background: 'none', color: 'var(--color-primary)', fontSize: '0.78rem', cursor: 'pointer', fontWeight: 600 }}>
-                        View
+                        {t('businessLaunchAdmin.view', { defaultValue: 'View' })}
                       </button>
                       <QuickStatusMenu request={req} onStatusRequest={(request, newStatus) => setStatusTarget({ request, newStatus })} />
                       <button onClick={() => archiveRequest(req)} aria-label={t('businessLaunchAdmin.archiveLabel')} style={{ padding: '0.3rem 0.6rem', borderRadius: '5px', border: '1px solid #EF4444', background: 'none', color: '#EF4444', fontSize: '0.78rem', cursor: 'pointer' }}>
-                        Archive
+                        {t('businessLaunchAdmin.archive', { defaultValue: 'Archive' })}
                       </button>
                     </div>
                   </td>
@@ -322,11 +324,11 @@ export default function BusinessLaunchAdmin() {
       {/* Pagination */}
       {pagination.pages > 1 && (
         <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginBottom: '2rem', alignItems: 'center' }}>
-          <button style={btnStyle} disabled={page === 1} onClick={() => setPage(p => p - 1)}>← Previous</button>
+          <button style={btnStyle} disabled={page === 1} onClick={() => setPage(p => p - 1)}>{'← '}{t('businessLaunchAdmin.previousPage', { defaultValue: 'Previous' })}</button>
           <span style={{ padding: '0.5rem 1rem', color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
-            Page {page} of {pagination.pages}
+            {t('businessLaunchAdmin.pageOf', { defaultValue: 'Page {{page}} of {{pages}}', page, pages: pagination.pages })}
           </span>
-          <button style={btnStyle} disabled={page === pagination.pages} onClick={() => setPage(p => p + 1)}>Next →</button>
+          <button style={btnStyle} disabled={page === pagination.pages} onClick={() => setPage(p => p + 1)}>{t('businessLaunchAdmin.nextPage', { defaultValue: 'Next' })} {'→'}</button>
         </div>
       )}
 
@@ -344,7 +346,7 @@ export default function BusinessLaunchAdmin() {
         open={!!statusTarget}
         title={t('businessLaunchAdmin.confirmStatusTitle')}
         message={t('businessLaunchAdmin.confirmStatusMessage', {
-          status: STATUS_PIPELINE.find(s => s.key === statusTarget?.newStatus)?.label || statusTarget?.newStatus || '',
+          status: statusTarget?.newStatus ? t((STATUS_PIPELINE.find(s => s.key === statusTarget.newStatus) || {}).labelKey || 'businessLaunchAdmin.statusUnknown', { defaultValue: (STATUS_PIPELINE.find(s => s.key === statusTarget.newStatus) || {}).defaultLabel || statusTarget.newStatus }) : '',
         })}
         onConfirm={confirmStatusChange}
         onClose={() => setStatusTarget(null)}

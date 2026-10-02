@@ -6,6 +6,7 @@ import {
   LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   BarChart, Bar,
 } from 'recharts';
+import SupportSubNav from '../components/SupportSubNav';
 import {
   MessageSquare, TrendingUp, Heart, AlertCircle, RefreshCw, Calendar, ThumbsUp,
 } from 'lucide-react';
@@ -107,44 +108,7 @@ function FeedbackItem({ feedback }) {
   );
 }
 
-// Sentiment Distribution Card
-function SentimentCard({ data }) {
-  const { t } = useTranslation();
-  const total = data.reduce((sum, item) => sum + item.value, 0);
-  const sentiments = data.map((item) => ({
-    ...item,
-    percentage: ((item.value / total) * 100).toFixed(1),
-  }));
-
-  return (
-    <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-      <h3 className="text-white font-semibold text-lg mb-4">{t('adminSupportCSAT.sentimentTitle')}</h3>
-      <div className="space-y-3">
-        {sentiments.map((item, idx) => (
-          <div key={idx}>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-gray-300 text-sm">{sentimentLabel(t, item.name)}</span>
-              <span className="text-white font-semibold">{item.value}</span>
-            </div>
-            <div className="w-full bg-gray-700 rounded-full h-2">
-              <div
-                className={`h-2 rounded-full ${
-                  item.name === 'Positive'
-                    ? 'bg-green-500'
-                    : item.name === 'Neutral'
-                    ? 'bg-yellow-500'
-                    : 'bg-red-500'
-                }`}
-                style={{ width: `${item.percentage}%` }}
-              />
-            </div>
-            <p className="text-gray-500 text-xs mt-1">{item.percentage}%</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+// (Sentiment distribution is rendered inline in the main component below.)
 
 // Main CSAT Analytics
 export default function SupportCSATAnalytics() {
@@ -191,6 +155,7 @@ export default function SupportCSATAnalytics() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
+      <SupportSubNav />
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>
@@ -266,7 +231,8 @@ export default function SupportCSATAnalytics() {
               <LineChart data={csatTrend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis dataKey="day" stroke="#9CA3AF" style={{ fontSize: '12px' }} />
-                <YAxis stroke="#9CA3AF" style={{ fontSize: '12px' }} domain={[0, 5]} />
+                {/* csat_score is a percentage (see score card above), not a 0-5 rating */}
+                <YAxis stroke="#9CA3AF" style={{ fontSize: '12px' }} domain={[0, 100]} />
                 <YAxis yAxisId="right" orientation="right" stroke="#9CA3AF" style={{ fontSize: '12px' }} domain={[0, 100]} />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151' }}
@@ -332,6 +298,7 @@ export default function SupportCSATAnalytics() {
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
           <h3 className="text-white font-bold text-lg mb-6">{t('adminSupportCSAT.sentimentTitle')}</h3>
           <div className="h-64">
+            {sentimentDistribution.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -363,6 +330,11 @@ export default function SupportCSATAnalytics() {
                 />
               </PieChart>
             </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-gray-400 text-sm">
+                {t('adminSupportCSAT.noSentimentData', { defaultValue: 'No sentiment data for this period.' })}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -370,6 +342,8 @@ export default function SupportCSATAnalytics() {
       {/* Agent CSAT Comparison */}
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 mb-8">
         <h3 className="text-white font-bold text-lg mb-6">{t('adminSupportCSAT.byAgentTitle')}</h3>
+        {agentCSAT.length > 0 ? (
+        <>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={agentCSAT}>
@@ -384,7 +358,6 @@ export default function SupportCSATAnalytics() {
             </BarChart>
           </ResponsiveContainer>
           </div>
-          {agentCSAT.length > 0 && (
             <div className="mt-5 overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="text-xs uppercase tracking-wider text-gray-500">
@@ -402,7 +375,10 @@ export default function SupportCSATAnalytics() {
                 </tbody>
               </table>
             </div>
-          )}
+        </>
+        ) : (
+          <p className="text-gray-400 text-sm text-center py-12">{t('adminSupportCSAT.noAgentData', { defaultValue: 'No agent data for this period.' })}</p>
+        )}
         </div>
 
       {/* Recent Feedback */}

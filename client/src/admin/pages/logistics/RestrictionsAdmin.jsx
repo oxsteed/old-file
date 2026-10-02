@@ -103,7 +103,7 @@ export default function RestrictionsAdmin() {
           <h3 style={{ fontWeight:700, marginBottom:'1.25rem' }}>
             {editing ? t(`${NS}.editTitle`, { code: editing.country_code, direction: editing.direction }) : t(`${NS}.newTitle`)}
           </h3>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1rem' }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:'1rem' }}>
             <div className="lx-form-group">
               <label className="lx-label">{t(`${NS}.countryCode`)}</label>
               <input className="lx-input" maxLength={2} value={form.country_code}

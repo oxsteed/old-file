@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
 import { Users, Search, RefreshCw, TrendingUp, Star, Clock, MessageSquare } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import SupportSubNav from '../components/SupportSubNav';
 
 export default function SupportPerformanceAnalytics() {
   const { t } = useTranslation();
@@ -14,6 +15,7 @@ export default function SupportPerformanceAnalytics() {
   const [sortBy, setSortBy] = useState('rating');
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [agentDetails, setAgentDetails] = useState(null);
+  const [loadError, setLoadError] = useState(null);
 
   const loadAgents = useCallback(async () => {
     setLoading(true);
@@ -22,8 +24,10 @@ export default function SupportPerformanceAnalytics() {
         params: { business_id: businessId, search, sort_by: sortBy },
       });
       setAgents(res.data.agents || []);
+      setLoadError(null);
     } catch (err) {
       console.error('Failed to load performance data:', err);
+      setLoadError(err);
     }
     setLoading(false);
   }, [businessId, search, sortBy]);
@@ -67,6 +71,7 @@ export default function SupportPerformanceAnalytics() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
+      <SupportSubNav />
       <div className="flex items-start justify-between mb-8">
         <div>
           <h1 className="text-white font-bold text-3xl mb-2">{t('adminSupportPerformance.title')}</h1>
@@ -139,6 +144,7 @@ export default function SupportPerformanceAnalytics() {
           <select
             value={sortBy}
             onChange={e => setSortBy(e.target.value)}
+            aria-label={t('adminSupportPerformance.sortBy', { defaultValue: 'Sort by' })}
             className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-400 focus:outline-none focus:border-orange-500"
           >
             <option value="rating">{t('adminSupportPerformance.sortByRating')}</option>
@@ -150,6 +156,21 @@ export default function SupportPerformanceAnalytics() {
       </div>
 
       {/* Agents Grid */}
+      {!loading && loadError ? (
+        <div className="mb-8 rounded-xl border border-red-900/40 bg-red-950/30 p-6 text-center">
+          <p className="text-sm text-red-300">{t('adminSupportPerformance.loadFailed', { defaultValue: 'Failed to load performance data.' })}</p>
+          <button
+            onClick={loadAgents}
+            className="mt-3 rounded-lg bg-red-900/50 px-4 py-2 text-sm font-medium text-red-200 transition hover:bg-red-900/70"
+          >
+            {t('common.refresh')}
+          </button>
+        </div>
+      ) : agents.length === 0 && !loading ? (
+        <div className="mb-8 rounded-xl border border-gray-700 bg-gray-800 p-12 text-center">
+          <p className="text-sm text-gray-400">{t('adminSupportPerformance.noAgents', { defaultValue: 'No agent performance data yet.' })}</p>
+        </div>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
         {agents.map(agent => (
           <button
@@ -163,7 +184,7 @@ export default function SupportPerformanceAnalytics() {
                 <p className="text-gray-400 text-sm">{agent.role}</p>
               </div>
               <div className="text-right">
-                <p className="text-orange-400 font-bold">{agent.rating}★</p>
+                <p className="text-orange-400 font-bold">{agent.rating == null ? t('common.na') : `${agent.rating}★`}</p>
               </div>
             </div>
 
@@ -171,25 +192,26 @@ export default function SupportPerformanceAnalytics() {
               <div className="flex items-center justify-between">
                 <span className="text-gray-400 text-sm">{t('adminSupportPerformance.responseTime')}</span>
                     <span className="text-white font-medium">
-                      {agent.avg_response_time_seconds == null ? '-' : `${agent.avg_response_time_seconds}s`}
+                      {agent.avg_response_time_seconds == null ? t('common.na') : `${agent.avg_response_time_seconds}s`}
                     </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-gray-400 text-sm">{t('adminSupportPerformance.resolutionRate')}</span>
-                <span className="text-green-400 font-medium">{agent.resolution_rate}%</span>
+                <span className="text-green-400 font-medium">{agent.resolution_rate == null ? t('common.na') : `${agent.resolution_rate}%`}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-gray-400 text-sm">{t('adminSupportPerformance.totalChats')}</span>
-                <span className="text-white font-medium">{agent.total_chats}</span>
+                <span className="text-white font-medium">{agent.total_chats ?? 0}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-gray-400 text-sm">{t('adminSupportPerformance.satisfaction')}</span>
-                <span className="text-white font-medium">{agent.satisfaction_score}%</span>
+                <span className="text-white font-medium">{agent.satisfaction_score == null ? t('common.na') : `${agent.satisfaction_score}%`}</span>
               </div>
             </div>
           </button>
         ))}
       </div>
+      )}
 
       {/* Agent Detail Modal */}
       {selectedAgent && (
@@ -217,21 +239,21 @@ export default function SupportPerformanceAnalytics() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-700/30 rounded-lg p-4">
                   <p className="text-gray-400 text-sm mb-1">{t('adminSupportPerformance.overallRating')}</p>
-                  <p className="text-white text-2xl font-bold">{agentDetails.rating}★</p>
+                  <p className="text-white text-2xl font-bold">{agentDetails.rating == null ? t('common.na') : `${agentDetails.rating}★`}</p>
                 </div>
                 <div className="bg-gray-700/30 rounded-lg p-4">
                   <p className="text-gray-400 text-sm mb-1">{t('adminSupportPerformance.satisfactionScore')}</p>
-                  <p className="text-white text-2xl font-bold">{agentDetails.satisfaction_score}%</p>
+                  <p className="text-white text-2xl font-bold">{agentDetails.satisfaction_score == null ? t('common.na') : `${agentDetails.satisfaction_score}%`}</p>
                 </div>
                 <div className="bg-gray-700/30 rounded-lg p-4">
                   <p className="text-gray-400 text-sm mb-1">{t('adminSupportPerformance.avgResponseTime')}</p>
                   <p className="text-white text-2xl font-bold">
-                    {agentDetails.avg_response_time_seconds == null ? '-' : `${agentDetails.avg_response_time_seconds}s`}
+                    {agentDetails.avg_response_time_seconds == null ? t('common.na') : `${agentDetails.avg_response_time_seconds}s`}
                   </p>
                 </div>
                 <div className="bg-gray-700/30 rounded-lg p-4">
                   <p className="text-gray-400 text-sm mb-1">{t('adminSupportPerformance.resolutionRate')}</p>
-                  <p className="text-white text-2xl font-bold">{agentDetails.resolution_rate}%</p>
+                  <p className="text-white text-2xl font-bold">{agentDetails.resolution_rate == null ? t('common.na') : `${agentDetails.resolution_rate}%`}</p>
                 </div>
               </div>
 
@@ -274,23 +296,23 @@ export default function SupportPerformanceAnalytics() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-gray-400">
                     <span>{t('adminSupportPerformance.totalConversations')}</span>
-                    <span className="text-white font-medium">{agentDetails.total_conversations}</span>
+                    <span className="text-white font-medium">{agentDetails.total_conversations ?? 0}</span>
                   </div>
                   <div className="flex justify-between text-gray-400">
                     <span>{t('adminSupportPerformance.resolved')}</span>
-                    <span className="text-white font-medium">{agentDetails.resolved_conversations}</span>
+                    <span className="text-white font-medium">{agentDetails.resolved_conversations ?? 0}</span>
                   </div>
                   <div className="flex justify-between text-gray-400">
                     <span>{t('adminSupportPerformance.avgHandlingTime')}</span>
-                    <span className="text-white font-medium">{agentDetails.avg_handling_time_seconds}s</span>
+                    <span className="text-white font-medium">{agentDetails.avg_handling_time_seconds == null ? t('common.na') : `${agentDetails.avg_handling_time_seconds}s`}</span>
                   </div>
                   <div className="flex justify-between text-gray-400">
                     <span>{t('adminSupportPerformance.firstContactResolution')}</span>
-                    <span className="text-white font-medium">{agentDetails.fcr_rate}%</span>
+                    <span className="text-white font-medium">{agentDetails.fcr_rate == null ? t('common.na') : `${agentDetails.fcr_rate}%`}</span>
                   </div>
                   <div className="flex justify-between text-gray-400">
                     <span>{t('adminSupportPerformance.qualityScore')}</span>
-                    <span className="text-white font-medium">{agentDetails.quality_score}/100</span>
+                    <span className="text-white font-medium">{agentDetails.quality_score == null ? t('common.na') : `${agentDetails.quality_score}/100`}</span>
                   </div>
                 </div>
               </div>

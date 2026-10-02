@@ -146,6 +146,24 @@ export default function ReportsList() {
                   <p className="text-sm text-gray-300">
                     {report.description || t('adminReports.noDescription')}
                   </p>
+                  {/* Deep link to the reported content — moderation is unusable
+                      without a way to inspect the target. */}
+                  {report.target_id && report.target_type === 'job' && (
+                    <Link
+                      to={`/admin/jobs/${report.target_id}`}
+                      className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-orange-400 hover:text-orange-300 transition"
+                    >
+                      {t('adminReports.viewReportedJob', { defaultValue: 'View reported job' })} →
+                    </Link>
+                  )}
+                  {report.target_id && report.target_type === 'user' && (
+                    <Link
+                      to={`/admin/users/${report.target_id}`}
+                      className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-orange-400 hover:text-orange-300 transition"
+                    >
+                      {t('adminReports.viewReportedUser', { defaultValue: 'View reported user' })} →
+                    </Link>
+                  )}
                   <p className="text-xs text-gray-500 mt-2">
                     {t('adminReports.reportedBy')}{' '}
                     <span className="text-gray-400">

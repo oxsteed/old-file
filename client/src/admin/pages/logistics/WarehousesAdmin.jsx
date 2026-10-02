@@ -107,7 +107,7 @@ export default function WarehousesAdmin() {
       {showForm && tab === 'warehouses' && (
         <div className="lx-card" style={{ marginBottom:'1.5rem', border:'2px solid #f97316' }}>
           <h3 style={{ fontWeight:700, marginBottom:'1rem' }}>{t('adminWarehouses.newWarehouse')}</h3>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1rem' }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:'1rem' }}>
             {[
               ['name', t('adminWarehouses.form.name')],['country', t('adminWarehouses.form.country')],['city', t('adminWarehouses.form.city')],
               ['address', t('adminWarehouses.form.address')],['contact_name', t('adminWarehouses.form.contactName')],['contact_email', t('adminWarehouses.form.contactEmail')],
@@ -189,7 +189,7 @@ export default function WarehousesAdmin() {
                   </td>
                   <td>
                     <span className="lx-status-pill" style={{ background: RECEIPT_STATUS_COLOR[r.status]||'#64748b' }}>
-                      {r.status}
+                      {t(`logistics.status.${r.status}`, { defaultValue: r.status?.replace(/_/g,' ') || t('logistics.admin.unknownStatus') })}
                     </span>
                   </td>
                   <td style={{ display:'flex', gap:'.4rem', flexWrap:'wrap' }}>

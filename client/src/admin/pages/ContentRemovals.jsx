@@ -123,10 +123,10 @@ export default function ContentRemovals() {
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
 
-  function showToast(msg) {
-    setToast(msg);
+  function showToast(msg, type = 'success') {
+    setToast({ text: msg, type });
     if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(''), 3500);
+    toastTimer.current = setTimeout(() => setToast(null), 3500);
   }
 
   useEffect(() => () => {
@@ -146,9 +146,15 @@ export default function ContentRemovals() {
   }
 
   async function handleRestoreReview(reviewId) {
-    await adminApi.post(`/admin/reviews/${reviewId}/restore`);
-    showToast(t('admin.reviewRestored'));
-    reload();
+    try {
+      await adminApi.post(`/admin/reviews/${reviewId}/restore`);
+      showToast(t('admin.reviewRestored'));
+      reload();
+    } catch (err) {
+      // Restore failures must surface; the previous fire-and-forget version
+      // left the admin believing the review was restored.
+      showToast(err?.response?.data?.error || t('adminContentRemovals.actionFailed'), 'error');
+    }
   }
 
   function switchTab(nextTab) {
@@ -165,8 +171,10 @@ export default function ContentRemovals() {
     <div className="p-6">
       {/* Toast */}
       {toast && (
-        <div className="fixed top-6 right-6 z-50 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm">
-          {toast}
+        <div className={`fixed top-6 right-6 z-50 text-white px-4 py-2 rounded-lg shadow-lg text-sm ${
+          toast.type === 'error' ? 'bg-red-600' : 'bg-green-600'
+        }`}>
+          {toast.text}
         </div>
       )}
 
@@ -258,7 +266,9 @@ export default function ContentRemovals() {
                       item.status === 'accepted' ? 'bg-green-500/20 text-green-400' :
                       item.status === 'pending'  ? 'bg-yellow-500/20 text-yellow-400' :
                       'bg-gray-500/20 text-gray-400'
-                    }`}>{item.status}</span>
+                    }`}>
+                      {t(`adminContentRemovals.status${String(item.status).charAt(0).toUpperCase()}${String(item.status).slice(1)}`, { defaultValue: item.status })}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-gray-400 text-xs">
                     {new Date(item.created_at).toLocaleDateString()}

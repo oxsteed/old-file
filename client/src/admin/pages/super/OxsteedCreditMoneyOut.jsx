@@ -170,10 +170,14 @@ export default function OxsteedCreditMoneyOut({ busy = false }) {
 
   const rejectWithdrawal = async () => {
     if (!rejectTarget) return;
+    if (!rejectReason.trim()) {
+      setError(t('moneyOut.errors.rejectReasonRequired', { defaultValue: 'A reason is required to reject a withdrawal. It is recorded in the audit log.' }));
+      return;
+    }
     setSaving(true);
     setError('');
     try {
-      await adminApi.post(`/admin/super/oxsteed-credit/withdrawals/${rejectTarget.id}/reject`, { reason: rejectReason });
+      await adminApi.post(`/admin/super/oxsteed-credit/withdrawals/${rejectTarget.id}/reject`, { reason: rejectReason.trim() });
       setNotice(t('moneyOut.rejected', { defaultValue: 'Withdrawal rejected.' }));
       setRejectTarget(null);
       setRejectReason('');

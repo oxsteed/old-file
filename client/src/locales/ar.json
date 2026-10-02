@@ -1,4 +1,5 @@
 {
+  "adminRegionsMilesUnit": "ميل",
   "businessCreation": {
     "eyebrow": "إعداد النشاط التجاري",
     "title": "إنشاء نشاطك التجاري",
@@ -324,7 +325,12 @@
   },
   "supportAdmin": {
     "agentManagement": {
-      "confirmDeleteAgent": "هل تريد حذف هذا الوكيل؟"
+      "confirmDeleteAgent": "هل تريد حذف هذا الوكيل؟",
+      "agentDeleted": "تم حذف الوكيل",
+      "deleteFailed": "فشل حذف الوكيل",
+      "loadFailed": "فشل تحميل الوكلاء",
+      "statusFailed": "فشل تحديث حالة الوكيل",
+      "statusUpdated": "تم تحديث حالة الوكيل"
     },
     "knowledgeBase": {
       "confirmDeleteArticle": "هل تريد حذف هذه المقالة؟"
@@ -580,7 +586,9 @@
     "done": "تم الإنتهاء",
     "failedToCancel": "فشل الإلغاء. يرجى المحاولة مرة أخرى.",
     "fillRequiredFields": "الرجاء تعبئة جميع المجالات المطلوبة.",
-    "failedToDelete": "تعذّر الحذف. يرجى المحاولة مرة أخرى."
+    "failedToDelete": "تعذّر الحذف. يرجى المحاولة مرة أخرى.",
+    "notAvailable": "غير متوفر",
+    "updated": "حُدّث"
   },
   "jobs": {
     "title": "تفاصيل الوظيفة",
@@ -5177,7 +5185,9 @@
       }
     },
     "list": {
-      "createFailed": "تعذر إنشاء المستخدم.", "createTitle": "إنشاء حساب مستخدم", "firstName": "الاسم الأول", "lastName": "اسم العائلة", "email": "البريد الإلكتروني", "password": "كلمة المرور", "minChars": "(8 أحرف على الأقل)", "accountType": "نوع الحساب", "cancel": "إلغاء", "creating": "جارٍ الإنشاء…", "createUser": "إنشاء مستخدم", "resetFailed": "تعذر إعادة تعيين كلمة المرور.", "resetPassword": "إعادة تعيين كلمة المرور", "resetSuccess": "تمت إعادة تعيين كلمة المرور بنجاح.", "sessionsInvalidated": "تم إبطال جميع جلسات {{name}}.", "settingPassword": "جارٍ تعيين كلمة مرور جديدة لـ {{name}}. سيتم إبطال جلساته النشطة.", "newPassword": "كلمة المرور الجديدة", "resetting": "جارٍ إعادة التعيين…", "reset": "إعادة تعيين", "viewProfile": "عرض الملف الشخصي", "sendMessage": "إرسال رسالة", "cancelDeletionConfirm": "هل تريد إلغاء الحذف المعلق لـ {{email}}؟ سيظهر الحساب نشطًا مجددًا.", "cancelDeletion": "إلغاء الحذف المعلق", "suspend": "تعليق الحساب", "reactivate": "إعادة تفعيل الحساب", "resetPasswordAction": "إعادة تعيين كلمة المرور", "neverLoggedIn": "لم يسجل الدخول مطلقًا", "onlineRecently": "متصل مؤخرًا", "activeThisWeek": "نشط هذا الأسبوع", "activeThisMonth": "نشط هذا الشهر", "inactiveThirtyDays": "غير نشط لأكثر من 30 يومًا", "justNow": "الآن", "hoursAgo": "منذ {{count}} س", "daysAgo": "منذ {{count}} يوم", "weeksAgo": "منذ {{count}} أسبوع", "monthsAgo": "منذ {{count}} شهر", "yearsAgo": "منذ {{count}} عام", "totalUsers": "إجمالي المستخدمين", "active": "نشط", "suspended": "معلق", "reactivated": "أعيد تفعيله", "helpers": "المساعدون", "customers": "العملاء", "newThisWeek": "الجدد هذا الأسبوع", "userStatusChanged": "{{name}}: {{status}}.", "pendingDeletionCleared": "تم إلغاء الحذف المعلق لـ {{name}}.", "cancelDeletionFailed": "تعذر إلغاء الحذف المعلق.", "bulkStatusChanged": "{{count}} مستخدم(ون) {{status}}.", "messageSent": "تم إرسال الرسالة إلى {{name}}.", "sendFailed": "تعذر الإرسال.", "title": "المستخدمون", "matchingFilters": "{{count}} مستخدم يطابقون عوامل التصفية الحالية", "updated": "تم التحديث {{time}}", "refresh": "تحديث", "exportCsv": "تصدير CSV", "tryAgain": "حاول مرة أخرى", "searchPlaceholder": "البحث بالاسم أو البريد أو الهاتف...", "locationPlaceholder": "المدينة، الولاية، الرمز البريدي...", "allRoles": "كل الأدوار", "allStatus": "كل الحالات", "allPlans": "كل الخطط", "sortBy": "فرز: {{label}}", "sort": { "first_name": "الاسم", "created_at": "تاريخ الانضمام", "last_login_at": "آخر نشاط", "avg_rating": "التقييم" }, "perPage": "{{count}} لكل صفحة", "selected": "تم تحديد {{count}}", "suspendSelected": "تعليق المحدد", "reactivateSelected": "إعادة تفعيل المحدد", "user": "المستخدم", "location": "الموقع", "role": "الدور", "plan": "الخطة", "rating": "التقييم", "jobs": "الوظائف", "verified": "تم التحقق", "status": "الحالة", "joined": "انضمام", "lastActive": "آخر نشاط", "loading": "جارٍ التحميل…", "unavailable": "بيانات المستخدم غير متاحة.", "noUsers": "لم يتم العثور على مستخدمين.", "free": "مجاني", "posted": "منشور", "completedAsHelper": "مكتمل كمساعد", "emailVerified": "تم التحقق من البريد", "idVerified": "تم التحقق من الهوية", "backgroundChecked": "تم فحص الخلفية", "selfDeleted": "محذوف ذاتيًا", "pendingDeletion": "حذف معلق", "pageSummary": "الصفحة {{page}} من {{pages}} · {{count}} نتيجة", "previous": "← السابق", "next": "التالي →", "messageTitle": "رسالة إلى {{name}}", "messageAudit": "ستظهر هذه الرسالة في صندوق وارد {{name}} كرسالة نظام وسيتم تسجيلها في سجل التدقيق.", "messagePlaceholder": "اكتب رسالة إلى {{name}}…", "sending": "جارٍ الإرسال…"
+      "createFailed": "تعذر إنشاء المستخدم.", "createTitle": "إنشاء حساب مستخدم", "firstName": "الاسم الأول", "lastName": "اسم العائلة", "email": "البريد الإلكتروني", "password": "كلمة المرور", "minChars": "(8 أحرف على الأقل)", "accountType": "نوع الحساب", "cancel": "إلغاء", "creating": "جارٍ الإنشاء…", "createUser": "إنشاء مستخدم", "resetFailed": "تعذر إعادة تعيين كلمة المرور.", "resetPassword": "إعادة تعيين كلمة المرور", "resetSuccess": "تمت إعادة تعيين كلمة المرور بنجاح.", "sessionsInvalidated": "تم إبطال جميع جلسات {{name}}.", "settingPassword": "جارٍ تعيين كلمة مرور جديدة لـ {{name}}. سيتم إبطال جلساته النشطة.", "newPassword": "كلمة المرور الجديدة", "resetting": "جارٍ إعادة التعيين…", "reset": "إعادة تعيين", "viewProfile": "عرض الملف الشخصي", "sendMessage": "إرسال رسالة", "cancelDeletionConfirm": "هل تريد إلغاء الحذف المعلق لـ {{email}}؟ سيظهر الحساب نشطًا مجددًا.", "cancelDeletion": "إلغاء الحذف المعلق", "suspend": "تعليق الحساب", "reactivate": "إعادة تفعيل الحساب", "resetPasswordAction": "إعادة تعيين كلمة المرور", "neverLoggedIn": "لم يسجل الدخول مطلقًا", "onlineRecently": "متصل مؤخرًا", "activeThisWeek": "نشط هذا الأسبوع", "activeThisMonth": "نشط هذا الشهر", "inactiveThirtyDays": "غير نشط لأكثر من 30 يومًا", "justNow": "الآن", "hoursAgo": "منذ {{count}} س", "daysAgo": "منذ {{count}} يوم", "weeksAgo": "منذ {{count}} أسبوع", "monthsAgo": "منذ {{count}} شهر", "yearsAgo": "منذ {{count}} عام", "totalUsers": "إجمالي المستخدمين", "active": "نشط", "suspended": "معلق", "reactivated": "أعيد تفعيله", "helpers": "المساعدون", "customers": "العملاء", "newThisWeek": "الجدد هذا الأسبوع", "userStatusChanged": "{{name}}: {{status}}.", "pendingDeletionCleared": "تم إلغاء الحذف المعلق لـ {{name}}.", "cancelDeletionFailed": "تعذر إلغاء الحذف المعلق.", "bulkStatusChanged": "{{count}} مستخدم(ون) {{status}}.", "messageSent": "تم إرسال الرسالة إلى {{name}}.", "sendFailed": "تعذر الإرسال.", "title": "المستخدمون", "matchingFilters": "{{count}} مستخدم يطابقون عوامل التصفية الحالية", "updated": "تم التحديث {{time}}", "refresh": "تحديث", "exportCsv": "تصدير CSV", "tryAgain": "حاول مرة أخرى", "searchPlaceholder": "البحث بالاسم أو البريد أو الهاتف...", "locationPlaceholder": "المدينة، الولاية، الرمز البريدي...", "allRoles": "كل الأدوار", "allStatus": "كل الحالات", "allPlans": "كل الخطط", "sortBy": "فرز: {{label}}", "sort": { "first_name": "الاسم", "created_at": "تاريخ الانضمام", "last_login_at": "آخر نشاط", "avg_rating": "التقييم" }, "perPage": "{{count}} لكل صفحة", "selected": "تم تحديد {{count}}", "suspendSelected": "تعليق المحدد", "reactivateSelected": "إعادة تفعيل المحدد", "user": "المستخدم", "location": "الموقع", "role": "الدور", "plan": "الخطة", "rating": "التقييم", "jobs": "الوظائف", "verified": "تم التحقق", "status": "الحالة", "joined": "انضمام", "lastActive": "آخر نشاط", "loading": "جارٍ التحميل…", "unavailable": "بيانات المستخدم غير متاحة.", "noUsers": "لم يتم العثور على مستخدمين.", "free": "مجاني", "posted": "منشور", "completedAsHelper": "مكتمل كمساعد", "emailVerified": "تم التحقق من البريد", "idVerified": "تم التحقق من الهوية", "backgroundChecked": "تم فحص الخلفية", "selfDeleted": "محذوف ذاتيًا", "pendingDeletion": "حذف معلق", "pageSummary": "الصفحة {{page}} من {{pages}} · {{count}} نتيجة", "previous": "← السابق", "next": "التالي →", "messageTitle": "رسالة إلى {{name}}", "messageAudit": "ستظهر هذه الرسالة في صندوق وارد {{name}} كرسالة نظام وسيتم تسجيلها في سجل التدقيق.", "messagePlaceholder": "اكتب رسالة إلى {{name}}…", "sending": "جارٍ الإرسال…",
+      "actionFailed": "فشل الإجراء",
+      "never": "أبدًا"
     }
   },
   "adminLegal": {
@@ -9436,7 +9446,21 @@
     "templateSaveFailed": "تعذر حفظ القالب",
     "toolRentalsLoadFailedMessage": "تعذر تحميل تأجير الأدوات.",
     "toolRentalsLoadFailedTitle": "تعذر تحميل تأجير الأدوات",
-    "workingHoursDayOpen": "مفتوح"
+    "workingHoursDayOpen": "مفتوح",
+    "moderation": {
+      "by": "بواسطة:",
+      "dismiss": "رفض",
+      "dismissTitle": "رفض - إزالة علامة المشرف",
+      "emptyQueue": "القائمة فارغة - لا توجد وظائف مُعلَّمة أو مُبلغ عنها.",
+      "flag": "وضع علامة",
+      "flagTitle": "وضع علامة لمزيد من المراجعة",
+      "loading": "جارٍ التحميل...",
+      "queueSubtitle": "{{count}} وظيفة{{plural}} مُعلَّمة أو مُبلغ عنها",
+      "remove": "إزالة",
+      "removeTitle": "إلغاء الوظيفة - يزيلها من السوق",
+      "reportCount": "{{count}} بلاغ{{plural}}",
+      "title": "إدارة المحتوى"
+    }
   },
   "auditLogFilter": {
     "filter": "تصفية",
@@ -11023,7 +11047,42 @@
     "confirmStatusTitle": "تغيير الحالة",
     "deleteNoteTitle": "حذف الملاحظة",
     "invalidBps": "أدخل معدل إحالة صالحًا بين 0 و10000 نقطة أساس.",
-    "statusMenuLabel": "تغيير حالة الطلب"
+    "statusMenuLabel": "تغيير حالة الطلب",
+    "archive": "أرشفة",
+    "breadcrumbAdmin": "المشرف",
+    "breadcrumbConsulting": "الاستشارات",
+    "breadcrumbCurrent": "إطلاق الأعمال",
+    "clearAll": "مسح الكل",
+    "countryPlaceholder": "رمز الدولة",
+    "emptyBody": "حاول تعديل عوامل التصفية أو مصطلحات البحث.",
+    "emptyTitle": "لم يتم العثور على طلبات",
+    "exportCsv": "تصدير CSV",
+    "filterAllPackages": "كل الباقات",
+    "filterAllStates": "كل الحالات",
+    "filterAllUrgency": "كل مستويات الاستعجال",
+    "nextPage": "التالي",
+    "packageAccelerator": "التسريع ($3,000)",
+    "packageFoundation": "التأسيس ($750)",
+    "packageLaunch": "الإطلاق ($1,500)",
+    "pageOf": "الصفحة {{page}} من {{pages}}",
+    "previousPage": "السابق",
+    "requestArchived": "تم أرشفة الطلب",
+    "searchPlaceholder": "ابحث بالاسم أو البريد...",
+    "statusArchived": "مؤرشف",
+    "statusButton": "الحالة",
+    "statusCompleted": "مكتمل",
+    "statusContacted": "تم الاتصال",
+    "statusInProgress": "قيد التنفيذ",
+    "statusKickoffScheduled": "تمت جدولة الجلسة",
+    "statusNew": "جديد",
+    "title": "برنامج تطوير المؤسسين",
+    "totalRequests": "إجمالي الطلبات: {{count}}",
+    "unassigned": "غير معين",
+    "urgencyAsap": "في أقرب وقت ممكن",
+    "urgencyExploring": "يستكشف فقط",
+    "urgencyOneMonth": "شهر واحد",
+    "urgencyTwoWeeks": "أسبوعان",
+    "view": "عرض"
   },
   "businessLaunchStatus": {
     "trackYourBusiness": "تتبع إطلاق عملك",
@@ -12408,7 +12467,9 @@
     "reportedBy": "أبلغ عنه:",
     "anonymous": "مجهول",
     "actionTaken": "الإجراء المتخذ",
-    "by": "بواسطة"
+    "by": "بواسطة",
+    "viewReportedJob": "عرض الوظيفة المُبلغ عنها",
+    "viewReportedUser": "عرض المستخدم المُبلغ عنه"
   },
   "adminEnforcement": {
     "title": "إجراءات الإنفاذ",
@@ -14857,7 +14918,18 @@
         "reminders": "تذكيرات",
         "actions": "الإجراءات"
       }
-    }
+    },
+    "nextWeek": "التالي",
+    "noPendingSessions": "لا توجد جلسات معلقة. تمت معالجة جميع الطلبات.",
+    "pendingBadge": "معلق",
+    "phoneLabel": "الهاتف",
+    "prevWeek": "السابق",
+    "tierFoundation": "التأسيس",
+    "tierImplementation": "التنفيذ",
+    "tierInitial": "الأولي ($100)",
+    "tierLabel": "المستوى",
+    "tierTransformation": "التحول",
+    "today": "اليوم"
   },
   "adminConsultingSessions": {
     "title": "جلسات استشارية",
@@ -22290,7 +22362,24 @@
     "userActionLog": "سجل إجراءات المستخدمين",
     "users": "المستخدمون",
     "visitors": "الزوار",
-    "profileVisibility": "ظهور الملفات"
+    "profileVisibility": "ظهور الملفات",
+    "sidebarLabel": "تنقل المشرف",
+    "supportSection": "قسم الدعم",
+    "supportAgentDashboard": "لوحة الوكلاء",
+    "supportAgents": "الوكلاء",
+    "supportAgentOnboarding": "التأهيل",
+    "supportShifts": "المناوبات",
+    "supportTeam": "الفريق",
+    "supportEscalations": "التصعيدات",
+    "supportSla": "اتفاقية مستوى الخدمة",
+    "supportKnowledgeBase": "قاعدة المعرفة",
+    "supportTemplates": "القوالب",
+    "supportMetrics": "المقاييس",
+    "supportPerformance": "الأداء",
+    "supportCsat": "رضا العملاء",
+    "supportQa": "مراجعات الجودة",
+    "supportSettings": "الإعدادات",
+    "supportAuditLog": "سجل التدقيق"
   },
   "adminProfileVisibility": {
     "title": "ظهور الملفات الشخصية",
@@ -22492,7 +22581,8 @@
     "openBreaches": "انتهاكات SLA المفتوحة", "openIncidents": "الحوادث المفتوحة",
     "riskDescription": "الحوادث المفتوحة والبلاغات وفشل الأمان الحديث.", "riskTitle": "المخاطر والأمان",
     "securityFailures24h": "فشل الأمان خلال 24 ساعة", "slaDescription": "محادثات الدعم القريبة من أهداف الخدمة أو المتجاوزة لها.", "slaTitle": "حالة SLA",
-    "crmDescription": "العملاء المحتملون وعلاقات العملاء التي تحتاج إلى متابعة.", "crmTitle": "إدارة علاقات العملاء"
+    "crmDescription": "العملاء المحتملون وعلاقات العملاء التي تحتاج إلى متابعة.", "crmTitle": "إدارة علاقات العملاء",
+    "manageIncidents": "إدارة الحوادث"
   },
   "adminMessages": {
     "admin": "مسؤول",
@@ -22515,7 +22605,8 @@
     "startConversation": "بدء محادثة مع {{name}}",
     "superAdmin": "مسؤول عام",
     "title": "رسائل المسؤول",
-    "yesterday": "أمس"
+    "yesterday": "أمس",
+    "sendFailed": "فشل إرسال الرسالة. حاول مرة أخرى."
   },
   "superAuditLog": {
     "allTypes": "كل الأنواع",
@@ -22539,7 +22630,8 @@
     "typeJob": "مهمة",
     "typePayout": "مدفوعات",
     "typeSetting": "إعداد",
-    "typeUser": "مستخدم"
+    "typeUser": "مستخدم",
+    "updatedAt": "حُدّث {{time}}"
   },
   "superConversations": {
     "actionFailed": "فشل الإجراء.",
@@ -22724,7 +22816,11 @@
     "usersSection": "المستخدمون",
     "viewLink": "عرض",
     "vsPrev": "مقارنة بالسابق",
-    "vsPrevPeriod": "مقارنة بالفترة السابقة"
+    "vsPrevPeriod": "مقارنة بالفترة السابقة",
+    "resolveIncidentMessage": "صف كيف تم حل هذه الحادثة. هذه الملاحظة مطلوبة.",
+    "resolveIncidentReasonLabel": "ملاحظة الحل",
+    "resolveIncidentReasonPlaceholder": "ما الذي تم فعله لحل هذه الحادثة؟",
+    "resolveIncidentTitle": "حل الحادثة"
   },
   "superFeeConfig": {
     "colChangedBy": "غيّرها",
@@ -22758,7 +22854,12 @@
     "trialRange": "الحد الأدنى: {{min}} يوم | الحد الأقصى: {{max}} يوم",
     "trialTitle": "تكوين مدة التجربة",
     "updateFailed": "فشل التحديث",
-    "whyPlaceholder": "لماذا هذا التغيير؟"
+    "whyPlaceholder": "لماذا هذا التغيير؟",
+    "confirmMessage": "حفظ تغيير الرسم لـ {{label}}؟ يسري هذا فورًا.",
+    "confirmTitle": "حفظ تغيير الرسم",
+    "invalidNumber": "أدخل رقمًا صالحًا.",
+    "valueOutOfRange": "يجب أن تكون القيمة بين {{min}} و{{max}}.",
+    "valueOutsideRange": "القيمة خارج النطاق المسموح."
   },
   "superFinancials": {
     "colAmount": "المبلغ",
@@ -23010,7 +23111,9 @@
     "tier2Price": "سعر المستوى 2",
     "tier3Label": "تسمية المستوى 3",
     "tier3Price": "سعر المستوى 3",
-    "title": "تكوين أسعار المستويات"
+    "title": "تكوين أسعار المستويات",
+    "confirmMessage": "حفظ تغييرات التسعير هذه؟ تسري فورًا عبر المنصة.",
+    "confirmTitle": "حفظ تغييرات التسعير"
   },
   "superPricingOverrides": {
     "active": "نشط",
@@ -23190,7 +23293,10 @@
     "status": { "published": "منشورة", "accepted": "مقبولة", "in_progress": "قيد التنفيذ", "completed": "مكتملة", "cancelled": "ملغاة", "disputed": "متنازع عليها", "unknown": "غير معروفة" }
   },
   "adminSupportPerformance": {
-    "title": "تحليلات الأداء", "subtitle": "مقاييس أداء الفريق وكل وكيل دعم.", "refresh": "تحديث بيانات الأداء", "totalAgents": "إجمالي الوكلاء", "active": "نشطون", "avgRating": "متوسط التقييم", "teamAverage": "متوسط الفريق", "avgResponseTime": "متوسط وقت الرد", "totalChats": "إجمالي المحادثات", "allTime": "كل الوقت", "searchPlaceholder": "البحث عن وكيل بالاسم...", "sortByRating": "ترتيب حسب التقييم", "sortByResponseTime": "ترتيب حسب وقت الرد", "sortByChats": "ترتيب حسب المحادثات", "sortByResolutionRate": "ترتيب حسب معدل الحل", "responseTime": "وقت الرد", "resolutionRate": "معدل الحل", "satisfaction": "الرضا", "performanceDetails": "تفاصيل الأداء", "close": "إغلاق تفاصيل الأداء", "loadingDetails": "جارٍ تحميل تفاصيل الأداء…", "overallRating": "التقييم العام", "satisfactionScore": "درجة الرضا", "sevenDayTrend": "اتجاه الأداء خلال 7 أيام", "detailedStatistics": "إحصاءات تفصيلية", "totalConversations": "إجمالي المحادثات", "resolved": "تم حلها", "avgHandlingTime": "متوسط وقت المعالجة", "firstContactResolution": "الحل من أول تواصل", "qualityScore": "درجة الجودة"
+    "title": "تحليلات الأداء", "subtitle": "مقاييس أداء الفريق وكل وكيل دعم.", "refresh": "تحديث بيانات الأداء", "totalAgents": "إجمالي الوكلاء", "active": "نشطون", "avgRating": "متوسط التقييم", "teamAverage": "متوسط الفريق", "avgResponseTime": "متوسط وقت الرد", "totalChats": "إجمالي المحادثات", "allTime": "كل الوقت", "searchPlaceholder": "البحث عن وكيل بالاسم...", "sortByRating": "ترتيب حسب التقييم", "sortByResponseTime": "ترتيب حسب وقت الرد", "sortByChats": "ترتيب حسب المحادثات", "sortByResolutionRate": "ترتيب حسب معدل الحل", "responseTime": "وقت الرد", "resolutionRate": "معدل الحل", "satisfaction": "الرضا", "performanceDetails": "تفاصيل الأداء", "close": "إغلاق تفاصيل الأداء", "loadingDetails": "جارٍ تحميل تفاصيل الأداء…", "overallRating": "التقييم العام", "satisfactionScore": "درجة الرضا", "sevenDayTrend": "اتجاه الأداء خلال 7 أيام", "detailedStatistics": "إحصاءات تفصيلية", "totalConversations": "إجمالي المحادثات", "resolved": "تم حلها", "avgHandlingTime": "متوسط وقت المعالجة", "firstContactResolution": "الحل من أول تواصل", "qualityScore": "درجة الجودة",
+    "loadFailed": "فشل تحميل بيانات الأداء.",
+    "noAgents": "لا توجد بيانات أداء وكلاء بعد.",
+    "sortBy": "ترتيب حسب"
   },
   "adminSupportAgents": {
     "eyebrow": "دليل الفريق", "title": "وكلاء الدعم", "description": "راجع فريق العمل والمهارات وأدر الوكلاء النشطين من سجل فريق الدعم.", "refresh": "تحديث", "agents": "الوكلاء", "agentsDetail": "وكلاء الدعم المسجلون حاليًا.", "active": "نشطون", "activeDetail": "الوكلاء المفعّلون حاليًا للعمل في الدعم.", "skillAreas": "مجالات المهارة", "skillAreasDetail": "تخصصات الدعم المختلفة الموجودة في الفريق.", "searchMode": "وضع البحث", "filtered": "مصفّى", "all": "الكل", "currentQuery": "الاستعلام الحالي: {{query}}", "browsingAll": "استعراض سجل الفريق بالكامل.", "rosterTitle": "سجل الوكلاء", "rosterSubtitle": "ابحث بالاسم أو البريد الإلكتروني ثم راجع المهارات وحالة التفعيل.", "searchPlaceholder": "البحث عن وكيل بالاسم أو البريد الإلكتروني...", "noAgents": "لم يتم العثور على وكلاء", "noAgentsBody": "جرّب بحثًا مختلفًا أو أضف موظفي دعم جددًا لبناء الفريق.", "activeStatus": "نشط", "inactiveStatus": "غير نشط", "chatsToday": "محادثات اليوم", "viewAgent": "عرض {{name}}", "toggleStatus": "تبديل حالة {{name}}", "deleteAgent": "حذف {{name}}", "profileTitle": "ملف الوكيل", "profileDescription": "ملخص أداء وتخصصات الدعم.", "close": "إغلاق ملف الوكيل", "avgRating": "متوسط التقييم", "skillCoverage": "تغطية المهارات"
@@ -23986,7 +24092,8 @@
     "noSkillsSelected": "لم يتم اختيار أي مهارات بعد.",
     "selectedLanguages": "اللغات المحددة",
     "noLanguagesSelected": "لم يتم اختيار أي لغات بعد.",
-    "snapshotTip": "سجّل تخصصًا كافيًا هنا حتى تبدأ الجدولة والتوجيه وتقارير الأداء المستقبلية من بيانات أساسية سليمة."
+    "snapshotTip": "سجّل تخصصًا كافيًا هنا حتى تبدأ الجدولة والتوجيه وتقارير الأداء المستقبلية من بيانات أساسية سليمة.",
+    "errorInvalidEmail": "أدخل عنوان بريد صالحًا."
   },
   "adminLegalAcceptancesPage": {
     "docAll": "جميع المستندات",
@@ -24210,7 +24317,14 @@
     "avgTimeCaption": "من التفعيل إلى التصعيد",
     "rulesSectionTitle": "قواعد التصعيد النشطة",
     "emptyState": "لا توجد قواعد تصعيد مهيأة",
-    "createFirstRuleButton": "أنشئ قاعدتك الأولى"
+    "createFirstRuleButton": "أنشئ قاعدتك الأولى",
+    "toastCreated": "تم إنشاء قاعدة التصعيد.",
+    "toastDeleteFailed": "فشل حذف قاعدة التصعيد.",
+    "toastDeleted": "تم حذف قاعدة التصعيد.",
+    "toastSaveFailed": "فشل حفظ قاعدة التصعيد.",
+    "toastToggleFailed": "فشل تبديل قاعدة التصعيد.",
+    "toastUpdated": "تم تحديث قاعدة التصعيد.",
+    "toggleRuleAria": "تبديل القاعدة: {{name}}"
   },
   "adminCorporateAssignments": {
     "statusActive": "نشط",
@@ -24365,7 +24479,8 @@
     "activityButton": "النشاط",
     "disableButton": "تعطيل",
     "enableButton": "تفعيل",
-    "forceLogoutButton": "فرض تسجيل الخروج"
+    "forceLogoutButton": "فرض تسجيل الخروج",
+    "forceLogoutReason": "تسجيل خروج قسري بواسطة مشرف عام"
   },
   "adminSupportAuditLog": {
     "systemFallback": "النظام",
@@ -24399,7 +24514,9 @@
     "timelineTitle": "الجدول الزمني للنشاط",
     "emptyState": "لم يتم العثور على إدخالات في سجل التدقيق",
     "complianceTitle": "معلومات الامتثال",
-    "complianceText": "يتتبع سجل التدقيق هذا جميع أنشطة النظام بما في ذلك عمليات تسجيل دخول المستخدمين وتعديلات البيانات والإجراءات الإدارية. تُحفظ السجلات لمدة 90 يوماً ويمكن تصديرها لعمليات تدقيق الامتثال والأمان."
+    "complianceText": "يتتبع سجل التدقيق هذا جميع أنشطة النظام بما في ذلك عمليات تسجيل دخول المستخدمين وتعديلات البيانات والإجراءات الإدارية. تُحفظ السجلات لمدة 90 يوماً ويمكن تصديرها لعمليات تدقيق الامتثال والأمان.",
+    "exportFailed": "فشل تصدير سجل التدقيق.",
+    "systemEmailFallback": "system@oxsteed.com"
   },
   "adminLogisticsRestrictions": {
     "invalidCountryCode": "يجب أن يتكون رمز الدولة من حرفين (مثال: US، CN، HT)",
@@ -24690,7 +24807,8 @@
     "freightRail": "سكك حديدية",
     "freightMultimodal": "متعدد الوسائط",
     "freightCourier": "بريد سريع",
-    "freightExpress": "سريع"
+    "freightExpress": "سريع",
+    "emptyLanes": "لا توجد مسارات مُعدّة بعد."
   },
 
   "adminReconciliation": {
@@ -25454,7 +25572,9 @@
     "labelMessage": "الرسالة",
     "emailRecordedNote": "يتم تسجيل البريد المرسل في محادثة الدعم هذه.",
     "sending": "جارٍ الإرسال…",
-    "sendEmail": "إرسال البريد"
+    "sendEmail": "إرسال البريد",
+    "loadFailed": "تعذر تحميل لوحة الوكلاء",
+    "loadFailedBody": "تعذر تحميل بيانات الوكلاء المباشرة. تحقق من اتصالك وحاول مرة أخرى."
   },
   "adminSupportCSAT": {
     "title": "تحليلات CSAT",
@@ -25498,7 +25618,9 @@
     "subjectFallback": "محادثة دعم",
     "teamFallback": "فريق الدعم",
     "npsValue": "NPS {{score}}/10",
-    "foundHelpful": "{{count}} وجدوها مفيدة"
+    "foundHelpful": "{{count}} وجدوها مفيدة",
+    "noAgentData": "لا توجد بيانات وكلاء لهذه الفترة.",
+    "noSentimentData": "لا توجد بيانات مشاعر لهذه الفترة."
   },
   "adminSupportQA": {
     "eyebrow": "جودة الدعم",
@@ -25586,7 +25708,9 @@
     "daySaturday": "السبت",
     "daySaturdayShort": "سبت",
     "daySunday": "الأحد",
-    "daySundayShort": "أحد"
+    "daySundayShort": "أحد",
+    "toastDeleteFailed": "فشل حذف المناوبة.",
+    "toastDeleted": "تم حذف المناوبة."
   },
   "adminSupportTeam": {
     "title": "التسلسل الهرمي للفريق",
@@ -25621,7 +25745,12 @@
     "roleAgent": "وكيل",
     "roleSupervisor": "مشرف",
     "roleManager": "مدير",
-    "roleDirector": "مدير عام"
+    "roleDirector": "مدير عام",
+    "toastAdded": "تمت إضافة عضو الفريق.",
+    "toastRemoveFailed": "فشل إزالة عضو الفريق.",
+    "toastRemoved": "تمت إزالة عضو الفريق.",
+    "toastSaveFailed": "فشل حفظ عضو الفريق.",
+    "toastUpdated": "تم تحديث عضو الفريق."
   },
   "adminSupportTemplates": {
     "title": "قوالب الردود",
@@ -25651,7 +25780,9 @@
     "toastContentRequired": "محتوى القالب مطلوب",
     "toastSaveFailed": "فشل حفظ القالب",
     "confirmDelete": "حذف هذا القالب؟",
-    "toastCopyFailed": "فشل نسخ محتوى القالب"
+    "toastCopyFailed": "فشل نسخ محتوى القالب",
+    "deleteTemplateAria": "حذف القالب: {{name}}",
+    "editTemplateAria": "تعديل القالب: {{name}}"
   }
 ,
 
@@ -25815,7 +25946,11 @@
     "categoryLabel": "الفئة",
     "activeLabel": "نشطة (ظاهرة في الإكمال التلقائي)",
     "saving": "جارٍ الحفظ…",
-    "saveChanges": "حفظ التغييرات"
+    "saveChanges": "حفظ التغييرات",
+    "categoryPlaceholder": "مثل: كهرباء",
+    "loadFailedMessage": "تعذر تحميل قائمة المهارات.",
+    "loadFailedTitle": "فشل تحميل المهارات",
+    "namePlaceholder": "مثل: إصلاح الحوائط الجافة"
   },
   "adminToolRentalModeration": {
     "reasonRequired": "السبب مطلوب.",
@@ -25833,7 +25968,17 @@
     "searchPlaceholder": "ابحث بالاسم أو الفئة أو المالك…",
     "filterAll": "الكل",
     "filterAvailable": "متاح",
-    "filterHidden": "مخفي"
+    "filterHidden": "مخفي",
+    "emptyTools": "لم يتم العثور على تأجير أدوات.",
+    "loadFailedMessage": "تعذر تحميل تأجير الأدوات.",
+    "loadFailedTitle": "فشل تحميل تأجير الأدوات",
+    "thActions": "إجراءات",
+    "thCreated": "تاريخ الإنشاء",
+    "thLocation": "الموقع",
+    "thOwner": "المالك",
+    "thRate": "السعر",
+    "thStatus": "الحالة",
+    "thTool": "الأداة"
   },
   "adminLogin": {
     "tooManyAttempts": "محاولات فاشلة كثيرة جدًا. حاول مجددًا بعد {{mins}} دقيقة.",
@@ -26089,7 +26234,10 @@
       "selectOption": "اختر…",
       "notesOptional": "ملاحظات (اختياري)",
       "applyTransition": "تطبيق الانتقال",
-      "noTransitions": "لا توجد انتقالات متاحة لـ {{status}}."
+      "noTransitions": "لا توجد انتقالات متاحة لـ {{status}}.",
+      "buyer": "المشتري:",
+      "qty": "الكمية:",
+      "supplier": "المورّد:"
     },
     "selectTargetStatus": "اختر الحالة المستهدفة",
     "poMoved": "تم نقل أمر الشراء إلى {{status}}"
@@ -26158,7 +26306,9 @@
     },
     "restrictionScope": "قيد",
     "approvalRequired": "موافقة",
-    "approvalOpen": "مفتوحة"
+    "approvalOpen": "مفتوحة",
+    "noFeeRules": "لا توجد قواعد رسوم أو قيود مُعدّة.",
+    "noMarkupRules": "لا توجد قواعد هامش ربح مُعدّة."
   },
   "adminWarehouseOps": {
     "title": "مساحة عمليات المستودعات",
@@ -26885,5 +27035,176 @@
   "adminConversionPolicyQueued": "تم إدراج التغيير في قائمة الانتظار. يجب أن يعتمده مشرف ثانٍ في قائمة المراجعة قبل تطبيقه.",
   "adminConversionPolicyQueueFailed": "تعذر إدراج تغيير السياسة في قائمة الانتظار.",
   "adminConversionPolicyTitle": "سياسة التحويل من المطعم إلى OxSteed",
-  "adminConversionPolicyDetail": "فقط المطاعم المفعّلة يمكن تحويل رصيدها إلى OxSteed Credit. يتطلب تحويل OxSteed Credit إلى رصيد المطعم شريكاً نشطاً في OxSteed Credit. تُدرج التغييرات في قائمة انتظار ليعتمدها مشرف ثانٍ؛ ولا يُطبَّق أي شيء قبل ذلك."
+  "adminConversionPolicyDetail": "فقط المطاعم المفعّلة يمكن تحويل رصيدها إلى OxSteed Credit. يتطلب تحويل OxSteed Credit إلى رصيد المطعم شريكاً نشطاً في OxSteed Credit. تُدرج التغييرات في قائمة انتظار ليعتمدها مشرف ثانٍ؛ ولا يُطبَّق أي شيء قبل ذلك.",
+  "adminBusinessModeration": {
+    "actionDeactivate": "إلغاء التنشيط",
+    "actionDelete": "حذف",
+    "actionFlag": "وضع علامة للمراجعة",
+    "actionReactivate": "إعادة التنشيط",
+    "actionSuspend": "تعليق",
+    "activeBadge": "نشط",
+    "colActions": "إجراءات",
+    "colBusiness": "النشاط التجاري",
+    "colCategory": "الفئة",
+    "colCreated": "تاريخ الإنشاء",
+    "colJobs": "الوظائف",
+    "colLocation": "الموقع",
+    "colMembers": "الأعضاء",
+    "colOwner": "المالك",
+    "colStatus": "الحالة",
+    "inactiveBadge": "غير نشط",
+    "loading": "جارٍ التحميل...",
+    "modalTitle": "{{action}} النشاط التجاري",
+    "moreActions": "المزيد من الإجراءات",
+    "next": "التالي ←",
+    "noBusinesses": "لم يتم العثور على أنشطة تجارية.",
+    "pageSummary": "الصفحة {{page}} · الإجمالي {{total}}",
+    "previous": "→ السابق",
+    "reasonLabel": "السبب",
+    "reasonPlaceholder": "اشرح سبب اتخاذك هذا الإجراء...",
+    "reasonRequired": "السبب مطلوب.",
+    "searchPlaceholder": "ابحث بالاسم أو المالك أو البريد...",
+    "statActive": "نشط",
+    "statDormant": "خامل",
+    "statInactive": "غير نشط",
+    "statNewThisMonth": "جديد هذا الشهر",
+    "statTotal": "الإجمالي",
+    "subtitle": "إدارة ومراقبة جميع الأنشطة التجارية على المنصة",
+    "title": "إدارة الأنشطة التجارية",
+    "unknownType": "غير معروف",
+    "viewProfile": "عرض الملف"
+  },
+  "adminComplianceMetricsPage": {
+    "acceptanceRatesTitle": "معدلات القبول حسب نوع المستند",
+    "cardAccepted": "مقبول",
+    "cardNa": "غير متوفر",
+    "cardPending": "معلق",
+    "cardSigned": "موقَّع",
+    "cardUpdated": "حُدّث {{date}}",
+    "noDocuments": "لا توجد مستندات",
+    "subtitle": "معدلات اعتماد المستندات القانونية ومخاطر الامتثال والاتجاهات.",
+    "title": "مقاييس الامتثال"
+  },
+  "adminPricing": {
+    "activeLabel": "نشط",
+    "edit": "تعديل",
+    "editFeeTitle": "تعديل قاعدة الرسم",
+    "editMarkupTitle": "تعديل قاعدة الهامش",
+    "emptyFees": "لا توجد قواعد رسوم مُعدّة.",
+    "emptyMarkup": "لا توجد قواعد هامش مُعدّة.",
+    "feeUpdatedToast": "تم تحديث قاعدة الرسم",
+    "fixedAmountLabel": "مبلغ ثابت (سنت)",
+    "markupPctLabel": "هامش الربح % (عشري مثل 0.20)",
+    "markupUpdatedToast": "تم تحديث قاعدة الهامش",
+    "pctOfProductLabel": "% من المنتج (عشري)",
+    "stackOrder": "تكلفة المنتج ← المناولة في المنشأ ← رسم التوريد ← هامش OxSteed ← الشحن التقديري ← الجمارك/الإدارة ← المستودع ← التنفيذ المجزأ ← الميل الأخير ← رسم المخاطر",
+    "stackOrderLabel": "ترتيب طبقات التسعير:",
+    "subtitle": "تحكم في طبقات هوامش الربح والرسوم القابلة للتراكم عبر فرع اللوجستيات. تنطبق التغييرات على جميع حسابات التكلفة المستقبلية.",
+    "tabFees": "قواعد الرسوم",
+    "tabMarkup": "قواعد الهامش",
+    "thActive": "نشط",
+    "thCategory": "الفئة",
+    "thFeeType": "نوع الرسم",
+    "thFixedCents": "ثابت (¢)",
+    "thMarkupPct": "هامش %",
+    "thMaxCents": "الحد الأقصى (¢)",
+    "thPctOfProduct": "% من المنتج",
+    "thPriority": "الأولوية",
+    "thScope": "النطاق",
+    "thScopeId": "معرف النطاق",
+    "title": "قواعد التسعير والرسوم"
+  },
+  "adminSuppliers": {
+    "actionFailed": "فشل الإجراء",
+    "allStatus": "كل الحالات",
+    "allTrustRatings": "كل تقييمات الثقة",
+    "approve": "اعتماد",
+    "approvedCategories": "الفئات المعتمدة",
+    "approvedToast": "تم اعتماد المورّد",
+    "complianceNotes": "ملاحظات الامتثال:",
+    "confirmApproveButton": "اعتماد المورّد",
+    "confirmApproveMessage": "اعتماد {{name}} كمورّد معتمد؟",
+    "confirmApproveTitle": "اعتماد المورّد",
+    "confirmDeactivateMessage": "إلغاء تنشيط {{name}}؟ لن يعود متاحًا للتوريد الجديد.",
+    "confirmDeactivateTitle": "إلغاء تنشيط المورّد",
+    "countryPlaceholder": "الدولة (مثل CN)",
+    "deactivate": "إلغاء التنشيط",
+    "deactivatedToast": "تم إلغاء تنشيط المورّد",
+    "detailAddress": "العنوان",
+    "detailApproved": "معتمد",
+    "detailCity": "المدينة",
+    "detailCommunication": "التواصل",
+    "detailContact": "جهة الاتصال",
+    "detailCountry": "الدولة",
+    "detailDisputes": "النزاعات",
+    "detailEmail": "البريد",
+    "detailKybVerified": "تم التحقق من KYB",
+    "detailLegalName": "الاسم القانوني",
+    "detailOnTimeRate": "معدل الالتزام بالمواعيد",
+    "detailPaymentTerms": "شروط الدفع",
+    "detailPhone": "الهاتف",
+    "detailQualityScore": "درجة الجودة",
+    "detailTrustRating": "تقييم الثقة",
+    "detailWebsite": "الموقع",
+    "kybYes": "نعم ({{date}})",
+    "minStars": "≥ {{n}} نجوم",
+    "noSuppliers": "لم يتم العثور على مورّدين.",
+    "pendingApproval": "معلق",
+    "statusActive": "نشط",
+    "statusInactive": "غير نشط",
+    "subtitle": "اعتماد المورّدين وتقييمهم وإدارة ملفاتهم وكتالوجات منتجاتهم.",
+    "thActions": "إجراءات",
+    "thCategories": "الفئات",
+    "thCountry": "الدولة",
+    "thKyb": "KYB",
+    "thProducts": "المنتجات",
+    "thQuality": "الجودة",
+    "thStatus": "الحالة",
+    "thSupplier": "المورّد",
+    "thTrust": "الثقة",
+    "title": "إدارة المورّدين",
+    "thisSupplier": "هذا المورّد"
+  },
+  "adminSupportKnowledgeBase": {
+    "allCategories": "الكل",
+    "contentPlaceholder": "محتوى المقال...",
+    "createArticle": "إنشاء مقال",
+    "deleteArticleAria": "حذف المقال: {{title}}",
+    "description": "نظّم الإجابات القابلة لإعادة الاستخدام وأدلة استكشاف الأخطاء ومراجع السياسات ليتمكن الوكلاء من حل المشكلات بشكل أسرع وأكثر اتساقًا.",
+    "editArticleAria": "تعديل المقال: {{title}}",
+    "emptyBody": "أنشئ مقالًا أو وسّع معايير البحث لإعادة بناء عرض مكتبة الدعم.",
+    "emptyTitle": "لم يتم العثور على مقالات في قاعدة المعرفة",
+    "eyebrow": "نظام المعرفة",
+    "helpfulCount": "{{count}} مفيد",
+    "labelCategory": "الفئة",
+    "labelContent": "المحتوى",
+    "labelTags": "الوسوم",
+    "labelTitle": "العنوان",
+    "librarySubtitle": "ابحث بالمحتوى أو ضيّق المكتبة حسب الفئة للعثور على الدليل المناسب بسرعة.",
+    "libraryTitle": "مكتبة المقالات",
+    "modalEditTitle": "تعديل المقال",
+    "modalNewTitle": "مقال جديد",
+    "modalSubtitle": "أنشئ إجابات قابلة لإعادة الاستخدام يمكن لفريق الدعم كله الاعتماد عليها.",
+    "newArticle": "مقال جديد",
+    "searchPlaceholder": "ابحث في المقالات...",
+    "statArticles": "مقالات",
+    "statArticlesDetail": "مقالات الدعم المنشورة أو المسودة في هذا العرض.",
+    "statCategory": "الفئة",
+    "statCategoryAll": "تصفح كل فئات الدعم.",
+    "statCategoryFiltered": "تصفية حسب {{category}}.",
+    "statHelpful": "مفيد",
+    "statHelpfulDetail": "أصوات «مفيد» الظاهرة في مجموعة النتائج الحالية.",
+    "statViews": "المشاهدات",
+    "statViewsDetail": "إجمالي المشاهدات المسجلة عبر مجموعة النتائج الحالية.",
+    "tagsPlaceholder": "الفوترة، استكشاف الأخطاء (مفصولة بفواصل)",
+    "title": "قاعدة معرفة الدعم",
+    "titlePlaceholder": "عنوان المقال...",
+    "toastContentRequired": "محتوى المقال مطلوب",
+    "toastDeleteFailed": "فشل حذف المقال.",
+    "toastDeleted": "تم حذف المقال.",
+    "toastSaveFailed": "فشل حفظ المقال",
+    "toastTitleRequired": "عنوان المقال مطلوب",
+    "updateArticle": "تحديث المقال",
+    "viewsCount": "{{count}} مشاهدات"
+  }
 }

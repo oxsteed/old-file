@@ -4,10 +4,11 @@ import { Shield, Plus, X, Check, AlertCircle, Loader2, ChevronDown } from 'lucid
 import adminApi from '../../../lib/adminApi';
 import { useAbortableFetch } from '../../lib/useAbortableFetch';
 import AdminErrorState from '../../lib/AdminErrorState';
+import { adminDate } from '../../lib/formatters';
 
 function ts(d, fallback = '-') {
   if (!d) return fallback;
-  return new Date(d).toLocaleString('en-US', {
+  return adminDate(d, {
     month: 'short', day: 'numeric', year: 'numeric',
     hour: 'numeric', minute: '2-digit',
   });
@@ -15,7 +16,7 @@ function ts(d, fallback = '-') {
 
 function dateOnly(d) {
   if (!d) return '-';
-  return new Date(d).toLocaleDateString('en-US', {
+  return adminDate(d, {
     month: 'short', day: 'numeric', year: 'numeric',
   });
 }
@@ -111,7 +112,7 @@ function CreateGrantModal({ scopes, onClose, onCreated }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
       <div className="w-full max-w-lg bg-gray-900 border border-gray-700
-                      rounded-2xl shadow-2xl overflow-hidden">
+                      rounded-2xl shadow-2xl max-h-[92vh] overflow-y-auto">
         <div className="flex items-center justify-between px-5 py-4
                         border-b border-gray-800">
           <h2 className="font-semibold text-white flex items-center gap-2">

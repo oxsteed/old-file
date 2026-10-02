@@ -292,7 +292,7 @@ function WalletDetail({ detail, onStatus, onRelease }) {
 
       <HistorySection title={t('adminRestaurantCreditLinkedPayments')} count={detail.payments?.length}>
         {!detail.payments?.length ? <p className="text-sm text-gray-500">{t('adminRestaurantCreditNoPayments')}</p> : (
-          <div className="overflow-x-auto rounded-xl border border-gray-800"><table className="min-w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-2 font-medium">{t('adminRestaurantCreditColPayment')}</th><th className="px-3 py-2 font-medium">{t('adminRestaurantCreditColAmount')}</th><th className="px-3 py-2 font-medium">{t('adminRestaurantCreditColStatus')}</th><th className="px-3 py-2 font-medium">{t('adminRestaurantCreditColCreated')}</th></tr></thead><tbody className="divide-y divide-gray-800">{detail.payments.slice(0, 12).map((payment) => <tr key={payment.id} className="text-gray-300"><td className="px-3 py-2"><span className="font-semibold text-white">{payment.paymentType || t('adminRestaurantCreditPayment')}</span><p className="mt-1 text-gray-500">{payment.reference || payment.foodOrderId || `#${payment.id}`}</p></td><td className="whitespace-nowrap px-3 py-2">{money(payment.amountCents)}</td><td className="px-3 py-2"><StatusBadge status={payment.status} /></td><td className="whitespace-nowrap px-3 py-2 text-gray-500">{dateTime(payment.createdAt, t)}</td></tr>)}</tbody></table></div>
+          <div className="overflow-x-auto rounded-xl border border-gray-800"><table className="min-w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-2 font-medium">{t('adminRestaurantCreditColPayment')}</th><th className="px-3 py-2 font-medium">{t('adminRestaurantCreditColAmount')}</th><th className="px-3 py-2 font-medium">{t('adminRestaurantCreditColStatus')}</th><th className="px-3 py-2 font-medium">{t('adminRestaurantCreditColCreated')}</th></tr></thead><tbody className="divide-y divide-gray-800">{detail.payments.slice(0, 12).map((payment) => <tr key={payment.id} className="text-gray-300"><td className="px-3 py-2"><span className="font-semibold text-white">{payment.paymentType || t('adminRestaurantCreditPayment')}</span><p className="mt-1 text-gray-500">{payment.reference || payment.foodOrderId || `#${payment.id}`}</p></td><td className="whitespace-nowrap px-3 py-2">{money(payment.amountCents, payment.currencyCode || wallet.currencyCode)}</td><td className="px-3 py-2"><StatusBadge status={payment.status} /></td><td className="whitespace-nowrap px-3 py-2 text-gray-500">{dateTime(payment.createdAt, t)}</td></tr>)}</tbody></table></div>
         )}
       </HistorySection>
     </div>
@@ -514,7 +514,11 @@ export default function RestaurantCreditAdmin() {
   const pagination = data?.pagination || { page: 1, totalPages: 1, total: 0 };
   const wallets = data?.wallets || [];
   const pendingRequests = data?.pendingRequests || [];
-  const summaryCurrency = Number(summary.currencyCount || 0) > 1 ? 'MULTI' : 'USD';
+  // The server reports only a distinct currency count, not the single code.
+  // When every wallet shares one currency, any wallet's code is authoritative;
+  // never assume USD for a non-USD book.
+  const singleWalletCurrency = wallets.find((wallet) => wallet.currencyCode)?.currencyCode;
+  const summaryCurrency = Number(summary.currencyCount || 0) > 1 ? 'MULTI' : (singleWalletCurrency || 'USD');
   const summaryMoney = (cents) => summaryCurrency === 'MULTI' ? t('adminRestaurantCreditMultiple') : money(cents, summaryCurrency);
 
   return (

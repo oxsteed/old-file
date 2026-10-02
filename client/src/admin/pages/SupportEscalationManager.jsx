@@ -2,9 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
+import toast from 'react-hot-toast';
 import {
   AlertTriangle, Plus, Edit2, Trash2, RefreshCw, CheckCircle, XCircle, ChevronDown,
 } from 'lucide-react';
+import SupportSubNav from '../components/SupportSubNav';
 
 // Escalation Rule Card
 function EscalationRuleCard({ rule, onEdit, onDelete, onToggle }) {
@@ -27,10 +29,12 @@ function EscalationRuleCard({ rule, onEdit, onDelete, onToggle }) {
         </div>
         <div className="flex items-center gap-2">
           <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getPriorityColor(rule.priority)}`}>
-            {rule.priority.toUpperCase()}
+            {t(`adminSupportEscalation.priority${rule.priority.charAt(0).toUpperCase()}${rule.priority.slice(1)}`, { defaultValue: rule.priority.toUpperCase() })}
           </span>
           <button
             onClick={() => onToggle(rule.id)}
+            aria-label={t('adminSupportEscalation.toggleRuleAria', { defaultValue: 'Toggle rule: {{name}}', name: rule.rule_name })}
+            title={t('adminSupportEscalation.toggleRuleAria', { defaultValue: 'Toggle rule: {{name}}', name: rule.rule_name })}
             className="p-2 hover:bg-gray-700 rounded-lg transition"
           >
             {rule.is_active ? (
@@ -297,8 +301,10 @@ export default function SupportEscalationManager() {
       setShowForm(false);
       setEditingRule(null);
       loadData();
+      toast.success(editingRule ? t('adminSupportEscalation.toastUpdated', { defaultValue: 'Escalation rule updated.' }) : t('adminSupportEscalation.toastCreated', { defaultValue: 'Escalation rule created.' }));
     } catch (err) {
       console.error('Failed to save rule:', err);
+      toast.error(err?.response?.data?.error || t('adminSupportEscalation.toastSaveFailed', { defaultValue: 'Failed to save the escalation rule.' }));
     }
   };
 
@@ -306,9 +312,11 @@ export default function SupportEscalationManager() {
     if (!window.confirm(t('supportAdmin.escalation.confirmDeleteRule'))) return;
     try {
       await adminApi.delete(`/support/escalation/rules/${ruleId}`);
+      toast.success(t('adminSupportEscalation.toastDeleted', { defaultValue: 'Escalation rule deleted.' }));
       loadData();
     } catch (err) {
       console.error('Failed to delete rule:', err);
+      toast.error(err?.response?.data?.error || t('adminSupportEscalation.toastDeleteFailed', { defaultValue: 'Failed to delete the escalation rule.' }));
     }
   };
 
@@ -318,6 +326,7 @@ export default function SupportEscalationManager() {
       loadData();
     } catch (err) {
       console.error('Failed to toggle rule:', err);
+      toast.error(err?.response?.data?.error || t('adminSupportEscalation.toastToggleFailed', { defaultValue: 'Failed to toggle the escalation rule.' }));
     }
   };
 
@@ -335,6 +344,7 @@ export default function SupportEscalationManager() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
+      <SupportSubNav />
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>

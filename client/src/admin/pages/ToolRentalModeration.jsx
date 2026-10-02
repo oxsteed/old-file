@@ -177,33 +177,33 @@ export default function ToolRentalModeration() {
           <table className="w-full text-sm min-w-[900px]">
             <thead>
               <tr className="border-b border-gray-700">
-                <th className="text-left text-gray-400 font-medium px-4 py-3">TOOL</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">OWNER</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">LOCATION</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">RATE</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">STATUS</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">CREATED</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">ACTIONS</th>
+                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminToolRentalModeration.thTool', { defaultValue: 'TOOL' })}</th>
+                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminToolRentalModeration.thOwner', { defaultValue: 'OWNER' })}</th>
+                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminToolRentalModeration.thLocation', { defaultValue: 'LOCATION' })}</th>
+                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminToolRentalModeration.thRate', { defaultValue: 'RATE' })}</th>
+                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminToolRentalModeration.thStatus', { defaultValue: 'STATUS' })}</th>
+                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminToolRentalModeration.thCreated', { defaultValue: 'CREATED' })}</th>
+                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminToolRentalModeration.thActions', { defaultValue: 'ACTIONS' })}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="text-center text-gray-400 py-12">Loading…</td>
+                  <td colSpan={7} className="text-center text-gray-400 py-12">{t('common.loading')}</td>
                 </tr>
               ) : error ? (
                 <tr>
                   <td colSpan={7} className="py-6 px-4">
                     <AdminErrorState
-                      title="Failed to load tool rentals"
-                      message={error?.response?.data?.error || 'Could not load tool rentals.'}
+                      title={t('adminToolRentalModeration.loadFailedTitle', { defaultValue: 'Failed to load tool rentals' })}
+                      message={error?.response?.data?.error || t('adminToolRentalModeration.loadFailedMessage', { defaultValue: 'Could not load tool rentals.' })}
                       onRetry={reload}
                     />
                   </td>
                 </tr>
               ) : tools.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center text-gray-400 py-12">No tool rentals found.</td>
+                  <td colSpan={7} className="text-center text-gray-400 py-12">{t('adminToolRentalModeration.emptyTools', { defaultValue: 'No tool rentals found.' })}</td>
                 </tr>
               ) : tools.map(t => (
                 <tr key={t.id} className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors">

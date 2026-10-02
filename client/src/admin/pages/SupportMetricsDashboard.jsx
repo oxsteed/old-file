@@ -5,6 +5,7 @@ import adminApi from '../../lib/adminApi';
 import AdminErrorState from '../lib/AdminErrorState';
 import { MessageSquare, CheckCircle, Clock, TrendingUp, RefreshCw } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import SupportSubNav from '../components/SupportSubNav';
 
 export default function SupportMetricsDashboard() {
   const { businessId } = useParams();
@@ -70,6 +71,7 @@ export default function SupportMetricsDashboard() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
+      <SupportSubNav />
       <div className="flex items-start justify-between mb-8">
         <div>
           <h1 className="text-white font-bold text-3xl mb-2">{t('adminSupportMetrics.title')}</h1>

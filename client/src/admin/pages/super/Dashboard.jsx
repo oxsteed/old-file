@@ -13,12 +13,13 @@ import { useAuth }  from '../../../hooks/useAuth';
 import { useTranslation } from 'react-i18next';
 import { useAbortableFetch } from '../../lib/useAbortableFetch';
 import ConfirmDialog from '../../lib/ConfirmDialog';
+import { adminDate, adminMoney } from '../../lib/formatters';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
 function fmt$(cents) {
-  if (!cents) return '$0.00';
-  return '$' + (cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2 });
+  if (!cents) return adminMoney(0);
+  return adminMoney(cents / 100);
 }
 
 function fmtRelative(d, t) {
@@ -250,7 +251,7 @@ export default function SuperDashboard() {
         <div>
           <h1 className="text-2xl font-bold text-white">{t('superDashboard.title')}</h1>
           <p className="text-gray-500 text-sm mt-0.5">
-            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+            {adminDate(new Date(), { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -518,11 +519,11 @@ export default function SuperDashboard() {
 
       <ConfirmDialog
         open={resolveTarget !== null}
-        title="Resolve incident"
-        message="Describe how this incident was resolved. This note is required."
+        title={t('superDashboard.resolveIncidentTitle', { defaultValue: 'Resolve incident' })}
+        message={t('superDashboard.resolveIncidentMessage', { defaultValue: 'Describe how this incident was resolved. This note is required.' })}
         requireReason
-        reasonLabel="Resolution note"
-        reasonPlaceholder="What was done to resolve this incident?"
+        reasonLabel={t('superDashboard.resolveIncidentReasonLabel', { defaultValue: 'Resolution note' })}
+        reasonPlaceholder={t('superDashboard.resolveIncidentReasonPlaceholder', { defaultValue: 'What was done to resolve this incident?' })}
         confirmLabel={t('superDashboard.resolve')}
         onConfirm={doResolveIncident}
         onClose={() => setResolveTarget(null)}

@@ -49,6 +49,15 @@ function formatDateTime(value, fallback) {
   }).format(new Date(value));
 }
 
+function safeUuid() {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    // Non-secure contexts (plain http) have no crypto.randomUUID.
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  }
+}
+
 function MissedConversationCard({ conversation, onUpdated }) {
   const { t } = useTranslation();
   const [showEmail, setShowEmail] = useState(false);
@@ -57,7 +66,7 @@ function MissedConversationCard({ conversation, onUpdated }) {
     t('adminSupportAgentDashboard.defaultEmailBody', { customer: conversation.customer_name || t('adminSupportAgentDashboard.customerFallback') })
   );
   const [sending, setSending] = useState(false);
-  const [requestId, setRequestId] = useState(() => crypto.randomUUID());
+  const [requestId, setRequestId] = useState(() => safeUuid());
 
   const sendFollowUp = async (event) => {
     event.preventDefault();
@@ -73,7 +82,7 @@ function MissedConversationCard({ conversation, onUpdated }) {
       setShowEmail(false);
       await onUpdated();
     } catch (err) {
-      setRequestId(crypto.randomUUID());
+      setRequestId(safeUuid());
       toast.error(err?.response?.data?.error || t('adminSupportAgentDashboard.toastEmailFailed'));
     } finally {
       setSending(false);
@@ -197,6 +206,7 @@ export default function SupportAgentDashboard() {
   const { businessId } = useParams();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -205,8 +215,10 @@ export default function SupportAgentDashboard() {
         params: { business_id: businessId },
       });
       setData(res.data);
+      setLoadError(null);
     } catch (err) {
       console.error('Failed to load dashboard:', err);
+      setLoadError(err);
       setData(null);
     } finally {
       setLoading(false);
@@ -223,6 +235,23 @@ export default function SupportAgentDashboard() {
         <div className="flex min-h-[70vh] items-center justify-center">
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-orange-500 border-t-transparent" />
         </div>
+      </SupportPageShell>
+    );
+  }
+
+  if (!loading && loadError) {
+    return (
+      <SupportPageShell>
+        <SupportEmptyState
+          icon={Activity}
+          title={t('adminSupportAgentDashboard.loadFailed', { defaultValue: 'Could not load the agent dashboard' })}
+          body={t('adminSupportAgentDashboard.loadFailedBody', { defaultValue: 'The live agent data could not be loaded. Check your connection and try again.' })}
+          action={(
+            <SupportActionButton icon={RefreshCw} onClick={loadData} tone="primary">
+              {t('common.refresh')}
+            </SupportActionButton>
+          )}
+        />
       </SupportPageShell>
     );
   }

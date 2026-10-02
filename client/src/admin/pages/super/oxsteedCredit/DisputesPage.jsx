@@ -195,7 +195,6 @@ export default function OxsteedCreditDisputesPage() {
         setDisputeResolutionDrafts={setDisputeResolutionDrafts}
         disputeCompensationDrafts={disputeCompensationDrafts}
         setDisputeCompensationDrafts={setDisputeCompensationDrafts}
-        setDisputeResolutionDrafts={setDisputeResolutionDrafts}
         inspectDisputeCustomer={inspectDisputeCustomer}
         resolveDispute={resolveDispute}
       />

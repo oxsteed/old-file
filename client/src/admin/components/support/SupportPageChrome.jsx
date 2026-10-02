@@ -1,6 +1,7 @@
 import { ChevronRight, ArrowLeft } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import SupportSubNav from '../SupportSubNav';
 
 export function SupportPageShell({ children }) {
   const { t } = useTranslation();
@@ -19,6 +20,7 @@ export function SupportPageShell({ children }) {
             {t('supportPageChrome.backToInbox')}
           </Link>
         ) : null}
+        <SupportSubNav />
         {children}
       </div>
     </div>

@@ -6,6 +6,7 @@ import { adminRoute } from '../adminRouteManifest';
 import adminApi from '../../lib/adminApi';
 import toast from 'react-hot-toast';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
+import AdminErrorState from '../lib/AdminErrorState';
 
 const EMPTY_FORM = { name: '', category: '', is_active: true };
 
@@ -34,7 +35,7 @@ export default function SkillsManager() {
 
   // Sequence-guarded + abortable: out-of-order responses can no longer
   // clobber the list with stale results.
-  const { data: skillsData, loading, reload } = useAbortableFetch(async (signal) => {
+  const { data: skillsData, loading, error, reload } = useAbortableFetch(async (signal) => {
     const params = { ...filters };
     if (!params.q) delete params.q;
     if (!params.category) delete params.category;
@@ -176,6 +177,15 @@ export default function SkillsManager() {
 
       {/* Table */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+        {error ? (
+          <div className="p-6">
+            <AdminErrorState
+              title={t('adminSkillsManager.loadFailedTitle', { defaultValue: 'Failed to load skills' })}
+              message={error?.response?.data?.error || t('adminSkillsManager.loadFailedMessage', { defaultValue: 'Could not load the skills list.' })}
+              onRetry={reload}
+            />
+          </div>
+        ) : (
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-800 text-xs uppercase tracking-wider text-gray-500">
@@ -230,6 +240,7 @@ export default function SkillsManager() {
             ))}
           </tbody>
         </table>
+        )}
       </div>
 
       {/* Pagination */}
@@ -271,7 +282,7 @@ export default function SkillsManager() {
                   required
                   value={form.name}
                   onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                  placeholder="e.g. Drywall Repair"
+                  placeholder={t('adminSkillsManager.namePlaceholder', { defaultValue: 'e.g. Drywall Repair' })}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none"
                 />
               </div>
@@ -286,7 +297,7 @@ export default function SkillsManager() {
                     setCatSearch(e.target.value);
                     setForm(p => ({ ...p, category: e.target.value }));
                   }}
-                  placeholder="e.g. Electrical"
+                  placeholder={t('adminSkillsManager.categoryPlaceholder', { defaultValue: 'e.g. Electrical' })}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none"
                 />
                 {catSugs.length > 0 && (

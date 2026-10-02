@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MoreVertical, Download, Mail, RefreshCw, Search, Filter, Eye, RotateCcw } from 'lucide-react';
+import { MoreVertical, Download, RefreshCw, Search, Filter, Eye, RotateCcw, X, AlertTriangle } from 'lucide-react';
 import adminApi from '../../lib/adminApi';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
@@ -28,6 +28,22 @@ const SORT_OPTIONS = [
   { value: 'name_asc', labelKey: 'adminLegalAcceptancesPage.sortNameAsc' },
 ];
 
+// Compact page-number window: first, last, and a few pages around the current
+// one, so a large result set cannot render hundreds of page buttons.
+function pageWindow(current, total) {
+  const pages = new Set([1, total]);
+  for (let i = current - 2; i <= current + 2; i += 1) {
+    if (i >= 1 && i <= total) pages.add(i);
+  }
+  const sorted = [...pages].sort((a, b) => a - b);
+  const items = [];
+  sorted.forEach((p, idx) => {
+    if (idx > 0 && p - sorted[idx - 1] > 1) items.push('ellipsis');
+    items.push(p);
+  });
+  return items;
+}
+
 // ─── Detail Modal ─────────────────────────────────────────────────────────────
 
 function DetailModal({ acceptance, onClose }) {
@@ -37,20 +53,20 @@ function DetailModal({ acceptance, onClose }) {
       <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-auto">
         <div className="sticky top-0 bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between">
           <h2 className="text-white font-bold">{t('adminLegalAcceptancesPage.modalTitle')}</h2>
-          <button onClick={onClose} aria-label={t('common.aria.closeButton')} className="text-gray-400 hover:text-white">✕</button>
+          <button onClick={onClose} aria-label={t('common.aria.closeButton')} className="text-gray-400 hover:text-white"><X size={16} /></button>
         </div>
 
         <div className="p-6 space-y-6">
           <div>
             <h3 className="text-gray-300 text-sm font-semibold mb-3">{t('adminLegalAcceptancesPage.userInfoTitle')}</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-gray-500">{t('adminLegalAcceptancesPage.fieldName')}</p>
                 <p className="text-white">{acceptance.user_name}</p>
               </div>
               <div>
                 <p className="text-gray-500">{t('adminLegalAcceptancesPage.fieldEmail')}</p>
-                <p className="text-white">{acceptance.user_email}</p>
+                <p className="text-white break-all">{acceptance.user_email}</p>
               </div>
               <div>
                 <p className="text-gray-500">{t('adminLegalAcceptancesPage.fieldUserId')}</p>
@@ -61,7 +77,7 @@ function DetailModal({ acceptance, onClose }) {
 
           <div className="border-t border-gray-700 pt-4">
             <h3 className="text-gray-300 text-sm font-semibold mb-3">{t('adminLegalAcceptancesPage.docInfoTitle')}</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-gray-500">{t('adminLegalAcceptancesPage.fieldDocType')}</p>
                 <p className="text-white capitalize">{acceptance.document_type?.replace(/_/g, ' ')}</p>
@@ -75,7 +91,7 @@ function DetailModal({ acceptance, onClose }) {
 
           <div className="border-t border-gray-700 pt-4">
             <h3 className="text-gray-300 text-sm font-semibold mb-3">{t('adminLegalAcceptancesPage.signatureTitle')}</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-gray-500">{t('adminLegalAcceptancesPage.fieldSignedName')}</p>
                 <p className="text-white">{acceptance.signed_first_name} {acceptance.signed_last_name}</p>
@@ -220,7 +236,7 @@ export default function AdminLegalAcceptancesPage() {
   };
 
   const COLORS = ['#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#8b5cf6', '#ec4899'];
-  const pages = Math.ceil(totalCount / limit);
+  const pages = Math.max(1, Math.ceil(totalCount / limit));
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -247,7 +263,7 @@ export default function AdminLegalAcceptancesPage() {
       )}
       {exportError && (
         <div className="bg-red-500/20 border border-red-500/50 text-red-300 px-4 py-3 rounded-lg text-sm flex items-start gap-2">
-          <span>⚠️</span>
+          <AlertTriangle size={16} className="shrink-0 mt-0.5" />
           <span>{exportError}</span>
         </div>
       )}
@@ -418,7 +434,7 @@ export default function AdminLegalAcceptancesPage() {
                 <tr>
                   <td colSpan="6" className="px-6 py-12 text-center">
                     <div className="flex justify-center">
-                      <div className="animate-spin w-6 h-6 border-3 border-orange-500 border-t-transparent rounded-full" />
+                      <div className="animate-spin w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full" />
                     </div>
                   </td>
                 </tr>
@@ -446,7 +462,7 @@ export default function AdminLegalAcceptancesPage() {
                       {acceptance.document_type?.replace(/_/g, ' ')}
                     </td>
                     <td className="px-6 py-4 text-gray-300">
-                      {acceptance.document_version || 'v1'}
+                      {acceptance.document_version || t('adminLegalAcceptancesPage.notAvailable')}
                     </td>
                     <td className="px-6 py-4 text-gray-300 text-xs">
                       {new Date(acceptance.created_at).toLocaleString()}
@@ -493,7 +509,9 @@ export default function AdminLegalAcceptancesPage() {
               {t('adminLegalAcceptancesPage.previous')}
             </button>
             <div className="flex items-center gap-2">
-              {Array.from({ length: pages }, (_, i) => i + 1).map(p => (
+              {pageWindow(page, pages).map((p, idx) => p === 'ellipsis' ? (
+                <span key={`ellipsis-${idx}`} className="text-gray-500 text-sm">…</span>
+              ) : (
                 <button
                   key={p}
                   onClick={() => setPage(p)}

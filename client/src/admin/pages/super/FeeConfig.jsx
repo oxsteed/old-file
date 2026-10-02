@@ -7,11 +7,13 @@ import ConfirmDialog from '../../lib/ConfirmDialog';
 
 // Format helper
 const fmt = (row) => {
+  const parsed = parseFloat(row.value);
+  if (row.value == null || Number.isNaN(parsed)) return '—';
   if (row.value_type === 'percentage') {
-    return `${(parseFloat(row.value) * 100).toFixed(1)}%`;
+    return `${(parsed * 100).toFixed(1)}%`;
   }
   if (row.value_type === 'cents') {
-    return `$${(parseFloat(row.value) / 100).toFixed(2)}`;
+    return `$${(parsed / 100).toFixed(2)}`;
   }
   return row.value;
 };
@@ -44,7 +46,7 @@ function FeeRow({ row, onSave }) {
     } else if (row.value_type === 'cents') {
       setRawInput((parseFloat(row.value) / 100).toString());
     } else {
-      setRawInput(row.value.toString());
+      setRawInput(String(row.value ?? ''));
     }
     setReason('');
     setEditing(true);
@@ -54,13 +56,21 @@ function FeeRow({ row, onSave }) {
     const trimmed = rawInput.trim();
     const parsed = parseFloat(trimmed);
     if (!trimmed || Number.isNaN(parsed)) {
-      toast.error('Enter a valid number.');
+      toast.error(t('superFeeConfig.invalidNumber', { defaultValue: 'Enter a valid number.' }));
       return;
     }
     const sendValue = inputToStored(row, parsed);
     if ((row.min_value != null && sendValue < row.min_value)
       || (row.max_value != null && sendValue > row.max_value)) {
-      toast.error(`Value must be between ${storedToInput(row, row.min_value)} and ${storedToInput(row, row.max_value)}.`);
+      if (row.min_value != null && row.max_value != null) {
+        toast.error(t('superFeeConfig.valueOutOfRange', {
+          defaultValue: 'Value must be between {{min}} and {{max}}.',
+          min: storedToInput(row, row.min_value),
+          max: storedToInput(row, row.max_value),
+        }));
+      } else {
+        toast.error(t('superFeeConfig.valueOutsideRange', { defaultValue: 'Value is outside the allowed range.' }));
+      }
       return;
     }
     setConfirming(true);
@@ -164,8 +174,8 @@ function FeeRow({ row, onSave }) {
       )}
       <ConfirmDialog
         open={confirming}
-        title="Save fee change"
-        message={`Save this fee change for ${row.label}? This takes effect immediately.`}
+        title={t('superFeeConfig.confirmTitle', { defaultValue: 'Save fee change' })}
+        message={t('superFeeConfig.confirmMessage', { defaultValue: 'Save this fee change for {{label}}? This takes effect immediately.', label: row.label })}
         confirmLabel={t('superPlatformSettings.save')}
         onConfirm={doSave}
         onClose={() => setConfirming(false)}

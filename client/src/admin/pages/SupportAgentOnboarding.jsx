@@ -125,6 +125,12 @@ export default function SupportAgentOnboarding() {
         return;
       }
 
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+        setError(t('adminSupportOnboarding.errorInvalidEmail', { defaultValue: 'Enter a valid email address.' }));
+        setLoading(false);
+        return;
+      }
+
       if (formData.skills.length === 0) {
         setError(t('adminSupportOnboarding.errorSkillRequired'));
         setLoading(false);
