@@ -384,7 +384,7 @@ export default function FeeConfig() {
                 {t('superFeeConfig.trialBody', { days: Math.floor(trialDurationConfig.value) })}
               </p>
               <p className="text-xs text-blue-600">
-                {t('superFeeConfig.trialRange', { min: trialDurationConfig.min_value, max: trialDurationConfig.max_value })}
+                {t('superFeeConfig.trialRange', { min: Math.floor(Number(trialDurationConfig.min_value)), max: Math.floor(Number(trialDurationConfig.max_value)) })}
               </p>
             </div>
           </div>

@@ -354,7 +354,7 @@ function ConversionPolicySection({ restaurants }) {
         detail={t('adminConversionPolicyDetail')}
         action={
           <button type="button" onClick={loadPolicies} disabled={loading} className="inline-flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-900/70 px-4 py-3 text-sm font-semibold text-gray-200 hover:bg-gray-800 disabled:opacity-50">
-            <RefreshCw className={loading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} /> {t('common.retry')}
+            <RefreshCw className={loading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} /> {t('common.refresh')}
           </button>
         }
       />

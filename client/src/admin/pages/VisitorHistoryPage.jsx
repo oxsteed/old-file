@@ -72,8 +72,8 @@ export default function VisitorHistoryPage() {
     setLoading(true);
     setError('');
     Promise.all([
-      api.get('/analytics/admin/visitors', { params }),
-      api.get('/analytics/admin/visitors/summary', { params: { ...params, page: undefined, limit: undefined } }),
+      api.get('/analytics/admin/visitors', { params, timeout: 30000 }),
+      api.get('/analytics/admin/visitors/summary', { params: { ...params, page: undefined, limit: undefined }, timeout: 30000 }),
     ])
       .then(([listRes, summaryRes]) => {
         if (cancelled) return;
