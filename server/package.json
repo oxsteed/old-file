@@ -70,9 +70,9 @@
     "helmet": "^7.1.0",
     "ioredis": "^5.10.1",
     "jsonwebtoken": "^9.0.0",
-    "multer": "2.3.0",
+    "multer": "^2.4.0",
     "node-cron": "^4.2.1",
-    "nodemailer": "9.1.1",
+    "nodemailer": "^10.0.13",
     "pdfkit": "^0.15.0",
     "pg": "^8.11.0",
     "qrcode": "^1.5.3",
@@ -85,6 +85,8 @@
     "web-push": "^3.6.0"
   },
   "overrides": {
+    "axios": "1.20.0",
+    "engine.io": "6.6.10",
     "form-data": "4.0.6",
     "ws": "8.21.1",
     "qs": "6.16.0"
