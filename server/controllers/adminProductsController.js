@@ -83,7 +83,7 @@ async function createProduct(req, res) {
       return sendValidationError(res, errors);
     }
 
-    const product = await withTransaction(async (client) => {
+    const product = await withTransaction(pool, async (client) => {
       // Create product
       const result = await client.query(
         `INSERT INTO marketplace_products
@@ -149,7 +149,7 @@ async function updateProduct(req, res) {
       return sendValidationError(res, errors);
     }
 
-    const product = await withTransaction(async (client) => {
+    const product = await withTransaction(pool, async (client) => {
       // Update product
       const updates = [];
       const values = [productId];
@@ -248,7 +248,7 @@ async function deleteProduct(req, res) {
       return sendError(res, 400, 'Cannot delete product with active orders');
     }
 
-    await withTransaction(async (client) => {
+    await withTransaction(pool, async (client) => {
       // Delete product skills
       await client.query('DELETE FROM marketplace_product_skills WHERE product_id = $1', [productId]);
 

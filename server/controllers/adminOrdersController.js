@@ -127,9 +127,9 @@ async function getOrder(req, res) {
 
     const order = orderResult.rows[0];
 
-    if (order.status === 'refunded') {
-      return sendError(res, 409, 'Order has already been refunded');
-    }
+    // Refunded orders stay readable: operators must be able to investigate
+    // resolved financial cases. Mutations are disabled client-side for
+    // refunded status, so no 409 gate belongs on this read path.
 
     // Get order items
     const itemsResult = await pool.query(
@@ -226,7 +226,7 @@ async function markShipped(req, res) {
       return sendValidationError(res, { orderId: 'Invalid order ID' });
     }
 
-    const order = await withTransaction(async (client) => {
+    const order = await withTransaction(pool, async (client) => {
       const orderResult = await client.query(
         'SELECT * FROM marketplace_orders WHERE id = $1',
         [orderId]
@@ -258,7 +258,7 @@ async function markShipped(req, res) {
       );
 
       return updateResult.rows[0];
-    });
+    }, 'mark_order_shipped');
 
     logger.info('Order marked as shipped', { orderId, trackingNumber });
 
@@ -336,7 +336,7 @@ async function cancelOrder(req, res) {
       return sendValidationError(res, { orderId: 'Invalid order ID' });
     }
 
-    const order = await withTransaction(async (client) => {
+    const order = await withTransaction(pool, async (client) => {
       const orderResult = await client.query(
         'SELECT * FROM marketplace_orders WHERE id = $1',
         [orderId]
@@ -371,7 +371,7 @@ async function cancelOrder(req, res) {
       );
 
       return updateResult.rows[0];
-    });
+    }, 'cancel_order');
 
     logger.info('Order cancelled', { orderId, reason });
 
