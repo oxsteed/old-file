@@ -441,8 +441,9 @@ export default function ConsultingDashboard() {
   }
 
   const totalRevenue = stats?.total_revenue_cents ? `$${(stats.total_revenue_cents / 100).toLocaleString()}` : '$0';
-  const conversionRate = stats?.pending_requests && stats?.active_packages
-    ? `${Math.round((stats.active_packages / (stats.active_packages + stats.pending_requests)) * 100)}%`
+  const conversionDenominator = (stats?.active_packages || 0) + (stats?.pending_requests || 0);
+  const conversionRate = conversionDenominator > 0
+    ? `${Math.round(((stats.active_packages || 0) / conversionDenominator) * 100)}%`
     : 'N/A';
 
   return (

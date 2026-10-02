@@ -619,7 +619,7 @@ exports.getEnhancedDashboardStats = async (req, res) => {
 exports.listPurchases = async (req, res) => {
   try {
     const result = await db.query(`
-      SELECT cp.*, u.first_name, u.last_name, u.email, pkg.package_name, pkg.service_tier as package_tier
+      SELECT cp.*, u.first_name, u.last_name, u.email, pkg.name AS package_name, pkg.tier as package_tier, pkg.tier AS service_tier
       FROM consulting_purchases cp
       LEFT JOIN users u ON cp.user_id = u.id
       LEFT JOIN consulting_packages pkg ON cp.package_id = pkg.id
@@ -641,7 +641,7 @@ exports.listInvoices = async (req, res) => {
   try {
     const result = await db.query(`
       SELECT ci.*, u.first_name, u.last_name, u.email as client_email,
-             pkg.package_name, cp.service_tier
+             pkg.name AS package_name, pkg.tier AS service_tier
       FROM consulting_invoices ci
       LEFT JOIN consulting_purchases cp ON ci.purchase_id = cp.id
       LEFT JOIN users u ON ci.user_id = u.id
