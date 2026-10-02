@@ -655,6 +655,7 @@
   "adminReasonPlaceholder": "Pourquoi ce client est éligible pour ce partenaire",
   "adminPrevious": "Précédent",
   "adminNext": "Suivant",
+  "adminPageOf": "Page {{page}} sur {{total}}",
   "adminLimits": "Limites",
   "adminValidity": "Validité",
   "adminNoAccessMatches": "Aucun accès client-restaurant ne correspond à ces filtres.",

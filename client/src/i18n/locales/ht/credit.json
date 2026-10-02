@@ -655,6 +655,7 @@
   "adminReasonPlaceholder": "Poukisa kliyan sa a kalifye pou patnè sa a",
   "adminPrevious": "Anvan",
   "adminNext": "Pwochen",
+  "adminPageOf": "Paj {{page}} sou {{total}}",
   "adminLimits": "Limit",
   "adminValidity": "Validite",
   "adminNoAccessMatches": "Pa gen aksè kliyan-restoran ki koresponn ak filtè sa yo.",

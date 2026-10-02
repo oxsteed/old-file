@@ -655,6 +655,7 @@
   "adminReasonPlaceholder": "لماذا هذا العميل مؤهل لهذا الشريك",
   "adminPrevious": "السابق",
   "adminNext": "التالي",
+  "adminPageOf": "صفحة {{page}} من {{total}}",
   "adminLimits": "الحدود",
   "adminValidity": "الصلاحية",
   "adminNoAccessMatches": "لا يوجد وصول للعميل والمطعم يطابق هذه المرشحات.",

@@ -654,6 +654,7 @@
   "adminReasonPlaceholder": "Why this customer is eligible for this partner",
   "adminPrevious": "Previous",
   "adminNext": "Next",
+  "adminPageOf": "Page {{page}} of {{total}}",
   "adminLimits": "Limits",
   "adminValidity": "Validity",
   "adminNoAccessMatches": "No customer restaurant access matches these filters.",

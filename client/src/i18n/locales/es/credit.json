@@ -655,6 +655,7 @@
   "adminReasonPlaceholder": "Por qué este cliente es elegible para este socio",
   "adminPrevious": "Anterior",
   "adminNext": "Siguiente",
+  "adminPageOf": "Página {{page}} de {{total}}",
   "adminLimits": "Límites",
   "adminValidity": "Validez",
   "adminNoAccessMatches": "Ningún acceso de cliente y restaurante coincide con estos filtros.",
