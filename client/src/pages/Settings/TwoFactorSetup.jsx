@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { twoFactorAPI } from '../../api/twoFactor';
+import { twoFactorAPI, userPasskeyAPI } from '../../api/twoFactor';
 import { startRegistration } from '@simplewebauthn/browser';
 import toast from 'react-hot-toast';
 import { Shield, ShieldCheck, ShieldOff, ArrowLeft, Copy, RefreshCw } from 'lucide-react';
@@ -20,7 +20,18 @@ export default function TwoFactorSetup({ adminSetup = false }) {
   const [passkeys, setPasskeys] = useState([]);
   const [passkeyBusy, setPasskeyBusy] = useState(false);
 
-  useEffect(() => { fetchStatus(); if (adminSetup) fetchPasskeys(); }, [adminSetup]);
+  useEffect(() => { fetchStatus(); fetchPasskeys(); }, [adminSetup]);
+
+  const passkeyAPI = adminSetup ? twoFactorAPI : userPasskeyAPI;
+
+  const fetchPasskeys = async () => {
+    try {
+      const { data } = await passkeyAPI.listPasskeys();
+      setPasskeys(Array.isArray(data?.passkeys) ? data.passkeys : []);
+    } catch {
+      setPasskeys([]);
+    }
+  };
 
   const fetchStatus = async () => {
     try {
@@ -34,15 +45,6 @@ export default function TwoFactorSetup({ adminSetup = false }) {
     }
   };
 
-  const fetchPasskeys = async () => {
-    try {
-      const { data } = await twoFactorAPI.listPasskeys();
-      setPasskeys(Array.isArray(data?.passkeys) ? data.passkeys : []);
-    } catch {
-      setPasskeys([]);
-    }
-  };
-
   const handleRegisterPasskey = async () => {
     if (!window.PublicKeyCredential || passkeyBusy) {
       toast.error('This browser does not support passkeys.');
@@ -52,11 +54,11 @@ export default function TwoFactorSetup({ adminSetup = false }) {
     try {
       const deviceName = (window.prompt('Name this passkey (for example, MacBook Touch ID):') || '').trim();
       if (!deviceName) return;
-      const { data } = await twoFactorAPI.passkeyRegistrationOptions();
+      const { data } = await passkeyAPI.registrationOptions();
       const response = await startRegistration({ optionsJSON: data.options });
-      await twoFactorAPI.verifyPasskeyRegistration(response, deviceName);
+      await passkeyAPI.verifyRegistration(response, deviceName);
       await fetchPasskeys();
-      toast.success('Passkey registered. TOTP and backup codes remain available.');
+      toast.success(adminSetup ? 'Passkey registered. TOTP and backup codes remain available.' : 'Passkey registered. You can now sign in with it.');
     } catch (err) {
       if (err?.name !== 'NotAllowedError') {
         toast.error(err.response?.data?.error || 'Could not register this passkey.');
@@ -70,7 +72,7 @@ export default function TwoFactorSetup({ adminSetup = false }) {
     if (!passkey?.id || passkeyBusy || !window.confirm(`Revoke ${passkey.deviceName || 'this passkey'}?`)) return;
     setPasskeyBusy(true);
     try {
-      await twoFactorAPI.revokePasskey(passkey.id);
+      await passkeyAPI.revokePasskey(passkey.id);
       await fetchPasskeys();
       toast.success('Passkey revoked.');
     } catch (err) {
@@ -260,12 +262,11 @@ export default function TwoFactorSetup({ adminSetup = false }) {
                   </div>
                 </form>
               </div>
-              {adminSetup && (
-                <div className="space-y-3 border-t border-gray-800 pt-5">
-                  <div>
-                    <h3 className="text-white font-medium">Passkeys</h3>
-                    <p className="text-gray-400 text-sm">Use Touch ID, Face ID, Windows Hello, or a security key after password sign-in. TOTP remains your fallback.</p>
-                  </div>
+              <div className="space-y-3 border-t border-gray-800 pt-5">
+                <div>
+                  <h3 className="text-white font-medium">Passkeys</h3>
+                  <p className="text-gray-400 text-sm">{adminSetup ? 'Use Touch ID, Face ID, Windows Hello, or a security key after password sign-in. TOTP remains your fallback.' : 'Use Touch ID, Face ID, Windows Hello, or a security key to sign in without your password. Your password remains as a fallback.'}</p>
+                </div>
                   {passkeys.length > 0 && (
                     <div className="space-y-2">
                       {passkeys.map((passkey) => (
@@ -283,7 +284,6 @@ export default function TwoFactorSetup({ adminSetup = false }) {
                     {passkeyBusy ? 'Working...' : 'Register a passkey'}
                   </button>
                 </div>
-              )}
             </div>
           )}
 

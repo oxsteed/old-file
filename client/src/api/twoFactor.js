@@ -26,4 +26,13 @@ export const twoFactorAPI = {
   revokePasskey: (id) => api.delete(`/2fa/passkeys/${id}`),
 };
 
+export const userPasskeyAPI = {
+  listPasskeys: () => api.get('/passkeys'),
+  registrationOptions: () => api.post('/passkeys/registration/options'),
+  verifyRegistration: (response, deviceName) => api.post('/passkeys/registration/verify', { response, deviceName }),
+  revokePasskey: (id) => api.delete(`/passkeys/${id}`),
+  authenticationOptions: (email) => api.post('/passkeys/authentication/options', { email }),
+  verifyAuthentication: (token, response) => api.post('/passkeys/authentication/verify', { token, response }),
+};
+
 export default twoFactorAPI;

@@ -3,7 +3,9 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { Eye, EyeOff, ArrowRight, MapPin, Briefcase, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, MapPin, Briefcase, ShieldCheck, KeyRound } from 'lucide-react';
+import { startAuthentication } from '@simplewebauthn/browser';
+import { userPasskeyAPI } from '../api/twoFactor';
 import Footer from '../components/Footer';
 import AuthNavbar from '../components/AuthNavbar';
 import { resolveAuthReturnPath } from '../utils/authReturnPath';
@@ -56,6 +58,7 @@ export default function Login() {
   const [mfaToken, setMfaToken]           = useState(null);
   const [twoFactorCode, setTwoFactorCode] = useState('');
   const [loading, setLoading]           = useState(false);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
 
   const { login, completeTwoFactor } = useAuth();
   const navigate  = useNavigate();
@@ -78,6 +81,30 @@ export default function Login() {
 
     toast.success(t('login.welcomeBackToast'));
     navigate(from, { replace: true });
+  };
+
+  const handlePasskeySignIn = async () => {
+    if (!email.trim() || passkeyLoading) {
+      if (!email.trim()) toast.error(t('login.emailRequired'));
+      return;
+    }
+    if (!window.PublicKeyCredential) {
+      toast.error(t('login.passkeyUnsupported'));
+      return;
+    }
+    setPasskeyLoading(true);
+    try {
+      const { data } = await userPasskeyAPI.authenticationOptions(email.trim());
+      const response = await startAuthentication({ optionsJSON: data.options });
+      const result = await userPasskeyAPI.verifyAuthentication(data.token, response);
+      finishLogin(result?.data || result);
+    } catch (err) {
+      if (err?.name !== 'NotAllowedError') {
+        toast.error(err.response?.data?.error || t('login.passkeyFailed'));
+      }
+    } finally {
+      setPasskeyLoading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -449,6 +476,18 @@ export default function Login() {
                   </>
                 )}
               </button>
+
+              {!mfaToken && (
+                <button
+                  type="button"
+                  onClick={handlePasskeySignIn}
+                  disabled={passkeyLoading || loading || !email.trim()}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 border border-gray-700 hover:border-gray-500 text-[var(--color-text)] font-semibold rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
+                >
+                  <KeyRound size={18} />
+                  {passkeyLoading ? t('login.passkeyWorking') : t('login.signInWithPasskey')}
+                </button>
+              )}
             </form>
 
             {/* Divider */}

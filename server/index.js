@@ -464,6 +464,8 @@ app.use('/api/privacy', privacyRoutes);
 app.use('/api/config', configRoutes);
 app.use('/api/2fa', twoFactorRoutes);
 app.use('/api/2fa/passkeys', passkeyRoutes);
+const userPasskeyRoutes = require('./routes/userPasskeys');
+app.use('/api/passkeys', userPasskeyRoutes);
 app.use('/api/helper-registration', helperRegistrationRoutes);
 app.use('/api/auth/helper/register', helperRegistrationRoutes); // alias for frontend
 app.use('/api/subscription/background-check', verificationRoutes);
