@@ -543,14 +543,32 @@ exports.claimTicket = async (req, res) => {
       return res.status(403).json({ error: 'Ticket is assigned to another admin. Only a super admin can take over.' });
     }
 
-    await db.query(
+    // T10-F01: atomic claim. The UPDATE re-asserts eligibility (unassigned,
+    // self, or super takeover; not closed) so a competing claim that landed
+    // after our read cannot be silently overwritten. Zero rows = lost race.
+    const { rows: claimed } = await db.query(
       `UPDATE support_tickets
           SET assigned_to = $1, assigned_at = NOW(),
               status = CASE WHEN status = 'open' THEN 'assigned' ELSE status END,
               updated_at = NOW()
-        WHERE id = $2`,
-      [req.user.id, ticket.id]
+        WHERE id = $2
+          AND status NOT IN ('resolved', 'closed')
+          AND (assigned_to IS NULL OR assigned_to = $1 OR $3::boolean IS TRUE)
+        RETURNING id`,
+      [req.user.id, ticket.id, !!req.isSuper]
     );
+
+    if (!claimed.length) {
+      const { rows: fresh } = await db.query(
+        `SELECT assigned_to FROM support_tickets WHERE id = $1`,
+        [ticket.id]
+      );
+      if (!fresh.length) return res.status(404).json({ error: 'Ticket not found.' });
+      if (fresh[0].assigned_to && fresh[0].assigned_to !== req.user.id) {
+        return res.status(409).json({ error: 'Ticket was claimed by another admin.' });
+      }
+      return res.status(409).json({ error: 'Ticket could not be claimed. It may have been closed.' });
+    }
 
     const updated = await fetchTicketRow(ticket.id);
     notifyAdmins('support:ticket_claimed', {
@@ -583,14 +601,22 @@ exports.unclaimTicket = async (req, res) => {
       return res.status(403).json({ error: 'You can only unclaim your own tickets.' });
     }
 
-    await db.query(
+    // T10-F01: atomic release. The UPDATE re-asserts ownership so a concurrent
+    // claim/takeover is not silently undone.
+    const { rows: released } = await db.query(
       `UPDATE support_tickets
           SET assigned_to = NULL, assigned_at = NULL,
               status = CASE WHEN status = 'assigned' THEN 'open' ELSE status END,
               updated_at = NOW()
-        WHERE id = $1`,
-      [ticket.id]
+        WHERE id = $1
+          AND (assigned_to = $2 OR $3::boolean IS TRUE)
+        RETURNING id`,
+      [ticket.id, req.user.id, !!req.isSuper]
     );
+
+    if (!released.length) {
+      return res.status(409).json({ error: 'Ticket assignment changed. Please refresh.' });
+    }
 
     const updated = await fetchTicketRow(ticket.id);
     notifyAdmins('support:ticket_updated', {
