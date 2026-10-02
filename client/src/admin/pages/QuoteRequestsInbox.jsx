@@ -87,7 +87,7 @@ export default function QuoteRequestsInbox() {
     reload: reloadDetail,
   } = useAbortableFetch(async (signal) => {
     if (!selectedId) return null;
-    const { data } = await adminApi.get(`/quote-requests/${selectedId}`, { signal });
+    const { data } = await adminApi.get(`/quote-requests/admin/${selectedId}`, { signal });
     return data;
   }, [selectedId]);
 

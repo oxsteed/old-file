@@ -282,7 +282,22 @@ async function supportConversationStats(businessId) {
 router.get('/conversations', async (req, res, next) => {
   try {
     const businessId = await resolveSupportBusinessId(req);
-    const isPlatformAdmin = ['admin', 'super_admin'].includes(req.user.role);
+    // T11-F01: platform-wide conversation access requires the manage_support
+    // grant, not just an admin role. Grantless admins fall through to the
+    // customer-only view below.
+    const isSuper = req.user.role === 'super_admin';
+    let hasSupportGrant = isSuper;
+    if (!hasSupportGrant && req.user.role === 'admin') {
+      const { rows } = await db.query(
+        `SELECT 1 FROM admin_permission_grants
+         WHERE grantee_id = $1 AND permissions ? 'manage_support'
+           AND expires_at > NOW() AND revoked_at IS NULL AND region_id IS NULL
+         LIMIT 1`,
+        [req.user.id]
+      );
+      hasSupportGrant = rows.length > 0;
+    }
+    const isPlatformAdmin = hasSupportGrant;
     const platformAgent = isPlatformAdmin
       ? null
       : await supportEmployerService.findPlatformAgent(req.user.id);

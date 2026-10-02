@@ -604,15 +604,32 @@ exports.getQuoteRequest = async (req, res) => {
 
     const request = result.rows[0];
     const isOwner = req.user?.id && request.user_id && String(request.user_id) === String(req.user.id);
-    const isPrivileged = req.user?.role === 'admin' || req.user?.role === 'super_admin';
 
-    if (!isOwner && !isPrivileged) {
+    if (!isOwner) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
     return res.json(request);
   } catch (err) {
     logger.error('Error fetching quote request', { error: err.message, id: req.params.id });
+    return res.status(500).json({ error: 'Failed to fetch quote request' });
+  }
+};
+
+// T12-F01: administrative detail. The manage_operations grant is enforced by
+// route middleware; this handler serves any quote to a grant-holder.
+exports.getQuoteRequestAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await db.query('SELECT * FROM quote_requests WHERE id = $1', [id]);
+
+    if (!result.rows.length) {
+      return res.status(404).json({ error: 'Quote request not found' });
+    }
+
+    return res.json(result.rows[0]);
+  } catch (err) {
+    logger.error('Error fetching quote request (admin)', { error: err.message, id: req.params.id });
     return res.status(500).json({ error: 'Failed to fetch quote request' });
   }
 };

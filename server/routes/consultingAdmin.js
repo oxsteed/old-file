@@ -19,12 +19,15 @@ router.post('/assign', ...auth, adminConsultingController.assignConsultantToRequ
 router.get('/consultants', ...auth, adminConsultingController.getAvailableConsultants);
 
 // Invoices & packages
-router.post('/invoices/generate', ...auth, requirePermission('view_financials'), adminConsultingController.generateInvoice);
-router.post('/invoices/generate-manual', ...auth, requirePermission('view_financials'), adminConsultingController.generateManualInvoice);
+// T25-F01: invoice generation creates records (write), so it requires the
+// operations write grant, not the read-only view_financials.
+router.post('/invoices/generate', ...auth, requirePermission('manage_operations'), adminConsultingController.generateInvoice);
+router.post('/invoices/generate-manual', ...auth, requirePermission('manage_operations'), adminConsultingController.generateManualInvoice);
 router.get('/invoices/:invoiceId/download', ...auth, requirePermission('view_financials'), adminConsultingController.downloadInvoice);
 router.get('/invoices', ...auth, requirePermission('view_financials'), adminConsultingController.listInvoices);
 router.get('/purchases', ...auth, requirePermission('view_financials'), adminConsultingController.listPurchases);
-router.patch('/packages/:id', ...auth, adminConsultingController.updatePackage);
+// T25-F01: package changes alter what customers pay; require the grant.
+router.patch('/packages/:id', ...auth, requirePermission('manage_operations'), adminConsultingController.updatePackage);
 
 // Sessions management
 router.get('/sessions', ...auth, adminConsultingController.listSessions);
