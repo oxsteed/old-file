@@ -37,6 +37,7 @@ const {
 } = require('../services/oxsteedCreditAdminService');
 const { getReserveStatus } = require('../services/oxsteedCreditReserveService');
 const { startOfUtcDay, nextBusinessDay } = require('../services/oxsteedCreditSettlementCalendar');
+const { skipCreditJobWhenRailDisabled } = require('../services/oxsteedCreditService');
 
 const JOB_NAME = 'oxsteed-credit-settlement-cycle';
 const CRON_EXPRESSION = process.env.OXSTEED_CREDIT_SETTLEMENT_CRON || '5 0 * * *';
@@ -455,6 +456,9 @@ async function recordReserveIncident({ type, severity, message, dedupeKey, detai
 }
 
 async function runOxsteedCreditSettlementCycle({ now = new Date(), runReserveMonitor = true } = {}) {
+  if (await skipCreditJobWhenRailDisabled(JOB_NAME)) {
+    return { skipped: 'rail_disabled' };
+  }
   // Fail-open on the rail toggle: a scheduled job must not page nightly
   // while the rail is intentionally off. Checked before the lock so an
   // off rail never contends or records heartbeats.

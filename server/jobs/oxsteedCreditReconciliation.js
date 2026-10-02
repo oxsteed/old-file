@@ -7,6 +7,7 @@ const { SUPPORTED_CREDIT_CURRENCIES = ['USD'] } = require('../services/oxsteedCr
 const incidentStore = require('../services/incidentStore');
 const { withFencedJobLock } = require('./jobLockingService');
 const { recordOxsteedCreditWorkerRun } = require('../services/oxsteedCreditWorkerHeartbeat');
+const { skipCreditJobWhenRailDisabled } = require('../services/oxsteedCreditService');
 
 const CRON_EXPRESSION = '10 2 * * *';
 const CRON_TIMEZONE = 'UTC';
@@ -172,6 +173,9 @@ async function runOxsteedCreditReconciliation({ now = new Date(), currencyCode =
 }
 
 async function runOxsteedCreditReconciliations({ now = new Date(), currencyCodes = CURRENCY_CODES } = {}) {
+  if (await skipCreditJobWhenRailDisabled(JOB_NAME)) {
+    return { skipped: 'rail_disabled' };
+  }
   const period = previousUtcDay(now);
   const results = [];
   let locked = false;

@@ -27,6 +27,13 @@ jest.mock('../services/oxsteedCreditWorkerHeartbeat', () => ({
   recordOxsteedCreditWorkerRun: jest.fn().mockResolvedValue({ persisted: true }),
 }));
 
+jest.mock('../services/oxsteedCreditService', () => {
+  // Rail guard pinned to "enabled": these suites exercise job logic, not the
+  // rail-disabled skip path (covered in oxsteedCreditRailDisabled.test.js).
+  const actual = jest.requireActual('../services/oxsteedCreditService');
+  return { ...actual, skipCreditJobWhenRailDisabled: jest.fn().mockResolvedValue(false) };
+});
+
 const { expireCreditAgreements, expireCreditEntitlements } = require('../services/oxsteedCreditAdminService');
 const { withFencedJobLock } = require('../jobs/jobLockingService');
 const {

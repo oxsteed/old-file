@@ -6,6 +6,7 @@ const { expireCreditTopups } = require('../services/oxsteedCreditTopupService');
 const { withFencedJobLock } = require('./jobLockingService');
 const { recordOxsteedCreditJobFailure } = require('./oxsteedCreditJobFailure');
 const { recordOxsteedCreditWorkerRun } = require('../services/oxsteedCreditWorkerHeartbeat');
+const { skipCreditJobWhenRailDisabled } = require('../services/oxsteedCreditService');
 
 // Run every minute, offset from the hold-expiry worker (second 10) to avoid
 // a connection-pool burst at the minute boundary.
@@ -13,6 +14,9 @@ const CRON_EXPRESSION = '20 * * * * *';
 const JOB_NAME = 'oxsteed-credit-topup-expiry';
 
 async function runOxsteedCreditTopupExpiry() {
+  if (await skipCreditJobWhenRailDisabled(JOB_NAME)) {
+    return { skipped: 'rail_disabled' };
+  }
   let result = { count: 0, expired: [] };
   let lockAcquired = false;
   try {

@@ -5,6 +5,7 @@ const db = require('../db');
 const logger = require('../utils/logger');
 const incidentStore = require('../services/incidentStore');
 const { withFencedJobLock } = require('./jobLockingService');
+const { skipCreditJobWhenRailDisabled } = require('../services/oxsteedCreditService');
 const {
   NOTIFICATION_WORKER_NAME,
   HOLD_EXPIRY_WORKER_NAME,
@@ -117,6 +118,9 @@ async function checkNotificationBacklog() {
 }
 
 async function runOxsteedCreditWorkerWatchdog() {
+  if (await skipCreditJobWhenRailDisabled(JOB_NAME)) {
+    return { skipped: 'rail_disabled' };
+  }
   let locked = false;
   let result = {
     status: 'skipped',

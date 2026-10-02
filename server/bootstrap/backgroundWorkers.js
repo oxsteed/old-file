@@ -31,6 +31,7 @@ const { startDirectSlotHoldExpiryJob } = require('../jobs/directSlotHoldExpiry')
 const { startOxsteedCreditEntitlementExpiryJob } = require('../jobs/oxsteedCreditEntitlementExpiry');
 const { startOxsteedCreditReconciliationJob } = require('../jobs/oxsteedCreditReconciliation');
 const { startOxsteedCreditTopupExpiryJob } = require('../jobs/oxsteedCreditTopupExpiry');
+const { startOxsteedCreditDualPostingBackfillJob } = require('../jobs/oxsteedCreditDualPostingBackfill');
 const { startOxsteedCreditExternalReconciliationJob } = require('../jobs/oxsteedCreditExternalReconciliation');
 const { startOxsteedCreditComplianceMonitorJob } = require('../jobs/oxsteedCreditComplianceMonitor');
 const { startOxsteedCreditDisputeMonitorJob } = require('../jobs/oxsteedCreditDisputeMonitor');
@@ -95,6 +96,7 @@ class BackgroundWorkers {
       startOxsteedCreditEntitlementExpiryJob();
       startOxsteedCreditReconciliationJob();
     startOxsteedCreditTopupExpiryJob();
+      startOxsteedCreditDualPostingBackfillJob();
       startOxsteedCreditExternalReconciliationJob();
       startOxsteedCreditComplianceMonitorJob();
       startOxsteedCreditDisputeMonitorJob();

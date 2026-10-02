@@ -10,6 +10,7 @@ const { recordOxsteedCreditJobFailure } = require('./oxsteedCreditJobFailure');
 const incidentStore = require('../services/incidentStore');
 const { recordOxsteedCreditWorkerRun } = require('../services/oxsteedCreditWorkerHeartbeat');
 const { NOTIFICATION_BACKLOG_STALE_AFTER_MINUTES } = require('../services/oxsteedCreditWorkerConfig');
+const { skipCreditJobWhenRailDisabled } = require('../services/oxsteedCreditService');
 
 // Run every minute, offset from the other maintenance workers to avoid a
 // connection-pool burst at the minute boundary.
@@ -233,6 +234,9 @@ async function purgeSentCreditNotifications(limit = 1000, retentionDays = getSen
 }
 
 async function runOxsteedCreditNotificationOutbox() {
+  if (await skipCreditJobWhenRailDisabled(JOB_NAME)) {
+    return { skipped: 'rail_disabled' };
+  }
   let result = { claimed: 0, sent: 0, retried: 0, failed: 0, purged: 0 };
   let lockAcquired = false;
   try {

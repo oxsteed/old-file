@@ -38,10 +38,12 @@
 
 const { AppError } = require('../middleware/errorHandler');
 const logger = require('../utils/logger');
+const { withTransaction } = require('../utils/transaction');
 const {
   ensureAccount,
   postJournalTransaction,
-  assertCreditRailEnabled,
+  isCreditRailEnabled,
+  assertCreditRailNotFrozen,
   assertSupportedCreditCurrency,
 } = require('./oxsteedCreditService');
 
@@ -170,11 +172,67 @@ async function findCentralTransactionByIdempotencyKey(client, idempotencyKey) {
 }
 
 /**
+ * Queue a dual-posting for replay when the credit rail is re-enabled.
+ * Called with the caller's transaction client, so the marker is atomic
+ * with the food-wallet ledger write: both commit or both roll back.
+ * Idempotent on the deterministic dual-posting key: a retry of the same
+ * wallet entry can never queue twice.
+ */
+async function insertDualPostingBackfill(client, {
+  ledgerEntryId,
+  restaurantId,
+  customerId,
+  currencyCode,
+  amountCents,
+  entryType,
+  referenceType,
+  referenceId,
+  actorType = 'system',
+  actorUserId = null,
+  createdByUserId = null,
+  correlationId = null,
+  requestIp = null,
+  metadata = {},
+}) {
+  const idempotencyKey = dualPostingIdempotencyKey(ledgerEntryId);
+  await client.query(
+    `INSERT INTO credit_dual_posting_backfill
+       (idempotency_key, ledger_entry_id, restaurant_id, customer_id, currency_code,
+        amount_cents, entry_type, reference_type, reference_id,
+        actor_type, actor_user_id, created_by_user_id, correlation_id, request_ip, metadata)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb)
+     ON CONFLICT (idempotency_key) DO NOTHING`,
+    [
+      idempotencyKey,
+      String(ledgerEntryId),
+      String(restaurantId),
+      customerId == null ? null : String(customerId),
+      currencyCode,
+      Math.round(Number(amountCents || 0)),
+      entryType,
+      referenceType,
+      referenceId == null ? null : String(referenceId),
+      actorType,
+      actorUserId,
+      createdByUserId,
+      correlationId,
+      requestIp,
+      JSON.stringify(metadata && typeof metadata === 'object' ? metadata : {}),
+    ]
+  );
+  return idempotencyKey;
+}
+/**
  * Dual-post one food-wallet ledger entry to the central journal.
  *
  * Must be called with the caller's transaction client, AFTER the wallet
  * ledger row is written and BEFORE commit, so both writes are atomic.
- * Returns { posted, skipped?, replayed?, transaction? }.
+ * Returns { posted, skipped?, backfilled?, transaction? }.
+ *
+ * Rail kill switch (migration 422, reworked migration 655): when the rail
+ * is disabled the wallet write FAILS OPEN — the marker is queued in
+ * credit_dual_posting_backfill in the same transaction and replayed when
+ * the rail is re-enabled. A frozen rail still fails closed.
  */
 async function postFoodWalletDualEntry(client, {
   ledgerEntryId,
@@ -197,9 +255,32 @@ async function postFoodWalletDualEntry(client, {
     return { posted: false, skipped: 'transfer_aggregate_unchanged' };
   }
 
-  // Rail kill switch (migration 422): fail closed. The caller runs in the
-  // same transaction, so this rolls back the food-wallet write too.
-  await assertCreditRailEnabled(client);
+  // Rail kill switch: fail OPEN with backfill when disabled. The caller runs
+  // in the same transaction, so the wallet write and the backfill marker
+  // commit atomically. A frozen rail still fails closed.
+  if (!(await isCreditRailEnabled(client))) {
+    await insertDualPostingBackfill(client, {
+      ledgerEntryId,
+      restaurantId,
+      customerId,
+      currencyCode,
+      amountCents,
+      entryType,
+      referenceType,
+      referenceId,
+      actorType,
+      actorUserId,
+      createdByUserId,
+      correlationId,
+      requestIp,
+      metadata,
+    });
+    logger.info('[SubBank] rail disabled: wallet write proceeds, dual-post queued for backfill', {
+      ledgerEntryId: String(ledgerEntryId),
+    });
+    return { posted: false, backfilled: true, reason: 'credit_rail_suspended' };
+  }
+  await assertCreditRailNotFrozen(client);
 
   const normalizedRestaurantId = parseRestaurantId(restaurantId);
   const currency = assertSupportedCreditCurrency(currencyCode);
@@ -363,6 +444,85 @@ async function getRestaurantWalletOutstanding(client, { restaurantId = null, cur
   return rows;
 }
 
+const MAX_BACKFILL_ATTEMPTS = 5;
+
+/**
+ * Replay queued dual-postings once the credit rail is re-enabled.
+ *
+ * Drains pending credit_dual_posting_backfill rows through
+ * postFoodWalletDualEntry, which resolves to the same deterministic
+ * idempotency key, so replays can never double-post. Rows that fail are
+ * retried up to MAX_BACKFILL_ATTEMPTS, then parked as 'failed' for
+ * operator review. No-op while the rail is disabled.
+ */
+async function replayDualPostingBackfill(pool, { limit = 100 } = {}) {
+  if (!(await isCreditRailEnabled(pool))) {
+    return { replayed: 0, failed: 0, skipped: 'rail_disabled' };
+  }
+  const bound = Math.min(500, Math.max(1, Number(limit) || 100));
+  let replayed = 0;
+  let failed = 0;
+  let parked = 0;
+  await withTransaction(pool, async (client) => {
+    const { rows } = await client.query(
+      `SELECT *
+         FROM credit_dual_posting_backfill
+        WHERE status = 'pending'
+        ORDER BY created_at ASC
+        LIMIT $1
+        FOR UPDATE SKIP LOCKED`,
+      [bound]
+    );
+    for (const row of rows) {
+      try {
+        await postFoodWalletDualEntry(client, {
+          ledgerEntryId: row.ledger_entry_id,
+          restaurantId: row.restaurant_id,
+          customerId: row.customer_id,
+          currencyCode: row.currency_code,
+          amountCents: Number(row.amount_cents),
+          entryType: row.entry_type,
+          referenceType: row.reference_type,
+          referenceId: row.reference_id,
+          actorType: row.actor_type,
+          actorUserId: row.actor_user_id,
+          createdByUserId: row.created_by_user_id,
+          correlationId: row.correlation_id,
+          requestIp: row.request_ip,
+          metadata: row.metadata || {},
+        });
+        await client.query(
+          `UPDATE credit_dual_posting_backfill
+              SET status = 'processed', processed_at = NOW(), attempts = attempts + 1
+            WHERE id = $1`,
+          [row.id]
+        );
+        replayed += 1;
+      } catch (err) {
+        const message = String((err && err.message) || err).slice(0, 2000);
+        const attempts = Number(row.attempts || 0) + 1;
+        const nextStatus = attempts >= MAX_BACKFILL_ATTEMPTS ? 'failed' : 'pending';
+        await client.query(
+          `UPDATE credit_dual_posting_backfill
+              SET status = $2, attempts = $3, last_error = $4
+            WHERE id = $1`,
+          [row.id, nextStatus, attempts, message]
+        );
+        if (nextStatus === 'failed') parked += 1; else failed += 1;
+        logger.error('[SubBank] dual-posting backfill replay failed', {
+          backfillId: row.id,
+          ledgerEntryId: row.ledger_entry_id,
+          attempts,
+          nextStatus,
+          message,
+        });
+      }
+    }
+  }, 'dual-posting-backfill-replay');
+  if (replayed) logger.info('[SubBank] dual-posting backfill replayed', { replayed, failed, parked });
+  return { replayed, failed, parked };
+}
+
 module.exports = {
   SUB_BANK_ACCOUNT_TYPE,
   SUB_BANK_LOAD,
@@ -374,5 +534,7 @@ module.exports = {
   ensureRestaurantSubBankAccount,
   dualPostingIdempotencyKey,
   postFoodWalletDualEntry,
+  replayDualPostingBackfill,
+  insertDualPostingBackfill,
   getRestaurantWalletOutstanding,
 };

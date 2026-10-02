@@ -25,6 +25,13 @@ jest.mock('../jobs/jobLockingService', () => {
   };
 });
 
+jest.mock('../services/oxsteedCreditService', () => {
+  // Rail guard pinned to "enabled": these suites exercise job logic, not the
+  // rail-disabled skip path (covered in oxsteedCreditRailDisabled.test.js).
+  const actual = jest.requireActual('../services/oxsteedCreditService');
+  return { ...actual, skipCreditJobWhenRailDisabled: jest.fn().mockResolvedValue(false) };
+});
+
 const db = require('../db');
 const { recordIncident, resolveOpenIncidentsByDedupeKeys } = require('../services/incidentStore');
 const { withFencedJobLock } = require('../jobs/jobLockingService');

@@ -6,6 +6,7 @@ const { verifyEntryHashes } = require('../scripts/verify-oxsteed-credit');
 const incidentStore = require('../services/incidentStore');
 const { withFencedJobLock } = require('./jobLockingService');
 const { recordOxsteedCreditWorkerRun } = require('../services/oxsteedCreditWorkerHeartbeat');
+const { skipCreditJobWhenRailDisabled } = require('../services/oxsteedCreditService');
 
 const JOB_NAME = 'oxsteed-credit-integrity';
 const CRON_EXPRESSION = '40 2 * * *';
@@ -72,6 +73,9 @@ async function verifyCreditLedger() {
 }
 
 async function runOxsteedCreditIntegrity() {
+  if (await skipCreditJobWhenRailDisabled(JOB_NAME)) {
+    return { skipped: 'rail_disabled' };
+  }
   let result = { ok: false, verification: null, incident: null };
   let locked = false;
   try {

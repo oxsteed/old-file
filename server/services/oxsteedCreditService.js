@@ -316,6 +316,21 @@ async function assertCreditRailEnabled(client, { bypassFreeze = false } = {}) {
 }
 
 /**
+ * Worker guard: credit jobs should skip quietly when the rail is disabled
+ * instead of raising critical incidents. A disabled rail is an operator
+ * state, not a failure — there is no credit activity to process.
+ * Returns true when the caller should skip its run.
+ */
+async function skipCreditJobWhenRailDisabled(jobName) {
+  const enabled = await isCreditRailEnabled(pool);
+  if (!enabled) {
+    logger.info('[Credit] worker skipped: rail disabled', { jobName });
+    return true;
+  }
+  return false;
+}
+
+/**
  * Phase 4 operator freeze (migration 637). Distinct from the rail
  * enabled/suspended kill switch: a freeze is engaged automatically by a
  * material external-reconciliation finding, or manually by a super-admin,
@@ -3414,6 +3429,7 @@ module.exports = {
   isCreditRailEnabled,
   assertCreditRailEnabled,
   assertCreditRailNotFrozen,
+  skipCreditJobWhenRailDisabled,
   isCreditRailFrozen,
   getOpenCreditRailFreeze,
   freezeCreditRail,

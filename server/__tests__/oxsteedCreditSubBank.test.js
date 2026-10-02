@@ -63,6 +63,7 @@ function makeDualPostMock({ railEnabled = true, existingPartner = null, failOn =
   const treasury = makeAccount({ id: 200, accountType: 'platform_treasury', balanceCents: 1000000 });
   const payable = makeAccount({ id: 300, accountType: 'partner_payable', partnerId: 41, balanceCents: 0 });
   const issued = [];
+  const backfilled = [];
 
   const mockQuery = jest.fn(async (text, params = []) => {
     const sql = String(text);
@@ -99,6 +100,31 @@ function makeDualPostMock({ railEnabled = true, existingPartner = null, failOn =
       const all = [subBank, treasury, payable].filter((account) => requestedIds.has(String(account.id)));
       return { rows: all.sort((a, b) => a.id - b.id) };
     }
+    if (sql.includes('INSERT INTO credit_dual_posting_backfill')) {
+      const seen = new Set(backfilled.map((r) => r.idempotency_key));
+      if (!seen.has(params[0])) {
+        backfilled.push({
+          idempotency_key: params[0],
+          ledger_entry_id: params[1],
+          restaurant_id: params[2],
+          customer_id: params[3],
+          currency_code: params[4],
+          amount_cents: params[5],
+          entry_type: params[6],
+          reference_type: params[7],
+          reference_id: params[8],
+          actor_type: params[9],
+          actor_user_id: params[10],
+          created_by_user_id: params[11],
+          correlation_id: params[12],
+          request_ip: params[13],
+          metadata: JSON.parse(params[14] || '{}'),
+          status: 'pending',
+          attempts: 0,
+        });
+      }
+      return { rows: [], rowCount: 1 };
+    }
     if (sql.includes('INSERT INTO oxsteed_credit_transactions')) {
       const row = {
         id: 5000 + issued.length,
@@ -130,7 +156,7 @@ function makeDualPostMock({ railEnabled = true, existingPartner = null, failOn =
     if (sql.includes('oxsteed_credit_notifications')) return { rows: [] };
     return { rows: [], rowCount: 0 };
   });
-  return { mockQuery, issued, subBank, treasury, payable };
+  return { mockQuery, issued, backfilled, subBank, treasury, payable };
 }
 
 function makeDualPostInput(overrides = {}) {
@@ -284,12 +310,34 @@ describe('postFoodWalletDualEntry', () => {
     expect(mockQuery.mock.calls.some(([sql]) => sql.includes('INSERT INTO oxsteed_credit_transactions'))).toBe(false);
   });
 
-  test('disabled credit rail throws 503 before any account work (fail closed)', async () => {
-    const { mockQuery, issued } = makeDualPostMock({ railEnabled: false });
-    await expect(postFoodWalletDualEntry({ query: mockQuery }, makeDualPostInput()))
-      .rejects.toMatchObject({ statusCode: 503, code: 'credit_rail_suspended' });
+  test('disabled credit rail fails OPEN: wallet write proceeds, dual-post queued for backfill', async () => {
+    const { mockQuery, issued, backfilled } = makeDualPostMock({ railEnabled: false });
+    const result = await postFoodWalletDualEntry({ query: mockQuery }, makeDualPostInput());
+    expect(result.posted).toBe(false);
+    expect(result.backfilled).toBe(true);
+    expect(result.reason).toBe('credit_rail_suspended');
     expect(issued).toHaveLength(0);
+    expect(backfilled).toHaveLength(1);
+    expect(backfilled[0]).toMatchObject({
+      ledger_entry_id: '7001',
+      restaurant_id: String(RESTAURANT_ID),
+      currency_code: CURRENCY,
+      amount_cents: 500,
+      entry_type: 'credit',
+      reference_type: 'merchant_load',
+      status: 'pending',
+    });
+    expect(backfilled[0].idempotency_key).toBe('food-wallet-ledger:7001:central');
+    // No account provisioning or journal work happens on the fail-open path.
     expect(mockQuery.mock.calls.some(([sql]) => sql.includes('FROM oxsteed_credit_partners'))).toBe(false);
+  });
+
+  test('backfill queueing is idempotent on the deterministic dual-posting key', async () => {
+    const { mockQuery, backfilled } = makeDualPostMock({ railEnabled: false });
+    const input = makeDualPostInput();
+    await postFoodWalletDualEntry({ query: mockQuery }, input);
+    await postFoodWalletDualEntry({ query: mockQuery }, input);
+    expect(backfilled).toHaveLength(1);
   });
 
   test('unmapped reference type throws and never touches the rail', async () => {
@@ -358,14 +406,14 @@ describe('postFoodWalletDualEntry', () => {
 });
 
 describe('dual-posting atomicity with the food-wallet write', () => {
-  function makeWalletClient({ failOn = null } = {}) {
+  function makeWalletClient({ failOn = null, railEnabled = true } = {}) {
     const account = {
       id: 11, restaurant_id: RESTAURANT_ID, customer_id: CUSTOMER_ID,
       currency_code: CURRENCY, balance_cents: 1000, reserved_cents: 0,
       status: 'active', ledger_version: 0, last_entry_hash: null,
     };
     const ledgerEntry = { id: 7001 };
-    const dual = makeDualPostMock({ failOn });
+    const dual = makeDualPostMock({ failOn, railEnabled });
     const query = jest.fn(async (text, params = []) => {
       const sql = String(text);
       if (sql.includes('INSERT INTO food_customer_wallet_accounts')) return { rows: [] };
@@ -431,15 +479,9 @@ describe('dual-posting atomicity with the food-wallet write', () => {
     expect(failedJournalIndex).toBeGreaterThan(walletInsertIndex);
   });
 
-  test('a disabled rail blocks the food-wallet write with 503 (fail closed)', async () => {
-    const { query } = makeWalletClient();
-    const dual = makeDualPostMock({ railEnabled: false });
-    const routingQuery = jest.fn(async (text, params = []) => {
-      const sql = String(text);
-      if (sql.includes('feature_flags') || sql.includes('oxsteed_credit')) return dual.mockQuery(text, params);
-      return query(text, params);
-    });
-    await expect(applyWalletLedgerEntry({ query: routingQuery }, {
+  test('a disabled rail lets the food-wallet write proceed and queues the dual-post (fail open)', async () => {
+    const { query, dual } = makeWalletClient({ railEnabled: false });
+    const result = await applyWalletLedgerEntry({ query }, {
       restaurantId: RESTAURANT_ID,
       customerId: CUSTOMER_ID,
       currencyCode: CURRENCY,
@@ -448,6 +490,116 @@ describe('dual-posting atomicity with the food-wallet write', () => {
       referenceType: 'merchant_load',
       referenceId: 'load-1',
       idempotencyKey: 'wallet-load-1',
-    })).rejects.toMatchObject({ statusCode: 503, code: 'credit_rail_suspended' });
+    });
+    expect(result.entry.id).toBe(7001);
+    expect(dual.issued).toHaveLength(0);
+    expect(dual.backfilled).toHaveLength(1);
+    expect(dual.backfilled[0].ledger_entry_id).toBe('7001');
+  });
+});
+
+describe('migration 655 (static)', () => {
+  const BACKFILL_SQL = fs.readFileSync(
+    path.join(__dirname, '..', 'migrations', '655_credit_dual_posting_backfill.sql'),
+    'utf8'
+  );
+
+  test('creates the credit_dual_posting_backfill queue table', () => {
+    expect(BACKFILL_SQL).toContain('CREATE TABLE IF NOT EXISTS credit_dual_posting_backfill');
+    expect(BACKFILL_SQL).toContain('idempotency_key  TEXT NOT NULL UNIQUE');
+    expect(BACKFILL_SQL).toContain("status           TEXT NOT NULL DEFAULT 'pending'");
+    expect(BACKFILL_SQL).toContain('idx_credit_dual_posting_backfill_pending');
+  });
+});
+
+describe('dual-posting backfill replay', () => {
+  const { replayDualPostingBackfill } = require('../services/oxsteedCreditSubBankService');
+
+  function makeBackfillRow(overrides = {}) {
+    return {
+      id: 'bf-1',
+      ledger_entry_id: '7001',
+      restaurant_id: String(RESTAURANT_ID),
+      customer_id: CUSTOMER_ID,
+      currency_code: CURRENCY,
+      amount_cents: 500,
+      entry_type: 'credit',
+      reference_type: 'merchant_load',
+      reference_id: 'load-1',
+      actor_type: 'system',
+      actor_user_id: null,
+      created_by_user_id: null,
+      correlation_id: 'corr-1',
+      request_ip: '127.0.0.1',
+      metadata: {},
+      status: 'pending',
+      attempts: 0,
+      ...overrides,
+    };
+  }
+
+  function makeReplayPool({ railEnabled = true, backfillRows = [] } = {}) {
+    const dual = makeDualPostMock({ railEnabled: true });
+    const updates = [];
+    const handleQuery = jest.fn(async (text, params = []) => {
+      const sql = String(text);
+      if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') return { rows: [] };
+      if (sql.includes("FROM feature_flags WHERE key = 'oxsteed_credit_enabled'")) {
+        return railEnabled ? { rows: [{ is_enabled: true }] } : { rows: [{ is_enabled: false }] };
+      }
+      if (sql.includes('FROM credit_dual_posting_backfill')) return { rows: backfillRows };
+      if (sql.includes('UPDATE credit_dual_posting_backfill')) {
+        updates.push({ sql, params });
+        return { rows: [], rowCount: 1 };
+      }
+      return dual.mockQuery(text, params);
+    });
+    const client = { query: handleQuery, release: jest.fn() };
+    const pool = { query: handleQuery, connect: jest.fn(async () => client) };
+    return { pool, client, updates, dual };
+  }
+
+  test('replay posts queued dual-postings and marks them processed', async () => {
+    const { pool, updates, dual } = makeReplayPool({ backfillRows: [makeBackfillRow()] });
+    const result = await replayDualPostingBackfill(pool, { limit: 10 });
+    expect(result.replayed).toBe(1);
+    expect(result.failed).toBe(0);
+    expect(dual.issued).toHaveLength(1);
+    expect(dual.issued[0].idempotency_key).toBe('food-wallet-ledger:7001:central');
+    expect(updates).toHaveLength(1);
+    expect(updates[0].params[0]).toBe('bf-1');
+    expect(updates[0].sql).toContain("status = 'processed'");
+  });
+
+  test('replay is a no-op while the rail is disabled', async () => {
+    const { pool, updates, dual } = makeReplayPool({ railEnabled: false, backfillRows: [makeBackfillRow()] });
+    const result = await replayDualPostingBackfill(pool, { limit: 10 });
+    expect(result).toMatchObject({ replayed: 0, skipped: 'rail_disabled' });
+    expect(dual.issued).toHaveLength(0);
+    expect(updates).toHaveLength(0);
+  });
+
+  test('replay retries a failing row and keeps it pending', async () => {
+    const { pool, updates } = makeReplayPool({
+      backfillRows: [makeBackfillRow({ reference_type: 'brand_new_reference', attempts: 0 })],
+    });
+    const result = await replayDualPostingBackfill(pool, { limit: 10 });
+    expect(result.replayed).toBe(0);
+    expect(updates).toHaveLength(1);
+    expect(updates[0].sql).toContain("status = $2");
+    expect(updates[0].params[1]).toBe('pending');
+    expect(updates[0].params[2]).toBe(1);
+  });
+
+  test('replay parks a row as failed after max attempts', async () => {
+    const { pool, updates } = makeReplayPool({
+      backfillRows: [makeBackfillRow({ reference_type: 'brand_new_reference', attempts: 4 })],
+    });
+    const result = await replayDualPostingBackfill(pool, { limit: 10 });
+    expect(result.replayed).toBe(0);
+    expect(result.parked).toBe(1);
+    expect(updates).toHaveLength(1);
+    expect(updates[0].params[1]).toBe('failed');
+    expect(updates[0].params[2]).toBe(5);
   });
 });

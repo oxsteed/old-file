@@ -451,8 +451,9 @@ async function applyWalletLedgerEntry(client, {
   // Phase 1 central-bank model: dual-post every food-wallet money movement to
   // the OxSteed Credit central journal in the SAME transaction. Same-restaurant
   // customer transfers leave the aggregate unchanged and need no posting.
-  // Any central posting failure (including a disabled credit rail) throws here
-  // and rolls back the wallet write: dual-posting fails closed, never silent.
+  // When the credit rail is disabled the wallet write fails OPEN: the mirror
+  // is queued in credit_dual_posting_backfill (same transaction) and replayed
+  // when the rail is re-enabled. A frozen rail still fails closed.
   await postFoodWalletDualEntry(client, {
     ledgerEntryId: ledgerEntry.id,
     restaurantId,

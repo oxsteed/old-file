@@ -24,6 +24,7 @@ const {
 } = require('../services/transactionMonitoringService');
 const incidentStore = require('../services/incidentStore');
 const { recordOxsteedCreditWorkerRun } = require('../services/oxsteedCreditWorkerHeartbeat');
+const { skipCreditJobWhenRailDisabled } = require('../services/oxsteedCreditService');
 
 const CRON_EXPRESSION = process.env.OXSTEED_CREDIT_COMPLIANCE_MONITOR_CRON || '45 3 * * *';
 const CRON_TIMEZONE = 'UTC';
@@ -59,6 +60,9 @@ async function recordLockFailure(error, period) {
 }
 
 async function runOxsteedCreditComplianceMonitor({ now = new Date(), getPool = null } = {}) {
+  if (await skipCreditJobWhenRailDisabled(JOB_NAME)) {
+    return { skipped: 'rail_disabled' };
+  }
   // Fail-open on the rail toggle: checked before the lock so an off rail
   // never contends or records heartbeats.
   const poolToUse = getPool || pool;

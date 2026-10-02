@@ -6,6 +6,7 @@ const { expireCreditHolds } = require('../services/oxsteedCreditService');
 const { withFencedJobLock } = require('./jobLockingService');
 const { recordOxsteedCreditJobFailure } = require('./oxsteedCreditJobFailure');
 const { recordOxsteedCreditWorkerRun } = require('../services/oxsteedCreditWorkerHeartbeat');
+const { skipCreditJobWhenRailDisabled } = require('../services/oxsteedCreditService');
 
 // Run every minute, offset from the other maintenance workers to avoid a
 // connection-pool burst at the minute boundary.
@@ -13,6 +14,9 @@ const CRON_EXPRESSION = '10 * * * * *';
 const JOB_NAME = 'oxsteed-credit-hold-expiry';
 
 async function runOxsteedCreditHoldExpiry() {
+  if (await skipCreditJobWhenRailDisabled(JOB_NAME)) {
+    return { skipped: 'rail_disabled' };
+  }
   let result = { count: 0, expired: [] };
   let lockAcquired = false;
   try {

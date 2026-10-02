@@ -11,6 +11,13 @@
  * as text (CHECK/UNIQUE wording), same as the sub-bank suite.
  */
 
+jest.mock('../services/oxsteedCreditService', () => {
+  // Rail guard pinned to "enabled": these suites exercise job logic, not the
+  // rail-disabled skip path (covered in oxsteedCreditRailDisabled.test.js).
+  const actual = jest.requireActual('../services/oxsteedCreditService');
+  return { ...actual, skipCreditJobWhenRailDisabled: jest.fn().mockResolvedValue(false) };
+});
+
 const path = require('path');
 const fs = require('fs');
 
