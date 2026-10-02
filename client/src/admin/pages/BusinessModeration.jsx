@@ -278,7 +278,9 @@ export default function BusinessModeration() {
         ? `/admin/businesses/${modal.business.id}/toggle`
         : `/admin/businesses/${modal.business.id}/${actionType}`;
 
-      await adminApi.put(endpoint, { reason });
+      // T18-F01: the delete endpoint requires explicit confirmation.
+      const payload = actionType === 'delete' ? { reason, confirmed: true } : { reason };
+      await adminApi.put(endpoint, payload);
 
       setModal(null);
       reload();

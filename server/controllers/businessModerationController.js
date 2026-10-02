@@ -432,7 +432,7 @@ exports.updateAdminNotes = async (req, res) => {
 exports.deleteBusiness = async (req, res) => {
   try {
     const { id } = req.params;
-    const { confirmed } = req.body;
+    const { confirmed, reason } = req.body;
 
     if (!confirmed) {
       return res.status(400).json({ error: 'Deletion must be confirmed.' });
@@ -461,6 +461,7 @@ exports.deleteBusiness = async (req, res) => {
         targetId: String(id),
         before: { is_active: rows[0].is_active },
         after: { is_active: false, deleted_at: new Date().toISOString() },
+        details: reason ? { reason: String(reason).slice(0, 500) } : undefined,
         req,
       });
     } catch (e) {}
