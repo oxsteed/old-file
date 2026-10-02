@@ -1,9 +1,25 @@
 'use strict';
 
 jest.mock('node-cron', () => ({ schedule: jest.fn() }));
-jest.mock('../jobs/jobLockingService', () => ({
-  withJobLock: jest.fn(async (_jobName, handler) => handler()),
-}));
+jest.mock('../jobs/jobLockingService', () => {
+  // E03: fenced lock mock. The fence is healthy by default; db calls pass
+  // through to the (mocked) db module so job logic is exercised.
+  const fence = {
+    isActive: () => true,
+    assertActive: () => {},
+    db: {
+      query: (...args) => require('../db').query(...args),
+      tx: (work) => work({ query: (...args) => require('../db').query(...args) }),
+    },
+    fencedQuery: (...args) => require('../db').query(...args),
+    fencedTransaction: (work) => work({ query: (...args) => require('../db').query(...args) }),
+  };
+  return {
+    withJobLock: jest.fn(async (_jobName, handler) => handler(fence)),
+    withFencedJobLock: jest.fn(async (_jobName, handler) => handler(fence)),
+    LeaseLostError: class LeaseLostError extends Error {},
+  };
+});
 jest.mock('../services/directSlotEngine', () => ({
   expireHolds: jest.fn(),
   HOLD_TTL_MS: 4 * 60 * 1000,
@@ -15,7 +31,7 @@ jest.mock('../utils/logger', () => ({
 }));
 
 const cron = require('node-cron');
-const { withJobLock } = require('../jobs/jobLockingService');
+const { withFencedJobLock } = require('../jobs/jobLockingService');
 const { expireHolds, HOLD_TTL_MS } = require('../services/directSlotEngine');
 const {
   CRON_EXPRESSION,
@@ -35,7 +51,7 @@ test('runs every minute at :55 under a durable job lock', async () => {
     count: 2,
     ids: ['a', 'b'],
   });
-  expect(withJobLock).toHaveBeenCalledWith(JOB_NAME, expect.any(Function), 120, {
+  expect(withFencedJobLock).toHaveBeenCalledWith(JOB_NAME, expect.any(Function), 120, {
     throwOnLockError: true,
   });
   expect(expireHolds).toHaveBeenCalledWith(expect.anything(), { limit: 25 });
@@ -44,7 +60,7 @@ test('runs every minute at :55 under a durable job lock', async () => {
 });
 
 test('returns skipped when another worker owns the lock', async () => {
-  withJobLock.mockImplementationOnce(async () => {});
+  withFencedJobLock.mockImplementationOnce(async () => {});
 
   await expect(runDirectSlotHoldExpiry()).resolves.toEqual({ count: 0, skipped: true });
   expect(expireHolds).not.toHaveBeenCalled();

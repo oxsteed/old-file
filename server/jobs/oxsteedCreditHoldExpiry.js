@@ -3,7 +3,7 @@
 const cron = require('node-cron');
 const logger = require('../utils/logger');
 const { expireCreditHolds } = require('../services/oxsteedCreditService');
-const { withJobLock } = require('./jobLockingService');
+const { withFencedJobLock } = require('./jobLockingService');
 const { recordOxsteedCreditJobFailure } = require('./oxsteedCreditJobFailure');
 const { recordOxsteedCreditWorkerRun } = require('../services/oxsteedCreditWorkerHeartbeat');
 
@@ -16,7 +16,8 @@ async function runOxsteedCreditHoldExpiry() {
   let result = { count: 0, expired: [] };
   let lockAcquired = false;
   try {
-    await withJobLock(JOB_NAME, async () => {
+    await withFencedJobLock(JOB_NAME, async (fence) => {
+      fence.assertActive(); // E03: abort the run if the job lease was lost
       lockAcquired = true;
       result = await expireCreditHolds({ limit: 500 });
       if (result.count) logger.info('OxSteed Credit holds expired', { count: result.count });

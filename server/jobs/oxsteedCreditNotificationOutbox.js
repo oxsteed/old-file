@@ -5,7 +5,7 @@ const logger = require('../utils/logger');
 const db = require('../db');
 const { sendNotification } = require('../services/notificationService');
 const { SUPPORTED_CREDIT_CURRENCY_META } = require('../services/oxsteedCreditService');
-const { withJobLock } = require('./jobLockingService');
+const { withFencedJobLock } = require('./jobLockingService');
 const { recordOxsteedCreditJobFailure } = require('./oxsteedCreditJobFailure');
 const incidentStore = require('../services/incidentStore');
 const { recordOxsteedCreditWorkerRun } = require('../services/oxsteedCreditWorkerHeartbeat');
@@ -236,7 +236,8 @@ async function runOxsteedCreditNotificationOutbox() {
   let result = { claimed: 0, sent: 0, retried: 0, failed: 0, purged: 0 };
   let lockAcquired = false;
   try {
-    await withJobLock(JOB_NAME, async () => {
+    await withFencedJobLock(JOB_NAME, async (fence) => {
+      fence.assertActive(); // E03: abort the run if the job lease was lost
       lockAcquired = true;
       const processed = await processOxsteedCreditNotificationOutbox();
       const purged = await purgeSentCreditNotifications();

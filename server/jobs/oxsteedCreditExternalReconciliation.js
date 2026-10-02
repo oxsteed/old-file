@@ -16,7 +16,7 @@
 const cron = require('node-cron');
 const pool = require('../db');
 const logger = require('../utils/logger');
-const { withJobLock } = require('./jobLockingService');
+const { withFencedJobLock } = require('./jobLockingService');
 const { isCreditRailEnabled, SUPPORTED_CREDIT_CURRENCIES } = require('../services/oxsteedCreditService');
 const { reconcileCreditExternal } = require('../services/oxsteedCreditExternalReconciliation');
 const incidentStore = require('../services/incidentStore');
@@ -68,7 +68,8 @@ async function runOxsteedCreditExternalReconciliation({ now = new Date(), curren
   let locked = false;
   let outcome = null;
   try {
-    await withJobLock(JOB_NAME, async () => {
+    await withFencedJobLock(JOB_NAME, async (fence) => {
+      fence.assertActive(); // E03: abort the run if the job lease was lost
       locked = true;
       outcome = await reconcileCreditExternal({
         periodStart: period.start,

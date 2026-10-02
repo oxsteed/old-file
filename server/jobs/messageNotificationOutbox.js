@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const logger = require('../utils/logger');
 const db = require('../db');
 const { sendNotification } = require('../services/notificationService');
-const { withJobLock } = require('./jobLockingService');
+const { withFencedJobLock } = require('./jobLockingService');
 
 const CRON_EXPRESSION = '55 * * * * *';
 const JOB_NAME = 'message-notification-outbox';
@@ -125,7 +125,8 @@ async function processMessageNotificationOutbox(limit = 100) {
 
 async function runMessageNotificationOutbox() {
   let result = { claimed: 0, sent: 0, retried: 0, failed: 0 };
-  await withJobLock(JOB_NAME, async () => {
+  await withFencedJobLock(JOB_NAME, async (fence) => {
+    fence.assertActive(); // E03: abort the run if the job lease was lost
     result = await processMessageNotificationOutbox();
     if (result.claimed) logger.info('Message notification outbox processed', result);
   }, 120, { throwOnLockError: true });

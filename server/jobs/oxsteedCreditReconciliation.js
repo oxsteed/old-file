@@ -5,7 +5,7 @@ const logger = require('../utils/logger');
 const { reconcileCreditLedger, reconcileSubBankAggregates } = require('../services/oxsteedCreditAdminService');
 const { SUPPORTED_CREDIT_CURRENCIES = ['USD'] } = require('../services/oxsteedCreditService');
 const incidentStore = require('../services/incidentStore');
-const { withJobLock } = require('./jobLockingService');
+const { withFencedJobLock } = require('./jobLockingService');
 const { recordOxsteedCreditWorkerRun } = require('../services/oxsteedCreditWorkerHeartbeat');
 
 const CRON_EXPRESSION = '10 2 * * *';
@@ -141,7 +141,8 @@ async function runOxsteedCreditReconciliation({ now = new Date(), currencyCode =
   let result = { currencyCode, run: null, error: null, incident: null };
   let locked = false;
   try {
-    await withJobLock(JOB_NAME, async () => {
+    await withFencedJobLock(JOB_NAME, async (fence) => {
+      fence.assertActive(); // E03: abort the run if the job lease was lost
       locked = true;
       result = await reconcileCurrency({ currencyCode, period });
     }, 300, { throwOnLockError: true });
@@ -175,7 +176,8 @@ async function runOxsteedCreditReconciliations({ now = new Date(), currencyCodes
   const results = [];
   let locked = false;
   try {
-    await withJobLock(JOB_NAME, async () => {
+    await withFencedJobLock(JOB_NAME, async (fence) => {
+      fence.assertActive(); // E03: abort the run if the job lease was lost
       locked = true;
       for (const currencyCode of currencyCodes) {
         results.push(await reconcileCurrency({ currencyCode, period }));

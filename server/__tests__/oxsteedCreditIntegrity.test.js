@@ -7,9 +7,25 @@ jest.mock('../scripts/verify-oxsteed-credit', () => ({
 jest.mock('../services/incidentStore', () => ({
   recordIncident: jest.fn().mockResolvedValue({ persisted: true, incident: { id: 'incident-1' } }),
 }));
-jest.mock('../jobs/jobLockingService', () => ({
-  withJobLock: jest.fn(async (_jobName, handler) => handler()),
-}));
+jest.mock('../jobs/jobLockingService', () => {
+  // E03: fenced lock mock. The fence is healthy by default; db calls pass
+  // through to the (mocked) db module so job logic is exercised.
+  const fence = {
+    isActive: () => true,
+    assertActive: () => {},
+    db: {
+      query: (...args) => require('../db').query(...args),
+      tx: (work) => work({ query: (...args) => require('../db').query(...args) }),
+    },
+    fencedQuery: (...args) => require('../db').query(...args),
+    fencedTransaction: (work) => work({ query: (...args) => require('../db').query(...args) }),
+  };
+  return {
+    withJobLock: jest.fn(async (_jobName, handler) => handler(fence)),
+    withFencedJobLock: jest.fn(async (_jobName, handler) => handler(fence)),
+    LeaseLostError: class LeaseLostError extends Error {},
+  };
+});
 jest.mock('../services/oxsteedCreditWorkerHeartbeat', () => ({
   recordOxsteedCreditWorkerRun: jest.fn().mockResolvedValue({ persisted: true }),
 }));
@@ -17,7 +33,7 @@ jest.mock('../services/oxsteedCreditWorkerHeartbeat', () => ({
 const pool = require('../db');
 const { verifyEntryHashes } = require('../scripts/verify-oxsteed-credit');
 const incidentStore = require('../services/incidentStore');
-const { withJobLock } = require('../jobs/jobLockingService');
+const { withFencedJobLock } = require('../jobs/jobLockingService');
 const {
   JOB_NAME,
   verifyCreditLedger,
@@ -38,7 +54,7 @@ test('verifies the complete posted journal and account heads under a distributed
   const result = await runOxsteedCreditIntegrity();
 
   expect(result).toMatchObject({ locked: true, ok: true, verification: { invalidEntryHashes: 0 } });
-  expect(withJobLock).toHaveBeenCalledWith(JOB_NAME, expect.any(Function), 900, { throwOnLockError: true });
+  expect(withFencedJobLock).toHaveBeenCalledWith(JOB_NAME, expect.any(Function), 900, { throwOnLockError: true });
   expect(verifyEntryHashes).toHaveBeenCalledWith(
     [{ transaction_id: 'tx-1', account_id: 7, sequence: 1 }],
     [{ id: 7, ledger_version: 1, last_entry_hash: 'hash-1' }]
@@ -82,7 +98,7 @@ test('records a critical incident when the audit event hash chain is invalid', a
 });
 
 test('does not run the integrity check when another worker owns the lease', async () => {
-  withJobLock.mockImplementationOnce(async () => undefined);
+  withFencedJobLock.mockImplementationOnce(async () => undefined);
 
   const result = await runOxsteedCreditIntegrity();
 

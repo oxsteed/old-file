@@ -3,7 +3,7 @@
 const cron = require('node-cron');
 const pool = require('../db');
 const logger = require('../utils/logger');
-const { withJobLock } = require('./jobLockingService');
+const { withFencedJobLock } = require('./jobLockingService');
 const { reconcileMarketplaceRefundReservation } = require('../services/marketplaceRefundService');
 const { recordException } = require('../services/reconciliationExceptions');
 
@@ -15,9 +15,10 @@ const BATCH_SIZE = 50;
 async function runMarketplaceRefundReconciliation({ limit = BATCH_SIZE } = {}) {
   const boundedLimit = Math.min(BATCH_SIZE, Math.max(1, Number(limit) || BATCH_SIZE));
   const result = { locked: false, inspected: 0, settled: 0, failed: 0 };
-  await withJobLock(JOB_NAME, async () => {
+  await withFencedJobLock(JOB_NAME, async (fence) => {
+    fence.assertActive(); // E03: abort the run if the job lease was lost
     result.locked = true;
-    const pending = await pool.query(
+    const pending = await fence.db.query(
       `SELECT r.*, o.id AS order_id, o.status AS order_status,
               t.payment_intent_id AS transaction_payment_intent_id,
               t.amount_cents AS transaction_amount_cents,
@@ -34,7 +35,7 @@ async function runMarketplaceRefundReconciliation({ limit = BATCH_SIZE } = {}) {
     );
     result.inspected = pending.rows.length;
     for (const row of pending.rows) {
-      await pool.query(
+      await fence.db.query(
         `UPDATE marketplace_transaction_refunds
             SET reconciliation_attempts = reconciliation_attempts + 1,
                 last_attempt_at = CURRENT_TIMESTAMP, last_error = NULL,
@@ -61,7 +62,7 @@ async function runMarketplaceRefundReconciliation({ limit = BATCH_SIZE } = {}) {
         result.failed += 1;
         const attempts = (Number(row.reconciliation_attempts) || 0) + 1;
         const errorMessage = String(error.message || 'Reconciliation failed').slice(0, 1000);
-        await pool.query(
+        await fence.db.query(
           `UPDATE marketplace_transaction_refunds
               SET last_error = $2, updated_at = CURRENT_TIMESTAMP
             WHERE id = $1 AND status = 'pending'`,

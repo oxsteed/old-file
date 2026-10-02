@@ -4,7 +4,7 @@ const cron = require('node-cron');
 const db = require('../db');
 const logger = require('../utils/logger');
 const incidentStore = require('../services/incidentStore');
-const { withJobLock } = require('./jobLockingService');
+const { withFencedJobLock } = require('./jobLockingService');
 const { recordOxsteedCreditWorkerRun } = require('../services/oxsteedCreditWorkerHeartbeat');
 
 const JOB_NAME = 'restaurant-credit-wallet-watchdog';
@@ -215,7 +215,8 @@ async function runRestaurantWalletWatchdog() {
   let locked = false;
   let result = { status: 'skipped', checks: null, incidents: [], recoveredIncidents: [] };
   try {
-    await withJobLock(JOB_NAME, async () => {
+    await withFencedJobLock(JOB_NAME, async (fence) => {
+      fence.assertActive(); // E03: abort the run if the job lease was lost
       locked = true;
       result = await inspectRestaurantWalletOperations();
     }, 120, { throwOnLockError: true });

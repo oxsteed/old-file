@@ -12,16 +12,32 @@ jest.mock('../services/oxsteedCreditAdminService', () => ({
 jest.mock('../services/incidentStore', () => ({
   recordIncident: jest.fn().mockResolvedValue({ persisted: true, incident: { id: 1 }, notificationClaimed: true }),
 }));
-jest.mock('../jobs/jobLockingService', () => ({
-  withJobLock: jest.fn(async (_jobName, handler) => handler()),
-}));
+jest.mock('../jobs/jobLockingService', () => {
+  // E03: fenced lock mock. The fence is healthy by default; db calls pass
+  // through to the (mocked) db module so job logic is exercised.
+  const fence = {
+    isActive: () => true,
+    assertActive: () => {},
+    db: {
+      query: (...args) => require('../db').query(...args),
+      tx: (work) => work({ query: (...args) => require('../db').query(...args) }),
+    },
+    fencedQuery: (...args) => require('../db').query(...args),
+    fencedTransaction: (work) => work({ query: (...args) => require('../db').query(...args) }),
+  };
+  return {
+    withJobLock: jest.fn(async (_jobName, handler) => handler(fence)),
+    withFencedJobLock: jest.fn(async (_jobName, handler) => handler(fence)),
+    LeaseLostError: class LeaseLostError extends Error {},
+  };
+});
 jest.mock('../services/oxsteedCreditWorkerHeartbeat', () => ({
   recordOxsteedCreditWorkerRun: jest.fn().mockResolvedValue({ persisted: true }),
 }));
 
 const { reconcileCreditLedger, reconcileSubBankAggregates } = require('../services/oxsteedCreditAdminService');
 const incidentStore = require('../services/incidentStore');
-const { withJobLock } = require('../jobs/jobLockingService');
+const { withFencedJobLock } = require('../jobs/jobLockingService');
 const {
   CRON_EXPRESSION,
   CRON_TIMEZONE,
@@ -55,7 +71,7 @@ test('uses the prior UTC day and records a balanced run under a distributed lock
       end: '2026-09-12T00:00:00.000Z',
     },
   });
-  expect(withJobLock).toHaveBeenCalledWith('oxsteed-credit-reconciliation', expect.any(Function), 300, { throwOnLockError: true });
+  expect(withFencedJobLock).toHaveBeenCalledWith('oxsteed-credit-reconciliation', expect.any(Function), 300, { throwOnLockError: true });
   expect(reconcileCreditLedger).toHaveBeenCalledWith(expect.objectContaining({
     currencyCode: 'USD',
     actorUserId: null,
@@ -144,7 +160,7 @@ test('records a durable incident when reconciliation fails', async () => {
 });
 
 test('returns an unlocked result when another worker owns the lease', async () => {
-  withJobLock.mockImplementationOnce(async () => undefined);
+  withFencedJobLock.mockImplementationOnce(async () => undefined);
 
   const result = await runOxsteedCreditReconciliation({ now: '2026-09-12T04:00:00.000Z' });
 
@@ -163,12 +179,12 @@ test('runs all configured currencies under one distributed lock', async () => {
   });
 
   expect(result).toMatchObject({ locked: true, runs: [{ id: 'usd-run' }, { id: 'eur-run' }] });
-  expect(withJobLock).toHaveBeenCalledTimes(1);
+  expect(withFencedJobLock).toHaveBeenCalledTimes(1);
   expect(reconcileCreditLedger.mock.calls.map(([input]) => input.currencyCode)).toEqual(['USD', 'EUR']);
 });
 
 test('records a durable incident when the reconciliation lock store is unavailable', async () => {
-  withJobLock.mockRejectedValueOnce(new Error('database unavailable'));
+  withFencedJobLock.mockRejectedValueOnce(new Error('database unavailable'));
 
   const result = await runOxsteedCreditReconciliations({ now: '2026-09-12T04:00:00.000Z' });
 

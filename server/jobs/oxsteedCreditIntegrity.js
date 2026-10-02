@@ -4,7 +4,7 @@ const logger = require('../utils/logger');
 const pool = require('../db');
 const { verifyEntryHashes } = require('../scripts/verify-oxsteed-credit');
 const incidentStore = require('../services/incidentStore');
-const { withJobLock } = require('./jobLockingService');
+const { withFencedJobLock } = require('./jobLockingService');
 const { recordOxsteedCreditWorkerRun } = require('../services/oxsteedCreditWorkerHeartbeat');
 
 const JOB_NAME = 'oxsteed-credit-integrity';
@@ -75,7 +75,8 @@ async function runOxsteedCreditIntegrity() {
   let result = { ok: false, verification: null, incident: null };
   let locked = false;
   try {
-    await withJobLock(JOB_NAME, async () => {
+    await withFencedJobLock(JOB_NAME, async (fence) => {
+      fence.assertActive(); // E03: abort the run if the job lease was lost
       locked = true;
       result = await verifyCreditLedger();
     }, 900, { throwOnLockError: true });

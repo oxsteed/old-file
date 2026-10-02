@@ -8,7 +8,7 @@
  * `server/controllers/settingsChangeController.js`'s `applyChangeRequest`.
  *
  * Concurrency/idempotency design (matches the refund reconciliation jobs):
- * - `withJobLock` guarantees only one applier runs cluster-wide at a time.
+ * - `withFencedJobLock` guarantees only one applier runs cluster-wide at a time.
  *   The lock itself lives in the database, so the worker naturally refuses
  *   to run when the DB is unreachable.
  * - Due rows are discovered in a single transaction with SELECT ... FOR UPDATE
@@ -25,7 +25,7 @@
 const cron = require('node-cron');
 const pool = require('../db');
 const logger = require('../utils/logger');
-const { withJobLock } = require('./jobLockingService');
+const { withFencedJobLock } = require('./jobLockingService');
 const { logAdminAction } = require('../services/auditService');
 
 const CRON_EXPRESSION = '* * * * *';
@@ -62,7 +62,8 @@ async function runSettingsChangeApplierOnce(db = pool, { limit = BATCH_SIZE } = 
   const boundedLimit = Math.min(BATCH_SIZE, Math.max(1, Number(limit) || BATCH_SIZE));
   const result = { locked: false, due: 0, applied: 0, failed: 0 };
 
-  await withJobLock(JOB_NAME, async () => {
+  await withFencedJobLock(JOB_NAME, async (fence) => {
+    fence.assertActive(); // E03: abort the run if the job lease was lost
     result.locked = true;
     const applyChangeRequest = getApplyChangeRequest();
 
@@ -133,7 +134,7 @@ async function runSettingsChangeApplierOnce(db = pool, { limit = BATCH_SIZE } = 
 
 function startSettingsChangeApplierJob() {
   // DB-reachability guard: the job lock is stored in the database, so
-  // withJobLock refuses to run when the DB is unreachable and this callback
+  // withFencedJobLock refuses to run when the DB is unreachable and this callback
   // just logs and skips the tick. Same pattern as the refund reconciliation
   // jobs.
   cron.schedule(CRON_EXPRESSION, () => {

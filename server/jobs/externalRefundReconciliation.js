@@ -3,7 +3,7 @@
 const cron = require('node-cron');
 const pool = require('../db');
 const logger = require('../utils/logger');
-const { withJobLock } = require('./jobLockingService');
+const { withFencedJobLock } = require('./jobLockingService');
 const { reconcileExternalRefundAttempt } = require('../services/externalRefundService');
 const { recordException } = require('../services/reconciliationExceptions');
 
@@ -15,9 +15,10 @@ const BATCH_SIZE = 50;
 async function runExternalRefundReconciliation({ limit = BATCH_SIZE } = {}) {
   const boundedLimit = Math.min(BATCH_SIZE, Math.max(1, Number(limit) || BATCH_SIZE));
   const result = { locked: false, inspected: 0, settled: 0, failed: 0 };
-  await withJobLock(JOB_NAME, async () => {
+  await withFencedJobLock(JOB_NAME, async (fence) => {
+    fence.assertActive(); // E03: abort the run if the job lease was lost
     result.locked = true;
-    const pending = await pool.query(
+    const pending = await fence.db.query(
       `SELECT * FROM external_refund_attempts
         WHERE status = 'pending'
           AND updated_at < CURRENT_TIMESTAMP - INTERVAL '30 seconds'
@@ -27,7 +28,7 @@ async function runExternalRefundReconciliation({ limit = BATCH_SIZE } = {}) {
     );
     result.inspected = pending.rows.length;
     for (const row of pending.rows) {
-      await pool.query(
+      await fence.db.query(
         `UPDATE external_refund_attempts
             SET reconciliation_attempts = reconciliation_attempts + 1,
                 last_attempt_at = CURRENT_TIMESTAMP, last_error = NULL,

@@ -13,7 +13,7 @@
 const cron = require('node-cron');
 const pool = require('../db');
 const logger = require('../utils/logger');
-const { withJobLock } = require('./jobLockingService');
+const { withFencedJobLock } = require('./jobLockingService');
 
 const CRON_EXPRESSION = '30 3 * * *';
 const CRON_TIMEZONE = 'UTC';
@@ -25,9 +25,10 @@ const EXCEPTION_DOMAIN = 'payout_settlement';
 async function runPayoutSettlementReconciliation({ limit = BATCH_SIZE } = {}) {
   const boundedLimit = Math.min(BATCH_SIZE, Math.max(1, Number(limit) || BATCH_SIZE));
   const result = { locked: false, inspected: 0, raised: 0, failed: 0 };
-  await withJobLock(JOB_NAME, async () => {
+  await withFencedJobLock(JOB_NAME, async (fence) => {
+    fence.assertActive(); // E03: abort the run if the job lease was lost
     result.locked = true;
-    const unsettled = await pool.query(
+    const unsettled = await fence.db.query(
       `SELECT t.id, t.payout_id, t.external_transaction_id, t.transaction_status,
               t.updated_at AS completed_at
          FROM payout_transactions t
@@ -48,7 +49,7 @@ async function runPayoutSettlementReconciliation({ limit = BATCH_SIZE } = {}) {
         // Dedupe explicitly with a SELECT so an already open/acknowledged
         // exception never raises again; never rely on unique-violation errors
         // as control flow.
-        const existing = await pool.query(
+        const existing = await fence.db.query(
           `SELECT 1
              FROM reconciliation_exceptions
             WHERE domain = $1
@@ -60,7 +61,7 @@ async function runPayoutSettlementReconciliation({ limit = BATCH_SIZE } = {}) {
         if (existing.rowCount > 0) {
           continue;
         }
-        await pool.query(
+        await fence.db.query(
           `INSERT INTO reconciliation_exceptions
              (domain, reference_id, severity, summary, details, source_run_id)
            VALUES ($1, $2, 'warning', $3, $4, $5)`,

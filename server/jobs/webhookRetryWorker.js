@@ -13,7 +13,7 @@
 const cron = require('node-cron');
 const pool = require('../db');
 const logger = require('../utils/logger');
-const { withJobLock } = require('./jobLockingService');
+const { withFencedJobLock } = require('./jobLockingService');
 const { attemptWebhookRedelivery, MAX_WEBHOOK_ATTEMPTS } = require('../controllers/opsActionsController');
 
 const CRON_EXPRESSION = '*/2 * * * *';
@@ -25,9 +25,10 @@ async function runWebhookRetryWorker({ limit = BATCH_SIZE } = {}) {
   const boundedLimit = Math.min(BATCH_SIZE, Math.max(1, Number(limit) || BATCH_SIZE));
   const result = { locked: false, inspected: 0, delivered: 0, failed: 0, exhausted: 0 };
 
-  await withJobLock(JOB_NAME, async () => {
+  await withFencedJobLock(JOB_NAME, async (fence) => {
+    fence.assertActive(); // E03: abort the run if the job lease was lost
     result.locked = true;
-    const due = await pool.query(
+    const due = await fence.db.query(
       `SELECT d.*
          FROM webhook_delivery_log d
         WHERE d.completed_at IS NULL
@@ -40,7 +41,7 @@ async function runWebhookRetryWorker({ limit = BATCH_SIZE } = {}) {
     result.inspected = due.rows.length;
 
     for (const delivery of due.rows) {
-      const webhookResult = await pool.query(
+      const webhookResult = await fence.db.query(
         `SELECT id, webhook_url, custom_headers, timeout_seconds, is_active, pinned_ip
            FROM business_webhooks
           WHERE id = $1`,
@@ -74,7 +75,7 @@ async function runWebhookRetryWorker({ limit = BATCH_SIZE } = {}) {
 
       result.failed += 1;
       if (updated && Number(updated.attempt_number) >= MAX_WEBHOOK_ATTEMPTS) {
-        await pool.query(
+        await fence.db.query(
           `UPDATE webhook_delivery_log
               SET error_message = 'retry budget exhausted',
                   next_retry_at = NULL

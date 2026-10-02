@@ -13,9 +13,25 @@
 const { Pool } = require('pg');
 const mockQuery = Pool.mockQuery;
 
-jest.mock('../jobs/jobLockingService', () => ({
-  withJobLock: jest.fn(async (_name, handler) => handler()),
-}));
+jest.mock('../jobs/jobLockingService', () => {
+  // E03: fenced lock mock. The fence is healthy by default; db calls pass
+  // through to the (mocked) db module so job logic is exercised.
+  const fence = {
+    isActive: () => true,
+    assertActive: () => {},
+    db: {
+      query: (...args) => require('../db').query(...args),
+      tx: (work) => work({ query: (...args) => require('../db').query(...args) }),
+    },
+    fencedQuery: (...args) => require('../db').query(...args),
+    fencedTransaction: (work) => work({ query: (...args) => require('../db').query(...args) }),
+  };
+  return {
+    withFencedJobLock: jest.fn(async (_name, handler) => handler(fence)),
+    withFencedJobLock: jest.fn(async (_name, handler) => handler(fence)),
+    LeaseLostError: class LeaseLostError extends Error {},
+  };
+});
 jest.mock('../services/oxsteedCreditWorkerHeartbeat', () => ({
   recordOxsteedCreditWorkerRun: jest.fn(async () => ({})),
 }));
@@ -54,7 +70,7 @@ const {
 } = require('../services/oxsteedCreditService');
 const { recordException } = require('../services/reconciliationExceptions');
 const { recordIncident } = require('../services/incidentStore');
-const { withJobLock } = require('../jobs/jobLockingService');
+const { withFencedJobLock } = require('../jobs/jobLockingService');
 const { recordOxsteedCreditWorkerRun } = require('../services/oxsteedCreditWorkerHeartbeat');
 
 const PERIOD = {
@@ -576,7 +592,7 @@ describe('scheduled job', () => {
     const result = await runOxsteedCreditExternalReconciliation({ now: NOW });
     expect(result.skipped).toBe('rail_disabled');
     expect(result.locked).toBe(false);
-    expect(withJobLock).not.toHaveBeenCalled();
+    expect(withFencedJobLock).not.toHaveBeenCalled();
     expect(recordIncident).not.toHaveBeenCalled();
     expect(recordOxsteedCreditWorkerRun).not.toHaveBeenCalled();
   });
@@ -598,7 +614,7 @@ describe('scheduled job', () => {
       severity: 'critical',
     }));
     expect(freezeCreditRail).not.toHaveBeenCalled();
-    expect(withJobLock).toHaveBeenCalled();
+    expect(withFencedJobLock).toHaveBeenCalled();
     expect(recordOxsteedCreditWorkerRun).toHaveBeenCalled();
   });
 });

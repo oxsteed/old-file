@@ -4,7 +4,7 @@ const cron = require('node-cron');
 const db = require('../db');
 const logger = require('../utils/logger');
 const incidentStore = require('../services/incidentStore');
-const { withJobLock } = require('./jobLockingService');
+const { withFencedJobLock } = require('./jobLockingService');
 const {
   NOTIFICATION_WORKER_NAME,
   HOLD_EXPIRY_WORKER_NAME,
@@ -128,7 +128,8 @@ async function runOxsteedCreditWorkerWatchdog() {
     notificationBacklog: null,
   };
   try {
-    await withJobLock(JOB_NAME, async () => {
+    await withFencedJobLock(JOB_NAME, async (fence) => {
+      fence.assertActive(); // E03: abort the run if the job lease was lost
       locked = true;
       const workers = await checkAllWorkers();
       const notificationWorker = workers[0] || { heartbeat: null, incident: null };

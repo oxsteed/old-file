@@ -17,7 +17,7 @@ const cron = require('node-cron');
 const logger = require('../utils/logger');
 const db = require('../db');
 const { expireHolds, HOLD_TTL_MS } = require('../services/directSlotEngine');
-const { withJobLock } = require('./jobLockingService');
+const { withFencedJobLock } = require('./jobLockingService');
 
 // Every minute at :55s — offset from credit-hold (:10) and other maintenance workers.
 const CRON_EXPRESSION = '55 * * * * *';
@@ -27,7 +27,8 @@ const DEFAULT_LIMIT = 1000;
 async function runDirectSlotHoldExpiry({ limit = DEFAULT_LIMIT } = {}) {
   let result = { count: 0 };
   let lockAcquired = false;
-  await withJobLock(JOB_NAME, async () => {
+  await withFencedJobLock(JOB_NAME, async (fence) => {
+    fence.assertActive(); // E03: abort the run if the job lease was lost
     lockAcquired = true;
     result = await expireHolds(db, { limit });
     if (result.count) {

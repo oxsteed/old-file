@@ -26,7 +26,7 @@ const cron = require('node-cron');
 const pool = require('../db');
 const logger = require('../utils/logger');
 const incidentStore = require('../services/incidentStore');
-const { withJobLock } = require('./jobLockingService');
+const { withFencedJobLock } = require('./jobLockingService');
 const { recordOxsteedCreditWorkerRun } = require('../services/oxsteedCreditWorkerHeartbeat');
 const { isCreditRailEnabled } = require('../services/oxsteedCreditService');
 const {
@@ -447,7 +447,8 @@ async function runOxsteedCreditSettlementCycle({ now = new Date(), runReserveMon
   const weeklyWeekday = parseWeeklyWeekday();
   let locked = false;
   let outcome = null;
-  await withJobLock(JOB_NAME, async () => {
+  await withFencedJobLock(JOB_NAME, async (fence) => {
+    fence.assertActive(); // E03: abort the run if the job lease was lost
     locked = true;
     const cycles = planCycles(now, weeklyWeekday);
     const results = [];

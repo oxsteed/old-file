@@ -16,7 +16,7 @@
 const cron = require('node-cron');
 const pool = require('../db');
 const logger = require('../utils/logger');
-const { withJobLock } = require('./jobLockingService');
+const { withFencedJobLock } = require('./jobLockingService');
 const { isCreditRailEnabled, SUPPORTED_CREDIT_CURRENCIES } = require('../services/oxsteedCreditService');
 const {
   runTransactionMonitoring,
@@ -70,7 +70,8 @@ async function runOxsteedCreditComplianceMonitor({ now = new Date(), getPool = n
   let locked = false;
   let outcome = null;
   try {
-    await withJobLock(JOB_NAME, async () => {
+    await withFencedJobLock(JOB_NAME, async (fence) => {
+      fence.assertActive(); // E03: abort the run if the job lease was lost
       locked = true;
       const monitoring = await runTransactionMonitoring({ periodStart: period.start, periodEnd: period.end });
       const sla = await checkComplianceCaseSla({ now });

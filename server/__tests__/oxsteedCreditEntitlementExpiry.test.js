@@ -4,15 +4,31 @@ jest.mock('../services/oxsteedCreditAdminService', () => ({
   expireCreditAgreements: jest.fn(),
   expireCreditEntitlements: jest.fn(),
 }));
-jest.mock('../jobs/jobLockingService', () => ({
-  withJobLock: jest.fn(async (_jobName, handler) => handler()),
-}));
+jest.mock('../jobs/jobLockingService', () => {
+  // E03: fenced lock mock. The fence is healthy by default; db calls pass
+  // through to the (mocked) db module so job logic is exercised.
+  const fence = {
+    isActive: () => true,
+    assertActive: () => {},
+    db: {
+      query: (...args) => require('../db').query(...args),
+      tx: (work) => work({ query: (...args) => require('../db').query(...args) }),
+    },
+    fencedQuery: (...args) => require('../db').query(...args),
+    fencedTransaction: (work) => work({ query: (...args) => require('../db').query(...args) }),
+  };
+  return {
+    withJobLock: jest.fn(async (_jobName, handler) => handler(fence)),
+    withFencedJobLock: jest.fn(async (_jobName, handler) => handler(fence)),
+    LeaseLostError: class LeaseLostError extends Error {},
+  };
+});
 jest.mock('../services/oxsteedCreditWorkerHeartbeat', () => ({
   recordOxsteedCreditWorkerRun: jest.fn().mockResolvedValue({ persisted: true }),
 }));
 
 const { expireCreditAgreements, expireCreditEntitlements } = require('../services/oxsteedCreditAdminService');
-const { withJobLock } = require('../jobs/jobLockingService');
+const { withFencedJobLock } = require('../jobs/jobLockingService');
 const {
   CRON_EXPRESSION,
   JOB_NAME,
@@ -32,13 +48,13 @@ test('expires ended entitlements under a durable job lock', async () => {
     agreements: [{ id: 'agreement-1' }],
     entitlements: [{ id: 'entitlement-1' }, { id: 'entitlement-2' }],
   });
-  expect(withJobLock).toHaveBeenCalledWith(JOB_NAME, expect.any(Function), 120, { throwOnLockError: true });
+  expect(withFencedJobLock).toHaveBeenCalledWith(JOB_NAME, expect.any(Function), 120, { throwOnLockError: true });
   expect(expireCreditAgreements).toHaveBeenCalledWith({ limit: 25, now: undefined });
   expect(expireCreditEntitlements).toHaveBeenCalledWith({ limit: 25, now: undefined });
 });
 
 test('returns an empty result when another worker owns the lock', async () => {
-  withJobLock.mockImplementationOnce(async () => {});
+  withFencedJobLock.mockImplementationOnce(async () => {});
 
   await expect(runOxsteedCreditEntitlementExpiry()).resolves.toEqual({ count: 0, agreements: [], entitlements: [] });
   expect(expireCreditAgreements).not.toHaveBeenCalled();

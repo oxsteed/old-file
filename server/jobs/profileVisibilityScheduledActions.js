@@ -6,7 +6,7 @@
 // server/bootstrap/backgroundWorkers.js alongside the other workers (workstream
 // A's agent does not touch that file).
 //
-// Safety model: the whole claim+apply loop runs under withJobLock, and rows
+// Safety model: the whole claim+apply loop runs under withFencedJobLock, and rows
 // are claimed inside a transaction with SELECT ... FOR UPDATE SKIP LOCKED so
 // two instances polling at the same minute cannot grab the same row. Each row
 // applies inside its own SAVEPOINT: a per-row failure marks that row failed
@@ -17,7 +17,7 @@
 const cron = require('node-cron');
 const db = require('../db');
 const logger = require('../utils/logger');
-const { withJobLock } = require('./jobLockingService');
+const { withFencedJobLock } = require('./jobLockingService');
 const { logAdminAction } = require('../services/auditService');
 const { TABLE_BY_TYPE } = require('../controllers/profileVisibilityController');
 
@@ -102,7 +102,8 @@ async function applyScheduledRow(client, row) {
 
 async function processDueScheduledActions() {
   const outcome = { claimed: 0, applied: 0, failed: 0 };
-  await withJobLock(JOB_NAME, async () => {
+  await withFencedJobLock(JOB_NAME, async (fence) => {
+    fence.assertActive(); // E03: abort the run if the job lease was lost
     const client = await db.connect();
     try {
       await client.query('BEGIN');

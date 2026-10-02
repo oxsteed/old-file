@@ -23,7 +23,7 @@ const cron = require('node-cron');
 const pool = require('../db');
 const logger = require('../utils/logger');
 const incidentStore = require('../services/incidentStore');
-const { withJobLock } = require('./jobLockingService');
+const { withFencedJobLock } = require('./jobLockingService');
 
 const JOB_NAME = 'admin-audit-chain-verification';
 const CRON_EXPRESSION = '25 3 * * *'; // 03:25 UTC daily (after the deletion job's 03:00 slot)
@@ -69,7 +69,8 @@ async function verifyAdminAuditChain() {
 }
 
 async function runAdminAuditChainVerification() {
-  const { locked, result } = await withJobLock(JOB_NAME, async () => {
+  const { locked, result } = await withFencedJobLock(JOB_NAME, async (fence) => {
+    fence.assertActive(); // E03: abort the run if the job lease was lost
     try {
       const verification = await verifyAdminAuditChain();
       return { locked: true, result: verification };

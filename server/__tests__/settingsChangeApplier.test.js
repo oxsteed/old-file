@@ -4,9 +4,25 @@ const { mockQuery, resetMocks } = require('./setup');
 
 // Run the job handler inline so tests exercise the applier logic without a
 // real job lock table.
-jest.mock('../jobs/jobLockingService', () => ({
-  withJobLock: jest.fn(async (jobName, handler) => handler()),
-}));
+jest.mock('../jobs/jobLockingService', () => {
+  // E03: fenced lock mock. The fence is healthy by default; db calls pass
+  // through to the (mocked) db module so job logic is exercised.
+  const fence = {
+    isActive: () => true,
+    assertActive: () => {},
+    db: {
+      query: (...args) => require('../db').query(...args),
+      tx: (work) => work({ query: (...args) => require('../db').query(...args) }),
+    },
+    fencedQuery: (...args) => require('../db').query(...args),
+    fencedTransaction: (work) => work({ query: (...args) => require('../db').query(...args) }),
+  };
+  return {
+    withJobLock: jest.fn(async (_jobName, handler) => handler(fence)),
+    withFencedJobLock: jest.fn(async (_jobName, handler) => handler(fence)),
+    LeaseLostError: class LeaseLostError extends Error {},
+  };
+});
 
 jest.mock('../services/auditService', () => ({
   logAdminAction: jest.fn().mockResolvedValue(undefined),
@@ -24,7 +40,7 @@ const {
   JOB_NAME,
   CHANGE_REQUESTS_TABLE,
 } = require('../jobs/settingsChangeApplier');
-const { withJobLock } = require('../jobs/jobLockingService');
+const { withFencedJobLock } = require('../jobs/jobLockingService');
 const { logAdminAction } = require('../services/auditService');
 
 const past = new Date(Date.now() - 60 * 1000).toISOString();
@@ -66,8 +82,8 @@ beforeEach(() => {
 test('acquires the job lock before doing any work', async () => {
   mockDiscovery([]);
   await runSettingsChangeApplierOnce();
-  expect(withJobLock).toHaveBeenCalledTimes(1);
-  expect(withJobLock.mock.calls[0][0]).toBe(JOB_NAME);
+  expect(withFencedJobLock).toHaveBeenCalledTimes(1);
+  expect(withFencedJobLock.mock.calls[0][0]).toBe(JOB_NAME);
 });
 
 test('applies every due row: approved with NULL effective_at and scheduled with past effective_at', async () => {
