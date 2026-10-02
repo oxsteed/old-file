@@ -2,6 +2,7 @@ const router          = require('express').Router();
 const { requireAdmin, requireSuperAdmin, requirePermission } = require('../middleware/adminAuth');
 const { loadAssignedRegions, requireRegionAccessForUser } = require('../middleware/regionAuth');
 const superCtrl       = require('../controllers/superAdminController');
+const investigationCtrl = require('../controllers/investigationController');
 const superUserCtrl   = require('../controllers/superAdminUserController');
 const regionCtrl      = require('../controllers/adminRegionController');
 const auditCtrl       = require('../controllers/auditController');
@@ -136,6 +137,15 @@ router.get('/payments', requireAdmin, requirePermission('view_financials'), paym
 // Users - read + write actions (ban/unban logged; admins cannot ban other admins)
 router.get('/users',            requireAdmin, requirePermission('manage_users'), superCtrl.getUsers);
 router.get('/users/:userId',    requireAdmin, requirePermission('manage_users'), superCtrl.getUserDetail);
+
+// ── E13: controlled investigation access ─────────────────────────────────
+// Purpose-limited, approver-tied elevated reads. Every served read is
+// written to the admin audit log with purpose + approver; without an
+// active grant (and not super-admin) the read fails closed with 403.
+router.post('/investigations/access',                 requireAdmin, requirePermission('manage_users'), investigationCtrl.requestAccess);
+router.post('/investigations/access/:id/approve',     requireAdmin, requirePermission('manage_users'), investigationCtrl.approveAccess);
+router.post('/investigations/access/:id/revoke',      requireAdmin, investigationCtrl.revokeAccess);
+router.get('/investigations/users/:userId/profile',   requireAdmin, requirePermission('manage_users'), investigationCtrl.readInvestigationProfile);
 router.put('/users/:userId/name',  requireAdmin, requirePermission('manage_users'), superCtrl.updateUserName);
 router.put('/users/:userId/didit-enforcement', requireAdmin, requirePermission('verify_users'), superCtrl.setUserDiditEnforcement);
 router.post('/users/:userId/ban',  requireAdmin, requirePermission('manage_users'), superCtrl.toggleUserBan);
