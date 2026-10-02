@@ -209,8 +209,8 @@ router.post('/users/:userId/reactivate', requireSuperAdmin, superCtrl.reactivate
 // Extended profile editing (super-admin only)
 router.put('/users/:userId/profile', requireSuperAdmin, superCtrl.updateUserProfile);
 
-// Support tickets for a user (all admins)
-router.get('/users/:userId/support-tickets', requireAdmin, requirePermission('manage_support'), superCtrl.getUserSupportTickets);
+// Support tickets for a user (all admins) - E05: region-scoped detail.
+router.get('/users/:userId/support-tickets', requireAdmin, requirePermission('manage_support'), loadAssignedRegions, requireRegionAccessForUser('userId'), superCtrl.getUserSupportTickets);
 
 // Conversations (super-admin only - every read is audited)
 router.get('/super/conversations',              requireSuperAdmin, convAdminCtrl.listConversations);
@@ -265,8 +265,9 @@ router.get('/export/:type',          requireAdmin, requirePermission('export_dat
 // ══════════════════════════════════════════════════════════════
 
 router.get('/support/stats',                          requireAdmin, requirePermission('manage_support'), supportCtrl.getStats);
-router.get('/support/tickets',                        requireAdmin, requirePermission('manage_support'), supportCtrl.listTickets);
-router.get('/support/tickets/:ticketId',              requireAdmin, requirePermission('manage_support'), supportCtrl.getTicketAdmin);
+// E05: ticket list/detail are region-scoped server-side (fail closed).
+router.get('/support/tickets',                        requireAdmin, requirePermission('manage_support'), loadAssignedRegions, supportCtrl.listTickets);
+router.get('/support/tickets/:ticketId',              requireAdmin, requirePermission('manage_support'), loadAssignedRegions, supportCtrl.getTicketAdmin);
 router.post('/support/tickets/:ticketId/claim',       requireAdmin, requirePermission('manage_support'), supportCtrl.claimTicket);
 router.post('/support/tickets/:ticketId/unclaim',     requireAdmin, requirePermission('manage_support'), supportCtrl.unclaimTicket);
 router.put('/support/tickets/:ticketId/status',       requireAdmin, requirePermission('manage_support'), supportCtrl.updateStatus);
@@ -613,11 +614,13 @@ router.put('/super/oxsteed-credit/restaurant-conversion-policies', requireSuperA
   } catch (err) { next(err); }
 });
 
-// User-action audit log - super-admin or admins with view_audit_log grant
+// User-action audit log - super-admin or admins with view_audit_log grant.
+// E05: region-scoped server-side (fail closed) via loadAssignedRegions.
 router.get(
   '/super/audit-log/user-actions',
   requireAdmin,
   requirePermission('view_audit_log'),
+  loadAssignedRegions,
   auditCtrl.listUserActions
 );
 router.get(
@@ -625,6 +628,7 @@ router.get(
   requireAdmin,
   requirePermission('view_audit_log'),
   strictLimiter,
+  loadAssignedRegions,
   auditCtrl.exportUserActions
 );
 

@@ -1,5 +1,6 @@
 const db     = require('../db');
 const logger = require('../utils/logger');
+const { regionIdsScopeClause } = require('../utils/scopeFilter');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -185,7 +186,11 @@ exports.getUserActionLogs = async ({
   fromDate     = null,
   toDate       = null,
   limit        = 100,
-  offset       = 0
+  offset       = 0,
+  // E05: fail-closed region scoping. undefined = global (super-admin, no
+  // filter); array = restrict to these region ids; empty array = match no
+  // rows (scope missing must never leak rows).
+  scopeRegionIds = undefined,
 } = {}) => {
   const conditions = [];
   const values     = [];
@@ -198,10 +203,20 @@ exports.getUserActionLogs = async ({
   if (fromDate)     { conditions.push(`l.created_at >= $${p++}`);     values.push(fromDate); }
   if (toDate)       { conditions.push(`l.created_at <= $${p++}`);     values.push(toDate); }
 
+  // E05: server-side region scoping, fail closed. An empty scope list
+  // produces FALSE so no rows leak when the caller's scope is missing.
+  if (scopeRegionIds !== undefined) {
+    const frag = regionIdsScopeClause('l.region_id', scopeRegionIds, p);
+    conditions.push(frag.clause);
+    values.push(...frag.values);
+    p = frag.nextParam;
+  }
+
   const whereSql = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const limitN  = Math.min(Math.max(1, parseInt(limit, 10)  || 100), 500);
   const offsetN = Math.min(1_000_000, Math.max(0, parseInt(offset, 10) || 0));
+
 
   const dataSql = `
     SELECT

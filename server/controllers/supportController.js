@@ -10,6 +10,8 @@ const logger        = require('../utils/logger');
 const socketService = require('../services/socketService');
 const { sendEmail } = require('../utils/email');
 const { AppError } = require('../middleware/errorHandler');
+const { resolveScope, userLocationScopeClause } = require('../utils/scopeFilter');
+const { userMatchesAnyRegion } = require('../middleware/regionAuth');
 const { scheduleSupportMessageNotifications } = require('../services/supportNotificationService');
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -453,6 +455,19 @@ exports.listTickets = async (req, res) => {
       p += 2;
     }
 
+    // E05: server-side region scoping, fail closed. Regional admins only
+    // see tickets whose owner is inside their assigned region; guest
+    // tickets (no user to locate) are hidden from regional admins.
+    // NOTE: pure geo_radius scopes cannot be expressed in SQL and match no
+    // rows here (fail closed) rather than leaking cross-region tickets.
+    const scope = resolveScope(req);
+    if (scope.type !== 'global') {
+      const frag = userLocationScopeClause('u', scope.type === 'regions' ? scope.regions : [], p);
+      conditions.push(`(u.id IS NOT NULL AND ${frag.clause})`);
+      params.push(...frag.values);
+      p = frag.nextParam;
+    }
+
     const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
 
     const { rows } = await db.query(
@@ -494,6 +509,12 @@ exports.listTickets = async (req, res) => {
 
     return res.json({ tickets: rows, total: parseInt(total), limit: limitN, offset: offsetN });
   } catch (err) {
+    if (err && err.code === 'SCOPE_UNAVAILABLE') {
+      return res.status(err.statusCode || 503).json({
+        error: 'Request scope is temporarily unavailable. Please retry.',
+        code: err.code,
+      });
+    }
     logger.error('listTickets error', { err });
     return res.status(500).json({ error: 'Failed to fetch tickets.' });
   }
@@ -505,6 +526,25 @@ exports.getTicketAdmin = async (req, res) => {
   try {
     const ticket = await fetchTicketRow(req.params.ticketId);
     if (!ticket) return res.status(404).json({ error: 'Ticket not found.' });
+
+    // E05: regional admins may only open tickets whose owner is inside
+    // their assigned region. Guest tickets (no user to locate) fail
+    // closed: hidden from regional admins.
+    const scope = resolveScope(req);
+    if (scope.type !== 'global') {
+      let inScope = false;
+      if (ticket.user_id) {
+        const { rows: owners } = await db.query(
+          `SELECT id, city, state, zip_code, country, latitude, longitude
+             FROM users WHERE id = $1`,
+          [ticket.user_id]
+        );
+        inScope = owners.length > 0 && userMatchesAnyRegion(owners[0], scope.regions || []);
+      }
+      if (!inScope) {
+        return res.status(403).json({ error: 'Access denied: ticket is outside your assigned region.' });
+      }
+    }
 
     const { rows: msgs } = await db.query(
       `SELECT
@@ -520,6 +560,12 @@ exports.getTicketAdmin = async (req, res) => {
 
     return res.json({ ticket, messages: msgs });
   } catch (err) {
+    if (err && err.code === 'SCOPE_UNAVAILABLE') {
+      return res.status(err.statusCode || 503).json({
+        error: 'Request scope is temporarily unavailable. Please retry.',
+        code: err.code,
+      });
+    }
     logger.error('getTicketAdmin error', { err });
     return res.status(500).json({ error: 'Failed to fetch ticket.' });
   }

@@ -21,7 +21,8 @@ function responseDouble() {
 
 test('audit CSV exports neutralize spreadsheet formulas and disable caching', async () => {
   const res = responseDouble();
-  await auditController.exportUserActions({ query: {} }, res);
+  // E05: the export resolves the caller's scope; super-admin = global.
+  await auditController.exportUserActions({ query: {}, isSuper: true }, res);
 
   expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'private, no-store');
   expect(res.setHeader).toHaveBeenCalledWith('X-Content-Type-Options', 'nosniff');
