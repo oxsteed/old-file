@@ -97,10 +97,17 @@ function planCycles(now = new Date(), weeklyWeekday = 1) {
   return [{ cycleType: 'daily', periodStart: start, periodEnd: end }];
 }
 
-async function ensureCycleRow(client, cycle) {
+async function ensureCycleRow(client, cycle, fence = null) {
+  // E03: the cycle-row writes go through the lease fence when one is
+  // supplied, so a stale worker cannot mark cycles after losing its lease.
+  // Reads stay on the session client; without a fence (direct calls) the
+  // behavior is unchanged.
+  const writeQuery = fence
+    ? (text, params) => fence.db.query(text, params)
+    : (text, params) => client.query(text, params);
   const valueDate = formatUtcDate(cycle.periodEnd);
   const settlementDate = formatUtcDate(nextBusinessDay(cycle.periodEnd));
-  const { rows: inserted } = await client.query(
+  const { rows: inserted } = await writeQuery(
     `INSERT INTO oxsteed_credit_settlement_cycles
        (cycle_type, period_start, period_end, cutoff_at, value_date, settlement_date)
      VALUES ($1, $2, $3, $2, $4, $5)
@@ -120,7 +127,7 @@ async function ensureCycleRow(client, cycle) {
   // Idempotent re-runs: a completed cycle is never rebuilt; a scheduled,
   // processing, or failed cycle is (re)run with idempotent settlement keys.
   if (row.status === 'completed') return { cycleRow: row, alreadyCompleted: true };
-  const { rows: updated } = await client.query(
+  const { rows: updated } = await writeQuery(
     `UPDATE oxsteed_credit_settlement_cycles
         SET status = 'processing', updated_at = NOW()
       WHERE id = $1
@@ -297,11 +304,17 @@ async function settlePartnerForCycle(cycleRow, { partnerId, currencyCode }) {
   }
 }
 
-async function runCycle(cycle) {
+async function runCycle(cycle, fence = null) {
+  // E03: job writes go through the lease fence when one is supplied, so a
+  // stale worker refuses further writes after lease loss instead of
+  // recording cycle outcomes it no longer owns. Reads stay on the pool.
+  const writeQuery = fence
+    ? (text, params) => fence.db.query(text, params)
+    : (text, params) => pool.query(text, params);
   const client = await pool.connect();
   let ensureResult;
   try {
-    ensureResult = await ensureCycleRow(client, cycle);
+    ensureResult = await ensureCycleRow(client, cycle, fence);
   } finally {
     client.release();
   }
@@ -333,7 +346,7 @@ async function runCycle(cycle) {
     }
   }
   const failed = errors.length > 0;
-  await pool.query(
+  await writeQuery(
     `UPDATE oxsteed_credit_settlement_cycles
         SET status = $2,
             metadata = metadata || $3::jsonb,
@@ -360,7 +373,12 @@ async function runCycle(cycle) {
  * row. Above the floor but below floor * warnMultiplier: warning incident.
  * Never moves money; funding stays an explicit admin action.
  */
-async function checkReserveLevels({ warnMultiplier = parseWarnMultiplier() } = {}) {
+async function checkReserveLevels({ warnMultiplier = parseWarnMultiplier(), fence = null } = {}) {
+  // E03: the funding-requirement write goes through the lease fence when
+  // one is supplied. Reads stay on the pool.
+  const writeQuery = fence
+    ? (text, params) => fence.db.query(text, params)
+    : (text, params) => pool.query(text, params);
   const { rows: accounts } = await pool.query(
     `SELECT partner_id, currency_code, balance_cents
        FROM oxsteed_credit_accounts
@@ -396,7 +414,7 @@ async function checkReserveLevels({ warnMultiplier = parseWarnMultiplier() } = {
       });
       results.incidents.push(incident);
       try {
-        await pool.query(
+        await writeQuery(
           `INSERT INTO oxsteed_credit_reserve_funding_requirements
              (partner_id, currency_code, required_cents, reason, status)
            VALUES ($1, $2, $3, $4, 'open')
@@ -453,11 +471,11 @@ async function runOxsteedCreditSettlementCycle({ now = new Date(), runReserveMon
     const cycles = planCycles(now, weeklyWeekday);
     const results = [];
     for (const cycle of cycles) {
-      results.push(await runCycle(cycle));
+      results.push(await runCycle(cycle, fence));
     }
     let reserveMonitor = null;
     if (runReserveMonitor) {
-      reserveMonitor = await checkReserveLevels();
+      reserveMonitor = await checkReserveLevels({ fence });
     }
     const errors = results.flatMap((r) => r.errors || []);
     await recordOxsteedCreditWorkerRun({
