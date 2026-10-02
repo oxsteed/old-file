@@ -4249,30 +4249,6 @@ export default function LearnModePage() {
     }
   };
 
-  // AI step prompt: opens the AI chat with guide context prefilled, so the
-  // user can ask about the current step.
-  const handleAskAI = useCallback((guide, stepIndex, stepText) => {
-    const excerpt = stepText.length > 120 ? `${stepText.slice(0, 120)}…` : stepText;
-    const prefill = t('learn.page.askAiPrefill', {
-      title: guide.title,
-      step: stepIndex + 1,
-      excerpt,
-    });
-    window.dispatchEvent(new CustomEvent('oxsteed:open-support', {
-      detail: { prefill, guide_id: guide.id, step: stepIndex + 1 },
-    }));
-  }, [t]);
-
-  // AI guide prompt: opens the AI chat with the whole guide as context, so the
-  // user can ask anything about it after finishing the steps.
-  const handleAskAIGuide = useCallback((guide) => {
-    const prefill = t('learn.page.askAiGuidePrefill', { title: guide.title });
-    window.dispatchEvent(new CustomEvent('oxsteed:open-support', {
-      detail: { prefill, guide_id: guide.id, step: 0 },
-    }));
-    trackLearnClick(guide.id, 'ask-ai', null);
-  }, [t]);
-
   const dismissAppBanner = () => {
     setShowAppBanner(false);
     localStorage.setItem(APP_BANNER_KEY, '1');
@@ -5099,37 +5075,10 @@ export default function LearnModePage() {
                                   <span className="lrn-step-num">{i + 1}</span>
                                   <span className="lrn-step-body">
                                     {step}
-                                    {/* Ask AI about this step */}
-                                    <button
-                                      type="button"
-                                      className="lrn-ask-ai-btn"
-                                      onClick={() => handleAskAI(guide, i, step)}
-                                      title={t('learn.page.askAiTitle')}
-                                      aria-label={`${t('learn.page.askAiTitle')} ${i + 1}`}
-                                    >
-                                      <MessageCircle size={12} aria-hidden="true" />
-                                      {t('learn.page.askAi')}
-                                    </button>
                                   </span>
                                 </li>
                               ))}
                             </ol>
-
-                            {/* Still need help? Ask AI */}
-                            <div className="lrn-still-help">
-                              <p className="lrn-still-help-title">{t('learn.page.stillNeedHelp')}</p>
-                              <div className="lrn-still-help-actions">
-                                <button
-                                  type="button"
-                                  className="lrn-still-help-ai"
-                                  onClick={() => handleAskAIGuide(guide)}
-                                >
-                                  <MessageCircle size={16} aria-hidden="true" />
-                                  <span>{t('learn.page.askAi')}</span>
-                                </button>
-                                <p className="lrn-ai-disclaimer">{t('learn.page.aiDisclaimer')}</p>
-                              </div>
-                            </div>
 
                             {/* Completion */}
                             {done ? (

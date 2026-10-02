@@ -46,20 +46,20 @@ test('per-step Ask AI buttons are labeled and prefilled in every language', () =
   assert.equal(catalog('en').learn.page.askAi, 'Ask AI');
 });
 
-test('per-step buttons use Ask AI and the end-of-steps card offers only the AI option', () => {
+test('Ask AI buttons are removed from the Learn guide pages', () => {
   const source = read('src/pages/LearnModePage.jsx');
-  // Per-step buttons open the AI chat, so they are labeled Ask AI.
-  assert.match(source, /learn\.page\.askAiPrefill/);
-  assert.match(source, /handleAskAI/);
-  assert.doesNotMatch(source, /learn\.page\.askSupportPrefill/);
-  assert.doesNotMatch(source, /handleAskSupport/);
-  // The end-of-steps "Still need help?" card carries only the Ask AI option
-  // plus the industry-standard AI disclaimer. The paid human option is hidden.
-  assert.match(source, /learn\.page\.stillNeedHelp/);
-  assert.match(source, /learn\.page\.askAiGuidePrefill/);
-  assert.match(source, /learn\.page\.aiDisclaimer/);
-  assert.match(source, /handleAskAIGuide/);
-  assert.match(source, /lrn-still-help-ai/);
+  // Ask AI was removed from guides to avoid AI provider cost. No guide page
+  // may wire the AI chat prefill or render the Ask AI buttons.
+  assert.doesNotMatch(source, /learn\.page\.askAiPrefill/);
+  assert.doesNotMatch(source, /learn\.page\.askAiGuidePrefill/);
+  assert.doesNotMatch(source, /learn\.page\.askAiTitle/);
+  assert.doesNotMatch(source, /learn\.page\.stillNeedHelp/);
+  assert.doesNotMatch(source, /learn\.page\.aiDisclaimer/);
+  assert.doesNotMatch(source, /handleAskAI/);
+  assert.doesNotMatch(source, /handleAskAIGuide/);
+  assert.doesNotMatch(source, /lrn-ask-ai-btn/);
+  assert.doesNotMatch(source, /lrn-still-help/);
+  // The paid human option stays hidden.
   assert.doesNotMatch(source, /learn\.page\.talkToHuman/);
   assert.doesNotMatch(source, /learn\.page\.talkToHumanPrice/);
   assert.doesNotMatch(source, /lrn-still-help-human/);
