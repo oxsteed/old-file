@@ -255,7 +255,7 @@ async function reviewApproval({ approvalId, reviewerId, decision, note }) {
     throw approvalError(400, 'invalid_decision', `decision must be one of: ${DECISIONS.join(', ')}.`);
   }
   const { rows } = await db.query(
-    'SELECT * FROM profile_visibility_approvals WHERE id = $1 FOR UPDATE',
+    'SELECT id, requested_by, status, action_type FROM profile_visibility_approvals WHERE id = $1',
     [approvalId]
   );
   const approval = rows[0];
@@ -276,13 +276,22 @@ async function reviewApproval({ approvalId, reviewerId, decision, note }) {
   }
 
   const status = decision === 'approved' ? 'approved' : 'rejected';
+  // T58-F01: atomic decision. The UPDATE re-asserts pending status so two
+  // reviewers cannot both succeed. Zero rows = lost race.
   const { rows: updated } = await db.query(
     `UPDATE profile_visibility_approvals
         SET status = $2, reviewed_by = $3, reviewed_at = NOW(), review_note = $4
-      WHERE id = $1
+      WHERE id = $1 AND status = 'pending'
       RETURNING *`,
     [approvalId, status, reviewerId, note ? String(note).slice(0, 2000) : null]
   );
+  if (!updated.length) {
+    throw approvalError(
+      409,
+      'approval_not_pending',
+      'Approval was already reviewed by another admin.'
+    );
+  }
   const reviewed = updated[0];
 
   try {
