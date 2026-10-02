@@ -695,9 +695,19 @@ exports.listSuspects = async (req, res) => {
               (SELECT COUNT(*) FROM businesses b WHERE b.user_id = u.id AND b.deleted_at IS NULL) AS business_count
        FROM users u
        WHERE ${conditions.join(' AND ')}
-       ORDER BY u.created_at ASC`,
+       ORDER BY u.created_at ASC
+       -- T59-F01: bound the investigation. The pairwise comparison below is
+       -- O(n^2); loading the full user table would OOM. Production scale
+       -- needs an indexed suspect index or async job, not a larger limit.
+       LIMIT 5000`,
       params
     );
+
+    if (rows.length >= 5000) {
+      scope.warnings.push(
+        'Investigation truncated at 5,000 users. Refine the scope for a complete review.'
+      );
+    }
 
     const enrichedUsers = await enrichUsers(client, rows);
     const userMap = new Map(enrichedUsers.map((user) => [user.id, user]));
