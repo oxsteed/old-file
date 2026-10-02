@@ -467,7 +467,7 @@ export default function FranchiseHQPage() {
                 <Search size={16} style={{ position: 'absolute', left: 12, top: 12, color: '#64748b' }} />
                 <input style={{ ...fieldStyle, paddingLeft: 38 }} placeholder={t('adminFranchiseSearchPlaceholder')} value={search} onChange={(e) => setSearch(e.target.value)} />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
                 <select style={fieldStyle} value={filters.status} onChange={(e) => setFilters((v) => ({ ...v, status: e.target.value }))}>
                   <option value="">{t('adminFranchiseAllStatuses')}</option>
                   {STATUS_OPTIONS.map((value) => <option key={value} value={value}>{formatLabel(value, t)}</option>)}

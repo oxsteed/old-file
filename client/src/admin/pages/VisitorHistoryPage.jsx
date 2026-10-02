@@ -19,7 +19,7 @@ function defaultRange() {
 
 export default function VisitorHistoryPage() {
   const { t, i18n } = useTranslation();
-  const copy = (key, options) => t(`adminVisitors.${key}`, options);
+  const copy = useCallback((key, options) => t(`adminVisitors.${key}`, options), [t]);
 
   const [range, setRange] = useState(defaultRange);
   const [country, setCountry] = useState('');

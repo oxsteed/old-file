@@ -22218,6 +22218,7 @@
   "adminSearchLogsSubtitle": "Chaque recherche d'admin est enregistrée ici : qui a cherché, quoi et quand.",
   "adminSearchLogsTitle": "Journal d'audit des recherches",
   "adminSearchLogsTopSearchers": "Principaux chercheurs",
+  "adminSearchLogsTopQueries": "Requêtes principales",
   "adminSearchLogsTotalSearches": "Recherches totales",
   "adminSearchLogsUniqueAdmins": "Admins uniques",
   "adminUserActionsAuditColAction": "Action",

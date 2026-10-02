@@ -22312,6 +22312,7 @@
   "adminSearchLogsSubtitle": "Every admin search is recorded here - who searched, what, and when.",
   "adminSearchLogsTitle": "Search Audit Log",
   "adminSearchLogsTopSearchers": "Top searchers",
+  "adminSearchLogsTopQueries": "Top queries",
   "adminSearchLogsTotalSearches": "Total Searches",
   "adminSearchLogsUniqueAdmins": "Unique Admins",
   "adminUserActionsAuditColAction": "Action",

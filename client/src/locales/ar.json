@@ -22229,6 +22229,7 @@
   "adminSearchLogsSubtitle": "يتم تسجيل كل عمليات بحث المسؤولين هنا: من بحث، وعن ماذا، ومتى.",
   "adminSearchLogsTitle": "سجل تدقيق البحث",
   "adminSearchLogsTopSearchers": "الأكثر بحثاً",
+  "adminSearchLogsTopQueries": "أهم الاستعلامات",
   "adminSearchLogsTotalSearches": "إجمالي عمليات البحث",
   "adminSearchLogsUniqueAdmins": "مسؤولون فريدون",
   "adminUserActionsAuditColAction": "الإجراء",

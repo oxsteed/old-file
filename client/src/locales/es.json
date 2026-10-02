@@ -22218,6 +22218,7 @@
   "adminSearchLogsSubtitle": "Todas las búsquedas de administradores se registran aquí: quién buscó, qué y cuándo.",
   "adminSearchLogsTitle": "Registro de auditoría de búsquedas",
   "adminSearchLogsTopSearchers": "Principales buscadores",
+  "adminSearchLogsTopQueries": "Consultas principales",
   "adminSearchLogsTotalSearches": "Búsquedas totales",
   "adminSearchLogsUniqueAdmins": "Administradores únicos",
   "adminUserActionsAuditColAction": "Acción",
