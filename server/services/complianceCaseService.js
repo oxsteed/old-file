@@ -211,22 +211,33 @@ async function findSlaBreachedCases(client, now = new Date()) {
 async function getComplianceQueue(client, { limit = 50, offset = 0 } = {}) {
   const { listPendingVerifications } = require('./identityVerificationService');
   const { listPendingSanctionHits } = require('./sanctionsScreeningService');
-  const [verifications, sanctions, cases] = await Promise.all([
-    listPendingVerifications(client, { limit, offset: 0 }),
-    listPendingSanctionHits(client, { limit, offset: 0 }),
-    listComplianceCases(client, { limit, offset }),
+  const lim = Math.min(Math.max(Number(limit) || 50, 1), 200);
+  const off = Math.max(Number(offset) || 0, 0);
+  const [verifications, sanctions, cases, counts] = await Promise.all([
+    listPendingVerifications(client, { limit: lim, offset: off }),
+    listPendingSanctionHits(client, { limit: lim, offset: off }),
+    listComplianceCases(client, { limit: lim, offset: off }),
+    // T38-F02: totals, not page lengths, so operators can navigate the full queue.
+    client.query(
+      `SELECT
+         (SELECT COUNT(*)::int FROM oxsteed_credit_identity_verifications WHERE status = 'pending') AS pending_verifications,
+         (SELECT COUNT(*)::int FROM oxsteed_credit_sanctions_screenings WHERE result = 'hit' AND cleared_at IS NULL) AS pending_sanctions,
+         (SELECT COUNT(*)::int FROM oxsteed_credit_compliance_cases WHERE status IN ('open', 'investigating', 'escalated')) AS open_cases`
+    ),
   ]);
   const openCases = cases.filter((c) => c.status === 'open' || c.status === 'investigating' || c.status === 'escalated');
+  const totals = counts.rows[0] || {};
   return {
     verifications,
     sanctions,
     cases: openCases,
     counts: {
-      pendingVerifications: verifications.length,
-      pendingSanctions: sanctions.length,
-      openCases: openCases.length,
+      pendingVerifications: Number(totals.pending_verifications || 0),
+      pendingSanctions: Number(totals.pending_sanctions || 0),
+      openCases: Number(totals.open_cases || 0),
       slaBreachedCases: openCases.filter((c) => c.slaBreached).length,
     },
+    pagination: { limit: lim, offset: off },
   };
 }
 

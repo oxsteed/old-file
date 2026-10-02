@@ -565,6 +565,9 @@ export default function SupportTickets() {
   const [status, setStatus] = useState('');
   const [priority, setPriority] = useState('');
   const [assigned, setAssigned] = useState('');
+  // T10-F02: paginate the ticket queue.
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 50;
   const ticketRequestRef = useRef(0);
   const ticketLoadingRequestRef = useRef(null);
   const {
@@ -585,6 +588,8 @@ export default function SupportTickets() {
       if (status) params.status = status;
       if (priority) params.priority = priority;
       if (assigned) params.assigned = assigned;
+      params.page = page;
+      params.limit = PAGE_SIZE;
 
       const [ticketResponse, statsResponse] = await Promise.all([
         adminApi.get('/admin/support/tickets', { params }),
@@ -608,7 +613,7 @@ export default function SupportTickets() {
         setLoading(false);
       }
     }
-  }, [search, status, priority, assigned, t]);
+  }, [search, status, priority, assigned, page, t]);
 
   useEffect(() => { loadTickets(); }, [loadTickets]);
 
@@ -809,7 +814,7 @@ export default function SupportTickets() {
                     type="text"
                     placeholder={t('adminSupportTickets.inbox.searchPlaceholder')}
                     value={search}
-                    onChange={(event) => setSearch(event.target.value)}
+                    onChange={(event) => { setSearch(event.target.value); setPage(1); }}
                     className="w-full rounded-xl border border-gray-700 bg-gray-950 py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-gray-500 focus:border-orange-500 focus:outline-none"
                   />
                 </div>
@@ -822,7 +827,7 @@ export default function SupportTickets() {
                 <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
                   <select
                     value={status}
-                    onChange={(event) => setStatus(event.target.value)}
+                    onChange={(event) => { setStatus(event.target.value); setPage(1); }}
                     className="rounded-xl border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-gray-300 focus:border-orange-500 focus:outline-none"
                   >
                     <option value="">{t('adminSupportTickets.filters.allStatuses')}</option>
@@ -835,7 +840,7 @@ export default function SupportTickets() {
                   </select>
                   <select
                     value={priority}
-                    onChange={(event) => setPriority(event.target.value)}
+                    onChange={(event) => { setPriority(event.target.value); setPage(1); }}
                     className="rounded-xl border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-gray-300 focus:border-orange-500 focus:outline-none"
                   >
                     <option value="">{t('adminSupportTickets.filters.allPriorities')}</option>
@@ -846,7 +851,7 @@ export default function SupportTickets() {
                   </select>
                   <select
                     value={assigned}
-                    onChange={(event) => setAssigned(event.target.value)}
+                    onChange={(event) => { setAssigned(event.target.value); setPage(1); }}
                     className="rounded-xl border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-gray-300 focus:border-orange-500 focus:outline-none"
                   >
                     <option value="">{t('adminSupportTickets.filters.allAgents')}</option>
@@ -892,6 +897,29 @@ export default function SupportTickets() {
                 </div>
               )}
             </div>
+
+            {/* T10-F02: pagination controls */}
+            {total > PAGE_SIZE && (
+              <div className="flex items-center justify-center gap-3 py-3 border-t border-gray-800">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-800 text-gray-300 hover:bg-gray-700 disabled:opacity-50"
+                >
+                  {t('common.previous', { defaultValue: 'Previous' })}
+                </button>
+                <span className="text-xs text-gray-400">
+                  {t('adminSupportTickets.pageOf', { defaultValue: 'Page {{page}} of {{total}}', page, total: Math.ceil(total / PAGE_SIZE) })}
+                </span>
+                <button
+                  onClick={() => setPage(p => Math.min(Math.ceil(total / PAGE_SIZE), p + 1))}
+                  disabled={page >= Math.ceil(total / PAGE_SIZE)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-800 text-gray-300 hover:bg-gray-700 disabled:opacity-50"
+                >
+                  {t('common.next', { defaultValue: 'Next' })}
+                </button>
+              </div>
+            )}
           </div>
 
           <div className={`${showDetail ? 'flex' : 'hidden xl:flex'} min-h-0 flex-col`}>

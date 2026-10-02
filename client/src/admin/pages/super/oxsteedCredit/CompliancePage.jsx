@@ -48,13 +48,18 @@ export default function OxsteedCreditCompliancePage() {
   const [complianceQueue, setComplianceQueue] = useState(null);
   const [queueError, setQueueError] = useState('');
   const { dialog, requestDialog, resolveDialog } = useCreditDialog();
+  // T38-F02: paginate the compliance queue.
+  const [queuePage, setQueuePage] = useState(0);
+  const QUEUE_PAGE_SIZE = 50;
 
   const load = useCallback(async ({ quiet = false } = {}) => {
     const requestId = ++loadRequestRef.current;
     if (!quiet) setLoading(true);
     setQueueError('');
     try {
-      const complianceResponse = await adminApi.get('/admin/super/oxsteed-credit/compliance-queue');
+      const complianceResponse = await adminApi.get('/admin/super/oxsteed-credit/compliance-queue', {
+        params: { limit: QUEUE_PAGE_SIZE, offset: queuePage * QUEUE_PAGE_SIZE },
+      });
       if (requestId !== loadRequestRef.current) return;
       setComplianceQueue(complianceResponse.data || null);
     } catch (err) {
@@ -62,7 +67,7 @@ export default function OxsteedCreditCompliancePage() {
     } finally {
       if (requestId === loadRequestRef.current) setLoading(false);
     }
-  }, [t]);
+  }, [t, queuePage]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -116,6 +121,40 @@ export default function OxsteedCreditCompliancePage() {
         busy={busy}
         decideCompliance={decideCompliance}
       />
+      {/* T38-F02: queue pagination */}
+      {(() => {
+        const counts = complianceQueue?.counts || {};
+        const total = Math.max(
+          Number(counts.pendingVerifications || 0),
+          Number(counts.pendingSanctions || 0),
+          Number(counts.openCases || 0)
+        );
+        const totalPages = Math.ceil(total / QUEUE_PAGE_SIZE);
+        if (totalPages <= 1) return null;
+        return (
+          <div className="mt-4 flex items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => setQueuePage(p => Math.max(0, p - 1))}
+              disabled={queuePage <= 0}
+              className="rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50"
+            >
+              {t('adminPrevious')}
+            </button>
+            <span className="text-xs text-gray-400">
+              {t('adminPageOf', { page: queuePage + 1, total: totalPages })}
+            </span>
+            <button
+              type="button"
+              onClick={() => setQueuePage(p => Math.min(totalPages - 1, p + 1))}
+              disabled={queuePage >= totalPages - 1}
+              className="rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50"
+            >
+              {t('adminNext')}
+            </button>
+          </div>
+        );
+      })()}
       </main>
     </>
   );

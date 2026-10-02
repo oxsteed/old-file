@@ -22,17 +22,22 @@ export default function ReportsList() {
   const [tab,     setTab]      = useState('pending');
   const [acting,  setActing]   = useState(null);
   const [message, setMessage]  = useState(null);
+  const [page,    setPage]     = useState(1);
+  const PAGE_SIZE = 25;
 
   // Sequence-guarded + abortable: a failed fetch surfaces an error panel
   // instead of a misleading "queue is clear" empty state.
+  // T05-F01: the queue is paginated; operators can navigate all pages.
   const { data, loading, error, reload } = useAbortableFetch(async (signal) => {
     const { data: res } = await adminApi.get('/admin/reports', {
-      params: { status: tab },
+      params: { status: tab, page, limit: PAGE_SIZE },
       signal,
     });
-    return { reports: res.reports || [], total: res.total || 0 };
-  }, [tab]);
+    return { reports: res.reports || [], total: res.total || 0, page: res.page || 1 };
+  }, [tab, page]);
   const reports = data?.reports || [];
+  const total = data?.total || 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const total = data?.total || 0;
 
   const fetchReports = () => reload();
@@ -82,7 +87,7 @@ export default function ReportsList() {
         {STATUS_TABS.map(statusKey => (
           <button
             key={statusKey}
-            onClick={() => setTab(statusKey)}
+            onClick={() => { setTab(statusKey); setPage(1); }}
             className={`px-4 py-1.5 rounded-full text-xs font-semibold
               capitalize transition ${
               tab === statusKey
@@ -215,7 +220,30 @@ export default function ReportsList() {
                 )}
               </div>
             </div>
-          ))}
+          ))}\n        </div>
+      )}
+
+      {/* T05-F01: pagination controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-3 mt-6">
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-800 text-gray-300 hover:bg-gray-700 disabled:opacity-50"
+          >
+            {t('common.previous', { defaultValue: 'Previous' })}
+          </button>
+          <span className="text-xs text-gray-400">
+            {t('adminReports.pageOf', { defaultValue: 'Page {{page}} of {{total}}', page, total: totalPages })}
+            {' '}({total} {t('adminReports.total', { defaultValue: 'total' })})
+          </span>
+          <button
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-800 text-gray-300 hover:bg-gray-700 disabled:opacity-50"
+          >
+            {t('common.next', { defaultValue: 'Next' })}
+          </button>
         </div>
       )}
     </div>
