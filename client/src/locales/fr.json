@@ -9455,7 +9455,7 @@
       "flag": "Signaler",
       "flagTitle": "Signaler pour révision ultérieure",
       "loading": "Chargement…",
-      "queueSubtitle": "{{count}} mission{{plural}} signalée{{plural}}",
+      "queueSubtitle": "{{count}} mission{{plural}} signalée",
       "remove": "Retirer",
       "removeTitle": "Annuler la mission - la retire de la place de marché",
       "reportCount": "{{count}} signalement{{plural}}",

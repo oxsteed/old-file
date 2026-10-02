@@ -9455,7 +9455,7 @@
       "flag": "Marcar",
       "flagTitle": "Marcar para revisión adicional",
       "loading": "Cargando…",
-      "queueSubtitle": "{{count}} trabajo{{plural}} marcado{{plural}} o reportado{{plural}}",
+      "queueSubtitle": "{{count}} trabajo{{plural}} marcado o reportado",
       "remove": "Eliminar",
       "removeTitle": "Cancelar trabajo - lo quita del marketplace",
       "reportCount": "{{count}} reporte{{plural}}",
