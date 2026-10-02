@@ -1688,11 +1688,15 @@ exports.getMoneyOverview = async (req, res) => {
 
     let ledgerBySource = [];
     let ledgerMovements = [];
+    // T36-F01: reporting currency for headline money totals. Per-currency
+    // breakdowns are exposed separately; mixed-currency sums are never implied.
+    const REPORTING_CURRENCY = 'USD';
     if (hasLedger) {
       const [{ rows: sourceRows }, { rows: movementRows }] = await Promise.all([
         db.query(`
           SELECT
             source_type,
+            UPPER(currency) AS currency,
             COUNT(*) FILTER (WHERE created_at >= now() - $1::interval) AS period_count,
             COUNT(*) AS lifetime_count,
             COALESCE(SUM(CASE WHEN amount_cents > 0 AND created_at >= now() - $1::interval THEN amount_cents ELSE 0 END), 0) AS period_positive_cents,
@@ -1700,8 +1704,8 @@ exports.getMoneyOverview = async (req, res) => {
             COALESCE(SUM(CASE WHEN amount_cents > 0 THEN amount_cents ELSE 0 END), 0) AS lifetime_positive_cents,
             COALESCE(SUM(CASE WHEN amount_cents < 0 THEN ABS(amount_cents) ELSE 0 END), 0) AS lifetime_negative_cents
           FROM platform_ledger
-          GROUP BY source_type
-          ORDER BY lifetime_positive_cents DESC, source_type ASC
+          GROUP BY source_type, UPPER(currency)
+          ORDER BY lifetime_positive_cents DESC, source_type ASC, currency ASC
         `, [interval]),
         db.query(`
           SELECT
@@ -1721,8 +1725,14 @@ exports.getMoneyOverview = async (req, res) => {
       ledgerMovements = movementRows;
     }
 
+    // T36-F01: ledger totals are grouped by (source_type, currency). Headline
+    // sums cover the reporting currency only; per-currency breakdowns are
+    // exposed separately so mixed-currency sums are never implied.
     const ledgerMap = ledgerBySource.reduce((acc, row) => {
-      acc[row.source_type] = {
+      const key = `${row.source_type}:${row.currency || REPORTING_CURRENCY}`;
+      acc[key] = {
+        sourceType: row.source_type,
+        currency: row.currency || REPORTING_CURRENCY,
         periodCount: safeInt(row.period_count),
         lifetimeCount: safeInt(row.lifetime_count),
         periodPositiveCents: safeInt(row.period_positive_cents),
@@ -1733,14 +1743,18 @@ exports.getMoneyOverview = async (req, res) => {
       return acc;
     }, {});
 
-    const ledgerRevenuePeriodCents = Object.entries(ledgerMap).reduce((sum, [source, value]) => (
-      revenueLedgerSources.has(source) ? sum + value.periodPositiveCents : sum
+    const ledgerRevenuePeriodCents = Object.values(ledgerMap).reduce((sum, value) => (
+      revenueLedgerSources.has(value.sourceType) && value.currency === REPORTING_CURRENCY
+        ? sum + value.periodPositiveCents : sum
     ), 0);
-    const ledgerRevenueLifetimeCents = Object.entries(ledgerMap).reduce((sum, [source, value]) => (
-      revenueLedgerSources.has(source) ? sum + value.lifetimePositiveCents : sum
+    const ledgerRevenueLifetimeCents = Object.values(ledgerMap).reduce((sum, value) => (
+      revenueLedgerSources.has(value.sourceType) && value.currency === REPORTING_CURRENCY
+        ? sum + value.lifetimePositiveCents : sum
     ), 0);
-    const ledgerRefundsPeriodCents = Object.values(ledgerMap).reduce((sum, value) => sum + value.periodNegativeCents, 0);
-    const ledgerOutflowsLifetimeCents = Object.values(ledgerMap).reduce((sum, value) => sum + value.lifetimeNegativeCents, 0);
+    const ledgerRefundsPeriodCents = Object.values(ledgerMap).reduce(
+      (sum, value) => value.currency === REPORTING_CURRENCY ? sum + value.periodNegativeCents : sum, 0);
+    const ledgerOutflowsLifetimeCents = Object.values(ledgerMap).reduce(
+      (sum, value) => value.currency === REPORTING_CURRENCY ? sum + value.lifetimeNegativeCents : sum, 0);
 
     let activeSubscriptions = 0;
     if (hasSubscriptions) {
@@ -2029,12 +2043,17 @@ exports.getMoneyOverview = async (req, res) => {
       : 0;
 
     const serviceFeeSources = ['job_fee', 'protection_fee', 'broker_fee'];
-    const serviceFeesPeriodCents = serviceFeeSources.reduce((sum, key) => sum + (ledgerMap[key]?.periodPositiveCents || 0), 0);
-    const serviceFeesLifetimeCents = serviceFeeSources.reduce((sum, key) => sum + (ledgerMap[key]?.lifetimePositiveCents || 0), 0);
+    const serviceFeesPeriodCents = serviceFeeSources.reduce(
+      (sum, src) => sum + (ledgerMap[`${src}:${REPORTING_CURRENCY}`]?.periodPositiveCents || 0), 0);
+    const serviceFeesLifetimeCents = serviceFeeSources.reduce(
+      (sum, src) => sum + (ledgerMap[`${src}:${REPORTING_CURRENCY}`]?.lifetimePositiveCents || 0), 0);
     const otherLiveLedgerSources = Object.entries(ledgerMap)
-      .filter(([source]) => revenueLedgerSources.has(source) && !['subscription', ...serviceFeeSources].includes(source))
-      .map(([source, value]) => ({
-        source,
+      .filter(([, value]) => revenueLedgerSources.has(value.sourceType)
+        && value.currency === REPORTING_CURRENCY
+        && !['subscription', ...serviceFeeSources].includes(value.sourceType))
+      .map(([, value]) => ({
+        source: value.sourceType,
+        currency: value.currency,
         periodCents: value.periodPositiveCents,
         lifetimeCents: value.lifetimePositiveCents,
       }))

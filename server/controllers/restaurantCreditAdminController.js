@@ -186,7 +186,7 @@ exports.getOverview = async (req, res, next) => {
     const limitPlaceholder = filters.params.length + 1;
     const offsetPlaceholder = filters.params.length + 2;
 
-    const [summaryResult, countResult, walletsResult, requestSummaryResult, holdSummaryResult, activityResult, requestsResult, restaurantsResult] = await Promise.all([
+    const [summaryResult, countResult, walletsResult, requestSummaryResult, holdSummaryResult, activityResult, requestsResult, restaurantsResult, currencyBreakdownResult] = await Promise.all([
       pool.query(
         `SELECT COUNT(*)::int AS total_wallets,
                 COUNT(DISTINCT a.restaurant_id)::int AS total_restaurants,
@@ -297,11 +297,34 @@ exports.getOverview = async (req, res, next) => {
           GROUP BY fr.id, fr.display_name, fr.currency_code
           ORDER BY fr.display_name ASC, fr.id ASC`
       ),
+      // T37-F01: per-currency balance breakdown so finance can inspect each
+      // currency's aggregate liability instead of an unqualified mixed total.
+      pool.query(
+        `SELECT UPPER(a.currency_code) AS currency,
+                COUNT(*)::int AS wallet_count,
+                COALESCE(SUM(a.balance_cents), 0)::bigint AS balance_cents,
+                COALESCE(SUM(a.reserved_cents), 0)::bigint AS reserved_cents,
+                COALESCE(SUM(GREATEST(0, a.balance_cents - a.reserved_cents)), 0)::bigint AS available_cents
+           FROM food_customer_wallet_accounts a
+           JOIN food_restaurants fr ON fr.id = a.restaurant_id
+           JOIN users u ON u.id = a.customer_id
+          WHERE ${filters.where}
+          GROUP BY UPPER(a.currency_code)
+          ORDER BY UPPER(a.currency_code) ASC`,
+        filters.params
+      ),
     ]);
 
     const summary = summaryResult.rows[0] || {};
     const requestSummary = requestSummaryResult.rows[0] || {};
     const holdSummary = holdSummaryResult.rows[0] || {};
+    const currencyBreakdown = (currencyBreakdownResult.rows || []).map(r => ({
+      currency: r.currency,
+      walletCount: Number(r.wallet_count || 0),
+      balanceCents: formatMoneyCents(r.balance_cents),
+      reservedCents: formatMoneyCents(r.reserved_cents),
+      availableCents: formatMoneyCents(r.available_cents),
+    }));
     const total = Number(countResult.rows[0]?.total || 0);
 
     res.json({
@@ -323,6 +346,9 @@ exports.getOverview = async (req, res, next) => {
         totalReservedCents: formatMoneyCents(summary.total_reserved_cents),
         totalAvailableCents: formatMoneyCents(summary.total_available_cents),
         currencyCount: Number(summary.currency_count || 0),
+        // T37-F01: grouped native balances per currency. The scalar totals
+        // above are unqualified when currencyCount > 1; prefer this breakdown.
+        currencyBreakdown,
         pendingLoadRequests: Number(requestSummary.pending_count || 0),
         pendingLoadAmountCents: formatMoneyCents(requestSummary.pending_amount_cents),
         activeHolds: Number(holdSummary.active_count || 0),
