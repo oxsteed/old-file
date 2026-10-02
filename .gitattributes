@@ -1,0 +1,2 @@
+# Generated audit PDFs are binary artifacts, not source text.
+output/pdf/*.pdf binary
