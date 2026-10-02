@@ -4,6 +4,7 @@
 
 const pool = require('../db');
 const logger = require('../utils/logger');
+const { withDbBudget, DbBudgetExhaustedError } = require('../utils/dbBudgets');
 const os = require('os');
 
 /**
@@ -210,14 +211,24 @@ async function withFencedJobLock(jobName, handler, ttlSeconds = 300, { throwOnLo
   renewalTimer.unref?.();
 
   try {
-    const result = await handler(fence);
+    // E04: every worker runs under the 'jobs' workload budget. When the
+    // budget is exhausted the run fails closed (DbBudgetExhaustedError)
+    // instead of piling onto the shared pool behind the web tier.
+    const result = await withDbBudget('jobs', () => handler(fence));
     return result === undefined ? { completed: true } : result;
   } catch (err) {
     if (err instanceof LeaseLostError) {
       logger.warn(`Job ${jobName} fenced after lease loss; remaining work aborted`, { jobName });
       return { fenced: true };
     }
-    logger.error(`Job ${jobName} failed`, { error: err.message });
+    if (err instanceof DbBudgetExhaustedError) {
+      logger.error(`Job ${jobName} refused: DB workload budget exhausted`, {
+        jobName,
+        workload: err.workload,
+      });
+    } else {
+      logger.error(`Job ${jobName} failed`, { error: err.message });
+    }
     throw err;
   } finally {
     clearInterval(renewalTimer);

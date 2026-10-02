@@ -13,11 +13,16 @@
 
 const logger = require('../utils/logger');
 const { getUserActionLogs } = require('../services/auditService');
+const { withDbBudget } = require('../utils/dbBudgets');
+const { parsePagination } = require('../utils/boundedPagination');
 
 // ── GET ─────────────────────────────────────────────────────────────────────
 
 exports.listUserActions = async (req, res) => {
   try {
+    // E04: bounded pagination at the edge so no unbounded list query can
+    // exhaust the pool.
+    const { limit, offset } = parsePagination(req.query, { defaultLimit: 100, maxLimit: 500 });
     const filters = {
       adminId:      req.query.admin_id      || null,
       targetUserId: req.query.target_user_id || null,
@@ -25,12 +30,12 @@ exports.listUserActions = async (req, res) => {
       regionId:     req.query.region_id     ? parseInt(req.query.region_id, 10) : null,
       fromDate:     req.query.from_date     || null,
       toDate:       req.query.to_date       || null,
-      limit:        req.query.limit         || 100,
-      offset:       req.query.offset        || 0,
+      limit,
+      offset,
     };
 
     const { rows, total } = await getUserActionLogs(filters);
-    return res.json({ logs: rows, total, limit: parseInt(filters.limit, 10) || 100 });
+    return res.json({ logs: rows, total, limit });
   } catch (err) {
     logger.error('listUserActions error', { err: err.message });
     return res.status(500).json({ error: 'Failed to fetch audit logs.' });
@@ -54,36 +59,42 @@ function csvEscape(val) {
   return s;
 }
 
-exports.exportUserActions = async (req, res) => {
+exports.exportUserActions = async (req, res, next) => {
   try {
-    const filters = {
-      adminId:      req.query.admin_id      || null,
-      targetUserId: req.query.target_user_id || null,
-      actionType:   req.query.action_type   || null,
-      regionId:     req.query.region_id     ? parseInt(req.query.region_id, 10) : null,
-      fromDate:     req.query.from_date     || null,
-      toDate:       req.query.to_date       || null,
-      limit:        500,
-      offset:       0,
-    };
+    // E04: heavy exports run under the 'exports' workload budget so they
+    // cannot starve the web tier. On exhaustion the error middleware
+    // answers 503 with code DB_BUDGET_EXHAUSTED (fail closed).
+    await withDbBudget('exports', async () => {
+      const filters = {
+        adminId:      req.query.admin_id      || null,
+        targetUserId: req.query.target_user_id || null,
+        actionType:   req.query.action_type   || null,
+        regionId:     req.query.region_id     ? parseInt(req.query.region_id, 10) : null,
+        fromDate:     req.query.from_date     || null,
+        toDate:       req.query.to_date       || null,
+        limit:        500,
+        offset:       0,
+      };
 
-    const { rows } = await getUserActionLogs(filters);
+      const { rows } = await getUserActionLogs(filters);
 
-    res.setHeader('Cache-Control', 'private, no-store');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="user-actions-${new Date().toISOString().slice(0, 10)}.csv"`
-    );
+      res.setHeader('Cache-Control', 'private, no-store');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="user-actions-${new Date().toISOString().slice(0, 10)}.csv"`
+      );
 
-    res.write(CSV_COLUMNS.join(',') + '\r\n');
-    for (const r of rows) {
-      res.write(CSV_COLUMNS.map(c => csvEscape(r[c])).join(',') + '\r\n');
-    }
-    return res.end();
+      res.write(CSV_COLUMNS.join(',') + '\r\n');
+      for (const r of rows) {
+        res.write(CSV_COLUMNS.map(c => csvEscape(r[c])).join(',') + '\r\n');
+      }
+      res.end();
+    });
   } catch (err) {
+    if (err && err.code === 'DB_BUDGET_EXHAUSTED') return next(err);
     logger.error('exportUserActions error', { err: err.message });
     return res.status(500).json({ error: 'Failed to export audit logs.' });
   }

@@ -2,6 +2,7 @@
 
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
+const { withDbBudget } = require('../utils/dbBudgets');
 const {
   getCustomerCreditAccount,
   getCustomerCreditLimitSummary,
@@ -705,60 +706,64 @@ async function listAdminDisputes(req, res, next) {
 
 async function downloadAdminCreditDisputes(req, res, next) {
   try {
-    const partnerId = req.query.partnerId || req.query.partner_id
-      ? parsePositiveInt(req.query.partnerId || req.query.partner_id, 'partnerId')
-      : undefined;
-    const options = {
-      partnerId,
-      status: req.query.status,
-      limit: 250,
-      offset: 0,
-      includePagination: true,
-    };
-    const disputes = [];
-    let page = await listCreditDisputes(options);
-    disputes.push(...page.disputes);
-    while (page.pagination.hasMore && disputes.length < MAX_ADMIN_CREDIT_EXPORT_ROWS) {
-      page = await listCreditDisputes({ ...options, offset: page.pagination.nextOffset || disputes.length });
+    // E04: heavy exports run under the 'exports' workload budget so they
+    // cannot starve the web tier (fail closed with 503 on exhaustion).
+    await withDbBudget('exports', async () => {
+      const partnerId = req.query.partnerId || req.query.partner_id
+        ? parsePositiveInt(req.query.partnerId || req.query.partner_id, 'partnerId')
+        : undefined;
+      const options = {
+        partnerId,
+        status: req.query.status,
+        limit: 250,
+        offset: 0,
+        includePagination: true,
+      };
+      const disputes = [];
+      let page = await listCreditDisputes(options);
       disputes.push(...page.disputes);
-    }
-    if (page.pagination.hasMore) {
-      throw new AppError('Credit dispute export is too large; narrow the filters first', 409, 'credit_dispute_export_too_large', {
-        maxRows: MAX_ADMIN_CREDIT_EXPORT_ROWS,
+      while (page.pagination.hasMore && disputes.length < MAX_ADMIN_CREDIT_EXPORT_ROWS) {
+        page = await listCreditDisputes({ ...options, offset: page.pagination.nextOffset || disputes.length });
+        disputes.push(...page.disputes);
+      }
+      if (page.pagination.hasMore) {
+        throw new AppError('Credit dispute export is too large; narrow the filters first', 409, 'credit_dispute_export_too_large', {
+          maxRows: MAX_ADMIN_CREDIT_EXPORT_ROWS,
+        });
+      }
+      const headers = ['Dispute ID', 'Opened at', 'Updated at', 'Status', 'Reason', 'Description', 'Resolution', 'Customer ID', 'Partner ID', 'Restaurant', 'Transaction ID', 'Transaction type', 'Reference type', 'Reference ID', 'Amount (cents)', 'Currency', 'Posted at', 'Opened by', 'Resolved by', 'Resolved at'];
+      const lines = [headers.map(csvCell).join(',')];
+      disputes.forEach((dispute) => {
+        lines.push([
+          dispute.id,
+          dispute.openedAt,
+          dispute.updatedAt,
+          dispute.status,
+          dispute.reasonCode,
+          dispute.description,
+          dispute.resolution,
+          dispute.customerId,
+          dispute.partnerId,
+          dispute.restaurantName,
+          dispute.transactionId,
+          dispute.transactionType,
+          dispute.referenceType,
+          dispute.referenceId,
+          dispute.amountCents,
+          dispute.currencyCode,
+          dispute.postedAt,
+          dispute.openedBy,
+          dispute.resolvedBy,
+          dispute.resolvedAt,
+        ].map(csvCell).join(','));
       });
-    }
-    const headers = ['Dispute ID', 'Opened at', 'Updated at', 'Status', 'Reason', 'Description', 'Resolution', 'Customer ID', 'Partner ID', 'Restaurant', 'Transaction ID', 'Transaction type', 'Reference type', 'Reference ID', 'Amount (cents)', 'Currency', 'Posted at', 'Opened by', 'Resolved by', 'Resolved at'];
-    const lines = [headers.map(csvCell).join(',')];
-    disputes.forEach((dispute) => {
-      lines.push([
-        dispute.id,
-        dispute.openedAt,
-        dispute.updatedAt,
-        dispute.status,
-        dispute.reasonCode,
-        dispute.description,
-        dispute.resolution,
-        dispute.customerId,
-        dispute.partnerId,
-        dispute.restaurantName,
-        dispute.transactionId,
-        dispute.transactionType,
-        dispute.referenceType,
-        dispute.referenceId,
-        dispute.amountCents,
-        dispute.currencyCode,
-        dispute.postedAt,
-        dispute.openedBy,
-        dispute.resolvedBy,
-        dispute.resolvedAt,
-      ].map(csvCell).join(','));
-    });
-    res.set({
-      'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': `attachment; filename="oxsteed-credit-disputes-${new Date().toISOString().slice(0, 10)}.csv"`,
-      'Cache-Control': 'no-store',
-    });
-    res.send(`\ufeff${lines.join('\r\n')}\r\n`);
+      res.set({
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="oxsteed-credit-disputes-${new Date().toISOString().slice(0, 10)}.csv"`,
+        'Cache-Control': 'no-store',
+      });
+      res.send(`\ufeff${lines.join('\r\n')}\r\n`);
+      }); // withDbBudget('exports')
   } catch (error) {
     next(error);
   }

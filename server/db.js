@@ -20,6 +20,19 @@ const pool = new Pool({
   max: Math.min(parseInt(process.env.DB_POOL_MAX, 10) || 10, 100),
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis,
+  // E04: pool-wide guardrails so no unbounded query can exhaust the pool.
+  // Postgres kills any statement running longer than statement_timeout and
+  // any session idling inside a transaction past
+  // idle_in_transaction_session_timeout. Per-workload budgets and tighter
+  // timeouts live in utils/dbBudgets.js.
+  statement_timeout: (() => {
+    const raw = Number.parseInt(process.env.DB_STATEMENT_TIMEOUT_MS, 10);
+    return Number.isFinite(raw) ? Math.max(1000, Math.min(raw, 600000)) : 30000;
+  })(),
+  idle_in_transaction_session_timeout: (() => {
+    const raw = Number.parseInt(process.env.DB_IDLE_TX_TIMEOUT_MS, 10);
+    return Number.isFinite(raw) ? Math.max(1000, Math.min(raw, 600000)) : 60000;
+  })(),
 });
 
 pool.on('error', (err) => {
