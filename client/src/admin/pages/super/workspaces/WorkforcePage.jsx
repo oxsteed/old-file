@@ -6,10 +6,10 @@ import {
   Plus, X, Clock, UserX,
 } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
-import { useAbortableFetch } from '../../lib/useAbortableFetch';
-import AdminErrorState from '../../lib/AdminErrorState';
-import { adminDate } from '../../lib/formatters';
-import useDestructiveConfirm from '../../hooks/useDestructiveConfirm';
+import { useAbortableFetch } from '../../../lib/useAbortableFetch';
+import AdminErrorState from '../../../lib/AdminErrorState';
+import { adminDate } from '../../../lib/formatters';
+import useDestructiveConfirm from '../../../hooks/useDestructiveConfirm';
 
 const API = '/admin/super/workforce';
 

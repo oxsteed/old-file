@@ -7,7 +7,7 @@ import {
 import adminApi from '../../../lib/adminApi';
 import { useAbortableFetch } from '../../../lib/useAbortableFetch';
 import AdminErrorState from '../../../lib/AdminErrorState';
-import { adminDate } from '../../lib/formatters';
+import { adminDate } from '../../../lib/formatters';
 
 const TABS = ['releases', 'migrations', 'integrations', 'budgets'];
 const QUEUE_KEYS = ['queue:payment-capture', 'queue:stripe-webhook', 'queue:notifications'];

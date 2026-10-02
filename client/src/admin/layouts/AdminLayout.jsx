@@ -94,6 +94,7 @@ const SUPER_NAV = [
   { to: routePath('modePolicies'),          icon: Key,           labelKey: 'adminNav.modePolicies'   },
   { to: routePath('modeApprovals'),         icon: AlertTriangle, labelKey: 'adminNav.modeApprovals'  },
   { to: routePath('governance'),           icon: ShieldCheck,   labelKey: 'adminNav.governance'     },
+  { to: routePath('serviceOps'),          icon: Activity,      labelKey: 'adminNav.serviceOps',    grant: adminRoute('serviceOps').grant },
   { to: routePath('reliability'),          icon: Activity,      labelKey: 'adminNav.reliability',    grant: adminRoute('reliability').grant },
 ];
 

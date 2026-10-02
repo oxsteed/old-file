@@ -587,6 +587,7 @@ const adminOrdersRoutes = require('./routes/adminOrders');
 const adminProductsRoutes = require('./routes/adminProducts');
 const reconciliationRoutes = require('./routes/reconciliation');
 const opsActionsRoutes = require('./routes/opsActions');
+const serviceOpsRoutes = require('./routes/serviceOps');
 const governanceRoutes = require('./routes/governance');
 const workforceRoutes = require('./routes/workforce');
 const reliabilityRoutes = require('./routes/reliability');
@@ -645,6 +646,8 @@ app.use('/api/admin/orders', adminOrdersRoutes);
 app.use('/api/admin/products', adminProductsRoutes);
 app.use('/api/admin/reconciliation', reconciliationRoutes);
 app.use('/api/admin/ops', opsActionsRoutes);
+// M3 service operations (capacity + runbooks) - admin only
+app.use('/api/service-ops', serviceOpsRoutes);
 app.use('/api/admin/super/governance', governanceRoutes);
 app.use('/api/admin/super/workforce', workforceRoutes);
 app.use('/api/admin/super/reliability', reliabilityRoutes);

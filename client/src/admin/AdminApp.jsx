@@ -39,6 +39,7 @@ const MoneyPage = lazyWithRetry(() => import('./pages/super/MoneyPage'));
 const Payouts = lazyWithRetry(() => import('./pages/super/Payouts'));
 const TreasuryPage = lazyWithRetry(() => import('./pages/super/workspaces/TreasuryPage'));
 const ReliabilityPage = lazyWithRetry(() => import('./pages/super/workspaces/ReliabilityPage'));
+const ServiceOpsPage = lazyWithRetry(() => import('./pages/super/workspaces/ServiceOpsPage'));
 const ReconciliationExceptions = lazyWithRetry(() => import('./pages/ReconciliationExceptions'));
 const AdminAccounts = lazyWithRetry(() => import('./pages/super/AdminAccounts'));
 const SearchLogs = lazyWithRetry(() => import('./pages/super/SearchLogs'));
@@ -423,6 +424,9 @@ export default function AdminApp() {
           } />
           <Route path={adminRoute('reliability').relative} element={
             <GrantGuard grant={adminRoute('reliability').grant}><ReliabilityPage /></GrantGuard>
+          } />
+          <Route path={adminRoute('serviceOps').relative} element={
+            <GrantGuard grant={adminRoute('serviceOps').grant}><ServiceOpsPage /></GrantGuard>
           } />
           <Route path={adminRoute('createUser').relative} element={
             <AdminGuard superOnly={adminRoute('createUser').superOnly}><CreateUser /></AdminGuard>

@@ -135,6 +135,7 @@ const ADMIN_SPA_ROUTES = Object.freeze([
   '/admin/super/mode-policies',
   '/admin/super/mode-approvals',
   '/admin/super/governance',
+  '/admin/super/service-ops',
   '/admin/super/reliability',
   '/admin/super/visitors',
   '/admin/super/profile-visibility',

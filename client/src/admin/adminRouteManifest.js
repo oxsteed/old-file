@@ -21,6 +21,7 @@ export const ADMIN_ROUTE_MANIFEST = Object.freeze({
   dashboard: defineRoute('/admin/dashboard'),
   operations: defineRoute('/admin/operations'),
   incidents: defineRoute('/admin/operations/incidents', { grant: 'manage_operations' }),
+  serviceOps: defineRoute('/admin/super/service-ops', { grant: 'manage_operations' }),
   users: defineRoute('/admin/users'),
   jobs: defineRoute('/admin/jobs'),
   reports: defineRoute('/admin/reports'),
