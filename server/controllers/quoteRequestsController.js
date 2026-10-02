@@ -628,7 +628,20 @@ exports.updateQuoteRequestAdmin = async (req, res) => {
   } catch (error) {
     return res.status(error.statusCode || 400).json({ error: error.message });
   }
-  const quoteCurrencyCode = cleanText(req.body.quote_currency_code || req.body.quoteCurrencyCode || 'USD', 3).toUpperCase() || 'USD';
+  // T12-F02: an omitted currency must stay NULL so COALESCE preserves the
+  // stored value. Only an explicitly supplied currency is written, after
+  // 3-letter validation.
+  const quoteCurrencyProvided = req.body.quote_currency_code !== undefined
+    || req.body.quoteCurrencyCode !== undefined;
+  let quoteCurrencyCode = null;
+  if (quoteCurrencyProvided) {
+    const raw = req.body.quote_currency_code ?? req.body.quoteCurrencyCode;
+    const code = String(raw === null ? '' : raw).trim().toUpperCase();
+    if (!/^[A-Z]{3}$/.test(code)) {
+      return res.status(400).json({ error: 'Invalid currency code' });
+    }
+    quoteCurrencyCode = code;
+  }
   const paymentStatus = cleanText(req.body.payment_status || req.body.paymentStatus || '', 24).toLowerCase();
   const scheduledStartAt = normalizeTimestamp(req.body.scheduled_start_at || req.body.scheduledStartAt);
   const scheduledEndAt = normalizeTimestamp(req.body.scheduled_end_at || req.body.scheduledEndAt);
