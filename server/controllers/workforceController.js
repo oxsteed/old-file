@@ -11,14 +11,15 @@
  *   POST /delegations/:id/revoke — revoke (grantor or super_admin only)
  *   GET  /lifecycle           — grant-lifecycle audit timeline
  *
- * NOTE: delegation_grants is a recorded authority registry with expiry and
- * audit. It does NOT change runtime authorization; enforcing delegation at
- * request time is future work.
+ * Delegations are bounded authority: runtime permission middleware verifies
+ * the active delegation, its expiry, and the grantor's current global grant
+ * before authorizing a request.
  */
 
 const db = require('../db');
 const { logAdminAction } = require('../services/auditService');
 const logger = require('../utils/logger');
+const { PERMISSION_SCOPES } = require('./adminPermissionController');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_SCOPES = 20;
@@ -206,6 +207,30 @@ exports.createDelegation = async (req, res) => {
     const grantee = grantees[0];
     if (!['admin', 'super_admin'].includes(grantee.role) || !grantee.is_active) {
       return res.status(400).json({ error: 'Grantee must be an active admin or super_admin.' });
+    }
+
+    const validScopes = new Set(Object.keys(PERMISSION_SCOPES || {}));
+    const unknownScopes = scopes.filter((scope) => !validScopes.has(scope));
+    if (unknownScopes.length) {
+      return res.status(400).json({ error: `Unknown delegation scope(s): ${unknownScopes.join(', ')}` });
+    }
+
+    // A regular admin may delegate only permissions they currently hold as a
+    // global grant. Super-admins are implicitly authoritative for all scopes.
+    if (req.user.role !== 'super_admin') {
+      const { rows: authorityRows } = await db.query(`
+        SELECT DISTINCT jsonb_array_elements_text(permissions) AS permission
+          FROM admin_permission_grants
+         WHERE grantee_id = $1
+           AND region_id IS NULL
+           AND revoked_at IS NULL
+           AND expires_at > NOW()
+      `, [grantorId]);
+      const held = new Set(authorityRows.map((row) => row.permission));
+      const missing = scopes.filter((scope) => !held.has(scope));
+      if (missing.length) {
+        return res.status(403).json({ error: `Cannot delegate permissions you do not hold globally: ${missing.join(', ')}` });
+      }
     }
 
     const { rows } = await db.query(`

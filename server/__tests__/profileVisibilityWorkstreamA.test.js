@@ -203,15 +203,30 @@ describe('bulkUpdateVisibility', () => {
       ],
     };
     mockQuery
-      .mockResolvedValueOnce({ rows: [] }) // idempotency check: new key
+      .mockResolvedValueOnce({ rows: [{ idempotency_key: 'bulk-1', request_fingerprint: 'fingerprint', status: 'processing', response: { status: 'processing' } }] }) // claim new key
+      .mockResolvedValueOnce({ rows: [{ is_hidden_by_admin: false, hidden_reason: null }] }) // h1 preflight current
+      .mockResolvedValueOnce({ rows: [{ user_id: 'u1' }] }) // h1 owner lookup
+      .mockResolvedValueOnce({ rows: [] }) // h1 active jobs
+      .mockResolvedValueOnce({ rows: [] }) // h1 appointments
+      .mockResolvedValueOnce({ rows: [] }) // h1 booking requests
+      .mockResolvedValueOnce({ rows: [] }) // h1 recent payments
+      .mockResolvedValueOnce({ rows: [] }) // h1 has no prior item outcome
+      .mockResolvedValueOnce({ rows: [{ is_hidden_by_admin: false, hidden_reason: null }] }) // h1 apply current
+      .mockResolvedValueOnce({ rows: [{ user_id: 'u1' }] }) // h1 apply owner lookup
+      .mockResolvedValueOnce({ rows: [] }) // h1 apply active jobs
+      .mockResolvedValueOnce({ rows: [] }) // h1 apply appointments
+      .mockResolvedValueOnce({ rows: [] }) // h1 apply booking requests
+      .mockResolvedValueOnce({ rows: [] }) // h1 apply recent payments
       .mockResolvedValueOnce({ rows: [{ is_hidden_by_admin: true, hidden_reason: 'non_compliance', hidden_at: 'x' }] }) // h1 UPDATE
       .mockResolvedValueOnce({ rows: [] }) // h1 audit insert
+      .mockResolvedValueOnce({ rows: [] }) // h1 item outcome insert
       .mockResolvedValueOnce({ rows: [] }) // h1 notify owner lookup (no owner -> skipped)
+      .mockResolvedValueOnce({ rows: [] }) // b2 has no prior item outcome
       .mockResolvedValueOnce({ rows: [{ is_hidden_by_admin: false, hidden_reason: null, hidden_at: null }] }) // b2 UPDATE
       .mockResolvedValueOnce({ rows: [] }) // b2 audit insert
+      .mockResolvedValueOnce({ rows: [] }) // b2 item outcome insert
       .mockResolvedValueOnce({ rows: [] }) // b2 notify owner lookup
-      .mockResolvedValueOnce({ rows: [] }) // idempotency insert
-      .mockResolvedValueOnce({ rows: [{ response: storedResponse }] }); // stored read
+      .mockResolvedValueOnce({ rows: [{ response: storedResponse }] }); // mark completed and return stored response
     // (no other queries: notifier resolves no owner and stops)
     const res = resDouble();
     await controller.bulkUpdateVisibility(reqDouble({
@@ -220,9 +235,9 @@ describe('bulkUpdateVisibility', () => {
     expect(res.payload).toEqual(storedResponse);
     const updates = mockQuery.mock.calls.filter(([sql]) => /UPDATE (helper_profiles|businesses)/.test(sql));
     expect(updates).toHaveLength(2);
-    const idemInsert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO bulk_visibility_idempotency/.test(sql));
-    expect(idemInsert).toBeDefined();
-    expect(JSON.parse(idemInsert[1][1])).toEqual(storedResponse);
+    const idemUpdate = mockQuery.mock.calls.find(([sql]) => /SET response = \$2::jsonb/.test(sql));
+    expect(idemUpdate).toBeDefined();
+    expect(idemUpdate[1][1]).toBe(JSON.stringify(storedResponse));
   });
 
   test('idempotent replay: same key twice returns the identical stored response with one audit trail', async () => {
@@ -232,12 +247,25 @@ describe('bulkUpdateVisibility', () => {
     };
     // First call: miss, apply, store.
     mockQuery
-      .mockResolvedValueOnce({ rows: [] }) // idempotency check
+      .mockResolvedValueOnce({ rows: [{ idempotency_key: 'bulk-replay', request_fingerprint: 'fingerprint', status: 'processing', response: { status: 'processing' } }] }) // claim new key
+      .mockResolvedValueOnce({ rows: [{ is_hidden_by_admin: false, hidden_reason: null }] }) // h1 preflight current
+      .mockResolvedValueOnce({ rows: [{ user_id: 'u1' }] }) // h1 owner lookup
+      .mockResolvedValueOnce({ rows: [] }) // h1 active jobs
+      .mockResolvedValueOnce({ rows: [] }) // h1 appointments
+      .mockResolvedValueOnce({ rows: [] }) // h1 booking requests
+      .mockResolvedValueOnce({ rows: [] }) // h1 recent payments
+      .mockResolvedValueOnce({ rows: [] }) // h1 has no prior item outcome
+      .mockResolvedValueOnce({ rows: [{ is_hidden_by_admin: false, hidden_reason: null }] }) // h1 apply current
+      .mockResolvedValueOnce({ rows: [{ user_id: 'u1' }] }) // h1 apply owner lookup
+      .mockResolvedValueOnce({ rows: [] }) // h1 apply active jobs
+      .mockResolvedValueOnce({ rows: [] }) // h1 apply appointments
+      .mockResolvedValueOnce({ rows: [] }) // h1 apply booking requests
+      .mockResolvedValueOnce({ rows: [] }) // h1 apply recent payments
       .mockResolvedValueOnce({ rows: [{ is_hidden_by_admin: true, hidden_reason: 'admin_decision', hidden_at: 'x' }] }) // UPDATE
       .mockResolvedValueOnce({ rows: [] }) // audit insert
+      .mockResolvedValueOnce({ rows: [] }) // item outcome insert
       .mockResolvedValueOnce({ rows: [] }) // notify owner lookup
-      .mockResolvedValueOnce({ rows: [] }) // idempotency insert
-      .mockResolvedValueOnce({ rows: [{ response: storedResponse }] }); // stored read
+      .mockResolvedValueOnce({ rows: [{ response: storedResponse }] }); // mark completed and return stored response
     const first = resDouble();
     await controller.bulkUpdateVisibility(reqDouble({
       body: { items: [dryItems[0]], idempotency_key: 'bulk-replay' },
@@ -247,7 +275,9 @@ describe('bulkUpdateVisibility', () => {
     // Second call: hit, replay verbatim, no UPDATE.
     resetMocks();
     mockQuery.mockImplementation(async () => ({ rows: [] }));
-    mockQuery.mockResolvedValueOnce({ rows: [{ response: storedResponse }] });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // claim loses to the completed row
+      .mockResolvedValueOnce({ rows: [{ request_fingerprint: null, status: 'completed', response: storedResponse }] });
     const second = resDouble();
     await controller.bulkUpdateVisibility(reqDouble({
       body: { items: [dryItems[0]], idempotency_key: 'bulk-replay' },
@@ -261,7 +291,7 @@ describe('bulkUpdateVisibility', () => {
     const items = Array.from({ length: 11 }, (_, i) => ({
       profile_type: 'helper', profile_id: `h${i}`, is_visible: false,
     }));
-    mockQuery.mockResolvedValueOnce({ rows: [] }); // idempotency check: new key
+    mockQuery.mockResolvedValueOnce({ rows: [{ idempotency_key: 'bulk-big', request_fingerprint: 'fingerprint', status: 'processing', response: { status: 'processing' } }] }); // claim new key
     const res = resDouble();
     await controller.bulkUpdateVisibility(reqDouble({
       body: { items, idempotency_key: 'bulk-big' },

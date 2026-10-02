@@ -16,6 +16,8 @@ import { useAbortableFetch } from '../../lib/useAbortableFetch';
 import AdminErrorState from '../../lib/AdminErrorState';
 import ConfirmDialog from '../../lib/ConfirmDialog';
 import {
+  adminListPolicyRevisions,
+  adminRollbackPolicy,
   adminUpdatePolicy,
 } from '../../../api/modePlatformApprovals';
 
@@ -48,6 +50,11 @@ function PolicyCard({ policy, onChange }) {
   const [saving, setSaving] = useState(false);
   const [schemaError, setSchemaError] = useState(null);
   const [confirmGateOff, setConfirmGateOff] = useState(false);
+  const [revisions, setRevisions] = useState(null);
+  const [loadingRevisions, setLoadingRevisions] = useState(false);
+  const [rollbackRevision, setRollbackRevision] = useState(null);
+  const [rollbackReason, setRollbackReason] = useState('');
+  const [rollingBack, setRollingBack] = useState(false);
 
   const dirty = requiresApproval !== policy.requires_approval
     || autoApprove !== policy.auto_approve
@@ -73,6 +80,8 @@ function PolicyCard({ policy, onChange }) {
         auto_approve: autoApprove,
         gated_actions: gatedActions.split(',').map(s => s.trim()).filter(Boolean),
         application_schema: parsedSchema,
+        expected_updated_at: policy.updated_at,
+        change_reason: 'Updated from the mode policy console',
       });
       toast.success(t('superModePolicies.savedToast', { mode: policy.mode }));
       onChange?.(res.policy);
@@ -93,6 +102,39 @@ function PolicyCard({ policy, onChange }) {
       await doSave();
     } catch (err) {
       throw err; // keep dialog open on failure
+    }
+  };
+
+  const loadRevisions = async () => {
+    setLoadingRevisions(true);
+    try {
+      const res = await adminListPolicyRevisions(policy.mode);
+      setRevisions(res.revisions || []);
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('superModePolicies.historyFailed', { defaultValue: 'Could not load policy history.' }));
+    } finally {
+      setLoadingRevisions(false);
+    }
+  };
+
+  const rollback = async () => {
+    if (!rollbackRevision || rollbackReason.trim().length < 3) return;
+    setRollingBack(true);
+    try {
+      const res = await adminRollbackPolicy(policy.mode, {
+        revision_id: rollbackRevision.id,
+        expected_updated_at: policy.updated_at,
+        change_reason: rollbackReason.trim(),
+      });
+      toast.success(t('superModePolicies.rollbackSaved', { mode: policy.mode, defaultValue: 'Policy rollback saved for {{mode}}.' }));
+      setRollbackRevision(null);
+      setRollbackReason('');
+      onChange?.(res.policy);
+      await loadRevisions();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('superModePolicies.rollbackFailed', { defaultValue: 'Could not roll back this policy.' }));
+    } finally {
+      setRollingBack(false);
     }
   };
 
@@ -147,6 +189,29 @@ function PolicyCard({ policy, onChange }) {
         <p className="text-[11px] text-gray-500">{t('superModePolicies.gatedHint')}</p>
       </div>
 
+      <div className="border-t border-gray-800 pt-3">
+        <button type="button" className="text-xs font-semibold text-orange-300 hover:text-orange-200" onClick={loadRevisions} disabled={loadingRevisions}>
+          {loadingRevisions ? t('superModePolicies.loadingHistory', { defaultValue: 'Loading history...' }) : t('superModePolicies.showHistory', { defaultValue: 'Show immutable revision history' })}
+        </button>
+        {revisions && (
+          <div className="mt-3 space-y-2" aria-live="polite">
+            {!revisions.length && <p className="text-xs text-gray-500">{t('superModePolicies.noHistory', { defaultValue: 'No saved revisions yet.' })}</p>}
+            {revisions.map((revision) => (
+              <div key={revision.id} className="rounded-md border border-gray-800 bg-gray-950/40 p-2 text-xs text-gray-400">
+                <div className="flex flex-wrap justify-between gap-2 items-center"><span>{revision.policy_updated_at || revision.created_at}</span><span>{revision.change_reason || t('superModePolicies.noReason', { defaultValue: 'No reason recorded' })}</span><button type="button" className="text-orange-300 hover:text-orange-200" onClick={() => { setRollbackRevision(revision); setRollbackReason(''); }}>{t('superModePolicies.rollback', { defaultValue: 'Rollback' })}</button></div>
+                <div className="mt-1 text-gray-500">{revision.gated_actions?.join(', ') || t('superModePolicies.noGates', { defaultValue: 'No gated actions' })}</div>
+                {rollbackRevision?.id === revision.id && (
+                  <div className="mt-2 flex flex-wrap gap-2 items-center">
+                    <input value={rollbackReason} onChange={(e) => setRollbackReason(e.target.value)} maxLength={1000} placeholder={t('superModePolicies.rollbackReason', { defaultValue: 'Why is this rollback needed?' })} aria-label={t('superModePolicies.rollbackReason', { defaultValue: 'Why is this rollback needed?' })} className="flex-1 min-w-[16rem] py-1.5 px-2 bg-gray-800 border border-gray-700 rounded text-white" />
+                    <button type="button" onClick={rollback} disabled={rollingBack || rollbackReason.trim().length < 3} className="px-2 py-1.5 rounded bg-orange-500 text-white disabled:opacity-50">{rollingBack ? t('superModePolicies.rollingBack', { defaultValue: 'Rolling back…' }) : t('superModePolicies.confirmRollback', { defaultValue: 'Confirm rollback' })}</button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="flex flex-col gap-1">
         <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{t('superModePolicies.schemaLabel')}</label>
         <textarea
@@ -182,6 +247,11 @@ export default function ModePolicies() {
     return res.data.policies || [];
   }, []);
   const policies = data || [];
+  const { data: coverageData, loading: coverageLoading } = useAbortableFetch(async (signal) => {
+    const res = await api.get('/admin/mode-policies/coverage', { signal });
+    return res.data.coverage || [];
+  }, []);
+  const coverage = coverageData || [];
 
   const handlePolicyChange = (updated) => {
     reload();
@@ -203,11 +273,29 @@ export default function ModePolicies() {
       ) : error ? (
         <AdminErrorState onRetry={reload} />
       ) : (
-        <div className="grid grid-cols-1 gap-4">
-          {policies.map(p => (
-            <PolicyCard key={p.mode} policy={p} onChange={handlePolicyChange} />
-          ))}
-        </div>
+        <>
+          <section className="rounded-xl border border-gray-800 bg-gray-900/40 p-5">
+            <h2 className="text-base font-semibold text-white">{t('superModePolicies.coverageTitle', { defaultValue: 'Enforcement coverage' })}</h2>
+            <p className="text-xs text-gray-400 mt-1">{t('superModePolicies.coverageHint', { defaultValue: 'Every registered gated action must be represented by a persisted policy. Missing or unknown actions are shown before release.' })}</p>
+            {coverageLoading ? <p className="text-xs text-gray-500 mt-3">{t('superModePolicies.loadingCoverage', { defaultValue: 'Loading coverage…' })}</p> : (
+              <div className="mt-3 grid gap-2">
+                {coverage.map((item) => (
+                  <div key={item.mode} className="flex flex-wrap items-center gap-2 text-xs">
+                    <span className="font-semibold text-white min-w-[7rem]">{item.mode}</span>
+                    <span className={item.complete ? 'text-green-400' : 'text-red-400'}>{item.complete ? t('superModePolicies.coverageComplete', { defaultValue: 'Complete' }) : t('superModePolicies.coverageIncomplete', { defaultValue: 'Needs review' })}</span>
+                    {item.missing_actions?.length > 0 && <span className="text-red-300">{t('superModePolicies.missingActions', { actions: item.missing_actions.join(', '), defaultValue: `Missing: ${item.missing_actions.join(', ')}` })}</span>}
+                    {item.unknown_actions?.length > 0 && <span className="text-amber-300">{t('superModePolicies.unknownActions', { actions: item.unknown_actions.join(', '), defaultValue: `Unknown: ${item.unknown_actions.join(', ')}` })}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+          <div className="grid grid-cols-1 gap-4">
+            {policies.map(p => (
+              <PolicyCard key={p.mode} policy={p} onChange={handlePolicyChange} />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

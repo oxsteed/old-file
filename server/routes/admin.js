@@ -107,6 +107,8 @@ router.get('/profile-visibility/scheduled', requireAdmin, requirePermission('man
 router.post('/profile-visibility/schedule', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.scheduleVisibilityAction);
 router.delete('/profile-visibility/scheduled/:id', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.cancelScheduledAction);
 router.post('/profile-visibility/bulk', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.bulkUpdateVisibility);
+router.get('/profile-visibility/bulk-operations/stale', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.listStaleBulkOperations);
+router.post('/profile-visibility/bulk-operations/:idempotencyKey/reclaim', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.reclaimStaleBulkOperation);
 router.post('/profile-visibility/approvals/request', requireAdmin, requirePermission('manage_profile_visibility'), profileVisApprCtrl.requestApprovalCtrl);
 router.post('/profile-visibility/approvals/:id/review', requireAdmin, requirePermission('manage_profile_visibility'), profileVisApprCtrl.reviewApprovalCtrl);
 router.get('/profile-visibility/approvals', requireAdmin, requirePermission('manage_profile_visibility'), profileVisApprCtrl.listApprovals);

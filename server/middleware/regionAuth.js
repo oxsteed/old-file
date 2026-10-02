@@ -111,8 +111,10 @@ function userMatchesAnyRegion(user, regions) {
 // ── Express middleware ──────────────────────────────────────────────────────
 
 /**
- * Hydrates `req.user.assigned_regions` (array of region rows) from active,
- * non-revoked permission grants. Super-admins receive all regions.
+ * Hydrates `req.user.assigned_regions` (array of region rows) from the active,
+ * non-revoked grant for the permission already checked on this request.
+ * A matching global grant uses the null sentinel and therefore has no region
+ * restriction. Super-admins receive all regions.
  *
  * Must run AFTER `requireAdmin` so `req.user` and `req.isSuper` are set.
  */
@@ -128,19 +130,40 @@ async function loadAssignedRegions(req, res, next) {
       return next();
     }
 
+    // Delegations authorize a platform-wide scope only after the permission
+    // middleware has verified the grantor's current authority. They carry no
+    // region dimension, so preserve that global result here.
+    if (req.delegatedPermission) {
+      req.assigned_regions = null;
+      return next();
+    }
+
+    const permission = req.grantedPermission || null;
+    const params = [req.user.id];
+    const permissionClause = permission ? 'AND g.permissions ? $2' : '';
+    if (permission) params.push(permission);
     const { rows } = await db.query(`
-      SELECT r.id, r.name, r.boundary_definition
+      SELECT g.region_id, r.id, r.name, r.boundary_definition
         FROM admin_permission_grants g
-        JOIN admin_regions r ON r.id = g.region_id
+        LEFT JOIN admin_regions r ON r.id = g.region_id
        WHERE g.grantee_id = $1
-         AND g.region_id IS NOT NULL
+         ${permissionClause}
          AND g.revoked_at IS NULL
          AND g.expires_at > NOW()
-    `, [req.user.id]);
+    `, params);
+
+    // A global grant for this permission must not be accidentally narrowed by
+    // unrelated regional grants for another permission.
+    if (rows.some((row) => row.region_id == null)) {
+      req.assigned_regions = null;
+      return next();
+    }
 
     // Deduplicate by region id (an admin may have several grants on same region)
     const seen = new Map();
-    for (const r of rows) seen.set(r.id, r);
+    for (const r of rows) {
+      if (r.id != null) seen.set(r.id, r);
+    }
     req.assigned_regions = Array.from(seen.values());
     next();
   } catch (err) {

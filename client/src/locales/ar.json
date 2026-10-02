@@ -20565,7 +20565,9 @@
       "pipelineFor": "مسار {{title}}",
       "interview": "جدولة مقابلة",
       "offer": "إرسال عرض",
-      "hire": "توظيف"
+      "hire": "توظيف",
+      "loadMore": "تحميل المزيد من الوظائف",
+      "loadMoreApplications": "تحميل المزيد من المتقدمين"
     }
   },
   "profileStudio": {
@@ -22651,6 +22653,17 @@
   "adminProfileVisibility": {
     "title": "ظهور الملفات الشخصية",
     "description": "إخفاء ملف مساعد أو نشاط تجاري أو مطعم عن العرض العام. يبقى الملف المخفي مخفيًا حتى لو أعاد المالك نشره.",
+    "staleOperations": "العمليات الجماعية المتوقفة",
+    "staleOperationsDescription": "يمكن استرداد الطلبات الأقدم من عشر دقائق وإعادة محاولتها بأمان باستخدام قائمة العناصر الأصلية.",
+    "staleOperationsLoading": "جارٍ تحميل العمليات المتوقفة…",
+    "noStaleOperations": "لا توجد عمليات جماعية متوقفة.",
+    "refreshStaleOperations": "تحديث العمليات المتوقفة",
+    "reclaimAndRetry": "استرداد وإعادة المحاولة",
+    "reclaiming": "جارٍ الاسترداد…",
+    "staleOperationSummary": "اكتمل {{completed}} من أصل {{total}} عنصرًا",
+    "staleOperationsError": "تعذر تحميل العمليات الجماعية المتوقفة.",
+    "staleOperationPayloadMissing": "لا تحتوي هذه العملية المتوقفة على حمولة آمنة لإعادة المحاولة.",
+    "staleOperationRetryFailed": "تعذرت إعادة محاولة العملية الجماعية المتوقفة.",
     "searchPlaceholder": "البحث بالاسم أو البريد الإلكتروني (حرفان على الأقل)",
     "typeFilter": "نوع الملف",
     "typeAll": "كل الأنواع",
@@ -23207,7 +23220,26 @@
     "schemaLabel": "مخطط الطلب (JSON)",
     "subtitle": "حدّد الأوضاع التي تتطلب موافقة OxSteed قبل أن يتمكن المستخدمون من تنفيذ إجراءات مقيّدة. فعّل الموافقة التلقائية لتخطي المراجعة اليدوية.",
     "title": "سياسات موافقة المنصة حسب الوضع",
-    "updated": "آخر تحديث {{date}}"
+    "updated": "آخر تحديث {{date}}",
+    "historyFailed": "تعذر تحميل سجل السياسات.",
+    "loadingHistory": "جارٍ تحميل السجل...",
+    "showHistory": "إظهار سجل المراجعات غير القابل للتغيير",
+    "noHistory": "لا توجد مراجعات محفوظة بعد.",
+    "noReason": "لم يُسجل أي سبب",
+    "noGates": "لا توجد إجراءات مقيدة",
+    "rollback": "التراجع",
+    "rollbackReason": "لماذا يلزم التراجع؟",
+    "rollingBack": "جارٍ التراجع…",
+    "confirmRollback": "تأكيد التراجع",
+    "rollbackSaved": "تم حفظ التراجع عن سياسة {{mode}}.",
+    "rollbackFailed": "تعذر التراجع عن هذه السياسة.",
+    "coverageTitle": "تغطية التنفيذ",
+    "coverageHint": "يجب أن يمثل كل إجراء مقيد مسجل سياسة محفوظة. تظهر الإجراءات المفقودة أو غير المعروفة قبل الإطلاق.",
+    "loadingCoverage": "جارٍ تحميل التغطية…",
+    "coverageComplete": "مكتملة",
+    "coverageIncomplete": "تحتاج إلى مراجعة",
+    "missingActions": "مفقود: {{actions}}",
+    "unknownActions": "غير معروف: {{actions}}"
   },
   "superMoney": {
     "badge": "أموال المشرف العام",

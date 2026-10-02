@@ -5,8 +5,9 @@
 // is the ONLY module that reads country_packs; everything else consumes the
 // resolved config object.
 //
-// Fail-open: if migration 304 has not been applied, we serve the built-in US
-// pack and an empty coming-soon list so the app keeps working.
+// Fail closed: country availability and payment/localization policy are
+// database-owned. A database outage must not silently make a disabled or
+// unverified country appear active.
 
 const pool = require('../db');
 const logger = require('../utils/logger');
@@ -14,27 +15,26 @@ const logger = require('../utils/logger');
 const CACHE_TTL_MS = 60 * 1000;
 let cache = { at: 0, list: null, configs: new Map() };
 
-// Built-in fallback: US pack #1 (kept in sync with migration 304 seed).
-const FALLBACK_US = {
-  code: 'US',
-  name: 'United States',
-  flag_emoji: '🇺🇸',
-  status: 'active',
-  default_locale: 'en',
-  currency_code: 'USD',
-  config: {
-    locales: ['en', 'es'],
-    units: 'imperial',
-    enabled_personas: ['customer', 'helper', 'business', 'consultant', 'toolOwner', 'franchise', 'investor'],
-    payment_methods: ['restaurant_credit', 'direct_payment', 'pay_at_restaurant'],
-    verification_provider: 'didit',
-    address_scheme: 'street_zip',
-    notification_channels: ['push', 'email', 'sms'],
-    connectivity_profile: 'online_first',
-    trust_model: 'verified_identity_payment_evidence',
-    feature_flags: {},
-  },
-};
+// These fields belong to the country_packs row, not the JSON configuration.
+// Keep them canonical when a pack is returned so an accidental or malicious
+// config patch cannot shadow the registry identity or currency metadata.
+const RESERVED_CONFIG_KEYS = new Set([
+  'code',
+  'name',
+  'flag_emoji',
+  'status',
+  'default_locale',
+  'currency_code',
+  'updated_at',
+  'config',
+]);
+
+function normalizeConfig(config) {
+  if (!config || typeof config !== 'object' || Array.isArray(config)) return {};
+  return Object.fromEntries(
+    Object.entries(config).filter(([key]) => !RESERVED_CONFIG_KEYS.has(key))
+  );
+}
 
 function normalizeCode(code) {
   return String(code || '').trim().toUpperCase().slice(0, 2);
@@ -74,15 +74,15 @@ async function listCountries() {
     cache = { at: now, list, configs: cache.configs };
     return list;
   } catch (err) {
-    logger.warn('country_packs unavailable, serving fallback list', { error: err.message });
-    return { available: [toListEntry(FALLBACK_US)], coming_soon: [] };
+    logger.error('country_packs unavailable; refusing to advertise availability', { error: err.message });
+    return { available: [], coming_soon: [], unavailable: true };
   }
 }
 
 /**
  * Full pack config for one country.
  * Returns { ok: true, country } for active packs,
- *         { ok: false, reason: 'coming_soon' | 'not_found' } otherwise.
+ *         { ok: false, reason: 'coming_soon' | 'not_found' | 'unavailable' } otherwise.
  */
 async function getCountryConfig(codeRaw) {
   const code = normalizeCode(codeRaw);
@@ -109,32 +109,19 @@ async function getCountryConfig(codeRaw) {
       value = {
         ok: true,
         country: {
+          ...normalizeConfig(row.config),
           code: row.code,
           name: row.name,
           flag_emoji: row.flag_emoji,
           default_locale: row.default_locale,
           currency_code: row.currency_code,
           updated_at: row.updated_at,
-          ...row.config,
         },
       };
     }
   } catch (err) {
-    logger.warn('country_packs unavailable, serving fallback config', { error: err.message });
-    value =
-      code === 'US'
-        ? {
-            ok: true,
-            country: {
-              code: FALLBACK_US.code,
-              name: FALLBACK_US.name,
-              flag_emoji: FALLBACK_US.flag_emoji,
-              default_locale: FALLBACK_US.default_locale,
-              currency_code: FALLBACK_US.currency_code,
-              ...FALLBACK_US.config,
-            },
-          }
-        : { ok: false, reason: 'not_found' };
+    logger.error('country_packs unavailable; refusing to serve active config', { error: err.message });
+    value = { ok: false, reason: 'unavailable' };
   }
 
   cache.configs.set(code, { at: now, value });
@@ -189,6 +176,13 @@ async function updateCountryPack(codeRaw, { status, name, flag_emoji, sort_order
     if (typeof config !== 'object' || config === null || Array.isArray(config)) {
       const err = new Error('config must be an object');
       err.code = 'validation_failed';
+      throw err;
+    }
+    const reservedKeys = Object.keys(config).filter((key) => RESERVED_CONFIG_KEYS.has(key));
+    if (reservedKeys.length) {
+      const err = new Error(`config contains reserved keys: ${reservedKeys.join(', ')}`);
+      err.code = 'validation_failed';
+      err.reservedKeys = reservedKeys;
       throw err;
     }
     push('config', JSON.stringify(config));

@@ -6,6 +6,7 @@ const logger = require('../utils/logger');
 // ── Permission scopes catalogue ───────────────────────────────────────────────
 const PERMISSION_SCOPES = {
   view_financials:       'View revenue, payouts, and financial data',
+  manage_financials:     'Create and close treasury records and post journal entries',
   export_data:           'Export platform data (users, jobs, revenue)',
   manage_settings:       'Update platform settings and feature flags',
   view_audit_log:        'View the full admin audit log',
@@ -29,6 +30,10 @@ const PERMISSION_SCOPES = {
 };
 
 const VALID_PERMISSIONS = Object.keys(PERMISSION_SCOPES);
+
+// Shared by workforce delegation validation so a delegation can never mint
+// an arbitrary permission string that no route understands.
+exports.PERMISSION_SCOPES = PERMISSION_SCOPES;
 
 // ── List the current admin's own active grants (self-lookup) ─────────────────
 // Used by the admin app's client-side GrantGuard to learn which permission
@@ -246,4 +251,3 @@ exports.getScopes = (req, res) => {
   }));
   res.json({ scopes });
 };
-

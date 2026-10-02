@@ -118,6 +118,14 @@ exports.reviewReport = async (req, res) => {
       });
     }
 
+    if (action === 'remove_content' && !['job', 'review'].includes(report.target_type)) {
+      await dbClient.query('ROLLBACK');
+      return res.status(400).json({
+        error: 'This report target cannot be removed through the moderation workflow.',
+        code: 'unsupported_removal_target',
+      });
+    }
+
     await dbClient.query(`
       UPDATE content_reports
       SET status = $1,
@@ -126,7 +134,7 @@ exports.reviewReport = async (req, res) => {
           action_taken = $3
       WHERE id = $4
     `, [
-      action === 'escalate' ? 'escalated' : 'reviewed',
+      action === 'escalate' ? 'escalated' : action === 'dismiss' ? 'dismissed' : 'reviewed',
       adminId,
       action_taken || action,
       reportId

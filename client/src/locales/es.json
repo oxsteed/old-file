@@ -20554,7 +20554,9 @@
       "pipelineFor": "Pipeline de {{title}}",
       "interview": "Programar entrevista",
       "offer": "Enviar oferta",
-      "hire": "Contratar"
+      "hire": "Contratar",
+      "loadMore": "Cargar más vacantes",
+      "loadMoreApplications": "Cargar más candidatos"
     }
   },
   "profileStudio": {
@@ -22640,6 +22642,17 @@
   "adminProfileVisibility": {
     "title": "Visibilidad de perfiles",
     "description": "Oculta un perfil de ayudante, negocio o restaurante de la vista pública. Un perfil oculto permanece oculto aunque el propietario lo vuelva a publicar.",
+    "staleOperations": "Operaciones masivas detenidas",
+    "staleOperationsDescription": "Las solicitudes de más de diez minutos se pueden recuperar y reintentar de forma segura con su lista original.",
+    "staleOperationsLoading": "Cargando operaciones detenidas…",
+    "noStaleOperations": "No hay operaciones masivas detenidas.",
+    "refreshStaleOperations": "Actualizar operaciones detenidas",
+    "reclaimAndRetry": "Recuperar y reintentar",
+    "reclaiming": "Recuperando…",
+    "staleOperationSummary": "{{completed}} de {{total}} elementos completados",
+    "staleOperationsError": "No se pudieron cargar las operaciones masivas detenidas.",
+    "staleOperationPayloadMissing": "Esta operación detenida no tiene una carga segura para reintentar.",
+    "staleOperationRetryFailed": "No se pudo reintentar la operación masiva detenida.",
     "searchPlaceholder": "Buscar por nombre o correo electrónico (mín. 2 caracteres)",
     "typeFilter": "Tipo de perfil",
     "typeAll": "Todos los tipos",
@@ -23196,7 +23209,26 @@
     "schemaLabel": "Esquema de solicitud (JSON)",
     "subtitle": "Configura qué modos requieren la aprobación de OxSteed antes de que los usuarios puedan realizar acciones restringidas. Activa la aprobación automática para omitir la revisión manual.",
     "title": "Políticas de aprobación de plataforma por modo",
-    "updated": "Actualizado {{date}}"
+    "updated": "Actualizado {{date}}",
+    "historyFailed": "No se pudo cargar el historial de políticas.",
+    "loadingHistory": "Cargando historial...",
+    "showHistory": "Mostrar historial de revisiones inmutable",
+    "noHistory": "Aún no hay revisiones guardadas.",
+    "noReason": "No se registró ningún motivo",
+    "noGates": "Sin acciones restringidas",
+    "rollback": "Revertir",
+    "rollbackReason": "¿Por qué se necesita esta reversión?",
+    "rollingBack": "Revirtiendo…",
+    "confirmRollback": "Confirmar reversión",
+    "rollbackSaved": "Reversión de la política guardada para {{mode}}.",
+    "rollbackFailed": "No se pudo revertir esta política.",
+    "coverageTitle": "Cobertura de aplicación",
+    "coverageHint": "Cada acción protegida registrada debe estar representada por una política persistida. Las acciones faltantes o desconocidas aparecen antes del lanzamiento.",
+    "loadingCoverage": "Cargando cobertura…",
+    "coverageComplete": "Completa",
+    "coverageIncomplete": "Requiere revisión",
+    "missingActions": "Faltan: {{actions}}",
+    "unknownActions": "Desconocidas: {{actions}}"
   },
   "superMoney": {
     "badge": "Dinero de superadmin",

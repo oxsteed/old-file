@@ -116,22 +116,70 @@ exports.adminListPolicies = async (_req, res) => {
   }
 };
 
+exports.adminListPolicyRevisions = async (req, res) => {
+  try {
+    const revisions = await svc.listPolicyRevisions(req.params.mode, req.query);
+    res.json({ success: true, revisions });
+  } catch (err) {
+    logger.error('adminListPolicyRevisions error', { err: err.message });
+    res.status(500).json({ error: 'failed' });
+  }
+};
+
+exports.adminListPolicyCoverage = async (_req, res) => {
+  try {
+    const coverage = await svc.listPolicyCoverage();
+    res.json({ success: true, coverage });
+  } catch (err) {
+    logger.error('adminListPolicyCoverage error', { err: err.message });
+    res.status(500).json({ error: 'failed' });
+  }
+};
+
 exports.adminUpdatePolicy = async (req, res) => {
   try {
     const { mode } = req.params;
-    const { requires_approval, auto_approve, gated_actions, application_schema } = req.body;
+    const { requires_approval, auto_approve, gated_actions, application_schema, expected_updated_at, change_reason } = req.body;
     const updated = await svc.updatePolicy({
       mode,
       requires_approval,
       auto_approve,
       gated_actions,
       application_schema,
+      expected_updated_at,
+      change_reason,
       updated_by_user_id: req.user.id,
     });
     if (!updated) return res.status(404).json({ error: 'policy_not_found' });
     res.json({ success: true, policy: updated });
   } catch (err) {
     logger.error('adminUpdatePolicy error', { err: err.message });
+    if (err.code === 'policy_version_required') return res.status(400).json({ error: 'policy_version_required' });
+    if (err.code === 'policy_version_conflict') return res.status(409).json({ error: 'policy_version_conflict' });
+    if (err.code === 'policy_validation_failed') return res.status(400).json({ error: err.message, details: err.details });
+    if (err.code === 'policy_not_found') return res.status(404).json({ error: 'policy_not_found' });
+    res.status(500).json({ error: 'failed' });
+  }
+};
+
+exports.adminRollbackPolicy = async (req, res) => {
+  try {
+    const { revision_id, expected_updated_at, change_reason } = req.body || {};
+    const policy = await svc.rollbackPolicy({
+      mode: req.params.mode,
+      revisionId: revision_id,
+      expected_updated_at,
+      change_reason,
+      updated_by_user_id: req.user.id,
+      req,
+    });
+    res.json({ success: true, policy });
+  } catch (err) {
+    logger.error('adminRollbackPolicy error', { err: err.message });
+    if (['mode_required', 'policy_version_required', 'revision_required', 'change_reason_required'].includes(err.code)) return res.status(400).json({ error: err.code });
+    if (['revision_not_found', 'policy_not_found'].includes(err.code)) return res.status(404).json({ error: err.code });
+    if (err.code === 'policy_version_conflict') return res.status(409).json({ error: err.code });
+    if (err.code === 'policy_validation_failed') return res.status(400).json({ error: err.message, details: err.details });
     res.status(500).json({ error: 'failed' });
   }
 };
@@ -166,6 +214,8 @@ exports.adminDecide = (decision) => async (req, res) => {
   } catch (err) {
     logger.error('adminDecide approval error', { err: err.message, code: err.code });
     if (err.code === 'approval_not_found') return res.status(404).json({ error: 'not_found' });
+    if (err.code === 'approval_state_conflict') return res.status(409).json({ error: 'approval_state_conflict' });
+    if (err.code === 'rejection_reason_required') return res.status(400).json({ error: 'rejection_reason_required' });
     if (err.code === 'invalid_decision') return res.status(400).json({ error: 'invalid_decision' });
     res.status(500).json({ error: 'failed' });
   }

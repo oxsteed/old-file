@@ -32,8 +32,21 @@ const OPENING_SELECT = `
   CASE WHEN o.employer_type = 'platform' THEN 'OxSteed' ELSE b.business_name END AS employer_name
 `;
 
-function isPlatformAdmin(user) {
-  return user && ['admin', 'super_admin'].includes(user.role);
+async function isPlatformAdmin(user) {
+  if (!user || !['admin', 'super_admin'].includes(user.role)) return false;
+  if (user.role === 'super_admin') return true;
+  const { rows } = await pool.query(
+    `SELECT 1
+       FROM admin_permission_grants
+      WHERE grantee_id = $1
+        AND permissions ? 'manage_operations'
+        AND region_id IS NULL
+        AND expires_at > NOW()
+        AND revoked_at IS NULL
+      LIMIT 1`,
+    [user.id]
+  );
+  return rows.length > 0;
 }
 
 function normalizeCountry(code) {
@@ -109,7 +122,7 @@ function parseOpeningBody(body, { partial = false } = {}) {
 async function assertCanManageOpening(user, opening) {
   if (!user) throw new AppError('Authentication required', 401, 'auth_required');
   if (opening.employer_type === 'platform') {
-    if (!isPlatformAdmin(user)) throw new AppError('Insufficient permissions', 403, 'forbidden');
+    if (!(await isPlatformAdmin(user))) throw new AppError('Insufficient permissions', 403, 'forbidden');
     return { kind: 'platform' };
   }
   const access = await canEditProfile(user.id, opening.business_id);
@@ -226,39 +239,42 @@ async function applyToOpening(req, res, next) {
       throw new AppError('Validation failed', 400, 'validation_failed', fields);
     }
 
-    const { rows: [application] } = await pool.query(
-      `INSERT INTO career_applications (
+    const { application } = await withTransaction(pool, async (client) => {
+      const { rows: [created] } = await client.query(
+        `INSERT INTO career_applications (
           opening_id, user_id, applicant_email, first_name, last_name, phone,
           country_code, city, timezone, locale, resume_url, cover_letter,
           work_authorization_status, willing_to_relocate, languages, source
        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
        RETURNING *`,
-      [
-        opening.id,
-        req.user?.id || null,
-        email,
-        firstName,
-        lastName,
-        String(req.body.phone || '').trim() || null,
-        normalizeCountry(req.body.country_code) || normalizeCountry(req.user?.country) || null,
-        String(req.body.city || '').trim() || null,
-        String(req.body.timezone || '').trim() || null,
-        String(req.body.locale || req.headers['accept-language'] || 'en').slice(0, 8),
-        String(req.body.resume_url || '').trim() || null,
-        coverLetter,
-        WORK_AUTHORIZATION.includes(req.body.work_authorization_status)
-          ? req.body.work_authorization_status
-          : 'local_authorized',
-        Boolean(req.body.willing_to_relocate),
-        normalizeLanguages(req.body.languages),
-        String(req.body.source || 'careers').slice(0, 40),
-      ]
-    );
-    await pool.query(
-      `INSERT INTO career_application_events (application_id, actor_user_id, from_stage, to_stage, note)
-       VALUES ($1,$2,NULL,'received',$3)`,
-      [application.id, req.user?.id || null, 'Application received']
-    );
+        [
+          opening.id,
+          req.user?.id || null,
+          email,
+          firstName,
+          lastName,
+          String(req.body.phone || '').trim() || null,
+          normalizeCountry(req.body.country_code) || normalizeCountry(req.user?.country) || null,
+          String(req.body.city || '').trim() || null,
+          String(req.body.timezone || '').trim() || null,
+          String(req.body.locale || req.headers['accept-language'] || 'en').slice(0, 8),
+          String(req.body.resume_url || '').trim() || null,
+          coverLetter,
+          WORK_AUTHORIZATION.includes(req.body.work_authorization_status)
+            ? req.body.work_authorization_status
+            : 'local_authorized',
+          Boolean(req.body.willing_to_relocate),
+          normalizeLanguages(req.body.languages),
+          String(req.body.source || 'careers').slice(0, 40),
+        ]
+      );
+      await client.query(
+        `INSERT INTO career_application_events (application_id, actor_user_id, from_stage, to_stage, note)
+         VALUES ($1,$2,NULL,'received',$3)`,
+        [created.id, req.user?.id || null, 'Application received']
+      );
+      return { application: created };
+    }, 'career_application_create');
     return res.status(201).json({ application: { id: application.id, stage: application.stage, opening_id: opening.id } });
   } catch (err) {
     if (err.code === '23505') {
@@ -293,21 +309,31 @@ async function listMyApplications(req, res, next) {
 
 async function withdrawMyApplication(req, res, next) {
   try {
-    const { rows: [application] } = await pool.query(
-      `UPDATE career_applications
+    const application = await withTransaction(pool, async (client) => {
+      const { rows: [current] } = await client.query(
+        `SELECT id, stage
+           FROM career_applications
+          WHERE id = $1
+            AND stage NOT IN ('hired','withdrawn')
+            AND (user_id = $2 OR lower(applicant_email) = lower($3))
+          FOR UPDATE`,
+        [req.params.applicationId, req.user.id, req.user.email]
+      );
+      if (!current) throw new AppError('Application not found', 404, 'not_found');
+      const { rows: [changed] } = await client.query(
+        `UPDATE career_applications
           SET stage = 'withdrawn', updated_at = NOW()
         WHERE id = $1
-          AND stage NOT IN ('hired','withdrawn')
-          AND (user_id = $2 OR lower(applicant_email) = lower($3))
         RETURNING id, stage`,
-      [req.params.applicationId, req.user.id, req.user.email]
-    );
-    if (!application) throw new AppError('Application not found', 404, 'not_found');
-    await pool.query(
-      `INSERT INTO career_application_events (application_id, actor_user_id, from_stage, to_stage, note)
-       VALUES ($1,$2,'received','withdrawn','Withdrawn by applicant')`,
-      [application.id, req.user.id]
-    );
+        [current.id]
+      );
+      await client.query(
+        `INSERT INTO career_application_events (application_id, actor_user_id, from_stage, to_stage, note)
+         VALUES ($1,$2,$3,'withdrawn','Withdrawn by applicant')`,
+        [changed.id, req.user.id, current.stage]
+      );
+      return changed;
+    }, 'career_application_withdraw');
     return res.json({ application });
   } catch (err) {
     next(err);
@@ -317,34 +343,43 @@ async function withdrawMyApplication(req, res, next) {
 async function listEmployerOpenings(req, res, next) {
   try {
     const requestedBusinessId = req.query.business_id ? parseInt(req.query.business_id, 10) : null;
+    const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 25));
+    const offset = Math.min(1_000_000, Math.max(0, Number.parseInt(req.query.offset, 10) || 0));
     if (requestedBusinessId) {
       const access = await canEditProfile(req.user.id, requestedBusinessId);
       if (!access) throw new AppError('Business not found', 404, 'not_found');
       const { rows } = await pool.query(
         `SELECT ${OPENING_SELECT},
                 (SELECT COUNT(*)::int FROM career_applications a WHERE a.opening_id = o.id) AS application_count,
-                (SELECT COUNT(*)::int FROM career_applications a WHERE a.opening_id = o.id AND a.stage = 'received') AS new_count
+                (SELECT COUNT(*)::int FROM career_applications a WHERE a.opening_id = o.id AND a.stage = 'received') AS new_count,
+                COUNT(*) OVER()::int AS total_count
            FROM career_openings o
            LEFT JOIN businesses b ON b.id = o.business_id
           WHERE o.business_id = $1
-          ORDER BY o.updated_at DESC`,
-        [requestedBusinessId]
+          ORDER BY o.updated_at DESC
+          LIMIT $2 OFFSET $3`,
+        [requestedBusinessId, limit, offset]
       );
-      return res.json({ openings: rows, catalog: getCareerCatalog(), employer_type: 'business', business_id: requestedBusinessId });
+      const total = rows[0]?.total_count || 0;
+      return res.json({ openings: rows.map(({ total_count, ...row }) => row), catalog: getCareerCatalog(), employer_type: 'business', business_id: requestedBusinessId, pagination: { limit, offset, total, hasMore: offset + rows.length < total } });
     }
-    if (!isPlatformAdmin(req.user)) {
+    if (!(await isPlatformAdmin(req.user))) {
       throw new AppError('business_id is required', 400, 'validation_failed', { business_id: 'Required for business hiring' });
     }
     const { rows } = await pool.query(
       `SELECT ${OPENING_SELECT},
               (SELECT COUNT(*)::int FROM career_applications a WHERE a.opening_id = o.id) AS application_count,
-              (SELECT COUNT(*)::int FROM career_applications a WHERE a.opening_id = o.id AND a.stage = 'received') AS new_count
+              (SELECT COUNT(*)::int FROM career_applications a WHERE a.opening_id = o.id AND a.stage = 'received') AS new_count,
+              COUNT(*) OVER()::int AS total_count
          FROM career_openings o
          LEFT JOIN businesses b ON b.id = o.business_id
         WHERE o.employer_type = 'platform'
-        ORDER BY o.updated_at DESC`
+        ORDER BY o.updated_at DESC
+        LIMIT $1 OFFSET $2`,
+      [limit, offset]
     );
-    return res.json({ openings: rows, catalog: getCareerCatalog(), employer_type: 'platform' });
+    const total = rows[0]?.total_count || 0;
+    return res.json({ openings: rows.map(({ total_count, ...row }) => row), catalog: getCareerCatalog(), employer_type: 'platform', pagination: { limit, offset, total, hasMore: offset + rows.length < total } });
   } catch (err) {
     next(err);
   }
@@ -356,7 +391,7 @@ async function createOpening(req, res, next) {
     const employerType = req.body.employer_type === 'business' || req.body.business_id ? 'business' : 'platform';
     let businessId = null;
     if (employerType === 'platform') {
-      if (!isPlatformAdmin(req.user)) throw new AppError('Insufficient permissions', 403, 'forbidden');
+      if (!(await isPlatformAdmin(req.user))) throw new AppError('Insufficient permissions', 403, 'forbidden');
     } else {
       businessId = parseInt(req.body.business_id, 10);
       if (!Number.isFinite(businessId)) {
@@ -494,25 +529,39 @@ async function listApplications(req, res, next) {
     await assertCanManageOpening(req.user, opening);
     const stage = STAGES.includes(req.query.stage) ? req.query.stage : null;
     const params = [opening.id];
+    const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 25));
+    const offset = Math.min(1_000_000, Math.max(0, Number.parseInt(req.query.offset, 10) || 0));
     let stageSql = '';
     if (stage) {
       params.push(stage);
       stageSql = ` AND a.stage = $2`;
     }
+    params.push(limit, offset);
+    const limitParam = params.length - 1;
+    const offsetParam = params.length;
     const { rows: applications } = await pool.query(
       `SELECT a.*, 
-              (SELECT json_agg(e ORDER BY e.created_at)
-                 FROM career_application_events e WHERE e.application_id = a.id) AS events,
-              (SELECT json_agg(i ORDER BY i.scheduled_at)
-                 FROM career_interviews i WHERE i.application_id = a.id) AS interviews,
+              COUNT(*) OVER()::int AS total_count,
+              (SELECT json_agg(e ORDER BY e.created_at DESC)
+                 FROM LATERAL (SELECT * FROM career_application_events
+                        WHERE application_id = a.id
+                        ORDER BY created_at DESC LIMIT 100) e) AS events,
+              (SELECT json_agg(i ORDER BY i.scheduled_at DESC)
+                 FROM LATERAL (SELECT * FROM career_interviews
+                        WHERE application_id = a.id
+                        ORDER BY scheduled_at DESC LIMIT 100) i) AS interviews,
               (SELECT json_agg(of ORDER BY of.created_at DESC)
-                 FROM career_offers of WHERE of.application_id = a.id) AS offers
+                 FROM LATERAL (SELECT * FROM career_offers
+                        WHERE application_id = a.id
+                        ORDER BY created_at DESC LIMIT 100) of) AS offers
          FROM career_applications a
         WHERE a.opening_id = $1${stageSql}
-        ORDER BY a.created_at DESC`,
+        ORDER BY a.created_at DESC
+        LIMIT $${limitParam} OFFSET $${offsetParam}`,
       params
     );
-    return res.json({ opening, applications });
+    const total = applications[0]?.total_count || 0;
+    return res.json({ opening, applications: applications.map(({ total_count, ...application }) => application), pagination: { limit, offset, total, hasMore: offset + applications.length < total } });
   } catch (err) {
     next(err);
   }
@@ -539,45 +588,50 @@ async function changeStage(req, res, next) {
     if (!STAGES.includes(toStage)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { stage: 'Unsupported stage' });
     }
-    const allowed = STAGE_TRANSITIONS[application.stage] || [];
-    if (!allowed.includes(toStage)) {
-      throw new AppError('That stage change is not allowed', 409, 'invalid_transition');
-    }
-    const { rows: [updated] } = await pool.query(
-      `UPDATE career_applications SET stage = $2, updated_at = NOW() WHERE id = $1 RETURNING *`,
-      [application.id, toStage]
-    );
-    await pool.query(
-      `INSERT INTO career_application_events (application_id, actor_user_id, from_stage, to_stage, note)
-       VALUES ($1,$2,$3,$4,$5)`,
-      [application.id, req.user.id, application.stage, toStage, String(req.body.note || '').trim() || null]
-    );
-    if (toStage === 'hired' && application.employer_type === 'business') {
-      await hireIntoBusiness(req.user, updated, application);
-    }
-    if (toStage === 'filled' || toStage === 'hired') {
-      // no-op: hiring a person does not auto-close the opening unless requested
-    }
-    if (req.body.close_opening && toStage === 'hired') {
-      await pool.query(
-        `UPDATE career_openings SET status = 'filled', updated_at = NOW() WHERE id = $1`,
-        [application.opening_id]
+    const updated = await withTransaction(pool, async (client) => {
+      const { rows: [current] } = await client.query(
+        'SELECT * FROM career_applications WHERE id = $1 FOR UPDATE',
+        [application.id]
       );
-    }
+      if (!current) throw new AppError('Application not found', 404, 'not_found');
+      const allowed = STAGE_TRANSITIONS[current.stage] || [];
+      if (!allowed.includes(toStage)) {
+        throw new AppError('That stage change is not allowed', 409, 'invalid_transition');
+      }
+      const { rows: [changed] } = await client.query(
+        `UPDATE career_applications SET stage = $2, updated_at = NOW() WHERE id = $1 RETURNING *`,
+        [current.id, toStage]
+      );
+      await client.query(
+        `INSERT INTO career_application_events (application_id, actor_user_id, from_stage, to_stage, note)
+         VALUES ($1,$2,$3,$4,$5)`,
+        [current.id, req.user.id, current.stage, toStage, String(req.body.note || '').trim() || null]
+      );
+      if (toStage === 'hired' && application.employer_type === 'business') {
+        await hireIntoBusiness(req.user, changed, application, client);
+      }
+      if (req.body.close_opening && toStage === 'hired') {
+        await client.query(
+          `UPDATE career_openings SET status = 'filled', updated_at = NOW() WHERE id = $1`,
+          [application.opening_id]
+        );
+      }
+      return changed;
+    }, 'career_application_stage_change');
     return res.json({ application: updated });
   } catch (err) {
     next(err);
   }
 }
 
-async function hireIntoBusiness(actor, application, openingMeta) {
+async function hireIntoBusiness(actor, application, openingMeta, dbClient = pool) {
   const role = TEAM_ROLES.includes(openingMeta.opening_team_role) ? openingMeta.opening_team_role : 'employee';
-  const { rows: [biz] } = await pool.query(
+  const { rows: [biz] } = await dbClient.query(
     `SELECT id, user_id, business_name FROM businesses WHERE id = $1 AND deleted_at IS NULL`,
     [openingMeta.business_id]
   );
   if (!biz) return;
-  const { rows: existing } = await pool.query(
+  const { rows: existing } = await dbClient.query(
     `SELECT id FROM business_members
       WHERE business_id = $1
         AND status != 'revoked'
@@ -589,7 +643,7 @@ async function hireIntoBusiness(actor, application, openingMeta) {
     [biz.id, application.user_id || null, application.applicant_email]
   );
   if (!existing.length) {
-    await pool.query(
+    await dbClient.query(
       `INSERT INTO business_members (business_id, owner_id, member_id, role, invite_email, status, accepted_at)
        VALUES ($1,$2,$3,$4,$5, CASE WHEN $3 IS NULL THEN 'pending' ELSE 'active' END,
                CASE WHEN $3 IS NULL THEN NULL ELSE NOW() END)`,
@@ -597,7 +651,7 @@ async function hireIntoBusiness(actor, application, openingMeta) {
     );
   }
   if (application.user_id) {
-    await pool.query(
+    await dbClient.query(
       `INSERT INTO notifications (user_id, type, title, body, data)
        VALUES ($1, 'career_hired', $2, $3, $4)`,
       [
@@ -623,31 +677,39 @@ async function scheduleInterview(req, res, next) {
       throw new AppError('Validation failed', 400, 'validation_failed', { scheduled_at: 'Required' });
     }
     const mode = INTERVIEW_MODES.includes(req.body.mode) ? req.body.mode : 'video';
-    const { rows: [interview] } = await pool.query(
-      `INSERT INTO career_interviews (application_id, scheduled_at, timezone, mode, location, notes, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)
-       RETURNING *`,
-      [
-        application.id,
-        req.body.scheduled_at,
-        String(req.body.timezone || application.timezone || 'UTC'),
-        mode,
-        String(req.body.location || '').trim() || null,
-        String(req.body.notes || '').trim() || null,
-        req.user.id,
-      ]
-    );
-    if (application.stage === 'received' || application.stage === 'screening') {
-      await pool.query(
-        `UPDATE career_applications SET stage = 'interview', updated_at = NOW() WHERE id = $1`,
+    const { interview } = await withTransaction(pool, async (client) => {
+      const { rows: [current] } = await client.query(
+        'SELECT * FROM career_applications WHERE id = $1 FOR UPDATE',
         [application.id]
       );
-      await pool.query(
-        `INSERT INTO career_application_events (application_id, actor_user_id, from_stage, to_stage, note)
-         VALUES ($1,$2,$3,'interview',$4)`,
-        [application.id, req.user.id, application.stage, 'Interview scheduled']
+      if (!current) throw new AppError('Application not found', 404, 'not_found');
+      const { rows: [created] } = await client.query(
+        `INSERT INTO career_interviews (application_id, scheduled_at, timezone, mode, location, notes, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)
+         RETURNING *`,
+        [
+          current.id,
+          req.body.scheduled_at,
+          String(req.body.timezone || current.timezone || 'UTC'),
+          mode,
+          String(req.body.location || '').trim() || null,
+          String(req.body.notes || '').trim() || null,
+          req.user.id,
+        ]
       );
-    }
+      if (current.stage === 'received' || current.stage === 'screening') {
+        await client.query(
+          `UPDATE career_applications SET stage = 'interview', updated_at = NOW() WHERE id = $1`,
+          [current.id]
+        );
+        await client.query(
+          `INSERT INTO career_application_events (application_id, actor_user_id, from_stage, to_stage, note)
+           VALUES ($1,$2,$3,'interview',$4)`,
+          [current.id, req.user.id, current.stage, 'Interview scheduled']
+        );
+      }
+      return { interview: created };
+    }, 'career_interview_schedule');
     return res.status(201).json({ interview });
   } catch (err) {
     next(err);
@@ -659,35 +721,43 @@ async function createOffer(req, res, next) {
     const application = await loadManagedApplication(req.user, req.params.applicationId);
     const title = String(req.body.title || application.opening_title || '').trim();
     if (!title) throw new AppError('Validation failed', 400, 'validation_failed', { title: 'Required' });
-    const { rows: [offer] } = await pool.query(
-      `INSERT INTO career_offers (
+    const { offer } = await withTransaction(pool, async (client) => {
+      const { rows: [current] } = await client.query(
+        'SELECT * FROM career_applications WHERE id = $1 FOR UPDATE',
+        [application.id]
+      );
+      if (!current) throw new AppError('Application not found', 404, 'not_found');
+      const { rows: [created] } = await client.query(
+        `INSERT INTO career_offers (
           application_id, title, currency_code, compensation, compensation_period,
           start_date, expires_at, team_role, created_by
        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
        RETURNING *`,
-      [
-        application.id,
-        title,
-        String(req.body.currency_code || 'USD').toUpperCase().slice(0, 3),
-        req.body.compensation != null && req.body.compensation !== '' ? Number(req.body.compensation) : null,
-        COMPENSATION_PERIODS.includes(req.body.compensation_period) ? req.body.compensation_period : 'yearly',
-        req.body.start_date || null,
-        req.body.expires_at || null,
-        TEAM_ROLES.includes(req.body.team_role) ? req.body.team_role : application.opening_team_role,
-        req.user.id,
-      ]
-    );
-    if (['received', 'screening', 'interview', 'assessment'].includes(application.stage)) {
-      await pool.query(
-        `UPDATE career_applications SET stage = 'offer', updated_at = NOW() WHERE id = $1`,
-        [application.id]
+        [
+          current.id,
+          title,
+          String(req.body.currency_code || 'USD').toUpperCase().slice(0, 3),
+          req.body.compensation != null && req.body.compensation !== '' ? Number(req.body.compensation) : null,
+          COMPENSATION_PERIODS.includes(req.body.compensation_period) ? req.body.compensation_period : 'yearly',
+          req.body.start_date || null,
+          req.body.expires_at || null,
+          TEAM_ROLES.includes(req.body.team_role) ? req.body.team_role : current.opening_team_role,
+          req.user.id,
+        ]
       );
-      await pool.query(
-        `INSERT INTO career_application_events (application_id, actor_user_id, from_stage, to_stage, note)
-         VALUES ($1,$2,$3,'offer',$4)`,
-        [application.id, req.user.id, application.stage, 'Offer created']
-      );
-    }
+      if (['received', 'screening', 'interview', 'assessment'].includes(current.stage)) {
+        await client.query(
+          `UPDATE career_applications SET stage = 'offer', updated_at = NOW() WHERE id = $1`,
+          [current.id]
+        );
+        await client.query(
+          `INSERT INTO career_application_events (application_id, actor_user_id, from_stage, to_stage, note)
+           VALUES ($1,$2,$3,'offer',$4)`,
+          [current.id, req.user.id, current.stage, 'Offer created']
+        );
+      }
+      return { offer: created };
+    }, 'career_offer_create');
     return res.status(201).json({ offer });
   } catch (err) {
     next(err);
@@ -717,36 +787,44 @@ async function decideOffer(req, res, next) {
     } else if (!isApplicant) {
       throw new AppError('Only the applicant can accept or decline this offer', 403, 'forbidden');
     }
-    const { rows: [updated] } = await pool.query(
-      `UPDATE career_offers SET status = $2, decided_at = NOW() WHERE id = $1 AND status = 'pending' RETURNING *`,
-      [offer.id, decision]
-    );
-    if (!updated) throw new AppError('Offer is no longer pending', 409, 'conflict');
-    if (decision === 'accepted') {
-      await pool.query(
-        `UPDATE career_applications SET stage = 'hired', updated_at = NOW() WHERE id = $1`,
+    const updated = await withTransaction(pool, async (client) => {
+      const { rows: [currentApplication] } = await client.query(
+        'SELECT stage FROM career_applications WHERE id = $1 FOR UPDATE',
         [offer.application_id]
       );
-      await pool.query(
-        `INSERT INTO career_application_events (application_id, actor_user_id, from_stage, to_stage, note)
-         VALUES ($1,$2,$3,'hired','Offer accepted')`,
-        [offer.application_id, req.user.id, offer.stage]
+      if (!currentApplication) throw new AppError('Application not found', 404, 'not_found');
+      const { rows: [changedOffer] } = await client.query(
+        `UPDATE career_offers SET status = $2, decided_at = NOW() WHERE id = $1 AND status = 'pending' RETURNING *`,
+        [offer.id, decision]
       );
-      if (offer.employer_type === 'business') {
-        await hireIntoBusiness(req.user, {
-          id: offer.application_id,
-          user_id: offer.user_id,
-          applicant_email: offer.applicant_email,
-          opening_id: offer.opening_id,
-        }, offer);
+      if (!changedOffer) throw new AppError('Offer is no longer pending', 409, 'conflict');
+      if (decision === 'accepted') {
+        await client.query(
+          `UPDATE career_applications SET stage = 'hired', updated_at = NOW() WHERE id = $1`,
+          [offer.application_id]
+        );
+        await client.query(
+          `INSERT INTO career_application_events (application_id, actor_user_id, from_stage, to_stage, note)
+           VALUES ($1,$2,$3,'hired','Offer accepted')`,
+          [offer.application_id, req.user.id, currentApplication.stage]
+        );
+        if (offer.employer_type === 'business') {
+          await hireIntoBusiness(req.user, {
+            id: offer.application_id,
+            user_id: offer.user_id,
+            applicant_email: offer.applicant_email,
+            opening_id: offer.opening_id,
+          }, offer, client);
+        }
       }
-    }
-    if (decision === 'declined') {
-      await pool.query(
-        `UPDATE career_applications SET stage = 'rejected', updated_at = NOW() WHERE id = $1 AND stage = 'offer'`,
-        [offer.application_id]
-      );
-    }
+      if (decision === 'declined') {
+        await client.query(
+          `UPDATE career_applications SET stage = 'rejected', updated_at = NOW() WHERE id = $1 AND stage = 'offer'`,
+          [offer.application_id]
+        );
+      }
+      return changedOffer;
+    }, 'career_offer_decision');
     return res.json({ offer: updated });
   } catch (err) {
     next(err);

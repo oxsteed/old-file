@@ -221,6 +221,7 @@ describe('employer hiring', () => {
         }],
       })
       .mockResolvedValueOnce({ rows: [{ id: 12, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: 88, stage: 'offer' }] })
       .mockResolvedValueOnce({ rows: [{ id: 88, stage: 'hired', opening_id: 21, user_id: '00000000-0000-4000-8000-000000000111', applicant_email: 'hire@example.com' }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 12, user_id: OWNER.id, business_name: 'Bon Pate' }] })

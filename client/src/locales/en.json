@@ -20554,7 +20554,9 @@
       "pipelineFor": "Pipeline for {{title}}",
       "interview": "Schedule interview",
       "offer": "Send offer",
-      "hire": "Hire"
+      "hire": "Hire",
+      "loadMore": "Load more openings",
+      "loadMoreApplications": "Load more applicants"
     }
   },
   "profileStudio": {
@@ -22640,6 +22642,17 @@
   "adminProfileVisibility": {
     "title": "Profile visibility",
     "description": "Hide a helper, business, or restaurant profile from public view. A hidden profile stays hidden even if the owner re-lists it.",
+    "staleOperations": "Stalled bulk operations",
+    "staleOperationsDescription": "Requests older than ten minutes are safe to reclaim and retry with their original item list.",
+    "staleOperationsLoading": "Loading stalled operations…",
+    "noStaleOperations": "No stalled bulk operations.",
+    "refreshStaleOperations": "Refresh stalled operations",
+    "reclaimAndRetry": "Reclaim and retry",
+    "reclaiming": "Reclaiming…",
+    "staleOperationSummary": "{{completed}} of {{total}} items completed",
+    "staleOperationsError": "Could not load stalled bulk operations.",
+    "staleOperationPayloadMissing": "This stalled operation has no safe retry payload.",
+    "staleOperationRetryFailed": "Could not retry the stalled bulk operation.",
     "searchPlaceholder": "Search by name or email (min 2 characters)",
     "typeFilter": "Profile type",
     "typeAll": "All types",
@@ -23196,7 +23209,26 @@
     "schemaLabel": "Application schema (JSON)",
     "subtitle": "Configure which modes require OxSteed approval before users can perform gated actions. Toggle auto-approve to skip manual review.",
     "title": "Mode platform-approval policies",
-    "updated": "Updated {{date}}"
+    "updated": "Updated {{date}}",
+    "historyFailed": "Could not load policy history.",
+    "loadingHistory": "Loading history...",
+    "showHistory": "Show immutable revision history",
+    "noHistory": "No saved revisions yet.",
+    "noReason": "No reason recorded",
+    "noGates": "No gated actions",
+    "rollback": "Rollback",
+    "rollbackReason": "Why is this rollback needed?",
+    "rollingBack": "Rolling back…",
+    "confirmRollback": "Confirm rollback",
+    "rollbackSaved": "Policy rollback saved for {{mode}}.",
+    "rollbackFailed": "Could not roll back this policy.",
+    "coverageTitle": "Enforcement coverage",
+    "coverageHint": "Every registered gated action must be represented by a persisted policy. Missing or unknown actions are shown before release.",
+    "loadingCoverage": "Loading coverage…",
+    "coverageComplete": "Complete",
+    "coverageIncomplete": "Needs review",
+    "missingActions": "Missing: {{actions}}",
+    "unknownActions": "Unknown: {{actions}}"
   },
   "superMoney": {
     "badge": "Super-admin money",

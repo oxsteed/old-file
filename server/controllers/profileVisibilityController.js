@@ -16,10 +16,12 @@
 // admin moderation request except where an approval gate is explicitly
 // required (bulk > 10 items, hiding with active work, scheduled actions).
 
+const crypto = require('crypto');
 const db     = require('../db');
 const logger = require('../utils/logger');
 const { logAdminAction } = require('../services/auditService');
 const { getActiveWork } = require('../services/profileVisibilityActiveWork');
+const { withTransaction } = require('../utils/transaction');
 
 const PROFILE_TYPES = ['helper', 'business', 'restaurant'];
 const REASONS = ['incomplete_profile', 'non_compliance', 'admin_decision', 'other'];
@@ -307,11 +309,12 @@ exports.getProfileHistory = async (req, res) => {
 // ─── Shared apply logic ──────────────────────────────────────────────────────
 // Performs the sticky-flag update and writes the audit row. Callers own the
 // approval/active-work gating; this never blocks on notifications.
-async function applyVisibilityChange({ adminId, profileType, profileId, isVisible, reason, note, req }) {
+async function applyVisibilityChange({ adminId, profileType, profileId, isVisible, reason, note, req, client = null }) {
   const spec = TABLE_BY_TYPE[profileType];
   const hide = !isVisible;
   const reasonCode = hide ? (reason || 'admin_decision') : null;
-  const { rows } = await db.query(
+  const runner = client || db;
+  const { rows } = await runner.query(
     `UPDATE ${spec.table}
         SET is_hidden_by_admin = $1,
             hidden_reason      = $2,
@@ -338,8 +341,13 @@ async function applyVisibilityChange({ adminId, profileType, profileId, isVisibl
       after: { is_hidden_by_admin: hide, hidden_reason: reasonCode },
       description: [reasonCode, note].filter(Boolean).join(' - ') || null,
       req,
+      client,
+      throwOnError: Boolean(client),
     });
-  } catch (e) { /* audit logging must not block the moderation action */ }
+  } catch (e) {
+    if (!client) { /* standalone audit logging remains best effort */ }
+    else throw e;
+  }
 
   return { spec, hide, reasonCode, row: rows[0] };
 }
@@ -584,55 +592,152 @@ exports.bulkUpdateVisibility = async (req, res) => {
       return res.json({ dry_run: true, results });
     }
 
-    // Idempotent replay: a stored response is returned verbatim.
-    const { rows: existing } = await db.query(
-      'SELECT response FROM bulk_visibility_idempotency WHERE idempotency_key = $1 LIMIT 1',
-      [idempotency_key]
+    const canonicalFingerprint = crypto.createHash('sha256')
+      .update(JSON.stringify(buildBulkApprovalPayload(items)))
+      .digest('hex');
+
+    // Claim before applying any side effects. This closes the race where two
+    // requests with the same key both pass the old read-then-write check.
+    // An abandoned claim can be reclaimed after ten minutes, allowing a
+    // crashed worker/request to be retried without leaving the key stuck.
+    const { rows: claimed } = await db.query(
+      `WITH inserted AS (
+         INSERT INTO bulk_visibility_idempotency
+           (idempotency_key, request_fingerprint, request_payload, status, response, claimed_at, created_by)
+         VALUES ($1, $2, $3::jsonb, 'processing', '{"status":"processing"}'::jsonb, NOW(), $4)
+         ON CONFLICT (idempotency_key) DO NOTHING
+         RETURNING idempotency_key, request_fingerprint, status, response
+       ), reclaimed AS (
+         UPDATE bulk_visibility_idempotency
+            SET request_fingerprint = COALESCE(request_fingerprint, $2),
+                request_payload = COALESCE(request_payload, $3::jsonb),
+                status = 'processing',
+                response = '{"status":"processing"}'::jsonb,
+                claimed_at = NOW(),
+                completed_at = NULL,
+                created_by = COALESCE(created_by, $4)
+          WHERE idempotency_key = $1
+            AND status = 'processing'
+            AND claimed_at < NOW() - INTERVAL '10 minutes'
+            AND (request_fingerprint IS NULL OR request_fingerprint = $2)
+         RETURNING idempotency_key, request_fingerprint, status, response
+       )
+       SELECT * FROM inserted
+       UNION ALL
+       SELECT * FROM reclaimed
+       LIMIT 1`,
+      [idempotency_key, canonicalFingerprint, JSON.stringify(items.map(canonicalBulkItem)), req.user.id]
     );
-    if (existing.length) {
-      return res.json(existing[0].response);
+    if (!claimed.length) {
+      const { rows: existing } = await db.query(
+        'SELECT request_fingerprint, status, response FROM bulk_visibility_idempotency WHERE idempotency_key = $1 LIMIT 1',
+        [idempotency_key]
+      );
+      if (existing.length && existing[0].request_fingerprint && existing[0].request_fingerprint !== canonicalFingerprint) {
+        return res.status(409).json({ error: 'idempotency_key_reused_with_different_items' });
+      }
+      if (existing[0]?.status === 'completed') return res.json(existing[0].response);
+      return res.status(409).json({ error: 'bulk_request_in_progress', retryable: true });
     }
 
-    // Approval gate for large batches. The approval is fingerprint-bound to
-    // the exact item list, so verification rebuilds the canonical payload.
-    if (items.length > 10) {
+    // Approval gate for large batches and for any hide that currently has
+    // active work. The approval is fingerprint-bound to the exact item list,
+    // so verification rebuilds the canonical payload. Small batches must not
+    // bypass the same safety boundary merely because they contain fewer rows.
+    let activeWorkRequiresApproval = false;
+    for (const item of items) {
+      if (item?.is_visible) continue;
+      const validationError = validateProfileItem(item);
+      if (validationError) continue;
+      const current = await loadCurrentHidden(item.profile_type, item.profile_id);
+      if (!current || current.is_hidden_by_admin) continue;
+      const activeWork = await getActiveWork(item.profile_type, String(item.profile_id));
+      if (activeWork.has_active_work) {
+        activeWorkRequiresApproval = true;
+        break;
+      }
+    }
+
+    if (items.length > 10 || activeWorkRequiresApproval) {
       const verified = await verifyApproval({
         approvalId: approval_id,
         actionType: 'bulk',
         payload: buildBulkApprovalPayload(items),
       });
       if (!verified) {
+        await db.query(
+          `DELETE FROM bulk_visibility_idempotency
+            WHERE idempotency_key = $1
+              AND status = 'processing'
+              AND request_fingerprint = $2`,
+          [idempotency_key, canonicalFingerprint]
+        );
         return res.status(409).json({
           approval_required: true,
-          error: 'Bulk updates of more than 10 profiles require an approved approval request for this exact item list.',
+          error: activeWorkRequiresApproval
+            ? 'Hiding profiles with active work requires an approved request for this exact item list.'
+            : 'Bulk updates of more than 10 profiles require an approved approval request for this exact item list.',
         });
       }
     }
 
     const results = [];
-    for (const item of items) {
+    for (const [itemIndex, item] of items.entries()) {
       const validationError = validateProfileItem(item);
       if (validationError) {
         results.push({ profile_type: item?.profile_type || null, profile_id: item?.profile_id ?? null, ok: false, action: null, error: validationError });
         continue;
       }
       try {
-        const { hide } = await applyVisibilityChange({
-          adminId: req.user.id,
-          profileType: item.profile_type,
-          profileId: item.profile_id,
-          isVisible: item.is_visible,
-          reason: item.reason,
-          note: item.note,
-          req,
-        });
-        results.push({
-          profile_type: item.profile_type,
-          profile_id: item.profile_id,
-          ok: true,
-          action: hide ? 'hide' : 'restore',
-          error: null,
-        });
+        const { rows: priorOutcomes } = await db.query(
+          `SELECT result
+             FROM bulk_visibility_idempotency_items
+            WHERE idempotency_key = $1 AND item_index = $2
+            LIMIT 1`,
+          [idempotency_key, itemIndex]
+        );
+        if (priorOutcomes[0]?.result) {
+          results.push(priorOutcomes[0].result);
+          continue;
+        }
+
+        if (!item.is_visible) {
+          const current = await loadCurrentHidden(item.profile_type, item.profile_id);
+          if (current && !current.is_hidden_by_admin) {
+            const activeWork = await getActiveWork(item.profile_type, String(item.profile_id));
+            if (activeWork.has_active_work && !approval_id) {
+              throw Object.assign(new Error('Approval required for active work.'), { statusCode: 409 });
+            }
+          }
+        }
+        const result = await withTransaction(db, async (client) => {
+          const { hide } = await applyVisibilityChange({
+            adminId: req.user.id,
+            profileType: item.profile_type,
+            profileId: item.profile_id,
+            isVisible: item.is_visible,
+            reason: item.reason,
+            note: item.note,
+            req,
+            client,
+          });
+          const outcome = {
+            profile_type: item.profile_type,
+            profile_id: item.profile_id,
+            ok: true,
+            action: hide ? 'hide' : 'restore',
+            error: null,
+          };
+          await client.query(
+            `INSERT INTO bulk_visibility_idempotency_items
+              (idempotency_key, item_index, profile_type, profile_id, result)
+             VALUES ($1, $2, $3, $4, $5::jsonb)
+             ON CONFLICT (idempotency_key, item_index) DO NOTHING`,
+            [idempotency_key, itemIndex, item.profile_type, String(item.profile_id), JSON.stringify(outcome)]
+          );
+          return outcome;
+        }, 'profile_visibility_bulk_item');
+        results.push(result);
         await notifyOwnerQuietly({
           profileType: item.profile_type,
           profileId: String(item.profile_id),
@@ -647,23 +752,24 @@ exports.bulkUpdateVisibility = async (req, res) => {
           profile_id: item.profile_id,
           ok: false,
           action: null,
-          error: itemErr.statusCode === 404 ? 'Profile not found.' : 'Could not update profile visibility.',
+          error: itemErr.statusCode === 404
+            ? 'Profile not found.'
+            : itemErr.statusCode === 409
+              ? 'Approval required for active work.'
+              : 'Could not update profile visibility.',
         });
       }
     }
 
     const responseBody = { dry_run: false, results };
-    // Store-then-read: concurrent retries of the same key converge on the
-    // winner's stored response, so replays are always identical.
-    await db.query(
-      `INSERT INTO bulk_visibility_idempotency (idempotency_key, response, created_by)
-       VALUES ($1, $2::jsonb, $3)
-       ON CONFLICT (idempotency_key) DO NOTHING`,
-      [idempotency_key, JSON.stringify(responseBody), req.user.id]
-    );
     const { rows: stored } = await db.query(
-      'SELECT response FROM bulk_visibility_idempotency WHERE idempotency_key = $1 LIMIT 1',
-      [idempotency_key]
+      `UPDATE bulk_visibility_idempotency
+          SET response = $2::jsonb, status = 'completed', completed_at = NOW()
+        WHERE idempotency_key = $1
+          AND status = 'processing'
+          AND request_fingerprint = $3
+        RETURNING response`,
+      [idempotency_key, JSON.stringify(responseBody), canonicalFingerprint]
     );
     // A verified bulk approval is single-use: consume it so it cannot
     // authorize a second, different batch.
@@ -672,6 +778,69 @@ exports.bulkUpdateVisibility = async (req, res) => {
   } catch (err) {
     logger.error('profileVisibility bulk error', { err, adminId: req.user?.id });
     return res.status(500).json({ error: 'Bulk update failed.' });
+  }
+};
+
+// ─── GET /api/admin/profile-visibility/bulk-operations/stale ────────────────
+// A crashed request remains processing until the normal reclaim window. This
+// projection gives authorized operators explicit visibility into those claims
+// and the exact canonical payload needed to retry one safely.
+exports.listStaleBulkOperations = async (req, res) => {
+  try {
+    const limit = Math.min(50, Math.max(1, Number.parseInt(req.query.limit, 10) || 25));
+    const { rows } = await db.query(
+      `SELECT b.idempotency_key, b.request_fingerprint, b.request_payload,
+              b.claimed_at, b.created_at, b.created_by,
+              COUNT(i.item_index)::int AS completed_items
+         FROM bulk_visibility_idempotency b
+         LEFT JOIN bulk_visibility_idempotency_items i
+           ON i.idempotency_key = b.idempotency_key
+        WHERE b.status = 'processing'
+          AND b.claimed_at < NOW() - INTERVAL '10 minutes'
+        GROUP BY b.idempotency_key, b.request_fingerprint, b.request_payload,
+                 b.claimed_at, b.created_at, b.created_by
+        ORDER BY b.claimed_at ASC
+        LIMIT $1`,
+      [limit]
+    );
+    return res.json({ operations: rows });
+  } catch (err) {
+    logger.error('profileVisibility stale operations error', { err, adminId: req.user?.id });
+    return res.status(500).json({ error: 'Could not load stale bulk operations.' });
+  }
+};
+
+// Force a stale claim into the existing safe reclaim window. This does not
+// apply a mutation; the caller must retry the original payload, and all
+// completed per-item outcomes will be replayed transactionally.
+exports.reclaimStaleBulkOperation = async (req, res) => {
+  const key = String(req.params.idempotencyKey || '').trim();
+  if (!key || key.length > 200) return res.status(400).json({ error: 'Invalid idempotency key.' });
+  try {
+    const { rows } = await db.query(
+      `UPDATE bulk_visibility_idempotency
+          SET claimed_at = NOW() - INTERVAL '10 minutes 1 second'
+        WHERE idempotency_key = $1
+          AND status = 'processing'
+          AND claimed_at < NOW() - INTERVAL '10 minutes'
+        RETURNING idempotency_key, request_fingerprint, request_payload, claimed_at`,
+      [key]
+    );
+    if (!rows.length) return res.status(409).json({ error: 'Operation is not stale or no longer processing.' });
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'profile_visibility_bulk_reclaimed',
+      targetType: 'bulk_visibility_idempotency',
+      targetKey: `bulk_visibility:${key}`,
+      description: `Reclaimed stale profile visibility batch ${key}`,
+      after: { idempotency_key: key },
+      req,
+      throwOnError: true,
+    });
+    return res.json({ operation: rows[0], retryable: true });
+  } catch (err) {
+    logger.error('profileVisibility reclaim stale operation error', { err, adminId: req.user?.id, key });
+    return res.status(500).json({ error: 'Could not reclaim stale bulk operation.' });
   }
 };
 

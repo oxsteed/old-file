@@ -20554,7 +20554,9 @@
       "pipelineFor": "Tiyo pou {{title}}",
       "interview": "Pwograme entèvyou",
       "offer": "Voye ofri",
-      "hire": "Anboche"
+      "hire": "Anboche",
+      "loadMore": "Chaje plis pòs",
+      "loadMoreApplications": "Chaje plis kandida"
     }
   },
   "profileStudio": {
@@ -22640,6 +22642,17 @@
   "adminProfileVisibility": {
     "title": "Vizibilite pwofil",
     "description": "Kache yon pwofil èd, biznis, oswa restoran pou piblik la pa wè li. Yon pwofil ki kache rete kache menm si pwopriyetè a mete li deyò ankò.",
+    "staleOperations": "Operasyon an gwoup ki bloke",
+    "staleOperationsDescription": "Demann ki gen plis pase dis minit yo ka reprann epi eseye ankò san danje ak menm lis eleman an.",
+    "staleOperationsLoading": "Ap chaje operasyon ki bloke yo…",
+    "noStaleOperations": "Pa gen operasyon an gwoup ki bloke.",
+    "refreshStaleOperations": "Rafrechi operasyon ki bloke yo",
+    "reclaimAndRetry": "Reprann epi eseye ankò",
+    "reclaiming": "Ap reprann…",
+    "staleOperationSummary": "{{completed}} sou {{total}} eleman fini",
+    "staleOperationsError": "Pa t kapab chaje operasyon an gwoup ki bloke yo.",
+    "staleOperationPayloadMissing": "Operasyon sa a pa gen done ki an sekirite pou eseye ankò.",
+    "staleOperationRetryFailed": "Pa t kapab eseye operasyon an gwoup la ankò.",
     "searchPlaceholder": "Chèche pa non oswa imèl (min 2 karaktè)",
     "typeFilter": "Kalite pwofil",
     "typeAll": "Tout kalite",
@@ -23196,7 +23209,26 @@
     "schemaLabel": "Eskema aplikasyon (JSON)",
     "subtitle": "Konfigure ki mòd ki mande apwobasyon OxSteed anvan itilizatè yo ka fè aksyon bare. Aktive apwobasyon otomatik pou sote revizyon manyèl.",
     "title": "Politik apwobasyon platfòm pa mòd",
-    "updated": "Mete ajou {{date}}"
+    "updated": "Mete ajou {{date}}",
+    "historyFailed": "Nou pa t kapab chaje istwa politik yo.",
+    "loadingHistory": "N ap chaje istwa a...",
+    "showHistory": "Montre istwa revizyon ki pa ka chanje",
+    "noHistory": "Pa gen revizyon ki anrejistre ankò.",
+    "noReason": "Pa gen rezon ki anrejistre",
+    "noGates": "Pa gen aksyon ki mande apwobasyon",
+    "rollback": "Retounen",
+    "rollbackReason": "Poukisa retou sa a nesesè?",
+    "rollingBack": "Ap retounen…",
+    "confirmRollback": "Konfime retou a",
+    "rollbackSaved": "Retou politik la anrejistre pou {{mode}}.",
+    "rollbackFailed": "Pa t kapab retounen politik sa a.",
+    "coverageTitle": "Kouvèti aplikasyon",
+    "coverageHint": "Chak aksyon ki gen baryè dwe gen yon politik ki anrejistre. Aksyon ki manke oswa ki pa konnen yo parèt anvan lansman.",
+    "loadingCoverage": "Ap chaje kouvèti a…",
+    "coverageComplete": "Konplè",
+    "coverageIncomplete": "Bezwen revizyon",
+    "missingActions": "Manke: {{actions}}",
+    "unknownActions": "Pa konnen: {{actions}}"
   },
   "superMoney": {
     "badge": "Lajan super-admin",

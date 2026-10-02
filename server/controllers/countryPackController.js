@@ -42,6 +42,9 @@ exports.getCountryConfig = async (req, res, next) => {
         country: result.country,
       });
     }
+    if (result.reason === 'unavailable') {
+      return res.status(503).json({ success: false, code: 'country_config_unavailable', retryable: true });
+    }
     return next(new AppError('Country not available', 404, 'country_not_found'));
   } catch (err) {
     next(new AppError('Failed to load country config', 500, 'country_config_failed'));

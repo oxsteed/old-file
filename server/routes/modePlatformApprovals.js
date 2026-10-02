@@ -25,7 +25,10 @@ const adminRouter = express.Router();
 
 // Super-admin policy editing
 adminRouter.get('/mode-policies',          authenticate, requireSuperAdmin, ctrl.adminListPolicies);
+adminRouter.get('/mode-policies/coverage', authenticate, requireSuperAdmin, ctrl.adminListPolicyCoverage);
+adminRouter.get('/mode-policies/:mode/revisions', authenticate, requireSuperAdmin, ctrl.adminListPolicyRevisions);
 adminRouter.patch('/mode-policies/:mode',  authenticate, requireSuperAdmin, ctrl.adminUpdatePolicy);
+adminRouter.post('/mode-policies/:mode/rollback', authenticate, requireSuperAdmin, ctrl.adminRollbackPolicy);
 
 // Super-admin approval queue
 adminRouter.get('/mode-approvals',                  authenticate, requireSuperAdmin, ctrl.adminListApprovals);

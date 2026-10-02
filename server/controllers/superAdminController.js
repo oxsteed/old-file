@@ -1068,7 +1068,7 @@ exports.forceJobAction = async (req, res) => {
     }
     if (action === 'flag') {
       const { rows: flagRows } = await db.query(
-        `UPDATE jobs SET metadata = jsonb_set(COALESCE(metadata,'{}'), '{admin_flagged}', 'true',  true), updated_at = now() WHERE id = $1 AND NOT (COALESCE(metadata,'{}')->>'admin_flagged') = 'true' RETURNING id`,
+        `UPDATE jobs SET metadata = jsonb_set(COALESCE(metadata,'{}'), '{admin_flagged}', 'true',  true), updated_at = now() WHERE id = $1 AND COALESCE(metadata->>'admin_flagged', 'false') <> 'true' RETURNING id`,
         [jobId]
       );
       if (flagRows.length === 0) {

@@ -168,6 +168,9 @@ describe('POST /delegations', () => {
       if (sql.includes('FROM users') && sql.includes('WHERE u.id = $1')) {
         return { rows: [{ id: ADMIN_B.id, role: 'admin', is_active: true }], rowCount: 1 };
       }
+      if (sql.includes('jsonb_array_elements_text(permissions)')) {
+        return { rows: [{ permission: 'view_financials' }, { permission: 'issue_refunds' }], rowCount: 2 };
+      }
       if (sql.includes('INSERT INTO delegation_grants')) {
         return { rows: [delegationRow()], rowCount: 1 };
       }
@@ -257,6 +260,9 @@ describe('POST /delegations', () => {
       if (sql.includes('FROM users') && sql.includes('WHERE u.id = $1')) {
         return { rows: [{ id: ADMIN_B.id, role: 'admin', is_active: true }], rowCount: 1 };
       }
+      if (sql.includes('jsonb_array_elements_text(permissions)')) {
+        return { rows: [{ permission: 'view_financials' }, { permission: 'issue_refunds' }], rowCount: 2 };
+      }
       if (sql.includes('INSERT INTO delegation_grants')) throw new Error('db down');
       return { rows: [{ id: 1 }], rowCount: 1 };
     });
@@ -268,6 +274,9 @@ describe('POST /delegations', () => {
     mockQuery.mockImplementation(async (sql) => {
       if (sql.includes('FROM users') && sql.includes('WHERE u.id = $1')) {
         return { rows: [{ id: ADMIN_B.id, role: 'admin', is_active: true }], rowCount: 1 };
+      }
+      if (sql.includes('jsonb_array_elements_text(permissions)')) {
+        return { rows: [{ permission: 'view_financials' }, { permission: 'issue_refunds' }], rowCount: 2 };
       }
       if (sql.includes('INSERT INTO delegation_grants')) return { rows: [delegationRow()], rowCount: 1 };
       if (sql.includes('INSERT INTO admin_audit_log')) throw new Error('audit down');

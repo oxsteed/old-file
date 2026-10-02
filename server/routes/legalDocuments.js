@@ -8,6 +8,7 @@ const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const { generalLimiter, strictLimiter } = require('../middleware/rateLimiter');
 const legalController = require('../controllers/legalDocumentsController');
 const ccpaController = require('../controllers/ccpaController');
+const logger = require('../utils/logger');
 const db = require('../db');
 
 const TERMS_DOCUMENT_TYPE = 'terms_of_service';
@@ -24,7 +25,7 @@ async function listDrafts() {
   // Seed the terms document from the bundled locale content if absent.
   const existing = await getDraft(TERMS_DOCUMENT_TYPE);
   if (!existing) {
-    const sections = loadTermsDocument({ query: {} }).sections;
+    const sections = loadBundledTermsDocument({ query: {} }).sections;
     await db.query(
       `INSERT INTO legal_document_drafts (id, title, category, description, version, status, sections, updated_at)
        VALUES ($1, $2, $3, $4, 1, 'live', $5::jsonb, '2026-06-02T00:00:00.000Z')
@@ -59,7 +60,7 @@ function termsSectionHtml(blocks = []) {
   }).join('\n');
 }
 
-function loadTermsDocument(req) {
+function loadBundledTermsDocument(req) {
   const language = String(req.query.language || 'en').slice(0, 2);
   let content;
   try {
@@ -90,6 +91,30 @@ function loadTermsDocument(req) {
   };
 }
 
+async function loadPublishedTermsDocument(req) {
+  const bundled = loadBundledTermsDocument(req);
+  const draft = await getDraft(TERMS_DOCUMENT_TYPE);
+  if (!draft || draft.status !== 'live') return bundled;
+  const sections = (Array.isArray(draft.sections) ? draft.sections : []).map((section, index) => ({
+    key: section.key || `section_${index + 1}`,
+    title: section.title || `Section ${index + 1}`,
+    content: section.content || termsSectionHtml(section.blocks || []),
+    isCritical: ['2', '5', '8', '12'].includes(String(section.key || index + 1)),
+  }));
+  return {
+    document: {
+      ...bundled.document,
+      title: draft.title || bundled.document.title,
+      category: draft.category || bundled.document.category,
+      version: draft.version,
+      status: draft.status,
+      lastUpdated: draft.updated_at,
+      userAccepted: false,
+    },
+    sections: sections.length ? sections : bundled.sections,
+  };
+}
+
 
 function csvEscape(value) {
   const s = value == null ? '' : String(value);
@@ -100,12 +125,17 @@ function csvEscape(value) {
 
 router.get('/documents/:documentType',
   generalLimiter,
-  (req, res, next) => {
+  async (req, res, next) => {
     if (req.baseUrl.includes('/admin/legal')) return next();
     if (req.params.documentType !== TERMS_DOCUMENT_TYPE) {
       return res.status(404).json({ error: 'Document not found' });
     }
-    return res.json(loadTermsDocument(req));
+    try {
+      return res.json(await loadPublishedTermsDocument(req));
+    } catch (err) {
+      logger.error('Published legal document unavailable', { error: err.message, documentType: req.params.documentType });
+      return res.status(503).json({ error: 'Legal document temporarily unavailable', retryable: true });
+    }
   }
 );
 

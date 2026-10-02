@@ -27,6 +27,15 @@ export const adminListPolicies = () =>
 export const adminUpdatePolicy = (mode, patch) =>
   api.patch(`/admin/mode-policies/${mode}`, patch).then(r => r.data);
 
+export const adminListPolicyRevisions = (mode, params = {}) =>
+  api.get(`/admin/mode-policies/${mode}/revisions`, { params }).then(r => r.data);
+
+export const adminListPolicyCoverage = () =>
+  api.get('/admin/mode-policies/coverage').then(r => r.data);
+
+export const adminRollbackPolicy = (mode, payload) =>
+  api.post(`/admin/mode-policies/${mode}/rollback`, payload).then(r => r.data);
+
 export const adminListApprovals = (params = {}) =>
   api.get('/admin/mode-approvals', { params }).then(r => r.data);
 
@@ -46,6 +55,9 @@ export default {
   listPublicPolicies,
   adminListPolicies,
   adminUpdatePolicy,
+  adminListPolicyRevisions,
+  adminListPolicyCoverage,
+  adminRollbackPolicy,
   adminListApprovals,
   adminApprove,
   adminReject,

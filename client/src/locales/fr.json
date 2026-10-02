@@ -20554,7 +20554,9 @@
       "pipelineFor": "Pipeline pour {{title}}",
       "interview": "Planifier un entretien",
       "offer": "Envoyer une offre",
-      "hire": "Embaucher"
+      "hire": "Embaucher",
+      "loadMore": "Charger plus d’offres",
+      "loadMoreApplications": "Charger plus de candidatures"
     }
   },
   "profileStudio": {
@@ -22640,6 +22642,17 @@
   "adminProfileVisibility": {
     "title": "Visibilité des profils",
     "description": "Masquez un profil d'assistant, d'entreprise ou de restaurant de la vue publique. Un profil masqué reste masqué même si le propriétaire le republie.",
+    "staleOperations": "Opérations groupées bloquées",
+    "staleOperationsDescription": "Les demandes datant de plus de dix minutes peuvent être récupérées et relancées en toute sécurité avec leur liste d'origine.",
+    "staleOperationsLoading": "Chargement des opérations bloquées…",
+    "noStaleOperations": "Aucune opération groupée bloquée.",
+    "refreshStaleOperations": "Actualiser les opérations bloquées",
+    "reclaimAndRetry": "Récupérer et relancer",
+    "reclaiming": "Récupération…",
+    "staleOperationSummary": "{{completed}} sur {{total}} éléments terminés",
+    "staleOperationsError": "Impossible de charger les opérations groupées bloquées.",
+    "staleOperationPayloadMissing": "Cette opération bloquée ne possède pas de charge utile sûre à relancer.",
+    "staleOperationRetryFailed": "Impossible de relancer l'opération groupée bloquée.",
     "searchPlaceholder": "Rechercher par nom ou e-mail (min. 2 caractères)",
     "typeFilter": "Type de profil",
     "typeAll": "Tous les types",
@@ -23196,7 +23209,26 @@
     "schemaLabel": "Schéma de candidature (JSON)",
     "subtitle": "Configurez les modes qui nécessitent l’approbation d’OxSteed avant que les utilisateurs puissent effectuer des actions restreintes. Activez l’approbation automatique pour ignorer la révision manuelle.",
     "title": "Politiques d’approbation de plateforme par mode",
-    "updated": "Mis à jour {{date}}"
+    "updated": "Mis à jour {{date}}",
+    "historyFailed": "Impossible de charger l’historique des politiques.",
+    "loadingHistory": "Chargement de l’historique...",
+    "showHistory": "Afficher l’historique immuable des révisions",
+    "noHistory": "Aucune révision enregistrée pour le moment.",
+    "noReason": "Aucune raison enregistrée",
+    "noGates": "Aucune action soumise à approbation",
+    "rollback": "Restaurer",
+    "rollbackReason": "Pourquoi cette restauration est-elle nécessaire ?",
+    "rollingBack": "Restauration…",
+    "confirmRollback": "Confirmer la restauration",
+    "rollbackSaved": "Restauration de la politique enregistrée pour {{mode}}.",
+    "rollbackFailed": "Impossible de restaurer cette politique.",
+    "coverageTitle": "Couverture de l'application",
+    "coverageHint": "Chaque action protégée enregistrée doit être représentée par une politique persistée. Les actions manquantes ou inconnues sont affichées avant la mise en production.",
+    "loadingCoverage": "Chargement de la couverture…",
+    "coverageComplete": "Complète",
+    "coverageIncomplete": "À vérifier",
+    "missingActions": "Manquantes : {{actions}}",
+    "unknownActions": "Inconnues : {{actions}}"
   },
   "superMoney": {
     "badge": "Argent du super-admin",

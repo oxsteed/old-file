@@ -11,7 +11,7 @@ test('admin support deep links use the registered inbox route', () => {
   const dashboard = read('src/admin/pages/super/Dashboard.jsx');
   const userDetail = read('src/admin/pages/super/UserDetail.jsx');
 
-  assert.match(app, /path=\{adminRoute\('support'\)\.relative\}\s+element=\{<SupportTickets \/>\}/);
+  assert.match(app, /path=\{adminRoute\('support'\)\.relative\}\s+element=\{(?:<GrantGuard grant=\{adminRoute\('support'\)\.grant\}>\s*)?<SupportTickets \/>(?:<\/GrantGuard>)?\}/);
   assert.doesNotMatch(app, /path="support\/tickets"/);
   assert.match(dashboard, /to: '\/admin\/support'/);
   assert.doesNotMatch(dashboard, /to: '\/admin\/support\/tickets'/);
@@ -163,7 +163,7 @@ test('operations command center has a registered route and read-only API contrac
   const layout = read('src/admin/layouts/AdminLayout.jsx');
   const page = read('src/admin/pages/OperationsOverview.jsx');
 
-  assert.match(app, /path=\{adminRoute\('operations'\)\.relative\}\s+element=\{<OperationsOverview \/>\}/);
+  assert.match(app, /path=\{adminRoute\('operations'\)\.relative\}\s+element=\{(?:<GrantGuard grant=\{adminRoute\('operations'\)\.grant\}>\s*)?<OperationsOverview \/>(?:<\/GrantGuard>)?\}/);
   assert.match(layout, /to: routePath\('operations'\)/);
   assert.match(page, /\/admin\/operations\/overview/);
   assert.match(page, /read-only|Read-only/i);

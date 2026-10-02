@@ -181,6 +181,16 @@ exports.setDepartmentDefaults = async (req, res, next) => {
       [codes]
     );
     const byCode = new Map(permsRes.rows.map((r) => [r.code, r.id]));
+    const unknownCodes = [...new Set(codes.filter((code) => !byCode.has(code)))];
+    if (unknownCodes.length) {
+      await client.query('ROLLBACK');
+      return badRequest(
+        res,
+        `Unknown corporate permission code${unknownCodes.length === 1 ? '' : 's'}: ${unknownCodes.join(', ')}.`,
+        'unknown_permission_codes',
+        { unknown_codes: unknownCodes }
+      );
+    }
 
     await client.query(
       'DELETE FROM corporate_department_permissions WHERE department_id = $1',
@@ -190,7 +200,6 @@ exports.setDepartmentDefaults = async (req, res, next) => {
       const code  = entry.code || entry;
       const allow = entry.allow !== false; // default allow=true if just code given
       const pid   = byCode.get(code);
-      if (!pid) continue;
       await client.query(
         `INSERT INTO corporate_department_permissions (department_id, permission_id, allow)
          VALUES ($1,$2,$3)

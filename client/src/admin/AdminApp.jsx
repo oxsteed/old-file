@@ -225,38 +225,38 @@ export default function AdminApp() {
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
 
           {/* Regular admin */}
-          <Route path={adminRoute('dashboard').relative} element={<SuperDashboard />} />
-          <Route path={adminRoute('operations').relative} element={<OperationsOverview />} />
+          <Route path={adminRoute('dashboard').relative} element={<GrantGuard grant={adminRoute('dashboard').grant}><SuperDashboard /></GrantGuard>} />
+          <Route path={adminRoute('operations').relative} element={<GrantGuard grant={adminRoute('operations').grant}><OperationsOverview /></GrantGuard>} />
           <Route path={adminRoute('incidents').relative} element={
             <GrantGuard grant={adminRoute('incidents').grant}><IncidentManagement /></GrantGuard>
           } />
-          <Route path={adminRoute('users').relative} element={<UsersList />} />
+          <Route path={adminRoute('users').relative} element={<GrantGuard grant={adminRoute('users').grant}><UsersList /></GrantGuard>} />
           <Route path={adminRoute('userDetail').relative} element={<UserDetail />} />
           <Route path={adminRoute('customer360').relative} element={<Customer360 />} />
-          <Route path={adminRoute('jobs').relative} element={<JobsList />} />
-          <Route path={adminRoute('jobDetail').relative} element={<JobDetail />} />
-          <Route path={adminRoute('reports').relative} element={<ReportsList />} />
-          <Route path={adminRoute('moderation').relative} element={<Moderation />} />
-          <Route path={adminRoute('disputeList').relative} element={<Disputes />} />
-          <Route path={adminRoute('disputeDetail').relative} element={<DisputeResolve />} />
+          <Route path={adminRoute('jobs').relative} element={<GrantGuard grant={adminRoute('jobs').grant}><JobsList /></GrantGuard>} />
+          <Route path={adminRoute('jobDetail').relative} element={<GrantGuard grant={adminRoute('jobDetail').grant}><JobDetail /></GrantGuard>} />
+          <Route path={adminRoute('reports').relative} element={<GrantGuard grant={adminRoute('reports').grant}><ReportsList /></GrantGuard>} />
+          <Route path={adminRoute('moderation').relative} element={<GrantGuard grant={adminRoute('moderation').grant}><Moderation /></GrantGuard>} />
+          <Route path={adminRoute('disputeList').relative} element={<GrantGuard grant={adminRoute('disputeList').grant}><Disputes /></GrantGuard>} />
+          <Route path={adminRoute('disputeDetail').relative} element={<GrantGuard grant={adminRoute('disputeDetail').grant}><DisputeResolve /></GrantGuard>} />
           <Route path={adminRoute('markets').relative} element={<MarketZipCodes />} />
-          <Route path={adminRoute('directServiceAreas').relative} element={<DirectServiceAreas />} />
-          <Route path={adminRoute('directCatalog').relative} element={<DirectCatalog embedded />} />
-          <Route path={adminRoute('skills').relative} element={<SkillsManager />} />
+          <Route path={adminRoute('directServiceAreas').relative} element={<GrantGuard grant={adminRoute('directServiceAreas').grant}><DirectServiceAreas /></GrantGuard>} />
+          <Route path={adminRoute('directCatalog').relative} element={<GrantGuard grant={adminRoute('directCatalog').grant}><DirectCatalog embedded /></GrantGuard>} />
+          <Route path={adminRoute('skills').relative} element={<GrantGuard grant={adminRoute('skills').grant}><SkillsManager /></GrantGuard>} />
           <Route path={adminRoute('licenses').relative} element={<LicensesManager />} />
-          <Route path={adminRoute('contentRemovals').relative} element={<ContentRemovals />} />
-          <Route path={adminRoute('support').relative} element={<SupportTickets />} />
+          <Route path={adminRoute('contentRemovals').relative} element={<GrantGuard grant={adminRoute('contentRemovals').grant}><ContentRemovals /></GrantGuard>} />
+          <Route path={adminRoute('support').relative} element={<GrantGuard grant={adminRoute('support').grant}><SupportTickets /></GrantGuard>} />
           <Route path={adminRoute('supportChat').relative} element={<SupportAgentChat />} />
-          <Route path={adminRoute('quoteRequests').relative} element={<QuoteRequestsInbox />} />
-          <Route path={adminRoute('search').relative} element={<AdminSearch />} />
+          <Route path={adminRoute('quoteRequests').relative} element={<GrantGuard grant={adminRoute('quoteRequests').grant}><QuoteRequestsInbox /></GrantGuard>} />
+          <Route path={adminRoute('search').relative} element={<GrantGuard grant={adminRoute('search').grant}><AdminSearch /></GrantGuard>} />
           <Route path={adminRoute('messages').relative} element={
             <GrantGuard grant={adminRoute('messages').grant}><AdminMessages /></GrantGuard>
           } />
-          <Route path={adminRoute('businesses').relative} element={<BusinessModeration />} />
-          <Route path={adminRoute('businessDetail').relative} element={<BusinessDetail />} />
-          <Route path={adminRoute('business360').relative} element={<Business360 />} />
-          <Route path={adminRoute('toolRentals').relative} element={<ToolRentalModeration />} />
-          <Route path={adminRoute('plannedNeeds').relative} element={<PlannedNeedsAdmin />} />
+          <Route path={adminRoute('businesses').relative} element={<GrantGuard grant={adminRoute('businesses').grant}><BusinessModeration /></GrantGuard>} />
+          <Route path={adminRoute('businessDetail').relative} element={<GrantGuard grant={adminRoute('businessDetail').grant}><BusinessDetail /></GrantGuard>} />
+          <Route path={adminRoute('business360').relative} element={<GrantGuard grant={adminRoute('business360').grant}><Business360 /></GrantGuard>} />
+          <Route path={adminRoute('toolRentals').relative} element={<GrantGuard grant={adminRoute('toolRentals').grant}><ToolRentalModeration /></GrantGuard>} />
+          <Route path={adminRoute('plannedNeeds').relative} element={<GrantGuard grant={adminRoute('plannedNeeds').grant}><PlannedNeedsAdmin /></GrantGuard>} />
           <Route path={adminRoute('payments').relative} element={
             <GrantGuard grant={adminRoute('payments').grant}><PaymentsList /></GrantGuard>
           } />
@@ -285,13 +285,13 @@ export default function AdminApp() {
           <Route path={adminRoute('supportAudit').relative} element={<SupportAuditLog />} />
 
           {/* Learn Mode */}
-          <Route path={adminRoute('learnSubmissions').relative} element={<LearnSubmissionsAdmin />} />
-          <Route path={adminRoute('learnProductLinks').relative} element={<LearnProductLinksAdmin />} />
-          <Route path={adminRoute('learnAiSuggestions').relative} element={<LearnAiSuggestionsAdmin />} />
+          <Route path={adminRoute('learnSubmissions').relative} element={<GrantGuard grant={adminRoute('learnSubmissions').grant}><LearnSubmissionsAdmin /></GrantGuard>} />
+          <Route path={adminRoute('learnProductLinks').relative} element={<GrantGuard grant={adminRoute('learnProductLinks').grant}><LearnProductLinksAdmin /></GrantGuard>} />
+          <Route path={adminRoute('learnAiSuggestions').relative} element={<GrantGuard grant={adminRoute('learnAiSuggestions').grant}><LearnAiSuggestionsAdmin /></GrantGuard>} />
 
           {/* Reputation & Enforcement */}
-          <Route path={adminRoute('reportsDashboard').relative} element={<AdminReportsDashboard />} />
-          <Route path={adminRoute('enforcement').relative} element={<AdminEnforcementDashboard />} />
+          <Route path={adminRoute('reportsDashboard').relative} element={<GrantGuard grant={adminRoute('reportsDashboard').grant}><AdminReportsDashboard /></GrantGuard>} />
+          <Route path={adminRoute('enforcement').relative} element={<GrantGuard grant={adminRoute('enforcement').grant}><AdminEnforcementDashboard /></GrantGuard>} />
 
           {/* Legal & Compliance */}
           <Route path={adminRoute('legalAcceptances').relative} element={<AdminLegalAcceptancesPage />} />

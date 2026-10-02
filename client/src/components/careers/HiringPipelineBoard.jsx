@@ -43,22 +43,30 @@ export default function HiringPipelineBoard({ employerType = 'business', busines
   const [openings, setOpenings] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [applications, setApplications] = useState([]);
+  const [openingsPagination, setOpeningsPagination] = useState(null);
+  const [applicationsPagination, setApplicationsPagination] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const loadOpenings = useCallback(async () => {
+  const loadOpenings = useCallback(async ({ append = false, offset = 0 } = {}) => {
     setLoading(true);
     try {
       const data = await listEmployerCareerOpenings(
-        employerType === 'business' ? { business_id: businessId } : {}
+        {
+          ...(employerType === 'business' ? { business_id: businessId } : {}),
+          ...(append ? { offset } : {}),
+        }
       );
-      setOpenings(data.openings || []);
+      const nextOpenings = data.openings || [];
+      setOpenings((current) => append ? [...current, ...nextOpenings] : nextOpenings);
+      setOpeningsPagination(data.pagination || null);
       setCatalog(data.catalog || null);
       setSelectedId((current) => {
-        if (current && (data.openings || []).some((row) => String(row.id) === String(current))) return current;
-        return data.openings?.[0]?.id || null;
+        if (append && current) return current;
+        if (current && nextOpenings.some((row) => String(row.id) === String(current))) return current;
+        return nextOpenings?.[0]?.id || null;
       });
     } catch (err) {
       toast.error(err?.response?.data?.error || t('careers.employer.loadError'));
@@ -77,6 +85,7 @@ export default function HiringPipelineBoard({ employerType = 'business', busines
     try {
       const data = await listCareerApplications(selectedId);
       setApplications(data.applications || []);
+      setApplicationsPagination(data.pagination || null);
     } catch (err) {
       toast.error(err?.response?.data?.error || t('careers.employer.loadError'));
     }
@@ -166,6 +175,17 @@ export default function HiringPipelineBoard({ employerType = 'business', busines
       await loadApps();
     } catch (err) {
       toast.error(err?.response?.data?.error || t('careers.employer.saveError'));
+    }
+  }
+
+  async function loadMoreApplications() {
+    if (!selectedId || !applicationsPagination?.hasMore) return;
+    try {
+      const data = await listCareerApplications(selectedId, { offset: applications.length });
+      setApplications((current) => [...current, ...(data.applications || [])]);
+      setApplicationsPagination(data.pagination || null);
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('careers.employer.loadError'));
     }
   }
 
@@ -315,6 +335,11 @@ export default function HiringPipelineBoard({ employerType = 'business', busines
               </div>
             </button>
           ))}
+          {openingsPagination?.hasMore && (
+            <button type="button" className="ox-careers-btn" onClick={() => loadOpenings({ append: true, offset: openings.length })}>
+              {t('careers.employer.loadMore', { defaultValue: 'Load more openings' })}
+            </button>
+          )}
         </div>
       )}
 
@@ -345,6 +370,11 @@ export default function HiringPipelineBoard({ employerType = 'business', busines
               </div>
             ))}
           </div>
+          {applicationsPagination?.hasMore && (
+            <button type="button" className="ox-careers-btn" onClick={loadMoreApplications}>
+              {t('careers.employer.loadMoreApplications', { defaultValue: 'Load more applicants' })}
+            </button>
+          )}
         </section>
       )}
     </div>

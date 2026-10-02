@@ -997,9 +997,16 @@ exports.getStats = async (req, res) => {
        WHERE u.deleted_at IS NULL
          AND u.role NOT IN ('admin', 'super_admin')
          ${suspectScope.clause ? `AND ${suspectScope.clause}` : ''}
-       ORDER BY u.created_at ASC`,
+       ORDER BY u.created_at ASC
+       -- Keep the pairwise investigation bounded. A complete enterprise
+       -- review must use an indexed/async suspect job rather than allowing a
+       -- dashboard request to materialize the whole user table.
+       LIMIT 5000`,
       suspectScope.params
     );
+    if (suspectUsers.length >= 5000) {
+      scope.warnings.push('Duplicate statistics are truncated at 5,000 users. Refine the scope for a complete review.');
+    }
     response.flaggedPairs = buildSuspectPairs(suspectUsers).length;
     response.warnings = Array.from(new Set(scope.warnings));
 

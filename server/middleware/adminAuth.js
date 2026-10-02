@@ -133,11 +133,27 @@ function permissionMiddleware(permission, { globalOnly = true } = {}) {
 
   try {
     const { rows } = await db.query(`
-      SELECT id, region_id FROM admin_permission_grants
-      WHERE grantee_id = $1
-        AND permissions ? $2
-        AND expires_at  > NOW()
-        AND revoked_at IS NULL
+      SELECT id, region_id, 'direct' AS grant_source
+        FROM admin_permission_grants
+       WHERE grantee_id = $1
+         AND permissions ? $2
+         AND expires_at  > NOW()
+         AND revoked_at IS NULL
+      UNION ALL
+      SELECT d.id, NULL AS region_id, 'delegated' AS grant_source
+        FROM delegation_grants d
+        JOIN users grantor ON grantor.id = d.grantor_admin_id
+        LEFT JOIN admin_permission_grants grantor_grant
+          ON grantor_grant.grantee_id = d.grantor_admin_id
+         AND grantor_grant.permissions ? $2
+         AND grantor_grant.expires_at > NOW()
+         AND grantor_grant.revoked_at IS NULL
+         AND grantor_grant.region_id IS NULL
+       WHERE d.grantee_admin_id = $1
+         AND d.scopes @> ARRAY[$2]::text[]
+         AND d.status = 'active'
+         AND d.expires_at > NOW()
+         AND (grantor.role = 'super_admin' OR grantor_grant.id IS NOT NULL)
       ORDER BY (region_id IS NULL) DESC
       LIMIT 1
     `, [req.user.id, permission]);
@@ -145,6 +161,7 @@ function permissionMiddleware(permission, { globalOnly = true } = {}) {
     const grant = rows.find((row) => !globalOnly || row.region_id == null);
     if (grant) {
       req.grantedPermission = permission; // useful for downstream controllers
+      req.delegatedPermission = grant.grant_source === 'delegated';
       return next();
     }
 

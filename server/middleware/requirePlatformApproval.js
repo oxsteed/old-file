@@ -22,8 +22,9 @@
 //     policy: { auto_approve, application_schema, ... }
 //   }
 //
-// Fails open on internal errors — a flaky service should never lock every
-// user out of every gated action. Logs but doesn't 5xx.
+// Fails closed on internal errors. A protected financial or provider-facing
+// action must not proceed when its approval state cannot be verified; callers
+// receive a retryable 503 instead of silently bypassing the gate.
 
 'use strict';
 
@@ -54,12 +55,15 @@ function requirePlatformApproval(mode, action) {
         policy: check.policy,
       });
     } catch (err) {
-      // Fail open with logging. A broken approval service should never
-      // 5xx every consultant booking attempt.
-      logger.error('Platform approval gate error (failing open)', {
+      logger.error('Platform approval gate unavailable', {
         err: err.message, mode, action, userId: req.user?.id,
       });
-      return next();
+      return res.status(503).json({
+        error: 'platform_approval_unavailable',
+        mode,
+        action,
+        retryable: true,
+      });
     }
   };
 }

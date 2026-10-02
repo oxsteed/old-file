@@ -8,7 +8,7 @@ const STORAGE_KEY = 'oxs:country';
 
 // Public: picker list → { available: [...], coming_soon: [...] }
 export const listCountries = () =>
-  api.get('/country-config/countries').then((r) => r.data?.data || { available: [], coming_soon: [] });
+  api.get('/country-config/countries').then((r) => r.data?.data || { available: [], coming_soon: [], unavailable: true });
 
 // Public: full pack for an active country.
 // Resolves to the pack object, or null when the country is coming_soon/unknown.

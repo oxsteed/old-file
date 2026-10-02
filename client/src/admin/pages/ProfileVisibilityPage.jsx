@@ -205,6 +205,13 @@ export default function ProfileVisibilityPage() {
   const [bulkResults, setBulkResults] = useState(null);
   const [bulkPendingApproval, setBulkPendingApproval] = useState(null);
 
+  // Recovery for requests whose browser or worker disappeared after the
+  // durable idempotency claim was created. The server returns only the
+  // canonical item payload, so a retry cannot silently change the batch.
+  const [staleOperations, setStaleOperations] = useState([]);
+  const [staleLoading, setStaleLoading] = useState(false);
+  const [staleActionKey, setStaleActionKey] = useState(null);
+
   // Saved views + export
   const [savedViews, setSavedViews] = useState(loadSavedViews);
   const [viewName, setViewName] = useState('');
@@ -674,6 +681,56 @@ export default function ProfileVisibilityPage() {
     }
   }, [bulkPreview, copy, refresh]);
 
+  const loadStaleOperations = useCallback(async () => {
+    setStaleLoading(true);
+    try {
+      const { data } = await api.get('/admin/profile-visibility/bulk-operations/stale');
+      setStaleOperations(Array.isArray(data?.operations) ? data.operations : []);
+    } catch (err) {
+      logger.error('stale profile visibility operations load failed', { message: err.message });
+      setError(copy('staleOperationsError', { defaultValue: 'Could not load stalled bulk operations.' }));
+    } finally {
+      setStaleLoading(false);
+    }
+  }, [copy]);
+
+  useEffect(() => {
+    loadStaleOperations();
+  }, [loadStaleOperations]);
+
+  const reclaimAndRetry = useCallback(async (operation) => {
+    const key = String(operation?.idempotency_key || '').trim();
+    const items = Array.isArray(operation?.request_payload)
+      ? operation.request_payload
+      : operation?.request_payload?.items;
+    if (!key || !Array.isArray(items) || items.length === 0) {
+      setError(copy('staleOperationPayloadMissing', { defaultValue: 'This stalled operation has no safe retry payload.' }));
+      return;
+    }
+    setStaleActionKey(key);
+    setError('');
+    try {
+      await api.post(`/admin/profile-visibility/bulk-operations/${encodeURIComponent(key)}/reclaim`);
+      const { data } = await api.post('/admin/profile-visibility/bulk', {
+        items,
+        idempotency_key: key,
+      });
+      if (data?.approval_required) {
+        setBulkPendingApproval(data.approval_id || data.approvalId || true);
+      } else {
+        setBulkResults(data);
+        await refresh();
+      }
+      await loadStaleOperations();
+    } catch (err) {
+      logger.error('stale profile visibility operation retry failed', { message: err.message, key });
+      setError(err?.response?.data?.error || copy('staleOperationRetryFailed', { defaultValue: 'Could not retry the stalled bulk operation.' }));
+      await loadStaleOperations();
+    } finally {
+      setStaleActionKey(null);
+    }
+  }, [copy, loadStaleOperations, refresh]);
+
   // ─── History + notifications + undo ─────────────────────────────────────
   const loadHistory = async (profile) => {
     setHistoryTarget(profile);
@@ -1096,6 +1153,44 @@ export default function ProfileVisibilityPage() {
           </button>
         </div>
       )}
+
+      <div style={{ ...card, marginBottom: '1rem' }} data-testid="pv-stale-operations">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--color-text)' }}>{copy('staleOperations', { defaultValue: 'Stalled bulk operations' })}</h2>
+            <p style={{ margin: '0.35rem 0 0', color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>{copy('staleOperationsDescription', { defaultValue: 'Requests older than ten minutes are safe to reclaim and retry with their original item list.' })}</p>
+          </div>
+          <button type="button" style={btn} onClick={loadStaleOperations} disabled={staleLoading} aria-label={copy('refreshStaleOperations', { defaultValue: 'Refresh stalled operations' })}>
+            <RefreshCw size={15} aria-hidden />
+          </button>
+        </div>
+        {staleLoading ? (
+          <p style={{ color: 'var(--color-text-muted)', marginBottom: 0 }}>{copy('staleOperationsLoading', { defaultValue: 'Loading stalled operations…' })}</p>
+        ) : staleOperations.length === 0 ? (
+          <p style={{ color: 'var(--color-text-muted)', marginBottom: 0 }}>{copy('noStaleOperations', { defaultValue: 'No stalled bulk operations.' })}</p>
+        ) : (
+          <div style={{ display: 'grid', gap: '0.65rem', marginTop: '0.85rem' }}>
+            {staleOperations.map((operation) => {
+              const key = String(operation.idempotency_key);
+              const total = Array.isArray(operation.request_payload) ? operation.request_payload.length : 0;
+              return (
+                <div key={key} style={{ border: '1px solid var(--color-border)', borderRadius: '8px', padding: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <div style={{ flex: '1 1 18rem', color: 'var(--color-text)', fontSize: '0.85rem' }}>
+                    <strong style={{ fontFamily: 'monospace', overflowWrap: 'anywhere' }}>{key}</strong>
+                    <div style={{ color: 'var(--color-text-muted)', marginTop: '0.2rem' }}>
+                      {copy('staleOperationSummary', { completed: operation.completed_items || 0, total, defaultValue: `${operation.completed_items || 0} of ${total} items completed` })}
+                      {operation.claimed_at && ` · ${new Date(operation.claimed_at).toLocaleString()}`}
+                    </div>
+                  </div>
+                  <button type="button" style={btnPrimary} onClick={() => reclaimAndRetry(operation)} disabled={staleActionKey === key || !total}>
+                    {staleActionKey === key ? copy('reclaiming', { defaultValue: 'Reclaiming…' }) : copy('reclaimAndRetry', { defaultValue: 'Reclaim and retry' })}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {error && (
         <div role="alert" style={{ ...card, borderLeft: '4px solid #dc2626', marginBottom: '1rem', color: '#dc2626', fontWeight: 600 }}>

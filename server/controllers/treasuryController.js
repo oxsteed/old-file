@@ -26,6 +26,13 @@ const COUNTRY_RE = /^[A-Z]{2}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const ACCOUNT_TYPES = ['asset', 'liability', 'equity', 'revenue', 'expense'];
 
+// PostgreSQL BIGINT values are returned as strings by node-postgres. Keep
+// ownership checks correct regardless of whether a test double or the real
+// driver supplies a numeric or string identifier.
+function sameId(a, b) {
+  return a !== null && a !== undefined && b !== null && b !== undefined && String(a) === String(b);
+}
+
 function httpError(statusCode, message) {
   const err = new Error(message);
   err.statusCode = statusCode;
@@ -177,7 +184,7 @@ async function postJournal(req, res) {
     );
     if (!periodRows.length) throw httpError(404, 'Period not found.');
     const period = periodRows[0];
-    if (period.entity_id !== entityId) throw httpError(400, 'Period does not belong to the given entity.');
+    if (!sameId(period.entity_id, entityId)) throw httpError(400, 'Period does not belong to the given entity.');
     if (period.status !== 'open') throw httpError(409, 'Cannot post to a closed period.');
 
     const { rows: accountRows } = await client.query(
@@ -186,7 +193,7 @@ async function postJournal(req, res) {
     );
     if (accountRows.length !== 2) throw httpError(400, 'One or both accounts do not exist.');
     for (const account of accountRows) {
-      if (account.entity_id !== entityId) {
+      if (!sameId(account.entity_id, entityId)) {
         throw httpError(400, 'Both accounts must belong to the posting entity.');
       }
       if (account.currency !== currency) {
@@ -313,7 +320,7 @@ async function closePeriod(req, res) {
     );
     if (!periodRows.length) throw httpError(404, 'Period not found.');
     const period = periodRows[0];
-    if (expectedEntityId && period.entity_id !== expectedEntityId) {
+    if (expectedEntityId && !sameId(period.entity_id, expectedEntityId)) {
       throw httpError(404, 'Period not found for the given entity.');
     }
     if (period.status !== 'open') {
@@ -410,7 +417,7 @@ async function taxExport(req, res) {
       );
       if (!periodRows.length) throw httpError(404, 'Period not found.');
       const period = periodRows[0];
-      if (period.entity_id !== entityId) throw httpError(400, 'Period does not belong to the given entity.');
+      if (!sameId(period.entity_id, entityId)) throw httpError(400, 'Period does not belong to the given entity.');
 
       const { rows } = await db.query(
         `SELECT je.id, je.created_at, je.description, je.reference,

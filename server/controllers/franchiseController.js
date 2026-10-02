@@ -907,6 +907,53 @@ async function activateFranchiseStore(req, res) {
         return res.status(400).json({ error: 'Assign an owner_user_id before activating the store.' });
       }
 
+      if (application.status !== 'approved') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'The franchise application must be approved before the store can be activated.',
+          code: 'franchise_not_approved',
+        });
+      }
+      if (!['signed', 'waived'].includes(application.agreement_status)) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'The franchise agreement must be signed or waived before the store can be activated.',
+          code: 'franchise_agreement_incomplete',
+        });
+      }
+      if (application.training_status !== 'completed') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'Franchise training must be completed before the store can be activated.',
+          code: 'franchise_training_incomplete',
+        });
+      }
+      if (application.launch_readiness_status !== 'ready') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'The franchise launch checklist must be ready before the store can be activated.',
+          code: 'franchise_launch_not_ready',
+        });
+      }
+
+      const checklistResult = await client.query(
+        `SELECT code, status
+           FROM franchise_application_checklist_items
+          WHERE application_id = $1`,
+        [applicationId]
+      );
+      const incompleteChecklist = checklistResult.rows.filter(
+        (item) => !['completed', 'waived'].includes(item.status)
+      );
+      if (incompleteChecklist.length) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'All franchise launch checklist items must be completed or waived before activation.',
+          code: 'franchise_checklist_incomplete',
+          incomplete_items: incompleteChecklist.map((item) => item.code),
+        });
+      }
+
       const existingCount = await client.query(
         'SELECT COUNT(*)::int AS count FROM businesses WHERE user_id = $1',
         [application.owner_user_id]

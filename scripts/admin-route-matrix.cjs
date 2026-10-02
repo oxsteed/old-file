@@ -37,6 +37,7 @@ const API_ONLY_GRANTS = new Set([
   'issue_refunds',
   'message_users',
   'export_data', // GET /export/:type, no admin page
+  'manage_financials', // treasury mutation grant; read/write share one page
 ]);
 
 // superOnly routes intentionally outside /admin/super/ (client AdminGuard
