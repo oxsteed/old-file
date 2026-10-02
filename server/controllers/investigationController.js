@@ -21,6 +21,7 @@ const {
   approveInvestigationAccess,
   revokeInvestigationAccess,
   checkInvestigationAccess,
+  listInvestigationAccessGrants,
   logInvestigationRead,
 } = require('../services/investigationAccessService');
 
@@ -69,6 +70,26 @@ exports.revokeAccess = async (req, res, next) => {
       reason: req.body?.reason,
     });
     return res.json({ grant });
+  } catch (err) {
+    if (err instanceof InvestigationAccessError) return sendAccessError(res, err);
+    return next(err);
+  }
+};
+
+/**
+ * GET /admin/investigations/access?status=&requester_id=
+ *
+ * List investigation access grants for the governance UI. Bounded at 100,
+ * newest first; optional status/requester filters. Read-only; grant
+ * semantics are enforced by the service.
+ */
+exports.listAccess = async (req, res, next) => {
+  try {
+    const grants = await listInvestigationAccessGrants({
+      requesterId: req.query.requester_id || req.query.requesterId || null,
+      status: req.query.status || null,
+    });
+    return res.json({ grants });
   } catch (err) {
     if (err instanceof InvestigationAccessError) return sendAccessError(res, err);
     return next(err);

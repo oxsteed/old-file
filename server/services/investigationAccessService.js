@@ -286,6 +286,37 @@ async function logInvestigationRead({ readerAdminId, targetUserId, grant, endpoi
   });
 }
 
+/**
+ * List investigation access grants for the governance UI. Bounded at 100
+ * rows; optional filters on requester and lifecycle status.
+ */
+const GRANT_STATUSES = new Set(['pending', 'active', 'revoked', 'expired']);
+
+async function listInvestigationAccessGrants({ requesterId = null, status = null } = {}) {
+  const conditions = [];
+  const params = [];
+  if (requesterId) {
+    conditions.push(`requester_admin_id = $${params.length + 1}`);
+    params.push(requesterId);
+  }
+  if (status) {
+    if (!GRANT_STATUSES.has(status)) {
+      throw new InvestigationAccessError(`Unknown grant status: ${status}`, 'invalid_status');
+    }
+    conditions.push(`status = $${params.length + 1}`);
+    params.push(status);
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const { rows } = await db.query(
+    `SELECT * FROM investigation_access_grants
+      ${where}
+      ORDER BY created_at DESC
+      LIMIT 100`,
+    params
+  );
+  return rows;
+}
+
 module.exports = {
   InvestigationAccessError,
   MAX_SCOPE_USERS,
@@ -294,6 +325,7 @@ module.exports = {
   approveInvestigationAccess,
   revokeInvestigationAccess,
   checkInvestigationAccess,
+  listInvestigationAccessGrants,
   logInvestigationRead,
   isSuperAdmin,
 };

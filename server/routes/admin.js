@@ -145,6 +145,7 @@ router.get('/users/:userId',    requireAdmin, requirePermission('manage_users'),
 router.post('/investigations/access',                 requireAdmin, requirePermission('manage_users'), investigationCtrl.requestAccess);
 router.post('/investigations/access/:id/approve',     requireAdmin, requirePermission('manage_users'), investigationCtrl.approveAccess);
 router.post('/investigations/access/:id/revoke',      requireAdmin, investigationCtrl.revokeAccess);
+router.get('/investigations/access',                  requireAdmin, requirePermission('manage_users'), investigationCtrl.listAccess);
 router.get('/investigations/users/:userId/profile',   requireAdmin, requirePermission('manage_users'), investigationCtrl.readInvestigationProfile);
 router.put('/users/:userId/name',  requireAdmin, requirePermission('manage_users'), superCtrl.updateUserName);
 router.put('/users/:userId/didit-enforcement', requireAdmin, requirePermission('verify_users'), superCtrl.setUserDiditEnforcement);
