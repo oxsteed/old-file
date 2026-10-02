@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import adminApi from '../../lib/adminApi';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
+import LegalSubNav from '../components/LegalSubNav';
 
 const REQUEST_TYPES = [
   { value: '', i18nKey: 'type.all' },
@@ -336,6 +337,7 @@ export default function AdminCCPARequestsPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <LegalSubNav />
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>

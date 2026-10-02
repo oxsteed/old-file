@@ -4,6 +4,7 @@ import { MoreVertical, Download, Mail, RefreshCw, Search, Filter, Eye, RotateCcw
 import adminApi from '../../lib/adminApi';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
+import LegalSubNav from '../components/LegalSubNav';
 import ConfirmDialog from '../lib/ConfirmDialog';
 import { LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -223,6 +224,7 @@ export default function AdminLegalAcceptancesPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <LegalSubNav />
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>

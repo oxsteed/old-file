@@ -4,6 +4,7 @@ import { RefreshCw } from 'lucide-react';
 import adminApi from '../../lib/adminApi';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
+import LegalSubNav from '../components/LegalSubNav';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const toNumber = (value, fallback = 0) => {
@@ -260,6 +261,7 @@ export default function AdminComplianceMetricsPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <LegalSubNav />
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>

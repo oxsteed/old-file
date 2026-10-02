@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Plus, Search, Pencil, Trash2, ToggleLeft, ToggleRight, X, Check } from 'lucide-react';
+import { adminRoute } from '../adminRouteManifest';
 import adminApi from '../../lib/adminApi';
 import toast from 'react-hot-toast';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
@@ -136,6 +138,12 @@ export default function SkillsManager() {
           <p className="text-sm text-gray-400 mt-0.5">
             {t('adminSkillsManager.subtitle', { count: total })}
           </p>
+          <Link
+            to={adminRoute('licenses').path}
+            className="mt-2 inline-block text-sm font-medium text-orange-300 hover:text-orange-200"
+          >
+            {t('adminSkillsManager.licensesLink')}
+          </Link>
         </div>
         <button
           onClick={openAdd}

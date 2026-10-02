@@ -799,6 +799,7 @@
   "adminMarkPaid": "Make kòm peye",
   "adminVoid": "Anile",
   "adminReconciliationHistory": "Istwa rekonsilyasyon",
+  "adminReconciliationExceptionsLink": "Wè eksepsyon rekonsilyasyon yo",
   "adminLedgerCheckHistory": "Istwa verifikasyon liv la",
   "adminReconciliationHistoryDescription": "Chak verifikasyon konsève kòm yon dosye operasyonèl apa. Sèvi ak diferans lan ak kantite ekriti yo pou deside si yon règleman ka apwouve; pa gen rekonsilyasyon ki chanje balans yo.",
   "adminReconciliationStatusFilter": "Filtè estati rekonsilyasyon",

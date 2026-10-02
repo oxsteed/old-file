@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Check } from 'lucide-react';
+import { adminRoute } from '../adminRouteManifest';
 import adminApi              from '../../lib/adminApi';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState       from '../lib/AdminErrorState';
@@ -67,6 +69,12 @@ export default function ReportsList() {
             {t('adminReports.count', { count: total, status: t(`adminReports.status.${tab}`, { defaultValue: tab }) })}
           </p>
         </div>
+        <Link
+          to={adminRoute('reportsDashboard').path}
+          className="inline-flex items-center gap-2 rounded-lg border border-gray-700 px-3 py-2 text-sm font-medium text-gray-200 hover:border-gray-500 hover:text-white"
+        >
+          {t('adminReports.viewDashboard')}
+        </Link>
       </div>
 
       {/* Status tabs */}

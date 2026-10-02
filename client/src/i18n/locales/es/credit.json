@@ -799,6 +799,7 @@
   "adminMarkPaid": "Marcar como pagado",
   "adminVoid": "Anular",
   "adminReconciliationHistory": "Historial de conciliación",
+  "adminReconciliationExceptionsLink": "Ver excepciones de conciliación",
   "adminLedgerCheckHistory": "Historial de comprobaciones del libro",
   "adminReconciliationHistoryDescription": "Cada comprobación se conserva como un registro operativo independiente. Usa la diferencia y el número de asientos para decidir si una liquidación es segura; ninguna conciliación cambia los saldos.",
   "adminReconciliationStatusFilter": "Filtro de estado de conciliación",

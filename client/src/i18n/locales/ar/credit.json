@@ -799,6 +799,7 @@
   "adminMarkPaid": "تحديد كمدفوع",
   "adminVoid": "إلغاء",
   "adminReconciliationHistory": "سجل المطابقة",
+  "adminReconciliationExceptionsLink": "عرض استثناءات التسوية",
   "adminLedgerCheckHistory": "سجل فحوصات دفتر الأستاذ",
   "adminReconciliationHistoryDescription": "يتم حفظ كل فحص كسجل تشغيلي منفصل. استخدم الفرق وعدد القيود لتحديد ما إذا كانت التسوية آمنة للموافقة؛ لا تغيّر المطابقة الأرصدة.",
   "adminReconciliationStatusFilter": "مرشح حالة المطابقة",

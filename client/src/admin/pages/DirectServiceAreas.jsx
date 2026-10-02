@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Check, Loader2, MapPinned, Pencil, Plus, RefreshCw, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
+import { adminRoute } from '../adminRouteManifest';
 import adminApi from '../../lib/adminApi';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
@@ -149,6 +151,7 @@ export default function DirectServiceAreas() {
           <div>
             <h1 className="text-2xl font-bold text-white">{t('directCatalogAdmin.serviceAreasTitle', { defaultValue: 'Direct service areas' })}</h1>
             <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-400">{t('directCatalogAdmin.serviceAreasSubtitle', { defaultValue: 'Manage the active locations and radius used by the public Direct coverage checker and quote intake.' })}</p>
+            <Link to={adminRoute('markets').path} className="mt-2 inline-block text-sm font-medium text-orange-300 hover:text-orange-200">{t('directCatalogAdmin.marketsLink', { defaultValue: 'Manage market ZIP codes' })}</Link>
           </div>
         </div>
         <div className="flex gap-2">

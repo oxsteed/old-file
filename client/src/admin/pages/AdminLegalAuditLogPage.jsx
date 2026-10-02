@@ -4,6 +4,7 @@ import { Search, Filter, RefreshCw, ChevronDown, Download } from 'lucide-react';
 import adminApi from '../../lib/adminApi';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
+import LegalSubNav from '../components/LegalSubNav';
 
 const NS = 'adminLegalAuditLog';
 
@@ -173,6 +174,7 @@ export default function AdminLegalAuditLogPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <LegalSubNav />
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>

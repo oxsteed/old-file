@@ -797,6 +797,7 @@
   "adminMarkPaid": "Mark paid",
   "adminVoid": "Void",
   "adminReconciliationHistory": "Reconciliation history",
+  "adminReconciliationExceptionsLink": "View reconciliation exceptions",
   "adminLedgerCheckHistory": "Ledger check history",
   "adminReconciliationHistoryDescription": "Every check is preserved as a separate operational record. Use the difference and entry counts to decide whether a settlement is safe to approve; no reconciliation action changes balances.",
   "adminReconciliationStatusFilter": "Reconciliation status filter",

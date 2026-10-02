@@ -8,6 +8,8 @@ import {
   Snowflake,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
+import { adminRoute } from '../../../adminRouteManifest';
 import adminApi from '../../../../lib/adminApi';
 import { safeCreditErrorMessage } from '../../../../lib/creditErrors';
 import {
@@ -169,6 +171,9 @@ export default function OxsteedCreditReconciliationPage() {
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-400">{t('adminSuperAdmin')}</p>
             <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">{t('adminReconciliationHistory')}</h1>
             <p className="mt-2 text-sm leading-6 text-gray-400">{t('adminReconciliationHistoryDescription')}</p>
+            <Link to={adminRoute('reconciliationExceptions').path} className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-orange-300 hover:text-orange-200">
+              {t('adminReconciliationExceptionsLink')}
+            </Link>
           </div>
           <button type="button" onClick={() => load({ quiet: true })} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-900/70 px-4 py-3 text-sm font-semibold text-gray-200 hover:bg-gray-800 disabled:opacity-50"><RefreshCw className={loading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} /> {t('adminRefresh')}</button>
         </div>

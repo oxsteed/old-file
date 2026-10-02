@@ -799,6 +799,7 @@
   "adminMarkPaid": "Marquer comme payé",
   "adminVoid": "Annuler",
   "adminReconciliationHistory": "Historique des rapprochements",
+  "adminReconciliationExceptionsLink": "Voir les exceptions de rapprochement",
   "adminLedgerCheckHistory": "Historique des contrôles du livre",
   "adminReconciliationHistoryDescription": "Chaque contrôle est conservé comme un enregistrement opérationnel distinct. Utilisez la différence et le nombre d'écritures pour décider si un règlement peut être approuvé ; aucun rapprochement ne modifie les soldes.",
   "adminReconciliationStatusFilter": "Filtre de statut du rapprochement",
