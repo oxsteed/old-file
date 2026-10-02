@@ -226,7 +226,7 @@ exports.getDashboardStats = async (req, res) => {
 
     // ── Job stats ─────────────────────────────────────────────────────────
     let open_jobs = 0, active_jobs = 0, completed_jobs = 0, cancelled_jobs = 0,
-        completed_jobs_period = 0, new_jobs_period = 0, new_jobs_today = 0,
+        completed_jobs_period = 0, cancelled_jobs_period = 0, new_jobs_period = 0, new_jobs_today = 0,
         open_disputes = 0, avg_bids_per_job = null;
     if (hasJobs) {
       try {
@@ -237,6 +237,7 @@ exports.getDashboardStats = async (req, res) => {
             COUNT(*) FILTER (WHERE status = 'completed')                               AS completed_jobs,
             COUNT(*) FILTER (WHERE status = 'cancelled')                               AS cancelled_jobs,
             COUNT(*) FILTER (WHERE status = 'completed' AND created_at >= now() - $1::interval) AS completed_jobs_period,
+            COUNT(*) FILTER (WHERE status = 'cancelled' AND created_at >= now() - $1::interval) AS cancelled_jobs_period,
             COUNT(*) FILTER (WHERE created_at >= now() - $1::interval)                AS new_jobs_period,
             COUNT(*) FILTER (WHERE created_at >= date_trunc('day', now()))             AS new_jobs_today,
             COUNT(*) FILTER (WHERE dispute_status = 'open')                            AS open_disputes,
@@ -248,6 +249,7 @@ exports.getDashboardStats = async (req, res) => {
         completed_jobs        = safeInt(rows[0]?.completed_jobs);
         cancelled_jobs        = safeInt(rows[0]?.cancelled_jobs);
         completed_jobs_period = safeInt(rows[0]?.completed_jobs_period);
+        cancelled_jobs_period = safeInt(rows[0]?.cancelled_jobs_period);
         new_jobs_period       = safeInt(rows[0]?.new_jobs_period);
         new_jobs_today        = safeInt(rows[0]?.new_jobs_today);
         open_disputes         = safeInt(rows[0]?.open_disputes);
@@ -353,7 +355,9 @@ exports.getDashboardStats = async (req, res) => {
     }
 
     // ── Completion rate ────────────────────────────────────────────────────
-    const totalFinished = completed_jobs_period + cancelled_jobs;
+    // T35-F01: the cohort must be consistent. Both completions and
+    // cancellations are counted over the same period.
+    const totalFinished = completed_jobs_period + cancelled_jobs_period;
     const completion_rate = totalFinished > 0
       ? Math.round((completed_jobs_period / totalFinished) * 100)
       : null;
