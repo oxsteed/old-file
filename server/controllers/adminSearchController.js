@@ -11,7 +11,25 @@ const ALL_ENTITY_TYPES = [
 const MAX_PER_TYPE = 10; // per-entity cap per page
 const DEFAULT_PAGE = 1;
 
-// ── Main search handler ───────────────────────────────────────────────────────
+// Entity types that require an additional grant beyond view_search_logs.
+// A search permission must not become alternate access to private messages
+// or financial records (T17-F01).
+const ENTITY_GRANT_REQUIREMENTS = {
+  messages: 'manage_support',
+  payments: 'view_financials',
+};
+
+async function hasGrant(userId, isSuper, permission) {
+  if (isSuper) return true;
+  const { rows } = await db.query(
+    `SELECT 1 FROM admin_permission_grants
+     WHERE grantee_id = $1 AND permissions ? $2
+       AND expires_at > NOW() AND revoked_at IS NULL AND region_id IS NULL
+     LIMIT 1`,
+    [userId, permission]
+  );
+  return rows.length > 0;
+}
 
 exports.search = async (req, res) => {
   const adminId = req.user.id;
@@ -25,12 +43,32 @@ exports.search = async (req, res) => {
   }
 
   // Which entity types to search (defaults to all)
+  const explicitlyRequested = !!req.query.types;
   const requestedTypes = req.query.types
     ? req.query.types.split(',').map(t => t.trim()).filter(t => ALL_ENTITY_TYPES.includes(t))
     : [...ALL_ENTITY_TYPES];
 
   if (requestedTypes.length === 0) {
     return res.status(400).json({ error: `Valid types: ${ALL_ENTITY_TYPES.join(', ')}` });
+  }
+
+  // T17-F01: scope entity types by grant. If a restricted type was explicitly
+  // requested without the grant, reject; otherwise silently exclude it.
+  const isSuper = req.user.role === 'super_admin';
+  const allowedTypes = [];
+  for (const type of requestedTypes) {
+    const required = ENTITY_GRANT_REQUIREMENTS[type];
+    if (!required) {
+      allowedTypes.push(type);
+      continue;
+    }
+    if (await hasGrant(adminId, isSuper, required)) {
+      allowedTypes.push(type);
+    } else if (explicitlyRequested) {
+      return res.status(403).json({
+        error: `Permission '${required}' required to search ${type}.`,
+      });
+    }
   }
 
   // Pagination
@@ -52,7 +90,7 @@ exports.search = async (req, res) => {
     ] = await Promise.allSettled([
 
       // ── Users ──────────────────────────────────────────────────────────────
-      requestedTypes.includes('users')
+      allowedTypes.includes('users')
         ? db.query(`
             SELECT
               u.id, u.first_name, u.last_name, u.email, u.role,
@@ -77,7 +115,7 @@ exports.search = async (req, res) => {
         : Promise.resolve({ rows: [] }),
 
       // ── Jobs ───────────────────────────────────────────────────────────────
-      requestedTypes.includes('jobs')
+      allowedTypes.includes('jobs')
         ? db.query(`
             SELECT
               j.id, j.title, j.status, j.category_name,
@@ -103,7 +141,7 @@ exports.search = async (req, res) => {
         : Promise.resolve({ rows: [] }),
 
       // ── Messages ───────────────────────────────────────────────────────────
-      requestedTypes.includes('messages')
+      allowedTypes.includes('messages')
         ? db.query(`
             SELECT
               m.id, m.content, m.created_at, m.conversation_id,
@@ -119,7 +157,7 @@ exports.search = async (req, res) => {
         : Promise.resolve({ rows: [] }),
 
       // ── Disputes ───────────────────────────────────────────────────────────
-      requestedTypes.includes('disputes')
+      allowedTypes.includes('disputes')
         ? db.query(`
             SELECT
               d.id, d.reason, d.description, d.status,
@@ -151,7 +189,7 @@ exports.search = async (req, res) => {
         : Promise.resolve({ rows: [] }),
 
       // ── Payments ───────────────────────────────────────────────────────────
-      requestedTypes.includes('payments')
+      allowedTypes.includes('payments')
         ? db.query(`
             SELECT
               p.id, p.amount, p.platform_fee, p.helper_payout,
@@ -185,7 +223,7 @@ exports.search = async (req, res) => {
         : Promise.resolve({ rows: [] }),
 
       // ── Support Tickets ────────────────────────────────────────────────────
-      requestedTypes.includes('support_tickets')
+      allowedTypes.includes('support_tickets')
         ? db.query(`
             SELECT
               st.id, st.ticket_number, st.subject, st.category,
@@ -211,7 +249,7 @@ exports.search = async (req, res) => {
         : Promise.resolve({ rows: [] }),
 
       // ── Reviews ────────────────────────────────────────────────────────────
-      requestedTypes.includes('reviews')
+      allowedTypes.includes('reviews')
         ? db.query(`
             SELECT
               r.id, r.rating, r.comment, r.is_public, r.created_at,
@@ -240,7 +278,7 @@ exports.search = async (req, res) => {
         : Promise.resolve({ rows: [] }),
 
       // ── Bids ───────────────────────────────────────────────────────────────
-      requestedTypes.includes('bids')
+      allowedTypes.includes('bids')
         ? db.query(`
             SELECT
               b.id, b.amount, b.status, b.message, b.eta_hours,
