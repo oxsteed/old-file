@@ -271,7 +271,7 @@ async function listAllAcceptances(req, res, next) {
     const total = parseInt(countResult.rows[0].total);
     const pages = Math.ceil(total / parseInt(limit));
 
-    const thisMonthParams = params.slice(0, paramCount - 2);
+    const thisMonthParams = params.slice(0, paramCount - 1);
     thisMonthParams.push(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
     let thisMonthQuery = countQuery + ` AND ula.accepted_at >= $${thisMonthParams.length}`;
     const thisMonthResult = await pool.query(thisMonthQuery, thisMonthParams);
