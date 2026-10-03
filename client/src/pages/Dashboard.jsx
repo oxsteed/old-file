@@ -298,6 +298,7 @@ function LaunchCustomerDashboard({
           { to: '/calendar', label: t('dashboard.customer.calendar'), icon: IcoCalendar },
           { to: '/activity', label: t('dashboard.recentActivity'), icon: IcoBell },
           { to: '/qr-generator', label: t('nav.qrGenerator'), icon: IcoQrCode, pro: true },
+          { to: '/wallet', label: t('nav.wallet'), icon: IcoWallet },
           { to: '/settings', label: t('dashboard.customer.accountSettings'), icon: IcoSettings },
         ].map(({ to, label, icon: Icon, pro }) => (
           <Link key={to} to={to} className="customer-dashboard-quick-link inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-gray-400 transition hover:bg-gray-800 hover:text-white"><Icon size={14} cls="text-gray-500" />{label}{pro && <span className="customer-dashboard-quick-link__badge" aria-label={t('dashboard.customer.quickLinksPro', { defaultValue: 'Pro' })}>{t('dashboard.customer.quickLinksPro', { defaultValue: 'Pro' })}</span>}</Link>
