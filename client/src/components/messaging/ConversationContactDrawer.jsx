@@ -29,7 +29,6 @@ export default function ConversationContactDrawer({
           if (!cancelled) {
             setMeta({
               other_name: data?.guest_name,
-              other_email: data?.guest_email,
               guest_session_id: guestSessionId,
               quote_ids: data?.quote_ids || [],
               booking_ids: data?.booking_ids || [],
@@ -48,7 +47,6 @@ export default function ConversationContactDrawer({
   if (!open) return null;
 
   const name = meta?.other_name || meta?.customer_name || meta?.guest_name || '—';
-  const email = meta?.other_email || meta?.customer_email || meta?.guest_email || '—';
   const quotes = meta?.quote_ids || meta?.linked_quote_ids || [];
   const bookings = meta?.booking_ids || meta?.linked_booking_ids || [];
 
@@ -67,10 +65,6 @@ export default function ConversationContactDrawer({
           <div>
             <dt>{t('messages.contactDrawer.name')}</dt>
             <dd>{name}</dd>
-          </div>
-          <div>
-            <dt>{t('messages.contactDrawer.email')}</dt>
-            <dd>{email}</dd>
           </div>
           <div>
             <dt>{t('messages.contactDrawer.quotes')}</dt>

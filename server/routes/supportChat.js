@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { generalLimiter, conversationMessageLimiter } = require('../middleware/rateLimiter');
+const { authLimiter, conversationMessageLimiter } = require('../middleware/rateLimiter');
 const { initiateSupportChat, sendSupportMessage, getAdminStatus } = require('../controllers/supportChatController');
 
 /**
@@ -11,9 +11,11 @@ router.get('/admin-status', getAdminStatus);
 
 /**
  * POST /api/support-chat/initiate
- * Initiate support chat or escalate to ticket (public endpoint)
+ * Initiate support chat or escalate to ticket (public endpoint).
+ * Uses the stricter auth limiter (30/15min per IP): every initiation can fan
+ * out admin emails, so the general 200/15min bucket is too generous here.
  */
-router.post('/initiate', generalLimiter, initiateSupportChat);
+router.post('/initiate', authLimiter, initiateSupportChat);
 
 /**
  * POST /api/support-chat/messages

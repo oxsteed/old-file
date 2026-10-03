@@ -2577,7 +2577,14 @@
       "selectDealHint": "Pick a customer deal on the left to open quotes, POP, agreements, and schedule tools.",
       "selectTeamHint": "Pick a team or customer thread on the left to message your staff inbox.",
       "dockSecondaryAria": "Chat tools"
-    }
+    },
+    "blockedSendTitle": "You can't message this user",
+    "blockedSendText": "This person isn't accepting messages from you right now.",
+    "recipientInactiveTitle": "Account no longer active",
+    "recipientInactiveText": "This account is no longer active, so messaging is disabled.",
+    "offPlatformWarning": "Quick note: keeping your conversation and payment on OxSteed keeps you covered by our support and dispute help.",
+    "loadMoreMessages": "Load more messages",
+    "loadMoreConversations": "Load more conversations"
   },
   "dashboard": {
     "welcome": "Welcome back, {{name}}!",
@@ -4991,6 +4998,20 @@
       "profileHandoffBody": "OxSteed on the profile is AI-only. This page connects you with platform support.",
       "profileHandoffContext": "Profile: {{name}}",
       "returnToProfile": "Return to profile"
+    },
+    "customer360": {
+      "resolution": {
+        "refund": "Refund",
+        "refundJobPayment": "Refund payment",
+        "cancelOrder": "Cancel order",
+        "refundPaymentPrompt": "Refund payment #{{id}} to the customer? Type the reason and choose OK to confirm:",
+        "refundOrderPrompt": "Refund marketplace order #{{id}} ({{amount}})? Type the reason and choose OK to confirm:",
+        "cancelOrderPrompt": "Cancel unpaid order #{{id}}? Type the reason and choose OK to confirm:",
+        "refundJobPrompt": "Refund the payment for job \"{{title}}\" (#{{id}}) to the customer? Type the reason and choose OK to confirm:",
+        "reasonRequired": "A reason is required to proceed.",
+        "success": "Done. The action was recorded.",
+        "failed": "Action failed: {{error}}"
+      }
     }
   },
   "adminCreateUser": {
@@ -9026,7 +9047,9 @@
     "welcomeBack": "Welcome back! I'm here if you have any questions about OxSteed.",
     "proactivePostJob": "Need help posting your first job? I can walk you through it - just ask!",
     "proactiveHelpers": "Looking for the right helper? I can help you understand how OxSteed works!",
-    "errorMessage": "Sorry, I'm having trouble right now. Please try again or email **support@oxsteed.com**."
+    "errorMessage": "Sorry, I'm having trouble right now. Please try again or email **support@oxsteed.com**.",
+    "handoffTitle": "Talk to a human",
+    "handoffText": "This might need a human touch. A support specialist can pick this up with you directly."
   },
   "errorBoundary": {
     "title": "Something went wrong",

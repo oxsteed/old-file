@@ -18,6 +18,7 @@ export default function ConversationComposer({
   starters = [],
   showStarters = false,
   placeholder,
+  disabled = false,
   uploadAttachment = uploadMessageAttachment,
 }) {
   const { t } = useTranslation();
@@ -72,7 +73,7 @@ export default function ConversationComposer({
 
   const submit = () => {
     const trimmed = (value || '').trim();
-    if ((!trimmed && !pendingAttachment) || sending || uploading) return;
+    if (disabled || (!trimmed && !pendingAttachment) || sending || uploading) return;
     onSend({
       content: trimmed,
       attachments: pendingAttachment ? [pendingAttachment] : [],
@@ -82,7 +83,7 @@ export default function ConversationComposer({
   };
 
   const remaining = MAX_CHARS - (value || '').length;
-  const canSend = Boolean((value || '').trim() || pendingAttachment) && !sending && !uploading;
+  const canSend = !disabled && Boolean((value || '').trim() || pendingAttachment) && !sending && !uploading;
 
   return (
     <div className="messages-composer">
@@ -142,7 +143,7 @@ export default function ConversationComposer({
         <button
           type="button"
           onClick={() => imageInputRef.current?.click()}
-          disabled={uploading || !conversationId}
+          disabled={disabled || uploading || !conversationId}
           aria-label={t('messages.attachImage')}
           title={t('messages.attachImage')}
         >
@@ -151,7 +152,7 @@ export default function ConversationComposer({
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          disabled={uploading || !conversationId}
+          disabled={disabled || uploading || !conversationId}
           aria-label={t('messages.attachFile')}
           title={t('messages.attachFile')}
         >
@@ -182,6 +183,7 @@ export default function ConversationComposer({
           placeholder={placeholder}
           maxLength={MAX_CHARS}
           rows={1}
+          disabled={disabled}
           aria-label={t('messages.messageInput')}
           aria-multiline="true"
         />

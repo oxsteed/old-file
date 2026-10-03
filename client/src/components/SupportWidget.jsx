@@ -7,6 +7,10 @@ import { useCapabilities } from '../hooks/useCapabilities';
 
 const STORAGE_KEY = 'oxsteed_chat_history';
 const MAX_HISTORY = 40;
+// Server-side context window for /chat/message: never send more than this.
+const MAX_CONTEXT_MESSAGES = 12;
+// Proactive auto-open dismissals are remembered so the widget never nags twice.
+const PROACTIVE_DISMISS_KEY = 'oxsteed_support_proactive_dismissed';
 
 // Pages that get the proactive auto-open trigger after 45s
 const PROACTIVE_PATHS = ['/post-job', '/helpers'];
@@ -210,16 +214,26 @@ function AISupportWidget() {
     return () => { window.removeEventListener('focus', onFocus); window.removeEventListener('blur', onBlur); };
   }, []);
 
+// ── 7. Proactive trigger on /post-job and /helpers after 45 seconds ──
+// Dismissals are remembered in localStorage so the widget never nags twice.
+function isProactiveDismissed() {
+  try { return localStorage.getItem(PROACTIVE_DISMISS_KEY) === '1'; } catch { return false; }
+}
+function markProactiveDismissed() {
+  try { localStorage.setItem(PROACTIVE_DISMISS_KEY, '1'); } catch { /* storage unavailable */ }
+}
+
   // 7. Proactive trigger on /post-job and /helpers after 45 seconds
   useEffect(() => {
     const path = location.pathname;
     if (isHelperPublicProfilePath(path)) return;
     const isMatch = PROACTIVE_PATHS.some(p => path.startsWith(p));
-    if (!isMatch || proactiveTriggered.current || open) return;
+    if (!isMatch || proactiveTriggered.current || open || isProactiveDismissed()) return;
 
     const timer = setTimeout(() => {
-      if (!proactiveTriggered.current && !open) {
+      if (!proactiveTriggered.current && !open && !isProactiveDismissed()) {
         proactiveTriggered.current = true;
+        markProactiveDismissed();
         const msg = path.startsWith('/post-job')
           ? t('supportWidget.proactivePostJob')
           : t('supportWidget.proactiveHelpers');
@@ -281,7 +295,12 @@ function AISupportWidget() {
 
   // Escape to close
   useEffect(() => {
-    const handler = (e) => { if (e.key === 'Escape' && open) setOpen(false); };
+    const handler = (e) => {
+      if (e.key === 'Escape' && open) {
+        markProactiveDismissed();
+        setOpen(false);
+      }
+    };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, [open]);
@@ -328,13 +347,29 @@ function AISupportWidget() {
 
     try {
       const { data } = await api.post('/chat/message', {
-        messages:    updated.map(m => ({ role: m.role, content: m.content })),
+        // Cap the history per turn to the server's context window. The
+        // handoff card is UI chrome, not conversation, so it stays out.
+        messages:    updated.filter(m => !m.handoff).slice(-MAX_CONTEXT_MESSAGES).map(m => ({ role: m.role, content: m.content })),
         pageContext,
         language:    localStorage.getItem('oxs:language') || 'en',
         ...guideHelpPayload,
       });
       const reply = { role: 'assistant', content: data.reply, ts: new Date().toISOString() };
       setMessages(prev => [...prev, reply]);
+
+      // Handoff nudge: the server suggests a human take over. Render a calm
+      // inline card linking to the escalation flow. Never auto-redirect, and
+      // only ever show one card per conversation.
+      if (data?.handoff_suggested === true) {
+        setMessages(prev => prev.some(m => m.handoff)
+          ? prev
+          : [...prev, {
+              role: 'assistant',
+              content: t('supportWidget.handoffText'),
+              ts: new Date().toISOString(),
+              handoff: true,
+            }]);
+      }
 
       if (!open || minimized) {
         setUnread(n => n + 1);
@@ -420,7 +455,7 @@ function AISupportWidget() {
             ? 'fixed inset-0 z-[55]'
             : 'fixed inset-0 z-[45] flex items-end justify-end p-4 sm:p-6 pointer-events-none'
           }
-          onClick={isFullScreen ? undefined : (e => { if (e.target === e.currentTarget) setOpen(false); })}
+          onClick={isFullScreen ? undefined : (e => { if (e.target === e.currentTarget) { markProactiveDismissed(); setOpen(false); } })}
         >
           <div
             className={isFullScreen
@@ -512,7 +547,7 @@ function AISupportWidget() {
 
                 {/* Close */}
                 <button
-                  onClick={() => setOpen(false)}
+                  onClick={() => { markProactiveDismissed(); setOpen(false); }}
                   className="p-1.5 text-gray-500 hover:text-white transition rounded-lg hover:bg-gray-800"
                   aria-label={t('supportWidget.closeChat')}
                 >
@@ -545,6 +580,23 @@ function AISupportWidget() {
                       )}
 
                       <div className={`group relative max-w-[78%] flex flex-col gap-1 ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
+                        {/* Handoff nudge: calm inline card, never auto-redirects. */}
+                        {m.handoff ? (
+                          <div className="px-3.5 py-3 rounded-2xl rounded-bl-sm text-sm bg-orange-500/10 border border-orange-500/40">
+                            <p className="font-semibold text-orange-300 mb-1">{t('supportWidget.handoffTitle')}</p>
+                            <p className="text-gray-300 leading-relaxed mb-2.5">{m.content}</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <button
+                                onClick={() => handleEscalate()}
+                                className="px-3 py-1.5 bg-action hover:bg-action-hover text-on-action rounded-full text-xs font-semibold transition active:scale-95"
+                              >
+                                {t('supportWidget.handoffTitle')}
+                              </button>
+                              <span className="text-[10px] text-gray-600">{formatTime(m.ts)}</span>
+                            </div>
+                          </div>
+                        ) : (
+                        <>
                         {/* Bubble */}
                         <div className={`px-3.5 py-2.5 rounded-2xl text-sm ${
                           m.role === 'user'
@@ -620,6 +672,8 @@ function AISupportWidget() {
                             </>
                           )}
                         </div>
+                        </>
+                      )}
                       </div>
                     </div>
                   ))}
@@ -671,6 +725,7 @@ function AISupportWidget() {
                       }}
                       placeholder={t('support.placeholder')}
                       disabled={loading}
+                      maxLength={1000}
                       rows={1}
                       style={{ resize: 'none', minHeight: '38px', maxHeight: '120px', overflowY: 'auto' }}
                       className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-orange-500 disabled:opacity-50 placeholder-gray-500 transition"

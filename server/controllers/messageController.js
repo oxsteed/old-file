@@ -2,7 +2,7 @@ const pool          = require('../db');
 const socketService = require('../services/socketService');
 const { broadcastGuestChatMessage } = socketService;
 const logger        = require('../utils/logger');
-const { sanitizeMessage } = require('../utils/messageSanitizer');
+const { sanitizeMessage, detectOffPlatformContact } = require('../utils/messageSanitizer');
 const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
 const { withTransaction } = require('../utils/transaction');
 const { verifyConversationAccess } = require('../utils/conversationAccess');
@@ -26,13 +26,73 @@ function normalizeMessageAttachments(value) {
       : typeof item.name === 'string'
         ? item.name
         : null;
+    // The storage key is persisted so expired signed URLs can be re-signed
+    // on every read. Rows stored before this change have no key and keep
+    // serving their original URL as-is.
+    const key = typeof item.key === 'string' ? item.key.trim() : null;
     return [{
       url,
+      key: key ? key.slice(0, 1024) : null,
       type: type ? type.slice(0, 120) : null,
       filename: filename ? filename.slice(0, 255) : null,
     }];
   });
 }
+
+/**
+ * Re-sign attachment download URLs that still carry their storage key.
+ * Signed URLs expire (1h); re-signing on every read keeps attachments
+ * usable without storing long-lived public URLs. Attachments without a
+ * key (legacy rows, data-URL fallbacks) are returned unchanged.
+ */
+async function refreshAttachmentUrls(attachments) {
+  if (!Array.isArray(attachments) || attachments.length === 0) return attachments;
+  return Promise.all(attachments.map(async (item) => {
+    if (!item || typeof item !== 'object' || typeof item.key !== 'string' || !item.key) {
+      return item;
+    }
+    try {
+      const url = await getSignedDownloadUrl(item.key, 3600);
+      return { ...item, url };
+    } catch (err) {
+      logger.warn('Failed to re-sign attachment URL', { err: err.message });
+      return item;
+    }
+  }));
+}
+
+/**
+ * True when a user_blocks row exists between userId and any participant of
+ * the conversation: the customer, the helper, or an active business rep.
+ * Used to keep blocked users from sending, editing, deleting, or reacting
+ * in a shared thread.
+ */
+async function hasConversationBlock(db, conversationId, userId) {
+  const result = await db.query(
+    `SELECT 1
+     FROM conversations c
+     WHERE c.id = $1
+       AND EXISTS (
+         SELECT 1 FROM user_blocks ub
+         WHERE (ub.blocker_id = $2 AND ub.blocked_id IN (c.customer_id, c.helper_id))
+            OR (ub.blocked_id = $2 AND ub.blocker_id IN (c.customer_id, c.helper_id))
+            OR (ub.blocker_id = $2 AND ub.blocked_id IN (
+                  SELECT member_id FROM business_members
+                  WHERE business_id = c.business_id AND status = 'active'
+                ))
+            OR (ub.blocked_id = $2 AND ub.blocker_id IN (
+                  SELECT member_id FROM business_members
+                  WHERE business_id = c.business_id AND status = 'active'
+                ))
+       )
+     LIMIT 1`,
+    [conversationId, userId]
+  );
+  return result.rows.length > 0;
+}
+
+/** Server-enforced window during which a message may be edited. */
+const MESSAGE_EDIT_WINDOW_MS = 15 * 60 * 1000;
 
 function isUuid(value) {
   return typeof value === 'string'
@@ -173,12 +233,19 @@ const getGuestInquiryById = async (req, res) => {
 };
 
 // Get all conversations for the current user (including business rep access)
-// Optional query params: ?business_id=<id> to filter by business, ?include_archived=true to show archived
+// Optional query params: ?business_id=<id> to filter by business, ?include_archived=true to show archived,
+// ?limit=<n> (default 50, max 100) and ?offset=<n> for pagination
 const getConversations = async (req, res) => {
   try {
     const userId = req.user.id;
     const filterBizId = req.query.business_id ? parseInt(req.query.business_id, 10) || null : null;
     const includeArchived = req.query.include_archived === 'true';
+    const requestedLimit = Number.parseInt(req.query.limit, 10);
+    const requestedOffset = Number.parseInt(req.query.offset, 10);
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(Math.max(requestedLimit, 1), 100)
+      : 50;
+    const offset = Number.isFinite(requestedOffset) ? Math.max(requestedOffset, 0) : 0;
 
     const params = [userId];
     let bizFilter = '';
@@ -214,7 +281,8 @@ const getConversations = async (req, res) => {
               hb.business_name AS helper_business_name,
               -- business tied to this specific conversation (when business_id is set)
               cb.business_name AS conversation_business_name,
-              uc.cnt AS unread_count
+              uc.cnt AS unread_count,
+              COUNT(*) OVER() AS _total_count
        FROM conversations c
        LEFT JOIN users h  ON c.helper_id   = h.id
        LEFT JOIN users cu ON c.customer_id = cu.id
@@ -241,10 +309,19 @@ const getConversations = async (req, res) => {
            WHERE bm.business_id = c.business_id AND bm.member_id = $1 AND bm.status = 'active'
          ))
        )${bizFilter}${statusFilter}
-       ORDER BY c.last_message_at DESC NULLS LAST`,
-      params
+       ORDER BY c.last_message_at DESC NULLS LAST
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset]
     );
-    res.json(result.rows);
+    const total = result.rows.length > 0 ? parseInt(result.rows[0]._total_count, 10) : 0;
+    const conversations = result.rows.map(({ _total_count, ...rest }) => rest);
+    res.json({
+      conversations,
+      total,
+      limit,
+      offset,
+      hasMore: offset + limit < total,
+    });
   } catch (error) {
     logger.error('Error fetching conversations', { err: error.message });
     res.status(500).json({ error: 'Failed to fetch conversations' });
@@ -333,12 +410,19 @@ const getOrCreateConversation = async (req, res) => {
 };
 
 // Get messages for a conversation
+// ?mark_read=true explicitly marks inbound messages read (defaults to false);
+// without it this endpoint is a pure read and never flips read state.
 const getMessages = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { conversationId } = req.params;
-    const limit  = Math.min(parseInt(req.query.limit)  || 50, 100);
+    const limit  = Math.min(Math.max(parseInt(req.query.limit)  || 50, 1), 100);
     const offset = Math.max(parseInt(req.query.offset) || 0,  0);
+    const markReadParam = req.query.mark_read ?? req.query.markRead
+      ?? req.body?.mark_read ?? req.body?.markRead;
+    const shouldMarkRead = markReadParam === true
+      || markReadParam === 'true'
+      || markReadParam === '1';
 
     // Verify user is part of conversation (direct participant or active business rep)
     const conv = await pool.query(
@@ -357,22 +441,25 @@ const getMessages = async (req, res, next) => {
       throw new AppError('Access denied', 403, 'access_denied');
     }
 
-    // Mark inbound messages as read, get count so we only emit when needed
-    const readResult = await pool.query(
-      `UPDATE messages
-       SET is_read = TRUE, read_at = NOW()
-       WHERE conversation_id = $1 AND sender_id != $2 AND is_read = FALSE
-       RETURNING id`,
-      [conversationId, userId]
-    );
+    // Mark inbound messages as read only when explicitly requested, get count
+    // so we only emit when needed
+    if (shouldMarkRead) {
+      const readResult = await pool.query(
+        `UPDATE messages
+         SET is_read = TRUE, read_at = NOW()
+         WHERE conversation_id = $1 AND sender_id != $2 AND is_read = FALSE
+         RETURNING id`,
+        [conversationId, userId]
+      );
 
-    // Notify the sender that their messages were seen
-    if (readResult.rows.length > 0) {
-      socketService.broadcastToConversation(conversationId, 'messages:read', {
-        conversationId,
-        readBy: userId,
-        readAt: new Date().toISOString(),
-      });
+      // Notify the sender that their messages were seen
+      if (readResult.rows.length > 0) {
+        socketService.broadcastToConversation(conversationId, 'messages:read', {
+          conversationId,
+          readBy: userId,
+          readAt: new Date().toISOString(),
+        });
+      }
     }
 
     const result = await pool.query(
@@ -384,7 +471,14 @@ const getMessages = async (req, res, next) => {
        LIMIT $2 OFFSET $3`,
       [conversationId, limit, offset]
     );
-    res.json(result.rows);
+
+    // Re-sign attachment URLs on every read; stored keys make the 1h expiry
+    // a non-issue. Legacy rows without keys keep their original URL.
+    const rows = await Promise.all(result.rows.map(async (row) => ({
+      ...row,
+      attachments: await refreshAttachmentUrls(row.attachments),
+    })));
+    res.json(rows);
   } catch (error) {
     next(error);
   }
@@ -544,8 +638,14 @@ const sendMessage = async (req, res, next) => {
       throw new AppError('Validation failed', 400, 'validation_failed', fields);
     }
 
-    // Sanitize message to prevent XSS
+    // Sanitize message to prevent XSS (also masks phone numbers in storage)
     const content = sanitizeMessage(rawContent);
+
+    // Off-platform contact deterrence: warn + mask, never block.
+    const contactFlags = detectOffPlatformContact(rawContent);
+    const warnings = (contactFlags.phone || contactFlags.email || contactFlags.url)
+      ? ['off_platform_contact']
+      : [];
 
     // Send message atomically with race condition prevention
     const {
@@ -568,24 +668,37 @@ const sendMessage = async (req, res, next) => {
              SELECT 1 FROM business_members bm
              WHERE bm.business_id = c.business_id AND bm.member_id = $2 AND bm.status = 'active'
            ))
-         )
-         AND NOT EXISTS (
-           SELECT 1 FROM user_blocks ub
-            WHERE (ub.blocker_id = $2 AND ub.blocked_id IN (c.customer_id, c.helper_id))
-               OR (ub.blocked_id = $2 AND ub.blocker_id IN (c.customer_id, c.helper_id))
          )`,
         [conversationId, userId]
       );
 
       if (convResult.rows.length === 0) {
-        const err = new Error('Access denied');
-        err.status = 403;
-        throw err;
+        throw new AppError('Access denied', 403, 'access_denied');
       }
 
       const conv = convResult.rows[0];
       if (conv.status === 'archived' || conv.archived_at) {
         throw new AppError('Conversation is archived', 409, 'conversation_archived');
+      }
+
+      // Blocked users (either direction, including business reps) cannot
+      // send into the shared thread.
+      if (await hasConversationBlock(client, conversationId, userId)) {
+        throw new AppError('Access denied', 403, 'blocked_by_user');
+      }
+
+      // The counterpart's account must still exist and be active.
+      const counterpartId = String(userId) === String(conv.customer_id)
+        ? conv.helper_id
+        : conv.customer_id;
+      if (counterpartId) {
+        const recipientResult = await client.query(
+          'SELECT 1 FROM users WHERE id = $1 AND deleted_at IS NOT NULL',
+          [counterpartId]
+        );
+        if (recipientResult.rows.length > 0) {
+          throw new AppError('Recipient is no longer active', 410, 'recipient_inactive');
+        }
       }
       const senderName = (conv.business_id && conv.business_name)
         ? conv.business_name
@@ -681,7 +794,7 @@ const sendMessage = async (req, res, next) => {
     const senderName = resultSenderName || ((business_id && business_name)
       ? business_name
       : `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim());
-    const fullMessagePayload = { ...messagePayload, sender_name: senderName };
+    const fullMessagePayload = { ...messagePayload, sender_name: senderName, warnings };
 
     // Keep the Business Hub copy durable as well as realtime. Profile-chat
     // creation already uses this bridge, but ordinary customer messages can
@@ -819,6 +932,11 @@ const deleteMessage = async (req, res) => {
       return res.status(400).json({ error: 'Message is already deleted' });
     }
 
+    // A blocked user cannot modify old messages in the shared thread
+    if (await hasConversationBlock(pool, conversationId, userId)) {
+      return res.status(403).json({ error: 'Access denied', code: 'blocked_by_user' });
+    }
+
     // Soft delete the message (set deleted_at timestamp) - safeguard sender_id
     const delResult = await pool.query(
       'UPDATE messages SET deleted_at = NOW() WHERE id = $1 AND sender_id = $2 RETURNING id',
@@ -857,7 +975,7 @@ const editMessage = async (req, res) => {
 
     // Verify message exists and user is the sender
     const msgResult = await pool.query(
-      `SELECT m.id, m.sender_id, m.conversation_id, m.deleted_at
+      `SELECT m.id, m.sender_id, m.conversation_id, m.deleted_at, m.created_at
        FROM messages m
        WHERE m.id = $1 AND m.conversation_id = $2`,
       [messageId, conversationId]
@@ -874,6 +992,17 @@ const editMessage = async (req, res) => {
 
     if (message.deleted_at) {
       return res.status(400).json({ error: 'Cannot edit a deleted message' });
+    }
+
+    // 15-minute edit window, enforced server-side
+    const createdAtMs = new Date(message.created_at).getTime();
+    if (!Number.isFinite(createdAtMs) || Date.now() - createdAtMs > MESSAGE_EDIT_WINDOW_MS) {
+      return res.status(410).json({ error: 'Edit window has expired', code: 'edit_window_expired' });
+    }
+
+    // A blocked user cannot modify old messages in the shared thread
+    if (await hasConversationBlock(pool, conversationId, userId)) {
+      return res.status(403).json({ error: 'Access denied', code: 'blocked_by_user' });
     }
 
     // Update the message with edited_at timestamp - safeguard sender_id
@@ -928,6 +1057,11 @@ const addReaction = async (req, res) => {
       [conversationId, userId]
     );
     if (conv.rows.length === 0) return res.status(403).json({ error: 'Access denied' });
+
+    // A blocked user cannot react in the shared thread
+    if (await hasConversationBlock(pool, conversationId, userId)) {
+      return res.status(403).json({ error: 'Access denied', code: 'blocked_by_user' });
+    }
 
     // Verify message exists and belongs to this conversation
     const msg = await pool.query(
@@ -997,6 +1131,11 @@ const removeReaction = async (req, res) => {
       [conversationId, userId]
     );
     if (conv.rows.length === 0) return res.status(403).json({ error: 'Access denied' });
+
+    // A blocked user cannot modify old messages in the shared thread
+    if (await hasConversationBlock(pool, conversationId, userId)) {
+      return res.status(403).json({ error: 'Access denied', code: 'blocked_by_user' });
+    }
 
     // Remove the reaction
     const deleteResult = await pool.query(

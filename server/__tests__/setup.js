@@ -58,8 +58,15 @@ jest.mock('../utils/sms',    () => ({ sendOTPSMS:   jest.fn().mockResolvedValue(
 jest.mock('../services/socketService', () => ({
   init: jest.fn(),
   emit: jest.fn(),
+  isOnline: jest.fn(),
+  getSocketCount: jest.fn(),
+  broadcastToUser: jest.fn(),
   broadcastToConversation: jest.fn(),
+  broadcastToAdmins: jest.fn(),
   broadcastToBusinessInbox: jest.fn(),
+  broadcastNewGuestSession: jest.fn(),
+  broadcastGuestSessionUpdate: jest.fn(),
+  broadcastGuestChatMessage: jest.fn(),
 }));
 jest.mock('../services/feeService',    () => ({ reloadFeeConfig: jest.fn().mockResolvedValue(true), getFeeConfig: jest.fn().mockReturnValue({ platform_fee_pct: 10 }) }));
 jest.mock('../services/tokenRevocationService', () => ({

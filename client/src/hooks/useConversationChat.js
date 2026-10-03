@@ -1,15 +1,30 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from './useSocket';
 import { loadMessageDraft, saveMessageDraft, clearMessageDraft } from '../utils/messageDrafts';
 import { toStoredAttachment } from '../utils/messageAttachments';
 import { createMessageRequestId } from '../lib/messageRequestId';
-import { getBusinessConversation, sendBusinessMessage } from '../api/businessMessaging';
+import { sendBusinessMessage } from '../api/businessMessaging';
+import { resolveSendErrorState } from '../components/messaging/messengerShellState';
 
 const TYPING_EMIT_COOLDOWN = 2000;
 const TYPING_AUTO_CLEAR_MS = 5000; // clear indicator if no stop event received (e.g. disconnect)
 const NEAR_BOTTOM_PX = 96;
+const MESSAGE_PAGE_SIZE = 50;
+
+// Normalize business message attachments to the shape the thread renders.
+const mapBusinessMessages = (list) => (Array.isArray(list) ? list : []).map((message) => ({
+  ...message,
+  attachments: (Array.isArray(message.attachments) ? message.attachments : []).map((attachment) => ({
+    url: attachment.url || attachment.file_url,
+    filename: attachment.filename || attachment.file_name,
+    type: attachment.type || attachment.file_type,
+    size: attachment.size || attachment.file_size_bytes,
+  })),
+}));
 
 /**
  * Shared logic for ConversationPage and HelperConversationPage.
@@ -42,6 +57,12 @@ export function useConversationChat(
   const [lastReadAt, setLastReadAt] = useState(null);
   const [isArchived, setIsArchived] = useState(false);
   const [stickToBottom, setStickToBottom] = useState(true);
+  // Terminal send states: the composer stays disabled until the thread changes.
+  const [sendBlocked, setSendBlocked] = useState(false);
+  const [counterpartInactive, setCounterpartInactive] = useState(false);
+  // Message history pagination (server limit/offset).
+  const [olderLoading, setOlderLoading] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
 
   const messagesEndRef = useRef(null);
   const threadRef = useRef(null);
@@ -55,9 +76,14 @@ export function useConversationChat(
   // socket echo of our own message arrives, we swap the oldest temp bubble out.
   const pendingTempRef = useRef(new Set());
   const pendingClientMessageRef = useRef(new Map());
+  // Server message ordering for pagination: 'asc' (oldest first) or 'desc'
+  // (newest first). Detected from the first page so load-more merges correctly
+  // whichever way the endpoint orders rows.
+  const serverOrderRef = useRef('asc');
 
   const { user } = useAuth();
   const { socket, connected, joinConversation, leaveConversation } = useSocket();
+  const { t } = useTranslation();
 
   useEffect(() => {
     setLoading(true);
@@ -81,6 +107,11 @@ export function useConversationChat(
     messageIdsRef.current = new Set();
     pendingTempRef.current = new Set();
     pendingClientMessageRef.current = new Map();
+    serverOrderRef.current = 'asc';
+    setSendBlocked(false);
+    setCounterpartInactive(false);
+    setOlderLoading(false);
+    setHasMoreMessages(false);
     setNewMessage(loadMessageDraft(conversationId));
   }, [conversationId, workspaceBusinessId]);
 
@@ -91,28 +122,32 @@ export function useConversationChat(
   }, [conversationId, newMessage]);
 
   // ── Initial load ─────────────────────────────────────────────
-  const fetchMessages = useCallback(async () => {
+  // options.markRead: pass true only when the thread is open AND the tab is
+  // visible. Background refetches (socket events) must not mark messages read.
+  const fetchMessages = useCallback(async (options = {}) => {
     if (!conversationId) {
       setLoading(false);
       return;
     }
     try {
       setLoadError(false);
+      const tabVisible = typeof document === 'undefined' || document.visibilityState === 'visible';
+      const params = { limit: MESSAGE_PAGE_SIZE, offset: 0 };
+      if (options.markRead ?? tabVisible) params.markRead = true;
       const res = workspaceBusinessId
-        ? await getBusinessConversation(workspaceBusinessId, conversationId)
-        : await api.get(`/messages/conversations/${conversationId}`).then((response) => response.data);
+        ? (await api.get(`/businesses/${workspaceBusinessId}/messages/${conversationId}`, { params })).data
+        : await api.get(`/messages/conversations/${conversationId}`, { params }).then((response) => response.data);
       const data = workspaceBusinessId
-        ? (Array.isArray(res?.messages) ? res.messages : []).map((message) => ({
-          ...message,
-          attachments: (Array.isArray(message.attachments) ? message.attachments : []).map((attachment) => ({
-            url: attachment.url || attachment.file_url,
-            filename: attachment.filename || attachment.file_name,
-            type: attachment.type || attachment.file_type,
-            size: attachment.size || attachment.file_size_bytes,
-          })),
-        }))
+        ? mapBusinessMessages(res?.messages)
         : (Array.isArray(res) ? res : []);
       messageIdsRef.current = new Set(data.map((m) => m.id));
+      // Detect the server's row ordering so load-more merges on the right end.
+      if (data.length > 1) {
+        const first = new Date(data[0]?.created_at).getTime();
+        const last = new Date(data[data.length - 1]?.created_at).getTime();
+        serverOrderRef.current = first > last ? 'desc' : 'asc';
+      }
+      setHasMoreMessages(data.length >= MESSAGE_PAGE_SIZE);
       setMessages(data);
       const other = data.find(m => m.sender_id !== user?.id);
       if (other?.sender_name) setOtherName(other.sender_name);
@@ -126,7 +161,9 @@ export function useConversationChat(
         setJobTitle(res?.subject || '');
       }
     } catch (err) {
-      if (err.response?.status === 403 || err.response?.status === 404) {
+      if (resolveSendErrorState(err) === 'recipient_inactive') {
+        setCounterpartInactive(true);
+      } else if (err.response?.status === 403 || err.response?.status === 404 || err.response?.status === 410) {
         setNotFound(true);
       } else {
         setLoadError(true);
@@ -138,6 +175,53 @@ export function useConversationChat(
   }, [conversationId, user?.id, workspaceBusinessId]);
 
   useEffect(() => { fetchMessages(); }, [fetchMessages]);
+
+  // ── History pagination: next page via the server's limit/offset params ──
+  // Prepends when the server orders newest-first, appends when oldest-first;
+  // the merged list is always chronological. Scroll position is preserved when
+  // older history is prepended above the viewport.
+  const loadMoreMessages = useCallback(async () => {
+    if (!conversationId || olderLoading || !hasMoreMessages) return;
+    const el = threadRef.current;
+    const prevHeight = el ? el.scrollHeight : 0;
+    const prevTop = el ? el.scrollTop : 0;
+    const prepend = serverOrderRef.current === 'desc';
+    setOlderLoading(true);
+    try {
+      const offset = messages.filter((m) => !String(m.id).startsWith('temp_')).length;
+      const params = { limit: MESSAGE_PAGE_SIZE, offset };
+      // User-initiated and therefore foreground: read receipts follow the
+      // same visibility rule as the initial load.
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+        params.markRead = true;
+      }
+      const res = workspaceBusinessId
+        ? (await api.get(`/businesses/${workspaceBusinessId}/messages/${conversationId}`, { params })).data
+        : await api.get(`/messages/conversations/${conversationId}`, { params }).then((response) => response.data);
+      const incoming = workspaceBusinessId
+        ? mapBusinessMessages(res?.messages)
+        : (Array.isArray(res) ? res : []);
+      const fresh = incoming.filter((m) => m && !messageIdsRef.current.has(m.id));
+      fresh.forEach((m) => messageIdsRef.current.add(m.id));
+      if (fresh.length > 0) {
+        setMessages((prev) => {
+          const merged = prepend ? [...fresh, ...prev] : [...prev, ...fresh];
+          merged.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+          return merged;
+        });
+        if (prepend && el) {
+          requestAnimationFrame(() => {
+            el.scrollTop = el.scrollHeight - prevHeight + prevTop;
+          });
+        }
+      }
+      if (incoming.length < MESSAGE_PAGE_SIZE) setHasMoreMessages(false);
+    } catch (err) {
+      console.error('[useConversationChat] load more error:', err);
+    } finally {
+      setOlderLoading(false);
+    }
+  }, [conversationId, workspaceBusinessId, olderLoading, hasMoreMessages, messages]);
 
   // Load conversation metadata for the header
   useEffect(() => {
@@ -193,12 +277,16 @@ export function useConversationChat(
     setOtherTyping(false);
   }, []);
 
+  // Read receipts fire only when the thread is open AND the tab is visible.
+  // Background callers (socket events, hidden tabs) must not mark read.
   const markConversationRead = useCallback(async () => {
+    if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
     try {
+      const params = { markRead: true, limit: 1 };
       if (workspaceBusinessId) {
-        await getBusinessConversation(workspaceBusinessId, conversationId);
+        await api.get(`/businesses/${workspaceBusinessId}/messages/${conversationId}`, { params });
       } else {
-        await api.get(`/messages/conversations/${conversationId}`);
+        await api.get(`/messages/conversations/${conversationId}`, { params });
       }
     } catch (_err) {
       // Best effort: read state will be synced on next successful fetch.
@@ -331,13 +419,14 @@ export function useConversationChat(
           window.dispatchEvent(new CustomEvent('oxs:booking-chat-updated', { detail: payload }));
         }
       } catch { /* ignore */ }
-      // Refresh thread so status system messages appear
-      fetchMessages();
+      // Refresh thread so status system messages appear. This is a background
+      // refetch: it must not mark messages read.
+      fetchMessages({ markRead: false });
     };
 
     socket.on('message:new', onMessageNew);
     const onBusinessInboxMessage = ({ conversation_id: cid }) => {
-      if (workspaceBusinessId && String(cid) === String(conversationId)) fetchMessages();
+      if (workspaceBusinessId && String(cid) === String(conversationId)) fetchMessages({ markRead: false });
     };
     const onBusinessTyping = ({ businessId: bid, conversationId: cid, userId }) => {
       if (!workspaceBusinessId || String(bid) !== String(workspaceBusinessId) || String(cid) !== String(conversationId)) return;
@@ -450,16 +539,44 @@ export function useConversationChat(
       replaceTempMessage(tempId, workspaceBusinessId
         ? { ...res, attachments }
         : res);
+      // Contact deterrence: calm, non-accusatory notice to the sender.
+      const warnings = res?.warnings;
+      if (Array.isArray(warnings) && warnings.includes('off_platform_contact')) {
+        toast(t('messages.offPlatformWarning'), { icon: 'i', duration: 6000 });
+      }
     } catch (err) {
+      const terminalState = resolveSendErrorState(err);
+      if (terminalState === 'blocked_by_user') {
+        // The viewer was blocked: terminal state, composer stays disabled,
+        // and no retry loop is offered.
+        setSendBlocked(true);
+        pendingTempRef.current.delete(tempId);
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? { ...m, _pending: false, _failed: true } : m))
+        );
+        toast.error(t('messages.blockedSendText'));
+        return;
+      }
+      if (terminalState === 'recipient_inactive') {
+        setCounterpartInactive(true);
+        pendingTempRef.current.delete(tempId);
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? { ...m, _pending: false, _failed: true } : m))
+        );
+        toast.error(t('messages.recipientInactiveText'));
+        return;
+      }
       console.error('[useConversationChat] send error:', err);
       pendingTempRef.current.delete(tempId);
       setMessages((prev) =>
         prev.map((m) => (m.id === tempId ? { ...m, _pending: false, _failed: true } : m))
       );
     }
-  }, [conversationId, replaceTempMessage, workspaceBusinessId]);
+  }, [conversationId, replaceTempMessage, workspaceBusinessId, t]);
 
   const sendMessage = useCallback(async ({ content, attachments } = {}) => {
+    // Terminal states: the composer is disabled, so never attempt a send.
+    if (sendBlocked || counterpartInactive) return;
     const storedAttachments = (attachments || []).map(toStoredAttachment).filter(Boolean);
     const text = (content ?? newMessage).trim();
     if ((!text && storedAttachments.length === 0) || sending || !conversationId) return;
@@ -492,7 +609,7 @@ export function useConversationChat(
     inputRef.current?.focus();
 
     await sendContent(text, tempId, storedAttachments, clientMessageId);
-  }, [newMessage, sending, stopTypingEmit, conversationId, user, sendContent]);
+  }, [newMessage, sending, stopTypingEmit, conversationId, user, sendContent, sendBlocked, counterpartInactive]);
 
   const handleSend = useCallback(async (e) => {
     e?.preventDefault?.();
@@ -500,6 +617,7 @@ export function useConversationChat(
   }, [sendMessage]);
 
   const retryMessage = useCallback(async (tempId) => {
+    if (sendBlocked || counterpartInactive) return;
     setMessages((prev) =>
       prev.map((m) => (m.id === tempId ? { ...m, _pending: true, _failed: false } : m))
     );
@@ -521,7 +639,7 @@ export function useConversationChat(
       pendingClientMessageRef.current.set(clientMessageId, tempId);
       await sendContent(msg.content || '', tempId, msg.attachments || [], clientMessageId);
     }
-  }, [sendContent]);
+  }, [sendContent, sendBlocked, counterpartInactive]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -538,6 +656,9 @@ export function useConversationChat(
   return {
     messages,
     fetchMessages,
+    loadMoreMessages,
+    hasMoreMessages,
+    olderLoading,
     otherName,
     helperBusiness,
     jobTitle,
@@ -552,6 +673,8 @@ export function useConversationChat(
     loadError,
     sending,
     notFound,
+    sendBlocked,
+    counterpartInactive,
     otherTyping,
     showSeen,
     lastSentByMe,

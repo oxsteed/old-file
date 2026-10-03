@@ -239,7 +239,10 @@ test('archive recovery uses the business store and supports direct-linked thread
   assert.match(workspace, /businessId=\{businessId\}/);
   assert.match(thread, /businessId: workspaceBusinessId = null/);
   assert.match(thread, /const archiveAction = isArchived \? onRestore : onArchive/);
-  assert.match(hook, /getBusinessConversation\(workspaceBusinessId, conversationId\)/);
+  // Business thread reads go through the business messages endpoint with an
+  // explicit markRead param (read receipts only when the tab is visible).
+  assert.match(hook, /\/businesses\/\$\{workspaceBusinessId\}\/messages\/\$\{conversationId\}/);
+  assert.match(hook, /markRead/);
   assert.match(hook, /sendBusinessMessage\(workspaceBusinessId, conversationId/);
 });
 

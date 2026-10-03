@@ -2577,7 +2577,14 @@
       "selectDealHint": "Elige un trato de cliente a la izquierda para abrir cotizaciones, POP, acuerdos y herramientas de agenda.",
       "selectTeamHint": "Elige un hilo de equipo o cliente a la izquierda para escribir en la bandeja del personal.",
       "dockSecondaryAria": "Herramientas del chat"
-    }
+    },
+    "blockedSendTitle": "No puedes enviar mensajes a este usuario",
+    "blockedSendText": "Esta persona no está aceptando tus mensajes en este momento.",
+    "recipientInactiveTitle": "Cuenta inactiva",
+    "recipientInactiveText": "Esta cuenta ya no está activa, por lo que la mensajería está desactivada.",
+    "offPlatformWarning": "Nota rápida: mantener tu conversación y tu pago en OxSteed te mantiene cubierto por nuestro soporte y ayuda en disputas.",
+    "loadMoreMessages": "Cargar más mensajes",
+    "loadMoreConversations": "Cargar más conversaciones"
   },
   "dashboard": {
     "welcome": "¡Bienvenido de nuevo, {{name}}!",
@@ -4991,6 +4998,20 @@
       "profileHandoffBody": "OxSteed en el perfil es solo IA. Esta página te conecta con el soporte de la plataforma.",
       "profileHandoffContext": "Perfil: {{name}}",
       "returnToProfile": "Volver al perfil"
+    },
+    "customer360": {
+      "resolution": {
+        "refund": "Reembolsar",
+        "refundJobPayment": "Reembolsar el pago",
+        "cancelOrder": "Cancelar el pedido",
+        "refundPaymentPrompt": "¿Reembolsar el pago #{{id}} al cliente? Escribe el motivo y elige Aceptar para confirmar:",
+        "refundOrderPrompt": "¿Reembolsar el pedido #{{id}} ({{amount}})? Escribe el motivo y elige Aceptar para confirmar:",
+        "cancelOrderPrompt": "¿Cancelar el pedido impago #{{id}}? Escribe el motivo y elige Aceptar para confirmar:",
+        "refundJobPrompt": "¿Reembolsar el pago del trabajo \"{{title}}\" (#{{id}}) al cliente? Escribe el motivo y elige Aceptar para confirmar:",
+        "reasonRequired": "Se requiere un motivo para continuar.",
+        "success": "Listo. La acción quedó registrada.",
+        "failed": "La acción falló: {{error}}"
+      }
     }
   },
   "adminCreateUser": {
@@ -9026,7 +9047,9 @@
     "welcomeBack": "¡Te damos la bienvenida de nuevo! Estoy aquí si tienes preguntas sobre OxSteed.",
     "proactivePostJob": "¿Necesitas ayuda para publicar tu primer trabajo? Puedo guiarte paso a paso.",
     "proactiveHelpers": "¿Buscas al ayudante adecuado? Puedo explicarte cómo funciona OxSteed.",
-    "errorMessage": "Lo siento, tengo problemas en este momento. Inténtalo de nuevo o escribe a **support@oxsteed.com**."
+    "errorMessage": "Lo siento, tengo problemas en este momento. Inténtalo de nuevo o escribe a **support@oxsteed.com**.",
+    "handoffTitle": "Hablar con una persona",
+    "handoffText": "Esto podría necesitar un toque humano. Un especialista de soporte puede ayudarte directamente."
   },
   "errorBoundary": {
     "title": "Algo salió mal",

@@ -76,8 +76,10 @@ const optionalAuth = async (req, res, next) => {
   next();
 };
 
-// Public - no auth required for support chat
-router.post('/message', chatLimiter, chatMessage);
+// Public - no auth required for support chat. optionalAuth attaches req.user
+// when a valid Bearer <redacted> present so signed-in users keep the Meta-first
+// provider chain; anonymous requests skip Meta entirely (free tier only).
+router.post('/message', chatLimiter, optionalAuth, chatMessage);
 
 // POST /api/chat/financial-advisor
 // Personalized financial advice - requires authentication

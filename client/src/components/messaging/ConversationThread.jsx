@@ -116,9 +116,11 @@ export default function ConversationThread({
   });
 
   const {
-    messages, fetchMessages, otherName, helperBusiness, jobTitle, otherUserId, jobId, helperId, businessId,
+    messages, fetchMessages, loadMoreMessages, hasMoreMessages, olderLoading,
+    otherName, helperBusiness, jobTitle, otherUserId, jobId, helperId, businessId,
     legacyConversationId, businessConversationType,
-    newMessage, loading, loadError, sending, notFound, otherTyping, showSeen, lastSentByMe,
+    newMessage, loading, loadError, sending, notFound, sendBlocked, counterpartInactive,
+    otherTyping, showSeen, lastSentByMe,
     stickToBottom, messagesEndRef, threadRef, inputRef, isArchived,
     handleInputChange, handleBlur, sendMessage, retryMessage,
     handleThreadScroll, scrollToLatest, user,
@@ -201,16 +203,22 @@ export default function ConversationThread({
     );
   }
 
-  if (notFound) {
+  if (notFound || (counterpartInactive && messages.length === 0)) {
     return (
       <div className="messages-thread-empty">
-        <p>{t('messages.conversationNotFound')}</p>
+        <p>
+          {counterpartInactive
+            ? t('messages.recipientInactiveText')
+            : t('messages.conversationNotFound')}
+        </p>
         <button type="button" onClick={onBack}>
           {t('messages.backToMessages')}
         </button>
       </div>
     );
   }
+
+  const composerDisabled = sendBlocked || counterpartInactive;
 
   return (
     <section className="messages-thread" aria-label={t('messages.chatWith', { name: otherName || '...' })}>
@@ -334,6 +342,16 @@ export default function ConversationThread({
         className="messages-thread-scroll"
         onScroll={handleThreadScroll}
       >
+        {hasMoreMessages && messages.length > 0 && (
+          <button
+            type="button"
+            className="messages-archive-more"
+            onClick={loadMoreMessages}
+            disabled={olderLoading}
+          >
+            {olderLoading ? t('messages.loadingMessages') : t('messages.loadMoreMessages')}
+          </button>
+        )}
         {messages.length === 0 && (
           <p className="messages-thread-note">
             {role === 'helper' ? t('messages.noMessagesReply') : t('messages.noMessagesStart')}
@@ -481,9 +499,11 @@ export default function ConversationThread({
                     {msg._failed && (
                       <span className="failed">
                         {t('messages.failed')}
-                        <button type="button" onClick={() => retryMessage(msg.id)}>
-                          {t('messages.retry')}
-                        </button>
+                        {!composerDisabled && (
+                          <button type="button" onClick={() => retryMessage(msg.id)}>
+                            {t('messages.retry')}
+                          </button>
+                        )}
                       </span>
                     )}
                     {!msg._pending && !msg._failed && <span>{formatTime(msg.created_at)}</span>}
@@ -718,6 +738,15 @@ export default function ConversationThread({
           onShared={() => setShowPaymentRequestShare(false)}
         />
       )}
+      {composerDisabled && (
+        <div className="messages-inline-alert" role="alert">
+          <p>
+            {sendBlocked
+              ? t('messages.blockedSendText')
+              : t('messages.recipientInactiveText')}
+          </p>
+        </div>
+      )}
       {isArchived ? (
         <div className="messages-archived-notice" role="status">
           <p>{t('messages.archivedReadOnly', { defaultValue: 'This conversation is archived. Restore it to continue messaging.' })}</p>
@@ -740,6 +769,7 @@ export default function ConversationThread({
           starters={starters}
           showStarters={messages.length === 0}
           placeholder={role === 'helper' ? t('messages.typeReply') : t('messages.typeAMessage')}
+          disabled={composerDisabled}
           uploadAttachment={isBusinessConversation
             ? (id, file) => uploadBusinessMessageAttachment(workspaceBusinessId, id, file)
             : undefined}

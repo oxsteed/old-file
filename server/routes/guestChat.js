@@ -52,7 +52,7 @@ router.post(
   sendHelperMessage
 );
 
-// Resolve a session (guest or helper)
+// Resolve a session (assigned helper / support staff)
 router.post(
   '/sessions/:sessionId/resolve',
   authenticate,

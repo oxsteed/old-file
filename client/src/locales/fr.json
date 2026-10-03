@@ -2577,7 +2577,14 @@
       "selectDealHint": "Choisissez une affaire client à gauche pour ouvrir devis, POP, accords et planification.",
       "selectTeamHint": "Choisissez un fil équipe ou client à gauche pour écrire dans la boîte du personnel.",
       "dockSecondaryAria": "Outils de discussion"
-    }
+    },
+    "blockedSendTitle": "Vous ne pouvez pas envoyer de message à cet utilisateur",
+    "blockedSendText": "Cette personne n'accepte pas vos messages pour le moment.",
+    "recipientInactiveTitle": "Compte inactif",
+    "recipientInactiveText": "Ce compte n'est plus actif, la messagerie est donc désactivée.",
+    "offPlatformWarning": "Petit rappel : garder votre conversation et votre paiement sur OxSteed vous permet de bénéficier de notre assistance et de notre aide en cas de litige.",
+    "loadMoreMessages": "Charger plus de messages",
+    "loadMoreConversations": "Charger plus de conversations"
   },
   "dashboard": {
     "welcome": "Bon retour, {{name}} !",
@@ -4991,6 +4998,20 @@
       "profileHandoffBody": "OxSteed sur le profil est uniquement une IA. Cette page vous met en relation avec le support de la plateforme.",
       "profileHandoffContext": "Profil : {{name}}",
       "returnToProfile": "Retourner au profil"
+    },
+    "customer360": {
+      "resolution": {
+        "refund": "Rembourser",
+        "refundJobPayment": "Rembourser le paiement",
+        "cancelOrder": "Annuler la commande",
+        "refundPaymentPrompt": "Rembourser le paiement n°{{id}} au client ? Saisissez le motif puis choisissez OK pour confirmer :",
+        "refundOrderPrompt": "Rembourser la commande n°{{id}} ({{amount}}) ? Saisissez le motif puis choisissez OK pour confirmer :",
+        "cancelOrderPrompt": "Annuler la commande impayée n°{{id}} ? Saisissez le motif puis choisissez OK pour confirmer :",
+        "refundJobPrompt": "Rembourser le paiement de la mission « {{title}} » (n°{{id}}) au client ? Saisissez le motif puis choisissez OK pour confirmer :",
+        "reasonRequired": "Un motif est requis pour continuer.",
+        "success": "Terminé. L'action a été enregistrée.",
+        "failed": "Échec de l'action : {{error}}"
+      }
     }
   },
   "adminCreateUser": {
@@ -9026,7 +9047,9 @@
     "welcomeBack": "Bon retour ! Je suis là si vous avez des questions sur OxSteed.",
     "proactivePostJob": "Besoin d’aide pour publier votre premier travail ? Je peux vous guider étape par étape.",
     "proactiveHelpers": "Vous cherchez le bon assistant ? Je peux vous expliquer comment fonctionne OxSteed.",
-    "errorMessage": "Désolé, je rencontre un problème pour le moment. Veuillez réessayer ou écrire à **support@oxsteed.com**."
+    "errorMessage": "Désolé, je rencontre un problème pour le moment. Veuillez réessayer ou écrire à **support@oxsteed.com**.",
+    "handoffTitle": "Parler à un humain",
+    "handoffText": "Cela mérite peut-être une touche humaine. Un spécialiste du support peut vous aider directement."
   },
   "errorBoundary": {
     "title": "Une erreur s'est produite",

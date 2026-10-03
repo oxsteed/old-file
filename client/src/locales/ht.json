@@ -2662,7 +2662,14 @@
       "selectDealHint": "Chwazi yon tranzaksyon kliyan sou gòch la pou louvri quote, POP, akò ak zouti orè.",
       "selectTeamHint": "Chwazi yon fil ekip oswa kliyan sou gòch la pou voye mesaj nan bwat anplwaye yo.",
       "dockSecondaryAria": "Zouti chat"
-    }
+    },
+    "blockedSendTitle": "Ou pa ka voye mesaj bay itilizatè sa a",
+    "blockedSendText": "Moun sa a pa aksepte mesaj ou yo kounye a.",
+    "recipientInactiveTitle": "Kont lan pa aktif ankò",
+    "recipientInactiveText": "Kont sa a pa aktif ankò, kidonk mesajri a dezaktive.",
+    "offPlatformWarning": "Ti nòt: kenbe konvèsasyon w lan ak peman w lan sou OxSteed pou sipò nou ak èd nou nan konfli yo kouvri w.",
+    "loadMoreMessages": "Chaje plis mesaj",
+    "loadMoreConversations": "Chaje plis konvèsasyon"
   },
   "dashboard": {
     "welcome": "Byenvini tounen, {{name}}!",
@@ -5076,6 +5083,20 @@
       "profileHandoffBody": "OxSteed sou pwofil la se AI sèlman. Paj sa a konekte ou ak sipò platfòm nan.",
       "profileHandoffContext": "Pwofil: {{name}}",
       "returnToProfile": "Retounen nan pwofil la"
+    },
+    "customer360": {
+      "resolution": {
+        "refund": "Ranbouse",
+        "refundJobPayment": "Ranbouse peman an",
+        "cancelOrder": "Anile kòmand lan",
+        "refundPaymentPrompt": "Ranbouse peman #{{id}} bay kliyan an? Ekri rezon an epi chwazi OK pou konfime:",
+        "refundOrderPrompt": "Ranbouse kòmand #{{id}} ({{amount}})? Ekri rezon an epi chwazi OK pou konfime:",
+        "cancelOrderPrompt": "Anile kòmand #{{id}} ki poko peye a? Ekri rezon an epi chwazi OK pou konfime:",
+        "refundJobPrompt": "Ranbouse peman djòb \"{{title}}\" (#{{id}}) bay kliyan an? Ekri rezon an epi chwazi OK pou konfime:",
+        "reasonRequired": "Fòk ou bay yon rezon pou kontinye.",
+        "success": "Fèt. Aksyon an anrejistre.",
+        "failed": "Aksyon an echwe: {{error}}"
+      }
     }
   },
   "adminCreateUser": {
@@ -9026,7 +9047,9 @@
     "welcomeBack": "Byenvini ankò! Mwen la si ou gen nenpòt kesyon sou OxSteed.",
     "proactivePostJob": "Ou bezwen èd pou poste premye travay ou? Mwen ka gide w etap pa etap.",
     "proactiveHelpers": "W ap chèche bon moun pou ede w? Mwen ka esplike kijan OxSteed mache.",
-    "errorMessage": "Padon, mwen gen yon pwoblèm kounye a. Tanpri eseye ankò oswa voye imèl bay **support@oxsteed.com**."
+    "errorMessage": "Padon, mwen gen yon pwoblèm kounye a. Tanpri eseye ankò oswa voye imèl bay **support@oxsteed.com**.",
+    "handoffTitle": "Pale ak yon moun",
+    "handoffText": "Sa ka bezwen yon touche imen. Yon espesyalis sipò ka ede w dirèkteman."
   },
   "errorBoundary": {
     "title": "Yon bagay te mal pase",

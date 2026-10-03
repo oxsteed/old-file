@@ -83,6 +83,33 @@ async function requireGuestChatStaff(req) {
 }
 
 /**
+ * Anti-spam gate for the legacy guest-chat queue.
+ * A session may only broadcast to helpers/admins (and fire push
+ * notifications) once its guest email has been verified through the OTP
+ * flow used by guest profile chat (guest_verified_at is set by
+ * verifyGuestCode in guestProfileChatVerification). Unverified sessions stay
+ * fully functional for the guest; they simply do not broadcast.
+ * Fails closed: when the verification state cannot be read, do not broadcast.
+ */
+async function hasVerifiedGuestEmail(email) {
+  const normalized = String(email || '').trim().toLowerCase();
+  if (!normalized) return false;
+  try {
+    const { rows } = await db.query(
+      `SELECT 1 FROM guest_profile_chat_inbound
+        WHERE lower(guest_email) = $1
+          AND guest_verified_at IS NOT NULL
+        LIMIT 1`,
+      [normalized]
+    );
+    return rows.length > 0;
+  } catch (err) {
+    logger.warn('Guest email verification check failed', { error: err.message });
+    return false;
+  }
+}
+
+/**
  * Guest creates a new chat session and sends initial message
  * POST /api/guest-chat/sessions
  */
@@ -183,16 +210,23 @@ async function createGuestSession(req, res, next) {
 
     logger.info('Guest chat session created', { sessionId, consentMonitoring });
 
-    // Broadcast new session to online helpers and admins
+    // Broadcast new session to online helpers and admins - but only when the
+    // guest email is verified (anti-spam). Unverified sessions are still
+    // created and usable for the guest; they simply do not broadcast.
     if (!replayed) {
-      broadcastNewGuestSession({
-        sessionId,
-        guestName,
-        guestEmail,
-        createdAt: new Date().toISOString(),
-        deadlineMinutes: 5,
-        initialMessage: message
-      });
+      const verified = await hasVerifiedGuestEmail(guestEmail);
+      if (verified) {
+        broadcastNewGuestSession({
+          sessionId,
+          guestName,
+          guestEmail,
+          createdAt: new Date().toISOString(),
+          deadlineMinutes: 5,
+          initialMessage: message
+        });
+      } else {
+        logger.info('Guest chat session created without broadcast (unverified email)', { sessionId });
+      }
     }
 
     res.status(replayed ? 200 : 201).json({
@@ -234,11 +268,12 @@ async function sendGuestMessage(req, res, next) {
     let messageId;
     let replayed = false;
     let helperIdForNotification = null;
+    let guestEmailForVerification = null;
 
     await withChatTransaction(async (client) => {
       // Get session with lock
       const { rows: [session] } = await client.query(
-        `SELECT session_status, guest_name, helper_id FROM guest_profile_chat_inbound WHERE id = $1 FOR UPDATE`,
+        `SELECT session_status, guest_name, guest_email, helper_id FROM guest_profile_chat_inbound WHERE id = $1 FOR UPDATE`,
         [sessionId]
       );
 
@@ -246,6 +281,7 @@ async function sendGuestMessage(req, res, next) {
         throw new AppError('Session not found', 404, 'not_found');
       }
       helperIdForNotification = session.helper_id || null;
+      guestEmailForVerification = session.guest_email || null;
 
       if (session.session_status === 'resolved' || session.session_status === 'abandoned') {
         throw new AppError('Cannot send messages to resolved or abandoned sessions', 400, 'invalid_state');
@@ -303,34 +339,40 @@ async function sendGuestMessage(req, res, next) {
       queued: messageId === null
     });
 
-    // Broadcast message to helpers/admins monitoring this session
+    // Broadcast message to helpers/admins monitoring this session - only for
+    // verified guest emails (anti-spam). Unverified sessions stay silent.
     if (messageId && !replayed) {
-      broadcastGuestChatMessage(sessionId, {
-        messageId,
-        senderType: 'guest',
-        senderName: 'Guest',
-        message,
-        createdAt: new Date().toISOString()
-      });
-      if (helperIdForNotification) {
-        void sendNotification({
-          userId: helperIdForNotification,
-          type: 'new_message',
-          title: 'New guest message',
-          body: message,
-          data: {
-            guestSessionId: String(sessionId),
-            guestMessageId: String(messageId),
-          },
-          action_url: '/helper/messages',
-          idempotencyKey: `guest-chat-message:${sessionId}:${messageId}:${helperIdForNotification}`,
-        }).catch((error) => {
-          logger.warn('Guest chat notification failed', {
-            sessionId,
-            messageId,
-            error: error.message,
-          });
+      const verified = await hasVerifiedGuestEmail(guestEmailForVerification);
+      if (!verified) {
+        logger.info('Guest message stored without broadcast (unverified email)', { sessionId });
+      } else {
+        broadcastGuestChatMessage(sessionId, {
+          messageId,
+          senderType: 'guest',
+          senderName: 'Guest',
+          message,
+          createdAt: new Date().toISOString()
         });
+        if (helperIdForNotification) {
+          void sendNotification({
+            userId: helperIdForNotification,
+            type: 'new_message',
+            title: 'New guest message',
+            body: message,
+            data: {
+              guestSessionId: String(sessionId),
+              guestMessageId: String(messageId),
+            },
+            action_url: '/helper/messages',
+            idempotencyKey: `guest-chat-message:${sessionId}:${messageId}:${helperIdForNotification}`,
+          }).catch((error) => {
+            logger.warn('Guest chat notification failed', {
+              sessionId,
+              messageId,
+              error: error.message,
+            });
+          });
+        }
       }
     }
 
@@ -564,7 +606,7 @@ async function resolveSession(req, res, next) {
     await withChatTransaction(async (client) => {
       // Get session with lock
       const { rows: [session] } = await client.query(
-        `SELECT session_status, helper_id, guest_id FROM guest_profile_chat_inbound WHERE id = $1 FOR UPDATE`,
+        `SELECT session_status, helper_id FROM guest_profile_chat_inbound WHERE id = $1 FOR UPDATE`,
         [sessionId]
       );
 
@@ -572,11 +614,13 @@ async function resolveSession(req, res, next) {
         throw new AppError('Session not found', 404, 'not_found');
       }
 
-      // Verify user owns this session (either guest or helper)
+      // Only the assigned helper (or support staff resolving as helper) can
+      // resolve. The guest branch (session.guest_id === userId) was dead:
+      // HMAC-token guests never carry req.user, and this route requires
+      // authenticate, so the caller is always an authenticated staff member.
       const isHelper = session.helper_id === userId;
-      const isGuest = session.guest_id === userId;
 
-      if (!isHelper && !isGuest) {
+      if (!isHelper) {
         throw new AppError('You do not own this session', 403, 'forbidden');
       }
 
@@ -592,7 +636,7 @@ async function resolveSession(req, res, next) {
         helperId: session.helper_id,
         triggeredBy: userId,
         metadata: {
-          resolved_by: isHelper ? 'helper' : 'guest',
+          resolved_by: 'helper',
           reason
         }
       });
@@ -628,8 +672,12 @@ async function getSession(req, res, next) {
     const { sessionId } = req.params;
     requireGuestSessionToken(req, sessionId);
 
+    // Explicit guest-facing column list: never leak internal columns
+    // (ai_summary, helper_id, deadlines, token/code hashes, metadata).
     const { rows: [session] } = await db.query(
-      `SELECT * FROM guest_profile_chat_inbound WHERE id = $1`,
+      `SELECT id, guest_name, guest_email, session_status, message,
+              verification_status, created_at
+         FROM guest_profile_chat_inbound WHERE id = $1`,
       [sessionId]
     );
 

@@ -160,17 +160,22 @@ async function fetchOllamaChat(messages, options) {
 }
 
 /**
- * Multi-provider fallback: Meta (Muse Spark) → OpenRouter → OpenRouter auto → Ollama → OpenRouter Tongyi.
+ * Multi-provider fallback: Meta (Muse Spark) → OpenRouter → Ollama.
+ * Meta is only attempted when options.allowMeta is true: Meta tokens must
+ * never be spent on unauthenticated requests, so anonymous callers get the
+ * free-tier chain (OpenRouter → Ollama) with identical UX.
  * @param {Array<{role:string,content:string}>} messages - full message list including system
  * @param {object} ollamaOptions - passed to Ollama `options` (temperature, num_predict, etc.)
  * @param {string} logTag - prefix for structured logs e.g. '[Chat]' or '[ProfileChat]'
+ * @param {object} options - { allowMeta: boolean } - pass true only for authenticated requests
  */
-async function callWithFallback(messages, ollamaOptions, logTag) {
+async function callWithFallback(messages, ollamaOptions, logTag, options = {}) {
+  const allowMeta = options.allowMeta === true;
   const attempts = [
     {
       name: `Meta (${getMetaModel()})`,
       run: () => fetchMetaChat(getMetaModel(), messages, { temperature: 0.65, maxTokens: 2000 }),
-      skip: () => !isMetaConfigured(),
+      skip: () => !allowMeta || !isMetaConfigured(),
     },
     {
       name: `OpenRouter (${OPENROUTER_CHAT_MODEL})`,
@@ -349,6 +354,35 @@ In-app widget (chat icon) or Settings → Support. Tickets tracked with numbers 
 
 For payment questions, refer users to contact OxSteed support team for the most up-to-date information.`;
 
+/**
+ * Cheap handoff heuristic for the main AI support chat path. Mirrors the
+ * signals in aiChatbotController.checkNeedsHandoff (message count, negative
+ * sentiment) plus repeated questions. When it fires, the chat response
+ * carries handoff_suggested: true so the client can render a human-handoff
+ * nudge. Kept allocation-light: a regex over recent user turns and a small
+ * Set for duplicate detection.
+ */
+const HANDOFF_NEGATIVE_SIGNALS = /\b(frustrat|annoy|angry|upset|terrible|awful|horrible|useless|stupid|hate|worst|disappoint|complain|speak to (a )?human|real person|live agent|talk to (a )?(person|someone|human)|not helping|doesn'?t work|still not working|give up|escalat)/i;
+
+function shouldSuggestHandoff(history) {
+  const userMessages = history
+    .filter((m) => m.role === 'user')
+    .map((m) => String(m.content || '').trim())
+    .filter(Boolean);
+  // Same signal as checkNeedsHandoff: more than a few back-and-forth turns.
+  if (userMessages.length > 3) return true;
+  // Negative sentiment in the recent user turns.
+  if (HANDOFF_NEGATIVE_SIGNALS.test(userMessages.slice(-2).join('\n'))) return true;
+  // Repeated question: the same normalized message sent more than once.
+  const seen = new Set();
+  for (const message of userMessages) {
+    const normalized = message.toLowerCase().replace(/\s+/g, ' ').slice(0, 300);
+    if (seen.has(normalized)) return true;
+    seen.add(normalized);
+  }
+  return false;
+}
+
 exports.chatMessage = async (req, res, next) => {
   try {
     const { messages, pageContext, language, guide_help } = req.body;
@@ -399,6 +433,9 @@ exports.chatMessage = async (req, res, next) => {
       ...history,
     ];
 
+    // Handoff heuristic runs on the sanitized history for every AI turn.
+    const handoffSuggested = shouldSuggestHandoff(history);
+
     // Learn guide help cache: the first user to ask about a guide+step in a
     // language triggers the provider call; identical requests are then served
     // from Redis for one year instead of calling the provider again.
@@ -412,7 +449,7 @@ exports.chatMessage = async (req, res, next) => {
       const hit = await getCachedGuideReply(redis, guideCacheCtx.guide_id, guideCacheCtx.step, guideCacheCtx.language);
       if (hit) {
         logger.info('[Chat] guide help cache hit', { guide_id: String(guideCacheCtx.guide_id).slice(0, 64) });
-        return res.json({ reply: hit, cached: true });
+        return res.json({ reply: hit, cached: true, handoff_suggested: handoffSuggested });
       }
     }
 
@@ -424,7 +461,10 @@ exports.chatMessage = async (req, res, next) => {
         top_p: 0.9,
         repeat_penalty: 1.1,
       },
-      '[Chat]'
+      '[Chat]',
+      // Meta tokens are never spent on unauthenticated requests: anonymous
+      // callers get the free-tier chain with the same UX.
+      { allowMeta: Boolean(req.user) }
     );
 
     if (!ai.ok) {
@@ -436,7 +476,7 @@ exports.chatMessage = async (req, res, next) => {
       setCachedGuideReply(redis, guideCacheCtx.guide_id, guideCacheCtx.step, guideCacheCtx.language, ai.reply);
     }
 
-    res.json({ reply: ai.reply });
+    res.json({ reply: ai.reply, handoff_suggested: handoffSuggested });
   } catch (err) {
     next(err);
   }
@@ -518,7 +558,9 @@ ${getLanguageInstruction(language)}`;
         top_p: 0.9,
         repeat_penalty: 1.1,
       },
-      '[FinancialAdvisor]'
+      '[FinancialAdvisor]',
+      // Route requires authentication, so the Meta-first chain is allowed.
+      { allowMeta: true }
     );
 
     if (!ai.ok) {
@@ -1131,7 +1173,9 @@ exports.profileChatMessage = async (req, res, next) => {
     const ai = await callWithFallback(
       ollamaMessages,
       { temperature: 0.6, num_predict: 350, top_p: 0.9 },
-      '[ProfileChat]'
+      '[ProfileChat]',
+      // Same rule as the main chat path: Meta tokens only for signed-in users.
+      { allowMeta: Boolean(userId) }
     );
 
     if (!ai.ok) {

@@ -1,5 +1,8 @@
+import { useState } from 'react';
+import toast from 'react-hot-toast';
 import { Briefcase, CreditCard, FileImage, History, Mail, MessageSquare, ShoppingBag, UserRound, WalletCards } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import api from '../../api/axios';
 
 function formatWhen(value) {
   if (!value) return '-';
@@ -22,14 +25,81 @@ function Count({ label, value, icon: Icon }) {
   return <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3"><Icon size={14} className="text-orange-300" /><div className="mt-2 text-lg font-semibold text-white">{value}</div><div className="text-[11px] text-slate-500">{label}</div></div>;
 }
 
-export default function Customer360Panel({ data, loading, lifecycle = [], lifecycleLoading = false }) {
+function ResolutionActionButton({ busy, onClick, children }) {
+  return (
+    <button
+      type="button"
+      disabled={busy}
+      onClick={onClick}
+      className="rounded-lg border border-orange-500/40 px-2 py-1 text-[11px] font-semibold text-orange-200 hover:bg-orange-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {busy ? '…' : children}
+    </button>
+  );
+}
+
+export default function Customer360Panel({ data, loading, lifecycle = [], lifecycleLoading = false, canIssueRefunds = false, onResolutionAction = null }) {
   const { t } = useTranslation();
   const copy = (key, options) => t(`support.customer360.${key}`, options);
+  const [resolutionBusy, setResolutionBusy] = useState(null);
+
+  // Agent resolution actions. Each one calls an EXISTING money-moving backend
+  // (server enforces the issue_refunds grant; the client only shows these to
+  // platform admins). Confirmation + reason are collected in a single prompt;
+  // the action is idempotent server-side where the backend supports it.
+  const runResolutionAction = async ({ key, promptMessage, request }) => {
+    if (resolutionBusy) return;
+    const reason = window.prompt(promptMessage, '');
+    if (reason === null) return;
+    if (!reason.trim()) {
+      toast.error(copy('resolution.reasonRequired', { defaultValue: 'A reason is required to proceed.' }));
+      return;
+    }
+    setResolutionBusy(key);
+    try {
+      await request(reason.trim());
+      toast.success(copy('resolution.success', { defaultValue: 'Done. The action was recorded.' }));
+      if (onResolutionAction) await onResolutionAction();
+    } catch (error) {
+      const message = error?.response?.data?.error || error?.response?.data?.message || error?.message || 'unknown';
+      toast.error(copy('resolution.failed', { defaultValue: 'Action failed: {{error}}', error: message }));
+    } finally {
+      setResolutionBusy(null);
+    }
+  };
+
+  const refundPayment = (payment) => runResolutionAction({
+    key: `payment-${payment.id}`,
+    promptMessage: copy('resolution.refundPaymentPrompt', { defaultValue: 'Refund payment #{{id}} to the customer? Type the reason and choose OK to confirm:', id: payment.id }),
+    request: (reason) => api.post('/payments/refund', { payment_id: payment.id, reason }),
+  });
+
+  const refundMarketplaceOrder = (order) => runResolutionAction({
+    key: `morder-refund-${order.id}`,
+    promptMessage: copy('resolution.refundOrderPrompt', { defaultValue: 'Refund marketplace order #{{id}} ({{amount}})? Type the reason and choose OK to confirm:', id: order.id, amount: formatMoney(order.total_cents) }),
+    request: (reason) => api.post(`/admin/orders/${order.id}/refund`, { reason }),
+  });
+
+  const cancelMarketplaceOrder = (order) => runResolutionAction({
+    key: `morder-cancel-${order.id}`,
+    promptMessage: copy('resolution.cancelOrderPrompt', { defaultValue: 'Cancel unpaid order #{{id}}? Type the reason and choose OK to confirm:', id: order.id }),
+    request: (reason) => api.post(`/admin/orders/${order.id}/cancel`, { reason }),
+  });
+
+  const refundJobPayment = (job) => runResolutionAction({
+    key: `job-refund-${job.id}`,
+    promptMessage: copy('resolution.refundJobPrompt', { defaultValue: 'Refund the payment for job "{{title}}" (#{{id}}) to the customer? Type the reason and choose OK to confirm:', title: job.title, id: job.id }),
+    request: (reason) => api.post(`/admin/jobs/${job.id}/refund`, { reason }),
+  });
+
   if (loading) return <section className="rounded-2xl border border-slate-700 bg-slate-900/80 p-4 text-sm text-slate-400">{copy('loading')}</section>;
   if (!data) return null;
   const profile = data.profile || {};
   const name = [profile.first_name, profile.last_name].filter(Boolean).join(' ') || profile.email || copy('customer');
-  const orders = [...(data.orders?.marketplace || []), ...(data.orders?.food || [])];
+  const orders = [
+    ...(data.orders?.marketplace || []).map((order) => ({ ...order, source: 'marketplace_order' })),
+    ...(data.orders?.food || []).map((order) => ({ ...order, source: 'food_order' })),
+  ];
   const supportConversations = data.supportConversations || [];
   const conversationMessages = data.conversationMessages || [];
   const attachments = data.attachments || [];
@@ -102,11 +172,54 @@ export default function Customer360Panel({ data, loading, lifecycle = [], lifecy
         </details>
         <details className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
           <summary className="cursor-pointer text-xs font-semibold text-slate-200">{copy('recentJobs')}</summary>
-          <div className="mt-3 space-y-2">{(data.jobs || []).slice(0, 5).map((job) => <div key={job.id} className="rounded-lg bg-slate-900 p-2 text-xs"><div className="font-semibold text-slate-200">{job.title}</div><div className="mt-1 text-slate-500">{job.status} · {formatWhen(job.updated_at || job.created_at)}</div></div>)}{!data.jobs?.length && <p className="text-xs text-slate-500">{copy('noJobs')}</p>}</div>
+          <div className="mt-3 space-y-2">
+            {(data.jobs || []).slice(0, 5).map((job) => (
+              <div key={job.id} className="rounded-lg bg-slate-900 p-2 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="font-semibold text-slate-200">{job.title}</div>
+                  {canIssueRefunds && (
+                    <ResolutionActionButton busy={resolutionBusy === `job-refund-${job.id}`} onClick={() => refundJobPayment(job)}>
+                      {copy('resolution.refundJobPayment', { defaultValue: 'Refund payment' })}
+                    </ResolutionActionButton>
+                  )}
+                </div>
+                <div className="mt-1 text-slate-500">{job.status} · {formatWhen(job.updated_at || job.created_at)}</div>
+              </div>
+            ))}
+            {!data.jobs?.length && <p className="text-xs text-slate-500">{copy('noJobs')}</p>}
+          </div>
         </details>
         <details className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
           <summary className="cursor-pointer text-xs font-semibold text-slate-200">{copy('ordersPayments')}</summary>
-          <div className="mt-3 space-y-2">{[...(data.payments || []).slice(0, 3).map((payment) => ({ ...payment, kind: copy('payment'), detail: payment.status })), ...orders.slice(0, 3).map((order) => ({ ...order, kind: copy('order'), detail: order.status }))].map((item, index) => <div key={`${item.kind}-${item.id}-${index}`} className="rounded-lg bg-slate-900 p-2 text-xs"><div className="font-semibold text-slate-200">{item.kind} {item.id}</div><div className="mt-1 text-slate-500">{item.detail} · {formatWhen(item.updated_at || item.created_at)}</div></div>)}{!data.payments?.length && !orders.length && <p className="text-xs text-slate-500">{copy('noOrdersPayments')}</p>}</div>
+          <div className="mt-3 space-y-2">
+            {[
+              ...(data.payments || []).slice(0, 3).map((payment) => ({ ...payment, source: 'payment', kind: copy('payment'), detail: payment.status })),
+              ...orders.slice(0, 3).map((order) => ({ ...order, kind: copy('order'), detail: order.status })),
+            ].map((item, index) => (
+              <div key={`${item.kind}-${item.id}-${index}`} className="rounded-lg bg-slate-900 p-2 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="font-semibold text-slate-200">{item.kind} {item.id}</div>
+                  {canIssueRefunds && item.source === 'payment' && item.status !== 'refunded' && (
+                    <ResolutionActionButton busy={resolutionBusy === `payment-${item.id}`} onClick={() => refundPayment(item)}>
+                      {copy('resolution.refund', { defaultValue: 'Refund' })}
+                    </ResolutionActionButton>
+                  )}
+                  {canIssueRefunds && item.source === 'marketplace_order' && !['cancelled', 'refunded'].includes(item.status) && (
+                    <span className="flex items-center gap-1.5">
+                      <ResolutionActionButton busy={resolutionBusy === `morder-refund-${item.id}`} onClick={() => refundMarketplaceOrder(item)}>
+                        {copy('resolution.refund', { defaultValue: 'Refund' })}
+                      </ResolutionActionButton>
+                      <ResolutionActionButton busy={resolutionBusy === `morder-cancel-${item.id}`} onClick={() => cancelMarketplaceOrder(item)}>
+                        {copy('resolution.cancelOrder', { defaultValue: 'Cancel order' })}
+                      </ResolutionActionButton>
+                    </span>
+                  )}
+                </div>
+                <div className="mt-1 text-slate-500">{item.detail} · {formatWhen(item.updated_at || item.created_at)}</div>
+              </div>
+            ))}
+            {!data.payments?.length && !orders.length && <p className="text-xs text-slate-500">{copy('noOrdersPayments')}</p>}
+          </div>
         </details>
         <details className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
           <summary className="cursor-pointer text-xs font-semibold text-slate-200">{copy('priorAgentsNotes')}</summary>

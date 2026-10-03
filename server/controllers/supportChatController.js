@@ -76,19 +76,22 @@ async function initiateSupportChat(req, res) {
  */
 async function handleLiveAdminChat(req, res, userId, visitorName, visitorEmail, message, clientRequestId = null) {
   try {
-    // Find an admin to assign as "helper" for this support conversation
-    // Prefer super_admin, then regular admin
-    const { rows: [admin] } = await pool.query(
+    // Assign the conversation to an admin who is actually online (socket
+    // presence), not just the first admin row in the database. Prefer
+    // super_admin, then regular admin. Falls back to ticket escalation when
+    // no admin socket is connected.
+    const { rows: admins } = await pool.query(
       `SELECT u.id FROM users u
        WHERE u.role IN ('super_admin', 'admin')
        AND u.is_active = TRUE
        AND u.deleted_at IS NULL
-       ORDER BY u.role = 'super_admin' DESC
-       LIMIT 1`
+       ORDER BY u.role = 'super_admin' DESC, u.id ASC
+       LIMIT 100`
     );
+    const admin = admins.find((candidate) => socketService.isOnline(candidate.id)) || null;
 
     if (!admin) {
-      // No active admin found, escalate to ticket
+      // No online admin found, escalate to ticket
       return handleTicketEscalation(req, res, visitorName, visitorEmail, message, userId, clientRequestId);
     }
 
@@ -258,31 +261,9 @@ async function handleTicketEscalation(
     );
     if (!messageRows.length && clientRequestId) replayed = true;
 
-    // Send email notification to support inbox + every admin/super_admin.
-    if (!replayed) {
-      try {
-        const emailService = require('../utils/email');
-        await emailService.sendEmail({
-          to: 'support@oxsteed.com',
-          subject: `New Support Request from ${visitorName}`,
-          text: `Name: ${visitorName}\nEmail: ${visitorEmail}\nMessage: ${message}`,
-        });
-
-        const { rows: admins } = await pool.query(
-          `SELECT email, first_name FROM users WHERE role IN ('admin', 'super_admin') AND email IS NOT NULL`
-        );
-        await Promise.all(admins.map((admin) =>
-          emailService.sendEmail({
-            to: admin.email,
-            subject: `[Ticket #${ticket.ticket_number}] New support ticket opened`,
-            text: `Hi ${admin.first_name || 'there'},\n\nA new support ticket has been opened via chat escalation.\n\nTicket number: #${ticket.ticket_number}\nVisitor: ${visitorName} (${visitorEmail})\nMessage: ${message}\n\nView in Admin Dashboard: https://app.oxsteed.com/admin/support`,
-          }).catch((err) => { logger.warn('Failed to email admin about new ticket', { message: err.message, admin: admin.email }); })
-        ));
-      } catch (emailErr) {
-        logger.warn('Failed to send support ticket email notification', { message: emailErr.message });
-      }
-    }
-
+    // Respond FIRST so a slow mail provider never blocks the user, then fan
+    // out the admin emails off the request path (fire-and-forget with error
+    // logging). Replays never re-send.
     res.status(replayed ? 200 : 201).json({
       success: true,
       routedTo: 'support_ticket',
@@ -291,9 +272,49 @@ async function handleTicketEscalation(
       timestamp: new Date().toISOString(),
       idempotent: replayed,
     });
+
+    if (!replayed) {
+      sendTicketEscalationEmails({
+        ticketNumber: ticket.ticket_number,
+        visitorName,
+        visitorEmail,
+        message,
+      }).catch((err) => {
+        logger.warn('Support ticket escalation emails failed', { message: err.message });
+      });
+    }
   } catch (err) {
     logger.error('handleTicketEscalation error', { message: err.message });
     res.status(500).json({ error: 'Failed to create support request' });
+  }
+}
+
+/**
+ * Fire-and-forget fan-out for a freshly escalated support ticket: one email
+ * to the support inbox plus one per admin/super_admin. Never awaited on the
+ * request path; every failure is logged via the structured logger.
+ */
+async function sendTicketEscalationEmails({ ticketNumber, visitorName, visitorEmail, message }) {
+  try {
+    const emailService = require('../utils/email');
+    await emailService.sendEmail({
+      to: 'support@oxsteed.com',
+      subject: `New Support Request from ${visitorName}`,
+      text: `Name: ${visitorName}\nEmail: ${visitorEmail}\nMessage: ${message}`,
+    });
+
+    const { rows: admins } = await pool.query(
+      `SELECT email, first_name FROM users WHERE role IN ('admin', 'super_admin') AND email IS NOT NULL`
+    );
+    await Promise.all(admins.map((admin) =>
+      emailService.sendEmail({
+        to: admin.email,
+        subject: `[Ticket #${ticketNumber}] New support ticket opened`,
+        text: `Hi ${admin.first_name || 'there'},\n\nA new support ticket has been opened via chat escalation.\n\nTicket number: #${ticketNumber}\nVisitor: ${visitorName} (${visitorEmail})\nMessage: ${message}\n\nView in Admin Dashboard: https://app.oxsteed.com/admin/support`,
+      }).catch((err) => { logger.warn('Failed to email admin about new ticket', { message: err.message, admin: admin.email }); })
+    ));
+  } catch (emailErr) {
+    logger.warn('Failed to send support ticket email notification', { message: emailErr.message });
   }
 }
 
@@ -399,16 +420,19 @@ async function sendSupportMessage(req, res) {
 
 /**
  * GET /api/support-chat/admin-status
- * 
- * Check if admins are currently online
+ *
+ * Check if admins are currently online. Returns only a boolean: the exact
+ * online admin count is internal and must not leak to unauthenticated
+ * callers. The widget uses `available` to decide whether to offer live chat.
  */
 async function getAdminStatus(req, res) {
   try {
     const onlineCount = await getOnlineAdminCount();
+    const available = onlineCount > 0;
     res.json({
-      adminsOnline: onlineCount > 0,
-      onlineCount,
-      estimatedWaitTime: onlineCount > 0 ? '< 2 minutes' : null,
+      adminsOnline: available,
+      available,
+      estimatedWaitTime: available ? '< 2 minutes' : null,
     });
   } catch (err) {
     logger.error('getAdminStatus error', { message: err.message });

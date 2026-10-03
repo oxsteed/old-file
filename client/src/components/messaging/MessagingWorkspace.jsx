@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -28,7 +28,7 @@ import ConversationThread from './ConversationThread';
 import ConversationList from './ConversationList';
 import QuoteHistoryPanel from './QuoteHistoryPanel';
 import GuestInquiryPanel from './GuestInquiryPanel';
-import { resolveShellChrome } from './messengerShellState';
+import { resolveShellChrome, applyIncomingConversationUpdate } from './messengerShellState';
 import {
   archiveBusinessConversation,
   getBusinessConversations,
@@ -38,6 +38,15 @@ import '../../pages/MessagesPage.css';
 import './SharedMessengerShell.css';
 
 const ARCHIVE_PAGE_SIZE = 50;
+const CONVERSATIONS_PAGE_SIZE = 25;
+
+function sortConversationsByActivity(list) {
+  return [...list].sort((a, b) => {
+    const ta = new Date(a.last_message_at || a.created_at || 0).getTime();
+    const tb = new Date(b.last_message_at || b.created_at || 0).getTime();
+    return tb - ta;
+  });
+}
 
 function normalizeBusinessConversation(conversation) {
   const name = conversation.customer_name
@@ -62,7 +71,13 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
   const basePath = businessId ? `/business/${businessId}/workspace/messages` : helperRoute ? '/helper/messages' : '/messages';
   const { conversationId: routeConversationId, inquiryId } = useParams();
   const navigate = useNavigate();
-  const { socket } = useSocket();
+  const { socket, connected } = useSocket();
+  // Ref mirror so socket handlers can check list membership without
+  // re-subscribing on every render.
+  const conversationsRef = useRef([]);
+  useEffect(() => { conversationsRef.current = conversations; }, [conversations]);
+  // Last known socket state: a false->true transition means a reconnect.
+  const wasConnectedRef = useRef(connected);
 
   const [embeddedConversationId, setEmbeddedConversationId] = useState(null);
   const [embeddedInquiryId, setEmbeddedInquiryId] = useState(null);
@@ -76,6 +91,11 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
   const [archiveActionId, setArchiveActionId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  // Pagination internals live in a ref so fetchConversations keeps a stable
+  // identity; the button only needs the rendered hasMore/loading flags.
+  const convPageRef = useRef({ offset: 0, hasMore: false, loadingMore: false });
+  const [convHasMore, setConvHasMore] = useState(false);
+  const [convLoadingMore, setConvLoadingMore] = useState(false);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [sideFilter, setSideFilter] = useState('all');
@@ -123,9 +143,19 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
     return () => { cancelled = true; };
   }, [businessId]);
 
-  const fetchConversations = useCallback(async () => {
+  // Paginated conversation list (server limit/offset + hasMore). `append`
+  // loads the next page; otherwise the list resets to the first page.
+  const fetchConversations = useCallback(async ({ append = false } = {}) => {
+    const page = convPageRef.current;
+    if (append && (page.loadingMore || !page.hasMore)) return;
     try {
       setLoadError('');
+      if (append) {
+        page.loadingMore = true;
+        setConvLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
       if (businessId) {
         const [data, guestRes] = await Promise.all([
           getBusinessConversations(businessId, { limit: 100, offset: 0 }),
@@ -133,35 +163,44 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
         ]);
         const businessConversations = (data?.conversations || []).map(normalizeBusinessConversation);
         const guestInquiries = Array.isArray(guestRes.data) ? guestRes.data : [];
-        setConversations([...guestInquiries, ...businessConversations].sort((a, b) => {
-          const ta = new Date(a.last_message_at || a.created_at || 0).getTime();
-          const tb = new Date(b.last_message_at || b.created_at || 0).getTime();
-          return tb - ta;
-        }));
+        setConversations(sortConversationsByActivity([...guestInquiries, ...businessConversations]));
         return;
       }
-      const params = businessId
-        ? { business_id: businessId }
-        : businessFilter !== 'all'
-          ? { business_id: businessFilter }
-          : undefined;
+      const baseParams = businessFilter !== 'all' ? { business_id: businessFilter } : undefined;
+      const offset = append ? page.offset : 0;
+      const params = { ...(baseParams || {}), limit: CONVERSATIONS_PAGE_SIZE, offset };
       const [convRes, guestRes] = await Promise.all([
         api.get('/messages/conversations', { params }),
-        api.get('/messages/guest-inquiries', { params }).catch(() => ({ data: [] })),
+        append
+          ? Promise.resolve({ data: [] })
+          : api.get('/messages/guest-inquiries', { params: baseParams }).catch(() => ({ data: [] })),
       ]);
-      const convList = Array.isArray(convRes.data) ? convRes.data : [];
+      // The paginated shape is { conversations, hasMore }; a bare array is the
+      // legacy full-list shape (treated as a single complete page).
+      const payload = convRes.data;
+      const convList = Array.isArray(payload) ? payload : (payload?.conversations || []);
+      const pageHasMore = Array.isArray(payload) ? false : Boolean(payload?.hasMore);
       const guestList = Array.isArray(guestRes.data) ? guestRes.data : [];
-      const merged = [...guestList, ...convList].sort((a, b) => {
-        const ta = new Date(a.last_message_at || a.created_at || 0).getTime();
-        const tb = new Date(b.last_message_at || b.created_at || 0).getTime();
-        return tb - ta;
-      });
-      setConversations(merged);
+      if (append) {
+        setConversations((previous) => {
+          const seen = new Set(previous.map((conv) => String(conv.id)));
+          const fresh = convList.filter((conv) => !seen.has(String(conv.id)));
+          return sortConversationsByActivity([...previous, ...fresh]);
+        });
+        page.offset = offset + convList.length;
+      } else {
+        setConversations(sortConversationsByActivity([...guestList, ...convList]));
+        page.offset = convList.length;
+      }
+      page.hasMore = pageHasMore;
+      setConvHasMore(pageHasMore);
     } catch (err) {
       console.error('Failed to load conversations:', err);
       setLoadError(err.response?.data?.error || t('messages.loadFailed'));
     } finally {
       setLoading(false);
+      page.loadingMore = false;
+      setConvLoadingMore(false);
     }
   }, [businessId, businessFilter, t]);
 
@@ -220,40 +259,63 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
     return () => window.removeEventListener('oxsteed:messages-read', refreshAfterRead);
   }, [fetchConversations]);
 
-  useEffect(() => {
-    if (!socket) return undefined;
-    const bumpConv = (id) => {
-      fetchConversations();
-      if (!id) return;
+  // Targeted list update for an inbound socket message: refresh the
+  // conversation's snippet/timestamp and re-sort. Falls back to a full
+  // refetch only when the conversation is unknown (brand-new thread).
+  const applyInboundMessage = useCallback(({ conversationId: id, message }) => {
+    if (!id) {
+      void fetchConversations();
+      return;
+    }
+    const targetId = String(id);
+    const updated = applyIncomingConversationUpdate(conversationsRef.current, targetId, {
+      lastMessage: message?.content ?? message?.last_message ?? message?.message,
+      lastMessageAt: message?.created_at,
+    });
+    if (updated) {
+      setConversations(updated);
+    } else {
+      void fetchConversations();
+    }
+    const senderId = message?.sender_id ?? message?.senderId;
+    const isOwn = senderId != null
+      ? String(senderId) === String(userId)
+      : message?.sender_type === 'helper';
+    if (!isOwn && targetId !== String(selectedId)) {
       setNewInbound((prev) => {
         const next = new Set(prev);
-        next.add(String(id));
+        next.add(targetId);
         return next;
       });
-    };
-    const handleMessageNew = ({ conversationId: id }) => {
-      if (id) bumpConv(id);
-      else fetchConversations();
+    }
+  }, [fetchConversations, selectedId, userId]);
+
+  useEffect(() => {
+    if (!socket) return undefined;
+    const handleMessageNew = (payload) => {
+      applyInboundMessage(payload || {});
     };
     const handleProfileChat = (payload) => {
       if (payload?.guestInquiry && payload?.guestInquiryId != null) {
-        bumpConv(`guest-${payload.guestInquiryId}`);
+        applyInboundMessage({ conversationId: `guest-${payload.guestInquiryId}`, message: payload?.message });
         return;
       }
-      if (payload?.conversationId) bumpConv(payload.conversationId);
+      if (payload?.conversationId) applyInboundMessage(payload);
     };
     const handleMessagesRead = (payload) => {
       if (String(payload?.readBy) !== String(userId)) return;
       const id = String(payload?.conversationId || '');
-      if (id) {
-        setNewInbound((previous) => {
-          if (!previous.has(id)) return previous;
-          const next = new Set(previous);
-          next.delete(id);
-          return next;
-        });
-      }
-      fetchConversations();
+      if (!id) return;
+      // Targeted: clear the unread state instead of refetching the list.
+      setNewInbound((previous) => {
+        if (!previous.has(id)) return previous;
+        const next = new Set(previous);
+        next.delete(id);
+        return next;
+      });
+      setConversations((previous) =>
+        previous.map((conv) => (String(conv.id) === id ? { ...conv, unread_count: 0 } : conv))
+      );
     };
     const handleBusinessConversation = (payload) => {
       if (!businessId || String(payload?.business_id) !== String(businessId)) return;
@@ -263,7 +325,14 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
     const handleArchiveUpdated = (payload) => {
       const changedId = payload?.conversationId;
       if (!changedId || businessId) return;
-      fetchConversations();
+      if (payload?.status === 'archived') {
+        // Targeted: drop the archived thread from the active list.
+        setConversations((previous) =>
+          previous.filter((conv) => String(conv.id) !== String(changedId))
+        );
+      } else {
+        void fetchConversations();
+      }
       if (showArchived) fetchArchived();
     };
     socket.on('message:new', handleMessageNew);
@@ -278,7 +347,17 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
       if (businessId) socket.off('business_inbox:conversation', handleBusinessConversation);
       if (!businessId) socket.off('conversation:archive_updated', handleArchiveUpdated);
     };
-  }, [businessId, fetchArchived, fetchConversations, showArchived, socket, userId]);
+  }, [businessId, fetchArchived, fetchConversations, showArchived, socket, userId, applyInboundMessage]);
+
+  // Full refetch only as a fallback: after a socket reconnect we may have
+  // missed events, so re-sync the first page once.
+  useEffect(() => {
+    const wasConnected = wasConnectedRef.current;
+    wasConnectedRef.current = connected;
+    if (connected && !wasConnected && conversationsRef.current.length > 0) {
+      void fetchConversations();
+    }
+  }, [connected, fetchConversations]);
 
   useEffect(() => {
     const start = parseConversationStartParams(location.search);
@@ -688,11 +767,12 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
                 </p>
               </div>
             ) : (
-              <ConversationList
-                items={filteredConversations}
-                selectedId={selectedId}
-                onSelect={handleOpen}
-                getUnread={(conv) => parseInt(conv.unread_count, 10) > 0 || newInbound.has(String(conv.id))}
+              <>
+                <ConversationList
+                  items={filteredConversations}
+                  selectedId={selectedId}
+                  onSelect={handleOpen}
+                  getUnread={(conv) => parseInt(conv.unread_count, 10) > 0 || newInbound.has(String(conv.id))}
                 renderItem={(conv, { isActive, unread }) => {
                   const isNew = newInbound.has(String(conv.id));
                   const badge = isNew && !parseInt(conv.unread_count, 10) ? t('messages.newBadge') : conv.unread_count;
@@ -740,6 +820,17 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
                   );
                 }}
               />
+              {convHasMore && (
+                <button
+                  type="button"
+                  className="messages-archive-more"
+                  onClick={() => fetchConversations({ append: true })}
+                  disabled={convLoadingMore}
+                >
+                  {convLoadingMore ? t('common.loading') : t('messages.loadMoreConversations')}
+                </button>
+              )}
+            </>
             )}
               </>
             )}

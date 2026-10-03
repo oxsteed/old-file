@@ -52,6 +52,8 @@ describe('direct message delivery', () => {
   test('persists a client message id and broadcasts a new message once', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [conversation] })
+      .mockResolvedValueOnce({ rows: [] }) // no blocks
+      .mockResolvedValueOnce({ rows: [] }) // recipient active
       .mockResolvedValueOnce({ rows: [message] })
       .mockResolvedValueOnce({ rows: [] });
 
@@ -64,8 +66,8 @@ describe('direct message delivery', () => {
 
     expect(res.status).toBe(201);
     expect(res.body).toEqual(expect.objectContaining({ id: message.id }));
-    expect(mockQuery.mock.calls[1][0]).toContain('client_message_id');
-    expect(mockQuery.mock.calls[1][1]).toContain(message.client_message_id);
+    expect(mockQuery.mock.calls[3][0]).toContain('client_message_id');
+    expect(mockQuery.mock.calls[3][1]).toContain(message.client_message_id);
     expect(socketService.broadcastToConversation).toHaveBeenCalledTimes(1);
   });
 
@@ -77,6 +79,8 @@ describe('direct message delivery', () => {
     };
     mockQuery
       .mockResolvedValueOnce({ rows: [businessConversation] })
+      .mockResolvedValueOnce({ rows: [] }) // no blocks
+      .mockResolvedValueOnce({ rows: [] }) // recipient active
       .mockResolvedValueOnce({ rows: [message] })
       .mockResolvedValueOnce({ rows: [] });
 
@@ -102,6 +106,8 @@ describe('direct message delivery', () => {
   test('replays the original message without updating or broadcasting twice', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [conversation] })
+      .mockResolvedValueOnce({ rows: [] }) // no blocks
+      .mockResolvedValueOnce({ rows: [] }) // recipient active
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [message] });
 
@@ -112,7 +118,7 @@ describe('direct message delivery', () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual(expect.objectContaining({ id: message.id }));
-    expect(mockQuery).toHaveBeenCalledTimes(3);
+    expect(mockQuery).toHaveBeenCalledTimes(5);
     expect(mockQuery.mock.calls.some(([sql]) => /UPDATE conversations/.test(sql))).toBe(false);
     expect(socketService.broadcastToConversation).not.toHaveBeenCalled();
   });
@@ -125,5 +131,86 @@ describe('direct message delivery', () => {
     expect(res.status).toBe(400);
     expect(res.body.code).toBe('validation_failed');
     expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  test('returns blocked_by_user when a block exists between the participants', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [conversation] })
+      .mockResolvedValueOnce({ rows: [{ blocked: 1 }] }); // block check fires
+
+    const res = await request(buildApp())
+      .post('/api/messages/conversations/conversation-1')
+      .send({ content: 'I need help.' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('blocked_by_user');
+    // The block check covers business reps too
+    expect(mockQuery.mock.calls[1][0]).toContain('business_members');
+  });
+
+  test('rejects the send when the counterpart account is deleted', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [conversation] })
+      .mockResolvedValueOnce({ rows: [] }) // no blocks
+      .mockResolvedValueOnce({ rows: [{ deleted: 1 }] }); // counterpart deleted
+
+    const res = await request(buildApp())
+      .post('/api/messages/conversations/conversation-1')
+      .send({ content: 'I need help.' });
+
+    expect(res.status).toBe(410);
+    expect(res.body.code).toBe('recipient_inactive');
+  });
+
+  test('masks phone numbers in stored content and returns the warning', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [conversation] })
+      .mockResolvedValueOnce({ rows: [] }) // no blocks
+      .mockResolvedValueOnce({ rows: [] }) // recipient active
+      .mockResolvedValueOnce({ rows: [message] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .post('/api/messages/conversations/conversation-1')
+      .send({ content: 'Call me at +1 (555) 123-4567' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.warnings).toContain('off_platform_contact');
+    const storedContent = mockQuery.mock.calls[3][1][2];
+    expect(storedContent).toBe('Call me at +· (···) ···-····');
+    expect(/\d/.test(storedContent.replace('Call me at ', ''))).toBe(false);
+  });
+
+  test('leaves emails visible but still returns the warning', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [conversation] })
+      .mockResolvedValueOnce({ rows: [] }) // no blocks
+      .mockResolvedValueOnce({ rows: [] }) // recipient active
+      .mockResolvedValueOnce({ rows: [message] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .post('/api/messages/conversations/conversation-1')
+      .send({ content: 'Reach me at bob@example.com' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.warnings).toContain('off_platform_contact');
+    expect(mockQuery.mock.calls[3][1][2]).toContain('bob@example.com');
+  });
+
+  test('returns no warnings for ordinary messages', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [conversation] })
+      .mockResolvedValueOnce({ rows: [] }) // no blocks
+      .mockResolvedValueOnce({ rows: [] }) // recipient active
+      .mockResolvedValueOnce({ rows: [message] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .post('/api/messages/conversations/conversation-1')
+      .send({ content: 'I need help.' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.warnings).toEqual([]);
   });
 });

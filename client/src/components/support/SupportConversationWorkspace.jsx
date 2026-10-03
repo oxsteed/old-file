@@ -1376,7 +1376,14 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                         {ticketViewers.length > 0 && <span className="mt-1 block font-normal text-amber-100/80">{copy('currentlyViewing')}: {ticketViewers.map((viewer) => viewer.name).filter(Boolean).join(', ')}</span>}
                       </div>
                     )}
-                    <Customer360Panel data={customer360} loading={customer360Loading} lifecycle={lifecycle} lifecycleLoading={lifecycleLoading} />
+                    <Customer360Panel
+                      data={customer360}
+                      loading={customer360Loading}
+                      lifecycle={lifecycle}
+                      lifecycleLoading={lifecycleLoading}
+                      canIssueRefunds={isPlatformAdmin}
+                      onResolutionAction={() => { if (selectedId) loadCustomer360(selectedId); }}
+                    />
                     {selected.review && (
                       <section className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4">
                         <div className="flex flex-wrap items-center justify-between gap-2">

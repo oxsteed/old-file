@@ -79,6 +79,7 @@ describe('message attachments', () => {
       type: 'image/jpeg',
       filename: 'photo.jpg',
     };
+    const storedAttachment = { ...attachment, key: null };
 
     mockQuery
       .mockResolvedValueOnce({
@@ -90,6 +91,8 @@ describe('message attachments', () => {
           business_name: null,
         }],
       })
+      .mockResolvedValueOnce({ rows: [] }) // no blocks
+      .mockResolvedValueOnce({ rows: [] }) // recipient active
       .mockResolvedValueOnce({
         rows: [{
           id: 'msg-1',
@@ -97,7 +100,7 @@ describe('message attachments', () => {
           sender_id: 'user-123',
           content: '',
           message_type: 'attachment',
-          attachments: [attachment],
+          attachments: [storedAttachment],
           is_read: false,
           created_at: '2026-06-02T12:00:00.000Z',
         }],
@@ -109,14 +112,14 @@ describe('message attachments', () => {
       .send({ content: '', attachments: [attachment] });
 
     expect(res.status).toBe(201);
-    expect(res.body.attachments).toEqual([attachment]);
-    expect(mockQuery.mock.calls[1][0]).toContain('attachments');
-    expect(mockQuery.mock.calls[1][1]).toEqual([
+    expect(res.body.attachments).toEqual([storedAttachment]);
+    expect(mockQuery.mock.calls[3][0]).toContain('attachments');
+    expect(mockQuery.mock.calls[3][1]).toEqual([
       'conv-1',
       'user-123',
       '',
       'attachment',
-      JSON.stringify([attachment]),
+      JSON.stringify([{ url: attachment.url, key: null, type: 'image/jpeg', filename: 'photo.jpg' }]),
       null,
     ]);
   });
@@ -134,6 +137,7 @@ describe('message attachments', () => {
   test('POST /messages/conversations/:id accepts name/mimeType attachment aliases', async () => {
     const stored = {
       url: 'https://cdn.example.com/chat/photo.jpg',
+      key: null,
       type: 'image/jpeg',
       filename: 'photo.jpg',
     };
@@ -148,6 +152,8 @@ describe('message attachments', () => {
           business_name: null,
         }],
       })
+      .mockResolvedValueOnce({ rows: [] }) // no blocks
+      .mockResolvedValueOnce({ rows: [] }) // recipient active
       .mockResolvedValueOnce({
         rows: [{
           id: 'msg-2',
@@ -174,6 +180,61 @@ describe('message attachments', () => {
       });
 
     expect(res.status).toBe(201);
-    expect(mockQuery.mock.calls[1][1][4]).toBe(JSON.stringify([stored]));
+    expect(mockQuery.mock.calls[3][1][4]).toBe(JSON.stringify([stored]));
+  });
+
+  test('POST /messages/conversations/:id persists the storage key for later re-signing', async () => {
+    const stored = {
+      url: 'https://signed.example.com/chat/photo.jpg?exp=1',
+      key: 'chat-attachments/private-photo.jpg',
+      type: 'image/jpeg',
+      filename: 'photo.jpg',
+    };
+
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          customer_id: 'customer-456',
+          helper_id: 'user-123',
+          business_id: null,
+          job_id: null,
+          business_name: null,
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] }) // no blocks
+      .mockResolvedValueOnce({ rows: [] }) // recipient active
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'msg-3',
+          conversation_id: 'conv-1',
+          sender_id: 'user-123',
+          content: 'see photo',
+          message_type: 'text',
+          attachments: [stored],
+          is_read: false,
+          created_at: '2026-06-02T12:00:00.000Z',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 });
+
+    const res = await request(buildApp())
+      .post('/api/messages/conversations/conv-1')
+      .send({
+        content: 'see photo',
+        attachments: [{
+          url: stored.url,
+          key: stored.key,
+          name: 'photo.jpg',
+          mimeType: 'image/jpeg',
+        }],
+      });
+
+    expect(res.status).toBe(201);
+    const persisted = JSON.parse(mockQuery.mock.calls[3][1][4]);
+    expect(persisted[0].key).toBe('chat-attachments/private-photo.jpg');
+    // Backward-compatible shape: url/type/filename still present
+    expect(persisted[0].url).toBe(stored.url);
+    expect(persisted[0].type).toBe('image/jpeg');
+    expect(persisted[0].filename).toBe('photo.jpg');
   });
 });
