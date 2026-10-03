@@ -91,7 +91,8 @@
     "howOxsteedWorks": "Comment fonctionne OxSteed",
     "learnToDiy": "Apprendre à le faire soi-même",
     "network": "Réseau OxSteed",
-    "localFoodDirectory": "Annuaire alimentaire local"
+    "localFoodDirectory": "Annuaire alimentaire local",
+    "logistics": "Logistique"
   },
   "supportAgentPortal": {
     "title": "Espace d’assistance",
@@ -14294,6 +14295,46 @@
           "heading": "La dernière étape est un défi à part",
           "body": "Les produits arrivent au port. Ensuite ? Stockage, allocation, ordres de livraison, chaque étape est une nouvelle transition. OxSteed coordonne la chaîne pour que chaque étape sache ce dont la suivante a besoin."
         }
+      },
+      "howItWorksLink": "Comment ça marche",
+      "partOfOxsteed": "Une partie d'OxSteed : le même réseau de confiance pour embaucher de l'aide locale, commander des repas et transporter des marchandises.",
+      "howItWorks": {
+        "title": "Comment ça marche",
+        "subtitle": "Un envoi partagé, du fournisseur à votre porte.",
+        "pool": {
+          "heading": "Regrouper la demande",
+          "body": "Rejoignez une campagne ouverte ou lancez la vôtre. Chaque acheteur s'engage pour les unités dont il a besoin dans une commande partagée."
+        },
+        "minimum": {
+          "heading": "Atteindre le minimum",
+          "body": "Lorsque les engagements atteignent la quantité minimum du fabricant, les dépôts sont collectés et la campagne est verrouillée. Si le minimum n'est jamais atteint, les dépôts sont remboursés."
+        },
+        "chain": {
+          "heading": "Nous gérons la chaîne",
+          "body": "Fret, douanes, entreposage et livraison du dernier kilomètre, suivis à chaque étape jusqu'à l'arrivée de vos marchandises."
+        }
+      },
+      "roles": {
+        "title": "Qui êtes-vous ?",
+        "subtitle": "Choisissez le parcours qui correspond à ce que vous voulez faire.",
+        "buyer": {
+          "intent": "Je veux acheter",
+          "heading": "Rejoindre un envoi groupé",
+          "body": "Parcourez les campagnes ouvertes, engagez-vous pour les unités dont vous avez besoin et suivez vos marchandises de l'usine à votre porte.",
+          "cta": "Voir les campagnes"
+        },
+        "organizer": {
+          "intent": "Je veux organiser",
+          "heading": "Organiser un achat groupé",
+          "body": "Lancez une campagne pour les produits dont votre communauté a besoin, rassemblez des acheteurs et coordonnez l'envoi.",
+          "cta": "Lancer une campagne"
+        },
+        "business": {
+          "intent": "Je suis une entreprise",
+          "heading": "Réapprovisionnez sans courtier",
+          "body": "Achats récurrents et planification du réapprovisionnement avec des achats adaptés aux itinéraires, sans les frais d'un transitaire.",
+          "cta": "Explorer les achats"
+        }
       }
     },
     "complianceWorkspace": {
@@ -14427,7 +14468,12 @@
       "deposit": "Depot",
       "participants": "participants",
       "joined": "Vous avez rejoint",
-      "viewDetails": "Voir les details"
+      "viewDetails": "Voir les details",
+      "emptyTitle": "Aucune campagne ne correspond pour le moment",
+      "emptyExplainer": "Une campagne est une commande groupée : les acheteurs s'engagent pour des unités dans un envoi partagé. Lorsque les engagements atteignent le minimum du fabricant, la commande est passée et OxSteed gère la chaîne.",
+      "exampleLabel": "Exemple",
+      "exampleTitle": "Lanternes solaires, lot en gros",
+      "howItWorks": "Comment ça marche"
     },
     "campaign": {
       "organizer": "Organisateur",
@@ -14553,7 +14599,8 @@
       "riskRestricted": "Restreint",
       "riskProhibited": "Interdit",
       "bv": "Verification d'entreprise",
-      "ma": "Approbation manuelle"
+      "ma": "Approbation manuelle",
+      "explainer": "Un couloir est un itinéraire d'expédition entre deux pays, par exemple de la Chine vers Haïti. Chaque couloir a ses propres règles : ce qui peut être importé, les documents requis et le niveau de contrôle douanier. Nous vérifions ces règles pour chaque envoi groupé et nous occupons de la paperasse. Cette page montre ce qui s'applique à vos marchandises."
     },
     "finance": {
       "title": "Finance logistique",

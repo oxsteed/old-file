@@ -91,7 +91,8 @@
     "howOxsteedWorks": "How OxSteed Works",
     "learnToDiy": "Learn to DIY",
     "network": "OxSteed Network",
-    "localFoodDirectory": "Local Food Directory"
+    "localFoodDirectory": "Local Food Directory",
+    "logistics": "Logistics"
   },
   "supportAgentPortal": {
     "title": "Support workspace",
@@ -14294,6 +14295,46 @@
           "heading": "The last mile is its own problem",
           "body": "Goods arrive at port. Then what? Warehousing, allocation, and delivery orders. Each one is its own handoff. OxSteed coordinates the chain so every step knows what the next one needs."
         }
+      },
+      "howItWorksLink": "How it works",
+      "partOfOxsteed": "Part of OxSteed: the same trusted network for hiring local help, ordering food, and moving goods.",
+      "howItWorks": {
+        "title": "How it works",
+        "subtitle": "One shared shipment, from supplier to your door.",
+        "pool": {
+          "heading": "Pool demand",
+          "body": "Join an open campaign or start your own. Every buyer pledges the units they need toward one shared order."
+        },
+        "minimum": {
+          "heading": "Hit the minimum",
+          "body": "When pledges reach the manufacturer's minimum order, deposits are collected and the campaign locks. If the minimum is never reached, deposits are refunded."
+        },
+        "chain": {
+          "heading": "We run the chain",
+          "body": "Freight, customs, warehousing, and last-mile delivery, tracked at every step until your goods arrive."
+        }
+      },
+      "roles": {
+        "title": "Which one are you?",
+        "subtitle": "Pick the path that matches what you want to do.",
+        "buyer": {
+          "intent": "I want to buy",
+          "heading": "Join a group shipment",
+          "body": "Browse open campaigns, pledge the units you need, and track your goods from factory to door.",
+          "cta": "Browse campaigns"
+        },
+        "organizer": {
+          "intent": "I want to organize",
+          "heading": "Run a group buy",
+          "body": "Start a campaign for the products your community needs, rally buyers, and coordinate the shipment.",
+          "cta": "Start a campaign"
+        },
+        "business": {
+          "intent": "I'm a business",
+          "heading": "Restock without the broker",
+          "body": "Recurring procurement and restock planning with lane-aware purchasing, minus the freight broker fees.",
+          "cta": "Explore procurement"
+        }
       }
     },
     "complianceWorkspace": {
@@ -14427,7 +14468,12 @@
       "deposit": "Deposit",
       "participants": "participants",
       "joined": "You joined",
-      "viewDetails": "View Details"
+      "viewDetails": "View Details",
+      "emptyTitle": "No campaigns match right now",
+      "emptyExplainer": "A campaign is a group order: buyers pledge units toward one shared shipment. When pledges reach the manufacturer's minimum, the order is placed and OxSteed runs the chain.",
+      "exampleLabel": "Example",
+      "exampleTitle": "Solar lanterns, wholesale pack",
+      "howItWorks": "How it works"
     },
     "campaign": {
       "organizer": "Organizer",
@@ -14553,7 +14599,8 @@
       "riskRestricted": "Restricted",
       "riskProhibited": "Prohibited",
       "bv": "Business Verification",
-      "ma": "Manual Approval"
+      "ma": "Manual Approval",
+      "explainer": "A lane is a shipping route between two countries, such as China to Haiti. Every lane has its own rules: what can be imported, which documents are required, and how much scrutiny customs applies. We check these rules for every pooled shipment, and we handle the paperwork. This page shows what applies to your goods."
     },
     "finance": {
       "title": "Logistics Finance",

@@ -179,7 +179,7 @@ export default function DeliveryTrackingOpsPage() {
     return 'active';
   };
 
-  if (!allowed) return <PageShell><div className="delivery-page" dir={i18n.dir()}><h1>{t('delivery.ui.permission')}</h1><p>{t(`${T}.subtitle`)}</p><Link className="delivery-button delivery-button--primary" to="/logistics/operations/login?next=%2Fdelivery%2Foperations">{t('delivery.ui.operationsLogin')}</Link><Link to="/delivery">{t('delivery.detail.back')}</Link></div></PageShell>;
+  if (!allowed) return <PageShell><div className="delivery-page" dir={i18n.dir()}><h1>{t('delivery.ui.permission')}</h1><p>{t(`${T}.subtitle`)}</p><Link className="delivery-button delivery-button--primary" to="/logistics/login?mode=operations&next=%2Fdelivery%2Foperations">{t('delivery.ui.operationsLogin')}</Link><Link to="/delivery">{t('delivery.detail.back')}</Link></div></PageShell>;
 
   return <PageShell><PageMeta title={t(`${T}.metaTitle`)} description={t(`${T}.subtitle`)} />
     <div className="delivery-page delivery-dispatch-page" dir={i18n.dir()}>

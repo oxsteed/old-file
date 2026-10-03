@@ -209,7 +209,7 @@ export default function DeliveryDispatchPage() {
   const shown = jobs.filter((job) => filter === 'all' || (filter === 'exception' ? job.dispatch_state === 'exception' : ['posted', 'assigned'].includes(job.status)));
   const label = (group, value) => t(`delivery.${group}.${value}`, { defaultValue: t('delivery.ui.unknown') });
 
-  if (!allowed) return <PageShell><div className="delivery-page" dir={i18n.dir()}><h1>{t('delivery.ui.permission')}</h1><p>{t('delivery.ui.permissionHint')}</p><Link className="delivery-button delivery-button--primary" to="/logistics/operations/login?next=%2Fdelivery%2Foperations">{t('delivery.ui.operationsLogin')}</Link><Link to="/delivery">{t('delivery.detail.back')}</Link></div></PageShell>;
+  if (!allowed) return <PageShell><div className="delivery-page" dir={i18n.dir()}><h1>{t('delivery.ui.permission')}</h1><p>{t('delivery.ui.permissionHint')}</p><Link className="delivery-button delivery-button--primary" to="/logistics/login?mode=operations&next=%2Fdelivery%2Foperations">{t('delivery.ui.operationsLogin')}</Link><Link to="/delivery">{t('delivery.detail.back')}</Link></div></PageShell>;
 
   return <PageShell><PageMeta title={t('delivery.dispatch.metaTitle')} description={t('delivery.dispatch.subtitle')} />
     <div className="delivery-page delivery-dispatch-page" dir={i18n.dir()}>

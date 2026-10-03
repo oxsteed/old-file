@@ -91,7 +91,8 @@
     "howOxsteedWorks": "Kijan OxSteed mache",
     "learnToDiy": "Aprann fè DIY",
     "network": "Rezo OxSteed",
-    "localFoodDirectory": "Anyè Manje Lokal"
+    "localFoodDirectory": "Anyè Manje Lokal",
+    "logistics": "Lojistik"
   },
   "supportAgentPortal": {
     "title": "Espa sipo",
@@ -14294,6 +14295,46 @@
           "heading": "Dènye etap la se pwòp pwoblèm li",
           "body": "Machandiz yo rive nan pò. Apre sa? Depo, alokasyon, lòd livrezon, chak youn se yon nouvo etap. OxSteed kowòdone chèn nan pou chak etap konnen sa pwochen an bezwen."
         }
+      },
+      "howItWorksLink": "Kijan li mache",
+      "partOfOxsteed": "Yon pati nan OxSteed: menm rezo konfyans lan pou jwenn èd lokal, kòmande manje, epi deplase machandiz.",
+      "howItWorks": {
+        "title": "Kijan li mache",
+        "subtitle": "Yon sèl chajman pataje, depi founisè a rive nan pòt ou.",
+        "pool": {
+          "heading": "Rasanble demann",
+          "body": "Antre nan yon kanpay ouvè oswa kòmanse pa w. Chak achtè pwomèt inite li bezwen yo nan yon sèl lòd pataje."
+        },
+        "minimum": {
+          "heading": "Rive nan minimòm nan",
+          "body": "Lè pwomès yo rive nan lòd minimòm manifakti a, yo kolekte depo yo epi kanpay la fèmen. Si minimòm nan pa janm rive, depo yo ranbouse."
+        },
+        "chain": {
+          "heading": "Nou jere chèn nan",
+          "body": "Fret, ladwàn, depo, ak livrezon dènye kilomèt la, swiv etap pa etap jiskaske machandiz ou yo rive."
+        }
+      },
+      "roles": {
+        "title": "Kiyès ou ye?",
+        "subtitle": "Chwazi chemen ki koresponn ak sa ou vle fè.",
+        "buyer": {
+          "intent": "Mwen vle achte",
+          "heading": "Antre nan yon chajman gwoup",
+          "body": "Gade kanpay ouvè yo, pwomèt inite ou bezwen yo, epi swiv machandiz ou yo depi faktori a rive nan pòt ou.",
+          "cta": "Gade kanpay yo"
+        },
+        "organizer": {
+          "intent": "Mwen vle òganize",
+          "heading": "Òganize yon acha gwoup",
+          "body": "Kòmanse yon kanpay pou pwodui kominote w bezwen yo, rasanble achtè, epi kowòdone chajman an.",
+          "cta": "Kòmanse yon kanpay"
+        },
+        "business": {
+          "intent": "Mwen se yon biznis",
+          "heading": "Rechaje san koutye",
+          "body": "Acha regilye ak planifikasyon rechajman ak acha ki swiv wout yo, san frè koutye fret yo.",
+          "cta": "Eksplore acha"
+        }
       }
     },
     "complianceWorkspace": {
@@ -14427,7 +14468,12 @@
       "deposit": "Depo",
       "participants": "patisipan",
       "joined": "Ou rantre",
-      "viewDetails": "Wè Detay"
+      "viewDetails": "Wè Detay",
+      "emptyTitle": "Pa gen kanpay ki koresponn kounye a",
+      "emptyExplainer": "Yon kanpay se yon lòd gwoup: achtè yo pwomèt inite nan yon sèl chajman pataje. Lè pwomès yo rive nan minimòm manifakti a, yo pase lòd la epi OxSteed jere chèn nan.",
+      "exampleLabel": "Egzanp",
+      "exampleTitle": "Lantèn solè, pake an gwo",
+      "howItWorks": "Kijan li mache"
     },
     "campaign": {
       "organizer": "Òganizatè",
@@ -14553,7 +14599,8 @@
       "riskRestricted": "Restrenn",
       "riskProhibited": "Entèdi",
       "bv": "Verifikasyon biznis",
-      "ma": "Apwobasyon manyèl"
+      "ma": "Apwobasyon manyèl",
+      "explainer": "Yon wout se yon chemen chajman ant de peyi, tankou soti Lachin pou Ayiti. Chak wout gen pwòp règ li: sa yo ka enpòte, ki dokiman yo mande, epi konbyen kontwòl ladwàn fè. Nou tcheke règ sa yo pou chak chajman gwoup, epi nou okipe papye yo. Paj sa a montre sa ki aplike pou machandiz ou yo."
     },
     "finance": {
       "title": "Finans lojistik",

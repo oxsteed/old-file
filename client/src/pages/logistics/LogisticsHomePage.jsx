@@ -55,6 +55,45 @@ export default function LogisticsHomePage() {
     [t],
   );
 
+  const steps = useMemo(
+    () => [
+      { key: 'pool', heading: t('logistics.home.howItWorks.pool.heading'), body: t('logistics.home.howItWorks.pool.body') },
+      { key: 'minimum', heading: t('logistics.home.howItWorks.minimum.heading'), body: t('logistics.home.howItWorks.minimum.body') },
+      { key: 'chain', heading: t('logistics.home.howItWorks.chain.heading'), body: t('logistics.home.howItWorks.chain.body') },
+    ],
+    [t],
+  );
+
+  const roleCards = useMemo(
+    () => [
+      {
+        key: 'buyer',
+        intent: t('logistics.home.roles.buyer.intent'),
+        heading: t('logistics.home.roles.buyer.heading'),
+        body: t('logistics.home.roles.buyer.body'),
+        cta: t('logistics.home.roles.buyer.cta'),
+        to: '/logistics/campaigns',
+      },
+      {
+        key: 'organizer',
+        intent: t('logistics.home.roles.organizer.intent'),
+        heading: t('logistics.home.roles.organizer.heading'),
+        body: t('logistics.home.roles.organizer.body'),
+        cta: t('logistics.home.roles.organizer.cta'),
+        to: user ? '/logistics/campaigns/new' : '/join',
+      },
+      {
+        key: 'business',
+        intent: t('logistics.home.roles.business.intent'),
+        heading: t('logistics.home.roles.business.heading'),
+        body: t('logistics.home.roles.business.body'),
+        cta: t('logistics.home.roles.business.cta'),
+        to: '/logistics/business-procurement',
+      },
+    ],
+    [t, user],
+  );
+
   const recommendedWorkspace = useMemo(
     () => recommendedLogisticsWorkspace(user, businessAccess),
     [user, businessAccess],
@@ -104,16 +143,50 @@ export default function LogisticsHomePage() {
               </Link>
             ) : (
               <>
-                <Link to="/join" className="lx-btn-primary">
-                  {t('logistics.home.getStarted')}
-                </Link>
-                <Link to="/logistics/campaigns" className="lx-btn-ghost">
+                <Link to="/logistics/campaigns" className="lx-btn-primary">
                   {t('logistics.home.browseOpenCampaigns')}
                 </Link>
+                <a href="#lxh-how" className="lx-btn-ghost">
+                  {t('logistics.home.howItWorksLink')}
+                </a>
               </>
             )}
           </div>
+          <p className="lxh-partof">
+            {t('logistics.home.partOfOxsteed')}
+          </p>
         </div>
+
+        {/* ── How it works ───────────────────────────────────── */}
+        <section className="lxh-how" id="lxh-how" aria-label={t('logistics.home.howItWorks.title')}>
+          <h2 className="lxh-section-title">{t('logistics.home.howItWorks.title')}</h2>
+          <p className="lxh-section-sub">{t('logistics.home.howItWorks.subtitle')}</p>
+          <ol className="lxh-steps">
+            {steps.map((step, i) => (
+              <li key={step.key} className="lxh-step">
+                <span className="lxh-step-num" aria-hidden="true">{i + 1}</span>
+                <h3 className="lxh-step-heading">{step.heading}</h3>
+                <p className="lxh-step-body">{step.body}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        {/* ── Who is it for ──────────────────────────────────── */}
+        <section className="lxh-roles" aria-label={t('logistics.home.roles.title')}>
+          <h2 className="lxh-section-title">{t('logistics.home.roles.title')}</h2>
+          <p className="lxh-section-sub">{t('logistics.home.roles.subtitle')}</p>
+          <div className="lxh-roles-grid">
+            {roleCards.map((role) => (
+              <Link key={role.key} to={role.to} className="lxh-role-card">
+                <span className="lxh-role-intent">{role.intent}</span>
+                <h3 className="lxh-role-heading">{role.heading}</h3>
+                <p className="lxh-role-body">{role.body}</p>
+                <span className="lxh-role-cta">{role.cta} →</span>
+              </Link>
+            ))}
+          </div>
+        </section>
 
         {/* ── Why this exists ────────────────────────────────── */}
         <section className="lxh-why">

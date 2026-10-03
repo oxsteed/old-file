@@ -50,8 +50,8 @@ function routeLabel(route, t) {
 
 function routePath(route) {
   if (route === 'admin_portal') return '/admin/login';
-  if (route === 'operations') return '/logistics/operations/login';
-  if (route === 'compliance') return '/logistics/compliance-workspace/login';
+  if (route === 'operations') return '/logistics/login?mode=operations';
+  if (route === 'compliance') return '/logistics/login?mode=compliance';
   return `/internal/${internalWorkspaceSlug(route)}/login`;
 }
 

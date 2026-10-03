@@ -8,12 +8,12 @@ import {
 
 function loginRouteForPath(pathname) {
   if (pathname.startsWith('/logistics/compliance-workspace')) {
-    return '/logistics/compliance-workspace/login';
+    return '/logistics/login?mode=compliance';
   }
   if (pathname.startsWith('/logistics/admin-control')) {
-    return '/logistics/admin-control/login';
+    return '/logistics/login?mode=admin_control';
   }
-  return '/logistics/operations/login';
+  return '/logistics/login?mode=operations';
 }
 
 export default function LogisticsOperatorGuard({ children }) {
@@ -30,7 +30,7 @@ export default function LogisticsOperatorGuard({ children }) {
 
   if (!user) {
     const next = encodeURIComponent(`${location.pathname}${location.search}${location.hash}`);
-    return <Navigate to={`${loginRouteForPath(location.pathname)}?next=${next}`} replace />;
+    return <Navigate to={`${loginRouteForPath(location.pathname)}&next=${next}`} replace />;
   }
 
   const pathname = location.pathname;

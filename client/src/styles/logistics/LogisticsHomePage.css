@@ -844,3 +844,130 @@ html.dark .lxh-cta-heading {
     grid-template-columns: 1fr;
   }
 }
+
+/* Part-of-OxSteed line under hero actions */
+.lxh-partof {
+  margin: 1.5rem 0 0;
+  font-size: .85rem;
+  opacity: .75;
+}
+
+/* Section titles */
+.lxh-section-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin: 0 0 .5rem;
+  color: var(--app-text, #0f172a);
+  text-align: center;
+}
+html.dark .lxh-section-title { color: #f1f5f9; }
+.lxh-section-sub {
+  font-size: 1rem;
+  color: var(--app-text-faint, #64748b);
+  margin: 0 0 2rem;
+  text-align: center;
+  max-width: 640px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* How it works */
+.lxh-how { margin-bottom: 4rem; }
+.lxh-steps {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  margin: 0;
+  padding: 0;
+}
+.lxh-step {
+  position: relative;
+  padding: 1.75rem 1.5rem;
+  border-radius: 1rem;
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border-color, #e2e8f0);
+}
+html.dark .lxh-step { background: #0f172a; border-color: #1e293b; }
+.lxh-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: #f97316;
+  color: #fff;
+  font-weight: 800;
+  font-size: .9rem;
+  margin-bottom: 1rem;
+}
+.lxh-step-heading {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 .5rem;
+  color: var(--app-text, #0f172a);
+}
+html.dark .lxh-step-heading { color: #f1f5f9; }
+.lxh-step-body {
+  font-size: .9rem;
+  line-height: 1.7;
+  color: var(--app-text-faint, #64748b);
+  margin: 0;
+}
+
+/* Role picker */
+.lxh-roles { margin-bottom: 4rem; }
+.lxh-roles-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+}
+.lxh-role-card {
+  display: flex;
+  flex-direction: column;
+  padding: 1.75rem 1.5rem;
+  border-radius: 1rem;
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  text-decoration: none;
+  transition: transform .15s, box-shadow .15s, border-color .15s;
+}
+.lxh-role-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,.08);
+  border-color: #f97316;
+}
+html.dark .lxh-role-card { background: #0f172a; border-color: #1e293b; }
+html.dark .lxh-role-card:hover { border-color: #f97316; }
+.lxh-role-intent {
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: #f97316;
+  margin-bottom: .75rem;
+}
+.lxh-role-heading {
+  font-size: 1.05rem;
+  font-weight: 800;
+  margin: 0 0 .5rem;
+  color: var(--app-text, #0f172a);
+}
+html.dark .lxh-role-heading { color: #f1f5f9; }
+.lxh-role-body {
+  font-size: .9rem;
+  line-height: 1.7;
+  color: var(--app-text-faint, #64748b);
+  margin: 0 0 1rem;
+  flex: 1;
+}
+.lxh-role-cta {
+  font-size: .9rem;
+  font-weight: 700;
+  color: #f97316;
+}
+
+@media (max-width: 900px) {
+  .lxh-steps, .lxh-roles-grid { grid-template-columns: 1fr; }
+}

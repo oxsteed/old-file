@@ -251,6 +251,14 @@ function DirectAdminRouteGate({ children }) {
   return children;
 }
 
+// Legacy logistics operator login URLs redirect to the single canonical
+// /logistics/login entry point, preserving the mode and any ?next= target.
+function LegacyLogisticsLoginRedirect({ mode }) {
+  const { search } = useLocation();
+  const suffix = search ? `${search}&mode=${mode}` : `?mode=${mode}`;
+  return <Navigate to={`/logistics/login${suffix}`} replace />;
+}
+
 export default function App() {
   const isStatusHost = typeof window !== 'undefined'
     && window.location.hostname.toLowerCase() === 'status.oxsteed.com';
@@ -515,10 +523,11 @@ export default function App() {
                     <Route path="/delivery/operations"          element={<Guarded><LogisticsOperatorGuard><RouteErrorBoundary><DeliveryDispatchPage /></RouteErrorBoundary></LogisticsOperatorGuard></Guarded>} />
                     <Route path="/delivery/operations/tracking/:id" element={<Guarded><LogisticsOperatorGuard><RouteErrorBoundary><DeliveryTrackingOpsPage /></RouteErrorBoundary></LogisticsOperatorGuard></Guarded>} />
                     <Route path="/logistics"                  element={<Guarded><RouteErrorBoundary><LogisticsHomePage /></RouteErrorBoundary></Guarded>} />
-                    <Route path="/logistics/internal/login"   element={<Guarded><LogisticsOperatorLoginPage /></Guarded>} />
-                    <Route path="/logistics/operations/login" element={<Guarded><LogisticsOperatorLoginPage /></Guarded>} />
-                    <Route path="/logistics/compliance-workspace/login" element={<Guarded><LogisticsOperatorLoginPage /></Guarded>} />
-                    <Route path="/logistics/admin-control/login" element={<Guarded><LogisticsOperatorLoginPage /></Guarded>} />
+                    <Route path="/logistics/login" element={<Guarded><LogisticsOperatorLoginPage /></Guarded>} />
+                    <Route path="/logistics/internal/login" element={<Guarded><LegacyLogisticsLoginRedirect mode="operations" /></Guarded>} />
+                    <Route path="/logistics/operations/login" element={<Guarded><LegacyLogisticsLoginRedirect mode="operations" /></Guarded>} />
+                    <Route path="/logistics/compliance-workspace/login" element={<Guarded><LegacyLogisticsLoginRedirect mode="compliance" /></Guarded>} />
+                    <Route path="/logistics/admin-control/login" element={<Guarded><LegacyLogisticsLoginRedirect mode="admin_control" /></Guarded>} />
                     <Route path="/internal/:workspace/login" element={<Guarded><InternalWorkspaceLoginPage /></Guarded>} />
                     <Route path="/internal/:workspace" element={<Guarded><InternalWorkspaceGuard><RouteErrorBoundary><InternalDepartmentWorkspacePage /></RouteErrorBoundary></InternalWorkspaceGuard></Guarded>} />
                     <Route path="/logistics/buyer"            element={<Guarded><ProtectedRoute><RouteErrorBoundary><BuyerDashboardPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

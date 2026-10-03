@@ -8,7 +8,13 @@ import { isLogisticsOperator } from '../../utils/logisticsWorkspaces';
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 15 * 60 * 1000;
 
-function getLoginMode(pathname) {
+function getLoginMode(pathname, search) {
+  const params = new URLSearchParams(search || '');
+  const modeParam = params.get('mode');
+  if (modeParam === 'compliance' || modeParam === 'admin_control' || modeParam === 'operations') {
+    return modeParam;
+  }
+  // Legacy path-based detection, kept as a fallback.
   if (pathname.startsWith('/logistics/compliance-workspace/login')) return 'compliance';
   if (pathname.startsWith('/logistics/admin-control/login')) return 'admin_control';
   return 'operations';
@@ -51,7 +57,7 @@ export default function LogisticsOperatorLoginPage() {
   const { login, setUser, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const mode = useMemo(() => getLoginMode(location.pathname), [location.pathname]);
+  const mode = useMemo(() => getLoginMode(location.pathname, location.search), [location.pathname, location.search]);
   const copy = useMemo(() => loginCopy(mode), [mode]);
   const nextPath = useMemo(() => {
     const params = new URLSearchParams(location.search);

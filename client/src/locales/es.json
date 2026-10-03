@@ -91,7 +91,8 @@
     "howOxsteedWorks": "Cómo funciona OxSteed",
     "learnToDiy": "Aprende a hacerlo tú mismo",
     "network": "Red OxSteed",
-    "localFoodDirectory": "Directorio de comida local"
+    "localFoodDirectory": "Directorio de comida local",
+    "logistics": "Logística"
   },
   "supportAgentPortal": {
     "title": "Espacio de soporte",
@@ -14294,6 +14295,46 @@
           "heading": "La última milla es un problema aparte",
           "body": "Los productos llegan al puerto. ¿Y luego? Almacenamiento, asignación, órdenes de entrega; cada una es una nueva entrega. OxSteed coordina la cadena para que cada paso sepa qué necesita el siguiente."
         }
+      },
+      "howItWorksLink": "Cómo funciona",
+      "partOfOxsteed": "Parte de OxSteed: la misma red de confianza para contratar ayuda local, pedir comida y mover mercancías.",
+      "howItWorks": {
+        "title": "Cómo funciona",
+        "subtitle": "Un envío compartido, del proveedor a tu puerta.",
+        "pool": {
+          "heading": "Unimos la demanda",
+          "body": "Únete a una campaña abierta o inicia la tuya. Cada comprador compromete las unidades que necesita en un solo pedido compartido."
+        },
+        "minimum": {
+          "heading": "Alcanzamos el mínimo",
+          "body": "Cuando los compromisos alcanzan el pedido mínimo del fabricante, se recogen los depósitos y la campaña se cierra. Si el mínimo nunca se alcanza, los depósitos se reembolsan."
+        },
+        "chain": {
+          "heading": "Nosotros gestionamos la cadena",
+          "body": "Flete, aduanas, almacenamiento y entrega de última milla, con seguimiento en cada paso hasta que tu mercancía llegue."
+        }
+      },
+      "roles": {
+        "title": "¿Quién eres?",
+        "subtitle": "Elige el camino que corresponda a lo que quieres hacer.",
+        "buyer": {
+          "intent": "Quiero comprar",
+          "heading": "Únete a un envío grupal",
+          "body": "Explora campañas abiertas, compromete las unidades que necesitas y sigue tu mercancía de la fábrica a tu puerta.",
+          "cta": "Ver campañas"
+        },
+        "organizer": {
+          "intent": "Quiero organizar",
+          "heading": "Organiza una compra grupal",
+          "body": "Inicia una campaña para los productos que tu comunidad necesita, reúne compradores y coordina el envío.",
+          "cta": "Iniciar una campaña"
+        },
+        "business": {
+          "intent": "Soy un negocio",
+          "heading": "Reabastece sin intermediarios",
+          "body": "Compras recurrentes y planificación de reabastecimiento con compras según la ruta, sin los honorarios de un agente de carga.",
+          "cta": "Explorar compras"
+        }
       }
     },
     "complianceWorkspace": {
@@ -14427,7 +14468,12 @@
       "deposit": "Deposito",
       "participants": "participantes",
       "joined": "Te uniste",
-      "viewDetails": "Ver Detalles"
+      "viewDetails": "Ver Detalles",
+      "emptyTitle": "No hay campañas que coincidan ahora",
+      "emptyExplainer": "Una campaña es un pedido grupal: los compradores comprometen unidades en un solo envío compartido. Cuando los compromisos alcanzan el mínimo del fabricante, se realiza el pedido y OxSteed gestiona la cadena.",
+      "exampleLabel": "Ejemplo",
+      "exampleTitle": "Linternas solares, paquete mayorista",
+      "howItWorks": "Cómo funciona"
     },
     "campaign": {
       "organizer": "Organizador",
@@ -14553,7 +14599,8 @@
       "riskRestricted": "Restringido",
       "riskProhibited": "Prohibido",
       "bv": "Verificacion empresarial",
-      "ma": "Aprobacion manual"
+      "ma": "Aprobacion manual",
+      "explainer": "Una ruta es un trayecto de envío entre dos países, como de China a Haití. Cada ruta tiene sus propias reglas: qué se puede importar, qué documentos se requieren y cuánto escrutinio aplica la aduana. Verificamos estas reglas en cada envío grupal y nos encargamos del papeleo. Esta página muestra lo que aplica a tu mercancía."
     },
     "finance": {
       "title": "Finanzas de logistica",

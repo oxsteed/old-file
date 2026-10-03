@@ -95,8 +95,26 @@ export default function CampaignsPage() {
       {!loading && campaigns.length === 0 && (
         <div className="lx-empty">
           <div className="lx-empty-icon">📦</div>
-          <p>{t('logistics.campaigns.empty','No campaigns found. Try different filters or start a sourcing request.')}</p>
-          <Link to="/logistics/requests/new" className="lx-btn-primary">{t('logistics.campaigns.startRequest','Start a Request')}</Link>
+          <h2 className="lx-empty-title">{t('logistics.campaigns.emptyTitle','No campaigns match right now')}</h2>
+          <p className="lx-empty-explainer">{t('logistics.campaigns.emptyExplainer')}</p>
+          <div className="lx-example-card" aria-hidden="true">
+            <span className="lx-example-label">{t('logistics.campaigns.exampleLabel','Example')}</span>
+            <div className="lx-campaign-lane">🌐 CN → HT</div>
+            <h3 className="lx-campaign-title">{t('logistics.campaigns.exampleTitle')}</h3>
+            <div className="lx-moq-bar-wrap">
+              <div className="lx-moq-bar" style={{ width:'68%' }} />
+            </div>
+            <div className="lx-campaign-meta">
+              <span style={{ fontWeight:700 }}>
+                340 / 500 {t('logistics.campaigns.units','units')} (68%)
+              </span>
+              <span className="lx-status-pill" style={{ background:'#f59e0b' }}>pledging</span>
+            </div>
+          </div>
+          <div className="lx-empty-actions">
+            <Link to="/logistics/requests/new" className="lx-btn-primary">{t('logistics.campaigns.startRequest','Start a Request')}</Link>
+            <Link to="/logistics#lxh-how" className="lx-btn-secondary">{t('logistics.campaigns.howItWorks','How it works')}</Link>
+          </div>
         </div>
       )}
 
@@ -167,6 +185,11 @@ export default function CampaignsPage() {
         .lx-error   { background:#fee2e2; border-radius:.75rem; padding:1rem; color:#b91c1c; margin-bottom:1rem; }
         .lx-empty   { text-align:center; padding:4rem 2rem; }
         .lx-empty-icon { font-size:3rem; margin-bottom:1rem; }
+        .lx-empty-title { font-size:1.25rem; font-weight:800; margin:0 0 .75rem; color:var(--app-text,#0f172a); }
+        .lx-empty-explainer { max-width:560px; margin:0 auto 2rem; color:var(--app-text-faint,#64748b); line-height:1.7; }
+        .lx-example-card { max-width:420px; margin:0 auto 2rem; padding:1.25rem 1.5rem; border-radius:1rem; background:var(--card-bg,#fff); border:1px dashed var(--border-color,#e2e8f0); text-align:left; position:relative; }
+        .lx-example-label { position:absolute; top:-.7rem; left:1rem; background:#f59e0b; color:#fff; font-size:.68rem; font-weight:800; letter-spacing:.05em; text-transform:uppercase; padding:.15rem .6rem; border-radius:999px; }
+        .lx-empty-actions { display:flex; gap:.75rem; justify-content:center; flex-wrap:wrap; }
         .lx-pagination { display:flex; gap:1rem; align-items:center; justify-content:center; margin-top:2rem; }
       `}</style>
       </div>

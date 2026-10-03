@@ -420,7 +420,7 @@ export default function DeliveryPage() {
         <nav className="delivery-workspace-tabs" aria-label={t('delivery.title')}>
           <button type="button" className="delivery-button delivery-button--secondary" aria-pressed={booking} onClick={() => setBooking(true)}>{t('delivery.customer.title')}</button>
           <button type="button" className="delivery-button delivery-button--secondary" aria-pressed={!booking} onClick={() => setBooking(false)}>{t('delivery.helper.myDeliveries')}</button>
-          {operationsRole && <Link className="delivery-button delivery-button--secondary" to={operations ? '/delivery/operations' : '/logistics/operations/login?next=%2Fdelivery%2Foperations'}>{t(operations ? 'delivery.dispatch.metaTitle' : 'delivery.ui.operationsLogin')}</Link>}
+          {operationsRole && <Link className="delivery-button delivery-button--secondary" to={operations ? '/delivery/operations' : '/logistics/login?mode=operations&next=%2Fdelivery%2Foperations'}>{t(operations ? 'delivery.dispatch.metaTitle' : 'delivery.ui.operationsLogin')}</Link>}
         </nav>
         {booking ? <CustomerDelivery t={t} /> : <HelperDelivery t={t} />}
       </div>

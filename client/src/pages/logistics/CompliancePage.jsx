@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { listLanes, listTradeRules } from '../../api/logistics';
 import PageShell from '../../components/PageShell';
+import PageMeta from '../../components/PageMeta';
 import '../../styles/logistics/LogisticsHomePage.css';
 
 const RISK_COLOR = { low:'#22c55e', managed:'#f59e0b', restricted:'#dc2626', prohibited:'#7f1d1d' };
@@ -32,10 +33,17 @@ export default function CompliancePage() {
 
   return (
     <PageShell>
+      <PageMeta
+        title={t('logistics.compliance.title', 'Compliance & Trade Rules')}
+        description={t('logistics.compliance.subtitle', 'Import restrictions, category bans, country rules, document requirements, and risk tiers by lane.')}
+        url="https://oxsteed.com/logistics/compliance"
+        noIndex
+      />
       <div className="lx-page">
       <div className="lx-page-header">
         <h1 className="lx-page-title">{t('logistics.compliance.title','Compliance & Trade Rules')}</h1>
         <p className="lx-page-sub">{t('logistics.compliance.subtitle','Import restrictions, category bans, country rules, document requirements, and risk tiers by lane.')}</p>
+        <p className="lx-page-sub" style={{ marginTop:'.75rem', fontSize:'.9rem' }}>{t('logistics.compliance.explainer')}</p>
       </div>
 
       {/* Lane risk grid */}
