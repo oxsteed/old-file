@@ -7,7 +7,7 @@ const ctrl = require('../controllers/foodController');
 const walletCtrl = require('../controllers/foodWalletController');
 const kiosk = require('../controllers/restaurantKioskController');
 const oxsteedCreditPartnerCtrl = require('../controllers/oxsteedCreditPartnerController');
-const { creditExportLimiter, creditPurchaseLimiter, restaurantCreditMutationLimiter } = require('../middleware/rateLimiter');
+const { creditExportLimiter, creditPurchaseLimiter, restaurantCreditMutationLimiter, profileChatLimiter } = require('../middleware/rateLimiter');
 
 function noStoreCreditResponse(_req, res, next) {
   res.set('Cache-Control', 'private, no-store');
@@ -56,7 +56,7 @@ router.post('/customer/favorites/:restaurantId/toggle', authenticate, ctrl.toggl
 router.get('/customer/favorite-items', authenticate, ctrl.listCustomerFavoriteItems);
 router.put('/customer/favorite-items/sync', authenticate, ctrl.syncCustomerFavoriteItems);
 router.post('/customer/favorite-items/:restaurantId/:itemId/toggle', authenticate, ctrl.toggleCustomerFavoriteItem);
-router.post('/restaurants/:restaurantId/messages', authenticate, ctrl.createRestaurantCustomerMessage);
+router.post('/restaurants/:restaurantId/messages', authenticate, profileChatLimiter, ctrl.createRestaurantCustomerMessage);
 router.post('/restaurants/:restaurantId/reports', authenticate, ctrl.createRestaurantReport);
 
 // Merchant onboarding and menu setup.

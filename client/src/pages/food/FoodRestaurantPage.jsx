@@ -21,6 +21,7 @@ import {
   listFoodPromotions,
   listMyFoodOrders,
   getMyFoodRestaurantWallet,
+  sendFoodRestaurantMessage,
   formatFoodMoney,
 } from '../../api/food';
 import {
@@ -181,6 +182,11 @@ export default function FoodRestaurantPage() {
   const [dietaryFilter, setDietaryFilter] = useState('all');
   const [saved, setSaved] = useState(false);
   const [deliveryMode, setDeliveryMode] = useState('pickup');
+  // Message-the-restaurant composer
+  const [messageOpen, setMessageOpen] = useState(false);
+  const [messageSubject, setMessageSubject] = useState('');
+  const [messageBody, setMessageBody] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
 
   // Cart / checkout
   const [cartItems, setCartItems] = useState([]);
@@ -626,6 +632,64 @@ export default function FoodRestaurantPage() {
 
   const openLoginGate = () => {
     navigate('/login', { state: { from: location } });
+  };
+
+  // ── Message the restaurant ─────────────────────────────────────────────────
+  // Signed-out visitors go through the same login gate the checkout uses; the
+  // backend endpoint requires authentication. Signed-in customers get a
+  // composer; sending creates (or reuses) one conversation thread per
+  // customer + restaurant and the message waits in the restaurant's inbox.
+  const handleMessageClick = () => {
+    if (!user) {
+      openLoginGate();
+      return;
+    }
+    setMessageSubject('');
+    setMessageBody('');
+    setMessageOpen(true);
+  };
+
+  const handleSendMessage = async () => {
+    if (sendingMessage) return;
+    const body = messageBody.trim();
+    if (!body) {
+      toast.error(t('food.restaurant.messageRequired'));
+      return;
+    }
+    setSendingMessage(true);
+    try {
+      // Fresh idempotency key per composer submit: double-submits replay the
+      // same record instead of posting twice; the server still reuses the one
+      // conversation thread for this customer + restaurant.
+      const clientMessageId = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+            const r = (Math.random() * 16) | 0;
+            return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+          });
+      const result = await sendFoodRestaurantMessage(
+        restaurantId,
+        { subject: messageSubject.trim(), message: body },
+        { clientMessageId },
+      );
+      setMessageOpen(false);
+      setMessageSubject('');
+      setMessageBody('');
+      if (result?.conversationId) {
+        navigate(`/messages/${result.conversationId}`);
+      } else {
+        toast.success(t('food.restaurant.messageSent'));
+      }
+    } catch (err) {
+      const status = err?.response?.status;
+      if (status === 429) {
+        toast.error(err?.response?.data?.error || t('food.restaurant.messageRateLimited'));
+      } else {
+        toast.error(err?.response?.data?.error?.message || t('food.restaurant.messageError'));
+      }
+    } finally {
+      setSendingMessage(false);
+    }
   };
 
   // "Start order" with an empty cart is a no-op today; scroll to the menu so
@@ -1337,6 +1401,9 @@ export default function FoodRestaurantPage() {
                   : emoji}
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={handleMessageClick} aria-label={t('food.restaurant.messageAria')} style={{ height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', color: '#0f172a', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                  {`✉ ${t('food.restaurant.message')}`}
+                </button>
                 <button onClick={() => setSaved((s) => !s)} style={{ height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', color: saved ? accent : '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                   {saved ? `♥ ${t('food.common.saved')}` : `♡ ${t('food.common.save')}`}
                 </button>
@@ -1387,6 +1454,7 @@ export default function FoodRestaurantPage() {
                   {hasCart ? t('food.restaurant.orderItems', { count: cartCount }) : t('food.restaurant.startOrder')}
                 </button>
                 <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={handleMessageClick} aria-label={t('food.restaurant.messageAria')} style={{ flex: 1, height: 40, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: '#0f172a', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{`✉ ${t('food.restaurant.message')}`}</button>
                   <button onClick={() => setSaved((s) => !s)} style={{ flex: 1, height: 40, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: saved ? accent : '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{saved ? `♥ ${t('food.common.saved')}` : `♡ ${t('food.common.save')}`}</button>
                   <button onClick={onShare} aria-label={t('food.restaurant.share')} style={{ width: 40, height: 40, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>↗</button>
                 </div>
@@ -2204,6 +2272,48 @@ export default function FoodRestaurantPage() {
                   </div>
                 );
               })()}
+            </div>
+          </>
+        )}
+
+        {/* ── Message the restaurant ── */}
+        {messageOpen && (
+          <>
+            <div className="rp-sheet-backdrop" onClick={() => !sendingMessage && setMessageOpen(false)} />
+            <div className="rp-sheet" role="dialog" aria-modal="true" aria-label={t('food.restaurant.messageTitle', { name: restaurant.display_name })}>
+              <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid #f1f5f9', position: 'relative', flexShrink: 0 }}>
+                <div style={{ position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)', width: 36, height: 4, borderRadius: 2, background: '#e2e8f0' }} />
+                <button onClick={() => !sendingMessage && setMessageOpen(false)} aria-label={t('food.common.close')} style={{ position: 'absolute', top: 14, right: 14, width: 36, height: 36, borderRadius: '50%', background: '#f1f5f9', color: '#64748b', border: 'none', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>×</button>
+                <h2 style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', marginBottom: 4, paddingRight: 44 }}>{t('food.restaurant.messageTitle', { name: restaurant.display_name })}</h2>
+                <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>{t('food.restaurant.messageInboxNote')}</p>
+              </div>
+              <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
+                <p style={{ ...sectionLabel, marginBottom: 8 }}>{t('food.restaurant.messageSubjectLabel')}</p>
+                <input
+                  value={messageSubject}
+                  onChange={(e) => setMessageSubject(e.target.value)}
+                  maxLength={160}
+                  placeholder={t('food.restaurant.messageSubjectPlaceholder')}
+                  disabled={sendingMessage}
+                  style={{ width: '100%', height: 48, border: '1.5px solid #e2e8f0', borderRadius: 10, padding: '0 14px', fontSize: 14, color: '#0f172a', outline: 'none', background: '#f8fafc', marginBottom: 16 }}
+                />
+                <p style={{ ...sectionLabel, marginBottom: 8 }}>{t('food.restaurant.messageBodyLabel')}</p>
+                <textarea
+                  value={messageBody}
+                  onChange={(e) => setMessageBody(e.target.value)}
+                  maxLength={2500}
+                  placeholder={t('food.restaurant.messageBodyPlaceholder')}
+                  disabled={sendingMessage}
+                  rows={5}
+                  style={{ width: '100%', minHeight: 120, border: '1.5px solid #e2e8f0', borderRadius: 10, padding: 12, fontSize: 14, color: '#0f172a', resize: 'vertical', outline: 'none', background: '#f8fafc', lineHeight: 1.5 }}
+                />
+              </div>
+              <div style={{ padding: '12px 20px 20px', borderTop: '1px solid #f1f5f9', flexShrink: 0, background: '#fff' }}>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button onClick={() => setMessageOpen(false)} disabled={sendingMessage} style={{ flex: 1, height: 50, background: '#fff', color: '#0f172a', border: '1.5px solid #e2e8f0', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: sendingMessage ? 'not-allowed' : 'pointer', opacity: sendingMessage ? 0.5 : 1 }}>{t('food.common.cancel')}</button>
+                  <button onClick={handleSendMessage} disabled={sendingMessage} style={{ flex: 2, height: 50, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: sendingMessage ? 'not-allowed' : 'pointer', opacity: sendingMessage ? 0.6 : 1 }}>{sendingMessage ? t('food.restaurant.sendingMessage') : t('food.restaurant.sendMessage')}</button>
+                </div>
+              </div>
             </div>
           </>
         )}
