@@ -623,6 +623,41 @@ function normalizeDeliveryAddress(value) {
   };
 }
 
+// Customer time-slot selections on the restaurant ordering page. The offset
+// shifts promised_at forward from the normal prep-time estimate.
+const DELIVERY_SLOT_OFFSET_MINUTES = { asap: 0, '+15': 15, '+30': 30, later: 0 };
+
+function normalizeDeliverySlot(value) {
+  if (value === undefined || value === null || value === '') return { slot: null, offsetMinutes: 0 };
+  const slot = normalizeString(value, 24);
+  if (!Object.prototype.hasOwnProperty.call(DELIVERY_SLOT_OFFSET_MINUTES, slot)) {
+    throw new AppError('Validation failed', 400, 'validation_failed', {
+      deliverySlot: 'Unsupported delivery time slot',
+    });
+  }
+  return { slot, offsetMinutes: DELIVERY_SLOT_OFFSET_MINUTES[slot] };
+}
+
+// Guards the "blank delivery address becomes the restaurant's address"
+// fallback: a delivery order needs the customer's own address, never the
+// restaurant's.
+function assertValidDeliveryAddress(deliveryAddress, restaurant) {
+  if (!deliveryAddress || !deliveryAddress.line1) {
+    throw new AppError('A delivery address is required for delivery orders', 400, 'delivery_address_required', {
+      deliveryAddress: 'Delivery address is required for delivery orders',
+    });
+  }
+  const restaurantStreet = normalizeString(restaurant && restaurant.address_street, 255);
+  if (
+    restaurantStreet
+    && normalizeString(deliveryAddress.line1, 255).toLowerCase() === restaurantStreet.toLowerCase()
+  ) {
+    throw new AppError('Delivery address cannot be the restaurant address', 400, 'delivery_address_is_restaurant', {
+      deliveryAddress: 'Enter your own delivery address for this order',
+    });
+  }
+}
+
 function distanceMeters(lat1, lng1, lat2, lng2) {
   const toRadians = (degrees) => degrees * Math.PI / 180;
   const earthRadiusMeters = 6371000;
@@ -2287,11 +2322,7 @@ exports.quoteOrder = async (req, res, next) => {
     let deliveryFeeCents = 0;
     if (fulfillmentType === 'delivery') {
       deliveryAddress = normalizeDeliveryAddress(req.body.deliveryAddress || req.body.delivery_address);
-      if (!deliveryAddress) {
-        throw new AppError('Validation failed', 400, 'validation_failed', {
-          deliveryAddress: 'Delivery address is required for delivery order quotes',
-        });
-      }
+      assertValidDeliveryAddress(deliveryAddress, restaurant);
       if (Number(restaurant.delivery_radius_meters || 0) > 0) {
         if (![restaurant.latitude, restaurant.longitude, deliveryAddress.lat, deliveryAddress.lng]
           .every((coordinate) => Number.isFinite(Number(coordinate)))) {
@@ -2527,6 +2558,22 @@ exports.createOrder = async (req, res, next) => {
         throw new AppError('Restaurant is not accepting orders from this channel', 409, 'restaurant_not_accepting_orders');
       }
       if (!isInStore) {
+        // The restaurant page folds the manual pause flags into is_open for
+        // display; enforce them here too so a paused restaurant cannot be
+        // ordered from at submit time.
+        const closureUntil = restaurant.temporarily_closed_until
+          ? new Date(restaurant.temporarily_closed_until)
+          : null;
+        const isTemporarilyClosed = closureUntil
+          && !Number.isNaN(closureUntil.getTime())
+          && closureUntil > new Date();
+        if (restaurant.is_accepting_orders_now === false || isTemporarilyClosed) {
+          throw new AppError(
+            'This restaurant is not accepting orders right now',
+            409,
+            'restaurant_not_accepting_orders'
+          );
+        }
         const hoursStatus = evaluateOperatingHours(restaurant.operating_hours, restaurant.timezone);
         if (!hoursStatus.isOpen) {
           throw new AppError(
@@ -2606,6 +2653,18 @@ exports.createOrder = async (req, res, next) => {
       if (!VALID_FULFILLMENT.has(fulfillmentType)) {
         throw new AppError('Validation failed', 400, 'validation_failed', { fulfillmentType: 'Unsupported fulfillment type' });
       }
+      const { slot: deliverySlot, offsetMinutes: deliverySlotOffsetMinutes } = normalizeDeliverySlot(
+        req.body.deliverySlot ?? req.body.delivery_slot
+      );
+      const minimumOrderCents = Math.max(0, Number(restaurant.minimum_order_cents || 0) || 0);
+      if (minimumOrderCents > 0 && subtotal < minimumOrderCents) {
+        throw new AppError(
+          'This order does not meet the restaurant minimum',
+          400,
+          'minimum_order_not_met',
+          { minimumOrderCents, subtotalCents: subtotal }
+        );
+      }
       const restaurantFulfillmentModes = Array.isArray(restaurant.fulfillment_modes) && restaurant.fulfillment_modes.length
         ? restaurant.fulfillment_modes
         : ['pickup'];
@@ -2672,11 +2731,7 @@ exports.createOrder = async (req, res, next) => {
       let deliveryFeeCents = 0;
       if (fulfillmentType === 'delivery') {
         deliveryAddress = normalizeDeliveryAddress(req.body.deliveryAddress || req.body.delivery_address);
-        if (!deliveryAddress) {
-          throw new AppError('Validation failed', 400, 'validation_failed', {
-            deliveryAddress: 'Delivery address is required for delivery orders',
-          });
-        }
+        assertValidDeliveryAddress(deliveryAddress, restaurant);
         if (Number(restaurant.delivery_radius_meters || 0) > 0) {
           if (![restaurant.latitude, restaurant.longitude, deliveryAddress.lat, deliveryAddress.lng]
             .every((coordinate) => Number.isFinite(Number(coordinate)))) {
@@ -2804,6 +2859,7 @@ exports.createOrder = async (req, res, next) => {
           ...(discountMetadata ? { posDiscount: discountMetadata, promotion: discountMetadata } : {}),
           ...(loyaltyRedemption ? { loyaltyRedemption } : {}),
           ...(deliveryAddress ? { deliveryAddress, deliveryFeeCents } : {}),
+          ...(deliverySlot ? { deliverySlot } : {}),
           pricing: { taxRateBps, serviceFeeBps, taxCents: tax, serviceFeeCents },
           ...(paymentContract.canonical === 'direct_payment' || externalPaymentSubmission ? {
             externalPayment: {
@@ -2854,6 +2910,7 @@ exports.createOrder = async (req, res, next) => {
           ...(discountMetadata ? { posDiscount: discountMetadata, promotion: discountMetadata } : {}),
           ...(loyaltyRedemption ? { loyaltyRedemption } : {}),
           ...(deliveryAddress ? { deliveryAddress, deliveryFeeCents } : {}),
+          ...(deliverySlot ? { deliverySlot } : {}),
           pricing: { taxRateBps, serviceFeeBps, taxCents: tax, serviceFeeCents },
           ...(paymentContract.canonical === 'direct_payment' || externalPaymentSubmission ? {
             externalPayment: {
@@ -2915,7 +2972,7 @@ exports.createOrder = async (req, res, next) => {
           normalizeCurrency(restaurant.currency_code),
           normalizeString(req.body.tableLabel || req.body.table_label, 80),
           queueNumber,
-          restaurant.prep_time_min || 15,
+          (restaurant.prep_time_min || 15) + deliverySlotOffsetMinutes,
           normalizeString(req.body.notes, 1000),
           metadata,
         ]
@@ -4020,6 +4077,7 @@ const RESTAURANT_PATCH_FIELDS = {
   kitchenDisplayEnabled: { column: 'kitchen_display_enabled', value: (v) => v !== false },
   brandAccentHex: { column: 'brand_accent_hex', value: (v) => normalizeBrandAccentHex(v) },
   operatingHours: { column: 'operating_hours', value: (v) => normalizeHoursInput(v) },
+  taxRateBps: { column: 'tax_rate_bps', value: (v) => Math.max(0, Math.min(10000, Math.round(Number(v) || 0))) },
 };
 function normalizeRestaurantCheckoutSettingsPatch(settings = {}) {
   if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return {};

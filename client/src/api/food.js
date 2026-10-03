@@ -81,6 +81,12 @@ export const placeFoodOrder = (restaurantId, payload, options = {}) => {
 export const listFoodPromotions = (restaurantId) =>
   api.get(`/food/restaurants/${restaurantId}/promotions`).then((r) => r.data?.promotions || []);
 
+// Authoritative order quote: the server re-prices items from the DB and adds
+// tax, service fee, delivery fee, tip, and any validated discount. The
+// checkout must display this total instead of the client-side estimate.
+export const quoteFoodOrder = (restaurantId, payload) =>
+  api.post(`/food/restaurants/${restaurantId}/orders/quote`, payload).then((r) => r.data?.quote || null);
+
 export const createFoodPromotion = (restaurantId, payload) =>
   api.post(`/food/restaurants/${restaurantId}/promotions`, payload).then((r) => r.data?.promotion);
 
@@ -298,6 +304,16 @@ export const submitFoodOrderReview = (orderId, { rating, body, trackingToken } =
   api
     .post(`/food/orders/${orderId}/review`, { rating, body, tracking_token: trackingToken })
     .then((r) => r.data?.review);
+
+// ── Merchant payouts (Stripe Connect per restaurant) ───────────────────────
+export const getRestaurantPayoutStatus = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/payouts/status`).then((r) => r.data);
+
+export const createRestaurantPayoutAccount = (restaurantId, payload = {}) =>
+  api.post(`/restaurants/${restaurantId}/payouts/connect`, payload).then((r) => r.data);
+
+export const disconnectRestaurantPayoutAccount = (restaurantId) =>
+  api.post(`/restaurants/${restaurantId}/payouts/disconnect`).then((r) => r.data);
 
 // ── Shared formatting ────────────────────────────────────────────────────────
 export function formatFoodMoney(cents, currency = 'USD') {

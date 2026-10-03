@@ -16,6 +16,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
   getFoodRestaurant,
   placeFoodOrder,
+  quoteFoodOrder,
   uploadFoodAsset,
   listFoodPromotions,
   listMyFoodOrders,
@@ -189,6 +190,16 @@ export default function FoodRestaurantPage() {
   const [addressLine2, setAddressLine2] = useState('');
   const [promoCode, setPromoCode] = useState('');
   const [deliverySlot, setDeliverySlot] = useState('asap');
+  const [tipPreset, setTipPreset] = useState('none'); // 'none' | 10 | 15 | 20 | 'custom'
+  const [customTipText, setCustomTipText] = useState('');
+  // Server-authoritative order quote (tax, service fee, delivery fee, tip,
+  // discount). The checkout displays this total, not the client estimate.
+  const [quote, setQuote] = useState(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [addressError, setAddressError] = useState('');
+  const quoteRequestRef = useRef(0);
+  const paymentFlipNoticeRef = useRef(null);
+  const menuSectionRef = useRef(null);
   // Payment mode matches the backend restaurant payment contract:
   // pay_at_restaurant (default) | restaurant_credit (signed-in wallet holders).
   const [paymentMethod, setPaymentMethod] = useState('pay_at_restaurant');
@@ -318,6 +329,8 @@ export default function FoodRestaurantPage() {
       setAddressLine2('');
       setPromoCode('');
       setDeliverySlot('asap');
+      setTipPreset('none');
+      setCustomTipText('');
       setPaymentMethod('pay_at_restaurant');
       setPaymentReference('');
       setPaymentNote('');
@@ -350,6 +363,8 @@ export default function FoodRestaurantPage() {
     setAddressLine2(String(draft.addressLine2 || ''));
     setPromoCode(String(draft.promoCode || ''));
     setDeliverySlot(draft.deliverySlot || 'asap');
+    setTipPreset(draft.tipPreset === 'custom' || [10, 15, 20].includes(Number(draft.tipPreset)) ? draft.tipPreset : 'none');
+    setCustomTipText(String(draft.customTipText || ''));
     setPaymentMethod(draft.paymentMethod || 'pay_at_restaurant');
     setPaymentReference(String(draft.paymentReference || ''));
     setPaymentNote(String(draft.paymentNote || ''));
@@ -412,6 +427,8 @@ export default function FoodRestaurantPage() {
       || addressLine2.trim().length > 0
       || promoCode.trim().length > 0
       || deliverySlot !== 'asap'
+      || tipPreset !== 'none'
+      || customTipText.trim().length > 0
       || paymentMethod !== 'pay_at_restaurant'
       || paymentReference.trim().length > 0
       || paymentNote.trim().length > 0
@@ -428,6 +445,8 @@ export default function FoodRestaurantPage() {
       addressLine2,
       promoCode,
       deliverySlot,
+      tipPreset,
+      customTipText,
       paymentMethod,
       paymentReference,
       paymentNote,
@@ -445,6 +464,8 @@ export default function FoodRestaurantPage() {
     addressLine2,
     promoCode,
     deliverySlot,
+    tipPreset,
+    customTipText,
     paymentMethod,
     paymentReference,
     paymentNote,
@@ -457,7 +478,7 @@ export default function FoodRestaurantPage() {
   const settings = (restaurant?.settings && typeof restaurant.settings === 'object') ? restaurant.settings : {};
   const supportsDelivery = Array.isArray(restaurant?.fulfillment_modes) && restaurant.fulfillment_modes.includes('delivery');
   const deliveryFeeCents = Number(settings.deliveryFeeCents ?? settings.delivery_fee_cents ?? 0) || 0;
-  const minimumOrderCents = Number(settings.minimumOrderCents ?? settings.minimum_order_cents ?? 0) || 0;
+  const minimumOrderCents = Number(restaurant?.minimum_order_cents ?? settings.minimumOrderCents ?? settings.minimum_order_cents ?? 0) || 0;
   const externalPaymentEnabled = Boolean(settings.externalPaymentEnabled ?? settings.external_payment_enabled ?? false);
   const requireExternalPaymentProof = Boolean(settings.requireExternalPaymentProof ?? settings.require_external_payment_proof ?? false);
   const defaultExternalPaymentLabel = t('food.restaurant.paymentApp');
@@ -482,6 +503,39 @@ export default function FoodRestaurantPage() {
   const hasCart = cartCount > 0;
   const feeCents = (deliveryMode === 'delivery' && hasCart) ? deliveryFeeCents : 0;
   const orderTotalCents = subtotalCents + feeCents;
+  // Tip: preset percentages apply to the client subtotal; custom is a typed amount.
+  const tipCents = useMemo(() => {
+    if (tipPreset === 'custom') {
+      const parsed = Number.parseFloat(String(customTipText).replace(/[^0-9.]/g, ''));
+      if (!Number.isFinite(parsed) || parsed < 0) return 0;
+      return Math.min(Math.round(parsed * 100), 5000000);
+    }
+    const pct = Number(tipPreset);
+    if (Number.isFinite(pct) && pct > 0) return Math.round(subtotalCents * pct / 100);
+    return 0;
+  }, [tipPreset, customTipText, subtotalCents]);
+  // Canonical restaurant payment contract mode (card checkout is pay_now).
+  const apiPaymentMode = paymentMethod === 'restaurant_credit'
+    ? 'restaurant_credit'
+    : paymentMethod === 'oxsteed_credit'
+      ? 'oxsteed_credit'
+      : paymentMethod === 'direct_payment'
+        ? 'direct_payment'
+        : 'pay_at_restaurant';
+  const orderItemsPayload = useMemo(
+    () => cartItems.map((line) => ({
+      menuItemId: line.menuItemId,
+      quantity: line.qty,
+      modifierIds: line.modifierIds,
+      specialInstructions: line.notes || undefined,
+    })),
+    [cartItems]
+  );
+  // Authoritative total from the server quote when available; the client
+  // estimate is only a fallback (it omits tax and service fees).
+  const displayTotalCents = quote && Number.isFinite(Number(quote.totalCents))
+    ? Number(quote.totalCents)
+    : orderTotalCents;
   const checkoutRequiresLogin = !user;
   const externalPaymentHasSubmission = Boolean(paymentProof?.url || paymentReference.trim());
 
@@ -504,7 +558,7 @@ export default function FoodRestaurantPage() {
     setOxsteedCreditEligibilityLoading(true);
     getOxsteedCreditEligibility({
       restaurantId,
-      amountCents: orderTotalCents,
+      amountCents: displayTotalCents,
       currencyCode: oxsteedCreditAccount.currencyCode || creditCurrency,
       orderType: oxsteedCreditOrderType,
       categories: oxsteedCreditCategories.join(','),
@@ -514,10 +568,77 @@ export default function FoodRestaurantPage() {
       .catch(() => { if (alive) setOxsteedCreditEligibility({ eligible: false, reasonCode: 'credit_eligibility_unavailable', message: 'Credit eligibility could not be checked' }); })
       .finally(() => { if (alive) setOxsteedCreditEligibilityLoading(false); });
     return () => { alive = false; };
-  }, [user, restaurantId, oxsteedCreditAccount, oxsteedCreditPartner, cartItems.length, orderTotalCents, creditCurrency, oxsteedCreditOrderType, oxsteedCreditCategories, oxsteedCreditMenuItemIds]);
+  }, [user, restaurantId, oxsteedCreditAccount, oxsteedCreditPartner, cartItems.length, displayTotalCents, creditCurrency, oxsteedCreditOrderType, oxsteedCreditCategories, oxsteedCreditMenuItemIds]);
+
+  // ── Authoritative order quote ─────────────────────────────────────────
+  // The server re-prices every order from the DB (tax, service fee, tip,
+  // delivery fee, validated discounts), so checkout displays the server
+  // quote total instead of the client estimate. Re-quotes (debounced) when
+  // the cart, tip, promo, fulfillment mode, address, or payment mode changes.
+  useEffect(() => {
+    if (!cartOpen || cartItems.length === 0 || !restaurantId || cartStep === 'confirmed') {
+      setQuote(null);
+      setQuoteLoading(false);
+      return undefined;
+    }
+    const fulfillmentType = deliveryMode === 'delivery' ? 'delivery' : 'pickup';
+    // The quote endpoint requires a delivery address for delivery quotes, so
+    // wait until the customer types one instead of quoting against an error.
+    if (fulfillmentType === 'delivery' && !addressLine1.trim()) {
+      setQuote(null);
+      setQuoteLoading(false);
+      return undefined;
+    }
+    setQuoteLoading(true);
+    const requestId = (quoteRequestRef.current || 0) + 1;
+    quoteRequestRef.current = requestId;
+    const timer = setTimeout(async () => {
+      try {
+        const payload = {
+          orderSource: 'web',
+          fulfillmentType,
+          paymentMode: apiPaymentMode,
+          tipCents,
+          items: orderItemsPayload,
+        };
+        if (apiPaymentMode === 'restaurant_credit' && promoCode.trim()) {
+          payload.discountCode = promoCode.trim();
+        }
+        if (fulfillmentType === 'delivery') {
+          payload.deliveryAddress = {
+            line1: addressLine1.trim(),
+            line2: addressLine2.trim() || undefined,
+            city: restaurant?.address_city || undefined,
+            state: restaurant?.address_state || undefined,
+            country: restaurant?.address_country || undefined,
+          };
+        }
+        const nextQuote = await quoteFoodOrder(restaurantId, payload);
+        if (quoteRequestRef.current === requestId) setQuote(nextQuote);
+      } catch {
+        if (quoteRequestRef.current === requestId) setQuote(null);
+      } finally {
+        if (quoteRequestRef.current === requestId) setQuoteLoading(false);
+      }
+    }, 450);
+    return () => clearTimeout(timer);
+  }, [cartOpen, cartItems.length, restaurantId, cartStep, deliveryMode, addressLine1, addressLine2, apiPaymentMode, tipCents, promoCode, orderItemsPayload, restaurant]);
 
   const openLoginGate = () => {
     navigate('/login', { state: { from: location } });
+  };
+
+  // "Start order" with an empty cart is a no-op today; scroll to the menu so
+  // the button does something useful instead.
+  const handleStartOrder = () => {
+    if (hasCart) {
+      setCartOpen(true);
+      return;
+    }
+    setActiveTab('menu');
+    requestAnimationFrame(() => {
+      menuSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   };
 
   const handlePaymentProofUpload = async (event) => {
@@ -545,14 +666,12 @@ export default function FoodRestaurantPage() {
   // ── Place the real order ────────────────────────────────────────────────
   const submitOrder = async () => {
     if (cartItems.length === 0) return;
+    if (subtotalCents < minimumOrderCents && minimumOrderCents > 0) {
+      toast.error(t('food.restaurant.minimumOrderNotMet', { price: formatFoodMoney(minimumOrderCents, currency) }));
+      return;
+    }
     const fulfillmentType = deliveryMode === 'delivery' ? 'delivery' : 'pickup';
-    const paymentMode = paymentMethod === 'restaurant_credit'
-      ? 'restaurant_credit'
-      : paymentMethod === 'oxsteed_credit'
-        ? 'oxsteed_credit'
-      : paymentMethod === 'direct_payment'
-        ? 'direct_payment'
-        : 'pay_at_restaurant';
+    const paymentMode = apiPaymentMode;
     const externalPaymentSubmission = paymentMode === 'direct_payment'
       ? {
         method: externalPaymentLabel || 'external_payment',
@@ -589,12 +708,11 @@ export default function FoodRestaurantPage() {
         discountCode: paymentMode === 'restaurant_credit' && promoCode.trim()
           ? promoCode.trim()
           : undefined,
-        items: cartItems.map((line) => ({
-          menuItemId: line.menuItemId,
-          quantity: line.qty,
-          modifierIds: line.modifierIds,
-          specialInstructions: line.notes || undefined,
-        })),
+        items: orderItemsPayload,
+        // The server re-prices everything; send the customer-chosen tip and
+        // time slot so the debited total matches the quoted total.
+        tipCents: tipCents > 0 ? tipCents : undefined,
+        deliverySlot,
         ...(paymentMode === 'direct_payment' ? {
           externalPayment: externalPaymentSubmission,
           metadata: {
@@ -604,7 +722,7 @@ export default function FoodRestaurantPage() {
       };
       if (fulfillmentType === 'delivery') {
         payload.deliveryAddress = {
-          line1: addressLine1.trim() || restaurant.address_street || '',
+          line1: addressLine1.trim(),
           line2: addressLine2.trim() || undefined,
           city: restaurant.address_city || undefined,
           state: restaurant.address_state || undefined,
@@ -639,6 +757,9 @@ export default function FoodRestaurantPage() {
       setDraftHasContent(false);
       setCartStep('confirmed');
       setCartItems([]);
+      setTipPreset('none');
+      setCustomTipText('');
+      setQuote(null);
       setPaymentReference('');
       setPaymentNote('');
       setPaymentProof(null);
@@ -662,19 +783,19 @@ export default function FoodRestaurantPage() {
   const walletAvailableCents = Number(
     wallet?.availableBalanceCents ?? Math.max(0, walletBalanceCents - walletReservedCents)
   );
-  const walletCoversOrder = walletAvailableCents >= orderTotalCents;
+  const walletCoversOrder = walletAvailableCents >= displayTotalCents;
   const oxsteedCreditBalanceCents = Number(oxsteedCreditAccount?.balanceCents || 0);
   const oxsteedCreditReservedCents = Number(oxsteedCreditAccount?.reservedCents || 0);
   const oxsteedCreditAvailableCents = Number(
     oxsteedCreditAccount?.availableBalanceCents
       ?? Math.max(0, oxsteedCreditBalanceCents - oxsteedCreditReservedCents)
   );
-  const oxsteedCreditCoversOrder = oxsteedCreditAvailableCents >= orderTotalCents;
+  const oxsteedCreditCoversOrder = oxsteedCreditAvailableCents >= displayTotalCents;
   const oxsteedCreditMaxTransactionCents = oxsteedCreditPartner?.maxTransactionCents == null
     ? null
     : Number(oxsteedCreditPartner.maxTransactionCents);
   const oxsteedCreditExceedsTransactionLimit = Number.isFinite(oxsteedCreditMaxTransactionCents)
-    && orderTotalCents > oxsteedCreditMaxTransactionCents;
+    && displayTotalCents > oxsteedCreditMaxTransactionCents;
   const oxsteedCreditPaymentIssue = oxsteedCreditEligibilityLoading
     ? 'Checking eligibility...'
     : oxsteedCreditEligibility && !oxsteedCreditEligibility.eligible
@@ -687,6 +808,12 @@ export default function FoodRestaurantPage() {
   useEffect(() => {
     if (paymentMethod === 'oxsteed_credit' && oxsteedCreditPaymentIssue) {
       setPaymentMethod('pay_at_restaurant');
+      // The flip is silent by default; tell the customer why it happened.
+      const reason = String(oxsteedCreditPaymentIssue);
+      if (paymentFlipNoticeRef.current !== reason) {
+        paymentFlipNoticeRef.current = reason;
+        toast(t('food.restaurant.paymentMethodSwitched', { reason }), { icon: '⚠️' });
+      }
     }
   }, [paymentMethod, oxsteedCreditPaymentIssue]);
   // ── Loading / not found ─────────────────────────────────────────────────
@@ -1111,6 +1238,24 @@ export default function FoodRestaurantPage() {
   const detailsTitle = isPickup ? t('food.restaurant.pickupDetails') : t('food.restaurant.deliveryDetails');
   const delivFeeLabel = isPickup ? t('food.order.pickup') : t('food.restaurant.deliveryFee');
   const delivFeeStr = isPickup || feeCents === 0 ? t('food.restaurant.free') : formatFoodMoney(feeCents, currency);
+  // Full price breakdown for the payment step: server quote lines first,
+  // client estimates only for lines the quote does not provide.
+  const summaryRows = useMemo(() => {
+    const quoted = (cents) => (quote && Number.isFinite(Number(cents)) ? Number(cents) : null);
+    const deliveryFee = quoted(quote?.deliveryFeeCents) ?? feeCents;
+    const rows = [
+      { key: 'subtotal', label: t('food.restaurant.subtotal'), amount: quoted(quote?.subtotalCents) ?? subtotalCents },
+    ];
+    const discount = quoted(quote?.discountCents);
+    if (discount > 0) rows.push({ key: 'discount', label: t('food.restaurant.quoteDiscount'), amount: -discount, tone: 'green' });
+    const tax = quoted(quote?.taxCents);
+    if (tax > 0) rows.push({ key: 'tax', label: t('food.restaurant.quoteTax'), amount: tax });
+    const serviceFee = quoted(quote?.serviceFeeCents);
+    if (serviceFee > 0) rows.push({ key: 'serviceFee', label: t('food.restaurant.quoteServiceFee'), amount: serviceFee });
+    rows.push({ key: 'delivery', label: delivFeeLabel, amount: deliveryFee, free: deliveryFee === 0 });
+    if (tipCents > 0) rows.push({ key: 'tip', label: t('food.restaurant.tip'), amount: tipCents });
+    return rows;
+  }, [quote, subtotalCents, feeCents, tipCents, t, delivFeeLabel]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -1235,7 +1380,7 @@ export default function FoodRestaurantPage() {
             {/* ── Sidebar (desktop) ── */}
             <div className="rp-sidebar">
               <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 14, marginBottom: 14 }}>
-                <button onClick={() => (hasCart ? setCartOpen(true) : null)} style={{ width: '100%', height: 48, background: accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer', marginBottom: 8 }}>
+                <button onClick={handleStartOrder} style={{ width: '100%', height: 48, background: accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer', marginBottom: 8 }}>
                   {hasCart ? t('food.restaurant.orderItems', { count: cartCount }) : t('food.restaurant.startOrder')}
                 </button>
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -1326,7 +1471,7 @@ export default function FoodRestaurantPage() {
 
               {/* ── MENU ── */}
               {activeTab === 'menu' && (
-                <div className="rp-panel rp-panel-wrap">
+                <div className="rp-panel rp-panel-wrap" ref={menuSectionRef}>
                   {sections.length > 1 && (
                     <div className="rp-cat-row">
                       {sections.map((sec) => {
@@ -1616,7 +1761,7 @@ export default function FoodRestaurantPage() {
                   <div style={{ padding: '14px 20px 20px', borderTop: '1px solid #f1f5f9', flexShrink: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#64748b', marginBottom: 6 }}><span>{t('food.restaurant.subtotal')}</span><span style={{ fontWeight: 600, color: '#0f172a' }}>{formatFoodMoney(subtotalCents, currency)}</span></div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#64748b', marginBottom: 14 }}><span>{delivFeeLabel}</span><span style={{ fontWeight: 600, color: '#0f172a' }}>{delivFeeStr}</span></div>
-                      <button onClick={() => { setCartOpen(true); setCartStep('details'); }} style={{ width: '100%', height: 52, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>{t('food.restaurant.checkoutTotal', { total: formatFoodMoney(orderTotalCents, currency) })}</button>
+                      <button onClick={() => { setCartOpen(true); setCartStep('details'); }} style={{ width: '100%', height: 52, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>{t('food.restaurant.checkoutTotal', { total: formatFoodMoney(displayTotalCents, currency) })}</button>
                   </div>
                 </>
               )}
@@ -1644,10 +1789,11 @@ export default function FoodRestaurantPage() {
                             <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>{t('food.restaurant.streetAddress')}</p>
                             <AddressAutocomplete
                               value={addressLine1}
-                              onChange={setAddressLine1}
+                              onChange={(value) => { setAddressLine1(value); if (addressError) setAddressError(''); }}
                               onSelect={(place) => {
                                 setAddressLine1(place.addressLine1 || place.display);
                                 if (place.addressLine2) setAddressLine2(place.addressLine2);
+                                if (addressError) setAddressError('');
                               }}
                               placeholder={t('food.restaurant.streetPlaceholder')}
                               autoComplete="shipping street-address"
@@ -1657,6 +1803,9 @@ export default function FoodRestaurantPage() {
                             />
                             <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>{t('food.restaurant.aptSuite')} <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>({t('food.restaurant.optional')})</span></p>
                             <input value={addressLine2} onChange={(e) => setAddressLine2(e.target.value)} placeholder={t('food.restaurant.aptPlaceholder')} style={{ ...inputStyle, marginBottom: 20 }} />
+                            {addressError && (
+                              <p role="alert" style={{ fontSize: 13, fontWeight: 600, color: '#dc2626', margin: '-8px 0 16px' }}>{addressError}</p>
+                            )}
                           </>
                         )}
                         <p style={{ ...sectionLabel, color: '#64748b' }}>{isPickup ? t('food.restaurant.pickupTime') : t('food.restaurant.deliveryTime')}</p>
@@ -1697,7 +1846,16 @@ export default function FoodRestaurantPage() {
                       </button>
                     ) : (
                       <button
-                        onClick={() => setCartStep('payment')}
+                        onClick={() => {
+                          // Never let a blank delivery address fall back to the
+                          // restaurant's own address at submit time.
+                          if (!isPickup && !addressLine1.trim()) {
+                            setAddressError(t('food.restaurant.deliveryAddressRequired'));
+                            return;
+                          }
+                          setAddressError('');
+                          setCartStep('payment');
+                        }}
                         style={{
                           width: '100%',
                           height: 52,
@@ -1944,11 +2102,49 @@ export default function FoodRestaurantPage() {
                         />
                       </>
                     )}
+                    <p style={{ ...sectionLabel, color: '#64748b' }}>{t('food.restaurant.tip')}</p>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: tipPreset === 'custom' ? 8 : 20 }}>
+                      {[
+                        { id: 'none', label: t('food.restaurant.tipNone') },
+                        { id: 10, label: '10%' },
+                        { id: 15, label: '15%' },
+                        { id: 20, label: '20%' },
+                        { id: 'custom', label: t('food.restaurant.tipCustom') },
+                      ].map((opt) => {
+                        const on = tipPreset === opt.id;
+                        return (
+                          <button
+                            key={String(opt.id)}
+                            type="button"
+                            onClick={() => setTipPreset(opt.id)}
+                            style={{ height: 40, padding: '0 16px', borderRadius: 9999, border: `1.5px solid ${on ? accent : '#e2e8f0'}`, background: on ? accentBg : '#fff', color: on ? accent : '#475569', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {tipPreset === 'custom' && (
+                      <input
+                        value={customTipText}
+                        onChange={(e) => setCustomTipText(e.target.value.replace(/[^0-9.]/g, ''))}
+                        placeholder={t('food.restaurant.tipCustomPlaceholder')}
+                        inputMode="decimal"
+                        aria-label={t('food.restaurant.tipCustomPlaceholder')}
+                        style={{ ...inputStyle, marginBottom: 20 }}
+                      />
+                    )}
                     <p style={{ ...sectionLabel, color: '#64748b' }}>{t('food.restaurant.orderSummary')}</p>
                     <div style={{ background: '#f8fafc', borderRadius: 12, padding: '14px 16px', marginBottom: 20, border: '1px solid #f1f5f9' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#64748b', marginBottom: 6 }}><span>{t('food.restaurant.subtotal')}</span><span style={{ fontWeight: 600, color: '#0f172a' }}>{formatFoodMoney(subtotalCents, currency)}</span></div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#64748b', marginBottom: 10 }}><span>{delivFeeLabel}</span><span style={{ fontWeight: 600, color: '#0f172a' }}>{delivFeeStr}</span></div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 700, paddingTop: 10, borderTop: '1px solid #e2e8f0' }}><span style={{ color: '#0f172a' }}>{t('food.order.total')}</span><span style={{ color: '#0f172a' }}>{formatFoodMoney(orderTotalCents, currency)}</span></div>
+                      {summaryRows.map((row, i) => (
+                        <div key={row.key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#64748b', marginBottom: i === summaryRows.length - 1 ? 10 : 6 }}>
+                          <span>{row.label}</span>
+                          <span style={{ fontWeight: 600, color: row.tone === 'green' ? '#15803d' : '#0f172a' }}>
+                            {row.free ? t('food.restaurant.free') : formatFoodMoney(row.amount, currency)}
+                          </span>
+                        </div>
+                      ))}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 700, paddingTop: 10, borderTop: '1px solid #e2e8f0' }}><span style={{ color: '#0f172a' }}>{t('food.order.total')}</span><span style={{ color: '#0f172a' }}>{formatFoodMoney(displayTotalCents, currency)}{quoteLoading ? ' …' : ''}</span></div>
                     </div>
                     <p style={{ fontSize: 12, color: '#94a3b8', textAlign: 'center', marginBottom: 4 }}>
                       {['restaurant_credit', 'oxsteed_credit'].includes(paymentMethod)
@@ -1964,7 +2160,7 @@ export default function FoodRestaurantPage() {
                       disabled={placing || proofUploading || (paymentMethod === 'direct_payment' && requireExternalPaymentProof && !externalPaymentHasSubmission)}
                       style={{ width: '100%', height: 52, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: placing || proofUploading ? 'wait' : 'pointer', opacity: placing || proofUploading || (paymentMethod === 'direct_payment' && requireExternalPaymentProof && !externalPaymentHasSubmission) ? 0.7 : 1 }}
                     >
-                      {placing ? t('food.restaurant.placingOrder') : t('food.restaurant.placeOrderTotal', { total: formatFoodMoney(orderTotalCents, currency) })}
+                      {placing ? t('food.restaurant.placingOrder') : t('food.restaurant.placeOrderTotal', { total: formatFoodMoney(displayTotalCents, currency) })}
                     </button>
                   </div>
                 </>

@@ -170,6 +170,8 @@ export default function RestaurantMenuManager({ t, restaurant }) {
     ))));
   };
 
+  const CSV_IMPORT_LIMIT = 300;
+
   const handleCsvImport = async (event) => {
     const file = event.target.files?.[0];
     event.target.value = '';
@@ -179,12 +181,19 @@ export default function RestaurantMenuManager({ t, restaurant }) {
       toast.error(t('food.menuManager.csvEmpty', 'No menu rows were found in that CSV file.'));
       return;
     }
+    const report = { imported: 0, truncated: rows.length > CSV_IMPORT_LIMIT, skipped: [] };
+    const skipRow = (rowNumber, name, reason) => report.skipped.push({ rowNumber, name: name || '-', reason });
     await mutate(async () => {
       const categoryByName = new Map((menuData.menu || []).map((category) => [category.name.toLowerCase(), category.id]));
-      for (const row of rows.slice(0, 300)) {
-        const name = row.name || row.item || row.itemname;
+      let rowNumber = 1; // header is row 1
+      for (const row of rows.slice(0, CSV_IMPORT_LIMIT)) {
+        rowNumber += 1;
+        const name = (row.name || row.item || row.itemname || '').trim();
         const price = Number(row.price || row.amount);
-        if (!name || !Number.isFinite(price) || price < 0) continue;
+        if (!name) { skipRow(rowNumber, name, t('food.merchant.csvReasonNoName', 'missing name')); continue; }
+        if (!Number.isFinite(price) || price < 0) { skipRow(rowNumber, name, t('food.merchant.csvReasonBadPrice', 'invalid price')); continue; }
+        if (price === 0) { skipRow(rowNumber, name, t('food.merchant.csvReasonZeroPrice', 'price is $0')); continue; }
+        if (price > 500) { skipRow(rowNumber, name, t('food.merchant.csvReasonHighPrice', 'price over $500 looks like a typo')); continue; }
         let categoryId = null;
         const categoryName = row.category?.trim();
         if (categoryName) {
@@ -202,10 +211,32 @@ export default function RestaurantMenuManager({ t, restaurant }) {
           categoryId: categoryId || undefined,
           tags: splitList(row.tags),
           allergens: splitList(row.allergens),
-          publicationStatus: 'draft',
+          publicationStatus: 'published',
         });
+        report.imported += 1;
       }
-    }, t('food.menuManager.csvImported', 'Menu imported as drafts. Review the items before publishing.'));
+    });
+    const reasonCounts = new Map();
+    report.skipped.forEach((entry) => reasonCounts.set(entry.reason, (reasonCounts.get(entry.reason) || 0) + 1));
+    const reasons = [...reasonCounts.entries()].map(([reason, count]) => `${count} ${reason}`).join(', ');
+    const skippedText = report.skipped.length
+      ? ` ${t('food.merchant.csvSkippedSummary', '{{count}} rows skipped: {{reasons}}', { count: report.skipped.length, reasons })}`
+      : '';
+    const truncatedText = report.truncated
+      ? ` ${t('food.merchant.csvTruncated', 'Only the first {{limit}} rows were imported.', { limit: CSV_IMPORT_LIMIT })}`
+      : '';
+    if (report.imported === 0) {
+      toast.error(t('food.merchant.csvNothingImported', 'No items were imported.{{skipped}}{{truncated}}', {
+        skipped: skippedText,
+        truncated: truncatedText,
+      }));
+    } else {
+      toast.success(t('food.merchant.csvImportedSummary', '{{count}} items imported and published.{{skipped}}{{truncated}}', {
+        count: report.imported,
+        skipped: skippedText,
+        truncated: truncatedText,
+      }));
+    }
   };
 
   const downloadTemplate = () => {
@@ -342,8 +373,17 @@ export default function RestaurantMenuManager({ t, restaurant }) {
           onClose={() => setItemEditor(null)}
           onSave={(form) => mutate(async () => {
             const payload = formToPayload(form);
-            if (itemEditor.item) await updateFoodMenuItem(restaurant.id, itemEditor.item.id, payload);
-            else await createFoodMenuItem(restaurant.id, payload);
+            if (itemEditor.item) {
+              await updateFoodMenuItem(restaurant.id, itemEditor.item.id, payload);
+            } else {
+              const created = await createFoodMenuItem(restaurant.id, payload);
+              const groups = (form.modifierGroups || [])
+                .map((groupForm) => modifierToPayload(groupForm))
+                .filter((groupPayload) => groupPayload.name && groupPayload.options.length > 0);
+              for (const groupPayload of groups) {
+                await createFoodModifierGroup(restaurant.id, created.id, groupPayload);
+              }
+            }
             setItemEditor(null);
           }, t('food.menuManager.itemSaved', 'Menu item saved'))}
           onModifier={(group) => setModifierEditor({ item: itemEditor.item, group, form: modifierToForm(group) })}
@@ -449,8 +489,17 @@ function modifierToPayload(form) {
 function ItemEditor({ t, restaurant, categories, editor, working, onClose, onSave, onModifier, onDeleteModifier }) {
   const [form, setForm] = useState(editor.form);
   const [uploading, setUploading] = useState(false);
+  // For brand-new items, modifier groups are collected locally and created
+  // right after the item, so the whole item saves in one pass.
+  const [pendingGroups, setPendingGroups] = useState([]);
+  const [pendingEditor, setPendingEditor] = useState(null); // { index: number|null, form }
   const set = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.type === 'checkbox' ? event.target.checked : event.target.value }));
   const valid = form.name.trim() && Number.isFinite(Number(form.price)) && Number(form.price) >= 0;
+  const priceValue = Number(form.price);
+  const showZeroPriceWarning = form.price !== '' && priceValue === 0;
+  const showHighPriceWarning = Number.isFinite(priceValue) && priceValue > 500;
+  const [highPriceConfirmed, setHighPriceConfirmed] = useState(false);
+  const canSave = valid && (!showHighPriceWarning || highPriceConfirmed);
   const uploadImage = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -464,14 +513,22 @@ function ItemEditor({ t, restaurant, categories, editor, working, onClose, onSav
       setUploading(false);
     }
   };
-  return (
+  return (<>
     <div className="fd-owner-editor-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <form className="fd-owner-editor" onSubmit={(event) => { event.preventDefault(); if (valid) onSave(form); }}>
+      <form className="fd-owner-editor" onSubmit={(event) => { event.preventDefault(); if (canSave) onSave({ ...form, modifierGroups: pendingGroups }); }}>
         <header><div><p>{editor.item ? t('food.menuManager.editItem', 'Edit item') : t('food.menuManager.newItem', 'New item')}</p><h3>{form.name || t('food.menuManager.untitledItem', 'Untitled item')}</h3></div><button type="button" onClick={onClose} aria-label={t('food.common.close', 'Close')}>×</button></header>
         <div className="fd-owner-editor-body">
           <div className="fd-menu-editor-grid">
             <div className="fd-field"><label htmlFor="menu-item-name">{t('food.merchant.itemName', 'Item name')} *</label><input id="menu-item-name" value={form.name} onChange={set('name')} maxLength={160} autoFocus /></div>
-            <div className="fd-field"><label htmlFor="menu-item-price">{t('food.merchant.itemPrice', 'Price')} ({restaurant.currency_code}) *</label><input id="menu-item-price" value={form.price} onChange={set('price')} type="number" min="0" step="0.01" inputMode="decimal" /></div>
+            <div className="fd-field"><label htmlFor="menu-item-price">{t('food.merchant.itemPrice', 'Price')} ({restaurant.currency_code}) *</label><input id="menu-item-price" value={form.price} onChange={(event) => { set('price')(event); setHighPriceConfirmed(false); }} type="number" min="0" step="0.01" inputMode="decimal" />
+              {showZeroPriceWarning && <small className="fd-price-warning">{t('food.merchant.zeroPriceWarning', 'This item is priced at $0. Customers can order it for free.')}</small>}
+              {showHighPriceWarning && (
+                <span className="fd-price-warning">
+                  <small>{t('food.merchant.highPriceWarning', 'That price looks like a typo. Did you mean {{suggested}}?', { suggested: formatFoodMoney(Math.round(priceValue / 100) * 100, restaurant.currency_code) })}</small>
+                  <label className="fd-menu-manager-toggle"><input type="checkbox" checked={highPriceConfirmed} onChange={(event) => setHighPriceConfirmed(event.target.checked)} />{t('food.merchant.highPriceConfirm', 'The price is correct')}</label>
+                </span>
+              )}
+            </div>
           </div>
           <div className="fd-field"><label htmlFor="menu-item-description">{t('food.merchant.itemDescription', 'Description')}</label><textarea id="menu-item-description" value={form.description} onChange={set('description')} rows={3} maxLength={2000} /></div>
           <div className="fd-menu-editor-grid">
@@ -485,12 +542,46 @@ function ItemEditor({ t, restaurant, categories, editor, working, onClose, onSav
           <details className="fd-menu-editor-advanced"><summary>{t('food.menuManager.dietaryDetails', 'Dietary details')}</summary><div className="fd-menu-editor-grid"><div className="fd-field"><label htmlFor="menu-item-tags">{t('food.menuManager.tags', 'Tags')}</label><input id="menu-item-tags" value={form.tags} onChange={set('tags')} placeholder="vegan, spicy, popular" /></div><div className="fd-field"><label htmlFor="menu-item-allergens">{t('food.menuManager.allergens', 'Allergens')}</label><input id="menu-item-allergens" value={form.allergens} onChange={set('allergens')} placeholder="milk, peanuts, wheat" /></div></div></details>
           <label className="fd-owner-switch"><input type="checkbox" checked={form.isAvailable} onChange={set('isAvailable')} /><span><strong>{t('food.menuManager.availableNow', 'Available for ordering')}</strong><small>{t('food.menuManager.availableHint', 'Turn this off to mark the item sold out without removing it.')}</small></span></label>
           {editor.item && <section className="fd-modifier-summary"><div className="fd-modifier-summary-head"><div><h4>{t('food.menuManager.optionsTitle', 'Options and modifiers')}</h4><p>{t('food.menuManager.optionsHint', 'Sizes, add-ons, sides, preparation choices, and extras.')}</p></div><button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => onModifier(null)}>+ {t('food.menuManager.addOptionGroup', 'Add group')}</button></div>{(editor.item.modifierGroups || []).map((group) => <div className="fd-modifier-summary-row" key={group.id}><div><strong>{group.name}</strong><span>{t('food.menuManager.optionsCount', '{{count}} options', { count: group.options?.length || 0 })}{group.isRequired ? ` · ${t('food.menuManager.required', 'Required')}` : ''}</span></div><div><button type="button" onClick={() => onModifier(group)}>{t('food.common.edit', 'Edit')}</button><button type="button" onClick={() => onDeleteModifier(group.id)}>{t('food.common.delete', 'Delete')}</button></div></div>)}</section>}
-          {!editor.item && <p className="fd-menu-editor-note">{t('food.menuManager.saveBeforeOptions', 'Save the item first, then reopen it to add sizes and other options.')}</p>}
+          {!editor.item && (
+            <section className="fd-modifier-summary">
+              <div className="fd-modifier-summary-head">
+                <div><h4>{t('food.menuManager.optionsTitle', 'Options and modifiers')}</h4><p>{t('food.menuManager.optionsHint', 'Sizes, add-ons, sides, preparation choices, and extras.')}</p></div>
+                <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setPendingEditor({ index: null, form: blankModifier() })}>
+                  + {t('food.menuManager.addOptionGroup', 'Add group')}
+                </button>
+              </div>
+              {pendingGroups.map((group, index) => (
+                <div className="fd-modifier-summary-row" key={index}>
+                  <div><strong>{group.name || t('food.menuManager.newOptionGroup', 'New option group')}</strong><span>{t('food.menuManager.optionsCount', '{{count}} options', { count: group.options.filter((option) => option.name.trim()).length })}{group.required ? ` · ${t('food.menuManager.required', 'Required')}` : ''}</span></div>
+                  <div>
+                    <button type="button" onClick={() => setPendingEditor({ index, form: group })}>{t('food.common.edit', 'Edit')}</button>
+                    <button type="button" onClick={() => setPendingGroups((current) => current.filter((_, i) => i !== index))}>{t('food.common.delete', 'Delete')}</button>
+                  </div>
+                </div>
+              ))}
+              {pendingGroups.length === 0 && <p className="fd-card-meta">{t('food.merchant.noOptionGroups', 'No option groups yet. Add sizes, add-ons, or choices before saving.')}</p>}
+            </section>
+          )}
         </div>
-        <footer><button type="button" className="fd-btn fd-btn-secondary" onClick={onClose}>{t('food.common.cancel', 'Cancel')}</button><button className="fd-btn" type="submit" disabled={!valid || working || uploading}>{working ? t('food.common.saving', 'Saving…') : t('food.common.save', 'Save item')}</button></footer>
+        <footer><button type="button" className="fd-btn fd-btn-secondary" onClick={onClose}>{t('food.common.cancel', 'Cancel')}</button><button className="fd-btn" type="submit" disabled={!canSave || working || uploading}>{working ? t('food.common.saving', 'Saving…') : t('food.common.save', 'Save item')}</button></footer>
       </form>
     </div>
-  );
+    {pendingEditor && (
+      <ModifierEditor
+        t={t}
+        editor={pendingEditor}
+        currency={restaurant.currency_code}
+        working={false}
+        onClose={() => setPendingEditor(null)}
+        onSave={(groupForm) => {
+          setPendingGroups((current) => (pendingEditor.index == null
+            ? [...current, groupForm]
+            : current.map((group, index) => (index === pendingEditor.index ? groupForm : group))));
+          setPendingEditor(null);
+        }}
+      />
+    )}
+  </>);
 }
 
 function CategoryEditor({ t, editor, working, onClose, onSave, onDelete }) {

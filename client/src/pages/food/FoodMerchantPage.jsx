@@ -25,11 +25,11 @@ import {
   formatFoodMoney,
 } from '../../api/food';
 import { FoodBrand, FoodConnBadge, FOOD_STATUS_KEYS, apiErrorMessage } from './foodShared';
-import { defaultWeekdayHours } from './FoodSetupWizard';
 import DeviceSetupChecklist from './FoodDeviceSetupChecklist';
 import RestaurantSetupGuide, { shouldShowRestaurantSetup } from './RestaurantSetupGuide';
 import RestaurantMenuManager from './RestaurantMenuManager';
 import RestaurantCreditManager from './RestaurantCreditManager';
+import RestaurantPayoutsPanel from './RestaurantPayoutsPanel';
 import OxsteedCreditPartnerManager from './OxsteedCreditPartnerManager';
 import LocationsPanel from './FoodLocationsPanel';
 import PromotionsPanel from './FoodPromotionsPanel';
@@ -866,12 +866,44 @@ function MenuTab({ t, restaurant }) {
 }
 
 // ── Settings tab ─────────────────────────────────────────────────────────────
-function SettingsTab({ t, restaurant, onUpdated, onSetupChanged }) {
+const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+const DEFAULT_OPEN_TIME = '11:00';
+const DEFAULT_CLOSE_TIME = '22:00';
+
+const blankDayHours = (open = DEFAULT_OPEN_TIME, close = DEFAULT_CLOSE_TIME, closed = false) => ({ open, close, closed });
+
+function dayHoursFromRestaurant(rest) {
+  const weekly = rest && rest.operating_hours && typeof rest.operating_hours === 'object'
+    ? rest.operating_hours.weekly
+    : null;
+  return WEEKDAY_KEYS.map((key) => {
+    const entry = weekly && typeof weekly === 'object' ? weekly[key] : null;
+    if (entry && entry.closed) return blankDayHours(entry.open || DEFAULT_OPEN_TIME, entry.close || DEFAULT_CLOSE_TIME, true);
+    if (entry && (entry.open || entry.close)) {
+      return blankDayHours(entry.open || DEFAULT_OPEN_TIME, entry.close || DEFAULT_CLOSE_TIME, false);
+    }
+    return blankDayHours();
+  });
+}
+
+function weekDayLabel(i18n, index) {
+  // 2026-06-01 is a Monday; weekday names come from the browser locale data.
+  const date = new Date(Date.UTC(2026, 5, 1 + index));
+  try {
+    return new Intl.DateTimeFormat(i18n?.language || 'en', { weekday: 'short' }).format(date);
+  } catch {
+    return WEEKDAY_KEYS[index];
+  }
+}
+function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
   const [saving, setSaving] = useState(false);
   const [prep, setPrep] = useState(restaurant.prep_time_min || 15);
-  const [openTime, setOpenTime] = useState('11:00');
-  const [closeTime, setCloseTime] = useState('22:00');
+  const [dayHours, setDayHours] = useState(() => dayHoursFromRestaurant(restaurant));
   const [brandHex, setBrandHex] = useState(restaurant.brand_accent_hex || '');
+  const [taxRatePct, setTaxRatePct] = useState(() => {
+    const bps = Number(restaurant.tax_rate_bps);
+    return Number.isFinite(bps) && bps > 0 ? String(bps / 100) : '';
+  });
   const restaurantSettings = restaurant.settings && typeof restaurant.settings === 'object' ? restaurant.settings : {};
   const kitchenPrepSettings = restaurantSettings.kitchenPrep && typeof restaurantSettings.kitchenPrep === 'object'
     ? restaurantSettings.kitchenPrep
@@ -914,6 +946,9 @@ function SettingsTab({ t, restaurant, onUpdated, onSetupChanged }) {
 
   useEffect(() => {
     const nextSettings = restaurant.settings && typeof restaurant.settings === 'object' ? restaurant.settings : {};
+    const nextTaxBps = Number(restaurant.tax_rate_bps);
+    setTaxRatePct(Number.isFinite(nextTaxBps) && nextTaxBps > 0 ? String(nextTaxBps / 100) : '');
+    setDayHours(dayHoursFromRestaurant(restaurant));
     setRequirePickupGuestName(nextSettings.requireGuestNameForPickup ?? nextSettings.require_guest_name_for_pickup ?? true);
     setRequireContactForUpdates(nextSettings.requireContactForUpdates ?? nextSettings.require_contact_for_updates ?? false);
     setExternalPaymentEnabled(nextSettings.externalPaymentEnabled ?? nextSettings.external_payment_enabled ?? false);
@@ -986,6 +1021,15 @@ function SettingsTab({ t, restaurant, onUpdated, onSetupChanged }) {
     } finally {
       setSaving(false);
     }
+  };
+
+  const saveTaxRate = () => {
+    const pct = Number(taxRatePct);
+    if (taxRatePct.trim() === '' || !Number.isFinite(pct) || pct < 0 || pct > 100) {
+      toast.error(t('food.merchant.taxRateInvalid', 'Enter a tax rate between 0 and 100.'));
+      return;
+    }
+    patch({ taxRateBps: Math.round(pct * 100) });
   };
 
   return (
@@ -1089,20 +1133,59 @@ function SettingsTab({ t, restaurant, onUpdated, onSetupChanged }) {
       </div>
 
       <h3 style={{ marginTop: '1.5rem' }}>{t('food.merchant.hoursTitle', 'Operating hours')}</h3>
-      <div className="fd-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
-        <div className="fd-field" style={{ maxWidth: 120 }}>
-          <label htmlFor="fd-open">{t('food.merchant.openTime', 'Opens')}</label>
-          <input id="fd-open" type="time" value={openTime} onChange={(e) => setOpenTime(e.target.value)} />
-        </div>
-        <div className="fd-field" style={{ maxWidth: 120 }}>
-          <label htmlFor="fd-close">{t('food.merchant.closeTime', 'Closes')}</label>
-          <input id="fd-close" type="time" value={closeTime} onChange={(e) => setCloseTime(e.target.value)} />
-        </div>
+      <p className="fd-card-meta">
+        {t('food.merchant.hoursPerDayHint', 'Set hours for each day. Toggle a day off when the restaurant is closed.')}
+      </p>
+      <div className="fd-owner-hours-editor">
+        {dayHours.map((day, index) => (
+          <div key={WEEKDAY_KEYS[index]} className="fd-row" style={{ alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+            <span style={{ width: 48 }}>{weekDayLabel(i18n, index)}</span>
+            <div className="fd-field" style={{ maxWidth: 120, margin: 0 }}>
+              <input
+                id={`fd-hours-open-${WEEKDAY_KEYS[index]}`}
+                type="time"
+                aria-label={t('food.merchant.openTime', 'Opens')}
+                value={day.open}
+                disabled={day.closed}
+                onChange={(e) => setDayHours((current) => current.map((entry, i) => (i === index ? { ...entry, open: e.target.value } : entry)))}
+              />
+            </div>
+            <div className="fd-field" style={{ maxWidth: 120, margin: 0 }}>
+              <input
+                id={`fd-hours-close-${WEEKDAY_KEYS[index]}`}
+                type="time"
+                aria-label={t('food.merchant.closeTime', 'Closes')}
+                value={day.close}
+                disabled={day.closed}
+                onChange={(e) => setDayHours((current) => current.map((entry, i) => (i === index ? { ...entry, close: e.target.value } : entry)))}
+              />
+            </div>
+            <label className="fd-menu-manager-toggle">
+              <input
+                type="checkbox"
+                checked={day.closed}
+                onChange={(e) => setDayHours((current) => current.map((entry, i) => (i === index ? { ...entry, closed: e.target.checked } : entry)))}
+              />
+              {t('food.merchant.hoursClosed', 'Closed')}
+            </label>
+          </div>
+        ))}
+      </div>
+      <div className="fd-row" style={{ marginTop: '0.75rem' }}>
         <button
           type="button"
           className="fd-btn fd-btn-sm"
           disabled={saving}
-          onClick={() => patch({ operatingHours: defaultWeekdayHours(openTime, closeTime) })}
+          onClick={() => patch({
+            operatingHours: {
+              weekly: Object.fromEntries(WEEKDAY_KEYS.map((key, index) => {
+                const day = dayHours[index];
+                return day.closed
+                  ? [key, { closed: true, open: day.open, close: day.close }]
+                  : [key, { open: day.open, close: day.close }];
+              })),
+            },
+          })}
         >
           {t('food.merchant.saveHours', 'Save hours')}
         </button>
@@ -1117,6 +1200,29 @@ function SettingsTab({ t, restaurant, onUpdated, onSetupChanged }) {
           {t('food.common.save')}
         </button>
       </div>
+
+      <div className="fd-row" style={{ alignItems: 'flex-end', marginTop: '1rem' }}>
+        <div className="fd-field" style={{ maxWidth: 160 }}>
+          <label htmlFor="fd-tax">{t('food.merchant.taxRate', 'Tax rate (%)')}</label>
+          <input
+            id="fd-tax"
+            type="number"
+            min="0"
+            max="100"
+            step="0.01"
+            inputMode="decimal"
+            value={taxRatePct}
+            onChange={(e) => setTaxRatePct(e.target.value)}
+            placeholder="8.5"
+          />
+        </div>
+        <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={saveTaxRate}>
+          {t('food.common.save')}
+        </button>
+      </div>
+      <p className="fd-card-meta">
+        {t('food.merchant.taxRateHint', 'Sales tax added to customer orders. Leave blank or 0 when tax does not apply.')}
+      </p>
 
       <div style={{ marginTop: '1.5rem' }}>
         <h3>{t('food.merchant.guestCheckoutTitle', 'Guest checkout')}</h3>
@@ -1558,7 +1664,7 @@ function OwnerHomeTab({ t, restaurant, onGoTab, onUpdated }) {
 }
 
 // ── Tab icon map ──────────────────────────────────────────────────────────────
-const TAB_ICONS = { home: '⌂', orders: '🧾', menu: '🍴', store: '⚙️' };
+const TAB_ICONS = { home: '⌂', orders: '🧾', menu: '🍴', store: '⚙️', payouts: '💳' };
 
 function hasRestaurantPermission(restaurant, requested) {
   if (restaurant?.effective_role === 'owner' || restaurant?.permissions?.includes('*')) return true;
@@ -1567,7 +1673,7 @@ function hasRestaurantPermission(restaurant, requested) {
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function FoodMerchantPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedBusinessId = searchParams.get('business');
@@ -1582,7 +1688,7 @@ export default function FoodMerchantPage() {
   const [setupForNew, setSetupForNew] = useState(false);
 
   useEffect(() => {
-    if (['home', 'orders', 'menu', 'store'].includes(requestedTab)) {
+    if (['home', 'orders', 'menu', 'store', 'payouts'].includes(requestedTab)) {
       setTab(requestedTab);
     }
   }, [requestedTab]);
@@ -1606,6 +1712,7 @@ export default function FoodMerchantPage() {
   const canManageCredit = hasRestaurantPermission(selected, ['credit.manage']);
   const canViewSettings = hasRestaurantPermission(selected, ['settings.view', 'settings.manage', 'restaurant.manage']);
   const canManageDisplays = hasRestaurantPermission(selected, ['display.manage', 'restaurant.manage']);
+  const canManagePayouts = selected?.effective_role === 'owner';
   const availableTabs = useMemo(() => {
     if (!selected) return [];
     const tabs = [];
@@ -1613,8 +1720,9 @@ export default function FoodMerchantPage() {
     if (hasRestaurantPermission(selected, ['orders.view', 'orders.manage', 'kitchen.view', 'kitchen.update'])) tabs.push('orders');
     if (hasRestaurantPermission(selected, ['menu.view', 'menu.manage'])) tabs.push('menu');
     if (canManageCredit || canViewSettings || canManageDisplays) tabs.push('store');
+    if (canManagePayouts) tabs.push('payouts');
     return tabs;
-  }, [canManageCredit, canManageDisplays, canManageRestaurant, canViewSettings, selected]);
+  }, [canManageCredit, canManageDisplays, canManagePayouts, canManageRestaurant, canViewSettings, selected]);
 
   const goToTab = useCallback((nextTab) => {
     if (!availableTabs.includes(nextTab)) return;
@@ -1796,6 +1904,7 @@ export default function FoodMerchantPage() {
             )}
             {selected && tab === 'orders' && <OrdersTab t={t} restaurant={selected} />}
             {selected && tab === 'menu' && <RestaurantMenuManager t={t} restaurant={selected} />}
+            {selected && tab === 'payouts' && <RestaurantPayoutsPanel t={t} restaurant={selected} />}
             {selected && tab === 'store' && (
               <>
                 {canManageCredit && <RestaurantCreditManager restaurant={selected} />}
@@ -1803,6 +1912,7 @@ export default function FoodMerchantPage() {
                 {canViewSettings && (
                   <SettingsTab
                     t={t}
+                    i18n={i18n}
                     restaurant={selected}
                     onUpdated={(updated) =>
                       setRestaurants((prev) => prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)))

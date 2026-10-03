@@ -162,6 +162,8 @@ const directRoutes = require('./routes/direct');
 const { sendDirectServiceAreaPage } = require('./routes/directServiceAreaPage');
 // OxSteed Restaurants — canonical ops surface (Phase 2: checklists + SOPs, migration 306)
 const restaurantRoutes = require('./routes/restaurants');
+// OxSteed Restaurants — merchant payouts (Stripe Connect per restaurant, migration 656)
+const restaurantPayoutRoutes = require('./routes/restaurantPayouts');
 // Team / role / Vortex (per OxSteed team-role spec, migration 245)
 const businessTeamRoutes   = require('./routes/businessTeam');
 const careerRoutes         = require('./routes/careers');
@@ -640,6 +642,7 @@ app.use('/api/restaurants/:restaurantId/credit-kiosks/:deviceId', oxsteedCreditK
 app.use('/api/restaurants', restaurantSupportRoutes);
 app.use('/api/admin/restaurants/support', adminRestaurantSupportRoutes);
 app.use('/api/restaurants', restaurantRoutes);
+app.use('/api/restaurants', restaurantPayoutRoutes);
 app.get('/api/business/:businessId/workspace/mobile-summary', require('./middleware/auth').authenticate, require('./controllers/mobileController').getBusinessMobileSummary);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/admin/orders', adminOrdersRoutes);

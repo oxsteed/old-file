@@ -332,6 +332,24 @@ export default function RestaurantPOSPage() {
     return false;
   };
 
+  const handleOpenShift = async () => {
+    setSubmitting(true);
+    try {
+      const res = await api.post(`/restaurants/${restaurantId}/pos/shifts`, {});
+      const shift = res.data?.shift;
+      if (shift && shift.status === 'open') {
+        setActiveShift(shift);
+      } else {
+        await load();
+      }
+      toast.success(t('food.merchant.posShiftOpened', 'POS shift opened. You can take orders now.'));
+    } catch (err) {
+      toast.error(err?.response?.data?.message || t('food.merchant.posShiftOpenError', 'Could not open the POS shift.'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handlePay = async ({ method, discountId, discountCents, tipCents, finalTotal, creditHoldId }) => {
     if (!requireOpenShift()) return;
     setSubmitting(true);
@@ -442,11 +460,20 @@ export default function RestaurantPOSPage() {
             ))}
           </div>
           <div className="fd-pos-header-meta">
-            <span className="fd-tag">
-              {activeShift
-                ? t('food.pos.shiftOpen', { defaultValue: 'POS shift open' })
-                : t('food.pos.shiftRequired', { defaultValue: 'Open POS shift required' })}
-            </span>
+            {activeShift ? (
+              <span className="fd-tag">
+                {t('food.pos.shiftOpen', { defaultValue: 'POS shift open' })}
+              </span>
+            ) : (
+              <>
+                <span className="fd-tag">
+                  {t('food.pos.shiftRequired', { defaultValue: 'Open POS shift required' })}
+                </span>
+                <button type="button" className="fd-btn fd-btn-sm" onClick={handleOpenShift} disabled={submitting}>
+                  {submitting ? t('food.common.saving') : t('food.merchant.posOpenShift', 'Open shift')}
+                </button>
+              </>
+            )}
             <input className="fd-pos-meta-input" value={tableName} onChange={(e) => setTableName(e.target.value)} placeholder={t('food.pos.table')} />
             <input className="fd-pos-meta-input" value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder={t('food.pos.guestName')} />
           </div>
