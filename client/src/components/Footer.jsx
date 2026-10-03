@@ -153,7 +153,7 @@ export default function Footer() {
             <span className="site-footer__contact-separator" aria-hidden="true">/</span>
             <a
               href="tel:+19374085169"
-              aria-label={t('footer.callOxSteed', { defaultValue: `Call OxSteed at ${OXSTEED_MAIN_PHONE}` })}
+              aria-label={t('footer.callOxSteed', { defaultValue: 'Call OxSteed at {{phone}}', phone: OXSTEED_MAIN_PHONE })}
               className="site-footer__contact-link"
             >
               {OXSTEED_MAIN_PHONE}

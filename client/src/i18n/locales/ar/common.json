@@ -11,7 +11,8 @@
     "switchToDarkMode": "التبديل إلى الوضع المظلم",
     "startRecording": "بدء التسجيل",
     "stopRecording": "إيقاف التسجيل",
-    "recording": "جارٍ التسجيل..."
+    "recording": "جارٍ التسجيل...",
+    "clear": "مسح"
   },
   "switching": "جارٍ التبديل...",
   "languageSelector": {

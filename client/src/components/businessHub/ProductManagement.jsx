@@ -81,7 +81,7 @@ export function ProductManagement({ businessId }) {
   };
 
   const handleDeleteProduct = async (productId) => {
-    if (!window.confirm(t('common.confirmDelete', { defaultValue: 'Delete this product?' }))) return;
+    if (!window.confirm(t('common.confirmDeleteProduct', { defaultValue: 'Delete this product?' }))) return;
     try {
       await api.delete(`/businesses/${businessId}/products/${productId}`);
       setProducts(products.filter(p => p.id !== productId));

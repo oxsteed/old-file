@@ -64,7 +64,7 @@ export function ProductPricingManager({ businessId }) {
   };
 
   const handleDelete = async (ruleId) => {
-    if (!window.confirm(t('common.confirmDelete', { defaultValue: 'Delete this rule?' }))) return;
+    if (!window.confirm(t('common.confirmDeleteRule', { defaultValue: 'Delete this rule?' }))) return;
     try {
       await api.delete(`/businesses/${businessId}/product-pricing/rules/${ruleId}`);
       setRules(rules.filter(r => r.id !== ruleId));

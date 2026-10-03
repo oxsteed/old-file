@@ -11,7 +11,8 @@
     "switchToDarkMode": "Cambiar a modo oscuro",
     "startRecording": "Iniciar grabación",
     "stopRecording": "Detener grabación",
-    "recording": "Grabando..."
+    "recording": "Grabando...",
+    "clear": "Borrar"
   },
   "switching": "Cambiando...",
   "languageSelector": {

@@ -469,18 +469,35 @@ function collectStringEntries(value, prefix = '') {
     collectStringEntries(child, prefix ? `${prefix}.${key}` : key));
 }
 
-// Audit M9: scan EVERY namespace (not just the homepage surface) for string
-// values >= 25 chars that are byte-identical to the English source.
-// Pure URLs (href/src fields) and strings without any alphabetic characters
-// (codes, phone numbers) are legitimately identical and are excluded; there
-// is deliberately no per-sentence allowlist so new untranslated copy is
-// always surfaced.
+// Audit V2-P1-03 gate: scan EVERY namespace (not just the homepage surface)
+// for string values >= 25 chars that are byte-identical to the English
+// source. Pure URLs (href/src fields) and strings without any alphabetic
+// characters (codes, phone numbers) are legitimately identical and are
+// excluded. This is a HARD failure: the V2-P1-03 translation backlog is
+// cleared, so any new untranslated long string breaks the build.
 //
-// Reported as warnings, not failures: the audit found ~150 such strings per
-// locale already in the tree. Flip to a hard failure once that backlog is
-// cleared so regressions break the build.
+// A small documented allowlist covers values that are legitimately
+// language-independent (technical slugs, pure interpolation templates) or
+// whose correct translation is byte-identical to English (French spellings
+// that coincide with English). Entries are "catalog:key" for all languages
+// or "catalog:key:language" for one language. Keep this list minimal and
+// justify every entry; it is not a place to park untranslated copy.
 const STILL_ENGLISH_MIN_LENGTH = 25;
 const STILL_ENGLISH_URL_PATTERN = /^https?:\/\/\S+$/;
+const STILL_ENGLISH_ALLOWLIST = new Set([
+  // Technical identifier slugs, never translated.
+  'legacy translation:businessHub.beautyOps.targetTemplatesPlaceholder',
+  // Pure interpolation templates with no translatable prose.
+  'legacy translation:qrGenerator.logoFileDetails',
+  'legacy translation:logistics.home.unitsProgress',
+  'legacy translation:adminRegionsCountryRegionSummary',
+  'legacy translation:superCountryPacks.statusUpdated',
+  // Correct French translations that happen to match the English spelling.
+  'legacy translation:businessHub.professionalOps.title:fr',
+  'legacy translation:productGallery.imageAlt:fr',
+  'legacy translation:adminUserActionsAuditPage:fr',
+  'credit namespace:adminRestaurants:fr',
+]);
 
 function verifyStillEnglishValues() {
   const catalogs = [
@@ -503,6 +520,8 @@ function verifyStillEnglishValues() {
         if (englishValue.length < STILL_ENGLISH_MIN_LENGTH) continue;
         if (STILL_ENGLISH_URL_PATTERN.test(englishValue)) continue;
         if (!/[a-zA-Z]/.test(englishValue)) continue;
+        if (STILL_ENGLISH_ALLOWLIST.has(`${label}:${key}`)
+          || STILL_ENGLISH_ALLOWLIST.has(`${label}:${key}:${language}`)) continue;
         if (resolveCatalogKey(catalog, key) === englishValue) {
           count += 1;
           if (samples.length < 8) {
@@ -516,14 +535,11 @@ function verifyStillEnglishValues() {
 
   const total = warnings.reduce((sum, warning) => sum + warning.count, 0);
   if (total) {
-    console.warn(`warn still-English values: ${total} strings >= ${STILL_ENGLISH_MIN_LENGTH} chars identical to en (pre-existing translation debt, not failing the build):`);
-    for (const { label, language, count, samples } of warnings) {
-      console.warn(`  ${label} ${language}: ${count}`);
-      for (const sample of samples) console.warn(`    - ${sample}`);
-    }
-  } else {
-    console.log('ok no still-English values across namespaces');
+    const details = warnings.map(({ label, language, count, samples }) =>
+      `  ${label} ${language}: ${count}\n${samples.map((sample) => `    - ${sample}`).join('\n')}`).join('\n');
+    throw new Error(`Still-English values: ${total} strings >= ${STILL_ENGLISH_MIN_LENGTH} chars identical to en (untranslated copy breaks the build):\n${details}`);
   }
+  console.log('ok no still-English values across namespaces');
   return total;
 }
 
@@ -656,13 +672,12 @@ function translationKeyExists(catalogs, namespace, key) {
   return false;
 }
 
-// Audit H2: scan EVERY file under client/src for static t('a.b.c') /
+// Audit V2-P1-03 gate: scan EVERY file under client/src for static t('a.b.c') /
 // t("ns:key") calls and assert each resolves in the catalog, respecting the
 // file's useTranslation('ns') context, returnObjects parent paths, and
 // plural stems. Dynamic keys (template literals, concatenation, variables)
-// are skipped. Reported as warnings, not failures: the misses found are
-// pre-existing, and failing the build on them would block unrelated work;
-// the warning counts make regressions visible.
+// are skipped. This is a HARD failure: a missing static key renders the raw
+// key (or a defaultValue fallback) in production, so new ones break the build.
 function verifyStaticTranslationKeyReferences() {
   const catalogs = getResolutionCatalogs();
   const files = listSourceFiles(path.join(root, 'src'));
@@ -725,15 +740,17 @@ function verifyStaticTranslationKeyReferences() {
 
   const filesWithMissing = new Set(missing.map((entry) => entry.relativePath)).size;
   if (missing.length) {
-    console.warn(`warn static t() key references: ${missing.length} of ${checked} static calls resolve to no catalog key across ${filesWithMissing} files (${rawKeyCount} render raw keys, ${missing.length - rawKeyCount} have a defaultValue fallback); skipped ${skippedDynamic} dynamic keys:`);
     const shown = missing.slice(0, 80);
-    for (const { relativePath, line, namespace, key, hasFallback } of shown) {
-      console.warn(`  ${relativePath}:${line}: [${namespace}] ${key}${hasFallback ? ' (defaultValue fallback)' : ' (RAW KEY RENDERED)'}`);
-    }
-    if (missing.length > shown.length) console.warn(`  ... and ${missing.length - shown.length} more`);
-  } else {
-    console.log(`ok all ${checked} static t() references resolve in the catalog (skipped ${skippedDynamic} dynamic keys)`);
+    const details = shown
+      .map(({ relativePath, line, namespace, key, hasFallback }) =>
+        `  ${relativePath}:${line}: [${namespace}] ${key}${hasFallback ? ' (defaultValue fallback)' : ' (RAW KEY RENDERED)'}`)
+      .join('\n');
+    const more = missing.length > shown.length ? `\n  ... and ${missing.length - shown.length} more` : '';
+    throw new Error(
+      `Static t() key references missing from the catalog: ${missing.length} of ${checked} static calls across ${filesWithMissing} files (${rawKeyCount} render raw keys, ${missing.length - rawKeyCount} have a defaultValue fallback); skipped ${skippedDynamic} dynamic keys:\n${details}${more}`,
+    );
   }
+  console.log(`ok all ${checked} static t() references resolve in the catalog (skipped ${skippedDynamic} dynamic keys)`);
   return { checked, missing: missing.length, rawKeyCount };
 }
 
