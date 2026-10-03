@@ -10,10 +10,13 @@ import toast from 'react-hot-toast';
 import {
   listChecklists, createChecklist, deleteChecklist,
   addChecklistTask, deleteChecklistTask,
-  startChecklistRun, listChecklistRuns, getChecklistRun, toggleRunItem, completeChecklistRun,
+  startChecklistRun, listChecklistRuns, getChecklistRun,
   listSops, createSop, updateSop, deleteSop,
-  listInventoryItems, createInventoryItem, deleteInventoryItem, adjustInventoryItem,
+  listInventoryItems, createInventoryItem, deleteInventoryItem,
 } from '../../api/restaurants';
+import {
+  toggleRunItemOffline, completeChecklistRunOffline, adjustInventoryItemOffline,
+} from '../../api/restaurantsOffline';
 
 function apiErr(err, fallback) {
   const m = err?.response?.data?.error?.message || err?.response?.data?.message;
@@ -266,8 +269,20 @@ function RunModal({ t, restaurantId, run: initialRun, onClose }) {
   const toggle = async (item) => {
     setBusy(true);
     try {
-      const updated = await toggleRunItem(restaurantId, run.id, item.id, { isDone: !item.is_done });
-      setRun(updated);
+      const updated = await toggleRunItemOffline(restaurantId, run.id, item.id, { isDone: !item.is_done });
+      if (updated && updated.queued) {
+        // Offline: flip locally so the floor keeps moving; the change syncs
+        // when connectivity returns.
+        setRun((prev) => ({
+          ...prev,
+          items: (prev.items || []).map((i) =>
+            i.id === item.id ? { ...i, is_done: !item.is_done, pendingSync: true } : i
+          ),
+        }));
+        toast.success(t('restaurants.ops.offline.queued', 'Saved offline. Will sync when back online.'));
+      } else {
+        setRun(updated);
+      }
     } catch (err) {
       toast.error(apiErr(err, t('common.failedToUpdate', 'Failed to update')));
     } finally {
@@ -278,8 +293,12 @@ function RunModal({ t, restaurantId, run: initialRun, onClose }) {
   const finish = async () => {
     setBusy(true);
     try {
-      await completeChecklistRun(restaurantId, run.id);
-      toast.success(t('restaurants.ops.checklists.runCompleted', 'Checklist completed'));
+      const result = await completeChecklistRunOffline(restaurantId, run.id);
+      if (result && result.queued) {
+        toast.success(t('restaurants.ops.offline.queued', 'Saved offline. Will sync when back online.'));
+      } else {
+        toast.success(t('restaurants.ops.checklists.runCompleted', 'Checklist completed'));
+      }
       onClose();
     } catch (err) {
       toast.error(apiErr(err, t('common.failedToUpdate', 'Failed to update')));
@@ -481,8 +500,11 @@ export function InventoryPanel({ t, restaurant, bare, onStats }) {
   };
   const applyAdjust = async (itemId, payload) => {
     try {
-      await adjustInventoryItem(restaurantId, itemId, payload);
+      const result = await adjustInventoryItemOffline(restaurantId, itemId, payload);
       setAdjusting(null);
+      if (result && result.queued) {
+        toast.success(t('restaurants.ops.offline.queued', 'Saved offline. Will sync when back online.'));
+      }
       load();
     } catch (err) {
       toast.error(apiErr(err, t('common.failedToUpdate', 'Failed to update')));

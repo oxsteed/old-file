@@ -4,7 +4,7 @@ import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useSt
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag, ClipboardCheck, Package, BookOpen, LayoutGrid, GraduationCap, ShieldCheck, BarChart3, HelpingHand, MonitorSmartphone, Wrench } from 'lucide-react';
+import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag, ClipboardCheck, Package, BookOpen, GraduationCap, ShieldCheck, BarChart3, HelpingHand, MonitorSmartphone, Wrench } from 'lucide-react';
 import { subscribeRestaurantDisplay } from '../../api/restaurantDisplaySocket';
 import {
   listMyFoodRestaurants,
@@ -36,6 +36,10 @@ import OxsteedCreditPartnerManager from './OxsteedCreditPartnerManager';
 import LocationsPanel from './FoodLocationsPanel';
 import PromotionsPanel from './FoodPromotionsPanel';
 import { ChecklistsPanel, SopsPanel, InventoryPanel } from './RestaurantOpsPanels';
+import { TrainingPanel } from './RestaurantTrainingPanels';
+import { AuditsPanel } from './RestaurantAuditPanels';
+import { ReportsPanel } from './RestaurantReportsPanel';
+import { syncPendingMutations, countPendingMutations, isDeviceOnline } from '../../api/restaurantsOffline';
 import PageShell from '../../components/PageShell';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
 import '../../styles/FoodPages.css';
@@ -1593,21 +1597,56 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
 
 // ── Operations tab ───────────────────────────────────────────────────────────
 // Franchise-grade operating modules: device setup, checklists, inventory,
-// SOPs, in-store screens, plus coming-next tools and the Marketplace help link.
+// SOPs, training, audits, reports, in-store screens, plus the Marketplace help link.
 // Layout mirrors the Settings tab: status strip, clickable chips that scroll
 // to cards, lucide icons. Permission gates are unchanged from before.
-const OPS_MORE_MODULES = [
-  { key: 'training', Icon: GraduationCap },
-  { key: 'audits', Icon: ShieldCheck },
-  { key: 'reports', Icon: BarChart3 },
-];
-
 function OperationsView({ t, restaurant, setupKey, canManageDisplays, canManageRestaurant, onSetupComplete }) {
   const [stats, setStats] = useState({});
   const report = useCallback((s) => setStats((prev) => ({ ...prev, ...s })), []);
   const cardRefs = useRef({});
   const registerCard = (key, el) => { cardRefs.current[key] = el; };
   const scrollToCard = (key) => cardRefs.current[key]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // Offline outbox: floor devices keep working without Wi-Fi; queued
+  // mutations replay in order when connectivity returns.
+  const [online, setOnline] = useState(isDeviceOnline());
+  const [pendingSync, setPendingSync] = useState(0);
+  const [syncing, setSyncing] = useState(false);
+
+  const refreshPending = useCallback(async () => {
+    try {
+      setPendingSync(await countPendingMutations(restaurant.id));
+    } catch {
+      setPendingSync(0);
+    }
+  }, [restaurant.id]);
+
+  const flush = useCallback(async () => {
+    if (!isDeviceOnline() || syncing) return;
+    setSyncing(true);
+    try {
+      const { sent, dropped, remaining } = await syncPendingMutations(restaurant.id);
+      setPendingSync(remaining);
+      if (sent > 0) toast.success(t('restaurants.ops.offline.synced', '{{count}} change(s) synced', { count: sent }));
+      if (dropped > 0) toast.error(t('restaurants.ops.offline.syncDropped', '{{count}} change(s) could not sync', { count: dropped }));
+    } catch {
+      // IndexedDB unavailable or similar: leave the queue alone.
+    } finally {
+      setSyncing(false);
+    }
+  }, [restaurant.id, syncing, t]);
+
+  useEffect(() => {
+    refreshPending();
+    const onOnline = () => { setOnline(true); flush(); };
+    const onOffline = () => setOnline(false);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, [refreshPending, flush]);
 
   // The setup checklist hides itself once marked complete, so only show the
   // card while there is work left to do.
@@ -1620,8 +1659,25 @@ function OperationsView({ t, restaurant, setupKey, canManageDisplays, canManageR
   const itemCount = stats.items;
   const lowCount = stats.lowStock;
   const sopCount = stats.sops;
+  const trainingAssigned = stats.trainingAssigned;
+  const openActions = stats.openActions;
 
   const chips = [];
+  if (!online) {
+    chips.push({
+      key: 'offline', target: null, tone: 'warn',
+      label: pendingSync > 0
+        ? t('restaurants.ops.offline.offlinePending', 'Offline · {{count}} to sync', { count: pendingSync })
+        : t('restaurants.ops.offline.offline', 'Offline'),
+    });
+  } else if (pendingSync > 0) {
+    chips.push({
+      key: 'pending', target: null, tone: 'warn', action: flush,
+      label: syncing
+        ? t('restaurants.ops.offline.syncing', 'Syncing…')
+        : t('restaurants.ops.offline.pendingSync', '{{count}} to sync', { count: pendingSync }),
+    });
+  }
   if (deviceSetupNeeded) {
     chips.push({
       key: 'devices', target: 'devices', tone: 'warn',
@@ -1652,8 +1708,24 @@ function OperationsView({ t, restaurant, setupKey, canManageDisplays, canManageR
         tone: sopCount == null ? null : sopCount > 0 ? 'ok' : 'warn',
         label: t('restaurants.ops.opChipSops', '{{count}} SOPs', { count: sopCount ?? '…' }),
       },
+      {
+        key: 'training', target: 'training',
+        tone: trainingAssigned == null ? null : trainingAssigned > 0 ? 'ok' : null,
+        label: t('restaurants.ops.opChipTraining', '{{count}} training', { count: trainingAssigned ?? '…' }),
+      },
+      {
+        key: 'audits', target: 'audits',
+        tone: openActions == null ? null : openActions > 0 ? 'warn' : 'ok',
+        label: openActions > 0
+          ? t('restaurants.ops.opChipOpenActions', '{{count}} open actions', { count: openActions })
+          : t('restaurants.ops.opChipAudits', 'Audits'),
+      },
     );
   }
+  chips.push({
+    key: 'reports', target: 'reports', tone: null,
+    label: t('restaurants.ops.opChipReports', 'Reports'),
+  });
   chips.push({
     key: 'screens', target: 'screens', tone: null,
     label: t('restaurants.ops.opChipScreens', 'Screens'),
@@ -1676,7 +1748,12 @@ function OperationsView({ t, restaurant, setupKey, canManageDisplays, canManageR
 
       <div className="fd-settings-strip" role="navigation" aria-label={t('restaurants.ops.opAtAGlance', 'At a glance')}>
         {chips.map((chip) => (
-          <button key={chip.key} type="button" className="fd-settings-chip" onClick={() => scrollToCard(chip.target)}>
+          <button
+            key={chip.key}
+            type="button"
+            className="fd-settings-chip"
+            onClick={() => (chip.action ? chip.action() : chip.target ? scrollToCard(chip.target) : undefined)}
+          >
             <span className={`fd-settings-chip-dot${chip.tone ? ` fd-settings-chip-dot--${chip.tone}` : ''}`} aria-hidden="true" />
             {chip.label}
           </button>
@@ -1759,23 +1836,40 @@ function OperationsView({ t, restaurant, setupKey, canManageDisplays, canManageR
 
         {canManageRestaurant && (
           <SettingsCard
-            icon={LayoutGrid}
-            title={t('restaurants.ops.moreModules', 'More operating tools')}
-            cardKey="more"
+            icon={GraduationCap}
+            title={t('restaurants.ops.training.title', 'Staff training')}
+            desc={t('restaurants.ops.opTrainingDesc', 'Lessons and quizzes assigned to your team, with completion tracking.')}
+            cardKey="training"
             registerRef={registerCard}
+            wide
           >
-            <div className="fd-ops-more-list">
-              {OPS_MORE_MODULES.map(({ key, Icon }) => (
-                <div key={key} className="fd-ops-more-row">
-                  <span className="fd-ops-more-icon" aria-hidden="true"><Icon size={18} /></span>
-                  <div className="fd-ops-more-text">
-                    <strong>{t(`restaurants.ops.modules.${key}.title`, key)}</strong>
-                    <p className="fd-card-meta">{t(`restaurants.ops.modules.${key}.desc`, '')}</p>
-                  </div>
-                  <span className="fd-ops-badge">{t('restaurants.ops.comingSoon', 'Coming next')}</span>
-                </div>
-              ))}
-            </div>
+            <TrainingPanel t={t} restaurant={restaurant} bare onStats={report} isManager={canManageRestaurant} />
+          </SettingsCard>
+        )}
+
+        {canManageRestaurant && (
+          <SettingsCard
+            icon={ShieldCheck}
+            title={t('restaurants.ops.audits.title', 'Quality audits')}
+            desc={t('restaurants.ops.opAuditsDesc', 'Score inspections, log findings, and track corrective actions to closure.')}
+            cardKey="audits"
+            registerRef={registerCard}
+            wide
+          >
+            <AuditsPanel t={t} restaurant={restaurant} bare onStats={report} isManager={canManageRestaurant} />
+          </SettingsCard>
+        )}
+
+        {canManageRestaurant && (
+          <SettingsCard
+            icon={BarChart3}
+            title={t('restaurants.ops.reports.title', 'Reports')}
+            desc={t('restaurants.ops.opReportsDesc', 'Sales, inventory, and operations performance at a glance.')}
+            cardKey="reports"
+            registerRef={registerCard}
+            wide
+          >
+            <ReportsPanel t={t} restaurant={restaurant} bare onStats={report} />
           </SettingsCard>
         )}
 

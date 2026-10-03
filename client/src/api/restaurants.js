@@ -76,3 +76,84 @@ export const adjustInventoryItem = (restaurantId, itemId, payload) =>
 
 export const listInventoryAdjustments = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/inventory/adjustments`, { params }).then((r) => r.data?.adjustments || []);
+
+// ── Staff training (franchise system) ────────────────────────────────────────
+export const listTrainingModules = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/training/modules`).then((r) => r.data?.modules || []);
+
+export const createTrainingModule = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/training/modules`, payload).then((r) => r.data?.module);
+
+export const updateTrainingModule = (restaurantId, moduleId, payload) =>
+  api.patch(`/restaurants/${restaurantId}/training/modules/${moduleId}`, payload).then((r) => r.data?.module);
+
+export const deleteTrainingModule = (restaurantId, moduleId) =>
+  api.delete(`/restaurants/${restaurantId}/training/modules/${moduleId}`);
+
+export const listRestaurantStaff = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/training/staff`).then((r) => r.data?.staff || []);
+
+export const assignTrainingModule = (restaurantId, moduleId, payload) =>
+  api.post(`/restaurants/${restaurantId}/training/modules/${moduleId}/assign`, payload).then((r) => r.data?.assignment);
+
+export const listTrainingAssignments = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/training/assignments`, { params }).then((r) => r.data?.assignments || []);
+
+export const startTrainingAssignment = (restaurantId, assignmentId) =>
+  api.post(`/restaurants/${restaurantId}/training/assignments/${assignmentId}/start`).then((r) => r.data?.assignment);
+
+export const submitTrainingQuiz = (restaurantId, assignmentId, payload) =>
+  api.post(`/restaurants/${restaurantId}/training/assignments/${assignmentId}/submit`, payload).then((r) => r.data);
+
+export const listTrainingCompletions = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/training/completions`).then((r) => r.data?.completions || []);
+
+// ── Quality audits (franchise system) ────────────────────────────────────────
+export const listAuditTemplates = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/audits/templates`).then((r) => r.data?.templates || []);
+
+export const createAuditTemplate = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/audits/templates`, payload).then((r) => r.data?.template);
+
+export const updateAuditTemplate = (restaurantId, templateId, payload) =>
+  api.patch(`/restaurants/${restaurantId}/audits/templates/${templateId}`, payload).then((r) => r.data?.template);
+
+export const deleteAuditTemplate = (restaurantId, templateId) =>
+  api.delete(`/restaurants/${restaurantId}/audits/templates/${templateId}`);
+
+export const startAuditRun = (restaurantId, templateId) =>
+  api.post(`/restaurants/${restaurantId}/audits/templates/${templateId}/runs`).then((r) => r.data?.audit);
+
+export const listAuditRuns = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/audits/runs`, { params }).then((r) => r.data?.audits || []);
+
+export const getAuditRun = (restaurantId, auditId) =>
+  api.get(`/restaurants/${restaurantId}/audits/runs/${auditId}`).then((r) => r.data?.audit);
+
+export const scoreAuditItem = (restaurantId, auditId, payload) =>
+  api.post(`/restaurants/${restaurantId}/audits/runs/${auditId}/score`, payload).then((r) => r.data);
+
+export const completeAuditRun = (restaurantId, auditId, payload = {}) =>
+  api.post(`/restaurants/${restaurantId}/audits/runs/${auditId}/complete`, payload).then((r) => r.data?.audit);
+
+export const addAuditFinding = (restaurantId, auditId, payload) =>
+  api.post(`/restaurants/${restaurantId}/audits/runs/${auditId}/findings`, payload).then((r) => r.data?.finding);
+
+export const createCorrectiveAction = (restaurantId, findingId, payload) =>
+  api.post(`/restaurants/${restaurantId}/audits/findings/${findingId}/actions`, payload).then((r) => r.data?.action);
+
+export const listCorrectiveActions = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/audits/corrective-actions`, { params }).then((r) => r.data?.actions || []);
+
+export const updateCorrectiveAction = (restaurantId, actionId, payload) =>
+  api.patch(`/restaurants/${restaurantId}/audits/corrective-actions/${actionId}`, payload).then((r) => r.data?.action);
+
+// ── Franchise reports ────────────────────────────────────────────────────────
+export const getSalesReport = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/reports/sales`, { params }).then((r) => r.data);
+
+export const getInventoryReport = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/reports/inventory`, { params }).then((r) => r.data);
+
+export const getOperationsReport = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/reports/operations`, { params }).then((r) => r.data);
