@@ -1,0 +1,167 @@
+/* PartsListPanel styles. Dialog chrome comes from quote-share-panel in MessengerDock.css. */
+
+.parts-list-panel__subtitle {
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+
+.parts-list-panel .quote-share-panel__list label.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.parts-list-panel__unavailable {
+  color: rgb(220 38 38);
+  font-weight: 600;
+}
+
+.parts-list-panel__note {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgb(254 243 199);
+  color: rgb(146 64 14);
+  font-size: 0.85rem;
+}
+
+.parts-list-panel__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.parts-list-panel__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid rgb(31 41 55 / 0.15);
+  border-radius: 8px;
+}
+
+.parts-list-panel__thumb {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.parts-list-panel__item-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.parts-list-panel__item-main strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.parts-list-panel__item-main small,
+.parts-list-panel__results li small {
+  color: rgb(107 114 128);
+}
+
+.parts-list-panel__qty {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.parts-list-panel__qty button,
+.parts-list-panel__search-row button,
+.parts-list-panel__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+  border-radius: 6px;
+  border: 1px solid rgb(31 41 55 / 0.2);
+  background: transparent;
+  cursor: pointer;
+}
+
+.parts-list-panel__qty button:disabled,
+.parts-list-panel__search-row button:disabled,
+.parts-list-panel__remove:disabled,
+.parts-list-panel__results li button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.parts-list-panel__qty span {
+  min-width: 1.5em;
+  text-align: center;
+  font-weight: 600;
+}
+
+.parts-list-panel__line-total {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.parts-list-panel__subtotal {
+  text-align: right;
+  margin: 12px 0 0;
+}
+
+.parts-list-panel__add {
+  margin-top: 12px;
+  border-top: 1px solid rgb(31 41 55 / 0.15);
+  padding-top: 12px;
+}
+
+.parts-list-panel__search-row {
+  display: flex;
+  gap: 8px;
+}
+
+.parts-list-panel__search-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgb(31 41 55 / 0.2);
+}
+
+.parts-list-panel__results {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  max-height: 168px;
+  overflow: auto;
+}
+
+.parts-list-panel__results li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.parts-list-panel__results li > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.parts-list-panel__results li button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid rgb(31 41 55 / 0.2);
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+}

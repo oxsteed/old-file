@@ -2179,6 +2179,56 @@
       "yesDelete": "Wi, Efase Kont Mwen"
     }
   },
+  "partsList": {
+    "toolbarLabel": "Lis pyès",
+    "title": "Kreye yon lis pyès",
+    "pickKit": "Chwazi yon kit travay",
+    "build": "Kreye lis pyès la",
+    "kitUnavailable": "Pokò disponib",
+    "estimatedTotal": "Total estime",
+    "reviewTitle": "Tcheke lis pyès la",
+    "omittedNote": "{{count}} atik ki pa disponib pa antre nan lis la.",
+    "increase": "Ogmante kantite",
+    "decrease": "Diminye kantite",
+    "addItem": "Ajoute yon atik",
+    "searchPlaceholder": "Chèche pyès pou ajoute…",
+    "share": "Pataje ak kliyan an",
+    "sharing": "Ap pataje…",
+    "shareFailed": "Pa t kapab pataje lis pyès la.",
+    "buildFailed": "Pa t kapab kreye lis pyès la.",
+    "loadFailed": "Pa t kapab chaje kit travay yo.",
+    "empty": "Pokò gen atik nan lis sa a.",
+    "remove": "Retire",
+    "cardOpen": "Wè lis pyès la",
+    "cardItems": "{{count}} atik",
+    "defaultName": "Pyès pou {{kit}}",
+    "kits": {
+      "toilet-replacement": {
+        "label": "Ranplase twalèt",
+        "hint": "Tout sa ou bezwen pou chanje yon twalèt : nouvo twalèt, bag sir, boulon ak tiyo dlo."
+      },
+      "leaky-faucet": {
+        "label": "Repare wobinè ki ap degoute",
+        "hint": "Katouch, bag kawoutchou ak zouti pou reparasyon wobinè ki pi komen yo."
+      },
+      "garbage-disposal": {
+        "label": "Ranplase moulen fatra",
+        "hint": "Moulen an, flanj ak tout pyès pou monte li."
+      },
+      "ceiling-fan": {
+        "label": "Enstale vantilatè plafon",
+        "hint": "Vantilatè, sipò montaj ak bwat elektrik ki sètifye."
+      },
+      "door-lock": {
+        "label": "Ranplase kadna pòt",
+        "hint": "Sèri oswa manch pòt plis plak ak vis."
+      },
+      "tub-caulk": {
+        "label": "Remete kole sou basen",
+        "hint": "Kole, pwodui pou retire l, tep ak zouti finisman pou yon sele pwòp."
+      }
+    }
+  },
   "messages": {
     "title": "Mesaj",
     "chatWith": "Chat avèk {{name}}",

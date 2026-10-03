@@ -2094,6 +2094,56 @@
       "yesDelete": "Sí, Eliminar Mi Cuenta"
     }
   },
+  "partsList": {
+    "toolbarLabel": "Lista de materiales",
+    "title": "Crear lista de materiales",
+    "pickKit": "Elige un kit de trabajo",
+    "build": "Crear lista de materiales",
+    "kitUnavailable": "Aún no disponible",
+    "estimatedTotal": "Total estimado",
+    "reviewTitle": "Revisa la lista de materiales",
+    "omittedNote": "{{count}} artículos no disponibles quedaron fuera de la lista.",
+    "increase": "Aumentar cantidad",
+    "decrease": "Reducir cantidad",
+    "addItem": "Añadir artículo",
+    "searchPlaceholder": "Buscar materiales para añadir…",
+    "share": "Compartir con el cliente",
+    "sharing": "Compartiendo…",
+    "shareFailed": "No se pudo compartir la lista de materiales.",
+    "buildFailed": "No se pudo crear la lista de materiales.",
+    "loadFailed": "No se pudieron cargar los kits de trabajo.",
+    "empty": "Aún no hay artículos en esta lista.",
+    "remove": "Quitar",
+    "cardOpen": "Ver lista de materiales",
+    "cardItems": "{{count}} artículos",
+    "defaultName": "Materiales para {{kit}}",
+    "kits": {
+      "toilet-replacement": {
+        "label": "Reemplazo de inodoro",
+        "hint": "Todo lo necesario para cambiar un inodoro: inodoro nuevo, anillo de cera, pernos y línea de suministro."
+      },
+      "leaky-faucet": {
+        "label": "Reparación de grifo con fugas",
+        "hint": "Cartuchos, juntas tóricas y herramientas para reparaciones comunes de grifos."
+      },
+      "garbage-disposal": {
+        "label": "Reemplazo de triturador de basura",
+        "hint": "Unidad trituradora, brida y accesorios de montaje."
+      },
+      "ceiling-fan": {
+        "label": "Instalación de ventilador de techo",
+        "hint": "Ventilador, soporte de montaje y caja eléctrica certificada."
+      },
+      "door-lock": {
+        "label": "Reemplazo de cerradura",
+        "hint": "Cerrojo o juego de manija, además de placas y tornillos."
+      },
+      "tub-caulk": {
+        "label": "Reaplicación de sellador en la bañera",
+        "hint": "Sellador, removedor, cinta y herramientas de acabado para un sellado limpio."
+      }
+    }
+  },
   "messages": {
     "title": "Mensajes",
     "helperTitle": "Bandeja de entrada",

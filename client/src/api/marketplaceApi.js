@@ -110,8 +110,12 @@ export const cartApi = {
 
 export const shareApi = {
   // Share a cart
-  shareCart: (cartId, customerId, canModify = true, expiresInDays) =>
-    api.post('/shared-carts', { cartId, customerId, canModify, expiresInDays }),
+  shareCart: (cartId, customerId, canModify = true, expiresInDays, conversationId, clientMessageId) => {
+    const body = { cartId, customerId, canModify, expiresInDays };
+    if (conversationId) body.conversationId = conversationId;
+    if (clientMessageId) body.clientMessageId = clientMessageId;
+    return api.post('/shared-carts', body);
+  },
 
   // View shared cart (no auth)
   viewSharedCart: (shareToken) => api.get(`/shared-carts/${shareToken}`),
@@ -137,8 +141,18 @@ export const shareApi = {
   revokeShare: (sharedCartId) => api.delete(`/shared-carts/${sharedCartId}`),
 };
 
+export const jobKitsApi = {
+  // List available job kits for the helper copilot parts-list flow
+  listKits: () => api.get('/job-kits'),
+
+  // Build a kit into a draft cart; prices are live DB prices
+  buildKit: (jobType, { name, jobId } = {}) =>
+    api.post(`/job-kits/${jobType}/build`, { name, jobId }),
+};
+
 export default {
   marketplaceApi,
   cartApi,
   shareApi,
+  jobKitsApi,
 };

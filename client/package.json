@@ -31,6 +31,7 @@
     "test:messenger-client-fixes": "node --test scripts/messengerClientFixes.test.mjs",
     "test:theme-contrast": "node --test scripts/themeContrast.test.mjs",
     "test:wallet-page": "node --test scripts/walletPage.test.mjs",
+    "test:parts-list-card": "node --test scripts/partsListCard.test.mjs",
     "pretypecheck": "node scripts/splitLocaleCatalogs.mjs",
     "typecheck": "tsc --noEmit",
     "prebuild:ci": "node --test scripts/qrLogo.test.mjs && npm run test:admin-marketplace-refund-idempotency && npm run test:i18n-bootstrap",

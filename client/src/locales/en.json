@@ -2094,6 +2094,56 @@
     },
     "preferencesTab": "Preferences"
   },
+  "partsList": {
+    "toolbarLabel": "Parts list",
+    "title": "Build a parts list",
+    "pickKit": "Pick a job kit",
+    "build": "Build parts list",
+    "kitUnavailable": "Not available yet",
+    "estimatedTotal": "Estimated total",
+    "reviewTitle": "Review the parts list",
+    "omittedNote": "{{count}} unavailable items were left out of this list.",
+    "increase": "Increase quantity",
+    "decrease": "Decrease quantity",
+    "addItem": "Add item",
+    "searchPlaceholder": "Search parts to add…",
+    "share": "Share with customer",
+    "sharing": "Sharing…",
+    "shareFailed": "Could not share the parts list.",
+    "buildFailed": "Could not build the parts list.",
+    "loadFailed": "Could not load job kits.",
+    "empty": "No items in this list yet.",
+    "remove": "Remove",
+    "cardOpen": "View parts list",
+    "cardItems": "{{count}} items",
+    "defaultName": "Parts for {{kit}}",
+    "kits": {
+      "toilet-replacement": {
+        "label": "Toilet replacement",
+        "hint": "Everything needed to swap out a toilet: new toilet, wax ring, bolts, and supply line."
+      },
+      "leaky-faucet": {
+        "label": "Leaky faucet repair",
+        "hint": "Cartridges, O-rings, and tools for common faucet fixes."
+      },
+      "garbage-disposal": {
+        "label": "Garbage disposal replacement",
+        "hint": "Disposal unit, flange, and mounting hardware."
+      },
+      "ceiling-fan": {
+        "label": "Ceiling fan installation",
+        "hint": "Fan, mounting bracket, and rated electrical box."
+      },
+      "door-lock": {
+        "label": "Door lock replacement",
+        "hint": "Deadbolt or handle set plus strike plates and screws."
+      },
+      "tub-caulk": {
+        "label": "Tub re-caulking",
+        "hint": "Caulk, remover, tape, and finishing tools for a clean seal."
+      }
+    }
+  },
   "messages": {
     "title": "Messages",
     "helperTitle": "Inbox",

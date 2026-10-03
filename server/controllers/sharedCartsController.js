@@ -2,6 +2,98 @@ const pool = require('../db');
 const crypto = require('crypto');
 const { sendError, sendSuccess } = require('../utils/apiError');
 const logger = require('../utils/logger');
+const { verifyConversationAccess } = require('../utils/conversationAccess');
+const { enqueueConversationMessageNotifications } = require('../services/messageNotificationService');
+
+/**
+ * Post the shared-cart card message into a conversation.
+ * Mirrors the quote-share flow: the message carries a human-readable
+ * fallback line plus a structured `shared_cart` attachment that the
+ * client renders as a tappable card (title, item count, total).
+ */
+async function postSharedCartMessage({
+  conversationId,
+  senderId,
+  senderName,
+  shareToken,
+  clientMessageId = null,
+}) {
+  const conversation = await verifyConversationAccess(conversationId, senderId);
+
+  const totals = await pool.query(
+    `SELECT c.name,
+            COUNT(i.id) AS item_count,
+            COALESCE(SUM(i.quantity * i.unit_price_cents), 0) AS total_cents,
+            c.currency
+       FROM shopping_carts c
+       LEFT JOIN shopping_cart_items i ON i.cart_id = c.id
+      WHERE c.id = (SELECT cart_id FROM shared_carts WHERE share_token = $1)
+      GROUP BY c.id`,
+    [shareToken]
+  );
+  if (totals.rows.length === 0) {
+    throw new Error('Shared cart not found when posting conversation message');
+  }
+  const { item_count: itemCount, total_cents: totalCents, currency } = totals.rows[0];
+  const displayName = totals.rows[0].name || 'Parts list';
+
+  const attachment = {
+    type: 'shared_cart',
+    url: `/shared-cart/${shareToken}`,
+    share_token: shareToken,
+    cart_name: displayName,
+    item_count: Number(itemCount),
+    total_cents: Number(totalCents),
+    currency: currency || 'USD',
+  };
+  const content = 'I have put together a parts list for this job. Open the card below to review it.';
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `INSERT INTO messages (conversation_id, sender_id, content, message_type, attachments, client_message_id)
+       VALUES ($1, $2, $3, 'text', $4::jsonb, $5)
+       ON CONFLICT (conversation_id, client_message_id)
+       WHERE client_message_id IS NOT NULL DO NOTHING
+       RETURNING id`,
+      [conversationId, senderId, content, JSON.stringify([attachment]), clientMessageId]
+    );
+    let messageId = rows[0] && rows[0].id;
+    if (!messageId && clientMessageId) {
+      const replay = await client.query(
+        'SELECT id FROM messages WHERE conversation_id = $1 AND client_message_id = $2',
+        [conversationId, clientMessageId]
+      );
+      messageId = replay.rows[0] && replay.rows[0].id;
+    }
+    if (!messageId) throw new Error('Failed to create shared-cart chat message');
+    await client.query(
+      'UPDATE conversations SET last_message_at = NOW(), updated_at = NOW() WHERE id = $1',
+      [conversationId]
+    );
+    await client.query('COMMIT');
+
+    try {
+      await enqueueConversationMessageNotifications({
+        conversationId,
+        messageId,
+        senderId,
+        senderName: senderName || 'Helper',
+        body: `${displayName}: ${itemCount} items`,
+        actionUrl: `/messages/${conversationId}`,
+      });
+    } catch (notifyErr) {
+      logger.warn('Shared-cart message notification failed', { err: notifyErr.message });
+    }
+    return { messageId, conversation };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
 
 /**
  * List shared carts assigned to the logged-in customer
@@ -93,7 +185,7 @@ const generateShareToken = () => {
 const shareCart = async (req, res) => {
   try {
     const helperId = req.user.id;
-    const { cartId, customerId, canModify = true, expiresInDays } = req.body;
+    const { cartId, customerId, canModify = true, expiresInDays, conversationId, clientMessageId } = req.body;
 
     if (!cartId) {
       return sendError(res, 400, 'Cart ID is required');
@@ -107,6 +199,16 @@ const shareCart = async (req, res) => {
 
     if (cartCheck.rows.length === 0) {
       return sendError(res, 404, 'Cart not found or you do not own this cart');
+    }
+
+    // Verify conversation access BEFORE creating the share so a denied post
+    // cannot leave an orphaned share behind.
+    if (conversationId) {
+      try {
+        await verifyConversationAccess(conversationId, helperId);
+      } catch (accessErr) {
+        return sendError(res, 403, 'You do not have access to this conversation');
+      }
     }
 
     const shareToken = generateShareToken();
@@ -138,12 +240,27 @@ const shareCart = async (req, res) => {
       expiresAt: expiresAt?.toISOString(),
     });
 
+    let postedMessageId = null;
+    if (conversationId) {
+      const senderName = [req.user.first_name, req.user.last_name].filter(Boolean).join(' ') || null;
+      const posted = await postSharedCartMessage({
+        conversationId,
+        senderId: helperId,
+        senderName,
+        shareToken: shareRecord.share_token,
+        clientMessageId: clientMessageId || null,
+      });
+      postedMessageId = posted.messageId;
+      logger.info('Shared-cart card posted to conversation', { conversationId, messageId: postedMessageId });
+    }
+
     sendSuccess(res, {
       sharedCartId: shareRecord.id,
       shareToken: shareRecord.share_token,
       shareUrl: `${process.env.CLIENT_URL || 'http://localhost:5173'}/shared-cart/${shareRecord.share_token}`,
       expiresAt: shareRecord.expires_at,
       canModify: shareRecord.can_modify,
+      messageId: postedMessageId,
     }, 201);
   } catch (err) {
     logger.error('Error sharing cart', err);

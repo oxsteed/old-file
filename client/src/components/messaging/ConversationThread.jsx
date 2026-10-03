@@ -17,6 +17,8 @@ import AgreementCard from '../helperProfile/chat/AgreementCard';
 import PaymentRequestCard from '../helperProfile/chat/PaymentRequestCard';
 import BookingRequestCard from '../helperProfile/chat/BookingRequestCard';
 import PaymentRequestSharePanel from '../helperProfile/chat/PaymentRequestSharePanel';
+import PartsListPanel from './PartsListPanel';
+import SharedCartCard from './SharedCartCard';
 import ProviderMessengerToolbar from './ProviderMessengerToolbar';
 import MessageBubbleActions from './MessageBubbleActions';
 import ReportModal from '../ReportModal';
@@ -57,7 +59,9 @@ function MessageAttachments({ attachments }) {
   return (
     <div className="messages-bubble-files">
       {attachments.map((att) => (
-        isImageAttachment(att) ? (
+        att?.type === 'shared_cart' ? (
+          <SharedCartCard key={att.share_token || att.url || 'shared-cart'} att={att} />
+        ) : isImageAttachment(att) ? (
           <a key={att.url} href={att.url} target="_blank" rel="noopener noreferrer">
             <img src={att.url} alt={attachmentLabel(att)} />
           </a>
@@ -87,6 +91,7 @@ export default function ConversationThread({
   const [editText, setEditText] = useState('');
   const [showAdvisor, setShowAdvisor] = useState(false);
   const [showQuoteShare, setShowQuoteShare] = useState(false);
+  const [showPartsList, setShowPartsList] = useState(false);
   const [showPopShare, setShowPopShare] = useState(false);
   const [showAgreementShare, setShowAgreementShare] = useState(false);
   const [showPaymentRequestShare, setShowPaymentRequestShare] = useState(false);
@@ -326,6 +331,7 @@ export default function ConversationThread({
       {canUseProviderTools ? (
         <ProviderMessengerToolbar
           onQuote={() => setShowQuoteShare(true)}
+          onPartsList={() => setShowPartsList(true)}
           onPaymentRequest={() => setShowPaymentRequestShare(true)}
           onAgreement={() => setShowAgreementShare(true)}
           onPop={() => setShowPopShare(true)}
@@ -689,6 +695,15 @@ export default function ConversationThread({
             }
             setShowQuoteShare(false);
           }}
+        />
+      )}
+      {showPartsList && (
+        <PartsListPanel
+          open={showPartsList}
+          onClose={() => setShowPartsList(false)}
+          conversationId={artifactConversationId}
+          jobId={jobId}
+          onShared={() => setShowPartsList(false)}
         />
       )}
       {showPopShare && (

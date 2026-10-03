@@ -4,6 +4,7 @@ import {
   FileText,
   Receipt,
   ScrollText,
+  ShoppingCart,
   Undo2,
   UserRound,
   Wallet,
@@ -20,6 +21,7 @@ export default function ProviderMessengerToolbar({
   onSchedule,
   onRefund,
   onContact,
+  onPartsList = null,
   showRefund = false,
   className = '',
 }) {
@@ -35,6 +37,12 @@ export default function ProviderMessengerToolbar({
         <FileText size={14} aria-hidden />
         <span className="hide-sm">{t('messages.quoteShare.button')}</span>
       </button>
+      {onPartsList ? (
+        <button type="button" className="messages-quote-share-btn" onClick={onPartsList} title={t('partsList.toolbarLabel')} aria-label={t('partsList.toolbarLabel')}>
+          <ShoppingCart size={14} aria-hidden />
+          <span className="hide-sm">{t('partsList.toolbarLabel')}</span>
+        </button>
+      ) : null}
       <button type="button" className="messages-quote-share-btn" onClick={onPaymentRequest} title={t('messages.paymentRequestShare.title')}>
         <Wallet size={14} aria-hidden />
         <span className="hide-sm">{t('messages.paymentRequestShare.button')}</span>

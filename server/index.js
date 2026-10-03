@@ -154,6 +154,7 @@ const helperCancellationPoliciesRoutes = require('./routes/helperCancellationPol
 const marketplaceProductsRoutes = require('./routes/marketplaceProducts');
 const shoppingCartsRoutes = require('./routes/shoppingCarts');
 const sharedCartsRoutes = require('./routes/sharedCarts');
+const jobKitsRoutes = require('./routes/jobKits');
 const mobileRoutes = require('./routes/mobile');
 const uploadRoutes = require('./routes/upload');
 const storageRoutes = require('./routes/storage');
@@ -636,6 +637,7 @@ app.use('/api/marketplace/products', marketplaceProductsRoutes);
 app.use('/api/carts', shoppingCartsRoutes);
 app.use('/api/carts', cartCheckoutRoutes);
 app.use('/api/shared-carts', sharedCartsRoutes);
+app.use('/api/job-kits', jobKitsRoutes);
 app.use('/api/mobile', mobileRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/storage', storageRoutes);

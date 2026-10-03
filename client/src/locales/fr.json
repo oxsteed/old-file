@@ -2094,6 +2094,56 @@
       "yesDelete": "Oui, Supprimer Mon Compte"
     }
   },
+  "partsList": {
+    "toolbarLabel": "Liste de pièces",
+    "title": "Créer une liste de pièces",
+    "pickKit": "Choisir un kit de travail",
+    "build": "Créer la liste de pièces",
+    "kitUnavailable": "Pas encore disponible",
+    "estimatedTotal": "Total estimé",
+    "reviewTitle": "Vérifier la liste de pièces",
+    "omittedNote": "{{count}} articles indisponibles ont été exclus de cette liste.",
+    "increase": "Augmenter la quantité",
+    "decrease": "Réduire la quantité",
+    "addItem": "Ajouter un article",
+    "searchPlaceholder": "Rechercher des pièces à ajouter…",
+    "share": "Partager avec le client",
+    "sharing": "Partage en cours…",
+    "shareFailed": "Impossible de partager la liste de pièces.",
+    "buildFailed": "Impossible de créer la liste de pièces.",
+    "loadFailed": "Impossible de charger les kits de travail.",
+    "empty": "Aucun article dans cette liste pour le moment.",
+    "remove": "Retirer",
+    "cardOpen": "Voir la liste de pièces",
+    "cardItems": "{{count}} articles",
+    "defaultName": "Pièces pour {{kit}}",
+    "kits": {
+      "toilet-replacement": {
+        "label": "Remplacement de toilettes",
+        "hint": "Tout ce qu'il faut pour changer des toilettes : cuvette neuve, anneau de cire, boulons et tuyau d'alimentation."
+      },
+      "leaky-faucet": {
+        "label": "Réparation de robinet qui fuit",
+        "hint": "Cartouches, joints toriques et outils pour les réparations courantes."
+      },
+      "garbage-disposal": {
+        "label": "Remplacement de broyeur d'évier",
+        "hint": "Broyeur, bride et matériel de fixation."
+      },
+      "ceiling-fan": {
+        "label": "Installation de ventilateur de plafond",
+        "hint": "Ventilateur, support de fixation et boîtier électrique homologué."
+      },
+      "door-lock": {
+        "label": "Remplacement de serrure",
+        "hint": "Pêne dormant ou ensemble poignée, plus gâches et vis."
+      },
+      "tub-caulk": {
+        "label": "Rejointoiement de baignoire",
+        "hint": "Mastic, décapant, ruban adhésif et outils de finition pour un joint propre."
+      }
+    }
+  },
   "messages": {
     "title": "Messages",
     "noMessages": "Pas encore de messages",
