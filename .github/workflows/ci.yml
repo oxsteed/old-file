@@ -33,6 +33,9 @@ jobs:
       - name: Deployment command regression tests
         run: node --test scripts/deploy-coolify.test.cjs scripts/compute-content-release.test.cjs
 
+      - name: Scale harness regression tests (V2-P1-05)
+        run: node --test scripts/scale/scale-harness.test.cjs
+
       - name: Isolated Credit fixture regression tests
         run: node --test scripts/credit-isolated-seed.test.cjs
 
