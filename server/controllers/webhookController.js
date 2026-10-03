@@ -18,6 +18,7 @@ const {
 const socketService = require('../services/socketService');
 const localDeliveryPayments = require('../services/localDeliveryPaymentService');
 const topupService = require('../services/oxsteedCreditTopupService');
+const restaurantTopupService = require('../services/restaurantTopupService');
 const { ingestStripeChargeback } = require('../services/oxsteedCreditChargebackService');
 const { createFraudCase } = require('../services/fraudCaseService');
 const { recordException } = require('../services/reconciliationExceptions');
@@ -825,6 +826,11 @@ exports.stripeWebhook = async (req, res, next) => {
         if (await topupService.applyCreditTopupWebhookEvent({ type: event.type, object: event.data.object })) {
           break;
         }
+        // Restaurant customer top-up (fiat money IN, migration 663). Same
+        // contract: handled here, everything else falls through.
+        if (await restaurantTopupService.applyRestaurantTopupWebhookEvent({ type: event.type, object: event.data.object })) {
+          break;
+        }
         // Capture completed - money is on its way to the helper or order is complete.
         const pi = event.data.object;
         const foodOrderId = extractFoodOrderId(pi.metadata);
@@ -886,6 +892,11 @@ exports.stripeWebhook = async (req, res, next) => {
         if (await topupService.applyCreditTopupWebhookEvent({ type: event.type, object: event.data.object })) {
           break;
         }
+        // Restaurant customer top-up (fiat money IN, migration 663) that did
+        // not go through.
+        if (await restaurantTopupService.applyRestaurantTopupWebhookEvent({ type: event.type, object: event.data.object })) {
+          break;
+        }
         // Authorization or capture failed.
         const pi = event.data.object;
         const foodOrderId = extractFoodOrderId(pi.metadata);
@@ -938,6 +949,11 @@ exports.stripeWebhook = async (req, res, next) => {
       case 'payment_intent.canceled': {
         // OxSteed Credit top-up (fiat money IN) that was canceled.
         if (await topupService.applyCreditTopupWebhookEvent({ type: event.type, object: event.data.object })) {
+          break;
+        }
+        // Restaurant customer top-up (fiat money IN, migration 663) that was
+        // canceled.
+        if (await restaurantTopupService.applyRestaurantTopupWebhookEvent({ type: event.type, object: event.data.object })) {
           break;
         }
         const pi = event.data.object;

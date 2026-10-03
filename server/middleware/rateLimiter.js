@@ -399,6 +399,23 @@ const connectAccountLimiter = rateLimit({
 // Keep this bucket separate from general API traffic so a noisy read client
 // cannot consume the write budget. Redis makes the limit consistent across
 // application instances; the in-memory fallback remains development-only.
+//
+// Restaurant top-up intent limiter: money-in intent creation is capped per
+// user (20 per 15 minutes) so a misbehaving client cannot mint PaymentIntents
+// at will. The Stripe PaymentIntent itself stays idempotent per top-up row.
+const restaurantTopupIntentLimiter = rateLimit({
+  ...createStoreOption('rl:restaurant_topup_intent:'),
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  skip: (req) => !req.user,
+  keyGenerator: (req) => req.user?.id ? `user:${req.user.id}` : req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many restaurant top-up attempts. Please wait before trying again.',
+    retryAfter: '15 minutes',
+  },
+});
 const creditMutationLimiter = rateLimit({
   ...createStoreOption('rl:oxsteed_credit_mutation:'),
   windowMs: 15 * 60 * 1000,
@@ -543,6 +560,7 @@ module.exports = {
   connectAccountLimiter,
   creditMutationLimiter,
   restaurantCreditMutationLimiter,
+  restaurantTopupIntentLimiter,
   creditPurchaseLimiter,
   creditAdminMutationLimiter,
   creditExportLimiter,

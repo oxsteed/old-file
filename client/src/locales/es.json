@@ -28676,5 +28676,27 @@
   "wsServiceOps.deleteTitle": "Eliminar manual",
   "wsServiceOps.deleteDesc": "¿Archivar «{{code}}»? Se ocultará de la lista activa pero se conservará en el historial.",
   "wsServiceOps.colVersion": "Versión",
-  "wsServiceOps.colUpdated": "Actualizado"
+  "wsServiceOps.colUpdated": "Actualizado",
+    "restaurantTopups": {
+      "errors": {
+        "payoutsNotConnected": "Conecta los pagos primero: este restaurante no tiene una cuenta de pagos conectada, por lo que no se pueden activar las recargas de clientes.",
+        "payoutsNotReady": "Conecta los pagos primero: la configuración de la cuenta de pagos del restaurante no está completa.",
+        "notEligible": "Las recargas de clientes no están habilitadas para este restaurante.",
+        "restaurantInactive": "Las recargas no están disponibles para este restaurante en este momento.",
+        "amountInvalid": "Ingresa un monto de recarga válido.",
+        "amountTooSmall": "La recarga mínima es de $5.00.",
+        "amountTooLarge": "La recarga máxima es de $500.00.",
+        "dailyCapExceeded": "Alcanzaste el límite diario de recargas para este restaurante.",
+        "idempotencyRequired": "Se requiere una clave única de solicitud. Inténtalo de nuevo.",
+        "idempotencyConflict": "Esta recarga ya se envió con otros detalles.",
+        "stepupNotRequired": "No se requiere verificación adicional para este monto.",
+        "notFound": "Recarga no encontrada.",
+        "stripeFailed": "No se pudo iniciar el pago. Inténtalo de nuevo.",
+        "stripeUnavailable": "Los pagos con tarjeta no están disponibles temporalmente. Inténtalo más tarde.",
+        "decisionReasonRequired": "Se requiere un motivo para rechazar o suspender la elegibilidad.",
+        "clawbackReasonRequired": "Se requiere un motivo para una recuperación.",
+        "clawbackInvalidStatus": "Solo se puede recuperar una recarga completada.",
+        "currencyInvalid": "La moneda del restaurante no es compatible con las recargas."
+      }
+    }
 }

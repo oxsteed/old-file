@@ -44,6 +44,7 @@ const STEPUP_MAX_ATTEMPTS = 5;
 // challenge before approving a pending money movement.
 const STEPUP_ACTION_TYPES = Object.freeze([
   'topup',
+  'restaurant_topup',
   'settlement_payout',
   'withdrawal',
   'customer_transfer',

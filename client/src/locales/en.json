@@ -28674,5 +28674,27 @@
   "wsServiceOps.deleteTitle": "Delete runbook",
   "wsServiceOps.deleteDesc": "Archive \"{{code}}\"? It will be hidden from the active list but kept in history.",
   "wsServiceOps.colVersion": "Version",
-  "wsServiceOps.colUpdated": "Updated"
+  "wsServiceOps.colUpdated": "Updated",
+    "restaurantTopups": {
+      "errors": {
+        "payoutsNotConnected": "Connect payouts first: this restaurant has no connected payout account, so customer top-ups cannot be enabled.",
+        "payoutsNotReady": "Connect payouts first: the restaurant payout account onboarding is not complete.",
+        "notEligible": "Customer top-ups are not enabled for this restaurant.",
+        "restaurantInactive": "Restaurant top-ups are not available for this restaurant right now.",
+        "amountInvalid": "Enter a valid top-up amount.",
+        "amountTooSmall": "The minimum top-up is $5.00.",
+        "amountTooLarge": "The maximum top-up is $500.00.",
+        "dailyCapExceeded": "You have reached the daily top-up limit for this restaurant.",
+        "idempotencyRequired": "A unique request key is required. Please try again.",
+        "idempotencyConflict": "This top-up was already submitted with different details.",
+        "stepupNotRequired": "Extra verification is not required for this amount.",
+        "notFound": "Top-up not found.",
+        "stripeFailed": "The payment could not be started. Please try again.",
+        "stripeUnavailable": "Card payments are temporarily unavailable. Please try again later.",
+        "decisionReasonRequired": "A reason is required to reject or suspend eligibility.",
+        "clawbackReasonRequired": "A reason is required for a clawback.",
+        "clawbackInvalidStatus": "Only a completed top-up can be clawed back.",
+        "currencyInvalid": "The restaurant currency is not supported for top-ups."
+      }
+    }
 }

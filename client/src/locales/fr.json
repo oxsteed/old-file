@@ -28676,5 +28676,27 @@
   "wsServiceOps.deleteTitle": "Supprimer le manuel",
   "wsServiceOps.deleteDesc": "Archiver « {{code}} » ? Il sera masqué de la liste active mais conservé dans l’historique.",
   "wsServiceOps.colVersion": "Version",
-  "wsServiceOps.colUpdated": "Mis à jour"
+  "wsServiceOps.colUpdated": "Mis à jour",
+    "restaurantTopups": {
+      "errors": {
+        "payoutsNotConnected": "Connectez d'abord les versements : ce restaurant n'a pas de compte de versement connecté, les recharges clients ne peuvent donc pas être activées.",
+        "payoutsNotReady": "Connectez d'abord les versements : la configuration du compte de versement du restaurant n'est pas terminée.",
+        "notEligible": "Les recharges clients ne sont pas activées pour ce restaurant.",
+        "restaurantInactive": "Les recharges ne sont pas disponibles pour ce restaurant pour le moment.",
+        "amountInvalid": "Saisissez un montant de recharge valide.",
+        "amountTooSmall": "La recharge minimale est de 5,00 $.",
+        "amountTooLarge": "La recharge maximale est de 500,00 $.",
+        "dailyCapExceeded": "Vous avez atteint la limite quotidienne de recharges pour ce restaurant.",
+        "idempotencyRequired": "Une clé de demande unique est requise. Veuillez réessayer.",
+        "idempotencyConflict": "Cette recharge a déjà été envoyée avec des détails différents.",
+        "stepupNotRequired": "Aucune vérification supplémentaire n'est requise pour ce montant.",
+        "notFound": "Recharge introuvable.",
+        "stripeFailed": "Le paiement n'a pas pu être démarré. Veuillez réessayer.",
+        "stripeUnavailable": "Les paiements par carte sont temporairement indisponibles. Veuillez reessayer plus tard.",
+        "decisionReasonRequired": "Un motif est requis pour refuser ou suspendre l'éligibilité.",
+        "clawbackReasonRequired": "Un motif est requis pour une reprise.",
+        "clawbackInvalidStatus": "Seule une recharge terminée peut être reprise.",
+        "currencyInvalid": "La devise du restaurant n'est pas prise en charge pour les recharges."
+      }
+    }
 }

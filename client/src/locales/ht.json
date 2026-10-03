@@ -28676,5 +28676,27 @@
   "wsServiceOps.deleteTitle": "Efase manyèl",
   "wsServiceOps.deleteDesc": "Achive \"{{code}}\"? Y ap kache l nan lis aktif la men kenbe l nan istorik la.",
   "wsServiceOps.colVersion": "Vèsyon",
-  "wsServiceOps.colUpdated": "Mete ajou"
+  "wsServiceOps.colUpdated": "Mete ajou",
+    "restaurantTopups": {
+      "errors": {
+        "payoutsNotConnected": "Konekte peman yo anvan: restoran sa a pa gen kont peman konekte, kidonk nou pa ka aktive rechaj kliyan.",
+        "payoutsNotReady": "Konekte peman yo anvan: konfigirasyon kont peman restoran an poko fini.",
+        "notEligible": "Rechaj kliyan yo pa aktive pou restoran sa a.",
+        "restaurantInactive": "Rechaj yo pa disponib pou restoran sa a pou kounye a.",
+        "amountInvalid": "Antre yon montan rechaj ki valid.",
+        "amountTooSmall": "Rechaj minimòm lan se $5.00.",
+        "amountTooLarge": "Rechaj maksimòm lan se $500.00.",
+        "dailyCapExceeded": "Ou rive nan limit rechaj chak jou pou restoran sa a.",
+        "idempotencyRequired": "Yon kle demann inik obligatwa. Tanpri eseye ankò.",
+        "idempotencyConflict": "Rechaj sa a te deja voye ak lòt detay.",
+        "stepupNotRequired": "Pa bezwen verifikasyon anplis pou montan sa a.",
+        "notFound": "Rechaj pa jwenn.",
+        "stripeFailed": "Peman an pa t ka kòmanse. Tanpri eseye ankò.",
+        "stripeUnavailable": "Peman kat yo pa disponib pou yon ti moman. Tanpri eseye pita.",
+        "decisionReasonRequired": "Yon rezon obligatwa pou refize oswa sispann kalifikasyon.",
+        "clawbackReasonRequired": "Yon rezon obligatwa pou yon ranbousman.",
+        "clawbackInvalidStatus": "Se sèlman yon rechaj ki fini nou ka reprann.",
+        "currencyInvalid": "Lajan restoran an pa sipòte pou rechaj."
+      }
+    }
 }
