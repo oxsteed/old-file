@@ -19790,6 +19790,17 @@
       "title": "Operaciones",
       "subtitle": "Opera tu restaurante con sistemas de nivel franquicia.",
       "comingSoon": "Próximamente",
+      "opAtAGlance": "De un vistazo",
+      "opChipChecklists": "{{count}} listas de verificación",
+      "opChipRuns": "{{count}} ejecuciones recientes",
+      "opChipInventory": "{{count}} artículos",
+      "opChipLowStock": "{{count}} con stock bajo",
+      "opChipSops": "{{count}} SOP",
+      "opChipScreens": "Pantallas",
+      "opChecklistsDesc": "Rutinas diarias de apertura, cierre y seguridad que ejecuta tu equipo.",
+      "opInventoryDesc": "Ingredientes y suministros disponibles, con alertas de stock bajo.",
+      "opSopsDesc": "Cómo se hacen las cosas, por escrito para todo el equipo.",
+      "opDeviceDesc": "Prepara la pantalla de cocina, el tablero de cola y el quiosco.",
       "modules": {
         "inventory": {
           "title": "Inventario",

@@ -19801,6 +19801,17 @@
       "title": "العمليات",
       "subtitle": "أدِر مطعمك بأنظمة بمستوى الامتياز.",
       "comingSoon": "قريبًا",
+      "opAtAGlance": "نظرة سريعة",
+      "opChipChecklists": "{{count}} قوائم تحقق",
+      "opChipRuns": "{{count}} عمليات تشغيل أخيرة",
+      "opChipInventory": "{{count}} عنصرًا",
+      "opChipLowStock": "{{count}} منخفض المخزون",
+      "opChipSops": "{{count}} إجراءات تشغيل",
+      "opChipScreens": "شاشات",
+      "opChecklistsDesc": "روتين الفتح والإغلاق والسلامة اليومي الذي ينفذه فريقك.",
+      "opInventoryDesc": "المكونات والإمدادات المتوفرة، مع تنبيهات انخفاض المخزون.",
+      "opSopsDesc": "كيف تُنجز الأمور، مكتوبة لفريقك بأكمله.",
+      "opDeviceDesc": "جهّز شاشة المطبخ ولوحة الانتظار والكشك.",
       "modules": {
         "inventory": {
           "title": "المخزون",

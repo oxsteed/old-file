@@ -19790,6 +19790,17 @@
       "title": "Operasyon",
       "subtitle": "Jere restoran ou ak sistèm nivo franchiz.",
       "comingSoon": "Ap vini talè",
+      "opAtAGlance": "Yon ti gade",
+      "opChipChecklists": "{{count}} lis verifikasyon",
+      "opChipRuns": "{{count}} dènye ekzekisyon",
+      "opChipInventory": "{{count}} atik",
+      "opChipLowStock": "{{count}} ki prèske fini",
+      "opChipSops": "{{count}} SOP",
+      "opChipScreens": "Ekran",
+      "opChecklistsDesc": "Woutin chak jou pou ouvèti, fèmen ak sekirite ekip ou a fè.",
+      "opInventoryDesc": "Engredyan ak founiti ou genyen, ak alèt lè yo prèske fini.",
+      "opSopsDesc": "Kijan bagay yo fèt, ekri pou tout ekip la.",
+      "opDeviceDesc": "Prepare ekran kwizin nan, tablo liy lan ak kyòs la.",
       "modules": {
         "inventory": {
           "title": "Envantè",

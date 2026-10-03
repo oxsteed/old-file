@@ -4,7 +4,7 @@ import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useSt
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag } from 'lucide-react';
+import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag, ClipboardCheck, Package, BookOpen, LayoutGrid, GraduationCap, ShieldCheck, BarChart3, HelpingHand, MonitorSmartphone, Wrench } from 'lucide-react';
 import { subscribeRestaurantDisplay } from '../../api/restaurantDisplaySocket';
 import {
   listMyFoodRestaurants,
@@ -26,7 +26,7 @@ import {
   formatFoodMoney,
 } from '../../api/food';
 import { FoodBrand, FoodConnBadge, FOOD_STATUS_KEYS, apiErrorMessage } from './foodShared';
-import DeviceSetupChecklist from './FoodDeviceSetupChecklist';
+import DeviceSetupChecklist, { isDeviceSetupComplete } from './FoodDeviceSetupChecklist';
 import RestaurantSetupGuide, { shouldShowRestaurantSetup } from './RestaurantSetupGuide';
 import RestaurantMenuManager from './RestaurantMenuManager';
 import RestaurantCreditManager from './RestaurantCreditManager';
@@ -925,10 +925,11 @@ function FdSwitchRow({ label, checked, disabled, onChange }) {
   );
 }
 
-function SettingsCard({ icon: Icon, title, desc, cardKey, registerRef, wide, bareHead, children }) {
+function SettingsCard({ icon: Icon, title, desc, cardKey, registerRef, wide, bareHead, id, children }) {
   return (
     <section
       ref={(el) => registerRef(cardKey, el)}
+      id={id}
       className={`fd-settings-card${wide ? ' fd-settings-card--wide' : ''}`}
     >
       {!bareHead && (
@@ -1591,12 +1592,72 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
 }
 
 // ── Operations tab ───────────────────────────────────────────────────────────
-// Placeholder hub for the franchise-grade operating modules that land in later
-// phases (inventory, checklists/SOPs, staff training, quality audits, reports),
-// plus a live link into OxSteed Marketplace to hire help for the restaurant.
-function OperationsTab({ t, restaurant }) {
-  // Checklists + SOPs (Phase 2) and Inventory (Phase 3) are live; the rest are "coming next".
-  const modules = ['training', 'audits', 'reports'];
+// Franchise-grade operating modules: device setup, checklists, inventory,
+// SOPs, in-store screens, plus coming-next tools and the Marketplace help link.
+// Layout mirrors the Settings tab: status strip, clickable chips that scroll
+// to cards, lucide icons. Permission gates are unchanged from before.
+const OPS_MORE_MODULES = [
+  { key: 'training', Icon: GraduationCap },
+  { key: 'audits', Icon: ShieldCheck },
+  { key: 'reports', Icon: BarChart3 },
+];
+
+function OperationsView({ t, restaurant, setupKey, canManageDisplays, canManageRestaurant, onSetupComplete }) {
+  const [stats, setStats] = useState({});
+  const report = useCallback((s) => setStats((prev) => ({ ...prev, ...s })), []);
+  const cardRefs = useRef({});
+  const registerCard = (key, el) => { cardRefs.current[key] = el; };
+  const scrollToCard = (key) => cardRefs.current[key]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // The setup checklist hides itself once marked complete, so only show the
+  // card while there is work left to do.
+  const deviceSetupNeeded = canManageDisplays
+    && restaurant.status === 'active'
+    && !isDeviceSetupComplete(restaurant.id);
+
+  const checklistCount = stats.checklists;
+  const runCount = stats.runs;
+  const itemCount = stats.items;
+  const lowCount = stats.lowStock;
+  const sopCount = stats.sops;
+
+  const chips = [];
+  if (deviceSetupNeeded) {
+    chips.push({
+      key: 'devices', target: 'devices', tone: 'warn',
+      label: t('food.ownerHome.deviceSetup', 'Device setup'),
+    });
+  }
+  if (canManageRestaurant) {
+    chips.push(
+      {
+        key: 'checklists', target: 'checklists',
+        tone: checklistCount == null ? null : checklistCount > 0 ? 'ok' : 'warn',
+        label: t('restaurants.ops.opChipChecklists', '{{count}} checklists', { count: checklistCount ?? '…' }),
+      },
+      {
+        key: 'runs', target: 'checklists',
+        tone: runCount > 0 ? 'ok' : null,
+        label: t('restaurants.ops.opChipRuns', '{{count}} recent runs', { count: runCount ?? '…' }),
+      },
+      {
+        key: 'inventory', target: 'inventory',
+        tone: lowCount == null ? null : lowCount > 0 ? 'warn' : 'ok',
+        label: lowCount > 0
+          ? t('restaurants.ops.opChipLowStock', '{{count}} low stock', { count: lowCount })
+          : t('restaurants.ops.opChipInventory', '{{count}} items', { count: itemCount ?? '…' }),
+      },
+      {
+        key: 'sops', target: 'sops',
+        tone: sopCount == null ? null : sopCount > 0 ? 'ok' : 'warn',
+        label: t('restaurants.ops.opChipSops', '{{count}} SOPs', { count: sopCount ?? '…' }),
+      },
+    );
+  }
+  chips.push({
+    key: 'screens', target: 'screens', tone: null,
+    label: t('restaurants.ops.opChipScreens', 'Screens'),
+  });
 
   // Pre-fill a Marketplace job from the restaurant's context. PostJobPage reads
   // an optional prefill from navigation state; the query param is a harmless
@@ -1613,69 +1674,132 @@ function OperationsTab({ t, restaurant }) {
       <h2>{t('restaurants.ops.title', 'Operations')}</h2>
       <p className="fd-card-meta">{t('restaurants.ops.subtitle', 'Run your restaurant with franchise-grade systems.')}</p>
 
-      {/* Live modules (Phase 2) */}
-      <div style={{ marginTop: '1.25rem' }}>
-        <ChecklistsPanel t={t} restaurant={restaurant} />
-      </div>
-      <div style={{ marginTop: '2rem' }}>
-        <InventoryPanel t={t} restaurant={restaurant} />
-      </div>
-      <div style={{ marginTop: '2rem' }}>
-        <SopsPanel t={t} restaurant={restaurant} />
-      </div>
-
-      {/* Coming-next modules */}
-      <h3 style={{ marginTop: '2rem' }}>{t('restaurants.ops.moreModules', 'More operating tools')}</h3>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-          gap: '0.75rem',
-          marginTop: '0.5rem',
-        }}
-      >
-        {modules.map((key) => (
-          <div
-            key={key}
-            className="fd-card"
-            style={{ padding: '1rem', opacity: 0.85, position: 'relative' }}
-          >
-            <span
-              className="fd-badge"
-              style={{
-                position: 'absolute', top: '0.75rem', right: '0.75rem',
-                fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase',
-                letterSpacing: '0.04em', color: 'var(--color-primary, #F97316)',
-              }}
-            >
-              {t('restaurants.ops.comingSoon', 'Coming next')}
-            </span>
-            <h3 style={{ margin: '0 0 0.35rem', fontSize: '1rem' }}>
-              {t(`restaurants.ops.modules.${key}.title`, key)}
-            </h3>
-            <p className="fd-card-meta" style={{ margin: 0 }}>
-              {t(`restaurants.ops.modules.${key}.desc`, '')}
-            </p>
-          </div>
+      <div className="fd-settings-strip" role="navigation" aria-label={t('restaurants.ops.opAtAGlance', 'At a glance')}>
+        {chips.map((chip) => (
+          <button key={chip.key} type="button" className="fd-settings-chip" onClick={() => scrollToCard(chip.target)}>
+            <span className={`fd-settings-chip-dot${chip.tone ? ` fd-settings-chip-dot--${chip.tone}` : ''}`} aria-hidden="true" />
+            {chip.label}
+          </button>
         ))}
       </div>
 
-      {/* Marketplace help connection */}
-      <div
-        className="fd-card"
-        style={{ marginTop: '1.5rem', padding: '1.25rem', borderLeft: '3px solid var(--color-primary, #F97316)' }}
-      >
-        <h3 style={{ margin: '0 0 0.35rem' }}>{t('restaurants.ops.help.title', 'Need help at your restaurant?')}</h3>
-        <p className="fd-card-meta" style={{ marginTop: 0 }}>
-          {t('restaurants.ops.help.desc', 'Hire local helpers through OxSteed Marketplace: repairs, cleaning, equipment, signage, and more.')}
-        </p>
-        <Link
-          to="/post-job?source=restaurant"
-          state={{ restaurantPrefill: helpPrefill }}
-          className="fd-btn fd-btn-primary"
+      <div className="fd-settings-grid">
+        {deviceSetupNeeded && (
+          <SettingsCard
+            icon={Wrench}
+            title={t('food.ownerHome.deviceSetup', 'Device setup')}
+            desc={t('restaurants.ops.opDeviceDesc', 'Get the kitchen display, queue board, and kiosk ready.')}
+            cardKey="devices"
+            registerRef={registerCard}
+            wide
+          >
+            <DeviceSetupChecklist
+              key={`${restaurant.id}-${setupKey}`}
+              restaurant={restaurant}
+              t={t}
+              onComplete={onSetupComplete}
+            />
+          </SettingsCard>
+        )}
+
+        {canManageRestaurant && (
+          <SettingsCard
+            icon={ClipboardCheck}
+            title={t('restaurants.ops.checklists.title', 'Checklists')}
+            desc={t('restaurants.ops.opChecklistsDesc', 'Daily opening, closing, and safety routines your team runs.')}
+            cardKey="checklists"
+            registerRef={registerCard}
+            wide
+          >
+            <ChecklistsPanel t={t} restaurant={restaurant} bare onStats={report} />
+          </SettingsCard>
+        )}
+
+        {canManageRestaurant && (
+          <SettingsCard
+            icon={Package}
+            title={t('restaurants.ops.inventory.title', 'Inventory')}
+            desc={t('restaurants.ops.opInventoryDesc', 'Ingredients and supplies on hand, with low-stock alerts.')}
+            cardKey="inventory"
+            registerRef={registerCard}
+            wide
+          >
+            <InventoryPanel t={t} restaurant={restaurant} bare onStats={report} />
+          </SettingsCard>
+        )}
+
+        {canManageRestaurant && (
+          <SettingsCard
+            icon={BookOpen}
+            title={t('restaurants.ops.sops.title', 'SOP library')}
+            desc={t('restaurants.ops.opSopsDesc', 'How things are done, written down for the whole team.')}
+            cardKey="sops"
+            registerRef={registerCard}
+            wide
+          >
+            <SopsPanel t={t} restaurant={restaurant} bare onStats={report} />
+          </SettingsCard>
+        )}
+
+        <SettingsCard
+          icon={MonitorSmartphone}
+          title={t('food.merchant.inStoreScreens', 'In-store screens')}
+          desc={t('food.merchant.inStoreScreensHint', 'Open the kitchen display, order queue, or self-serve kiosk.')}
+          cardKey="screens"
+          registerRef={registerCard}
+          id="in-store-screens"
+          wide
         >
-          {t('restaurants.ops.help.cta', 'Find help through OxSteed Marketplace')}
-        </Link>
+          <div className="fd-ops-screens-row">
+            <Link to={`/restaurants/kitchen/${restaurant.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openKitchen', 'Kitchen display')}</Link>
+            <Link to={`/restaurants/queue/${restaurant.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openQueue', 'Queue board')}</Link>
+            <Link to={`/restaurants/kiosk/${restaurant.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openKiosk', 'Kiosk')}</Link>
+          </div>
+        </SettingsCard>
+
+        {canManageRestaurant && (
+          <SettingsCard
+            icon={LayoutGrid}
+            title={t('restaurants.ops.moreModules', 'More operating tools')}
+            cardKey="more"
+            registerRef={registerCard}
+          >
+            <div className="fd-ops-more-list">
+              {OPS_MORE_MODULES.map(({ key, Icon }) => (
+                <div key={key} className="fd-ops-more-row">
+                  <span className="fd-ops-more-icon" aria-hidden="true"><Icon size={18} /></span>
+                  <div className="fd-ops-more-text">
+                    <strong>{t(`restaurants.ops.modules.${key}.title`, key)}</strong>
+                    <p className="fd-card-meta">{t(`restaurants.ops.modules.${key}.desc`, '')}</p>
+                  </div>
+                  <span className="fd-ops-badge">{t('restaurants.ops.comingSoon', 'Coming next')}</span>
+                </div>
+              ))}
+            </div>
+          </SettingsCard>
+        )}
+
+        {canManageRestaurant && (
+          <SettingsCard
+            icon={HelpingHand}
+            title={t('restaurants.ops.help.title', 'Need help at your restaurant?')}
+            cardKey="help"
+            registerRef={registerCard}
+          >
+            <div className="fd-ops-help">
+              <p className="fd-card-meta">{t('restaurants.ops.help.desc', 'Hire local helpers through OxSteed Marketplace: repairs, cleaning, equipment, signage, and more.')}</p>
+              <div className="fd-settings-actions">
+                <Link
+                  to="/post-job?source=restaurant"
+                  state={{ restaurantPrefill: helpPrefill }}
+                  className="fd-btn fd-btn-primary"
+                >
+                  {t('restaurants.ops.help.cta', 'Find help through OxSteed Marketplace')}
+                </Link>
+              </div>
+            </div>
+          </SettingsCard>
+        )}
       </div>
     </div>
   );
@@ -2135,32 +2259,14 @@ export default function FoodMerchantPage() {
               />
             )}
             {selected && tab === 'operations' && (
-              <>
-                {canManageDisplays && selected.status === 'active' && (
-                  <details className="fd-owner-advanced-section">
-                    <summary>{t('food.ownerHome.deviceSetup', 'Device setup')}</summary>
-                    <DeviceSetupChecklist
-                      key={`${selected.id}-${setupKey}`}
-                      restaurant={selected}
-                      t={t}
-                      onComplete={() => setSetupKey((key) => key + 1)}
-                    />
-                  </details>
-                )}
-                {canManageRestaurant && (
-                  <details className="fd-owner-advanced-section">
-                    <summary>{t('food.ownerHome.advancedOperations', 'Advanced operations')}</summary>
-                    <OperationsTab t={t} restaurant={selected} />
-                  </details>
-                )}
-                <h3 id="in-store-screens" style={{ marginTop: '1.5rem', scrollMarginTop: '6rem' }}>{t('food.merchant.inStoreScreens')}</h3>
-                <p className="fd-card-meta">{t('food.merchant.inStoreScreensHint')}</p>
-                <div className="fd-row">
-                  <Link to={`/restaurants/kitchen/${selected.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openKitchen')}</Link>
-                  <Link to={`/restaurants/queue/${selected.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openQueue')}</Link>
-                  <Link to={`/restaurants/kiosk/${selected.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openKiosk')}</Link>
-                </div>
-              </>
+              <OperationsView
+                t={t}
+                restaurant={selected}
+                setupKey={setupKey}
+                canManageDisplays={canManageDisplays}
+                canManageRestaurant={canManageRestaurant}
+                onSetupComplete={() => setSetupKey((key) => key + 1)}
+              />
             )}
           </>
         )}

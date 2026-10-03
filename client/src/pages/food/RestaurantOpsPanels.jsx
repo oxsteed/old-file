@@ -39,7 +39,7 @@ const SEED_TASKS = {
 };
 
 // ── Checklists ────────────────────────────────────────────────────────────────
-export function ChecklistsPanel({ t, restaurant }) {
+export function ChecklistsPanel({ t, restaurant, bare, onStats }) {
   const restaurantId = restaurant.id;
   const [checklists, setChecklists] = useState([]);
   const [runs, setRuns] = useState([]);
@@ -53,10 +53,14 @@ export function ChecklistsPanel({ t, restaurant }) {
       listChecklists(restaurantId),
       listChecklistRuns(restaurantId, { limit: 15 }),
     ])
-      .then(([cl, rn]) => { setChecklists(cl); setRuns(rn); })
+      .then(([cl, rn]) => {
+        setChecklists(cl);
+        setRuns(rn);
+        onStats?.({ checklists: cl.length, runs: rn.length });
+      })
       .catch((err) => toast.error(apiErr(err, t('restaurants.ops.checklists.loadError', 'Could not load checklists'))))
       .finally(() => setLoading(false));
-  }, [restaurantId, t]);
+  }, [restaurantId, t, onStats]);
   useEffect(() => { load(); }, [load]);
 
   const start = async (checklistId) => {
@@ -91,8 +95,8 @@ export function ChecklistsPanel({ t, restaurant }) {
         />
       )}
 
-      <div className="fd-row" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-        <h3 style={{ margin: 0 }}>{t('restaurants.ops.checklists.title', 'Checklists')}</h3>
+      <div className={`fd-ops-toolbar${bare ? ' fd-ops-toolbar--end' : ''}`}>
+        {!bare && <h3 className="fd-ops-panel-title">{t('restaurants.ops.checklists.title', 'Checklists')}</h3>}
         <button type="button" className="fd-btn fd-btn-sm" onClick={() => setShowCreate((s) => !s)}>
           {showCreate ? t('food.common.back', 'Back') : t('restaurants.ops.checklists.newChecklist', 'New checklist')}
         </button>
@@ -118,17 +122,17 @@ export function ChecklistsPanel({ t, restaurant }) {
         <div className="fd-empty">{t('restaurants.ops.checklists.empty', 'No checklists yet. Create your first opening or closing checklist.')}</div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '0.75rem' }}>
+      <div className="fd-ops-checklists-grid">
         {checklists.map((c) => (
-          <div key={c.id} className="fd-card" style={{ padding: '1rem' }}>
-            <div className="fd-row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <h4 style={{ margin: '0 0 0.25rem' }}>{c.name}</h4>
+          <div key={c.id} className="fd-ops-checklist-card">
+            <div className="fd-ops-checklist-top">
+              <h4>{c.name}</h4>
               <span className="fd-tag">{t(`restaurants.ops.checklists.type.${c.checklist_type}`, c.checklist_type)}</span>
             </div>
-            <p className="fd-card-meta" style={{ marginTop: 0 }}>
+            <p className="fd-card-meta">
               {t('restaurants.ops.checklists.taskCount', '{{count}} tasks', { count: (c.tasks || []).length })}
             </p>
-            <div className="fd-row" style={{ marginTop: '0.5rem' }}>
+            <div className="fd-ops-checklist-actions">
               <button type="button" className="fd-btn fd-btn-sm" disabled={(c.tasks || []).length === 0} onClick={() => start(c.id)}>
                 {t('restaurants.ops.checklists.start', 'Start')}
               </button>
@@ -141,13 +145,13 @@ export function ChecklistsPanel({ t, restaurant }) {
         ))}
       </div>
 
-      <h3 style={{ marginTop: '1.5rem' }}>{t('restaurants.ops.checklists.history', 'Recent runs')}</h3>
+      <h3 className="fd-ops-subhead">{t('restaurants.ops.checklists.history', 'Recent runs')}</h3>
       {runs.length === 0 ? (
         <p className="fd-card-meta">{t('restaurants.ops.checklists.noRuns', 'No completed runs yet.')}</p>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+        <div className="fd-ops-run-list">
           {runs.map((r) => (
-            <div key={r.id} className="fd-row" style={{ justifyContent: 'space-between', padding: '0.5rem 0.65rem', border: '1px solid var(--border-color, #e5e7eb)', borderRadius: 8 }}>
+            <div key={r.id} className="fd-ops-run-row">
               <span>{r.checklist_name}</span>
               <span className="fd-card-meta">
                 {r.completed_tasks}/{r.total_tasks} · {t(`restaurants.ops.checklists.runStatus.${r.status}`, r.status)} · {new Date(r.started_at).toLocaleDateString()}
@@ -176,24 +180,26 @@ function NewChecklistForm({ t, onCreate, onCancel }) {
   };
 
   return (
-    <form onSubmit={submit} className="fd-card" style={{ padding: '1rem', marginBottom: '1rem' }}>
-      <div className="fd-field">
-        <label htmlFor="cl-name">{t('restaurants.ops.checklists.nameLabel', 'Checklist name')}</label>
-        <input id="cl-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('restaurants.ops.checklists.namePlaceholder', 'e.g. Morning opening')} />
+    <form onSubmit={submit} className="fd-ops-form">
+      <div className="fd-settings-field-grid">
+        <div className="fd-field">
+          <label htmlFor="cl-name">{t('restaurants.ops.checklists.nameLabel', 'Checklist name')}</label>
+          <input id="cl-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('restaurants.ops.checklists.namePlaceholder', 'e.g. Morning opening')} />
+        </div>
+        <div className="fd-field">
+          <label htmlFor="cl-type">{t('restaurants.ops.checklists.typeLabel', 'Type')}</label>
+          <select id="cl-type" value={type} onChange={(e) => setType(e.target.value)}>
+            {CHECKLIST_TYPES.map((ct) => (
+              <option key={ct} value={ct}>{t(`restaurants.ops.checklists.type.${ct}`, ct)}</option>
+            ))}
+          </select>
+        </div>
       </div>
-      <div className="fd-field">
-        <label htmlFor="cl-type">{t('restaurants.ops.checklists.typeLabel', 'Type')}</label>
-        <select id="cl-type" value={type} onChange={(e) => setType(e.target.value)}>
-          {CHECKLIST_TYPES.map((ct) => (
-            <option key={ct} value={ct}>{t(`restaurants.ops.checklists.type.${ct}`, ct)}</option>
-          ))}
-        </select>
-      </div>
-      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
+      <label className="fd-ops-check">
         <input type="checkbox" checked={seed} onChange={(e) => setSeed(e.target.checked)} />
         {t('restaurants.ops.checklists.seedTasks', 'Add suggested starter tasks')}
       </label>
-      <div className="fd-row" style={{ marginTop: '0.75rem' }}>
+      <div className="fd-settings-actions">
         <button type="submit" className="fd-btn fd-btn-sm" disabled={saving || !name.trim()}>
           {t('food.common.save', 'Save')}
         </button>
@@ -229,21 +235,21 @@ function ManageTasks({ t, restaurantId, checklist, onChanged }) {
   };
 
   return (
-    <div style={{ marginTop: '0.5rem' }}>
+    <div className="fd-ops-tasks">
       <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setOpen((o) => !o)}>
         {open ? t('food.common.back', 'Hide') : t('restaurants.ops.checklists.manageTasks', 'Tasks')}
       </button>
       {open && (
-        <div style={{ marginTop: '0.5rem' }}>
-          <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 0.5rem' }}>
+        <div className="fd-ops-tasks-open">
+          <ul className="fd-ops-task-list">
             {(checklist.tasks || []).map((tk) => (
-              <li key={tk.id} className="fd-row" style={{ justifyContent: 'space-between', fontSize: '0.85rem', padding: '0.2rem 0' }}>
+              <li key={tk.id} className="fd-ops-task-row">
                 <span>{tk.label}</span>
                 <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => removeTask(tk.id)} aria-label={t('common.delete', 'Delete')}>×</button>
               </li>
             ))}
           </ul>
-          <div className="fd-row">
+          <div className="fd-ops-task-add">
             <input value={newTask} onChange={(e) => setNewTask(e.target.value)} placeholder={t('restaurants.ops.checklists.taskPlaceholder', 'Add a task…')} />
             <button type="button" className="fd-btn fd-btn-sm" onClick={add} disabled={!newTask.trim()}>{t('common.add', 'Add')}</button>
           </div>
@@ -287,27 +293,26 @@ function RunModal({ t, restaurantId, run: initialRun, onClose }) {
 
   return (
     <div
-      role="dialog"
-      aria-modal="true"
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}
+      role="dialog" aria-modal="true"
+      className="fd-ops-modal-overlay"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="fd-card" style={{ width: 'min(32rem, 100%)', maxHeight: '85vh', overflowY: 'auto', padding: '1.25rem' }}>
-        <div className="fd-row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 style={{ margin: 0 }}>{t('restaurants.ops.checklists.runningTitle', 'Running checklist')}</h3>
+      <div className="fd-ops-modal">
+        <div className="fd-ops-modal-head">
+          <h3>{t('restaurants.ops.checklists.runningTitle', 'Running checklist')}</h3>
           <span className="fd-tag">{done}/{total}</span>
         </div>
-        <ul style={{ listStyle: 'none', padding: 0, margin: '1rem 0' }}>
+        <ul className="fd-ops-run-items">
           {(run.items || []).map((item) => (
-            <li key={item.id} style={{ padding: '0.35rem 0' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer' }}>
+            <li key={item.id} className="fd-ops-run-item">
+              <label>
                 <input type="checkbox" checked={item.is_done} disabled={busy} onChange={() => toggle(item)} />
-                <span style={{ textDecoration: item.is_done ? 'line-through' : 'none', opacity: item.is_done ? 0.6 : 1 }}>{item.label}</span>
+                <span className={item.is_done ? 'fd-ops-run-item--done' : ''}>{item.label}</span>
               </label>
             </li>
           ))}
         </ul>
-        <div className="fd-row" style={{ justifyContent: 'flex-end' }}>
+        <div className="fd-ops-modal-actions">
           <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onClose}>{t('food.common.back', 'Close')}</button>
           <button type="button" className="fd-btn fd-btn-sm" onClick={finish} disabled={busy}>
             {t('restaurants.ops.checklists.markComplete', 'Mark complete')}
@@ -319,7 +324,7 @@ function RunModal({ t, restaurantId, run: initialRun, onClose }) {
 }
 
 // ── SOP library ─────────────────────────────────────────────────────────────
-export function SopsPanel({ t, restaurant }) {
+export function SopsPanel({ t, restaurant, bare, onStats }) {
   const restaurantId = restaurant.id;
   const [sops, setSops] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -328,10 +333,10 @@ export function SopsPanel({ t, restaurant }) {
   const load = useCallback(() => {
     setLoading(true);
     listSops(restaurantId)
-      .then(setSops)
+      .then((sops) => { setSops(sops); onStats?.({ sops: sops.length }); })
       .catch((err) => toast.error(apiErr(err, t('restaurants.ops.sops.loadError', 'Could not load SOPs'))))
       .finally(() => setLoading(false));
-  }, [restaurantId, t]);
+  }, [restaurantId, t, onStats]);
   useEffect(() => { load(); }, [load]);
 
   const save = async (payload, sopId) => {
@@ -362,8 +367,8 @@ export function SopsPanel({ t, restaurant }) {
 
   return (
     <div>
-      <div className="fd-row" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-        <h3 style={{ margin: 0 }}>{t('restaurants.ops.sops.title', 'SOP library')}</h3>
+      <div className={`fd-ops-toolbar${bare ? ' fd-ops-toolbar--end' : ''}`}>
+        {!bare && <h3 className="fd-ops-panel-title">{t('restaurants.ops.sops.title', 'SOP library')}</h3>}
         <button type="button" className="fd-btn fd-btn-sm" onClick={() => setEditing('new')}>
           {t('restaurants.ops.sops.newSop', 'New SOP')}
         </button>
@@ -371,20 +376,20 @@ export function SopsPanel({ t, restaurant }) {
       {sops.length === 0 ? (
         <div className="fd-empty">{t('restaurants.ops.sops.empty', 'No SOPs yet. Document how your team does things.')}</div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <div className="fd-ops-sop-list">
           {sops.map((s) => (
-            <div key={s.id} className="fd-card" style={{ padding: '0.85rem 1rem' }}>
-              <div className="fd-row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div key={s.id} className="fd-ops-sop-card">
+              <div className="fd-ops-sop-top">
                 <div>
                   <strong>{s.title}</strong>
-                  <span className="fd-tag" style={{ marginLeft: '0.5rem' }}>{t(`restaurants.ops.sops.category.${s.category}`, s.category)}</span>
+                  <span className="fd-tag fd-ops-sop-tag">{t(`restaurants.ops.sops.category.${s.category}`, s.category)}</span>
                 </div>
-                <div className="fd-row">
+                <div className="fd-ops-sop-actions">
                   <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setEditing(s)}>{t('common.edit', 'Edit')}</button>
                   <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => remove(s.id)}>{t('common.delete', 'Delete')}</button>
                 </div>
               </div>
-              {s.body && <p className="fd-card-meta" style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>{s.body}</p>}
+              {s.body && <p className="fd-card-meta fd-ops-sop-body">{s.body}</p>}
             </div>
           ))}
         </div>
@@ -408,25 +413,27 @@ function SopForm({ t, sop, onSave, onCancel }) {
   };
 
   return (
-    <form onSubmit={submit} className="fd-card" style={{ padding: '1rem' }}>
-      <h3 style={{ marginTop: 0 }}>{sop ? t('restaurants.ops.sops.editTitle', 'Edit SOP') : t('restaurants.ops.sops.newSop', 'New SOP')}</h3>
-      <div className="fd-field">
-        <label htmlFor="sop-title">{t('restaurants.ops.sops.titleLabel', 'Title')}</label>
-        <input id="sop-title" value={title} onChange={(e) => setTitle(e.target.value)} />
-      </div>
-      <div className="fd-field">
-        <label htmlFor="sop-cat">{t('restaurants.ops.sops.categoryLabel', 'Category')}</label>
-        <select id="sop-cat" value={category} onChange={(e) => setCategory(e.target.value)}>
-          {SOP_CATEGORIES.map((c) => (
-            <option key={c} value={c}>{t(`restaurants.ops.sops.category.${c}`, c)}</option>
-          ))}
-        </select>
+    <form onSubmit={submit} className="fd-ops-form">
+      <h3 className="fd-ops-form-title">{sop ? t('restaurants.ops.sops.editTitle', 'Edit SOP') : t('restaurants.ops.sops.newSop', 'New SOP')}</h3>
+      <div className="fd-settings-field-grid">
+        <div className="fd-field">
+          <label htmlFor="sop-title">{t('restaurants.ops.sops.titleLabel', 'Title')}</label>
+          <input id="sop-title" value={title} onChange={(e) => setTitle(e.target.value)} />
+        </div>
+        <div className="fd-field">
+          <label htmlFor="sop-cat">{t('restaurants.ops.sops.categoryLabel', 'Category')}</label>
+          <select id="sop-cat" value={category} onChange={(e) => setCategory(e.target.value)}>
+            {SOP_CATEGORIES.map((c) => (
+              <option key={c} value={c}>{t(`restaurants.ops.sops.category.${c}`, c)}</option>
+            ))}
+          </select>
+        </div>
       </div>
       <div className="fd-field">
         <label htmlFor="sop-body">{t('restaurants.ops.sops.bodyLabel', 'Procedure')}</label>
         <textarea id="sop-body" rows={8} value={body} onChange={(e) => setBody(e.target.value)} placeholder={t('restaurants.ops.sops.bodyPlaceholder', 'Step-by-step instructions…')} />
       </div>
-      <div className="fd-row">
+      <div className="fd-settings-actions">
         <button type="submit" className="fd-btn fd-btn-sm" disabled={saving || !title.trim()}>{t('food.common.save', 'Save')}</button>
         <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onCancel}>{t('food.common.back', 'Back')}</button>
       </div>
@@ -435,7 +442,7 @@ function SopForm({ t, sop, onSave, onCancel }) {
 }
 
 // ── Inventory ─────────────────────────────────────────────────────────────────
-export function InventoryPanel({ t, restaurant }) {
+export function InventoryPanel({ t, restaurant, bare, onStats }) {
   const restaurantId = restaurant.id;
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -445,10 +452,13 @@ export function InventoryPanel({ t, restaurant }) {
   const load = useCallback(() => {
     setLoading(true);
     listInventoryItems(restaurantId)
-      .then(setItems)
+      .then((items) => {
+        setItems(items);
+        onStats?.({ items: items.length, lowStock: items.filter((i) => i.is_low).length });
+      })
       .catch((err) => toast.error(apiErr(err, t('restaurants.ops.inventory.loadError', 'Could not load inventory'))))
       .finally(() => setLoading(false));
-  }, [restaurantId, t]);
+  }, [restaurantId, t, onStats]);
   useEffect(() => { load(); }, [load]);
 
   const create = async (payload) => {
@@ -489,15 +499,15 @@ export function InventoryPanel({ t, restaurant }) {
         <AdjustModal t={t} item={adjusting} onClose={() => setAdjusting(null)} onApply={applyAdjust} />
       )}
 
-      <div className="fd-row" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-        <h3 style={{ margin: 0 }}>{t('restaurants.ops.inventory.title', 'Inventory')}</h3>
+      <div className={`fd-ops-toolbar${bare ? ' fd-ops-toolbar--end' : ''}`}>
+        {!bare && <h3 className="fd-ops-panel-title">{t('restaurants.ops.inventory.title', 'Inventory')}</h3>}
         <button type="button" className="fd-btn fd-btn-sm" onClick={() => setShowCreate((s) => !s)}>
           {showCreate ? t('food.common.back', 'Back') : t('restaurants.ops.inventory.newItem', 'New item')}
         </button>
       </div>
 
       {lowCount > 0 && (
-        <p className="fd-pay-note" style={{ marginTop: 0 }}>
+        <p className="fd-ops-notice fd-ops-notice--warn">
           {t('restaurants.ops.inventory.lowStockAlert', '{{count}} item(s) at or below their low-stock threshold.', { count: lowCount })}
         </p>
       )}
@@ -507,23 +517,18 @@ export function InventoryPanel({ t, restaurant }) {
       {items.length === 0 && !showCreate ? (
         <div className="fd-empty">{t('restaurants.ops.inventory.empty', 'No inventory items yet. Add your key ingredients and supplies.')}</div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+        <div className="fd-ops-inventory-list">
           {items.map((it) => (
             <div
               key={it.id}
-              className="fd-row"
-              style={{
-                justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem',
-                padding: '0.55rem 0.7rem', borderRadius: 8,
-                border: `1px solid ${it.is_low ? 'var(--color-primary, #F97316)' : 'var(--border-color, #e5e7eb)'}`,
-              }}
+              className={`fd-ops-inventory-row${it.is_low ? ' fd-ops-inventory-row--low' : ''}`}
             >
-              <div>
+              <div className="fd-ops-inventory-main">
                 <strong>{it.name}</strong>{' '}
                 <span className="fd-tag">{t(`restaurants.ops.inventory.category.${it.category}`, it.category)}</span>
-                {it.is_low && <span className="fd-tag" style={{ color: 'var(--color-primary, #F97316)' }}>{t('restaurants.ops.inventory.low', 'Low')}</span>}
+                {it.is_low && <span className="fd-tag fd-ops-low-tag">{t('restaurants.ops.inventory.low', 'Low')}</span>}
               </div>
-              <div className="fd-row" style={{ alignItems: 'center', gap: '0.5rem' }}>
+              <div className="fd-ops-inventory-actions">
                 <span className="fd-card-meta">{fmtQty(it.quantity)} {it.unit}</span>
                 <button type="button" className="fd-btn fd-btn-sm" onClick={() => setAdjusting(it)}>{t('restaurants.ops.inventory.adjust', 'Adjust')}</button>
                 <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => remove(it.id)} aria-label={t('common.delete', 'Delete')}>×</button>
@@ -553,34 +558,34 @@ function NewItemForm({ t, onCreate, onCancel }) {
   };
 
   return (
-    <form onSubmit={submit} className="fd-card" style={{ padding: '1rem', marginBottom: '1rem' }}>
-      <div className="fd-field">
-        <label htmlFor="inv-name">{t('restaurants.ops.inventory.nameLabel', 'Item name')}</label>
-        <input id="inv-name" value={form.name} onChange={set('name')} placeholder={t('restaurants.ops.inventory.namePlaceholder', 'e.g. Tomatoes')} />
-      </div>
-      <div className="fd-row" style={{ gap: '0.5rem' }}>
-        <div className="fd-field" style={{ flex: 1 }}>
+    <form onSubmit={submit} className="fd-ops-form">
+      <div className="fd-settings-field-grid">
+        <div className="fd-field">
+          <label htmlFor="inv-name">{t('restaurants.ops.inventory.nameLabel', 'Item name')}</label>
+          <input id="inv-name" value={form.name} onChange={set('name')} placeholder={t('restaurants.ops.inventory.namePlaceholder', 'e.g. Tomatoes')} />
+        </div>
+        <div className="fd-field">
           <label htmlFor="inv-cat">{t('restaurants.ops.inventory.categoryLabel', 'Category')}</label>
           <select id="inv-cat" value={form.category} onChange={set('category')}>
             {INVENTORY_CATEGORIES.map((c) => <option key={c} value={c}>{t(`restaurants.ops.inventory.category.${c}`, c)}</option>)}
           </select>
         </div>
-        <div className="fd-field" style={{ width: 90 }}>
+      </div>
+      <div className="fd-settings-field-grid">
+        <div className="fd-field">
           <label htmlFor="inv-unit">{t('restaurants.ops.inventory.unitLabel', 'Unit')}</label>
           <input id="inv-unit" value={form.unit} onChange={set('unit')} placeholder="ea" />
         </div>
-      </div>
-      <div className="fd-row" style={{ gap: '0.5rem' }}>
-        <div className="fd-field" style={{ flex: 1 }}>
+        <div className="fd-field">
           <label htmlFor="inv-qty">{t('restaurants.ops.inventory.quantityLabel', 'On hand')}</label>
           <input id="inv-qty" type="number" step="any" value={form.quantity} onChange={set('quantity')} />
         </div>
-        <div className="fd-field" style={{ flex: 1 }}>
+        <div className="fd-field">
           <label htmlFor="inv-low">{t('restaurants.ops.inventory.thresholdLabel', 'Low-stock at')}</label>
           <input id="inv-low" type="number" step="any" value={form.lowStockThreshold} onChange={set('lowStockThreshold')} />
         </div>
       </div>
-      <div className="fd-row" style={{ marginTop: '0.5rem' }}>
+      <div className="fd-settings-actions">
         <button type="submit" className="fd-btn fd-btn-sm" disabled={saving || !form.name.trim()}>{t('food.common.save', 'Save')}</button>
         <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onCancel}>{t('food.common.back', 'Back')}</button>
       </div>
@@ -607,12 +612,12 @@ function AdjustModal({ t, item, onClose, onApply }) {
   return (
     <div
       role="dialog" aria-modal="true"
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}
+      className="fd-ops-modal-overlay"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <form onSubmit={submit} className="fd-card" style={{ width: 'min(26rem, 100%)', padding: '1.25rem' }}>
-        <h3 style={{ marginTop: 0 }}>{t('restaurants.ops.inventory.adjustTitle', 'Adjust stock')}: {item.name}</h3>
-        <p className="fd-card-meta" style={{ marginTop: 0 }}>{t('restaurants.ops.inventory.onHand', 'On hand')}: {fmtQty(item.quantity)} {item.unit}</p>
+      <form onSubmit={submit} className="fd-ops-modal fd-ops-modal--narrow">
+        <h3 className="fd-ops-form-title">{t('restaurants.ops.inventory.adjustTitle', 'Adjust stock')}: {item.name}</h3>
+        <p className="fd-card-meta">{t('restaurants.ops.inventory.onHand', 'On hand')}: {fmtQty(item.quantity)} {item.unit}</p>
         <div className="fd-field">
           <label htmlFor="adj-type">{t('restaurants.ops.inventory.adjustType', 'Type')}</label>
           <select id="adj-type" value={type} onChange={(e) => setType(e.target.value)}>
@@ -629,7 +634,7 @@ function AdjustModal({ t, item, onClose, onApply }) {
           <label htmlFor="adj-note">{t('restaurants.ops.inventory.noteLabel', 'Note (optional)')}</label>
           <input id="adj-note" value={note} onChange={(e) => setNote(e.target.value)} />
         </div>
-        <div className="fd-row" style={{ justifyContent: 'flex-end' }}>
+        <div className="fd-ops-modal-actions">
           <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onClose}>{t('food.common.back', 'Cancel')}</button>
           <button type="submit" className="fd-btn fd-btn-sm" disabled={busy}>{t('restaurants.ops.inventory.apply', 'Apply')}</button>
         </div>

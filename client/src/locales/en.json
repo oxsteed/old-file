@@ -19788,6 +19788,17 @@
       "title": "Operations",
       "subtitle": "Run your restaurant with franchise-grade systems.",
       "comingSoon": "Coming next",
+      "opAtAGlance": "At a glance",
+      "opChipChecklists": "{{count}} checklists",
+      "opChipRuns": "{{count}} recent runs",
+      "opChipInventory": "{{count}} items",
+      "opChipLowStock": "{{count}} low stock",
+      "opChipSops": "{{count}} SOPs",
+      "opChipScreens": "Screens",
+      "opChecklistsDesc": "Daily opening, closing, and safety routines your team runs.",
+      "opInventoryDesc": "Ingredients and supplies on hand, with low-stock alerts.",
+      "opSopsDesc": "How things are done, written down for the whole team.",
+      "opDeviceDesc": "Get the kitchen display, queue board, and kiosk ready.",
       "modules": {
         "inventory": {
           "title": "Inventory",
