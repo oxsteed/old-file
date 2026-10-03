@@ -172,6 +172,7 @@ const restaurantPayoutRoutes = require('./routes/restaurantPayouts');
 // OxSteed Restaurants — customer top-ups with OxSteed approval (migration 663)
 const restaurantTopupRoutes = require('./routes/restaurantTopups');
 const adminRestaurantTopupRoutes = require('./routes/adminRestaurantTopups');
+const adminRestaurantMediaRoutes = require('./routes/adminRestaurantMedia');
 // Team / role / Vortex (per OxSteed team-role spec, migration 245)
 const businessTeamRoutes   = require('./routes/businessTeam');
 const careerRoutes         = require('./routes/careers');
@@ -659,6 +660,7 @@ app.use('/api/restaurants', restaurantRoutes);
 app.use('/api/restaurants', restaurantPayoutRoutes);
 app.use('/api/restaurants', restaurantTopupRoutes);
 app.use('/api/admin/restaurant-topups', adminRestaurantTopupRoutes);
+app.use('/api/admin/restaurant-media', adminRestaurantMediaRoutes);
 app.get('/api/business/:businessId/workspace/mobile-summary', require('./middleware/auth').authenticate, require('./controllers/mobileController').getBusinessMobileSummary);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/admin/orders', adminOrdersRoutes);

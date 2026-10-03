@@ -7,7 +7,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../middleware/auth');
+const { authenticate, optionalAuth } = require('../middleware/auth');
 const ops = require('../controllers/restaurantOpsController');
 const inventory = require('../controllers/restaurantInventoryController');
 const inventoryOperations = require('../controllers/restaurantInventoryOperationsController');
@@ -20,7 +20,8 @@ const appFlow = require('../controllers/restaurantAppFlowController');
 const food = require('../controllers/foodController');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
-const { authenticatedLimiter, strictLimiter } = require('../middleware/rateLimiter');
+const { authenticatedLimiter, strictLimiter, generalLimiter } = require('../middleware/rateLimiter');
+const media = require('../controllers/restaurantMediaController');
 
 // A new appliance has no staff session yet. These routes authenticate with the
 // one-time pairing code or the per-device credential issued after pairing.
@@ -49,10 +50,21 @@ router.post('/:restaurantId/display/devices/:deviceId/orders', appFlow.authentic
 router.get('/:restaurantId/menu', food.getRestaurant);
 router.post('/:restaurantId/orders/quote', food.quoteOrder);
 router.post('/:restaurantId/kiosk/orders/quote', food.quoteOrder);
+// Restaurant Media tab (TikTok-style video feed) — public feed; the write
+// surface below needs a signed-in user.
+router.get('/:restaurantId/media', optionalAuth, media.listRestaurantMedia);
 
 // All routes require a signed-in user; the controller verifies the user belongs
 // to the restaurant (and that nested rows belong to it) on every call.
 router.use(authenticate);
+
+// ── Restaurant Media tab (TikTok-style video feed) ────────────────────
+// POST /media is bucketed at 10/day per account; the like toggle rides the
+// general limiter; flags mirror Learn's videoFlagLimiter (30/hour).
+router.post('/:restaurantId/media', media.mediaSubmitLimiter, media.postRestaurantMedia);
+router.post('/:restaurantId/media/:mediaId/like', generalLimiter, media.toggleMediaLike);
+router.delete('/:restaurantId/media/:mediaId', media.deleteRestaurantMedia);
+router.post('/:restaurantId/media/:mediaId/flags', media.mediaFlagLimiter, media.flagMedia);
 
 // Cross-app bootstrap / Manager operations
 router.get('/app/bootstrap', appFlow.discoverBootstrap);

@@ -31,6 +31,7 @@ import {
 } from '../../api/oxsteedCredit';
 import { useLiveFoodOrder } from './useLiveFoodOrder';
 import { FOOD_STATUS_KEYS } from './foodShared';
+import RestaurantMediaFeed from './components/RestaurantMediaFeed';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import PageMeta from '../../components/PageMeta';
@@ -187,6 +188,9 @@ export default function FoodRestaurantPage() {
   const [messageSubject, setMessageSubject] = useState('');
   const [messageBody, setMessageBody] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
+  // Media-tab dish deep link: item id the Media feed asked to jump to.
+  const [highlightItemId, setHighlightItemId] = useState(null);
+  const pendingMediaDish = useRef(null);
 
   // Cart / checkout
   const [cartItems, setCartItems] = useState([]);
@@ -263,6 +267,41 @@ export default function FoodRestaurantPage() {
       .then((orders) => setPastOrdersRaw(Array.isArray(orders) ? orders : []))
       .catch(() => setPastOrdersRaw([]));
   }, [user, restaurantId]);
+
+  // Media-tab dish deep link: after the Media feed asks to jump to a dish,
+  // switch to the Menu tab, then scroll to the item, flash a highlight, and
+  // open the existing item modal (the buy/add-to-cart affordance). Clears
+  // filters so the item is guaranteed visible.
+  // NOTE: allItemsFlat/openModal are defined below in the render body; the
+  // closure reads them when the effect runs, after render, which is safe.
+  useEffect(() => {
+    if (activeTab !== 'menu' || !pendingMediaDish.current) return;
+    const id = pendingMediaDish.current;
+    pendingMediaDish.current = null;
+    const timer = setTimeout(() => {
+      const el = document.getElementById(`menu-item-${id}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setHighlightItemId(id);
+      const found = allItemsFlat.find((it) => String(it.id) === String(id));
+      if (found && found.canOrder) openModal(found);
+      setTimeout(() => setHighlightItemId((cur) => (cur === id ? null : cur)), 2600);
+    }, 150);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  const jumpToMenuItem = (menuItemId) => {
+    const found = allItemsFlat.find((it) => String(it.id) === String(menuItemId));
+    if (!found) {
+      toast.error(t('food.restaurant.media.dishGone'));
+      return;
+    }
+    pendingMediaDish.current = String(menuItemId);
+    setActiveCategory(String(found.sectionId));
+    setSearchQuery('');
+    setDietaryFilter('all');
+    setActiveTab('menu');
+  };
 
   // Restaurant-credit wallet (signed-in customers only). When present and
   // active, "Restaurant credit" appears as a real payment option.
@@ -1019,23 +1058,24 @@ export default function FoodRestaurantPage() {
   };
   const hasSearch = searchQuery.trim().length > 0;
 
-  const decorate = (item, sectionName) => {
+  const decorate = (item, section) => {
     const tags = (item.tags || item.dietary_tags || []).map((x) => String(x).toLowerCase());
     const firstTag = tags[0];
     return {
       ...item,
-      sectionName,
+      sectionName: section.name,
+      sectionId: section.id,
       priceStr: formatFoodMoney(item.price_cents, currency),
-      photoGrad: gradFor(sectionName),
+      photoGrad: gradFor(section.name),
       hasTag: !!firstTag,
       tagLabel: firstTag ? t(`food.restaurant.tags.${firstTag}`, { defaultValue: cap(firstTag) }) : '',
       canOrder: item.is_available !== false && restaurant.accepts_online_orders !== false,
     };
   };
 
-  const allItemsFlat = sections.flatMap((s) => (s.items || []).map((it) => decorate(it, s.name)));
+  const allItemsFlat = sections.flatMap((s) => (s.items || []).map((it) => decorate(it, s)));
   const currentSection = sections.find((s) => String(s.id) === String(validCatId));
-  const catItems = (currentSection?.items || []).map((it) => decorate(it, currentSection.name));
+  const catItems = (currentSection?.items || []).map((it) => decorate(it, currentSection));
 
   const filteredMenu = hasSearch
     ? allItemsFlat.filter(searchOk).filter(dietOk)
@@ -1249,6 +1289,7 @@ export default function FoodRestaurantPage() {
     { key: 'info', label: t('food.restaurant.tabs.info') },
     { key: 'reviews', label: t('food.restaurant.tabs.reviews') },
     { key: 'deals', label: t('food.restaurant.tabs.deals') },
+    { key: 'media', label: t('food.restaurant.tabs.media') },
   ];
 
   const dietaryChips = [
@@ -1584,7 +1625,7 @@ export default function FoodRestaurantPage() {
                       <p style={{ ...sectionLabel, marginBottom: 10 }}>{gridLabel}</p>
                       <div className="rp-menu-grid">
                         {filteredMenu.map((item) => (
-                          <div key={item.id} style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid #f1f5f9', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                          <div key={item.id} id={`menu-item-${item.id}`} style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid #f1f5f9', background: '#fff', boxShadow: highlightItemId === String(item.id) ? '0 0 0 3px #f97316, 0 1px 3px rgba(0,0,0,0.06)' : '0 1px 3px rgba(0,0,0,0.06)', transition: 'box-shadow 0.3s ease' }}>
                             <div onClick={() => item.canOrder && openModal(item)} style={{ cursor: item.canOrder ? 'pointer' : 'default' }}>
                               <div style={{ height: 96, background: item.image_url ? `center/cover url(${item.image_url})` : item.photoGrad, position: 'relative', overflow: 'hidden' }}>
                                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top,rgba(0,0,0,0.3) 0%,transparent 60%)' }} />
@@ -1615,7 +1656,7 @@ export default function FoodRestaurantPage() {
                         <p style={{ ...sectionLabel, fontSize: 12, margin: '10px 0' }}>{t('food.restaurant.searchResults', { count: filteredMenu.length, query: searchQuery })}</p>
                       )}
                       {filteredMenu.map((item) => (
-                        <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '1fr 68px', gap: 12, padding: '13px 0', borderBottom: '1px solid #f8fafc', alignItems: 'start', opacity: item.is_available === false ? 0.55 : 1 }}>
+                        <div key={item.id} id={`menu-item-${item.id}`} style={{ display: 'grid', gridTemplateColumns: '1fr 68px', gap: 12, padding: '13px 0', borderBottom: '1px solid #f8fafc', alignItems: 'start', opacity: item.is_available === false ? 0.55 : 1, borderRadius: 8, boxShadow: highlightItemId === String(item.id) ? '0 0 0 3px #f97316' : 'none', transition: 'box-shadow 0.3s ease' }}>
                           <div onClick={() => item.canOrder && openModal(item)} style={{ minWidth: 0, cursor: item.canOrder ? 'pointer' : 'default' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, marginBottom: 3 }}>
                               <span style={{ fontSize: 15, fontWeight: 600, color: '#0f172a', lineHeight: 1.3 }}>{item.name}</span>
@@ -1750,6 +1791,20 @@ export default function FoodRestaurantPage() {
                       <p style={{ fontSize: 14, color: '#64748b', marginTop: 4 }}>{t('food.restaurant.checkDealsLater')}</p>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* ── MEDIA (TikTok-style video feed) ── */}
+              {activeTab === 'media' && (
+                <div className="rp-panel rp-panel-wrap" style={{ padding: 12 }}>
+                  <RestaurantMediaFeed
+                    restaurantId={restaurantId}
+                    user={user}
+                    isAdmin={['admin', 'super_admin'].includes(user?.role)}
+                    menuItems={allItemsFlat}
+                    onDishTap={jumpToMenuItem}
+                    onRequireLogin={openLoginGate}
+                  />
                 </div>
               )}
             </div>

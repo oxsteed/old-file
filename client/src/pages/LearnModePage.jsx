@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import useRecommendations from '../hooks/useRecommendations';
 import { Link, useSearchParams } from 'react-router-dom';
+import { toEmbedUrl } from '../utils/videoEmbed';
 import {
   AlertTriangle,
   Award,
@@ -71,36 +72,6 @@ function trackLearnClick(guideId, kind, target) {
     }).catch(() => {});
   } catch (_) { /* never break navigation */ }
 }
-
-// Convert a YouTube watch/shorts or Vimeo URL to its embed form for the
-// sandboxed iframe. Returns null for anything else (including non-https
-// URLs) so the caller falls back to the placeholder. video_provider
-// ('youtube'|'vimeo'|null) is a hint; the URL host is also sniffed so
-// provider-less rows still resolve.
-const toEmbedUrl = (url, provider) => {
-  if (typeof url !== 'string') return null;
-  const trimmed = url.trim();
-  if (!/^https:\/\//i.test(trimmed)) return null;
-  let host = '';
-  try {
-    host = new URL(trimmed).hostname.toLowerCase();
-  } catch (_) {
-    return null;
-  }
-  const isYouTube = provider === 'youtube'
-    || host === 'youtube.com' || host.endsWith('.youtube.com') || host === 'youtu.be';
-  if (isYouTube) {
-    const m = trimmed.match(/(?:youtube\.com\/(?:watch\?[^#\s]*v=|shorts\/|embed\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
-    return m ? `https://www.youtube.com/embed/${m[1]}` : null;
-  }
-  const isVimeo = provider === 'vimeo'
-    || host === 'vimeo.com' || host.endsWith('.vimeo.com') || host === 'player.vimeo.com';
-  if (isVimeo) {
-    const m = trimmed.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-    return m ? `https://player.vimeo.com/video/${m[1]}` : null;
-  }
-  return null;
-};
 
 // ── Categories ────────────────────────────────────────────────────────────────
 

@@ -793,6 +793,7 @@ verifyPageHasNoHardcodedUiText('src/pages/PostJobPage.jsx', {
   allowedJsxText: ['OxS'],
 });
 verifyPageHasNoHardcodedUiText('src/pages/food/FoodRestaurantPage.jsx');
+verifyPageHasNoHardcodedUiText('src/pages/food/components/RestaurantMediaFeed.jsx');
 verifyPageHasNoHardcodedUiText('src/pages/HomePage.jsx', {
   allowedJsxText: ['OxS'],
 });
