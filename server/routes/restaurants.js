@@ -9,6 +9,9 @@ const express = require('express');
 const router = express.Router();
 const { authenticate, optionalAuth } = require('../middleware/auth');
 const ops = require('../controllers/restaurantOpsController');
+const training = require('../controllers/restaurantTrainingController');
+const audits = require('../controllers/restaurantAuditsController');
+const franchiseReports = require('../controllers/restaurantReportsController');
 const inventory = require('../controllers/restaurantInventoryController');
 const inventoryOperations = require('../controllers/restaurantInventoryOperationsController');
 const runner = require('../controllers/restaurantRunnerController');
@@ -148,6 +151,38 @@ router.post('/:restaurantId/pos/menu-items/:itemId/sold-out', (req, _res, next) 
 router.get('/:restaurantId/inventory/adjustments', inventory.listAdjustments);
 router.get('/:restaurantId/inventory/mappings', inventory.listMappings);
 router.post('/:restaurantId/inventory/mappings', inventory.upsertMapping);
+
+// Staff training (franchise system)
+router.get('/:restaurantId/training/modules', training.listModules);
+router.post('/:restaurantId/training/modules', training.createModule);
+router.patch('/:restaurantId/training/modules/:moduleId', training.updateModule);
+router.delete('/:restaurantId/training/modules/:moduleId', training.deleteModule);
+router.get('/:restaurantId/training/staff', training.listStaff);
+router.post('/:restaurantId/training/modules/:moduleId/assign', training.assignModule);
+router.get('/:restaurantId/training/assignments', training.listAssignments);
+router.post('/:restaurantId/training/assignments/:assignmentId/start', training.startAssignment);
+router.post('/:restaurantId/training/assignments/:assignmentId/submit', training.submitQuiz);
+router.get('/:restaurantId/training/completions', training.listCompletions);
+
+// Quality audits (franchise system)
+router.get('/:restaurantId/audits/templates', audits.listTemplates);
+router.post('/:restaurantId/audits/templates', audits.createTemplate);
+router.patch('/:restaurantId/audits/templates/:templateId', audits.updateTemplate);
+router.delete('/:restaurantId/audits/templates/:templateId', audits.deleteTemplate);
+router.post('/:restaurantId/audits/templates/:templateId/runs', audits.startAudit);
+router.get('/:restaurantId/audits/runs', audits.listAudits);
+router.get('/:restaurantId/audits/runs/:auditId', audits.getAudit);
+router.post('/:restaurantId/audits/runs/:auditId/score', audits.scoreItem);
+router.post('/:restaurantId/audits/runs/:auditId/complete', audits.completeAudit);
+router.post('/:restaurantId/audits/runs/:auditId/findings', audits.addFinding);
+router.post('/:restaurantId/audits/findings/:findingId/actions', audits.createCorrectiveAction);
+router.get('/:restaurantId/audits/corrective-actions', audits.listCorrectiveActions);
+router.patch('/:restaurantId/audits/corrective-actions/:actionId', audits.updateCorrectiveAction);
+
+// Franchise reports (manager-only)
+router.get('/:restaurantId/reports/sales', franchiseReports.salesSummary);
+router.get('/:restaurantId/reports/inventory', franchiseReports.inventorySummary);
+router.get('/:restaurantId/reports/operations', franchiseReports.operationsSummary);
 router.delete('/:restaurantId/inventory/mappings/:mappingId', inventory.deleteMapping);
 router.post('/:restaurantId/inventory/mappings/bootstrap-defaults', inventory.bootstrapMappings);
 router.get('/:restaurantId/inventory/purchase-requests', inventory.listPurchaseRequests);
