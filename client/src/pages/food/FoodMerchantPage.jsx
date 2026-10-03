@@ -4,6 +4,7 @@ import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useSt
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
+import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList } from 'lucide-react';
 import { subscribeRestaurantDisplay } from '../../api/restaurantDisplaySocket';
 import {
   listMyFoodRestaurants,
@@ -1442,14 +1443,6 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
       <LocationsPanel t={t} restaurant={restaurant} onChanged={onSetupChanged} />
 
       <PromotionsPanel t={t} restaurant={restaurant} />
-
-      <h3 id="in-store-screens" style={{ marginTop: '1.5rem', scrollMarginTop: '6rem' }}>{t('food.merchant.inStoreScreens')}</h3>
-      <p className="fd-card-meta">{t('food.merchant.inStoreScreensHint')}</p>
-      <div className="fd-row">
-        <Link to={`/restaurants/kitchen/${restaurant.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openKitchen')}</Link>
-        <Link to={`/restaurants/queue/${restaurant.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openQueue')}</Link>
-        <Link to={`/restaurants/kiosk/${restaurant.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openKiosk')}</Link>
-      </div>
     </div>
   );
 }
@@ -1591,8 +1584,10 @@ function MerchantLanding({ t, onStart }) {
 
 function OwnerHomeTab({ t, restaurant, onGoTab, onUpdated }) {
   const [summary, setSummary] = useState({ activeOrders: 0, menuItems: 0, drafts: 0, soldOut: 0 });
+  const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const openCardRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -1600,11 +1595,13 @@ function OwnerHomeTab({ t, restaurant, onGoTab, onUpdated }) {
     Promise.all([
       getManagedFoodMenu(restaurant.id).catch(() => ({ menu: [], uncategorizedItems: [] })),
       listFoodRestaurantOrders(restaurant.id, { limit: 100 }).catch(() => []),
-    ]).then(([menuData, orders]) => {
+    ]).then(([menuData, fetchedOrders]) => {
       if (cancelled) return;
       const items = [...(menuData.menu || []).flatMap((category) => category.items || []), ...(menuData.uncategorizedItems || [])];
+      const orderList = Array.isArray(fetchedOrders) ? fetchedOrders : [];
+      setOrders(orderList);
       setSummary({
-        activeOrders: orders.filter((order) => !['completed', 'cancelled', 'refunded'].includes(order.status)).length,
+        activeOrders: orderList.filter((order) => !['completed', 'cancelled', 'refunded'].includes(order.status)).length,
         menuItems: items.filter((item) => !item.archived_at).length,
         drafts: items.filter((item) => !item.archived_at && item.publication_status === 'draft').length,
         soldOut: items.filter((item) => !item.archived_at && !item.is_available).length,
@@ -1612,6 +1609,54 @@ function OwnerHomeTab({ t, restaurant, onGoTab, onUpdated }) {
     }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [restaurant.id]);
+
+  const todayStats = useMemo(() => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const todays = orders.filter((order) => {
+      if (['cancelled', 'refunded'].includes(order.status)) return false;
+      const ts = new Date(order.created_at).getTime();
+      return Number.isFinite(ts) && ts >= startOfToday;
+    });
+    const totals = todays.map((order) => Number(order.total_cents)).filter((n) => Number.isFinite(n));
+    return {
+      count: todays.length,
+      revenue: totals.length > 0 ? totals.reduce((a, b) => a + b, 0) : null,
+      currency: todays.find((order) => order.currency_code)?.currency_code || 'USD',
+    };
+  }, [orders]);
+
+  const attention = useMemo(() => {
+    const items = [];
+    if (restaurant.status !== 'active') {
+      items.push({
+        key: 'not-live',
+        label: t('food.ownerHome.alertNotLive', 'Your restaurant is not live yet'),
+        onClick: () => onGoTab('settings'),
+      });
+    } else if (restaurant.is_accepting_orders_now === false) {
+      items.push({
+        key: 'paused',
+        label: t('food.ownerHome.alertPaused', 'Ordering is paused'),
+        onClick: () => openCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+      });
+    }
+    if (summary.drafts > 0) {
+      items.push({
+        key: 'drafts',
+        label: t('food.ownerHome.alertDrafts', '{{count}} draft items are not published', { count: summary.drafts }),
+        onClick: () => onGoTab('menu'),
+      });
+    }
+    if (summary.soldOut > 0) {
+      items.push({
+        key: 'soldOut',
+        label: t('food.ownerHome.alertSoldOut', '{{count}} items are marked sold out', { count: summary.soldOut }),
+        onClick: () => onGoTab('menu'),
+      });
+    }
+    return items;
+  }, [onGoTab, restaurant.is_accepting_orders_now, restaurant.status, summary.drafts, summary.soldOut, t]);
 
   const toggleOrders = async () => {
     setSaving(true);
@@ -1633,7 +1678,7 @@ function OwnerHomeTab({ t, restaurant, onGoTab, onUpdated }) {
   const accepting = restaurant.is_accepting_orders_now !== false && restaurant.status === 'active';
   return (
     <div className="fd-owner-home">
-      <section className={`fd-owner-open-card${accepting ? ' fd-owner-open-card--live' : ''}`}>
+      <section ref={openCardRef} className={`fd-owner-open-card${accepting ? ' fd-owner-open-card--live' : ''}`}>
         <div>
           <span className="fd-owner-open-dot" aria-hidden />
           <div>
@@ -1644,6 +1689,14 @@ function OwnerHomeTab({ t, restaurant, onGoTab, onUpdated }) {
         {restaurant.status === 'active' && <button type="button" className={accepting ? 'fd-btn fd-btn-secondary' : 'fd-btn'} disabled={saving} onClick={toggleOrders}>{accepting ? t('food.ownerHome.pauseOrders', 'Pause orders') : t('food.ownerHome.resumeOrders', 'Resume orders')}</button>}
       </section>
 
+      <section className="fd-owner-today" aria-label={t('food.ownerHome.today', 'Today')}>
+        <h3>{t('food.ownerHome.today', 'Today')}</h3>
+        <div className="fd-owner-today-stats">
+          <div><strong>{todayStats.revenue == null ? '—' : formatFoodMoney(todayStats.revenue, todayStats.currency)}</strong><span>{t('food.ownerHome.todayRevenue', 'Revenue')}</span></div>
+          <div><strong>{loading ? '—' : todayStats.count}</strong><span>{t('food.ownerHome.todayOrders', 'Orders')}</span></div>
+        </div>
+      </section>
+
       <div className="fd-owner-home-stats" aria-busy={loading}>
         <button type="button" onClick={() => onGoTab('orders')}><strong>{loading ? '—' : summary.activeOrders}</strong><span>{t('food.ownerHome.activeOrders', 'Active orders')}</span></button>
         <button type="button" onClick={() => onGoTab('menu')}><strong>{loading ? '—' : summary.menuItems}</strong><span>{t('food.ownerHome.menuItems', 'Menu items')}</span></button>
@@ -1651,21 +1704,34 @@ function OwnerHomeTab({ t, restaurant, onGoTab, onUpdated }) {
         <button type="button" onClick={() => onGoTab('menu')}><strong>{loading ? '—' : summary.soldOut}</strong><span>{t('food.ownerHome.soldOutItems', 'Sold out')}</span></button>
       </div>
 
-      <section className="fd-owner-next-actions">
-        <div><p>{t('food.ownerHome.nextKicker', 'Quick actions')}</p><h3>{t('food.ownerHome.nextTitle', 'What do you want to manage?')}</h3></div>
-        <div className="fd-owner-next-grid">
-          <button type="button" onClick={() => onGoTab('orders')}><span aria-hidden>🧾</span><strong>{t('food.ownerHome.manageOrders', 'Manage orders')}</strong><small>{t('food.ownerHome.manageOrdersHint', 'Accept, prepare, and complete live orders.')}</small></button>
-          <button type="button" onClick={() => onGoTab('menu')}><span aria-hidden>🍴</span><strong>{t('food.ownerHome.manageMenu', 'Update menu')}</strong><small>{t('food.ownerHome.manageMenuHint', 'Edit prices, photos, options, and availability.')}</small></button>
-          <button type="button" onClick={() => onGoTab('store')}><span aria-hidden>⚙️</span><strong>{t('food.ownerHome.manageStore', 'Store settings')}</strong><small>{t('food.ownerHome.manageStoreHint', 'Hours, locations, payments, and devices.')}</small></button>
-          <Link to={`/restaurants/r/${restaurant.id}`} target="_blank" rel="noreferrer"><span aria-hidden>↗</span><strong>{t('food.ownerHome.viewStore', 'View customer page')}</strong><small>{t('food.ownerHome.viewStoreHint', 'See exactly what customers see.')}</small></Link>
-        </div>
+      <section className="fd-owner-attention">
+        <h3>{t('food.ownerHome.needsAttention', 'Needs attention')}</h3>
+        {attention.length === 0 ? (
+          <p className="fd-owner-all-clear">{t('food.ownerHome.allClear', 'All clear. Nothing needs your attention right now.')}</p>
+        ) : (
+          <ul className="fd-owner-attention-list">
+            {attention.map((item) => (
+              <li key={item.key}>
+                <button type="button" onClick={item.onClick}>
+                  <span className="fd-owner-attention-dot" aria-hidden />
+                  <span>{item.label}</span>
+                  <span className="fd-owner-attention-go" aria-hidden>›</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
+
+      <Link className="fd-owner-view-customer" to={`/restaurants/r/${restaurant.id}`} target="_blank" rel="noreferrer">
+        <span aria-hidden>↗</span><strong>{t('food.ownerHome.viewStore', 'View customer page')}</strong>
+      </Link>
     </div>
   );
 }
 
 // ── Tab icon map ──────────────────────────────────────────────────────────────
-const TAB_ICONS = { home: '⌂', orders: '🧾', menu: '🍴', store: '⚙️', payouts: '💳' };
+const TAB_ICONS = { home: Home, orders: Receipt, menu: UtensilsCrossed, payouts: Wallet, settings: Settings, operations: ClipboardList };
 
 function hasRestaurantPermission(restaurant, requested) {
   if (restaurant?.effective_role === 'owner' || restaurant?.permissions?.includes('*')) return true;
@@ -1689,7 +1755,11 @@ export default function FoodMerchantPage() {
   const [setupForNew, setSetupForNew] = useState(false);
 
   useEffect(() => {
-    if (['home', 'orders', 'menu', 'store', 'payouts'].includes(requestedTab)) {
+    if (requestedTab === 'store') {
+      setTab('settings'); // legacy deep link
+      return;
+    }
+    if (['home', 'orders', 'menu', 'payouts', 'settings', 'operations'].includes(requestedTab)) {
       setTab(requestedTab);
     }
   }, [requestedTab]);
@@ -1720,8 +1790,9 @@ export default function FoodMerchantPage() {
     if (canManageRestaurant) tabs.push('home');
     if (hasRestaurantPermission(selected, ['orders.view', 'orders.manage', 'kitchen.view', 'kitchen.update'])) tabs.push('orders');
     if (hasRestaurantPermission(selected, ['menu.view', 'menu.manage'])) tabs.push('menu');
-    if (canManageCredit || canViewSettings || canManageDisplays) tabs.push('store');
-    if (canManagePayouts) tabs.push('payouts');
+    if (canManagePayouts || canManageCredit) tabs.push('payouts');
+    if (canViewSettings) tabs.push('settings');
+    if (canManageDisplays || canManageRestaurant) tabs.push('operations');
     return tabs;
   }, [canManageCredit, canManageDisplays, canManagePayouts, canManageRestaurant, canViewSettings, selected]);
 
@@ -1740,7 +1811,7 @@ export default function FoodMerchantPage() {
   }, [availableTabs, goToTab, selected, tab]);
 
   useEffect(() => {
-    if (tab !== 'store' || window.location.hash !== '#in-store-screens' || !selected?.id) return undefined;
+    if (tab !== 'operations' || window.location.hash !== '#in-store-screens' || !selected?.id) return undefined;
     const frame = window.requestAnimationFrame(() => {
       document.getElementById('in-store-screens')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
@@ -1847,42 +1918,47 @@ export default function FoodMerchantPage() {
         ) : (
           /* ── Dashboard ── */
           <>
-            {/* Restaurant picker bar */}
-            <div className="fd-merchant-picker-bar">
-              <div className="fd-merchant-picker-left">
-                {restaurants.length > 1 && (
-                  <select
-                    value={selectedId || ''}
-                    onChange={(e) => setSelectedId(Number(e.target.value))}
-                    className="fd-merchant-picker-select"
-                    aria-label={t('food.merchant.selectRestaurant')}
-                  >
-                    {restaurants.map((r) => (
-                      <option key={r.id} value={r.id}>{r.display_name}</option>
-                    ))}
-                  </select>
-                )}
-                {selected && selected.status !== 'active' && (
-                  <span className="fd-pay-note fd-merchant-not-live">{t('food.merchant.notLiveHint')}</span>
-                )}
+            {/* Restaurant picker bar (hidden when there is nothing to pick or announce) */}
+            {(restaurants.length > 1 || (selected && selected.status !== 'active')) && (
+              <div className="fd-merchant-picker-bar">
+                <div className="fd-merchant-picker-left">
+                  {restaurants.length > 1 && (
+                    <select
+                      value={selectedId || ''}
+                      onChange={(e) => setSelectedId(Number(e.target.value))}
+                      className="fd-merchant-picker-select"
+                      aria-label={t('food.merchant.selectRestaurant')}
+                    >
+                      {restaurants.map((r) => (
+                        <option key={r.id} value={r.id}>{r.display_name}</option>
+                      ))}
+                    </select>
+                  )}
+                  {selected && selected.status !== 'active' && (
+                    <span className="fd-pay-note fd-merchant-not-live">{t('food.merchant.notLiveHint')}</span>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Tab navigation */}
             <div className="fd-tabs fd-merchant-tabs" role="tablist">
-              {availableTabs.map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === key}
-                  className={`fd-tab${tab === key ? ' fd-active' : ''}`}
-                  onClick={() => goToTab(key)}
-                >
-                  <span className="fd-tab-icon" aria-hidden="true">{TAB_ICONS[key]}</span>
-                  {t(`food.merchant.tab.${key}`, key === 'home' ? 'Home' : key === 'store' ? 'Store' : key)}
-                </button>
-              ))}
+              {availableTabs.map((key) => {
+                const TabIcon = TAB_ICONS[key];
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === key}
+                    className={`fd-tab${tab === key ? ' fd-active' : ''}`}
+                    onClick={() => goToTab(key)}
+                  >
+                    <span className="fd-tab-icon" aria-hidden="true">{TabIcon ? <TabIcon size={16} /> : null}</span>
+                    {t(`food.merchant.tab.${key}`, key === 'home' ? 'Home' : key)}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Tab content */}
@@ -1898,25 +1974,25 @@ export default function FoodMerchantPage() {
             {selected && tab === 'menu' && <RestaurantMenuManager t={t} restaurant={selected} />}
             {selected && tab === 'payouts' && (
               <>
-                <RestaurantPayoutsPanel t={t} restaurant={selected} />
-                <RestaurantTopupEligibilityPanel t={t} restaurant={selected} onGoToPayouts={() => goToTab('payouts')} />
-              </>
-            )}
-            {selected && tab === 'store' && (
-              <>
+                {canManagePayouts && <RestaurantPayoutsPanel t={t} restaurant={selected} />}
+                {canManagePayouts && <RestaurantTopupEligibilityPanel t={t} restaurant={selected} onGoToPayouts={() => goToTab('payouts')} />}
                 {canManageCredit && <RestaurantCreditManager restaurant={selected} />}
                 {canManageCredit && <OxsteedCreditPartnerManager restaurant={selected} />}
-                {canViewSettings && (
-                  <SettingsTab
-                    t={t}
-                    i18n={i18n}
-                    restaurant={selected}
-                    onUpdated={(updated) =>
-                      setRestaurants((prev) => prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)))
-                    }
-                    onSetupChanged={() => setSetupKey((k) => k + 1)}
-                  />
-                )}
+              </>
+            )}
+            {selected && tab === 'settings' && canViewSettings && (
+              <SettingsTab
+                t={t}
+                i18n={i18n}
+                restaurant={selected}
+                onUpdated={(updated) =>
+                  setRestaurants((prev) => prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)))
+                }
+                onSetupChanged={() => setSetupKey((k) => k + 1)}
+              />
+            )}
+            {selected && tab === 'operations' && (
+              <>
                 {canManageDisplays && selected.status === 'active' && (
                   <details className="fd-owner-advanced-section">
                     <summary>{t('food.ownerHome.deviceSetup', 'Device setup')}</summary>
@@ -1934,6 +2010,13 @@ export default function FoodMerchantPage() {
                     <OperationsTab t={t} restaurant={selected} />
                   </details>
                 )}
+                <h3 id="in-store-screens" style={{ marginTop: '1.5rem', scrollMarginTop: '6rem' }}>{t('food.merchant.inStoreScreens')}</h3>
+                <p className="fd-card-meta">{t('food.merchant.inStoreScreensHint')}</p>
+                <div className="fd-row">
+                  <Link to={`/restaurants/kitchen/${selected.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openKitchen')}</Link>
+                  <Link to={`/restaurants/queue/${selected.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openQueue')}</Link>
+                  <Link to={`/restaurants/kiosk/${selected.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openKiosk')}</Link>
+                </div>
               </>
             )}
           </>

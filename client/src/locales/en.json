@@ -19675,9 +19675,14 @@
       "noTasks": "No deliveries yet"
     },
     "ownerHome": {
+      "allClear": "All clear. Nothing needs your attention right now.",
       "accepting": "You are accepting orders",
       "activeOrders": "Active orders",
       "advancedOperations": "Advanced operations",
+      "alertDrafts": "{{count}} draft items are not published",
+      "alertNotLive": "Your restaurant is not live yet",
+      "alertPaused": "Ordering is paused",
+      "alertSoldOut": "{{count}} items are marked sold out",
       "deviceSetup": "Device setup",
       "draftItems": "Draft items",
       "draftKicker": "Restaurant setup",
@@ -19689,6 +19694,7 @@
       "manageStore": "Store settings",
       "manageStoreHint": "Hours, locations, payments, and devices.",
       "menuItems": "Menu items",
+      "needsAttention": "Needs attention",
       "nextKicker": "Quick actions",
       "nextTitle": "What do you want to manage?",
       "notLive": "Your restaurant is not live yet",
@@ -19698,6 +19704,9 @@
       "pauseOrders": "Pause orders",
       "resumeOrders": "Resume orders",
       "soldOutItems": "Sold out",
+      "today": "Today",
+      "todayOrders": "Orders",
+      "todayRevenue": "Revenue",
       "viewStore": "View customer page",
       "viewStoreHint": "See exactly what customers see."
     }

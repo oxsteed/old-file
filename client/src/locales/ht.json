@@ -19677,9 +19677,14 @@
       "noTasks": "Pa gen livrezon ankò"
     },
     "ownerHome": {
+      "allClear": "Tout bagay anfòm. Anyen pa bezwen atansyon ou kounye a.",
       "accepting": "W ap aksepte kòmand",
       "activeOrders": "Kòmand aktif",
       "advancedOperations": "Operasyon avanse",
+      "alertDrafts": "{{count}} atik bouyon ki poko pibliye",
+      "alertNotLive": "Restoran ou poko anliy",
+      "alertPaused": "Kòmand yo sou poz",
+      "alertSoldOut": "{{count}} atik ki make kòm fini",
       "deviceSetup": "Konfigirasyon aparèy",
       "draftItems": "Atik an bouyon",
       "draftKicker": "Konfigirasyon restoran",
@@ -19691,6 +19696,7 @@
       "manageStore": "Paramèt magazen",
       "manageStoreHint": "Lè, kote, peman ak aparèy.",
       "menuItems": "Atik meni",
+      "needsAttention": "Bezwen atansyon",
       "nextKicker": "Aksyon rapid",
       "nextTitle": "Kisa ou vle jere?",
       "notLive": "Restoran ou an pa an liy pou kounye a",
@@ -19700,6 +19706,9 @@
       "pauseOrders": "Mete kòmand yo an poz",
       "resumeOrders": "Reprann kòmand yo",
       "soldOutItems": "Vann nèt",
+      "today": "Jodi a",
+      "todayOrders": "Kòmand",
+      "todayRevenue": "Revni",
       "viewStore": "Wè paj kliyan an",
       "viewStoreHint": "Wè egzakteman sa kliyan yo wè."
     }

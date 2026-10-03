@@ -19688,9 +19688,14 @@
       "noTasks": "لا توجد عمليات توصيل بعد"
     },
     "ownerHome": {
+      "allClear": "كل شيء على ما يرام. لا شيء يحتاج إلى انتباهك الآن.",
       "accepting": "أنت تقبل الطلبات",
       "activeOrders": "الطلبات النشطة",
       "advancedOperations": "عمليات متقدمة",
+      "alertDrafts": "{{count}} عناصر مسودة غير منشورة",
+      "alertNotLive": "مطعمك ليس مباشرًا بعد",
+      "alertPaused": "الطلبات متوقفة مؤقتًا",
+      "alertSoldOut": "{{count}} عناصر محددة كنفدت",
       "deviceSetup": "إعداد الأجهزة",
       "draftItems": "عناصر مسودة",
       "draftKicker": "إعداد المطعم",
@@ -19702,6 +19707,7 @@
       "manageStore": "إعدادات المتجر",
       "manageStoreHint": "الساعات والمواقع والمدفوعات والأجهزة.",
       "menuItems": "عناصر القائمة",
+      "needsAttention": "يحتاج إلى انتباه",
       "nextKicker": "إجراءات سريعة",
       "nextTitle": "ماذا تريد أن تدير؟",
       "notLive": "مطعمك ليس مباشرًا بعد",
@@ -19711,6 +19717,9 @@
       "pauseOrders": "إيقاف الطلبات مؤقتًا",
       "resumeOrders": "استئناف الطلبات",
       "soldOutItems": "نفد",
+      "today": "اليوم",
+      "todayOrders": "الطلبات",
+      "todayRevenue": "الإيرادات",
       "viewStore": "عرض صفحة العميل",
       "viewStoreHint": "شاهد بالضبط ما يراه العملاء."
     }
