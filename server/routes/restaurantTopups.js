@@ -26,6 +26,15 @@ router.post(
   requirePayoutManager,
   ctrl.applyForEligibility
 );
+// Read-only eligibility status (additive): gates the customer Add-money
+// button and renders the merchant application state. Any signed-in user may
+// read the status; the decision reason stays owner/admin-only in the
+// controller.
+router.get(
+  '/:restaurantId/topup-eligibility',
+  authenticate,
+  ctrl.getEligibility
+);
 router.post(
   '/:restaurantId/topups',
   authenticate,

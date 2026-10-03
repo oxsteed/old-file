@@ -57,6 +57,7 @@ const CorporateDepartments = lazyWithRetry(() => import('./pages/super/Corporate
 const FranchiseHQPage = lazyWithRetry(() => import('./pages/super/FranchiseHQPage'));
 const CareersAdmin = lazyWithRetry(() => import('./pages/super/CareersAdmin'));
 const RestaurantCreditAdmin = lazyWithRetry(() => import('./pages/super/RestaurantCreditAdmin'));
+const RestaurantTopupApprovals = lazyWithRetry(() => import('./pages/super/RestaurantTopupApprovals'));
 const OxsteedCreditOverviewPage = lazyWithRetry(() => import('./pages/super/oxsteedCredit/OverviewPage'));
 const OxsteedCreditApprovalsPage = lazyWithRetry(() => import('./pages/super/oxsteedCredit/ApprovalsPage'));
 const OxsteedCreditDisputesPage = lazyWithRetry(() => import('./pages/super/oxsteedCredit/DisputesPage'));
@@ -320,6 +321,9 @@ export default function AdminApp() {
           } />
           <Route path={adminRoute('restaurantCredit').relative} element={
             <AdminGuard superOnly={adminRoute('restaurantCredit').superOnly}><RestaurantCreditAdmin /></AdminGuard>
+          } />
+          <Route path={adminRoute('restaurantTopupApprovals').relative} element={
+            <GrantGuard grant={adminRoute('restaurantTopupApprovals').grant}><RestaurantTopupApprovals /></GrantGuard>
           } />
           <Route path={adminRoute('oxsteedCredit').relative} element={
             <AdminGuard superOnly={adminRoute('oxsteedCredit').superOnly}><OxsteedCreditOverviewPage /></AdminGuard>

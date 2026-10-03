@@ -30,6 +30,7 @@ import RestaurantSetupGuide, { shouldShowRestaurantSetup } from './RestaurantSet
 import RestaurantMenuManager from './RestaurantMenuManager';
 import RestaurantCreditManager from './RestaurantCreditManager';
 import RestaurantPayoutsPanel from './RestaurantPayoutsPanel';
+import RestaurantTopupEligibilityPanel from './RestaurantTopupEligibilityPanel';
 import OxsteedCreditPartnerManager from './OxsteedCreditPartnerManager';
 import LocationsPanel from './FoodLocationsPanel';
 import PromotionsPanel from './FoodPromotionsPanel';
@@ -1904,7 +1905,12 @@ export default function FoodMerchantPage() {
             )}
             {selected && tab === 'orders' && <OrdersTab t={t} restaurant={selected} />}
             {selected && tab === 'menu' && <RestaurantMenuManager t={t} restaurant={selected} />}
-            {selected && tab === 'payouts' && <RestaurantPayoutsPanel t={t} restaurant={selected} />}
+            {selected && tab === 'payouts' && (
+              <>
+                <RestaurantPayoutsPanel t={t} restaurant={selected} />
+                <RestaurantTopupEligibilityPanel t={t} restaurant={selected} onGoToPayouts={() => goToTab('payouts')} />
+              </>
+            )}
             {selected && tab === 'store' && (
               <>
                 {canManageCredit && <RestaurantCreditManager restaurant={selected} />}

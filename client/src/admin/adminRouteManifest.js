@@ -109,6 +109,7 @@ export const ADMIN_ROUTE_MANIFEST = Object.freeze({
   superDashboard: defineRoute('/admin/super/dashboard', { superOnly: true }),
   money: defineRoute('/admin/super/money', { grant: 'view_financials' }),
   restaurantCredit: defineRoute('/admin/super/restaurant-credit', { superOnly: true }),
+  restaurantTopupApprovals: defineRoute('/admin/super/restaurant-topups', { grant: 'manage_financials' }),
   oxsteedCredit: defineRoute('/admin/super/oxsteed-credit', { superOnly: true }),
   oxsteedCreditApprovals: defineRoute('/admin/super/oxsteed-credit/approvals', { superOnly: true }),
   oxsteedCreditDisputes: defineRoute('/admin/super/oxsteed-credit/disputes', { superOnly: true }),

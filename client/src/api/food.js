@@ -315,6 +315,28 @@ export const createRestaurantPayoutAccount = (restaurantId, payload = {}) =>
 export const disconnectRestaurantPayoutAccount = (restaurantId) =>
   api.post(`/restaurants/${restaurantId}/payouts/disconnect`).then((r) => r.data);
 
+// ── Restaurant customer top-ups (OxSteed-approved) ───────────────────────
+export const getRestaurantTopupEligibility = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/topup-eligibility`).then((r) => r.data);
+
+export const applyRestaurantTopupEligibility = (restaurantId) =>
+  api.post(`/restaurants/${restaurantId}/topup-eligibility/apply`).then((r) => r.data);
+
+export const createRestaurantTopupIntent = (restaurantId, payload, idempotencyKey) =>
+  api
+    .post(
+      `/restaurants/${restaurantId}/topups`,
+      payload,
+      idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined
+    )
+    .then((r) => r.data);
+
+export const issueRestaurantTopupStepupChallenge = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/topups/stepup-challenges`, payload).then((r) => r.data);
+
+export const getRestaurantTopup = (restaurantId, topupId) =>
+  api.get(`/restaurants/${restaurantId}/topups/${topupId}`).then((r) => r.data);
+
 // ── Shared formatting ────────────────────────────────────────────────────────
 export function formatFoodMoney(cents, currency = 'USD') {
   return formatCreditMinorUnits(cents, currency);

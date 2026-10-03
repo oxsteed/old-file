@@ -63,6 +63,7 @@ const SUPER_NAV = [
   { to: routePath('superDashboard'),      icon: BarChart2,     labelKey: 'adminNav.superDashboard'  },
   { to: routePath('money'),          icon: DollarSign,    labelKey: 'adminNav.money',            grant: adminRoute('money').grant },
   { to: routePath('restaurantCredit'), icon: Wallet,      labelKey: 'adminNav.restaurantCredit' },
+  { to: routePath('restaurantTopupApprovals'), icon: Wallet, labelKey: 'adminNav.restaurantTopupApprovals', grant: adminRoute('restaurantTopupApprovals').grant },
   { to: routePath('oxsteedCredit'), icon: Wallet,         labelKey: 'adminNav.oxsteedCredit'     },
   { to: routePath('revenue'),        icon: TrendingUp,    labelKey: 'adminNav.revenue',          grant: adminRoute('revenue').grant },
   { to: routePath('feeConfig'),           icon: DollarSign,    labelKey: 'adminNav.feeConfig'        },

@@ -1235,5 +1235,36 @@
       "rejectReasonRequired": "A reason is required to reject a withdrawal. It is recorded in the audit log.",
       "saveFee": "Could not save the fee schedule."
     }
+  },
+  "restaurantTopups": {
+    "addMoney": "Add money",
+    "addMoneyDetail": "Top up with a card",
+    "modalTitle": "Add money",
+    "modalSubtitle": "{{restaurant}} wallet",
+    "amount": "Amount",
+    "amountHint": "Between {{min}} and {{max}} per top-up.",
+    "invalidAmount": "Enter an amount between {{min}} and {{max}}.",
+    "continue": "Continue",
+    "processing": "Processing…",
+    "stepupTitle": "Verify it is you",
+    "stepupCopy": "For larger top-ups we sent a verification code to your email.",
+    "stepupCode": "Verification code",
+    "stepupCodePlaceholder": "Enter the 6-digit code",
+    "invalidCode": "Enter the verification code.",
+    "challengeSent": "Verification code sent.",
+    "challengeFailed": "Could not send the verification code. Please try again.",
+    "verifyAndContinue": "Verify and continue",
+    "cardDetails": "Card details",
+    "cardCopy": "Pay {{amount}} securely with your card.",
+    "cardFailed": "The card payment did not go through. Please check the card details and try again.",
+    "pay": "Pay {{amount}}",
+    "confirming": "Payment processing. Your wallet updates when confirmed.",
+    "succeeded": "Top-up complete. Your wallet has been updated.",
+    "failed": "The payment did not complete. No money was added.",
+    "canceled": "The payment was canceled. No money was added.",
+    "timeout": "Still processing. Your wallet will update when the payment confirms.",
+    "createFailed": "Could not start the top-up. Please try again.",
+    "stripeUnavailable": "Card payments are not available right now. Please try again later.",
+    "close": "Close"
   }
 }

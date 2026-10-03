@@ -1233,5 +1233,36 @@
       "rejectReasonRequired": "Un motif est requis pour rejeter un retrait. Il est consigné dans le journal d'audit.",
       "saveFee": "Impossible d'enregistrer le barème."
     }
+  },
+  "restaurantTopups": {
+    "addMoney": "Ajouter de l'argent",
+    "addMoneyDetail": "Recharger par carte",
+    "modalTitle": "Ajouter de l'argent",
+    "modalSubtitle": "Portefeuille de {{restaurant}}",
+    "amount": "Montant",
+    "amountHint": "Entre {{min}} et {{max}} par recharge.",
+    "invalidAmount": "Saisissez un montant entre {{min}} et {{max}}.",
+    "continue": "Continuer",
+    "processing": "Traitement en cours…",
+    "stepupTitle": "Vérifiez votre identité",
+    "stepupCopy": "Pour les recharges plus importantes, nous avons envoyé un code de vérification à votre e-mail.",
+    "stepupCode": "Code de vérification",
+    "stepupCodePlaceholder": "Saisissez le code à 6 chiffres",
+    "invalidCode": "Saisissez le code de vérification.",
+    "challengeSent": "Code de vérification envoyé.",
+    "challengeFailed": "Impossible d’envoyer le code de vérification. Veuillez réessayer.",
+    "verifyAndContinue": "Vérifier et continuer",
+    "cardDetails": "Détails de la carte",
+    "cardCopy": "Payez {{amount}} en toute sécurité par carte.",
+    "cardFailed": "Le paiement par carte n'a pas abouti. Vérifiez les détails de la carte et réessayez.",
+    "pay": "Payer {{amount}}",
+    "confirming": "Paiement en cours de traitement. Votre portefeuille sera mis à jour après confirmation.",
+    "succeeded": "Recharge terminée. Votre portefeuille a été mis à jour.",
+    "failed": "Le paiement ne s'est pas terminé. Aucun argent n'a été ajouté.",
+    "canceled": "Le paiement a été annulé. Aucun argent n'a été ajouté.",
+    "timeout": "Toujours en cours de traitement. Votre portefeuille sera mis à jour quand le paiement sera confirmé.",
+    "createFailed": "Impossible de démarrer la recharge. Veuillez réessayer.",
+    "stripeUnavailable": "Les paiements par carte ne sont pas disponibles pour le moment. Veuillez réessayer plus tard.",
+    "close": "Fermer"
   }
 }

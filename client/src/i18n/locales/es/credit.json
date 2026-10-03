@@ -1233,5 +1233,36 @@
       "rejectReasonRequired": "Se requiere un motivo para rechazar un retiro. Se registra en el registro de auditoría.",
       "saveFee": "No se pudo guardar la tabla de comisiones."
     }
+  },
+  "restaurantTopups": {
+    "addMoney": "Agregar dinero",
+    "addMoneyDetail": "Recarga con una tarjeta",
+    "modalTitle": "Agregar dinero",
+    "modalSubtitle": "Billetera de {{restaurant}}",
+    "amount": "Monto",
+    "amountHint": "Entre {{min}} y {{max}} por recarga.",
+    "invalidAmount": "Ingresa un monto entre {{min}} y {{max}}.",
+    "continue": "Continuar",
+    "processing": "Procesando…",
+    "stepupTitle": "Verifica tu identidad",
+    "stepupCopy": "Para recargas mayores enviamos un código de verificación a tu correo.",
+    "stepupCode": "Código de verificación",
+    "stepupCodePlaceholder": "Ingresa el código de 6 dígitos",
+    "invalidCode": "Ingresa el código de verificación.",
+    "challengeSent": "Código de verificación enviado.",
+    "challengeFailed": "No se pudo enviar el código de verificación. Inténtalo de nuevo.",
+    "verifyAndContinue": "Verificar y continuar",
+    "cardDetails": "Datos de la tarjeta",
+    "cardCopy": "Paga {{amount}} de forma segura con tu tarjeta.",
+    "cardFailed": "El pago con tarjeta no se completó. Revisa los datos de la tarjeta e inténtalo de nuevo.",
+    "pay": "Pagar {{amount}}",
+    "confirming": "Pago en proceso. Tu billetera se actualizará cuando se confirme.",
+    "succeeded": "Recarga completada. Tu billetera se ha actualizado.",
+    "failed": "El pago no se completó. No se agregó dinero.",
+    "canceled": "El pago fue cancelado. No se agregó dinero.",
+    "timeout": "Aún en proceso. Tu billetera se actualizará cuando se confirme el pago.",
+    "createFailed": "No se pudo iniciar la recarga. Inténtalo de nuevo.",
+    "stripeUnavailable": "Los pagos con tarjeta no están disponibles en este momento. Inténtalo más tarde.",
+    "close": "Cerrar"
   }
 }

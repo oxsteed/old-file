@@ -287,6 +287,80 @@ describe('POST /api/restaurants/:restaurantId/topup-eligibility/apply', () => {
   });
 });
 
+// ── Eligibility status read (additive GET) ──────────────────────────────────
+describe('GET /api/restaurants/:restaurantId/topup-eligibility', () => {
+  const RESTAURANT_EXISTS = { rows: [{ id: RESTAURANT_ID }] };
+  const OWNER_ROW = { rows: [{ owner: 1 }] };
+  const NOT_OWNER = { rows: [] };
+
+  test('returns 401 without a token', async () => {
+    const res = await request(buildMerchantApp())
+      .get(`/api/restaurants/${RESTAURANT_ID}/topup-eligibility`);
+    expect(res.status).toBe(401);
+  });
+
+  test('returns 404 for an invalid restaurant id', async () => {
+    mockAuthed({});
+    const res = await request(buildMerchantApp())
+      .get('/api/restaurants/abc/topup-eligibility')
+      .set('Authorization', `Bearer ${USER_TOKEN}`);
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe('restaurant_not_found');
+  });
+
+  test('returns 404 when the restaurant does not exist', async () => {
+    mockAuthed({}, NO_ACCESS);
+    const res = await request(buildMerchantApp())
+      .get(`/api/restaurants/${RESTAURANT_ID}/topup-eligibility`)
+      .set('Authorization', `Bearer ${USER_TOKEN}`);
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe('restaurant_not_found');
+  });
+
+  test('returns not_applied when no eligibility row exists', async () => {
+    mockAuthed({}, RESTAURANT_EXISTS, NO_ELIGIBILITY);
+    const res = await request(buildMerchantApp())
+      .get(`/api/restaurants/${RESTAURANT_ID}/topup-eligibility`)
+      .set('Authorization', `Bearer ${USER_TOKEN}`);
+    expect(res.status).toBe(200);
+    expect(res.body.eligibility.status).toBe('not_applied');
+    expect(res.body.eligibility.restaurantId).toBe(String(RESTAURANT_ID));
+    expect(res.body.eligibility.decisionReason).toBeUndefined();
+  });
+
+  test('returns the status without the decision reason for a non-owner customer', async () => {
+    mockAuthed({}, RESTAURANT_EXISTS, ELIGIBILITY_REJECTED, NOT_OWNER);
+    const res = await request(buildMerchantApp())
+      .get(`/api/restaurants/${RESTAURANT_ID}/topup-eligibility`)
+      .set('Authorization', `Bearer ${USER_TOKEN}`);
+    expect(res.status).toBe(200);
+    expect(res.body.eligibility.status).toBe('rejected');
+    expect(res.body.eligibility.decisionReason).toBeUndefined();
+  });
+
+  test('exposes the decision reason to the restaurant owner', async () => {
+    mockAuthed({}, RESTAURANT_EXISTS, ELIGIBILITY_REJECTED, OWNER_ROW);
+    const res = await request(buildMerchantApp())
+      .get(`/api/restaurants/${RESTAURANT_ID}/topup-eligibility`)
+      .set('Authorization', `Bearer ${USER_TOKEN}`);
+    expect(res.status).toBe(200);
+    expect(res.body.eligibility.status).toBe('rejected');
+    expect(res.body.eligibility.decisionReason).toBe('missing documents');
+  });
+
+  test('exposes the decision reason to an admin without an owner lookup', async () => {
+    mockAuthed({ role: 'admin' }, RESTAURANT_EXISTS, ELIGIBILITY_SUSPENDED);
+    const res = await request(buildMerchantApp())
+      .get(`/api/restaurants/${RESTAURANT_ID}/topup-eligibility`)
+      .set('Authorization', `Bearer ${USER_TOKEN}`);
+    expect(res.status).toBe(200);
+    expect(res.body.eligibility.status).toBe('suspended');
+    expect(res.body.eligibility.decisionReason).toBe('chargeback spike');
+    // auth user + restaurant exists + eligibility: no owner-access query.
+    expect(mockQuery).toHaveBeenCalledTimes(3);
+  });
+});
+
 // ── Top-up intent creation ──────────────────────────────────────────────────
 describe('POST /api/restaurants/:restaurantId/topups', () => {
   function intentQueries({ restaurant = ACTIVE_RESTAURANT, eligibility = ELIGIBILITY_APPROVED, dailyCap = DAILY_CAP_ZERO, inserted = true, existingRow = null } = {}) {

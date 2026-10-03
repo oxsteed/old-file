@@ -24,6 +24,7 @@
 const { AppError } = require('../middleware/errorHandler');
 const { verifyStepupChallenge, issueStepupChallenge } = require('../services/stepupChallengeService');
 const topupService = require('../services/restaurantTopupService');
+const pool = require('../db');
 
 function getIdempotencyKey(req) {
   const raw = req.get('Idempotency-Key') || req.body?.idempotencyKey || req.body?.idempotency_key;
@@ -175,9 +176,57 @@ async function issueTopupStepupChallenge(req, res, next) {
   }
 }
 
+async function isRestaurantOwner(userId, restaurantId) {
+  if (!userId) return false;
+  const { rows } = await pool.query(
+    `SELECT 1
+       FROM food_restaurants fr
+       JOIN businesses b ON b.id = fr.business_id
+      WHERE fr.id = $1 AND (b.user_id = $2 OR fr.owner_user_id = $2)
+      LIMIT 1`,
+    [restaurantId, userId]
+  );
+  return !!rows[0];
+}
+
+// GET /api/restaurants/:restaurantId/topup-eligibility
+//
+// Minimal read-only status read (additive; no behavior change to the write
+// paths). The customer wallet page needs the status to gate the Add-money
+// button, and the merchant payouts tab needs it to render the application
+// state, so any signed-in user may read the status. The decision reason is
+// only exposed to the restaurant owner or an admin.
+async function getEligibility(req, res, next) {
+  try {
+    const restaurantId = Number.parseInt(req.params.restaurantId, 10);
+    if (!Number.isInteger(restaurantId) || restaurantId <= 0) {
+      throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    }
+    const { rows } = await pool.query('SELECT id FROM food_restaurants WHERE id = $1', [restaurantId]);
+    if (!rows[0]) {
+      throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    }
+    const eligibility = await topupService.getEligibility(pool, restaurantId);
+    let decisionReason = null;
+    if (eligibility && (req.isAdmin || (await isRestaurantOwner(req.user?.id, restaurantId)))) {
+      decisionReason = eligibility.decision_reason || null;
+    }
+    res.json({
+      eligibility: {
+        restaurantId: String(restaurantId),
+        status: eligibility ? eligibility.status : 'not_applied',
+        ...(decisionReason ? { decisionReason } : {}),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   applyForEligibility,
   createTopup,
   getTopup,
+  getEligibility,
   issueTopupStepupChallenge,
 };

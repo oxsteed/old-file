@@ -3,10 +3,13 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import QRCodeStyling from 'qr-code-styling';
 import toast from 'react-hot-toast';
+import { loadStripe } from '@stripe/stripe-js';
+import { CardElement, Elements, useElements, useStripe } from '@stripe/react-stripe-js';
 import {
   ArrowLeft,
   CheckCircle2,
   Clock3,
+  CreditCard,
   History,
   Plus,
   QrCode,
@@ -23,9 +26,13 @@ import {
   cancelFoodWalletCreditRequest,
   cancelFoodWalletPaymentSession,
   createFoodWalletPaymentSession,
+  createRestaurantTopupIntent,
   formatFoodMoney,
   getFoodRestaurant,
   getMyFoodRestaurantWallet,
+  getRestaurantTopup,
+  getRestaurantTopupEligibility,
+  issueRestaurantTopupStepupChallenge,
   listFoodWalletCreditRequests,
   listFoodWalletHolds,
   listFoodWalletTransfers,
@@ -137,6 +144,7 @@ export default function RestaurantCreditPage() {
   const [wallets, setWallets] = useState([]);
   const [wallet, setWallet] = useState(null);
   const [restaurant, setRestaurant] = useState(null);
+  const [topupEligibility, setTopupEligibility] = useState(null);
   const [transfers, setTransfers] = useState([]);
   const [requests, setRequests] = useState([]);
   const [holds, setHolds] = useState([]);
@@ -157,6 +165,7 @@ export default function RestaurantCreditPage() {
     if (!restaurantId) {
       setWallet(null);
       setRestaurant(null);
+      setTopupEligibility(null);
       setTransfers([]);
       setRequests([]);
       setHolds([]);
@@ -164,18 +173,20 @@ export default function RestaurantCreditPage() {
     }
     if (!quiet) setLoading(true);
     try {
-      const [walletResult, transferResult, requestResult, holdResult, restaurantResult] = await Promise.all([
+      const [walletResult, transferResult, requestResult, holdResult, restaurantResult, topupEligibilityResult] = await Promise.all([
         getMyFoodRestaurantWallet(restaurantId).catch(() => null),
         listFoodWalletTransfers(restaurantId),
         listFoodWalletCreditRequests(restaurantId),
         listFoodWalletHolds(restaurantId),
         getFoodRestaurant(restaurantId).catch(() => null),
+        getRestaurantTopupEligibility(restaurantId).then((data) => data?.eligibility || null).catch(() => null),
       ]);
       setWallet(walletResult);
       setTransfers(transferResult);
       setRequests(requestResult);
       setHolds(holdResult);
       setRestaurant(restaurantResult?.restaurant || restaurantResult || null);
+      setTopupEligibility(topupEligibilityResult);
     } catch (error) {
       toast.error(safeCreditErrorMessage(error, t('restaurantWallet.loadFailed')));
     } finally {
@@ -216,6 +227,11 @@ export default function RestaurantCreditPage() {
   const transactions = Array.isArray(wallet?.transactions) ? wallet.transactions : [];
 
   const activeHolds = useMemo(() => holds.filter((hold) => hold.status === 'active'), [holds]);
+
+  // The Add-money button only renders when OxSteed has approved this
+  // restaurant for customer card top-ups (fail closed on the client too:
+  // the server re-checks approval on intent creation and at webhook time).
+  const topupApproved = topupEligibility?.status === 'approved';
 
   const refresh = async () => {
     if (!selectedRestaurantId) return;
@@ -316,6 +332,11 @@ export default function RestaurantCreditPage() {
               <button type="button" onClick={() => setModal('request')}>
                 <Plus size={22} /><span><strong>{t('restaurantWallet.addCredit')}</strong><small>{t('restaurantWallet.addCreditDetail')}</small></span>
               </button>
+              {topupApproved && (
+                <button type="button" onClick={() => setModal('topup')}>
+                  <CreditCard size={22} /><span><strong>{t('restaurantTopups.addMoney')}</strong><small>{t('restaurantTopups.addMoneyDetail')}</small></span>
+                </button>
+              )}
             </section>
 
             <details className="credit-more-actions">
@@ -389,6 +410,7 @@ export default function RestaurantCreditPage() {
       {modal === 'pay' && <PaymentModal wallet={wallet} onClose={() => setModal(null)} onChanged={refresh} />}
       {modal === 'transfer' && <TransferModal wallet={wallet} onClose={() => setModal(null)} onChanged={refresh} />}
       {modal === 'request' && <CreditRequestModal restaurantId={selectedRestaurantId} restaurantName={displayName} currency={currency} onClose={() => setModal(null)} onChanged={refresh} />}
+      {modal === 'topup' && <TopupModal restaurantId={selectedRestaurantId} restaurantName={displayName} currency={currency} onClose={() => setModal(null)} onChanged={refresh} />}
     </div>
   );
 }
@@ -587,6 +609,277 @@ function CreditRequestModal({ restaurantId, restaurantName, currency, onClose, o
         </details>
         <button type="submit" className="credit-primary" disabled={submitting || uploading}>{uploading ? t('restaurantWallet.uploading') : submitting ? t('restaurantWallet.sending') : t('restaurantWallet.sendApproval')}</button>
       </form>
+    </Modal>
+  );
+}
+
+// ── Customer card top-up (OxSteed-approved restaurants only) ──────────────
+// Mirrors the server limits: min $5, max $500 per top-up, step-up email
+// challenge at/above $250. The Stripe PaymentIntent is created server-side;
+// the client only confirms it with the returned clientSecret, then polls
+// the top-up status until the webhook credits the wallet (succeeded) or
+// the payment settles as failed/canceled.
+
+const TOPUP_MIN_CENTS = 500;
+const TOPUP_MAX_CENTS = 50000;
+const TOPUP_STEPUP_CENTS = 25000;
+const TOPUP_POLL_INTERVAL_MS = 3000;
+const TOPUP_POLL_MAX_ATTEMPTS = 40;
+
+const stripePromise = (() => {
+  try {
+    const key = import.meta.env?.VITE_STRIPE_PUBLISHABLE_KEY;
+    return key ? loadStripe(key) : null;
+  } catch {
+    return null;
+  }
+})();
+
+function TopupCardForm({ clientSecret, amountCents, currency, onConfirmed }) {
+  const { t } = useTranslation('credit');
+  const stripe = useStripe();
+  const elements = useElements();
+  const [submitting, setSubmitting] = useState(false);
+  const [cardError, setCardError] = useState('');
+
+  const submit = async (event) => {
+    event.preventDefault();
+    if (!stripe || !elements || submitting) return;
+    setSubmitting(true);
+    setCardError('');
+    try {
+      const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: { card: elements.getElement(CardElement) },
+      });
+      if (error) {
+        setCardError(error.message || t('restaurantTopups.cardFailed'));
+        return;
+      }
+      if (paymentIntent && ['succeeded', 'processing', 'requires_capture'].includes(paymentIntent.status)) {
+        onConfirmed();
+      } else {
+        setCardError(t('restaurantTopups.cardFailed'));
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <form className="credit-form" onSubmit={submit}>
+      <p className="credit-modal-subtitle">{t('restaurantTopups.cardCopy', { amount: formatFoodMoney(amountCents, currency) })}</p>
+      <label>
+        <span>{t('restaurantTopups.cardDetails')}</span>
+        <div style={{ border: '1px solid #d7dce3', borderRadius: '0.75rem', padding: '0.85rem 1rem', background: '#fff' }}>
+          <CardElement options={{ style: { base: { fontSize: '16px', color: '#10253f' } } }} />
+        </div>
+      </label>
+      {cardError && <p role="alert" style={{ color: '#b42318', fontSize: '0.9rem' }}>{cardError}</p>}
+      <button type="submit" className="credit-primary" disabled={submitting || !stripe}>
+        {submitting ? t('restaurantTopups.processing') : t('restaurantTopups.pay', { amount: formatFoodMoney(amountCents, currency) })}
+      </button>
+    </form>
+  );
+}
+
+function TopupModal({ restaurantId, restaurantName, currency, onClose, onChanged }) {
+  const { t } = useTranslation('credit');
+  const [step, setStep] = useState('amount');
+  const [amount, setAmount] = useState('');
+  const [amountCents, setAmountCents] = useState(0);
+  const [challenge, setChallenge] = useState(null);
+  const [code, setCode] = useState('');
+  const [intent, setIntent] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [terminal, setTerminal] = useState(null);
+  const idempotencyKeysRef = useRef(createStableIdempotencyKeyStore());
+  const pollTimerRef = useRef(null);
+  const pollCountRef = useRef(0);
+
+  const stopPolling = useCallback(() => {
+    if (pollTimerRef.current) {
+      clearTimeout(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => stopPolling, [stopPolling]);
+
+  const startPolling = useCallback((topupId, cents) => {
+    stopPolling();
+    pollCountRef.current = 0;
+    setStep('processing');
+    const tick = async () => {
+      pollCountRef.current += 1;
+      let status = null;
+      try {
+        const data = await getRestaurantTopup(restaurantId, topupId);
+        status = data?.topup?.status || null;
+      } catch {
+        status = null;
+      }
+      if (status === 'succeeded') {
+        stopPolling();
+        idempotencyKeysRef.current.clear('restaurant-topup', { restaurantId, amountCents: cents });
+        toast.success(t('restaurantTopups.succeeded'));
+        try {
+          await onChanged();
+        } catch {
+          // The wallet refresh failing does not undo the credit; the next
+          // page load shows the updated balance.
+        }
+        onClose();
+        return;
+      }
+      if (status === 'failed' || status === 'canceled') {
+        stopPolling();
+        setTerminal({ tone: 'error', message: t(status === 'failed' ? 'restaurantTopups.failed' : 'restaurantTopups.canceled') });
+        return;
+      }
+      if (pollCountRef.current >= TOPUP_POLL_MAX_ATTEMPTS) {
+        stopPolling();
+        setTerminal({ tone: 'info', message: t('restaurantTopups.timeout') });
+        return;
+      }
+      pollTimerRef.current = setTimeout(tick, TOPUP_POLL_INTERVAL_MS);
+    };
+    pollTimerRef.current = setTimeout(tick, TOPUP_POLL_INTERVAL_MS);
+  }, [restaurantId, t, onChanged, onClose, stopPolling]);
+
+  const beginIntent = async (cents, stepup) => {
+    setSubmitting(true);
+    try {
+      const idempotencyKey = idempotencyKeysRef.current.get('restaurant-topup', { restaurantId, amountCents: cents });
+      const payload = { amountCents: cents };
+      if (stepup) {
+        payload.stepupChallengeId = stepup.challengeId;
+        payload.stepupCode = stepup.code;
+      }
+      const result = await createRestaurantTopupIntent(restaurantId, payload, idempotencyKey);
+      const topupId = result?.topup?.id;
+      if (!topupId) throw new Error('topup-intent-missing');
+      setIntent({ topupId, clientSecret: result?.clientSecret || null });
+      if (result?.replayed || !result?.clientSecret) {
+        // Replayed idempotency key (or nothing to confirm): skip the card
+        // form and go straight to status polling.
+        startPolling(topupId, cents);
+      } else {
+        setStep('card');
+      }
+    } catch (error) {
+      toast.error(safeCreditErrorMessage(error, t('restaurantTopups.createFailed')));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const submitAmount = async (event) => {
+    event.preventDefault();
+    const cents = parseAmountCents(amount, currency);
+    if (!cents || cents < TOPUP_MIN_CENTS || cents > TOPUP_MAX_CENTS) {
+      toast.error(t('restaurantTopups.invalidAmount', {
+        min: formatFoodMoney(TOPUP_MIN_CENTS, currency),
+        max: formatFoodMoney(TOPUP_MAX_CENTS, currency),
+      }));
+      return;
+    }
+    setAmountCents(cents);
+    if (cents >= TOPUP_STEPUP_CENTS) {
+      setSubmitting(true);
+      try {
+        const issued = await issueRestaurantTopupStepupChallenge(restaurantId, { amountCents: cents });
+        if (!issued?.challenge?.id) throw new Error('challenge-missing');
+        setChallenge({ id: issued.challenge.id, expiresAt: issued.challenge.expiresAt });
+        setCode('');
+        setStep('stepup');
+        toast.success(t('restaurantTopups.challengeSent'));
+      } catch (error) {
+        toast.error(safeCreditErrorMessage(error, t('restaurantTopups.challengeFailed')));
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+    await beginIntent(cents, null);
+  };
+
+  const submitStepup = async (event) => {
+    event.preventDefault();
+    if (!challenge?.id || !code.trim()) {
+      toast.error(t('restaurantTopups.invalidCode'));
+      return;
+    }
+    await beginIntent(amountCents, { challengeId: challenge.id, code: code.trim() });
+  };
+
+  const close = () => {
+    stopPolling();
+    onClose();
+  };
+
+  if (!stripePromise) {
+    return (
+      <Modal title={t('restaurantTopups.modalTitle')} onClose={close}>
+        <p role="alert" className="credit-modal-subtitle">{t('restaurantTopups.stripeUnavailable')}</p>
+        <button type="button" className="credit-secondary" onClick={close}>{t('restaurantTopups.close')}</button>
+      </Modal>
+    );
+  }
+
+  return (
+    <Modal
+      title={t('restaurantTopups.modalTitle')}
+      subtitle={t('restaurantTopups.modalSubtitle', { restaurant: restaurantName })}
+      onClose={close}
+    >
+      {terminal ? (
+        <div>
+          <p role={terminal.tone === 'error' ? 'alert' : 'status'} className="credit-modal-subtitle">{terminal.message}</p>
+          <button type="button" className="credit-secondary" onClick={close}>{t('restaurantTopups.close')}</button>
+        </div>
+      ) : step === 'amount' ? (
+        <form className="credit-form" onSubmit={submitAmount}>
+          <label>
+            <span>{t('restaurantTopups.amount')}</span>
+            <div className="credit-money-input">
+              <span>{currency}</span>
+              <input autoFocus inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.00" />
+            </div>
+          </label>
+          <p className="credit-modal-subtitle">{t('restaurantTopups.amountHint', {
+            min: formatFoodMoney(TOPUP_MIN_CENTS, currency),
+            max: formatFoodMoney(TOPUP_MAX_CENTS, currency),
+          })}</p>
+          <button type="submit" className="credit-primary" disabled={submitting}>
+            {submitting ? t('restaurantTopups.processing') : t('restaurantTopups.continue')}
+          </button>
+        </form>
+      ) : step === 'stepup' ? (
+        <form className="credit-form" onSubmit={submitStepup}>
+          <p className="credit-modal-subtitle"><strong>{t('restaurantTopups.stepupTitle')}</strong><br />{t('restaurantTopups.stepupCopy')}</p>
+          <label>
+            <span>{t('restaurantTopups.stepupCode')}</span>
+            <input autoFocus inputMode="numeric" value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 12))} placeholder={t('restaurantTopups.stepupCodePlaceholder')} />
+          </label>
+          <button type="submit" className="credit-primary" disabled={submitting}>
+            {submitting ? t('restaurantTopups.processing') : t('restaurantTopups.verifyAndContinue')}
+          </button>
+        </form>
+      ) : step === 'card' && intent?.clientSecret ? (
+        <Elements stripe={stripePromise}>
+          <TopupCardForm
+            clientSecret={intent.clientSecret}
+            amountCents={amountCents}
+            currency={currency}
+            onConfirmed={() => startPolling(intent.topupId, amountCents)}
+          />
+        </Elements>
+      ) : (
+        <div>
+          <p role="status" className="credit-modal-subtitle"><Clock3 size={16} /> {t('restaurantTopups.confirming')}</p>
+          <button type="button" className="credit-secondary" onClick={close}>{t('restaurantTopups.close')}</button>
+        </div>
+      )}
     </Modal>
   );
 }

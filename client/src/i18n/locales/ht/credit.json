@@ -1233,5 +1233,36 @@
       "rejectReasonRequired": "Yon rezon obligatwa pou rejte yon retrè. Yo anrejistre li nan jounal odit la.",
       "saveFee": "Nou pa t kapab anrejistre tablo frè a."
     }
+  },
+  "restaurantTopups": {
+    "addMoney": "Ajoute lajan",
+    "addMoneyDetail": "Rechaje ak yon kat",
+    "modalTitle": "Ajoute lajan",
+    "modalSubtitle": "Bous {{restaurant}}",
+    "amount": "Kantite",
+    "amountHint": "Ant {{min}} ak {{max}} pou chak rechaj.",
+    "invalidAmount": "Antre yon kantite ant {{min}} ak {{max}}.",
+    "continue": "Kontinye",
+    "processing": "Ap trete…",
+    "stepupTitle": "Verifye se ou",
+    "stepupCopy": "Pou pi gwo rechaj yo nou voye yon kòd verifikasyon nan imèl ou.",
+    "stepupCode": "Kòd verifikasyon",
+    "stepupCodePlaceholder": "Antre kòd 6 chif la",
+    "invalidCode": "Antre kòd verifikasyon an.",
+    "challengeSent": "Kòd verifikasyon voye.",
+    "challengeFailed": "Nou pa t ka voye kòd verifikasyon an. Tanpri eseye ankò.",
+    "verifyAndContinue": "Verifye epi kontinye",
+    "cardDetails": "Detay kat la",
+    "cardCopy": "Peye {{amount}} an sekirite ak kat ou.",
+    "cardFailed": "Peman ak kat la pa t pase. Verifye detay kat la epi eseye ankò.",
+    "pay": "Peye {{amount}}",
+    "confirming": "Peman an ap trete. Bous ou ap mete ajou lè li konfime.",
+    "succeeded": "Rechaj fini. Bous ou mete ajou.",
+    "failed": "Peman an pa t fini. Pa gen lajan ki ajoute.",
+    "canceled": "Peman an anile. Pa gen lajan ki ajoute.",
+    "timeout": "Ap trete toujou. Bous ou ap mete ajou lè peman an konfime.",
+    "createFailed": "Nou pa t ka kòmanse rechaj la. Tanpri eseye ankò.",
+    "stripeUnavailable": "Peman ak kat pa disponib pou kounye a. Tanpri eseye pita.",
+    "close": "Fèmen"
   }
 }
