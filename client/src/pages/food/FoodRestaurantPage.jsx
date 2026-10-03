@@ -1240,7 +1240,10 @@ export default function FoodRestaurantPage() {
   const delivFeeStr = isPickup || feeCents === 0 ? t('food.restaurant.free') : formatFoodMoney(feeCents, currency);
   // Full price breakdown for the payment step: server quote lines first,
   // client estimates only for lines the quote does not provide.
-  const summaryRows = useMemo(() => {
+  // Keep this as a plain derived value. This section is below the loading and
+  // not-found returns, so a hook here would change hook order between the
+  // initial loading render and the loaded restaurant render.
+  const summaryRows = (() => {
     const quoted = (cents) => (quote && Number.isFinite(Number(cents)) ? Number(cents) : null);
     const deliveryFee = quoted(quote?.deliveryFeeCents) ?? feeCents;
     const rows = [
@@ -1255,7 +1258,7 @@ export default function FoodRestaurantPage() {
     rows.push({ key: 'delivery', label: delivFeeLabel, amount: deliveryFee, free: deliveryFee === 0 });
     if (tipCents > 0) rows.push({ key: 'tip', label: t('food.restaurant.tip'), amount: tipCents });
     return rows;
-  }, [quote, subtotalCents, feeCents, tipCents, t, delivFeeLabel]);
+  })();
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
