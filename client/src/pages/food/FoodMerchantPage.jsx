@@ -1866,15 +1866,6 @@ export default function FoodMerchantPage() {
                   <span className="fd-pay-note fd-merchant-not-live">{t('food.merchant.notLiveHint')}</span>
                 )}
               </div>
-              {canManageRestaurant && (
-                <button
-                  type="button"
-                  className="fd-btn fd-btn-secondary fd-btn-sm"
-                  onClick={() => navigate('/business-hub?create=restaurant')}
-                >
-                  + {t('food.merchant.addAnother')}
-                </button>
-              )}
             </div>
 
             {/* Tab navigation */}
