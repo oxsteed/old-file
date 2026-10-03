@@ -156,6 +156,7 @@ const LearnProductLinksAdmin = lazyWithRetry(() => import('./pages/LearnProductL
 const LearnAiSuggestionsAdmin = lazyWithRetry(() => import('./pages/LearnAiSuggestionsAdmin'));
 const OperationsOverview = lazyWithRetry(() => import('./pages/OperationsOverview'));
 const IncidentManagement = lazyWithRetry(() => import('./pages/IncidentManagement'));
+const ProviderHealthPage = lazyWithRetry(() => import('./pages/ProviderHealthPage'));
 
 function AdminGuard({ children, superOnly = false }) {
   const { user, loading } = useAuth();
@@ -229,6 +230,9 @@ export default function AdminApp() {
           <Route path={adminRoute('operations').relative} element={<GrantGuard grant={adminRoute('operations').grant}><OperationsOverview /></GrantGuard>} />
           <Route path={adminRoute('incidents').relative} element={
             <GrantGuard grant={adminRoute('incidents').grant}><IncidentManagement /></GrantGuard>
+          } />
+          <Route path={adminRoute('providerHealth').relative} element={
+            <GrantGuard grant={adminRoute('providerHealth').grant}><ProviderHealthPage /></GrantGuard>
           } />
           <Route path={adminRoute('users').relative} element={<GrantGuard grant={adminRoute('users').grant}><UsersList /></GrantGuard>} />
           <Route path={adminRoute('userDetail').relative} element={<UserDetail />} />

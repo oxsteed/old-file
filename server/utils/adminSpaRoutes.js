@@ -9,6 +9,7 @@ const ADMIN_SPA_ROUTES = Object.freeze([
   '/admin/dashboard',
   '/admin/operations',
   '/admin/operations/incidents',
+  '/admin/operations/providers',
   '/admin/users',
   '/admin/jobs',
   '/admin/reports',

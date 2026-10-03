@@ -1,4 +1,227 @@
 {
+  "adminProviderHealth": {
+    "eyebrow": "Provider operations",
+    "title": "Provider health",
+    "subtitle": "One operator view over every external provider: capability status, owner, alert channel, retry policy, circuit breaker, budget, rotation, and the customer-safe state shown when a provider is unavailable.",
+    "refresh": "Refresh",
+    "retryButton": "Retry",
+    "retry": {
+      "attempts": "Up to {{count}} attempts",
+      "backoff": "{{backoff}} backoff, {{base}}ms base, {{max}}ms max",
+      "retryOn": "Retries on {{list}}",
+      "jitter": "with jitter"
+    },
+    "loading": "Loading provider health",
+    "loadError": "Provider health could not be loaded.",
+    "updatedAt": "Snapshot taken {{time}}",
+    "summaryLabel": "Provider status summary",
+    "status": {
+      "ok": "Healthy",
+      "degraded": "Degraded",
+      "down": "Down",
+      "notConfigured": "Not configured",
+      "unknown": "Unknown"
+    },
+    "failureMode": {
+      "fail_closed": "Fail closed",
+      "fail_open": "Fail open",
+      "degraded": "Degraded",
+      "queued_retry": "Queued retry"
+    },
+    "fields": {
+      "owner": "Owner",
+      "alertChannel": "Alert channel",
+      "lastProbe": "Last probe",
+      "dependencies": "Configuration",
+      "capabilities": "Capabilities",
+      "customerSafe": "Customer-safe state",
+      "retryPolicy": "Retry policy",
+      "circuitBreaker": "Circuit breaker",
+      "budget": "Budget",
+      "rotation": "Key rotation"
+    },
+    "circuit": {
+      "state": {
+        "closed": "Closed",
+        "open": "Open",
+        "halfOpen": "Half open"
+      },
+      "config": "Opens after {{failures}} failures, trial call after {{timeout}}s",
+      "reset": "Reset circuit",
+      "confirmReset": "Click again to confirm reset",
+      "cancel": "Cancel"
+    },
+    "budget": {
+      "noFixed": "No fixed budget in code",
+      "monthly": "${{amount}} per month"
+    },
+    "rotation": {
+      "everyDays": "Every {{days}} days",
+      "noCredentials": "No credentials to rotate"
+    },
+    "providers": {
+      "stripe": {
+        "name": "Stripe",
+        "description": "Card payments, Connect payouts, refunds, and webhooks. Money movement always fails closed.",
+        "customerSafeSummary": "When Stripe is unavailable, checkout and payouts are paused and customers see a clear payments-unavailable message. Nothing is charged twice: every mutating call carries an idempotency key.",
+        "retryNote": "Idempotency keys on all mutating calls; never retry a succeeded-unknown charge without the key.",
+        "budgetNote": "Stripe fees scale with volume; tracked in the Stripe dashboard, not here. The platform fee rate is dynamic via feeService.",
+        "rotationProcedure": "Rotate restricted keys in the Stripe dashboard, update the Coolify secret, redeploy, verify /ready.",
+        "capabilities": {
+          "card_payments": {
+            "label": "Card payments",
+            "customerSafe": "Checkout shows a payments-unavailable message and the order is not placed."
+          },
+          "connect_payouts": {
+            "label": "Connect payouts",
+            "customerSafe": "Payouts stay queued until Stripe recovers; no partial transfers are made."
+          },
+          "refunds": {
+            "label": "Refunds",
+            "customerSafe": "Refund requests are queued and retried; customers see a pending-refund status."
+          },
+          "webhooks": {
+            "label": "Webhooks",
+            "customerSafe": "Events are retried by Stripe and reconciled on recovery; no money state is assumed."
+          }
+        }
+      },
+      "maps": {
+        "name": "Maps (AWS Location)",
+        "description": "Place search, geocoding, and routing from AWS Location. Read-only lookups degrade gracefully.",
+        "customerSafeSummary": "When maps are unavailable, address search and distance estimates are hidden instead of showing wrong data. Cached results keep serving where available.",
+        "retryNote": "Read-only lookups are cached (24h geocode, 2m nearby, 30s routes); retries only on cache miss.",
+        "budgetNote": "Usage-based AWS Location billing; tracked in AWS Cost Explorer. Restrict the browser key by referrer.",
+        "rotationProcedure": "Rotate IAM access keys in AWS IAM, update Coolify secrets, verify place search.",
+        "capabilities": {
+          "place_search": {
+            "label": "Place search",
+            "customerSafe": "Address autocomplete is hidden; customers can still type a full address."
+          },
+          "geocode": {
+            "label": "Geocoding",
+            "customerSafe": "New addresses are stored as typed and geocoded later when the provider recovers."
+          },
+          "routes": {
+            "label": "Routes and distance",
+            "customerSafe": "Distance-based pricing falls back to the last known zone or a flat estimate."
+          }
+        }
+      },
+      "messaging": {
+        "name": "Messaging (email, SMS, push)",
+        "description": "Transactional email, verification SMS, and web push. Each channel has its own failure behavior.",
+        "customerSafeSummary": "When a channel is down, messages are queued or skipped per channel policy. Verification codes are never retried silently; the user requests a new code.",
+        "retryNote": "Transactional email retries via the mail queue; SMS verification codes are never retried silently, the user requests a new code.",
+        "budgetNote": "SMTP plan plus AWS SNS per-message billing; tracked with the vendors, not here.",
+        "rotationProcedure": "Rotate SMTP credentials and VAPID keys; VAPID rotation requires clients to resubscribe.",
+        "capabilities": {
+          "email": {
+            "label": "Email",
+            "customerSafe": "Emails queue for retry; time-sensitive mail falls back to in-app notice."
+          },
+          "sms": {
+            "label": "SMS",
+            "customerSafe": "Verification is paused with a clear message; no codes are sent late."
+          },
+          "push": {
+            "label": "Push notifications",
+            "customerSafe": "Push is skipped silently; the same update stays visible in-app."
+          }
+        }
+      },
+      "ai": {
+        "name": "AI (Meta, OpenRouter, Ollama)",
+        "description": "Support chat and background AI over a fallback chain: Meta first for signed-in traffic, then OpenRouter free tier, then local Ollama.",
+        "customerSafeSummary": "When all AI providers are down, chat shows a service-unavailable message and offers human support. Anonymous traffic never spends paid tokens.",
+        "retryNote": "Fallback chain is Meta first for signed-in traffic, then OpenRouter free tier, then local Ollama. Anonymous traffic never spends Meta tokens.",
+        "budgetNote": "Meta contributor tier has lower rate limits; OpenRouter free tier and local Ollama cost nothing. No per-request budget is enforced in code.",
+        "rotationProcedure": "Rotate META_AI_API_KEY in the Meta console and OPENROUTER_API_KEY in OpenRouter; update Coolify secrets; verify support chat.",
+        "capabilities": {
+          "support_chat": {
+            "label": "Support chat",
+            "customerSafe": "Chat shows an unavailable message with a path to human support."
+          },
+          "guide_help": {
+            "label": "Guide help",
+            "customerSafe": "AI help is hidden; the guide content itself keeps working."
+          },
+          "learn_tagging": {
+            "label": "Learn tagging",
+            "customerSafe": "Auto-tagging pauses silently; guides publish without tags."
+          }
+        }
+      },
+      "scanning": {
+        "name": "Malware scanning (ClamAV)",
+        "description": "Upload malware scanning via a ClamAV sidecar. A configured scanner fails closed on connection errors.",
+        "customerSafeSummary": "When the scanner is unreachable, uploads are rejected with a retry message instead of being stored unchecked.",
+        "retryNote": "A configured scanner fails closed on connection errors. Static extension and magic-byte checks are the baseline when no scanner is configured.",
+        "budgetNote": "Self-hosted ClamAV sidecar; no per-scan billing.",
+        "rotationProcedure": "No credentials; keep virus definitions fresh via freshclam and pin the sidecar image.",
+        "capabilities": {
+          "upload_scan": {
+            "label": "Upload scanning",
+            "customerSafe": "Uploads are rejected with a please-try-again message; nothing unchecked is stored."
+          }
+        }
+      },
+      "storage": {
+        "name": "File storage (S3-compatible)",
+        "description": "Uploads and signed download URLs on S3-compatible storage, with a local filesystem fallback.",
+        "customerSafeSummary": "When storage is unavailable, uploads are rejected up front and existing files keep serving from cache where possible.",
+        "retryNote": "Upload keys are normalized against path traversal; signed URLs expire. Without S3 credentials the local filesystem backend serves uploads.",
+        "budgetNote": "S3/R2 usage billing; tracked with the storage vendor, not here.",
+        "rotationProcedure": "Rotate S3 access keys in the storage console, update Coolify secrets, verify an upload and a signed URL.",
+        "capabilities": {
+          "uploads": {
+            "label": "Uploads",
+            "customerSafe": "Uploads are rejected with a retry message; no partial files are kept."
+          },
+          "signed_urls": {
+            "label": "Signed URLs",
+            "customerSafe": "File links show an unavailable message instead of a broken download."
+          }
+        }
+      },
+      "calendars": {
+        "name": "Calendars (Google, Outlook)",
+        "description": "Per-business Google and Outlook calendar sync. Booking always works in-app even when sync is down.",
+        "customerSafeSummary": "When calendar sync is down, bookings still complete in OxSteed and sync catches up on recovery. Nothing is double-booked by the sync.",
+        "retryNote": "Per-business OAuth tokens; sync failures never block booking. iCal export is generated in-app with no provider call.",
+        "budgetNote": "Google/Outlook calendar APIs are free at this volume.",
+        "rotationProcedure": "OAuth client secrets rotate in Google Cloud / Azure; per-user tokens refresh automatically or the business reconnects.",
+        "capabilities": {
+          "calendar_sync": {
+            "label": "Calendar sync",
+            "customerSafe": "Events sync later; the in-app schedule stays authoritative."
+          },
+          "ical_export": {
+            "label": "iCal export",
+            "customerSafe": "Calendar downloads keep working; they are generated in-app."
+          }
+        }
+      },
+      "trackers": {
+        "name": "Tracking (delivery and shipments)",
+        "description": "Live driver tracking and tracking links. Tracking records are evidence only and never change delivery state.",
+        "customerSafeSummary": "When live tracking is down, customers see the last known milestone instead of a live map. Delivery state and payments are unaffected.",
+        "retryNote": "Location ingestion is idempotent and batched; suspicious points are quarantined, never stored as truth. Tracking never mutates delivery state.",
+        "budgetNote": "Internal pipeline; no per-event vendor billing.",
+        "rotationProcedure": "No provider credentials; tracking links are signed with the app secret (see rotation for app secrets).",
+        "capabilities": {
+          "live_driver_tracking": {
+            "label": "Live driver tracking",
+            "customerSafe": "The map falls back to the last confirmed milestone."
+          },
+          "tracking_links": {
+            "label": "Tracking links",
+            "customerSafe": "Links show the last confirmed status with a delayed-data notice."
+          }
+        }
+      }
+    }
+  },
   "adminRegionsMilesUnit": "miles",
   "businessCreation": {
     "eyebrow": "Business setup",

@@ -1,4 +1,227 @@
 {
+  "adminProviderHealth": {
+    "eyebrow": "Operasyon founisè yo",
+    "title": "Sante founisè yo",
+    "subtitle": "Yon sèl paj pou operatè a sou chak founisè deyò: eta kapasite yo, responsab, kanal alèt, politik reeseye, koupe-sikwi, bidjè, wotasyon, ak eta ki an sekirite pou kliyan an lè yon founisè pa disponib.",
+    "refresh": "Rafrechi",
+    "retryButton": "Eseye ankò",
+    "retry": {
+      "attempts": "Jiska {{count}} tantativ",
+      "backoff": "Rete tann {{backoff}}, baz {{base}}ms, maksimòm {{max}}ms",
+      "retryOn": "Reeseye sou {{list}}",
+      "jitter": "ak varyasyon"
+    },
+    "loading": "Ap chaje sante founisè yo",
+    "loadError": "Pa t kapab chaje sante founisè yo.",
+    "updatedAt": "Foto pran {{time}}",
+    "summaryLabel": "Rezime eta founisè yo",
+    "status": {
+      "ok": "An sante",
+      "degraded": "Degrade",
+      "down": "Pàn",
+      "notConfigured": "Pa konfigure",
+      "unknown": "Enkoni"
+    },
+    "failureMode": {
+      "fail_closed": "Echwe fèmen",
+      "fail_open": "Echwe louvri",
+      "degraded": "Degrade",
+      "queued_retry": "Reeseye nan fil"
+    },
+    "fields": {
+      "owner": "Responsab",
+      "alertChannel": "Kanal alèt",
+      "lastProbe": "Dènye tès",
+      "dependencies": "Konfigirasyon",
+      "capabilities": "Kapasite",
+      "customerSafe": "Eta an sekirite pou kliyan",
+      "retryPolicy": "Politik reeseye",
+      "circuitBreaker": "Koupe-sikwi",
+      "budget": "Bidjè",
+      "rotation": "Wotasyon kle"
+    },
+    "circuit": {
+      "state": {
+        "closed": "Fèmen",
+        "open": "Louvri",
+        "halfOpen": "Mwatye louvri"
+      },
+      "config": "Louvri apre {{failures}} echèk, apèl esè apre {{timeout}}s",
+      "reset": "Reyajiste koupe-sikwi a",
+      "confirmReset": "Klike ankò pou konfime reyajisteman an",
+      "cancel": "Anile"
+    },
+    "budget": {
+      "noFixed": "Pa gen bidjè fiks nan kòd la",
+      "monthly": "${{amount}} pa mwa"
+    },
+    "rotation": {
+      "everyDays": "Chak {{days}} jou",
+      "noCredentials": "Pa gen kalifikasyon pou wote"
+    },
+    "providers": {
+      "stripe": {
+        "name": "Stripe",
+        "description": "Peman ak kat, peman Connect, ranbousman, ak webhooks. Tout mouvman lajan echwe fèmen.",
+        "customerSafeSummary": "Lè Stripe pa disponib, peman ak debousman yo kanpe epi kliyan yo wè yon mesaj klè ki di peman pa disponib. Yo pa chaje anyen de fwa: chak apèl ki chanje done pote yon kle idempotans.",
+        "retryNote": "Kle idempotans sou tout apèl ki chanje done; pa janm reeseye yon chaj ou pa konnen rezilta li san kle a.",
+        "budgetNote": "Frè Stripe yo monte ak volim nan; yo kontwole nan tablo Stripe, pa isit la. To komisyon platfòm lan dinamik atravè feeService.",
+        "rotationProcedure": "Wote kle restrenn yo nan tablo Stripe, mete ajou sekrè Coolify a, redeploye, verifye /ready.",
+        "capabilities": {
+          "card_payments": {
+            "label": "Peman ak kat",
+            "customerSafe": "Peman an montre yon mesaj peman-pa-disponib epi kòmand lan pa fèt."
+          },
+          "connect_payouts": {
+            "label": "Peman Connect",
+            "customerSafe": "Debousman yo rete nan fil jous Stripe tounen; pa gen transfè pasyèl ki fèt."
+          },
+          "refunds": {
+            "label": "Ranbousman",
+            "customerSafe": "Demann ranbousman yo antre nan fil epi yo reeseye; kliyan yo wè yon estati ranbousman annatant."
+          },
+          "webhooks": {
+            "label": "Webhooks",
+            "customerSafe": "Stripe reeseye evènman yo epi yo rekonsilye lè li tounen; yo pa sipoze okenn eta lajan."
+          }
+        }
+      },
+      "maps": {
+        "name": "Kat (AWS Location)",
+        "description": "Rechèch kote, jeokodaj, ak wout soti nan AWS Location. Rechèch lekti sèlman yo degrade dousman.",
+        "customerSafeSummary": "Lè kat yo pa disponib, rechèch adrès ak estimasyon distans yo kache olye yo montre move done. Rezilta ki nan kach kontinye sèvi kote yo disponib.",
+        "retryNote": "Rechèch lekti sèlman yo nan kach (jeokodaj 24h, pwoksimite 2m, wout 30s); reeseye sèlman lè pa gen kach.",
+        "budgetNote": "Faktirasyon AWS Location selon itilizasyon; kontwole nan AWS Cost Explorer. Restrenn kle navigatè a pa referans.",
+        "rotationProcedure": "Wote kle aksè IAM yo nan AWS IAM, mete ajou sekrè Coolify yo, verifye rechèch kote.",
+        "capabilities": {
+          "place_search": {
+            "label": "Rechèch kote",
+            "customerSafe": "Otokonplete adrès la kache; kliyan yo ka toujou ekri yon adrès konplè."
+          },
+          "geocode": {
+            "label": "Jeokodaj",
+            "customerSafe": "Nouvo adrès yo anrejistre jan yo ekri yo epi yo jeokode pita, lè founisè a tounen."
+          },
+          "routes": {
+            "label": "Wout ak distans",
+            "customerSafe": "Pri selon distans itilize dènye zòn li te ye a oswa yon estimasyon fiks."
+          }
+        }
+      },
+      "messaging": {
+        "name": "Mesajri (imèl, SMS, push)",
+        "description": "Imèl tranzaksyonèl, SMS verifikasyon, ak notifikasyon push entènèt. Chak kanal gen pwòp konpòtman pa li lè gen pàn.",
+        "customerSafeSummary": "Lè yon kanal pàn, mesaj yo antre nan fil oswa yo sote selon politik kanal la. Kòd verifikasyon yo pa janm reeseye an kachèt; itilizatè a mande yon nouvo kòd.",
+        "retryNote": "Imèl tranzaksyonèl reeseye atravè fil imèl la; kòd SMS verifikasyon yo pa janm reeseye an kachèt, itilizatè a mande yon nouvo kòd.",
+        "budgetNote": "Plan SMTP plis faktirasyon AWS SNS pa mesaj; kontwole ak founisè yo, pa isit la.",
+        "rotationProcedure": "Wote kalifikasyon SMTP yo ak kle VAPID yo; wotasyon VAPID mande kliyan yo enskri ankò.",
+        "capabilities": {
+          "email": {
+            "label": "Imèl",
+            "customerSafe": "Imèl yo antre nan fil pou reeseye; imèl ijan pase pa yon avi nan aplikasyon an."
+          },
+          "sms": {
+            "label": "SMS",
+            "customerSafe": "Verifikasyon an kanpe ak yon mesaj klè; okenn kòd pa voye an reta."
+          },
+          "push": {
+            "label": "Notifikasyon push",
+            "customerSafe": "Push la sote an silans; menm mizajou a rete vizib nan aplikasyon an."
+          }
+        }
+      },
+      "ai": {
+        "name": "IA (Meta, OpenRouter, Ollama)",
+        "description": "Chat sipò ak IA an aryè-plan sou yon chenn sekou: Meta an premye pou trafik konekte, apre nivo gratis OpenRouter, apre Ollama lokal.",
+        "customerSafeSummary": "Lè tout founisè IA yo pàn, chat la montre yon mesaj sèvis-pa-disponib epi li ofri sipò imen. Trafik anonim pa janm depanse jeton peye.",
+        "retryNote": "Chenn sekou a se Meta an premye pou trafik konekte, apre OpenRouter gratis, apre Ollama lokal. Trafik anonim pa janm depanse jeton Meta.",
+        "budgetNote": "Nivo kontribitè Meta a gen limit pi ba; nivo gratis OpenRouter ak Ollama lokal pa koute anyen. Kòd la pa aplike bidjè pa demann.",
+        "rotationProcedure": "Wote META_AI_API_KEY nan konsòl Meta ak OPENROUTER_API_KEY nan OpenRouter; mete ajou sekrè Coolify yo; verifye chat sipò a.",
+        "capabilities": {
+          "support_chat": {
+            "label": "Chat sipò",
+            "customerSafe": "Chat la montre yon mesaj endisponib ak yon chemen pou jwenn sipò imen."
+          },
+          "guide_help": {
+            "label": "Èd gid yo",
+            "customerSafe": "Èd IA a kache; kontni gid la kontinye mache."
+          },
+          "learn_tagging": {
+            "label": "Etiketaj Learn",
+            "customerSafe": "Otomatik etiketaj kanpe an silans; gid yo pibliye san etiket."
+          }
+        }
+      },
+      "scanning": {
+        "name": "Analiz malveyan (ClamAV)",
+        "description": "Analiz malveyan fichye yo telechaje atravè yon sèvis ClamAV. Yon analizè konfigure echwe fèmen lè gen erè koneksyon.",
+        "customerSafeSummary": "Lè analizè a pa reponn, fichye yo telechaje yo rejte ak yon mesaj reeseye olye yo estoke san kontwòl.",
+        "retryNote": "Yon analizè konfigure echwe fèmen lè gen erè koneksyon. Verifikasyon estatik ekstansyon ak byte majik yo se baz la lè pa gen analizè konfigure.",
+        "budgetNote": "Sèvis ClamAV pwòp nou; pa gen faktirasyon pa analiz.",
+        "rotationProcedure": "Pa gen kalifikasyon; kenbe definisyon viris yo ajou atravè freshclam epi fikse imaj sèvis la.",
+        "capabilities": {
+          "upload_scan": {
+            "label": "Analiz fichye yo",
+            "customerSafe": "Fichye yo rejte ak yon mesaj tanpri-ree-seye; anyen ki pa kontwole pa estoke."
+          }
+        }
+      },
+      "storage": {
+        "name": "Estokaj fichye (konpatib S3)",
+        "description": "Fichye yo telechaje ak URL siyati pou telechaje sou estokaj konpatib S3, ak sekou sou sistèm fichye lokal.",
+        "customerSafeSummary": "Lè estokaj la pa disponib, fichye yo rejte touswit epi fichye ki deja la kontinye sèvi soti nan kach kote sa posib.",
+        "retryNote": "Kle fichye yo nòmalize kont travèse chemen; URL siyati yo ekspire. San kalifikasyon S3, estokaj lokal la sèvi fichye yo.",
+        "budgetNote": "Faktirasyon itilizasyon S3/R2; kontwole ak founisè estokaj la, pa isit la.",
+        "rotationProcedure": "Wote kle aksè S3 yo nan konsòl estokaj la, mete ajou sekrè Coolify yo, verifye yon fichye telechaje ak yon URL siyati.",
+        "capabilities": {
+          "uploads": {
+            "label": "Fichye yo telechaje",
+            "customerSafe": "Fichye yo rejte ak yon mesaj reeseye; okenn fichye pasyèl pa kenbe."
+          },
+          "signed_urls": {
+            "label": "URL siyati",
+            "customerSafe": "Lyen fichye yo montre yon mesaj endisponib olye yon telechajman kase."
+          }
+        }
+      },
+      "calendars": {
+        "name": "Kalendriye (Google, Outlook)",
+        "description": "Senkronizasyon kalendriye Google ak Outlook pa biznis. Rezèvasyon toujou mache nan aplikasyon an menm lè senkronizasyon an pàn.",
+        "customerSafeSummary": "Lè senkronizasyon kalendriye a pàn, rezèvasyon yo fini nan OxSteed epi senkronizasyon an ratrape lè li tounen. Senkronizasyon an pa kreye doub rezèvasyon.",
+        "retryNote": "Jeton OAuth pa biznis; echèk senkronizasyon pa janm bloke rezèvasyon. Ekspòtasyon iCal pwodui nan aplikasyon an san apèl founisè.",
+        "budgetNote": "API kalendriye Google ak Outlook yo gratis nan volim sa a.",
+        "rotationProcedure": "Sekrè kliyan OAuth yo wote nan Google Cloud / Azure; jeton pa itilizatè yo renouvle poukont yo oswa biznis lan rekonekte.",
+        "capabilities": {
+          "calendar_sync": {
+            "label": "Senkronizasyon kalendriye",
+            "customerSafe": "Evènman yo senkronize pita; orè nan aplikasyon an rete referans lan."
+          },
+          "ical_export": {
+            "label": "Ekspòtasyon iCal",
+            "customerSafe": "Telechajman kalendriye yo kontinye mache; yo pwodui nan aplikasyon an."
+          }
+        }
+      },
+      "trackers": {
+        "name": "Swivi (livrezon ak chajman)",
+        "description": "Swivi chofè an dirèk ak lyen swivi. Dosye swivi yo se prèv sèlman epi yo pa janm chanje eta livrezon an.",
+        "customerSafeSummary": "Lè swivi an dirèk pàn, kliyan yo wè dènye etap li te ye a olye yon kat an dirèk. Eta livrezon an ak peman yo pa afekte.",
+        "retryNote": "Antre kote a idempotent epi pa pakè; pwen sispèk yo mete an karantèn, yo pa janm estoke kòm verite. Swivi a pa janm chanje eta livrezon an.",
+        "budgetNote": "Kanal entèn; pa gen faktirasyon pa evènman.",
+        "rotationProcedure": "Pa gen kalifikasyon founisè; lyen swivi yo siyen ak sekrè aplikasyon an (gade wotasyon pou sekrè aplikasyon yo).",
+        "capabilities": {
+          "live_driver_tracking": {
+            "label": "Swivi chofè an dirèk",
+            "customerSafe": "Kat la montre dènye etap konfime a."
+          },
+          "tracking_links": {
+            "label": "Lyen swivi",
+            "customerSafe": "Lyen yo montre dènye estati konfime a ak yon avi done an reta."
+          }
+        }
+      }
+    }
+  },
   "adminRegionsMilesUnit": "mil",
   "businessCreation": {
     "eyebrow": "Konfigirasyon biznis",

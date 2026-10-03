@@ -158,6 +158,21 @@ const ENTRIES = [
     classification: 'lease', shared: 'none',
     rationale: 'Single-process fallback for the fencing helpers (tryAcquireOnce/throttleOnce) when Redis is unavailable. TTL-bounded, 10k-entry cap, warns once. Production must set REDIS_URL for cross-process fencing.',
   },
+  {
+    file: 'utils/providerCircuitBreaker.js', name: 'localStates',
+    classification: 'semaphore', shared: 'redis',
+    rationale: 'In-memory fallback for per-provider circuit breaker state when REDIS_URL is not set. Bounded (256 entries) and self-expiring on read. Production shares breaker state in Redis (provider-circuit:v1:*); the fallback is single-instance dev/test only.',
+  },
+  {
+    file: 'services/providerHealthRegistry.js', name: 'breakers',
+    classification: 'constant', shared: 'none',
+    rationale: 'Write-once registry of per-provider circuit breaker singletons (one per provider id, populated lazily on first access). Holds no authoritative state itself; breaker state lives in Redis or the registered fallback map above.',
+  },
+  {
+    file: 'services/providerHealthRegistry.js', name: 'probeCache',
+    classification: 'cache', shared: 'none',
+    rationale: '60s TTL cache of provider probe snapshots for the operator view (max 32 entries). Backing truth is the live provider; staleness is bounded by the TTL.',
+  },
 ];
 
 for (const entry of ENTRIES) registerProcessState(entry);

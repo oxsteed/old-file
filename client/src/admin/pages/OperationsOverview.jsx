@@ -162,6 +162,15 @@ function SectionCard({ section, title, description, t, canLink }) {
               <ExternalLink size={14} aria-hidden="true" />
             </Link>
           )}
+          {section.key === 'integrations' && (
+            <Link
+              to={adminRoute('providerHealth').path}
+              className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-orange-300 hover:text-orange-200 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-2 focus:ring-offset-gray-950 rounded"
+            >
+              {t('adminProviderHealth.title')}
+              <ExternalLink size={14} aria-hidden="true" />
+            </Link>
+          )}
         </>
       )}
     </article>

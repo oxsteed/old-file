@@ -1,4 +1,227 @@
 {
+  "adminProviderHealth": {
+    "eyebrow": "Operaciones de proveedores",
+    "title": "Salud de proveedores",
+    "subtitle": "Una vista única para el operador sobre cada proveedor externo: estado de capacidades, responsable, canal de alertas, política de reintentos, cortacircuitos, presupuesto, rotación y el estado seguro para el cliente cuando un proveedor no está disponible.",
+    "refresh": "Actualizar",
+    "retryButton": "Reintentar",
+    "retry": {
+      "attempts": "Hasta {{count}} intentos",
+      "backoff": "Espera {{backoff}}, base de {{base}}ms, máximo de {{max}}ms",
+      "retryOn": "Reintenta en {{list}}",
+      "jitter": "con variación aleatoria"
+    },
+    "loading": "Cargando la salud de proveedores",
+    "loadError": "No se pudo cargar la salud de proveedores.",
+    "updatedAt": "Instantánea tomada {{time}}",
+    "summaryLabel": "Resumen del estado de proveedores",
+    "status": {
+      "ok": "Saludable",
+      "degraded": "Degradado",
+      "down": "Caído",
+      "notConfigured": "Sin configurar",
+      "unknown": "Desconocido"
+    },
+    "failureMode": {
+      "fail_closed": "Falla cerrado",
+      "fail_open": "Falla abierto",
+      "degraded": "Degradado",
+      "queued_retry": "Reintento en cola"
+    },
+    "fields": {
+      "owner": "Responsable",
+      "alertChannel": "Canal de alertas",
+      "lastProbe": "Última prueba",
+      "dependencies": "Configuración",
+      "capabilities": "Capacidades",
+      "customerSafe": "Estado seguro para el cliente",
+      "retryPolicy": "Política de reintentos",
+      "circuitBreaker": "Cortacircuitos",
+      "budget": "Presupuesto",
+      "rotation": "Rotación de claves"
+    },
+    "circuit": {
+      "state": {
+        "closed": "Cerrado",
+        "open": "Abierto",
+        "halfOpen": "Semiabierto"
+      },
+      "config": "Se abre tras {{failures}} fallos, llamada de prueba tras {{timeout}}s",
+      "reset": "Restablecer cortacircuitos",
+      "confirmReset": "Pulse de nuevo para confirmar el restablecimiento",
+      "cancel": "Cancelar"
+    },
+    "budget": {
+      "noFixed": "Sin presupuesto fijo en el código",
+      "monthly": "${{amount}} al mes"
+    },
+    "rotation": {
+      "everyDays": "Cada {{days}} días",
+      "noCredentials": "Sin credenciales que rotar"
+    },
+    "providers": {
+      "stripe": {
+        "name": "Stripe",
+        "description": "Pagos con tarjeta, pagos de Connect, reembolsos y webhooks. El movimiento de dinero siempre falla cerrado.",
+        "customerSafeSummary": "Cuando Stripe no está disponible, el pago y los desembolsos se pausan y los clientes ven un mensaje claro de pagos no disponibles. Nada se cobra dos veces: cada llamada que modifica datos lleva una clave de idempotencia.",
+        "retryNote": "Claves de idempotencia en todas las llamadas que modifican datos; nunca reintente un cargo de resultado desconocido sin la clave.",
+        "budgetNote": "Las tarifas de Stripe crecen con el volumen; se controlan en el panel de Stripe, no aquí. La tarifa de la plataforma es dinámica vía feeService.",
+        "rotationProcedure": "Rote las claves restringidas en el panel de Stripe, actualice el secreto de Coolify, redespliegue y verifique /ready.",
+        "capabilities": {
+          "card_payments": {
+            "label": "Pagos con tarjeta",
+            "customerSafe": "El pago muestra un mensaje de pagos no disponibles y el pedido no se crea."
+          },
+          "connect_payouts": {
+            "label": "Pagos de Connect",
+            "customerSafe": "Los desembolsos quedan en cola hasta que Stripe se recupera; no se hacen transferencias parciales."
+          },
+          "refunds": {
+            "label": "Reembolsos",
+            "customerSafe": "Las solicitudes de reembolso se ponen en cola y se reintentan; los clientes ven un estado de reembolso pendiente."
+          },
+          "webhooks": {
+            "label": "Webhooks",
+            "customerSafe": "Stripe reintenta los eventos y se concilian al recuperarse; no se asume ningún estado de dinero."
+          }
+        }
+      },
+      "maps": {
+        "name": "Mapas (AWS Location)",
+        "description": "Búsqueda de lugares, geocodificación y rutas de AWS Location. Las consultas de solo lectura se degradan con elegancia.",
+        "customerSafeSummary": "Cuando los mapas no están disponibles, la búsqueda de direcciones y las estimaciones de distancia se ocultan en lugar de mostrar datos incorrectos. Los resultados en caché siguen sirviendo donde estén disponibles.",
+        "retryNote": "Las consultas de solo lectura usan caché (geocodificación 24h, cercanía 2m, rutas 30s); reintentos solo si no hay caché.",
+        "budgetNote": "Facturación de AWS Location por uso; se controla en AWS Cost Explorer. Restrinja la clave del navegador por referente.",
+        "rotationProcedure": "Rote las claves de acceso IAM en AWS IAM, actualice los secretos de Coolify y verifique la búsqueda de lugares.",
+        "capabilities": {
+          "place_search": {
+            "label": "Búsqueda de lugares",
+            "customerSafe": "El autocompletado de direcciones se oculta; los clientes aún pueden escribir una dirección completa."
+          },
+          "geocode": {
+            "label": "Geocodificación",
+            "customerSafe": "Las direcciones nuevas se guardan como se escribieron y se geocodifican después, cuando el proveedor se recupera."
+          },
+          "routes": {
+            "label": "Rutas y distancia",
+            "customerSafe": "El precio por distancia usa la última zona conocida o una estimación fija."
+          }
+        }
+      },
+      "messaging": {
+        "name": "Mensajería (correo, SMS, push)",
+        "description": "Correo transaccional, SMS de verificación y notificaciones push web. Cada canal tiene su propio comportamiento ante fallos.",
+        "customerSafeSummary": "Cuando un canal falla, los mensajes se ponen en cola o se omiten según la política del canal. Los códigos de verificación nunca se reintentan en silencio; el usuario solicita un código nuevo.",
+        "retryNote": "El correo transaccional se reintenta vía la cola de correo; los códigos SMS de verificación nunca se reintentan en silencio, el usuario solicita un código nuevo.",
+        "budgetNote": "Plan SMTP más facturación por mensaje de AWS SNS; se controla con los proveedores, no aquí.",
+        "rotationProcedure": "Rote las credenciales SMTP y las claves VAPID; rotar VAPID exige que los clientes se vuelvan a suscribir.",
+        "capabilities": {
+          "email": {
+            "label": "Correo electrónico",
+            "customerSafe": "Los correos se ponen en cola para reintentar; el correo urgente usa un aviso en la aplicación."
+          },
+          "sms": {
+            "label": "SMS",
+            "customerSafe": "La verificación se pausa con un mensaje claro; ningún código se envía tarde."
+          },
+          "push": {
+            "label": "Notificaciones push",
+            "customerSafe": "El push se omite en silencio; la misma actualización sigue visible en la aplicación."
+          }
+        }
+      },
+      "ai": {
+        "name": "IA (Meta, OpenRouter, Ollama)",
+        "description": "Chat de soporte e IA en segundo plano con cadena de respaldo: Meta primero para el tráfico autenticado, luego el nivel gratuito de OpenRouter y después Ollama local.",
+        "customerSafeSummary": "Cuando todos los proveedores de IA fallan, el chat muestra un mensaje de servicio no disponible y ofrece soporte humano. El tráfico anónimo nunca gasta tokens de pago.",
+        "retryNote": "La cadena de respaldo es Meta primero para el tráfico autenticado, luego OpenRouter gratuito y después Ollama local. El tráfico anónimo nunca gasta tokens de Meta.",
+        "budgetNote": "El nivel de contribuidor de Meta tiene límites más bajos; el nivel gratuito de OpenRouter y Ollama local no cuestan nada. El código no aplica presupuesto por solicitud.",
+        "rotationProcedure": "Rote META_AI_API_KEY en la consola de Meta y OPENROUTER_API_KEY en OpenRouter; actualice los secretos de Coolify; verifique el chat de soporte.",
+        "capabilities": {
+          "support_chat": {
+            "label": "Chat de soporte",
+            "customerSafe": "El chat muestra un mensaje de no disponible con una vía hacia el soporte humano."
+          },
+          "guide_help": {
+            "label": "Ayuda de guías",
+            "customerSafe": "La ayuda de IA se oculta; el contenido de la guía sigue funcionando."
+          },
+          "learn_tagging": {
+            "label": "Etiquetado de Learn",
+            "customerSafe": "El etiquetado automático se pausa en silencio; las guías se publican sin etiquetas."
+          }
+        }
+      },
+      "scanning": {
+        "name": "Análisis de malware (ClamAV)",
+        "description": "Análisis de malware de archivos subidos mediante un servicio ClamAV. Un analizador configurado falla cerrado ante errores de conexión.",
+        "customerSafeSummary": "Cuando el analizador no responde, las subidas se rechazan con un mensaje de reintento en lugar de guardarse sin revisar.",
+        "retryNote": "Un analizador configurado falla cerrado ante errores de conexión. Las comprobaciones estáticas de extensión y bytes mágicos son la base cuando no hay analizador configurado.",
+        "budgetNote": "Servicio ClamAV propio; sin facturación por análisis.",
+        "rotationProcedure": "Sin credenciales; mantenga frescas las definiciones de virus vía freshclam y fije la imagen del servicio.",
+        "capabilities": {
+          "upload_scan": {
+            "label": "Análisis de subidas",
+            "customerSafe": "Las subidas se rechazan con un mensaje de inténtelo de nuevo; nada sin revisar se guarda."
+          }
+        }
+      },
+      "storage": {
+        "name": "Almacenamiento de archivos (compatible con S3)",
+        "description": "Subidas y URL firmadas de descarga en almacenamiento compatible con S3, con respaldo en el sistema de archivos local.",
+        "customerSafeSummary": "Cuando el almacenamiento no está disponible, las subidas se rechazan de inmediato y los archivos existentes siguen sirviendo desde la caché cuando es posible.",
+        "retryNote": "Las claves de subida se normalizan contra el recorrido de rutas; las URL firmadas caducan. Sin credenciales S3, el almacenamiento local sirve las subidas.",
+        "budgetNote": "Facturación por uso de S3/R2; se controla con el proveedor de almacenamiento, no aquí.",
+        "rotationProcedure": "Rote las claves de acceso S3 en la consola de almacenamiento, actualice los secretos de Coolify y verifique una subida y una URL firmada.",
+        "capabilities": {
+          "uploads": {
+            "label": "Subidas",
+            "customerSafe": "Las subidas se rechazan con un mensaje de reintento; no se conservan archivos parciales."
+          },
+          "signed_urls": {
+            "label": "URL firmadas",
+            "customerSafe": "Los enlaces de archivos muestran un mensaje de no disponible en lugar de una descarga rota."
+          }
+        }
+      },
+      "calendars": {
+        "name": "Calendarios (Google, Outlook)",
+        "description": "Sincronización de calendarios de Google y Outlook por negocio. La reserva siempre funciona en la aplicación aunque la sincronización falle.",
+        "customerSafeSummary": "Cuando la sincronización de calendarios falla, las reservas se completan en OxSteed y la sincronización se pone al día al recuperarse. La sincronización no crea reservas duplicadas.",
+        "retryNote": "Tokens OAuth por negocio; los fallos de sincronización nunca bloquean la reserva. La exportación iCal se genera en la aplicación sin llamar al proveedor.",
+        "budgetNote": "Las API de calendarios de Google y Outlook son gratuitas a este volumen.",
+        "rotationProcedure": "Los secretos de cliente OAuth rotan en Google Cloud / Azure; los tokens por usuario se renuevan solos o el negocio se reconecta.",
+        "capabilities": {
+          "calendar_sync": {
+            "label": "Sincronización de calendario",
+            "customerSafe": "Los eventos se sincronizan después; el horario en la aplicación sigue siendo la referencia."
+          },
+          "ical_export": {
+            "label": "Exportación iCal",
+            "customerSafe": "Las descargas de calendario siguen funcionando; se generan en la aplicación."
+          }
+        }
+      },
+      "trackers": {
+        "name": "Seguimiento (entregas y envíos)",
+        "description": "Seguimiento en vivo del conductor y enlaces de seguimiento. Los registros de seguimiento son solo evidencia y nunca cambian el estado de la entrega.",
+        "customerSafeSummary": "Cuando el seguimiento en vivo falla, los clientes ven el último hito conocido en lugar de un mapa en vivo. El estado de la entrega y los pagos no se ven afectados.",
+        "retryNote": "La ingesta de ubicación es idempotente y por lotes; los puntos sospechosos se ponen en cuarentena y nunca se guardan como verdad. El seguimiento nunca modifica el estado de la entrega.",
+        "budgetNote": "Canalización interna; sin facturación por evento.",
+        "rotationProcedure": "Sin credenciales de proveedor; los enlaces de seguimiento se firman con el secreto de la aplicación (ver rotación de secretos de la aplicación).",
+        "capabilities": {
+          "live_driver_tracking": {
+            "label": "Seguimiento del conductor en vivo",
+            "customerSafe": "El mapa muestra el último hito confirmado."
+          },
+          "tracking_links": {
+            "label": "Enlaces de seguimiento",
+            "customerSafe": "Los enlaces muestran el último estado confirmado con un aviso de datos con retraso."
+          }
+        }
+      }
+    }
+  },
   "adminRegionsMilesUnit": "millas",
   "businessCreation": {
     "eyebrow": "Configuración del negocio",

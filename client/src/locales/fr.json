@@ -1,4 +1,227 @@
 {
+  "adminProviderHealth": {
+    "eyebrow": "Opérations fournisseurs",
+    "title": "État des fournisseurs",
+    "subtitle": "Une vue opérateur unique sur chaque fournisseur externe : état des capacités, responsable, canal d'alerte, politique de réessais, coupe-circuit, budget, rotation, et l'état sûr pour le client quand un fournisseur est indisponible.",
+    "refresh": "Actualiser",
+    "retryButton": "Réessayer",
+    "retry": {
+      "attempts": "Jusqu'à {{count}} tentatives",
+      "backoff": "Attente {{backoff}}, base de {{base}}ms, maximum de {{max}}ms",
+      "retryOn": "Réessaie sur {{list}}",
+      "jitter": "avec variation aléatoire"
+    },
+    "loading": "Chargement de l'état des fournisseurs",
+    "loadError": "Impossible de charger l'état des fournisseurs.",
+    "updatedAt": "Instantané pris {{time}}",
+    "summaryLabel": "Résumé de l'état des fournisseurs",
+    "status": {
+      "ok": "En bonne santé",
+      "degraded": "Dégradé",
+      "down": "En panne",
+      "notConfigured": "Non configuré",
+      "unknown": "Inconnu"
+    },
+    "failureMode": {
+      "fail_closed": "Échec fermé",
+      "fail_open": "Échec ouvert",
+      "degraded": "Dégradé",
+      "queued_retry": "Réessai en file"
+    },
+    "fields": {
+      "owner": "Responsable",
+      "alertChannel": "Canal d'alerte",
+      "lastProbe": "Dernier test",
+      "dependencies": "Configuration",
+      "capabilities": "Capacités",
+      "customerSafe": "État sûr pour le client",
+      "retryPolicy": "Politique de réessais",
+      "circuitBreaker": "Coupe-circuit",
+      "budget": "Budget",
+      "rotation": "Rotation des clés"
+    },
+    "circuit": {
+      "state": {
+        "closed": "Fermé",
+        "open": "Ouvert",
+        "halfOpen": "Semi-ouvert"
+      },
+      "config": "S'ouvre après {{failures}} échecs, appel d'essai après {{timeout}}s",
+      "reset": "Réinitialiser le coupe-circuit",
+      "confirmReset": "Cliquez à nouveau pour confirmer la réinitialisation",
+      "cancel": "Annuler"
+    },
+    "budget": {
+      "noFixed": "Pas de budget fixe dans le code",
+      "monthly": "${{amount}} par mois"
+    },
+    "rotation": {
+      "everyDays": "Tous les {{days}} jours",
+      "noCredentials": "Aucun identifiant à faire pivoter"
+    },
+    "providers": {
+      "stripe": {
+        "name": "Stripe",
+        "description": "Paiements par carte, versements Connect, remboursements et webhooks. Tout mouvement d'argent échoue en mode fermé.",
+        "customerSafeSummary": "Quand Stripe est indisponible, le paiement et les versements sont mis en pause et les clients voient un message clair de paiements indisponibles. Rien n'est facturé deux fois : chaque appel modifiant des données porte une clé d'idempotence.",
+        "retryNote": "Clés d'idempotence sur tous les appels modifiant des données ; ne jamais réessayer une charge au résultat inconnu sans la clé.",
+        "budgetNote": "Les frais Stripe augmentent avec le volume ; suivis dans le tableau de bord Stripe, pas ici. Le taux de commission de la plateforme est dynamique via feeService.",
+        "rotationProcedure": "Faites pivoter les clés restreintes dans le tableau de bord Stripe, mettez à jour le secret Coolify, redéployez, vérifiez /ready.",
+        "capabilities": {
+          "card_payments": {
+            "label": "Paiements par carte",
+            "customerSafe": "Le paiement affiche un message de paiements indisponibles et la commande n'est pas créée."
+          },
+          "connect_payouts": {
+            "label": "Versements Connect",
+            "customerSafe": "Les versements restent en file jusqu'au rétablissement de Stripe ; aucun transfert partiel n'est effectué."
+          },
+          "refunds": {
+            "label": "Remboursements",
+            "customerSafe": "Les demandes de remboursement sont mises en file et réessayées ; les clients voient un statut de remboursement en attente."
+          },
+          "webhooks": {
+            "label": "Webhooks",
+            "customerSafe": "Stripe réessaie les événements, réconciliés au rétablissement ; aucun état monétaire n'est présumé."
+          }
+        }
+      },
+      "maps": {
+        "name": "Cartes (AWS Location)",
+        "description": "Recherche de lieux, géocodage et itinéraires via AWS Location. Les consultations en lecture seule se dégradent proprement.",
+        "customerSafeSummary": "Quand les cartes sont indisponibles, la recherche d'adresses et les estimations de distance sont masquées au lieu d'afficher des données erronées. Les résultats en cache continuent d'être servis quand ils existent.",
+        "retryNote": "Les consultations en lecture seule sont mises en cache (géocodage 24h, proximité 2min, itinéraires 30s) ; réessais uniquement en cas d'absence du cache.",
+        "budgetNote": "Facturation AWS Location à l'usage ; suivie dans AWS Cost Explorer. Restreignez la clé navigateur par référent.",
+        "rotationProcedure": "Faites pivoter les clés d'accès IAM dans AWS IAM, mettez à jour les secrets Coolify, vérifiez la recherche de lieux.",
+        "capabilities": {
+          "place_search": {
+            "label": "Recherche de lieux",
+            "customerSafe": "La saisie semi-automatique d'adresses est masquée ; les clients peuvent toujours saisir une adresse complète."
+          },
+          "geocode": {
+            "label": "Géocodage",
+            "customerSafe": "Les nouvelles adresses sont enregistrées telles que saisies puis géocodées plus tard, au rétablissement du fournisseur."
+          },
+          "routes": {
+            "label": "Itinéraires et distance",
+            "customerSafe": "La tarification à la distance utilise la dernière zone connue ou une estimation forfaitaire."
+          }
+        }
+      },
+      "messaging": {
+        "name": "Messagerie (e-mail, SMS, push)",
+        "description": "E-mails transactionnels, SMS de vérification et notifications push web. Chaque canal a son propre comportement en cas de panne.",
+        "customerSafeSummary": "Quand un canal est en panne, les messages sont mis en file ou ignorés selon la politique du canal. Les codes de vérification ne sont jamais réessayés en silence ; l'utilisateur demande un nouveau code.",
+        "retryNote": "L'e-mail transactionnel est réessayé via la file d'e-mails ; les codes SMS de vérification ne sont jamais réessayés en silence, l'utilisateur demande un nouveau code.",
+        "budgetNote": "Forfait SMTP plus facturation AWS SNS par message ; suivis auprès des fournisseurs, pas ici.",
+        "rotationProcedure": "Faites pivoter les identifiants SMTP et les clés VAPID ; la rotation VAPID exige que les clients se réabonnent.",
+        "capabilities": {
+          "email": {
+            "label": "E-mail",
+            "customerSafe": "Les e-mails sont mis en file pour réessai ; les e-mails urgents passent par un avis dans l'application."
+          },
+          "sms": {
+            "label": "SMS",
+            "customerSafe": "La vérification est mise en pause avec un message clair ; aucun code n'est envoyé en retard."
+          },
+          "push": {
+            "label": "Notifications push",
+            "customerSafe": "Le push est ignoré silencieusement ; la même mise à jour reste visible dans l'application."
+          }
+        }
+      },
+      "ai": {
+        "name": "IA (Meta, OpenRouter, Ollama)",
+        "description": "Chat d'assistance et IA en arrière-plan avec chaîne de secours : Meta d'abord pour le trafic connecté, puis l'offre gratuite d'OpenRouter, puis Ollama en local.",
+        "customerSafeSummary": "Quand tous les fournisseurs d'IA sont en panne, le chat affiche un message de service indisponible et propose une assistance humaine. Le trafic anonyme ne dépense jamais de jetons payants.",
+        "retryNote": "La chaîne de secours est Meta d'abord pour le trafic connecté, puis OpenRouter gratuit, puis Ollama en local. Le trafic anonyme ne dépense jamais de jetons Meta.",
+        "budgetNote": "L'offre contributeur de Meta a des limites plus basses ; l'offre gratuite d'OpenRouter et Ollama en local ne coûtent rien. Aucun budget par requête n'est appliqué dans le code.",
+        "rotationProcedure": "Faites pivoter META_AI_API_KEY dans la console Meta et OPENROUTER_API_KEY dans OpenRouter ; mettez à jour les secrets Coolify ; vérifiez le chat d'assistance.",
+        "capabilities": {
+          "support_chat": {
+            "label": "Chat d'assistance",
+            "customerSafe": "Le chat affiche un message d'indisponibilité avec un accès à l'assistance humaine."
+          },
+          "guide_help": {
+            "label": "Aide des guides",
+            "customerSafe": "L'aide IA est masquée ; le contenu du guide continue de fonctionner."
+          },
+          "learn_tagging": {
+            "label": "Étiquetage Learn",
+            "customerSafe": "L'étiquetage automatique est mis en pause silencieusement ; les guides sont publiés sans étiquettes."
+          }
+        }
+      },
+      "scanning": {
+        "name": "Analyse antimalware (ClamAV)",
+        "description": "Analyse antimalware des fichiers téléversés via un service ClamAV. Un analyseur configuré échoue en mode fermé en cas d'erreur de connexion.",
+        "customerSafeSummary": "Quand l'analyseur ne répond pas, les téléversements sont rejetés avec un message de réessai au lieu d'être stockés sans contrôle.",
+        "retryNote": "Un analyseur configuré échoue en mode fermé en cas d'erreur de connexion. Les contrôles statiques d'extension et d'octets magiques restent la base quand aucun analyseur n'est configuré.",
+        "budgetNote": "Service ClamAV auto-hébergé ; aucune facturation par analyse.",
+        "rotationProcedure": "Aucun identifiant ; gardez les définitions de virus à jour via freshclam et épinglez l'image du service.",
+        "capabilities": {
+          "upload_scan": {
+            "label": "Analyse des téléversements",
+            "customerSafe": "Les téléversements sont rejetés avec un message invitant à réessayer ; rien de non contrôlé n'est stocké."
+          }
+        }
+      },
+      "storage": {
+        "name": "Stockage de fichiers (compatible S3)",
+        "description": "Téléversements et URL signées de téléchargement sur un stockage compatible S3, avec repli sur le système de fichiers local.",
+        "customerSafeSummary": "Quand le stockage est indisponible, les téléversements sont rejetés d'emblée et les fichiers existants continuent d'être servis depuis le cache quand c'est possible.",
+        "retryNote": "Les clés de téléversement sont normalisées contre la traversée de chemins ; les URL signées expirent. Sans identifiants S3, le stockage local sert les téléversements.",
+        "budgetNote": "Facturation à l'usage S3/R2 ; suivie auprès du fournisseur de stockage, pas ici.",
+        "rotationProcedure": "Faites pivoter les clés d'accès S3 dans la console de stockage, mettez à jour les secrets Coolify, vérifiez un téléversement et une URL signée.",
+        "capabilities": {
+          "uploads": {
+            "label": "Téléversements",
+            "customerSafe": "Les téléversements sont rejetés avec un message de réessai ; aucun fichier partiel n'est conservé."
+          },
+          "signed_urls": {
+            "label": "URL signées",
+            "customerSafe": "Les liens de fichiers affichent un message d'indisponibilité au lieu d'un téléchargement cassé."
+          }
+        }
+      },
+      "calendars": {
+        "name": "Calendriers (Google, Outlook)",
+        "description": "Synchronisation des calendriers Google et Outlook par entreprise. La réservation fonctionne toujours dans l'application même si la synchronisation est en panne.",
+        "customerSafeSummary": "Quand la synchronisation des calendriers est en panne, les réservations aboutissent dans OxSteed et la synchronisation rattrape son retard au rétablissement. La synchronisation ne crée aucune double réservation.",
+        "retryNote": "Jetons OAuth par entreprise ; les échecs de synchronisation ne bloquent jamais la réservation. L'export iCal est généré dans l'application sans appel au fournisseur.",
+        "budgetNote": "Les API de calendriers Google et Outlook sont gratuites à ce volume.",
+        "rotationProcedure": "Les secrets clients OAuth pivotent dans Google Cloud / Azure ; les jetons par utilisateur se renouvellent automatiquement ou l'entreprise se reconnecte.",
+        "capabilities": {
+          "calendar_sync": {
+            "label": "Synchronisation du calendrier",
+            "customerSafe": "Les événements sont synchronisés plus tard ; l'agenda dans l'application reste la référence."
+          },
+          "ical_export": {
+            "label": "Export iCal",
+            "customerSafe": "Les téléchargements de calendrier continuent de fonctionner ; ils sont générés dans l'application."
+          }
+        }
+      },
+      "trackers": {
+        "name": "Suivi (livraisons et expéditions)",
+        "description": "Suivi en direct du chauffeur et liens de suivi. Les enregistrements de suivi sont une simple preuve et ne modifient jamais l'état de la livraison.",
+        "customerSafeSummary": "Quand le suivi en direct est en panne, les clients voient le dernier jalon connu au lieu d'une carte en direct. L'état de la livraison et les paiements ne sont pas affectés.",
+        "retryNote": "L'ingestion de localisation est idempotente et par lots ; les points suspects sont mis en quarantaine, jamais stockés comme vérité. Le suivi ne modifie jamais l'état de la livraison.",
+        "budgetNote": "Pipeline interne ; aucune facturation par événement.",
+        "rotationProcedure": "Aucun identifiant de fournisseur ; les liens de suivi sont signés avec le secret de l'application (voir la rotation des secrets de l'application).",
+        "capabilities": {
+          "live_driver_tracking": {
+            "label": "Suivi du chauffeur en direct",
+            "customerSafe": "La carte affiche le dernier jalon confirmé."
+          },
+          "tracking_links": {
+            "label": "Liens de suivi",
+            "customerSafe": "Les liens affichent le dernier statut confirmé avec un avis de données différées."
+          }
+        }
+      }
+    }
+  },
   "adminRegionsMilesUnit": "miles",
   "businessCreation": {
     "eyebrow": "Configuration de l’entreprise",

@@ -603,6 +603,7 @@ const governanceRoutes = require('./routes/governance');
 const workforceRoutes = require('./routes/workforce');
 const reliabilityRoutes = require('./routes/reliability');
 const opsIntegrationsRoutes = require('./routes/opsIntegrations');
+const providerHealthRoutes = require('./routes/providerHealth');
 const fraudCaseRoutes = require('./routes/fraudCases');
 const settingsChangeRoutes = require('./routes/settingsChanges');
 const apiProductsRoutes = require('./routes/apiProducts');
@@ -665,6 +666,8 @@ app.use('/api/admin/super/governance', governanceRoutes);
 app.use('/api/admin/super/workforce', workforceRoutes);
 app.use('/api/admin/super/reliability', reliabilityRoutes);
 app.use('/api/admin/ops/integrations', opsIntegrationsRoutes);
+// V2-P1-07 provider health contract: one operator view for all external providers
+app.use('/api/provider-health', providerHealthRoutes);
 app.use('/api/admin/fraud', fraudCaseRoutes);
 app.use('/api/admin/settings-changes', settingsChangeRoutes);
 app.use('/api/admin/discount-codes', discountCodesRoutes);
