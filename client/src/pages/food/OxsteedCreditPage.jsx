@@ -19,6 +19,7 @@ import {
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import PageMeta from '../../components/PageMeta';
+import WalletRestaurantWallets from './WalletRestaurantWallets';
 import {
   getOxsteedCreditAccount,
   getOxsteedCreditLimitSummary,
@@ -688,8 +689,8 @@ export default function OxsteedCreditPage() {
   return (
     <>
       <PageMeta
-        title={t('balance')}
-        description={t('heroDescription')}
+        title={t('walletTitle')}
+        description={t('walletDescription')}
         noIndex
       />
       <Navbar />
@@ -699,8 +700,8 @@ export default function OxsteedCreditPage() {
           <header className="ox-credit-hero">
             <div>
               <p className="ox-credit-eyebrow">{t('partnerEyebrow')}</p>
-              <h1>{t('balance')}</h1>
-              <p>{t('heroDescription')}</p>
+              <h1>{t('walletTitle')}</h1>
+              <p>{t('walletDescription')}</p>
             </div>
             <div className="ox-credit-hero-actions">
               <Link to="/oxsteed-credit/cards" className="ox-credit-refresh"><WalletCards size={16} /> My Cards</Link>
@@ -723,10 +724,25 @@ export default function OxsteedCreditPage() {
 
           {railStatus && !railStatus.enabled && <section className="ox-credit-rail-note" role="status"><AlertCircle size={19} /><div><strong>{t('pausedTitle')}</strong><span>{t('pausedBody')}</span></div></section>}
 
+          {/* ── Wallet sections ─────────────────────────────────────────
+            Each section below fetches and renders independently, with its
+            own loading, error, and empty states. A failing section must
+            never blank the others.
+            Future sections (earnings, payouts) plug in here following the
+            WalletRestaurantWallets pattern. Presentation only: ledgers are
+            never merged and balances are never combined. */}
+          <WalletRestaurantWallets />
+
           {loadError && !loading && <section className="ox-credit-error-panel" role="alert"><AlertCircle size={24} /><strong>{t('errorLoad')}</strong><span>{loadError}</span><button type="button" className="ox-credit-refresh" onClick={() => load({ currencyCode: selectedCurrency })}>{t('retry')}</button></section>}
 
           {loading ? <div className="ox-credit-loading" role="status" aria-live="polite">{t('loadingAccount')}</div> : loadError && !account ? null : (
             <>
+              <div className="ox-credit-panel-heading ox-credit-section-heading">
+                <div>
+                  <p className="ox-credit-eyebrow">{t('walletTitle')}</p>
+                  <h2>{t('oxsteedCreditSectionTitle')}</h2>
+                </div>
+              </div>
               <section className="ox-credit-balance-card">
                 <div className="ox-credit-balance-top"><span className="ox-credit-wallet-icon"><WalletCards size={23} /></span><div><span>{t('balance')}</span><strong>{money(balanceCents, currency)}</strong></div><span className={`ox-credit-status ${accountStatus === 'active' ? 'active' : ''}`}>{creditStatusLabel(accountStatus, t)}</span></div>
                 <div className="ox-credit-balance-grid"><div><span>{t('availableToSpend')}</span><strong>{money(availableCents, currency)}</strong></div><div><span>{t('reserved')}</span><strong>{money(reservedCents, currency)}</strong></div><div><span>{t('currency')}</span><strong>{currency}</strong></div></div>

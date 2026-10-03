@@ -375,6 +375,7 @@ function verifyCreditTranslationSurface() {
   const creditKeys = new Set(flattenKeys(readJson('src/i18n/locales/en/credit.json')));
   const pages = [
     'src/pages/food/OxsteedCreditPage.jsx',
+    'src/pages/food/WalletRestaurantWallets.jsx',
     'src/pages/food/OxsteedCreditTransactionPage.jsx',
     'src/pages/food/OxsteedCreditPartnerManager.jsx',
     'src/pages/food/RestaurantCreditPage.jsx',

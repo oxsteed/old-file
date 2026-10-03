@@ -31,7 +31,7 @@ const link = (to, labelKey, defaultLabel, Icon, tone = '', activityKey = '', act
 
 const QR_GENERATOR_LINK = link('/qr-generator', 'nav.qrGenerator', 'QR Generator', QrCode, '', '', '', true);
 const QR_PAY_LINK = link('/qr-payments', 'qrPay.quickLink', 'Get paid by QR', QrCode);
-const WALLET_LINK = link('/oxsteed-credit', 'nav.wallet', 'Wallet', WalletCards);
+const WALLET_LINK = link('/wallet', 'nav.wallet', 'Wallet', WalletCards);
 
 export const DASHBOARD_QUICK_LINKS = {
   helper: [

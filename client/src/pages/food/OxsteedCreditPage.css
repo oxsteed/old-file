@@ -96,6 +96,9 @@
 .ox-credit-panel { overflow: hidden; border: 1px solid rgba(16,37,63,.1); border-radius: 23px; background: rgba(255,255,255,.86); box-shadow: 0 16px 50px rgba(44,47,50,.06); }
 .ox-credit-panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 23px 23px 0; }
 .ox-credit-panel-heading .ox-credit-eyebrow { margin-bottom: 5px; }
+/* Standalone section divider for the unified Wallet page (not inside a panel). */
+.ox-credit-section-heading { padding: 8px 4px 0; }
+.ox-credit-section-heading h2 { margin: 0; color: #10253f; font-size: 23px; letter-spacing: -.025em; }
 .ox-credit-panel h2 { margin: 0; color: #10253f; font-size: 23px; letter-spacing: -.025em; }
 .ox-credit-panel-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
 .ox-credit-count { display: grid; place-items: center; min-width: 30px; height: 30px; padding: 0 9px; border-radius: 999px; color: #a6530c; background: #fff0dd; font-size: 12px; font-weight: 850; }
