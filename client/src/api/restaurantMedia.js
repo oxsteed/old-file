@@ -5,6 +5,17 @@
 // DELETE .../:mediaId, POST .../:mediaId/flags.
 
 import api from './axios';
+import { uploadMediaWithProgress, UPLOAD_ENDPOINTS } from '../utils/restaurantMediaUpload';
+
+const API_BASE = api.defaults?.baseURL || '/api';
+
+// Same token lookup the axios interceptor uses, so raw-XHR uploads stay
+// authenticated (impersonation sessions included).
+const uploadAuthHeaders = () => {
+  if (typeof sessionStorage === 'undefined' || typeof localStorage === 'undefined') return {};
+  const token = sessionStorage.getItem('oxs:impersonation_token') || localStorage.getItem('accessToken');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
 // Extract the machine error code from an axios failure so the UI can map
 // it to localized copy. Looks at body.code, body.error.code, and
@@ -48,3 +59,40 @@ export const deleteRestaurantMedia = (restaurantId, mediaId) =>
 
 export const flagRestaurantMedia = (restaurantId, mediaId, { reason, note }) =>
   api.post(`/restaurants/${restaurantId}/media/${mediaId}/flags`, { reason, note }).then((r) => r.data);
+
+// Device uploads. kind: 'photo' | 'video'.
+// Server contract: POST /restaurants/:id/media/photo-uploads (201, ready)
+// or /video-uploads (202, quarantine) with multipart fields:
+//   file, caption, dishIds (JSON array).
+// Uses raw XMLHttpRequest because fetch cannot report upload progress;
+// onProgress receives a 0..1 fraction. Resolves { status, outcome, item }.
+export const uploadRestaurantMediaFile = (restaurantId, { kind, file, caption, dishIds }, { onProgress } = {}) => {
+  const form = new FormData();
+  form.append('file', file, file?.name);
+  if (caption) form.append('caption', caption);
+  form.append('dishIds', JSON.stringify(Array.isArray(dishIds) ? dishIds : []));
+  const endpoint = UPLOAD_ENDPOINTS[kind] || UPLOAD_ENDPOINTS.photo;
+  return uploadMediaWithProgress({
+    url: `${API_BASE}/restaurants/${restaurantId}/media/${endpoint}`,
+    formData: form,
+    headers: uploadAuthHeaders(),
+    onProgress,
+  });
+};
+
+export const retryRestaurantMediaUpload = (restaurantId, mediaId) =>
+  api.post(`/restaurants/${restaurantId}/media/${mediaId}/retry`).then((r) => r.data);
+
+// GET /restaurants/:id/media/mine: the signed-in user's own uploads,
+// including non-ready ones (processing/failed). The endpoint is a
+// recommended server follow-up and may not exist yet, so a failure
+// degrades silently to null instead of throwing.
+export const getMyRestaurantMedia = async (restaurantId) => {
+  try {
+    const r = await api.get(`/restaurants/${restaurantId}/media/mine`);
+    const items = r.data?.items ?? r.data?.media ?? r.data;
+    return Array.isArray(items) ? items : [];
+  } catch {
+    return null;
+  }
+};

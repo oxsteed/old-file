@@ -18861,6 +18861,33 @@
           "posting": "Posting...",
           "posted": "Your video was posted."
         },
+        "upload": {
+          "tabs": {
+            "link": "Link",
+            "photo": "Photo",
+            "video": "Video"
+          },
+          "photoLabel": "Choose a photo",
+          "videoLabel": "Choose a video",
+          "chooseFile": "Choose file",
+          "changeFile": "Change file",
+          "photoHint": "JPG, PNG, WebP or GIF, up to 10 MB.",
+          "videoHint": "MP4, WebM or MOV, up to 200 MB.",
+          "fileTooLarge": "That file is too large. Photos up to 10 MB, videos up to 200 MB.",
+          "fileTypeNotAllowed": "That file type is not supported.",
+          "uploadFailed": "Upload failed. Please try again.",
+          "uploading": "Uploading...",
+          "submitFile": "Upload",
+          "postedPhoto": "Your photo was posted.",
+          "viewPhoto": "View photo",
+          "processingNotice": {
+            "title": "Video processing",
+            "body": "Your video is being checked and prepared. It will appear here soon.",
+            "failedHint": "If processing fails, you can re-upload the video.",
+            "refresh": "Check now",
+            "dismiss": "Dismiss"
+          }
+        },
         "errors": {
           "unknown": "Something went wrong. Please try again.",
           "network": "No internet connection. Please try again.",

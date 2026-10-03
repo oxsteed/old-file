@@ -23,8 +23,16 @@ import {
   MEDIA_FLAG_REASONS,
 } from '../../../utils/restaurantMedia';
 import {
+  isPhotoUpload,
+  isVideoUpload,
+  uploadedMediaUrl,
+} from '../../../utils/restaurantMediaUpload';
+import RestaurantMediaUploadModal from './RestaurantMediaUploadModal';
+import {
   listRestaurantMedia,
   postRestaurantMedia,
+  uploadRestaurantMediaFile,
+  getMyRestaurantMedia,
   toggleRestaurantMediaLike,
   deleteRestaurantMedia,
   flagRestaurantMedia,
@@ -33,7 +41,6 @@ import {
 import { formatFoodMoney } from '../../../api/food';
 
 const PAGE_SIZE = 10;
-const CAPTION_MAX = 280;
 const FEED_HEIGHT = 'min(74vh, 780px)';
 
 const errText = (t, code) =>
@@ -85,6 +92,47 @@ function DishBar({ dishes, onDishTap, t }) {
   );
 }
 
+// ── Uploaded video view (media_type 'video_upload') ─────────────────────────
+// Ready uploads play muted + looping with the same in-view behavior as the
+// link embeds: the active view plays, offscreen views stay paused. The
+// source is the 720p-preferred rendition URL.
+function UploadVideoView({ media, isActive }) {
+  const ref = useRef(null);
+  const src = uploadedMediaUrl(media);
+  const poster = media.thumbnail_url || undefined;
+
+  useEffect(() => {
+    const el = ref.current;
+    if (el) el.muted = true;
+  }, []);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !src) return;
+    if (isActive) {
+      el.play().catch(() => {});
+    } else {
+      el.pause();
+    }
+  }, [isActive, src]);
+
+  if (!src) {
+    return <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg,#1e293b 0%,#0f172a 60%,#312e81 100%)' }} />;
+  }
+  return (
+    <video
+      ref={ref}
+      src={src}
+      poster={poster}
+      muted
+      loop
+      playsInline
+      preload="metadata"
+      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', background: '#0b0f16' }}
+    />
+  );
+}
+
 // ── One feed view ────────────────────────────────────────────────────────────
 function MediaView({
   media, isActive, onActivate, signedIn, canDelete, confirmDelete,
@@ -95,6 +143,9 @@ function MediaView({
   const posterImg = toPosterImageUrl(media.video_url, media.provider);
   const posterName = media.poster?.name || t('food.restaurant.media.guestPoster');
   const created = media.created_at ? new Date(media.created_at).toLocaleDateString(i18n.resolvedLanguage) : '';
+  const photoUpload = isPhotoUpload(media);
+  const videoUpload = isVideoUpload(media);
+  const uploadSrc = photoUpload || videoUpload ? uploadedMediaUrl(media) : null;
 
   return (
     <div
@@ -104,7 +155,19 @@ function MediaView({
         background: '#0b0f16', flexShrink: 0, overflow: 'hidden',
       }}
     >
-      {isActive && playUrl ? (
+      {photoUpload ? (
+        uploadSrc ? (
+          <img
+            src={uploadSrc}
+            alt={media.caption || posterName}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
+        ) : (
+          <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg,#1e293b 0%,#0f172a 60%,#312e81 100%)' }} />
+        )
+      ) : videoUpload ? (
+        <UploadVideoView media={media} isActive={isActive} />
+      ) : isActive && playUrl ? (
         <iframe
           src={playUrl}
           title={media.caption || posterName}
@@ -261,139 +324,6 @@ function MediaView({
   );
 }
 
-// ── Post-video modal ─────────────────────────────────────────────────────────
-function PostModal({ liveDishes, onClose, onPosted, t }) {
-  const [url, setUrl] = useState('');
-  const [caption, setCaption] = useState('');
-  const [selected, setSelected] = useState([]);
-  const [posting, setPosting] = useState(false);
-
-  const detected = useMemo(() => detectVideoProvider(url), [url]);
-  const urlTouched = url.trim().length > 0;
-  const urlValid = Boolean(detected);
-  const captionCount = caption.length;
-
-  const toggleDish = (id) => {
-    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  };
-
-  const submit = async () => {
-    if (!urlValid || posting) return;
-    setPosting(true);
-    try {
-      const created = await onPosted({
-        video_url: url.trim(),
-        caption: caption.trim().slice(0, CAPTION_MAX),
-        dish_ids: selected,
-      });
-      return created;
-    } finally {
-      setPosting(false);
-    }
-  };
-
-  return (
-    <div
-      role="dialog" aria-modal="true" aria-label={t('food.restaurant.media.postModal.title')}
-      style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
-      onClick={onClose}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: 'var(--color-surface, #fff)', width: '100%', maxWidth: 560, maxHeight: '92vh',
-          overflowY: 'auto', borderRadius: '18px 18px 0 0', padding: 20,
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--color-text, #0f172a)' }}>
-            {t('food.restaurant.media.postModal.title')}
-          </h3>
-          <button onClick={onClose} aria-label={t('food.restaurant.media.cancel')}
-            style={{ width: 32, height: 32, borderRadius: '50%', border: 'none', background: 'var(--color-surface-2, #f1f5f9)', fontSize: 18, cursor: 'pointer', color: 'var(--color-text-muted, #64748b)' }}>×</button>
-        </div>
-
-        <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--color-text, #0f172a)', marginBottom: 6 }}>
-          {t('food.restaurant.media.postModal.urlLabel')}
-        </label>
-        <input
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder={t('food.restaurant.media.postModal.urlPlaceholder')}
-          inputMode="url"
-          dir="ltr"
-          style={{
-            width: '100%', padding: '11px 12px', borderRadius: 10, fontSize: 14,
-            border: `1.5px solid ${urlTouched ? (urlValid ? '#16a34a' : '#dc2626') : 'var(--color-border, #e2e8f0)'}`,
-            background: 'var(--color-surface, #fff)', color: 'var(--color-text, #0f172a)',
-          }}
-        />
-        <p style={{ fontSize: 12, marginTop: 6, minHeight: 18, color: urlTouched ? (urlValid ? '#16a34a' : '#dc2626') : 'var(--color-text-muted, #64748b)' }}>
-          {urlTouched
-            ? (urlValid
-              ? t(`food.restaurant.media.postModal.urlDetect.${detected}`)
-              : t('food.restaurant.media.postModal.urlDetect.invalid'))
-            : t('food.restaurant.media.postModal.urlHint')}
-        </p>
-
-        <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--color-text, #0f172a)', margin: '10px 0 6px' }}>
-          {t('food.restaurant.media.postModal.captionLabel')}
-        </label>
-        <textarea
-          value={caption}
-          onChange={(e) => setCaption(e.target.value.slice(0, CAPTION_MAX))}
-          rows={3}
-          style={{
-            width: '100%', padding: '11px 12px', borderRadius: 10, fontSize: 14, resize: 'vertical',
-            border: '1.5px solid var(--color-border, #e2e8f0)', background: 'var(--color-surface, #fff)',
-            color: 'var(--color-text, #0f172a)',
-          }}
-        />
-        <p style={{ fontSize: 12, color: 'var(--color-text-muted, #64748b)', textAlign: 'right', marginTop: 4 }}>
-          {t('food.restaurant.media.postModal.captionCount', { count: captionCount, max: CAPTION_MAX })}
-        </p>
-
-        <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text, #0f172a)', margin: '10px 0 6px' }}>
-          {t('food.restaurant.media.postModal.dishesLabel')}
-        </p>
-        {liveDishes.length === 0 ? (
-          <p style={{ fontSize: 13, color: 'var(--color-text-muted, #64748b)' }}>
-            {t('food.restaurant.media.postModal.noDishes')}
-          </p>
-        ) : (
-          <div style={{ maxHeight: 180, overflowY: 'auto', border: '1px solid var(--color-border, #e2e8f0)', borderRadius: 10 }}>
-            {liveDishes.map((d) => {
-              const on = selected.includes(d.id);
-              return (
-                <label key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', fontSize: 14, cursor: 'pointer', borderBottom: '1px solid var(--color-border, #f1f5f9)', color: 'var(--color-text, #0f172a)' }}>
-                  <input type="checkbox" checked={on} onChange={() => toggleDish(d.id)} style={{ width: 17, height: 17, accentColor: '#f97316' }} />
-                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</span>
-                  <span style={{ fontWeight: 700, color: '#f97316', whiteSpace: 'nowrap' }}>{d.priceStr}</span>
-                </label>
-              );
-            })}
-          </div>
-        )}
-
-        <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
-          <button onClick={onClose}
-            style={{ flex: 1, padding: '12px 0', borderRadius: 12, border: '1.5px solid var(--color-border, #e2e8f0)', background: 'none', fontSize: 15, fontWeight: 600, cursor: 'pointer', color: 'var(--color-text, #0f172a)' }}>
-            {t('food.restaurant.media.cancel')}
-          </button>
-          <button onClick={submit} disabled={!urlValid || posting}
-            style={{
-              flex: 2, padding: '12px 0', borderRadius: 12, border: 'none', fontSize: 15, fontWeight: 700,
-              cursor: urlValid && !posting ? 'pointer' : 'not-allowed', background: '#f97316', color: '#fff',
-              opacity: urlValid && !posting ? 1 : 0.55,
-            }}>
-            {posting ? t('food.restaurant.media.postModal.posting') : t('food.restaurant.media.postModal.submit')}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Feed ─────────────────────────────────────────────────────────────────────
 export default function RestaurantMediaFeed({
   restaurantId, user, isAdmin, menuItems = [], onDishTap, onRequireLogin,
@@ -409,6 +339,9 @@ export default function RestaurantMediaFeed({
   const [postOpen, setPostOpen] = useState(false);
   const [flagOpenId, setFlagOpenId] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  // Own uploads still processing (quarantine/processing/failed). The public
+  // list never includes them, so they surface here as dismissible notices.
+  const [processingNotices, setProcessingNotices] = useState([]);
   const containerRef = useRef(null);
   const signedIn = Boolean(user);
 
@@ -436,8 +369,25 @@ export default function RestaurantMediaFeed({
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
+    // Best-effort: surface the signed-in user's own non-ready uploads as
+    // processing notices. The /mine endpoint is a server follow-up and may
+    // not exist yet; getMyRestaurantMedia degrades silently to null.
+    if (signedIn) {
+      getMyRestaurantMedia(restaurantId).then((mine) => {
+        if (cancelled || !Array.isArray(mine) || mine.length === 0) return;
+        const pending = mine
+          .filter((m) => m && m.processing_status && m.processing_status !== 'ready')
+          .map((m) => ({ id: m.id, caption: m.caption || '' }));
+        if (pending.length > 0) {
+          setProcessingNotices((prev) => {
+            const seen = new Set(prev.map((n) => String(n.id)));
+            return [...prev, ...pending.filter((n) => !seen.has(String(n.id)))];
+          });
+        }
+      });
+    }
     return () => { cancelled = true; };
-  }, [restaurantId, t]);
+  }, [restaurantId, t, signedIn]);
 
   const loadMore = useCallback(() => {
     if (loadingMore || !hasMore) return;
@@ -514,7 +464,7 @@ export default function RestaurantMediaFeed({
     }
   }, [signedIn, restaurantId, onRequireLogin, t]);
 
-  const handlePosted = useCallback(async ({ video_url, caption, dish_ids }) => {
+  const handlePostLink = useCallback(async ({ video_url, caption, dish_ids }) => {
     try {
       const created = await postRestaurantMedia(restaurantId, { video_url, caption, dish_ids });
       // The created item may come nested or bare; normalize defensively.
@@ -536,6 +486,51 @@ export default function RestaurantMediaFeed({
       return null;
     }
   }, [restaurantId, t]);
+
+  const refreshFeed = useCallback(async () => {
+    try {
+      const { media, hasMore: more } = await listRestaurantMedia(restaurantId, { page: 1, pageSize: PAGE_SIZE });
+      setItems(media);
+      setHasMore(more);
+      setPage(1);
+    } catch {
+      toast.error(t('food.restaurant.media.errors.loadFailed'));
+    }
+  }, [restaurantId, t]);
+
+  // Device upload (photo/video tabs of the modal). Photos land ready (201)
+  // and prepend to the feed; videos are accepted into quarantine (202) and
+  // never appear in the public list, so the uploader gets a dismissible
+  // processing notice instead. Errors are shown inside the modal.
+  const handleUploadFile = useCallback(async ({ kind, file, caption, dishIds }, onProgress) => {
+    const { status, item } = await uploadRestaurantMediaFile(
+      restaurantId,
+      { kind, file, caption, dishIds },
+      { onProgress },
+    );
+    const normalized = item?.media || item?.item || item;
+    setPostOpen(false);
+    if (status === 202) {
+      setProcessingNotices((prev) => {
+        const id = normalized?.id || `pending-${Date.now()}`;
+        if (prev.some((n) => String(n.id) === String(id))) return prev;
+        return [{ id, caption: caption || '' }, ...prev];
+      });
+      return { status, item: normalized };
+    }
+    if (normalized && normalized.id) {
+      setItems((prev) => [normalized, ...prev]);
+      toast.success(t('food.restaurant.media.upload.postedPhoto'));
+    } else {
+      await refreshFeed();
+      toast.success(t('food.restaurant.media.upload.postedPhoto'));
+    }
+    return { status, item: normalized };
+  }, [restaurantId, t, refreshFeed]);
+
+  const dismissProcessingNotice = useCallback((id) => {
+    setProcessingNotices((prev) => prev.filter((n) => String(n.id) !== String(id)));
+  }, []);
 
   const canDelete = useCallback((m) => {
     if (!signedIn) return false;
@@ -574,6 +569,47 @@ export default function RestaurantMediaFeed({
           </button>
         )}
       </div>
+
+      {processingNotices.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+          {processingNotices.map((notice) => (
+            <div
+              key={notice.id}
+              role="status"
+              style={{
+                display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px',
+                borderRadius: 12, background: 'var(--color-surface-2, #f8fafc)',
+                border: '1px solid var(--color-border, #e2e8f0)',
+              }}
+            >
+              <span style={{ fontSize: 20, lineHeight: 1.2 }} aria-hidden="true">⏳</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-text, #0f172a)', marginBottom: 2 }}>
+                  {t('food.restaurant.media.upload.processingNotice.title')}
+                </p>
+                <p style={{ fontSize: 13, color: 'var(--color-text-muted, #64748b)', lineHeight: 1.45 }}>
+                  {t('food.restaurant.media.upload.processingNotice.body')}
+                  {' '}
+                  {t('food.restaurant.media.upload.processingNotice.failedHint')}
+                </p>
+                <button
+                  onClick={refreshFeed}
+                  style={{ marginTop: 8, padding: '7px 14px', borderRadius: 9999, border: 'none', background: '#f97316', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                >
+                  {t('food.restaurant.media.upload.processingNotice.refresh')}
+                </button>
+              </div>
+              <button
+                onClick={() => dismissProcessingNotice(notice.id)}
+                aria-label={t('food.restaurant.media.upload.processingNotice.dismiss')}
+                style={{ border: 'none', background: 'none', fontSize: 18, cursor: 'pointer', color: 'var(--color-text-muted, #64748b)', padding: 2 }}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {items.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '56px 20px', background: 'var(--color-surface-2, #f8fafc)', borderRadius: 12 }}>
@@ -644,10 +680,11 @@ export default function RestaurantMediaFeed({
       )}
 
       {postOpen && (
-        <PostModal
+        <RestaurantMediaUploadModal
           liveDishes={liveDishes}
           onClose={() => setPostOpen(false)}
-          onPosted={handlePosted}
+          onPostLink={handlePostLink}
+          onUploadFile={handleUploadFile}
           t={t}
         />
       )}

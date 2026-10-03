@@ -18863,6 +18863,33 @@
           "posting": "Publication...",
           "posted": "Votre vidéo a été publiée."
         },
+        "upload": {
+          "tabs": {
+            "link": "Lien",
+            "photo": "Photo",
+            "video": "Vidéo"
+          },
+          "photoLabel": "Choisir une photo",
+          "videoLabel": "Choisir une vidéo",
+          "chooseFile": "Choisir un fichier",
+          "changeFile": "Changer de fichier",
+          "photoHint": "JPG, PNG, WebP ou GIF, jusqu'à 10 Mo.",
+          "videoHint": "MP4, WebM ou MOV, jusqu'à 200 Mo.",
+          "fileTooLarge": "Ce fichier est trop volumineux. Photos jusqu'à 10 Mo, vidéos jusqu'à 200 Mo.",
+          "fileTypeNotAllowed": "Ce type de fichier n'est pas pris en charge.",
+          "uploadFailed": "L'envoi a échoué. Réessayez.",
+          "uploading": "Envoi en cours...",
+          "submitFile": "Envoyer",
+          "postedPhoto": "Votre photo a été publiée.",
+          "viewPhoto": "Voir la photo",
+          "processingNotice": {
+            "title": "Vidéo en cours de traitement",
+            "body": "Votre vidéo est vérifiée et préparée. Elle apparaîtra ici bientôt.",
+            "failedHint": "Si le traitement échoue, vous pouvez renvoyer la vidéo.",
+            "refresh": "Vérifier",
+            "dismiss": "Fermer"
+          }
+        },
         "errors": {
           "unknown": "Une erreur est survenue. Veuillez réessayer.",
           "network": "Pas de connexion internet. Veuillez réessayer.",

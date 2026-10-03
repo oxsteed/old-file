@@ -18863,6 +18863,33 @@
           "posting": "Publicando...",
           "posted": "Tu video fue publicado."
         },
+        "upload": {
+          "tabs": {
+            "link": "Enlace",
+            "photo": "Foto",
+            "video": "Video"
+          },
+          "photoLabel": "Elige una foto",
+          "videoLabel": "Elige un video",
+          "chooseFile": "Elegir archivo",
+          "changeFile": "Cambiar archivo",
+          "photoHint": "JPG, PNG, WebP o GIF, hasta 10 MB.",
+          "videoHint": "MP4, WebM o MOV, hasta 200 MB.",
+          "fileTooLarge": "El archivo es demasiado grande. Fotos hasta 10 MB, videos hasta 200 MB.",
+          "fileTypeNotAllowed": "Ese tipo de archivo no es compatible.",
+          "uploadFailed": "La subida falló. Inténtalo de nuevo.",
+          "uploading": "Subiendo...",
+          "submitFile": "Subir",
+          "postedPhoto": "Tu foto se publicó.",
+          "viewPhoto": "Ver foto",
+          "processingNotice": {
+            "title": "Video en procesamiento",
+            "body": "Tu video se está revisando y preparando. Aparecerá aquí pronto.",
+            "failedHint": "Si el procesamiento falla, puedes volver a subir el video.",
+            "refresh": "Comprobar ahora",
+            "dismiss": "Descartar"
+          }
+        },
         "errors": {
           "unknown": "Algo salió mal. Inténtalo de nuevo.",
           "network": "Sin conexión a internet. Inténtalo de nuevo.",

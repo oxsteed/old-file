@@ -60,6 +60,7 @@
     "test:learn-deep-review": "node --test scripts/learnDeepReviewFixes.test.mjs",
     "test:restaurant-media-embed": "node --test scripts/restaurantMediaEmbed.test.mjs",
     "test:restaurant-media-feed": "node --test scripts/restaurantMediaFeed.test.mjs",
+    "test:restaurant-media-upload": "node --test scripts/restaurantMediaUpload.test.mjs",
     "test:i18n-debt-gates": "node --test scripts/i18nDebtGates.test.mjs",
     "verify:dist-assets": "node scripts/verify-dist-assets.mjs"
   },

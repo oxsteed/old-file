@@ -790,6 +790,18 @@ async function startServer() {
   }
   await listen();
   runtime.markListening();
+  // Restaurant Media video pipeline worker: starts only after the server is
+  // listening (DB pool + runtime dependencies ready). Gated on
+  // VIDEO_WORKER_ENABLED=1; when disabled or ffmpeg is missing the worker
+  // does not run and uploaded videos stay quarantined (never published).
+  try {
+    const { startVideoTranscodeWorker } = require('./services/videoTranscodeWorker');
+    startVideoTranscodeWorker();
+  } catch (err) {
+    logger.warn('Video transcode worker failed to start; uploads stay quarantined', {
+      message: err.message,
+    });
+  }
   logger.info(`OxSteed v2 server running on port ${PORT}`, {
     env: process.env.NODE_ENV || 'development',
     realtimeNamespaces: ['/chat', '/support', '/restaurant-display'],
@@ -810,6 +822,10 @@ async function terminate(signal, exitCode = 0, cause) {
   forceExit.unref();
 
   try {
+    try {
+      const { stopVideoTranscodeWorker } = require('./services/videoTranscodeWorker');
+      stopVideoTranscodeWorker();
+    } catch { /* worker may never have started */ }
     await runtime.shutdown(signal);
     clearTimeout(forceExit);
     process.exit(exitCode);

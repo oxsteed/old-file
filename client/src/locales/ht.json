@@ -18863,6 +18863,33 @@
           "posting": "Ap pibliye...",
           "posted": "Videyo ou a pibliye."
         },
+        "upload": {
+          "tabs": {
+            "link": "Lyen",
+            "photo": "Foto",
+            "video": "Videyo"
+          },
+          "photoLabel": "Chwazi yon foto",
+          "videoLabel": "Chwazi yon videyo",
+          "chooseFile": "Chwazi fichye",
+          "changeFile": "Chanje fichye",
+          "photoHint": "JPG, PNG, WebP oswa GIF, jiska 10 MB.",
+          "videoHint": "MP4, WebM oswa MOV, jiska 200 MB.",
+          "fileTooLarge": "Fichye a twò gwo. Foto jiska 10 MB, videyo jiska 200 MB.",
+          "fileTypeNotAllowed": "Kalite fichye sa a pa sipòte.",
+          "uploadFailed": "Voye a echwe. Eseye ankò.",
+          "uploading": "Ap voye...",
+          "submitFile": "Voye",
+          "postedPhoto": "Foto w la pibliye.",
+          "viewPhoto": "Wè foto a",
+          "processingNotice": {
+            "title": "Videyo a ap trete",
+            "body": "N ap verifye epi prepare videyo w la. L ap parèt isit la byento.",
+            "failedHint": "Si tretman an echwe, ou ka voye videyo a ankò.",
+            "refresh": "Tcheke kounye a",
+            "dismiss": "Fèmen"
+          }
+        },
         "errors": {
           "unknown": "Yon pwoblèm rive. Eseye ankò.",
           "network": "Pa gen koneksyon entènèt. Eseye ankò.",

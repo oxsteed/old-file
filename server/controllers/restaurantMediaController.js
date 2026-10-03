@@ -25,6 +25,12 @@
 const rateLimit = require('express-rate-limit');
 const pool = require('../db');
 const AppError = require('../utils/appError');
+const multer = require('multer');
+const sharp = require('sharp');
+const { fileTypeFromBuffer } = require('file-type');
+const fileScanService = require('../services/fileScanService');
+const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
+const { stripExif } = require('../utils/stripExif');
 
 // ── Rate limiters ────────────────────────────────────────────────────────────
 // Route-local Redis store option, mirroring server/routes/learn.js. Falls back
@@ -206,7 +212,8 @@ exports.listRestaurantMedia = async (req, res, next) => {
 
     const [{ rows: mediaRows }, { rows: countRows }] = await Promise.all([
       pool.query(
-        `SELECT m.id, m.video_url, m.provider, m.external_video_id, m.caption, m.created_at,
+        `SELECT m.id, m.media_type, m.video_url, m.provider, m.external_video_id, m.caption,
+                m.created_at, m.storage_key, m.thumbnail_key, m.processing_status, m.renditions,
                 m.user_id, u.first_name, u.last_name,
                 (SELECT COUNT(*)::int FROM restaurant_media_likes l WHERE l.media_id = m.id) AS like_count,
                 EXISTS (SELECT 1 FROM restaurant_media_likes l2
@@ -219,13 +226,14 @@ exports.listRestaurantMedia = async (req, res, next) => {
            LEFT JOIN users u ON u.id = m.user_id
           WHERE m.restaurant_id = $1
             AND m.status = 'visible'
+            AND m.processing_status = 'ready'
           ORDER BY m.created_at DESC
           LIMIT $3 OFFSET $4`,
         [restaurantId, viewerId, pageSize, offset]
       ),
       pool.query(
         `SELECT COUNT(*)::int AS total FROM restaurant_media
-          WHERE restaurant_id = $1 AND status = 'visible'`,
+          WHERE restaurant_id = $1 AND status = 'visible' AND processing_status = 'ready'`,
         [restaurantId]
       ),
     ]);
@@ -261,21 +269,38 @@ exports.listRestaurantMedia = async (req, res, next) => {
       }
     }
 
-    const items = mediaRows.map((m) => ({
-      id: m.id,
-      video_url: m.video_url,
-      provider: m.provider,
-      external_video_id: m.external_video_id,
-      caption: m.caption,
-      poster: {
-        id: m.user_id,
-        name: `${m.first_name || ''} ${m.last_name || ''}`.trim() || null,
-      },
-      verified_order: !!m.verified_order,
-      like_count: m.like_count,
-      liked_by_me: !!m.liked_by_me,
-      created_at: m.created_at,
-      dishes: dishesByMedia.get(m.id) || [],
+    const items = await Promise.all(mediaRows.map(async (m) => {
+      const item = {
+        id: m.id,
+        media_type: m.media_type,
+        video_url: m.video_url,
+        provider: m.provider,
+        external_video_id: m.external_video_id,
+        caption: m.caption,
+        poster: {
+          id: m.user_id,
+          name: `${m.first_name || ''} ${m.last_name || ''}`.trim() || null,
+        },
+        verified_order: !!m.verified_order,
+        like_count: m.like_count,
+        liked_by_me: !!m.liked_by_me,
+        created_at: m.created_at,
+        dishes: dishesByMedia.get(m.id) || [],
+      };
+      // Upload rows are served only via re-signed URLs; the raw storage keys
+      // never leave the server.
+      if (m.media_type !== 'video_link') {
+        item.processing_status = m.processing_status;
+        item.url = m.storage_key ? await getSignedDownloadUrl(m.storage_key) : null;
+        item.thumbnail_url = m.thumbnail_key ? await getSignedDownloadUrl(m.thumbnail_key) : null;
+        const renditions = Array.isArray(m.renditions) ? m.renditions : [];
+        item.renditions = await Promise.all(renditions.map(async (r) => ({
+          url: await getSignedDownloadUrl(r.storage_key),
+          width: r.width,
+          height: r.height,
+        })));
+      }
+      return item;
     }));
 
     const viewer_can_moderate = await viewerCanModerateRestaurant(viewerId, restaurantId, req);
@@ -288,6 +313,65 @@ exports.listRestaurantMedia = async (req, res, next) => {
       total: countRows[0]?.total ?? 0,
       viewer_can_moderate,
     });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── GET /api/restaurants/:restaurantId/media/mine ────────────────────────────
+// The signed-in user's own uploads at this restaurant, INCLUDING non-ready
+// ones (quarantine / processing / failed), so the poster can see where their
+// video stands. Mounted after router.use(authenticate); never public.
+exports.listMyRestaurantMedia = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) {
+      return next(new AppError('Restaurant not found', 404, 'restaurant_not_found'));
+    }
+    const restaurant = await getPublicRestaurant(restaurantId);
+    if (!restaurant) {
+      return next(new AppError('Restaurant not found', 404, 'restaurant_not_found'));
+    }
+    const userId = req.user?.id;
+    if (!userId) {
+      return next(new AppError('Sign in required', 401, 'auth_required'));
+    }
+
+    const { rows } = await pool.query(
+      `SELECT id, media_type, caption, created_at, storage_key, thumbnail_key,
+              processing_status, processing_error, csam_status, renditions
+         FROM restaurant_media
+        WHERE restaurant_id = $1 AND user_id = $2 AND status = 'visible'
+          AND media_type IN ('photo_upload', 'video_upload')
+        ORDER BY created_at DESC
+        LIMIT 50`,
+      [restaurantId, userId]
+    );
+
+    const items = await Promise.all(rows.map(async (m) => {
+      const item = {
+        id: m.id,
+        media_type: m.media_type,
+        caption: m.caption,
+        created_at: m.created_at,
+        processing_status: m.processing_status,
+        csam_status: m.csam_status,
+        // processing_error is sanitized at write time (no paths); surfaced so
+        // the poster gets an honest failure reason with a retry affordance.
+        processing_error: m.processing_error,
+        url: m.storage_key ? await getSignedDownloadUrl(m.storage_key) : null,
+        thumbnail_url: m.thumbnail_key ? await getSignedDownloadUrl(m.thumbnail_key) : null,
+      };
+      const renditions = Array.isArray(m.renditions) ? m.renditions : [];
+      item.renditions = await Promise.all(renditions.map(async (r) => ({
+        url: await getSignedDownloadUrl(r.storage_key),
+        width: r.width,
+        height: r.height,
+      })));
+      return item;
+    }));
+
+    res.json({ success: true, items });
   } catch (err) {
     next(err);
   }
@@ -306,29 +390,13 @@ exports.postRestaurantMedia = async (req, res, next) => {
       ));
     }
 
-    let caption = null;
-    if (req.body?.caption !== undefined && req.body?.caption !== null) {
-      if (typeof req.body.caption !== 'string') {
-        return next(new AppError('Caption must be a string.', 400, 'media_invalid_caption'));
-      }
-      caption = req.body.caption.trim();
-      if (caption.length > 280) {
-        return next(new AppError(
-          'Caption is too long (max 280 characters).', 400, 'media_caption_too_long'
-        ));
-      }
-      if (!caption) caption = null;
-    }
-
-    let dishIds = req.body?.dish_ids ?? [];
-    if (!Array.isArray(dishIds)) {
-      return next(new AppError('dish_ids must be an array.', 400, 'media_invalid_dish_ids'));
-    }
-    dishIds = [...new Set(dishIds.map(parsePositiveInt).filter(Boolean))];
-    if (dishIds.length > 10) {
-      return next(new AppError(
-        'Too many tagged dishes (max 10).', 400, 'media_too_many_dishes'
-      ));
+    let caption;
+    let dishIds;
+    try {
+      caption = parseMediaCaption(req.body);
+      dishIds = parseMediaDishIds(req.body?.dish_ids);
+    } catch (err) {
+      return next(err);
     }
 
     const restaurantId = parsePositiveInt(req.params.restaurantId);
@@ -341,21 +409,7 @@ exports.postRestaurantMedia = async (req, res, next) => {
     }
 
     // Every tagged dish must belong to this restaurant. Snapshot name/price.
-    let dishRows = [];
-    if (dishIds.length) {
-      const { rows } = await pool.query(
-        `SELECT id, name, price_cents, currency_code
-           FROM food_menu_items
-          WHERE restaurant_id = $1 AND id = ANY($2)`,
-        [restaurantId, dishIds]
-      );
-      dishRows = rows;
-      if (dishRows.length !== dishIds.length) {
-        return next(new AppError(
-          'One or more dishes do not belong to this restaurant.', 400, 'media_dish_not_found'
-        ));
-      }
-    }
+    const dishRows = await resolveMediaDishRows(restaurantId, dishIds);
 
     const client = await pool.connect();
     try {
@@ -367,14 +421,7 @@ exports.postRestaurantMedia = async (req, res, next) => {
          RETURNING id, video_url, provider, external_video_id, caption, created_at`,
         [restaurantId, req.user.id, parsed.url, parsed.provider, parsed.externalVideoId, caption]
       );
-      for (const d of dishRows) {
-        await client.query(
-          `INSERT INTO restaurant_media_items
-             (media_id, menu_item_id, item_name_snapshot, item_price_snapshot_cents, currency_code)
-           VALUES ($1, $2, $3, $4, $5)`,
-          [media.id, d.id, d.name, d.price_cents, d.currency_code]
-        );
-      }
+      await insertMediaDishSnapshots(client, media.id, dishRows);
       await client.query('COMMIT');
       return res.status(201).json({ success: true, media });
     } catch (err) {
@@ -383,6 +430,246 @@ exports.postRestaurantMedia = async (req, res, next) => {
     } finally {
       client.release();
     }
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── Shared caption / dish validation (link posts + photo uploads) ────────────
+
+function parseMediaCaption(body) {
+  if (body?.caption === undefined || body?.caption === null) return null;
+  if (typeof body.caption !== 'string') {
+    throw new AppError('Caption must be a string.', 400, 'media_invalid_caption');
+  }
+  const caption = body.caption.trim();
+  if (caption.length > 280) {
+    throw new AppError(
+      'Caption is too long (max 280 characters).', 400, 'media_caption_too_long'
+    );
+  }
+  return caption || null;
+}
+
+// Multipart photo posts carry dish_ids as a JSON string; JSON link posts carry
+// a real array. allowJsonString gates the string form so the link endpoint
+// keeps its exact historic behavior.
+function parseMediaDishIds(raw, { allowJsonString = false } = {}) {
+  let dishIds = raw ?? [];
+  if (typeof dishIds === 'string') {
+    if (!allowJsonString) {
+      throw new AppError('dish_ids must be an array.', 400, 'media_invalid_dish_ids');
+    }
+    if (!dishIds.trim()) return [];
+    try {
+      dishIds = JSON.parse(dishIds);
+    } catch {
+      throw new AppError('dish_ids must be an array.', 400, 'media_invalid_dish_ids');
+    }
+  }
+  if (!Array.isArray(dishIds)) {
+    throw new AppError('dish_ids must be an array.', 400, 'media_invalid_dish_ids');
+  }
+  dishIds = [...new Set(dishIds.map(parsePositiveInt).filter(Boolean))];
+  if (dishIds.length > 10) {
+    throw new AppError(
+      'Too many tagged dishes (max 10).', 400, 'media_too_many_dishes'
+    );
+  }
+  return dishIds;
+}
+
+// Every tagged dish must belong to this restaurant. Returns the rows with the
+// name/price snapshot columns; throws media_dish_not_found otherwise.
+async function resolveMediaDishRows(restaurantId, dishIds) {
+  if (!dishIds.length) return [];
+  const { rows } = await pool.query(
+    `SELECT id, name, price_cents, currency_code
+       FROM food_menu_items
+      WHERE restaurant_id = $1 AND id = ANY($2)`,
+    [restaurantId, dishIds]
+  );
+  if (rows.length !== dishIds.length) {
+    throw new AppError(
+      'One or more dishes do not belong to this restaurant.', 400, 'media_dish_not_found'
+    );
+  }
+  return rows;
+}
+
+async function insertMediaDishSnapshots(client, mediaId, dishRows) {
+  for (const d of dishRows) {
+    await client.query(
+      `INSERT INTO restaurant_media_items
+         (media_id, menu_item_id, item_name_snapshot, item_price_snapshot_cents, currency_code)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [mediaId, d.id, d.name, d.price_cents, d.currency_code]
+    );
+  }
+}
+
+// ── POST /api/restaurants/:restaurantId/media/photo-uploads ──────────────────
+// Device photo upload. Shares the 10/day mediaSubmitLimiter budget with link
+// posts. Fail-closed pipeline: multer (10MB memory) -> magic bytes
+// (jpeg/png/webp only) -> malware scan (must be clean AND from a real
+// scanner; skipped/unavailable/EICAR results all reject) -> EXIF strip ->
+// 480px thumbnail -> object storage -> one DB transaction. Nothing is stored
+// unless every gate passes.
+
+const PHOTO_MAX_BYTES = 10 * 1024 * 1024;
+const PHOTO_ALLOWED_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const PHOTO_MIME_TO_EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+const PHOTO_STORAGE_FOLDER = 'restaurant-media/photos';
+const PHOTO_THUMBNAIL_WIDTH = 480;
+const PHOTO_THUMBNAIL_QUALITY = 82;
+
+const photoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: PHOTO_MAX_BYTES, files: 1 },
+}).single('file');
+
+function thumbnailPipeline(cleanBuffer, mime) {
+  const pipeline = sharp(cleanBuffer)
+    .resize({ width: PHOTO_THUMBNAIL_WIDTH, withoutEnlargement: true });
+  if (mime === 'image/png') return pipeline.png();
+  if (mime === 'image/webp') return pipeline.webp({ quality: PHOTO_THUMBNAIL_QUALITY });
+  return pipeline.jpeg({ quality: PHOTO_THUMBNAIL_QUALITY });
+}
+
+exports.postRestaurantMediaPhoto = async (req, res, next) => {
+  try {
+    const file = req.file;
+    if (!file || !file.buffer || file.buffer.length === 0) {
+      return next(new AppError('A photo file is required.', 400, 'media_photo_required'));
+    }
+
+    let caption;
+    let dishIds;
+    try {
+      caption = parseMediaCaption(req.body);
+      dishIds = parseMediaDishIds(req.body?.dish_ids, { allowJsonString: true });
+    } catch (err) {
+      return next(err);
+    }
+
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) {
+      return next(new AppError('Restaurant not found', 404, 'restaurant_not_found'));
+    }
+    const restaurant = await getPublicRestaurant(restaurantId);
+    if (!restaurant) {
+      return next(new AppError('Restaurant not found', 404, 'restaurant_not_found'));
+    }
+    const dishRows = await resolveMediaDishRows(restaurantId, dishIds);
+
+    // Magic-bytes gate: the client-declared Content-Type is untrusted.
+    const detected = await fileTypeFromBuffer(file.buffer);
+    const mime = detected && PHOTO_ALLOWED_MIMES.has(detected.mime) ? detected.mime : null;
+    if (!mime) {
+      return next(new AppError(
+        'Only JPEG, PNG, or WebP photos are accepted.', 400, 'media_photo_invalid_type'
+      ));
+    }
+    if (file.mimetype && file.mimetype !== detected.mime) {
+      return next(new AppError(
+        'The photo content does not match its reported type.', 400, 'media_photo_mime_mismatch'
+      ));
+    }
+
+    // Malware gate, fail closed: a clean verdict from a REAL scanner is
+    // required. A skipped/static result or an unreachable scanner rejects the
+    // upload, and nothing is stored.
+    let scan;
+    try {
+      scan = await fileScanService.scanBuffer(file.buffer);
+    } catch {
+      return next(new AppError(
+        'Photo security scanning is temporarily unavailable. Please try again later.',
+        503,
+        'media_scan_unavailable'
+      ));
+    }
+    if (!scan || scan.clean !== true) {
+      return next(new AppError(
+        'The photo was rejected by the security scan.', 400, 'media_scan_rejected'
+      ));
+    }
+    if (scan.skipped || scan.provider === 'static') {
+      return next(new AppError(
+        'Photo security scanning is temporarily unavailable. Please try again later.',
+        503,
+        'media_scan_unavailable'
+      ));
+    }
+
+    // Strip metadata (GPS especially), then build the thumbnail.
+    const cleanBuffer = await stripExif(file.buffer);
+    const { data: thumbBuffer, info: thumbInfo } = await thumbnailPipeline(cleanBuffer, mime)
+      .toBuffer({ resolveWithObject: true });
+
+    // Store original + thumbnail, then insert the row in one transaction. On
+    // any failure after the first write, best-effort delete the orphans.
+    const ext = PHOTO_MIME_TO_EXT[mime];
+    const storedKeys = [];
+    let media;
+    try {
+      const storageKey = await uploadFile(cleanBuffer, PHOTO_STORAGE_FOLDER, `photo.${ext}`, mime);
+      storedKeys.push(storageKey);
+      const thumbnailKey = await uploadFile(thumbBuffer, PHOTO_STORAGE_FOLDER, `thumb.${ext}`, mime);
+      storedKeys.push(thumbnailKey);
+
+      const renditions = JSON.stringify([{
+        storage_key: thumbnailKey,
+        width: thumbInfo.width,
+        height: thumbInfo.height,
+        size_bytes: thumbInfo.size,
+      }]);
+
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        // external_video_id has no meaning for uploads but is NOT NULL from
+        // migration 664; store the empty string (never rendered for uploads).
+        const { rows: [row] } = await client.query(
+          `INSERT INTO restaurant_media
+             (restaurant_id, user_id, media_type, provider, video_url, external_video_id,
+              caption, storage_key, thumbnail_key, processing_status, csam_status, renditions)
+           VALUES ($1, $2, 'photo_upload', 'upload', NULL, '', $3, $4, $5, 'ready', 'not_required', $6)
+           RETURNING id, media_type, provider, caption, storage_key, thumbnail_key,
+                     processing_status, created_at`,
+          [restaurantId, req.user.id, caption, storageKey, thumbnailKey, renditions]
+        );
+        await insertMediaDishSnapshots(client, row.id, dishRows);
+        await client.query('COMMIT');
+        media = row;
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    } catch (err) {
+      await Promise.allSettled(storedKeys.map((k) => deleteFile(k)));
+      throw err;
+    }
+
+    const [url, thumbnailUrl] = await Promise.all([
+      getSignedDownloadUrl(media.storage_key),
+      getSignedDownloadUrl(media.thumbnail_key),
+    ]);
+    return res.status(201).json({
+      success: true,
+      media: {
+        id: media.id,
+        media_type: media.media_type,
+        provider: media.provider,
+        caption: media.caption,
+        url,
+        thumbnail_url: thumbnailUrl,
+        processing_status: media.processing_status,
+        created_at: media.created_at,
+      },
+    });
   } catch (err) {
     next(err);
   }
@@ -636,8 +923,11 @@ module.exports = {
   parseMediaVideoUrl,
   mediaSubmitLimiter,
   mediaFlagLimiter,
+  photoUpload,
   listRestaurantMedia: exports.listRestaurantMedia,
+  listMyRestaurantMedia: exports.listMyRestaurantMedia,
   postRestaurantMedia: exports.postRestaurantMedia,
+  postRestaurantMediaPhoto: exports.postRestaurantMediaPhoto,
   toggleMediaLike: exports.toggleMediaLike,
   deleteRestaurantMedia: exports.deleteRestaurantMedia,
   flagMedia: exports.flagMedia,

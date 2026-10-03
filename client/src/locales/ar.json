@@ -18874,6 +18874,33 @@
           "posting": "جارٍ النشر...",
           "posted": "تم نشر الفيديو."
         },
+        "upload": {
+          "tabs": {
+            "link": "رابط",
+            "photo": "صورة",
+            "video": "فيديو"
+          },
+          "photoLabel": "اختر صورة",
+          "videoLabel": "اختر فيديو",
+          "chooseFile": "اختيار ملف",
+          "changeFile": "تغيير الملف",
+          "photoHint": "JPG أو PNG أو WebP أو GIF، حتى 10 ميجابايت.",
+          "videoHint": "MP4 أو WebM أو MOV، حتى 200 ميجابايت.",
+          "fileTooLarge": "الملف كبير جدًا. الصور حتى 10 ميجابايت، والفيديو حتى 200 ميجابايت.",
+          "fileTypeNotAllowed": "نوع الملف غير مدعوم.",
+          "uploadFailed": "فشل الرفع. حاول مرة أخرى.",
+          "uploading": "جارٍ الرفع...",
+          "submitFile": "رفع",
+          "postedPhoto": "تم نشر صورتك.",
+          "viewPhoto": "عرض الصورة",
+          "processingNotice": {
+            "title": "جارٍ معالجة الفيديو",
+            "body": "يتم فحص الفيديو وتجهيزه. سيظهر هنا قريبًا.",
+            "failedHint": "إذا فشلت المعالجة، يمكنك إعادة رفع الفيديو.",
+            "refresh": "تحقق الآن",
+            "dismiss": "إغلاق"
+          }
+        },
         "errors": {
           "unknown": "حدث خطأ ما. حاول مرة أخرى.",
           "network": "لا يوجد اتصال بالإنترنت. حاول مرة أخرى.",

@@ -54,6 +54,22 @@ router.post('/:restaurantId/kiosk/orders/quote', food.quoteOrder);
 // surface below needs a signed-in user.
 router.get('/:restaurantId/media', optionalAuth, media.listRestaurantMedia);
 
+// Restaurant Media device video uploads (quarantine-first pipeline; the
+// parallel photo workstream mounts nearby on its own anchor).
+const videoMedia = require('../controllers/restaurantMediaVideoController');
+router.post(
+  '/:restaurantId/media/video-uploads',
+  authenticate,
+  videoMedia.videoUploadLimiter,
+  videoMedia.videoUploadHandler,
+  videoMedia.postVideoUpload
+);
+router.post(
+  '/:restaurantId/media/:mediaId/retry',
+  authenticate,
+  videoMedia.retryVideoProcessing
+);
+
 // All routes require a signed-in user; the controller verifies the user belongs
 // to the restaurant (and that nested rows belong to it) on every call.
 router.use(authenticate);
@@ -62,6 +78,8 @@ router.use(authenticate);
 // POST /media is bucketed at 10/day per account; the like toggle rides the
 // general limiter; flags mirror Learn's videoFlagLimiter (30/hour).
 router.post('/:restaurantId/media', media.mediaSubmitLimiter, media.postRestaurantMedia);
+router.post('/:restaurantId/media/photo-uploads', media.mediaSubmitLimiter, media.photoUpload, media.postRestaurantMediaPhoto);
+router.get('/:restaurantId/media/mine', media.listMyRestaurantMedia);
 router.post('/:restaurantId/media/:mediaId/like', generalLimiter, media.toggleMediaLike);
 router.delete('/:restaurantId/media/:mediaId', media.deleteRestaurantMedia);
 router.post('/:restaurantId/media/:mediaId/flags', media.mediaFlagLimiter, media.flagMedia);
