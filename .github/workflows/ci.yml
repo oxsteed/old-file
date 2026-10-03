@@ -70,6 +70,11 @@ jobs:
         working-directory: server
         run: npm ci
 
+      - name: Install FFmpeg for video regression tests
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y ffmpeg
+
       - name: Server regression and security tests
         working-directory: server
         env:
