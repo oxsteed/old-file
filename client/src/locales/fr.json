@@ -5011,7 +5011,25 @@
         "reasonRequired": "Un motif est requis pour continuer.",
         "success": "Terminé. L'action a été enregistrée.",
         "failed": "Échec de l'action : {{error}}"
+      ,
+        "cancelBooking": "Annuler la réservation",
+        "cancelBookingPrompt": "Annuler la réservation « {{service}} » (n° {{id}}) ? Le client et le prestataire seront notifiés. Saisissez le motif puis choisissez OK pour confirmer :",
+        "cancelJob": "Annuler la mission",
+        "cancelJobAlreadyCancelled": "Cette mission a déjà été annulée.",
+        "cancelJobPrompt": "Annuler la mission « {{title}} » (#{{id}}) ? Saisissez le motif puis cliquez sur OK pour confirmer :",
+        "refundFoodOrder": "Rembourser la commande",
+        "refundFoodOrderPrompt": "Rembourser la commande n°{{id}} ({{amount}}) ? Saisissez le motif puis choisissez OK pour confirmer :",
+        "creditAdjustAmountPrompt": "Montant en dollars (nombre négatif pour débiter, ex. -10 pour un débit de 10 $) :",
+        "creditAdjustApplied": "Ajustement de crédit appliqué.",
+        "creditAdjustButton": "Ajuster le crédit",
+        "creditAdjustInvalidAmount": "Saisissez un montant valide différent de zéro.",
+        "creditAdjustPending": "Ajustement proposé. Un deuxième administrateur doit l'approuver avant application.",
+        "creditAdjustPrompt": "Ajuster le portefeuille OxSteed Credit de {{name}} de {{amount}} ? Saisissez le motif et choisissez OK pour confirmer. Les montants inférieurs à 50 $ s'appliquent immédiatement ; 50 $ ou plus exigent l'approbation d'un deuxième administrateur.",
+        "creditAdjustThresholdNote": "Les ajustements de 50 $ ou plus exigent l'approbation d'un deuxième administrateur."
       }
+    ,
+      "recentBookings": "Réservations récentes",
+      "noBookings": "Aucune réservation"
     }
   },
   "adminCreateUser": {

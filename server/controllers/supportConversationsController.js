@@ -559,7 +559,7 @@ async function getCustomer360(req, res) {
       [customerId, customerEmail]
     );
 
-    const [supportConversations, conversationMessages, internalNotes, jobs, payments, marketplaceOrders, foodOrders, attachments, emailHistory, assignmentHistory, creditAccounts, creditTransactions, creditHolds, creditDisputes] = await Promise.all([
+    const [supportConversations, conversationMessages, internalNotes, jobs, bookings, payments, marketplaceOrders, foodOrders, attachments, emailHistory, assignmentHistory, creditAccounts, creditTransactions, creditHolds, creditDisputes] = await Promise.all([
       queryOptional(
         `SELECT sc.id, sc.subject, sc.status, sc.priority, sc.channel, sc.external_thread_id,
                 sc.created_at, sc.updated_at,
@@ -628,6 +628,16 @@ async function getCustomer360(req, res) {
          LIMIT 50`,
         [customerId],
         'jobs'
+      ),
+      queryOptional(
+        `SELECT b.id, b.service_name, b.status, b.requested_date, b.requested_start_time,
+                b.created_at, b.updated_at
+         FROM booking_requests b
+         WHERE b.customer_id = $1
+         ORDER BY b.updated_at DESC, b.created_at DESC
+         LIMIT 50`,
+        [customerId],
+        'bookings'
       ),
       queryOptional(
         `SELECT p.id, p.job_id, p.amount, p.currency, p.status, p.escrow_status,
@@ -863,6 +873,7 @@ async function getCustomer360(req, res) {
         internalNotes,
         conversationMessages,
         jobs,
+        bookings,
         payments,
         orders: { marketplace: marketplaceOrders, food: foodOrders },
         attachments,

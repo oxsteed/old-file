@@ -5011,7 +5011,25 @@
         "reasonRequired": "Se requiere un motivo para continuar.",
         "success": "Listo. La acción quedó registrada.",
         "failed": "La acción falló: {{error}}"
+      ,
+        "cancelBooking": "Cancelar reserva",
+        "cancelBookingPrompt": "¿Cancelar la reserva \"{{service}}\" (n.º {{id}})? Se notificará tanto al cliente como al proveedor. Escriba el motivo y elija Aceptar para confirmar:",
+        "cancelJob": "Cancelar trabajo",
+        "cancelJobAlreadyCancelled": "Este trabajo ya estaba cancelado.",
+        "cancelJobPrompt": "¿Cancelar el trabajo \"{{title}}\" (#{{id}})? Escribe el motivo y elige Aceptar para confirmar:",
+        "refundFoodOrder": "Reembolsar pedido de comida",
+        "refundFoodOrderPrompt": "¿Reembolsar el pedido de comida #{{id}} ({{amount}})? Escribe el motivo y elige Aceptar para confirmar:",
+        "creditAdjustAmountPrompt": "Monto en dólares (usa un número negativo para debitar, p. ej., -10 para un débito de $10):",
+        "creditAdjustApplied": "Ajuste de crédito aplicado.",
+        "creditAdjustButton": "Ajustar crédito",
+        "creditAdjustInvalidAmount": "Ingresa un monto válido distinto de cero.",
+        "creditAdjustPending": "Ajuste propuesto. Un segundo administrador debe aprobarlo antes de que se aplique.",
+        "creditAdjustPrompt": "¿Ajustar la billetera de OxSteed Credit de {{name}} en {{amount}}? Escribe el motivo y elige OK para confirmar. Los montos menores a $50 se aplican de inmediato; $50 o más requieren la aprobación de un segundo administrador.",
+        "creditAdjustThresholdNote": "Los ajustes de $50 o más necesitan la aprobación de un segundo administrador."
       }
+    ,
+      "recentBookings": "Reservas recientes",
+      "noBookings": "Sin reservas"
     }
   },
   "adminCreateUser": {

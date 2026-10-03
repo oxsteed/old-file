@@ -38,7 +38,7 @@ function ResolutionActionButton({ busy, onClick, children }) {
   );
 }
 
-export default function Customer360Panel({ data, loading, lifecycle = [], lifecycleLoading = false, canIssueRefunds = false, onResolutionAction = null }) {
+export default function Customer360Panel({ data, loading, lifecycle = [], lifecycleLoading = false, canIssueRefunds = false, canAdjustCredit = false, onResolutionAction = null }) {
   const { t } = useTranslation();
   const copy = (key, options) => t(`support.customer360.${key}`, options);
   const [resolutionBusy, setResolutionBusy] = useState(null);
@@ -91,6 +91,67 @@ export default function Customer360Panel({ data, loading, lifecycle = [], lifecy
     promptMessage: copy('resolution.refundJobPrompt', { defaultValue: 'Refund the payment for job "{{title}}" (#{{id}}) to the customer? Type the reason and choose OK to confirm:', title: job.title, id: job.id }),
     request: (reason) => api.post(`/admin/jobs/${job.id}/refund`, { reason }),
   });
+
+  const cancelJob = (job) => runResolutionAction({
+    key: `job-cancel-${job.id}`,
+    promptMessage: copy('resolution.cancelJobPrompt', { defaultValue: 'Cancel job "{{title}}" (#{{id}})? Type the reason and choose OK to confirm:', title: job.title, id: job.id }),
+    request: (reason) => api.post(`/admin/jobs/${job.id}/cancel`, { reason }),
+  });
+
+  const cancelBooking = (booking) => runResolutionAction({
+    key: `booking-cancel-${booking.id}`,
+    promptMessage: copy('resolution.cancelBookingPrompt', { defaultValue: 'Cancel booking "{{service}}" (#{{id}})? Both the customer and the provider will be notified. Type the reason and choose OK to confirm:', service: booking.service_name, id: booking.id }),
+    request: (reason) => api.post(`/agent/bookings/${booking.id}/cancel`, { reason }),
+  });
+
+  const refundFoodOrder = (order) => runResolutionAction({
+    key: `foodorder-refund-${order.id}`,
+    promptMessage: copy('resolution.refundFoodOrderPrompt', { defaultValue: 'Refund food order #{{id}} ({{amount}})? Type the reason and choose OK to confirm:', id: order.id, amount: formatMoney(order.total_cents, order.currency_code) }),
+    request: (reason) => api.post(`/agent/food-orders/${order.id}/refund`, { reason }),
+  });
+
+  const adjustCreditAccount = async (account) => {
+    if (resolutionBusy) return;
+    const amountInput = window.prompt(
+      copy('resolution.creditAdjustAmountPrompt', { defaultValue: 'Amount in dollars (use a negative number to debit, e.g. -10 for a $10 debit):' }), '');
+    if (amountInput === null) return;
+    const dollars = Number(String(amountInput).trim());
+    if (!Number.isFinite(dollars) || dollars === 0) {
+      toast.error(copy('resolution.creditAdjustInvalidAmount', { defaultValue: 'Enter a valid non-zero amount.' }));
+      return;
+    }
+    const amountCents = Math.round(dollars * 100);
+    const reason = window.prompt(
+      copy('resolution.creditAdjustPrompt', {
+        defaultValue: "Adjust {{name}}'s OxSteed Credit wallet by {{amount}}? Type the reason and choose OK to confirm. {{thresholdNote}}",
+        name, amount: formatMoney(amountCents, account.currencyCode || 'USD'),
+        thresholdNote: copy('resolution.creditAdjustThresholdNote', { defaultValue: 'Adjustments of $50 or more need approval from a second admin.' }),
+      }), '');
+    if (reason === null) return;
+    if (!reason.trim()) {
+      toast.error(copy('resolution.reasonRequired', { defaultValue: 'A reason is required to proceed.' }));
+      return;
+    }
+    setResolutionBusy(`credit-adjust-${account.id}`);
+    try {
+      const { data } = await api.post('/agent/credit-adjustments', {
+        customerId: profile.id,
+        amountCents,
+        currencyCode: account.currencyCode || 'USD',
+        reason: reason.trim(),
+        idempotencyKey: `agent-ui-${account.id}-${Date.now()}`,
+      });
+      toast.success(data?.adjustment?.status === 'pending'
+        ? copy('resolution.creditAdjustPending', { defaultValue: 'Adjustment proposed. A second admin must approve it before it applies.' })
+        : copy('resolution.creditAdjustApplied', { defaultValue: 'Credit adjustment applied.' }));
+      if (onResolutionAction) await onResolutionAction();
+    } catch (error) {
+      const message = error?.response?.data?.error || error?.message || 'unknown';
+      toast.error(copy('resolution.failed', { defaultValue: 'Action failed: {{error}}', error: message }));
+    } finally {
+      setResolutionBusy(null);
+    }
+  };
 
   if (loading) return <section className="rounded-2xl border border-slate-700 bg-slate-900/80 p-4 text-sm text-slate-400">{copy('loading')}</section>;
   if (!data) return null;
@@ -178,15 +239,41 @@ export default function Customer360Panel({ data, loading, lifecycle = [], lifecy
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="font-semibold text-slate-200">{job.title}</div>
                   {canIssueRefunds && (
-                    <ResolutionActionButton busy={resolutionBusy === `job-refund-${job.id}`} onClick={() => refundJobPayment(job)}>
-                      {copy('resolution.refundJobPayment', { defaultValue: 'Refund payment' })}
-                    </ResolutionActionButton>
+                    <span className="flex items-center gap-1.5">
+                      <ResolutionActionButton busy={resolutionBusy === `job-refund-${job.id}`} onClick={() => refundJobPayment(job)}>
+                        {copy('resolution.refundJobPayment', { defaultValue: 'Refund payment' })}
+                      </ResolutionActionButton>
+                      {job.status !== 'cancelled' && (
+                        <ResolutionActionButton busy={resolutionBusy === `job-cancel-${job.id}`} onClick={() => cancelJob(job)}>
+                          {copy('resolution.cancelJob', { defaultValue: 'Cancel job' })}
+                        </ResolutionActionButton>
+                      )}
+                    </span>
                   )}
                 </div>
                 <div className="mt-1 text-slate-500">{job.status} · {formatWhen(job.updated_at || job.created_at)}</div>
               </div>
             ))}
             {!data.jobs?.length && <p className="text-xs text-slate-500">{copy('noJobs')}</p>}
+          </div>
+        </details>
+        <details className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
+          <summary className="cursor-pointer text-xs font-semibold text-slate-200">{copy('recentBookings')}</summary>
+          <div className="mt-3 space-y-2">
+            {(data.bookings || []).slice(0, 5).map((booking) => (
+              <div key={booking.id} className="rounded-lg bg-slate-900 p-2 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="font-semibold text-slate-200">{booking.service_name}</div>
+                  {canIssueRefunds && ['pending', 'accepted'].includes(booking.status) && (
+                    <ResolutionActionButton busy={resolutionBusy === `booking-cancel-${booking.id}`} onClick={() => cancelBooking(booking)}>
+                      {copy('resolution.cancelBooking', { defaultValue: 'Cancel booking' })}
+                    </ResolutionActionButton>
+                  )}
+                </div>
+                <div className="mt-1 text-slate-500">{booking.status} · {booking.requested_date || formatWhen(booking.created_at)}</div>
+              </div>
+            ))}
+            {!data.bookings?.length && <p className="text-xs text-slate-500">{copy('noBookings')}</p>}
           </div>
         </details>
         <details className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
@@ -213,6 +300,11 @@ export default function Customer360Panel({ data, loading, lifecycle = [], lifecy
                         {copy('resolution.cancelOrder', { defaultValue: 'Cancel order' })}
                       </ResolutionActionButton>
                     </span>
+                  )}
+                  {canIssueRefunds && item.source === 'food_order' && item.status !== 'refunded' && item.payment_status !== 'refunded' && (
+                    <ResolutionActionButton busy={resolutionBusy === `foodorder-refund-${item.id}`} onClick={() => refundFoodOrder(item)}>
+                      {copy('resolution.refundFoodOrder', { defaultValue: 'Refund food order' })}
+                    </ResolutionActionButton>
                   )}
                 </div>
                 <div className="mt-1 text-slate-500">{item.detail} · {formatWhen(item.updated_at || item.created_at)}</div>
@@ -244,6 +336,13 @@ export default function Customer360Panel({ data, loading, lifecycle = [], lifecy
                   <span className="text-slate-500">{copy('reserved')} <strong className="block text-amber-200">{formatMoney(account.reservedCents, account.currencyCode)}</strong></span>
                   <span className="text-slate-500">{copy('spendable')} <strong className="block text-emerald-200">{formatMoney(account.availableCents, account.currencyCode)}</strong></span>
                 </div>
+                {canAdjustCredit && (
+                  <div className="mt-2">
+                    <ResolutionActionButton busy={resolutionBusy === `credit-adjust-${account.id}`} onClick={() => adjustCreditAccount(account)}>
+                      {copy('resolution.creditAdjustButton', { defaultValue: 'Adjust credit' })}
+                    </ResolutionActionButton>
+                  </div>
+                )}
               </div>
             )) : <p className="text-xs text-slate-500">{copy('noCreditAccount')}</p>}
             <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-400">

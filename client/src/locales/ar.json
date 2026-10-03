@@ -5011,7 +5011,25 @@
         "reasonRequired": "يلزم ذكر سبب للمتابعة.",
         "success": "تم. تم تسجيل الإجراء.",
         "failed": "فشل الإجراء: {{error}}"
+      ,
+        "cancelBooking": "إلغاء الحجز",
+        "cancelBookingPrompt": "إلغاء حجز «{{service}}» (رقم {{id}})؟ سيتم إشعار العميل ومقدم الخدمة. اكتب السبب واختر «موافق» للتأكيد:",
+        "cancelJob": "إلغاء المهمة",
+        "cancelJobAlreadyCancelled": "تم إلغاء هذه المهمة مسبقًا.",
+        "cancelJobPrompt": "إلغاء المهمة \"{{title}}\" (#{{id}})؟ اكتب السبب واختر موافق للتأكيد:",
+        "refundFoodOrder": "استرداد طلب الطعام",
+        "refundFoodOrderPrompt": "استرداد مبلغ طلب الطعام رقم {{id}} ({{amount}})؟ اكتب السبب واختر موافق للتأكيد:",
+        "creditAdjustAmountPrompt": "المبلغ بالدولار (استخدم رقمًا سالبًا للخصم، مثل -10 لخصم 10$):",
+        "creditAdjustApplied": "تم تطبيق تعديل الرصيد.",
+        "creditAdjustButton": "تعديل الرصيد",
+        "creditAdjustInvalidAmount": "أدخل مبلغًا صالحًا وغير صفري.",
+        "creditAdjustPending": "تم اقتراح التعديل. يجب أن يوافق عليه مدير ثانٍ قبل تطبيقه.",
+        "creditAdjustPrompt": "تعديل محفظة OxSteed Credit الخاصة بـ {{name}} بمبلغ {{amount}}؟ اكتب السبب واختر OK للتأكيد. المبالغ أقل من 50$ تُطبق فورًا؛ أما 50$ أو أكثر فتحتاج موافقة مدير ثانٍ.",
+        "creditAdjustThresholdNote": "التعديلات التي تبلغ 50$ أو أكثر تحتاج موافقة مدير ثانٍ."
       }
+    ,
+      "recentBookings": "الحجوزات الأخيرة",
+      "noBookings": "لا توجد حجوزات"
     }
   },
   "adminCreateUser": {

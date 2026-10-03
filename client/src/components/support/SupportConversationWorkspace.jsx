@@ -1382,6 +1382,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                       lifecycle={lifecycle}
                       lifecycleLoading={lifecycleLoading}
                       canIssueRefunds={isPlatformAdmin}
+                      canAdjustCredit={isPlatformAdmin}
                       onResolutionAction={() => { if (selectedId) loadCustomer360(selectedId); }}
                     />
                     {selected.review && (

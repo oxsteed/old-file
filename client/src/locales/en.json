@@ -5011,7 +5011,25 @@
         "reasonRequired": "A reason is required to proceed.",
         "success": "Done. The action was recorded.",
         "failed": "Action failed: {{error}}"
+      ,
+        "cancelBooking": "Cancel booking",
+        "cancelBookingPrompt": "Cancel booking \"{{service}}\" (#{{id}})? Both the customer and the provider will be notified. Type the reason and choose OK to confirm:",
+        "cancelJob": "Cancel job",
+        "cancelJobAlreadyCancelled": "This job was already cancelled.",
+        "cancelJobPrompt": "Cancel job \"{{title}}\" (#{{id}})? Type the reason and choose OK to confirm:",
+        "refundFoodOrder": "Refund food order",
+        "refundFoodOrderPrompt": "Refund food order #{{id}} ({{amount}})? Type the reason and choose OK to confirm:",
+        "creditAdjustAmountPrompt": "Amount in dollars (use a negative number to debit, e.g. -10 for a $10 debit):",
+        "creditAdjustApplied": "Credit adjustment applied.",
+        "creditAdjustButton": "Adjust credit",
+        "creditAdjustInvalidAmount": "Enter a valid non-zero amount.",
+        "creditAdjustPending": "Adjustment proposed. A second admin must approve it before it applies.",
+        "creditAdjustPrompt": "Adjust {{name}}'s OxSteed Credit wallet by {{amount}}? Type the reason and choose OK to confirm. Amounts under $50 apply immediately; $50 or more needs a second admin to approve.",
+        "creditAdjustThresholdNote": "Adjustments of $50 or more need approval from a second admin."
       }
+    ,
+      "recentBookings": "Recent bookings",
+      "noBookings": "No bookings"
     }
   },
   "adminCreateUser": {

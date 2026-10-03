@@ -5096,7 +5096,25 @@
         "reasonRequired": "Fòk ou bay yon rezon pou kontinye.",
         "success": "Fèt. Aksyon an anrejistre.",
         "failed": "Aksyon an echwe: {{error}}"
+      ,
+        "cancelBooking": "Anile rezervasyon an",
+        "cancelBookingPrompt": "Anile rezervasyon \"{{service}}\" la (#{{id}})? Y ap avèti kliyan an ak founisè a. Ekri rezon an epi chwazi OK pou konfime:",
+        "cancelJob": "Anile travay la",
+        "cancelJobAlreadyCancelled": "Travay sa a te deja anile.",
+        "cancelJobPrompt": "Anile travay \"{{title}}\" (#{{id}})? Ekri rezon an epi chwazi OK pou konfime:",
+        "refundFoodOrder": "Ranbouse kòmand manje a",
+        "refundFoodOrderPrompt": "Ranbouse kòmand manje #{{id}} ({{amount}})? Ekri rezon an epi chwazi OK pou konfime:",
+        "creditAdjustAmountPrompt": "Kantite an dola (mete yon nimewo negatif pou debite, egzanp -10 pou yon debi $10):",
+        "creditAdjustApplied": "Ajisteman kredi a aplike.",
+        "creditAdjustButton": "Ajiste kredi",
+        "creditAdjustInvalidAmount": "Antre yon kantite ki valid epi ki pa zewo.",
+        "creditAdjustPending": "Ajisteman an pwopoze. Yon dezyèm administratè dwe apwouve li anvan li aplike.",
+        "creditAdjustPrompt": "Ajiste bous OxSteed Credit {{name}} la de {{amount}}? Ekri rezon an epi chwazi OK pou konfime. Kantite anba $50 aplike touswit; $50 oswa plis bezwen yon dezyèm administratè apwouve li.",
+        "creditAdjustThresholdNote": "Ajisteman $50 oswa plis bezwen apwobasyon yon dezyèm administratè."
       }
+    ,
+      "recentBookings": "Rezèvasyon resan yo",
+      "noBookings": "Okenn rezèvasyon"
     }
   },
   "adminCreateUser": {
