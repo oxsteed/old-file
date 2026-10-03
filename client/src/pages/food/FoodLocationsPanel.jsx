@@ -6,7 +6,7 @@ import { suggestLocation } from '../../api/geo';
 import { apiErrorMessage } from './foodShared';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
 
-export default function LocationsPanel({ t, restaurant, onChanged }) {
+export default function LocationsPanel({ t, restaurant, onChanged, bare }) {
   const [locations, setLocations] = useState([]);
   const [form, setForm] = useState({
     name: '', addressCity: '', addressState: '', addressCountry: 'US', latitude: '', longitude: '',
@@ -72,9 +72,13 @@ export default function LocationsPanel({ t, restaurant, onChanged }) {
   };
 
   return (
-    <div style={{ marginTop: '1.5rem' }}>
-      <h3>{t('food.merchant.locationsTitle', 'Locations')}</h3>
-      <p className="fd-card-meta">{t('food.merchant.locationsHint', 'Add additional storefronts under the same brand.')}</p>
+    <div style={bare ? undefined : { marginTop: '1.5rem' }}>
+      {!bare && (
+        <>
+          <h3>{t('food.merchant.locationsTitle', 'Locations')}</h3>
+          <p className="fd-card-meta">{t('food.merchant.locationsHint', 'Add additional storefronts under the same brand.')}</p>
+        </>
+      )}
       {locations.length > 0 && (
         <ul className="fd-setup-steps">
           {locations.map((loc) => (

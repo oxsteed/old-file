@@ -15,7 +15,7 @@ function discountLabel(promo) {
   return '—';
 }
 
-export default function PromotionsPanel({ t, restaurant }) {
+export default function PromotionsPanel({ t, restaurant, bare }) {
   const [promotions, setPromotions] = useState([]);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
@@ -89,11 +89,15 @@ export default function PromotionsPanel({ t, restaurant }) {
   };
 
   return (
-    <div style={{ marginTop: '1.5rem' }}>
-      <h3>{t('food.merchant.promotionsTitle', 'Coupons & promotions')}</h3>
-      <p className="fd-card-meta">
-        {t('food.merchant.promotionsHint', 'Create codes customers enter at checkout on mobile, kiosk, or POS.')}
-      </p>
+    <div style={bare ? undefined : { marginTop: '1.5rem' }}>
+      {!bare && (
+        <>
+          <h3>{t('food.merchant.promotionsTitle', 'Coupons & promotions')}</h3>
+          <p className="fd-card-meta">
+            {t('food.merchant.promotionsHint', 'Create codes customers enter at checkout on mobile, kiosk, or POS.')}
+          </p>
+        </>
+      )}
 
       {promotions.length > 0 && (
         <ul className="fd-setup-steps">

@@ -4,7 +4,7 @@ import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useSt
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList } from 'lucide-react';
+import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag } from 'lucide-react';
 import { subscribeRestaurantDisplay } from '../../api/restaurantDisplaySocket';
 import {
   listMyFoodRestaurants,
@@ -897,6 +897,54 @@ function weekDayLabel(i18n, index) {
     return WEEKDAY_KEYS[index];
   }
 }
+// ── Settings tab primitives ──────────────────────────────────────────────────
+// FdSwitch: accessible toggle switch. Replaces the old label-flipping boolean
+// buttons throughout the settings tab.
+function FdSwitch({ checked, onChange, disabled, label }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={!!checked}
+      aria-label={label}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`fd-switch${checked ? ' fd-switch--on' : ''}`}
+    >
+      <span className="fd-switch-knob" aria-hidden="true" />
+    </button>
+  );
+}
+
+function FdSwitchRow({ label, checked, disabled, onChange }) {
+  return (
+    <div className="fd-settings-switch-row">
+      <span className="fd-settings-switch-label">{label}</span>
+      <FdSwitch checked={checked} disabled={disabled} onChange={onChange} label={label} />
+    </div>
+  );
+}
+
+function SettingsCard({ icon: Icon, title, desc, cardKey, registerRef, wide, bareHead, children }) {
+  return (
+    <section
+      ref={(el) => registerRef(cardKey, el)}
+      className={`fd-settings-card${wide ? ' fd-settings-card--wide' : ''}`}
+    >
+      {!bareHead && (
+        <header className="fd-settings-card-head">
+          <span className="fd-settings-card-icon" aria-hidden="true"><Icon size={18} /></span>
+          <div>
+            <h3 className="fd-settings-card-title">{title}</h3>
+            {desc && <p className="fd-card-meta fd-settings-card-desc">{desc}</p>}
+          </div>
+        </header>
+      )}
+      <div className="fd-settings-card-body">{children}</div>
+    </section>
+  );
+}
+
 function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
   const [saving, setSaving] = useState(false);
   const [prep, setPrep] = useState(restaurant.prep_time_min || 15);
@@ -1034,415 +1082,510 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
     patch({ taxRateBps: Math.round(pct * 100) });
   };
 
+  const cardRefs = useRef({});
+  const registerCard = (key, el) => { cardRefs.current[key] = el; };
+  const scrollToCard = (key) => cardRefs.current[key]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  const openDays = dayHours.filter((day) => !day.closed).length;
+  const taxBpsNum = Number(restaurant.tax_rate_bps);
+  const taxPct = Number.isFinite(taxBpsNum) && taxBpsNum > 0 ? String(taxBpsNum / 100) : null;
+  const colorValue = /^#[0-9a-fA-F]{6}$/.test(brandHex) ? brandHex : '#f97316';
+
+  const copyMondayToAll = () => {
+    setDayHours((current) => {
+      const monday = current[0];
+      return current.map((day, index) => (index === 0 ? day : { ...monday }));
+    });
+  };
+
+  const statusChips = [
+    {
+      key: 'status',
+      target: 'ordering',
+      tone: restaurant.status === 'active' ? 'ok' : restaurant.status === 'paused' ? 'warn' : 'off',
+      label: t(`food.restaurantStatus.${restaurant.status}`, restaurant.status),
+    },
+    {
+      key: 'online',
+      target: 'ordering',
+      tone: restaurant.accepts_online_orders ? 'ok' : 'off',
+      label: restaurant.accepts_online_orders
+        ? t('food.merchant.stChipOnlineOn', 'Online ordering on')
+        : t('food.merchant.stChipOnlineOff', 'Online ordering off'),
+    },
+    {
+      key: 'instore',
+      target: 'ordering',
+      tone: restaurant.accepts_in_store_orders ? 'ok' : 'off',
+      label: restaurant.accepts_in_store_orders
+        ? t('food.merchant.stChipInStoreOn', 'In-store on')
+        : t('food.merchant.stChipInStoreOff', 'In-store off'),
+    },
+    {
+      key: 'hours',
+      target: 'hours',
+      tone: openDays > 0 ? 'ok' : 'warn',
+      label: openDays > 0
+        ? t('food.merchant.stChipHours', 'Hours {{open}} of 7 days', { open: openDays })
+        : t('food.merchant.stChipHoursNone', 'Hours not set'),
+    },
+    {
+      key: 'tax',
+      target: 'money',
+      tone: taxPct ? 'ok' : 'warn',
+      label: taxPct
+        ? t('food.merchant.stChipTaxSet', 'Tax {{rate}}%', { rate: taxPct })
+        : t('food.merchant.stChipTaxUnset', 'Tax not set'),
+    },
+    {
+      key: 'direct',
+      target: 'money',
+      tone: externalPaymentEnabled ? 'ok' : 'off',
+      label: externalPaymentEnabled
+        ? t('food.merchant.stChipDirectOn', 'Direct payment on')
+        : t('food.merchant.stChipDirectOff', 'Direct payment off'),
+    },
+  ];
+
+  const saveHours = () => patch({
+    operatingHours: {
+      weekly: Object.fromEntries(WEEKDAY_KEYS.map((key, index) => {
+        const day = dayHours[index];
+        return day.closed
+          ? [key, { closed: true, open: day.open, close: day.close }]
+          : [key, { open: day.open, close: day.close }];
+      })),
+    },
+  });
+
+  const toggleQualityCheck = () => {
+    const next = !requireQualityCheck;
+    setRequireQualityCheck(next);
+    patch({
+      settings: {
+        ...restaurantSettings,
+        kitchenPrep: { ...kitchenPrepSettings, requireQualityCheck: next, handoffDisplaySeconds: Number(handoffDisplaySeconds) || 0 },
+      },
+    });
+  };
+
+  const saveHandoffDelay = () => patch({
+    settings: {
+      ...restaurantSettings,
+      kitchenPrep: {
+        ...kitchenPrepSettings,
+        requireQualityCheck,
+        handoffDisplaySeconds: Math.max(0, Math.min(120, Number(handoffDisplaySeconds) || 0)),
+      },
+    },
+  });
+
+  const toggleDirectPayment = () => {
+    setExternalPaymentEnabled((current) => !current);
+    patch({
+      settings: {
+        ...restaurantSettings,
+        externalPaymentEnabled: !externalPaymentEnabled,
+        requireExternalPaymentProof,
+        externalPaymentLabel: externalPaymentLabel.trim() || null,
+        externalPaymentHandle: externalPaymentHandle.trim() || null,
+        externalPaymentInstructions: externalPaymentInstructions.trim() || null,
+        externalPaymentReferenceHint: externalPaymentReferenceHint.trim() || null,
+        externalPaymentQrUrl: externalPaymentQrUrl.trim() || null,
+      },
+    });
+  };
+
+  const toggleDirectPaymentProof = () => {
+    setRequireExternalPaymentProof((current) => !current);
+    patch({
+      settings: {
+        ...restaurantSettings,
+        externalPaymentEnabled,
+        requireExternalPaymentProof: !requireExternalPaymentProof,
+        externalPaymentLabel: externalPaymentLabel.trim() || null,
+        externalPaymentHandle: externalPaymentHandle.trim() || null,
+        externalPaymentInstructions: externalPaymentInstructions.trim() || null,
+        externalPaymentReferenceHint: externalPaymentReferenceHint.trim() || null,
+        externalPaymentQrUrl: externalPaymentQrUrl.trim() || null,
+      },
+    });
+  };
+
   return (
-    <div className="fd-section">
+    <div className="fd-section fd-settings">
       <h2>{t('food.merchant.settings')}</h2>
-      <p className="fd-card-meta">
-        {t('food.merchant.statusLabel')}: <strong>{t(`food.restaurantStatus.${restaurant.status}`)}</strong>
-      </p>
-      <div className="fd-row" style={{ marginBottom: '1rem' }}>
-        {restaurant.status !== 'active' && (
-          <button type="button" className="fd-btn" disabled={saving} onClick={() => patch({ status: 'active' })}>
-            {t('food.merchant.goLive')}
+      <div className="fd-settings-strip" role="navigation" aria-label={t('food.merchant.stAtAGlance', 'At a glance')}>
+        {statusChips.map((chip) => (
+          <button key={chip.key} type="button" className="fd-settings-chip" onClick={() => scrollToCard(chip.target)}>
+            <span className={`fd-settings-chip-dot fd-settings-chip-dot--${chip.tone}`} aria-hidden="true" />
+            {chip.label}
           </button>
-        )}
-        {restaurant.status === 'active' && (
-          <button type="button" className="fd-btn fd-btn-secondary" disabled={saving} onClick={() => patch({ status: 'paused' })}>
-            {t('food.merchant.pause')}
-          </button>
-        )}
-        <button
-          type="button"
-          className="fd-btn fd-btn-secondary"
-          disabled={saving}
-          onClick={() => patch({ acceptsOnlineOrders: !restaurant.accepts_online_orders })}
-        >
-          {restaurant.accepts_online_orders ? t('food.merchant.disableOnline') : t('food.merchant.enableOnline')}
-        </button>
-        <button
-          type="button"
-          className="fd-btn fd-btn-secondary"
-          disabled={saving}
-          onClick={() => patch({ acceptsInStoreOrders: !restaurant.accepts_in_store_orders })}
-        >
-          {restaurant.accepts_in_store_orders ? t('food.merchant.disableInStore') : t('food.merchant.enableInStore')}
-        </button>
-      </div>
-      <div className="fd-row" style={{ alignItems: 'flex-end' }}>
-        <div className="fd-field" style={{ maxWidth: 180 }}>
-          <label htmlFor="fd-prep">{t('food.merchant.prepTimeMin')}</label>
-          <input id="fd-prep" type="number" min={0} max={240} value={prep} onChange={(e) => setPrep(e.target.value)} />
-        </div>
-        <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={() => patch({ prepTimeMin: Number(prep) || 15 })}>
-          {t('food.common.save')}
-        </button>
-      </div>
-
-      <div style={{ marginTop: '1.5rem' }}>
-        <h3>{t('food.merchant.kitchenWorkflowTitle', 'Kitchen workflow')}</h3>
-        <p className="fd-card-meta">
-          {t('food.merchant.kitchenWorkflowHint', 'Control the quality-check step and how long handed-off orders remain on the guest queue screen.')}
-        </p>
-        <div className="fd-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            className="fd-btn fd-btn-secondary"
-            disabled={saving}
-            onClick={() => {
-              const next = !requireQualityCheck;
-              setRequireQualityCheck(next);
-              patch({
-                settings: {
-                  ...restaurantSettings,
-                  kitchenPrep: { ...kitchenPrepSettings, requireQualityCheck: next, handoffDisplaySeconds: Number(handoffDisplaySeconds) || 0 },
-                },
-              });
-            }}
-          >
-            {requireQualityCheck
-              ? t('food.merchant.qualityCheckRequired', 'Quality check required')
-              : t('food.merchant.qualityCheckOptional', 'Quality check optional')}
-          </button>
-          <div className="fd-field" style={{ maxWidth: 220 }}>
-            <label htmlFor="fd-handoff-delay">{t('food.merchant.handoffDisplaySeconds', 'Queue removal delay (seconds)')}</label>
-            <input
-              id="fd-handoff-delay"
-              type="number"
-              min={0}
-              max={120}
-              value={handoffDisplaySeconds}
-              onChange={(event) => setHandoffDisplaySeconds(event.target.value)}
-            />
-          </div>
-          <button
-            type="button"
-            className="fd-btn fd-btn-sm"
-            disabled={saving}
-            onClick={() => patch({
-              settings: {
-                ...restaurantSettings,
-                kitchenPrep: {
-                  ...kitchenPrepSettings,
-                  requireQualityCheck,
-                  handoffDisplaySeconds: Math.max(0, Math.min(120, Number(handoffDisplaySeconds) || 0)),
-                },
-              },
-            })}
-          >
-            {t('food.common.save')}
-          </button>
-        </div>
-      </div>
-
-      <h3 style={{ marginTop: '1.5rem' }}>{t('food.merchant.hoursTitle', 'Operating hours')}</h3>
-      <p className="fd-card-meta">
-        {t('food.merchant.hoursPerDayHint', 'Set hours for each day. Toggle a day off when the restaurant is closed.')}
-      </p>
-      <div className="fd-owner-hours-editor">
-        {dayHours.map((day, index) => (
-          <div key={WEEKDAY_KEYS[index]} className="fd-row" style={{ alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-            <span style={{ width: 48 }}>{weekDayLabel(i18n, index)}</span>
-            <div className="fd-field" style={{ maxWidth: 120, margin: 0 }}>
-              <input
-                id={`fd-hours-open-${WEEKDAY_KEYS[index]}`}
-                type="time"
-                aria-label={t('food.merchant.openTime', 'Opens')}
-                value={day.open}
-                disabled={day.closed}
-                onChange={(e) => setDayHours((current) => current.map((entry, i) => (i === index ? { ...entry, open: e.target.value } : entry)))}
-              />
-            </div>
-            <div className="fd-field" style={{ maxWidth: 120, margin: 0 }}>
-              <input
-                id={`fd-hours-close-${WEEKDAY_KEYS[index]}`}
-                type="time"
-                aria-label={t('food.merchant.closeTime', 'Closes')}
-                value={day.close}
-                disabled={day.closed}
-                onChange={(e) => setDayHours((current) => current.map((entry, i) => (i === index ? { ...entry, close: e.target.value } : entry)))}
-              />
-            </div>
-            <label className="fd-menu-manager-toggle">
-              <input
-                type="checkbox"
-                checked={day.closed}
-                onChange={(e) => setDayHours((current) => current.map((entry, i) => (i === index ? { ...entry, closed: e.target.checked } : entry)))}
-              />
-              {t('food.merchant.hoursClosed', 'Closed')}
-            </label>
-          </div>
         ))}
       </div>
-      <div className="fd-row" style={{ marginTop: '0.75rem' }}>
-        <button
-          type="button"
-          className="fd-btn fd-btn-sm"
-          disabled={saving}
-          onClick={() => patch({
-            operatingHours: {
-              weekly: Object.fromEntries(WEEKDAY_KEYS.map((key, index) => {
-                const day = dayHours[index];
-                return day.closed
-                  ? [key, { closed: true, open: day.open, close: day.close }]
-                  : [key, { open: day.open, close: day.close }];
-              })),
-            },
-          })}
+
+      <div className="fd-settings-grid">
+        <SettingsCard
+          icon={ShoppingBag}
+          title={t('food.merchant.stOrderingTitle', 'Ordering')}
+          desc={t('food.merchant.stOrderingDesc', 'Take the restaurant live and control where guests can order.')}
+          cardKey="ordering"
+          registerRef={registerCard}
         >
-          {t('food.merchant.saveHours', 'Save hours')}
-        </button>
-      </div>
-
-      <div className="fd-row" style={{ alignItems: 'flex-end', marginTop: '1rem' }}>
-        <div className="fd-field" style={{ maxWidth: 160 }}>
-          <label htmlFor="fd-brand">{t('food.merchant.brandAccent', 'Brand accent (#RRGGBB)')}</label>
-          <input id="fd-brand" value={brandHex} onChange={(e) => setBrandHex(e.target.value)} placeholder="#FF8800" maxLength={7} />
-        </div>
-        <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={() => patch({ brandAccentHex: brandHex.trim() || null })}>
-          {t('food.common.save')}
-        </button>
-      </div>
-
-      <div className="fd-row" style={{ alignItems: 'flex-end', marginTop: '1rem' }}>
-        <div className="fd-field" style={{ maxWidth: 160 }}>
-          <label htmlFor="fd-tax">{t('food.merchant.taxRate', 'Tax rate (%)')}</label>
-          <input
-            id="fd-tax"
-            type="number"
-            min="0"
-            max="100"
-            step="0.01"
-            inputMode="decimal"
-            value={taxRatePct}
-            onChange={(e) => setTaxRatePct(e.target.value)}
-            placeholder="8.5"
-          />
-        </div>
-        <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={saveTaxRate}>
-          {t('food.common.save')}
-        </button>
-      </div>
-      <p className="fd-card-meta">
-        {t('food.merchant.taxRateHint', 'Sales tax added to customer orders. Leave blank or 0 when tax does not apply.')}
-      </p>
-
-      <div style={{ marginTop: '1.5rem' }}>
-        <h3>{t('food.merchant.guestCheckoutTitle', 'Guest checkout')}</h3>
-        <p className="fd-card-meta">
-          {t('food.merchant.guestCheckoutHint', 'Choose how much information guests must provide before placing an order.')}
-        </p>
-        <div className="fd-row" style={{ flexWrap: 'wrap', gap: '0.75rem', alignItems: 'stretch' }}>
-          <button
-            type="button"
-            className="fd-btn fd-btn-secondary"
-            disabled={saving}
-            onClick={() => patch({
-              settings: {
-                ...restaurantSettings,
-                requireGuestNameForPickup: !requirePickupGuestName,
-              },
-            })}
-          >
-            {requirePickupGuestName
-              ? t('food.merchant.guestCheckoutPickupNameRequired', 'Pickup name required')
-              : t('food.merchant.guestCheckoutPickupNameOptional', 'Pickup name optional')}
-          </button>
-          <button
-            type="button"
-            className="fd-btn fd-btn-secondary"
-            disabled={saving}
-            onClick={() => patch({
-              settings: {
-                ...restaurantSettings,
-                requireContactForUpdates: !requireContactForUpdates,
-              },
-            })}
-          >
-            {requireContactForUpdates
-              ? t('food.merchant.guestCheckoutContactRequired', 'Status updates contact required')
-              : t('food.merchant.guestCheckoutContactOptional', 'Status updates contact optional')}
-          </button>
-        </div>
-        <p className="fd-card-meta" style={{ marginTop: '0.75rem' }}>
-          {requireContactForUpdates
-            ? t('food.merchant.guestCheckoutContactNoteRequired', 'Guests must provide a phone number or email for order updates.')
-            : t('food.merchant.guestCheckoutContactNoteOptional', 'Phone and email stay optional unless you turn on status updates.')}
-        </p>
-      </div>
-
-      <div style={{ marginTop: '1.5rem' }}>
-        <h3>{t('food.merchant.externalPaymentTitle', 'Direct payment')}</h3>
-        <p className="fd-card-meta">
-          {t('food.merchant.externalPaymentHint', 'Share one payment account or QR. Customers attach a receipt or confirmation number when they order.')}
-        </p>
-        <div className="fd-row" style={{ flexWrap: 'wrap', gap: '0.75rem', alignItems: 'stretch', marginBottom: '0.75rem' }}>
-          <button
-            type="button"
-            className="fd-btn fd-btn-secondary"
-            disabled={saving}
-            onClick={() => {
-              setExternalPaymentEnabled((current) => !current);
-              patch({
-                settings: {
-                  ...restaurantSettings,
-                  externalPaymentEnabled: !externalPaymentEnabled,
-                  requireExternalPaymentProof,
-                  externalPaymentLabel: externalPaymentLabel.trim() || null,
-                  externalPaymentHandle: externalPaymentHandle.trim() || null,
-                  externalPaymentInstructions: externalPaymentInstructions.trim() || null,
-                  externalPaymentReferenceHint: externalPaymentReferenceHint.trim() || null,
-                  externalPaymentQrUrl: externalPaymentQrUrl.trim() || null,
-                },
-              });
-            }}
-          >
-            {externalPaymentEnabled
-              ? t('food.merchant.externalPaymentEnabled', 'External payment enabled')
-              : t('food.merchant.externalPaymentDisabled', 'External payment disabled')}
-          </button>
-          {externalPaymentEnabled && (
-            <button
-              type="button"
-              className="fd-btn fd-btn-secondary"
-              disabled={saving}
-              onClick={() => {
-                setRequireExternalPaymentProof((current) => !current);
-                patch({
-                  settings: {
-                    ...restaurantSettings,
-                    externalPaymentEnabled,
-                    requireExternalPaymentProof: !requireExternalPaymentProof,
-                    externalPaymentLabel: externalPaymentLabel.trim() || null,
-                    externalPaymentHandle: externalPaymentHandle.trim() || null,
-                    externalPaymentInstructions: externalPaymentInstructions.trim() || null,
-                    externalPaymentReferenceHint: externalPaymentReferenceHint.trim() || null,
-                    externalPaymentQrUrl: externalPaymentQrUrl.trim() || null,
-                  },
-                });
-              }}
-            >
-              {requireExternalPaymentProof
-                ? t('food.merchant.externalPaymentProofRequired', 'Receipt or confirmation required')
-                : t('food.merchant.externalPaymentProofOptional', 'Proof optional')}
-            </button>
-          )}
-        </div>
-        {externalPaymentEnabled && <div className="fd-direct-payment-settings">
-        {String(restaurant?.oxsteed_pay_url ?? '').trim() && (
-          <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 10, background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: 13, color: '#166534', lineHeight: 1.5 }}>
-            {t('food.merchant.oxsteedPayReplacesQr')}{' '}
-            <a href="/qr-payments" style={{ color: '#15803d', fontWeight: 800 }}>{t('food.merchant.manageQrPayCodes')}</a>
-          </div>
-        )}        <div className="fd-row" style={{ flexWrap: 'wrap' }}>
-          <div className="fd-field" style={{ flex: 1, minWidth: 220 }}>
-            <label htmlFor="fd-ext-label">{t('food.merchant.externalPaymentLabel', 'Payment label')}</label>
-            <input
-              id="fd-ext-label"
-              value={externalPaymentLabel}
-              onChange={(e) => setExternalPaymentLabel(e.target.value)}
-              placeholder="Cash App / payment app"
-              maxLength={120}
-            />
-          </div>
-          <div className="fd-field" style={{ flex: 1, minWidth: 220 }}>
-            <label htmlFor="fd-ext-handle">{t('food.merchant.externalPaymentHandle', 'Handle / account')}</label>
-            <input
-              id="fd-ext-handle"
-              value={externalPaymentHandle}
-              onChange={(e) => setExternalPaymentHandle(e.target.value)}
-              placeholder="$BonPate or @bonpate"
-              maxLength={120}
-            />
-          </div>
-        </div>
-        <div className="fd-row" style={{ flexWrap: 'wrap' }}>
-          <div className="fd-field" style={{ flex: 1, minWidth: 220 }}>
-            <label htmlFor="fd-ext-qr">{t('food.merchant.externalPaymentQr', 'QR code image')}</label>
-            <input
-              id="fd-ext-qr"
-              type="file"
-              accept="image/*"
-              onChange={handleQrUpload}
-              disabled={qrUploading}
-            />
-            <p className="fd-card-meta" style={{ marginTop: 6 }}>
-              {qrUploading ? t('food.common.saving', 'Saving…') : t('food.merchant.externalPaymentQrHint', 'Upload a payment QR image to show customers at checkout.')}
-            </p>
-          </div>
-        </div>
-        {externalPaymentQrUrl && (
-          <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <img
-              src={externalPaymentQrUrl}
-              alt="Restaurant payment QR"
-              style={{ width: 132, height: 132, objectFit: 'cover', borderRadius: 16, border: '1px solid #e2e8f0', background: '#fff' }}
-            />
-            <p className="fd-card-meta" style={{ maxWidth: 380 }}>
-              {t('food.merchant.externalPaymentQrPreview', 'This QR code will show to guests when they choose external payment.')}
-            </p>
-          </div>
-        )}
-        <div className="fd-row" style={{ marginTop: '0.85rem' }}>
-          <button
-            type="button"
-            className="fd-btn fd-btn-sm"
-            disabled={saving}
-            onClick={() => savePaymentSettings()}
-          >
-            {saving ? t('food.common.saving') : t('food.common.save')}
-          </button>
-        </div>
-        <details className="fd-direct-payment-advanced">
-          <summary>{t('food.merchant.externalPaymentAdvanced', 'Advanced instructions')}</summary>
-          <div className="fd-field">
-            <label htmlFor="fd-ext-ref">{t('food.merchant.externalPaymentRef', 'Confirmation number hint')}</label>
-            <input
-              id="fd-ext-ref"
-              value={externalPaymentReferenceHint}
-              onChange={(e) => setExternalPaymentReferenceHint(e.target.value)}
-              placeholder="Confirmation number or sender name"
-              maxLength={255}
-            />
-          </div>
-          <div className="fd-field">
-            <label htmlFor="fd-ext-instructions">{t('food.merchant.externalPaymentInstructions', 'Extra payment instructions')}</label>
-            <textarea
-              id="fd-ext-instructions"
-              rows={3}
-              value={externalPaymentInstructions}
-              onChange={(e) => setExternalPaymentInstructions(e.target.value)}
-              placeholder="Only add details customers need before sending payment."
-              maxLength={2000}
-            />
-          </div>
-          <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={() => savePaymentSettings()}>
-            {saving ? t('food.common.saving') : t('food.common.save')}
-          </button>
-        </details>
-        </div>}
-      </div>
-
-      <div style={{ marginTop: '1.5rem' }}>
-        <h3>{t('food.merchant.settlementTitle', 'Payment settlement records')}</h3>
-        <p className="fd-card-meta">
-          {t(
-            'food.merchant.settlementHint',
-            'Use restaurant credit for launch and keep direct-payment proof in the order record when guests pay outside the platform.'
-          )}
-        </p>
-        <div className="fd-card" style={{ padding: '0.9rem 1rem', borderRadius: 12, background: '#fff', border: '1px solid #e2e8f0' }}>
-          <p className="fd-card-meta" style={{ margin: 0 }}>
-            {t(
-              'food.merchant.settlementNote',
-              'Orders can stay linked to the restaurant record so settlement, receipts, and support history remain visible in the app.'
+          <div className="fd-settings-actions">
+            {restaurant.status !== 'active' ? (
+              <button type="button" className="fd-btn" disabled={saving} onClick={() => patch({ status: 'active' })}>
+                {t('food.merchant.goLive')}
+              </button>
+            ) : (
+              <button type="button" className="fd-btn fd-btn-secondary" disabled={saving} onClick={() => patch({ status: 'paused' })}>
+                {t('food.merchant.pause')}
+              </button>
             )}
+          </div>
+          <FdSwitchRow
+            label={t('food.merchant.stSwitchOnline', 'Online orders')}
+            checked={!!restaurant.accepts_online_orders}
+            disabled={saving}
+            onChange={() => patch({ acceptsOnlineOrders: !restaurant.accepts_online_orders })}
+          />
+          <FdSwitchRow
+            label={t('food.merchant.stSwitchInStore', 'In-store orders')}
+            checked={!!restaurant.accepts_in_store_orders}
+            disabled={saving}
+            onChange={() => patch({ acceptsInStoreOrders: !restaurant.accepts_in_store_orders })}
+          />
+          <div className="fd-settings-field-row">
+            <div className="fd-field">
+              <label htmlFor="fd-prep">{t('food.merchant.prepTimeMin')}</label>
+              <input id="fd-prep" type="number" min={0} max={240} value={prep} onChange={(e) => setPrep(e.target.value)} />
+            </div>
+            <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={() => patch({ prepTimeMin: Number(prep) || 15 })}>
+              {t('food.common.save')}
+            </button>
+          </div>
+        </SettingsCard>
+
+        <SettingsCard
+          icon={ChefHat}
+          title={t('food.merchant.kitchenWorkflowTitle', 'Kitchen workflow')}
+          desc={t('food.merchant.kitchenWorkflowHint', 'Control the quality-check step and how long handed-off orders remain on the guest queue screen.')}
+          cardKey="kitchen"
+          registerRef={registerCard}
+        >
+          <FdSwitchRow
+            label={t('food.merchant.stSwitchQuality', 'Quality check')}
+            checked={requireQualityCheck}
+            disabled={saving}
+            onChange={toggleQualityCheck}
+          />
+          <div className="fd-settings-field-row">
+            <div className="fd-field">
+              <label htmlFor="fd-handoff-delay">{t('food.merchant.handoffDisplaySeconds', 'Queue removal delay (seconds)')}</label>
+              <input
+                id="fd-handoff-delay"
+                type="number"
+                min={0}
+                max={120}
+                value={handoffDisplaySeconds}
+                onChange={(event) => setHandoffDisplaySeconds(event.target.value)}
+              />
+            </div>
+            <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={saveHandoffDelay}>
+              {t('food.common.save')}
+            </button>
+          </div>
+        </SettingsCard>
+
+        <SettingsCard
+          icon={Palette}
+          title={t('food.merchant.stBrandTitle', 'Brand')}
+          desc={t('food.merchant.stBrandDesc', 'Your accent color on the customer page and receipts.')}
+          cardKey="brand"
+          registerRef={registerCard}
+        >
+          <div className="fd-settings-color-row">
+            <input
+              type="color"
+              className="fd-settings-color"
+              value={colorValue}
+              onChange={(e) => setBrandHex(e.target.value)}
+              aria-label={t('food.merchant.stColorPick', 'Pick a color')}
+            />
+            <div className="fd-field">
+              <label htmlFor="fd-brand">{t('food.merchant.brandAccent', 'Brand accent (#RRGGBB)')}</label>
+              <input id="fd-brand" value={brandHex} onChange={(e) => setBrandHex(e.target.value)} placeholder="#FF8800" maxLength={7} />
+            </div>
+            <span className="fd-settings-swatch" style={{ background: colorValue }} title={t('food.merchant.stColorPreview', 'Preview')} aria-hidden="true" />
+          </div>
+          <div className="fd-settings-actions">
+            <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={() => patch({ brandAccentHex: brandHex.trim() || null })}>
+              {t('food.common.save')}
+            </button>
+          </div>
+        </SettingsCard>
+
+        <SettingsCard
+          icon={UserCheck}
+          title={t('food.merchant.guestCheckoutTitle', 'Guest checkout')}
+          desc={t('food.merchant.guestCheckoutHint', 'Choose how much information guests must provide before placing an order.')}
+          cardKey="guest"
+          registerRef={registerCard}
+        >
+          <FdSwitchRow
+            label={t('food.merchant.stSwitchGuestName', 'Pickup name required')}
+            checked={requirePickupGuestName}
+            disabled={saving}
+            onChange={() => patch({ settings: { ...restaurantSettings, requireGuestNameForPickup: !requirePickupGuestName } })}
+          />
+          <FdSwitchRow
+            label={t('food.merchant.stSwitchContact', 'Contact for status updates')}
+            checked={requireContactForUpdates}
+            disabled={saving}
+            onChange={() => patch({ settings: { ...restaurantSettings, requireContactForUpdates: !requireContactForUpdates } })}
+          />
+          <p className="fd-card-meta fd-settings-note-text">
+            {requireContactForUpdates
+              ? t('food.merchant.guestCheckoutContactNoteRequired', 'Guests must provide a phone number or email for order updates.')
+              : t('food.merchant.guestCheckoutContactNoteOptional', 'Phone and email stay optional unless you turn on status updates.')}
           </p>
-        </div>
+        </SettingsCard>
+
+        <SettingsCard
+          icon={Clock}
+          title={t('food.merchant.hoursTitle', 'Operating hours')}
+          desc={t('food.merchant.hoursPerDayHint', 'Set hours for each day. Toggle a day off when the restaurant is closed.')}
+          cardKey="hours"
+          registerRef={registerCard}
+          wide
+        >
+          <div className="fd-settings-hours">
+            {dayHours.map((day, index) => (
+              <div key={WEEKDAY_KEYS[index]} className="fd-settings-hours-row">
+                <span className="fd-settings-hours-day">{weekDayLabel(i18n, index)}</span>
+                <input
+                  id={`fd-hours-open-${WEEKDAY_KEYS[index]}`}
+                  type="time"
+                  className="fd-settings-time"
+                  aria-label={t('food.merchant.openTime', 'Opens')}
+                  value={day.open}
+                  disabled={day.closed}
+                  onChange={(e) => setDayHours((current) => current.map((entry, i) => (i === index ? { ...entry, open: e.target.value } : entry)))}
+                />
+                <input
+                  id={`fd-hours-close-${WEEKDAY_KEYS[index]}`}
+                  type="time"
+                  className="fd-settings-time"
+                  aria-label={t('food.merchant.closeTime', 'Closes')}
+                  value={day.close}
+                  disabled={day.closed}
+                  onChange={(e) => setDayHours((current) => current.map((entry, i) => (i === index ? { ...entry, close: e.target.value } : entry)))}
+                />
+                <label className="fd-settings-closed">
+                  <input
+                    type="checkbox"
+                    checked={day.closed}
+                    onChange={(e) => setDayHours((current) => current.map((entry, i) => (i === index ? { ...entry, closed: e.target.checked } : entry)))}
+                  />
+                  {t('food.merchant.hoursClosed', 'Closed')}
+                </label>
+              </div>
+            ))}
+          </div>
+          <div className="fd-settings-actions">
+            <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={copyMondayToAll}>
+              {t('food.merchant.stCopyMonday', 'Copy Monday to all days')}
+            </button>
+            <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={saveHours}>
+              {t('food.merchant.saveHours', 'Save hours')}
+            </button>
+          </div>
+        </SettingsCard>
+
+        <SettingsCard
+          icon={Wallet}
+          title={t('food.merchant.stMoneyTitle', 'Money')}
+          desc={t('food.merchant.stMoneyDesc', 'Sales tax and direct payment options for checkout.')}
+          cardKey="money"
+          registerRef={registerCard}
+          wide
+        >
+          <div className="fd-settings-field-row">
+            <div className="fd-field">
+              <label htmlFor="fd-tax">{t('food.merchant.taxRate', 'Tax rate (%)')}</label>
+              <input
+                id="fd-tax"
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                inputMode="decimal"
+                value={taxRatePct}
+                onChange={(e) => setTaxRatePct(e.target.value)}
+                placeholder="8.5"
+              />
+            </div>
+            <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={saveTaxRate}>
+              {t('food.common.save')}
+            </button>
+          </div>
+          <p className="fd-card-meta">
+            {t('food.merchant.taxRateHint', 'Sales tax added to customer orders. Leave blank or 0 when tax does not apply.')}
+          </p>
+
+          <h4 className="fd-settings-subhead">{t('food.merchant.externalPaymentTitle', 'Direct payment')}</h4>
+          <p className="fd-card-meta">
+            {t('food.merchant.externalPaymentHint', 'Share one payment account or QR. Customers attach a receipt or confirmation number when they order.')}
+          </p>
+          <FdSwitchRow
+            label={t('food.merchant.stSwitchDirectPay', 'Direct payment')}
+            checked={externalPaymentEnabled}
+            disabled={saving}
+            onChange={toggleDirectPayment}
+          />
+          {externalPaymentEnabled && (
+            <FdSwitchRow
+              label={t('food.merchant.stSwitchProof', 'Require receipt or confirmation')}
+              checked={requireExternalPaymentProof}
+              disabled={saving}
+              onChange={toggleDirectPaymentProof}
+            />
+          )}
+          {externalPaymentEnabled && (
+            <div className="fd-settings-direct">
+              {String(restaurant?.oxsteed_pay_url ?? '').trim() && (
+                <div className="fd-settings-notice">
+                  {t('food.merchant.oxsteedPayReplacesQr')}{' '}
+                  <a href="/qr-payments">{t('food.merchant.manageQrPayCodes')}</a>
+                </div>
+              )}
+              <div className="fd-settings-field-grid">
+                <div className="fd-field">
+                  <label htmlFor="fd-ext-label">{t('food.merchant.externalPaymentLabel', 'Payment label')}</label>
+                  <input
+                    id="fd-ext-label"
+                    value={externalPaymentLabel}
+                    onChange={(e) => setExternalPaymentLabel(e.target.value)}
+                    placeholder="Cash App / payment app"
+                    maxLength={120}
+                  />
+                </div>
+                <div className="fd-field">
+                  <label htmlFor="fd-ext-handle">{t('food.merchant.externalPaymentHandle', 'Handle / account')}</label>
+                  <input
+                    id="fd-ext-handle"
+                    value={externalPaymentHandle}
+                    onChange={(e) => setExternalPaymentHandle(e.target.value)}
+                    placeholder="$BonPate or @bonpate"
+                    maxLength={120}
+                  />
+                </div>
+              </div>
+              <div className="fd-field">
+                <label htmlFor="fd-ext-qr">{t('food.merchant.externalPaymentQr', 'QR code image')}</label>
+                <input
+                  id="fd-ext-qr"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleQrUpload}
+                  disabled={qrUploading}
+                />
+                <p className="fd-card-meta fd-settings-hint">
+                  {qrUploading ? t('food.common.saving', 'Saving…') : t('food.merchant.externalPaymentQrHint', 'Upload a payment QR image to show customers at checkout.')}
+                </p>
+              </div>
+              {externalPaymentQrUrl && (
+                <div className="fd-settings-qr-row">
+                  <img
+                    src={externalPaymentQrUrl}
+                    alt="Restaurant payment QR"
+                    className="fd-settings-qr-preview"
+                  />
+                  <p className="fd-card-meta">
+                    {t('food.merchant.externalPaymentQrPreview', 'This QR code will show to guests when they choose external payment.')}
+                  </p>
+                </div>
+              )}
+              <div className="fd-settings-actions">
+                <button
+                  type="button"
+                  className="fd-btn fd-btn-sm"
+                  disabled={saving}
+                  onClick={() => savePaymentSettings()}
+                >
+                  {saving ? t('food.common.saving') : t('food.common.save')}
+                </button>
+              </div>
+              <details className="fd-settings-advanced">
+                <summary>{t('food.merchant.externalPaymentAdvanced', 'Advanced instructions')}</summary>
+                <div className="fd-field">
+                  <label htmlFor="fd-ext-ref">{t('food.merchant.externalPaymentRef', 'Confirmation number hint')}</label>
+                  <input
+                    id="fd-ext-ref"
+                    value={externalPaymentReferenceHint}
+                    onChange={(e) => setExternalPaymentReferenceHint(e.target.value)}
+                    placeholder="Confirmation number or sender name"
+                    maxLength={255}
+                  />
+                </div>
+                <div className="fd-field">
+                  <label htmlFor="fd-ext-instructions">{t('food.merchant.externalPaymentInstructions', 'Extra payment instructions')}</label>
+                  <textarea
+                    id="fd-ext-instructions"
+                    rows={3}
+                    value={externalPaymentInstructions}
+                    onChange={(e) => setExternalPaymentInstructions(e.target.value)}
+                    placeholder="Only add details customers need before sending payment."
+                    maxLength={2000}
+                  />
+                </div>
+                <div className="fd-settings-actions">
+                  <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={() => savePaymentSettings()}>
+                    {saving ? t('food.common.saving') : t('food.common.save')}
+                  </button>
+                </div>
+              </details>
+            </div>
+          )}
+          <div className="fd-settings-note">
+            <h4 className="fd-settings-subhead fd-settings-subhead--flush">{t('food.merchant.settlementTitle', 'Payment settlement records')}</h4>
+            <p className="fd-card-meta">
+              {t(
+                'food.merchant.settlementHint',
+                'Use restaurant credit for launch and keep direct-payment proof in the order record when guests pay outside the platform.'
+              )}
+            </p>
+            <p className="fd-card-meta">
+              {t(
+                'food.merchant.settlementNote',
+                'Orders can stay linked to the restaurant record so settlement, receipts, and support history remain visible in the app.'
+              )}
+            </p>
+          </div>
+        </SettingsCard>
+
+        <SettingsCard
+          icon={MapPin}
+          title={t('food.merchant.locationsTitle', 'Locations')}
+          desc={t('food.merchant.locationsHint', 'Add additional storefronts under the same brand.')}
+          cardKey="locations"
+          registerRef={registerCard}
+          wide
+        >
+          <LocationsPanel t={t} restaurant={restaurant} onChanged={onSetupChanged} bare />
+        </SettingsCard>
+
+        <SettingsCard
+          icon={Tag}
+          title={t('food.merchant.promotionsTitle', 'Coupons & promotions')}
+          desc={t('food.merchant.promotionsHint', 'Create codes customers enter at checkout on mobile, kiosk, or POS.')}
+          cardKey="promotions"
+          registerRef={registerCard}
+          wide
+        >
+          <PromotionsPanel t={t} restaurant={restaurant} bare />
+        </SettingsCard>
       </div>
-
-      <LocationsPanel t={t} restaurant={restaurant} onChanged={onSetupChanged} />
-
-      <PromotionsPanel t={t} restaurant={restaurant} />
     </div>
   );
 }
