@@ -16,10 +16,8 @@ const presence = require('./realtimePresence');
 // socket-id Maps below are kept for per-process stats only.
 const userRoom = (userId) => `user:${userId}`;
 const agentRoom = (agentId) => `agent:${agentId}`;
-const HEARTBEAT_INTERVAL_MS = 15000;
 
 const CLIENT_MESSAGE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
 // ─────────────────────────────────────────────────────────────────
 // ticket:join authorization query
 // ─────────────────────────────────────────────────────────────────
@@ -58,7 +56,6 @@ class WebSocketService {
     this.ticketSockets = new Map(); // ticketId -> [socketIds]
     this.ticketViewers = new Map(); // ticketId -> Map<socketId, true>
     this.realtimeHealthy = true;
-    this.heartbeatTimer = null;
   }
 
   /**
@@ -74,13 +71,10 @@ class WebSocketService {
   }
 
   startHeartbeat() {
-    if (this.heartbeatTimer) return;
-    this.heartbeatTimer = setInterval(() => {
-      presence.heartbeat().catch((err) => {
-        logger.warn('Presence heartbeat failed', { error: err.message });
-      });
-    }, HEARTBEAT_INTERVAL_MS);
-    if (typeof this.heartbeatTimer.unref === 'function') this.heartbeatTimer.unref();
+    // Delegates to the process-wide presence heartbeat (idempotent): one
+    // timer re-announces every locally-online entity ('agent', 'customer',
+    // 'user') so Redis TTLs survive while this process is healthy.
+    presence.startPresenceHeartbeat();
   }
 
   broadcastTicketViewerPresence(ticketId) {
@@ -623,10 +617,8 @@ class WebSocketService {
   }
 
   shutdown() {
-    if (this.heartbeatTimer) {
-      clearInterval(this.heartbeatTimer);
-      this.heartbeatTimer = null;
-    }
+    // The heartbeat timer is owned by realtimePresence now (idempotent
+    // start); presence.shutdown() stops it.
     this.customerConnections.clear();
     this.agentConnections.clear();
     this.ticketSockets.clear();

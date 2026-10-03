@@ -19,6 +19,7 @@
 const pool = require('../db');
 
 const TTL_MS = 30 * 1000;
+const MAX_CACHE_ENTRIES = 5000;
 const cache = new Map();
 
 function cacheKey(businessId, userId, role) {
@@ -36,6 +37,10 @@ function readCached(key) {
 }
 
 function writeCached(key, value) {
+  // V2-P1-06: size bound — evict oldest-inserted when full.
+  if (!cache.has(key) && cache.size >= MAX_CACHE_ENTRIES) {
+    cache.delete(cache.keys().next().value);
+  }
   cache.set(key, { at: Date.now(), value });
 }
 

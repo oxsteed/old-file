@@ -60,6 +60,7 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const socketService = require('./socketService');
+const { tryAcquireOnce, releaseFence, clearMemoryFences } = require('../utils/processState');
 
 // Plan-defined socket event types. Everything else is rejected.
 const TRACKING_SOCKET_EVENTS = new Set([
@@ -87,13 +88,20 @@ const APPROX_RADIUS_METERS = 500;
 // Customer broadcasts for location_updated: at most 1/minute per delivery.
 const LOCATION_CUSTOMER_THROTTLE_MS = 60 * 1000;
 
-// In-memory idempotency fast path for provider retries / mobile replay.
-// Bounded; the database check below is the cross-process source of truth.
-const IDEMPOTENCY_CACHE_CAP = 5000;
-const recentIdempotencyKeys = new Map(); // key -> timestamp ms
-
-// Last customer location broadcast per delivery, for the 1/minute throttle.
-const lastCustomerLocationEmit = new Map(); // deliveryJobId -> timestamp ms
+// V2-P1-06: idempotency and the customer broadcast throttle are
+// cross-process concerns, so they are fenced through the shared
+// process-state contract (Redis SET NX EX when Redis is configured,
+// bounded in-memory fallback for single-process dev/test).
+//
+// - Publish fence: only the first publisher across ALL processes wins the
+//   slot for (deliveryJobId, idempotencyKey) within the 10-minute burst
+//   window. The delivery_tracking_events row (findDuplicatePublish) stays
+//   the long-term cross-process source of truth.
+// - Customer throttle: at most one customer-visible location_updated per
+//   delivery per minute across ALL processes (previously each process
+//   allowed its own 1/minute).
+const IDEMPOTENCY_FENCE_TTL_SECONDS = 10 * 60;
+const CUSTOMER_THROTTLE_WINDOW_SECONDS = LOCATION_CUSTOMER_THROTTLE_MS / 1000;
 
 function roundApprox(value) {
   const factor = 10 ** APPROX_DECIMALS;
@@ -196,35 +204,18 @@ function buildCustomerData(eventType, payload) {
   }
 }
 
-function pruneMap(map, cap) {
-  if (map.size <= cap) return;
-  const overflow = map.size - cap;
-  const keys = map.keys();
-  for (let i = 0; i < overflow; i += 1) {
-    const next = keys.next();
-    if (next.done) break;
-    map.delete(next.value);
-  }
-}
-
-function idempotencyCacheKey(deliveryJobId, idempotencyKey) {
-  return `${deliveryJobId}:${idempotencyKey}`;
-}
-
-function seenRecently(deliveryJobId, idempotencyKey) {
-  const key = idempotencyCacheKey(deliveryJobId, idempotencyKey);
-  if (!recentIdempotencyKeys.has(key)) return false;
-  // Entries are short-lived burst protection; expire after 10 minutes.
-  if (Date.now() - recentIdempotencyKeys.get(key) > 10 * 60 * 1000) {
-    recentIdempotencyKeys.delete(key);
-    return false;
-  }
-  return true;
-}
-
-function rememberSeen(deliveryJobId, idempotencyKey) {
-  recentIdempotencyKeys.set(idempotencyCacheKey(deliveryJobId, idempotencyKey), Date.now());
-  pruneMap(recentIdempotencyKeys, IDEMPOTENCY_CACHE_CAP);
+/**
+ * Burst fence for provider retries / mobile replay. Returns true when this
+ * event was already claimed by a publisher (this process or another) inside
+ * the fence window — i.e. a duplicate that must be skipped.
+ */
+async function seenRecently(deliveryJobId, idempotencyKey) {
+  const acquired = await tryAcquireOnce(
+    `${deliveryJobId}:${idempotencyKey}`,
+    IDEMPOTENCY_FENCE_TTL_SECONDS,
+    { namespace: 'tracking-publish' }
+  );
+  return !acquired;
 }
 
 /**
@@ -256,16 +247,17 @@ async function findDuplicatePublish({ deliveryJobId, idempotencyKey, provider, p
 }
 
 /**
- * Customer location_updated broadcasts are capped at 1/minute per delivery.
- * Returns true when the customer emit must be skipped this time.
+ * Customer location_updated broadcasts are capped at 1/minute per delivery
+ * across all processes. Returns true when the customer emit must be skipped
+ * this time.
  */
-function customerLocationThrottled(deliveryJobId) {
-  const key = String(deliveryJobId);
-  const last = lastCustomerLocationEmit.get(key) || 0;
-  if (Date.now() - last < LOCATION_CUSTOMER_THROTTLE_MS) return true;
-  lastCustomerLocationEmit.set(key, Date.now());
-  pruneMap(lastCustomerLocationEmit, 10000);
-  return false;
+async function customerLocationThrottled(deliveryJobId) {
+  const allowed = await tryAcquireOnce(
+    String(deliveryJobId),
+    CUSTOMER_THROTTLE_WINDOW_SECONDS,
+    { namespace: 'tracking-customer-throttle' }
+  );
+  return !allowed;
 }
 
 /**
@@ -309,9 +301,16 @@ async function publishTrackingEvent({
   const data = payload && typeof payload === 'object' ? payload : {};
 
   // Idempotency: skip duplicate publishes before any write or broadcast.
+  // The publish fence is claimed here (first publisher wins across
+  // processes); the DB row check below is the long-term source of truth.
+  const publishFenceKey = idempotencyKey ? `${deliveryJobId}:${idempotencyKey}` : null;
+  let publishFenceClaimed = false;
   if (idempotencyKey || (provider && providerEventId)) {
-    if ((idempotencyKey && seenRecently(deliveryJobId, idempotencyKey))
-      || await findDuplicatePublish({ deliveryJobId, idempotencyKey, provider, providerEventId })) {
+    if (idempotencyKey) {
+      publishFenceClaimed = !(await seenRecently(deliveryJobId, idempotencyKey));
+      if (!publishFenceClaimed) return { published: false, duplicate: true };
+    }
+    if (await findDuplicatePublish({ deliveryJobId, idempotencyKey, provider, providerEventId })) {
       return { published: false, duplicate: true };
     }
   }
@@ -323,30 +322,35 @@ async function publishTrackingEvent({
     const storedPayload = idempotencyKey
       ? { ...data, idempotency_key: idempotencyKey }
       : data;
-    const { rows } = await pool.query(
-      `INSERT INTO delivery_tracking_events
-         (delivery_job_id, assignment_id, event_type, actor_user_id,
-          provider, provider_event_id, payload)
-       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
-       RETURNING id, created_at`,
-      [
-        deliveryJobId,
-        assignmentId,
-        dbType,
-        actorUserId,
-        provider,
-        providerEventId,
-        JSON.stringify(storedPayload),
-      ]
-    );
-    eventId = rows[0] ? rows[0].id : null;
-    if (rows[0] && rows[0].created_at) {
-      occurredAt = new Date(rows[0].created_at).toISOString();
+    try {
+      const { rows } = await pool.query(
+        `INSERT INTO delivery_tracking_events
+           (delivery_job_id, assignment_id, event_type, actor_user_id,
+            provider, provider_event_id, payload)
+         VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+         RETURNING id, created_at`,
+        [
+          deliveryJobId,
+          assignmentId,
+          dbType,
+          actorUserId,
+          provider,
+          providerEventId,
+          JSON.stringify(storedPayload),
+        ]
+      );
+      eventId = rows[0] ? rows[0].id : null;
+      if (rows[0] && rows[0].created_at) {
+        occurredAt = new Date(rows[0].created_at).toISOString();
+      }
+    } catch (err) {
+      // The row was never written: release the claimed fence so a retry is
+      // not mistaken for a duplicate.
+      if (publishFenceClaimed && publishFenceKey) {
+        await releaseFence(publishFenceKey, { namespace: 'tracking-publish' });
+      }
+      throw err;
     }
-  }
-
-  if (idempotencyKey) {
-    rememberSeen(deliveryJobId, idempotencyKey);
   }
 
   // Exact operational payload: coordinates, device/tracker IDs, provider,
@@ -373,7 +377,9 @@ async function publishTrackingEvent({
   // Customer-safe projection to delivery participants.
   if (customerVisible) {
     const customerData = buildCustomerData(eventType, data);
-    const throttled = eventType === 'location_updated' && customerLocationThrottled(deliveryJobId);
+    const throttled = eventType === 'location_updated'
+      ? await customerLocationThrottled(deliveryJobId)
+      : false;
     if (customerData && !throttled) {
       const customerPayload = {
         event: `tracking:${eventType}`,
@@ -397,8 +403,9 @@ async function publishTrackingEvent({
 
 // Test/introspection helpers (not part of the public contract).
 function _resetCaches() {
-  recentIdempotencyKeys.clear();
-  lastCustomerLocationEmit.clear();
+  // The idempotency fence and customer throttle now live behind the shared
+  // process-state contract; reset its single-process fallback fences.
+  clearMemoryFences();
 }
 
 module.exports = {

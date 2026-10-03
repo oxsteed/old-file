@@ -1,5 +1,6 @@
 const redis = require('../utils/redis');
 const logger = require('../utils/logger');
+const { createTtlCache } = require('../utils/processState');
 
 // Token revocation service for managing JWT blacklist
 // When a user logs out or changes password, their tokens are revoked
@@ -7,17 +8,20 @@ const logger = require('../utils/logger');
 //
 // Storage:
 // - Redis (if available) for distributed deployments
-// - In-memory Set for single-instance deployments
+// - In-memory TTL-bounded caches for single-instance deployments
 //
 // TTL: matches JWT expiry times (15m for access, 7d for refresh)
 
-const tokenBlacklist = new Set(); // Fallback for non-Redis environments
+// V2-P1-06: the in-memory fallbacks are TTL-bounded via the shared
+// process-state contract so entries expire exactly like their Redis EX
+// counterparts instead of lingering until the size cap evicts them.
+const tokenBlacklist = createTtlCache({ name: 'token-blacklist', ttlMs: 7 * 24 * 60 * 60 * 1000, maxEntries: 20000 });
 // H18 fix: user-level revocation markers for the in-memory branch.
 // revokeAllUserTokens records userId -> revokedAtMs here; isRevoked consults
 // it with the same iat comparison as the Redis branch, so a revoked user's
 // old tokens are rejected while tokens issued after the revocation (fresh
 // login) keep working.
-const userRevocationMarkers = new Map(); // userId -> revokedAtMs
+const userRevocationMarkers = createTtlCache({ name: 'user-revocation-markers', ttlMs: 7 * 24 * 60 * 60 * 1000, maxEntries: 10000 });
 
 function revocationUnavailable(operation, cause) {
   const error = new Error(`Token revocation service unavailable during ${operation}`);
@@ -70,7 +74,7 @@ class TokenRevocationService {
       if (redis) {
         return !!(await redis.get(`revoked:${tokenId}`));
       }
-      return tokenBlacklist.has(tokenId);
+      return tokenBlacklist.get(tokenId) === true;
     } catch (err) {
       logger.error('Failed to check impersonation revocation', { error: err.message });
       throw revocationUnavailable('impersonation check', err);
@@ -93,11 +97,6 @@ class TokenRevocationService {
         // isRevoked's in-memory branch can honor it (previously it stored a
         // marker string that nothing ever read).
         userRevocationMarkers.set(String(userId), Date.now());
-        // Bound the map like the blacklist below.
-        if (userRevocationMarkers.size > 10000) {
-          const oldest = Array.from(userRevocationMarkers.keys()).slice(0, 1000);
-          oldest.forEach((k) => userRevocationMarkers.delete(k));
-        }
         logger.info('Revoked all user tokens (in-memory)', { userId });
       }
     } catch (err) {
@@ -137,7 +136,7 @@ class TokenRevocationService {
         }
         return false;
       } else {
-        if (tokenBlacklist.has(tokenId)) return true;
+        if (tokenBlacklist.get(tokenId) === true) return true;
         // H18: honor user-level revocation in the in-memory branch, mirroring
         // the Redis branch semantics. Tokens issued at or before the
         // revocation moment are rejected; newer tokens (fresh login) pass.
@@ -165,13 +164,9 @@ class TokenRevocationService {
         await redis.set(key, tokenType, 'EX', ttlSeconds);
         logger.debug('Token revoked', { tokenId, tokenType, ttl: ttlSeconds });
       } else {
-        // In-memory fallback
-        tokenBlacklist.add(tokenId);
-        // Optionally clean up old entries (simple implementation)
-        if (tokenBlacklist.size > 10000) {
-          const entriesToRemove = Array.from(tokenBlacklist).slice(0, 1000);
-          entriesToRemove.forEach(entry => tokenBlacklist.delete(entry));
-        }
+        // In-memory fallback: TTL matches the token lifetime so the entry
+        // expires exactly like its Redis EX counterpart.
+        tokenBlacklist.set(tokenId, true, ttlSeconds * 1000);
         logger.debug('Token revoked (in-memory)', { tokenId, tokenType });
       }
     } catch (err) {

@@ -15,6 +15,7 @@ const escapeHtml = require('../utils/escapeHtml');
 const { getPublicSiteUrl, absoluteUrl } = require('../utils/publicSiteUrl');
 const { buildPublicProfileDescription } = require('../utils/seoProfileDescription');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
+const { createTtlCache } = require('../utils/processState');
 
 let cachedTemplate = null;
 const SEO_LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
@@ -58,8 +59,8 @@ const SEO_COPY_KEYS = {
   '/support/escalation': { title: 'support.escalation.pageTitle', description: 'support.escalation.pageDesc' },
   '/status': { title: 'statusPage.metaTitle', description: 'statusPage.metaDescription' },
 };
-const seoLocaleCache = new Map();
-const seoContentLocaleCache = new Map();
+const seoLocaleCache = createTtlCache({ name: 'seo-locale', ttlMs: 60 * 60 * 1000, maxEntries: 32 });
+const seoContentLocaleCache = createTtlCache({ name: 'seo-content-locale', ttlMs: 60 * 60 * 1000, maxEntries: 512 });
 
 function getRequestedLanguage(req) {
   const raw = req?.query?.lang || req?.query?.lng || req?.query?.locale;

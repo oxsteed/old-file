@@ -1,20 +1,22 @@
 const https = require('https');
 const http = require('http');
 const logger = require('./logger');
+const { createTtlCache } = require('./processState');
 
 const BASE_URL = (process.env.LIBRETRANSLATE_URL || '').replace(/\/$/, '');
 const API_KEY  = process.env.LIBRETRANSLATE_API_KEY || '';
 
 // Server-side translation cache: key = `${source}|${target}|${text}`
-// Cleared when it exceeds MAX_CACHE_SIZE to avoid unbounded memory growth.
+// V2-P1-06: TTL-bounded (24h) and size-bounded via the shared process-state
+// contract. Translations are immutable, so a long TTL is safe.
+const TRANSLATION_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_CACHE_SIZE = 20_000;
-const cache = new Map();
+const cache = createTtlCache({ name: 'translate', ttlMs: TRANSLATION_CACHE_TTL_MS, maxEntries: MAX_CACHE_SIZE });
 
 // Cached language list (fetched once per process lifetime)
 let languagesCache = null;
 
 function cacheSet(key, value) {
-  if (cache.size >= MAX_CACHE_SIZE) cache.clear();
   cache.set(key, value);
 }
 

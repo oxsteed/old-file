@@ -18,12 +18,18 @@ const REDIS_PREFIX      = 'csrf:';
 // ── Redis client (optional) ──────────────────────────────────────────────────
 // Shared client from utils/redis.js; null when Redis is not configured.
 const redisClient = require('../utils/redis');
+const { createTtlCache } = require('../utils/processState');
 if (!redisClient) {
   logger.warn('CSRF: Redis unavailable — falling back to in-memory store. Not suitable for multi-instance deployments.');
 }
 
-// In-memory fallback (single-instance only)
-const tokenMap = new Map(); // userId -> { token, expiresAt }
+// In-memory fallback (single-instance only). V2-P1-06: TTL-bounded via the
+// shared process-state contract so entries expire exactly like the Redis EX.
+const tokenMap = createTtlCache({
+  name: 'csrf-fallback',
+  ttlMs: TOKEN_EXPIRY_SECS * 1000,
+  maxEntries: 50000,
+});
 
 // ── Storage helpers ──────────────────────────────────────────────────────────
 
@@ -36,7 +42,7 @@ async function storeToken(userId, token) {
       TOKEN_EXPIRY_SECS
     );
   } else {
-    tokenMap.set(userId, { token, expiresAt: Date.now() + TOKEN_EXPIRY_SECS * 1000 });
+    tokenMap.set(userId, token);
   }
 }
 
@@ -44,10 +50,8 @@ async function fetchToken(userId) {
   if (redisClient) {
     return redisClient.get(`${REDIS_PREFIX}${userId}`);
   }
-  const entry = tokenMap.get(userId);
-  if (!entry) return null;
-  if (Date.now() > entry.expiresAt) { tokenMap.delete(userId); return null; }
-  return entry.token;
+  const token = tokenMap.get(userId);
+  return token === undefined ? null : token;
 }
 
 async function deleteToken(userId) {

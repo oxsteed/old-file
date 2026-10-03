@@ -1,9 +1,18 @@
 // server/services/socketService.js
 // Socket helper + online-presence tracking. Multi-tab presence map.
+//
+// V2-P1-06: onlineMap is per-process socket-handle bookkeeping ONLY
+// (userId -> socketIds for this process's connections). Online/offline
+// ROUTING decisions must not consult it alone: trackConnect/trackDisconnect
+// announce to the shared presence contract (services/realtimePresence,
+// Redis hashes with TTL heartbeat), and isOnline() consults the local map
+// OR the cross-process snapshot. With more than one Node process, a user
+// connected to process B is still reported online by process A.
 
 let io = null;
 const pool = require('../db');
 const logger = require('../utils/logger');
+const presence = require('./realtimePresence');
 
 const onlineMap = new Map();
 
@@ -19,8 +28,21 @@ function init(socketIo) {
 
 function trackConnect(userId, socketId) {
   const uid = String(userId);
-  if (!onlineMap.has(uid)) onlineMap.set(uid, new Set());
-  onlineMap.get(uid).add(socketId);
+  let sockets = onlineMap.get(uid);
+  const firstSocket = !sockets || sockets.size === 0;
+  if (!sockets) {
+    sockets = new Set();
+    onlineMap.set(uid, sockets);
+  }
+  sockets.add(socketId);
+  if (firstSocket) {
+    // Announce once per process; the contract dedups across processes and
+    // self-heals via TTL heartbeat. Fire-and-forget: presence is advisory,
+    // connection tracking itself never fails.
+    presence.markOnline('user', uid).catch((err) => {
+      logger.warn('socketService: presence markOnline failed', { userId: uid, error: err.message });
+    });
+  }
 }
 
 function trackDisconnect(userId, socketId) {
@@ -28,10 +50,22 @@ function trackDisconnect(userId, socketId) {
   const sockets = onlineMap.get(uid);
   if (!sockets) return;
   sockets.delete(socketId);
-  if (sockets.size === 0) onlineMap.delete(uid);
+  if (sockets.size === 0) {
+    onlineMap.delete(uid);
+    presence.markOffline('user', uid).catch((err) => {
+      logger.warn('socketService: presence markOffline failed', { userId: uid, error: err.message });
+    });
+  }
 }
 
-function isOnline(userId) { return onlineMap.has(String(userId)); }
+/**
+ * Cross-process online check: local sockets OR the shared presence
+ * snapshot. Used by helper-availability and admin-assignment routing.
+ */
+function isOnline(userId) {
+  const uid = String(userId);
+  return onlineMap.has(uid) || presence.isOnline('user', uid);
+}
 
 function broadcastToUser(userId, event, data) {
   if (!io) return;

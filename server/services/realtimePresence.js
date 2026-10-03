@@ -51,6 +51,8 @@ const localOnline = new Map();
 // `${kind}:${id}` -> true, last refreshed from Redis.
 let remoteSnapshot = new Map();
 let snapshotTimer = null;
+let presenceHeartbeatTimer = null;
+const PRESENCE_HEARTBEAT_INTERVAL_MS = 15000;
 
 function keyOf(kind, id) {
   return `realtime:presence:${kind}:${String(id)}`;
@@ -148,7 +150,7 @@ async function refreshSnapshot() {
   const redis = getRedis();
   if (!redis) return;
   const next = new Map();
-  for (const kind of ['agent', 'customer']) {
+  for (const kind of ['agent', 'customer', 'user']) {
     let cursor = '0';
     const match = `realtime:presence:${kind}:*`;
     do {
@@ -169,6 +171,10 @@ function shutdown() {
     clearInterval(snapshotTimer);
     snapshotTimer = null;
   }
+  if (presenceHeartbeatTimer) {
+    clearInterval(presenceHeartbeatTimer);
+    presenceHeartbeatTimer = null;
+  }
   // Best-effort withdrawal of this process's registrations; TTL expiry
   // self-heals anything missed (e.g. a crash between here and Redis).
   const redis = getRedis();
@@ -184,6 +190,22 @@ function shutdown() {
 }
 
 // ── Test hooks ─────────────────────────────────────────────────────────────
+/**
+ * Start the process-wide presence heartbeat (idempotent). Re-announces every
+ * locally-online entity so Redis TTLs do not expire while the process is
+ * healthy. Called once from bootstrap/realtime.js; the support websocket
+ * service delegates here instead of owning its own timer.
+ */
+function startPresenceHeartbeat(intervalMs = PRESENCE_HEARTBEAT_INTERVAL_MS) {
+  if (presenceHeartbeatTimer) return;
+  presenceHeartbeatTimer = setInterval(() => {
+    heartbeat().catch((err) => {
+      logger.warn('realtimePresence: heartbeat failed', { error: err.message });
+    });
+  }, intervalMs);
+  if (typeof presenceHeartbeatTimer.unref === 'function') presenceHeartbeatTimer.unref();
+}
+
 function _injectRedis(client) {
   injectedRedis = client;
   remoteSnapshot = new Map();
@@ -209,6 +231,8 @@ module.exports = {
   getOnlineIds,
   refreshSnapshot,
   shutdown,
+  startPresenceHeartbeat,
+  PRESENCE_HEARTBEAT_INTERVAL_MS,
   _injectRedis,
   _clearLocal,
   _resetForTests,

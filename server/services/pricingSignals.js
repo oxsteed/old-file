@@ -18,6 +18,7 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 
 const TTL_MS = 10 * 60 * 1000;
+const MAX_CACHE_ENTRIES = 5000;
 const segmentCache = new Map(); // key: `${userId}|${businessId}` -> { value, exp }
 const demandCache  = new Map(); // key: `${kind}|${businessId}|${targetId}|${dayBucket}` -> { value, exp }
 
@@ -28,6 +29,10 @@ function _cacheGet(map, key) {
   return e.value;
 }
 function _cachePut(map, key, value) {
+  // V2-P1-06: size bound — evict oldest-inserted when full.
+  if (!map.has(key) && map.size >= MAX_CACHE_ENTRIES) {
+    map.delete(map.keys().next().value);
+  }
   map.set(key, { value, exp: Date.now() + TTL_MS });
   return value;
 }

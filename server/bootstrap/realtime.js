@@ -155,6 +155,11 @@ function createRealtimeServer({
     // service fails closed on notify* until the adapter reports healthy.
     const adapterClients = attachSharedAdapter(io, { supportService, log });
 
+    // V2-P1-06: one process-wide presence heartbeat for every locally-online
+    // entity ('agent', 'customer', 'user'). Idempotent; the support service
+    // delegates here too, so there is exactly one timer per process.
+    require('../services/realtimePresence').startPresenceHeartbeat();
+
     const restaurantDisplay = io.of('/restaurant-display');
     bindRestaurantDisplayNamespace(restaurantDisplay);
     socketService.initRestaurantDisplay(restaurantDisplay);
