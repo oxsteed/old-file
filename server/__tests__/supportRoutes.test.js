@@ -720,6 +720,7 @@ describe('support routes', () => {
       .mockResolvedValueOnce({ rows: [{ id: 'message-2', conversation_id: 'conversation-1', is_agent: false, is_ai: false, message_type: 'text', content: 'I still need help with the repair.', sender_name: 'Casey Customer' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'note-1', conversation_id: 'conversation-1', content: 'Prior context', subject: 'Current request', author_name: 'Ava Agent' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'job-1', title: 'Repair', status: 'completed' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'booking-1', service_name: 'Plumbing repair', status: 'confirmed', requested_date: '2026-09-12', requested_start_time: '10:00', created_at: '2026-09-10T09:00:00.000Z', updated_at: '2026-09-10T09:00:00.000Z' }] })
       .mockResolvedValueOnce({ rows: [{ id: 1, job_id: 'job-1', amount: '100.00', status: 'captured' }] })
       .mockResolvedValueOnce({ rows: [{ id: 2, status: 'completed', total_cents: 2500 }] })
       .mockResolvedValueOnce({ rows: [{ id: 3, status: 'ready', total_cents: 1800 }] })
@@ -742,6 +743,7 @@ describe('support routes', () => {
       { id: 'agent-1', name: 'Ava Agent' },
       { id: 'agent-2', name: 'Bri Agent' },
     ]);
+    expect(res.body.data.bookings).toEqual([expect.objectContaining({ id: 'booking-1', status: 'confirmed' })]);
     expect(res.body.data.supportConversations[0].channel).toBe('web_chat');
     expect(res.body.data.assignmentHistory).toEqual([expect.objectContaining({ agent_name: 'Bri Agent', status: 'completed' })]);
     expect(res.body.data.conversationMessages).toEqual([expect.objectContaining({ id: 'message-2', content: 'I still need help with the repair.' })]);
