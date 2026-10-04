@@ -3,7 +3,7 @@
  * (Cmd+K / Ctrl+K). Client-only; the admin tab list is built from the admin
  * navigation contract so labels and grant gates stay in one place.
  */
-import api from './api/axios';
+import api from '../api/axios';
 import { REGULAR_NAV, SUPER_NAV } from '../admin/layouts/AdminLayout';
 
 export const RECENT_STORAGE_KEY = 'oxsteed:cmdk:recent';
