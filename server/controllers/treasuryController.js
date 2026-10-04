@@ -17,6 +17,7 @@
  */
 
 const db = require('../db');
+const crypto = require('crypto');
 const logger = require('../utils/logger');
 const { withDbBudget } = require('../utils/dbBudgets');
 
@@ -24,6 +25,9 @@ const CODE_RE = /^[A-Z0-9][A-Z0-9_-]*$/;
 const CURRENCY_RE = /^[A-Z]{3}$/;
 const COUNTRY_RE = /^[A-Z]{2}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+// Idempotency keys are client-generated (or derived from the source event).
+// Keep them URL-safe, log-safe, and bounded so they index well.
+const IDEMPOTENCY_KEY_RE = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/;
 const ACCOUNT_TYPES = ['asset', 'liability', 'equity', 'revenue', 'expense'];
 
 // PostgreSQL BIGINT values are returned as strings by node-postgres. Keep
@@ -158,6 +162,9 @@ async function createAccount(req, res) {
 
 async function postJournal(req, res) {
   const client = await db.connect();
+  // Declared outside the try so the catch block can run the idempotency
+  // lookup (block-scoped declarations inside try are invisible to catch).
+  let idempotencyKey = '';
   try {
     // Validate request shape before starting the transaction.
     const entityId = parseId(req.body.entity_id, 'entity_id');
@@ -172,6 +179,18 @@ async function postJournal(req, res) {
     if (!CURRENCY_RE.test(currency)) throw httpError(400, 'currency must be a 3-letter uppercase currency code.');
     const description = requireNonEmptyString(req.body.description, 'description');
     const reference = req.body.reference != null ? String(req.body.reference).trim() || null : null;
+    // Every posting carries an idempotency key so a timed-out manual or
+    // imported posting that is retried returns the existing entry instead of
+    // double-posting. Clients generate one per logical command (or derive it
+    // from the source event); without one, each request is a unique command.
+    const rawKey = req.body.idempotency_key != null ? String(req.body.idempotency_key).trim() : '';
+    if (!rawKey) {
+      idempotencyKey = crypto.randomUUID();
+    } else if (!IDEMPOTENCY_KEY_RE.test(rawKey)) {
+      throw httpError(400, 'idempotency_key must be 1-128 characters: letters, digits, and . _ : -');
+    } else {
+      idempotencyKey = rawKey;
+    }
     if (debitAccountId === creditAccountId) {
       throw httpError(400, 'debit_account_id and credit_account_id must differ.');
     }
@@ -203,11 +222,11 @@ async function postJournal(req, res) {
 
     const { rows } = await client.query(
       `INSERT INTO treasury_journal_entries
-         (entity_id, period_id, debit_account_id, credit_account_id, amount_minor, currency, description, reference, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         (entity_id, period_id, debit_account_id, credit_account_id, amount_minor, currency, description, reference, idempotency_key, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING id, entity_id, period_id, debit_account_id, credit_account_id,
-                 amount_minor, currency, description, reference, created_by, created_at`,
-      [entityId, periodId, debitAccountId, creditAccountId, amountMinor, currency, description, reference, req.user?.id || null]
+                 amount_minor, currency, description, reference, idempotency_key, created_by, created_at`,
+      [entityId, periodId, debitAccountId, creditAccountId, amountMinor, currency, description, reference, idempotencyKey, req.user?.id || null]
     );
 
     await client.query('COMMIT');
@@ -217,6 +236,23 @@ async function postJournal(req, res) {
       await client.query('ROLLBACK');
     } catch (rollbackErr) {
       logger.error({ err: rollbackErr }, 'treasury journal rollback failed');
+    }
+    if (err && err.code === '23505') {
+      // The idempotency key already exists: this is a retry of a posting that
+      // went through. Return the existing entry instead of double-posting.
+      try {
+        const { rows: existing } = await client.query(
+          `SELECT id, entity_id, period_id, debit_account_id, credit_account_id,
+                  amount_minor, currency, description, reference, idempotency_key, created_by, created_at
+           FROM treasury_journal_entries WHERE idempotency_key = $1`,
+          [idempotencyKey]
+        );
+        if (existing.length) {
+          return res.status(200).json({ entry: existing[0], idempotent: true });
+        }
+      } catch (lookupErr) {
+        logger.error({ err: lookupErr }, 'treasury idempotency lookup failed');
+      }
     }
     sendError(res, err);
   } finally {
@@ -245,7 +281,7 @@ async function listJournal(req, res) {
     const { rows } = await db.query(
       `SELECT je.id, je.period_id, je.debit_account_id, je.credit_account_id,
               je.amount_minor, je.currency, je.description, je.reference,
-              je.created_by, je.created_at,
+              je.idempotency_key, je.created_by, je.created_at,
               da.code AS debit_code, da.name AS debit_name,
               ca.code AS credit_code, ca.name AS credit_name
        FROM treasury_journal_entries je

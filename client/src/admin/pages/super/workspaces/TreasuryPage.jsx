@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Landmark, BookOpen, Lock, FileDown, Plus, Loader2, Check } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
@@ -213,6 +213,10 @@ function JournalTab() {
   const [form, setForm] = useState({ debit_account_id: '', credit_account_id: '', amount: '', currency: '', description: '', reference: '' });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
+  // Idempotency key for the journal post: stable per identical form content so
+  // a timed-out submit that the admin retries posts once instead of twice.
+  // A changed field is a different command and gets a fresh key.
+  const idempotencyRef = useRef(null);
 
   const entitiesFetch = useAbortableFetch(async (signal) => {
     const res = await adminApi.get(`${BASE}/entities`, { signal });
@@ -251,6 +255,17 @@ function JournalTab() {
     setSaveError(null);
     try {
       const amountMinor = Math.round(Number(form.amount) * 100);
+      const fingerprint = JSON.stringify({
+        entity_id: entityId, period_id: periodId,
+        debit_account_id: form.debit_account_id, credit_account_id: form.credit_account_id,
+        amount: form.amount, currency: form.currency,
+        description: form.description, reference: form.reference,
+      });
+      const prior = idempotencyRef.current;
+      const idempotencyKey = prior && prior.fingerprint === fingerprint
+        ? prior.key
+        : (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`);
+      idempotencyRef.current = { fingerprint, key: idempotencyKey };
       await adminApi.post(`${BASE}/journal`, {
         entity_id: Number(entityId),
         period_id: Number(periodId),
@@ -260,7 +275,9 @@ function JournalTab() {
         currency: form.currency.toUpperCase(),
         description: form.description,
         reference: form.reference || undefined,
+        idempotency_key: idempotencyKey,
       });
+      idempotencyRef.current = null;
       setForm({ debit_account_id: '', credit_account_id: '', amount: '', currency: '', description: '', reference: '' });
       journalFetch.reload();
     } catch (err) {

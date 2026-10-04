@@ -222,6 +222,88 @@ describe('M2 journal posting (fails closed)', () => {
   });
 });
 
+describe('M2 journal posting idempotency', () => {
+  // In-memory stand-in for treasury_journal_entries keyed by idempotency key,
+  // so we can prove a retried posting creates exactly one row.
+  function idempotentScenario() {
+    const table = [];
+    let nextId = 9001;
+    mockQuery.mockImplementation(async (text, params = []) => {
+      if (text === 'BEGIN' || text === 'COMMIT' || text === 'ROLLBACK') return { rows: [], rowCount: 0 };
+      if (text.includes('FROM treasury_periods')) return { rows: [OPEN_PERIOD], rowCount: 1 };
+      if (text.includes('FROM treasury_accounts')) return { rows: USD_ACCOUNTS, rowCount: 2 };
+      if (text.includes('INSERT INTO treasury_journal_entries')) {
+        const idempotencyKey = params[8];
+        if (table.some((row) => row.idempotency_key === idempotencyKey)) {
+          const err = new Error('duplicate key value violates unique constraint "uq_treasury_journal_entries_idempotency_key"');
+          err.code = '23505';
+          throw err;
+        }
+        const row = {
+          id: nextId++, entity_id: params[0], period_id: params[1],
+          debit_account_id: params[2], credit_account_id: params[3],
+          amount_minor: params[4], currency: params[5], description: params[6],
+          reference: params[7], idempotency_key: idempotencyKey, created_by: params[9],
+          created_at: new Date().toISOString(),
+        };
+        table.push(row);
+        return { rows: [row], rowCount: 1 };
+      }
+      if (text.includes('WHERE idempotency_key = $1')) {
+        const row = table.find((r) => r.idempotency_key === params[0]);
+        return { rows: row ? [row] : [], rowCount: row ? 1 : 0 };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+    return table;
+  }
+
+  test('REPRO: retried posting with the same key creates exactly one entry', async () => {
+    const table = idempotentScenario();
+    const body = journalBody({ idempotency_key: 'import-2026-01-batch-7-row-3' });
+
+    const first = makeRes();
+    await controller.postJournal(makeReq({ body }), first);
+    expect(first.status).toHaveBeenCalledWith(201);
+
+    // Simulate the timed-out retry: same body, same key.
+    const retry = makeRes();
+    await controller.postJournal(makeReq({ body }), retry);
+    expect(retry.status).toHaveBeenCalledWith(200);
+
+    expect(table).toHaveLength(1);
+    const payload = retry.json.mock.calls[0][0];
+    expect(payload.entry.id).toBe(table[0].id);
+    expect(payload.entry.idempotency_key).toBe('import-2026-01-batch-7-row-3');
+    expect(payload.idempotent).toBe(true);
+  });
+
+  test('REPRO: postings without a key still post, each request unique', async () => {
+    const table = idempotentScenario();
+    const first = makeRes();
+    await controller.postJournal(makeReq({ body: journalBody() }), first);
+    expect(first.status).toHaveBeenCalledWith(201);
+    const second = makeRes();
+    await controller.postJournal(makeReq({ body: journalBody() }), second);
+    expect(second.status).toHaveBeenCalledWith(201);
+    expect(table).toHaveLength(2);
+    const firstKey = first.json.mock.calls[0][0].entry.idempotency_key;
+    const secondKey = second.json.mock.calls[0][0].entry.idempotency_key;
+    expect(firstKey).toBeTruthy();
+    expect(secondKey).toBeTruthy();
+    expect(firstKey).not.toBe(secondKey);
+  });
+
+  test('REPRO: malformed idempotency key is rejected with 400', async () => {
+    idempotentScenario();
+    const res = makeRes();
+    await controller.postJournal(makeReq({ body: journalBody({ idempotency_key: 'bad key!!' }) }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    const inserts = mockQuery.mock.calls.filter(([sql]) => sql.includes('INSERT INTO treasury_journal_entries'));
+    expect(inserts).toHaveLength(0);
+  });
+});
+
 describe('M2 periods and close', () => {
   test('createPeriod rejects end before start', async () => {
     const res = makeRes();
