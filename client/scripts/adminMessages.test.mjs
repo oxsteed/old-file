@@ -10,7 +10,10 @@ const source = fs.readFileSync(
 
 test('admin messages uses localized and accessible controls', () => {
   assert.match(source, /useTranslation\(\)/);
-  assert.match(source, /aria-label=\{t\('adminMessages\.searchPlaceholder'\)\}/);
+  // The search runs through the shared SuggestDropdown combobox; the page
+  // must pass it the localized accessible label (the component renders
+  // aria-label on its input).
+  assert.match(source, /ariaLabel=\{t\('adminMessages\.searchPlaceholder'\)\}/);
   assert.match(source, /role="dialog" aria-modal="true"/);
   assert.match(source, /role="status"/);
   assert.doesNotMatch(source, />Admin Messages</);

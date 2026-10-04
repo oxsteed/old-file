@@ -7,11 +7,11 @@ import {
   FileText,
   MessageCircle,
   RefreshCw,
-  Search,
   Users,
 } from 'lucide-react';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
+import { SuggestDropdown } from '../components/SuggestDropdown';
 import api from '../api/axios';
 import { formatDateTime } from '../lib/format';
 import '../styles/ClientManagementPage.css';
@@ -289,6 +289,20 @@ export default function ClientManagementPage() {
   const clients = useMemo(() => buildClients(data), [data]);
   const unreadTotal = useMemo(() => clients.reduce((sum, client) => sum + client.unreadCount, 0), [clients]);
   const quoteTotal = useMemo(() => clients.reduce((sum, client) => sum + client.quotes.length, 0), [clients]);
+
+  // Typeahead items for the client search: names with email meta, deduped.
+  const clientSuggestItems = useMemo(() => {
+    const seen = new Set();
+    const items = [];
+    for (const client of clients) {
+      const title = client.name || client.email || '';
+      const key = title.toLowerCase();
+      if (!title || seen.has(key)) continue;
+      seen.add(key);
+      items.push({ id: `client:${client.key}`, title, meta: client.email || undefined });
+    }
+    return items;
+  }, [clients]);
   const filteredClients = useMemo(() => {
     const query = normalized(search);
     return clients.filter((client) => {
@@ -334,13 +348,15 @@ export default function ClientManagementPage() {
           <section className="client-management__workspace" aria-labelledby="client-list-heading">
             <div className="client-management__toolbar">
               <div className="client-management__search">
-                <Search size={17} aria-hidden="true" />
-                <input
-                  type="search"
+                <SuggestDropdown
+                  id="client-management-search"
+                  items={clientSuggestItems}
                   value={search}
-                  onChange={(event) => setSearch(event.target.value)}
+                  onQueryChange={setSearch}
+                  onSelect={(item) => setSearch(item?.title || '')}
+                  recentsKey="oxsteed_client_management_recents"
                   placeholder={t('clientManagement.searchPlaceholder')}
-                  aria-label={t('clientManagement.searchLabel')}
+                  ariaLabel={t('clientManagement.searchLabel')}
                 />
               </div>
               <div className="client-management__filters" role="group" aria-label={t('clientManagement.filterLabel')}>
