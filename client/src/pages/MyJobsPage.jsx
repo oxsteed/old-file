@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import api from '../api/axios';
 import { cancelBookingRequest } from '../api/bookings';
+import { useUndo } from '../hooks/useUndo';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import PageMeta from '../components/PageMeta';
@@ -99,7 +100,22 @@ export default function MyJobsPage() {
   // Cancellation modal state
   const [cancelModal, setCancelModal] = useState({ type: null, id: null, isOpen: false }); // type: 'job' or 'booking'
   const [cancelReason, setCancelReason] = useState('');
-  const [canceling, setCanceling] = useState(false);
+
+  // Delayed-execution undo for cancellations: the cancel request only fires
+  // after a 5s undo window, because cancelling notifies the other party and
+  // cannot be reversed on the server.
+  const notifyUndo = useCallback(
+    ({ message, undoLabel, onUndo, durationMs }) => {
+      const id = toast(message, {
+        duration: durationMs,
+        action: { label: undoLabel, onClick: onUndo },
+      });
+      return () => toast.dismiss(id);
+    },
+    [],
+  );
+  const { scheduleUndo } = useUndo({ notify: notifyUndo });
+  const undoLabel = t('undoToast.undo', { defaultValue: 'Undo' });
 
   const fetchJobs = useCallback(async () => {
     setLoading(true);
@@ -146,39 +162,56 @@ export default function MyJobsPage() {
 
   useEffect(() => { fetchJobs(); }, [fetchJobs]);
 
-  const handleCancelJob = useCallback(async () => {
+  const handleCancelJob = useCallback(() => {
     if (!cancelModal.id || cancelModal.type !== 'job') return;
-    setCanceling(true);
-    try {
-      await api.post(`/jobs/${cancelModal.id}/cancel`, { reason: cancelReason });
-      toast.success(t('myJobs.jobCancelled', { defaultValue: 'Job cancelled successfully' }));
-      setCancelModal({ type: null, id: null, isOpen: false });
-      setCancelReason('');
-      fetchJobs();
-    } catch (err) {
-      const message = err.response?.data?.error || t('myJobs.cancelError', { defaultValue: 'Failed to cancel job' });
-      toast.error(message);
-    } finally {
-      setCanceling(false);
-    }
-  }, [cancelModal, cancelReason, fetchJobs, t]);
+    const jobId = cancelModal.id;
+    const reason = cancelReason;
+    const snapshot = jobs;
+    setCancelModal({ type: null, id: null, isOpen: false });
+    setCancelReason('');
+    scheduleUndo({
+      key: `job-cancel-${jobId}`,
+      message: t('undoToast.jobCancelling', { defaultValue: 'Cancelling job…' }),
+      undoLabel,
+      onOptimistic: () =>
+        setJobs((p) => p.map((j) => (j.id === jobId ? { ...j, status: 'cancelled' } : j))),
+      onRestore: () => setJobs(snapshot),
+      onFinalize: () => api.post(`/jobs/${jobId}/cancel`, { reason }),
+      onFinalized: () => {
+        toast.success(t('myJobs.jobCancelled', { defaultValue: 'Job cancelled successfully' }));
+        fetchJobs();
+      },
+      onError: (err) => {
+        const message = err.response?.data?.error || t('myJobs.cancelError', { defaultValue: 'Failed to cancel job' });
+        toast.error(message);
+      },
+    });
+  }, [cancelModal, cancelReason, jobs, scheduleUndo, fetchJobs, t, undoLabel]);
 
-  const handleCancelBooking = useCallback(async () => {
+  const handleCancelBooking = useCallback(() => {
     if (!cancelModal.id || cancelModal.type !== 'booking') return;
-    setCanceling(true);
-    try {
-      await cancelBookingRequest(cancelModal.id);
-      toast.success(t('myJobs.bookingCancelled', { defaultValue: 'Booking request cancelled' }));
-      setCancelModal({ type: null, id: null, isOpen: false });
-      setCancelReason('');
-      fetchJobs();
-    } catch (err) {
-      const message = err.response?.data?.error || t('myJobs.cancelError', { defaultValue: 'Failed to cancel booking' });
-      toast.error(message);
-    } finally {
-      setCanceling(false);
-    }
-  }, [cancelModal, fetchJobs, t]);
+    const bookingId = cancelModal.id;
+    const snapshot = bookingRequests;
+    setCancelModal({ type: null, id: null, isOpen: false });
+    setCancelReason('');
+    scheduleUndo({
+      key: `booking-cancel-${bookingId}`,
+      message: t('undoToast.bookingCancelling', { defaultValue: 'Cancelling booking…' }),
+      undoLabel,
+      onOptimistic: () =>
+        setBookingRequests((p) => p.map((b) => (b.id === bookingId ? { ...b, status: 'cancelled' } : b))),
+      onRestore: () => setBookingRequests(snapshot),
+      onFinalize: () => cancelBookingRequest(bookingId),
+      onFinalized: () => {
+        toast.success(t('myJobs.bookingCancelled', { defaultValue: 'Booking request cancelled' }));
+        fetchJobs();
+      },
+      onError: (err) => {
+        const message = err.response?.data?.error || t('myJobs.cancelError', { defaultValue: 'Failed to cancel booking' });
+        toast.error(message);
+      },
+    });
+  }, [cancelModal, bookingRequests, scheduleUndo, fetchJobs, t, undoLabel]);
 
   const handleCounterRespond = useCallback(async (bookingId, action) => {
     try {
@@ -763,10 +796,13 @@ export default function MyJobsPage() {
                   : t('myJobs.cancelBookingTitle', { defaultValue: 'Cancel Booking Request?' })}
               </h3>
 
-              <p className="text-sm text-gray-400 mb-4">
+              <p className="text-sm text-gray-400 mb-2">
                 {cancelModal.type === 'job'
                   ? t('myJobs.cancelJobDesc', { defaultValue: 'This will remove your job posting. Helpers won\'t be able to bid anymore.' })
                   : t('myJobs.cancelBookingDesc', { defaultValue: 'This will cancel your booking request with the helper.' })}
+              </p>
+              <p className="text-xs text-gray-500 mb-4">
+                {t('myJobs.cancelUndoNote', { defaultValue: 'You will have 5 seconds to undo after confirming.' })}
               </p>
 
               {cancelModal.type === 'job' && (
@@ -790,19 +826,15 @@ export default function MyJobsPage() {
                     setCancelModal({ type: null, id: null, isOpen: false });
                     setCancelReason('');
                   }}
-                  disabled={canceling}
-                  className="flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-300 font-semibold rounded-lg transition"
+                  className="flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold rounded-lg transition"
                 >
                   {t('common.keepCancel', { defaultValue: 'Keep it' })}
                 </button>
                 <button
                   onClick={cancelModal.type === 'job' ? handleCancelJob : handleCancelBooking}
-                  disabled={canceling}
-                  className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white font-semibold rounded-lg transition"
+                  className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg transition"
                 >
-                  {canceling
-                    ? t('common.canceling', { defaultValue: 'Cancelling...' })
-                    : t('myJobs.confirmCancel', { defaultValue: 'Yes, cancel' })}
+                  {t('myJobs.confirmCancel', { defaultValue: 'Yes, cancel' })}
                 </button>
               </div>
             </div>
