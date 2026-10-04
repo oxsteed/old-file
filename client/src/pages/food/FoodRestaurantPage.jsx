@@ -37,6 +37,7 @@ import Footer from '../../components/Footer';
 import PageMeta from '../../components/PageMeta';
 import { getPublicSiteUrl } from '../../utils/seoDescription';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
+import { SuggestDropdown } from '../../components/SuggestDropdown';
 import '../../styles/FoodRestaurantPage.css';
 
 // ── Active-order persistence ─────────────────────────────────────────────────
@@ -1128,6 +1129,25 @@ export default function FoodRestaurantPage() {
   };
 
   const allItemsFlat = sections.flatMap((s) => (s.items || []).map((it) => decorate(it, s)));
+
+  // Typeahead items for the menu search: every dish across sections,
+  // prefix-ranked by the shared SuggestDropdown.
+  const dishSuggestItems = useMemo(() => {
+    const seen = new Set();
+    const items = [];
+    for (const it of allItemsFlat) {
+      const title = it.name || '';
+      const key = title.toLowerCase();
+      if (!title || seen.has(key)) continue;
+      seen.add(key);
+      items.push({
+        id: `dish:${it.id}`,
+        title,
+        meta: it.sectionName || '',
+      });
+    }
+    return items;
+  }, [allItemsFlat]);
   const currentSection = sections.find((s) => String(s.id) === String(validCatId));
   const catItems = (currentSection?.items || []).map((it) => decorate(it, currentSection));
 
@@ -1600,20 +1620,27 @@ export default function FoodRestaurantPage() {
             <div>
               {/* Sticky search + dietary chips */}
               <div className="rp-sticky-search">
-                <div style={{ padding: '10px 16px 0' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#f1f5f9', borderRadius: 10, padding: '10px 14px' }}>
-                    <span style={{ fontSize: 14, color: '#94a3b8', flexShrink: 0 }}>🔍</span>
-                    <input
-                      value={searchQuery}
-                      onChange={(e) => { setSearchQuery(e.target.value); setActiveCategory(null); }}
-                      placeholder={t('food.restaurant.searchMenu', { restaurant: restaurant.display_name })}
-                      aria-label={t('food.restaurant.searchMenu', { restaurant: restaurant.display_name })}
-                      style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: 14, color: '#0f172a' }}
-                    />
-                    {hasSearch && (
-                      <button onClick={() => setSearchQuery('')} style={{ background: 'none', border: 'none', fontSize: 20, color: '#94a3b8', cursor: 'pointer', lineHeight: 1 }}>×</button>
-                    )}
-                  </div>
+                <div className="rp-menu-search-row">
+                  <SuggestDropdown
+                    id={`rp-dish-search-${restaurant.id}`}
+                    items={dishSuggestItems}
+                    value={searchQuery}
+                    onQueryChange={(q) => { setSearchQuery(q); setActiveCategory(null); }}
+                    onSelect={(item) => { setSearchQuery(item.title || ''); setActiveCategory(null); }}
+                    recentsKey={`oxsteed_dish_recent_${restaurant.id}`}
+                    placeholder={t('food.restaurant.searchMenu', { restaurant: restaurant.display_name })}
+                    ariaLabel={t('food.restaurant.searchMenu', { restaurant: restaurant.display_name })}
+                    className="rp-dish-suggest"
+                  />
+                  {hasSearch && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      aria-label={t('food.restaurant.clearSearch')}
+                      className="rp-menu-search-clear"
+                    >
+                      ×
+                    </button>
+                  )}
                 </div>
                 <div className="rp-chip-row">
                   {dietaryChips.map((chip) => {

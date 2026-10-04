@@ -19001,6 +19001,7 @@
       "location": "الموقع",
       "contact": "التواصل",
       "searchMenu": "البحث في {{restaurant}}…",
+      "clearSearch": "مسح البحث",
       "reorder": "إعادة الطلب",
       "noMenuItems": "لا توجد أصناف في القائمة بعد",
       "searchResults": "{{count}} نتيجة لـ «{{query}}»",

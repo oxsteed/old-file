@@ -18990,6 +18990,7 @@
       "location": "Adresse",
       "contact": "Contact",
       "searchMenu": "Rechercher chez {{restaurant}}…",
+      "clearSearch": "Effacer la recherche",
       "reorder": "Commander à nouveau",
       "noMenuItems": "Aucun article au menu pour le moment",
       "searchResults": "{{count}} résultat(s) pour « {{query}} »",

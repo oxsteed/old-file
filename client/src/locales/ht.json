@@ -18990,6 +18990,7 @@
       "location": "Adrès",
       "contact": "Kontak",
       "searchMenu": "Chèche nan {{restaurant}}…",
+      "clearSearch": "Efase rechèch",
       "reorder": "Kòmande ankò",
       "noMenuItems": "Pa gen atik nan meni an poko",
       "searchResults": "{{count}} rezilta pou “{{query}}”",

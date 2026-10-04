@@ -18988,6 +18988,7 @@
       "location": "Location",
       "contact": "Contact",
       "searchMenu": "Search {{restaurant}}…",
+      "clearSearch": "Clear search",
       "reorder": "Reorder",
       "noMenuItems": "No menu items yet",
       "searchResults": "{{count}} result(s) for “{{query}}”",
