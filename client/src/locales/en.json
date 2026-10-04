@@ -19000,6 +19000,7 @@
       "readyForPickupShort": "Ready for pickup!",
       "dismissOrderStatus": "Dismiss order status",
       "share": "Share",
+      "requestCredit": "Request credit",
       "message": "Message",
       "messageAria": "Message the restaurant",
       "messageTitle": "Message {{name}}",

@@ -1810,7 +1810,7 @@ export default function FoodRestaurantPage() {
                   ? <img src={restaurant.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   : emoji}
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button onClick={handleMessageClick} aria-label={t('food.restaurant.messageAria')} style={{ height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', color: '#0f172a', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                   {`✉ ${t('food.restaurant.message')}`}
                 </button>
@@ -1818,6 +1818,9 @@ export default function FoodRestaurantPage() {
                   {saved ? `♥ ${t('food.common.saved')}` : `♡ ${t('food.common.save')}`}
                 </button>
                 <button onClick={onShare} aria-label={t('food.restaurant.share')} style={{ height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>{`↗ ${t('food.restaurant.share')}`}</button>
+                {user && (
+                  <button onClick={() => navigate(`/restaurant-credit?restaurantId=${encodeURIComponent(restaurantId)}`)} aria-label={t('food.restaurant.requestCredit')} style={{ height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#0f172a' }}>{t('food.restaurant.requestCredit')}</button>
+                )}
               </div>
             </div>
             <div style={{ display: 'inline-flex', background: accentBg, color: accent, padding: '2px 9px', borderRadius: 4, fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 5 }}>{cuisineLabel}</div>
@@ -1868,6 +1871,9 @@ export default function FoodRestaurantPage() {
                   <button onClick={() => setSaved((s) => !s)} style={{ flex: 1, height: 40, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: saved ? accent : '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{saved ? `♥ ${t('food.common.saved')}` : `♡ ${t('food.common.save')}`}</button>
                   <button onClick={onShare} aria-label={t('food.restaurant.share')} style={{ flex: 1, height: 40, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: '#64748b', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{`↗ ${t('food.restaurant.share')}`}</button>
                 </div>
+                {user && (
+                  <button onClick={() => navigate(`/restaurant-credit?restaurantId=${encodeURIComponent(restaurantId)}`)} aria-label={t('food.restaurant.requestCredit')} style={{ width: '100%', height: 40, marginTop: 8, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: '#0f172a', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{t('food.restaurant.requestCredit')}</button>
+                )}
               </div>
               {hours.length > 0 && (
                 <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden', marginBottom: 14 }}>

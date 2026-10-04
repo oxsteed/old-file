@@ -19002,6 +19002,7 @@
       "readyForPickupShort": "Prête à retirer !",
       "dismissOrderStatus": "Fermer l’état de la commande",
       "share": "Partager",
+      "requestCredit": "Demander du crédit",
       "message": "Message",
       "messageAria": "Envoyer un message au restaurant",
       "messageTitle": "Message pour {{name}}",
