@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Loader2, Minus, Plus, Search, Send, ShoppingCart, Trash2, X } from 'lucide-react';
 import { cartApi, jobKitsApi, marketplaceApi, shareApi } from '../../api/marketplaceApi';
 import { createMessageRequestId } from '../../lib/messageRequestId';
+import { SuggestDropdown } from '../SuggestDropdown';
 import '../helperProfile/chat/MessengerDock.css';
 import './PartsListPanel.css';
 
@@ -138,8 +139,8 @@ export default function PartsListPanel({
     }
   };
 
-  const search = async () => {
-    const q = searchQuery.trim();
+  const search = async (overrideQuery) => {
+    const q = (overrideQuery ?? searchQuery).trim();
     if (!q || searching) return;
     setSearching(true);
     try {
@@ -151,6 +152,34 @@ export default function PartsListPanel({
       setSearching(false);
     }
   };
+
+  // Debounced typeahead suggestions as the user types. The explicit search
+  // button / Enter behavior below stays unchanged.
+  const [suggestItems, setSuggestItems] = useState([]);
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (q.length < 2) {
+      setSuggestItems([]);
+      return undefined;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await marketplaceApi.searchProducts(q, null, null, null, 1, 6);
+        const products = data?.data || data?.products || [];
+        setSuggestItems(
+          products.map((p) => ({
+            id: `product:${p.id}`,
+            title: p.name || '',
+            meta: formatMoney(p.price_cents, p.currency || draft?.currency, locale),
+            product: p,
+          }))
+        );
+      } catch {
+        setSuggestItems([]);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery, draft, locale]);
 
   const addProduct = async (product) => {
     if (!draft?.cartId || addingId) return;
@@ -331,19 +360,22 @@ export default function PartsListPanel({
             )}
             <div className="parts-list-panel__add">
               <div className="parts-list-panel__search-row">
-                <input
+                <SuggestDropdown
+                  id="parts-list-search"
+                  items={suggestItems}
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      search();
-                    }
+                  onQueryChange={setSearchQuery}
+                  onSelect={(item) => {
+                    const name = item?.title || '';
+                    setSearchQuery(name);
+                    search(name);
                   }}
+                  recentsKey="oxsteed_parts_search_recents"
                   placeholder={t('partsList.searchPlaceholder')}
-                  aria-label={t('partsList.searchPlaceholder')}
+                  ariaLabel={t('partsList.searchPlaceholder')}
+                  className="parts-list-panel__suggest"
                 />
-                <button type="button" onClick={search} disabled={searching || !searchQuery.trim()} aria-label={t('common.search')}>
+                <button type="button" onClick={() => search()} disabled={searching || !searchQuery.trim()} aria-label={t('common.search')}>
                   {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                 </button>
               </div>

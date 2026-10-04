@@ -26,6 +26,7 @@ import {
 } from '../../utils/inboxRole';
 import ConversationThread from './ConversationThread';
 import ConversationList from './ConversationList';
+import { SuggestDropdown } from '../SuggestDropdown';
 import QuoteHistoryPanel from './QuoteHistoryPanel';
 import GuestInquiryPanel from './GuestInquiryPanel';
 import { resolveShellChrome, applyIncomingConversationUpdate } from './messengerShellState';
@@ -419,6 +420,29 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
     ].filter(Boolean).join(' ').toLowerCase().includes(q));
   }, [archivedConversations, query]);
 
+  // Typeahead items for the conversation search: participant names and subjects,
+  // deduped so repeated conversations with the same person show once.
+  const conversationSuggestItems = useMemo(() => {
+    const seen = new Set();
+    const items = [];
+    const push = (id, title, meta) => {
+      if (!title) return;
+      const key = String(title).toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      items.push({ id, title: String(title), meta });
+    };
+    for (const conv of conversations) {
+      const participant = conv.other_user_name
+        || conv.conversation_business_name
+        || conv.helper_business_name
+        || conv.guest_email;
+      push(`conv:${conv.id}`, participant, conv.job_title || undefined);
+      if (conv.job_title) push(`subject:${conv.id}`, conv.job_title, participant);
+    }
+    return items;
+  }, [conversations]);
+
   const handleOpen = (conv) => {
     const convId = conv.id;
     setNewInbound((prev) => {
@@ -551,11 +575,16 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
         <section className="messages-toolbar" aria-label={t('messages.toolsAriaLabel')}>
           <label className="messages-search">
             <Search size={18} aria-hidden />
-            <input
-              type="search"
+            <SuggestDropdown
+              id="messages-conversation-search"
+              items={conversationSuggestItems}
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onQueryChange={setQuery}
+              onSelect={(item) => setQuery(item?.title || '')}
+              recentsKey="oxsteed_messages_search_recents"
               placeholder={showHelperInbox ? t('messages.helperSearchPlaceholder') : t('messages.searchPlaceholder')}
+              ariaLabel={showHelperInbox ? t('messages.helperSearchPlaceholder') : t('messages.searchPlaceholder')}
+              className="messages-search-suggest"
             />
           </label>
           <div className="messages-toolbar-controls">
