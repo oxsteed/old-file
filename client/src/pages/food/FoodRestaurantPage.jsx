@@ -98,6 +98,9 @@ function clearDraftOrder(restaurantId) {
 
 const SERIF = "'Instrument Serif', Georgia, 'Times New Roman', serif";
 
+// Valid restaurant page tab keys (mirrors the tabs array in the component).
+const RESTAURANT_TABS = ['menu', 'info', 'reviews', 'deals', 'media'];
+
 // ── Category → photo gradient (fallback when an item has no photo) ────────────
 const GRADS = {
   Popular: 'linear-gradient(135deg,#92400e,#d97706)',
@@ -289,6 +292,57 @@ export default function FoodRestaurantPage() {
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
+
+  // N1 — Escape closes the topmost open sheet (dish modal, then message
+  // composer, then cart), mirroring each sheet's own close affordance.
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key !== 'Escape') return;
+      if (modalItem) { setModalItem(null); return; }
+      if (messageOpen) { if (!sendingMessage) setMessageOpen(false); return; }
+      if (cartOpen) { setCartOpen(false); setCartStep('cart'); }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [modalItem, messageOpen, sendingMessage, cartOpen]);
+
+  // N2 — Deep links: shared links carry the active tab and the open dish as
+  // ?tab= and ?dish= query params. The URL is the source of truth on a fresh
+  // visit (mount / restaurant switch); afterwards state is synced back into
+  // the URL with replace (no history spam). The share button copies
+  // window.location.href, so it automatically carries both params.
+  const pendingUrlDish = useRef(null);
+  // Read ?tab= / ?dish= on mount (and on restaurant switch).
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get('tab');
+    if (RESTAURANT_TABS.includes(tab) && tab !== 'menu') setActiveTab(tab);
+    const dish = params.get('dish');
+    pendingUrlDish.current = dish || null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restaurantId]);
+  // Open the ?dish= dish once the menu data is available.
+  // NOTE: allItemsFlat/openModal are defined below in the render body; the
+  // closure reads them when the effect runs, after render, which is safe.
+  useEffect(() => {
+    if (!pendingUrlDish.current || !data || !allItemsFlat.length) return;
+    const id = pendingUrlDish.current;
+    pendingUrlDish.current = null;
+    const found = allItemsFlat.find((it) => String(it.id) === String(id));
+    if (found && found.canOrder) openModal(found);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, activeTab]);
+  // Sync the active tab and the open dish back into the URL.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    params.set('tab', activeTab);
+    if (modalItem) params.set('dish', String(modalItem.id));
+    else params.delete('dish');
+    if (params.toString() !== new URLSearchParams(location.search).toString()) {
+      navigate(`${location.pathname}?${params.toString()}`, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, modalItem]);
 
   const jumpToMenuItem = (menuItemId) => {
     const found = allItemsFlat.find((it) => String(it.id) === String(menuItemId));
