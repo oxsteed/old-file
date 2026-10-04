@@ -36,6 +36,7 @@ function formatApplication(row) {
     decidedAt: row.decided_at,
     decidedBy: row.decided_by ? String(row.decided_by) : null,
     decisionReason: row.decision_reason || null,
+    version: row.version != null ? Number(row.version) : null,
     updatedAt: row.updated_at,
   };
 }
@@ -81,6 +82,7 @@ function decideApplication(decision) {
         adminId,
         decision,
         reason: req.body?.reason,
+        expectedVersion: req.body?.expectedVersion,
       });
       res.json({
         application: formatApplication({

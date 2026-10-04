@@ -29214,6 +29214,7 @@
         "rejectDone": "Demann rejte.",
         "suspendDone": "Rechaj yo sispann.",
         "actionFailed": "Nou pa t ka anrejistre desizyon an. Tanpri eseye ankò.",
+        "versionConflict": "Yon lòt administratè chanje demann sa a anvan. Lis la ajou; tanpri verifye epi eseye ankò.",
         "loadFailed": "Nou pa t ka chaje demann yo.",
         "pageOf": "Paj {{page}} sou {{pages}}",
         "previousPage": "Paj anvan",

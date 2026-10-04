@@ -29214,6 +29214,7 @@
         "rejectDone": "Solicitud rechazada.",
         "suspendDone": "Recargas suspendidas.",
         "actionFailed": "No se pudo guardar la decisión. Inténtalo de nuevo.",
+        "versionConflict": "Otro administrador cambió esta solicitud primero. La lista se ha actualizado; revísela e inténtelo de nuevo.",
         "loadFailed": "No se pudieron cargar las solicitudes.",
         "pageOf": "Página {{page}} de {{pages}}",
         "previousPage": "Página anterior",

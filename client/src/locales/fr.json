@@ -29214,6 +29214,7 @@
         "rejectDone": "Demande rejetée.",
         "suspendDone": "Recharges suspendues.",
         "actionFailed": "Impossible d'enregistrer la décision. Veuillez réessayer.",
+        "versionConflict": "Un autre administrateur a modifié cette demande en premier. La liste a été actualisée ; veuillez la vérifier et réessayer.",
         "loadFailed": "Impossible de charger les demandes.",
         "pageOf": "Page {{page}} sur {{pages}}",
         "previousPage": "Page précédente",

@@ -229,7 +229,11 @@ async function applyForEligibility({ restaurantId, actorUserId }) {
                                   WHEN restaurant_topup_eligibility.status = 'approved' THEN restaurant_topup_eligibility.decision_reason
                                   ELSE NULL
                                 END,
-              updated_at = NOW()
+              updated_at = NOW(),
+              -- A merchant re-apply is a state change too: bump the version so
+              -- a stale admin decision rendered before the re-apply cannot be
+              -- committed against the new pending state.
+              version = restaurant_topup_eligibility.version + 1
        RETURNING *`,
       [parsedId]
     );
@@ -251,11 +255,32 @@ async function applyForEligibility({ restaurantId, actorUserId }) {
 // Admin decision. Approve re-checks payouts-connected (the merchant may have
 // disconnected after applying) and requires an active restaurant; reject and
 // suspend require a reason. Records decided_by / decided_at / decision_reason.
-async function decideApplication({ restaurantId, adminId, decision, reason }) {
+function parseExpectedVersion(value) {
+  const n = Number.parseInt(value, 10);
+  return Number.isInteger(n) && n >= 1 ? n : null;
+}
+
+// Admin decision. Approve re-checks payouts-connected (the merchant may have
+// disconnected after applying) and requires an active restaurant; reject and
+// suspend require a reason. Records decided_by / decided_at / decision_reason.
+// Optimistic locking: the caller must send the version it rendered
+// (expectedVersion). The row is read FOR UPDATE and the version compared
+// inside the transaction, so a stale approval can never reverse a newer
+// suspension and release funds to a suspended restaurant; mismatches return
+// 409 with code restaurant_topup_version_conflict.
+async function decideApplication({ restaurantId, adminId, decision, reason, expectedVersion }) {
   const parsedId = parseRestaurantId(restaurantId);
   if (!parsedId) fail('Restaurant not found', 'restaurant_not_found', 404);
   if (!['approve', 'reject', 'suspend'].includes(decision)) {
     fail('Unknown eligibility decision', 'restaurant_topup_decision_invalid');
+  }
+  const parsedExpectedVersion = parseExpectedVersion(expectedVersion);
+  if (parsedExpectedVersion === null) {
+    fail(
+      'An eligibility version is required to record a decision',
+      'restaurant_topup_expected_version_required',
+      400
+    );
   }
   const normalizedReason = normalizeString(reason, 2000);
   if ((decision === 'reject' || decision === 'suspend') && !normalizedReason) {
@@ -274,7 +299,21 @@ async function decideApplication({ restaurantId, adminId, decision, reason }) {
       }
       await assertPayoutsConnected(client, parsedId);
     }
-    const before = await getEligibility(client, parsedId);
+    // Lock the row so concurrent decisions serialize, then enforce the
+    // expected-version predicate on the current state.
+    const { rows: lockedRows } = await client.query(
+      `SELECT * FROM restaurant_topup_eligibility WHERE restaurant_id = $1 FOR UPDATE`,
+      [parsedId]
+    );
+    const before = lockedRows[0] || null;
+    if (before && Number(before.version) !== parsedExpectedVersion) {
+      fail(
+        'This application changed since you loaded it. Refresh the list and review the latest state before deciding.',
+        'restaurant_topup_version_conflict',
+        409,
+        { expectedVersion: parsedExpectedVersion, currentVersion: Number(before.version) }
+      );
+    }
     const { rows } = await client.query(
       `INSERT INTO restaurant_topup_eligibility
          (restaurant_id, status, decided_at, decided_by, decision_reason, updated_at)
@@ -284,7 +323,8 @@ async function decideApplication({ restaurantId, adminId, decision, reason }) {
               decided_at = EXCLUDED.decided_at,
               decided_by = EXCLUDED.decided_by,
               decision_reason = EXCLUDED.decision_reason,
-              updated_at = NOW()
+              updated_at = NOW(),
+              version = restaurant_topup_eligibility.version + 1
        RETURNING *`,
       [parsedId, nextStatus, adminId, normalizedReason]
     );

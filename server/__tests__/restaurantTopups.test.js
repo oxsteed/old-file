@@ -121,7 +121,7 @@ const PAYOUTS_NOT_READY = {
 
 const ELIGIBILITY_APPROVED = {
   rows: [{
-    restaurant_id: RESTAURANT_ID, status: 'approved',
+    restaurant_id: RESTAURANT_ID, status: 'approved', version: 1,
     applied_at: '2026-10-01T10:00:00.000Z', decided_at: '2026-10-01T11:00:00.000Z',
     decided_by: ADMIN_ID, decision_reason: null,
     created_at: '2026-10-01T10:00:00.000Z', updated_at: '2026-10-01T11:00:00.000Z',
@@ -637,23 +637,27 @@ describe('admin restaurant top-up endpoints', () => {
   });
 
   test('POST approve records the decision and audit trail', async () => {
-    const decided = { ...ELIGIBILITY_APPROVED.rows[0], decided_by: ADMIN_ID };
+    const decided = { ...ELIGIBILITY_APPROVED.rows[0], decided_by: ADMIN_ID, version: 2 };
     mockQuery
       .mockResolvedValueOnce(ACTIVE_RESTAURANT) // restaurant row
       .mockResolvedValueOnce(CONNECTED_PAYOUTS) // payouts re-check on approve
-      .mockResolvedValueOnce(ELIGIBILITY_PENDING) // before state
+      .mockResolvedValueOnce({ rows: [{ ...ELIGIBILITY_PENDING.rows[0], version: 1 }] }) // before state (locked)
       .mockResolvedValueOnce({ rows: [decided] }) // upsert
       .mockResolvedValueOnce({ rows: [{ id: 9 }] }); // admin audit log
     const res = await request(buildAdminApp())
       .post(`/api/admin/restaurant-topups/applications/${RESTAURANT_ID}/approve`)
-      .send({});
+      .send({ expectedVersion: 1 });
     expect(res.status).toBe(200);
     expect(res.body.application.status).toBe('approved');
     expect(res.body.application.decidedBy).toBe(ADMIN_ID);
+    expect(res.body.application.version).toBe(2);
     expect(res.body.previousStatus).toBe('pending');
     const auditCall = mockQuery.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO admin_audit_log'));
     expect(auditCall).toBeDefined();
     expect(JSON.stringify(auditCall[1])).toContain('restaurant_topup.eligibility.approve');
+    // The decision upsert bumps the optimistic-lock version.
+    const upsertCall = mockQuery.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO restaurant_topup_eligibility'));
+    expect(String(upsertCall[0])).toContain('version + 1');
   });
 
   test('POST approve fails closed when payouts were disconnected after applying', async () => {
@@ -662,7 +666,7 @@ describe('admin restaurant top-up endpoints', () => {
       .mockResolvedValueOnce(NO_PAYOUTS);
     const res = await request(buildAdminApp())
       .post(`/api/admin/restaurant-topups/applications/${RESTAURANT_ID}/approve`)
-      .send({});
+      .send({ expectedVersion: 1 });
     expect(res.status).toBe(409);
     expect(res.body.code).toBe('restaurant_topup_payouts_not_connected');
   });
@@ -670,39 +674,83 @@ describe('admin restaurant top-up endpoints', () => {
   test('POST reject requires a reason', async () => {
     const res = await request(buildAdminApp())
       .post(`/api/admin/restaurant-topups/applications/${RESTAURANT_ID}/reject`)
-      .send({});
+      .send({ expectedVersion: 1 });
     expect(res.status).toBe(400);
     expect(res.body.code).toBe('restaurant_topup_decision_reason_required');
   });
 
+  test('POST reject requires an expected version', async () => {
+    const res = await request(buildAdminApp())
+      .post(`/api/admin/restaurant-topups/applications/${RESTAURANT_ID}/reject`)
+      .send({ reason: 'Missing business documents' });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('restaurant_topup_expected_version_required');
+  });
+
   test('POST reject records status rejected with the reason', async () => {
-    const decided = { ...ELIGIBILITY_REJECTED.rows[0], decided_by: ADMIN_ID };
+    const decided = { ...ELIGIBILITY_REJECTED.rows[0], decided_by: ADMIN_ID, version: 2 };
     mockQuery
       .mockResolvedValueOnce(ACTIVE_RESTAURANT)
-      .mockResolvedValueOnce(ELIGIBILITY_PENDING)
+      .mockResolvedValueOnce({ rows: [{ ...ELIGIBILITY_PENDING.rows[0], version: 1 }] })
       .mockResolvedValueOnce({ rows: [decided] })
       .mockResolvedValueOnce({ rows: [{ id: 9 }] });
     const res = await request(buildAdminApp())
       .post(`/api/admin/restaurant-topups/applications/${RESTAURANT_ID}/reject`)
-      .send({ reason: 'Missing business documents' });
+      .send({ reason: 'Missing business documents', expectedVersion: 1 });
     expect(res.status).toBe(200);
     expect(res.body.application.status).toBe('rejected');
     expect(res.body.application.decisionReason).toBe('missing documents');
+    expect(res.body.application.version).toBe(2);
   });
 
   test('POST suspend requires a reason and records it', async () => {
-    const decided = { ...ELIGIBILITY_SUSPENDED.rows[0], decided_by: ADMIN_ID };
+    const decided = { ...ELIGIBILITY_SUSPENDED.rows[0], decided_by: ADMIN_ID, version: 2 };
     mockQuery
       .mockResolvedValueOnce(ACTIVE_RESTAURANT)
-      .mockResolvedValueOnce(ELIGIBILITY_APPROVED)
+      .mockResolvedValueOnce({ rows: [{ ...ELIGIBILITY_APPROVED.rows[0], version: 1 }] })
       .mockResolvedValueOnce({ rows: [decided] })
       .mockResolvedValueOnce({ rows: [{ id: 9 }] });
     const res = await request(buildAdminApp())
       .post(`/api/admin/restaurant-topups/applications/${RESTAURANT_ID}/suspend`)
-      .send({ reason: 'Chargeback spike under review' });
+      .send({ reason: 'Chargeback spike under review', expectedVersion: 1 });
     expect(res.status).toBe(200);
     expect(res.body.application.status).toBe('suspended');
     expect(res.body.application.decisionReason).toBe('chargeback spike');
+  });
+
+  // TV1: a stale admin approval (rendered before a newer suspension) must be
+  // rejected with 409 and must not write anything.
+  test('POST approve rejects a stale decision with 409 and issues no upsert', async () => {
+    mockQuery
+      .mockResolvedValueOnce(ACTIVE_RESTAURANT)
+      .mockResolvedValueOnce(CONNECTED_PAYOUTS)
+      // The row has since been suspended (version 2); the admin rendered version 1.
+      .mockResolvedValueOnce({ rows: [{ ...ELIGIBILITY_SUSPENDED.rows[0], version: 2 }] });
+    const res = await request(buildAdminApp())
+      .post(`/api/admin/restaurant-topups/applications/${RESTAURANT_ID}/approve`)
+      .send({ expectedVersion: 1 });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('restaurant_topup_version_conflict');
+    const upsertCall = mockQuery.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO restaurant_topup_eligibility'));
+    expect(upsertCall).toBeUndefined();
+    const auditCall = mockQuery.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO admin_audit_log'));
+    expect(auditCall).toBeUndefined();
+  });
+
+  test('POST approve with a matching expected version succeeds and bumps the version', async () => {
+    const decided = { ...ELIGIBILITY_APPROVED.rows[0], decided_by: ADMIN_ID, version: 2 };
+    mockQuery
+      .mockResolvedValueOnce(ACTIVE_RESTAURANT)
+      .mockResolvedValueOnce(CONNECTED_PAYOUTS)
+      .mockResolvedValueOnce({ rows: [{ ...ELIGIBILITY_PENDING.rows[0], version: 1 }] })
+      .mockResolvedValueOnce({ rows: [decided] })
+      .mockResolvedValueOnce({ rows: [{ id: 9 }] });
+    const res = await request(buildAdminApp())
+      .post(`/api/admin/restaurant-topups/applications/${RESTAURANT_ID}/approve`)
+      .send({ expectedVersion: 1 });
+    expect(res.status).toBe(200);
+    expect(res.body.application.status).toBe('approved');
+    expect(res.body.application.version).toBe(2);
   });
 
   test('a rejected merchant can re-apply and goes back to pending (S7)', async () => {

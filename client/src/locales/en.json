@@ -29211,6 +29211,7 @@
       "rejectDone": "Application rejected.",
       "suspendDone": "Top-ups suspended.",
       "actionFailed": "Could not save the decision. Please try again.",
+      "versionConflict": "Another admin changed this application first. The list has been refreshed; please review and try again.",
       "loadFailed": "Could not load applications.",
       "pageOf": "Page {{page}} of {{pages}}",
       "previousPage": "Previous page",

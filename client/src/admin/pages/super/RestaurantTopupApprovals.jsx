@@ -180,15 +180,31 @@ export default function RestaurantTopupApprovals() {
     if ((kind === 'reject' || kind === 'suspend') && !reason?.trim()) return;
     setBusy(true);
     try {
+      // Send the version rendered in the list: the server rejects a stale
+      // decision with 409 so a newer suspension can never be reversed by an
+      // older approval.
       await adminApi.post(
         `/admin/restaurant-topups/applications/${application.restaurantId}/${kind}`,
-        kind === 'approve' ? undefined : { reason: reason.trim() },
+        kind === 'approve'
+          ? { expectedVersion: application.version }
+          : { reason: reason.trim(), expectedVersion: application.version },
       );
       setNotice(t(`restaurantTopups.admin.${kind}Done`));
       setModal(null);
       await load();
     } catch (err) {
-      setError(getErrorMessage(err, t('restaurantTopups.admin.actionFailed'), t));
+      const conflict = err?.response?.status === 409
+        && err?.response?.data?.code === 'restaurant_topup_version_conflict';
+      if (conflict) {
+        // Another admin decided first. Close the stale dialog, reload the
+        // fresh state, and tell the admin to review before retrying.
+        setModal(null);
+        setNotice('');
+        setError(t('restaurantTopups.admin.versionConflict'));
+        await load();
+      } else {
+        setError(getErrorMessage(err, t('restaurantTopups.admin.actionFailed'), t));
+      }
     } finally {
       setBusy(false);
     }
