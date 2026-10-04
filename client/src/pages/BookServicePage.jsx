@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../hooks/useAuth';
 import { Calendar, Clock, DollarSign, User, Mail, Phone } from 'lucide-react';
 import '../styles/BookServicePage.css';
 import { formatCents, formatDate } from '../lib/format';
@@ -15,10 +16,13 @@ function toLocalDateStr(date) {
   return `${y}-${m}-${d}`;
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function BookServicePage() {
   const { businessId, serviceId } = useParams();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { user } = useAuth();
 
   const [business, setBusiness] = useState(null);
   const [service, setService] = useState(null);
@@ -35,6 +39,66 @@ export default function BookServicePage() {
     customer_notes: '',
     agree_to_terms: false
   });
+  const [fieldErrors, setFieldErrors] = useState({});
+
+  // Prefill contact details from the signed-in profile. Only fills fields the
+  // visitor hasn't typed into yet, so manual edits are never clobbered.
+  useEffect(() => {
+    if (!user) return;
+    const profileName =
+      user.display_name ||
+      [user.first_name, user.last_name].filter(Boolean).join(' ') ||
+      user.name ||
+      '';
+    setFormData((prev) => ({
+      ...prev,
+      customer_name: prev.customer_name || profileName,
+      customer_email: prev.customer_email || user.email || '',
+      customer_phone: prev.customer_phone || user.phone || '',
+    }));
+  }, [user]);
+
+  const validateField = (name, value) => {
+    const v = (value || '').trim();
+    if (name === 'customer_name') {
+      return v ? '' : t('bookService.form.errors.nameRequired');
+    }
+    if (name === 'customer_email') {
+      if (!v) return t('bookService.form.errors.emailRequired');
+      return EMAIL_RE.test(v) ? '' : t('bookService.form.errors.emailInvalid');
+    }
+    if (name === 'customer_phone') {
+      if (!v) return '';
+      const digits = v.replace(/\D/g, '');
+      return digits.length >= 7 ? '' : t('bookService.form.errors.phoneInvalid');
+    }
+    return '';
+  };
+
+  const updateField = (name, value) => {
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    // Re-validate live once a field has shown an error, so the message clears
+    // as soon as the input becomes valid.
+    setFieldErrors((prev) => {
+      if (!prev[name]) return prev;
+      return { ...prev, [name]: validateField(name, value) };
+    });
+  };
+
+  const handleFieldBlur = (name) => {
+    setFieldErrors((prev) => ({ ...prev, [name]: validateField(name, formData[name]) }));
+  };
+
+  const validateForm = () => {
+    const errors = {
+      customer_name: validateField('customer_name', formData.customer_name),
+      customer_email: validateField('customer_email', formData.customer_email),
+      customer_phone: validateField('customer_phone', formData.customer_phone),
+    };
+    const pruned = Object.fromEntries(Object.entries(errors).filter(([, msg]) => msg));
+    setFieldErrors(pruned);
+    return Object.keys(pruned).length === 0;
+  };
 
   // Load service details
   useEffect(() => {
@@ -109,13 +173,12 @@ export default function BookServicePage() {
   };
 
   const handleBooking = async () => {
-    if (!formData.agree_to_terms) {
-      toast.error(t('bookService.errors.agreeTerms'));
+    if (!validateForm()) {
       return;
     }
 
-    if (!formData.customer_name || !formData.customer_email) {
-      toast.error(t('bookService.errors.requiredFields'));
+    if (!formData.agree_to_terms) {
+      toast.error(t('bookService.errors.agreeTerms'));
       return;
     }
 
@@ -301,10 +364,15 @@ export default function BookServicePage() {
               <input
                 type="text"
                 value={formData.customer_name}
-                onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
+                onChange={(e) => updateField('customer_name', e.target.value)}
+                onBlur={() => handleFieldBlur('customer_name')}
                 placeholder={t('bookService.form.namePlaceholder')}
                 required
+                aria-invalid={Boolean(fieldErrors.customer_name)}
               />
+              {fieldErrors.customer_name && (
+                <p className="bsp-field-error" role="alert">{fieldErrors.customer_name}</p>
+              )}
             </div>
 
             <div className="bsp-form-group">
@@ -312,10 +380,15 @@ export default function BookServicePage() {
               <input
                 type="email"
                 value={formData.customer_email}
-                onChange={(e) => setFormData({ ...formData, customer_email: e.target.value })}
+                onChange={(e) => updateField('customer_email', e.target.value)}
+                onBlur={() => handleFieldBlur('customer_email')}
                 placeholder={t('bookService.form.emailPlaceholder')}
                 required
+                aria-invalid={Boolean(fieldErrors.customer_email)}
               />
+              {fieldErrors.customer_email && (
+                <p className="bsp-field-error" role="alert">{fieldErrors.customer_email}</p>
+              )}
             </div>
 
             <div className="bsp-form-group">
@@ -323,16 +396,21 @@ export default function BookServicePage() {
               <input
                 type="tel"
                 value={formData.customer_phone}
-                onChange={(e) => setFormData({ ...formData, customer_phone: e.target.value })}
+                onChange={(e) => updateField('customer_phone', e.target.value)}
+                onBlur={() => handleFieldBlur('customer_phone')}
                 placeholder={t('bookService.form.phonePlaceholder')}
+                aria-invalid={Boolean(fieldErrors.customer_phone)}
               />
+              {fieldErrors.customer_phone && (
+                <p className="bsp-field-error" role="alert">{fieldErrors.customer_phone}</p>
+              )}
             </div>
 
             <div className="bsp-form-group">
               <label>{t('bookService.form.notesLabel')}</label>
               <textarea
                 value={formData.customer_notes}
-                onChange={(e) => setFormData({ ...formData, customer_notes: e.target.value })}
+                onChange={(e) => updateField('customer_notes', e.target.value)}
                 placeholder={t('bookService.form.notesPlaceholder')}
                 rows="4"
               />

@@ -184,6 +184,11 @@
   color: var(--app-text, inherit);
 }
 .bsp-form-group textarea { resize: vertical; }
+.bsp-field-error {
+  margin: 0.25rem 0 0;
+  font-size: 0.78rem;
+  color: #dc2626;
+}
 .bsp-checkbox {
   display: flex;
   align-items: center;

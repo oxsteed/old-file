@@ -13046,7 +13046,13 @@
       "phonePlaceholder": "Votre numéro de téléphone",
       "notesLabel": "Remarques",
       "notesPlaceholder": "Indiquez tout détail utile à l'entreprise…",
-      "termsText": "J'accepte les conditions de réservation et la politique d'annulation."
+      "termsText": "J'accepte les conditions de réservation et la politique d'annulation.",
+      "errors": {
+        "nameRequired": "Veuillez saisir votre nom.",
+        "emailRequired": "Veuillez saisir votre adresse e-mail.",
+        "emailInvalid": "Veuillez saisir une adresse e-mail valide.",
+        "phoneInvalid": "Veuillez saisir un numéro de téléphone valide."
+      }
     },
     "buttons": {
       "booking": "Envoi de la demande…",

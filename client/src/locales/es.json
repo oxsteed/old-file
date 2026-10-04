@@ -13046,7 +13046,13 @@
       "phonePlaceholder": "Tu número de teléfono",
       "notesLabel": "Notas",
       "notesPlaceholder": "Comparte cualquier detalle que el negocio deba saber…",
-      "termsText": "Acepto las condiciones de reserva y la política de cancelación."
+      "termsText": "Acepto las condiciones de reserva y la política de cancelación.",
+      "errors": {
+        "nameRequired": "Por favor, ingresa tu nombre.",
+        "emailRequired": "Por favor, ingresa tu correo electrónico.",
+        "emailInvalid": "Por favor, ingresa un correo electrónico válido.",
+        "phoneInvalid": "Por favor, ingresa un número de teléfono válido."
+      }
     },
     "buttons": {
       "booking": "Enviando solicitud…",

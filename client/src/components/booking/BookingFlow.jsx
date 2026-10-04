@@ -10,6 +10,60 @@ import { createBookingRequest, fetchBookingPrefillForJob } from '../../api/booki
 import { X, ChevronLeft, AlertCircle } from 'lucide-react';
 import './BookingFlow.css';
 
+/** Draft shape for the calendar step (service details + picked date). */
+const EMPTY_CALENDAR_DRAFT = {
+  serviceName: '',
+  serviceLocation: '',
+  description: '',
+  serviceId: '',
+  customService: false,
+  fallbackChoice: 'post',
+  selectedDateStr: '',
+};
+
+function bookingDraftKey(helperId, businessId) {
+  return `oxs:booking-draft:${businessId ? `biz-${businessId}` : `helper-${helperId || 'none'}`}`;
+}
+
+function loadBookingDraft(key, serviceHint) {
+  const base = { ...EMPTY_CALENDAR_DRAFT, serviceName: serviceHint || '' };
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return base;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return base;
+    return {
+      ...base,
+      ...parsed,
+      serviceName: typeof parsed.serviceName === 'string' ? parsed.serviceName : base.serviceName,
+      serviceLocation: typeof parsed.serviceLocation === 'string' ? parsed.serviceLocation : '',
+      description: typeof parsed.description === 'string' ? parsed.description : '',
+      serviceId: typeof parsed.serviceId === 'string' ? parsed.serviceId : '',
+      customService: parsed.customService === true,
+      fallbackChoice: parsed.fallbackChoice === 'expire' ? 'expire' : 'post',
+      selectedDateStr: typeof parsed.selectedDateStr === 'string' ? parsed.selectedDateStr : '',
+    };
+  } catch {
+    return base;
+  }
+}
+
+function saveBookingDraft(key, draft) {
+  try {
+    sessionStorage.setItem(key, JSON.stringify(draft));
+  } catch {
+    // quota / private mode: the flow still works, the draft just won't survive refresh
+  }
+}
+
+function clearBookingDraft(key) {
+  try {
+    sessionStorage.removeItem(key);
+  } catch {
+    // ignore
+  }
+}
+
 /**
  * Direct booking: calendar → confirm → track status.
  * Fallback: Post Job wizard with pre-filled fields from a finished booking.
@@ -26,6 +80,19 @@ export default function BookingFlow({ helperId, helperName, businessId, business
   const [bookingRequest, setBookingRequest] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Calendar-step draft lifted out of BookingCalendar so going Back (which
+  // unmounts it) doesn't drop the typed service details. Also mirrored to
+  // sessionStorage so a refresh restores the draft. Scoped per helper/business.
+  const draftKey = bookingDraftKey(helperId, businessId);
+  const [calendarDraft, setCalendarDraft] = useState(() => loadBookingDraft(draftKey, serviceHint));
+  const updateCalendarDraft = useCallback(
+    (patch) => setCalendarDraft((prev) => ({ ...prev, ...patch })),
+    []
+  );
+  useEffect(() => {
+    saveBookingDraft(draftKey, calendarDraft);
+  }, [draftKey, calendarDraft]);
 
   const isLoggedIn = !!user;
 
@@ -66,6 +133,9 @@ export default function BookingFlow({ helperId, helperName, businessId, business
 
       setBookingRequest(bookingRow);
       setStep('status');
+      // The draft served its purpose: the request is created, so drop it.
+      clearBookingDraft(draftKey);
+      setCalendarDraft({ ...EMPTY_CALENDAR_DRAFT, serviceName: serviceHint || '' });
       onBookingCreated?.(bookingRow);
     } catch (err) {
       const msg =
@@ -198,6 +268,8 @@ export default function BookingFlow({ helperId, helperName, businessId, business
             businessId={businessId}
             businessName={businessName}
             initialServiceName={serviceHint}
+            draft={calendarDraft}
+            onDraftChange={updateCalendarDraft}
             onSelectSlot={handleSelectSlot}
           />
         )}

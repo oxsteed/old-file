@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Clock, Info, RefreshCw } from 'lucide-react';
 import { getAvailableSlots, getBusinessAvailableSlots } from '../../api/bookings';
@@ -22,19 +22,30 @@ function formatTime(hhmm) {
 
 export default function BookingCalendar({
   helperId, helperName, businessId, businessName, onSelectSlot, initialServiceName = '',
+  draft = {}, onDraftChange = () => {},
 }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language || 'en';
   const [selectedDate, setSelectedDate] = useState(null);
   const [availability, setAvailability] = useState(null);
   const [services, setServices] = useState([]);
-  const [serviceId, setServiceId] = useState('');
-  const [customService, setCustomService] = useState(false);
-  const [serviceData, setServiceData] = useState({ serviceName: initialServiceName || '', serviceLocation: '', description: '' });
-  const [fallbackChoice, setFallbackChoice] = useState('post');
+  // Service details live in the parent-owned draft (BookingFlow) so going Back
+  // or refreshing doesn't drop them; this component only edits them via onDraftChange.
+  const serviceId = draft.serviceId || '';
+  const customService = draft.customService === true;
+  const serviceData = {
+    serviceName: draft.serviceName || '',
+    serviceLocation: draft.serviceLocation || '',
+    description: draft.description || '',
+  };
+  const fallbackChoice = draft.fallbackChoice === 'expire' ? 'expire' : 'post';
   const [loading, setLoading] = useState(false);
   const [servicesLoading, setServicesLoading] = useState(false);
   const [error, setError] = useState(null);
+  // Whether the draft already carried a service name (restored from
+  // sessionStorage): in that case don't let initialServiceName or the
+  // first-business-service default clobber it.
+  const restoredNameRef = useRef(Boolean(draft.serviceName));
 
   const days = useMemo(() => {
     const result = [];
@@ -49,7 +60,10 @@ export default function BookingCalendar({
   }, []);
 
   useEffect(() => {
-    if (initialServiceName) setServiceData((d) => ({ ...d, serviceName: initialServiceName }));
+    if (initialServiceName && !restoredNameRef.current) {
+      onDraftChange({ serviceName: initialServiceName });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialServiceName]);
 
   useEffect(() => {
@@ -62,19 +76,30 @@ export default function BookingCalendar({
         const rows = data?.data ?? data;
         const next = Array.isArray(rows) ? rows : [];
         setServices(next);
-        if (!initialServiceName && next[0]) {
-          setServiceId(String(next[0].id));
-          setServiceData((d) => ({ ...d, serviceName: next[0].name || '' }));
+        if (!initialServiceName && !restoredNameRef.current && next[0]) {
+          onDraftChange({ serviceId: String(next[0].id), serviceName: next[0].name || '' });
         }
       })
       .catch(() => { if (active) setServices([]); })
       .finally(() => { if (active) setServicesLoading(false); });
     return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [businessId, initialServiceName]);
+
+  // Restore the picked date from the draft (e.g. after going Back) and reload
+  // its availability so the step looks the way it was left.
+  useEffect(() => {
+    if (draft.selectedDateStr) {
+      const [y, m, d] = draft.selectedDateStr.split('-').map(Number);
+      if (y && m && d) loadAvailability(new Date(y, m - 1, d));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const loadAvailability = (date, selectedServiceId = serviceId) => {
     if (!date) return;
     setSelectedDate(date);
+    onDraftChange({ selectedDateStr: toLocalDateStr(date) });
     setLoading(true);
     setError(null);
     setAvailability(null);
@@ -93,15 +118,15 @@ export default function BookingCalendar({
 
   const updateService = (value) => {
     if (value === '__custom__') {
-      setServiceId('');
-      setCustomService(true);
-      setServiceData((d) => ({ ...d, serviceName: '' }));
+      onDraftChange({ serviceId: '', customService: true, serviceName: '' });
       return;
     }
     const selected = services.find((service) => String(service.id) === String(value));
-    setServiceId(value);
-    setCustomService(false);
-    setServiceData((d) => ({ ...d, serviceName: selected?.name || d.serviceName }));
+    onDraftChange({
+      serviceId: value,
+      customService: false,
+      serviceName: selected?.name || serviceData.serviceName,
+    });
     if (selectedDate) loadAvailability(selectedDate, value);
   };
 
@@ -119,7 +144,9 @@ export default function BookingCalendar({
       requestedDate: toLocalDateStr(selectedDate),
       requestedStartTime: slot.startTime,
       requestedEndTime: slot.endTime,
-      availabilityMode: 'scheduled', autoPostOnExpiry: false, serviceId: serviceId || null, ...serviceData,
+      availabilityMode: 'scheduled', autoPostOnExpiry: false, serviceId: serviceId || null,
+      serviceName: serviceData.serviceName, serviceLocation: serviceData.serviceLocation,
+      description: serviceData.description,
     });
   };
 
@@ -128,7 +155,9 @@ export default function BookingCalendar({
     onSelectSlot({
       requestedDate: toLocalDateStr(selectedDate),
       requestedStartTime: null, requestedEndTime: null,
-      availabilityMode: 'request_only', autoPostOnExpiry: fallbackChoice === 'post', serviceId: serviceId || null, ...serviceData,
+      availabilityMode: 'request_only', autoPostOnExpiry: fallbackChoice === 'post', serviceId: serviceId || null,
+      serviceName: serviceData.serviceName, serviceLocation: serviceData.serviceLocation,
+      description: serviceData.description,
     });
   };
 
@@ -148,13 +177,13 @@ export default function BookingCalendar({
             </select>
           ) : (
             <div className="booking-custom-service">
-              <input id="booking-service-name" type="text" placeholder={t('booking.serviceName')} value={serviceData.serviceName} onChange={(e) => setServiceData({ ...serviceData, serviceName: e.target.value })} className="booking-input" />
-              {businessId && services.length > 0 && <button type="button" className="booking-inline-action" onClick={() => { setCustomService(false); setServiceId(''); setServiceData((d) => ({ ...d, serviceName: '' })); }}>{t('booking.backToServices')}</button>}
+              <input id="booking-service-name" type="text" placeholder={t('booking.serviceName')} value={serviceData.serviceName} onChange={(e) => onDraftChange({ serviceName: e.target.value })} className="booking-input" />
+              {businessId && services.length > 0 && <button type="button" className="booking-inline-action" onClick={() => onDraftChange({ customService: false, serviceId: '', serviceName: '' })}>{t('booking.backToServices')}</button>}
             </div>
           )}
         </div>
-        <div className="booking-form-group"><label htmlFor="booking-service-location">{t('booking.serviceLocation')}</label><input id="booking-service-location" type="text" placeholder={t('booking.serviceLocation')} value={serviceData.serviceLocation} onChange={(e) => setServiceData({ ...serviceData, serviceLocation: e.target.value })} className="booking-input" /></div>
-        <div className="booking-form-group"><label htmlFor="booking-description">{t('booking.description')}</label><textarea id="booking-description" placeholder={t('booking.descriptionPlaceholder')} value={serviceData.description} onChange={(e) => setServiceData({ ...serviceData, description: e.target.value })} className="booking-textarea" rows="5" /></div>
+        <div className="booking-form-group"><label htmlFor="booking-service-location">{t('booking.serviceLocation')}</label><input id="booking-service-location" type="text" placeholder={t('booking.serviceLocation')} value={serviceData.serviceLocation} onChange={(e) => onDraftChange({ serviceLocation: e.target.value })} className="booking-input" /></div>
+        <div className="booking-form-group"><label htmlFor="booking-description">{t('booking.description')}</label><textarea id="booking-description" placeholder={t('booking.descriptionPlaceholder')} value={serviceData.description} onChange={(e) => onDraftChange({ description: e.target.value })} className="booking-textarea" rows="5" /></div>
       </section>
 
       <section className="booking-calendar-container booking-panel">
@@ -172,8 +201,8 @@ export default function BookingCalendar({
               <div className="booking-request-only">
                 <div className="booking-state-card"><Info size={18} /><div><strong>{t('booking.noScheduleTitle')}</strong><p>{t('booking.noScheduleDescription')}</p></div></div>
                 <div className="booking-choice-list" role="radiogroup" aria-label={t('booking.noScheduleChoiceLabel')}>
-                  <label className={`booking-choice ${fallbackChoice === 'post' ? 'selected' : ''}`}><input type="radio" name="fallbackChoice" value="post" checked={fallbackChoice === 'post'} onChange={() => setFallbackChoice('post')} /><span><strong>{t('booking.autoPostChoice')}</strong><small>{t('booking.autoPostChoiceHint')}</small></span></label>
-                  <label className={`booking-choice ${fallbackChoice === 'expire' ? 'selected' : ''}`}><input type="radio" name="fallbackChoice" value="expire" checked={fallbackChoice === 'expire'} onChange={() => setFallbackChoice('expire')} /><span><strong>{t('booking.expireChoice')}</strong><small>{t('booking.expireChoiceHint')}</small></span></label>
+                  <label className={`booking-choice ${fallbackChoice === 'post' ? 'selected' : ''}`}><input type="radio" name="fallbackChoice" value="post" checked={fallbackChoice === 'post'} onChange={() => onDraftChange({ fallbackChoice: 'post' })} /><span><strong>{t('booking.autoPostChoice')}</strong><small>{t('booking.autoPostChoiceHint')}</small></span></label>
+                  <label className={`booking-choice ${fallbackChoice === 'expire' ? 'selected' : ''}`}><input type="radio" name="fallbackChoice" value="expire" checked={fallbackChoice === 'expire'} onChange={() => onDraftChange({ fallbackChoice: 'expire' })} /><span><strong>{t('booking.expireChoice')}</strong><small>{t('booking.expireChoiceHint')}</small></span></label>
                 </div>
                 <button type="button" className="booking-btn-primary booking-request-button" onClick={handleRequestOnly}>{t('booking.requestWithoutSchedule')}</button>
               </div>

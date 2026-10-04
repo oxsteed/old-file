@@ -13046,7 +13046,13 @@
       "phonePlaceholder": "Nimewo telefòn ou",
       "notesLabel": "Nòt",
       "notesPlaceholder": "Pataje nenpòt detay biznis la dwe konnen…",
-      "termsText": "Mwen aksepte kondisyon rezèvasyon ak règleman anilasyon yo."
+      "termsText": "Mwen aksepte kondisyon rezèvasyon ak règleman anilasyon yo.",
+      "errors": {
+        "nameRequired": "Tanpri antre non ou.",
+        "emailRequired": "Tanpri antre imel ou.",
+        "emailInvalid": "Tanpri antre yon adrès imel ki valab.",
+        "phoneInvalid": "Tanpri antre yon nimewo telefòn ki valab."
+      }
     },
     "buttons": {
       "booking": "Ap voye demann lan…",
