@@ -10,7 +10,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SlidersHorizontal, X, ChevronDown, Sparkles, MapPin } from 'lucide-react';
 
@@ -319,11 +319,13 @@ const DirectoryHero: React.FC<{
   searchValue: string;
   onSearch: (v: string) => void;
   categoryLabels: { key: string; label: string }[];
+  tiles?: { id: string; label: string; icon?: React.ReactNode }[];
   entryPoint?: 'helpers' | 'direct';
 }> = ({
   searchValue,
   onSearch,
   categoryLabels,
+  tiles,
   entryPoint = 'helpers',
 }) => {
   const { t } = useTranslation();
@@ -364,6 +366,8 @@ const DirectoryHero: React.FC<{
             value={searchValue}
             onChange={onSearch}
             placeholder={t('helpersDir.heroSearchPlaceholder')}
+            tiles={tiles}
+            categories={categoryLabels}
           />
         </div>
 
@@ -410,6 +414,20 @@ function getInitialState(): { filters: DirectoryFilters; tileId: string | null }
 
   const qParam = params.get('q');
   if (qParam) filters.query = qParam;
+
+  // Written back by the shareable-URL effect below; read here so shared links
+  // round-trip.
+  const catsParam = params.get('categories');
+  if (catsParam) {
+    const cats = catsParam
+      .split(',')
+      .map((c) => c.trim())
+      .filter((c) => (CATEGORIES as readonly string[]).includes(c));
+    if (cats.length > 0) filters.categories = cats as DirectoryFilters['categories'];
+  }
+
+  const zipParam = params.get('zip');
+  if (zipParam) filters.zipCode = zipParam.trim().slice(0, 12);
 
   const latParam  = params.get('lat');
   const lngParam  = params.get('lng');
@@ -459,6 +477,7 @@ function mergeGridItems(
 const HelpersDirectoryPage: React.FC<{ entryPoint?: 'helpers' | 'direct' }> = ({ entryPoint = 'helpers' }) => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const [, setSearchParams] = useSearchParams();
   // Parse URL params exactly once - destructure for both derived states.
   const [{ filters: _initFilters, tileId: _initTileId }] = useState(getInitialState);
   const [filters, setFilters]           = useState<DirectoryFilters>(_initFilters);
@@ -504,6 +523,39 @@ const HelpersDirectoryPage: React.FC<{ entryPoint?: 'helpers' | 'direct' }> = ({
     }, 300);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [filters, sort, load]);
+
+  // Keep the URL shareable: mirror the main in-session filters (query,
+  // skill tile / categories, location, availability) back into the query
+  // string with replace:true, mirroring JobListPage. The job deep-link param
+  // (requiredSkillIds) is preserved so shared links keep their context.
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (filters.query) next.set('q', filters.query);
+    if (selectedTileId) next.set('skill', selectedTileId);
+    else if (filters.categories.length > 0) next.set('categories', filters.categories.join(','));
+    if (filters.zipCode) next.set('zip', filters.zipCode);
+    if (filters.lat != null && filters.lng != null) {
+      next.set('lat', String(filters.lat));
+      next.set('lng', String(filters.lng));
+      if (filters.maxDistance > 0) next.set('radius', String(filters.maxDistance));
+    }
+    if (filters.availableToday) next.set('availableToday', 'true');
+    if (filters.requiredSkillIds && filters.requiredSkillIds.length > 0) {
+      next.set('requiredSkillIds', filters.requiredSkillIds.join(','));
+    }
+    setSearchParams(next, { replace: true });
+  }, [
+    filters.query,
+    selectedTileId,
+    filters.categories,
+    filters.zipCode,
+    filters.lat,
+    filters.lng,
+    filters.maxDistance,
+    filters.availableToday,
+    filters.requiredSkillIds,
+    setSearchParams,
+  ]);
 
   const updateFilters = useCallback((partial: Partial<DirectoryFilters>) => {
     setFilters((prev) => ({ ...prev, ...partial }));
@@ -609,6 +661,7 @@ const HelpersDirectoryPage: React.FC<{ entryPoint?: 'helpers' | 'direct' }> = ({
         searchValue={filters.query}
         onSearch={(q) => updateFilters({ query: q })}
         categoryLabels={categoryHeroChips}
+        tiles={translatedTiles}
       />
 
       {/* Skill tile grid */}

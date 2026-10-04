@@ -1,6 +1,6 @@
 // Local Food Directory — customer discovery: search, browse, and order from restaurants worldwide.
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { listFoodRestaurantsPage, listMyFoodOrders } from '../../api/food';
 import { getNearbyPlaces } from '../../api/geo';
@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import { FoodBrand } from './foodShared';
 import PageShell from '../../components/PageShell';
 import PageMeta from '../../components/PageMeta';
+import { SuggestDropdown } from '../../components/SuggestDropdown';
 import ThemeToggle from '../../components/ThemeToggle';
 import LanguageSelector from '../../components/LanguageSelector';
 import { ArrowDown, ArrowRight, ArrowUpRight, Search, MapPin, Map, Store, Utensils, SlidersHorizontal, X } from 'lucide-react';
@@ -137,6 +138,7 @@ function ExternalPlaceCard({ place, t }) {
 export default function FoodHomePage() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const [query, setQuery] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState('');
@@ -249,6 +251,20 @@ export default function FoodHomePage() {
     load(params, { reset: true });
   };
 
+  // Live filtering: mirror keystrokes into a debounced server search so the
+  // grid updates as you type (300ms). Skipped when the query already matches
+  // the last submitted search (e.g. right after the search button runs).
+  useEffect(() => {
+    if (query.trim() === submittedQuery) return undefined;
+    const timer = setTimeout(() => {
+      const trimmed = query.trim();
+      setSubmittedQuery(trimmed);
+      const params = buildRestaurantDiscoveryParams({ query: trimmed, cuisine: activeCuisine, geo, sort });
+      load(params, { reset: true });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query, submittedQuery, activeCuisine, geo, sort, load]);
+
   const selectCuisine = (cuisine) => {
     const nextCuisine = activeCuisine === cuisine ? null : cuisine;
     setActiveCuisine(nextCuisine);
@@ -305,6 +321,54 @@ export default function FoodHomePage() {
     return Array.from(tags).slice(0, 14);
   }, [restaurants]);
 
+  // Typeahead items for the shared SuggestDropdown: loaded restaurant names
+  // (with cuisine meta) plus the cuisine tags present in the current market.
+  // The dropdown ranks title-prefix matches first on its own.
+  const suggestItems = useMemo(() => {
+    const seen = new Set();
+    const items = [];
+    for (const r of restaurants) {
+      const title = r.display_name || '';
+      const key = title.toLowerCase();
+      if (!title || seen.has(key)) continue;
+      seen.add(key);
+      items.push({
+        id: `restaurant:${r.id}`,
+        title,
+        meta: (r.cuisine_tags || []).slice(0, 2).join(' · '),
+        icon: <span aria-hidden="true">{iconForCuisine((r.cuisine_tags || [])[0])}</span>,
+        data: { kind: 'restaurant', id: r.id },
+      });
+      if (items.length >= 30) break;
+    }
+    for (const tag of cuisinesFromData) {
+      items.push({
+        id: `cuisine:${tag}`,
+        title: tag,
+        icon: <span aria-hidden="true">{iconForCuisine(tag)}</span>,
+        data: { kind: 'cuisine', name: tag },
+      });
+    }
+    return items;
+  }, [restaurants, cuisinesFromData]);
+
+  // Picking a restaurant suggestion jumps to its page; picking a cuisine
+  // applies the cuisine filter directly and clears the text query.
+  const handleSuggestSelect = (item) => {
+    const d = (item && item.data) || {};
+    if (d.kind === 'restaurant' && d.id != null) {
+      navigate(`/restaurants/r/${d.id}`);
+      return;
+    }
+    if (d.kind === 'cuisine' && d.name) {
+      setQuery('');
+      setSubmittedQuery('');
+      setActiveCuisine(d.name);
+      const params = buildRestaurantDiscoveryParams({ query: '', cuisine: d.name, geo, sort });
+      load(params, { reset: true });
+    }
+  };
+
   const displayedRestaurants = useMemo(() => {
     return restaurants;
   }, [restaurants]);
@@ -348,6 +412,14 @@ export default function FoodHomePage() {
     load({ sort: 'recommended' }, { reset: true });
   };
 
+  // Clear just the search text (keeps cuisine / location / sort filters).
+  const clearSearch = () => {
+    setQuery('');
+    setSubmittedQuery('');
+    const params = buildRestaurantDiscoveryParams({ query: '', cuisine: activeCuisine, geo, sort });
+    load(params, { reset: true });
+  };
+
   // Cuisine strip is driven by live restaurant data only — no hardcoded
   // market assumptions. When the current market has no restaurants (or only
   // one cuisine), the strip is hidden instead of advertising empty categories.
@@ -384,12 +456,15 @@ export default function FoodHomePage() {
           <form className="fd-home-searchbar" onSubmit={search}>
             <div className="fd-home-search-input-wrap">
               <Search className="fd-home-search-icon" size={20} aria-hidden="true" />
-              <input
-                type="search"
+              <SuggestDropdown
+                id="fd-food-search"
+                items={suggestItems}
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onQueryChange={setQuery}
+                onSelect={handleSuggestSelect}
+                recentsKey="oxsteed_food_recent_searches"
                 placeholder={t('food.home.searchPlaceholder')}
-                aria-label={t('food.home.searchPlaceholder')}
+                ariaLabel={t('food.home.searchPlaceholder')}
               />
             </div>
             <button type="submit" className="fd-btn fd-home-search-btn">
@@ -607,15 +682,39 @@ export default function FoodHomePage() {
                 {displayedRestaurants.map((r) => <RestaurantCard key={r.id} r={r} t={t} />)}
               </div>
             ) : (
-              <div className="fd-empty-filter">
-                <p>{t('food.home.noResultsForFilter', { cuisine: activeCuisine || query })}</p>
-                <button
-                  type="button"
-                  className="fd-btn fd-btn-secondary fd-btn-sm"
-                  onClick={clearFilters}
-                >
-                  {t('food.home.clearFilter')}
-                </button>
+              <div className="fd-empty-filter fd-empty-search">
+                <Search size={28} aria-hidden="true" className="fd-empty-search-icon" />
+                <h3 className="fd-empty-search-title">
+                  {t('food.home.noResultsSearchTitle', { query: submittedQuery || query })}
+                </h3>
+                <p>{t('food.home.noResultsSearchHint')}</p>
+                <div className="fd-empty-search-actions">
+                  <button
+                    type="button"
+                    className="fd-btn fd-btn-secondary fd-btn-sm"
+                    onClick={clearSearch}
+                  >
+                    {t('food.home.clearSearch')}
+                  </button>
+                </div>
+                {cuisineStrip.length > 0 && (
+                  <div className="fd-empty-search-cuisines">
+                    <p className="fd-empty-search-cuisines-label">{t('food.home.tryCuisine')}</p>
+                    <div className="fd-empty-cuisine-chips">
+                      {cuisineStrip.slice(0, 8).map(({ key, icon }) => (
+                        <button
+                          key={key}
+                          type="button"
+                          className="fd-home-cat-btn"
+                          onClick={() => selectCuisine(key)}
+                        >
+                          <span className="fd-home-cat-icon">{icon}</span>
+                          <span className="fd-home-cat-label">{key}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             {displayedRestaurants.length > 0 && (

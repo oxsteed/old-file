@@ -1473,6 +1473,33 @@ html:not(.dark) .fd-skeleton-label {
 }
 .fd-empty-filter p { margin: 0 0 1rem; }
 
+/* Designed no-results state for live search: "no results for X" + clear
+   search + cuisine suggestions (replaces the bare zero-match branch). */
+.fd-empty-search {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+.fd-empty-search-icon { color: var(--muted-text); }
+.fd-empty-search-title { margin: 0; font-size: 1.25rem; }
+.fd-empty-search p { margin: 0; max-width: 36rem; }
+.fd-empty-search-actions { margin-top: 0.5rem; }
+.fd-empty-search-cuisines {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+.fd-empty-search-cuisines-label { margin: 0; font-weight: 600; }
+.fd-empty-cuisine-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
 /* ── Content wrapper ── */
 .fd-home-content { padding-top: 0.5rem; }
 
