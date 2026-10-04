@@ -9690,7 +9690,8 @@
     }
   },
   "quickAddTemplates": {
-    "quickAdd": "إضافة سريعة:"
+    "quickAdd": "إضافة سريعة:",
+    "loadError": "تعذّر تحميل قوالب الإضافة السريعة."
   },
   "helperOffers": {
     "title": "عروض العمل لك ({{count}})",
@@ -20047,6 +20048,7 @@
         "quizTitle": "الاختبار",
         "answeredCount": "أُجيب {{done}} من {{total}}",
         "submitQuiz": "إرسال الاختبار",
+        "submittingQuiz": "جارٍ الإرسال...",
         "takeQuiz": "إجراء الاختبار",
         "category": {
           "general": "عام",

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 
@@ -16,12 +16,45 @@ const ICONS = {
 export default function QuickAddTemplates({ onSelect }) {
   const { t } = useTranslation();
   const [templates, setTemplates] = useState([]);
+  const [loadError, setLoadError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoadError(false);
     api.get('/planned-needs/templates')
       .then(r => setTemplates(r.data.templates || []))
-      .catch(() => {});
+      .catch(() => setLoadError(true));
   }, []);
+
+  useEffect(load, [load]);
+
+  if (loadError) {
+    return (
+      <div style={{ marginBottom: '16px' }}>
+        <p style={{ fontSize: '13px', color: '#6b7280', margin: '0 0 8px' }}>{t('quickAddTemplates.quickAdd')}</p>
+        <div
+          role="alert"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
+            padding: '10px 12px', background: '#fef2f2', border: '1px solid #fecaca',
+            borderRadius: '8px', fontSize: '13px', color: '#991b1b',
+          }}
+        >
+          <span>{t('quickAddTemplates.loadError', 'Could not load quick-add templates.')}</span>
+          <button
+            type="button"
+            onClick={load}
+            style={{
+              flexShrink: 0, padding: '6px 14px', background: 'white',
+              border: '1px solid #fca5a5', borderRadius: '6px', cursor: 'pointer',
+              fontSize: '12px', fontWeight: 600, color: '#991b1b',
+            }}
+          >
+            {t('common.retry', 'Retry')}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (!templates.length) return null;
 

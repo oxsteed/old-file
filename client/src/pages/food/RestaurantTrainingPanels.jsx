@@ -672,7 +672,9 @@ function TrainingFlow({ t, restaurantId, taking, setTaking, onDone }) {
         </p>
         <div className="fd-settings-actions">
           <button type="submit" className="fd-btn fd-btn-sm" disabled={busy || questions.length === 0}>
-            {t('restaurants.ops.training.submitQuiz', 'Submit quiz')}
+            {busy
+              ? t('restaurants.ops.training.submittingQuiz', 'Submitting...')
+              : t('restaurants.ops.training.submitQuiz', 'Submit quiz')}
           </button>
           <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={close}>
             {t('food.common.back', 'Back')}

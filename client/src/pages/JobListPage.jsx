@@ -257,7 +257,7 @@ const SubSkillStrip = ({ tile, selectedSkills, onToggleSkill, onClearTile }) => 
 };
 
 // ── Hero banner ───────────────────────────────────────────────────────────────
-const DirectoryHero = ({ searchValue, onSearch, categoryLabels }) => {
+const DirectoryHero = ({ searchValue, onSearch, categoryLabels, suggestTiles }) => {
   const { t } = useTranslation();
   return (
     <div className="relative bg-gray-900 border-b border-gray-800 overflow-hidden">
@@ -293,6 +293,8 @@ const DirectoryHero = ({ searchValue, onSearch, categoryLabels }) => {
               value={searchValue}
               onChange={onSearch}
               placeholder={t('jobsDir.heroSearchPlaceholder')}
+              tiles={suggestTiles}
+              categories={categoryLabels}
             />
           </div>
 
@@ -522,6 +524,7 @@ export default function JobListPage() {
         searchValue={filters.query}
         onSearch={(q) => updateFilters({ query: q })}
         categoryLabels={categoryHeroChips}
+        suggestTiles={translatedTiles}
       />
 
       {/* Skill tile grid */}

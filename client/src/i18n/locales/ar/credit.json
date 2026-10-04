@@ -1244,6 +1244,7 @@
     "invalidAmount": "أدخل مبلغاً بين {{min}} و{{max}}.",
     "continue": "متابعة",
     "processing": "جارٍ المعالجة…",
+    "quickAmounts": "مبالغ سريعة",
     "stepupTitle": "تحقق من هويتك",
     "stepupCopy": "لعمليات الشحن الأكبر أرسلنا رمز تحقق إلى بريدك الإلكتروني.",
     "stepupCode": "رمز التحقق",

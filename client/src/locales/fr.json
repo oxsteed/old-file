@@ -9690,7 +9690,8 @@
     }
   },
   "quickAddTemplates": {
-    "quickAdd": "Ajout rapide :"
+    "quickAdd": "Ajout rapide :",
+    "loadError": "Impossible de charger les modèles d’ajout rapide."
   },
   "helperOffers": {
     "title": "Offres d'emploi pour vous ({{count}})",
@@ -20036,6 +20037,7 @@
         "quizTitle": "Quiz",
         "answeredCount": "{{done}} sur {{total}} répondues",
         "submitQuiz": "Envoyer le quiz",
+        "submittingQuiz": "Envoi en cours...",
         "takeQuiz": "Faire le quiz",
         "category": {
           "general": "Général",

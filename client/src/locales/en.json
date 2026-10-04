@@ -9688,7 +9688,8 @@
     }
   },
   "quickAddTemplates": {
-    "quickAdd": "Quick Add:"
+    "quickAdd": "Quick Add:",
+    "loadError": "Could not load quick-add templates."
   },
   "helperOffers": {
     "title": "Job Offers for You ({{count}})",
@@ -20026,6 +20027,7 @@
         "quizTitle": "Quiz",
         "answeredCount": "{{done}} of {{total}} answered",
         "submitQuiz": "Submit quiz",
+        "submittingQuiz": "Submitting...",
         "takeQuiz": "Take quiz",
         "category": {
           "general": "General",

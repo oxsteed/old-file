@@ -161,6 +161,7 @@ export default function SettingsPage() {
   const [profileSnapshot, setProfileSnapshot] = useState(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [namePrefTouched, setNamePrefTouched] = useState(false);
+  const [postalTouched, setPostalTouched] = useState(false);
   const fileInputRef = useRef(null);
   const [passwords, setPasswords] = useState({ current: '', newPass: '', confirm: '' });
   const [loading, setLoading] = useState(true);
@@ -246,9 +247,10 @@ export default function SettingsPage() {
 
   const saveProfile = async (e) => {
     e.preventDefault();
-    const zipTrimmed = (profile.zipcode || '').trim();
-    if (zipTrimmed && !isValidPostal(profile.country || 'US', zipTrimmed)) {
-      toast.error(t('settings.profile.postalCodeInvalid', 'Enter a valid postal code for the selected country.'));
+    if (postalInvalid) {
+      // The inline error under the field is already visible (or appears now);
+      // no toast needed.
+      setPostalTouched(true);
       return;
     }
     setSaving(true);
@@ -297,6 +299,14 @@ export default function SettingsPage() {
 
   const DIRTY_KEYS = ['phone', 'bio', 'zipcode', 'display_name_preference', 'profile_photo_url', 'address_line1', 'address_line2', 'city', 'state', 'country'];
   const isProfileDirty = !!profileSnapshot && DIRTY_KEYS.some(k => (profile[k] || '') !== (profileSnapshot[k] || ''));
+
+  // Inline postal-code validation (shown under the field on blur, not as a
+  // save-time toast). Empty is allowed; a non-empty value must match the
+  // selected country's format.
+  const postalInvalid = (() => {
+    const zipTrimmed = (profile.zipcode || '').trim();
+    return zipTrimmed !== '' && !isValidPostal(profile.country || 'US', zipTrimmed);
+  })();
 
   const avatarInitials = useMemo(() => {
     const initials = `${profile.first_name?.[0] || ''}${profile.last_name?.[0] || ''}`.toUpperCase();
@@ -684,7 +694,7 @@ export default function SettingsPage() {
                 <CountrySelect
                   className="sp-input"
                   value={profile.country || 'US'}
-                  onChange={(code) => setProfile({ ...profile, country: code, state: '' })}
+                  onChange={(code) => { setProfile({ ...profile, country: code, state: '' }); setPostalTouched(false); }}
                   includeBlank={false}
                   placeholder={t('settings.profile.country', 'Country')}
                 />
@@ -695,7 +705,13 @@ export default function SettingsPage() {
                   country={profile.country || 'US'}
                   value={profile.zipcode || ''}
                   onChange={(v) => setProfile({ ...profile, zipcode: v })}
+                  onBlur={() => setPostalTouched(true)}
                 />
+                {postalTouched && postalInvalid && (
+                  <p role="alert" className="sp-field-error">
+                    {t('settings.profile.postalCodeInvalid', 'Enter a valid postal code for the selected country.')}
+                  </p>
+                )}
               </div>
             </div>
           </div>

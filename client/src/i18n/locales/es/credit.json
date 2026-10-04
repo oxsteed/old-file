@@ -1244,6 +1244,7 @@
     "invalidAmount": "Ingresa un monto entre {{min}} y {{max}}.",
     "continue": "Continuar",
     "processing": "Procesando…",
+    "quickAmounts": "Montos rápidos",
     "stepupTitle": "Verifica tu identidad",
     "stepupCopy": "Para recargas mayores enviamos un código de verificación a tu correo.",
     "stepupCode": "Código de verificación",

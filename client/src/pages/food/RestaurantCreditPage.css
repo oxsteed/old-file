@@ -104,6 +104,10 @@
 .credit-money-input { display: grid; grid-template-columns: auto 1fr; align-items: center; overflow: hidden; border: 1px solid #dbe0e3; border-radius: 13px; background: #fff; }
 .credit-money-input > span { padding-left: 14px; color: #70808a; font-size: 12px; font-weight: 800; }
 .credit-money-input input { border: 0; box-shadow: none !important; }
+.credit-quick-amounts { display: flex; flex-wrap: wrap; gap: 8px; }
+.credit-chip { padding: 8px 16px; border: 1px solid #dbe0e3; border-radius: 999px; color: #10253f; background: #fff; font-size: 13px; font-weight: 800; cursor: pointer; transition: border-color .15s ease, background .15s ease; }
+.credit-chip:hover { border-color: #ed8618; background: #fff7ec; }
+.credit-field-error { margin: 0; color: #b42318; font-size: 13px; font-weight: 600; }
 .credit-primary, .credit-secondary { min-height: 48px; border: 0; border-radius: 14px; font-size: 14px; font-weight: 800; cursor: pointer; }
 .credit-primary { color: #fff; background: linear-gradient(105deg,#f19a20,#f3694d); }
 .credit-secondary { width: 100%; color: #a8492a; background: #fff0e8; }

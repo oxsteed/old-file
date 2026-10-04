@@ -9690,7 +9690,8 @@
     }
   },
   "quickAddTemplates": {
-    "quickAdd": "Agregar rápido:"
+    "quickAdd": "Agregar rápido:",
+    "loadError": "No se pudieron cargar las plantillas de agregado rápido."
   },
   "helperOffers": {
     "title": "Ofertas de trabajo para ti ({{count}})",
@@ -20036,6 +20037,7 @@
         "quizTitle": "Cuestionario",
         "answeredCount": "{{done}} de {{total}} respondidas",
         "submitQuiz": "Enviar cuestionario",
+        "submittingQuiz": "Enviando...",
         "takeQuiz": "Hacer cuestionario",
         "category": {
           "general": "General",

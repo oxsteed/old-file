@@ -213,7 +213,7 @@ const SubTypeStrip = ({ tile, selectedSubTypes, onToggleSubType, onClearTile }) 
 };
 
 // ── Hero ────────────────────────────────────────────────────────────────────
-const DirectoryHero = ({ searchValue, onSearch, categoryChips }) => {
+const DirectoryHero = ({ searchValue, onSearch, categoryChips, suggestTiles }) => {
   const { t } = useTranslation();
   return (
     <div className="relative bg-gray-900 border-b border-gray-800 overflow-hidden">
@@ -251,6 +251,8 @@ const DirectoryHero = ({ searchValue, onSearch, categoryChips }) => {
                 value={searchValue}
                 onChange={onSearch}
                 placeholder={t('toolRentalsDir.heroSearchPlaceholder')}
+                tiles={suggestTiles}
+                categories={categoryChips}
               />
             </div>
 
@@ -562,6 +564,7 @@ const ToolRentalsBrowse = () => {
         searchValue={filters.query}
         onSearch={(q) => updateFilters({ query: q })}
         categoryChips={categoryHeroChips}
+        suggestTiles={translatedTiles}
       />
 
       {/* Tile grid */}

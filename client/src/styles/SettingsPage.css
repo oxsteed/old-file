@@ -196,6 +196,13 @@
   cursor: not-allowed;
 }
 
+.sp-field-error {
+  margin: 0.35rem 0 0;
+  color: #f87171;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
 .sp-textarea {
   resize: vertical;
   min-height: 5.5rem;

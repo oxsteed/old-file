@@ -1246,6 +1246,7 @@
     "invalidAmount": "Enter an amount between {{min}} and {{max}}.",
     "continue": "Continue",
     "processing": "Processing…",
+    "quickAmounts": "Quick amounts",
     "stepupTitle": "Verify it is you",
     "stepupCopy": "For larger top-ups we sent a verification code to your email.",
     "stepupCode": "Verification code",

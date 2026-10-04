@@ -625,6 +625,8 @@ const TOPUP_MAX_CENTS = 50000;
 const TOPUP_STEPUP_CENTS = 25000;
 const TOPUP_POLL_INTERVAL_MS = 3000;
 const TOPUP_POLL_MAX_ATTEMPTS = 40;
+// Quick-amount chips shown in the top-up modal (major currency units).
+const TOPUP_QUICK_AMOUNTS = [25, 50, 100, 250];
 
 const stripePromise = (() => {
   try {
@@ -692,6 +694,7 @@ function TopupModal({ restaurantId, restaurantName, currency, onClose, onChanged
   const [intent, setIntent] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [terminal, setTerminal] = useState(null);
+  const [amountError, setAmountError] = useState('');
   const idempotencyKeysRef = useRef(createStableIdempotencyKeyStore());
   const pollTimerRef = useRef(null);
   const pollCountRef = useRef(0);
@@ -777,12 +780,13 @@ function TopupModal({ restaurantId, restaurantName, currency, onClose, onChanged
     event.preventDefault();
     const cents = parseAmountCents(amount, currency);
     if (!cents || cents < TOPUP_MIN_CENTS || cents > TOPUP_MAX_CENTS) {
-      toast.error(t('restaurantTopups.invalidAmount', {
+      setAmountError(t('restaurantTopups.invalidAmount', {
         min: formatFoodMoney(TOPUP_MIN_CENTS, currency),
         max: formatFoodMoney(TOPUP_MAX_CENTS, currency),
       }));
       return;
     }
+    setAmountError('');
     setAmountCents(cents);
     if (cents >= TOPUP_STEPUP_CENTS) {
       setSubmitting(true);
@@ -843,9 +847,22 @@ function TopupModal({ restaurantId, restaurantName, currency, onClose, onChanged
             <span>{t('restaurantTopups.amount')}</span>
             <div className="credit-money-input">
               <span>{currency}</span>
-              <input autoFocus inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.00" />
+              <input autoFocus inputMode="decimal" value={amount} onChange={(event) => { setAmount(event.target.value); setAmountError(''); }} placeholder="0.00" aria-invalid={amountError ? 'true' : undefined} />
             </div>
           </label>
+          <div className="credit-quick-amounts" role="group" aria-label={t('restaurantTopups.quickAmounts')}>
+            {TOPUP_QUICK_AMOUNTS.map((quick) => (
+              <button
+                key={quick}
+                type="button"
+                className="credit-chip"
+                onClick={() => { setAmount(String(quick)); setAmountError(''); }}
+              >
+                {formatFoodMoney(quick * 100, currency)}
+              </button>
+            ))}
+          </div>
+          {amountError && <p role="alert" className="credit-field-error">{amountError}</p>}
           <p className="credit-modal-subtitle">{t('restaurantTopups.amountHint', {
             min: formatFoodMoney(TOPUP_MIN_CENTS, currency),
             max: formatFoodMoney(TOPUP_MAX_CENTS, currency),

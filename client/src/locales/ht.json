@@ -9690,7 +9690,8 @@
     }
   },
   "quickAddTemplates": {
-    "quickAdd": "Ajoute vit:"
+    "quickAdd": "Ajoute vit:",
+    "loadError": "Pa t kapab chaje modèl ajoute vit yo."
   },
   "helperOffers": {
     "title": "Ofèt travay pou ou ({{count}})",
@@ -20036,6 +20037,7 @@
         "quizTitle": "Tès",
         "answeredCount": "{{done}} sou {{total}} reponn",
         "submitQuiz": "Voye tès la",
+        "submittingQuiz": "Ap voye...",
         "takeQuiz": "Fè tès la",
         "category": {
           "general": "Jeneral",
