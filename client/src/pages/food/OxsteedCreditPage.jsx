@@ -18,7 +18,6 @@ import {
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import PageMeta from '../../components/PageMeta';
-import WalletRestaurantWallets from './WalletRestaurantWallets';
 import {
   getOxsteedCreditAccount,
   getOxsteedCreditLimitSummary,
@@ -142,7 +141,6 @@ export default function OxsteedCreditPage() {
   const [holds, setHolds] = useState([]);
   const [holdPagination, setHoldPagination] = useState(null);
   const [railStatus, setRailStatus] = useState(null);
-  const [restaurantWalletCount, setRestaurantWalletCount] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [statement, setStatement] = useState(null);
   const [disputes, setDisputes] = useState([]);
@@ -688,8 +686,8 @@ export default function OxsteedCreditPage() {
   return (
     <>
       <PageMeta
-        title={t('walletTitle')}
-        description={t('walletDescription')}
+        title={t('creditTitle')}
+        description={t('creditDescription')}
         noIndex
       />
       <Navbar />
@@ -697,8 +695,8 @@ export default function OxsteedCreditPage() {
         <div className="ox-credit-shell">
           <header className="ox-credit-hero">
             <div>
-              <h1>{t('walletTitle')}</h1>
-              <p>{t('walletDescription')}</p>
+              <h1>{t('creditTitle')}</h1>
+              <p>{t('creditDescription')}</p>
             </div>
             <div className="ox-credit-hero-actions">
               <Link to="/oxsteed-credit/cards" className="ox-credit-refresh"><WalletCards size={16} /> My Cards</Link>
@@ -716,13 +714,7 @@ export default function OxsteedCreditPage() {
             confused: OxSteed Credit (live balance) and restaurant credit
             (per-restaurant wallets, summarized by count — ledgers are
             never merged). */}
-          <section aria-label={t('balancesTitle')}>
-            <div className="ox-credit-panel-heading">
-              <div>
-                <p className="ox-credit-eyebrow">{t('walletTitle')}</p>
-                <h2>{t('balancesTitle')}</h2>
-              </div>
-            </div>
+          <section aria-label={t('creditTitle')}>
             <div className="ox-credit-balance-strip">
               <div className="ox-credit-balance-card">
                 {loading ? (
@@ -736,22 +728,8 @@ export default function OxsteedCreditPage() {
                   </>
                 )}
               </div>
-              <div className="ox-credit-balance-card ox-credit-balance-card--restaurant">
-                <div className="ox-credit-balance-top"><span className="ox-credit-wallet-icon"><Store size={23} /></span><div><span>{t('restaurantWalletsTitle')}</span><strong>{restaurantWalletCount == null ? '—' : t('walletsCount', { count: restaurantWalletCount })}</strong></div></div>
-                <p className="ox-credit-panel-copy">{t('restaurantCreditCardCopy')}</p>
-                <a href="#restaurant-credit" className="ox-credit-detail-link">{t('viewRestaurantCredits')} <ArrowUpRight size={14} /></a>
-              </div>
             </div>
           </section>
-
-          {/* ── Wallet sections ─────────────────────────────────────────
-            Each section below fetches and renders independently, with its
-            own loading, error, and empty states. A failing section must
-            never blank the others.
-            Future sections (earnings, payouts) plug in here following the
-            WalletRestaurantWallets pattern. Presentation only: ledgers are
-            never merged and balances are never combined. */}
-          <WalletRestaurantWallets onWalletsLoaded={setRestaurantWalletCount} />
 
           {loadError && !loading && <section className="ox-credit-error-panel" role="alert"><AlertCircle size={24} /><strong>{t('errorLoad')}</strong><span>{loadError}</span><button type="button" className="ox-credit-refresh" onClick={() => load({ currencyCode: selectedCurrency })}>{t('retry')}</button></section>}
 
