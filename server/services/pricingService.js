@@ -96,6 +96,12 @@ async function getPremiumPricesBatch(countryCodes) {
  * @param {string} currencyCode
  * @param {string} reason - Change reason for audit log
  * @param {UUID} updatedById - User ID making the change
+ * @param {string} [ipHash]
+ * @param {Object} [options]
+ * @param {Object} [options.stripeClient] - Initialized Stripe SDK client.
+ *   When provided and the price/currency actually changed, a new Stripe Price
+ *   is created immediately so customers are never charged a stale amount.
+ * @param {string} [options.productId] - Stripe Product ID for OxSteed Premium.
  * @returns {Promise<Object>}
  */
 async function updatePremiumPrice(
@@ -104,9 +110,11 @@ async function updatePremiumPrice(
   currencyCode,
   reason,
   updatedById,
-  ipHash
+  ipHash,
+  options = {}
 ) {
   const normalizedCode = (countryCode || '').toUpperCase();
+  const normalizedCurrency = (currencyCode || '').toUpperCase();
 
   if (!normalizedCode || normalizedCode.length !== 2) {
     throw new Error('Invalid country code');
@@ -116,41 +124,95 @@ async function updatePremiumPrice(
     throw new Error('Invalid price');
   }
 
-  if (!currencyCode || currencyCode.length !== 3) {
+  if (!normalizedCurrency || normalizedCurrency.length !== 3) {
     throw new Error('Invalid currency code');
   }
+
+  const { stripeClient = null, productId = process.env.STRIPE_PREMIUM_PRODUCT_ID || null } = options;
 
   try {
     // Get old price for audit log
     const { rows: oldRows } = await pool.query(
-      `SELECT price_cents FROM pricing_overrides WHERE country_code = $1`,
+      `SELECT id, price_cents, currency_code, stripe_price_id
+         FROM pricing_overrides
+        WHERE country_code = $1`,
       [normalizedCode]
     );
 
-    const oldPrice = oldRows.length > 0 ? oldRows[0].price_cents : null;
+    const oldRow = oldRows.length > 0 ? oldRows[0] : null;
+    const oldPrice = oldRow ? oldRow.price_cents : null;
 
     // Log the change
     await pool.query(
       `INSERT INTO pricing_override_log
         (country_code, old_price_cents, new_price_cents, currency_code, changed_by, reason, ip_hash)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [normalizedCode, oldPrice, priceCents, currencyCode, updatedById, reason || null, ipHash || null]
+      [normalizedCode, oldPrice, priceCents, normalizedCurrency, updatedById, reason || null, ipHash || null]
     );
+
+    // If the charged amount or currency changed, the previously synced Stripe
+    // Price is stale: charging with it would bill customers the old price while
+    // the admin dashboard shows the new one. Create a replacement immediately
+    // when a Stripe client is available, otherwise clear the id so the sync
+    // job recreates it on the next run.
+    const priceChanged = Boolean(
+      oldRow &&
+      (Number(oldRow.price_cents) !== Number(priceCents) ||
+        String(oldRow.currency_code).toUpperCase() !== normalizedCurrency)
+    );
+
+    let stripePriceId = oldRow ? oldRow.stripe_price_id : null;
+    let refreshStripePriceId = false;
+
+    if (priceChanged && oldRow.stripe_price_id) {
+      refreshStripePriceId = true;
+      if (stripeClient && productId) {
+        try {
+          const price = await createRegionalStripePrice({
+            stripeClient,
+            productId,
+            countryCode: normalizedCode,
+            amountCents: priceCents,
+            currencyCode: normalizedCurrency,
+            overrideId: oldRow.id,
+          });
+          stripePriceId = price.id;
+          logger.info('Stripe price recreated after pricing override change', {
+            countryCode: normalizedCode,
+            stripePriceId,
+          });
+        } catch (err) {
+          // Fail open toward the sync job: clear the stale id rather than
+          // leaving a price id that no longer matches the displayed price.
+          logger.error('Failed to recreate Stripe price; clearing id for re-sync', {
+            err: err.message,
+            countryCode: normalizedCode,
+          });
+          stripePriceId = null;
+        }
+      } else {
+        stripePriceId = null;
+        logger.warn('Pricing override changed without Stripe client; cleared stripe_price_id for re-sync', {
+          countryCode: normalizedCode,
+        });
+      }
+    }
 
     // Update or insert pricing
     const { rows } = await pool.query(
       `INSERT INTO pricing_overrides
-        (country_code, price_cents, currency_code, updated_by, updated_at, is_active)
-       VALUES ($1, $2, $3, $4, NOW(), TRUE)
+        (country_code, price_cents, currency_code, updated_by, updated_at, is_active, stripe_price_id)
+       VALUES ($1, $2, $3, $4, NOW(), TRUE, $5)
        ON CONFLICT (country_code)
        DO UPDATE SET
          price_cents = $2,
          currency_code = $3,
          updated_by = $4,
          updated_at = NOW(),
-         is_active = TRUE
+         is_active = TRUE,
+         stripe_price_id = CASE WHEN $6 THEN $5 ELSE pricing_overrides.stripe_price_id END
        RETURNING *`,
-      [normalizedCode, priceCents, currencyCode, updatedById]
+      [normalizedCode, priceCents, normalizedCurrency, updatedById, stripePriceId, refreshStripePriceId]
     );
 
     // Invalidate cache
@@ -160,8 +222,9 @@ async function updatePremiumPrice(
       countryCode: normalizedCode,
       oldPrice,
       newPrice: priceCents,
-      currency: currencyCode,
-      updatedBy: updatedById
+      currency: normalizedCurrency,
+      updatedBy: updatedById,
+      stripePriceIdRefreshed: refreshStripePriceId
     });
 
     return rows[0];
@@ -212,9 +275,47 @@ async function getPricingHistory(countryCode, limit = 50) {
 }
 
 /**
+ * Create a Stripe recurring Price for one regional override.
+ * Shared by the sync job and by pricing updates that change the charged amount.
+ *
+ * @param {Object} params
+ * @param {Object} params.stripeClient - Initialized Stripe SDK client.
+ * @param {string} params.productId - Stripe Product ID for OxSteed Premium.
+ * @param {string} params.countryCode - ISO 3166-1 alpha-2 country code.
+ * @param {number} params.amountCents
+ * @param {string} params.currencyCode - ISO 4217 currency code.
+ * @param {string|number} [params.overrideId] - pricing_overrides.id for metadata.
+ * @returns {Promise<Object>} The created Stripe Price.
+ */
+async function createRegionalStripePrice({ stripeClient, productId, countryCode, amountCents, currencyCode, overrideId }) {
+  if (!stripeClient || !stripeClient.prices || typeof stripeClient.prices.create !== 'function') {
+    throw new Error('Stripe client is not configured');
+  }
+  if (!productId || typeof productId !== 'string' || !productId.trim()) {
+    throw new Error('STRIPE_PREMIUM_PRODUCT_ID is required to create regional prices');
+  }
+
+  return stripeClient.prices.create({
+    product: productId,
+    unit_amount: Math.round(Number(amountCents)),
+    currency: String(currencyCode).toLowerCase(),
+    recurring: { interval: 'month' },
+    nickname: `OxSteed Premium ${String(countryCode).toUpperCase()}`,
+    metadata: {
+      country_code: String(countryCode).toUpperCase(),
+      pricing_override_id: String(overrideId),
+    },
+  });
+}
+
+/**
  * Sync active regional prices to Stripe recurring Price objects.
  * Existing stripe_price_id values are treated as already synced to avoid
  * creating duplicate Stripe prices for the same regional subscription.
+ *
+ * NOTE: an override whose price/currency changed has its stripe_price_id
+ * cleared by updatePremiumPrice (or replaced with a fresh price), so the
+ * "already synced" skip only ever applies to prices that still match.
  *
  * @param {Object} deps
  * @param {Object} deps.stripeClient - Initialized Stripe SDK client.
@@ -256,16 +357,13 @@ async function syncRegionalPricesToStripe({ stripeClient, productId }) {
       continue;
     }
 
-    const price = await stripeClient.prices.create({
-      product: productId,
-      unit_amount: Math.round(amount),
-      currency,
-      recurring: { interval: 'month' },
-      nickname: `OxSteed Premium ${countryCode}`,
-      metadata: {
-        country_code: countryCode,
-        pricing_override_id: String(override.id),
-      },
+    const price = await createRegionalStripePrice({
+      stripeClient,
+      productId,
+      countryCode,
+      amountCents: amount,
+      currencyCode: currency,
+      overrideId: override.id,
     });
 
     await pool.query(

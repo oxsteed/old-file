@@ -10,6 +10,22 @@ const crypto = require('crypto');
 const Stripe = require('stripe');
 
 /**
+ * Build the Stripe options for pricing updates when the server is configured
+ * for Stripe. updatePremiumPrice then creates a replacement Stripe Price
+ * immediately; without this the changed override is cleared and the sync job
+ * recreates it on the next run.
+ */
+function buildStripeOptions() {
+  if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_PREMIUM_PRODUCT_ID) {
+    return {};
+  }
+  return {
+    stripeClient: new Stripe(process.env.STRIPE_SECRET_KEY),
+    productId: process.env.STRIPE_PREMIUM_PRODUCT_ID,
+  };
+}
+
+/**
  * GET /api/admin/pricing-overrides
  * Get all pricing overrides
  */
@@ -67,7 +83,8 @@ exports.updatePricingOverride = async (req, res, next) => {
       currency_code.toUpperCase(),
       reason,
       req.user.id,
-      ipHash
+      ipHash,
+      buildStripeOptions()
     );
 
     logger.info('Pricing override updated', {
@@ -142,7 +159,8 @@ exports.batchUpdatePricing = async (req, res, next) => {
           currency_code.toUpperCase(),
           reason,
           req.user.id,
-          ipHash
+          ipHash,
+          buildStripeOptions()
         );
 
         results.push({ country_code, success: true, pricing: updated });
