@@ -123,16 +123,7 @@ exports.requireSuperAdmin = async (req, res, next) => {
 // Regular admins must have an active (non-expired, non-revoked) grant that
 // includes the requested permission scope.
 
-function permissionMiddleware(permission, { globalOnly = true } = {}) {
-  return async (req, res, next) => {
-  // requireAdmin must run before this - req.user and req.isSuper are already set.
-  if (!req.user) return res.status(401).json({ error: 'Unauthorized.' });
-
-  // Super-admins always pass
-  if (req.isSuper) return next();
-
-  try {
-    const { rows } = await db.query(`
+const GRANT_LOOKUP_SQL = `
       SELECT id, region_id, 'direct' AS grant_source
         FROM admin_permission_grants
        WHERE grantee_id = $1
@@ -156,7 +147,51 @@ function permissionMiddleware(permission, { globalOnly = true } = {}) {
          AND (grantor.role = 'super_admin' OR grantor_grant.id IS NOT NULL)
       ORDER BY (region_id IS NULL) DESC
       LIMIT 1
-    `, [req.user.id, permission]);
+    `;
+
+async function lookupGrants(userId, permission) {
+  const { rows } = await db.query(GRANT_LOOKUP_SQL, [userId, permission]);
+  return rows;
+}
+
+/**
+ * Shared predicate behind requirePermission: true when the admin holds an
+ * active, non-revoked, non-expired global (region-free) grant containing the
+ * permission. Super-admins bypass via the caller (mirrors requirePermission).
+ * Exported so controllers that must apply the same staff gate inside a
+ * non-admin route can reuse the exact grant semantics instead of duplicating
+ * the query.
+ */
+async function hasGlobalGrant(userId, permission) {
+  const rows = await lookupGrants(userId, permission);
+  return rows.some((row) => row.region_id == null);
+}
+exports.hasGlobalGrant = hasGlobalGrant;
+
+/**
+ * Shared predicate behind requireAdmin's MFA requirement: true when the
+ * admin account has TOTP enabled. Exported for the same reuse as
+ * hasGlobalGrant.
+ */
+async function adminTotpEnabled(userId) {
+  const { rows } = await db.query(
+    'SELECT COALESCE(totp_enabled, FALSE) AS totp_enabled FROM users WHERE id = $1',
+    [userId]
+  );
+  return rows.length > 0 && rows[0].totp_enabled === true;
+}
+exports.adminTotpEnabled = adminTotpEnabled;
+
+function permissionMiddleware(permission, { globalOnly = true } = {}) {
+  return async (req, res, next) => {
+  // requireAdmin must run before this - req.user and req.isSuper are already set.
+  if (!req.user) return res.status(401).json({ error: 'Unauthorized.' });
+
+  // Super-admins always pass
+  if (req.isSuper) return next();
+
+  try {
+    const rows = await lookupGrants(req.user.id, permission);
 
     const grant = rows.find((row) => !globalOnly || row.region_id == null);
     if (grant) {

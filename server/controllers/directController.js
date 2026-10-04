@@ -38,6 +38,7 @@ const {
   expireHolds,
 } = require('../services/directSlotEngine');
 const { createDraft: createCatalogDraft } = require('../services/directCatalogAI');
+const { hasGlobalGrant, adminTotpEnabled } = require('../middleware/adminAuth');
 const { recordDirectCalendarAudit } = require('../services/directCalendarAudit');
 const { calculateRoute } = require('../services/geoRouteProviderService');
 const crypto = require('crypto');
@@ -527,6 +528,31 @@ function publicQuotePayload(request, { verified = false, emailMasked = null } = 
 function canAccessRequest(request, user) {
   if (!request) return false;
   if (isAdmin(user)) return true;
+  return user?.id && request.user_id && String(user.id) === String(request.user_id);
+}
+
+// DG1: the customer-facing detail/message endpoints (GET /direct/requests/:id,
+// GET+POST /direct/requests/:id/messages) run under plain `authenticate`, so a
+// staff session used to pass canAccessRequest on role alone. Staff access here
+// must satisfy the same gate as the /admin/* routes: requireAdmin's MFA
+// requirement plus requirePermission('manage_operations')'s grant check
+// (super-admins bypass the grant check, not the MFA check). Customers keep the
+// owner-only path, which stays synchronous.
+async function staffCanAccessDirectRequest(user) {
+  if (!isAdmin(user)) return false;
+  try {
+    if (!(await adminTotpEnabled(user.id))) return false;
+    if (user.role === 'super_admin') return true;
+    return await hasGlobalGrant(user.id, 'manage_operations');
+  } catch (err) {
+    logger.error('staffCanAccessDirectRequest error', { error: err.message, userId: user?.id });
+    return false;
+  }
+}
+
+async function canAccessRequestDetail(request, user) {
+  if (!request) return false;
+  if (isAdmin(user)) return staffCanAccessDirectRequest(user);
   return user?.id && request.user_id && String(user.id) === String(request.user_id);
 }
 
@@ -1241,7 +1267,8 @@ exports.getRequestDetail = async (req, res) => {
     if (!request) {
       return res.status(404).json({ error: 'Request not found' });
     }
-    if (!canAccessRequest(request, req.user)) {
+    // DG1: staff sessions need grant + MFA on this customer-facing route.
+    if (!(await canAccessRequestDetail(request, req.user))) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
@@ -1259,7 +1286,8 @@ exports.getRequestMessages = async (req, res) => {
     if (!request) {
       return res.status(404).json({ error: 'Request not found' });
     }
-    if (!canAccessRequest(request, req.user)) {
+    // DG1: staff sessions need grant + MFA on this customer-facing route.
+    if (!(await canAccessRequestDetail(request, req.user))) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
@@ -1306,7 +1334,8 @@ exports.addMessage = async (req, res) => {
     if (!request) {
       return res.status(404).json({ error: 'Request not found' });
     }
-    if (!canAccessRequest(request, req.user)) {
+    // DG1: staff sessions need grant + MFA on this customer-facing route.
+    if (!(await canAccessRequestDetail(request, req.user))) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
