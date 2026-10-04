@@ -1720,12 +1720,15 @@ exports.listRestaurants = async (req, res, next) => {
     const lat = Number(req.query.lat);
     const lng = Number(req.query.lng);
     const hasGeo = Number.isFinite(lat) && Number.isFinite(lng);
+    // Effective-featured is stateless: expiry is evaluated in the query, so no
+    // sweeper job is needed. NULL featured_until = open-ended feature.
+    const effectiveFeaturedSql = `(fr.is_featured AND (fr.featured_until IS NULL OR fr.featured_until > NOW()))`;
     let distanceSelect = 'NULL::double precision AS distance_km';
-    let orderBy = 'fr.is_featured DESC, fr.featured_rank ASC, fr.avg_rating DESC, fr.rating_count DESC, fr.order_count DESC, fr.display_name ASC';
+    let orderBy = `${effectiveFeaturedSql} DESC, fr.featured_rank ASC, fr.avg_rating DESC, fr.rating_count DESC, fr.order_count DESC, fr.display_name ASC`;
     if (sort === 'rating') {
-      orderBy = 'fr.avg_rating DESC, fr.rating_count DESC, fr.is_featured DESC, fr.display_name ASC';
+      orderBy = `fr.avg_rating DESC, fr.rating_count DESC, ${effectiveFeaturedSql} DESC, fr.display_name ASC`;
     } else if (sort === 'fastest') {
-      orderBy = 'COALESCE(fr.estimated_delivery_minutes, fr.prep_time_min, 999999) ASC, fr.is_featured DESC, fr.display_name ASC';
+      orderBy = `COALESCE(fr.estimated_delivery_minutes, fr.prep_time_min, 999999) ASC, ${effectiveFeaturedSql} DESC, fr.display_name ASC`;
     }
     if (hasGeo) {
       params.push(lat);
@@ -1739,8 +1742,16 @@ exports.listRestaurants = async (req, res, next) => {
       )))) AS distance_km`;
       filters.push('fr.latitude IS NOT NULL AND fr.longitude IS NOT NULL');
       orderBy = sort === 'distance'
-        ? 'distance_km ASC, fr.is_featured DESC, fr.display_name ASC'
+        ? `distance_km ASC, ${effectiveFeaturedSql} DESC, fr.display_name ASC`
         : orderBy;
+    }
+
+    // featured_only=true returns just the effectively-featured set, ordered
+    // by admin rank then rating. Visibility/hold guards still apply.
+    const featuredOnly = String(req.query.featured_only || '').toLowerCase() === 'true';
+    if (featuredOnly) {
+      filters.push(effectiveFeaturedSql);
+      orderBy = 'fr.featured_rank ASC, fr.avg_rating DESC';
     }
 
     const { rows } = await pool.query(
@@ -1752,7 +1763,7 @@ exports.listRestaurants = async (req, res, next) => {
               fr.kitchen_display_enabled, fr.prep_time_min,
               COALESCE(fr.estimated_delivery_minutes, fr.prep_time_min, 30)::int AS estimated_delivery_minutes,
               fr.price_level,
-              fr.is_featured, fr.featured_rank, fr.discovery_status,
+              fr.is_featured, fr.featured_rank, fr.featured_until, fr.discovery_status,
               fr.is_accepting_orders_now, fr.temporarily_closed_until,
               fr.minimum_order_cents, fr.delivery_fee_cents,
               fr.service_area_radius_meters, fr.order_count,
