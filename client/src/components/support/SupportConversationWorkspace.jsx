@@ -17,7 +17,6 @@ import {
   Paperclip,
   Pencil,
   RefreshCw,
-  Search,
   Send,
   Sparkles,
   Trash2,
@@ -31,6 +30,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { realtimeNamespaceUrl } from '../../lib/realtime';
 import { createMessageRequestId } from '../../lib/messageRequestId';
 import Customer360Panel from './Customer360Panel';
+import { SuggestDropdown } from '../SuggestDropdown';
 
 const STATUS = {
   open: ['Open', 'border-blue-500/30 bg-blue-500/10 text-blue-200'],
@@ -630,6 +630,31 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     return true;
   }), [categoryFilter, channelFilter, conversations, messageFilter, ownershipFilter, priorityFilter, search, statusFilter, user?.id]);
 
+  // Typeahead items for the queue search: every conversation by subject
+  // with the customer as the secondary line.
+  const queueSuggestItems = useMemo(
+    () =>
+      conversations.map((conversation) => ({
+        id: conversation.id,
+        title: conversation.subject || conversation.customer_name || conversation.customer_email || String(conversation.id),
+        meta: [conversation.customer_name || conversation.customer_email, conversation.channel]
+          .filter(Boolean)
+          .join(' · '),
+      })),
+    [conversations]
+  );
+
+  // Typeahead items for the knowledge-base search: loaded article titles.
+  const knowledgeSuggestItems = useMemo(
+    () =>
+      knowledgeArticles.map((article) => ({
+        id: article.id,
+        title: article.title || '',
+        meta: article.excerpt || '',
+      })),
+    [knowledgeArticles]
+  );
+
   useEffect(() => {
     const handleShortcut = (event) => {
       const tagName = event.target?.tagName;
@@ -1080,14 +1105,20 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
 
       <div className="grid min-h-[620px] grid-cols-1 xl:grid-cols-[390px_minmax(0,1fr)]">
         <aside className="border-b border-slate-800 p-4 xl:border-b-0 xl:border-e">
-          <div className="relative">
-            <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-500" />
-            <input
-              ref={queueSearchRef}
+          <div
+            className="relative"
+            ref={(el) => { queueSearchRef.current = el ? el.querySelector('input') : null; }}
+          >
+            <SuggestDropdown
+              id="support-queue-search"
+              className="sd-theme-dark"
+              items={queueSuggestItems}
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onQueryChange={setSearch}
+              onSelect={(item) => { setSearch(item.title || ''); setSelectedId(item.id); }}
+              recentsKey="oxsteed_support_queue_search_recents"
               placeholder={copy('searchPlaceholder')}
-              className="w-full rounded-xl border border-slate-700 bg-slate-900 py-3 ps-10 pe-3 text-sm outline-none focus:border-orange-500"
+              ariaLabel={copy('searchPlaceholder')}
             />
           </div>
           <p className="mt-2 text-[11px] text-slate-600">{copy('shortcuts')}: <span className="text-slate-400">/</span> search · <span className="text-slate-400">j/k</span> move · <span className="text-slate-400">r</span> reply</p>
@@ -1563,24 +1594,25 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                 )}
                 {knowledgeOpen && (
                   <div className="mb-3 rounded-2xl border border-blue-500/25 bg-blue-500/5 p-3">
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <input
+                    <form
+                      className="flex flex-col gap-2 sm:flex-row"
+                      onSubmit={(event) => { event.preventDefault(); loadKnowledgeArticles(); }}
+                    >
+                      <SuggestDropdown
+                        id="support-kb-search"
+                        className="sd-theme-dark min-w-0 flex-1"
+                        items={knowledgeSuggestItems}
                         value={knowledgeSearch}
-                        onChange={(event) => setKnowledgeSearch(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter') {
-                            event.preventDefault();
-                            loadKnowledgeArticles();
-                          }
-                        }}
+                        onQueryChange={setKnowledgeSearch}
+                        onSelect={(item) => setKnowledgeSearch(item.title || '')}
+                        recentsKey="oxsteed_support_kb_search_recents"
                         placeholder={copy('searchHelpArticles')}
-                        className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200 outline-none focus:border-blue-400"
-                        aria-label={copy('searchHelpArticles')}
+                        ariaLabel={copy('searchHelpArticles')}
                       />
-                      <button type="button" onClick={loadKnowledgeArticles} disabled={knowledgeLoading} className="rounded-xl border border-blue-500/30 px-3 py-2 text-xs font-semibold text-blue-200 disabled:opacity-50">
+                      <button type="submit" disabled={knowledgeLoading} className="rounded-xl border border-blue-500/30 px-3 py-2 text-xs font-semibold text-blue-200 disabled:opacity-50">
                         {knowledgeLoading ? copy('searching') : copy('search')}
                       </button>
-                    </div>
+                    </form>
                     <div className="mt-2 max-h-48 space-y-2 overflow-y-auto">
                       {!knowledgeLoading && knowledgeArticles.length === 0 && <p className="px-1 py-2 text-xs text-slate-500">{copy('noHelpArticles')}</p>}
                       {knowledgeArticles.map((article) => (

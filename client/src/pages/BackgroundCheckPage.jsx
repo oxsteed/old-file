@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Shield, ChevronDown, ChevronUp, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
+import { SuggestDropdown } from '../components/SuggestDropdown';
 
 
 export default function BackgroundCheckPage() {
@@ -65,6 +66,27 @@ export default function BackgroundCheckPage() {
   ];
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
+
+  // Typeahead items for the in-page search: every section heading.
+  const sectionSuggestItems = useMemo(
+    () => [
+      { id: 'what-we-check', title: t(pk('sections.whatWeCheck')) },
+      { id: 'disqualifying', title: t(pk('sections.disqualifying')) },
+      { id: 'our-process', title: t(pk('sections.ourProcess')) },
+      { id: 'if-denied', title: t(pk('sections.ifDenied')) },
+      { id: 'appeal', title: t(pk('sections.appeal')) },
+      { id: 'timeline', title: t(pk('sections.timeline')) },
+      { id: 'faqs', title: t(pk('sections.faqs')) },
+    ],
+    [t]
+  );
+
+  const handleSectionSelect = (item) => {
+    setSearchQuery(item.title || '');
+    if (item.id) {
+      document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   const highlightText = (text) => {
     if (!normalizedQuery || !text) return text;
@@ -149,13 +171,16 @@ export default function BackgroundCheckPage() {
             {/* Main Content */}
             <div className="flex-1 min-w-0">
               {/* Search */}
-              <input
-                type="search"
+              <SuggestDropdown
+                id="background-check-section-search"
+                className="sd-theme-dark w-full mb-10"
+                items={sectionSuggestItems}
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onQueryChange={setSearchQuery}
+                onSelect={handleSectionSelect}
+                recentsKey="oxsteed_background_check_search_recents"
                 placeholder={t(pk('searchPlaceholder'))}
-                className="w-full mb-10 px-4 py-3 rounded-lg bg-gray-900 border border-gray-700 text-gray-200 placeholder:text-gray-500 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30 transition"
-                aria-label={t(pk('searchLabel'))}
+                ariaLabel={t(pk('searchLabel'))}
               />
 
               {/* Section 1: What We Check */}

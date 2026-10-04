@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Scale, ChevronDown, ChevronUp, AlertTriangle, FileText } from 'lucide-react';
 import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
+import { SuggestDropdown } from '../components/SuggestDropdown';
 
 
 export default function ArbitrationPage() {
@@ -54,6 +55,28 @@ export default function ArbitrationPage() {
   ];
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
+
+  // Typeahead items for the in-page search: every section heading.
+  const sectionSuggestItems = useMemo(
+    () => [
+      { id: 'binding-arbitration', title: t(pk('sections.bindingArbitration')) },
+      { id: 'process', title: t(pk('sections.process')) },
+      { id: 'fees', title: t(pk('sections.fees')) },
+      { id: 'class-action', title: t(pk('sections.classAction')) },
+      { id: 'exceptions', title: t(pk('sections.exceptions')) },
+      { id: 'limitation', title: t(pk('sections.limitation')) },
+      { id: 'state-disclaimers', title: t(pk('sections.stateDisclaimers')) },
+      { id: 'initiate', title: t(pk('sections.initiate')) },
+    ],
+    [t]
+  );
+
+  const handleSectionSelect = (item) => {
+    setSearchQuery(item.title || '');
+    if (item.id) {
+      document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   const highlightText = (text) => {
     if (!normalizedQuery || !text) return text;
@@ -141,13 +164,16 @@ export default function ArbitrationPage() {
             {/* Main Content */}
             <div className="flex-1 min-w-0">
               {/* Search */}
-              <input
-                type="search"
+              <SuggestDropdown
+                id="arbitration-section-search"
+                className="sd-theme-dark w-full mb-10"
+                items={sectionSuggestItems}
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onQueryChange={setSearchQuery}
+                onSelect={handleSectionSelect}
+                recentsKey="oxsteed_arbitration_search_recents"
                 placeholder={t(pk('searchPlaceholder'))}
-                className="w-full mb-10 px-4 py-3 rounded-lg bg-gray-900 border border-gray-700 text-gray-200 placeholder:text-gray-500 focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400/30 transition"
-                aria-label={t(pk('searchLabel'))}
+                ariaLabel={t(pk('searchLabel'))}
               />
 
               {/* Section 1: Binding Arbitration */}

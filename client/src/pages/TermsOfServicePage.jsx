@@ -2,12 +2,14 @@
 // Searchable, version-tracked, all-sections-open legal framework
 // Design: Perplexity + Enhancements (diff viewer, approval workflow, i18n)
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, Copy, CheckCircle, ChevronDown, AlertCircle, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import logger from '../utils/logger';
+import { SuggestDropdown } from '../components/SuggestDropdown';
+import '../admin/lib/suggestDropdownAdmin.css';
 import './TermsOfServicePage.css';
 
 const ALLOWED_LEGAL_TAGS = new Set([
@@ -169,6 +171,20 @@ export default function TermsOfServicePage() {
       )
     : sections;
 
+  // Typeahead items for the in-page search: every section heading,
+  // prefix-ranked by the shared SuggestDropdown.
+  const sectionSuggestItems = useMemo(
+    () => sections.map((section) => ({ id: section.key, title: section.title })),
+    [sections]
+  );
+
+  const handleSectionSelect = (item) => {
+    setSearchQuery(item.title || '');
+    if (item.id) {
+      document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   // ──────────────────────────────────────────────────────────
   // SCROLL TRACKING (Legal requirement)
   // ──────────────────────────────────────────────────────────
@@ -319,12 +335,16 @@ export default function TermsOfServicePage() {
           {/* Search Bar */}
           <div className="terms-search-container">
             <Search size={20} />
-            <input
-              type="text"
-              className="terms-search-input"
-              placeholder="Search terms..."
+            <SuggestDropdown
+              id="terms-section-search"
+              className="sd-admin-adaptive terms-search-typeahead"
+              items={sectionSuggestItems}
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onQueryChange={setSearchQuery}
+              onSelect={handleSectionSelect}
+              recentsKey="oxsteed_terms_search_recents"
+              placeholder={t('termsPage.searchPlaceholder')}
+              ariaLabel={t('termsPage.searchLabel')}
             />
             {searchQuery && (
               <span className="terms-search-results">

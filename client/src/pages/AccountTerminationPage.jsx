@@ -1,8 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
+import { SuggestDropdown } from '../components/SuggestDropdown';
+import '../admin/lib/suggestDropdownAdmin.css';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import '../styles/AccountTerminationPage.css';
@@ -135,6 +137,23 @@ export default function AccountTerminationPage() {
     { id: 'data-deletion', title: t('accountTermination.dataDeletionTitle'), icon: '🗑️' },
   ];
 
+  // Typeahead items for the in-page search: every section heading.
+  const sectionSuggestItems = useMemo(
+    () => SECTIONS.map((section) => ({ id: section.id, title: section.title })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [t]
+  );
+
+  const handleSectionSelect = (item) => {
+    setSearchQuery(item.title || '');
+    setExpandedSection(item.id);
+    if (item.id) {
+      document
+        .querySelector(`[data-section="${item.id}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   return (
     <PageShell>
       <PageMeta
@@ -160,12 +179,16 @@ export default function AccountTerminationPage() {
 
             {/* Search */}
             <div className="search-box">
-              <input
-                type="text"
-                placeholder={t('accountTermination.searchPlaceholder')}
+              <SuggestDropdown
+                id="account-termination-section-search"
+                className="sd-admin-adaptive"
+                items={sectionSuggestItems}
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                aria-label={t('accountTermination.searchAriaLabel')}
+                onQueryChange={setSearchQuery}
+                onSelect={handleSectionSelect}
+                recentsKey="oxsteed_account_termination_search_recents"
+                placeholder={t('accountTermination.searchPlaceholder')}
+                ariaLabel={t('accountTermination.searchAriaLabel')}
               />
               {searchQuery && (
                 <span className="search-count">

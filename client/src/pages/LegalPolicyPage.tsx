@@ -6,6 +6,7 @@ import PageMeta from '../components/PageMeta';
 import { ensureLegalContentLoaded } from '../i18n';
 import { TermsBlocks } from './terms/TermsBlocks';
 import type { TermsBlock } from './terms/termsTypes';
+import { SuggestDropdown } from '../components/SuggestDropdown';
 
 export type LegalContentFile = {
   sections: Record<
@@ -143,6 +144,24 @@ export default function LegalPolicyPage({
 
   const lastScrolledFirstId = useRef<number | null>(null);
 
+  // Typeahead items for the in-page search: every section heading.
+  const sectionSuggestItems = useMemo(
+    () =>
+      tocLinks.map(({ id, label }) => ({
+        id: `${sectionAnchorPrefix}-${id}`,
+        title: label,
+      })),
+    [tocLinks, sectionAnchorPrefix]
+  );
+
+  const handleSectionSelect = (item: { id: string; title: string }) => {
+    setSearchQuery(item.title || '');
+    if (item.id) {
+      globalThis.document
+        .getElementById(item.id)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
   useEffect(() => {
     if (visibleSectionIds === null) {
       lastScrolledFirstId.current = null;
@@ -205,16 +224,16 @@ export default function LegalPolicyPage({
               </nav>
             </aside>
             <div className="flex-1 min-w-0 text-sm leading-relaxed">
-              <label className="sr-only" htmlFor={searchInputId}>
-                {t(pk('searchLabel'))}
-              </label>
-              <input
+              <SuggestDropdown
                 id={searchInputId}
-                type="search"
+                className="sd-theme-dark w-full mb-8"
+                items={sectionSuggestItems}
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onQueryChange={setSearchQuery}
+                onSelect={handleSectionSelect}
+                recentsKey={`oxsteed_legal_search_recents_${sectionAnchorPrefix}`}
                 placeholder={t(pk('searchPlaceholder'))}
-                className="w-full mb-8 px-3 py-2 rounded-lg bg-gray-900 border border-gray-700 text-gray-200 placeholder:text-gray-500"
+                ariaLabel={t(pk('searchLabel'))}
               />
               {sectionIds.map((id) => {
                 const sec = legalData.sections[String(id)];

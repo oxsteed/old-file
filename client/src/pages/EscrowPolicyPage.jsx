@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { DollarSign, ChevronDown, ChevronUp, AlertCircle, Lock, CheckCircle } from 'lucide-react';
 import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
+import { SuggestDropdown } from '../components/SuggestDropdown';
 
 
 export default function EscrowPolicyPage() {
@@ -59,6 +60,27 @@ export default function EscrowPolicyPage() {
   ];
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
+
+  // Typeahead items for the in-page search: every section heading.
+  const sectionSuggestItems = useMemo(
+    () => [
+      { id: 'mechanism', title: t(pk('sections.mechanism')) },
+      { id: 'authorization', title: t(pk('sections.authorization')) },
+      { id: 'ownership', title: t(pk('sections.ownership')) },
+      { id: 'liability', title: t(pk('sections.liability')) },
+      { id: 'release', title: t(pk('sections.release')) },
+      { id: 'timeline', title: t(pk('sections.timeline')) },
+      { id: 'faqs', title: t(pk('sections.faqs')) },
+    ],
+    [t]
+  );
+
+  const handleSectionSelect = (item) => {
+    setSearchQuery(item.title || '');
+    if (item.id) {
+      document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   const highlightText = (text) => {
     if (!normalizedQuery || !text) return text;
@@ -142,13 +164,16 @@ export default function EscrowPolicyPage() {
             {/* Main Content */}
             <div className="flex-1 min-w-0">
               {/* Search */}
-              <input
-                type="search"
+              <SuggestDropdown
+                id="escrow-section-search"
+                className="sd-theme-dark w-full mb-10"
+                items={sectionSuggestItems}
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onQueryChange={setSearchQuery}
+                onSelect={handleSectionSelect}
+                recentsKey="oxsteed_escrow_search_recents"
                 placeholder={t(pk('searchPlaceholder'))}
-                className="w-full mb-10 px-4 py-3 rounded-lg bg-gray-900 border border-gray-700 text-gray-200 placeholder:text-gray-500 focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30 transition"
-                aria-label={t(pk('searchLabel'))}
+                ariaLabel={t(pk('searchLabel'))}
               />
 
               {/* Section 1: Fund Holding Mechanism */}

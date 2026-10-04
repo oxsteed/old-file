@@ -1,9 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
+import { SuggestDropdown } from '../components/SuggestDropdown';
+import '../admin/lib/suggestDropdownAdmin.css';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import '../styles/DisputeResolutionPage.css';
@@ -142,6 +144,23 @@ export default function DisputeResolutionPage() {
     { id: 'chargeback', title: t('disputeResolution.chargebackTitle'), icon: '⚠️' },
   ];
 
+  // Typeahead items for the in-page search: every section heading.
+  const sectionSuggestItems = useMemo(
+    () => SECTIONS.map((section) => ({ id: section.id, title: section.title })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [t]
+  );
+
+  const handleSectionSelect = (item) => {
+    setSearchQuery(item.title || '');
+    setExpandedSection(item.id);
+    if (item.id) {
+      document
+        .querySelector(`[data-section="${item.id}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   const FAQS = [
     {
       id: 'faq1',
@@ -200,12 +219,16 @@ export default function DisputeResolutionPage() {
 
             {/* Search */}
             <div className="search-box">
-              <input
-                type="text"
-                placeholder={t('disputeResolution.searchPlaceholder')}
+              <SuggestDropdown
+                id="dispute-resolution-section-search"
+                className="sd-admin-adaptive"
+                items={sectionSuggestItems}
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                aria-label={t('disputeResolution.searchAriaLabel')}
+                onQueryChange={setSearchQuery}
+                onSelect={handleSectionSelect}
+                recentsKey="oxsteed_dispute_resolution_search_recents"
+                placeholder={t('disputeResolution.searchPlaceholder')}
+                ariaLabel={t('disputeResolution.searchAriaLabel')}
               />
               {searchQuery && (
                 <span className="search-count">

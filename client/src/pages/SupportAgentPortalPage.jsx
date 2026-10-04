@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -15,12 +15,12 @@ import {
   MessageSquare,
   Phone,
   RefreshCw,
-  Search,
   SendHorizonal,
   ShieldCheck,
   Users,
 } from 'lucide-react';
 import PageShell from '../components/PageShell';
+import { SuggestDropdown } from '../components/SuggestDropdown';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import { formatDate as formatLocalizedDate } from '../lib/format';
@@ -433,6 +433,20 @@ export default function SupportAgentPortalPage() {
     return true;
   });
 
+  // Typeahead items for the business search: every business name with
+  // type/city/state as the secondary line.
+  const businessSuggestItems = useMemo(
+    () =>
+      opportunities.map((item) => ({
+        id: `business:${item.business_id}`,
+        title: item.business_name || '',
+        meta: [item.business_type, formatLocation(item.address_city, item.address_state)]
+          .filter(Boolean)
+          .join(' · '),
+      })),
+    [opportunities]
+  );
+
   return (
     <PageShell>
       <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.16),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(14,165,233,0.14),_transparent_30%),linear-gradient(180deg,_#08111f_0%,_#050b14_52%,_#03070d_100%)]">
@@ -694,16 +708,17 @@ export default function SupportAgentPortalPage() {
                 </div>
               </div>
 
-              <label className="mt-6 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
-                <Search size={18} className="text-slate-400" />
-                <input
-                  type="search"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder={t('supportAgentPortal.searchPlaceholder', { defaultValue: 'Search by business name, type, city, or state' })}
-                  className="w-full bg-transparent text-sm text-white placeholder:text-slate-500 focus:outline-none"
-                />
-              </label>
+              <SuggestDropdown
+                id="support-agent-business-search"
+                className="sd-theme-dark mt-6"
+                items={businessSuggestItems}
+                value={search}
+                onQueryChange={setSearch}
+                onSelect={(item) => setSearch(item.title || '')}
+                recentsKey="oxsteed_support_agent_business_search_recents"
+                placeholder={t('supportAgentPortal.searchPlaceholder', { defaultValue: 'Search by business name, type, city, or state' })}
+                ariaLabel={t('supportAgentPortal.searchPlaceholder', { defaultValue: 'Search by business name, type, city, or state' })}
+              />
 
               {loading ? (
                 <p className="mt-6 text-sm text-slate-400">{t('supportAgentPortal.loadingBusinesses', { defaultValue: 'Loading businesses…' })}</p>

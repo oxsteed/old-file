@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Search, User, Briefcase, MessageSquare, Loader2,
@@ -9,6 +9,8 @@ import {
 import adminApi from '../../lib/adminApi';
 import AdminErrorState from '../lib/AdminErrorState';
 import { adminDate } from '../lib/formatters';
+import { SuggestDropdown } from '../../components/SuggestDropdown';
+import '../lib/suggestDropdownAdmin.css';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -395,6 +397,7 @@ const RESULT_COMPONENT = {
 
 export default function AdminSearch() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [query,   setQuery]   = useState(searchParams.get('q') || '');
   const [input,   setInput]   = useState(searchParams.get('q') || '');
@@ -409,8 +412,14 @@ export default function AdminSearch() {
   const initialMountRef = useRef(true);
   const searchRequestRef = useRef({ controller: null, seq: 0 });
   const liveSearchTimerRef = useRef(null);
+  const searchWrapRef = useRef(null);
   const LIMIT = 10;
   const TYPE_META = getTypeMeta(t);
+
+  // Preserve the old input's autoFocus through the typeahead wrapper.
+  useEffect(() => {
+    searchWrapRef.current?.querySelector('input')?.focus();
+  }, []);
 
   // Abort the in-flight search when this page unmounts.
   useEffect(() => () => {
@@ -515,8 +524,7 @@ export default function AdminSearch() {
   // Debounced live results: typing updates the same URL param the submit
   // path uses, so the existing search effect does the work. Only fires when
   // the debounced value actually differs from the current URL param.
-  const handleInputChange = (e) => {
-    const value = e.target.value;
+  const handleQueryChange = (value) => {
     setInput(value);
     if (liveSearchTimerRef.current) clearTimeout(liveSearchTimerRef.current);
     if (value.trim().length >= 2) {
@@ -525,6 +533,99 @@ export default function AdminSearch() {
           setSearchParams({ q: value.trim() });
         }
       }, 500);
+    }
+  };
+
+  // Typeahead items for the search input: top hits across every result
+  // type, fed by the debounced live results. Linkable types navigate to
+  // their admin detail page; the rest just narrow the query.
+  const searchSuggestItems = useMemo(() => {
+    const grouped = results?.results;
+    if (!grouped) return [];
+    const items = [];
+    const push = (id, title, meta, icon, to) => {
+      if (title) items.push({ id, title, meta, icon, to });
+    };
+    (grouped.users || []).forEach((u) =>
+      push(
+        `user:${u.id}`,
+        `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email,
+        u.email,
+        <User size={14} aria-hidden="true" />,
+        `/admin/users/${u.id}`
+      )
+    );
+    (grouped.jobs || []).forEach((j) =>
+      push(
+        `job:${j.id}`,
+        j.title,
+        [j.client_name, j.location_city].filter(Boolean).join(' · '),
+        <Briefcase size={14} aria-hidden="true" />,
+        `/admin/jobs/${j.id}`
+      )
+    );
+    (grouped.support_tickets || []).forEach((ticket) =>
+      push(
+        `ticket:${ticket.id}`,
+        `#${ticket.ticket_number} · ${ticket.subject}`,
+        ticket.email,
+        <LifeBuoy size={14} aria-hidden="true" />,
+        `/admin/support?ticket=${encodeURIComponent(ticket.id)}`
+      )
+    );
+    (grouped.disputes || []).forEach((d) =>
+      push(
+        `dispute:${d.id}`,
+        d.job_title,
+        `${d.raised_by_name || ''} vs ${d.against_name || ''}`,
+        <AlertTriangle size={14} aria-hidden="true" />,
+        `/admin/disputes/${d.id}`
+      )
+    );
+    (grouped.messages || []).forEach((m) =>
+      push(
+        `message:${m.id}`,
+        (m.content || '').slice(0, 80),
+        m.sender_name || m.sender_email,
+        <MessageSquare size={14} aria-hidden="true" />,
+        null
+      )
+    );
+    (grouped.payments || []).forEach((p) =>
+      push(
+        `payment:${p.id}`,
+        p.job_title,
+        `${p.payer_name || ''} → ${p.payee_name || ''}`,
+        <CreditCard size={14} aria-hidden="true" />,
+        null
+      )
+    );
+    (grouped.reviews || []).forEach((r) =>
+      push(
+        `review:${r.id}`,
+        r.job_title,
+        `${r.reviewer_name || ''} → ${r.reviewee_name || ''}`,
+        <Star size={14} aria-hidden="true" />,
+        null
+      )
+    );
+    (grouped.bids || []).forEach((b) =>
+      push(
+        `bid:${b.id}`,
+        b.job_title,
+        b.helper_name || b.helper_email,
+        <Gavel size={14} aria-hidden="true" />,
+        null
+      )
+    );
+    return items.slice(0, 24);
+  }, [results]);
+
+  const handleSuggestionSelect = (item) => {
+    if (item.to) {
+      navigate(item.to);
+    } else {
+      setInput(item.title || '');
     }
   };
 
@@ -559,15 +660,17 @@ export default function AdminSearch() {
 
       {/* Search form */}
       <form onSubmit={handleSubmit} className="flex gap-2 mb-4">
-        <div className="relative flex-1">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
-          <input
-            autoFocus
+        <div className="relative flex-1" ref={searchWrapRef}>
+          <SuggestDropdown
+            id="admin-search"
+            className="sd-admin-dark"
+            items={searchSuggestItems}
             value={input}
-            onChange={handleInputChange}
+            onQueryChange={handleQueryChange}
+            onSelect={handleSuggestionSelect}
+            recentsKey="oxsteed_admin_search_recents"
             placeholder={t('adminSearch.searchPlaceholder')}
-            className="w-full pl-9 pr-3 py-2.5 bg-gray-800 border border-gray-700 rounded-lg
-                       text-sm text-white placeholder-gray-500 focus:outline-none focus:border-orange-500"
+            ariaLabel={t('adminSearch.searchPlaceholder')}
           />
         </div>
         <button
