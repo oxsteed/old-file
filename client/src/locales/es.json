@@ -29275,5 +29275,10 @@
       "openWallet": "Abrir billetera",
       "getSupport": "Obtener ayuda"
     }
+  },
+  "priceGuide": {
+    "similarJobs": "Trabajos similares presupuestan ${{lo}}-${{hi}}/hr",
+    "helperRange": "Ayudantes como tú cobran ${{lo}}-${{hi}}/hr",
+    "sampleNote": "Basado en {{n}} tarifas recientes"
   }
 }

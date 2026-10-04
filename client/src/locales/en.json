@@ -29272,5 +29272,10 @@
       "openWallet": "Open wallet",
       "getSupport": "Get support"
     }
+  },
+  "priceGuide": {
+    "similarJobs": "Similar jobs budget ${{lo}}-${{hi}}/hr",
+    "helperRange": "Helpers like you charge ${{lo}}-${{hi}}/hr",
+    "sampleNote": "Based on {{n}} recent rates"
   }
 }

@@ -10,6 +10,7 @@ import CoverImageUpload from './profile/CoverImageUpload';
 import ProfileSlugField from './profile/ProfileSlugField';
 import { helperProfilePath } from '../utils/profileUrls';
 import ProfileStudioShell from './profileStudio/ProfileStudioShell';
+import PriceGuidance from './PriceGuidance';
 import ProfilePreviewCard from './profileStudio/ProfilePreviewCard';
 import HelperAvailabilityEditor from './HelperAvailabilityEditor';
 import {
@@ -546,6 +547,11 @@ export default function EditProfileTab() {
           <Input label={t('helperDashboard.maxRate')} type="number" min="0" value={core.hourly_rate_max}
             onChange={e => setCore({ ...core, hourly_rate_max: e.target.value })} placeholder="85" />
         </div>
+        <PriceGuidance
+          source="helpers"
+          category={services && services[0] ? services[0].category : ''}
+          state={core.service_state}
+        />
         <div className="grid grid-cols-2 gap-3">
           <Input label={t('helperDashboard.city')} value={core.service_city}
             onChange={e => setCore({ ...core, service_city: e.target.value })} placeholder="Austin" />

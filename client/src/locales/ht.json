@@ -29275,5 +29275,10 @@
       "openWallet": "Louvri bous",
       "getSupport": "Jwenn èd"
     }
+  },
+  "priceGuide": {
+    "similarJobs": "Travay ki sanble yo gen bidjè ${{lo}}-${{hi}}/è",
+    "helperRange": "Ede tankou ou yo chaje ${{lo}}-${{hi}}/è",
+    "sampleNote": "Dapre {{n}} tarif resan"
   }
 }

@@ -12,6 +12,7 @@ import PageShell from '../components/PageShell';
 import { useTranslation } from 'react-i18next';
 import { useCapabilities } from '../hooks/useCapabilities';
 import AddressAutocomplete from '../components/AddressAutocomplete';
+import PriceGuidance from '../components/PriceGuidance';
 
 // ─── Category taxonomy ───────────────────────────────────────────────────────
 const CATEGORIES = [
@@ -1710,6 +1711,13 @@ export default function PostJobPage() {
                         <span>{formatBudgetAmount(form.budgetType, cfg.min, currency, t)}</span>
                         <span>{formatBudgetAmount(form.budgetType, cfg.max, currency, t)}</span>
                       </div>
+                      {form.budgetType === 'hourly' && (
+                        <PriceGuidance
+                          source="jobs"
+                          category={form.categoryName}
+                          state={form.locationState}
+                        />
+                      )}
                     </div>
                   );
                 })()}
