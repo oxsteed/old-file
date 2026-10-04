@@ -55,6 +55,44 @@ const getCategoryLabels = (t) => ({
 
 // ── Helper components ──────────────────────────────────────────────────────────
 
+/**
+ * VideoPublishCountdown — pending community videos go live automatically
+ * 24 hours after submission unless blocked. Shows the remaining time so
+ * admins can see at a glance which submissions need a decision soon.
+ */
+function VideoPublishCountdown({ createdAt }) {
+  const { t } = useTranslation();
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  if (!createdAt) return null;
+  const remaining = new Date(createdAt).getTime() + 24 * 3600 * 1000 - now;
+  if (remaining <= 0) {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs font-700 text-red-600 dark:text-red-400">
+        <Clock size={11} />
+        {t('adminLearnSubmissions.videoGoesLiveNow')}
+      </span>
+    );
+  }
+  const hours = Math.floor(remaining / 3600000);
+  const minutes = Math.floor((remaining % 3600000) / 60000);
+  const time = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+  const urgent = remaining < 2 * 3600000;
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs font-700 ${
+      urgent ? 'text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400'
+    }`}>
+      <Clock size={11} />
+      {t('adminLearnSubmissions.videoGoesLiveIn', { time })}
+    </span>
+  );
+}
+
 function StatusBadge({ status }) {
   const { t } = useTranslation();
   const c = STATUS_COLORS[status] ?? STATUS_COLORS.pending;
@@ -472,6 +510,12 @@ export default function LearnSubmissionsAdmin() {
                     {v.submitted_by_email || t('adminLearnSubmissions.videoAnonymous')}
                     {' · '}
                     {v.created_at ? new Date(v.created_at).toLocaleString() : ''}
+                    {videoStatus === 'pending' && v.created_at && (
+                      <>
+                        {' · '}
+                        <VideoPublishCountdown createdAt={v.created_at} />
+                      </>
+                    )}
                   </p>
                 </div>
                 {videoStatus === 'pending' ? (

@@ -2,14 +2,33 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Shield, AlertTriangle, CheckCircle, XCircle, Flag } from 'lucide-react';
-import toast from 'react-hot-toast';
 import adminApi from '../../lib/adminApi';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
+import ConfirmDialog from '../lib/ConfirmDialog';
+
+const DIALOG_CONFIG = {
+  unflag: {
+    titleKey: ['admin.moderation.dismissTitle', 'Dismiss - remove admin flag'],
+    confirmKey: ['admin.moderation.dismiss', 'Dismiss'],
+  },
+  flag: {
+    titleKey: ['admin.moderation.flagTitle', 'Flag for further review'],
+    confirmKey: ['admin.moderation.flag', 'Flag'],
+  },
+  cancel: {
+    titleKey: ['admin.moderation.removeTitle', 'Cancel job - removes from marketplace'],
+    confirmKey: ['admin.moderation.remove', 'Remove'],
+    danger: true,
+    requireReason: true,
+  },
+};
 
 export default function Moderation() {
   const { t } = useTranslation();
   const [acting, setActing] = useState(null);
+  // { item, action } while the confirmation dialog is open.
+  const [dialog, setDialog] = useState(null);
 
   // Sequence-guarded + abortable: rapid filter/tab switching can no longer
   // clobber the queue with a stale response, and a failed fetch surfaces an
@@ -22,31 +41,21 @@ export default function Moderation() {
 
   const fetchQueue = () => reload();
 
-  const handleAction = async (jobId, action) => {
-    const reason =
-      action === 'cancel'
-        ? window.prompt(t('admin.jobCancelReason')) || ''
-        : window.prompt(t('admin.auditNote')) || '';
-    if (action === 'cancel' && !reason.trim()) {
-      toast.error(t('admin.cancelReasonRequired'));
-      return;
-    }
-    setActing(`${jobId}-${action}`);
+  const handleConfirm = async (reason) => {
+    const { item, action } = dialog;
+    setActing(`${item.id}-${action}`);
     try {
-      await adminApi.post(`/admin/jobs/${jobId}/action`, {
+      await adminApi.post(`/admin/jobs/${item.id}/action`, {
         action,
-        reason: reason.trim() || undefined,
+        reason: reason || undefined,
       });
       fetchQueue();
-    } catch (err) {
-      toast.error(
-        err?.response?.data?.error ||
-          t('admin.moderationActionFailed', { defaultValue: 'Moderation action failed.' })
-      );
     } finally {
       setActing(null);
     }
   };
+
+  const dialogConfig = dialog ? DIALOG_CONFIG[dialog.action] : null;
 
   return (
     <div>
@@ -107,7 +116,7 @@ export default function Moderation() {
 
                   <div className="flex gap-2 shrink-0">
                     <button
-                      onClick={() => handleAction(item.id, 'unflag')}
+                      onClick={() => setDialog({ item, action: 'unflag' })}
                       disabled={!!acting}
                       title={t('admin.moderation.dismissTitle', { defaultValue: 'Dismiss - remove admin flag' })}
                       className="flex items-center gap-1 px-3 py-1.5 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 text-xs font-medium disabled:opacity-50 transition-colors"
@@ -115,7 +124,7 @@ export default function Moderation() {
                       <CheckCircle size={14} /> {t('admin.moderation.dismiss', { defaultValue: 'Dismiss' })}
                     </button>
                     <button
-                      onClick={() => handleAction(item.id, 'flag')}
+                      onClick={() => setDialog({ item, action: 'flag' })}
                       disabled={!!acting}
                       title={t('admin.moderation.flagTitle', { defaultValue: 'Flag for further review' })}
                       className="flex items-center gap-1 px-3 py-1.5 bg-yellow-500/20 text-yellow-400 rounded-lg hover:bg-yellow-500/30 text-xs font-medium disabled:opacity-50 transition-colors"
@@ -123,7 +132,7 @@ export default function Moderation() {
                       <Flag size={14} /> {t('admin.moderation.flag', { defaultValue: 'Flag' })}
                     </button>
                     <button
-                      onClick={() => handleAction(item.id, 'cancel')}
+                      onClick={() => setDialog({ item, action: 'cancel' })}
                       disabled={!!acting}
                       title={t('admin.moderation.removeTitle', { defaultValue: 'Cancel job - removes from marketplace' })}
                       className="flex items-center gap-1 px-3 py-1.5 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 text-xs font-medium disabled:opacity-50 transition-colors"
@@ -137,6 +146,20 @@ export default function Moderation() {
           </div>
         )}
       </div>
+
+      {dialog && dialogConfig && (
+        <ConfirmDialog
+          open
+          title={t(dialogConfig.titleKey[0], { defaultValue: dialogConfig.titleKey[1] })}
+          message={dialog.item.title}
+          confirmLabel={t(dialogConfig.confirmKey[0], { defaultValue: dialogConfig.confirmKey[1] })}
+          danger={dialogConfig.danger}
+          requireReason={dialogConfig.requireReason}
+          reasonLabel={dialogConfig.requireReason ? t('admin.jobCancelReason') : undefined}
+          onConfirm={handleConfirm}
+          onClose={() => setDialog(null)}
+        />
+      )}
     </div>
   );
 }

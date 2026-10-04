@@ -408,12 +408,14 @@ export default function AdminSearch() {
   );
   const initialMountRef = useRef(true);
   const searchRequestRef = useRef({ controller: null, seq: 0 });
+  const liveSearchTimerRef = useRef(null);
   const LIMIT = 10;
   const TYPE_META = getTypeMeta(t);
 
   // Abort the in-flight search when this page unmounts.
   useEffect(() => () => {
     searchRequestRef.current.controller?.abort();
+    if (liveSearchTimerRef.current) clearTimeout(liveSearchTimerRef.current);
   }, []);
 
   // Abortable and sequence-guarded: a new search cancels the previous one,
@@ -503,9 +505,27 @@ export default function AdminSearch() {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (input.trim().length < 2) return;
+    // A pending debounced keystroke must not fire a second search after this one.
+    if (liveSearchTimerRef.current) clearTimeout(liveSearchTimerRef.current);
     // Reset pages on new query
     setPages(Object.fromEntries(ALL_TYPES.map(t => [t, 1])));
     setSearchParams({ q: input.trim() });
+  };
+
+  // Debounced live results: typing updates the same URL param the submit
+  // path uses, so the existing search effect does the work. Only fires when
+  // the debounced value actually differs from the current URL param.
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setInput(value);
+    if (liveSearchTimerRef.current) clearTimeout(liveSearchTimerRef.current);
+    if (value.trim().length >= 2) {
+      liveSearchTimerRef.current = setTimeout(() => {
+        if (searchParams.get('q') !== value.trim()) {
+          setSearchParams({ q: value.trim() });
+        }
+      }, 500);
+    }
   };
 
   const toggleType = (t) => {
@@ -544,7 +564,7 @@ export default function AdminSearch() {
           <input
             autoFocus
             value={input}
-            onChange={e => setInput(e.target.value)}
+            onChange={handleInputChange}
             placeholder={t('adminSearch.searchPlaceholder')}
             className="w-full pl-9 pr-3 py-2.5 bg-gray-800 border border-gray-700 rounded-lg
                        text-sm text-white placeholder-gray-500 focus:outline-none focus:border-orange-500"
