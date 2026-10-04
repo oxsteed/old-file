@@ -58,6 +58,8 @@
   "notificationCenter": {
     "loading": "Chaje notifikasyon...",
     "title": "Notifikasyon",
+    "emptyTitle": "Pa gen notifikasyon pou kounye a",
+    "emptyCopy": "W ap resevwa isit la avi sou rezèvasyon, òf, mesaj, peman, evalyasyon, ak diskisyon.",
     "emptyState": "Ou poko gen okenn notifikasyon ankò",
     "messageFallback": "Nouvo notifikasyon",
     "time": {

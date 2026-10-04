@@ -18312,6 +18312,7 @@
       "listView": "Wè lis",
       "gridView": "Wè griy",
       "noResults": "Pa gen gid ki matche «{{query}}».",
+      "noGuides": "Pa gen gid isit la pou kounye a. Eseye yon lòt kategori oswa efase filtè yo.",
       "clearFilters": "Efase filtè",
       "noGuidesHere": "Pa gen gid isit la pou kounye a.",
       "noGuidesHereCopy": "Nou ajoute nouvo gid regilyèman. Eseye yon lòt kategori antretan.",

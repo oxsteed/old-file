@@ -18312,6 +18312,7 @@
       "listView": "Vue liste",
       "gridView": "Vue grille",
       "noResults": "Aucun guide ne correspond à « {{query}} ».",
+      "noGuides": "Aucun guide ici pour le moment. Essayez une autre catégorie ou effacez les filtres.",
       "clearFilters": "Effacer les filtres",
       "noGuidesHere": "Aucun guide ici pour le moment.",
       "noGuidesHereCopy": "De nouveaux guides sont ajoutés régulièrement. Essayez une autre catégorie en attendant.",

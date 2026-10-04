@@ -18310,6 +18310,7 @@
       "listView": "List view",
       "gridView": "Grid view",
       "noResults": "No guides match \"{{query}}\".",
+      "noGuides": "No guides here yet. Try a different category or clear the filters below.",
       "clearFilters": "Clear filters",
       "noGuidesHere": "No guides here yet.",
       "noGuidesHereCopy": "New guides are added regularly. Try a different category in the meantime.",

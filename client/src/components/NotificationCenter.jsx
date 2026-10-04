@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { BellOff } from 'lucide-react';
 import useNotifications from '../hooks/useNotifications';
+import EmptyState from './EmptyState';
 import './NotificationCenter.css';
 
 export default function NotificationCenter() {
@@ -58,9 +60,11 @@ export default function NotificationCenter() {
         </h3>
       </div>
       {notifications.length === 0 ? (
-        <div className="no-notifications">
-          <p>🔔 {t('notificationCenter.emptyState')}</p>
-        </div>
+        <EmptyState
+          icon={BellOff}
+          title={t('notificationCenter.emptyTitle')}
+          copy={t('notificationCenter.emptyCopy')}
+        />
       ) : (
         <div className="notification-list">
           {notifications.map((notification) => (

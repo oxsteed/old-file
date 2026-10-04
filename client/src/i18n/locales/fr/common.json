@@ -58,6 +58,8 @@
   "notificationCenter": {
     "loading": "Chargement des notifications...",
     "title": "Notifications",
+    "emptyTitle": "Aucune notification pour le moment",
+    "emptyCopy": "Vous recevrez ici des avis sur les réservations, les offres, les messages, les paiements, les évaluations et les litiges.",
     "emptyState": "Aucune notification pour le moment",
     "messageFallback": "Nouvelle notification",
     "time": {

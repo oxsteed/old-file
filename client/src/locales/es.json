@@ -18312,6 +18312,7 @@
       "listView": "Vista lista",
       "gridView": "Vista cuadrícula",
       "noResults": "Ninguna guía coincide con «{{query}}».",
+      "noGuides": "Aún no hay guías aquí. Prueba con otra categoría o borra los filtros.",
       "clearFilters": "Borrar filtros",
       "noGuidesHere": "Aún no hay guías aquí.",
       "noGuidesHereCopy": "Agregamos guías nuevas con regularidad. Prueba con otra categoría mientras tanto.",

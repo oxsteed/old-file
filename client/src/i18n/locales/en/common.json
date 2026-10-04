@@ -58,6 +58,8 @@
   "notificationCenter": {
     "loading": "Loading notifications...",
     "title": "Notifications",
+    "emptyTitle": "No notifications yet",
+    "emptyCopy": "You will be notified here about bookings, bids, messages, payments, reviews, and disputes.",
     "emptyState": "No notifications yet",
     "messageFallback": "New notification",
     "time": {

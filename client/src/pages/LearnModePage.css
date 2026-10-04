@@ -1667,6 +1667,24 @@ html.dark .lrn-income-banner {
   background: var(--card-bg, #f8fafc);
 }
 
+/* Clear-filters action rendered inside the shared EmptyState actions slot. */
+.lrn-empty-clear {
+  background: none;
+  border: 1.5px solid var(--border-color, #e2e8f0);
+  border-radius: .625rem;
+  padding: .55rem 1.25rem;
+  font: inherit;
+  font-weight: 600;
+  font-size: .875rem;
+  color: var(--app-text-muted, #475569);
+  cursor: pointer;
+  transition: background .15s;
+}
+
+.lrn-empty-clear:hover {
+  background: var(--card-bg, #f8fafc);
+}
+
 /* ── Responsive ───────────────────────────────────────────────────────────────── */
 
 @media (max-width: 700px) {

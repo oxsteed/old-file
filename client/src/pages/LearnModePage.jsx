@@ -28,6 +28,7 @@ import {
   Paintbrush,
   PlayCircle,
   Search,
+  SearchX,
   Headphones,
   Send,
   ShoppingBag,
@@ -43,6 +44,7 @@ import {
   X,
   Zap,
 } from 'lucide-react';
+import EmptyState from '../components/EmptyState';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import { useAuth } from '../context/AuthContext';
@@ -4762,12 +4764,19 @@ export default function LearnModePage() {
           </div>
 
           {filteredGuides.length === 0 ? (
-            <div className="lrn-empty">
-              <p>{t('learn.page.noResults', { query })}</p>
-              <button type="button" onClick={() => { setQuery(''); setActiveCategory('all'); setSearchParams({}, { replace: true }); }}>
-                {t('learn.page.clearFilters')}
-              </button>
-            </div>
+            <EmptyState
+              icon={SearchX}
+              title={query.trim() ? t('learn.page.noResults', { query: query.trim() }) : t('learn.page.noGuides')}
+              actions={(
+                <button
+                  type="button"
+                  className="lrn-empty-clear"
+                  onClick={() => { setQuery(''); setActiveCategory('all'); setSearchParams({}, { replace: true }); }}
+                >
+                  {t('learn.page.clearFilters')}
+                </button>
+              )}
+            />
           ) : viewMode === 'grid' ? (
             <div className="lrn-grid">
               {filteredGuides.map((guide) => {
