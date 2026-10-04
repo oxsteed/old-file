@@ -709,6 +709,7 @@
 }
 
 .messages-composer > .messages-starters,
+.messages-composer > .messages-quick-replies,
 .messages-composer > .messages-composer-tools,
 .messages-composer > .messages-composer-row,
 .messages-composer > .messages-pending-attachment {
@@ -730,6 +731,33 @@
   flex: 1 1 auto;
   width: 0;
   min-width: 0;
+}
+
+.messages-quick-replies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px 2px 0;
+}
+
+.messages-quick-reply {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--messages-border, rgba(148, 163, 184, 0.2));
+  border-radius: 999px;
+  background: var(--messages-chip-bg, rgba(2, 6, 23, 0.28));
+  color: var(--messages-text, #e2e8f0);
+  font-size: 0.8rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.messages-quick-reply:hover {
+  border-color: rgba(249, 115, 22, 0.4);
+}
+
+.messages-quick-reply:active {
+  transform: scale(0.97);
 }
 
 .messages-thread-actions {

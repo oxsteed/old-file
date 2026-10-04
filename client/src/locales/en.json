@@ -2716,6 +2716,15 @@
         "text": "Fast, clear replies build trust before a customer decides who to hire."
       }
     },
+    "quickReplies": {
+      "title": "Quick replies",
+      "confirmBooking": "Confirm booking",
+      "reschedule": "Reschedule",
+      "runningLate": "Running late",
+      "thanks": "Thanks!",
+      "onMyWay": "On my way",
+      "talkTomorrow": "Can we talk tomorrow?"
+    },
     "starters": {
       "title": "Start with a useful first message",
       "customer": {
@@ -4443,6 +4452,7 @@
     "jobPayment": "Job payment"
   },
   "myJobs": {
+    "cancelUndoNote": "You will have 5 seconds to undo after confirming.",
     "subtitle": "Jobs you have posted",
     "bids": "{{count}} bid(s)",
     "noBids": "No bids yet",
@@ -29205,5 +29215,15 @@
       "statusRejected": "Rejected",
       "statusSuspended": "Suspended"
     }
+  }
+,
+  "undoToast": {
+    "undo": "Undo",
+    "serviceRemoved": "Service removed",
+    "faqRemoved": "FAQ removed",
+    "policyRemoved": "Policy removed",
+    "photoRemoved": "Photo removed",
+    "jobCancelling": "Cancelling job…",
+    "bookingCancelling": "Cancelling booking…"
   }
 }

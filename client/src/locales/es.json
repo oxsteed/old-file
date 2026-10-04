@@ -2716,6 +2716,15 @@
         "text": "Respuestas claras y rápidas generan confianza antes de que el cliente decida a quién contratar."
       }
     },
+    "quickReplies": {
+      "title": "Respuestas rápidas",
+      "confirmBooking": "Confirmar reserva",
+      "reschedule": "Reprogramar",
+      "runningLate": "Voy con retraso",
+      "thanks": "¡Gracias!",
+      "onMyWay": "En camino",
+      "talkTomorrow": "¿Podemos hablar mañana?"
+    },
     "starters": {
       "title": "Empieza con un primer mensaje útil",
       "customer": {
@@ -4443,6 +4452,7 @@
     "jobPayment": "Pago del trabajo"
   },
   "myJobs": {
+    "cancelUndoNote": "Tendrás 5 segundos para deshacerlo después de confirmar.",
     "subtitle": "Trabajos que has publicado",
     "bids": "{{count}} oferta(s)",
     "noBids": "Sin ofertas aún",
@@ -29209,4 +29219,14 @@
         "statusSuspended": "Suspendida"
       }
     }
+,
+  "undoToast": {
+    "undo": "Deshacer",
+    "serviceRemoved": "Servicio eliminado",
+    "faqRemoved": "Pregunta frecuente eliminada",
+    "policyRemoved": "Política eliminada",
+    "photoRemoved": "Foto eliminada",
+    "jobCancelling": "Cancelando trabajo…",
+    "bookingCancelling": "Cancelando reserva…"
+  }
 }

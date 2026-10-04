@@ -227,6 +227,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                   {displayText ? (
                     <AutoTranslatedMessage
                       text={displayText}
+                      messageId={message.id}
                       incomingOnly
                       isOwnMessage={isUser}
                       compact

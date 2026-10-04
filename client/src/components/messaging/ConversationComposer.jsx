@@ -17,6 +17,7 @@ export default function ConversationComposer({
   inputRef,
   starters = [],
   showStarters = false,
+  quickReplies = [],
   placeholder,
   disabled = false,
   uploadAttachment = uploadMessageAttachment,
@@ -82,6 +83,18 @@ export default function ConversationComposer({
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
   };
 
+  const insertQuickReply = (text) => {
+    if (disabled || sending || uploading) return;
+    const current = value || '';
+    const next = current.trim() ? `${current.trimEnd()} ${text}` : text;
+    // Reuse the controlled onChange path so drafts and the parent stay in sync.
+    onChange({ target: { value: next } });
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+      setTimeout(() => autoResize(textareaRef.current), 0);
+    }
+  };
+
   const remaining = MAX_CHARS - (value || '').length;
   const canSend = !disabled && Boolean((value || '').trim() || pendingAttachment) && !sending && !uploading;
 
@@ -101,6 +114,21 @@ export default function ConversationComposer({
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {quickReplies.length > 0 && !disabled && (
+        <div className="messages-quick-replies" role="group" aria-label={t('messages.quickReplies.title')}>
+          {quickReplies.map((reply, index) => (
+            <button
+              key={`${index}-${reply}`}
+              type="button"
+              className="messages-quick-reply"
+              onClick={() => insertQuickReply(reply)}
+            >
+              {reply}
+            </button>
+          ))}
         </div>
       )}
 

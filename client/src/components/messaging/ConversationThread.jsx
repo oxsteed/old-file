@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Archive, ArrowLeft, Calculator, ChevronDown, Globe, Paperclip, Receipt, RotateCcw } from 'lucide-react';
@@ -85,7 +85,7 @@ export default function ConversationThread({
   onRestore,
   businessId: workspaceBusinessId = null,
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const isBusinessConversation = Boolean(workspaceBusinessId);
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
@@ -195,6 +195,34 @@ export default function ConversationThread({
         t('messages.starters.customer.quote'),
         t('messages.starters.customer.photos'),
       ];
+
+  // Context-aware quick replies: booking-related threads get booking actions,
+  // everything else gets generic courtesies. Booking context = the thread is
+  // tied to a job, or any message carries a booking-request marker.
+  const hasBookingContext = useMemo(() => {
+    if (jobId) return true;
+    return (messages || []).some((msg) => {
+      try {
+        return Boolean(parseBookingRequestMarker(msg?.content || ''));
+      } catch {
+        return false;
+      }
+    });
+  }, [jobId, messages]);
+
+  const quickReplies = useMemo(() => (
+    hasBookingContext
+      ? [
+          t('messages.quickReplies.confirmBooking'),
+          t('messages.quickReplies.reschedule'),
+          t('messages.quickReplies.runningLate'),
+        ]
+      : [
+          t('messages.quickReplies.thanks'),
+          t('messages.quickReplies.onMyWay'),
+          t('messages.quickReplies.talkTomorrow'),
+        ]
+  ), [hasBookingContext, t, i18n.language]);
 
   const profileHref = otherUserId && (role === 'customer' || String(helperId) === String(otherUserId))
     ? `/helpers/${otherUserId}`
@@ -417,6 +445,7 @@ export default function ConversationThread({
                           {displayText ? (
                             <AutoTranslatedMessage
                               text={displayText}
+                              messageId={msg.id}
                               enabled={translateEnabled}
                               incomingOnly
                               isOwnMessage={isMe}
@@ -783,6 +812,7 @@ export default function ConversationThread({
           inputRef={inputRef}
           starters={starters}
           showStarters={messages.length === 0}
+          quickReplies={quickReplies}
           placeholder={role === 'helper' ? t('messages.typeReply') : t('messages.typeAMessage')}
           disabled={composerDisabled}
           uploadAttachment={isBusinessConversation

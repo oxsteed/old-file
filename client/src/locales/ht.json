@@ -2803,6 +2803,15 @@
         "text": "Repons rapid e klè bati konfyans anvan kliyan an deside ki moun pou anboche."
       }
     },
+    "quickReplies": {
+      "title": "Repons rapid",
+      "confirmBooking": "Konfime rezervasyon an",
+      "reschedule": "Chanje lè a",
+      "runningLate": "M ap an reta",
+      "thanks": "Mèsi!",
+      "onMyWay": "M sou wout",
+      "talkTomorrow": "Èske nou ka pale demen?"
+    },
     "starters": {
       "title": "Kòmanse ak yon premye mesaj ki itil",
       "customer": {
@@ -4530,6 +4539,7 @@
     "jobPayment": "Peman travay"
   },
   "myJobs": {
+    "cancelUndoNote": "W ap gen 5 segonn pou defèt li apre konfimasyon.",
     "subtitle": "Travay ou pibliye yo",
     "bids": "{{count}} ofè",
     "noBids": "Poko gen ofè",
@@ -29209,4 +29219,14 @@
         "statusSuspended": "Sispann"
       }
     }
+,
+  "undoToast": {
+    "undo": "Defèt",
+    "serviceRemoved": "Sèvis efase",
+    "faqRemoved": "Kesyon efase",
+    "policyRemoved": "Règleman efase",
+    "photoRemoved": "Foto efase",
+    "jobCancelling": "Ap anile djòb la…",
+    "bookingCancelling": "Ap anile rezervasyon an…"
+  }
 }

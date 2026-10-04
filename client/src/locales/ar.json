@@ -2716,6 +2716,15 @@
         "text": "الردود السريعة والواضحة تبني الثقة قبل أن يقرر العميل من يستأجر."
       }
     },
+    "quickReplies": {
+      "title": "ردود سريعة",
+      "confirmBooking": "تأكيد الحجز",
+      "reschedule": "إعادة جدولة",
+      "runningLate": "سأتأخر",
+      "thanks": "شكراً!",
+      "onMyWay": "أنا في الطريق",
+      "talkTomorrow": "هل يمكننا التحدث غداً؟"
+    },
     "starters": {
       "title": "ابدأ برسالة أولى مفيدة",
       "customer": {
@@ -4443,6 +4452,7 @@
     "jobPayment": "دفع المهمة"
   },
   "myJobs": {
+    "cancelUndoNote": "سيكون لديك 5 ثوانٍ للتراجع بعد التأكيد.",
     "subtitle": "الوظائف التي نشرتها",
     "bids": "{{count}} عرض",
     "noBids": "لا توجد عروض بعد",
@@ -29220,4 +29230,14 @@
         "statusSuspended": "موقوف"
       }
     }
+,
+  "undoToast": {
+    "undo": "تراجع",
+    "serviceRemoved": "تمت إزالة الخدمة",
+    "faqRemoved": "تمت إزالة السؤال الشائع",
+    "policyRemoved": "تمت إزالة السياسة",
+    "photoRemoved": "تمت إزالة الصورة",
+    "jobCancelling": "جارٍ إلغاء المهمة…",
+    "bookingCancelling": "جارٍ إلغاء الحجز…"
+  }
 }
