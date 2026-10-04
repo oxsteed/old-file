@@ -2004,8 +2004,14 @@ export default function FoodRestaurantPage() {
                     ))}
                   </div>
                   <div style={{ padding: '14px 20px 20px', borderTop: '1px solid #f1f5f9', flexShrink: 0 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#64748b', marginBottom: 6 }}><span>{t('food.restaurant.subtotal')}</span><span style={{ fontWeight: 600, color: '#0f172a' }}>{formatFoodMoney(subtotalCents, currency)}</span></div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#64748b', marginBottom: 14 }}><span>{delivFeeLabel}</span><span style={{ fontWeight: 600, color: '#0f172a' }}>{delivFeeStr}</span></div>
+                    {summaryRows.map((row, i) => (
+                      <div key={row.key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#64748b', marginBottom: i === summaryRows.length - 1 ? 14 : 6 }}>
+                        <span>{row.label}</span>
+                        <span style={{ fontWeight: 600, color: row.tone === 'green' ? '#15803d' : '#0f172a' }}>
+                          {row.free ? t('food.restaurant.free') : formatFoodMoney(row.amount, currency)}
+                        </span>
+                      </div>
+                    ))}
                       <button onClick={() => { setCartOpen(true); setCartStep('details'); }} style={{ width: '100%', height: 52, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>{t('food.restaurant.checkoutTotal', { total: formatFoodMoney(displayTotalCents, currency) })}</button>
                   </div>
                 </>
@@ -2417,6 +2423,12 @@ export default function FoodRestaurantPage() {
                 const shownStatus = shownOrder?.status || 'received';
                 const isReady = shownStatus === 'ready';
                 const statusLabel = t(FOOD_STATUS_KEYS[shownStatus] || FOOD_STATUS_KEYS.received);
+                // The confirmation estimate must honor the chosen time slot:
+                // delivTime is the ASAP baseline, so offset the range for +15/+30.
+                const slotOffsetMin = deliverySlot === '+15' ? 15 : deliverySlot === '+30' ? 30 : 0;
+                const confirmedEstimate = slotOffsetMin > 0
+                  ? t('food.restaurant.minuteRange', { start: prepMin + slotOffsetMin, end: prepMin + 10 + slotOffsetMin })
+                  : delivTime;
                 return (
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
                     <div style={{ width: 72, height: 72, borderRadius: '50%', background: accentBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, marginBottom: 16, color: accent }}>✓</div>
@@ -2437,7 +2449,7 @@ export default function FoodRestaurantPage() {
                     )}
                     <div style={{ background: '#f8fafc', borderRadius: 14, padding: '18px 24px', width: '100%', textAlign: 'center', border: '1px solid #e2e8f0', marginBottom: 16 }}>
                       <p style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#94a3b8', marginBottom: 4 }}>{t('food.restaurant.estimatedTime')}</p>
-                      <p style={{ fontFamily: SERIF, fontSize: 28, color: '#0f172a' }}>{delivTime}</p>
+                      <p style={{ fontFamily: SERIF, fontSize: 28, color: '#0f172a' }}>{confirmedEstimate}</p>
                     </div>
                     <div style={{ display: 'flex', gap: 10, width: '100%' }}>
                       <Link to={`/restaurants/queue/${restaurant.id}`} style={{ flex: 1, textAlign: 'center', height: 44, lineHeight: '44px', background: '#f1f5f9', color: '#0f172a', borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>{t('food.order.watchQueue')}</Link>
