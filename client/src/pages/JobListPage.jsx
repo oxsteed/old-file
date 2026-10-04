@@ -33,6 +33,7 @@ import useAuth from '../hooks/useAuth';
 import { detectCountryFromLocale } from '../lib/countries';
 
 import SearchBar from '../components/jobDirectory/SearchBar';
+import SaveSearchButton from '../components/SaveSearchButton';
 import FilterPanel from '../components/jobDirectory/FilterPanel';
 import SortControls from '../components/jobDirectory/SortControls';
 import ActiveFilterTags from '../components/jobDirectory/ActiveFilterTags';
@@ -257,7 +258,7 @@ const SubSkillStrip = ({ tile, selectedSkills, onToggleSkill, onClearTile }) => 
 };
 
 // ── Hero banner ───────────────────────────────────────────────────────────────
-const DirectoryHero = ({ searchValue, onSearch, categoryLabels, suggestTiles }) => {
+const DirectoryHero = ({ searchValue, onSearch, categoryLabels, suggestTiles, filters }) => {
   const { t } = useTranslation();
   return (
     <div className="relative bg-gray-900 border-b border-gray-800 overflow-hidden">
@@ -295,6 +296,15 @@ const DirectoryHero = ({ searchValue, onSearch, categoryLabels, suggestTiles }) 
               placeholder={t('jobsDir.heroSearchPlaceholder')}
               tiles={suggestTiles}
               categories={categoryLabels}
+            />
+          </div>
+
+          <div className="mt-3">
+            <SaveSearchButton
+              searchType="job"
+              query={searchValue}
+              filters={filters}
+              dark
             />
           </div>
 
@@ -525,6 +535,7 @@ export default function JobListPage() {
         onSearch={(q) => updateFilters({ query: q })}
         categoryLabels={categoryHeroChips}
         suggestTiles={translatedTiles}
+        filters={filters}
       />
 
       {/* Skill tile grid */}

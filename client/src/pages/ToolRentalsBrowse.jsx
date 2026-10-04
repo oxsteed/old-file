@@ -27,6 +27,7 @@ import Footer from '../components/Footer';
 import PageMeta from '../components/PageMeta';
 
 import SearchBar from '../components/toolDirectory/SearchBar';
+import SaveSearchButton from '../components/SaveSearchButton';
 import FilterPanel from '../components/toolDirectory/FilterPanel';
 import SortControls from '../components/toolDirectory/SortControls';
 import ActiveFilterTags from '../components/toolDirectory/ActiveFilterTags';
@@ -213,7 +214,7 @@ const SubTypeStrip = ({ tile, selectedSubTypes, onToggleSubType, onClearTile }) 
 };
 
 // ── Hero ────────────────────────────────────────────────────────────────────
-const DirectoryHero = ({ searchValue, onSearch, categoryChips, suggestTiles }) => {
+const DirectoryHero = ({ searchValue, onSearch, categoryChips, suggestTiles, filters }) => {
   const { t } = useTranslation();
   return (
     <div className="relative bg-gray-900 border-b border-gray-800 overflow-hidden">
@@ -253,6 +254,15 @@ const DirectoryHero = ({ searchValue, onSearch, categoryChips, suggestTiles }) =
                 placeholder={t('toolRentalsDir.heroSearchPlaceholder')}
                 tiles={suggestTiles}
                 categories={categoryChips}
+              />
+            </div>
+
+            <div className="mt-3">
+              <SaveSearchButton
+                searchType="tool"
+                query={searchValue}
+                filters={filters}
+                dark
               />
             </div>
 
@@ -565,6 +575,7 @@ const ToolRentalsBrowse = () => {
         onSearch={(q) => updateFilters({ query: q })}
         categoryChips={categoryHeroChips}
         suggestTiles={translatedTiles}
+        filters={filters}
       />
 
       {/* Tile grid */}

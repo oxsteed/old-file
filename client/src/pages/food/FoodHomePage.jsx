@@ -9,6 +9,7 @@ import { FoodBrand } from './foodShared';
 import PageShell from '../../components/PageShell';
 import PageMeta from '../../components/PageMeta';
 import RecentlyViewedStrip from '../../components/RecentlyViewedStrip';
+import SaveSearchButton from '../../components/SaveSearchButton';
 import { SuggestDropdown } from '../../components/SuggestDropdown';
 import ThemeToggle from '../../components/ThemeToggle';
 import LanguageSelector from '../../components/LanguageSelector';
@@ -472,6 +473,14 @@ export default function FoodHomePage() {
               {t('food.home.searchBtn')}<ArrowRight size={18} aria-hidden="true" />
             </button>
           </form>
+          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-start' }}>
+            <SaveSearchButton
+              searchType="food"
+              query={query}
+              filters={{ cuisine: activeCuisine, sort }}
+              dark
+            />
+          </div>
           <div className="rd-location-row">
             <button
               type="button"

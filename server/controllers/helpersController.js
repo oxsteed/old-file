@@ -12,6 +12,15 @@ const { AppError }  = require('../middleware/errorHandler');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 const availabilityService = require('../services/helperAvailabilityService');
 
+// Saved-search fan-out for newly listed helpers (routes/savedSearches also
+// exposes the jobs/tools matchers). Defensive require: alerts must never
+// break helper listing.
+let notifyHelperSearches = null;
+try {
+  ({ notifyMatchingSavedSearchesForHelper: notifyHelperSearches } =
+    require('../routes/savedSearches'));
+} catch (_) { notifyHelperSearches = null; }
+
 const DIRECTORY_CACHE_TTL_SECONDS = 30;
 const DIRECTORY_CACHE_TTL_MS = DIRECTORY_CACHE_TTL_SECONDS * 1000;
 const directoryCache = new Map();
@@ -1225,6 +1234,27 @@ async function toggleListing(req, res, next) {
 
     if (!rows[0]) {
       throw new AppError('Helper profile not found - switch to helper mode first', 404, 'not_found');
+    }
+
+    // ── Fan out alerts to users with matching saved searches ──────────────────
+    // Only when the profile just went live; fire-and-forget so alerts can
+    // never fail the listing toggle.
+    if (rows[0].is_listed && typeof notifyHelperSearches === 'function') {
+      const helperUserId = req.user.id;
+      (async () => {
+        try {
+          const { rows: prof } = await pool.query(
+            `SELECT hp.id, hp.user_id, hp.profile_headline, hp.bio,
+                    hp.service_city, hp.service_state,
+                    (SELECT COALESCE(string_agg(hs.skill_name, ' '), '')
+                       FROM helper_skills hs WHERE hs.user_id = hp.user_id) AS skill_names
+             FROM helper_profiles hp
+             WHERE hp.user_id = $1`,
+            [helperUserId]
+          );
+          if (prof[0]) await notifyHelperSearches(prof[0]);
+        } catch (_) { /* non-fatal */ }
+      })();
     }
 
     return res.json({ success: true, is_listed: rows[0].is_listed });

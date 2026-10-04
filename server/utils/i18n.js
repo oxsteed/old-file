@@ -96,6 +96,38 @@ const T = {
       ar: 'يوجد وظيفة جديدة تتطابق مع بحثك المحفوظ.',
     },
   },
+  helper_alert: {
+    title: {
+      en: 'New Helper Alert',
+      fr: 'Nouvelle alerte aidant',
+      es: 'Nueva alerta de ayudante',
+      ht: 'Nouvo avètisman edè',
+      ar: 'تنبيه مساعد جديد',
+    },
+    body: {
+      en: 'A new helper matches your saved search.',
+      fr: 'Un nouvel aidant correspond à votre recherche enregistrée.',
+      es: 'Un nuevo ayudante coincide con tu búsqueda guardada.',
+      ht: 'Yon nouvo edè matche ak rechèch ki anrejistre ou a.',
+      ar: 'يوجد مساعد جديد يتطابق مع بحثك المحفوظ.',
+    },
+  },
+  tool_alert: {
+    title: {
+      en: 'New Tool Alert',
+      fr: 'Nouvelle alerte outil',
+      es: 'Nueva alerta de herramienta',
+      ht: 'Nouvo avètisman zouti',
+      ar: 'تنبيه أداة جديد',
+    },
+    body: {
+      en: 'A new tool matches your saved search.',
+      fr: 'Un nouvel outil correspond à votre recherche enregistrée.',
+      es: 'Una nueva herramienta coincide con tu búsqueda guardada.',
+      ht: 'Yon nouvo zouti matche ak rechèch ki anrejistre ou a.',
+      ar: 'توجد أداة جديدة تتطابق مع بحثك المحفوظ.',
+    },
+  },
   invoice_resend: {
     title: {
       en: 'Invoice',

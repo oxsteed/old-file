@@ -27,6 +27,14 @@ const invoiceController = require('../controllers/invoiceController');
 const userReportController = require('../controllers/userReportController');
 const termsController = require('../controllers/termsController');
 
+// Saved-search fan-out for new tool listings. Defensive require: alerts must
+// never break tool creation.
+let notifyToolSearches = null;
+try {
+  ({ notifyMatchingSavedSearchesForTool: notifyToolSearches } =
+    require('./savedSearches'));
+} catch (_) { notifyToolSearches = null; }
+
 // Base fields guaranteed present since migration 039
 const TOOL_FIELDS_BASE = `
   t.id, t.user_id, t.name, t.category, t.description,
@@ -473,6 +481,12 @@ router.post('/', authenticate, upload.single('image'), validateFileUpload, async
     );
 
     res.status(201).json({ tool: result.rows[0] });
+
+    // ── Fan out alerts to users with matching saved searches ────────────────
+    // Fire-and-forget: alerts must never fail tool creation.
+    if (typeof notifyToolSearches === 'function') {
+      notifyToolSearches(result.rows[0]).catch(() => {});
+    }
   } catch (err) {
     require('../utils/logger').error('[toolRentals] create error:', err.message);
     res.status(err.status || 500).json({ error: err.status ? err.message : 'Failed to create tool listing' });

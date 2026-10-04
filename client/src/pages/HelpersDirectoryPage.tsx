@@ -18,6 +18,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
 import SearchBar from '../components/helperDirectory/SearchBar';
+import SaveSearchButton from '../components/SaveSearchButton';
 import FilterPanel from '../components/helperDirectory/FilterPanel';
 import SortControls from '../components/helperDirectory/SortControls';
 import ActiveFilterTags from '../components/helperDirectory/ActiveFilterTags';
@@ -321,12 +322,14 @@ const DirectoryHero: React.FC<{
   categoryLabels: { key: string; label: string }[];
   tiles?: { id: string; label: string; icon?: React.ReactNode }[];
   entryPoint?: 'helpers' | 'direct';
+  filters?: DirectoryFilters;
 }> = ({
   searchValue,
   onSearch,
   categoryLabels,
   tiles,
   entryPoint = 'helpers',
+  filters,
 }) => {
   const { t } = useTranslation();
   const isDirect = entryPoint === 'direct';
@@ -368,6 +371,15 @@ const DirectoryHero: React.FC<{
             placeholder={t('helpersDir.heroSearchPlaceholder')}
             tiles={tiles}
             categories={categoryLabels}
+          />
+        </div>
+
+        <div className="mt-3">
+          <SaveSearchButton
+            searchType="helper"
+            query={searchValue}
+            filters={filters}
+            dark
           />
         </div>
 
@@ -662,6 +674,7 @@ const HelpersDirectoryPage: React.FC<{ entryPoint?: 'helpers' | 'direct' }> = ({
         onSearch={(q) => updateFilters({ query: q })}
         categoryLabels={categoryHeroChips}
         tiles={translatedTiles}
+        filters={filters}
       />
 
       {/* Skill tile grid */}
