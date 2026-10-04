@@ -82,33 +82,33 @@ function adminId(req) {
 function formatRequest(row, restaurantsByBusiness) {
   return {
     id: Number(row.id),
-    businessId: Number(row.business_id),
-    businessName: row.business_name || null,
-    requestedById: row.requested_by_id ? String(row.requested_by_id) : null,
-    requesterEmail: row.requester_email || null,
+    business_id: Number(row.business_id),
+    business_name: row.business_name || null,
+    requested_by_id: row.requested_by_id ? String(row.requested_by_id) : null,
+    requested_by_email: row.requester_email || null,
     category: row.category || null,
     zip: row.zip || null,
     note: row.note || null,
     source: row.source || null,
     status: row.status,
     restaurants: restaurantsByBusiness.get(Number(row.business_id)) || [],
-    decidedById: row.decided_by_id ? String(row.decided_by_id) : null,
-    decidedAt: row.decided_at || null,
-    decisionNote: row.decision_note || null,
-    featuredRestaurantId: row.featured_restaurant_id != null ? Number(row.featured_restaurant_id) : null,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    decided_by_id: row.decided_by_id ? String(row.decided_by_id) : null,
+    decided_at: row.decided_at || null,
+    decision_note: row.decision_note || null,
+    featured_restaurant_id: row.featured_restaurant_id != null ? Number(row.featured_restaurant_id) : null,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
   };
 }
 
 function formatRestaurant(row) {
   return {
     id: Number(row.id),
-    businessId: Number(row.business_id),
+    business_id: Number(row.business_id),
     name: row.display_name || null,
-    isFeatured: Boolean(row.is_featured),
-    featuredRank: row.featured_rank != null ? Number(row.featured_rank) : null,
-    featuredUntil: row.featured_until || null,
+    is_featured: Boolean(row.is_featured),
+    featured_rank: row.featured_rank != null ? Number(row.featured_rank) : null,
+    featured_until: row.featured_until || null,
   };
 }
 
@@ -165,7 +165,7 @@ exports.listRequests = async (req, res) => {
   const restaurantsByBusiness = await loadRestaurantsByBusiness(businessIds);
 
   res.json({
-    requests: rows.map((row) => formatRequest(row, restaurantsByBusiness)),
+    items: rows.map((row) => formatRequest(row, restaurantsByBusiness)),
     limit,
     offset,
     status: rawStatus,
@@ -186,9 +186,9 @@ exports.listFeatured = async (req, res) => {
       ORDER BY fr.featured_rank ASC, fr.avg_rating DESC NULLS LAST, fr.display_name ASC`
   );
   res.json({
-    featured: rows.map((row) => ({
+    items: rows.map((row) => ({
       ...formatRestaurant(row),
-      businessName: row.business_name || null,
+      business_name: row.business_name || null,
     })),
   });
 };

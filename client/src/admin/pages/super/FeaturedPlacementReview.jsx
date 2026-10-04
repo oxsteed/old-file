@@ -193,6 +193,7 @@ export default function FeaturedPlacementReview() {
   const { t } = useTranslation();
   const [requests, setRequests] = useState([]);
   const [featured, setFeatured] = useState([]);
+  const [approvedLookup, setApprovedLookup] = useState([]);
   const [status, setStatus] = useState('requested');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -205,11 +206,14 @@ export default function FeaturedPlacementReview() {
     setLoading(true);
     setError('');
     try {
-      const [listRes, featuredRes] = await Promise.all([
+      const needApproved = nextStatus !== 'approved' && nextStatus !== 'all';
+      const [listRes, featuredRes, approvedRes] = await Promise.all([
         adminApi.get('/admin/featured-placements', { params: { status: nextStatus } }),
         adminApi.get('/admin/featured-placements/featured'),
+        needApproved ? adminApi.get('/admin/featured-placements', { params: { status: 'approved' } }) : null,
       ]);
       setRequests(listRes.data?.items || []);
+      setApprovedLookup(approvedRes?.data?.items || []);
       setFeatured(featuredRes.data?.items || []);
     } catch (err) {
       setError(getErrorMessage(err, t('featuredPlacements.admin.loadFailed'), t));
@@ -341,7 +345,7 @@ export default function FeaturedPlacementReview() {
     return runAction(request.id, 'contact');
   };
 
-  const placementForFeatured = (restaurantId) => requests.find(
+  const placementForFeatured = (restaurantId) => [...requests, ...approvedLookup].find(
     (r) => String(r.featured_restaurant_id) === String(restaurantId)
       || currentlyFeatured(r.restaurants).some((x) => String(x.id) === String(restaurantId)),
   );

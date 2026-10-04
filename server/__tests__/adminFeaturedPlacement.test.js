@@ -70,19 +70,19 @@ describe('listRequests', () => {
     expect(listSql).toContain('business_featured_placement_requests');
     expect(listSql).toContain('ORDER BY r.created_at DESC');
     const [reqBody] = res.json.mock.calls[0];
-    expect(reqBody.requests).toHaveLength(1);
-    expect(reqBody.requests[0]).toMatchObject({
+    expect(reqBody.items).toHaveLength(1);
+    expect(reqBody.items[0]).toMatchObject({
       id: 7,
-      businessId: 41,
-      businessName: 'Testaurant',
-      requesterEmail: 'owner@example.com',
+      business_id: 41,
+      business_name: 'Testaurant',
+      requested_by_email: 'owner@example.com',
       status: 'requested',
     });
-    expect(reqBody.requests[0].restaurants).toHaveLength(1);
-    expect(reqBody.requests[0].restaurants[0]).toMatchObject({
+    expect(reqBody.items[0].restaurants).toHaveLength(1);
+    expect(reqBody.items[0].restaurants[0]).toMatchObject({
       id: 101,
       name: 'Testaurant Main',
-      isFeatured: false,
+      is_featured: false,
     });
   });
 
@@ -135,14 +135,14 @@ describe('contactRequest / declineRequest', () => {
 });
 
 describe('approveRequest', () => {
-  function mockApproveSetup({ requestStatus = 'requested', featuredRestaurantId = null, restaurantBusinessId = 41, isFeatured = false, featuredUntil = null } = {}) {
+  function mockApproveSetup({ requestStatus = 'requested', featured_restaurant_id = null, restaurantBusinessId = 41, is_featured = false, featured_until = null } = {}) {
     mockQuery
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
       .mockResolvedValueOnce({
-        rows: [{ id: 7, business_id: 41, status: requestStatus, featured_restaurant_id: featuredRestaurantId }],
+        rows: [{ id: 7, business_id: 41, status: requestStatus, featured_restaurant_id }],
       }) // request FOR UPDATE
       .mockResolvedValueOnce({
-        rows: [{ id: 101, business_id: restaurantBusinessId, is_featured: isFeatured, featured_until: featuredUntil }],
+        rows: [{ id: 101, business_id: restaurantBusinessId, is_featured, featured_until }],
       }) // restaurant FOR UPDATE
       .mockResolvedValueOnce({
         rows: [{ id: 101, is_featured: true, featured_rank: 10, featured_until: '2026-11-03T00:00:00Z' }],
@@ -176,7 +176,7 @@ describe('approveRequest', () => {
     expect(res.status).toHaveBeenCalledWith(200);
     const [body] = res.json.mock.calls[0];
     expect(body.status).toBe('approved');
-    expect(body.restaurant).toMatchObject({ id: 101, isFeatured: true });
+    expect(body.restaurant).toMatchObject({ id: 101, is_featured: true });
   });
 
   test('validation errors: bad rank, bad days, missing restaurantId', async () => {
@@ -201,7 +201,7 @@ describe('approveRequest', () => {
   });
 
   test('409 when the restaurant is already effectively featured by someone else', async () => {
-    mockApproveSetup({ isFeatured: true, featuredUntil: '2099-01-01T00:00:00Z' });
+    mockApproveSetup({ is_featured: true, featured_until: '2099-01-01T00:00:00Z' });
     await expect(
       ctrl.approveRequest({ ...ADMIN_REQ, params: { id: '7' }, body: { restaurantId: 101 } }, mockRes())
     ).rejects.toMatchObject({ status: 409 });
@@ -210,9 +210,9 @@ describe('approveRequest', () => {
   test('same request may re-approve to update rank and duration', async () => {
     mockApproveSetup({
       requestStatus: 'approved',
-      featuredRestaurantId: 101,
-      isFeatured: true,
-      featuredUntil: '2099-01-01T00:00:00Z',
+      featured_restaurant_id: 101,
+      is_featured: true,
+      featured_until: '2099-01-01T00:00:00Z',
     });
     const res = mockRes();
     await ctrl.approveRequest(
@@ -283,8 +283,8 @@ describe('listFeatured', () => {
     expect(sql).toContain('fr.is_featured AND (fr.featured_until IS NULL OR fr.featured_until > NOW())');
     expect(sql).toContain('ORDER BY fr.featured_rank ASC');
     const [body] = res.json.mock.calls[0];
-    expect(body.featured).toHaveLength(1);
-    expect(body.featured[0]).toMatchObject({ id: 101, isFeatured: true, businessName: 'Biz A' });
+    expect(body.items).toHaveLength(1);
+    expect(body.items[0]).toMatchObject({ id: 101, is_featured: true, business_name: 'Biz A' });
   });
 });
 
