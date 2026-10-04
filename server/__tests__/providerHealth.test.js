@@ -165,6 +165,39 @@ describe('probes', () => {
 });
 
 describe('breaker integration with probes', () => {
+  test('consecutive down probes open the circuit (down is not counted as success)', async () => {
+    // Deterministic down probe: CLAMAV_HOST points at refused loopback port 1.
+    process.env.CLAMAV_HOST = '127.0.0.1';
+    process.env.CLAMAV_PORT = '1';
+    await registry.resetProviderCircuit('scanning');
+    try {
+      const breaker = registry.getCircuitBreaker('scanning');
+      expect((await breaker.getState()).state).toBe(CIRCUIT_STATES.CLOSED);
+
+      const first = await registry.probeProvider('scanning', { force: true });
+      expect(first.status).toBe('down');
+      expect((await breaker.getState()).failures).toBe(1);
+
+      const second = await registry.probeProvider('scanning', { force: true });
+      expect(second.status).toBe('down');
+      expect((await breaker.getState()).failures).toBe(2);
+
+      // Third consecutive down probe trips the breaker (failureThreshold: 3).
+      const third = await registry.probeProvider('scanning', { force: true });
+      expect(third.status).toBe('down');
+      expect((await breaker.getState()).state).toBe(CIRCUIT_STATES.OPEN);
+
+      // While open, probes fail fast without touching the provider.
+      const fast = await registry.probeProvider('scanning', { force: true });
+      expect(fast.status).toBe('down');
+      expect(fast.detail).toMatch(/Circuit breaker/);
+    } finally {
+      delete process.env.CLAMAV_HOST;
+      delete process.env.CLAMAV_PORT;
+      await registry.resetProviderCircuit('scanning');
+    }
+  }, 30000);
+
   test('recorded failures trip the breaker and probes fail fast until reset', async () => {
     await registry.resetProviderCircuit('scanning');
     await registry.recordProviderOutcome('scanning', false);

@@ -561,14 +561,30 @@ async function probeProvider(id, { force = false } = {}) {
   const breaker = getCircuitBreaker(id);
   let result;
   try {
-    result = await breaker.execute(() => withTimeout(
-      def.probe().then((r) => ({ ...r, latencyMs: Math.max(0, Number(r.latencyMs) || 0) })),
-      PROBE_TIMEOUT_MS + 2000,
-      `provider probe ${id}`
-    ));
+    // Probes resolve { status: 'down' } on unhealthy providers, which a bare
+    // breaker.execute() would count as success and use to reset failure
+    // history. Convert a down probe result into a rejection inside the
+    // breaker so consecutive down probes count as failures and open the
+    // circuit; the catch below rehydrates the original down snapshot.
+    result = await breaker.execute(async () => {
+      const probeResult = await withTimeout(
+        def.probe().then((r) => ({ ...r, latencyMs: Math.max(0, Number(r.latencyMs) || 0) })),
+        PROBE_TIMEOUT_MS + 2000,
+        `provider probe ${id}`
+      );
+      if (probeResult && probeResult.status === 'down') {
+        const err = new Error(probeResult.detail || `Provider probe ${id} reported status "down"`);
+        err.code = 'probe_down';
+        err.probeResult = probeResult;
+        throw err;
+      }
+      return probeResult;
+    });
   } catch (err) {
     if (err.code === 'circuit_open') {
       result = { status: 'down', latencyMs: 0, detail: `Circuit breaker is ${err.circuitState}; probes fail fast until it resets.` };
+    } else if (err.code === 'probe_down' && err.probeResult) {
+      result = err.probeResult;
     } else {
       result = { status: 'down', latencyMs: 0, detail: `Probe error: ${err.message}` };
     }
