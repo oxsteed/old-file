@@ -7,6 +7,8 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
+import { GraduationCap } from 'lucide-react';
+import EmptyState from '../../components/EmptyState';
 import {
   listTrainingModules, createTrainingModule, updateTrainingModule, deleteTrainingModule,
   listRestaurantStaff, assignTrainingModule,
@@ -182,7 +184,15 @@ function ManagerTraining({ t, restaurantId, modules, assignments, completions, o
   return (
     <div>
       {modules.length === 0 ? (
-        <div className="fd-empty">{t('restaurants.ops.training.empty', 'No training modules yet. Create your first module to onboard staff.')}</div>
+        <EmptyState
+          icon={GraduationCap}
+          title={t('restaurants.ops.training.empty', 'No training modules yet. Create your first module to onboard staff.')}
+          actions={(
+            <button type="button" className="fd-btn" onClick={() => onEdit('new')}>
+              {t('restaurants.ops.training.newModule', 'New module')}
+            </button>
+          )}
+        />
       ) : (
         <div className="fd-ops-checklists-grid">
           {modules.map((m) => (
@@ -517,7 +527,12 @@ function ModuleForm({ t, module, onSave, onCancel }) {
 // ── Staff view ────────────────────────────────────────────────────────────────
 function StaffTraining({ t, assignments, onStart }) {
   if (assignments.length === 0) {
-    return <div className="fd-empty">{t('restaurants.ops.training.myEmpty', 'No training assigned to you yet.')}</div>;
+    return (
+      <EmptyState
+        icon={GraduationCap}
+        title={t('restaurants.ops.training.myEmpty', 'No training assigned to you yet.')}
+      />
+    );
   }
   return (
     <div className="fd-ops-run-list">

@@ -698,6 +698,9 @@
     "trustPrivate": "Dirección privada",
     "trustNoObligation": "Sin compromiso"
   },
+  "suggestDropdown": {
+    "recents": "Recientes"
+  },
   "common": {
     "loading": "Cargando…",
     "save": "Guardar",
@@ -9717,6 +9720,8 @@
     "markAllRead": "Marcar todo como leído",
     "loading": "Cargando...",
     "caughtUp": "¡Estás al día!",
+    "emptyTitle": "Sin notificaciones por ahora",
+    "emptyCopy": "Aquí recibirás avisos sobre reservas, ofertas, mensajes, pagos, reseñas y disputas.",
     "viewAll": "Ver todas las notificaciones"
   },
   "badge": {
@@ -9916,7 +9921,10 @@
     "businessResponse": "Respuesta del Negocio",
     "confirmDelete": "¿Estás seguro de que deseas eliminar esta reseña?",
     "successDeleted": "Reseña eliminada exitosamente",
-    "errorDelete": "Error al eliminar la reseña"
+    "errorDelete": "Error al eliminar la reseña",
+    "emptyTitle": "Aún no hay reseñas",
+    "emptyCopy": "Reserva este negocio para dejar la primera reseña.",
+    "bookToReview": "Reservar para dejar la primera reseña"
   },
   "subscription": {
     "tier1": "Nivel 1",
@@ -17672,6 +17680,9 @@
     "loading": "Cargando clientes…",
     "emptyTitle": "Aún no hay clientes",
     "emptyBody": "No hay clientes que coincidan con tus filtros. Agrega tu primer cliente para comenzar.",
+    "emptySearchTitle": "Ningún cliente coincide con '{{query}}'",
+    "emptySearchBody": "Prueba con otro nombre, correo o teléfono.",
+    "clearSearch": "Borrar búsqueda",
     "toastNameRequired": "El nombre del cliente es obligatorio.",
     "toastUpdated": "Cliente actualizado.",
     "toastCreated": "Cliente creado.",
@@ -18301,6 +18312,9 @@
       "gridView": "Vista cuadrícula",
       "noResults": "Ninguna guía coincide con «{{query}}».",
       "clearFilters": "Borrar filtros",
+      "noGuidesHere": "Aún no hay guías aquí.",
+      "noGuidesHereCopy": "Agregamos guías nuevas con regularidad. Prueba con otra categoría mientras tanto.",
+      "noResultsCopy": "Prueba con otras palabras clave o explora por categoría.",
       "moreComingSoon": "Más guías de {{category}} próximamente",
       "videoComingSoon": "Videoclase próximamente",
       "addVideo": "Agregar un video",
@@ -18711,6 +18725,10 @@
       "suggestRestaurant": "Sugerir un restaurante",
       "launchingSoon": "Llegando pronto a tu ciudad",
       "noResultsForFilter": "No hay restaurantes para ese filtro.",
+      "noResultsSearchTitle": "Sin resultados para \"{{query}}\"",
+      "noResultsSearchHint": "Prueba con otra ortografía o un término más corto, o explora una cocina a continuación.",
+      "clearSearch": "Borrar búsqueda",
+      "tryCuisine": "O prueba una de estas cocinas",
       "clearFilter": "Quitar filtro",
       "discoveryControls": "Controles de descubrimiento de restaurantes",
       "showingCount": "Mostrando {{shown}} de {{total}} restaurantes",
@@ -26992,6 +27010,8 @@
     "videoApprove": "Aprobar",
     "videoBlock": "Bloquear",
     "videoEmpty": "No hay videos en este estado.",
+    "videoGoesLiveIn": "Se publica en {{time}}",
+    "videoGoesLiveNow": "Publicándose ahora",
     "flagSectionTitle": "Videos reportados",
     "flagSectionDesc": "Videos de la comunidad reportados por usuarios. Descarta el reporte, mueve el video a la guía correcta o elimínalo.",
     "flagStatusOpen": "Abiertos",

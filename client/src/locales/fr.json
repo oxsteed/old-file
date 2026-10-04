@@ -698,6 +698,9 @@
     "trustPrivate": "Adresse confidentielle",
     "trustNoObligation": "Sans engagement"
   },
+  "suggestDropdown": {
+    "recents": "Récents"
+  },
   "common": {
     "loading": "Chargement…",
     "save": "Enregistrer",
@@ -9717,6 +9720,8 @@
     "markAllRead": "Tout marquer comme lu",
     "loading": "Chargement...",
     "caughtUp": "Vous êtes à jour !",
+    "emptyTitle": "Aucune notification pour le moment",
+    "emptyCopy": "Vous recevrez ici des avis sur les réservations, les offres, les messages, les paiements, les évaluations et les litiges.",
     "viewAll": "Voir toutes les notifications"
   },
   "badge": {
@@ -9916,7 +9921,10 @@
     "businessResponse": "Réponse de l'Entreprise",
     "confirmDelete": "Êtes-vous sûr de vouloir supprimer cet avis?",
     "successDeleted": "Avis supprimé avec succès",
-    "errorDelete": "Échec de la suppression de l'avis"
+    "errorDelete": "Échec de la suppression de l'avis",
+    "emptyTitle": "Aucun avis pour le moment",
+    "emptyCopy": "Réservez ce commerce pour laisser le premier avis.",
+    "bookToReview": "Réserver pour laisser le premier avis"
   },
   "subscription": {
     "tier1": "Niveau 1",
@@ -17672,6 +17680,9 @@
     "loading": "Chargement des clients…",
     "emptyTitle": "Aucun client pour le moment",
     "emptyBody": "Aucun client ne correspond à vos filtres. Ajoutez votre premier client pour commencer.",
+    "emptySearchTitle": "Aucun client ne correspond à '{{query}}'",
+    "emptySearchBody": "Essayez un autre nom, e-mail ou numéro de téléphone.",
+    "clearSearch": "Effacer la recherche",
     "toastNameRequired": "Le nom du client est obligatoire.",
     "toastUpdated": "Client mis à jour.",
     "toastCreated": "Client créé.",
@@ -18301,6 +18312,9 @@
       "gridView": "Vue grille",
       "noResults": "Aucun guide ne correspond à « {{query}} ».",
       "clearFilters": "Effacer les filtres",
+      "noGuidesHere": "Aucun guide ici pour le moment.",
+      "noGuidesHereCopy": "De nouveaux guides sont ajoutés régulièrement. Essayez une autre catégorie en attendant.",
+      "noResultsCopy": "Essayez d'autres mots-clés ou parcourez par catégorie.",
       "moreComingSoon": "D'autres guides {{category}} bientôt disponibles",
       "videoComingSoon": "Vidéo guide bientôt disponible",
       "addVideo": "Ajouter une vidéo",
@@ -18711,6 +18725,10 @@
       "suggestRestaurant": "Suggérer un restaurant",
       "launchingSoon": "Bientôt disponible dans votre ville",
       "noResultsForFilter": "Aucun restaurant ne correspond à ce filtre.",
+      "noResultsSearchTitle": "Aucun résultat pour « {{query}} »",
+      "noResultsSearchHint": "Essayez une autre orthographe ou un terme plus court, ou parcourez une cuisine ci-dessous.",
+      "clearSearch": "Effacer la recherche",
+      "tryCuisine": "Ou essayez l'une de ces cuisines",
       "clearFilter": "Effacer le filtre",
       "discoveryControls": "Contrôles de découverte des restaurants",
       "showingCount": "{{shown}} restaurants sur {{total}} affichés",
@@ -26992,6 +27010,8 @@
     "videoApprove": "Approuver",
     "videoBlock": "Bloquer",
     "videoEmpty": "Aucune vidéo dans cet état.",
+    "videoGoesLiveIn": "Sera mis en ligne dans {{time}}",
+    "videoGoesLiveNow": "Publication imminente",
     "flagSectionTitle": "Vidéos signalées",
     "flagSectionDesc": "Vidéos communautaires signalées par les utilisateurs. Rejetez le signalement, déplacez la vidéo vers le bon guide ou supprimez-la.",
     "flagStatusOpen": "Ouverts",

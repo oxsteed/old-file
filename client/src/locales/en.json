@@ -698,6 +698,9 @@
     "trustPrivate": "Address stays private",
     "trustNoObligation": "No obligation"
   },
+  "suggestDropdown": {
+    "recents": "Recent"
+  },
   "common": {
     "loading": "Loading…",
     "save": "Save",
@@ -9715,6 +9718,8 @@
     "markAllRead": "Mark all read",
     "loading": "Loading...",
     "caughtUp": "You're all caught up!",
+    "emptyTitle": "No notifications yet",
+    "emptyCopy": "You will be notified here about bookings, bids, messages, payments, reviews, and disputes.",
     "viewAll": "View all notifications"
   },
   "badge": {
@@ -9914,7 +9919,10 @@
     "businessResponse": "Business Response",
     "confirmDelete": "Are you sure you want to delete this review?",
     "successDeleted": "Review deleted successfully",
-    "errorDelete": "Failed to delete review"
+    "errorDelete": "Failed to delete review",
+    "emptyTitle": "No reviews yet",
+    "emptyCopy": "Book this business to leave the first review.",
+    "bookToReview": "Book to leave the first review"
   },
   "subscription": {
     "tier1": "Tier 1",
@@ -17670,6 +17678,9 @@
     "loading": "Loading clients…",
     "emptyTitle": "No clients yet",
     "emptyBody": "No clients match your filters. Add your first client to get started.",
+    "emptySearchTitle": "No clients match '{{query}}'",
+    "emptySearchBody": "Try a different name, email, or phone number.",
+    "clearSearch": "Clear search",
     "toastNameRequired": "Client name is required.",
     "toastUpdated": "Client updated.",
     "toastCreated": "Client created.",
@@ -18299,6 +18310,9 @@
       "gridView": "Grid view",
       "noResults": "No guides match \"{{query}}\".",
       "clearFilters": "Clear filters",
+      "noGuidesHere": "No guides here yet.",
+      "noGuidesHereCopy": "New guides are added regularly. Try a different category in the meantime.",
+      "noResultsCopy": "Try different keywords or browse by category.",
       "moreComingSoon": "More {{category}} guides coming soon",
       "videoComingSoon": "Video guide coming soon",
       "addVideo": "Add a video",
@@ -18709,6 +18723,10 @@
       "suggestRestaurant": "Suggest a restaurant",
       "launchingSoon": "Launching in your city soon",
       "noResultsForFilter": "No restaurants match that filter.",
+      "noResultsSearchTitle": "No results for \"{{query}}\"",
+      "noResultsSearchHint": "Try a different spelling or a shorter term, or browse a cuisine below.",
+      "clearSearch": "Clear search",
+      "tryCuisine": "Or try one of these cuisines",
       "clearFilter": "Clear filter",
       "discoveryControls": "Restaurant discovery controls",
       "showingCount": "Showing {{shown}} of {{total}} restaurants",
@@ -26990,6 +27008,8 @@
     "videoApprove": "Approve",
     "videoBlock": "Block",
     "videoEmpty": "No video submissions in this state.",
+    "videoGoesLiveIn": "Goes live in {{time}}",
+    "videoGoesLiveNow": "Going live now",
     "flagSectionTitle": "Flagged videos",
     "flagSectionDesc": "Community videos users flagged. Dismiss the flag, move the video to the right guide, or delete it.",
     "flagStatusOpen": "Open",

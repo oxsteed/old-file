@@ -335,14 +335,25 @@ export default function BusinessClientsTab({ bizId, businessName, currency }) {
       {loading ? (
         <div className="bct-empty">{t('businessClients.loading')}</div>
       ) : items.length === 0 ? (
-        <div className="bct-empty">
-          <MessageSquare size={28} />
-          <h3>{t('businessClients.emptyTitle')}</h3>
-          <p>{t('businessClients.emptyBody')}</p>
-          <button type="button" className="bct-btn primary" onClick={handleOpenNew}>
-            <Plus size={14} /> {t('businessClients.btnAddFirst')}
-          </button>
-        </div>
+        search ? (
+          <div className="bct-empty">
+            <Search size={28} />
+            <h3>{t('businessClients.emptySearchTitle', { query: search })}</h3>
+            <p>{t('businessClients.emptySearchBody')}</p>
+            <button type="button" className="bct-btn ghost" onClick={() => setSearch('')}>
+              <X size={14} /> {t('businessClients.clearSearch')}
+            </button>
+          </div>
+        ) : (
+          <div className="bct-empty">
+            <MessageSquare size={28} />
+            <h3>{t('businessClients.emptyTitle')}</h3>
+            <p>{t('businessClients.emptyBody')}</p>
+            <button type="button" className="bct-btn primary" onClick={handleOpenNew}>
+              <Plus size={14} /> {t('businessClients.btnAddFirst')}
+            </button>
+          </div>
+        )
       ) : (
         <div className="bct-grid">
           {items.map((c) => (

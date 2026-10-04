@@ -698,6 +698,9 @@
     "trustPrivate": "Adrès rete prive",
     "trustNoObligation": "Pa gen obligasyon"
   },
+  "suggestDropdown": {
+    "recents": "Dènye"
+  },
   "common": {
     "loading": "Ap chaje…",
     "save": "Sove",
@@ -9717,6 +9720,8 @@
     "markAllRead": "Make tout kòm li",
     "loading": "Ap chaje...",
     "caughtUp": "Ou ajou!",
+    "emptyTitle": "Pa gen notifikasyon pou kounye a",
+    "emptyCopy": "W ap resevwa isit la avi sou rezèvasyon, òf, mesaj, peman, evalyasyon, ak diskisyon.",
     "viewAll": "Wè tout notifikasyon yo"
   },
   "badge": {
@@ -9916,7 +9921,10 @@
     "businessResponse": "Reponn Biznis",
     "confirmDelete": "Èske ou sèten ke ou vle efase evàliyasyon sa a?",
     "successDeleted": "Evàliyasyon te efase avèk siksè",
-    "errorDelete": "Fèy efase evàliyasyon an"
+    "errorDelete": "Fèy efase evàliyasyon an",
+    "emptyTitle": "Pa gen revizyon pou kounye a",
+    "emptyCopy": "Rezève biznis sa a pou kite premye revizyon an.",
+    "bookToReview": "Rezève pou kite premye revizyon an"
   },
   "subscription": {
     "tier1": "Nivo 1",
@@ -17672,6 +17680,9 @@
     "loading": "Ap chaje kliyan yo…",
     "emptyTitle": "Pa gen kliyan",
     "emptyBody": "Pa gen kliyan ki mache ak filtè ou. Ajoute premye kliyan ou pou kòmanse.",
+    "emptySearchTitle": "Okenn kliyan pa koresponn ak '{{query}}'",
+    "emptySearchBody": "Eseye yon lòt non, imèl oswa nimewo telefòn.",
+    "clearSearch": "Efase rechèch la",
     "toastNameRequired": "Non kliyan an obligatwa.",
     "toastUpdated": "Kliyan an mete ajou.",
     "toastCreated": "Kliyan an kreye.",
@@ -18301,6 +18312,9 @@
       "gridView": "Wè griy",
       "noResults": "Pa gen gid ki matche «{{query}}».",
       "clearFilters": "Efase filtè",
+      "noGuidesHere": "Pa gen gid isit la pou kounye a.",
+      "noGuidesHereCopy": "Nou ajoute nouvo gid regilyèman. Eseye yon lòt kategori antretan.",
+      "noResultsCopy": "Eseye lòt mo kle oswa chèche pa kategori.",
       "moreComingSoon": "Plis gid {{category}} ap vini byento",
       "videoComingSoon": "Videyo gid ap vini byento",
       "addVideo": "Ajoute yon videyo",
@@ -18711,6 +18725,10 @@
       "suggestRestaurant": "Sijere yon restoran",
       "launchingSoon": "Ap vini byento nan vil ou",
       "noResultsForFilter": "Pa gen restoran ki koresponn ak filtè sa a.",
+      "noResultsSearchTitle": "Pa gen rezilta pou \"{{query}}\"",
+      "noResultsSearchHint": "Eseye yon lòt òtograf oswa yon mo ki pi kout, oswa gade yon kalite manje anba a.",
+      "clearSearch": "Efase rechèch la",
+      "tryCuisine": "Oswa eseye youn nan kalite manje sa yo",
       "clearFilter": "Efase filtè",
       "discoveryControls": "Kontwòl pou dekouvri restoran",
       "showingCount": "Ap montre {{shown}} sou {{total}} restoran",
@@ -26992,6 +27010,8 @@
     "videoApprove": "Apwouve",
     "videoBlock": "Bloke",
     "videoEmpty": "Pa gen videyo nan eta sa a.",
+    "videoGoesLiveIn": "Ap pibliye nan {{time}}",
+    "videoGoesLiveNow": "Ap pibliye kounye a",
     "flagSectionTitle": "Videyo yo rapòte",
     "flagSectionDesc": "Videyo kominote itilizatè yo rapòte. Voye rapò a jete, deplase videyo a nan bon gid la, oswa efase li.",
     "flagStatusOpen": "Louvri",

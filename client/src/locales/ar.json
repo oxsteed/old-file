@@ -698,6 +698,9 @@
     "trustPrivate": "يبقى العنوان خاصًا",
     "trustNoObligation": "لا التزام"
   },
+  "suggestDropdown": {
+    "recents": "الأخيرة"
+  },
   "common": {
     "loading": "جار التحميل",
     "save": "يحفظ",
@@ -9717,6 +9720,8 @@
     "markAllRead": "وضع علامة على كل قراءة",
     "loading": "تحميل...",
     "caughtUp": "لقد تم القبض عليك جميعًا!",
+    "emptyTitle": "لا توجد إشعارات في الوقت الحالي",
+    "emptyCopy": "ستتلقى هنا تنبيهات حول الحجوزات والعروض والرسائل والمدفوعات والتقييمات والنزاعات.",
     "viewAll": "عرض جميع الإخطارات"
   },
   "badge": {
@@ -9916,7 +9921,10 @@
     "businessResponse": "استجابة الأعمال",
     "confirmDelete": "هل أنت متأكد أنك تريد حذف هذه المراجعة؟",
     "successDeleted": "تم حذف المراجعة بنجاح",
-    "errorDelete": "فشل في حذف المراجعة"
+    "errorDelete": "فشل في حذف المراجعة",
+    "emptyTitle": "لا توجد مراجعات بعد",
+    "emptyCopy": "احجز لدى هذا النشاط التجاري لكتابة أول مراجعة.",
+    "bookToReview": "احجز لكتابة أول مراجعة"
   },
   "subscription": {
     "tier1": "المستوى 1",
@@ -17683,6 +17691,9 @@
     "loading": "جارٍ تحميل العملاء…",
     "emptyTitle": "لا يوجد عملاء بعد",
     "emptyBody": "لا يوجد عملاء يطابقون الفلاتر. أضف عميلك الأول للبدء.",
+    "emptySearchTitle": "لا يوجد عملاء يطابقون '{{query}}'",
+    "emptySearchBody": "جرّب اسمًا أو بريدًا إلكترونيًا أو رقم هاتف مختلفًا.",
+    "clearSearch": "مسح البحث",
     "toastNameRequired": "اسم العميل مطلوب.",
     "toastUpdated": "تم تحديث العميل.",
     "toastCreated": "تم إنشاء العميل.",
@@ -18312,6 +18323,9 @@
       "gridView": "عرض شبكة",
       "noResults": "لا توجد أدلة تطابق «{{query}}».",
       "clearFilters": "مسح الفلاتر",
+      "noGuidesHere": "لا توجد أدلة هنا في الوقت الحالي.",
+      "noGuidesHereCopy": "تُضاف أدلة جديدة بانتظام. جرّب فئة أخرى في هذه الأثناء.",
+      "noResultsCopy": "جرّب كلمات مفتاحية مختلفة أو تصفّح حسب الفئة.",
       "moreComingSoon": "المزيد من أدلة {{category}} قريبًا",
       "videoComingSoon": "فيديو الدليل قريبًا",
       "addVideo": "أضف فيديو",
@@ -18720,6 +18734,10 @@
       "suggestRestaurant": "اقترح مطعمًا",
       "launchingSoon": "سننطلق قريبًا في مدينتك",
       "noResultsForFilter": "لا توجد مطاعم تطابق عامل التصفية هذا.",
+      "noResultsSearchTitle": "لا توجد نتائج لـ \"{{query}}\"",
+      "noResultsSearchHint": "جرّب تهجئة مختلفة أو مصطلحاً أقصر، أو تصفح أحد المأكولات أدناه.",
+      "clearSearch": "مسح البحث",
+      "tryCuisine": "أو جرّب أحد هذه المأكولات",
       "clearFilter": "مسح عامل التصفية",
       "addYourRestaurant": "أضف مطعمك",
       "kmAway": "على بُعد {{km}} كم",
@@ -27003,6 +27021,8 @@
     "videoApprove": "اعتماد",
     "videoBlock": "حظر",
     "videoEmpty": "لا توجد مقاطع فيديو بهذه الحالة.",
+    "videoGoesLiveIn": "يُنشر خلال {{time}}",
+    "videoGoesLiveNow": "يُنشر الآن",
     "flagSectionTitle": "مقاطع الفيديو المُبلغ عنها",
     "flagSectionDesc": "مقاطع فيديو المجتمع التي أبلغ عنها المستخدمون. ارفض البلاغ أو انقل الفيديو إلى الدليل الصحيح أو احذفه.",
     "flagStatusOpen": "مفتوحة",

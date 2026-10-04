@@ -8,6 +8,8 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
+import { ClipboardList, CheckCircle2 } from 'lucide-react';
+import EmptyState from '../../components/EmptyState';
 import {
   listAuditTemplates, createAuditTemplate, updateAuditTemplate, deleteAuditTemplate,
   startAuditRun, listAuditRuns, getAuditRun, completeAuditRun,
@@ -192,7 +194,15 @@ export function AuditsPanel({ t, restaurant, bare, onStats, isManager }) {
       )}
 
       {templates.length === 0 && !showCreate && !editing ? (
-        <div className="fd-empty">{t('restaurants.ops.audits.templatesEmpty', 'No audit templates yet. Create one or use a starter.')}</div>
+        <EmptyState
+          icon={ClipboardList}
+          title={t('restaurants.ops.audits.templatesEmpty', 'No audit templates yet. Create one or use a starter.')}
+          actions={(
+            <button type="button" className="fd-btn" onClick={() => { setEditing(null); setShowCreate(true); }}>
+              {t('restaurants.ops.audits.newTemplate', 'New template')}
+            </button>
+          )}
+        />
       ) : (
         <div className="fd-ops-checklists-grid">
           {templates.map((tmpl) => (
@@ -904,7 +914,12 @@ function CorrectiveActions({ t, restaurantId, actions, isManager, onChanged }) {
   };
 
   if (actions.length === 0) {
-    return <div className="fd-empty">{t('restaurants.ops.audits.noActions', 'No corrective actions.')}</div>;
+    return (
+      <EmptyState
+        icon={CheckCircle2}
+        title={t('restaurants.ops.audits.noActions', 'No corrective actions.')}
+      />
+    );
   }
 
   return (

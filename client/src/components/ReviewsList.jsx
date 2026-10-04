@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Star } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getBusinessReviews, deleteReview } from '../api/businessReviews';
 
@@ -85,7 +87,19 @@ export default function ReviewsList({ businessId, maxReviews = 10 }) {
   if (reviews.length === 0) {
     return (
       <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-8 text-center">
-        <p className="text-gray-400">{t('reviews.noReviews')}</p>
+        <div className="flex justify-center mb-4">
+          <div className="w-14 h-14 rounded-full bg-yellow-500/10 flex items-center justify-center">
+            <Star size={26} className="text-yellow-500" aria-hidden="true" />
+          </div>
+        </div>
+        <h3 className="text-lg font-semibold text-white mb-2">{t('reviews.emptyTitle')}</h3>
+        <p className="text-gray-400 mb-6">{t('reviews.emptyCopy')}</p>
+        <Link
+          to={`/book/business/${businessId}`}
+          className="inline-block px-5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-lg text-sm font-medium transition-colors"
+        >
+          {t('reviews.bookToReview')}
+        </Link>
       </div>
     );
   }

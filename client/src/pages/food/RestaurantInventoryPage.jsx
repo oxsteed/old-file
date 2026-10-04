@@ -5,6 +5,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
+import { Package, FileText, AlertTriangle } from 'lucide-react';
+import EmptyState from '../../components/EmptyState';
 import api from '../../api/axios';
 import { getFoodRestaurant } from '../../api/food';
 import { FoodBrand } from './foodShared';
@@ -291,7 +293,9 @@ export default function RestaurantInventoryPage() {
               </div>
             )}
             <div className="fd-inv-list">
-              {filteredItems.length === 0 && <div className="fd-empty">{t('food.inv.noItems')}</div>}
+              {filteredItems.length === 0 && (
+                <EmptyState icon={Package} title={t('food.inv.noItems')} />
+              )}
               {filteredItems.map((item) => {
                 const isLow = item.current_stock <= (item.par_level || 0);
                 return (
@@ -321,7 +325,17 @@ export default function RestaurantInventoryPage() {
               <button className="fd-btn" onClick={() => setShowRequest(true)}>{t('food.inv.newRequest')}</button>
             </div>
             <div className="fd-inv-list">
-              {requests.length === 0 && <div className="fd-empty">{t('food.inv.noRequests')}</div>}
+              {requests.length === 0 && (
+                <EmptyState
+                  icon={FileText}
+                  title={t('food.inv.noRequests')}
+                  actions={(
+                    <button type="button" className="fd-btn" onClick={() => setShowRequest(true)}>
+                      {t('food.inv.newRequest')}
+                    </button>
+                  )}
+                />
+              )}
               {requests.map((r) => (
                 <div key={r.id} className="fd-inv-item">
                   <div className="fd-inv-item-main">
@@ -343,7 +357,17 @@ export default function RestaurantInventoryPage() {
               <button className="fd-btn" onClick={() => setShowIssue(true)}>{t('food.inv.newIssue')}</button>
             </div>
             <div className="fd-inv-list">
-              {issues.length === 0 && <div className="fd-empty">{t('food.inv.noIssues')}</div>}
+              {issues.length === 0 && (
+                <EmptyState
+                  icon={AlertTriangle}
+                  title={t('food.inv.noIssues')}
+                  actions={(
+                    <button type="button" className="fd-btn" onClick={() => setShowIssue(true)}>
+                      {t('food.inv.newIssue')}
+                    </button>
+                  )}
+                />
+              )}
               {issues.map((iss) => (
                 <div key={iss.id} className="fd-inv-item">
                   <div className="fd-inv-item-main">
@@ -365,7 +389,9 @@ export default function RestaurantInventoryPage() {
               <span className="fd-card-meta">{t('food.inv.wasteHint')}</span>
             </div>
             <div className="fd-inv-list">
-              {filteredItems.length === 0 && <div className="fd-empty">{t('food.inv.noItems')}</div>}
+              {filteredItems.length === 0 && (
+                <EmptyState icon={Package} title={t('food.inv.noItems')} />
+              )}
               {items.map((item) => (
                 <div key={item.id} className="fd-inv-item">
                   <div className="fd-inv-item-main">

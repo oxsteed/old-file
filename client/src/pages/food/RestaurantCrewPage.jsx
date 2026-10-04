@@ -4,6 +4,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
+import { CalendarDays, ListChecks, ClipboardList, BookOpen } from 'lucide-react';
+import EmptyState from '../../components/EmptyState';
 import api from '../../api/axios';
 import { getFoodRestaurant } from '../../api/food';
 import { FoodBrand } from './foodShared';
@@ -224,7 +226,9 @@ export default function RestaurantCrewPage() {
         {/* Shifts tab */}
         {tab === 'shifts' && (
           <div className="fd-crew-section">
-            {shifts.length === 0 && <div className="fd-empty">{t('food.crew.noShifts')}</div>}
+            {shifts.length === 0 && (
+              <EmptyState icon={CalendarDays} title={t('food.crew.noShifts')} />
+            )}
             {shifts.map((sh) => (
               <div key={sh.id} className="fd-crew-shift">
                 <div className="fd-crew-shift-main">
@@ -244,7 +248,9 @@ export default function RestaurantCrewPage() {
         {/* Tasks tab */}
         {tab === 'tasks' && (
           <div className="fd-crew-section">
-            {tasks.length === 0 && <div className="fd-empty">{t('food.crew.noTasks')}</div>}
+            {tasks.length === 0 && (
+              <EmptyState icon={ListChecks} title={t('food.crew.noTasks')} />
+            )}
 
             {openTasks.length > 0 && (
               <>
@@ -286,7 +292,17 @@ export default function RestaurantCrewPage() {
             <div className="fd-inv-bar">
               <button className="fd-btn" onClick={() => setShowChecklist(true)}>{t('food.crew.newChecklist')}</button>
             </div>
-            {checklists.length === 0 && <div className="fd-empty">{t('food.crew.noChecklists')}</div>}
+            {checklists.length === 0 && (
+              <EmptyState
+                icon={ClipboardList}
+                title={t('food.crew.noChecklists')}
+                actions={(
+                  <button type="button" className="fd-btn" onClick={() => setShowChecklist(true)}>
+                    {t('food.crew.newChecklist')}
+                  </button>
+                )}
+              />
+            )}
             {checklists.map((cl) => (
               <div key={cl.id} className="fd-crew-checklist">
                 <div className="fd-crew-shift-main">
@@ -308,7 +324,17 @@ export default function RestaurantCrewPage() {
             <div className="fd-inv-bar">
               <button className="fd-btn" onClick={() => setShowSOP(true)}>{t('food.crew.newSOP')}</button>
             </div>
-            {sops.length === 0 && <div className="fd-empty">{t('food.crew.noSOPs')}</div>}
+            {sops.length === 0 && (
+              <EmptyState
+                icon={BookOpen}
+                title={t('food.crew.noSOPs')}
+                actions={(
+                  <button type="button" className="fd-btn" onClick={() => setShowSOP(true)}>
+                    {t('food.crew.newSOP')}
+                  </button>
+                )}
+              />
+            )}
             {sops.map((sop) => (
               <div key={sop.id} className="fd-crew-sop">
                 <div className="fd-crew-shift-main">

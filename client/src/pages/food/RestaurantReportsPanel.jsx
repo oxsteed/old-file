@@ -7,6 +7,8 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
+import { Receipt, Activity } from 'lucide-react';
+import EmptyState from '../../components/EmptyState';
 import {
   getSalesReport,
   getInventoryReport,
@@ -167,7 +169,7 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
       {/* ── Sales ── */}
       <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.salesTitle', 'Sales')}</h3>
       {(totals.orders || 0) === 0 ? (
-        <div className="fd-empty">{t('restaurants.ops.reports.noOrders', 'No orders in this period.')}</div>
+        <EmptyState icon={Receipt} title={t('restaurants.ops.reports.noOrders', 'No orders in this period.')} />
       ) : (
         <>
           <div className="fd-ops-checklists-grid">
@@ -269,7 +271,7 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
         </div>
       </div>
       {adjustments.length === 0 && waste.length === 0 ? (
-        <div className="fd-empty">{t('restaurants.ops.reports.noActivity', 'No inventory activity in this period.')}</div>
+        <EmptyState icon={Activity} title={t('restaurants.ops.reports.noActivity', 'No inventory activity in this period.')} />
       ) : (
         <>
           {adjustments.length > 0 && (

@@ -5,6 +5,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
+import { UtensilsCrossed } from 'lucide-react';
+import EmptyState from '../../components/EmptyState';
 import api from '../../api/axios';
 import { getFoodRestaurant, formatFoodMoney } from '../../api/food';
 import { FoodBrand } from './foodShared';
@@ -493,7 +495,9 @@ export default function RestaurantPOSPage() {
             </div>
             {/* Item grid */}
             <div className="fd-pos-items">
-              {visibleItems.length === 0 && <div className="fd-empty">{t('food.pos.noItems')}</div>}
+              {visibleItems.length === 0 && (
+                <EmptyState icon={UtensilsCrossed} title={t('food.pos.noItems')} />
+              )}
               {visibleItems.map((item) => (
                 <button
                   key={item.id}
