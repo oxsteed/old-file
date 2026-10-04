@@ -42,8 +42,10 @@ export default function ConfirmDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
-  if (!open) return null;
-
+  // Hooks must all run before any conditional return: an early return above
+  // the useEffect below changes the hook count when `open` toggles and React
+  // throws "Rendered more hooks than during the previous render"
+  // (Sentry OXSTEED-FRONTEND-1C).
   const reasonOk = !requireReason || reason.trim().length > 0;
 
   const handleConfirm = async () => {
@@ -110,6 +112,8 @@ export default function ConfirmDialog({
       if (previouslyFocused.current?.focus) previouslyFocused.current.focus();
     };
   }, [open]);
+
+  if (!open) return null;
 
   return (
     <div
