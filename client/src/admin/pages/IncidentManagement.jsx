@@ -1,10 +1,12 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
-  AlertTriangle, Bell, CheckCircle2, RefreshCw, Search, ShieldAlert, Siren,
+  AlertTriangle, Bell, CheckCircle2, RefreshCw, ShieldAlert, Siren,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
+import { SuggestDropdown } from '../../components/SuggestDropdown';
+import '../lib/suggestDropdownAdmin.css';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import { useHasGrant } from '../lib/GrantGuard';
 import AdminErrorState from '../lib/AdminErrorState';
@@ -135,6 +137,22 @@ export default function IncidentManagement() {
   const openCount = useMemo(() => incidents.filter((i) => !i.resolved_at).length, [incidents]);
   const activeAlertCount = Array.isArray(data?.activeAlerts) ? data.activeAlerts.length : 0;
 
+  // Typeahead items for the incident search, fed from the client-side rows.
+  const incidentSuggestItems = useMemo(() => {
+    const items = [];
+    for (const incident of incidents) {
+      const title = incident.type || '';
+      if (!title) continue;
+      const message = String(incident.message || '').slice(0, 80);
+      items.push({
+        id: `incident:${incident.id}`,
+        title,
+        meta: [severityLabel(t, incident.severity), message].filter(Boolean).join(' · '),
+      });
+    }
+    return items;
+  }, [incidents, t]);
+
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
     return incidents.filter((incident) => {
@@ -254,17 +272,17 @@ export default function IncidentManagement() {
             <label htmlFor="incident-search" className="text-xs font-medium uppercase tracking-wide text-gray-500">
               {t('adminIncidents.filterSearch')}
             </label>
-            <div className="relative">
-              <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" aria-hidden="true" />
-              <input
-                id="incident-search"
-                type="search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={t('adminIncidents.searchPlaceholder')}
-                className="w-full rounded-lg border border-gray-700 bg-gray-900 py-2 pl-9 pr-3 text-sm text-gray-200 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-400"
-              />
-            </div>
+            <SuggestDropdown
+              id="incident-search"
+              items={incidentSuggestItems}
+              value={search}
+              onQueryChange={setSearch}
+              onSelect={(item) => setSearch(item.title || '')}
+              recentsKey="oxsteed_admin_incident_recents"
+              placeholder={t('adminIncidents.searchPlaceholder')}
+              ariaLabel={t('adminIncidents.filterSearch')}
+              className="sd-admin-dark"
+            />
           </div>
         </div>
 

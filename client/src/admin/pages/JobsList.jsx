@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { Search, Download, Trash2, RefreshCw } from 'lucide-react';
+import { Download, Trash2, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import adminApi from '../../lib/adminApi';
+import { SuggestDropdown } from '../../components/SuggestDropdown';
+import '../lib/suggestDropdownAdmin.css';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
 import { useHasGrant } from '../lib/GrantGuard';
@@ -63,6 +65,15 @@ export default function JobsList() {
   const fetchJobs = reload;
 
   const updateFilter = (key, value) => setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
+
+  // Typeahead items for the jobs search, fed by the most recent server results.
+  const jobSuggestItems = useMemo(() => jobs
+    .filter(job => job.title)
+    .map(job => ({
+      id: `job:${job.id}`,
+      title: job.title,
+      meta: [job.client_name, statusLabel(job.status, t)].filter(Boolean).join(' · '),
+    })), [jobs, t]);
 
   const exportCSV = async () => {
     setExportError('');
@@ -127,12 +138,17 @@ export default function JobsList() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-6">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-          <input type="text" placeholder={t('adminJobs.searchPlaceholder')} aria-label={t('adminJobs.searchAria')}
-            value={filters.search} onChange={e => updateFilter('search', e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm placeholder-gray-500 focus:border-orange-500 focus:outline-none" />
-        </div>
+        <SuggestDropdown
+          id="jobs-search"
+          items={jobSuggestItems}
+          value={filters.search}
+          onQueryChange={(q) => updateFilter('search', q)}
+          onSelect={(item) => updateFilter('search', item.title || '')}
+          recentsKey="oxsteed_admin_job_recents"
+          placeholder={t('adminJobs.searchPlaceholder')}
+          ariaLabel={t('adminJobs.searchAria')}
+          className="sd-admin-dark flex-1 min-w-[200px]"
+        />
           <select value={filters.status} onChange={e => updateFilter('status', e.target.value)} aria-label={t('adminJobs.statusFilterAria')}
           className="bg-gray-800 border border-gray-700 rounded-lg text-white text-sm px-3 py-2 focus:border-orange-500 focus:outline-none">
           <option value="">{t('adminJobs.allStatuses')}</option>

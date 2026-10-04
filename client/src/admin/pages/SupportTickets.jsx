@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
+import { SuggestDropdown } from '../../components/SuggestDropdown';
+import '../lib/suggestDropdownAdmin.css';
 import { useAuth } from '../../hooks/useAuth';
 import { useSocket } from '../../hooks/useSocket';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -13,7 +15,6 @@ import {
   Clock,
   AlertTriangle,
   CheckCircle,
-  Search,
   RefreshCw,
   Lock,
   Unlock,
@@ -568,6 +569,15 @@ export default function SupportTickets() {
   // T10-F02: paginate the ticket queue.
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 50;
+
+  // Typeahead items for the ticket search, fed by the most recent server results.
+  const ticketSuggestItems = useMemo(() => tickets
+    .filter((ticket) => ticket.subject)
+    .map((ticket) => ({
+      id: `ticket:${ticket.id}`,
+      title: ticket.subject,
+      meta: [`#${ticket.id}`, t(`adminSupportTickets.status.${ticket.status}`, { defaultValue: ticket.status })].filter(Boolean).join(' · '),
+    })), [tickets, t]);
   const ticketRequestRef = useRef(0);
   const ticketLoadingRequestRef = useRef(null);
   const {
@@ -808,16 +818,17 @@ export default function SupportTickets() {
               </div>
 
               <div className="mt-4 rounded-2xl border border-gray-800 bg-gray-900/80 p-3">
-                <div className="relative">
-                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                  <input
-                    type="text"
-                    placeholder={t('adminSupportTickets.inbox.searchPlaceholder')}
-                    value={search}
-                    onChange={(event) => { setSearch(event.target.value); setPage(1); }}
-                    className="w-full rounded-xl border border-gray-700 bg-gray-950 py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-gray-500 focus:border-orange-500 focus:outline-none"
-                  />
-                </div>
+                <SuggestDropdown
+                  id="tickets-search"
+                  items={ticketSuggestItems}
+                  value={search}
+                  onQueryChange={(q) => { setSearch(q); setPage(1); }}
+                  onSelect={(item) => { setSearch(item.title || ''); setPage(1); }}
+                  recentsKey="oxsteed_admin_ticket_recents"
+                  placeholder={t('adminSupportTickets.inbox.searchPlaceholder')}
+                  ariaLabel={t('adminSupportTickets.inbox.searchPlaceholder')}
+                  className="sd-admin-dark"
+                />
 
                 <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
                   <Filter size={12} />

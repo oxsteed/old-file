@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-  Search, Download, UserPlus, X, MessageSquare, MoreHorizontal,
+  Download, UserPlus, X, MessageSquare, MoreHorizontal,
   ChevronUp, ChevronDown, Shield, ShieldCheck, MapPin, Star,
   Ban, CheckCircle, Key, Eye, RotateCcw,
   RefreshCw,
@@ -10,6 +10,8 @@ import { useAuth } from '../../hooks/useAuth';
 import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
+import { SuggestDropdown } from '../../components/SuggestDropdown';
+import '../lib/suggestDropdownAdmin.css';
 import { useHasGrant } from '../lib/GrantGuard';
 import { adminDate } from '../lib/formatters';
 import useDestructiveConfirm from '../hooks/useDestructiveConfirm';
@@ -409,6 +411,16 @@ export default function UsersList() {
     return data;
   }, [filters]);
   const users = usersData?.users || [];
+  // Typeahead items for the user search, fed by the most recent server results.
+  const userSuggestItems = useMemo(() => users
+    .map((user) => {
+      const name = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+      return {
+        id: `user:${user.id}`,
+        title: name || user.email || String(user.id),
+        meta: [user.email && name ? user.email : null, user.role].filter(Boolean).join(' · '),
+      };
+    }), [users]);
   const total = usersData?.total || 0;
   const pages = usersData?.pages || 1;
   const summary = usersData?.summary || null;
@@ -623,13 +635,17 @@ export default function UsersList() {
       {/* ── Filters ── */}
       <div className="flex flex-wrap gap-2.5 mb-4">
         {/* Search */}
-        <div className="relative flex-1 min-w-[13rem]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-          <input type="text" placeholder={t('adminUsers.list.searchPlaceholder')}
-            value={filters.search} onChange={e => update('search', e.target.value)}
-            className="w-full pl-9 pr-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm
-                       text-white placeholder-gray-500 focus:outline-none focus:border-orange-500" />
-        </div>
+        <SuggestDropdown
+          id="users-search"
+          items={userSuggestItems}
+          value={filters.search}
+          onQueryChange={(q) => update('search', q)}
+          onSelect={(item) => update('search', item.title || '')}
+          recentsKey="oxsteed_admin_user_recents"
+          placeholder={t('adminUsers.list.searchPlaceholder')}
+          ariaLabel={t('adminUsers.list.searchPlaceholder')}
+          className="sd-admin-dark flex-1 min-w-[13rem]"
+        />
 
         {/* Location */}
         <div className="relative min-w-40">

@@ -18,14 +18,16 @@
  *   - The app renders "(paid link)" and the Associates disclosure automatically.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Link2, Plus, Pencil, Trash2, AlertTriangle, CheckCircle,
-  RefreshCw, Search, ShoppingBag, Tag, X,
+  RefreshCw, ShoppingBag, Tag, X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import adminApi from '../../lib/adminApi';
+import { SuggestDropdown } from '../../components/SuggestDropdown';
+import '../lib/suggestDropdownAdmin.css';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
 import ConfirmDialog from '../lib/ConfirmDialog';
@@ -362,6 +364,15 @@ export default function LearnProductLinksAdmin() {
     setLinks(prev => prev.map(l => l.id === deactivating.id ? { ...l, is_active: false } : l));
   };
 
+  // Typeahead items for the product-link search, fed from the loaded rows.
+  const productLinkSuggestItems = useMemo(() => links
+    .filter(l => l.tool_name)
+    .map(l => ({
+      id: `product-link:${l.id}`,
+      title: l.tool_name,
+      meta: [l.guide_id, LINK_TYPE_MAP[l.link_type] ? t(`adminLearnProductLinks.linkType.${LINK_TYPE_MAP[l.link_type].i18nKey}`) : l.link_type].filter(Boolean).join(' · '),
+    })), [links, t]);
+
   const filtered = links.filter(l => {
     if (!search) return true;
     const q = search.toLowerCase();
@@ -428,16 +439,17 @@ export default function LearnProductLinksAdmin() {
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-52">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-          <input
-            type="search"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder={t('adminLearnProductLinks.toolbar.searchPlaceholder')}
-            className="w-full pl-8 pr-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-sm focus:outline-none focus:border-orange-400"
-          />
-        </div>
+        <SuggestDropdown
+          id="product-link-search"
+          items={productLinkSuggestItems}
+          value={search}
+          onQueryChange={setSearch}
+          onSelect={(item) => setSearch(item.title || '')}
+          recentsKey="oxsteed_admin_product_link_recents"
+          placeholder={t('adminLearnProductLinks.toolbar.searchPlaceholder')}
+          ariaLabel={t('adminLearnProductLinks.toolbar.searchPlaceholder')}
+          className="sd-admin-adaptive flex-1 min-w-52"
+        />
         <select
           value={filterType}
           onChange={e => setFilterType(e.target.value)}
