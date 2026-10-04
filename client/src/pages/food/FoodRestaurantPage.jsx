@@ -8,22 +8,31 @@
 // restaurant payment flows now launch with restaurant credit, pay-at-restaurant,
 // and direct payment proof capture.
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
+import { loadStripe } from '@stripe/stripe-js';
+import { CardElement, Elements, useElements, useStripe } from '@stripe/react-stripe-js';
 import { useAuth } from '../../context/AuthContext';
 import {
+  createFoodCardPaymentIntent,
+  createRestaurantTopupIntent,
   getFoodRestaurant,
+  getMyFoodRestaurantWallet,
+  getRestaurantTopup,
+  getRestaurantTopupEligibility,
+  issueRestaurantTopupStepupChallenge,
   placeFoodOrder,
   quoteFoodOrder,
   uploadFoodAsset,
   listFoodPromotions,
   listMyFoodOrders,
-  getMyFoodRestaurantWallet,
   sendFoodRestaurantMessage,
   formatFoodMoney,
 } from '../../api/food';
+import { parseCreditMajorAmount } from '../../lib/creditCurrency';
+import { safeCreditErrorMessage } from '../../lib/creditErrors';
 import {
   getOxsteedCreditAccount,
   getOxsteedCreditEligibility,
@@ -40,6 +49,27 @@ import { getPublicSiteUrl } from '../../utils/seoDescription';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
 import { SuggestDropdown } from '../../components/SuggestDropdown';
 import '../../styles/FoodRestaurantPage.css';
+
+// Stripe for in-checkout card payments and credit top-ups. Same lazy pattern
+// as the /restaurant-credit page: null when the publishable key is missing,
+// so card surfaces stay hidden instead of crashing.
+const stripePromise = (() => {
+  try {
+    const key = import.meta.env?.VITE_STRIPE_PUBLISHABLE_KEY;
+    return key ? loadStripe(key) : null;
+  } catch {
+    return null;
+  }
+})();
+
+// Quick-amount chips (major currency units) for the in-checkout credit sheet,
+// mirroring the /restaurant-credit top-up modal.
+const CREDIT_TOPUP_QUICK_AMOUNTS = [25, 50, 100, 250];
+const CREDIT_TOPUP_MIN_CENTS = 500;
+const CREDIT_TOPUP_MAX_CENTS = 50000;
+const CREDIT_TOPUP_STEPUP_CENTS = 25000;
+const CREDIT_TOPUP_POLL_INTERVAL_MS = 3000;
+const CREDIT_TOPUP_POLL_MAX_ATTEMPTS = 40;
 
 // ── Active-order persistence ─────────────────────────────────────────────────
 // Keeps the public tracking token so a guest can recover their order status
@@ -220,6 +250,22 @@ export default function FoodRestaurantPage() {
   const [paymentMethod, setPaymentMethod] = useState('pay_at_restaurant');
   const [paymentReference, setPaymentReference] = useState('');
   const [paymentNote, setPaymentNote] = useState('');
+  // CC2: order-level notes for the kitchen (allergies, extra sauce).
+  const [kitchenNotes, setKitchenNotes] = useState('');
+  // CC3: scheduled fulfillment for the 'later' time slot (ISO string).
+  const [scheduledFor, setScheduledFor] = useState(null);
+  const [scheduleDay, setScheduleDay] = useState('today'); // 'today' | 'tomorrow'
+  const [scheduleTime, setScheduleTime] = useState(''); // 'HH:MM'
+  // CC5: collapsible item recap on the payment step.
+  const [itemsExpanded, setItemsExpanded] = useState(false);
+  // CC6: optional pickup contact, prefilled from the user profile.
+  const [pickupContactName, setPickupContactName] = useState('');
+  const [pickupContactPhone, setPickupContactPhone] = useState('');
+  // CC1: in-checkout restaurant-credit bottom sheet.
+  const [creditSheetOpen, setCreditSheetOpen] = useState(false);
+  // CC7: in-checkout card payment (Stripe Elements).
+  const [cardError, setCardError] = useState('');
+  const cardFormRef = useRef(null);
   const [paymentProof, setPaymentProof] = useState(null);
   const [proofMethod, setProofMethod] = useState('upload');
   const [proofUploading, setProofUploading] = useState(false);
@@ -439,7 +485,109 @@ export default function FoodRestaurantPage() {
     if (paymentMethod === 'oxsteed_credit' && !oxsteedCreditAccount) {
       setPaymentMethod('pay_at_restaurant');
     }
-  }, [paymentMethod, wallet, oxsteedCreditAccount]);
+    if (paymentMethod === 'card' && !cardPaymentsReady) {
+      setPaymentMethod('pay_at_restaurant');
+    }
+  }, [paymentMethod, wallet, oxsteedCreditAccount, cardPaymentsReady]);
+
+  // CC6: prefill the pickup contact from the user profile where available.
+  // Only fills empty fields so the customer's own edits are never clobbered.
+  useEffect(() => {
+    if (!user) return;
+    const profileName = [user.first_name, user.last_name].filter(Boolean).join(' ').trim();
+    if (profileName) setPickupContactName((cur) => cur || profileName);
+    if (user.phone) setPickupContactPhone((cur) => cur || String(user.phone));
+  }, [user]);
+
+  // CC3: time options for the 'Schedule for later' slot. Constrained to the
+  // restaurant's operating hours when parseable; otherwise falls back to
+  // 15-minute increments covering the next 6 hours.
+  const scheduleOptions = useMemo(() => {
+    if (deliverySlot !== 'later') return [];
+    const parseHm = (value) => {
+      const m = String(value || '').trim().match(/^(\d{1,2}):(\d{2})$/);
+      if (!m) return null;
+      const h = Number(m[1]);
+      const min = Number(m[2]);
+      if (h > 23 || min > 59) return null;
+      return { h, min };
+    };
+    const fmtLabel = (h, min) => {
+      const d = new Date();
+      d.setHours(h, min, 0, 0);
+      return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    };
+    const weekly = restaurant?.operating_hours && typeof restaurant.operating_hours === 'object'
+      ? (restaurant.operating_hours.weekly || restaurant.operating_hours)
+      : null;
+    const dayKeys = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const target = new Date();
+    if (scheduleDay === 'tomorrow') target.setDate(target.getDate() + 1);
+    const dayKey = dayKeys[target.getDay()];
+    let openHm = null;
+    let closeHm = null;
+    const entry = weekly?.[dayKey];
+    if (entry && typeof entry === 'object' && !Array.isArray(entry) && !entry.closed) {
+      openHm = parseHm(entry.open);
+      closeHm = parseHm(entry.close);
+    } else if (typeof entry === 'string') {
+      const m = entry.match(/(\d{1,2}:\d{2}).*?(\d{1,2}:\d{2})/);
+      if (m) {
+        openHm = parseHm(m[1]);
+        closeHm = parseHm(m[2]);
+      }
+    }
+    const options = [];
+    if (openHm && closeHm) {
+      const startMin = openHm.h * 60 + openHm.min;
+      const endMin = closeHm.h * 60 + closeHm.min;
+      const nowMin = scheduleDay === 'today'
+        ? new Date().getHours() * 60 + new Date().getMinutes() + 15
+        : -1;
+      for (let mins = startMin; mins < endMin; mins += 15) {
+        if (mins < nowMin) continue;
+        const h = Math.floor(mins / 60);
+        const min = mins % 60;
+        const value = `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+        options.push({ value, label: fmtLabel(h, min) });
+      }
+    } else {
+      // Fallback: 15-minute increments for the next 6 hours.
+      const base = new Date(Date.now() + 15 * 60 * 1000);
+      base.setMinutes(Math.ceil(base.getMinutes() / 15) * 15, 0, 0);
+      for (let i = 0; i < 24; i += 1) {
+        const slot = new Date(base.getTime() + i * 15 * 60 * 1000);
+        const value = `${String(slot.getHours()).padStart(2, '0')}:${String(slot.getMinutes()).padStart(2, '0')}`;
+        options.push({ value, label: slot.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) });
+      }
+    }
+    return options;
+  }, [deliverySlot, scheduleDay, restaurant]);
+
+  // Keep the selected time valid when the day or slot changes; default to the
+  // earliest available option so 'later' is never a dead choice.
+  useEffect(() => {
+    if (deliverySlot !== 'later') return;
+    if (scheduleTime && scheduleOptions.some((o) => o.value === scheduleTime)) return;
+    setScheduleTime(scheduleOptions[0]?.value || '');
+  }, [deliverySlot, scheduleDay, scheduleOptions, scheduleTime]);
+
+  // Sync the ISO scheduledFor sent in the order payload.
+  useEffect(() => {
+    if (deliverySlot !== 'later' || !scheduleTime) {
+      setScheduledFor(null);
+      return;
+    }
+    const [h, m] = scheduleTime.split(':').map(Number);
+    if (!Number.isFinite(h) || !Number.isFinite(m)) {
+      setScheduledFor(null);
+      return;
+    }
+    const d = new Date();
+    if (scheduleDay === 'tomorrow') d.setDate(d.getDate() + 1);
+    d.setHours(h, m, 0, 0);
+    setScheduledFor(d.toISOString());
+  }, [deliverySlot, scheduleDay, scheduleTime]);
 
   // Restore a checkout draft so the same order reappears after sign-in or page
   // refresh. The draft is kept separate from the live tracking token.
@@ -463,6 +611,12 @@ export default function FoodRestaurantPage() {
       setPaymentMethod('pay_at_restaurant');
       setPaymentReference('');
       setPaymentNote('');
+      setKitchenNotes('');
+      setScheduledFor(null);
+      setScheduleDay('today');
+      setScheduleTime('');
+      setPickupContactName('');
+      setPickupContactPhone('');
       setPaymentProof(null);
       setProofMethod('upload');
       setDraftHydrated(true);
@@ -483,6 +637,10 @@ export default function FoodRestaurantPage() {
       || Boolean(draft.paymentMethod && draft.paymentMethod !== 'pay_at_restaurant')
       || Boolean(draft.paymentReference)
       || Boolean(draft.paymentNote)
+      || Boolean(draft.kitchenNotes)
+      || Boolean(draft.scheduledFor)
+      || Boolean(draft.pickupContactName)
+      || Boolean(draft.pickupContactPhone)
       || Boolean(draft.paymentProof)
     );
     setCartItems(savedCartItems);
@@ -497,6 +655,12 @@ export default function FoodRestaurantPage() {
     setPaymentMethod(draft.paymentMethod || 'pay_at_restaurant');
     setPaymentReference(String(draft.paymentReference || ''));
     setPaymentNote(String(draft.paymentNote || ''));
+    setKitchenNotes(String(draft.kitchenNotes || ''));
+    setScheduledFor(draft.scheduledFor || null);
+    setScheduleDay(draft.scheduleDay === 'tomorrow' ? 'tomorrow' : 'today');
+    setScheduleTime(String(draft.scheduleTime || ''));
+    setPickupContactName(String(draft.pickupContactName || ''));
+    setPickupContactPhone(String(draft.pickupContactPhone || ''));
     setPaymentProof(draft.paymentProof && typeof draft.paymentProof === 'object' ? draft.paymentProof : null);
     setProofMethod(draft.proofMethod === 'reference' ? 'reference' : (draft.paymentReference ? 'reference' : 'upload'));
     if (draft.deliveryMode === 'delivery' || draft.deliveryMode === 'pickup') {
@@ -561,6 +725,10 @@ export default function FoodRestaurantPage() {
       || paymentMethod !== 'pay_at_restaurant'
       || paymentReference.trim().length > 0
       || paymentNote.trim().length > 0
+      || kitchenNotes.trim().length > 0
+      || Boolean(scheduledFor)
+      || pickupContactName.trim().length > 0
+      || pickupContactPhone.trim().length > 0
       || Boolean(paymentProof);
     if (!hasMeaningfulDraft) {
       clearDraftOrder(restaurantId);
@@ -579,6 +747,12 @@ export default function FoodRestaurantPage() {
       paymentMethod,
       paymentReference,
       paymentNote,
+      kitchenNotes,
+      scheduledFor,
+      scheduleDay,
+      scheduleTime,
+      pickupContactName,
+      pickupContactPhone,
       paymentProof,
       proofMethod,
       deliveryMode,
@@ -598,6 +772,10 @@ export default function FoodRestaurantPage() {
     paymentMethod,
     paymentReference,
     paymentNote,
+    kitchenNotes,
+    scheduledFor,
+    pickupContactName,
+    pickupContactPhone,
     paymentProof,
     proofMethod,
     deliveryMode,
@@ -648,9 +826,11 @@ export default function FoodRestaurantPage() {
     ? 'restaurant_credit'
     : paymentMethod === 'oxsteed_credit'
       ? 'oxsteed_credit'
-      : paymentMethod === 'direct_payment'
-        ? 'direct_payment'
-        : 'pay_at_restaurant';
+      : paymentMethod === 'card'
+        ? 'card'
+        : paymentMethod === 'direct_payment'
+          ? 'direct_payment'
+          : 'pay_at_restaurant';
   const orderItemsPayload = useMemo(
     () => cartItems.map((line) => ({
       menuItemId: line.menuItemId,
@@ -730,7 +910,7 @@ export default function FoodRestaurantPage() {
           tipCents,
           items: orderItemsPayload,
         };
-        if (apiPaymentMode === 'restaurant_credit' && promoCode.trim()) {
+        if (promoCode.trim()) {
           payload.discountCode = promoCode.trim();
         }
         if (fulfillmentType === 'delivery') {
@@ -886,20 +1066,76 @@ export default function FoodRestaurantPage() {
     }
     setPlacing(true);
     try {
+      // CC7: card payments confirm the Stripe PaymentIntent before the order
+      // is placed. Any failure shows an inline error and the order is NOT
+      // placed.
+      let stripePaymentIntentId = null;
+      if (paymentMethod === 'card') {
+        setCardError('');
+        if (!cardFormRef.current) {
+          setCardError(t('food.restaurant.cardIntentError'));
+          return;
+        }
+        const intentIdempotencyKey = globalThis.crypto?.randomUUID?.()
+          || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        let intent = null;
+        try {
+          intent = await createFoodCardPaymentIntent({
+            restaurantId,
+            amountCents: displayTotalCents,
+            currency,
+            idempotencyKey: intentIdempotencyKey,
+          }, intentIdempotencyKey);
+        } catch (intentErr) {
+          setCardError(
+            intentErr?.response?.data?.error?.message
+            || intentErr?.response?.data?.message
+            || t('food.restaurant.cardIntentError')
+          );
+          return;
+        }
+        if (!intent?.clientSecret) {
+          setCardError(t('food.restaurant.cardIntentError'));
+          return;
+        }
+        const { error, paymentIntent } = await cardFormRef.current.confirmCardPayment(intent.clientSecret);
+        if (error) {
+          setCardError(error.message || t('food.restaurant.cardPaymentFailed'));
+          return;
+        }
+        // The server only accepts a succeeded intent (402 otherwise), so the
+        // order is placed exclusively on succeeded; anything else is an
+        // inline error with no order placed.
+        if (!paymentIntent || paymentIntent.status !== 'succeeded') {
+          setCardError(t('food.restaurant.cardPaymentFailed'));
+          return;
+        }
+        stripePaymentIntentId = paymentIntent.id;
+      }
       const payload = {
         orderSource: 'web',
         fulfillmentType,
         // Canonical restaurant payment contract mode (card checkout is pay_now).
         paymentMode,
-        // Promo codes remain limited to the existing restaurant-scoped wallet.
-        discountCode: paymentMode === 'restaurant_credit' && promoCode.trim()
-          ? promoCode.trim()
-          : undefined,
+        // CC4: promo codes are validated server-side for every payment mode.
+        discountCode: promoCode.trim() ? promoCode.trim() : undefined,
         items: orderItemsPayload,
         // The server re-prices everything; send the customer-chosen tip and
         // time slot so the debited total matches the quoted total.
         tipCents: tipCents > 0 ? tipCents : undefined,
         deliverySlot,
+        // CC3: the chosen fulfillment time for 'later' slots.
+        scheduledFor: deliverySlot === 'later' && scheduledFor ? scheduledFor : undefined,
+        // CC2: order-level notes for the kitchen. paymentNote stays as-is
+        // for payment matching.
+        kitchenNotes: kitchenNotes.trim() || undefined,
+        // CC6: optional pickup contact for pickup orders.
+        ...(fulfillmentType === 'pickup' ? {
+          pickupContactName: pickupContactName.trim() || undefined,
+          pickupContactPhone: pickupContactPhone.trim() || undefined,
+        } : {}),
+        // CC7: the confirmed Stripe PaymentIntent for card orders.
+        ...(paymentMethod === 'card' && stripePaymentIntentId ? { stripePaymentIntentId } : {}),
         ...(paymentMode === 'direct_payment' ? {
           externalPayment: externalPaymentSubmission,
           metadata: {
@@ -949,6 +1185,15 @@ export default function FoodRestaurantPage() {
       setQuote(null);
       setPaymentReference('');
       setPaymentNote('');
+      setKitchenNotes('');
+      setScheduledFor(null);
+      setScheduleDay('today');
+      setScheduleTime('');
+      setItemsExpanded(false);
+      setCardError('');
+      const profileName = user ? [user.first_name, user.last_name].filter(Boolean).join(' ').trim() : '';
+      setPickupContactName(profileName);
+      setPickupContactPhone(user?.phone ? String(user.phone) : '');
       setPaymentProof(null);
       setProofMethod('upload');
       if (payment?.mode === 'hosted_checkout' && payment?.checkoutUrl) {
@@ -965,6 +1210,10 @@ export default function FoodRestaurantPage() {
 
   // Payment options mirror the launch contract. OxSteed Credit is a separate
   // signed-in stored-value rail and still requires server-side partner checks.
+  // CC7: in-checkout card payments ride Stripe Elements against the
+  // restaurant's connected account; the server exposes stripe_charges_enabled.
+  const stripeChargesEnabled = Boolean(restaurant?.stripe_charges_enabled);
+  const cardPaymentsReady = stripeChargesEnabled && Boolean(stripePromise);
   const walletBalanceCents = Number(wallet?.balanceCents || 0);
   const walletReservedCents = Number(wallet?.reservedCents || 0);
   const walletAvailableCents = Number(
@@ -1441,6 +1690,12 @@ export default function FoodRestaurantPage() {
       sub: oxsteedCreditPaymentIssue
         || `Available ${formatFoodMoney(oxsteedCreditAvailableCents, oxsteedCreditAccount.currencyCode || currency)}`,
       disabled: Boolean(oxsteedCreditPaymentIssue),
+    }] : []),
+    ...(cardPaymentsReady ? [{
+      id: 'card',
+      icon: '💳',
+      label: t('food.restaurant.payByCard'),
+      sub: t('food.restaurant.payByCardSub'),
     }] : []),
     ...(externalPaymentEnabled ? [{
       id: 'direct_payment',
@@ -2074,6 +2329,63 @@ export default function FoodRestaurantPage() {
                             );
                           })}
                         </div>
+                        {/* CC3: real time picker for 'Schedule for later'. */}
+                        {deliverySlot === 'later' && (
+                          <div style={{ margin: '-8px 0 20px' }}>
+                            <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>{t('food.restaurant.scheduleDayLabel')}</p>
+                            <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                              {['today', 'tomorrow'].map((day) => {
+                                const on = scheduleDay === day;
+                                return (
+                                  <button
+                                    key={day}
+                                    type="button"
+                                    onClick={() => { setScheduleDay(day); setScheduleTime(''); }}
+                                    style={{ flex: 1, height: 44, borderRadius: 10, border: `1.5px solid ${on ? accent : '#e2e8f0'}`, background: on ? accentBg : '#fff', color: on ? accent : '#475569', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+                                  >
+                                    {day === 'today' ? t('food.restaurant.scheduleToday') : t('food.restaurant.scheduleTomorrow')}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>{t('food.restaurant.scheduleTimeLabel')}</p>
+                            <select
+                              value={scheduleTime}
+                              onChange={(e) => setScheduleTime(e.target.value)}
+                              aria-label={t('food.restaurant.scheduleTimeLabel')}
+                              style={{ ...inputStyle, marginBottom: 0 }}
+                            >
+                              <option value="">{t('food.restaurant.scheduleTimePlaceholder')}</option>
+                              {scheduleOptions.map((o) => (
+                                <option key={o.value} value={o.value}>{o.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                        {/* CC6: optional pickup contact for pickup orders. */}
+                        {isPickup && (
+                          <>
+                            <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>{t('food.restaurant.pickupContactName')} <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>({t('food.restaurant.optional')})</span></p>
+                            <input
+                              value={pickupContactName}
+                              onChange={(e) => setPickupContactName(e.target.value)}
+                              placeholder={t('food.restaurant.pickupContactNamePlaceholder')}
+                              maxLength={140}
+                              autoComplete="name"
+                              style={{ ...inputStyle }}
+                            />
+                            <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>{t('food.restaurant.pickupContactPhone')} <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>({t('food.restaurant.optional')})</span></p>
+                            <input
+                              value={pickupContactPhone}
+                              onChange={(e) => setPickupContactPhone(e.target.value)}
+                              placeholder={t('food.restaurant.pickupContactPhonePlaceholder')}
+                              maxLength={40}
+                              inputMode="tel"
+                              autoComplete="tel"
+                              style={{ ...inputStyle, marginBottom: 20 }}
+                            />
+                          </>
+                        )}
                       </>
                     )}
                   </div>
@@ -2216,12 +2528,32 @@ export default function FoodRestaurantPage() {
                               : t('food.restaurant.addCredit')}
                           </span>
                         </div>
-                        <Link
-                          to={paymentMethod === 'oxsteed_credit' ? '/oxsteed-credit' : `/restaurant-credit?restaurantId=${restaurantId}`}
-                          style={{ flexShrink: 0, color: accent, fontSize: 12, fontWeight: 800, textDecoration: 'none' }}
+                        {/* CC1: opens the in-checkout credit sheet instead of
+                            navigating away; closing it returns to this step
+                            with all checkout state intact. */}
+                        <button
+                          type="button"
+                          onClick={() => setCreditSheetOpen(true)}
+                          style={{ flexShrink: 0, color: accent, fontSize: 12, fontWeight: 800, background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
                         >
                           {t('food.restaurant.manageCredit')}
-                        </Link>
+                        </button>
+                      </div>
+                    )}
+                    {/* CC7: Stripe Elements card form for in-checkout card payments. */}
+                    {paymentMethod === 'card' && (
+                      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 16, padding: 16, marginBottom: 20 }}>
+                        <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 10 }}>{t('food.restaurant.cardDetails')}</p>
+                        {stripePromise ? (
+                          <Elements stripe={stripePromise}>
+                            <CheckoutCardForm ref={cardFormRef} />
+                          </Elements>
+                        ) : (
+                          <p role="alert" style={{ fontSize: 13, color: '#b45309' }}>{t('food.restaurant.creditSheetStripeUnavailable')}</p>
+                        )}
+                        {cardError && (
+                          <p role="alert" style={{ fontSize: 13, fontWeight: 600, color: '#b91c1c', marginTop: 10, lineHeight: 1.5 }}>{cardError}</p>
+                        )}
                       </div>
                     )}
                     {paymentMethod === 'direct_payment' && (
@@ -2341,18 +2673,19 @@ export default function FoodRestaurantPage() {
                         </p>
                       </div>
                     )}
-                    {paymentMethod === 'restaurant_credit' && (
-                      <>
-                        <p style={{ ...sectionLabel, color: '#64748b' }}>{t('food.restaurant.promoCode')} <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>({t('food.restaurant.optional')})</span></p>
-                        <input
-                          value={promoCode}
-                          onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-                          placeholder={t('food.restaurant.promoPlaceholder')}
-                          maxLength={40}
-                          style={{ ...inputStyle, marginBottom: 20, textTransform: 'uppercase' }}
-                        />
-                      </>
-                    )}
+                    {/* CC4: promo codes are validated server-side for every
+                        payment mode, so the input is no longer gated to
+                        restaurant_credit. */}
+                    <>
+                      <p style={{ ...sectionLabel, color: '#64748b' }}>{t('food.restaurant.promoCode')} <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>({t('food.restaurant.optional')})</span></p>
+                      <input
+                        value={promoCode}
+                        onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                        placeholder={t('food.restaurant.promoPlaceholder')}
+                        maxLength={40}
+                        style={{ ...inputStyle, marginBottom: 20, textTransform: 'uppercase' }}
+                      />
+                    </>
                     <p style={{ ...sectionLabel, color: '#64748b' }}>{t('food.restaurant.tip')}</p>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: tipPreset === 'custom' ? 8 : 20 }}>
                       {[
@@ -2385,8 +2718,43 @@ export default function FoodRestaurantPage() {
                         style={{ ...inputStyle, marginBottom: 20 }}
                       />
                     )}
+                    {/* CC2: order-level notes for the kitchen. */}
+                    <p style={{ ...sectionLabel, color: '#64748b' }}>{t('food.restaurant.kitchenNotesLabel')} <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>({t('food.restaurant.optional')})</span></p>
+                    <textarea
+                      value={kitchenNotes}
+                      onChange={(e) => setKitchenNotes(e.target.value)}
+                      placeholder={t('food.restaurant.kitchenNotesPlaceholder')}
+                      maxLength={500}
+                      rows={2}
+                      style={{ ...inputStyle, minHeight: 64, resize: 'vertical', marginBottom: 20, paddingTop: 12, paddingBottom: 12, height: 'auto' }}
+                    />
                     <p style={{ ...sectionLabel, color: '#64748b' }}>{t('food.restaurant.orderSummary')}</p>
                     <div style={{ background: '#f8fafc', borderRadius: 12, padding: '14px 16px', marginBottom: 20, border: '1px solid #f1f5f9' }}>
+                      {/* CC5: collapsible item recap above the money rows. */}
+                      <button
+                        type="button"
+                        onClick={() => setItemsExpanded((v) => !v)}
+                        aria-expanded={itemsExpanded}
+                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', background: 'none', border: 'none', padding: 0, marginBottom: itemsExpanded ? 8 : 10, cursor: 'pointer', fontSize: 14, color: '#64748b' }}
+                      >
+                        <span style={{ fontWeight: 600 }}>{t('food.restaurant.itemsRecap', { count: cartCount })}</span>
+                        <span style={{ fontSize: 11, color: '#94a3b8' }}>{itemsExpanded ? '▲' : '▼'}</span>
+                      </button>
+                      {itemsExpanded && (
+                        <div style={{ marginBottom: 10 }}>
+                          {cartItems.map((ci) => (
+                            <div key={ci.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13, color: '#475569', marginBottom: 6 }}>
+                              <span style={{ flex: 1, minWidth: 0 }}>
+                                {ci.qty}× {ci.name}
+                                {(ci.modifierNames?.length > 0 || ci.notes) && (
+                                  <span style={{ color: '#94a3b8' }}> · {[...(ci.modifierNames || []), ci.notes].filter(Boolean).join(' · ')}</span>
+                                )}
+                              </span>
+                              <span style={{ fontWeight: 600, flexShrink: 0 }}>{formatFoodMoney(ci.unitCents * ci.qty, currency)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       {summaryRows.map((row, i) => (
                         <div key={row.key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#64748b', marginBottom: i === summaryRows.length - 1 ? 10 : 6 }}>
                           <span>{row.label}</span>
@@ -2402,7 +2770,9 @@ export default function FoodRestaurantPage() {
                         ? t('food.restaurant.creditChargeNote')
                         : paymentMethod === 'direct_payment'
                           ? t('food.restaurant.directPaymentNote')
-                          : t(isPickup ? 'food.restaurant.counterPaymentNote' : 'food.restaurant.deliveryPaymentNote')}
+                          : paymentMethod === 'card'
+                            ? t('food.restaurant.cardChargeNote')
+                            : t(isPickup ? 'food.restaurant.counterPaymentNote' : 'food.restaurant.deliveryPaymentNote')}
                     </p>
                   </div>
                   <div style={{ padding: '14px 20px 20px', borderTop: '1px solid #f1f5f9', flexShrink: 0 }}>
@@ -2453,13 +2823,32 @@ export default function FoodRestaurantPage() {
                     </div>
                     <div style={{ display: 'flex', gap: 10, width: '100%' }}>
                       <Link to={`/restaurants/queue/${restaurant.id}`} style={{ flex: 1, textAlign: 'center', height: 44, lineHeight: '44px', background: '#f1f5f9', color: '#0f172a', borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>{t('food.order.watchQueue')}</Link>
-                      <button onClick={() => { setCartOpen(false); setCartStep('cart'); setPlacedOrder(null); setPlacedTrackingToken(null); setRecoveredOrder(loadActiveOrder(restaurantId)); setPaymentReference(''); setPaymentNote(''); setPaymentProof(null); setProofMethod('upload'); setPaymentMethod('pay_at_restaurant'); }} style={{ flex: 1, height: 44, background: accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>{t('food.restaurant.backToMenu')}</button>
+                      <button onClick={() => { setCartOpen(false); setCartStep('cart'); setPlacedOrder(null); setPlacedTrackingToken(null); setRecoveredOrder(loadActiveOrder(restaurantId)); setPaymentReference(''); setPaymentNote(''); setKitchenNotes(''); setScheduledFor(null); setScheduleDay('today'); setScheduleTime(''); setItemsExpanded(false); setCardError(''); setPaymentProof(null); setProofMethod('upload'); setPaymentMethod('pay_at_restaurant'); }} style={{ flex: 1, height: 44, background: accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>{t('food.restaurant.backToMenu')}</button>
                     </div>
                   </div>
                 );
               })()}
             </div>
           </>
+        )}
+
+        {/* ── CC1: in-checkout credit sheet ── */}
+        {creditSheetOpen && (
+          <CreditTopupSheet
+            restaurantId={restaurantId}
+            restaurantName={restaurant.display_name}
+            currency={currency}
+            wallet={wallet}
+            onClose={() => setCreditSheetOpen(false)}
+            onWalletRefresh={async () => {
+              try {
+                const w = await getMyFoodRestaurantWallet(restaurantId);
+                setWallet(w && w.status === 'active' ? w : null);
+              } catch {
+                // The top-up succeeded; the next load shows the balance.
+              }
+            }}
+          />
         )}
 
         {/* ── Message the restaurant ── */}
@@ -2583,6 +2972,329 @@ function Radio({ on, accent }) {
     <span style={{ width: 18, height: 18, borderRadius: '50%', border: `2px solid ${on ? accent : '#cbd5e1'}`, background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
       {on && <span style={{ width: 8, height: 8, borderRadius: '50%', background: accent }} />}
     </span>
+  );
+}
+
+// CC7: Stripe Elements card form for in-checkout card payments. Exposes an
+// imperative confirmCardPayment(clientSecret) so the parent can run the
+// intent → confirm → place-order flow when Place order is tapped.
+const CheckoutCardForm = React.forwardRef(function CheckoutCardForm(_, ref) {
+  const stripe = useStripe();
+  const elements = useElements();
+  useImperativeHandle(ref, () => ({
+    async confirmCardPayment(clientSecret) {
+      if (!stripe || !elements) {
+        return { error: { message: 'Stripe is not ready yet' }, paymentIntent: null };
+      }
+      return stripe.confirmCardPayment(clientSecret, {
+        payment_method: { card: elements.getElement(CardElement) },
+      });
+    },
+  }), [stripe, elements]);
+  return (
+    <div style={{ border: '1.5px solid #e2e8f0', borderRadius: 10, padding: '12px 14px', background: '#fff' }}>
+      <CardElement options={{ style: { base: { fontSize: '16px', color: '#0f172a' } } }} />
+    </div>
+  );
+});
+
+// CC1: in-checkout restaurant-credit bottom sheet. Shows the wallet balance
+// and quick top-up amounts, reusing the same credit API calls as the
+// /restaurant-credit page (eligibility, intent, step-up challenge, card
+// confirm, status polling). Closing the sheet returns to the payment step
+// with all checkout state intact.
+function CreditTopupSheet({ restaurantId, restaurantName, currency, wallet, onClose, onWalletRefresh }) {
+  const { t } = useTranslation();
+  const { t: tCredit } = useTranslation('credit');
+  const [eligible, setEligible] = useState(null); // null = checking
+  const [step, setStep] = useState('main'); // main | stepup | card | processing
+  const [amountText, setAmountText] = useState('');
+  const [amountCents, setAmountCents] = useState(0);
+  const [amountError, setAmountError] = useState('');
+  const [challenge, setChallenge] = useState(null);
+  const [code, setCode] = useState('');
+  const [intent, setIntent] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [sheetCardError, setSheetCardError] = useState('');
+  const [terminal, setTerminal] = useState(null);
+  const pollTimerRef = useRef(null);
+  const pollCountRef = useRef(0);
+  const sheetCardFormRef = useRef(null);
+
+  const availableCents = Number(
+    wallet?.availableBalanceCents
+      ?? Math.max(0, Number(wallet?.balanceCents || 0) - Number(wallet?.reservedCents || 0))
+  );
+
+  useEffect(() => {
+    let alive = true;
+    getRestaurantTopupEligibility(restaurantId)
+      .then((data) => { if (alive) setEligible(data?.eligibility?.status === 'approved'); })
+      .catch(() => { if (alive) setEligible(false); });
+    return () => { alive = false; };
+  }, [restaurantId]);
+
+  const stopPolling = () => {
+    if (pollTimerRef.current) {
+      clearTimeout(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+  };
+  useEffect(() => stopPolling, []);
+
+  const startPolling = (topupId, cents) => {
+    stopPolling();
+    pollCountRef.current = 0;
+    setStep('processing');
+    const tick = async () => {
+      pollCountRef.current += 1;
+      let status = null;
+      try {
+        const data = await getRestaurantTopup(restaurantId, topupId);
+        status = data?.topup?.status || null;
+      } catch {
+        status = null;
+      }
+      if (status === 'succeeded') {
+        stopPolling();
+        toast.success(t('food.restaurant.creditSheetTopupSuccess'));
+        try {
+          await onWalletRefresh();
+        } catch {
+          // The wallet refresh failing does not undo the credit; the next
+          // render shows the updated balance.
+        }
+        onClose();
+        return;
+      }
+      if (status === 'failed' || status === 'canceled') {
+        stopPolling();
+        setTerminal({ tone: 'error', message: t('food.restaurant.creditSheetTopupError') });
+        return;
+      }
+      if (pollCountRef.current >= CREDIT_TOPUP_POLL_MAX_ATTEMPTS) {
+        stopPolling();
+        setTerminal({ tone: 'info', message: tCredit('restaurantTopups.timeout') });
+        return;
+      }
+      pollTimerRef.current = setTimeout(tick, CREDIT_TOPUP_POLL_INTERVAL_MS);
+    };
+    pollTimerRef.current = setTimeout(tick, CREDIT_TOPUP_POLL_INTERVAL_MS);
+  };
+
+  const beginIntent = async (cents, stepup) => {
+    setSubmitting(true);
+    try {
+      const idempotencyKey = globalThis.crypto?.randomUUID?.()
+        || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const payload = { amountCents: cents };
+      if (stepup) {
+        payload.stepupChallengeId = stepup.challengeId;
+        payload.stepupCode = stepup.code;
+      }
+      const result = await createRestaurantTopupIntent(restaurantId, payload, idempotencyKey);
+      const topupId = result?.topup?.id;
+      if (!topupId) throw new Error('topup-intent-missing');
+      if (result?.replayed || !result?.clientSecret) {
+        // Replayed idempotency key (or nothing to confirm): skip the card
+        // form and go straight to status polling.
+        startPolling(topupId, cents);
+      } else {
+        setIntent({ topupId, clientSecret: result.clientSecret });
+        setStep('card');
+      }
+    } catch (error) {
+      toast.error(safeCreditErrorMessage(error, t('food.restaurant.creditSheetTopupError')));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const submitAmount = async (event) => {
+    if (event?.preventDefault) event.preventDefault();
+    const cents = parseCreditMajorAmount(amountText, currency) || 0;
+    if (!cents || cents < CREDIT_TOPUP_MIN_CENTS || cents > CREDIT_TOPUP_MAX_CENTS) {
+      setAmountError(tCredit('restaurantTopups.invalidAmount', {
+        min: formatFoodMoney(CREDIT_TOPUP_MIN_CENTS, currency),
+        max: formatFoodMoney(CREDIT_TOPUP_MAX_CENTS, currency),
+      }));
+      return;
+    }
+    setAmountError('');
+    setAmountCents(cents);
+    if (cents >= CREDIT_TOPUP_STEPUP_CENTS) {
+      setSubmitting(true);
+      try {
+        const issued = await issueRestaurantTopupStepupChallenge(restaurantId, { amountCents: cents });
+        if (!issued?.challenge?.id) throw new Error('challenge-missing');
+        setChallenge({ id: issued.challenge.id });
+        setCode('');
+        setStep('stepup');
+        toast.success(tCredit('restaurantTopups.challengeSent'));
+      } catch (error) {
+        toast.error(safeCreditErrorMessage(error, tCredit('restaurantTopups.challengeFailed')));
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+    await beginIntent(cents, null);
+  };
+
+  const submitStepup = async (event) => {
+    event.preventDefault();
+    if (!challenge?.id || !code.trim()) {
+      toast.error(tCredit('restaurantTopups.invalidCode'));
+      return;
+    }
+    await beginIntent(amountCents, { challengeId: challenge.id, code: code.trim() });
+  };
+
+  const confirmTopupCard = async (event) => {
+    event.preventDefault();
+    if (!sheetCardFormRef.current || !intent?.clientSecret) return;
+    setSubmitting(true);
+    setSheetCardError('');
+    try {
+      const { error, paymentIntent } = await sheetCardFormRef.current.confirmCardPayment(intent.clientSecret);
+      if (error) {
+        setSheetCardError(error.message || tCredit('restaurantTopups.cardFailed'));
+        return;
+      }
+      if (paymentIntent && ['succeeded', 'processing', 'requires_capture'].includes(paymentIntent.status)) {
+        startPolling(intent.topupId, amountCents);
+      } else {
+        setSheetCardError(tCredit('restaurantTopups.cardFailed'));
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const close = () => {
+    stopPolling();
+    onClose();
+  };
+
+  return (
+    <>
+      <div className="rp-sheet-backdrop" onClick={close} />
+      <div className="rp-sheet" role="dialog" aria-modal="true" aria-label={t('food.restaurant.creditSheetTitle')}>
+        <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid #f1f5f9', position: 'relative', flexShrink: 0 }}>
+          <div style={{ position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)', width: 36, height: 4, borderRadius: 2, background: '#e2e8f0' }} />
+          <button onClick={close} aria-label={t('food.common.close')} style={{ position: 'absolute', top: 14, right: 14, width: 36, height: 36, borderRadius: '50%', background: '#f1f5f9', color: '#64748b', border: 'none', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>×</button>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', marginBottom: 4, paddingRight: 44 }}>{t('food.restaurant.creditSheetTitle')}</h2>
+          <p style={{ fontSize: 13, color: '#64748b' }}>{restaurantName}</p>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12, padding: '12px 16px', marginBottom: 16 }}>
+            <span style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>{t('food.restaurant.creditSheetBalance')}</span>
+            <span style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>{formatFoodMoney(availableCents, wallet?.currencyCode || currency)}</span>
+          </div>
+          {terminal ? (
+            <div>
+              <p role={terminal.tone === 'error' ? 'alert' : 'status'} style={{ fontSize: 14, color: terminal.tone === 'error' ? '#b91c1c' : '#475569', lineHeight: 1.6, marginBottom: 12 }}>{terminal.message}</p>
+              <button type="button" onClick={close} style={{ width: '100%', height: 48, background: '#f1f5f9', color: '#0f172a', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>{t('food.common.close')}</button>
+            </div>
+          ) : step === 'main' ? (
+            <>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 10 }}>{t('food.restaurant.creditSheetTopup')}</p>
+              {eligible === false && (
+                <p role="note" style={{ fontSize: 13, color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '10px 12px', marginBottom: 12, lineHeight: 1.5 }}>
+                  {t('food.restaurant.creditSheetNotEligible')}
+                </p>
+              )}
+              {!stripePromise && (
+                <p role="alert" style={{ fontSize: 13, color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '10px 12px', marginBottom: 12, lineHeight: 1.5 }}>
+                  {t('food.restaurant.creditSheetStripeUnavailable')}
+                </p>
+              )}
+              <form onSubmit={submitAmount}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                  {CREDIT_TOPUP_QUICK_AMOUNTS.map((quick) => (
+                    <button
+                      key={quick}
+                      type="button"
+                      onClick={() => { setAmountText(String(quick)); setAmountError(''); }}
+                      style={{ height: 40, padding: '0 16px', borderRadius: 9999, border: `1.5px solid ${amountText === String(quick) ? '#ff8c00' : '#e2e8f0'}`, background: amountText === String(quick) ? 'rgba(255,140,0,0.12)' : '#fff', color: amountText === String(quick) ? '#ff8c00' : '#475569', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                    >
+                      {formatFoodMoney(quick * 100, currency)}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  value={amountText}
+                  onChange={(e) => { setAmountText(e.target.value); setAmountError(''); }}
+                  placeholder="0.00"
+                  inputMode="decimal"
+                  aria-label={t('food.restaurant.creditSheetTopup')}
+                  style={{ width: '100%', height: 48, border: '1.5px solid #e2e8f0', borderRadius: 10, padding: '0 14px', fontSize: 16, color: '#0f172a', outline: 'none', background: '#f8fafc', marginBottom: 8 }}
+                />
+                {amountError && <p role="alert" style={{ fontSize: 13, color: '#b91c1c', marginBottom: 8 }}>{amountError}</p>}
+                <p style={{ fontSize: 12, color: '#94a3b8', marginBottom: 12 }}>
+                  {t('food.restaurant.creditSheetTopupHint', {
+                    min: formatFoodMoney(CREDIT_TOPUP_MIN_CENTS, currency),
+                    max: formatFoodMoney(CREDIT_TOPUP_MAX_CENTS, currency),
+                  })}
+                </p>
+                <button
+                  type="submit"
+                  disabled={submitting || eligible === false || !stripePromise}
+                  style={{ width: '100%', height: 50, background: '#ff8c00', color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: submitting ? 'wait' : 'pointer', opacity: submitting || eligible === false || !stripePromise ? 0.6 : 1 }}
+                >
+                  {submitting ? tCredit('restaurantTopups.processing') : t('food.restaurant.creditSheetTopup')}
+                </button>
+              </form>
+            </>
+          ) : step === 'stepup' ? (
+            <form onSubmit={submitStepup}>
+              <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.6, marginBottom: 12 }}>
+                <strong style={{ color: '#0f172a' }}>{tCredit('restaurantTopups.stepupTitle')}</strong><br />
+                {tCredit('restaurantTopups.stepupCopy')}
+              </p>
+              <input
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 12))}
+                placeholder={tCredit('restaurantTopups.stepupCodePlaceholder')}
+                inputMode="numeric"
+                aria-label={tCredit('restaurantTopups.stepupCode')}
+                style={{ width: '100%', height: 48, border: '1.5px solid #e2e8f0', borderRadius: 10, padding: '0 14px', fontSize: 16, color: '#0f172a', outline: 'none', background: '#f8fafc', marginBottom: 12 }}
+              />
+              <button
+                type="submit"
+                disabled={submitting}
+                style={{ width: '100%', height: 50, background: '#ff8c00', color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: submitting ? 'wait' : 'pointer', opacity: submitting ? 0.6 : 1 }}
+              >
+                {submitting ? tCredit('restaurantTopups.processing') : tCredit('restaurantTopups.verifyAndContinue')}
+              </button>
+            </form>
+          ) : step === 'card' && intent?.clientSecret ? (
+            <form onSubmit={confirmTopupCard}>
+              <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.6, marginBottom: 12 }}>
+                {tCredit('restaurantTopups.cardCopy', { amount: formatFoodMoney(amountCents, currency) })}
+              </p>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>{tCredit('restaurantTopups.cardDetails')}</p>
+              <Elements stripe={stripePromise}>
+                <CheckoutCardForm ref={sheetCardFormRef} />
+              </Elements>
+              {sheetCardError && <p role="alert" style={{ fontSize: 13, fontWeight: 600, color: '#b91c1c', marginTop: 10 }}>{sheetCardError}</p>}
+              <button
+                type="submit"
+                disabled={submitting}
+                style={{ width: '100%', height: 50, background: '#ff8c00', color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: submitting ? 'wait' : 'pointer', opacity: submitting ? 0.6 : 1, marginTop: 12 }}
+              >
+                {submitting ? tCredit('restaurantTopups.processing') : tCredit('restaurantTopups.pay', { amount: formatFoodMoney(amountCents, currency) })}
+              </button>
+            </form>
+          ) : (
+            <div>
+              <p role="status" style={{ fontSize: 14, color: '#475569', marginBottom: 12 }}>⏳ {tCredit('restaurantTopups.confirming')}</p>
+              <button type="button" onClick={close} style={{ width: '100%', height: 48, background: '#f1f5f9', color: '#0f172a', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>{t('food.common.close')}</button>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
   );
 }
 

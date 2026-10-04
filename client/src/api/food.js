@@ -87,6 +87,16 @@ export const listFoodPromotions = (restaurantId) =>
 export const quoteFoodOrder = (restaurantId, payload) =>
   api.post(`/food/restaurants/${restaurantId}/orders/quote`, payload).then((r) => r.data?.quote || null);
 
+// In-checkout card payment: creates a Stripe PaymentIntent on the
+// restaurant's connected account. The client confirms it with Elements, then
+// places the order with paymentMode 'card' and the payment intent id.
+export const createFoodCardPaymentIntent = (payload, idempotencyKey) =>
+  api.post(
+    '/food/card-payment/intent',
+    payload,
+    idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined
+  ).then((r) => r.data);
+
 export const createFoodPromotion = (restaurantId, payload) =>
   api.post(`/food/restaurants/${restaurantId}/promotions`, payload).then((r) => r.data?.promotion);
 
