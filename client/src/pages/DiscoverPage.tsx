@@ -6,13 +6,14 @@
  * search experience on the web.
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import {
   Search, MapPin, User, Briefcase, Wrench, Building2,
   Star, ShieldCheck, Sparkles, AlertCircle, Loader2,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { SuggestDropdown } from '../components/SuggestDropdown';
 import api from '../api/axios';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -217,11 +218,33 @@ export default function DiscoverPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    setQuery(inputValue);
-    setSearchParams(inputValue ? { q: inputValue } : {}, { replace: true });
-    search(inputValue);
+    submitValue(inputValue);
   };
+
+  const submitValue = (val: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    setInputValue(val);
+    setQuery(val);
+    setSearchParams(val ? { q: val } : {}, { replace: true });
+    search(val);
+  };
+
+  // Typeahead items: titles from the latest server results, deduped.
+  const discoverSuggestItems = useMemo(() => {
+    const seen = new Set<string>();
+    const items: { id: string; title: string; meta?: string }[] = [];
+    for (const r of results) {
+      const key = r.title.toLowerCase();
+      if (!r.title || seen.has(key)) continue;
+      seen.add(key);
+      items.push({
+        id: `${r.type}:${r.id}`,
+        title: r.title,
+        meta: t(`discoverPage.types.${r.type}`, { defaultValue: r.type }),
+      });
+    }
+    return items;
+  }, [results, t]);
 
   const filtered = filter === 'all' ? results : results.filter((r) => r.type === filter);
 
@@ -242,16 +265,15 @@ export default function DiscoverPage() {
 
         {/* Search form */}
         <form onSubmit={handleSubmit} className="relative mb-6">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500 pointer-events-none" />
-          <input
-            type="search"
+          <SuggestDropdown
+            id="discover-search"
+            items={discoverSuggestItems}
             value={inputValue}
-            onChange={(e) => handleInput(e.target.value)}
+            onQueryChange={handleInput}
+            onSelect={(item) => submitValue(item.title)}
+            recentsKey="oxsteed_discover_recent_searches"
             placeholder={t('discoverPage.searchPlaceholder')}
-            className="w-full pl-12 pr-4 py-4 rounded-2xl bg-zinc-900 border border-white/[0.08]
-                       text-white placeholder-zinc-500 text-sm focus:outline-none
-                       focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/30 transition"
-            autoFocus
+            ariaLabel={t('discoverPage.searchPlaceholder')}
           />
           {loading && (
             <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-orange-400 animate-spin" />

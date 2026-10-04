@@ -28,6 +28,7 @@ import ProductDetailModal from '../components/ProductDetailModal';
 import { marketplaceApi, cartApi } from '../api/marketplaceApi';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
+import { SuggestDropdown } from '../components/SuggestDropdown';
 import '../styles/ProductMarketplacePage.css';
 
 // Product categories with icons
@@ -217,15 +218,16 @@ const DirectoryHero = ({ searchValue, onSearch }) => {
 
           {/* Hero search */}
           <div className="mt-6">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder={t('marketplace.searchPlaceholder')}
-                value={searchValue}
-                onChange={(e) => onSearch(e.target.value)}
-                className="w-full px-5 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all"
-              />
-            </div>
+            <SuggestDropdown
+              id="marketplace-search"
+              items={PRODUCT_CATEGORIES.map((cat) => ({ id: `cat:${cat.id}`, title: cat.label }))}
+              value={searchValue}
+              onQueryChange={onSearch}
+              onSelect={(item) => onSearch(item.title)}
+              recentsKey="oxsteed_marketplace_recent_searches"
+              placeholder={t('marketplace.searchPlaceholder')}
+              ariaLabel={t('marketplace.searchPlaceholder')}
+            />
           </div>
 
           {/* Popular categories */}

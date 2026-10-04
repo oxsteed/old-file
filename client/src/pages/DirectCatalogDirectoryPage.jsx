@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock3, Search, Truck } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock3, Truck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import { directCatalogIcon } from '../components/DirectCatalogIcons';
 import { getDirectCatalog } from '../api/direct';
 import { directCatalogHref, DIRECT_CATALOG_VIEWS } from '../utils/directCatalogNavigation';
+import { SuggestDropdown } from '../components/SuggestDropdown';
 import '../styles/DirectCatalog.css';
 
 const PAGE_SIZE = 24;
@@ -230,7 +231,7 @@ export default function DirectCatalogDirectoryPage({ view = 'services' }) {
               </div>
               <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-400">{t('directCatalog.listed', { count: listedCount, defaultValue: '{{count}} listed' })}</span>
             </div>
-            <label className="relative mt-4 block"><Search size={17} className="absolute start-3 top-3.5 text-slate-500" /><input value={search} onChange={(event) => updateParams(setSearchParams, { q: event.target.value, offset: null })} aria-label={t('directCatalog.searchCategories', { defaultValue: 'Search categories...' })} placeholder={t('directCatalog.searchCategories', { defaultValue: 'Search categories...' })} className="w-full rounded-xl border border-white/10 bg-slate-950/80 py-3 ps-10 pe-3 text-sm text-white outline-none focus:border-orange-500" /></label>
+            <div className="mt-4"><SuggestDropdown id="direct-categories-search" items={skillCategories.map((c) => ({ id: `cat:${c.id}`, title: c.name }))} value={search} onQueryChange={(q) => updateParams(setSearchParams, { q, offset: null })} placeholder={t('directCatalog.searchCategories', { defaultValue: 'Search categories...' })} ariaLabel={t('directCatalog.searchCategories', { defaultValue: 'Search categories...' })} /></div>
 
             <ScrollableResults className="mt-5">
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-live="polite">
@@ -275,7 +276,7 @@ export default function DirectCatalogDirectoryPage({ view = 'services' }) {
               </div>
               {pagination && <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-400">{t('directCatalog.listed', { count: pagination.total, defaultValue: '{{count}} listed' })}</span>}
             </div>
-            <label className="relative mt-4 block"><Search size={17} className="absolute start-3 top-3.5 text-slate-500" /><input value={search} onChange={(event) => updateParams(setSearchParams, { q: event.target.value, offset: null })} aria-label={view === 'tools' ? t('directCatalog.searchToolsAria', { defaultValue: 'Search tools' }) : t('directCatalog.searchServicesAria', { defaultValue: 'Search services' })} placeholder={view === 'tools' ? t('directCatalog.searchTools', { defaultValue: 'Search tools...' }) : t('directCatalog.searchServices', { category: selectedCategory?.name || t('directCatalog.directServices', { defaultValue: 'Direct' }), defaultValue: 'Search {{category}} services...' })} className="w-full rounded-xl border border-white/10 bg-slate-950/80 py-3 ps-10 pe-3 text-sm text-white outline-none focus:border-orange-500" /></label>
+            <div className="mt-4"><SuggestDropdown id="direct-items-search" items={items.map((s) => ({ id: `item:${s.id}`, title: s.name }))} value={search} onQueryChange={(q) => updateParams(setSearchParams, { q, offset: null })} placeholder={view === 'tools' ? t('directCatalog.searchTools', { defaultValue: 'Search tools...' }) : t('directCatalog.searchServices', { category: selectedCategory?.name || t('directCatalog.directServices', { defaultValue: 'Direct' }), defaultValue: 'Search {{category}} services...' })} ariaLabel={view === 'tools' ? t('directCatalog.searchToolsAria', { defaultValue: 'Search tools' }) : t('directCatalog.searchServicesAria', { defaultValue: 'Search services' })} /></div>
 
             <ScrollableResults className="mt-5">
             <div className="space-y-3" aria-live="polite">
