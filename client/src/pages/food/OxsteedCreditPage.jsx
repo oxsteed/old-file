@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowDownLeft,
-  ArrowLeft,
   ArrowUpRight,
   Building2,
   AlertCircle,
@@ -132,7 +131,6 @@ function amountPlaceholder(currency, metadata) {
 
 export default function OxsteedCreditPage() {
   const { t } = useTranslation('credit');
-  const { t: guideT } = useTranslation();
   const [account, setAccount] = useState(null);
   const [limitSummary, setLimitSummary] = useState(null);
   const [accounts, setAccounts] = useState([]);
@@ -696,7 +694,6 @@ export default function OxsteedCreditPage() {
       <Navbar />
       <main className="ox-credit-page">
         <div className="ox-credit-shell">
-          <Link to="/restaurants" className="ox-credit-back"><ArrowLeft size={16} /> {t('backToRestaurants')}</Link>
           <header className="ox-credit-hero">
             <div>
               <p className="ox-credit-eyebrow">{t('partnerEyebrow')}</p>
@@ -711,11 +708,6 @@ export default function OxsteedCreditPage() {
               </button>
             </div>
           </header>
-          <nav className="credit-guide-links" aria-label={guideT('experienceGuides.relatedAria', { defaultValue: 'Related OxSteed experiences' })}>
-            <Link to="/how-it-works/credit">{guideT('experienceGuides.areas.credit.title', { defaultValue: 'OxSteed Credit' })}</Link>
-            <Link to="/how-it-works/restaurant-credit">{guideT('experienceGuides.areas.restaurantCredit.title', { defaultValue: 'Restaurant Credit' })}</Link>
-            <Link to="/how-it-works/food">{guideT('experienceGuides.areas.food.title', { defaultValue: 'Local Food Directory' })}</Link>
-          </nav>
 
           <section className="ox-credit-disclaimer" role="note">
             <ShieldCheck size={19} />
