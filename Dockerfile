@@ -47,8 +47,11 @@ ENV SOURCE_COMMIT=${SOURCE_COMMIT}
 LABEL org.opencontainers.image.revision="${SOURCE_COMMIT}" \
       org.opencontainers.image.version="${SENTRY_RELEASE}"
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init curl
+# FFmpeg/ffprobe are required by the quarantine-gated video processing worker.
+# Install them in the final runtime stage, not only the CI runner/build stage.
+RUN apk add --no-cache dumb-init curl ffmpeg \
+    && /usr/bin/ffmpeg -version >/dev/null \
+    && /usr/bin/ffprobe -version >/dev/null
 
 WORKDIR /app
 
