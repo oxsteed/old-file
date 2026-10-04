@@ -15,6 +15,7 @@ const {
   applyStripeRefund,
   applyStripeChargeRefund,
 } = require('../services/restaurantPosPaymentLedgerService');
+const { releaseInventoryForOrder } = require('../services/restaurantInventoryOrderService');
 const socketService = require('../services/socketService');
 const localDeliveryPayments = require('../services/localDeliveryPaymentService');
 const topupService = require('../services/oxsteedCreditTopupService');
@@ -833,9 +834,19 @@ exports.stripeWebhook = async (req, res, next) => {
         }
         // Capture completed - money is on its way to the helper or order is complete.
         const pi = event.data.object;
-        const foodOrderId = extractFoodOrderId(pi.metadata);
         const jobId = pi.metadata?.job_id;
         const orderId = pi.metadata?.orderId;
+        let foodOrderId = extractFoodOrderId(pi.metadata);
+        if (!foodOrderId && !jobId && !orderId && pi?.id) {
+          // Card-payment intents are stamped with food_order_id when the order
+          // is created, but the succeeded event can arrive first (or the stamp
+          // can fail). Fall back to the intent id recorded on the order.
+          const { rows: orderRows } = await db.query(
+            `SELECT id FROM food_orders WHERE stripe_payment_intent_id = $1 LIMIT 1`,
+            [pi.id]
+          );
+          foodOrderId = orderRows[0]?.id || null;
+        }
 
         if (foodOrderId) {
           await withTransaction(db, async (client) => {
@@ -899,16 +910,40 @@ exports.stripeWebhook = async (req, res, next) => {
         }
         // Authorization or capture failed.
         const pi = event.data.object;
-        const foodOrderId = extractFoodOrderId(pi.metadata);
         const jobId = pi.metadata?.job_id;
         const failureMsg = pi.last_payment_error?.message || 'Payment failed';
+        let foodOrderId = extractFoodOrderId(pi.metadata);
+        if (!foodOrderId && !jobId && pi?.id) {
+          // Same fallback as payment_intent.succeeded: reconcile via the
+          // intent id recorded on the order when metadata lacks the order id.
+          const { rows: orderRows } = await db.query(
+            `SELECT id FROM food_orders WHERE stripe_payment_intent_id = $1 LIMIT 1`,
+            [pi.id]
+          );
+          foodOrderId = orderRows[0]?.id || null;
+        }
         if (foodOrderId) {
           await withTransaction(db, async (client) => {
-            await applyFoodOrderPaymentState(client, {
+            const updated = await applyFoodOrderPaymentState(client, {
               orderId: foodOrderId,
               paymentStatus: 'failed',
               stripePaymentIntentId: pi.id,
             });
+            // Release the inventory reservation so a failed card payment does
+            // not hold stock. Best-effort: never fail the webhook on it.
+            if (updated) {
+              try {
+                await releaseInventoryForOrder(client, {
+                  restaurantId: updated.restaurant_id,
+                  orderId: updated.id,
+                });
+              } catch (releaseErr) {
+                logger.warn('[Stripe] failed to release inventory after failed food payment', {
+                  orderId: updated.id,
+                  error: releaseErr.message,
+                });
+              }
+            }
           });
         } else if (jobId) {
           await db.query(

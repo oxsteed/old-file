@@ -642,7 +642,7 @@ describe('food controller', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_orders/.test(sql))).toBe(true);
   });
 
-  test('rejects discount codes on pay-at-counter orders during restaurant-credit launch', async () => {
+  test('applies discount codes to pay-at-counter orders (promotions are payment-method agnostic)', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (pre-lock)
       .mockResolvedValueOnce({
@@ -657,11 +657,34 @@ describe('food controller', () => {
       .mockResolvedValueOnce({ rows: [] }) // H12 replay lookup (post-lock recheck)
       .mockResolvedValueOnce({
         rows: [{ id: '11', name: 'Classic Burger', price_cents: 899, currency_code: 'USD', is_available: true }],
-      });
+      })
+      .mockResolvedValueOnce({
+        rows: [{ id: 7, code: 'FOOD10', title: 'Food 10', discount_cents: 100, min_subtotal_cents: 0 }],
+      }) // promotion lookup
+      .mockResolvedValueOnce({ rows: [{ next_queue: 5 }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 100,
+          restaurant_id: 3,
+          queue_number: 5,
+          subtotal_cents: 899,
+          discount_cents: 100,
+          total_cents: 799,
+          status: 'received',
+          payment_status: 'unpaid',
+          business_id: 42,
+          currency_code: 'USD',
+          metadata: { paymentMode: 'pay_at_counter' },
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [{ id: 200 }] })
+      .mockResolvedValueOnce({ rows: [] }) // inventory item lookup: none tracked
+      .mockResolvedValueOnce({ rows: [] }) // inventory mapping lookup: none
+      .mockResolvedValueOnce({ rows: [] }); // printer jobs: none
 
     const res = await request(buildApp())
       .post('/api/food/restaurants/3/orders')
-      .set('Idempotency-Key', 'test-key-discount-reject')
+      .set('Idempotency-Key', 'test-key-discount-accepted')
       .send({
         fulfillmentType: 'pickup',
         paymentMode: 'pay_at_counter',
@@ -669,10 +692,12 @@ describe('food controller', () => {
         items: [{ menuItemId: 11, quantity: 1 }],
       });
 
-    expect(res.status).toBe(409);
-    expect(res.body.code).toBe('discount_requires_wallet_credit');
-    expect(mockQuery.mock.calls.some(([sql]) => /MAX\(queue_number\)/.test(sql))).toBe(false);
-    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_orders/.test(sql))).toBe(false);
+    expect(res.status).toBe(201);
+    const insertCall = mockQuery.mock.calls.find(([sql]) => /INSERT INTO food_orders/.test(sql));
+    expect(insertCall).toBeDefined();
+    expect(insertCall[1][16]).toBe(100); // discount_cents
+    expect(insertCall[1][17]).toBe(799); // total_cents
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_restaurant_promotions/.test(sql))).toBe(true);
   });
 
   test('replays an existing order when client_order_id matches', async () => {
@@ -752,7 +777,7 @@ describe('food controller', () => {
         customer_id: '00000000-0000-4000-8000-000000000123',
         metadata: {
           clientOrderId: 'offline-abc',
-          idempotency: { scope: 'food_order', version: 1, requestFingerprint: fingerprint },
+          idempotency: { scope: 'food_order', version: 2, requestFingerprint: fingerprint },
         },
       }],
     });

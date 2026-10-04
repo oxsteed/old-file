@@ -60,6 +60,11 @@ const PRICE_LEVEL_ALIASES = {
 const IN_STORE_SOURCES = new Set(['kiosk', 'counter', 'tablet']);
 const FOOD_LOYALTY_MIN_REDEEM_POINTS = 100;
 const FOOD_LOYALTY_CENTS_PER_POINT = 1;
+// Card-payment intent sanity bounds (cents). The intent amount is client-
+// supplied, so it is clamped here and re-verified against the server-priced
+// order total at order creation.
+const FOOD_CARD_INTENT_MIN_CENTS = 50;
+const FOOD_CARD_INTENT_MAX_CENTS = 1000000;
 
 function isUuid(value) {
   return typeof value === 'string'
@@ -75,6 +80,7 @@ const FOOD_PAYMENT_MODE_ALIASES = {
   oxsteedCredit: 'oxsteed_credit',
   credit: 'oxsteed_credit',
   pay_now: 'pay_now',
+  card: 'card',
   direct: 'direct_payment',
   direct_payment: 'direct_payment',
   off_platform: 'direct_payment',
@@ -84,6 +90,7 @@ const FOOD_PAYMENT_LEGACY_MODE = {
   restaurant_credit: 'wallet_credit',
   oxsteed_credit: 'oxsteed_credit',
   pay_now: 'pay_now',
+  card: 'card',
   direct_payment: 'direct_payment',
 };
 // Allowed transitions: target status -> statuses it may come from.
@@ -301,7 +308,7 @@ function buildFoodOrderIdempotencyFingerprint({ restaurantId, paymentMode, reque
       || request.metadata?.paymentProof
   );
   const fingerprintInput = {
-    version: 1,
+    version: 2,
     restaurantId: Number(restaurantId),
     paymentMode,
     fulfillmentType,
@@ -316,16 +323,28 @@ function buildFoodOrderIdempotencyFingerprint({ restaurantId, paymentMode, reque
     guestEmail: normalizeString(request.guestEmail || request.guest_email, 255),
     tableLabel: normalizeString(request.tableLabel || request.table_label, 80),
     notes: normalizeString(request.notes, 1000),
+    kitchenNotes: normalizeString(request.kitchenNotes || request.kitchen_notes, 1000),
+    pickupContactName: normalizeString(request.pickupContactName || request.pickup_contact_name, 120),
+    pickupContactPhone: normalizeString(request.pickupContactPhone || request.pickup_contact_phone, 40),
+    scheduledFor: normalizeString(request.scheduledFor || request.scheduled_for, 64),
+    stripePaymentIntentId: normalizeString(
+      request.stripePaymentIntentId || request.stripe_payment_intent_id,
+      255
+    ),
     externalPayment,
   };
   return crypto.createHash('sha256').update(JSON.stringify(fingerprintInput)).digest('hex');
 }
 
 function assertFoodOrderIdempotencyMatch(order, fingerprint, clientOrderId) {
-  const recordedFingerprint = order?.metadata?.idempotency?.requestFingerprint
+  const idempotency = order?.metadata?.idempotency;
+  const recordedFingerprint = idempotency?.requestFingerprint
     || order?.metadata?.idempotencyRequestFingerprint;
-  // Orders created before fingerprints were introduced remain replayable.
-  if (!recordedFingerprint || recordedFingerprint === fingerprint) return;
+  // Orders created before fingerprints were introduced remain replayable, as
+  // do v1 fingerprints which predate the checkout fields (kitchen notes,
+  // pickup contact, scheduled time, card intent) added to the fingerprint.
+  if (!recordedFingerprint || Number(idempotency?.version) < 2) return;
+  if (recordedFingerprint === fingerprint) return;
   throw new AppError(
     'This idempotency key was already used for a different order request',
     409,
@@ -360,7 +379,7 @@ function normalizeFoodPaymentMode(value) {
   const canonical = FOOD_PAYMENT_MODE_ALIASES[requested];
   if (!canonical) {
     throw new AppError('Validation failed', 400, 'validation_failed', {
-      paymentMode: 'Must be pay_now, restaurant_credit, oxsteed_credit, pay_at_restaurant, or direct_payment',
+      paymentMode: 'Must be pay_now, card, restaurant_credit, oxsteed_credit, pay_at_restaurant, or direct_payment',
     });
   }
   return {
@@ -1115,6 +1134,11 @@ function publicRestaurantPayload(restaurant) {
     dietary_tags: restaurant.dietary_tags,
     avg_rating: restaurant.avg_rating,
     review_count: restaurant.review_count,
+    stripe_charges_enabled: normalizeBoolean(
+      restaurant.stripe_charges_enabled
+        ?? restaurant.business_stripe_charges_enabled,
+      false
+    ),
     settings,
   };
 }
@@ -1916,7 +1940,8 @@ exports.getRestaurant = async (req, res, next) => {
     if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
 
     const { rows: restaurants } = await pool.query(
-      `SELECT fr.*
+      `SELECT fr.*,
+              b.stripe_charges_enabled AS business_stripe_charges_enabled
          FROM food_restaurants fr
          JOIN businesses b ON b.id = fr.business_id
         WHERE fr.id = $1
@@ -2321,9 +2346,6 @@ exports.quoteOrder = async (req, res, next) => {
     const discountCode = normalizeString(req.body.discountCode || req.body.discount_code, 40);
     let discount = null;
     if (discountCode) {
-      if (paymentContract.canonical !== 'restaurant_credit') {
-        throw new AppError('Discount codes are currently limited to restaurant-credit food orders', 409, 'discount_requires_wallet_credit');
-      }
       const promoResult = await resolveFoodPromotionDiscount(pool, restaurantId, discountCode, subtotalCents);
       discountCents = promoResult.discountCents;
       discount = promoResult.metadata;
@@ -2551,7 +2573,7 @@ exports.createOrder = async (req, res, next) => {
         }
       }
       const stripeStatus = getRestaurantStripeStatus(restaurant);
-      if (paymentContract.canonical === 'pay_now' && !stripeStatus.readyForCheckout) {
+      if (['pay_now', 'card'].includes(paymentContract.canonical) && !stripeStatus.readyForCheckout) {
         throw new AppError(
           'This restaurant has not connected Stripe yet.',
           409,
@@ -2668,6 +2690,47 @@ exports.createOrder = async (req, res, next) => {
       const { slot: deliverySlot, offsetMinutes: deliverySlotOffsetMinutes } = normalizeDeliverySlot(
         req.body.deliverySlot ?? req.body.delivery_slot
       );
+      // Checkout fields: order-level kitchen notes, a scheduled-fulfillment
+      // time for "later" slots, and the optional pickup contact. Persisted to
+      // dedicated food_orders columns (migration 676) and mirrored into
+      // metadata for the client/POS payloads.
+      const kitchenNotes = normalizeString(req.body.kitchenNotes || req.body.kitchen_notes, 1000);
+      let scheduledFor = null;
+      const rawScheduledFor = req.body.scheduledFor ?? req.body.scheduled_for;
+      if (rawScheduledFor !== undefined && rawScheduledFor !== null && rawScheduledFor !== '') {
+        const parsed = new Date(rawScheduledFor);
+        if (Number.isNaN(parsed.getTime())) {
+          throw new AppError('Validation failed', 400, 'validation_failed', {
+            scheduledFor: 'Invalid scheduled fulfillment time',
+          });
+        }
+        const msFromNow = parsed.getTime() - Date.now();
+        if (msFromNow <= 0) {
+          throw new AppError('Validation failed', 400, 'validation_failed', {
+            scheduledFor: 'Scheduled time must be in the future',
+          });
+        }
+        if (msFromNow > 48 * 60 * 60 * 1000) {
+          throw new AppError('Validation failed', 400, 'validation_failed', {
+            scheduledFor: 'Scheduled time must be within 48 hours',
+          });
+        }
+        scheduledFor = parsed.toISOString();
+      }
+      const pickupContactName = normalizeString(
+        req.body.pickupContactName || req.body.pickup_contact_name,
+        120
+      );
+      const pickupContactPhone = normalizeString(
+        req.body.pickupContactPhone || req.body.pickup_contact_phone,
+        40
+      );
+      const pickupContact = (pickupContactName || pickupContactPhone)
+        ? {
+          ...(pickupContactName ? { name: pickupContactName } : {}),
+          ...(pickupContactPhone ? { phone: pickupContactPhone } : {}),
+        }
+        : null;
       const minimumOrderCents = Math.max(0, Number(restaurant.minimum_order_cents || 0) || 0);
       if (minimumOrderCents > 0 && subtotal < minimumOrderCents) {
         throw new AppError(
@@ -2778,9 +2841,6 @@ exports.createOrder = async (req, res, next) => {
       let promotionId = null;
       let discountSourceMetadata = null;
       if (discountCode) {
-        if (paymentMode !== 'wallet_credit') {
-          throw new AppError('Discount codes are currently limited to restaurant-credit food orders', 409, 'discount_requires_wallet_credit');
-        }
         const promoResult = await resolveFoodPromotionDiscount(client, restaurantId, discountCode, subtotal);
         if (promoResult.discountCents > 0) {
           discount = promoResult.discountCents;
@@ -2825,7 +2885,56 @@ exports.createOrder = async (req, res, next) => {
       const shouldDebitOxsteedCreditImmediately = paymentContract.canonical === 'oxsteed_credit' && Boolean(req.user?.id);
       const initialPaymentStatus = ['restaurant_credit', 'oxsteed_credit'].includes(paymentContract.canonical)
         ? ((shouldDebitWalletImmediately || shouldDebitOxsteedCreditImmediately) ? 'paid' : 'requires_payment')
-        : (paymentContract.canonical === 'pay_now' ? 'requires_payment' : 'unpaid');
+        : (paymentContract.canonical === 'pay_now' ? 'requires_payment' : (paymentContract.canonical === 'card' ? 'paid' : 'unpaid'));
+
+      // Card payments (Stripe Elements): the client confirms a PaymentIntent
+      // created by POST /api/food/card-payment/intent and submits its id
+      // here. Never trust the client's word that payment succeeded: re-fetch
+      // the intent from Stripe and fail closed on any mismatch. Anything
+      // other than a succeeded intent for exactly this order total fails with
+      // 402 and no order is created.
+      let cardPaymentIntentId = null;
+      if (paymentContract.canonical === 'card') {
+        if (!hasRestaurantStripeCheckout()) {
+          throw new AppError('Stripe payments are not configured', 503, 'stripe_not_configured');
+        }
+        cardPaymentIntentId = normalizeString(
+          req.body.stripePaymentIntentId || req.body.stripe_payment_intent_id,
+          255
+        );
+        if (!cardPaymentIntentId) {
+          throw new AppError('Validation failed', 400, 'validation_failed', {
+            stripePaymentIntentId: 'A confirmed card payment is required',
+          });
+        }
+        let paymentIntent;
+        try {
+          // Destination charges live on the platform account.
+          paymentIntent = await stripe.paymentIntents.retrieve(cardPaymentIntentId);
+        } catch (err) {
+          throw new AppError('The card payment could not be verified', 402, 'card_payment_unverifiable');
+        }
+        const destinationAccountId = normalizeString(paymentIntent.transfer_data?.destination, 255);
+        if (destinationAccountId !== stripeStatus.accountId) {
+          throw new AppError('The card payment does not belong to this restaurant', 402, 'card_payment_account_mismatch');
+        }
+        if (Number(paymentIntent.amount) !== total) {
+          throw new AppError('The card payment amount does not match the order total', 402, 'card_payment_amount_mismatch');
+        }
+        if (String(paymentIntent.currency || '').toUpperCase() !== normalizeCurrency(restaurant.currency_code)) {
+          throw new AppError('The card payment currency does not match the restaurant currency', 402, 'card_payment_currency_mismatch');
+        }
+        if (paymentIntent.status !== 'succeeded') {
+          throw new AppError('The card payment has not succeeded', 402, 'card_payment_not_succeeded');
+        }
+        const { rows: intentUsedRows } = await client.query(
+          `SELECT id FROM food_orders WHERE stripe_payment_intent_id = $1 LIMIT 1`,
+          [cardPaymentIntentId]
+        );
+        if (intentUsedRows[0]) {
+          throw new AppError('This card payment has already been used for an order', 402, 'card_payment_already_used');
+        }
+      }
 
       const { rows: queueRows } = await client.query(
         `SELECT COALESCE(MAX(queue_number), 0) + 1 AS next_queue
@@ -2864,7 +2973,7 @@ exports.createOrder = async (req, res, next) => {
           ...(clientOrderId ? {
             idempotency: {
               scope: 'food_order',
-              version: 1,
+              version: 2,
               requestFingerprint: idempotencyFingerprint,
             },
           } : {}),
@@ -2872,6 +2981,10 @@ exports.createOrder = async (req, res, next) => {
           ...(loyaltyRedemption ? { loyaltyRedemption } : {}),
           ...(deliveryAddress ? { deliveryAddress, deliveryFeeCents } : {}),
           ...(deliverySlot ? { deliverySlot } : {}),
+          ...(kitchenNotes ? { kitchenNotes } : {}),
+          ...(scheduledFor ? { scheduledFor } : {}),
+          ...(pickupContact ? { pickupContact } : {}),
+          ...(cardPaymentIntentId ? { cardPaymentIntentId } : {}),
           pricing: { taxRateBps, serviceFeeBps, taxCents: tax, serviceFeeCents },
           ...(paymentContract.canonical === 'direct_payment' || externalPaymentSubmission ? {
             externalPayment: {
@@ -2915,7 +3028,7 @@ exports.createOrder = async (req, res, next) => {
           ...(clientOrderId ? {
             idempotency: {
               scope: 'food_order',
-              version: 1,
+              version: 2,
               requestFingerprint: idempotencyFingerprint,
             },
           } : {}),
@@ -2923,6 +3036,10 @@ exports.createOrder = async (req, res, next) => {
           ...(loyaltyRedemption ? { loyaltyRedemption } : {}),
           ...(deliveryAddress ? { deliveryAddress, deliveryFeeCents } : {}),
           ...(deliverySlot ? { deliverySlot } : {}),
+          ...(kitchenNotes ? { kitchenNotes } : {}),
+          ...(scheduledFor ? { scheduledFor } : {}),
+          ...(pickupContact ? { pickupContact } : {}),
+          ...(cardPaymentIntentId ? { cardPaymentIntentId } : {}),
           pricing: { taxRateBps, serviceFeeBps, taxCents: tax, serviceFeeCents },
           ...(paymentContract.canonical === 'direct_payment' || externalPaymentSubmission ? {
             externalPayment: {
@@ -2959,8 +3076,10 @@ exports.createOrder = async (req, res, next) => {
             order_source, fulfillment_type, payment_status, subtotal_cents, tax_cents,
             service_fee_cents, delivery_fee_cents, tax_rate_bps, service_fee_bps,
             tip_cents, discount_cents, total_cents, currency_code, table_label,
-            queue_number, promised_at, notes, metadata)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW() + ($22 || ' minutes')::interval,$23,$24)
+            queue_number, promised_at, notes, metadata,
+            kitchen_notes, pickup_contact_name, pickup_contact_phone, scheduled_for,
+            stripe_payment_intent_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW() + ($22 || ' minutes')::interval,$23,$24,$25,$26,$27,$28,$29)
          RETURNING *`,
         [
           restaurantId,
@@ -2987,8 +3106,26 @@ exports.createOrder = async (req, res, next) => {
           (restaurant.prep_time_min || 15) + deliverySlotOffsetMinutes,
           normalizeString(req.body.notes, 1000),
           metadata,
+          kitchenNotes,
+          pickupContactName,
+          pickupContactPhone,
+          scheduledFor,
+          cardPaymentIntentId,
         ]
       );
+
+      if (paymentContract.canonical === 'card' && cardPaymentIntentId) {
+        // Link the order to the intent so payment_intent.* webhooks reconcile
+        // even if this response is lost. Fail closed: a linking failure rolls
+        // back the order and the client retries with the same idempotency key.
+        try {
+          await stripe.paymentIntents.update(cardPaymentIntentId, {
+            metadata: { food_order_id: String(created.id) },
+          });
+        } catch (err) {
+          throw new AppError('The card payment could not be linked to the order', 502, 'card_payment_link_failed');
+        }
+      }
 
       const createdOrderItems = [];
       for (const normalized of normalizedItems) {
@@ -3239,6 +3376,16 @@ exports.createOrder = async (req, res, next) => {
           : null,
       });
     }
+    if (responsePaymentMode === 'card') {
+      payment = {
+        mode: 'card_payment',
+        status: order.payment_status || 'paid',
+        paymentIntentId: order.stripe_payment_intent_id || null,
+        amountCents: order.total_cents,
+        currencyCode: order.currency_code,
+        replayed: Boolean(createdOrder.replayed),
+      };
+    }
     if (!createdOrder.replayed && paymentMode === 'pay_now') {
       try {
         const paymentResult = await createFoodCheckoutSession({
@@ -3272,6 +3419,178 @@ exports.createOrder = async (req, res, next) => {
       trackingToken: createdOrder.trackingToken,
       replayed: Boolean(createdOrder.replayed),
       runnerTask: createdOrder.runnerTask || null,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.createCardPaymentIntent = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.body.restaurantId || req.body.restaurant_id);
+    if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    if (!hasRestaurantStripeCheckout()) {
+      throw new AppError('Stripe payments are not configured', 503, 'stripe_not_configured');
+    }
+    // Money-safety: never trust a client amount blindly. There is no persisted
+    // quote draft to re-price from here, so the client amount is accepted only
+    // inside hard sanity bounds; the order total is re-derived server-side at
+    // order creation and the intent is verified against it.
+    const amountCents = parsePositiveInt(req.body.amountCents ?? req.body.amount_cents, 0);
+    if (!amountCents || amountCents < FOOD_CARD_INTENT_MIN_CENTS || amountCents > FOOD_CARD_INTENT_MAX_CENTS) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        amountCents: `Amount must be between ${FOOD_CARD_INTENT_MIN_CENTS} and ${FOOD_CARD_INTENT_MAX_CENTS} cents`,
+      });
+    }
+    const currency = normalizeCurrency(
+      req.body.currency || req.body.currencyCode || req.body.currency_code
+    );
+    const idempotencyKey = normalizeString(
+      req.get('Idempotency-Key') || req.body.idempotencyKey || req.body.idempotency_key,
+      120
+    );
+    if (!idempotencyKey) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        idempotencyKey: 'An idempotency key is required',
+      });
+    }
+    const { rows: restaurants } = await pool.query(
+      `SELECT fr.id, fr.business_id, fr.currency_code,
+              b.stripe_account_id AS business_stripe_account_id,
+              b.stripe_charges_enabled AS business_stripe_charges_enabled,
+              b.stripe_payouts_enabled AS business_stripe_payouts_enabled,
+              b.stripe_account_status AS business_stripe_account_status
+         FROM food_restaurants fr
+         JOIN businesses b ON b.id = fr.business_id
+        WHERE fr.id = $1
+          AND fr.status = 'active'
+          AND fr.discovery_status = 'visible'
+          AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
+          AND b.is_active = TRUE
+          AND b.is_listed = TRUE
+          AND COALESCE(b.setup_status, 'active') = 'active'
+          AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
+          AND b.deleted_at IS NULL`,
+      [restaurantId]
+    );
+    const restaurant = restaurants[0];
+    if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    if (normalizeCurrency(restaurant.currency_code) !== currency) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        currency: 'Currency must match the restaurant currency',
+      });
+    }
+    const stripeStatus = getRestaurantStripeStatus(restaurant);
+    if (!stripeStatus.accountId || !stripeStatus.chargesEnabled) {
+      throw new AppError(
+        'This restaurant cannot accept card payments yet.',
+        400,
+        'restaurant_card_payments_unavailable',
+        {
+          stripeConnected: stripeStatus.connected,
+          stripeChargesEnabled: stripeStatus.chargesEnabled,
+          stripePayoutsEnabled: stripeStatus.payoutsEnabled,
+          stripeAccountStatus: stripeStatus.accountStatus,
+        }
+      );
+    }
+
+    // Idempotent reuse: the same (restaurant, idempotencyKey) pair resolves to
+    // the original PaymentIntent instead of authorizing a second charge. A key
+    // reused with different payment terms is a client bug: fail closed.
+    const { rows: existingIntents } = await pool.query(
+      `SELECT stripe_payment_intent_id, amount_cents, currency_code, status
+         FROM food_card_payment_intents
+        WHERE restaurant_id = $1 AND idempotency_key = $2`,
+      [restaurantId, idempotencyKey]
+    );
+    if (existingIntents[0]) {
+      const existing = existingIntents[0];
+      if (Number(existing.amount_cents) !== amountCents || normalizeCurrency(existing.currency_code) !== currency) {
+        throw new AppError('This idempotency key was already used with different payment terms', 409, 'card_payment_idempotency_conflict');
+      }
+      let reusedIntent;
+      try {
+        reusedIntent = await stripe.paymentIntents.retrieve(existing.stripe_payment_intent_id);
+      } catch (err) {
+        throw new AppError('The previous card payment could not be retrieved', 502, 'card_payment_intent_unavailable');
+      }
+      return res.json({
+        clientSecret: reusedIntent.client_secret,
+        paymentIntentId: reusedIntent.id,
+      });
+    }
+
+    const feeBps = Math.max(0, Math.min(10000, Number(process.env.FOOD_CARD_FEE_BPS ?? 0) || 0));
+    const applicationFeeAmount = Math.floor(amountCents * feeBps / 10000);
+    let paymentIntent;
+    try {
+      paymentIntent = await stripe.paymentIntents.create(
+        {
+          amount: amountCents,
+          currency: currency.toLowerCase(),
+          description: `Restaurant order · ${restaurantId}`,
+          // Destination charge: funds settle to the restaurant's Connect
+          // account; the platform keeps application_fee_amount (0 by default).
+          transfer_data: { destination: stripeStatus.accountId },
+          ...(applicationFeeAmount > 0 ? { application_fee_amount: applicationFeeAmount } : {}),
+          metadata: {
+            food_card_payment: 'true',
+            restaurant_id: String(restaurantId),
+            business_id: String(restaurant.business_id),
+            customer_id: req.user?.id ? String(req.user.id) : '',
+            idempotency_key: idempotencyKey,
+          },
+        },
+        {
+          // Deterministic key so a retried request replays the same
+          // PaymentIntent instead of authorizing twice.
+          idempotencyKey: `food-card-payment:${restaurantId}:${idempotencyKey}`,
+        }
+      );
+    } catch (err) {
+      if (err instanceof AppError) throw err;
+      throw new AppError('The card payment could not be started', 502, 'card_payment_intent_failed');
+    }
+    if (!paymentIntent?.id || !paymentIntent?.client_secret) {
+      throw new AppError('The card payment could not be started', 502, 'card_payment_intent_failed');
+    }
+    // Record the intent before returning the secret. ON CONFLICT covers the
+    // race where two requests create the same deterministic Stripe intent;
+    // the row is re-read so the response always reflects the stored record.
+    await pool.query(
+      `INSERT INTO food_card_payment_intents
+         (restaurant_id, customer_id, idempotency_key, stripe_payment_intent_id,
+          amount_cents, currency_code, status)
+       VALUES ($1, $2, $3, $4, $5, $6, 'created')
+       ON CONFLICT (restaurant_id, idempotency_key) DO NOTHING`,
+      [
+        restaurantId,
+        req.user?.id || null,
+        idempotencyKey,
+        paymentIntent.id,
+        amountCents,
+        currency,
+      ]
+    );
+    const { rows: storedIntents } = await pool.query(
+      `SELECT stripe_payment_intent_id
+         FROM food_card_payment_intents
+        WHERE restaurant_id = $1 AND idempotency_key = $2`,
+      [restaurantId, idempotencyKey]
+    );
+    const storedIntentId = storedIntents[0]?.stripe_payment_intent_id || paymentIntent.id;
+    let responseIntent = paymentIntent;
+    if (storedIntentId !== paymentIntent.id) {
+      try {
+        responseIntent = await stripe.paymentIntents.retrieve(storedIntentId);
+      } catch (err) {
+        throw new AppError('The card payment could not be retrieved', 502, 'card_payment_intent_unavailable');
+      }
+    }
+    res.status(201).json({
+      clientSecret: responseIntent.client_secret,
+      paymentIntentId: responseIntent.id,
     });
   } catch (err) {
     next(err);

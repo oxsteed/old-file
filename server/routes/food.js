@@ -104,6 +104,11 @@ router.post('/restaurants/:restaurantId/customer-wallet-holds/:holdId/release', 
 
 // Ordering. Customers can browse as guests, but must sign in before submitting
 // an order so the restaurant has an accountable customer record.
+// In-checkout card payments: creates a destination-charge Stripe
+// PaymentIntent for the restaurant's Connect account; the client confirms it
+// with Elements, then places the order with paymentMode 'card' and the
+// payment intent id.
+router.post('/card-payment/intent', authenticate, creditPurchaseLimiter, ctrl.createCardPaymentIntent);
 router.post('/restaurants/:restaurantId/orders', authenticate, creditPurchaseLimiter, ctrl.createOrder);
 
 // Merchant order operations (kitchen feed, status flow, in-store payment).
