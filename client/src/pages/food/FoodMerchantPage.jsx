@@ -4,7 +4,7 @@ import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useSt
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag, ClipboardCheck, Package, BookOpen, GraduationCap, ShieldCheck, BarChart3, HelpingHand, MonitorSmartphone } from 'lucide-react';
+import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag, ClipboardCheck, Package, BookOpen, GraduationCap, ShieldCheck, BarChart3, HelpingHand } from 'lucide-react';
 import { subscribeRestaurantDisplay } from '../../api/restaurantDisplaySocket';
 import {
   listMyFoodRestaurants,
@@ -1713,10 +1713,6 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
     key: 'reports', target: 'reports', tone: null,
     label: t('restaurants.ops.opChipReports', 'Reports'),
   });
-  chips.push({
-    key: 'screens', target: 'screens', tone: null,
-    label: t('restaurants.ops.opChipScreens', 'Screens'),
-  });
 
   // Pre-fill a Marketplace job from the restaurant's context. PostJobPage reads
   // an optional prefill from navigation state; the query param is a harmless
@@ -1786,22 +1782,6 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
             <SopsPanel t={t} restaurant={restaurant} bare onStats={report} />
           </SettingsCard>
         )}
-
-        <SettingsCard
-          icon={MonitorSmartphone}
-          title={t('food.merchant.inStoreScreens', 'In-store screens')}
-          desc={t('food.merchant.inStoreScreensHint', 'Open the kitchen display, order queue, or self-serve kiosk.')}
-          cardKey="screens"
-          registerRef={registerCard}
-          id="in-store-screens"
-          wide
-        >
-          <div className="fd-ops-screens-row">
-            <Link to={`/restaurants/kitchen/${restaurant.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openKitchen', 'Kitchen display')}</Link>
-            <Link to={`/restaurants/queue/${restaurant.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openQueue', 'Queue board')}</Link>
-            <Link to={`/restaurants/kiosk/${restaurant.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openKiosk', 'Kiosk')}</Link>
-          </div>
-        </SettingsCard>
 
         {canManageRestaurant && (
           <SettingsCard
@@ -2053,6 +2033,16 @@ function OwnerHomeTab({ t, restaurant, onGoTab, onUpdated }) {
         )}
       </section>
 
+      <section className="fd-owner-attention" id="in-store-screens">
+        <h3>{t('food.merchant.inStoreScreens', 'In-store screens')}</h3>
+        <p className="fd-card-meta">{t('food.merchant.inStoreScreensHint', 'Open the kitchen display, order queue, or self-serve kiosk.')}</p>
+        <div className="fd-settings-actions">
+          <Link to={`/restaurants/kitchen/${restaurant.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openKitchen', 'Kitchen display')}</Link>
+          <Link to={`/restaurants/queue/${restaurant.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openQueue', 'Queue board')}</Link>
+          <Link to={`/restaurants/kiosk/${restaurant.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openKiosk', 'Kiosk')}</Link>
+        </div>
+      </section>
+
       <Link className="fd-owner-view-customer" to={`/restaurants/r/${restaurant.id}`} target="_blank" rel="noreferrer">
         <span aria-hidden>↗</span><strong>{t('food.ownerHome.viewStore', 'View customer page')}</strong>
       </Link>
@@ -2141,7 +2131,7 @@ export default function FoodMerchantPage() {
   }, [availableTabs, goToTab, selected, tab]);
 
   useEffect(() => {
-    if (tab !== 'operations' || window.location.hash !== '#in-store-screens' || !selected?.id) return undefined;
+    if (tab !== 'home' || window.location.hash !== '#in-store-screens' || !selected?.id) return undefined;
     const frame = window.requestAnimationFrame(() => {
       document.getElementById('in-store-screens')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });

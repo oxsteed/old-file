@@ -1544,7 +1544,7 @@ function BusinessHubInner() {
                         <span>{t('businessHub.restaurantStoreHint', { defaultValue: 'Hours, payments, locations, devices' })}</span>
                       </Link>
                       {currentBiz.restaurant_id && (
-                        <Link className="bh-mode-action" to={`/restaurants/merchant?business=${encodeURIComponent(currentBiz.id)}&tab=store#in-store-screens`}>
+                        <Link className="bh-mode-action" to={`/restaurants/merchant?business=${encodeURIComponent(currentBiz.id)}&tab=home#in-store-screens`}>
                           <strong>{t('businessHub.restaurantDisplays', { defaultValue: 'In-store screens' })}</strong>
                           <span>{t('businessHub.restaurantDisplaysHint', { defaultValue: 'Queue board, kiosk, and kitchen' })}</span>
                         </Link>
