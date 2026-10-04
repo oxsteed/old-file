@@ -32,6 +32,7 @@ export default function EditProfileTab() {
   const [saveError, setSaveError] = useState(null);
   const [lastSavedAt, setLastSavedAt] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [deletingId, setDeletingId] = useState(null); // row-level busy state for destructive deletes
   const [section, setSection] = useState('cover');
 
   const [visibility, setVisibility] = useState({
@@ -174,8 +175,12 @@ export default function EditProfileTab() {
     } catch { toast.error(t('helperDashboard.failedAddService')); }
   };
   const deleteService = async (id) => {
+    if (deletingId) return;
+    if (!window.confirm(t('helperDashboard.confirmDelete'))) return;
+    setDeletingId(id);
     try { await api.delete(`/helper-profile/services/${id}`); setServices(p => p.filter(s => s.id !== id)); markSaved(); }
     catch { toast.error(t('helperDashboard.failedDelete')); }
+    finally { setDeletingId(null); }
   };
   const beginEditService = (s) => {
     setEditingServiceId(s.id);
@@ -227,8 +232,12 @@ export default function EditProfileTab() {
     } catch { toast.error(t('helperDashboard.failedAddFaq')); }
   };
   const deleteFaq = async (id) => {
+    if (deletingId) return;
+    if (!window.confirm(t('helperDashboard.confirmDelete'))) return;
+    setDeletingId(id);
     try { await api.delete(`/helper-profile/faqs/${id}`); setFaqs(p => p.filter(f => f.id !== id)); markSaved(); }
     catch { toast.error(t('helperDashboard.failedDelete')); }
+    finally { setDeletingId(null); }
   };
   const beginEditFaq = (f) => {
     setEditingFaqId(f.id);
@@ -267,8 +276,12 @@ export default function EditProfileTab() {
     } catch { toast.error(t('helperDashboard.failedAddPolicy')); }
   };
   const deletePolicy = async (id) => {
+    if (deletingId) return;
+    if (!window.confirm(t('helperDashboard.confirmDelete'))) return;
+    setDeletingId(id);
     try { await api.delete(`/helper-profile/policies/${id}`); setPolicies(p => p.filter(pol => pol.id !== id)); markSaved(); }
     catch { toast.error(t('helperDashboard.failedDelete')); }
+    finally { setDeletingId(null); }
   };
   const beginEditPolicy = (pol) => {
     setEditingPolicyId(pol.id);
@@ -314,8 +327,12 @@ export default function EditProfileTab() {
     finally { setUploadingImage(false); }
   };
   const deleteImage = async (id) => {
+    if (deletingId) return;
+    if (!window.confirm(t('helperDashboard.confirmDelete'))) return;
+    setDeletingId(id);
     try { await api.delete(`/helper-profile/gallery/${id}`); setGallery(p => p.filter(g => g.id !== id)); markSaved(); }
     catch { toast.error(t('helperDashboard.failedDelete')); }
+    finally { setDeletingId(null); }
   };
 
   // ── Visibility save ───────────────────────────────────────────────────────────
@@ -571,7 +588,7 @@ export default function EditProfileTab() {
                   </div>
                   <div className="flex flex-shrink-0 gap-2">
                     <Btn variant="secondary" type="button" onClick={() => beginEditService(s)}>{t('common.edit')}</Btn>
-                    <Btn variant="danger" type="button" onClick={() => deleteService(s.id)}>{t('helperDashboard.delete')}</Btn>
+                    <Btn variant="danger" type="button" onClick={() => deleteService(s.id)} disabled={deletingId === s.id}>{t('helperDashboard.delete')}</Btn>
                   </div>
                 </div>
               )}
@@ -640,7 +657,7 @@ export default function EditProfileTab() {
                     <p className="text-sm font-semibold text-white">{f.question}</p>
                     <div className="flex flex-shrink-0 gap-2">
                       <Btn variant="secondary" type="button" onClick={() => beginEditFaq(f)}>{t('common.edit')}</Btn>
-                      <Btn variant="danger" type="button" onClick={() => deleteFaq(f.id)}>{t('helperDashboard.delete')}</Btn>
+                      <Btn variant="danger" type="button" onClick={() => deleteFaq(f.id)} disabled={deletingId === f.id}>{t('helperDashboard.delete')}</Btn>
                     </div>
                   </div>
                   <p className="text-xs text-gray-500 mt-1 leading-relaxed">{f.answer}</p>
@@ -695,7 +712,7 @@ export default function EditProfileTab() {
                     <p className="text-sm font-semibold text-white">{p.title}</p>
                     <div className="flex flex-shrink-0 gap-2">
                       <Btn variant="secondary" type="button" onClick={() => beginEditPolicy(p)}>{t('common.edit')}</Btn>
-                      <Btn variant="danger" type="button" onClick={() => deletePolicy(p.id)}>{t('helperDashboard.delete')}</Btn>
+                      <Btn variant="danger" type="button" onClick={() => deletePolicy(p.id)} disabled={deletingId === p.id}>{t('helperDashboard.delete')}</Btn>
                     </div>
                   </div>
                   <p className="text-xs text-gray-500 mt-1 leading-relaxed">{p.content}</p>
@@ -737,8 +754,8 @@ export default function EditProfileTab() {
                   <span>{t('helperDashboard.imageLoadError') || 'Image failed to load'}</span>
                 </div>
               )}
-              <button onClick={() => deleteImage(g.id)}
-                className="absolute top-1.5 end-1.5 opacity-0 group-hover:opacity-100 transition w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold z-10">
+              <button onClick={() => deleteImage(g.id)} disabled={deletingId === g.id}
+                className="absolute top-1.5 end-1.5 opacity-0 group-hover:opacity-100 transition w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold z-10 disabled:opacity-40">
                 ×
               </button>
               {g.caption && (

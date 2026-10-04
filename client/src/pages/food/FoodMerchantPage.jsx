@@ -2068,6 +2068,7 @@ export default function FoodMerchantPage() {
   const requestedTab = searchParams.get('tab');
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [tab, setTab] = useState('home');
   const [setupKey, setSetupKey] = useState(0);
@@ -2088,12 +2089,13 @@ export default function FoodMerchantPage() {
     listMyFoodRestaurants()
       .then((rows) => {
         setRestaurants(rows);
+        setLoadError(false);
         const requested = requestedBusinessId
           ? rows.find((restaurant) => String(restaurant.business_id || restaurant.businessId) === String(requestedBusinessId))
           : null;
         setSelectedId((prev) => requested?.id || prev || rows[0]?.id || null);
       })
-      .catch(() => {})
+      .catch(() => { setLoadError(true); })
       .finally(() => setLoading(false));
   }, [requestedBusinessId]);
   useEffect(() => { load(); }, [load]);
@@ -2234,7 +2236,18 @@ export default function FoodMerchantPage() {
       {/* ── Page body ── */}
       <div className="fd-merchant-body">
         {!hasDashboard ? (
-          <MerchantLanding t={t} onStart={() => navigate('/business-hub?create=restaurant')} />
+          loadError ? (
+            <div className="fd-section" role="alert">
+              <div className="fd-order-feed-error" style={{ marginBottom: '1rem' }}>
+                {t('food.merchant.restaurantListError')}
+              </div>
+              <button type="button" className="fd-btn" onClick={() => load()}>
+                {t('food.common.retry', 'Retry')}
+              </button>
+            </div>
+          ) : (
+            <MerchantLanding t={t} onStart={() => navigate('/business-hub?create=restaurant')} />
+          )
         ) : (
           /* ── Dashboard ── */
           <>

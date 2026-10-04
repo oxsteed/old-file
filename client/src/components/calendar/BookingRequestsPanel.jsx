@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import api from '../../api/axios';
@@ -20,6 +20,10 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
   const [bookingRequests, setBookingRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [proposingBooking, setProposingBooking] = useState(null);
+  // Per-row acting state: while a confirm/decline POST is in flight the row's
+  // buttons are disabled (double-click cannot double-fire a money-adjacent accept).
+  const [acting, setActing] = useState(null); // { id, kind: 'confirm' | 'decline' } | null
+  const actingRef = useRef(null); // synchronous guard closing the re-render race window
 
   const loadBookingRequests = useCallback(async () => {
     setLoading(true);
@@ -58,6 +62,9 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
   }, [socket, loadBookingRequests]);
 
   const handleConfirmBooking = async (bookingId) => {
+    if (actingRef.current) return;
+    actingRef.current = bookingId;
+    setActing({ id: bookingId, kind: 'confirm' });
     try {
       await api.post(`/bookings/${bookingId}/accept`);
       toast.success(t('calendar.bookingConfirmed', { defaultValue: 'Booking confirmed!' }));
@@ -66,10 +73,16 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
     } catch (err) {
       console.error('Error confirming booking:', err);
       toast.error(t('calendar.errorConfirmingBooking', { defaultValue: 'Failed to confirm booking' }));
+    } finally {
+      actingRef.current = null;
+      setActing(null);
     }
   };
 
   const handleDeclineBooking = async (bookingId) => {
+    if (actingRef.current) return;
+    actingRef.current = bookingId;
+    setActing({ id: bookingId, kind: 'decline' });
     try {
       await api.post(`/bookings/${bookingId}/decline`);
       toast.success(t('calendar.bookingDeclined', { defaultValue: 'Booking request declined.' }));
@@ -78,6 +91,9 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
     } catch (err) {
       console.error('Error declining booking:', err);
       toast.error(t('calendar.errorDecliningBooking', { defaultValue: 'Failed to decline booking' }));
+    } finally {
+      actingRef.current = null;
+      setActing(null);
     }
   };
 
@@ -157,6 +173,7 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
           <CalendarBookingRequestCard
             key={booking.id}
             booking={booking}
+            acting={acting && acting.id === booking.id ? acting.kind : null}
             onConfirm={() => handleConfirmBooking(booking.id)}
             onDecline={() => handleDeclineBooking(booking.id)}
             onPropose={() => setProposingBooking(booking)}
@@ -199,7 +216,7 @@ function statusClass(status) {
   return 'pending';
 }
 
-function CalendarBookingRequestCard({ booking, onConfirm, onDecline, onPropose, t, locale }) {
+function CalendarBookingRequestCard({ booking, acting, onConfirm, onDecline, onPropose, t, locale }) {
   const _rawDate = booking.requestedDate || booking.requested_date;
   const requestedDate = _rawDate ? String(_rawDate).split('T')[0] : null;
   const startTime = booking.requestedStartTime || booking.requested_start_time || booking.start_time;
@@ -318,17 +335,25 @@ function CalendarBookingRequestCard({ booking, onConfirm, onDecline, onPropose, 
             type="button"
             className="btn-confirm"
             onClick={onConfirm}
+            disabled={!!acting}
             title={t('calendar.confirmBooking', { defaultValue: 'Confirm and add to calendar' })}
           >
-            ✓ {t('calendar.confirm', { defaultValue: 'Confirm' })}
+            ✓{' '}
+            {acting === 'confirm'
+              ? t('calendar.confirmingBooking', { defaultValue: 'Confirming...' })
+              : t('calendar.confirm', { defaultValue: 'Confirm' })}
           </button>
           <button
             type="button"
             className="btn-decline"
             onClick={onDecline}
+            disabled={!!acting}
             title={t('calendar.declineBooking', { defaultValue: 'Decline booking request' })}
           >
-            ✕ {t('calendar.decline', { defaultValue: 'Decline' })}
+            ✕{' '}
+            {acting === 'decline'
+              ? t('calendar.decliningBooking', { defaultValue: 'Declining...' })
+              : t('calendar.decline', { defaultValue: 'Decline' })}
           </button>
           {canPropose ? (
             <button
