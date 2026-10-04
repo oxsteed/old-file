@@ -29228,5 +29228,47 @@
     "photoRemoved": "Foto eliminada",
     "jobCancelling": "Cancelando trabajo…",
     "bookingCancelling": "Cancelando reserva…"
+  },
+  "commandPalette": {
+    "title": "Paleta de comandos",
+    "placeholder": "Escribe un comando o busca...",
+    "noResults": "Sin resultados",
+    "loading": "Cargando...",
+    "footer": "Arriba y Abajo para navegar, Enter para abrir, Esc para cerrar",
+    "groups": {
+      "recent": "Recientes",
+      "pages": "Páginas",
+      "actions": "Acciones",
+      "bookings": "Reservas recientes",
+      "conversations": "Conversaciones recientes",
+      "admin": "Administración"
+    },
+    "pages": {
+      "bookings": "Reservas",
+      "jobs": "Mis trabajos",
+      "helpers": "Ayudantes",
+      "food": "Comida",
+      "restaurants": "Restaurantes",
+      "toolRentals": "Alquiler de herramientas",
+      "direct": "Directo",
+      "credit": "Crédito OxSteed",
+      "orders": "Pedidos",
+      "invoices": "Facturas",
+      "disputes": "Disputas",
+      "support": "Soporte",
+      "businessHub": "Centro de negocios",
+      "helperDashboard": "Panel del ayudante",
+      "network": "Red",
+      "activity": "Actividad",
+      "discover": "Descubrir"
+    },
+    "actions": {
+      "newBooking": "Reservar un ayudante",
+      "newJob": "Publicar un trabajo",
+      "newQuote": "Solicitar un presupuesto",
+      "orderFood": "Pedir comida",
+      "openWallet": "Abrir billetera",
+      "getSupport": "Obtener ayuda"
+    }
   }
 }

@@ -29228,5 +29228,47 @@
     "photoRemoved": "Foto efase",
     "jobCancelling": "Ap anile djòb la…",
     "bookingCancelling": "Ap anile rezervasyon an…"
+  },
+  "commandPalette": {
+    "title": "Palèt kòmand",
+    "placeholder": "Ekri yon kòmand oswa chèche...",
+    "noResults": "Pa gen rezilta",
+    "loading": "Ap chaje...",
+    "footer": "Monte Desann pou navige, Antre pou louvri, Echap pou fèmen",
+    "groups": {
+      "recent": "Dènye",
+      "pages": "Paj",
+      "actions": "Aksyon",
+      "bookings": "Dènye rezèvasyon",
+      "conversations": "Dènye konvèsasyon",
+      "admin": "Administrasyon"
+    },
+    "pages": {
+      "bookings": "Rezèvasyon",
+      "jobs": "Travay mwen yo",
+      "helpers": "Edan",
+      "food": "Manje",
+      "restaurants": "Restoran",
+      "toolRentals": "Lwaye zouti",
+      "direct": "Dirèk",
+      "credit": "Kredi OxSteed",
+      "orders": "Kòmand",
+      "invoices": "Fakti",
+      "disputes": "Diskisyon",
+      "support": "Sipò",
+      "businessHub": "Sant biznis",
+      "helperDashboard": "Tablodbò edan",
+      "network": "Rezo",
+      "activity": "Aktivite",
+      "discover": "Dekouvri"
+    },
+    "actions": {
+      "newBooking": "Rezève yon edan",
+      "newJob": "Pibliye yon travay",
+      "newQuote": "Mande yon devis",
+      "orderFood": "Kòmande manje",
+      "openWallet": "Louvri bous",
+      "getSupport": "Jwenn èd"
+    }
   }
 }

@@ -29239,5 +29239,47 @@
     "photoRemoved": "تمت إزالة الصورة",
     "jobCancelling": "جارٍ إلغاء المهمة…",
     "bookingCancelling": "جارٍ إلغاء الحجز…"
+  },
+  "commandPalette": {
+    "title": "لوحة الأوامر",
+    "placeholder": "اكتب أمراً أو ابحث...",
+    "noResults": "لا توجد نتائج",
+    "loading": "جارٍ التحميل...",
+    "footer": "أعلى وأسفل للتنقل، إدخال للفتح، Esc للإغلاق",
+    "groups": {
+      "recent": "الأخيرة",
+      "pages": "الصفحات",
+      "actions": "الإجراءات",
+      "bookings": "الحجوزات الأخيرة",
+      "conversations": "المحادثات الأخيرة",
+      "admin": "الإدارة"
+    },
+    "pages": {
+      "bookings": "الحجوزات",
+      "jobs": "أعمالي",
+      "helpers": "المساعدون",
+      "food": "الطعام",
+      "restaurants": "المطاعم",
+      "toolRentals": "تأجير الأدوات",
+      "direct": "المباشر",
+      "credit": "رصيد OxSteed",
+      "orders": "الطلبات",
+      "invoices": "الفواتير",
+      "disputes": "النزاعات",
+      "support": "الدعم",
+      "businessHub": "مركز الأعمال",
+      "helperDashboard": "لوحة المساعد",
+      "network": "الشبكة",
+      "activity": "النشاط",
+      "discover": "اكتشف"
+    },
+    "actions": {
+      "newBooking": "احجز مساعداً",
+      "newJob": "انشر عملاً",
+      "newQuote": "اطلب عرض سعر",
+      "orderFood": "اطلب طعاماً",
+      "openWallet": "افتح المحفظة",
+      "getSupport": "احصل على الدعم"
+    }
   }
 }

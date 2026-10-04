@@ -29228,5 +29228,47 @@
     "photoRemoved": "Photo supprimée",
     "jobCancelling": "Annulation de la mission…",
     "bookingCancelling": "Annulation de la réservation…"
+  },
+  "commandPalette": {
+    "title": "Palette de commandes",
+    "placeholder": "Tapez une commande ou recherchez...",
+    "noResults": "Aucun résultat",
+    "loading": "Chargement...",
+    "footer": "Haut et Bas pour naviguer, Entrée pour ouvrir, Échap pour fermer",
+    "groups": {
+      "recent": "Récents",
+      "pages": "Pages",
+      "actions": "Actions",
+      "bookings": "Réservations récentes",
+      "conversations": "Conversations récentes",
+      "admin": "Administration"
+    },
+    "pages": {
+      "bookings": "Réservations",
+      "jobs": "Mes missions",
+      "helpers": "Aidants",
+      "food": "Nourriture",
+      "restaurants": "Restaurants",
+      "toolRentals": "Location d'outils",
+      "direct": "Direct",
+      "credit": "Crédit OxSteed",
+      "orders": "Commandes",
+      "invoices": "Factures",
+      "disputes": "Litiges",
+      "support": "Assistance",
+      "businessHub": "Espace entreprise",
+      "helperDashboard": "Tableau de bord aidant",
+      "network": "Réseau",
+      "activity": "Activité",
+      "discover": "Découvrir"
+    },
+    "actions": {
+      "newBooking": "Réserver un aidant",
+      "newJob": "Publier une mission",
+      "newQuote": "Demander un devis",
+      "orderFood": "Commander à manger",
+      "openWallet": "Ouvrir le portefeuille",
+      "getSupport": "Obtenir de l'aide"
+    }
   }
 }

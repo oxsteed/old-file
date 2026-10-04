@@ -22,7 +22,7 @@ import {
 const ADMIN_NAV_MODE_KEY = 'oxsteed:admin-nav-mode';
 const routePath = (key) => adminRoute(key).path;
 
-const REGULAR_NAV = [
+export const REGULAR_NAV = [
   { to: routePath('dashboard'),        icon: LayoutDashboard, labelKey: 'adminNav.dashboard', grant: adminRoute('dashboard').grant },
   { to: routePath('operations'),       icon: Activity,        labelKey: 'adminNav.operationsOverview', grant: adminRoute('operations').grant },
   { to: routePath('users'),            icon: Users,           labelKey: 'adminNav.users', grant: adminRoute('users').grant },
@@ -59,7 +59,7 @@ const REGULAR_NAV = [
   { to: routePath('learnAiSuggestions'), icon: Sparkles,          labelKey: 'adminNav.learnAiSuggestions'},
 ];
 
-const SUPER_NAV = [
+export const SUPER_NAV = [
   { to: routePath('superDashboard'),      icon: BarChart2,     labelKey: 'adminNav.superDashboard'  },
   { to: routePath('money'),          icon: DollarSign,    labelKey: 'adminNav.money',            grant: adminRoute('money').grant },
   { to: routePath('restaurantCredit'), icon: Wallet,      labelKey: 'adminNav.restaurantCredit' },

@@ -29225,5 +29225,47 @@
     "photoRemoved": "Photo removed",
     "jobCancelling": "Cancelling job…",
     "bookingCancelling": "Cancelling booking…"
+  },
+  "commandPalette": {
+    "title": "Command palette",
+    "placeholder": "Type a command or search...",
+    "noResults": "No results found",
+    "loading": "Loading...",
+    "footer": "Up and Down to navigate, Enter to open, Esc to close",
+    "groups": {
+      "recent": "Recent",
+      "pages": "Pages",
+      "actions": "Actions",
+      "bookings": "Recent bookings",
+      "conversations": "Recent conversations",
+      "admin": "Admin"
+    },
+    "pages": {
+      "bookings": "Bookings",
+      "jobs": "My jobs",
+      "helpers": "Helpers",
+      "food": "Food",
+      "restaurants": "Restaurants",
+      "toolRentals": "Tool rentals",
+      "direct": "Direct",
+      "credit": "OxSteed Credit",
+      "orders": "Orders",
+      "invoices": "Invoices",
+      "disputes": "Disputes",
+      "support": "Support",
+      "businessHub": "Business Hub",
+      "helperDashboard": "Helper dashboard",
+      "network": "Network",
+      "activity": "Activity",
+      "discover": "Discover"
+    },
+    "actions": {
+      "newBooking": "Book a helper",
+      "newJob": "Post a job",
+      "newQuote": "Request a quote",
+      "orderFood": "Order food",
+      "openWallet": "Open wallet",
+      "getSupport": "Get support"
+    }
   }
 }

@@ -9,6 +9,7 @@ import GrantGuard from './lib/GrantGuard';
 import AdminErrorState from './lib/AdminErrorState';
 import { adminRoute } from './adminRouteManifest';
 import TwoFactorSetup from '../pages/Settings/TwoFactorSetup';
+import CommandPalette from '../components/CommandPalette';
 
 const adminQueryClient = new QueryClient({
   defaultOptions: {
@@ -198,6 +199,7 @@ export default function AdminApp() {
   return (
     <QueryClientProvider client={adminQueryClient}>
     <BrowserRouter>
+      <CommandPalette />
       <Suspense fallback={(
         <div role="status" className="min-h-screen flex items-center justify-center text-gray-700">
           Loading admin screen…
