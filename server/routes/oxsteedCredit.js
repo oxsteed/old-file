@@ -29,6 +29,8 @@ router.post('/identity-verification', creditMutationLimiter, controller.requestM
 router.get('/eligible-partners', controller.getEligiblePartners);
 router.get('/statement.csv', creditExportLimiter, controller.downloadMyStatement);
 router.get('/statement', controller.getMyStatement);
+router.get('/statement-periods', controller.getMyStatementPeriods);
+router.get('/account-details', controller.getMyAccountDetails);
 router.get('/transactions', controller.getMyTransactions);
 router.get('/transactions/:transactionId', controller.getMyTransaction);
 router.post('/holds', creditMutationLimiter, controller.createMyHold);

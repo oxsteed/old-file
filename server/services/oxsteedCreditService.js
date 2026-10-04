@@ -2934,6 +2934,9 @@ function formatCustomerCreditTransaction(row) {
     orderId,
     postedAt: row.posted_at || row.created_at || null,
     createdAt: row.created_at || null,
+    balanceAfterCents: row.balance_after_cents === null || row.balance_after_cents === undefined
+      ? null
+      : Number(row.balance_after_cents),
   };
 }
 
@@ -2960,9 +2963,12 @@ async function getCustomerCreditStatement(customerId, { from, to, limit = 100, o
        SELECT t.*, ca.id AS customer_account_id,
               CASE WHEN t.debit_account_id = ca.id THEN 'debit' ELSE 'credit' END AS direction,
               CASE WHEN t.debit_account_id = ca.id THEN credit_account.partner_id ELSE debit_account.partner_id END AS related_partner_id,
-              fr.display_name AS restaurant_name
+              fr.display_name AS restaurant_name,
+              customer_entry.balance_after_cents AS balance_after_cents
          FROM oxsteed_credit_transactions t
          JOIN customer_account ca ON (ca.id = t.debit_account_id OR ca.id = t.credit_account_id)
+         LEFT JOIN oxsteed_credit_transaction_entries customer_entry
+           ON customer_entry.transaction_id = t.id AND customer_entry.account_id = ca.id
          LEFT JOIN oxsteed_credit_accounts debit_account ON debit_account.id = t.debit_account_id
          LEFT JOIN oxsteed_credit_accounts credit_account ON credit_account.id = t.credit_account_id
          LEFT JOIN oxsteed_credit_partners partner
@@ -3038,6 +3044,130 @@ async function getCustomerCreditStatement(customerId, { from, to, limit = 100, o
   };
 }
 
+// Monthly statement archive: the calendar months that contain posted
+// activity for the customer's wallet, newest first. Each month can be
+// rendered or downloaded through the regular statement endpoints by
+// passing the returned from/to dates. No charter-bank rails involved:
+// this is a read over the customer's own ledger.
+async function getCustomerCreditStatementPeriods(customerId, { currencyCode = CREDIT_CURRENCY } = {}) {
+  const currency = assertSupportedCreditCurrency(currencyCode);
+  const { rows } = await pool.query(
+    `WITH customer_account AS (
+       SELECT a.id
+         FROM oxsteed_credit_accounts a
+        WHERE a.account_type = 'customer_wallet' AND a.customer_id = $1 AND a.currency_code = $2
+        LIMIT 1
+     )
+     SELECT date_trunc('month', COALESCE(t.posted_at, t.created_at))::date AS month,
+            COUNT(*)::integer AS transaction_count
+       FROM oxsteed_credit_transactions t
+       JOIN customer_account ca ON (ca.id = t.debit_account_id OR ca.id = t.credit_account_id)
+      WHERE t.status = 'posted' AND t.currency_code = $2
+      GROUP BY 1
+      ORDER BY 1 DESC
+      LIMIT 36`,
+    [customerId, currency]
+  );
+  return rows.map((row) => {
+    const monthDate = new Date(row.month);
+    const year = monthDate.getUTCFullYear();
+    const month = monthDate.getUTCMonth() + 1;
+    const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const pad = (value) => String(value).padStart(2, '0');
+    return {
+      year,
+      month,
+      from: `${year}-${pad(month)}-01`,
+      to: `${year}-${pad(month)}-${pad(lastDay)}`,
+      transactionCount: Number(row.transaction_count || 0),
+    };
+  });
+}
+
+// Account-details depth for the Wallet overview: last closed statement,
+// pending and last deposits (top-ups), and pending withdrawals. All reads
+// over the customer's own records.
+async function getCustomerCreditAccountDetails(customerId, { currencyCode = CREDIT_CURRENCY } = {}) {
+  const currency = assertSupportedCreditCurrency(currencyCode);
+  const { rows: accountRows } = await pool.query(
+    `SELECT id
+       FROM oxsteed_credit_accounts
+      WHERE account_type = 'customer_wallet' AND customer_id = $1 AND currency_code = $2
+      LIMIT 1`,
+    [customerId, currency]
+  );
+  const account = accountRows[0] || null;
+
+  const now = new Date();
+  const lastMonthLastDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0));
+  const lastMonthYear = lastMonthLastDay.getUTCFullYear();
+  const lastMonth = lastMonthLastDay.getUTCMonth() + 1;
+  const pad = (value) => String(value).padStart(2, '0');
+  const lastStatementFrom = `${lastMonthYear}-${pad(lastMonth)}-01`;
+  const lastStatementTo = `${lastMonthYear}-${pad(lastMonth)}-${pad(lastMonthLastDay.getUTCDate())}`;
+
+  const [balanceRow, pendingDepositsRow, lastDepositRow, pendingWithdrawalsRow] = await Promise.all([
+    account ? pool.query(
+      `SELECT e.balance_after_cents
+         FROM oxsteed_credit_transaction_entries e
+         JOIN oxsteed_credit_transactions t ON t.id = e.transaction_id
+        WHERE e.account_id = $1 AND t.status = 'posted' AND t.currency_code = $2
+          AND COALESCE(t.posted_at, t.created_at) < ($3::date + INTERVAL '1 day')
+        ORDER BY COALESCE(t.posted_at, t.created_at) DESC, e.id DESC
+        LIMIT 1`,
+      [account.id, currency, lastStatementTo]
+    ).then(({ rows: entryRows }) => entryRows[0] || null) : null,
+    pool.query(
+      `SELECT COALESCE(SUM(amount_cents), 0)::bigint AS total_cents,
+              COUNT(*)::integer AS deposit_count
+         FROM oxsteed_credit_topups
+        WHERE customer_id = $1 AND currency_code = $2 AND status = 'pending'`,
+      [customerId, currency]
+    ).then(({ rows: topupRows }) => topupRows[0] || {}),
+    pool.query(
+      `SELECT amount_cents, created_at
+         FROM oxsteed_credit_topups
+        WHERE customer_id = $1 AND currency_code = $2 AND status = 'completed'
+        ORDER BY created_at DESC
+        LIMIT 1`,
+      [customerId, currency]
+    ).then(({ rows: topupRows }) => topupRows[0] || null),
+    pool.query(
+      `SELECT COALESCE(SUM(amount_cents), 0)::bigint AS total_cents,
+              COUNT(*)::integer AS withdrawal_count
+         FROM oxsteed_credit_withdrawals
+        WHERE customer_id = $1 AND currency_code = $2
+          AND status IN ('requested', 'approved', 'processing')`,
+      [customerId, currency]
+    ).then(({ rows: withdrawalRows }) => withdrawalRows[0] || {}),
+  ]);
+
+  return {
+    currencyCode: currency,
+    lastStatement: balanceRow
+      ? {
+          from: lastStatementFrom,
+          to: lastStatementTo,
+          balanceCents: Number(balanceRow.balance_after_cents || 0),
+        }
+      : null,
+    pendingDeposits: {
+      totalCents: Number(pendingDepositsRow.total_cents || 0),
+      count: Number(pendingDepositsRow.deposit_count || 0),
+    },
+    lastDeposit: lastDepositRow
+      ? {
+          amountCents: Number(lastDepositRow.amount_cents || 0),
+          createdAt: lastDepositRow.created_at,
+        }
+      : null,
+    pendingWithdrawals: {
+      totalCents: Number(pendingWithdrawalsRow.total_cents || 0),
+      count: Number(pendingWithdrawalsRow.withdrawal_count || 0),
+    },
+  };
+}
+
 function csvCell(value) {
   const normalized = value === null || value === undefined ? '' : String(value);
   const safe = /^[=+\-@]/.test(normalized) ? `'${normalized}` : normalized;
@@ -3045,7 +3175,7 @@ function csvCell(value) {
 }
 
 function customerCreditStatementCsv(statement) {
-  const headers = ['Date', 'Transaction ID', 'Type', 'Description', 'Restaurant', 'Order ID', 'Direction', 'Amount (cents)', 'Currency', 'Reference'];
+  const headers = ['Date', 'Transaction ID', 'Type', 'Description', 'Restaurant', 'Order ID', 'Direction', 'Amount (cents)', 'Currency', 'Balance after (cents)', 'Reference'];
   const lines = [headers.map(csvCell).join(',')];
   for (const transaction of statement.transactions) {
     lines.push([
@@ -3058,6 +3188,7 @@ function customerCreditStatementCsv(statement) {
       transaction.direction,
       transaction.amountCents,
       transaction.currencyCode,
+      transaction.balanceAfterCents === null || transaction.balanceAfterCents === undefined ? '' : transaction.balanceAfterCents,
       transaction.referenceType && transaction.referenceId ? `${transaction.referenceType}:${transaction.referenceId}` : '',
     ].map(csvCell).join(','));
   }
@@ -3464,6 +3595,8 @@ module.exports = {
   assertCustomerSpendCapacity,
   listCustomerCreditTransactions,
   getCustomerCreditStatement,
+  getCustomerCreditStatementPeriods,
+  getCustomerCreditAccountDetails,
   customerCreditStatementCsv,
   getCustomerCreditTransaction,
   loadCustomerCredit,

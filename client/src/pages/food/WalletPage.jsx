@@ -8,12 +8,14 @@ import PageMeta from '../../components/PageMeta';
 import WalletRestaurantWallets from './WalletRestaurantWallets';
 import {
   getOxsteedCreditAccount,
+  getOxsteedCreditAccountDetails,
   getOxsteedCreditStatus,
   listOxsteedCreditAccounts,
 } from '../../api/oxsteedCredit';
 import toast from 'react-hot-toast';
 import './OxsteedCreditPage.css';
 import { formatCreditMinorUnits } from '../../lib/creditCurrency';
+import { formatCreditDateTime } from '../../lib/creditDateTime';
 import { safeCreditErrorMessage } from '../../lib/creditErrors';
 
 const money = formatCreditMinorUnits;
@@ -34,6 +36,8 @@ function creditStatusLabel(value, t) {
 export default function WalletPage() {
   const { t } = useTranslation('credit');
   const [account, setAccount] = useState(null);
+  const [accountDetails, setAccountDetails] = useState(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [railStatus, setRailStatus] = useState(null);
   const [restaurantWalletCount, setRestaurantWalletCount] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -57,6 +61,9 @@ export default function WalletPage() {
       if (!isCurrentRequest()) return;
       setAccount(accountResult);
       setRailStatus(railResult);
+      getOxsteedCreditAccountDetails({ currencyCode: preferredCurrency }).then((details) => {
+        if (isCurrentRequest()) setAccountDetails(details);
+      }).catch(() => { /* details are non-critical */ });
     } catch (error) {
       if (isCurrentRequest()) {
         const message = safeCreditErrorMessage(error, t('errorLoad'));
@@ -134,6 +141,25 @@ export default function WalletPage() {
               </div>
             </div>
           </section>
+
+          {accountDetails && (
+            <section className="ox-credit-panel ox-credit-details-panel" aria-labelledby="wallet-details-heading">
+              <button type="button" className="ox-credit-details-toggle" onClick={() => setDetailsOpen((open) => !open)} aria-expanded={detailsOpen}>
+                <span id="wallet-details-heading">{t('accountDetails')}</span>
+                <ArrowUpRight size={16} className={detailsOpen ? 'ox-credit-details-open' : ''} />
+              </button>
+              {detailsOpen && (
+                <dl className="ox-credit-details-list">
+                  <div><dt>{t('lastStatementBalance')}</dt><dd>{accountDetails.lastStatement ? money(accountDetails.lastStatement.balanceCents, currency) : '—'}</dd></div>
+                  <div><dt>{t('lastStatementDate')}</dt><dd>{accountDetails.lastStatement ? accountDetails.lastStatement.to : '—'}</dd></div>
+                  <div><dt>{t('pendingDeposits')}</dt><dd>+{money(accountDetails.pendingDeposits.totalCents, currency)}{accountDetails.pendingDeposits.count > 0 ? ` (${accountDetails.pendingDeposits.count})` : ''}</dd></div>
+                  <div><dt>{t('pendingWithdrawalsLabel')}</dt><dd>-{money(accountDetails.pendingWithdrawals.totalCents, currency)}{accountDetails.pendingWithdrawals.count > 0 ? ` (${accountDetails.pendingWithdrawals.count})` : ''}</dd></div>
+                  <div><dt>{t('lastDepositAmount')}</dt><dd>{accountDetails.lastDeposit ? money(accountDetails.lastDeposit.amountCents, currency) : '—'}</dd></div>
+                  <div><dt>{t('lastDepositDate')}</dt><dd>{accountDetails.lastDeposit ? formatCreditDateTime(accountDetails.lastDeposit.createdAt, '—') : '—'}</dd></div>
+                </dl>
+              )}
+            </section>
+          )}
 
           <WalletRestaurantWallets onWalletsLoaded={setRestaurantWalletCount} />
 

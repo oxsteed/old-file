@@ -326,3 +326,30 @@
 @media (max-width: 800px) {
   .ox-credit-balance-strip { grid-template-columns: 1fr; }
 }
+
+/* ── Wallet account details ─────────────────────────────────────── */
+.ox-credit-details-panel { padding: 0; overflow: hidden; }
+.ox-credit-details-toggle { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background: none; border: 0; cursor: pointer; font-size: 15px; font-weight: 700; color: var(--app-text, #0f172a); }
+.ox-credit-details-toggle svg { transition: transform .18s ease; color: var(--muted-text, #64748b); }
+.ox-credit-details-toggle .ox-credit-details-open { transform: rotate(90deg); }
+.ox-credit-details-list { margin: 0; padding: 4px 20px 18px; display: grid; gap: 0; }
+.ox-credit-details-list > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid rgba(16,37,63,.07); }
+.ox-credit-details-list dt { font-size: 13.5px; color: var(--muted-text, #64748b); }
+.ox-credit-details-list dd { margin: 0; font-size: 14px; font-weight: 600; color: var(--app-text, #0f172a); }
+
+/* ── Monthly statement archive ──────────────────────────────────── */
+.ox-credit-statement-year { margin-top: 14px; }
+.ox-credit-statement-year-label { display: block; font-size: 13px; font-weight: 700; color: var(--muted-text, #64748b); margin-bottom: 6px; }
+.ox-credit-statement-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid rgba(16,37,63,.07); font-size: 14px; }
+.ox-credit-statement-actions { display: flex; align-items: center; gap: 10px; }
+.ox-credit-statement-actions .ox-credit-detail-link { background: none; border: 0; cursor: pointer; padding: 0; font-size: 13.5px; }
+
+/* ── Running balance on transactions ────────────────────────────── */
+.ox-credit-transaction-amount { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.ox-credit-running-balance { font-size: 11.5px; color: var(--muted-text, #64748b); font-weight: 500; white-space: nowrap; }
+
+/* ── Error-resolution policy ────────────────────────────────────── */
+.ox-credit-policy-list { margin: 12px 0 4px; padding: 0; list-style: none; display: grid; gap: 12px; }
+.ox-credit-policy-list li { display: grid; gap: 3px; }
+.ox-credit-policy-list strong { font-size: 14px; color: var(--app-text, #0f172a); }
+.ox-credit-policy-list span { font-size: 13.5px; color: var(--muted-text, #64748b); line-height: 1.5; }

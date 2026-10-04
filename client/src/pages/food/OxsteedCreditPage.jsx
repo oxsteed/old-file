@@ -26,6 +26,7 @@ import {
   listOxsteedCreditHolds,
   getOxsteedCreditEligiblePartnerPage,
   getOxsteedCreditStatement,
+  getOxsteedCreditStatementPeriods,
   downloadOxsteedCreditStatement,
   getOxsteedCreditTransactionPage,
   openOxsteedCreditDispute,
@@ -143,6 +144,9 @@ export default function OxsteedCreditPage() {
   const [railStatus, setRailStatus] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [statement, setStatement] = useState(null);
+  const [statementPeriods, setStatementPeriods] = useState([]);
+  const [statementPeriodsOpen, setStatementPeriodsOpen] = useState(false);
+  const [viewingPeriod, setViewingPeriod] = useState(null);
   const [disputes, setDisputes] = useState([]);
   const [disputePagination, setDisputePagination] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -206,7 +210,7 @@ export default function OxsteedCreditPage() {
       // selected wallet first so a new currency cannot race the directory and
       // render a false empty state.
       const accountResult = await getOxsteedCreditAccount({ currencyCode: preferredCurrency });
-      const [partnerResult, holdResult, railResult, statementResult, disputeResult, limitResult, eligibilityResult] = await Promise.all([
+      const [partnerResult, holdResult, railResult, statementResult, disputeResult, limitResult, eligibilityResult, periodsResult] = await Promise.all([
         getOxsteedCreditEligiblePartnerPage({ currencyCode: preferredCurrency, limit: 50, offset: 0 }),
         listOxsteedCreditHolds({ currencyCode: preferredCurrency, status: 'all', limit: 50, offset: 0 }).catch(() => null),
         getOxsteedCreditStatus().catch(() => null),
@@ -216,8 +220,10 @@ export default function OxsteedCreditPage() {
         // The from_restaurant conversion allowlist; a fetch failure leaves
         // the dropdown unfiltered and the server gate still enforces.
         getRestaurantConversionEligibility().catch(() => null),
+        getOxsteedCreditStatementPeriods({ currencyCode: preferredCurrency }).catch(() => []),
       ]);
       if (!isCurrentRequest()) return;
+      setStatementPeriods(Array.isArray(periodsResult) ? periodsResult : []);
       const knownAccounts = Array.isArray(existingAccounts) ? existingAccounts : [];
       const hasSelectedAccount = knownAccounts.some((item) => item.currencyCode === accountResult?.currencyCode);
       setAccounts(hasSelectedAccount || !accountResult ? knownAccounts : [...knownAccounts, accountResult]);
@@ -354,6 +360,47 @@ export default function OxsteedCreditPage() {
     } finally {
       setDownloading(false);
     }
+  };
+
+  const downloadPeriodStatement = async (period) => {
+    setDownloading(true);
+    try {
+      const response = await downloadOxsteedCreditStatement({ from: period.from, to: period.to, currencyCode: selectedCurrency });
+      const blob = response.data instanceof Blob ? response.data : new Blob([response.data], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `oxsteed-credit-statement-${period.from}-${period.to}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      toast.success(t('statementDownloaded'));
+    } catch (error) {
+      toast.error(safeCreditErrorMessage(error, t('errorLoad')));
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const viewPeriodStatement = async (period) => {
+    setRefreshing(true);
+    try {
+      const periodStatement = await getOxsteedCreditStatement({ from: period.from, to: period.to, limit: 50, offset: 0, currencyCode: selectedCurrency });
+      setStatement(periodStatement);
+      setTransactions(Array.isArray(periodStatement?.transactions) ? periodStatement.transactions : []);
+      setViewingPeriod(period);
+      document.getElementById('credit-activity')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (error) {
+      toast.error(safeCreditErrorMessage(error, t('errorLoad')));
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const clearPeriodView = () => {
+    setViewingPeriod(null);
+    load({ quiet: true, currencyCode: selectedCurrency });
   };
 
   const loadOlderActivity = async () => {
@@ -758,11 +805,45 @@ export default function OxsteedCreditPage() {
                   <Link to="/restaurants" className="ox-credit-secondary-link">{t('browseParticipating')} <ArrowUpRight size={15} /></Link>
                 </section>
 
+                {!!statementPeriods.length && (
+                  <section className="ox-credit-panel ox-credit-statements-panel" aria-labelledby="credit-statements-heading">
+                    <div className="ox-credit-panel-heading">
+                      <div><p className="ox-credit-eyebrow">{t('statementArchiveEyebrow')}</p><h2 id="credit-statements-heading">{t('monthlyStatements')}</h2></div>
+                      <button type="button" className="ox-credit-load-more" onClick={() => setStatementPeriodsOpen((open) => !open)} aria-expanded={statementPeriodsOpen}>
+                        {statementPeriodsOpen ? t('hideStatements') : t('showStatements')}
+                      </button>
+                    </div>
+                    <p className="ox-credit-panel-copy">{t('monthlyStatementsCopy')}</p>
+                    {statementPeriodsOpen && (() => {
+                      const byYear = {};
+                      statementPeriods.forEach((period) => {
+                        (byYear[period.year] = byYear[period.year] || []).push(period);
+                      });
+                      return Object.keys(byYear).sort((a, b) => Number(b) - Number(a)).map((year) => (
+                        <div key={year} className="ox-credit-statement-year">
+                          <strong className="ox-credit-statement-year-label">{year}</strong>
+                          {byYear[year].map((period) => (
+                            <div key={`${period.year}-${period.month}`} className="ox-credit-statement-row">
+                              <span>{new Date(period.year, period.month - 1, 1).toLocaleDateString(t.lng || undefined, { month: 'long' })} · {t('transactionsInMonth', { count: period.transactionCount })}</span>
+                              <div className="ox-credit-statement-actions">
+                                <button type="button" className="ox-credit-detail-link" onClick={() => viewPeriodStatement(period)}>{t('viewStatement')}</button>
+                                <button type="button" className="ox-credit-download" onClick={() => downloadPeriodStatement(period)} disabled={downloading}><Download size={14} /> {t('downloadCsv')}</button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ));
+                    })()}
+                  </section>
+                )}
+
                 <section className="ox-credit-panel" id="credit-activity">
                   <div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('statement')}</p><h2>{t('recentActivity')}</h2></div><div className="ox-credit-panel-actions"><span className="ox-credit-count">{transactions.length}</span><button type="button" className="ox-credit-download" onClick={downloadStatement} disabled={downloading || !statement}><Download size={14} /> {downloading ? t('preparing') : t('downloadCsv')}</button></div></div>
-                  <p className="ox-credit-panel-copy">{t('statementCopy', { from: statement?.period?.from || 'recent', to: statement?.period?.to || 'today' })}</p>
+                  {viewingPeriod
+                    ? <p className="ox-credit-panel-copy" role="status">{t('viewingPeriodStatement', { month: new Date(viewingPeriod.year, viewingPeriod.month - 1, 1).toLocaleDateString(t.lng || undefined, { month: 'long', year: 'numeric' }) })} <button type="button" className="ox-credit-detail-link" onClick={clearPeriodView}>{t('backToRecentActivity')}</button></p>
+                    : <p className="ox-credit-panel-copy">{t('statementCopy', { from: statement?.period?.from || 'recent', to: statement?.period?.to || 'today' })}</p>}
                   {statement && <div className="ox-credit-statement-summary"><div><span>{t('credits')}</span><strong className="positive">+{money(statement.totalCreditsCents, currency)}</strong></div><div><span>{t('debits')}</span><strong className="negative">-{money(statement.totalDebitsCents, currency)}</strong></div><div><span>{t('closingBalance')}</span><strong>{money(statement.closingBalanceCents, currency)}</strong></div></div>}
-                  {!transactions.length ? <div className="ox-credit-empty"><Clock3 size={27} /><strong>{t('noActivity')}</strong><span>{t('activityCopy')}</span></div> : <div className="ox-credit-transaction-list">{transactions.map((transaction) => { const positive = transaction.direction === 'credit' || ['load', 'refund'].includes(transaction.transactionType); const orderPath = transactionOrderPath(transaction); return <article key={transaction.id}><span className={`ox-credit-transaction-icon ${positive ? 'positive' : 'negative'}`}>{positive ? <ArrowDownLeft size={17} /> : <ArrowUpRight size={17} />}</span><div><strong>{transactionLabel(transaction, t)}</strong><span>{transaction.description || t('ledgerEntry')}</span><small>{dateTime(transaction.postedAt || transaction.createdAt, t)}{transaction.orderId ? ` · ${t('orderNumber', { id: transaction.orderId })}` : ''}</small><div className="ox-credit-transaction-actions"><Link to={transactionDetailPath(transaction, currency)} className="ox-credit-detail-link"><Receipt size={12} /> {t('viewDetails')}</Link>{orderPath && <Link to={orderPath} className="ox-credit-order-link">{t('viewOrder')}</Link>}<button type="button" className="ox-credit-dispute-button" onClick={() => { if (String(disputeTransactionId) !== String(transaction.id)) disputeRequestKeyRef.current = ''; setDisputeTransactionId(transaction.id); }}>{t('reportProblem')}</button></div></div><b className={positive ? 'positive' : 'negative'}>{positive ? '+' : '-'}{money(transaction.amountCents, transaction.currencyCode || currency)}</b></article>; })}</div>}
+                  {!transactions.length ? <div className="ox-credit-empty"><Clock3 size={27} /><strong>{t('noActivity')}</strong><span>{t('activityCopy')}</span></div> : <div className="ox-credit-transaction-list">{transactions.map((transaction) => { const positive = transaction.direction === 'credit' || ['load', 'refund'].includes(transaction.transactionType); const orderPath = transactionOrderPath(transaction); return <article key={transaction.id}><span className={`ox-credit-transaction-icon ${positive ? 'positive' : 'negative'}`}>{positive ? <ArrowDownLeft size={17} /> : <ArrowUpRight size={17} />}</span><div><strong>{transactionLabel(transaction, t)}</strong><span>{transaction.description || t('ledgerEntry')}</span><small>{dateTime(transaction.postedAt || transaction.createdAt, t)}{transaction.orderId ? ` · ${t('orderNumber', { id: transaction.orderId })}` : ''}</small><div className="ox-credit-transaction-actions"><Link to={transactionDetailPath(transaction, currency)} className="ox-credit-detail-link"><Receipt size={12} /> {t('viewDetails')}</Link>{orderPath && <Link to={orderPath} className="ox-credit-order-link">{t('viewOrder')}</Link>}<button type="button" className="ox-credit-dispute-button" onClick={() => { if (String(disputeTransactionId) !== String(transaction.id)) disputeRequestKeyRef.current = ''; setDisputeTransactionId(transaction.id); }}>{t('reportProblem')}</button></div></div><div className="ox-credit-transaction-amount"><b className={positive ? 'positive' : 'negative'}>{positive ? '+' : '-'}{money(transaction.amountCents, transaction.currencyCode || currency)}</b>{transaction.balanceAfterCents !== null && transaction.balanceAfterCents !== undefined && <small className="ox-credit-running-balance">{t('balanceAfterLabel', { balance: money(transaction.balanceAfterCents, transaction.currencyCode || currency) })}</small>}</div></article>; })}</div>}
                   {statement?.hasMore && <button type="button" className="ox-credit-load-more" onClick={loadOlderActivity} disabled={loadingMore || refreshing}><RefreshCw size={14} className={loadingMore ? 'ox-credit-spin' : ''} /> {loadingMore ? t('loadingOlderActivity') : t('loadOlderActivity')}</button>}
                   {disputeTransactionId && <form className="ox-credit-dispute-form" onSubmit={submitDispute}><strong>{t('reportTransactionProblem')}</strong><span>{t('disputeCopy')}</span><select value={disputeReason} onChange={(event) => setDisputeReason(event.target.value)}><option value="incorrect_amount">{t('disputeIncorrectAmount')}</option><option value="unauthorized">{t('disputeUnauthorized')}</option><option value="duplicate">{t('disputeDuplicate')}</option><option value="restaurant_issue">{t('disputeRestaurantIssue')}</option><option value="other">{t('other')}</option></select><textarea required maxLength={4000} value={disputeDescription} onChange={(event) => setDisputeDescription(event.target.value)} placeholder={t('tellWhatHappened')} rows={3} /><div><button type="button" onClick={() => { setDisputeTransactionId(null); disputeRequestKeyRef.current = ''; }}>{t('cancel')}</button><button type="submit" disabled={disputeSubmitting}>{disputeSubmitting ? t('submitting') : t('submitDispute')}</button></div></form>}
                   <div className="ox-credit-security-note"><AlertCircle size={15} /> {t('needHelpTransaction')} <Link to="/support/escalation">{t('contactSupport')}</Link></div>
@@ -771,6 +852,17 @@ export default function OxsteedCreditPage() {
               {disputes.length > 0 && <section className="ox-credit-panel ox-credit-dispute-history"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('reviewHistory')}</p><h2>{t('yourCreditDisputes')}</h2></div><span className="ox-credit-count">{disputes.length}{disputePagination?.hasMore ? '+' : ''}</span></div><p className="ox-credit-panel-copy">{t('disputesCopy')}</p><div className="ox-credit-dispute-list">{disputes.map((dispute) => <article key={dispute.id}><div><div className="ox-credit-dispute-title"><strong>{dispute.restaurantName || t('ledgerEntry')}</strong><span className={`ox-credit-dispute-status ${dispute.status}`}>{creditStatusLabel(dispute.status, t)}</span></div><span>{disputeReasonLabel(dispute.reasonCode, t)}</span>{dispute.amountCents !== null && dispute.amountCents !== undefined && <small>{money(dispute.amountCents, dispute.currencyCode || currency)} · {transactionLabel({ transactionType: dispute.transactionType }, t)}</small>}<small>{t('opened', { date: dateTime(dispute.openedAt, t), id: dispute.transactionId })}</small><p>{dispute.description}</p>{dispute.resolution && <em>{t('resolution', { value: dispute.resolution })}</em>}</div></article>)}</div>{disputePagination?.hasMore && <button type="button" className="ox-credit-load-more" onClick={loadMoreDisputes} disabled={loadingMoreDisputes}><RefreshCw size={14} className={loadingMoreDisputes ? 'ox-credit-spin' : ''} /> {loadingMoreDisputes ? t('loadingOlderActivity') : t('loadOlderActivity')}</button>}</section>}
             </>
           )}
+          <section className="ox-credit-panel ox-credit-error-policy" aria-labelledby="credit-error-policy-heading">
+            <div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('errorPolicyEyebrow')}</p><h2 id="credit-error-policy-heading">{t('errorPolicyTitle')}</h2></div><ShieldCheck size={20} /></div>
+            <p className="ox-credit-panel-copy">{t('errorPolicyIntro')}</p>
+            <ul className="ox-credit-policy-list">
+              <li><strong>{t('errorPolicyReportTitle')}</strong><span>{t('errorPolicyReportBody')}</span></li>
+              <li><strong>{t('errorPolicyInfoTitle')}</strong><span>{t('errorPolicyInfoBody')}</span></li>
+              <li><strong>{t('errorPolicyReviewTitle')}</strong><span>{t('errorPolicyReviewBody')}</span></li>
+              <li><strong>{t('errorPolicyOutcomeTitle')}</strong><span>{t('errorPolicyOutcomeBody')}</span></li>
+            </ul>
+            <p className="ox-credit-panel-copy"><Link to="/support/escalation" className="ox-credit-detail-link">{t('contactSupport')} <ArrowUpRight size={14} /></Link></p>
+          </section>
           <p className="ox-credit-footnote" role="note"><ShieldCheck size={14} /> <strong>{t('disclaimerTitle')}</strong> {t('disclaimerBody')}</p>
         </div>
       </main>

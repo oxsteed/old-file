@@ -12,6 +12,8 @@ const {
   listEligiblePartners,
   listCustomerCreditTransactions,
   getCustomerCreditStatement,
+  getCustomerCreditStatementPeriods,
+  getCustomerCreditAccountDetails,
   customerCreditStatementCsv,
   MAX_STATEMENT_EXPORT_ROWS,
   MAX_TRANSACTION_CENTS,
@@ -393,6 +395,28 @@ async function getMyStatement(req, res, next) {
       currencyCode: req.query.currencyCode || req.query.currency_code,
     });
     res.json({ statement });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function getMyStatementPeriods(req, res, next) {
+  try {
+    const periods = await getCustomerCreditStatementPeriods(req.user.id, {
+      currencyCode: req.query.currencyCode || req.query.currency_code,
+    });
+    res.json({ periods });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function getMyAccountDetails(req, res, next) {
+  try {
+    const details = await getCustomerCreditAccountDetails(req.user.id, {
+      currencyCode: req.query.currencyCode || req.query.currency_code,
+    });
+    res.json({ details });
   } catch (error) {
     next(error);
   }
@@ -2273,6 +2297,8 @@ module.exports = {
   requestMyIdentityVerification,
   getMyTransactions,
   getMyStatement,
+  getMyStatementPeriods,
+  getMyAccountDetails,
   downloadMyStatement,
   downloadAdminCustomerStatement,
   getMyTransaction,

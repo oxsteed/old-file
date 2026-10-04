@@ -35,6 +35,8 @@ function createCustomerApp(role = 'customer') {
   app.get('/eligible-partners', controller.getEligiblePartners);
   app.get('/statement.csv', controller.downloadMyStatement);
   app.get('/statement', controller.getMyStatement);
+  app.get('/statement-periods', controller.getMyStatementPeriods);
+  app.get('/account-details', controller.getMyAccountDetails);
   app.get('/transactions', controller.getMyTransactions);
   app.get('/transactions/:transactionId', controller.getMyTransaction);
   app.post('/holds', controller.createMyHold);
@@ -3518,4 +3520,99 @@ test('concurrent hold creation loses the insert race and replays the winner with
   // The reservation is touched exactly once (by the winner), not by this retry.
   const reservationTouches = mockQuery.mock.calls.filter(([sql]) => String(sql).includes('reserved_cents = reserved_cents + $1'));
   expect(reservationTouches).toHaveLength(0);
+});
+
+test('statement periods list months with activity for the customer wallet', async () => {
+  mockQuery.mockImplementation(async (sql) => {
+    if (/date_trunc\('month'/.test(sql)) {
+      return {
+        rows: [
+          { month: new Date('2026-10-01T00:00:00.000Z'), transaction_count: 4 },
+          { month: new Date('2026-09-01T00:00:00.000Z'), transaction_count: 11 },
+        ],
+      };
+    }
+    return { rows: [], rowCount: 0 };
+  });
+
+  const res = await request(createCustomerApp()).get('/statement-periods?currencyCode=USD');
+
+  expect(res.status).toBe(200);
+  expect(res.body.periods).toHaveLength(2);
+  expect(res.body.periods[0]).toMatchObject({
+    year: 2026, month: 10, from: '2026-10-01', to: '2026-10-31', transactionCount: 4,
+  });
+  expect(res.body.periods[1]).toMatchObject({
+    year: 2026, month: 9, from: '2026-09-01', to: '2026-09-30', transactionCount: 11,
+  });
+});
+
+test('account details report last statement, deposits, and pending withdrawals', async () => {
+  mockQuery.mockImplementation(async (sql, params) => {
+    if (/FROM oxsteed_credit_accounts/.test(sql) && /customer_wallet/.test(sql)) {
+      return { rows: [{ id: 501 }] };
+    }
+    if (/FROM oxsteed_credit_transaction_entries/.test(sql)) {
+      return { rows: [{ balance_after_cents: 184 }] };
+    }
+    if (/FROM oxsteed_credit_topups/.test(sql) && /status = 'pending'/.test(sql)) {
+      return { rows: [{ total_cents: '1500', deposit_count: 1 }] };
+    }
+    if (/FROM oxsteed_credit_topups/.test(sql) && /status = 'completed'/.test(sql)) {
+      return { rows: [{ amount_cents: 1000, created_at: '2026-09-24T12:00:00.000Z' }] };
+    }
+    if (/FROM oxsteed_credit_withdrawals/.test(sql)) {
+      return { rows: [{ total_cents: '0', withdrawal_count: 0 }] };
+    }
+    return { rows: [], rowCount: 0 };
+  });
+
+  const res = await request(createCustomerApp()).get('/account-details?currencyCode=USD');
+
+  expect(res.status).toBe(200);
+  expect(res.body.details.currencyCode).toBe('USD');
+  expect(res.body.details.lastStatement.balanceCents).toBe(184);
+  expect(res.body.details.pendingDeposits).toMatchObject({ totalCents: 1500, count: 1 });
+  expect(res.body.details.lastDeposit).toMatchObject({ amountCents: 1000 });
+  expect(res.body.details.pendingWithdrawals).toMatchObject({ totalCents: 0, count: 0 });
+});
+
+test('statement transactions carry the running balance after each entry', async () => {
+  mockQuery.mockImplementation(async (sql) => {
+    if (/WITH customer_account AS/.test(sql)) {
+      return {
+        rows: [{
+          account_id: '501',
+          currency_code: 'USD',
+          opening_balance_cents: 1000,
+          closing_balance_cents: 2500,
+          transaction_count: 1,
+          total_credits_cents: 1500,
+          total_debits_cents: 0,
+          transactions: [{
+            id: 'txn-1',
+            transaction_type: 'topup',
+            status: 'posted',
+            amount_cents: 1500,
+            currency_code: 'USD',
+            direction: 'credit',
+            related_partner_id: null,
+            restaurant_name: null,
+            description: 'Top-up',
+            reference_type: null,
+            reference_id: null,
+            posted_at: '2026-10-01T12:00:00.000Z',
+            created_at: '2026-10-01T12:00:00.000Z',
+            balance_after_cents: 2500,
+          }],
+        }],
+      };
+    }
+    return { rows: [], rowCount: 0 };
+  });
+
+  const statement = await service.getCustomerCreditStatement('11111111-1111-4111-8111-111111111111', { currencyCode: 'USD' });
+
+  expect(statement.transactions).toHaveLength(1);
+  expect(statement.transactions[0].balanceAfterCents).toBe(2500);
 });

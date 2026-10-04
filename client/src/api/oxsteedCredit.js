@@ -51,6 +51,14 @@ export const getOxsteedCreditStatement = (params = {}) =>
 export const downloadOxsteedCreditStatement = (params = {}) =>
   api.get('/oxsteed-credit/statement.csv', { params, responseType: 'blob' });
 
+export const getOxsteedCreditStatementPeriods = (params = {}) =>
+  api.get('/oxsteed-credit/statement-periods', { params })
+    .then((response) => response.data?.periods || []);
+
+export const getOxsteedCreditAccountDetails = (params = {}) =>
+  api.get('/oxsteed-credit/account-details', { params })
+    .then((response) => response.data?.details || null);
+
 export const getOxsteedCreditTransaction = (transactionId, params = {}) =>
   api.get(`/oxsteed-credit/transactions/${transactionId}`, { params }).then((response) => response.data?.transaction || null);
 
