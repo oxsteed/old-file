@@ -26,9 +26,9 @@ test('restaurant wallets section fetches independently via its own effect', () =
 });
 
 test('restaurant section renders outside the OxSteed Credit loading branch', () => {
-  const sectionIndex = creditPageSource.indexOf('<WalletRestaurantWallets />');
+  const sectionIndex = creditPageSource.indexOf('<WalletRestaurantWallets');
   assert.ok(sectionIndex !== -1, 'OxsteedCreditPage must render <WalletRestaurantWallets />');
-  const loadingTernary = creditPageSource.indexOf('{loading ?');
+  const loadingTernary = creditPageSource.indexOf(': loadError && !account ? null : (');
   assert.ok(loadingTernary !== -1, 'expected the OxSteed loading ternary');
   assert.ok(sectionIndex < loadingTernary, 'restaurant section must render before (outside) the OxSteed loading branch');
 });

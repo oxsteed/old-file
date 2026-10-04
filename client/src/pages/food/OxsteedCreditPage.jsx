@@ -142,6 +142,7 @@ export default function OxsteedCreditPage() {
   const [holds, setHolds] = useState([]);
   const [holdPagination, setHoldPagination] = useState(null);
   const [railStatus, setRailStatus] = useState(null);
+  const [restaurantWalletCount, setRestaurantWalletCount] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [statement, setStatement] = useState(null);
   const [disputes, setDisputes] = useState([]);
@@ -696,7 +697,6 @@ export default function OxsteedCreditPage() {
         <div className="ox-credit-shell">
           <header className="ox-credit-hero">
             <div>
-              <p className="ox-credit-eyebrow">{t('partnerEyebrow')}</p>
               <h1>{t('walletTitle')}</h1>
               <p>{t('walletDescription')}</p>
             </div>
@@ -709,12 +709,40 @@ export default function OxsteedCreditPage() {
             </div>
           </header>
 
-          <section className="ox-credit-disclaimer" role="note">
-            <ShieldCheck size={19} />
-            <div><strong>{t('disclaimerTitle')}</strong><span>{t('disclaimerBody')}</span></div>
-          </section>
-
           {railStatus && !railStatus.enabled && <section className="ox-credit-rail-note" role="status"><AlertCircle size={19} /><div><strong>{t('pausedTitle')}</strong><span>{t('pausedBody')}</span></div></section>}
+
+          {/* ── Balances at a glance ────────────────────────────────────
+            One card per product so the two credit systems are never
+            confused: OxSteed Credit (live balance) and restaurant credit
+            (per-restaurant wallets, summarized by count — ledgers are
+            never merged). */}
+          <section aria-label={t('balancesTitle')}>
+            <div className="ox-credit-panel-heading">
+              <div>
+                <p className="ox-credit-eyebrow">{t('walletTitle')}</p>
+                <h2>{t('balancesTitle')}</h2>
+              </div>
+            </div>
+            <div className="ox-credit-balance-strip">
+              <div className="ox-credit-balance-card">
+                {loading ? (
+                  <div className="ox-credit-loading" role="status" aria-live="polite">{t('loadingAccount')}</div>
+                ) : loadError && !account ? (
+                  <div className="ox-credit-error-panel" role="alert"><AlertCircle size={20} /><strong>{t('errorLoad')}</strong><span>{loadError}</span></div>
+                ) : (
+                  <>
+                    <div className="ox-credit-balance-top"><span className="ox-credit-wallet-icon"><WalletCards size={23} /></span><div><span>{t('balance')}</span><strong>{money(balanceCents, currency)}</strong></div><span className={`ox-credit-status ${accountStatus === 'active' ? 'active' : ''}`}>{creditStatusLabel(accountStatus, t)}</span></div>
+                    <div className="ox-credit-balance-grid"><div><span>{t('availableToSpend')}</span><strong>{money(availableCents, currency)}</strong></div><div><span>{t('reserved')}</span><strong>{money(reservedCents, currency)}</strong></div><div><span>{t('currency')}</span><strong>{currency}</strong></div></div>
+                  </>
+                )}
+              </div>
+              <div className="ox-credit-balance-card ox-credit-balance-card--restaurant">
+                <div className="ox-credit-balance-top"><span className="ox-credit-wallet-icon"><Store size={23} /></span><div><span>{t('restaurantWalletsTitle')}</span><strong>{restaurantWalletCount == null ? '—' : t('walletsCount', { count: restaurantWalletCount })}</strong></div></div>
+                <p className="ox-credit-panel-copy">{t('restaurantCreditCardCopy')}</p>
+                <a href="#restaurant-credit" className="ox-credit-detail-link">{t('viewRestaurantCredits')} <ArrowUpRight size={14} /></a>
+              </div>
+            </div>
+          </section>
 
           {/* ── Wallet sections ─────────────────────────────────────────
             Each section below fetches and renders independently, with its
@@ -723,23 +751,12 @@ export default function OxsteedCreditPage() {
             Future sections (earnings, payouts) plug in here following the
             WalletRestaurantWallets pattern. Presentation only: ledgers are
             never merged and balances are never combined. */}
-          <WalletRestaurantWallets />
+          <WalletRestaurantWallets onWalletsLoaded={setRestaurantWalletCount} />
 
           {loadError && !loading && <section className="ox-credit-error-panel" role="alert"><AlertCircle size={24} /><strong>{t('errorLoad')}</strong><span>{loadError}</span><button type="button" className="ox-credit-refresh" onClick={() => load({ currencyCode: selectedCurrency })}>{t('retry')}</button></section>}
 
           {loading ? <div className="ox-credit-loading" role="status" aria-live="polite">{t('loadingAccount')}</div> : loadError && !account ? null : (
             <>
-              <div className="ox-credit-panel-heading ox-credit-section-heading">
-                <div>
-                  <p className="ox-credit-eyebrow">{t('walletTitle')}</p>
-                  <h2>{t('oxsteedCreditSectionTitle')}</h2>
-                </div>
-              </div>
-              <section className="ox-credit-balance-card">
-                <div className="ox-credit-balance-top"><span className="ox-credit-wallet-icon"><WalletCards size={23} /></span><div><span>{t('balance')}</span><strong>{money(balanceCents, currency)}</strong></div><span className={`ox-credit-status ${accountStatus === 'active' ? 'active' : ''}`}>{creditStatusLabel(accountStatus, t)}</span></div>
-                <div className="ox-credit-balance-grid"><div><span>{t('availableToSpend')}</span><strong>{money(availableCents, currency)}</strong></div><div><span>{t('reserved')}</span><strong>{money(reservedCents, currency)}</strong></div><div><span>{t('currency')}</span><strong>{currency}</strong></div></div>
-              </section>
-
               {limitSummary && <section className="ox-credit-panel ox-credit-limits-panel" aria-labelledby="credit-limits-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('dailyControls')}</p><h2 id="credit-limits-heading">{t('spendingGuardrails')}</h2></div><span className="ox-credit-count">{t('resets', { date: dateTime(limitSummary.resetsAt, t) })}</span></div><p className="ox-credit-panel-copy">{t('guardrailsCopy')}</p><div className="ox-credit-limit-grid"><div><span>{t('spendAmountRemaining')}</span><strong>{money(limitSummary.spending.centsRemaining, currency)}</strong><small>{t('centsCommittedToday', { used: limitSummary.spending.centsUsed.toLocaleString(), limit: limitSummary.spending.centsLimit.toLocaleString() })}</small></div><div><span>{t('spendMovementsRemaining')}</span><strong>{limitSummary.spending.countRemaining}</strong><small>{t('purchasesReservationsToday', { used: limitSummary.spending.countUsed, limit: limitSummary.spending.countLimit })}</small></div>{limitSummary.transfers.enabled && <><div><span>{t('transferAmountRemaining')}</span><strong>{money(limitSummary.transfers.centsRemaining, currency)}</strong><small>{t('centsTransferredToday', { used: limitSummary.transfers.centsUsed.toLocaleString(), limit: limitSummary.transfers.centsLimit.toLocaleString() })}</small></div><div><span>{t('transfersRemaining')}</span><strong>{limitSummary.transfers.countRemaining}</strong><small>{t('transfersToday', { used: limitSummary.transfers.countUsed, limit: limitSummary.transfers.countLimit })}</small></div></>}</div></section>}
 
               {accountStatus === 'active' && <section className="ox-credit-panel ox-credit-conversion-panel" aria-labelledby="credit-conversion-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('currencyTools')}</p><h2 id="credit-conversion-heading">{t('convertCredit')}</h2></div><ShieldCheck size={20} /></div><p className="ox-credit-panel-copy">{t('conversionCopy')}</p><form className="ox-credit-authorize-form" onSubmit={submitConversion}><label>{t('quoteId')}<input required inputMode="numeric" value={conversionQuoteId} onChange={(event) => setConversionQuoteId(event.target.value)} placeholder={t('quoteIdPlaceholder')} /></label><label>{t('sourceAmount')}<input required inputMode="decimal" value={conversionAmount} onChange={(event) => setConversionAmount(event.target.value)} placeholder={amountPlaceholder(currency, railStatus?.currencyMetadata)} /></label><button type="submit" disabled={conversionSubmitting}>{conversionSubmitting ? t('convertingCredit') : t('convertCredit')}</button></form>{createdConversion?.id && <div className="ox-credit-created-hold"><strong>{t('conversionCompleted')}</strong><span>{t('conversionDetails', { source: money(createdConversion.sourceAmountMinorUnits, createdConversion.sourceCurrencyCode), target: money(createdConversion.targetAmountMinorUnits, createdConversion.targetCurrencyCode) })}</span><code>{createdConversion.id}</code></div>}</section>}
@@ -776,6 +793,7 @@ export default function OxsteedCreditPage() {
               {disputes.length > 0 && <section className="ox-credit-panel ox-credit-dispute-history"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('reviewHistory')}</p><h2>{t('yourCreditDisputes')}</h2></div><span className="ox-credit-count">{disputes.length}{disputePagination?.hasMore ? '+' : ''}</span></div><p className="ox-credit-panel-copy">{t('disputesCopy')}</p><div className="ox-credit-dispute-list">{disputes.map((dispute) => <article key={dispute.id}><div><div className="ox-credit-dispute-title"><strong>{dispute.restaurantName || t('ledgerEntry')}</strong><span className={`ox-credit-dispute-status ${dispute.status}`}>{creditStatusLabel(dispute.status, t)}</span></div><span>{disputeReasonLabel(dispute.reasonCode, t)}</span>{dispute.amountCents !== null && dispute.amountCents !== undefined && <small>{money(dispute.amountCents, dispute.currencyCode || currency)} · {transactionLabel({ transactionType: dispute.transactionType }, t)}</small>}<small>{t('opened', { date: dateTime(dispute.openedAt, t), id: dispute.transactionId })}</small><p>{dispute.description}</p>{dispute.resolution && <em>{t('resolution', { value: dispute.resolution })}</em>}</div></article>)}</div>{disputePagination?.hasMore && <button type="button" className="ox-credit-load-more" onClick={loadMoreDisputes} disabled={loadingMoreDisputes}><RefreshCw size={14} className={loadingMoreDisputes ? 'ox-credit-spin' : ''} /> {loadingMoreDisputes ? t('loadingOlderActivity') : t('loadOlderActivity')}</button>}</section>}
             </>
           )}
+          <p className="ox-credit-footnote" role="note"><ShieldCheck size={14} /> <strong>{t('disclaimerTitle')}</strong> {t('disclaimerBody')}</p>
         </div>
       </main>
       <Footer />

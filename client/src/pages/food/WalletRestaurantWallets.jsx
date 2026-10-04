@@ -21,7 +21,7 @@ function availableCents(wallet) {
 // Presentation only: balances are shown per restaurant exactly as the
 // restaurant ledger reports them. Nothing is summed, merged, or converted
 // across restaurants or across credit systems.
-export default function WalletRestaurantWallets() {
+export default function WalletRestaurantWallets({ onWalletsLoaded }) {
   const { t } = useTranslation('credit');
   const [wallets, setWallets] = useState(null);
   const [error, setError] = useState(null);
@@ -35,7 +35,9 @@ export default function WalletRestaurantWallets() {
     try {
       const result = await listMyFoodRestaurantWallets();
       if (requestId !== requestRef.current) return;
-      setWallets(Array.isArray(result) ? result : []);
+      const next = Array.isArray(result) ? result : [];
+      setWallets(next);
+      if (typeof onWalletsLoaded === 'function') onWalletsLoaded(next.length);
     } catch (err) {
       if (requestId !== requestRef.current) return;
       setError(err?.response?.data?.message || err?.message || t('restaurantWalletsError'));
@@ -51,7 +53,7 @@ export default function WalletRestaurantWallets() {
   }, [load]);
 
   return (
-    <section className="ox-credit-panel" aria-labelledby="wallet-restaurant-wallets-heading">
+    <section className="ox-credit-panel" aria-labelledby="wallet-restaurant-wallets-heading" id="restaurant-credit">
       <div className="ox-credit-panel-heading">
         <div>
           <p className="ox-credit-eyebrow">{t('walletTitle')}</p>

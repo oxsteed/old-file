@@ -291,3 +291,38 @@
 @media (max-width: 720px) {
   .ox-credit-fee-quote, .ox-credit-stepup-form { margin-left: 16px; margin-right: 16px; }
 }
+
+/* ── Balances at a glance ──────────────────────────────────────────── */
+.ox-credit-balance-strip {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.ox-credit-balance-strip .ox-credit-balance-card {
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ox-credit-balance-card--restaurant .ox-credit-panel-copy {
+  margin: 0;
+  flex: 1;
+}
+.ox-credit-balance-card--restaurant .ox-credit-detail-link {
+  align-self: flex-start;
+}
+/* ── Footnote (demoted legal disclaimer) ───────────────────────────── */
+.ox-credit-footnote {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 28px 0 0;
+  color: #71808c;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.ox-credit-footnote svg { flex: 0 0 auto; margin-top: 2px; }
+@media (max-width: 800px) {
+  .ox-credit-balance-strip { grid-template-columns: 1fr; }
+}
