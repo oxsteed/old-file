@@ -4003,20 +4003,6 @@ export default function LearnModePage() {
     }
   }, [user]);
 
-  // L2: keep the expanded guide in the URL as ?guide=<id> so a refresh,
-  // share, or bookmark lands back on the open guide. Invalid ids are
-  // dropped from the URL once the catalog has loaded; before the remote
-  // catalog arrives we leave the param alone so remote-only ids survive.
-  useEffect(() => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      const valid = expandedId && activeGuides.some((g) => g.id === expandedId);
-      if (valid) next.set('guide', expandedId);
-      else if (!expandedId || remoteCatalog !== null) next.delete('guide');
-      return next.toString() === prev.toString() ? prev : next;
-    }, { replace: true });
-  }, [expandedId, activeGuides, remoteCatalog, setSearchParams]);
-
   // L2: when the page loads with ?guide=<id>, scroll the list into view so
   // the expanded guide is visible.
   useEffect(() => {
@@ -4118,6 +4104,21 @@ export default function LearnModePage() {
 
     return applyOverrides([...merged, ...extras]);
   }, [remoteCatalog, productLinks]);
+
+  // L2: keep the expanded guide in the URL as ?guide=<id> so a refresh,
+  // share, or bookmark lands back on the open guide. Invalid ids are
+  // dropped from the URL once the catalog has loaded; before the remote
+  // catalog arrives we leave the param alone so remote-only ids survive.
+  // Declare the catalog first: the dependency array is evaluated during render.
+  useEffect(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      const valid = expandedId && activeGuides.some((g) => g.id === expandedId);
+      if (valid) next.set('guide', expandedId);
+      else if (!expandedId || remoteCatalog !== null) next.delete('guide');
+      return next.toString() === prev.toString() ? prev : next;
+    }, { replace: true });
+  }, [expandedId, activeGuides, remoteCatalog, setSearchParams]);
 
   // In-house product matches for the expanded guide's kit: Buy buttons prefer the
   // OxSteed marketplace over external affiliate links when we stock the tool.
