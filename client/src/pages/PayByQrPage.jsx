@@ -52,7 +52,7 @@ function PayForm({ info }) {
     event.preventDefault();
     setFormError('');
 
-    let cents = info.amount_cents;
+    let cents = amountCents;
     if (!isFixed) {
       if (cents == null || cents < MIN_AMOUNT_CENTS || cents > MAX_AMOUNT_CENTS) {
         setFormError(t('qrPay.amountInvalid', { defaultValue: 'Enter an amount between $6 and $100,000.' }));
