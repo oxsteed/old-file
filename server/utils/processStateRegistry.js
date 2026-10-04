@@ -76,6 +76,11 @@ const ENTRIES = [
     rationale: 'Demand signal cache: 10min TTL, size-capped. Backing store is PostgreSQL.',
   },
   {
+    file: 'routes/priceGuidance.js', name: 'cache',
+    classification: 'cache', shared: 'none',
+    rationale: 'Price guidance aggregate cache: 5min TTL, 500-entry cap with full clear on overflow. Backing store is PostgreSQL.',
+  },
+  {
     file: 'services/modePlatformApprovalService.js', name: 'POLICY_CACHE',
     classification: 'cache', shared: 'none',
     rationale: 'Mode policy cache: 60s TTL. Backing store is PostgreSQL.',
