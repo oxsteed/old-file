@@ -671,13 +671,28 @@ exports.endAssignment = async (req, res, next) => {
 // ─────────────────────────────────────────────────────────────────────────
 
 exports.setOverrides = async (req, res, next) => {
+  const id = Number(req.params.id);
+  const incoming = Array.isArray(req.body?.overrides) ? req.body.overrides : null;
+  if (!id) return badRequest(res, 'Assignment id required.', 'validation_failed');
+  if (!incoming) return badRequest(res, 'overrides[] required.', 'validation_failed');
+
+  // Strict effect validation (CR1): reject anything outside the allowed set
+  // before any guard or persistence runs. Previously an unsupported effect
+  // skipped the grant guard below (which only checked 'allow') and was then
+  // persisted as 'allow' by the loose mapping, letting a lower-level admin
+  // escalate a permission they do not hold.
+  for (const entry of incoming) {
+    if (!entry || (entry.effect !== 'allow' && entry.effect !== 'deny')) {
+      return badRequest(
+        res,
+        `Invalid override effect '${entry ? entry.effect : entry}'; expected 'allow' or 'deny'.`,
+        'invalid_override_effect'
+      );
+    }
+  }
+
   const client = await pool.connect();
   try {
-    const id = Number(req.params.id);
-    const incoming = Array.isArray(req.body?.overrides) ? req.body.overrides : null;
-    if (!id) return badRequest(res, 'Assignment id required.', 'validation_failed');
-    if (!incoming) return badRequest(res, 'overrides[] required.', 'validation_failed');
-
     await client.query('BEGIN');
 
     const assignmentRes = await client.query(
@@ -740,7 +755,8 @@ exports.setOverrides = async (req, res, next) => {
     for (const entry of incoming) {
       const pid = byCode.get(entry.code);
       if (!pid) continue;
-      const effect = entry.effect === 'deny' ? 'deny' : 'allow';
+      // Mirrors the strict validation above: only 'allow' persists as allow.
+      const effect = entry.effect === 'allow' ? 'allow' : 'deny';
       await client.query(
         `INSERT INTO corporate_assignment_permission_overrides
            (assignment_id, permission_id, effect, reason, granted_by_user_id, expires_at)
