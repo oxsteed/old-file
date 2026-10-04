@@ -1,9 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Search, RefreshCw, AlertTriangle } from 'lucide-react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { MessageSquare, RefreshCw, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import adminApi from '../../../lib/adminApi';
 import { useTranslation } from 'react-i18next';
 import { useAbortableFetch } from '../../lib/useAbortableFetch';
+import { SuggestDropdown } from '../../../components/SuggestDropdown';
+import '../../lib/suggestDropdownAdmin.css';
 
 const STATUS_TABS = [
   { key: 'all', labelKey: 'superConversations.tabAll' },
@@ -342,6 +344,19 @@ export default function ConversationsAdmin() {
   }, [search, statusTab]);
   const convs = data?.conversations || [];
   const total = data?.total || 0;
+
+  // Typeahead suggestions from the latest loaded conversation rows.
+  const superConvSuggestItems = useMemo(() => {
+    const seen = new Set();
+    const items = [];
+    for (const c of convs) {
+      if (c.id == null || seen.has(c.id)) continue;
+      seen.add(c.id);
+      const title = c.customer_name || c.customer_email || c.helper_name || String(c.id);
+      items.push({ id: c.id, title, meta: c.customer_email || c.helper_name || undefined });
+    }
+    return items;
+  }, [convs]);
   const error = !loading && fetchError
     ? (fetchError.response?.data?.error || t('superConversations.errorLoad'))
     : '';
@@ -415,15 +430,17 @@ export default function ConversationsAdmin() {
           </div>
 
           {/* Search */}
-          <div className="relative mb-3">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-            <input
-              type="text"
-              placeholder={t('superConversations.searchPlaceholder')}
+          <div className="mb-3">
+            <SuggestDropdown
+              id="super-conversations-search"
+              items={superConvSuggestItems}
               value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-2 bg-gray-800 border border-gray-700 rounded-lg
-                         text-sm text-white focus:outline-none focus:border-orange-500 placeholder-gray-500"
+              onQueryChange={setSearch}
+              onSelect={(item) => setSearch(item.title || '')}
+              recentsKey="oxsteed_admin_super_conversations_search_recents"
+              placeholder={t('superConversations.searchPlaceholder')}
+              ariaLabel={t('superConversations.searchPlaceholder')}
+              className="sd-admin-dark"
             />
           </div>
 

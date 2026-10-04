@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ExternalLink, FileText, Mail, Phone, RefreshCw, Search, User, MessageSquare, CalendarDays, MapPin, Tag } from 'lucide-react';
+import { ExternalLink, FileText, Mail, Phone, RefreshCw, User, MessageSquare, CalendarDays, MapPin, Tag } from 'lucide-react';
 import toast from 'react-hot-toast';
 import adminApi from '../../lib/adminApi';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
+import { SuggestDropdown } from '../../components/SuggestDropdown';
+import '../lib/suggestDropdownAdmin.css';
 
 const STATUS_VALUES = ['new', 'reviewing', 'quoted', 'contacted', 'closed', 'cancelled'];
 
@@ -65,6 +67,19 @@ export default function QuoteRequestsInbox() {
   const [saving, setSaving] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
+
+  // Typeahead suggestions from the latest loaded quote-request rows.
+  const quoteRequestSuggestItems = useMemo(() => {
+    const seen = new Set();
+    const items = [];
+    for (const request of requests) {
+      if (request.id == null || seen.has(request.id)) continue;
+      seen.add(request.id);
+      const title = `${request.first_name || ''} ${request.last_name || ''}`.trim() || request.email || String(request.id);
+      items.push({ id: request.id, title, meta: request.email || request.service_category || undefined });
+    }
+    return items;
+  }, [requests]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [draft, setDraft] = useState({ status: 'new', admin_notes: '' });
@@ -219,15 +234,17 @@ export default function QuoteRequestsInbox() {
         <aside className="flex w-full flex-col rounded-[28px] border border-gray-800 bg-gray-900/70 xl:w-[420px] xl:min-h-0">
           <form onSubmit={handleSearch} className="border-b border-gray-800 p-4">
             <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-2 rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-3">
-                <Search size={16} className="text-gray-500" />
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder={t('adminQuoteRequests.searchPlaceholder')}
-                  className="w-full bg-transparent text-sm text-white outline-none placeholder:text-gray-600"
-                />
-              </div>
+              <SuggestDropdown
+                id="quote-requests-search"
+                items={quoteRequestSuggestItems}
+                value={search}
+                onQueryChange={setSearch}
+                onSelect={(item) => setSearch(item.title || '')}
+                recentsKey="oxsteed_admin_quote_requests_search_recents"
+                placeholder={t('adminQuoteRequests.searchPlaceholder')}
+                ariaLabel={t('adminQuoteRequests.searchPlaceholder')}
+                className="sd-admin-dark w-full"
+              />
               <div className="flex flex-wrap gap-2">
                 <select
                   value={statusFilter}

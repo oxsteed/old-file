@@ -5,6 +5,8 @@ import adminApi from '../../../lib/adminApi';
 import { useAuth } from '../../../hooks/useAuth';
 import ConfirmDialog from '../../lib/ConfirmDialog';
 import { getInternalWorkspaceMeta, internalWorkspaceSlug } from '../../../utils/internalWorkspaces';
+import { SuggestDropdown } from '../../../components/SuggestDropdown';
+import '../../lib/suggestDropdownAdmin.css';
 
 const EMPTY_FORM = {
   internal_name: '',
@@ -73,6 +75,20 @@ export default function LogisticsInternalAccess() {
   const { t } = useTranslation();
   const { user: me } = useAuth();
   const [records, setRecords] = useState([]);
+
+  // Typeahead suggestions from the loaded internal-access rows.
+  const logisticsAccessSuggestItems = useMemo(() => {
+    const seen = new Set();
+    const items = [];
+    for (const record of records) {
+      const id = record.user_id ?? record.id;
+      if (id == null || seen.has(id)) continue;
+      seen.add(id);
+      const title = [record.first_name, record.last_name].filter(Boolean).join(' ') || record.internal_name || record.email || String(id);
+      items.push({ id, title, meta: record.email || record.internal_name || undefined });
+    }
+    return items;
+  }, [records]);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [loading, setLoading] = useState(true);
@@ -273,12 +289,16 @@ export default function LogisticsInternalAccess() {
                       {t('adminLogisticsAccessConsoleHint')}
                     </p>
                   </div>
-                  <input
-                    type="text"
+                  <SuggestDropdown
+                    id="logistics-internal-access-search"
+                    items={logisticsAccessSuggestItems}
                     value={query}
-                    onChange={(event) => setQuery(event.target.value)}
+                    onQueryChange={setQuery}
+                    onSelect={(item) => setQuery(item.title || '')}
+                    recentsKey="oxsteed_admin_logistics_internal_access_search_recents"
                     placeholder={t('adminLogisticsAccessSearchPlaceholder')}
-                    className="w-full rounded-lg border border-gray-700 bg-gray-950 px-4 py-3 text-sm text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none"
+                    ariaLabel={t('adminLogisticsAccessSearchPlaceholder')}
+                    className="sd-admin-dark"
                   />
                   <div className="flex flex-wrap gap-2">
                     {[

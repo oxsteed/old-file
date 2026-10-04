@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MoreVertical, Download, RefreshCw, Search, Filter, Eye, RotateCcw, X, AlertTriangle } from 'lucide-react';
+import { MoreVertical, Download, RefreshCw, Filter, Eye, RotateCcw, X, AlertTriangle } from 'lucide-react';
 import adminApi from '../../lib/adminApi';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
 import LegalSubNav from '../components/LegalSubNav';
 import ConfirmDialog from '../lib/ConfirmDialog';
+import { SuggestDropdown } from '../../components/SuggestDropdown';
+import '../lib/suggestDropdownAdmin.css';
 import { LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 // Document type options (values stay stable for the API; only labels translate)
@@ -201,6 +203,22 @@ export default function AdminLegalAcceptancesPage() {
   }, [documentType, search, sort, page, limit]);
 
   const acceptances = data?.acceptances ?? [];
+
+  // Typeahead suggestions from the latest loaded acceptance rows.
+  const acceptanceSuggestItems = useMemo(() => {
+    const seen = new Set();
+    const items = [];
+    for (const acceptance of acceptances) {
+      if (acceptance.id == null || seen.has(acceptance.id)) continue;
+      seen.add(acceptance.id);
+      items.push({
+        id: acceptance.id,
+        title: acceptance.user_name || acceptance.user_email || String(acceptance.id),
+        meta: acceptance.user_email || acceptance.document_type || undefined,
+      });
+    }
+    return items;
+  }, [acceptances]);
   const totalCount = data?.totalCount ?? 0;
   const stats = data?.stats ?? null;
   const chartData = data?.chartData ?? [];
@@ -371,19 +389,17 @@ export default function AdminLegalAcceptancesPage() {
           {/* Search Input */}
           <div className="md:col-span-2">
             <label className="block text-gray-400 text-sm mb-2">{t('adminLegalAcceptancesPage.searchLabel')}</label>
-            <div className="relative">
-              <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
-              <input
-                type="text"
-                placeholder={t('adminLegalAcceptancesPage.searchPlaceholder')}
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:border-orange-500"
-              />
-            </div>
+            <SuggestDropdown
+              id="legal-acceptances-search"
+              items={acceptanceSuggestItems}
+              value={search}
+              onQueryChange={(q) => { setSearch(q); setPage(1); }}
+              onSelect={(item) => { setSearch(item.title || ''); setPage(1); }}
+              recentsKey="oxsteed_admin_legal_acceptances_search_recents"
+              placeholder={t('adminLegalAcceptancesPage.searchPlaceholder')}
+              ariaLabel={t('adminLegalAcceptancesPage.searchPlaceholder')}
+              className="sd-admin-dark"
+            />
           </div>
 
           {/* Sort */}

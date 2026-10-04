@@ -1,14 +1,16 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
 import toast from 'react-hot-toast';
-import { CheckCircle2, ClipboardCheck, RefreshCw, Search } from 'lucide-react';
+import { CheckCircle2, ClipboardCheck, RefreshCw } from 'lucide-react';
 import {
   SupportEmptyState,
   SupportPageShell,
   SupportPanel,
   SupportTag,
 } from '../components/support/SupportPageChrome';
+import { SuggestDropdown } from '../../components/SuggestDropdown';
+import '../lib/suggestDropdownAdmin.css';
 
 function formatDate(value, fallback) {
   if (!value) return fallback;
@@ -100,6 +102,20 @@ export default function SupportQAReviews() {
   const [status, setStatus] = useState('pending');
   const [search, setSearch] = useState('');
   const [reviews, setReviews] = useState([]);
+
+  // Typeahead suggestions from the latest loaded QA review rows.
+  const qaReviewSuggestItems = useMemo(() => {
+    const seen = new Set();
+    const items = [];
+    for (const review of reviews) {
+      const id = review.conversation_id;
+      if (id == null || seen.has(id)) continue;
+      seen.add(id);
+      const title = review.subject || review.customer_name || String(id);
+      items.push({ id, title, meta: review.customer_email || review.agent_name || undefined });
+    }
+    return items;
+  }, [reviews]);
   const [loading, setLoading] = useState(true);
 
   const loadReviews = useCallback(async () => {
@@ -148,10 +164,17 @@ export default function SupportQAReviews() {
               <option value="completed">{t('adminSupportQA.statusCompleted')}</option>
               <option value="all">{t('adminSupportQA.statusAll')}</option>
             </select>
-            <label className="relative block">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
-              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('adminSupportQA.searchPlaceholder')} className="w-full rounded-xl border border-gray-700 bg-gray-950 py-2.5 pl-10 pr-3 text-sm text-white focus:border-orange-500 focus:outline-none" />
-            </label>
+            <SuggestDropdown
+              id="support-qa-search"
+              items={qaReviewSuggestItems}
+              value={search}
+              onQueryChange={setSearch}
+              onSelect={(item) => setSearch(item.title || '')}
+              recentsKey="oxsteed_admin_support_qa_search_recents"
+              placeholder={t('adminSupportQA.searchPlaceholder')}
+              ariaLabel={t('adminSupportQA.searchPlaceholder')}
+              className="sd-admin-dark"
+            />
           </div>
           {loading ? (
             <div className="flex min-h-48 items-center justify-center"><RefreshCw className="animate-spin text-orange-400" /></div>

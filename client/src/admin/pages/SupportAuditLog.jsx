@@ -1,12 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
 import toast from 'react-hot-toast';
 import {
-  History, Download, RefreshCw, Search, Filter, Calendar, User, FileText, Trash2,
+  History, Download, RefreshCw, Filter, Calendar, User, FileText, Trash2,
 } from 'lucide-react';
 import SupportSubNav from '../components/SupportSubNav';
+import { SuggestDropdown } from '../../components/SuggestDropdown';
+import '../lib/suggestDropdownAdmin.css';
 
 // Audit Log Entry
 function AuditLogEntry({ entry }) {
@@ -57,7 +59,7 @@ function AuditLogEntry({ entry }) {
 }
 
 // Filter Panel
-function FilterPanel({ filters, onFilterChange }) {
+function FilterPanel({ filters, onFilterChange, searchSuggestItems = [] }) {
   const { t } = useTranslation();
   return (
     <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 mb-6 space-y-4">
@@ -69,17 +71,17 @@ function FilterPanel({ filters, onFilterChange }) {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div>
           <label className="block text-gray-400 text-sm mb-2">{t('adminSupportAuditLog.fieldSearch')}</label>
-          <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-            <input
-              type="text"
-              placeholder={t('adminSupportAuditLog.placeholderSearch')}
-              value={filters.search}
-              onChange={e => onFilterChange({ ...filters, search: e.target.value })}
-              className="w-full pl-9 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg
-                         text-white text-sm focus:outline-none focus:border-orange-500"
-            />
-          </div>
+          <SuggestDropdown
+            id="support-audit-log-search"
+            items={searchSuggestItems}
+            value={filters.search}
+            onQueryChange={(q) => onFilterChange({ ...filters, search: q })}
+            onSelect={(item) => onFilterChange({ ...filters, search: item.title || '' })}
+            recentsKey="oxsteed_admin_support_audit_log_search_recents"
+            placeholder={t('adminSupportAuditLog.placeholderSearch')}
+            ariaLabel={t('adminSupportAuditLog.placeholderSearch')}
+            className="sd-admin-dark"
+          />
         </div>
 
         <div>
@@ -133,6 +135,23 @@ export default function SupportAuditLog() {
   const { t } = useTranslation();
   const { businessId } = useParams();
   const [logs, setLogs] = useState([]);
+
+  // Typeahead suggestions from the latest loaded audit-log rows.
+  const auditLogSuggestItems = useMemo(() => {
+    const seen = new Set();
+    const items = [];
+    for (const entry of logs) {
+      const key = entry.id ?? `${entry.user_name || ''}|${entry.action || ''}|${entry.created_at || ''}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      items.push({
+        id: key,
+        title: entry.user_name || entry.email || entry.action || String(key),
+        meta: entry.action || undefined,
+      });
+    }
+    return items;
+  }, [logs]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     search: '',
@@ -260,7 +279,7 @@ export default function SupportAuditLog() {
       </div>
 
       {/* Filters */}
-      <FilterPanel filters={filters} onFilterChange={setFilters} />
+      <FilterPanel filters={filters} onFilterChange={setFilters} searchSuggestItems={auditLogSuggestItems} />
 
       {/* Logs List */}
       <div>

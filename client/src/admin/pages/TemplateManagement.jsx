@@ -1,13 +1,15 @@
 // client/src/admin/pages/TemplateManagement.jsx
 // Admin: Template pricing editor, access grants, grant history & revoke
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import PageMeta from '../../components/PageMeta';
 import { TEMPLATE_REGISTRY } from '../../components/profileTemplates/index';
 import { TemplatePreviewThumb, TemplatePreviewPanel } from '../components/AdminTemplatePreview';
+import { SuggestDropdown } from '../../components/SuggestDropdown';
+import '../lib/suggestDropdownAdmin.css';
 
 // ── Icons ──────────────────────────────────────────────────────────────────
 const Ico = ({ children, size = 18, cls = 'text-gray-400', ...rest }) => (
@@ -20,7 +22,6 @@ const IcoSave     = p => <Ico {...p}><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-
 const IcoX        = p => <Ico {...p}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></Ico>;
 const IcoPlus     = p => <Ico {...p}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></Ico>;
 const IcoTrash    = p => <Ico {...p}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></Ico>;
-const IcoSearch   = p => <Ico {...p}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></Ico>;
 const IcoRefresh  = p => <Ico {...p}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></Ico>;
 const IcoUser     = p => <Ico {...p}><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></Ico>;
 const IcoShield   = p => <Ico {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></Ico>;
@@ -446,6 +447,22 @@ export default function TemplateManagement() {
   const [grantsHasNext, setGrantsHasNext] = useState(false);
   const GRANTS_PER_PAGE = 20;
 
+  // Typeahead suggestions from the latest loaded grant rows.
+  const grantSuggestItems = useMemo(() => {
+    const seen = new Set();
+    const items = [];
+    for (const g of grants) {
+      if (g.id == null || seen.has(g.id)) continue;
+      seen.add(g.id);
+      items.push({
+        id: g.id,
+        title: TEMPLATE_REGISTRY[g.template_slug]?.name || g.template_slug || String(g.id),
+        meta: g.user_id || undefined,
+      });
+    }
+    return items;
+  }, [grants]);
+
   const previewMeta = previewSlug ? (TEMPLATE_REGISTRY[previewSlug] || {}) : {};
   const previewName = previewSlug && (pricingRows.find(r => r.slug === previewSlug)?.name || previewMeta.name || previewSlug);
   const previewCategory = previewSlug && (pricingRows.find(r => r.slug === previewSlug)?.category || previewMeta.category || '');
@@ -636,15 +653,17 @@ export default function TemplateManagement() {
         <div className="space-y-4">
           {/* Filters */}
           <div className="flex flex-wrap gap-3 items-center">
-            <div className="relative flex-1 min-w-[200px]">
-              <IcoSearch size={14} cls="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-              <input
-                value={grantSearch}
-                onChange={e => { setGrantSearch(e.target.value); setGrantsPage(0); }}
-                placeholder={t('adminTemplates.searchUserPlaceholder')}
-                className="w-full pl-8 pr-3 py-2 bg-gray-800 border border-gray-700/50 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-              />
-            </div>
+            <SuggestDropdown
+              id="template-grants-search"
+              items={grantSuggestItems}
+              value={grantSearch}
+              onQueryChange={(q) => { setGrantSearch(q); setGrantsPage(0); }}
+              onSelect={(item) => { setGrantSearch(item.title || ''); setGrantsPage(0); }}
+              recentsKey="oxsteed_admin_template_grants_search_recents"
+              placeholder={t('adminTemplates.searchUserPlaceholder')}
+              ariaLabel={t('adminTemplates.searchUserPlaceholder')}
+              className="sd-admin-dark flex-1 min-w-[200px]"
+            />
             <div className="flex rounded-lg overflow-hidden border border-gray-700">
               {['all', 'active', 'expired', 'revoked'].map(s => (
                 <button

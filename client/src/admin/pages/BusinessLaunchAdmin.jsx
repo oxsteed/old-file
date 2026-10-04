@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from '../../api/axios';
@@ -7,6 +7,8 @@ import BusinessLaunchRequestDetail from './BusinessLaunchRequestDetail';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
 import ConfirmDialog from '../lib/ConfirmDialog';
+import { SuggestDropdown } from '../../components/SuggestDropdown';
+import '../lib/suggestDropdownAdmin.css';
 
 const STATUS_COLORS = {
   pending: '#FFA500',
@@ -121,6 +123,19 @@ export default function BusinessLaunchAdmin() {
   const requests = data?.requests ?? [];
   const pagination = data?.pagination ?? {};
 
+  // Typeahead suggestions from the latest loaded launch-request rows.
+  const launchRequestSuggestItems = useMemo(() => {
+    const seen = new Set();
+    const items = [];
+    for (const r of requests) {
+      if (r.id == null || seen.has(r.id)) continue;
+      seen.add(r.id);
+      const title = `${r.first_name || ''} ${r.last_name || ''}`.trim() || r.email || String(r.id);
+      items.push({ id: r.id, title, meta: r.email || undefined });
+    }
+    return items;
+  }, [requests]);
+
   // Confirmed status change (quick status menu). ConfirmDialog stays open and
   // shows the error if the PATCH fails.
   const confirmStatusChange = async () => {
@@ -212,11 +227,19 @@ export default function BusinessLaunchAdmin() {
 
       {/* Search & Filters */}
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <input
-          type="text" placeholder={t('businessLaunchAdmin.searchPlaceholder', { defaultValue: 'Search name, email...' })}
-          value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-          style={{ ...inputStyle, minWidth: '200px' }}
-        />
+        <div style={{ minWidth: '200px' }}>
+          <SuggestDropdown
+            id="business-launch-search"
+            items={launchRequestSuggestItems}
+            value={search}
+            onQueryChange={(q) => { setSearch(q); setPage(1); }}
+            onSelect={(item) => { setSearch(item.title || ''); setPage(1); }}
+            recentsKey="oxsteed_admin_business_launch_search_recents"
+            placeholder={t('businessLaunchAdmin.searchPlaceholder', { defaultValue: 'Search name, email...' })}
+            ariaLabel={t('businessLaunchAdmin.searchPlaceholder', { defaultValue: 'Search name, email...' })}
+            className="sd-admin-adaptive"
+          />
+        </div>
         <select style={inputStyle} value={filters.package} onChange={e => { setFilters(f => ({ ...f, package: e.target.value })); setPage(1); }}>
           <option value="">{t('businessLaunchAdmin.filterAllPackages', { defaultValue: 'All Packages' })}</option>
           <option value="foundation">{t('businessLaunchAdmin.packageFoundation', { defaultValue: 'Foundation ($750)' })}</option>

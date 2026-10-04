@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Filter, RefreshCw, ChevronDown, Download, AlertTriangle } from 'lucide-react';
+import { Filter, RefreshCw, ChevronDown, Download, AlertTriangle } from 'lucide-react';
 import adminApi from '../../lib/adminApi';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
+import { SuggestDropdown } from '../../components/SuggestDropdown';
+import '../lib/suggestDropdownAdmin.css';
 import LegalSubNav from '../components/LegalSubNav';
 
 const NS = 'adminLegalAuditLog';
@@ -134,6 +136,23 @@ export default function AdminLegalAuditLogPage() {
   }, [search, actionType, documentType, actorType, status, startDate, endDate, page, limit]);
 
   const events = data?.events ?? [];
+
+  // Typeahead suggestions from the latest loaded audit-event rows.
+  const legalAuditSuggestItems = useMemo(() => {
+    const seen = new Set();
+    const items = [];
+    for (const event of events) {
+      const id = event.id ?? `${event.actor_name || ''}|${event.action || ''}|${event.created_at || ''}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      items.push({
+        id,
+        title: event.actor_name || event.resource_email || event.resource_title || event.action || String(id),
+        meta: event.action || undefined,
+      });
+    }
+    return items;
+  }, [events]);
   const totalCount = data?.totalCount ?? 0;
   const stats = data?.stats ?? null;
 
@@ -238,19 +257,17 @@ export default function AdminLegalAuditLogPage() {
           {/* Search */}
           <div>
             <label className="block text-gray-400 text-sm mb-2">{t(`${NS}.searchLabel`)}</label>
-            <div className="relative">
-              <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
-              <input
-                type="text"
-                placeholder={t(`${NS}.searchPlaceholder`)}
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg text-sm focus:outline-none focus:border-orange-500"
-              />
-            </div>
+            <SuggestDropdown
+              id="legal-audit-log-search"
+              items={legalAuditSuggestItems}
+              value={search}
+              onQueryChange={(q) => { setSearch(q); setPage(1); }}
+              onSelect={(item) => { setSearch(item.title || ''); setPage(1); }}
+              recentsKey="oxsteed_admin_legal_audit_log_search_recents"
+              placeholder={t(`${NS}.searchPlaceholder`)}
+              ariaLabel={t(`${NS}.searchPlaceholder`)}
+              className="sd-admin-dark"
+            />
           </div>
 
           {/* Action Type */}

@@ -1,15 +1,20 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { SuggestDropdown } from '../../components/SuggestDropdown';
+import '../lib/suggestDropdownAdmin.css';
 
-export default function OrderFilters({ filters, onFilterChange }) {
+export default function OrderFilters({ filters, onFilterChange, suggestItems = [] }) {
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [isOpen, setIsOpen] = useState(false);
 
-  const handleSearch = (e) => {
-    const value = e.target.value;
+  const handleSearch = (value) => {
     setSearch(value);
     onFilterChange({ search: value });
+  };
+
+  const handleSelectSuggestion = (item) => {
+    handleSearch(item.title || '');
   };
 
   const handleStatusFilter = (status) => {
@@ -50,12 +55,16 @@ export default function OrderFilters({ filters, onFilterChange }) {
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           {t('adminOrderFilters.searchOrders')}
         </label>
-        <input
-          type="text"
-          placeholder={t('adminOrderFilters.searchPlaceholder')}
+        <SuggestDropdown
+          id="order-filters-search"
+          items={suggestItems}
           value={search}
-          onChange={handleSearch}
-          className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 placeholder-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+          onQueryChange={handleSearch}
+          onSelect={handleSelectSuggestion}
+          recentsKey="oxsteed_admin_order_filters_search_recents"
+          placeholder={t('adminOrderFilters.searchPlaceholder')}
+          ariaLabel={t('adminOrderFilters.searchPlaceholder')}
+          className="sd-admin-adaptive"
         />
       </div>
 

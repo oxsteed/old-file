@@ -1,11 +1,13 @@
-import { useEffect, useState, useRef } from 'react';
-import { Plus, Search, Pencil, Trash2, ToggleLeft, ToggleRight, X, Check } from 'lucide-react';
+import { useEffect, useState, useRef, useMemo } from 'react';
+import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, X, Check } from 'lucide-react';
 import adminApi from '../../lib/adminApi';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
 import ConfirmDialog from '../lib/ConfirmDialog';
+import { SuggestDropdown } from '../../components/SuggestDropdown';
+import '../lib/suggestDropdownAdmin.css';
 
 const EMPTY_FORM = { name: '', category: '', is_active: true };
 
@@ -13,6 +15,18 @@ export default function LicensesManager() {
   const { t } = useTranslation();
   const [licenses,   setLicenses]   = useState([]);
   const [total,      setTotal]      = useState(0);
+
+  // Typeahead suggestions from the latest loaded license rows.
+  const licenseSuggestItems = useMemo(() => {
+    const seen = new Set();
+    const items = [];
+    for (const license of licenses) {
+      if (license.id == null || seen.has(license.id)) continue;
+      seen.add(license.id);
+      items.push({ id: license.id, title: license.name || String(license.id), meta: license.category || undefined });
+    }
+    return items;
+  }, [licenses]);
   const [categories, setCategories] = useState([]);
   const [filters,    setFilters]    = useState({ q: '', category: '', offset: 0, limit: 50 });
   const [showForm,   setShowForm]   = useState(false);
@@ -141,15 +155,17 @@ export default function LicensesManager() {
 
       {/* Filters */}
       <div className="flex gap-3 mb-4">
-        <div className="relative flex-1">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-          <input
-            value={filters.q}
-            onChange={e => setFilters(p => ({ ...p, q: e.target.value, offset: 0 }))}
-            placeholder={t('adminLicenses.filters.searchPlaceholder')}
-            className="w-full pl-8 pr-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none"
-          />
-        </div>
+        <SuggestDropdown
+          id="licenses-manager-search"
+          items={licenseSuggestItems}
+          value={filters.q}
+          onQueryChange={(q) => setFilters(p => ({ ...p, q, offset: 0 }))}
+          onSelect={(item) => setFilters(p => ({ ...p, q: item.title || '', offset: 0 }))}
+          recentsKey="oxsteed_admin_licenses_manager_search_recents"
+          placeholder={t('adminLicenses.filters.searchPlaceholder')}
+          ariaLabel={t('adminLicenses.filters.searchPlaceholder')}
+          className="sd-admin-dark flex-1"
+        />
         <select
           value={filters.category}
           onChange={e => setFilters(p => ({ ...p, category: e.target.value, offset: 0 }))}

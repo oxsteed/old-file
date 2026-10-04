@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
-  Building2, Search, ToggleLeft, ToggleRight, X, Eye, Edit2, Users,
+  Building2, ToggleLeft, ToggleRight, X, Eye, Edit2, Users,
   MessageSquare, Trash2, Flag, AlertCircle, TrendingUp
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { SuggestDropdown } from '../../components/SuggestDropdown';
+import '../lib/suggestDropdownAdmin.css';
 import adminApi from '../../lib/adminApi';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -261,6 +263,18 @@ export default function BusinessModeration() {
   }, [search, statusFilter, activityFilter, sortBy, page]);
 
   const businesses = data?.businesses ?? [];
+
+  // Typeahead suggestions from the latest loaded business rows.
+  const businessSuggestItems = useMemo(() => {
+    const seen = new Set();
+    const items = [];
+    for (const b of businesses) {
+      if (b.id == null || seen.has(b.id)) continue;
+      seen.add(b.id);
+      items.push({ id: b.id, title: b.business_name || String(b.id), meta: b.owner_email || b.business_type || undefined });
+    }
+    return items;
+  }, [businesses]);
   const stats = data?.stats ?? {
     total: 0,
     active: 0,
@@ -332,17 +346,17 @@ export default function BusinessModeration() {
       <div className="space-y-3 mb-6">
         {/* Row 1: Search + Status */}
         <div className="flex flex-col lg:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-            <input
-              type="text"
-              placeholder={t('adminBusinessModeration.searchPlaceholder', { defaultValue: 'Search by name, owner, email…' })}
-              value={search}
-              onChange={e => resetPage(setSearch)(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg
-                         text-white text-sm placeholder-gray-500 focus:border-orange-500 focus:outline-none"
-            />
-          </div>
+          <SuggestDropdown
+            id="business-moderation-search"
+            items={businessSuggestItems}
+            value={search}
+            onQueryChange={(q) => resetPage(setSearch)(q)}
+            onSelect={(item) => resetPage(setSearch)(item.title || '')}
+            recentsKey="oxsteed_admin_business_moderation_search_recents"
+            placeholder={t('adminBusinessModeration.searchPlaceholder', { defaultValue: 'Search by name, owner, email…' })}
+            ariaLabel={t('adminBusinessModeration.searchPlaceholder', { defaultValue: 'Search by name, owner, email…' })}
+            className="sd-admin-dark flex-1"
+          />
           <div className="flex gap-2">
             {STATUS_FILTERS.map(f => (
               <button

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import axios from '../../api/axios';
@@ -6,6 +6,8 @@ import toast from 'react-hot-toast';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
 import ConfirmDialog from '../lib/ConfirmDialog';
+import { SuggestDropdown } from '../../components/SuggestDropdown';
+import '../lib/suggestDropdownAdmin.css';
 
 const STATUS_COLORS = {
   pending: '#FFA500',
@@ -388,6 +390,19 @@ export default function ConsultingDashboard() {
   const consultants = data?.consultants ?? [];
   const stats = data?.stats ?? null;
 
+  // Typeahead suggestions from the latest loaded consulting-request rows.
+  const consultingRequestSuggestItems = useMemo(() => {
+    const seen = new Set();
+    const items = [];
+    for (const r of requests) {
+      if (r.id == null || seen.has(r.id)) continue;
+      seen.add(r.id);
+      const title = `${r.first_name || ''} ${r.last_name || ''}`.trim() || r.email || String(r.id);
+      items.push({ id: r.id, title, meta: r.email || undefined });
+    }
+    return items;
+  }, [requests]);
+
   const filteredRequests = requests.filter(r => {
     if (filterStatus && r.status !== filterStatus) return false;
     if (filterTier && r.service_tier !== filterTier) return false;
@@ -478,11 +493,19 @@ export default function ConsultingDashboard() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
         <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700 }}>{t('adminConsultingDashboard.requestsTitle', { count: filteredRequests.length })}</h2>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <input
-            type="text" placeholder={t('adminConsultingDashboard.filters.searchPlaceholder')}
-            value={search} onChange={e => setSearch(e.target.value)}
-            style={{ ...inputStyle, minWidth: '200px' }}
-          />
+          <div style={{ minWidth: '220px' }}>
+            <SuggestDropdown
+              id="consulting-dashboard-search"
+              items={consultingRequestSuggestItems}
+              value={search}
+              onQueryChange={setSearch}
+              onSelect={(item) => setSearch(item.title || '')}
+              recentsKey="oxsteed_admin_consulting_dashboard_search_recents"
+              placeholder={t('adminConsultingDashboard.filters.searchPlaceholder')}
+              ariaLabel={t('adminConsultingDashboard.filters.searchPlaceholder')}
+              className="sd-admin-adaptive"
+            />
+          </div>
           <select style={inputStyle} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
             <option value="">{t('adminConsultingDashboard.filters.allStatus')}</option>
             {Object.entries(STATUS_I18N_KEYS).map(([s, key]) => <option key={s} value={s}>{t(`adminConsultingDashboard.${key}`)}</option>)}

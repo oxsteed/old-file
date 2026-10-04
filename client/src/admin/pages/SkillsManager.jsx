@@ -1,12 +1,14 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, Pencil, Trash2, ToggleLeft, ToggleRight, X, Check } from 'lucide-react';
+import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, X, Check } from 'lucide-react';
 import { adminRoute } from '../adminRouteManifest';
 import adminApi from '../../lib/adminApi';
 import toast from 'react-hot-toast';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
+import { SuggestDropdown } from '../../components/SuggestDropdown';
+import '../lib/suggestDropdownAdmin.css';
 
 const EMPTY_FORM = { name: '', category: '', is_active: true };
 
@@ -43,6 +45,18 @@ export default function SkillsManager() {
     return data;
   }, [filters]);
   const skills = skillsData?.skills || [];
+
+  // Typeahead suggestions from the latest loaded skill rows.
+  const skillSuggestItems = useMemo(() => {
+    const seen = new Set();
+    const items = [];
+    for (const skill of skills) {
+      if (skill.id == null || seen.has(skill.id)) continue;
+      seen.add(skill.id);
+      items.push({ id: skill.id, title: skill.name || String(skill.id), meta: skill.category || undefined });
+    }
+    return items;
+  }, [skills]);
   const total = skillsData?.total || 0;
 
   const fetchSkills = () => reload();
@@ -156,15 +170,17 @@ export default function SkillsManager() {
 
       {/* Filters */}
       <div className="flex gap-3 mb-4">
-        <div className="relative flex-1">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-          <input
-            value={qInput}
-            onChange={e => setQInput(e.target.value)}
-            placeholder={t('adminSkillsManager.searchPlaceholder')}
-            className="w-full pl-8 pr-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none"
-          />
-        </div>
+        <SuggestDropdown
+          id="skills-manager-search"
+          items={skillSuggestItems}
+          value={qInput}
+          onQueryChange={setQInput}
+          onSelect={(item) => setQInput(item.title || '')}
+          recentsKey="oxsteed_admin_skills_manager_search_recents"
+          placeholder={t('adminSkillsManager.searchPlaceholder')}
+          ariaLabel={t('adminSkillsManager.searchPlaceholder')}
+          className="sd-admin-dark flex-1"
+        />
         <select
           value={filters.category}
           onChange={e => setFilters(p => ({ ...p, category: e.target.value, offset: 0 }))}

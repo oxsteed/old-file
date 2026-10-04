@@ -1,10 +1,12 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
-import { Users, Search, RefreshCw, TrendingUp, Star, Clock, MessageSquare } from 'lucide-react';
+import { Users, RefreshCw, TrendingUp, Star, Clock, MessageSquare } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import SupportSubNav from '../components/SupportSubNav';
+import { SuggestDropdown } from '../../components/SuggestDropdown';
+import '../lib/suggestDropdownAdmin.css';
 
 export default function SupportPerformanceAnalytics() {
   const { t } = useTranslation();
@@ -13,6 +15,18 @@ export default function SupportPerformanceAnalytics() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('rating');
+
+  // Typeahead suggestions from the latest loaded agent rows.
+  const agentSuggestItems = useMemo(() => {
+    const seen = new Set();
+    const items = [];
+    for (const agent of agents) {
+      if (agent.id == null || seen.has(agent.id)) continue;
+      seen.add(agent.id);
+      items.push({ id: agent.id, title: agent.name || String(agent.id), meta: agent.email || undefined });
+    }
+    return items;
+  }, [agents]);
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [agentDetails, setAgentDetails] = useState(null);
   const [loadError, setLoadError] = useState(null);
@@ -129,17 +143,17 @@ export default function SupportPerformanceAnalytics() {
 
       {/* Agents Search and Sort */}
       <div className="mb-8 space-y-4">
-        <div className="relative">
-          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
-          <input
-            type="text"
-            placeholder={t('adminSupportPerformance.searchPlaceholder')}
-            aria-label={t('adminSupportPerformance.searchPlaceholder')}
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-          />
-        </div>
+        <SuggestDropdown
+          id="support-performance-search"
+          items={agentSuggestItems}
+          value={search}
+          onQueryChange={setSearch}
+          onSelect={(item) => setSearch(item.title || '')}
+          recentsKey="oxsteed_admin_support_performance_search_recents"
+          placeholder={t('adminSupportPerformance.searchPlaceholder')}
+          ariaLabel={t('adminSupportPerformance.searchPlaceholder')}
+          className="sd-admin-dark"
+        />
         <div className="flex gap-3">
           <select
             value={sortBy}

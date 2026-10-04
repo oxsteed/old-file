@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle,
@@ -10,12 +10,13 @@ import {
   FileText,
   Loader2,
   RefreshCw,
-  Search,
   ShieldCheck,
   Wallet,
   XCircle,
 } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
+import { SuggestDropdown } from '../../../components/SuggestDropdown';
+import '../../lib/suggestDropdownAdmin.css';
 import { formatCreditDateTime } from '../../../lib/creditDateTime';
 
 const PAGE_SIZE = 25;
@@ -514,6 +515,20 @@ export default function RestaurantCreditAdmin() {
   const pagination = data?.pagination || { page: 1, totalPages: 1, total: 0 };
   const wallets = data?.wallets || [];
   const pendingRequests = data?.pendingRequests || [];
+
+  // Typeahead suggestions from the latest loaded wallet rows.
+  const walletSuggestItems = useMemo(() => {
+    const seen = new Set();
+    const items = [];
+    for (const wallet of wallets) {
+      const id = wallet.accountId ?? wallet.customerId;
+      if (id == null || seen.has(id)) continue;
+      seen.add(id);
+      const title = wallet.customerName || wallet.customerEmail || String(id);
+      items.push({ id, title, meta: wallet.customerEmail || wallet.restaurantName || undefined });
+    }
+    return items;
+  }, [wallets]);
   // The server reports only a distinct currency count, not the single code.
   // When every wallet shares one currency, any wallet's code is authoritative;
   // never assume USD for a non-USD book.
@@ -548,7 +563,17 @@ export default function RestaurantCreditAdmin() {
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
           <form className="min-w-0 flex-1" onSubmit={(event) => { event.preventDefault(); setPage(1); setFilters((current) => ({ ...current, q: searchInput.trim() })); }}>
             <label className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{t('adminRestaurantCreditSearchLabel')}</label>
-            <div className="mt-2 flex gap-2"><div className="relative min-w-0 flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" /><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder={t('adminRestaurantCreditSearchPlaceholder')} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-10 py-3 text-sm text-white placeholder:text-gray-600 outline-none focus:border-orange-400" /></div><button type="submit" className="rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white hover:bg-orange-400">{t('common.search')}</button></div>
+            <div className="mt-2 flex gap-2"><SuggestDropdown
+              id="restaurant-credit-search"
+              items={walletSuggestItems}
+              value={searchInput}
+              onQueryChange={setSearchInput}
+              onSelect={(item) => setSearchInput(item.title || '')}
+              recentsKey="oxsteed_admin_restaurant_credit_search_recents"
+              placeholder={t('adminRestaurantCreditSearchPlaceholder')}
+              ariaLabel={t('adminRestaurantCreditSearchPlaceholder')}
+              className="sd-admin-dark min-w-0 flex-1"
+            /><button type="submit" className="rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white hover:bg-orange-400">{t('common.search')}</button></div>
           </form>
           <label className="w-full lg:max-w-[220px]"><span className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{t('adminRestaurantCreditWalletStatus')}</span><select value={filters.status} onChange={(event) => { setPage(1); setFilters((current) => ({ ...current, status: event.target.value })); }} className="mt-2 w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400"><option value="">{t('adminFranchiseAllStatuses')}</option><option value="active">{t('adminRestaurantCreditStatusActive')}</option><option value="suspended">{t('adminRestaurantCreditStatusSuspended')}</option><option value="closed">{t('adminRestaurantCreditStatusClosed')}</option></select></label>
           <label className="w-full lg:max-w-[260px]"><span className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{t('adminRestaurantCreditRestaurant')}</span><select value={filters.restaurantId} onChange={(event) => { setPage(1); setFilters((current) => ({ ...current, restaurantId: event.target.value })); }} className="mt-2 w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400"><option value="">{t('adminRestaurantCreditAllRestaurants')}</option>{(data?.restaurants || []).map((restaurant) => <option key={restaurant.id} value={restaurant.id}>{restaurant.name}</option>)}</select></label>

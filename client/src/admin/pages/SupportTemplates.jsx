@@ -1,11 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import useDestructiveConfirm from '../hooks/useDestructiveConfirm';
 import adminApi from '../../lib/adminApi';
 import toast from 'react-hot-toast';
-import { MessageSquare, Plus, Edit2, Trash2, Search, RefreshCw, Copy, TrendingUp } from 'lucide-react';
+import { MessageSquare, Plus, Edit2, Trash2, RefreshCw, Copy, TrendingUp } from 'lucide-react';
 import SupportSubNav from '../components/SupportSubNav';
+import { SuggestDropdown } from '../../components/SuggestDropdown';
+import '../lib/suggestDropdownAdmin.css';
 
 export default function SupportTemplates() {
   const { t } = useTranslation();
@@ -14,6 +16,18 @@ export default function SupportTemplates() {
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+
+  // Typeahead suggestions from the latest loaded template rows.
+  const templateSuggestItems = useMemo(() => {
+    const seen = new Set();
+    const items = [];
+    for (const template of templates) {
+      if (template.id == null || seen.has(template.id)) continue;
+      seen.add(template.id);
+      items.push({ id: template.id, title: template.name || String(template.id), meta: template.category || undefined });
+    }
+    return items;
+  }, [templates]);
   const [showForm, setShowForm] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [formData, setFormData] = useState({
@@ -147,16 +161,17 @@ export default function SupportTemplates() {
       </div>
 
       <div className="mb-8">
-        <div className="relative">
-          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
-          <input
-            type="text"
-            placeholder={t('adminSupportTemplates.searchPlaceholder')}
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-          />
-        </div>
+        <SuggestDropdown
+          id="support-templates-search"
+          items={templateSuggestItems}
+          value={search}
+          onQueryChange={setSearch}
+          onSelect={(item) => setSearch(item.title || '')}
+          recentsKey="oxsteed_admin_support_templates_search_recents"
+          placeholder={t('adminSupportTemplates.searchPlaceholder')}
+          ariaLabel={t('adminSupportTemplates.searchPlaceholder')}
+          className="sd-admin-dark"
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4">

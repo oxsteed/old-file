@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import adminApi from '../../lib/adminApi';
@@ -53,6 +53,20 @@ export default function OrderManagement() {
   const handleFilterChange = (newFilters) => {
     setFilters({ ...filters, ...newFilters, skip: 0 });
   };
+
+  // Typeahead suggestions for the order search, from the latest loaded order rows.
+  const orderSuggestItems = useMemo(() => {
+    const rows = data?.data || [];
+    const seen = new Set();
+    const items = [];
+    for (const order of rows) {
+      if (order.id == null || seen.has(order.id)) continue;
+      seen.add(order.id);
+      const title = order.customerName || order.customerEmail || `#${order.id}`;
+      items.push({ id: order.id, title, meta: order.customerEmail || `#${order.id}` });
+    }
+    return items;
+  }, [data]);
 
   const handleRowClick = (order) => {
     setSelectedOrder(order);
@@ -111,7 +125,7 @@ export default function OrderManagement() {
       )}
 
       {/* Filters */}
-      <OrderFilters filters={filters} onFilterChange={handleFilterChange} />
+      <OrderFilters filters={filters} onFilterChange={handleFilterChange} suggestItems={orderSuggestItems} />
 
       {/* Orders Table */}
       <div className="rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 overflow-hidden">

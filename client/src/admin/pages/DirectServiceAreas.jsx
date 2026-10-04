@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Loader2, MapPinned, Pencil, Plus, RefreshCw, Search, X } from 'lucide-react';
+import { Check, Loader2, MapPinned, Pencil, Plus, RefreshCw, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { adminRoute } from '../adminRouteManifest';
 import adminApi from '../../lib/adminApi';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
+import { SuggestDropdown } from '../../components/SuggestDropdown';
+import '../lib/suggestDropdownAdmin.css';
 
 const EMPTY_FORM = {
   label: '',
@@ -52,6 +54,18 @@ function Input({ className = '', ...props }) {
 export default function DirectServiceAreas() {
   const { t } = useTranslation();
   const [areas, setAreas] = useState([]);
+
+  // Typeahead suggestions from the loaded service-area rows.
+  const serviceAreaSuggestItems = useMemo(() => {
+    const seen = new Set();
+    const items = [];
+    for (const area of areas) {
+      if (area.id == null || seen.has(area.id)) continue;
+      seen.add(area.id);
+      items.push({ id: area.id, title: area.label || String(area.id), meta: area.anchorZip || undefined });
+    }
+    return items;
+  }, [areas]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -210,10 +224,17 @@ export default function DirectServiceAreas() {
             <span className="rounded-full border border-gray-700 px-3 py-1 text-xs font-semibold text-gray-300">{t('directCatalogAdmin.activeCount', { defaultValue: '{{count}} active', count: areas.filter((area) => area.active).length })}</span>
           </div>
           <div className="mb-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-            <label className="relative block">
-              <Search size={15} className="absolute start-3 top-1/2 -translate-y-1/2 text-gray-500" />
-              <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('directCatalogAdmin.searchAreaPlaceholder', { defaultValue: 'Search area name or ZIP' })} className="ps-9" aria-label={t('directCatalogAdmin.searchAreasAria', { defaultValue: 'Search configured service areas' })} />
-            </label>
+            <SuggestDropdown
+              id="direct-service-areas-search"
+              items={serviceAreaSuggestItems}
+              value={query}
+              onQueryChange={setQuery}
+              onSelect={(item) => setQuery(item.title || '')}
+              recentsKey="oxsteed_admin_direct_service_areas_search_recents"
+              placeholder={t('directCatalogAdmin.searchAreaPlaceholder', { defaultValue: 'Search area name or ZIP' })}
+              ariaLabel={t('directCatalogAdmin.searchAreasAria', { defaultValue: 'Search configured service areas' })}
+              className="sd-admin-dark"
+            />
             <select value={activeFilter} onChange={(event) => setActiveFilter(event.target.value)} className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-gray-300 outline-none focus:border-orange-500" aria-label={t('directCatalogAdmin.filterAreasAria', { defaultValue: 'Filter service areas' })}>
               <option value="all">{t('directCatalogAdmin.allAreas', { defaultValue: 'All areas' })}</option>
               <option value="active">{t('directCatalogAdmin.activeOnly', { defaultValue: 'Active only' })}</option>

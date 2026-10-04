@@ -1,6 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ClipboardList, Search, X } from 'lucide-react';
+import { SuggestDropdown } from '../../components/SuggestDropdown';
+import '../lib/suggestDropdownAdmin.css';
+import { ClipboardList, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import adminApi from '../../lib/adminApi';
 
@@ -126,6 +128,18 @@ export default function PlannedNeedsAdmin() {
   const [loading,     setLoading]     = useState(true);
   const [search,      setSearch]      = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  // Typeahead suggestions from the latest loaded planned-need rows.
+  const plannedNeedSuggestItems = useMemo(() => {
+    const seen = new Set();
+    const items = [];
+    for (const n of needs) {
+      if (n.id == null || seen.has(n.id)) continue;
+      seen.add(n.id);
+      items.push({ id: n.id, title: n.title || String(n.id), meta: n.owner_email || n.owner_name || undefined });
+    }
+    return items;
+  }, [needs]);
   const [page,        setPage]        = useState(1);
 
   const [modal,       setModal]       = useState(null); // { item, actionType }
@@ -192,17 +206,17 @@ export default function PlannedNeedsAdmin() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-6">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-          <input
-            type="text"
-            placeholder={t('adminPlannedNeeds.searchPlaceholder')}
-            value={search}
-            onChange={e => resetPage(setSearch)(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg
-                       text-white text-sm placeholder-gray-500 focus:border-orange-500 focus:outline-none"
-          />
-        </div>
+        <SuggestDropdown
+          id="planned-needs-search"
+          items={plannedNeedSuggestItems}
+          value={search}
+          onQueryChange={(q) => resetPage(setSearch)(q)}
+          onSelect={(item) => resetPage(setSearch)(item.title || '')}
+          recentsKey="oxsteed_admin_planned_needs_search_recents"
+          placeholder={t('adminPlannedNeeds.searchPlaceholder')}
+          ariaLabel={t('adminPlannedNeeds.searchPlaceholder')}
+          className="sd-admin-dark flex-1 min-w-[200px]"
+        />
         <select
           value={statusFilter}
           onChange={e => resetPage(setStatusFilter)(e.target.value)}

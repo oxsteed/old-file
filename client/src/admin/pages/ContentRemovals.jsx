@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Trash2, RotateCcw, AlertCircle } from 'lucide-react';
+import { Trash2, RotateCcw, AlertCircle } from 'lucide-react';
 import adminApi from '../../lib/adminApi';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
+import { SuggestDropdown } from '../../components/SuggestDropdown';
+import '../lib/suggestDropdownAdmin.css';
 
 const TABS = [
   { key: 'bids',    labelKey: 'adminContentRemovals.tabBids'    },
@@ -121,6 +123,22 @@ export default function ContentRemovals() {
   // Keep previously loaded items on failure; the error panel below makes the
   // outage visible instead of faking an empty queue.
   const items = data?.items ?? [];
+
+  // Typeahead suggestions from the latest loaded content rows.
+  const contentSuggestItems = useMemo(() => {
+    const seen = new Set();
+    const list = [];
+    for (const item of items) {
+      if (item.id == null || seen.has(item.id)) continue;
+      seen.add(item.id);
+      list.push({
+        id: item.id,
+        title: item.job_title || item.helper_name || String(item.id),
+        meta: item.helper_email || undefined,
+      });
+    }
+    return list;
+  }, [items]);
   const total = data?.total ?? 0;
 
   function showToast(msg, type = 'success') {
@@ -202,13 +220,17 @@ export default function ContentRemovals() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-5">
-        <div className="relative flex-1 min-w-[220px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-          <input type="text" placeholder={t('adminContentRemovals.searchPlaceholder', { tab: activeTabDef ? t(activeTabDef.labelKey) : tab })}
-            value={search}
-            onChange={e => { setSearch(e.target.value); setPage(1); }}
-            className="w-full pl-9 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:border-orange-500 focus:outline-none" />
-        </div>
+        <SuggestDropdown
+          id="content-removals-search"
+          items={contentSuggestItems}
+          value={search}
+          onQueryChange={(q) => { setSearch(q); setPage(1); }}
+          onSelect={(item) => { setSearch(item.title || ''); setPage(1); }}
+          recentsKey="oxsteed_admin_content_removals_search_recents"
+          placeholder={t('adminContentRemovals.searchPlaceholder', { tab: activeTabDef ? t(activeTabDef.labelKey) : tab })}
+          ariaLabel={t('adminContentRemovals.searchPlaceholder', { tab: activeTabDef ? t(activeTabDef.labelKey) : tab })}
+          className="sd-admin-dark flex-1 min-w-[220px]"
+        />
         {tab === 'bids' && (
           <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
             className="bg-gray-800 border border-gray-700 rounded-lg text-white text-sm px-3 py-2">

@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { SuggestDropdown } from '../../../components/SuggestDropdown';
+import '../../lib/suggestDropdownAdmin.css';
 import {
   AlertTriangle,
   Ban,
@@ -15,7 +17,6 @@ import {
   RefreshCw,
   RotateCcw,
   Save,
-  Search,
   X,
   Shield,
   Sparkles,
@@ -970,6 +971,25 @@ export default function PlatformSettings() {
   const { t } = useTranslation();
   const [settings, setSettings] = useState([]);
   const [flags, setFlags] = useState([]);
+
+  // Typeahead suggestions from the loaded setting and feature-flag rows.
+  const platformSettingSuggestItems = useMemo(() => {
+    const seen = new Set();
+    const items = [];
+    for (const setting of settings) {
+      const id = `setting:${setting.key}`;
+      if (!setting.key || seen.has(id)) continue;
+      seen.add(id);
+      items.push({ id, title: setting.key, meta: setting.label || undefined });
+    }
+    for (const flag of flags) {
+      const id = `flag:${flag.key}`;
+      if (!flag.key || seen.has(id)) continue;
+      seen.add(id);
+      items.push({ id, title: flag.key, meta: flag.label || 'feature flag' });
+    }
+    return items;
+  }, [settings, flags]);
   const [editing, setEditing] = useState({});
   const [saving, setSaving] = useState(null);
   const [message, setMessage] = useState(null);
@@ -1385,12 +1405,16 @@ export default function PlatformSettings() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
             <label className="relative min-w-0 flex-1">
               <span className="sr-only">{t('superPlatformSettings.searchSr')}</span>
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-              <input
+              <SuggestDropdown
+                id="platform-settings-search"
+                items={platformSettingSuggestItems}
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onQueryChange={setQuery}
+                onSelect={(item) => setQuery(item.title || '')}
+                recentsKey="oxsteed_admin_platform_settings_search_recents"
                 placeholder={t('superPlatformSettings.searchPlaceholder')}
-                className="w-full rounded-xl border border-gray-700 bg-gray-900 py-2.5 pl-10 pr-10 text-sm text-white placeholder-gray-500 outline-none transition focus:border-orange-500"
+                ariaLabel={t('superPlatformSettings.searchPlaceholder')}
+                className="sd-admin-dark"
               />
               {query && (
                 <button

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from '../../api/axios';
@@ -7,6 +7,8 @@ import ConsultingSessionDetail from './ConsultingSessionDetail';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
 import ConfirmDialog from '../lib/ConfirmDialog';
+import { SuggestDropdown } from '../../components/SuggestDropdown';
+import '../lib/suggestDropdownAdmin.css';
 
 const STATUS_COLORS = {
   pending: '#FFA500',
@@ -238,6 +240,19 @@ export default function ConsultingSessionsAdmin() {
   }, [filters, page, search]);
 
   const sessions = data?.sessions ?? [];
+
+  // Typeahead suggestions from the latest loaded session rows.
+  const consultingSessionSuggestItems = useMemo(() => {
+    const seen = new Set();
+    const items = [];
+    for (const s of sessions) {
+      if (s.id == null || seen.has(s.id)) continue;
+      seen.add(s.id);
+      const title = `${s.first_name || ''} ${s.last_name || ''}`.trim() || s.email || String(s.id);
+      items.push({ id: s.id, title, meta: s.email || undefined });
+    }
+    return items;
+  }, [sessions]);
   const consultants = data?.consultants ?? [];
   const pagination = data?.pagination ?? {};
 
@@ -342,11 +357,19 @@ export default function ConsultingSessionsAdmin() {
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <input
-          type="text" placeholder={t('adminConsultingSessions.filters.searchPlaceholder')}
-          value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-          style={{ ...inputStyle, minWidth: '220px' }}
-        />
+        <div style={{ minWidth: '220px' }}>
+          <SuggestDropdown
+            id="consulting-sessions-search"
+            items={consultingSessionSuggestItems}
+            value={search}
+            onQueryChange={(q) => { setSearch(q); setPage(1); }}
+            onSelect={(item) => { setSearch(item.title || ''); setPage(1); }}
+            recentsKey="oxsteed_admin_consulting_sessions_search_recents"
+            placeholder={t('adminConsultingSessions.filters.searchPlaceholder')}
+            ariaLabel={t('adminConsultingSessions.filters.searchPlaceholder')}
+            className="sd-admin-adaptive"
+          />
+        </div>
         <select style={inputStyle} value={filters.status} onChange={e => { setFilters(f => ({ ...f, status: e.target.value })); setPage(1); }}>
           <option value="">{t('adminConsultingSessions.filters.allStatus')}</option>
           <option value="pending">{t('adminConsultingSessions.status.pending')}</option>

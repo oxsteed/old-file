@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import adminApi from '../../../lib/adminApi';
 import { formatCreditMinorUnits, parseOptionalCreditMajorAmount } from '../../../lib/creditCurrency';
 import { createStableIdempotencyKeyStore } from './creditIdempotency';
+import { SuggestDropdown } from '../../../components/SuggestDropdown';
+import '../../lib/suggestDropdownAdmin.css';
 import { formatCreditDateTime } from '../../../lib/creditDateTime';
 import { localizeCreditStatus } from '../../../lib/creditStatus';
 import { safeCreditErrorMessage } from '../../../lib/creditErrors';
@@ -34,6 +36,19 @@ function Badge({ status }) {
 export default function OxsteedCreditEntitlements({ agreements = [], customerAccounts = [], currencyMetadata = {}, busy = false }) {
   const { t } = useTranslation('credit');
   const [entitlements, setEntitlements] = useState([]);
+
+  // Typeahead suggestions from the latest loaded entitlement rows.
+  const entitlementSuggestItems = useMemo(() => {
+    const seen = new Set();
+    const items = [];
+    for (const entitlement of entitlements) {
+      if (entitlement.id == null || seen.has(entitlement.id)) continue;
+      seen.add(entitlement.id);
+      const title = entitlement.customerName || entitlement.customerEmail || String(entitlement.id);
+      items.push({ id: entitlement.id, title, meta: entitlement.customerEmail || entitlement.restaurantName || undefined });
+    }
+    return items;
+  }, [entitlements]);
   const [form, setForm] = useState({ customerId: '', agreementId: '', status: 'active', startsAt: '', endsAt: '', maxTransaction: '', dailyLimit: '', reason: '' });
   const [statusFilter, setStatusFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -275,7 +290,17 @@ export default function OxsteedCreditEntitlements({ agreements = [], customerAcc
 
     <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
       <div><h3 className="text-sm font-semibold text-white">{t('adminCurrentAssignments')}</h3><p className="mt-1 text-xs text-gray-600">{total ? t('adminShowingAssignments', { from: offset + 1, to: Math.min(offset + entitlements.length, total), total }) : t('adminNoAssignmentsLoaded')}</p></div>
-      <div className="flex flex-wrap items-center justify-end gap-2"><input value={search} onChange={(event) => setSearch(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { setAppliedSearch(search.trim()); setOffset(0); } }} placeholder={t('adminAgreementSearchPlaceholder')} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-white outline-none focus:border-orange-400" /><button type="button" onClick={() => { setAppliedSearch(search.trim()); setOffset(0); }} disabled={loading || saving} className="rounded-lg bg-sky-600 px-3 py-2 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-50">{t('search')}</button><select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setOffset(0); }} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-white outline-none focus:border-orange-400"><option value="all">{t('allStatuses')}</option>{ENTITLEMENT_STATUSES.map((status) => <option key={status} value={status}>{status === 'active' ? t('activeStatus') : status === 'suspended' ? t('suspendedStatus') : status === 'expired' ? t('expiredStatus') : t('rejectedStatus')}</option>)}</select><button type="button" onClick={() => setOffset((current) => Math.max(0, current - ENTITLEMENT_PAGE_SIZE))} disabled={loading || saving || offset === 0} className="rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50">{t('adminPrevious')}</button><button type="button" onClick={() => setOffset((current) => current + ENTITLEMENT_PAGE_SIZE)} disabled={loading || saving || !hasMore} className="rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50">{t('adminNext')}</button></div>
+      <div className="flex flex-wrap items-center justify-end gap-2"><span onKeyDown={(event) => { if (event.key === 'Enter' && !event.defaultPrevented) { setAppliedSearch(search.trim()); setOffset(0); } }}><SuggestDropdown
+            id="oxsteed-credit-entitlements-search"
+            items={entitlementSuggestItems}
+            value={search}
+            onQueryChange={setSearch}
+            onSelect={(item) => { const next = item.title || ''; setSearch(next); setAppliedSearch(next.trim()); setOffset(0); }}
+            recentsKey="oxsteed_admin_credit_entitlements_search_recents"
+            placeholder={t('adminAgreementSearchPlaceholder')}
+            ariaLabel={t('adminAgreementSearchPlaceholder')}
+            className="sd-admin-dark"
+          /></span><button type="button" onClick={() => { setAppliedSearch(search.trim()); setOffset(0); }} disabled={loading || saving} className="rounded-lg bg-sky-600 px-3 py-2 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-50">{t('search')}</button><select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setOffset(0); }} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-white outline-none focus:border-orange-400"><option value="all">{t('allStatuses')}</option>{ENTITLEMENT_STATUSES.map((status) => <option key={status} value={status}>{status === 'active' ? t('activeStatus') : status === 'suspended' ? t('suspendedStatus') : status === 'expired' ? t('expiredStatus') : t('rejectedStatus')}</option>)}</select><button type="button" onClick={() => setOffset((current) => Math.max(0, current - ENTITLEMENT_PAGE_SIZE))} disabled={loading || saving || offset === 0} className="rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50">{t('adminPrevious')}</button><button type="button" onClick={() => setOffset((current) => current + ENTITLEMENT_PAGE_SIZE)} disabled={loading || saving || !hasMore} className="rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50">{t('adminNext')}</button></div>
     </div>
     <div className="mt-3 overflow-x-auto rounded-xl border border-gray-800">
       <table className="min-w-[1000px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">{t('adminCustomer')}</th><th className="px-3 py-3 font-medium">{t('restaurant')}</th><th className="px-3 py-3 font-medium">{t('adminPartnerAgreement')}</th><th className="px-3 py-3 font-medium">{t('adminAccessState')}</th><th className="px-3 py-3 font-medium">{t('adminLimits')}</th><th className="px-3 py-3 font-medium">{t('adminValidity')}</th></tr></thead><tbody className="divide-y divide-gray-800">{loading ? <tr><td colSpan="6" className="px-3 py-10 text-center text-gray-500">{t('loading')}</td></tr> : !visibleEntitlements.length ? <tr><td colSpan="6" className="px-3 py-10 text-center text-gray-500">{t('adminNoAccessMatches')}</td></tr> : visibleEntitlements.map((entitlement) => <tr key={entitlement.id}><td className="px-3 py-3"><strong className="text-white">{entitlement.customerName || t('notProvided')}</strong><p className="mt-1 text-gray-500">{entitlement.customerEmail || t('notProvided')}</p><p className="mt-1 font-mono text-[10px] text-gray-700">{entitlement.customerId}</p></td><td className="px-3 py-3 text-white">{entitlement.restaurantName || t('adminRestaurantFallback', { id: entitlement.restaurantId })}<p className="mt-1 text-gray-600">{entitlement.currencyCode || 'USD'}</p></td><td className="px-3 py-3 text-gray-400">v{entitlement.agreementVersion || '?'}<p className="mt-1 text-gray-600">{localizeCreditStatus(entitlement.agreementStatus, t)}</p></td><td className="px-3 py-3"><Badge status={entitlement.status} /></td><td className="px-3 py-3 text-gray-400">{entitlement.maxTransactionCents ? `${t('adminMaxAmount', { amount: money(entitlement.maxTransactionCents, entitlement.currencyCode, currencyMetadata) })}` : t('adminAgreementCap')}{entitlement.dailyLimitCents ? <p className="mt-1 text-gray-600">{t('adminDailyAmount', { amount: money(entitlement.dailyLimitCents, entitlement.currencyCode, currencyMetadata) })}</p> : null}</td><td className="px-3 py-3 text-gray-500">{dateTime(entitlement.startsAt, t)}<br />{t('adminTo')} {dateTime(entitlement.endsAt, t)}</td></tr>)}</tbody></table>

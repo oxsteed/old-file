@@ -11,13 +11,14 @@ import {
   MapPinned,
   Plus,
   RefreshCcw,
-  Search,
   ShieldCheck,
   Trash2,
   X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import adminApi from '../../../lib/adminApi';
+import { SuggestDropdown } from '../../../components/SuggestDropdown';
+import '../../lib/suggestDropdownAdmin.css';
 import RegionForm from '../../../components/RegionForm';
 
 const TYPE_META = {
@@ -256,6 +257,18 @@ function RegionCard({ region, onEdit, onDelete, deleting }) {
 export default function RegionsManager() {
   const { t } = useTranslation();
   const [regions, setRegions] = useState([]);
+
+  // Typeahead suggestions from the loaded region rows.
+  const regionSuggestItems = useMemo(() => {
+    const seen = new Set();
+    const items = [];
+    for (const region of regions) {
+      if (region.id == null || seen.has(region.id)) continue;
+      seen.add(region.id);
+      items.push({ id: region.id, title: region.name || String(region.id), meta: region.code || undefined });
+    }
+    return items;
+  }, [regions]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [editing, setEditing] = useState(null); // null, 'new', or region object
@@ -401,18 +414,17 @@ export default function RegionsManager() {
 
         <section className="rounded-[28px] border border-white/10 bg-slate-950/80 p-5 shadow-[0_22px_60px_rgba(2,6,23,0.28)]">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="relative min-w-[240px] flex-1">
-              <Search
-                size={16}
-                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
-              />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={t('adminRegionsSearchPlaceholder')}
-                className="w-full rounded-2xl border border-white/10 bg-slate-900/80 py-3 pl-11 pr-4 text-sm text-white placeholder:text-slate-500 focus:border-orange-500 focus:outline-none"
-              />
-            </div>
+            <SuggestDropdown
+              id="regions-manager-search"
+              items={regionSuggestItems}
+              value={search}
+              onQueryChange={setSearch}
+              onSelect={(item) => setSearch(item.title || '')}
+              recentsKey="oxsteed_admin_regions_manager_search_recents"
+              placeholder={t('adminRegionsSearchPlaceholder')}
+              ariaLabel={t('adminRegionsSearchPlaceholder')}
+              className="sd-admin-dark min-w-[240px] flex-1"
+            />
 
             <select
               value={typeFilter}

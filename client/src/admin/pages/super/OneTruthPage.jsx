@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -22,7 +22,6 @@ import {
   MessageSquare,
   Phone,
   RefreshCw,
-  Search,
   ShoppingBag,
   Shield,
   Smartphone,
@@ -34,6 +33,8 @@ import {
   Zap,
 } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
+import { SuggestDropdown } from '../../../components/SuggestDropdown';
+import '../../lib/suggestDropdownAdmin.css';
 
 const TABS = [
   { id: 'suspects', labelKey: 'adminOneTruthTabSuspects', icon: AlertTriangle },
@@ -457,6 +458,19 @@ export default function OneTruthPage() {
   const [userPages, setUserPages] = useState(1);
   const [userSearch, setUserSearch] = useState('');
   const [userSearchInput, setUserSearchInput] = useState('');
+
+  // Typeahead suggestions from the latest loaded user rows.
+  const oneTruthUserSuggestItems = useMemo(() => {
+    const seen = new Set();
+    const items = [];
+    for (const user of users) {
+      if (user.id == null || seen.has(user.id)) continue;
+      seen.add(user.id);
+      const title = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email || String(user.id);
+      items.push({ id: user.id, title, meta: user.email || undefined });
+    }
+    return items;
+  }, [users]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState('');
 
@@ -800,16 +814,17 @@ export default function OneTruthPage() {
           <div className="space-y-4">
             <div className="rounded-3xl border border-gray-800 bg-[#111318] p-4">
               <form onSubmit={handleUserSearch} className="flex flex-col gap-3 lg:flex-row">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-                  <input
-                    type="text"
-                    value={userSearchInput}
-                    onChange={(event) => setUserSearchInput(event.target.value)}
-                    placeholder={t('adminOneTruthUserSearchPlaceholder')}
-                    className="w-full rounded-2xl border border-gray-700 bg-gray-900 py-3 pl-9 pr-4 text-sm text-white outline-none transition focus:border-orange-500"
-                  />
-                </div>
+                <SuggestDropdown
+                  id="one-truth-user-search"
+                  items={oneTruthUserSuggestItems}
+                  value={userSearchInput}
+                  onQueryChange={setUserSearchInput}
+                  onSelect={(item) => setUserSearchInput(item.title || '')}
+                  recentsKey="oxsteed_admin_one_truth_user_search_recents"
+                  placeholder={t('adminOneTruthUserSearchPlaceholder')}
+                  ariaLabel={t('adminOneTruthUserSearchPlaceholder')}
+                  className="sd-admin-dark flex-1"
+                />
                 <button
                   type="submit"
                   className="rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-orange-600"

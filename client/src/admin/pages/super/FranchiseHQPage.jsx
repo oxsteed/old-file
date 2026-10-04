@@ -11,9 +11,10 @@ import {
   MapPin,
   Plus,
   RefreshCcw,
-  Search,
   Users,
 } from 'lucide-react';
+import { SuggestDropdown } from '../../../components/SuggestDropdown';
+import '../../lib/suggestDropdownAdmin.css';
 import toast from 'react-hot-toast';
 import axios from '../../../api/axios';
 
@@ -161,6 +162,19 @@ function FranchiseRow({ item, isActive, onClick }) {
 export default function FranchiseHQPage() {
   const { t } = useTranslation();
   const [applications, setApplications] = useState([]);
+
+  // Typeahead suggestions from the latest loaded franchise-application rows.
+  const franchiseSuggestItems = useMemo(() => {
+    const seen = new Set();
+    const items = [];
+    for (const item of applications) {
+      if (item.id == null || seen.has(item.id)) continue;
+      seen.add(item.id);
+      const title = item.desired_brand_name || item.current_company_name || `${item.first_name || ''} ${item.last_name || ''}`.trim() || String(item.id);
+      items.push({ id: item.id, title, meta: item.email || undefined });
+    }
+    return items;
+  }, [applications]);
   const [selectedId, setSelectedId] = useState(null);
   const [selectedBundle, setSelectedBundle] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -463,10 +477,17 @@ export default function FranchiseHQPage() {
         <section style={{ display: 'grid', gridTemplateColumns: '420px minmax(0, 1fr)', gap: 18, alignItems: 'start' }}>
           <div style={{ ...panel, padding: 18, display: 'grid', gap: 14, position: 'sticky', top: 24 }}>
             <div style={{ display: 'grid', gap: 12 }}>
-              <div style={{ position: 'relative' }}>
-                <Search size={16} style={{ position: 'absolute', left: 12, top: 12, color: '#64748b' }} />
-                <input style={{ ...fieldStyle, paddingLeft: 38 }} placeholder={t('adminFranchiseSearchPlaceholder')} value={search} onChange={(e) => setSearch(e.target.value)} />
-              </div>
+              <SuggestDropdown
+                id="franchise-hq-search"
+                items={franchiseSuggestItems}
+                value={search}
+                onQueryChange={setSearch}
+                onSelect={(item) => setSearch(item.title || '')}
+                recentsKey="oxsteed_admin_franchise_hq_search_recents"
+                placeholder={t('adminFranchiseSearchPlaceholder')}
+                ariaLabel={t('adminFranchiseSearchPlaceholder')}
+                className="sd-admin-adaptive"
+              />
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
                 <select style={fieldStyle} value={filters.status} onChange={(e) => setFilters((v) => ({ ...v, status: e.target.value }))}>
                   <option value="">{t('adminFranchiseAllStatuses')}</option>
