@@ -11,6 +11,7 @@ const metricsService = require('../services/metricsService');
 const { AppError }  = require('../middleware/errorHandler');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 const availabilityService = require('../services/helperAvailabilityService');
+const { evaluateOperatingHours } = require('../utils/foodOperatingHours');
 
 // Saved-search fan-out for newly listed helpers (routes/savedSearches also
 // exposes the jobs/tools matchers). Defensive require: alerts must never
@@ -112,6 +113,71 @@ function sanitizeServicePriceUnit(u) {
 //   lat, lng, radius (miles, default 60) - haversine distance filter,
 //   sort (best_match|highest_rated|most_reviews|lowest_price|fastest_response|newest),
 //   page, limit
+/**
+ * Open-now restaurants near a point, mapped to the directory row shape with
+ * type 'restaurant'. Only visible, non-hidden restaurants inside the radius
+ * are considered; the open-now check runs in JS via evaluateOperatingHours.
+ */
+async function fetchOpenRestaurantsNear(lat, lng, radiusMiles, now = new Date()) {
+  const { rows } = await pool.query(
+    `SELECT fr.id, fr.display_name, fr.cuisine_tags, fr.logo_url, fr.cover_photo_url,
+            fr.address_city, fr.address_state, fr.avg_rating, fr.rating_count,
+            fr.operating_hours, fr.timezone, fr.temporarily_closed_until,
+            fr.is_accepting_orders_now
+     FROM food_restaurants fr
+     WHERE fr.discovery_status = 'visible'
+       AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
+       AND fr.latitude IS NOT NULL AND fr.longitude IS NOT NULL
+       AND 3958.8 * acos(
+             GREATEST(-1.0, LEAST(1.0,
+               sin(radians($1::float8)) * sin(radians(fr.latitude::float8)) +
+               cos(radians($1::float8)) * cos(radians(fr.latitude::float8)) *
+               cos(radians(fr.longitude::float8 - $2::float8))
+             ))
+           ) <= $3
+     ORDER BY fr.avg_rating DESC NULLS LAST, fr.rating_count DESC NULLS LAST
+     LIMIT 12`,
+    [lat, lng, radiusMiles]
+  );
+  return rows
+    .filter((r) => {
+      const hours = evaluateOperatingHours(r.operating_hours, r.timezone, now);
+      const closedUntil = r.temporarily_closed_until ? new Date(r.temporarily_closed_until) : null;
+      const tempClosed = closedUntil && !Number.isNaN(closedUntil.getTime()) && closedUntil > now;
+      return hours.isOpen && r.is_accepting_orders_now !== false && !tempClosed;
+    })
+    .slice(0, 8)
+    .map((r) => ({
+      id:               `rest_${r.id}`,
+      restaurantId:     r.id,
+      type:             'restaurant',
+      profileUrl:       `/food/restaurants/${r.id}`,
+      businessName:     r.display_name,
+      ownerName:        '',
+      avatar:           r.logo_url || r.cover_photo_url || '',
+      rating:           parseFloat(r.avg_rating) || 0,
+      reviewCount:      r.rating_count || 0,
+      jobsCompleted:    0,
+      verified:         false,
+      backgroundChecked:false,
+      categories:       Array.isArray(r.cuisine_tags) ? r.cuisine_tags.filter(Boolean).slice(0, 4) : [],
+      skills:           [],
+      licenses:         [],
+      insurance:        [],
+      topServices:      [],
+      startingPrice:    0,
+      startingPriceUnit:'flat',
+      responseTime:     '',
+      responseMinutes:  0,
+      city:             r.address_city  || '',
+      state:            r.address_state || '',
+      serviceRadius:    0,
+      availableToday:   true,
+      shortBio:         '',
+    }));
+}
+
+// ── GET /api/helpers ─────────────────────────────────────────────────────────
 async function listHelpers(req, res, next) {
   try {
     const cacheKey = directoryCacheKey(req);
@@ -135,6 +201,7 @@ async function listHelpers(req, res, next) {
       lat,
       lng,
       radius,
+      include = '',
     } = req.query;
 
     const pageNum  = Math.max(1, parseInt(page)  || 1);
@@ -614,7 +681,17 @@ async function listHelpers(req, res, next) {
       }));
     }
 
-    const payload = { helpers: mapped, businesses, total: parseInt(count), page: pageNum };
+    // ── Restaurants: open-now restaurants near the user, opt-in via ?include=restaurants ──
+    // Returned as a separate key so existing consumers are unaffected.
+    let restaurants = [];
+    const includeSet = new Set(
+      String(include || '').split(',').map((v) => v.trim().toLowerCase()).filter(Boolean)
+    );
+    if (includeSet.has('restaurants') && !Number.isNaN(userLat) && !Number.isNaN(userLng)) {
+      restaurants = await fetchOpenRestaurantsNear(userLat, userLng, radiusMiles);
+    }
+
+    const payload = { helpers: mapped, businesses, restaurants, total: parseInt(count), page: pageNum };
     setDirectoryCache(cacheKey, payload);
     return sendDirectoryResponse(res, payload);
   } catch (err) {
@@ -1418,4 +1495,6 @@ async function removeCredential(req, res, next) {
 }
 
 module.exports = { listHelpers, getHelperProfile, getHelperStatus, searchSkills, searchLicenses, getHelperAvailability,
-  getHelperAvailabilitySummary, getHelperPricing, getHelperSlots, toggleListing, getMyListingStatus, getMyAvailability, toggleAvailability, removeCredential };
+  getHelperAvailabilitySummary, getHelperPricing, getHelperSlots, toggleListing, getMyListingStatus, getMyAvailability, toggleAvailability, removeCredential,
+  fetchOpenRestaurantsNear,
+};

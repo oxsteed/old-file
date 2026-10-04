@@ -10740,9 +10740,10 @@
   "liveHelpers": {
     "sectionTitle": "Èd vivan prè de ou",
     "sectionSubtitle": "Pwofesyonèl lokal verifye ki pare ede ou jòdi a",
-    "heroCardTitle": "Èd ak biznis vivan prè de ou",
+    "heroCardTitle": "Disponib toupre ou",
     "badgeHelper": "Asistan",
     "badgeBusiness": "Biznis",
+    "badgeRestaurant": "Restoran",
     "availableNow": "Disponib kounye a",
     "verified": "Verifye",
     "onlineCount": "{{count}} anliy",
@@ -10755,7 +10756,7 @@
     "loadMore": "Chaje plis èd",
     "showingAll": "Ou te wè tout èd disponib yo",
     "postJobCta": "Poste Travay Ou",
-    "noNearby": "Okenn èd pa prè",
+    "noNearby": "Anyen disponib toupre",
     "noNearbyDesc": "Poste yon travay e nou pral konekte ou ak èd ki bon pou ou",
     "loadingError": "Erè nan chajman èd yo",
     "usingFallbackLocation": "Sèvi ak lokasyon default. Aktive sèvis lokasyon pou rezilta ki pi egzak."

@@ -10738,9 +10738,10 @@
   "liveHelpers": {
     "sectionTitle": "Live helpers near you",
     "sectionSubtitle": "Verified local professionals ready to help today",
-    "heroCardTitle": "Live helpers & businesses near you",
+    "heroCardTitle": "Live near you",
     "badgeHelper": "Helper",
     "badgeBusiness": "Business",
+    "badgeRestaurant": "Restaurant",
     "availableNow": "Available now",
     "verified": "Verified",
     "onlineCount": "{{count}} online",
@@ -10753,7 +10754,7 @@
     "loadMore": "Load more helpers",
     "showingAll": "You've seen all available helpers",
     "postJobCta": "Post Your Job Instead",
-    "noNearby": "No helpers nearby",
+    "noNearby": "Nothing live nearby",
     "noNearbyDesc": "Post a job and we'll connect you with the right helper",
     "loadingError": "Failed to load helpers",
     "usingFallbackLocation": "Using default location. Enable location services for more accurate results."

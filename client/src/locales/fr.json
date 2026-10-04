@@ -10740,9 +10740,10 @@
   "liveHelpers": {
     "sectionTitle": "Aide en direct près de vous",
     "sectionSubtitle": "Professionnels locaux vérifiés prêts à vous aider aujourd'hui",
-    "heroCardTitle": "Aides et entreprises en direct près de vous",
+    "heroCardTitle": "Disponibles près de chez vous",
     "badgeHelper": "Assistant",
     "badgeBusiness": "Entreprise",
+    "badgeRestaurant": "Restaurant",
     "availableNow": "Disponible maintenant",
     "verified": "Vérifié",
     "onlineCount": "{{count}} en ligne",
@@ -10755,7 +10756,7 @@
     "loadMore": "Charger plus d'aides",
     "showingAll": "Vous avez vu toutes les aides disponibles",
     "postJobCta": "Publiez Votre Tâche",
-    "noNearby": "Aucune aide à proximité",
+    "noNearby": "Rien de disponible à proximité",
     "noNearbyDesc": "Publiez une tâche et nous vous mettrons en relation avec l'aide appropriée",
     "loadingError": "Erreur lors du chargement des aides",
     "usingFallbackLocation": "Utilisation de l'emplacement par défaut. Activez les services de localisation pour des résultats plus précis."

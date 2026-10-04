@@ -41,6 +41,9 @@ function mergeSkillServiceLabels(row: Helper): string[] {
     if (typeof s === 'string') push(s);
     else if (s && typeof s === 'object' && 'name' in s) push((s as { name?: string }).name);
   }
+  if (out.length === 0) {
+    for (const c of row.categories || []) push(c);
+  }
   return out.slice(0, MAX_PREVIEW_LABELS);
 }
 
@@ -68,12 +71,13 @@ export default function LiveHelpersHeroCard() {
     return () => observer.disconnect();
   }, []);
 
-  const { helpers, businesses, isLoading, fetchNextPage, hasMore, isFetchingNextPage } = useHelpersInfiniteScroll({
+  const { helpers, businesses, restaurants, isLoading, fetchNextPage, hasMore, isFetchingNextPage } = useHelpersInfiniteScroll({
     latitude: userLocation?.lat,
     longitude: userLocation?.lng,
     limit: 10,
     radius: 60,
     enabled: isVisible && !!userLocation,
+    includeRestaurants: true,
   });
 
   const mergedRows = useMemo(() => {
@@ -89,8 +93,13 @@ export default function LiveHelpersHeroCard() {
       seen.add(b.id);
       out.push(b);
     }
+    for (const r of restaurants || []) {
+      if (seen.has(r.id)) continue;
+      seen.add(r.id);
+      out.push(r);
+    }
     return out;
-  }, [helpers, businesses]);
+  }, [helpers, businesses, restaurants]);
 
   useEffect(() => {
     if (mergedRows.length > 0) {
@@ -240,6 +249,7 @@ export default function LiveHelpersHeroCard() {
           <div style={{ maxHeight: '210px', overflowY: 'auto' }}>
             {displayedHelpers.map((helper, i) => {
               const isBusiness = helper.type === 'business';
+              const isRestaurant = helper.type === 'restaurant';
               const displayName = helper.businessName || helper.ownerName || '';
               const preview = mergeSkillServiceLabels(helper);
               const to = profilePath(helper);
@@ -303,11 +313,19 @@ export default function LiveHelpersHeroCard() {
                           letterSpacing: '0.04em',
                           padding: '2px 6px',
                           borderRadius: '999px',
-                          background: isBusiness ? 'rgba(99,102,241,0.2)' : 'rgba(34,197,94,0.15)',
-                          color: isBusiness ? '#a5b4fc' : 'var(--hp-green)',
+                          background: isRestaurant
+                            ? 'rgba(249,115,22,0.18)'
+                            : isBusiness
+                              ? 'rgba(99,102,241,0.2)'
+                              : 'rgba(34,197,94,0.15)',
+                          color: isRestaurant ? '#fdba74' : isBusiness ? '#a5b4fc' : 'var(--hp-green)',
                         }}
                       >
-                        {isBusiness ? t('liveHelpers.badgeBusiness') : t('liveHelpers.badgeHelper')}
+                        {isRestaurant
+                          ? t('liveHelpers.badgeRestaurant')
+                          : isBusiness
+                            ? t('liveHelpers.badgeBusiness')
+                            : t('liveHelpers.badgeHelper')}
                       </span>
                       <span className="truncate">{displayName.split(' ')[0]}</span>
                       {(helper.verified || helper.backgroundChecked) && (
@@ -321,16 +339,18 @@ export default function LiveHelpersHeroCard() {
                         />
                       )}
                     </div>
-                    <div
-                      style={{
-                        fontSize: '.7rem',
-                        color: 'var(--hp-green)',
-                        fontWeight: 500,
-                        marginBottom: preview.length ? '0.25rem' : 0,
-                      }}
-                    >
-                      ✓ {t('liveHelpers.verified')}
-                    </div>
+                    {(helper.verified || helper.backgroundChecked) && (
+                      <div
+                        style={{
+                          fontSize: '.7rem',
+                          color: 'var(--hp-green)',
+                          fontWeight: 500,
+                          marginBottom: preview.length ? '0.25rem' : 0,
+                        }}
+                      >
+                        ✓ {t('liveHelpers.verified')}
+                      </div>
+                    )}
                     {preview.length > 0 && (
                       <div
                         style={{
