@@ -1131,23 +1131,22 @@ export default function FoodRestaurantPage() {
   const allItemsFlat = sections.flatMap((s) => (s.items || []).map((it) => decorate(it, s)));
 
   // Typeahead items for the menu search: every dish across sections,
-  // prefix-ranked by the shared SuggestDropdown.
-  const dishSuggestItems = useMemo(() => {
-    const seen = new Set();
-    const items = [];
-    for (const it of allItemsFlat) {
-      const title = it.name || '';
-      const key = title.toLowerCase();
-      if (!title || seen.has(key)) continue;
-      seen.add(key);
-      items.push({
-        id: `dish:${it.id}`,
-        title,
-        meta: it.sectionName || '',
-      });
-    }
-    return items;
-  }, [allItemsFlat]);
+  // prefix-ranked by the shared SuggestDropdown. Keep this a plain derivation:
+  // hooks cannot run below the loading/not-found returns, and allItemsFlat is
+  // rebuilt each render anyway, so memoizing on it would not avoid any work.
+  const seenDishNames = new Set();
+  const dishSuggestItems = [];
+  for (const it of allItemsFlat) {
+    const title = it.name || '';
+    const key = title.toLowerCase();
+    if (!title || seenDishNames.has(key)) continue;
+    seenDishNames.add(key);
+    dishSuggestItems.push({
+      id: `dish:${it.id}`,
+      title,
+      meta: it.sectionName || '',
+    });
+  }
   const currentSection = sections.find((s) => String(s.id) === String(validCatId));
   const catItems = (currentSection?.items || []).map((it) => decorate(it, currentSection));
 
