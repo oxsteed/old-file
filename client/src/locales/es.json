@@ -24684,6 +24684,7 @@
     "errorExport": "No se pudo exportar los ingresos.",
     "errorLoad": "No se pudieron cargar los ingresos.",
     "export": "Exportar",
+    "exportTruncated": "Exportación limitada a 10.000 filas. Reduce el período para una exportación completa.",
     "growthLabel": "Crecimiento vs período anterior:",
     "loading": "Cargando...",
     "recentTransactions": "Transacciones recientes",

@@ -9,11 +9,45 @@ const tokenRevocationService = require('../services/tokenRevocationService');
 const { withTransaction } = require('../utils/transaction');
 const { enqueueMessageNotification } = require('../services/messageNotificationService');
 const { parseBoundedPagination } = require('../utils/pagination');
+const { cancelJobTransaction, finalizeJobCancellation } = require('../services/jobCancellationService');
+const AppError = require('../utils/appError');
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const AI_BOOKING_PLACEHOLDER_USER_ID = '00000000-0000-4000-8000-000000000001';
 const INTERNAL_EMAIL_SUFFIX = '@oxsteed.internal';
+
+// ── Revenue reporting helpers (RV1a) ─────────────────────────────────
+// platform_ledger rows carry their own currency. Revenue math must never sum
+// mixed currencies, must classify by source event type (not amount sign),
+// and must not divide zero-decimal currencies (JPY, KRW, ...) by 100.
+const REVENUE_SOURCE_TYPES = ['job_fee', 'subscription', 'protection_fee', 'broker_fee'];
+const ZERO_DECIMAL_CURRENCIES = new Set([
+  'bif', 'clp', 'djf', 'gnf', 'jpy', 'kmf', 'krw', 'mga',
+  'pyg', 'rwf', 'ugx', 'vnd', 'vuv', 'xaf', 'xof', 'xpf',
+]);
+const REVENUE_EXPORT_ROW_LIMIT = 10000;
+
+function revenueDivisor(currency) {
+  return ZERO_DECIMAL_CURRENCIES.has(String(currency || '').toLowerCase()) ? 1 : 100;
+}
+
+function parseRevenueCurrency(query) {
+  const currency = String(query && query.currency ? query.currency : 'usd').toLowerCase();
+  if (!/^[a-z]{3}$/.test(currency)) {
+    return { error: 'Invalid currency. Use a 3-letter ISO code.' };
+  }
+  return { currency };
+}
+
+function revenueCsvEscape(val) {
+  if (val === null || val === undefined) return '';
+  let s = String(val);
+  // Keep exported values inert when opened in spreadsheet software.
+  if (/^[=+\-@]/.test(s)) s = `'${s}`;
+  if (/[",\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
 
 const BOOLEAN_SETTING_KEYS = new Set([
   'maintenance_mode',
@@ -1046,7 +1080,7 @@ exports.getJobs = async (req, res) => {
   } catch (err) { logger.error('getJobs error', { err }); res.status(500).json({ error: 'Failed to fetch jobs.' }); }
 };
 
-exports.forceJobAction = async (req, res) => {
+exports.forceJobAction = async (req, res, next) => {
   try {
     if (!(await tableExists('jobs'))) return res.status(400).json({ error: 'Jobs table not available.' });
     const { jobId } = req.params;
@@ -1058,13 +1092,31 @@ exports.forceJobAction = async (req, res) => {
     if (!jobRows.length) return res.status(404).json({ error: 'Job not found.' });
 
     if (action === 'cancel' || action === 'remove') {
-      const { rows: updateRows } = await db.query(
-        `UPDATE jobs SET status = 'cancelled', updated_at = now() WHERE id = $1 AND status != 'cancelled' RETURNING id`,
-        [jobId]
-      );
-      if (updateRows.length === 0) {
-        return res.status(409).json({ error: 'Job is already cancelled or was cancelled during this operation.' });
+      // RV1(b): admin force-cancels run through the shared cancellation
+      // service, exactly like the user-facing and agent flows, so escrow
+      // blocks, bid cleanup, appointment release, and audit are handled.
+      // Admin-initiated cancels never charge a cancellation fee.
+      const cleanReason = typeof reason === 'string' && reason.trim() ? reason.trim() : null;
+      if (jobRows[0].status === 'cancelled') {
+        return res.json({ message: `Job ${action} successful.`, alreadyCancelled: true });
       }
+      let result;
+      try {
+        result = await cancelJobTransaction({ jobId, actorId: adminId, actorKind: 'admin', reason: cleanReason });
+      } catch (err) {
+        // Race-safe idempotency: a concurrent cancel may have won the row
+        // between our fast-path check and the guarded UPDATE. Only surface
+        // the 409 if the job is genuinely not cancelled.
+        if (err instanceof AppError && err.status === 409) {
+          const { rows } = await db.query('SELECT status FROM jobs WHERE id = $1', [jobId]);
+          if (rows[0]?.status === 'cancelled') {
+            return res.json({ message: `Job ${action} successful.`, alreadyCancelled: true });
+          }
+        }
+        throw err;
+      }
+      // Post-commit notifications to both parties (never throws).
+      await finalizeJobCancellation(result);
     }
     if (action === 'flag') {
       const { rows: flagRows } = await db.query(
@@ -1086,7 +1138,11 @@ exports.forceJobAction = async (req, res) => {
     }
     try { await logAdminAction({ adminId, action: `job_${action}`, targetType: 'job', targetId: jobId, description: reason || null, req }); } catch(e) {}
     res.json({ message: `Job ${action} successful.` });
-  } catch (err) { logger.error('forceJobAction error', { err }); res.status(500).json({ error: 'Failed to perform job action.' }); }
+  } catch (err) {
+    if (err instanceof AppError) return next(err);
+    logger.error('forceJobAction error', { err });
+    res.status(500).json({ error: 'Failed to perform job action.' });
+  }
 };
 
 exports.deleteJob = async (req, res) => {
@@ -1525,6 +1581,12 @@ exports.retryPayout = async (req, res) => {
 
 exports.getRevenueSummary = async (req, res) => {
   try {
+    // RV1(a): revenue is reported per currency. Mixing currencies in one sum
+    // (and dividing zero-decimal amounts by 100) produced wrong totals.
+    const { currency, error: currencyError } = parseRevenueCurrency(req.query);
+    if (currencyError) return res.status(400).json({ error: currencyError });
+    const divisor = revenueDivisor(currency);
+
     const { period = '30d' } = req.query;
     const intervalMap = {
       '7d':  { interval: '7 days',   prev: '14 days'  },
@@ -1536,26 +1598,29 @@ exports.getRevenueSummary = async (req, res) => {
 
     const hasLedger = await tableExists('platform_ledger');
     if (!hasLedger) {
-      return res.json({ stats: { totalRevenue: 0, subscriptionRevenue: 0, jobFeeRevenue: 0, refunds: 0, growth: 0 }, transactions: [] });
+      return res.json({ stats: { totalRevenue: 0, subscriptionRevenue: 0, jobFeeRevenue: 0, refunds: 0, growth: 0, currency }, transactions: [], currencies: [] });
     }
 
-    // Current period totals
+    // Current period totals, classified by source event type (not amount sign):
+    // revenue buckets only count revenue source types; refunds only count
+    // source_type = 'refund'. A negative adjustment or payout is an outflow of
+    // its own kind, never a refund and never revenue.
     const { rows: totals } = await db.query(`
       SELECT
-        COALESCE(SUM(CASE WHEN amount_cents > 0 THEN amount_cents ELSE 0 END), 0)::float / 100 AS total_revenue,
-        COALESCE(SUM(CASE WHEN source_type = 'subscription' AND amount_cents > 0 THEN amount_cents ELSE 0 END), 0)::float / 100 AS subscription_revenue,
-        COALESCE(SUM(CASE WHEN source_type = 'job_fee' AND amount_cents > 0 THEN amount_cents ELSE 0 END), 0)::float / 100 AS job_fee_revenue,
-        COALESCE(SUM(CASE WHEN amount_cents < 0 THEN ABS(amount_cents) ELSE 0 END), 0)::float / 100 AS refunds
+        COALESCE(SUM(amount_cents) FILTER (WHERE source_type = ANY($3) AND amount_cents > 0), 0)::float / $4::float AS total_revenue,
+        COALESCE(SUM(amount_cents) FILTER (WHERE source_type = 'subscription' AND amount_cents > 0), 0)::float / $4::float AS subscription_revenue,
+        COALESCE(SUM(amount_cents) FILTER (WHERE source_type = 'job_fee' AND amount_cents > 0), 0)::float / $4::float AS job_fee_revenue,
+        COALESCE(SUM(ABS(amount_cents)) FILTER (WHERE source_type = 'refund'), 0)::float / $4::float AS refunds
       FROM platform_ledger
-      WHERE created_at >= now() - $1::interval
-    `, [interval]);
+      WHERE created_at >= now() - $1::interval AND currency = $2
+    `, [interval, currency, REVENUE_SOURCE_TYPES, divisor]);
 
-    // Previous period for growth calc
+    // Previous period for growth calc (same classification + currency).
     const { rows: prevTotals } = await db.query(`
-      SELECT COALESCE(SUM(CASE WHEN amount_cents > 0 THEN amount_cents ELSE 0 END), 0)::float / 100 AS total_revenue
+      SELECT COALESCE(SUM(amount_cents) FILTER (WHERE source_type = ANY($4) AND amount_cents > 0), 0)::float / $5::float AS total_revenue
       FROM platform_ledger
-      WHERE created_at >= now() - $1::interval AND created_at < now() - $2::interval
-    `, [prev, interval]);
+      WHERE created_at >= now() - $1::interval AND created_at < now() - $2::interval AND currency = $3
+    `, [prev, interval, currency, REVENUE_SOURCE_TYPES, divisor]);
 
     const current = totals[0].total_revenue;
     const previous = prevTotals[0].total_revenue;
@@ -1567,16 +1632,21 @@ exports.getRevenueSummary = async (req, res) => {
         pl.id AS _id,
         pl.created_at AS "createdAt",
         pl.source_type AS type,
-        pl.amount_cents::float / 100 AS amount,
-        CASE WHEN pl.amount_cents >= 0 THEN 'completed' ELSE 'refunded' END AS status,
+        pl.currency AS currency,
+        pl.amount_cents::float / $2::float AS amount,
+        CASE WHEN pl.source_type = 'refund' THEN 'refunded' ELSE 'completed' END AS status,
         u.email AS "userEmail",
         json_build_object('name', u.first_name || ' ' || u.last_name) AS user
       FROM platform_ledger pl
       LEFT JOIN users u ON pl.user_id = u.id
-      WHERE pl.created_at >= now() - $1::interval
+      WHERE pl.created_at >= now() - $1::interval AND pl.currency = $3
       ORDER BY pl.created_at DESC
       LIMIT 50
-    `, [interval]);
+    `, [interval, divisor, currency]);
+
+    const { rows: currencyRows } = await db.query(
+      `SELECT DISTINCT currency FROM platform_ledger ORDER BY currency`
+    );
 
     res.json({
       stats: {
@@ -1585,8 +1655,10 @@ exports.getRevenueSummary = async (req, res) => {
         jobFeeRevenue:       totals[0].job_fee_revenue,
         refunds:             totals[0].refunds,
         growth:              Math.round(growth * 10) / 10,
+        currency,
       },
       transactions,
+      currencies: currencyRows.map(r => r.currency),
     });
   } catch (err) {
     logger.error('getRevenueSummary error', { err });
@@ -1596,38 +1668,48 @@ exports.getRevenueSummary = async (req, res) => {
 
 exports.getRevenueExport = async (req, res) => {
   try {
+    // RV1(a): export is scoped to one currency and bounded. The export fetches
+    // one row past the cap to detect truncation; truncation is disclosed via
+    // the X-Export-Truncated header (surfaced in the admin UI).
+    const { currency, error: currencyError } = parseRevenueCurrency(req.query);
+    if (currencyError) return res.status(400).json({ error: currencyError });
+    const divisor = revenueDivisor(currency);
+
     const { period = '30d' } = req.query;
     const intervalMap = { '7d': '7 days', '30d': '30 days', '90d': '90 days', '1y': '1 year' };
     const interval = intervalMap[period] || '30 days';
 
+    const headers = ['date', 'type', 'currency', 'amount', 'user_email'];
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="revenue_${period}_${currency}_${new Date().toISOString().split('T')[0]}.csv"`);
+
     const hasLedger = await tableExists('platform_ledger');
     if (!hasLedger) {
-      res.setHeader('Content-Type', 'text/csv');
-      return res.send('date,type,amount,user_email\n');
+      return res.send(headers.join(',') + '\r\n');
     }
 
     const { rows } = await db.query(`
       SELECT
         pl.created_at AS date,
         pl.source_type AS type,
-        (pl.amount_cents::float / 100)::text AS amount,
+        pl.currency AS currency,
+        (pl.amount_cents::float / $2::float)::text AS amount,
         COALESCE(u.email, '') AS user_email
       FROM platform_ledger pl
       LEFT JOIN users u ON pl.user_id = u.id
-      WHERE pl.created_at >= now() - $1::interval
+      WHERE pl.created_at >= now() - $1::interval AND pl.currency = $3
       ORDER BY pl.created_at DESC
-    `, [interval]);
+      LIMIT $4
+    `, [interval, divisor, currency, REVENUE_EXPORT_ROW_LIMIT + 1]);
 
-    const headers = 'date,type,amount,user_email';
-    const csvRows = rows.map(r =>
-      [r.date, r.type, r.amount, r.user_email]
-        .map(v => (String(v || '').includes(',') ? `"${String(v).replace(/"/g, '""')}"` : String(v || '')))
-        .join(',')
+    const truncated = rows.length > REVENUE_EXPORT_ROW_LIMIT;
+    const exportRows = truncated ? rows.slice(0, REVENUE_EXPORT_ROW_LIMIT) : rows;
+    if (truncated) res.setHeader('X-Export-Truncated', 'true');
+
+    const csvRows = exportRows.map(r =>
+      headers.map(h => revenueCsvEscape(r[h])).join(',')
     );
-    const csv = [headers, ...csvRows].join('\n');
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename="revenue_${period}_${new Date().toISOString().split('T')[0]}.csv"`);
-    res.send(csv);
+    res.send([headers.join(','), ...csvRows].join('\r\n') + '\r\n');
   } catch (err) {
     logger.error('getRevenueExport error', { err });
     res.status(500).json({ error: 'Export failed.' });

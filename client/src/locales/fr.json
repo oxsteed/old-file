@@ -24684,6 +24684,7 @@
     "errorExport": "Échec de l’exportation des revenus.",
     "errorLoad": "Échec du chargement des revenus.",
     "export": "Exporter",
+    "exportTruncated": "Export limité à 10 000 lignes. Réduisez la période pour un export complet.",
     "growthLabel": "Croissance vs période précédente :",
     "loading": "Chargement...",
     "recentTransactions": "Transactions récentes",

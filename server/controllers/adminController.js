@@ -3,6 +3,8 @@ const { logAdminAction } = require('../services/auditService');
 const { sendNotification } = require('../services/notificationService');
 const logger = require('../utils/logger');
 const { parseBoundedPagination } = require('../utils/pagination');
+const { cancelJobTransaction, finalizeJobCancellation } = require('../services/jobCancellationService');
+const AppError = require('../utils/appError');
 
 // Helper: check if a table exists
 async function tableExists(name) {
@@ -86,7 +88,7 @@ exports.getReports = async (req, res) => {
 };
 
 // ─── Content Reports: Review ──────────────────────────────────
-exports.reviewReport = async (req, res) => {
+exports.reviewReport = async (req, res, next) => {
   if (!(await tableExists('content_reports'))) {
     return res.status(400).json({ error: 'Content reports table not available.' });
   }
@@ -140,15 +142,28 @@ exports.reviewReport = async (req, res) => {
       reportId
     ]);
 
+    let moderationCancelResult = null;
     if (action === 'remove_content') {
       if (report.target_type === 'job' && await tableExists('jobs')) {
-        await dbClient.query(`
-          UPDATE jobs
-          SET status = 'cancelled',
-              cancellation_reason = 'Removed by moderation',
-              updated_at = now()
-          WHERE id = $1
-        `, [report.target_id]);
+        // RV1(b): moderation removals cancel through the shared cancellation
+        // service so escrow blocks, bid cleanup, appointment release, and
+        // audit are handled exactly like every other cancellation path. A
+        // service failure rolls the whole review back below (fail closed).
+        const { rows: targetRows } = await dbClient.query(
+          'SELECT status FROM jobs WHERE id = $1', [report.target_id]
+        );
+        if (!targetRows.length) {
+          await dbClient.query('ROLLBACK');
+          return res.status(404).json({ error: 'Reported job not found.', code: 'job_not_found' });
+        }
+        if (targetRows[0].status !== 'cancelled') {
+          moderationCancelResult = await cancelJobTransaction({
+            jobId: report.target_id,
+            actorId: adminId,
+            actorKind: 'admin',
+            reason: 'Removed by moderation',
+          });
+        }
       }
       if (report.target_type === 'review' && await tableExists('reviews')) {
         await dbClient.query(`
@@ -212,6 +227,12 @@ exports.reviewReport = async (req, res) => {
 
     await dbClient.query('COMMIT');
 
+    // Post-commit cancellation side effects (socket notifications to both
+    // parties). Guarded internally; never throws.
+    if (moderationCancelResult) {
+      await finalizeJobCancellation(moderationCancelResult);
+    }
+
     try {
       await logAdminAction({
         adminId,
@@ -234,6 +255,7 @@ exports.reviewReport = async (req, res) => {
     res.json({ message: `Report ${action} successfully.` });
   } catch (err) {
     await dbClient.query('ROLLBACK');
+    if (err instanceof AppError) return next(err);
     logger.error('reviewReport error', { err });
     res.status(500).json({ error: 'Failed to process report.' });
   } finally {

@@ -9,6 +9,7 @@ export default function Revenue() {
   const { t } = useTranslation();
   const [period, setPeriod] = useState('30d');
   const [exportError, setExportError] = useState('');
+  const [exportTruncated, setExportTruncated] = useState(false);
 
   const { data, loading, error, reload } = useAbortableFetch(async (signal) => {
     const { data } = await adminApi.get('/admin/super/revenue', {
@@ -30,8 +31,12 @@ export default function Revenue() {
 
   const exportCSV = async () => {
     setExportError('');
+    setExportTruncated(false);
     try {
-      const { data } = await adminApi.get('/admin/super/revenue/export', { params: { period }, responseType: 'blob' });
+      const { data, headers } = await adminApi.get('/admin/super/revenue/export', { params: { period }, responseType: 'blob' });
+      if (String(headers?.['x-export-truncated'] || '').toLowerCase() === 'true') {
+        setExportTruncated(true);
+      }
       const url = window.URL.createObjectURL(new Blob([data]));
       const a = document.createElement('a'); a.href = url;
       a.download = `revenue_${period}_${new Date().toISOString().slice(0,10)}.csv`;
@@ -66,6 +71,12 @@ export default function Revenue() {
       {exportError && (
         <div className="mb-6 px-4 py-3 bg-red-900/30 border border-red-700/60 rounded-xl text-red-300 text-sm">
           <span>{exportError}</span>
+        </div>
+      )}
+
+      {exportTruncated && !exportError && (
+        <div className="mb-6 px-4 py-3 bg-yellow-900/30 border border-yellow-700/60 rounded-xl text-yellow-300 text-sm">
+          <span>{t('superRevenue.exportTruncated')}</span>
         </div>
       )}
 

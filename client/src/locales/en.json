@@ -24682,6 +24682,7 @@
     "errorExport": "Failed to export revenue.",
     "errorLoad": "Failed to load revenue.",
     "export": "Export",
+    "exportTruncated": "Export limited to 10,000 rows. Narrow the period for a complete export.",
     "growthLabel": "Growth vs previous period:",
     "loading": "Loading...",
     "recentTransactions": "Recent Transactions",

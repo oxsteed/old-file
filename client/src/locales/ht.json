@@ -24684,6 +24684,7 @@
     "errorExport": "Nou pa t ka ekspòte revni yo.",
     "errorLoad": "Nou pa t ka chaje revni yo.",
     "export": "Ekspòte",
+    "exportTruncated": "Ekspòtasyon an limite a 10,000 liy. Diminye peryòd la pou yon ekspòtasyon konplè.",
     "growthLabel": "Kwasans kont peryòd anvan:",
     "loading": "Ap chaje...",
     "recentTransactions": "Tranzaksyon resan",
