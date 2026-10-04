@@ -167,3 +167,22 @@
     flex: 0 0 auto;
   }
 }
+
+/* Compact branded band when the profile has no cover photo: replaces the
+   tall empty gradient with a slim strip the avatar overlaps. */
+.pph .ppsc--page .ppsc-cover--empty {
+  min-height: 5.5rem;
+  background:
+    radial-gradient(120% 160% at 15% 0%, rgba(249, 115, 22, 0.28) 0%, rgba(249, 115, 22, 0) 55%),
+    linear-gradient(135deg, #1c1917 0%, #292524 60%, #1c1917 100%);
+}
+@media (min-width: 640px) {
+  .pph .ppsc--page .ppsc-cover--empty {
+    min-height: 7rem;
+  }
+}
+@media (min-width: 1024px) {
+  .pph .ppsc--page .ppsc-cover--empty {
+    min-height: 7rem;
+  }
+}

@@ -8667,7 +8667,12 @@
       "shareAria": "Compartir este perfil",
       "linkCopied": "Enlace copiado",
       "copyFailed": "No se pudo copiar el enlace",
-      "defaultMessage": "Mira el perfil de {{name}} en OxSteed: {{url}}"
+      "defaultMessage": "Mira el perfil de {{name}} en OxSteed: {{url}}",
+      "qrCode": "Código QR",
+      "qrCodeAria": "Mostrar el código QR del perfil",
+      "qrDownload": "Descargar",
+      "qrTitle": "Escanea para abrir este perfil",
+      "qrClose": "Cerrar"
     },
     "cta": {
       "startingFrom": "Desde",
@@ -9556,7 +9561,12 @@
       "shareAria": "Compartir este perfil de negocio",
       "linkCopied": "Enlace copiado",
       "copyFailed": "No se pudo copiar el enlace",
-      "defaultMessage": "Mira {{name}} en OxSteed: {{url}}"
+      "defaultMessage": "Mira {{name}} en OxSteed: {{url}}",
+      "qrCode": "Código QR",
+      "qrCodeAria": "Mostrar el código QR del perfil",
+      "qrDownload": "Descargar",
+      "qrTitle": "Escanea para abrir este perfil",
+      "qrClose": "Cerrar"
     },
     "contactBusiness": "Contacto Empresa",
     "operations": {
@@ -14185,6 +14195,7 @@
     "stats": "Estad?sticas",
     "jobsCompleted": "Trabajos completados",
     "yearsInBusiness": "A?os en el negocio",
+    "noReviewsYet": "Aún no hay reseñas",
     "servicesEmpty": "Aún no hay servicios publicados.",
     "recentWorkEmpty": "Aún no hay trabajos recientes para mostrar.",
     "reviewsEmpty": "Aún no hay reseñas.",

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import ProfileHeader from '../components/profile/ProfileHeader';
-import QRCodeDisplay from '../components/profile/QRCodeDisplay';
+import ProfileShareControls from '../components/helperProfile/ProfileShareControls';
 import api from '../api/axios';
 import PageMeta from '../components/PageMeta';
 import { buildPublicProfileDescription, getPublicSiteUrl } from '../utils/seoDescription';
@@ -110,13 +110,9 @@ export default function BusinessPublicProfilePage() {
         url={`${getPublicSiteUrl()}${businessProfilePath(business)}`}
         type="profile"
       />
-      {/* COVER IMAGE WITH QR OVERLAY - AT TOP */}
+      {/* Cover image (compact branded band when there is no cover photo) */}
       <ProfileHeader
-        helperId={business.id || businessId}
-        helperName={business.name || business.business_name}
         coverImageUrl={business.coverImageUrl || business.cover_photo_url}
-        profileSlug={business.profile_slug || business.profileSlug}
-        profileType="business"
       />
 
       {/* Main Profile Content */}
@@ -139,21 +135,29 @@ export default function BusinessPublicProfilePage() {
                   : '',
               ].filter(Boolean).join(' · '),
               about: business.description || '',
-              ratingLabel: business.rating != null
+              ratingLabel: business.reviewCount > 0 && business.rating != null
                 ? `${business.rating} (${t('businessPublicProfile.reviewCount', { count: business.reviewCount })})`
-                : '',
+                : t('businessPublicProfile.noReviewsYet'),
             })}
             surface="public"
             footer={(
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <button className="cta-button" type="button" onClick={() => navigate(`/book/business/${businessId}`)}>
-                  {t('businessProfile.contactBusiness')}
-                </button>
-                {payUrl && (
-                  <a className="cta-button cta-button-secondary" href={payUrl} style={{ textDecoration: 'none' }}>
-                    {t('businessProfile.pay', { defaultValue: 'Pay' })}
-                  </a>
-                )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <button className="cta-button" type="button" onClick={() => navigate(`/book/business/${businessId}`)}>
+                    {t('businessProfile.contactBusiness')}
+                  </button>
+                  {payUrl && (
+                    <a className="cta-button cta-button-secondary" href={payUrl} style={{ textDecoration: 'none' }}>
+                      {t('businessProfile.pay', { defaultValue: 'Pay' })}
+                    </a>
+                  )}
+                </div>
+                <ProfileShareControls
+                  shareUrl={`${getPublicSiteUrl()}${businessProfilePath(business)}`}
+                  shareTitle={business.name || business.business_name || ''}
+                  i18nPrefix="businessProfile"
+                  qrImageUrl={`/api/business-profile/${encodeURIComponent(business.id || businessId)}/qr-code?size=medium&format=png`}
+                />
               </div>
             )}
           />

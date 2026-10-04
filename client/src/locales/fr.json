@@ -8667,7 +8667,12 @@
       "shareAria": "Partager ce profil",
       "linkCopied": "Lien copié",
       "copyFailed": "Impossible de copier le lien",
-      "defaultMessage": "Découvrez le profil de {{name}} sur OxSteed : {{url}}"
+      "defaultMessage": "Découvrez le profil de {{name}} sur OxSteed : {{url}}",
+      "qrCode": "Code QR",
+      "qrCodeAria": "Afficher le code QR du profil",
+      "qrDownload": "Télécharger",
+      "qrTitle": "Scannez pour ouvrir ce profil",
+      "qrClose": "Fermer"
     },
     "cta": {
       "startingFrom": "À partir de",
@@ -9556,7 +9561,12 @@
       "shareAria": "Partager ce profil entreprise",
       "linkCopied": "Lien copié",
       "copyFailed": "Impossible de copier le lien",
-      "defaultMessage": "Découvrez {{name}} sur OxSteed : {{url}}"
+      "defaultMessage": "Découvrez {{name}} sur OxSteed : {{url}}",
+      "qrCode": "Code QR",
+      "qrCodeAria": "Afficher le code QR du profil",
+      "qrDownload": "Télécharger",
+      "qrTitle": "Scannez pour ouvrir ce profil",
+      "qrClose": "Fermer"
     },
     "contactBusiness": "Contacter l'entreprise",
     "operations": {
@@ -14185,6 +14195,7 @@
     "stats": "Statistiques",
     "jobsCompleted": "Travaux termin?s",
     "yearsInBusiness": "Ann?es d?activit?",
+    "noReviewsYet": "Aucun avis pour le moment",
     "servicesEmpty": "Aucun service publié pour le moment.",
     "recentWorkEmpty": "Aucune réalisation récente à afficher.",
     "reviewsEmpty": "Aucun avis pour le moment.",

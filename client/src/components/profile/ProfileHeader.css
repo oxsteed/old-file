@@ -223,3 +223,20 @@
     height: 24px;
   }
 }
+
+/* Compact branded band when there is no cover photo */
+.profile-header--compact {
+  aspect-ratio: auto;
+  height: 5.5rem;
+  cursor: default;
+}
+.profile-header--compact .profile-header-placeholder {
+  background:
+    radial-gradient(120% 160% at 15% 0%, rgba(249, 115, 22, 0.28) 0%, rgba(249, 115, 22, 0) 55%),
+    linear-gradient(135deg, #1c1917 0%, #292524 60%, #1c1917 100%);
+}
+@media (min-width: 640px) {
+  .profile-header--compact {
+    height: 7rem;
+  }
+}

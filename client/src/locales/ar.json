@@ -8667,7 +8667,12 @@
       "shareAria": "مشاركة الملف التعريفي",
       "linkCopied": "تم نسخ الرابط",
       "copyFailed": "تعذر نسخ الرابط",
-      "defaultMessage": "تحقق من {{name}} على OxSteed: {{url}}"
+      "defaultMessage": "تحقق من {{name}} على OxSteed: {{url}}",
+      "qrCode": "رمز QR",
+      "qrCodeAria": "عرض رمز QR للملف الشخصي",
+      "qrDownload": "تنزيل",
+      "qrTitle": "امسح لفتح هذا الملف الشخصي",
+      "qrClose": "إغلاق"
     },
     "cta": {
       "startingFrom": "ابتداء من",
@@ -9556,7 +9561,12 @@
       "shareAria": "مشاركة هذا الملف التجاري",
       "linkCopied": "تم نسخ الرابط",
       "copyFailed": "تعذر نسخ الرابط",
-      "defaultMessage": "تحقق من {{name}} على OxSteed: {{url}}"
+      "defaultMessage": "تحقق من {{name}} على OxSteed: {{url}}",
+      "qrCode": "رمز QR",
+      "qrCodeAria": "عرض رمز QR للملف الشخصي",
+      "qrDownload": "تنزيل",
+      "qrTitle": "امسح لفتح هذا الملف الشخصي",
+      "qrClose": "إغلاق"
     },
     "contactBusiness": "اتصل بالأعمال",
     "operations": {
@@ -14196,6 +14206,7 @@
     "stats": "احصائيات",
     "jobsCompleted": "تم الانتهاء من المهام",
     "yearsInBusiness": "سنوات في العمل",
+    "noReviewsYet": "لا توجد تقييمات بعد",
     "servicesEmpty": "لا توجد خدمات مدرجة بعد.",
     "recentWorkEmpty": "لا توجد أعمال حديثة لعرضها بعد.",
     "reviewsEmpty": "لا توجد تقييمات بعد.",

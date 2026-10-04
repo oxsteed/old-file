@@ -72,21 +72,13 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
   const memberYear = memberDate && !Number.isNaN(memberDate.getTime())
     ? memberDate.getFullYear()
     : null;
-  const qrSrc = helperId ? getHelperProfileQrPngUrl(helperId, 160) : '';
-
   const ratingLabel = helper.reviewCount > 0
     ? `${helper.rating.toFixed(1)} · ${t('helperProfile.header.reviewsCount', { count: helper.reviewCount })}`
     : t('helperProfile.header.noReviewsYet');
 
-  const metaExtra = [
-    helper.jobsCompleted > 0
-      ? t('helperProfile.header.jobsDone', { count: helper.jobsCompleted })
-      : t('helperProfile.header.newHelper'),
-    helper.responseTime && helper.responseTime.toLowerCase() !== 'varies'
-      ? t('helperProfile.header.respondsIn', { time: helper.responseTime })
-      : t('helperProfile.header.responseVaries'),
-    memberYear ? t('helperProfile.header.memberSince', { year: memberYear }) : null,
-  ].filter(Boolean).join(' · ');
+  const metaExtra = memberYear
+    ? t('helperProfile.header.memberSince', { year: memberYear })
+    : '';
 
   const variant = variantProp
     || (shareI18nPrefix === 'businessProfile' ? 'business' : 'helper');
@@ -106,25 +98,6 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
     ratingLabel,
     metaExtra,
   });
-
-  const coverOverlay = qrSrc ? (
-    <figure
-      className="rounded-lg bg-white p-1.5 shadow-lg border border-gray-200/90"
-      title={t('helperProfile.header.qrProfileTitle')}
-    >
-      <img
-        src={qrSrc}
-        alt=""
-        width={80}
-        height={80}
-        className="w-16 h-16 sm:w-20 sm:h-20 block"
-        loading="lazy"
-        decoding="async"
-        aria-hidden="true"
-      />
-      <figcaption className="sr-only">{t('helperProfile.header.qrProfileCaption')}</figcaption>
-    </figure>
-  ) : null;
 
   const btnBase =
     'flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors';
@@ -188,7 +161,6 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
       summary={summary}
       surface="public"
       ariaLabel={helper.businessName || helper.ownerName}
-      coverOverlay={coverOverlay}
       actions={actions}
     >
       {badges.length > 0 && (
@@ -254,6 +226,7 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
             shareTitle={shareTitle}
             shareText={shareText}
             i18nPrefix={shareI18nPrefix}
+            qrImageUrl={helperId ? getHelperProfileQrPngUrl(helperId, 240) : undefined}
           />
         </div>
       )}

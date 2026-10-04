@@ -8665,7 +8665,12 @@
       "shareAria": "Share this profile",
       "linkCopied": "Link copied",
       "copyFailed": "Could not copy link",
-      "defaultMessage": "Check out {{name}} on OxSteed: {{url}}"
+      "defaultMessage": "Check out {{name}} on OxSteed: {{url}}",
+      "qrCode": "QR code",
+      "qrCodeAria": "Show profile QR code",
+      "qrDownload": "Download",
+      "qrTitle": "Scan to open this profile",
+      "qrClose": "Close"
     },
     "cta": {
       "startingFrom": "Starting from",
@@ -9554,7 +9559,12 @@
       "shareAria": "Share this business profile",
       "linkCopied": "Link copied",
       "copyFailed": "Could not copy link",
-      "defaultMessage": "Check out {{name}} on OxSteed: {{url}}"
+      "defaultMessage": "Check out {{name}} on OxSteed: {{url}}",
+      "qrCode": "QR code",
+      "qrCodeAria": "Show profile QR code",
+      "qrDownload": "Download",
+      "qrTitle": "Scan to open this profile",
+      "qrClose": "Close"
     },
     "contactBusiness": "Contact Business",
     "operations": {
@@ -14183,6 +14193,7 @@
     "stats": "Stats",
     "jobsCompleted": "Jobs Completed",
     "yearsInBusiness": "Years in Business",
+    "noReviewsYet": "No reviews yet",
     "servicesEmpty": "No services listed yet.",
     "recentWorkEmpty": "No recent work to show yet.",
     "reviewsEmpty": "No reviews yet.",

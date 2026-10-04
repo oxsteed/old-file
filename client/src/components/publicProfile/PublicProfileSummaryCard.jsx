@@ -64,7 +64,7 @@ export default function PublicProfileSummaryCard({
 
   return (
     <article className={classes} aria-label={ariaLabel || undefined}>
-      <div className="ppsc-cover">
+      <div className={`ppsc-cover${cover ? '' : ' ppsc-cover--empty'}`}>
         {cover ? <img src={cover} alt="" /> : null}
         {coverOverlay ? <div className="ppsc-cover-overlay">{coverOverlay}</div> : null}
       </div>
