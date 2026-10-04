@@ -120,7 +120,7 @@ jest.mock('stripe', () => {
     refunds:       { create: jest.fn(), retrieve: jest.fn() },
     charges:       { retrieve: jest.fn() },
     customers:      { create: jest.fn(), retrieve: jest.fn() },
-    prices:         { create: jest.fn() },
+    prices:         { create: jest.fn(), update: jest.fn() },
     subscriptions:  { retrieve: jest.fn() },
     accounts:       { create: jest.fn(), retrieve: jest.fn() },
     accountLinks:   { create: jest.fn().mockResolvedValue({ url: 'https://stripe.com/onboard' }) },
