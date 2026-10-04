@@ -141,6 +141,7 @@ const ADMIN_SPA_ROUTES = Object.freeze([
   '/admin/super/reliability',
   '/admin/super/visitors',
   '/admin/super/profile-visibility',
+  '/admin/super/featured-placements',
 ]);
 
 const routePatterns = ADMIN_SPA_ROUTES.map((route) => new RegExp(

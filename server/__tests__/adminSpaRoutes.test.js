@@ -56,6 +56,7 @@ describe('production admin direct-load contract', () => {
     expect(new Set(ADMIN_SPA_ROUTES).size).toBe(ADMIN_SPA_ROUTES.length);
     expect([...ADMIN_SPA_ROUTES].sort()).toEqual([...clientPaths].sort());
     expect(ADMIN_SPA_ROUTES).toContain('/admin/quote-requests');
+    expect(ADMIN_SPA_ROUTES).toContain('/admin/super/featured-placements');
     expect(ADMIN_SPA_ROUTES).not.toContain('/direct/admin');
   });
 
@@ -139,6 +140,7 @@ describe('production admin direct-load contract', () => {
     '/admin/not-a-route', '/admin/quote-requests/unknown', '/admin/quote-requests.json',
     '/admin/assets/missing.js', '/admin/users/missing.js', '/admin/users/42/unknown',
     '/admin/api/missing', '/admin/support/tickets', '/ADMIN/quote-requests',
+    '/admin/super/featured-placements/unknown', '/admin/super/featured-placements.json',
     '/admin//quote-requests', '/admin/users/%2Fapi', '/admin/users/%5Cfile',
     '/admin/users/%252Fapi', '/%61dmin/quote-requests',
     '//api/missing',
