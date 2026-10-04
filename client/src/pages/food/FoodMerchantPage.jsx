@@ -4,7 +4,7 @@ import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useSt
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag, ClipboardCheck, Package, BookOpen, GraduationCap, ShieldCheck, BarChart3, HelpingHand, MonitorSmartphone, Wrench } from 'lucide-react';
+import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag, ClipboardCheck, Package, BookOpen, GraduationCap, ShieldCheck, BarChart3, HelpingHand, MonitorSmartphone } from 'lucide-react';
 import { subscribeRestaurantDisplay } from '../../api/restaurantDisplaySocket';
 import {
   listMyFoodRestaurants,
@@ -26,7 +26,6 @@ import {
   formatFoodMoney,
 } from '../../api/food';
 import { FoodBrand, FoodConnBadge, FOOD_STATUS_KEYS, apiErrorMessage } from './foodShared';
-import DeviceSetupChecklist, { isDeviceSetupComplete } from './FoodDeviceSetupChecklist';
 import RestaurantSetupGuide, { shouldShowRestaurantSetup } from './RestaurantSetupGuide';
 import RestaurantMenuManager from './RestaurantMenuManager';
 import RestaurantCreditManager from './RestaurantCreditManager';
@@ -1600,7 +1599,7 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
 // SOPs, training, audits, reports, in-store screens, plus the Marketplace help link.
 // Layout mirrors the Settings tab: status strip, clickable chips that scroll
 // to cards, lucide icons. Permission gates are unchanged from before.
-function OperationsView({ t, restaurant, setupKey, canManageDisplays, canManageRestaurant, onSetupComplete }) {
+function OperationsView({ t, restaurant, canManageRestaurant }) {
   const [stats, setStats] = useState({});
   const report = useCallback((s) => setStats((prev) => ({ ...prev, ...s })), []);
   const cardRefs = useRef({});
@@ -1648,12 +1647,6 @@ function OperationsView({ t, restaurant, setupKey, canManageDisplays, canManageR
     };
   }, [refreshPending, flush]);
 
-  // The setup checklist hides itself once marked complete, so only show the
-  // card while there is work left to do.
-  const deviceSetupNeeded = canManageDisplays
-    && restaurant.status === 'active'
-    && !isDeviceSetupComplete(restaurant.id);
-
   const checklistCount = stats.checklists;
   const runCount = stats.runs;
   const itemCount = stats.items;
@@ -1676,12 +1669,6 @@ function OperationsView({ t, restaurant, setupKey, canManageDisplays, canManageR
       label: syncing
         ? t('restaurants.ops.offline.syncing', 'Syncing…')
         : t('restaurants.ops.offline.pendingSync', '{{count}} to sync', { count: pendingSync }),
-    });
-  }
-  if (deviceSetupNeeded) {
-    chips.push({
-      key: 'devices', target: 'devices', tone: 'warn',
-      label: t('food.ownerHome.deviceSetup', 'Device setup'),
     });
   }
   if (canManageRestaurant) {
@@ -1761,24 +1748,6 @@ function OperationsView({ t, restaurant, setupKey, canManageDisplays, canManageR
       </div>
 
       <div className="fd-settings-grid">
-        {deviceSetupNeeded && (
-          <SettingsCard
-            icon={Wrench}
-            title={t('food.ownerHome.deviceSetup', 'Device setup')}
-            desc={t('restaurants.ops.opDeviceDesc', 'Get the kitchen display, queue board, and kiosk ready.')}
-            cardKey="devices"
-            registerRef={registerCard}
-            wide
-          >
-            <DeviceSetupChecklist
-              key={`${restaurant.id}-${setupKey}`}
-              restaurant={restaurant}
-              t={t}
-              onComplete={onSetupComplete}
-            />
-          </SettingsCard>
-        )}
-
         {canManageRestaurant && (
           <SettingsCard
             icon={ClipboardCheck}
@@ -2356,10 +2325,7 @@ export default function FoodMerchantPage() {
               <OperationsView
                 t={t}
                 restaurant={selected}
-                setupKey={setupKey}
-                canManageDisplays={canManageDisplays}
                 canManageRestaurant={canManageRestaurant}
-                onSetupComplete={() => setSetupKey((key) => key + 1)}
               />
             )}
           </>
