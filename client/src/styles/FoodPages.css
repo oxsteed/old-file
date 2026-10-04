@@ -3130,3 +3130,8 @@ input[type="color"].fd-settings-color {
 
 /* Marketplace help */
 .fd-ops-help p { margin-top: 0; }
+
+.fd-credit-grant-form { display: grid; gap: 0.65rem; margin: 1rem 0; padding: 1rem; border: 1px solid var(--border-color, #e2e8f0); border-radius: 14px; background: var(--card-bg, #fff); }
+.fd-credit-grant-form > strong { color: var(--app-text, #0f172a); }
+.fd-credit-grant-form label { display: grid; gap: 0.3rem; font-size: 0.85rem; font-weight: 600; color: var(--app-text, #0f172a); }
+.fd-credit-grant-form input { min-height: 38px; padding: 0 0.7rem; border: 1px solid var(--border-color, #d8dee5); border-radius: 9px; color: var(--app-text, #0f172a); background: var(--card-bg, #fff); font-weight: 400; }

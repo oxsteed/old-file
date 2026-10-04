@@ -199,6 +199,9 @@ export const approveMerchantFoodWalletCreditRequest = (restaurantId, requestId, 
 export const declineMerchantFoodWalletCreditRequest = (restaurantId, requestId, reason) =>
   api.post(`/food/restaurants/${restaurantId}/customer-wallet-load-requests/${requestId}/cancel`, { reason }).then((r) => r.data?.loadRequest);
 
+export const grantMerchantFoodWalletCredit = (restaurantId, payload = {}) =>
+  api.post(`/food/restaurants/${restaurantId}/customer-wallet-loads`, payload).then((r) => r.data);
+
 export const getFoodOrder = (orderId) =>
   api.get(`/food/orders/${orderId}`).then((r) => r.data?.order);
 

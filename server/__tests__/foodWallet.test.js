@@ -860,6 +860,7 @@ describe('food wallet security wiring', () => {
         amountCents: 2500,
         referenceId: 'wallet-load-1',
         correlationId: 'wallet-load-1',
+        note: 'Comp for incorrect order',
       });
 
     expect(res.status).toBe(201);
@@ -870,6 +871,7 @@ describe('food wallet security wiring', () => {
       .send({
         customerId: CUSTOMER_ID,
         amountCents: 2500,
+        note: 'Comp for incorrect order',
       });
 
     expect(secondRes.status).toBe(201);
@@ -880,6 +882,44 @@ describe('food wallet security wiring', () => {
     expect(ledgerInsertParams[0][9]).not.toBe(ledgerInsertParams[1][9]);
     expect(ledgerInsertParams[0][9]).toBe('wallet-load-1');
     expect(ledgerInsertParams[1][9]).toMatch(/^merchant-load:/);
+  });
+
+  test('merchant wallet load without proof or explanation is rejected', async () => {
+    mockQuery.mockImplementation(async (sql) => {
+      if (/SELECT fr\.id, fr\.business_id, fr\.owner_user_id/.test(sql)) {
+        return {
+          rows: [{
+            id: RESTAURANT_ID,
+            business_id: BUSINESS_ID,
+            owner_user_id: OWNER_ID,
+            display_name: 'Ox Burger Lab',
+            currency_code: 'USD',
+            effective_role: 'owner',
+          }],
+        };
+      }
+      if (/SELECT id, first_name, last_name, email/.test(sql) && /FROM users/.test(sql)) {
+        return {
+          rows: [{
+            id: CUSTOMER_ID,
+            first_name: 'Test',
+            last_name: 'Customer',
+            email: 'customer@example.com',
+          }],
+        };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+
+    const res = await request(buildMerchantApp())
+      .post(`/api/food/restaurants/${RESTAURANT_ID}/customer-wallet-loads`)
+      .send({
+        customerId: CUSTOMER_ID,
+        amountCents: 2500,
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body?.code).toBe('validation_failed');
   });
 
   test('large merchant wallet load request alias requires pending approval before ledger posting', async () => {

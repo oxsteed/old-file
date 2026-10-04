@@ -1014,6 +1014,13 @@ exports.loadCustomerWallet = async (req, res, next) => {
       120
     );
     const note = normalizeString(req.body.note || req.body.description, 255);
+    const paymentReference = normalizeString(req.body.paymentReference || req.body.payment_reference, 160);
+    const proofAttachmentUrl = normalizeString(req.body.proofAttachmentUrl || req.body.proof_attachment_url, 2000);
+    if (!note && !paymentReference && !proofAttachmentUrl) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        paymentProof: 'Add an explanation note, payment reference, or proof attachment for this credit grant',
+      });
+    }
     const generatedLoadReference = `merchant-load:${crypto.randomUUID()}`;
     const referenceId = normalizeString(req.body.referenceId || req.body.reference_id, 120)
       || idempotencyKey
@@ -1079,6 +1086,8 @@ exports.loadCustomerWallet = async (req, res, next) => {
               approvalThresholdCents: WALLET_LOAD_APPROVAL_THRESHOLD_CENTS,
               restaurantName: restaurant.display_name,
               customerEmail: customer.email,
+              paymentReference: paymentReference || null,
+              proofAttachmentUrl: proofAttachmentUrl || null,
             }),
           ]
         );
@@ -1099,6 +1108,8 @@ exports.loadCustomerWallet = async (req, res, next) => {
             referenceId,
             idempotencyKey: idempotencyKey || null,
             note: note || null,
+            paymentReference: paymentReference || null,
+            proofAttachmentUrl: proofAttachmentUrl || null,
             customerEmail: customer.email,
           },
         });
@@ -1136,6 +1147,8 @@ exports.loadCustomerWallet = async (req, res, next) => {
           restaurantName: restaurant.display_name,
           customerEmail: customer.email,
           note: note || null,
+          paymentReference: paymentReference || null,
+          proofAttachmentUrl: proofAttachmentUrl || null,
           loadedByUserId: req.user.id,
           requestIp: req.ip || null,
         },
@@ -1157,6 +1170,8 @@ exports.loadCustomerWallet = async (req, res, next) => {
             referenceId,
             idempotencyKey: idempotencyKey || null,
             note: note || null,
+            paymentReference: paymentReference || null,
+            proofAttachmentUrl: proofAttachmentUrl || null,
             restaurantName: restaurant.display_name,
             customerEmail: customer.email,
           },

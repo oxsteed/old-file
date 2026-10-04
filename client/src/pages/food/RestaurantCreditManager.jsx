@@ -4,6 +4,7 @@ import {
   approveMerchantFoodWalletCreditRequest,
   declineMerchantFoodWalletCreditRequest,
   formatFoodMoney,
+  grantMerchantFoodWalletCredit,
   listMerchantFoodWalletCreditRequests,
 } from '../../api/food';
 import { apiErrorMessage } from './foodShared';
@@ -28,6 +29,14 @@ export default function RestaurantCreditManager({ restaurant }) {
   const [confirmingId, setConfirmingId] = useState(null);
   const [decliningId, setDecliningId] = useState(null);
   const [declineReason, setDeclineReason] = useState('');
+  const [grantOpen, setGrantOpen] = useState(false);
+  const [grantEmail, setGrantEmail] = useState('');
+  const [grantAmount, setGrantAmount] = useState('');
+  const [grantNote, setGrantNote] = useState('');
+  const [grantReference, setGrantReference] = useState('');
+  const [grantProofUrl, setGrantProofUrl] = useState('');
+  const [grantConfirming, setGrantConfirming] = useState(false);
+  const [grantWorking, setGrantWorking] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -78,6 +87,49 @@ export default function RestaurantCreditManager({ restaurant }) {
     }
   };
 
+  const resetGrantForm = () => {
+    setGrantEmail('');
+    setGrantAmount('');
+    setGrantNote('');
+    setGrantReference('');
+    setGrantProofUrl('');
+    setGrantConfirming(false);
+  };
+
+  const submitGrant = async () => {
+    const email = grantEmail.trim();
+    const note = grantNote.trim();
+    if (!email || !grantAmount.trim() || !note) {
+      toast.error('Customer email, amount, and an explanation are required.');
+      return;
+    }
+    setGrantWorking(true);
+    try {
+      const idempotencyKey = globalThis.crypto?.randomUUID?.() || `merchant-grant-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const result = await grantMerchantFoodWalletCredit(restaurant.id, {
+        customerEmail: email,
+        amount: grantAmount.trim(),
+        currencyCode: restaurant.currency_code,
+        note,
+        paymentReference: grantReference.trim() || undefined,
+        proofAttachmentUrl: grantProofUrl.trim() || undefined,
+        idempotencyKey,
+      });
+      if (result?.pendingApproval) {
+        toast.success('Large grant submitted for approval.');
+      } else {
+        toast.success(`Credit granted to ${email}.`);
+      }
+      resetGrantForm();
+      setGrantOpen(false);
+      await load();
+    } catch (error) {
+      toast.error(apiErrorMessage(error, 'Unable to grant credit.'));
+    } finally {
+      setGrantWorking(false);
+    }
+  };
+
   return (
     <section className="fd-section fd-credit-manager">
       <div className="fd-credit-manager-head">
@@ -86,8 +138,53 @@ export default function RestaurantCreditManager({ restaurant }) {
           <h2>Restaurant credit</h2>
           <p className="fd-card-meta">Approve credit only after matching the customer’s receipt or confirmation number.</p>
         </div>
-        <span className="fd-credit-manager-count">{requests.length} pending</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span className="fd-credit-manager-count">{requests.length} pending</span>
+          <button type="button" className="fd-btn fd-btn-sm" onClick={() => { setGrantOpen((v) => !v); setGrantConfirming(false); }}>
+            {grantOpen ? 'Close' : 'Grant credit'}
+          </button>
+        </div>
       </div>
+
+      {grantOpen && (
+        <div className="fd-credit-grant-form">
+          <strong>Grant credit directly</strong>
+          <p className="fd-card-meta">Adds credit to a customer’s wallet immediately. An explanation is required for every grant and is recorded on the audit trail.</p>
+          <label>Customer email
+            <input type="email" required value={grantEmail} onChange={(event) => setGrantEmail(event.target.value)} placeholder="customer@example.com" maxLength={255} />
+          </label>
+          <label>Amount ({restaurant.currency_code || 'USD'})
+            <input inputMode="decimal" required value={grantAmount} onChange={(event) => setGrantAmount(event.target.value)} placeholder="25.00" />
+          </label>
+          <label>Explanation (required)
+            <input value={grantNote} onChange={(event) => setGrantNote(event.target.value)} maxLength={255} placeholder="Why is this credit being added? e.g. comp for wrong order" />
+          </label>
+          <label>Payment / proof reference (optional)
+            <input value={grantReference} onChange={(event) => setGrantReference(event.target.value)} maxLength={160} placeholder="Confirmation or receipt number" />
+          </label>
+          <label>Proof attachment URL (optional)
+            <input type="url" value={grantProofUrl} onChange={(event) => setGrantProofUrl(event.target.value)} maxLength={2000} placeholder="https://…" />
+          </label>
+          {grantConfirming ? (
+            <div className="fd-credit-confirm-row">
+              <strong>Grant {grantAmount.trim()} {restaurant.currency_code || 'USD'} to {grantEmail.trim()}?</strong>
+              <button type="button" className="fd-btn fd-btn-sm" disabled={grantWorking} onClick={submitGrant}>{grantWorking ? 'Granting…' : 'Yes, grant credit'}</button>
+              <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setGrantConfirming(false)}>Cancel</button>
+            </div>
+          ) : (
+            <div>
+              <button
+                type="button"
+                className="fd-btn fd-btn-sm"
+                disabled={!grantEmail.trim() || !grantAmount.trim() || !grantNote.trim()}
+                onClick={() => setGrantConfirming(true)}
+              >
+                Review grant
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {loading ? (
         <div className="fd-empty">Loading credit requests…</div>
