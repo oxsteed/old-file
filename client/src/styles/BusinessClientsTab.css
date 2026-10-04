@@ -125,6 +125,11 @@
   outline: none;
 }
 
+.bct-client-suggest {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
 .bct-status-row {
   display: flex;
   flex-wrap: wrap;

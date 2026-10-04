@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
 import { toast } from 'sonner';
+import { SuggestDropdown } from '../SuggestDropdown';
 import '../../styles/CreateAppointmentModal.css';
 
 export default function CreateAppointmentModal({ onClose, onCreated }) {
@@ -52,6 +53,31 @@ export default function CreateAppointmentModal({ onClose, onCreated }) {
     setSearchHelpers(helper.ownerName || helper.businessName || '');
     setHelpers([]);
   };
+
+  const handleSelectHelperItem = (item) => {
+    const helper = helpers.find((h) => h.id === item.id);
+    if (helper) handleSelectHelper(helper);
+  };
+
+  const helperSuggestItems = useMemo(
+    () =>
+      helpers.map((helper) => ({
+        id: helper.id,
+        title: helper.ownerName || helper.businessName,
+        meta:
+          Array.isArray(helper.categories) && helper.categories.length > 0
+            ? helper.categories.slice(0, 2).join(', ')
+            : undefined,
+        icon: helper.avatar ? (
+          <img
+            src={helper.avatar}
+            alt=""
+            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '0.625rem' }}
+          />
+        ) : undefined,
+      })),
+    [helpers],
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -112,30 +138,17 @@ export default function CreateAppointmentModal({ onClose, onCreated }) {
           <div className="cam-form-group">
             <label>{t('calendar.selectHelper')} *</label>
             <div className="cam-helper-search">
-              <input
-                type="text"
+              <SuggestDropdown
+                id="cam-helper-search"
+                items={helperSuggestItems}
                 value={searchHelpers}
-                onChange={(e) => handleHelperSearch(e.target.value)}
+                onQueryChange={handleHelperSearch}
+                onSelect={handleSelectHelperItem}
+                recentsKey="oxsteed_appointment_helper_recent"
                 placeholder={t('calendar.searchHelperPlaceholder')}
+                ariaLabel={t('calendar.selectHelper')}
               />
               {searchingHelpers && <div className="cam-loading">{t('common.loading')}</div>}
-              {helpers.length > 0 && (
-                <ul className="cam-helper-list">
-                  {helpers.map((helper) => (
-                    <li key={helper.id} onClick={() => handleSelectHelper(helper)}>
-                      {helper.avatar && <img src={helper.avatar} alt="" />}
-                      <div>
-                        <div className="cam-helper-name">{helper.ownerName || helper.businessName}</div>
-                        <div className="cam-helper-category">
-                          {Array.isArray(helper.categories) && helper.categories.length > 0
-                            ? helper.categories.slice(0, 2).join(', ')
-                            : ''}
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
             </div>
             {form.helper_id && <div className="cam-selected-helper">{t('calendar.helperSelected')}</div>}
           </div>

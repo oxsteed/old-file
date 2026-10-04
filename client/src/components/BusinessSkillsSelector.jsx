@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { X, Plus, Search } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
+import { SuggestDropdown } from './SuggestDropdown';
 import {
   listBusinessSkills,
   addBusinessSkill,
@@ -63,6 +64,7 @@ export default function BusinessSkillsSelector({
   };
 
   const handleAddSkill = async (skill) => {
+    if (!skill) return;
     if (skills.length >= maxSkills) {
       toast.error(t('businessSkills.maxSkillsReached') || `Maximum ${maxSkills} skills allowed`);
       return;
@@ -104,6 +106,21 @@ export default function BusinessSkillsSelector({
     } catch (err) {
       toast.error(t('businessSkills.errorUpdateSkill') || 'Failed to update skill');
     }
+  };
+
+  const skillSuggestItems = useMemo(
+    () =>
+      searchResults.map((skill) => ({
+        id: skill.id,
+        title: skill.name,
+        meta: skill.category,
+      })),
+    [searchResults],
+  );
+
+  const handleSkillSelect = (item) => {
+    const skill = searchResults.find((s) => s.id === item.id);
+    if (skill) handleAddSkill(skill);
   };
 
   if (loading) {
@@ -203,17 +220,18 @@ export default function BusinessSkillsSelector({
       {/* Search Box */}
       {showSearch && !readOnly && (
         <div className="space-y-2">
-          <div className="relative">
-            <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
-            <input
-              type="text"
-              placeholder={t('businessSkills.searchPlaceholder') || 'Search skills...'}
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="w-full ps-10 pe-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
-              autoFocus
-            />
-          </div>
+          <SuggestDropdown
+            id="bss-skill-search"
+            items={skillSuggestItems}
+            value={searchQuery}
+            onQueryChange={handleSearch}
+            onSelect={handleSkillSelect}
+            recentsKey="oxsteed_business_skill_recent"
+            placeholder={t('businessSkills.searchPlaceholder') || 'Search skills...'}
+            ariaLabel={t('businessSkills.searchPlaceholder') || 'Search skills...'}
+            minQueryLength={1}
+            className="sd-theme-dark"
+          />
 
           {/* Search Results */}
           {searching && (
@@ -222,24 +240,6 @@ export default function BusinessSkillsSelector({
 
           {!searching && searchQuery && searchResults.length === 0 && (
             <p className="text-sm text-gray-500">{t('businessSkills.noResults') || 'No skills found'}</p>
-          )}
-
-          {!searching && searchResults.length > 0 && (
-            <div className="max-h-60 overflow-y-auto space-y-1">
-              {searchResults.map((skill) => (
-                <button
-                  key={skill.id}
-                  onClick={() => handleAddSkill(skill)}
-                  className="w-full flex items-center justify-between px-3 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg text-start text-sm transition-colors"
-                >
-                  <div>
-                    <div className="text-white">{skill.name}</div>
-                    <div className="text-xs text-gray-500">{skill.category}</div>
-                  </div>
-                  <Plus className="w-4 h-4 text-gray-500" />
-                </button>
-              ))}
-            </div>
           )}
         </div>
       )}

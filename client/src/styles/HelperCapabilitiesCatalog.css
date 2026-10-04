@@ -8,6 +8,7 @@
 .helper-capabilities__eyebrow { margin: 0 0 .25rem; color: var(--color-primary, #f97316); font-size: .7rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .helper-capabilities__add { padding: .5rem .65rem; border-radius: .65rem; background: var(--color-action, #c2410c); color: var(--color-on-action, #fff); font-size: .72rem; font-weight: 800; white-space: nowrap; }
 .helper-capabilities__search { display: flex; align-items: center; gap: .55rem; margin: 1rem 0 .7rem; padding: .7rem .85rem; border: 1px solid var(--color-border, #334155); border-radius: .75rem; color: var(--color-text-muted, #94a3b8); background: var(--color-surface-2, #111827); }
+.helper-capabilities__suggest { margin: 1rem 0 .7rem; }
 .helper-capabilities__search input { min-width: 0; width: 100%; outline: none; border: 0; background: transparent; color: var(--color-text, #f8fafc); font-size: .85rem; }
 .helper-capabilities__search input::placeholder { color: var(--color-text-muted, #94a3b8); }
 .helper-capabilities__scroll { flex: 1; min-height: 0; overflow-y: auto; display: grid; align-content: start; gap: .6rem; padding-right: .25rem; scrollbar-width: thin; }

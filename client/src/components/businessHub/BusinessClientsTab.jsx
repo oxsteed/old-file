@@ -15,6 +15,7 @@ import {
 } from '../../api/businesses';
 import { formatDate, formatMoney } from '../../lib/format';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
+import { SuggestDropdown } from '../SuggestDropdown';
 import '../../styles/BusinessClientsTab.css';
 
 const STATUSES = [
@@ -247,6 +248,20 @@ export default function BusinessClientsTab({ bizId, businessName, currency }) {
     [items],
   );
 
+  const clientSuggestItems = useMemo(
+    () =>
+      items.map((c) => ({
+        id: c.id,
+        title: c.display_name,
+        meta:
+          [c.email, c.phone].filter(Boolean).join(' · ') ||
+          (c.status
+            ? t(`businessClients.status.${c.status}`, { defaultValue: c.status })
+            : undefined),
+      })),
+    [items, t],
+  );
+
   const handleOpenNew = () => { setDraft(DEFAULT_DRAFT); setModalOpen(true); };
   const handleOpenExisting = (c) => { setDraft({ ...c }); setModalOpen(true); };
   const handleSave = async (d) => {
@@ -301,14 +316,17 @@ export default function BusinessClientsTab({ bizId, businessName, currency }) {
       </div>
 
       <div className="bct-controls">
-        <label className="bct-search">
-          <Search size={14} />
-          <input
-            placeholder={t('businessClients.searchPlaceholder')}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </label>
+        <SuggestDropdown
+          id="bct-client-search"
+          items={clientSuggestItems}
+          value={search}
+          onQueryChange={setSearch}
+          onSelect={(item) => setSearch(item.title || '')}
+          recentsKey="oxsteed_business_clients_recent"
+          placeholder={t('businessClients.searchPlaceholder')}
+          ariaLabel={t('businessClients.searchPlaceholder')}
+          className="bct-client-suggest"
+        />
         <div className="bct-status-row" role="tablist" aria-label={t('businessClients.filterByStatus')}>
           {STATUSES.map((s) => (
             <button

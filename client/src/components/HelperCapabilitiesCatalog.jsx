@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { CheckCircle2, Search, Wrench } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { SuggestDropdown } from './SuggestDropdown';
 import { formatMoney } from '../lib/format';
 import '../styles/HelperCapabilitiesCatalog.css';
 
@@ -31,6 +32,41 @@ export default function HelperCapabilitiesCatalog({
     (String(tool.category || '').trim() || t('common.other')) === selectedCategory
       && `${tool.name} ${tool.description || ''} ${tool.brand || ''}`.toLocaleLowerCase().includes(normalized(toolSearch)));
 
+  const categoryItems = useMemo(
+    () =>
+      categories.map((name) => ({
+        id: name,
+        title: name,
+        meta: String(
+          skills.filter((skill) => (String(skill.category || '').trim() || t('common.other')) === name).length,
+        ),
+        icon: <Wrench size={14} aria-hidden="true" />,
+      })),
+    [categories, skills, t],
+  );
+  const serviceItems = useMemo(
+    () =>
+      skills
+        .filter((skill) => (String(skill.category || '').trim() || t('common.other')) === selectedCategory)
+        .map((skill) => ({
+          id: skill.id,
+          title: skill.skill_name,
+          meta: skill.description,
+        })),
+    [skills, selectedCategory, t],
+  );
+  const toolItems = useMemo(
+    () =>
+      tools
+        .filter((tool) => (String(tool.category || '').trim() || t('common.other')) === selectedCategory)
+        .map((tool) => ({
+          id: tool.id,
+          title: tool.name,
+          meta: [tool.brand, tool.description].filter(Boolean).join(' · ') || undefined,
+        })),
+    [tools, selectedCategory, t],
+  );
+
   return (
     <section className="helper-capabilities" aria-label={t('dashboard.skillsTools.skillsTitle')}>
       <div className="helper-capabilities__top">
@@ -41,11 +77,17 @@ export default function HelperCapabilitiesCatalog({
       <div className={`helper-capabilities__grid${showTools ? '' : ' helper-capabilities__grid--two'}`}>
         <section className="helper-capabilities__panel" aria-labelledby="helper-capability-categories">
           <h2 id="helper-capability-categories">{t('directCatalog.skillCategories')}</h2>
-          <label className="helper-capabilities__search">
-            <Search size={17} aria-hidden="true" />
-            <input type="search" value={categorySearch} onChange={(event) => setCategorySearch(event.target.value)}
-              aria-label={t('directCatalog.searchCategoriesAria')} placeholder={t('directCatalog.searchCategories')} />
-          </label>
+          <SuggestDropdown
+            id="hcc-category-search"
+            items={categoryItems}
+            value={categorySearch}
+            onQueryChange={setCategorySearch}
+            onSelect={(item) => { setCategory(item.id); setServiceSearch(''); setToolSearch(''); }}
+            recentsKey="oxsteed_helper_cap_category_recent"
+            placeholder={t('directCatalog.searchCategories')}
+            ariaLabel={t('directCatalog.searchCategoriesAria')}
+            className="helper-capabilities__suggest sd-theme-dark"
+          />
           <div className="helper-capabilities__scroll" role="group" aria-label={t('directCatalog.skillCategories')}>
             {shownCategories.map((name) => (
               <button key={name} type="button" className={`helper-capabilities__category${name === selectedCategory ? ' is-active' : ''}`}
@@ -64,11 +106,17 @@ export default function HelperCapabilitiesCatalog({
               <h2 id="helper-capability-services">{t('directCatalog.availableServices')}</h2></div>
             <button type="button" className="helper-capabilities__add" onClick={onAddSkill}>{t('dashboard.skillsTools.addSkill')}</button>
           </div>
-          <label className="helper-capabilities__search">
-            <Search size={17} aria-hidden="true" />
-            <input type="search" value={serviceSearch} onChange={(event) => setServiceSearch(event.target.value)}
-              aria-label={t('directCatalog.searchServicesAria')} placeholder={t('directCatalog.searchServices', { category: selectedCategory || t('dashboard.skillsTools.skillsTitle') })} />
-          </label>
+          <SuggestDropdown
+            id="hcc-service-search"
+            items={serviceItems}
+            value={serviceSearch}
+            onQueryChange={setServiceSearch}
+            onSelect={(item) => setServiceSearch(item.title || '')}
+            recentsKey="oxsteed_helper_cap_service_recent"
+            placeholder={t('directCatalog.searchServices', { category: selectedCategory || t('dashboard.skillsTools.skillsTitle') })}
+            ariaLabel={t('directCatalog.searchServicesAria')}
+            className="helper-capabilities__suggest sd-theme-dark"
+          />
           <div className="helper-capabilities__scroll">
             {skillsLoading ? <p className="helper-capabilities__empty">{t('directCatalog.loadingServices')}</p>
               : shownSkills.map((skill) => <article key={skill.id} className="helper-capabilities__item">
@@ -91,9 +139,17 @@ export default function HelperCapabilitiesCatalog({
           <div className="helper-capabilities__panel-head"><div><p className="helper-capabilities__eyebrow">{t('directCatalog.equipment')}</p>
             <h2 id="helper-capability-tools">{t('directCatalog.toolsEquipment')}</h2></div>
             <button type="button" className="helper-capabilities__add" onClick={onAddTool}>{t('dashboard.skillsTools.listToolBtn')}</button></div>
-          <label className="helper-capabilities__search"><Search size={17} aria-hidden="true" />
-            <input type="search" value={toolSearch} onChange={(event) => setToolSearch(event.target.value)}
-              aria-label={t('directCatalog.searchToolsAria')} placeholder={t('directCatalog.searchTools')} /></label>
+          <SuggestDropdown
+            id="hcc-tool-search"
+            items={toolItems}
+            value={toolSearch}
+            onQueryChange={setToolSearch}
+            onSelect={(item) => setToolSearch(item.title || '')}
+            recentsKey="oxsteed_helper_cap_tool_recent"
+            placeholder={t('directCatalog.searchTools')}
+            ariaLabel={t('directCatalog.searchToolsAria')}
+            className="helper-capabilities__suggest sd-theme-dark"
+          />
           <div className="helper-capabilities__scroll">
             {toolsLoading ? <p className="helper-capabilities__empty">{t('directCatalog.loadingServices')}</p>
               : shownTools.map((tool) => <article key={tool.id} className="helper-capabilities__item helper-capabilities__tool">
