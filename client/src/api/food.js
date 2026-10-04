@@ -38,6 +38,12 @@ export const listFoodRestaurantsPage = (params = {}) =>
 export const listFoodRestaurants = (params = {}) =>
   listFoodRestaurantsPage(params).then((page) => page.restaurants);
 
+// Effectively-featured restaurants for the home page shelf. The server
+// resolves paid/admin featured placements; an empty result means nothing is
+// currently featured and the caller should fall back to top-rated.
+export const getFeaturedRestaurants = (params = {}) =>
+  listFoodRestaurants({ featured_only: true, limit: 8, ...params });
+
 export const getFoodRestaurant = (restaurantId) =>
   api.get(`/food/restaurants/${restaurantId}`).then((r) => r.data);
 

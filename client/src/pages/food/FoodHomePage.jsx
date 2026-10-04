@@ -2,7 +2,7 @@
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { listFoodRestaurantsPage, listMyFoodOrders } from '../../api/food';
+import { getFeaturedRestaurants, listFoodRestaurantsPage, listMyFoodOrders } from '../../api/food';
 import { getNearbyPlaces } from '../../api/geo';
 import { useAuth } from '../../context/AuthContext';
 import { FoodBrand } from './foodShared';
@@ -165,7 +165,7 @@ export default function FoodHomePage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState(false);
 
-  const featuredRef = useRef([]);
+  const [featured, setFeatured] = useState([]);
   const isFirstLoad = useRef(true);
   const requestSequence = useRef(0);
 
@@ -197,11 +197,21 @@ export default function FoodHomePage() {
         hasMore: false,
         nextOffset: null,
       });
-      if (reset && isFirstLoad.current && !params.q && !params.cuisine && !params.lat && !params.lng && rows.length > 0) {
-        featuredRef.current = [...rows]
-          .sort((a, b) => Number(b.avg_rating || 0) - Number(a.avg_rating || 0))
-          .slice(0, 8);
+      if (reset && isFirstLoad.current && !params.q && !params.cuisine && !params.lat && !params.lng) {
         isFirstLoad.current = false;
+        // The featured shelf shows admin/paid featured placements. When
+        // nothing is currently featured, fall back to top-rated so the
+        // shelf is never empty while restaurants exist.
+        const fallback = rows.length > 0
+          ? [...rows].sort((a, b) => Number(b.avg_rating || 0) - Number(a.avg_rating || 0)).slice(0, 8)
+          : [];
+        getFeaturedRestaurants({ limit: 8 }).then((shelf) => {
+          if (sequence !== requestSequence.current) return;
+          setFeatured(Array.isArray(shelf) && shelf.length > 0 ? shelf : fallback);
+        }).catch(() => {
+          if (sequence !== requestSequence.current) return;
+          setFeatured(fallback);
+        });
       }
     } catch {
       if (sequence !== requestSequence.current) return;
@@ -317,11 +327,11 @@ export default function FoodHomePage() {
   }, [geo, restaurants]);
 
   const cuisinesFromData = useMemo(() => {
-    const all = [...restaurants, ...featuredRef.current];
+    const all = [...restaurants, ...featured];
     const tags = new Set();
     all.forEach((r) => (r.cuisine_tags || []).forEach((tag) => tags.add(tag)));
     return Array.from(tags).slice(0, 14);
-  }, [restaurants]);
+  }, [restaurants, featured]);
 
   // Typeahead items for the shared SuggestDropdown: loaded restaurant names
   // (with cuisine meta) plus the cuisine tags present in the current market.
@@ -395,7 +405,6 @@ export default function FoodHomePage() {
     });
   }, [recentOrders, restaurants, user, t]);
 
-  const featured = featuredRef.current;
   const isSearching = !!submittedQuery;
   const hasReorder = reorderRestaurants.length > 0;
   const hasFeatured = !isSearching && !activeCuisine && featured.length > 0;
