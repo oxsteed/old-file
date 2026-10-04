@@ -221,10 +221,24 @@ describe('public profile enforcement (static contract)', () => {
     expect(src).toMatch(/COALESCE\(b\.is_hidden_by_admin, FALSE\) = FALSE/);
   });
 
-  test('every public restaurant surface honors the admin hold alongside discovery', () => {
-    const src = read('controllers/foodController.js');
-    const pairs = src.match(/AND fr\.discovery_status = 'visible'\n *AND COALESCE\(fr\.is_hidden_by_admin, FALSE\) = FALSE/g) || [];
-    expect(pairs.length).toBe(7);
+  test.each([
+    'listMarkets',
+    'listRestaurants',
+    'getRestaurant',
+    'quoteOrder',
+    'createOrder',
+    'createCardPaymentIntent',
+    'getQueueBoard',
+    'listRestaurantPromotions',
+    'listRestaurantLocations',
+  ])('%s honors the admin hold alongside discovery', (handlerName) => {
+    // Check each public surface rather than counting query fragments: adding
+    // a guarded endpoint must not fail CI, nor mask an unguarded existing one.
+    const handler = require('../controllers/foodController')[handlerName];
+    expect(typeof handler).toBe('function');
+    const src = handler.toString();
+    expect(src).toMatch(/fr\.discovery_status\s*=\s*'visible'/);
+    expect(src).toMatch(/COALESCE\(fr\.is_hidden_by_admin,\s*FALSE\)\s*=\s*FALSE/);
   });
 
   test('migration 614 adds the override columns to all three profile tables', () => {

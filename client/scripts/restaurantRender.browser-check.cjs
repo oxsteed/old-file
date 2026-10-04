@@ -29,7 +29,10 @@ test('restaurant survives loading, deduplicates dish suggestions, and recovers f
       export const formatFoodMoney = cents => '$' + (Number(cents || 0) / 100).toFixed(2);
       const noWrite = () => { throw new Error('Unexpected API write in render test'); };
       export const placeFoodOrder = noWrite, quoteFoodOrder = noWrite,
-        uploadFoodAsset = noWrite, sendFoodRestaurantMessage = noWrite;`,
+        uploadFoodAsset = noWrite, sendFoodRestaurantMessage = noWrite,
+        createFoodCardPaymentIntent = noWrite, createRestaurantTopupIntent = noWrite,
+        getRestaurantTopup = noWrite, getRestaurantTopupEligibility = noWrite,
+        issueRestaurantTopupStepupChallenge = noWrite;`,
     '../../api/oxsteedCredit': `export const getOxsteedCreditAccount = async () => null;
       export const getOxsteedCreditEligibility = async () => null;
       export const listOxsteedCreditEligiblePartners = async () => [];`,
@@ -80,7 +83,10 @@ test('restaurant survives loading, deduplicates dish suggestions, and recovers f
     browser = await chromium.launch({ headless: true, channel: 'chrome' });
     const page = await browser.newPage();
     const errors = [];
-    page.on('pageerror', error => errors.push(error.message));
+    page.on('pageerror', error => {
+      errors.push(error.message);
+      console.error('Restaurant fixture page error:', error.message);
+    });
     await page.goto(`http://127.0.0.1:${server.address().port}/restaurants/r/2?tab=menu`);
     await page.getByText('food.restaurant.loadingMenu', { exact: true }).waitFor();
     await page.waitForFunction(() => window.restaurantRequests['2']);

@@ -196,6 +196,21 @@ describe('card payment intent', () => {
     expect(res.body.code).toBe('restaurant_card_payments_unavailable');
     expect(stripeMock.paymentIntents.create).not.toHaveBeenCalled();
   });
+
+  test('unavailable restaurants cannot start a card payment, and the lookup enforces admin visibility', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+    const res = await request(buildFoodApp())
+      .post('/api/food/card-payment/intent')
+      .send({ restaurantId: 1, amountCents: 2500, currency: 'USD', idempotencyKey: 'hidden-restaurant' });
+
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe('restaurant_not_found');
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(sql).toMatch(/fr\.discovery_status = 'visible'/);
+    expect(sql).toMatch(/COALESCE\(fr\.is_hidden_by_admin, FALSE\) = FALSE/);
+    expect(params).toEqual([1]);
+    expect(stripeMock.paymentIntents.create).not.toHaveBeenCalled();
+  });
 });
 
 describe('card order creation', () => {

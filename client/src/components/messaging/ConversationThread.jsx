@@ -18,7 +18,7 @@ import PaymentRequestCard from '../helperProfile/chat/PaymentRequestCard';
 import BookingRequestCard from '../helperProfile/chat/BookingRequestCard';
 import PaymentRequestSharePanel from '../helperProfile/chat/PaymentRequestSharePanel';
 import PartsListPanel from './PartsListPanel';
-import SharedCartCard from './SharedCartCard';
+import SharedCartCard from './SharedCartCard.jsx';
 import ProviderMessengerToolbar from './ProviderMessengerToolbar';
 import MessageBubbleActions from './MessageBubbleActions';
 import ReportModal from '../ReportModal';

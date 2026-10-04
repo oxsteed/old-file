@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   formatSharedCartTotal,
   sharedCartHref,
@@ -15,6 +16,11 @@ const ATT = {
   total_cents: 2599,
   currency: 'USD',
 };
+
+test('messenger imports the JSX card explicitly rather than the similarly named helper', () => {
+  const thread = readFileSync(new URL('../src/components/messaging/ConversationThread.jsx', import.meta.url), 'utf8');
+  assert.match(thread, /import SharedCartCard from '\.\/SharedCartCard\.jsx'/);
+});
 
 test('card title comes from the attachment cart_name', () => {
   const card = sharedCartCardData(ATT, '{{count}} items');

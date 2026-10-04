@@ -285,6 +285,10 @@ export default function FoodRestaurantPage() {
 
   const restaurant = data?.restaurant;
   const currency = restaurant?.currency_code || 'USD';
+  // Effects read readiness in their dependency arrays during the loading
+  // render, so initialize it before registering those effects.
+  const stripeChargesEnabled = Boolean(restaurant?.stripe_charges_enabled);
+  const cardPaymentsReady = stripeChargesEnabled && Boolean(stripePromise);
 
   // Track this restaurant in the client-side "recently viewed" store so the
   // food home page can resume where the user left off.
@@ -1212,8 +1216,6 @@ export default function FoodRestaurantPage() {
   // signed-in stored-value rail and still requires server-side partner checks.
   // CC7: in-checkout card payments ride Stripe Elements against the
   // restaurant's connected account; the server exposes stripe_charges_enabled.
-  const stripeChargesEnabled = Boolean(restaurant?.stripe_charges_enabled);
-  const cardPaymentsReady = stripeChargesEnabled && Boolean(stripePromise);
   const walletBalanceCents = Number(wallet?.balanceCents || 0);
   const walletReservedCents = Number(wallet?.reservedCents || 0);
   const walletAvailableCents = Number(
