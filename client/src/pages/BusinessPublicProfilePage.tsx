@@ -15,6 +15,14 @@ import './BusinessPublicProfilePage.css';
  * Business Public Profile Page
  * Shows public business profile with cover image at top and QR code
  */
+/** Capitalize each word for display ("dayton, oh" -> "Dayton, Oh"). Data may be stored lowercase. */
+function capitalizeWords(value) {
+  return String(value || '')
+    .split(' ')
+    .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+    .join(' ');
+}
+
 export default function BusinessPublicProfilePage() {
   const { t } = useTranslation();
   const { businessId } = useParams();
@@ -54,7 +62,7 @@ export default function BusinessPublicProfilePage() {
         coverImageUrl: profile.coverImageUrl || profile.cover_photo_url,
         rating: profile.rating ?? profile.avg_rating,
         reviewCount: profile.reviewCount ?? profile.total_reviews,
-        location: profile.location || [profile.address_city, profile.address_state].filter(Boolean).join(', '),
+        location: capitalizeWords(profile.location || [profile.address_city, profile.address_state].filter(Boolean).join(', ')),
         teamSize: profile.teamSize ?? data.team?.length,
         hours: profile.hours || data.hours,
       };
@@ -153,34 +161,42 @@ export default function BusinessPublicProfilePage() {
           {/* Services */}
           <div className="profile-card">
             <h2>{t('businessPublicProfile.servicesOffered')}</h2>
-            <div className="services-grid">
-              {business.services && business.services.map(service => (
-                <div key={service.id} className="service-card">
-                  <h3>{service.name}</h3>
-                  <p>{service.description}</p>
-                  <span className="service-price">${service.price}</span>
-                </div>
-              ))}
-            </div>
+            {business.services && business.services.length > 0 ? (
+              <div className="services-grid">
+                {business.services.map(service => (
+                  <div key={service.id} className="service-card">
+                    <h3>{service.name}</h3>
+                    <p>{service.description}</p>
+                    <span className="service-price">${service.price}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="profile-empty">{t('businessPublicProfile.servicesEmpty')}</p>
+            )}
           </div>
 
           {/* Portfolio/Projects */}
           <div className="profile-card">
             <h2>{t('businessPublicProfile.recentWork')}</h2>
-            <div className="projects-grid">
-              {business.projects && business.projects.map(project => (
-                <div key={project.id} className="project-item">
-                  <img src={project.image} alt={project.name} />
-                  <h4>{project.name}</h4>
-                </div>
-              ))}
-            </div>
+            {business.projects && business.projects.length > 0 ? (
+              <div className="projects-grid">
+                {business.projects.map(project => (
+                  <div key={project.id} className="project-item">
+                    <img src={project.image} alt={project.name} />
+                    <h4>{project.name}</h4>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="profile-empty">{t('businessPublicProfile.recentWorkEmpty')}</p>
+            )}
           </div>
 
           {/* Reviews */}
           <div className="profile-card">
             <h2>{t('businessPublicProfile.customerReviews')}</h2>
-            {business.reviews && business.reviews.map(review => (
+            {business.reviews && business.reviews.length > 0 ? business.reviews.map(review => (
               <div key={review.id} className="review-item">
                 <div className="review-header">
                   <span className="reviewer-name">{review.customerName}</span>
@@ -189,36 +205,31 @@ export default function BusinessPublicProfilePage() {
                 <p className="review-text">{review.comment}</p>
                 <span className="review-date">{review.date}</span>
               </div>
-            ))}
+            )) : (
+              <p className="profile-empty">{t('businessPublicProfile.reviewsEmpty')}</p>
+            )}
           </div>
         </div>
 
         {/* Sidebar */}
         <aside className="profile-sidebar">
-          {/* QR Code Section */}
-          <div className="sidebar-card">
-            <h3>{t('profile.qrCode.title')}</h3>
-            <QRCodeDisplay
-              helperId={business.id || businessId}
-              helperName={business.name}
-              profileSlug={business.profile_slug || business.profileSlug}
-              profileType="business"
-            />
-          </div>
-
           {/* Hours Card */}
           <div className="sidebar-card">
             <h3>{t('businessPublicProfile.businessHours')}</h3>
-            <div className="hours-list">
-              {business.hours && Object.entries(business.hours as Record<string, any>).map(([day, hours]) => (
-                <div key={day} className="hour-item">
-                  <span className="day">{day}</span>
-                  <span className="time">
-                    {hours?.closed ? t('businessPublicProfile.closed') : `${hours?.open} - ${hours?.close}`}
-                  </span>
-                </div>
-              ))}
-            </div>
+            {business.hours && Object.keys(business.hours).length > 0 ? (
+              <div className="hours-list">
+                {Object.entries(business.hours as Record<string, any>).map(([day, hours]) => (
+                  <div key={day} className="hour-item">
+                    <span className="day">{day}</span>
+                    <span className="time">
+                      {hours?.closed ? t('businessPublicProfile.closed') : `${hours?.open} - ${hours?.close}`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="profile-empty">{t('businessPublicProfile.hoursEmpty')}</p>
+            )}
           </div>
 
           {/* Stats Card */}
@@ -226,11 +237,11 @@ export default function BusinessPublicProfilePage() {
             <h3>{t('businessPublicProfile.stats')}</h3>
             <div className="stats-grid">
               <div className="stat">
-                <span className="stat-value">{business.jobsCompleted}</span>
+                <span className="stat-value">{business.jobsCompleted ?? '—'}</span>
                 <span className="stat-label">{t('businessPublicProfile.jobsCompleted')}</span>
               </div>
               <div className="stat">
-                <span className="stat-value">{business.yearsInBusiness}</span>
+                <span className="stat-value">{business.yearsInBusiness ?? '—'}</span>
                 <span className="stat-label">{t('businessPublicProfile.yearsInBusiness')}</span>
               </div>
             </div>

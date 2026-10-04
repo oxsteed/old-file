@@ -92,10 +92,10 @@ const LocationSection: React.FC<LocationSectionProps> = ({ location }) => {
     [location.serviceRadius],
   );
 
-  const mapAria = t('helperProfile.location.serviceAreaMapAria', {
-    city: location.city,
-    state: location.state,
-  });
+  const place = [location.city, location.state].filter(Boolean).join(', ');
+  const mapAria = place
+    ? t('helperProfile.location.serviceAreaMapAria', { city: location.city || '', state: location.state || '' })
+    : t('helperProfile.location.serviceAreaMapAriaFallback');
 
   return (
     <SectionCard id="location" title={t('helperProfile.location.title')}>
@@ -167,9 +167,13 @@ const LocationSection: React.FC<LocationSectionProps> = ({ location }) => {
           <div className="flex items-start gap-3">
             <MapPin className="w-4 h-4 text-brand-400 mt-0.5 flex-shrink-0" aria-hidden="true" />
             <div>
-              <p className="text-sm text-white font-medium">
-                {location.city}, {location.state} {location.zip}
-              </p>
+              {[location.city, location.state].filter(Boolean).length > 0 ? (
+                <p className="text-sm text-white font-medium">
+                  {[location.city, location.state].filter(Boolean).join(', ')}{location.zip ? ` ${location.zip}` : ''}
+                </p>
+              ) : (
+                <p className="text-sm text-gray-500">{t('helperProfile.location.noLocationSet')}</p>
+              )}
               <p className="text-xs text-gray-500 mt-0.5">{t('helperProfile.location.basedIn')}</p>
             </div>
           </div>

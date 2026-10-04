@@ -362,8 +362,16 @@ const HelperBusinessProfilePage: React.FC = () => {
         shareTitle={helper.businessName || helper.ownerName}
       />
 
-      {/* Sticky section nav */}
-      <SectionNav />
+      {/* Sticky section nav — only tabs whose sections actually render */}
+      <SectionNav
+        visibleSections={[
+          ...(visibility?.services ? ['services'] : []),
+          ...(visibility?.gallery ? ['gallery'] : []),
+          'reviews',
+          ...(visibility?.faqs ? ['faqs'] : []),
+          ...(visibility?.policies ? ['policies'] : []),
+        ]}
+      />
 
       {/* Page body */}
       <main

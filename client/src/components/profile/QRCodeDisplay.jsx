@@ -173,7 +173,6 @@ export default function QRCodeDisplay({ helperId, helperName, profileSlug, profi
                 className={`qr-code-size-btn ${size === key ? 'active' : ''}`}
               >
                 {option.label}
-                <span className="qr-code-size-px">({option.px}px)</span>
               </button>
             ))}
           </div>

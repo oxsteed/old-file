@@ -8769,7 +8769,9 @@
     "location": {
       "title": "Zòn Sèvis",
       "serviceAreaMapAria": "Kat zòn sèvis ki santre sou {{city}}, {{state}}",
+      "serviceAreaMapAriaFallback": "Kat zòn sèvis la",
       "basedIn": "Baze nan",
+      "noLocationSet": "Kote a poko mete",
       "servesUpTo": "Sèvi jiska {{radius}} {{unit}}",
       "miles": "mil",
       "km": "km",
@@ -14182,7 +14184,11 @@
     "closed": "F?men",
     "stats": "Estatistik",
     "jobsCompleted": "Travay fini",
-    "yearsInBusiness": "Ane nan biznis"
+    "yearsInBusiness": "Ane nan biznis",
+    "servicesEmpty": "Poko gen sèvis ki afiche.",
+    "recentWorkEmpty": "Poko gen travay resan pou montre.",
+    "reviewsEmpty": "Poko gen revizyon.",
+    "hoursEmpty": "Orè poko mete."
   },
   "businessProfileEdit": {
     "loadError": "Pa t ka chaje biznis la",

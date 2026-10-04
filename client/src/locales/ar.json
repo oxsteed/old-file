@@ -8769,7 +8769,9 @@
     "location": {
       "title": "منطقة الخدمة",
       "serviceAreaMapAria": "خريطة منطقة الخدمة تتمركز في {{city}}، {{state}}",
+      "serviceAreaMapAriaFallback": "خريطة منطقة الخدمة",
       "basedIn": "مقرها في",
+      "noLocationSet": "لم يتم تحديد الموقع بعد",
       "servesUpTo": "يخدم ما يصل إلى {{radius}} {{unit}}",
       "miles": "أميال",
       "km": "كم",
@@ -14193,7 +14195,11 @@
     "closed": "مغلق",
     "stats": "احصائيات",
     "jobsCompleted": "تم الانتهاء من المهام",
-    "yearsInBusiness": "سنوات في العمل"
+    "yearsInBusiness": "سنوات في العمل",
+    "servicesEmpty": "لا توجد خدمات مدرجة بعد.",
+    "recentWorkEmpty": "لا توجد أعمال حديثة لعرضها بعد.",
+    "reviewsEmpty": "لا توجد تقييمات بعد.",
+    "hoursEmpty": "لم يتم تحديد الساعات بعد."
   },
   "businessProfileEdit": {
     "loadError": "فشل تحميل الأعمال",

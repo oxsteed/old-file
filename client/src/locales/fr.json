@@ -8769,7 +8769,9 @@
     "location": {
       "title": "Zone de service",
       "serviceAreaMapAria": "Carte de la zone de service centrée sur {{city}}, {{state}}",
+      "serviceAreaMapAriaFallback": "Carte de la zone de service",
       "basedIn": "Basé à",
+      "noLocationSet": "Localisation non définie",
       "servesUpTo": "Intervient jusqu'à {{radius}} {{unit}}",
       "miles": "kilomètres",
       "km": "kilomètres",
@@ -14182,7 +14184,11 @@
     "closed": "Ferm?",
     "stats": "Statistiques",
     "jobsCompleted": "Travaux termin?s",
-    "yearsInBusiness": "Ann?es d?activit?"
+    "yearsInBusiness": "Ann?es d?activit?",
+    "servicesEmpty": "Aucun service publié pour le moment.",
+    "recentWorkEmpty": "Aucune réalisation récente à afficher.",
+    "reviewsEmpty": "Aucun avis pour le moment.",
+    "hoursEmpty": "Horaires non définis pour le moment."
   },
   "businessProfileEdit": {
     "loadError": "Impossible de charger l?entreprise",

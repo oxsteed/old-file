@@ -68,7 +68,7 @@ export function BackToTopButton() {
   );
 }
 
-export function SectionNav() {
+export function SectionNav({ visibleSections }) {
   const { t } = useTranslation();
   const scrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const sections = [
@@ -77,7 +77,7 @@ export function SectionNav() {
     { id: 'reviews', label: t('helperProfile.chrome.sectionReviews') },
     { id: 'faqs', label: t('helperProfile.chrome.sectionFaqs') },
     { id: 'policies', label: t('helperProfile.chrome.sectionPolicies') },
-  ];
+  ].filter((s) => !visibleSections || visibleSections.includes(s.id));
   return (
     <nav aria-label={t('helperProfile.chrome.pageSections')} className="sticky top-0 z-20 bg-white/90 dark:bg-gray-950/90 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

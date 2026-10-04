@@ -194,7 +194,7 @@ const AvailabilitySection: React.FC<AvailabilitySectionProps> = ({ helperId }) =
               : t('helperProfile.chat.offline')}
           </span>
         </span>
-        {data.responseTime && (
+        {data.responseTime && String(data.responseTime).toLowerCase() !== 'varies' && (
           <span className="flex items-center gap-1 text-xs text-gray-500">
             <Zap className="w-3 h-3" aria-hidden="true" />
             {t('helperProfile.chat.respondsIn', { time: data.responseTime })}

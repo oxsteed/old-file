@@ -46,6 +46,9 @@ export const PricingBlock: React.FC<{ helperId: string }> = ({ helperId }) => {
 
   if (loading) return <SkeletonBlock title={t('helperProfile.chat.loadingPricing')} lines={3} />;
   if (error || !data) return null;
+  const hasRates = !!(data.hourlyRateMin || data.hourlyRateMax);
+  const hasServices = data.servicePricing.length > 0;
+  if (!data.contactForPricing && !hasRates && !hasServices) return null;
   if (data.contactForPricing && !data.hourlyRateMin) {
     return (
       <section

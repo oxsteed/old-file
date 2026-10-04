@@ -8769,7 +8769,9 @@
     "location": {
       "title": "Área de Servicio",
       "serviceAreaMapAria": "Mapa del área de servicio centrado en {{city}}, {{state}}",
+      "serviceAreaMapAriaFallback": "Mapa del área de servicio",
       "basedIn": "Ubicado en",
+      "noLocationSet": "Ubicación aún no establecida",
       "servesUpTo": "Sirve hasta {{radius}} {{unit}}",
       "miles": "millas",
       "km": "kilómetros",
@@ -14182,7 +14184,11 @@
     "closed": "Cerrado",
     "stats": "Estad?sticas",
     "jobsCompleted": "Trabajos completados",
-    "yearsInBusiness": "A?os en el negocio"
+    "yearsInBusiness": "A?os en el negocio",
+    "servicesEmpty": "Aún no hay servicios publicados.",
+    "recentWorkEmpty": "Aún no hay trabajos recientes para mostrar.",
+    "reviewsEmpty": "Aún no hay reseñas.",
+    "hoursEmpty": "Horario aún no establecido."
   },
   "businessProfileEdit": {
     "loadError": "No se pudo cargar el negocio",

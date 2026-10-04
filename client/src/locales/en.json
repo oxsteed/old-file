@@ -686,7 +686,7 @@
   "hero": {
     "eyebrow": "Local Skills Directory",
     "title": "Local Help,\nWhen You Need It",
-    "subtitle": "Post a job in minutes. Get bids from skills local helpers for home repair, cleaning, moving, and more.",
+    "subtitle": "Post a job in minutes. Get bids from skilled local helpers for home repair, cleaning, moving, and more.",
     "postJob": "Post a Job",
     "browseHelpers": "Browse Helpers",
     "orderFood": "Order Food",
@@ -1109,7 +1109,7 @@
     "networkTagline": "OxSteed network",
     "platform": "Platform",
     "company": "Company",
-    "tagline": "Post a job, compare bids from skills local helpers, and pay securely.",
+    "tagline": "Post a job, compare bids from skilled local helpers, and pay securely.",
     "subtagline": "Built for hiring, logistics, and trusted local business operations.",
     "browseJobs": "Browse Jobs",
     "postJob": "Post a Job",
@@ -8767,7 +8767,9 @@
     "location": {
       "title": "Service Area",
       "serviceAreaMapAria": "Service area map centered on {{city}}, {{state}}",
+      "serviceAreaMapAriaFallback": "Service area map",
       "basedIn": "Based in",
+      "noLocationSet": "Location not set yet",
       "servesUpTo": "Serves up to {{radius}} {{unit}}",
       "miles": "miles",
       "km": "km",
@@ -14180,7 +14182,11 @@
     "closed": "Closed",
     "stats": "Stats",
     "jobsCompleted": "Jobs Completed",
-    "yearsInBusiness": "Years in Business"
+    "yearsInBusiness": "Years in Business",
+    "servicesEmpty": "No services listed yet.",
+    "recentWorkEmpty": "No recent work to show yet.",
+    "reviewsEmpty": "No reviews yet.",
+    "hoursEmpty": "Hours not set yet."
   },
   "businessProfileEdit": {
     "loadError": "Failed to load business",
