@@ -14351,6 +14351,7 @@
     "otpHint": "Enviamos un código de 6 dígitos a {{email}}.",
     "resend": "Reenviar código",
     "verifying": "Verificando...",
+    "editDetails": "¿Correo o teléfono incorrecto? Editar datos",
     "errorMode": "Por favor selecciona un modo."
   },
   "modeSwitcher": {

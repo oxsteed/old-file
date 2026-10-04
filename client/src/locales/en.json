@@ -14349,6 +14349,7 @@
     "otpHint": "We sent a 6-digit code to {{email}}.",
     "resend": "Resend code",
     "verifying": "Verifying...",
+    "editDetails": "Wrong email or phone? Edit details",
     "errorMode": "Please pick a mode."
   },
   "modeSwitcher": {

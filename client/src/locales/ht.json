@@ -14351,6 +14351,7 @@
     "otpHint": "Nou voye yon kòd 6 chif bay {{email}}.",
     "resend": "Voye kòd la ankò",
     "verifying": "N ap verifye...",
+    "editDetails": "Imèl oubyen telefòn pa bon? Modifye enfòmasyon yo",
     "errorMode": "Tanpri chwazi yon mòd."
   },
   "modeSwitcher": {

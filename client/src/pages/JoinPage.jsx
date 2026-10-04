@@ -42,6 +42,38 @@ import { LAUNCH_SELF_SELECTABLE_MODES } from '../utils/launchScope';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const VISIBLE_SIGNUP_MODES = LAUNCH_SELF_SELECTABLE_MODES;
 
+// ── Registration draft persistence (R1) ─────────────────────
+// The 12-field form and the pending registration token live in sessionStorage
+// so a refresh between submit and OTP entry resumes where the user left off
+// instead of forcing a full restart. Tab-scoped (sessionStorage, not
+// localStorage) and the password is deliberately never persisted.
+const JOIN_DRAFT_KEY = 'oxsteed:join-draft:v1';
+
+function loadJoinDraft() {
+  try {
+    const raw = sessionStorage.getItem(JOIN_DRAFT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    const { form: savedForm, registrationToken, otpSent } = parsed;
+    return {
+      form: savedForm && typeof savedForm === 'object' ? savedForm : {},
+      registrationToken: typeof registrationToken === 'string' ? registrationToken : '',
+      otpSent: otpSent === true,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function clearJoinDraft() {
+  try {
+    sessionStorage.removeItem(JOIN_DRAFT_KEY);
+  } catch {
+    // storage unavailable; nothing durable to clear
+  }
+}
+
 export default function JoinPage() {
   const navigate = useNavigate();
   const { user, setUser } = useAuth();
@@ -50,6 +82,11 @@ export default function JoinPage() {
   const referralRef = searchParams.get('ref') || undefined;
   // Allow direct deep-linking with /join?mode=helper to pre-select a mode.
   const presetMode = searchParams.get('mode');
+
+  // Restore any in-progress registration draft on mount. Read lazily once so
+  // it does not re-parse on every render.
+  const [draft] = useState(loadJoinDraft);
+  const draftForm = (draft && typeof draft.form === 'object') ? draft.form : {};
 
   // ── Form state ─────────────────────────────────────────
   const [form, setForm] = useState({
@@ -62,19 +99,40 @@ export default function JoinPage() {
     city: '',
     state: '',
     zipCode: '',
-    password: '',
     termsAccepted: false,
-    defaultMode: VISIBLE_SIGNUP_MODES.includes(presetMode) ? presetMode : 'customer',
+    defaultMode: VISIBLE_SIGNUP_MODES.includes(presetMode)
+      ? presetMode
+      : (VISIBLE_SIGNUP_MODES.includes(draftForm.defaultMode) ? draftForm.defaultMode : 'customer'),
+    ...draftForm,
+    // Password is never restored from the draft; require it fresh.
+    password: '',
+    // URL mode preset always wins over the draft.
+    ...(VISIBLE_SIGNUP_MODES.includes(presetMode) ? { defaultMode: presetMode } : {}),
   });
   const [errors, setErrors] = useState({});
   const [emailAvailable, setEmailAvailable] = useState(null);
 
   // ── OTP state ──────────────────────────────────────────
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
-  const [otpSent, setOtpSent] = useState(false);
-  const [registrationToken, setRegistrationToken] = useState('');
+  const [otpSent, setOtpSent] = useState(draft?.otpSent === true);
+  const [registrationToken, setRegistrationToken] = useState(draft?.registrationToken || '');
   const [verifying, setVerifying] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Persist the draft (minus the password) whenever the form, the token, or
+  // the OTP-screen state changes, so a refresh resumes the flow.
+  useEffect(() => {
+    try {
+      const { password: _omitted, ...safeForm } = form;
+      sessionStorage.setItem(JOIN_DRAFT_KEY, JSON.stringify({
+        form: safeForm,
+        registrationToken,
+        otpSent,
+      }));
+    } catch {
+      // storage full or unavailable; the draft just won't survive a refresh
+    }
+  }, [form, registrationToken, otpSent]);
 
   // If user is already signed in + verified, bounce them out.
   useEffect(() => {
@@ -212,6 +270,8 @@ export default function JoinPage() {
         setUser(data.user);
       }
       toast.success(t('register.verifiedToast'));
+      // Registration completed; the draft is no longer needed.
+      clearJoinDraft();
       const target = postSignupRouteForMode(data?.user?.default_mode || form.defaultMode);
       setTimeout(() => navigate(target, { replace: true }), 800);
     } catch (err) {
@@ -221,6 +281,14 @@ export default function JoinPage() {
       setVerifying(false);
     }
   }, [registrationToken, form.defaultMode, navigate, setUser, t, verifying]);
+
+  // Escape hatch: a typo'd email/phone sends the OTP to the wrong address.
+  // Return to the form with input preserved so the user can fix it and the
+  // flow re-sends the code on the next submit.
+  const handleEditDetails = useCallback(() => {
+    setOtpDigits(['', '', '', '', '', '']);
+    setOtpSent(false);
+  }, []);
 
   const handleResendOtp = useCallback(async () => {
     try {
@@ -487,6 +555,13 @@ export default function JoinPage() {
                   className="text-xs text-orange-400 hover:text-orange-300 underline"
                 >
                   {t('join.resend')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleEditDetails}
+                  className="text-xs text-orange-400 hover:text-orange-300 underline"
+                >
+                  {t('join.editDetails')}
                 </button>
                 {verifying && (
                   <div className="text-sm text-[var(--color-text-muted)]">{t('join.verifying')}</div>
