@@ -9411,7 +9411,11 @@
     "noReviews": "لا توجد تعليقات حتى الآن.",
     "reviewCount_one": "{{count}} مراجعة",
     "reviewCount_other": "{{count}} التعليقات",
-    "jobsDone": "اكتملت مهام {{count}}"
+    "jobsDone": "اكتملت مهام {{count}}",
+    "oxsteedId": "معرّف OxSteed",
+    "oxsteedIdHint": "معرّف حسابك الدائم. شاركه مع الدعم إذا احتجت إلى مساعدة.",
+    "copy": "نسخ",
+    "copied": "تم النسخ"
   },
   "cookieConsent": {
     "title": "تفضيلات ملفات تعريف الارتباط",

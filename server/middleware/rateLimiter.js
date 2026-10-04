@@ -536,6 +536,23 @@ const connectorMutationLimiter = rateLimit({
   },
 });
 
+// Entity ID resolution is authenticated but enumerable by shape; keep a
+// tight per-user bucket on top of the global API limiters so one client
+// cannot sweep the ID space.
+const entityResolveLimiter = rateLimit({
+  ...createStoreOption('rl:entity_resolve:'),
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  skip: (req) => !req.user,
+  keyGenerator: (req) => req.user?.id ? `entity:${req.user.id}` : req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many entity lookups. Please try again later.',
+    retryAfter: '15 minutes',
+  },
+});
+
 module.exports = {
   getVerifiedBearerUserId,
   generalLimiter,
@@ -566,4 +583,5 @@ module.exports = {
   creditExportLimiter,
   adminPhoneVerificationLimiter,
   connectorMutationLimiter,
+  entityResolveLimiter,
 };

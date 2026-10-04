@@ -305,16 +305,33 @@ async function verifyOTP(req, res) {
 
       userId = userResult.rows[0].id;
 
-      await client.query(
+      const { rows: hpUpsertRows } = await client.query(
         `INSERT INTO helper_profiles (user_id, tier, is_listed, service_city, service_state, service_zip, created_at, updated_at)
          VALUES ($1, 'tier1', false, $2, $3, $4, NOW(), NOW())
          ON CONFLICT (user_id) DO UPDATE SET
            service_city = COALESCE(EXCLUDED.service_city, helper_profiles.service_city),
            service_state = COALESCE(EXCLUDED.service_state, helper_profiles.service_state),
            service_zip = COALESCE(EXCLUDED.service_zip, helper_profiles.service_zip),
-           updated_at = NOW()`,
+           updated_at = NOW()
+         RETURNING id`,
         [userId, cityU, stateU, reg.zip_code || null],
       );
+      // Mint universal entity IDs (migration 670) inside the same transaction.
+      {
+        const { getOrMintEntityId, grantLink } = require('../lib/entityIds');
+        const personPublicId = await getOrMintEntityId(client, 'person', userId);
+        let helperProfileId = hpUpsertRows[0]?.id;
+        if (!helperProfileId) {
+          const { rows: hpIdRows } = await client.query(
+            'SELECT id FROM helper_profiles WHERE user_id = $1', [userId]
+          );
+          helperProfileId = hpIdRows[0]?.id;
+        }
+        if (helperProfileId) {
+          const profilePublicId = await getOrMintEntityId(client, 'helper_profile', helperProfileId);
+          await grantLink(client, { subjectId: personPublicId, objectId: profilePublicId, relation: 'acts_as' });
+        }
+      }
 
       // Mark the pending row so we don't re-create on retry
       await client.query(

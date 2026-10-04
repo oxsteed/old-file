@@ -9411,7 +9411,11 @@
     "noReviews": "Pa gen evalyasyon ankò.",
     "reviewCount_one": "{{count}} evalyasyon",
     "reviewCount_other": "{{count}} evalyasyon",
-    "jobsDone": "{{count}} travay konplete"
+    "jobsDone": "{{count}} travay konplete",
+    "oxsteedId": "ID OxSteed",
+    "oxsteedIdHint": "ID kont ou ki pèmanan. Pataje l ak sipò si ou janm bezwen èd.",
+    "copy": "Kopye",
+    "copied": "Kopye"
   },
   "cookieConsent": {
     "title": "Preferans Cookie",

@@ -9411,7 +9411,11 @@
     "noReviews": "Aún no hay reseñas.",
     "reviewCount_one": "{{count}} reseña",
     "reviewCount_other": "{{count}} reseñas",
-    "jobsDone": "{{count}} trabajos completados"
+    "jobsDone": "{{count}} trabajos completados",
+    "oxsteedId": "ID de OxSteed",
+    "oxsteedIdHint": "Tu ID de cuenta permanente. Compártelo con soporte si alguna vez necesitas ayuda.",
+    "copy": "Copiar",
+    "copied": "Copiado"
   },
   "cookieConsent": {
     "title": "Preferencias de Cookies",

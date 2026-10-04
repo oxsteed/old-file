@@ -80,6 +80,13 @@ async function ensureDraftFoodRestaurantForBusiness(client, business, ownerUserI
       currencyCode,
     ]
   );
+  // Mint the restaurant entity ID + ownership links (migration 670).
+  const { getOrMintEntityId, grantLink } = require('../lib/entityIds');
+  const ownerPersonId = await getOrMintEntityId(client, 'person', ownerUserId);
+  const restaurantPublicId = await getOrMintEntityId(client, 'restaurant', restaurant.id);
+  const businessPublicId = await getOrMintEntityId(client, 'business', business.id);
+  await grantLink(client, { subjectId: ownerPersonId, objectId: restaurantPublicId, relation: 'owns' });
+  await grantLink(client, { subjectId: restaurantPublicId, objectId: businessPublicId, relation: 'belongs_to' });
   return restaurant;
 }
 
@@ -253,6 +260,12 @@ async function addBusiness(req, res, next) {
         ]
       );
       await ensureDraftFoodRestaurantForBusiness(client, createdBusiness, req.user.id);
+      // Mint universal entity IDs (migration 670) inside the same transaction:
+      // the business, its draft restaurant (if any), and the ownership links.
+      const { getOrMintEntityId, grantLink } = require('../lib/entityIds');
+      const ownerPersonId = await getOrMintEntityId(client, 'person', req.user.id);
+      const businessPublicId = await getOrMintEntityId(client, 'business', createdBusiness.id);
+      await grantLink(client, { subjectId: ownerPersonId, objectId: businessPublicId, relation: 'owns' });
       await ensureDraftServiceProfileForBusiness(client, createdBusiness);
       await client.query(
         `INSERT INTO business_setup_progress

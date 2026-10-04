@@ -2,16 +2,22 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
+import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
 export default function PublicProfile() {
   const { id } = useParams();
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [profile, setProfile] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [badges, setBadges] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [oxsteedId, setOxsteedId] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  const isOwnProfile = user && profile && String(user.id) === String(profile.id || id);
 
   useEffect(() => {
     const load = async () => {
@@ -32,6 +38,29 @@ export default function PublicProfile() {
     };
     load();
   }, [id]);
+
+  useEffect(() => {
+    if (!isOwnProfile) return;
+    api.get('/entities/me')
+      .then((res) => setOxsteedId(res.data?.public_id || null))
+      .catch(() => setOxsteedId(null));
+  }, [isOwnProfile]);
+
+  const copyId = async () => {
+    if (!oxsteedId) return;
+    try {
+      await navigator.clipboard.writeText(oxsteedId);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = oxsteedId;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   if (loading) return <div className="min-h-screen bg-gray-950 flex items-center justify-center"><p className="text-gray-400">{t('publicProfile.loading')}</p></div>;
   if (!profile) return <div className="min-h-screen bg-gray-950 flex items-center justify-center"><p className="text-gray-400">{t('publicProfile.notFound')}</p></div>;
@@ -76,6 +105,20 @@ export default function PublicProfile() {
                   </span>
                 )}
               </div>
+              {isOwnProfile && oxsteedId && (
+                <div className="mt-4 flex items-center gap-3 flex-wrap">
+                  <span className="text-gray-500 text-sm">{t('publicProfile.oxsteedId', 'OxSteed ID')}</span>
+                  <code className="px-2 py-1 bg-gray-800 rounded text-sm text-gray-200 font-mono">{oxsteedId}</code>
+                  <button
+                    type="button"
+                    onClick={copyId}
+                    className="px-3 py-1 text-sm rounded-full border border-gray-700 text-gray-300 hover:border-gray-500"
+                    title={t('publicProfile.oxsteedIdHint', 'Your permanent account ID. Share it with support if you ever need help.')}
+                  >
+                    {copied ? t('publicProfile.copied', 'Copied') : t('publicProfile.copy', 'Copy')}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
           {profile.bio && <p className="mt-6 text-gray-300">{profile.bio}</p>}

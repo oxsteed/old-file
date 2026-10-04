@@ -40,6 +40,18 @@ function buildApp() {
 
 beforeEach(() => resetMocks());
 
+// Entity-ID minting (migration 670) runs SELECT mint_entity_id(...) inside
+// creation transactions. Answer those with a synthetic ID so the default
+// empty rows do not break the mint; every other query keeps default rows.
+function mockEntityMint() {
+  mockQuery.mockImplementation(async (sql, params) => {
+    if (/mint_entity_id/.test(sql)) {
+      return { rows: [{ public_id: `OX-${params[0]}-TEST-0000-X` }] };
+    }
+    return { rows: [], rowCount: 0 };
+  });
+}
+
 describe('business category long-term wiring', () => {
   test('returns backend-owned business category catalog', async () => {
     const res = await request(buildApp()).get('/api/businesses/categories');
@@ -64,6 +76,7 @@ describe('business category long-term wiring', () => {
   });
 
   test('creates a linked draft restaurant when business mode is food', async () => {
+    mockEntityMint();
     mockQuery
       .mockResolvedValueOnce({ rows: [{ count: '0' }] })
       .mockResolvedValueOnce({
@@ -120,6 +133,7 @@ describe('business category long-term wiring', () => {
   });
 
   test('does not create a food restaurant for service marketplace businesses', async () => {
+    mockEntityMint();
     mockQuery
       .mockResolvedValueOnce({ rows: [{ count: '1' }] })
       .mockResolvedValueOnce({
@@ -172,6 +186,7 @@ describe('business category long-term wiring', () => {
   });
 
   test('derives the compatibility mode on the server instead of trusting the client', async () => {
+    mockEntityMint();
     mockQuery
       .mockResolvedValueOnce({ rows: [{ count: '0' }] })
       .mockResolvedValueOnce({

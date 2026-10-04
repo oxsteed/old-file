@@ -9411,7 +9411,11 @@
     "noReviews": "Aucun avis pour l'instant.",
     "reviewCount_one": "{{count}} avis",
     "reviewCount_other": "{{count}} avis",
-    "jobsDone": "{{count}} missions terminées"
+    "jobsDone": "{{count}} missions terminées",
+    "oxsteedId": "ID OxSteed",
+    "oxsteedIdHint": "Votre identifiant de compte permanent. Partagez-le avec l'assistance si besoin.",
+    "copy": "Copier",
+    "copied": "Copié"
   },
   "cookieConsent": {
     "title": "Préférences de cookies",

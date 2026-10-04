@@ -9409,7 +9409,11 @@
     "noReviews": "No reviews yet.",
     "reviewCount_one": "{{count}} review",
     "reviewCount_other": "{{count}} reviews",
-    "jobsDone": "{{count}} jobs completed"
+    "jobsDone": "{{count}} jobs completed",
+    "oxsteedId": "OxSteed ID",
+    "oxsteedIdHint": "Your permanent account ID. Share it with support if you ever need help.",
+    "copy": "Copy",
+    "copied": "Copied"
   },
   "cookieConsent": {
     "title": "Cookie Preferences",

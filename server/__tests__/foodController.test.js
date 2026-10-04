@@ -41,6 +41,18 @@ function buildGuestApp() {
 
 beforeEach(() => resetMocks());
 
+// Entity-ID minting (migration 670) runs SELECT mint_entity_id(...) inside
+// creation transactions. Answer those with a synthetic ID so the default
+// empty rows do not break the mint; every other query keeps default rows.
+function mockEntityMint() {
+  mockQuery.mockImplementation(async (sql, params) => {
+    if (/mint_entity_id/.test(sql)) {
+      return { rows: [{ public_id: `OX-${params[0]}-TEST-0000-X` }] };
+    }
+    return { rows: [], rowCount: 0 };
+  });
+}
+
 describe('food controller', () => {
   const quoteRestaurant = {
     id: 3,
@@ -411,6 +423,7 @@ describe('food controller', () => {
   });
 
   test('creates a restaurant and backing business in one transaction', async () => {
+    mockEntityMint();
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 42 }] })
       .mockResolvedValueOnce({

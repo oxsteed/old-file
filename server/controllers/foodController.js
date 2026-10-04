@@ -1984,7 +1984,9 @@ exports.createRestaurant = async (req, res, next) => {
     }
 
     const result = await withTransaction(pool, async (client) => {
+      const { getOrMintEntityId, grantLink } = require('../lib/entityIds');
       let businessId = parsePositiveInt(req.body.businessId || req.body.business_id);
+      let businessCreatedHere = false;
       if (businessId) {
         const { rows } = await client.query(
           `SELECT id, business_kind, business_mode
@@ -2036,6 +2038,7 @@ exports.createRestaurant = async (req, res, next) => {
           ]
         );
         businessId = rows[0].id;
+        businessCreatedHere = true;
       }
 
       const { rows: [restaurant] } = await client.query(
@@ -2084,6 +2087,15 @@ exports.createRestaurant = async (req, res, next) => {
           parseOptionalPositiveInt(req.body.serviceAreaRadiusMeters ?? req.body.service_area_radius_meters),
         ]
       );
+      // Mint universal entity IDs (migration 670) inside the same transaction.
+      const ownerPersonId = await getOrMintEntityId(client, 'person', req.user.id);
+      const businessPublicId = await getOrMintEntityId(client, 'business', businessId);
+      const restaurantPublicId = await getOrMintEntityId(client, 'restaurant', restaurant.id);
+      if (businessCreatedHere) {
+        await grantLink(client, { subjectId: ownerPersonId, objectId: businessPublicId, relation: 'owns' });
+      }
+      await grantLink(client, { subjectId: ownerPersonId, objectId: restaurantPublicId, relation: 'owns' });
+      await grantLink(client, { subjectId: restaurantPublicId, objectId: businessPublicId, relation: 'belongs_to' });
       return restaurant;
     }, 'food_create_restaurant');
 

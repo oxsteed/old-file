@@ -1188,6 +1188,15 @@ async function verifyRegistrationOTP(req, res) {
       ]
     );
     const user = userResult.rows[0];
+    // Mint the universal entity ID (migration 670). This path is not wrapped
+    // in an explicit transaction, so mint best-effort: a failure must never
+    // break signup. The ID self-heals on first GET /api/entities/me.
+    try {
+      const { getOrMintEntityId } = require('../lib/entityIds');
+      await getOrMintEntityId(pool, 'person', user.id);
+    } catch (entityErr) {
+      logger.warn('Entity ID mint failed after verified registration', { userId: user.id, error: entityErr.message });
+    }
     invalidateGuestHistoryAccessCodesForEmail(user.email).catch((claimErr) =>
       logger.warn('Failed to invalidate guest chat access codes after verified registration', { userId: user.id, error: claimErr.message })
     );
@@ -1201,12 +1210,31 @@ async function verifyRegistrationOTP(req, res) {
     // immediately start using helper features. is_listed=FALSE keeps them
     // out of the public directory until they explicitly go online.
     if (pendingRole === 'helper') {
-      await pool.query(
+      const { rows: hpRows } = await pool.query(
         `INSERT INTO helper_profiles (user_id, is_listed)
          VALUES ($1, FALSE)
-         ON CONFLICT (user_id) DO NOTHING`,
+         ON CONFLICT (user_id) DO NOTHING
+         RETURNING id`,
         [user.id],
       );
+      // Mint the helper-profile entity ID + acts_as link (best-effort, see above).
+      try {
+        const { getOrMintEntityId, grantLink } = require('../lib/entityIds');
+        const personId = await getOrMintEntityId(pool, 'person', user.id);
+        let profileId = hpRows[0]?.id;
+        if (!profileId) {
+          const { rows: existing } = await pool.query(
+            'SELECT id FROM helper_profiles WHERE user_id = $1', [user.id]
+          );
+          profileId = existing[0]?.id;
+        }
+        if (profileId) {
+          const profilePublicId = await getOrMintEntityId(pool, 'helper_profile', profileId);
+          await grantLink(pool, { subjectId: personId, objectId: profilePublicId, relation: 'acts_as' });
+        }
+      } catch (entityErr) {
+        logger.warn('Entity ID mint failed for seeded helper profile', { userId: user.id, error: entityErr.message });
+      }
     }
 
     // Increment referrer count + grant reward (non-fatal)
