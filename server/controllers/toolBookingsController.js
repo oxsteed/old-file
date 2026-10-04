@@ -69,7 +69,7 @@ const createBooking = async (req, res, next) => {
       `SELECT id, user_id AS owner_id, name, category, brand, model, condition,
               daily_rate, deposit_amount, requires_deposit, owner_rules,
               owner_custom_terms, owner_custom_terms_hash, replacement_value,
-              is_available
+              is_available, moderation_hold
          FROM tool_rentals
         WHERE id = $1`,
       [toolId]
@@ -84,6 +84,9 @@ const createBooking = async (req, res, next) => {
     }
     if (!listedTool.is_available) {
       throw new AppError('Tool is not available', 409, 'state_conflict');
+    }
+    if (listedTool.moderation_hold) {
+      throw new AppError('Tool is under admin review and cannot be booked', 409, 'state_conflict');
     }
     const dailyRate = parseFloat(listedTool.daily_rate);
     if (!Number.isFinite(dailyRate) || dailyRate <= 0) {

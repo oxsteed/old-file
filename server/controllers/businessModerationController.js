@@ -130,7 +130,7 @@ exports.listToolRentals = async (req, res) => {
     const wc = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
 
     const { rows } = await db.query(`
-      SELECT tr.id, tr.name, tr.category, tr.is_available, tr.daily_rate,
+      SELECT tr.id, tr.name, tr.category, tr.is_available, tr.moderation_hold, tr.daily_rate,
              tr.location_city, tr.location_state, tr.condition, tr.created_at,
              u.id AS owner_id,
              u.first_name || ' ' || u.last_name AS owner_name,
@@ -157,16 +157,19 @@ exports.toggleToolRental = async (req, res) => {
     const { id } = req.params;
     const { reason } = req.body;
     const { rows } = await db.query(
-      'SELECT id, name, is_available FROM tool_rentals WHERE id = $1', [id]
+      'SELECT id, name, is_available, moderation_hold FROM tool_rentals WHERE id = $1', [id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Tool rental not found.' });
     const newAvailable = !rows[0].is_available;
     const oldAvailable = rows[0].is_available;
+    // Admin hide sets an independent moderation hold; admin release clears it.
+    // Owner edits can flip is_available but can never clear this hold.
+    const newHold = !newAvailable;
 
     // Update with safeguard to prevent race conditions
     const updateResult = await db.query(
-      'UPDATE tool_rentals SET is_available = $1, updated_at = NOW() WHERE id = $2 AND is_available = $3 RETURNING id',
-      [newAvailable, id, oldAvailable]
+      'UPDATE tool_rentals SET is_available = $1, moderation_hold = $2, updated_at = NOW() WHERE id = $3 AND is_available = $4 RETURNING id',
+      [newAvailable, newHold, id, oldAvailable]
     );
 
     if (!updateResult.rows.length) {
@@ -178,7 +181,8 @@ exports.toggleToolRental = async (req, res) => {
         adminId: req.user.id,
         action: newAvailable ? 'tool_rental_enabled' : 'tool_rental_disabled',
         targetType: 'tool_rental', targetId: String(id),
-        before: { is_available: rows[0].is_available }, after: { is_available: newAvailable },
+        before: { is_available: rows[0].is_available, moderation_hold: rows[0].moderation_hold },
+        after: { is_available: newAvailable, moderation_hold: newHold },
         description: reason || null, req,
       });
     } catch (e) {}

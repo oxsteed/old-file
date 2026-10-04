@@ -53,11 +53,11 @@ let _resolvedFields = null;
 async function getToolFields() {
   if (_resolvedFields) return _resolvedFields;
   try {
-    // Check optional tool_rentals columns (added in 078b)
+    // Check optional tool_rentals columns (added in 078b, moderation_hold in 675)
     const { rows: trCols } = await pool.query(`
       SELECT column_name FROM information_schema.columns
        WHERE table_name = 'tool_rentals'
-         AND column_name IN ('avg_rating', 'review_count', 'image_gallery', 'location_lat', 'location_lng')
+         AND column_name IN ('avg_rating', 'review_count', 'image_gallery', 'location_lat', 'location_lng', 'moderation_hold')
     `);
     const tr = new Set(trCols.map(r => r.column_name));
 
@@ -86,6 +86,7 @@ async function getToolFields() {
       hasAvatarUrl: uc.has('avatar_url'),
       hasResponseTime: uc.has('avg_response_time_hours'),
       hasImageGallery: tr.has('image_gallery'),
+      hasModerationHold: tr.has('moderation_hold'),
     };
   } catch {
     _resolvedFields = {
@@ -94,6 +95,7 @@ async function getToolFields() {
       hasAvatarUrl: false,
       hasResponseTime: false,
       hasImageGallery: false,
+      hasModerationHold: false,
     };
   }
   return _resolvedFields;
@@ -330,6 +332,11 @@ async function browseTools(req, res) {
     let where = 'WHERE t.is_available = $1';
     let idx = 2;
 
+    const { toolFields, ownerRatingExpr, hasAvatarUrl, hasResponseTime, hasModerationHold } = await getToolFields();
+    // An admin moderation hold (e.g. safety recall) keeps the tool out of the
+    // public listing even if the owner flips is_available back on.
+    if (hasModerationHold) where += ' AND NOT t.moderation_hold';
+
     if (category) { where += ` AND t.category ILIKE $${idx++}`; params.push(`%${category}%`); }
     if (city)     { where += ` AND t.location_city ILIKE $${idx++}`; params.push(`%${city}%`); }
     if (name)     { where += ` AND t.name ILIKE $${idx++}`; params.push(`%${name}%`); }
@@ -343,7 +350,6 @@ async function browseTools(req, res) {
     params.push(Math.min(parseInt(limit) || 30, 100));
     params.push(parseInt(offset) || 0);
 
-    const { toolFields, ownerRatingExpr, hasAvatarUrl, hasResponseTime } = await getToolFields();
     const result = await pool.query(
       `SELECT ${toolFields},
               ${buildUserFields(hasAvatarUrl, hasResponseTime)},
@@ -372,7 +378,9 @@ router.get('/public/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (!Number.isInteger(id) || id < 1) return res.status(400).json({ error: 'Invalid tool id' });
-    const { toolFields, ownerRatingExpr, hasAvatarUrl, hasResponseTime } = await getToolFields();
+    const { toolFields, ownerRatingExpr, hasAvatarUrl, hasResponseTime, hasModerationHold } = await getToolFields();
+    // An admin moderation hold hides the listing even if is_available is on.
+    const holdFilter = hasModerationHold ? ' AND NOT t.moderation_hold' : '';
     const result = await pool.query(
       `SELECT ${toolFields},
               ${buildUserFields(hasAvatarUrl, hasResponseTime)},
@@ -381,7 +389,7 @@ router.get('/public/:id', async (req, res) => {
          FROM tool_rentals t
          JOIN users u ON u.id = t.user_id
          LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
-        WHERE t.id = $1 AND t.is_available = TRUE AND u.is_active = TRUE`,
+        WHERE t.id = $1 AND t.is_available = TRUE AND u.is_active = TRUE${holdFilter}`,
       [id],
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Tool not found' });
@@ -500,16 +508,22 @@ router.put('/:id', authenticate, upload.single('image'), validateFileUpload, asy
 
     // Fetch existing record first (ownership check)
     const existing = await pool.query(
-      'SELECT id FROM tool_rentals WHERE id = $1 AND user_id = $2',
+      'SELECT id, moderation_hold FROM tool_rentals WHERE id = $1 AND user_id = $2',
       [id, req.user.id]
     );
     if (!existing.rows.length) {
       return res.status(404).json({ error: 'Tool not found' });
     }
+    const underAdminHold = existing.rows[0].moderation_hold === true;
 
     const { payload, errors } = normalizeToolPayload(req.body, { partial: true });
     if (Object.keys(errors).length) {
       return res.status(400).json({ error: 'Validation failed', code: 'validation_failed', fields: errors });
+    }
+    if (underAdminHold) {
+      // An admin moderation hold is independent of the owner's is_available
+      // flag: owner edits can neither clear the hold nor re-enable listing.
+      payload.is_available = false;
     }
     const { hasImageGallery } = await getToolFields();
     const imageUrl = hasImageGallery ? await resolveToolImageUrl(req) : null;
