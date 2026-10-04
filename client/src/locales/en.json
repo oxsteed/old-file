@@ -9412,6 +9412,8 @@
     "jobsDone": "{{count}} jobs completed",
     "oxsteedId": "OxSteed ID",
     "oxsteedIdHint": "Your permanent account ID. Share it with support if you ever need help.",
+    "identityVerified": "Identity verified",
+    "verifyIdentity": "Verify identity",
     "copy": "Copy",
     "copied": "Copied"
   },

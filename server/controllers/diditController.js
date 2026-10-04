@@ -4,6 +4,7 @@
 const crypto = require('crypto');
 const pool = require('../db');
 const logger = require('../utils/logger');
+const { getOrMintEntityId, grantLink } = require('../lib/entityIds');
 
 const DIDIT_API_URL = 'https://verification.didit.me/v3/session/';
 const DEFAULT_DIDIT_WORKFLOW_ID = '3d74f89a-8a9a-4a0a-a401-1501baaf2b7d';
@@ -126,6 +127,12 @@ async function handleWebhook(req, res) {
         `UPDATE users SET didit_status = 'failed' WHERE id = $1`,
         [user.id]
       );
+      // review -> still in progress at the provider; anything else -> failed
+      await linkVerificationToEntity(user.id, {
+        sessionId: session_id,
+        identityHash: identity_hash || null,
+        status: status === 'review' ? 'processing' : 'failed',
+      });
       return res.json({ ok: true, status: 'failed' });
     }
 
@@ -143,6 +150,27 @@ async function handleWebhook(req, res) {
           `UPDATE users SET didit_status = 'duplicate' WHERE id = $1`,
           [user.id]
         );
+        // Anchor the duplicate to both entity IDs and link them on the graph
+        // so one person resolves to one canonical identity. Best-effort: the
+        // webhook response must still succeed if linking fails.
+        try {
+          const newPublicId = await getOrMintEntityId(pool, 'person', user.id);
+          const canonicalPublicId = await getOrMintEntityId(pool, 'person', existing[0].id);
+          await upsertDiditVerification({
+            userId: user.id,
+            personPublicId: newPublicId,
+            sessionId: session_id,
+            identityHash: identity_hash,
+            status: 'duplicate',
+          });
+          await grantLink(pool, {
+            subjectId: newPublicId,
+            objectId: canonicalPublicId,
+            relation: 'duplicate_of',
+          });
+        } catch (linkErr) {
+          logger.error('Didit duplicate linking failed (best-effort)', { userId: user.id, err: linkErr.message });
+        }
         return res.json({
           ok: false,
           status: 'duplicate',
@@ -162,6 +190,23 @@ async function handleWebhook(req, res) {
        WHERE id = $2`,
       [identity_hash, user.id]
     );
+
+    // Anchor to the entity ID and flip the helper trust badge in one flow.
+    const personPublicId = await linkVerificationToEntity(user.id, {
+      sessionId: session_id,
+      identityHash: identity_hash,
+      status: 'verified',
+    });
+    if (personPublicId) {
+      try {
+        await pool.query(
+          `UPDATE helper_profiles SET is_identity_verified = TRUE, updated_at = NOW() WHERE user_id = $1`,
+          [user.id]
+        );
+      } catch (badgeErr) {
+        logger.error('Didit helper badge update failed (best-effort)', { userId: user.id, err: badgeErr.message });
+      }
+    }
 
     return res.json({ ok: true, status: 'verified' });
 
@@ -237,6 +282,42 @@ function maskEmail(email) {
   if (!email) return '***';
   const [local, domain] = email.split('@');
   return local.slice(0, 2) + '***@' + domain;
+}
+
+// Anchor a Didit outcome to the person's entity ID so verification is
+// portable across surfaces (credit rail, trust badges). Best-effort: the
+// users-table update is the source of truth; this must never fail the webhook.
+async function upsertDiditVerification({ userId, personPublicId, sessionId, identityHash, status }) {
+  const { rowCount } = await pool.query(
+    `UPDATE identity_verifications
+        SET provider_session_id = $1,
+            provider_identity_hash = $2,
+            status = $3,
+            user_id = $4,
+            updated_at = NOW()
+      WHERE provider = 'didit' AND person_public_id = $5`,
+    [sessionId, identityHash, status, userId, personPublicId]
+  );
+  if (rowCount === 0) {
+    await pool.query(
+      `INSERT INTO identity_verifications
+         (user_id, person_public_id, provider, provider_session_id,
+          provider_identity_hash, status)
+       VALUES ($1, $2, 'didit', $3, $4, $5)`,
+      [userId, personPublicId, sessionId, identityHash, status]
+    );
+  }
+}
+
+async function linkVerificationToEntity(userId, { sessionId, identityHash, status }) {
+  try {
+    const personPublicId = await getOrMintEntityId(pool, 'person', userId);
+    await upsertDiditVerification({ userId, personPublicId, sessionId, identityHash, status });
+    return personPublicId;
+  } catch (err) {
+    logger.error('Didit entity linking failed (best-effort)', { userId, status, err: err.message });
+    return null;
+  }
 }
 
 module.exports = { createSession, handleWebhook, getStatus, skipVerification };

@@ -9414,6 +9414,8 @@
     "jobsDone": "{{count}} travay konplete",
     "oxsteedId": "ID OxSteed",
     "oxsteedIdHint": "ID kont ou ki pèmanan. Pataje l ak sipò si ou janm bezwen èd.",
+    "identityVerified": "Idantite verifye",
+    "verifyIdentity": "Verifye idantite",
     "copy": "Kopye",
     "copied": "Kopye"
   },

@@ -9414,6 +9414,8 @@
     "jobsDone": "{{count}} missions terminées",
     "oxsteedId": "ID OxSteed",
     "oxsteedIdHint": "Votre identifiant de compte permanent. Partagez-le avec l'assistance si besoin.",
+    "identityVerified": "Identité vérifiée",
+    "verifyIdentity": "Vérifier l'identité",
     "copy": "Copier",
     "copied": "Copié"
   },

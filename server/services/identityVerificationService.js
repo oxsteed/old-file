@@ -112,8 +112,97 @@ const manualReviewProvider = {
   },
 };
 
+/**
+ * Didit provider: if the customer already has a verified, unexpired Didit
+ * identity anchored to their entity ID, grant tier 2 with no human review.
+ * Otherwise fall back to the manual review queue.
+ *
+ * Fail-closed: any database error while checking the Didit row raises instead
+ * of granting a tier. The money paths never see a tier that was guessed.
+ */
+const diditProvider = {
+  name: 'didit',
+  async createVerificationRequest(client, { customerId, requestedTier }) {
+    const ttlCutoff = new Date(Date.now() - VERIFICATION_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    let diditRows;
+    try {
+      ({ rows: diditRows } = await client.query(
+        `SELECT id, provider_session_id, updated_at
+           FROM identity_verifications
+          WHERE provider = 'didit'
+            AND status = 'verified'
+            AND user_id = $1
+            AND COALESCE(updated_at, created_at) > $2
+          ORDER BY COALESCE(updated_at, created_at) DESC
+          LIMIT 1`,
+        [customerId, ttlCutoff]
+      ));
+    } catch (err) {
+      throw new AppError('Identity lookup failed; verification not granted', 503, 'credit_identity_lookup_failed');
+    }
+    const diditRow = diditRows[0];
+    if (!diditRow) {
+      // No usable Didit verification: open (or reuse) a manual review request.
+      return manualReviewProvider.createVerificationRequest(client, { customerId, requestedTier });
+    }
+
+    const grantedTier = VERIFIED_TIER_FOR_REQUEST[Number(requestedTier)] || 2;
+    const expiresAt = new Date(Date.now() + VERIFICATION_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const providerReference = `didit:${diditRow.provider_session_id || diditRow.id}`;
+    const reviewReason = 'Auto-approved: verified Didit identity on file';
+
+    const { rows } = await client.query(
+      `INSERT INTO oxsteed_credit_identity_verifications
+         (customer_id, requested_tier, tier, status, provider, provider_reference,
+          reviewed_at, review_reason, expires_at)
+       VALUES ($1, $2, $3, 'verified', 'didit', $4, NOW(), $5, $6)
+       ON CONFLICT (customer_id) WHERE status IN ('pending', 'verified')
+       DO NOTHING
+       RETURNING id, status`,
+      [customerId, requestedTier, grantedTier, providerReference, reviewReason, expiresAt]
+    );
+    if (rows[0]) {
+      return { provider: 'didit', providerReference, status: 'verified', verificationId: rows[0].id, replayed: false };
+    }
+    // An active row already exists: upgrade a pending one to verified, or
+    // replay the existing verified one. Never downgrade.
+    const { rows: existing } = await client.query(
+      `SELECT id, status, tier, provider FROM oxsteed_credit_identity_verifications
+        WHERE customer_id = $1 AND status IN ('pending', 'verified')
+        ORDER BY created_at DESC LIMIT 1`,
+      [customerId]
+    );
+    const current = existing[0];
+    if (current && current.status === 'pending') {
+      const { rows: upgraded } = await client.query(
+        `UPDATE oxsteed_credit_identity_verifications
+            SET tier = $2, status = 'verified', provider = 'didit',
+                provider_reference = $3, reviewed_at = NOW(),
+                review_reason = $4, expires_at = $5, updated_at = NOW()
+          WHERE id = $1 AND status = 'pending'
+          RETURNING id`,
+        [current.id, grantedTier, providerReference, reviewReason, expiresAt]
+      );
+      if (upgraded[0]) {
+        return { provider: 'didit', providerReference, status: 'verified', verificationId: upgraded[0].id, replayed: false };
+      }
+    }
+    return {
+      provider: current?.provider || 'didit',
+      providerReference: providerReference,
+      status: current?.status || 'verified',
+      verificationId: current?.id || null,
+      replayed: true,
+    };
+  },
+  async getVerificationResult(client, { verificationId }) {
+    return manualReviewProvider.getVerificationResult(client, { verificationId });
+  },
+};
+
 const VERIFICATION_PROVIDERS = Object.freeze({
   manual_review: manualReviewProvider,
+  didit: diditProvider,
 });
 
 function getVerificationProvider(name) {

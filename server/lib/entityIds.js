@@ -36,7 +36,7 @@ const CODE_TYPES = {
   H: 'helper_profile',
 };
 
-const RELATIONS = new Set(['owns', 'belongs_to', 'acts_as', 'manages', 'represents']);
+const RELATIONS = new Set(['owns', 'belongs_to', 'acts_as', 'manages', 'represents', 'duplicate_of']);
 
 // OX-<type>-<4 chars>-<4 chars>-<check>
 const PUBLIC_ID_RE = /^OX-([PBRH])-([0-9A-HJKMNP-TV-Z]{4})-([0-9A-HJKMNP-TV-Z]{4})-([0-9A-HJKMNP-TV-Z])$/;

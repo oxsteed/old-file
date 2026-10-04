@@ -9414,6 +9414,8 @@
     "jobsDone": "اكتملت مهام {{count}}",
     "oxsteedId": "معرّف OxSteed",
     "oxsteedIdHint": "معرّف حسابك الدائم. شاركه مع الدعم إذا احتجت إلى مساعدة.",
+    "identityVerified": "تم التحقق من الهوية",
+    "verifyIdentity": "تحقق من الهوية",
     "copy": "نسخ",
     "copied": "تم النسخ"
   },

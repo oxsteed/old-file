@@ -41,6 +41,17 @@ async function summarize(client, row, req) {
       );
       if (rows[0]) base.display_name = publicName(rows[0].first_name, rows[0].last_name);
     }
+    // Identity verification is a boolean trust signal only; no PII beyond
+    // what this endpoint already discloses.
+    const { rows: ivRows } = await client.query(
+      `SELECT updated_at FROM identity_verifications
+        WHERE provider = 'didit' AND status = 'verified'
+          AND (person_public_id = $1 OR user_id = $2::uuid)
+        ORDER BY COALESCE(updated_at, created_at) DESC LIMIT 1`,
+      [row.public_id, row.entity_key]
+    );
+    base.identity_verified = ivRows.length > 0;
+    base.identity_verified_at = ivRows[0]?.updated_at || null;
     return base;
   }
 

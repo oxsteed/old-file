@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
@@ -15,6 +15,7 @@ export default function PublicProfile() {
   const [badges, setBadges] = useState([]);
   const [loading, setLoading] = useState(true);
   const [oxsteedId, setOxsteedId] = useState(null);
+  const [identityVerified, setIdentityVerified] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const isOwnProfile = user && profile && String(user.id) === String(profile.id || id);
@@ -42,8 +43,11 @@ export default function PublicProfile() {
   useEffect(() => {
     if (!isOwnProfile) return;
     api.get('/entities/me')
-      .then((res) => setOxsteedId(res.data?.public_id || null))
-      .catch(() => setOxsteedId(null));
+      .then((res) => {
+        setOxsteedId(res.data?.public_id || null);
+        setIdentityVerified(res.data?.identity_verified === true);
+      })
+      .catch(() => { setOxsteedId(null); setIdentityVerified(false); });
   }, [isOwnProfile]);
 
   const copyId = async () => {
@@ -109,6 +113,18 @@ export default function PublicProfile() {
                 <div className="mt-4 flex items-center gap-3 flex-wrap">
                   <span className="text-gray-500 text-sm">{t('publicProfile.oxsteedId', 'OxSteed ID')}</span>
                   <code className="px-2 py-1 bg-gray-800 rounded text-sm text-gray-200 font-mono">{oxsteedId}</code>
+                  {identityVerified ? (
+                    <span className="px-3 py-1 text-sm rounded-full bg-emerald-900 text-emerald-200 border border-emerald-700">
+                      {t('publicProfile.identityVerified', 'Identity verified')}
+                    </span>
+                  ) : (
+                    <Link
+                      to="/verify-identity"
+                      className="px-3 py-1 text-sm rounded-full border border-gray-700 text-gray-300 hover:border-gray-500"
+                    >
+                      {t('publicProfile.verifyIdentity', 'Verify identity')}
+                    </Link>
+                  )}
                   <button
                     type="button"
                     onClick={copyId}
