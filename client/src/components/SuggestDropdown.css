@@ -1,0 +1,177 @@
+/* Shared typeahead combobox styles, light and dark. */
+.sd-wrap {
+  position: relative;
+}
+
+.sd-input {
+  width: 100%;
+  font: inherit;
+  padding: 0.7rem 2.5rem 0.7rem 2.5rem;
+  border: 1.5px solid var(--border-color, #e2e8f0);
+  border-radius: 0.875rem;
+  background: var(--card-bg, #fff);
+  color: var(--app-text, #0f172a);
+}
+
+.sd-input:focus {
+  outline: 2px solid #f97316;
+  outline-offset: 1px;
+}
+
+.sd-popover {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  background: var(--card-bg, #fff);
+  border: 1.5px solid var(--border-color, #e2e8f0);
+  border-radius: 0.875rem;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14);
+  padding: 0.375rem;
+  max-height: 22rem;
+  overflow-y: auto;
+}
+
+.sd-group-label {
+  padding: 0.5rem 0.7rem 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+}
+
+.sd-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sd-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.6rem 0.7rem;
+  background: none;
+  border: none;
+  border-radius: 0.625rem;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: var(--app-text, #0f172a);
+}
+
+.sd-item:hover,
+.sd-item.is-active {
+  background: rgba(249, 115, 22, 0.09);
+}
+
+.sd-item:focus-visible {
+  outline: 2px solid #f97316;
+  outline-offset: -2px;
+}
+
+.sd-item-icon {
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.625rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(249, 115, 22, 0.12);
+  color: #ea580c;
+}
+
+.sd-item-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.sd-item-text strong {
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sd-item-meta {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sd-item-glyph {
+  flex-shrink: 0;
+  color: #94a3b8;
+}
+
+html.dark .sd-input {
+  background: #0f172a;
+  border-color: #1e293b;
+  color: #f1f5f9;
+}
+
+html.dark .sd-popover {
+  background: #0f172a;
+  border-color: #1e293b;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+html.dark .sd-item {
+  color: #f1f5f9;
+}
+
+html.dark .sd-item-icon {
+  background: rgba(249, 115, 22, 0.18);
+  color: #fdba74;
+}
+
+html.dark .sd-item-meta,
+html.dark .sd-item-glyph {
+  color: #64748b;
+}
+
+/* Forced-dark variant for surfaces that are always dark (e.g. the helpers
+   directory hero), regardless of the global html theme. Apply via the
+   className prop: <SuggestDropdown className="sd-theme-dark" ... /> */
+.sd-theme-dark,
+.sd-theme-dark .sd-popover {
+  --card-bg: #1f2937;
+  --app-bg: #111827;
+  --app-text: #f9fafb;
+  --border-color: #374151;
+  --muted-text: #9ca3b8;
+}
+
+.sd-theme-dark .sd-popover {
+  background: #1f2937;
+  border-color: #374151;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+.sd-theme-dark .sd-item {
+  color: #f9fafb;
+}
+
+.sd-theme-dark .sd-item-icon {
+  background: rgba(249, 115, 22, 0.18);
+  color: #fdba74;
+}
+
+.sd-theme-dark .sd-item-meta,
+.sd-theme-dark .sd-item-glyph {
+  color: #9ca3b8;
+}
+
+.sd-theme-dark .sd-group-label {
+  color: #6b7280;
+}
