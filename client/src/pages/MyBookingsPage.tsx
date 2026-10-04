@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 import { toolRentalsApi } from '../api/toolRentals';
 import api from '../api/axios';
 import { cancelBookingRequest, fetchBookingPrefillForJob } from '../api/bookings';
+import { prefillBookingDraft } from '../components/booking/BookingFlow';
 import { Calendar, MapPin, User, DollarSign, AlertCircle, Loader, FileText, Flag, Clock, CheckCircle, XCircle, Briefcase, Wrench } from 'lucide-react';
 import toast from 'react-hot-toast';
 import InvoiceModal from '../components/InvoiceModal';
@@ -115,6 +116,17 @@ const MyBookingsPage = () => {
     } catch (err) {
       toast.error(t('booking.cancelFailed') || 'Failed to cancel booking');
     }
+  };
+
+  // RB1 — One-tap "Book again": open the booking flow prefilled with the
+  // previous booking's service, provider, location, and details.
+  const handleBookAgain = (b: HelperBooking) => {
+    prefillBookingDraft(b.helperId, null, {
+      serviceName: b.serviceName || '',
+      serviceLocation: b.serviceLocation || '',
+      description: b.description || '',
+    });
+    navigate(`/book/${b.helperId}`);
   };
 
   const handleConvertHelperBookingToJob = async (bookingId: string) => {
@@ -316,6 +328,12 @@ const MyBookingsPage = () => {
           <p className="hb-reason">{b.helperResponseReason}</p>
         )}
         <div className="booking-card-actions">
+          <button
+            onClick={() => handleBookAgain(b)}
+            className="booking-action-btn booking-action-approve"
+          >
+            {t('booking.bookAgain')}
+          </button>
           {b.status === 'pending' && (
             <Link
               to={`/messages?helperId=${encodeURIComponent(b.helperId)}`}

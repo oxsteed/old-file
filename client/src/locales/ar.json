@@ -10760,6 +10760,9 @@
     "loadingError": "فشل تحميل المساعدين",
     "usingFallbackLocation": "باستخدام الموقع الافتراضي. تمكين خدمات الموقع للحصول على نتائج أكثر دقة."
   },
+  "recentlyViewed": {
+    "title": "شوهدت مؤخرا"
+  },
   "discover": {
     "metaTitle": "اكتشف - أوكسستيد",
     "metaDesc": "ابحث عن المساعدين العامين والوظائف والشركات وتأجير الأدوات والمنتجات على OxSteed.",
@@ -12403,6 +12406,7 @@
   "booking": {
     "pageTitle": "حجز مساعد",
     "invalidBusiness": "بيانات النشاط التجاري مفقودة.",
+    "bookAgain": "احجز مرة أخرى",
     "bookBusinessHeading": "احجز مع هذا النشاط التجاري",
     "businessIntro": "اختر الخدمة والتاريخ والوقت الذي تحتاجه. سيؤكد النشاط التجاري طلبك.",
     "pageDescription": "اطلب موعدًا مباشرةً أو انشر وظيفة للجميع",
@@ -19013,6 +19017,7 @@
       "searchMenu": "البحث في {{restaurant}}…",
       "clearSearch": "مسح البحث",
       "reorder": "إعادة الطلب",
+      "reorderSkipped": "تم تخطي {{count}} من الأصناف لأنها لم تعد متاحة.",
       "noMenuItems": "لا توجد أصناف في القائمة بعد",
       "searchResults": "{{count}} نتيجة لـ «{{query}}»",
       "noResults": "لا توجد نتائج لـ «{{query}}»",

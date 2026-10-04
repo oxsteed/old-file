@@ -10760,6 +10760,9 @@
     "loadingError": "Erreur lors du chargement des aides",
     "usingFallbackLocation": "Utilisation de l'emplacement par défaut. Activez les services de localisation pour des résultats plus précis."
   },
+  "recentlyViewed": {
+    "title": "Consultés récemment"
+  },
   "discover": {
     "metaTitle": "Découvrir - OxSteed",
     "metaDesc": "Recherchez des assistants, missions, entreprises, locations d’outils et produits publics sur OxSteed.",
@@ -13084,6 +13087,7 @@
   "booking": {
     "pageTitle": "Réserver un prestataire",
     "invalidBusiness": "Entreprise manquante.",
+    "bookAgain": "Réserver à nouveau",
     "bookBusinessHeading": "Réserver cette entreprise",
     "businessIntro": "Choisissez le service, la date et l'heure souhaités. L'entreprise confirmera votre demande.",
     "pageDescription": "Demandez un créneau directement ou publiez une mission pour tous",
@@ -19002,6 +19006,7 @@
       "searchMenu": "Rechercher chez {{restaurant}}…",
       "clearSearch": "Effacer la recherche",
       "reorder": "Commander à nouveau",
+      "reorderSkipped": "{{count}} plats ne sont plus disponibles et ont été ignorés.",
       "noMenuItems": "Aucun article au menu pour le moment",
       "searchResults": "{{count}} résultat(s) pour « {{query}} »",
       "noResults": "Aucun résultat pour « {{query}} »",

@@ -4852,6 +4852,7 @@ exports.getTrackedOrder = async (req, res, next) => {
               EXISTS (SELECT 1 FROM food_reviews rv WHERE rv.order_id = fo.id) AS has_review,
               COALESCE(json_agg(json_build_object(
                 'id', foi.id,
+                'menuItemId', foi.menu_item_id,
                 'itemName', foi.item_name,
                 'quantity', foi.quantity,
                 'lineTotalCents', foi.line_total_cents,
@@ -5427,6 +5428,7 @@ exports.listMyOrders = async (req, res, next) => {
               EXISTS (SELECT 1 FROM food_reviews rv WHERE rv.order_id = fo.id) AS has_review,
               COALESCE(json_agg(json_build_object(
                 'id', foi.id,
+                'menuItemId', foi.menu_item_id,
                 'itemName', foi.item_name,
                 'quantity', foi.quantity,
                 'lineTotalCents', foi.line_total_cents
@@ -5459,6 +5461,7 @@ exports.getOrder = async (req, res, next) => {
               EXISTS (SELECT 1 FROM food_reviews rv WHERE rv.order_id = fo.id) AS has_review,
               COALESCE(json_agg(json_build_object(
                 'id', foi.id,
+                'menuItemId', foi.menu_item_id,
                 'itemName', foi.item_name,
                 'quantity', foi.quantity,
                 'lineTotalCents', foi.line_total_cents,

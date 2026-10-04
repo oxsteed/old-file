@@ -313,6 +313,19 @@
   color: var(--color-text);
 }
 
+.orders-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.orders-row-actions button {
+  flex: 1;
+  min-height: 40px;
+  padding: 0 10px;
+  font-size: 0.85rem;
+}
+
 .orders-empty {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(300px, 0.42fr);

@@ -32,6 +32,7 @@ import {
 import { useLiveFoodOrder } from './useLiveFoodOrder';
 import { FOOD_STATUS_KEYS } from './foodShared';
 import RestaurantMediaFeed from './components/RestaurantMediaFeed';
+import { recordView } from '../../hooks/useRecentlyViewed';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import PageMeta from '../../components/PageMeta';
@@ -238,6 +239,19 @@ export default function FoodRestaurantPage() {
 
   const restaurant = data?.restaurant;
   const currency = restaurant?.currency_code || 'USD';
+
+  // Track this restaurant in the client-side "recently viewed" store so the
+  // food home page can resume where the user left off.
+  useEffect(() => {
+    if (!restaurantId || !restaurant) return;
+    recordView('restaurants', {
+      id: restaurantId,
+      title: restaurant.name || '',
+      subtitle: '',
+      image: restaurant.cover_photo_url || restaurant.logo_url || null,
+      href: `/restaurants/r/${restaurantId}`,
+    });
+  }, [restaurantId, restaurant]);
   const creditCurrency = String(currency).toUpperCase();
   const oxsteedCreditOrderType = deliveryMode === 'delivery' ? 'delivery' : 'pickup';
 
@@ -344,6 +358,21 @@ export default function FoodRestaurantPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, modalItem]);
+
+  // RB1 — One-tap reorder from the orders page: location.state carries the
+  // past order. Rebuild the cart from the current menu once it is loaded,
+  // then clear the state so back-nav/refresh does not re-trigger.
+  // NOTE: reorder/allItemsFlat are defined below in the render body; the
+  // closure reads them when the effect runs, after render, which is safe.
+  const reorderHandledRef = useRef(false);
+  useEffect(() => {
+    const ro = location.state?.reorderOrder;
+    if (!ro || reorderHandledRef.current || !data || !allItemsFlat.length) return;
+    reorderHandledRef.current = true;
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: {} });
+    reorder({ items: ro.items || [] });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, location.state]);
 
   const jumpToMenuItem = (menuItemId) => {
     const found = allItemsFlat.find((it) => String(it.id) === String(menuItemId));
@@ -1324,24 +1353,34 @@ export default function FoodRestaurantPage() {
     setModalItem(null);
   };
 
+  // RB1 — One-tap reorder: rebuild the cart from a past order using the
+  // CURRENT menu (current prices; unavailable items are skipped with a note).
   const reorder = (po) => {
-    const lines = (po.items || []).map((it) => {
-      const mid = it.menu_item_id ?? it.menuItemId ?? it.id;
-      return {
-        id: `${mid}::reorder`,
-        menuItemId: mid,
-        name: it.item_name || it.name || t('food.restaurant.item'),
-        creditCategory: it.category_name || it.category || null,
-        unitCents: Number(it.unit_price_cents ?? it.unitPriceCents ?? it.price_cents) || 0,
+    const menuById = new Map(allItemsFlat.map((it) => [String(it.id), it]));
+    const pastItems = Array.isArray(po?.items) ? po.items : [];
+    let skipped = 0;
+    const lines = [];
+    for (const it of pastItems) {
+      const mid = it.menuItemId ?? it.menu_item_id;
+      const menuItem = mid != null ? menuById.get(String(mid)) : null;
+      if (!menuItem || menuItem.canOrder === false) { skipped += 1; continue; }
+      lines.push({
+        id: `${menuItem.id}::reorder`,
+        menuItemId: menuItem.id,
+        name: menuItem.name,
+        creditCategory: menuItem.sectionName || menuItem.category_name || menuItem.category || null,
+        unitCents: Number(menuItem.price_cents) || 0,
         qty: Number(it.quantity || 1) || 1,
-        photoGrad: gradFor(it.item_name || it.name),
-        image: null, notes: '', modifierIds: [], modifierNames: [],
-      };
-    }).filter((l) => l.menuItemId != null);
+        photoGrad: menuItem.photoGrad || gradFor(menuItem.name),
+        image: menuItem.image_url || null,
+        notes: '', modifierIds: [], modifierNames: [],
+      });
+    }
     if (!lines.length) { toast.error(t('food.restaurant.reorderError')); return; }
     setCartItems(lines);
     setCartOpen(true);
     setCartStep('cart');
+    if (skipped > 0) toast(t('food.restaurant.reorderSkipped', { count: skipped }), { icon: '⚠️' });
   };
 
   const onShare = () => {

@@ -64,6 +64,19 @@ function clearBookingDraft(key) {
   }
 }
 
+// RB1 — One-tap "Book again": seed the calendar-step draft from a past
+// booking so the booking flow opens prefilled with the previous service,
+// provider, location, and description.
+export function prefillBookingDraft(helperId, businessId, draft) {
+  const key = bookingDraftKey(helperId, businessId);
+  saveBookingDraft(key, {
+    ...loadBookingDraft(key, ''),
+    serviceName: typeof draft?.serviceName === 'string' ? draft.serviceName : '',
+    serviceLocation: typeof draft?.serviceLocation === 'string' ? draft.serviceLocation : '',
+    description: typeof draft?.description === 'string' ? draft.description : '',
+  });
+}
+
 /**
  * Direct booking: calendar → confirm → track status.
  * Fallback: Post Job wizard with pre-filled fields from a finished booking.

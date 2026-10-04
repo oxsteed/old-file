@@ -7,8 +7,10 @@ import {
   Clock3,
   Receipt,
   RefreshCw,
+  RotateCcw,
   ShoppingBag,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { listMyFoodOrders } from '../api/food';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
@@ -94,6 +96,18 @@ function OrderHistoryPageContent() {
     () => orders.filter((order) => matchesOrderFilter(order, filter)),
     [filter, orders],
   );
+
+  // RB1 — One-tap reorder: jump to the restaurant with the past order; the
+  // restaurant page rebuilds the cart from the current menu and opens it.
+  const handleReorder = (order) => {
+    const restaurantId = order.restaurant_id ?? order.restaurantId;
+    if (!restaurantId) {
+      toast.error(t('food.restaurant.reorderError'));
+      return;
+    }
+    navigate(`/food/restaurants/${restaurantId}`, { state: { reorderOrder: order } });
+  };
+  const isPastOrder = (order) => !matchesOrderFilter(order, 'active');
 
   const derivedStats = useMemo(() => ({
     total_orders: orders.length,
@@ -183,10 +197,18 @@ function OrderHistoryPageContent() {
                   <span className={`orders-status orders-status-${order.status}`}>
                     {statusLabel(order.status, t)}
                   </span>
-                  <button type="button" onClick={() => navigate(`/food/orders/${order.id}`)}>
-                    {t('common.view')}
-                    <ArrowRight size={15} />
-                  </button>
+                  <div className="orders-row-actions">
+                    {isPastOrder(order) && (
+                      <button type="button" onClick={() => handleReorder(order)}>
+                        <RotateCcw size={15} />
+                        {t('food.restaurant.reorder')}
+                      </button>
+                    )}
+                    <button type="button" onClick={() => navigate(`/food/orders/${order.id}`)}>
+                      {t('common.view')}
+                      <ArrowRight size={15} />
+                    </button>
+                  </div>
                 </article>
               ))}
             </div>

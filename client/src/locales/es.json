@@ -10760,6 +10760,9 @@
     "loadingError": "Error al cargar ayudantes",
     "usingFallbackLocation": "Usando ubicación predeterminada. Habilita los servicios de ubicación para resultados más precisos."
   },
+  "recentlyViewed": {
+    "title": "Vistos recientemente"
+  },
   "discover": {
     "metaTitle": "Descubrir - OxSteed",
     "metaDesc": "Busca ayudantes, trabajos, negocios, alquiler de herramientas y productos públicos en OxSteed.",
@@ -13084,6 +13087,7 @@
   "booking": {
     "pageTitle": "Reservar ayuda",
     "invalidBusiness": "Falta el negocio.",
+    "bookAgain": "Reservar de nuevo",
     "bookBusinessHeading": "Reservar este negocio",
     "businessIntro": "Elige el servicio, la fecha y la hora que necesitas. El negocio confirmará tu solicitud.",
     "pageDescription": "Solicita una hora directamente o publica un trabajo para todos",
@@ -19002,6 +19006,7 @@
       "searchMenu": "Buscar en {{restaurant}}…",
       "clearSearch": "Borrar búsqueda",
       "reorder": "Pedir de nuevo",
+      "reorderSkipped": "{{count}} platos ya no están disponibles y se omitieron.",
       "noMenuItems": "Aún no hay artículos en el menú",
       "searchResults": "{{count}} resultado(s) para “{{query}}”",
       "noResults": "Sin resultados para “{{query}}”",

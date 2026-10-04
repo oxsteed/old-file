@@ -10760,6 +10760,9 @@
     "loadingError": "Erè nan chajman èd yo",
     "usingFallbackLocation": "Sèvi ak lokasyon default. Aktive sèvis lokasyon pou rezilta ki pi egzak."
   },
+  "recentlyViewed": {
+    "title": "Sa ou te gade dènyeman"
+  },
   "discover": {
     "metaTitle": "Dekouvri - OxSteed",
     "metaDesc": "Chèche asistan, travay, biznis, lokasyon zouti, ak pwodwi piblik sou OxSteed.",
@@ -13084,6 +13087,7 @@
   "booking": {
     "pageTitle": "Rezève yon èd",
     "invalidBusiness": "Biznis la manke.",
+    "bookAgain": "Rezève ankò",
     "bookBusinessHeading": "Rezève ak biznis sa a",
     "businessIntro": "Chwazi sèvis, dat ak lè ou bezwen an. Biznis la ap konfime demann ou an.",
     "pageDescription": "Mande yon lè dirèkteman oswa pibliye yon travay pou tout moun",
@@ -19002,6 +19006,7 @@
       "searchMenu": "Chèche nan {{restaurant}}…",
       "clearSearch": "Efase rechèch",
       "reorder": "Kòmande ankò",
+      "reorderSkipped": "{{count}} plat ki pa disponib ankò yo te sote.",
       "noMenuItems": "Pa gen atik nan meni an poko",
       "searchResults": "{{count}} rezilta pou “{{query}}”",
       "noResults": "Pa gen rezilta pou “{{query}}”",

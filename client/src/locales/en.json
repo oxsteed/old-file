@@ -10758,6 +10758,9 @@
     "loadingError": "Failed to load helpers",
     "usingFallbackLocation": "Using default location. Enable location services for more accurate results."
   },
+  "recentlyViewed": {
+    "title": "Recently viewed"
+  },
   "discover": {
     "metaTitle": "Discover - OxSteed",
     "metaDesc": "Search public helpers, jobs, businesses, tool rentals, and products on OxSteed.",
@@ -12398,6 +12401,7 @@
   "booking": {
     "pageTitle": "Book a Helper",
     "invalidBusiness": "Business is missing.",
+    "bookAgain": "Book again",
     "bookBusinessHeading": "Book this business",
     "businessIntro": "Choose the service, date, and time you need. The business will confirm your request.",
     "pageDescription": "Request a time directly or post a job for everyone",
@@ -19000,6 +19004,7 @@
       "searchMenu": "Search {{restaurant}}…",
       "clearSearch": "Clear search",
       "reorder": "Reorder",
+      "reorderSkipped": "{{count}} items were no longer available and were skipped.",
       "noMenuItems": "No menu items yet",
       "searchResults": "{{count}} result(s) for “{{query}}”",
       "noResults": "No results for “{{query}}”",
