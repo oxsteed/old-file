@@ -28,6 +28,7 @@
  */
 
 const pool = require('../db');
+const crypto = require('crypto');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const {
@@ -139,7 +140,8 @@ async function resolveDisputeWithCompensation({
     let compensationEntry = null;
     if (compensation > 0) {
       const disputedAmount = Number(transaction.amount_cents || 0);
-      if (compensation > disputedAmount) {
+      const provisionalIssued = Number(dispute.provisional_credit_cents || 0);
+      if (compensation + provisionalIssued > disputedAmount) {
         throw new AppError('Compensation cannot exceed the disputed amount', 400, 'credit_dispute_compensation_exceeds');
       }
       const idempotencyKey = compensationIdempotencyKey(dispute.id);
@@ -155,7 +157,7 @@ async function resolveDisputeWithCompensation({
           [String(transaction.id)]
         );
         const refunded = Number(refundRows[0]?.refunded_cents || 0);
-        if (refunded + compensation <= disputedAmount) {
+        if (refunded + compensation + provisionalIssued <= disputedAmount) {
           const refundResult = await refundCreditInTransaction(client, {
             purchaseTransactionId: transaction.id,
             amountCents: compensation,
@@ -291,5 +293,119 @@ module.exports = {
   DISPUTE_DECISIONS,
   DISPUTE_TERMINAL_STATUSES,
   resolveDisputeWithCompensation,
+  issueProvisionalCredit,
   checkDisputeSla,
 };
+
+/**
+ * Provisional credit for a dispute under review.
+ *
+ * The published error-resolution policy promises provisional credit while an
+ * investigation runs past the internal SLA. Unlike final compensation, this
+ * keeps the dispute open (in_review): the money moves as an append-only
+ * adjustment from platform_treasury to the customer wallet, and the dispute
+ * records the cumulative provisional amount so the final resolution
+ * compensation cap accounts for it.
+ *
+ * Guards:
+ * - Dispute must be in_review (never terminal, never still open).
+ * - Cumulative provisional credit can never exceed the disputed amount.
+ * - Deterministic idempotency key over (dispute, amount, reason): a retry
+ *   or double-click replays instead of double-crediting.
+ * - Fails closed when the credit rail is frozen (money movement).
+ */
+async function issueProvisionalCredit({
+  disputeId,
+  adminId,
+  amountCents,
+  reason,
+  requestIp,
+  correlationId,
+}) {
+  await assertCreditRailEnabled(pool);
+  const amount = parsePositiveInt(amountCents);
+  if (!amount) throw new AppError('Provisional credit must be a positive integer number of cents', 400, 'credit_provisional_credit_invalid');
+  const normalizedReason = normalizeString(reason, 4000);
+  if (!normalizedReason) throw new AppError('A reason is required for provisional credit', 400, 'credit_provisional_credit_reason_required');
+  if (!adminId) throw new AppError('An administrator identity is required to issue provisional credit', 403, 'credit_dispute_actor_required');
+
+  return withTransaction(pool, async (client) => {
+    const { rows } = await client.query(
+      `SELECT d.*, t.amount_cents AS transaction_amount_cents, t.currency_code AS transaction_currency_code
+         FROM oxsteed_credit_disputes d
+         JOIN oxsteed_credit_transactions t ON t.id = d.transaction_id
+        WHERE d.id = $1
+        FOR UPDATE`,
+      [disputeId]
+    );
+    const dispute = rows[0];
+    if (!dispute) throw new AppError('Credit dispute not found', 404, 'credit_dispute_not_found');
+    if (dispute.status !== 'in_review') {
+      throw new AppError('Provisional credit is only available while a dispute is under review', 409, 'credit_dispute_state_invalid');
+    }
+    const disputedAmount = Number(dispute.transaction_amount_cents || 0);
+    const alreadyIssued = Number(dispute.provisional_credit_cents || 0);
+    if (amount + alreadyIssued > disputedAmount) {
+      throw new AppError('Provisional credit cannot exceed the disputed amount', 400, 'credit_provisional_credit_exceeds');
+    }
+
+    const reasonHash = crypto.createHash('sha256').update(normalizedReason).digest('hex').slice(0, 32);
+    const idempotencyKey = `credit-dispute-provisional:${String(disputeId)}:${amount}:${reasonHash}`;
+    const existing = await client.query(
+      `SELECT id FROM oxsteed_credit_transactions WHERE idempotency_key = $1 LIMIT 1`,
+      [idempotencyKey]
+    );
+    if (existing.rows.length) {
+      return {
+        dispute: formatDispute(dispute),
+        provisionalCredit: { amountCents: amount, transactionId: String(existing.rows[0].id) },
+        replayed: true,
+      };
+    }
+
+    const adjustmentResult = await adjustCustomerCreditInTransaction(client, {
+      customerId: dispute.customer_id,
+      amountCents: amount,
+      currencyCode: dispute.transaction_currency_code,
+      direction: 'credit',
+      idempotencyKey,
+      actorUserId: adminId,
+      actorType: 'admin',
+      reason: `Provisional credit for dispute ${String(dispute.id)}: ${normalizedReason}`,
+      referenceType: 'oxsteed_credit_dispute',
+      referenceId: String(dispute.id),
+      correlationId: correlationId || null,
+      requestIp: requestIp || null,
+      metadata: { disputeId: String(dispute.id), provisional: true, source: 'super_admin_provisional_credit' },
+    });
+
+    const { rows: updatedRows } = await client.query(
+      `UPDATE oxsteed_credit_disputes
+          SET provisional_credit_cents = provisional_credit_cents + $1,
+              updated_at = NOW()
+        WHERE id = $2
+        RETURNING *`,
+      [amount, dispute.id]
+    );
+    await client.query(
+      `INSERT INTO oxsteed_credit_audit_events
+         (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id, reason, request_ip, before_state, after_state)
+       VALUES ('credit.dispute.provisional_credit', $1, $2, $3, 'credit_dispute', $4, $5, $6, $7::jsonb, $8::jsonb)`,
+      [
+        adminId,
+        dispute.customer_id,
+        dispute.partner_id || null,
+        String(dispute.id),
+        normalizedReason,
+        requestIp || null,
+        JSON.stringify({ provisionalCreditCents: alreadyIssued }),
+        JSON.stringify({ provisionalCreditCents: alreadyIssued + amount, transactionId: adjustmentResult?.transaction?.id || null }),
+      ]
+    );
+    return {
+      dispute: formatDispute({ ...updatedRows[0] }),
+      provisionalCredit: { amountCents: amount, transactionId: adjustmentResult?.transaction?.id || null },
+      replayed: false,
+    };
+  }, 'credit_dispute_provisional_credit');
+}

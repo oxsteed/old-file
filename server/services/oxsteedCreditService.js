@@ -3258,6 +3258,8 @@ function formatDispute(row) {
     disputeType: row.dispute_type || null,
     slaDueAt: row.sla_due_at || null,
     resolutionEntries: row.resolution_entries || {},
+    // Migration 678: cumulative provisional credit issued while in review.
+    provisionalCreditCents: Number(row.provisional_credit_cents || 0),
   };
 }
 

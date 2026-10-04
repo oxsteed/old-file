@@ -333,6 +333,146 @@ describe('compensated dispute resolutions', () => {
   });
 });
 
+describe('provisional credit on disputes under review', () => {
+  const DISPUTE_ID = 'eeeeeeee-eeee-4eee-eeee-eeeeeeeeeeee';
+  const ADMIN_ID = 'ffffffff-ffff-4fff-ffff-ffffffffffff';
+
+  function provisionalDisputeRow(overrides = {}) {
+    return {
+      id: DISPUTE_ID,
+      customer_id: 'cust-1',
+      partner_id: null,
+      transaction_id: 'tx-provisional-1',
+      status: 'in_review',
+      reason_code: 'incorrect_amount',
+      description: 'Wrong amount',
+      resolution: null,
+      resolution_entries: {},
+      provisional_credit_cents: 0,
+      transaction_amount_cents: 5000,
+      transaction_currency_code: 'USD',
+      opened_at: '2026-10-01T09:00:00.000Z',
+      ...overrides,
+    };
+  }
+
+  function installProvisionalRouter(rowOverrides = {}, existingIdempotency = false) {
+    mockQuery.mockImplementation((sql) => {
+      const s = String(sql);
+      if (s === 'BEGIN' || s === 'COMMIT' || s === 'ROLLBACK') return { rows: [] };
+      if (s.includes('pg_advisory_xact_lock')) return { rows: [] };
+      if (s.includes('FROM feature_flags')) return { rows: [{ is_enabled: true }] };
+      if (s.includes('FROM oxsteed_credit_rail_freezes')) return { rows: [] };
+      if (s.includes('FROM oxsteed_credit_disputes d')) return { rows: [provisionalDisputeRow(rowOverrides)] };
+      if (s.includes('FROM oxsteed_credit_transactions WHERE idempotency_key')) {
+        return existingIdempotency ? { rows: [{ id: 'tx-provisional-existing' }] } : { rows: [] };
+      }
+      if (s.includes('UPDATE oxsteed_credit_disputes')) {
+        return { rows: [provisionalDisputeRow({ provisional_credit_cents: (rowOverrides.provisional_credit_cents || 0) + 1500, ...rowOverrides })] };
+      }
+      if (s.includes('INSERT INTO oxsteed_credit_audit_events')) return { rows: [] };
+      return { rows: [] };
+    });
+  }
+
+  beforeEach(() => {
+    resetMocks();
+    creditService.adjustCustomerCreditInTransaction.mockReset();
+  });
+
+  test('provisional credit posts an adjustment and keeps the dispute in review', async () => {
+    installProvisionalRouter();
+    creditService.adjustCustomerCreditInTransaction.mockResolvedValue({ transaction: { id: 'tx-prov-1' } });
+    const { issueProvisionalCredit } = require('../services/oxsteedCreditDisputeService');
+    const result = await issueProvisionalCredit({
+      disputeId: DISPUTE_ID,
+      adminId: ADMIN_ID,
+      amountCents: 1500,
+      reason: 'Investigating; crediting the customer while the review runs.',
+    });
+    expect(result.replayed).toBe(false);
+    expect(result.dispute.status).toBe('in_review');
+    expect(result.provisionalCredit.amountCents).toBe(1500);
+    expect(result.provisionalCredit.transactionId).toBe('tx-prov-1');
+    const call = creditService.adjustCustomerCreditInTransaction.mock.calls[0][1];
+    expect(call.amountCents).toBe(1500);
+    expect(call.direction).toBe('credit');
+    expect(call.referenceType).toBe('oxsteed_credit_dispute');
+    expect(call.metadata.provisional).toBe(true);
+    // The dispute records the cumulative provisional total.
+    const updateCalls = mockQuery.mock.calls.filter(([sql]) => String(sql).includes('provisional_credit_cents = provisional_credit_cents + $1'));
+    expect(updateCalls).toHaveLength(1);
+    // An audit event records the money movement.
+    const auditCalls = mockQuery.mock.calls.filter(([sql]) => String(sql).includes('credit.dispute.provisional_credit'));
+    expect(auditCalls).toHaveLength(1);
+  });
+
+  test('provisional credit cannot exceed the disputed amount', async () => {
+    installProvisionalRouter({ provisional_credit_cents: 4000 });
+    const { issueProvisionalCredit } = require('../services/oxsteedCreditDisputeService');
+    await expect(issueProvisionalCredit({
+      disputeId: DISPUTE_ID,
+      adminId: ADMIN_ID,
+      amountCents: 1500,
+      reason: 'Too generous.',
+    })).rejects.toMatchObject({ status: 400, code: 'credit_provisional_credit_exceeds' });
+    expect(creditService.adjustCustomerCreditInTransaction).not.toHaveBeenCalled();
+  });
+
+  test('provisional credit is only available while the dispute is in review', async () => {
+    installProvisionalRouter({ status: 'open' });
+    const { issueProvisionalCredit } = require('../services/oxsteedCreditDisputeService');
+    await expect(issueProvisionalCredit({
+      disputeId: DISPUTE_ID,
+      adminId: ADMIN_ID,
+      amountCents: 1500,
+      reason: 'Not yet under review.',
+    })).rejects.toMatchObject({ status: 409, code: 'credit_dispute_state_invalid' });
+  });
+
+  test('a repeated provisional credit with identical inputs replays instead of double-crediting', async () => {
+    installProvisionalRouter({}, true);
+    const { issueProvisionalCredit } = require('../services/oxsteedCreditDisputeService');
+    const result = await issueProvisionalCredit({
+      disputeId: DISPUTE_ID,
+      adminId: ADMIN_ID,
+      amountCents: 1500,
+      reason: 'Same inputs twice.',
+    });
+    expect(result.replayed).toBe(true);
+    expect(creditService.adjustCustomerCreditInTransaction).not.toHaveBeenCalled();
+  });
+
+  test('final compensation is reduced by provisional credit already issued', async () => {
+    installDisputeRouterForProvisionalCap();
+    creditService.adjustCustomerCreditInTransaction.mockResolvedValue({ transaction: { id: 'tx-comp-2' } });
+    await expect(resolveDisputeWithCompensation({
+      disputeId: DISPUTE_ID,
+      adminId: ADMIN_ID,
+      decision: 'resolved_customer',
+      reason: 'Over the cap once provisional is counted.',
+      compensationCents: 1500,
+    })).rejects.toMatchObject({ status: 400, code: 'credit_dispute_compensation_exceeds' });
+
+    function installDisputeRouterForProvisionalCap() {
+      mockQuery.mockImplementation((sql) => {
+        const s = String(sql);
+        if (s === 'BEGIN' || s === 'COMMIT' || s === 'ROLLBACK') return { rows: [] };
+        if (s.includes('pg_advisory_xact_lock')) return { rows: [] };
+        if (s.includes('FROM feature_flags')) return { rows: [{ is_enabled: true }] };
+        if (s.includes('FROM oxsteed_credit_rail_freezes')) return { rows: [] };
+        if (s.includes('FROM oxsteed_credit_disputes d')) {
+          return { rows: [provisionalDisputeRow({ status: 'in_review', provisional_credit_cents: 4000 })] };
+        }
+        if (s.includes('FROM oxsteed_credit_transactions') && s.includes('WHERE id = $1')) {
+          return { rows: [{ id: 'tx-provisional-1', amount_cents: 5000, currency_code: 'USD', transaction_type: 'load' }] };
+        }
+        return { rows: [] };
+      });
+    }
+  });
+});
+
 describe('reservation enforcement', () => {
   test('reserving more than the available balance fails with 409', async () => {
     // Router returns balance 10000, reserved 9000: only 1000 available.

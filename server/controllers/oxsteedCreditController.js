@@ -51,7 +51,7 @@ const {
   listPendingActions,
 } = require('../services/oxsteedCreditPendingActionService');
 // Phase 7 (gap 10): compensated dispute resolutions.
-const { resolveDisputeWithCompensation } = require('../services/oxsteedCreditDisputeService');
+const { resolveDisputeWithCompensation, issueProvisionalCredit } = require('../services/oxsteedCreditDisputeService');
 const {
   listPartners,
   listAdminCustomerCreditAccounts,
@@ -809,6 +809,29 @@ async function resolveAdminDispute(req, res, next) {
       decision,
       reason: req.body?.resolution || req.body?.reason,
       compensationCents: req.body?.compensationCents ?? req.body?.compensation_cents ?? 0,
+      requestIp: req.ip || null,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+    });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /admin/super/oxsteed-credit/disputes/:disputeId/provisional-credit
+ * Super-admin only: issue provisional credit while a dispute is in_review.
+ * The dispute stays open; the cumulative provisional total is tracked on
+ * the dispute and reduces the final-resolution compensation cap.
+ */
+async function issueAdminProvisionalCredit(req, res, next) {
+  try {
+    const disputeId = parseUuid(req.params.disputeId, 'disputeId');
+    const result = await issueProvisionalCredit({
+      disputeId,
+      adminId: req.user.id,
+      amountCents: req.body?.amountCents ?? req.body?.amount_cents,
+      reason: req.body?.reason,
       requestIp: req.ip || null,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
     });
@@ -2315,6 +2338,7 @@ module.exports = {
   listAdminDisputes,
   downloadAdminCreditDisputes,
   resolveAdminDispute,
+  issueAdminProvisionalCredit,
   requestAdminPendingAction,
   decideAdminPendingAction,
   listAdminPendingActions,
