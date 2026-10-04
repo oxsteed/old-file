@@ -1817,7 +1817,7 @@ export default function FoodRestaurantPage() {
                 <button onClick={() => setSaved((s) => !s)} style={{ height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', color: saved ? accent : '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                   {saved ? `♥ ${t('food.common.saved')}` : `♡ ${t('food.common.save')}`}
                 </button>
-                <button onClick={onShare} aria-label={t('food.restaurant.share')} style={{ height: 36, width: 36, borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>↗</button>
+                <button onClick={onShare} aria-label={t('food.restaurant.share')} style={{ height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>{`↗ ${t('food.restaurant.share')}`}</button>
               </div>
             </div>
             <div style={{ display: 'inline-flex', background: accentBg, color: accent, padding: '2px 9px', borderRadius: 4, fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 5 }}>{cuisineLabel}</div>
@@ -1866,7 +1866,7 @@ export default function FoodRestaurantPage() {
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={handleMessageClick} aria-label={t('food.restaurant.messageAria')} style={{ flex: 1, height: 40, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: '#0f172a', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{`✉ ${t('food.restaurant.message')}`}</button>
                   <button onClick={() => setSaved((s) => !s)} style={{ flex: 1, height: 40, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: saved ? accent : '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{saved ? `♥ ${t('food.common.saved')}` : `♡ ${t('food.common.save')}`}</button>
-                  <button onClick={onShare} aria-label={t('food.restaurant.share')} style={{ width: 40, height: 40, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>↗</button>
+                  <button onClick={onShare} aria-label={t('food.restaurant.share')} style={{ flex: 1, height: 40, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: '#64748b', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{`↗ ${t('food.restaurant.share')}`}</button>
                 </div>
               </div>
               {hours.length > 0 && (
