@@ -50,6 +50,8 @@ import PageShell from '../components/PageShell';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import { marketplaceApi } from '../api/marketplaceApi';
+import { recordView } from '../hooks/useRecentlyViewed';
+import RecentlyViewedStrip from '../components/RecentlyViewedStrip';
 import './LearnModePage.css';
 
 const COMPLETIONS_KEY  = 'oxs:learn:completions';
@@ -4126,6 +4128,20 @@ export default function LearnModePage() {
     () => activeGuides.find((g) => g.id === expandedId) || null,
     [activeGuides, expandedId]
   );
+
+  // Track opened guides in the client-side "recently viewed" store so the
+  // Learn page can resume where the user left off.
+  useEffect(() => {
+    if (!expandedGuide) return;
+    const cat = categoryMap[expandedGuide.category];
+    recordView('guides', {
+      id: expandedGuide.id,
+      title: expandedGuide.title || '',
+      subtitle: cat ? t(cat.tKey) : '',
+      image: expandedGuide.image || expandedGuide.thumbnail || null,
+      href: `/learn?guide=${encodeURIComponent(expandedGuide.id)}`,
+    });
+  }, [expandedGuide]);
   useEffect(() => {
     const tools = Array.isArray(expandedGuide?.tools) ? expandedGuide.tools : [];
     const names = [...new Set(
@@ -4737,6 +4753,8 @@ export default function LearnModePage() {
 
         {/* ── Guide list ────────────────────────────────────────────────────── */}
         <section className="lrn-section" ref={listRef}>
+          {/* Recently viewed guides (continue where you left off) */}
+          <RecentlyViewedStrip kind="guides" className="mb-6" />
           <div className="lrn-list-header">
             <h2 className="lrn-section-label">
               {t('learn.page.guidesCount', { label: activeCategoryLabel })}

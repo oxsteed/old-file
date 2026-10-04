@@ -11,6 +11,7 @@ import LiveHelpersHeroCard from '../components/LiveHelpersHeroCard';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 import { DEFAULT_DIRECT_PROFILE, loadDirectProfile } from '../api/direct';
 import { getSharedBrowserLocation } from '../utils/browserLocation';
+import RecentlyViewedStrip from '../components/RecentlyViewedStrip';
 
 const DirectCatalogPanels = lazy(() => import('./DirectCatalogLanding').then(({ DirectCatalogPanels: Component }) => ({ default: Component })));
 
@@ -634,6 +635,9 @@ export default function HomePage() {
         {/* Hero live helpers near you card - now interactive infinite scroll */}
         <LiveHelpersHeroCard />
       </section>
+
+      {/* -- Recently viewed helpers (continue where you left off) -- */}
+      <RecentlyViewedStrip kind="helpers" className="hp-section hp-container" />
 
       {/* -- Direct catalog -- */}
       <HomeCompanySection />

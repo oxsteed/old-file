@@ -23,6 +23,7 @@ import { Flag, GraduationCap } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
+import { recordView } from '../hooks/useRecentlyViewed';
 import { defaultProfileChatDestination } from '../components/helperProfile/chat/messengerDockState.js';
 import UserReputationCard from '../components/UserReputationCard';
 import ReportModal from '../components/ReportModal';
@@ -112,6 +113,19 @@ const HelperBusinessProfilePage: React.FC = () => {
     loadProfile(controller.signal);
     return () => controller.abort();
   }, [loadProfile]);
+
+  // Track this profile in the client-side "recently viewed" store so the
+  // home and discover pages can resume where the user left off.
+  useEffect(() => {
+    if (!data?.helper || !id) return;
+    recordView('helpers', {
+      id,
+      title: data.helper.businessName || data.helper.ownerName || '',
+      subtitle: '',
+      image: data.helper.avatar || null,
+      href: `/helpers/${id}`,
+    });
+  }, [data, id]);
 
   useEffect(() => {
     if (!id) return;

@@ -16,6 +16,7 @@ import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
+import RecentlyViewedStrip from '../components/RecentlyViewedStrip';
 
 const RECENT_KEY = 'oxs:discoverRecent';
 const MAX_RECENT = 8;
@@ -298,6 +299,8 @@ export default function DiscoverPage() {
                 </div>
               </div>
             )}
+            {/* Recently viewed helpers (continue where you left off) */}
+            <RecentlyViewedStrip kind="helpers" />
             <div>
               <h2 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-violet-400" aria-hidden />

@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import { FoodBrand } from './foodShared';
 import PageShell from '../../components/PageShell';
 import PageMeta from '../../components/PageMeta';
+import RecentlyViewedStrip from '../../components/RecentlyViewedStrip';
 import { SuggestDropdown } from '../../components/SuggestDropdown';
 import ThemeToggle from '../../components/ThemeToggle';
 import LanguageSelector from '../../components/LanguageSelector';
@@ -635,6 +636,9 @@ export default function FoodHomePage() {
               </div>
             </div>
           )}
+
+          {/* Recently viewed restaurants (continue where you left off) */}
+          <RecentlyViewedStrip kind="restaurants" className="fd-section" />
 
           {/* Featured */}
           {hasFeatured && (
