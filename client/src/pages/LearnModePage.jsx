@@ -3872,6 +3872,7 @@ export default function LearnModePage() {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery]                 = useState(searchParams.get('q') || '');
+  const [suggestOpen, setSuggestOpen]   = useState(false);
   const [activeCategory, setActiveCategory] = useState('all');
   const [expandedId, setExpandedId]       = useState(null);
   const [viewMode, setViewMode]           = useState('list');
@@ -4152,6 +4153,30 @@ export default function LearnModePage() {
   const completedCount = Object.keys(completions).length;
   const totalGuides    = activeGuides.length;
 
+  // ── Typeahead suggestions: top matches as the user types ───────────────────
+  // Title prefix matches rank first, then title substring, then category/skill.
+  const suggestions = useMemo(() => {
+    const q = normalize(query).trim();
+    if (q.length < 2) return [];
+    const scored = [];
+    for (const g of activeGuides) {
+      const title = normalize(g.title);
+      let score = -1;
+      if (title.startsWith(q)) score = 0;
+      else if (title.includes(q)) score = 1;
+      else if (
+        normalize(g.category).includes(q) ||
+        (g.skills || []).some((s) => normalize(s).includes(q))
+      ) score = 2;
+      if (score >= 0) scored.push({ g, score });
+    }
+    return scored
+      .sort((a, b) => a.score - b.score || a.g.title.localeCompare(b.g.title))
+      .slice(0, 6)
+      .map((s) => s.g);
+  }, [query, activeGuides]);
+  const showSuggestions = suggestOpen && normalize(query).trim().length >= 2 && suggestions.length > 0;
+
   // ── Handlers ─────────────────────────────────────────────────────────────────
 
   const fireXpToast = useCallback((xp, badge) => {
@@ -4209,6 +4234,17 @@ export default function LearnModePage() {
     const trimmed = query.trim();
     setSearchParams(trimmed ? { q: trimmed } : {}, { replace: true });
     setExpandedId(null);
+    setSuggestOpen(false);
+  };
+
+  // Tapping a suggestion jumps straight to that guide.
+  const selectSuggestion = (guide) => {
+    setQuery(guide.title);
+    setSearchParams({ q: guide.title }, { replace: true });
+    setExpandedId(guide.id);
+    setSuggestOpen(false);
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    setTimeout(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   };
 
   const toggleGuide = (id) => {
@@ -4497,16 +4533,51 @@ export default function LearnModePage() {
             type="search"
             className="lrn-search-input"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => { setQuery(e.target.value); setSuggestOpen(true); }}
+            onFocus={() => setSuggestOpen(true)}
+            onBlur={() => setSuggestOpen(false)}
+            onKeyDown={(e) => { if (e.key === 'Escape') setSuggestOpen(false); }}
             placeholder={t('learn.page.searchPlaceholder')}
             aria-label={t('learn.page.searchAriaLabel')}
+            autoComplete="off"
+            role="combobox"
+            aria-expanded={showSuggestions}
+            aria-controls="lrn-suggest-list"
           />
           {query && (
             <button type="button" className="lrn-search-clear" onClick={() => {
-              setQuery(''); setSearchParams({}, { replace: true });
+              setQuery(''); setSearchParams({}, { replace: true }); setSuggestOpen(false);
             }} aria-label="Clear search">
               <X size={16} />
             </button>
+          )}
+          {showSuggestions && (
+            <ul className="lrn-suggest" id="lrn-suggest-list" role="listbox">
+              {suggestions.map((guide) => {
+                const cat = categoryMap[guide.category];
+                return (
+                  <li key={guide.id} role="option" aria-selected="false">
+                    <button
+                      type="button"
+                      className="lrn-suggest-item"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => selectSuggestion(guide)}
+                    >
+                      <span className="lrn-suggest-thumb" style={{ background: guide.gradient }} aria-hidden="true">
+                        {cat && <cat.Icon size={16} style={{ color: cat.color }} />}
+                      </span>
+                      <span className="lrn-suggest-text">
+                        <strong>{guide.title}</strong>
+                        <span className="lrn-suggest-meta">
+                          {cat ? t(cat.tKey) : null} · {t(`learn.page.difficulty.${guide.difficulty}`, { defaultValue: guide.difficulty })} · {guide.minutes} min
+                        </span>
+                      </span>
+                      <Search size={14} className="lrn-suggest-go" aria-hidden="true" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </form>
 
