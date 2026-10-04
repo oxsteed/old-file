@@ -18317,6 +18317,7 @@
       "videoFlagNote": "Detalles (opcional)",
       "videoFlagSubmit": "Enviar reporte",
       "videoFlagError": "No se pudo enviar el reporte. Inténtalo de nuevo.",
+      "videoVoteError": "No se pudo guardar tu voto. Inténtalo de nuevo.",
       "addAnotherVideo": "Agregar otro video",
       "videoDuplicate": "Este video ya está en esta guía.",
       "stepsHeading": "Pasos",

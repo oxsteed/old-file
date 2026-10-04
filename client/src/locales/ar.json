@@ -18328,6 +18328,7 @@
       "videoFlagNote": "تفاصيل (اختياري)",
       "videoFlagSubmit": "إرسال البلاغ",
       "videoFlagError": "تعذر إرسال البلاغ. حاول مرة أخرى.",
+      "videoVoteError": "تعذر حفظ تصويتك. حاول مرة أخرى.",
       "addAnotherVideo": "إضافة فيديو آخر",
       "videoDuplicate": "هذا الفيديو موجود بالفعل في هذا الدليل.",
       "stepsHeading": "الخطوات",

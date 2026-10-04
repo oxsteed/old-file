@@ -18315,6 +18315,7 @@
       "videoFlagNote": "Details (optional)",
       "videoFlagSubmit": "Send flag",
       "videoFlagError": "Could not send the flag. Please try again.",
+      "videoVoteError": "Could not save your vote. Please try again.",
       "addAnotherVideo": "Add another video",
       "videoDuplicate": "This video is already on this guide.",
       "stepsHeading": "Steps",

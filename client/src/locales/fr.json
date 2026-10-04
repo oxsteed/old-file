@@ -18317,6 +18317,7 @@
       "videoFlagNote": "Détails (facultatif)",
       "videoFlagSubmit": "Envoyer le signalement",
       "videoFlagError": "Impossible d'envoyer le signalement. Veuillez réessayer.",
+      "videoVoteError": "Impossible d'enregistrer votre vote. Veuillez réessayer.",
       "addAnotherVideo": "Ajouter une autre vidéo",
       "videoDuplicate": "Cette vidéo est déjà sur ce guide.",
       "stepsHeading": "Étapes",

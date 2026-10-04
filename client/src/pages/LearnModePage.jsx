@@ -3873,8 +3873,11 @@ export default function LearnModePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery]                 = useState(searchParams.get('q') || '');
   const [suggestOpen, setSuggestOpen]   = useState(false);
+  const [activeSuggest, setActiveSuggest] = useState(-1); // roving highlight index in the typeahead
   const [activeCategory, setActiveCategory] = useState('all');
-  const [expandedId, setExpandedId]       = useState(null);
+  // Deep link: expanded guide is read from ?guide=<id> on mount and synced
+  // back to the URL whenever it changes (L2).
+  const [expandedId, setExpandedId]       = useState(() => searchParams.get('guide'));
   const [viewMode, setViewMode]           = useState('list');
   const [completions, setCompletions]     = useState({});
   const [completing, setCompleting]       = useState(null);
@@ -3910,6 +3913,11 @@ export default function LearnModePage() {
 
   // Social proof stats (Priority 8)
   const [guideStats, setGuideStats] = useState({});  // { [guide_id]: { completions, views } }
+
+  // Community video voting: in-flight guard + failure toast (L3)
+  const [votingVideoId, setVotingVideoId] = useState(null); // video id of the vote POST in flight
+  const [voteError, setVoteError]         = useState(null); // transient error toast text
+  const voteErrorTimer = useRef(null);
 
   // Badges + XP toast + helper prompt
   const [badges, setBadges]           = useState([]);          // ['plumbing', 'electrical', ...]
@@ -3969,8 +3977,11 @@ export default function LearnModePage() {
       .catch(() => {});
   }, [user]);
 
-  // Cleanup XP toast timer on unmount
-  useEffect(() => () => { if (xpToastTimer.current) clearTimeout(xpToastTimer.current); }, []);
+  // Cleanup toast timers on unmount
+  useEffect(() => () => {
+    if (xpToastTimer.current) clearTimeout(xpToastTimer.current);
+    if (voteErrorTimer.current) clearTimeout(voteErrorTimer.current);
+  }, []);
 
   // Load completions: localStorage first, then server if authenticated
   useEffect(() => {
@@ -3989,6 +4000,31 @@ export default function LearnModePage() {
         .catch(() => {});
     }
   }, [user]);
+
+  // L2: keep the expanded guide in the URL as ?guide=<id> so a refresh,
+  // share, or bookmark lands back on the open guide. Invalid ids are
+  // dropped from the URL once the catalog has loaded; before the remote
+  // catalog arrives we leave the param alone so remote-only ids survive.
+  useEffect(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      const valid = expandedId && activeGuides.some((g) => g.id === expandedId);
+      if (valid) next.set('guide', expandedId);
+      else if (!expandedId || remoteCatalog !== null) next.delete('guide');
+      return next.toString() === prev.toString() ? prev : next;
+    }, { replace: true });
+  }, [expandedId, activeGuides, remoteCatalog, setSearchParams]);
+
+  // L2: when the page loads with ?guide=<id>, scroll the list into view so
+  // the expanded guide is visible.
+  useEffect(() => {
+    if (!searchParams.get('guide')) return;
+    const timer = setTimeout(() => {
+      listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 120);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Derived state ────────────────────────────────────────────────────────────
 
@@ -4243,8 +4279,33 @@ export default function LearnModePage() {
     setSearchParams({ q: guide.title }, { replace: true });
     setExpandedId(guide.id);
     setSuggestOpen(false);
+    setActiveSuggest(-1);
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     setTimeout(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  };
+
+  // L1: roving highlight for the typeahead. ArrowUp/Down move the highlight,
+  // Enter selects the highlighted suggestion, Escape closes the list.
+  const handleSuggestKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      setSuggestOpen(false);
+      setActiveSuggest(-1);
+      return;
+    }
+    if (!showSuggestions) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveSuggest((i) => (i + 1) % suggestions.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveSuggest((i) => (i - 1 + suggestions.length) % suggestions.length);
+    } else if (e.key === 'Enter') {
+      const target = activeSuggest >= 0 ? suggestions[activeSuggest] : null;
+      if (target) {
+        e.preventDefault();
+        selectSuggestion(target);
+      }
+    }
   };
 
   const toggleGuide = (id) => {
@@ -4348,15 +4409,22 @@ export default function LearnModePage() {
   };
 
   // Toggle "most helpful" vote on a community video.
+  // L3: one in-flight POST per click (button disables while posting) and a
+  // toast on failure instead of the old silent catch.
   const handleVideoVote = async (guideId, video) => {
-    if (!user || video.pinned) return;
+    if (!user || video.pinned || votingVideoId) return;
+    setVotingVideoId(video.id);
     try {
       const { data } = await api.post(`/learn/videos/${encodeURIComponent(video.id)}/vote`);
       patchGuideVideos(guideId, (v) => (v.id === video.id
         ? { ...v, votes: data.votes, viewerVoted: data.voted }
         : v));
     } catch {
-      // Silent — the vote button simply does not change state.
+      if (voteErrorTimer.current) clearTimeout(voteErrorTimer.current);
+      setVoteError(t('learn.page.videoVoteError'));
+      voteErrorTimer.current = setTimeout(() => setVoteError(null), 4000);
+    } finally {
+      setVotingVideoId(null);
     }
   };
 
@@ -4533,16 +4601,21 @@ export default function LearnModePage() {
             type="search"
             className="lrn-search-input"
             value={query}
-            onChange={(e) => { setQuery(e.target.value); setSuggestOpen(true); }}
+            onChange={(e) => { setQuery(e.target.value); setSuggestOpen(true); setActiveSuggest(-1); }}
             onFocus={() => setSuggestOpen(true)}
             onBlur={() => setSuggestOpen(false)}
-            onKeyDown={(e) => { if (e.key === 'Escape') setSuggestOpen(false); }}
+            onKeyDown={handleSuggestKeyDown}
             placeholder={t('learn.page.searchPlaceholder')}
             aria-label={t('learn.page.searchAriaLabel')}
             autoComplete="off"
             role="combobox"
             aria-expanded={showSuggestions}
             aria-controls="lrn-suggest-list"
+            aria-activedescendant={
+              showSuggestions && activeSuggest >= 0 && suggestions[activeSuggest]
+                ? `lrn-suggest-opt-${suggestions[activeSuggest].id}`
+                : undefined
+            }
           />
           {query && (
             <button type="button" className="lrn-search-clear" onClick={() => {
@@ -4553,10 +4626,15 @@ export default function LearnModePage() {
           )}
           {showSuggestions && (
             <ul className="lrn-suggest" id="lrn-suggest-list" role="listbox">
-              {suggestions.map((guide) => {
+              {suggestions.map((guide, idx) => {
                 const cat = categoryMap[guide.category];
                 return (
-                  <li key={guide.id} role="option" aria-selected="false">
+                  <li
+                    key={guide.id}
+                    id={`lrn-suggest-opt-${guide.id}`}
+                    role="option"
+                    aria-selected={activeSuggest === idx}
+                  >
                     <button
                       type="button"
                       className="lrn-suggest-item"
@@ -4894,6 +4972,7 @@ export default function LearnModePage() {
                                     type="button"
                                     className={`lrn-video-vote${current.viewerVoted ? ' is-active' : ''}`}
                                     aria-pressed={!!current.viewerVoted}
+                                    disabled={votingVideoId === current.id}
                                     onClick={() => handleVideoVote(guide.id, current)}
                                   >
                                     <ThumbsUp size={14} aria-hidden="true" />
@@ -5217,6 +5296,12 @@ export default function LearnModePage() {
       </div>
 
       {/* ── XP toast ──────────────────────────────────────────────────────── */}
+      {voteError && (
+        <div className="lrn-xp-toast is-error" role="alert">
+          <AlertTriangle size={16} aria-hidden="true" />
+          <span>{voteError}</span>
+        </div>
+      )}
       {xpToast && (
         <div className="lrn-xp-toast" role="status" aria-live="polite">
           <CheckCircle size={16} aria-hidden="true" />

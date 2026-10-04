@@ -2521,6 +2521,8 @@ html:not(.dark) .lrn-xp-toast {
 
 .lrn-xp-toast > svg { color: #22c55e; flex-shrink: 0; }
 
+.lrn-xp-toast.is-error > svg { color: #f87171; }
+
 .lrn-xp-toast-sep {
   opacity: .4;
   margin: 0 .1rem;
