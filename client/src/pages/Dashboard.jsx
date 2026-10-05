@@ -13,6 +13,8 @@ import RecommendationFeed from '../components/RecommendationFeed';
 import { formatDate, formatMoney } from '../lib/format';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 import { formatFoodMoney, listMyFoodOrders, listMyFoodRestaurantWallets } from '../api/food';
+import { getOxsteedCreditAccount } from '../api/oxsteedCredit';
+import { formatCreditMinorUnits } from '../lib/creditCurrency';
 import '../styles/Dashboard.css';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
@@ -292,6 +294,40 @@ function LaunchCustomerDashboard({
         </Card>
       </section>
 
+      <section className="grid grid-cols-1 gap-4" aria-label={t('dashboard.customer.oxsteedCreditTitle')}>
+        <Card className="customer-dashboard-panel">
+          <CardHeader
+            icon={IcoWallet}
+            title={t('dashboard.customer.oxsteedCreditTitle')}
+            right={<Link to="/oxsteed-credit" className="text-xs font-semibold text-sky-400 hover:text-sky-300">{t('dashboard.customer.manageCredit')}</Link>}
+          />
+          {loading ? (
+            <div className="space-y-3"><div className="h-16 animate-pulse rounded-xl bg-gray-800/60" /></div>
+          ) : oxsteedCreditAccount ? (
+            <div className="space-y-2">
+              <Link to="/oxsteed-credit" className="customer-dashboard-item flex items-center gap-3 rounded-xl bg-gray-800/35 p-3 transition hover:bg-gray-800/70">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/10">
+                  <IcoWallet size={18} cls="text-sky-400" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-white">{t('dashboard.customer.creditAvailable')}</p>
+                  <p className="text-xs text-gray-500">{oxsteedCreditAccount.currencyCode || 'USD'}{Number(oxsteedCreditAccount.reservedCents || 0) > 0 ? ` · ${t('dashboard.customer.creditReserved', { amount: formatCreditMinorUnits(oxsteedCreditAccount.reservedCents, oxsteedCreditAccount.currencyCode || 'USD') })}` : ''}</p>
+                </div>
+                <strong className="text-sm text-sky-400">{formatCreditMinorUnits(oxsteedCreditAccount.availableBalanceCents ?? oxsteedCreditAccount.balanceCents ?? 0, oxsteedCreditAccount.currencyCode || 'USD')}</strong>
+              </Link>
+              <p className="pt-2 text-xs leading-5 text-gray-600">{t('dashboard.customer.oxsteedCreditScope')}</p>
+            </div>
+          ) : (
+            <div className="customer-dashboard-empty-state flex min-h-[120px] flex-col items-center justify-center text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-500/10"><IcoWallet size={24} cls="text-sky-400" /></div>
+              <h3 className="mt-4 font-bold text-white">{t('dashboard.customer.noOxsteedCredit')}</h3>
+              <p className="mt-1 max-w-xs text-sm text-gray-500">{t('dashboard.customer.noOxsteedCreditText')}</p>
+              <Link to="/oxsteed-credit" className="mt-4 text-xs font-bold text-sky-400 hover:text-sky-300">{t('dashboard.customer.openOxsteedCredit')} →</Link>
+            </div>
+          )}
+        </Card>
+      </section>
+
       <nav className="customer-dashboard-quick-links flex flex-wrap items-center gap-2 rounded-2xl border border-gray-800 bg-gray-950/40 p-3" aria-label={t('dashboard.customer.quickLinks')}>
         <span className="px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-gray-600">{t('dashboard.customer.quickLinks')}</span>
         {[
@@ -326,6 +362,7 @@ export default function Dashboard() {
   const [myJobs, setMyJobs] = useState([]);
   const [foodOrders, setFoodOrders] = useState([]);
   const [restaurantWallets, setRestaurantWallets] = useState([]);
+  const [oxsteedCreditAccount, setOxsteedCreditAccount] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -840,12 +877,13 @@ export default function Dashboard() {
     setLoading(true);
     setError(false);
     try {
-      const [jobsRes, notifRes, msgRes, foodOrdersRes, walletsRes] = await Promise.allSettled([
+      const [jobsRes, notifRes, msgRes, foodOrdersRes, walletsRes, creditRes] = await Promise.allSettled([
         api.get('/jobs/me/list'),
         api.get('/notifications'),
         api.get('/messages/conversations'),
         listMyFoodOrders(),
         listMyFoodRestaurantWallets(),
+        getOxsteedCreditAccount().catch(() => null),
       ]);
       const anyFailed = [jobsRes, notifRes, msgRes, foodOrdersRes, walletsRes].some(r => r.status === 'rejected');
       if (anyFailed) setError(true);
@@ -854,6 +892,7 @@ export default function Dashboard() {
       if (msgRes.status === 'fulfilled') setConversations(msgRes.value.data?.conversations || msgRes.value.data || []);
       if (foodOrdersRes.status === 'fulfilled') setFoodOrders(foodOrdersRes.value || []);
       if (walletsRes.status === 'fulfilled') setRestaurantWallets(walletsRes.value || []);
+      if (creditRes.status === 'fulfilled') setOxsteedCreditAccount(creditRes.value || null);
     } catch (e) { console.error(e); setError(true); }
     finally { setLoading(false); }
   }, []);
