@@ -25,6 +25,7 @@ test('restaurant survives loading, deduplicates dish suggestions, and recovers f
       });
       export const listFoodPromotions = async () => [];
       export const listMyFoodOrders = async () => [];
+      export const listSavedPaymentMethods = async () => [];
       export const getMyFoodRestaurantWallet = async () => null;
       export const formatFoodMoney = cents => '$' + (Number(cents || 0) / 100).toFixed(2);
       const noWrite = () => { throw new Error('Unexpected API write in render test'); };

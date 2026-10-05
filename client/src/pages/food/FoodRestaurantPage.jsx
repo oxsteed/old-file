@@ -3059,6 +3059,7 @@ function Radio({ on, accent }) {
 // imperative confirmCardPayment(clientSecret) so the parent can run the
 // intent → confirm → place-order flow when Place order is tapped.
 const CheckoutCardForm = React.forwardRef(function CheckoutCardForm({ onExpressConfirm }, ref) {
+  const { t } = useTranslation();
   const stripe = useStripe();
   const elements = useElements();
   const [savedMethods, setSavedMethods] = React.useState([]);
