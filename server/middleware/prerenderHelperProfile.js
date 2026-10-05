@@ -53,6 +53,8 @@ const SEO_COPY_KEYS = {
   '/consulting-intake': { title: 'consulting.intakePageTitle', description: 'consulting.intakePageDesc' },
   '/direct': { title: 'publicSeo.direct.services.title', description: 'publicSeo.direct.services.description' },
   '/direct/services': { title: 'publicSeo.direct.services.title', description: 'publicSeo.direct.services.description' },
+  '/direct/skills': { title: 'directCatalog.categoryDirectoryTitle', description: 'directCatalog.categoryDirectorySubtitle' },
+  '/direct/tools': { title: 'directCatalog.toolsDirectoryTitle', description: 'directCatalog.toolsDirectorySubtitle' },
   '/direct/request-quote': { title: 'directPortal.request.title', description: 'directPortal.request.subtitle' },
   '/direct/request-quote/thanks': { title: 'directPortal.thanks.title', description: 'directPortal.thanks.subtitle' },
   '/direct/view-quote': { title: 'directPortal.lookup.title', description: 'directPortal.lookup.subtitle' },
@@ -648,6 +650,16 @@ const MARKETING_PAGES = {
     title: 'OxSteed Direct Services | Home Help, Hauling, and More',
     description: 'Explore OxSteed Direct services for home help, tool-based jobs, delivery, hauling, cleanup, and setup within 60 miles of Springfield, Ohio.',
     schemaType: 'Service',
+  },
+  '/direct/skills': {
+    title: 'Direct Skills | OxSteed Direct',
+    description: 'Browse every Direct skill category, with live service and tool counts.',
+    schemaType: 'CollectionPage',
+  },
+  '/direct/tools': {
+    title: 'Direct Tools and Equipment | OxSteed Direct',
+    description: 'See the equipment OxSteed uses to support Direct work.',
+    schemaType: 'CollectionPage',
   },
   '/direct/request-quote': {
     title: 'Request a Quote | OxSteed Direct',
