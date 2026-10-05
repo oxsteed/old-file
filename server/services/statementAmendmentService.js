@@ -542,12 +542,6 @@ function assertRestatedDelta({ baselineCore, rederivedCore, refDetails, periodFr
   if (baselineCore.kind !== 'journal' || rederivedCore.kind !== 'journal') {
     return assertSettlementRestatedDelta({ baselineCore, rederivedCore, refDetails, periodFrom, periodTo });
   }
-  // Journal-kind products only: helper_earnings and business have no
-  // append-only ledger, so accounting amendments fail closed for them
-  // earlier and never reach this assertion.
-  if (baselineCore.kind !== 'journal' || rederivedCore.kind !== 'journal') {
-    fail('statement_amendment_integrity_failed', 'Restated accounting amendments apply only to journal-kind statements', 409);
-  }
   assertCoreMoneyIntegers(baselineCore, 'baseline');
   assertCoreMoneyIntegers(rederivedCore, 're-derived');
   // Partition references by effective date: in-period refs correct this
@@ -813,11 +807,6 @@ async function proposeAmendment({
   try {
     await client.query('BEGIN');
     const original = await loadOriginalDocument(client, documentId);
-
-    // Fail closed where the source cannot support an accounting amendment:
-    // helper_earnings and business records are activity snapshots, not
-    // append-only ledgers, so there are no posted compensating transactions
-    // to reference. Clerical amendments are fully supported for them.
 
     // One live proposal per document: a second proposal waits (409) while a
     // proposed or an approved-but-unpublished proposal is in flight. An
