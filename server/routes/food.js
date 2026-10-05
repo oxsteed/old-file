@@ -109,6 +109,7 @@ router.post('/restaurants/:restaurantId/customer-wallet-holds/:holdId/release', 
 // with Elements, then places the order with paymentMode 'card' and the
 // payment intent id.
 router.post('/card-payment/intent', authenticate, creditPurchaseLimiter, ctrl.createCardPaymentIntent);
+router.get('/payment-methods', authenticate, ctrl.listSavedPaymentMethods);
 router.post('/restaurants/:restaurantId/orders', authenticate, creditPurchaseLimiter, ctrl.createOrder);
 
 // Merchant order operations (kitchen feed, status flow, in-store payment).

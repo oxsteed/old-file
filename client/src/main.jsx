@@ -14,6 +14,34 @@ import {
 } from './utils/serviceWorkerRegistration';
 import { initPwaInstall } from './utils/pwaInstall';
 
+/**
+ * warmServiceWorkerAssets — on idle, hand the service worker this page's
+ * asset URLs so it caches them proactively. Money-route navigations
+ * (checkout, wallet, post-job) then skip the network for their chunks.
+ * Best-effort; never blocks boot.
+ */
+function warmServiceWorkerAssets() {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
+  const warm = () => {
+    try {
+      const urls = new Set();
+      document.querySelectorAll('script[src]').forEach((s) => urls.add(s.src));
+      document.querySelectorAll('link[rel="stylesheet"][href]').forEach((l) => urls.add(l.href));
+      document.querySelectorAll('link[rel="preload"][href],link[rel="prefetch"][href]').forEach((l) => urls.add(l.href));
+      if (!urls.size) return;
+      navigator.serviceWorker.ready.then((reg) => {
+        const sw = reg.active;
+        if (sw) sw.postMessage({ type: 'precache', urls: [...urls] });
+      }).catch(() => { /* worker not ready; skip */ });
+    } catch { /* warming is a progressive enhancement */ }
+  };
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(warm, { timeout: 8000 });
+  } else {
+    window.setTimeout(warm, 4000);
+  }
+}
+
 function sentryRootFallback({ error, resetError }) {
   return (
     <div className="min-h-screen bg-gray-950 text-gray-200 flex flex-col items-center justify-center px-6 py-16">
@@ -56,6 +84,7 @@ function renderBootstrapFailure() {
 
 registerServiceWorker();
 initPwaInstall();
+warmServiceWorkerAssets();
 i18nReady.then(() => {
   clearBootstrapRecoveryMarker();
   ReactDOM.createRoot(document.getElementById('root')).render(

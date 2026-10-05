@@ -200,6 +200,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import SupportWidget from './components/SupportWidget';
 import CommandPalette from './components/CommandPalette';
 import PwaInstallPrompt from './components/PwaInstallPrompt';
+import PushSoftAsk from './components/PushSoftAsk';
 import { LanguageProvider } from './context/LanguageContext';
 import { getLaunchRedirect } from './utils/launchScope';
 
@@ -290,6 +291,7 @@ export default function App() {
                 <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
                 <CommandPalette />
                 <PwaInstallPrompt />
+                <PushSoftAsk />
                 <TermsGate>
                   <LaunchScopeRouteGate>
                   <Suspense fallback={<RouteLoadingFallback />}>

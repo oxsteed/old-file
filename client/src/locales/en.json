@@ -10,6 +10,13 @@
     "iosStep3": "Tap Add to finish",
     "iosNote": "This unlocks notifications and faster access."
   },
+  "push": {
+    "title": "Get order and bid alerts",
+    "body": "We will push you the moment a helper bids, your food is ready, or a payout lands. No spam, ever.",
+    "enable": "Enable alerts",
+    "enabling": "Enabling...",
+    "later": "Later"
+  },
   "adminProviderHealth": {
     "eyebrow": "Provider operations",
     "title": "Provider health",
@@ -19158,7 +19165,8 @@
       "creditSheetTopupError": "The top up could not be completed. Please try again.",
       "creditSheetTopupSuccess": "Credit added to your wallet.",
       "creditSheetNotEligible": "Card top ups are not available for this restaurant right now.",
-      "creditSheetStripeUnavailable": "Card payments are not available right now."
+      "creditSheetStripeUnavailable": "Card payments are not available right now.",
+      "useNewCard": "Use a new card"
     },
     "order": {
       "specialInstructions": "Special instructions (optional)",
@@ -29346,8 +29354,7 @@
       "featuredRank": "Rank {rank}",
       "featuredUntil": "until {date}"
     }
-  }
-,
+  },
   "undoToast": {
     "undo": "Undo",
     "serviceRemoved": "Service removed",
@@ -29404,7 +29411,7 @@
     "helperRange": "Helpers like you charge ${{lo}}-${{hi}}/hr",
     "sampleNote": "Based on {{n}} recent rates"
   },
-  "savedSearch":   {
+  "savedSearch": {
     "saveThisSearch": "Save this search",
     "signInRequired": "Sign in to save searches",
     "dialogTitle": "Save this search",

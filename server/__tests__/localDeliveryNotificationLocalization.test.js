@@ -24,7 +24,7 @@ test.each(['en', 'es', 'fr', 'ht', 'ar'])('notification service stores and broad
   })).resolves.toMatchObject({ success: true });
   expect(db.query.mock.calls[1][1]).toEqual([
     'recipient', type, expected.title, expected.body + ' (DEL-81)', '{}',
-    '/delivery/jobs/81', 'delivery-event:901:recipient',
+    '/delivery/jobs/81', 'delivery-event:901:recipient', false,
   ]);
   expect(broadcastToUser).toHaveBeenCalledWith('recipient', 'notification:new', expect.objectContaining({
     title: expected.title, body: expected.body + ' (DEL-81)',

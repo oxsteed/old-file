@@ -103,6 +103,9 @@ export const createFoodCardPaymentIntent = (payload, idempotencyKey) =>
     idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined
   ).then((r) => r.data);
 
+export const listSavedPaymentMethods = () =>
+  api.get('/food/payment-methods').then((r) => r.data?.paymentMethods || []);
+
 export const createFoodPromotion = (restaurantId, payload) =>
   api.post(`/food/restaurants/${restaurantId}/promotions`, payload).then((r) => r.data?.promotion);
 

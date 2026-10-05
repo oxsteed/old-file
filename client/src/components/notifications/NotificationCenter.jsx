@@ -5,6 +5,7 @@ import { formatDistanceToNow }         from 'date-fns';
 import { useTranslation }              from 'react-i18next';
 import { useSocket }                   from '../../hooks/useSocket';
 import api                             from '../../api/axios';
+import { setAppBadge, clearAppBadge }  from '../../utils/appBadge';
 
 export default function NotificationCenter() {
   const { t } = useTranslation();
@@ -17,8 +18,16 @@ export default function NotificationCenter() {
 
   // Fetch on open
   useEffect(() => {
-    if (open) fetchNotifications();
+    if (open) {
+      fetchNotifications();
+      clearAppBadge();
+    }
   }, [open]);
+
+  // Keep the home-screen badge in sync with the unread count.
+  useEffect(() => {
+    setAppBadge(unreadCount);
+  }, [unreadCount]);
 
   // Real-time new notifications
   useEffect(() => {

@@ -13,7 +13,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { loadStripe } from '@stripe/stripe-js';
-import { CardElement, Elements, useElements, useStripe } from '@stripe/react-stripe-js';
+import { CardElement, Elements, ExpressCheckoutElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { useAuth } from '../../context/AuthContext';
 import {
   createFoodCardPaymentIntent,
@@ -33,6 +33,7 @@ import {
 } from '../../api/food';
 import { parseCreditMajorAmount } from '../../lib/creditCurrency';
 import { safeCreditErrorMessage } from '../../lib/creditErrors';
+import { listSavedPaymentMethods } from '../../api/food';
 import {
   getOxsteedCreditAccount,
   getOxsteedCreditEligibility,
@@ -41,6 +42,7 @@ import {
 import { useLiveFoodOrder } from './useLiveFoodOrder';
 import { FOOD_STATUS_KEYS } from './foodShared';
 import { notifyMoneyMoment } from '../../utils/pwaInstall';
+import { notifyPushMoment } from '../../utils/pushPrompt';
 import RestaurantMediaFeed from './components/RestaurantMediaFeed';
 import { recordView } from '../../hooks/useRecentlyViewed';
 import Navbar from '../../components/Navbar';
@@ -1036,6 +1038,122 @@ export default function FoodRestaurantPage() {
   };
 
   // ── Place the real order ────────────────────────────────────────────────
+  // Shared post-payment order placement. Both the CardElement flow and the
+  // Express Checkout flow confirm the Stripe PaymentIntent first, then land
+  // here with the succeeded intent id. The server re-verifies the intent
+  // (402 otherwise), so no order is ever placed on a failed payment.
+  const placeOrderAfterPayment = async (stripePaymentIntentId, { fulfillmentType, paymentMode, externalPaymentSubmission }) => {
+        const payload = {
+          orderSource: 'web',
+          fulfillmentType,
+          // Canonical restaurant payment contract mode (card checkout is pay_now).
+          paymentMode,
+          // CC4: promo codes are validated server-side for every payment mode.
+          discountCode: promoCode.trim() ? promoCode.trim() : undefined,
+          items: orderItemsPayload,
+          // The server re-prices everything; send the customer-chosen tip and
+          // time slot so the debited total matches the quoted total.
+          tipCents: tipCents > 0 ? tipCents : undefined,
+          deliverySlot,
+          // CC3: the chosen fulfillment time for 'later' slots.
+          scheduledFor: deliverySlot === 'later' && scheduledFor ? scheduledFor : undefined,
+          // CC2: order-level notes for the kitchen. paymentNote stays as-is
+          // for payment matching.
+          kitchenNotes: kitchenNotes.trim() || undefined,
+          // CC6: optional pickup contact for pickup orders.
+          ...(fulfillmentType === 'pickup' ? {
+            pickupContactName: pickupContactName.trim() || undefined,
+            pickupContactPhone: pickupContactPhone.trim() || undefined,
+          } : {}),
+          // CC7: the confirmed Stripe PaymentIntent for card orders.
+          ...(paymentMethod === 'card' && stripePaymentIntentId ? { stripePaymentIntentId } : {}),
+          ...(paymentMode === 'direct_payment' ? {
+            externalPayment: externalPaymentSubmission,
+            metadata: {
+              externalPayment: externalPaymentSubmission,
+            },
+          } : {}),
+        };
+        if (fulfillmentType === 'delivery') {
+          payload.deliveryAddress = {
+            line1: addressLine1.trim(),
+            line2: addressLine2.trim() || undefined,
+            city: restaurant.address_city || undefined,
+            state: restaurant.address_state || undefined,
+            country: restaurant.address_country || undefined,
+          };
+        }
+        const requestFingerprint = JSON.stringify(payload);
+        const previousRequest = orderIdempotencyRef.current;
+        const idempotencyKey = previousRequest.fingerprint === requestFingerprint && previousRequest.key
+          ? previousRequest.key
+          : (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+        orderIdempotencyRef.current = { key: idempotencyKey, fingerprint: requestFingerprint };
+        payload.clientOrderId = idempotencyKey;
+        const { order, trackingToken, payment } = await placeFoodOrder(
+          restaurantId,
+          payload,
+          { idempotencyKey }
+        );
+        orderIdempotencyRef.current = { key: null, fingerprint: null };
+        setPlacedOrder(order || {});
+        setPlacedTrackingToken(trackingToken || null);
+        if (trackingToken) {
+          saveActiveOrder(restaurantId, {
+            trackingToken,
+            queueNumber: order?.queue_number ?? null,
+            paymentMode,
+            checkoutSessionId: payment?.checkoutSessionId || null,
+          });
+          setRecoveredOrder(null);
+        }
+        clearDraftOrder(restaurantId);
+        setDraftHasContent(false);
+        setCartStep('confirmed');
+        // Value moments, sequenced: install prompt first, push soft-ask only
+        // when the install UI did not show (never stack two prompts).
+        const installShown = notifyMoneyMoment('food_order');
+        if (!installShown) notifyPushMoment('food_order', { installEligible: false });
+        setCartItems([]);
+        setTipPreset('none');
+        setCustomTipText('');
+        setQuote(null);
+        setPaymentReference('');
+        setPaymentNote('');
+        setKitchenNotes('');
+        setScheduledFor(null);
+        setScheduleDay('today');
+        setScheduleTime('');
+        setItemsExpanded(false);
+        setCardError('');
+        const profileName = user ? [user.first_name, user.last_name].filter(Boolean).join(' ').trim() : '';
+        setPickupContactName(profileName);
+        setPickupContactPhone(user?.phone ? String(user.phone) : '');
+        setPaymentProof(null);
+        setProofMethod('upload');
+        if (payment?.mode === 'hosted_checkout' && payment?.checkoutUrl) {
+          window.location.assign(payment.checkoutUrl);
+          return;
+        }
+  };
+
+  // Mint a Stripe PaymentIntent for the current card total. Shared by the
+  // CardElement flow and the Express Checkout flow.
+  const createCardIntent = async () => {
+    const intentIdempotencyKey = globalThis.crypto?.randomUUID?.()
+      || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const intent = await createFoodCardPaymentIntent({
+      restaurantId,
+      amountCents: displayTotalCents,
+      currency,
+      idempotencyKey: intentIdempotencyKey,
+    }, intentIdempotencyKey);
+    if (!intent?.clientSecret) {
+      throw new Error('missing_client_secret');
+    }
+    return intent;
+  };
+
   const submitOrder = async () => {
     if (cartItems.length === 0) return;
     if (subtotalCents < minimumOrderCents && minimumOrderCents > 0) {
@@ -1081,26 +1199,16 @@ export default function FoodRestaurantPage() {
           setCardError(t('food.restaurant.cardIntentError'));
           return;
         }
-        const intentIdempotencyKey = globalThis.crypto?.randomUUID?.()
-          || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
         let intent = null;
         try {
-          intent = await createFoodCardPaymentIntent({
-            restaurantId,
-            amountCents: displayTotalCents,
-            currency,
-            idempotencyKey: intentIdempotencyKey,
-          }, intentIdempotencyKey);
+          intent = await createCardIntent();
         } catch (intentErr) {
           setCardError(
             intentErr?.response?.data?.error?.message
             || intentErr?.response?.data?.message
+            || intentErr?.message
             || t('food.restaurant.cardIntentError')
           );
-          return;
-        }
-        if (!intent?.clientSecret) {
-          setCardError(t('food.restaurant.cardIntentError'));
           return;
         }
         const { error, paymentIntent } = await cardFormRef.current.confirmCardPayment(intent.clientSecret);
@@ -1117,98 +1225,60 @@ export default function FoodRestaurantPage() {
         }
         stripePaymentIntentId = paymentIntent.id;
       }
-      const payload = {
-        orderSource: 'web',
-        fulfillmentType,
-        // Canonical restaurant payment contract mode (card checkout is pay_now).
-        paymentMode,
-        // CC4: promo codes are validated server-side for every payment mode.
-        discountCode: promoCode.trim() ? promoCode.trim() : undefined,
-        items: orderItemsPayload,
-        // The server re-prices everything; send the customer-chosen tip and
-        // time slot so the debited total matches the quoted total.
-        tipCents: tipCents > 0 ? tipCents : undefined,
-        deliverySlot,
-        // CC3: the chosen fulfillment time for 'later' slots.
-        scheduledFor: deliverySlot === 'later' && scheduledFor ? scheduledFor : undefined,
-        // CC2: order-level notes for the kitchen. paymentNote stays as-is
-        // for payment matching.
-        kitchenNotes: kitchenNotes.trim() || undefined,
-        // CC6: optional pickup contact for pickup orders.
-        ...(fulfillmentType === 'pickup' ? {
-          pickupContactName: pickupContactName.trim() || undefined,
-          pickupContactPhone: pickupContactPhone.trim() || undefined,
-        } : {}),
-        // CC7: the confirmed Stripe PaymentIntent for card orders.
-        ...(paymentMethod === 'card' && stripePaymentIntentId ? { stripePaymentIntentId } : {}),
-        ...(paymentMode === 'direct_payment' ? {
-          externalPayment: externalPaymentSubmission,
-          metadata: {
-            externalPayment: externalPaymentSubmission,
-          },
-        } : {}),
-      };
-      if (fulfillmentType === 'delivery') {
-        payload.deliveryAddress = {
-          line1: addressLine1.trim(),
-          line2: addressLine2.trim() || undefined,
-          city: restaurant.address_city || undefined,
-          state: restaurant.address_state || undefined,
-          country: restaurant.address_country || undefined,
-        };
-      }
-      const requestFingerprint = JSON.stringify(payload);
-      const previousRequest = orderIdempotencyRef.current;
-      const idempotencyKey = previousRequest.fingerprint === requestFingerprint && previousRequest.key
-        ? previousRequest.key
-        : (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`);
-      orderIdempotencyRef.current = { key: idempotencyKey, fingerprint: requestFingerprint };
-      payload.clientOrderId = idempotencyKey;
-      const { order, trackingToken, payment } = await placeFoodOrder(
-        restaurantId,
-        payload,
-        { idempotencyKey }
-      );
-      orderIdempotencyRef.current = { key: null, fingerprint: null };
-      setPlacedOrder(order || {});
-      setPlacedTrackingToken(trackingToken || null);
-      if (trackingToken) {
-        saveActiveOrder(restaurantId, {
-          trackingToken,
-          queueNumber: order?.queue_number ?? null,
-          paymentMode,
-          checkoutSessionId: payment?.checkoutSessionId || null,
-        });
-        setRecoveredOrder(null);
-      }
-      clearDraftOrder(restaurantId);
-      setDraftHasContent(false);
-      setCartStep('confirmed');
-      notifyMoneyMoment('food_order');
-      setCartItems([]);
-      setTipPreset('none');
-      setCustomTipText('');
-      setQuote(null);
-      setPaymentReference('');
-      setPaymentNote('');
-      setKitchenNotes('');
-      setScheduledFor(null);
-      setScheduleDay('today');
-      setScheduleTime('');
-      setItemsExpanded(false);
-      setCardError('');
-      const profileName = user ? [user.first_name, user.last_name].filter(Boolean).join(' ').trim() : '';
-      setPickupContactName(profileName);
-      setPickupContactPhone(user?.phone ? String(user.phone) : '');
-      setPaymentProof(null);
-      setProofMethod('upload');
-      if (payment?.mode === 'hosted_checkout' && payment?.checkoutUrl) {
-        window.location.assign(payment.checkoutUrl);
-        return;
-      }
+      await placeOrderAfterPayment(stripePaymentIntentId, { fulfillmentType, paymentMode, externalPaymentSubmission });
     } catch (err) {
       const message = err?.response?.data?.error?.message || err?.response?.data?.message;
       toast.error(typeof message === 'string' ? message : t('food.order.placeError'));
+    } finally {
+      setPlacing(false);
+    }
+  };
+
+  // Express Checkout (Apple Pay / Google Pay / Link) entry point. Runs the
+  // same validation as submitOrder, mints the intent, confirms with the
+  // express payment method, then shares placeOrderAfterPayment. Only offered
+  // for card payments; the server re-verifies the intent (402 otherwise).
+  const handleExpressConfirm = async () => {
+    if (cartItems.length === 0) return;
+    if (subtotalCents < minimumOrderCents && minimumOrderCents > 0) {
+      toast.error(t('food.restaurant.minimumOrderNotMet', { price: formatFoodMoney(minimumOrderCents, currency) }));
+      return;
+    }
+    const instances = cardFormRef.current?.getStripeInstances?.();
+    if (!instances?.stripe || !instances?.elements) {
+      setCardError(t('food.restaurant.cardIntentError'));
+      return;
+    }
+    setPlacing(true);
+    setCardError('');
+    try {
+      const intent = await createCardIntent();
+      const { error, paymentIntent } = await instances.stripe.confirmPayment({
+        elements: instances.elements,
+        clientSecret: intent.clientSecret,
+        confirmParams: { return_url: window.location.href },
+        redirect: 'if_required',
+      });
+      if (error) {
+        setCardError(error.message || t('food.restaurant.cardPaymentFailed'));
+        return;
+      }
+      if (!paymentIntent || paymentIntent.status !== 'succeeded') {
+        setCardError(t('food.restaurant.cardPaymentFailed'));
+        return;
+      }
+      await placeOrderAfterPayment(paymentIntent.id, {
+        fulfillmentType: deliveryMode === 'delivery' ? 'delivery' : 'pickup',
+        paymentMode: apiPaymentMode,
+        externalPaymentSubmission: null,
+      });
+    } catch (err) {
+      setCardError(
+        err?.response?.data?.error?.message
+        || err?.response?.data?.message
+        || err?.message
+        || t('food.restaurant.cardIntentError')
+      );
     } finally {
       setPlacing(false);
     }
@@ -2556,7 +2626,7 @@ export default function FoodRestaurantPage() {
                         <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 10 }}>{t('food.restaurant.cardDetails')}</p>
                         {stripePromise ? (
                           <Elements stripe={stripePromise}>
-                            <CheckoutCardForm ref={cardFormRef} />
+                            <CheckoutCardForm ref={cardFormRef} onExpressConfirm={handleExpressConfirm} />
                           </Elements>
                         ) : (
                           <p role="alert" style={{ fontSize: 13, color: '#b45309' }}>{t('food.restaurant.creditSheetStripeUnavailable')}</p>
@@ -2988,22 +3058,95 @@ function Radio({ on, accent }) {
 // CC7: Stripe Elements card form for in-checkout card payments. Exposes an
 // imperative confirmCardPayment(clientSecret) so the parent can run the
 // intent → confirm → place-order flow when Place order is tapped.
-const CheckoutCardForm = React.forwardRef(function CheckoutCardForm(_, ref) {
+const CheckoutCardForm = React.forwardRef(function CheckoutCardForm({ onExpressConfirm }, ref) {
   const stripe = useStripe();
   const elements = useElements();
+  const [savedMethods, setSavedMethods] = React.useState([]);
+  const [selectedMethod, setSelectedMethod] = React.useState('new');
+  React.useEffect(() => {
+    let cancelled = false;
+    listSavedPaymentMethods()
+      .then((methods) => { if (!cancelled) setSavedMethods(methods); })
+      .catch(() => { /* saved cards are a progressive enhancement */ });
+    return () => { cancelled = true; };
+  }, []);
   useImperativeHandle(ref, () => ({
     async confirmCardPayment(clientSecret) {
       if (!stripe || !elements) {
         return { error: { message: 'Stripe is not ready yet' }, paymentIntent: null };
       }
+      // One-tap: confirm with a saved payment method id.
+      if (selectedMethod !== 'new') {
+        return stripe.confirmCardPayment(clientSecret, {
+          payment_method: selectedMethod,
+        });
+      }
       return stripe.confirmCardPayment(clientSecret, {
         payment_method: { card: elements.getElement(CardElement) },
       });
     },
-  }), [stripe, elements]);
+    getStripeInstances() {
+      return { stripe, elements };
+    },
+  }), [stripe, elements, selectedMethod]);
   return (
-    <div style={{ border: '1.5px solid #e2e8f0', borderRadius: 10, padding: '12px 14px', background: '#fff' }}>
-      <CardElement options={{ style: { base: { fontSize: '16px', color: '#0f172a' } } }} />
+    <div style={{ display: 'grid', gap: 10 }}>
+      {onExpressConfirm && (
+        <ExpressCheckoutElement
+          options={{
+            paymentMethods: { applePay: 'auto', googlePay: 'auto', link: 'auto' },
+          }}
+          onConfirm={onExpressConfirm}
+        />
+      )}
+      {savedMethods.length > 0 && (
+        <div style={{ display: 'grid', gap: 8 }}>
+          {savedMethods.map((pm) => (
+            <label
+              key={pm.id}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+                border: `1.5px solid ${selectedMethod === pm.id ? '#f97316' : '#e2e8f0'}`,
+                borderRadius: 10, background: '#fff', cursor: 'pointer', fontSize: 14,
+              }}
+            >
+              <input
+                type="radio"
+                name="saved-card"
+                checked={selectedMethod === pm.id}
+                onChange={() => setSelectedMethod(pm.id)}
+              />
+              <span style={{ fontWeight: 700, textTransform: 'capitalize' }}>{pm.brand}</span>
+              <span style={{ color: '#64748b' }}>•••• {pm.last4}</span>
+              {pm.expMonth && pm.expYear && (
+                <span style={{ color: '#94a3b8', fontSize: 12 }}>
+                  {String(pm.expMonth).padStart(2, '0')}/{String(pm.expYear).slice(-2)}
+                </span>
+              )}
+            </label>
+          ))}
+          <label
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+              border: `1.5px solid ${selectedMethod === 'new' ? '#f97316' : '#e2e8f0'}`,
+              borderRadius: 10, background: '#fff', cursor: 'pointer', fontSize: 14,
+            }}
+          >
+            <input
+              type="radio"
+              name="saved-card"
+              checked={selectedMethod === 'new'}
+              onChange={() => setSelectedMethod('new')}
+            />
+            <span style={{ fontWeight: 600 }}>{t('food.restaurant.useNewCard')}</span>
+          </label>
+        </div>
+      )}
+      {selectedMethod === 'new' && (
+        <div style={{ border: '1.5px solid #e2e8f0', borderRadius: 10, padding: '12px 14px', background: '#fff' }}>
+          <CardElement options={{ style: { base: { fontSize: '16px', color: '#0f172a' } } }} />
+        </div>
+      )}
     </div>
   );
 });

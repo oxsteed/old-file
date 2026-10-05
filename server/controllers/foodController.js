@@ -1584,6 +1584,37 @@ async function notifyFoodOrderReady(order, restaurant) {
   }
 }
 
+// Transactional ladder: order accepted / preparing milestones. Fire-and-forget
+// like notifyFoodOrderReady; the notification service handles localization,
+// quiet hours, per-user prefs, and idempotency via the delivery key.
+async function notifyFoodOrderMilestone(order, restaurant, status) {
+  try {
+    if (!order || !order.customer_id) return;
+    if (status !== 'accepted' && status !== 'preparing') return;
+    const queue = order.queue_number != null ? `#${order.queue_number}` : '';
+    const place = (restaurant && restaurant.display_name) ? restaurant.display_name : 'the restaurant';
+    const boardUrl = absoluteUrl(`/restaurants/queue/${order.restaurant_id}`);
+    await notificationService.sendNotification({
+      userId: order.customer_id,
+      type: status === 'accepted' ? 'food_order_accepted' : 'food_order_preparing',
+      title: status === 'accepted' ? 'Order confirmed' : 'Your food is being prepared',
+      body: status === 'accepted'
+        ? `Your order ${queue} at ${place} was confirmed.`.replace(/\s+/g, ' ').trim()
+        : `The kitchen at ${place} started working on your order ${queue}.`.replace(/\s+/g, ' ').trim(),
+      data: {
+        orderId: String(order.id),
+        restaurantId: String(order.restaurant_id),
+        queueNumber: order.queue_number != null ? String(order.queue_number) : null,
+        status,
+      },
+      action_url: boardUrl,
+      idempotencyKey: `food-order:${order.id}:${status}`,
+    });
+  } catch (err) {
+    logger.warn('notifyFoodOrderMilestone failed (non-blocking)', { error: err && err.message, orderId: order && order.id, status });
+  }
+}
+
 function countryCodeFromAddressCountry(rawCountry) {
   if (!rawCountry) return null;
   const normalized = String(rawCountry).trim();
@@ -3534,6 +3565,35 @@ exports.createCardPaymentIntent = async (req, res, next) => {
 
     const feeBps = Math.max(0, Math.min(10000, Number(process.env.FOOD_CARD_FEE_BPS ?? 0) || 0));
     const applicationFeeAmount = Math.floor(amountCents * feeBps / 10000);
+
+    // Saved cards: attach the platform Stripe customer so successful card
+    // payments are saved for one-tap reuse. Destination charges support
+    // setup_future_usage=off_session.
+    let stripeCustomerId = null;
+    if (req.user?.id) {
+      try {
+        const { rows: userRows } = await pool.query(
+          `SELECT stripe_customer_id, email, first_name, last_name FROM users WHERE id = $1`,
+          [req.user.id]
+        );
+        const u = userRows[0];
+        if (u) {
+          stripeCustomerId = u.stripe_customer_id || null;
+          if (!stripeCustomerId) {
+            const customer = await stripe.customers.create({
+              email: u.email || undefined,
+              name: [u.first_name, u.last_name].filter(Boolean).join(' ') || undefined,
+              metadata: { user_id: String(req.user.id), oxsteed: 'food' },
+            });
+            stripeCustomerId = customer.id;
+            await pool.query(`UPDATE users SET stripe_customer_id = $1 WHERE id = $2`, [stripeCustomerId, req.user.id]);
+          }
+        }
+      } catch (err) {
+        logger.warn('[Food] Stripe customer lookup failed; continuing without saved cards', { error: err.message });
+      }
+    }
+
     let paymentIntent;
     try {
       paymentIntent = await stripe.paymentIntents.create(
@@ -3545,6 +3605,7 @@ exports.createCardPaymentIntent = async (req, res, next) => {
           // account; the platform keeps application_fee_amount (0 by default).
           transfer_data: { destination: stripeStatus.accountId },
           ...(applicationFeeAmount > 0 ? { application_fee_amount: applicationFeeAmount } : {}),
+          ...(stripeCustomerId ? { customer: stripeCustomerId, setup_future_usage: 'off_session' } : {}),
           metadata: {
             food_card_payment: 'true',
             restaurant_id: String(restaurantId),
@@ -3602,6 +3663,38 @@ exports.createCardPaymentIntent = async (req, res, next) => {
     res.status(201).json({
       clientSecret: responseIntent.client_secret,
       paymentIntentId: responseIntent.id,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// List the signed-in user's saved card payment methods for one-tap checkout.
+// Returns only safe display fields (brand, last4, expiry); never full PANs.
+exports.listSavedPaymentMethods = async (req, res, next) => {
+  try {
+    if (!hasRestaurantStripeCheckout()) {
+      return res.json({ paymentMethods: [] });
+    }
+    const { rows } = await pool.query(
+      `SELECT stripe_customer_id FROM users WHERE id = $1`,
+      [req.user.id]
+    );
+    const customerId = rows[0]?.stripe_customer_id;
+    if (!customerId) return res.json({ paymentMethods: [] });
+    const methods = await stripe.paymentMethods.list({
+      customer: customerId,
+      type: 'card',
+      limit: 10,
+    });
+    res.json({
+      paymentMethods: (methods.data || []).map((pm) => ({
+        id: pm.id,
+        brand: pm.card?.brand || 'card',
+        last4: pm.card?.last4 || '••••',
+        expMonth: pm.card?.exp_month || null,
+        expYear: pm.card?.exp_year || null,
+      })),
     });
   } catch (err) {
     next(err);
@@ -4128,6 +4221,11 @@ exports.updateOrderStatus = async (req, res, next) => {
       // fire-and-forget so a slow SMS/email provider never delays this response).
       if (status === 'ready') {
         notifyFoodOrderReady(order, restaurant);
+      }
+      // Transactional ladder: accepted / preparing milestones keep the
+      // customer informed and pull them back to the tracker.
+      if (status === 'accepted' || status === 'preparing') {
+        notifyFoodOrderMilestone(order, restaurant, status);
       }
       if (status === 'completed') {
         await withTransaction(pool, async (client) => {

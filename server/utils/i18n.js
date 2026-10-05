@@ -64,6 +64,70 @@ const T = {
       ar: 'راجع نشاط OxSteed Credit الخاص بك.',
     },
   },
+  food_order_accepted: {
+    title: {
+      en: 'Order confirmed',
+      fr: 'Commande confirmée',
+      es: 'Pedido confirmado',
+      ht: 'Kòmand lan konfime',
+      ar: 'تم تأكيد الطلب',
+    },
+    body: {
+      en: 'The restaurant confirmed your order and will start preparing it.',
+      fr: 'Le restaurant a confirmé votre commande et va commencer à la préparer.',
+      es: 'El restaurante confirmó tu pedido y comenzará a prepararlo.',
+      ht: 'Restoran an konfime kòmand ou epi pral kòmanse prepare li.',
+      ar: 'أكّد المطعم طلبك وسيبدأ في تحضيره.',
+    },
+  },
+  food_order_preparing: {
+    title: {
+      en: 'Your food is being prepared',
+      fr: 'Votre repas est en préparation',
+      es: 'Tu comida se está preparando',
+      ht: 'Y ap prepare manje ou',
+      ar: 'يتم تحضير طعامك الآن',
+    },
+    body: {
+      en: 'The kitchen started working on your order.',
+      fr: 'La cuisine a commencé à préparer votre commande.',
+      es: 'La cocina comenzó a preparar tu pedido.',
+      ht: 'Kwizin nan kòmanse travay sou kòmand ou.',
+      ar: 'بدأ المطبخ في تحضير طلبك.',
+    },
+  },
+  cart_recovery: {
+    title: {
+      en: 'Your order is still waiting',
+      fr: 'Votre commande vous attend',
+      es: 'Tu pedido sigue esperando',
+      ht: 'Kòmand ou ap tann ou toujou',
+      ar: 'طلبك ما زال بانتظارك',
+    },
+    body: {
+      en: 'You left items in your cart. Tap to pick up right where you left off.',
+      fr: 'Vous avez laissé des articles dans votre panier. Touchez pour reprendre où vous vous étiez arrêté.',
+      es: 'Dejaste artículos en tu carrito. Toca para continuar donde lo dejaste.',
+      ht: 'Ou te kite atik nan panye ou. Peze pou kontinye kote ou te ye a.',
+      ar: 'تركت عناصر في سلتك. اضغط للمتابعة من حيث توقفت.',
+    },
+  },
+  draft_recovery: {
+    title: {
+      en: 'Finish posting your job',
+      fr: 'Terminez la publication de votre annonce',
+      es: 'Termina de publicar tu trabajo',
+      ht: 'Fini pibliye djòb ou',
+      ar: 'أكمل نشر وظيفتك',
+    },
+    body: {
+      en: 'Your draft is saved. Finish posting to start receiving bids.',
+      fr: 'Votre brouillon est enregistré. Terminez la publication pour recevoir des offres.',
+      es: 'Tu borrador está guardado. Termina de publicarlo para recibir ofertas.',
+      ht: 'Bouyon ou an sove. Fini pibliye li pou kòmanse resevwa òf.',
+      ar: 'مسودتك محفوظة. أكمل النشر لبدء تلقي العروض.',
+    },
+  },
   new_login_detected: {
     title: {
       en: 'New login detected on your account',

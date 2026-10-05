@@ -30,7 +30,44 @@ self.addEventListener('activate', event => {
           .map(k => caches.delete(k))
       )
     ).then(() => self.clients.claim())
+    // Navigation preload reclaims the service-worker startup tax on
+    // navigations: the browser fetches the document in parallel while
+    // the worker boots, instead of waiting for it.
+    .then(() => {
+      if (self.registration.navigationPreload) {
+        return self.registration.navigationPreload.enable();
+      }
+    })
+    .catch(() => { /* preload is a progressive enhancement */ })
   );
+});
+
+// ── Precache channel ─────────────────────────────────────────────────────────
+// The page posts its current asset URLs on idle so the worker caches them
+// proactively: { type: 'precache', urls: [...] }. Only same-origin GET
+// asset URLs are accepted; money-route API responses are never cached.
+self.addEventListener('message', event => {
+  const msg = event.data;
+  if (!msg || msg.type !== 'precache' || !Array.isArray(msg.urls)) return;
+  event.waitUntil((async () => {
+    try {
+      const cache = await caches.open(STATIC_CACHE);
+      for (const raw of msg.urls.slice(0, 40)) {
+        try {
+          const url = new URL(raw, self.location.origin);
+          if (url.origin !== self.location.origin) continue;
+          if (!/\.(js|css|woff2?|ttf|otf|png|jpg|jpeg|svg|ico|webp)$/.test(url.pathname)) continue;
+          if (url.pathname.startsWith('/api/')) continue;
+          const req = new Request(url.href, { mode: 'no-cors' });
+          const hit = await cache.match(req);
+          if (!hit) {
+            const res = await fetch(req);
+            if (res.ok) await cache.put(req, res.clone());
+          }
+        } catch { /* one bad URL must not break the batch */ }
+      }
+    } catch { /* cache failures are non-fatal */ }
+  })());
 });
 
 // ── Fetch strategy ────────────────────────────────────────────────────────────
@@ -63,7 +100,7 @@ self.addEventListener('fetch', event => {
 
   // Do not turn socket handshakes, uploads, or non-document requests into HTML.
   if (request.mode === 'navigate') {
-    event.respondWith(navigationHandler(request));
+    event.respondWith(navigationHandler(event, request));
   }
 });
 
@@ -102,8 +139,14 @@ async function networkFirst(request, cacheName) {
   }
 }
 
-async function navigationHandler(request) {
+async function navigationHandler(event, request) {
   try {
+    // Use the preloaded response when the browser fetched the document in
+    // parallel during worker startup; fall back to a live fetch.
+    try {
+      const preloaded = await event.preloadResponse;
+      if (preloaded) return preloaded;
+    } catch { /* preload unavailable; fall through to fetch */ }
     return await fetch(request);
   } catch {
     // Keep application HTML network-first so a deployment can publish a new

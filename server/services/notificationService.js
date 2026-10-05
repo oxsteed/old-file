@@ -27,8 +27,26 @@ exports.sendNotification = async ({
   action_url = null,
   pushToken  = null,
   idempotencyKey = null,
+  promotional = false,
 }) => {
   try {
+    // ── Promo frequency governor: at most 2 promotional pushes per user
+    // per rolling 7 days. Transactional notifications (bids, orders,
+    // payouts, recovery) are exempt — pass promotional: true only for
+    // marketing content.
+    if (promotional) {
+      const { rows: promoRows } = await db.query(
+        `SELECT COUNT(*)::int AS n
+           FROM notifications
+          WHERE user_id = $1
+            AND is_promotional = TRUE
+            AND created_at >= NOW() - INTERVAL '7 days'`,
+        [userId]
+      );
+      if ((promoRows[0]?.n || 0) >= 2) {
+        return { success: false, reason: 'promo_cap' };
+      }
+    }
     // Get user prefs
     const { rows: prefRows } = await db.query(`
       SELECT np.*, u.email, u.first_name, u.is_banned,
@@ -77,12 +95,12 @@ exports.sendNotification = async ({
     if (inAppEnabled) {
       const { rows } = await db.query(`
         INSERT INTO notifications
-          (user_id, type, title, body, data, action_url, delivery_key)
-        VALUES ($1,$2,$3,$4,$5,$6,$7)
+          (user_id, type, title, body, data, action_url, delivery_key, is_promotional)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
         ON CONFLICT (delivery_key)
         WHERE delivery_key IS NOT NULL DO NOTHING
         RETURNING id, is_push_sent, is_email_sent
-      `, [userId, type, finalTitle, finalBody, JSON.stringify(data), action_url, deliveryKey]);
+      `, [userId, type, finalTitle, finalBody, JSON.stringify(data), action_url, deliveryKey, promotional]);
       notificationRow = rows[0] || null;
       if (!notificationRow && deliveryKey) {
         const { rows: existingRows } = await db.query(

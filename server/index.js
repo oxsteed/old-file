@@ -808,6 +808,15 @@ async function startServer() {
       message: err.message,
     });
   }
+
+  // Abandoned checkout / draft recovery pushes. Pure re-engagement; never
+  // touches money. A failure here must not affect boot.
+  try {
+    const { startAbandonedRecoveryWorker } = require('./services/abandonedRecoveryWorker');
+    startAbandonedRecoveryWorker();
+  } catch (err) {
+    logger.warn('Abandoned recovery worker failed to start', { message: err.message });
+  }
   logger.info(`OxSteed v2 server running on port ${PORT}`, {
     env: process.env.NODE_ENV || 'development',
     realtimeNamespaces: ['/chat', '/support', '/restaurant-display'],
@@ -831,6 +840,10 @@ async function terminate(signal, exitCode = 0, cause) {
     try {
       const { stopVideoTranscodeWorker } = require('./services/videoTranscodeWorker');
       stopVideoTranscodeWorker();
+    } catch { /* worker may never have started */ }
+    try {
+      const { stopAbandonedRecoveryWorker } = require('./services/abandonedRecoveryWorker');
+      stopAbandonedRecoveryWorker();
     } catch { /* worker may never have started */ }
     await runtime.shutdown(signal);
     clearTimeout(forceExit);

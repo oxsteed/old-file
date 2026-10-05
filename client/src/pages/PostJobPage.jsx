@@ -14,6 +14,7 @@ import { useCapabilities } from '../hooks/useCapabilities';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 import PriceGuidance from '../components/PriceGuidance';
 import { notifyMoneyMoment } from '../utils/pwaInstall';
+import { notifyPushMoment } from '../utils/pushPrompt';
 
 // ─── Category taxonomy ───────────────────────────────────────────────────────
 const CATEGORIES = [
@@ -877,13 +878,26 @@ export default function PostJobPage() {
   ]);
 
   // ── Load draft on mount ───────────────────────────────────────────────────
+  // Offline resilience: the server draft is the source of truth, but when
+  // the fetch fails (offline) we restore the localStorage mirror so work
+  // is never lost. The mirror is re-synced on every autosave.
+  const DRAFT_MIRROR_KEY = 'oxsteed:job-draft-mirror';
   useEffect(() => {
     if (fromBookingId || flowMode || location.state?.bookingPrefill) return;
     api.get('/jobs/draft').then(({ data }) => {
       if (!data) return;
       const p = data.payload || {};
       setForm(f => ({ ...f, ...p, step: 1, draftId: data.id }));
-    }).catch(() => {});
+    }).catch(() => {
+      try {
+        const raw = localStorage.getItem(DRAFT_MIRROR_KEY);
+        if (!raw) return;
+        const mirror = JSON.parse(raw);
+        if (mirror && mirror.payload) {
+          setForm(f => ({ ...f, ...mirror.payload, step: 1 }));
+        }
+      } catch { /* corrupted mirror; start fresh */ }
+    });
   }, [flowMode, fromBookingId, location.state]);
 
   // ── Auto-save draft (debounced 2 s) ──────────────────────────────────────
@@ -892,6 +906,15 @@ export default function PostJobPage() {
     clearTimeout(draftTimer.current);
     draftTimer.current = setTimeout(() => {
       const { submitting, submitted, submittedJob, geocoding, draftSaving, mediaPreviews, mediaFiles, ...payload } = form;
+      // Mirror locally first so the draft survives offline; the server
+      // remains the cross-device source of truth.
+      try {
+        localStorage.setItem(DRAFT_MIRROR_KEY, JSON.stringify({
+          wizard_step: form.step,
+          payload,
+          saved_at: Date.now(),
+        }));
+      } catch { /* storage full or unavailable; server save still attempted */ }
       set({ draftSaving: true });
       api.put('/jobs/draft', { wizard_step: form.step, payload })
         .catch(() => {})
@@ -912,7 +935,9 @@ export default function PostJobPage() {
         setTimeout(() => firstButton.focus(), 0);
       }
       // Value moment: job posted — offer the app install once, politely.
-      notifyMoneyMoment('job_posted');
+      // Push soft-ask follows only when the install UI did not show.
+      const installShown = notifyMoneyMoment('job_posted');
+      if (!installShown) notifyPushMoment('job_posted', { installEligible: false });
     }
   }, [form.submitted, form.submittedJob]);
 
@@ -1095,6 +1120,7 @@ export default function PostJobPage() {
 
       // Clear draft
       api.delete('/jobs/draft').catch(() => {});
+      try { localStorage.removeItem('oxsteed:job-draft-mirror'); } catch { /* ignore */ }
       set({ submitted: true, submittedJob: job });
     } catch (err) {
       // Extract field-level validation errors first
