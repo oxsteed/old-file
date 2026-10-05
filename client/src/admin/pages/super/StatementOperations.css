@@ -1,0 +1,78 @@
+/* Statement operations workspace: tab strip, status pills, table helpers. */
+
+.stmtops-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #1f2937;
+  padding-bottom: 12px;
+}
+
+.stmtops-tab {
+  border: 1px solid #374151;
+  background: #1f2937;
+  color: #d1d5db;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.stmtops-tab:hover {
+  background: #374151;
+  color: #fff;
+}
+
+.stmtops-tab-active {
+  border-color: rgba(249, 115, 22, 0.5);
+  background: rgba(249, 115, 22, 0.12);
+  color: #fdba74;
+}
+
+.stmtops-tab:focus-visible {
+  outline: 2px solid #f97316;
+  outline-offset: 2px;
+}
+
+.stmtops-pill {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 5px 10px;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.stmtops-pill-gray {
+  color: #d1d5db;
+  border-color: #4b5563;
+  background: rgba(75, 85, 99, 0.2);
+}
+
+.stmtops-pill-blue {
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.stmtops-pill-green {
+  color: #86efac;
+  border-color: rgba(34, 197, 94, 0.4);
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.stmtops-pill-amber {
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.4);
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.stmtops-pill-red {
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.12);
+}
