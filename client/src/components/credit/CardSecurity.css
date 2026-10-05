@@ -1,0 +1,20 @@
+.card-security-dialog { box-sizing: border-box; width: min(30rem, calc(100vw - 2rem)); max-height: 90dvh; overflow: auto; border: 1px solid var(--border-color, #cbd5e1); border-radius: 1rem; padding: 1.5rem; background: var(--bg-primary, white); color: var(--text-primary, #0f172a); }
+.dark .card-security-dialog, [data-theme="dark"] .card-security-dialog { background: #111827; color: #f9fafb; border-color: #475569; }
+.card-security-dialog::backdrop { background: rgb(0 0 0 / 65%); }
+.card-security-dialog h2 { font-size: 1.3rem; font-weight: 700; }
+.card-security-dialog p { margin-block: 1rem; }
+.card-security-dialog label { display: grid; gap: .4rem; margin-block: 1rem; }
+.card-security-dialog input { box-sizing: border-box; width: 100%; padding: .7rem; border: 1px solid #94a3b8; border-radius: .5rem; background: transparent; color: inherit; }
+.card-security-actions { display: flex; gap: .6rem; flex-wrap: wrap; }
+.card-security-actions button, .card-history button { border: 1px solid #94a3b8; border-radius: .5rem; padding: .5rem .75rem; }
+.card-security-dialog :focus-visible, .card-history :focus-visible { outline: 3px solid #ea580c; outline-offset: 3px; }
+.card-security-dialog button:disabled { opacity: .5; }
+.card-history { margin-block: .8rem; overflow-wrap: anywhere; }
+.card-history li { margin-block: .7rem; }
+.ox-card-tile { color: #10253f; }
+.dark .ox-card-tile, [data-theme="dark"] .ox-card-tile { color: #f9fafb; background: #111827; border-color: #475569; }
+.dark .ox-card-tile-top strong, [data-theme="dark"] .ox-card-tile-top strong { color: #f9fafb; }
+.dark .ox-card-tile-meta, [data-theme="dark"] .ox-card-tile-meta { color: #cbd5e1; }
+.ox-card-tile > button { margin-block: .6rem; padding: .5rem .75rem; border: 1px solid #94a3b8; border-radius: .5rem; }
+.ox-card-tile > button:focus-visible { outline: 3px solid #ea580c; outline-offset: 3px; }
+.ox-card-tile > button:disabled { opacity: .5; }

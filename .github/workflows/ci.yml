@@ -108,11 +108,11 @@ jobs:
         env:
           POSTGRES_USER: oxsteed
           POSTGRES_PASSWORD: migration-rehearsal-password
-          POSTGRES_DB: oxsteed_db
+          POSTGRES_DB: credit_card_security_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U oxsteed -d oxsteed_db"
+          --health-cmd "pg_isready -U oxsteed -d credit_card_security_test"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
@@ -133,8 +133,14 @@ jobs:
       - name: Apply every migration twice
         working-directory: server
         env:
-          DATABASE_URL: postgresql://oxsteed:migration-rehearsal-password@127.0.0.1:5432/oxsteed_db?sslmode=disable
+          DATABASE_URL: postgresql://oxsteed:migration-rehearsal-password@127.0.0.1:5432/credit_card_security_test?sslmode=disable
           NODE_ENV: test
         run: |
           npm run migrate
           npm run migrate
+
+      - name: Rehearse card security and concurrent recovery
+        working-directory: server
+        env:
+          DATABASE_URL: postgresql://oxsteed:migration-rehearsal-password@127.0.0.1:5432/credit_card_security_test?sslmode=disable
+        run: node scripts/credit-card-security-rehearsal.js

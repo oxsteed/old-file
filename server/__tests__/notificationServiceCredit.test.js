@@ -27,6 +27,7 @@ jest.mock('expo-server-sdk', () => {
 
 const db = require('../db');
 const { sendNotification } = require('../services/notificationService');
+const { sendEmail } = require('../utils/email');
 
 const prefs = {
   email: null,
@@ -43,6 +44,16 @@ beforeEach(() => {
   jest.clearAllMocks();
   db.query.mockReset();
   db.query.mockResolvedValue({ rows: [], rowCount: 0 });
+  sendEmail.mockResolvedValue({ success: true, id: 'synthetic-email' });
+});
+
+test('failed security email remains retryable and never marks email sent', async () => {
+  db.query.mockResolvedValueOnce({ rows: [{ ...prefs, email: 'test@example.invalid' }] })
+    .mockResolvedValueOnce({ rows: [{ id: 'security-notice' }] });
+  sendEmail.mockResolvedValueOnce({ success: false });
+  const result = await sendNotification({ userId: 'customer-1', type: 'oxsteed_credit_card_security', idempotencyKey: 'credit-outbox:1' });
+  expect(result.success).toBe(false);
+  expect(db.query.mock.calls.some(([sql]) => sql.includes('SET is_email_sent = true'))).toBe(false);
 });
 
 test('loads notification preferences without the removed helper profile token column', async () => {

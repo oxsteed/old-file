@@ -23,6 +23,7 @@ const crypto = require('crypto');
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
+const cardSecurity = require('./oxsteedCreditCardSecurity');
 const creditService = require('./oxsteedCreditService');
 
 const {
@@ -48,6 +49,39 @@ const {
 const ACTIVATION_CODE_TTL_MINUTES = 60 * 24 * 14; // 14 days to receive + activate a physical card
 const VIRTUAL_CREDENTIAL_BYTES = 24; // -> 32-char base64url token
 const PHYSICAL_ACTIVATION_CODE_LENGTH = 10; // human-typeable, printed on the card carrier
+// Private metadata never enters an error response or log. Financial rollback
+// must finish before the separate, durable PIN-failure transaction takes locks.
+const rejectedPins = new WeakMap();
+
+async function withPersistentPinFailures(operation, context = {}) {
+  try { return await operation(); } catch (error) {
+    const rejected = rejectedPins.get(error);
+    if (!rejected) throw error;
+    const result = await withTransaction(pool, async (client) => {
+      const { rows } = await client.query('SELECT * FROM oxsteed_credit_cards WHERE id = $1 FOR UPDATE', [rejected.cardId]);
+      const card = rows[0];
+      // A concurrent reset or retirement must not penalize a new credential.
+      if (!card || card.status !== 'active' || card.pin_hash !== rejected.pinHash) return null;
+      if (card.pin_locked_until && new Date(card.pin_locked_until).getTime() > Date.now()) return { locked: true, attempts: MAX_CARD_PIN_ATTEMPTS };
+      const expiredLock = card.pin_locked_until && new Date(card.pin_locked_until).getTime() <= Date.now();
+      const attempts = (expiredLock ? 0 : Number(card.failed_pin_attempts || 0)) + 1;
+      const locked = attempts >= MAX_CARD_PIN_ATTEMPTS;
+      await client.query(`UPDATE oxsteed_credit_cards SET failed_pin_attempts = $2,
+        pin_locked_until = CASE WHEN $3 THEN NOW() + INTERVAL '${CARD_PIN_LOCKOUT_MINUTES} minutes' ELSE NULL END WHERE id = $1`,
+      [card.id, attempts, locked]);
+      await client.query(`INSERT INTO oxsteed_credit_audit_events
+        (action_type,customer_id,resource_type,resource_id,correlation_id,request_ip,after_state)
+        VALUES ($1,$2,'credit_card',$3,$4,$5,$6::jsonb)`,
+      [locked ? 'credit.card.pin_locked' : 'credit.card.pin_rejected', card.customer_id, card.id,
+        normalizeString(context.correlationId,160), context.requestIp || null, JSON.stringify({ attempts, locked })]);
+      return { attempts, locked };
+    }, 'credit_card_pin_failure');
+    if (!result) throw error;
+    throw new AppError(result.locked ? 'This card is temporarily locked after incorrect PIN attempts' : 'Incorrect PIN',
+      result.locked ? 423 : 401, result.locked ? 'credit_card_pin_locked' : 'credit_card_pin_incorrect',
+      { attemptsRemaining: String(Math.max(0, MAX_CARD_PIN_ATTEMPTS - result.attempts)) });
+  }
+}
 
 function sha256Hex(value) {
   return crypto.createHash('sha256').update(String(value)).digest('hex');
@@ -100,6 +134,10 @@ function formatCard(row, { includeIssuedCredential = null, includeActivationCode
     pinLocked: Boolean(row.pin_locked_until && new Date(row.pin_locked_until).getTime() > Date.now()),
     nickname: row.nickname || null,
     replacesCardId: row.replaces_card_id || null,
+    freezeOrigin: row.freeze_origin || null,
+    foundAt: row.found_at || null,
+    replacementStatus: row.replacement_status || null,
+    replacementErrorCode: row.replacement_error_code || null,
     issuedAt: row.issued_at || null,
     activatedAt: row.activated_at || null,
     frozenAt: row.frozen_at || null,
@@ -290,23 +328,26 @@ async function markCardFulfillment({ cardId, fulfillmentStatus, actorUserId, rea
   }, 'credit_card_fulfillment_update');
 }
 
-async function activatePhysicalCard({ cardId, customerId, activationCode, actorUserId, correlationId, requestIp }) {
+async function activatePhysicalCard(args) {
+  const { cardId, customerId, activationCode, actorUserId, correlationId, requestIp } = args;
   requireCardOwner(actorUserId, customerId);
   const normalizedCode = normalizeString(activationCode, 40)?.toUpperCase();
-  if (!normalizedCode) throw new AppError('An activation code is required', 400, 'credit_card_activation_code_required');
 
-  return withTransaction(pool, async (client) => {
+  return cardSecurity.runVerified(args, 'activate', async (client) => {
     const { rows } = await client.query(`SELECT * FROM oxsteed_credit_cards WHERE id = $1 AND customer_id = $2 FOR UPDATE`, [cardId, customerId]);
     const card = rows[0];
     if (!card) throw new AppError('Card not found', 404, 'credit_card_not_found');
-    if (card.card_type !== 'physical') throw new AppError('Only physical cards require activation', 409, 'credit_card_not_physical');
+    if (card.card_type !== 'physical' && !(card.card_type === 'virtual' && card.replaces_card_id)) {
+      throw new AppError('This card does not require activation', 409, 'credit_card_not_physical');
+    }
     if (card.status === 'active') return { card: formatCard(card), replayed: true };
     if (card.status !== 'pending') throw new AppError('This card can no longer be activated', 409, 'credit_card_terminal_state');
-    if (!card.activation_code_hash) throw new AppError('This card has not been printed yet', 409, 'credit_card_not_printed');
+    if (card.card_type === 'physical' && !normalizedCode) throw new AppError('An activation code is required', 400, 'credit_card_activation_code_required');
+    if (card.card_type === 'physical' && !card.activation_code_hash) throw new AppError('This card has not been printed yet', 409, 'credit_card_not_printed');
     if (card.activation_code_expires_at && new Date(card.activation_code_expires_at).getTime() < Date.now()) {
       throw new AppError('The activation code has expired; request a replacement card', 410, 'credit_card_activation_expired');
     }
-    if (sha256Hex(normalizedCode) !== card.activation_code_hash) {
+    if (card.card_type === 'physical' && sha256Hex(normalizedCode) !== card.activation_code_hash) {
       throw new AppError('Invalid activation code', 401, 'credit_card_activation_code_invalid');
     }
 
@@ -315,8 +356,9 @@ async function activatePhysicalCard({ cardId, customerId, activationCode, actorU
     const rawCredential = generateCredential();
     const { rows: updatedRows } = await client.query(
       `UPDATE oxsteed_credit_cards
-          SET status = 'active', fulfillment_status = 'delivered', activated_at = NOW(),
-              credential_hash = $2, credential_last4 = $3
+          SET status = 'active', fulfillment_status = CASE WHEN card_type = 'physical' THEN 'delivered' ELSE fulfillment_status END,
+              activated_at = NOW(), credential_hash = $2, credential_last4 = $3,
+              activation_code_hash = NULL, activation_code_expires_at = NULL
         WHERE id = $1
         RETURNING *`,
       [cardId, sha256Hex(rawCredential), last4Of(rawCredential)]
@@ -330,14 +372,14 @@ async function activatePhysicalCard({ cardId, customerId, activationCode, actorU
     );
 
     return { card: formatCard(updatedRows[0], { includeIssuedCredential: rawCredential }), replayed: false };
-  }, 'credit_card_activate');
+  });
 }
 
 // ---------------------------------------------------------------------------
 // Lifecycle: freeze / unfreeze / report lost / reissue / revoke
 // ---------------------------------------------------------------------------
 
-async function transitionCardStatus({ cardId, customerId, actorUserId, targetStatus, allowedFrom, reason, correlationId, requestIp, isAdmin = false }) {
+async function transitionCardStatus({ cardId, customerId, actorUserId, targetStatus, allowedFrom, reason, correlationId, requestIp, isAdmin = false, requestReplacement = false }) {
   if (isAdmin) requireAdministrativeActor(actorUserId);
   else requireCardOwner(actorUserId, customerId);
 
@@ -348,7 +390,11 @@ async function transitionCardStatus({ cardId, customerId, actorUserId, targetSta
     );
     const card = rows[0];
     if (!card) throw new AppError('Card not found', 404, 'credit_card_not_found');
-    if (card.status === targetStatus) return { card: formatCard(card), replayed: true };
+    if (card.status === targetStatus) {
+      if (requestReplacement) await client.query(`INSERT INTO oxsteed_credit_card_replacement_requests
+        (retired_card_id, customer_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [cardId, card.customer_id]);
+      return { card: formatCard(card), replayed: true };
+    }
     if (!allowedFrom.includes(card.status)) {
       throw new AppError(`Card cannot move from ${card.status} to ${targetStatus}`, 409, 'credit_card_transition_invalid');
     }
@@ -356,7 +402,8 @@ async function transitionCardStatus({ cardId, customerId, actorUserId, targetSta
     const timestampColumn = { frozen: 'frozen_at', revoked: 'revoked_at' }[targetStatus];
     const { rows: updatedRows } = await client.query(
       `UPDATE oxsteed_credit_cards
-          SET status = $2${timestampColumn ? `, ${timestampColumn} = NOW()` : ''}
+          SET status = $2::text${timestampColumn ? `, ${timestampColumn} = NOW()` : ''},
+              freeze_origin = CASE WHEN $2::text = 'frozen' THEN 'customer' ELSE freeze_origin END
         WHERE id = $1
         RETURNING *`,
       [cardId, targetStatus]
@@ -370,6 +417,9 @@ async function transitionCardStatus({ cardId, customerId, actorUserId, targetSta
         JSON.stringify({ status: card.status }), JSON.stringify({ status: targetStatus })]
     );
 
+    if (requestReplacement) await client.query(`INSERT INTO oxsteed_credit_card_replacement_requests
+      (retired_card_id, customer_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [cardId, card.customer_id]);
+
     return { card: formatCard(updatedRows[0]), replayed: false };
   }, `credit_card_transition_${targetStatus}`);
 }
@@ -379,17 +429,25 @@ function freezeCard(args) {
 }
 
 function unfreezeCard(args) {
-  return transitionCardStatus({ ...args, targetStatus: 'active', allowedFrom: ['frozen'] });
+  return cardSecurity.runVerified(args, 'unfreeze', async client => {
+    const { rows } = await client.query(`UPDATE oxsteed_credit_cards SET status = 'active', freeze_origin = NULL
+      WHERE id = $1 AND customer_id = $2 AND status = 'frozen' AND freeze_origin = 'customer' RETURNING *`, [args.cardId, args.customerId]);
+    if (!rows[0]) throw new AppError('This card cannot be unfrozen.', 409, 'credit_card_transition_invalid');
+    await client.query(`INSERT INTO oxsteed_credit_audit_events
+      (action_type, actor_user_id, customer_id, resource_type, resource_id, reason, correlation_id, request_ip, before_state, after_state)
+      VALUES ('credit.card.active', $1, $1, 'credit_card', $2, $3, $4, $5, '{"status":"frozen"}', '{"status":"active"}')`,
+    [args.customerId, args.cardId, normalizeString(args.reason, 500), args.correlationId || null, args.requestIp || null]);
+    return { card: formatCard(rows[0]), replayed: false };
+  });
 }
 
 function revokeCard(args) {
-  return transitionCardStatus({ ...args, targetStatus: 'revoked', allowedFrom: ['pending', 'active', 'frozen', 'lost', 'stolen'], isAdmin: true });
+  return transitionCardStatus({ ...args, targetStatus: 'revoked', allowedFrom: ['pending', 'active', 'frozen'], isAdmin: true });
 }
 
-// Reporting a card lost/stolen retires it permanently and, for a card the
-// customer still wants access through, immediately issues a fresh virtual
-// replacement so the customer is never left without a working credential
-// while a physical replacement ships.
+// Retire first. Replacement is durable, separately retried, and requires
+// fresh verification before it becomes usable. Never roll back retirement
+// because issuance or downstream notification failed.
 async function reportCardLostOrStolen({ cardId, customerId, status = 'lost', actorUserId, reason, correlationId, requestIp, issueReplacement = true }) {
   requireCardOwner(actorUserId, customerId);
   if (!['lost', 'stolen'].includes(status)) {
@@ -397,59 +455,35 @@ async function reportCardLostOrStolen({ cardId, customerId, status = 'lost', act
   }
 
   const { card: retiredCard } = await transitionCardStatus({
-    cardId, customerId, actorUserId, targetStatus: status, allowedFrom: ['pending', 'active', 'frozen'], reason, correlationId, requestIp,
+    cardId, customerId, actorUserId, targetStatus: status, allowedFrom: ['pending', 'active', 'frozen'], reason, correlationId, requestIp, requestReplacement: issueReplacement,
   });
 
   if (!issueReplacement) return { retiredCard, replacementCard: null };
 
-  const account = await getCardAccount(retiredCard.id, customerId);
-  const replacement = await issueVirtualCard({
-    customerId,
-    currencyCode: account.currencyCode,
-    nickname: retiredCard.nickname ? `${retiredCard.nickname} (replacement)` : 'Replacement card',
-    idempotencyKey: `card-reissue:${retiredCard.id}`,
-    actorUserId,
-    correlationId,
-    requestIp,
-    metadata: { replacesCardId: retiredCard.id },
-  });
-  await pool.query(`UPDATE oxsteed_credit_cards SET replaces_card_id = $1 WHERE id = $2`, [retiredCard.id, replacement.card.id]);
-
-  return { retiredCard, replacementCard: { ...replacement.card, replacesCardId: retiredCard.id } };
-}
-
-async function getCardAccount(cardId, customerId) {
-  const { rows } = await pool.query(
-    `SELECT a.currency_code
-       FROM oxsteed_credit_cards c
-       JOIN oxsteed_credit_accounts a ON a.id = c.account_id
-      WHERE c.id = $1 AND c.customer_id = $2`,
-    [cardId, customerId]
-  );
-  if (!rows[0]) throw new AppError('Card not found', 404, 'credit_card_not_found');
-  return { currencyCode: rows[0].currency_code };
+  return { retiredCard, replacementCard: null, replacementPending: true };
 }
 
 // ---------------------------------------------------------------------------
 // PIN management (required before a card can be used for kiosk cash-out)
 // ---------------------------------------------------------------------------
 
-async function setCardPin({ cardId, customerId, pin, currentPin, actorUserId, correlationId, requestIp }) {
+async function setCardPin(args) {
+  const { cardId, customerId, pin, currentPin, actorUserId, correlationId, requestIp } = args;
   requireCardOwner(actorUserId, customerId);
   const normalizedPin = normalizeString(pin, 12);
   if (!normalizedPin || !/^\d{4,8}$/.test(normalizedPin)) {
     throw new AppError('PIN must be 4-8 digits', 400, 'credit_card_pin_invalid');
   }
 
-  return withTransaction(pool, async (client) => {
+  return withPersistentPinFailures(() => cardSecurity.runVerified(args, 'pin_set', async (client) => {
     const { rows } = await client.query(`SELECT * FROM oxsteed_credit_cards WHERE id = $1 AND customer_id = $2 FOR UPDATE`, [cardId, customerId]);
     const card = rows[0];
     assertCardMutable(card);
     if (card.status !== 'active') throw new AppError('Only an active card can have a PIN set', 409, 'credit_card_not_active');
-    if (card.pin_hash) {
+    if (card.pin_hash && args.resetPin !== true) {
       // Changing an existing PIN requires proving knowledge of the current
-      // one. There is no verified recovery flow; a forgotten PIN means
-      // reporting the card lost/stolen and activating its replacement.
+      // one unless the caller explicitly chose the freshly verified reset
+      // flow. Both paths are protected by the action-bound step-up above.
       const normalizedCurrentPin = normalizeString(currentPin, 12);
       if (!normalizedCurrentPin) throw new AppError('The current PIN is required to change the card PIN', 400, 'credit_card_current_pin_required');
       await verifyCardPin(client, card, normalizedCurrentPin);
@@ -472,7 +506,7 @@ async function setCardPin({ cardId, customerId, pin, currentPin, actorUserId, co
     );
 
     return { card: formatCard(updatedRows[0]) };
-  }, 'credit_card_set_pin');
+  }), args);
 }
 
 async function verifyCardPin(client, card, pin) {
@@ -490,21 +524,9 @@ async function verifyCardPin(client, card, pin) {
     }
     return;
   }
-  const attempts = Number(card.failed_pin_attempts || 0) + 1;
-  const locked = attempts >= MAX_CARD_PIN_ATTEMPTS;
-  await client.query(
-    `UPDATE oxsteed_credit_cards
-        SET failed_pin_attempts = $2,
-            pin_locked_until = CASE WHEN $3 THEN NOW() + INTERVAL '${CARD_PIN_LOCKOUT_MINUTES} minutes' ELSE pin_locked_until END
-      WHERE id = $1`,
-    [card.id, attempts, locked]
-  );
-  throw new AppError(
-    locked ? 'Too many incorrect PIN attempts; this card is now temporarily locked' : 'Incorrect PIN',
-    locked ? 423 : 401,
-    locked ? 'credit_card_pin_locked' : 'credit_card_pin_incorrect',
-    { attemptsRemaining: String(Math.max(0, MAX_CARD_PIN_ATTEMPTS - attempts)) }
-  );
+  const error = new AppError('Incorrect PIN', 401, 'credit_card_pin_incorrect');
+  rejectedPins.set(error, { cardId: card.id, pinHash: card.pin_hash });
+  throw error;
 }
 
 // ---------------------------------------------------------------------------
@@ -593,7 +615,9 @@ async function getExistingCashOutTransaction(client, idempotencyKey) {
 
 async function listCustomerCards(customerId) {
   const { rows } = await pool.query(
-    `SELECT * FROM oxsteed_credit_cards WHERE customer_id = $1 ORDER BY created_at DESC`,
+    `SELECT c.*, r.status AS replacement_status, r.last_error_code AS replacement_error_code
+      FROM oxsteed_credit_cards c LEFT JOIN oxsteed_credit_card_replacement_requests r ON r.retired_card_id = c.id
+      WHERE c.customer_id = $1 ORDER BY c.created_at DESC`,
     [customerId]
   );
   return rows.map((row) => formatCard(row));
@@ -602,14 +626,16 @@ async function listCustomerCards(customerId) {
 async function adminListCards({ customerId, status, cardType, limit = 50, offset = 0 } = {}) {
   const conditions = [];
   const values = [];
-  if (customerId) { values.push(customerId); conditions.push(`customer_id = $${values.length}`); }
-  if (status) { values.push(status); conditions.push(`status = $${values.length}`); }
-  if (cardType) { values.push(cardType); conditions.push(`card_type = $${values.length}`); }
+  if (customerId) { values.push(customerId); conditions.push(`c.customer_id = $${values.length}`); }
+  if (status) { values.push(status); conditions.push(`c.status = $${values.length}`); }
+  if (cardType) { values.push(cardType); conditions.push(`c.card_type = $${values.length}`); }
   const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   values.push(Math.min(Math.max(Number(limit) || 50, 1), 200));
   values.push(Math.max(Number(offset) || 0, 0));
   const { rows } = await pool.query(
-    `SELECT * FROM oxsteed_credit_cards ${whereClause} ORDER BY created_at DESC LIMIT $${values.length - 1} OFFSET $${values.length}`,
+    `SELECT c.*, r.status AS replacement_status, r.last_error_code AS replacement_error_code
+     FROM oxsteed_credit_cards c LEFT JOIN oxsteed_credit_card_replacement_requests r ON r.retired_card_id = c.id
+     ${whereClause} ORDER BY c.created_at DESC, c.id DESC LIMIT $${values.length - 1} OFFSET $${values.length}`,
     values
   );
   return rows.map((row) => formatCard(row));
@@ -628,7 +654,7 @@ async function redeemCardAtPartner({ credential, pin, partnerId, amountCents, cu
   const normalizedPin = normalizeString(pin, 12);
   if (!normalizedPin) throw new AppError('A card PIN is required to redeem at the kiosk', 400, 'credit_card_pin_required');
 
-  return withTransaction(pool, async (client) => {
+  return withPersistentPinFailures(() => withTransaction(pool, async (client) => {
     const card = await resolveCardByCredential(client, credential);
     await verifyCardPin(client, card, normalizedPin);
     const result = await purchaseWithCreditInTransaction(client, {
@@ -657,7 +683,7 @@ async function redeemCardAtPartner({ credential, pin, partnerId, amountCents, cu
     });
     await client.query(`UPDATE oxsteed_credit_cards SET last_used_at = NOW() WHERE id = $1`, [card.id]);
     return { ...result, card: formatCard({ ...card, last_used_at: new Date() }) };
-  }, 'credit_card_redeem_at_partner');
+  }, 'credit_card_redeem_at_partner'), { correlationId, requestIp });
 }
 
 // ---------------------------------------------------------------------------
@@ -771,11 +797,11 @@ async function cashOutWithCardInTransaction(client, { credential, pin, kioskDevi
 }
 
 async function cashOutWithCard(args) {
-  return withTransaction(
+  return withPersistentPinFailures(() => withTransaction(
     pool,
     (client) => cashOutWithCardInTransaction(client, args),
     'credit_card_cash_out'
-  );
+  ), args);
 }
 
 module.exports = {

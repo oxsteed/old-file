@@ -65,6 +65,10 @@ router.post('/money-out/stepup-challenges', creditMutationLimiter, withdrawalCon
 // management. Redemption/cash-out happen from device-authenticated kiosk
 // routes (see routes/oxsteedCreditKiosk.js), not here.
 router.get('/cards', cardController.listMyCards);
+router.post('/cards/:cardId/security-challenges', creditMutationLimiter, cardController.issueMyCardSecurityChallenge);
+router.get('/cards/:cardId/history', cardController.myCardHistory);
+router.post('/cards/:cardId/found', creditMutationLimiter, cardController.markMyCardFound);
+router.post('/cards/:cardId/replacement', creditMutationLimiter, cardController.requestMyReplacement);
 router.post('/cards/virtual', creditMutationLimiter, cardController.issueMyVirtualCard);
 router.post('/cards/physical', creditMutationLimiter, cardController.requestMyPhysicalCard);
 router.post('/cards/:cardId/activate', creditMutationLimiter, cardController.activateMyCard);

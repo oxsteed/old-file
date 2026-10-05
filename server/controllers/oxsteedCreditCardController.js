@@ -2,6 +2,9 @@
 
 const { AppError } = require('../middleware/errorHandler');
 const cardService = require('../services/oxsteedCreditCardService');
+const cardSecurity = require('../services/oxsteedCreditCardSecurity');
+const recovery = require('../services/oxsteedCreditCardRecovery');
+const crypto = require('crypto');
 const { requireDeviceCredential, assertDeviceApp } = require('./restaurantAppFlowController');
 
 function normalizeString(value, max = 255) {
@@ -40,6 +43,46 @@ function getRequestContext(req) {
 // Customer-facing: /api/oxsteed-credit/cards/*
 // (mounted under the existing authenticate + requireRole('customer') pipeline)
 // ---------------------------------------------------------------------------
+
+function securityArgs(req, cardId) {
+  const authorization = req.get('Authorization');
+  return {
+    cardId, customerId: req.user.id, ...getRequestContext(req),
+    sessionBinding: authorization ? crypto.createHash('sha256').update(authorization).digest('hex') : null,
+    impersonated: Boolean(req.isImpersonated), idempotencyKey: getIdempotencyKey(req),
+    stepupChallengeId: req.body?.stepupChallengeId ? parseUuid(req.body.stepupChallengeId, 'stepupChallengeId') : null,
+    stepupCode: req.body?.stepupCode,
+    activationCode: req.body?.activationCode || req.body?.activation_code,
+    pin: req.body?.pin, currentPin: req.body?.currentPin || req.body?.current_pin,
+    resetPin: req.body?.resetPin === true,
+  };
+}
+
+async function issueMyCardSecurityChallenge(req, res, next) {
+  try {
+    res.status(201).json(await cardSecurity.issueChallenge({
+      ...securityArgs(req, parseUuid(req.params.cardId, 'cardId')),
+      action: req.body?.action, password: req.body?.password, mfaCode: req.body?.mfaCode,
+    }));
+  } catch (error) { next(error); }
+}
+
+function recoveryHandler(operation, isAdmin = false) {
+  return async (req, res, next) => {
+    try {
+      res.json(await operation({
+        cardId: parseUuid(req.params.cardId, 'cardId'), customerId: req.user.id,
+        ...getRequestContext(req), reason: req.body?.reason,
+        limit: req.query.limit, offset: req.query.offset, isAdmin,
+      }));
+    } catch (error) { next(error); }
+  };
+}
+const myCardHistory = recoveryHandler(recovery.listHistory);
+const markMyCardFound = recoveryHandler(recovery.markFound);
+const requestMyReplacement = recoveryHandler(recovery.requestReplacement);
+const adminCardHistory = recoveryHandler(recovery.listHistory, true);
+const retryAdminReplacement = recoveryHandler(recovery.retryReplacement, true);
 
 async function listMyCards(req, res, next) {
   try {
@@ -87,10 +130,7 @@ async function activateMyCard(req, res, next) {
   try {
     const cardId = parseUuid(req.params.cardId, 'cardId');
     const result = await cardService.activatePhysicalCard({
-      cardId,
-      customerId: req.user.id,
-      activationCode: req.body?.activationCode || req.body?.activation_code,
-      ...getRequestContext(req),
+      ...securityArgs(req, cardId),
     });
     res.status(result.replayed ? 200 : 201).json(result);
   } catch (error) {
@@ -111,7 +151,7 @@ async function freezeMyCard(req, res, next) {
 async function unfreezeMyCard(req, res, next) {
   try {
     const cardId = parseUuid(req.params.cardId, 'cardId');
-    const result = await cardService.unfreezeCard({ cardId, customerId: req.user.id, reason: req.body?.reason, ...getRequestContext(req) });
+    const result = await cardService.unfreezeCard({ ...securityArgs(req, cardId), reason: req.body?.reason });
     res.json(result);
   } catch (error) {
     next(error);
@@ -139,7 +179,7 @@ async function reportMyCardLost(req, res, next) {
 async function setMyCardPin(req, res, next) {
   try {
     const cardId = parseUuid(req.params.cardId, 'cardId');
-    const result = await cardService.setCardPin({ cardId, customerId: req.user.id, pin: req.body?.pin, currentPin: req.body?.currentPin || req.body?.current_pin, ...getRequestContext(req) });
+    const result = await cardService.setCardPin(securityArgs(req, cardId));
     res.json(result);
   } catch (error) {
     next(error);
@@ -320,6 +360,8 @@ async function kioskCashOut(req, res, next) {
 }
 
 module.exports = {
+  issueMyCardSecurityChallenge, myCardHistory, markMyCardFound, requestMyReplacement,
+  adminCardHistory, retryAdminReplacement,
   listMyCards,
   issueMyVirtualCard,
   requestMyPhysicalCard,

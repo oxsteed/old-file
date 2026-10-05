@@ -6,11 +6,13 @@ import { createStableIdempotencyKeyStore } from './creditIdempotency';
 import { formatCreditDateTime } from '../../../lib/creditDateTime';
 import { safeCreditErrorMessage } from '../../../lib/creditErrors';
 import AddressAutocomplete from '../../../components/AddressAutocomplete';
+import CardHistory from '../../../components/credit/CardHistory';
 
 const CARD_STATUSES = ['pending', 'active', 'frozen', 'lost', 'stolen', 'revoked', 'expired'];
 const CARD_TYPES = ['virtual', 'physical'];
 const FULFILLMENT_ORDER = ['pending', 'printed', 'shipped', 'delivered'];
 const CARD_PAGE_SIZE = 50;
+const fetchCardHistory = (cardId, offset) => adminApi.get(`/admin/super/oxsteed-credit/cards/${cardId}/history`, { params: { offset, limit: 25 } }).then(response => response.data);
 
 function statusClass(status) {
   if (status === 'active') return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300';
@@ -332,7 +334,7 @@ export default function OxsteedCreditCards({ currencyOptions = ['USD'], busy = f
             : !cards.length ? <tr><td colSpan="7" className="px-3 py-10 text-center text-gray-500">{t('cards.noMatches')}</td></tr>
             : cards.map((card) => {
               const nextStatus = card.cardType === 'physical' ? nextFulfillmentStatus(card.fulfillmentStatus) : null;
-              const canRevoke = !['revoked', 'expired'].includes(card.status);
+              const canRevoke = ['pending', 'active', 'frozen'].includes(card.status);
               return <tr key={card.id}>
                 <td className="px-3 py-3 font-mono text-[10px] text-gray-500">{card.customerId}</td>
                 <td className="px-3 py-3 text-white">{card.cardType === 'virtual' ? t('cards.virtualCard') : t('cards.physicalCard')}{card.nickname ? <p className="mt-1 text-gray-600">{card.nickname}</p> : null}</td>
@@ -344,7 +346,17 @@ export default function OxsteedCreditCards({ currencyOptions = ['USD'], busy = f
                   <div className="flex flex-wrap gap-2">
                     {nextStatus && <button type="button" onClick={() => advanceFulfillment(card)} disabled={saving} className="rounded-lg border border-sky-500/30 px-2.5 py-1.5 text-[11px] font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{t('cards.mark', { status: t(`cards.fulfillment.${nextStatus}`, { defaultValue: nextStatus }) })}</button>}
                     {canRevoke && <button type="button" onClick={() => revoke(card)} disabled={saving} className="rounded-lg border border-red-500/30 px-2.5 py-1.5 text-[11px] font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50">{t('cards.revoke')}</button>}
+                    {card.replacementStatus && <span>{t(`cards.security.replacement.${card.replacementStatus}`)}</span>}
+                    {card.replacementStatus === 'failed' && <button type="button" disabled={saving} onClick={async () => {
+                      const reason = window.prompt(t('cards.security.retryReason'));
+                      if (!reason?.trim()) return;
+                      setSaving(true); setError('');
+                      try { await adminApi.post(`/admin/super/oxsteed-credit/cards/${card.id}/replacement/retry`, { reason }); await load(); }
+                      catch { setError(t('cards.security.failed')); }
+                      finally { setSaving(false); }
+                    }}>{t('cards.security.retryReplacement')}</button>}
                   </div>
+                  <CardHistory cardId={card.id} fetchHistory={fetchCardHistory} admin />
                 </td>
               </tr>;
             })}

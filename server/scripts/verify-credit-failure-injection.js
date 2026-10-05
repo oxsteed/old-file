@@ -444,12 +444,17 @@ async function run() {
     });
     const cardId = issuedCard.card.id;
     const rawCredential = issuedCard.card.credential;
-    await setCardPin({
-      cardId,
-      customerId: CUSTOMER_ID,
-      pin: '2468',
-      actorUserId: CUSTOMER_ID,
-    });
+    // Synthetic grant fixture inside the already-guarded disposable harness.
+    // Production callers must obtain the password/MFA/email challenge.
+    const security = require('../services/oxsteedCreditCardSecurity');
+    const pinArgs = { cardId, customerId: CUSTOMER_ID, pin: '2468', actorUserId: CUSTOMER_ID,
+      sessionBinding: 'isolated-failure-injection', idempotencyKey: `${RUN_ID}-pin` };
+    const owner = (await query('SELECT * FROM users WHERE id=$1', [CUSTOMER_ID])).rows[0];
+    const challenge = await query(`INSERT INTO oxsteed_credit_card_security_challenges
+      (customer_id,card_id,action,binding_hash,code_hash,expires_at,delivered_at)
+      VALUES ($1,$2,'pin_set',$3,$4,NOW()+INTERVAL '10 minutes',NOW()) RETURNING id`,
+    [CUSTOMER_ID, cardId, security.bindingHash('pin_set', pinArgs, owner), security.hash(['card-code','123456'])]);
+    await setCardPin({ ...pinArgs, stepupChallengeId: challenge.rows[0].id, stepupCode: '123456' });
     const kioskDeviceId = `${RUN_ID}-kiosk`;
     const cashOutKey = `${RUN_ID}-cash-out`;
     const beforeCashOutAccount = await accountSnapshot();

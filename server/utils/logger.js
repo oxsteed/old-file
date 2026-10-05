@@ -51,6 +51,7 @@ function sanitizeMeta(obj) {
     'authorization', 'auth', 'credential', 'credentials',
     'jwt', 'session', 'cookie', 'cookies',
     'otp', 'otp_code', 'totp_secret', 'backup_codes',
+    'stepupcode', 'mfacode', 'currentpin', 'activationcode', 'code_hash', 'binding_hash', 'pin_hash', 'pin_salt',
     'didit_token', 'checkr_token', 'twilio_token',
     'aws_secret', 'redis_url', 'database_url'
   ];
@@ -63,7 +64,7 @@ function sanitizeMeta(obj) {
   const sanitized = {};
   for (const [key, value] of Object.entries(obj)) {
     const keyLower = key.toLowerCase();
-    if (sensitiveKeys.some(sensitive => keyLower.includes(sensitive))) {
+    if (keyLower === 'pin' || sensitiveKeys.some(sensitive => keyLower.includes(sensitive))) {
       sanitized[key] = '[REDACTED]';
     } else if (typeof value === 'object' && value !== null && !(value instanceof Date)) {
       sanitized[key] = sanitizeMeta(value);

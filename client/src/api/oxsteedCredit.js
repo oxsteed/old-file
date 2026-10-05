@@ -139,17 +139,24 @@ export const requestOxsteedCreditPhysicalCard = (payload, idempotencyKey) =>
     headers: { 'Idempotency-Key': idempotencyKey },
   }).then((response) => response.data);
 
-export const activateOxsteedCreditCard = (cardId, payload) =>
-  api.post(`/oxsteed-credit/cards/${cardId}/activate`, payload).then((response) => response.data);
+export const activateOxsteedCreditCard = (cardId, payload, idempotencyKey) =>
+  api.post(`/oxsteed-credit/cards/${cardId}/activate`, payload, { headers: { 'Idempotency-Key': idempotencyKey } }).then((response) => response.data);
 
 export const freezeOxsteedCreditCard = (cardId, payload = {}) =>
   api.post(`/oxsteed-credit/cards/${cardId}/freeze`, payload).then((response) => response.data);
 
-export const unfreezeOxsteedCreditCard = (cardId, payload = {}) =>
-  api.post(`/oxsteed-credit/cards/${cardId}/unfreeze`, payload).then((response) => response.data);
+export const unfreezeOxsteedCreditCard = (cardId, payload = {}, idempotencyKey) =>
+  api.post(`/oxsteed-credit/cards/${cardId}/unfreeze`, payload, { headers: { 'Idempotency-Key': idempotencyKey } }).then((response) => response.data);
 
 export const reportOxsteedCreditCardLost = (cardId, payload = {}) =>
   api.post(`/oxsteed-credit/cards/${cardId}/report-lost`, payload).then((response) => response.data);
 
-export const setOxsteedCreditCardPin = (cardId, payload) =>
-  api.post(`/oxsteed-credit/cards/${cardId}/pin`, payload).then((response) => response.data);
+export const setOxsteedCreditCardPin = (cardId, payload, idempotencyKey) =>
+  api.post(`/oxsteed-credit/cards/${cardId}/pin`, payload, { headers: { 'Idempotency-Key': idempotencyKey } }).then((response) => response.data);
+
+export const issueCreditCardSecurityChallenge = (cardId, payload) =>
+  api.post(`/oxsteed-credit/cards/${cardId}/security-challenges`, payload).then(response => response.data);
+export const getCreditCardHistory = (cardId, offset = 0) =>
+  api.get(`/oxsteed-credit/cards/${cardId}/history`, { params: { offset, limit: 25 } }).then(response => response.data);
+export const markCreditCardFound = cardId => api.post(`/oxsteed-credit/cards/${cardId}/found`).then(response => response.data);
+export const requestCreditCardReplacement = cardId => api.post(`/oxsteed-credit/cards/${cardId}/replacement`).then(response => response.data);

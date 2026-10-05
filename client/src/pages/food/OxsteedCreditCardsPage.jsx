@@ -24,7 +24,10 @@ import {
   unfreezeOxsteedCreditCard,
   reportOxsteedCreditCardLost,
   setOxsteedCreditCardPin,
+  getCreditCardHistory, markCreditCardFound, requestCreditCardReplacement,
 } from '../../api/oxsteedCredit';
+import CardSecurityDialog from '../../components/credit/CardSecurityDialog';
+import CardHistory from '../../components/credit/CardHistory';
 import { safeCreditErrorMessage } from '../../lib/creditErrors';
 import { formatCreditDateTime } from '../../lib/creditDateTime';
 import './OxsteedCreditCardsPage.css';
@@ -70,6 +73,19 @@ export default function OxsteedCreditCardsPage() {
   const [activationInputs, setActivationInputs] = useState({});
   const [pinInputs, setPinInputs] = useState({});
   const [pinFormCardId, setPinFormCardId] = useState(null);
+  const [securityOperation, setSecurityOperation] = useState(null);
+
+  const beginVerified = (card, action, payload = {}) => {
+    setSecurityOperation({ card, action, payload, requestKey: requestId() });
+  };
+  const completeVerified = async (operation, proof) => {
+    const actions = { activate: activateOxsteedCreditCard, unfreeze: unfreezeOxsteedCreditCard, pin_set: setOxsteedCreditCardPin };
+    const result = await actions[operation.action](operation.card.id, { ...operation.payload, ...proof }, operation.requestKey);
+    if (result?.card?.credential) setRevealedSecret({ cardId: operation.card.id, value: result.card.credential });
+    setActivationInputs({}); setPinInputs({}); setPinFormCardId(null);
+    toast.success(t('cards.security.completed'));
+    await load({ quiet: true });
+  };
 
   const load = async ({ quiet = false } = {}) => {
     if (quiet) setRefreshing(true);
@@ -127,36 +143,19 @@ export default function OxsteedCreditCardsPage() {
 
   const submitActivation = async (card) => {
     const code = (activationInputs[card.id] || '').trim();
-    if (!code) {
+    if (card.cardType === 'physical' && !code) {
       toast.error(t('cards.errors.activationCode'));
       return;
     }
-    setBusyCardId(card.id);
-    try {
-      const result = await activateOxsteedCreditCard(card.id, { activationCode: code });
-      if (result?.card?.credential) {
-        setRevealedSecret({ cardId: card.id, value: result.card.credential });
-      }
-      toast.success(t('cards.success.activated'));
-      setActivationInputs((current) => ({ ...current, [card.id]: '' }));
-      await load({ quiet: true });
-    } catch (error) {
-      toast.error(safeCreditErrorMessage(error, t('cards.errors.activate')));
-    } finally {
-      setBusyCardId(null);
-    }
+    beginVerified(card, 'activate', { activationCode: code });
   };
 
   const toggleFreeze = async (card) => {
+    if (card.status === 'frozen') { beginVerified(card, 'unfreeze'); return; }
     setBusyCardId(card.id);
     try {
-      if (card.status === 'frozen') {
-        await unfreezeOxsteedCreditCard(card.id, { reason: 'Customer unfroze card' });
-        toast.success(t('cards.success.unfrozen'));
-      } else {
-        await freezeOxsteedCreditCard(card.id, { reason: 'Customer froze card' });
-        toast.success(t('cards.success.frozen'));
-      }
+      await freezeOxsteedCreditCard(card.id);
+      toast.success(t('cards.success.frozen'));
       await load({ quiet: true });
     } catch (error) {
       toast.error(safeCreditErrorMessage(error, t('cards.errors.update')));
@@ -165,19 +164,16 @@ export default function OxsteedCreditCardsPage() {
     }
   };
 
-  const reportLost = async (card) => {
+  const reportLost = async (card, status = 'lost') => {
     const confirmed = window.confirm(
-      t('cards.confirm.reportLost')
+      t('cards.security.retireWarning')
     );
     if (!confirmed) return;
     setBusyCardId(card.id);
     setRevealedSecret(null);
     try {
-      const result = await reportOxsteedCreditCardLost(card.id, { status: 'lost', reason: 'Customer reported card lost' });
-      if (result?.replacementCard?.credential) {
-        setRevealedSecret({ cardId: result.replacementCard.id, value: result.replacementCard.credential });
-      }
-      toast.success(result?.replacementCard ? t('cards.success.lostReplacement') : t('cards.success.lost'));
+      await reportOxsteedCreditCardLost(card.id, { status });
+      toast.success(t('cards.security.retired'));
       await load({ quiet: true });
     } catch (error) {
       toast.error(safeCreditErrorMessage(error, t('cards.errors.reportLost')));
@@ -192,17 +188,17 @@ export default function OxsteedCreditCardsPage() {
       toast.error(t('cards.errors.pinDigits'));
       return;
     }
+    beginVerified(card, 'pin_set', { pin, resetPin: true });
+  };
+
+  const recoverCard = async (card, action) => {
     setBusyCardId(card.id);
     try {
-      await setOxsteedCreditCardPin(card.id, { pin });
-      toast.success(t('cards.success.pinSaved'));
-      setPinInputs((current) => ({ ...current, [card.id]: '' }));
-      setPinFormCardId(null);
-    } catch (error) {
-      toast.error(safeCreditErrorMessage(error, t('cards.errors.pin')));
-    } finally {
-      setBusyCardId(null);
-    }
+      await (action === 'found' ? markCreditCardFound : requestCreditCardReplacement)(card.id);
+      toast.success(t('cards.security.completed'));
+      await load({ quiet: true });
+    } catch { toast.error(t('cards.security.failed')); }
+    finally { setBusyCardId(null); }
   };
 
   return (
@@ -318,29 +314,38 @@ export default function OxsteedCreditCardsPage() {
                             {card.hasPin && <span>{t('cards.pinSet')}</span>}
                           </div>
 
-                          {card.cardType === 'physical' && card.status === 'pending' && (
+                          {card.status === 'pending' && (card.cardType === 'physical' || card.replacesCardId) && (
                             <div className="ox-card-activate">
-                              <input value={activationInputs[card.id] || ''} onChange={(event) => setActivationInputs((current) => ({ ...current, [card.id]: event.target.value }))} placeholder={t('cards.activationPlaceholder')} maxLength={16} />
+                              {card.cardType === 'physical' && <input aria-label={t('cards.activationPlaceholder')} value={activationInputs[card.id] || ''} onChange={(event) => setActivationInputs((current) => ({ ...current, [card.id]: event.target.value }))} placeholder={t('cards.activationPlaceholder')} maxLength={16} />}
                               <button type="button" onClick={() => submitActivation(card)} disabled={busyCardId === card.id}>{busyCardId === card.id ? t('cards.activating') : t('cards.activate')}</button>
                             </div>
                           )}
 
-                          {['active', 'frozen'].includes(card.status) && (
+                          {['pending', 'active', 'frozen'].includes(card.status) && (
                             <div className="ox-card-actions">
-                              <button type="button" onClick={() => toggleFreeze(card)} disabled={busyCardId === card.id}>
+                              {card.status !== 'pending' && <button type="button" onClick={() => toggleFreeze(card)} disabled={busyCardId === card.id || (card.status === 'frozen' && card.freezeOrigin !== 'customer')}>
                                 {card.status === 'frozen' ? <><Unlock size={13} /> {t('cards.unfreeze')}</> : <><Snowflake size={13} /> {t('cards.freeze')}</>}
-                              </button>
-                              <button type="button" onClick={() => setPinFormCardId((current) => current === card.id ? null : card.id)}><Lock size={13} /> {card.hasPin ? t('cards.changePin') : t('cards.setPin')}</button>
-                              <button type="button" className="ox-card-danger" onClick={() => reportLost(card)} disabled={busyCardId === card.id}><ShieldAlert size={13} /> {t('cards.reportLost')}</button>
+                              </button>}
+                              {card.status === 'active' && <button type="button" onClick={() => setPinFormCardId((current) => current === card.id ? null : card.id)}><Lock size={13} /> {card.hasPin ? t('cards.security.resetPin') : t('cards.setPin')}</button>}
+                              <button type="button" className="ox-card-danger" onClick={() => reportLost(card)} disabled={busyCardId === card.id}><ShieldAlert size={13} /> {t('cards.security.reportLost')}</button>
+                              <button type="button" className="ox-card-danger" onClick={() => reportLost(card, 'stolen')} disabled={busyCardId === card.id}>{t('cards.security.reportStolen')}</button>
                             </div>
                           )}
 
-                          {pinFormCardId === card.id && (
+                          {pinFormCardId === card.id && card.status === 'active' && (
                             <div className="ox-card-pin-form">
-                              <input type="password" inputMode="numeric" value={pinInputs[card.id] || ''} onChange={(event) => setPinInputs((current) => ({ ...current, [card.id]: event.target.value }))} placeholder={t('cards.pinPlaceholder')} maxLength={8} />
+                              <input aria-label={t('cards.pinPlaceholder')} type="password" inputMode="numeric" value={pinInputs[card.id] || ''} onChange={(event) => setPinInputs((current) => ({ ...current, [card.id]: event.target.value }))} placeholder={t('cards.pinPlaceholder')} maxLength={8} />
                               <button type="button" onClick={() => submitPin(card)} disabled={busyCardId === card.id}>{busyCardId === card.id ? t('cards.saving') : t('cards.savePin')}</button>
                             </div>
                           )}
+                          {card.status === 'frozen' && card.freezeOrigin !== 'customer' && <p>{t('cards.security.blocked')}</p>}
+                          {['lost', 'stolen'].includes(card.status) && <>
+                            <p>{t('cards.security.remainsDisabled')}</p>
+                            {card.foundAt ? <p>{t('cards.security.foundRecorded')}</p> : <button type="button" onClick={() => recoverCard(card, 'found')} disabled={busyCardId === card.id}>{t('cards.security.found')}</button>}
+                            {card.replacementStatus ? <p>{t(`cards.security.replacement.${card.replacementStatus}`)}</p> : <button type="button" onClick={() => recoverCard(card, 'replacement')} disabled={busyCardId === card.id}>{t('cards.security.requestReplacement')}</button>}
+                          </>}
+                          <CardHistory cardId={card.id} fetchHistory={getCreditCardHistory} />
+                          <Link to="/support">{t('cards.security.support')}</Link>
                         </article>
                       ))}
                     </div>
@@ -351,6 +356,7 @@ export default function OxsteedCreditCardsPage() {
         </div>
       </main>
       <Footer />
+      {securityOperation && <CardSecurityDialog operation={securityOperation} onComplete={completeVerified} onClose={() => setSecurityOperation(null)} />}
     </>
   );
 }

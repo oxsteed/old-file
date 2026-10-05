@@ -1,6 +1,7 @@
 'use strict';
 
 jest.mock('../db', () => ({ query: jest.fn() }));
+jest.mock('../services/oxsteedCreditCardRecovery', () => ({ processReplacementRequests: jest.fn().mockResolvedValue({ ready: 0 }) }));
 jest.mock('../services/notificationService', () => ({
   sendNotification: jest.fn(),
 }));
@@ -53,11 +54,24 @@ const {
   processOxsteedCreditNotificationOutbox,
   getSentRetentionDays,
   purgeSentCreditNotifications,
+  purgeExpiredCardChallenges,
   runOxsteedCreditNotificationOutbox,
 } = require('../jobs/oxsteedCreditNotificationOutbox');
 
 beforeEach(() => {
   jest.clearAllMocks();
+});
+
+test('continues committed security notices while rail-paused replacement issuance stops', async () => {
+  const rail = require('../services/oxsteedCreditService').skipCreditJobWhenRailDisabled;
+  rail.mockResolvedValueOnce(true);
+  db.query.mockResolvedValueOnce({ rows: [{ id: 'security-1', user_id: 'owner', attempts: 1,
+    payload: { eventType: 'card_security', cardId: 'card-1', auditEventId: 'audit-1' } }] })
+    .mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] });
+  sendNotification.mockResolvedValueOnce({ success: true });
+  await expect(runOxsteedCreditNotificationOutbox()).resolves.toMatchObject({ sent: 1 });
+  expect(require('../services/oxsteedCreditCardRecovery').processReplacementRequests).not.toHaveBeenCalled();
+  expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({ type: 'oxsteed_credit_card_security', idempotencyKey: 'credit-outbox:security-1' }));
 });
 
 test('builds a safe customer-facing notification from an outbox payload', () => {
@@ -145,11 +159,12 @@ test('retries delivery failures and eventually marks the event failed', async ()
 test('runs under the distributed Credit worker lock', async () => {
   db.query
     .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [] });
 
-  await expect(runOxsteedCreditNotificationOutbox()).resolves.toEqual({ claimed: 0, sent: 0, retried: 0, failed: 0, purged: 0 });
+  await expect(runOxsteedCreditNotificationOutbox()).resolves.toEqual({ claimed: 0, sent: 0, retried: 0, failed: 0, purged: 0, challengesPurged: 0 });
   expect(withFencedJobLock).toHaveBeenCalledWith(JOB_NAME, expect.any(Function), 120, { throwOnLockError: true });
-  expect(recordOxsteedCreditWorkerRun).toHaveBeenCalledWith({ jobName: JOB_NAME, result: { claimed: 0, sent: 0, retried: 0, failed: 0, purged: 0 } });
+  expect(recordOxsteedCreditWorkerRun).toHaveBeenCalledWith({ jobName: JOB_NAME, result: { claimed: 0, sent: 0, retried: 0, failed: 0, purged: 0, challengesPurged: 0 } });
   expect(CRON_EXPRESSION).toBe('30 * * * * *');
 });
 
@@ -163,4 +178,12 @@ test('bounds notification retention and purges only old sent rows', async () => 
   expect(db.query.mock.calls[0][0]).toContain("status = 'sent'");
   expect(db.query.mock.calls[0][0]).toContain('DELETE FROM oxsteed_credit_notification_outbox');
   expect(db.query.mock.calls[0][1]).toEqual([10, 45]);
+});
+
+test('bounds cleanup of expired challenge hashes without deleting audit or replay history', async () => {
+  db.query.mockResolvedValueOnce({ rows: [{ id: 'expired' }] });
+  await expect(purgeExpiredCardChallenges(999999)).resolves.toBe(1);
+  expect(db.query.mock.calls[0][1]).toEqual([5000]);
+  expect(db.query.mock.calls[0][0]).toContain("expires_at < NOW() - INTERVAL '30 days'");
+  expect(db.query.mock.calls[0][0]).toContain('DELETE FROM oxsteed_credit_card_security_challenges');
 });

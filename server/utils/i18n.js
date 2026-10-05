@@ -1,4 +1,14 @@
 const T = {
+  oxsteed_credit_card_security: {
+    title: { en: 'OxSteed Credit card security', es: 'Seguridad de tarjeta OxSteed Credit', fr: 'Sécurité de la carte OxSteed Credit', ht: 'Sekirite kat OxSteed Credit', ar: 'أمان بطاقة OxSteed Credit' },
+    body: {
+      en: 'Review recent card security activity. If this was not you, contact support immediately.',
+      es: 'Revisa la actividad de seguridad de tu tarjeta. Si no fuiste tú, contacta con soporte de inmediato.',
+      fr: 'Consultez les dernières activités de sécurité de votre carte. Si vous ne les reconnaissez pas, contactez immédiatement le support.',
+      ht: 'Revize dènye aktivite sekirite kat ou. Si se pa ou, kontakte sipò touswit.',
+      ar: 'راجع نشاط أمان بطاقتك الأخير. إذا لم تقم به، فاتصل بالدعم فورًا.',
+    },
+  },
   ...require('./localDeliveryNotifications').deliveryNotifications,
   bid_received: {
     title: {

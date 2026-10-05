@@ -36,6 +36,10 @@ function formatAmount(amountCents, currencyCode) {
 }
 
 function buildNotification(payload) {
+  if (payload.eventType === 'card_security') return {
+    title: '', body: '', action_url: '/oxsteed-credit/cards',
+    data: { cardId: payload.cardId, auditEventId: payload.auditEventId, eventType: 'card_security' },
+  };
   const amount = formatAmount(payload.amountCents, payload.currencyCode);
   const eventType = String(payload.eventType || 'transaction_posted');
   const holdMessages = {
@@ -170,7 +174,8 @@ async function recordTerminalCreditNotificationFailure(row, result) {
   }
 }
 
-async function processOxsteedCreditNotificationOutbox(limit = 50) {
+async function processOxsteedCreditNotificationOutbox(limit = 50, replacementsEnabled = true) {
+  if (replacementsEnabled) await require('../services/oxsteedCreditCardRecovery').processReplacementRequests();
   const rows = await claimCreditNotifications(limit);
   let sent = 0;
   let retried = 0;
@@ -181,7 +186,8 @@ async function processOxsteedCreditNotificationOutbox(limit = 50) {
       const payload = typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload;
       const notification = await sendNotification({
         userId: row.user_id,
-        type: 'oxsteed_credit_transaction',
+        type: payload.eventType === 'card_security' ? 'oxsteed_credit_card_security' : 'oxsteed_credit_transaction',
+        idempotencyKey: `credit-outbox:${row.id}`,
         ...buildNotification(payload),
       });
       const status = await finishCreditNotification(row.id, Number(row.attempts || 0), notification);
@@ -233,19 +239,33 @@ async function purgeSentCreditNotifications(limit = 1000, retentionDays = getSen
   return result.rows?.length || 0;
 }
 
+async function purgeExpiredCardChallenges(limit = 1000) {
+  // Ephemeral authentication material is not audit evidence. Preserve audit
+  // events and replay receipts; remove only grants expired for 30 days.
+  const result = await db.query(`WITH stale AS (
+    SELECT id FROM oxsteed_credit_card_security_challenges
+    WHERE expires_at < NOW() - INTERVAL '30 days'
+    ORDER BY expires_at, id FOR UPDATE SKIP LOCKED LIMIT $1
+  ) DELETE FROM oxsteed_credit_card_security_challenges challenge
+    USING stale WHERE challenge.id = stale.id RETURNING challenge.id`,
+  [Math.max(1, Math.min(Number(limit) || 1000, 5000))]);
+  return result.rows?.length || 0;
+}
+
 async function runOxsteedCreditNotificationOutbox() {
-  if (await skipCreditJobWhenRailDisabled(JOB_NAME)) {
-    return { skipped: 'rail_disabled' };
-  }
-  let result = { claimed: 0, sent: 0, retried: 0, failed: 0, purged: 0 };
+  // Pausing the financial rail must not silence security notifications.
+  // Only replacement issuance pauses; committed notices still drain.
+  const railDisabled = await skipCreditJobWhenRailDisabled(JOB_NAME);
+  let result = { claimed: 0, sent: 0, retried: 0, failed: 0, purged: 0, challengesPurged: 0 };
   let lockAcquired = false;
   try {
     await withFencedJobLock(JOB_NAME, async (fence) => {
       fence.assertActive(); // E03: abort the run if the job lease was lost
       lockAcquired = true;
-      const processed = await processOxsteedCreditNotificationOutbox();
+      const processed = await processOxsteedCreditNotificationOutbox(50, !railDisabled);
       const purged = await purgeSentCreditNotifications();
-      result = { ...processed, purged };
+      const challengesPurged = await purgeExpiredCardChallenges();
+      result = { ...processed, purged, challengesPurged };
       if (result.claimed || result.purged) logger.info('OxSteed Credit notification outbox processed', result);
     }, 120, { throwOnLockError: true });
     if (lockAcquired) await recordOxsteedCreditWorkerRun({ jobName: JOB_NAME, result });
@@ -283,6 +303,7 @@ module.exports = {
   processOxsteedCreditNotificationOutbox,
   getSentRetentionDays,
   purgeSentCreditNotifications,
+  purgeExpiredCardChallenges,
   runOxsteedCreditNotificationOutbox,
   startOxsteedCreditNotificationOutboxJob,
 };

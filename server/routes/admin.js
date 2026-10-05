@@ -362,6 +362,8 @@ router.use('/super/oxsteed-credit', noStoreCreditResponse);
 router.post('/super/oxsteed-credit/cards/issue-virtual', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCardCtrl.adminIssueVirtualCard);
 router.post('/super/oxsteed-credit/cards/issue-physical', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCardCtrl.adminIssuePhysicalCard);
 router.get('/super/oxsteed-credit/cards', requireSuperAdmin, oxsteedCreditCardCtrl.listAdminCards);
+router.get('/super/oxsteed-credit/cards/:cardId/history', requireSuperAdmin, oxsteedCreditCardCtrl.adminCardHistory);
+router.post('/super/oxsteed-credit/cards/:cardId/replacement/retry', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCardCtrl.retryAdminReplacement);
 router.post('/super/oxsteed-credit/cards/:cardId/fulfillment', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCardCtrl.updateAdminCardFulfillment);
 router.post('/super/oxsteed-credit/cards/:cardId/revoke', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCardCtrl.revokeAdminCard);
 router.get('/super/oxsteed-credit/rail', requireSuperAdmin, oxsteedCreditCtrl.getAdminCreditRail);

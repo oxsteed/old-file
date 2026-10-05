@@ -375,6 +375,11 @@ describe('redeemCardAtPartner PIN requirement (H17)', () => {
 });
 
 describe('setCardPin current-PIN requirement (M27b)', () => {
+  // Domain PIN tests exercise the mutation after step-up. The actual gate is
+  // tested separately in oxsteedCreditCardSecurity.test.js, without this spy.
+  beforeEach(() => jest.spyOn(require('../services/oxsteedCreditCardSecurity'), 'runVerified')
+    .mockImplementation((_args, _action, operation) => operation({ query: mockQuery })));
+  afterEach(() => jest.restoreAllMocks());
   const cardWithPin = (overrides = {}) => ({
     id: CARD_ID,
     customer_id: CUSTOMER_ID,

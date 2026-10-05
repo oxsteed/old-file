@@ -196,7 +196,7 @@ exports.sendNotification = async ({
       'bid_accepted', 'payment_released', 'subscription_renewed',
       'subscription_cancelled', 'subscription_past_due',
       'dispute_update', 'payout_deposited', 'account_banned',
-      'oxsteed_credit_transaction',
+      'oxsteed_credit_transaction', 'oxsteed_credit_card_security',
       // Account integrity / admin actions — user should receive email by default
       'account_restored', 'account_suspended', 'account_restricted',
       'account_deletion_scheduled', 'admin_warning',
@@ -213,14 +213,14 @@ exports.sendNotification = async ({
       'account_restricted',
       'account_deletion_scheduled',
       'admin_warning',
-      'oxsteed_credit_transaction',
+      'oxsteed_credit_transaction', 'oxsteed_credit_card_security',
     ]);
     const emailAllowed = userEmail && emailTypes.includes(type)
       && (transactionalEmailTypes.has(type) ? true : !emailPrefOff);
     if (emailAllowed && !notificationRow?.is_email_sent) {
       // Banned users get the notification email but with no account link
       const safeActionUrl = isBanned ? null : action_url;
-      await sendEmailNotification({
+      const delivery = await sendEmailNotification({
         to: userEmail,
         firstName,
         type,
@@ -232,6 +232,9 @@ exports.sendNotification = async ({
         fallbackTranslations: emailTranslations,
         idempotencyKey: deliveryKey,
       });
+      if (type === 'oxsteed_credit_card_security' && delivery?.success !== true) {
+        throw new Error('Card security email delivery unavailable');
+      }
       if (notifId) {
         await db.query(
           `UPDATE notifications SET is_email_sent = true WHERE id = $1`,
@@ -316,7 +319,7 @@ async function sendEmailNotification({
       language,
     });
 
-    await sendEmail({
+    return await sendEmail({
       to,
       subject: title,
       html: rendered.html,
@@ -324,6 +327,7 @@ async function sendEmailNotification({
       idempotencyKey: idempotencyKey || undefined,
     });
   } catch (err) {
+    if (type === 'oxsteed_credit_card_security') return { success: false };
     logger.error('Send email notification failed', { to, type, error: err.message });
   }
 }
