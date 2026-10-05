@@ -197,6 +197,9 @@ exports.sendNotification = async ({
       'subscription_cancelled', 'subscription_past_due',
       'dispute_update', 'payout_deposited', 'account_banned',
       'oxsteed_credit_transaction', 'oxsteed_credit_card_security',
+      // Monthly statement issuance: generic authenticated-link email, no
+      // amounts or attachments. Respects the user's email preference toggle.
+      'statement_ready',
       // Account integrity / admin actions — user should receive email by default
       'account_restored', 'account_suspended', 'account_restricted',
       'account_deletion_scheduled', 'admin_warning',

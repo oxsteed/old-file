@@ -74,6 +74,25 @@ const T = {
       ar: 'راجع نشاط OxSteed Credit الخاص بك.',
     },
   },
+  // Monthly statement issuance (workstream 1). The body is intentionally free
+  // of amounts, balances and digits: the email carries only an
+  // authenticated link; figures live behind the login.
+  statement_ready: {
+    title: {
+      en: 'Your statement is ready',
+      fr: 'Votre relevé est prêt',
+      es: 'Tu estado de cuenta está listo',
+      ht: 'Releve ou pare',
+      ar: 'كشف حسابك جاهز',
+    },
+    body: {
+      en: 'Your monthly statement is ready. Sign in to your account to view and download it.',
+      fr: 'Votre relevé mensuel est prêt. Connectez-vous à votre compte pour le consulter et le télécharger.',
+      es: 'Tu estado de cuenta mensual está listo. Inicia sesión en tu cuenta para verlo y descargarlo.',
+      ht: 'Releve mansyèl ou pare. Konekte sou kont ou pou wè li epi telechaje li.',
+      ar: 'كشف حسابك الشهري جاهز. سجّل الدخول إلى حسابك لعرضه وتنزيله.',
+    },
+  },
   food_order_accepted: {
     title: {
       en: 'Order confirmed',
@@ -743,6 +762,13 @@ const EMAIL_TEMPLATES = {
       es: 'Ver panel',
       ht: 'Gade tablodbò a',
       ar: 'عرض لوحة التحكم',
+    },
+    statement_ready: {
+      en: 'View Statement',
+      fr: 'Voir le relevé',
+      es: 'Ver estado de cuenta',
+      ht: 'Gade releve a',
+      ar: 'عرض كشف الحساب',
     },
     appointment_requested: {
       title: {
