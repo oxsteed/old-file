@@ -12,10 +12,16 @@ const crypto = require('crypto');
 const pool = require('../db');
 const AppError = require('../utils/appError');
 const statements = require('./creditStatementService');
+const settlementStatements = require('./settlementStatementService');
 
 const SNAPSHOT_SCHEMA_VERSION = 1;
 const DEFAULT_CHUNK_SIZE = 2000;
-const PRODUCTS = new Set(['oxsteed', 'restaurant']);
+const PRODUCTS = new Set(['oxsteed', 'restaurant', 'restaurant_settlement', 'helper_earnings', 'business']);
+// Products whose account scope is a UUID (helper user id) rather than a BIGINT.
+const UUID_SCOPED_PRODUCTS = new Set(['helper_earnings']);
+// Products whose statements archive into settlement_statement_documents
+// (migration 688) and are computed by settlementStatementService.
+const SETTLEMENT_PRODUCTS = new Set(['restaurant_settlement', 'helper_earnings', 'business']);
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CURRENCY_PATTERN = /^[A-Z]{3}$/;
@@ -28,19 +34,34 @@ function parseIssuanceKey(issuanceKey) {
   }
   const [, , product, accountId, currency, periodFrom, periodTo, customerId] = parts;
   if (!PRODUCTS.has(product)) throw new AppError('Invalid statement issuance key', 400, 'statement_snapshot_invalid_key');
-  if (!/^[1-9]\d*$/.test(accountId)) throw new AppError('Invalid statement issuance key', 400, 'statement_snapshot_invalid_key');
+  if (UUID_SCOPED_PRODUCTS.has(product)) {
+    if (!UUID_PATTERN.test(accountId)) throw new AppError('Invalid statement issuance key', 400, 'statement_snapshot_invalid_key');
+  } else if (!/^[1-9]\d*$/.test(accountId)) {
+    throw new AppError('Invalid statement issuance key', 400, 'statement_snapshot_invalid_key');
+  }
   if (!CURRENCY_PATTERN.test(currency)) throw new AppError('Invalid statement issuance key', 400, 'statement_snapshot_invalid_key');
   if (!DATE_PATTERN.test(periodFrom) || !DATE_PATTERN.test(periodTo) || periodFrom > periodTo) {
     throw new AppError('Invalid statement issuance key', 400, 'statement_snapshot_invalid_key');
   }
   if (!UUID_PATTERN.test(customerId)) throw new AppError('Invalid statement issuance key', 400, 'statement_snapshot_invalid_key');
-  return { product, accountId: Number(accountId), currency, periodFrom, periodTo, customerId };
+  return {
+    product,
+    accountId: UUID_SCOPED_PRODUCTS.has(product) ? accountId.toLowerCase() : Number(accountId),
+    currency, periodFrom, periodTo, customerId,
+  };
+}
+
+function accountIdMatches(keyAccountId, requestedAccountId) {
+  if (typeof keyAccountId === 'string') {
+    return keyAccountId.toLowerCase() === String(requestedAccountId).toLowerCase();
+  }
+  return keyAccountId === Number(requestedAccountId);
 }
 
 function assertKeyMatches(issuanceKey, { product, accountId, currency, periodFrom, periodTo, customerId }) {
   const key = parseIssuanceKey(issuanceKey);
   const matches = key.product === product
-    && key.accountId === Number(accountId)
+    && accountIdMatches(key.accountId, accountId)
     && key.currency === currency
     && key.periodFrom === periodFrom
     && key.periodTo === periodTo
@@ -57,13 +78,17 @@ function rowCursor(row) {
   return `${row.date}|${row.id}`;
 }
 
+// Minor units are stringified in descriptors: JSON.stringify cannot serialize
+// BigInt, and the hash must be stable across representations.
 function canonicalRowDescriptor(row) {
   return {
     id: String(row.id),
     date: row.date,
-    debitCents: row.debitCents,
-    creditCents: row.creditCents,
-    balanceAfterCents: row.balanceAfterCents,
+    debitCents: String(row.debitCents),
+    creditCents: String(row.creditCents),
+    balanceAfterCents: row.balanceAfterCents === null || row.balanceAfterCents === undefined
+      ? null : String(row.balanceAfterCents),
+    ...(row.label ? { label: String(row.label) } : {}),
   };
 }
 
@@ -81,34 +106,159 @@ function toBigIntMinor(value, label) {
   }
 }
 
-// Recompute totals from the frozen document with BigInt and assert the money
-// invariant opening + credits - debits = closing, plus that the document's
-// stated totals equal the sum of its own transactions.
-function assertDocumentTotals(document) {
-  const opening = toBigIntMinor(document.openingBalanceCents, 'opening balance');
-  const closing = toBigIntMinor(document.closingBalanceCents, 'closing balance');
-  const credits = toBigIntMinor(document.totalCreditsCents, 'total credits');
-  const debits = toBigIntMinor(document.totalDebitsCents, 'total debits');
-  const rows = Array.isArray(document.transactions) ? document.transactions : [];
+// Per-product frozen evidence: the row list plus the money equation the
+// snapshot asserts. Credit products and restaurant_settlement share the
+// journal shape (opening + credits - debits = closing over transactions with
+// running balances). helper_earnings and business are deterministic snapshots
+// over activity records (the settlement inventory documents why no
+// append-only ledger exists for them): their evidence rows are the
+// statement's own period rows, and the manifest asserts the product's own
+// equation from the adapter. Statements never move money; freezing only
+// records what the statement computed.
+function journalEvidence(document) {
+  const openingMinor = toBigIntMinor(document.openingBalanceCents, 'opening balance');
+  const creditsMinor = toBigIntMinor(document.totalCreditsCents, 'total credits');
+  const debitsMinor = toBigIntMinor(document.totalDebitsCents, 'total debits');
+  const closingMinor = toBigIntMinor(document.closingBalanceCents, 'closing balance');
+  const rows = (Array.isArray(document.transactions) ? document.transactions : []).map((row) => ({
+    id: String(row.id),
+    date: row.date,
+    debitCents: toBigIntMinor(row.debitCents, 'row debit'),
+    creditCents: toBigIntMinor(row.creditCents, 'row credit'),
+    balanceAfterCents: row.balanceAfterCents === null || row.balanceAfterCents === undefined
+      ? null : toBigIntMinor(row.balanceAfterCents, 'row balance'),
+  }));
+  return { openingMinor, creditsMinor, debitsMinor, closingMinor, rows };
+}
+
+function helperEarningsEvidence(document) {
+  const openingMinor = toBigIntMinor(document.openingPayableCents, 'opening payable');
+  const postedMinor = toBigIntMinor(document.postedEarningsCents, 'posted earnings');
+  const settledMinor = toBigIntMinor(document.settledPayoutsCents, 'settled payouts');
+  const removedMinor = toBigIntMinor(document.statusRemovalsCents, 'status removals');
+  const closingMinor = toBigIntMinor(document.closingPayableCents, 'closing payable');
+  const rows = [];
+  for (const entry of Array.isArray(document.earnings) ? document.earnings : []) {
+    const payout = toBigIntMinor(entry.helperPayoutCents, 'earned payout');
+    // A removed earning was posted in the period and then left the payable
+    // position: it contributes to both sides so the row sums reproduce the
+    // adapter's postedEarningsCents and statusRemovalsCents exactly.
+    rows.push({
+      id: `earned:${entry.jobId}`,
+      date: entry.completedAt,
+      debitCents: entry.kind === 'removed' ? payout : 0n,
+      creditCents: payout,
+      balanceAfterCents: null,
+      ...(entry.kind === 'removed' ? { label: 'removed' } : {}),
+    });
+  }
+  for (const entry of Array.isArray(document.settled) ? document.settled : []) {
+    rows.push({
+      id: `settled:${entry.jobId}`,
+      date: entry.paidAt,
+      debitCents: toBigIntMinor(entry.helperPayoutCents, 'settled payout'),
+      creditCents: 0n,
+      balanceAfterCents: null,
+    });
+  }
+  return {
+    openingMinor,
+    creditsMinor: postedMinor,
+    debitsMinor: settledMinor + removedMinor,
+    closingMinor,
+    rows,
+  };
+}
+
+function businessEvidence(document) {
+  const receivables = document && typeof document.receivables === 'object' ? document.receivables : {};
+  const period = document && typeof document.period === 'object' ? document.period : {};
+  const openingMinor = toBigIntMinor(receivables.openingOutstandingCents, 'opening outstanding');
+  const invoicedMinor = toBigIntMinor(receivables.invoicedCents, 'invoiced');
+  const collectedOrAdjustedMinor = toBigIntMinor(receivables.collectedOrAdjustedCents, 'collected or adjusted');
+  const cancelledMinor = toBigIntMinor(receivables.cancelledCents, 'cancelled');
+  const closingMinor = toBigIntMinor(receivables.closingOutstandingCents, 'closing outstanding');
+  const rows = [];
+  for (const inv of Array.isArray(receivables.invoices) ? receivables.invoices : []) {
+    const issuedInPeriod = inv.issueDate && inv.issueDate >= period.from && inv.issueDate <= period.to;
+    if (!issuedInPeriod || inv.status === 'draft') continue;
+    const total = toBigIntMinor(inv.totalCents, 'invoice total');
+    if (inv.status === 'cancelled') {
+      rows.push({
+        id: `cancelled:${inv.id}`, date: inv.issueDate,
+        debitCents: total, creditCents: 0n, balanceAfterCents: null,
+      });
+    } else {
+      rows.push({
+        id: `invoiced:${inv.id}`, date: inv.issueDate,
+        debitCents: 0n, creditCents: total, balanceAfterCents: null,
+      });
+    }
+  }
+  // The collected-or-adjusted plug is derived (invoice payments carry no
+  // per-payment timestamp; the statement discloses this). Freezing it as a
+  // labeled row keeps the manifest equation exact and the derivation auditable.
+  rows.push({
+    id: 'collected-or-adjusted',
+    date: period.to,
+    debitCents: collectedOrAdjustedMinor,
+    creditCents: 0n,
+    balanceAfterCents: null,
+    label: 'derived-plug',
+  });
+  return {
+    openingMinor,
+    creditsMinor: invoicedMinor,
+    debitsMinor: collectedOrAdjustedMinor + cancelledMinor,
+    closingMinor,
+    rows,
+  };
+}
+
+function evidenceForDocument(document) {
+  const product = document && document.product;
+  if (product === 'helper_earnings') return helperEarningsEvidence(document);
+  if (product === 'business') return businessEvidence(document);
+  return journalEvidence(document);
+}
+
+// Recompute totals from the frozen evidence with BigInt and assert the money
+// invariant opening + credits - debits = closing, plus that the evidence
+// totals equal the sum of its own rows.
+function assertEvidenceTotals(evidence) {
   let sumCredits = 0n;
   let sumDebits = 0n;
-  for (const row of rows) {
-    sumCredits += toBigIntMinor(row.creditCents, 'row credit');
-    sumDebits += toBigIntMinor(row.debitCents, 'row debit');
+  for (const row of evidence.rows) {
+    sumCredits += BigInt(row.creditCents);
+    sumDebits += BigInt(row.debitCents);
   }
-  if (sumCredits !== credits || sumDebits !== debits) {
+  if (sumCredits !== evidence.creditsMinor || sumDebits !== evidence.debitsMinor) {
     throw new AppError('Statement snapshot totals do not match the statement rows', 409, 'statement_snapshot_integrity_failed');
   }
-  if (opening + credits - debits !== closing) {
+  if (evidence.openingMinor + sumCredits - sumDebits !== evidence.closingMinor) {
     throw new AppError('Statement snapshot does not reconcile: opening + credits - debits != closing', 409, 'statement_snapshot_integrity_failed');
   }
-  return { opening, closing, credits, debits, rowCount: rows.length };
+  return {
+    opening: evidence.openingMinor,
+    closing: evidence.closingMinor,
+    credits: evidence.creditsMinor,
+    debits: evidence.debitsMinor,
+    rowCount: evidence.rows.length,
+  };
+}
+
+// Back-compat alias: the journal evidence is what the original
+// assertDocumentTotals asserted.
+function assertDocumentTotals(document) {
+  return assertEvidenceTotals(journalEvidence(document));
 }
 
 // Scope check: the issuance key's account id must resolve to the same account
 // the statement was built for, so a snapshot can never mix currencies,
 // customers or products. For oxsteed the key carries the wallet account id; for
-// restaurant it carries the restaurant id and we resolve the customer wallet.
+// restaurant it carries the restaurant id and we resolve the customer wallet;
+// for settlement products the key carries the product's own scope id
+// (restaurant id, helper user id, business id).
 async function assertScopeMatches(client, key) {
   if (key.product === 'oxsteed') {
     const { rows: [account] } = await client.query(
@@ -118,11 +268,54 @@ async function assertScopeMatches(client, key) {
     if (!account) throw new AppError('Statement account does not match the issuance key', 404, 'statement_snapshot_scope_mismatch');
     return;
   }
-  const { rows: [account] } = await client.query(
-    `SELECT id FROM food_customer_wallet_accounts
-     WHERE customer_id = $1 AND restaurant_id = $2 AND currency_code = $3`,
-    [key.customerId, key.accountId, key.currency]);
-  if (!account) throw new AppError('Statement account does not match the issuance key', 404, 'statement_snapshot_scope_mismatch');
+  if (key.product === 'restaurant') {
+    const { rows: [account] } = await client.query(
+      `SELECT id FROM food_customer_wallet_accounts
+       WHERE customer_id = $1 AND restaurant_id = $2 AND currency_code = $3`,
+      [key.customerId, key.accountId, key.currency]);
+    if (!account) throw new AppError('Statement account does not match the issuance key', 404, 'statement_snapshot_scope_mismatch');
+    return;
+  }
+  if (key.product === 'restaurant_settlement') {
+    const { rows: [account] } = await client.query(
+      `SELECT id FROM oxsteed_credit_accounts
+       WHERE account_type = 'restaurant_sub_bank' AND restaurant_id = $1 AND currency_code = $2`,
+      [key.accountId, key.currency]);
+    if (!account) throw new AppError('Statement account does not match the issuance key', 404, 'statement_snapshot_scope_mismatch');
+    return;
+  }
+  if (key.product === 'helper_earnings') {
+    const { rows: [user] } = await client.query('SELECT id FROM users WHERE id = $1', [key.accountId]);
+    if (!user) throw new AppError('Statement account does not match the issuance key', 404, 'statement_snapshot_scope_mismatch');
+    return;
+  }
+  const { rows: [business] } = await client.query('SELECT id FROM businesses WHERE id = $1', [key.accountId]);
+  if (!business) throw new AppError('Statement account does not match the issuance key', 404, 'statement_snapshot_scope_mismatch');
+}
+
+async function loadStatementDocument(key) {
+  if (SETTLEMENT_PRODUCTS.has(key.product)) {
+    const options = {
+      product: key.product,
+      currencyCode: key.currency,
+      from: key.periodFrom,
+      to: key.periodTo,
+    };
+    if (key.product === 'restaurant_settlement') options.restaurantId = key.accountId;
+    else if (key.product === 'business') options.businessId = key.accountId;
+    else options.helperId = key.accountId;
+    // The issuance customerId is the statement recipient (owner/helper);
+    // the settlement builders record it as generatedBy, same convention as
+    // the credit builders.
+    return settlementStatements.getStatement(key.customerId, options);
+  }
+  return statements.getStatement(key.customerId, {
+    product: key.product,
+    currencyCode: key.currency,
+    ...(key.product === 'restaurant' ? { restaurantId: key.accountId } : {}),
+    from: key.periodFrom,
+    to: key.periodTo,
+  });
 }
 
 function shapeSnapshot(manifest, chunks) {
@@ -130,7 +323,7 @@ function shapeSnapshot(manifest, chunks) {
     id: manifest.id,
     issuanceKey: manifest.issuance_key,
     product: manifest.product,
-    accountId: Number(manifest.account_id),
+    accountId: manifest.account_uuid ? String(manifest.account_uuid) : Number(manifest.account_id),
     currency: manifest.currency_code,
     periodFrom: manifest.period_from instanceof Date ? manifest.period_from.toISOString().slice(0, 10) : manifest.period_from,
     periodTo: manifest.period_to instanceof Date ? manifest.period_to.toISOString().slice(0, 10) : manifest.period_to,
@@ -174,16 +367,11 @@ async function freezeSnapshot({ issuanceKey, product, accountId, currency, perio
   const existing = await getSnapshot(issuanceKey);
   if (existing) return existing;
 
-  const document = await statements.getStatement(key.customerId, {
-    product: key.product,
-    currencyCode: key.currency,
-    ...(key.product === 'restaurant' ? { restaurantId: key.accountId } : {}),
-    from: key.periodFrom,
-    to: key.periodTo,
-  });
-  const totals = assertDocumentTotals(document);
+  const document = await loadStatementDocument(key);
+  const evidence = evidenceForDocument(document);
+  const totals = assertEvidenceTotals(evidence);
 
-  const descriptors = (document.transactions || []).map(canonicalRowDescriptor);
+  const descriptors = evidence.rows.map(canonicalRowDescriptor);
   const sourceHash = hashRows(descriptors);
   const chunks = [];
   for (let offset = 0; offset < descriptors.length; offset += size) {
@@ -213,13 +401,16 @@ async function freezeSnapshot({ issuanceKey, product, accountId, currency, perio
     await assertScopeMatches(client, key);
     const { rows: [manifest] } = await client.query(
       `INSERT INTO statement_snapshots
-        (id, issuance_key, product, account_id, currency_code, period_from, period_to, cutoff_at,
+        (id, issuance_key, product, account_id, account_uuid, currency_code, period_from, period_to, cutoff_at,
          schema_version, row_count, total_credits_minor, total_debits_minor, opening_minor,
          closing_minor, source_hash, chunk_count, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16, transaction_timestamp())
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17, transaction_timestamp())
        ON CONFLICT (issuance_key) DO NOTHING
        RETURNING *`,
-      [snapshotId, issuanceKey, key.product, key.accountId, key.currency, key.periodFrom, key.periodTo,
+      [snapshotId, issuanceKey, key.product,
+        UUID_SCOPED_PRODUCTS.has(key.product) ? null : key.accountId,
+        UUID_SCOPED_PRODUCTS.has(key.product) ? key.accountId : null,
+        key.currency, key.periodFrom, key.periodTo,
         document.generatedAt, SNAPSHOT_SCHEMA_VERSION, totals.rowCount, String(totals.credits),
         String(totals.debits), String(totals.opening), String(totals.closing), sourceHash, chunks.length]);
     if (!manifest) {
@@ -327,6 +518,10 @@ module.exports = {
   freezeSnapshot,
   verifySnapshot,
   getSnapshot,
+  evidenceForDocument,
+  parseIssuanceKey,
+  SETTLEMENT_PRODUCTS,
+  UUID_SCOPED_PRODUCTS,
   SNAPSHOT_SCHEMA_VERSION,
   DEFAULT_CHUNK_SIZE,
 };

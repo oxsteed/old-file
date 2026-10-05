@@ -2,17 +2,20 @@
 
 ## Product and accounting contract
 
-The new statement experience is bank-style presentation of existing restricted
-stored-value credit records. It is **not** a bank deposit account, a new payment
-ledger, proof of regulatory approval, or a deposit-insurance claim. OxSteed Credit,
-each restaurant wallet, and each currency remain separate. Existing payment,
-refund, approval, eligibility, and account-authority services are unchanged.
+Bank-style presentation of existing restricted stored-value credit records. This
+is **not** a bank deposit account, a new payment ledger, proof of regulatory
+approval, or a deposit-insurance claim. OxSteed Credit, each restaurant wallet,
+restaurant settlements, helper earnings, business statements, and each currency
+remain separate. Existing payment, refund, approval, eligibility, and
+account-authority services are unchanged. Generating, correcting, or downloading
+a statement never initiates any balance, payment, fee, refund, payout, dispute
+decision, or eligibility change.
 
 - `/oxsteed-credit/statements` and `/restaurant-credit/statements` provide account
   selection, UTC period selection, posted activity, balances, and PDF/CSV downloads.
 - Opening balance plus posted credits minus posted debits must equal the closing
-  balance. Every running balance is checked using integer arithmetic before any
-  export is allowed. Zero-activity periods retain the previous balance.
+  balance. Every running balance is checked using integer minor-unit arithmetic
+  before any export is allowed. Zero-activity periods retain the previous balance.
 - OxSteed Credit uses posted journal timestamps and includes original reversed
   transactions alongside their compensating entries. Restaurant Credit uses the
   original ledger `created_at`: migration 347 assigned a default `posted_at` to
@@ -22,124 +25,236 @@ refund, approval, eligibility, and account-authority services are unchanged.
 - Current pending holds are a separately labeled, current-as-of section in interim
   reports only. They are not completed charges or historical period-end holds and
   never reduce the posted closing balance.
+- The SHA-256 checksum verifies canonical statement data, **not** a cryptographic
+  signature of the PDF or proof of authenticity for an outside bank.
 
-## Issuance and retention
+## Automatic monthly issuance
 
-A full, closed UTC calendar month creates one immutable snapshot **on demand**.
-Migration 682 keys it by customer, product, account, currency, and period. A unique
-constraint and transaction retries make simultaneous issuance return the same
-document identity and checksum. UPDATE/DELETE are rejected by a database trigger.
-There is no historical backfill or automatic monthly email/scheduler.
+A scheduler discovers all policy-eligible accounts for the latest closed UTC
+month in bounded, resumable batches. Nothing issues until 72 hours after the
+month closes, so late postings settle first. Eligible zero-activity accounts are
+included with carryover; new, closed, suspended, and deactivated accounts and
+multi-currency accounts follow the documented eligibility policy
+(`server/services/statementIssuancePolicy.js`).
 
-Current-month and custom-period reports are interim reports: repeat requests can
-include newly posted activity and have a new generation timestamp. UI labels make
-that difference explicit. Changing form dates does not change the report or its
-downloads until Apply is selected. Account/product changes hide the old report and
-cancel requests; late responses cannot overwrite the current selection.
+Each account-period becomes a durable job (migration 683: runs, account jobs,
+attempts, leases, fencing tokens, deterministic issuance keys, transactional
+outbox). The five fenced stages are: freeze snapshot, render PDF, publish
+artifact, insert the immutable document row plus a `statement.ready` outbox event
+in one transaction, mark complete. Two workers can never issue two originals:
+claims are atomic (`SELECT FOR UPDATE SKIP LOCKED`), fencing tokens invalidate
+stale workers, and the document insert is unique per
+(customer, product, account, currency, period).
 
-Saved monthly JSON is the issued accounting snapshot, not a second ledger. Later
-ledger corrections must use existing compensating transactions, not edit the
-snapshot. Downloaded PDFs are generated from that snapshot in the selected
-language; their binary bytes can differ by language/rendering version. The SHA-256
-checksum verifies canonical statement data, **not** a cryptographic signature of
-the PDF or proof of authenticity for an outside bank. Regulatory retention,
-customer-data erasure exceptions, and any future amended-statement workflow need
-explicit policy approval; deleting a customer must not cascade-delete issued
-financial documents.
+Crash recovery is automatic. A job whose worker dies is reclaimed once its lease
+expires, including jobs stranded mid-pipeline; every stage is idempotent, so a
+re-drive never duplicates snapshots, artifacts, documents, or notifications.
+Jobs that exhaust their attempt budget move to `dead_letter` for operator
+review. The `statement.ready` outbox is drained on every scheduler cycle, so
+notifications never stall behind the issuance calendar. Customers get a localized
+in-app "statement ready" notification only after the artifact is verified; email
+carries a generic authenticated link (no balances, no attachments).
+
+## Statement archive and private artifacts
+
+`/restaurant-credit/statements/archive` and `/oxsteed-credit/statements/archive`
+list issued statements with product/account/currency/year/month filters,
+original and amended versions, issue dates, and readiness/download status.
+Settlement statements have their own self-service archive at
+`/api/settlement-statements` (owner/finance-member/helper self-service;
+ordinary staff get nothing).
+
+Original PDF bytes live in private Cloudflare R2 under a statement-only
+namespace (never a public URL path, never the backup bucket). Each artifact
+records its statement/revision, language, renderer/template/font versions,
+SHA-256, byte length, media type, and an opaque object key. Downloads are
+authenticated byte streams or short-lived scoped signed URLs; every download is
+re-authorized. Repeat downloads are byte-identical; translations and re-renders
+are separate labeled renditions, never replacements.
+
+Publication is recoverable: database snapshot, staging upload, size/checksum
+verification, ready, then notify. Uncertain uploads are reconciled against object
+metadata before any retry. Missing or corrupt objects fail closed and are
+quarantined, never served.
+
+## Corrections and amendments
+
+Corrections follow an explicit reviewed workflow linked to the original
+(migration 686: proposals; 687: immutable versions). An operator proposes with a
+reason and evidence refs, distinguishing clerical/presentation corrections from
+accounting-result changes. A **different** admin approves or rejects
+(maker-checker; self-approval is rejected with 403 even for super-admins).
+
+Ledger facts change only through authoritative compensating transactions with
+their existing approvals; the statement service never fabricates adjustments.
+On approval the system validates continuity, re-derives the document, publishes
+an `amended-vN` artifact, inserts the new immutable version, marks the original
+superseded (with reason, approver, time, and links), and notifies the owner once.
+If a later issued month already exists whose opening would break, the amendment
+is blocked as unresolved continuity unless published `restated_forward` with
+disclosure; the later month's row is never edited. Rejected proposals never
+publish. Publication failures after approval retry idempotently: exactly one
+version row per proposal.
+
+## Transaction investigation and support
+
+Statement entries drill down to existing details, receipts, orders, payments,
+and dispute flows. Relationships resolve only through explicit stored
+references; nothing is inferred from name, amount, or description. Each drilldown
+shows snapshot facts (labeled historical), live status (labeled current), and
+related records; deleted records show as unavailable.
+
+"I don't recognize this" / "Report an issue" attaches the statement ID,
+revision, entry, account, and period to the existing case system, with
+idempotency keys so retries never duplicate cases. Filing a case moves no money
+and makes no dispute decision. Restaurant wallet ledger entries have no case
+API today, so they get read-only drilldown and an honest notice directing the
+customer to support instead of an invented case flow.
+
+## Admin operations and audit
+
+`/admin/super/statement-operations` (grants: `view_financials` to see,
+`manage_operations` for pause/resume/retry/reconcile, `manage_financials` for
+amendment approve/reject) shows expected vs issued counts, oldest queue age,
+active runs, stale leases, generation/storage/reconciliation/notification
+failures, missing artifacts, amendments awaiting review, and product/currency
+filters. Every count carries its definition and source timestamp.
+
+Safe controls: pause/resume runs, retry failed or dead-lettered jobs (never
+touches issued evidence), read-only artifact reconciliation, catch-up discovery.
+These controls cannot delete evidence, bypass reconciliation, or replay
+financial captures/payouts. All statement activity is recorded as append-only
+audit events (issuance, access/download auth, publication, notification,
+failures, retries, proposals, approvals/rejections, retention) with
+actor/action/target/UTC time/outcome/reason/correlation; document bodies and
+signed links are never logged. Alert thresholds cover failed runs, missing
+coverage, reconciliation failures, corrupt artifacts, stale leases, aged queues,
+and delivery backlogs. See `docs/statement-operations-runbook.md` for the
+operator procedures.
+
+## Accessible documents
+
+PDFs are tagged: document language and title, heading hierarchy, one logical
+table with repeated header rows, list structures, artifact-marked decorative
+content, logical reading order, and real link annotations. Mixed Arabic/Latin
+content extracts correctly; unsupported scripts fail loudly with a named error
+and an HTML/CSV recovery path instead of corrupting glyphs. No PDF/UA
+conformance is claimed. An accessible HTML statement (semantic table, caption,
+RTL, dark mode, reduced motion, print styles) is offered as an equivalent
+option alongside PDF and CSV, in all five languages.
+
+## Settlement statements
+
+Restaurant settlement, helper earnings, and business statements extend the same
+framework through explicit product adapters
+(`server/services/settlementStatementService.js`). The table-by-table inventory
+and journal/status meanings are documented in
+`docs/statement-settlement-inventory.md`.
+
+- **Restaurant settlement**: sub-bank journal reconciliation
+  (opening + credits - debits = closing, verified per row); partner
+  settlements, reserves, and funding requirements are informational and kept
+  out of the equation. Payouts are labeled verified / in_transit / failed /
+  never_executed from authoritative outcomes only: provider connection or
+  payout initiation is never presented as proof of payout success. Order
+  proceeds that go direct-to-Connect are shown with no OxSteed payout record.
+  Customer-wallet balances never enter merchant statements.
+- **Helper earnings**: opening payable, posted earnings, adjustments, platform
+  fees, refunds/reversals, settled payouts; pending/available/reserved are
+  explicitly separate; unpaid earnings are never described as received. Every
+  document states it is not a tax form, payroll record, or proof of employment.
+- **Business**: per (business, currency) receivables and payables, approved
+  fees, settlements, reserves, verified payout outcomes, per-restaurant payout
+  sections. No cross-entity consolidation.
+
+Settlement documents live in their own append-only archive (migration 688), so
+customer stored value and merchant/helper/business money stay structurally
+separate. The same issuance, archive, amendment, audit, recovery, and
+accessibility safeguards apply per adapter.
 
 ## API and access
 
-Customer API (the authenticated account is the only permitted owner):
+Customer APIs (the authenticated account is the only permitted owner):
 
 - `GET /api/oxsteed-credit/documents[.pdf|.csv]`
 - `GET /api/food/customer/wallets/:restaurantId/statements[.pdf|.csv]`
+- `GET /api/statement-archive/archive` (filters: product, accountId, currency, year, month)
+- `GET /api/statement-archive/archive/:documentId/download` (byte stream)
+- `GET /api/statement-archive/archive/:documentId/link` (short-lived signed URL)
+- `GET /api/statements/:documentId/entries` and `/entries/:entryId` (drilldown)
+- `POST /api/statements/:documentId/entries/:entryId/cases` (report an issue)
+- `GET /api/statements/documents/:documentId/renditions/:language/pdf|html`
+- `GET /api/settlement-statements/...` (self-service settlement archive)
 
-Query fields: `from`, `to`, `currencyCode`, `language` (en/es/fr/ht/ar). Default is
-the previous completed UTC month. Owner/account IDs in the query/body are ignored.
-Restaurant wallet lookup also requires the customer, restaurant, and currency.
-Existing customer authentication, role/identity rules and export rate limits apply.
-Suspended financial accounts can still retrieve historical statements if the user
-can authenticate under existing platform policy. Existing CSV endpoints remain.
+Query fields: `from`, `to`, `currencyCode`, `language` (en/es/fr/ht/ar). Owner/account
+IDs in the query/body are ignored. Existing customer authentication, role/identity
+rules, and export rate limits apply. Responses use private/no-store, no-cache and
+nosniff. Only approved public document fields are rendered: no card credentials,
+fraud notes, internal actor metadata, or full account identifiers.
 
-Super-admin API (existing active-session, role and MFA enforcement):
+Admin APIs (existing active-session, role, grant, and MFA enforcement):
 
-- `GET /api/admin/super/oxsteed-credit/accounts/:customerId/documents[.pdf|.csv]`
-- `GET /api/admin/super/restaurant-credit/accounts/:customerId/:restaurantId/statements.pdf`
+- `GET /api/admin/statements/ops/runs`, `/ops/runs/:id`, `/ops/failures`, `/ops/alerts`, `/audit`
+- `POST /api/admin/statements/ops/runs/:id/pause|resume`, `/ops/jobs/:id/retry`, `/ops/artifacts/reconcile`
+- `GET|POST /api/admin/statements/ops/amendments`, `/ops/amendments/:id/approve|reject|retry-publish`
+- `POST /api/statement-issuance/runs`, `/runs/:id/pause|resume|catch-up`, `GET /runs/:id/stats`
 
-The OxSteed Credit customer-detail panel adds a current-month PDF action while
-retaining its existing CSV. These routes do not grant ordinary admins access to
-another customer's financial documents. Responses use private/no-store, no-cache
-and nosniff. Only approved public document fields are rendered: no card credentials,
-fraud notes, internal actor metadata or full account identifiers.
+These routes do not grant ordinary admins access to another customer's financial
+documents. A pre-existing defect in the grant-lookup query (UNION with an
+expression ORDER BY, rejected by PostgreSQL) once turned every non-super-admin
+permission check into a 500; it is fixed and covered by
+`server/__tests__/adminGrantLookup.test.js`.
 
 ## Operational bounds and recovery
 
-- Maximum period: 366 days; maximum complete report: 5,000 entries and 5,000 holds.
-  Excess activity is rejected, never silently truncated. Narrow the period or
-  contact support. The web table paginates 50 entries at a time.
+- On-demand sync ceiling remains 5,000 rows; the async export path (frozen
+  snapshot/chunk model, migration 684) serves larger reports without
+  truncating and never tells customers to use shorter periods as the only
+  solution.
 - All database reads use one repeatable-read snapshot, a 15-second query timeout,
-  and the existing export concurrency budget (default two operations).
+  and the existing export concurrency budget.
 - PDF work runs in a separate thread, not the API event loop: 60-second wall-clock
-  deadline, 256 MiB old-generation / 32 MiB young-generation heap limits, 32 MiB
-  result limit, and termination on disconnect/error/completion. The export slot
-  remains held until the thread exits. CSV remains available when PDF cannot render.
-- No external object storage, provider API, new secret, bank integration or charge
-  is needed. Bundled OFL-licensed Noto fonts cover the five supported languages.
-  Unsupported scripts fail explicitly in PDF rather than corrupting a name; CSV
-  preserves their Unicode text. Mixed Arabic/Latin text is shaped and reordered.
+  deadline, 32 MiB result limit, termination on disconnect/error/completion.
+- `STATEMENT_ARTIFACT_BUCKET` (private R2) must be configured or artifact
+  publication fails closed; no statement is marked issued without a verified
+  artifact. Bundled OFL-licensed Noto fonts cover the five supported languages.
 - CSV neutralizes spreadsheet formula triggers, including those behind hidden
-  direction marks or whitespace, and preserves minor-unit precision. Downloads
-  receive attachment headers only after rendering succeeds, not for JSON errors.
+  direction marks or whitespace, and preserves minor-unit precision.
 - An integrity failure requires investigation of the authoritative journal and
   its existing reconciliation tooling. Do not edit snapshots, bypass the check,
   or approve a hand-calculated balance. Support should record the product,
-  currency, period, statement ID and error code, not ask for passwords or card PINs.
+  currency, period, statement ID, and error code, not ask for passwords or card PINs.
 
 ## Verification and release checklist
 
-Verification performed locally on 2026-10-05:
+Verification performed on 2026-10-05 against disposable `credit_statement_test`
+databases (synthetic fixtures only; no production data):
 
-- New service/controller/renderer/worker/route tests plus existing credit/wallet,
-  export-rate-limit and admin-authentication tests passed: 39 suites, 738 tests.
-- Real-browser checks passed for Apply, PDF/CSV actions, pagination, account/product
-  races, unavailable/error/oversize recovery, all five locales, desktop/mobile,
-  RTL, keyboard focus, both themes and reduced motion. These use isolated synthetic
-  fixtures, not a production charge or authenticated production certification.
-- `npm run verify:i18n`, `npm run typecheck`, `npm run build:ci` passed. The statement
-  unit/format/localization contract is included in `prebuild:ci`.
-- Complete migrations through 682 applied to disposable PostGIS/PostgreSQL 16.
-  The real-database rehearsal passed twice after the final service changes, testing
-  both products, refund/fee math, timestamp ties, currencies, owner isolation,
-  empty-period carryover, concurrent issuance, immutable hashes, active/expired
-  holds and reconciliation-failure rollback. No production data was changed.
-- Multilingual four-page synthetic PDFs were visually reviewed for headers,
-  repeated table headings, all activity, page counts, balances and closing notices.
-  Poppler and MuPDF independently rendered the samples. Repeated-image preview
-  artifacts were cross-checked against isolated renders and identical PNG pixels;
-  the saved documents retain their complete text, amounts and embedded fonts.
+- Full server suite green (398 suites, 4416 tests, 0 failures at last full run),
+  including: durable job infrastructure (leases, fencing, reclaim, dead-letter),
+  snapshot/chunk model, artifact publication, automatic issuance (month/year
+  boundaries, leap years, open/close, empty months, multi-currency, repeated
+  and catch-up runs, concurrent workers, restart after each stage, late posting,
+  unavailable storage, notification retries, duplicate suppression), archive
+  (isolation, tampered IDs, expired links, byte-identical downloads,
+  original-vs-rendition, missing/corrupt objects), amendments (maker-checker,
+  ordered chains, continuity, no double counting, safe retries), investigation
+  (explicit-FK drilldown, case dedupe, no money movement), admin operations
+  (role matrix, audit integrity, alert thresholds), accessibility (tag
+  structure, 5 languages incl. RTL, extraction fidelity), and settlement
+  adapters (22 tests: separation, roles, payout honesty, reconciliation).
+- Client `build:ci` green (typecheck, i18n verification, admin route
+  contracts, production build).
+- Migrations 682-689 applied cleanly in sequence on disposable databases.
 
-Repeatable commands from the respective package directories:
-
-```sh
-# client
-npm run test:credit-statements
-node --test scripts/creditStatements.browser-check.cjs
-npm run verify:i18n
-npm run typecheck
-npm run build:ci
-
-# server
-npm test -- --testPathPatterns='(oxsteedCredit|foodWallet|creditStatement|adminAuthSecurity)'
-node scripts/credit-statement-samples.js
-```
-
-`npm run verify:credit-statements` refuses anything except a **disposable** local
-database named `credit_statement_test`. Apply the migrations in that database
-first. The rehearsal creates synthetic financial fixtures and intentionally corrupt
-evidence for rejection tests; never use a production dump or a shared database.
-
-Production deployment is a separate gate: install the locked dependency tree,
-deploy the client/server/fonts together, apply migration 682, confirm `/ready` and
-the deployed revision, and perform an authenticated real-account read/download
-smoke test for each product. This local commit does not certify deployment,
-production data reconciliation, regulatory readiness, or global-scale load capacity.
+Production deployment remains a separate gate: install the locked dependency
+tree, deploy client/server/fonts together, apply migrations, set
+`STATEMENT_ARTIFACT_BUCKET` in the secret store, confirm `/ready` and the
+deployed revision, and perform an authenticated real-account read/download
+smoke test for each product. Known production issues outside this build's
+scope: the restaurant payout path is not atomic (Stripe Transfer before journal
+post) and has no webhook reconciliation; migration 689 unblocks the
+`sub_bank_payout` journal leg, but payouts must not be activated for real money
+without the atomicity redesign. This local verification does not certify
+deployment, production data reconciliation, regulatory readiness, or
+global-scale load capacity.

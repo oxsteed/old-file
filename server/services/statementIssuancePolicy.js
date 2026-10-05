@@ -13,6 +13,13 @@
  *   carries one currency_code per (restaurant, customer) row), so discovery
  *   naturally emits one job per currency scope. No cross-currency aggregation
  *   happens anywhere in the pipeline.
+ * - Settlement products (workstream 8 follow-up): 'restaurant_settlement'
+ *   issues per (restaurant sub-bank account); 'helper_earnings' per (helper
+ *   user, currency with earnings activity); 'business' per (business, active
+ *   currency). Settlement statements archive into
+ *   settlement_statement_documents (migration 688), never
+ *   credit_statement_documents: customer stored value and merchant/helper/
+ *   business money stay structurally separate.
  * - Amounts stay in integer minor units; authoritative ledger timestamps are
  *   preserved; issued originals are append-only and immutable.
  *
@@ -21,7 +28,11 @@
  * product decision for Emile, not an engineering one.
  */
 
-const PRODUCTS = ['oxsteed', 'restaurant'];
+const PRODUCTS = ['oxsteed', 'restaurant', 'restaurant_settlement', 'helper_earnings', 'business'];
+
+// Products whose statements archive into settlement_statement_documents
+// (migration 688) instead of credit_statement_documents (migration 682).
+const SETTLEMENT_PRODUCTS = new Set(['restaurant_settlement', 'helper_earnings', 'business']);
 
 // Hours after a UTC month ends before the scheduler creates that month's
 // issuance run. Lets late-posting ledger entries settle so the frozen
@@ -92,7 +103,15 @@ const STATEMENT_POLICY = Object.freeze({
   },
   zeroActivityAccounts: {
     issued: true,
-    note: 'Accounts with no period activity but a carryover balance still get a statement (opening = closing = carryover).',
+    note: 'Accounts with no period activity but a carryover balance still get a statement (opening = closing = carryover). '
+      + 'For settlement products: restaurants with a sub-bank account but no period postings, helpers with historical '
+      + 'earnings and a payable position, and businesses with outstanding invoices all still get a statement.',
+  },
+  settlementProducts: {
+    products: ['restaurant_settlement', 'helper_earnings', 'business'],
+    archive: 'settlement_statement_documents (migration 688), never credit_statement_documents',
+    note: 'Settlement issuance reuses the same fencing/lease/idempotency guarantees. Statements never move money; '
+      + 'customer stored value and merchant/helper/business money stay in separate archive tables.',
   },
   multiCurrency: {
     mode: 'one-job-per-currency',
@@ -107,7 +126,10 @@ const STATEMENT_POLICY = Object.freeze({
  * { eligible: false, reason } where reason is a stable machine-readable skip
  * code recorded on the job row.
  *
- * account shape: { id, customer_id, currency_code, status, created_at }
+ * account shape: { id, customer_id, currency_code, status, created_at } where
+ * status is normalized by the product's discovery SQL to one of
+ * 'active' | 'suspended' | 'closed' | 'draft' | 'paused' (any other value is
+ * recorded verbatim as account-status-<value>).
  * (plus restaurant_id for product 'restaurant').
  */
 function evaluateAccountEligibility(account, { product, periodFrom, periodTo }) {
@@ -142,6 +164,7 @@ function evaluateAccountEligibility(account, { product, periodFrom, periodTo }) 
 
 module.exports = {
   PRODUCTS,
+  SETTLEMENT_PRODUCTS,
   ISSUANCE_GRACE_HOURS,
   INCLUDE_PRE_ACTIVATION_PERIODS,
   SUSPENDED_ACCOUNT_ISSUANCE,

@@ -61,11 +61,17 @@ const pool = require('../db');
 const AppError = require('../utils/appError');
 const logger = require('../utils/logger');
 const statements = require('./creditStatementService');
+const settlementStatements = require('./settlementStatementService');
 const snapshots = require('./statementSnapshotService');
 const artifacts = require('./statementArtifactService');
 const jobs = require('./statementJobService');
 const { renderStatementPdfInWorker } = require('./creditStatementExport');
 const defaultStorage = require('../utils/storage');
+
+// Products whose statements archive into settlement_statement_documents
+// (migration 688). Amendments to them produce versions linked to that
+// archive (migration 690); scopes never mix with credit_statement_documents.
+const SETTLEMENT_PRODUCTS = new Set(['restaurant_settlement', 'helper_earnings', 'business']);
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const POSITIVE_INT_RE = /^[1-9]\d*$/;
@@ -73,6 +79,13 @@ const AMENDMENT_TYPES = new Set(['clerical', 'accounting']);
 const PRESENTATIONS = new Set(['restated', 'later_period']);
 const LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
 const CORE_MONEY_KEYS = ['openingBalanceCents', 'totalCreditsCents', 'totalDebitsCents', 'closingBalanceCents'];
+const HELPER_MONEY_KEYS = ['openingMinor', 'postedMinor', 'settledMinor', 'removedMinor', 'closingMinor'];
+const BUSINESS_MONEY_KEYS = ['openingMinor', 'invoicedMinor', 'collectedOrAdjustedMinor', 'cancelledMinor', 'closingMinor'];
+// Accounting amendments need posted compensating transactions to reference.
+// helper_earnings and business records are activity snapshots, not
+// append-only ledgers (see the settlement inventory), so accounting
+// amendments fail closed for them; clerical amendments are fully supported.
+const ACCOUNTING_UNSUPPORTED_PRODUCTS = new Set(['helper_earnings', 'business']);
 
 function fail(code, message, statusCode = 400) {
   throw new AppError(message, statusCode, code);
@@ -97,17 +110,75 @@ function assertMinorInteger(value, name) {
   return value;
 }
 
-// The money-relevant core of a statement document. The fingerprint pins the
-// ledger-derived source data a proposal was built against so approval
-// re-validates it instead of trusting it.
+// The money-relevant core of a statement document, per product kind. The
+// fingerprint pins the ledger-derived source data a proposal was built
+// against so approval re-validates it instead of trusting it.
+//
+// Kinds:
+// - 'journal': oxsteed, restaurant (credit) and restaurant_settlement. The
+//   classic journal core: opening + credits - debits = closing over the
+//   period's transactions.
+// - 'helper': helper_earnings. opening + posted - settled - removed = closing
+//   over the period's earning/settlement/removal rows.
+// - 'business': business. opening + invoiced - collectedOrAdjusted -
+//   cancelled = closing over the period's invoices.
+// Every kind uses openingMinor/closingMinor as the canonical opening/closing
+// slots so continuity and the version envelope stay generic.
 function coreOf(document) {
   const source = document && typeof document === 'object' ? document : {};
+  const product = source.product;
+  if (product === 'helper_earnings') {
+    return {
+      kind: 'helper',
+      openingMinor: source.openingPayableCents,
+      postedMinor: source.postedEarningsCents,
+      settledMinor: source.settledPayoutsCents,
+      removedMinor: source.statusRemovalsCents,
+      closingMinor: source.closingPayableCents,
+      rowCount: Number(source.earningsCount || 0) + Number(source.settledCount || 0) + Number(source.removedCount || 0),
+      rows: [
+        ...(Array.isArray(source.earnings) ? source.earnings : []).map((e) => ({
+          id: `earned:${e.jobId}`, date: e.completedAt, amountCents: e.helperPayoutCents, kind: e.kind,
+        })),
+        ...(Array.isArray(source.settled) ? source.settled : []).map((e) => ({
+          id: `settled:${e.jobId}`, date: e.paidAt, amountCents: e.helperPayoutCents,
+        })),
+        ...(Array.isArray(source.removed) ? source.removed : []).map((e) => ({
+          id: `removed:${e.jobId}`, date: e.completedAt, amountCents: e.helperPayoutCents,
+        })),
+      ],
+    };
+  }
+  if (product === 'business') {
+    const receivables = source.receivables && typeof source.receivables === 'object' ? source.receivables : {};
+    return {
+      kind: 'business',
+      openingMinor: receivables.openingOutstandingCents,
+      invoicedMinor: receivables.invoicedCents,
+      collectedOrAdjustedMinor: receivables.collectedOrAdjustedCents,
+      cancelledMinor: receivables.cancelledCents,
+      closingMinor: receivables.closingOutstandingCents,
+      rowCount: Number(receivables.invoiceCount || 0),
+      rows: (Array.isArray(receivables.invoices) ? receivables.invoices : []).map((inv) => ({
+        id: String(inv.id),
+        status: inv.status,
+        issueDate: inv.issueDate,
+        totalCents: inv.totalCents,
+        paidCents: inv.paidCents,
+        outstandingCents: inv.outstandingCents,
+      })),
+    };
+  }
   const transactions = Array.isArray(source.transactions) ? source.transactions : [];
   return {
+    kind: 'journal',
     openingBalanceCents: source.openingBalanceCents,
     totalCreditsCents: source.totalCreditsCents,
     totalDebitsCents: source.totalDebitsCents,
     closingBalanceCents: source.closingBalanceCents,
+    // Canonical slots shared across kinds for continuity and envelopes.
+    openingMinor: source.openingBalanceCents,
+    closingMinor: source.closingBalanceCents,
     transactionCount: source.transactionCount,
     transactions: transactions.map((row) => ({
       id: String(row.id),
@@ -124,20 +195,131 @@ function ledgerFingerprint(document) {
 }
 
 function assertCoreMoneyIntegers(core, label) {
-  for (const key of CORE_MONEY_KEYS) assertMinorInteger(core[key], `${label} ${key}`);
-  if (!Number.isSafeInteger(core.transactionCount)) {
-    fail('statement_amendment_integrity_failed', `Statement ${label} transaction count is not an integer`, 409);
+  const keys = core.kind === 'helper' ? HELPER_MONEY_KEYS
+    : core.kind === 'business' ? BUSINESS_MONEY_KEYS : CORE_MONEY_KEYS;
+  for (const key of keys) assertMinorInteger(core[key], `${label} ${key}`);
+  const count = core.kind === 'journal' ? core.transactionCount : core.rowCount;
+  if (!Number.isSafeInteger(count)) {
+    fail('statement_amendment_integrity_failed', `Statement ${label} row count is not an integer`, 409);
   }
 }
 
+// The product's money equation over a core. Builders already enforce these;
+// this is belt and braces before publishing a version.
+function equationHolds(core) {
+  if (core.kind === 'helper') {
+    return BigInt(core.openingMinor) + BigInt(core.postedMinor)
+      - BigInt(core.settledMinor) - BigInt(core.removedMinor) === BigInt(core.closingMinor);
+  }
+  if (core.kind === 'business') {
+    return BigInt(core.openingMinor) + BigInt(core.invoicedMinor)
+      - BigInt(core.collectedOrAdjustedMinor) - BigInt(core.cancelledMinor) === BigInt(core.closingMinor);
+  }
+  return BigInt(core.openingBalanceCents) + BigInt(core.totalCreditsCents)
+    - BigInt(core.totalDebitsCents) === BigInt(core.closingBalanceCents);
+}
+
+// Totals groups for the version envelope, per product kind. openingMinor and
+// closingMinor are the canonical slots; middle keys are product-specific.
+function totalsOf(core) {
+  if (core.kind === 'helper') {
+    return {
+      openingMinor: core.openingMinor,
+      postedMinor: core.postedMinor,
+      settledMinor: core.settledMinor,
+      removedMinor: core.removedMinor,
+      closingMinor: core.closingMinor,
+      rowCount: core.rowCount,
+    };
+  }
+  if (core.kind === 'business') {
+    return {
+      openingMinor: core.openingMinor,
+      invoicedMinor: core.invoicedMinor,
+      collectedOrAdjustedMinor: core.collectedOrAdjustedMinor,
+      cancelledMinor: core.cancelledMinor,
+      closingMinor: core.closingMinor,
+      rowCount: core.rowCount,
+    };
+  }
+  return {
+    openingMinor: core.openingBalanceCents,
+    creditsMinor: core.totalCreditsCents,
+    debitsMinor: core.totalDebitsCents,
+    closingMinor: core.closingBalanceCents,
+    transactionCount: core.transactionCount,
+  };
+}
+
 async function loadOriginalDocument(clientOrPool, documentId) {
-  const { rows: [row] } = await clientOrPool.query(
+  const { rows: [credit] } = await clientOrPool.query(
     `SELECT id, customer_id, product, account_id, currency_code,
             period_from, period_to, generated_at, document, content_hash
      FROM credit_statement_documents WHERE id = $1`,
     [documentId]);
-  if (!row) fail('statement_amendment_document_not_found', 'Original statement document not found', 404);
-  return row;
+  if (credit) {
+    return {
+      kind: 'credit',
+      id: credit.id,
+      product: credit.product,
+      customerId: String(credit.customer_id),
+      accountId: Number(credit.account_id),
+      accountUuid: null,
+      currency_code: credit.currency_code,
+      period_from: credit.period_from,
+      period_to: credit.period_to,
+      generated_at: credit.generated_at,
+      document: credit.document,
+      content_hash: credit.content_hash,
+    };
+  }
+  const { rows: [settlement] } = await clientOrPool.query(
+    `SELECT id, product, scope_restaurant_id, scope_business_id, scope_helper_user_id,
+            currency_code, period_from, period_to, generated_at, document, content_hash
+     FROM settlement_statement_documents WHERE id = $1`,
+    [documentId]);
+  if (!settlement) {
+    fail('statement_amendment_document_not_found', 'Original statement document not found', 404);
+  }
+  return {
+    kind: 'settlement',
+    id: settlement.id,
+    product: settlement.product,
+    customerId: await resolveSettlementRecipient(clientOrPool, settlement),
+    accountId: settlement.scope_restaurant_id !== null && settlement.scope_restaurant_id !== undefined
+      ? Number(settlement.scope_restaurant_id)
+      : settlement.scope_business_id !== null && settlement.scope_business_id !== undefined
+        ? Number(settlement.scope_business_id) : null,
+    accountUuid: settlement.scope_helper_user_id ? String(settlement.scope_helper_user_id).toLowerCase() : null,
+    currency_code: settlement.currency_code,
+    period_from: settlement.period_from,
+    period_to: settlement.period_to,
+    generated_at: settlement.generated_at,
+    document: settlement.document,
+    content_hash: settlement.content_hash,
+  };
+}
+
+// The notification recipient (and re-derivation requester) for a settlement
+// original: the helper for helper_earnings, otherwise the business owner.
+// Mirrors the finance-standing rule in routes/settlementStatementArchive.js.
+async function resolveSettlementRecipient(clientOrPool, settlement) {
+  if (settlement.product === 'helper_earnings') {
+    return String(settlement.scope_helper_user_id).toLowerCase();
+  }
+  if (settlement.product === 'business') {
+    const { rows: [business] } = await clientOrPool.query(
+      'SELECT user_id FROM businesses WHERE id = $1', [settlement.scope_business_id]);
+    if (!business) fail('statement_amendment_account_not_found', 'Statement business not found', 404);
+    return String(business.user_id);
+  }
+  const { rows: [row] } = await clientOrPool.query(
+    `SELECT b.user_id FROM food_restaurants fr
+     JOIN businesses b ON b.id = fr.business_id
+     WHERE fr.id = $1`,
+    [settlement.scope_restaurant_id]);
+  if (!row) fail('statement_amendment_account_not_found', 'Statement restaurant business not found', 404);
+  return String(row.user_id);
 }
 
 // The baseline a new amendment builds on: the latest published version's
@@ -145,10 +327,11 @@ async function loadOriginalDocument(clientOrPool, documentId) {
 // Delta and equality checks always run against the baseline so ordered
 // chains (v1, v2, ...) compose instead of each re-diffing the original.
 async function loadBaseline(clientOrPool, original) {
+  const scopeColumn = original.kind === 'credit' ? 'original_document_id' : 'settlement_original_document_id';
   const { rows: [latest] } = await clientOrPool.query(
     `SELECT id, document, content_hash, revision_number
      FROM statement_amendment_versions
-     WHERE original_document_id = $1
+     WHERE ${scopeColumn} = $1
      ORDER BY revision_number DESC LIMIT 1`,
     [original.id]);
   if (!latest) {
@@ -170,21 +353,30 @@ async function resolveWalletRestaurantId(clientOrPool, walletAccountId) {
   return Number(wallet.restaurant_id);
 }
 
-// Re-derive the period from the CURRENT ledger, bypassing the archived
-// original (creditStatementService rederive mode). Throws
-// statement_integrity_failed when the derivation does not reconcile.
+// Re-derive the period from the CURRENT records, bypassing the archived
+// original (rederive mode). Credit products re-derive from the ledger via
+// creditStatementService; settlement products re-derive from their own
+// sources via settlementStatementService. Throws statement_integrity_failed
+// when the derivation does not reconcile.
 async function rederiveStatement(original) {
   const options = {
-    product: original.product,
     currencyCode: original.currency_code,
     from: isoDate(original.period_from),
     to: isoDate(original.period_to),
     rederive: true,
   };
-  if (original.product === 'restaurant') {
-    options.restaurantId = await resolveWalletRestaurantId(pool, original.account_id);
+  if (original.kind === 'settlement') {
+    options.product = original.product;
+    if (original.product === 'restaurant_settlement') options.restaurantId = original.accountId;
+    else if (original.product === 'business') options.businessId = original.accountId;
+    else options.helperId = original.accountUuid;
+    return settlementStatements.getStatement(original.customerId, options);
   }
-  return statements.getStatement(original.customer_id, options);
+  options.product = original.product;
+  if (original.product === 'restaurant') {
+    options.restaurantId = await resolveWalletRestaurantId(pool, original.accountId);
+  }
+  return statements.getStatement(original.customerId, options);
 }
 
 // Validate one compensating reference against the authoritative ledger.
@@ -192,41 +384,22 @@ async function rederiveStatement(original) {
 // relative to the statement's account. Never invents or moves money: the
 // transaction must already exist and be posted.
 async function fetchCompensatingRef(clientOrPool, product, accountId, currencyCode, ref) {
-  const accountText = String(accountId);
-  if (product === 'oxsteed') {
-    if (!UUID_RE.test(String(ref))) {
-      fail('statement_amendment_invalid_ref', 'Compensating transaction reference must be a UUID', 400);
+  if (product === 'oxsteed' || product === 'restaurant_settlement') {
+    let journalAccountId = String(accountId);
+    if (product === 'restaurant_settlement') {
+      // The statement scope is the restaurant; compensating transactions
+      // reference the restaurant's sub-bank journal account in the
+      // statement's currency. Same journal, same direction rules as oxsteed.
+      const { rows: [sub] } = await clientOrPool.query(
+        `SELECT id FROM oxsteed_credit_accounts
+         WHERE account_type = 'restaurant_sub_bank' AND restaurant_id = $1 AND currency_code = $2`,
+        [String(accountId), currencyCode]);
+      if (!sub) fail('statement_amendment_account_not_found', 'Statement sub-bank account not found', 404);
+      journalAccountId = String(sub.id);
     }
-    const { rows: [tx] } = await clientOrPool.query(
-      `SELECT id, amount_cents, currency_code, status,
-              debit_account_id, credit_account_id, posted_at, created_at, transaction_type
-       FROM oxsteed_credit_transactions WHERE id = $1`,
-      [String(ref).toLowerCase()]);
-    if (!tx) fail('statement_amendment_transaction_not_found', 'Referenced compensating transaction does not exist', 404);
-    if (tx.status !== 'posted') {
-      fail('statement_amendment_transaction_unposted', 'Referenced compensating transaction is not posted', 409);
-    }
-    if (tx.currency_code !== currencyCode) {
-      fail('statement_amendment_transaction_scope_mismatch', 'Referenced transaction currency does not match the statement', 409);
-    }
-    const debitsAccount = String(tx.debit_account_id) === accountText;
-    const creditsAccount = String(tx.credit_account_id) === accountText;
-    if (debitsAccount === creditsAccount) {
-      fail('statement_amendment_transaction_scope_mismatch', 'Referenced transaction does not touch the statement account exactly once', 409);
-    }
-    // The effective date decides whether the correction restates this period
-    // (in-period) or its opening (pre-period): the ledger's own
-    // COALESCE(posted_at, created_at) rule.
-    const effectiveAt = tx.posted_at || tx.created_at;
-    return {
-      id: tx.id,
-      amountCents: assertMinorInteger(Number(tx.amount_cents), 'reference amount'),
-      direction: creditsAccount ? 'credit' : 'debit',
-      postedAt: tx.posted_at ? new Date(tx.posted_at).toISOString() : null,
-      effectiveDate: effectiveAt ? isoDate(effectiveAt) : null,
-      kind: tx.transaction_type,
-    };
+    return fetchJournalCompensatingRef(clientOrPool, journalAccountId, currencyCode, ref);
   }
+  const accountText = String(accountId);
   if (!POSITIVE_INT_RE.test(String(ref))) {
     fail('statement_amendment_invalid_ref', 'Compensating ledger reference must be a ledger entry id', 400);
   }
@@ -245,6 +418,47 @@ async function fetchCompensatingRef(clientOrPool, product, accountId, currencyCo
     postedAt: new Date(entry.created_at).toISOString(),
     effectiveDate: isoDate(entry.created_at),
     kind: entry.entry_type,
+  };
+}
+
+// Validate one compensating journal transaction against the OxSteed Credit
+// double-entry journal. Returns { id, amountCents, direction, postedAt,
+// effectiveDate, kind } with direction relative to the journal account.
+// Never invents or moves money: the transaction must already exist and be
+// posted.
+async function fetchJournalCompensatingRef(clientOrPool, journalAccountId, currencyCode, ref) {
+  const accountText = String(journalAccountId);
+  if (!UUID_RE.test(String(ref))) {
+    fail('statement_amendment_invalid_ref', 'Compensating transaction reference must be a UUID', 400);
+  }
+  const { rows: [tx] } = await clientOrPool.query(
+    `SELECT id, amount_cents, currency_code, status,
+            debit_account_id, credit_account_id, posted_at, created_at, transaction_type
+     FROM oxsteed_credit_transactions WHERE id = $1`,
+    [String(ref).toLowerCase()]);
+  if (!tx) fail('statement_amendment_transaction_not_found', 'Referenced compensating transaction does not exist', 404);
+  if (tx.status !== 'posted') {
+    fail('statement_amendment_transaction_unposted', 'Referenced compensating transaction is not posted', 409);
+  }
+  if (tx.currency_code !== currencyCode) {
+    fail('statement_amendment_transaction_scope_mismatch', 'Referenced transaction currency does not match the statement', 409);
+  }
+  const debitsAccount = String(tx.debit_account_id) === accountText;
+  const creditsAccount = String(tx.credit_account_id) === accountText;
+  if (debitsAccount === creditsAccount) {
+    fail('statement_amendment_transaction_scope_mismatch', 'Referenced transaction does not touch the statement account exactly once', 409);
+  }
+  // The effective date decides whether the correction restates this period
+  // (in-period) or its opening (pre-period): the ledger's own
+  // COALESCE(posted_at, created_at) rule.
+  const effectiveAt = tx.posted_at || tx.created_at;
+  return {
+    id: tx.id,
+    amountCents: assertMinorInteger(Number(tx.amount_cents), 'reference amount'),
+    direction: creditsAccount ? 'credit' : 'debit',
+    postedAt: tx.posted_at ? new Date(tx.posted_at).toISOString() : null,
+    effectiveDate: effectiveAt ? isoDate(effectiveAt) : null,
+    kind: tx.transaction_type,
   };
 }
 
@@ -276,6 +490,12 @@ function partitionRefs(refDetails, periodFrom, periodTo) {
 }
 
 function assertRestatedDelta({ baselineCore, rederivedCore, refDetails, periodFrom, periodTo }) {
+  // Journal-kind products only: helper_earnings and business have no
+  // append-only ledger, so accounting amendments fail closed for them
+  // earlier and never reach this assertion.
+  if (baselineCore.kind !== 'journal' || rederivedCore.kind !== 'journal') {
+    fail('statement_amendment_integrity_failed', 'Restated accounting amendments apply only to journal-kind statements', 409);
+  }
   assertCoreMoneyIntegers(baselineCore, 'baseline');
   assertCoreMoneyIntegers(rederivedCore, 're-derived');
   // Partition references by effective date: in-period refs correct this
@@ -327,23 +547,33 @@ function assertRestatedDelta({ baselineCore, rederivedCore, refDetails, periodFr
 }
 
 function issuanceKeyForOriginal(original, restaurantIdOrNull) {
-  const accountPart = original.product === 'restaurant' && restaurantIdOrNull
-    ? String(restaurantIdOrNull)
-    : String(original.account_id);
+  // The issuance key's account part is the product's scope id: the wallet
+  // account id for oxsteed, the restaurant id for restaurant and
+  // restaurant_settlement, the business id for business, the helper user id
+  // for helper_earnings. Matches the snapshot service's key parsing exactly.
+  let accountPart;
+  if (original.kind === 'settlement') {
+    accountPart = original.accountUuid || String(original.accountId);
+  } else {
+    accountPart = original.product === 'restaurant' && restaurantIdOrNull
+      ? String(restaurantIdOrNull)
+      : String(original.accountId);
+  }
   return jobs.issuanceKeyFor({
     product: original.product,
     accountId: accountPart,
     currencyCode: original.currency_code,
     periodFrom: isoDate(original.period_from),
     periodTo: isoDate(original.period_to),
-    customerId: original.customer_id,
+    customerId: original.customerId,
   });
 }
 
-async function countVersions(clientOrPool, originalDocumentId) {
+async function countVersions(clientOrPool, original) {
+  const scopeColumn = original.kind === 'credit' ? 'original_document_id' : 'settlement_original_document_id';
   const { rows: [{ n }] } = await clientOrPool.query(
-    'SELECT COUNT(*)::int AS n FROM statement_amendment_versions WHERE original_document_id = $1',
-    [originalDocumentId]);
+    `SELECT COUNT(*)::int AS n FROM statement_amendment_versions WHERE ${scopeColumn} = $1`,
+    [original.id]);
   return n;
 }
 
@@ -365,7 +595,7 @@ function shapeVersion(row) {
   if (!row) return null;
   return {
     versionId: row.id,
-    originalDocumentId: row.original_document_id,
+    originalDocumentId: row.settlement_original_document_id || row.original_document_id,
     proposalId: row.proposal_id,
     revisionNumber: Number(row.revision_number),
     revision: Number(row.revision_number) + 1,
@@ -376,7 +606,7 @@ function shapeVersion(row) {
     priorClosingMinor: Number(row.prior_version_closing_minor),
     revisedClosingMinor: Number(row.revised_closing_minor),
     continuityStatus: row.continuity_status,
-    nextPeriodDocumentId: row.next_period_document_id || null,
+    nextPeriodDocumentId: row.settlement_next_period_document_id || row.next_period_document_id || null,
     nextPeriodIssuedOpeningMinor: row.next_period_issued_opening_minor == null
       ? null : Number(row.next_period_issued_opening_minor),
     contentHash: row.content_hash,
@@ -389,13 +619,15 @@ function shapeProposalForResponse(row) {
     proposalId: row.id,
     issuanceKey: row.issuance_key,
     product: row.product,
-    accountId: Number(row.account_id),
+    // UUID-scoped products (helper_earnings) report the helper user id;
+    // integer-scoped products report the numeric account id.
+    accountId: row.account_uuid ? String(row.account_uuid).toLowerCase() : Number(row.account_id),
     currencyCode: row.currency_code,
     period: {
       from: isoDate(row.period_from),
       to: isoDate(row.period_to),
     },
-    documentId: row.document_id || null,
+    documentId: row.settlement_document_id || row.document_id || null,
     amendmentType: row.amendment_type,
     presentation: row.presentation,
     reason: row.reason,
@@ -496,6 +728,17 @@ async function proposeAmendment({
     await client.query('BEGIN');
     const original = await loadOriginalDocument(client, documentId);
 
+    // Fail closed where the source cannot support an accounting amendment:
+    // helper_earnings and business records are activity snapshots, not
+    // append-only ledgers, so there are no posted compensating transactions
+    // to reference. Clerical amendments are fully supported for them.
+    if (amendmentType === 'accounting' && ACCOUNTING_UNSUPPORTED_PRODUCTS.has(original.product)) {
+      fail('statement_amendment_accounting_unsupported',
+        'Accounting amendments are not supported for this statement product: its records are activity snapshots, '
+        + 'not an append-only ledger, so there are no posted compensating transactions to reference. '
+        + 'Correct the source records and the next statement picks them up, or propose a clerical amendment.', 409);
+    }
+
     // One live proposal per document: a second proposal waits (409) while a
     // proposed or an approved-but-unpublished proposal is in flight. An
     // approved proposal whose publication was BLOCKED (validation failed and
@@ -503,7 +746,7 @@ async function proposeAmendment({
     // supersede it, and the stale-approval check keeps publication safe.
     const { rows: [live] } = await client.query(
       `SELECT p.id, p.status FROM statement_amendment_proposals p
-       WHERE p.document_id = $1
+       WHERE (p.document_id = $1 OR p.settlement_document_id = $1)
          AND (p.status = 'proposed'
               OR (p.status = 'approved'
                   AND NOT EXISTS (SELECT 1 FROM statement_amendment_versions v WHERE v.proposal_id = p.id)
@@ -520,7 +763,7 @@ async function proposeAmendment({
     const refDetails = [];
     for (const ref of refs) {
       refDetails.push(await fetchCompensatingRef(
-        client, original.product, original.account_id, original.currency_code, ref));
+        client, original.product, original.accountUuid || original.accountId, original.currency_code, ref));
     }
 
     // Double-counting guard: a compensating transaction may be referenced by
@@ -532,7 +775,7 @@ async function proposeAmendment({
       const refIds = refDetails.map((ref) => String(ref.id));
       const { rows: [dup] } = await client.query(
         `SELECT p.id AS holder FROM statement_amendment_proposals p
-         WHERE p.document_id = $1 AND p.status <> 'rejected'
+         WHERE (p.document_id = $1 OR p.settlement_document_id = $1) AND p.status <> 'rejected'
            AND NOT (p.status = 'approved'
                     AND NOT EXISTS (SELECT 1 FROM statement_amendment_versions v WHERE v.proposal_id = p.id)
                     AND EXISTS (SELECT 1 FROM statement_amendment_publication_attempts a
@@ -542,7 +785,7 @@ async function proposeAmendment({
              WHERE e->>'id' = ANY($2::text[]))
          UNION ALL
          SELECT v.proposal_id AS holder FROM statement_amendment_versions v
-         WHERE v.original_document_id = $1
+         WHERE (v.original_document_id = $1 OR v.settlement_original_document_id = $1)
            AND EXISTS (
              SELECT 1
              FROM jsonb_array_elements(v.document->'totals'->'adjustment'->'compensatingTransactions') e
@@ -584,10 +827,10 @@ async function proposeAmendment({
       });
     }
 
-    const baseRevision = await countVersions(client, documentId);
+    const baseRevision = await countVersions(client, original);
     const proposalId = crypto.randomUUID();
     const restaurantId = original.product === 'restaurant'
-      ? await resolveWalletRestaurantId(client, original.account_id)
+      ? await resolveWalletRestaurantId(client, original.accountId)
       : null;
     const refsJson = refDetails.map((ref) => ({
       id: String(ref.id),
@@ -597,17 +840,23 @@ async function proposeAmendment({
       effectiveDate: ref.effectiveDate,
       kind: ref.kind,
     }));
+    // accountId is stored as NULL for scope-uuid products; accountUuid holds
+    // the helper user id. Settlement originals link via settlement_document_id.
+    const scopeAccountUuid = original.accountUuid
+      ? String(original.accountUuid).toLowerCase() : null;
     const { rows: [proposal] } = await client.query(
       `INSERT INTO statement_amendment_proposals
-         (id, issuance_key, product, account_id, currency_code, period_from, period_to,
-          document_id, amendment_type, presentation, reason, evidence_refs,
+         (id, issuance_key, product, account_id, account_uuid, currency_code, period_from, period_to,
+          document_id, settlement_document_id, amendment_type, presentation, reason, evidence_refs,
           compensating_transaction_refs, restate_forward, original_document_hash,
           ledger_fingerprint, base_revision_number, proposed_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
        RETURNING *`,
       [proposalId, issuanceKeyForOriginal(original, restaurantId), original.product,
-        original.account_id, original.currency_code,
-        isoDate(original.period_from), isoDate(original.period_to), documentId,
+        original.accountUuid ? null : original.accountId, scopeAccountUuid, original.currency_code,
+        isoDate(original.period_from), isoDate(original.period_to),
+        original.kind === 'credit' ? documentId : null,
+        original.kind === 'settlement' ? documentId : null,
         amendmentType, effectivePresentation, cleanReason,
         JSON.stringify(cleanEvidence), JSON.stringify(refsJson),
         Boolean(restateForward), original.content_hash, rederivedFp, baseRevision, adminId]);
@@ -627,32 +876,30 @@ async function proposeAmendment({
 // On-demand originals have no snapshot: freeze the amendment-time snapshot so
 // the rendition always has honest provenance.
 async function resolveAmendmentSnapshotId(original) {
+  // The original's artifact row (688 originals link via settlement_document_id;
+  // 682 originals via document_id). If no original artifact exists (e.g. the
+  // original predates artifact publication), freeze a fresh snapshot using
+  // the same issuance-key math as the issuance pipeline.
   const { rows: [artifact] } = await pool.query(
     `SELECT snapshot_id FROM statement_artifacts
-     WHERE document_id = $1 AND kind = 'original'
+     WHERE (document_id = $1 OR settlement_document_id = $1) AND kind = 'original'
      ORDER BY created_at ASC LIMIT 1`,
     [original.id]);
   if (artifact) return artifact.snapshot_id;
-  let accountId = String(original.account_id);
-  if (original.product === 'restaurant') {
-    accountId = String(await resolveWalletRestaurantId(pool, original.account_id));
+  let restaurantId = null;
+  if (original.kind === 'credit' && original.product === 'restaurant') {
+    restaurantId = await resolveWalletRestaurantId(pool, original.accountId);
   }
-  const issuanceKey = jobs.issuanceKeyFor({
-    product: original.product,
-    accountId,
-    currencyCode: original.currency_code,
-    periodFrom: isoDate(original.period_from),
-    periodTo: isoDate(original.period_to),
-    customerId: original.customer_id,
-  });
+  const issuanceKey = issuanceKeyForOriginal(original, restaurantId);
+  const parsed = snapshots.parseIssuanceKey(issuanceKey);
   const snapshot = await snapshots.freezeSnapshot({
     issuanceKey,
-    product: original.product,
-    accountId,
-    currency: original.currency_code,
-    periodFrom: isoDate(original.period_from),
-    periodTo: isoDate(original.period_to),
-    customerId: original.customer_id,
+    product: parsed.product,
+    accountId: parsed.accountId,
+    currency: parsed.currency,
+    periodFrom: parsed.periodFrom,
+    periodTo: parsed.periodTo,
+    customerId: parsed.customerId,
   });
   return snapshot.id;
 }
@@ -668,21 +915,40 @@ async function checkContinuity({ original, revisedClosingMinor, baselineClosingM
   if (revisedClosingMinor === baselineClosingMinor) {
     return { status: 'continuous', nextPeriod: null };
   }
+  // Settlement products live in the 688 archive; credit products in the 682
+  // archive. accountUuid is the scope for helper_earnings, accountId for the
+  // rest. Scopes never mix. The 688 archive has no customer_id: the scope
+  // columns ARE the identity, so only the credit query filters on it.
+  // Every placeholder is bound: PostgreSQL cannot infer the type of an
+  // unreferenced $n.
+  const archive = original.kind === 'settlement' ? 'settlement_statement_documents' : 'credit_statement_documents';
+  const versionColumn = original.kind === 'settlement' ? 'settlement_original_document_id' : 'original_document_id';
+  let where;
+  let params;
+  if (original.kind === 'settlement') {
+    const scopeColumn = original.product === 'helper_earnings' ? 'scope_helper_user_id'
+      : original.product === 'business' ? 'scope_business_id' : 'scope_restaurant_id';
+    where = `product = $1 AND ${scopeColumn} = $2 AND currency_code = $3 AND period_from > $4`;
+    params = [original.product, original.accountUuid || String(original.accountId),
+      original.currency_code, isoDate(original.period_to)];
+  } else {
+    where = 'product = $1 AND customer_id = $2 AND account_id = $3 AND currency_code = $4 AND period_from > $5';
+    params = [original.product, original.customerId, String(original.accountId),
+      original.currency_code, isoDate(original.period_to)];
+  }
   const { rows: [next] } = await pool.query(
     `SELECT id, period_from, period_to, document
-     FROM credit_statement_documents
-     WHERE customer_id = $1 AND product = $2 AND account_id = $3 AND currency_code = $4
-       AND period_from > $5
+     FROM ${archive}
+     WHERE ${where}
      ORDER BY period_from ASC LIMIT 1`,
-    [original.customer_id, original.product, original.account_id, original.currency_code,
-      isoDate(original.period_to)]);
+    params);
   if (!next) return { status: 'continuous', nextPeriod: null };
   const nextDocument = next.document && typeof next.document === 'object' ? next.document : {};
   // Effective opening: the next period's latest amendment restates it, else
   // the issued opening.
   const { rows: [nextVersion] } = await pool.query(
     `SELECT document FROM statement_amendment_versions
-     WHERE original_document_id = $1
+     WHERE ${versionColumn} = $1
      ORDER BY revision_number DESC LIMIT 1`,
     [next.id]);
   const revisedOpening = nextVersion
@@ -692,8 +958,7 @@ async function checkContinuity({ original, revisedClosingMinor, baselineClosingM
     && Number.isSafeInteger(nextVersion.document.totals.revised.openingMinor)
     ? nextVersion.document.totals.revised.openingMinor
     : null;
-  const issuedOpening = Number.isSafeInteger(nextDocument.openingBalanceCents)
-    ? nextDocument.openingBalanceCents : null;
+  const issuedOpening = extractIssuedOpening(original.product, nextDocument);
   const nextOpening = revisedOpening !== null ? revisedOpening : issuedOpening;
   if (nextOpening === null) {
     fail('statement_amendment_integrity_failed',
@@ -725,6 +990,23 @@ async function checkContinuity({ original, revisedClosingMinor, baselineClosingM
   return { status: 'continuous', nextPeriod };
 }
 
+// The issued opening of a statement document, per product kind. Journal
+// kinds carry openingBalanceCents; helper_earnings carries
+// openingPayableCents; business carries
+// receivables.openingOutstandingCents. The continuity check compares like
+// with like, so every kind must read its own slot.
+function extractIssuedOpening(product, document) {
+  if (product === 'helper_earnings') {
+    return Number.isSafeInteger(document.openingPayableCents) ? document.openingPayableCents : null;
+  }
+  if (product === 'business') {
+    const receivables = document.receivables && typeof document.receivables === 'object' ? document.receivables : {};
+    return Number.isSafeInteger(receivables.openingOutstandingCents) ? receivables.openingOutstandingCents : null;
+  }
+  return Number.isSafeInteger(document.openingBalanceCents) ? document.openingBalanceCents : null;
+}
+
+
 // ── Amended document envelope ───────────────────────────────────────────────
 // original / adjustment / revised totals are shown side by side; dates are
 // disclosed; backdated corrections are flagged. The envelope is hashed with
@@ -734,15 +1016,11 @@ function buildAmendedDocument({ rederived, original, baseline, proposal, revisio
   const rederivedCore = coreOf(rederived);
   assertCoreMoneyIntegers(baselineCore, 'baseline');
   assertCoreMoneyIntegers(rederivedCore, 're-derived');
-  // The re-derived statement must reconcile with itself: opening + credits -
-  // debits = closing (the builders already enforce this; belt and braces).
-  const equationHolds = (core) => (
-    BigInt(core.openingBalanceCents) + BigInt(core.totalCreditsCents) - BigInt(core.totalDebitsCents)
-    === BigInt(core.closingBalanceCents)
-  );
+  // The re-derived statement must reconcile with itself (the builders already
+  // enforce this; belt and braces).
   if (!equationHolds(rederivedCore)) {
     fail('statement_amendment_integrity_failed',
-      'Re-derived statement does not reconcile: opening + credits - debits != closing', 409);
+      'Re-derived statement does not reconcile with itself', 409);
   }
 
   const issuedAtMs = new Date(original.generated_at).getTime();
@@ -802,12 +1080,11 @@ function buildAmendedDocument({ rederived, original, baseline, proposal, revisio
       ledgerFingerprint: proposal.ledger_fingerprint,
     },
     totals: {
+      // Per-product-kind totals groups (see totalsOf): openingMinor and
+      // closingMinor are the canonical slots; the middle keys are
+      // product-specific. The version chain diffs these groups.
       original: {
-        openingMinor: baselineCore.openingBalanceCents,
-        creditsMinor: baselineCore.totalCreditsCents,
-        debitsMinor: baselineCore.totalDebitsCents,
-        closingMinor: baselineCore.closingBalanceCents,
-        transactionCount: baselineCore.transactionCount,
+        ...totalsOf(baselineCore),
         contentHash: baseline.contentHash,
       },
       adjustment: {
@@ -818,25 +1095,19 @@ function buildAmendedDocument({ rederived, original, baseline, proposal, revisio
         transactionCount: compensatingTransactions.length,
         compensatingTransactions,
       },
-      revised: {
-        openingMinor: rederivedCore.openingBalanceCents,
-        creditsMinor: rederivedCore.totalCreditsCents,
-        debitsMinor: rederivedCore.totalDebitsCents,
-        closingMinor: rederivedCore.closingBalanceCents,
-        transactionCount: rederivedCore.transactionCount,
-      },
+      revised: totalsOf(rederivedCore),
     },
     continuity: {
       status: continuity.status,
-      priorClosingMinor: baselineCore.closingBalanceCents,
-      revisedClosingMinor: rederivedCore.closingBalanceCents,
+      priorClosingMinor: baselineCore.closingMinor,
+      revisedClosingMinor: rederivedCore.closingMinor,
       nextPeriodDocumentId: continuity.nextPeriod ? continuity.nextPeriod.id : null,
       nextPeriodPeriod: continuity.nextPeriod
         ? { from: continuity.nextPeriod.periodFrom, to: continuity.nextPeriod.periodTo } : null,
       nextPeriodIssuedOpeningMinor: continuity.nextPeriod ? continuity.nextPeriod.issuedOpeningMinor : null,
       nextPeriodEffectiveOpeningMinor: continuity.nextPeriod ? continuity.nextPeriod.effectiveOpeningMinor : null,
       nextPeriodRestatedByVersion: continuity.nextPeriod ? Boolean(continuity.nextPeriod.restatedByVersion) : null,
-      restatedOpeningMinor: continuity.status === 'restated_forward' ? rederivedCore.closingBalanceCents : null,
+      restatedOpeningMinor: continuity.status === 'restated_forward' ? rederivedCore.closingMinor : null,
       // Structured disclosure keys for clients to localize; the archive
       // surfaces these rather than free text.
       disclosures: continuity.status === 'restated_forward'
@@ -862,6 +1133,7 @@ async function finalizeApprovedProposal(proposalId, { storage = defaultStorage }
 
   let proposal;
   let original;
+  let originalDocumentId;
   let rederived;
   let refDetails;
   try {
@@ -875,16 +1147,17 @@ async function finalizeApprovedProposal(proposalId, { storage = defaultStorage }
         fail('statement_amendment_not_approved',
           `Proposal is ${row.status}; only approved proposals can be published`, 409);
       }
-      if (!row.document_id) {
+      if (!row.document_id && !row.settlement_document_id) {
         fail('statement_amendment_no_document', 'Proposal names no issued original; nothing to publish', 409);
       }
+      originalDocumentId = row.settlement_document_id || row.document_id;
       proposal = row;
-      original = await loadOriginalDocument(client, proposal.document_id);
+      original = await loadOriginalDocument(client, originalDocumentId);
       if (original.content_hash !== proposal.original_document_hash) {
         fail('statement_amendment_source_changed',
           'The issued original changed since the proposal was created; re-propose', 409);
       }
-      const versionCount = await countVersions(client, proposal.document_id);
+      const versionCount = await countVersions(client, original);
       if (versionCount !== Number(proposal.base_revision_number)) {
         fail('statement_amendment_stale',
           'Another amendment for this statement was published after this proposal was created; re-propose against the latest version', 409);
@@ -895,7 +1168,7 @@ async function finalizeApprovedProposal(proposalId, { storage = defaultStorage }
       refDetails = [];
       for (const stored of storedRefs) {
         const live = await fetchCompensatingRef(
-          client, proposal.product, proposal.account_id, proposal.currency_code, String(stored.id));
+          client, proposal.product, proposal.account_uuid || proposal.account_id, proposal.currency_code, String(stored.id));
         if (live.amountCents !== Number(stored.amountCents)
             || live.direction !== stored.direction
             || live.effectiveDate !== stored.effectiveDate) {
@@ -926,8 +1199,8 @@ async function finalizeApprovedProposal(proposalId, { storage = defaultStorage }
     const baselineCore = coreOf(baseline.doc);
     const continuity = await checkContinuity({
       original,
-      revisedClosingMinor: rederivedCore.closingBalanceCents,
-      baselineClosingMinor: baselineCore.closingBalanceCents,
+      revisedClosingMinor: rederivedCore.closingMinor,
+      baselineClosingMinor: baselineCore.closingMinor,
       restateForward: proposal.restate_forward,
     });
 
@@ -935,8 +1208,9 @@ async function finalizeApprovedProposal(proposalId, { storage = defaultStorage }
     if (revisionNumber > 1) {
       const { rows: [prev] } = await pool.query(
         `SELECT id, content_hash FROM statement_amendment_versions
-         WHERE original_document_id = $1 AND revision_number = $2`,
-        [proposal.document_id, revisionNumber - 1]);
+         WHERE (original_document_id = $1 OR settlement_original_document_id = $1)
+           AND revision_number = $2`,
+        [originalDocumentId, revisionNumber - 1]);
       if (!prev) {
         fail('statement_amendment_stale',
           'The amendment chain changed; re-propose against the latest version', 409);
@@ -947,12 +1221,15 @@ async function finalizeApprovedProposal(proposalId, { storage = defaultStorage }
     const envelope = buildAmendedDocument({
       rederived, original, baseline, proposal, revisionNumber, refDetails, continuity, supersedesVersion,
     });
-    const language = await resolveStatementLanguage(original.customer_id);
+    const language = await resolveStatementLanguage(original.customerId);
 
     let artifact;
     const pdfBytes = await renderStatementPdfInWorker(envelope, { language });
     const snapshotId = await resolveAmendmentSnapshotId(original);
-    artifact = await artifacts.publishRendition({ snapshotId, language, pdfBytes, label, storage });
+    artifact = await artifacts.publishRendition({
+      snapshotId, language, pdfBytes, label, storage,
+      settlementDocumentId: original.kind === 'settlement' ? originalDocumentId : null,
+    });
 
     const versionId = crypto.randomUUID();
     const writer = await pool.connect();
@@ -960,18 +1237,22 @@ async function finalizeApprovedProposal(proposalId, { storage = defaultStorage }
       await writer.query('BEGIN');
       const { rows: [version] } = await writer.query(
         `INSERT INTO statement_amendment_versions
-           (id, original_document_id, proposal_id, revision_number, amendment_type,
+           (id, original_document_id, settlement_original_document_id, proposal_id, revision_number, amendment_type,
             presentation, document, content_hash, artifact_id, supersedes_version_id,
             prior_version_closing_minor, revised_closing_minor, continuity_status,
-            next_period_document_id, next_period_issued_opening_minor)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+            next_period_document_id, settlement_next_period_document_id, next_period_issued_opening_minor)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
          RETURNING *`,
-        [versionId, proposal.document_id, proposalId, revisionNumber, proposal.amendment_type,
+        [versionId,
+          original.kind === 'credit' ? originalDocumentId : null,
+          original.kind === 'settlement' ? originalDocumentId : null,
+          proposalId, revisionNumber, proposal.amendment_type,
           proposal.presentation, JSON.stringify(envelope), envelope.contentHash, artifact.id,
           supersedesVersion ? supersedesVersion.id : null,
-          baselineCore.closingBalanceCents, rederivedCore.closingBalanceCents,
+          baselineCore.closingMinor, rederivedCore.closingMinor,
           continuity.status,
-          continuity.nextPeriod ? continuity.nextPeriod.id : null,
+          original.kind === 'credit' && continuity.nextPeriod ? continuity.nextPeriod.id : null,
+          original.kind === 'settlement' && continuity.nextPeriod ? continuity.nextPeriod.id : null,
           continuity.nextPeriod ? continuity.nextPeriod.issuedOpeningMinor : null]);
       await recordPublicationAttempt(writer, proposalId, 'published', versionId, null);
       // Exactly one owner notification per version: the event is queued in the
@@ -988,10 +1269,10 @@ async function finalizeApprovedProposal(proposalId, { storage = defaultStorage }
           payload: {
             versionId,
             proposalId,
-            originalDocumentId: proposal.document_id,
+            originalDocumentId,
             revision: revisionNumber + 1,
             product: original.product,
-            accountId: String(original.account_id),
+            accountId: original.accountUuid || String(original.accountId),
             currencyCode: original.currency_code,
             periodFrom: isoDate(original.period_from),
             periodTo: isoDate(original.period_to),
@@ -1068,8 +1349,11 @@ function composeStatementAmendedPayload({ customerId, payload }) {
       periodTo: payload.periodTo,
     },
     // Authenticated product pages; both require login. No tokens, no PII,
-    // no amounts in the link or the message.
-    action_url: payload.product === 'restaurant' ? '/wallet' : '/oxsteed-credit',
+    // no amounts in the link or the message. Settlement owners see their
+    // hub page; restaurant wallet owners keep the existing deep links.
+    action_url: payload.product === 'restaurant' ? '/wallet'
+      : payload.product === 'restaurant_settlement' || payload.product === 'business' ? '/business-hub'
+      : payload.product === 'helper_earnings' ? '/dashboard' : '/oxsteed-credit',
     idempotencyKey: `statement-amended:${payload.proposalId}`,
   };
 }
@@ -1090,12 +1374,31 @@ async function processStatementAmendedOutbox({ workerId, limit = 50 } = {}) {
         continue;
       }
       const payload = typeof event.payload === 'string' ? JSON.parse(event.payload) : event.payload;
+      // Settlement originals live in the 688 archive; credit originals in the
+      // 682 archive. The recipient is the settlement owner (helper, business
+      // owner, or restaurant business owner) resolved from the scope.
       const { rows: [version] } = await pool.query(
-        `SELECT v.artifact_id, d.customer_id
+        `SELECT v.artifact_id, v.settlement_original_document_id, d.customer_id
          FROM statement_amendment_versions v
-         JOIN credit_statement_documents d ON d.id = v.original_document_id
+         LEFT JOIN credit_statement_documents d ON d.id = v.original_document_id
          WHERE v.id = $1`,
         [event.aggregate_id]);
+      if (!version) {
+        logger.warn('statement.amended for an unknown version; marking processed', {
+          aggregateId: event.aggregate_id,
+        });
+        await jobs.markOutboxProcessed(event.id);
+        processed += 1;
+        continue;
+      }
+      let recipientId = version.customer_id;
+      if (version.settlement_original_document_id) {
+        const { rows: [settlement] } = await pool.query(
+          `SELECT product, scope_restaurant_id, scope_business_id, scope_helper_user_id
+           FROM settlement_statement_documents WHERE id = $1`,
+          [version.settlement_original_document_id]);
+        recipientId = settlement ? await resolveSettlementRecipient(pool, settlement) : null;
+      }
       if (!version) {
         logger.warn('statement.amended for an unknown version; marking processed', {
           aggregateId: event.aggregate_id,
@@ -1113,7 +1416,7 @@ async function processStatementAmendedOutbox({ workerId, limit = 50 } = {}) {
         released += 1;
         continue;
       }
-      const notification = composeStatementAmendedPayload({ customerId: version.customer_id, payload });
+      const notification = composeStatementAmendedPayload({ customerId: recipientId, payload });
       const result = await sendNotification(notification);
       if (result && result.success === true) {
         await jobs.markOutboxProcessed(event.id);

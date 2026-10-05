@@ -34,6 +34,7 @@ const jobs = require('./statementJobService');
 const snapshots = require('./statementSnapshotService');
 const artifacts = require('./statementArtifactService');
 const statements = require('./creditStatementService');
+const settlementStatements = require('./settlementStatementService');
 const { renderStatementPdfInWorker } = require('./creditStatementExport');
 const defaultStorage = require('../utils/storage');
 const policy = require('./statementIssuancePolicy');
@@ -119,11 +120,18 @@ async function resolveStatementLanguage(customerId) {
 // --- Account discovery ------------------------------------------------------
 // One job per (product, account, currency). For product 'oxsteed' the job's
 // account_id is the customer wallet id; for 'restaurant' it is the restaurant
-// id (the snapshot service resolves the customer wallet from it), matching
-// the issuance-key convention both readers already enforce.
+// id (the snapshot service resolves the customer wallet from it); for
+// 'restaurant_settlement' it is the restaurant id (the snapshot service
+// resolves the sub-bank account); for 'helper_earnings' the job's
+// account_uuid is the helper user id; for 'business' the job's account_id is
+// the business id. These conventions match the issuance-key format the
+// snapshot and artifact services parse, so discovery, freezing, and
+// publication can never disagree on a scope.
 
 const OXSTEED_ACCOUNTS_SQL = `
-  SELECT id, customer_id, currency_code, status, created_at
+  SELECT id AS account_id, NULL::uuid AS account_uuid,
+         customer_id, currency_code, status, created_at,
+         id::text AS cursor_a, NULL::text AS cursor_b
   FROM oxsteed_credit_accounts
   WHERE account_type = 'customer_wallet'
     AND ($1::bigint IS NULL OR id > $1::bigint)
@@ -131,17 +139,129 @@ const OXSTEED_ACCOUNTS_SQL = `
   LIMIT $2`;
 
 const RESTAURANT_ACCOUNTS_SQL = `
-  SELECT id, restaurant_id, customer_id, currency_code, status, created_at
+  SELECT id AS account_id, NULL::uuid AS account_uuid,
+         customer_id, currency_code, status, created_at,
+         id::text AS cursor_a, NULL::text AS cursor_b
   FROM food_customer_wallet_accounts
   WHERE ($1::bigint IS NULL OR id > $1::bigint)
   ORDER BY id ASC
   LIMIT $2`;
 
+// Restaurants with sub-bank accounts. The job scope is the restaurant id;
+// the cursor is the sub-bank account id (one row per (restaurant, currency)).
+// customer_id is the business owner: the statement recipient. status is the
+// restaurant lifecycle status (active/suspended/draft/paused).
+const RESTAURANT_SETTLEMENT_ACCOUNTS_SQL = `
+  SELECT a.restaurant_id AS account_id, NULL::uuid AS account_uuid,
+         b.user_id AS customer_id, a.currency_code,
+         fr.status AS status, a.created_at,
+         a.id::text AS cursor_a, NULL::text AS cursor_b
+  FROM oxsteed_credit_accounts a
+  JOIN food_restaurants fr ON fr.id = a.restaurant_id
+  LEFT JOIN businesses b ON b.id = fr.business_id
+  WHERE a.account_type = 'restaurant_sub_bank'
+    AND ($1::bigint IS NULL OR a.id > $1::bigint)
+  ORDER BY a.id ASC
+  LIMIT $2`;
+
+// Helpers with earnings activity: one row per (helper, currency) seen on
+// jobs. Zero-activity carryover is honored because any helper with
+// historical jobs (and a payable position) is discovered, even when the
+// period itself has no new completions. Helpers with no jobs at all get no
+// statement: there is no account to carry over.
+const HELPER_EARNINGS_ACCOUNTS_SQL = `
+  SELECT NULL::bigint AS account_id, j.assigned_helper_id AS account_uuid,
+         j.assigned_helper_id AS customer_id, j.currency_code,
+         CASE WHEN u.is_active THEN 'active' ELSE 'suspended' END AS status,
+         u.created_at,
+         j.assigned_helper_id::text AS cursor_a, j.currency_code AS cursor_b
+  FROM (SELECT DISTINCT assigned_helper_id, currency_code FROM jobs
+        WHERE assigned_helper_id IS NOT NULL) j
+  JOIN users u ON u.id = j.assigned_helper_id
+  WHERE ($1::text IS NULL OR (j.assigned_helper_id::text, j.currency_code) > ($1::text, $2::text))
+  ORDER BY j.assigned_helper_id::text ASC, j.currency_code ASC
+  LIMIT $3`;
+
+// Businesses with financial activity: one row per (business, currency) where
+// the currency appears on the business's invoices, partner settlements, or
+// restaurants. status normalizes the business lifecycle for the shared
+// eligibility policy (deleted -> closed).
+const BUSINESS_ACCOUNTS_SQL = `
+  SELECT b.id AS account_id, NULL::uuid AS account_uuid,
+         b.user_id AS customer_id, c.currency_code,
+         CASE WHEN b.deleted_at IS NOT NULL THEN 'closed'
+              WHEN NOT b.is_active THEN 'suspended'
+              ELSE 'active' END AS status,
+         b.created_at,
+         b.id::text AS cursor_a, c.currency_code AS cursor_b
+  FROM businesses b
+  JOIN LATERAL (
+    SELECT DISTINCT currency_code FROM (
+      SELECT currency_code FROM business_invoices WHERE business_id = b.id
+      UNION
+      SELECT s.currency_code FROM oxsteed_credit_settlements s
+        JOIN oxsteed_credit_partners p ON p.id = s.partner_id
+       WHERE p.business_id = b.id
+      UNION
+      SELECT r.currency_code FROM food_restaurants r WHERE r.business_id = b.id
+    ) currencies
+  ) c ON true
+  WHERE ($1::bigint IS NULL OR (b.id, c.currency_code) > ($1::bigint, $2::text))
+  ORDER BY b.id ASC, c.currency_code ASC
+  LIMIT $3`;
+
+// Single-cursor products pass [cursorA, limit]; composite products pass
+// [cursorA, cursorB, limit]. Every placeholder in the SQL text must be bound:
+// PostgreSQL cannot infer the type of an unreferenced $n, so a shared
+// [cursorA, cursorB, limit] tuple breaks the single-cursor queries on the
+// first page (cursorB is null there).
+const singleCursorParams = (cursorA, _cursorB, limit) => [cursorA, limit];
+const compositeCursorParams = (cursorA, cursorB, limit) => [cursorA, cursorB, limit];
+const DISCOVERY_SQL = {
+  oxsteed: { text: OXSTEED_ACCOUNTS_SQL, params: singleCursorParams },
+  restaurant: { text: RESTAURANT_ACCOUNTS_SQL, params: singleCursorParams },
+  restaurant_settlement: { text: RESTAURANT_SETTLEMENT_ACCOUNTS_SQL, params: singleCursorParams },
+  helper_earnings: { text: HELPER_EARNINGS_ACCOUNTS_SQL, params: compositeCursorParams },
+  business: { text: BUSINESS_ACCOUNTS_SQL, params: compositeCursorParams },
+};
+
+// Products whose cursor is a composite "<scope>:<currency>" pair.
+const COMPOSITE_CURSOR_PRODUCTS = new Set(['helper_earnings', 'business']);
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function parseDiscoveryCursor(product, cursor) {
+  if (cursor === null || cursor === undefined || String(cursor) === '') {
+    return { cursorA: null, cursorB: null };
+  }
+  const text = String(cursor);
+  if (!COMPOSITE_CURSOR_PRODUCTS.has(product)) {
+    if (!/^[1-9]\d*$/.test(text)) throw new AppError('Invalid discovery cursor', 400, 'statement_invalid_cursor');
+    return { cursorA: text, cursorB: null };
+  }
+  const separator = text.lastIndexOf(':');
+  if (separator <= 0) throw new AppError('Invalid discovery cursor', 400, 'statement_invalid_cursor');
+  const cursorA = text.slice(0, separator);
+  const cursorB = text.slice(separator + 1).toUpperCase();
+  if (product === 'helper_earnings' && !UUID_RE.test(cursorA)) {
+    throw new AppError('Invalid discovery cursor', 400, 'statement_invalid_cursor');
+  }
+  if (product === 'business' && !/^[1-9]\d*$/.test(cursorA)) {
+    throw new AppError('Invalid discovery cursor', 400, 'statement_invalid_cursor');
+  }
+  if (!/^[A-Z]{3}$/.test(cursorB)) throw new AppError('Invalid discovery cursor', 400, 'statement_invalid_cursor');
+  return { cursorA, cursorB };
+}
+
+function formatDiscoveryCursor(product, row) {
+  if (!COMPOSITE_CURSOR_PRODUCTS.has(product)) return row.cursor_a;
+  return `${row.cursor_a}:${row.cursor_b}`;
+}
+
 /**
  * Bounded, cursor-based account scan. Returns { eligible, skipped, nextCursor }.
- * eligible entries are { customerId, product, accountId, currencyCode } ready
- * for discoverAccountJobs; skipped entries carry the same fields plus a stable
- * machine-readable reason recorded on the job row.
+ * eligible entries are { customerId, product, accountId?, accountUuid?,
+ * currencyCode } ready for discoverAccountJobs; skipped entries carry the same
+ * fields plus a stable machine-readable reason recorded on the job row.
  */
 async function discoverEligibleAccounts({ product, periodFrom, periodTo, batchSize = policy.DISCOVERY_BATCH_SIZE, cursor = null }) {
   if (!policy.PRODUCTS.includes(product)) {
@@ -151,29 +271,24 @@ async function discoverEligibleAccounts({ product, periodFrom, periodTo, batchSi
     throw new AppError('Invalid discovery period', 400, 'statement_invalid_period');
   }
   const limit = Math.max(1, Math.min(Math.trunc(Number(batchSize)) || policy.DISCOVERY_BATCH_SIZE, 1000));
-  let cursorId = null;
-  if (cursor !== null && cursor !== undefined && String(cursor) !== '') {
-    if (!/^[1-9]\d*$/.test(String(cursor))) throw new AppError('Invalid discovery cursor', 400, 'statement_invalid_cursor');
-    cursorId = String(cursor);
-  }
-  const { rows } = await pool.query(
-    product === 'oxsteed' ? OXSTEED_ACCOUNTS_SQL : RESTAURANT_ACCOUNTS_SQL,
-    [cursorId, limit]);
+  const { cursorA, cursorB } = parseDiscoveryCursor(product, cursor);
+  const entry = DISCOVERY_SQL[product];
+  const { rows } = await pool.query(entry.text, entry.params(cursorA, cursorB, limit));
   const eligible = [];
   const skipped = [];
   for (const row of rows) {
-    const accountId = product === 'oxsteed' ? row.id : row.restaurant_id;
     const spec = {
       customerId: String(row.customer_id),
       product,
-      accountId: String(accountId),
       currencyCode: String(row.currency_code || '').toUpperCase(),
     };
+    if (row.account_uuid) spec.accountUuid = String(row.account_uuid).toLowerCase();
+    else spec.accountId = String(row.account_id);
     const decision = policy.evaluateAccountEligibility(row, { product, periodFrom, periodTo });
     if (decision.eligible) eligible.push(spec);
     else skipped.push({ ...spec, reason: decision.reason });
   }
-  const nextCursor = rows.length === limit ? String(rows[rows.length - 1].id) : null;
+  const nextCursor = rows.length === limit ? formatDiscoveryCursor(product, rows[rows.length - 1]) : null;
   return { eligible, skipped, nextCursor };
 }
 
@@ -199,24 +314,26 @@ async function recordSkippedJobs(runId, skipped) {
   skipped.forEach((entry, index) => {
     const key = jobs.issuanceKeyFor({
       product: entry.product,
-      accountId: entry.accountId,
+      accountId: entry.accountUuid || entry.accountId,
       currencyCode: entry.currencyCode,
       periodFrom: from,
       periodTo: to,
       customerId: entry.customerId,
     });
-    const base = index * 9;
-    values.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, 'dead_letter', $${base + 8}, $${base + 9}, transaction_timestamp())`);
+    const base = index * 10;
+    values.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, 'dead_letter', $${base + 9}, $${base + 10}, transaction_timestamp())`);
     params.push(
-      crypto.randomUUID(), runId, entry.customerId, entry.product, entry.accountId,
+      crypto.randomUUID(), runId, entry.customerId, entry.product,
+      entry.accountUuid ? null : (entry.accountId || null),
+      entry.accountUuid || null,
       entry.currencyCode, key, `skip:${entry.reason}`, 8,
     );
   });
-  // Column order: id, run_id, customer_id, product, account_id, currency_code,
-  // issuance_key, state, last_error, max_attempts, updated_at
+  // Column order: id, run_id, customer_id, product, account_id, account_uuid,
+  // currency_code, issuance_key, state, last_error, max_attempts, updated_at
   const { rowCount } = await pool.query(
     `INSERT INTO statement_account_jobs
-       (id, run_id, customer_id, product, account_id, currency_code, issuance_key,
+       (id, run_id, customer_id, product, account_id, account_uuid, currency_code, issuance_key,
         state, last_error, max_attempts, updated_at)
      VALUES ${values.join(', ')}
      ON CONFLICT (issuance_key) DO NOTHING`,
@@ -267,14 +384,14 @@ async function insertDocumentAndQueueEvent({ scope, document, artifact, job }) {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
        ON CONFLICT (customer_id, product, account_id, currency_code, period_from, period_to)
        DO NOTHING`,
-      [document.id, scope.customerId, scope.product, scope.accountId, scope.currency,
+      [document.id, scope.customerId, scope.product, scope.scopeAccountId, scope.currency,
         scope.periodFrom, scope.periodTo, document.generatedAt,
         JSON.stringify(document), document.contentHash]);
     const { rows: [row] } = await client.query(
       `SELECT id FROM credit_statement_documents
        WHERE customer_id = $1 AND product = $2 AND account_id = $3 AND currency_code = $4
          AND period_from = $5 AND period_to = $6`,
-      [scope.customerId, scope.product, scope.accountId, scope.currency, scope.periodFrom, scope.periodTo]);
+      [scope.customerId, scope.product, scope.scopeAccountId, scope.currency, scope.periodFrom, scope.periodTo]);
     if (!row) {
       throw new AppError('Statement document row could not be resolved', 500, 'statement_document_missing');
     }
@@ -298,7 +415,91 @@ async function insertDocumentAndQueueEvent({ scope, document, artifact, job }) {
           snapshotId: artifact.snapshotId,
           artifactId: artifact.id,
           product: scope.product,
-          accountId: scope.accountId,
+          accountId: scope.scopeAccountId,
+          currencyCode: scope.currency,
+          periodFrom: scope.periodFrom,
+          periodTo: scope.periodTo,
+          language: artifact.language,
+        },
+      });
+    }
+    await client.query('COMMIT');
+    return row.id;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+// --- Stage (d) for settlement products: document row + outbox event ---------
+// Settlement statements archive into settlement_statement_documents
+// (migration 688), never credit_statement_documents: customer stored value
+// and merchant/helper/business money stay structurally separate. The
+// append is guarded by the product's partial unique index plus
+// ON CONFLICT DO NOTHING, so concurrent issuers converge on exactly one
+// original per (product, scope, currency, period), and the outbox event is
+// queued in the same transaction as the document row.
+function settlementScopeColumn(product) {
+  if (product === 'restaurant_settlement') return 'scope_restaurant_id';
+  if (product === 'helper_earnings') return 'scope_helper_user_id';
+  return 'scope_business_id';
+}
+
+function settlementConflictTarget(product) {
+  if (product === 'restaurant_settlement') {
+    return `(scope_restaurant_id, currency_code, period_from, period_to) WHERE product = 'restaurant_settlement'`;
+  }
+  if (product === 'helper_earnings') {
+    return `(scope_helper_user_id, currency_code, period_from, period_to) WHERE product = 'helper_earnings'`;
+  }
+  return `(scope_business_id, currency_code, period_from, period_to) WHERE product = 'business'`;
+}
+
+async function insertSettlementDocumentAndQueueEvent({ scope, document, artifact, job }) {
+  const scopeColumn = settlementScopeColumn(scope.product);
+  const scopeValue = scope.product === 'helper_earnings' ? scope.scopeAccountId : Number(scope.scopeAccountId);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(
+      `INSERT INTO settlement_statement_documents
+         (id, product, ${scopeColumn}, currency_code, period_from, period_to,
+          generated_at, generated_by, document, content_hash)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+       ON CONFLICT ${settlementConflictTarget(scope.product)}
+       DO NOTHING`,
+      [document.id, scope.product, scopeValue, scope.currency,
+        scope.periodFrom, scope.periodTo, document.generatedAt, scope.customerId,
+        JSON.stringify(document), document.contentHash]);
+    const { rows: [row] } = await client.query(
+      `SELECT id FROM settlement_statement_documents
+       WHERE product = $1 AND ${scopeColumn} = $2 AND currency_code = $3
+         AND period_from = $4 AND period_to = $5`,
+      [scope.product, scopeValue, scope.currency, scope.periodFrom, scope.periodTo]);
+    if (!row) {
+      throw new AppError('Statement document row could not be resolved', 500, 'statement_document_missing');
+    }
+    // Idempotent on re-drive: exactly one statement.ready event per job.
+    const { rows: [existingEvent] } = await client.query(
+      `SELECT id FROM statement_outbox
+       WHERE event_type = 'statement.ready' AND aggregate_id = $1
+       LIMIT 1`,
+      [job.id]);
+    if (!existingEvent) {
+      await jobs.outboxAppend(client, {
+        eventType: 'statement.ready',
+        aggregateType: 'statement_account_job',
+        aggregateId: job.id,
+        payload: {
+          issuanceKey: scope.issuanceKey,
+          runId: job.run_id,
+          documentId: row.id,
+          snapshotId: artifact.snapshotId,
+          artifactId: artifact.id,
+          product: scope.product,
+          accountId: scope.scopeAccountId,
           currencyCode: scope.currency,
           periodFrom: scope.periodFrom,
           periodTo: scope.periodTo,
@@ -321,6 +522,33 @@ function assertLeasedTo(job, workerId) {
   if (!job || job.state !== 'leased' || job.lease_owner !== workerId) {
     throw new AppError('Statement job is not leased to this worker', 409, 'statement_lease_stale');
   }
+}
+
+/**
+ * Build the archived monthly document for one leased job. Settlement
+ * products route to settlementStatementService (computation); credit
+ * products keep their existing path. Scopes never mix.
+ */
+async function buildJobDocument(scope) {
+  if (!policy.SETTLEMENT_PRODUCTS.has(scope.product)) {
+    return statements.getStatement(scope.customerId, {
+      product: scope.product,
+      currencyCode: scope.currency,
+      ...(scope.product === 'restaurant' ? { restaurantId: Number(scope.scopeAccountId) } : {}),
+      from: scope.periodFrom,
+      to: scope.periodTo,
+    });
+  }
+  const options = {
+    product: scope.product,
+    currencyCode: scope.currency,
+    from: scope.periodFrom,
+    to: scope.periodTo,
+  };
+  if (scope.product === 'restaurant_settlement') options.restaurantId = Number(scope.scopeAccountId);
+  else if (scope.product === 'business') options.businessId = Number(scope.scopeAccountId);
+  else options.helperId = scope.scopeAccountId;
+  return settlementStatements.getStatement(scope.customerId, options);
 }
 
 /**
@@ -347,7 +575,10 @@ async function issueAccountStatement({ job, workerId, storage, hooks = {} }) {
   const scope = {
     issuanceKey: job.issuance_key,
     product: job.product,
-    accountId: String(job.account_id),
+    // Exactly one scope shape per job row (migration 691): UUID for
+    // helper_earnings, BIGINT otherwise. The issuance key, snapshot, and
+    // artifact readers all parse the same convention.
+    scopeAccountId: job.account_uuid ? String(job.account_uuid) : String(job.account_id),
     currency: String(job.currency_code).toUpperCase(),
     periodFrom,
     periodTo,
@@ -371,7 +602,7 @@ async function issueAccountStatement({ job, workerId, storage, hooks = {} }) {
     snapshot = await snapshots.freezeSnapshot({
       issuanceKey: scope.issuanceKey,
       product: scope.product,
-      accountId: scope.accountId,
+      accountId: scope.scopeAccountId,
       currency: scope.currency,
       periodFrom: scope.periodFrom,
       periodTo: scope.periodTo,
@@ -398,13 +629,10 @@ async function issueAccountStatement({ job, workerId, storage, hooks = {} }) {
   let pdfBytes;
   let language;
   try {
-    document = await statements.getStatement(scope.customerId, {
-      product: scope.product,
-      currencyCode: scope.currency,
-      ...(scope.product === 'restaurant' ? { restaurantId: Number(scope.accountId) } : {}),
-      from: scope.periodFrom,
-      to: scope.periodTo,
-    });
+    // Settlement products compute via settlementStatementService; the worker
+    // renders them through the settlement tagged-PDF renderer (dispatched on
+    // the document's own product).
+    document = await buildJobDocument(scope);
     language = await resolveStatementLanguage(scope.customerId);
     pdfBytes = await renderStatementPdfInWorker(document, { language });
     await hooks.afterRender?.();
@@ -429,10 +657,14 @@ async function issueAccountStatement({ job, workerId, storage, hooks = {} }) {
   }
 
   // (d) Immutable document row + statement.ready outbox event, atomically.
+  // Settlement products archive into settlement_statement_documents;
+  // credit products keep credit_statement_documents. Scopes never mix.
   let documentId;
   try {
     await hooks.beforeDocument?.();
-    documentId = await insertDocumentAndQueueEvent({ scope, document, artifact, job });
+    documentId = policy.SETTLEMENT_PRODUCTS.has(scope.product)
+      ? await insertSettlementDocumentAndQueueEvent({ scope, document, artifact, job })
+      : await insertDocumentAndQueueEvent({ scope, document, artifact, job });
     await hooks.afterDocument?.();
     await jobs.completeJobStage(job.id, workerId, fencingToken, 'notified');
   } catch (error) {
@@ -459,6 +691,18 @@ async function issueAccountStatement({ job, workerId, storage, hooks = {} }) {
 // Sends the localized in-app "statement ready" notification plus a generic
 // authenticated-link email. Only fires when the artifact is ready/verified:
 // an event is never honored for a missing or unverifiable artifact.
+// Authenticated landing pages per product. All require login; no tokens, no
+// PII, no amounts in the link or the message. Settlement products land in the
+// recipient's authenticated workspace (the coordinator wires dedicated
+// statement pages; these are the closest existing authenticated surfaces).
+const PRODUCT_ACTION_URLS = {
+  oxsteed: '/oxsteed-credit',
+  restaurant: '/wallet',
+  restaurant_settlement: '/business-hub',
+  helper_earnings: '/dashboard',
+  business: '/business-hub',
+};
+
 function composeStatementReadyPayload({ job, payload }) {
   return {
     userId: job.customer_id,
@@ -470,9 +714,7 @@ function composeStatementReadyPayload({ job, payload }) {
       periodFrom: payload.periodFrom,
       periodTo: payload.periodTo,
     },
-    // Authenticated product pages; both require login. No tokens, no PII,
-    // no amounts in the link or the message.
-    action_url: payload.product === 'restaurant' ? '/wallet' : '/oxsteed-credit',
+    action_url: PRODUCT_ACTION_URLS[payload.product] || '/dashboard',
     idempotencyKey: `statement-ready:${payload.issuanceKey}`,
   };
 }
@@ -553,8 +795,10 @@ module.exports = {
   recordSkippedJobs,
   reviveEligibleSkips,
   insertDocumentAndQueueEvent,
+  insertSettlementDocumentAndQueueEvent,
   processStatementReadyOutbox,
   composeStatementReadyPayload,
+  PRODUCT_ACTION_URLS,
   latestClosedMonthPeriod,
   issuanceGraceElapsed,
   isRetryableError,

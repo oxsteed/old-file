@@ -150,6 +150,7 @@ function shapeArtifact(row) {
     id: row.id,
     snapshotId: row.snapshot_id,
     documentId: row.document_id,
+    settlementDocumentId: row.settlement_document_id || null,
     kind: row.kind,
     language: row.language,
     rendererVersion: row.renderer_version,
@@ -165,12 +166,26 @@ function shapeArtifact(row) {
 }
 
 // Best-effort link from a snapshot to the archived monthly original produced by
-// the statement service (interim periods have no archived document).
+// the statement service (interim periods have no archived document). Settlement
+// products resolve into settlement_statement_documents (migration 688); credit
+// products into credit_statement_documents (migration 682). Scopes never mix.
 async function resolveDocumentId(client, snapshot) {
   try {
     const parts = String(snapshot.issuance_key).split(':');
     if (parts.length !== 8) return null;
     const [, , product, accountIdText, currency, periodFrom, periodTo, customerId] = parts;
+    if (['restaurant_settlement', 'helper_earnings', 'business'].includes(product)) {
+      const scopeColumn = product === 'restaurant_settlement' ? 'scope_restaurant_id'
+        : product === 'helper_earnings' ? 'scope_helper_user_id' : 'scope_business_id';
+      const scopeValue = product === 'helper_earnings' ? accountIdText : Number(accountIdText);
+      if (product !== 'helper_earnings' && !Number.isSafeInteger(scopeValue)) return null;
+      const { rows: [document] } = await client.query(
+        `SELECT id FROM settlement_statement_documents
+         WHERE product = $1 AND ${scopeColumn} = $2
+           AND currency_code = $3 AND period_from = $4 AND period_to = $5`,
+        [product, scopeValue, currency, periodFrom, periodTo]);
+      return document ? { settlementDocumentId: document.id } : null;
+    }
     let walletAccountId = Number(accountIdText);
     if (product === 'restaurant') {
       const { rows: [wallet] } = await client.query(
@@ -185,7 +200,7 @@ async function resolveDocumentId(client, snapshot) {
        WHERE customer_id = $1 AND product = $2 AND account_id = $3
          AND currency_code = $4 AND period_from = $5 AND period_to = $6`,
       [customerId, product, walletAccountId, currency, periodFrom, periodTo]);
-    return document ? document.id : null;
+    return document ? { documentId: document.id } : null;
   } catch {
     return null;
   }
@@ -218,8 +233,12 @@ function validatePublishInput({ snapshotId, language, pdfBytes, label }) {
   }
 }
 
-async function publishArtifact({ kind, snapshotId, language, pdfBytes, label, storage = defaultStorage, versions }) {
+async function publishArtifact({ kind, snapshotId, language, pdfBytes, label, storage = defaultStorage, versions, settlementDocumentId }) {
   validatePublishInput({ snapshotId, language, pdfBytes, label });
+  if (settlementDocumentId !== undefined && settlementDocumentId !== null
+      && !UUID_PATTERN.test(String(settlementDocumentId))) {
+    throw new AppError('Invalid settlement statement document id', 400, 'statement_artifact_invalid_input');
+  }
   const namespace = resolveNamespace(storage);
   const rendered = versionsOrDefault(versions);
   const hash = sha256Hex(pdfBytes);
@@ -246,14 +265,18 @@ async function publishArtifact({ kind, snapshotId, language, pdfBytes, label, st
         : [snapshotId, kind, language]);
     if (existing) return shapeArtifact(existing);
 
-    const documentId = kind === 'original' ? await resolveDocumentId(client, snapshot) : null;
+    const documentLink = kind === 'original' ? await resolveDocumentId(client, snapshot) : null;
     const { rows: [artifact] } = await client.query(
       `INSERT INTO statement_artifacts
-        (id, snapshot_id, document_id, kind, language, renderer_version, template_version,
+        (id, snapshot_id, document_id, settlement_document_id, kind, language, renderer_version, template_version,
          font_version, byte_length, sha256, media_type, object_key, state, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'staged', transaction_timestamp())
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'staged', transaction_timestamp())
        RETURNING *`,
-      [crypto.randomUUID(), snapshotId, documentId, kind, language, rendered.rendererVersion,
+      [crypto.randomUUID(), snapshotId,
+        documentLink && documentLink.documentId ? documentLink.documentId : null,
+        documentLink && documentLink.settlementDocumentId ? documentLink.settlementDocumentId
+          : (settlementDocumentId || null),
+        kind, language, rendered.rendererVersion,
         rendered.templateVersion, rendered.fontVersion, String(byteLength), hash, PDF_MEDIA_TYPE, baseKey]);
 
     let currentKey = baseKey;
@@ -334,13 +357,13 @@ async function publishArtifact({ kind, snapshotId, language, pdfBytes, label, st
   }
 }
 
-async function publishOriginal({ snapshotId, language = 'en', pdfBytes, storage, versions }) {
-  return publishArtifact({ kind: 'original', snapshotId, language, pdfBytes, storage, versions });
+async function publishOriginal({ snapshotId, language = 'en', pdfBytes, storage, versions, settlementDocumentId }) {
+  return publishArtifact({ kind: 'original', snapshotId, language, pdfBytes, storage, versions, settlementDocumentId });
 }
 
-async function publishRendition({ snapshotId, language, pdfBytes, label, storage, versions }) {
+async function publishRendition({ snapshotId, language, pdfBytes, label, storage, versions, settlementDocumentId }) {
   if (label === undefined) throw new AppError('Statement rendition label is required', 400, 'statement_artifact_invalid_input');
-  return publishArtifact({ kind: 'rendition', snapshotId, language, pdfBytes, label, storage, versions });
+  return publishArtifact({ kind: 'rendition', snapshotId, language, pdfBytes, label, storage, versions, settlementDocumentId });
 }
 
 async function requireReadyArtifact(client, artifactId) {

@@ -25,7 +25,10 @@ const crypto = require('crypto');
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 
-const PRODUCTS = ['oxsteed', 'restaurant'];
+const PRODUCTS = ['oxsteed', 'restaurant', 'restaurant_settlement', 'helper_earnings', 'business'];
+// Products whose account scope is a UUID (helper user id) rather than a
+// BIGINT (wallet/restaurant/business id).
+const UUID_SCOPED_PRODUCTS = new Set(['helper_earnings']);
 const RUN_CLAIMABLE_STATES = ['discovering', 'running'];
 const BACKOFF_BASE_MS = 60 * 1000;
 const BACKOFF_CAP_MS = 6 * 60 * 60 * 1000;
@@ -108,9 +111,24 @@ async function discoverAccountJobs(runId, accounts) {
         fail('statement_job_scope_mismatch', 'Job product must match the run product', 400);
       }
       if (!UUID_RE.test(customerId)) fail('statement_job_invalid_accounts', 'customerId must be a UUID', 400);
-      if (!/^[1-9]\d*$/.test(String(account.accountId))) {
+      // Exactly one account scope shape: BIGINT accountId (wallets,
+      // restaurants, businesses) or UUID accountUuid (helper users). The
+      // shape must match the product's scope kind so scopes never mix.
+      const rawAccountId = account.accountId === undefined || account.accountId === null
+        ? null : String(account.accountId);
+      const rawAccountUuid = account.accountUuid === undefined || account.accountUuid === null
+        ? null : String(account.accountUuid).toLowerCase();
+      const uuidScoped = UUID_SCOPED_PRODUCTS.has(product);
+      if (uuidScoped && (!rawAccountUuid || !UUID_RE.test(rawAccountUuid))) {
+        fail('statement_job_invalid_accounts', 'accountUuid must be a UUID for this product', 400);
+      }
+      if (!uuidScoped && !/^[1-9]\d*$/.test(String(rawAccountId || ''))) {
         fail('statement_job_invalid_accounts', 'accountId must be a positive integer', 400);
       }
+      if (rawAccountId !== null && rawAccountUuid !== null) {
+        fail('statement_job_invalid_accounts', 'exactly one of accountId/accountUuid must be set', 400);
+      }
+      const scopeId = uuidScoped ? rawAccountUuid : rawAccountId;
       const currencyCode = String(account.currencyCode || '').toUpperCase();
       if (!CURRENCY_RE.test(currencyCode)) {
         fail('statement_job_invalid_accounts', 'currencyCode must be a 3-letter ISO code', 400);
@@ -122,7 +140,7 @@ async function discoverAccountJobs(runId, accounts) {
       }
       const key = issuanceKeyFor({
         product,
-        accountId: String(account.accountId),
+        accountId: scopeId,
         currencyCode,
         periodFrom: run.period_from instanceof Date
           ? run.period_from.toISOString().slice(0, 10) : String(run.period_from),
@@ -133,7 +151,7 @@ async function discoverAccountJobs(runId, accounts) {
       if (seen.has(key)) continue; // dedupe within the batch itself
       seen.add(key);
       tuples.push([crypto.randomUUID(), runId, customerId, product,
-        String(account.accountId), currencyCode, key, maxAttempts]);
+        uuidScoped ? null : scopeId, uuidScoped ? scopeId : null, currencyCode, key, maxAttempts]);
     }
     let inserted = 0;
     if (tuples.length > 0) {
@@ -146,7 +164,7 @@ async function discoverAccountJobs(runId, accounts) {
       });
       const result = await client.query(
         `INSERT INTO statement_account_jobs
-           (id, run_id, customer_id, product, account_id, currency_code, issuance_key, max_attempts)
+           (id, run_id, customer_id, product, account_id, account_uuid, currency_code, issuance_key, max_attempts)
          VALUES ${values.join(', ')} ON CONFLICT DO NOTHING`, params);
       inserted = result.rowCount;
       await client.query(
@@ -485,6 +503,7 @@ module.exports = {
   getRunStats,
   computeBackoffMs,
   issuanceKeyFor,
+  UUID_SCOPED_PRODUCTS,
   BACKOFF_BASE_MS,
   BACKOFF_CAP_MS,
 };

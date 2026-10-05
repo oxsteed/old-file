@@ -124,6 +124,7 @@ function normalize(statement) {
     transactionCount: transactions.length, transactions, holds, totalHeldCents: totalHeld,
     holdsAsOf: statement.kind === 'interim' ? statement.holdsAsOf : null,
     contentHash: text(statement.contentHash, 128),
+    amendment: normalizeAmendmentEnvelope(statement),
   };
 }
 
@@ -131,6 +132,57 @@ function languageCopy(language) {
   const lang = LANGUAGES.has(language) ? language : 'en';
   if (!copy[lang] || !copy.en) fail('statement_localization_unavailable');
   return { lang, labels: { ...copy.en, ...copy[lang] } };
+}
+
+// Ordered money keys for the amendment envelope's original/adjustment/revised
+// totals groups, per product. Every product's envelope uses openingMinor and
+// closingMinor as the canonical opening/closing slots so continuity and
+// rendering stay generic; the middle keys are product-specific.
+function amendmentMoneyKeys(product) {
+  if (product === 'helper_earnings') {
+    return [
+      ['openingMinor', 'openingPayable'],
+      ['postedMinor', 'postedEarnings'],
+      ['settledMinor', 'settledPayouts'],
+      ['removedMinor', 'removedEarnings'],
+      ['closingMinor', 'closingPayable'],
+    ];
+  }
+  if (product === 'business') {
+    return [
+      ['openingMinor', 'openingOutstanding'],
+      ['invoicedMinor', 'invoicedTotal'],
+      ['collectedOrAdjustedMinor', 'collectedAdjusted'],
+      ['cancelledMinor', 'cancelledTotal'],
+      ['closingMinor', 'closingOutstanding'],
+    ];
+  }
+  return [
+    ['openingMinor', 'opening'],
+    ['creditsMinor', 'credits'],
+    ['debitsMinor', 'debits'],
+    ['closingMinor', 'closing'],
+  ];
+}
+
+// Sanitized amendment envelope passthrough for renderers: when the document
+// is an amended version, renderers label it as such (revision, type, reason,
+// supersedes, totals). Null for issued originals.
+function normalizeAmendmentEnvelope(statement) {
+  const amendment = statement && typeof statement.amendment === 'object' ? statement.amendment : null;
+  if (!amendment) return null;
+  const totals = statement.totals && typeof statement.totals === 'object' ? statement.totals : null;
+  const supersedes = statement.supersedes && typeof statement.supersedes === 'object' ? statement.supersedes : null;
+  return {
+    type: text(amendment.type, 32),
+    presentation: text(amendment.presentation, 32),
+    reason: text(amendment.reason, 2000),
+    decidedAt: amendment.decidedAt ? date(amendment.decidedAt).toISOString() : null,
+    revision: Number.isSafeInteger(statement.version) ? statement.version : null,
+    supersedesKind: supersedes ? text(supersedes.kind, 32) : null,
+    supersedesRevision: supersedes && Number.isSafeInteger(supersedes.revision) ? supersedes.revision : null,
+    totals,
+  };
 }
 
 // Explicit fallback notice for the unsupported-script path. The PDF renderer
@@ -371,10 +423,15 @@ async function renderStatementPdf(statement, { language = 'en' } = {}) {
       struct('H1', () => drawLine(l.title, PAGE.margin, 86, width, { size: 18, bold: true }));
       struct('H2', () => drawLine(l[s.kind], PAGE.margin, 121, width, { size: 9, color: COLORS.accent, bold: true }));
       struct('P', () => drawLine(`${utcDate(s.period.from, lang)} - ${utcDate(s.period.to, lang)} | UTC`, PAGE.margin, 145, width, { size: 9 }));
+      if (s.amendment) {
+        struct('H2', () => drawLine(
+          `${l.amendedStatement}${s.amendment.revision ? ` - ${l.revision} ${s.amendment.revision}` : ''}`,
+          PAGE.margin, 162, width, { size: 9, color: COLORS.accent, bold: true }));
+      }
     } else {
       artifact('Layout', [PAGE.margin, 14, PAGE.margin + width, 162], headerContent);
     }
-    y = 176;
+    y = first && s.amendment ? 190 : 176;
   }
   function ensure(height) { if (y + height > PAGE.bottom) newPage(false); }
   function section(title) {
@@ -422,6 +479,37 @@ async function renderStatementPdf(statement, { language = 'en' } = {}) {
   // The support address is a real Link element with a mailto annotation so it
   // is operable and announced as a link. It stays inline in its paragraph;
   // when the address does not fit on one wrapped line it degrades to text.
+  // Amended versions are labeled as such: revision, type, reason, supersedes
+  // link, and the original/adjustment/revised totals. Only rendered when the
+  // document carries an amendment envelope; issued originals are unaffected.
+  function renderAmendmentBanner() {
+    const a = s.amendment;
+    section(`${l.amendedStatement}${a.revision ? ` - ${l.revision} ${a.revision}` : ''}`);
+    beginList();
+    field(l.amendmentTypeLabel, l[a.type] || a.type);
+    field(l.presentationLabel, a.presentation === 'later_period' ? l.laterPeriod : l[a.presentation] || a.presentation);
+    field(l.reasonLabel, a.reason);
+    if (a.decidedAt) field(l.decidedAtLabel, utcDate(a.decidedAt, lang, true));
+    field(l.supersedesLabel, a.supersedesKind === 'original'
+      ? l.monthly
+      : `${l.revision} ${a.supersedesRevision || ''}`.trim());
+    const totals = a.totals;
+    if (totals && typeof totals === 'object') {
+      for (const [groupKey, group] of [['originalTotals', totals.original], ['adjustmentTotals', totals.adjustment], ['revisedTotals', totals.revised]]) {
+        if (!group || typeof group !== 'object') continue;
+        y += 6;
+        section(l[groupKey]);
+        beginList();
+        for (const [moneyKey, labelKey] of amendmentMoneyKeys(s.product)) {
+          if (group[moneyKey] === undefined || group[moneyKey] === null) continue;
+          field(l[labelKey], `${amount(Number(group[moneyKey]), s.currencyCode, lang)} ${s.currencyCode}`,
+            { bold: groupKey === 'revisedTotals', direction: false });
+        }
+        y += 4;
+      }
+    }
+    y += 8;
+  }
   function supportBlock() {
     for (const line of wrap(l.support, width, 9)) {
       ensure(18);
@@ -532,6 +620,7 @@ async function renderStatementPdf(statement, { language = 'en' } = {}) {
     field(l.generated, utcDate(s.generatedAt, lang, true));
     field(l.currency, s.currencyCode, { direction: false });
     y += 8;
+    if (s.amendment) renderAmendmentBanner();
     section(l.summary);
     beginList();
     for (const [label, value] of [[l.opening, s.openingBalanceCents], [l.credits, s.totalCreditsCents], [l.debits, s.totalDebitsCents], [l.closing, s.closingBalanceCents]]) {
@@ -597,6 +686,6 @@ async function renderStatementPdf(statement, { language = 'en' } = {}) {
 }
 
 module.exports = {
-  renderStatementPdf, renderStatementCsv, normalize, languageCopy, text,
-  decimal, amount, utcDate, visualRuns, glyphFallbackNotice, RENDERER_VERSIONS,
+  renderStatementPdf, renderStatementCsv, normalize, normalizeAmendmentEnvelope, languageCopy, text,
+  decimal, amount, utcDate, visualRuns, glyphFallbackNotice, amendmentMoneyKeys, RENDERER_VERSIONS,
 };

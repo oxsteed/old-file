@@ -400,6 +400,11 @@ function documentToCsv(document, labels) {
 }
 
 module.exports = router;
+// assertScopeStanding is a production authorization predicate: the
+// rendition routes reuse it so settlement documents are authorized by the
+// same rule as the settlement archive. testHooks keep the documented
+// test-only surface.
+module.exports.assertScopeStanding = assertScopeStanding;
 // Test hooks: the authorization predicates, exported for behavior tests so
 // access control is exercised without standing up the full HTTP stack.
 module.exports.testHooks = { assertScopeStanding, parseProduct, parseScopeId };

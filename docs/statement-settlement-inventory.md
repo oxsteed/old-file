@@ -333,7 +333,13 @@ Tables: `business_invoices` (061, 355), `business_expenses` (235).
 4. No cross-entity financial consolidation structure exists. No
    consolidation statements; per-entity scopes only (3a).
 5. The amendment workflow's proposal/version tables (686/687) FK to
-   `credit_statement_documents`; extending formal amendments to settlement
-   products needs its own FK migration (coordinator follow-up). The
-   settlement adapters expose the same `rederive` rebuild primitive the
-   amendment workflow uses.
+   `credit_statement_documents`; migration 690 (this build) lands the
+   follow-up: `settlement_document_id` on proposals and
+   `settlement_original_document_id` / `settlement_next_period_document_id`
+   on versions, with product widening to the five settlement/credit
+   products and scope-shape checks. Accounting amendments are supported
+   for `restaurant_settlement` (journal re-derivation against the sub-bank
+   account, reusing the journal delta machinery); for `helper_earnings`
+   and `business` they fail closed (`statement_amendment_accounting_unsupported`)
+   because the sources are snapshots, not append-only ledgers. Clerical
+   amendments are fully supported for all three.

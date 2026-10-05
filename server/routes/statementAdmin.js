@@ -773,7 +773,7 @@ async function decideAmendment(req, res, next, decision) {
     // (POST /ops/amendments/:id/retry-publish) converges on exactly one
     // version row. Rejections never publish anything.
     let publication = { status: decision === 'approved' ? 'no_document' : 'not_applicable', version: null };
-    if (decision === 'approved' && proposal.document_id) {
+    if (decision === 'approved' && (proposal.document_id || proposal.settlement_document_id)) {
       try {
         const result = await statementAmendmentService.finalizeApprovedProposal(proposal.id);
         publication = { status: result.status, version: result.version || null };
