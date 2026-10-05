@@ -203,6 +203,7 @@ const P_CRASH = { from: '2026-08-01', to: '2026-08-31' };
 const P_ZERO = { from: '2026-07-01', to: '2026-07-31' };
 const P_PAUSE = { from: '2026-06-01', to: '2026-06-30' };
 const P_OUTBOX = { from: '2026-05-01', to: '2026-05-31' };
+const P_REDRIVE = { from: '2026-03-01', to: '2026-03-31' };
 const P_DISCOVER = { from: '2026-04-01', to: '2026-04-30' };
 
 ddescribe('automatic monthly issuance', () => {
@@ -388,7 +389,9 @@ ddescribe('automatic monthly issuance', () => {
   });
 
   test('(h) crash after the document transaction still queues exactly one statement.ready event', async () => {
-    const run = await jobs.createRun({ product: 'oxsteed', periodFrom: P_OUTBOX.from, periodTo: P_OUTBOX.to });
+    // Own period: issuance keys are deterministic per account-period, so
+    // reusing another test's period would collide on ON CONFLICT DO NOTHING.
+    const run = await jobs.createRun({ product: 'oxsteed', periodFrom: P_REDRIVE.from, periodTo: P_REDRIVE.to });
     await jobs.discoverAccountJobs(run.id, [jobSpec(owner, activeWallet)]);
     const job = await jobs.claimNextAccountJob('worker-a');
 
