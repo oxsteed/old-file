@@ -83,7 +83,7 @@ describeDb('R05 isolated durable SQL export pipeline',()=>{
     const hardware={platform:require('os').platform(),arch:require('os').arch(),cpu:require('os').cpus()[0].model,
       cpuCount:require('os').cpus().length,elapsedMs:Date.now()-started,outputBytes:manifest.byteLength,memory:process.memoryUsage(),dbPoolMax:4};
     process.stdout.write(`R05_SYNTHETIC_CAPACITY ${JSON.stringify(hardware)}\n`);
-  },180000);
+  },600000);
   test('actual HTTP router reaches SQL worker, private manifest/download and rejects a stranger',async()=>{
     await seed(5001);const app=express();app.use(express.json());app.use('/api/statements/exports',createRouter(service));
     app.use((error,_req,res,_next)=>res.status(error.statusCode||error.status||500).json({code:error.code}));

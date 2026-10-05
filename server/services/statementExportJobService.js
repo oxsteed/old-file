@@ -13,7 +13,7 @@ const {periodFor}=require('./creditStatementService');
 
 const BUDGET=Object.freeze({workers:2,chunkRows:2000,pdfRows:2000,maxRows:1000000,
   queue:1024,perRequester:8,maxAttempts:5,maxBytes:512*1024*1024,minFreeDisk:256*1024*1024,
-  freezeMs:120000,attemptMs:60*60*1000,leaseSeconds:45});
+  freezeMs:5*60*1000,freezeLeaseSeconds:360,attemptMs:60*60*1000,leaseSeconds:45});
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PRODUCTS=new Set(['oxsteed','restaurant','restaurant_settlement','helper_earnings','business']);
 const LANGUAGES=new Set(['en','es','fr','ht','ar']);
@@ -188,7 +188,7 @@ function createService({db=require('../db'),storage=require('../utils/statementS
        WHERE id=$1 AND lease_owner=$2 AND fence=$3 AND lease_until>now()
        AND state IN ('freezing','rendering') AND NOT EXISTS
          (SELECT 1 FROM statement_export_cancellations c WHERE c.job_id=$1) RETURNING id`,
-      [job.id,job.lease_owner,job.fence,freezing?150:BUDGET.leaseSeconds,rowsRendered??null]);
+       [job.id,job.lease_owner,job.fence,freezing?BUDGET.freezeLeaseSeconds:BUDGET.leaseSeconds,rowsRendered??null]);
     if (!current) fail('statement_export_lease_lost');
   }
   async function* chunks(job,signal) {
@@ -276,7 +276,11 @@ function createService({db=require('../db'),storage=require('../utils/statementS
       if (await diskCheck(tempRoot)<BUDGET.minFreeDisk+BUDGET.maxBytes) fail('statement_export_disk_budget',503);
       await authorizeScope(db,job.requested_by,job.product,job.scope_id,job.currency_code,job.account_id);
       job.period_from=isoDay(job.period_from);job.period_to=isoDay(job.period_to);
-      const header=await snapshots.freezeExportSource(db,job,{materialize});
+      // Freeze holds the export-job row lock while materializing a consistent
+      // source snapshot. Extend the lease before entering that transaction so
+      // heartbeats cannot expire while blocked behind the lock.
+      await checkpoint(job,signal,{freezing:true});
+      const header=await snapshots.freezeExportSource(db,job,{materialize,timeoutMs:BUDGET.freezeMs});
       job.frozen_header=header;
       await checkpoint(job,signal);
       directory=await fs.promises.mkdtemp(path.join(tempRoot,'statement-export-'));

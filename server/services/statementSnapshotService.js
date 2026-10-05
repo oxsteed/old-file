@@ -16,6 +16,7 @@ const settlementStatements = require('./settlementStatementService');
 
 const SNAPSHOT_SCHEMA_VERSION = 1;
 const DEFAULT_CHUNK_SIZE = 2000;
+const DEFAULT_EXPORT_FREEZE_TIMEOUT_MS = 5 * 60 * 1000;
 const PRODUCTS = new Set(['oxsteed', 'restaurant', 'restaurant_settlement', 'helper_earnings', 'business']);
 // Products whose account scope is a UUID (helper user id) rather than a BIGINT.
 const UUID_SCOPED_PRODUCTS = new Set(['helper_earnings']);
@@ -571,13 +572,17 @@ function defaultExportMaterializer(client, job, options) {
   return statements.materializeExportSource(client, job, options);
 }
 
-async function freezeExportSource(db, job, { materialize = defaultExportMaterializer } = {}) {
+async function freezeExportSource(db, job, { materialize = defaultExportMaterializer, timeoutMs = DEFAULT_EXPORT_FREEZE_TIMEOUT_MS } = {}) {
   if (job.frozen_header) return job.frozen_header;
+  const freezeTimeout = Number(timeoutMs);
+  if (!Number.isSafeInteger(freezeTimeout) || freezeTimeout < 1000 || freezeTimeout > 10 * 60 * 1000) {
+    throw new AppError('Invalid export freeze time budget', 400, 'statement_export_freeze_timeout');
+  }
   const client = await db.connect();
   try {
-    const deadline=Date.now()+120000;
+    const deadline=Date.now()+freezeTimeout;
     await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ');
-    await client.query("SET LOCAL statement_timeout='120000ms'");
+    await client.query(`SET LOCAL statement_timeout='${freezeTimeout}ms'`);
     await client.query("SET LOCAL lock_timeout='3000ms'");
     await client.query("SET LOCAL idle_in_transaction_session_timeout='150000ms'");
     await client.query("SET LOCAL work_mem='8MB'");
@@ -596,9 +601,10 @@ async function freezeExportSource(db, job, { materialize = defaultExportMaterial
     const header = await materialize(boundedClient, {...locked,period_from:day(locked.period_from),period_to:day(locked.period_to)}, { maxRows:1000000 });
     await client.query(
       `UPDATE statement_export_jobs SET frozen_header=$4,frozen_at=$5,row_count=$6,
-       state='rendering',lease_until=now()+interval '45 seconds',updated_at=now()
+       state='rendering',lease_until=now()+($7::int*interval '1 second'),updated_at=now()
        WHERE id=$1 AND lease_owner=$2 AND fence=$3`,
-      [job.id,job.lease_owner,job.fence,JSON.stringify(header),header.generatedAt,header.transactionCount]);
+      [job.id,job.lease_owner,job.fence,JSON.stringify(header),header.generatedAt,header.transactionCount,
+        Math.ceil(freezeTimeout/1000)+60]);
     await client.query('COMMIT');
     return header;
   } catch (error) { await client.query('ROLLBACK'); throw error; }
@@ -618,6 +624,7 @@ async function readExportChunk(db, jobId, after = 0, limit = DEFAULT_CHUNK_SIZE)
 module.exports = {
   getFrozenDocument,
   freezeExportSource,
+  DEFAULT_EXPORT_FREEZE_TIMEOUT_MS,
   readExportChunk,
   freezeSnapshot,
   verifySnapshot,
