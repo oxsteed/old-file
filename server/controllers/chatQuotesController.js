@@ -1502,10 +1502,9 @@ exports.listGuestHistory = async (req, res, next) => {
 
     const [helperQuotes, businessQuotes] = await Promise.all([
       pool.query(
-        `SELECT hq.*, COALESCE(NULLIF(hp.display_name, ''), NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.email) AS provider_name
+        `SELECT hq.*, COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.email) AS provider_name
            FROM helper_quotes hq
            JOIN users u ON u.id = hq.helper_id
-           LEFT JOIN helper_profiles hp ON hp.user_id = hq.helper_id
           WHERE hq.guest_session_id = $1 AND hq.status <> 'draft'
           ORDER BY hq.created_at DESC`,
         [guest.id],

@@ -102,9 +102,9 @@ router.get('/job/:jobId', authenticate, async (req, res, next) => {
     const isClient = job.rows[0].client_id === userId;
     const rows = await pool.query(`
       SELECT hq.*,
-             COALESCE(hp.display_name, u.first_name || ' ' || u.last_name) AS helper_name,
+             COALESCE(NULLIF(TRIM(u.first_name || ' ' || u.last_name), ''), u.email) AS helper_name,
              hp.profile_photo_url AS helper_photo,
-             hp.average_rating
+             hp.avg_rating AS average_rating
       FROM helper_quotes hq
       JOIN users u ON u.id = hq.helper_id
       LEFT JOIN helper_profiles hp ON hp.user_id = hq.helper_id
@@ -124,7 +124,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
     const row = await pool.query(`
       SELECT hq.*,
              j.title AS job_title, j.client_id,
-             COALESCE(hp.display_name, u.first_name || ' ' || u.last_name) AS helper_name
+             COALESCE(NULLIF(TRIM(u.first_name || ' ' || u.last_name), ''), u.email) AS helper_name
       FROM helper_quotes hq
       JOIN jobs j  ON j.id = hq.job_id
       JOIN users u ON u.id = hq.helper_id
