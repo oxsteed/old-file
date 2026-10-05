@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Download, FileText, TableProperties, CodeXml, Languages, TriangleAlert } from 'lucide-react';
+import { ArrowLeft, Download, FileText, TableProperties, Code2, Languages, AlertTriangle } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import PageMeta from '../../components/PageMeta';
@@ -184,7 +184,7 @@ export default function StatementAccessibleView() {
 
         {glyphNotice ? (
           <div className="sa-notice" role="alert" tabIndex={-1} ref={noticeRef} aria-labelledby="sa-glyph-title">
-            <TriangleAlert size={22} aria-hidden="true" />
+            <AlertTriangle size={22} aria-hidden="true" />
             <div>
               <h2 id="sa-glyph-title">{glyphNotice.title}</h2>
               <p>{glyphNotice.body}</p>
@@ -222,7 +222,7 @@ export default function StatementAccessibleView() {
           </section>
 
           <section className="sa-card" aria-labelledby="sa-html-title">
-            <CodeXml size={26} aria-hidden="true" />
+            <Code2 size={26} aria-hidden="true" />
             <h2 id="sa-html-title">{text('htmlTitle')}</h2>
             <p>{text('htmlDescription')}</p>
             {htmlUrl ? (

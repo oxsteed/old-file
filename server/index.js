@@ -29,7 +29,7 @@ const correlationId = require('./middleware/correlationId');
 const { otelRequestContext } = require('./middleware/otelRequestContext');
 const { attachCsrfToken, validateCsrfToken } = require('./middleware/csrf');
 const sanitizeInputs = require('./middleware/sanitize');
-const { generalLimiter, authenticatedLimiter, authLimiter, strictLimiter, channelWebhookLimiter } = require('./middleware/rateLimiter');
+const { generalLimiter, authenticatedLimiter, authLimiter, strictLimiter, channelWebhookLimiter, creditExportLimiter } = require('./middleware/rateLimiter');
 const { webhookRateLimit } = require('./middleware/webhookAuth');
 const { authenticate, requireRole } = require('./middleware/auth');
 const { requireAdmin } = require('./middleware/adminAuth');
@@ -52,6 +52,11 @@ const entityRoutes = require('./routes/entities');
 const reviewRoutes = require('./routes/reviews');
 const notificationRoutes = require('./routes/notifications');
 const adminRoutes = require('./routes/admin');
+const statementAdminRoutes = require('./routes/statementAdmin');
+const statementIssuanceRoutes = require('./routes/statementIssuance');
+const statementInvestigationRoutes = require('./routes/statementInvestigation');
+const statementRenditionsRoutes = require('./routes/statementRenditions');
+const createStatementArchiveRouter = require('./routes/statementArchive');
 const consentRoutes = require('./routes/consent');
 const privacyRoutes = require('./routes/privacy');
 const configRoutes = require('./routes/config');
@@ -477,6 +482,8 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin', agentJobActionsRoutes);
+app.use('/api/admin/statements', statementAdminRoutes);
+app.use('/api/statement-issuance', statementIssuanceRoutes);
 app.use('/api/consent', consentRoutes);
 app.use('/api/privacy', privacyRoutes);
 app.use('/api/config', configRoutes);
@@ -657,6 +664,11 @@ app.use('/api/main-app', mainAppRoutes);
 app.use('/api/direct', directRoutes);
 app.use('/api/food', foodRoutes);
 app.use('/api/oxsteed-credit', oxsteedCreditRoutes);
+// Monthly statement operations: private archive, entry investigation, and
+// accessible renditions. Each router enforces per-request authorization.
+app.use('/api/statement-archive', createStatementArchiveRouter());
+app.use('/api/statements', creditExportLimiter, statementRenditionsRoutes);
+app.use('/api', statementInvestigationRoutes);
 // Device-authenticated OxSteed Credit kiosk hardware (redeem / cash-out),
 // scoped to a restaurant + paired device the same way POS/Kitchen/Display are.
 app.use('/api/restaurants/:restaurantId/credit-kiosks/:deviceId', oxsteedCreditKioskRoutes);

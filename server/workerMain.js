@@ -25,6 +25,7 @@ const {
   processNotification,
 } = require('./workers/paymentWorker');
 const { pollTranslationJobs } = require('./modules/jobs/translationJobWorker');
+const { pollIssuanceCycle } = require('./jobs/statementIssuanceScheduler');
 const {
   normalizeLocations,
   refreshEtas,
@@ -203,6 +204,12 @@ const TRACKING_WORKER_SCHEDULE = [
   // Publish Learn guide video submissions pending 24h without an admin
   // block (Emile's decision 2026-10-01), every 5 minutes.
   ['publishDueGuideVideos', publishDueGuideVideos, 5 * 60 * 1000, { limit: 100 }],
+  // Monthly statement issuance: discovers eligible accounts for the latest
+  // closed UTC month and issues originals in bounded batches; always drains
+  // the statement.ready outbox so notifications never stall. Every 5 minutes.
+  ['statementIssuanceCycle',
+    (options) => pollIssuanceCycle({ workerId: options.workerId, maxJobsPerProduct: options.maxJobsPerProduct }),
+    5 * 60 * 1000, { workerId: 'worker-main', maxJobsPerProduct: 50 }],
 ];
 
 /**

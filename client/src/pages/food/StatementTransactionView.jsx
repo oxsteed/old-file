@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, FileWarning, Link2, ReceiptText, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, FileWarning, Link2, Receipt, ShieldAlert } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import PageMeta from '../../components/PageMeta';
@@ -206,7 +206,7 @@ export default function StatementTransactionView() {
     if (related.status === 'external') {
       return (
         <div className="stv-related-linked">
-          <p className="stv-related-kind"><ReceiptText size={16} aria-hidden="true" /> {text('relatedExternal')}</p>
+          <p className="stv-related-kind"><Receipt size={16} aria-hidden="true" /> {text('relatedExternal')}</p>
           <dl className="stv-facts">
             <div><dt>{text('reference')}</dt><dd>{related.maskedReference || text('none')}</dd></div>
           </dl>
