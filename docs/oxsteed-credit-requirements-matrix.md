@@ -1154,7 +1154,7 @@ perimeter remains unbuilt and required before real-money activation, and
 `oxsteed_credit_enabled` stays off. The next exact action is the
 real-PostgreSQL migration rehearsal for 641 plus a deployment decision.
 
-## Customer statement documents - 2026-10-05
+## Customer statement documents - 2026-10-05 (statement operations build)
 
 Implemented bank-style PDF/CSV documents for OxSteed Credit and each Restaurant
 Credit wallet, preserving the existing authoritative ledgers and separate
@@ -1162,21 +1162,60 @@ currencies/products. On-demand closed-month snapshots are immutable, scoped to
 their owner/account/period and checksum-verified. Current/custom reports are
 explicitly interim; current holds never alter posted closing balances.
 
-Evidence: `creditStatementService`, `creditStatementController`,
-`creditStatementPdf`, `creditStatementExport` and corresponding service,
-controller, renderer, worker and real-route tests. The customer screens have
-five-locale browser checks (mobile/desktop, RTL, themes, keyboard and motion),
-and statement format/translation tests now run in the client CI prebuild gate.
-Migration 682 and the complete migration chain were rehearsed against disposable
-PostgreSQL 16; both-product concurrent issuance, refunds/fees, ownership,
-currencies, immutable copies, holds and rollback checks passed. No production
-financial data was changed.
+The full statement operations build is now implemented on branch
+`old-files-claude` (commits `a85570d1` through `1ad739f5`, plus follow-up fixes):
+
+- **Automatic monthly issuance** (`aa81e38c`): durable scheduler discovering
+  eligible accounts for the latest closed UTC month after a 72h grace period.
+  Durable jobs with leases, fencing tokens, deterministic issuance keys, and a
+  transactional outbox (migration 683). Crash recovery reclaims stranded
+  mid-pipeline jobs idempotently; `statement.ready` outbox dedupe guarantees
+  exactly one notification per job (`50722787`).
+- **Snapshot/chunk model + artifact publication** (`a85570d1`, migration 684):
+  bounded immutable snapshots, private R2 artifacts with verify-before-ready,
+  short-lived signed URLs, byte-identical repeat downloads.
+- **Archive** (`7be82e96`): paginated, filterable, original+amended versions,
+  per-request re-authorization; mounted at `/api/statement-archive` with client
+  routes under `/restaurant-credit` and `/oxsteed-credit`.
+- **Transaction investigation** (`88d599a9`, migration 685): explicit-FK-only
+  drilldown, idempotent case filing into the existing dispute system (no money
+  movement). Also fixed a latent production bug: dispute open/resolve used
+  `FOR UPDATE` on an outer join, which PostgreSQL rejects.
+- **Admin operations + audit** (`40e356a3`, migration 686): operations workspace
+  at `/admin/super/statement-operations` with role/grant gating, safe
+  retry/replay/reconcile controls, 7 alert codes, and append-only audit reuse.
+- **Accessible PDFs + HTML** (`267d6750`): tagged PDFs (no PDF/UA claim),
+  accessible HTML statements, 5-locale support, loud failure on unsupported
+  scripts with HTML/CSV recovery.
+- **Amendments** (`1060fd86`, migrations 686/687): maker-checker proposal
+  workflow, new immutable versions (ordered chains), continuity validation with
+  unresolved-continuity blocking, owner notified once.
+- **Settlement adapters** (`8099aff5`, migration 688; follow-ups `1ad739f5`,
+  migrations 690/691): `restaurant_settlement`, `helper_earnings`, `business`
+  products with exact per-adapter reconciliation equations, separate append-only
+  archive, self-service access control, issuance/amendment/rendition support.
+  Inventory: `docs/statement-settlement-inventory.md`.
+- **Fixes**: admin grant-lookup UNION query (`13807fca`; every non-super-admin
+  permission check was 500ing), restaurant payout `sub_bank_payout` journal
+  type (`e445eda0`; payouts stuck at `processing`), issuance test isolation
+  (`b1011a29`), lucide icon names blocking the client build (in `6aa53e4d`).
+
+Evidence: full server suite green (398 suites, 4416 tests, 0 failures at last
+full run 2026-10-05), client `build:ci` green, behavior tests per workstream on
+disposable `credit_statement_test` databases (synthetic fixtures only; no
+production data). Migrations 682-691 applied cleanly in sequence.
 
 See `docs/credit-statements.md` for the API, accounting, retention, capacity,
-recovery and deployment contract. This is not a new bank ledger or a claim of
+recovery and deployment contract, and `docs/statement-operations-runbook.md`
+for operator procedures. This is not a new bank ledger or a claim of
 banking/regulatory readiness. Actual deployment and authenticated production
-smoke tests remain separate release gates; scheduled monthly emails and PDF
-digital signatures are not represented as implemented features.
+smoke tests remain separate release gates.
+
+Known production issues outside this build's scope: the restaurant payout path
+is not atomic (Stripe Transfer before journal post) and has no webhook
+reconciliation; migration 689 unblocks the `sub_bank_payout` journal leg, but
+payouts must not be activated for real money without the atomicity redesign.
+Manual screen-reader verification of the tagged PDFs was not performed.
 
 ## Completion Gate
 
