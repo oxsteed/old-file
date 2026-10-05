@@ -1,4 +1,15 @@
 {
+  "pwa": {
+    "installTitle": "Pran app OxSteed la",
+    "installBody": "Enstale li pou aksè yon-tap nan manje, djòb, ak bous ou.",
+    "installCta": "Enstale",
+    "notNow": "Pa kounye a",
+    "iosTitle": "Mete OxSteed sou ekran lakay ou",
+    "iosStep1": "Peze bouton Pataje a nan Safari",
+    "iosStep2": "Chwazi Ajoute sou ekran lakay",
+    "iosStep3": "Peze Ajoute pou fini",
+    "iosNote": "Sa debloke notifikasyon ak aksè pi rapid."
+  },
   "adminProviderHealth": {
     "eyebrow": "Operasyon founisè yo",
     "title": "Sante founisè yo",

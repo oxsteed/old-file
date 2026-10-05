@@ -40,6 +40,7 @@ import {
 } from '../../api/oxsteedCredit';
 import { useLiveFoodOrder } from './useLiveFoodOrder';
 import { FOOD_STATUS_KEYS } from './foodShared';
+import { notifyMoneyMoment } from '../../utils/pwaInstall';
 import RestaurantMediaFeed from './components/RestaurantMediaFeed';
 import { recordView } from '../../hooks/useRecentlyViewed';
 import Navbar from '../../components/Navbar';
@@ -1183,6 +1184,7 @@ export default function FoodRestaurantPage() {
       clearDraftOrder(restaurantId);
       setDraftHasContent(false);
       setCartStep('confirmed');
+      notifyMoneyMoment('food_order');
       setCartItems([]);
       setTipPreset('none');
       setCustomTipText('');

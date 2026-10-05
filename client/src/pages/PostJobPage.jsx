@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { useCapabilities } from '../hooks/useCapabilities';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 import PriceGuidance from '../components/PriceGuidance';
+import { notifyMoneyMoment } from '../utils/pwaInstall';
 
 // ─── Category taxonomy ───────────────────────────────────────────────────────
 const CATEGORIES = [
@@ -910,6 +911,8 @@ export default function PostJobPage() {
       if (firstButton) {
         setTimeout(() => firstButton.focus(), 0);
       }
+      // Value moment: job posted — offer the app install once, politely.
+      notifyMoneyMoment('job_posted');
     }
   }, [form.submitted, form.submittedJob]);
 

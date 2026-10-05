@@ -1,4 +1,15 @@
 {
+  "pwa": {
+    "installTitle": "Get the OxSteed app",
+    "installBody": "Install for one-tap access to food, jobs, and your wallet.",
+    "installCta": "Install",
+    "notNow": "Not now",
+    "iosTitle": "Add OxSteed to your Home Screen",
+    "iosStep1": "Tap the Share button in Safari",
+    "iosStep2": "Choose Add to Home Screen",
+    "iosStep3": "Tap Add to finish",
+    "iosNote": "This unlocks notifications and faster access."
+  },
   "adminProviderHealth": {
     "eyebrow": "Provider operations",
     "title": "Provider health",

@@ -12,6 +12,7 @@ import {
   recoverFromBootstrapFailure,
   registerServiceWorker,
 } from './utils/serviceWorkerRegistration';
+import { initPwaInstall } from './utils/pwaInstall';
 
 function sentryRootFallback({ error, resetError }) {
   return (
@@ -54,6 +55,7 @@ function renderBootstrapFailure() {
 }
 
 registerServiceWorker();
+initPwaInstall();
 i18nReady.then(() => {
   clearBootstrapRecoveryMarker();
   ReactDOM.createRoot(document.getElementById('root')).render(

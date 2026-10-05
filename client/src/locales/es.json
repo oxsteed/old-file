@@ -1,4 +1,15 @@
 {
+  "pwa": {
+    "installTitle": "Obtén la app de OxSteed",
+    "installBody": "Instálala para acceder con un toque a comida, trabajos y tu billetera.",
+    "installCta": "Instalar",
+    "notNow": "Ahora no",
+    "iosTitle": "Agrega OxSteed a tu pantalla de inicio",
+    "iosStep1": "Toca el botón Compartir en Safari",
+    "iosStep2": "Elige Agregar a pantalla de inicio",
+    "iosStep3": "Toca Agregar para terminar",
+    "iosNote": "Esto desbloquea notificaciones y acceso más rápido."
+  },
   "adminProviderHealth": {
     "eyebrow": "Operaciones de proveedores",
     "title": "Salud de proveedores",
