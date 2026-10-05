@@ -135,6 +135,7 @@ function LaunchCustomerDashboard({
   activeJobs,
   foodOrders,
   wallets,
+  oxsteedCreditAccount = null,
   unreadMsgs,
   unreadNotifs,
   error,
@@ -1091,6 +1092,7 @@ export default function Dashboard() {
             activeJobs={activeJobs}
             foodOrders={foodOrders}
             wallets={restaurantWallets}
+            oxsteedCreditAccount={oxsteedCreditAccount}
             unreadMsgs={unreadMsgs}
             unreadNotifs={unreadNotifs}
             error={error}
