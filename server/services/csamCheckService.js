@@ -68,13 +68,18 @@ function isUuid(value) {
 }
 
 // SHA-256 hex of the stored original, streamed so we never hold the whole
-// file in memory here (the worker already holds it for ffmpeg).
-function sha256OfStorageKey(storageKey) {
-  const filePath = storage.resolveLocalStoragePath(storageKey);
-  if (!filePath) return Promise.resolve(null);
+// file in memory. Works for both backends: local disk and S3-compatible
+// (R2). Returns null when the object cannot be opened.
+async function sha256OfStorageKey(storageKey) {
+  let stream = null;
+  try {
+    stream = await storage.getObjectStream(storageKey);
+  } catch {
+    stream = null;
+  }
+  if (!stream) return null;
   return new Promise((resolve) => {
     const hash = crypto.createHash('sha256');
-    const stream = fs.createReadStream(filePath);
     stream.on('data', (chunk) => hash.update(chunk));
     stream.on('end', () => resolve(hash.digest('hex')));
     stream.on('error', () => resolve(null));

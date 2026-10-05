@@ -302,7 +302,29 @@ async function processTranscodeJob(job) {
     );
     return;
   }
-  const sourcePath = storage.resolveLocalStoragePath(media.storage_key);
+  const tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'oxsteed-transcode-'));
+  // Local backend: the stored original is already on disk. Remote backend
+  // (S3/R2): download it to the temp dir first so ffmpeg has a file path.
+  let sourcePath = storage.resolveLocalStoragePath(media.storage_key);
+  if (!sourcePath || !fs.existsSync(sourcePath)) {
+    const ext = path.extname(media.storage_key || '') || '.mp4';
+    const tmpSource = path.join(tmpDir, `source${ext}`);
+    try {
+      await storage.downloadObjectToFile(media.storage_key, tmpSource);
+      sourcePath = tmpSource;
+    } catch (error) {
+      await markJobFailed(job.id, error);
+      await pool.query(
+        `UPDATE restaurant_media
+            SET processing_status = 'failed',
+                processing_error = 'Video processing failed.'
+          WHERE id = $1`,
+        [media.id]
+      );
+      await fsp.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+      return;
+    }
+  }
   if (!sourcePath || !fs.existsSync(sourcePath)) {
     await markJobFailed(job.id, new Error('stored original not readable'));
     await pool.query(
@@ -315,7 +337,6 @@ async function processTranscodeJob(job) {
     return;
   }
 
-  const tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'oxsteed-transcode-'));
   const uploadedKeys = [];
   try {
     const sourceDims = await probeDimensions(sourcePath);

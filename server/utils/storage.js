@@ -1,6 +1,7 @@
 // Phase 2 - File storage utility (S3-compatible)
 // OxSteed v2
 const fs = require('fs/promises');
+const fsCallback = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
@@ -214,12 +215,70 @@ function resolveLocalStoragePath(key) {
   return localFilePath(key);
 }
 
+/**
+ * Readable stream for a stored object, whichever backend holds it.
+ * S3/R2: GetObject body stream. Local: file read stream. Returns null when
+ * the key is invalid or the object cannot be opened. The caller owns the
+ * stream lifecycle.
+ */
+async function getObjectStream(key) {
+  const normalized = normalizeKey(key);
+  if (!normalized) return null;
+  if (s3) {
+    try {
+      const { Body } = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: normalized }));
+      return Body || null;
+    } catch (error) {
+      logger.warn('storage getObject stream failed', { key: normalized, error: error.message });
+      return null;
+    }
+  }
+  // NOTE: resolved through the exported property (not the local binding) so
+  // tests can spy on resolveLocalStoragePath.
+  const filePath = module.exports.resolveLocalStoragePath(normalized);
+  try {
+    await fs.access(filePath);
+  } catch {
+    return null;
+  }
+  return fsCallback.createReadStream(filePath);
+}
+
+/**
+ * Download a stored object to a local file (S3/R2 via GetObject streaming,
+ * local via copy). Used by workers that need a filesystem path (ffmpeg).
+ * Throws on invalid key or download failure.
+ */
+async function downloadObjectToFile(key, destPath) {
+  const normalized = normalizeKey(key);
+  if (!normalized) throw new Error('Invalid storage key');
+  await fs.mkdir(path.dirname(destPath), { recursive: true });
+  if (s3) {
+    const { Body } = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: normalized }));
+    if (!Body) throw new Error('Storage object has no body');
+    await new Promise((resolve, reject) => {
+      const writeStream = fsCallback.createWriteStream(destPath);
+      Body.pipe(writeStream);
+      Body.on('error', reject);
+      writeStream.on('finish', resolve);
+      writeStream.on('error', reject);
+    });
+    return destPath;
+  }
+  const sourcePath = localFilePath(normalized);
+  if (!sourcePath) throw new Error('Invalid storage key');
+  await fs.copyFile(sourcePath, destPath);
+  return destPath;
+}
+
 module.exports = {
   uploadFile,
   getSignedDownloadUrl,
   deleteFile,
   getPublicUrl,
   resolveLocalStoragePath,
+  getObjectStream,
+  downloadObjectToFile,
   readLocalObjectMeta,
   verifyLocalDownloadSignature,
   normalizeStorageKey: normalizeKey,
