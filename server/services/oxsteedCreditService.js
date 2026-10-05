@@ -3263,6 +3263,70 @@ function formatDispute(row) {
     resolutionEntries: row.resolution_entries || {},
     // Migration 678: cumulative provisional credit issued while in review.
     provisionalCreditCents: Number(row.provisional_credit_cents || 0),
+    // Migration 685: provenance of the statement investigation that opened
+    // this dispute, when any. Null on older rows and non-statement disputes.
+    statement: row.statement_document_id ? {
+      documentId: String(row.statement_document_id),
+      revision: row.statement_revision === null || row.statement_revision === undefined ? null : Number(row.statement_revision),
+      entryId: row.statement_entry_id || null,
+      product: row.statement_product || null,
+      accountId: row.statement_account_id === null || row.statement_account_id === undefined ? null : String(row.statement_account_id),
+      periodFrom: row.statement_period_from || null,
+      periodTo: row.statement_period_to || null,
+    } : null,
+  };
+}
+
+// Migration 685: normalize the optional statement-investigation provenance
+// attached when a dispute is opened from a statement entry drilldown. Returns
+// null when the caller did not open the dispute from a statement.
+function normalizeDisputeStatementLink(statement) {
+  if (!statement || typeof statement !== 'object') return null;
+  const documentId = typeof statement.documentId === 'string' && /^[0-9a-fA-F-]{36}$/.test(statement.documentId)
+    ? statement.documentId : null;
+  const entryId = typeof statement.entryId === 'string' && statement.entryId.length > 0 && statement.entryId.length <= 120
+    ? statement.entryId : null;
+  if (!documentId || !entryId) return null;
+  const revision = Number.parseInt(String(statement.revision), 10);
+  const product = statement.product === 'oxsteed' || statement.product === 'restaurant' ? statement.product : null;
+  const accountId = statement.accountId === null || statement.accountId === undefined || statement.accountId === ''
+    ? null : String(statement.accountId);
+  const dateOrNull = (value) => (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null);
+  return {
+    documentId,
+    revision: Number.isSafeInteger(revision) && revision > 0 ? revision : null,
+    entryId,
+    product,
+    accountId,
+    periodFrom: dateOrNull(statement.periodFrom),
+    periodTo: dateOrNull(statement.periodTo),
+  };
+}
+
+// Migration 685: attach statement provenance to a replayed dispute that was
+// opened before the linkage columns existed (or through a non-statement
+// path). Ownership columns are untouched, so the migration 452 integrity
+// trigger permits this UPDATE.
+async function backfillDisputeStatementLink(client, disputeRow, statementLink) {
+  if (!statementLink || disputeRow.statement_document_id) return disputeRow;
+  await client.query(
+    `UPDATE oxsteed_credit_disputes
+        SET statement_document_id = $2, statement_revision = $3, statement_entry_id = $4,
+            statement_product = $5, statement_account_id = $6,
+            statement_period_from = $7, statement_period_to = $8, updated_at = NOW()
+      WHERE id = $1 AND statement_document_id IS NULL`,
+    [disputeRow.id, statementLink.documentId, statementLink.revision, statementLink.entryId,
+      statementLink.product, statementLink.accountId, statementLink.periodFrom, statementLink.periodTo]
+  );
+  return {
+    ...disputeRow,
+    statement_document_id: statementLink.documentId,
+    statement_revision: statementLink.revision,
+    statement_entry_id: statementLink.entryId,
+    statement_product: statementLink.product,
+    statement_account_id: statementLink.accountId,
+    statement_period_from: statementLink.periodFrom,
+    statement_period_to: statementLink.periodTo,
   };
 }
 
@@ -3275,10 +3339,13 @@ const DISPUTE_SLA_HOURS_FALLBACK = Math.max(
 );
 const DISPUTE_TYPE_VALUES = ['unauthorized_topup', 'failed_payout', 'duplicate_charge', 'incorrect_amount', 'chargeback'];
 
-async function openCreditDispute({ customerId, transactionId, reasonCode, description, actorUserId, idempotencyKey, requestIp, disputeType }) {
+async function openCreditDispute({ customerId, transactionId, reasonCode, description, actorUserId, idempotencyKey, requestIp, disputeType, statement }) {
   const normalizedReason = normalizeString(reasonCode, 60);
   const normalizedDescription = normalizeString(description, 4000);
   const normalizedDisputeType = disputeType ? normalizeString(disputeType, 40) : null;
+  // Migration 685: optional statement-investigation provenance. It is
+  // metadata only and never changes dispute eligibility or resolution rules.
+  const statementLink = normalizeDisputeStatementLink(statement);
   if (normalizedDisputeType && !DISPUTE_TYPE_VALUES.includes(normalizedDisputeType)) {
     throw new AppError('Invalid credit dispute type', 400, 'credit_dispute_type_invalid');
   }
@@ -3306,7 +3373,7 @@ async function openCreditDispute({ customerId, transactionId, reasonCode, descri
          LEFT JOIN oxsteed_credit_partners p ON p.id = d.partner_id
          LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
         WHERE d.idempotency_key = $1
-        FOR UPDATE`,
+        FOR UPDATE OF d`,
       [normalizedIdempotencyKey]
     );
     if (keyRows[0]) {
@@ -3318,7 +3385,8 @@ async function openCreditDispute({ customerId, transactionId, reasonCode, descri
         || (existing.dispute_type || null) !== normalizedDisputeType) {
         throw new AppError('Credit dispute idempotency key was already used for different details', 409, 'credit_dispute_idempotency_conflict');
       }
-      return { dispute: formatDispute(existing), replayed: true };
+      const linked = await backfillDisputeStatementLink(client, existing, statementLink);
+      return { dispute: formatDispute(linked), replayed: true };
     }
     const { rows: existingRows } = await client.query(
       `SELECT d.*, fr.display_name AS restaurant_name
@@ -3326,17 +3394,25 @@ async function openCreditDispute({ customerId, transactionId, reasonCode, descri
          LEFT JOIN oxsteed_credit_partners p ON p.id = d.partner_id
          LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
         WHERE d.transaction_id = $1 AND d.status IN ('open', 'in_review')
-        FOR UPDATE`,
+        FOR UPDATE OF d`,
       [transaction.id]
     );
-    if (existingRows[0]) return { dispute: formatDispute(existingRows[0]), replayed: true };
+    if (existingRows[0]) {
+      const linked = await backfillDisputeStatementLink(client, existingRows[0], statementLink);
+      return { dispute: formatDispute(linked), replayed: true };
+    }
     const { rows } = await client.query(
       `INSERT INTO oxsteed_credit_disputes
-         (transaction_id, customer_id, partner_id, reason_code, description, opened_by, idempotency_key, dispute_type, sla_due_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW() + ($9 || ' hours')::interval)
+         (transaction_id, customer_id, partner_id, reason_code, description, opened_by, idempotency_key, dispute_type, sla_due_at,
+          statement_document_id, statement_revision, statement_entry_id, statement_product, statement_account_id, statement_period_from, statement_period_to)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW() + ($9 || ' hours')::interval,
+               $10, $11, $12, $13, $14, $15, $16)
        ON CONFLICT (transaction_id) WHERE status IN ('open', 'in_review') DO NOTHING
        RETURNING *`,
-      [transaction.id, customerId, transaction.partner_id || null, normalizedReason, normalizedDescription, actorUserId || customerId, normalizedIdempotencyKey, normalizedDisputeType, String(DISPUTE_SLA_HOURS_FALLBACK)]
+      [transaction.id, customerId, transaction.partner_id || null, normalizedReason, normalizedDescription, actorUserId || customerId, normalizedIdempotencyKey, normalizedDisputeType, String(DISPUTE_SLA_HOURS_FALLBACK),
+        statementLink?.documentId || null, statementLink?.revision ?? null, statementLink?.entryId || null,
+        statementLink?.product || null, statementLink?.accountId || null,
+        statementLink?.periodFrom || null, statementLink?.periodTo || null]
     );
     if (!rows[0]) {
       const { rows: concurrentRows } = await client.query(
@@ -3345,11 +3421,12 @@ async function openCreditDispute({ customerId, transactionId, reasonCode, descri
            LEFT JOIN oxsteed_credit_partners p ON p.id = d.partner_id
            LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
           WHERE d.transaction_id = $1 AND d.status IN ('open', 'in_review')
-          FOR UPDATE`,
+          FOR UPDATE OF d`,
         [transaction.id]
       );
       if (!concurrentRows[0]) throw new AppError('Credit dispute could not be opened; please try again', 409, 'credit_dispute_conflict');
-      return { dispute: formatDispute(concurrentRows[0]), replayed: true };
+      const linked = await backfillDisputeStatementLink(client, concurrentRows[0], statementLink);
+      return { dispute: formatDispute(linked), replayed: true };
     }
     await client.query(
       `INSERT INTO oxsteed_credit_audit_events
@@ -3396,7 +3473,7 @@ async function openSystemCreditDispute({ customerId, transactionId, reasonCode, 
          LEFT JOIN oxsteed_credit_partners p ON p.id = d.partner_id
          LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
         WHERE d.idempotency_key = $1
-        FOR UPDATE`,
+        FOR UPDATE OF d`,
       [normalizedIdempotencyKey]
     );
     if (keyRows[0]) {
@@ -3414,7 +3491,7 @@ async function openSystemCreditDispute({ customerId, transactionId, reasonCode, 
          LEFT JOIN oxsteed_credit_partners p ON p.id = d.partner_id
          LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
         WHERE d.transaction_id = $1 AND d.status IN ('open', 'in_review')
-        FOR UPDATE`,
+        FOR UPDATE OF d`,
       [transaction.id]
     );
     if (existingRows[0]) return { dispute: formatDispute(existingRows[0]), replayed: true };
@@ -3433,7 +3510,7 @@ async function openSystemCreditDispute({ customerId, transactionId, reasonCode, 
            LEFT JOIN oxsteed_credit_partners p ON p.id = d.partner_id
            LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
           WHERE d.transaction_id = $1 AND d.status IN ('open', 'in_review')
-          FOR UPDATE`,
+          FOR UPDATE OF d`,
         [transaction.id]
       );
       if (!concurrentRows[0]) throw new AppError('Credit dispute could not be opened; please try again', 409, 'credit_dispute_conflict');
@@ -3515,7 +3592,7 @@ async function resolveCreditDispute({ disputeId, status, resolution, actorUserId
   if (!normalizedResolution) throw new AppError('A status-change note is required', 400, 'credit_dispute_resolution_required');
   if (!actorUserId) throw new AppError('An administrator identity is required to update a credit dispute', 403, 'credit_dispute_actor_required');
   return withTransaction(pool, async (client) => {
-    const { rows } = await client.query(`SELECT d.*, fr.display_name AS restaurant_name FROM oxsteed_credit_disputes d LEFT JOIN oxsteed_credit_partners p ON p.id = d.partner_id LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id WHERE d.id = $1 FOR UPDATE`, [disputeId]);
+    const { rows } = await client.query(`SELECT d.*, fr.display_name AS restaurant_name FROM oxsteed_credit_disputes d LEFT JOIN oxsteed_credit_partners p ON p.id = d.partner_id LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id WHERE d.id = $1 FOR UPDATE OF d`, [disputeId]);
     const dispute = rows[0];
     if (!dispute) throw new AppError('Credit dispute not found', 404, 'credit_dispute_not_found');
     if (['resolved', 'rejected'].includes(dispute.status)) {

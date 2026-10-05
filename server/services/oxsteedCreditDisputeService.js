@@ -107,7 +107,7 @@ async function resolveDisputeWithCompensation({
          LEFT JOIN oxsteed_credit_partners p ON p.id = d.partner_id
          LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
         WHERE d.id = $1
-        FOR UPDATE`,
+        FOR UPDATE OF d`,
       [disputeId]
     );
     const dispute = rows[0];
