@@ -20,6 +20,8 @@
  *  5. When no non-terminal jobs remain, close the run.
  *  6. Drain `statement.ready` outbox events into localized in-app + email
  *     notifications (artifact must be ready/verified first).
+ *  7. Drain `statement.amended` outbox events (workstream 3): an approved
+ *     statement correction notifies its owner exactly once after publication.
  *
  * Wire-up (NOT done here; the coordinator owns mounts):
  *   server/workerMain.js — add to TRACKING_WORKER_SCHEDULE:
@@ -32,6 +34,7 @@ const logger = require('../utils/logger');
 const jobs = require('../services/statementJobService');
 const policy = require('../services/statementIssuancePolicy');
 const issuance = require('../services/statementIssuanceService');
+const amendments = require('../services/statementAmendmentService');
 
 const OPEN_RUN_STATES = ['discovering', 'running', 'paused'];
 
@@ -236,6 +239,17 @@ async function pollIssuanceCycle({ workerId, now = new Date(), maxJobsPerProduct
       error: String((error && error.message) || error).slice(0, 500),
     });
     summary.outbox = { error: String((error && error.message) || error).slice(0, 200) };
+  }
+  // Amendment publications notify the owner exactly once via their own
+  // statement.amended outbox events (workstream 3). Drained every cycle like
+  // statement.ready so an approved correction's notification never stalls.
+  try {
+    summary.amendedOutbox = await amendments.processStatementAmendedOutbox({ workerId });
+  } catch (error) {
+    logger.error('statement.amended outbox drain failed', {
+      error: String((error && error.message) || error).slice(0, 500),
+    });
+    summary.amendedOutbox = { error: String((error && error.message) || error).slice(0, 200) };
   }
   return summary;
 }

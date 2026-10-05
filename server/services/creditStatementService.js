@@ -71,6 +71,11 @@ function reconcileRows(rows, openingValue) {
 
 async function buildStatement(client, customerId, options) {
   const { product = 'oxsteed', restaurantId } = options;
+  // Phase 4 (workstream 3): rederive skips the archived-document read and the
+  // archive insert so the amendment workflow can rebuild an issued monthly
+  // period from the current ledger. Default false: every existing caller keeps
+  // the archived original.
+  const rederive = options.rederive === true;
   if (!['oxsteed', 'restaurant'].includes(product)) throw new AppError('Unknown statement product', 400, 'statement_invalid_product');
   const currency = String(options.currencyCode || 'USD').toUpperCase();
   if (!/^[A-Z]{3}$/.test(currency) || (product === 'restaurant' && !/^[1-9]\d*$/.test(String(restaurantId)))) {
@@ -93,7 +98,7 @@ async function buildStatement(client, customerId, options) {
     throw new AppError('Statement period precedes this account', 400, 'statement_before_account');
   }
   const archiveKey = [customerId, product, account.id, currency, period.from, period.to];
-  if (period.kind === 'monthly') {
+  if (period.kind === 'monthly' && !rederive) {
     const { rows: [saved] } = await client.query(
       `SELECT document, content_hash FROM credit_statement_documents
        WHERE customer_id=$1 AND product=$2 AND account_id=$3 AND currency_code=$4 AND period_from=$5 AND period_to=$6`, archiveKey);
@@ -153,7 +158,7 @@ async function buildStatement(client, customerId, options) {
     totalHeldCents: exactMoney(holds.reduce((total, hold) => total + BigInt(hold.amount_cents), 0n)),
   };
   document.contentHash = hashDocument(document);
-  if (period.kind === 'monthly') {
+  if (period.kind === 'monthly' && !rederive) {
     await client.query(`INSERT INTO credit_statement_documents
       (id,customer_id,product,account_id,currency_code,period_from,period_to,generated_at,document,content_hash)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,

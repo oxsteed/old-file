@@ -10,15 +10,18 @@
  * Grant model (narrowest fit per endpoint, least privilege):
  *   view_financials   — all reads: runs, run detail, failures, amendments
  *                        queue, alerts, audit viewer.
- *   manage_operations — run pause/resume, safe job retry, artifact reconcile.
- *                        (Never manage_financials: these controls cannot move
- *                        money, replay captures/payouts, or bypass
- *                        reconciliation; issuing manage_financials here would
- *                        grant journal/treasury powers the job does not need.)
- *   manage_financials — amendment approve/reject only. This is the existing
- *                        financial approval grant, used here purely as an
- *                        approval tier for statement corrections; the
- *                        endpoints decide a proposal, they never move money.
+ *   manage_operations — run pause/resume, safe job retry, artifact reconcile,
+ *                        amendment proposal creation. (Never manage_financials:
+ *                        these controls cannot move money, replay
+ *                        captures/payouts, or bypass reconciliation; issuing
+ *                        manage_financials here would grant journal/treasury
+ *                        powers the job does not need.)
+ *   manage_financials — amendment approve/reject and approved-amendment
+ *                        retry-publish only. This is the existing financial
+ *                        approval grant, used here purely as an approval tier
+ *                        for statement corrections; the endpoints decide a
+ *                        proposal or complete its publication, they never move
+ *                        money.
  *
  * Non-negotiables enforced here:
  *  - Admin controls can never delete issued evidence (credit_statement_documents
@@ -42,6 +45,7 @@ const { parsePagination } = require('../utils/boundedPagination');
 const { AppError } = require('../middleware/errorHandler');
 const logger = require('../utils/logger');
 const statementJobService = require('../services/statementJobService');
+const statementAmendmentService = require('../services/statementAmendmentService');
 const { logAdminAction } = require('../services/auditService');
 const { logSecurityEvent, extractRequestDetails } = require('../services/auditLoggerService');
 const storage = require('../utils/storage');
@@ -630,7 +634,15 @@ function shapeProposal(row) {
       to: row.period_to instanceof Date ? row.period_to.toISOString().slice(0, 10) : String(row.period_to),
     },
     documentId: row.document_id || null,
+    amendmentType: row.amendment_type || 'clerical',
+    presentation: row.presentation || 'restated',
     reason: row.reason,
+    evidenceRefs: Array.isArray(row.evidence_refs) ? row.evidence_refs : [],
+    compensatingTransactionRefs: Array.isArray(row.compensating_transaction_refs)
+      ? row.compensating_transaction_refs : [],
+    restateForward: Boolean(row.restate_forward),
+    originalDocumentHash: row.original_document_hash || null,
+    baseRevisionNumber: Number(row.base_revision_number || 0),
     status: row.status,
     proposedBy: row.proposed_by,
     proposedAt: new Date(row.proposed_at).toISOString(),
@@ -660,6 +672,40 @@ router.get('/ops/amendments', requireAdmin, requirePermission('view_financials')
         coordination: 'Amendment proposals are created by the amendments worker (not landed). This endpoint serves the review side only; approving never edits the issued original.',
       }),
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ───────────────────────────────────────────────────────────────────────────
+// POST /ops/amendments — propose a correction against an issued original
+// (Phase 4, workstream 3). manage_operations proposes; manage_financials
+// decides (see approve/reject below): the maker can never be the checker.
+// A clerical proposal corrects presentation only and references no ledger
+// transactions; an accounting proposal must reference posted compensating
+// transactions, which are validated against the authoritative ledger here
+// and re-validated at approval. The proposal pins the source data (original
+// hash, ledger fingerprint, revision base) so approval cannot go stale.
+// ───────────────────────────────────────────────────────────────────────────
+router.post('/ops/amendments', requireAdmin, requirePermission('manage_operations'), async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const proposal = await statementAmendmentService.proposeAmendment({
+      adminId: req.user.id,
+      documentId: body.documentId,
+      amendmentType: body.amendmentType,
+      presentation: body.presentation,
+      reason: body.reason,
+      evidenceRefs: body.evidenceRefs,
+      compensatingTransactionRefs: body.compensatingTransactionRefs,
+      restateForward: body.restateForward,
+    });
+    await auditStatement(req, {
+      action: 'statement.amendment.propose', targetType: 'statement_amendment',
+      targetId: proposal.proposalId, targetKey: proposal.issuanceKey,
+      reason: body.reason, outcome: 'success', correlationId: proposal.issuanceKey,
+    });
+    res.status(201).json({ proposal });
   } catch (error) {
     next(error);
   }
@@ -719,7 +765,45 @@ async function decideAmendment(req, res, next, decision) {
       details: { outcome: 'success', correlationId: proposal.issuance_key },
       ipAddress, userAgent, status: 'success',
     });
-    res.json({ proposal: shapeProposal(proposal) });
+    // Phase 4 (workstream 3): an approved amendment that names an issued
+    // original finalizes into a new immutable amendment version (re-derived
+    // document, labeled rendition artifact, owner notification). The approval
+    // above is already committed: a publication failure leaves the proposal
+    // approved-but-unpublished, and the retry path
+    // (POST /ops/amendments/:id/retry-publish) converges on exactly one
+    // version row. Rejections never publish anything.
+    let publication = { status: decision === 'approved' ? 'no_document' : 'not_applicable', version: null };
+    if (decision === 'approved' && proposal.document_id) {
+      try {
+        const result = await statementAmendmentService.finalizeApprovedProposal(proposal.id);
+        publication = { status: result.status, version: result.version || null };
+      } catch (error) {
+        if (error && error.statusCode === 409) {
+          // Validation blocked publication (continuity, stale or changed
+          // source data): the approval stands; surface the block so the
+          // operator can re-propose or restate forward.
+          return res.status(409).json({
+            code: error.code || 'statement_amendment_publication_blocked',
+            error: error.message,
+            fields: error.fields || undefined,
+            proposal: shapeProposal(proposal),
+            publication: { status: 'blocked', version: null },
+          });
+        }
+        if (error && (error.statusCode === 502 || error.statusCode === 503)) {
+          // Storage/infra failure: approved-but-unpublished; the retry path
+          // never duplicates versions.
+          return res.status(202).json({
+            proposal: shapeProposal(proposal),
+            publication: {
+              status: 'pending', version: null, retry: `/ops/amendments/${proposal.id}/retry-publish`,
+            },
+          });
+        }
+        throw error;
+      }
+    }
+    res.json({ proposal: shapeProposal(proposal), publication });
   } catch (error) {
     next(error);
   }
@@ -729,6 +813,29 @@ router.post('/ops/amendments/:id/approve', requireAdmin, requirePermission('mana
   (req, res, next) => decideAmendment(req, res, next, 'approved'));
 router.post('/ops/amendments/:id/reject', requireAdmin, requirePermission('manage_financials'),
   (req, res, next) => decideAmendment(req, res, next, 'rejected'));
+
+// ───────────────────────────────────────────────────────────────────────────
+// POST /ops/amendments/:id/retry-publish — complete publication for an
+// approved-but-unpublished proposal (e.g. after a storage failure).
+// Idempotent on the proposal id: a proposal that already published returns
+// its version instead of duplicating it.
+// ───────────────────────────────────────────────────────────────────────────
+router.post('/ops/amendments/:id/retry-publish', requireAdmin, requirePermission('manage_financials'),
+  async (req, res, next) => {
+    try {
+      const proposalId = checkUuid(req.params.id, 'proposal id');
+      const result = await statementAmendmentService.retryPublication(proposalId);
+      await auditStatement(req, {
+        action: 'statement.amendment.retry_publish', targetType: 'statement_amendment',
+        targetId: proposalId, targetKey: null,
+        reason: req.body && typeof req.body.reason === 'string' ? req.body.reason.slice(0, 500) : null,
+        outcome: 'success', correlationId: proposalId,
+      });
+      res.json({ publication: { status: result.status, version: result.version || null } });
+    } catch (error) {
+      next(error);
+    }
+  });
 
 // ───────────────────────────────────────────────────────────────────────────
 // GET /audit — bounded, paginated statement audit events from the existing

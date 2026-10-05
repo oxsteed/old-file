@@ -200,6 +200,8 @@ exports.sendNotification = async ({
       // Monthly statement issuance: generic authenticated-link email, no
       // amounts or attachments. Respects the user's email preference toggle.
       'statement_ready',
+      // Statement amendment publication: same shape as statement_ready.
+      'statement_amended',
       // Account integrity / admin actions — user should receive email by default
       'account_restored', 'account_suspended', 'account_restricted',
       'account_deletion_scheduled', 'admin_warning',

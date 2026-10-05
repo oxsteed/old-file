@@ -93,6 +93,25 @@ const T = {
       ar: 'كشف حسابك الشهري جاهز. سجّل الدخول إلى حسابك لعرضه وتنزيله.',
     },
   },
+  // Statement amendment publication (workstream 3). Like statement_ready, the
+  // body carries no amounts, balances or digits: the email carries only an
+  // authenticated link; figures live behind the login.
+  statement_amended: {
+    title: {
+      en: 'A corrected statement is ready',
+      fr: 'Une version corrigée de votre relevé est prête',
+      es: 'Una versión corregida de tu estado de cuenta está lista',
+      ht: 'Yon vèsyon korije releve ou pare',
+      ar: 'نسخة مصححة من كشف حسابك جاهزة',
+    },
+    body: {
+      en: 'A correction was approved for one of your statements. Sign in to your account to view and download the corrected version.',
+      fr: 'Une correction a été approuvée pour l’un de vos relevés. Connectez-vous à votre compte pour consulter et télécharger la version corrigée.',
+      es: 'Se aprobó una corrección para uno de tus estados de cuenta. Inicia sesión en tu cuenta para ver y descargar la versión corregida.',
+      ht: 'Yo apwouve yon koreksyon pou youn nan releve ou yo. Konekte sou kont ou pou wè epi telechaje vèsyon korije a.',
+      ar: 'تمت الموافقة على تصحيح لأحد كشوفات حسابك. سجّل الدخول إلى حسابك لعرض النسخة المصححة وتنزيلها.',
+    },
+  },
   food_order_accepted: {
     title: {
       en: 'Order confirmed',
@@ -769,6 +788,13 @@ const EMAIL_TEMPLATES = {
       es: 'Ver estado de cuenta',
       ht: 'Gade releve a',
       ar: 'عرض كشف الحساب',
+    },
+    statement_amended: {
+      en: 'View Corrected Statement',
+      fr: 'Voir le relevé corrigé',
+      es: 'Ver estado de cuenta corregido',
+      ht: 'Gade releve korije a',
+      ar: 'عرض كشف الحساب المصحح',
     },
     appointment_requested: {
       title: {

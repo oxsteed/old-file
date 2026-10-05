@@ -161,14 +161,21 @@ function readyLanguages(artifacts, kind) {
   return [...languages].sort();
 }
 
-function shapeArchiveItem(document, artifacts) {
+function shapeArchiveItem(document, artifacts, amendmentInfo = {}) {
   const payload = document.document || {};
   const readyOriginalLanguages = readyLanguages(artifacts, 'original');
   const readyRenditionLanguages = readyLanguages(artifacts, 'rendition');
   const downloadable = readyOriginalLanguages.length > 0 || readyRenditionLanguages.length > 0;
   const pending = artifacts.some((artifact) => ['staged', 'verifying'].includes(artifact.state));
+  // Amendment versions for this original, oldest revision first. The original
+  // row is never edited: supersession is derived from the versions table.
+  const versions = Array.isArray(amendmentInfo.versions) ? amendmentInfo.versions : [];
+  const adminNames = amendmentInfo.adminNames instanceof Map ? amendmentInfo.adminNames : new Map();
+  const latest = versions.length > 0 ? versions[versions.length - 1] : null;
+  const latestEnvelope = (latest && latest.document && latest.document.amendment) || {};
   return {
     id: document.id,
+    kind: 'original',
     product: document.product,
     accountId: Number(document.account_id),
     currency: document.currency_code,
@@ -183,8 +190,21 @@ function shapeArchiveItem(document, artifacts) {
     // ledgers and re-render as separate labeled renditions, never by editing
     // the issued original.
     revision: Number.isSafeInteger(payload.version) ? payload.version : 1,
-    corrected: Boolean(payload.corrected || payload.supersedes),
-    superseded: false,
+    corrected: Boolean(payload.corrected || payload.supersedes) || versions.length > 0,
+    // An original with published amendment versions stays downloadable and is
+    // clearly marked superseded, with the reason, approver, time and a link
+    // to the latest version.
+    superseded: versions.length > 0,
+    supersession: latest ? {
+      latestRevision: Number(latest.revision_number) + 1,
+      latestVersionId: latest.id,
+      amendmentType: latest.amendment_type,
+      reason: latestEnvelope.reason || null,
+      decidedBy: latestEnvelope.decidedBy || null,
+      decidedByName: adminNames.get(latestEnvelope.decidedBy) || null,
+      decidedAt: latestEnvelope.decidedAt || null,
+      continuityStatus: latest.continuity_status,
+    } : null,
     languages: [...new Set([...readyOriginalLanguages, ...readyRenditionLanguages])].sort(),
     readiness: readyOriginalLanguages.length > 0 ? 'ready' : 'pending',
     downloadStatus: downloadable ? 'available' : pending ? 'pending' : 'unavailable',
@@ -213,6 +233,138 @@ function shapeArchiveDetail(document, artifacts) {
       renditions: artifacts.filter((artifact) => artifact.kind === 'rendition'),
     },
   };
+}
+
+// ── Amendment versions in the archive (Phase 4, workstream 3) ───────────────
+// Amended versions appear alongside the original: each version is its own
+// archive entry (kind 'amendment') carrying the amendment envelope
+// (original/adjustment/revised totals, reason, approver, continuity
+// disclosure). Ownership derives from the original document, so the same
+// customer and restaurant-standing checks apply.
+
+// Display names for amendment approvers. Admin UUIDs are never exposed as
+// the display value; the name (or email fallback) is resolved server-side.
+async function resolveAdminNames(adminIds) {
+  const ids = [...new Set((adminIds || []).filter(Boolean))];
+  if (ids.length === 0) return new Map();
+  const { rows } = await pool.query(
+    `SELECT id, COALESCE(NULLIF(TRIM(CONCAT_WS(' ', first_name, last_name)), ''), email) AS display_name
+     FROM users WHERE id = ANY($1)`,
+    [ids]);
+  return new Map(rows.map((row) => [String(row.id), row.display_name]));
+}
+
+// Versions (with their proposal decision metadata and published artifact)
+// for a set of original document ids, ordered oldest revision first.
+async function attachAmendmentVersions(documentIds) {
+  const versionsByOriginal = new Map();
+  const artifactsByVersion = new Map();
+  if (!documentIds.length) return { versionsByOriginal, artifactsByVersion, adminNames: new Map() };
+  const { rows: versions } = await pool.query(
+    `SELECT v.* FROM statement_amendment_versions v
+     WHERE v.original_document_id = ANY($1)
+     ORDER BY v.original_document_id, v.revision_number ASC`,
+    [documentIds]);
+  const decidedByIds = [];
+  for (const version of versions) {
+    const key = version.original_document_id;
+    if (!versionsByOriginal.has(key)) versionsByOriginal.set(key, []);
+    versionsByOriginal.get(key).push(version);
+    const decidedBy = version.document && version.document.amendment && version.document.amendment.decidedBy;
+    if (decidedBy) decidedByIds.push(decidedBy);
+  }
+  if (versions.length) {
+    const versionIds = versions.map((version) => version.id);
+    const { rows: artifacts } = await pool.query(
+      `SELECT a.* FROM statement_artifacts a
+       JOIN statement_amendment_versions v ON v.artifact_id = a.id
+       WHERE v.id = ANY($1)`,
+      [versionIds]);
+    for (const row of artifacts) {
+      const version = versions.find((v) => v.artifact_id === row.id);
+      if (version) artifactsByVersion.set(version.id, shapeArtifact(row));
+    }
+  }
+  const adminNames = await resolveAdminNames(decidedByIds);
+  return { versionsByOriginal, artifactsByVersion, adminNames };
+}
+
+function shapeVersionItem(version, original, artifact, amendmentContext = {}) {
+  const payload = (version.document && typeof version.document === 'object') ? version.document : {};
+  const amendment = (payload.amendment && typeof payload.amendment === 'object') ? payload.amendment : {};
+  const adminNames = amendmentContext.adminNames instanceof Map ? amendmentContext.adminNames : new Map();
+  const superseded = Boolean(amendmentContext.superseded);
+  const ready = Boolean(artifact) && artifact.state === 'ready';
+  return {
+    id: version.id,
+    kind: 'amendment',
+    product: original.product,
+    accountId: Number(original.account_id),
+    currency: original.currency_code,
+    period: {
+      from: new Date(original.period_from).toISOString().slice(0, 10),
+      to: new Date(original.period_to).toISOString().slice(0, 10),
+    },
+    issuedAt: new Date(version.created_at).toISOString(),
+    revision: Number(version.revision_number) + 1,
+    corrected: true,
+    superseded,
+    languages: ready ? [artifact.language] : [],
+    readiness: ready ? 'ready' : 'pending',
+    downloadStatus: ready ? 'available' : 'pending',
+    contentHash: version.content_hash,
+    amendment: {
+      revisionNumber: Number(version.revision_number),
+      type: version.amendment_type,
+      presentation: version.presentation,
+      reason: amendment.reason || null,
+      evidenceRefs: Array.isArray(amendment.evidenceRefs) ? amendment.evidenceRefs : [],
+      proposedAt: amendment.proposedAt || null,
+      decidedAt: amendment.decidedAt || null,
+      decidedBy: amendment.decidedBy || null,
+      decidedByName: adminNames.get(amendment.decidedBy) || null,
+      decisionReason: amendment.decisionReason || null,
+      originalDocumentId: version.original_document_id,
+      supersedes: amendment.supersedes || payload.supersedes || null,
+      totals: payload.totals || null,
+      continuity: payload.continuity || null,
+      artifactId: version.artifact_id || null,
+      artifact: artifact || null,
+    },
+  };
+}
+
+// Resolve an archive entry id to either an issued original or an amendment
+// version. Version ownership derives from the original document: the same
+// customer predicate and restaurant-standing checks apply, and unknown ids
+// are indistinguishable from missing ones (404).
+async function resolveArchiveEntry(documentId, userId) {
+  const { rows: [original] } = await pool.query(
+    `SELECT id, customer_id, product, account_id, currency_code,
+            period_from, period_to, generated_at, document, content_hash
+     FROM credit_statement_documents
+     WHERE id = $1 AND customer_id = $2`,
+    [documentId, userId]);
+  if (original) {
+    if (original.product === 'restaurant') {
+      await assertRestaurantAccountStanding(userId, original.account_id);
+    }
+    return { kind: 'original', document: original, version: null };
+  }
+  const { rows: [version] } = await pool.query(
+    `SELECT v.*, d.customer_id, d.product, d.account_id, d.currency_code,
+            d.period_from, d.period_to
+     FROM statement_amendment_versions v
+     JOIN credit_statement_documents d ON d.id = v.original_document_id
+     WHERE v.id = $1 AND d.customer_id = $2`,
+    [documentId, userId]);
+  if (!version) {
+    throw new AppError('Statement document not found', 404, 'statement_document_not_found');
+  }
+  if (version.product === 'restaurant') {
+    await assertRestaurantAccountStanding(userId, version.account_id);
+  }
+  return { kind: 'amendment', document: version, version };
 }
 
 // Picks the artifact to serve: a ready original in the requested language
@@ -274,12 +426,14 @@ function assertSignedUrlFresh(url) {
   return url;
 }
 
-function downloadFilename(document, mediaType) {
+function downloadFilename(document, mediaType, version) {
   const from = new Date(document.period_from).toISOString().slice(0, 10);
   const to = new Date(document.period_to).toISOString().slice(0, 10);
   // No PII: product, period and currency identify the statement, never the holder.
+  // Amendment versions are marked so the two files are never confused.
+  const amendmentSuffix = version ? `-amended-v${Number(version.revision_number)}` : '';
   const extension = String(mediaType || '').includes('pdf') ? 'pdf' : 'bin';
-  return `credit-statement-${document.product}-${from}-${to}.${extension}`;
+  return `credit-statement-${document.product}${amendmentSuffix}-${from}-${to}.${extension}`;
 }
 
 function createStatementArchiveRouter({ storage } = {}) {
@@ -375,33 +529,87 @@ function createStatementArchiveRouter({ storage } = {}) {
         }
       }
 
-      const items = documents.map((document) => shapeArchiveItem(document, artifactsByDocument.get(document.id) || []));
+      // Amendment versions ride alongside their original on the same page:
+      // each version is its own entry (kind 'amendment') ordered by revision.
+      const { rows: [{ versionTotal }] } = await pool.query(
+        `SELECT COUNT(*)::int AS version_total
+         FROM statement_amendment_versions v
+         JOIN credit_statement_documents d ON d.id = v.original_document_id
+         ${where}`,
+        params);
+      const amendmentData = await attachAmendmentVersions(documents.map((document) => document.id));
+      const items = [];
+      for (const document of documents) {
+        const versions = amendmentData.versionsByOriginal.get(document.id) || [];
+        items.push(shapeArchiveItem(document, artifactsByDocument.get(document.id) || [], {
+          versions,
+          adminNames: amendmentData.adminNames,
+        }));
+        versions.forEach((version, index) => {
+          items.push(shapeVersionItem(
+            version,
+            document,
+            amendmentData.artifactsByVersion.get(version.id) || null,
+            { adminNames: amendmentData.adminNames, superseded: index < versions.length - 1 }));
+        });
+      }
+      const totalWithVersions = total + (versionTotal || 0);
       res.json({
         items,
         page,
         perPage,
-        total,
-        totalPages: Math.max(1, Math.ceil(total / perPage)),
+        total: totalWithVersions,
+        totalPages: Math.max(1, Math.ceil(totalWithVersions / perPage)),
       });
     } catch (error) { next(error); }
   });
 
   // Immutable revision metadata + the original/rendition artifact list.
+  // Amendment version ids resolve to the version entry with its envelope.
   router.get('/archive/:documentId', async (req, res, next) => {
     try {
       const documentId = documentIdOr404(req.params.documentId);
-      const document = await requireAuthorizedDocument(documentId, req.user.id);
+      const entry = await resolveArchiveEntry(documentId, req.user.id);
+      if (entry.kind === 'amendment') {
+        const amendmentData = await attachAmendmentVersions([entry.version.original_document_id]);
+        const { rows: [{ supersededCount }] } = await pool.query(
+          `SELECT COUNT(*)::int AS supersededCount FROM statement_amendment_versions
+           WHERE original_document_id = $1 AND revision_number > $2`,
+          [entry.version.original_document_id, entry.version.revision_number]);
+        res.json({
+          document: shapeVersionItem(
+            entry.version,
+            entry.version,
+            amendmentData.artifactsByVersion.get(entry.version.id) || null,
+            { adminNames: amendmentData.adminNames, superseded: supersededCount > 0 }),
+        });
+        return;
+      }
       const artifacts = await listDocumentArtifacts(documentId);
-      res.json({ document: shapeArchiveDetail(document, artifacts) });
+      res.json({ document: shapeArchiveDetail(entry.document, artifacts) });
     } catch (error) { next(error); }
   });
 
   async function resolveServableArtifact(req) {
     const documentId = documentIdOr404(req.params.documentId);
-    const document = await requireAuthorizedDocument(documentId, req.user.id);
     const language = req.query.language === undefined ? 'en' : String(req.query.language);
     if (!LANGUAGES.includes(language)) {
       throw new AppError('Unsupported statement language', 400, 'statement_archive_invalid_language');
+    }
+    const entry = await resolveArchiveEntry(documentId, req.user.id);
+    if (entry.kind === 'amendment') {
+      // An amendment version serves its own published artifact directly;
+      // incomplete artifacts are never served.
+      const notReady = new AppError(
+        'This corrected statement file is not ready for download yet. It is still being prepared; please try again later.',
+        409,
+        'statement_artifact_not_ready',
+      );
+      if (!entry.version.artifact_id) throw notReady;
+      const { rows: [row] } = await pool.query(
+        'SELECT * FROM statement_artifacts WHERE id = $1', [entry.version.artifact_id]);
+      if (!row || row.state !== 'ready') throw notReady;
+      return { document: entry.version, artifact: shapeArtifact(row), version: entry.version };
     }
     const kind = req.query.kind === undefined ? 'original' : String(req.query.kind);
     if (!['original', 'rendition'].includes(kind)) {
@@ -409,7 +617,7 @@ function createStatementArchiveRouter({ storage } = {}) {
     }
     const label = req.query.label === undefined ? null : String(req.query.label);
     const artifacts = await listDocumentArtifacts(documentId);
-    return { document, artifact: selectServableArtifact(artifacts, { kind, language, label }) };
+    return { document: entry.document, artifact: selectServableArtifact(artifacts, { kind, language, label }) };
   }
 
   // Stream the bytes of a ready artifact. Re-authorizes on every call;
@@ -417,7 +625,7 @@ function createStatementArchiveRouter({ storage } = {}) {
   // an artifact to ready and never deletes evidence.
   router.get('/archive/:documentId/download', creditExportLimiter, async (req, res, next) => {
     try {
-      const { document, artifact } = await resolveServableArtifact(req);
+      const { document, artifact, version } = await resolveServableArtifact(req);
       let download;
       try {
         download = await getDownloadStream({ artifactId: artifact.id, actor: req.user, storage });
@@ -440,7 +648,7 @@ function createStatementArchiveRouter({ storage } = {}) {
       // full object as 200 with Accept-Ranges: none rather than a partial
       // response. An interrupted download never marks anything ready.
       res.set('Accept-Ranges', 'none');
-      res.set('Content-Disposition', `attachment; filename="${downloadFilename(document, download.mediaType)}"`);
+      res.set('Content-Disposition', `attachment; filename="${downloadFilename(document, download.mediaType, version || null)}"`);
       res.set('Cache-Control', 'private, no-store');
       res.set('Pragma', 'no-cache');
       if (req.headers.range) {

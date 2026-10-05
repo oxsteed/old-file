@@ -487,11 +487,13 @@ async function processStatementReadyOutbox({ workerId, limit = policy.OUTBOX_BAT
   for (const event of events) {
     try {
       if (event.event_type !== 'statement.ready') {
-        logger.warn('statement outbox: unexpected event type; marking processed', {
+        // A foreign event (e.g. statement.amended) belongs to its own drain:
+        // release it for redelivery instead of consuming it here.
+        logger.warn('statement outbox: foreign event type; releasing for its own drain', {
           eventType: event.event_type,
         });
-        await jobs.markOutboxProcessed(event.id);
-        processed += 1;
+        await jobs.outboxFailed(event.id);
+        released += 1;
         continue;
       }
       const payload = typeof event.payload === 'string' ? JSON.parse(event.payload) : event.payload;

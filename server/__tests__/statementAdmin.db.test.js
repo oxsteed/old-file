@@ -220,7 +220,11 @@ ddescribe('statement admin on the disposable database', () => {
     await grant(ADMIN_APPROVER_2, ['view_financials', 'manage_financials']);
 
     // Run-scoped fixtures are rebuilt per run (idempotent reruns).
-    await pool.query('DELETE FROM statement_amendment_proposals');
+    // Versions are immutable (DELETE is blocked by trigger, like issued
+    // documents), and proposals are RESTRICT-referenced by versions, so
+    // reset the amendment tables with TRUNCATE on the disposable test DB.
+    await pool.query(`TRUNCATE statement_amendment_publication_attempts,
+      statement_amendment_versions, statement_amendment_proposals`);
     await pool.query('DELETE FROM statement_account_jobs');
     await pool.query('DELETE FROM statement_issuance_runs');
 
@@ -288,25 +292,27 @@ ddescribe('statement admin on the disposable database', () => {
       .expect(200);
     expect(resumed.body.state).toBe('running');
 
-    // KNOWN LIMITATION (pre-existing, not from this workstream): the
-    // GRANT_LOOKUP_SQL in server/middleware/adminAuth.js ends a UNION ALL
-    // with `ORDER BY (region_id IS NULL) DESC`. PostgreSQL only allows bare
-    // output column names in a UNION ORDER BY, so the lookup throws and
-    // requirePermission returns 500 for non-super-admin admins (verified on
-    // the disposable PG18; the project targets PG16 via postgis:16, same
-    // restriction). The full grant matrix (viewer/operator/approver/denied,
-    // revoked grant, revoked session) is covered with the REAL middleware in
-    // statementAdmin.test.js (mocked DB layer, so the SQL never executes).
-    // This tripwire fails if the lookup ever starts working, forcing a
-    // revisit of this note.
+    // GRANT LOOKUP (fixed in 13807fca, 2026-10-05): GRANT_LOOKUP_SQL in
+    // server/middleware/adminAuth.js previously ended its UNION ALL with
+    // `ORDER BY (region_id IS NULL) DESC`, which PostgreSQL rejects, so the
+    // lookup threw and requirePermission returned 500 for non-super-admin
+    // admins. The ORDER BY is now `region_id NULLS FIRST` (valid in a UNION),
+    // so the real middleware answers from the live grants. The full grant
+    // matrix (viewer/operator/approver/denied, revoked grant, revoked
+    // session) is covered with the REAL middleware in statementAdmin.test.js
+    // (mocked DB layer, so the SQL never executes).
     const { hasGlobalGrant } = require('../middleware/adminAuth');
-    await expect(hasGlobalGrant(ADMIN_OPERATOR, 'manage_operations'))
-      .rejects.toThrow(/UNION/i);
+    await expect(hasGlobalGrant(ADMIN_OPERATOR, 'manage_operations')).resolves.toBe(true);
+    await expect(hasGlobalGrant(ADMIN_VIEWER, 'manage_operations')).resolves.toBe(false);
+    await expect(hasGlobalGrant(ADMIN_VIEWER, 'view_financials')).resolves.toBe(true);
   });
 
   test('(c) retry re-queues the job and cannot touch the issued document', async () => {
+    // Scope to this run's customer: other suites share the disposable DB and
+    // may hold their own account 4242 documents (unique per customer).
     const before = await pool.query(
-      'SELECT document, content_hash FROM credit_statement_documents WHERE account_id = 4242');
+      'SELECT document, content_hash FROM credit_statement_documents WHERE account_id = 4242 AND customer_id = $1',
+      [CUSTOMER_A]);
     expect(before.rows).toHaveLength(1);
 
     const res = await request(buildApp())
@@ -317,7 +323,8 @@ ddescribe('statement admin on the disposable database', () => {
     expect(res.body.state).toBe('pending');
 
     const after = await pool.query(
-      'SELECT document, content_hash FROM credit_statement_documents WHERE account_id = 4242');
+      'SELECT document, content_hash FROM credit_statement_documents WHERE account_id = 4242 AND customer_id = $1',
+      [CUSTOMER_A]);
     expect(after.rows).toHaveLength(1);
     expect(after.rows[0].content_hash).toBe(before.rows[0].content_hash);
     expect(after.rows[0].document).toEqual(before.rows[0].document);
