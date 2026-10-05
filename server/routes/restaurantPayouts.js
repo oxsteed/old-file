@@ -20,6 +20,7 @@ const {
   getRestaurantConnectStatus,
   disconnectConnectRestaurantAccount,
 } = require('../controllers/restaurantPayoutController');
+const walletPayoutCtrl = require('../controllers/restaurantWalletPayoutController');
 
 const requirePaymentsEnabled = requireFeatureEnabled('Payments', 'FEATURE_PAYMENTS_ENABLED');
 
@@ -45,6 +46,28 @@ router.post(
   connectAccountLimiter,
   requirePayoutManager,
   disconnectConnectRestaurantAccount
+);
+
+// Wallet-earnings payouts: the restaurant owner requests payouts of the
+// wallet/credit balances OxSteed holds in restaurant_sub_bank. An admin
+// approves; the service executes a Stripe Transfer to the Connect account.
+router.get(
+  '/:restaurantId/wallet-payouts/balance',
+  authenticate,
+  requirePayoutManager,
+  walletPayoutCtrl.getPayoutBalance
+);
+router.post(
+  '/:restaurantId/wallet-payouts',
+  authenticate,
+  requirePayoutManager,
+  walletPayoutCtrl.requestPayout
+);
+router.get(
+  '/:restaurantId/wallet-payouts',
+  authenticate,
+  requirePayoutManager,
+  walletPayoutCtrl.listPayouts
 );
 
 // Route-local JSON error handler for consistent API responses when this

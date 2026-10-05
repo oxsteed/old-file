@@ -331,6 +331,19 @@ export const submitFoodOrderReview = (orderId, { rating, body, trackingToken } =
 export const getRestaurantPayoutStatus = (restaurantId) =>
   api.get(`/restaurants/${restaurantId}/payouts/status`).then((r) => r.data);
 
+export const getWalletPayoutBalance = (restaurantId, currency) =>
+  api.get(`/restaurants/${restaurantId}/wallet-payouts/balance`, { params: currency ? { currency } : {} }).then((r) => r.data);
+
+export const requestWalletPayout = (restaurantId, payload, idempotencyKey) =>
+  api.post(
+    `/restaurants/${restaurantId}/wallet-payouts`,
+    payload,
+    idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined
+  ).then((r) => r.data?.payout);
+
+export const listWalletPayouts = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/wallet-payouts`, { params }).then((r) => r.data?.payouts || []);
+
 export const createRestaurantPayoutAccount = (restaurantId, payload = {}) =>
   api.post(`/restaurants/${restaurantId}/payouts/connect`, payload).then((r) => r.data);
 

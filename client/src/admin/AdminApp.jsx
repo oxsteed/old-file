@@ -38,6 +38,7 @@ const GovernancePage = lazyWithRetry(() => import('./pages/super/workspaces/Gove
 const Revenue = lazyWithRetry(() => import('./pages/super/Revenue'));
 const MoneyPage = lazyWithRetry(() => import('./pages/super/MoneyPage'));
 const Payouts = lazyWithRetry(() => import('./pages/super/Payouts'));
+const RestaurantPayouts = lazyWithRetry(() => import('./pages/super/RestaurantPayouts'));
 const TreasuryPage = lazyWithRetry(() => import('./pages/super/workspaces/TreasuryPage'));
 const ReliabilityPage = lazyWithRetry(() => import('./pages/super/workspaces/ReliabilityPage'));
 const ServiceOpsPage = lazyWithRetry(() => import('./pages/super/workspaces/ServiceOpsPage'));
@@ -382,6 +383,9 @@ export default function AdminApp() {
           } />
           <Route path={adminRoute('payouts').relative} element={
             <GrantGuard grant={adminRoute('payouts').grant}><Payouts /></GrantGuard>
+          } />
+          <Route path={adminRoute('restaurantPayouts').relative} element={
+            <GrantGuard grant={adminRoute('restaurantPayouts').grant}><RestaurantPayouts /></GrantGuard>
           } />
           <Route path={adminRoute('reconciliationExceptions').relative} element={
             <GrantGuard grant={adminRoute('reconciliationExceptions').grant}><ReconciliationExceptions /></GrantGuard>

@@ -19496,7 +19496,25 @@
         "payoutsPending": "Peman an atant",
         "refresh": "Mete estati a ajou",
         "subtitle": "Konekte yon kont Stripe pou restoran sa a ka resevwa peman pou kòmand li yo.",
-        "title": "Peman"
+        "title": "Peman",
+        "walletTitle": "Kòb wolet la",
+        "walletSubtitle": "Kòb ou fè nan kòmand wolet ak OxSteed Credit. Peman kat yo ale dwat nan bank ou via Stripe.",
+        "invalidAmount": "Mete yon montan ki valid.",
+        "requestSubmitted": "Yo mande peman an. Yon admin pral revize li.",
+        "requestError": "Pa t ka mande peman an.",
+        "amountPlaceholder": "Montan",
+        "requesting": "N ap mande…",
+        "requestPayout": "Mande peman",
+        "minPayout": "Peman minimòm: {{amount}}",
+        "status": {
+          "requested": "Mande",
+          "approved": "Apwouve",
+          "processing": "N ap trete",
+          "completed": "Fini",
+          "rejected": "Refize",
+          "failed": "Echwe",
+          "cancelled": "Anile"
+        }
       },
       "settlementTitle": "Dosye règleman peman",
       "settlementNote": "Kòmand yo ka rete lye ak dosye restoran an pou règleman, resi ak istwa asistans rete vizib nan aplikasyon an.",
@@ -29444,5 +29462,23 @@
     "typeHelper": "Edè",
     "typeTool": "Zouti",
     "typeFood": "Manje"
+  },
+  "restaurantPayouts": {
+    "title": "Peman wolet restoran yo",
+    "subtitle": "Apwouve peman kòb wolet pou restoran yo. Apwobasyon an egzekite yon transfè Stripe nan kont Connect restoran an touswit.",
+    "empty": "Pa gen peman nan eta sa a.",
+    "approve": "Apwouve epi peye",
+    "reject": "Refize",
+    "confirmApproveTitle": "Apwouve epi peye?",
+    "confirmRejectTitle": "Refize peman an?",
+    "confirmApproveBody": "Sa ap transfere {{amount}} nan kont Stripe restoran an touswit epi ekri nan liv kont yo. Ou pa ka anile sa.",
+    "confirmRejectBody": "Restoran an ap ka mande ankò.",
+    "tab": {
+      "requested": "Mande yo",
+      "approved": "Apwouve yo",
+      "completed": "Fini yo",
+      "failed": "Echwe yo",
+      "rejected": "Refize yo"
+    }
   }
 }

@@ -115,6 +115,7 @@ const ADMIN_SPA_ROUTES = Object.freeze([
   '/admin/super/pricing-overrides',
   '/admin/super/financials',
   '/admin/super/payouts',
+  '/admin/super/restaurant-payouts',
   '/admin/super/treasury',
   '/admin/super/reconciliation-exceptions',
   '/admin/super/conversations',

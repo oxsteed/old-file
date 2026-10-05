@@ -19496,7 +19496,25 @@
         "payoutsPending": "Payouts pending",
         "refresh": "Refresh status",
         "subtitle": "Connect a Stripe account so this restaurant can receive payouts for its orders.",
-        "title": "Payouts"
+        "title": "Payouts",
+        "walletTitle": "Wallet earnings",
+        "walletSubtitle": "Earnings from wallet and OxSteed Credit orders. Card payments go straight to your bank via Stripe.",
+        "invalidAmount": "Enter a valid amount.",
+        "requestSubmitted": "Payout requested. An admin will review it.",
+        "requestError": "Could not request the payout.",
+        "amountPlaceholder": "Amount",
+        "requesting": "Requesting…",
+        "requestPayout": "Request payout",
+        "minPayout": "Minimum payout: {{amount}}",
+        "status": {
+          "requested": "Requested",
+          "approved": "Approved",
+          "processing": "Processing",
+          "completed": "Completed",
+          "rejected": "Rejected",
+          "failed": "Failed",
+          "cancelled": "Cancelled"
+        }
       },
       "settlementTitle": "Payment settlement records",
       "settlementNote": "Orders can stay linked to the restaurant record so settlement, receipts, and support history remain visible in the app.",
@@ -29444,5 +29462,23 @@
     "typeHelper": "Helpers",
     "typeTool": "Tools",
     "typeFood": "Food"
+  },
+  "restaurantPayouts": {
+    "title": "Restaurant wallet payouts",
+    "subtitle": "Approve wallet-earnings payouts to restaurants. Approval executes a Stripe Transfer to the restaurant’s Connect account immediately.",
+    "empty": "No payouts in this state.",
+    "approve": "Approve & pay",
+    "reject": "Reject",
+    "confirmApproveTitle": "Approve and pay?",
+    "confirmRejectTitle": "Reject payout?",
+    "confirmApproveBody": "This will immediately transfer {{amount}} to the restaurant’s Stripe account and post the ledger entry. This cannot be undone.",
+    "confirmRejectBody": "The restaurant will be able to request again.",
+    "tab": {
+      "requested": "Requested",
+      "approved": "Approved",
+      "completed": "Completed",
+      "failed": "Failed",
+      "rejected": "Rejected"
+    }
   }
 }

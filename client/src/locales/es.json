@@ -19496,7 +19496,25 @@
         "payoutsPending": "Pagos pendientes",
         "refresh": "Actualizar estado",
         "subtitle": "Conecta una cuenta de Stripe para que este restaurante pueda recibir los pagos de sus pedidos.",
-        "title": "Pagos"
+        "title": "Pagos",
+        "walletTitle": "Ganancias de la billetera",
+        "walletSubtitle": "Ganancias de pedidos con billetera y OxSteed Credit. Los pagos con tarjeta van directo a tu banco vía Stripe.",
+        "invalidAmount": "Ingresa un monto válido.",
+        "requestSubmitted": "Pago solicitado. Un administrador lo revisará.",
+        "requestError": "No se pudo solicitar el pago.",
+        "amountPlaceholder": "Monto",
+        "requesting": "Solicitando…",
+        "requestPayout": "Solicitar pago",
+        "minPayout": "Pago mínimo: {{amount}}",
+        "status": {
+          "requested": "Solicitado",
+          "approved": "Aprobado",
+          "processing": "Procesando",
+          "completed": "Completado",
+          "rejected": "Rechazado",
+          "failed": "Fallido",
+          "cancelled": "Cancelado"
+        }
       },
       "settlementTitle": "Registros de liquidación de pagos",
       "settlementNote": "Los pedidos pueden permanecer vinculados al registro del restaurante para que la liquidación, los recibos y el historial de soporte sigan visibles en la app.",
@@ -29444,5 +29462,23 @@
     "typeHelper": "Ayudantes",
     "typeTool": "Herramientas",
     "typeFood": "Comida"
+  },
+  "restaurantPayouts": {
+    "title": "Pagos de billetera de restaurantes",
+    "subtitle": "Aprueba pagos de ganancias de billetera a restaurantes. La aprobación ejecuta una transferencia Stripe a la cuenta Connect del restaurante de inmediato.",
+    "empty": "No hay pagos en este estado.",
+    "approve": "Aprobar y pagar",
+    "reject": "Rechazar",
+    "confirmApproveTitle": "¿Aprobar y pagar?",
+    "confirmRejectTitle": "¿Rechazar el pago?",
+    "confirmApproveBody": "Esto transferirá inmediatamente {{amount}} a la cuenta Stripe del restaurante y registrará el asiento contable. No se puede deshacer.",
+    "confirmRejectBody": "El restaurante podrá solicitar de nuevo.",
+    "tab": {
+      "requested": "Solicitados",
+      "approved": "Aprobados",
+      "completed": "Completados",
+      "failed": "Fallidos",
+      "rejected": "Rechazados"
+    }
   }
 }

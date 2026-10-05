@@ -19507,7 +19507,25 @@
         "payoutsPending": "المدفوعات قيد الانتظار",
         "refresh": "تحديث الحالة",
         "subtitle": "اربط حساب Stripe ليتمكن هذا المطعم من استلام مدفوعات طلباته.",
-        "title": "المدفوعات"
+        "title": "المدفوعات",
+        "walletTitle": "أرباح المحفظة",
+        "walletSubtitle": "أرباح طلبات المحفظة وOxSteed Credit. تذهب مدفوعات البطاقات مباشرة إلى بنكك عبر Stripe.",
+        "invalidAmount": "أدخل مبلغاً صالحاً.",
+        "requestSubmitted": "تم طلب الدفعة. سيراجعها أحد المسؤولين.",
+        "requestError": "تعذر طلب الدفعة.",
+        "amountPlaceholder": "المبلغ",
+        "requesting": "جارٍ الطلب…",
+        "requestPayout": "طلب دفعة",
+        "minPayout": "الحد الأدنى للدفعة: {{amount}}",
+        "status": {
+          "requested": "مطلوب",
+          "approved": "معتمد",
+          "processing": "قيد المعالجة",
+          "completed": "مكتمل",
+          "rejected": "مرفوض",
+          "failed": "فشل",
+          "cancelled": "ملغي"
+        }
       },
       "settlementTitle": "سجلات تسوية المدفوعات",
       "settlementNote": "يمكن أن تبقى الطلبات مرتبطة بسجل المطعم لتظل التسوية والإيصالات وسجل الدعم مرئية في التطبيق.",
@@ -29455,5 +29473,23 @@
     "typeHelper": "مساعدون",
     "typeTool": "أدوات",
     "typeFood": "طعام"
+  },
+  "restaurantPayouts": {
+    "title": "مدفوعات محافظ المطاعم",
+    "subtitle": "اعتمد مدفوعات أرباح المحافظ للمطاعم. يؤدي الاعتماد إلى تنفيذ تحويل Stripe إلى حساب Connect الخاص بالمطعم فوراً.",
+    "empty": "لا توجد مدفوعات بهذه الحالة.",
+    "approve": "اعتماد ودفع",
+    "reject": "رفض",
+    "confirmApproveTitle": "اعتماد ودفع؟",
+    "confirmRejectTitle": "رفض الدفعة؟",
+    "confirmApproveBody": "سيؤدي هذا إلى تحويل {{amount}} فوراً إلى حساب Stripe الخاص بالمطعم وتسجيل القيد المحاسبي. لا يمكن التراجع عن هذا.",
+    "confirmRejectBody": "سيتمكن المطعم من الطلب مرة أخرى.",
+    "tab": {
+      "requested": "مطلوبة",
+      "approved": "معتمدة",
+      "completed": "مكتملة",
+      "failed": "فاشلة",
+      "rejected": "مرفوضة"
+    }
   }
 }

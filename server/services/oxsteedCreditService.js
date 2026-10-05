@@ -89,6 +89,9 @@ const POSTABLE_CREDIT_TRANSACTION_TYPES = Object.freeze([
   // Phase 6: fee legs for withdrawals and customer transfers (mirroring
   // conversion_fee), and restaurant-credit -> OxSteed-credit conversions.
   'withdrawal_fee', 'transfer_fee', 'sub_bank_conversion',
+  // Restaurant wallet-earnings payouts: debit restaurant_sub_bank, credit
+  // platform_treasury, paired with a Stripe Transfer to the Connect account.
+  'sub_bank_payout',
 ]);
 
 function positiveEnv(name, fallback) {

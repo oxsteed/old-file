@@ -19496,7 +19496,25 @@
         "payoutsPending": "Paiements en attente",
         "refresh": "Actualiser le statut",
         "subtitle": "Connectez un compte Stripe pour que ce restaurant puisse recevoir les paiements de ses commandes.",
-        "title": "Paiements"
+        "title": "Paiements",
+        "walletTitle": "Gains du portefeuille",
+        "walletSubtitle": "Gains des commandes par portefeuille et OxSteed Credit. Les paiements par carte vont directement à votre banque via Stripe.",
+        "invalidAmount": "Saisissez un montant valide.",
+        "requestSubmitted": "Paiement demandé. Un administrateur l’examinera.",
+        "requestError": "Impossible de demander le paiement.",
+        "amountPlaceholder": "Montant",
+        "requesting": "Demande…",
+        "requestPayout": "Demander un paiement",
+        "minPayout": "Paiement minimum : {{amount}}",
+        "status": {
+          "requested": "Demandé",
+          "approved": "Approuvé",
+          "processing": "En cours",
+          "completed": "Terminé",
+          "rejected": "Refusé",
+          "failed": "Échoué",
+          "cancelled": "Annulé"
+        }
       },
       "settlementTitle": "Dossiers de règlement des paiements",
       "settlementNote": "Les commandes peuvent rester liées au dossier du restaurant pour que le règlement, les reçus et l'historique d'assistance restent visibles dans l'app.",
@@ -29444,5 +29462,23 @@
     "typeHelper": "Aidants",
     "typeTool": "Outils",
     "typeFood": "Restauration"
+  },
+  "restaurantPayouts": {
+    "title": "Paiements de portefeuille des restaurants",
+    "subtitle": "Approuvez les paiements de gains de portefeuille aux restaurants. L’approbation exécute immédiatement un transfert Stripe vers le compte Connect du restaurant.",
+    "empty": "Aucun paiement dans cet état.",
+    "approve": "Approuver et payer",
+    "reject": "Refuser",
+    "confirmApproveTitle": "Approuver et payer ?",
+    "confirmRejectTitle": "Refuser le paiement ?",
+    "confirmApproveBody": "Cela transférera immédiatement {{amount}} vers le compte Stripe du restaurant et comptabilisera l’écriture. Cette action est irréversible.",
+    "confirmRejectBody": "Le restaurant pourra refaire une demande.",
+    "tab": {
+      "requested": "Demandés",
+      "approved": "Approuvés",
+      "completed": "Terminés",
+      "failed": "Échoués",
+      "rejected": "Refusés"
+    }
   }
 }
