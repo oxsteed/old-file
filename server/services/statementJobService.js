@@ -50,6 +50,7 @@ const ALLOWED_TRANSITIONS = {
   artifact_ready: ['notified'],
   notified: ['complete'],
 };
+const ACTIVE_LEASE_STATES = ['leased', 'snapshotted', 'artifact_ready', 'notified'];
 const PATCHABLE_JOB_FIELDS = ['last_error'];
 
 function fail(code, message, statusCode = 400) {
@@ -293,8 +294,17 @@ async function renewLease(jobId, workerId, fencingToken, leaseSeconds = 120) {
   try {
     await client.query('BEGIN');
     const job = await loadJobForUpdate(client, jobId);
-    if (job.state !== 'leased') fail('statement_lease_stale', 'Job is not leased', 409);
+    if (!ACTIVE_LEASE_STATES.includes(job.state)) {
+      fail('statement_lease_stale', 'Job is not in an active pipeline state', 409);
+    }
     checkFencing(job, workerId, fencingToken);
+    const { rows: [leaseStatus] } = await client.query(
+      `SELECT $1::timestamptz > transaction_timestamp() AS active`,
+      [job.lease_expires_at]
+    );
+    if (!leaseStatus.active) {
+      fail('statement_lease_stale', 'Lease has expired and cannot be renewed', 409);
+    }
     const { rows: [updated] } = await client.query(
       `UPDATE statement_account_jobs
        SET lease_expires_at = transaction_timestamp() + ($2 * interval '1 second'),

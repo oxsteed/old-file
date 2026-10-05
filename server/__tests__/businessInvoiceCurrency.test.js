@@ -54,4 +54,55 @@ describe('business invoice currency contract', () => {
       invoice: expect.objectContaining({ currency_code: 'GHS' }),
     });
   });
+
+  test('marks an invoice paid with explicitly typed PostgreSQL parameters', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 8,
+          owner_id: '00000000-0000-4000-8000-000000000008',
+        }],
+      }) // canManageBusinessFinance
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 99,
+          business_id: 8,
+          user_id: '00000000-0000-4000-8000-000000000008',
+          total: '25.00',
+          amount_paid: '0.00',
+          status: 'sent',
+          paid_at: null,
+        }],
+      }) // current invoice
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 99,
+          business_id: 8,
+          amount_paid: '25.00',
+          status: 'paid',
+        }],
+      }); // updated invoice
+
+    const req = {
+      user: { id: '00000000-0000-4000-8000-000000000008' },
+      params: { id: '8', invoiceId: '99' },
+      body: { amount: '25' },
+    };
+    const res = mockResponse();
+
+    await ctrl.markInvoicePaid(req, res);
+
+    const updateCall = mockQuery.mock.calls.find(([sql]) => sql.includes('UPDATE business_invoices SET'));
+    expect(updateCall).toBeTruthy();
+    expect(updateCall[0]).toMatch(/amount_paid\s*=\s*\$1::numeric\(12,2\)/);
+    expect(updateCall[0]).toMatch(/status\s*=\s*\$2::varchar\(20\)/);
+    expect(updateCall[0]).toMatch(/CASE WHEN \$2::varchar\(20\) = 'paid'/);
+    expect(updateCall[0]).toMatch(/id\s*=\s*\$3::bigint/);
+    expect(updateCall[0]).toMatch(/business_id\s*=\s*\$4::integer/);
+    expect(updateCall[0]).toMatch(/user_id\s*=\s*\$5::uuid/);
+    expect(updateCall[1]).toEqual([25, 'paid', '99', 8, '00000000-0000-4000-8000-000000000008']);
+    expect(res.json).toHaveBeenCalledWith({
+      invoice: expect.objectContaining({ id: 99, status: 'paid' }),
+    });
+  });
 });

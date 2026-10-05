@@ -245,11 +245,11 @@ async function markInvoicePaid(req, res) {
 
     const { rows: [inv] } = await pool.query(`
       UPDATE business_invoices SET
-        amount_paid = $1,
-        status      = $2,
-        paid_at     = CASE WHEN $2 = 'paid' AND paid_at IS NULL THEN NOW() ELSE paid_at END,
+        amount_paid = $1::numeric(12,2),
+        status      = $2::varchar(20),
+        paid_at     = CASE WHEN $2::varchar(20) = 'paid' AND paid_at IS NULL THEN NOW() ELSE paid_at END,
         updated_at  = NOW()
-      WHERE id = $3 AND business_id = $4 AND user_id = $5
+      WHERE id = $3::bigint AND business_id = $4::integer AND user_id = $5::uuid
       RETURNING *
     `, [newPaidTotal, newStatus, req.params.invoiceId, access.id, access.owner_id]);
 

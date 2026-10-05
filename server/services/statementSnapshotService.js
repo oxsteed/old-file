@@ -564,7 +564,14 @@ async function getFrozenDocument(snapshotId) {
 // Durable export sources are separate from v1 issued documents. One bounded
 // transaction copies source facts in SQL; subsequent keyset pages read only the
 // immutable materialization, including after cancellation/retry or new postings.
-async function freezeExportSource(db, job, { materialize = statements.materializeExportSource } = {}) {
+function defaultExportMaterializer(client, job, options) {
+  if (['restaurant_settlement', 'helper_earnings', 'business'].includes(job.product)) {
+    return settlementStatements.materializeExportSource(client, job, options);
+  }
+  return statements.materializeExportSource(client, job, options);
+}
+
+async function freezeExportSource(db, job, { materialize = defaultExportMaterializer } = {}) {
   if (job.frozen_header) return job.frozen_header;
   const client = await db.connect();
   try {

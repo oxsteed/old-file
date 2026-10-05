@@ -46,7 +46,7 @@ function bounds(period, now) {
   return { start, end };
 }
 
-async function readSourceHistory(client, kind, scopeId, currency, now) {
+async function readSourceHistory(client, kind, scopeId, currency, now, maxRows = MAX_ROWS) {
   currencyPrecision(currency);
   // Find sources by ANY version, then read their entire chain. Filtering each
   // version by current scope/currency could hide a transfer or reassignment.
@@ -59,8 +59,8 @@ async function readSourceHistory(client, kind, scopeId, currency, now) {
           SELECT source_id FROM settlement_source_history
            WHERE source_kind = $1 AND scope_id = $2 AND currency_code = $3)
           AND h.recorded_at <= $4::timestamptz
-        ORDER BY h.id LIMIT $5`, [kind, String(scopeId), currency, now, MAX_ROWS + 1]);
-    if (rows.length > MAX_ROWS) throw new AppError('Complete source history requires a background export', 409, 'statement_export_too_large');
+         ORDER BY h.id LIMIT $5`, [kind, String(scopeId), currency, now, maxRows + 1]);
+    if (rows.length > maxRows) throw new AppError('Complete source history requires a narrower export period', 409, 'statement_export_too_large');
     return rows;
   } catch (error) {
     if (error.code === '42P01') unavailable('Financial source history is not installed');

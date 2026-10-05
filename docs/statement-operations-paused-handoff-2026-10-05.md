@@ -1,17 +1,17 @@
 # Statement operations - paused implementation handoff
 
 Date: 2026-10-05. Prepared for Emile Jean Philippe and the next developer.
-Status: LOCAL WIP CHECKPOINT. NOT PUSHED, NOT DEPLOYED, NOT PRODUCTION APPROVED.
+Status: UPDATED WIP CHECKPOINT on `codex/statement-operations-wip`. Code changes are pushed to that review branch; not deployed and not production approved.
 
 ## Start here
 
-The owner stopped implementation to preserve usage and requested a commit plus this email handoff. Continue from the checkpoint commit containing this file, not from the older email claiming that all eight workstreams were complete.
+Continue from the pushed review branch, not from the older email claiming that all eight workstreams were complete.
 
-Repository: oxsteed/old-file. Checkout: /Users/oxsteed/Documents/GitHub/6. Branch: old-files-claude. Starting HEAD before this checkpoint: c0eb264a68a44a0a9ec425dc114e5e8a0cae7624.
+Repository: oxsteed/old-file. Checkout: /Users/oxsteed/Documents/GitHub/6. Review branch: `codex/statement-operations-wip`. Starting HEAD before the original checkpoint: c0eb264a68a44a0a9ec425dc114e5e8a0cae7624.
 
 Read AGENTS.md, README.md, RUNBOOK.md, docs/credit-statements.md, docs/statement-operations-code-review-2026-10-05.md and docs/statement-operations-remediation-handoff-2026-10-05.md. The code review contains the original 13 findings. The remediation handoff contains the complete requirement and acceptance instructions. This checkpoint supersedes their implementation-status assumptions, not their requirements.
 
-This local commit has NOT been pushed because the production branch auto-deploys through Coolify. Obtain approval before pushing/deploying it. Prefer a reviewed development branch/PR after verification. No production database, real money, credentials, or R2 settings were changed.
+The review branch is separate from the production branch. No production database, real money, credentials, or R2 settings were changed.
 
 Cloudflare R2 is the intended storage. The AWS SDK is only the S3-compatible client. Do NOT migrate to AWS or reuse the public uploads/backup bucket for statements.
 
@@ -21,7 +21,7 @@ Cloudflare R2 is the intended storage. The AWS SDK is only the S3-compatible cli
 2. Accounting (R03/R04/R07): added immutable observations of existing invoice/job/payment writers; independently computed boundary positions and actual movements; source-history continuity and fail-closed legacy/unsupported cases; final-day expense inclusion. This observes existing authoritative records, not a new money ledger.
 3. Serialization (R06/R13): exact currency precision and hostile spreadsheet-cell neutralization in settlement CSV; localized heading adjustments.
 4. Recovery/CI (R08/R11): persisted discovery cursor/phase, terminal-run reopening, catch-up/retry audit and limits, five-product controls, bounded missed-period scanning, coverage distinctions, schema-valid fixtures and a CI gate against silently skipped required DB suites.
-5. Exports (R05, PARTIAL): durable request/status/cancel/retry/manifest/download APIs, SQL-frozen rows, bounded keyset reading, streamed CSV, numbered PDF volumes, checksum verification, fencing/fairness/disk budgets, notifications and worker lifecycle wiring. Helper/business adapters and complete automatic large-account issuance are NOT finished.
+5. Exports (R05, IMPLEMENTED IN CODE, LIVE VERIFICATION PENDING): durable request/status/cancel/retry/manifest/download APIs, SQL-frozen rows, bounded keyset reading, streamed CSV, numbered PDF volumes, checksum verification, fencing/fairness/disk budgets, notifications and worker lifecycle wiring. Settlement, helper-earnings, and business exports now use the existing bounded source-history/settlement builders and freeze reconciled equation rows plus bounded product context. Automatic high-volume issuance remains a separate rollout concern.
 6. User workflows (R09/R10/R12, IN PROGRESS): settlement self-service routes and scope discovery, shared archive/amendment pagination, real restaurant investigation/support linkage, activity-source correction references, export UI and localized strings. These require integrated regression/browser verification.
 
 Additive migrations 692-695 are checkpoint code, not applied production migrations:
@@ -36,26 +36,25 @@ Do not change an already APPLIED production migration checksum. Before release, 
 
 ### A. Resolve the integrated issuance prerequisites
 
-Parent added heartbeat calls every 30 seconds with a 120-second renewal and renderer abort signaling. BUT statementJobService.renewLease still only accepts state leased. It must safely renew leased, snapshotted, artifact_ready and notified while checking current fencing token, lease owner and unexpired lease; completed/failed/reclaimed ownership must reject. Test this before deployment. Otherwise a healthy long-running pipeline can abort/reclaim itself.
+The lease-renewal defect is fixed in code: `renewLease` now accepts `leased`, `snapshotted`, `artifact_ready`, and `notified`, while checking owner, fencing token, and an unexpired lease. Completed/failed/reclaimed ownership is still rejected. Final DB-backed verification is still required before deployment.
 
 The issuer now uses snapshots.getFrozenDocument(snapshot.id). Verify that freeze stores actual document content, every retry renders the same frozen source, hash/totals/cutoff checks pass, and archived JSON agrees with the original PDF. Legacy hash-only snapshots intentionally fail visibly; do not silently associate them with a new live-data build. Establish an authorized, checksum-preserving legacy recovery procedure.
 
 Re-run the publication crash/race tests. Confirm busy/stale publishers cannot duplicate an original, delete a newly adopted object, or emit duplicate notifications. Re-run document/outbox crash tests with the SAME fake object store across retries. An empty new fake store correctly simulates a missing original and must not bypass verification.
 
-Check notification destinations: the issuer's PRODUCT_ACTION_URLS was changed to settlement URLs ending /statements/archive, while current App routes for restaurant-settlement, helper-earnings and business are /statements (without /archive). Align these three destinations or register appropriate aliases and add route-contract tests. Verify amendment and export notification links too.
+Notification destinations are aligned with the registered client routes for restaurant settlement, helper earnings, and business statements. A route-contract regression test covers the three paths; amendment and export notification links still require integrated verification.
 
 ### B. Fix the reproduced invoice-payment controller defect
 
-businessInvoiceController.markInvoicePaid returns HTTP 500 in real PostgreSQL tests:
-"inconsistent types deduced for parameter $2".
+The reproduced defect is fixed in code. `businessInvoiceController.markInvoicePaid` now casts bound parameters to the authoritative PostgreSQL types, and a regression test asserts those casts while preserving authorization and money behavior. Real PostgreSQL execution remains required because the local disposable DB is currently unavailable.
 
-Inspect the real SQL and cast/bind parameters consistently with their authoritative column types. Preserve existing invoice/payment approval rules and money arithmetic. Add a behavior regression for the route/controller. This caused three failures in statementSettlementFinancialHistory.db.test.js, including dependent accounting assertions. Do not mask these failures by weakening the source-history projector.
+Re-run `statementSettlementFinancialHistory.db.test.js` on the finalized migration catalog. Do not mask any remaining DB verification gap by weakening the source-history projector.
 
 ### C. Complete R05 rather than merely exposing an accepted job
 
-The new export service is substantial but incomplete:
-- Implement bounded helper-earnings and business source adapters against verified immutable source observations, with independent balances/movements and precise currency handling.
-- Restaurant-settlement exports currently cover the journal only; include supplementary sections required by the document contract or explicitly reject an incomplete contract. Do not call a partial journal the full settlement statement.
+The code-level source-adapter gap is closed: helper earnings and business exports use immutable source-history projections, and restaurant-settlement exports use the settlement builder with supplementary context retained in the frozen header. Reconciliation rows are globally ordered and receive a single running balance before publication.
+
+Remaining export verification and rollout work:
 - Automatic large-account issuance still uses the capped original builder. Delegate to the complete durable export workflow without truncation, changed financial content, duplicate originals or unusable notifications.
 - Run the million-entry DB/publication test, not only the million-entry synthetic accumulator.
 - Verify cancellation during freeze/render/upload, retry using unchanged frozen rows, uncertain upload recovery, changed bucket denial, process restart, fairness and cross-replica resource limits.
@@ -120,7 +119,15 @@ User-workflow agent:
 - Latest four-suite DB run: 25 passed, 19 failed. Archive and source-amendment passed; amendment failures included missing frozen_document in the interim database, and the new self-service fixture failed on null snapshot created_at.
 - Newest export/UI changes were not revalidated with localization/typecheck/build or browsers. No migration 696 was created.
 
-The final full server suite, client build:ci, authenticated new-workflow browser matrix, live R2 checks, production restore and final load/capacity acceptance have NOT passed for this checkpoint.
+Current follow-up verification:
+- Server focused suites: 4 suites, 33 passed, 34 skipped because DB-backed tests were not configured/running. This includes settlement-product PDF-volume coverage.
+- Client statement tests: 8 passed.
+- Client `npm run verify:i18n`: passed for all five locales and static references.
+- Client `npm run typecheck`: passed.
+- Client `npm run build:ci`: passed, including production build and 721 emitted-asset verification. The build emitted an existing duplicate-object-key warning in `RestaurantAuditPanels.jsx`; it did not fail the build and is unrelated to this branch.
+- `git diff --check`: passed.
+
+The final full server suite, authenticated new-workflow browser matrix, live R2 checks, production restore and final load/capacity acceptance have NOT passed for this checkpoint.
 
 ## Required next verification
 

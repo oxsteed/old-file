@@ -6,6 +6,13 @@ const { AppError } = require('../middleware/errorHandler');
 const crypto = require('node:crypto');
 const { decimal, languageCopy } = require('./creditStatementPdf');
 
+// Numbered export volumes intentionally use the compact journal renderer.
+// The frozen export header keeps the original product contract, while each
+// volume contains only its bounded reconciled equation rows. Mapping every
+// settlement product here avoids sending a journal-shaped volume to a
+// product-specific renderer that expects the full settlement document.
+const SETTLEMENT_VOLUME_PRODUCTS = new Set(['restaurant_settlement', 'helper_earnings', 'business']);
+
 // Rendering large, multilingual PDFs must not block ordinary API requests.
 // The controller also holds the existing exports semaphore through this job.
 const TIMEOUT_MS = 60000;
@@ -117,7 +124,8 @@ function pdfVolumeDocument(header, rows, {jobId,part,parts,openingMinor}) {
   const rowFrom=rows[0]?.ordinal||0,rowTo=rows.at(-1)?.ordinal||0;
   // The renderer receives a complete, bounded volume, explicitly marked as a
   // volume. This object never goes through the issued-original JSON endpoint.
-  const document={...header,id:jobId,version:1,product:header.product==='restaurant_settlement'?'oxsteed':header.product,
+  const document={...header,id:jobId,version:1,
+    product:SETTLEMENT_VOLUME_PRODUCTS.has(header.product)?'oxsteed':header.product,
     accountLabel:`${header.accountLabel} [${part}/${parts}; ${rowFrom}-${rowTo}/${header.transactionCount}]`,
     documentContract:'statement-export-volume-v1',volume:{part,parts,rowFrom,rowTo,totalRows:header.transactionCount},
     openingBalanceCents:number(openingMinor),closingBalanceCents:number(BigInt(openingMinor)+credits-debits),

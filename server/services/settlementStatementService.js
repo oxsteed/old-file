@@ -110,7 +110,7 @@ function scopeId(product, options) {
 // Authoritative section: the restaurant's sub-bank journal account. Every
 // other section is informational and carries its own scope label.
 
-async function buildRestaurantSettlement(client, { restaurantId, currency, period, now, requesterId }) {
+async function buildRestaurantSettlement(client, { restaurantId, currency, period, now, requesterId, maxRows = MAX_ROWS }) {
   const { rows: [restaurant] } = await client.query(
     `SELECT fr.id, fr.display_name, fr.business_id, fr.owner_user_id, fr.created_at
        FROM food_restaurants fr WHERE fr.id = $1`,
@@ -147,8 +147,8 @@ async function buildRestaurantSettlement(client, { restaurantId, currency, perio
         AND ${dateExpr} >= $3::timestamptz AND ${dateExpr} < $4::timestamptz
         AND ${dateExpr} <= $5::timestamptz${posted}
       ORDER BY ${dateExpr}, e.sequence, e.id LIMIT $6`,
-    [account.id, currency, start, end, now, MAX_ROWS + 1]);
-  if (rows.length > MAX_ROWS) throw new AppError('Narrow the period to export the complete statement', 409, 'statement_export_too_large');
+    [account.id, currency, start, end, now, maxRows + 1]);
+  if (rows.length > maxRows) throw new AppError('Narrow the period to export the complete statement', 409, 'statement_export_too_large');
 
   const openingBalanceCents = exactMoney(opening?.balance_after_cents || '0');
   // reconcileRows passes the journal's own transaction_type through (it only
@@ -181,8 +181,8 @@ async function buildRestaurantSettlement(client, { restaurantId, currency, perio
       WHERE p.restaurant_id = $1 AND s.currency_code = $2
         AND s.period_start < $3::timestamptz AND s.period_end > $4::timestamptz
       ORDER BY s.period_start, s.id LIMIT $5`,
-    [restaurantId, currency, end, start, MAX_ROWS + 1]);
-  if (settlements.length > MAX_ROWS) throw new AppError('Narrow the period to export the complete statement', 409, 'statement_export_too_large');
+    [restaurantId, currency, end, start, maxRows + 1]);
+  if (settlements.length > maxRows) throw new AppError('Narrow the period to export the complete statement', 409, 'statement_export_too_large');
 
   // Informational: payout outcomes. Only 'completed' counts as a verified
   // outcome; everything else is labeled by its lifecycle state.
@@ -193,8 +193,8 @@ async function buildRestaurantSettlement(client, { restaurantId, currency, perio
       WHERE restaurant_id = $1 AND currency_code = $2
         AND created_at >= $3::timestamptz AND created_at < $4::timestamptz
       ORDER BY created_at, id LIMIT $5`,
-    [restaurantId, currency, start, end, MAX_ROWS + 1]);
-  if (payouts.length > MAX_ROWS) throw new AppError('Narrow the period to export the complete statement', 409, 'statement_export_too_large');
+    [restaurantId, currency, start, end, maxRows + 1]);
+  if (payouts.length > maxRows) throw new AppError('Narrow the period to export the complete statement', 409, 'statement_export_too_large');
 
   // Informational: order proceeds. Card orders settle directly to the
   // restaurant's Connect account (destination charges): OxSteed holds no
@@ -207,8 +207,8 @@ async function buildRestaurantSettlement(client, { restaurantId, currency, perio
         AND created_at >= $3::timestamptz AND created_at < $4::timestamptz
         AND payment_status IN ('paid','refunded')
       ORDER BY created_at, id LIMIT $5`,
-    [restaurantId, currency, start, end, MAX_ROWS + 1]);
-  if (orders.length > MAX_ROWS) throw new AppError('Narrow the period to export the complete statement', 409, 'statement_export_too_large');
+    [restaurantId, currency, start, end, maxRows + 1]);
+  if (orders.length > maxRows) throw new AppError('Narrow the period to export the complete statement', 409, 'statement_export_too_large');
 
   // Informational: reserve position for the restaurant's partners (the
   // reserve regime is prefunding, not a sidecar; open funding requirements
@@ -328,14 +328,14 @@ async function buildRestaurantSettlement(client, { restaurantId, currency, perio
 
 // ── helper_earnings ─────────────────────────────────────────────────────────
 // Financial writes stay in the existing services.
-async function buildHelperEarnings(client, { helperId, currency, period, now, requesterId }) {
+async function buildHelperEarnings(client, { helperId, currency, period, now, requesterId, maxRows = MAX_ROWS }) {
   const { rows: [user] } = await client.query(
     `SELECT id, created_at, COALESCE(NULLIF(TRIM(CONCAT_WS(' ', first_name, last_name)), ''), email) AS owner_name FROM users WHERE id = $1`, [helperId]);
   if (!user) throw new AppError('Statement account not found', 404, 'statement_account_not_found');
   if (period.to < isoDateOnly(user.created_at)) throw new AppError('Statement period precedes this account', 400, 'statement_before_account');
-  const history = await financialHistory.readSourceHistory(client, 'helper_job', helperId, currency, now);
+  const history = await financialHistory.readSourceHistory(client, 'helper_job', helperId, currency, now, maxRows);
   const projection = financialHistory.projectHelper(history, { helperId, currency, period, now });
-  const paymentHistory = await financialHistory.readSourceHistory(client, 'helper_payment', helperId, currency, now);
+  const paymentHistory = await financialHistory.readSourceHistory(client, 'helper_payment', helperId, currency, now, maxRows);
   const { end } = financialHistory.bounds(period, now);
   const paymentByJob = new Map();
   const latest = new Map();
@@ -380,7 +380,7 @@ async function buildHelperEarnings(client, { helperId, currency, period, now, re
 // No cross-entity consolidation: the business's restaurants appear as
 // separate per-(restaurant, currency) sections, never merged.
 
-async function buildBusiness(client, { businessId, currency, period, now, requesterId }) {
+async function buildBusiness(client, { businessId, currency, period, now, requesterId, maxRows = MAX_ROWS }) {
   const { rows: [business] } = await client.query(
     `SELECT id, business_name, user_id, created_at FROM businesses WHERE id = $1`,
     [businessId]);
@@ -393,7 +393,7 @@ async function buildBusiness(client, { businessId, currency, period, now, reques
   const end = new Date(Date.parse(period.to) + 86400000);
 
   // Receivables are reconstructed from immutable observations, not current state.
-  const history = await financialHistory.readSourceHistory(client, 'business_invoice', businessId, currency, now);
+  const history = await financialHistory.readSourceHistory(client, 'business_invoice', businessId, currency, now, maxRows);
   const receivables = financialHistory.projectBusiness(history, { businessId, currency, period, now });
 
   // — Payables (dated spend list; business_expenses carries no currency
@@ -405,8 +405,8 @@ async function buildBusiness(client, { businessId, currency, period, now, reques
       WHERE business_id = $1 AND expense_date >= $2::date AND expense_date < $3::date
         AND (statement_currency_code = $5 OR statement_currency_code IS NULL)
       ORDER BY expense_date, id LIMIT $4`,
-    [businessId, period.from, end.toISOString().slice(0, 10), MAX_ROWS + 1, currency]);
-  if (expenses.length > MAX_ROWS) throw new AppError('Narrow the period to export the complete statement', 409, 'statement_export_too_large');
+    [businessId, period.from, end.toISOString().slice(0, 10), maxRows + 1, currency]);
+  if (expenses.length > maxRows) throw new AppError('Narrow the period to export the complete statement', 409, 'statement_export_too_large');
   // Existing expense writers accept x100 cents without a per-row currency.
   // Currency was stamped on the source write, not inferred from today's
   // business settings. Legacy unknowns and non-two-decimal sources fail closed.
@@ -443,8 +443,8 @@ async function buildBusiness(client, { businessId, currency, period, now, reques
       WHERE p.business_id = $1
         AND s.period_start < $2::timestamptz AND s.period_end > $3::timestamptz
       ORDER BY s.currency_code, s.period_start, s.id LIMIT $4`,
-    [businessId, end.toISOString(), start.toISOString(), MAX_ROWS + 1]);
-  if (settlements.length > MAX_ROWS) throw new AppError('Narrow the period to export the complete statement', 409, 'statement_export_too_large');
+    [businessId, end.toISOString(), start.toISOString(), maxRows + 1]);
+  if (settlements.length > maxRows) throw new AppError('Narrow the period to export the complete statement', 409, 'statement_export_too_large');
 
   // — Restaurant payouts for this business's restaurants, per restaurant —
   const { rows: restaurants } = await client.query(
@@ -461,8 +461,8 @@ async function buildBusiness(client, { businessId, currency, period, now, reques
         WHERE restaurant_id = $1 AND currency_code = $2
           AND created_at >= $3::timestamptz AND created_at < $4::timestamptz
         ORDER BY created_at, id LIMIT $5`,
-      [r.id, currency, start.toISOString(), end.toISOString(), MAX_ROWS + 1]);
-    if (rp.length > MAX_ROWS) throw new AppError('Narrow the period to export the complete statement', 409, 'statement_export_too_large');
+      [r.id, currency, start.toISOString(), end.toISOString(), maxRows + 1]);
+    if (rp.length > maxRows) throw new AppError('Narrow the period to export the complete statement', 409, 'statement_export_too_large');
     restaurantSections.push({
       restaurantId: String(r.id),
       restaurantName: String(r.display_name || ''),
@@ -530,6 +530,166 @@ async function buildBusiness(client, { businessId, currency, period, now, reques
   };
   document.contentHash = hashDocument(document);
   return document;
+}
+
+// Background exports use the same immutable source-history projections as the
+// interactive statement endpoint, but materialize only the reconciled
+// equation rows into the export evidence table. Supplementary sections stay
+// in the frozen header for bounded products; they are never used as a second
+// ledger and never affect the running-balance equation.
+async function materializeExportSource(client, job, { maxRows = 1000000 } = {}) {
+  if (!['restaurant_settlement', 'helper_earnings', 'business'].includes(job.product)) {
+    throw new AppError('Unsupported settlement export product', 409, 'statement_export_source_unavailable');
+  }
+  const { rows: [{ now }] } = await client.query('SELECT transaction_timestamp() AS now');
+  const period = periodFor(job.period_from, job.period_to, new Date(now));
+  const currency = String(job.currency_code).toUpperCase();
+  const builder = job.product === 'restaurant_settlement' ? buildRestaurantSettlement
+    : job.product === 'helper_earnings' ? buildHelperEarnings : buildBusiness;
+  const document = await builder(client, {
+    restaurantId: job.product === 'restaurant_settlement' ? Number(job.scope_id) : null,
+    helperId: job.product === 'helper_earnings' ? String(job.scope_id) : null,
+    businessId: job.product === 'business' ? Number(job.scope_id) : null,
+    currency,
+    period,
+    now,
+    requesterId: job.requested_by,
+    maxRows,
+  });
+
+  const rows = job.product === 'restaurant_settlement'
+    ? (document.transactions || []).map((transaction, index) => {
+      const credit = BigInt(String(transaction.creditCents));
+      const debit = BigInt(String(transaction.debitCents));
+      return {
+        id: `transaction:${transaction.id}:${index + 1}`,
+        transactionId: String(transaction.id),
+        date: new Date(transaction.date).toISOString(),
+        type: credit > 0n ? 'credit' : 'debit',
+        description: String(transaction.description || 'Restaurant settlement activity').slice(0, 255),
+        creditCents: credit,
+        debitCents: debit,
+        balanceAfterCents: BigInt(String(transaction.balanceAfterCents)),
+        sourceSequence: BigInt(index + 1),
+      };
+    })
+    : job.product === 'helper_earnings'
+    ? (document.movements || []).map((movement) => {
+      const posted = BigInt(String(movement.postedEarningsCents));
+      const settled = BigInt(String(movement.settledPayoutsCents));
+      const removed = BigInt(String(movement.statusRemovalsCents));
+      const credit = (posted > 0n ? posted : 0n) + (settled < 0n ? -settled : 0n);
+      const debit = removed + (settled > 0n ? settled : 0n);
+      return {
+        id: `history:${movement.sourceHistoryId}`,
+        transactionId: String(movement.sourceId),
+        date: new Date(movement.recordedAt).toISOString(),
+        type: credit > 0n ? 'credit' : 'debit',
+        description: 'Helper earnings activity',
+        creditCents: credit,
+        debitCents: debit,
+        balanceAfterCents: null,
+        sourceSequence: BigInt(String(movement.sourceHistoryId)),
+      };
+    })
+    : (document.receivables?.movements || []).map((movement) => {
+      const issued = BigInt(String(movement.invoicedCents));
+      const collected = BigInt(String(movement.collectedOrAdjustedCents));
+      const cancelled = BigInt(String(movement.cancelledCents));
+      const credit = (issued > 0n ? issued : 0n) + (collected < 0n ? -collected : 0n);
+      const debit = (issued < 0n ? -issued : 0n) + (collected > 0n ? collected : 0n) + cancelled;
+      return {
+        id: `history:${movement.sourceHistoryId}`,
+        transactionId: String(movement.sourceId),
+        date: new Date(movement.recordedAt).toISOString(),
+        type: credit > 0n ? 'credit' : 'debit',
+        description: 'Business receivables activity',
+        creditCents: credit,
+        debitCents: debit,
+        balanceAfterCents: null,
+        sourceSequence: BigInt(String(movement.sourceHistoryId)),
+      };
+    });
+
+  if (rows.length > maxRows) {
+    throw new AppError('Export exceeds the approved resource budget', 409, 'statement_export_budget_exceeded');
+  }
+  rows.sort((a, b) => a.date.localeCompare(b.date) || (a.sourceSequence < b.sourceSequence ? -1 : a.sourceSequence > b.sourceSequence ? 1 : 0));
+  const openingValue = job.product === 'helper_earnings' ? document.openingPayableCents
+    : job.product === 'restaurant_settlement' ? document.openingBalanceCents
+      : document.receivables.openingOutstandingCents;
+  let balance = BigInt(String(openingValue));
+  let credits = 0n;
+  let debits = 0n;
+  for (const row of rows) {
+    if (row.creditCents < 0n || row.debitCents < 0n
+      || (row.creditCents === 0n && row.debitCents === 0n)
+      || (row.creditCents > 0n && row.debitCents > 0n)) {
+      throw new AppError('Settlement export source contains an invalid movement', 409, 'statement_integrity_failed');
+    }
+    balance += row.creditCents - row.debitCents;
+    credits += row.creditCents;
+    debits += row.debitCents;
+    row.balanceAfterCents = balance;
+  }
+  const closingValue = job.product === 'helper_earnings' ? document.closingPayableCents
+    : job.product === 'restaurant_settlement' ? document.closingBalanceCents
+      : document.receivables.closingOutstandingCents;
+  const closing = BigInt(String(closingValue));
+  if (balance !== closing) {
+    throw new AppError('Settlement export source does not reconcile', 409, 'statement_integrity_failed');
+  }
+
+  // Keep large evidence arrays out of the durable job header. The complete
+  // equation is frozen in statement_export_rows; the header retains the
+  // bounded account and product context needed by CSV/PDF renderers.
+  const header = JSON.parse(JSON.stringify(document));
+  if (job.product === 'restaurant_settlement') {
+    delete header.transactions;
+    header.transactionCount = rows.length;
+  } else if (job.product === 'helper_earnings') {
+    delete header.earnings;
+    delete header.settled;
+    delete header.removed;
+    delete header.movements;
+    header.transactionCount = rows.length;
+  } else {
+    header.receivables = { ...header.receivables };
+    delete header.receivables.invoices;
+    delete header.receivables.movements;
+    header.transactionCount = rows.length;
+  }
+  for (let offset = 0; offset < rows.length; offset += 500) {
+    const batch = rows.slice(offset, offset + 500);
+    const values = [];
+    const params = [];
+    batch.forEach((row, index) => {
+      const base = index * 9;
+      values.push(`($${base + 1},$${base + 2},$${base + 3},$${base + 4}::timestamptz,$${base + 5},$${base + 6}::jsonb,$${base + 7},$${base + 8},$${base + 9})`);
+      params.push(job.id, offset + index + 1, row.id, row.date, row.sourceSequence.toString(), JSON.stringify({
+        id: row.id,
+        transactionId: row.transactionId,
+        date: row.date,
+        type: row.type,
+        description: row.description,
+        creditCents: row.creditCents.toString(),
+        debitCents: row.debitCents.toString(),
+        balanceAfterCents: row.balanceAfterCents.toString(),
+      }), row.creditCents.toString(), row.debitCents.toString(), row.balanceAfterCents.toString());
+    });
+    await client.query(
+      `INSERT INTO statement_export_rows
+        (job_id,ordinal,source_id,source_date,source_sequence,row_data,credit_minor,debit_minor,balance_minor)
+       VALUES ${values.join(',')}`,
+      params);
+  }
+  header.openingBalanceCents = String(openingValue);
+  header.closingBalanceCents = closing.toString();
+  header.totalCreditsCents = credits.toString();
+  header.totalDebitsCents = debits.toString();
+  header.generatedAt = new Date(now).toISOString();
+  header.contentHash = hashDocument(header);
+  return header;
 }
 
 // ── issuance + archive ──────────────────────────────────────────────────────
@@ -654,6 +814,7 @@ module.exports = {
   PRODUCTS,
   getStatement,
   buildStatement,
+  materializeExportSource,
   // Re-exported for tests and future renderers.
   periodFor,
   exactMoney,

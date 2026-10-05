@@ -749,9 +749,9 @@ async function issueAccountStatement({ job, workerId, storage, hooks = {} }) {
 const PRODUCT_ACTION_URLS = {
   oxsteed: '/oxsteed-credit/statements/archive',
   restaurant: '/restaurant-credit/statements/archive',
-  restaurant_settlement: '/restaurant-settlement/statements/archive',
-  helper_earnings: '/helper-earnings/statements/archive',
-  business: '/business/statements/archive',
+  restaurant_settlement: '/restaurant-settlement/statements',
+  helper_earnings: '/helper-earnings/statements',
+  business: '/business/statements',
 };
 
 function composeStatementReadyPayload({ job, payload }) {

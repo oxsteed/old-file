@@ -206,6 +206,40 @@ ddescribe('lease expiry and fencing', () => {
     await expect(service.renewLease(claimed.id, 'worker-a', 999, 120))
       .rejects.toMatchObject({ code: 'statement_lease_stale', statusCode: 409 });
   });
+
+  test('renews a lease throughout every active pipeline state', async () => {
+    const run = await newRun();
+    const customer = await newUser();
+    await service.discoverAccountJobs(run.id, [accountFor(customer)]);
+    let job = await service.claimNextAccountJob('worker-a', 120);
+
+    for (const state of ['leased', 'snapshotted', 'artifact_ready', 'notified']) {
+      const previousExpiry = new Date(job.lease_expires_at).getTime();
+      job = await service.renewLease(job.id, 'worker-a', 1, 300);
+      expect(job.state).toBe(state);
+      expect(new Date(job.lease_expires_at).getTime()).toBeGreaterThan(previousExpiry);
+
+      const nextState = {
+        leased: 'snapshotted',
+        snapshotted: 'artifact_ready',
+        artifact_ready: 'notified',
+      }[state];
+      if (nextState) {
+        job = await service.completeJobStage(job.id, 'worker-a', 1, nextState);
+      }
+    }
+  });
+
+  test('rejects renewal after the current lease expires', async () => {
+    const run = await newRun();
+    const customer = await newUser();
+    await service.discoverAccountJobs(run.id, [accountFor(customer)]);
+    const claimed = await service.claimNextAccountJob('worker-a', 120);
+    await expireLease(claimed.id);
+
+    await expect(service.renewLease(claimed.id, 'worker-a', 1, 120))
+      .rejects.toMatchObject({ code: 'statement_lease_stale', statusCode: 409 });
+  });
 });
 
 ddescribe('deterministic issuance keys dedupe re-discovery', () => {

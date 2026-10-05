@@ -29,6 +29,12 @@ test('suite targets only the disposable credit_statement_test database', () => {
   expect(isDisposableDatabase(RAW_URL)).toBe(CAN_RUN_DB);
 });
 
+test('statement-ready action URLs match registered client routes', () => {
+  expect(issuance.PRODUCT_ACTION_URLS.restaurant_settlement).toBe('/restaurant-settlement/statements');
+  expect(issuance.PRODUCT_ACTION_URLS.helper_earnings).toBe('/helper-earnings/statements');
+  expect(issuance.PRODUCT_ACTION_URLS.business).toBe('/business/statements');
+});
+
 if (CAN_RUN_DB) {
   process.env.DATABASE_URL = RAW_URL;
   process.env.NODE_ENV = 'test';

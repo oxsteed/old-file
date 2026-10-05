@@ -51,6 +51,11 @@ test('numbered PDF volumes are bounded and explicitly disclose global boundaries
   expect(volume.accountLabel).toContain('[2/3; 2001-2002/5001]');
   expect(normalize(volume)).toMatchObject({transactionCount:2,openingBalanceCents:2000,closingBalanceCents:2002});
 });
+test.each(['restaurant_settlement','helper_earnings','business'])('settlement product %s PDF volumes use the compact journal contract',product=>{
+  const volume=pdfVolumeDocument({...header(2),product},[row(1),row(2)],{jobId:user,part:1,parts:1,openingMinor:'0'});
+  expect(volume.product).toBe('oxsteed');
+  expect(normalize(volume)).toMatchObject({product:'oxsteed',transactionCount:2,closingBalanceCents:2});
+});
 test('a frozen source is reused without touching the live ledger',async()=>{
   const db={connect:jest.fn()};const materialize=jest.fn();
   expect(await snapshots.freezeExportSource(db,{frozen_header:header(5001)},{materialize})).toEqual(header(5001));
