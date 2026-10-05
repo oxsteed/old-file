@@ -6,6 +6,14 @@ export const STATEMENT_PRODUCTS = Object.freeze({
   business: { root: '/business', label: 'business', settlement: true },
 });
 
+export function statementCorrectionNotice(product) {
+  return ['helper_earnings', 'business'].includes(product) ? 'correctionsUnavailable' : null;
+}
+
+export function supportsStatementCase(caseSupport) {
+  return ['credit_disputes', 'support_tickets'].includes(caseSupport);
+}
+
 export function statementAccessiblePath(item) {
   const query = new URLSearchParams({ product: item.product, currencyCode: item.currency });
   if (item.period?.from) query.set('from', item.period.from);

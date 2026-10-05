@@ -12,7 +12,7 @@ import {
   listStatementScopes,
 } from '../../api/creditStatements';
 import { formatStatementMoney } from '../../lib/creditStatementFormat';
-import { STATEMENT_PRODUCTS, statementAccessiblePath } from '../../lib/statementProducts';
+import { STATEMENT_PRODUCTS, statementAccessiblePath, statementCorrectionNotice } from '../../lib/statementProducts';
 import StatementExportPanel from './StatementExportPanel';
 import './StatementArchivePage.css';
 
@@ -89,6 +89,8 @@ export const ARCHIVE_STRINGS = Object.freeze({
   previous: 'Previous',
   next: 'Next',
   scopeNote: 'Each product, account and currency has its own statements. These are credit-account records, not bank deposit statements.',
+  correctionsUnavailable: 'Online accounting corrections are not available for Helper earnings or Business statements yet. For a review, contact Support and include the account and statement period.',
+  contactSupport: 'Contact Support',
 });
 
 const MONTH_NAMES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
@@ -366,6 +368,7 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
           aria-current={product === key ? 'page' : undefined}>{text(config.label)}</Link>)}
       </nav>
       <p className="sa-scope">{text(settlement ? 'settlementScopeNote' : 'scopeNote')}</p>
+      {statementCorrectionNotice(product) && <p className="sa-scope" role="note">{text(statementCorrectionNotice(product))} <Link to="/support/escalation">{text('contactSupport')}</Link></p>}
       <StatementExportPanel product={product} accounts={accounts} />
 
       <form className="sa-filters" onSubmit={event => event.preventDefault()}>

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { statementAccessiblePath, statementCorrectionNotice, supportsStatementCase } from '../src/lib/statementProducts.js';
 
 const source = fs.readFileSync(new URL('../src/api/creditStatements.js', import.meta.url), 'utf8');
 const requests = [];
@@ -103,4 +104,38 @@ test('both statement routes preserve existing route guards and explicit product 
   for (const [route, product] of [['oxsteed-credit', 'oxsteed'], ['restaurant-credit', 'restaurant']]) {
     assert.ok(app.includes(`path="/${route}/statements" element={<Guarded><ProtectedRoute><RouteErrorBoundary><CreditStatementsPage product="${product}" /></RouteErrorBoundary></ProtectedRoute></Guarded>}`));
   }
+});
+
+test('archive discloses correction workflow limits only for helper and business statements', () => {
+  assert.equal(statementCorrectionNotice('helper_earnings'), 'correctionsUnavailable');
+  assert.equal(statementCorrectionNotice('business'), 'correctionsUnavailable');
+  assert.equal(statementCorrectionNotice('restaurant_settlement'), null);
+  assert.equal(statementCorrectionNotice('oxsteed'), null);
+  assert.equal(statementCorrectionNotice('restaurant'), null);
+});
+
+test('accessible statement links preserve each settlement product and revision identity', () => {
+  for (const product of ['restaurant_settlement', 'helper_earnings', 'business']) {
+    const url = statementAccessiblePath({
+      id: 'document/id', product, currency: 'USD',
+      period: { from: '2026-09-01', to: '2026-09-30' },
+    });
+    const parsed = new URL(url, 'https://oxsteed.invalid');
+    assert.equal(parsed.pathname, '/statements/document%2Fid/accessible');
+    assert.equal(parsed.searchParams.get('product'), product);
+    assert.equal(parsed.searchParams.get('currencyCode'), 'USD');
+    assert.equal(parsed.searchParams.get('from'), '2026-09-01');
+    assert.equal(parsed.searchParams.get('to'), '2026-09-30');
+  }
+  const amendment = statementAccessiblePath({
+    id: 'revision', product: 'business', currency: 'USD', kind: 'amendment',
+  });
+  assert.equal(new URL(amendment, 'https://oxsteed.invalid').searchParams.get('version'), 'amendment');
+});
+
+test('Restaurant Credit support tickets expose the same report action as credit disputes', () => {
+  assert.equal(supportsStatementCase('credit_disputes'), true);
+  assert.equal(supportsStatementCase('support_tickets'), true);
+  assert.equal(supportsStatementCase('unsupported'), false);
+  assert.equal(supportsStatementCase(undefined), false);
 });

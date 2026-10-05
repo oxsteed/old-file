@@ -181,7 +181,9 @@
     "page": "Página {{page}} de {{pages}}",
     "previous": "Anterior",
     "next": "Siguiente",
-    "scopeNote": "Cada producto, cuenta y moneda tiene sus propios estados de cuenta. Estos son registros de cuentas de crédito, no estados de cuenta bancarios."
+    "scopeNote": "Cada producto, cuenta y moneda tiene sus propios estados de cuenta. Estos son registros de cuentas de crédito, no estados de cuenta bancarios.",
+    "correctionsUnavailable": "Las correcciones contables en línea aún no están disponibles para los estados de Ayudantes ni de Empresas. Para solicitar una revisión, contacta a Soporte e incluye la cuenta y el período del estado.",
+    "contactSupport": "Contactar a soporte"
   },
   "statementInvestigation": {
     "title": "Transacción del estado de cuenta",
@@ -242,7 +244,7 @@
     "statusRejected": "Rechazado",
     "statusResolvedCustomer": "Resuelto a tu favor",
     "statusResolvedMerchant": "Resuelto",
-    "unsupportedCases": "Los reportes aún no están disponibles para entradas de billetera de restaurante. Comunícate con soporte si necesitas ayuda con esta entrada.",
+    "unsupportedCases": "No se puede abrir un reporte desde esta entrada del estado de cuenta. Contacta a Soporte para recibir ayuda.",
     "contactSupport": "Contactar a soporte",
     "none": "Ninguno"
   },

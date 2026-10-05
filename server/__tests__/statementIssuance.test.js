@@ -184,7 +184,7 @@ async function countArtifacts(issuanceKey) {
 // so one test never picks up another's unfinished jobs.
 async function drainClaimableJobs() {
   for (let i = 0; i < 300; i += 1) {
-    const job = await jobs.claimNextAccountJob('test-drain');
+    const job = await jobs.claimNextAccountJob('test-drain', 120, { product: 'oxsteed' });
     if (!job) return;
     if (job.state === 'leased') {
       await jobs.failJob(job.id, 'test-drain', job.fencing_token, 'test drain', false);

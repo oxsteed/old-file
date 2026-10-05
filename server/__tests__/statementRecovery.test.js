@@ -145,7 +145,7 @@ dbDescribe('run recovery on the fully migrated disposable DB', () => {
     await request(app).post(`/admin/ops/jobs/${job.id}/retry`).set('x-test-admin', userId).send({ reason: 'Storage repaired' }).expect(200);
     expect((await runRow(run.id)).state).toBe('running');
     expect((await runRow(run.id)).completed_at).toBeNull();
-    const claimed = await jobs.claimNextAccountJob('recovered');
+    const claimed = await jobs.claimNextAccountJob('recovered', 120, { product: 'oxsteed' });
     expect(claimed.id).toBe(job.id);
     expect(claimed.attempt_count).toBe(9);
     expect(claimed.max_attempts).toBe(16);
@@ -169,7 +169,7 @@ dbDescribe('run recovery on the fully migrated disposable DB', () => {
       request(app).post(`/admin/ops/jobs/${job.id}/retry`).set('x-test-admin',userId).send({reason:'Repair'})]);
     expect(retry.status).toBe(200);
     expect((await runRow(run.id)).state).toBe('running');
-    expect((await jobs.claimNextAccountJob('race-recovery')).id).toBe(job.id);
+    expect((await jobs.claimNextAccountJob('race-recovery', 120, { product: 'oxsteed' })).id).toBe(job.id);
   });
 
   test('dead letters fail coverage; policy skips remain separate and cannot be retried unconditionally', async () => {
@@ -200,7 +200,7 @@ dbDescribe('run recovery on the fully migrated disposable DB', () => {
       accountUuid:userId,currencyCode:'USD' }],skipped:[],nextCursor:null });
     await request(app).post(`/issuance/runs/${run.id}/catch-up`).expect(200);
     expect((await runRow(run.id)).state).toBe('running');
-    expect((await jobs.claimNextAccountJob('catch-up')).account_uuid).toBe(userId);
+    expect((await jobs.claimNextAccountJob('catch-up', 120, { product: 'helper_earnings' })).account_uuid).toBe(userId);
     await jobs.pauseRun(run.id);
     await request(app).post(`/issuance/runs/${run.id}/catch-up`).expect(409);
   });

@@ -181,7 +181,9 @@
     "page": "Page {{page}} sur {{pages}}",
     "previous": "Précédent",
     "next": "Suivant",
-    "scopeNote": "Chaque produit, compte et devise a ses propres relevés. Ce sont des registres de comptes de crédit, pas des relevés bancaires."
+    "scopeNote": "Chaque produit, compte et devise a ses propres relevés. Ce sont des registres de comptes de crédit, pas des relevés bancaires.",
+    "correctionsUnavailable": "Les corrections comptables en ligne ne sont pas encore disponibles pour les relevés Helper earnings ou Business. Pour demander une vérification, contactez l’assistance et indiquez le compte et la période du relevé.",
+    "contactSupport": "Contacter l’assistance"
   },
   "statementInvestigation": {
     "title": "Transaction du relevé",
@@ -242,7 +244,7 @@
     "statusRejected": "Rejeté",
     "statusResolvedCustomer": "Résolu en votre faveur",
     "statusResolvedMerchant": "Résolu",
-    "unsupportedCases": "Les signalements ne sont pas encore disponibles pour les entrées du portefeuille restaurant. Contactez l’assistance si vous avez besoin d’aide pour cette entrée.",
+    "unsupportedCases": "Un signalement ne peut pas être ouvert depuis cette ligne du relevé. Contactez l’assistance pour obtenir de l’aide.",
     "contactSupport": "Contacter l’assistance",
     "none": "Aucun"
   },

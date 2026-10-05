@@ -9,6 +9,7 @@ import { getStatementEntry, createStatementCase } from '../../api/statementInves
 import { formatStatementMoney } from '../../lib/creditStatementFormat';
 import { formatCreditDateTime } from '../../lib/creditDateTime';
 import { localizeCreditTransactionType } from '../../lib/creditStatus';
+import { supportsStatementCase } from '../../lib/statementProducts';
 import './StatementTransactionView.css';
 
 // Complete five-locale catalogs are authoritative; English defaults provide
@@ -72,7 +73,7 @@ export const INVESTIGATION_STRINGS = Object.freeze({
   statusRejected: 'Rejected',
   statusResolvedCustomer: 'Resolved in your favor',
   statusResolvedMerchant: 'Resolved',
-  unsupportedCases: 'Reports are not available for restaurant wallet entries yet. Contact support if you need help with this entry.',
+  unsupportedCases: 'A report cannot be opened from this statement entry. Contact Support for help.',
   contactSupport: 'Contact support',
   none: 'None',
 });
@@ -168,7 +169,7 @@ export default function StatementTransactionView() {
   const statement = data?.statement || null;
   const related = data?.related || null;
   const cases = Array.isArray(data?.cases) ? data.cases : [];
-  const canReport = ['credit_disputes', 'support_tickets'].includes(statement?.caseSupport);
+  const canReport = supportsStatementCase(statement?.caseSupport);
   const statementsPath = data?.product === 'restaurant' ? '/restaurant-credit/statements' : '/oxsteed-credit/statements';
 
   function relatedKindLabel(kind) {

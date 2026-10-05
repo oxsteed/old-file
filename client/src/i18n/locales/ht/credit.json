@@ -181,7 +181,9 @@
     "page": "Paj {{page}} sou {{pages}}",
     "previous": "Anvan",
     "next": "Apre",
-    "scopeNote": "Chak pwodwi, kont ak lajan gen pwòp relve pa yo. Sa yo se dosye kont kredi, se pa relve labank."
+    "scopeNote": "Chak pwodwi, kont ak lajan gen pwòp relve pa yo. Sa yo se dosye kont kredi, se pa relve labank.",
+    "correctionsUnavailable": "Koreksyon kontab sou entènèt poko disponib pou relve Revni èd yo oswa relve Biznis yo. Pou mande yon revizyon, kontakte Sipò epi bay kont lan ak peryòd relve a.",
+    "contactSupport": "Kontakte Sipò"
   },
   "statementInvestigation": {
     "title": "Tranzaksyon relve a",
@@ -242,7 +244,7 @@
     "statusRejected": "Rejte",
     "statusResolvedCustomer": "Rezoud an favè ou",
     "statusResolvedMerchant": "Rezoud",
-    "unsupportedCases": "Rapò yo poko disponib pou antre bous restoran yo. Kontakte sipò si ou bezwen èd ak antre sa a.",
+    "unsupportedCases": "Ou pa ka louvri yon rapò apati antre sa a nan relve a. Kontakte Sipò pou èd.",
     "contactSupport": "Kontakte sipò",
     "none": "Okenn"
   },

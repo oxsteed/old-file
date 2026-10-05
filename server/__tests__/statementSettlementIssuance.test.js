@@ -212,7 +212,7 @@ async function createInvoice({ businessId, userId, issueDate, totalDollars, curr
 async function issueSettlement({ product, spec, from, to, storage }) {
   const run = await jobs.createRun({ product, periodFrom: from, periodTo: to });
   await jobs.discoverAccountJobs(run.id, [{ ...spec, product }]);
-  const job = await jobs.claimNextAccountJob(`settle-test-${RUN_TAG}`);
+  const job = await jobs.claimNextAccountJob(`settle-test-${RUN_TAG}`, 120, { product });
   if (!job) throw new Error(`no claimable issuance job for ${product}`);
   return issuance.issueAccountStatement({ job, workerId: `settle-test-${RUN_TAG}`, storage });
 }
@@ -569,7 +569,7 @@ ddescribe('settlement issuance end-to-end', () => {
     // claim: the pipeline converges instead of re-issuing.
     const run2 = await jobs.createRun({ product: 'restaurant_settlement', periodFrom: P_SEP.from, periodTo: P_SEP.to });
     await jobs.discoverAccountJobs(run2.id, [{ ...spec, product: 'restaurant_settlement' }]);
-    const again = await jobs.claimNextAccountJob(`settle-test-${RUN_TAG}`);
+    const again = await jobs.claimNextAccountJob(`settle-test-${RUN_TAG}`, 120, { product: 'restaurant_settlement' });
     expect(again).toBeNull();
 
     const { rows: docs } = await pool.query(
@@ -616,6 +616,7 @@ ddescribe('settlement amendments', () => {
 
   test('clerical amendment publishes an immutable version with continuity', async () => {
     const admin = await createUser('admin');
+    const approver = await createUser('admin');
     const { documentId, storage } = await issueRestaurantSettlement();
 
     const proposal = await amendments.proposeAmendment({
@@ -628,7 +629,7 @@ ddescribe('settlement amendments', () => {
     expect(proposal.documentId).toBe(documentId);
     expect(proposal.baseRevisionNumber).toBe(0);
 
-    await decideProposal(proposal.proposalId, admin, 'approved');
+    await decideProposal(proposal.proposalId, approver, 'approved');
     const result = await amendments.finalizeApprovedProposal(proposal.proposalId, { storage });
     expect(result.status).toBe('published');
     expect(result.version.revisionNumber).toBe(1);
@@ -654,6 +655,7 @@ ddescribe('settlement amendments', () => {
 
   test('accounting amendment for restaurant_settlement restates from a posted compensating transaction', async () => {
     const admin = await createUser('admin');
+    const approver = await createUser('admin');
     const { documentId, subBank, treasury, owner, storage } = await issueRestaurantSettlement();
 
     // A posted correction that credits the sub-bank account in-period.
@@ -670,7 +672,7 @@ ddescribe('settlement amendments', () => {
       reason: 'Late-posted settlement funding belongs in August',
       compensatingTransactionRefs: [txId],
     });
-    await decideProposal(proposal.proposalId, admin, 'approved');
+    await decideProposal(proposal.proposalId, approver, 'approved');
     const result = await amendments.finalizeApprovedProposal(proposal.proposalId, { storage });
     expect(result.status).toBe('published');
     const revised = result.version;
@@ -687,7 +689,7 @@ ddescribe('settlement amendments', () => {
     expect(version.document.totals.adjustment.compensatingTransactions[0].id).toBe(txId);
   });
 
-  test('accounting amendment for helper_earnings fails closed', async () => {
+  test('accounting amendment rejects a malformed helper source reference before proposal creation', async () => {
     const admin = await createUser('admin');
     const helper = await createUser('helper');
     const client = await createUser('customer');
@@ -709,10 +711,10 @@ ddescribe('settlement amendments', () => {
       amendmentType: 'accounting',
       reason: 'attempted accounting amendment on a snapshot product',
       compensatingTransactionRefs: [crypto.randomUUID()],
-    })).rejects.toMatchObject({ code: 'statement_amendment_accounting_unsupported', statusCode: 409 });
+    })).rejects.toMatchObject({ code: 'statement_amendment_invalid_ref', statusCode: 400 });
   });
 
-  test('accounting amendment for business fails closed', async () => {
+  test('accounting amendment rejects a nonexistent business source reference before proposal creation', async () => {
     const admin = await createUser('admin');
     const owner = await createUser('customer');
     const businessId = await createBusiness(owner, 'No Ledger Co');
@@ -734,11 +736,12 @@ ddescribe('settlement amendments', () => {
       amendmentType: 'accounting',
       reason: 'attempted accounting amendment on a snapshot product',
       compensatingTransactionRefs: ['123'],
-    })).rejects.toMatchObject({ code: 'statement_amendment_accounting_unsupported', statusCode: 409 });
+    })).rejects.toMatchObject({ code: 'statement_amendment_transaction_not_found', statusCode: 404 });
   });
 
   test('clerical amendment is supported for helper_earnings', async () => {
     const admin = await createUser('admin');
+    const approver = await createUser('admin');
     const helper = await createUser('helper');
     const client = await createUser('customer');
     await createJob({ helperId: helper, clientId: client, payoutCents: 5000 });
@@ -761,13 +764,16 @@ ddescribe('settlement amendments', () => {
     });
     expect(proposal.product).toBe('helper_earnings');
     expect(proposal.accountId).toBe(helper.toLowerCase());
-    await decideProposal(proposal.proposalId, admin, 'approved');
+    await decideProposal(proposal.proposalId, approver, 'approved');
     const result = await amendments.finalizeApprovedProposal(proposal.proposalId, { storage });
     expect(result.status).toBe('published');
     const { rows: [version] } = await pool.query(
       'SELECT document FROM statement_amendment_versions WHERE id = $1', [result.version.versionId]);
-    expect(version.document.totals.revised.closingMinor).toBe(5000);
-    expect(version.document.totals.revised.postedMinor).toBe(5000);
+    // This job row is written after the statement period. Its historical
+    // completed_at is descriptive, not a backdated posting: migration 694's
+    // immutable recorded_at observation keeps August's earnings at zero.
+    expect(version.document.totals.revised.closingMinor).toBe(0);
+    expect(version.document.totals.revised.postedMinor).toBe(0);
   });
 });
 
@@ -777,6 +783,7 @@ ddescribe('settlement accessible renditions', () => {
 
   async function issueRestaurantSettlementWithVersion() {
     const admin = await createUser('admin');
+    const approver = await createUser('admin');
     const owner = await createUser('customer');
     const businessId = await createBusiness(owner, 'Rendition Eats');
     const restaurantId = await createRestaurant(businessId, owner, 'USD', 'active');
@@ -800,7 +807,7 @@ ddescribe('settlement accessible renditions', () => {
       adminId: admin, documentId: doc.id, amendmentType: 'clerical',
       reason: 'Header typo for the rendition labeling test',
     });
-    await decideProposal(proposal.proposalId, admin, 'approved');
+    await decideProposal(proposal.proposalId, approver, 'approved');
     const finalized = await amendments.finalizeApprovedProposal(proposal.proposalId, { storage });
     return { owner, documentId: doc.id, versionId: finalized.version.versionId, storage };
   }

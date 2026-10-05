@@ -189,7 +189,7 @@ async function issueMonthlyStatement(customerId, walletId, from, to, storage) {
   await jobs.discoverAccountJobs(run.id, [{
     customerId, product: 'oxsteed', accountId: walletId, currencyCode: 'USD',
   }]);
-  const job = await jobs.claimNextAccountJob('amend-test-worker');
+  const job = await jobs.claimNextAccountJob('amend-test-worker', 120, { product: 'oxsteed' });
   if (!job) throw new Error('no claimable issuance job');
   return issuance.issueAccountStatement({ job, workerId: 'amend-test-worker', storage });
 }

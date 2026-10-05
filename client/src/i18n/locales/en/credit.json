@@ -181,7 +181,9 @@
     "page": "Page {{page}} of {{pages}}",
     "previous": "Previous",
     "next": "Next",
-    "scopeNote": "Each product, account and currency has its own statements. These are credit-account records, not bank deposit statements."
+    "scopeNote": "Each product, account and currency has its own statements. These are credit-account records, not bank deposit statements.",
+    "correctionsUnavailable": "Online accounting corrections are not available for Helper earnings or Business statements yet. For a review, contact Support and include the account and statement period.",
+    "contactSupport": "Contact Support"
   },
   "statementInvestigation": {
     "title": "Statement transaction",
@@ -242,7 +244,7 @@
     "statusRejected": "Rejected",
     "statusResolvedCustomer": "Resolved in your favor",
     "statusResolvedMerchant": "Resolved",
-    "unsupportedCases": "Reports are not available for restaurant wallet entries yet. Contact support if you need help with this entry.",
+    "unsupportedCases": "A report cannot be opened from this statement entry. Contact Support for help.",
     "contactSupport": "Contact support",
     "none": "None"
   },
