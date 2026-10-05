@@ -72,25 +72,49 @@ export default function OxsteedCreditCustomerDetail({ account, onClose, busy = f
   const [error, setError] = useState('');
   const [eligibilityError, setEligibilityError] = useState('');
   const loadRequestRef = useRef(0);
+  const downloadRef = useRef(null);
+  const accountIdentity = `${account?.customerId || ''}:${account?.currencyCode || ''}`;
+  const identityRef = useRef(accountIdentity);
+  identityRef.current = accountIdentity;
+  useEffect(() => {
+    setDownloading(false);
+    return () => downloadRef.current?.abort();
+  }, [accountIdentity]);
 
-  const downloadStatement = async () => {
+  const downloadStatement = async (format = 'csv') => {
     if (!account?.customerId || downloading) return;
+    const controller = new AbortController();
+    downloadRef.current?.abort();
+    downloadRef.current = controller;
+    const current = () => !controller.signal.aborted && identityRef.current === accountIdentity;
     setDownloading(true);
     setError('');
     try {
-      const response = await adminApi.get(`/admin/super/oxsteed-credit/accounts/${account.customerId}/statement.csv`, { params: { currencyCode: account.currencyCode }, responseType: 'blob' });
+      const pdf = format === 'pdf';
+      const now = new Date();
+      const response = await adminApi.get(`/admin/super/oxsteed-credit/accounts/${account.customerId}/${pdf ? 'documents.pdf' : 'statement.csv'}`, {
+        params: { currencyCode: account.currencyCode, ...(pdf ? {
+          from: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().slice(0, 10),
+          to: now.toISOString().slice(0, 10), language: i18n.resolvedLanguage || i18n.language,
+        } : {}) }, responseType: 'blob', signal: controller.signal,
+      });
+      if (!current()) return;
+      const contentType = String(response.headers?.['content-type'] || response.data?.type || '').toLowerCase();
+      if (!(response.data instanceof Blob) || !response.data.size
+          || !(pdf ? contentType.includes('application/pdf') : contentType.includes('text/csv'))) throw new Error('Invalid statement download');
       const url = window.URL.createObjectURL(response.data);
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = `oxsteed-credit-customer-${account.customerId}-statement.csv`;
+      anchor.download = `oxsteed-credit-statement.${pdf ? 'pdf' : 'csv'}`;
       document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      window.URL.revokeObjectURL(url);
+      try { anchor.click(); } finally {
+        anchor.remove();
+        setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+      }
     } catch (err) {
-      setError(safeCreditErrorMessage(err, t('adminUnableDownloadCustomerStatement')));
+      if (current()) setError(safeCreditErrorMessage(err, t('adminUnableDownloadCustomerStatement')));
     } finally {
-      setDownloading(false);
+      if (current()) setDownloading(false);
     }
   };
 
@@ -168,6 +192,7 @@ export default function OxsteedCreditCustomerDetail({ account, onClose, busy = f
       </div>
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={downloadStatement} disabled={loading || downloading || busy || !account} className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-gray-950/60 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><Download className="h-3.5 w-3.5" /> {downloading ? t('adminPreparingStatement') : t('adminDownloadStatement')}</button>
+        <button type="button" onClick={() => downloadStatement('pdf')} disabled={loading || downloading || busy || !account} className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-gray-950/60 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><Download className="h-3.5 w-3.5" /> {t('statements.downloadCurrentPdf')}</button>
         <button type="button" onClick={load} disabled={loading || busy || !account} className="inline-flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-950/60 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50"><RefreshCw className={loading ? 'h-3.5 w-3.5 animate-spin' : 'h-3.5 w-3.5'} /> {t('adminRefreshProfile')}</button>
         <button type="button" onClick={onClose} className="inline-flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-950/60 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800"><X className="h-3.5 w-3.5" /> {t('adminClose')}</button>
       </div>

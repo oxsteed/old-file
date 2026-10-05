@@ -276,6 +276,7 @@ export default function RestaurantCreditPage() {
             <p>{t('restaurantWallet.scopeDescription')}</p>
           </div>
           <div className="credit-hero-actions">
+            <Link to={selectedRestaurantId ? `/restaurant-credit/statements?restaurantId=${encodeURIComponent(selectedRestaurantId)}&currencyCode=${encodeURIComponent(currency)}` : '/restaurant-credit/statements'} className="credit-icon-button">{t('statements.link', { defaultValue: 'Statements' })}</Link>
             <Link to="/oxsteed-credit" className="credit-icon-button">{t('creditProductName')}</Link>
             {wallets.length > 0 && (
               <label>

@@ -746,6 +746,7 @@ export default function OxsteedCreditPage() {
               <p>{t('creditDescription')}</p>
             </div>
             <div className="ox-credit-hero-actions">
+              <Link to={`/oxsteed-credit/statements?currencyCode=${encodeURIComponent(selectedCurrency)}`} className="ox-credit-refresh"><Receipt size={16} aria-hidden="true" /> {t('statements.link', { defaultValue: 'Statements' })}</Link>
               <Link to="/oxsteed-credit/cards" className="ox-credit-refresh"><WalletCards size={16} /> My Cards</Link>
               <label className="ox-credit-currency-picker">{t('currency')}<select value={selectedCurrency} onChange={changeCurrency} disabled={loading || refreshing}>{[...new Set(['USD', ...(railStatus?.supportedCurrencies || []), ...accounts.map((item) => item.currencyCode).filter(Boolean)])].sort().map((code) => <option key={code} value={code}>{code}</option>)}</select></label>
               <button type="button" className="ox-credit-refresh" onClick={() => load({ quiet: true, currencyCode: selectedCurrency })} disabled={loading || refreshing}>

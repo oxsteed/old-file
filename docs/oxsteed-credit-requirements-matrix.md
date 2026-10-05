@@ -1154,6 +1154,30 @@ perimeter remains unbuilt and required before real-money activation, and
 `oxsteed_credit_enabled` stays off. The next exact action is the
 real-PostgreSQL migration rehearsal for 641 plus a deployment decision.
 
+## Customer statement documents - 2026-10-05
+
+Implemented bank-style PDF/CSV documents for OxSteed Credit and each Restaurant
+Credit wallet, preserving the existing authoritative ledgers and separate
+currencies/products. On-demand closed-month snapshots are immutable, scoped to
+their owner/account/period and checksum-verified. Current/custom reports are
+explicitly interim; current holds never alter posted closing balances.
+
+Evidence: `creditStatementService`, `creditStatementController`,
+`creditStatementPdf`, `creditStatementExport` and corresponding service,
+controller, renderer, worker and real-route tests. The customer screens have
+five-locale browser checks (mobile/desktop, RTL, themes, keyboard and motion),
+and statement format/translation tests now run in the client CI prebuild gate.
+Migration 682 and the complete migration chain were rehearsed against disposable
+PostgreSQL 16; both-product concurrent issuance, refunds/fees, ownership,
+currencies, immutable copies, holds and rollback checks passed. No production
+financial data was changed.
+
+See `docs/credit-statements.md` for the API, accounting, retention, capacity,
+recovery and deployment contract. This is not a new bank ledger or a claim of
+banking/regulatory readiness. Actual deployment and authenticated production
+smoke tests remain separate release gates; scheduled monthly emails and PDF
+digital signatures are not represented as implemented features.
+
 ## Completion Gate
 
 The code-completion goal is complete only when every `implemented` row has been

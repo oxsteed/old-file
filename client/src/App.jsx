@@ -91,6 +91,7 @@ const RestaurantCrewPage = lazyWithRetry(() => import('./pages/food/RestaurantCr
 const RestaurantRunnerPage = lazyWithRetry(() => import('./pages/food/RestaurantRunnerPage'));
 const RestaurantCreditPage = lazyWithRetry(() => import('./pages/food/RestaurantCreditPage'));
 const OxsteedCreditPage = lazyWithRetry(() => import('./pages/food/OxsteedCreditPage'));
+const CreditStatementsPage = lazyWithRetry(() => import('./pages/food/CreditStatementsPage'));
 const WalletPage = lazyWithRetry(() => import('./pages/food/WalletPage'));
 const OxsteedCreditCardsPage = lazyWithRetry(() => import('./pages/food/OxsteedCreditCardsPage'));
 const OxsteedCreditTransactionPage = lazyWithRetry(() => import('./pages/food/OxsteedCreditTransactionPage'));
@@ -517,6 +518,8 @@ export default function App() {
                     <Route path="/restaurants/crew/:restaurantId"      element={<ProtectedRoute><RouteErrorBoundary><RestaurantCrewPage /></RouteErrorBoundary></ProtectedRoute>} />
                     <Route path="/restaurants/runner/:restaurantId"    element={<ProtectedRoute><RouteErrorBoundary><RestaurantRunnerPage /></RouteErrorBoundary></ProtectedRoute>} />
                     <Route path="/restaurant-credit" element={<Guarded><ProtectedRoute><RouteErrorBoundary><RestaurantCreditPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/restaurant-credit/statements" element={<Guarded><ProtectedRoute><RouteErrorBoundary><CreditStatementsPage product="restaurant" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/oxsteed-credit/statements" element={<Guarded><ProtectedRoute><RouteErrorBoundary><CreditStatementsPage product="oxsteed" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/oxsteed-credit/transactions/:transactionId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><OxsteedCreditTransactionPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/oxsteed-credit" element={<Guarded><ProtectedRoute><RouteErrorBoundary><OxsteedCreditPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/wallet" element={<Guarded><ProtectedRoute><RouteErrorBoundary><WalletPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

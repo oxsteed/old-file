@@ -22,6 +22,7 @@ const logisticsInternalAccessCtrl = require('../controllers/logisticsInternalAcc
 const restaurantCreditAdminCtrl = require('../controllers/restaurantCreditAdminController');
 const oxsteedCreditCtrl = require('../controllers/oxsteedCreditController');
 const oxsteedCreditCardCtrl = require('../controllers/oxsteedCreditCardController');
+const statementController = require('../controllers/creditStatementController');
 const oxsteedCreditWithdrawalService = require('../services/oxsteedCreditWithdrawalService');
 // Phase 7 (gap 9): maker-checker wraps payout initiation, withdrawal
 // approval, and fee schedule updates.
@@ -382,6 +383,10 @@ router.get('/super/oxsteed-credit/accounts', requireSuperAdmin, oxsteedCreditCtr
 router.get('/super/oxsteed-credit/accounts.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminCustomerAccounts);
 router.get('/super/oxsteed-credit/accounts/:customerId/eligible-partners', requireSuperAdmin, oxsteedCreditCtrl.getAdminCustomerEligiblePartners);
 router.get('/super/oxsteed-credit/accounts/:customerId/statement.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminCustomerStatement);
+router.get('/super/oxsteed-credit/accounts/:customerId/documents', requireSuperAdmin, creditExportLimiter, statementController.handler('oxsteed', 'json', true));
+router.get('/super/oxsteed-credit/accounts/:customerId/documents.pdf', requireSuperAdmin, creditExportLimiter, statementController.handler('oxsteed', 'pdf', true));
+router.get('/super/oxsteed-credit/accounts/:customerId/documents.csv', requireSuperAdmin, creditExportLimiter, statementController.handler('oxsteed', 'csv', true));
+router.get('/super/restaurant-credit/accounts/:customerId/:restaurantId/statements.pdf', requireSuperAdmin, noStoreCreditResponse, creditExportLimiter, statementController.handler('restaurant', 'pdf', true));
 router.get('/super/oxsteed-credit/accounts/:customerId', requireSuperAdmin, oxsteedCreditCtrl.getAdminCustomerAccount);
 router.get('/super/oxsteed-credit/transactions', requireSuperAdmin, oxsteedCreditCtrl.listAdminTransactions);
 router.get('/super/oxsteed-credit/transactions.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminTransactions);

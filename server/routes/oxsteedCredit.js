@@ -7,6 +7,7 @@ const controller = require('../controllers/oxsteedCreditController');
 const cardController = require('../controllers/oxsteedCreditCardController');
 const topupController = require('../controllers/oxsteedCreditTopupController');
 const withdrawalController = require('../controllers/oxsteedCreditWithdrawalController');
+const statementController = require('../controllers/creditStatementController');
 
 function noStoreCreditResponse(_req, res, next) {
   res.set('Cache-Control', 'private, no-store');
@@ -30,6 +31,9 @@ router.get('/eligible-partners', controller.getEligiblePartners);
 router.get('/statement.csv', creditExportLimiter, controller.downloadMyStatement);
 router.get('/statement', controller.getMyStatement);
 router.get('/statement-periods', controller.getMyStatementPeriods);
+router.get('/documents', creditExportLimiter, statementController.handler('oxsteed'));
+router.get('/documents.pdf', creditExportLimiter, statementController.handler('oxsteed', 'pdf'));
+router.get('/documents.csv', creditExportLimiter, statementController.handler('oxsteed', 'csv'));
 router.get('/account-details', controller.getMyAccountDetails);
 router.get('/transactions', controller.getMyTransactions);
 router.get('/transactions/:transactionId', controller.getMyTransaction);

@@ -1,0 +1,69 @@
+.credit-statements-shell {
+  --cs-ink: #10253f; --cs-muted: #526473; --cs-page: #f7f3ed;
+  --cs-panel: #fff; --cs-soft: #fbfaf8; --cs-line: #d4dce2;
+  --cs-brand: #ad4c00; --cs-danger: #a32922; --cs-focus: #196c92;
+  color: var(--cs-ink); background: var(--cs-page); min-height: 100vh; color-scheme: light;
+}
+[data-theme="dark"] .credit-statements-shell {
+  --cs-ink: #edf1f7; --cs-muted: #b7c2cf; --cs-page: #0a0f1c;
+  --cs-panel: #131c30; --cs-soft: #172032; --cs-line: #43516a;
+  --cs-brand: #f5b45e; --cs-danger: #ffa49e; --cs-focus: #7fdde5; color-scheme: dark;
+}
+.credit-statements-page { width: min(1120px, calc(100% - 32px)); margin-inline: auto; padding-block: 40px 72px; }
+.credit-statements-page h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.15; margin: 0; }
+.credit-statements-page h2 { font-size: 22px; line-height: 1.4; margin: 0 0 8px; overflow-wrap: anywhere; }
+.credit-statements-page p { color: var(--cs-muted); line-height: 1.6; }
+.credit-statements-page a { color: var(--cs-brand); text-underline-offset: 3px; }
+.credit-statements-page :is(a, button, input, select, summary, [tabindex]):focus-visible { outline: 3px solid var(--cs-focus); outline-offset: 3px; }
+.cs-back { display: inline-flex; gap: 8px; align-items: center; min-height: 44px; margin-block-end: 20px; }
+[dir="rtl"] .cs-back svg { transform: scaleX(-1); }
+.cs-header { display: flex; align-items: center; gap: 18px; }
+.cs-header > svg { flex-shrink: 0; color: var(--cs-brand); }
+.cs-products { display: flex; flex-wrap: wrap; gap: 12px; margin-block: 20px; }
+.cs-products a { display: inline-flex; align-items: center; padding: 10px 16px; min-height: 44px; border: 1px solid var(--cs-line); border-radius: 12px; text-decoration: none; box-sizing: border-box; }
+.cs-products a[aria-current="page"] { background: var(--cs-soft); border-color: var(--cs-brand); font-weight: 750; }
+.cs-scope { max-width: 800px; }
+.cs-filters { display: grid; grid-template-columns: minmax(200px, 2fr) repeat(2, minmax(160px, 1fr)) auto; gap: 16px; align-items: end; padding: 24px; border: 1px solid var(--cs-line); border-radius: 20px; background: var(--cs-panel); margin-block: 24px; }
+.cs-field { display: grid; gap: 8px; min-width: 0; }
+.cs-filters label { font-weight: 650; }
+.cs-filters input, .cs-filters select { width: 100%; min-width: 0; box-sizing: border-box; min-height: 46px; padding: 10px; border: 1px solid var(--cs-line); border-radius: 9px; color: var(--cs-ink); background: var(--cs-soft); font: inherit; }
+.cs-filters > p { grid-column: 1 / -1; font-size: 13px; margin: 0; }
+.credit-statements-page button { min-height: 44px; padding: 10px 16px; border: 1px solid var(--cs-line); border-radius: 10px; background: var(--cs-soft); color: var(--cs-ink); font: inherit; font-weight: 650; cursor: pointer; }
+.credit-statements-page button:hover:not(:disabled) { border-color: var(--cs-brand); }
+.credit-statements-page button:disabled { opacity: .5; cursor: not-allowed; }
+.credit-statements-page .cs-primary { background: #ad4c00; color: #fff; border-color: #ad4c00; }
+.cs-state { padding: 40px 20px; text-align: center; background: var(--cs-panel); border: 1px solid var(--cs-line); border-radius: 20px; }
+.cs-error { padding: 16px; border: 1px solid var(--cs-danger); border-radius: 12px; margin-block-end: 20px; }
+.cs-error p { color: var(--cs-danger); }
+.cs-error a { display: inline-block; margin-inline-start: 16px; padding-block: 12px; }
+.cs-document, .cs-activity, .cs-holds { padding: 24px; border: 1px solid var(--cs-line); border-radius: 20px; background: var(--cs-panel); margin-block: 20px; }
+.cs-document-header { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+.cs-kind { display: inline-flex; gap: 6px; align-items: center; color: var(--cs-brand); font-weight: 750; margin-block-end: 10px; }
+.cs-downloads { display: flex; gap: 10px; flex-wrap: wrap; align-items: start; }
+.cs-downloads button { display: inline-flex; gap: 8px; align-items: center; }
+.cs-identifiers, .cs-balances { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.cs-identifiers dt, .cs-balances dt, .cs-holds dt { color: var(--cs-muted); font-size: 13px; }
+.cs-identifiers dd, .cs-balances dd, .cs-holds dd { margin-inline: 0; margin-block-start: 8px; overflow-wrap: anywhere; }
+.cs-balances { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.cs-balances > div { padding: 16px; border-radius: 12px; background: var(--cs-soft); border: 1px solid var(--cs-line); }
+.cs-balances dd { font-size: 22px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.cs-meta { font-size: 13px; }
+.cs-hash summary { cursor: pointer; padding-block: 12px; }
+.cs-hash code { display: block; overflow-wrap: anywhere; padding: 12px; background: var(--cs-soft); }
+.cs-table-scroll { overflow-x: auto; }
+.cs-table-scroll table { width: 100%; border-collapse: collapse; text-align: start; }
+.cs-table-scroll th, .cs-table-scroll td { padding: 14px 12px; border-block-end: 1px solid var(--cs-line); vertical-align: top; }
+.cs-table-scroll th { background: var(--cs-soft); font-size: 13px; white-space: nowrap; }
+.cs-table-scroll td:not(:nth-child(2)) { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cs-table-scroll td:nth-child(2) { min-width: 200px; max-width: 420px; overflow-wrap: anywhere; }
+.cs-table-scroll td:nth-child(2) :is(strong, span, small) { display: block; margin-block-end: 5px; }
+.cs-table-scroll small { color: var(--cs-muted); }
+.cs-pagination { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-block-start: 20px; flex-wrap: wrap; }
+.cs-holds dl { display: grid; gap: 6px; }
+.cs-holds ul { margin: 0; padding: 0; list-style: none; }
+.cs-holds li { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding-block: 12px; border-block-start: 1px solid var(--cs-line); }
+.cs-holds li span { color: var(--cs-muted); }
+.cs-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+@media (max-width: 900px) { .cs-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cs-balances { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .cs-filters { grid-template-columns: 1fr; } .cs-identifiers { grid-template-columns: 1fr; } .cs-document, .cs-activity, .cs-holds, .cs-filters { padding: 16px; } .cs-balances dd { font-size: 18px; } .cs-header > svg { display: none; } }
+@media (prefers-reduced-motion: reduce) { .credit-statements-page *, .credit-statements-page *::before, .credit-statements-page *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
