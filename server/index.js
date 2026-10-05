@@ -57,6 +57,7 @@ const statementIssuanceRoutes = require('./routes/statementIssuance');
 const statementInvestigationRoutes = require('./routes/statementInvestigation');
 const statementRenditionsRoutes = require('./routes/statementRenditions');
 const createStatementArchiveRouter = require('./routes/statementArchive');
+const settlementStatementArchiveRoutes = require('./routes/settlementStatementArchive');
 const consentRoutes = require('./routes/consent');
 const privacyRoutes = require('./routes/privacy');
 const configRoutes = require('./routes/config');
@@ -667,6 +668,7 @@ app.use('/api/oxsteed-credit', oxsteedCreditRoutes);
 // Monthly statement operations: private archive, entry investigation, and
 // accessible renditions. Each router enforces per-request authorization.
 app.use('/api/statement-archive', createStatementArchiveRouter());
+app.use('/api/settlement-statements', settlementStatementArchiveRoutes);
 app.use('/api/statements', creditExportLimiter, statementRenditionsRoutes);
 app.use('/api', statementInvestigationRoutes);
 // Device-authenticated OxSteed Credit kiosk hardware (redeem / cash-out),
