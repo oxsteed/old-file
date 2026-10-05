@@ -1,0 +1,52 @@
+.statement-accessible-shell {
+  --sa-ink: #10253f; --sa-muted: #526473; --sa-page: #f7f3ed;
+  --sa-panel: #fff; --sa-soft: #fbfaf8; --sa-line: #d4dce2;
+  --sa-brand: #ad4c00; --sa-danger: #a32922; --sa-focus: #196c92;
+  color: var(--sa-ink); background: var(--sa-page); min-height: 100vh; color-scheme: light;
+}
+[data-theme="dark"] .statement-accessible-shell {
+  --sa-ink: #edf1f7; --sa-muted: #b7c2cf; --sa-page: #0a0f1c;
+  --sa-panel: #131c30; --sa-soft: #172032; --sa-line: #43516a;
+  --sa-brand: #f5b45e; --sa-danger: #ffa49e; --sa-focus: #7fdde5; color-scheme: dark;
+}
+.statement-accessible-page { width: min(880px, calc(100% - 32px)); margin-inline: auto; padding-block: 40px 72px; }
+.statement-accessible-page h1 { font-size: clamp(28px, 5vw, 40px); line-height: 1.15; margin: 0; }
+.statement-accessible-page h2 { font-size: 20px; line-height: 1.4; margin: 0 0 8px; overflow-wrap: anywhere; }
+.statement-accessible-page p { color: var(--sa-muted); line-height: 1.6; }
+.statement-accessible-page a { color: var(--sa-brand); text-underline-offset: 3px; }
+.statement-accessible-page :is(a, button, input, [tabindex]):focus-visible { outline: 3px solid var(--sa-focus); outline-offset: 3px; }
+.sa-back { display: inline-flex; gap: 8px; align-items: center; min-height: 44px; margin-block-end: 20px; }
+[dir="rtl"] .sa-back svg { transform: scaleX(-1); }
+.sa-header { display: flex; align-items: center; gap: 18px; margin-block-end: 8px; }
+.sa-header > svg { flex-shrink: 0; color: var(--sa-brand); }
+.sa-language { border: 1px solid var(--sa-line); border-radius: 16px; background: var(--sa-panel); padding: 18px 20px; margin-block: 24px 8px; }
+.sa-language legend { font-weight: 700; padding-inline: 8px; display: inline-flex; gap: 8px; align-items: center; }
+.sa-language-options { display: flex; flex-wrap: wrap; gap: 10px; margin-block-start: 8px; }
+.sa-language-option { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 14px; border: 1px solid var(--sa-line); border-radius: 999px; cursor: pointer; background: var(--sa-soft); }
+.sa-language-option:has(input:checked) { border-color: var(--sa-brand); font-weight: 700; }
+.sa-language-option input { width: 18px; height: 18px; accent-color: var(--sa-brand); margin: 0; }
+.sa-status { min-height: 28px; margin-block: 12px; }
+.sa-notice { display: flex; gap: 14px; padding: 18px; border: 2px solid var(--sa-danger); border-radius: 14px; background: var(--sa-panel); margin-block: 12px 20px; }
+.sa-notice > svg { flex-shrink: 0; color: var(--sa-danger); margin-block-start: 2px; }
+[dir="rtl"] .sa-notice > svg { transform: scaleX(-1); }
+.sa-notice h2 { color: var(--sa-danger); }
+.sa-notice p { margin-block: 4px 12px; }
+.sa-notice-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.sa-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-block: 20px; }
+.sa-card { display: flex; flex-direction: column; gap: 4px; padding: 22px; border: 1px solid var(--sa-line); border-radius: 18px; background: var(--sa-panel); }
+.sa-card > svg { color: var(--sa-brand); margin-block-end: 6px; }
+.sa-card p { flex: 1; font-size: 14px; }
+.sa-button { display: inline-flex; gap: 8px; align-items: center; justify-content: center; min-height: 44px; padding: 10px 16px; border: 1px solid var(--sa-line); border-radius: 10px; background: var(--sa-soft); color: var(--sa-ink); font: inherit; font-weight: 650; cursor: pointer; text-decoration: none; box-sizing: border-box; }
+.sa-button:hover:not(:disabled) { border-color: var(--sa-brand); }
+.sa-button:disabled { opacity: 0.5; cursor: not-allowed; }
+.sa-button.sa-primary { background: #ad4c00; color: #fff; border-color: #ad4c00; }
+[data-theme="dark"] .sa-button.sa-primary { background: var(--sa-brand); border-color: var(--sa-brand); color: #0a0f1c; }
+.sa-note { max-width: 640px; font-size: 14px; }
+.sa-visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+@media (max-width: 760px) {
+  .sa-cards { grid-template-columns: 1fr; }
+  .sa-button { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .statement-accessible-shell * { transition: none !important; animation: none !important; }
+}

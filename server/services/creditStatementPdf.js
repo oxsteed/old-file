@@ -5,6 +5,19 @@ const PDFDocument = require('pdfkit');
 const bidi = require('bidi-js')();
 const copy = require('../locales/statement-copy.json');
 
+// Tagged-PDF evaluation (2026-10-05): PDFKit 0.15.2 ships a real structure
+// tree implementation (document option `tagged: true` writes MarkInfo/Marked
+// and a StructTreeRoot with a ParentTree; `doc.struct()` / `addStructure()`
+// build Table/TR/TH/TD/H1/H2/P/L/LI/Lbl/LBody/Span/Link elements and
+// `markStructureContent()` emits BDC/EMC marked-content sequences with MCIDs;
+// `markContent('Artifact', ...)` tags repeated/decorative content). No new
+// renderer dependency was needed. Every PDF this module emits is tagged.
+// This is a tagged PDF with a logical structure tree, not a certified PDF/UA
+// claim: TH association beyond element typing (e.g. Scope attributes) is not
+// expressible through PDFKit's structure API, and no independent PDF/UA
+// validator has been run against the output.
+const PDFKIT_VERSION = require('pdfkit/package.json').version;
+
 const LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
 const TYPES = new Set(['load', 'purchase', 'refund', 'transfer', 'adjustment', 'settlement', 'fee', 'expiration', 'chargeback',
   'settlement_reversal', 'funding', 'reserve_release', 'conversion_debit', 'conversion_fee', 'conversion_credit', 'cash_out',
@@ -14,6 +27,23 @@ const MAX_ROWS = 5000;
 const MAX_TEXT = 4096;
 const COLORS = { ink: '#172534', muted: '#536475', accent: '#B74712', line: '#DCE2E8', pale: '#F3F6F8' };
 const PAGE = { width: 595.28, height: 841.89, margin: 40, bottom: 758 };
+const SUPPORT_EMAIL = 'support@oxsteed.com';
+
+// Honest version labels recorded on statement_artifacts rows. The font
+// revision is the pinned upstream Noto revision bundled under
+// server/assets/fonts (see its README for the OFL license and SHA-256 pins).
+const RENDERER_VERSIONS = {
+  pdf: Object.freeze({
+    rendererVersion: `pdfkit/${PDFKIT_VERSION}+tagged`,
+    templateVersion: 'statement-accessible-template/1',
+    fontVersion: 'noto-sans-ffebf8c1',
+  }),
+  html: Object.freeze({
+    rendererVersion: 'statement-html-renderer/1',
+    templateVersion: 'statement-accessible-template/1',
+    fontVersion: 'noto-sans-ffebf8c1',
+  }),
+};
 
 function fail(code, message = code) {
   const error = new Error(message);
@@ -101,6 +131,15 @@ function languageCopy(language) {
   const lang = LANGUAGES.has(language) ? language : 'en';
   if (!copy[lang] || !copy.en) fail('statement_localization_unavailable');
   return { lang, labels: { ...copy.en, ...copy[lang] } };
+}
+
+// Explicit fallback notice for the unsupported-script path. The PDF renderer
+// fails loudly with statement_unsupported_glyph instead of emitting empty
+// tofu boxes; callers surface this notice and offer the HTML/CSV recovery
+// path, where every amount is identical.
+function glyphFallbackNotice(language) {
+  const { lang, labels: l } = languageCopy(language);
+  return { lang, code: 'statement_unsupported_glyph', notice: l.glyphFallback, recovery: ['html', 'csv'] };
 }
 
 function precision(currencyCode) {
@@ -227,12 +266,18 @@ function visualRuns(string, rtl) {
   }, []);
 }
 
+// Every PDF emitted here is tagged (see the module header for the PDFKit
+// capability evaluation). The logical structure tree mirrors the visual
+// reading order: H1/H2 headings, L/LI/Lbl/LBody label-value lists, a single
+// Table whose TR rows carry TH header cells and TD data cells (the header row
+// is repeated as TH on every page), Span/Link inline structure, and Artifact
+// tags for the repeated page header, zebra striping, rules, and page numbers.
 async function renderStatementPdf(statement, { language = 'en' } = {}) {
   const s = normalize(statement);
   const { lang, labels: l } = languageCopy(language);
   const rtl = lang === 'ar';
   const doc = new PDFDocument({ size: 'A4', margin: 0, bufferPages: true, autoFirstPage: false,
-    info: { Title: `${l.title} - ${l[s.product]}`, Author: 'OxSteed', Subject: `${s.id} | ${s.period.from} - ${s.period.to}`, CreationDate: date(s.generatedAt), ModDate: date(s.generatedAt) }, lang });
+    info: { Title: `${l.title} - ${l[s.product]}`, Author: 'OxSteed', Subject: `${s.id} | ${s.period.from} - ${s.period.to}`, CreationDate: date(s.generatedAt), ModDate: date(s.generatedAt) }, lang, tagged: true });
   const chunks = [];
   const output = new Promise((resolve, reject) => {
     doc.on('data', (chunk) => chunks.push(chunk));
@@ -244,6 +289,20 @@ async function renderStatementPdf(statement, { language = 'en' } = {}) {
   }
   const width = PAGE.width - PAGE.margin * 2;
   let y;
+  // Attach a structure element and run its drawing closure immediately, so
+  // marked content always lands on the page currently being drawn. Nested
+  // elements are added to an already-attached parent for the same reason.
+  // Closures must never trigger a page break: layout (ensure) always runs
+  // before the structure element is created.
+  function struct(tag, draw, attrs = {}) {
+    const element = doc.struct(tag, attrs, () => draw(element));
+    doc.addStructure(element);
+    return element;
+  }
+  function artifact(type, bbox, draw) {
+    doc.markContent('Artifact', { type, bbox });
+    try { draw(); } finally { doc.endMarkedContent(); }
+  }
   function runs(value, size, bold, direction = rtl) {
     return visualRuns(text(value), direction).map((run) => {
       const font = `${run.family}${bold ? 'Bold' : 'Regular'}`;
@@ -290,21 +349,48 @@ async function renderStatementPdf(statement, { language = 'en' } = {}) {
     lines.forEach((line, i) => drawLine(line, x, top + i * lineHeight, cellWidth, options));
     return lines.length * lineHeight;
   }
-  function newPage() {
-    doc.addPage();
+  function headerContent() {
     doc.rect(0, 0, PAGE.width, 6).fill(COLORS.accent);
     drawLine('OxSteed', PAGE.margin, 26, width, { size: 22, bold: true, direction: false, align: rtl ? 'right' : 'left' });
     block(l[s.product], PAGE.margin, 59, width, { size: 10, color: COLORS.muted });
     drawLine(l.title, PAGE.margin, 86, width, { size: 18, bold: true });
     drawLine(l[s.kind], PAGE.margin, 121, width, { size: 9, color: COLORS.accent, bold: true });
     drawLine(`${utcDate(s.period.from, lang)} - ${utcDate(s.period.to, lang)} | UTC`, PAGE.margin, 145, width, { size: 9 });
+  }
+  function newPage(first) {
+    doc.addPage();
+    if (first) {
+      // The first-page header is real content in the structure tree; the same
+      // banner on later pages is a repeated artifact so screen readers do not
+      // re-announce the title on every page.
+      struct('P', () => {
+        doc.rect(0, 0, PAGE.width, 6).fill(COLORS.accent);
+        drawLine('OxSteed', PAGE.margin, 26, width, { size: 22, bold: true, direction: false, align: rtl ? 'right' : 'left' });
+      });
+      struct('P', () => block(l[s.product], PAGE.margin, 59, width, { size: 10, color: COLORS.muted }));
+      struct('H1', () => drawLine(l.title, PAGE.margin, 86, width, { size: 18, bold: true }));
+      struct('H2', () => drawLine(l[s.kind], PAGE.margin, 121, width, { size: 9, color: COLORS.accent, bold: true }));
+      struct('P', () => drawLine(`${utcDate(s.period.from, lang)} - ${utcDate(s.period.to, lang)} | UTC`, PAGE.margin, 145, width, { size: 9 }));
+    } else {
+      artifact('Layout', [PAGE.margin, 14, PAGE.margin + width, 162], headerContent);
+    }
     y = 176;
   }
-  function ensure(height) { if (y + height > PAGE.bottom) newPage(); }
+  function ensure(height) { if (y + height > PAGE.bottom) newPage(false); }
   function section(title) {
     const lines = wrap(title, width, 11, true);
     ensure(lines.length * 19 + 16);
-    y += block(title, PAGE.margin, y, width, { size: 11, bold: true }) + 9;
+    const top = y;
+    struct('H2', () => block(title, PAGE.margin, top, width, { size: 11, bold: true }));
+    y = top + lines.length * 11 * 1.7 + 9;
+  }
+  // Label-value pairs are L/LI/Lbl/LBody lists so assistive technology
+  // announces each value with its label. The list element is attached before
+  // its items so items drawn across page breaks keep landing in this list.
+  let listElement = null;
+  function beginList() {
+    listElement = doc.struct('L');
+    doc.addStructure(listElement);
   }
   function field(label, value, options = {}) {
     const labelWidth = 118;
@@ -312,22 +398,85 @@ async function renderStatementPdf(statement, { language = 'en' } = {}) {
     const lines = wrap(value, valueWidth, 9, false, options.direction ?? rtl);
     const height = Math.max(lines.length * 16, wrap(label, labelWidth, 8).length * 14) + 8;
     ensure(height);
-    block(label, rtl ? PAGE.margin + width - labelWidth : PAGE.margin, y, labelWidth, { size: 8, color: COLORS.muted });
-    block(value, rtl ? PAGE.margin : PAGE.margin + labelWidth + 14, y, valueWidth, { size: 9, ...options });
-    y += height;
+    const top = y;
+    const labelX = rtl ? PAGE.margin + width - labelWidth : PAGE.margin;
+    const valueX = rtl ? PAGE.margin : PAGE.margin + labelWidth + 14;
+    const item = doc.struct('LI', {}, [
+      doc.struct('Lbl', {}, () => block(label, labelX, top, labelWidth, { size: 8, color: COLORS.muted })),
+      doc.struct('LBody', {}, () => block(value, valueX, top, valueWidth, { size: 9, ...options })),
+    ]);
+    listElement.add(item);
+    y = top + height;
+  }
+  function blockHeight(value, cellWidth, size = 9, bold = false, direction = rtl) {
+    return wrap(value, cellWidth, size, bold, direction).length * size * 1.7;
+  }
+  function paraLines(value, { size = 9, color = COLORS.muted, bold = false, advance = 17 } = {}) {
+    for (const line of wrap(value, width, size, bold)) {
+      ensure(size * 1.7 + 2);
+      const top = y;
+      struct('P', () => drawLine(line, PAGE.margin, top, width, { size, color, bold }));
+      y = top + advance;
+    }
+  }
+  // The support address is a real Link element with a mailto annotation so it
+  // is operable and announced as a link. It stays inline in its paragraph;
+  // when the address does not fit on one wrapped line it degrades to text.
+  function supportBlock() {
+    for (const line of wrap(l.support, width, 9)) {
+      ensure(18);
+      const top = y;
+      const at = line.indexOf(SUPPORT_EMAIL);
+      if (at < 0) {
+        struct('P', () => drawLine(line, PAGE.margin, top, width, { size: 9, color: COLORS.muted }));
+      } else {
+        const before = line.slice(0, at);
+        const after = line.slice(at + SUPPORT_EMAIL.length);
+        const lineWidth = measure(line, 9, false, rtl);
+        const startX = rtl ? PAGE.margin + width - lineWidth : PAGE.margin;
+        const beforeWidth = measure(before, 9, false, rtl);
+        const emailWidth = measure(SUPPORT_EMAIL, 9, false, false);
+        const emailX = startX + beforeWidth;
+        const afterX = emailX + emailWidth;
+        const paragraph = doc.struct('P');
+        doc.addStructure(paragraph);
+        if (before) paragraph.add(doc.struct('Span', {}, () => drawLine(before, startX, top, beforeWidth, { size: 9, color: COLORS.muted, align: 'left', direction: rtl })));
+        const link = doc.struct('Link', {}, () => {
+          drawLine(SUPPORT_EMAIL, emailX, top, emailWidth, { size: 9, color: COLORS.muted, align: 'left', direction: false });
+          // new String: URI must serialize as a PDF text string, not a name.
+          doc.annotate(emailX, top, emailWidth, 14, { Subtype: 'Link', A: { S: 'URI', URI: new String(`mailto:${SUPPORT_EMAIL}`) } });
+        });
+        paragraph.add(link);
+        if (after) paragraph.add(doc.struct('Span', {}, () => drawLine(after, afterX, top, measure(after, 9, false, rtl), { size: 9, color: COLORS.muted, align: 'left', direction: rtl })));
+      }
+      y = top + 17;
+    }
   }
   // Mirror the complete table in Arabic, not just the labels. Numeric cells
   // are independently LTR, so a transaction ID/amount never reads backwards.
+  // Structure order follows the logical columns (date, activity, debit,
+  // credit, balance) on every page, independent of the visual mirroring.
   const logicalColumns = [{ key: 'date', width: 69 }, { key: 'activity', width: width - 69 - 68 - 68 - 86 }, { key: 'debit', width: 68 }, { key: 'credit', width: 68 }, { key: 'balance', width: 86 }];
   const columns = rtl ? [...logicalColumns].reverse() : logicalColumns;
   let x = PAGE.margin;
   for (const column of columns) { column.x = x; x += column.width; }
+  let tableElement = null;
+  function beginTable(title) {
+    tableElement = doc.struct('Table', { title });
+    doc.addStructure(tableElement);
+  }
   function tableHeader() {
-    const height = Math.max(...columns.map((column) => wrap(l[column.key], column.width - 12, 8, true).length)) * 14 + 15;
+    const height = Math.max(...logicalColumns.map((column) => wrap(l[column.key], column.width - 12, 8, true).length)) * 14 + 15;
     ensure(height + 22);
-    doc.rect(PAGE.margin, y, width, height).fill(COLORS.ink);
-    for (const column of columns) block(l[column.key], column.x + 6, y + 6, column.width - 12, { size: 8, bold: true, color: '#FFFFFF' });
-    y += height;
+    const top = y;
+    // The header band is presentational; the TH structure carries the meaning.
+    artifact('Layout', [PAGE.margin, top, PAGE.margin + width, top + height], () => {
+      doc.rect(PAGE.margin, top, width, height).fill(COLORS.ink);
+    });
+    const row = doc.struct('TR', {}, logicalColumns.map((column) =>
+      doc.struct('TH', {}, () => block(l[column.key], column.x + 6, top + 6, column.width - 12, { size: 8, bold: true, color: '#FFFFFF' }))));
+    tableElement.add(row);
+    y = top + height;
   }
   function activityRow(entry, index) {
     const activity = columns.find((column) => column.key === 'activity');
@@ -342,27 +491,40 @@ async function renderStatementPdf(statement, { language = 'en' } = {}) {
     let consumed = 0;
     let first = true;
     while (consumed < details.length) {
-      if (y + 44 > PAGE.bottom) { newPage(); tableHeader(); }
+      if (y + 44 > PAGE.bottom) { newPage(false); tableHeader(); }
       const lineCount = Math.min(details.length - consumed, Math.floor((PAGE.bottom - y - 12) / 15));
       const height = Math.max(lineCount, first ? dates.length : 1) * 15 + 12;
-      if (index % 2 === 0) doc.rect(PAGE.margin, y, width, height).fill(COLORS.pale);
-      details.slice(consumed, consumed + lineCount).forEach((line, i) => drawLine(line, activity.x + 6, y + 6 + i * 15, activity.width - 12, { size: 8, color: i + consumed === 0 ? COLORS.accent : COLORS.ink }));
-      if (first) {
-        dates.forEach((line, i) => drawLine(line, dateColumn.x + 6, y + 6 + i * 15, dateColumn.width - 12, { size: 7 }));
-        for (const column of columns.filter((c) => values[c.key] !== undefined)) {
-          let size = 8;
-          while (size > 5 && measure(values[column.key], size, column.key === 'balance', false) > column.width - 12) size -= 0.5;
-          drawLine(values[column.key], column.x + 6, y + 6, column.width - 12, { size, bold: column.key === 'balance', direction: false, align: 'right' });
-        }
-      }
-      y += height;
-      doc.moveTo(PAGE.margin, y).lineTo(PAGE.margin + width, y).strokeColor(COLORS.line).lineWidth(0.5).stroke();
+      const top = y;
+      // Zebra striping is presentational; the TR/TD structure carries the row.
+      artifact('Layout', [PAGE.margin, top, PAGE.margin + width, top + height], () => {
+        if (index % 2 === 0) doc.rect(PAGE.margin, top, width, height).fill(COLORS.pale);
+      });
+      const row = doc.struct('TR', {}, logicalColumns.map((column) => {
+        const draw = () => {
+          if (column.key === 'activity') {
+            details.slice(consumed, consumed + lineCount).forEach((line, i) => drawLine(line, activity.x + 6, top + 6 + i * 15, activity.width - 12, { size: 8, color: i + consumed === 0 ? COLORS.accent : COLORS.ink }));
+          } else if (column.key === 'date') {
+            if (first) dates.forEach((line, i) => drawLine(line, dateColumn.x + 6, top + 6 + i * 15, dateColumn.width - 12, { size: 7 }));
+          } else if (first && values[column.key] !== undefined) {
+            let size = 8;
+            while (size > 5 && measure(values[column.key], size, column.key === 'balance', false) > column.width - 12) size -= 0.5;
+            drawLine(values[column.key], column.x + 6, top + 6, column.width - 12, { size, bold: column.key === 'balance', direction: false, align: 'right' });
+          }
+        };
+        return doc.struct('TD', {}, draw);
+      }));
+      tableElement.add(row);
+      y = top + height;
+      artifact('Layout', [PAGE.margin, y - 1, PAGE.margin + width, y + 1], () => {
+        doc.moveTo(PAGE.margin, y).lineTo(PAGE.margin + width, y).strokeColor(COLORS.line).lineWidth(0.5).stroke();
+      });
       consumed += lineCount;
       first = false;
     }
   }
   try {
-    newPage();
+    newPage(true);
+    beginList();
     field(l.owner, s.ownerName);
     field(l.account, s.accountLabel);
     field(l.reference, s.accountReference, { direction: false });
@@ -370,22 +532,32 @@ async function renderStatementPdf(statement, { language = 'en' } = {}) {
     field(l.generated, utcDate(s.generatedAt, lang, true));
     field(l.currency, s.currencyCode, { direction: false });
     y += 8;
+    section(l.summary);
+    beginList();
     for (const [label, value] of [[l.opening, s.openingBalanceCents], [l.credits, s.totalCreditsCents], [l.debits, s.totalDebitsCents], [l.closing, s.closingBalanceCents]]) {
       field(label, `${amount(value, s.currencyCode, lang)} ${s.currencyCode}`, { bold: label === l.closing, direction: false });
     }
     y += 12;
     section(`${l.activity} (${new Intl.NumberFormat(lang).format(s.transactionCount)})`);
-    tableHeader();
-    if (!s.transactions.length) { ensure(30); y += block(l.noActivity, PAGE.margin + 8, y + 8, width - 16, { size: 9 }) + 16; }
-    s.transactions.forEach(activityRow);
+    if (s.transactions.length) {
+      beginTable(`${l.activity} (${new Intl.NumberFormat(lang).format(s.transactionCount)})`);
+      tableHeader();
+      s.transactions.forEach(activityRow);
+    } else {
+      ensure(30);
+      const top = y;
+      struct('P', () => block(l.noActivity, PAGE.margin + 8, top + 8, width - 16, { size: 9 }));
+      y = top + blockHeight(l.noActivity, width - 16, 9) + 16;
+    }
     y += 18;
     if (s.kind === 'interim' && s.holdsAsOf) {
       section(l.holds);
+      beginList();
       field(l.generated, utcDate(s.holdsAsOf, lang, true));
       field(l.holds, `${amount(s.totalHeldCents, s.currencyCode, lang)} ${s.currencyCode}`, { direction: false });
-      const noteLines = wrap(l.holdsNote, width, 9);
-      for (const line of noteLines) { ensure(18); drawLine(line, PAGE.margin, y, width, { size: 9, color: COLORS.muted }); y += 16; }
+      paraLines(l.holdsNote, { size: 9, color: COLORS.muted, advance: 16 });
       y += 9;
+      beginList();
       for (const hold of s.holds) {
         field(l.reference, hold.id, { direction: false });
         if (hold.description) field(l.activity, hold.description);
@@ -393,23 +565,29 @@ async function renderStatementPdf(statement, { language = 'en' } = {}) {
       }
     }
     y += 14;
-    for (const line of wrap(l.disclaimer, width, 9)) { ensure(18); drawLine(line, PAGE.margin, y, width, { size: 9, color: COLORS.muted }); y += 17; }
+    paraLines(l.disclaimer, { size: 9, color: COLORS.muted });
     y += 12;
-    for (const line of wrap(l.support, width, 9)) { ensure(18); drawLine(line, PAGE.margin, y, width, { size: 9, color: COLORS.muted }); y += 17; }
+    supportBlock();
     y += 12;
+    beginList();
     field(l.digest, s.contentHash, { size: 7, direction: false });
     ensure(24);
-    drawLine(l.end, PAGE.margin, y + 7, width, { size: 9, bold: true, align: 'center' });
+    const endTop = y + 7;
+    struct('P', () => drawLine(l.end, PAGE.margin, endTop, width, { size: 9, bold: true, align: 'center' }));
     const pageCount = doc.bufferedPageRange().count;
     for (let page = 0; page < pageCount; page++) {
       doc.switchToPage(page);
-      doc.moveTo(PAGE.margin, 781).lineTo(PAGE.margin + width, 781).strokeColor(COLORS.line).stroke();
-      // The page label is a translated template: e.g. Page {{page}} of {{total}}.
-      const pageTemplate = /\{\{?page\}?\}/.test(String(l.page)) ? String(l.page) : `${l.page} {{page}} / {{total}}`;
-      const pageLabel = pageTemplate.replace(/\{\{?page\}?\}/g, new Intl.NumberFormat(lang).format(page + 1)).replace(/\{\{?total\}?\}/g, new Intl.NumberFormat(lang).format(pageCount));
-      drawLine(pageLabel, PAGE.margin, 790, width, { size: 8, align: rtl ? 'left' : 'right' });
-      const footerReference = wrap(`${s.id} | ${s.currencyCode}`, width - 115, 7, false, false)[0];
-      drawLine(footerReference, PAGE.margin, 790, width - 115, { size: 7, color: COLORS.muted, direction: false, align: rtl ? 'right' : 'left' });
+      // Footers and page numbers are Pagination artifacts: visible, but kept
+      // out of the structure tree so they are not read as content.
+      artifact('Pagination', [PAGE.margin, 779, PAGE.margin + width, 806], () => {
+        doc.moveTo(PAGE.margin, 781).lineTo(PAGE.margin + width, 781).strokeColor(COLORS.line).stroke();
+        // The page label is a translated template: e.g. Page {{page}} of {{total}}.
+        const pageTemplate = /\{\{?page\}?\}/.test(String(l.page)) ? String(l.page) : `${l.page} {{page}} / {{total}}`;
+        const pageLabel = pageTemplate.replace(/\{\{?page\}?\}/g, new Intl.NumberFormat(lang).format(page + 1)).replace(/\{\{?total\}?\}/g, new Intl.NumberFormat(lang).format(pageCount));
+        drawLine(pageLabel, PAGE.margin, 790, width, { size: 8, align: rtl ? 'left' : 'right' });
+        const footerReference = wrap(`${s.id} | ${s.currencyCode}`, width - 115, 7, false, false)[0];
+        drawLine(footerReference, PAGE.margin, 790, width - 115, { size: 7, color: COLORS.muted, direction: false, align: rtl ? 'right' : 'left' });
+      });
     }
     doc.end();
   } catch (error) {
@@ -418,4 +596,7 @@ async function renderStatementPdf(statement, { language = 'en' } = {}) {
   return output;
 }
 
-module.exports = { renderStatementPdf, renderStatementCsv };
+module.exports = {
+  renderStatementPdf, renderStatementCsv, normalize, languageCopy, text,
+  decimal, amount, utcDate, visualRuns, glyphFallbackNotice, RENDERER_VERSIONS,
+};

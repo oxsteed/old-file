@@ -81,6 +81,21 @@ export function isCompleteCreditStatement(statement, params, product) {
     && (statement.kind !== 'monthly' || (!statement.holds.length && !statement.holdsAsOf && !statement.totalHeldCents));
 }
 
+// Accessible statement renditions (tagged PDF / accessible HTML). The server
+// mounts the statementRenditions router at RENDITION_MOUNT; keep this in sync
+// with the mount line reported by the accessibility workstream.
+export const RENDITION_MOUNT = '/statements';
+
+export function statementRenditionUrl(documentId, language, format) {
+  if (!['pdf', 'html'].includes(format)) throw new Error('Invalid rendition format');
+  if (!['en', 'es', 'fr', 'ht', 'ar'].includes(language)) throw new Error('Invalid rendition language');
+  return `${RENDITION_MOUNT}/documents/${encodeURIComponent(String(documentId))}/renditions/${encodeURIComponent(language)}/${format}`;
+}
+
+export function downloadStatementRendition(documentId, language, { signal } = {}) {
+  return api.get(statementRenditionUrl(documentId, language, 'pdf'), { responseType: 'blob', signal });
+}
+
 // Statement archive: issued monthly originals plus their private artifacts.
 // The server mounts the statementArchive router at ARCHIVE_MOUNT; keep this
 // in sync with the mount line reported by the archive workstream.

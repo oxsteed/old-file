@@ -70,7 +70,28 @@
     "expires": "ينتهي في {{date}}",
     "notAvailable": "غير متاح",
     "contentHash": "بصمة محتوى المستند",
-    "downloadCurrentPdf": "PDF للشهر الحالي"
+    "downloadCurrentPdf": "PDF للشهر الحالي",
+    "accessible": {
+      "title": "كشف حساب ميسّر",
+      "description": "نزّل ملف PDF موسومًا أو نسخة HTML ميسّرة أو ملف CSV لهذا الكشف.",
+      "backToStatements": "العودة إلى الكشوف",
+      "languageLabel": "لغة الكشف",
+      "loading": "جارٍ التحميل…",
+      "pdfTitle": "PDF موسوم",
+      "pdfDescription": "ملف PDF ببنية موسومة لقارئات الشاشة. المبالغ والعناوين تطابق الكشف تمامًا.",
+      "pdfAction": "تنزيل PDF الميسّر",
+      "pdfError": "تعذّر تجهيز ملف PDF. جرّب نسخة HTML أو CSV بدلًا من ذلك.",
+      "htmlTitle": "HTML ميسّر",
+      "htmlDescription": "الكشف نفسه كصفحة ويب، مع جدول دلالي وعناوين ودعم الكتابة من اليمين إلى اليسار للعربية.",
+      "htmlAction": "فتح HTML الميسّر",
+      "openNewTab": "(يفتح في علامة تبويب جديدة)",
+      "csvTitle": "بيانات CSV",
+      "csvDescription": "كل صف من المعاملات كبيانات خام لجداول البيانات وقارئات الشاشة.",
+      "csvAction": "تنزيل CSV",
+      "renditionNote": "ملف PDF الميسّر نسخة موسومة من كشف حسابك. لا يتم تغيير المستند الأصلي الصادر أبدًا.",
+      "glyphTitle": "بعض الأحرف غير مدعومة في ملف PDF",
+      "glyphBody": "لا يستطيع منشئ PDF رسم بعض الأحرف في هذا الكشف. افتح نسخة HTML أو نزّل ملف CSV؛ كلاهما يتضمن النص الكامل."
+    }
   },
   "archive": {
     "title": "أرشيف الكشوفات",

@@ -70,7 +70,28 @@
     "expires": "Expires {{date}}",
     "notAvailable": "Not available",
     "contentHash": "Document content hash",
-    "downloadCurrentPdf": "Current month PDF"
+    "downloadCurrentPdf": "Current month PDF",
+    "accessible": {
+      "title": "Accessible statement",
+      "description": "Download a tagged PDF, an accessible HTML version, or a CSV of this statement.",
+      "backToStatements": "Back to statements",
+      "languageLabel": "Statement language",
+      "loading": "Loading…",
+      "pdfTitle": "Tagged PDF",
+      "pdfDescription": "A PDF with a tagged structure for screen readers. Amounts and headings match the statement exactly.",
+      "pdfAction": "Download accessible PDF",
+      "pdfError": "The PDF could not be prepared. Try the HTML or CSV version instead.",
+      "htmlTitle": "Accessible HTML",
+      "htmlDescription": "The same statement as a web page with a semantic table, headings, and right-to-left support for Arabic.",
+      "htmlAction": "Open accessible HTML",
+      "openNewTab": "(opens in a new tab)",
+      "csvTitle": "CSV data",
+      "csvDescription": "Every transaction row as plain data for spreadsheets and screen readers.",
+      "csvAction": "Download CSV",
+      "renditionNote": "The accessible PDF is a labeled rendition of your statement. The original issued document is never changed.",
+      "glyphTitle": "Some characters are not supported in the PDF",
+      "glyphBody": "The PDF renderer cannot draw some characters in this statement. Open the HTML version or download the CSV instead; both include the full text."
+    }
   },
   "archive": {
     "title": "Statement archive",

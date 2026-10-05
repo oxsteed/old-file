@@ -70,7 +70,28 @@
     "expires": "Vence {{date}}",
     "notAvailable": "No disponible",
     "contentHash": "Huella del contenido",
-    "downloadCurrentPdf": "PDF del mes actual"
+    "downloadCurrentPdf": "PDF del mes actual",
+    "accessible": {
+      "title": "Estado accesible",
+      "description": "Descarga un PDF etiquetado, una versión HTML accesible o un CSV de este estado de cuenta.",
+      "backToStatements": "Volver a los estados de cuenta",
+      "languageLabel": "Idioma del estado de cuenta",
+      "loading": "Cargando…",
+      "pdfTitle": "PDF etiquetado",
+      "pdfDescription": "Un PDF con estructura etiquetada para lectores de pantalla. Los importes y títulos coinciden exactamente con el estado de cuenta.",
+      "pdfAction": "Descargar PDF accesible",
+      "pdfError": "No se pudo preparar el PDF. Prueba con la versión HTML o CSV.",
+      "htmlTitle": "HTML accesible",
+      "htmlDescription": "El mismo estado de cuenta como página web, con tabla semántica, títulos y compatibilidad de derecha a izquierda para el árabe.",
+      "htmlAction": "Abrir HTML accesible",
+      "openNewTab": "(se abre en una pestaña nueva)",
+      "csvTitle": "Datos CSV",
+      "csvDescription": "Cada fila de transacciones como datos sin formato para hojas de cálculo y lectores de pantalla.",
+      "csvAction": "Descargar CSV",
+      "renditionNote": "El PDF accesible es una versión etiquetada de tu estado de cuenta. El documento original emitido nunca se modifica.",
+      "glyphTitle": "Algunos caracteres no son compatibles con el PDF",
+      "glyphBody": "El generador de PDF no puede dibujar algunos caracteres de este estado de cuenta. Abre la versión HTML o descarga el CSV; ambos incluyen el texto completo."
+    }
   },
   "archive": {
     "title": "Archivo de estados de cuenta",

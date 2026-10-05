@@ -53,7 +53,14 @@
     "withdrawal_fee": "Withdrawal fee",
     "transfer_fee": "Transfer fee",
     "sub_bank_conversion": "Sub-bank currency conversion",
-    "other": "Account activity"
+    "other": "Account activity",
+    "details": "Account details",
+    "summary": "Summary",
+    "accessiblePdf": "Accessible PDF (tagged)",
+    "accessibleHtml": "Accessible HTML",
+    "skipToContent": "Skip to statement content",
+    "renditionNote": "Accessible rendition of the issued statement. The issued original is unchanged.",
+    "glyphFallback": "This statement contains characters the PDF fonts cannot display, so no PDF was generated. Open the accessible HTML version or download the CSV version instead. Every amount is identical in all formats."
   },
   "es": {
     "title": "Estado de cuenta",
@@ -109,7 +116,14 @@
     "withdrawal_fee": "Comisión de retiro",
     "transfer_fee": "Comisión de transferencia",
     "sub_bank_conversion": "Conversión de moneda en subbanco",
-    "other": "Actividad de la cuenta"
+    "other": "Actividad de la cuenta",
+    "details": "Datos de la cuenta",
+    "summary": "Resumen",
+    "accessiblePdf": "PDF accesible (etiquetado)",
+    "accessibleHtml": "HTML accesible",
+    "skipToContent": "Saltar al contenido del estado",
+    "renditionNote": "Versión accesible del estado emitido. El original emitido no ha cambiado.",
+    "glyphFallback": "Este estado contiene caracteres que las fuentes del PDF no pueden mostrar, por lo que no se generó el PDF. Abre la versión HTML accesible o descarga la versión CSV. Todos los importes son idénticos en todos los formatos."
   },
   "fr": {
     "title": "Relevé de compte",
@@ -165,7 +179,14 @@
     "withdrawal_fee": "Frais de retrait",
     "transfer_fee": "Frais de transfert",
     "sub_bank_conversion": "Conversion de devise en sous-banque",
-    "other": "Activité du compte"
+    "other": "Activité du compte",
+    "details": "Détails du compte",
+    "summary": "Résumé",
+    "accessiblePdf": "PDF accessible (balisé)",
+    "accessibleHtml": "HTML accessible",
+    "skipToContent": "Aller au contenu du relevé",
+    "renditionNote": "Version accessible du relevé émis. L’original émis est inchangé.",
+    "glyphFallback": "Ce relevé contient des caractères que les polices du PDF ne peuvent pas afficher, donc aucun PDF n’a été généré. Ouvrez la version HTML accessible ou téléchargez la version CSV. Tous les montants sont identiques dans tous les formats."
   },
   "ht": {
     "title": "Eta kont",
@@ -221,7 +242,14 @@
     "withdrawal_fee": "Frè retrè",
     "transfer_fee": "Frè transfè",
     "sub_bank_conversion": "Konvèsyon lajan nan sou-bank",
-    "other": "Aktivite kont"
+    "other": "Aktivite kont",
+    "details": "Detay kont lan",
+    "summary": "Rezime",
+    "accessiblePdf": "PDF aksesib (make)",
+    "accessibleHtml": "HTML aksesib",
+    "skipToContent": "Ale nan kontni eta kont lan",
+    "renditionNote": "Vèsyon aksesib eta kont ki soti a. Orijinal ki soti a pa chanje.",
+    "glyphFallback": "Eta kont sa a gen karaktè polis PDF yo pa ka montre, kidonk pa gen PDF ki kreye. Louvri vèsyon HTML aksesib la oswa telechaje vèsyon CSV la. Tout montan yo idantik nan tout fòma yo."
   },
   "ar": {
     "title": "كشف الحساب",
@@ -277,6 +305,13 @@
     "withdrawal_fee": "رسوم السحب",
     "transfer_fee": "رسوم التحويل",
     "sub_bank_conversion": "تحويل عملة البنك الفرعي",
-    "other": "نشاط الحساب"
+    "other": "نشاط الحساب",
+    "details": "تفاصيل الحساب",
+    "summary": "ملخص",
+    "accessiblePdf": "PDF ميسّر (موسوم)",
+    "accessibleHtml": "HTML ميسّر",
+    "skipToContent": "تخطَّ إلى محتوى الكشف",
+    "renditionNote": "نسخة ميسّرة من الكشف الصادر. النسخة الأصلية الصادرة لم تتغير.",
+    "glyphFallback": "يحتوي هذا الكشف على أحرف لا تستطيع خطوط PDF عرضها، لذلك لم يتم إنشاء ملف PDF. افتح نسخة HTML الميسّرة أو نزّل نسخة CSV. جميع المبالغ متطابقة في كل الصيغ."
   }
 }

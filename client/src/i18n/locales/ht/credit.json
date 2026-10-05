@@ -70,7 +70,28 @@
     "expires": "Ekspire {{date}}",
     "notAvailable": "Pa disponib",
     "contentHash": "Anprent kontni dokiman an",
-    "downloadCurrentPdf": "PDF pou mwa aktyèl la"
+    "downloadCurrentPdf": "PDF pou mwa aktyèl la",
+    "accessible": {
+      "title": "Eta kont aksesib",
+      "description": "Telechaje yon PDF ak etikèt, yon vèsyon HTML aksesib, oswa yon CSV eta kont sa a.",
+      "backToStatements": "Retounen sou eta kont yo",
+      "languageLabel": "Lang eta kont lan",
+      "loading": "Ap chaje…",
+      "pdfTitle": "PDF ak etikèt",
+      "pdfDescription": "Yon PDF ak estrikti etikèt pou lektè ekran. Montan yo ak tit yo koresponn egzakteman ak eta kont lan.",
+      "pdfAction": "Telechaje PDF aksesib la",
+      "pdfError": "PDF la pa t ka prepare. Eseye vèsyon HTML oswa CSV a pito.",
+      "htmlTitle": "HTML aksesib",
+      "htmlDescription": "Menm eta kont lan kòm paj wèb, ak tablo semantik, tit, ak sipò de dwat a goch pou arab.",
+      "htmlAction": "Louvri HTML aksesib la",
+      "openNewTab": "(louvri nan yon nouvo onglet)",
+      "csvTitle": "Done CSV",
+      "csvDescription": "Chak liy tranzaksyon kòm done senp pou fèy kalkil ak lektè ekran.",
+      "csvAction": "Telechaje CSV",
+      "renditionNote": "PDF aksesib la se yon vèsyon ak etikèt eta kont ou a. Dokiman orijinal yo te bay la pa janm chanje.",
+      "glyphTitle": "Gen kèk karaktè PDF la pa sipòte",
+      "glyphBody": "Zouti PDF la pa ka desine kèk karaktè nan eta kont sa a. Louvri vèsyon HTML la oswa telechaje CSV a; tou de gen tout tèks la."
+    }
   },
   "archive": {
     "title": "Achiv relve yo",

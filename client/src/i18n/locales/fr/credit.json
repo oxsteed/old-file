@@ -70,7 +70,28 @@
     "expires": "Expire le {{date}}",
     "notAvailable": "Indisponible",
     "contentHash": "Empreinte du contenu",
-    "downloadCurrentPdf": "PDF du mois actuel"
+    "downloadCurrentPdf": "PDF du mois actuel",
+    "accessible": {
+      "title": "Relevé accessible",
+      "description": "Téléchargez un PDF balisé, une version HTML accessible ou un CSV de ce relevé.",
+      "backToStatements": "Retour aux relevés",
+      "languageLabel": "Langue du relevé",
+      "loading": "Chargement…",
+      "pdfTitle": "PDF balisé",
+      "pdfDescription": "Un PDF à la structure balisée pour les lecteurs d'écran. Les montants et les titres correspondent exactement au relevé.",
+      "pdfAction": "Télécharger le PDF accessible",
+      "pdfError": "Le PDF n'a pas pu être préparé. Essayez plutôt la version HTML ou CSV.",
+      "htmlTitle": "HTML accessible",
+      "htmlDescription": "Le même relevé sous forme de page web, avec un tableau sémantique, des titres et la prise en charge de la lecture de droite à gauche pour l'arabe.",
+      "htmlAction": "Ouvrir le HTML accessible",
+      "openNewTab": "(s'ouvre dans un nouvel onglet)",
+      "csvTitle": "Données CSV",
+      "csvDescription": "Chaque ligne d'opération en données brutes pour les tableurs et les lecteurs d'écran.",
+      "csvAction": "Télécharger le CSV",
+      "renditionNote": "Le PDF accessible est une version étiquetée de votre relevé. Le document original émis n'est jamais modifié.",
+      "glyphTitle": "Certains caractères ne sont pas pris en charge dans le PDF",
+      "glyphBody": "Le générateur de PDF ne peut pas dessiner certains caractères de ce relevé. Ouvrez la version HTML ou téléchargez le CSV ; les deux contiennent le texte intégral."
+    }
   },
   "archive": {
     "title": "Archives des relevés",
