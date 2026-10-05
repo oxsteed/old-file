@@ -1427,7 +1427,8 @@ async function handleRestaurantProfile(restaurantId, template, res, next, req) {
     `SELECT fr.id, fr.display_name, fr.slug, fr.description, fr.cuisine_tags,
             fr.cover_photo_url, fr.logo_url, fr.address_city, fr.address_state,
             fr.address_country, fr.price_level, fr.fulfillment_modes,
-            fr.avg_rating, fr.rating_count, fr.updated_at, fr.currency_code
+            fr.avg_rating, fr.rating_count, fr.updated_at, fr.currency_code,
+            fr.operating_hours
        FROM food_restaurants fr
        JOIN businesses b ON b.id = fr.business_id
       WHERE fr.id = $1::bigint
@@ -1483,6 +1484,26 @@ async function handleRestaurantProfile(restaurantId, template, res, next, req) {
       }
     : undefined;
   const menuCurrency = String(restaurant.currency_code || 'USD').toUpperCase();
+  const DAY_NAMES = { sun: 'Sunday', mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday' };
+  const openingHoursSpecification = (() => {
+    try {
+      const raw = restaurant.operating_hours;
+      const weekly = raw && typeof raw === 'object' ? (raw.weekly && typeof raw.weekly === 'object' ? raw.weekly : raw) : null;
+      if (!weekly) return undefined;
+      const specs = [];
+      for (const [key, dayName] of Object.entries(DAY_NAMES)) {
+        const entry = weekly[key];
+        if (!entry || entry.closed) continue;
+        const open = typeof entry.open === 'string' && /^\d{1,2}:\d{2}$/.test(entry.open.trim()) ? entry.open.trim() : null;
+        const close = typeof entry.close === 'string' && /^\d{1,2}:\d{2}$/.test(entry.close.trim()) ? entry.close.trim() : null;
+        if (!open || !close) continue;
+        specs.push({ '@type': 'OpeningHoursSpecification', dayOfWeek: dayName, opens: open, closes: close });
+      }
+      return specs.length ? specs : undefined;
+    } catch {
+      return undefined;
+    }
+  })();
   const menuJsonLd = menuItems.length ? {
     '@type': 'Menu',
     name: `${restaurant.display_name} menu`,
@@ -1520,6 +1541,7 @@ async function handleRestaurantProfile(restaurantId, template, res, next, req) {
       bestRating: 5,
     } : undefined,
     hasMenu: menuJsonLd || (menuItems.length ? url : undefined),
+    openingHoursSpecification,
     isPartOf: { '@id': `${origin}/#website` },
   };
   const menuHtml = menuItems.length
