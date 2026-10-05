@@ -79,7 +79,10 @@ test('customer dashboard includes the QR link and Pro badge', () => {
 });
 
 test('QR Generator remains protected by the existing route guard', () => {
-  assert.match(appSource, /path="\/qr-generator"\s+element={<Guarded><ProtectedRoute>/);
+  // The /qr-generator route renders a public landing for visitors via QrGeneratorRoute,
+  // which keeps ProtectedRoute around the operational QRCodeGeneratorPage for signed-in users.
+  assert.match(appSource, /path="\/qr-generator"\s+element={<Guarded><QrGeneratorRoute/);
+  assert.match(appSource, /function QrGeneratorRoute\(\)[\s\S]*?<ProtectedRoute><RouteErrorBoundary><QRCodeGeneratorPage/);
 });
 
 test('all supported locales contain the Pro quick-link label', () => {

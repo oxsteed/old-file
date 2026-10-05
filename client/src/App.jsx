@@ -150,6 +150,8 @@ const DiscoverPage = lazyWithRetry(() => import('./pages/DiscoverPage'));
 const MyBookingsPage = lazyWithRetry(() => import('./pages/MyBookingsPage'));
 const ToolRentalsAnalytics = lazyWithRetry(() => import('./pages/ToolRentalsAnalytics'));
 const QRCodeGeneratorPage = lazyWithRetry(routeLoaders.qrGenerator, { name: 'qrGenerator' });
+const QrGeneratorLandingPage = lazyWithRetry(() => import('./pages/QrGeneratorLandingPage'));
+const DeliveryLandingPage = lazyWithRetry(() => import('./pages/DeliveryLandingPage'));
 const QrPaySetupPage = lazyWithRetry(() => import('./pages/QrPaySetupPage'));
 const PayByQrPage = lazyWithRetry(() => import('./pages/PayByQrPage'));
 const BusinessPublicProfilePage = lazyWithRetry(() => import('./pages/BusinessPublicProfilePage'));
@@ -226,6 +228,41 @@ const queryClient = new QueryClient({
 // Plain ErrorBoundary is fine here: these are already inside <Router>.
 function Guarded({ children }) {
   return <ErrorBoundary>{children}</ErrorBoundary>;
+}
+
+// Public landing for visitors, operational page for signed-in users.
+// Preserves the ProtectedRoute gates (auth, onboarding, email verification)
+// for the operational view while letting crawlers and visitors see the landing.
+function DeliveryRoute() {
+  const { user, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+      </div>
+    );
+  }
+  return user ? (
+    <ProtectedRoute><RouteErrorBoundary><DeliveryPage /></RouteErrorBoundary></ProtectedRoute>
+  ) : (
+    <RouteErrorBoundary><DeliveryLandingPage /></RouteErrorBoundary>
+  );
+}
+
+function QrGeneratorRoute() {
+  const { user, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+      </div>
+    );
+  }
+  return user ? (
+    <ProtectedRoute><RouteErrorBoundary><QRCodeGeneratorPage /></RouteErrorBoundary></ProtectedRoute>
+  ) : (
+    <RouteErrorBoundary><QrGeneratorLandingPage /></RouteErrorBoundary>
+  );
 }
 
 // Legacy helper profile URLs (the retired simple public profile) redirect to
@@ -538,7 +575,7 @@ export default function App() {
                     <Route path="/oxsteed-credit/cards" element={<Guarded><ProtectedRoute><RouteErrorBoundary><OxsteedCreditCardsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
                     {/* OxSteed Logistics branch (migration 247) */}
-                    <Route path="/delivery"                  element={<Guarded><ProtectedRoute><RouteErrorBoundary><DeliveryPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/delivery"                  element={<Guarded><DeliveryRoute /></Guarded>} />
                     <Route path="/delivery/jobs/:id"           element={<Guarded><ProtectedRoute><RouteErrorBoundary><DeliveryDetailPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Public delivery tracking: signed token, no login required */}
                     <Route path="/t/:token"                    element={<Guarded><RouteErrorBoundary><PublicTrackingPage /></RouteErrorBoundary></Guarded>} />
@@ -603,7 +640,7 @@ export default function App() {
                     <Route path="/calendar/appointments/:appointmentId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><CalendarAppointmentDetailPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
                     {/* Pro feature: QR Code Generator */}
-                    <Route path="/qr-generator"  element={<Guarded><ProtectedRoute><RouteErrorBoundary><QRCodeGeneratorPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/qr-generator"  element={<Guarded><QrGeneratorRoute /></Guarded>} />
                     {/* QR payments: helpers and businesses get paid by QR */}
                     <Route path="/qr-payments"   element={<Guarded><ProtectedRoute><RouteErrorBoundary><QrPaySetupPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 

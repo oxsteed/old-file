@@ -57,6 +57,8 @@ const SEO_COPY_KEYS = {
   '/direct/tools': { title: 'directCatalog.toolsDirectoryTitle', description: 'directCatalog.toolsDirectorySubtitle' },
   '/direct/request-quote': { title: 'directPortal.request.title', description: 'directPortal.request.subtitle' },
   '/direct/request-quote/thanks': { title: 'directPortal.thanks.title', description: 'directPortal.thanks.subtitle' },
+  '/delivery': { title: 'deliveryLanding.metaTitle', description: 'deliveryLanding.metaDescription' },
+  '/qr-generator': { title: 'qrLanding.metaTitle', description: 'qrLanding.metaDescription' },
   '/direct/view-quote': { title: 'directPortal.lookup.title', description: 'directPortal.lookup.subtitle' },
   '/support/escalation': { title: 'support.escalation.pageTitle', description: 'support.escalation.pageDesc' },
   '/status': { title: 'statusPage.metaTitle', description: 'statusPage.metaDescription' },
@@ -670,6 +672,16 @@ const MARKETING_PAGES = {
     title: 'Quote Request Received | OxSteed Direct',
     description: 'Your OxSteed Direct quote request has been received and is being reviewed.',
     noIndex: true,
+  },
+  '/delivery': {
+    title: 'OxSteed Delivery | Fast Local Delivery',
+    description: 'Get food, parcels, and errands delivered by vetted local helpers. Track every delivery in real time.',
+    schemaType: 'Service',
+  },
+  '/qr-generator': {
+    title: 'QR Generator | Get Paid with a QR Code',
+    description: 'Create a payment QR code in seconds. Customers scan, pay by card, and the money lands in your account.',
+    schemaType: 'WebPage',
   },
   '/support/escalation': {
     title: 'OxSteed Support | Get Help From Our Team',
