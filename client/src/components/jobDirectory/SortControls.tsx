@@ -23,7 +23,6 @@ const SortControls: React.FC<SortControlsProps> = ({ value, onChange, resultCoun
   return (
     <div className="directory-sort-controls flex min-w-0 items-center justify-between gap-3">
       <p className="directory-sort-count text-sm text-gray-400 flex-shrink-0">
-        <span className="font-semibold text-white">{resultCount}</span>{' '}
         {t('jobsDir.jobCount', { count: resultCount })}
       </p>
       <div className="directory-sort-field relative flex min-w-0 items-center gap-2">

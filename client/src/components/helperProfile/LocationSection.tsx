@@ -149,9 +149,9 @@ const LocationSection: React.FC<LocationSectionProps> = ({ location }) => {
                   </div>
                 </div>
                 <p className="text-xs text-gray-400 mt-2 px-2 text-center">
-                  {geoFailed || !center
+                  {geoFailed
                     ? t('helperProfile.location.mapUnavailable')
-                    : `${location.city}, ${location.state}`}
+                    : t('helperProfile.location.noLocationSet')}
                 </p>
               </div>
             </div>
