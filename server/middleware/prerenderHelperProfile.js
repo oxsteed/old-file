@@ -1427,7 +1427,7 @@ async function handleRestaurantProfile(restaurantId, template, res, next, req) {
     `SELECT fr.id, fr.display_name, fr.slug, fr.description, fr.cuisine_tags,
             fr.cover_photo_url, fr.logo_url, fr.address_city, fr.address_state,
             fr.address_country, fr.price_level, fr.fulfillment_modes,
-            fr.avg_rating, fr.rating_count, fr.updated_at
+            fr.avg_rating, fr.rating_count, fr.updated_at, fr.currency_code
        FROM food_restaurants fr
        JOIN businesses b ON b.id = fr.business_id
       WHERE fr.id = $1::bigint
@@ -1482,6 +1482,25 @@ async function handleRestaurantProfile(restaurantId, template, res, next, req) {
         addressCountry: restaurant.address_country || 'US',
       }
     : undefined;
+  const menuCurrency = String(restaurant.currency_code || 'USD').toUpperCase();
+  const menuJsonLd = menuItems.length ? {
+    '@type': 'Menu',
+    name: `${restaurant.display_name} menu`,
+    url,
+    inLanguage: language,
+    hasMenuItem: menuItems.map((item) => ({
+      '@type': 'MenuItem',
+      name: item.name,
+      ...(item.description ? { description: String(item.description).replace(/\s+/g, ' ').trim().slice(0, 300) } : {}),
+      ...(Number.isFinite(Number(item.price_cents)) && Number(item.price_cents) > 0 ? {
+        offers: {
+          '@type': 'Offer',
+          price: (Number(item.price_cents) / 100).toFixed(2),
+          priceCurrency: menuCurrency,
+        },
+      } : {}),
+    })),
+  } : undefined;
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Restaurant',
@@ -1500,7 +1519,7 @@ async function handleRestaurantProfile(restaurantId, template, res, next, req) {
       reviewCount: Number(restaurant.rating_count || 0),
       bestRating: 5,
     } : undefined,
-    hasMenu: menuItems.length ? url : undefined,
+    hasMenu: menuJsonLd || (menuItems.length ? url : undefined),
     isPartOf: { '@id': `${origin}/#website` },
   };
   const menuHtml = menuItems.length
