@@ -387,6 +387,47 @@ ddescribe('automatic monthly issuance', () => {
     expect(done.processed_at).not.toBeNull();
   });
 
+  test('(h) crash after the document transaction still queues exactly one statement.ready event', async () => {
+    const run = await jobs.createRun({ product: 'oxsteed', periodFrom: P_OUTBOX.from, periodTo: P_OUTBOX.to });
+    await jobs.discoverAccountJobs(run.id, [jobSpec(owner, activeWallet)]);
+    const job = await jobs.claimNextAccountJob('worker-a');
+
+    // Simulate a crash after the document-row + outbox transaction committed
+    // but before the job is marked notified.
+    await expect(issuance.issueAccountStatement({
+      job,
+      workerId: 'worker-a',
+      storage: makeFakeStorage(),
+      hooks: { afterDocument: async () => { throw new Error('simulated crash after document commit'); } },
+    })).rejects.toThrow('simulated crash');
+
+    // The first attempt committed its transaction: exactly one
+    // statement.ready event exists for the job.
+    const { rows: [{ n }] } = await pool.query(
+      `SELECT COUNT(*)::int AS n FROM statement_outbox
+       WHERE event_type = 'statement.ready' AND aggregate_id = $1`,
+      [job.id]);
+    expect(n).toBe(1);
+
+    // Recover and finish; the idempotent re-drive must NOT queue a second
+    // event, and the job completes exactly once.
+    await pool.query(
+      `UPDATE statement_account_jobs SET next_retry_at = transaction_timestamp() - interval '1 second' WHERE id = $1`,
+      [job.id]);
+    const reclaimed = await jobs.claimNextAccountJob('worker-b');
+    const result = await issuance.issueAccountStatement({
+      job: reclaimed, workerId: 'worker-b', storage: makeFakeStorage(),
+    });
+    expect(result.documentId).toBeTruthy();
+    const { rows: events } = await pool.query(
+      `SELECT * FROM statement_outbox WHERE event_type = 'statement.ready' AND aggregate_id = $1`,
+      [job.id]);
+    expect(events).toHaveLength(1);
+    const { rows: [finalJob] } = await pool.query(
+      'SELECT state FROM statement_account_jobs WHERE id = $1', [job.id]);
+    expect(finalJob.state).toBe('complete');
+  });
+
   test('(f) statement-ready notification text contains no balance or amount digits', () => {
     for (const lang of ['en', 'es', 'fr', 'ht', 'ar']) {
       const { title, body } = tNotif('statement_ready', lang);

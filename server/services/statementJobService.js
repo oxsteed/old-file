@@ -14,6 +14,9 @@
  * - Every claim bumps fencing_token; renewLease/completeJobStage/failJob
  *   only succeed when the worker presents the current lease_owner AND
  *   fencing_token, so a stale worker can never mutate a reclaimed job.
+ * - Jobs stranded in intermediate pipeline states (snapshotted/artifact_ready/
+ *   notified) past their lease are reclaimed back to 'leased'; the issuance
+ *   pipeline re-drives idempotently, so no duplicate evidence is produced.
  * - Retries use bounded exponential backoff (base 60s, cap 6h, jitter);
  *   jobs that exhaust max_attempts move to dead_letter for operator review.
  */
@@ -29,6 +32,13 @@ const BACKOFF_CAP_MS = 6 * 60 * 60 * 1000;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CURRENCY_RE = /^[A-Z]{3}$/;
+
+// Intermediate pipeline states whose worker died: the lease still expires on
+// the wall clock (completeJobStage only clears it at 'complete'), so a job
+// stranded in 'snapshotted'/'artifact_ready'/'notified' past its lease is
+// safe to reclaim. The issuance pipeline re-drives idempotently (frozen
+// snapshots, verified artifacts, and document inserts all converge), so a
+// reclaimed job resumes without duplicating evidence.
 
 // Forward-only stage progression for a leased job.
 const ALLOWED_TRANSITIONS = {
@@ -172,12 +182,15 @@ async function claimNextAccountJob(workerId, leaseSeconds = 120) {
   }
   const { rows } = await pool.query(
     `WITH candidate AS (
-       SELECT id,
-              (state = 'leased' AND attempt_count >= max_attempts) AS exhausted
+       SELECT id, state AS prior_state,
+              (state = 'leased' AND attempt_count >= max_attempts) AS exhausted,
+              (state IN ('snapshotted', 'artifact_ready', 'notified')) AS reclaimed
        FROM statement_account_jobs
        WHERE run_id IN (SELECT id FROM statement_issuance_runs WHERE state = ANY($3))
          AND (state = 'pending'
            OR (state = 'leased' AND lease_expires_at < transaction_timestamp())
+           OR (state IN ('snapshotted', 'artifact_ready', 'notified')
+               AND lease_expires_at < transaction_timestamp())
            OR (state = 'failed' AND next_retry_at <= transaction_timestamp()
                AND attempt_count < max_attempts))
        ORDER BY created_at, id
@@ -193,6 +206,8 @@ async function claimNextAccountJob(workerId, leaseSeconds = 120) {
          attempt_count = job.attempt_count + 1,
          last_error = CASE WHEN candidate.exhausted
                            THEN 'Attempt budget exhausted while the lease was expired'
+                           WHEN candidate.reclaimed
+                           THEN 'Reclaimed after worker loss in state ' || candidate.prior_state
                            ELSE NULL END,
          updated_at = transaction_timestamp()
      FROM candidate

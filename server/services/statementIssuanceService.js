@@ -14,7 +14,9 @@
  *       without STATEMENT_ARTIFACT_BUCKET);
  *   (d) insert the immutable credit_statement_documents row (migration 682)
  *       in the SAME transaction as the `statement.ready` outbox event, so a
- *       notification can never exist without its committed document;
+ *       notification can never exist without its committed document; the
+ *       append is guarded so a re-drive after a crash in this window queues
+ *       exactly one event per job;
  *   (e) mark the job complete.
  *
  * Invariants: statements never move money; product/account/currency scopes
@@ -276,24 +278,34 @@ async function insertDocumentAndQueueEvent({ scope, document, artifact, job }) {
     if (!row) {
       throw new AppError('Statement document row could not be resolved', 500, 'statement_document_missing');
     }
-    await jobs.outboxAppend(client, {
-      eventType: 'statement.ready',
-      aggregateType: 'statement_account_job',
-      aggregateId: job.id,
-      payload: {
-        issuanceKey: scope.issuanceKey,
-        runId: job.run_id,
-        documentId: row.id,
-        snapshotId: artifact.snapshotId,
-        artifactId: artifact.id,
-        product: scope.product,
-        accountId: scope.accountId,
-        currencyCode: scope.currency,
-        periodFrom: scope.periodFrom,
-        periodTo: scope.periodTo,
-        language: artifact.language,
-      },
-    });
+    // Idempotent on re-drive: a crash between COMMIT and completeJobStage
+    // ('notified') would otherwise emit a duplicate statement.ready event and
+    // a duplicate customer notification. Exactly one ready-event per job.
+    const { rows: [existingEvent] } = await client.query(
+      `SELECT id FROM statement_outbox
+       WHERE event_type = 'statement.ready' AND aggregate_id = $1
+       LIMIT 1`,
+      [job.id]);
+    if (!existingEvent) {
+      await jobs.outboxAppend(client, {
+        eventType: 'statement.ready',
+        aggregateType: 'statement_account_job',
+        aggregateId: job.id,
+        payload: {
+          issuanceKey: scope.issuanceKey,
+          runId: job.run_id,
+          documentId: row.id,
+          snapshotId: artifact.snapshotId,
+          artifactId: artifact.id,
+          product: scope.product,
+          accountId: scope.accountId,
+          currencyCode: scope.currency,
+          periodFrom: scope.periodFrom,
+          periodTo: scope.periodTo,
+          language: artifact.language,
+        },
+      });
+    }
     await client.query('COMMIT');
     return row.id;
   } catch (error) {
@@ -314,7 +326,10 @@ function assertLeasedTo(job, workerId) {
 /**
  * Issue one account statement end to end. The caller must hold the job's
  * lease (claimed via claimNextAccountJob). `hooks` is a test seam only:
- * { afterSnapshot, afterRender, afterPublish, beforeDocument }.
+ * { afterSnapshot, afterRender, afterPublish, beforeDocument, afterDocument }.
+ * afterDocument fires after the document-row + outbox transaction commits but
+ * before the job is marked notified, so tests can simulate a crash in that
+ * window and prove the re-drive queues no duplicate statement.ready event.
  */
 async function issueAccountStatement({ job, workerId, storage, hooks = {} }) {
   assertLeasedTo(job, workerId);
@@ -375,9 +390,10 @@ async function issueAccountStatement({ job, workerId, storage, hooks = {} }) {
   // which is bounded by the snapshot's own statement timeout). After the
   // stage-(a) transition the job leaves 'leased', so renewLease can no longer
   // apply — and it does not need to: completeJobStage/failJob fence on
-  // (lease_owner, fencing_token), never on wall-clock expiry, and no other
-  // worker can reclaim a non-'leased' job. A reclaimed 'leased' job bumps the
-  // fencing token, so a stale worker's stage call fails closed here.
+  // (lease_owner, fencing_token), never on wall-clock expiry. A job stranded
+  // in an intermediate state past its lease is reclaimed back to 'leased' by
+  // the claim query; the fencing token bump makes a stale worker's stage
+  // call fail closed here, and the pipeline re-drives idempotently.
   let document;
   let pdfBytes;
   let language;
@@ -417,6 +433,7 @@ async function issueAccountStatement({ job, workerId, storage, hooks = {} }) {
   try {
     await hooks.beforeDocument?.();
     documentId = await insertDocumentAndQueueEvent({ scope, document, artifact, job });
+    await hooks.afterDocument?.();
     await jobs.completeJobStage(job.id, workerId, fencingToken, 'notified');
   } catch (error) {
     await failStage(error);
