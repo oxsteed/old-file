@@ -870,6 +870,12 @@ ddescribe('statement amendments (workstream 3)', () => {
 
   test('approve via the route finalizes publication; self-approval stays rejected', async () => {
     const storage = makeFakeStorage();
+    // Inject private storage in this synthetic route fixture. Production has
+    // no general uploads/local fallback for amendment publication.
+    const privateStorage = require('../utils/statementStorage');
+    const storageSpies = ['uploadFile', 'getObjectStream', 'getSignedDownloadUrl'].map(method =>
+      jest.spyOn(privateStorage, method).mockImplementation(storage[method]));
+    storageSpies.push(jest.spyOn(privateStorage, 'configuration').mockReturnValue({ bucket: 'statement-test-bucket' }));
     const app = buildAdminApp();
     const { customerId, walletId } = await newCustomerWithWallet();
     await postTx({ debit: treasury, credit: walletId, amount: 5000, type: 'load', effectiveDate: '2026-01-20T12:00:00.000Z', actorId: approver });
@@ -901,6 +907,7 @@ ddescribe('statement amendments (workstream 3)', () => {
     expect(approved.body.publication.status).toBe('published');
     expect(approved.body.publication.version.revisionNumber).toBe(1);
     expect(await versionRowsFor(originalId)).toHaveLength(1);
+    storageSpies.forEach(spy => spy.mockRestore());
 
     // A second decision is rejected.
     const again = await request(app)
@@ -933,7 +940,9 @@ ddescribe('statement amendments (workstream 3)', () => {
       .set('Authorization', customerBearer(customerId))
       .expect(200);
     const originalItem = list.body.items.find((item) => item.id === originalId);
-    const versionItem = list.body.items.find((item) => item.id === versionId);
+    const versionItem = originalItem.versions.find((item) => item.id === versionId);
+    expect(list.body.paginationUnit).toBe('originals');
+    expect(list.body.items.every(item => item.kind === 'original')).toBe(true);
     expect(originalItem).toBeTruthy();
     expect(originalItem.kind).toBe('original');
     expect(originalItem.superseded).toBe(true);

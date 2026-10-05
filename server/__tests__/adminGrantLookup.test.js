@@ -16,19 +16,9 @@ jest.unmock('pg');
 
 const crypto = require('crypto');
 
-const RAW_URL = process.env.ADMIN_GRANT_TEST_DATABASE_URL || '';
+const { disposableDatabaseOptIn, isDisposableDatabase, assertMigratedSchema } = require('./helpers/statementTestDatabase');
+const RAW_URL = disposableDatabaseOptIn('ADMIN_GRANT_TEST_DATABASE_URL');
 
-function isDisposableDatabase(urlText) {
-  let url;
-  try {
-    url = new URL(urlText);
-  } catch {
-    return false;
-  }
-  const localhost = ['127.0.0.1', 'localhost', '::1'].includes(url.hostname);
-  return ['postgres:', 'postgresql:'].includes(url.protocol) && localhost
-    && url.pathname === '/credit_statement_test';
-}
 
 const CAN_RUN_DB = isDisposableDatabase(RAW_URL);
 const ddescribe = CAN_RUN_DB ? describe : describe.skip;
@@ -56,22 +46,16 @@ async function newUser(role = 'admin') {
   return id;
 }
 
+async function newRegion(createdBy) {
+  const { rows: [region] } = await pool.query(
+    `INSERT INTO admin_regions (name, boundary_definition, created_by)
+     VALUES ($1, '{"type":"city_state","entries":[]}', $2) RETURNING id`,
+    [`statement-grant-${crypto.randomUUID()}`, createdBy]);
+  return region.id;
+}
+
 ddescribe('admin grant lookup (UNION query)', () => {
-  beforeAll(async () => {
-    await pool.query(`CREATE TABLE IF NOT EXISTS users (
-      id UUID PRIMARY KEY, email TEXT, password_hash TEXT, first_name TEXT,
-      last_name TEXT, role TEXT, email_verified BOOLEAN, is_active BOOLEAN)`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS admin_permission_grants (
-      id BIGSERIAL PRIMARY KEY, grantor_id UUID REFERENCES users(id) ON DELETE CASCADE,
-      grantee_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      permissions JSONB NOT NULL DEFAULT '[]', region_id BIGINT,
-      expires_at TIMESTAMPTZ NOT NULL, revoked_at TIMESTAMPTZ)`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS delegation_grants (
-      id BIGSERIAL PRIMARY KEY, grantor_admin_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      grantee_admin_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      scopes TEXT[] NOT NULL, status TEXT NOT NULL DEFAULT 'active',
-      expires_at TIMESTAMPTZ NOT NULL)`);
-  });
+  beforeAll(async () => { await assertMigratedSchema(pool); });
 
   beforeEach(async () => {
     await pool.query('TRUNCATE delegation_grants, admin_permission_grants RESTART IDENTITY CASCADE');
@@ -92,21 +76,23 @@ ddescribe('admin grant lookup (UNION query)', () => {
   test('regional-only direct grant does not satisfy a global check', async () => {
     const admin = await newUser('admin');
     const grantor = await newUser('super_admin');
+    const regionId = await newRegion(grantor);
     await pool.query(
       `INSERT INTO admin_permission_grants (grantor_id, grantee_id, permissions, region_id, expires_at)
-       VALUES ($1, $2, '["view_financials"]', 7, NOW() + INTERVAL '1 day')`,
-      [grantor, admin]);
+       VALUES ($1, $2, '["view_financials"]', $3, NOW() + INTERVAL '1 day')`,
+      [grantor, admin, regionId]);
     await expect(hasGlobalGrant(admin, 'view_financials')).resolves.toBe(false);
   });
 
   test('global grant is preferred over a regional one', async () => {
     const admin = await newUser('admin');
     const grantor = await newUser('super_admin');
+    const regionId = await newRegion(grantor);
     await pool.query(
       `INSERT INTO admin_permission_grants (grantor_id, grantee_id, permissions, region_id, expires_at)
-       VALUES ($1, $2, '["view_financials"]', 7, NOW() + INTERVAL '1 day'),
+       VALUES ($1, $2, '["view_financials"]', $3, NOW() + INTERVAL '1 day'),
               ($1, $2, '["view_financials"]', NULL, NOW() + INTERVAL '1 day')`,
-      [grantor, admin]);
+      [grantor, admin, regionId]);
     await expect(hasGlobalGrant(admin, 'view_financials')).resolves.toBe(true);
   });
 

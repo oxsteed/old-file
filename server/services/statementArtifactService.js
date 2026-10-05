@@ -26,7 +26,7 @@ const { Readable } = require('stream');
 const pool = require('../db');
 const AppError = require('../utils/appError');
 const logger = require('../utils/logger');
-const defaultStorage = require('../utils/storage');
+const defaultStorage = require('../utils/statementStorage');
 
 const LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -71,22 +71,8 @@ function resolveNamespace(storage) {
   if (!prefix || prefix.includes('..')) {
     throw new AppError('Invalid statement artifact storage prefix', 500, 'statement_storage_unconfigured');
   }
-  // When the real storage adapter is backed by S3/R2, the statement-only bucket
-  // must be the bucket it is actually configured for; a mismatch means the
-  // operator pointed statements at the wrong namespace, so fail closed instead
-  // of writing statement originals into an unintended bucket.
-  const usingRealStorage = storage === defaultStorage;
-  const s3Configured = Boolean(process.env.AWS_ACCESS_KEY_ID || process.env.S3_ACCESS_KEY_ID);
-  if (usingRealStorage && s3Configured) {
-    const effectiveBucket = String(process.env.AWS_S3_BUCKET || process.env.S3_BUCKET || '').trim();
-    if (effectiveBucket && effectiveBucket !== bucket) {
-      throw new AppError(
-        'Statement artifact bucket does not match the configured object storage bucket',
-        503,
-        'statement_storage_bucket_mismatch',
-      );
-    }
-  }
+  // The real adapter has its own dedicated R2 bucket and no local fallback.
+  if (storage === defaultStorage) defaultStorage.configuration();
   return { bucket, prefix };
 }
 
@@ -101,25 +87,26 @@ function sha256Hex(buffer) {
 async function collectStream(stream, maxBytes) {
   const chunks = [];
   let total = 0;
-  for await (const chunk of stream) {
-    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-    total += buffer.length;
-    if (total > maxBytes) throw new AppError('Stored statement object exceeds the recorded length', 502, 'statement_artifact_verification_failed');
-    chunks.push(buffer);
+  const timeout = setTimeout(() => stream.destroy(new AppError('Statement storage read timed out', 503, 'statement_storage_unavailable')), 30000);
+  timeout.unref?.();
+  try {
+    for await (const chunk of stream) {
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      total += buffer.length;
+      if (total > maxBytes) throw new AppError('Stored statement object exceeds the recorded length', 502, 'statement_artifact_verification_failed');
+      chunks.push(buffer);
+    }
+    return Buffer.concat(chunks, total);
+  } finally {
+    clearTimeout(timeout);
+    stream.destroy();
   }
-  return Buffer.concat(chunks, total);
 }
 
 // Read the stored object back and recompute byte length + SHA-256 from it.
 // Returns { bytes, hash } or null when the object does not exist.
 async function readBackObject(storage, key, expectedLength) {
-  let stream = null;
-  try {
-    stream = await storage.getObjectStream(key);
-  } catch (error) {
-    logger.warn('statement artifact read-back failed', { key: 'redacted', error: error.message });
-    return null;
-  }
+  const stream = await storage.getObjectStream(key);
   if (!stream) return null;
   const readable = stream instanceof Readable ? stream : Readable.from(stream);
   const bytes = await collectStream(readable, expectedLength + 1024 * 1024);
@@ -136,11 +123,12 @@ async function recordAttempt(client, artifactId, attempt, { outcome, verifiedByt
       verifiedHash || null, error ? String(error).slice(0, 2000) : null]);
 }
 
-async function setState(client, artifactId, state, objectKey) {
+async function setState(client, artifactId, state, objectKey, token) {
   const { rows: [row] } = await client.query(
-    `UPDATE statement_artifacts SET state = $2${objectKey ? ', object_key = $3' : ''}
-     WHERE id = $1 RETURNING *`,
-    objectKey ? [artifactId, state, objectKey] : [artifactId, state]);
+    `UPDATE statement_artifacts SET state = $2, object_key = COALESCE($3, object_key)
+     WHERE id = $1 AND publication_token = $4 AND state <> 'ready' RETURNING *`,
+    [artifactId, state, objectKey || null, token]);
+  if (!row) throw new AppError('Statement publication lease is stale', 409, 'statement_publication_stale');
   return row;
 }
 
@@ -160,6 +148,7 @@ function shapeArtifact(row) {
     sha256: row.sha256,
     mediaType: row.media_type,
     objectKey: row.object_key,
+    storageBucket: row.storage_bucket,
     state: row.state,
     createdAt: new Date(row.created_at).toISOString(),
   };
@@ -248,7 +237,12 @@ async function publishArtifact({ kind, snapshotId, language, pdfBytes, label, st
     : `${namespace.prefix}/stmt/renditions/${label}/${crypto.randomUUID()}.pdf`;
 
   const client = await pool.connect();
+  const identity = `${snapshotId}:${kind}:${language}:${label || ''}`;
+  let locked = false;
   try {
+    const { rows: [lock] } = await client.query('SELECT pg_try_advisory_lock(hashtextextended($1, 692)) AS locked', [identity]);
+    locked = lock.locked;
+    if (!locked) throw new AppError('Statement publication is in progress', 409, 'statement_publication_busy');
     const { rows: [snapshot] } = await client.query('SELECT * FROM statement_snapshots WHERE id = $1', [snapshotId]);
     if (!snapshot) throw new AppError('Statement snapshot not found', 404, 'statement_snapshot_not_found');
 
@@ -258,26 +252,43 @@ async function publishArtifact({ kind, snapshotId, language, pdfBytes, label, st
     const { rows: [existing] } = await client.query(
       `SELECT * FROM statement_artifacts
        WHERE snapshot_id = $1 AND kind = $2 AND language = $3 AND state <> 'failed'
-         ${kind === 'rendition' ? "AND object_key LIKE $4" : ''}
+         AND rendition_label = $4 AND (kind = 'original' OR storage_bucket IS NOT NULL)
        ORDER BY created_at DESC LIMIT 1`,
-      kind === 'rendition'
-        ? [snapshotId, kind, language, `${namespace.prefix}/stmt/renditions/${label}/%`]
-        : [snapshotId, kind, language]);
-    if (existing) return shapeArtifact(existing);
+      [snapshotId, kind, language, label || '']);
+    const token = crypto.randomUUID();
+    if (existing) {
+      assertStorageLocation(existing, storage);
+      if (existing.state !== 'ready') {
+        await client.query('UPDATE statement_artifacts SET publication_token = $2 WHERE id = $1 AND state <> \'ready\'', [existing.id, token]);
+      }
+      // A restarted worker adopts the original bytes, not a newly rendered PDF.
+      const stored = await readBackObject(storage, existing.object_key, Number(existing.byte_length));
+      if (stored && stored.bytes.length === Number(existing.byte_length) && stored.hash === existing.sha256) {
+        if (existing.state === 'ready') return shapeArtifact(existing);
+        await recordAttempt(client, existing.id, 1, { outcome: 'adopted', verifiedBytes: stored.bytes.length, verifiedHash: stored.hash });
+        return shapeArtifact(await setState(client, existing.id, 'ready', null, token));
+      }
+      if (existing.state === 'ready') {
+        throw new AppError('Issued statement original is missing or corrupt', 502, 'statement_artifact_verification_failed');
+      }
+      // Preserve failed-attempt evidence. The next row is still pre-issuance.
+      await setState(client, existing.id, 'failed', null, token);
+    }
 
     const documentLink = kind === 'original' ? await resolveDocumentId(client, snapshot) : null;
     const { rows: [artifact] } = await client.query(
       `INSERT INTO statement_artifacts
         (id, snapshot_id, document_id, settlement_document_id, kind, language, renderer_version, template_version,
-         font_version, byte_length, sha256, media_type, object_key, state, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'staged', transaction_timestamp())
+         font_version, byte_length, sha256, media_type, object_key, storage_bucket, publication_token, rendition_label, state, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'staged', transaction_timestamp())
        RETURNING *`,
       [crypto.randomUUID(), snapshotId,
         documentLink && documentLink.documentId ? documentLink.documentId : null,
         documentLink && documentLink.settlementDocumentId ? documentLink.settlementDocumentId
           : (settlementDocumentId || null),
         kind, language, rendered.rendererVersion,
-        rendered.templateVersion, rendered.fontVersion, String(byteLength), hash, PDF_MEDIA_TYPE, baseKey]);
+        rendered.templateVersion, rendered.fontVersion, String(byteLength), hash, PDF_MEDIA_TYPE, baseKey,
+        namespace.bucket, token, label || '']);
 
     let currentKey = baseKey;
     let lastError = null;
@@ -286,7 +297,7 @@ async function publishArtifact({ kind, snapshotId, language, pdfBytes, label, st
       if (attempt > 1 && key !== currentKey) {
         // Retry under a new attempt key so a half-written object from an
         // uncertain outcome is never silently reused.
-        await setState(client, artifact.id, 'staged', key);
+        await setState(client, artifact.id, 'staged', key, token);
         currentKey = key;
       }
       let uploadError = null;
@@ -308,9 +319,9 @@ async function publishArtifact({ kind, snapshotId, language, pdfBytes, label, st
           await recordAttempt(client, artifact.id, attempt, {
             outcome: 'adopted', verifiedBytes: reconciled.bytes.length, verifiedHash: reconciled.hash,
           });
-          const ready = await setState(client, artifact.id, 'verifying');
+          const ready = await setState(client, artifact.id, 'verifying', null, token);
           void ready;
-          const done = await setState(client, artifact.id, 'ready');
+          const done = await setState(client, artifact.id, 'ready', null, token);
           return shapeArtifact(done);
         }
         lastError = uploadError;
@@ -322,13 +333,13 @@ async function publishArtifact({ kind, snapshotId, language, pdfBytes, label, st
 
       // Verify-before-ready: read the stored object back and recompute byte
       // length and SHA-256 from it. Never mark ready on the attempt alone.
-      await setState(client, artifact.id, 'verifying');
+      await setState(client, artifact.id, 'verifying', null, token);
       const readBack = await readBackObject(storage, currentKey, byteLength);
       if (readBack && readBack.bytes.length === byteLength && readBack.hash === hash) {
         await recordAttempt(client, artifact.id, attempt, {
           outcome: 'verified', verifiedBytes: readBack.bytes.length, verifiedHash: readBack.hash,
         });
-        const done = await setState(client, artifact.id, 'ready');
+        const done = await setState(client, artifact.id, 'ready', null, token);
         return shapeArtifact(done);
       }
       await recordAttempt(client, artifact.id, attempt, {
@@ -346,13 +357,17 @@ async function publishArtifact({ kind, snapshotId, language, pdfBytes, label, st
       break;
     }
 
-    await setState(client, artifact.id, 'failed');
+    await setState(client, artifact.id, 'failed', null, token);
     throw lastError instanceof AppError ? lastError : new AppError(
       `Statement artifact publication failed: ${lastError ? lastError.message : 'unknown error'}`,
       502,
       'statement_artifact_upload_failed',
     );
   } finally {
+    if (locked) {
+      try { await client.query('SELECT pg_advisory_unlock(hashtextextended($1, 692))', [identity]); }
+      catch { /* disconnected sessions release their locks automatically */ }
+    }
     client.release();
   }
 }
@@ -376,6 +391,16 @@ async function requireReadyArtifact(client, artifactId) {
   return row;
 }
 
+function assertStorageLocation(row, storage) {
+  const { bucket } = resolveNamespace(storage);
+  if (row.storage_bucket !== bucket) {
+    throw new AppError('Statement artifact storage location requires verified recovery', 503, 'statement_storage_bucket_mismatch');
+  }
+  if (!Number.isSafeInteger(Number(row.byte_length)) || Number(row.byte_length) > MAX_PDF_BYTES) {
+    throw new AppError('Statement object exceeds the download limit', 409, 'statement_artifact_too_large');
+  }
+}
+
 // Streams an authenticated download. Authorization is enforced by the caller;
 // the actor record is already-authorized and used for audit only.
 async function getDownloadStream({ artifactId, actor, storage = defaultStorage }) {
@@ -385,13 +410,13 @@ async function getDownloadStream({ artifactId, actor, storage = defaultStorage }
   const client = await pool.connect();
   try {
     const row = await requireReadyArtifact(client, artifactId);
-    let stream = null;
-    try {
-      stream = await storage.getObjectStream(row.object_key);
-    } catch (error) {
-      logger.warn('statement artifact download failed', { error: error.message });
+    assertStorageLocation(row, storage);
+    const stored = await readBackObject(storage, row.object_key, Number(row.byte_length));
+    if (!stored) throw new AppError('Statement artifact is temporarily unavailable', 502, 'statement_artifact_unavailable');
+    if (stored.bytes.length !== Number(row.byte_length) || stored.hash !== row.sha256) {
+      throw new AppError('Statement original failed verification', 502, 'statement_artifact_verification_failed');
     }
-    if (!stream) throw new AppError('Statement artifact is temporarily unavailable', 502, 'statement_artifact_unavailable');
+    const stream = Readable.from([stored.bytes]);
     logger.info('statement_artifact_download', {
       artifactId: row.id,
       snapshotId: row.snapshot_id,
@@ -426,6 +451,11 @@ async function createSignedUrl({ artifactId, actor, ttlSeconds = DEFAULT_SIGNED_
   const client = await pool.connect();
   try {
     const row = await requireReadyArtifact(client, artifactId);
+    assertStorageLocation(row, storage);
+    const verified = await readBackObject(storage, row.object_key, Number(row.byte_length));
+    if (!verified || verified.bytes.length !== Number(row.byte_length) || verified.hash !== row.sha256) {
+      throw new AppError('Statement original failed verification', 502, 'statement_artifact_verification_failed');
+    }
     const url = await storage.getSignedDownloadUrl(row.object_key, ttl);
     if (!url) {
       throw new AppError('Short-lived signed URLs are not supported by the configured storage provider', 503, 'statement_signed_url_unavailable');

@@ -42,6 +42,7 @@ const { authenticate } = require('../middleware/auth');
 const { creditExportLimiter } = require('../middleware/rateLimiter');
 const statements = require('../services/settlementStatementService');
 const { hashDocument } = statements;
+const { formatMinor } = require('../services/settlementFinancialHistory');
 
 const copy = require('../locales/statement-copy.json');
 
@@ -296,8 +297,12 @@ router.get('/archive/:id/verify', async (req, res, next) => {
 
 // ── CSV export (accessible, machine-readable rendition of the original) ────
 function csvCell(value) {
-  const text = String(value ?? '');
-  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  // Same hardened text contract as creditStatementPdf.csvCell. Quoting alone
+  // does not neutralize spreadsheet formulas hidden behind Unicode controls.
+  let text = String(value ?? '').replace(/\u0000/g, '');
+  const candidate = text.replace(/^[\s\uFEFF\u200E\u200F\u202A-\u202E\u2066-\u2069]+/u, '');
+  if (/^[=+\-@]/.test(candidate) || /^[\t\r\n]/.test(text)) text = `'${text}`;
+  return `"${text.replace(/"/g, '""')}"`;
 }
 
 function csvFilename(document) {
@@ -311,18 +316,18 @@ function documentToCsv(document, labels) {
   const lines = [];
   const header = (text) => lines.push(csvCell(text));
   header(`${labels[document.product] || document.product} — ${document.accountLabel || ''}`);
-  lines.push([csvCell('Period'), csvCell(`${document.period?.from} to ${document.period?.to} (UTC)`),
-    csvCell('Currency'), csvCell(document.currencyCode),
-    csvCell('Reference'), csvCell(document.accountReference || ''),
-    csvCell('Generated'), csvCell(document.generatedAt || '')].join(','));
-  lines.push([csvCell('Content SHA-256'), csvCell(document.contentHash || '')].join(','));
+  lines.push([csvCell(labels.period), csvCell(`${document.period?.from} / ${document.period?.to} (UTC)`),
+    csvCell(labels.currency), csvCell(document.currencyCode),
+    csvCell(labels.reference), csvCell(document.accountReference || ''),
+    csvCell(labels.generated), csvCell(document.generatedAt || '')].join(','));
+  lines.push([csvCell(labels.digest), csvCell(document.contentHash || '')].join(','));
   lines.push('');
 
-  const money = (cents) => (Number(cents) / 100).toFixed(2);
+  const money = minor => formatMinor(minor, document.currencyCode);
   if (document.product === 'restaurant_settlement') {
     lines.push([csvCell(labels.journalSection)].join(','));
-    lines.push([csvCell('Date (UTC)'), csvCell('Type'), csvCell('Description'),
-      csvCell('Debit'), csvCell('Credit'), csvCell('Balance'), csvCell('Reference')].join(','));
+    lines.push([csvCell(`${labels.date} (UTC)`), csvCell(labels.activity), csvCell(labels.descriptionCol),
+      csvCell(labels.debit), csvCell(labels.credit), csvCell(labels.balance), csvCell(labels.reference)].join(','));
     for (const tx of document.transactions || []) {
       lines.push([csvCell(tx.date), csvCell(labels[tx.type] || tx.type), csvCell(tx.description),
         csvCell(tx.debitCents ? money(tx.debitCents) : ''),
@@ -330,15 +335,15 @@ function documentToCsv(document, labels) {
         csvCell(money(tx.balanceAfterCents)),
         csvCell(tx.referenceId ? `${tx.referenceType}:${tx.referenceId}` : '')].join(','));
     }
-    lines.push([csvCell('Opening'), '', '', '', '', csvCell(money(document.openingBalanceCents))].join(','));
-    lines.push([csvCell('Closing'), '', '', '', '', csvCell(money(document.closingBalanceCents))].join(','));
+    lines.push([csvCell(labels.opening), '', '', '', '', csvCell(money(document.openingBalanceCents))].join(','));
+    lines.push([csvCell(labels.closing), '', '', '', '', csvCell(money(document.closingBalanceCents))].join(','));
     lines.push('');
     lines.push([csvCell(labels.payoutsSection)].join(','));
-    lines.push([csvCell('Payout'), csvCell('Amount'), csvCell('Outcome'), csvCell('Status'),
-      csvCell('Transfer ref'), csvCell('Journal posted'), csvCell('Created')].join(','));
+    lines.push([csvCell(labels.payoutCol), csvCell(labels.amountCol), csvCell(labels.outcomeCol), csvCell(labels.payoutStateCol),
+      csvCell(labels.transferRefCol), csvCell(labels.journalPostedCol), csvCell(labels.createdCol)].join(','));
     for (const p of document.payouts || []) {
       lines.push([csvCell(p.id), csvCell(money(p.amountCents)), csvCell(p.outcome), csvCell(p.status),
-        csvCell(p.stripeTransferRef || ''), csvCell(p.journalLegPosted ? 'yes' : 'no'),
+        csvCell(p.stripeTransferRef || ''), csvCell(p.journalLegPosted),
         csvCell(p.createdAt)].join(','));
     }
     lines.push('');
@@ -346,7 +351,7 @@ function documentToCsv(document, labels) {
     lines.push([csvCell(labels.customerCreditNote)].join(','));
   } else if (document.product === 'helper_earnings') {
     lines.push([csvCell(labels.bucketsSection)].join(','));
-    lines.push([csvCell('Bucket'), csvCell('Amount')].join(','));
+    lines.push([csvCell(labels.bucketsSection), csvCell(labels.amountCol)].join(','));
     const buckets = document.buckets || {};
     lines.push([csvCell(labels.accrued), csvCell(money(buckets.accruedCents || 0))].join(','));
     lines.push([csvCell(labels.inTransit), csvCell(money(buckets.inTransitCents || 0))].join(','));
@@ -354,8 +359,8 @@ function documentToCsv(document, labels) {
     lines.push([csvCell(labels.notOwedBucket), csvCell(money(buckets.notOwedCents || 0))].join(','));
     lines.push('');
     lines.push([csvCell(labels.earningsSection)].join(','));
-    lines.push([csvCell('Job'), csvCell('Title'), csvCell('Completed'), csvCell('Status'),
-      csvCell('Earned'), csvCell('Platform fee'), csvCell('Payment')].join(','));
+    lines.push([csvCell(labels.payoutCol), csvCell(labels.jobTitle), csvCell(labels.completedCol), csvCell(labels.jobStatus),
+      csvCell(labels.earnedCol), csvCell(labels.platformFeeCol), csvCell(labels.paymentStateCol)].join(','));
     for (const e of document.earnings || []) {
       lines.push([csvCell(e.jobId), csvCell(e.title), csvCell(e.completedAt), csvCell(e.payoutStatus),
         csvCell(money(e.helperPayoutCents)),
@@ -364,35 +369,35 @@ function documentToCsv(document, labels) {
     }
     lines.push('');
     lines.push([csvCell(labels.settledSection)].join(','));
-    lines.push([csvCell('Job'), csvCell('Title'), csvCell('Paid at'), csvCell('Amount')].join(','));
+    lines.push([csvCell(labels.payoutCol), csvCell(labels.jobTitle), csvCell(labels.paidCol), csvCell(labels.amountCol)].join(','));
     for (const s of document.settled || []) {
       lines.push([csvCell(s.jobId), csvCell(s.title), csvCell(s.paidAt), csvCell(money(s.helperPayoutCents))].join(','));
     }
-    lines.push([csvCell('Opening payable'), csvCell(money(document.openingPayableCents))].join(','));
-    lines.push([csvCell('Closing payable'), csvCell(money(document.closingPayableCents))].join(','));
+    lines.push([csvCell(labels.openingPayable), csvCell(money(document.openingPayableCents))].join(','));
+    lines.push([csvCell(labels.closingPayable), csvCell(money(document.closingPayableCents))].join(','));
     lines.push('');
     lines.push([csvCell(labels.notTaxForm)].join(','));
-    lines.push([csvCell(labels.helperSnapshotNote)].join(','));
+    if (!document.sourceHistoryVersion) lines.push([csvCell(labels.helperSnapshotNote)].join(','));
   } else {
     lines.push([csvCell(labels.receivablesSection)].join(','));
-    lines.push([csvCell('Invoice'), csvCell('Client'), csvCell('Status'), csvCell('Issued'),
-      csvCell('Total'), csvCell('Paid'), csvCell('Outstanding')].join(','));
+    lines.push([csvCell(labels.invoiceNo), csvCell(labels.billedTo), csvCell(labels.jobStatus), csvCell(labels.issuedCol),
+      csvCell(labels.invoiceTotal), csvCell(labels.amountPaidCol), csvCell(labels.outstandingCol)].join(','));
     for (const inv of document.receivables?.invoices || []) {
       lines.push([csvCell(inv.invoiceNumber), csvCell(inv.clientName), csvCell(inv.status),
         csvCell(inv.issueDate || ''), csvCell(money(inv.totalCents)), csvCell(money(inv.paidCents)),
         csvCell(money(inv.outstandingCents))].join(','));
     }
     const r = document.receivables || {};
-    lines.push([csvCell('Opening outstanding'), csvCell(money(r.openingOutstandingCents || 0))].join(','));
-    lines.push([csvCell('Closing outstanding'), csvCell(money(r.closingOutstandingCents || 0))].join(','));
+    lines.push([csvCell(labels.openingOutstanding), csvCell(money(r.openingOutstandingCents || 0))].join(','));
+    lines.push([csvCell(labels.closingOutstanding), csvCell(money(r.closingOutstandingCents || 0))].join(','));
     lines.push('');
     lines.push([csvCell(labels.payablesSection)].join(','));
-    lines.push([csvCell('Date'), csvCell('Category'), csvCell('Description'), csvCell('Amount')].join(','));
+    lines.push([csvCell(labels.date), csvCell(labels.categoryCol), csvCell(labels.descriptionCol), csvCell(labels.amountCol)].join(','));
     for (const e of document.payables?.expenses || []) {
       lines.push([csvCell(e.expenseDate), csvCell(e.category), csvCell(e.description), csvCell(money(e.amountCents))].join(','));
     }
     lines.push('');
-    lines.push([csvCell(labels.businessLimitationNote)].join(','));
+    if (!document.sourceHistoryVersion) lines.push([csvCell(labels.businessLimitationNote)].join(','));
     lines.push([csvCell(labels.notTaxForm)].join(','));
   }
   lines.push([csvCell(labels.support || '')].join(','));
@@ -407,4 +412,4 @@ module.exports = router;
 module.exports.assertScopeStanding = assertScopeStanding;
 // Test hooks: the authorization predicates, exported for behavior tests so
 // access control is exercised without standing up the full HTTP stack.
-module.exports.testHooks = { assertScopeStanding, parseProduct, parseScopeId };
+module.exports.testHooks = { assertScopeStanding, parseProduct, parseScopeId, documentToCsv, csvCell };

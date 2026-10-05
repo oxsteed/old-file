@@ -25,19 +25,9 @@
 
 jest.unmock('pg');
 
-const RAW_URL = process.env.STATEMENT_INVESTIGATION_TEST_DATABASE_URL || '';
+const { disposableDatabaseOptIn, isDisposableDatabase, assertMigratedSchema } = require('./helpers/statementTestDatabase');
+const RAW_URL = disposableDatabaseOptIn('STATEMENT_INVESTIGATION_TEST_DATABASE_URL');
 
-function isDisposableDatabase(urlText) {
-  let url;
-  try {
-    url = new URL(urlText);
-  } catch {
-    return false;
-  }
-  const localhost = ['127.0.0.1', 'localhost', '::1'].includes(url.hostname);
-  return ['postgres:', 'postgresql:'].includes(url.protocol) && localhost
-    && url.pathname === '/credit_statement_test';
-}
 
 const CAN_RUN_DB = isDisposableDatabase(RAW_URL);
 const ddescribe = CAN_RUN_DB ? describe : describe.skip;
@@ -88,96 +78,9 @@ ddescribe('statement investigation (disposable DB)', () => {
   app.use((err, _req, res, _next) => res.status(err.statusCode || 500).json({ code: err.code }));
 
   const PERIOD = { from: '2026-09-01', to: '2026-09-30' };
-  let entrySequence = 1000000;
 
   async function ensureSchema() {
-    await pool.query(`CREATE TABLE IF NOT EXISTS oxsteed_credit_partners (id BIGSERIAL PRIMARY KEY, restaurant_id BIGINT)`);
-    await pool.query(`ALTER TABLE oxsteed_credit_partners ADD COLUMN IF NOT EXISTS restaurant_id BIGINT`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS food_restaurants (id BIGSERIAL PRIMARY KEY, display_name VARCHAR(255))`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS food_orders (
-      id BIGSERIAL PRIMARY KEY, restaurant_id BIGINT, customer_id UUID,
-      status VARCHAR(24) NOT NULL DEFAULT 'received', payment_status VARCHAR(24) NOT NULL DEFAULT 'unpaid',
-      total_cents INTEGER NOT NULL DEFAULT 0, currency_code CHAR(3) NOT NULL DEFAULT 'USD',
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS oxsteed_credit_accounts (
-      id BIGSERIAL PRIMARY KEY, account_type VARCHAR(32) NOT NULL,
-      customer_id UUID REFERENCES users(id) ON DELETE RESTRICT,
-      partner_id BIGINT REFERENCES oxsteed_credit_partners(id) ON DELETE RESTRICT,
-      currency_code CHAR(3) NOT NULL DEFAULT 'USD', balance_cents BIGINT NOT NULL DEFAULT 0,
-      reserved_cents BIGINT NOT NULL DEFAULT 0, status VARCHAR(20) NOT NULL DEFAULT 'active',
-      ledger_version BIGINT NOT NULL DEFAULT 0, last_entry_hash TEXT, last_posted_at TIMESTAMPTZ,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS oxsteed_credit_transactions (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(), transaction_type VARCHAR(32) NOT NULL,
-      status VARCHAR(20) NOT NULL DEFAULT 'posted',
-      debit_account_id BIGINT NOT NULL REFERENCES oxsteed_credit_accounts(id) ON DELETE RESTRICT,
-      credit_account_id BIGINT NOT NULL REFERENCES oxsteed_credit_accounts(id) ON DELETE RESTRICT,
-      amount_cents BIGINT NOT NULL, currency_code CHAR(3) NOT NULL,
-      partner_id BIGINT REFERENCES oxsteed_credit_partners(id) ON DELETE RESTRICT,
-      idempotency_key VARCHAR(160) NOT NULL UNIQUE,
-      reference_type VARCHAR(80), reference_id VARCHAR(160), description VARCHAR(255),
-      actor_type VARCHAR(32) NOT NULL DEFAULT 'system',
-      metadata JSONB NOT NULL DEFAULT '{}'::jsonb, posted_at TIMESTAMPTZ,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS oxsteed_credit_transaction_entries (
-      id BIGSERIAL PRIMARY KEY,
-      transaction_id UUID NOT NULL REFERENCES oxsteed_credit_transactions(id) ON DELETE RESTRICT,
-      account_id BIGINT NOT NULL REFERENCES oxsteed_credit_accounts(id) ON DELETE RESTRICT,
-      entry_side VARCHAR(8) NOT NULL, amount_cents BIGINT NOT NULL, balance_after_cents BIGINT NOT NULL,
-      sequence BIGINT NOT NULL, entry_hash TEXT NOT NULL,
-      metadata JSONB NOT NULL DEFAULT '{}'::jsonb, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS food_customer_wallet_accounts (
-      id BIGSERIAL PRIMARY KEY, restaurant_id BIGINT NOT NULL REFERENCES food_restaurants(id) ON DELETE CASCADE,
-      customer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      currency_code VARCHAR(3) NOT NULL DEFAULT 'USD', balance_cents BIGINT NOT NULL DEFAULT 0,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS food_customer_wallet_ledger (
-      id BIGSERIAL PRIMARY KEY,
-      account_id BIGINT NOT NULL REFERENCES food_customer_wallet_accounts(id) ON DELETE CASCADE,
-      restaurant_id BIGINT NOT NULL REFERENCES food_restaurants(id) ON DELETE CASCADE,
-      customer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      entry_type VARCHAR(20) NOT NULL, amount_cents BIGINT NOT NULL,
-      balance_after_cents BIGINT NOT NULL, currency_code VARCHAR(3) NOT NULL DEFAULT 'USD',
-      description VARCHAR(255), reference_type VARCHAR(60), reference_id VARCHAR(120),
-      idempotency_key VARCHAR(120), metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS credit_statement_documents (
-      id UUID PRIMARY KEY, customer_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
-      product VARCHAR(20) NOT NULL, account_id BIGINT NOT NULL, currency_code CHAR(3) NOT NULL,
-      period_from DATE NOT NULL, period_to DATE NOT NULL, generated_at TIMESTAMPTZ NOT NULL,
-      document JSONB NOT NULL, content_hash CHAR(64) NOT NULL,
-      UNIQUE (customer_id, product, account_id, currency_code, period_from, period_to))`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS oxsteed_credit_disputes (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      transaction_id UUID NOT NULL REFERENCES oxsteed_credit_transactions(id) ON DELETE RESTRICT,
-      customer_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
-      partner_id BIGINT REFERENCES oxsteed_credit_partners(id) ON DELETE SET NULL,
-      status VARCHAR(20) NOT NULL DEFAULT 'open', reason_code VARCHAR(60) NOT NULL,
-      description TEXT NOT NULL, resolution TEXT,
-      opened_by UUID REFERENCES users(id) ON DELETE SET NULL,
-      opened_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), resolved_at TIMESTAMPTZ,
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      idempotency_key VARCHAR(160), dispute_type VARCHAR(40), sla_due_at TIMESTAMPTZ,
-      provisional_credit_cents BIGINT NOT NULL DEFAULT 0)`);
-    // Migration 685 columns (idempotent for re-runs against older shapes).
-    await pool.query(`ALTER TABLE oxsteed_credit_disputes
-      ADD COLUMN IF NOT EXISTS statement_document_id UUID REFERENCES credit_statement_documents(id) ON DELETE SET NULL,
-      ADD COLUMN IF NOT EXISTS statement_revision INTEGER,
-      ADD COLUMN IF NOT EXISTS statement_entry_id VARCHAR(120),
-      ADD COLUMN IF NOT EXISTS statement_product VARCHAR(20),
-      ADD COLUMN IF NOT EXISTS statement_account_id BIGINT,
-      ADD COLUMN IF NOT EXISTS statement_period_from DATE,
-      ADD COLUMN IF NOT EXISTS statement_period_to DATE`);
-    await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS uq_oxsteed_credit_active_dispute
-      ON oxsteed_credit_disputes(transaction_id) WHERE status IN ('open', 'in_review')`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS oxsteed_credit_audit_events (
-      id BIGSERIAL PRIMARY KEY, action_type VARCHAR(80) NOT NULL,
-      actor_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-      customer_id UUID REFERENCES users(id) ON DELETE SET NULL,
-      partner_id BIGINT REFERENCES oxsteed_credit_partners(id) ON DELETE SET NULL,
-      resource_type VARCHAR(80) NOT NULL, resource_id VARCHAR(160) NOT NULL,
-      reason TEXT, request_ip INET, before_state JSONB, after_state JSONB,
-      metadata JSONB NOT NULL DEFAULT '{}'::jsonb, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+    await assertMigratedSchema(pool);
   }
 
   // Fresh, mutually-unlinked fixtures per test: unique users, accounts,
@@ -185,39 +88,66 @@ ddescribe('statement investigation (disposable DB)', () => {
   async function newFixture() {
     const ownerId = crypto.randomUUID();
     const intruderId = crypto.randomUUID();
+    const adminId = crypto.randomUUID();
     await pool.query(
       `INSERT INTO users (id, email, password_hash, first_name, last_name, role, email_verified, is_active)
        VALUES ($1, $2, 'synthetic', 'Stmt', 'Fixture', 'customer', TRUE, TRUE),
               ($3, $4, 'synthetic', 'Intr', 'Uder', 'customer', TRUE, TRUE)`,
       [ownerId, `${ownerId}@example.invalid`, intruderId, `${intruderId}@example.invalid`]
     );
-    const { rows: [treasury] } = await pool.query(
-      `INSERT INTO oxsteed_credit_accounts (account_type, currency_code, balance_cents)
-       VALUES ('platform_treasury', 'USD', 1000000) RETURNING id`);
+    await pool.query(
+      `INSERT INTO users (id,email,password_hash,first_name,last_name,role,email_verified,is_active)
+       VALUES ($1,$2,'synthetic','Fixture','Admin','admin',TRUE,TRUE)`, [adminId, `${adminId}@example.invalid`]);
+    const credit = require('../services/oxsteedCreditService');
+    const treasury = await credit.ensureAccount(pool, { accountType: 'platform_treasury', currencyCode: 'USD' });
     const { rows: [account] } = await pool.query(
-      `INSERT INTO oxsteed_credit_accounts (account_type, customer_id, currency_code, balance_cents)
-       VALUES ('customer_wallet', $1, 'USD', 10000) RETURNING id`, [ownerId]);
+      `INSERT INTO oxsteed_credit_accounts (account_type, customer_id, currency_code)
+       VALUES ('customer_wallet', $1, 'USD') RETURNING id`, [ownerId]);
+    const { rows: [business] } = await pool.query(
+      `INSERT INTO businesses (user_id, business_name) VALUES ($1, 'Synthetic Testaurant') RETURNING id`, [ownerId]);
     const { rows: [restaurant] } = await pool.query(
-      `INSERT INTO food_restaurants (display_name) VALUES ('Testaurant') RETURNING id`);
+      `INSERT INTO food_restaurants (business_id, owner_user_id, display_name, status)
+       VALUES ($1, $2, 'Testaurant', 'active') RETURNING id`, [business.id, ownerId]);
+    const { rows: [partner] } = await pool.query(
+      `INSERT INTO oxsteed_credit_partners (restaurant_id, status, created_by)
+       VALUES ($1, 'active', $2) RETURNING id`, [restaurant.id, adminId]);
+    const payable = await credit.ensureAccount(pool, { accountType: 'partner_payable', partnerId: partner.id, currencyCode: 'USD' });
+    const { rows: [agreement] } = await pool.query(
+      `INSERT INTO oxsteed_credit_partner_agreements (partner_id,version,status,starts_at,created_by,approved_by)
+       VALUES ($1,1,'active',NOW()-interval '1 day',$2,$2) RETURNING id`, [partner.id, adminId]);
     const { rows: [order] } = await pool.query(
-      `INSERT INTO food_orders (restaurant_id, customer_id, status, payment_status, total_cents, currency_code)
-       VALUES ($1, $2, 'completed', 'paid', 2500, 'USD') RETURNING id`, [restaurant.id, ownerId]);
+      `INSERT INTO food_orders (restaurant_id, business_id, customer_id, queue_number, status, payment_status, total_cents, currency_code)
+       VALUES ($1, $2, $3, 1, 'completed', 'paid', 2500, 'USD') RETURNING id`, [restaurant.id, business.id, ownerId]);
 
     async function addTransaction({ type, amount, referenceType, referenceId, description, balanceAfter }) {
-      const txId = crypto.randomUUID();
-      await pool.query(
-        `INSERT INTO oxsteed_credit_transactions
-           (id, transaction_type, status, debit_account_id, credit_account_id, amount_cents,
-            currency_code, idempotency_key, reference_type, reference_id, description, posted_at)
-         VALUES ($1, $2, 'posted', $3, $4, $5, 'USD', $6, $7, $8, $9, NOW())`,
-        [txId, type, account.id, treasury.id, amount, `tx-${txId}`, referenceType, referenceId, description]);
-      await pool.query(
-        `INSERT INTO oxsteed_credit_transaction_entries
-           (transaction_id, account_id, entry_side, amount_cents, balance_after_cents, sequence, entry_hash)
-         VALUES ($1, $2, 'debit', $3, $4, $5, $6)`,
-        [txId, account.id, amount, balanceAfter, entrySequence += 1, `h-${txId}`]);
-      return txId;
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const { transaction } = await require('../services/oxsteedCreditService').postJournalTransaction(client, {
+          transactionType: type, amountCents: amount, currencyCode: 'USD',
+          debitAccountId: type === 'load' ? treasury.id : account.id,
+          creditAccountId: type === 'load' ? account.id : payable.id,
+          partnerId: type === 'load' ? null : partner.id,
+          agreementId: type === 'load' ? null : agreement.id,
+          idempotencyKey: `investigation-fixture-${crypto.randomUUID()}`,
+          referenceType, referenceId, description,
+          actorType: type === 'load' ? 'admin' : 'customer', actorUserId: type === 'load' ? adminId : ownerId,
+          reason: 'Synthetic disposable investigation fixture',
+        });
+        await client.query('COMMIT');
+        if (balanceAfter !== undefined) {
+          const { rows: [balance] } = await pool.query('SELECT balance_cents FROM oxsteed_credit_accounts WHERE id=$1', [account.id]);
+          expect(Number(balance.balance_cents)).toBe(balanceAfter);
+        }
+        return transaction.id;
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally { client.release(); }
     }
+
+    await addTransaction({ type: 'load', amount: 10000, referenceType: 'synthetic_opening',
+      referenceId: crypto.randomUUID(), description: 'Synthetic opening', balanceAfter: 10000 });
 
     const txId = await addTransaction({
       type: 'purchase', amount: 2500, referenceType: 'food_order', referenceId: String(order.id),
@@ -225,7 +155,7 @@ ddescribe('statement investigation (disposable DB)', () => {
     });
     // Decoy: same amount, no explicit reference. The drilldown must NOT link it.
     const decoyId = await addTransaction({
-      type: 'purchase', amount: 2500, referenceType: null, referenceId: null,
+      type: 'purchase', amount: 2500, referenceType: null, referenceId: crypto.randomUUID(),
       description: 'Decoy purchase', balanceAfter: 5000,
     });
     // External payment reference: must be masked in every response.
@@ -259,7 +189,7 @@ ddescribe('statement investigation (disposable DB)', () => {
          (id, customer_id, product, account_id, currency_code, period_from, period_to, generated_at, document, content_hash)
        VALUES ($1, $2, 'oxsteed', $3, 'USD', $4, $5, NOW(), $6, $7)`,
       [docId, ownerId, account.id, PERIOD.from, PERIOD.to, JSON.stringify(document), document.contentHash]);
-    return { ownerId, intruderId, accountId: account.id, docId, txId, decoyId, topupId, orderId: order.id };
+    return { ownerId, intruderId, adminId, accountId: account.id, docId, txId, decoyId, topupId, orderId: order.id };
   }
 
   const as = (userId) => ({ 'x-test-user-id': userId });
@@ -358,7 +288,7 @@ ddescribe('statement investigation (disposable DB)', () => {
     const before = (await pool.query(
       'SELECT document::text AS doc_text, content_hash FROM credit_statement_documents WHERE id = $1', [f.docId])).rows[0];
     // Simulate the review workflow moving the case forward.
-    await pool.query(`UPDATE oxsteed_credit_disputes SET status = 'in_review' WHERE id = $1`, [created.body.caseId]);
+    await pool.query(`UPDATE oxsteed_credit_disputes SET status = 'in_review', resolution='Synthetic review started' WHERE id = $1`, [created.body.caseId]);
     const { rows: [dispute] } = await pool.query('SELECT status FROM oxsteed_credit_disputes WHERE id = $1', [created.body.caseId]);
     expect(dispute.status).toBe('in_review');
     const after = (await pool.query(
@@ -393,34 +323,50 @@ ddescribe('statement investigation (disposable DB)', () => {
     expect(dispute.description).not.toContain(raw);
   });
 
-  test('restaurant product entries are read-only: drilldown works, case filing is honestly refused', async () => {
+  test('restaurant statement cases use linked support tickets with idempotency and no money movement', async () => {
     const f = await newFixture();
-    // A restaurant-product document is out of scope for the credit dispute
-    // system; the router must refuse case creation instead of inventing one.
-    const docId = crypto.randomUUID();
-    const document = {
-      id: docId, version: 1, kind: 'monthly', product: 'restaurant',
-      ownerName: 'Statement Fixture', accountLabel: 'Testaurant',
-      accountReference: 'RC-••••0000', currencyCode: 'USD',
-      period: { from: PERIOD.from, to: PERIOD.to }, generatedAt: '2026-10-01T00:00:00.000Z',
-      openingBalanceCents: 0,
-      transactions: [{ id: '42', date: '2026-09-15T12:00:00.000Z', type: 'purchase', description: 'Lunch', debitCents: 1200, creditCents: 0, balanceAfterCents: 8800 }],
-      closingBalanceCents: 8800, totalCreditsCents: 0, totalDebitsCents: 1200,
-      transactionCount: 1, holds: [], holdsAsOf: null, totalHeldCents: 0,
-    };
-    document.contentHash = hashDocument(document);
+    const restaurant = (await pool.query('SELECT id FROM food_restaurants WHERE owner_user_id=$1',[f.ownerId])).rows[0];
+    const walletService = require('../services/foodWalletService');
+    const client = await pool.connect();
+    let movement;
+    try {
+      await client.query('BEGIN');
+      const args = { restaurantId:restaurant.id,customerId:f.ownerId,currencyCode:'USD',
+        createdByUserId:f.adminId,actorType:'admin',referenceType:'merchant_load',referenceId:crypto.randomUUID() };
+      await walletService.creditFoodWallet(client,{ ...args,amountCents:10000,idempotencyKey:crypto.randomUUID() });
+      movement=await walletService.debitFoodWallet(client,{ ...args,amountCents:1200,idempotencyKey:crypto.randomUUID(),
+        referenceType:'food_order',referenceId:String(f.orderId),description:'Lunch' });
+      await client.query('COMMIT');
+    } catch (error) { await client.query('ROLLBACK'); throw error; }
+    finally { client.release(); }
+    const docId=crypto.randomUUID();
+    const entryId=String(movement.entry.id);
+    const document={ id:docId,version:1,kind:'monthly',product:'restaurant',ownerName:'Fixture',
+      accountLabel:'Testaurant',accountReference:'RC-••••0000',currencyCode:'USD',
+      period:{...PERIOD},generatedAt:new Date().toISOString(),openingBalanceCents:10000,
+      transactions:[{ id:entryId,date:new Date(movement.entry.created_at).toISOString(),type:'purchase',description:'Lunch',
+        debitCents:1200,creditCents:0,balanceAfterCents:8800 }],closingBalanceCents:8800,
+      totalCreditsCents:0,totalDebitsCents:1200,transactionCount:1,holds:[],holdsAsOf:null,totalHeldCents:0 };
+    document.contentHash=hashDocument(document);
     await pool.query(
-      `INSERT INTO credit_statement_documents
-         (id, customer_id, product, account_id, currency_code, period_from, period_to, generated_at, document, content_hash)
-       VALUES ($1, $2, 'restaurant', 424242, 'USD', $3, $4, NOW(), $5, $6)`,
-      [docId, f.ownerId, PERIOD.from, PERIOD.to, JSON.stringify(document), document.contentHash]);
-    const drill = await request(app).get(`/api/statements/${docId}/entries/42`).set(as(f.ownerId)).expect(200);
-    expect(drill.body.statement.caseSupport).toBe('unsupported');
-    const refused = await request(app).post(`/api/statements/${docId}/entries/42/cases`)
-      .set(as(f.ownerId)).send({ reason: 'unrecognized' });
-    expect(refused.status).toBe(409);
-    expect(refused.body.code).toBe('statement_case_unsupported');
-    const cases = await request(app).get(`/api/statements/${docId}/entries/42/cases`).set(as(f.ownerId)).expect(200);
-    expect(cases.body.cases).toEqual([]);
+      "INSERT INTO credit_statement_documents (id,customer_id,product,account_id,currency_code,period_from,period_to,generated_at,document,content_hash) VALUES ($1,$2,'restaurant',$3,'USD',$4,$5,NOW(),$6,$7)",
+      [docId,f.ownerId,movement.account.id,PERIOD.from,PERIOD.to,JSON.stringify(document),document.contentHash]);
+    const path='/api/statements/'+docId+'/entries/'+entryId;
+    const before=(await pool.query('SELECT balance_cents,ledger_version FROM food_customer_wallet_accounts WHERE id=$1',[movement.account.id])).rows[0];
+    await request(app).post(path+'/cases').set(as(f.intruderId)).send({ reason:'unrecognized' }).expect(404);
+    const drill=await request(app).get(path).set(as(f.ownerId)).expect(200);
+    expect(drill.body.statement.caseSupport).toBe('support_tickets');
+    const first=await request(app).post(path+'/cases').set(as(f.ownerId)).send({ reason:'unrecognized' }).expect(201);
+    const second=await request(app).post(path+'/cases').set(as(f.ownerId)).send({ reason:'unrecognized' }).expect(200);
+    expect(second.body.caseId).toBe(first.body.caseId);
+    const cases=await request(app).get(path+'/cases').set(as(f.ownerId)).expect(200);
+    expect(cases.body.cases).toHaveLength(1);
+    const ticket=(await pool.query('SELECT metadata FROM support_tickets WHERE id=$1',[first.body.caseId])).rows[0];
+    expect(ticket.metadata.statement.documentId).toBe(docId);
+    expect(ticket.metadata.statement.entryId).toBe(entryId);
+    expect(ticket.metadata.statement.accountId).toBe(String(movement.account.id));
+    const after=(await pool.query('SELECT balance_cents,ledger_version FROM food_customer_wallet_accounts WHERE id=$1',[movement.account.id])).rows[0];
+    expect(after).toEqual(before);
+    expect((await pool.query('SELECT content_hash FROM credit_statement_documents WHERE id=$1',[docId])).rows[0].content_hash).toBe(document.contentHash);
   });
 });

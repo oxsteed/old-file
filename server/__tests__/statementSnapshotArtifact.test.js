@@ -382,6 +382,53 @@ describe('artifact publication workflow', () => {
     expect(signed.url).not.toContain('public');
   }, 60000);
 
+  test('resumes a crashed staged upload using its verified original bytes', async () => {
+    const storage = makeFakeStorage();
+    const oldPdf = fakePdf('crash-original');
+    const id = crypto.randomUUID();
+    const key = `test-statements/stmt/renditions/crash-resume/${id}.pdf`;
+    await pool.query(`INSERT INTO statement_artifacts
+      (id,snapshot_id,kind,language,renderer_version,template_version,font_version,byte_length,sha256,
+       media_type,object_key,state,created_at,storage_bucket,rendition_label)
+      VALUES ($1,$2,'rendition','en','r/1','t/1','f/1',$3,$4,'application/pdf',$5,'staged',now(),
+      'statement-test-bucket','crash-resume')`,
+    [id, snapshotId, oldPdf.length, crypto.createHash('sha256').update(oldPdf).digest('hex'), key]);
+    storage.objects.set(key, { buffer: oldPdf, contentType: 'application/pdf' });
+    const artifact = await artifacts.publishRendition({ snapshotId, language: 'en', label: 'crash-resume',
+      pdfBytes: fakePdf('different-rerender'), storage });
+    expect(artifact.id).toBe(id);
+    expect(artifact.state).toBe('ready');
+    expect(storage.calls.filter(call => call[0] === 'uploadFile')).toHaveLength(0);
+  });
+
+  test('concurrent publishers converge without duplicate originals', async () => {
+    const storage = makeFakeStorage();
+    const input = { snapshotId, language: 'fr', label: 'concurrent', pdfBytes: fakePdf('concurrent'), storage };
+    const results = await Promise.allSettled([artifacts.publishRendition(input), artifacts.publishRendition(input)]);
+    expect(results.some(result => result.status === 'fulfilled')).toBe(true);
+    for (const result of results.filter(result => result.status === 'rejected')) {
+      expect(result.reason.code).toBe('statement_publication_busy');
+    }
+    expect(new Set(results.filter(result => result.status === 'fulfilled').map(result => result.value.id)).size).toBe(1);
+    const rows = await pool.query(`SELECT id FROM statement_artifacts
+      WHERE snapshot_id=$1 AND rendition_label='concurrent' AND state <> 'failed'`, [snapshotId]);
+    expect(rows.rows).toHaveLength(1);
+    expect((await artifacts.publishRendition(input)).id).toBe(rows.rows[0].id);
+  });
+
+  test('issued ready metadata cannot be changed and corrupt originals fail closed', async () => {
+    const storage = makeFakeStorage();
+    const artifact = await artifacts.publishRendition({ snapshotId, language: 'en', label: 'immutable',
+      pdfBytes: fakePdf('immutable'), storage });
+    await expect(pool.query("UPDATE statement_artifacts SET state='staged' WHERE id=$1", [artifact.id]))
+      .rejects.toMatchObject({ code: '23514' });
+    storage.objects.set(artifact.objectKey, { buffer: fakePdf('tampered') });
+    await expect(artifacts.getDownloadStream({ artifactId: artifact.id, storage }))
+      .rejects.toMatchObject({ code: 'statement_artifact_verification_failed' });
+    await expect(artifacts.createSignedUrl({ artifactId: artifact.id, storage }))
+      .rejects.toMatchObject({ code: 'statement_artifact_verification_failed' });
+  });
+
   test('storage without signed-URL support fails closed with a provider blocker', async () => {
     const storage = makeFakeStorage();
     delete storage.getSignedDownloadUrl;

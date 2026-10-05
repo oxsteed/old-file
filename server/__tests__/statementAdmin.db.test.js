@@ -21,24 +21,12 @@
 
 jest.unmock('pg');
 
-const fs = require('fs');
-const path = require('path');
 const crypto = require('crypto');
 
-const RAW_URL = process.env.STATEMENT_JOB_TEST_DATABASE_URL || '';
+const { disposableDatabaseOptIn, isDisposableDatabase, assertMigratedSchema } = require('./helpers/statementTestDatabase');
+const RAW_URL = disposableDatabaseOptIn('STATEMENT_JOB_TEST_DATABASE_URL');
 const DISPOSABLE_URL = RAW_URL;
 
-function isDisposableDatabase(urlText) {
-  let url;
-  try {
-    url = new URL(urlText);
-  } catch {
-    return false;
-  }
-  const localhost = ['127.0.0.1', 'localhost', '::1'].includes(url.hostname);
-  return ['postgres:', 'postgresql:'].includes(url.protocol) && localhost
-    && url.pathname === '/credit_statement_test';
-}
 
 const CAN_RUN_DB = isDisposableDatabase(DISPOSABLE_URL);
 const ddescribe = CAN_RUN_DB ? describe : describe.skip;
@@ -92,105 +80,13 @@ function buildApp() {
   return app;
 }
 
-async function applySqlFile(filename) {
-  const sql = fs.readFileSync(path.join(__dirname, '..', 'migrations', filename), 'utf8');
-  await pool.query(sql);
-}
-
-async function triggerExists(name) {
-  const { rows } = await pool.query(
-    'SELECT 1 FROM pg_trigger WHERE tgname = $1 AND NOT tgisinternal', [name]);
-  return rows.length > 0;
-}
-
 ddescribe('statement admin on the disposable database', () => {
   let runA; let jobA; let runB;
 
   beforeAll(async () => {
     tokenRevocationService.isRevoked.mockResolvedValue(false);
 
-    // Real migration files, verbatim.
-    await applySqlFile('682_credit_statement_documents.sql');
-    await applySqlFile('684_statement_artifacts.sql');
-    await applySqlFile('686_statement_amendment_proposals.sql');
-
-    // admin_audit_log: base table verbatim from 005_admin.sql, target_key
-    // from 591, hash chain + immutability from 406, no-delete from 624.
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS admin_audit_log (
-        id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-        admin_id      UUID        REFERENCES users(id) ON DELETE SET NULL,
-        action        VARCHAR(80) NOT NULL,
-        target_type   VARCHAR(40),
-        target_id     UUID,
-        description   TEXT,
-        ip_address    INET,
-        user_agent    TEXT,
-        before_state  JSONB,
-        after_state   JSONB,
-        created_at    TIMESTAMPTZ DEFAULT now()
-      );
-      CREATE INDEX IF NOT EXISTS idx_audit_admin ON admin_audit_log(admin_id);
-      CREATE INDEX IF NOT EXISTS idx_audit_created ON admin_audit_log(created_at);
-      ALTER TABLE admin_audit_log ADD COLUMN IF NOT EXISTS target_key VARCHAR(160);
-    `);
-    await applySqlFile('406_admin_audit_hash_chain.sql').catch(async (error) => {
-      // Idempotent reruns: once the triggers exist, 406's backfill UPDATE
-      // hits the immutability trigger on leftover rows. Skip in that case.
-      if (await triggerExists('trg_admin_audit_immutable')) return;
-      throw error;
-    });
-    if (!(await triggerExists('admin_audit_log_no_delete'))) {
-      await pool.query(`
-      -- Verbatim from 624_ws5_audit_evidence_guards.sql (admin_audit_log portion).
-      CREATE OR REPLACE FUNCTION reject_audit_log_delete()
-      RETURNS trigger LANGUAGE plpgsql AS $$
-      BEGIN
-        RAISE EXCEPTION 'audit log table % is append-only; DELETE is not permitted', TG_TABLE_NAME
-          USING ERRCODE = '55000';
-        RETURN NULL;
-      END;
-      $$;
-      DROP TRIGGER IF EXISTS admin_audit_log_no_delete ON admin_audit_log;
-      CREATE TRIGGER admin_audit_log_no_delete
-        BEFORE DELETE ON admin_audit_log
-        FOR EACH ROW EXECUTE FUNCTION reject_audit_log_delete();
-      `);
-    }
-
-    // admin_permission_grants: table + index verbatim from 049.
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS admin_permission_grants (
-        id          BIGSERIAL   PRIMARY KEY,
-        grantor_id  UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        grantee_id  UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        permissions JSONB       NOT NULL DEFAULT '[]',
-        expires_at  TIMESTAMPTZ NOT NULL,
-        revoked_at  TIMESTAMPTZ,
-        revoked_by  UUID        REFERENCES users(id) ON DELETE SET NULL,
-        notes       TEXT,
-        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-      CREATE INDEX IF NOT EXISTS idx_perm_grants_grantee ON admin_permission_grants(grantee_id);
-      -- 115/119 add region_id on the real chain; the grant lookup reads it.
-      ALTER TABLE admin_permission_grants ADD COLUMN IF NOT EXISTS region_id INTEGER;
-    `);
-
-    // Minimal delegation_grants so the permission middleware's delegated-grant
-    // UNION ALL can run on the disposable schema (empty: no delegations).
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS delegation_grants (
-        id BIGSERIAL PRIMARY KEY,
-        grantor_admin_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        grantee_admin_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        scopes TEXT[] NOT NULL DEFAULT '{}',
-        status VARCHAR(20) NOT NULL DEFAULT 'active',
-        expires_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-    `);
-
-    // Users (disposable schema predates totp_enabled; add it to mirror prod).
-    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN DEFAULT FALSE');
+    await assertMigratedSchema(pool);
     for (const [id, email, role] of [
       [ADMIN_VIEWER, 'viewer@invalid', 'admin'],
       [ADMIN_OPERATOR, 'operator@invalid', 'admin'],
@@ -230,8 +126,8 @@ ddescribe('statement admin on the disposable database', () => {
 
     // Run A with a failed job and an issued document carrying a marker body.
     ({ rows: [runA] } = await pool.query(
-      `INSERT INTO statement_issuance_runs (id, product, period_from, period_to, state, discovered_count)
-       VALUES ($1, 'oxsteed', '2026-09-01', '2026-09-30', 'running', 1) RETURNING *`,
+      `INSERT INTO statement_issuance_runs (id, product, period_from, period_to, state, discovery_phase, discovered_count)
+       VALUES ($1, 'oxsteed', '2026-09-01', '2026-09-30', 'running', 'running', 1) RETURNING *`,
       [crypto.randomUUID()]));
     ({ rows: [jobA] } = await pool.query(
       `INSERT INTO statement_account_jobs

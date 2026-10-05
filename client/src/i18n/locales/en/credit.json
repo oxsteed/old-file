@@ -1,4 +1,22 @@
 {
+  "statementCenter": {
+    "exportCancelled": "Your export was cancelled.",
+    "restaurantSettlement": "Restaurant settlement statements",
+    "helperEarnings": "Helper earnings statements",
+    "business": "Business statements",
+    "versions": "Correction history",
+    "accessible": "Accessible statement",
+    "settlementScopeNote": "Statements are separate for each entity and currency. They show recorded earnings, receivables and settlements; they are not tax forms or bank deposit statements.",
+    "htmlError": "The accessible statement could not be loaded. Please try again.",
+    "accountError": "Accounts could not be loaded. Please try again.",
+    "export": "Request complete export",
+    "exportPending": "Your export is being prepared.",
+    "exportReady": "Your complete export is ready.",
+    "exportError": "Your export could not be completed.",
+    "cancelExport": "Cancel export",
+    "retryExport": "Retry export",
+    "exportFiles": "Export files"
+  },
   "statements": {
     "title": "Account statements",
     "description": "Review balances and posted activity, and download PDF or CSV statements.",

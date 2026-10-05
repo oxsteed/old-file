@@ -50,3 +50,12 @@
 @media (prefers-reduced-motion: reduce) {
   .statement-accessible-shell * { transition: none !important; animation: none !important; }
 }
+.sa-html-frame {
+  display: block;
+  width: 100%;
+  min-height: 75vh;
+  margin-block: 1.5rem;
+  border: 1px solid var(--border-color, #64748b);
+  border-radius: 0.75rem;
+  background: var(--surface, #fff);
+}

@@ -1,4 +1,22 @@
 {
+  "statementCenter": {
+    "exportCancelled": "Tu exportación se canceló.",
+    "restaurantSettlement": "Estados de liquidación del restaurante",
+    "helperEarnings": "Estados de ingresos del colaborador",
+    "business": "Estados del negocio",
+    "versions": "Historial de correcciones",
+    "accessible": "Estado accesible",
+    "settlementScopeNote": "Los estados son independientes para cada entidad y moneda. Muestran ingresos, cuentas por cobrar y liquidaciones registrados; no son formularios fiscales ni estados de depósitos bancarios.",
+    "htmlError": "No se pudo cargar el estado accesible. Inténtalo de nuevo.",
+    "accountError": "No se pudieron cargar las cuentas. Inténtalo de nuevo.",
+    "export": "Solicitar exportación completa",
+    "exportPending": "Tu exportación se está preparando.",
+    "exportReady": "Tu exportación completa está lista.",
+    "exportError": "No se pudo completar la exportación.",
+    "cancelExport": "Cancelar exportación",
+    "retryExport": "Reintentar exportación",
+    "exportFiles": "Archivos de exportación"
+  },
   "statements": {
     "title": "Estados de cuenta",
     "description": "Revisa saldos y actividad contabilizada y descarga estados en PDF o CSV.",

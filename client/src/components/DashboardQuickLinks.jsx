@@ -35,6 +35,7 @@ const WALLET_LINK = link('/wallet', 'nav.wallet', 'Wallet', WalletCards);
 
 export const DASHBOARD_QUICK_LINKS = {
   helper: [
+    link('/helper-earnings/statements', 'statementCenter.helperEarnings', 'Helper earnings statements', FileText),
     link('/activity', 'helperDashboard.viewHistory', 'View history', Activity, 'history'),
     link('/verify-identity', 'helperDashboard.verifyId', 'Verify ID', ShieldCheck, 'verify'),
     link('/jobs', 'helperDashboard.browseJobs', 'Browse jobs', Briefcase),
@@ -81,6 +82,8 @@ export const DASHBOARD_QUICK_LINKS = {
     link('/settings', 'nav.settings', 'Settings', Settings),
   ],
   businessOwner: [
+    link('/business/statements', 'statementCenter.business', 'Business statements', FileText),
+    link('/restaurant-settlement/statements', 'statementCenter.restaurantSettlement', 'Restaurant settlement statements', FileText),
     link('/jobs', 'nav.browseJobs', 'Browse Jobs', Search),
     link('/restaurants', 'nav.localFoodDirectory', 'Local Food Directory', UtensilsCrossed),
     link('/post-job', 'nav.postJob', 'Post a Job', FileText),

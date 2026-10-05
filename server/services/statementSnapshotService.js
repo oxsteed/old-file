@@ -137,6 +137,17 @@ function helperEarningsEvidence(document) {
   const settledMinor = toBigIntMinor(document.settledPayoutsCents, 'settled payouts');
   const removedMinor = toBigIntMinor(document.statusRemovalsCents, 'status removals');
   const closingMinor = toBigIntMinor(document.closingPayableCents, 'closing payable');
+  if(Array.isArray(document.movements)) {
+    const rows=document.movements.map(entry=>{
+      const posted=toBigIntMinor(entry.postedEarningsCents,'posted movement');
+      const settled=toBigIntMinor(entry.settledPayoutsCents,'settled movement');
+      const removed=toBigIntMinor(entry.statusRemovalsCents,'removed movement');
+      return {id:`history:${entry.sourceHistoryId}`,date:entry.recordedAt,
+        creditCents:posted+(settled<0n?-settled:0n),debitCents:removed+(settled>0n?settled:0n),balanceAfterCents:null};
+    });
+    return {openingMinor,closingMinor,rows,
+      creditsMinor:rows.reduce((sum,row)=>sum+row.creditCents,0n),debitsMinor:rows.reduce((sum,row)=>sum+row.debitCents,0n)};
+  }
   const rows = [];
   for (const entry of Array.isArray(document.earnings) ? document.earnings : []) {
     const payout = toBigIntMinor(entry.helperPayoutCents, 'earned payout');
@@ -178,6 +189,18 @@ function businessEvidence(document) {
   const collectedOrAdjustedMinor = toBigIntMinor(receivables.collectedOrAdjustedCents, 'collected or adjusted');
   const cancelledMinor = toBigIntMinor(receivables.cancelledCents, 'cancelled');
   const closingMinor = toBigIntMinor(receivables.closingOutstandingCents, 'closing outstanding');
+  if(Array.isArray(receivables.movements)) {
+    const rows=receivables.movements.map(entry=>{
+      const issued=toBigIntMinor(entry.invoicedCents,'invoice movement');
+      const collected=toBigIntMinor(entry.collectedOrAdjustedCents,'payment movement');
+      const cancelled=toBigIntMinor(entry.cancelledCents,'cancelled movement');
+      return {id:`history:${entry.sourceHistoryId}`,date:entry.recordedAt,
+        creditCents:(issued>0n?issued:0n)+(collected<0n?-collected:0n),
+        debitCents:(issued<0n?-issued:0n)+(collected>0n?collected:0n)+cancelled,balanceAfterCents:null};
+    });
+    return {openingMinor,closingMinor,rows,
+      creditsMinor:rows.reduce((sum,row)=>sum+row.creditCents,0n),debitsMinor:rows.reduce((sum,row)=>sum+row.debitCents,0n)};
+  }
   const rows = [];
   for (const inv of Array.isArray(receivables.invoices) ? receivables.invoices : []) {
     const issuedInPeriod = inv.issueDate && inv.issueDate >= period.from && inv.issueDate <= period.to;
@@ -403,8 +426,8 @@ async function freezeSnapshot({ issuanceKey, product, accountId, currency, perio
       `INSERT INTO statement_snapshots
         (id, issuance_key, product, account_id, account_uuid, currency_code, period_from, period_to, cutoff_at,
          schema_version, row_count, total_credits_minor, total_debits_minor, opening_minor,
-         closing_minor, source_hash, chunk_count, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17, transaction_timestamp())
+         closing_minor, source_hash, chunk_count, created_at,frozen_document)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17, transaction_timestamp(),$18)
        ON CONFLICT (issuance_key) DO NOTHING
        RETURNING *`,
       [snapshotId, issuanceKey, key.product,
@@ -412,7 +435,7 @@ async function freezeSnapshot({ issuanceKey, product, accountId, currency, perio
         UUID_SCOPED_PRODUCTS.has(key.product) ? key.accountId : null,
         key.currency, key.periodFrom, key.periodTo,
         document.generatedAt, SNAPSHOT_SCHEMA_VERSION, totals.rowCount, String(totals.credits),
-        String(totals.debits), String(totals.opening), String(totals.closing), sourceHash, chunks.length]);
+        String(totals.debits), String(totals.opening), String(totals.closing), sourceHash, chunks.length,JSON.stringify(document)]);
     if (!manifest) {
       // A concurrent freeze won the race: return the completed snapshot instead
       // of re-snapshotting. Never re-freeze an existing issuance key.
@@ -514,7 +537,81 @@ async function verifySnapshot(snapshotId) {
   }
 }
 
+async function getFrozenDocument(snapshotId) {
+  if(!UUID_PATTERN.test(String(snapshotId||'')))throw new AppError('Statement snapshot not found',404,'statement_snapshot_not_found');
+  const {rows:[manifest]}=await pool.query('SELECT * FROM statement_snapshots WHERE id=$1',[snapshotId]);
+  if(!manifest)throw new AppError('Statement snapshot not found',404,'statement_snapshot_not_found');
+  const document=manifest.frozen_document;
+  // A legacy hash-only manifest cannot prove byte/document identity. Never
+  // relink it to a fresh build: the issuer must expose an explicit repair gate.
+  if(!document)throw new AppError('Legacy snapshot has no frozen source document',409,'statement_snapshot_document_unavailable');
+  const totals=assertEvidenceTotals(evidenceForDocument(document));
+  const sourceHash=hashRows(evidenceForDocument(document).rows.map(canonicalRowDescriptor));
+  const documentHash=SETTLEMENT_PRODUCTS.has(document.product)?settlementStatements.hashDocument(document):statements.hashDocument(document);
+  const day=value=>value instanceof Date?value.toISOString().slice(0,10):String(value);
+  if(document.product!==manifest.product||document.currencyCode!==manifest.currency_code
+    ||document.period?.from!==day(manifest.period_from)||document.period?.to!==day(manifest.period_to)
+    ||new Date(document.generatedAt).toISOString()!==new Date(manifest.cutoff_at).toISOString()
+    ||document.contentHash!==documentHash||sourceHash!==manifest.source_hash
+    ||BigInt(totals.rowCount)!==BigInt(manifest.row_count)||totals.opening!==BigInt(manifest.opening_minor)
+    ||totals.closing!==BigInt(manifest.closing_minor)||totals.credits!==BigInt(manifest.total_credits_minor)
+    ||totals.debits!==BigInt(manifest.total_debits_minor)) {
+    throw new AppError('Frozen statement source document verification failed',409,'statement_snapshot_integrity_failed');
+  }
+  return document;
+}
+
+// Durable export sources are separate from v1 issued documents. One bounded
+// transaction copies source facts in SQL; subsequent keyset pages read only the
+// immutable materialization, including after cancellation/retry or new postings.
+async function freezeExportSource(db, job, { materialize = statements.materializeExportSource } = {}) {
+  if (job.frozen_header) return job.frozen_header;
+  const client = await db.connect();
+  try {
+    const deadline=Date.now()+120000;
+    await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ');
+    await client.query("SET LOCAL statement_timeout='120000ms'");
+    await client.query("SET LOCAL lock_timeout='3000ms'");
+    await client.query("SET LOCAL idle_in_transaction_session_timeout='150000ms'");
+    await client.query("SET LOCAL work_mem='8MB'");
+    const { rows: [locked] } = await client.query(
+      `SELECT * FROM statement_export_jobs WHERE id=$1 AND lease_owner=$2 AND fence=$3
+       AND lease_until>now() AND NOT cancel_requested FOR UPDATE`, [job.id,job.lease_owner,job.fence]);
+    if (!locked) throw new AppError('Export lease lost', 409, 'statement_export_lease_lost');
+    if (locked.frozen_header) { await client.query('COMMIT'); return locked.frozen_header; }
+    const boundedClient={query:async(...args)=>{
+      const remaining=deadline-Date.now();
+      if(remaining<=0)throw new AppError('Source freeze exceeded its time budget',503,'statement_export_freeze_timeout');
+      await client.query(`SET LOCAL statement_timeout='${Math.max(1,remaining)}ms'`);
+      return client.query(...args);
+    }};
+    const day=value=>value instanceof Date?value.toISOString().slice(0,10):String(value);
+    const header = await materialize(boundedClient, {...locked,period_from:day(locked.period_from),period_to:day(locked.period_to)}, { maxRows:1000000 });
+    await client.query(
+      `UPDATE statement_export_jobs SET frozen_header=$4,frozen_at=$5,row_count=$6,
+       state='rendering',lease_until=now()+interval '45 seconds',updated_at=now()
+       WHERE id=$1 AND lease_owner=$2 AND fence=$3`,
+      [job.id,job.lease_owner,job.fence,JSON.stringify(header),header.generatedAt,header.transactionCount]);
+    await client.query('COMMIT');
+    return header;
+  } catch (error) { await client.query('ROLLBACK'); throw error; }
+  finally { client.release(); }
+}
+
+async function readExportChunk(db, jobId, after = 0, limit = DEFAULT_CHUNK_SIZE) {
+  if (!Number.isSafeInteger(Number(after)) || Number(after)<0 || !Number.isSafeInteger(limit) || limit<1 || limit>5000) {
+    throw new AppError('Invalid export cursor', 400, 'statement_snapshot_invalid_chunk_size');
+  }
+  const { rows } = await db.query(
+    `SELECT ordinal,row_data FROM statement_export_rows WHERE job_id=$1 AND ordinal>$2
+     ORDER BY ordinal LIMIT $3`, [jobId,after,limit]);
+  return rows.map(row=>({ordinal:Number(row.ordinal),...row.row_data}));
+}
+
 module.exports = {
+  getFrozenDocument,
+  freezeExportSource,
+  readExportChunk,
   freezeSnapshot,
   verifySnapshot,
   getSnapshot,

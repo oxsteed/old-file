@@ -20,20 +20,10 @@ const crypto = require('crypto');
 //   STATEMENT_JOB_TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:54329/credit_statement_test?sslmode=disable \
 //     npx jest __tests__/statementJobService.test.js
 // Without it, the DB describes skip (fail closed) instead of touching a DB.
-const RAW_URL = process.env.STATEMENT_JOB_TEST_DATABASE_URL || '';
+const { disposableDatabaseOptIn, isDisposableDatabase, assertMigratedSchema } = require('./helpers/statementTestDatabase');
+const RAW_URL = disposableDatabaseOptIn('STATEMENT_JOB_TEST_DATABASE_URL');
 const DISPOSABLE_URL = RAW_URL;
 
-function isDisposableDatabase(urlText) {
-  let url;
-  try {
-    url = new URL(urlText);
-  } catch {
-    return false;
-  }
-  const localhost = ['127.0.0.1', 'localhost', '::1'].includes(url.hostname);
-  return ['postgres:', 'postgresql:'].includes(url.protocol) && localhost
-    && url.pathname === '/credit_statement_test';
-}
 
 // Fail closed: the suite only runs against the disposable database. Under a
 // plain `npm test` (mock setup dummy URL) it skips instead of touching a DB.
@@ -118,6 +108,8 @@ async function drainClaimableJobs() {
 beforeEach(async () => {
   if (CAN_RUN_DB) await drainClaimableJobs();
 });
+
+beforeAll(async () => { if (CAN_RUN_DB) await assertMigratedSchema(pool); });
 
 ddescribe('migration 683 rehearsal (idempotent re-apply on the disposable DB)', () => {
   test('683 SQL applies cleanly and creates the expected objects', async () => {
@@ -337,7 +329,7 @@ ddescribe('backoff is bounded and attempts exhaust to dead_letter', () => {
     expect(result).not.toBeNull();
     expect(result.id).toBe(claimed.id);
     expect(result.state).toBe('dead_letter');
-    expect(await jobState(claimed.id).then((job) => job.lease_owner)).toBe('worker-a');
+    expect(await jobState(claimed.id).then((job) => job.lease_owner)).toBeNull();
   });
 });
 
@@ -422,7 +414,7 @@ ddescribe('pause and resume gate claims', () => {
     expect(paused.state).toBe('paused');
     expect(await service.claimNextAccountJob('worker-a')).toBeNull();
     const resumed = await service.resumeRun(run.id);
-    expect(resumed.state).toBe('running');
+    expect(resumed.state).toBe('discovering');
     const claimed = await service.claimNextAccountJob('worker-a');
     expect(claimed).not.toBeNull();
     expect(claimed.run_id).toBe(run.id);

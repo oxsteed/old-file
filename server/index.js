@@ -669,6 +669,7 @@ app.use('/api/oxsteed-credit', oxsteedCreditRoutes);
 // accessible renditions. Each router enforces per-request authorization.
 app.use('/api/statement-archive', createStatementArchiveRouter());
 app.use('/api/settlement-statements', settlementStatementArchiveRoutes);
+app.use('/api/statements/exports', require('./routes/statementExports'));
 app.use('/api/statements', creditExportLimiter, statementRenditionsRoutes);
 app.use('/api', statementInvestigationRoutes);
 // Device-authenticated OxSteed Credit kiosk hardware (redeem / cash-out),
@@ -805,6 +806,11 @@ async function listen() {
 
 async function startServer() {
   await runtime.prepare();
+  // Dependencies/migrations are ready before the durable export worker starts.
+  // BackgroundWorkers owns its stop handle before pool/Redis teardown.
+  const statementExportJobs = require('./services/statementExportJobService');
+  statementExportJobs.start();
+  runtime.workers.handles.push({stop:()=>statementExportJobs.stop()});
   try {
     await reloadFeeConfig();
   } catch (err) {

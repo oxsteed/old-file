@@ -18,16 +18,16 @@
  *     event-dated snapshot over jobs + payments. Exact identity:
  *       openingPayable + postedEarnings - settledPayouts - statusRemovals
  *       = closingPayable
- *     (all integer minor units; buckets are the CURRENT snapshot states,
- *     stated on the document). Unpaid earnings are never described as
+ *     (integer minor units; positions and buckets use immutable dated source
+ *     observations). Unpaid earnings are never described as
  *     received. This statement is not a tax form, payroll record, or proof
  *     of employment.
  *   business — per (business_id, currency_code). Receivables activity over
  *     business_invoices with the exact identity:
  *       openingOutstanding + invoiced - collectedOrAdjusted - cancelled
  *       = closingOutstanding
- *     (collectedOrAdjusted is a labeled derived plug: invoice payments
- *     carry no per-payment timestamp). Plus payables (business_expenses),
+ *     (actual cumulative-payment changes in source history, never a balancing
+ *     plug). Plus payables (business_expenses),
  *     partner settlements for the business's partners, and restaurant
  *     payouts for the business's restaurants. No cross-entity consolidation.
  *
@@ -47,6 +47,7 @@
 const crypto = require('crypto');
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
+const financialHistory = require('./settlementFinancialHistory');
 const {
   periodFor,
   exactMoney,
@@ -56,16 +57,6 @@ const {
 } = require('./creditStatementService');
 
 const PRODUCTS = ['restaurant_settlement', 'helper_earnings', 'business'];
-
-// jobs.payout_status buckets (migration 352). 'not_ready'/'earned' = accrued
-// and owed; 'pending'/'processing' = payout initiated, in transit;
-// 'paid' = settled (has paid_at); 'failed'/'reversed'/'cancelled' = not owed.
-const ACCRUED_STATUSES = new Set(['earned', 'not_ready']);
-const IN_TRANSIT_STATUSES = new Set(['pending', 'processing']);
-const NOT_OWED_STATUSES = new Set(['failed', 'reversed', 'cancelled']);
-const KNOWN_PAYOUT_STATUSES = new Set([...ACCRUED_STATUSES, ...IN_TRANSIT_STATUSES, 'paid', ...NOT_OWED_STATUSES]);
-
-const INVOICE_OPEN_STATUSES = ['sent', 'partial', 'overdue'];
 
 // NUMERIC(dollars) -> integer minor units. Fails closed on anything that is
 // not an exact two-decimal amount.
@@ -336,211 +327,44 @@ async function buildRestaurantSettlement(client, { restaurantId, currency, perio
 }
 
 // ── helper_earnings ─────────────────────────────────────────────────────────
-// Deterministic event-dated snapshot over jobs (+ linked payments).
-// Buckets use CURRENT payout_status; the document states this. Exact identity:
-//   openingPayable + postedEarnings - settledPayouts - statusRemovals = closingPayable
-
-function bucketOf(payoutStatus) {
-  const status = String(payoutStatus || '');
-  if (!KNOWN_PAYOUT_STATUSES.has(status)) {
-    throw new AppError(`Unknown job payout status '${status}'`, 409, 'statement_integrity_failed');
-  }
-  if (status === 'paid') return 'settled';
-  if (ACCRUED_STATUSES.has(status)) return 'accrued';
-  if (IN_TRANSIT_STATUSES.has(status)) return 'inTransit';
-  return 'notOwed';
-}
-
+// Financial writes stay in the existing services.
 async function buildHelperEarnings(client, { helperId, currency, period, now, requesterId }) {
   const { rows: [user] } = await client.query(
-    `SELECT id, created_at,
-            COALESCE(NULLIF(TRIM(CONCAT_WS(' ', first_name, last_name)), ''), email) AS owner_name
-       FROM users WHERE id = $1`,
-    [helperId]);
+    `SELECT id, created_at, COALESCE(NULLIF(TRIM(CONCAT_WS(' ', first_name, last_name)), ''), email) AS owner_name FROM users WHERE id = $1`, [helperId]);
   if (!user) throw new AppError('Statement account not found', 404, 'statement_account_not_found');
-  if (period.to < isoDateOnly(user.created_at)) {
-    throw new AppError('Statement period precedes this account', 400, 'statement_before_account');
-  }
-
-  const start = new Date(`${period.from}T00:00:00.000Z`);
-  const end = new Date(Date.parse(period.to) + 86400000);
-  const nowDate = new Date(now);
-
-  const { rows: jobs } = await client.query(
-    `SELECT j.id, j.title, j.status AS job_status, j.payout_status,
-            j.completed_at, j.paid_at, j.helper_payout_cents,
-            j.platform_fee_cents, j.customer_total_cents, j.currency_code
-       FROM jobs j
-      WHERE j.assigned_helper_id = $1 AND j.currency_code = $2
-      ORDER BY j.completed_at NULLS LAST, j.id LIMIT $3`,
-    [helperId, currency, MAX_ROWS + 1]);
-  if (jobs.length > MAX_ROWS) throw new AppError('Narrow the period to export the complete statement', 409, 'statement_export_too_large');
-
-  let openingPayable = 0n;
-  let postedEarnings = 0n;
-  let settledPayouts = 0n;
-  let statusRemovals = 0n;
-  let closingPayable = 0n;
-  let accruedCents = 0n;
-  let inTransitCents = 0n;
-  let settledAllTimeCents = 0n;
-  let notOwedCents = 0n;
-  let undatedSettledCents = 0n;
-  let undatedSettledCount = 0;
-  let platformFeesOnPosted = 0n;
-  let unpricedJobs = 0;
-  let incompleteJobs = 0;
-  const earningsRows = [];
-  const settledRows = [];
-  const removedRows = [];
-  const jobIds = [];
-
-  // Payable position P(T) = earned(<T) - settled(<T) - removed(<T), all in
-  // integer minor units. The period identity
-  //   P(E) - P(S) = postedEarnings - settledPayouts - statusRemovals
-  // is exact by construction: every term regroups the same per-job sums.
-  // A job marked 'paid' without a paid_at has no reliable settlement date;
-  // it is excluded from the flow (memoized below), never dated by guess.
-  for (const job of jobs) {
-    const bucket = bucketOf(job.payout_status);
-    const hpRaw = job.helper_payout_cents;
-    const completedAt = job.completed_at ? new Date(job.completed_at) : null;
-    const paidAt = job.paid_at ? new Date(job.paid_at) : null;
-    if (hpRaw === null || hpRaw === undefined || !completedAt) {
-      if (hpRaw === null || hpRaw === undefined) unpricedJobs += 1;
-      else incompleteJobs += 1;
-      continue;
-    }
-    const hp = BigInt(exactMoney(hpRaw));
-    if (hp < 0n) throw new AppError('Invalid job payout amount', 409, 'statement_integrity_failed');
-    const datedSettled = bucket === 'settled' && !!paidAt;
-    const removed = bucket === 'notOwed';
-
-    // All-time buckets (current snapshot).
-    if (bucket === 'accrued') accruedCents += hp;
-    else if (bucket === 'inTransit') inTransitCents += hp;
-    else if (datedSettled) settledAllTimeCents += hp;
-    else if (removed) notOwedCents += hp;
-    else { undatedSettledCents += hp; undatedSettledCount += 1; continue; }
-
-    const earnedBefore = (t) => completedAt < t;
-    const settledBefore = (t) => datedSettled && paidAt < t;
-
-    if (earnedBefore(start)) openingPayable += hp;
-    if (settledBefore(start)) openingPayable -= hp;
-    if (earnedBefore(start) && removed) openingPayable -= hp;
-
-    if (earnedBefore(end)) closingPayable += hp;
-    if (settledBefore(end)) closingPayable -= hp;
-    if (earnedBefore(end) && removed) closingPayable -= hp;
-
-    const earnedInPeriod = completedAt >= start && completedAt < end;
-    if (earnedInPeriod) {
-      postedEarnings += hp;
-      if (removed) statusRemovals += hp;
-      if (job.platform_fee_cents !== null && job.platform_fee_cents !== undefined) {
-        platformFeesOnPosted += BigInt(exactMoney(job.platform_fee_cents));
-      }
-    }
-    const settledInPeriod = datedSettled && paidAt >= start && paidAt < end;
-    if (settledInPeriod) settledPayouts += hp;
-
-    // Row detail for the period lists.
-    const base = {
-      jobId: String(job.id),
-      title: String(job.title || '').slice(0, 140),
-      payoutStatus: String(job.payout_status),
-      bucket,
-      helperPayoutCents: exactMoney(hpRaw),
-      platformFeeCents: job.platform_fee_cents === null || job.platform_fee_cents === undefined
-        ? null : exactMoney(job.platform_fee_cents),
-      customerTotalCents: job.customer_total_cents === null || job.customer_total_cents === undefined
-        ? null : exactMoney(job.customer_total_cents),
-    };
-    if (earnedInPeriod) {
-      earningsRows.push({ ...base, completedAt: completedAt.toISOString(), kind: removed ? 'removed' : 'posted' });
-      jobIds.push(job.id);
-    }
-    if (settledInPeriod) {
-      settledRows.push({ ...base, paidAt: paidAt.toISOString() });
-      if (!jobIds.includes(job.id)) jobIds.push(job.id);
-    }
-    if (removed && earnedInPeriod) removedRows.push({ ...base, completedAt: completedAt.toISOString() });
-  }
-
-  // Exactness assertions: the identity is regrouped from the same sums, so a
-  // mismatch here means an arithmetic bug, never a data gap.
-  const recomputed = openingPayable + postedEarnings - settledPayouts - statusRemovals;
-  if (recomputed !== closingPayable) {
-    throw new AppError('Statement does not reconcile', 409, 'statement_integrity_failed');
-  }
-  const allTime = accruedCents + inTransitCents + settledAllTimeCents + notOwedCents + undatedSettledCents;
-
-  // Linked payment events (bounded): captured/released = credited to the
-  // helper's Connect balance (not proof of bank payout); refunded/disputed =
-  // reversals shown honestly.
-  const { rows: payments } = jobIds.length ? await client.query(
-    `SELECT job_id, status, escrow_status, refund_amount, refunded_at,
-            (stripe_payment_intent_id IS NOT NULL) AS card_funded
-       FROM payments WHERE job_id = ANY($1::uuid[]) LIMIT $2`,
-    [jobIds, MAX_ROWS + 1]) : { rows: [] };
+  if (period.to < isoDateOnly(user.created_at)) throw new AppError('Statement period precedes this account', 400, 'statement_before_account');
+  const history = await financialHistory.readSourceHistory(client, 'helper_job', helperId, currency, now);
+  const projection = financialHistory.projectHelper(history, { helperId, currency, period, now });
+  const paymentHistory = await financialHistory.readSourceHistory(client, 'helper_payment', helperId, currency, now);
+  const { end } = financialHistory.bounds(period, now);
   const paymentByJob = new Map();
-  for (const p of payments) {
-    paymentByJob.set(String(p.job_id), {
-      status: String(p.status),
-      escrowStatus: String(p.escrow_status || 'none'),
-      refundAmountCents: p.refund_amount === null || p.refund_amount === undefined
-        ? null : dollarsToCents(p.refund_amount, 'payment refund'),
-      refundedAt: p.refunded_at ? new Date(p.refunded_at).toISOString() : null,
-      funding: p.card_funded ? 'card' : 'other',
-    });
+  const latest = new Map();
+  for (const p of paymentHistory) {
+    if (new Date(p.recorded_at) >= end) continue;
+    if (String(p.scope_id) !== String(helperId) || p.currency_code !== currency) financialHistory.unavailable('Helper payment scope changed');
+    latest.set(String(p.source_id), p);
   }
-  const attachPayment = (row) => ({ ...row, payment: paymentByJob.get(row.jobId) || null });
-
+  for (const row of latest.values()) {
+    const p = row.source;
+    if (['refunded', 'disputed'].includes(p.status) || financialHistory.majorToMinor(p.refund_amount || '0', currency, 'helper refund') > 0) {
+      financialHistory.unavailable('Helper refund/dispute lacks an authoritative allocation to net earnings');
+    }
+    const jobId = String(p.job_id);
+    if (paymentByJob.has(jobId)) financialHistory.unavailable('Multiple helper payments require explicit earning/payment linkage');
+    paymentByJob.set(jobId, { status: p.status, escrowStatus: p.escrow_status,
+      refundAmountCents: financialHistory.majorToMinor(p.refund_amount || 0, currency, 'payment refund'),
+      refundedAt: p.refunded_at, sourceHistoryId: String(row.id) });
+  }
+  const attachPayment = row => ({ ...row, payment: paymentByJob.get(row.jobId) || null });
   const document = {
-    id: crypto.randomUUID(),
-    version: 1,
-    kind: period.kind,
-    product: 'helper_earnings',
-    helperId: String(helperId),
-    ownerName: String(user.owner_name || ''),
-    accountLabel: 'Helper earnings',
+    id: crypto.randomUUID(), version: 2, kind: period.kind, product: 'helper_earnings',
+    helperId: String(helperId), ownerName: String(user.owner_name || ''), accountLabel: 'Helper earnings',
     accountReference: `HE-••••${String(helperId).replace(/-/g, '').slice(-4).padStart(4, '0')}`,
-    currencyCode: currency,
-    period: { from: period.from, to: period.to },
-    generatedAt: nowDate.toISOString(),
-    generatedBy: String(requesterId),
-    // Reconciled equation (integer minor units).
-    openingPayableCents: exactMoney(openingPayable),
-    postedEarningsCents: exactMoney(postedEarnings),
-    settledPayoutsCents: exactMoney(settledPayouts),
-    statusRemovalsCents: exactMoney(statusRemovals),
-    closingPayableCents: exactMoney(closingPayable),
-    // Current-snapshot buckets (all time, in scope+currency).
-    buckets: {
-      accruedCents: exactMoney(accruedCents),
-      inTransitCents: exactMoney(inTransitCents),
-      settledAllTimeCents: exactMoney(settledAllTimeCents),
-      notOwedCents: exactMoney(notOwedCents),
-      totalEarnedCents: exactMoney(allTime),
-    },
-    undatedSettled: {
-      count: undatedSettledCount,
-      totalCents: exactMoney(undatedSettledCents),
-      note: 'Jobs marked paid without a recorded settlement date. Excluded from the period flow; included in totalEarnedCents.',
-    },
-    platformFeesOnPostedCents: exactMoney(platformFeesOnPosted),
-    platformFeeNote: 'Platform fees are taken before payout; helperPayoutCents is net of the fee. Fees are informational here, not equation terms.',
-    earnings: earningsRows.map(attachPayment),
-    settled: settledRows.map(attachPayment),
-    removed: removedRows.map(attachPayment),
-    earningsCount: earningsRows.length,
-    settledCount: settledRows.length,
-    removedCount: removedRows.length,
-    unpricedJobs,
-    incompleteJobs,
-    snapshotNote: 'Buckets and rows reflect payout_status as of generation time. A payout marked in transit that later fails will move buckets on the next statement; corrections post through the amendment workflow.',
-    equationNote: 'openingPayableCents + postedEarningsCents - settledPayoutsCents - statusRemovalsCents = closingPayableCents. Earnings are dated by completed_at, settlements by paid_at. Unpaid earnings (accrued/in transit) are owed, not received.',
+    currencyCode: currency, period: { from: period.from, to: period.to },
+    generatedAt: new Date(now).toISOString(), generatedBy: String(requesterId), ...projection,
+    earnings: projection.earnings.map(attachPayment), settled: projection.settled.map(attachPayment),
+    removed: projection.removed.map(attachPayment),
+    platformFeeNote: 'Helper payouts are net of platform fees. Fees are informational, not payable equation terms.',
     taxNote: 'This statement is not a tax form, payroll record, or proof of employment.',
   };
   document.contentHash = hashDocument(document);
@@ -551,9 +375,8 @@ async function buildHelperEarnings(client, { helperId, currency, period, now, re
 // Per (business_id, currency_code). Receivables activity over
 // business_invoices with the exact identity:
 //   openingOutstanding + invoiced - collectedOrAdjusted - cancelled = closingOutstanding
-// collectedOrAdjusted is a LABELED derived plug: invoice payments carry no
-// per-payment timestamp, so it is defined as the balancing amount. The
-// document asserts the identity from its own rows (409 on mismatch).
+// Invoice boundary positions and movements are independently reconstructed
+// from immutable source versions (migration 694); no balancing collection.
 // No cross-entity consolidation: the business's restaurants appear as
 // separate per-(restaurant, currency) sections, never merged.
 
@@ -569,67 +392,28 @@ async function buildBusiness(client, { businessId, currency, period, now, reques
   const start = new Date(`${period.from}T00:00:00.000Z`);
   const end = new Date(Date.parse(period.to) + 86400000);
 
-  // — Receivables —
-  const { rows: invoices } = await client.query(
-    `SELECT id, invoice_number, client_name, status, issue_date, due_date,
-            total, amount_paid, paid_at, currency_code
-       FROM business_invoices
-      WHERE business_id = $1 AND currency_code = $2
-      ORDER BY issue_date, id LIMIT $3`,
-    [businessId, currency, MAX_ROWS + 1]);
-  if (invoices.length > MAX_ROWS) throw new AppError('Narrow the period to export the complete statement', 409, 'statement_export_too_large');
-
-  let openingOutstanding = 0n;
-  let invoiced = 0n;
-  let cancelled = 0n;
-  let closingOutstanding = 0n;
-  let cancelledEarlier = 0;
-  const invoiceRows = [];
-  for (const inv of invoices) {
-    const totalCents = BigInt(dollarsToCents(inv.total, 'invoice total'));
-    const paidCents = BigInt(dollarsToCents(inv.amount_paid ?? 0, 'invoice amount_paid'));
-    const outstandingCents = totalCents - paidCents;
-    const status = String(inv.status);
-    const issueDate = inv.issue_date ? new Date(`${isoDateOnly(inv.issue_date)}T00:00:00.000Z`) : null;
-    const issuedInPeriod = issueDate && issueDate >= start && issueDate < end;
-    const issuedBeforeStart = issueDate && issueDate < start;
-    const open = INVOICE_OPEN_STATUSES.includes(status);
-
-    if (issuedBeforeStart && open) openingOutstanding += outstandingCents;
-    if (issuedInPeriod && status !== 'draft' && status !== 'cancelled') invoiced += totalCents;
-    if (issuedInPeriod && status === 'cancelled') cancelled += totalCents;
-    if (status === 'cancelled' && !issuedInPeriod) cancelledEarlier += 1;
-    if (issueDate && issueDate < end && open) closingOutstanding += outstandingCents;
-
-    invoiceRows.push({
-      id: String(inv.id),
-      invoiceNumber: String(inv.invoice_number || ''),
-      clientName: String(inv.client_name || ''),
-      status,
-      issueDate: issueDate ? issueDate.toISOString().slice(0, 10) : null,
-      dueDate: inv.due_date ? isoDateOnly(inv.due_date) : null,
-      totalCents: exactMoney(totalCents),
-      paidCents: exactMoney(paidCents),
-      outstandingCents: exactMoney(outstandingCents),
-      paidAt: inv.paid_at ? new Date(inv.paid_at).toISOString() : null,
-    });
-  }
-  // Derived plug, labeled: invoice payments have no per-payment timestamp.
-  const collectedOrAdjusted = openingOutstanding + invoiced - cancelled - closingOutstanding;
-  const recomputed = openingOutstanding + invoiced - collectedOrAdjusted - cancelled;
-  if (recomputed !== closingOutstanding) {
-    throw new AppError('Statement does not reconcile', 409, 'statement_integrity_failed');
-  }
+  // Receivables are reconstructed from immutable observations, not current state.
+  const history = await financialHistory.readSourceHistory(client, 'business_invoice', businessId, currency, now);
+  const receivables = financialHistory.projectBusiness(history, { businessId, currency, period, now });
 
   // — Payables (dated spend list; business_expenses carries no currency
   // code, so it is labeled as recorded-currency activity) —
   const { rows: expenses } = await client.query(
-    `SELECT id, category, description, amount_cents, expense_date
+    `SELECT id, category, description, amount_cents, expense_date,
+            statement_currency_code, statement_minor_unit_digits
        FROM business_expenses
       WHERE business_id = $1 AND expense_date >= $2::date AND expense_date < $3::date
+        AND (statement_currency_code = $5 OR statement_currency_code IS NULL)
       ORDER BY expense_date, id LIMIT $4`,
-    [businessId, period.from, period.to, MAX_ROWS + 1]);
+    [businessId, period.from, end.toISOString().slice(0, 10), MAX_ROWS + 1, currency]);
   if (expenses.length > MAX_ROWS) throw new AppError('Narrow the period to export the complete statement', 409, 'statement_export_too_large');
+  // Existing expense writers accept x100 cents without a per-row currency.
+  // Currency was stamped on the source write, not inferred from today's
+  // business settings. Legacy unknowns and non-two-decimal sources fail closed.
+  if (expenses.some(e => e.statement_currency_code !== currency || e.statement_minor_unit_digits !== 2)
+    || expenses.length && financialHistory.currencyPrecision(currency) !== 2) {
+    throw new AppError('Expense source currency/precision is not established for this statement', 409, 'statement_source_currency_unsupported');
+  }
   let expensesTotal = 0n;
   const expensesByCategory = {};
   const expenseRows = expenses.map((e) => {
@@ -699,7 +483,7 @@ async function buildBusiness(client, { businessId, currency, period, now, reques
 
   const document = {
     id: crypto.randomUUID(),
-    version: 1,
+    version: 2,
     kind: period.kind,
     product: 'business',
     businessId: String(businessId),
@@ -711,24 +495,15 @@ async function buildBusiness(client, { businessId, currency, period, now, reques
     period: { from: period.from, to: period.to },
     generatedAt: new Date(now).toISOString(),
     generatedBy: String(requesterId),
-    receivables: {
-      openingOutstandingCents: exactMoney(openingOutstanding),
-      invoicedCents: exactMoney(invoiced),
-      collectedOrAdjustedCents: exactMoney(collectedOrAdjusted),
-      collectedOrAdjustedNote: 'Derived as opening + invoiced - cancelled - closing: invoice payments carry no per-payment timestamp.',
-      cancelledCents: exactMoney(cancelled),
-      cancelledEarlierCount: cancelledEarlier,
-      closingOutstandingCents: exactMoney(closingOutstanding),
-      invoices: invoiceRows,
-      invoiceCount: invoiceRows.length,
-    },
+    receivables,
+    sourceHistoryVersion: 1,
     payables: {
       totalExpensesCents: exactMoney(expensesTotal),
       byCategoryCents: Object.fromEntries(
         Object.entries(expensesByCategory).map(([k, v]) => [k, exactMoney(v)])),
       expenses: expenseRows,
       expenseCount: expenseRows.length,
-      currencyNote: 'business_expenses carries no currency code; shown as recorded-currency activity, never converted.',
+      currencyNote: 'Expense cents use the currency recorded at source creation with two-decimal precision. Legacy unknowns and precision mismatches block issuance.',
     },
     partnerSettlements: settlements.map((s) => ({
       id: String(s.id),
@@ -816,6 +591,29 @@ async function buildStatement(client, requesterId, options) {
     now,
     requesterId,
   });
+
+  if (period.kind === 'monthly' && product !== 'restaurant_settlement') {
+    const previousTo = new Date(Date.parse(period.from) - 86400000).toISOString().slice(0, 10);
+    const { rows: [previous] } = await client.query(
+      `SELECT id, document, content_hash FROM settlement_statement_documents
+        WHERE ${scopeWhere(product)} AND currency_code = $3 AND period_to = $4`,
+      [product, product === 'helper_earnings' ? scope.helperId : scope.businessId, currency, previousTo]);
+    if (previous) {
+      const { rows: [version] } = await client.query(
+        `SELECT document FROM statement_amendment_versions
+          WHERE settlement_original_document_id = $1 ORDER BY revision_number DESC LIMIT 1`, [previous.id]);
+      const priorDocument = version?.document || previous.document;
+      if (hashDocument(priorDocument) !== priorDocument.contentHash
+        || (!version && previous.content_hash !== priorDocument.contentHash)) {
+        throw new AppError('Prior statement verification failed', 409, 'statement_integrity_failed');
+      }
+      const priorClosing = product === 'business' ? priorDocument.receivables?.closingOutstandingCents : priorDocument.closingPayableCents;
+      const newOpening = product === 'business' ? document.receivables.openingOutstandingCents : document.openingPayableCents;
+      if (exactMoney(priorClosing) !== newOpening) {
+        throw new AppError('Opening does not match the prior issued closing; approved continuity correction is required', 409, 'statement_amendment_continuity_blocked');
+      }
+    }
+  }
 
   if (period.kind === 'monthly' && !rederive) {
     // Plain INSERT: a 23505 race loser retries and converges on the winner's

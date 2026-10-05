@@ -22,8 +22,7 @@
 
 jest.unmock('pg');
 
-const RAW_URL = process.env.STATEMENT_TEST_DATABASE_URL
-  || 'postgresql://postgres:postgres@127.0.0.1:5432/credit_statement_test?sslmode=disable';
+const RAW_URL = process.env.STATEMENT_TEST_DATABASE_URL;
 
 function isDisposableDatabase(urlText) {
   let url;
@@ -518,7 +517,9 @@ ddescribe('settlement issuance end-to-end', () => {
     });
     expect(row).toBeDefined();
     expect(row.document.product).toBe('helper_earnings');
-    expect(row.document.postedEarningsCents).toBe(7500);
+    // Inserted today: a past completed_at is an effective date, not proof that
+    // the immutable source observation was posted in August.
+    expect(row.document.postedEarningsCents).toBe(0);
     const { rows: events } = await pool.query(
       `SELECT * FROM statement_outbox WHERE event_type = 'statement.ready'
        AND payload->>'documentId' = $1`,
@@ -545,7 +546,7 @@ ddescribe('settlement issuance end-to-end', () => {
     });
     expect(row).toBeDefined();
     expect(row.document.product).toBe('business');
-    expect(row.document.receivables.invoicedCents).toBe(25000);
+    expect(row.document.receivables.invoicedCents).toBe(0);
     const { rows: events } = await pool.query(
       `SELECT * FROM statement_outbox WHERE event_type = 'statement.ready'
        AND payload->>'documentId' = $1`,

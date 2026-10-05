@@ -91,6 +91,10 @@ const CASE_STATUS_LABELS = {
   rejected: 'statusRejected',
   resolved_customer: 'statusResolvedCustomer',
   resolved_merchant: 'statusResolvedMerchant',
+  assigned: 'statusInReview',
+  in_progress: 'statusInReview',
+  waiting_user: 'statusInReview',
+  closed: 'statusResolved',
 };
 
 function signedAmount(entry) {
@@ -164,7 +168,7 @@ export default function StatementTransactionView() {
   const statement = data?.statement || null;
   const related = data?.related || null;
   const cases = Array.isArray(data?.cases) ? data.cases : [];
-  const canReport = statement?.caseSupport === 'credit_disputes';
+  const canReport = ['credit_disputes', 'support_tickets'].includes(statement?.caseSupport);
   const statementsPath = data?.product === 'restaurant' ? '/restaurant-credit/statements' : '/oxsteed-credit/statements';
 
   function relatedKindLabel(kind) {
@@ -350,6 +354,7 @@ export default function StatementTransactionView() {
                       <dl className="stv-facts">
                         <div><dt>{text('caseOpened')}</dt><dd>{timestamp(c.openedAt)}</dd></div>
                       </dl>
+                      {c.detailUrl?.startsWith('/support/my-tickets/') && <Link to={c.detailUrl}>{text('viewRelated')}</Link>}
                     </li>
                   ))}
                 </ul>

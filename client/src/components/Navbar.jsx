@@ -222,6 +222,7 @@ export default function Navbar() {
                 </NavLink>
                 <Divider />
                 <NavLink to={dashboardPath} active={isDashboardActive}>{t('nav.dashboard')}</NavLink>
+                {isHelper && <NavLink to="/helper-earnings/statements" active={isActive('/helper-earnings/statements')}>{t('statementCenter.helperEarnings')}</NavLink>}
                 {showBusinessHub && (
                   <NavLink
                     to={businessHubTo}
@@ -433,6 +434,7 @@ export default function Navbar() {
                   )}
                 </MobileNavLink>
                 {showBusinessHub && <MobileNavLink to={businessHubTo} onClick={() => setMobileOpen(false)}>{t('nav.business')}</MobileNavLink>}
+                {isHelper && <MobileNavLink to="/helper-earnings/statements" onClick={() => setMobileOpen(false)}>{t('statementCenter.helperEarnings')}</MobileNavLink>}
                 {SHOW_LEGACY_NAV_RESOURCES && canUseQrGenerator(user) && <MobileNavLink to="/qr-generator" onClick={() => setMobileOpen(false)}>{t('nav.qrGenerator')}</MobileNavLink>}
                 <button
                   onClick={() => { logout(); setMobileOpen(false); }}

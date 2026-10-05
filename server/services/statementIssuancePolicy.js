@@ -69,6 +69,19 @@ const CLOSED_ACCOUNT_MODE = 'skip';
 
 // Discovery throughput bounds for the scheduler's account scan.
 const DISCOVERY_BATCH_SIZE = 500;
+const MAX_DISCOVERY_BATCHES_PER_CYCLE = 10;
+const MAX_PERIODS_PER_PRODUCT_CYCLE = 2;
+
+// No inferred rollout date: automatic missing-period discovery requires an
+// explicitly configured owner-approved first month. Manual runs are explicit.
+function activationMonth() {
+  const value = process.env.STATEMENT_ISSUANCE_ACTIVATION_MONTH;
+  if (!value) return null;
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(value) || Number(value.slice(0, 4)) < 2000) {
+    throw new Error('STATEMENT_ISSUANCE_ACTIVATION_MONTH must be an approved YYYY-MM from 2000 onward');
+  }
+  return `${value}-01`;
+}
 // Upper bound of account-jobs a single scheduler cycle will issue per product,
 // so one cycle can never monopolize the worker.
 const MAX_JOBS_PER_CYCLE = 50;
@@ -170,6 +183,9 @@ module.exports = {
   SUSPENDED_ACCOUNT_ISSUANCE,
   CLOSED_ACCOUNT_MODE,
   DISCOVERY_BATCH_SIZE,
+  MAX_DISCOVERY_BATCHES_PER_CYCLE,
+  MAX_PERIODS_PER_PRODUCT_CYCLE,
+  activationMonth,
   MAX_JOBS_PER_CYCLE,
   OUTBOX_BATCH_SIZE,
   STATEMENT_POLICY,

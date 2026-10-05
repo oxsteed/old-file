@@ -1,4 +1,22 @@
 {
+  "statementCenter": {
+    "exportCancelled": "Ekspòtasyon ou an anile.",
+    "restaurantSettlement": "Releve règleman restoran",
+    "helperEarnings": "Releve revni èd la",
+    "business": "Releve biznis",
+    "versions": "Istwa koreksyon",
+    "accessible": "Releve aksesib",
+    "settlementScopeNote": "Releve yo separe pou chak antite ak lajan. Yo montre revni, lajan pou resevwa ak règleman ki anrejistre; yo pa fòm taks ni releve depo labank.",
+    "htmlError": "Nou pa t kapab chaje releve aksesib la. Eseye ankò.",
+    "accountError": "Nou pa t kapab chaje kont yo. Eseye ankò.",
+    "export": "Mande yon ekspòtasyon konplè",
+    "exportPending": "Ekspòtasyon ou an ap prepare.",
+    "exportReady": "Ekspòtasyon konplè ou an pare.",
+    "exportError": "Nou pa t kapab fini ekspòtasyon ou an.",
+    "cancelExport": "Anile ekspòtasyon",
+    "retryExport": "Reeseye ekspòtasyon",
+    "exportFiles": "Fichye ekspòtasyon"
+  },
   "statements": {
     "title": "Eta kont",
     "description": "Gade balans ak aktivite ki anrejistre, epi telechaje eta kont an PDF oswa CSV.",

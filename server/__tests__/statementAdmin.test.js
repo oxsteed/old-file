@@ -126,6 +126,9 @@ beforeEach(() => {
     if (s.includes('FROM statement_publication_attempts')) return { rows: [] };
     if (s.includes('FROM statement_outbox')) return { rows: [] };
     // Job retry.
+    if (s.includes('SELECT run_id FROM statement_account_jobs')) {
+      return { rows: scenario.job ? [{ run_id: scenario.job.run_id }] : [] };
+    }
     if (s.includes('FROM statement_account_jobs WHERE id = $1 FOR UPDATE')) {
       return { rows: scenario.job ? [scenario.job] : [] };
     }

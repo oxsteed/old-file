@@ -27,6 +27,7 @@
  */
 
 const express = require('express');
+const crypto = require('crypto');
 
 const router = express.Router();
 
@@ -36,8 +37,15 @@ const { creditMutationLimiter } = require('../middleware/rateLimiter');
 const pool = require('../db');
 const { hashDocument } = require('../services/creditStatementService');
 const { openCreditDispute, formatDispute } = require('../services/oxsteedCreditService');
+const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
+const { withTransaction } = require('../utils/transaction');
 
 router.use(authenticate, requireRole('customer'));
+router.use((_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store');
+  res.set('X-Content-Type-Options', 'nosniff');
+  next();
+});
 
 const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 const POSITIVE_INT_RE = /^[1-9]\d*$/;
@@ -47,7 +55,7 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // oxsteed_credit_transactions, so the existing credit dispute system fits.
 // Restaurant wallet ledger entries have no transaction row and no existing
 // case API accepts ledger-entry disputes, so they are read-only here.
-const CASE_SUPPORT = Object.freeze({ oxsteed: 'credit_disputes', restaurant: 'unsupported' });
+const CASE_SUPPORT = Object.freeze({ oxsteed: 'credit_disputes', restaurant: 'support_tickets' });
 
 const CASE_REASONS = Object.freeze({
   unrecognized: { reasonCode: 'unrecognized_transaction', disputeType: null },
@@ -323,6 +331,61 @@ async function listEntryCases(customerId, entryId) {
   return rows.map((row) => caseView(formatDispute(row)));
 }
 
+function restaurantCaseRequestId(customerId, accountId, entryId) {
+  const bytes = crypto.createHash('sha256').update(`statement-support:v1:${customerId}:${accountId}:${entryId}`).digest().subarray(0, 16);
+  bytes[6] = (bytes[6] & 0x0f) | 0x50;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = bytes.toString('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function supportCaseView(row) {
+  return {
+    caseId: row.id, status: row.status, reasonCode: row.metadata?.reasonCode || 'statement_entry_issue',
+    openedAt: row.created_at, updatedAt: row.updated_at || row.created_at,
+    statement: row.metadata?.statement || null,
+    detailUrl: `/support/my-tickets/${row.id}`,
+  };
+}
+
+async function listRestaurantEntryCases(customerId, accountId, entryId) {
+  const { rows } = await pool.query(
+    `SELECT id, status, created_at, updated_at, metadata FROM support_tickets
+     WHERE user_id = $1 AND client_request_id = $2 ORDER BY created_at DESC, id DESC`,
+    [customerId, restaurantCaseRequestId(customerId, accountId, entryId)]);
+  return rows.map(supportCaseView);
+}
+
+async function openRestaurantEntryCase({ customerId, accountId, document, entry, journal, reason, reasonKey, customerText }) {
+  return withTransaction(pool, async client => {
+    // Recheck the current wallet owner and exact journal scope inside the case
+    // transaction. Deleted related orders do not prevent a clarification case.
+    const { rows: [wallet] } = await client.query(
+      `SELECT a.restaurant_id FROM food_customer_wallet_accounts a
+       JOIN food_customer_wallet_ledger e ON e.account_id = a.id
+       WHERE a.id = $1 AND a.customer_id = $2 AND a.currency_code = $3 AND e.id = $4`,
+      [accountId, customerId, document.currencyCode, entry.id]);
+    if (!wallet || journal.liveStatus !== 'posted') throw new AppError('Statement entry not found', 404, 'statement_entry_not_found');
+    const statement = {
+      ...documentContext(document), entryId: String(entry.id), journalEntryId: String(entry.id),
+      accountId: String(accountId), restaurantId: String(wallet.restaurant_id), contentHash: document.contentHash,
+      periodFrom: document.period?.from || null, periodTo: document.period?.to || null,
+    };
+    const { rows: [user] } = await client.query('SELECT first_name, last_name, email FROM users WHERE id = $1', [customerId]);
+    const ticket = await createLinkedSupportTicket(client, {
+      userId: customerId, name: [user?.first_name, user?.last_name].filter(Boolean).join(' '), email: user?.email,
+      subject: 'Restaurant Credit statement entry review', category: 'payment', source: 'direct',
+      metadata: { source: 'statement_investigation', reasonCode: reason.reasonCode, statement },
+      initialMessage: buildEvidenceSummary({ document, entry, maskedReference: maskReference(journal.referenceId), reasonLabel: REASON_LABELS[reasonKey], customerText }),
+      clientRequestId: restaurantCaseRequestId(customerId, accountId, entry.id),
+    });
+    const { rows: [stored] } = await client.query(
+      'SELECT id, status, created_at, updated_at, metadata FROM support_tickets WHERE id = $1 AND user_id = $2', [ticket.id, customerId]);
+    if (!stored) throw new AppError('Support case not found', 404, 'statement_case_not_found');
+    return { ...supportCaseView(stored), replayed: Boolean(ticket.replayed) };
+  });
+}
+
 router.get('/statements/:documentId/entries', async (req, res, next) => {
   try {
     const { accountId, document } = await loadDocument(req.params.documentId, req.user.id);
@@ -364,13 +427,14 @@ router.get('/statements/:documentId/entries/:entryId', async (req, res, next) =>
         checkedAt,
         note: 'Wallet ledger entries are append-only. This status is the historical record.',
       };
-    const cases = document.product === 'oxsteed' ? await listEntryCases(req.user.id, statement.entryId) : [];
+    const cases = document.product === 'oxsteed' ? await listEntryCases(req.user.id, statement.entryId)
+      : await listRestaurantEntryCases(req.user.id, accountId, statement.entryId);
     res.json({
       ...documentContext(document),
       statement,
       live,
       related,
-      cases: cases.map((c) => ({ caseId: c.caseId, status: c.status, openedAt: c.openedAt })),
+      cases,
     });
   } catch (error) {
     next(error);
@@ -380,15 +444,8 @@ router.get('/statements/:documentId/entries/:entryId', async (req, res, next) =>
 router.post('/statements/:documentId/entries/:entryId/cases', creditMutationLimiter, async (req, res, next) => {
   try {
     const { accountId, document } = await loadDocument(req.params.documentId, req.user.id);
-    if (document.product !== 'oxsteed') {
-      throw new AppError(
-        'Reports are not supported for restaurant wallet statement entries yet. Contact support for help with this entry.',
-        409,
-        'statement_case_unsupported'
-      );
-    }
     const entry = findEntry(document, req.params.entryId);
-    if (!UUID_RE.test(String(entry.id))) {
+    if (document.product === 'oxsteed' && !UUID_RE.test(String(entry.id))) {
       throw new AppError('Statement entry cannot be reported', 409, 'statement_case_unsupported');
     }
     const reasonKey = String(req.body?.reason || 'unrecognized');
@@ -397,6 +454,10 @@ router.post('/statements/:documentId/entries/:entryId/cases', creditMutationLimi
     const customerText = sanitizeText(req.body?.description, 1000);
 
     const journal = await journalIdentity(document, entry, accountId);
+    if (document.product === 'restaurant') {
+      const result = await openRestaurantEntryCase({ customerId: req.user.id, accountId, document, entry, journal, reason, reasonKey, customerText });
+      return res.status(result.replayed ? 200 : 201).json(result);
+    }
     if (journal.liveStatus !== 'posted') {
       throw new AppError(
         'This transaction is no longer posted, so it cannot be reported. Its current status is shown in the drilldown.',
@@ -451,10 +512,11 @@ router.post('/statements/:documentId/entries/:entryId/cases', creditMutationLimi
 
 router.get('/statements/:documentId/entries/:entryId/cases', async (req, res, next) => {
   try {
-    const { document } = await loadDocument(req.params.documentId, req.user.id);
+    const { accountId, document } = await loadDocument(req.params.documentId, req.user.id);
     const entry = findEntry(document, req.params.entryId);
     if (document.product !== 'oxsteed') {
-      return res.json({ ...documentContext(document), entryId: String(entry.id), caseSupport: 'unsupported', cases: [] });
+      const cases = await listRestaurantEntryCases(req.user.id, accountId, String(entry.id));
+      return res.json({ ...documentContext(document), entryId: String(entry.id), caseSupport: 'support_tickets', cases });
     }
     const cases = await listEntryCases(req.user.id, String(entry.id));
     res.json({ ...documentContext(document), entryId: String(entry.id), caseSupport: 'credit_disputes', cases });

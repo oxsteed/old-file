@@ -36,7 +36,6 @@ const artifacts = require('./statementArtifactService');
 const statements = require('./creditStatementService');
 const settlementStatements = require('./settlementStatementService');
 const { renderStatementPdfInWorker } = require('./creditStatementExport');
-const defaultStorage = require('../utils/storage');
 const policy = require('./statementIssuancePolicy');
 
 const SUPPORTED_LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
@@ -373,10 +372,34 @@ async function reviveEligibleSkips(runId, eligible) {
 // (customer_id, product, account_id, currency_code, period_from, period_to)
 // constraint plus ON CONFLICT DO NOTHING makes concurrent issuers converge on
 // exactly one original per account-period.
+async function assertVerifiedArtifact(client, artifact, scope) {
+  const { rows: [row] } = await client.query(
+    `SELECT a.state, a.kind, a.storage_bucket, a.sha256, a.byte_length, s.issuance_key
+     FROM statement_artifacts a JOIN statement_snapshots s ON s.id = a.snapshot_id
+     WHERE a.id = $1 AND a.snapshot_id = $2 FOR SHARE OF a`,
+    [artifact?.id || null, artifact?.snapshotId || null]);
+  if (!row || row.state !== 'ready' || row.kind !== 'original' || !row.storage_bucket
+      || row.issuance_key !== scope.issuanceKey || row.sha256 !== artifact.sha256
+      || Number(row.byte_length) !== artifact.byteLength) {
+    throw new AppError('Statement original is not verified for this issuance', 409, 'statement_artifact_not_ready');
+  }
+}
+
+async function assertIssuanceFence(client, job) {
+  const { rows: [current] } = await client.query('SELECT * FROM statement_account_jobs WHERE id=$1 FOR UPDATE', [job.id]);
+  if (!current || current.lease_owner !== job.lease_owner
+      || String(current.fencing_token) !== String(job.fencing_token)
+      || !['artifact_ready','notified'].includes(current.state)) {
+    throw new AppError('Statement issuance lease is stale', 409, 'statement_lease_stale');
+  }
+}
+
 async function insertDocumentAndQueueEvent({ scope, document, artifact, job }) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    await assertIssuanceFence(client, job);
+    await assertVerifiedArtifact(client, artifact, scope);
     await client.query(
       `INSERT INTO credit_statement_documents
          (id, customer_id, product, account_id, currency_code, period_from, period_to,
@@ -463,6 +486,8 @@ async function insertSettlementDocumentAndQueueEvent({ scope, document, artifact
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    await assertIssuanceFence(client, job);
+    await assertVerifiedArtifact(client, artifact, scope);
     await client.query(
       `INSERT INTO settlement_statement_documents
          (id, product, ${scopeColumn}, currency_code, period_from, period_to,
@@ -594,6 +619,19 @@ async function issueAccountStatement({ job, workerId, storage, hooks = {} }) {
     throw error;
   };
 
+  // Keep ownership through rendering/publication, not just the snapshot stage.
+  // A lost heartbeat aborts the renderer; final commits still check the fence.
+  const controller = new AbortController();
+  let heartbeatTask = null;
+  const heartbeat = setInterval(() => {
+    if (heartbeatTask) return;
+    heartbeatTask = jobs.renewLease(job.id, workerId, fencingToken, 120)
+      .catch(() => { controller.abort(); })
+      .finally(() => { heartbeatTask = null; });
+  }, 30000);
+  heartbeat.unref?.();
+  try {
+
   // (a) Freeze the snapshot. Idempotent per issuance key: a re-drive after a
   // crash returns the already-frozen snapshot, never resnapshots, and never
   // resnapshots a completed original (the archived monthly document wins).
@@ -632,9 +670,15 @@ async function issueAccountStatement({ job, workerId, storage, hooks = {} }) {
     // Settlement products compute via settlementStatementService; the worker
     // renders them through the settlement tagged-PDF renderer (dispatched on
     // the document's own product).
-    document = await buildJobDocument(scope);
-    language = await resolveStatementLanguage(scope.customerId);
-    pdfBytes = await renderStatementPdfInWorker(document, { language });
+    document = await snapshots.getFrozenDocument(snapshot.id);
+    const preferredLanguage = await resolveStatementLanguage(scope.customerId);
+    const { rows: [languageRow] } = await pool.query(
+      `UPDATE statement_account_jobs SET issuance_language=COALESCE(issuance_language,$4)
+       WHERE id=$1 AND lease_owner=$2 AND fencing_token=$3 RETURNING issuance_language`,
+      [job.id, workerId, fencingToken, preferredLanguage]);
+    if (!languageRow) throw new AppError('Statement issuance lease is stale', 409, 'statement_lease_stale');
+    language = languageRow.issuance_language;
+    pdfBytes = await renderStatementPdfInWorker(document, { language, signal: controller.signal });
     await hooks.afterRender?.();
   } catch (error) {
     await failStage(error);
@@ -650,6 +694,9 @@ async function issueAccountStatement({ job, workerId, storage, hooks = {} }) {
       pdfBytes,
       ...(storage ? { storage } : {}),
     });
+    if (!artifact || artifact.state !== 'ready') {
+      throw new AppError('Statement artifact is not ready', 409, 'statement_artifact_not_ready');
+    }
     await hooks.afterPublish?.();
     await jobs.completeJobStage(job.id, workerId, fencingToken, 'artifact_ready');
   } catch (error) {
@@ -685,6 +732,10 @@ async function issueAccountStatement({ job, workerId, storage, hooks = {} }) {
     artifactId: artifact.id,
   });
   return { jobId: job.id, issuanceKey: scope.issuanceKey, documentId, artifactId: artifact.id };
+  } finally {
+    clearInterval(heartbeat);
+    if (heartbeatTask) await heartbeatTask;
+  }
 }
 
 // --- statement.ready outbox processing ---------------------------------------
@@ -696,11 +747,11 @@ async function issueAccountStatement({ job, workerId, storage, hooks = {} }) {
 // recipient's authenticated workspace (the coordinator wires dedicated
 // statement pages; these are the closest existing authenticated surfaces).
 const PRODUCT_ACTION_URLS = {
-  oxsteed: '/oxsteed-credit',
-  restaurant: '/wallet',
-  restaurant_settlement: '/business-hub',
-  helper_earnings: '/dashboard',
-  business: '/business-hub',
+  oxsteed: '/oxsteed-credit/statements/archive',
+  restaurant: '/restaurant-credit/statements/archive',
+  restaurant_settlement: '/restaurant-settlement/statements/archive',
+  helper_earnings: '/helper-earnings/statements/archive',
+  business: '/business/statements/archive',
 };
 
 function composeStatementReadyPayload({ job, payload }) {

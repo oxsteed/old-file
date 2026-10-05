@@ -7,17 +7,19 @@
  *  1. Compute the latest closed UTC month. Until ISSUANCE_GRACE_HOURS have
  *     elapsed past month-end, the cycle does nothing for that month (late
  *     postings settle first). The outbox drain still runs.
- *  2. Per product (oxsteed, restaurant): get-or-create the open run for the
- *     month. A paused run is respected: no discovery, no claiming.
+ *  2. Across all five products, discover missing months from the approved
+ *     activation boundary in bounded batches. Respect paused runs.
  *  3. While the run is 'discovering', scan accounts in bounded cursor batches
  *     (500), create one job per eligible (account, currency) scope, and record
  *     policy skips as dead_letter job rows with their reason. The scan is
- *     idempotent, so a crashed pass simply rescans. When a full pass finds
- *     nothing new, the run moves to 'running'. Missed accounts (created
+ *     idempotent, so a crashed batch can be repeated. Persist the cursor and
+ *     phase; exhaustion moves the run to 'running'. Missed accounts (created
  *     mid-cycle, reactivated after a skip) are picked up by the catch-up route.
- *  4. Claim up to MAX_JOBS_PER_CYCLE jobs and issue each via
+ *  4. Independently claim up to MAX_JOBS_PER_CYCLE jobs per product, including
+ *     older runs, and issue each via
  *     statementIssuanceService.issueAccountStatement.
- *  5. When no non-terminal jobs remain, close the run.
+ *  5. Finish only a fully discovered run with no open jobs. Operational dead
+ *     letters make coverage failed; policy skips are counted separately.
  *  6. Drain `statement.ready` outbox events into localized in-app + email
  *     notifications (artifact must be ready/verified first).
  *  7. Drain `statement.amended` outbox events (workstream 3): an approved
@@ -60,75 +62,97 @@ async function findAnyRun(product, periodFrom, periodTo) {
 }
 
 /**
- * One full discovery pass over the product's account tables. Bounded batches,
+ * One bounded discovery pass over the product's account tables. Bounded batches,
  * idempotent inserts: re-running after a crash converges without duplicates.
- * Returns { discovered, skipped, revived }.
+ * Returns { discovered, skipped, revived, complete, busy? }.
  */
 async function runDiscoveryPass(run) {
   const periodFrom = run.period_from instanceof Date
     ? run.period_from.toISOString().slice(0, 10) : String(run.period_from);
   const periodTo = run.period_to instanceof Date
     ? run.period_to.toISOString().slice(0, 10) : String(run.period_to);
-  let cursor = null;
+  const client = await pool.connect();
+  let locked = false;
   let discovered = 0;
   let skipped = 0;
   let revived = 0;
-  for (;;) {
-    const { eligible, skipped: batchSkipped, nextCursor } = await issuance.discoverEligibleAccounts({
-      product: run.product,
-      periodFrom,
-      periodTo,
-      batchSize: policy.DISCOVERY_BATCH_SIZE,
-      cursor,
-    });
-    // Reactivated accounts first: a recorded skip must not block a job for an
-    // account that became eligible again before the run closed.
-    revived += await issuance.reviveEligibleSkips(run.id, eligible);
-    if (eligible.length > 0) {
-      discovered += await jobs.discoverAccountJobs(run.id, eligible);
+  let complete = false;
+  try {
+    // Session lock is short-lived and does not hold an MVCC transaction during
+    // source scans. Concurrent scans of one run cannot overwrite its cursor.
+    const { rows: [lock] } = await client.query(
+      'SELECT pg_try_advisory_lock(hashtextextended($1, 0)) AS locked', [`statement-discovery:${run.id}`]);
+    locked = lock.locked;
+    if (!locked) return { discovered, skipped, revived, complete, busy: true };
+    for (let n = 0; n < policy.MAX_DISCOVERY_BATCHES_PER_CYCLE; n += 1) {
+      const { rows: [current] } = await client.query(
+        'SELECT * FROM statement_issuance_runs WHERE id=$1', [run.id]);
+      if (!current || current.state !== 'discovering') break;
+      const { eligible, skipped: batchSkipped, nextCursor } = await issuance.discoverEligibleAccounts({
+        product: run.product, periodFrom, periodTo,
+        batchSize: policy.DISCOVERY_BATCH_SIZE, cursor: current.discovery_cursor,
+      });
+      // Normalize the legacy revival helper's key input for UUID accounts;
+      // discoverAccountJobs still receives the original scope shape.
+      revived += await issuance.reviveEligibleSkips(run.id,
+        eligible.map((account) => ({ ...account, accountId: account.accountUuid || account.accountId })));
+      if (eligible.length > 0) discovered += await jobs.discoverAccountJobs(run.id, eligible);
+      skipped += await issuance.recordSkippedJobs(run.id, batchSkipped);
+      const { rowCount } = await client.query(
+        `UPDATE statement_issuance_runs SET discovery_cursor=$2,
+           discovery_phase=CASE WHEN $2::text IS NULL THEN 'running' ELSE 'discovering' END,
+           state=CASE WHEN state='discovering' AND $2::text IS NULL THEN 'running' ELSE state END,
+           updated_at=transaction_timestamp()
+         WHERE id=$1 AND discovery_generation=$3 AND state IN ('discovering','paused')`,
+        [run.id, nextCursor || null, current.discovery_generation]);
+      if (!rowCount) break; // An explicit catch-up fenced this scan.
+      if (!nextCursor) { complete = true; break; }
     }
-    skipped += await issuance.recordSkippedJobs(run.id, batchSkipped);
-    if (!nextCursor) break;
-    cursor = nextCursor;
+  } finally {
+    try {
+      if (locked) await client.query('SELECT pg_advisory_unlock(hashtextextended($1, 0))',
+        [`statement-discovery:${run.id}`]);
+    } finally { client.release(); }
   }
-  return { discovered, skipped, revived };
-}
-
-async function markRunRunning(runId) {
-  const { rows: [run] } = await pool.query(
-    `UPDATE statement_issuance_runs
-     SET state = 'running', updated_at = transaction_timestamp()
-     WHERE id = $1 AND state = 'discovering'
-     RETURNING *`,
-    [runId]);
-  return run || null;
+  return { discovered, skipped, revived, complete };
 }
 
 async function maybeCompleteRun(runId) {
-  const { rows: [{ open }] } = await pool.query(
-    `SELECT COUNT(*)::int AS open FROM statement_account_jobs
-     WHERE run_id = $1 AND state NOT IN ('complete', 'dead_letter')`,
-    [runId]);
-  if (open !== 0) return null;
-  const { rows: [run] } = await pool.query(
+  // Lock before counting, so a retry that committed while we waited is visible
+  // to this statement's fresh READ COMMITTED snapshot.
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('SELECT id FROM statement_issuance_runs WHERE id=$1 FOR UPDATE', [runId]);
+    const { rows: [run] } = await client.query(
     `UPDATE statement_issuance_runs
-     SET state = 'complete', completed_at = transaction_timestamp(),
+     SET state = CASE WHEN EXISTS (SELECT 1 FROM statement_account_jobs j
+                        WHERE j.run_id=$1 AND j.state='dead_letter'
+                          AND COALESCE(j.last_error,'') NOT LIKE 'skip:%')
+                      THEN 'failed' ELSE 'complete' END,
+         completed_at = transaction_timestamp(),
          updated_at = transaction_timestamp()
-     WHERE id = $1 AND state = ANY($2)
+     WHERE id = $1 AND state = 'running' AND discovery_phase='running'
+       AND NOT EXISTS (SELECT 1 FROM statement_account_jobs j
+                       WHERE j.run_id=$1 AND j.state NOT IN ('complete','dead_letter'))
      RETURNING *`,
-    [runId, ['discovering', 'running']]);
-  return run || null;
+    [runId]);
+    await client.query('COMMIT');
+    return run || null;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally { client.release(); }
 }
 
-async function issueClaimedJobs(run, workerId, maxJobs = policy.MAX_JOBS_PER_CYCLE) {
+async function issueClaimedJobs(product, workerId, maxJobs = policy.MAX_JOBS_PER_CYCLE) {
   let issued = 0;
   let failed = 0;
   for (let n = 0; n < maxJobs; n += 1) {
-    // Claims are global across runs: a job from a concurrent manual run is
-    // still safe to issue here (issuance is product/account/currency scoped
-    // and fully idempotent), so the cycle issues whatever it wins.
-    const job = await jobs.claimNextAccountJob(workerId);
+    // Old and manual runs share the same per-product queue budget.
+    const job = await jobs.claimNextAccountJob(workerId, 120, { product });
     if (!job) break;
+    if (job.state === 'dead_letter') { failed += 1; continue; }
     try {
       await issuance.issueAccountStatement({ job, workerId });
       issued += 1;
@@ -147,7 +171,7 @@ async function issueClaimedJobs(run, workerId, maxJobs = policy.MAX_JOBS_PER_CYC
   return { issued, failed };
 }
 
-async function processProductCycle(product, period, workerId, maxJobsPerProduct) {
+async function processProductCycle(product, period) {
   const summary = { product, period, runId: null, runState: null, discovered: 0, skipped: 0, revived: 0, issued: 0, failed: 0, completed: false };
   let run = await findOpenRun(product, period.from, period.to);
   if (!run) {
@@ -157,14 +181,13 @@ async function processProductCycle(product, period, workerId, maxJobsPerProduct)
       summary.runState = 'already-complete';
       return summary;
     }
-    run = await jobs.createRun({ product, periodFrom: period.from, periodTo: period.to });
+    run = await jobs.createRun({ product, periodFrom: period.from, periodTo: period.to, reuseExisting: true });
     logger.info('statement issuance run created', { runId: run.id, product, period });
   }
   summary.runId = run.id;
 
   if (run.state === 'paused') {
-    // Pause is respected: no discovery, no claiming. The outbox drain below
-    // still runs so already-issued statements keep their notifications.
+    // Pause is respected; notifications for already-issued statements continue.
     summary.runState = 'paused';
     return summary;
   }
@@ -174,31 +197,38 @@ async function processProductCycle(product, period, workerId, maxJobsPerProduct)
     summary.discovered = pass.discovered;
     summary.skipped = pass.skipped;
     summary.revived = pass.revived;
-    if (pass.discovered === 0 && pass.skipped === 0 && pass.revived === 0) {
-      // A full scan that recorded nothing new: discovery is complete.
-      await markRunRunning(run.id);
-      run.state = 'running';
-    }
   }
-
-  const claimed = await issueClaimedJobs(
-    run,
-    workerId,
-    maxJobsPerProduct === undefined ? policy.MAX_JOBS_PER_CYCLE : maxJobsPerProduct,
-  );
-  summary.issued = claimed.issued;
-  summary.failed = claimed.failed;
 
   const completed = await maybeCompleteRun(run.id);
   if (completed) {
-    summary.completed = true;
-    summary.runState = 'complete';
+    summary.completed = completed.state === 'complete';
+    summary.runState = completed.state;
   } else {
     const { rows: [current] } = await pool.query(
       'SELECT state FROM statement_issuance_runs WHERE id = $1', [run.id]);
     summary.runState = current ? current.state : run.state;
   }
   return summary;
+}
+
+async function discoverMissedPeriods(product, latest, activation) {
+  if (!activation || activation > latest.from) return;
+  const { rows } = await pool.query(
+    `SELECT month::date AS period_from, (month + interval '1 month - 1 day')::date AS period_to
+     FROM generate_series($2::date, $3::date, interval '1 month') AS month
+     WHERE NOT EXISTS (SELECT 1 FROM statement_issuance_runs r
+       WHERE r.product=$1 AND r.period_from=month::date
+         AND r.period_to=(month + interval '1 month - 1 day')::date)
+     ORDER BY month LIMIT $4`,
+    [product, activation, latest.from, policy.MAX_PERIODS_PER_PRODUCT_CYCLE]);
+  for (const row of rows) {
+    await jobs.createRun({ product, periodFrom: dateText(row.period_from),
+      periodTo: dateText(row.period_to), reuseExisting: true });
+  }
+}
+
+function dateText(value) {
+  return value instanceof Date ? value.toISOString().slice(0, 10) : String(value);
 }
 
 /**
@@ -219,10 +249,24 @@ async function pollIssuanceCycle({ workerId, now = new Date(), maxJobsPerProduct
     products: {},
     outbox: null,
   };
-  if (summary.graceElapsed) {
+  let activation = null;
+  try { activation = policy.activationMonth(); }
+  catch (error) { summary.activationError = error.message; }
+  summary.activationMonth = activation;
+  const approvedLatest = summary.graceElapsed ? period : issuance.latestClosedMonthPeriod(
+    new Date(`${period.from}T00:00:00Z`));
     for (const product of policy.PRODUCTS) {
       try {
-        summary.products[product] = await processProductCycle(product, period, workerId, maxJobsPerProduct);
+        await discoverMissedPeriods(product, approvedLatest, activation);
+        const { rows: runs } = await pool.query(
+          `SELECT * FROM statement_issuance_runs WHERE product=$1 AND state IN ('discovering','running')
+           ORDER BY period_from, created_at, id LIMIT $2`,
+          [product, policy.MAX_PERIODS_PER_PRODUCT_CYCLE]);
+        summary.products[product] = [];
+        for (const run of runs) {
+          summary.products[product].push(await processProductCycle(product,
+            { from: dateText(run.period_from), to: dateText(run.period_to) }));
+        }
       } catch (error) {
         logger.error('statement issuance product cycle failed', {
           product,
@@ -231,7 +275,22 @@ async function pollIssuanceCycle({ workerId, now = new Date(), maxJobsPerProduct
         summary.products[product] = { product, period, error: String((error && error.message) || error).slice(0, 200) };
       }
     }
+  // Drain globally, even if all current runs are terminal or rollout is not
+  // configured. Per-run pause still gates claims. The budget stays bounded.
+  const perProduct = maxJobsPerProduct === undefined ? policy.MAX_JOBS_PER_CYCLE : maxJobsPerProduct;
+  if (!Number.isSafeInteger(perProduct) || perProduct < 0 || perProduct > policy.MAX_JOBS_PER_CYCLE) {
+    throw new Error('maxJobsPerProduct exceeds the statement cycle budget');
   }
+  summary.jobs = { issued: 0, failed: 0 };
+  for (const product of policy.PRODUCTS) {
+    const result = await issueClaimedJobs(product, workerId, perProduct);
+    summary.jobs.issued += result.issued;
+    summary.jobs.failed += result.failed;
+  }
+  const { rows: finishing } = await pool.query(
+    `SELECT id FROM statement_issuance_runs WHERE state='running' AND discovery_phase='running'
+     ORDER BY period_from, created_at LIMIT 100`);
+  for (const run of finishing) await maybeCompleteRun(run.id);
   try {
     summary.outbox = await issuance.processStatementReadyOutbox({ workerId });
   } catch (error) {

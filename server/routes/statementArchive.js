@@ -30,12 +30,15 @@ const { Readable } = require('stream');
 const pool = require('../db');
 const AppError = require('../utils/appError');
 const logger = require('../utils/logger');
-const { authenticate, requireRole } = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
 const { creditExportLimiter } = require('../middleware/rateLimiter');
 const { getDownloadStream, createSignedUrl } = require('../services/statementArtifactService');
+const { assertScopeStanding } = require('./settlementStatementArchive');
+const { hashDocument } = require('../services/creditStatementService');
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const PRODUCTS = new Set(['oxsteed', 'restaurant']);
+const SETTLEMENT_PRODUCTS = new Set(['restaurant_settlement', 'helper_earnings', 'business']);
+const PRODUCTS = new Set(['oxsteed', 'restaurant', ...SETTLEMENT_PRODUCTS]);
 const LANGUAGES = ['en', 'es', 'fr', 'ht', 'ar'];
 const CURRENCY_PATTERN = /^[A-Z]{3}$/;
 const MAX_PER_PAGE = 100;
@@ -119,6 +122,22 @@ async function requireAuthorizedDocument(documentId, userId) {
   return document;
 }
 
+function settlementAccount(row) {
+  return row.scope_restaurant_id ?? row.scope_business_id ?? row.scope_helper_user_id;
+}
+
+function normalizeSettlementRow(row) {
+  return { ...row, account_id: settlementAccount(row), archive: 'settlement' };
+}
+
+function verifyDocument(row) {
+  if (!row.document || row.document.contentHash !== row.content_hash
+      || hashDocument(row.document) !== row.content_hash) {
+    throw new AppError('Statement verification failed', 409, 'statement_integrity_failed');
+  }
+  return row;
+}
+
 function labelFromObjectKey(objectKey) {
   const match = String(objectKey || '').match(/\/renditions\/([a-z0-9-]{1,40})\//);
   return match ? match[1] : null;
@@ -146,9 +165,10 @@ function shapeArtifact(row) {
 async function listDocumentArtifacts(documentId) {
   const { rows } = await pool.query(
     `SELECT a.* FROM statement_artifacts a
-      WHERE a.document_id = $1
-         OR a.snapshot_id IN (SELECT snapshot_id FROM statement_artifacts WHERE document_id = $1)
-      ORDER BY a.kind, a.language, a.created_at`,
+      WHERE a.document_id = $1 OR a.settlement_document_id = $1
+         OR a.snapshot_id IN (SELECT snapshot_id FROM statement_artifacts
+                              WHERE document_id = $1 OR settlement_document_id = $1)
+      ORDER BY a.kind, a.language, a.created_at, a.id`,
     [documentId]);
   return rows.map(shapeArtifact);
 }
@@ -177,7 +197,7 @@ function shapeArchiveItem(document, artifacts, amendmentInfo = {}) {
     id: document.id,
     kind: 'original',
     product: document.product,
-    accountId: Number(document.account_id),
+    accountId: document.product === 'helper_earnings' ? String(document.account_id) : Number(document.account_id),
     currency: document.currency_code,
     period: {
       from: new Date(document.period_from).toISOString().slice(0, 10),
@@ -189,7 +209,8 @@ function shapeArchiveItem(document, artifacts, amendmentInfo = {}) {
     // carries its revision. Corrections post through the authoritative
     // ledgers and re-render as separate labeled renditions, never by editing
     // the issued original.
-    revision: Number.isSafeInteger(payload.version) ? payload.version : 1,
+    revision: 1,
+    schemaVersion: Number.isSafeInteger(payload.version) ? payload.version : 1,
     corrected: Boolean(payload.corrected || payload.supersedes) || versions.length > 0,
     // An original with published amendment versions stays downloadable and is
     // clearly marked superseded, with the reason, approver, time and a link
@@ -222,11 +243,13 @@ function shapeArchiveDetail(document, artifacts) {
   return {
     ...item,
     totals: {
-      openingMinor: asMinor(payload.openingBalanceCents),
-      creditsMinor: asMinor(payload.totalCreditsCents),
-      debitsMinor: asMinor(payload.totalDebitsCents),
-      closingMinor: asMinor(payload.closingBalanceCents),
-      transactionCount: Number.isSafeInteger(payload.transactionCount) ? payload.transactionCount : null,
+      openingMinor: asMinor(payload.openingBalanceCents ?? payload.openingPayableCents ?? payload.receivables?.openingOutstandingCents),
+      creditsMinor: asMinor(payload.totalCreditsCents ?? payload.postedEarningsCents ?? payload.receivables?.invoicedCents),
+      debitsMinor: asMinor(payload.totalDebitsCents ?? (payload.product === 'helper_earnings'
+        ? payload.settledPayoutsCents + payload.statusRemovalsCents
+        : payload.receivables ? payload.receivables.collectedOrAdjustedCents + payload.receivables.cancelledCents : undefined)),
+      closingMinor: asMinor(payload.closingBalanceCents ?? payload.closingPayableCents ?? payload.receivables?.closingOutstandingCents),
+      transactionCount: payload.transactionCount ?? payload.earningsCount ?? payload.receivables?.invoiceCount ?? null,
     },
     artifacts: {
       originals: artifacts.filter((artifact) => artifact.kind === 'original'),
@@ -262,12 +285,12 @@ async function attachAmendmentVersions(documentIds) {
   if (!documentIds.length) return { versionsByOriginal, artifactsByVersion, adminNames: new Map() };
   const { rows: versions } = await pool.query(
     `SELECT v.* FROM statement_amendment_versions v
-     WHERE v.original_document_id = ANY($1)
-     ORDER BY v.original_document_id, v.revision_number ASC`,
+     WHERE v.original_document_id = ANY($1) OR v.settlement_original_document_id = ANY($1)
+     ORDER BY COALESCE(v.original_document_id, v.settlement_original_document_id), v.revision_number ASC, v.id`,
     [documentIds]);
   const decidedByIds = [];
   for (const version of versions) {
-    const key = version.original_document_id;
+    const key = version.settlement_original_document_id || version.original_document_id;
     if (!versionsByOriginal.has(key)) versionsByOriginal.set(key, []);
     versionsByOriginal.get(key).push(version);
     const decidedBy = version.document && version.document.amendment && version.document.amendment.decidedBy;
@@ -299,7 +322,7 @@ function shapeVersionItem(version, original, artifact, amendmentContext = {}) {
     id: version.id,
     kind: 'amendment',
     product: original.product,
-    accountId: Number(original.account_id),
+    accountId: original.product === 'helper_earnings' ? String(original.account_id) : Number(original.account_id),
     currency: original.currency_code,
     period: {
       from: new Date(original.period_from).toISOString().slice(0, 10),
@@ -324,13 +347,24 @@ function shapeVersionItem(version, original, artifact, amendmentContext = {}) {
       decidedBy: amendment.decidedBy || null,
       decidedByName: adminNames.get(amendment.decidedBy) || null,
       decisionReason: amendment.decisionReason || null,
-      originalDocumentId: version.original_document_id,
+      originalDocumentId: version.settlement_original_document_id || version.original_document_id,
       supersedes: amendment.supersedes || payload.supersedes || null,
       totals: payload.totals || null,
       continuity: payload.continuity || null,
       artifactId: version.artifact_id || null,
       artifact: artifact || null,
     },
+  };
+}
+
+async function nestedArchiveItem(document, artifacts, amendmentData) {
+  const versions = amendmentData.versionsByOriginal.get(document.id) || [];
+  return {
+    ...shapeArchiveItem(document, artifacts, { versions, adminNames: amendmentData.adminNames }),
+    versions: versions.map((version, index) => shapeVersionItem(version, document,
+      amendmentData.artifactsByVersion.get(version.id) || null,
+      { adminNames: amendmentData.adminNames, superseded: index < versions.length - 1 })),
+    versionCount: versions.length,
   };
 }
 
@@ -349,7 +383,13 @@ async function resolveArchiveEntry(documentId, userId) {
     if (original.product === 'restaurant') {
       await assertRestaurantAccountStanding(userId, original.account_id);
     }
-    return { kind: 'original', document: original, version: null };
+    return { kind: 'original', document: verifyDocument(original), version: null };
+  }
+  const { rows: [settlement] } = await pool.query(
+    'SELECT * FROM settlement_statement_documents WHERE id = $1', [documentId]);
+  if (settlement) {
+    await assertScopeStanding(userId, settlement.product, settlementAccount(settlement));
+    return { kind: 'original', document: normalizeSettlementRow(verifyDocument(settlement)), version: null };
   }
   const { rows: [version] } = await pool.query(
     `SELECT v.*, d.customer_id, d.product, d.account_id, d.currency_code,
@@ -359,12 +399,21 @@ async function resolveArchiveEntry(documentId, userId) {
      WHERE v.id = $1 AND d.customer_id = $2`,
     [documentId, userId]);
   if (!version) {
-    throw new AppError('Statement document not found', 404, 'statement_document_not_found');
+    const { rows: [settlementVersion] } = await pool.query(
+      `SELECT v.*, d.product, d.currency_code, d.period_from, d.period_to,
+              d.scope_restaurant_id, d.scope_business_id, d.scope_helper_user_id
+       FROM statement_amendment_versions v
+       JOIN settlement_statement_documents d ON d.id = v.settlement_original_document_id
+       WHERE v.id = $1`, [documentId]);
+    if (!settlementVersion) throw new AppError('Statement document not found', 404, 'statement_document_not_found');
+    await assertScopeStanding(userId, settlementVersion.product, settlementAccount(settlementVersion));
+    const row = normalizeSettlementRow(verifyDocument(settlementVersion));
+    return { kind: 'amendment', document: row, version: row };
   }
   if (version.product === 'restaurant') {
     await assertRestaurantAccountStanding(userId, version.account_id);
   }
-  return { kind: 'amendment', document: version, version };
+  return { kind: 'amendment', document: verifyDocument(version), version };
 }
 
 // Picks the artifact to serve: a ready original in the requested language
@@ -439,7 +488,33 @@ function downloadFilename(document, mediaType, version) {
 function createStatementArchiveRouter({ storage } = {}) {
   const router = express.Router();
 
-  router.use(authenticate, requireRole('customer'), noStoreArchiveResponse);
+  router.use(authenticate, noStoreArchiveResponse);
+
+  // Discovery uses the same current owner/active-manager finance standing as
+  // document access. Ordinary staff and former members receive no scopes.
+  router.get('/scopes', async (req, res, next) => {
+    try {
+      const product = String(req.query.product || '');
+      if (!SETTLEMENT_PRODUCTS.has(product)) throw new AppError('Invalid statement product', 400, 'statement_archive_invalid_product');
+      if (product === 'helper_earnings') {
+        return res.json({ accounts: [{ accountId: req.user.id, currencyCode: null, name: null }] });
+      }
+      const restaurant = product === 'restaurant_settlement';
+      const { rows } = await pool.query(restaurant
+        ? `SELECT fr.id AS account_id, fr.display_name AS name, fr.currency_code
+           FROM food_restaurants fr JOIN businesses b ON b.id = fr.business_id
+           WHERE b.user_id = $1 OR fr.owner_user_id = $1 OR EXISTS (
+             SELECT 1 FROM business_members bm WHERE bm.business_id = b.id
+             AND bm.member_id = $1 AND bm.status = 'active' AND bm.role = 'manager')
+           ORDER BY fr.id LIMIT 100`
+        : `SELECT b.id AS account_id, b.business_name AS name, b.currency_code
+           FROM businesses b WHERE b.user_id = $1 OR EXISTS (
+             SELECT 1 FROM business_members bm WHERE bm.business_id = b.id
+             AND bm.member_id = $1 AND bm.status = 'active' AND bm.role = 'manager')
+           ORDER BY b.id LIMIT 100`, [req.user.id]);
+      res.json({ accounts: rows.map(row => ({ accountId: row.account_id, name: row.name, currencyCode: row.currency_code })) });
+    } catch (error) { next(error); }
+  });
 
   // Paginated archive of issued monthly originals. Record-level authorization
   // is the customer_id predicate; restaurant rows additionally require
@@ -447,6 +522,54 @@ function createStatementArchiveRouter({ storage } = {}) {
   router.get('/archive', async (req, res, next) => {
     try {
       const { product, accountId, currency, year, month } = req.query;
+      if (SETTLEMENT_PRODUCTS.has(String(product))) {
+        const params = [String(product), req.user.id];
+        const conditions = ['d.product = $1'];
+        if (product === 'helper_earnings') conditions.push('d.scope_helper_user_id = $2');
+        else if (product === 'business') conditions.push(`EXISTS (SELECT 1 FROM businesses b
+          WHERE b.id = d.scope_business_id AND (b.user_id = $2 OR EXISTS (
+            SELECT 1 FROM business_members bm WHERE bm.business_id = b.id AND bm.member_id = $2
+            AND bm.status = 'active' AND bm.role = 'manager')))`);
+        else conditions.push(`EXISTS (SELECT 1 FROM food_restaurants fr JOIN businesses b ON b.id = fr.business_id
+          WHERE fr.id = d.scope_restaurant_id AND (fr.owner_user_id = $2 OR b.user_id = $2 OR EXISTS (
+            SELECT 1 FROM business_members bm WHERE bm.business_id = b.id AND bm.member_id = $2
+            AND bm.status = 'active' AND bm.role = 'manager')))`);
+        if (accountId !== undefined) {
+          if (product === 'helper_earnings' ? !UUID_PATTERN.test(String(accountId)) : !/^[1-9]\d*$/.test(String(accountId))) {
+            throw new AppError('Invalid statement account', 400, 'statement_archive_invalid_account');
+          }
+          params.push(accountId);
+          const column = product === 'helper_earnings' ? 'scope_helper_user_id' : product === 'business' ? 'scope_business_id' : 'scope_restaurant_id';
+          conditions.push(`d.${column} = $${params.length}`);
+        }
+        if (currency !== undefined) {
+          const code = String(currency).toUpperCase();
+          if (!CURRENCY_PATTERN.test(code)) throw new AppError('Invalid currency', 400, 'statement_archive_invalid_currency');
+          params.push(code); conditions.push(`d.currency_code = $${params.length}`);
+        }
+        if (year !== undefined || month !== undefined) {
+          const y = parsePositiveInt(year, null); const m = month === undefined ? null : parsePositiveInt(month, null);
+          if (!y || y < 2000 || y > 2100 || (month !== undefined && (!m || m > 12))) {
+            throw new AppError('Invalid statement period filter', 400, 'statement_archive_invalid_period');
+          }
+          params.push(y); conditions.push(`EXTRACT(YEAR FROM d.period_from) = $${params.length}`);
+          if (m) { params.push(m); conditions.push(`EXTRACT(MONTH FROM d.period_from) = $${params.length}`); }
+        }
+        const perPage = Math.min(MAX_PER_PAGE, Math.max(1, parsePositiveInt(req.query.per_page, DEFAULT_PER_PAGE)));
+        const page = Math.max(1, parsePositiveInt(req.query.page, 1));
+        const where = `WHERE ${conditions.join(' AND ')}`;
+        const { rows: [{ total }] } = await pool.query(`SELECT COUNT(*)::int AS total FROM settlement_statement_documents d ${where}`, params);
+        const { rows } = await pool.query(`SELECT d.* FROM settlement_statement_documents d ${where}
+          ORDER BY d.period_to DESC, d.period_from DESC, d.generated_at DESC, d.id DESC
+          LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, perPage, (page - 1) * perPage]);
+        const documents = rows.map(normalizeSettlementRow);
+        const amendments = await attachAmendmentVersions(documents.map(row => row.id));
+        const items = [];
+        for (const document of documents) {
+          items.push(await nestedArchiveItem(document, await listDocumentArtifacts(document.id), amendments));
+        }
+        return res.json({ items, page, perPage, total, totalPages: Math.max(1, Math.ceil(total / perPage)), paginationUnit: 'originals' });
+      }
       const filters = [];
       const params = [req.user.id];
       if (product !== undefined) {
@@ -501,7 +624,7 @@ function createStatementArchiveRouter({ storage } = {}) {
       const page = Math.max(1, parsePositiveInt(req.query.page, 1));
       const offset = (page - 1) * perPage;
       const where = `WHERE d.customer_id = $1${filters.length ? ` AND ${filters.join(' AND ')}` : ''}`;
-      const order = 'ORDER BY d.period_to DESC, d.period_from DESC, d.generated_at DESC';
+      const order = 'ORDER BY d.period_to DESC, d.period_from DESC, d.generated_at DESC, d.id DESC';
 
       const { rows: [{ total }] } = await pool.query(
         `SELECT COUNT(*)::int AS total FROM credit_statement_documents d ${where}`, params);
@@ -529,37 +652,20 @@ function createStatementArchiveRouter({ storage } = {}) {
         }
       }
 
-      // Amendment versions ride alongside their original on the same page:
-      // each version is its own entry (kind 'amendment') ordered by revision.
-      const { rows: [{ versionTotal }] } = await pool.query(
-        `SELECT COUNT(*)::int AS version_total
-         FROM statement_amendment_versions v
-         JOIN credit_statement_documents d ON d.id = v.original_document_id
-         ${where}`,
-        params);
+      // Paginate originals only; each original owns its complete version chain.
+      // Counts, items, page size and navigation now describe one collection.
       const amendmentData = await attachAmendmentVersions(documents.map((document) => document.id));
       const items = [];
       for (const document of documents) {
-        const versions = amendmentData.versionsByOriginal.get(document.id) || [];
-        items.push(shapeArchiveItem(document, artifactsByDocument.get(document.id) || [], {
-          versions,
-          adminNames: amendmentData.adminNames,
-        }));
-        versions.forEach((version, index) => {
-          items.push(shapeVersionItem(
-            version,
-            document,
-            amendmentData.artifactsByVersion.get(version.id) || null,
-            { adminNames: amendmentData.adminNames, superseded: index < versions.length - 1 }));
-        });
+        items.push(await nestedArchiveItem(document, artifactsByDocument.get(document.id) || [], amendmentData));
       }
-      const totalWithVersions = total + (versionTotal || 0);
       res.json({
         items,
         page,
         perPage,
-        total: totalWithVersions,
-        totalPages: Math.max(1, Math.ceil(totalWithVersions / perPage)),
+        total,
+        totalPages: Math.max(1, Math.ceil(total / perPage)),
+        paginationUnit: 'originals',
       });
     } catch (error) { next(error); }
   });
@@ -571,11 +677,10 @@ function createStatementArchiveRouter({ storage } = {}) {
       const documentId = documentIdOr404(req.params.documentId);
       const entry = await resolveArchiveEntry(documentId, req.user.id);
       if (entry.kind === 'amendment') {
-        const amendmentData = await attachAmendmentVersions([entry.version.original_document_id]);
-        const { rows: [{ supersededCount }] } = await pool.query(
-          `SELECT COUNT(*)::int AS supersededCount FROM statement_amendment_versions
-           WHERE original_document_id = $1 AND revision_number > $2`,
-          [entry.version.original_document_id, entry.version.revision_number]);
+        const originalId = entry.version.settlement_original_document_id || entry.version.original_document_id;
+        const amendmentData = await attachAmendmentVersions([originalId]);
+        const supersededCount = (amendmentData.versionsByOriginal.get(originalId) || [])
+          .filter(version => Number(version.revision_number) > Number(entry.version.revision_number)).length;
         res.json({
           document: shapeVersionItem(
             entry.version,
@@ -586,7 +691,9 @@ function createStatementArchiveRouter({ storage } = {}) {
         return;
       }
       const artifacts = await listDocumentArtifacts(documentId);
-      res.json({ document: shapeArchiveDetail(entry.document, artifacts) });
+      const amendmentData = await attachAmendmentVersions([documentId]);
+      const item = await nestedArchiveItem(entry.document, artifacts, amendmentData);
+      res.json({ document: { ...shapeArchiveDetail(entry.document, artifacts), ...item } });
     } catch (error) { next(error); }
   });
 

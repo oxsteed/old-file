@@ -14,8 +14,7 @@
 
 jest.unmock('pg');
 
-const RAW_URL = process.env.STATEMENT_TEST_DATABASE_URL
-  || 'postgresql://postgres:postgres@127.0.0.1:5432/credit_statement_test?sslmode=disable';
+const RAW_URL = process.env.STATEMENT_TEST_DATABASE_URL;
 
 function isDisposableDatabase(urlText) {
   let url;
@@ -79,7 +78,7 @@ async function createUser(role = 'customer', createdAt = '2026-01-15T12:00:00.00
 
 async function createBusiness(ownerId, name, createdAt = '2026-01-15T12:00:00.000Z') {
   const { rows: [row] } = await pool.query(
-    `INSERT INTO businesses (user_id, business_name, created_at) VALUES ($1, $2, $3) RETURNING id`,
+    `INSERT INTO businesses (user_id, business_name, currency_code, created_at) VALUES ($1, $2, 'USD', $3) RETURNING id`,
     [ownerId, name, createdAt]);
   return Number(row.id);
 }
@@ -466,14 +465,9 @@ ddescribe('settlement statement adapters (workstream 8)', () => {
   });
 
   describe('helper_earnings', () => {
-    // Timing layout (all USD, helper scope):
-    //  jobA: completed Jul 05, earned        -> opening 8000
-    //  jobB: completed Jul 20, paid Aug 10   -> opening 5000, settled in period 5000
-    //  jobC: completed Aug 03, earned        -> posted 7000, closing
-    //  jobD: completed Aug 08, paid Aug 20   -> posted 6000, settled in period 6000
-    //  jobE: completed Aug 12, failed        -> posted 4000, removed 4000
-    //  jobF: completed Aug 15, pending        -> posted 9000, in transit, closing
-    // Equation: 13000 + 26000 - 11000 - 4000 = 24000.
+    // Effective dates are synthetic July/August values, but these source rows
+    // are actually INSERTED today. Migration 694 observes that real posting
+    // date; never spoof history dates to make them look posted in August.
     let jobA; let jobB; let jobC; let jobD;
     beforeAll(async () => {
       jobA = await createJob({ helperId: helper, clientId: client, title: 'July job A', payoutStatus: 'earned', completedAt: '2026-07-05T12:00:00.000Z', helperPayoutCents: 8000, platformFeeCents: 1200, customerTotalCents: 9200 });
@@ -491,42 +485,41 @@ ddescribe('settlement statement adapters (workstream 8)', () => {
       await createPayment({ jobId: jobC, payerId: client, payeeId: helper, amountDollars: '80.00', status: 'refunded', escrowStatus: 'refunded', refundDollars: '80.00', refundedAt: '2026-08-11T12:00:00.000Z' });
     }, 120000);
 
-    test('reconciles payable exactly across earned/settled/removed timing', async () => {
+    test('does not manufacture August postings from newly inserted backdated jobs', async () => {
       const doc = await statements.getStatement(helper, {
         product: 'helper_earnings', helperId: helper, currencyCode: 'USD', ...P_AUG,
       });
       expect(doc.product).toBe('helper_earnings');
-      expect(doc.openingPayableCents).toBe(13000);
-      expect(doc.postedEarningsCents).toBe(26000);
-      expect(doc.settledPayoutsCents).toBe(11000);
-      expect(doc.statusRemovalsCents).toBe(4000);
-      expect(doc.closingPayableCents).toBe(24000);
+      expect(doc.openingPayableCents).toBe(0);
+      expect(doc.postedEarningsCents).toBe(0);
+      expect(doc.settledPayoutsCents).toBe(0);
+      expect(doc.statusRemovalsCents).toBe(0);
+      expect(doc.closingPayableCents).toBe(0);
       expect(doc.openingPayableCents + doc.postedEarningsCents - doc.settledPayoutsCents - doc.statusRemovalsCents)
         .toBe(doc.closingPayableCents);
-      expect(doc.buckets.accruedCents).toBe(15000); // A + C
-      expect(doc.buckets.inTransitCents).toBe(9000); // F
-      expect(doc.buckets.settledAllTimeCents).toBe(11000); // B + D
-      expect(doc.buckets.notOwedCents).toBe(4000); // E
-      expect(doc.buckets.totalEarnedCents).toBe(39000);
-      expect(doc.platformFeesOnPostedCents).toBe(1000 + 900 + 600 + 1300);
+      expect(doc.buckets.accruedCents).toBe(0);
+      expect(doc.buckets.inTransitCents).toBe(0);
+      expect(doc.buckets.settledAllTimeCents).toBe(0);
+      expect(doc.buckets.notOwedCents).toBe(0);
+      expect(doc.buckets.totalEarnedCents).toBe(0);
+      expect(doc.platformFeesOnPostedCents).toBe(0);
+      expect(doc.sourceHistoryVersion).toBe(1);
+      expect(doc.earnings).toHaveLength(0);
       expect(doc.taxNote).toMatch(/not a tax form/i);
       // No leakage from the other helper or the EUR job.
       expect(doc.earnings.every((e) => e.helperPayoutCents !== 99999 && e.helperPayoutCents !== 55555)).toBe(true);
     });
 
-    test('links payment events without describing unpaid earnings as received', async () => {
+    test('current refund evidence never masquerades as August payment history', async () => {
       const doc = await statements.getStatement(helper, {
         product: 'helper_earnings', helperId: helper, currencyCode: 'USD', ...P_AUG_HALF,
       });
-      const settled = doc.settled.find((s) => s.jobId === String(jobB));
-      expect(settled.payment.status).toBe('captured');
-      const earned = doc.earnings.find((e) => e.jobId === String(jobC));
-      expect(earned.payment.status).toBe('refunded');
-      expect(earned.payment.refundAmountCents).toBe(8000);
-      // Accrued rows carry no "received" language; only settled rows do.
-      const accruedRow = doc.earnings.find((e) => e.payoutStatus === 'earned');
-      expect(accruedRow.bucket).toBe('accrued');
+      expect(doc.settled).toHaveLength(0);
+      expect(doc.earnings).toHaveLength(0);
       expect(JSON.stringify(doc)).not.toMatch(/received into bank|paid out to bank/i);
+      const today = new Date().toISOString().slice(0, 10);
+      await expect(statements.getStatement(helper, { product: 'helper_earnings', helperId: helper,
+        currencyCode: 'USD', from: today, to: today })).rejects.toMatchObject({ code: 'statement_source_history_unavailable' });
     });
 
     test('rederive rebuilds after a status change while the archived original is untouched', async () => {
@@ -534,12 +527,12 @@ ddescribe('settlement statement adapters (workstream 8)', () => {
         product: 'helper_earnings', helperId: helper, currencyCode: 'USD', ...P_JUL,
       });
       expect(before.kind).toBe('monthly');
-      // A July-earned job settles: the snapshot moves buckets.
-      await pool.query(`UPDATE jobs SET payout_status = 'paid', paid_at = '2026-07-28T12:00:00.000Z' WHERE id = $1`, [jobA]);
+      // The actual source write posts now, not into a historical July original.
+      await pool.query(`UPDATE jobs SET payout_status = 'paid', paid_at = clock_timestamp() WHERE id = $1`, [jobA]);
       const rebuilt = await statements.getStatement(helper, {
         product: 'helper_earnings', helperId: helper, currencyCode: 'USD', ...P_JUL, rederive: true,
       });
-      expect(rebuilt.settledPayoutsCents).toBe(8000);
+      expect(rebuilt.settledPayoutsCents).toBe(0);
       expect(rebuilt.id).not.toBe(before.id);
       // The archived original is immutable: a plain re-request returns it.
       const archived = await statements.getStatement(helper, {
@@ -578,13 +571,14 @@ ddescribe('settlement statement adapters (workstream 8)', () => {
       });
       expect(doc.product).toBe('business');
       const r = doc.receivables;
-      // opening: INV-001 outstanding 60000; invoiced: 200000 + 50000;
-      // cancelled: 30000; closing: 60000 + 200000 = 260000.
-      expect(r.openingOutstandingCents).toBe(60000);
-      expect(r.invoicedCents).toBe(250000);
-      expect(r.cancelledCents).toBe(30000);
-      expect(r.closingOutstandingCents).toBe(260000);
-      expect(r.collectedOrAdjustedCents).toBe(60000 + 250000 - 30000 - 260000);
+      // New source rows are posted at today's observation, regardless of the
+      // effective issue_date. Historical projector tests cover period carryover.
+      expect(r.openingOutstandingCents).toBe(0);
+      expect(r.invoicedCents).toBe(0);
+      expect(r.cancelledCents).toBe(0);
+      expect(r.closingOutstandingCents).toBe(0);
+      expect(r.collectedOrAdjustedCents).toBe(0);
+      expect(r.invoices).toHaveLength(0);
       expect(r.openingOutstandingCents + r.invoicedCents - r.collectedOrAdjustedCents - r.cancelledCents)
         .toBe(r.closingOutstandingCents);
       // No leakage: business2's invoice and the EUR invoice are absent.

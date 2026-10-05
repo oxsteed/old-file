@@ -62,11 +62,12 @@ const AppError = require('../utils/appError');
 const logger = require('../utils/logger');
 const statements = require('./creditStatementService');
 const settlementStatements = require('./settlementStatementService');
+const sourceHistory = require('./settlementFinancialHistory');
 const snapshots = require('./statementSnapshotService');
 const artifacts = require('./statementArtifactService');
 const jobs = require('./statementJobService');
 const { renderStatementPdfInWorker } = require('./creditStatementExport');
-const defaultStorage = require('../utils/storage');
+const defaultStorage = require('../utils/statementStorage');
 
 // Products whose statements archive into settlement_statement_documents
 // (migration 688). Amendments to them produce versions linked to that
@@ -85,7 +86,6 @@ const BUSINESS_MONEY_KEYS = ['openingMinor', 'invoicedMinor', 'collectedOrAdjust
 // helper_earnings and business records are activity snapshots, not
 // append-only ledgers (see the settlement inventory), so accounting
 // amendments fail closed for them; clerical amendments are fully supported.
-const ACCOUNTING_UNSUPPORTED_PRODUCTS = new Set(['helper_earnings', 'business']);
 
 function fail(code, message, statusCode = 400) {
   throw new AppError(message, statusCode, code);
@@ -136,15 +136,16 @@ function coreOf(document) {
       removedMinor: source.statusRemovalsCents,
       closingMinor: source.closingPayableCents,
       rowCount: Number(source.earningsCount || 0) + Number(source.settledCount || 0) + Number(source.removedCount || 0),
+      movements: Array.isArray(source.movements) ? source.movements : null,
       rows: [
         ...(Array.isArray(source.earnings) ? source.earnings : []).map((e) => ({
-          id: `earned:${e.jobId}`, date: e.completedAt, amountCents: e.helperPayoutCents, kind: e.kind,
+          id: `earned:${e.sourceHistoryId || e.jobId}`, date: e.recordedAt || e.completedAt, amountCents: e.helperPayoutCents, kind: e.kind,
         })),
         ...(Array.isArray(source.settled) ? source.settled : []).map((e) => ({
-          id: `settled:${e.jobId}`, date: e.paidAt, amountCents: e.helperPayoutCents,
+          id: `settled:${e.sourceHistoryId || e.jobId}`, date: e.recordedAt || e.paidAt, amountCents: e.helperPayoutCents,
         })),
         ...(Array.isArray(source.removed) ? source.removed : []).map((e) => ({
-          id: `removed:${e.jobId}`, date: e.completedAt, amountCents: e.helperPayoutCents,
+          id: `removed:${e.sourceHistoryId || e.jobId}`, date: e.recordedAt || e.removedAt || e.completedAt, amountCents: e.helperPayoutCents,
         })),
       ],
     };
@@ -159,6 +160,8 @@ function coreOf(document) {
       cancelledMinor: receivables.cancelledCents,
       closingMinor: receivables.closingOutstandingCents,
       rowCount: Number(receivables.invoiceCount || 0),
+      movements: Array.isArray(receivables.movements) ? receivables.movements : null,
+      payables: source.payables || null,
       rows: (Array.isArray(receivables.invoices) ? receivables.invoices : []).map((inv) => ({
         id: String(inv.id),
         status: inv.status,
@@ -258,6 +261,9 @@ async function loadOriginalDocument(clientOrPool, documentId) {
      FROM credit_statement_documents WHERE id = $1`,
     [documentId]);
   if (credit) {
+    if (credit.document?.contentHash !== credit.content_hash || statements.hashDocument(credit.document) !== credit.content_hash) {
+      fail('statement_amendment_integrity_failed', 'Original statement verification failed', 409);
+    }
     return {
       kind: 'credit',
       id: credit.id,
@@ -280,6 +286,9 @@ async function loadOriginalDocument(clientOrPool, documentId) {
     [documentId]);
   if (!settlement) {
     fail('statement_amendment_document_not_found', 'Original statement document not found', 404);
+  }
+  if (settlement.document?.contentHash !== settlement.content_hash || statements.hashDocument(settlement.document) !== settlement.content_hash) {
+    fail('statement_amendment_integrity_failed', 'Original statement verification failed', 409);
   }
   return {
     kind: 'settlement',
@@ -384,6 +393,9 @@ async function rederiveStatement(original) {
 // relative to the statement's account. Never invents or moves money: the
 // transaction must already exist and be posted.
 async function fetchCompensatingRef(clientOrPool, product, accountId, currencyCode, ref) {
+  if (product === 'helper_earnings' || product === 'business') {
+    return fetchSettlementCompensatingRef(clientOrPool, product, accountId, currencyCode, ref);
+  }
   if (product === 'oxsteed' || product === 'restaurant_settlement') {
     let journalAccountId = String(accountId);
     if (product === 'restaurant_settlement') {
@@ -419,6 +431,43 @@ async function fetchCompensatingRef(clientOrPool, product, accountId, currencyCo
     effectiveDate: isoDate(entry.created_at),
     kind: entry.entry_type,
   };
+}
+
+// References name actual immutable observations captured from the existing
+// financial writers by migration 694. Their posting date is recorded_at;
+// mutable paid_at/issue_date/completed_at remain disclosures, never clocks.
+async function fetchSettlementCompensatingRef(client, product, accountId, currencyCode, ref) {
+  if (!POSITIVE_INT_RE.test(String(ref))) fail('statement_amendment_invalid_ref', 'A source history reference must be an observation id', 400);
+  const kind = product === 'business' ? 'business_invoice' : 'helper_job';
+  const { rows: [observation] } = await client.query(
+    `SELECT * FROM settlement_source_history WHERE id = $1`, [ref]);
+  if (!observation) fail('statement_amendment_transaction_not_found', 'Source observation not found', 404);
+  if (observation.source_kind !== kind || String(observation.scope_id) !== String(accountId)
+      || observation.currency_code !== currencyCode) {
+    fail('statement_amendment_transaction_scope_mismatch', 'Source observation does not belong to this statement scope and currency', 409);
+  }
+  if (observation.operation !== 'update') fail('statement_amendment_invalid_ref', 'A correction must reference a recorded source update', 409);
+  const { rows } = await client.query(
+    `SELECT * FROM settlement_source_history WHERE source_kind = $1 AND source_id = $2
+     AND id <= $3 ORDER BY id`, [kind, observation.source_id, observation.id]);
+  const postedAt = new Date(observation.recorded_at).toISOString();
+  const day = postedAt.slice(0, 10);
+  const options = { currency: currencyCode, period: { from: day, to: day }, now: new Date(Date.parse(postedAt) + 1).toISOString() };
+  const projected = product === 'business'
+    ? sourceHistory.projectBusiness(rows, { ...options, businessId: accountId })
+    : sourceHistory.projectHelper(rows, { ...options, helperId: accountId });
+  const movement = projected.movements.find(row => String(row.sourceHistoryId) === String(observation.id));
+  if (!movement) fail('statement_amendment_invalid_ref', 'Source update has no accounting movement to disclose', 409);
+  const deltas = product === 'business' ? {
+    invoicedMinor: movement.invoicedCents, collectedOrAdjustedMinor: movement.collectedOrAdjustedCents, cancelledMinor: movement.cancelledCents,
+  } : { postedMinor: movement.postedEarningsCents, settledMinor: movement.settledPayoutsCents, removedMinor: movement.statusRemovalsCents };
+  const net = product === 'business'
+    ? BigInt(deltas.invoicedMinor) - BigInt(deltas.collectedOrAdjustedMinor) - BigInt(deltas.cancelledMinor)
+    : BigInt(deltas.postedMinor) - BigInt(deltas.settledMinor) - BigInt(deltas.removedMinor);
+  return { id: String(observation.id), sourceId: observation.source_id, kind, postedAt, effectiveDate: day,
+    sourceEffectiveDate: product === 'business' ? observation.source.paid_at || observation.source.issue_date : observation.source.paid_at || observation.source.completed_at,
+    amountCents: assertMinorInteger(Number(net < 0n ? -net : net), 'source movement'),
+    direction: net < 0n ? 'debit' : 'credit', deltas, movement };
 }
 
 // Validate one compensating journal transaction against the OxSteed Credit
@@ -490,6 +539,9 @@ function partitionRefs(refDetails, periodFrom, periodTo) {
 }
 
 function assertRestatedDelta({ baselineCore, rederivedCore, refDetails, periodFrom, periodTo }) {
+  if (baselineCore.kind !== 'journal' || rederivedCore.kind !== 'journal') {
+    return assertSettlementRestatedDelta({ baselineCore, rederivedCore, refDetails, periodFrom, periodTo });
+  }
   // Journal-kind products only: helper_earnings and business have no
   // append-only ledger, so accounting amendments fail closed for them
   // earlier and never reach this assertion.
@@ -542,6 +594,40 @@ function assertRestatedDelta({ baselineCore, rederivedCore, refDetails, periodFr
       || deltaClosing !== (preNet + inCredits - inDebits)) {
     fail('statement_amendment_integrity_failed',
       'Re-derived totals do not reconcile to the referenced compensating transactions', 409);
+  }
+  return { inPeriod, prePeriod, preNet };
+}
+
+function assertSettlementRestatedDelta({ baselineCore, rederivedCore, refDetails, periodFrom, periodTo }) {
+  if (baselineCore.kind !== rederivedCore.kind || !baselineCore.movements || !rederivedCore.movements) {
+    fail('statement_source_history_unavailable', 'Both statement versions require complete immutable source history', 409);
+  }
+  assertCoreMoneyIntegers(baselineCore, 'baseline'); assertCoreMoneyIntegers(rederivedCore, 're-derived');
+  if (!equationHolds(baselineCore) || !equationHolds(rederivedCore)) fail('statement_amendment_integrity_failed', 'Statement source totals do not reconcile', 409);
+  const { inPeriod, prePeriod } = partitionRefs(refDetails, periodFrom, periodTo);
+  const signature = row => statements.hashDocument({ value: row });
+  const baseline = new Map(baselineCore.movements.map(row => [String(row.sourceHistoryId), signature(row)]));
+  const derived = new Map(rederivedCore.movements.map(row => [String(row.sourceHistoryId), signature(row)]));
+  if (baseline.size !== baselineCore.movements.length || derived.size !== rederivedCore.movements.length) fail('statement_amendment_integrity_failed', 'Duplicate source movement', 409);
+  for (const [id, hash] of baseline) {
+    if (derived.get(id) !== hash) fail('statement_amendment_source_changed', 'An original source movement changed or disappeared', 409);
+  }
+  const added = [...derived.keys()].filter(id => !baseline.has(id));
+  const refs = new Map(inPeriod.map(ref => [String(ref.id), ref]));
+  if (added.length !== refs.size || added.some(id => !refs.has(id))) fail('statement_amendment_unreferenced_changes', 'Every new source movement must be an exact referenced correction', 409);
+  for (const id of added) {
+    if (derived.get(id) !== signature(refs.get(id).movement)) fail('statement_amendment_integrity_failed', 'Referenced source movement differs from statement evidence', 409);
+  }
+  if (baselineCore.kind === 'business' && signature(baselineCore.payables) !== signature(rederivedCore.payables)) {
+    fail('statement_amendment_unreferenced_changes', 'Expense changes require their own authoritative correction evidence', 409);
+  }
+  const signed = ref => (ref.direction === 'credit' ? BigInt(ref.amountCents) : -BigInt(ref.amountCents));
+  const preNet = prePeriod.reduce((sum, ref) => sum + signed(ref), 0n);
+  if (BigInt(rederivedCore.openingMinor) - BigInt(baselineCore.openingMinor) !== preNet) fail('statement_amendment_unreferenced_changes', 'Opening change is not explained by referenced source corrections', 409);
+  const keys = baselineCore.kind === 'business' ? ['invoicedMinor', 'collectedOrAdjustedMinor', 'cancelledMinor'] : ['postedMinor', 'settledMinor', 'removedMinor'];
+  for (const key of keys) {
+    const delta = inPeriod.reduce((sum, ref) => sum + BigInt(ref.deltas[key]), 0n);
+    if (BigInt(rederivedCore[key]) - BigInt(baselineCore[key]) !== delta) fail('statement_amendment_integrity_failed', 'Revised totals do not match referenced source corrections', 409);
   }
   return { inPeriod, prePeriod, preNet };
 }
@@ -732,12 +818,6 @@ async function proposeAmendment({
     // helper_earnings and business records are activity snapshots, not
     // append-only ledgers, so there are no posted compensating transactions
     // to reference. Clerical amendments are fully supported for them.
-    if (amendmentType === 'accounting' && ACCOUNTING_UNSUPPORTED_PRODUCTS.has(original.product)) {
-      fail('statement_amendment_accounting_unsupported',
-        'Accounting amendments are not supported for this statement product: its records are activity snapshots, '
-        + 'not an append-only ledger, so there are no posted compensating transactions to reference. '
-        + 'Correct the source records and the next statement picks them up, or propose a clerical amendment.', 409);
-    }
 
     // One live proposal per document: a second proposal waits (409) while a
     // proposed or an approved-but-unpublished proposal is in flight. An
@@ -816,6 +896,9 @@ async function proposeAmendment({
           'The ledger for this period changed since the baseline version, so this is not a presentation-only correction; propose an accounting amendment instead', 409);
       }
     } else if (effectivePresentation === 'later_period') {
+      if (refDetails.some(ref => !ref.effectiveDate || ref.effectiveDate <= isoDate(original.period_to))) {
+        fail('statement_amendment_ref_outside_period', 'Later-period corrections must actually post after this statement period', 409);
+      }
       if (rederivedFp !== baselineFp) {
         fail('statement_amendment_presentation_mismatch',
           'The referenced corrections changed this period, so later-period presentation does not apply; use restated presentation', 409);
@@ -839,6 +922,7 @@ async function proposeAmendment({
       postedAt: ref.postedAt,
       effectiveDate: ref.effectiveDate,
       kind: ref.kind,
+      ...(ref.deltas ? { sourceId: ref.sourceId, sourceEffectiveDate: ref.sourceEffectiveDate, deltas: ref.deltas, movement: ref.movement } : {}),
     }));
     // accountId is stored as NULL for scope-uuid products; accountUuid holds
     // the helper user id. Settlement originals link via settlement_document_id.
@@ -973,7 +1057,7 @@ async function checkContinuity({ original, revisedClosingMinor, baselineClosingM
     restatedByVersion: revisedOpening !== null,
   };
   if (nextOpening !== revisedClosingMinor) {
-    if (!restateForward) {
+    if (!restateForward || ['helper_earnings', 'business'].includes(original.product)) {
       const error = new AppError(
         'The corrected closing balance no longer matches the next issued statement\u2019s opening balance. '
         + 'Re-propose with restate-forward to disclose the break, or correct the next period as well.',
@@ -988,6 +1072,29 @@ async function checkContinuity({ original, revisedClosingMinor, baselineClosingM
     return { status: 'restated_forward', nextPeriod };
   }
   return { status: 'continuous', nextPeriod };
+}
+
+async function assertPriorContinuity(original, baselineCore, revisedCore) {
+  if (baselineCore.openingMinor === revisedCore.openingMinor) return;
+  const settlement = original.kind === 'settlement';
+  const scope = original.product === 'helper_earnings' ? 'scope_helper_user_id'
+    : original.product === 'business' ? 'scope_business_id' : 'scope_restaurant_id';
+  const { rows: [previous] } = await pool.query(settlement
+    ? `SELECT d.id, d.document FROM settlement_statement_documents d WHERE product = $1
+       AND ${scope} = $2 AND currency_code = $3 AND period_to < $4 ORDER BY period_to DESC, id DESC LIMIT 1`
+    : `SELECT d.id, d.document FROM credit_statement_documents d WHERE product = $1
+       AND account_id = $2 AND currency_code = $3 AND period_to < $4 AND customer_id = $5
+       ORDER BY period_to DESC, id DESC LIMIT 1`,
+  settlement ? [original.product, original.accountUuid || original.accountId, original.currency_code, isoDate(original.period_from)]
+    : [original.product, original.accountId, original.currency_code, isoDate(original.period_from), original.customerId]);
+  if (!previous) return;
+  const { rows: [version] } = await pool.query(`SELECT document FROM statement_amendment_versions
+    WHERE ${settlement ? 'settlement_original_document_id' : 'original_document_id'} = $1
+    ORDER BY revision_number DESC LIMIT 1`, [previous.id]);
+  const closing = coreOf(version?.document || previous.document).closingMinor;
+  if (!Number.isSafeInteger(closing) || closing !== revisedCore.openingMinor) {
+    fail('statement_amendment_continuity_blocked', 'The revised opening must exactly match the preceding issued period closing', 409);
+  }
 }
 
 // The issued opening of a statement document, per product kind. Journal
@@ -1050,6 +1157,7 @@ function buildAmendedDocument({ rederived, original, baseline, proposal, revisio
       effectiveDate: ref.effectiveDate,
       backdated: ref.postedAt ? Date.parse(ref.postedAt) < issuedAtMs : false,
       kind: ref.kind,
+      ...(ref.deltas ? { sourceId: ref.sourceId, sourceEffectiveDate: ref.sourceEffectiveDate, deltas: ref.deltas } : {}),
     };
   });
 
@@ -1147,6 +1255,9 @@ async function finalizeApprovedProposal(proposalId, { storage = defaultStorage }
         fail('statement_amendment_not_approved',
           `Proposal is ${row.status}; only approved proposals can be published`, 409);
       }
+      if (!row.decided_by || String(row.decided_by) === String(row.proposed_by)) {
+        fail('statement_amendment_self_approval', 'An amendment requires an independent approver', 403);
+      }
       if (!row.document_id && !row.settlement_document_id) {
         fail('statement_amendment_no_document', 'Proposal names no issued original; nothing to publish', 409);
       }
@@ -1171,7 +1282,8 @@ async function finalizeApprovedProposal(proposalId, { storage = defaultStorage }
           client, proposal.product, proposal.account_uuid || proposal.account_id, proposal.currency_code, String(stored.id));
         if (live.amountCents !== Number(stored.amountCents)
             || live.direction !== stored.direction
-            || live.effectiveDate !== stored.effectiveDate) {
+            || live.effectiveDate !== stored.effectiveDate
+            || (stored.deltas && statements.hashDocument({ movement: live.movement }) !== statements.hashDocument({ movement: stored.movement }))) {
           fail('statement_amendment_source_changed',
             'A referenced compensating transaction changed since the proposal was created; re-propose', 409);
         }
@@ -1197,6 +1309,7 @@ async function finalizeApprovedProposal(proposalId, { storage = defaultStorage }
     const baseline = await loadBaseline(pool, original);
     const rederivedCore = coreOf(rederived);
     const baselineCore = coreOf(baseline.doc);
+    await assertPriorContinuity(original, baselineCore, rederivedCore);
     const continuity = await checkContinuity({
       original,
       revisedClosingMinor: rederivedCore.closingMinor,
@@ -1230,11 +1343,23 @@ async function finalizeApprovedProposal(proposalId, { storage = defaultStorage }
       snapshotId, language, pdfBytes, label, storage,
       settlementDocumentId: original.kind === 'settlement' ? originalDocumentId : null,
     });
+    if (artifact?.state !== 'ready' || artifact.sha256 !== crypto.createHash('sha256').update(pdfBytes).digest('hex')) {
+      fail('statement_artifact_not_ready', 'An amendment requires the exact verified ready artifact', 409);
+    }
 
     const versionId = crypto.randomUUID();
     const writer = await pool.connect();
     try {
       await writer.query('BEGIN');
+      await writer.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`statement-amendment:${originalDocumentId}`]);
+      const { rows: [published] } = await writer.query('SELECT * FROM statement_amendment_versions WHERE proposal_id = $1', [proposalId]);
+      if (published) {
+        await writer.query('COMMIT');
+        return { status: 'published', version: shapeVersion(published), duplicate: true };
+      }
+      if (await countVersions(writer, original) !== Number(proposal.base_revision_number)) {
+        fail('statement_amendment_stale', 'The published version chain changed; re-propose', 409);
+      }
       const { rows: [version] } = await writer.query(
         `INSERT INTO statement_amendment_versions
            (id, original_document_id, settlement_original_document_id, proposal_id, revision_number, amendment_type,
@@ -1251,8 +1376,8 @@ async function finalizeApprovedProposal(proposalId, { storage = defaultStorage }
           supersedesVersion ? supersedesVersion.id : null,
           baselineCore.closingMinor, rederivedCore.closingMinor,
           continuity.status,
-          original.kind === 'credit' && continuity.nextPeriod ? continuity.nextPeriod.id : null,
-          original.kind === 'settlement' && continuity.nextPeriod ? continuity.nextPeriod.id : null,
+          original.kind === 'credit' && continuity.status === 'restated_forward' && continuity.nextPeriod ? continuity.nextPeriod.id : null,
+          original.kind === 'settlement' && continuity.status === 'restated_forward' && continuity.nextPeriod ? continuity.nextPeriod.id : null,
           continuity.nextPeriod ? continuity.nextPeriod.issuedOpeningMinor : null]);
       await recordPublicationAttempt(writer, proposalId, 'published', versionId, null);
       // Exactly one owner notification per version: the event is queued in the
@@ -1351,9 +1476,9 @@ function composeStatementAmendedPayload({ customerId, payload }) {
     // Authenticated product pages; both require login. No tokens, no PII,
     // no amounts in the link or the message. Settlement owners see their
     // hub page; restaurant wallet owners keep the existing deep links.
-    action_url: payload.product === 'restaurant' ? '/wallet'
-      : payload.product === 'restaurant_settlement' || payload.product === 'business' ? '/business-hub'
-      : payload.product === 'helper_earnings' ? '/dashboard' : '/oxsteed-credit',
+    action_url: ({ restaurant: '/restaurant-credit/statements/archive', oxsteed: '/oxsteed-credit/statements/archive',
+      restaurant_settlement: '/restaurant-settlement/statements', business: '/business/statements',
+      helper_earnings: '/helper-earnings/statements' })[payload.product] || '/oxsteed-credit/statements/archive',
     idempotencyKey: `statement-amended:${payload.proposalId}`,
   };
 }
@@ -1454,4 +1579,5 @@ module.exports = {
   ledgerFingerprint,
   shapeVersion,
   shapeProposalForResponse,
+  testHooks: { fetchSettlementCompensatingRef, assertSettlementRestatedDelta, assertPriorContinuity, checkContinuity },
 };

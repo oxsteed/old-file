@@ -1,6 +1,7 @@
 const express = require('express');
 const fs = require('fs/promises');
 const path = require('path');
+const { isStatementStorageKey } = require('../utils/statementStorage');
 const {
   LOCAL_STORAGE_ROOT,
   normalizeStorageKey,
@@ -24,6 +25,12 @@ async function sendLocalFile(req, res, { signed = false } = {}) {
   const key = decodeRouteKey(req);
   if (!key) {
     return res.status(400).json({ error: 'Invalid file key' });
+  }
+
+  // Even legacy local statements must go through record-level authorization.
+  // A generic signed link does not establish account access.
+  if (isStatementStorageKey(key)) {
+    return res.status(404).json({ error: 'File not found' });
   }
 
   if (!signed && key.startsWith('delivery-private/')) {

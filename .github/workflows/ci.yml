@@ -101,7 +101,13 @@ jobs:
         env:
           NODE_ENV: test
           STATEMENT_TEST_DATABASE_URL: postgresql://oxsteed:statement-test-password@127.0.0.1:5432/credit_statement_test?sslmode=disable
-        run: npm test -- --runInBand --forceExit
+          STATEMENT_JOB_TEST_DATABASE_URL: postgresql://oxsteed:statement-test-password@127.0.0.1:5432/credit_statement_test?sslmode=disable
+          STATEMENT_INVESTIGATION_TEST_DATABASE_URL: postgresql://oxsteed:statement-test-password@127.0.0.1:5432/credit_statement_test?sslmode=disable
+          ADMIN_GRANT_TEST_DATABASE_URL: postgresql://oxsteed:statement-test-password@127.0.0.1:5432/credit_statement_test?sslmode=disable
+          STATEMENT_REQUIRE_DB_TESTS: 'true'
+        run: |
+          npm test -- --runInBand --forceExit --json --outputFile=statement-test-results.json
+          node ../scripts/assert-statement-db-tests.cjs statement-test-results.json
 
       - name: Active job status checks (Jest + optional pg_enum)
         working-directory: server

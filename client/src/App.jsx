@@ -93,6 +93,7 @@ const RestaurantCreditPage = lazyWithRetry(() => import('./pages/food/Restaurant
 const OxsteedCreditPage = lazyWithRetry(() => import('./pages/food/OxsteedCreditPage'));
 const CreditStatementsPage = lazyWithRetry(() => import('./pages/food/CreditStatementsPage'));
 const StatementArchivePage = lazyWithRetry(() => import('./pages/food/StatementArchivePage'));
+const StatementExportPage = lazyWithRetry(() => import('./pages/food/StatementExportPage'));
 const StatementTransactionView = lazyWithRetry(() => import('./pages/food/StatementTransactionView'));
 const StatementAccessibleView = lazyWithRetry(() => import('./pages/food/StatementAccessibleView'));
 const WalletPage = lazyWithRetry(() => import('./pages/food/WalletPage'));
@@ -523,10 +524,14 @@ export default function App() {
                     <Route path="/restaurant-credit" element={<Guarded><ProtectedRoute><RouteErrorBoundary><RestaurantCreditPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/restaurant-credit/statements" element={<Guarded><ProtectedRoute><RouteErrorBoundary><CreditStatementsPage product="restaurant" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/restaurant-credit/statements/archive" element={<Guarded><ProtectedRoute><RouteErrorBoundary><StatementArchivePage product="restaurant" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/restaurant-settlement/statements" element={<Guarded><ProtectedRoute><RouteErrorBoundary><StatementArchivePage product="restaurant_settlement" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/helper-earnings/statements" element={<Guarded><ProtectedRoute><RouteErrorBoundary><StatementArchivePage product="helper_earnings" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/business/statements" element={<Guarded><ProtectedRoute><RouteErrorBoundary><StatementArchivePage product="business" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/oxsteed-credit/statements" element={<Guarded><ProtectedRoute><RouteErrorBoundary><CreditStatementsPage product="oxsteed" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/oxsteed-credit/statements/archive" element={<Guarded><ProtectedRoute><RouteErrorBoundary><StatementArchivePage product="oxsteed" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/statements/:documentId/entries/:entryId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><StatementTransactionView /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/statements/:documentId/accessible" element={<Guarded><ProtectedRoute><RouteErrorBoundary><StatementAccessibleView /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/statements/exports/:jobId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><StatementExportPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/oxsteed-credit/transactions/:transactionId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><OxsteedCreditTransactionPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/oxsteed-credit" element={<Guarded><ProtectedRoute><RouteErrorBoundary><OxsteedCreditPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/wallet" element={<Guarded><ProtectedRoute><RouteErrorBoundary><WalletPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

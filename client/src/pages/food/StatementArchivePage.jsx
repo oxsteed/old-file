@@ -9,8 +9,11 @@ import { listOxsteedCreditAccounts } from '../../api/oxsteedCredit';
 import { listMyFoodRestaurantWallets } from '../../api/food';
 import {
   listArchive, getArchiveDocument, downloadArchiveDocument, getArchiveDownloadLink,
+  listStatementScopes,
 } from '../../api/creditStatements';
 import { formatStatementMoney } from '../../lib/creditStatementFormat';
+import { STATEMENT_PRODUCTS, statementAccessiblePath } from '../../lib/statementProducts';
+import StatementExportPanel from './StatementExportPanel';
 import './StatementArchivePage.css';
 
 // Complete five-locale catalogs are authoritative; English defaults provide
@@ -133,10 +136,10 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
   const { t, i18n } = useTranslation('credit');
   const [searchParams, setSearchParams] = useSearchParams();
   const language = (i18n.resolvedLanguage || i18n.language || 'en').split(/[-_]/)[0];
-  const text = (key, options = {}) => t(`archive.${key}`, { defaultValue: ARCHIVE_STRINGS[key], ...options });
+  const text = (key, options = {}) => t(`${ARCHIVE_STRINGS[key] ? 'archive' : 'statementCenter'}.${key}`, { defaultValue: ARCHIVE_STRINGS[key], ...options });
 
-  const product = ['oxsteed', 'restaurant'].includes(searchParams.get('product'))
-    ? searchParams.get('product') : (['oxsteed', 'restaurant'].includes(productProp) ? productProp : 'oxsteed');
+  const product = Object.hasOwn(STATEMENT_PRODUCTS, searchParams.get('product'))
+    ? searchParams.get('product') : (Object.hasOwn(STATEMENT_PRODUCTS, productProp) ? productProp : 'oxsteed');
   const filters = {
     product,
     accountId: searchParams.get('accountId') || undefined,
@@ -155,7 +158,8 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
   const [linkState, setLinkState] = useState({});
   const requestRef = useRef(null);
 
-  const root = product === 'restaurant' ? '/restaurant-credit' : '/oxsteed-credit';
+  const root = STATEMENT_PRODUCTS[product].root;
+  const settlement = STATEMENT_PRODUCTS[product].settlement;
 
   function updateFilters(next) {
     const params = new URLSearchParams(searchParams);
@@ -169,13 +173,15 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
 
   useEffect(() => {
     let active = true;
-    const list = product === 'restaurant' ? listMyFoodRestaurantWallets : listOxsteedCreditAccounts;
+    setAccounts([]);
+    const list = settlement ? () => listStatementScopes(product)
+      : product === 'restaurant' ? listMyFoodRestaurantWallets : listOxsteedCreditAccounts;
     list().then(result => {
       if (!active) return;
       setAccounts(Array.isArray(result) ? result : []);
     }).catch(() => { if (active) setAccounts([]); });
     return () => { active = false; };
-  }, [product]);
+  }, [product, settlement]);
 
   const loadArchive = useCallback(async () => {
     requestRef.current?.abort();
@@ -197,7 +203,7 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
       if (controller.signal.aborted) return;
       setArchive(current => ({ ...current, status: 'error' }));
     }
-  }, [searchParams, refreshTick]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchParams, product, refreshTick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     loadArchive();
@@ -206,7 +212,7 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
 
   async function toggleDetails(item) {
     const id = item.id;
-    if (expanded[id]?.open) {
+    if (expanded[id]?.open && expanded[id]?.status !== 'error') {
       setExpanded(current => ({ ...current, [id]: { ...current[id], open: false } }));
       return;
     }
@@ -264,8 +270,7 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
     }
   }
 
-  const accountName = entry => product === 'restaurant'
-    ? (entry.restaurantName || text('restaurantProduct')) : text('oxsteedProduct');
+  const accountName = entry => entry.name || entry.restaurantName || text(STATEMENT_PRODUCTS[product].label);
   const currencies = [...new Set(accounts.map(entry => entry.currencyCode).filter(code => /^[A-Z]{3}$/.test(code || '')))].sort();
   const currentYear = new Date().getUTCFullYear();
   const years = Array.from({ length: currentYear - 2019 }, (_, index) => currentYear - index);
@@ -325,7 +330,8 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
         <button type="button" onClick={() => toggleDetails(item)}>{text('retry')}</button></div>;
     }
     const document = detail.document;
-    const artifacts = [...(document.artifacts?.originals || []), ...(document.artifacts?.renditions || [])];
+    const artifacts = document.kind === 'amendment' ? [document.amendment?.artifact].filter(Boolean)
+      : [...(document.artifacts?.originals || []), ...(document.artifacts?.renditions || [])];
     return <div className="sa-details">
       <dl className="sa-meta">
         <div><dt>{text('revisionLabel')}</dt><dd>{document.revision}</dd></div>
@@ -338,6 +344,7 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
           .map(([key, amount]) => amount != null && <div key={key}><dt>{text(key)}</dt><dd><bdi>{money(amount, document.currency)}</bdi></dd></div>)}
       </dl>}
       {document.contentHash && <details className="sa-hash"><summary>{text('contentHash')}</summary><code dir="ltr">{document.contentHash}</code></details>}
+      {document.amendment?.reason && <p>{document.amendment.reason}</p>}
       <h3>{text('artifacts')}</h3>
       {!artifacts.length ? <p>{text('downloadUnavailable')}</p> : <div className="sa-table-scroll" role="region" tabIndex={0}>
         <table><thead><tr>{['kind', 'label', 'language', 'state', 'size', 'actions'].map(key =>
@@ -351,13 +358,15 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
     <PageMeta title={text('title')} description={text('description')} noIndex />
     <Navbar />
     <main className="statement-archive-page">
-      <Link to={`${root}/statements`} className="sa-back"><ArrowLeft size={16} aria-hidden="true" />{text('back')}</Link>
+      <Link to={settlement ? (product === 'helper_earnings' ? '/dashboard' : '/business-hub') : `${root}/statements`} className="sa-back"><ArrowLeft size={16} aria-hidden="true" />{text('back')}</Link>
       <header className="sa-header"><FileText size={30} aria-hidden="true" /><div><h1>{text('title')}</h1><p>{text('description')}</p></div></header>
       <nav className="sa-products" aria-label={text('product')}>
-        <Link to="/oxsteed-credit/statements/archive?product=oxsteed" aria-current={product === 'oxsteed' ? 'page' : undefined}>{text('oxsteedProduct')}</Link>
-        <Link to="/restaurant-credit/statements/archive?product=restaurant" aria-current={product === 'restaurant' ? 'page' : undefined}>{text('restaurantProduct')}</Link>
+        {Object.entries(STATEMENT_PRODUCTS).map(([key, config]) => <Link key={key}
+          to={`${config.root}/statements${config.settlement ? '' : '/archive'}`}
+          aria-current={product === key ? 'page' : undefined}>{text(config.label)}</Link>)}
       </nav>
-      <p className="sa-scope">{text('scopeNote')}</p>
+      <p className="sa-scope">{text(settlement ? 'settlementScopeNote' : 'scopeNote')}</p>
+      <StatementExportPanel product={product} accounts={accounts} />
 
       <form className="sa-filters" onSubmit={event => event.preventDefault()}>
         <div className="sa-field"><label htmlFor="archive-account">{text('account')}</label>
@@ -368,10 +377,9 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
             </option>)}
           </select></div>
         <div className="sa-field"><label htmlFor="archive-currency">{text('currency')}</label>
-          <select id="archive-currency" value={filters.currency || ''} onChange={event => updateFilters({ currency: event.target.value || undefined })}>
-            <option value="">{text('allCurrencies')}</option>
-            {currencies.map(code => <option key={code} value={code}>{code}</option>)}
-          </select></div>
+          <input id="archive-currency" list="archive-currencies" value={filters.currency || ''} maxLength={3}
+            placeholder={text('allCurrencies')} onChange={event => updateFilters({ currency: event.target.value.toUpperCase() || undefined })} />
+          <datalist id="archive-currencies">{currencies.map(code => <option key={code} value={code} />)}</datalist></div>
         <div className="sa-field"><label htmlFor="archive-year">{text('year')}</label>
           <select id="archive-year" value={filters.year || ''} onChange={event => updateFilters({ year: event.target.value || undefined })}>
             <option value="">{text('allYears')}</option>
@@ -402,12 +410,25 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
                       <p className="sa-item-meta">{item.currency}{item.languages.length ? ` · ${item.languages.join(', ').toUpperCase()}` : ''}</p>
                     </div>
                     <div className="sa-item-actions">
+                      <Link to={statementAccessiblePath(item)}>{text('accessible')}</Link>
                       <button type="button" onClick={() => toggleDetails(item)} aria-expanded={Boolean(expanded[item.id]?.open)}>
                         {text(expanded[item.id]?.open ? 'hideDetails' : 'details')}<ChevronDown size={15} aria-hidden="true" />
                       </button>
                     </div>
                   </div>
                   {renderDetails(item)}
+                  {item.versions?.length > 0 && <section aria-label={text('versions')}>
+                    <h3>{text('versions')}</h3>
+                    <ul className="sa-list">{item.versions.map(version => <li key={version.id} className="sa-item">
+                      <p>{text('revision', { revision: version.revision })} · {text('issued', { date: date(version.issuedAt) })}</p>
+                      <p>{version.amendment?.reason}</p>
+                      <div className="sa-item-actions">
+                        <Link to={statementAccessiblePath(version)}>{text('accessible')}</Link>
+                        <button type="button" onClick={() => toggleDetails(version)} aria-expanded={Boolean(expanded[version.id]?.open)}>{text('details')}</button>
+                      </div>
+                      {renderDetails(version)}
+                    </li>)}</ul>
+                  </section>}
                 </li>)}
               </ul>
               <nav className="sa-pagination" aria-label={text('page', { page: archive.page, pages: archive.totalPages })}>

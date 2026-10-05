@@ -320,10 +320,10 @@ function normalizeHelperEarnings(document, base) {
     base.sections.push({
       titleKey: 'removedSection',
       columns: earningColumns,
-      rows: removedRows.map((e) => ({ ...jobRowCells(e), completed: isoDateTime(e.completedAt) })),
+      rows: removedRows.map((e) => ({ ...jobRowCells(e), completed: isoDateTime(e.removedAt || e.completedAt) })),
     });
   }
-  base.notes = ['helperSnapshotNote', 'notTaxForm', 'helperEarningsDisclaimer'];
+  base.notes = [document.sourceHistoryVersion ? 'renditionNote' : 'helperSnapshotNote', 'notTaxForm', 'helperEarningsDisclaimer'];
   return base;
 }
 
@@ -429,7 +429,7 @@ function normalizeBusiness(document, base) {
       })),
     });
   }
-  base.notes = ['businessLimitationNote', 'notTaxForm', 'businessDisclaimer'];
+  base.notes = [document.sourceHistoryVersion ? 'renditionNote' : 'businessLimitationNote', 'notTaxForm', 'businessDisclaimer'];
   return base;
 }
 

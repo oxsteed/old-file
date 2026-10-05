@@ -96,10 +96,20 @@ export function downloadStatementRendition(documentId, language, { signal } = {}
   return api.get(statementRenditionUrl(documentId, language, 'pdf'), { responseType: 'blob', signal });
 }
 
+export function getStatementHtml(documentId, language, { signal } = {}) {
+  return api.get(statementRenditionUrl(documentId, language, 'html'), { responseType: 'text', signal })
+    .then(response => response.data);
+}
+
 // Statement archive: issued monthly originals plus their private artifacts.
 // The server mounts the statementArchive router at ARCHIVE_MOUNT; keep this
 // in sync with the mount line reported by the archive workstream.
 export const ARCHIVE_MOUNT = '/statement-archive';
+
+export function listStatementScopes(product, { signal } = {}) {
+  return api.get(`${ARCHIVE_MOUNT}/scopes`, { params: { product }, signal })
+    .then(response => response.data?.accounts || []);
+}
 
 function archivePath(documentId, suffix = '') {
   const encoded = encodeURIComponent(String(documentId || ''));

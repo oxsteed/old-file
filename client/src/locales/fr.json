@@ -1,4 +1,22 @@
 {
+  "statementCenter": {
+    "exportCancelled": "Votre export a été annulé.",
+    "restaurantSettlement": "Relevés de règlement du restaurant",
+    "helperEarnings": "Relevés de revenus du prestataire",
+    "business": "Relevés de l’entreprise",
+    "versions": "Historique des corrections",
+    "accessible": "Relevé accessible",
+    "settlementScopeNote": "Les relevés sont distincts pour chaque entité et devise. Ils présentent les revenus, créances et règlements enregistrés ; ce ne sont ni des formulaires fiscaux ni des relevés de dépôts bancaires.",
+    "htmlError": "Le relevé accessible n’a pas pu être chargé. Réessayez.",
+    "accountError": "Les comptes n’ont pas pu être chargés. Réessayez.",
+    "export": "Demander un export complet",
+    "exportPending": "Votre export est en préparation.",
+    "exportReady": "Votre export complet est prêt.",
+    "exportError": "Votre export n’a pas pu être terminé.",
+    "cancelExport": "Annuler l’export",
+    "retryExport": "Réessayer l’export",
+    "exportFiles": "Fichiers de l’export"
+  },
   "pwa": {
     "installTitle": "Obtenez l’app OxSteed",
     "installBody": "Installez-la pour un accès en un toucher à la nourriture, aux missions et à votre portefeuille.",

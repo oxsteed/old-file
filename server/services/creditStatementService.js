@@ -186,4 +186,91 @@ async function getStatement(customerId, options = {}) {
   }
 }
 
-module.exports = { getStatement, periodFor, reconcileRows, exactMoney, hashDocument, MAX_ROWS };
+// Background exports materialize directly inside one bounded repeatable-read
+// transaction. No complete document/ledger row array crosses the DB connection.
+// The database orders null sequences last and retains entry identity (not just
+// transaction identity) so multiple entries and sub-millisecond ties stay exact.
+async function materializeExportSource(client, job, { maxRows = 1000000 } = {}) {
+  const restaurant = job.product === 'restaurant';
+  const settlement = job.product === 'restaurant_settlement';
+  if (!['oxsteed', 'restaurant', 'restaurant_settlement'].includes(job.product)) {
+    throw new AppError('This product needs a dated settlement source adapter', 409, 'statement_export_source_unavailable');
+  }
+  const currency = job.currency_code;
+  const { rows: [{ now }] } = await client.query('SELECT transaction_timestamp() AS now');
+  const period = periodFor(job.period_from, job.period_to, new Date(now));
+  const { rows: [account] } = await client.query(restaurant
+    ? `SELECT a.id,a.created_at,u.first_name AS owner_name,r.display_name AS account_label
+       FROM food_customer_wallet_accounts a JOIN users u ON u.id=a.customer_id
+       JOIN food_restaurants r ON r.id=a.restaurant_id
+       WHERE a.id=$1 AND a.customer_id=$2 AND a.currency_code=$3`
+    : settlement
+      ? `SELECT a.id,a.created_at,r.display_name AS owner_name,r.display_name AS account_label
+         FROM oxsteed_credit_accounts a JOIN food_restaurants r ON r.id=a.restaurant_id
+         WHERE a.id=$1 AND a.account_type='restaurant_sub_bank' AND a.currency_code=$3 AND $2::uuid IS NOT NULL`
+      : `SELECT a.id,a.created_at,u.first_name AS owner_name,'OxSteed Credit' AS account_label
+         FROM oxsteed_credit_accounts a JOIN users u ON u.id=a.customer_id
+         WHERE a.id=$1 AND a.customer_id=$2 AND a.account_type='customer_wallet' AND a.currency_code=$3`,
+  [job.account_id, job.requested_by, currency]);
+  if (!account) throw new AppError('Statement account not found', 404, 'statement_account_not_found');
+  if (period.to < new Date(account.created_at).toISOString().slice(0, 10)) {
+    throw new AppError('Statement period precedes this account', 400, 'statement_before_account');
+  }
+  const date = restaurant ? 'e.created_at' : 'COALESCE(t.posted_at,t.created_at)';
+  const seq = restaurant ? 'e.entry_sequence' : 'e.sequence';
+  const ledger = restaurant ? 'food_customer_wallet_ledger e'
+    : 'oxsteed_credit_transaction_entries e JOIN oxsteed_credit_transactions t ON t.id=e.transaction_id';
+  const scope = `e.account_id=$1 AND ${restaurant ? 'e' : 't'}.currency_code=$2${restaurant ? '' : " AND t.status IN ('posted','reversed')"}`;
+  const start = `${period.from}T00:00:00.000Z`;
+  const end = new Date(Date.parse(period.to) + 86400000).toISOString();
+  const { rows: [opening] } = await client.query(
+    `SELECT e.balance_after_cents FROM ${ledger} WHERE ${scope} AND ${date}<$3::timestamptz AND ${date}<=$4::timestamptz
+     ORDER BY ${date} DESC,${seq} DESC NULLS FIRST,e.id DESC LIMIT 1`, [account.id,currency,start,now]);
+  const { rows: [closing] } = await client.query(
+    `SELECT e.balance_after_cents FROM ${ledger} WHERE ${scope} AND ${date}<$3::timestamptz AND ${date}<=$4::timestamptz
+     ORDER BY ${date} DESC,${seq} DESC NULLS FIRST,e.id DESC LIMIT 1`, [account.id,currency,end,now]);
+  const openingMinor = String(exactMoney(opening?.balance_after_cents || '0'));
+  const closingMinor = String(exactMoney(closing?.balance_after_cents || '0'));
+  const side = restaurant ? "CASE WHEN e.entry_type='debit' THEN 'debit' ELSE 'credit' END" : 'e.entry_side';
+  const { rows: [count] } = await client.query(
+    `SELECT count(*)::bigint AS count FROM ${ledger} WHERE ${scope}
+     AND ${date}>=$3::timestamptz AND ${date}<$4::timestamptz AND ${date}<=$5::timestamptz`,
+    [account.id,currency,start,end,now]);
+  if (BigInt(count.count) > BigInt(maxRows)) throw new AppError('Export exceeds the approved resource budget', 409, 'statement_export_budget_exceeded');
+  await client.query(
+    `INSERT INTO statement_export_rows (job_id,ordinal,source_id,source_date,source_sequence,row_data,credit_minor,debit_minor,balance_minor)
+     SELECT $6,row_number() OVER (ORDER BY ${date},${seq} NULLS LAST,e.id),e.id::text,${date},${seq},
+       jsonb_build_object('id',e.id::text,'transactionId',${restaurant ? 'e.id' : 't.id'}::text,
+         'date',${date},'type',${restaurant ? 'e.entry_type' : 't.transaction_type'},
+         'description',left(regexp_replace(COALESCE(${restaurant ? 'e.description' : 't.description'},''),'[[:cntrl:]]',' ','g'),255),
+         'creditCents',CASE WHEN (${side})='credit' THEN e.amount_cents ELSE 0 END::text,
+         'debitCents',CASE WHEN (${side})='debit' THEN e.amount_cents ELSE 0 END::text,
+         'balanceAfterCents',e.balance_after_cents::text),
+       CASE WHEN (${side})='credit' THEN e.amount_cents ELSE 0 END,
+       CASE WHEN (${side})='debit' THEN e.amount_cents ELSE 0 END,e.balance_after_cents
+     FROM ${ledger} WHERE ${scope} AND ${date}>=$3::timestamptz AND ${date}<$4::timestamptz AND ${date}<=$5::timestamptz`,
+    [account.id,currency,start,end,now,job.id]);
+  const { rows: [totals] } = await client.query(
+    `SELECT count(*)::bigint AS count,COALESCE(sum(credit_minor),0)::text AS credits,
+      COALESCE(sum(debit_minor),0)::text AS debits,
+      COALESCE(sum(pg_column_size(row_data)),0)::bigint AS source_bytes,
+      COALESCE(bool_and(balance_minor=running AND credit_minor>=0 AND debit_minor>=0
+        AND (credit_minor>0 OR debit_minor>0) AND NOT (credit_minor>0 AND debit_minor>0)),true) AS valid
+     FROM (SELECT *, $2::numeric+sum(credit_minor-debit_minor) OVER (ORDER BY ordinal) AS running
+       FROM statement_export_rows WHERE job_id=$1) frozen`, [job.id,openingMinor]);
+  if (BigInt(totals.source_bytes)>512n*1024n*1024n) throw new AppError('Frozen source exceeds the approved byte budget',409,'statement_export_budget_exceeded');
+  if (!totals.valid || String(totals.count)!==String(count.count)
+      || BigInt(openingMinor)+BigInt(totals.credits)-BigInt(totals.debits)!==BigInt(closingMinor)) {
+    throw new AppError('Statement export source does not reconcile', 409, 'statement_integrity_failed');
+  }
+  exactMoney(totals.credits); exactMoney(totals.debits);
+  return { contract:'statement-export-source-v1',product:job.product,currencyCode:currency,
+    period:{from:period.from,to:period.to},kind:period.kind,generatedAt:new Date(now).toISOString(),
+    ownerName:account.owner_name||'',accountLabel:account.account_label||'',
+    accountReference:`${restaurant?'RC':settlement?'RS':'OC'}-••••${String(account.id).slice(-4).padStart(4,'0')}`,
+    openingBalanceCents:openingMinor,closingBalanceCents:closingMinor,totalCreditsCents:totals.credits,
+    totalDebitsCents:totals.debits,transactionCount:Number(totals.count),holdsAsOf:null,holds:[],totalHeldCents:0,
+    holdsUnavailable:true };
+}
+
+module.exports = { getStatement, periodFor, reconcileRows, exactMoney, hashDocument, MAX_ROWS, materializeExportSource };

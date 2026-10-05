@@ -5,7 +5,9 @@ import { ArrowLeft, Download, FileText, TableProperties, Code2, Languages, Alert
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import PageMeta from '../../components/PageMeta';
-import { downloadCreditStatement, statementRenditionUrl, downloadStatementRendition } from '../../api/creditStatements';
+import { downloadCreditStatement, getStatementHtml, downloadStatementRendition } from '../../api/creditStatements';
+import api from '../../api/axios';
+import { STATEMENT_PRODUCTS } from '../../lib/statementProducts';
 import './StatementAccessibleView.css';
 
 // Accessible renditions of an issued statement document.
@@ -57,11 +59,14 @@ export default function StatementAccessibleView() {
     STATEMENT_LANGUAGES.some((entry) => entry.code === uiLanguage) ? uiLanguage : 'en');
   const [pdfState, setPdfState] = useState('idle');
   const [csvState, setCsvState] = useState('idle');
+  const [htmlState, setHtmlState] = useState('idle');
+  const [html, setHtml] = useState('');
   const [glyphNotice, setGlyphNotice] = useState(null);
   const noticeRef = useRef(null);
   const requestRef = useRef(null);
 
-  const product = searchParams.get('product') === 'restaurant' ? 'restaurant' : 'oxsteed';
+  const product = Object.hasOwn(STATEMENT_PRODUCTS, searchParams.get('product')) ? searchParams.get('product') : 'oxsteed';
+  const settlement = STATEMENT_PRODUCTS[product].settlement;
   const restaurantId = searchParams.get('restaurantId');
   const csvParams = {
     from: searchParams.get('from'),
@@ -69,8 +74,8 @@ export default function StatementAccessibleView() {
     currencyCode: searchParams.get('currencyCode'),
     language: statementLanguage,
   };
-  const csvReady = Boolean(csvParams.from && csvParams.to && csvParams.currencyCode
-    && (product === 'oxsteed' || restaurantId));
+  const csvReady = searchParams.get('version') !== 'amendment' && (settlement || Boolean(csvParams.from && csvParams.to && csvParams.currencyCode
+    && (product === 'oxsteed' || restaurantId)));
 
   // When the unsupported-script notice appears, move focus to it so screen
   // reader users land on the recovery options immediately.
@@ -83,6 +88,20 @@ export default function StatementAccessibleView() {
   }, []);
 
   const validDocument = typeof documentId === 'string' && documentId.length > 0;
+
+  useEffect(() => {
+    setHtml(''); setHtmlState('idle');
+  }, [documentId, statementLanguage]);
+
+  async function openHtml() {
+    if (!validDocument || htmlState === 'busy') return;
+    setHtmlState('busy');
+    try {
+      const result = await getStatementHtml(documentId, statementLanguage);
+      if (typeof result !== 'string' || !result.includes('<html')) throw new Error('Invalid HTML');
+      setHtml(result); setHtmlState('ready');
+    } catch { setHtmlState('error'); }
+  }
 
   async function downloadPdf() {
     if (!validDocument || pdfState === 'busy') return;
@@ -123,7 +142,9 @@ export default function StatementAccessibleView() {
     requestRef.current = controller;
     setCsvState('busy');
     try {
-      const response = await downloadCreditStatement(product, restaurantId, 'csv', csvParams, { signal: controller.signal });
+      const response = settlement
+        ? await api.get(`/settlement-statements/archive/${encodeURIComponent(documentId)}.csv`, { params: { language: statementLanguage }, responseType: 'blob', signal: controller.signal })
+        : await downloadCreditStatement(product, restaurantId, 'csv', csvParams, { signal: controller.signal });
       const blob = response.data;
       const contentType = String(response.headers?.['content-type'] || blob?.type || '').split(';')[0].trim().toLowerCase();
       if (!(blob instanceof Blob) || !blob.size || !['text/csv', 'application/csv'].includes(contentType)) {
@@ -136,8 +157,7 @@ export default function StatementAccessibleView() {
     }
   }
 
-  const htmlUrl = validDocument ? statementRenditionUrl(documentId, statementLanguage, 'html') : null;
-  const backTarget = product === 'restaurant' ? '/restaurant-credit/statements' : '/oxsteed-credit/statements';
+  const backTarget = `${STATEMENT_PRODUCTS[product].root}/statements`;
 
   return (
     <div className="statement-accessible-shell" dir={i18n.dir(uiLanguage)}>
@@ -189,10 +209,10 @@ export default function StatementAccessibleView() {
               <h2 id="sa-glyph-title">{glyphNotice.title}</h2>
               <p>{glyphNotice.body}</p>
               <div className="sa-notice-actions">
-                {htmlUrl ? (
-                  <a className="sa-button" href={htmlUrl} target="_blank" rel="noreferrer">
+                {validDocument ? (
+                  <button type="button" className="sa-button" onClick={openHtml} disabled={htmlState === 'busy'}>
                     {text('htmlAction')}
-                  </a>
+                  </button>
                 ) : null}
                 {csvReady ? (
                   <button type="button" className="sa-button" onClick={downloadCsv} disabled={csvState === 'busy'}>
@@ -225,11 +245,10 @@ export default function StatementAccessibleView() {
             <Code2 size={26} aria-hidden="true" />
             <h2 id="sa-html-title">{text('htmlTitle')}</h2>
             <p>{text('htmlDescription')}</p>
-            {htmlUrl ? (
-              <a className="sa-button sa-primary" href={htmlUrl} target="_blank" rel="noreferrer">
+            {validDocument ? (
+              <button type="button" className="sa-button sa-primary" onClick={openHtml} disabled={htmlState === 'busy'} aria-busy={htmlState === 'busy'}>
                 {text('htmlAction')}
-                <span className="sa-visually-hidden">{text('openNewTab')}</span>
-              </a>
+              </button>
             ) : (
               <button type="button" className="sa-button sa-primary" disabled>{text('htmlAction')}</button>
             )}
@@ -251,6 +270,9 @@ export default function StatementAccessibleView() {
             </button>
           </section>
         </div>
+        {htmlState === 'busy' && <p role="status">{text('loading')}</p>}
+        {htmlState === 'error' && <p role="alert">{t('statementCenter.htmlError')}</p>}
+        {htmlState === 'ready' && <iframe title={text('htmlTitle')} srcDoc={html} sandbox="allow-popups" className="sa-html-frame" />}
 
         <p className="sa-note">{text('renditionNote')}</p>
       </main>

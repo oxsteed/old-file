@@ -1473,6 +1473,10 @@ function BusinessHubInner() {
                   {t('businessHub.viewProfile')} ↗
                 </Link>
               )}
+              {bizId && ['owner', 'manager'].includes(currentRole) && <Link className="bh-view-profile-link"
+                to={isRestaurantBusiness ? `/restaurant-settlement/statements${currentBiz?.restaurant_id ? `?accountId=${encodeURIComponent(currentBiz.restaurant_id)}` : ''}` : `/business/statements?accountId=${encodeURIComponent(bizId)}`}>
+                {t(isRestaurantBusiness ? 'statementCenter.restaurantSettlement' : 'statementCenter.business')}
+              </Link>}
               {bizId && canEditBizProfile && LAUNCH_VISIBILITY.businessHubSpecializedTemplates && (
                 <Link
                   to={`/templates?type=business&bizId=${encodeURIComponent(bizId)}`}

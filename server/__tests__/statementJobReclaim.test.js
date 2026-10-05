@@ -14,19 +14,9 @@ jest.unmock('pg');
 
 const crypto = require('crypto');
 
-const RAW_URL = process.env.STATEMENT_JOB_TEST_DATABASE_URL || '';
+const { disposableDatabaseOptIn, isDisposableDatabase, assertMigratedSchema } = require('./helpers/statementTestDatabase');
+const RAW_URL = disposableDatabaseOptIn('STATEMENT_JOB_TEST_DATABASE_URL');
 
-function isDisposableDatabase(urlText) {
-  let url;
-  try {
-    url = new URL(urlText);
-  } catch {
-    return false;
-  }
-  const localhost = ['127.0.0.1', 'localhost', '::1'].includes(url.hostname);
-  return ['postgres:', 'postgresql:'].includes(url.protocol) && localhost
-    && url.pathname === '/credit_statement_test';
-}
 
 const CAN_RUN_DB = isDisposableDatabase(RAW_URL);
 const ddescribe = CAN_RUN_DB ? describe : describe.skip;
@@ -80,6 +70,7 @@ async function seedStrandedJob({ state, leaseExpired }) {
 }
 
 ddescribe('reclaim of stranded intermediate-state jobs', () => {
+  beforeAll(async () => { await assertMigratedSchema(pool); });
   beforeEach(async () => {
     await pool.query(
       'TRUNCATE statement_outbox, statement_account_jobs, statement_issuance_runs RESTART IDENTITY CASCADE');

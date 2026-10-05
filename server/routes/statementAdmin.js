@@ -49,9 +49,10 @@ const statementAmendmentService = require('../services/statementAmendmentService
 const { logAdminAction } = require('../services/auditService');
 const { logSecurityEvent, extractRequestDetails } = require('../services/auditLoggerService');
 const storage = require('../utils/storage');
+const issuancePolicy = require('../services/statementIssuancePolicy');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const PRODUCTS = ['oxsteed', 'restaurant'];
+const PRODUCTS = issuancePolicy.PRODUCTS;
 const CURRENCY_RE = /^[A-Z]{3}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const FAILURE_TYPES = ['generation', 'storage', 'reconciliation', 'notification'];
@@ -67,7 +68,7 @@ const ALERT_THRESHOLDS = Object.freeze({
 });
 
 const RUN_LIST_DEFINITIONS = Object.freeze({
-  expected: 'Jobs discovered for this issuance run (per-account work items).',
+  expected: 'Eligible account-period jobs discovered; policy skips counted separately. Final only after discovery completes.',
   issued: 'Jobs completed end-to-end: snapshot, artifact published, notified.',
   failed: 'Jobs currently failed or parked in dead_letter awaiting operators.',
   oldestQueueAgeSec: 'Age in seconds of the oldest job still waiting (pending or failed).',
@@ -130,7 +131,8 @@ function recommendedAction(job) {
 function shapeJobFailure(row) {
   return {
     jobId: row.id,
-    accountId: Number(row.account_id),
+    accountId: row.account_id == null ? null : String(row.account_id),
+    accountUuid: row.account_uuid || null,
     product: row.product,
     currencyCode: row.currency_code,
     state: row.state,
@@ -194,8 +196,12 @@ router.get('/ops/runs', requireAdmin, requirePermission('view_financials'), asyn
     const { rows } = await pool.query(
       `WITH job_health AS (
          SELECT run_id,
-                COUNT(*) FILTER (WHERE state = 'leased' AND lease_expires_at > transaction_timestamp())::int AS active_leases,
-                COUNT(*) FILTER (WHERE state = 'leased' AND lease_expires_at <= transaction_timestamp())::int AS stale_leases,
+                COUNT(*) FILTER (WHERE COALESCE(last_error,'') NOT LIKE 'skip:%')::int AS expected,
+                COUNT(*) FILTER (WHERE state='complete')::int AS issued,
+                COUNT(*) FILTER (WHERE state IN ('failed','dead_letter') AND COALESCE(last_error,'') NOT LIKE 'skip:%')::int AS failed,
+                COUNT(*) FILTER (WHERE state='dead_letter' AND last_error LIKE 'skip:%')::int AS skipped,
+                COUNT(*) FILTER (WHERE state IN ('leased','snapshotted','artifact_ready','notified') AND lease_expires_at > transaction_timestamp())::int AS active_leases,
+                COUNT(*) FILTER (WHERE state IN ('leased','snapshotted','artifact_ready','notified') AND lease_expires_at <= transaction_timestamp())::int AS stale_leases,
                 COALESCE(EXTRACT(EPOCH FROM (
                   transaction_timestamp() - MIN(created_at) FILTER (WHERE state IN ('pending', 'failed'))
                 ))::int, 0) AS oldest_queue_age_sec
@@ -203,11 +209,12 @@ router.get('/ops/runs', requireAdmin, requirePermission('view_financials'), asyn
          GROUP BY run_id
        )
        SELECT r.id, r.product, r.period_from, r.period_to, r.state,
-              r.discovered_count, r.issued_count, r.failed_count,
+              COALESCE(h.expected,0) AS discovered_count, COALESCE(h.issued,0) AS issued_count,
+              COALESCE(h.failed,0) AS failed_count, COALESCE(h.skipped,0) AS skipped_count,
               COALESCE(h.active_leases, 0) AS active_leases,
               COALESCE(h.stale_leases, 0) AS stale_leases,
               COALESCE(h.oldest_queue_age_sec, 0) AS oldest_queue_age_sec,
-              r.created_at, r.updated_at, r.completed_at
+              r.created_at, r.updated_at, r.completed_at, r.discovery_phase
        FROM statement_issuance_runs r
        LEFT JOIN job_health h ON h.run_id = r.id
        ${where}
@@ -230,6 +237,8 @@ router.get('/ops/runs', requireAdmin, requirePermission('view_financials'), asyn
         expected: Number(r.discovered_count),
         issued: Number(r.issued_count),
         failed: Number(r.failed_count),
+        skipped: Number(r.skipped_count || 0),
+        discoveryPhase: r.discovery_phase,
         activeLeases: Number(r.active_leases),
         staleLeases: Number(r.stale_leases),
         oldestQueueAgeSec: Number(r.oldest_queue_age_sec),
@@ -240,7 +249,7 @@ router.get('/ops/runs', requireAdmin, requirePermission('view_financials'), asyn
       total: countRes.rows[0]?.total || 0,
       meta: asOfMeta({
         definitions: RUN_LIST_DEFINITIONS,
-        note: 'Counts are counters on the run row plus live per-state job aggregates. issued is never inferred from artifacts alone.',
+        note: 'Counts are live job aggregates. Policy skips are separate from eligible work; expected coverage is final only after discovery completes.',
         sourceTimestamps: { runsReadAt: new Date().toISOString() },
       }),
     });
@@ -264,7 +273,7 @@ router.get('/ops/runs/:id', requireAdmin, requirePermission('view_financials'), 
        WHERE run_id = $1 GROUP BY state ORDER BY state`, [runId]);
     const stats = await statementJobService.getRunStats(runId);
     const { rows: failures } = await pool.query(
-      `SELECT id, account_id, product, currency_code, state, attempt_count,
+      `SELECT id, account_id, account_uuid, product, currency_code, state, attempt_count,
               max_attempts, lease_owner, issuance_key, last_error,
               next_retry_at, created_at, updated_at
        FROM statement_account_jobs
@@ -290,6 +299,7 @@ router.get('/ops/runs/:id', requireAdmin, requirePermission('view_financials'), 
         issued: stats.issued,
         failed: stats.failed,
         deadLetter: stats.deadLetter,
+        skipped: stats.skipped,
         oldestQueueAgeSec: stats.oldestQueueAgeSec,
         activeLeases: stats.activeLeases,
       },
@@ -352,6 +362,10 @@ router.post('/ops/jobs/:id/retry', requireAdmin, requirePermission('manage_opera
     let job;
     try {
       await client.query('BEGIN');
+      const { rows: [scope] } = await client.query(
+        'SELECT run_id FROM statement_account_jobs WHERE id=$1', [jobId]);
+      if (!scope) fail('statement_job_not_found', 'Statement account job not found', 404);
+      await client.query('SELECT id FROM statement_issuance_runs WHERE id=$1 FOR UPDATE', [scope.run_id]);
       const { rows: [current] } = await client.query(
         'SELECT * FROM statement_account_jobs WHERE id = $1 FOR UPDATE', [jobId]);
       if (!current) fail('statement_job_not_found', 'Statement account job not found', 404);
@@ -359,19 +373,36 @@ router.post('/ops/jobs/:id/retry', requireAdmin, requirePermission('manage_opera
         fail('statement_job_not_retryable',
           `Job is ${current.state}; only failed or dead_letter jobs can be re-queued`, 409);
       }
+      if (String(current.last_error || '').startsWith('skip:')) {
+        fail('statement_job_policy_skip', 'Policy skips require eligible account catch-up, not an unconditional retry', 409);
+      }
       // Re-queue only: the lease is cleared, the error history is preserved in
       // last_error, and issued documents (credit_statement_documents) are never
-      // written by this path. Attempt budget is NOT reset: a job that already
-      // exhausted its budget must be re-proposed, not silently resurrected.
+      // written by this path. Keep attempt history; an explicit operator retry
+      // grants a bounded fresh retry window after the underlying repair.
       const { rows: [updated] } = await client.query(
         `UPDATE statement_account_jobs
          SET state = 'pending',
              lease_owner = NULL,
              lease_expires_at = NULL,
              next_retry_at = NULL,
+             max_attempts = GREATEST(max_attempts, attempt_count + 8),
+             fencing_token = fencing_token + 1,
              updated_at = transaction_timestamp()
          WHERE id = $1 RETURNING *`, [jobId]);
       job = updated;
+      await client.query(
+        `UPDATE statement_issuance_runs SET
+           state=CASE WHEN state IN ('complete','failed') THEN discovery_phase ELSE state END,
+           completed_at=CASE WHEN state IN ('complete','failed') THEN NULL ELSE completed_at END,
+           updated_at=transaction_timestamp()
+         WHERE id=$1`, [job.run_id]);
+      await logAdminAction({
+        adminId: req.user.id, action: 'statement.job.retry', targetType: 'statement_job',
+        targetId: jobId, targetKey: job.issuance_key, description: reason,
+        after: { outcome: 'success', correlationId: job.run_id, attemptCount: Number(current.attempt_count),
+          maxAttempts: Number(job.max_attempts) }, req, client, throwOnError: true,
+      });
       await client.query('COMMIT');
     } catch (error) {
       await client.query('ROLLBACK');
@@ -380,10 +411,6 @@ router.post('/ops/jobs/:id/retry', requireAdmin, requirePermission('manage_opera
       client.release();
     }
 
-    await auditStatement(req, {
-      action: 'statement.job.retry', targetType: 'statement_job', targetId: jobId,
-      targetKey: job.issuance_key, reason, outcome: 'success', correlationId: job.run_id,
-    });
     res.json({
       jobId: job.id, state: job.state, runId: job.run_id,
       correlationId: job.issuance_key,
@@ -926,19 +953,42 @@ router.get('/ops/alerts', requireAdmin, requirePermission('view_financials'), as
       });
     }
 
-    // 2. Missing monthly coverage: no completed run covering the last full month.
-    const lastMonthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0));
+    // 2. Eligible account-period coverage, from the approved activation month.
+    // A complete run record alone is insufficient: unfinished discovery or an
+    // operational dead letter still means missing statements.
+    const activation = issuancePolicy.activationMonth();
+    const issuance = require('../services/statementIssuanceService');
+    let latest = issuance.latestClosedMonthPeriod(now);
+    if (!issuance.issuanceGraceElapsed(latest.to, now)) {
+      latest = issuance.latestClosedMonthPeriod(new Date(`${latest.from}T00:00:00Z`));
+    }
+    if (!activation) alerts.push({ code: 'issuance_activation_unconfigured', severity: 'warning',
+      message: 'Automatic missed-period discovery needs an approved activation month',
+      observedAt: now.toISOString(), context: {} });
     for (const product of PRODUCTS) {
-      const { rows: [coverage] } = await pool.query(
-        `SELECT COUNT(*)::int AS covered FROM statement_issuance_runs
-         WHERE product = $1 AND state = 'complete' AND period_to >= $2`,
-        [product, lastMonthEnd.toISOString().slice(0, 10)]);
-      if (!coverage.covered) {
+      if (!activation || activation > latest.from) continue;
+      const { rows: missing } = await pool.query(
+        `SELECT month::date AS period_from,
+           COUNT(j.id) FILTER (WHERE COALESCE(j.last_error,'') NOT LIKE 'skip:%')::int AS expected,
+           COUNT(j.id) FILTER (WHERE j.state='complete')::int AS issued
+         FROM generate_series($2::date,$3::date,interval '1 month') month
+         LEFT JOIN statement_issuance_runs r ON r.product=$1 AND r.period_from=month::date
+           AND r.period_to=(month + interval '1 month - 1 day')::date
+         LEFT JOIN statement_account_jobs j ON j.run_id=r.id
+         GROUP BY month
+         HAVING COUNT(r.id)=0 OR BOOL_OR(r.state <> 'complete' OR r.discovery_phase <> 'running')
+           OR COUNT(j.id) FILTER (WHERE COALESCE(j.last_error,'') NOT LIKE 'skip:%')
+             <> COUNT(j.id) FILTER (WHERE j.state='complete')
+         ORDER BY month LIMIT 20`, [product, activation, latest.from]);
+      for (const coverage of missing) {
+        const month = coverage.period_from instanceof Date
+          ? coverage.period_from.toISOString().slice(0,7) : String(coverage.period_from).slice(0,7);
         alerts.push({
           code: 'missing_monthly_coverage', severity: 'warning', product,
-          message: `No completed issuance run covers ${lastMonthEnd.toISOString().slice(0, 7)} for ${product}`,
+          message: `Eligible statement coverage is incomplete for ${month} for ${product}`,
           observedAt: now.toISOString(),
-          context: { threshold: 'coverage of the previous calendar month' },
+          context: { month, expected: coverage.expected, issued: coverage.issued,
+            threshold: 'all discovered eligible account-periods issued after completed discovery' },
         });
       }
     }
@@ -981,7 +1031,7 @@ router.get('/ops/alerts', requireAdmin, requirePermission('view_financials'), as
     // 5. Stale leases.
     const { rows: [leases] } = await pool.query(
       `SELECT COUNT(*)::int AS stale FROM statement_account_jobs
-       WHERE state = 'leased' AND lease_expires_at <= transaction_timestamp()`);
+       WHERE state IN ('leased','snapshotted','artifact_ready','notified') AND lease_expires_at <= transaction_timestamp()`);
     if (leases.stale >= ALERT_THRESHOLDS.staleLeaseCount) {
       alerts.push({
         code: 'stale_leases', severity: 'warning',

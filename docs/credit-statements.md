@@ -215,7 +215,7 @@ permission check into a 500; it is fixed and covered by
   and the existing export concurrency budget.
 - PDF work runs in a separate thread, not the API event loop: 60-second wall-clock
   deadline, 32 MiB result limit, termination on disconnect/error/completion.
-- `STATEMENT_ARTIFACT_BUCKET` (private R2) must be configured or artifact
+- Dedicated private Cloudflare R2 configuration must be present or artifact
   publication fails closed; no statement is marked issued without a verified
   artifact. Bundled OFL-licensed Noto fonts cover the five supported languages.
 - CSV neutralizes spreadsheet formula triggers, including those behind hidden
@@ -226,6 +226,13 @@ permission check into a 500; it is fixed and covered by
   currency, period, statement ID, and error code, not ask for passwords or card PINs.
 
 ## Verification and release checklist
+
+The older green-suite counts below are historical, not a current release
+approval. The subsequent code review found thirteen outstanding defects; see
+`statement-operations-code-review-2026-10-05.md`. Remediation requires a new
+full-suite run with the DB opt-ins enabled, a fresh complete migration
+rehearsal, and browser checks. Do not infer production readiness from the
+earlier counts or the presence of routes/components.
 
 Verification performed on 2026-10-05 against disposable `credit_statement_test`
 databases (synthetic fixtures only; no production data):
@@ -249,7 +256,7 @@ databases (synthetic fixtures only; no production data):
 
 Production deployment remains a separate gate: install the locked dependency
 tree, deploy client/server/fonts together, apply migrations, set
-`STATEMENT_ARTIFACT_BUCKET` in the secret store, confirm `/ready` and the
+the private R2 runtime configuration below, confirm `/ready` and the
 deployed revision, and perform an authenticated real-account read/download
 smoke test for each product. Known production issues outside this build's
 scope: the restaurant payout path is not atomic (Stripe Transfer before journal
@@ -258,3 +265,30 @@ post) and has no webhook reconciliation; migration 689 unblocks the
 without the atomicity redesign. This local verification does not certify
 deployment, production data reconciliation, regulatory readiness, or
 global-scale load capacity.
+
+## Private Cloudflare R2 statement storage
+
+Statements use `server/utils/statementStorage.js`, not the general uploads
+adapter. There is no local-filesystem fallback, public URL, shared uploads
+bucket, or backup-bucket fallback. Required runtime-only settings are:
+
+- `STATEMENT_ARTIFACT_BUCKET`: a separate private statement bucket.
+- `STATEMENT_R2_ENDPOINT`: the Cloudflare R2 S3 endpoint (region is `auto`).
+- `STATEMENT_R2_ACCESS_KEY_ID` and `STATEMENT_R2_SECRET_ACCESS_KEY`: credentials
+  scoped to that bucket, entered directly into the runtime secret store.
+- `STATEMENT_R2_PRIVACY_ATTESTED=1`: set only after an operator confirms that
+  r2.dev/public custom domains are disabled and reviews token/bucket access.
+  This is an operator gate; the S3 API does not prove those public settings.
+- `STATEMENT_ARTIFACT_PREFIX`: defaults to `statements`.
+- `STATEMENT_LEGACY_PREFIXES`: comma-separated previous local prefixes to block
+  in generic storage routes. Reserved `/stmt/` keys are always blocked there.
+
+Legacy artifacts with an unknown storage bucket are intentionally unavailable
+until their location and exact bytes are verified in an authorized recovery.
+Do not edit ready artifact metadata to make a download pass. Preserve original
+bytes, hashes and attempt evidence; recovery is not permission to reissue an
+original from mutable source data. Missing/corrupt ready objects fail closed.
+
+Privacy, lifecycle retention, restoration from backup, production throughput,
+and actual account downloads still require live operational verification.
+No live R2 credentials or bucket configuration were changed by this code fix.

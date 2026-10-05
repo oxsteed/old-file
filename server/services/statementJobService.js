@@ -79,17 +79,38 @@ function issuanceKeyFor({ product, accountId, currencyCode, periodFrom, periodTo
   return `stmt:v1:${product}:${accountId}:${currencyCode}:${periodFrom}:${periodTo}:${customerId}`;
 }
 
-async function createRun({ product, periodFrom, periodTo }) {
+async function createRun({ product, periodFrom, periodTo, reuseExisting = false }) {
   checkProduct(product);
   const from = checkDate(periodFrom, 'periodFrom');
   const to = checkDate(periodTo, 'periodTo');
   if (to < from) fail('statement_job_invalid_period', 'periodTo must be on or after periodFrom', 400);
-  const { rows } = await pool.query(
-    `INSERT INTO statement_issuance_runs (id, product, period_from, period_to, state)
-     VALUES ($1, $2, $3, $4, 'discovering') RETURNING *`,
-    [crypto.randomUUID(), product, from, to]
-  );
-  return rows[0];
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // Serializes scheduler/operator creation without rewriting legacy runs.
+    if (reuseExisting) {
+      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
+        [`statement-run:${product}:${from}:${to}`]);
+      const { rows: [existing] } = await client.query(
+        `SELECT * FROM statement_issuance_runs WHERE product=$1 AND period_from=$2 AND period_to=$3
+         ORDER BY created_at, id LIMIT 1`, [product, from, to]);
+      if (existing) {
+        await client.query('COMMIT');
+        return { ...existing, idempotent: true };
+      }
+    }
+    const { rows: [run] } = await client.query(
+      `INSERT INTO statement_issuance_runs (id, product, period_from, period_to, state)
+       VALUES ($1, $2, $3, $4, 'discovering') RETURNING *`,
+      [crypto.randomUUID(), product, from, to]);
+    await client.query('COMMIT');
+    return run;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 async function discoverAccountJobs(runId, accounts) {
@@ -169,7 +190,10 @@ async function discoverAccountJobs(runId, accounts) {
       inserted = result.rowCount;
       await client.query(
         `UPDATE statement_issuance_runs
-         SET discovered_count = discovered_count + $2, updated_at = transaction_timestamp()
+         SET discovered_count = discovered_count + $2,
+             state = CASE WHEN state IN ('complete', 'failed') THEN discovery_phase ELSE state END,
+             completed_at = CASE WHEN state IN ('complete', 'failed') THEN NULL ELSE completed_at END,
+             updated_at = transaction_timestamp()
          WHERE id = $1`, [runId, inserted]);
     }
     await client.query('COMMIT');
@@ -190,7 +214,7 @@ async function discoverAccountJobs(runId, accounts) {
  * yield nothing. Expired leases whose attempt budget is exhausted are moved
  * to dead_letter instead of being re-leased.
  */
-async function claimNextAccountJob(workerId, leaseSeconds = 120) {
+async function claimNextAccountJob(workerId, leaseSeconds = 120, { product = null } = {}) {
   if (!workerId || typeof workerId !== 'string') {
     fail('statement_job_invalid_worker', 'workerId is required', 400);
   }
@@ -198,13 +222,15 @@ async function claimNextAccountJob(workerId, leaseSeconds = 120) {
   if (!Number.isSafeInteger(lease) || lease < 5 || lease > 3600) {
     fail('statement_job_invalid_worker', 'leaseSeconds must be between 5 and 3600', 400);
   }
+  if (product !== null) checkProduct(product);
   const { rows } = await pool.query(
     `WITH candidate AS (
        SELECT id, state AS prior_state,
-              (state = 'leased' AND attempt_count >= max_attempts) AS exhausted,
+              (attempt_count >= max_attempts) AS exhausted,
               (state IN ('snapshotted', 'artifact_ready', 'notified')) AS reclaimed
        FROM statement_account_jobs
        WHERE run_id IN (SELECT id FROM statement_issuance_runs WHERE state = ANY($3))
+         AND ($4::varchar IS NULL OR product=$4)
          AND (state = 'pending'
            OR (state = 'leased' AND lease_expires_at < transaction_timestamp())
            OR (state IN ('snapshotted', 'artifact_ready', 'notified')
@@ -217,11 +243,11 @@ async function claimNextAccountJob(workerId, leaseSeconds = 120) {
      )
      UPDATE statement_account_jobs AS job
      SET state = CASE WHEN candidate.exhausted THEN 'dead_letter' ELSE 'leased' END,
-         lease_owner = CASE WHEN candidate.exhausted THEN job.lease_owner ELSE $1 END,
-         lease_expires_at = CASE WHEN candidate.exhausted THEN job.lease_expires_at
+         lease_owner = CASE WHEN candidate.exhausted THEN NULL ELSE $1 END,
+         lease_expires_at = CASE WHEN candidate.exhausted THEN NULL
                                  ELSE transaction_timestamp() + ($2 * interval '1 second') END,
          fencing_token = job.fencing_token + 1,
-         attempt_count = job.attempt_count + 1,
+         attempt_count = job.attempt_count + CASE WHEN candidate.exhausted THEN 0 ELSE 1 END,
          last_error = CASE WHEN candidate.exhausted
                            THEN 'Attempt budget exhausted while the lease was expired'
                            WHEN candidate.reclaimed
@@ -231,7 +257,7 @@ async function claimNextAccountJob(workerId, leaseSeconds = 120) {
      FROM candidate
      WHERE job.id = candidate.id
      RETURNING job.*`,
-    [workerId, lease, RUN_CLAIMABLE_STATES]
+    [workerId, lease, RUN_CLAIMABLE_STATES, product]
   );
   const job = rows[0] || null;
   if (job && job.state === 'dead_letter') {
@@ -385,11 +411,22 @@ async function pauseRun(runId) {
 async function resumeRun(runId) {
   const { rows: [run] } = await pool.query(
     `UPDATE statement_issuance_runs
-     SET state = 'running', updated_at = transaction_timestamp()
+     SET state = discovery_phase, completed_at = NULL, updated_at = transaction_timestamp()
      WHERE id = $1 AND state = 'paused' RETURNING *`,
     [runId]
   );
   if (!run) fail('statement_run_state', 'Run not found or not paused', 409);
+  return run;
+}
+
+/** Start an explicit catch-up pass, respecting pause and fencing an old scan. */
+async function requestCatchUp(runId) {
+  const { rows: [run] } = await pool.query(
+    `UPDATE statement_issuance_runs SET state='discovering', discovery_phase='discovering',
+       discovery_cursor=NULL, discovery_generation=discovery_generation+1,
+       completed_at=NULL, updated_at=transaction_timestamp()
+     WHERE id=$1 AND state <> 'paused' RETURNING *`, [runId]);
+  if (!run) fail('statement_run_state', 'Run not found or paused; resume before catch-up', 409);
   return run;
 }
 
@@ -470,14 +507,15 @@ async function outboxFailed(eventId) {
 
 async function getRunStats(runId) {
   const { rows: [stats] } = await pool.query(
-    `SELECT COUNT(*)::int AS expected,
+    `SELECT COUNT(*) FILTER (WHERE NOT (state='dead_letter' AND COALESCE(last_error,'') LIKE 'skip:%'))::int AS expected,
+            COUNT(*) FILTER (WHERE state='dead_letter' AND last_error LIKE 'skip:%')::int AS skipped,
             COUNT(*) FILTER (WHERE state = 'complete')::int AS issued,
             COUNT(*) FILTER (WHERE state = 'failed')::int AS failed,
-            COUNT(*) FILTER (WHERE state = 'dead_letter')::int AS "deadLetter",
+            COUNT(*) FILTER (WHERE state = 'dead_letter' AND COALESCE(last_error,'') NOT LIKE 'skip:%')::int AS "deadLetter",
             COALESCE(EXTRACT(EPOCH FROM
               (transaction_timestamp() - MIN(created_at) FILTER (WHERE state IN ('pending', 'failed')))
             )::int, 0) AS "oldestQueueAgeSec",
-            COUNT(*) FILTER (WHERE state = 'leased'
+            COUNT(*) FILTER (WHERE state IN ('leased','snapshotted','artifact_ready','notified')
               AND lease_expires_at > transaction_timestamp())::int AS "activeLeases"
      FROM statement_account_jobs WHERE run_id = $1`,
     [runId]
@@ -496,6 +534,7 @@ module.exports = {
   failJob,
   pauseRun,
   resumeRun,
+  requestCatchUp,
   outboxAppend,
   claimOutboxEvents,
   markOutboxProcessed,

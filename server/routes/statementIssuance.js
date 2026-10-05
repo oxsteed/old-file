@@ -22,12 +22,13 @@ const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const { AppError } = require('../middleware/errorHandler');
 const jobs = require('../services/statementJobService');
 const scheduler = require('../jobs/statementIssuanceScheduler');
+const policy = require('../services/statementIssuancePolicy');
 
 const router = express.Router();
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const PRODUCTS = ['oxsteed', 'restaurant'];
+const PRODUCTS = policy.PRODUCTS;
 const MAX_PERIOD_DAYS = 366;
 
 router.use(requireAdmin, requirePermission('manage_operations'));
@@ -69,6 +70,8 @@ function shapeRun(run, idempotent = false) {
     periodFrom: run.period_from instanceof Date ? run.period_from.toISOString().slice(0, 10) : String(run.period_from),
     periodTo: run.period_to instanceof Date ? run.period_to.toISOString().slice(0, 10) : String(run.period_to),
     state: run.state,
+    discoveryPhase: run.discovery_phase,
+    discoveryComplete: run.discovery_phase === 'running',
     discoveredCount: Number(run.discovered_count),
     issuedCount: Number(run.issued_count),
     failedCount: Number(run.failed_count),
@@ -88,10 +91,12 @@ router.post('/runs', async (req, res, next) => {
       throw new AppError('Unknown statement product', 400, 'statement_run_invalid_product');
     }
     const { periodFrom, periodTo } = checkClosedPeriod(req.body?.periodFrom, req.body?.periodTo);
-    const existing = await scheduler.findOpenRun(product, periodFrom, periodTo);
-    if (existing) return res.status(200).json({ run: shapeRun(existing, true) });
-    const run = await jobs.createRun({ product, periodFrom, periodTo });
-    return res.status(201).json({ run: shapeRun(run) });
+    const activation = policy.activationMonth();
+    if (activation && periodFrom < activation) {
+      throw new AppError('Period precedes the approved activation month', 409, 'statement_run_pre_activation');
+    }
+    const run = await jobs.createRun({ product, periodFrom, periodTo, reuseExisting: true });
+    return res.status(run.idempotent ? 200 : 201).json({ run: shapeRun(run, Boolean(run.idempotent)) });
   } catch (error) {
     return next(error);
   }
@@ -139,10 +144,8 @@ router.post('/runs/:id/resume', async (req, res, next) => {
 router.post('/runs/:id/catch-up', async (req, res, next) => {
   try {
     const runId = checkRunId(req.params.id);
-    const run = await loadRunOr404(runId);
-    if (run.state === 'failed') {
-      throw new AppError('Cannot catch up a failed run', 409, 'statement_run_state');
-    }
+    await loadRunOr404(runId);
+    const run = await jobs.requestCatchUp(runId);
     const pass = await scheduler.runDiscoveryPass(run);
     const refreshed = await loadRunOr404(runId);
     return res.json({ run: shapeRun(refreshed), ...pass });

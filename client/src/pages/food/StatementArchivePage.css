@@ -27,7 +27,10 @@
 .sa-filters { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)) auto; gap: 16px; align-items: end; padding: 24px; border: 1px solid var(--sa-line); border-radius: 20px; background: var(--sa-panel); margin-block: 24px; }
 .sa-field { display: grid; gap: 8px; min-width: 0; }
 .sa-filters label { font-weight: 650; }
-.sa-filters select { width: 100%; min-width: 0; box-sizing: border-box; min-height: 46px; padding: 10px; border: 1px solid var(--sa-line); border-radius: 9px; color: var(--sa-ink); background: var(--sa-soft); font: inherit; }
+.sa-filters select, .sa-filters input { width: 100%; min-width: 0; box-sizing: border-box; min-height: 46px; padding: 10px; border: 1px solid var(--sa-line); border-radius: 9px; color: var(--sa-ink); background: var(--sa-soft); font: inherit; }
+.sa-export { margin-block: 24px; }
+.sa-export .sa-filters { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.sa-item-actions { flex-wrap: wrap; }
 .statement-archive-page button { min-height: 44px; padding: 10px 16px; border: 1px solid var(--sa-line); border-radius: 10px; background: var(--sa-soft); color: var(--sa-ink); font: inherit; font-weight: 650; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; }
 .statement-archive-page button:hover:not(:disabled) { border-color: var(--sa-brand); }
 .statement-archive-page button:disabled { opacity: .5; cursor: not-allowed; }

@@ -139,7 +139,8 @@ async function insertDocument({ customerId, product, accountId, currency, from, 
     openingBalanceCents: 1000, totalCreditsCents: 500, totalDebitsCents: 200,
     closingBalanceCents: 1300, transactionCount: 2,
   };
-  const contentHash = sha256Hex(JSON.stringify(document));
+  const contentHash = require('../services/creditStatementService').hashDocument(document);
+  document.contentHash = contentHash;
   await pool.query(
     `INSERT INTO credit_statement_documents
        (id, customer_id, product, account_id, currency_code, period_from, period_to,
@@ -446,7 +447,9 @@ describe('archive signed links', () => {
 
   test('an already-expired signed URL is rejected, never handed out', async () => {
     const expiredApp = express();
-    expiredApp.use('/api/statement-archive', createStatementArchiveRouter({ storage: makeFakeStorage({ expiredSignedUrl: true }) }));
+    const expiredStorage = makeFakeStorage({ expiredSignedUrl: true });
+    for (const [key, value] of storage.objects) expiredStorage.objects.set(key, value);
+    expiredApp.use('/api/statement-archive', createStatementArchiveRouter({ storage: expiredStorage }));
     // eslint-disable-next-line no-unused-vars
     expiredApp.use((err, _req, res, _next) => res.status(err.status || err.statusCode || 500)
       .json({ error: err.message, code: err.code || 'internal_error' }));
