@@ -454,6 +454,7 @@
   "transactionWithdrawalFee": "رسوم السحب",
   "transactionTransferFee": "رسوم التحويل",
   "transactionSubBankConversion": "تحويل عملة البنك الفرعي",
+  "transactionSubBankPayout": "دفعة من البنك الفرعي",
   "transactionActivity": "نشاط Credit",
   "reservedStatus": "محجوز",
   "capturedStatus": "مسجل",

@@ -455,6 +455,7 @@
   "transactionWithdrawalFee": "Frais de retrait",
   "transactionTransferFee": "Frais de transfert",
   "transactionSubBankConversion": "Conversion de devise en sous-banque",
+  "transactionSubBankPayout": "Paiement en sous-banque",
   "transactionActivity": "Activité Credit",
   "reservedStatus": "Réservée",
   "capturedStatus": "Capturée",

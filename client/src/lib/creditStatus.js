@@ -66,6 +66,7 @@ const TRANSACTION_TYPE_TRANSLATION_KEYS = Object.freeze({
   withdrawal_fee: 'transactionWithdrawalFee',
   transfer_fee: 'transactionTransferFee',
   sub_bank_conversion: 'transactionSubBankConversion',
+  sub_bank_payout: 'transactionSubBankPayout',
 });
 
 export function creditStatusTranslationKey(status) {
