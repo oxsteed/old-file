@@ -25,7 +25,7 @@ import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 import {
   Building2, Plus, Users, Calendar, MessageSquare, UtensilsCrossed,
   Wrench, ArrowRight, AlertCircle, BarChart3, ClipboardList, Store,
-  Settings2, Monitor,
+  Settings2, Monitor, TrendingUp,
 } from 'lucide-react';
 
 function colorFromName(name) {

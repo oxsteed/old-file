@@ -317,7 +317,7 @@ export default function ConsultingIntakePage() {
         setup_items_selected: [],
       }));
     } else {
-      const allItems = Object.values(SETUP_ITEMS_GROUPED)
+      const allItems = Object.values(SETUP_ITEMS_GROUPED_KEYS)
         .flatMap(group => group.map(item => item.id));
       setForm(prev => ({
         ...prev,
