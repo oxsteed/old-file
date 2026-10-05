@@ -1,7 +1,7 @@
 {
   "en": {
     "title": "Account statement",
-    "monthly": "Monthly statement — issued copy",
+    "monthly": "Monthly statement - issued copy",
     "interim": "Interim activity report",
     "owner": "Account holder",
     "account": "Account",
@@ -149,7 +149,7 @@
   },
   "es": {
     "title": "Estado de cuenta",
-    "monthly": "Estado mensual — copia emitida",
+    "monthly": "Estado mensual - copia emitida",
     "interim": "Informe provisional de actividad",
     "owner": "Titular",
     "account": "Cuenta",
@@ -297,7 +297,7 @@
   },
   "fr": {
     "title": "Relevé de compte",
-    "monthly": "Relevé mensuel — copie émise",
+    "monthly": "Relevé mensuel - copie émise",
     "interim": "Rapport d’activité provisoire",
     "owner": "Titulaire",
     "account": "Compte",
@@ -445,7 +445,7 @@
   },
   "ht": {
     "title": "Eta kont",
-    "monthly": "Eta chak mwa — kopi ki soti",
+    "monthly": "Eta chak mwa - kopi ki soti",
     "interim": "Rapò aktivite pwovizwa",
     "owner": "Mèt kont lan",
     "account": "Kont",
@@ -593,7 +593,7 @@
   },
   "ar": {
     "title": "كشف الحساب",
-    "monthly": "كشف شهري — نسخة صادرة",
+    "monthly": "كشف شهري - نسخة صادرة",
     "interim": "تقرير نشاط مؤقت",
     "owner": "صاحب الحساب",
     "account": "الحساب",
