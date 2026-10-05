@@ -254,7 +254,7 @@ describe('rendition artifact recording', () => {
 
   process.env.NODE_ENV = 'test';
   process.env.LOG_LEVEL = 'error';
-  process.env.DATABASE_URL = 'postgresql://postgres:postgres@127.0.0.1:5432/credit_statement_test?sslmode=disable';
+  process.env.DATABASE_URL = DISPOSABLE_PATTERN;
 
   const fs = require('fs');
   const path = require('path');
