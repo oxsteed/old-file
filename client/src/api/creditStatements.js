@@ -80,3 +80,37 @@ export function isCompleteCreditStatement(statement, params, product) {
     && statement.holds.reduce((sum, hold) => sum + BigInt(hold.amountCents), 0n) === BigInt(statement.totalHeldCents)
     && (statement.kind !== 'monthly' || (!statement.holds.length && !statement.holdsAsOf && !statement.totalHeldCents));
 }
+
+// Statement archive: issued monthly originals plus their private artifacts.
+// The server mounts the statementArchive router at ARCHIVE_MOUNT; keep this
+// in sync with the mount line reported by the archive workstream.
+export const ARCHIVE_MOUNT = '/statement-archive';
+
+function archivePath(documentId, suffix = '') {
+  const encoded = encodeURIComponent(String(documentId || ''));
+  if (!encoded) throw new Error('Invalid statement document');
+  return `${ARCHIVE_MOUNT}/archive/${encoded}${suffix}`;
+}
+
+export function listArchive({ product, accountId, currency, year, month, page, perPage } = {}, { signal } = {}) {
+  return api.get(`${ARCHIVE_MOUNT}/archive`, {
+    params: { product, accountId, currency, year, month, page, per_page: perPage }, signal,
+  }).then(response => response.data);
+}
+
+export function getArchiveDocument(documentId, { signal } = {}) {
+  return api.get(archivePath(documentId), { signal })
+    .then(response => response.data?.document || null);
+}
+
+export function downloadArchiveDocument(documentId, { language, kind, label } = {}, { signal } = {}) {
+  return api.get(archivePath(documentId, '/download'), {
+    params: { language, kind, label }, responseType: 'blob', signal,
+  });
+}
+
+export function getArchiveDownloadLink(documentId, { language, kind, label, ttlSeconds } = {}, { signal } = {}) {
+  return api.get(archivePath(documentId, '/link'), {
+    params: { language, kind, label, ttlSeconds }, signal,
+  }).then(response => response.data);
+}

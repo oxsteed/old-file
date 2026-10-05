@@ -22,6 +22,7 @@ export const STATEMENT_STRINGS = Object.freeze({
   title: 'Account statements',
   description: 'Review balances and posted activity, and download PDF or CSV statements.',
   link: 'Statements',
+  archiveLink: 'Statement archive',
   back: 'Back to credit account',
   oxsteedProduct: 'OxSteed Credit',
   restaurantProduct: 'Restaurant Credit',
@@ -272,6 +273,7 @@ export default function CreditStatementsPage({ product = 'oxsteed' }) {
         <Link to="/restaurant-credit/statements" aria-current={product === 'restaurant' ? 'page' : undefined}>{text('restaurantProduct')}</Link>
       </nav>
       <p className="cs-scope">{text('scope')}</p>
+      <p className="cs-archive-link"><Link to={`${root}/statements/archive`}>{text('archiveLink')}</Link></p>
       {accountsLoading ? <div className="cs-state" role="status">{text('loadingAccounts')}</div>
         : accountsFailed ? <div className="cs-state" role="alert"><p>{text('accountsError')}</p><button type="button" onClick={() => setAccountRetry(value => value + 1)}>{text('retry')}</button></div>
           : !entries.length ? <div className="cs-state" role="status"><h2>{text('noAccounts')}</h2><p>{text('noAccountsBody')}</p><Link to={root}>{text('back')}</Link></div>
