@@ -1217,6 +1217,18 @@ reconciliation; migration 689 unblocks the `sub_bank_payout` journal leg, but
 payouts must not be activated for real money without the atomicity redesign.
 Manual screen-reader verification of the tagged PDFs was not performed.
 
+### Focused payout / statement verification (2026-10-05)
+
+Scope: verify findings and prepare checklists; no runtime, migration or payout
+implementation changes. See `docs/statement-payout-verification-2026-10-05.md`
+for the exact local revision, commands, qualifications and synthetic reproduction.
+
+| Criterion | Current evidence | Remaining status / next exact action |
+| --- | --- | --- |
+| Restaurant payout safety | Fixed `restaurantPayoutService` to pass the pool into `withTransaction`; focused payout and deployment wiring suites passed 43 tests. Earlier synthetic reproduction showed transfer success followed by journal-failure rollback to requested without IDs. Migration 632 and `oxsteedCreditSubBankService` tie restaurant sub-bank balances to outstanding customer wallet liabilities, while payout debits that balance without reducing wallets. No production payout. | Unsafe to activate. Owner/accounting policy must define an approved restaurant-earned payable balance independent of customer-backed wallet funds before implementing an outbox, webhook reconciliation, or a sweeper. Keep `PAYOUT_PROCESSOR_ENABLED` unset/false. |
+| Statement automated accessibility | 11 focused tag/text/HTML checks passed after temporary installation of already-declared `pdf2json`; 2 database tests excluded. All 4 browser fixture tests passed, including 20 locale/theme/viewport combinations. | Human reader evidence absent. Execute `docs/statement-screen-reader-checklist.md` and record reader/viewer versions, samples and results. No broad screen-reader or PDF/UA claim. |
+| Private statement publication | Private adapter/storage/PDF/payout focused run: 3 suites / 61 tests passed. `oxsteed-statement-artifacts` created in Cloudflare R2; Eastern North America automatic location, Standard class, public access and development URL disabled, empty, no custom domain or lifecycle/lock rule. | Credentials, Coolify config, account-level privacy review, retention, issuance, and object verification remain incomplete. Complete the owner handoff and run `docs/statement-r2-setup-checklist.md` through existing deployment ownership. |
+
 ## Completion Gate
 
 The code-completion goal is complete only when every `implemented` row has been

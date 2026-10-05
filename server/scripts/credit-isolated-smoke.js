@@ -54,11 +54,16 @@ async function main() {
     headers: { ...adminHeaders, 'idempotency-key': 'isolated-load-1' },
     body: JSON.stringify({ amountCents: 1000, currencyCode: 'USD', referenceId: 'isolated-funding-1', reason: 'Synthetic isolated fixture funding' }),
   });
-  if (load.transaction?.amountCents !== 1000) throw new Error('Isolated Credit load returned an unexpected amount');
+  const pendingAction = load.pendingAction;
+  if (pendingAction?.actionType !== 'credit_load'
+      || Number(pendingAction.payload?.amountCents) !== 1000
+      || pendingAction.status !== 'pending') {
+    throw new Error('Isolated Credit load did not queue for maker-checker approval');
+  }
 
   const accounts = await request(baseUrl, '/api/oxsteed-credit/accounts', { headers: customerHeaders });
   const usdAccount = accounts.accounts?.find((account) => account.currencyCode === 'USD');
-  if (usdAccount?.balanceCents !== 1000) throw new Error(`Expected USD customer balance 1000, received ${usdAccount?.balanceCents}`);
+  if (usdAccount?.balanceCents !== 0) throw new Error(`Expected USD customer balance to remain 0 before checker approval, received ${usdAccount?.balanceCents}`);
 
   const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: false });
   try {
@@ -70,8 +75,19 @@ async function main() {
         GROUP BY a.id, a.balance_cents, a.ledger_version`,
       [CUSTOMER_ID]
     );
-    if (Number(rows[0]?.balance_cents) !== 1000 || Number(rows[0]?.ledger_version) !== 1 || Number(rows[0]?.entry_count) !== 1) {
+    if (Number(rows[0]?.balance_cents) !== 0 || Number(rows[0]?.ledger_version) !== 0 || Number(rows[0]?.entry_count) !== 0) {
       throw new Error(`Isolated journal verification failed: ${JSON.stringify(rows[0] || null)}`);
+    }
+    const pending = await pool.query(
+      `SELECT action_type, status, payload->>'amountCents' AS amount_cents
+         FROM oxsteed_credit_pending_actions
+        WHERE id = $1`,
+      [pendingAction.id]
+    );
+    if (pending.rows[0]?.action_type !== 'credit_load'
+        || pending.rows[0]?.status !== 'pending'
+        || Number(pending.rows[0]?.amount_cents) !== 1000) {
+      throw new Error(`Isolated pending-action verification failed: ${JSON.stringify(pending.rows[0] || null)}`);
     }
   } finally {
     await pool.end();
@@ -80,9 +96,10 @@ async function main() {
   process.stdout.write(JSON.stringify({
     ok: true,
     authenticatedCustomer: CUSTOMER_ID,
-    loadedCents: 1000,
+    pendingLoadCents: 1000,
     currency: 'USD',
-    journalVerified: true,
+    pendingActionId: pendingAction.id,
+    journalUnchangedUntilCheckerApproval: true,
     railEnabledOnlyInIsolatedFixture: true,
   }) + '\n');
 }

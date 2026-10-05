@@ -32,6 +32,7 @@ process.env.STRIPE_SECRET_KEY = 'sk_test_payout';
 process.env.PAYOUT_PROCESSOR_ENABLED = 'true';
 
 const { withTransaction } = require('../utils/transaction');
+const pool = require('../db');
 const creditService = require('../services/oxsteedCreditService');
 const subBankService = require('../services/oxsteedCreditSubBankService');
 const { sendNotification } = require('../services/notificationService');
@@ -82,7 +83,10 @@ function mockClient({ restaurant = RESTAURANT, balanceCents = 5000, payout = nul
     return { rows: [] };
   });
   withTransaction.mockReset();
-  withTransaction.mockImplementation(async (fn) => fn(client));
+  withTransaction.mockImplementation(async (transactionPool, operation) => {
+    expect(transactionPool).toBe(pool);
+    return operation(client);
+  });
   subBankService.ensureRestaurantSubBankAccount.mockResolvedValue({
     id: 100,
     balance_cents: balanceCents,
@@ -155,7 +159,10 @@ test('idempotent request returns the existing payout', async () => {
     }
     return { rows: [] };
   });
-  wt.mockImplementationOnce(async (fn) => fn(c));
+  wt.mockImplementationOnce(async (transactionPool, operation) => {
+    expect(transactionPool).toBe(pool);
+    return operation(c);
+  });
   subBankService.ensureRestaurantSubBankAccount.mockResolvedValue({ id: 100, balance_cents: 5000 });
 
   const payout = await service.requestPayout({
@@ -238,7 +245,10 @@ test('reject moves a requested payout to rejected', async () => {
     return { rows: [] };
   });
   withTransaction.mockReset();
-  withTransaction.mockImplementation(async (fn) => fn(client));
+  withTransaction.mockImplementation(async (transactionPool, operation) => {
+    expect(transactionPool).toBe(pool);
+    return operation(client);
+  });
 
   const done = await service.rejectPayout({
     payoutId: 'payout-1',

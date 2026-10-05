@@ -16,6 +16,7 @@
  */
 
 const { AppError } = require('../middleware/errorHandler');
+const pool = require('../db');
 const logger = require('../utils/logger');
 const { withTransaction } = require('../utils/transaction');
 const {
@@ -96,7 +97,7 @@ async function requestPayout({ restaurantId, userId, amountCents, currencyCode, 
   const key = String(idempotencyKey || '').trim().slice(0, 120);
   if (!key) throw new AppError('Idempotency key is required', 400, 'validation_failed');
 
-  return withTransaction(async (client) => {
+  return withTransaction(pool, async (client) => {
     const restaurant = await requireRestaurantOwnership(client, userId, restaurantId);
     const currency = assertSupportedCreditCurrency(currencyCode || restaurant.currency_code);
     if (!restaurant.stripe_account_id) {
@@ -234,7 +235,7 @@ async function executePayout(client, payout) {
 }
 
 async function approvePayout({ payoutId, adminUserId, reviewNote }) {
-  return withTransaction(async (client) => {
+  return withTransaction(pool, async (client) => {
     const { rows } = await client.query(
       `SELECT * FROM restaurant_payouts WHERE id = $1 FOR UPDATE`,
       [payoutId]
@@ -331,7 +332,7 @@ async function approvePayout({ payoutId, adminUserId, reviewNote }) {
 }
 
 async function rejectPayout({ payoutId, adminUserId, reviewNote }) {
-  const { rows } = await withTransaction(async (client) => {
+  const { rows } = await withTransaction(pool, async (client) => {
     const locked = await client.query(
       `SELECT * FROM restaurant_payouts WHERE id = $1 FOR UPDATE`,
       [payoutId]

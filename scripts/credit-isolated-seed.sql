@@ -34,6 +34,47 @@ ON CONFLICT (id) DO UPDATE SET
   didit_status = EXCLUDED.didit_status,
   didit_verified_at = EXCLUDED.didit_verified_at;
 
+-- Synthetic customer funding is allowed only through an explicit, verified
+-- Credit tier fixture. The general Didit profile status above is not a
+-- substitute for the Credit funding verification record.
+INSERT INTO oxsteed_credit_identity_verifications (
+  customer_id, requested_tier, tier, status, provider, reviewed_by,
+  reviewed_at, review_reason
+)
+SELECT
+  '66666666-6666-4666-8666-666666666666', 1, 1, 'verified', 'manual_review',
+  '11111111-1111-4111-8111-111111111111', NOW(),
+  'Synthetic isolated fixture funding tier'
+WHERE NOT EXISTS (
+  SELECT 1
+    FROM oxsteed_credit_identity_verifications
+   WHERE customer_id = '66666666-6666-4666-8666-666666666666'
+     AND status = 'verified'
+     AND (expires_at IS NULL OR expires_at > NOW())
+);
+
+-- The isolated image has no sanctions vendor configured. Model a screening hit
+-- that the synthetic fixture admin explicitly cleared, so smoke funding still
+-- passes through the same fail-closed production gate and requires a fresh
+-- persisted clearance record.
+INSERT INTO oxsteed_credit_sanctions_screenings (
+  subject_type, subject_id, provider, result, hit_context, payload_hash,
+  screened_at, cleared_at, cleared_by, clear_reason
+)
+SELECT
+  'customer', '66666666-6666-4666-8666-666666666666', 'manual_review', 'hit',
+  'synthetic_fixture_reviewed', 'isolated-credit-smoke-cleared-v1',
+  NOW(), NOW(), '11111111-1111-4111-8111-111111111111',
+  'Synthetic isolated smoke fixture clearance'
+WHERE NOT EXISTS (
+  SELECT 1
+    FROM oxsteed_credit_sanctions_screenings
+   WHERE subject_type = 'customer'
+     AND subject_id = '66666666-6666-4666-8666-666666666666'
+     AND cleared_at IS NOT NULL
+     AND screened_at > NOW() - INTERVAL '24 hours'
+);
+
 INSERT INTO businesses (id, user_id, business_name, business_type, is_primary, is_active)
 VALUES
   (901, '33333333-3333-4333-8333-333333333333', 'Credit Test Restaurant One LLC', 'llc', TRUE, TRUE),
