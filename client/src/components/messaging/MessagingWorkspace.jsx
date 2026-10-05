@@ -76,7 +76,6 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
   // Ref mirror so socket handlers can check list membership without
   // re-subscribing on every render.
   const conversationsRef = useRef([]);
-  useEffect(() => { conversationsRef.current = conversations; }, [conversations]);
   // Last known socket state: a false->true transition means a reconnect.
   const wasConnectedRef = useRef(connected);
 
@@ -105,6 +104,10 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
   const [businessFilter, setBusinessFilter] = useState('all');
   const [managedBusinesses, setManagedBusinesses] = useState([]);
   const [starting, setStarting] = useState(false);
+
+  // Dependencies are evaluated during render, so initialize the list state
+  // before registering its ref mirror effect.
+  useEffect(() => { conversationsRef.current = conversations; }, [conversations]);
 
   const conversationId = embedded ? embeddedConversationId : routeConversationId;
   const selectedInquiryId = embedded ? embeddedInquiryId : inquiryId;

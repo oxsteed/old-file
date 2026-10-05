@@ -3,13 +3,79 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import vm from 'node:vm';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import ts from 'typescript';
+import * as inboxRole from '../src/utils/inboxRole.js';
 import {
   applyIncomingConversationUpdate,
   resolveSendErrorState,
+  resolveShellChrome,
 } from '../src/components/messaging/messengerShellState.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const src = (rel) => readFile(join(root, rel), 'utf8');
+
+test('customer, helper, and business workspaces render without state initialization errors', async () => {
+  // Exercise the real component and React hooks. Stub providers and child
+  // components only; SSR does not run effects or make authenticated API calls.
+  const source = (await src('src/components/messaging/MessagingWorkspace.jsx'))
+    .replace(/^import[\s\S]*?;\r?\n/gm, '')
+    .replace('export default function MessagingWorkspace', 'function MessagingWorkspace');
+  const compiled = ts.transpileModule(`${source}\nglobalThis.workspace = MessagingWorkspace;`, {
+    fileName: 'MessagingWorkspace.jsx',
+    compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2020 },
+  }).outputText;
+  const placeholder = ({ children }) => React.createElement('div', null, children);
+  for (const scenario of [
+    { pathname: '/messages', isHelper: false },
+    { pathname: '/helper/messages', isHelper: true, role: 'helper' },
+    { pathname: '/business/7/workspace/messages', businessId: 7 },
+    { pathname: '/messages/42', conversationId: '42' },
+    { pathname: '/helper/messages/inquiry/guest', inquiryId: 'guest' },
+    { pathname: '/business/7/workspace/messages', businessId: 7, embedded: true },
+  ]) {
+    for (const connected of [false, true]) {
+      const context = vm.createContext({
+        React,
+        useCallback: React.useCallback,
+        useEffect: React.useEffect,
+        useMemo: React.useMemo,
+        useRef: React.useRef,
+        useState: React.useState,
+        useTranslation: () => ({ t: key => key }),
+        useAuth: () => ({ user: { id: 1 }, isHelper: Boolean(scenario.isHelper) }),
+        useLocation: () => ({ pathname: scenario.pathname, search: '' }),
+        useParams: () => ({ conversationId: scenario.conversationId, inquiryId: scenario.inquiryId }),
+        useNavigate: () => () => {},
+        useSocket: () => ({ socket: null, connected }),
+        ...inboxRole,
+        applyIncomingConversationUpdate,
+        resolveShellChrome,
+        Link: ({ to, children }) => React.createElement('a', { href: to }, children),
+        PageShell: placeholder,
+        PageMeta: () => null,
+        SuggestDropdown: () => React.createElement('input', { 'aria-label': 'conversation search' }),
+        ConversationThread: () => React.createElement('div', { 'data-thread': 'conversation' }),
+        GuestInquiryPanel: () => React.createElement('div', { 'data-thread': 'guest' }),
+        ConversationList: placeholder,
+        QuoteHistoryPanel: placeholder,
+        ...Object.fromEntries(['Archive', 'FileText', 'MessageSquare', 'RefreshCw', 'Search', 'UserCheck', 'UserRoundCheck'].map(name => [name, () => null])),
+      });
+      vm.runInContext(compiled, context);
+      const html = renderToStaticMarkup(React.createElement(context.workspace, {
+        role: scenario.role,
+        businessId: scenario.businessId,
+        embedded: scenario.embedded,
+      }));
+      assert.match(html, /messages-workspace/, `${scenario.pathname}, connected=${connected}`);
+      assert.match(html, /messages-conversation-search|conversation search/);
+      if (scenario.conversationId) assert.match(html, /data-thread="conversation"/);
+      if (scenario.inquiryId) assert.match(html, /data-thread="guest"/);
+    }
+  }
+});
 
 // ── Fix 4: targeted conversation-list updates ─────────────────────────────
 test('applyIncomingConversationUpdate refreshes snippet, timestamp and re-sorts', () => {
