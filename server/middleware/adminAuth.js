@@ -145,7 +145,7 @@ const GRANT_LOOKUP_SQL = `
          AND d.status = 'active'
          AND d.expires_at > NOW()
          AND (grantor.role = 'super_admin' OR grantor_grant.id IS NOT NULL)
-      ORDER BY (region_id IS NULL) DESC
+      ORDER BY region_id NULLS FIRST
       LIMIT 1
     `;
 
