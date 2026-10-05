@@ -12,6 +12,20 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4-alpine
+        env:
+          POSTGRES_USER: oxsteed
+          POSTGRES_PASSWORD: statement-test-password
+          POSTGRES_DB: credit_statement_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U oxsteed -d credit_statement_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
 
     steps:
       - name: Checkout code
@@ -75,10 +89,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y ffmpeg
 
+      - name: Migrate disposable statement test database
+        working-directory: server
+        env:
+          DATABASE_URL: postgresql://oxsteed:statement-test-password@127.0.0.1:5432/credit_statement_test?sslmode=disable
+          NODE_ENV: test
+        run: npm run migrate
+
       - name: Server regression and security tests
         working-directory: server
         env:
           NODE_ENV: test
+          STATEMENT_TEST_DATABASE_URL: postgresql://oxsteed:statement-test-password@127.0.0.1:5432/credit_statement_test?sslmode=disable
         run: npm test -- --runInBand --forceExit
 
       - name: Active job status checks (Jest + optional pg_enum)
