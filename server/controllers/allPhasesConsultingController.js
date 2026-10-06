@@ -223,24 +223,12 @@ exports.getPackages = async (req, res) => {
 };
 
 exports.purchasePackage = async (req, res) => {
-  const { package_id } = req.body;
-  try {
-    const pkgResult = await db.query('SELECT * FROM consulting_packages WHERE id=$1', [package_id]);
-    if (!pkgResult.rows.length) return res.status(404).json({ error: 'Package not found' });
-
-    const pkg = pkgResult.rows[0];
-    const result = await db.query(
-      `INSERT INTO consulting_purchases (user_id, package_id, total_cost_cents, sessions_remaining, status)
-       VALUES ($1, $2, $3, $4, 'completed') RETURNING *`,
-      [req.user.id, package_id, pkg.price_cents, pkg.session_count]
-    );
-
-    logger.info('Package purchased', { user_id: req.user.id, package_id });
-    res.json(result.rows[0]);
-  } catch (err) {
-    logger.error('Error purchasing package', { error: err.message });
-    res.status(500).json({ error: 'Failed to purchase package' });
-  }
+  // Audit fix: this endpoint marked packages as completed with NO payment
+  // processing. Disabled until Stripe integration is added. Returns 503.
+  return res.status(503).json({
+    error: 'Package purchases are temporarily unavailable. Please try again later.',
+    code: 'feature_disabled',
+  });
 };
 
 // PHASE 5: Client Portal

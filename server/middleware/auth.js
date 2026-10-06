@@ -100,10 +100,18 @@ async function authenticate(req, res, next) {
       // Audit fix: also check ended_at in the database. The revocation
       // service is a cache; the database is the source of truth. If the
       // session was ended but the revocation didn't propagate, deny.
-      const { rows: [session] } = await db.query(
-        `SELECT ended_at FROM user_impersonation_log WHERE token_jti = $1 LIMIT 1`,
-        [decoded.jti]
-      ).catch(() => ({ rows: [] }));
+      // Fail-closed: if the query fails, deny (do not fail open).
+      let session = null;
+      try {
+        const { rows } = await pool.query(
+          `SELECT ended_at FROM user_impersonation_log WHERE token_jti = $1 LIMIT 1`,
+          [decoded.jti]
+        );
+        session = rows[0];
+      } catch (dbErr) {
+        logger.error('impersonation ended_at check failed', { error: dbErr.message, jti: decoded.jti });
+        return res.status(401).json({ error: 'Impersonation session verification failed' });
+      }
       if (session?.ended_at) {
         return res.status(401).json({ error: 'Impersonation session has ended' });
       }

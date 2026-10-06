@@ -21,7 +21,7 @@ const { requireFeatureEnabled } = require('../middleware/featureFlags');
 const access = require('../controllers/businessAccessCodesController');
 
 // Audit fix: Vortex is launch-hidden. Gate the API to match the UI.
-const requireVortexEnabled = requireFeatureEnabled('Vortex', 'VORTEX_ENABLED');
+const requireVortexEnabled = requireFeatureEnabled('Vortex', 'VORTEX_ENABLED', false);
 const team   = require('../controllers/businessTeamController');
 
 // ── Code preview / redeem ────────────────────────────────────────────────────

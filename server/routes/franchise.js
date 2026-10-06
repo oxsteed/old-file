@@ -6,7 +6,7 @@ const { generalLimiter } = require('../middleware/rateLimiter');
 const { requireFeatureEnabled } = require('../middleware/featureFlags');
 
 // Audit fix: Franchise is launch-hidden. Gate the API to match the UI.
-const requireFranchiseEnabled = requireFeatureEnabled('Franchise', 'FRANCHISE_ENABLED');
+const requireFranchiseEnabled = requireFeatureEnabled('Franchise', 'FRANCHISE_ENABLED', false);
 const {
   createFranchiseApplication,
   listMyFranchiseApplications,

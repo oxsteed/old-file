@@ -10,9 +10,9 @@ function envFlagEnabled(key, defaultEnabled = true) {
   return defaultEnabled;
 }
 
-function requireFeatureEnabled(feature, envKey) {
+function requireFeatureEnabled(feature, envKey, defaultEnabled = true) {
   return function featureFlagMiddleware(req, res, next) {
-    const enabled = envFlagEnabled(envKey, true);
+    const enabled = envFlagEnabled(envKey, defaultEnabled);
     if (enabled) return next();
 
     return next(
