@@ -144,7 +144,9 @@ exports.getAgreement = async (req, res) => {
       `SELECT * FROM work_agreement_change_orders WHERE agreement_id = $1::uuid ORDER BY created_at DESC LIMIT 100`,
       [agreement.id]
     );
-    return res.json({ agreement, version, signatures, changeOrders });
+    const myRole = String(agreement.helper_id) === String(req.user.id) ? 'helper'
+      : String(agreement.customer_id) === String(req.user.id) ? 'customer' : null;
+    return res.json({ agreement, version, currentVersion: version, signatures, changeOrders, myRole });
   } catch (err) {
     logger.error('work agreement detail error', { err, userId: req.user?.id });
     return res.status(500).json({ error: 'Could not load agreement.' });
