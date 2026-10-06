@@ -33,8 +33,26 @@ async function sendLocalFile(req, res, { signed = false } = {}) {
     return res.status(404).json({ error: 'File not found' });
   }
 
-  if (!signed && key.startsWith('delivery-private/')) {
-    return res.status(404).json({ error: 'File not found' });
+  // Audit fix: expand the public denylist. These prefixes contain private
+  // user data and must not be world-readable via the public endpoint,
+  // even if the key is known.
+  const PRIVATE_PREFIXES = [
+    'delivery-private/',
+    'chat/',
+    'support/',
+    'pop/',
+    'agreements/',
+    'proofs/',
+    'logistics/',
+    'direct/',
+    'user-uploads/',
+  ];
+  if (!signed) {
+    for (const prefix of PRIVATE_PREFIXES) {
+      if (key.startsWith(prefix)) {
+        return res.status(404).json({ error: 'File not found' });
+      }
+    }
   }
 
   if (signed) {

@@ -3152,6 +3152,27 @@ exports.forceLogout = async (req, res) => {
       `UPDATE sessions SET is_valid = false WHERE ${userIdEq('user_id')}`,
       [String(userId)],
     );
+    // Audit fix: also revoke all JWTs and disconnect sockets. Clearing
+    // sessions alone leaves valid tokens usable until they expire.
+    try {
+      await tokenRevocationService.revokeAllUserTokens(String(userId));
+    } catch (revokeErr) {
+      logger.warn('forceLogout: token revocation failed', { userId, error: revokeErr.message });
+    }
+    try {
+      const { io } = require('../bootstrap/realtime');
+      if (io) {
+        // Disconnect all sockets for this user.
+        const sockets = await io.fetchSockets();
+        for (const socket of sockets) {
+          if (String(socket.userId) === String(userId)) {
+            socket.disconnect(true);
+          }
+        }
+      }
+    } catch (socketErr) {
+      logger.warn('forceLogout: socket disconnect failed', { userId, error: socketErr.message });
+    }
     await logAdminAction({
       adminId: req.user.id,
       action: 'force_logout',
@@ -3545,10 +3566,15 @@ exports.endImpersonation = async (req, res) => {
     const adminId = req.user.id;
 
     // M23: only the admin who started the session can end it.
-    await db.query(
+    const { rowCount } = await db.query(
       `UPDATE user_impersonation_log SET ended_at = NOW() WHERE token_jti = $1 AND admin_id = $2 AND ended_at IS NULL`,
       [jti, adminId]
     );
+    // Audit fix: if no row was updated, the session doesn't exist, belongs
+    // to another admin, or was already ended. Don't revoke in that case.
+    if (!rowCount) {
+      return res.status(404).json({ error: 'Impersonation session not found or already ended.' });
+    }
 
     // Revoke the JWT itself: impersonation tokens skip the standard token
     // blacklist in the auth middleware, so record the jti in the revocation

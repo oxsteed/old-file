@@ -231,7 +231,13 @@ exports.getThread = async (req, res) => {
 
 /** Explicit POST break-glass (same payload as GET with reason). */
 exports.breakGlass = async (req, res) => {
-  req.query = { ...req.query, reason: req.body?.reason || req.query.reason };
+  // Audit fix: reason comes from the body only, not the query string.
+  // Query params end up in logs and URLs; the reason is sensitive.
+  const reason = req.body?.reason;
+  if (!reason || !String(reason).trim()) {
+    return res.status(400).json({ error: 'A reason is required for break-glass access.' });
+  }
+  req.query = { ...req.query, reason: String(reason).trim() };
   return exports.getThread(req, res);
 };
 
