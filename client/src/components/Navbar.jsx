@@ -22,6 +22,107 @@ export { OxSteedIcon };
 const SHOW_LEGACY_NAV_RESOURCES = LAUNCH_VISIBILITY.resourcesMenu;
 const SHOW_NETWORK_BRANCH_SWITCHER = LAUNCH_VISIBILITY.networkBranchSwitcher;
 
+// Shared trusted CSS for the mounted navbar and script-free customer snapshot.
+export const NAVBAR_STYLES = `
+        .ox-navbar-container { max-width: 1600px; }
+        .ox-navbar-container .ox-nav-desktop { gap: 2px !important; }
+        @media (max-width: 1360px) {
+          .ox-nav-desktop { display: none !important; }
+          .ox-nav-mobile-controls { display: flex !important; }
+          .ox-nav-mobile-menu {
+            display: flex;
+            max-height: calc(100dvh - 3.75rem);
+            overflow-y: auto;
+            flex-direction: column;
+            gap: var(--space-1);
+            margin-top: var(--space-1);
+            padding-top: var(--space-3);
+            padding-bottom: max(var(--space-4), env(safe-area-inset-bottom));
+            border-top: 1px solid var(--color-border);
+            overscroll-behavior: contain;
+          }
+          .ox-nav-mobile-preferences {
+            display: flex;
+            min-width: 0;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: var(--space-2);
+            padding: 0 var(--space-2) var(--space-3);
+            margin-bottom: var(--space-1);
+            border-bottom: 1px solid var(--color-border);
+          }
+          .ox-nav-mobile-preferences > :first-child { min-width: 0; }
+        }
+        .ox-nav-join-option {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 0.15rem;
+          padding: 0.65rem 0.75rem;
+          border-radius: var(--radius-sm);
+          text-decoration: none;
+          color: var(--color-text);
+          transition: background var(--transition-fast);
+        }
+        .ox-nav-join-option:hover {
+          background: var(--color-surface-2);
+        }
+        .ox-nav-join-option-title {
+          font-size: var(--text-sm);
+          font-weight: 600;
+        }
+        .ox-nav-join-option-hint {
+          font-size: 0.75rem;
+          color: var(--color-text-muted);
+          line-height: 1.35;
+        }
+        .ox-nav-resource-option {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 0.15rem;
+          padding: 0.65rem 0.75rem;
+          border-radius: var(--radius-sm);
+          text-decoration: none;
+          color: var(--color-text);
+          transition: background var(--transition-fast);
+        }
+        .ox-nav-resource-option:hover {
+          background: var(--color-surface-2);
+        }
+        .ox-nav-resource-option-title {
+          font-size: var(--text-sm);
+          font-weight: 500;
+        }
+        .ox-net-option {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 0.1rem;
+          padding: 0.6rem 0.65rem;
+          border-radius: var(--radius-sm);
+          text-decoration: none;
+          color: var(--color-text);
+          transition: background var(--transition-fast);
+        }
+        .ox-net-option:hover {
+          background: var(--color-surface-2);
+        }
+        .ox-net-option[aria-current="page"] {
+          background: var(--color-surface-2);
+          box-shadow: inset 2px 0 0 var(--color-primary);
+        }
+        .ox-net-option-title {
+          font-size: var(--text-sm);
+          font-weight: 600;
+        }
+        .ox-net-option-hint {
+          font-size: 0.72rem;
+          color: var(--color-text-muted);
+          line-height: 1.3;
+        }
+      `;
+
 export default function Navbar() {
   const { user, logout, isHelper } = useAuth();
   const { socket } = useSocket();
@@ -485,105 +586,7 @@ export default function Navbar() {
       </div>
 
       {/* Responsive hide/show via CSS */}
-      <style>{`
-        .ox-navbar-container { max-width: 1600px; }
-        .ox-navbar-container .ox-nav-desktop { gap: 2px !important; }
-        @media (max-width: 1360px) {
-          .ox-nav-desktop { display: none !important; }
-          .ox-nav-mobile-controls { display: flex !important; }
-          .ox-nav-mobile-menu {
-            display: flex;
-            max-height: calc(100dvh - 3.75rem);
-            overflow-y: auto;
-            flex-direction: column;
-            gap: var(--space-1);
-            margin-top: var(--space-1);
-            padding-top: var(--space-3);
-            padding-bottom: max(var(--space-4), env(safe-area-inset-bottom));
-            border-top: 1px solid var(--color-border);
-            overscroll-behavior: contain;
-          }
-          .ox-nav-mobile-preferences {
-            display: flex;
-            min-width: 0;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: var(--space-2);
-            padding: 0 var(--space-2) var(--space-3);
-            margin-bottom: var(--space-1);
-            border-bottom: 1px solid var(--color-border);
-          }
-          .ox-nav-mobile-preferences > :first-child { min-width: 0; }
-        }
-        .ox-nav-join-option {
-          display: flex;
-          flex-direction: column;
-          align-items: flex-start;
-          gap: 0.15rem;
-          padding: 0.65rem 0.75rem;
-          border-radius: var(--radius-sm);
-          text-decoration: none;
-          color: var(--color-text);
-          transition: background var(--transition-fast);
-        }
-        .ox-nav-join-option:hover {
-          background: var(--color-surface-2);
-        }
-        .ox-nav-join-option-title {
-          font-size: var(--text-sm);
-          font-weight: 600;
-        }
-        .ox-nav-join-option-hint {
-          font-size: 0.75rem;
-          color: var(--color-text-muted);
-          line-height: 1.35;
-        }
-        .ox-nav-resource-option {
-          display: flex;
-          flex-direction: column;
-          align-items: flex-start;
-          gap: 0.15rem;
-          padding: 0.65rem 0.75rem;
-          border-radius: var(--radius-sm);
-          text-decoration: none;
-          color: var(--color-text);
-          transition: background var(--transition-fast);
-        }
-        .ox-nav-resource-option:hover {
-          background: var(--color-surface-2);
-        }
-        .ox-nav-resource-option-title {
-          font-size: var(--text-sm);
-          font-weight: 500;
-        }
-        .ox-net-option {
-          display: flex;
-          flex-direction: column;
-          align-items: flex-start;
-          gap: 0.1rem;
-          padding: 0.6rem 0.65rem;
-          border-radius: var(--radius-sm);
-          text-decoration: none;
-          color: var(--color-text);
-          transition: background var(--transition-fast);
-        }
-        .ox-net-option:hover {
-          background: var(--color-surface-2);
-        }
-        .ox-net-option[aria-current="page"] {
-          background: var(--color-surface-2);
-          box-shadow: inset 2px 0 0 var(--color-primary);
-        }
-        .ox-net-option-title {
-          font-size: var(--text-sm);
-          font-weight: 600;
-        }
-        .ox-net-option-hint {
-          font-size: 0.72rem;
-          color: var(--color-text-muted);
-          line-height: 1.3;
-        }
-      `}</style>
+      <style>{NAVBAR_STYLES}</style>
     </nav>
   );
 }

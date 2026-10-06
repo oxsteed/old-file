@@ -14,7 +14,7 @@ interface CookieConsentContextValue {
   hasConsent: (category: keyof Omit<CookiePreferences, 'version' | 'timestamp'>) => boolean;
 }
 
-const CookieConsentContext = createContext<CookieConsentContextValue | null>(null);
+export const CookieConsentContext = createContext<CookieConsentContextValue | null>(null);
 
 /**
  * Provides a single shared instance of useCookieConsent() to the entire tree.

@@ -7,6 +7,7 @@ import logger from '../../utils/logger';
 import { useAuth } from '../../hooks/useAuth';
 import ConfirmDialog from '../lib/ConfirmDialog';
 import ProfileContentPreview from './ProfileContentPreview';
+import ProfileCustomerPreview from './ProfileCustomerPreview';
 
 // Super-admin: public profile visibility control for helpers, businesses, and
 // restaurants. Hiding here sets a sticky admin override (is_hidden_by_admin)
@@ -183,6 +184,7 @@ export default function ProfileVisibilityPage() {
   const [previewTarget, setPreviewTarget] = useState(null);
   const [previewData, setPreviewData] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewMode, setPreviewMode] = useState('inspect');
   const previewRequest = useRef(0);
 
   // History + notifications + undo
@@ -337,7 +339,8 @@ export default function ProfileVisibilityPage() {
     copy(`type${type.charAt(0).toUpperCase()}${type.slice(1)}`, { defaultValue: type });
 
   // ─── Preview ────────────────────────────────────────────────────────────
-  const openPreview = useCallback(async (profile) => {
+  const openPreview = useCallback(async (profile, mode = 'inspect') => {
+    setPreviewMode(mode);
     const request = ++previewRequest.current;
     setPreviewTarget({ ...profile, display_name: profileLabel(profile) });
     setPreviewData(null);
@@ -1739,7 +1742,10 @@ export default function ProfileVisibilityPage() {
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <button type="button" style={btn} disabled={saving} onClick={() => openPreview(r)} data-testid="pv-preview">
-                    <MonitorPlay size={15} aria-hidden /> {copy('preview', { defaultValue: 'Preview' })}
+                    <MonitorPlay size={15} aria-hidden /> {copy('inspectContent')}
+                  </button>
+                  <button type="button" style={btn} disabled={saving} onClick={() => openPreview(r, 'customer')} data-testid="pv-customer-preview">
+                    <MonitorPlay size={15} aria-hidden /> {copy('customerView')}
                   </button>
                   <button type="button" style={btn} disabled={saving} onClick={() => openSchedule(r)} data-testid="pv-schedule">
                     <CalendarClock size={15} aria-hidden /> {copy('schedule', { defaultValue: 'Schedule' })}
@@ -1980,7 +1986,13 @@ export default function ProfileVisibilityPage() {
                     : copy('previewOwnerUnlisted', { defaultValue: 'Not listed by owner' })}
                 </span>
               </div>
-              <ProfileContentPreview content={previewData.content} profileType={previewTarget.profile_type} copy={copy} />
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                <button type="button" style={btn} aria-pressed={previewMode === 'inspect'} onClick={() => setPreviewMode('inspect')}>{copy('inspectContent')}</button>
+                <button type="button" style={btn} aria-pressed={previewMode === 'customer'} onClick={() => setPreviewMode('customer')}>{copy('customerView')}</button>
+              </div>
+              {previewMode === 'customer'
+                ? <ProfileCustomerPreview content={previewData.content} profileType={previewTarget.profile_type} profileId={previewTarget.profile_id} copy={copy} />
+                : <ProfileContentPreview content={previewData.content} profileType={previewTarget.profile_type} copy={copy} />}
             </div>
           )}
         </Modal>

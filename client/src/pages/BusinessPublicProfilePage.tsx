@@ -23,16 +23,43 @@ function capitalizeWords(value) {
     .join(' ');
 }
 
-export default function BusinessPublicProfilePage() {
+export function normalizeBusinessPublicProfile(data) {
+  const profile = data.business || data.data || data;
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  return {
+    ...profile,
+    name: profile.name || profile.business_name,
+    profilePhotoUrl: profile.profilePhotoUrl || profile.logo_url,
+    coverImageUrl: profile.coverImageUrl || profile.cover_photo_url,
+    rating: profile.rating ?? profile.avg_rating,
+    reviewCount: profile.reviewCount ?? profile.total_reviews,
+    location: capitalizeWords(profile.location || [profile.address_city, profile.address_state].filter(Boolean).join(', ')),
+    teamSize: profile.teamSize ?? data.team?.length,
+    jobsCompleted: profile.jobsCompleted ?? profile.completed_jobs_count,
+    services: profile.services || data.services || [],
+    projects: profile.projects || (data.gallery || []).map(item => ({ ...item, image: item.url, name: item.caption || item.alt || '' })),
+    reviews: profile.reviews || (data.reviews || []).map(item => ({ ...item,
+      customerName: [item.first_name, item.last_name].filter(Boolean).join(' '), date: item.created_at,
+    })),
+    hours: profile.hours || (Array.isArray(data.hours) ? Object.fromEntries(data.hours.map(item => [
+      days[item.day_of_week] || String(item.day_of_week), { closed: item.is_closed, open: item.start_time, close: item.end_time },
+    ])) : data.hours),
+  };
+}
+
+// customerSnapshot is used only by the admin's static renderer, never mounted
+// as a live customer page or enabled by a URL/query parameter.
+export default function BusinessPublicProfilePage({ customerSnapshot = null } = {}) {
   const { t } = useTranslation();
   const { businessId } = useParams();
   const navigate = useNavigate();
-  const [business, setBusiness] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [business, setBusiness] = useState(() => customerSnapshot ? normalizeBusinessPublicProfile(customerSnapshot) : null);
+  const [loading, setLoading] = useState(!customerSnapshot);
   const [error, setError] = useState(null);
   const [payUrl, setPayUrl] = useState(null);
 
   useEffect(() => {
+    if (customerSnapshot) return;
     loadBusiness();
   }, [businessId]);
 
@@ -54,18 +81,7 @@ export default function BusinessPublicProfilePage() {
   const loadBusiness = async () => {
     try {
       const { data } = await api.get(`/businesses/${businessId}/public`);
-      const profile = data.business || data.data || data;
-      const loaded = {
-        ...profile,
-        name: profile.name || profile.business_name,
-        profilePhotoUrl: profile.profilePhotoUrl || profile.logo_url,
-        coverImageUrl: profile.coverImageUrl || profile.cover_photo_url,
-        rating: profile.rating ?? profile.avg_rating,
-        reviewCount: profile.reviewCount ?? profile.total_reviews,
-        location: capitalizeWords(profile.location || [profile.address_city, profile.address_state].filter(Boolean).join(', ')),
-        teamSize: profile.teamSize ?? data.team?.length,
-        hours: profile.hours || data.hours,
-      };
+      const loaded = normalizeBusinessPublicProfile(data);
       // Canonicalize: when a vanity slug is claimed, the short URL is canonical.
       const slug = loaded.profile_slug || loaded.profileSlug;
       if (slug && slug !== String(businessId)) {
@@ -96,7 +112,7 @@ export default function BusinessPublicProfilePage() {
 
   return (
     <div className="business-public-profile">
-      <PageMeta
+      {!customerSnapshot && <PageMeta
         title={business.name || business.business_name}
         description={buildPublicProfileDescription({
           displayName: business.name || business.business_name,
@@ -109,7 +125,7 @@ export default function BusinessPublicProfilePage() {
         image={business.coverImageUrl || business.cover_photo_url || business.profilePhotoUrl || business.logo_url}
         url={`${getPublicSiteUrl()}${businessProfilePath(business)}`}
         type="profile"
-      />
+      />}
       {/* Cover image (compact branded band when there is no cover photo) */}
       <ProfileHeader
         coverImageUrl={business.coverImageUrl || business.cover_photo_url}

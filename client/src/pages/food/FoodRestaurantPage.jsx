@@ -12,7 +12,7 @@ import React, { useEffect, useImperativeHandle, useMemo, useRef, useState } from
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { loadStripe } from '@stripe/stripe-js';
+import { loadStripe } from '@stripe/stripe-js/pure';
 import { CardElement, Elements, ExpressCheckoutElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -56,14 +56,17 @@ import '../../styles/FoodRestaurantPage.css';
 // Stripe for in-checkout card payments and credit top-ups. Same lazy pattern
 // as the /restaurant-credit page: null when the publishable key is missing,
 // so card surfaces stay hidden instead of crashing.
-const stripePromise = (() => {
+let stripePromise = null;
+function getStripePromise() {
+  if (stripePromise) return stripePromise;
   try {
     const key = import.meta.env?.VITE_STRIPE_PUBLISHABLE_KEY;
-    return key ? loadStripe(key) : null;
+    stripePromise = key ? loadStripe(key) : null;
+    return stripePromise;
   } catch {
     return null;
   }
-})();
+}
 
 // Quick-amount chips (major currency units) for the in-checkout credit sheet,
 // mirroring the /restaurant-credit top-up modal.
@@ -201,7 +204,9 @@ function emojiForCuisine(tags) {
 const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
 // ─── Main page component ─────────────────────────────────────────────────────
-export default function FoodRestaurantPage() {
+// Snapshot data is supplied only to renderToStaticMarkup: effects and handlers
+// are never mounted for the admin customer-view snapshot.
+export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTab = 'menu', snapshotCategory = null } = {}) {
   const { restaurantId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -209,14 +214,18 @@ export default function FoodRestaurantPage() {
   const { user } = useAuth();
 
   // Data
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState(customerSnapshot);
+  const [loading, setLoading] = useState(!customerSnapshot);
+  const [stripeClient, setStripeClient] = useState(null);
+  useEffect(() => {
+    if (!customerSnapshot) setStripeClient(getStripePromise());
+  }, [customerSnapshot]);
   const [promotions, setPromotions] = useState([]);
   const [pastOrdersRaw, setPastOrdersRaw] = useState([]);
 
   // UI
-  const [activeTab, setActiveTab] = useState('menu');
-  const [activeCategory, setActiveCategory] = useState(null);
+  const [activeTab, setActiveTab] = useState(customerSnapshot && snapshotTab === 'info' ? 'info' : 'menu');
+  const [activeCategory, setActiveCategory] = useState(customerSnapshot ? snapshotCategory : null);
   const [searchQuery, setSearchQuery] = useState('');
   const [dietaryFilter, setDietaryFilter] = useState('all');
   const [saved, setSaved] = useState(false);
@@ -291,7 +300,7 @@ export default function FoodRestaurantPage() {
   // Effects read readiness in their dependency arrays during the loading
   // render, so initialize it before registering those effects.
   const stripeChargesEnabled = Boolean(restaurant?.stripe_charges_enabled);
-  const cardPaymentsReady = stripeChargesEnabled && Boolean(stripePromise);
+  const cardPaymentsReady = stripeChargesEnabled && Boolean(stripeClient);
 
   // Track this restaurant in the client-side "recently viewed" store so the
   // food home page can resume where the user left off.
@@ -1809,13 +1818,13 @@ export default function FoodRestaurantPage() {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
-      <PageMeta
+      {!customerSnapshot && <PageMeta
         title={`${restaurant.display_name} | Local Food Directory`}
         description={seoDescription}
         image={restaurant.cover_photo_url || restaurant.logo_url}
         url={publicUrl}
         type="restaurant"
-      />
+      />}
       <Navbar />
       <div className="rp-root" style={rootStyle}>
         <div className="rp-page-wrap">
@@ -2624,8 +2633,8 @@ export default function FoodRestaurantPage() {
                     {paymentMethod === 'card' && (
                       <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 16, padding: 16, marginBottom: 20 }}>
                         <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 10 }}>{t('food.restaurant.cardDetails')}</p>
-                        {stripePromise ? (
-                          <Elements stripe={stripePromise}>
+                        {stripeClient ? (
+                          <Elements stripe={stripeClient}>
                             <CheckoutCardForm ref={cardFormRef} onExpressConfirm={handleExpressConfirm} />
                           </Elements>
                         ) : (

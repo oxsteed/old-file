@@ -11,12 +11,14 @@ test('visibility dialogs stay closed until selected and retain the selected prof
   const root = path.resolve(__dirname, '..');
   const catalog = JSON.parse(fs.readFileSync(path.join(root, 'src/locales/en.json'), 'utf8'));
   const mocks = {
-    'react-i18next': `export const useTranslation = () => ({ t: (key, options = {}) => {
+    './ProfileCustomerPreview': `import React from 'react'; export default function Preview({profileType,profileId}) {
+      return React.createElement('p', {'data-testid':'customer-fixture'}, profileType + ':' + profileId); }`,
+    'react-i18next': `const t = (key, options = {}) => {
       const value = key.split('.').reduce((node, part) => node?.[part], window.catalog);
       return String(typeof value === 'string' ? value : options.defaultValue || key)
         .replace(/\\{\\{(\\w+)\\}\\}/g, (_, name) => String(options[name] ?? ''));
-    } });`,
-    '../../hooks/useAuth': `export const useAuth = () => ({ user: { id: 'operator', role: 'super_admin' } });`,
+    }; export const useTranslation = () => ({t});`,
+    '../../hooks/useAuth': `const value = { user: { id: 'operator', role: 'super_admin' } }; export const useAuth = () => value;`,
     '../../utils/logger': `export default { error() {}, warn() {} };`,
     '../../api/axios': `export default {
       get: async (url) => {
@@ -160,6 +162,17 @@ test('visibility dialogs stay closed until selected and retain the selected prof
       await page.keyboard.press('Escape');
       await page.getByRole('dialog').waitFor({ state: 'detached' });
     }
+    // The second row action uses the selected profile, not the signed-in admin.
+    await page.getByTestId('pv-customer-preview').nth(1).click();
+    await page.getByTestId('customer-fixture').waitFor();
+    assert.equal(await page.getByTestId('customer-fixture').textContent(), 'restaurant:29');
+    const reads = await page.evaluate(() => window.requests.filter(url => /\/preview(?:-content)?$/.test(url)).length);
+    await page.getByRole('button', {name:'Inspect content',exact:true}).last().click();
+    await page.getByTestId('pv-preview-content').waitFor();
+    await page.getByRole('button', {name:'Preview customer view',exact:true}).last().click();
+    await page.getByTestId('customer-fixture').waitFor();
+    assert.equal(await page.evaluate(() => window.requests.filter(url => /\/preview(?:-content)?$/.test(url)).length), reads, 'mode switching reuses authorized content');
+    await page.keyboard.press('Escape');
     // Closing and switching profiles invalidates pending responses.
     await page.evaluate(() => window.slowBusiness = true);
     await page.getByTestId('pv-preview').first().click();

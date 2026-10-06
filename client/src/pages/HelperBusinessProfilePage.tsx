@@ -43,6 +43,7 @@ import BusinessHeader from '../components/helperProfile/BusinessHeader';
 import ServicesSection from '../components/helperProfile/ServicesSection';
 import GallerySection from '../components/helperProfile/GallerySection';
 import AvailabilitySection from '../components/helperProfile/AvailabilitySection';
+import HoursSection from '../components/helperProfile/HoursSection';
 import LocationSection from '../components/helperProfile/LocationSection';
 import PoliciesSection from '../components/helperProfile/PoliciesSection';
 import ReviewsSection from '../components/helperProfile/ReviewsSection';
@@ -63,16 +64,16 @@ import { ProfileTemplateRenderer, getTemplateBehavior } from '../components/prof
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 
 // ── Main page component ───────────────────────────────────────────────────────
-const HelperBusinessProfilePage: React.FC = () => {
+const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData | null }> = ({ customerSnapshot = null }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { user } = useAuth();
 
-  const [data, setData] = useState<HelperProfileData | null>(null);
-  const [loadState, setLoadState] = useState<LoadingState>('idle');
+  const [data, setData] = useState<HelperProfileData | null>(customerSnapshot);
+  const [loadState, setLoadState] = useState<LoadingState>(customerSnapshot ? 'success' : 'idle');
   const [error, setError] = useState<string | null>(null);
-  const [activeTemplate, setActiveTemplate] = useState<string>('default');
+  const [activeTemplate, setActiveTemplate] = useState<string>((customerSnapshot as any)?.activeTemplate || 'default');
   const [chatOpen, setChatOpen] = useState(false);
   const [savedHelperId, setSavedHelperId] = useState<number | null>(null);
   const [payUrl, setPayUrl] = useState<string | null>(null);
@@ -296,7 +297,7 @@ const HelperBusinessProfilePage: React.FC = () => {
   if (LAUNCH_VISIBILITY.specializedProfileTemplates && activeTemplate && activeTemplate !== 'default') {
     return (
       <div className="min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-white">
-        <PageMeta
+        {!customerSnapshot && <PageMeta
           title={helper.businessName || helper.ownerName}
           description={buildPublicProfileDescription({
             displayName: helper.businessName || helper.ownerName,
@@ -309,7 +310,7 @@ const HelperBusinessProfilePage: React.FC = () => {
           image={helper.coverImage || helper.avatar}
           url={`${getPublicSiteUrl()}/helpers/${id}`}
           type="profile"
-        />
+        />}
         <Navbar />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2">
           <ProfileShareControls
@@ -325,7 +326,7 @@ const HelperBusinessProfilePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-white">
-      <PageMeta
+      {!customerSnapshot && <PageMeta
         title={helper.businessName || helper.ownerName}
         description={buildPublicProfileDescription({
           displayName: helper.businessName || helper.ownerName,
@@ -338,14 +339,14 @@ const HelperBusinessProfilePage: React.FC = () => {
         image={helper.coverImage || helper.avatar}
         url={`${getPublicSiteUrl()}/helpers/${id}`}
         type="profile"
-      />
-      <ProfileJsonLd
+      />}
+      {!customerSnapshot && <ProfileJsonLd
         variant="helper"
         helperId={id!}
         helper={helper}
         location={location}
         services={services}
-      />
+      />}
       <Navbar />
 
       {/* Helper hero — PublicProfileSummaryCard via BusinessHeader / PublicProfileHero */}
@@ -442,19 +443,19 @@ const HelperBusinessProfilePage: React.FC = () => {
 
             {/* True availability (one system) + Location */}
             {visibility?.hours && id && (
-              <AvailabilitySection helperId={id} />
+              customerSnapshot ? <HoursSection hours={data.hours || []} /> : <AvailabilitySection helperId={id} />
             )}
-            <LocationSection location={location} />
+            <LocationSection location={location} customerSnapshot={Boolean(customerSnapshot)} />
 
             {visibility?.policies && (
               <PoliciesSection policies={policies} />
             )}
 
             {/* ── Dynamic blocks (Issue #35) ── fetched client-side after page load ── */}
-            <PricingBlock helperId={id!} />
+            {!customerSnapshot && <PricingBlock helperId={id!} />}
 
             {/* Helper reliability & job acceptance history */}
-            {id && (
+            {!customerSnapshot && id && (
               <CancellationStats
                 userId={id}
                 type="helper"
@@ -487,7 +488,9 @@ const HelperBusinessProfilePage: React.FC = () => {
           >
             {/* Sticky wrapper: scroll internally so tall reputation card + chat fit below navbar */}
             <div className="sticky top-[7.25rem] max-h-[calc(100vh-7.25rem)] flex flex-col gap-5 overflow-y-auto overscroll-contain">
-              <UserReputationCard userId={helper.id} />
+              {customerSnapshot
+                ? <p className="text-sm text-gray-500 dark:text-gray-400">{t('adminProfileVisibility.customerLivePanelsOmitted')}</p>
+                : <UserReputationCard userId={helper.id} />}
               {user && (
                 <button
                   onClick={() => setReportModalOpen(true)}
@@ -531,7 +534,7 @@ const HelperBusinessProfilePage: React.FC = () => {
         </button>
       </div>
 
-      <PublicProfileMessenger
+      {!customerSnapshot && <PublicProfileMessenger
         open={chatOpen}
         onOpen={handleOpenChat}
         onClose={() => setChatOpen(false)}
@@ -546,7 +549,7 @@ const HelperBusinessProfilePage: React.FC = () => {
         destination={chatDestination}
         onDestinationChange={setChatDestination}
         entityKind="helper"
-      />
+      />}
 
       {guestSignInModalOpen && (
         <div

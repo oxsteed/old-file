@@ -3,7 +3,7 @@ import i18n, { LANGUAGES, detectInitialLanguage, ensureLanguageLoaded } from '..
 import api from '../api/axios';
 import { hasExplicitLanguagePreference } from '../lib/languagePreference';
 
-const LanguageContext = createContext(null);
+export const LanguageContext = createContext(null);
 const SUPPORTED = new Set(LANGUAGES.map((item) => item.code));
 const SEO_LOCALIZED_PATHS = new Set([
   '/', '/about', '/join', '/jobs', '/helpers', '/how-it-works', '/restaurants',

@@ -7,6 +7,7 @@ import SectionCard from './ui/SectionCard';
 
 interface LocationSectionProps {
   location: LocationInfo;
+  customerSnapshot?: boolean;
 }
 
 /** Resolve a public profile's city/state/zip through the shared geo provider. */
@@ -26,7 +27,7 @@ async function geocodeCityStateZip(
 
 const ServiceAreaMapLazy = React.lazy(() => import('./ServiceAreaMapAws'));
 
-const LocationSection: React.FC<LocationSectionProps> = ({ location }) => {
+const LocationSection: React.FC<LocationSectionProps> = ({ location, customerSnapshot = false }) => {
   const { t } = useTranslation();
   const [center, setCenter] = useState<[number, number] | null>(null);
   const [geoFailed, setGeoFailed] = useState(false);
@@ -106,7 +107,8 @@ const LocationSection: React.FC<LocationSectionProps> = ({ location }) => {
           role="region"
           aria-label={mapAria}
         >
-          {loadingMap && (
+          {customerSnapshot && <p className="p-4 text-sm text-gray-400">{t('adminProfileVisibility.customerMapOmitted')}</p>}
+          {!customerSnapshot && loadingMap && (
             <div
               className="absolute inset-0 flex items-center justify-center bg-gray-900/80 z-[5]"
               aria-busy="true"
