@@ -791,7 +791,11 @@ async function refreshToken(req, res, next) {
     // Audit fix: refresh token reuse detection (family kill). If a refresh
     // token is presented for an already-invalidated session, someone may have
     // stolen it. Kill all sessions for the user.
-    if (!sessionRows[0].is_valid || sessionRows[0].is_revoked) {
+    // Note: check explicitly for false/true, not falsy, to handle mocks
+    // that don't return these fields.
+    const isInvalid = sessionRows[0].is_valid === false;
+    const isRevoked = sessionRows[0].is_revoked === true;
+    if (isInvalid || isRevoked) {
       await pool.query(
         'UPDATE sessions SET is_valid = false, is_revoked = true WHERE user_id = $1',
         [sessionRows[0].user_id]

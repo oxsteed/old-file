@@ -419,7 +419,7 @@ describe('H8d refresh token via httpOnly cookie', () => {
   function mockRefreshChain(rawToken) {
     const hashed = sha256(rawToken);
     mockQuery.mockImplementation((sql) => {
-      if (/FROM sessions s WHERE/i.test(sql)) return Promise.resolve({ rows: [{ user_id: 'u1' }] });
+      if (/FROM sessions s WHERE/i.test(sql)) return Promise.resolve({ rows: [{ user_id: 'u1', is_valid: true, is_revoked: false }] });
       if (/UPDATE sessions SET is_valid/i.test(sql)) return Promise.resolve({ rows: [{ id: 7 }] });
       if (/FROM users WHERE id/i.test(sql)) return Promise.resolve({ rows: [userRow] });
       return Promise.resolve({ rows: [{}] });
