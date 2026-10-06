@@ -867,6 +867,20 @@ exports.assignHelper = async (req, res, next) => {
       return { job: jobResult.rows[0], bid: acceptedBid };
     }, 'assign_helper');
 
+    // Audit fix: set financials on bid accept, outside the main transaction
+    // (setFinancials manages its own). The job_value was never set.
+    if (payment_method === 'oxsteed' && result.bid?.amount) {
+      try {
+        const { setFinancials } = require('../models/jobModel');
+        await setFinancials(result.job.id, Number(result.bid.amount), false);
+      } catch (finErr) {
+        logger.error('Failed to set financials on bid accept', {
+          jobId: result.job.id,
+          error: finErr.message,
+        });
+      }
+    }
+
     res.status(200).json({ message: 'Bid accepted and helper assigned', job: result.job, bid: result.bid });
 
     // Notify the hired helper (non-blocking, after response)
