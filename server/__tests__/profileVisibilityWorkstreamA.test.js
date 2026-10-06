@@ -563,3 +563,15 @@ describe('migration 617 (static contract)', () => {
     expect(sql).toMatch(/scheduled_at/);
   });
 });
+
+describe('migration 696 (static contract)', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const sql = fs.readFileSync(
+    path.join(__dirname, '..', 'migrations', '696_profile_visibility_appeals.sql'), 'utf8'
+  );
+
+  test('keeps the appeal audit foreign key aligned with admin_audit_log', () => {
+    expect(sql).toMatch(/hide_audit_id\s+BIGINT\s+NULL\s+REFERENCES\s+admin_audit_log\s*\(id\)/i);
+  });
+});

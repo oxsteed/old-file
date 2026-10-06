@@ -6,7 +6,10 @@ CREATE TABLE IF NOT EXISTS profile_visibility_appeals (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   profile_type TEXT NOT NULL CHECK (profile_type IN ('helper', 'business', 'restaurant')),
   profile_id UUID NOT NULL,
-  hide_audit_id UUID NULL REFERENCES admin_audit_log(id) ON DELETE SET NULL,
+  -- admin_audit_log.id is BIGINT from the original immutable audit schema.
+  -- Keep the foreign key type aligned so fresh databases can apply this
+  -- migration before the server test suite starts.
+  hide_audit_id BIGINT NULL REFERENCES admin_audit_log(id) ON DELETE SET NULL,
   appellant_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   message TEXT NOT NULL CHECK (char_length(message) BETWEEN 10 AND 5000),
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'denied')),
