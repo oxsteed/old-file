@@ -519,3 +519,71 @@ exports.resolveWarrantyClaim = async (req, res) => {
     return res.status(500).json({ error: 'Could not resolve warranty claim.' });
   }
 };
+
+// ─── POST /api/work-agreements/draft ─────────────────────────────────────────
+// AI-draft agreement terms from a job. Returns editable draft content;
+// the caller reviews and submits via POST /versions.
+exports.draftAgreement = async (req, res) => {
+  try {
+    const jobId = String(req.body?.jobId || '').trim();
+    if (!jobId) return res.status(400).json({ error: 'jobId is required.' });
+
+    // Load job details for the draft context.
+    const { rows: [job] } = await db.query(
+      `SELECT id, title, description, budget_cents, currency, location_text,
+              helper_id, customer_id
+         FROM jobs WHERE id = $1::uuid LIMIT 1`,
+      [jobId]
+    );
+    if (!job) return res.status(404).json({ error: 'Job not found.' });
+    if (String(job.helper_id) !== String(req.user.id) && String(job.customer_id) !== String(req.user.id)) {
+      return res.status(403).json({ error: 'Not a party to this job.' });
+    }
+
+    const { isMetaConfigured, getMetaModel, fetchMetaChat } = require('../services/aiChatProvider');
+    if (!isMetaConfigured()) {
+      return res.status(503).json({ error: 'AI drafting is not configured.' });
+    }
+
+    const prompt = `Draft a bilateral work agreement for this job. Return ONLY valid JSON with these keys:
+{
+  "scope": "clear description of the work to be performed",
+  "priceCents": integer total price in cents,
+  "timeline": "expected start and completion",
+  "warrantyMonths": integer,
+  "warrantyTerms": "what the warranty covers",
+  "reimbursementTerms": "what happens if the work fails",
+  "terms": "additional bilateral terms protecting both parties"
+}
+
+Job title: ${job.title || 'Untitled'}
+Job description: ${job.description || 'No description provided'}
+Budget: ${job.budget_cents ? (job.budget_cents / 100).toFixed(2) : 'not specified'} ${job.currency || 'USD'}
+Location: ${job.location_text || 'not specified'}
+
+Keep it fair to both helper and customer. OxSteed is the records keeper only, not a party. No em dashes.`;
+
+    const result = await fetchMetaChat(getMetaModel(), [
+      { role: 'system', content: 'You draft fair bilateral work agreements. Return only valid JSON.' },
+      { role: 'user', content: prompt },
+    ], { temperature: 0.4, maxTokens: 1500 });
+
+    if (!result.ok) {
+      logger.warn('workAgreement draft failed', { error: result.error, jobId });
+      return res.status(502).json({ error: 'Could not draft agreement. Please enter terms manually.' });
+    }
+
+    let draft;
+    try {
+      const cleaned = result.reply.replace(/^```json\s*/i, '').replace(/\s*```$/, '').trim();
+      draft = JSON.parse(cleaned);
+    } catch {
+      return res.status(502).json({ error: 'Could not parse draft. Please enter terms manually.' });
+    }
+
+    return res.json({ draft });
+  } catch (err) {
+    logger.error('workAgreement draft error', { err, adminId: req.user?.id });
+    return res.status(500).json({ error: 'Could not draft agreement.' });
+  }
+};

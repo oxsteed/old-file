@@ -17,6 +17,7 @@ export default function NewWorkAgreementPage() {
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [drafting, setDrafting] = useState(false);
   const [error, setError] = useState('');
   const [warrantyMonths, setWarrantyMonths] = useState(6);
   const [warrantyTerms, setWarrantyTerms] = useState('');
@@ -29,6 +30,22 @@ export default function NewWorkAgreementPage() {
       .catch(() => setError(t('workAgreement.jobLoadError', { defaultValue: 'Could not load the job.' })))
       .finally(() => setLoading(false));
   }, [jobId, t]);
+
+  const draftWithAi = async () => {
+    setDrafting(true);
+    setError('');
+    try {
+      const { data } = await api.post('/api/work-agreements/draft', { jobId });
+      const d = data.draft || {};
+      if (d.warrantyMonths) setWarrantyMonths(d.warrantyMonths);
+      if (d.warrantyTerms) setWarrantyTerms(d.warrantyTerms);
+      if (d.reimbursementTerms) setReimbursementTerms(d.reimbursementTerms);
+    } catch (e) {
+      setError(e.response?.data?.error || t('workAgreement.draftError', { defaultValue: 'Could not draft terms. Enter them manually.' }));
+    } finally {
+      setDrafting(false);
+    }
+  };
 
   const create = async () => {
     setCreating(true);
@@ -92,12 +109,19 @@ export default function NewWorkAgreementPage() {
             </label>
 
             {error && <p className="wa-error" role="alert">{error}</p>}
-            <button type="button" className="wa-primary" onClick={create} disabled={creating || !user}>
-              {creating
-                ? t('workAgreement.creating', { defaultValue: 'Creating…' })
-                : t('workAgreement.createCta', { defaultValue: 'Create agreement' })}
-              <ArrowRight size={16} aria-hidden="true" />
-            </button>
+            <div className="wa-actions">
+              <button type="button" className="wa-secondary" onClick={draftWithAi} disabled={drafting || creating || !user}>
+                {drafting
+                  ? t('workAgreement.drafting', { defaultValue: 'Drafting…' })
+                  : t('workAgreement.draftCta', { defaultValue: 'Draft terms with AI' })}
+              </button>
+              <button type="button" className="wa-primary" onClick={create} disabled={creating || drafting || !user}>
+                {creating
+                  ? t('workAgreement.creating', { defaultValue: 'Creating…' })
+                  : t('workAgreement.createCta', { defaultValue: 'Create agreement' })}
+                <ArrowRight size={16} aria-hidden="true" />
+              </button>
+            </div>
             {!user && <p className="wa-muted">{t('workAgreement.signInRequired', { defaultValue: 'Sign in to create an agreement.' })}</p>}
           </section>
         )}

@@ -6,6 +6,7 @@ const wa = require('../controllers/workAgreementController');
 // (only the helper or customer on the agreement may act).
 
 // Agreements
+router.post('/draft', authenticate, wa.draftAgreement);
 router.post('/', authenticate, wa.createAgreement);
 router.get('/', authenticate, wa.listAgreements);
 router.get('/:id', authenticate, wa.getAgreement);
