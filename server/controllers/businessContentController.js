@@ -247,6 +247,15 @@ exports.getBusinessGallery = async (req, res) => {
     const client = await db.connect();
 
     try {
+      // Audit fix: unlisted businesses hide their gallery.
+      const { rows: [biz] } = await client.query(
+        `SELECT is_listed FROM businesses WHERE id = $1`,
+        [businessId]
+      ).catch(() => ({ rows: [] }));
+      if (biz && biz.is_listed === false) {
+        return sendError(res, 404, 'Business not found');
+      }
+
       const result = await client.query(
         `SELECT id, url, caption, alt, sort_order, created_at
          FROM business_gallery
