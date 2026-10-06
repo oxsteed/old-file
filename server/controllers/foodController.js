@@ -1976,7 +1976,10 @@ async function loadRestaurantMenu(restaurantId, { managed = false } = {}) {
   };
 }
 
-exports.getRestaurant = async (req, res, next) => {
+exports.getRestaurant = (req, res, next) => respondRestaurantProfile(req, res, next, false);
+exports.getAdminProfilePreview = (req, res, next) => respondRestaurantProfile(req, res, next, true);
+
+async function respondRestaurantProfile(req, res, next, adminPreview) {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId || req.params.id);
     if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
@@ -1987,14 +1990,14 @@ exports.getRestaurant = async (req, res, next) => {
          FROM food_restaurants fr
          JOIN businesses b ON b.id = fr.business_id
         WHERE fr.id = $1
-          AND fr.status IN ('active', 'paused')
+          AND b.deleted_at IS NULL
+          ${adminPreview ? '' : `AND fr.status IN ('active', 'paused')
                     AND fr.discovery_status = 'visible'
                     AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
           AND b.is_active = TRUE
           AND b.is_listed = TRUE
           AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
-          AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
-          AND b.deleted_at IS NULL`,
+          AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'`}`,
       [restaurantId]
     );
     const restaurant = restaurants[0];
@@ -2018,7 +2021,7 @@ exports.getRestaurant = async (req, res, next) => {
     const menuData = await loadRestaurantMenu(restaurantId);
 
     const payload = publicRestaurantPayload(attachRestaurantHours(restaurant));
-    payload.oxsteed_pay_url = await getOwnerOxsteedPayUrl(restaurant.business_id);
+    if (!adminPreview) payload.oxsteed_pay_url = await getOwnerOxsteedPayUrl(restaurant.business_id);
 
     res.json({
       restaurant: payload,
@@ -2027,7 +2030,7 @@ exports.getRestaurant = async (req, res, next) => {
   } catch (err) {
     next(err);
   }
-};
+}
 
 exports.getManagedRestaurantMenu = async (req, res, next) => {
   try {

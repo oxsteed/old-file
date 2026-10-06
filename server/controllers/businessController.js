@@ -1281,7 +1281,14 @@ function generateLast6Months() {
 // ── Public business profile ───────────────────────────────────────────────────
 // GET /api/businesses/:id/public - no auth required.
 // Returns everything a customer needs to see the business profile page.
-async function getBusinessPublicProfile(req, res) {
+function getBusinessPublicProfile(req, res) {
+  return respondBusinessProfile(req, res, false);
+}
+
+// This entry point is private to the guarded admin content-preview route.
+const getAdminProfilePreview = (req, res) => respondBusinessProfile(req, res, true);
+
+async function respondBusinessProfile(req, res, adminPreview) {
   try {
     // :id accepts either the numeric business id or its vanity profile_slug.
     let bizId = req.params.id;
@@ -1326,14 +1333,15 @@ async function getBusinessPublicProfile(req, res) {
        LEFT JOIN helper_profiles hp ON hp.user_id = b.user_id
        LEFT JOIN businesses pb_prim ON pb_prim.user_id = u.id AND pb_prim.is_primary = TRUE AND pb_prim.is_active = TRUE
        WHERE b.id        = $1
-         AND b.is_active = TRUE
+         AND b.deleted_at IS NULL
+         AND u.deleted_at IS NULL
+         ${adminPreview ? '' : `AND b.is_active = TRUE
          AND b.is_listed = TRUE
          AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
          AND b.setup_status = 'active'
          AND b.business_kind = 'service'
-         AND u.deleted_at IS NULL
          AND u.is_active = TRUE
-         AND u.email_verified = TRUE`,
+         AND u.email_verified = TRUE`}`,
       [bizId]
     );
 
@@ -1540,6 +1548,7 @@ module.exports = {
   getBusiness, getBusinessOnboarding, updateBusinessOnboarding, completeBusinessOnboarding,
   uploadBusinessPhotos, getBusinessMediaAsset,
   getBusinessPublicProfile,
+  getAdminProfilePreview,
   getBusinessProfileForEditor,
   getBusinessAnalytics,
   getBusinessTax, refreshTaxEstimates, markTaxPaid,

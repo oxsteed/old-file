@@ -21,13 +21,15 @@ test('visibility dialogs stay closed until selected and retain the selected prof
     '../../api/axios': `export default {
       get: async (url) => {
         window.requests.push(url);
-        await new Promise(resolve => setTimeout(resolve, 30));
+        await new Promise(resolve => setTimeout(resolve, url.includes('/business/') && window.slowBusiness ? 250 : 30));
         if (url.endsWith('/search')) return { data: { results: [
           { profile_type: 'business', profile_id: '17', display_name: 'Managed business',
             owner_visible: true, is_active: true, is_hidden_by_admin: false, is_visible: true },
           { profile_type: 'restaurant', profile_id: '29', display_name: 'Managed restaurant',
-            owner_visible: true, is_active: true, is_hidden_by_admin: true, is_visible: false }
-        ], total: 2, page: 1, limit: 25, hasMore: false } };
+            owner_visible: true, is_active: true, is_hidden_by_admin: true, is_visible: false },
+          { profile_type: 'helper', profile_id: '00000000-0000-4000-8000-000000000123', display_name: 'Managed helper',
+            owner_visible: false, is_active: true, is_hidden_by_admin: true, is_visible: false }
+        ], total: 3, page: 1, limit: 25, hasMore: false } };
         if (url.endsWith('/timeline')) return { data: { timeline: [
           { id: 'event-1', action: 'hidden', actor_name: 'Review operator',
             description: 'Selected profile hold', created_at: '2026-10-06T12:00:00Z' }
@@ -35,6 +37,21 @@ test('visibility dialogs stay closed until selected and retain the selected prof
         if (url.endsWith('/active-work')) return { data: { has_active_work: false } };
         if (url.endsWith('/impact')) return { data: { views_30d: 5 } };
         if (url.endsWith('/restore-checklist')) return { data: { items: [], all_clear: true } };
+        if (url.endsWith('/preview-content')) {
+          if (window.failPreview) throw new Error('Preview unavailable');
+          if (url.includes('/restaurant/')) return { data: {
+            restaurant: { display_name: 'Managed restaurant', description: 'Hidden restaurant content', currency_code: 'JPY',
+              operating_hours: { weekly: { mon: { open: '09:00', close: '17:00' } } } },
+            menu: [{ id: 1, name: 'Lunch', items: [{ id: 2, name: 'Soup', price_cents: 1200 }] }]
+          } };
+          if (url.includes('/helper/')) return { data: {
+            helper: { businessName: 'Managed helper', bio: 'Unlisted helper content' },
+            services: [{ id: 3, name: 'Repairs', description: 'Helper service content' }], visibility: { services: false }
+          } };
+          return { data: { business: { business_name: 'Managed business', description: 'Business content <script>alert(1)</script>' },
+            services: [{ id: 4, name: 'Consulting', price: '45.00', price_unit: 'hour' }],
+            gallery: [{ id: 5, url: 'javascript:alert(1)', caption: 'Unsafe URL fixture' }] } };
+        }
         if (url.endsWith('/preview')) return { data: {
           display_name: 'Managed business', canonical_url: '/public-fixture', is_visible: true
         } };
@@ -95,7 +112,7 @@ test('visibility dialogs stay closed until selected and retain the selected prof
     await page.getByRole('dialog').waitFor({ state: 'detached' });
     assert.equal(await timeline.evaluate(node => node === document.activeElement), true, 'closing restores focus to the row');
 
-    await page.getByTestId('pv-restore').click();
+    await page.getByTestId('pv-restore').first().click();
     await page.getByRole('heading', { name: 'Restore checklist' }).waitFor();
     await page.getByText('What was missing when "Managed restaurant" was hidden, and is it fixed now?').waitFor();
     assert.equal(await page.getByRole('dialog').count(), 1);
@@ -114,13 +131,49 @@ test('visibility dialogs stay closed until selected and retain the selected prof
     await page.getByRole('dialog').waitFor({ state: 'detached' });
 
     // Preview and schedule callers mount the modal conditionally and omit open.
-    for (const [button, heading] of [['pv-preview', 'Preview: Managed business'], ['pv-schedule', catalog.adminProfileVisibility.scheduleTitle]]) {
+    for (const [button, heading] of [['pv-schedule', catalog.adminProfileVisibility.scheduleTitle]]) {
       await page.getByTestId(button).first().click();
       await page.getByRole('heading', { name: heading, exact: true }).waitFor();
       assert.equal(await page.getByRole('dialog').count(), 1);
       await page.keyboard.press('Escape');
       await page.getByRole('dialog').waitFor({ state: 'detached' });
     }
+    for (const [index, name, body] of [[0, 'Managed business', 'Consulting'], [1, 'Managed restaurant', 'Soup'], [2, 'Managed helper', 'Repairs']]) {
+      await page.getByTestId('pv-preview').nth(index).click();
+      await page.getByRole('heading', { name: 'Preview: ' + name, exact: true }).waitFor();
+      await page.getByTestId('pv-preview-content').waitFor();
+      await page.getByRole('heading', { name: body, exact: true }).waitFor();
+      assert.equal(await page.locator('iframe').count(), 0, 'no public iframe or CSP exception');
+      assert.equal(await page.getByRole('dialog').count(), 1);
+      if (index === 0) {
+        await page.getByText('Business content <script>alert(1)</script>', { exact: true }).waitFor();
+        assert.equal(await page.locator('img[src^="javascript:"]').count(), 0);
+      }
+      if (index === 1) {
+        await page.getByText('mon: 09:00 - 17:00', { exact: true }).waitFor();
+        await page.getByText('Price: ¥1,200', { exact: true }).waitFor();
+        await page.setViewportSize({ width: 390, height: 844 });
+        assert.equal(await page.getByRole('dialog').evaluate(node => node.scrollWidth <= node.clientWidth), true, 'mobile preview must not overflow horizontally');
+        await page.setViewportSize({ width: 1280, height: 720 });
+      }
+      if (index === 2) await page.getByText(catalog.adminProfileVisibility.previewSectionUnlisted).waitFor();
+      await page.keyboard.press('Escape');
+      await page.getByRole('dialog').waitFor({ state: 'detached' });
+    }
+    // Closing and switching profiles invalidates pending responses.
+    await page.evaluate(() => window.slowBusiness = true);
+    await page.getByTestId('pv-preview').first().click();
+    await page.keyboard.press('Escape');
+    await page.getByTestId('pv-preview').nth(1).click();
+    await page.getByText('Hidden restaurant content').waitFor();
+    await page.waitForTimeout(300);
+    assert.equal(await page.getByText('Business content <script>alert(1)</script>', { exact: true }).count(), 0);
+    await page.keyboard.press('Escape');
+    await page.evaluate(() => window.failPreview = true);
+    await page.getByTestId('pv-preview').nth(1).click();
+    await page.getByText(catalog.adminProfileVisibility.previewUnavailable, { exact: true }).waitFor();
+    assert.equal(await page.getByTestId('pv-preview-content').count(), 0);
+    await page.keyboard.press('Escape');
     assert.equal(await page.evaluate(() => window.writes), 0);
     assert.deepEqual(errors, []);
   } finally {

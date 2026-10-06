@@ -701,7 +701,17 @@ async function listHelpers(req, res, next) {
 
 // ── GET /api/helpers/:id/profile ──────────────────────────────────────────────
 // :id accepts either the helper's user UUID or their vanity profile_slug.
-async function getHelperProfile(req, res, next) {
+function getHelperProfile(req, res, next) {
+  return respondHelperProfile(req, res, next, false);
+}
+
+// Called only by the permission-guarded admin preview endpoint. Never derive
+// this flag from request query/body/headers, including on the public route.
+function getAdminProfilePreview(req, res, next) {
+  return respondHelperProfile(req, res, next, true);
+}
+
+async function respondHelperProfile(req, res, next, adminPreview) {
   try {
     let { id } = req.params;
 
@@ -749,12 +759,12 @@ async function getHelperProfile(req, res, next) {
          LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
          WHERE u.id = $1
            AND u.deleted_at IS NULL
-           AND u.is_active = TRUE
            AND u.role IN ('helper', 'helper_pro', 'broker')
+           ${adminPreview ? '' : `AND u.is_active = TRUE
            AND u.email_verified = TRUE
            AND u.onboarding_completed = TRUE
            AND COALESCE(hp.is_listed, TRUE) = TRUE
-           AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
+           AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`}`,
         [id],
       ),
       pool.query(
@@ -823,7 +833,7 @@ async function getHelperProfile(req, res, next) {
 
     const reviews = reviewRes.rows.map((r) => ({
       id:          String(r.id),
-      authorName:  `${r.first_name} ${r.last_name[0]}.`,
+      authorName:  `${r.first_name || ''} ${r.last_name ? `${r.last_name[0]}.` : ''}`.trim(),
       rating:      r.rating,
       date:        r.created_at,
       serviceUsed: '',
@@ -1494,7 +1504,7 @@ async function removeCredential(req, res, next) {
   }
 }
 
-module.exports = { listHelpers, getHelperProfile, getHelperStatus, searchSkills, searchLicenses, getHelperAvailability,
+module.exports = { listHelpers, getHelperProfile, getAdminProfilePreview, getHelperStatus, searchSkills, searchLicenses, getHelperAvailability,
   getHelperAvailabilitySummary, getHelperPricing, getHelperSlots, toggleListing, getMyListingStatus, getMyAvailability, toggleAvailability, removeCredential,
   fetchOpenRestaurantsNear,
 };

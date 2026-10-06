@@ -237,6 +237,12 @@ describe('public profile enforcement (static contract)', () => {
     // a guarded endpoint must not fail CI, nor mask an unguarded existing one.
     const handler = require('../controllers/foodController')[handlerName];
     expect(typeof handler).toBe('function');
+    if (handlerName === 'getRestaurant') {
+      // Public wrapper always passes false; real hidden/public and guarded
+      // preview behavior is tested in profileVisibilityPreview.test.js.
+      expect(handler.toString()).toContain('respondRestaurantProfile(req, res, next, false)');
+      return;
+    }
     const src = handler.toString();
     expect(src).toMatch(/fr\.discovery_status\s*=\s*'visible'/);
     expect(src).toMatch(/COALESCE\(fr\.is_hidden_by_admin,\s*FALSE\)\s*=\s*FALSE/);

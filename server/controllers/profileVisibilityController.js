@@ -467,6 +467,31 @@ exports.getProfileActiveWork = async (req, res) => {
   }
 };
 
+// Shared public serializers, but a separate permission-guarded entry point.
+// Query parameters on public endpoints cannot enable this preview mode.
+exports.getProfilePreviewContent = async (req, res, next) => {
+  const { type, id } = req.params;
+  const validId = type === 'helper'
+    ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id))
+    : /^[1-9]\d*$/.test(String(id)) && Number.isSafeInteger(Number(id));
+  if (!['helper', 'business', 'restaurant'].includes(type) || !validId) {
+    return res.status(400).json({ error: 'Invalid profile type or ID.' });
+  }
+  res.set('Cache-Control', 'private, no-store');
+  try {
+    await logAdminAction({
+      adminId: req.user.id, action: 'profile_visibility_previewed',
+      targetType: TABLE_BY_TYPE[type].targetType, targetId: String(id), req,
+      throwOnError: true,
+    });
+    const controller = type === 'helper' ? require('./helpersController')
+      : type === 'business' ? require('./businessController') : require('./foodController');
+    return controller.getAdminProfilePreview(req, res, next);
+  } catch (err) {
+    return next(err);
+  }
+};
+
 function publicBaseUrl() {
   return String(process.env.PUBLIC_APP_URL || process.env.APP_URL || 'https://oxsteed.com').replace(/\/$/, '');
 }

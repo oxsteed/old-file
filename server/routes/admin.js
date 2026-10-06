@@ -123,6 +123,7 @@ router.get('/profile-visibility/:type/:id/restore-checklist', requireAdmin, requ
 router.get('/profile-visibility/:type/:id/notifications', requireAdmin, requirePermission('manage_profile_visibility'), profileVisApprCtrl.listOwnerNotifications);
 router.get('/profile-visibility/:type/:id/active-work', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.getProfileActiveWork);
 router.get('/profile-visibility/:type/:id/preview', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.getProfilePreview);
+router.get('/profile-visibility/:type/:id/preview-content', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.getProfilePreviewContent);
 router.post('/profile-visibility/:type/:id/undo', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.undoVisibilityChange);
 router.put('/profile-visibility',        requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.setProfileVisibility);
 

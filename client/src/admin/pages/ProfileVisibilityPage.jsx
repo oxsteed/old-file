@@ -6,6 +6,7 @@ import api from '../../api/axios';
 import logger from '../../utils/logger';
 import { useAuth } from '../../hooks/useAuth';
 import ConfirmDialog from '../lib/ConfirmDialog';
+import ProfileContentPreview from './ProfileContentPreview';
 
 // Super-admin: public profile visibility control for helpers, businesses, and
 // restaurants. Hiding here sets a sticky admin override (is_hidden_by_admin)
@@ -13,7 +14,7 @@ import ConfirmDialog from '../lib/ConfirmDialog';
 // own profile. Use it for incomplete profiles or non-compliance.
 //
 // Extended controls (workstream C):
-//  - Profile preview (public canonical page in an iframe) before acting.
+//  - Authenticated, read-only profile content preview before acting.
 //  - Active-work warnings before hiding, with acknowledgement or a
 //    second-admin approval request.
 //  - Scheduled hide/restore with IANA time zones (server-side worker).
@@ -182,6 +183,7 @@ export default function ProfileVisibilityPage() {
   const [previewTarget, setPreviewTarget] = useState(null);
   const [previewData, setPreviewData] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const previewRequest = useRef(0);
 
   // History + notifications + undo
   const [historyTarget, setHistoryTarget] = useState(null);
@@ -336,17 +338,19 @@ export default function ProfileVisibilityPage() {
 
   // ─── Preview ────────────────────────────────────────────────────────────
   const openPreview = useCallback(async (profile) => {
+    const request = ++previewRequest.current;
     setPreviewTarget({ ...profile, display_name: profileLabel(profile) });
     setPreviewData(null);
     setPreviewLoading(true);
     try {
-      const { data } = await api.get(`/admin/profile-visibility/${profile.profile_type}/${profile.profile_id}/preview`);
-      setPreviewData(data || {});
+      const path = `/admin/profile-visibility/${profile.profile_type}/${profile.profile_id}`;
+      const [metadata, content] = await Promise.all([api.get(`${path}/preview`), api.get(`${path}/preview-content`)]);
+      if (request === previewRequest.current) setPreviewData({ ...metadata.data, content: content.data });
     } catch (err) {
       logger.error('profile visibility preview failed', { message: err.message });
-      setPreviewData({ unavailable: true });
+      if (request === previewRequest.current) setPreviewData({ unavailable: true });
     } finally {
-      setPreviewLoading(false);
+      if (request === previewRequest.current) setPreviewLoading(false);
     }
   }, []);
 
@@ -1952,12 +1956,12 @@ export default function ProfileVisibilityPage() {
         <Modal
           labelledBy="pv-preview-title"
           title={copy('previewTitle', { name: profileLabel(previewTarget), defaultValue: `Preview: ${profileLabel(previewTarget)}` })}
-          onClose={() => { setPreviewTarget(null); setPreviewData(null); }}
+          onClose={() => { previewRequest.current += 1; setPreviewTarget(null); setPreviewData(null); }}
           wide
         >
           {previewLoading ? (
             <p style={{ color: 'var(--color-text-muted)' }} role="status">{copy('previewLoading', { defaultValue: 'Loading preview' })}</p>
-          ) : !previewData || previewData.unavailable || !previewData.canonical_url ? (
+          ) : !previewData || previewData.unavailable || !previewData.content ? (
             <p style={{ color: 'var(--color-text-muted)' }}>{copy('previewUnavailable', { defaultValue: 'Preview is not available for this profile.' })}</p>
           ) : (
             <div>
@@ -1976,11 +1980,7 @@ export default function ProfileVisibilityPage() {
                     : copy('previewOwnerUnlisted', { defaultValue: 'Not listed by owner' })}
                 </span>
               </div>
-              <iframe
-                src={previewData.canonical_url}
-                title={copy('previewTitle', { name: profileLabel(previewData?.display_name ? { ...previewTarget, display_name: previewData.display_name } : previewTarget), defaultValue: `Preview: ${profileLabel(previewData?.display_name ? { ...previewTarget, display_name: previewData.display_name } : previewTarget)}` })}
-                style={{ width: '100%', height: '60vh', border: '1px solid var(--color-border)', borderRadius: '8px', background: '#fff' }}
-              />
+              <ProfileContentPreview content={previewData.content} profileType={previewTarget.profile_type} copy={copy} />
             </div>
           )}
         </Modal>
