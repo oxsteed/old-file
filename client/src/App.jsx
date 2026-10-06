@@ -150,6 +150,8 @@ const DiscoverPage = lazyWithRetry(() => import('./pages/DiscoverPage'));
 const MyBookingsPage = lazyWithRetry(() => import('./pages/MyBookingsPage'));
 const ToolRentalsAnalytics = lazyWithRetry(() => import('./pages/ToolRentalsAnalytics'));
 const QRCodeGeneratorPage = lazyWithRetry(routeLoaders.qrGenerator, { name: 'qrGenerator' });
+const WorkAgreementPage = lazyWithRetry(() => import('./pages/WorkAgreementPage'));
+const NewWorkAgreementPage = lazyWithRetry(() => import('./pages/NewWorkAgreementPage'));
 const QrGeneratorLandingPage = lazyWithRetry(() => import('./pages/QrGeneratorLandingPage'));
 const DeliveryLandingPage = lazyWithRetry(() => import('./pages/DeliveryLandingPage'));
 const QrPaySetupPage = lazyWithRetry(() => import('./pages/QrPaySetupPage'));
@@ -643,6 +645,9 @@ export default function App() {
                     <Route path="/qr-generator"  element={<Guarded><QrGeneratorRoute /></Guarded>} />
                     {/* QR payments: helpers and businesses get paid by QR */}
                     <Route path="/qr-payments"   element={<Guarded><ProtectedRoute><RouteErrorBoundary><QrPaySetupPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    {/* Work agreement records room: bilateral agreements with drawn signatures */}
+                    <Route path="/agreements/new" element={<Guarded><ProtectedRoute><RouteErrorBoundary><NewWorkAgreementPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/agreements/:id" element={<Guarded><ProtectedRoute><RouteErrorBoundary><WorkAgreementPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
                     {/* Consulting Portal (All Phases) */}
                     <Route path="/consulting/portal" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ConsultingFullPortal /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
