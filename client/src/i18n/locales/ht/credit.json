@@ -476,6 +476,7 @@
   "transactionTransferFee": "Frè transfè",
   "transactionSubBankConversion": "Konvèsyon lajan nan sou-bank",
   "transactionSubBankPayout": "Peman nan sou-bank",
+  "transactionSubBankPayoutReversal": "Ranvèsman peman nan sou-bank",
   "transactionActivity": "Aktivite Credit",
   "reservedStatus": "Rezève",
   "capturedStatus": "Kaptire",

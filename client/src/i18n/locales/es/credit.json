@@ -475,6 +475,7 @@
   "transactionTransferFee": "Comisión de transferencia",
   "transactionSubBankConversion": "Conversión de moneda en subbanco",
   "transactionSubBankPayout": "Pago desde subbanco",
+  "transactionSubBankPayoutReversal": "Reversión del pago desde subbanco",
   "transactionActivity": "Actividad de Credit",
   "reservedStatus": "Reservado",
   "capturedStatus": "Capturado",

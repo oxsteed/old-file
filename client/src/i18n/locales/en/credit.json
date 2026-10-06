@@ -475,6 +475,7 @@
   "transactionTransferFee": "Transfer fee",
   "transactionSubBankConversion": "Sub-bank currency conversion",
   "transactionSubBankPayout": "Sub-bank payout",
+  "transactionSubBankPayoutReversal": "Sub-bank payout reversal",
   "transactionActivity": "Credit activity",
   "reservedStatus": "Reserved",
   "capturedStatus": "Captured",
