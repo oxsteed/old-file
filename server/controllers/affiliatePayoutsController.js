@@ -285,7 +285,7 @@ async function processPayout(req, res, next) {
   try {
     const userId = req.user?.id;
     const { payoutId } = req.params;
-    const { payment_method_id, payout_method = 'stripe_direct' } = req.body;
+    const { payout_method = 'stripe_direct' } = req.body;
 
     if (!userId) {
       throw new AppError('Authentication required', 401, 'no_auth');
@@ -293,11 +293,31 @@ async function processPayout(req, res, next) {
     if (payout_method !== 'stripe_direct') {
       throw new AppError('Unsupported payout method', 400, 'invalid_payout_method');
     }
-    if (!payment_method_id) {
-      throw new AppError('A payout destination is required', 400, 'missing_payout_destination');
-    }
     if (!stripe) {
       throw new AppError('Payout processing is not configured', 503, 'stripe_not_configured');
+    }
+
+    // Audit fix: the payout destination must come from the user's verified
+    // stored payout method, never from caller-supplied input. This closes
+    // the vector where a caller could redirect a payout to any Stripe
+    // destination.
+    const { rows: [payoutMethod] } = await pool.query(
+      `SELECT * FROM payout_methods
+        WHERE helper_id = $1
+          AND status IN ('verified', 'active')
+          AND is_primary = true
+        ORDER BY updated_at DESC
+        LIMIT 1`,
+      [userId]
+    );
+    if (!payoutMethod) {
+      throw new AppError('No verified payout method on file', 400, 'no_payout_method');
+    }
+    const payment_method_id = payoutMethod.stripe_payment_method_id
+      || payoutMethod.stripe_connect_account_id
+      || payoutMethod.id;
+    if (!payment_method_id) {
+      throw new AppError('Payout method has no usable destination', 400, 'invalid_payout_method');
     }
 
     // Get payout

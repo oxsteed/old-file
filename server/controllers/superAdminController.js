@@ -3552,11 +3552,13 @@ exports.endImpersonation = async (req, res) => {
 
     // Revoke the JWT itself: impersonation tokens skip the standard token
     // blacklist in the auth middleware, so record the jti in the revocation
-    // store. Audit/logging failures here must not resurrect the session.
+    // store. Fail closed: if revocation fails, return 500 so the caller
+    // knows the session may still be active.
     try {
       await tokenRevocationService.revokeImpersonationSession(jti);
     } catch (revokeErr) {
-      logger.warn('endImpersonation: failed to revoke impersonation jti', { jti, error: revokeErr.message });
+      logger.error('endImpersonation: failed to revoke impersonation jti', { jti, error: revokeErr.message });
+      return res.status(500).json({ error: 'Failed to revoke impersonation session. It may still be active.' });
     }
 
     res.json({ message: 'Impersonation session ended.' });

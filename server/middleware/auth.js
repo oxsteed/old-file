@@ -80,6 +80,16 @@ async function authenticate(req, res, next) {
       if (sessionRevoked) {
         return res.status(401).json({ error: 'Impersonation session has ended' });
       }
+      // Audit fix: also check ended_at in the database. The revocation
+      // service is a cache; the database is the source of truth. If the
+      // session was ended but the revocation didn't propagate, deny.
+      const { rows: [session] } = await db.query(
+        `SELECT ended_at FROM user_impersonation_log WHERE token_jti = $1 LIMIT 1`,
+        [decoded.jti]
+      ).catch(() => ({ rows: [] }));
+      if (session?.ended_at) {
+        return res.status(401).json({ error: 'Impersonation session has ended' });
+      }
       req.isImpersonated   = true;
       req.impersonatedBy   = decoded.impersonated_by;
       req.impersonationJti = decoded.jti;
