@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle,
@@ -18,6 +18,7 @@ import adminApi from '../../../lib/adminApi';
 import { SuggestDropdown } from '../../../components/SuggestDropdown';
 import '../../lib/suggestDropdownAdmin.css';
 import { formatCreditDateTime } from '../../../lib/creditDateTime';
+import { createStableIdempotencyKeyStore } from './creditIdempotency';
 
 const PAGE_SIZE = 25;
 
@@ -306,6 +307,7 @@ function HistorySection({ title, count, children }) {
 
 function ConversionPolicySection({ restaurants }) {
   const { t } = useTranslation();
+  const idempotencyKeysRef = useRef(createStableIdempotencyKeyStore());
   const [policies, setPolicies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
@@ -333,11 +335,17 @@ function ConversionPolicySection({ restaurants }) {
     setBusyId(restaurant.id);
     setNotice('');
     setError('');
+    const keyPayload = {
+      restaurantId: restaurant.id,
+      allowRestaurantToOxsteed: allow,
+    };
     try {
       await adminApi.put('/admin/super/oxsteed-credit/restaurant-conversion-policies', {
-        restaurantId: restaurant.id,
-        allowRestaurantToOxsteed: allow,
+        ...keyPayload,
+      }, {
+        headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-restaurant-conversion-policy', keyPayload) },
       });
+      idempotencyKeysRef.current.clear('credit-restaurant-conversion-policy', keyPayload);
       setNotice(t('adminConversionPolicyQueued'));
       await loadPolicies();
     } catch (err) {
