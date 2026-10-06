@@ -51,7 +51,7 @@ profiles AS (
   UNION ALL
   SELECT 'business'::text,
          b.id::text,
-         b.business_name::text,
+         COALESCE(NULLIF(TRIM(b.business_name), ''), NULLIF(TRIM(u.email), ''), 'Business ' || b.id::text)::text,
          u.email::text,
          COALESCE(b.is_hidden_by_admin, FALSE),
          b.hidden_reason,
@@ -64,8 +64,8 @@ profiles AS (
   UNION ALL
   SELECT 'restaurant'::text,
          fr.id::text,
-         COALESCE(fr.display_name, b.business_name)::text,
-         b.business_name::text,
+         COALESCE(NULLIF(TRIM(fr.display_name), ''), NULLIF(TRIM(b.business_name), ''), 'Restaurant ' || fr.id::text)::text,
+         COALESCE(NULLIF(TRIM(b.business_name), ''), 'Restaurant ' || fr.id::text)::text,
          COALESCE(fr.is_hidden_by_admin, FALSE),
          fr.hidden_reason,
          (fr.discovery_status = 'visible'),
@@ -501,7 +501,7 @@ exports.getProfilePreview = async (req, res) => {
       ));
     } else if (profileType === 'business') {
       ({ rows: [row] } = await db.query(
-        `SELECT b.business_name AS display_name,
+        `SELECT COALESCE(NULLIF(TRIM(b.business_name), ''), 'Business ' || b.id::text) AS display_name,
                 COALESCE(b.is_hidden_by_admin, FALSE) AS is_hidden_by_admin,
                 COALESCE(b.is_listed, TRUE) AS owner_visible,
                 COALESCE(b.is_active, TRUE) AS is_active
@@ -511,7 +511,7 @@ exports.getProfilePreview = async (req, res) => {
       ));
     } else {
       ({ rows: [row] } = await db.query(
-        `SELECT COALESCE(fr.display_name, b.business_name) AS display_name,
+        `SELECT COALESCE(NULLIF(TRIM(fr.display_name), ''), NULLIF(TRIM(b.business_name), ''), 'Restaurant ' || fr.id::text) AS display_name,
                 COALESCE(fr.is_hidden_by_admin, FALSE) AS is_hidden_by_admin,
                 (fr.discovery_status = 'visible') AS owner_visible,
                 TRUE AS is_active

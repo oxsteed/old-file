@@ -527,7 +527,6 @@ function AuditRunView({ t, restaurantId, auditId, templateItems, staff, isManage
   const scoreByItem = {};
   (audit.scores || []).forEach((sc) => { scoreByItem[sc.item_id] = sc; });
   const scoreRows = (templateItems || []).map((ti) => ({
-    item_id: ti.id,
     label: ti.label,
     instructions: ti.instructions,
     max_score: ti.max_score,

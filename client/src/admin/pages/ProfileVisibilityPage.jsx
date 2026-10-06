@@ -52,6 +52,20 @@ function loadSavedViews() {
   }
 }
 
+// The directory normally supplies display_name, but older or incomplete
+// business and restaurant records may not have one. Every destructive or
+// investigative dialog must still identify the exact managed profile.
+function profileLabel(profile) {
+  const candidate = [profile?.display_name, profile?.name, profile?.detail]
+    .map((value) => String(value || '').trim())
+    .find(Boolean);
+  if (candidate) return candidate;
+
+  const type = String(profile?.profile_type || 'profile');
+  const typeName = type.charAt(0).toUpperCase() + type.slice(1);
+  return `${typeName} ${profile?.profile_id || ''}`.trim();
+}
+
 // Convert a "YYYY-MM-DDTHH:mm" wall time in an IANA zone to an ISO instant.
 // Refines twice so DST transitions land on the correct offset.
 function wallTimeToIso(wall, timeZone) {
@@ -316,7 +330,7 @@ export default function ProfileVisibilityPage() {
 
   // ─── Preview ────────────────────────────────────────────────────────────
   const openPreview = useCallback(async (profile) => {
-    setPreviewTarget(profile);
+    setPreviewTarget({ ...profile, display_name: profileLabel(profile) });
     setPreviewData(null);
     setPreviewLoading(true);
     try {
@@ -403,7 +417,7 @@ export default function ProfileVisibilityPage() {
       if (meaningful) {
         // Show the impact preview modal; the admin acknowledges there
         // before the hide proceeds through the normal confirmation path.
-        setImpactTarget(profile);
+        setImpactTarget({ ...profile, display_name: profileLabel(profile) });
         setImpactData(impact);
         if (impactRes.status !== 'fulfilled') {
           setImpactError(copy('impactError', { defaultValue: 'Could not load impact data. You can still proceed.' }));
@@ -483,7 +497,7 @@ export default function ProfileVisibilityPage() {
 
   // ─── Schedule ───────────────────────────────────────────────────────────
   const openSchedule = useCallback((profile) => {
-    setScheduleTarget(profile);
+    setScheduleTarget({ ...profile, display_name: profileLabel(profile) });
     setScheduleWhen('');
     setScheduleAction(profile.is_hidden_by_admin ? 'restore' : 'hide');
     setScheduleReason('admin_decision');
@@ -792,7 +806,7 @@ export default function ProfileVisibilityPage() {
 
   // ─── History + notifications + undo ─────────────────────────────────────
   const loadHistory = async (profile) => {
-    setHistoryTarget(profile);
+    setHistoryTarget({ ...profile, display_name: profileLabel(profile) });
     setHistoryRows([]);
     setHistoryLoading(true);
     setUndoMessage(null);
@@ -844,7 +858,7 @@ export default function ProfileVisibilityPage() {
 
   // ─── Impact preview (before hide) ───────────────────────────────────────
   const openImpactPreview = useCallback(async (profile) => {
-    setImpactTarget(profile);
+    setImpactTarget({ ...profile, display_name: profileLabel(profile) });
     setImpactData(null);
     setImpactAck(false);
     setImpactError('');
@@ -863,7 +877,7 @@ export default function ProfileVisibilityPage() {
 
   // ─── Restore checklist ──────────────────────────────────────────────────
   const openRestoreChecklist = useCallback(async (profile) => {
-    setChecklistTarget(profile);
+    setChecklistTarget({ ...profile, display_name: profileLabel(profile) });
     setChecklistData(null);
     setChecklistLoading(true);
     try {
@@ -879,7 +893,7 @@ export default function ProfileVisibilityPage() {
 
   // ─── Visibility timeline ────────────────────────────────────────────────
   const openTimeline = useCallback(async (profile) => {
-    setTimelineTarget(profile);
+    setTimelineTarget({ ...profile, display_name: profileLabel(profile) });
     setTimelineRows([]);
     setTimelineLoading(true);
     try {
@@ -1054,7 +1068,7 @@ export default function ProfileVisibilityPage() {
     const header = ['Type', 'Name', 'Detail', 'Visibility', 'Owner status'];
     const rows = results.map((r) => [
       r.profile_type,
-      r.display_name,
+      profileLabel(r),
       r.detail || '',
       r.is_hidden_by_admin ? 'hidden' : r.is_visible ? 'visible' : 'unlisted',
       r.is_active ? 'active' : 'inactive',
@@ -1700,12 +1714,12 @@ export default function ProfileVisibilityPage() {
                     type="checkbox"
                     checked={selected.includes(keyFor(r))}
                     onChange={() => toggleSelected(r)}
-                    aria-label={copy('selectProfile', { name: r.display_name, defaultValue: `Select ${r.display_name}` })}
+                    aria-label={copy('selectProfile', { name: profileLabel(r), defaultValue: `Select ${profileLabel(r)}` })}
                   />
                 </label>
                 <div style={{ flex: '1 1 14rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-                    <strong style={{ color: 'var(--color-text)', fontSize: '1rem' }}>{r.display_name}</strong>
+                    <strong style={{ color: 'var(--color-text)', fontSize: '1rem' }}>{profileLabel(r)}</strong>
                     <span style={badge('var(--color-bg)', 'var(--color-text-muted)')}>{typeLabel(r.profile_type)}</span>
                   </div>
                   {r.detail && <div style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', marginTop: '0.2rem' }}>{r.detail}</div>}
@@ -1857,7 +1871,7 @@ export default function ProfileVisibilityPage() {
         <div role="dialog" aria-modal="true" aria-labelledby="profile-visibility-history-title" style={{ ...card, marginTop: '1.5rem', border: '1px solid var(--color-border)' }} data-testid="pv-history-panel">
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <h2 id="profile-visibility-history-title" style={{ color: 'var(--color-text)', fontSize: '1.1rem', margin: 0 }}>
-              {copy('historyTitle', { name: historyTarget.display_name, defaultValue: `Visibility history: ${historyTarget.display_name}` })}
+              {copy('historyTitle', { name: profileLabel(historyTarget), defaultValue: `Visibility history: ${profileLabel(historyTarget)}` })}
             </h2>
             <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
               {historyRows.length > 0 && (
@@ -1931,7 +1945,7 @@ export default function ProfileVisibilityPage() {
       {previewTarget && (
         <Modal
           labelledBy="pv-preview-title"
-          title={copy('previewTitle', { name: previewTarget.display_name, defaultValue: `Preview: ${previewTarget.display_name}` })}
+          title={copy('previewTitle', { name: profileLabel(previewTarget), defaultValue: `Preview: ${profileLabel(previewTarget)}` })}
           onClose={() => { setPreviewTarget(null); setPreviewData(null); }}
           wide
         >
@@ -1958,7 +1972,7 @@ export default function ProfileVisibilityPage() {
               </div>
               <iframe
                 src={previewData.canonical_url}
-                title={copy('previewTitle', { name: previewData.display_name || previewTarget.display_name, defaultValue: `Preview: ${previewData.display_name || previewTarget.display_name}` })}
+                title={copy('previewTitle', { name: profileLabel(previewData?.display_name ? { ...previewTarget, display_name: previewData.display_name } : previewTarget), defaultValue: `Preview: ${profileLabel(previewData?.display_name ? { ...previewTarget, display_name: previewData.display_name } : previewTarget)}` })}
                 style={{ width: '100%', height: '60vh', border: '1px solid var(--color-border)', borderRadius: '8px', background: '#fff' }}
               />
             </div>
@@ -1974,7 +1988,7 @@ export default function ProfileVisibilityPage() {
         >
           <div style={{ display: 'grid', gap: '0.85rem' }}>
             <div style={{ color: 'var(--color-text)', fontSize: '0.9rem' }}>
-              <strong>{scheduleTarget.display_name}</strong>{' '}
+              <strong>{profileLabel(scheduleTarget)}</strong>{' '}
               <span style={{ color: 'var(--color-text-muted)' }}>({typeLabel(scheduleTarget.profile_type)})</span>
             </div>
             <div>
@@ -2044,10 +2058,10 @@ export default function ProfileVisibilityPage() {
         open={!!restoreTarget}
         title={copy('restoreTitle', { defaultValue: 'Restore public visibility?' })}
         message={restoreTarget && (restoreTarget.owner_visible && restoreTarget.is_active
-          ? copy('restoreMessage', { name: restoreTarget.display_name, defaultValue: `"${restoreTarget.display_name}" will become publicly visible again.` })
+          ? copy('restoreMessage', { name: profileLabel(restoreTarget), defaultValue: `"${profileLabel(restoreTarget)}" will become publicly visible again.` })
           : copy('restoreUnlistedMessage', {
-            name: restoreTarget.display_name,
-            defaultValue: `"${restoreTarget.display_name}" will no longer be hidden by the admin. It will remain unavailable publicly until the owner lists it${restoreTarget.is_active ? '' : ' and the profile is active'}.`,
+            name: profileLabel(restoreTarget),
+            defaultValue: `"${profileLabel(restoreTarget)}" will no longer be hidden by the admin. It will remain unavailable publicly until the owner lists it${restoreTarget.is_active ? '' : ' and the profile is active'}.`,
           }))}
         confirmLabel={copy('restore', { defaultValue: 'Restore' })}
         cancelLabel={copy('cancel', { defaultValue: 'Cancel' })}
@@ -2058,7 +2072,7 @@ export default function ProfileVisibilityPage() {
       <ConfirmDialog
         open={!!undoTarget}
         title={copy('undoTitle', { defaultValue: 'Undo the most recent visibility change?' })}
-        message={undoTarget && copy('undoConfirmMessage', { name: undoTarget.display_name, defaultValue: `"${undoTarget.display_name}" will be returned to its previous visibility state.` })}
+        message={undoTarget && copy('undoConfirmMessage', { name: profileLabel(undoTarget), defaultValue: `"${profileLabel(undoTarget)}" will be returned to its previous visibility state.` })}
         confirmLabel={copy('undo', { defaultValue: 'Undo last change' })}
         cancelLabel={copy('cancel', { defaultValue: 'Cancel' })}
         onClose={() => setUndoTarget(null)}
@@ -2072,7 +2086,7 @@ export default function ProfileVisibilityPage() {
         ) : (
           <div style={{ display: 'grid', gap: '0.85rem' }}>
             <p style={{ margin: 0, color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
-              {copy('impactSubtitle', { name: impactTarget?.display_name, defaultValue: `Hiding "${impactTarget?.display_name}" will have this impact:` })}
+              {copy('impactSubtitle', { name: profileLabel(impactTarget), defaultValue: `Hiding "${profileLabel(impactTarget)}" will have this impact:` })}
             </p>
             {impactError && (
               <p role="alert" style={{ color: '#b91c1c', fontSize: '0.85rem', margin: 0 }}>{impactError}</p>
@@ -2114,7 +2128,7 @@ export default function ProfileVisibilityPage() {
         ) : (
           <div style={{ display: 'grid', gap: '0.85rem' }}>
             <p style={{ margin: 0, color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
-              {copy('checklistSubtitle', { name: checklistTarget?.display_name, defaultValue: `What was missing when "${checklistTarget?.display_name}" was hidden, and is it fixed now?` })}
+              {copy('checklistSubtitle', { name: profileLabel(checklistTarget), defaultValue: `What was missing when "${profileLabel(checklistTarget)}" was hidden, and is it fixed now?` })}
             </p>
             {checklistData?.loadFailed && (
               <p role="alert" style={{ color: '#b91c1c', fontSize: '0.85rem', margin: 0 }}>
@@ -2166,7 +2180,7 @@ export default function ProfileVisibilityPage() {
       </Modal>
 
       {/* Visibility timeline dialog */}
-      <Modal open={!!timelineTarget} onClose={() => { setTimelineTarget(null); setTimelineRows([]); }} title={copy('timelineTitle', { name: timelineTarget?.display_name, defaultValue: `Visibility timeline: ${timelineTarget?.display_name}` })} labelledBy="pv-timeline-title" wide>
+      <Modal open={!!timelineTarget} onClose={() => { setTimelineTarget(null); setTimelineRows([]); }} title={copy('timelineTitle', { name: profileLabel(timelineTarget), defaultValue: `Visibility timeline: ${profileLabel(timelineTarget)}` })} labelledBy="pv-timeline-title" wide>
         {timelineLoading ? (
           <p style={{ color: 'var(--color-text-muted)' }} role="status">{copy('timelineLoading', { defaultValue: 'Loading timeline' })}</p>
         ) : timelineRows.length === 0 ? (
