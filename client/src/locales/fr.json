@@ -29810,6 +29810,14 @@
     "signWarning": "Votre signature dessinée est contraignante. Une nouvelle version exige une nouvelle signature.",
     "signError": "Impossible d’enregistrer la signature.",
     "signing": "Signature…",
-    "signSubmit": "Signer"
+    "signSubmit": "Signer",
+    "draftError": "Impossible de rédiger les conditions. Saisissez-les manuellement.",
+    "drafting": "Rédaction…",
+    "draftCta": "Rédiger les conditions avec l’IA",
+    "issueTitle": "Vous avez un problème avec ce travail ?",
+    "issueBody": "Consultez les conditions de garantie ci-dessous et déposez d’abord une réclamation ici. OxSteed enregistre la réclamation ; vous et l’autre partie la réglez.",
+    "coSignTitle": "Signer l’avenant",
+    "coSignWarning": "Votre signature dessinée est requise. Les avenants sont contraignants une fois signés par les deux parties.",
+    "coSignSubmit": "Signer et envoyer"
   }
 }

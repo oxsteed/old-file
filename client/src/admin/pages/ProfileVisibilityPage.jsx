@@ -89,10 +89,13 @@ function wallTimeToIso(wall, timeZone) {
 
 // Accessible modal shell: Escape closes, focus moves in on open and is
 // restored on close. Parent supplies role/aria via labelledBy.
-function Modal({ labelledBy, title, onClose, wide, children }) {
+function Modal({ open = true, labelledBy, title, onClose, wide, children }) {
   const ref = useRef(null);
   const previouslyFocused = useRef(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
+    if (!open) return undefined;
     previouslyFocused.current = document.activeElement;
     const timer = window.setTimeout(() => {
       const firstFocusable = ref.current?.querySelector(
@@ -103,7 +106,7 @@ function Modal({ labelledBy, title, onClose, wide, children }) {
     const onKeyDown = (event) => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        onClose();
+        closeRef.current();
       }
     };
     document.addEventListener('keydown', onKeyDown);
@@ -112,7 +115,10 @@ function Modal({ labelledBy, title, onClose, wide, children }) {
       document.removeEventListener('keydown', onKeyDown);
       if (previouslyFocused.current?.focus) previouslyFocused.current.focus();
     };
-  }, [onClose]);
+  }, [open]);
+  // Keep the hook order stable while closed and avoid installing focus or
+  // keyboard handlers for dialogs that have no selected profile.
+  if (!open) return null;
   return (
     <div
       style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', padding: '1rem' }}

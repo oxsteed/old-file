@@ -29810,6 +29810,14 @@
     "signWarning": "Siyati desine ou obligatwa. Yon nouvo vèsyon mande siyen ankò.",
     "signError": "Pa t ka anrejistre siyati a.",
     "signing": "Ap siyen…",
-    "signSubmit": "Siyen"
+    "signSubmit": "Siyen",
+    "draftError": "Pa t ka ekri kondisyon yo. Antre yo manyèlman.",
+    "drafting": "Ap ekri kondisyon yo…",
+    "draftCta": "Ekri kondisyon yo ak entèlijans atifisyèl",
+    "issueTitle": "Ou gen yon pwoblèm ak travay sa a?",
+    "issueBody": "Gade kondisyon garanti yo anba a epi depoze yon reklamasyon isit la anvan. OxSteed anrejistre reklamasyon an; ou menm ak lòt pati a regle li.",
+    "coSignTitle": "Siyen lòd chanjman an",
+    "coSignWarning": "Siyati desine ou nesesè. Lòd chanjman yo vin obligatwa lè toulede pati yo siyen.",
+    "coSignSubmit": "Siyen epi voye"
   }
 }

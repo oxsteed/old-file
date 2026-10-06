@@ -29810,6 +29810,14 @@
     "signWarning": "Your drawn signature is binding. A new version requires signing again.",
     "signError": "Could not save the signature.",
     "signing": "Signing…",
-    "signSubmit": "Sign"
+    "signSubmit": "Sign",
+    "draftError": "Could not draft terms. Enter them manually.",
+    "drafting": "Drafting…",
+    "draftCta": "Draft terms with AI",
+    "issueTitle": "Having an issue with this work?",
+    "issueBody": "Check your warranty terms below and file a claim here first. OxSteed records the claim; you and the other party resolve it.",
+    "coSignTitle": "Sign the change order",
+    "coSignWarning": "Your drawn signature is required. Change orders are binding once both parties sign.",
+    "coSignSubmit": "Sign and submit"
   }
 }

@@ -29810,6 +29810,14 @@
     "signWarning": "Tu firma dibujada es vinculante. Una nueva versión requiere firmar de nuevo.",
     "signError": "No se pudo guardar la firma.",
     "signing": "Firmando…",
-    "signSubmit": "Firmar"
+    "signSubmit": "Firmar",
+    "draftError": "No se pudieron redactar los términos. Introdúcelos manualmente.",
+    "drafting": "Redactando…",
+    "draftCta": "Redactar términos con IA",
+    "issueTitle": "¿Tienes un problema con este trabajo?",
+    "issueBody": "Revisa los términos de garantía abajo y presenta primero un reclamo aquí. OxSteed registra el reclamo; tú y la otra parte lo resuelven.",
+    "coSignTitle": "Firmar la orden de cambio",
+    "coSignWarning": "Se requiere tu firma dibujada. Las órdenes de cambio son vinculantes cuando ambas partes firman.",
+    "coSignSubmit": "Firmar y enviar"
   }
 }
