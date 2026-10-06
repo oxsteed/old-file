@@ -853,7 +853,7 @@ exports.setUserDiditEnforcement = async (req, res) => {
     if (required) {
       try {
         await db.query(
-          `UPDATE sessions SET is_valid = false WHERE ${userIdEq('user_id')}`,
+          `UPDATE sessions SET is_valid = false, is_revoked = true WHERE ${userIdEq('user_id')}`,
           [String(userId)],
         );
         socketService.broadcastToUser(userId, 'force_logout', { reason: 'didit_enforcement_required' });
@@ -2719,7 +2719,7 @@ exports.deleteUser = async (req, res) => {
     }
     try {
       await db.query(
-        `UPDATE sessions SET is_valid = false WHERE ${userIdEq('user_id')}`,
+        `UPDATE sessions SET is_valid = false, is_revoked = true WHERE ${userIdEq('user_id')}`,
         [String(userId)],
       );
     } catch { /* non-fatal */ }
@@ -3094,7 +3094,7 @@ exports.toggleAdminAccountStatus = async (req, res) => {
     }
     // Invalidate all sessions for this admin and kick any live WebSocket connection
     await db.query(
-      `UPDATE sessions SET is_valid = false WHERE ${userIdEq('user_id')}`,
+      `UPDATE sessions SET is_valid = false, is_revoked = true WHERE ${userIdEq('user_id')}`,
       [String(id)],
     );
     if (!newStatus) socketService.broadcastToUser(id, 'force_logout', { reason: 'account_disabled' });
@@ -3149,7 +3149,7 @@ exports.forceLogout = async (req, res) => {
     const { rows } = await db.query('SELECT id, email, role FROM users WHERE id = $1', [userId]);
     if (!rows.length) return res.status(404).json({ error: 'User not found.' });
     await db.query(
-      `UPDATE sessions SET is_valid = false WHERE ${userIdEq('user_id')}`,
+      `UPDATE sessions SET is_valid = false, is_revoked = true WHERE ${userIdEq('user_id')}`,
       [String(userId)],
     );
     // Audit fix: also revoke all JWTs and disconnect sockets. Clearing
@@ -3394,7 +3394,7 @@ exports.setUserPasswordBySuperAdmin = async (req, res) => {
     );
 
     await db.query(
-      `UPDATE sessions SET is_valid = false WHERE ${userIdEq('user_id')}`,
+      `UPDATE sessions SET is_valid = false, is_revoked = true WHERE ${userIdEq('user_id')}`,
       [String(userId)],
     );
     socketService.disconnectUserSockets(userId);

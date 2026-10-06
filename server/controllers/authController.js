@@ -791,7 +791,7 @@ async function refreshToken(req, res, next) {
     }
 
     const { rows: invalidateRows } = await pool.query(
-      'UPDATE sessions SET is_valid = false WHERE refresh_token = $1 RETURNING id',
+      'UPDATE sessions SET is_valid = false, is_revoked = true WHERE refresh_token = $1 RETURNING id',
       [hashedToken]
     );
     if (invalidateRows.length === 0) {
@@ -847,7 +847,7 @@ async function logout(req, res) {
     if (token) {
       const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
       const { rows: invalidateRows } = await pool.query(
-        'UPDATE sessions SET is_valid = false WHERE refresh_token = $1 RETURNING id',
+        'UPDATE sessions SET is_valid = false, is_revoked = true WHERE refresh_token = $1 RETURNING id',
         [hashedToken]
       );
       if (invalidateRows.length > 0) {
@@ -867,7 +867,7 @@ async function logout(req, res) {
         if (decoded?.id) {
           userId = decoded.id;
           const { rows: invalidateRows } = await pool.query(
-            `UPDATE sessions SET is_valid = false WHERE ${userIdEq('user_id')} RETURNING id`,
+            `UPDATE sessions SET is_valid = false, is_revoked = true WHERE ${userIdEq('user_id')} RETURNING id`,
             [String(decoded.id)]
           );
           if (invalidateRows.length > 0) {
@@ -1445,7 +1445,7 @@ async function resetPassword(req, res) {
 
     // Audit fix: also invalidate all sessions. Revoking JWTs alone leaves
     // refresh tokens in the sessions table that can mint new access tokens.
-    await pool.query('UPDATE sessions SET is_valid = false WHERE user_id = $1', [rows[0].id]);
+    await pool.query('UPDATE sessions SET is_valid = false, is_revoked = true WHERE user_id = $1', [rows[0].id]);
 
     // FIX #10 & #11: Audit log password reset
     const { ipAddress, userAgent } = extractRequestDetails(req);
@@ -1750,7 +1750,7 @@ async function changePassword(req, res) {
     // Audit fix: also invalidate all sessions (except the current one, which
     // stays valid so the user isn't logged out of the session they just used).
     await pool.query(
-      'UPDATE sessions SET is_valid = false WHERE user_id = $1 AND id != $2',
+      'UPDATE sessions SET is_valid = false, is_revoked = true WHERE user_id = $1 AND id != $2',
       [req.user.id, req.sessionId || '00000000-0000-0000-0000-000000000000']
     );
 
