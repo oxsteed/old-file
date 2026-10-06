@@ -1,7 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const { authLimiter, conversationMessageLimiter } = require('../middleware/rateLimiter');
+const { optionalAuth } = require('../middleware/auth');
 const { initiateSupportChat, sendSupportMessage, getAdminStatus } = require('../controllers/supportChatController');
+
+// Audit fix: wire explicit auth. Guests are allowed (controller handles
+// null userId), but the middleware must run so req.user is populated
+// for authenticated callers instead of silently staying undefined.
 
 /**
  * GET /api/support-chat/admin-status
@@ -15,13 +20,13 @@ router.get('/admin-status', getAdminStatus);
  * Uses the stricter auth limiter (30/15min per IP): every initiation can fan
  * out admin emails, so the general 200/15min bucket is too generous here.
  */
-router.post('/initiate', authLimiter, initiateSupportChat);
+router.post('/initiate', authLimiter, optionalAuth, initiateSupportChat);
 
 /**
  * POST /api/support-chat/messages
  * Send a message in an active support chat (authenticated users only).
  * Guests use POST /support-chat/initiate to create a support ticket.
  */
-router.post('/messages', conversationMessageLimiter, sendSupportMessage);
+router.post('/messages', conversationMessageLimiter, optionalAuth, sendSupportMessage);
 
 module.exports = router;

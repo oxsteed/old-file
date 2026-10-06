@@ -361,6 +361,26 @@ const getOrCreateConversation = async (req, res) => {
     const bizId = businessId ? parseInt(businessId, 10) || null : null;
     const jobIdParam = jobId || null;
 
+    // Audit fix: if a businessId is supplied, verify the helper is actually
+    // a member of that business. Otherwise a caller could bind a
+    // conversation to a foreign business and inherit its ACL.
+    if (bizId) {
+      const { rows: [membership] } = await pool.query(
+        `SELECT 1 FROM business_members WHERE business_id = $1 AND user_id = $2 LIMIT 1`,
+        [bizId, helperId]
+      ).catch(() => ({ rows: [] }));
+      if (!membership) {
+        // Fall back: the business owner can also be messaged via the business.
+        const { rows: [owned] } = await pool.query(
+          `SELECT 1 FROM businesses WHERE id = $1 AND user_id = $2 LIMIT 1`,
+          [bizId, helperId]
+        ).catch(() => ({ rows: [] }));
+        if (!owned) {
+          return res.status(403).json({ error: 'Helper is not a member of this business' });
+        }
+      }
+    }
+
     // Use a single consolidated query that handles all three cases with conditional WHERE
     const result = await pool.query(
       `SELECT * FROM conversations
