@@ -124,7 +124,7 @@ function createRealtimeServer({
           return next(new Error('Guest support authentication failed'));
         }
       }
-      const token = socket.handshake.auth?.token || socket.handshake.query?.token;
+      const token = socket.handshake.auth?.token;
       if (!token) return next(new Error('Authentication required'));
       try {
         const decoded = jwt.verify(token, jwtSecret, { algorithms: ['HS256'] });

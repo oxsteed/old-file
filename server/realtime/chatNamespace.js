@@ -252,11 +252,9 @@ function bindChatNamespace(namespace, { pool, socketService, logger }) {
       });
     });
 
-    if (['helper', 'helper_pro', 'broker'].includes(socket.userRole)) {
-      socket.join('guest_chat_waiting');
-      logger.debug('Helper joined guest chat waiting room', { userId });
-    }
-
+    // Audit fix: helpers no longer auto-join the guest chat waiting room.
+    // The broadcast there included PII. Helpers join explicitly when they
+    // opt into guest chat.
     socketService.trackConnect(userId, socket.id);
     logger.debug('Socket connected', { userId, role: socket.userRole, socketId: socket.id });
 
