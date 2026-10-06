@@ -53,8 +53,12 @@ const SEO_COPY_KEYS = {
   '/consulting-intake': { title: 'consulting.intakePageTitle', description: 'consulting.intakePageDesc' },
   '/direct': { title: 'publicSeo.direct.services.title', description: 'publicSeo.direct.services.description' },
   '/direct/services': { title: 'publicSeo.direct.services.title', description: 'publicSeo.direct.services.description' },
+  '/direct/skills': { title: 'directCatalog.categoryDirectoryTitle', description: 'directCatalog.categoryDirectorySubtitle' },
+  '/direct/tools': { title: 'directCatalog.toolsDirectoryTitle', description: 'directCatalog.toolsDirectorySubtitle' },
   '/direct/request-quote': { title: 'directPortal.request.title', description: 'directPortal.request.subtitle' },
   '/direct/request-quote/thanks': { title: 'directPortal.thanks.title', description: 'directPortal.thanks.subtitle' },
+  '/delivery': { title: 'deliveryLanding.metaTitle', description: 'deliveryLanding.metaDescription' },
+  '/qr-generator': { title: 'qrLanding.metaTitle', description: 'qrLanding.metaDescription' },
   '/direct/view-quote': { title: 'directPortal.lookup.title', description: 'directPortal.lookup.subtitle' },
   '/support/escalation': { title: 'support.escalation.pageTitle', description: 'support.escalation.pageDesc' },
   '/status': { title: 'statusPage.metaTitle', description: 'statusPage.metaDescription' },
@@ -649,6 +653,16 @@ const MARKETING_PAGES = {
     description: 'Explore OxSteed Direct services for home help, tool-based jobs, delivery, hauling, cleanup, and setup within 60 miles of Springfield, Ohio.',
     schemaType: 'Service',
   },
+  '/direct/skills': {
+    title: 'Direct Skills | OxSteed Direct',
+    description: 'Browse every Direct skill category, with live service and tool counts.',
+    schemaType: 'CollectionPage',
+  },
+  '/direct/tools': {
+    title: 'Direct Tools and Equipment | OxSteed Direct',
+    description: 'See the equipment OxSteed uses to support Direct work.',
+    schemaType: 'CollectionPage',
+  },
   '/direct/request-quote': {
     title: 'Request a Quote | OxSteed Direct',
     description: 'Tell OxSteed what you need and request a direct service quote with no account required. Service is available within 60 miles of Springfield, Ohio.',
@@ -658,6 +672,16 @@ const MARKETING_PAGES = {
     title: 'Quote Request Received | OxSteed Direct',
     description: 'Your OxSteed Direct quote request has been received and is being reviewed.',
     noIndex: true,
+  },
+  '/delivery': {
+    title: 'OxSteed Delivery | Fast Local Delivery',
+    description: 'Get food, parcels, and errands delivered by vetted local helpers. Track every delivery in real time.',
+    schemaType: 'Service',
+  },
+  '/qr-generator': {
+    title: 'QR Generator | Get Paid with a QR Code',
+    description: 'Create a payment QR code in seconds. Customers scan, pay by card, and the money lands in your account.',
+    schemaType: 'WebPage',
   },
   '/support/escalation': {
     title: 'OxSteed Support | Get Help From Our Team',
@@ -1415,7 +1439,8 @@ async function handleRestaurantProfile(restaurantId, template, res, next, req) {
     `SELECT fr.id, fr.display_name, fr.slug, fr.description, fr.cuisine_tags,
             fr.cover_photo_url, fr.logo_url, fr.address_city, fr.address_state,
             fr.address_country, fr.price_level, fr.fulfillment_modes,
-            fr.avg_rating, fr.rating_count, fr.updated_at
+            fr.avg_rating, fr.rating_count, fr.updated_at, fr.currency_code,
+            fr.operating_hours
        FROM food_restaurants fr
        JOIN businesses b ON b.id = fr.business_id
       WHERE fr.id = $1::bigint
@@ -1470,6 +1495,45 @@ async function handleRestaurantProfile(restaurantId, template, res, next, req) {
         addressCountry: restaurant.address_country || 'US',
       }
     : undefined;
+  const menuCurrency = String(restaurant.currency_code || 'USD').toUpperCase();
+  const DAY_NAMES = { sun: 'Sunday', mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday' };
+  const openingHoursSpecification = (() => {
+    try {
+      const raw = restaurant.operating_hours;
+      const weekly = raw && typeof raw === 'object' ? (raw.weekly && typeof raw.weekly === 'object' ? raw.weekly : raw) : null;
+      if (!weekly) return undefined;
+      const specs = [];
+      for (const [key, dayName] of Object.entries(DAY_NAMES)) {
+        const entry = weekly[key];
+        if (!entry || entry.closed) continue;
+        const open = typeof entry.open === 'string' && /^\d{1,2}:\d{2}$/.test(entry.open.trim()) ? entry.open.trim() : null;
+        const close = typeof entry.close === 'string' && /^\d{1,2}:\d{2}$/.test(entry.close.trim()) ? entry.close.trim() : null;
+        if (!open || !close) continue;
+        specs.push({ '@type': 'OpeningHoursSpecification', dayOfWeek: dayName, opens: open, closes: close });
+      }
+      return specs.length ? specs : undefined;
+    } catch {
+      return undefined;
+    }
+  })();
+  const menuJsonLd = menuItems.length ? {
+    '@type': 'Menu',
+    name: `${restaurant.display_name} menu`,
+    url,
+    inLanguage: language,
+    hasMenuItem: menuItems.map((item) => ({
+      '@type': 'MenuItem',
+      name: item.name,
+      ...(item.description ? { description: String(item.description).replace(/\s+/g, ' ').trim().slice(0, 300) } : {}),
+      ...(Number.isFinite(Number(item.price_cents)) && Number(item.price_cents) > 0 ? {
+        offers: {
+          '@type': 'Offer',
+          price: (Number(item.price_cents) / 100).toFixed(2),
+          priceCurrency: menuCurrency,
+        },
+      } : {}),
+    })),
+  } : undefined;
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Restaurant',
@@ -1488,7 +1552,8 @@ async function handleRestaurantProfile(restaurantId, template, res, next, req) {
       reviewCount: Number(restaurant.rating_count || 0),
       bestRating: 5,
     } : undefined,
-    hasMenu: menuItems.length ? url : undefined,
+    hasMenu: menuJsonLd || (menuItems.length ? url : undefined),
+    openingHoursSpecification,
     isPartOf: { '@id': `${origin}/#website` },
   };
   const menuHtml = menuItems.length

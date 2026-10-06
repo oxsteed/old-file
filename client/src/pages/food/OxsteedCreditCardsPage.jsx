@@ -31,6 +31,7 @@ import CardHistory from '../../components/credit/CardHistory';
 import { safeCreditErrorMessage } from '../../lib/creditErrors';
 import { formatCreditDateTime } from '../../lib/creditDateTime';
 import './OxsteedCreditCardsPage.css';
+import './OxsteedCreditPage.css';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
 
 function requestId() {
