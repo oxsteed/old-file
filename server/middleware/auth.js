@@ -69,10 +69,29 @@ async function authenticate(req, res, next) {
       }
     }
   }
-  const token = cookieToken
-    || (req.headers.authorization?.startsWith('Bearer ')
-        ? req.headers.authorization.split(' ')[1]
-        : null);
+  // Audit fix: impersonation Bearer tokens take precedence over the cookie.
+  // If an admin has their own oxsteed_access cookie set but is sending an
+  // impersonation Bearer token, the cookie would shadow the impersonation
+  // and authenticate them as themselves. Check Bearer first for
+  // impersonation sessions.
+  let bearerToken = null;
+  if (req.headers.authorization?.startsWith('Bearer ')) {
+    bearerToken = req.headers.authorization.split(' ')[1];
+  }
+  let useBearer = false;
+  if (bearerToken) {
+    try {
+      const bearerDecoded = jwt.decode(bearerToken);
+      if (bearerDecoded?.isImpersonated) {
+        useBearer = true;
+      }
+    } catch {
+      // Not a valid JWT; fall through to cookie.
+    }
+  }
+  const token = useBearer
+    ? bearerToken
+    : cookieToken || bearerToken;
   if (!token) {
     return res.status(401).json({ error: 'No token provided' });
   }

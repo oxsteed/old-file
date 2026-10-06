@@ -487,8 +487,16 @@ async function login(req, res, next) {
     // no longer only in localStorage (XSS vector). The response still
     // includes it for backward compat during the migration.
     const isProd = process.env.NODE_ENV === 'production';
-    res.setHeader('Set-Cookie',
-      `oxsteed_access=${encodeURIComponent(tokens.accessToken)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600${isProd ? '; Secure' : ''}`
+    // Audit fix: use res.cookie (not setHeader) so we append rather than
+    // overwrite the refresh cookie set above. setHeader('Set-Cookie', ...)
+    // replaces ALL cookies, wiping the httpOnly refresh token.
+    res.cookie('oxsteed_access', tokens.accessToken, {
+      httpOnly: true,
+      sameSite: 'Lax',
+      secure: isProd,
+      path: '/',
+      maxAge: 3600 * 1000,
+    });
     );
     res.json({
       success: true,
@@ -1436,6 +1444,10 @@ async function resetPassword(req, res) {
       return res.status(400).json({ error: 'Reset link is invalid or expired.' });
     }
 
+    // Audit fix: also invalidate all sessions. Revoking JWTs alone leaves
+    // refresh tokens in the sessions table that can mint new access tokens.
+    await pool.query('UPDATE sessions SET is_valid = false WHERE user_id = $1', [rows[0].id]);
+
     // FIX #10 & #11: Audit log password reset
     const { ipAddress, userAgent } = extractRequestDetails(req);
     logSecurityEvent('password_reset', {
@@ -1735,6 +1747,13 @@ async function changePassword(req, res) {
       throw err;
     }
     await pool.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [newHash, req.user.id]);
+
+    // Audit fix: also invalidate all sessions (except the current one, which
+    // stays valid so the user isn't logged out of the session they just used).
+    await pool.query(
+      'UPDATE sessions SET is_valid = false WHERE user_id = $1 AND id != $2',
+      [req.user.id, req.sessionId || '00000000-0000-0000-0000-000000000000']
+    );
 
     // FIX #10 & #11: Audit log password change
     const { ipAddress, userAgent } = extractRequestDetails(req);
