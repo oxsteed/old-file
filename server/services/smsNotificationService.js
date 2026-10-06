@@ -113,11 +113,12 @@ async function sendSMSIfOptedIn(userId, messageBody, notificationType) {
     // Send SMS via Twilio
     const result = await sendTwilioSMS(phone_number, messageBody);
 
-    // Log the SMS
+    // Audit fix: do not store the full SMS body. Log metadata only.
+    // Storing message bodies creates a PII liability.
     await pool.query(
       `INSERT INTO sms_logs (user_id, phone_number, message_body, notification_type, twilio_sid, status)
        VALUES ($1, $2, $3, $4, $5, $6)`,
-      [userId, phone_number, messageBody, notificationType, result.sid, result.status]
+      [userId, phone_number, '[redacted]', notificationType, result.sid, result.status]
     );
 
     logger.info('SMS sent successfully', {
@@ -156,7 +157,9 @@ async function sendTwilioSMS(phoneNumber, messageBody) {
 
 // Generate OTP code for verification
 function generateOTP() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  // Audit fix: use crypto.randomInt, not Math.random, for OTP generation.
+  const crypto = require('crypto');
+  return crypto.randomInt(100000, 1000000).toString();
 }
 
 // Request phone verification
@@ -167,6 +170,8 @@ async function requestPhoneVerification(userId, phoneNumber) {
     }
 
     const otp = generateOTP();
+    // Audit fix: hash the OTP before storing. Never store plaintext OTPs.
+    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
 
     // Upsert verification token
     await pool.query(
@@ -174,7 +179,7 @@ async function requestPhoneVerification(userId, phoneNumber) {
        VALUES ($1, $2, $3)
        ON CONFLICT (user_id, phone_number) DO UPDATE
        SET token = $3, verified = FALSE, expires_at = CURRENT_TIMESTAMP + INTERVAL '15 minutes'`,
-      [userId, phoneNumber, otp]
+      [userId, phoneNumber, otpHash]
     );
 
     // Send OTP via SMS (fallback message if Twilio unavailable)
@@ -192,13 +197,15 @@ async function requestPhoneVerification(userId, phoneNumber) {
 // Verify phone with OTP
 async function verifyPhoneWithOTP(userId, otp) {
   try {
+    // Audit fix: hash the input OTP to compare against the stored hash.
+    const otpHash = crypto.createHash('sha256').update(String(otp)).digest('hex');
     const result = await pool.query(
       `SELECT id, phone_number FROM sms_opt_in_tokens
        WHERE user_id = $1
          AND token = $2
          AND verified = FALSE
          AND expires_at > CURRENT_TIMESTAMP`,
-      [userId, otp]
+      [userId, otpHash]
     );
 
     if (!result.rows.length) {

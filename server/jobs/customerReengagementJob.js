@@ -39,8 +39,13 @@ async function runCustomerReengagement() {
       JOIN jobs j ON j.client_id = u.id
         AND j.status = 'completed'
         AND j.completed_at IS NOT NULL
+      -- Audit fix: respect notification preferences. Skip users who have
+      -- unsubscribed from marketing emails or from all emails.
+      LEFT JOIN notification_preferences np ON np.user_id = u.id
       WHERE u.deleted_at IS NULL
         AND u.role IN ('customer', 'business_owner')
+        AND (np.marketing_emails IS NULL OR np.marketing_emails = TRUE)
+        AND (np.unsubscribe_all IS NULL OR np.unsubscribe_all = FALSE)
         -- Last completed job is within our idle window
         AND j.completed_at > NOW() - INTERVAL '${CAP_DAYS} days'
         AND j.completed_at < NOW() - INTERVAL '${IDLE_DAYS} days'

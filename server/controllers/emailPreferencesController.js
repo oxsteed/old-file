@@ -272,18 +272,22 @@ async function confirmUnsubscribe(req, res) {
 
     // Apply unsubscribe
     if (category) {
+      // Audit fix: marketing_emails=TRUE means opted IN. Unsubscribing must
+      // set it to FALSE. (unsubscribed_from_bulk_emails uses inverted
+      // semantics: TRUE means unsubscribed, so that one stays TRUE.)
       const categoryMapping = {
-        'marketing': 'marketing_emails',
-        'bulk': 'unsubscribed_from_bulk_emails',
+        'marketing': { column: 'marketing_emails', value: false },
+        'bulk': { column: 'unsubscribed_from_bulk_emails', value: true },
       };
 
       if (categoryMapping[category]) {
+        const { column, value } = categoryMapping[category];
         await pool.query(
           `UPDATE notification_preferences
-           SET ${categoryMapping[category]} = TRUE,
+           SET ${column} = $2,
                email_updated_at = CURRENT_TIMESTAMP
            WHERE user_id = $1`,
-          [user_id]
+          [user_id, value]
         );
       }
     } else {
