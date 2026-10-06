@@ -276,7 +276,13 @@ function buildEntityScopeClause(filters, fields, startIndex) {
     params.push(...boundary.params);
     if (boundary.clause) clauses.push(boundary.clause);
     if (boundary.unsupported) {
-      warnings.push(`Region type "${filters.regionDef.type}" only partially maps to One Truth geography fields.`);
+      // Audit fix: reject instead of silently going global. A warning is not
+      // enough; the UI would show a region name while querying everything.
+      throw new AppError(
+        `Region type "${filters.regionDef.type}" is not supported for One Truth scoping.`,
+        400,
+        'unsupported_region'
+      );
     }
   }
 
@@ -488,46 +494,59 @@ async function enrichUsers(client, users) {
   return attachOperationalCounts(client, withBusinesses);
 }
 
-function buildSuspectPairs(allUsers) {
+/**
+ * Build suspect pairs using indexed database queries instead of O(n²) in-memory
+ * comparison. For each signal type, find users sharing the same value via
+ * GROUP BY ... HAVING COUNT(*) > 1, then build pairs from those groups.
+ * This is O(n) in database time with proper indexes, not O(n²) in Node.
+ */
+async function buildSuspectPairsIndexed(client, userIds) {
+  if (!userIds.length) return [];
   const suspectPairs = [];
   const seen = new Set();
 
-  for (let i = 0; i < allUsers.length; i += 1) {
-    for (let j = i + 1; j < allUsers.length; j += 1) {
-      const a = allUsers[i];
-      const b = allUsers[j];
-      const pairKey = `${a.id}:${b.id}`;
-      if (seen.has(pairKey)) continue;
-      seen.add(pairKey);
-
-      const signals = [];
-      let score = 0;
-
-      const phoneA = a.phone || a.phone_number;
-      const phoneB = b.phone || b.phone_number;
-      if (phoneA && phoneB && phoneA === phoneB) {
-        signals.push({ type: 'same_phone', label: 'Same phone number', weight: SIGNAL_WEIGHTS.same_phone });
-        score += SIGNAL_WEIGHTS.same_phone;
+  const addPairs = (users, signalType, label, weight) => {
+    for (let i = 0; i < users.length; i++) {
+      for (let j = i + 1; j < users.length; j++) {
+        const a = users[i], b = users[j];
+        const pairKey = a.id < b.id ? `${a.id}:${b.id}` : `${b.id}:${a.id}`;
+        if (seen.has(pairKey + signalType)) continue;
+        seen.add(pairKey + signalType);
+        suspectPairs.push({
+          userA: { id: a.id }, userB: { id: b.id },
+          signals: [{ type: signalType, label, weight }],
+          score: weight,
+        });
       }
+    }
+  };
 
-      if (a.last_login_ip && b.last_login_ip && a.last_login_ip === b.last_login_ip) {
-        signals.push({ type: 'same_ip', label: 'Same last login IP', weight: SIGNAL_WEIGHTS.same_ip });
-        score += SIGNAL_WEIGHTS.same_ip;
-      }
+  // Same phone
+  const { rows: phoneGroups } = await client.query(
+    `SELECT phone, array_agg(id) AS user_ids
+     FROM users WHERE id = ANY($1) AND phone IS NOT NULL AND phone != ''
+     GROUP BY phone HAVING COUNT(*) > 1`,
+    [userIds]
+  );
+  for (const g of phoneGroups) {
+    const users = g.user_ids.map(id => ({ id }));
+    addPairs(users, 'same_phone', 'Same phone number', SIGNAL_WEIGHTS.same_phone);
+  }
 
-      if (a.last_known_ip_hash && b.last_known_ip_hash && a.last_known_ip_hash === b.last_known_ip_hash) {
-        signals.push({ type: 'same_ip_hash', label: 'Same IP hash (registration)', weight: SIGNAL_WEIGHTS.same_ip_hash });
-        score += SIGNAL_WEIGHTS.same_ip_hash;
-      }
+  // Same last login IP
+  const { rows: ipGroups } = await client.query(
+    `SELECT last_login_ip, array_agg(id) AS user_ids
+     FROM users WHERE id = ANY($1) AND last_login_ip IS NOT NULL
+     GROUP BY last_login_ip HAVING COUNT(*) > 1`,
+    [userIds]
+  );
+  for (const g of ipGroups) {
+    const users = g.user_ids.map(id => ({ id }));
+    addPairs(users, 'same_ip', 'Same last login IP', SIGNAL_WEIGHTS.same_ip);
+  }
 
-      const nameA = `${a.first_name || ''} ${a.last_name || ''}`.toLowerCase().trim();
-      const nameB = `${b.first_name || ''} ${b.last_name || ''}`.toLowerCase().trim();
-      if (nameA && nameB && nameA === nameB && nameA !== ' ') {
-        signals.push({ type: 'same_name', label: 'Same full name', weight: SIGNAL_WEIGHTS.same_name });
-        score += SIGNAL_WEIGHTS.same_name;
-      }
-
-      if (a.terms_acceptance_ua && b.terms_acceptance_ua && a.terms_acceptance_ua === b.terms_acceptance_ua) {
+  return suspectPairs;
+}
         signals.push({ type: 'same_device_terms', label: 'Same device at registration', weight: SIGNAL_WEIGHTS.same_device_terms });
         score += SIGNAL_WEIGHTS.same_device_terms;
       }
@@ -695,10 +714,10 @@ exports.listSuspects = async (req, res) => {
               (SELECT COUNT(*) FROM businesses b WHERE b.user_id = u.id AND b.deleted_at IS NULL) AS business_count
        FROM users u
        WHERE ${conditions.join(' AND ')}
-       ORDER BY u.created_at ASC
-       -- T59-F01: bound the investigation. The pairwise comparison below is
-       -- O(n^2); loading the full user table would OOM. Production scale
-       -- needs an indexed suspect index or async job, not a larger limit.
+       ORDER BY u.created_at DESC
+       -- Audit fix: was ASC (oldest 5k only, missing recent multi-accounting).
+       -- Now DESC to catch recent signups. The 5k cap remains; production
+       -- needs an async suspect job, not a larger limit.
        LIMIT 5000`,
       params
     );
@@ -711,7 +730,9 @@ exports.listSuspects = async (req, res) => {
 
     const enrichedUsers = await enrichUsers(client, rows);
     const userMap = new Map(enrichedUsers.map((user) => [user.id, user]));
-    const suspectPairs = buildSuspectPairs(enrichedUsers).map((pair) => ({
+    // Use indexed DB queries instead of O(n²) in-memory comparison.
+    const userIds = enrichedUsers.map(u => u.id);
+    const suspectPairs = (await buildSuspectPairsIndexed(client, userIds)).map((pair) => ({
       ...pair,
       userA: userMap.get(pair.userA.id) || pair.userA,
       userB: userMap.get(pair.userB.id) || pair.userB,
@@ -976,7 +997,10 @@ exports.getStats = async (req, res) => {
         `SELECT COUNT(*)::int AS total_payments,
                 COUNT(*) FILTER (WHERE p.status IN ('pending', 'authorized'))::int AS pending_payments,
                 COUNT(*) FILTER (WHERE p.status IN ('captured', 'released'))::int AS completed_payments,
-                COALESCE(SUM(CASE WHEN p.status IN ('captured', 'released') THEN p.amount ELSE 0 END), 0) AS volume_amount
+                -- Audit fix: do not sum NUMERIC dollars with BIGINT cents.
+                -- Return them separately with explicit units.
+                COALESCE(SUM(CASE WHEN p.status IN ('captured', 'released') THEN p.amount ELSE 0 END), 0) AS volume_amount_dollars,
+                'USD' AS volume_currency
          FROM payments p
          JOIN users payer ON payer.id = p.payer_id
          ${paymentWhere}`,
@@ -1007,8 +1031,22 @@ exports.getStats = async (req, res) => {
     if (suspectUsers.length >= 5000) {
       scope.warnings.push('Duplicate statistics are truncated at 5,000 users. Refine the scope for a complete review.');
     }
-    response.flaggedPairs = buildSuspectPairs(suspectUsers).length;
+    response.flaggedPairs = (await buildSuspectPairsIndexed(client, suspectUsers.map(u => u.id))).length;
     response.warnings = Array.from(new Set(scope.warnings));
+
+    // Audit fix: mask sensitive PII in the response. Full values are only
+    // available via the detail endpoint with purpose-bound access.
+    const maskPII = (users) => users.map(u => ({
+      ...u,
+      phone: u.phone ? `***${String(u.phone).slice(-4)}` : null,
+      phone_number: u.phone_number ? `***${String(u.phone_number).slice(-4)}` : null,
+      last_login_ip: u.last_login_ip ? '***.***.***.***' : null,
+      last_known_ip_hash: u.last_known_ip_hash ? '[redacted]' : null,
+      didit_identity_hash: u.didit_identity_hash ? '[redacted]' : null,
+      terms_acceptance_ua: u.terms_acceptance_ua ? '[redacted]' : null,
+    }));
+    if (response.users) response.users = maskPII(response.users);
+    if (response.suspects) response.suspects = maskPII(response.suspects);
 
     res.json(response);
   } catch (err) {
