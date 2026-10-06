@@ -136,7 +136,7 @@ dbDescribe('source capture and integrated settlement builders on PostgreSQL (694
       FROM settlement_source_history WHERE source_kind='business_invoice' AND source_id=$1 ORDER BY id DESC LIMIT 1`, [String(invoiceId)]);
     expect(row.source_id).toBe(String(invoiceId)); expect(row.paid).toBe('100.00');
     expect(new Date(row.recorded_at).toISOString().slice(0, 10)).toBe(today);
-    const rows = await history.readSourceHistory(pool, 'business_invoice', business, 'USD', new Date());
+    const rows = await history.readSourceHistory(pool, 'business_invoice', business, 'USD');
     expect(rows.some(r => String(r.id) === String(row.id))).toBe(true);
   });
 });

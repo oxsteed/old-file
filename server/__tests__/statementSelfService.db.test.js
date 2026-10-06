@@ -70,8 +70,8 @@ async function original(product, scope, owner, storage, currency = 'USD') {
     VALUES ($1,$2,$3,$4,'2026-07-01','2026-07-31',$5,$6,$7)`, [document.id, product, scope, currency, document.generatedAt, JSON.stringify(document), document.contentHash]);
   const snapshotId = crypto.randomUUID();
   await pool.query(`INSERT INTO statement_snapshots(id,issuance_key,product,account_id,account_uuid,currency_code,period_from,period_to,cutoff_at,
-    row_count,total_credits_minor,total_debits_minor,opening_minor,closing_minor,source_hash)
-    VALUES ($1,$2,$3,$4,$5,$6,'2026-07-01','2026-07-31',now(),0,0,0,0,0,$7)`,
+    row_count,total_credits_minor,total_debits_minor,opening_minor,closing_minor,source_hash,created_at)
+    VALUES ($1,$2,$3,$4,$5,$6,'2026-07-01','2026-07-31',now(),0,0,0,0,0,$7,now())`,
     [snapshotId, `stmt:v1:${product}:${scope}:${currency}:2026-07-01:2026-07-31:${owner.id}`, product,
       product === 'helper_earnings' ? null : scope, product === 'helper_earnings' ? scope : null, currency, document.contentHash]);
   const bytes = Buffer.from(`%PDF-1.7\n% synthetic ${document.id}\n`);
@@ -170,7 +170,7 @@ describeDatabase('R09/R10/R12 real self-service API integration', () => {
   test('Restaurant Credit retries create one existing support ticket with exact evidence and no financial change', async () => {
     const customer = await user(); const client = await pool.connect(); let posted;
     try { await client.query('BEGIN'); posted = await walletService.applyWalletLedgerEntry(client, { restaurantId,customerId:customer.id,currencyCode:'USD',entryType:'credit',amountCents:1000,
-      description:'Synthetic isolated wallet credit',referenceType:'synthetic_missing_record',referenceId:crypto.randomUUID(),idempotencyKey:crypto.randomUUID() }); await client.query('COMMIT'); }
+      description:'Synthetic isolated wallet credit',referenceType:'merchant_load',referenceId:crypto.randomUUID(),idempotencyKey:crypto.randomUUID() }); await client.query('COMMIT'); }
     catch(error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
     const document = { id:crypto.randomUUID(),version:1,kind:'monthly',product:'restaurant',currencyCode:'USD',period:{from:'2026-09-01',to:'2026-09-30'},generatedAt:'2026-10-01T00:00:00Z',transactions:[{id:String(posted.entry.id),date:'2026-09-15T12:00:00Z',type:'load',creditCents:1000,debitCents:0,balanceAfterCents:1000}], openingBalanceCents:0,closingBalanceCents:1000,totalCreditsCents:1000,totalDebitsCents:0,transactionCount:1 };
     document.contentHash = hashDocument(document);

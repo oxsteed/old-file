@@ -151,7 +151,7 @@ describe('boundary, precision and builder regressions (R06, R07)', () => {
   });
   test.each([['2024-02-01', '2024-02-29', '2024-03-01'], ['2026-09-01', '2026-09-30', '2026-10-01']])('expense SQL uses next-day exclusive boundary for %s', async (from, to, next) => {
     const query = jest.fn(async (sql, args) => {
-      if (sql.includes('transaction_timestamp')) return { rows: [{ now }] };
+      if (sql.trim().startsWith('SELECT transaction_timestamp() AS now')) return { rows: [{ now }] };
       if (sql.includes('FROM settlement_statement_documents')) return { rows: [] };
       if (sql.includes('FROM businesses')) return { rows: [{ id: 1, created_at: '2020-01-01', business_name: 'Synthetic Business', currency_code: 'USD' }] };
       if (sql.includes('FROM business_expenses')) {
@@ -164,7 +164,7 @@ describe('boundary, precision and builder regressions (R06, R07)', () => {
     expect(doc.payables.totalExpensesCents).toBe(1234); expect(doc.payables.expenseCount).toBe(1);
   });
   test('missing history table fails closed instead of falling back to mutable balances', async () => {
-    await expect(history.readSourceHistory({ query: jest.fn().mockRejectedValue({ code: '42P01' }) }, 'business_invoice', 1, 'USD', now)).rejects.toMatchObject({ status: 409, code: 'statement_source_history_unavailable' });
+    await expect(history.readSourceHistory({ query: jest.fn().mockRejectedValue({ code: '42P01' }) }, 'business_invoice', 1, 'USD')).rejects.toMatchObject({ status: 409, code: 'statement_source_history_unavailable' });
   });
   test('PDF removed rows project the actual removal date and omit obsolete derived-collection note', () => {
     const projection = history.projectHelper([jobObs(1, '2026-08-04T12:00:00Z'), jobObs(2, '2026-09-05T12:00:00Z', { helper_payout_cents: 7000 })], helperOptions(SEP));

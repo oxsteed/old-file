@@ -333,9 +333,9 @@ async function buildHelperEarnings(client, { helperId, currency, period, now, re
     `SELECT id, created_at, COALESCE(NULLIF(TRIM(CONCAT_WS(' ', first_name, last_name)), ''), email) AS owner_name FROM users WHERE id = $1`, [helperId]);
   if (!user) throw new AppError('Statement account not found', 404, 'statement_account_not_found');
   if (period.to < isoDateOnly(user.created_at)) throw new AppError('Statement period precedes this account', 400, 'statement_before_account');
-  const history = await financialHistory.readSourceHistory(client, 'helper_job', helperId, currency, now, maxRows);
+  const history = await financialHistory.readSourceHistory(client, 'helper_job', helperId, currency, maxRows);
   const projection = financialHistory.projectHelper(history, { helperId, currency, period, now });
-  const paymentHistory = await financialHistory.readSourceHistory(client, 'helper_payment', helperId, currency, now, maxRows);
+  const paymentHistory = await financialHistory.readSourceHistory(client, 'helper_payment', helperId, currency, maxRows);
   const { end } = financialHistory.bounds(period, now);
   const paymentByJob = new Map();
   const latest = new Map();
@@ -393,7 +393,7 @@ async function buildBusiness(client, { businessId, currency, period, now, reques
   const end = new Date(Date.parse(period.to) + 86400000);
 
   // Receivables are reconstructed from immutable observations, not current state.
-  const history = await financialHistory.readSourceHistory(client, 'business_invoice', businessId, currency, now, maxRows);
+  const history = await financialHistory.readSourceHistory(client, 'business_invoice', businessId, currency, maxRows);
   const receivables = financialHistory.projectBusiness(history, { businessId, currency, period, now });
 
   // — Payables (dated spend list; business_expenses carries no currency

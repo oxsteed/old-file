@@ -42,11 +42,17 @@ function date(value) {
 }
 function bounds(period, now) {
   const start = date(`${period.from}T00:00:00.000Z`);
-  const end = new Date(Math.min(Date.parse(period.to) + 86400000, date(now).getTime()));
+  // The period end is exclusive. Do not cap today's boundary to a JavaScript
+  // Date: node-postgres truncates PostgreSQL microseconds to milliseconds, so
+  // an event written moments before a new transaction can compare later than
+  // that rounded timestamp and disappear from the same-day statement. The
+  // database transaction snapshot below is the authoritative as-of cutoff.
+  date(now); // Validate the supplied snapshot time even though it is not the period boundary.
+  const end = new Date(Date.parse(period.to) + 86400000);
   return { start, end };
 }
 
-async function readSourceHistory(client, kind, scopeId, currency, now, maxRows = MAX_ROWS) {
+async function readSourceHistory(client, kind, scopeId, currency, maxRows = MAX_ROWS) {
   currencyPrecision(currency);
   // Find sources by ANY version, then read their entire chain. Filtering each
   // version by current scope/currency could hide a transfer or reassignment.
@@ -57,9 +63,9 @@ async function readSourceHistory(client, kind, scopeId, currency, now, maxRows =
          FROM settlement_source_history h
         WHERE h.source_kind = $1 AND h.source_id IN (
           SELECT source_id FROM settlement_source_history
-           WHERE source_kind = $1 AND scope_id = $2 AND currency_code = $3)
-          AND h.recorded_at <= $4::timestamptz
-         ORDER BY h.id LIMIT $5`, [kind, String(scopeId), currency, now, maxRows + 1]);
+         WHERE source_kind = $1 AND scope_id = $2 AND currency_code = $3)
+          AND h.recorded_at <= transaction_timestamp()
+         ORDER BY h.id LIMIT $4`, [kind, String(scopeId), currency, maxRows + 1]);
     if (rows.length > maxRows) throw new AppError('Complete source history requires a narrower export period', 409, 'statement_export_too_large');
     return rows;
   } catch (error) {

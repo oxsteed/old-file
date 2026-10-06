@@ -1,6 +1,6 @@
 'use strict';
 
-const { projectBusiness, projectHelper } = require('../services/settlementFinancialHistory');
+const { projectBusiness, projectHelper, bounds, readSourceHistory } = require('../services/settlementFinancialHistory');
 
 const businessId = '42';
 const helperId = '00000000-0000-4000-8000-000000000042';
@@ -19,6 +19,17 @@ function sourceRow({ id, kind, sourceId, scopeId, operation, recordedAt, source 
 }
 
 describe('settlement source history period continuity', () => {
+  test('current-day statements use the exclusive next-midnight boundary and an exact database cutoff', async () => {
+    const now = '2026-10-06T12:00:00.123Z';
+    expect(bounds({ from: '2026-10-06', to: '2026-10-06' }, now).end)
+      .toEqual(new Date('2026-10-07T00:00:00.000Z'));
+
+    const client = { query: jest.fn().mockResolvedValue({ rows: [] }) };
+    await readSourceHistory(client, 'helper_job', helperId, 'USD', 25);
+    expect(client.query.mock.calls[0][0]).toContain('h.recorded_at <= transaction_timestamp()');
+    expect(client.query.mock.calls[0][1]).toEqual(['helper_job', helperId, 'USD', 26]);
+  });
+
   test('R03 carries a previously issued invoice into opening receivables and records the later payment', () => {
     const rows = [
       sourceRow({ id: 1, kind: 'business_invoice', sourceId: 71, scopeId: businessId,
