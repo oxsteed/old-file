@@ -77,32 +77,32 @@ async function resolveOwner(profileType, profileId) {
 
 const VISIBILITY_COPY = {
   en: {
-    restoredTitle: 'Your profile is visible again',
-    restoredBody: (label) => `OxSteed has restored public visibility for ${label}. No action is needed.`,
+    restoredTitle: 'Your profile visibility hold was removed',
+    restoredBody: (label) => `OxSteed removed the admin visibility hold from ${label}. It will appear publicly when your listing is enabled.`,
     hiddenTitle: 'Your profile was hidden by OxSteed',
     hiddenBody: (label) => `OxSteed has hidden ${label} from public listings. If you have questions, contact support.`,
   },
   es: {
-    restoredTitle: 'Tu perfil es visible de nuevo',
-    restoredBody: (label) => `OxSteed ha restaurado la visibilidad pública de ${label}. No necesitas hacer nada.`,
+    restoredTitle: 'Se eliminó la restricción de visibilidad de tu perfil',
+    restoredBody: (label) => `OxSteed eliminó la restricción administrativa de visibilidad de ${label}. Aparecerá públicamente cuando actives tu anuncio.`,
     hiddenTitle: 'OxSteed ha ocultado tu perfil',
     hiddenBody: (label) => `OxSteed ha ocultado ${label} de los listados públicos. Si tienes preguntas, contacta con soporte.`,
   },
   fr: {
-    restoredTitle: 'Votre profil est de nouveau visible',
-    restoredBody: (label) => `OxSteed a restauré la visibilité publique de ${label}. Aucune action n'est requise.`,
+    restoredTitle: 'La restriction de visibilité de votre profil a été supprimée',
+    restoredBody: (label) => `OxSteed a supprimé la restriction administrative de visibilité de ${label}. Il apparaîtra publiquement lorsque votre annonce sera activée.`,
     hiddenTitle: 'Votre profil a été masqué par OxSteed',
     hiddenBody: (label) => `OxSteed a masqué ${label} des annonces publiques. Si vous avez des questions, contactez l'assistance.`,
   },
   ht: {
-    restoredTitle: 'Pwofil ou vizib ankò',
-    restoredBody: (label) => `OxSteed retabli vizibilite piblik pou ${label}. Ou pa bezwen fè anyen.`,
+    restoredTitle: 'Yo retire restriksyon sou vizibilite pwofil ou',
+    restoredBody: (label) => `OxSteed retire restriksyon administratè a sou vizibilite ${label}. Li ap parèt piblikman lè lis ou a aktive.`,
     hiddenTitle: 'OxSteed kache pwofil ou',
     hiddenBody: (label) => `OxSteed kache ${label} nan lis piblik yo. Si ou gen kesyon, kontakte sipò.`,
   },
   ar: {
-    restoredTitle: 'ملفك الشخصي مرئي مرة أخرى',
-    restoredBody: (label) => `أعاد OxSteed الظهور العام لـ ${label}. لا يلزم اتخاذ أي إجراء.`,
+    restoredTitle: 'تمت إزالة قيد ظهور ملفك الشخصي',
+    restoredBody: (label) => `أزال OxSteed قيد الظهور الإداري عن ${label}. سيظهر للعامة عند تفعيل إدراجك.`,
     hiddenTitle: 'أخفى OxSteed ملفك الشخصي',
     hiddenBody: (label) => `أخفى OxSteed ${label} من القوائم العامة. إذا كانت لديك أسئلة، اتصل بالدعم.`,
   },

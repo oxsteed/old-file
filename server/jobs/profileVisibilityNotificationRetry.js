@@ -24,8 +24,8 @@ function backoffMinutes(attempts) {
 function buildCopy(profileType, isVisible) {
   if (isVisible) {
     return {
-      title: 'Your profile is visible again',
-      body: `OxSteed has restored public visibility for your ${profileType} profile. No action is needed.`,
+      title: 'Your profile visibility hold was removed',
+      body: `OxSteed removed the admin visibility hold from your ${profileType} profile. It will appear publicly when your listing is enabled.`,
     };
   }
   return {

@@ -24007,6 +24007,7 @@
     "confirmHide": "Hide profile",
     "restoreTitle": "Restore public visibility?",
     "restoreMessage": "\"{{name}}\" will become publicly visible again.",
+    "restoreUnlistedMessage": "\"{{name}}\" will no longer be hidden by the admin. It will remain unavailable publicly until the owner lists it and the profile is active.",
     "preview": "Preview",
     "previewTitle": "Preview: {{name}}",
     "previewLoading": "Loading preview…",

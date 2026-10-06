@@ -300,21 +300,6 @@ export default function ProfileVisibilityPage() {
   }, []);
 
   // ─── Single hide / restore ──────────────────────────────────────────────
-  const markVisibilityApplied = useCallback((profile, isVisible, reason) => {
-    setResults((prev) =>
-      prev.map((r) =>
-        r.profile_type === profile.profile_type && String(r.profile_id) === String(profile.profile_id)
-          ? {
-              ...r,
-              is_hidden_by_admin: !isVisible,
-              hidden_reason: isVisible ? null : reason,
-              is_visible: isVisible && r.owner_visible,
-            }
-          : r
-      )
-    );
-  }, []);
-
   const handleApprovalRequired = useCallback((data) => {
     // The server refused the direct change and asked for a second admin.
     setApprovalNotice({
@@ -334,7 +319,10 @@ export default function ProfileVisibilityPage() {
         reason: isVisible ? undefined : reason,
         note: isVisible || !note?.trim() ? undefined : note.trim(),
       });
-      markVisibilityApplied(profile, isVisible, reason);
+      // The effective public state also depends on the owner's listing flag
+      // and the profile's active state. Reload the server projection instead
+      // of assuming that removing the admin hold makes every profile public.
+      await refresh();
       setHideTarget(null);
       setHideNote('');
       setHideWork(null);
@@ -352,7 +340,7 @@ export default function ProfileVisibilityPage() {
     } finally {
       setSaving(false);
     }
-  }, [copy, handleApprovalRequired, markVisibilityApplied]);
+  }, [copy, handleApprovalRequired, refresh]);
 
   // Step 1 of hiding: check active work before confirming.
   const beginHideConfirm = useCallback(async (profile) => {
@@ -1658,7 +1646,12 @@ export default function ProfileVisibilityPage() {
       <ConfirmDialog
         open={!!restoreTarget}
         title={copy('restoreTitle', { defaultValue: 'Restore public visibility?' })}
-        message={restoreTarget && copy('restoreMessage', { name: restoreTarget.display_name, defaultValue: `"${restoreTarget.display_name}" will become publicly visible again.` })}
+        message={restoreTarget && (restoreTarget.owner_visible && restoreTarget.is_active
+          ? copy('restoreMessage', { name: restoreTarget.display_name, defaultValue: `"${restoreTarget.display_name}" will become publicly visible again.` })
+          : copy('restoreUnlistedMessage', {
+            name: restoreTarget.display_name,
+            defaultValue: `"${restoreTarget.display_name}" will no longer be hidden by the admin. It will remain unavailable publicly until the owner lists it${restoreTarget.is_active ? '' : ' and the profile is active'}.`,
+          }))}
         confirmLabel={copy('restore', { defaultValue: 'Restore' })}
         cancelLabel={copy('cancel', { defaultValue: 'Cancel' })}
         onClose={() => setRestoreTarget(null)}

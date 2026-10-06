@@ -24007,6 +24007,7 @@
     "confirmHide": "Kache pwofil la",
     "restoreTitle": "Retabli vizibilite piblik la?",
     "restoreMessage": "\"{{name}}\" ap vizib pou piblik la ankò.",
+    "restoreUnlistedMessage": "Administratè a p ap kache \"{{name}}\" ankò. Li ap rete pa disponib piblikman jiskaske pwopriyetè a mete l sou lis la epi pwofil la aktif.",
     "preview": "Aperçu",
     "previewTitle": "Aperçu : {{name}}",
     "previewLoading": "Ap chaje aperçu a…",

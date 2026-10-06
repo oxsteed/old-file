@@ -24007,6 +24007,7 @@
     "confirmHide": "Ocultar perfil",
     "restoreTitle": "¿Restaurar la visibilidad pública?",
     "restoreMessage": "\"{{name}}\" volverá a ser visible públicamente.",
+    "restoreUnlistedMessage": "\"{{name}}\" ya no estará oculto por el administrador. Seguirá sin estar disponible públicamente hasta que el propietario lo publique y el perfil esté activo.",
     "preview": "Vista previa",
     "previewTitle": "Vista previa: {{name}}",
     "previewLoading": "Cargando vista previa…",

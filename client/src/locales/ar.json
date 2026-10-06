@@ -24018,6 +24018,7 @@
     "confirmHide": "إخفاء الملف",
     "restoreTitle": "استعادة الظهور العام؟",
     "restoreMessage": "سيصبح \"{{name}}\" ظاهرًا للعامة مرة أخرى.",
+    "restoreUnlistedMessage": "لن يخفي المسؤول \"{{name}}\" بعد الآن. سيظل غير متاح للعامة حتى يدرجه المالك ويصبح الملف نشطًا.",
     "preview": "معاينة",
     "previewTitle": "معاينة: {{name}}",
     "previewLoading": "جارٍ تحميل المعاينة…",
