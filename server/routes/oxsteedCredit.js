@@ -3,6 +3,7 @@
 const router = require('express').Router();
 const { authenticate, requireRole } = require('../middleware/auth');
 const { creditMutationLimiter, creditExportLimiter } = require('../middleware/rateLimiter');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const controller = require('../controllers/oxsteedCreditController');
 const cardController = require('../controllers/oxsteedCreditCardController');
 const topupController = require('../controllers/oxsteedCreditTopupController');
@@ -18,7 +19,7 @@ function noStoreCreditResponse(_req, res, next) {
 router.use(authenticate, requireRole('customer'), noStoreCreditResponse);
 
 router.get('/account', controller.getMyAccount);
-router.post('/conversions', creditMutationLimiter, controller.convertMyCredit);
+router.post('/conversions', creditMutationLimiter, rejectImpersonated, controller.convertMyCredit);
 router.get('/conversion-quotes/:quoteId', controller.getMyCurrencyQuote);
 router.get('/limits', controller.getMyCreditLimits);
 router.get('/accounts', controller.getMyAccounts);
@@ -37,20 +38,20 @@ router.get('/documents.csv', creditExportLimiter, statementController.handler('o
 router.get('/account-details', controller.getMyAccountDetails);
 router.get('/transactions', controller.getMyTransactions);
 router.get('/transactions/:transactionId', controller.getMyTransaction);
-router.post('/holds', creditMutationLimiter, controller.createMyHold);
-router.post('/holds/:holdId/release', creditMutationLimiter, controller.releaseMyHold);
-router.post('/transfers', creditMutationLimiter, controller.transferMyCredit);
+router.post('/holds', creditMutationLimiter, rejectImpersonated, controller.createMyHold);
+router.post('/holds/:holdId/release', creditMutationLimiter, rejectImpersonated, controller.releaseMyHold);
+router.post('/transfers', creditMutationLimiter, rejectImpersonated, controller.transferMyCredit);
 router.get('/disputes', controller.listMyDisputes);
 router.post('/disputes', creditMutationLimiter, controller.openMyDispute);
 
 // Stripe top-ups (fiat money IN): create a top-up intent and read its status.
-router.post('/topups', creditMutationLimiter, topupController.createTopup);
+router.post('/topups', creditMutationLimiter, rejectImpersonated, topupController.createTopup);
 router.get('/topups/:id', topupController.getTopup);
 // Step-up challenge issuance for large top-ups (Phase 5 compliance).
 router.post('/stepup-challenges', creditMutationLimiter, topupController.issueTopupStepupChallenge);
 
 // Fiat money OUT: customer withdrawals to their connected bank account.
-router.post('/withdrawals', creditMutationLimiter, withdrawalController.requestWithdrawal);
+router.post('/withdrawals', creditMutationLimiter, rejectImpersonated, withdrawalController.requestWithdrawal);
 router.get('/withdrawals', withdrawalController.listMyWithdrawals);
 router.post('/withdrawals/:id/cancel', creditMutationLimiter, withdrawalController.cancelMyWithdrawal);
 // Restaurant credit conversions (Phase 6): OxSteed <-> restaurant food wallet.

@@ -8,8 +8,24 @@
 // the kiosk identify the customer for a given transaction.
 
 const router = require('express').Router({ mergeParams: true });
+const rateLimit = require('express-rate-limit');
 const cardController = require('../controllers/oxsteedCreditCardController');
 const { creditMutationLimiter } = require('../middleware/rateLimiter');
+
+// Audit fix: kiosk endpoints get a per-device rate limit, not just the
+// shared IP-based creditMutationLimiter. A compromised kiosk should not
+// be able to brute-force redemptions.
+const kioskDeviceLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `kiosk:${req.kioskDeviceId || req.ip}`,
+  message: {
+    error: 'Too many kiosk requests. Please try again later.',
+    retryAfter: '15 minutes',
+  },
+});
 
 function noStoreCreditResponse(_req, res, next) {
   res.set('Cache-Control', 'private, no-store');
@@ -20,10 +36,10 @@ function noStoreCreditResponse(_req, res, next) {
 router.use(noStoreCreditResponse, cardController.authenticateCreditKiosk);
 
 // Redeem an OxSteed Credit card at this restaurant's POS/kiosk (spend).
-router.post('/redeem', creditMutationLimiter, cardController.kioskRedeemCard);
+router.post('/redeem', kioskDeviceLimiter, cardController.kioskRedeemCard);
 
 // Convert OxSteed Credit balance back to physical cash dispensed by this
 // kiosk (the private, closed-loop "cash-out" flow).
-router.post('/cash-out', creditMutationLimiter, cardController.kioskCashOut);
+router.post('/cash-out', kioskDeviceLimiter, cardController.kioskCashOut);
 
 module.exports = router;
