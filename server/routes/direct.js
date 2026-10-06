@@ -26,6 +26,21 @@ const directUploadLimiter = rateLimit({
   },
 });
 
+// Audit finding (2026-10-06): holds had no auth and no Bookable gate, so
+// anyone could park capacity anonymously. Holds are now authenticated and
+// the service layer rejects non-bookable services. This bucket is tight on
+// purpose: a hold reserves real capacity for ~4 minutes, so 10 per 15 min
+// per IP is generous for legitimate use and painful for abuse.
+const directHoldLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many hold requests. Please try again later.',
+    retryAfter: '15 minutes',
+  },
+});
 // Audit finding #53: bound the photo attachment array before the quote request
 // controller runs, so an oversized metadata payload is rejected early with a
 // clear 400. Mirrors the controller's own photoAttachments/photos resolution.
@@ -51,7 +66,7 @@ function limitDirectPhotoAttachments(req, res, next) {
 router.get('/profile', optionalAuth, ctrl.getProfile);
 router.get('/catalog', generalLimiter, ctrl.getCatalog);
 router.get('/catalog/services/:id/slots', generalLimiter, ctrl.getServiceSlots);
-router.post('/catalog/services/:id/holds', generalLimiter, ctrl.createServiceHold);
+router.post('/catalog/services/:id/holds', authenticate, directHoldLimiter, ctrl.createServiceHold);
 router.post('/catalog/services/:id/book', generalLimiter, ctrl.bookServiceSlot);
 router.get('/service-areas', generalLimiter, ctrl.getServiceAreas);
 router.post('/service-availability', generalLimiter, ctrl.checkServiceAvailability);

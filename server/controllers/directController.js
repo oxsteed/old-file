@@ -2739,7 +2739,6 @@ exports.bookServiceSlot = async (req, res) => {
     return res.status(201).json({
       success: true,
       requestId: String(result.request.id),
-      assignedTo: result.assignedTo,
       startsAt: result.startsAt,
       endsAt: result.endsAt,
       serviceId: result.serviceId,

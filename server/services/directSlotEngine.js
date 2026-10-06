@@ -408,6 +408,30 @@ async function createHold({
       throw err;
     }
 
+    // Bookable gate: holds may only be placed on services that are
+    // currently bookable. Same rule as the booking path.
+    const { deriveServiceCapability } = require('./directCapability');
+    const serviceRow = await loadServiceRow(serviceId, client);
+    if (!serviceRow) {
+      const err = new Error('Service not found');
+      err.statusCode = 404;
+      throw err;
+    }
+    const capability = deriveServiceCapability(serviceRow, {
+      lifecycle_status: serviceRow.category_lifecycle_status,
+      is_active: serviceRow.category_is_active,
+    }, {
+      slotsAvailable: true,
+      assigneePoolSize: 0,
+      freeCapacityInHorizon: false,
+    });
+    if (!capability.requestable || !capability.isBookable) {
+      const err = new Error('This service is not currently bookable');
+      err.statusCode = 400;
+      err.code = 'not_bookable';
+      throw err;
+    }
+
     const pool = await loadAssigneePool(serviceId, client);
     const members = await resolveEligibleAssignees(pool, client);
     const busy = await loadBusyIntervals(
@@ -417,46 +441,64 @@ async function createHold({
       client
     );
     const free = freeMembersForSlot(members, busy, start, end);
-    const chosen = pickLeastLoaded(free, busy, start, end);
-    if (!chosen) {
-      const err = new Error('No free assignee for this slot');
+    // Crew-aware: reserve the full required crew, not just one member.
+    // Sort by load and take the N least-loaded free members.
+    const requiredCrew = Number(serviceRow.required_crew_size) || 1;
+    const sortedFree = [...free].sort((a, b) => {
+      const loadA = (busy.jobs || []).filter((j) => String(j.assigned_to) === String(a.id)).length;
+      const loadB = (busy.jobs || []).filter((j) => String(j.assigned_to) === String(b.id)).length;
+      return loadA - loadB;
+    });
+    const crew = sortedFree.slice(0, requiredCrew);
+    if (crew.length < requiredCrew) {
+      const err = new Error('Not enough free crew for this slot');
       err.statusCode = 409;
       err.code = 'capacity_exhausted';
       throw err;
     }
 
-    // Advisory lock per assignee, then re-check so two concurrent holds cannot
-    // both reserve the last free pool member.
-    await client.query(
-      `SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))`,
-      [chosen.id]
-    );
+    // Advisory lock per crew member, then re-check so two concurrent holds
+    // cannot both reserve the same pool members.
+    for (const member of crew) {
+      await client.query(
+        `SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))`,
+        [member.id]
+      );
+    }
 
-    const busyAfter = await loadBusyIntervals([chosen.id], start, end, client);
-    if (freeMembersForSlot([chosen], busyAfter, start, end).length < 1) {
-      const err = new Error('Selected assignee was just reserved');
+    const busyAfter = await loadBusyIntervals(crew.map((m) => m.id), start, end, client);
+    if (freeMembersForSlot(crew, busyAfter, start, end).length < requiredCrew) {
+      const err = new Error('Crew was just reserved');
       err.statusCode = 409;
       err.code = 'capacity_exhausted';
       throw err;
     }
 
-    const token = crypto.randomBytes(24).toString('hex');
+    const groupToken = crypto.randomBytes(24).toString('hex');
     const expiresAt = new Date(Date.now() + HOLD_TTL_MS);
-    const { rows } = await client.query(
-      `INSERT INTO direct_slot_holds
-         (service_id, starts_at, ends_at, reserved_user_id, expires_at, hold_token, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING *`,
-      [serviceId, start.toISOString(), end.toISOString(), chosen.id, expiresAt.toISOString(), token, actorUserId]
-    );
+    const inserted = [];
+    for (let i = 0; i < crew.length; i++) {
+      const rowToken = `${groupToken}:${i}`;
+      const { rows } = await client.query(
+        `INSERT INTO direct_slot_holds
+           (service_id, starts_at, ends_at, reserved_user_id, expires_at, hold_token, hold_group_token, crew_index, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         RETURNING *`,
+        [serviceId, start.toISOString(), end.toISOString(), crew[i].id, expiresAt.toISOString(), rowToken, groupToken, i, actorUserId]
+      );
+      inserted.push(rows[0]);
+    }
     if (shouldRelease) await client.query('COMMIT');
+    const token = groupToken;
     return {
-      holdId: String(rows[0].id),
+      holdId: String(inserted[0].id),
       holdToken: token,
       expiresAt: expiresAt.toISOString(),
       startsAt: start.toISOString(),
       endsAt: end.toISOString(),
-      reservedUserId: chosen.id,
+      reservedUserId: crew[0].id,
+      reservedUserIds: crew.map((m) => m.id),
+      crewSize: crew.length,
     };
   } catch (error) {
     if (shouldRelease) await client.query('ROLLBACK').catch(() => {});
@@ -550,11 +592,11 @@ async function bookServiceSlot({
       throw err;
     }
 
-    let reservedUserId = null;
+    let reservedUserIds = [];
     if (holdToken) {
       const { rows: holdRows } = await client.query(
         `SELECT * FROM direct_slot_holds
-          WHERE hold_token = $1
+          WHERE hold_group_token = $1
             AND service_id = $2
             AND expires_at > CURRENT_TIMESTAMP
             AND starts_at = $3
@@ -562,13 +604,13 @@ async function bookServiceSlot({
           FOR UPDATE`,
         [holdToken, serviceId, start.toISOString(), end.toISOString()]
       );
-      if (!holdRows[0]) {
+      if (!holdRows.length) {
         const err = new Error('Hold expired or invalid');
         err.statusCode = 409;
         err.code = 'slot_conflict';
         throw err;
       }
-      reservedUserId = String(holdRows[0].reserved_user_id);
+      reservedUserIds = holdRows.map((r) => String(r.reserved_user_id));
     }
 
     const busy = await loadBusyIntervals(
@@ -586,28 +628,36 @@ async function bookServiceSlot({
     }
 
     const free = freeMembersForSlot(members, busy, start, end);
-    let chosen = reservedUserId
-      ? free.find((m) => m.id === reservedUserId) || null
-      : pickLeastLoaded(free, busy, start, end);
-    if (!chosen && reservedUserId) {
-      // Hold member no longer free
-      chosen = null;
+    // Crew-aware: if a hold reserved a crew, use the whole crew.
+    let crew = [];
+    if (reservedUserIds.length) {
+      crew = reservedUserIds
+        .map((id) => free.find((m) => String(m.id) === id))
+        .filter(Boolean);
+      if (crew.length < reservedUserIds.length) {
+        crew = []; // Hold crew no longer fully free
+      }
     }
-    if (!chosen) {
+    if (!crew.length && !reservedUserIds.length) {
+      crew = [pickLeastLoaded(free, busy, start, end)].filter(Boolean);
+    }
+    if (!crew.length) {
       const err = new Error('No free assignee for this slot');
       err.statusCode = 409;
       err.code = 'capacity_exhausted';
       throw err;
     }
 
-    await client.query(
-      `SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))`,
-      [chosen.id]
-    );
+    for (const member of crew) {
+      await client.query(
+        `SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))`,
+        [member.id]
+      );
+    }
 
     // Re-check after lock
-    const busyAfter = await loadBusyIntervals([chosen.id], start, end, client);
-    if (freeMembersForSlot([chosen], busyAfter, start, end).length < 1) {
+    const busyAfter = await loadBusyIntervals(crew.map((m) => m.id), start, end, client);
+    if (freeMembersForSlot(crew, busyAfter, start, end).length < crew.length) {
       const err = new Error('Selected assignee was just booked');
       err.statusCode = 409;
       err.code = 'capacity_exhausted';
@@ -666,7 +716,7 @@ async function bookServiceSlot({
         contact.serviceCity ? String(contact.serviceCity).trim().slice(0, 120) : null,
         contact.serviceZipCode ? String(contact.serviceZipCode).trim().slice(0, 20) : null,
         (contact.details || `Booked slot for ${localizedName}`).trim().slice(0, 4000) || `Booked slot for ${localizedName}`,
-        chosen.id,
+        crew[0].id,
         start.toISOString(),
         end.toISOString(),
         JSON.stringify(metadata),
@@ -686,19 +736,20 @@ async function bookServiceSlot({
     }
 
     // Drop the converted hold (if any) and any overlapping abandoned holds for
-    // the same assignee so capacity listing stays honest after book.
+    // the same crew so capacity listing stays honest after book.
     await client.query(
       `DELETE FROM direct_slot_holds
-        WHERE reserved_user_id = $1
+        WHERE reserved_user_id = ANY($1::uuid[])
           AND starts_at < $3
           AND ends_at > $2`,
-      [chosen.id, start.toISOString(), end.toISOString()]
+      [crew.map((m) => m.id), start.toISOString(), end.toISOString()]
     );
 
     await client.query('COMMIT');
     return {
       request: inserted[0],
-      assignedTo: chosen.id,
+      assignedTo: crew[0].id,
+      assignedCrew: crew.map((m) => m.id),
       startsAt: start.toISOString(),
       endsAt: end.toISOString(),
       serviceId: String(service.id),

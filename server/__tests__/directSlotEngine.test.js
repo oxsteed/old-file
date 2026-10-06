@@ -176,6 +176,24 @@ describe('directSlotEngine', () => {
       })
       .mockResolvedValueOnce({ rows: [] }) // busy jobs (slot scan)
       .mockResolvedValueOnce({ rows: [] }) // busy holds (slot scan)
+      // Bookable gate: second loadServiceRow
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'svc-1',
+          slug: 'wiring',
+          name_i18n: { en: 'Wiring' },
+          booking_slot_minutes: 120,
+          required_crew_size: 1,
+          lifecycle_status: 'live',
+          is_operationally_available: true,
+          is_bookable: true,
+          category_id: 'cat-1',
+          category_slug: 'electrical',
+          category_lifecycle_status: 'live',
+          category_is_active: true,
+          category_name_i18n: { en: 'Electrical' },
+        }],
+      })
       // second pass inside createHold after slot match
       .mockResolvedValueOnce({ rows: [] }) // roles
       .mockResolvedValueOnce({ rows: [{ user_id: userId }] })
