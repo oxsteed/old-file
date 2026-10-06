@@ -497,7 +497,6 @@ async function login(req, res, next) {
       path: '/',
       maxAge: 3600 * 1000,
     });
-    );
     res.json({
       success: true,
       message: 'Login successful',

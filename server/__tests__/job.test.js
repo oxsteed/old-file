@@ -352,6 +352,10 @@ describe('POST /api/jobs/:id/complete', () => {
   });
 
   test('customer completes tier-3 escrow job and captures authorized payment', async () => {
+    stripe.paymentIntents.retrieve.mockResolvedValueOnce({
+      id: 'pi_t3',
+      status: 'requires_capture',
+    });
     stripe.paymentIntents.capture.mockResolvedValueOnce({
       charges: { data: [{ id: 'ch_job_complete' }] },
       amount_received: 10000,
