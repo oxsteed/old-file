@@ -23,80 +23,80 @@ const ADMIN_NAV_MODE_KEY = 'oxsteed:admin-nav-mode';
 const routePath = (key) => adminRoute(key).path;
 
 export const REGULAR_NAV = [
-  { to: routePath('dashboard'),        icon: LayoutDashboard, labelKey: 'adminNav.dashboard', grant: adminRoute('dashboard').grant },
-  { to: routePath('operations'),       icon: Activity,        labelKey: 'adminNav.operationsOverview', grant: adminRoute('operations').grant },
-  { to: routePath('users'),            icon: Users,           labelKey: 'adminNav.users', grant: adminRoute('users').grant },
-  { to: routePath('jobs'),             icon: Briefcase,       labelKey: 'adminNav.jobs', grant: adminRoute('jobs').grant },
-  { to: routePath('reports'),          icon: Flag,            labelKey: 'adminNav.reports'          },
-  { to: routePath('moderation'),       icon: Shield,          labelKey: 'adminNav.moderation'       },
-  { to: routePath('enforcement'),      icon: AlertTriangle,   labelKey: 'adminNav.enforcement'      },
-  { to: routePath('contentRemovals'), icon: Trash2,          labelKey: 'adminNav.contentRemovals' },
-  { to: routePath('skills'),           icon: Wrench,          labelKey: 'adminNav.skills', grant: adminRoute('skills').grant },
-  { to: routePath('support'),          icon: HeadphonesIcon,  labelKey: 'adminNav.supportTickets', grant: adminRoute('support').grant  },
-  { to: routePath('supportChat'),     icon: MessageSquare,   labelKey: 'adminNav.liveSupport'     },
-  { to: routePath('quoteRequests'),   icon: FileText,        labelKey: 'adminNav.quoteRequests', grant: adminRoute('quoteRequests').grant   },
-  { to: routePath('directOps'),           icon: HeartHandshake,   labelKey: 'adminNav.directOps',        external: true },
-  { to: routePath('directServiceAreas'), icon: MapPinned,    labelKey: 'adminNav.directServiceAreas', grant: adminRoute('directServiceAreas').grant },
-  { to: routePath('directCatalog'),       icon: Package,      labelKey: 'adminNav.directCatalog', grant: adminRoute('directCatalog').grant       },
-  { to: routePath('messages'),         icon: MessageSquare,   labelKey: 'adminNav.messages',         grant: adminRoute('messages').grant },
-  { to: routePath('search'),           icon: Search,          labelKey: 'adminNav.search'           },
-  { to: routePath('businesses'),       icon: Building2,       labelKey: 'adminNav.businesses', grant: adminRoute('businesses').grant       },
-  { to: routePath('toolRentals'),     icon: Wrench,          labelKey: 'adminNav.toolRentals', grant: adminRoute('toolRentals').grant     },
-  { to: routePath('plannedNeeds'),        icon: ClipboardList,      labelKey: 'adminNav.plannedNeeds', grant: adminRoute('plannedNeeds').grant    },
-  { to: routePath('payments'),             icon: CreditCard,         labelKey: 'adminNav.payments',        grant: adminRoute('payments').grant },
-  { to: routePath('orders'),               icon: ShoppingCart,       labelKey: 'adminNav.orders'           },
-  { to: routePath('templates'),            icon: Layers,             labelKey: 'adminNav.templates'        },
-  { to: routePath('consulting'),           icon: HeartHandshake,     labelKey: 'adminNav.consulting'       },
-  { to: routePath('consultingPayments'),  icon: CreditCard,         labelKey: 'adminNav.consultingPay'   },
-  { to: routePath('scheduling'), icon: Calendar,           labelKey: 'adminNav.scheduling'       },
-  { to: routePath('businessLaunch'), icon: Briefcase,    labelKey: 'adminNav.businessLaunch'  },
-  { to: routePath('consultingSessions'),  icon: Calendar,           labelKey: 'adminNav.consultingSessions' },
-  { to: routePath('orgChart'),  icon: Network,            labelKey: 'adminNav.orgChart'        },
-  { to: routePath('corporateAssignments'),icon: Crown,              labelKey: 'adminNav.corporateTitles' },
-  { to: routePath('logistics'),            icon: Truck,              labelKey: 'adminNav.logisticsOps'    },
-  { to: routePath('learnSubmissions'),    icon: BookOpen,           labelKey: 'adminNav.learnSubmissions'},
-  { to: routePath('learnProductLinks'), icon: Link2,              labelKey: 'adminNav.learnProductLinks'},
-  { to: routePath('learnAiSuggestions'), icon: Sparkles,          labelKey: 'adminNav.learnAiSuggestions'},
+  { tabKey: 'dashboard', to: routePath('dashboard'),        icon: LayoutDashboard, labelKey: 'adminNav.dashboard', grant: adminRoute('dashboard').grant },
+  { tabKey: 'operations', to: routePath('operations'),       icon: Activity,        labelKey: 'adminNav.operationsOverview', grant: adminRoute('operations').grant },
+  { tabKey: 'users', to: routePath('users'),            icon: Users,           labelKey: 'adminNav.users', grant: adminRoute('users').grant },
+  { tabKey: 'jobs', to: routePath('jobs'),             icon: Briefcase,       labelKey: 'adminNav.jobs', grant: adminRoute('jobs').grant },
+  { tabKey: 'reports', to: routePath('reports'),          icon: Flag,            labelKey: 'adminNav.reports'          },
+  { tabKey: 'moderation', to: routePath('moderation'),       icon: Shield,          labelKey: 'adminNav.moderation'       },
+  { tabKey: 'enforcement', to: routePath('enforcement'),      icon: AlertTriangle,   labelKey: 'adminNav.enforcement'      },
+  { tabKey: 'contentRemovals', to: routePath('contentRemovals'), icon: Trash2,          labelKey: 'adminNav.contentRemovals' },
+  { tabKey: 'skills', to: routePath('skills'),           icon: Wrench,          labelKey: 'adminNav.skills', grant: adminRoute('skills').grant },
+  { tabKey: 'support', to: routePath('support'),          icon: HeadphonesIcon,  labelKey: 'adminNav.supportTickets', grant: adminRoute('support').grant  },
+  { tabKey: 'supportChat', to: routePath('supportChat'),     icon: MessageSquare,   labelKey: 'adminNav.liveSupport'     },
+  { tabKey: 'quoteRequests', to: routePath('quoteRequests'),   icon: FileText,        labelKey: 'adminNav.quoteRequests', grant: adminRoute('quoteRequests').grant   },
+  { tabKey: 'directOps', to: routePath('directOps'),           icon: HeartHandshake,   labelKey: 'adminNav.directOps',        external: true },
+  { tabKey: 'directServiceAreas', to: routePath('directServiceAreas'), icon: MapPinned,    labelKey: 'adminNav.directServiceAreas', grant: adminRoute('directServiceAreas').grant },
+  { tabKey: 'directCatalog', to: routePath('directCatalog'),       icon: Package,      labelKey: 'adminNav.directCatalog', grant: adminRoute('directCatalog').grant       },
+  { tabKey: 'messages', to: routePath('messages'),         icon: MessageSquare,   labelKey: 'adminNav.messages',         grant: adminRoute('messages').grant },
+  { tabKey: 'search', to: routePath('search'),           icon: Search,          labelKey: 'adminNav.search'           },
+  { tabKey: 'businesses', to: routePath('businesses'),       icon: Building2,       labelKey: 'adminNav.businesses', grant: adminRoute('businesses').grant       },
+  { tabKey: 'toolRentals', to: routePath('toolRentals'),     icon: Wrench,          labelKey: 'adminNav.toolRentals', grant: adminRoute('toolRentals').grant     },
+  { tabKey: 'plannedNeeds', to: routePath('plannedNeeds'),        icon: ClipboardList,      labelKey: 'adminNav.plannedNeeds', grant: adminRoute('plannedNeeds').grant    },
+  { tabKey: 'payments', to: routePath('payments'),             icon: CreditCard,         labelKey: 'adminNav.payments',        grant: adminRoute('payments').grant },
+  { tabKey: 'orders', to: routePath('orders'),               icon: ShoppingCart,       labelKey: 'adminNav.orders'           },
+  { tabKey: 'templates', to: routePath('templates'),            icon: Layers,             labelKey: 'adminNav.templates'        },
+  { tabKey: 'consulting', to: routePath('consulting'),           icon: HeartHandshake,     labelKey: 'adminNav.consulting'       },
+  { tabKey: 'consultingPayments', to: routePath('consultingPayments'),  icon: CreditCard,         labelKey: 'adminNav.consultingPay'   },
+  { tabKey: 'scheduling', to: routePath('scheduling'), icon: Calendar,           labelKey: 'adminNav.scheduling'       },
+  { tabKey: 'businessLaunch', to: routePath('businessLaunch'), icon: Briefcase,    labelKey: 'adminNav.businessLaunch'  },
+  { tabKey: 'consultingSessions', to: routePath('consultingSessions'),  icon: Calendar,           labelKey: 'adminNav.consultingSessions' },
+  { tabKey: 'orgChart', to: routePath('orgChart'),  icon: Network,            labelKey: 'adminNav.orgChart'        },
+  { tabKey: 'corporateAssignments', to: routePath('corporateAssignments'),icon: Crown,              labelKey: 'adminNav.corporateTitles' },
+  { tabKey: 'logistics', to: routePath('logistics'),            icon: Truck,              labelKey: 'adminNav.logisticsOps'    },
+  { tabKey: 'learnSubmissions', to: routePath('learnSubmissions'),    icon: BookOpen,           labelKey: 'adminNav.learnSubmissions'},
+  { tabKey: 'learnProductLinks', to: routePath('learnProductLinks'), icon: Link2,              labelKey: 'adminNav.learnProductLinks'},
+  { tabKey: 'learnAiSuggestions', to: routePath('learnAiSuggestions'), icon: Sparkles,          labelKey: 'adminNav.learnAiSuggestions'},
 ];
 
 export const SUPER_NAV = [
-  { to: routePath('superDashboard'),      icon: BarChart2,     labelKey: 'adminNav.superDashboard'  },
-  { to: routePath('money'),          icon: DollarSign,    labelKey: 'adminNav.money',            grant: adminRoute('money').grant },
-  { to: routePath('restaurantCredit'), icon: Wallet,      labelKey: 'adminNav.restaurantCredit' },
-  { to: routePath('restaurantTopupApprovals'), icon: Wallet, labelKey: 'adminNav.restaurantTopupApprovals', grant: adminRoute('restaurantTopupApprovals').grant },
-  { to: routePath('oxsteedCredit'), icon: Wallet,         labelKey: 'adminNav.oxsteedCredit'     },
-  { to: routePath('revenue'),        icon: TrendingUp,    labelKey: 'adminNav.revenue',          grant: adminRoute('revenue').grant },
-  { to: routePath('feeConfig'),           icon: DollarSign,    labelKey: 'adminNav.feeConfig'        },
-  { to: routePath('pricingConfig'),        icon: DollarSign,    labelKey: 'adminNav.pricingConfig'    },
-  { to: routePath('pricingOverrides'), icon: Globe,      labelKey: 'adminNav.pricingOverrides' },
-  { to: routePath('financials'),     icon: DollarSign,    labelKey: 'adminNav.financials',       grant: adminRoute('financials').grant },
-  { to: routePath('payouts'),          icon: FileText,       labelKey: 'adminNav.payouts',          grant: adminRoute('payouts').grant },
-  { to: routePath('treasury'),         icon: DollarSign,    labelKey: 'adminNav.treasury',         grant: adminRoute('treasury').grant },
-  { to: routePath('conversations'),   icon: MessageSquare,  labelKey: 'adminNav.conversations'    },
-  { to: routePath('adminAccounts'),  icon: UserCog,        labelKey: 'adminNav.adminAccounts',   grant: adminRoute('adminAccounts').grant },
-  { to: routePath('permissions'),    icon: Key,           labelKey: 'adminNav.permissions',      grant: adminRoute('permissions').grant },
-  { to: routePath('workforce'),     icon: Users,         labelKey: 'adminNav.workforce',        grant: adminRoute('workforce').grant },
-  { to: routePath('regions'),        icon: Map,           labelKey: 'adminNav.regions'          },
-  { to: routePath('internalAccess'), icon: Key, labelKey: 'adminNav.internalAccess' },
-  { to: routePath('gateLockouts'), icon: ShieldAlert, labelKey: 'adminNav.gateLockouts' },
-  { to: routePath('createUser'),   icon: UserPlus,      labelKey: 'adminNav.createUser'      },
-  { to: routePath('searchLogs'),    icon: ClipboardList, labelKey: 'adminNav.searchLogs'      },
-  { to: routePath('settings'),       icon: Settings,      labelKey: 'adminNav.settings',         grant: adminRoute('settings').grant },
-  { to: routePath('auditLog'),      icon: ScrollText,    labelKey: 'adminNav.auditLog',        grant: adminRoute('auditLog').grant },
-  { to: routePath('userActionLog'), icon: ScrollText,    labelKey: 'adminNav.userActionLog', grant: adminRoute('userActionLog').grant },
-  { to: routePath('legalAcceptances'), icon: Scale,      labelKey: 'adminNav.legal'           },
-  { to: routePath('visitors'),    icon: Eye,         labelKey: 'adminNav.visitors',    grant: adminRoute('visitors').grant },
-  { to: routePath('profileVisibility'), icon: EyeOff, labelKey: 'adminNav.profileVisibility', grant: adminRoute('profileVisibility').grant },
-  { to: routePath('oneTruth'),              icon: Fingerprint,   labelKey: 'adminNav.oneTruth'       },
-  { to: routePath('franchiseHq'),             icon: Globe,         labelKey: 'adminNav.franchiseHq'    },
-  { to: routePath('careers'),                icon: Briefcase,     labelKey: 'adminNav.careers'         },
-  { to: routePath('countryPacks'),          icon: Globe,         labelKey: 'adminNav.countryPacks'   },
-  { to: routePath('corporateSetup'),  icon: Building2,     labelKey: 'adminNav.corporateSetup' },
-  { to: routePath('modePolicies'),          icon: Key,           labelKey: 'adminNav.modePolicies'   },
-  { to: routePath('modeApprovals'),         icon: AlertTriangle, labelKey: 'adminNav.modeApprovals'  },
-  { to: routePath('governance'),           icon: ShieldCheck,   labelKey: 'adminNav.governance'     },
-  { to: routePath('serviceOps'),          icon: Activity,      labelKey: 'adminNav.serviceOps',    grant: adminRoute('serviceOps').grant },
-  { to: routePath('reliability'),          icon: Activity,      labelKey: 'adminNav.reliability',    grant: adminRoute('reliability').grant },
+  { tabKey: 'superDashboard', to: routePath('superDashboard'),      icon: BarChart2,     labelKey: 'adminNav.superDashboard'  },
+  { tabKey: 'money', to: routePath('money'),          icon: DollarSign,    labelKey: 'adminNav.money',            grant: adminRoute('money').grant },
+  { tabKey: 'restaurantCredit', to: routePath('restaurantCredit'), icon: Wallet,      labelKey: 'adminNav.restaurantCredit' },
+  { tabKey: 'restaurantTopupApprovals', to: routePath('restaurantTopupApprovals'), icon: Wallet, labelKey: 'adminNav.restaurantTopupApprovals', grant: adminRoute('restaurantTopupApprovals').grant },
+  { tabKey: 'oxsteedCredit', to: routePath('oxsteedCredit'), icon: Wallet,         labelKey: 'adminNav.oxsteedCredit'     },
+  { tabKey: 'revenue', to: routePath('revenue'),        icon: TrendingUp,    labelKey: 'adminNav.revenue',          grant: adminRoute('revenue').grant },
+  { tabKey: 'feeConfig', to: routePath('feeConfig'),           icon: DollarSign,    labelKey: 'adminNav.feeConfig'        },
+  { tabKey: 'pricingConfig', to: routePath('pricingConfig'),        icon: DollarSign,    labelKey: 'adminNav.pricingConfig'    },
+  { tabKey: 'pricingOverrides', to: routePath('pricingOverrides'), icon: Globe,      labelKey: 'adminNav.pricingOverrides' },
+  { tabKey: 'financials', to: routePath('financials'),     icon: DollarSign,    labelKey: 'adminNav.financials',       grant: adminRoute('financials').grant },
+  { tabKey: 'payouts', to: routePath('payouts'),          icon: FileText,       labelKey: 'adminNav.payouts',          grant: adminRoute('payouts').grant },
+  { tabKey: 'treasury', to: routePath('treasury'),         icon: DollarSign,    labelKey: 'adminNav.treasury',         grant: adminRoute('treasury').grant },
+  { tabKey: 'conversations', to: routePath('conversations'),   icon: MessageSquare,  labelKey: 'adminNav.conversations'    },
+  { tabKey: 'adminAccounts', to: routePath('adminAccounts'),  icon: UserCog,        labelKey: 'adminNav.adminAccounts',   grant: adminRoute('adminAccounts').grant },
+  { tabKey: 'permissions', to: routePath('permissions'),    icon: Key,           labelKey: 'adminNav.permissions',      grant: adminRoute('permissions').grant },
+  { tabKey: 'workforce', to: routePath('workforce'),     icon: Users,         labelKey: 'adminNav.workforce',        grant: adminRoute('workforce').grant },
+  { tabKey: 'regions', to: routePath('regions'),        icon: Map,           labelKey: 'adminNav.regions'          },
+  { tabKey: 'internalAccess', to: routePath('internalAccess'), icon: Key, labelKey: 'adminNav.internalAccess' },
+  { tabKey: 'gateLockouts', to: routePath('gateLockouts'), icon: ShieldAlert, labelKey: 'adminNav.gateLockouts' },
+  { tabKey: 'createUser', to: routePath('createUser'),   icon: UserPlus,      labelKey: 'adminNav.createUser'      },
+  { tabKey: 'searchLogs', to: routePath('searchLogs'),    icon: ClipboardList, labelKey: 'adminNav.searchLogs'      },
+  { tabKey: 'settings', to: routePath('settings'),       icon: Settings,      labelKey: 'adminNav.settings',         grant: adminRoute('settings').grant },
+  { tabKey: 'auditLog', to: routePath('auditLog'),      icon: ScrollText,    labelKey: 'adminNav.auditLog',        grant: adminRoute('auditLog').grant },
+  { tabKey: 'userActionLog', to: routePath('userActionLog'), icon: ScrollText,    labelKey: 'adminNav.userActionLog', grant: adminRoute('userActionLog').grant },
+  { tabKey: 'legalAcceptances', to: routePath('legalAcceptances'), icon: Scale,      labelKey: 'adminNav.legal'           },
+  { tabKey: 'visitors', to: routePath('visitors'),    icon: Eye,         labelKey: 'adminNav.visitors',    grant: adminRoute('visitors').grant },
+  { tabKey: 'profileVisibility', to: routePath('profileVisibility'), icon: EyeOff, labelKey: 'adminNav.profileVisibility', grant: adminRoute('profileVisibility').grant },
+  { tabKey: 'oneTruth', to: routePath('oneTruth'),              icon: Fingerprint,   labelKey: 'adminNav.oneTruth'       },
+  { tabKey: 'franchiseHq', to: routePath('franchiseHq'),             icon: Globe,         labelKey: 'adminNav.franchiseHq'    },
+  { tabKey: 'careers', to: routePath('careers'),                icon: Briefcase,     labelKey: 'adminNav.careers'         },
+  { tabKey: 'countryPacks', to: routePath('countryPacks'),          icon: Globe,         labelKey: 'adminNav.countryPacks'   },
+  { tabKey: 'corporateSetup', to: routePath('corporateSetup'),  icon: Building2,     labelKey: 'adminNav.corporateSetup' },
+  { tabKey: 'modePolicies', to: routePath('modePolicies'),          icon: Key,           labelKey: 'adminNav.modePolicies'   },
+  { tabKey: 'modeApprovals', to: routePath('modeApprovals'),         icon: AlertTriangle, labelKey: 'adminNav.modeApprovals'  },
+  { tabKey: 'governance', to: routePath('governance'),           icon: ShieldCheck,   labelKey: 'adminNav.governance'     },
+  { tabKey: 'serviceOps', to: routePath('serviceOps'),          icon: Activity,      labelKey: 'adminNav.serviceOps',    grant: adminRoute('serviceOps').grant },
+  { tabKey: 'reliability', to: routePath('reliability'),          icon: Activity,      labelKey: 'adminNav.reliability',    grant: adminRoute('reliability').grant },
 ];
 
 // Simple mode keeps the operational paths close at hand without removing access
@@ -160,6 +160,7 @@ export default function AdminLayout() {
   const [sidebarNavSearch, setSidebarNavSearch] = useState('');
   const [simpleMode, setSimpleMode] = useState(readAdminNavMode);
   const [tabSettingsOpen, setTabSettingsOpen] = useState(false);
+  const [tabPrefs, setTabPrefs] = useState({});
   const searchRef = useRef(null);
   const {
     availability: supportAvailable,
@@ -176,6 +177,21 @@ export default function AdminLayout() {
     };
     window.addEventListener('storage', syncAdminNavMode);
     return () => window.removeEventListener('storage', syncAdminNavMode);
+  }, []);
+
+  // Load per-admin tab preferences (essential vs hidden).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { default: api } = await import('../../api/axios');
+        const { data } = await api.get('/admin/settings/me/tabs');
+        if (!cancelled && data?.prefs) setTabPrefs(data.prefs);
+      } catch {
+        // Non-fatal; show all tabs by default.
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   const handleLogout = async () => {
@@ -220,6 +236,8 @@ export default function AdminLayout() {
   const renderSidebar = () => {
     const query = sidebarNavSearch.trim().toLowerCase();
     const matches = ({ labelKey, to }) => !query || `${t(labelKey)} ${to}`.toLowerCase().includes(query);
+    // Filter out tabs the admin marked as non-essential.
+    const isEssential = ({ tabKey }) => !tabKey || tabPrefs[tabKey] !== false;
     const regularNav = simpleMode
       ? REGULAR_NAV.filter(({ to }) => SIMPLE_REGULAR_NAV.includes(to))
       : REGULAR_NAV;
@@ -233,9 +251,9 @@ export default function AdminLayout() {
       (item) => isSuper || (item.grant && myScopes.includes(item.grant))
     );
     const visibleRegularNav = regularNav.filter(
-      (item) => (!item.grant || isSuper || myScopes.includes(item.grant)) && matches(item)
+      (item) => (!item.grant || isSuper || myScopes.includes(item.grant)) && matches(item) && isEssential(item)
     );
-    const visibleSuperNav = superNav.filter(matches);
+    const visibleSuperNav = superNav.filter((item) => matches(item) && isEssential(item));
     const totalAdminTabs = regularNav.length + superNav.length;
     const visibleAdminTabs = visibleRegularNav.length + visibleSuperNav.length;
 

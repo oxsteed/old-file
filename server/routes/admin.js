@@ -911,5 +911,7 @@ router.put('/settings/me/notifications', requireAdmin, selfSettingsCtrl.updateMy
 router.get('/settings/me/api-keys', requireAdmin, selfSettingsCtrl.listMyApiKeys);
 router.post('/settings/me/api-keys', requireAdmin, selfSettingsCtrl.createMyApiKey);
 router.delete('/settings/me/api-keys/:keyId', requireAdmin, selfSettingsCtrl.revokeMyApiKey);
+router.get('/settings/me/tabs', requireAdmin, selfSettingsCtrl.getMyTabPrefs);
+router.put('/settings/me/tabs', requireAdmin, selfSettingsCtrl.updateMyTabPrefs);
 
 module.exports = router;

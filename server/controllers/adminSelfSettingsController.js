@@ -173,6 +173,50 @@ async function revokeMyApiKey(req, res, next) {
   } catch (err) { next(err); }
 }
 
+// ── Tab preferences ────────────────────────────────────────────────────────
+
+async function getMyTabPrefs(req, res, next) {
+  try {
+    const { rows } = await db.query(
+      `SELECT tab_key, is_essential FROM admin_tab_prefs WHERE admin_id = $1`,
+      [req.user.id]
+    );
+    const prefs = {};
+    for (const r of rows) prefs[r.tab_key] = r.is_essential;
+    res.json({ prefs });
+  } catch (err) { next(err); }
+}
+
+async function updateMyTabPrefs(req, res, next) {
+  try {
+    const { prefs } = req.body;
+    if (!prefs || typeof prefs !== 'object') {
+      throw new AppError('prefs object is required', 400, 'prefs_required');
+    }
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      for (const [tabKey, isEssential] of Object.entries(prefs)) {
+        if (typeof tabKey !== 'string' || tabKey.length > 100) continue;
+        await client.query(
+          `INSERT INTO admin_tab_prefs (admin_id, tab_key, is_essential, updated_at)
+           VALUES ($1, $2, $3, NOW())
+           ON CONFLICT (admin_id, tab_key) DO UPDATE SET
+             is_essential = EXCLUDED.is_essential, updated_at = NOW()`,
+          [req.user.id, tabKey, isEssential === true]
+        );
+      }
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    res.json({ saved: true });
+  } catch (err) { next(err); }
+}
+
 module.exports = {
   getMyProfile,
   updateMyProfile,
@@ -183,4 +227,6 @@ module.exports = {
   listMyApiKeys,
   createMyApiKey,
   revokeMyApiKey,
+  getMyTabPrefs,
+  updateMyTabPrefs,
 };

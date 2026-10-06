@@ -29851,5 +29851,54 @@
     "coSignTitle": "Siyen lòd chanjman an",
     "coSignWarning": "Siyati desine ou nesesè. Lòd chanjman yo vin obligatwa lè toulede pati yo siyen.",
     "coSignSubmit": "Siyen epi voye"
+  },
+  "adminSettings": {
+    "title": "My Settings",
+    "tabs": {
+      "profile": "Profile",
+      "sessions": "Sessions",
+      "notifications": "Notifications",
+      "api-keys": "API Keys",
+      "tabs": "Tabs",
+      "title": "Essential Tabs",
+      "hint": "Uncheck tabs you do not need. They will be hidden from your sidebar."
+    },
+    "profile": {
+      "title": "Profile",
+      "email": "Email",
+      "role": "Role",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "phone": "Phone"
+    },
+    "sessions": {
+      "title": "Active Sessions",
+      "hint": "Revoke any session you do not recognize.",
+      "unknown": "Unknown device",
+      "current": "Current",
+      "never": "Never used",
+      "none": "No active sessions.",
+      "confirmRevoke": "Revoke this session?"
+    },
+    "notifications": {
+      "title": "Notification Preferences",
+      "notify_payout_failures": "Payout failures",
+      "notify_incidents": "Incidents",
+      "notify_new_admins": "New admin signups",
+      "notify_disputes": "Disputes",
+      "email_notifications": "Email notifications",
+      "sms_notifications": "SMS notifications"
+    },
+    "apiKeys": {
+      "title": "API Keys",
+      "hint": "Keys grant API access as you. Keep them secret.",
+      "copyWarning": "Copy this now. It will not be shown again.",
+      "namePlaceholder": "Key name (e.g. CI deploy)",
+      "create": "Create",
+      "revoked": "Revoked",
+      "created": "Created",
+      "lastUsed": "Last used",
+      "confirmRevoke": "Revoke this API key?"
+    }
   }
 }

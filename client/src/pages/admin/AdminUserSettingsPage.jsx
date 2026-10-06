@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { User, Shield, Bell, Key, Trash2, Plus, Copy, Check } from 'lucide-react';
+import { User, Shield, Bell, Key, Trash2, Plus, Copy, Check, LayoutGrid } from 'lucide-react';
 import api from '../../api/axios';
 import logger from '../../utils/logger';
 import './AdminUserSettingsPage.css';
@@ -13,6 +13,20 @@ const TABS = [
   { id: 'sessions', label: 'Sessions', icon: Shield },
   { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'api-keys', label: 'API Keys', icon: Key },
+  { id: 'tabs', label: 'Tabs', icon: LayoutGrid },
+];
+
+// Tab keys matching the admin route manifest (adminRouteManifest.js).
+// These are the tabs an admin can mark as essential or hide.
+const MANAGEABLE_TABS = [
+  'dashboard', 'operations', 'users', 'jobs', 'reports', 'moderation',
+  'enforcement', 'contentRemovals', 'skills', 'support', 'supportChat',
+  'quoteRequests', 'directOps', 'directServiceAreas', 'directCatalog',
+  'messages', 'search', 'businesses', 'toolRentals', 'plannedNeeds',
+  'payments', 'orders', 'templates', 'consulting', 'consultingPayments',
+  'scheduling', 'businessLaunch', 'consultingSessions', 'orgChart',
+  'corporateAssignments', 'logistics', 'learnSubmissions', 'learnProductLinks',
+  'learnAiSuggestions',
 ];
 
 export default function AdminUserSettingsPage() {
@@ -38,16 +52,21 @@ export default function AdminUserSettingsPage() {
   const [newKeyValue, setNewKeyValue] = useState(null);
   const [copied, setCopied] = useState(false);
 
+  // Tab preferences
+  const [tabPrefs, setTabPrefs] = useState({});
+  const [tabSaving, setTabSaving] = useState(false);
+
   useEffect(() => { loadAll(); }, []);
 
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [p, s, n, k] = await Promise.all([
+      const [p, s, n, k, tb] = await Promise.all([
         api.get('/admin/settings/me'),
         api.get('/admin/settings/me/sessions'),
         api.get('/admin/settings/me/notifications'),
         api.get('/admin/settings/me/api-keys'),
+        api.get('/admin/settings/me/tabs'),
       ]);
       setProfile(p.data);
       setProfileForm({
@@ -59,6 +78,7 @@ export default function AdminUserSettingsPage() {
       setSessions(s.data.sessions || []);
       setNotifPrefs(n.data);
       setApiKeys(k.data.keys || []);
+      setTabPrefs(tb.data.prefs || {});
     } catch (err) {
       logger.error('Failed to load admin settings', err);
     } finally {
@@ -127,6 +147,23 @@ export default function AdminUserSettingsPage() {
     await navigator.clipboard.writeText(newKeyValue);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const saveTabPrefs = async () => {
+    setTabSaving(true);
+    try {
+      await api.put('/admin/settings/me/tabs', { prefs: tabPrefs });
+    } catch (err) {
+      logger.error('Failed to save tab preferences', err);
+    } finally {
+      setTabSaving(false);
+    }
+  };
+
+  const toggleTab = (tabKey) => {
+    // Default is essential (visible). Toggling sets it to non-essential (hidden).
+    const current = tabPrefs[tabKey];
+    setTabPrefs({ ...tabPrefs, [tabKey]: current === false ? true : false });
   };
 
   if (loading) {
@@ -294,6 +331,31 @@ export default function AdminUserSettingsPage() {
                 )}
               </div>
             ))}
+          </div>
+        )}
+
+        {activeTab === 'tabs' && (
+          <div className="admin-settings-section">
+            <h2>{t('adminSettings.tabs.title', 'Essential Tabs')}</h2>
+            <p className="admin-settings-hint">
+              {t('adminSettings.tabs.hint', 'Uncheck tabs you do not need. They will be hidden from your sidebar.')}
+            </p>
+            {MANAGEABLE_TABS.map(tabKey => {
+              const isEssential = tabPrefs[tabKey] !== false;
+              return (
+                <label key={tabKey} className="admin-settings-toggle">
+                  <input
+                    type="checkbox"
+                    checked={isEssential}
+                    onChange={() => toggleTab(tabKey)}
+                  />
+                  {tabKey}
+                </label>
+              );
+            })}
+            <button className="admin-settings-save" onClick={saveTabPrefs} disabled={tabSaving}>
+              {tabSaving ? t('common.saving', 'Saving...') : t('common.save', 'Save')}
+            </button>
           </div>
         )}
       </div>

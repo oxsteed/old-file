@@ -152,7 +152,7 @@ const AdminLegalAcceptancesPage = lazyWithRetry(() => import('./pages/AdminLegal
 const AdminLegalAuditLogPage = lazyWithRetry(() => import('./pages/AdminLegalAuditLogPage'));
 const AdminComplianceMetricsPage = lazyWithRetry(() => import('./pages/AdminComplianceMetricsPage'));
 const AdminCCPARequestsPage = lazyWithRetry(() => import('./pages/AdminCCPARequestsPage'));
-const AdminUserSettingsPage = lazyWithRetry(() => import('./pages/AdminUserSettingsPage'));
+const AdminUserSettingsPage = lazyWithRetry(() => import('../pages/admin/AdminUserSettingsPage'));
 const AdminReportsDashboard = lazyWithRetry(() => import('./pages/AdminReportsDashboard'));
 const AdminEnforcementDashboard = lazyWithRetry(() => import('./pages/AdminEnforcementDashboard'));
 const VisitorHistoryPage = lazyWithRetry(() => import('./pages/VisitorHistoryPage'));
