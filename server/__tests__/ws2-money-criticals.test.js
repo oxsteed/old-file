@@ -347,6 +347,7 @@ describe('H7 affiliate payout audit', () => {
   test('processing a payout writes an admin_audit_log row', async () => {
     const payout = { id: 'pay-1', status: 'pending', total_commission_cents: 3000, affiliate_program_id: 'prg-1', helper_id: 'u1' };
     keyed(async (sql) => {
+      if (sql.includes('FROM payout_methods')) return { rows: [{ id: 'pm-1', stripe_payment_method_id: 'pm_1', status: 'verified', is_primary: true }], rowCount: 1 };
       if (sql.includes('FROM affiliate_payouts ap')) return { rows: [payout], rowCount: 1 };
       if (sql.includes("SET status = 'processing'")) return { rows: [{ ...payout, status: 'processing' }], rowCount: 1 };
       if (sql.includes('SET status = $1, payout_method')) return { rows: [{ ...payout, status: 'processing' }], rowCount: 1 };
@@ -359,7 +360,7 @@ describe('H7 affiliate payout audit', () => {
     app.use((req, _res, next) => { req.user = { id: 'u1' }; next(); });
     app.post('/payouts/:payoutId/process', affiliatePayoutsController.processPayout);
     app.use(errorHandler);
-    const res = await request(app).post('/payouts/pay-1/process').send({ payment_method_id: 'pm_1' });
+    const res = await request(app).post('/payouts/pay-1/process').send({});
     expect(res.status).toBe(200);
     const auditCall = mockQuery.mock.calls.find(([sql]) => sql.includes('INSERT INTO admin_audit_log'));
     expect(auditCall).toBeTruthy();
