@@ -16,12 +16,16 @@
 const express = require('express');
 const router  = express.Router();
 const { authenticate } = require('../middleware/auth');
+const { requireFeatureEnabled } = require('../middleware/featureFlags');
 
 const access = require('../controllers/businessAccessCodesController');
+
+// Audit fix: Vortex is launch-hidden. Gate the API to match the UI.
+const requireVortexEnabled = requireFeatureEnabled('Vortex', 'VORTEX_ENABLED');
 const team   = require('../controllers/businessTeamController');
 
 // ── Code preview / redeem ────────────────────────────────────────────────────
-router.post('/preview', authenticate, access.previewCode);
-router.post('/redeem',  authenticate, access.redeemCode);
+router.post('/preview', authenticate, requireVortexEnabled, access.previewCode);
+router.post('/redeem',  authenticate, requireVortexEnabled, access.redeemCode);
 
 module.exports = router;
