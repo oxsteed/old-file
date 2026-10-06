@@ -152,6 +152,7 @@ const AdminLegalAcceptancesPage = lazyWithRetry(() => import('./pages/AdminLegal
 const AdminLegalAuditLogPage = lazyWithRetry(() => import('./pages/AdminLegalAuditLogPage'));
 const AdminComplianceMetricsPage = lazyWithRetry(() => import('./pages/AdminComplianceMetricsPage'));
 const AdminCCPARequestsPage = lazyWithRetry(() => import('./pages/AdminCCPARequestsPage'));
+const AdminUserSettingsPage = lazyWithRetry(() => import('./pages/AdminUserSettingsPage'));
 const AdminReportsDashboard = lazyWithRetry(() => import('./pages/AdminReportsDashboard'));
 const AdminEnforcementDashboard = lazyWithRetry(() => import('./pages/AdminEnforcementDashboard'));
 const VisitorHistoryPage = lazyWithRetry(() => import('./pages/VisitorHistoryPage'));
@@ -503,6 +504,7 @@ export default function AdminApp() {
           <Route path={adminRoute('logisticsRestrictions').relative} element={<RestrictionsAdmin />} />
           <Route path={adminRoute('logisticsDisputes').relative} element={<DisputesAdmin />} />
           <Route path={adminRoute('logisticsControl').relative} element={<AdminGuard superOnly={adminRoute('logisticsControl').superOnly}><SuperAdminLogisticsControl /></AdminGuard>} />
+          <Route path={adminRoute('userSettings').relative} element={<AdminGuard><AdminUserSettingsPage /></AdminGuard>} />
         </Route>
 
         {/* Catch-all */}

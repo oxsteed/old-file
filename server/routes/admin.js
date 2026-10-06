@@ -900,4 +900,16 @@ router.delete('/licenses-lookup/:id', requireAdmin, requirePermission('manage_op
   }
 });
 
+// ── Admin self-service settings ("My Settings" page) ────────────────────────
+const selfSettingsCtrl = require('../controllers/adminSelfSettingsController');
+router.get('/settings/me', requireAdmin, selfSettingsCtrl.getMyProfile);
+router.put('/settings/me', requireAdmin, selfSettingsCtrl.updateMyProfile);
+router.get('/settings/me/sessions', requireAdmin, selfSettingsCtrl.listMySessions);
+router.delete('/settings/me/sessions/:sessionId', requireAdmin, selfSettingsCtrl.revokeMySession);
+router.get('/settings/me/notifications', requireAdmin, selfSettingsCtrl.getMyNotificationPrefs);
+router.put('/settings/me/notifications', requireAdmin, selfSettingsCtrl.updateMyNotificationPrefs);
+router.get('/settings/me/api-keys', requireAdmin, selfSettingsCtrl.listMyApiKeys);
+router.post('/settings/me/api-keys', requireAdmin, selfSettingsCtrl.createMyApiKey);
+router.delete('/settings/me/api-keys/:keyId', requireAdmin, selfSettingsCtrl.revokeMyApiKey);
+
 module.exports = router;

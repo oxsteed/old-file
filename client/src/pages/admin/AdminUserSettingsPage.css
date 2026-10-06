@@ -1,0 +1,29 @@
+.admin-settings-page { max-width: 800px; margin: 0 auto; padding: 24px; }
+.admin-settings-page h1 { font-size: 24px; margin-bottom: 20px; }
+.admin-settings-loading { padding: 40px; text-align: center; }
+.admin-settings-tabs { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid #e5e7eb; padding-bottom: 12px; flex-wrap: wrap; }
+.admin-settings-tab { display: flex; align-items: center; gap: 6px; padding: 8px 16px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; cursor: pointer; font-size: 14px; }
+.admin-settings-tab.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+.admin-settings-content { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; }
+.admin-settings-section h2 { font-size: 18px; margin-bottom: 16px; }
+.admin-settings-hint { color: #6b7280; font-size: 13px; margin-bottom: 16px; }
+.admin-settings-field { margin-bottom: 16px; }
+.admin-settings-field label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; }
+.admin-settings-field input { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; }
+.admin-settings-field input:disabled { background: #f3f4f6; color: #6b7280; }
+.admin-settings-row { display: flex; gap: 12px; margin-bottom: 16px; }
+.admin-settings-row .admin-settings-field { flex: 1; margin-bottom: 0; }
+.admin-settings-row input { flex: 1; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; }
+.admin-settings-save { padding: 10px 20px; background: #1a1a1a; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; }
+.admin-settings-save:disabled { opacity: 0.5; cursor: not-allowed; }
+.admin-settings-session { display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 8px; }
+.admin-settings-session-device { font-weight: 500; font-size: 14px; }
+.admin-settings-session-meta { font-size: 12px; color: #6b7280; margin-top: 4px; }
+.admin-settings-badge { display: inline-block; margin-left: 8px; padding: 2px 8px; background: #dcfce7; color: #166534; border-radius: 4px; font-size: 11px; }
+.admin-settings-badge.revoked { background: #fee2e2; color: #991b1b; }
+.admin-settings-danger { padding: 8px; background: #fee2e2; color: #991b1b; border: none; border-radius: 8px; cursor: pointer; }
+.admin-settings-toggle { display: flex; align-items: center; gap: 10px; padding: 10px 0; font-size: 14px; cursor: pointer; }
+.admin-settings-toggle input { width: 18px; height: 18px; }
+.admin-settings-new-key { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+.admin-settings-new-key code { display: block; word-break: break-all; font-size: 13px; margin-bottom: 8px; }
+.admin-settings-new-key p { font-size: 12px; color: #166534; margin-top: 8px; }

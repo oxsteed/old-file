@@ -144,6 +144,7 @@ const ADMIN_SPA_ROUTES = Object.freeze([
   '/admin/super/profile-visibility',
   '/admin/super/featured-placements',
   '/admin/super/statement-operations',
+  '/admin/settings',
 ]);
 
 const routePatterns = ADMIN_SPA_ROUTES.map((route) => new RegExp(
