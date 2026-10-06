@@ -371,10 +371,11 @@ async function processNextTransfer() {
   // 24h). If funds already left our account, do not create another transfer.
   let settledCheck = { rows: [] };
   try {
-    settledCheck = await pool.query(
+    const result = await pool.query(
       `SELECT funds_settled FROM restaurant_payouts WHERE id = $1`,
       [payout.payout_id]
     );
+    if (result && result.rows) settledCheck = result;
   } catch {
     // If the check fails, do not block the transfer; the idempotency key
     // is the fallback guard.
