@@ -47,7 +47,7 @@ async function applyScheduledRow(client, row) {
         SET is_hidden_by_admin = $1,
             hidden_reason      = $2,
             hidden_at          = CASE WHEN $1 THEN NOW() ELSE NULL END,
-            hidden_by          = CASE WHEN $1 THEN $3 ELSE NULL END,
+            hidden_by          = CASE WHEN $1 THEN $3::uuid ELSE NULL END,
             updated_at         = NOW()
       WHERE ${spec.idCol} = $4
       RETURNING is_hidden_by_admin`,

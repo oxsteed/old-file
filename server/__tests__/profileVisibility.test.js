@@ -138,6 +138,7 @@ describe('setProfileVisibility', () => {
     const updateCall = mockQuery.mock.calls.find(([sql]) => /UPDATE helper_profiles/.test(sql));
     expect(updateCall).toBeDefined();
     expect(updateCall[0]).toMatch(/is_hidden_by_admin/);
+    expect(updateCall[0]).toMatch(/hidden_by\s*=\s*CASE WHEN \$1 THEN \$3::uuid ELSE NULL END/);
     expect(updateCall[1]).toEqual([true, 'non_compliance', 'admin-1', 'helper-1']);
   });
 
