@@ -379,12 +379,15 @@ exports.createPaymentIntent = async (req, res, next) => {
         } = await client.query(`INSERT INTO payments
             (job_id, payer_id, payee_id, stripe_payment_intent_id,
              amount, platform_fee, status, payment_hold_status, stripe_account_id, metadata)
-           VALUES ($1, $2, $3, $4, $5, $6, 'authorized', 'held', $7, $8::jsonb)
+           VALUES ($1, $2, $3, $4, $5, $6, 'pending', 'pending', $7, $8::jsonb)
            RETURNING id`, [job_id, req.user.id, job.rows[0].assigned_helper_id, paymentIntent.id, jobValueCents / 100, fees.platform_fee_cents / 100, freshConnect.stripe_account_id, JSON.stringify({
           discounted_amount_cents: jobValueCents,
           raw_job_value_cents: rawJobValueCents,
-          applied_credit_cents: appliedCreditCents
+          appliedCreditCents: appliedCreditCents
         })]));
+        // Audit fix: payment starts as 'pending', not 'authorized'. The
+        // webhook (payment_intent.amount_capturable_updated) marks it
+        // authorized only after Stripe confirms funds are held.
       } catch (insertErr) {
         // A concurrent request may have inserted the same idempotent Stripe
         // intent first. Return it rather than retrying the external charge.
@@ -407,15 +410,10 @@ exports.createPaymentIntent = async (req, res, next) => {
         throw new AppError('Failed to save payment intent to database', 500, 'payment_save_failed');
       }
 
-      // Record the credit deduction so it can't be double-spent
-      if (appliedCreditCents > 0) {
-        await client.query(`INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata)
-           VALUES ($1, 'credit_applied', $2, 'Referral credit applied to job payment', $3)`, [req.user.id, appliedCreditCents, JSON.stringify({
-          job_id,
-          payment_id: insertRows[0].id
-        })]);
-        logger.info(`Applied ${appliedCreditCents}¢ credit for user ${req.user.id} on job ${job_id}`);
-      }
+      // Audit fix: referral credit is NOT deducted here. It's recorded in the
+      // payment metadata and deducted only when Stripe confirms the payment
+      // (in the webhook). Deducting now would spend credit on a payment that
+      // might fail.
       return {
         replay: false,
         paymentIntent,

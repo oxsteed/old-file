@@ -810,11 +810,25 @@ exports.stripeWebhook = async (req, res, next) => {
         const pi = event.data.object;
         const jobId = pi.metadata?.job_id;
         if (jobId) {
-          await db.query(
+          const { rows: payRows } = await db.query(
             `UPDATE payments SET status = 'authorized', payment_hold_status = 'held',
-             updated_at = NOW() WHERE stripe_payment_intent_id = $1 AND status != 'captured'`,
+             updated_at = NOW() WHERE stripe_payment_intent_id = $1 AND status != 'captured'
+             RETURNING id, payer_id, metadata`,
             [pi.id]
           );
+          // Audit fix: deduct referral credit only now that Stripe has
+          // confirmed the payment. The credit amount was stored in metadata
+          // at PI creation time.
+          if (payRows[0]?.metadata?.applied_credit_cents > 0) {
+            await db.query(
+              `INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata)
+               VALUES ($1, 'credit_applied', $2, 'Referral credit applied to job payment', $3)`,
+              [payRows[0].payer_id, payRows[0].metadata.applied_credit_cents, JSON.stringify({
+                job_id: jobId,
+                payment_id: payRows[0].id,
+              })]
+            );
+          }
           logger.info(`[Stripe] PaymentIntent ${pi.id} authorized - job ${jobId} funds held`);
         }
         await withTransaction(db, (client) => applyStripePaymentIntent(client, pi));
@@ -994,6 +1008,20 @@ exports.stripeWebhook = async (req, res, next) => {
         }
         const pi = event.data.object;
         await withTransaction(db, (client) => applyStripePaymentIntent(client, pi));
+        // Audit fix: clear job escrow on cancel, same as payment_failed.
+        // Otherwise the job stays in escrow with no payment behind it.
+        const jobId = pi.metadata?.job_id;
+        if (jobId) {
+          await db.query(
+            `UPDATE payments SET status = 'canceled', payment_hold_status = 'none',
+             updated_at = NOW() WHERE stripe_payment_intent_id = $1`,
+            [pi.id]
+          );
+          await db.query(
+            `UPDATE jobs SET escrow_status = 'none', updated_at = NOW() WHERE id = $1`,
+            [jobId]
+          );
+        }
         break;
       }
 

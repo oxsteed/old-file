@@ -85,6 +85,16 @@ async function captureAuthorizedPaymentWithClient(client, paymentRow) {
     throw new Error('Payment missing Stripe identifiers');
   }
 
+  // Audit fix: verify with Stripe that the PaymentIntent is actually in
+  // requires_capture state before capturing. Don't trust the DB status alone.
+  const pi = await stripe.paymentIntents.retrieve(
+    paymentRow.stripe_payment_intent_id,
+    { stripeAccount: paymentRow.stripe_account_id }
+  );
+  if (pi.status !== 'requires_capture') {
+    throw new Error(`PaymentIntent ${pi.id} is ${pi.status}, not requires_capture. Cannot capture.`);
+  }
+
   const captured = await stripe.paymentIntents.capture(
     paymentRow.stripe_payment_intent_id,
     { amount_to_capture: Math.round(Number(paymentRow.amount) * 100) },
