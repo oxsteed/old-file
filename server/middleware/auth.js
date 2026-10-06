@@ -311,10 +311,23 @@ async function requireActiveSubscription(req, res, next) {
  * Allows endpoints to serve both authenticated and unauthenticated requests
  */
 const optionalAuth = async (req, res, next) => {
-  const header = req.headers.authorization;
-  if (!header?.startsWith('Bearer ')) return next();
+  // Audit fix: also check the oxsteed_access cookie, not just Bearer.
+  let token = null;
+  const cookieHeader = req.headers.cookie;
+  if (cookieHeader) {
+    const match = cookieHeader.match(/(?:^|;\s*)oxsteed_access=([^;]+)/);
+    if (match) {
+      try { token = decodeURIComponent(match[1]); } catch { token = match[1]; }
+    }
+  }
+  if (!token) {
+    const header = req.headers.authorization;
+    if (header?.startsWith('Bearer ')) {
+      token = header.split(' ')[1];
+    }
+  }
+  if (!token) return next();
   try {
-    const token = header.split(' ')[1];
     const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
     if (decoded.isMfaToken || decoded.type === 'refresh') return next();
 

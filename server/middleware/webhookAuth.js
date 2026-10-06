@@ -124,6 +124,7 @@ const webhookRateLimit = rateLimit({
 });
 
 module.exports = {
-  validateStripeSignature,
   webhookRateLimit
 };
+// Note: validateStripeSignature was removed (dead code, never used in routes).
+// Webhook signature validation happens inline in the webhook controllers.

@@ -84,7 +84,8 @@ exports.sendNotification = async ({
     const inQuietHours = !isSOSType && isWithinQuietHours(
       prefs.quiet_hours_start,
       prefs.quiet_hours_end,
-      prefs.quiet_hours_enabled
+      prefs.quiet_hours_enabled,
+      prefs.timezone
     );
 
     // ── 1. Save to DB (in-app) ────────────────────────────────
@@ -379,6 +380,14 @@ function buildEmailTemplate({
 
 // ─── BULK NOTIFICATION (e.g. platform announcements) ──────────
 exports.sendBulkNotification = async ({ userIds, type, title, body, data = {} }) => {
+  // Audit fix: cap bulk notifications at 1000 recipients to prevent abuse.
+  const MAX_BULK_RECIPIENTS = 1000;
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    throw new Error('userIds must be a non-empty array');
+  }
+  if (userIds.length > MAX_BULK_RECIPIENTS) {
+    throw new Error(`Bulk notification limited to ${MAX_BULK_RECIPIENTS} recipients`);
+  }
   const results = await Promise.allSettled(
     userIds.map(userId =>
       exports.sendNotification({ userId, type, title, body, data })
@@ -405,7 +414,7 @@ exports.sendBulkNotification = async ({ userIds, type, title, body, data = {} })
 // quiet_hours_start / quiet_hours_end come from Postgres as strings like "22:00:00".
 // Returns true (suppress push) when the current UTC time falls inside the window.
 // Wraps across midnight: e.g. start=22:00, end=07:00 suppresses 22–07.
-function isWithinQuietHours(startTime, endTime, enabled) {
+function isWithinQuietHours(startTime, endTime, enabled, timezone = 'UTC') {
   if (!enabled || !startTime || !endTime) return false;
 
   const toMinutes = (timeStr) => {
@@ -413,8 +422,18 @@ function isWithinQuietHours(startTime, endTime, enabled) {
     return (parts[0] || 0) * 60 + (parts[1] || 0);
   };
 
-  const now      = new Date();
-  const nowMins  = now.getUTCHours() * 60 + now.getUTCMinutes();
+  // Audit fix: evaluate in the user's timezone, not UTC.
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(now);
+  const hour = parseInt(parts.find(p => p.type === 'hour').value, 10);
+  const minute = parseInt(parts.find(p => p.type === 'minute').value, 10);
+  const nowMins = hour * 60 + minute;
   const startMin = toMinutes(startTime);
   const endMin   = toMinutes(endTime);
 

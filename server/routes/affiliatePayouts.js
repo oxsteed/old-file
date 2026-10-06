@@ -1,8 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
+const { requireFeatureEnabled } = require('../middleware/featureFlags');
 const affiliatePayoutsController = require('../controllers/affiliatePayoutsController');
 const AffiliateAnalyticsController = require('../controllers/AffiliateAnalyticsController');
+
+// Audit fix: affiliate system is gated behind a feature flag (defaults off).
+// The UI is hidden but the API was fully live.
+router.use(requireFeatureEnabled('Affiliate', 'AFFILIATE_ENABLED', false));
 
 // ── Stats (must be before /:programId to avoid route clash) ──────────────
 router.get('/stats/all', requireAuth, affiliatePayoutsController.getAffiliateStats);

@@ -3898,8 +3898,13 @@ exports.restrictUser = async (req, res) => {
     const { reason = '' } = req.body;
     if (!reason.trim()) return res.status(400).json({ error: 'Restriction reason is required.' });
 
-    const { rows } = await db.query('SELECT id FROM users WHERE id = $1', [userId]);
+    const { rows } = await db.query('SELECT id, role FROM users WHERE id = $1', [userId]);
     if (!rows.length) return res.status(404).json({ error: 'User not found.' });
+    // Audit fix: cannot restrict another admin. Admin actions against admins
+    // require super-admin intervention.
+    if (['admin', 'super_admin'].includes(rows[0].role)) {
+      return res.status(403).json({ error: 'Cannot restrict another admin account.' });
+    }
 
     await db.query(
       `UPDATE users
@@ -3939,6 +3944,12 @@ exports.warnUser = async (req, res) => {
     const { userId } = req.params;
     const { reason = '' } = req.body;
     if (!reason.trim()) return res.status(400).json({ error: 'Warning reason is required.' });
+
+    // Audit fix: cannot warn another admin.
+    const { rows: targetRows } = await db.query('SELECT role FROM users WHERE id = $1', [userId]);
+    if (targetRows[0] && ['admin', 'super_admin'].includes(targetRows[0].role)) {
+      return res.status(403).json({ error: 'Cannot warn another admin account.' });
+    }
 
     const { rows } = await db.query(
       `UPDATE users SET warning_count = COALESCE(warning_count, 0) + 1, updated_at = NOW()

@@ -487,15 +487,14 @@ async function login(req, res, next) {
     // no longer only in localStorage (XSS vector). The response still
     // includes it for backward compat during the migration.
     const isProd = process.env.NODE_ENV === 'production';
-    // Audit fix: use res.cookie (not setHeader) so we append rather than
-    // overwrite the refresh cookie set above. setHeader('Set-Cookie', ...)
-    // replaces ALL cookies, wiping the httpOnly refresh token.
+    // Audit fix: cookie Max-Age matches JWT expiry (15m), not 1h.
+    // A longer-lived cookie than the token it carries is misleading.
     res.cookie('oxsteed_access', tokens.accessToken, {
       httpOnly: true,
       sameSite: 'Lax',
       secure: isProd,
       path: '/',
-      maxAge: 3600 * 1000,
+      maxAge: 15 * 60 * 1000,
     });
     res.json({
       success: true,
@@ -783,10 +782,26 @@ async function refreshToken(req, res, next) {
 
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
     const { rows: sessionRows } = await pool.query(
-      'SELECT s.user_id FROM sessions s WHERE s.refresh_token = $1 AND s.is_valid = true AND s.expires_at > NOW()',
+      'SELECT s.user_id, s.is_valid, s.is_revoked FROM sessions s WHERE s.refresh_token = $1',
       [hashedToken]
     );
     if (!sessionRows[0]) {
+      throw new AppError('Your session has expired. Please log in again.', 401, 'token_expired');
+    }
+    // Audit fix: refresh token reuse detection (family kill). If a refresh
+    // token is presented for an already-invalidated session, someone may have
+    // stolen it. Kill all sessions for the user.
+    if (!sessionRows[0].is_valid || sessionRows[0].is_revoked) {
+      await pool.query(
+        'UPDATE sessions SET is_valid = false, is_revoked = true WHERE user_id = $1',
+        [sessionRows[0].user_id]
+      );
+      try {
+        await tokenRevocationService.revokeAllUserTokens(String(sessionRows[0].user_id));
+      } catch {}
+      throw new AppError('Session reuse detected. All sessions revoked. Please log in again.', 401, 'token_reuse');
+    }
+    if (!sessionRows[0].is_valid) {
       throw new AppError('Your session has expired. Please log in again.', 401, 'token_expired');
     }
 
