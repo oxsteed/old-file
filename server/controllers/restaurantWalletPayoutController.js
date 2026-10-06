@@ -27,7 +27,7 @@ exports.getPayoutBalance = async (req, res, next) => {
         `SELECT fr.id, fr.display_name, fr.currency_code
            FROM food_restaurants fr
            JOIN businesses b ON b.id = fr.business_id
-          WHERE fr.id = $1 AND b.owner_user_id = $2
+          WHERE fr.id = $1 AND b.user_id = $2
             AND fr.status = 'active' AND b.is_active = TRUE AND b.deleted_at IS NULL`,
         [restaurantId, req.user.id]
       );

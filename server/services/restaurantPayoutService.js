@@ -100,11 +100,16 @@ async function getPayoutableBalance(client, restaurantId, currencyCode) {
 async function requireRestaurantOwnership(client, userId, restaurantId) {
   const { rows } = await client.query(
     `SELECT fr.id, fr.display_name, fr.currency_code,
-            b.stripe_account_id, b.stripe_payouts_enabled
+            -- Audit fix: single Connect source of truth. The UI onboards
+            -- into restaurant_connect_accounts; prefer it over the legacy
+            -- businesses.stripe_account_id.
+            COALESCE(rca.stripe_account_id, b.stripe_account_id) AS stripe_account_id,
+            COALESCE(rca.payouts_enabled, b.stripe_payouts_enabled, FALSE) AS stripe_payouts_enabled
        FROM food_restaurants fr
        JOIN businesses b ON b.id = fr.business_id
+       LEFT JOIN restaurant_connect_accounts rca ON rca.restaurant_id = fr.id
       WHERE fr.id = $1
-        AND b.owner_user_id = $2
+        AND b.user_id = $2
         AND fr.status = 'active'
         AND b.is_active = TRUE
         AND b.deleted_at IS NULL`,
@@ -425,7 +430,7 @@ async function processNextTransfer() {
 async function notifyPayoutOwner(payout, type, extra = {}) {
   try {
     const { rows } = await pool.query(
-      `SELECT b.owner_user_id FROM food_restaurants fr
+      `SELECT b.user_id FROM food_restaurants fr
         JOIN businesses b ON b.id = fr.business_id
        WHERE fr.id = $1`,
       [payout.restaurant_id]
