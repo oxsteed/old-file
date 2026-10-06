@@ -547,44 +547,6 @@ async function buildSuspectPairsIndexed(client, userIds) {
 
   return suspectPairs;
 }
-        signals.push({ type: 'same_device_terms', label: 'Same device at registration', weight: SIGNAL_WEIGHTS.same_device_terms });
-        score += SIGNAL_WEIGHTS.same_device_terms;
-      }
-
-      if (a.didit_identity_hash && b.didit_identity_hash && a.didit_identity_hash === b.didit_identity_hash) {
-        signals.push({ type: 'same_didit_hash', label: 'Same verified identity (Didit)', weight: SIGNAL_WEIGHTS.same_didit_hash });
-        score += SIGNAL_WEIGHTS.same_didit_hash;
-      }
-
-      if (
-        (a.referral_code && b.referred_by && a.referral_code === b.referred_by) ||
-        (b.referral_code && a.referred_by && b.referral_code === a.referred_by)
-      ) {
-        signals.push({ type: 'same_referral', label: 'One account referred the other', weight: SIGNAL_WEIGHTS.same_referral });
-        score += SIGNAL_WEIGHTS.same_referral;
-      }
-
-      const msApart = Math.abs(new Date(a.created_at) - new Date(b.created_at));
-      if (msApart < 24 * 60 * 60 * 1000) {
-        signals.push({ type: 'close_created', label: 'Accounts created within 24h', weight: SIGNAL_WEIGHTS.close_created });
-        score += SIGNAL_WEIGHTS.close_created;
-      }
-
-      if (score >= SUSPECT_THRESHOLD && signals.length >= 2) {
-        suspectPairs.push({
-          id: pairKey,
-          score,
-          signals,
-          userA: a,
-          userB: b,
-        });
-      }
-    }
-  }
-
-  suspectPairs.sort((a, b) => b.score - a.score);
-  return suspectPairs;
-}
 
 async function countUsersWithMultipleBusinesses(client, scope) {
   const base = [`u.deleted_at IS NULL`, `u.role NOT IN ('admin', 'super_admin')`];
