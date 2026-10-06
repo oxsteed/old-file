@@ -483,6 +483,13 @@ async function login(req, res, next) {
     const alertUa = req.headers['user-agent'] || null;
     checkAndAlertNewLogin(user.id, alertIp, alertUa).catch(() => {});
 
+    // Audit fix: set the access token as an httpOnly cookie. The token is
+    // no longer only in localStorage (XSS vector). The response still
+    // includes it for backward compat during the migration.
+    const isProd = process.env.NODE_ENV === 'production';
+    res.setHeader('Set-Cookie',
+      `oxsteed_access=${encodeURIComponent(tokens.accessToken)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600${isProd ? '; Secure' : ''}`
+    );
     res.json({
       success: true,
       message: 'Login successful',
@@ -883,6 +890,11 @@ async function logout(req, res) {
     // H8d: drop the httpOnly refresh cookie so the browser session ends even
     // when the token arrived via cookie.
     clearRefreshTokenCookie(res);
+    // Audit fix: also clear the access token cookie.
+    res.setHeader('Set-Cookie', [
+      res.getHeader('Set-Cookie'),
+      'oxsteed_access=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0'
+    ].filter(Boolean).flat());
 
     res.json({ message: 'Logged out' });
   } catch (err) {

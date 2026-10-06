@@ -423,6 +423,30 @@ async function getCatalog({ locale = 'en', includeUnpublished = false, view = nu
     }
   }
   const capabilityByService = new Map();
+  // Audit fix: batch the offerability checks instead of sequential awaits.
+  // Collect the candidates first, then resolve them concurrently.
+  const offerCandidates = services.filter((row) => {
+    const pool = poolMap.get(String(row.id)) || { size: 0 };
+    const prefersBook = !!row.is_bookable;
+    const operational = row.is_operationally_available === undefined
+      ? true
+      : !!row.is_operationally_available;
+    const requestableBase = legacyLifecycle(row) === 'live'
+      && operational
+      && (row.category_lifecycle_status || 'live') === 'live';
+    return prefersBook && requestableBase && pool.size > 0;
+  });
+  const offerResults = new Map();
+  if (offerCandidates.length) {
+    const settled = await Promise.allSettled(
+      offerCandidates.map((row) => hasOfferableSlots(row.id).then((offer) => [String(row.id), offer]))
+    );
+    for (const s of settled) {
+      if (s.status === 'fulfilled') {
+        offerResults.set(s.value[0], s.value[1]);
+      }
+    }
+  }
   for (const row of services) {
     const pool = poolMap.get(String(row.id)) || { size: 0 };
     const prefersBook = !!row.is_bookable;
@@ -436,14 +460,14 @@ async function getCatalog({ locale = 'en', includeUnpublished = false, view = nu
     let nextSlotStartsAt = null;
     let capacityExhausted = false;
     if (prefersBook && requestableBase && pool.size > 0) {
-      try {
-        const offer = await hasOfferableSlots(row.id);
+      const offer = offerResults.get(String(row.id));
+      if (offer) {
         slotsAvailable = offer.slotsAvailable;
         nextSlotStartsAt = offer.nextSlotStartsAt;
         capacityExhausted = offer.capacityExhausted;
-      } catch (_) {
-        slotsAvailable = false;
       }
+      // If the batch lookup failed for this service, slotsAvailable stays
+      // false (soft-fail into not Bookable, as before).
     } else if (prefersBook && requestableBase && pool.size === 0) {
       // preference on, no pool → not bookable (reason set in derive)
     }

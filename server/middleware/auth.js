@@ -54,11 +54,28 @@ function computeOnboardingStep(user) {
 }
 
 async function authenticate(req, res, next) {
-  const header = req.headers.authorization;
-  if (!header || !header.startsWith('Bearer ')) {
+  // Audit fix: accept the access token from the httpOnly cookie first,
+  // falling back to the Authorization header for backward compat.
+  // The cookie is not accessible to JavaScript, closing the XSS vector.
+  let cookieToken = null;
+  const cookieHeader = req.headers.cookie;
+  if (cookieHeader) {
+    const match = cookieHeader.match(/(?:^|;\s*)oxsteed_access=([^;]+)/);
+    if (match) {
+      try {
+        cookieToken = decodeURIComponent(match[1]);
+      } catch {
+        cookieToken = match[1];
+      }
+    }
+  }
+  const token = cookieToken
+    || (req.headers.authorization?.startsWith('Bearer ')
+        ? req.headers.authorization.split(' ')[1]
+        : null);
+  if (!token) {
     return res.status(401).json({ error: 'No token provided' });
   }
-  const token = header.split(' ')[1];
   try {
     const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
 
