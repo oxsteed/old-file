@@ -1914,6 +1914,14 @@ async function getPublicProfile(req, res) {
       [id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'User not found' });
+    // Audit fix: unlisted profiles are not publicly visible.
+    const { rows: [listed] } = await pool.query(
+      `SELECT is_listed FROM helper_profiles WHERE user_id = $1`,
+      [id]
+    ).catch(() => ({ rows: [] }));
+    if (listed && listed.is_listed === false) {
+      return res.status(404).json({ error: 'User not found' });
+    }
     res.json(rows[0]);
   } catch (err) {
     logger.error('Public profile error', { err });
