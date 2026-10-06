@@ -459,7 +459,10 @@ exports.requestInstantPayout = async (req, res, next) => {
       stripeAccount: refreshedAccount.stripe_account_id
     });
     const available = (balance.available || []).find(b => String(b.currency).toLowerCase() === 'usd');
-    const amount = available?.amount || 0;
+    // Audit fix: cap instant payouts at $500 per request. Draining the full
+    // available balance in one call is risky if the account is compromised.
+    const INSTANT_PAYOUT_MAX_CENTS = 50000;
+    const amount = Math.min(available?.amount || 0, INSTANT_PAYOUT_MAX_CENTS);
     if (amount <= 0) {
       return res.status(200).json({
         status: 'no_available_balance',

@@ -24,7 +24,7 @@ router.post('/connect', authenticate, requirePaymentsEnabled, connectAccountLimi
 router.get('/connect/status', authenticate, requirePaymentsEnabled, getConnectStatus);
 router.post('/connect/disconnect', authenticate, requirePaymentsEnabled, connectAccountLimiter, disconnectConnectAccount);
 router.post('/payout/instant', authenticate, requirePaymentsEnabled, paymentsLimiter, requestInstantPayout);
-router.get('/investor-summary', authenticate, getInvestorSummary);
+router.get('/investor-summary', authenticate, requireAdmin, getInvestorSummary);
 
 // Payments
 router.get('/me', authenticate, requirePaymentsEnabled, getMyPayments);
