@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import postcss from 'postcss';
-import tailwind from 'tailwindcss';
-import config from '../tailwind.config.js';
+import tailwind from '@tailwindcss/postcss';
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
 const css = postcss.parse(read('src/index.css'));
@@ -88,8 +88,10 @@ test('neutral gradient remapping replaces the actual Tailwind via stops', () => 
 });
 
 test('solid foreground utilities are generated independently of legacy text-white', async () => {
-  const output = await postcss([tailwind({ ...config, content: [{ raw: 'bg-action hover:bg-action-hover text-on-action text-on-solid text-content', extension: 'html' }] })])
-    .process('@tailwind utilities;', { from: undefined });
+  const output = await postcss([tailwind({})])
+    .process('@config "../tailwind.config.js"; @import "tailwindcss";', {
+      from: fileURLToPath(new URL('../src/index.css', import.meta.url)),
+    });
   for (const name of ['.text-on-action', '.text-on-solid', '.bg-action', '.text-content']) {
     assert.ok(output.css.includes(name), `${name} must be generated`);
   }

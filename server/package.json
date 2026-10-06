@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node scripts/sync-web-assets.cjs && node migrate.js && node index.js",
     "migrate": "node migrate.js",
-    "dev": "nodemon index.js",
+    "dev": "node --watch index.js",
     "test": "jest --runInBand --forceExit",
     "test:watch": "jest --watch --runInBand",
     "test:active-job-statuses": "jest __tests__/activeJobStatuses.test.js --runInBand --forceExit",
@@ -96,7 +96,6 @@
   },
   "devDependencies": {
     "jest": "^30.3.0",
-    "nodemon": "^3.0.0",
     "pdf2json": "^3.2.2",
     "playwright": "^1.63.0",
     "socket.io-client": "^4.8.3",
