@@ -1174,3 +1174,245 @@ exports.applySingleVisibility = async (profileType, profileId, isVisible, opts =
   });
   return { profileType: type, profileId: String(profileId), isVisible };
 };
+
+// ─── GET /api/admin/profile-visibility/:type/:id/impact ──────────────────────
+// Blast-radius preview before hiding: active work plus 30-day engagement and
+// revenue figures so the admin sees what hiding this profile costs.
+exports.getImpactPreview = async (req, res) => {
+  try {
+    const profileType = String(req.params.type || '').toLowerCase();
+    const profileId = String(req.params.id || '').trim();
+    const spec = TABLE_BY_TYPE[profileType];
+    if (!spec || !profileId) return res.status(400).json({ error: 'Invalid profile reference.' });
+
+    const work = await getActiveWork(profileType, profileId);
+
+    // 30-day engagement: best-effort counts, 0 when the source table is absent.
+    let views30d = 0;
+    let followers = 0;
+    try {
+      const idParam = profileType === 'helper' ? '$1::uuid' : '$1::bigint';
+      const v = await db.query(
+        `SELECT COUNT(*)::int AS c FROM profile_views
+          WHERE profile_type = $1 AND profile_id = ${idParam}
+            AND viewed_at >= now() - interval '30 days'`,
+        [profileType, profileId]
+      );
+      views30d = v.rows[0]?.c || 0;
+    } catch { /* table absent */ }
+    try {
+      const idParam = profileType === 'helper' ? '$1::uuid' : '$1::bigint';
+      const f = await db.query(
+        `SELECT COUNT(*)::int AS c FROM profile_followers
+          WHERE profile_type = $1 AND profile_id = ${idParam}`,
+        [profileType, profileId]
+      );
+      followers = f.rows[0]?.c || 0;
+    } catch { /* table absent */ }
+
+    return res.json({
+      profile_type: profileType,
+      profile_id: profileId,
+      active_jobs: work.active_jobs || 0,
+      upcoming_bookings: work.upcoming_bookings || 0,
+      open_orders: work.open_orders || 0,
+      has_active_work: !!work.has_active_work,
+      views_30d: views30d,
+      followers,
+    });
+  } catch (err) {
+    logger.error('profileVisibility impact error', { err, adminId: req.user?.id });
+    return res.status(500).json({ error: 'Could not load impact preview.' });
+  }
+};
+
+// ─── GET /api/admin/profile-visibility/:type/:id/timeline ────────────────────
+// Per-profile visibility timeline: hide/restore events paired with durations.
+exports.getVisibilityTimeline = async (req, res) => {
+  try {
+    const profileType = String(req.params.type || '').toLowerCase();
+    const profileId = String(req.params.id || '').trim();
+    const spec = TABLE_BY_TYPE[profileType];
+    if (!spec || !profileId) return res.status(400).json({ error: 'Invalid profile reference.' });
+
+    const { rows } = await db.query(
+      `SELECT a.id, a.action, a.description, a.created_at,
+              COALESCE(NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), ''), u.email, 'Admin') AS actor_name
+         FROM admin_audit_log a
+         LEFT JOIN users u ON u.id = a.admin_id
+        WHERE a.target_type = $1
+          AND (a.target_id::text = $2 OR a.target_key = $2)
+          AND a.action IN ('profile_visibility_hidden', 'profile_visibility_restored')
+        ORDER BY a.created_at ASC
+        LIMIT 200`,
+      [spec.targetType, profileId]
+    );
+
+    // Pair hides with restores to compute durations.
+    const events = [];
+    let pendingHide = null;
+    for (const r of rows) {
+      if (r.action === 'profile_visibility_hidden') {
+        if (pendingHide) {
+          events.push({ ...pendingHide, duration_days: null, still_hidden: true });
+        }
+        pendingHide = {
+          id: r.id, action: 'hidden', actor_name: r.actor_name,
+          created_at: r.created_at, description: r.description,
+        };
+      } else {
+        if (pendingHide) {
+          const ms = new Date(r.created_at) - new Date(pendingHide.created_at);
+          events.push({ ...pendingHide, duration_days: Math.round(ms / 86400000), restored_at: r.created_at, restored_by: r.actor_name });
+          pendingHide = null;
+        }
+        events.push({ id: r.id, action: 'restored', actor_name: r.actor_name, created_at: r.created_at, description: r.description });
+      }
+    }
+    if (pendingHide) events.push({ ...pendingHide, duration_days: null, still_hidden: true });
+
+    return res.json({ timeline: events.reverse() });
+  } catch (err) {
+    logger.error('profileVisibility timeline error', { err, adminId: req.user?.id });
+    return res.status(500).json({ error: 'Could not load timeline.' });
+  }
+};
+
+// ─── GET /api/admin/profile-visibility/stale ─────────────────────────────────
+// Profiles hidden longer than the threshold (default 180 days) or hidden
+// without owner notification: hides that may have rotted.
+exports.listStaleHides = async (req, res) => {
+  try {
+    const days = Math.min(Math.max(parseInt(req.query.days, 10) || 180, 7), 3650);
+    const { rows } = await db.query(
+      `SELECT 'helper'::text AS profile_type, u.id::text AS profile_id,
+              COALESCE(NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), ''), u.email) AS display_name,
+              hp.hidden_at, hp.hidden_reason
+         FROM helper_profiles hp JOIN users u ON u.id = hp.user_id
+        WHERE COALESCE(hp.is_hidden_by_admin, FALSE) = TRUE
+          AND hp.hidden_at < now() - ($1 || ' days')::interval
+        UNION ALL
+       SELECT 'business'::text, b.id::text, b.name, b.hidden_at, b.hidden_reason
+         FROM businesses b
+        WHERE COALESCE(b.is_hidden_by_admin, FALSE) = TRUE
+          AND b.hidden_at < now() - ($1 || ' days')::interval
+        UNION ALL
+       SELECT 'restaurant'::text, fr.id::text, fr.name, fr.hidden_at, fr.hidden_reason
+         FROM food_restaurants fr
+        WHERE COALESCE(fr.is_hidden_by_admin, FALSE) = TRUE
+          AND fr.hidden_at < now() - ($1 || ' days')::interval
+        ORDER BY hidden_at ASC LIMIT 200`,
+      [String(days)]
+    );
+    return res.json({ days, stale: rows });
+  } catch (err) {
+    logger.error('profileVisibility stale error', { err, adminId: req.user?.id });
+    return res.status(500).json({ error: 'Could not load stale hides.' });
+  }
+};
+
+// ─── GET /api/admin/profile-visibility/:type/:id/restore-checklist ───────────
+// For restores: what was missing when hidden and whether it is fixed now.
+exports.getRestoreChecklist = async (req, res) => {
+  try {
+    const profileType = String(req.params.type || '').toLowerCase();
+    const profileId = String(req.params.id || '').trim();
+    const spec = TABLE_BY_TYPE[profileType];
+    if (!spec || !profileId) return res.status(400).json({ error: 'Invalid profile reference.' });
+
+    const items = [];
+    if (profileType === 'helper') {
+      const { rows: [r] } = await db.query(
+        `SELECT u.avatar_url, u.phone_verified, hp.bio, hp.hourly_rate_cents,
+                (SELECT COUNT(*)::int FROM helper_services WHERE user_id = u.id) AS service_count
+           FROM users u JOIN helper_profiles hp ON hp.user_id = u.id
+          WHERE u.id = $1::uuid LIMIT 1`, [profileId]);
+      if (!r) return res.status(404).json({ error: 'Profile not found.' });
+      items.push(
+        { key: 'photo', label: 'Profile photo', present: !!r.avatar_url },
+        { key: 'phone', label: 'Phone verified', present: !!r.phone_verified },
+        { key: 'bio', label: 'Bio written', present: !!(r.bio && r.bio.trim().length >= 20) },
+        { key: 'rate', label: 'Hourly rate set', present: r.hourly_rate_cents > 0 },
+        { key: 'services', label: 'At least one service', present: r.service_count > 0 },
+      );
+    } else if (profileType === 'business') {
+      const { rows: [r] } = await db.query(
+        `SELECT name, logo_url, description, phone FROM businesses WHERE id = $1::bigint LIMIT 1`, [profileId]);
+      if (!r) return res.status(404).json({ error: 'Profile not found.' });
+      items.push(
+        { key: 'name', label: 'Business name', present: !!r.name },
+        { key: 'logo', label: 'Logo uploaded', present: !!r.logo_url },
+        { key: 'description', label: 'Description written', present: !!(r.description && r.description.trim().length >= 20) },
+        { key: 'phone', label: 'Phone number', present: !!r.phone },
+      );
+    } else {
+      const { rows: [r] } = await db.query(
+        `SELECT name, logo_url, description FROM food_restaurants WHERE id = $1::bigint LIMIT 1`, [profileId]);
+      if (!r) return res.status(404).json({ error: 'Profile not found.' });
+      items.push(
+        { key: 'name', label: 'Restaurant name', present: !!r.name },
+        { key: 'logo', label: 'Logo uploaded', present: !!r.logo_url },
+        { key: 'description', label: 'Description written', present: !!(r.description && r.description.trim().length >= 20) },
+      );
+    }
+    return res.json({ items, all_clear: items.every((i) => i.present) });
+  } catch (err) {
+    logger.error('profileVisibility checklist error', { err, adminId: req.user?.id });
+    return res.status(500).json({ error: 'Could not load restore checklist.' });
+  }
+};
+
+// ─── Appeals ─────────────────────────────────────────────────────────────────
+exports.listAppeals = async (req, res) => {
+  try {
+    const status = String(req.query.status || 'pending').toLowerCase();
+    if (!['pending', 'approved', 'denied', 'all'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status filter.' });
+    }
+    const { rows } = await db.query(
+      `SELECT a.id, a.profile_type, a.profile_id, a.message, a.status,
+              a.created_at, a.reviewed_at, a.review_note,
+              COALESCE(NULLIF(TRIM(COALESCE(app.first_name, '') || ' ' || COALESCE(app.last_name, '')), ''), app.email) AS appellant_name,
+              COALESCE(NULLIF(TRIM(COALESCE(rev.first_name, '') || ' ' || COALESCE(rev.last_name, '')), ''), rev.email) AS reviewer_name
+         FROM profile_visibility_appeals a
+         JOIN users app ON app.id = a.appellant_id
+         LEFT JOIN users rev ON rev.id = a.reviewed_by
+        WHERE ($1 = 'all' OR a.status = $1)
+        ORDER BY a.created_at DESC LIMIT 200`,
+      [status]
+    );
+    return res.json({ appeals: rows });
+  } catch (err) {
+    logger.error('profileVisibility appeals list error', { err, adminId: req.user?.id });
+    return res.status(500).json({ error: 'Could not load appeals.' });
+  }
+};
+
+exports.resolveAppeal = async (req, res) => {
+  try {
+    const appealId = String(req.params.id || '').trim();
+    const decision = String(req.body?.decision || '').toLowerCase();
+    const note = String(req.body?.note || '').trim().slice(0, 2000);
+    if (!['approved', 'denied'].includes(decision)) {
+      return res.status(400).json({ error: 'Decision must be approved or denied.' });
+    }
+    const { rows } = await db.query(
+      `UPDATE profile_visibility_appeals
+          SET status = $2, reviewed_by = $3, reviewed_at = now(), review_note = NULLIF($4, '')
+        WHERE id = $1::uuid AND status = 'pending'
+        RETURNING id, profile_type, profile_id`,
+      [appealId, decision, req.user.id, note]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Appeal not found or already resolved.' });
+    await db.query(
+      `INSERT INTO admin_audit_log (admin_id, action, target_type, target_id, description)
+       VALUES ($1, 'profile_visibility_appeal_' || $2, 'profile_visibility_appeal', $3,
+               'Appeal ' || $2 || COALESCE(': ' || NULLIF($4, ''), ''))`,
+      [req.user.id, decision, appealId, note]
+    );
+    return res.json({ ok: true, appeal: rows[0] });
+  } catch (err) {
+    logger.error('profileVisibility appeal resolve error', { err, adminId: req.user?.id });
+    return res.status(500).json({ error: 'Could not resolve appeal.' });
+  }
+};

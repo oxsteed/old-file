@@ -113,7 +113,13 @@ router.post('/profile-visibility/bulk-operations/:idempotencyKey/reclaim', requi
 router.post('/profile-visibility/approvals/request', requireAdmin, requirePermission('manage_profile_visibility'), profileVisApprCtrl.requestApprovalCtrl);
 router.post('/profile-visibility/approvals/:id/review', requireAdmin, requirePermission('manage_profile_visibility'), profileVisApprCtrl.reviewApprovalCtrl);
 router.get('/profile-visibility/approvals', requireAdmin, requirePermission('manage_profile_visibility'), profileVisApprCtrl.listApprovals);
+router.get('/profile-visibility/stale', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.listStaleHides);
+router.get('/profile-visibility/appeals', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.listAppeals);
+router.post('/profile-visibility/appeals/:id/resolve', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.resolveAppeal);
 router.get('/profile-visibility/:type/:id/history', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.getProfileHistory);
+router.get('/profile-visibility/:type/:id/timeline', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.getVisibilityTimeline);
+router.get('/profile-visibility/:type/:id/impact', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.getImpactPreview);
+router.get('/profile-visibility/:type/:id/restore-checklist', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.getRestoreChecklist);
 router.get('/profile-visibility/:type/:id/notifications', requireAdmin, requirePermission('manage_profile_visibility'), profileVisApprCtrl.listOwnerNotifications);
 router.get('/profile-visibility/:type/:id/active-work', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.getProfileActiveWork);
 router.get('/profile-visibility/:type/:id/preview', requireAdmin, requirePermission('manage_profile_visibility'), profileVisCtrl.getProfilePreview);

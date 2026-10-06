@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import useDestructiveConfirm from '../hooks/useDestructiveConfirm';
-import { AlertTriangle, Bell, Building2, CalendarClock, CheckCircle2, CheckSquare, ChevronLeft, ChevronRight, Download, Eye, EyeOff, History, MonitorPlay, RefreshCw, Save, Search, ShieldCheck, Store, Trash2, Undo2, User, X } from 'lucide-react';
+import { AlertTriangle, Bell, Building2, CalendarClock, CheckCircle2, CheckSquare, ChevronLeft, ChevronRight, Clock, Download, Eye, EyeOff, History, Inbox, MonitorPlay, RefreshCw, Save, Search, ShieldCheck, Store, Timer, Trash2, TrendingUp, Undo2, User, Users, X } from 'lucide-react';
 import api from '../../api/axios';
 import logger from '../../utils/logger';
 import { useAuth } from '../../hooks/useAuth';
@@ -217,6 +217,37 @@ export default function ProfileVisibilityPage() {
   const [viewName, setViewName] = useState('');
   const [exportingAll, setExportingAll] = useState(false);
 
+  // Impact preview (before hide)
+  const [impactTarget, setImpactTarget] = useState(null);
+  const [impactData, setImpactData] = useState(null);
+  const [impactLoading, setImpactLoading] = useState(false);
+  const [impactAck, setImpactAck] = useState(false);
+  const [impactError, setImpactError] = useState('');
+
+  // Restore checklist
+  const [checklistTarget, setChecklistTarget] = useState(null);
+  const [checklistData, setChecklistData] = useState(null);
+  const [checklistLoading, setChecklistLoading] = useState(false);
+
+  // Visibility timeline
+  const [timelineTarget, setTimelineTarget] = useState(null);
+  const [timelineRows, setTimelineRows] = useState([]);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+
+  // Appeals inbox
+  const [showAppeals, setShowAppeals] = useState(false);
+  const [appeals, setAppeals] = useState([]);
+  const [appealsLoading, setAppealsLoading] = useState(false);
+  const [appealNotes, setAppealNotes] = useState({});
+  const [resolvingAppealId, setResolvingAppealId] = useState(null);
+
+  // Stale-hide sweeper
+  const [showStale, setShowStale] = useState(false);
+  const [staleHides, setStaleHides] = useState([]);
+  const [staleHidesLoading, setStaleHidesLoading] = useState(false);
+  const [staleDays, setStaleDays] = useState(180);
+  const [restoringStaleKey, setRestoringStaleKey] = useState(null);
+
   const search = useCallback(async (nextQuery, nextType, nextVisibility, nextPage = 1) => {
     const q = nextQuery.trim();
     const requestId = ++searchRequest.current;
@@ -349,14 +380,38 @@ export default function ProfileVisibilityPage() {
     setHideAck(false);
     setApprovalNotice(null);
     setHideWorkLoading(true);
+    setImpactTarget(null);
+    setImpactData(null);
+    setImpactAck(false);
+    setImpactError('');
     try {
-      const { data } = await api.get(`/admin/profile-visibility/${profile.profile_type}/${profile.profile_id}/active-work`);
-      const work = data || { has_active_work: false };
+      const [workRes, impactRes] = await Promise.allSettled([
+        api.get(`/admin/profile-visibility/${profile.profile_type}/${profile.profile_id}/active-work`),
+        api.get(`/admin/profile-visibility/${profile.profile_type}/${profile.profile_id}/impact`),
+      ]);
+      const work = workRes.status === 'fulfilled' ? (workRes.value.data || { has_active_work: false }) : { has_active_work: false, checkFailed: true };
       // Tag the result to its row so a slow response for a previously
       // opened form cannot surface under a different profile.
       setHideWork({ ...work, forKey });
+      const impact = impactRes.status === 'fulfilled' ? (impactRes.value.data || {}) : {};
+      const meaningful =
+        (impact.active_jobs || 0) > 0 ||
+        (impact.upcoming_bookings || 0) > 0 ||
+        (impact.open_orders || 0) > 0 ||
+        (impact.views_30d || 0) > 0 ||
+        (impact.followers || 0) > 0;
+      if (meaningful) {
+        // Show the impact preview modal; the admin acknowledges there
+        // before the hide proceeds through the normal confirmation path.
+        setImpactTarget(profile);
+        setImpactData(impact);
+        if (impactRes.status !== 'fulfilled') {
+          setImpactError(copy('impactError', { defaultValue: 'Could not load impact data. You can still proceed.' }));
+        }
+        return;
+      }
       if (!work.has_active_work) {
-        // No active work: hide immediately.
+        // No active work and no meaningful impact: hide immediately.
         await applyVisibility(profile, false, hideReason, hideNote);
       }
     } catch (err) {
@@ -366,7 +421,23 @@ export default function ProfileVisibilityPage() {
     } finally {
       setHideWorkLoading(false);
     }
-  }, [applyVisibility, hideNote, hideReason]);
+  }, [applyVisibility, copy, hideNote, hideReason]);
+
+  const continueAfterImpact = useCallback(async () => {
+    if (!impactTarget || !impactAck) return;
+    const profile = impactTarget;
+    setImpactTarget(null);
+    setImpactData(null);
+    setImpactAck(false);
+    // Reuse the already-fetched active-work result to decide the path.
+    if (hideWork && hideWork.has_active_work) {
+      // Leave the inline warning form open; the admin already acknowledged
+      // impact, so pre-check the active-work acknowledgement too.
+      setHideAck(true);
+    } else {
+      await applyVisibility(profile, false, hideReason, hideNote);
+    }
+  }, [applyVisibility, hideNote, hideReason, hideWork, impactAck, impactTarget]);
 
   const hideAnyway = useCallback(async () => {
     if (!hideTarget || !hideAck) return;
@@ -670,7 +741,7 @@ export default function ProfileVisibilityPage() {
   }, [bulkPreview, copy, refresh]);
 
   const loadStaleOperations = useCallback(async () => {
-    setStaleLoading(true);
+    setStaleHidesLoading(true);
     try {
       const { data } = await api.get('/admin/profile-visibility/bulk-operations/stale');
       setStaleOperations(Array.isArray(data?.operations) ? data.operations : []);
@@ -770,6 +841,183 @@ export default function ProfileVisibilityPage() {
       setUndoing(false);
     }
   }, [copy, historyTarget, refresh]);
+
+  // ─── Impact preview (before hide) ───────────────────────────────────────
+  const openImpactPreview = useCallback(async (profile) => {
+    setImpactTarget(profile);
+    setImpactData(null);
+    setImpactAck(false);
+    setImpactError('');
+    setImpactLoading(true);
+    try {
+      const { data } = await api.get(`/admin/profile-visibility/${profile.profile_type}/${profile.profile_id}/impact`);
+      setImpactData(data || {});
+    } catch (err) {
+      logger.error('impact preview failed', { message: err.message });
+      setImpactError(copy('impactError', { defaultValue: 'Could not load impact data. You can still proceed.' }));
+      setImpactData({});
+    } finally {
+      setImpactLoading(false);
+    }
+  }, [copy]);
+
+  // ─── Restore checklist ──────────────────────────────────────────────────
+  const openRestoreChecklist = useCallback(async (profile) => {
+    setChecklistTarget(profile);
+    setChecklistData(null);
+    setChecklistLoading(true);
+    try {
+      const { data } = await api.get(`/admin/profile-visibility/${profile.profile_type}/${profile.profile_id}/restore-checklist`);
+      setChecklistData(data || { items: [], all_clear: true });
+    } catch (err) {
+      logger.error('restore checklist failed', { message: err.message });
+      setChecklistData({ items: [], all_clear: true, loadFailed: true });
+    } finally {
+      setChecklistLoading(false);
+    }
+  }, []);
+
+  // ─── Visibility timeline ────────────────────────────────────────────────
+  const openTimeline = useCallback(async (profile) => {
+    setTimelineTarget(profile);
+    setTimelineRows([]);
+    setTimelineLoading(true);
+    try {
+      const { data } = await api.get(`/admin/profile-visibility/${profile.profile_type}/${profile.profile_id}/timeline`);
+      setTimelineRows(data.timeline || []);
+    } catch (err) {
+      logger.error('timeline load failed', { message: err.message });
+    } finally {
+      setTimelineLoading(false);
+    }
+  }, []);
+
+  // ─── Appeals inbox ──────────────────────────────────────────────────────
+  const loadAppeals = useCallback(async () => {
+    setAppealsLoading(true);
+    try {
+      const { data } = await api.get('/admin/profile-visibility/appeals', { params: { status: 'pending' } });
+      setAppeals(data.appeals || []);
+    } catch (err) {
+      logger.error('appeals load failed', { message: err.message });
+    } finally {
+      setAppealsLoading(false);
+    }
+  }, []);
+
+  const resolveAppeal = useCallback(async (appeal, decision) => {
+    setResolvingAppealId(appeal.id);
+    setError('');
+    try {
+      await api.post(`/admin/profile-visibility/appeals/${appeal.id}/resolve`, {
+        decision,
+        note: (appealNotes[appeal.id] || '').trim() || undefined,
+      });
+      setAppealNotes((prev) => {
+        const next = { ...prev };
+        delete next[appeal.id];
+        return next;
+      });
+      await loadAppeals();
+    } catch (err) {
+      logger.error('appeal resolve failed', { message: err.message });
+      setError(err?.response?.data?.error || copy('error', { defaultValue: 'Something went wrong. Please try again.' }));
+    } finally {
+      setResolvingAppealId(null);
+    }
+  }, [appealNotes, copy, loadAppeals]);
+
+  // ─── Stale-hide sweeper ─────────────────────────────────────────────────
+  const loadStaleHides = useCallback(async (daysOverride) => {
+    const days = daysOverride || staleDays;
+    setStaleHidesLoading(true);
+    try {
+      const { data } = await api.get('/admin/profile-visibility/stale', { params: { days } });
+      setStaleHides(data.stale || []);
+    } catch (err) {
+      logger.error('stale hides load failed', { message: err.message });
+    } finally {
+      setStaleHidesLoading(false);
+    }
+  }, [staleDays]);
+
+  const restoreStaleHide = useCallback(async (row) => {
+    const key = `${row.profile_type}:${row.profile_id}`;
+    setRestoringStaleKey(key);
+    setError('');
+    try {
+      await api.put('/admin/profile-visibility', {
+        profile_type: row.profile_type,
+        profile_id: row.profile_id,
+        is_visible: true,
+        idempotency_key: crypto.randomUUID(),
+      });
+      await loadStaleHides();
+      await refresh();
+    } catch (err) {
+      logger.error('stale restore failed', { message: err.message });
+      setError(err?.response?.data?.error || copy('error', { defaultValue: 'Something went wrong. Please try again.' }));
+    } finally {
+      setRestoringStaleKey(null);
+    }
+  }, [copy, loadStaleHides, refresh]);
+
+  useEffect(() => {
+    if (showAppeals) loadAppeals();
+  }, [showAppeals, loadAppeals]);
+
+  useEffect(() => {
+    if (showStale) loadStaleHides();
+  }, [showStale, loadStaleHides]);
+
+  // ─── Temporary hide presets (hide now + auto-restore) ───────────────────
+  const applyTempHide = useCallback(async (profile, hours, label) => {
+    setSaving(true);
+    setError('');
+    try {
+      const tz = (() => {
+        try {
+          return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+        } catch {
+          return 'UTC';
+        }
+      })();
+      const now = Date.now();
+      const note = `${copy('tempHideNote', { label, defaultValue: `Temporary hide (${label})` })}${hideNote.trim() ? ` — ${hideNote.trim()}` : ''}`;
+      // Hide ~1 minute from now, then auto-restore after the preset duration.
+      await api.post('/admin/profile-visibility/schedule', {
+        profile_type: profile.profile_type,
+        profile_id: profile.profile_id,
+        is_visible: false,
+        scheduled_for: new Date(now + 60000).toISOString(),
+        timezone: tz,
+        idempotency_key: crypto.randomUUID(),
+        reason: hideReason,
+        note,
+      });
+      await api.post('/admin/profile-visibility/schedule', {
+        profile_type: profile.profile_type,
+        profile_id: profile.profile_id,
+        is_visible: true,
+        scheduled_for: new Date(now + hours * 3600000).toISOString(),
+        timezone: tz,
+        idempotency_key: crypto.randomUUID(),
+        note: copy('tempRestoreNote', { label, defaultValue: `Auto-restore after temporary hide (${label})` }),
+      });
+      setHideTarget(null);
+      setHideWork(null);
+      setHideAck(false);
+      setHideNote('');
+      setImpactTarget(null);
+      setImpactData(null);
+      await loadScheduled();
+    } catch (err) {
+      logger.error('temp hide failed', { message: err.message });
+      setError(err?.response?.data?.error || copy('error', { defaultValue: 'Something went wrong. Please try again.' }));
+    } finally {
+      setSaving(false);
+    }
+  }, [copy, hideNote, hideReason, loadScheduled]);
 
   // ─── Saved views ────────────────────────────────────────────────────────
   const persistViews = (views) => {
@@ -1299,6 +1547,131 @@ export default function ProfileVisibilityPage() {
         )}
       </div>
 
+      <div style={{ ...card, marginBottom: '1rem' }}>
+        <button
+          type="button"
+          onClick={() => setShowAppeals((v) => !v)}
+          aria-expanded={showAppeals}
+          style={{ ...btn, display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+          data-testid="pv-appeals-toggle"
+        >
+          <Inbox size={15} aria-hidden />
+          {copy('appeals', { defaultValue: 'Appeals' })}
+          {showAppeals && appeals.length > 0 && <span style={badge('var(--color-bg)', 'var(--color-text)')}>{appeals.length}</span>}
+        </button>
+        {showAppeals && (
+          <div style={{ marginTop: '1rem' }} data-testid="pv-appeals">
+            {appealsLoading ? (
+              <p style={{ color: 'var(--color-text-muted)' }}>{copy('appealsLoading', { defaultValue: 'Loading appeals' })}</p>
+            ) : appeals.length === 0 ? (
+              <p style={{ color: 'var(--color-text-muted)' }}>{copy('noAppeals', { defaultValue: 'No pending appeals.' })}</p>
+            ) : (
+              <div style={{ display: 'grid', gap: '0.75rem' }}>
+                {appeals.map((appeal) => (
+                  <div key={appeal.id} style={{ border: '1px solid var(--color-border)', borderRadius: '8px', padding: '0.85rem', display: 'grid', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <span style={badge('#eff6ff', '#1d4ed8')}>{appeal.profile_type}</span>
+                      <strong style={{ color: 'var(--color-text)', fontSize: '0.9rem' }}>
+                        {copy('appealFrom', { name: appeal.appellant_name || '—', defaultValue: `Appeal from ${appeal.appellant_name || '—'}` })}
+                      </strong>
+                      {appeal.created_at && (
+                        <span style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>
+                          {new Date(appeal.created_at).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                    <p style={{ margin: 0, color: 'var(--color-text)', fontSize: '0.9rem', whiteSpace: 'pre-wrap' }}>{appeal.message}</p>
+                    <div style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>
+                      {copy('appealProfile', { type: appeal.profile_type, id: appeal.profile_id, defaultValue: `Profile: ${appeal.profile_type} ${appeal.profile_id}` })}
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <input
+                        value={appealNotes[appeal.id] || ''}
+                        onChange={(e) => setAppealNotes((prev) => ({ ...prev, [appeal.id]: e.target.value }))}
+                        placeholder={copy('appealNotePlaceholder', { defaultValue: 'Decision note for the audit log' })}
+                        aria-label={copy('appealNote', { defaultValue: 'Decision note (optional)' })}
+                        maxLength={2000}
+                        style={{ ...input, flex: '1 1 12rem' }}
+                      />
+                      <button type="button" style={btnPrimary} disabled={resolvingAppealId === appeal.id} onClick={() => resolveAppeal(appeal, 'approved')} data-testid={`pv-appeal-approve-${appeal.id}`}>
+                        {copy('appealApprove', { defaultValue: 'Approve' })}
+                      </button>
+                      <button type="button" style={btnDanger} disabled={resolvingAppealId === appeal.id} onClick={() => resolveAppeal(appeal, 'denied')} data-testid={`pv-appeal-deny-${appeal.id}`}>
+                        {copy('appealDeny', { defaultValue: 'Deny' })}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div style={{ ...card, marginBottom: '1rem' }}>
+        <button
+          type="button"
+          onClick={() => setShowStale((v) => !v)}
+          aria-expanded={showStale}
+          style={{ ...btn, display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+          data-testid="pv-stale-toggle"
+        >
+          <Clock size={15} aria-hidden />
+          {copy('staleHides', { defaultValue: 'Stale hides' })}
+          {showStale && staleHides.length > 0 && <span style={badge('var(--color-bg)', 'var(--color-text)')}>{staleHides.length}</span>}
+        </button>
+        {showStale && (
+          <div style={{ marginTop: '1rem' }} data-testid="pv-stale">
+            <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+              <label style={label} htmlFor="pv-stale-days">{copy('staleDaysLabel', { defaultValue: 'Hidden longer than (days)' })}</label>
+              <select
+                id="pv-stale-days"
+                value={staleDays}
+                onChange={(e) => { const d = parseInt(e.target.value, 10); setStaleDays(d); loadStaleHides(d); }}
+                style={input}
+              >
+                {[30, 90, 180, 365].map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+            </div>
+            {staleHidesLoading ? (
+              <p style={{ color: 'var(--color-text-muted)' }}>{copy('staleLoading', { defaultValue: 'Loading stale hides' })}</p>
+            ) : staleHides.length === 0 ? (
+              <p style={{ color: 'var(--color-text-muted)' }}>{copy('noStaleHides', { defaultValue: 'No stale hides found.' })}</p>
+            ) : (
+              <div style={{ display: 'grid', gap: '0.6rem' }}>
+                {staleHides.map((row) => {
+                  const key = `${row.profile_type}:${row.profile_id}`;
+                  const daysHidden = row.hidden_at ? Math.floor((Date.now() - new Date(row.hidden_at).getTime()) / 86400000) : null;
+                  return (
+                    <div key={key} style={{ border: '1px solid var(--color-border)', borderRadius: '8px', padding: '0.85rem', display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <span style={badge('#fef2f2', '#b91c1c')}><EyeOff size={13} aria-hidden /> {row.profile_type}</span>
+                      <div style={{ flex: '1 1 14rem', color: 'var(--color-text)', fontSize: '0.9rem' }}>
+                        <strong>{row.display_name || `${row.profile_type} ${row.profile_id}`}</strong>
+                        <div style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>
+                          {daysHidden != null && copy('staleHiddenFor', { days: daysHidden, defaultValue: `Hidden ${daysHidden} days ago` })}
+                          {row.hidden_reason && ` · ${reasonLabel(row.hidden_reason)}`}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        style={btnPrimary}
+                        disabled={saving || restoringStaleKey === key}
+                        onClick={() => restoreStaleHide(row)}
+                        data-testid={`pv-stale-restore-${key}`}
+                      >
+                        {restoringStaleKey === key ? copy('restoring', { defaultValue: 'Restoring' }) : copy('restore', { defaultValue: 'Restore' })}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {!searched && !loading && (
         <p style={{ color: 'var(--color-text-muted)' }}>
           {copy('searchPrompt', { defaultValue: 'Search for a helper, business, or restaurant to see and change its public visibility.' })}
@@ -1350,8 +1723,11 @@ export default function ProfileVisibilityPage() {
                   <button type="button" style={btn} disabled={historyLoading} onClick={() => loadHistory(r)} data-testid="pv-history">
                     <History size={15} aria-hidden /> {copy('history', { defaultValue: 'History' })}
                   </button>
+                  <button type="button" style={btn} disabled={timelineLoading} onClick={() => openTimeline(r)} data-testid="pv-timeline">
+                    <TrendingUp size={15} aria-hidden /> {copy('timeline', { defaultValue: 'Timeline' })}
+                  </button>
                   {r.is_hidden_by_admin ? (
-                    <button type="button" style={btn} disabled={saving} onClick={() => setRestoreTarget(r)} data-testid="pv-restore">
+                    <button type="button" style={btn} disabled={saving || checklistLoading} onClick={() => openRestoreChecklist(r)} data-testid="pv-restore">
                       {copy('restore', { defaultValue: 'Restore' })}
                     </button>
                   ) : (
@@ -1396,6 +1772,27 @@ export default function ProfileVisibilityPage() {
                       maxLength={280}
                       style={{ ...input, width: '100%' }}
                     />
+                  </div>
+                  <div>
+                    <span style={label}>{copy('tempHideLabel', { defaultValue: 'Or hide temporarily (auto-restores)' })}</span>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      {[
+                        { hours: 24, label: copy('tempHide24h', { defaultValue: '24 hours' }) },
+                        { hours: 168, label: copy('tempHide7d', { defaultValue: '7 days' }) },
+                        { hours: 720, label: copy('tempHide30d', { defaultValue: '30 days' }) },
+                      ].map(({ hours, label: presetLabel }) => (
+                        <button
+                          key={hours}
+                          type="button"
+                          style={btn}
+                          disabled={saving || hideWorkLoading}
+                          onClick={() => applyTempHide(r, hours, presetLabel)}
+                          data-testid={`pv-temp-hide-${hours}h`}
+                        >
+                          <Timer size={15} aria-hidden /> {presetLabel}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   {hideWorkLoading && (
                     <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }} role="status">
@@ -1667,6 +2064,150 @@ export default function ProfileVisibilityPage() {
         onClose={() => setUndoTarget(null)}
         onConfirm={undoLastChange}
       />
+
+      {/* Impact preview modal (before hide) */}
+      <Modal open={!!impactTarget} onClose={() => { setImpactTarget(null); setImpactData(null); setImpactAck(false); }} title={copy('impactTitle', { defaultValue: 'Impact preview' })} labelledBy="pv-impact-title">
+        {impactLoading ? (
+          <p style={{ color: 'var(--color-text-muted)' }} role="status">{copy('impactLoading', { defaultValue: 'Loading impact data' })}</p>
+        ) : (
+          <div style={{ display: 'grid', gap: '0.85rem' }}>
+            <p style={{ margin: 0, color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
+              {copy('impactSubtitle', { name: impactTarget?.display_name, defaultValue: `Hiding "${impactTarget?.display_name}" will have this impact:` })}
+            </p>
+            {impactError && (
+              <p role="alert" style={{ color: '#b91c1c', fontSize: '0.85rem', margin: 0 }}>{impactError}</p>
+            )}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(8rem, 1fr))', gap: '0.6rem' }}>
+              {[
+                { label: copy('impactActiveJobs', { defaultValue: 'Active jobs' }), value: impactData?.active_jobs || 0 },
+                { label: copy('impactUpcomingBookings', { defaultValue: 'Upcoming bookings' }), value: impactData?.upcoming_bookings || 0 },
+                { label: copy('impactOpenOrders', { defaultValue: 'Open orders' }), value: impactData?.open_orders || 0 },
+                { label: copy('impactViews30d', { defaultValue: 'Views (30d)' }), value: impactData?.views_30d || 0 },
+                { label: copy('impactFollowers', { defaultValue: 'Followers' }), value: impactData?.followers || 0 },
+              ].map(({ label, value }) => (
+                <div key={label} style={{ border: '1px solid var(--color-border)', borderRadius: '8px', padding: '0.7rem', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 700, color: value > 0 ? '#b91c1c' : 'var(--color-text)' }}>{value}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{label}</div>
+                </div>
+              ))}
+            </div>
+            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', fontSize: '0.85rem', cursor: 'pointer', color: 'var(--color-text)' }}>
+              <input type="checkbox" checked={impactAck} onChange={(e) => setImpactAck(e.target.checked)} style={{ marginTop: '0.2rem' }} />
+              {copy('impactAcknowledge', { defaultValue: 'I have reviewed the impact and want to proceed with hiding this profile.' })}
+            </label>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button type="button" style={btn} onClick={() => { setImpactTarget(null); setImpactData(null); setImpactAck(false); }}>
+                {copy('cancel', { defaultValue: 'Cancel' })}
+              </button>
+              <button type="button" style={btnDanger} disabled={!impactAck || saving} onClick={continueAfterImpact} data-testid="pv-impact-continue">
+                {copy('impactContinue', { defaultValue: 'Continue hiding' })}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Restore checklist dialog */}
+      <Modal open={!!checklistTarget} onClose={() => { setChecklistTarget(null); setChecklistData(null); }} title={copy('checklistTitle', { defaultValue: 'Restore checklist' })} labelledBy="pv-checklist-title">
+        {checklistLoading ? (
+          <p style={{ color: 'var(--color-text-muted)' }} role="status">{copy('checklistLoading', { defaultValue: 'Loading checklist' })}</p>
+        ) : (
+          <div style={{ display: 'grid', gap: '0.85rem' }}>
+            <p style={{ margin: 0, color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
+              {copy('checklistSubtitle', { name: checklistTarget?.display_name, defaultValue: `What was missing when "${checklistTarget?.display_name}" was hidden, and is it fixed now?` })}
+            </p>
+            {checklistData?.loadFailed && (
+              <p role="alert" style={{ color: '#b91c1c', fontSize: '0.85rem', margin: 0 }}>
+                {copy('checklistError', { defaultValue: 'Could not load the checklist. You can still proceed.' })}
+              </p>
+            )}
+            {(checklistData?.items || []).length > 0 ? (
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: '0.5rem' }}>
+                {checklistData.items.map((item) => (
+                  <li key={item.key} style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', fontSize: '0.9rem', color: 'var(--color-text)' }}>
+                    {item.present
+                      ? <CheckCircle2 size={16} aria-hidden style={{ color: '#15803d', flexShrink: 0 }} />
+                      : <X size={16} aria-hidden style={{ color: '#b91c1c', flexShrink: 0 }} />}
+                    <span>{item.label}</span>
+                    <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: item.present ? '#15803d' : '#b91c1c', fontWeight: 600 }}>
+                      {item.present
+                        ? copy('checklistPresent', { defaultValue: 'Fixed' })
+                        : copy('checklistMissing', { defaultValue: 'Still missing' })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : !checklistData?.loadFailed && (
+              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', margin: 0 }}>
+                {copy('checklistEmpty', { defaultValue: 'No checklist items for this profile type.' })}
+              </p>
+            )}
+            {checklistData && !checklistData.all_clear && (checklistData.items || []).length > 0 && (
+              <div role="alert" style={{ border: '1px solid #f59e0b', borderRadius: '8px', padding: '0.75rem', background: '#fffbeb', color: '#92400e', fontSize: '0.85rem', display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+                <AlertTriangle size={16} aria-hidden style={{ flexShrink: 0, marginTop: '0.15rem' }} />
+                {copy('checklistWarning', { defaultValue: 'Some items are still missing. Restoring now will make the profile public with incomplete information.' })}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button type="button" style={btn} onClick={() => { setChecklistTarget(null); setChecklistData(null); }}>
+                {copy('cancel', { defaultValue: 'Cancel' })}
+              </button>
+              <button
+                type="button"
+                style={checklistData && !checklistData.all_clear ? btnDanger : btnPrimary}
+                onClick={() => { const t = checklistTarget; setChecklistTarget(null); setChecklistData(null); if (t) setRestoreTarget(t); }}
+                data-testid="pv-checklist-continue"
+              >
+                {copy('checklistContinue', { defaultValue: 'Continue to restore' })}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Visibility timeline dialog */}
+      <Modal open={!!timelineTarget} onClose={() => { setTimelineTarget(null); setTimelineRows([]); }} title={copy('timelineTitle', { name: timelineTarget?.display_name, defaultValue: `Visibility timeline: ${timelineTarget?.display_name}` })} labelledBy="pv-timeline-title" wide>
+        {timelineLoading ? (
+          <p style={{ color: 'var(--color-text-muted)' }} role="status">{copy('timelineLoading', { defaultValue: 'Loading timeline' })}</p>
+        ) : timelineRows.length === 0 ? (
+          <p style={{ color: 'var(--color-text-muted)' }}>{copy('timelineEmpty', { defaultValue: 'No visibility changes recorded for this profile.' })}</p>
+        ) : (
+          <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: '0.75rem' }}>
+            {timelineRows.map((event) => (
+              <li key={event.id} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
+                <span style={{
+                  ...badge(event.action === 'hidden' ? '#fef2f2' : '#f0fdf4', event.action === 'hidden' ? '#b91c1c' : '#15803d'),
+                  flexShrink: 0, marginTop: '0.15rem',
+                }}>
+                  {event.action === 'hidden' ? <EyeOff size={13} aria-hidden /> : <Eye size={13} aria-hidden />}
+                  {event.action === 'hidden'
+                    ? copy('timelineHidden', { defaultValue: 'Hidden' })
+                    : copy('timelineRestored', { defaultValue: 'Restored' })}
+                </span>
+                <div style={{ flex: 1, fontSize: '0.85rem', color: 'var(--color-text)' }}>
+                  <div>
+                    {copy('timelineBy', { name: event.actor_name || '—', defaultValue: `by ${event.actor_name || '—'}` })}
+                    {event.created_at && ` · ${new Date(event.created_at).toLocaleString()}`}
+                  </div>
+                  {event.description && (
+                    <div style={{ color: 'var(--color-text-muted)', marginTop: '0.2rem' }}>{event.description}</div>
+                  )}
+                  {event.action === 'hidden' && (
+                    <div style={{ color: 'var(--color-text-muted)', marginTop: '0.2rem', fontSize: '0.8rem' }}>
+                      {event.still_hidden
+                        ? copy('timelineStillHidden', { defaultValue: 'Still hidden' })
+                        : event.duration_days != null
+                          ? copy('timelineDuration', { days: event.duration_days, defaultValue: `Hidden for ${event.duration_days} days` })
+                          : null}
+                      {event.restored_at && ` · ${copy('timelineRestoredBy', { name: event.restored_by || '—', defaultValue: `restored by ${event.restored_by || '—'}` })}`}
+                    </div>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
+      </Modal>
     </div>
     </>
   );
