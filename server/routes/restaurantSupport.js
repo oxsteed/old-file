@@ -5,7 +5,12 @@ const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const ctrl = require('../controllers/restaurantSupportController');
 
-router.use(authenticate);
+// This router is mounted at `/api/restaurants`, alongside public restaurant,
+// device-authenticated, and optional-auth media routes. Keep authentication
+// limited to the support route families so this router cannot block those
+// neighboring routes by mount order.
+router.use('/support', authenticate);
+router.use('/:restaurantId/support', authenticate);
 
 // Customer case surface.
 router.post('/support/cases', ctrl.createCase);

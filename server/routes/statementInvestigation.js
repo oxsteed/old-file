@@ -40,8 +40,11 @@ const { openCreditDispute, formatDispute } = require('../services/oxsteedCreditS
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
 const { withTransaction } = require('../utils/transaction');
 
-router.use(authenticate, requireRole('customer'));
-router.use((_req, res, next) => {
+// This router is mounted at `/api` so its existing `/statements/...` URLs
+// remain stable. Scope both guards to that route family; an unscoped router
+// middleware would reject every later `/api` route for non-customer callers.
+router.use('/statements', authenticate, requireRole('customer'));
+router.use('/statements', (_req, res, next) => {
   res.set('Cache-Control', 'private, no-store');
   res.set('X-Content-Type-Options', 'nosniff');
   next();
