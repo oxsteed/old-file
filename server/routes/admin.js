@@ -684,7 +684,7 @@ router.get('/skills-lookup', requireAdmin, requirePermission('manage_operations'
     const limitN  = Math.min(Math.max(1, parseInt(limit)  || 50), 200);
     const offsetN = Math.min(1_000_000, Math.max(0, parseInt(offset, 10) || 0));
     const result = await pool.query(
-      `SELECT id, name, category, is_active, created_at
+      `SELECT id, name, category, is_active
          FROM skills_lookup
         WHERE ($1 = '' OR name ILIKE $2)
           AND ($3 = '' OR category ILIKE $4)

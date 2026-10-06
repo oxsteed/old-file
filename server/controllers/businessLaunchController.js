@@ -157,32 +157,32 @@ async function getBusinessLaunchRequests(req, res) {
     let paramIndex = 1;
 
     if (status) {
-      whereConditions.push(`status = $${paramIndex++}`);
+      whereConditions.push(`cr.status = $${paramIndex++}`);
       params.push(status);
     }
 
     if (pkg) {
-      whereConditions.push(`package_selected = $${paramIndex++}`);
+      whereConditions.push(`cr.package_selected = $${paramIndex++}`);
       params.push(pkg);
     }
 
     if (urgency) {
-      whereConditions.push(`urgency = $${paramIndex++}`);
+      whereConditions.push(`cr.urgency = $${paramIndex++}`);
       params.push(urgency);
     }
 
     if (state) {
-      whereConditions.push(`operating_state = $${paramIndex++}`);
+      whereConditions.push(`cr.operating_state = $${paramIndex++}`);
       params.push(state);
     }
 
     if (country) {
-      whereConditions.push(`operating_country = $${paramIndex++}`);
+      whereConditions.push(`cr.operating_country = $${paramIndex++}`);
       params.push(String(country).trim().toUpperCase());
     }
 
     if (search) {
-      whereConditions.push(`(first_name ILIKE $${paramIndex} OR last_name ILIKE $${paramIndex} OR email ILIKE $${paramIndex})`);
+      whereConditions.push(`(cr.first_name ILIKE $${paramIndex} OR cr.last_name ILIKE $${paramIndex} OR cr.email ILIKE $${paramIndex})`);
       params.push(`%${search}%`);
       paramIndex++;
     }
@@ -213,7 +213,7 @@ async function getBusinessLaunchRequests(req, res) {
         cu.first_name AS consultant_first_name,
         cu.last_name AS consultant_last_name,
         cp.headline AS consultant_headline,
-        created_at, updated_at
+        cr.created_at, cr.updated_at
       FROM consulting_requests cr
       LEFT JOIN users cu ON cr.consultant_assigned_id = cu.id
       LEFT JOIN consultant_contractor_profiles cp ON cp.user_id = cr.consultant_assigned_id
