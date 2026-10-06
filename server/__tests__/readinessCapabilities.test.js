@@ -33,6 +33,37 @@ describe('runtime readiness', () => {
     else process.env.REDIS_URL = previousRedisUrl;
   });
 
+  test('reports missing private statement storage without blocking unrelated traffic', async () => {
+    runtimeState.update({ acceptingTraffic: true, realtimeReady: true, workersReady: true });
+    const previous = {
+      STATEMENT_ARTIFACT_BUCKET: process.env.STATEMENT_ARTIFACT_BUCKET,
+      STATEMENT_R2_ENDPOINT: process.env.STATEMENT_R2_ENDPOINT,
+      STATEMENT_R2_ACCESS_KEY_ID: process.env.STATEMENT_R2_ACCESS_KEY_ID,
+      STATEMENT_R2_SECRET_ACCESS_KEY: process.env.STATEMENT_R2_SECRET_ACCESS_KEY,
+      STATEMENT_R2_PRIVACY_ATTESTED: process.env.STATEMENT_R2_PRIVACY_ATTESTED,
+    };
+    Object.keys(previous).forEach((key) => delete process.env[key]);
+    const files = expectedMigrationFiles();
+    const pool = {
+      query: jest.fn(async (sql) => sql.includes('_migrations')
+        ? { rows: files.map((filename) => ({ filename })) }
+        : { rows: [{ '?column?': 1 }] }),
+    };
+
+    const result = await checkReadiness({ pool, redis: null });
+
+    expect(result.status).toBe('ready');
+    expect(result.checks.statementArtifacts).toMatchObject({
+      ok: false,
+      requiredForTraffic: false,
+      configured: false,
+    });
+    Object.entries(previous).forEach(([key, value]) => {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    });
+  });
+
   test('exposes the configured non-secret release identifier for deployment checks', async () => {
     const previousRelease = process.env.SENTRY_RELEASE;
     const previousCommit = process.env.COMMIT_SHA;

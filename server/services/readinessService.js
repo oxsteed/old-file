@@ -7,6 +7,7 @@ const logger = require('../utils/logger');
 const { getCreditRailPrerequisites, getLedgerHashKeyConfiguration } = require('./oxsteedCreditService');
 const { getProductionConfigurationErrors } = require('../utils/validateEnv');
 const { getRelease, getReleaseMetadata } = require('../utils/release');
+const statementStorage = require('../utils/statementStorage');
 
 const migrationsDirectory = path.join(__dirname, '../migrations');
 
@@ -36,6 +37,26 @@ function creditLedgerReadiness() {
     previousKeyCount: keyConfiguration?.previousVersions.length || 0,
     error: configurationError || (ok ? undefined : 'Credit ledger signing secret is missing or weak'),
   };
+}
+
+function statementArtifactReadiness() {
+  try {
+    // This validates the complete private R2 contract without returning or
+    // logging credentials. Statement issuance already fails closed when this
+    // contract is absent; readiness reports the operational gap separately so
+    // an unavailable statement bucket cannot take unrelated site traffic down.
+    statementStorage.configuration();
+    return { ok: true, requiredForTraffic: false, configured: true };
+  } catch (error) {
+    return {
+      ok: false,
+      requiredForTraffic: false,
+      configured: false,
+      error: error.code === 'statement_storage_unconfigured'
+        ? 'private statement artifact storage is not fully configured'
+        : 'private statement artifact storage validation failed',
+    };
+  }
 }
 
 function expectedMigrationFiles() {
@@ -120,6 +141,7 @@ async function checkReadiness({ pool, redis, includeTrafficState = true }) {
       redis: { ok: true, configured: Boolean(process.env.REDIS_URL) },
       creditLedger: creditLedgerReadiness(),
       creditRail: { ok: true, enabled: false, requiresSharedRedis: false },
+      statementArtifacts: statementArtifactReadiness(),
       realtime: { ok: runtime.realtimeReady },
       workers: { ok: runtime.workersReady },
       traffic: { ok: includeTrafficState ? runtime.acceptingTraffic : true },
@@ -202,11 +224,19 @@ async function checkReadiness({ pool, redis, includeTrafficState = true }) {
     }
   }
 
-  if (Object.values(result.checks).some((check) => !check.ok)) {
+  if (Object.values(result.checks)
+    .filter((check) => check.requiredForTraffic !== false)
+    .some((check) => !check.ok)) {
     result.status = 'not_ready';
   }
 
   return result;
 }
 
-module.exports = { checkReadiness, expectedMigrationFiles, migrationStatus, adminControlPlaneSchemaStatus };
+module.exports = {
+  checkReadiness,
+  expectedMigrationFiles,
+  migrationStatus,
+  adminControlPlaneSchemaStatus,
+  statementArtifactReadiness,
+};

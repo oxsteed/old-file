@@ -42,7 +42,9 @@ class ApplicationRuntime {
     // Workers are intentionally not started until durable dependencies and
     // migration state have been verified.
     dependencies.checks.workers.ok = true;
-    if (Object.entries(dependencies.checks).some(([name, check]) => name !== 'workers' && !check.ok)) {
+    if (Object.entries(dependencies.checks).some(([name, check]) => (
+      name !== 'workers' && check.requiredForTraffic !== false && !check.ok
+    ))) {
       throw new Error(`Application dependencies are not ready: ${JSON.stringify(dependencies.checks)}`);
     }
 

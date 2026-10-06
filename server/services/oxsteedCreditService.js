@@ -88,7 +88,7 @@ const POSTABLE_CREDIT_TRANSACTION_TYPES = Object.freeze([
   'sub_bank_load', 'sub_bank_redemption', 'sub_bank_refund', 'sub_bank_opening_balance',
   // Phase 6: fee legs for withdrawals and customer transfers (mirroring
   // conversion_fee), and restaurant-credit -> OxSteed-credit conversions.
-  'withdrawal_fee', 'transfer_fee', 'sub_bank_conversion',
+  'withdrawal_fee', 'transfer_fee', 'sub_bank_conversion', 'sub_bank_payout_reversal',
   // Restaurant wallet-earnings payouts: debit restaurant_sub_bank, credit
   // platform_treasury, paired with a Stripe Transfer to the Connect account.
   'sub_bank_payout',
@@ -1236,6 +1236,17 @@ async function postJournalTransaction(client, input) {
       || (input.agreementId !== null && input.agreementId !== undefined)
     ) {
       throw new AppError('Credit restaurant conversion account direction is invalid', 400, 'credit_sub_bank_conversion_direction_invalid');
+    }
+  }
+  if (input.transactionType === 'sub_bank_payout_reversal') {
+    const validDirection = debitAccount.account_type === 'platform_treasury'
+      && creditAccount.account_type === 'restaurant_sub_bank';
+    if (
+      !validDirection
+      || (input.partnerId !== null && input.partnerId !== undefined)
+      || (input.agreementId !== null && input.agreementId !== undefined)
+    ) {
+      throw new AppError('Credit payout reversal account direction is invalid', 400, 'credit_sub_bank_payout_reversal_direction_invalid');
     }
   }
   if (['sub_bank_load', 'sub_bank_redemption', 'sub_bank_refund', 'sub_bank_opening_balance'].includes(input.transactionType)) {

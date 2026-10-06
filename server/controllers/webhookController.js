@@ -20,6 +20,7 @@ const socketService = require('../services/socketService');
 const localDeliveryPayments = require('../services/localDeliveryPaymentService');
 const topupService = require('../services/oxsteedCreditTopupService');
 const restaurantTopupService = require('../services/restaurantTopupService');
+const restaurantPayoutService = require('../services/restaurantPayoutService');
 const { ingestStripeChargeback } = require('../services/oxsteedCreditChargebackService');
 const { createFraudCase } = require('../services/fraudCaseService');
 const { recordException } = require('../services/reconciliationExceptions');
@@ -1083,6 +1084,11 @@ exports.stripeWebhook = async (req, res, next) => {
       case 'transfer.created':
       case 'transfer.updated':
       case 'transfer.reversed': {
+        const restaurantPayout = await restaurantPayoutService.applyTransferWebhookEvent({
+          eventType: event.type,
+          transfer: event.data.object,
+        });
+        if (restaurantPayout?.status) break;
         // OxSteed Credit settlement payouts (fiat money OUT). Builder B's
         // confirm/fail functions in oxsteedCreditAdminService reconcile
         // payout_status against the Stripe transfer. Events without our
