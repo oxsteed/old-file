@@ -51,6 +51,7 @@ const RESTAURANT = {
 function mockClient({ restaurant = RESTAURANT, balanceCents = 5000, payout = null } = {}) {
   const client = { query: jest.fn(), release: jest.fn() };
   client.query.mockImplementation(async (sql, params) => {
+    if (sql.includes('SELECT funds_settled FROM restaurant_payouts')) return { rows: [{ funds_settled: false }] };
     if (sql.includes('SELECT b.owner_user_id FROM')) return { rows: [{ owner_user_id: 'owner-1' }] };
     if (sql.includes('FROM food_restaurants')) return { rows: [restaurant] };
     if (sql.includes('INSERT INTO restaurant_payouts')) {
@@ -385,12 +386,7 @@ test('transfer.reversed webhook posts one compensating journal entry', async () 
 });
 
 test('reconciliation does not auto-send a legacy payout without a journal reference', async () => {
-  pool.query.mockResolvedValue({ rows: [{
-    id: 'legacy-payout-1',
-    status: 'processing',
-    stripe_transfer_id: 'tr_legacy',
-    ledger_transaction_id: null,
-  }] });
+  pool.query.mockResolvedValue({ rows: [{ funds_settled: false }] });
 
   const summary = await service.reconcilePayouts();
 

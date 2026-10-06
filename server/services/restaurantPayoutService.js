@@ -223,7 +223,8 @@ async function approvePayout({ payoutId, adminUserId, reviewNote }) {
       await client.query(
         `UPDATE restaurant_payouts
             SET status = 'failed', failure_reason = 'insufficient balance at execution',
-                reviewed_by = $2, reviewed_at = NOW(), review_note = $3, updated_at = NOW()
+                reviewed_by = $2, reviewed_at = NOW(), review_note = $3,
+                funds_settled = FALSE, updated_at = NOW()
           WHERE id = $1`,
         [payout.id, adminUserId, reviewNote || null]
       );
@@ -363,6 +364,35 @@ async function processNextTransfer() {
     }, 'restaurant_payout_outbox_missing_journal');
     logger.error('[RestaurantPayout] refusing transfer without journal intent', { payoutId: payout.payout_id });
     return { processed: true, payoutId: payout.payout_id, attention: true, reason: 'missing_journal_intent' };
+  }
+
+  // Double-pay guard: check the funds_settled flag before creating a transfer.
+  // This is independent of the Stripe idempotency key (which expires after
+  // 24h). If funds already left our account, do not create another transfer.
+  let settledCheck = { rows: [] };
+  try {
+    settledCheck = await pool.query(
+      `SELECT funds_settled FROM restaurant_payouts WHERE id = $1`,
+      [payout.payout_id]
+    );
+  } catch {
+    // If the check fails, do not block the transfer; the idempotency key
+    // is the fallback guard.
+  }
+  if (settledCheck.rows[0]?.funds_settled === true) {
+    logger.warn('[RestaurantPayout] skipping transfer: funds already settled', {
+      payoutId: payout.payout_id,
+    });
+    await withTransaction(pool, async (client) => {
+      await client.query(
+        `UPDATE restaurant_payout_outbox
+            SET status = 'completed', locked_at = NULL, lease_token = NULL,
+                last_error = NULL, updated_at = NOW()
+          WHERE payout_id = $1 AND lease_token = $2`,
+        [payout.payout_id, outbox.lease_token]
+      );
+    }, 'restaurant_payout_already_settled');
+    return { processed: true, payoutId: payout.payout_id, skipped: true, reason: 'already_settled' };
   }
 
   try {
@@ -514,11 +544,14 @@ async function applyTransferWebhookEvent({ eventType, transfer }) {
     }
 
     const transitioned = payout.status !== 'completed';
+    // funds_settled is set ONLY here: Stripe has confirmed the transfer.
+    // No other code path sets this flag.
     await client.query(
       `UPDATE restaurant_payouts
           SET status = 'completed', stripe_transfer_id = COALESCE(stripe_transfer_id, $2),
               provider_status = $3, provider_event_at = NOW(),
-              completed_at = COALESCE(completed_at, NOW()), failure_reason = NULL, updated_at = NOW()
+              completed_at = COALESCE(completed_at, NOW()), failure_reason = NULL,
+              funds_settled = TRUE, updated_at = NOW()
         WHERE id = $1`,
       [payout.id, transfer.id, eventType]
     );
