@@ -29861,7 +29861,7 @@
       "api-keys": "API Keys",
       "tabs": "Tabs",
       "title": "Essential Tabs",
-      "hint": "Dezaktive onglet ou pa bezwen yo. Yo pral kache nan ba bò kote ou."
+      "hint": "Dechwazi onglet ou pa bezwen yo. Y ap kache nan ba lateral ou a."
     },
     "profile": {
       "title": "Profile",
@@ -29873,7 +29873,7 @@
     },
     "sessions": {
       "title": "Active Sessions",
-      "hint": "Revoke nenpòt sesyon ou pa rekonèt.",
+      "hint": "Anile nenpòt sesyon ou pa rekonèt.",
       "unknown": "Unknown device",
       "current": "Current",
       "never": "Never used",
@@ -29891,9 +29891,9 @@
     },
     "apiKeys": {
       "title": "API Keys",
-      "hint": "Kle yo bay aksè ak API a sou non ou. Kenbe yo sekrè.",
-      "copyWarning": "Kopye sa a kounye a. Li p ap parèt ankò.",
-      "namePlaceholder": "Non kle a (egzanp: deplwaman CI)",
+      "hint": "Kle yo bay aksè API sou non ou. Kenbe yo sekrè.",
+      "copyWarning": "Kopye sa kounye a. Li pap parèt ankò.",
+      "namePlaceholder": "Non kle a (pa egzanp deplwaman CI)",
       "create": "Create",
       "revoked": "Revoked",
       "created": "Created",

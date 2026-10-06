@@ -29861,7 +29861,7 @@
       "api-keys": "API Keys",
       "tabs": "Tabs",
       "title": "Essential Tabs",
-      "hint": "Desmarca las pestañas que no necesitas. Se ocultarán de tu barra lateral."
+      "hint": "Desmarca las pestañas que no necesites. Se ocultarán de tu barra lateral."
     },
     "profile": {
       "title": "Profile",
@@ -29891,9 +29891,9 @@
     },
     "apiKeys": {
       "title": "API Keys",
-      "hint": "Las claves conceden acceso a la API en tu nombre. Mantenlas en secreto.",
-      "copyWarning": "Copia esto ahora. No volverá a mostrarse.",
-      "namePlaceholder": "Nombre de la clave (p. ej., despliegue de CI)",
+      "hint": "Las claves otorgan acceso a la API en tu nombre. Mantenlas en secreto.",
+      "copyWarning": "Copia esto ahora. No se volverá a mostrar.",
+      "namePlaceholder": "Nombre de la clave (p. ej., despliegue CI)",
       "create": "Create",
       "revoked": "Revoked",
       "created": "Created",
