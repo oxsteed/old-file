@@ -29872,7 +29872,7 @@
       "api-keys": "API Keys",
       "tabs": "Tabs",
       "title": "Essential Tabs",
-      "hint": "Uncheck tabs you do not need. They will be hidden from your sidebar."
+      "hint": "أزل تحديد علامات التبويب التي لا تحتاج إليها. ستُخفى من الشريط الجانبي."
     },
     "profile": {
       "title": "Profile",
@@ -29884,7 +29884,7 @@
     },
     "sessions": {
       "title": "Active Sessions",
-      "hint": "Revoke any session you do not recognize.",
+      "hint": "ألغِ أي جلسة لا تتعرف عليها.",
       "unknown": "Unknown device",
       "current": "Current",
       "never": "Never used",
@@ -29902,9 +29902,9 @@
     },
     "apiKeys": {
       "title": "API Keys",
-      "hint": "Keys grant API access as you. Keep them secret.",
-      "copyWarning": "Copy this now. It will not be shown again.",
-      "namePlaceholder": "Key name (e.g. CI deploy)",
+      "hint": "تمنح المفاتيح إمكانية الوصول إلى واجهة API باسمك. احتفظ بها سرية.",
+      "copyWarning": "انسخ هذا الآن. لن يظهر مرة أخرى.",
+      "namePlaceholder": "اسم المفتاح (مثال: نشر CI)",
       "create": "Create",
       "revoked": "Revoked",
       "created": "Created",

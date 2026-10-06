@@ -29861,7 +29861,7 @@
       "api-keys": "API Keys",
       "tabs": "Tabs",
       "title": "Essential Tabs",
-      "hint": "Uncheck tabs you do not need. They will be hidden from your sidebar."
+      "hint": "Dezaktive onglet ou pa bezwen yo. Yo pral kache nan ba bò kote ou."
     },
     "profile": {
       "title": "Profile",
@@ -29873,7 +29873,7 @@
     },
     "sessions": {
       "title": "Active Sessions",
-      "hint": "Revoke any session you do not recognize.",
+      "hint": "Revoke nenpòt sesyon ou pa rekonèt.",
       "unknown": "Unknown device",
       "current": "Current",
       "never": "Never used",
@@ -29891,9 +29891,9 @@
     },
     "apiKeys": {
       "title": "API Keys",
-      "hint": "Keys grant API access as you. Keep them secret.",
-      "copyWarning": "Copy this now. It will not be shown again.",
-      "namePlaceholder": "Key name (e.g. CI deploy)",
+      "hint": "Kle yo bay aksè ak API a sou non ou. Kenbe yo sekrè.",
+      "copyWarning": "Kopye sa a kounye a. Li p ap parèt ankò.",
+      "namePlaceholder": "Non kle a (egzanp: deplwaman CI)",
       "create": "Create",
       "revoked": "Revoked",
       "created": "Created",

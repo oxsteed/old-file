@@ -29861,7 +29861,7 @@
       "api-keys": "API Keys",
       "tabs": "Tabs",
       "title": "Essential Tabs",
-      "hint": "Uncheck tabs you do not need. They will be hidden from your sidebar."
+      "hint": "Desmarca las pestañas que no necesitas. Se ocultarán de tu barra lateral."
     },
     "profile": {
       "title": "Profile",
@@ -29873,7 +29873,7 @@
     },
     "sessions": {
       "title": "Active Sessions",
-      "hint": "Revoke any session you do not recognize.",
+      "hint": "Revoca cualquier sesión que no reconozcas.",
       "unknown": "Unknown device",
       "current": "Current",
       "never": "Never used",
@@ -29891,9 +29891,9 @@
     },
     "apiKeys": {
       "title": "API Keys",
-      "hint": "Keys grant API access as you. Keep them secret.",
-      "copyWarning": "Copy this now. It will not be shown again.",
-      "namePlaceholder": "Key name (e.g. CI deploy)",
+      "hint": "Las claves conceden acceso a la API en tu nombre. Mantenlas en secreto.",
+      "copyWarning": "Copia esto ahora. No volverá a mostrarse.",
+      "namePlaceholder": "Nombre de la clave (p. ej., despliegue de CI)",
       "create": "Create",
       "revoked": "Revoked",
       "created": "Created",
