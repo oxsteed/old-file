@@ -322,8 +322,14 @@ exports.getJobs = async (req, res, next) => {
     }
     // Valid job statuses (must match values written by jobController state transitions).
     // 'pending' is NOT a real status — removed to prevent silent empty-result filters.
+    // Audit fix: the public board only exposes public statuses. Private
+    // statuses (draft, negotiating, accepted, etc.) are not filterable here.
     const VALID_JOB_STATUSES = ['draft', 'published', 'matched', 'negotiating', 'accepted', 'in_progress', 'completed', 'cancelled', 'closed'];
+    const PUBLIC_JOB_STATUSES = ['published', 'matched', 'completed'];
     if (status && VALID_JOB_STATUSES.includes(status)) {
+      if (!PUBLIC_JOB_STATUSES.includes(status)) {
+        return res.status(400).json({ error: 'Invalid status filter for public job board.' });
+      }
       conditions.push(`j.status = $${paramIdx++}`);
       params.push(status);
     } else {
@@ -449,7 +455,24 @@ exports.getJob = async (req, res, next) => {
       throw new AppError('Job not found', 404, 'job_not_found');
     }
 
-    const translatedJob = await translateRecordForRequest(rows[0], req, {
+    const job = rows[0];
+    const userId = req.user?.id;
+    const isParty = userId && (
+      String(job.client_id) === String(userId) ||
+      String(job.assigned_helper_id) === String(userId)
+    );
+    const isAdmin = req.user?.role === 'admin' || req.user?.role === 'super_admin';
+
+    // Audit fix: IDOR. Full address, escrow status, and client details are
+    // only for the client, the assigned helper, or an admin. Others get
+    // the public view.
+    let result = job;
+    if (!isParty && !isAdmin) {
+      const { location_address, escrow_status, client_id, ...publicJob } = job;
+      result = publicJob;
+    }
+
+    const translatedJob = await translateRecordForRequest(result, req, {
       fields: ['title', 'description', 'category_name'],
       contentType: 'job',
     });
