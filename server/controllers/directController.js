@@ -460,6 +460,22 @@ async function loadLookupChallengeByToken(challengeToken) {
 }
 
 async function createLookupChallenge(request, zipCode) {
+  // Per-quote cooldown: if a code was sent in the last 60 seconds, reject
+  // to prevent email flooding. The audit flagged this as a spam vector.
+  const { rows: [recent] } = await db.query(
+    `SELECT id FROM direct_quote_lookup_challenges
+      WHERE quote_request_id = $1
+        AND created_at > NOW() - INTERVAL '60 seconds'
+      LIMIT 1`,
+    [request.id]
+  ).catch(() => ({ rows: [] }));
+  if (recent) {
+    const err = new Error('A code was just sent. Please wait before requesting another.');
+    err.statusCode = 429;
+    err.code = 'cooldown';
+    throw err;
+  }
+
   const challengeToken = generateChallengeToken();
   const code = generateLookupCode();
   const codeHash = hashLookupCode(challengeToken, code);
@@ -1489,7 +1505,7 @@ exports.acceptRequest = async (req, res) => {
   try {
     const request = await loadRequestOr404(req.params.id);
     if (!request) return res.status(404).json({ error: 'Request not found' });
-    if (!canAccessRequest(request, req.user)) return res.status(403).json({ error: 'Unauthorized' });
+    if (!(await canAccessRequestDetail(request, req.user))) return res.status(403).json({ error: 'Unauthorized' });
 
     // A quote can only be accepted while it is awaiting the customer's
     // decision and a quoted amount exists.
@@ -1530,7 +1546,7 @@ exports.rejectRequest = async (req, res) => {
   try {
     const request = await loadRequestOr404(req.params.id);
     if (!request) return res.status(404).json({ error: 'Request not found' });
-    if (!canAccessRequest(request, req.user)) return res.status(403).json({ error: 'Unauthorized' });
+    if (!(await canAccessRequestDetail(request, req.user))) return res.status(403).json({ error: 'Unauthorized' });
 
     if (DIRECT_TERMINAL_STATUSES.has(request.status)) {
       return res.status(400).json({ error: 'This request can no longer be rejected' });
@@ -1573,7 +1589,7 @@ exports.scheduleRequest = async (req, res) => {
   try {
     const request = await loadRequestOr404(req.params.id);
     if (!request) return res.status(404).json({ error: 'Request not found' });
-    if (!canAccessRequest(request, req.user)) return res.status(403).json({ error: 'Unauthorized' });
+    if (!(await canAccessRequestDetail(request, req.user))) return res.status(403).json({ error: 'Unauthorized' });
 
     // Never resurrect a terminal request by scheduling it.
     if (DIRECT_TERMINAL_STATUSES.has(request.status)) {
@@ -1631,7 +1647,7 @@ exports.changeRequest = async (req, res) => {
   try {
     const request = await loadRequestOr404(req.params.id);
     if (!request) return res.status(404).json({ error: 'Request not found' });
-    if (!canAccessRequest(request, req.user)) return res.status(403).json({ error: 'Unauthorized' });
+    if (!(await canAccessRequestDetail(request, req.user))) return res.status(403).json({ error: 'Unauthorized' });
 
     const action = cleanText(req.body.action || 'reschedule', 20).toLowerCase();
     if (action === 'cancel') {
@@ -1716,7 +1732,7 @@ exports.submitProof = async (req, res) => {
   try {
     const request = await loadRequestOr404(req.params.id);
     if (!request) return res.status(404).json({ error: 'Request not found' });
-    if (!canAccessRequest(request, req.user)) return res.status(403).json({ error: 'Unauthorized' });
+    if (!(await canAccessRequestDetail(request, req.user))) return res.status(403).json({ error: 'Unauthorized' });
 
     const proofLink = cleanText(req.body.proofLink || req.body.proof_link, 2048) || null;
     const confirmationCode = cleanText(req.body.confirmationCode || req.body.confirmation_code, 120) || null;
@@ -1788,7 +1804,7 @@ exports.confirmProof = async (req, res) => {
     if (!isAdmin(req.user)) {
       return res.status(403).json({ error: 'Only OxSteed staff can confirm payment proof' });
     }
-    if (!canAccessRequest(request, req.user)) return res.status(403).json({ error: 'Unauthorized' });
+    if (!(await canAccessRequestDetail(request, req.user))) return res.status(403).json({ error: 'Unauthorized' });
     if (request.status === 'cancelled') {
       return res.status(400).json({ error: 'Cannot confirm payment proof for a cancelled request' });
     }

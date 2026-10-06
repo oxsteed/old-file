@@ -41,6 +41,20 @@ const directHoldLimiter = rateLimit({
     retryAfter: '15 minutes',
   },
 });
+// Audit finding (2026-10-06): the book endpoint had only the general rate
+// limit. Booking creates real quote_requests, so it gets its own tight
+// bucket: 10 per 15 min per IP. Guests can still book (product decision),
+// but spam is throttled.
+const directBookLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many booking requests. Please try again later.',
+    retryAfter: '15 minutes',
+  },
+});
 // Audit finding #53: bound the photo attachment array before the quote request
 // controller runs, so an oversized metadata payload is rejected early with a
 // clear 400. Mirrors the controller's own photoAttachments/photos resolution.
@@ -67,7 +81,7 @@ router.get('/profile', optionalAuth, ctrl.getProfile);
 router.get('/catalog', generalLimiter, ctrl.getCatalog);
 router.get('/catalog/services/:id/slots', generalLimiter, ctrl.getServiceSlots);
 router.post('/catalog/services/:id/holds', authenticate, directHoldLimiter, ctrl.createServiceHold);
-router.post('/catalog/services/:id/book', generalLimiter, ctrl.bookServiceSlot);
+router.post('/catalog/services/:id/book', directBookLimiter, ctrl.bookServiceSlot);
 router.get('/service-areas', generalLimiter, ctrl.getServiceAreas);
 router.post('/service-availability', generalLimiter, ctrl.checkServiceAvailability);
 router.post('/uploads', authenticate, directUploadLimiter, upload.single('image'), validateFileUpload, ctrl.uploadDirectAsset);
