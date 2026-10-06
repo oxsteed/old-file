@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  ArrowLeft, Camera, CheckCircle2, Clock3, FileText, FolderOpen,
+  AlertCircle, ArrowLeft, Camera, CheckCircle2, Clock3, FileText, FolderOpen,
   History, PenLine, Plus, ShieldCheck, Upload, XCircle,
 } from 'lucide-react';
 import PageMeta from '../components/PageMeta';
@@ -13,9 +13,9 @@ import '../components/SignaturePad.css';
 import api from '../api/axios';
 import './WorkAgreementPage.css';
 
-function Section({ icon: Icon, title, children, action }) {
+function Section({ icon: Icon, title, children, action, id }) {
   return (
-    <section className="wa-section">
+    <section className="wa-section" id={id}>
       <header className="wa-section__head">
         <h2><Icon size={18} aria-hidden="true" /> {title}</h2>
         {action}
@@ -35,6 +35,9 @@ export default function WorkAgreementPage() {
   const [error, setError] = useState('');
   const [signOpen, setSignOpen] = useState(false);
   const [signatureData, setSignatureData] = useState(null);
+  const [coSignOpen, setCoSignOpen] = useState(false);
+  const [coSignatureData, setCoSignatureData] = useState(null);
+  const [coPending, setCoPending] = useState(null);
   const [signing, setSigning] = useState(false);
   const [coOpen, setCoOpen] = useState(false);
   const [coDesc, setCoDesc] = useState('');
@@ -81,20 +84,41 @@ export default function WorkAgreementPage() {
   };
 
   const proposeChangeOrder = async () => {
+    if (!coDesc.trim()) return;
+    setCoPending({ type: 'propose' });
+    setCoSignatureData(null);
+    setCoSignOpen(true);
+  };
+
+  const submitChangeOrderProposal = async () => {
+    if (!coSignatureData) return;
     try {
       await api.post(`/api/work-agreements/${id}/change-orders`, {
         description: coDesc.trim(),
         priceChangeCents: Math.round(Number(coPrice || 0) * 100),
+        signatureData: coSignatureData,
       });
-      setCoOpen(false); setCoDesc(''); setCoPrice(''); load();
+      setCoOpen(false); setCoDesc(''); setCoPrice('');
+      setCoSignOpen(false); setCoSignatureData(null); setCoPending(null);
+      load();
     } catch (e) {
       setError(e.response?.data?.error || t('workAgreement.coError', { defaultValue: 'Could not propose the change order.' }));
     }
   };
 
-  const decideChangeOrder = async (coId, decision) => {
+  const decideChangeOrder = (coId, decision) => {
+    setCoPending({ type: 'decide', coId, decision });
+    setCoSignatureData(null);
+    setCoSignOpen(true);
+  };
+
+  const submitChangeOrderDecision = async () => {
+    if (!coSignatureData || !coPending?.coId) return;
     try {
-      await api.post(`/api/work-agreements/${id}/change-orders/${coId}/${decision}`);
+      await api.post(`/api/work-agreements/${id}/change-orders/${coPending.coId}/${coPending.decision}`, {
+        signatureData: coSignatureData,
+      });
+      setCoSignOpen(false); setCoSignatureData(null); setCoPending(null);
       load();
     } catch (e) {
       setError(e.response?.data?.error || t('workAgreement.coError', { defaultValue: 'Could not update the change order.' }));
@@ -170,6 +194,18 @@ export default function WorkAgreementPage() {
                 </button>
               )}
             </header>
+            {agreement.status === 'active' && (
+              <div className="wa-issue-banner" role="note">
+                <AlertCircle size={18} aria-hidden="true" />
+                <div>
+                  <strong>{t('workAgreement.issueTitle', { defaultValue: 'Having an issue with this work?' })}</strong>
+                  <p>{t('workAgreement.issueBody', { defaultValue: 'Check your warranty terms below and file a claim here first. OxSteed records the claim; you and the other party resolve it.' })}</p>
+                </div>
+                <button type="button" className="wa-btn" onClick={() => { setClaimOpen(true); document.getElementById('wa-warranty')?.scrollIntoView({ behavior: 'smooth' }); }}>
+                  {t('workAgreement.fileClaim', { defaultValue: 'File claim' })}
+                </button>
+              </div>
+            )}
 
             <Section icon={PenLine} title={t('workAgreement.signatures', { defaultValue: 'Signatures' })}>
               <div className="wa-signatures">
@@ -280,7 +316,7 @@ export default function WorkAgreementPage() {
               </div>
             </Section>
 
-            <Section icon={ShieldCheck} title={t('workAgreement.warranty', { defaultValue: 'Warranty claims' })}
+            <Section id="wa-warranty" icon={ShieldCheck} title={t('workAgreement.warranty', { defaultValue: 'Warranty claims' })}
               action={<button type="button" className="wa-btn" onClick={() => setClaimOpen(true)}><Plus size={14} aria-hidden="true" /> {t('workAgreement.fileClaim', { defaultValue: 'File claim' })}</button>}>
               <p className="wa-muted">{t('workAgreement.warrantyNote', { defaultValue: 'OxSteed records the claim. The parties resolve it between themselves.' })}</p>
               {(data.warrantyClaims || []).map((c) => (
@@ -313,6 +349,26 @@ export default function WorkAgreementPage() {
                       {signing ? t('workAgreement.signing', { defaultValue: 'Signing…' }) : t('workAgreement.signSubmit', { defaultValue: 'Sign' })}
                     </button>
                     <button type="button" className="wa-btn" onClick={() => { setSignOpen(false); setSignatureData(null); }}>
+                      <XCircle size={14} aria-hidden="true" /> {t('workAgreement.cancel', { defaultValue: 'Cancel' })}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {coSignOpen && coPending && (
+              <div className="wa-modal" role="dialog" aria-modal="true" aria-label={t('workAgreement.coSignTitle', { defaultValue: 'Sign the change order' })}>
+                <div className="wa-modal__box">
+                  <h2>{t('workAgreement.coSignTitle', { defaultValue: 'Sign the change order' })}</h2>
+                  <p className="wa-muted">{t('workAgreement.coSignWarning', { defaultValue: 'Your drawn signature is required. Change orders are binding once both parties sign.' })}</p>
+                  <SignaturePad onChange={setCoSignatureData} />
+                  <div className="wa-row">
+                    <button type="button" className="wa-primary"
+                      onClick={coPending.type === 'propose' ? submitChangeOrderProposal : submitChangeOrderDecision}
+                      disabled={!coSignatureData}>
+                      {t('workAgreement.coSignSubmit', { defaultValue: 'Sign and submit' })}
+                    </button>
+                    <button type="button" className="wa-btn" onClick={() => { setCoSignOpen(false); setCoSignatureData(null); setCoPending(null); }}>
                       <XCircle size={14} aria-hidden="true" /> {t('workAgreement.cancel', { defaultValue: 'Cancel' })}
                     </button>
                   </div>

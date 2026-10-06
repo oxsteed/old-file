@@ -314,18 +314,21 @@ exports.proposeChangeOrder = async (req, res) => {
     if (!['active', 'pending_signatures'].includes(agreement.status)) {
       return res.status(409).json({ error: 'Change orders require an open agreement.' });
     }
-    const { description, priceChangeCents } = req.body || {};
+    const { description, priceChangeCents, signatureData } = req.body || {};
     if (!description || String(description).trim().length < 10 || String(description).length > 10000) {
       return res.status(400).json({ error: 'Description must be 10-10000 characters.' });
     }
     const cents = priceChangeCents === undefined ? 0 : Number(priceChangeCents);
     if (!validCents(cents)) return res.status(400).json({ error: 'priceChangeCents must be an integer.' });
+    if (!validSignatureData(signatureData)) {
+      return res.status(400).json({ error: 'A drawn signature is required to propose a change order.' });
+    }
 
     const version = await currentVersion(agreement.id);
     const { rows: [co] } = await db.query(
-      `INSERT INTO work_agreement_change_orders (agreement_id, version_id, description, price_change_cents, proposed_by)
-       VALUES ($1::uuid, $2::uuid, $3, $4, $5::uuid) RETURNING *`,
-      [agreement.id, version.id, String(description).trim(), cents, req.user.id]
+      `INSERT INTO work_agreement_change_orders (agreement_id, version_id, description, price_change_cents, proposed_by, proposer_signature_data)
+       VALUES ($1::uuid, $2::uuid, $3, $4, $5::uuid, $6) RETURNING *`,
+      [agreement.id, version.id, String(description).trim(), cents, req.user.id, signatureData]
     );
     logger.info('change order proposed', { agreementId: agreement.id, changeOrderId: co.id });
     return res.status(201).json({ changeOrder: co });
@@ -335,12 +338,18 @@ exports.proposeChangeOrder = async (req, res) => {
   }
 };
 
-// Bilateral decision: the counterparty (not the proposer) approves or rejects.
+// Bilateral decision: the counterparty (not the proposer) approves or rejects,
+// with a drawn signature.
 async function decideChangeOrder(req, res, decision) {
   try {
     const agreement = await loadAgreement(req.params.id);
     if (!agreement) return res.status(404).json({ error: 'Agreement not found.' });
     if (!isParty(agreement, req.user.id)) return res.status(403).json({ error: 'Not a party to this agreement.' });
+
+    const { signatureData } = req.body || {};
+    if (!validSignatureData(signatureData)) {
+      return res.status(400).json({ error: 'A drawn signature is required to decide a change order.' });
+    }
 
     const { rows: [co] } = await db.query(
       'SELECT * FROM work_agreement_change_orders WHERE id = $1::uuid AND agreement_id = $2::uuid',
@@ -354,9 +363,9 @@ async function decideChangeOrder(req, res, decision) {
 
     const { rows: [updated] } = await db.query(
       `UPDATE work_agreement_change_orders
-          SET status = $2, decided_by = $3::uuid, decided_at = now()
+          SET status = $2, decided_by = $3::uuid, decided_at = now(), decider_signature_data = $4
         WHERE id = $1::uuid RETURNING *`,
-      [co.id, decision, req.user.id]
+      [co.id, decision, req.user.id, signatureData]
     );
     logger.info('change order decided', { changeOrderId: co.id, decision, userId: req.user.id });
     return res.json({ changeOrder: updated });
@@ -585,5 +594,31 @@ Keep it fair to both helper and customer. OxSteed is the records keeper only, no
   } catch (err) {
     logger.error('workAgreement draft error', { err, adminId: req.user?.id });
     return res.status(500).json({ error: 'Could not draft agreement.' });
+  }
+};
+
+// ─── GET /api/work-agreements/by-job/:jobId ─────────────────────────────────
+// Complaint barrier: check if a job has an active work agreement before
+// routing to support. Returns the agreement with warranty terms so the
+// caller can surface "check your agreement first."
+exports.getByJob = async (req, res) => {
+  try {
+    const jobId = String(req.params.jobId || '').trim();
+    if (!jobId) return res.status(400).json({ error: 'jobId is required.' });
+    const { rows: [row] } = await db.query(
+      `SELECT id, helper_id, customer_id FROM work_agreements WHERE job_id = $1::uuid
+         ORDER BY created_at DESC LIMIT 1`,
+      [jobId]
+    );
+    if (!row) return res.json({ hasAgreement: false });
+    if (String(row.helper_id) !== String(req.user.id) && String(row.customer_id) !== String(req.user.id)) {
+      return res.json({ hasAgreement: false });
+    }
+    // Reuse the detail loader for parties.
+    req.params.id = row.id;
+    return exports.getAgreement(req, res);
+  } catch (err) {
+    logger.error('workAgreement by-job error', { err, userId: req.user?.id });
+    return res.status(500).json({ error: 'Could not check for agreement.' });
   }
 };

@@ -7,6 +7,7 @@ const wa = require('../controllers/workAgreementController');
 
 // Agreements
 router.post('/draft', authenticate, wa.draftAgreement);
+router.get('/by-job/:jobId', authenticate, wa.getByJob);
 router.post('/', authenticate, wa.createAgreement);
 router.get('/', authenticate, wa.listAgreements);
 router.get('/:id', authenticate, wa.getAgreement);

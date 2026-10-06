@@ -199,7 +199,7 @@ describe('change orders', () => {
       .mockResolvedValueOnce({ rows: [coRow()] });
     const res = await request(buildApp(HELPER_ID))
       .post(`/api/work-agreements/${AGREEMENT_ID}/change-orders`)
-      .send({ description: 'Add faucet replacement', priceChangeCents: 2500 });
+      .send({ description: 'Add faucet replacement', priceChangeCents: 2500, signatureData: SIG });
     expect(res.status).toBe(201);
     expect(res.body.changeOrder.price_change_cents).toBe(2500);
   });
@@ -208,28 +208,44 @@ describe('change orders', () => {
     mockQuery.mockResolvedValueOnce({ rows: [agreementRow({ status: 'active' })] });
     const res = await request(buildApp(HELPER_ID))
       .post(`/api/work-agreements/${AGREEMENT_ID}/change-orders`)
-      .send({ description: 'Add faucet replacement', priceChangeCents: 25.5 });
+      .send({ description: 'Add faucet replacement', priceChangeCents: 25.5, signatureData: SIG });
+    expect(res.status).toBe(400);
+  });
+
+  test('rejects change order without signature', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [agreementRow({ status: 'active' })] });
+    const res = await request(buildApp(HELPER_ID))
+      .post(`/api/work-agreements/${AGREEMENT_ID}/change-orders`)
+      .send({ description: 'Add faucet replacement', priceChangeCents: 2500 });
     expect(res.status).toBe(400);
   });
 
   test('counterparty approves; proposer cannot approve own order', async () => {
-    // proposer tries to approve own
+    // proposer tries to approve own (with signature, still forbidden)
     mockQuery
       .mockResolvedValueOnce({ rows: [agreementRow({ status: 'active' })] })
       .mockResolvedValueOnce({ rows: [coRow()] });
     const own = await request(buildApp(HELPER_ID))
       .post(`/api/work-agreements/${AGREEMENT_ID}/change-orders/co-1/approve`)
-      .send({});
+      .send({ signatureData: SIG });
     expect(own.status).toBe(403);
 
-    // counterparty approves
+    // counterparty approves without signature -> 400
+    mockQuery
+      .mockResolvedValueOnce({ rows: [agreementRow({ status: 'active' })] });
+    const noSig = await request(buildApp(CUSTOMER_ID))
+      .post(`/api/work-agreements/${AGREEMENT_ID}/change-orders/co-1/approve`)
+      .send({});
+    expect(noSig.status).toBe(400);
+
+    // counterparty approves with signature
     mockQuery
       .mockResolvedValueOnce({ rows: [agreementRow({ status: 'active' })] })
       .mockResolvedValueOnce({ rows: [coRow()] })
       .mockResolvedValueOnce({ rows: [coRow({ status: 'approved' })] });
     const ok = await request(buildApp(CUSTOMER_ID))
       .post(`/api/work-agreements/${AGREEMENT_ID}/change-orders/co-1/approve`)
-      .send({});
+      .send({ signatureData: SIG });
     expect(ok.status).toBe(200);
     expect(ok.body.changeOrder.status).toBe('approved');
   });

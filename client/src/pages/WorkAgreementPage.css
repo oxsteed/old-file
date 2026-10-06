@@ -47,3 +47,18 @@
 .wa-modal { position: fixed; inset: 0; background: rgba(15, 23, 42, .55); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: 60; }
 .wa-modal__box { background: #fff; border-radius: 16px; padding: 1.5rem; max-width: 32rem; width: 100%; display: grid; gap: 12px; }
 .wa-modal__box h2 { margin: 0; font-size: 1.25rem; }
+
+.wa-issue-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  margin: 16px 0;
+  border: 1px solid var(--oc-line);
+  border-radius: 12px;
+  background: var(--oc-panel);
+}
+.wa-issue-banner svg { flex-shrink: 0; margin-top: 2px; color: var(--oc-brand); }
+.wa-issue-banner div { flex: 1; }
+.wa-issue-banner strong { display: block; margin-bottom: 4px; }
+.wa-issue-banner p { margin: 0; font-size: 14px; color: var(--oc-muted); }
