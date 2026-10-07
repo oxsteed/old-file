@@ -2,12 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { getPost, getReplies, recordView } from '../../api/media';
 import MediaPostCard from './MediaPostCard';
+import MediaReplyComposer from './MediaReplyComposer';
 
 export default function MediaPostDetailPage() {
   const { id } = useParams();
   const [post, setPost] = useState(null);
   const [replies, setReplies] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const loadReplies = async () => {
+    const data = await getReplies(id);
+    setReplies(data.replies);
+  };
 
   useEffect(() => {
     (async () => {
@@ -28,12 +34,18 @@ export default function MediaPostDetailPage() {
     })();
   }, [id]);
 
+  const handleNewReply = (reply) => {
+    setReplies(r => [reply, ...r]);
+    setPost(p => p ? { ...p, reply_count: p.reply_count + 1 } : p);
+  };
+
   if (loading) return <p>Loading...</p>;
   if (!post) return <p>Post not found.</p>;
 
   return (
     <div className="media-post-detail">
       <MediaPostCard post={post} />
+      <MediaReplyComposer parentId={id} onReply={handleNewReply} />
       <div className="media-replies-section">
         <h2>Replies ({post.reply_count})</h2>
         <div className="media-reply-sort">

@@ -200,6 +200,7 @@ const MediaComposePage = lazyWithRetry(() => import('./pages/media/MediaComposeP
 const MediaSearchPage = lazyWithRetry(() => import('./pages/media/MediaSearchPage'));
 const MediaCommunitiesPage = lazyWithRetry(() => import('./pages/media/MediaCommunitiesPage'));
 const MediaLaunchGate = lazyWithRetry(() => import('./pages/media/MediaLaunchGate'));
+const MediaActorPage = lazyWithRetry(() => import('./pages/media/MediaActorPage'));
 const MaintenanceRequestPage = lazyWithRetry(() => import('./pages/MaintenanceRequestPage'));
 const TradesDiagnosticRequestPage = lazyWithRetry(() => import('./pages/TradesDiagnosticRequestPage'));
 const BeautyIntakeRequestPage = lazyWithRetry(() => import('./pages/BeautyIntakeRequestPage'));
@@ -409,6 +410,7 @@ export default function App() {
                     <Route path="/media/post/:id"          element={<Guarded><MediaLaunchGate><MediaShell><MediaPostDetailPage /></MediaShell></MediaLaunchGate></Guarded>} />
                     <Route path="/media/search"            element={<Guarded><MediaLaunchGate><MediaShell><MediaSearchPage /></MediaShell></MediaLaunchGate></Guarded>} />
                     <Route path="/media/communities"       element={<Guarded><MediaLaunchGate><MediaShell><MediaCommunitiesPage /></MediaShell></MediaLaunchGate></Guarded>} />
+                    <Route path="/media/@:handle"          element={<Guarded><MediaLaunchGate><MediaShell><MediaActorPage /></MediaShell></MediaLaunchGate></Guarded>} />
                     <Route path="/media/notifications"     element={<Navigate to="/notifications" replace />} />
                     <Route path="/media/messages"          element={<Navigate to="/messages" replace />} />
                     <Route path="/direct/view-quote"       element={<Guarded><DirectPortalPage view="lookup" /></Guarded>} />
