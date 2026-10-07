@@ -352,8 +352,13 @@ ddescribe('migration 724 backfill (disposable DB)', () => {
   test('resolveRestaurantParticipant finds backfilled rows end to end', async () => {
     const client = await pool.connect();
     try {
+      // Pick a partner that actually has a restaurant participant (other
+      // suites share this disposable DB and may insert bare partners).
       const { rows: partners } = await client.query(
-        'SELECT id FROM oxsteed_credit_partners LIMIT 1'
+        `SELECT p.id FROM oxsteed_credit_partners p
+           JOIN credit_participants cp
+             ON cp.partner_id = p.id AND cp.participant_type = 'restaurant'
+          LIMIT 1`
       );
       if (!partners.length) return;
       const resolved = await participantService.resolveRestaurantParticipant(client, partners[0].id);
