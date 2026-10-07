@@ -110,6 +110,11 @@ const ENTRIES = [
     classification: 'cache', shared: 'none',
     rationale: 'Workload budget config registry: env-derived at first use, explicitly overridable via configureBudget(). Process config; changes take effect on restart or explicit override.',
   },
+  {
+    file: 'controllers/adminOperationsController.js', name: 'columnsCache',
+    classification: 'cache', shared: 'none',
+    rationale: 'information_schema column probe cache: 60s TTL, per-table entries. Backing store is PostgreSQL information_schema; schema changes propagate within the TTL. Eliminates N+1 schema probes on the operations overview endpoint.',
+  },
 
   // ── Leases / presence (Redis with TTL) ──────────────────────────────────
   {
