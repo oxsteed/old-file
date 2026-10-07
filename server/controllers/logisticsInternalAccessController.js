@@ -1,4 +1,5 @@
 const bcrypt = require('bcrypt');
+const { setSessionCookies } = require('../utils/authCookies');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const pool = require('../db');
@@ -645,6 +646,9 @@ exports.loginWithInternalAccess = async (req, res, next) => {
       internalAccessId: decoded.internalAccessId,
       internalAccessRoute: route,
     });
+    // Web sessions authenticate via httpOnly cookies (the client no longer
+    // stores the access token); JSON tokens are kept for native clients.
+    setSessionCookies(res, tokens, { rememberMe: !!rememberMe });
     return res.json({
       success: true,
       message: 'Login successful',

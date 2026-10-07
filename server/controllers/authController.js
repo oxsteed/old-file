@@ -40,9 +40,14 @@ const OTP_RESEND_COOLDOWN_MS = 60 * 1000;
 // and /auth/refresh + /auth/logout accept it from the body OR the cookie.
 // SameSite=Lax is the CSRF defense for the cookie path (cross-site POSTs do
 // not carry it); the explicit Authorization: Bearer header flow is untouched.
-const REFRESH_COOKIE_NAME = 'oxsteed_rt';
-const REFRESH_COOKIE_MAX_AGE_S = 7 * 24 * 60 * 60;       // 7 days
-const REFRESH_COOKIE_MAX_AGE_REMEMBER_S = 30 * 24 * 60 * 60; // 30 days
+// Cookie names/options live in utils/authCookies (shared with passkey,
+// internal-access and registration controllers).
+const {
+  REFRESH_COOKIE_NAME,
+  setAccessTokenCookie,
+  setRefreshTokenCookie,
+  clearRefreshTokenCookie,
+} = require('../utils/authCookies');
 
 function parseCookies(req) {
   const header = req.headers?.cookie;
@@ -60,26 +65,6 @@ function parseCookies(req) {
     }
   }
   return out;
-}
-
-function setRefreshTokenCookie(res, refreshToken, { rememberMe = false } = {}) {
-  const maxAge = (rememberMe ? REFRESH_COOKIE_MAX_AGE_REMEMBER_S : REFRESH_COOKIE_MAX_AGE_S) * 1000;
-  res.cookie(REFRESH_COOKIE_NAME, refreshToken, {
-    httpOnly: true,
-    secure: process.env.COOKIE_SECURE === 'true' || process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge,
-  });
-}
-
-function clearRefreshTokenCookie(res) {
-  res.clearCookie(REFRESH_COOKIE_NAME, {
-    httpOnly: true,
-    secure: process.env.COOKIE_SECURE === 'true' || process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-  });
 }
 
 // Refresh token source: explicit body value first (native/mobile + existing
@@ -414,6 +399,7 @@ async function login(req, res, next) {
     // H8d: web clients get the refresh token as an httpOnly cookie; the JSON
     // body still carries it for native/mobile clients.
     setRefreshTokenCookie(res, tokens.refreshToken, { rememberMe: rememberMe === true });
+    setAccessTokenCookie(res, tokens.accessToken);
 
     // Log terms agreement for legal/compliance record
     try {
@@ -1335,8 +1321,9 @@ async function verifyRegistrationOTP(req, res) {
       "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
       [user.id, hashedRefresh]
     );
-    // H8d: registration completes a login — set the httpOnly cookie too.
+    // H8d: registration completes a login — set the httpOnly cookies too.
     setRefreshTokenCookie(res, tokens.refreshToken);
+    setAccessTokenCookie(res, tokens.accessToken);
     res.status(201).json({ user: formatAuthUser(user), ...tokens });
   } catch (err) {
     logger.error('Verify registration OTP error', { err });
@@ -1740,6 +1727,12 @@ async function updateProfile(req, res) {
       modeTokens = tokens;
     }
     await client.query('COMMIT');
+
+    if (modeTokens) {
+      // Mode switch rotated the session: move both web cookies with it.
+      setRefreshTokenCookie(res, modeTokens.refreshToken);
+      setAccessTokenCookie(res, modeTokens.accessToken);
+    }
 
     res.json({
       success: true,
@@ -2145,6 +2138,10 @@ async function switchRole(req, res) {
     // H8d: rotate the httpOnly refresh cookie too — switch-role issues a
     // fresh refresh token, so the cookie must follow.
     setRefreshTokenCookie(res, tokens.refreshToken);
+    // The web client no longer stores the access token, so the access cookie
+    // must carry the new role/mode too; otherwise the old-role JWT keeps
+    // authenticating until it expires.
+    setAccessTokenCookie(res, tokens.accessToken);
     return res.json({
       success: true,
       user: formatAuthUser(updatedUser),

@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const { setSessionCookies } = require('../utils/authCookies');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const {
@@ -250,24 +251,10 @@ async function issueUserSession(user, req, res) {
   await db.query(`UPDATE users SET last_login_at = NOW(), last_login_ip = $1 WHERE id = $2`, [req.ip || null, user.id]).catch(() => {});
   await db.query(`INSERT INTO user_login_history (user_id, ip_address, user_agent, success) VALUES ($1, $2, $3, TRUE)`, [user.id, req.ip || null, req.headers['user-agent'] || null]).catch(() => {});
 
-  // Set cookies for web clients (parity with password login).
-  // The JSON tokens are kept for API/mobile clients.
-  const isProd = process.env.NODE_ENV === 'production';
-  const cookieSecure = process.env.COOKIE_SECURE === 'true' || isProd;
-  res.cookie('oxsteed_access', tokens.accessToken, {
-    httpOnly: true,
-    sameSite: 'Lax',
-    secure: cookieSecure,
-    path: '/',
-    maxAge: 15 * 60 * 1000,
-  });
-  res.cookie('oxsteed_refresh', tokens.refreshToken, {
-    httpOnly: true,
-    secure: cookieSecure,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  });
+  // Set cookies for web clients (parity with password login). The refresh
+  // cookie must be oxsteed_rt (read by /auth/refresh); it was previously set
+  // as 'oxsteed_refresh', which nothing reads.
+  setSessionCookies(res, tokens);
 
   return res.json({ success: true, user: formatAuthUser(user), accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
 }
