@@ -456,7 +456,7 @@ function OrderDetailPanel({ t, order, onAdvance, onCancel, onMarkPaid, onSplit, 
                 onClick={handleSplitConfirm}
                 disabled={splitting || selectedItems.size === 0}
               >
-                {splitting ? t('common.processing', 'Processing...') : t('food.merchant.splitConfirm', `Split (${selectedItems.size})`)}
+                {splitting ? t('common.processing', 'Processing...') : t('food.merchant.splitConfirm', { defaultValue: 'Split ({{count}})', count: selectedItems.size })}
               </button>
             </div>
           </div>
@@ -615,7 +615,7 @@ function OrdersTab({ t, restaurant }) {
       const { data } = await api.post(`/api/food/restaurants/${restaurant.id}/orders/${order.id}/split`, {
         itemIds,
       });
-      toast.success(t('food.merchant.splitSuccess', `Split complete. New order #${data.newOrderId}`));
+      toast.success(t('food.merchant.splitSuccess', { defaultValue: 'Split complete. New order #{{newOrderId}}', newOrderId: data.newOrderId }));
       reloadAfterAction();
     } catch (err) {
       toast.error(apiErrorMessage(err, t('food.merchant.splitError', 'Unable to split order.')));
