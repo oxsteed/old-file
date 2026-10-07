@@ -280,13 +280,21 @@ describe('POST /api/jobs/assign', () => {
 
   test('rejects protected OxSteed job payment while platform job payments are coming soon', async () => {
     mockAuth(MOCK_USER_CUSTOMER);
+    // This test exercises the coming-soon gate, so the feature flag must be
+    // off even though the shared setup enables it for other suites.
+    const previous = process.env.FEATURE_PAYMENTS_ENABLED;
+    process.env.FEATURE_PAYMENTS_ENABLED = 'false';
+    try {
+      const res = await auth(
+        request(buildApp()).post('/api/jobs/assign').send({ bid_id: 20, payment_method: 'oxsteed' })
+      );
 
-    const res = await auth(
-      request(buildApp()).post('/api/jobs/assign').send({ bid_id: 20, payment_method: 'oxsteed' })
-    );
-
-    expect(res.status).toBe(503);
-    expect(res.body.code).toBe('platform_job_payments_coming_soon');
+      expect(res.status).toBe(503);
+      expect(res.body.code).toBe('platform_job_payments_coming_soon');
+    } finally {
+      if (previous === undefined) delete process.env.FEATURE_PAYMENTS_ENABLED;
+      else process.env.FEATURE_PAYMENTS_ENABLED = previous;
+    }
   });
 });
 
