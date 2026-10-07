@@ -504,6 +504,7 @@ app.use('/api/admin/pricing-overrides', pricingOverridesRoutes);
 app.use('/api/admin/one-truth',        oneTruthRoutes);
 app.use('/api/admin/treasury',         treasuryRoutes);
 app.use('/api/admin/media',            require('./routes/mediaAdmin'));
+app.use('/api/admin/food-orders',      require('./routes/adminFoodOrders'));
 app.use('/api/agent', agentCreditAdjustmentRoutes);
 app.use('/api/agent', agentFoodRefundActionsRoutes);
 app.use('/api/agent/bookings', agentBookingActionsRoutes);

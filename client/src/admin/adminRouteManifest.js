@@ -30,6 +30,7 @@ export const ADMIN_ROUTE_MANIFEST = Object.freeze({
   enforcement: defineRoute('/admin/enforcement', { grant: 'manage_users' }),
   contentRemovals: defineRoute('/admin/content-removals', { grant: 'moderate_content' }),
   mediaFlags: defineRoute('/admin/media-flags', { grant: 'moderate_content' }),
+  foodOrders: defineRoute('/admin/food-orders', { grant: 'manage_orders' }),
   skills: defineRoute('/admin/skills', { grant: 'manage_operations' }),
   support: defineRoute('/admin/support', { grant: 'manage_support' }),
   supportChat: defineRoute('/admin/support/chat'),
