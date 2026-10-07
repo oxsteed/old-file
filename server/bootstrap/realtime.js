@@ -124,7 +124,12 @@ function createRealtimeServer({
           return next(new Error('Guest support authentication failed'));
         }
       }
-      const token = socket.handshake.auth?.token;
+      const token = socket.handshake.auth?.token || (() => {
+        const cookieHeader = socket.handshake?.headers?.cookie;
+        if (!cookieHeader) return null;
+        const match = cookieHeader.match(/(?:^|;\s*)oxsteed_access=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : null;
+      })();
       if (!token) return next(new Error('Authentication required'));
       try {
         const decoded = jwt.verify(token, jwtSecret, { algorithms: ['HS256'] });

@@ -101,6 +101,9 @@ export const uploadMediaWithProgress = ({ url, formData, headers = {}, onProgres
     }
     const xhr = new XHRCtor();
     xhr.open('POST', url);
+    // Send the httpOnly session cookies (the access token is no longer in
+    // localStorage).
+    xhr.withCredentials = true;
     for (const [name, value] of Object.entries(headers || {})) xhr.setRequestHeader(name, value);
     if (xhr.upload && typeof onProgress === 'function') {
       xhr.upload.onprogress = (event) => {

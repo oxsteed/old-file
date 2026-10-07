@@ -45,7 +45,7 @@ export default function IndependentContractorPage() {
 
   const fetchAcceptanceHistory = async () => {
     try {
-      if (!localStorage.getItem('accessToken')) return;
+      if (!localStorage.getItem('user')) return;
 
       const { data } = await api.get('/legal/contractor_agreement/history');
       setAcceptanceHistory(data.history || []);

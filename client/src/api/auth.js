@@ -49,7 +49,10 @@ function persistSessionPayload(data = {}) {
 }
 
 export function getAccessToken() {
-  return localStorage.getItem(ACCESS_TOKEN_KEY);
+  // The access token lives in the httpOnly cookie and is not readable from
+  // JS. Returns the impersonation token when one is active, else null.
+  // Kept for API compatibility.
+  return sessionStorage.getItem('oxs:impersonation_token');
 }
 
 // Returns a locally stored refresh token if one exists (pre-migration
@@ -122,24 +125,17 @@ api.interceptors.response.use(
         return Promise.reject(error);
       }
 
-      // Persist synchronously BEFORE any retry so the request interceptor
-      // (which reads accessToken from localStorage on every call) picks up
-      // the new token.
-      localStorage.setItem(ACCESS_TOKEN_KEY, newAccessToken);
-      // H8d: do NOT persist the refresh token — the server rotated the
-      // httpOnly cookie; keeping a localStorage copy would defeat the point.
+      // The server rotated the httpOnly cookies (access + refresh). The retry
+      // below authenticates via the cookie automatically (withCredentials);
+      // nothing is written to localStorage (XSS vector).
       if (response.data?.user) {
         localStorage.setItem(USER_KEY, JSON.stringify(response.data.user));
       }
-      api.defaults.headers.common.Authorization = `Bearer ${newAccessToken}`;
 
-      // Rebuild the retry config with a clean Authorization header rather than
-      // mutating the stale one. Some axios internals hold onto the original
-      // headers object across retries.
-      originalRequest.headers = {
-        ...(originalRequest.headers || {}),
-        Authorization: `Bearer ${newAccessToken}`,
-      };
+      // Rebuild the retry config without a stale Authorization header. The
+      // httpOnly cookie carries the fresh access token.
+      const { Authorization, ...restHeaders } = originalRequest.headers || {};
+      originalRequest.headers = restHeaders;
 
       return api(originalRequest);
     } catch (refreshError) {

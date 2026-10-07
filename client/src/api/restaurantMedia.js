@@ -10,10 +10,11 @@ import { uploadMediaWithProgress, UPLOAD_ENDPOINTS } from '../utils/restaurantMe
 const API_BASE = api.defaults?.baseURL || '/api';
 
 // Same token lookup the axios interceptor uses, so raw-XHR uploads stay
-// authenticated (impersonation sessions included).
+// authenticated (impersonation sessions included). The normal session
+// authenticates via the httpOnly cookie (withCredentials on the XHR).
 const uploadAuthHeaders = () => {
-  if (typeof sessionStorage === 'undefined' || typeof localStorage === 'undefined') return {};
-  const token = sessionStorage.getItem('oxs:impersonation_token') || localStorage.getItem('accessToken');
+  if (typeof sessionStorage === 'undefined') return {};
+  const token = sessionStorage.getItem('oxs:impersonation_token');
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 

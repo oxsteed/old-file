@@ -18,14 +18,15 @@ function getPreferredLanguage() {
 }
 
 // Attach token to every request.
-// Impersonation sessions store a short-lived token in sessionStorage so the
-// admin's normal access token in localStorage is never overwritten.
+// The access token lives in the httpOnly oxsteed_access cookie (sent
+// automatically via withCredentials). JS never reads it from localStorage
+// (XSS vector). Impersonation sessions store a short-lived token in
+// sessionStorage so the admin's normal session is never disturbed.
 api.interceptors.request.use((config) => {
-  const token =
-    sessionStorage.getItem('oxs:impersonation_token') ||
-    localStorage.getItem('accessToken');
+  const token = sessionStorage.getItem('oxs:impersonation_token');
 
-  // Always add Authorization header if token exists
+  // Only add Authorization header for impersonation; the normal session
+  // authenticates via the httpOnly cookie.
   if (token) {
     config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${token}`;

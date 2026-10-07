@@ -33,6 +33,7 @@ const { generalLimiter, authenticatedLimiter, authLimiter, strictLimiter, channe
 const { webhookRateLimit } = require('./middleware/webhookAuth');
 const { authenticate, requireRole } = require('./middleware/auth');
 const { requireAdmin } = require('./middleware/adminAuth');
+const { launchGate } = require('./middleware/launchGate');
 const prerenderHelperProfile = require('./middleware/prerenderHelperProfile');
 const { createSpaFallback } = require('./middleware/spaFallback');
 
@@ -658,7 +659,7 @@ app.use('/api/reports', reportingRoutes);
 app.use('/api/legal', legalDocumentsRoutes);
 app.use('/api/admin/legal', legalDocumentsRoutes);
 app.use('/api', reviewModerationRoutes);
-app.use('/api/marketplace/products', marketplaceProductsRoutes);
+app.use('/api/marketplace/products', launchGate(), marketplaceProductsRoutes);
 app.use('/api/carts', shoppingCartsRoutes);
 app.use('/api/carts', cartCheckoutRoutes);
 app.use('/api/shared-carts', sharedCartsRoutes);
@@ -724,7 +725,7 @@ app.use('/api/ab-tests', abTestRoutes);
 app.use('/api/payouts', payoutRoutes);
 app.use('/api/notifications/email', emailPreferencesRoutes);
 app.use('/api/notifications/sms', smsNotificationsRoutes);
-app.use('/api/templates', templateRoutes);
+app.use('/api/templates', launchGate(), templateRoutes);
 app.use('/api/country-config', countryConfigRoutes);
 
 // Enterprise monitoring - admin only

@@ -535,7 +535,8 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
     const socket = io(realtimeNamespaceUrl('support'), {
       transports: ['websocket', 'polling'],
       reconnection: true,
-      auth: { token: localStorage.getItem('accessToken') },
+      // Auth via the httpOnly oxsteed_access cookie (sent on the handshake).
+      auth: {},
     });
     socketRef.current = socket;
 

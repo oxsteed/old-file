@@ -560,6 +560,20 @@ function parseMoneyCents(value, field = 'priceCents') {
   return Math.round(n);
 }
 
+// Audit fix: tips were effectively unbounded ($50k cap). A tip above 100% of
+// the subtotal (capped at $500 absolute) is rejected as likely erroneous or
+// abusive. Callers must compute the subtotal before parsing the tip.
+function parseTipCents(value, subtotalCents, field = 'tipCents') {
+  const tipCents = parseMoneyCents(value, field);
+  const maxTipCents = Math.min(Math.max(0, Math.round(subtotalCents || 0)), 50000);
+  if (tipCents > maxTipCents) {
+    throw new AppError('Validation failed', 400, 'validation_failed', {
+      [field]: `Must not exceed ${maxTipCents} cents`,
+    });
+  }
+  return tipCents;
+}
+
 function safeReturnUrl(value) {
   const raw = normalizeString(value, 1000);
   if (!raw) return null;
@@ -2418,7 +2432,7 @@ exports.quoteOrder = async (req, res, next) => {
     });
 
     const subtotalCents = lineItems.reduce((sum, item) => sum + item.lineTotalCents, 0);
-    const tipCents = parseMoneyCents(req.body.tipCents ?? req.body.tip_cents ?? 0, 'tipCents');
+    const tipCents = parseTipCents(req.body.tipCents ?? req.body.tip_cents ?? 0, subtotalCents, 'tipCents');
     // Discounts must come from a server-validated promotion. Never trust a
     // client-provided amount because it would let a caller reduce the quote.
     let discountCents = 0;
@@ -2938,7 +2952,7 @@ exports.createOrder = async (req, res, next) => {
         );
       }
 
-      const tip = parseMoneyCents(req.body.tipCents ?? req.body.tip_cents ?? 0, 'tipCents');
+      const tip = parseTipCents(req.body.tipCents ?? req.body.tip_cents ?? 0, Math.round(subtotal * 100), 'tipCents');
       // As with quoteOrder, only a promotion or loyalty redemption may set a
       // discount. Client-provided discount amounts are not authoritative.
       let discount = 0;

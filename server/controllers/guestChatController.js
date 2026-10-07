@@ -8,9 +8,15 @@ const { AppError } = require('../middleware/errorHandler');
 const { sendNotification } = require('../services/notificationService');
 
 const GUEST_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
+// Audit fix: fail closed when no secret is configured. The previous
+// hardcoded fallback ('development-only-guest-chat-secret') meant anyone
+// could forge guest session tokens in any environment missing the env vars.
 const GUEST_TOKEN_SECRET = String(
-  process.env.ENCRYPTION_KEY || process.env.JWT_SECRET || 'development-only-guest-chat-secret'
+  process.env.ENCRYPTION_KEY || process.env.JWT_SECRET || ''
 ).trim();
+if (!GUEST_TOKEN_SECRET) {
+  throw new Error('GUEST_TOKEN_SECRET is not configured: set ENCRYPTION_KEY or JWT_SECRET');
+}
 
 function isUuid(value) {
   return typeof value === 'string'

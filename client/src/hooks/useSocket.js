@@ -71,7 +71,10 @@ export const useSocket = () => {
       return;
     }
 
-    const token = localStorage.getItem('accessToken');
+    // The access token travels via the httpOnly oxsteed_access cookie, which
+    // the browser sends on the WebSocket handshake automatically. Only an
+    // impersonation session passes its short-lived token explicitly.
+    const impersonationToken = sessionStorage.getItem('oxs:impersonation_token');
 
     console.log('[useSocket] Creating new Socket.io connection');
     setConnected(false);
@@ -80,7 +83,7 @@ export const useSocket = () => {
     socketInstance = io(
       realtimeNamespaceUrl('chat'),
       {
-        auth:                    { token },
+        auth:                    impersonationToken ? { token: impersonationToken } : {},
         transports:              ['websocket'],
         reconnection:            true,
         reconnectionDelay:       500,      // was 2000 - reconnect quickly after a drop
@@ -113,12 +116,12 @@ export const useSocket = () => {
       notifyListeners(false, nextState);
     });
 
-    // Refresh the auth token before each reconnect attempt so the socket never
-    // reconnects with an expired JWT (access tokens rotate every 15 minutes).
+    // Refresh the impersonation token before each reconnect attempt, if any.
+    // The normal session re-authenticates via the httpOnly cookie.
     socketInstance.io.on('reconnect_attempt', () => {
-      const freshToken = localStorage.getItem('accessToken');
-      if (freshToken && socketInstance) {
-        socketInstance.auth = { token: freshToken };
+      const impersonationToken = sessionStorage.getItem('oxs:impersonation_token');
+      if (socketInstance) {
+        socketInstance.auth = impersonationToken ? { token: impersonationToken } : {};
       }
       setConnectionState('reconnecting');
       notifyListeners(false, 'reconnecting');

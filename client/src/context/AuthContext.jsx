@@ -180,11 +180,8 @@ export function AuthProvider({ children }) {
     );
 
     // Backend may return fresh tokens when mode/role actually changed.
-    // H8d: the refresh token now travels via httpOnly cookie — only the
-    // short-lived access token is kept in localStorage.
-    if (data?.accessToken && data?.refreshToken) {
-      localStorage.setItem('accessToken', data.accessToken);
-    }
+    // Tokens travel via httpOnly cookies; nothing is persisted to localStorage
+    // (XSS vector).
 
     const updatedUser = normalizeUserPayload(data);
 

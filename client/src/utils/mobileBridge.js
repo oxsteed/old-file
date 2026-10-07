@@ -15,10 +15,10 @@ function isNativeApp() {
 }
 
 function getAccessToken() {
-  return (
-    sessionStorage.getItem('oxs:impersonation_token') ||
-    localStorage.getItem('accessToken')
-  );
+  // Session presence check only; the actual token travels via the httpOnly
+  // cookie. Impersonation sessions still expose their short-lived token.
+  if (sessionStorage.getItem('oxs:impersonation_token')) return 'impersonation';
+  return localStorage.getItem('user') ? 'cookie' : null;
 }
 
 function resolveNotificationUrl(data = {}) {

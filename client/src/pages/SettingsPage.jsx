@@ -257,11 +257,7 @@ export default function SettingsPage() {
     try {
       const { first_name, last_name, ...updatableFields } = profile;
       const { data } = await api.put('/auth/profile', updatableFields);
-      // H8d: the refresh token now travels via httpOnly cookie — only the
-      // short-lived access token is kept in localStorage.
-      if (data?.accessToken && data?.refreshToken) {
-        localStorage.setItem('accessToken', data.accessToken);
-      }
+      // Tokens travel via httpOnly cookies; nothing is persisted to localStorage.
       if (data?.user) setUser(data.user);
       setProfileSnapshot({ ...profile });
       toast.success(t('settings.profileUpdated'));

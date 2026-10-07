@@ -22,9 +22,8 @@ export default function PageviewBeacon() {
     if (lastSent.current === path) return;
     lastSent.current = path;
     try {
-      const token = localStorage.getItem('accessToken');
+      // Auth via the httpOnly cookie (credentials: same-origin below).
       const headers = { 'Content-Type': 'application/json' };
-      if (token) headers.Authorization = `Bearer ${token}`;
       fetch('/api/analytics/pageview', {
         method: 'POST',
         headers,

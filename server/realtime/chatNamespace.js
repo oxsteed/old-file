@@ -99,6 +99,16 @@ async function logGuestChatAdminBreakGlassJoin({ auditLog = logAdminAction, admi
   });
 }
 
+// Reads the httpOnly oxsteed_access cookie from the WebSocket handshake
+// headers. Browsers send cookies on the handshake automatically, so this lets
+// clients authenticate without keeping the JWT in localStorage (XSS vector).
+function cookieAccessToken(socket) {
+  const cookieHeader = socket.handshake?.headers?.cookie;
+  if (!cookieHeader) return null;
+  const match = cookieHeader.match(/(?:^|;\s*)oxsteed_access=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 function createChatAuthenticator({ pool, jwtSecret }) {
   if (!pool || typeof pool.query !== 'function') {
     throw new TypeError('Chat namespace requires a database pool');
@@ -107,8 +117,7 @@ function createChatAuthenticator({ pool, jwtSecret }) {
     throw new Error('Chat namespace requires JWT_SECRET');
   }
 
-  return async (socket, next) => {
-    const guestToken = socket.handshake.auth?.guestToken;
+  return async (socket, next) => {    const guestToken = socket.handshake.auth?.guestToken;
     const guestSessionId = socket.handshake.auth?.guestSessionId;
     if (guestToken && guestSessionId) {
       try {
@@ -140,7 +149,11 @@ function createChatAuthenticator({ pool, jwtSecret }) {
     // The old `handshake.query?.token` fallback is removed: query strings end
     // up in proxy/access logs, and every in-repo client already connects with
     // `auth: { token }`.
-    const token = socket.handshake.auth?.token;
+    // Audit fix: fall back to the httpOnly oxsteed_access cookie (sent by the
+    // browser on the WebSocket handshake) so clients no longer need the token
+    // in localStorage (XSS vector). The auth payload still takes precedence
+    // (impersonation sessions).
+    const token = socket.handshake.auth?.token || cookieAccessToken(socket);
     if (!token) return next(new Error('Authentication required'));
 
     try {

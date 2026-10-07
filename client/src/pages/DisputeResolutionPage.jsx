@@ -46,7 +46,9 @@ export default function DisputeResolutionPage() {
 
   const fetchAcceptanceHistory = async () => {
     try {
-      if (!localStorage.getItem('accessToken')) return;
+      // Session presence is tracked via the stored user; the access token
+      // itself lives in the httpOnly cookie.
+      if (!localStorage.getItem('user')) return;
 
       const { data } = await api.get('/legal/dispute_resolution/history');
       setAcceptanceHistory(data.history || []);
