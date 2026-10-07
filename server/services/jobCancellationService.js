@@ -381,6 +381,16 @@ async function finalizeJobCancellation(result) {
     if (result.helper_id)   recalculateUserReputation(result.helper_id).catch(() => {});
   } catch (_) { /* non-fatal */ }
 
+  // Phase 5 — Credit Everywhere: release the Credit escrow collateral hold
+  // (if the job used payment_method oxsteed with a Credit hold). Fire-and-
+  // forget: the hold is collateral, not the payment itself.
+  try {
+    const { releaseJobCreditCollateral } = require('./jobCreditCollateral');
+    releaseJobCreditCollateral(result.job_id).catch((err) =>
+      logger.warn('Failed to release job Credit collateral', { jobId: result.job_id, error: err.message })
+    );
+  } catch (_) { /* non-fatal */ }
+
   logger.info('Job cancellation recorded', {
     jobId: result.job_id,
     cancelledBy: result.cancelled_by,

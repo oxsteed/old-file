@@ -2800,3 +2800,79 @@ exports.putAdminServiceAssigneePool = async (req, res) => {
     return res.status(err.statusCode || 500).json({ error: err.message || 'Failed to save assignee pool' });
   }
 };
+
+/**
+ * Phase 5 — Credit Everywhere: pay a Direct quote with OxSteed Credit.
+ *
+ * POST /api/direct/requests/:id/pay-credit
+ *
+ * The customer pays the quoted amount via the shared Credit spend adapter
+ * (surface=direct). Mode is debit for fixed-price quotes, hold when the
+ * final amount is uncertain (caller passes mode=hold explicitly).
+ *
+ * The Direct provider is resolved as a business participant: we look up the
+ * business owned by the assigned crew member. Fail closed when no business
+ * participant exists.
+ */
+exports.payQuoteWithCredit = async (req, res) => {
+  try {
+    const request = await loadRequestOr404(req.params.id);
+    if (!request) return res.status(404).json({ error: 'Request not found' });
+    if (!(await canAccessRequestDetail(request, req.user))) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+    if (request.status !== 'accepted' && request.status !== 'scheduled') {
+      return res.status(400).json({ error: 'This request cannot be paid in its current state' });
+    }
+    if (request.payment_status === 'paid' || request.payment_status === 'confirmed') {
+      return res.status(409).json({ error: 'This request is already paid' });
+    }
+    const amountCents = Number(request.quote_amount_cents);
+    if (!Number.isSafeInteger(amountCents) || amountCents <= 0) {
+      return res.status(400).json({ error: 'No quoted amount to pay' });
+    }
+
+    // Resolve the Direct provider: business owned by the assigned crew member.
+    const { rows: bizRows } = await db.query(
+      `SELECT id FROM businesses WHERE user_id = $1 AND is_active = TRUE LIMIT 1`,
+      [request.assigned_to]
+    );
+    if (!bizRows[0]) {
+      return res.status(409).json({
+        error: 'This Direct service does not accept OxSteed Credit yet',
+        code: 'credit_participant_not_found',
+      });
+    }
+
+    const mode = req.body?.mode === 'hold' ? 'hold' : 'debit';
+    const { spendWithCredit } = require('../services/creditSpendAdapter');
+    const result = await spendWithCredit({
+      participantRef: { type: 'business', subjectId: String(bizRows[0].id) },
+      customerId: req.user.id,
+      amountCents,
+      currency: request.quote_currency || 'USD',
+      surface: 'direct',
+      mode,
+      referenceType: 'direct_quote',
+      referenceId: String(request.id),
+      isImpersonated: Boolean(req.impersonated),
+      metadata: { quotePublicReference: request.public_reference },
+    });
+
+    await updateRequestRecord(
+      request.id,
+      {
+        paymentStatus: mode === 'hold' ? 'held' : 'paid',
+        paymentMethod: 'oxsteed_credit',
+        paymentReference: result.idempotencyKey,
+      },
+      { eventType: 'payment_credit', title: 'Paid with OxSteed Credit', details: `Credit ${mode} of ${amountCents}c` },
+      req.user
+    );
+
+    return res.json({ ok: true, mode: result.mode, paymentReference: result.idempotencyKey });
+  } catch (err) {
+    logger.error('payQuoteWithCredit error', { error: err.message, id: req.params.id });
+    return res.status(err.statusCode || 500).json({ error: err.message || 'Failed to pay with Credit', code: err.code });
+  }
+};

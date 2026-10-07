@@ -1932,5 +1932,7 @@
   "adminParticipantTypeConsultingSeller": "Consulting seller",
   "adminParticipantTypeInvoiceSeller": "Invoice seller",
   "adminParticipantTypeProductSeller": "Product seller",
-  "adminParticipantTypeRentalSeller": "Rental seller"
+  "adminParticipantTypeRentalSeller": "Rental seller",
+  "adminGuestCreditCaps": "Guest Credit caps (fixed policy)",
+  "adminGuestCreditCapsDescription": "Guests can spend OxSteed Credit up to $25 per order, $50 per day, and $200 lifetime per session. Guest spend is funded from platform treasury. These caps are fixed and apply to all participants."
 }

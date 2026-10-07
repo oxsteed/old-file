@@ -1932,5 +1932,7 @@
   "adminParticipantTypeConsultingSeller": "Vendedor de consultoría",
   "adminParticipantTypeInvoiceSeller": "Vendedor de facturas",
   "adminParticipantTypeProductSeller": "Vendedor de productos",
-  "adminParticipantTypeRentalSeller": "Vendedor de alquileres"
+  "adminParticipantTypeRentalSeller": "Vendedor de alquileres",
+  "adminGuestCreditCaps": "Límites de crédito para invitados (política fija)",
+  "adminGuestCreditCapsDescription": "Los invitados pueden gastar Crédito OxSteed hasta $25 por pedido, $50 por día y $200 de por vida por sesión. El gasto de invitados se financia desde la tesorería de la plataforma. Estos límites son fijos y se aplican a todos los participantes."
 }

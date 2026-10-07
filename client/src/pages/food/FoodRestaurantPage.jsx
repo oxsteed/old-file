@@ -459,7 +459,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
   }, [user, restaurantId]);
 
   useEffect(() => {
-    if (!user || !restaurantId) {
+    if (!restaurantId) {
       setOxsteedCreditAccount(null);
       setOxsteedCreditPartner(null);
       setOxsteedCreditEligibility(null);
@@ -470,6 +470,26 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
       setOxsteedCreditPartner(null);
       setOxsteedCreditEligibility(null);
       return undefined;
+    }
+    // Guests: no account, but check if the restaurant accepts Credit
+    // (for the guest Credit option).
+    if (!user) {
+      setOxsteedCreditAccount(null);
+      let alive = true;
+      listOxsteedCreditEligiblePartners({
+        currencyCode: creditCurrency,
+        city: restaurant.address_city,
+        state: restaurant.address_state,
+        postalCode: restaurant.address_zip,
+        country: restaurant.address_country,
+        orderType: oxsteedCreditOrderType,
+      }).catch(() => []).then((partners) => {
+        if (!alive) return;
+        setOxsteedCreditPartner(
+          (Array.isArray(partners) ? partners : []).find((partner) => String(partner.restaurantId) === String(restaurantId)) || null
+        );
+      });
+      return () => { alive = false; };
     }
     let alive = true;
     getOxsteedCreditAccount({ currencyCode: creditCurrency }).catch(() => null).then((account) => {
@@ -498,7 +518,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
     if (paymentMethod === 'restaurant_credit' && !wallet) {
       setPaymentMethod('pay_at_restaurant');
     }
-    if (paymentMethod === 'oxsteed_credit' && !oxsteedCreditAccount) {
+    if (paymentMethod === 'oxsteed_credit' && !oxsteedCreditAccount && user) {
       setPaymentMethod('pay_at_restaurant');
     }
     if (paymentMethod === 'card' && !cardPaymentsReady) {
@@ -1773,6 +1793,14 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
       sub: oxsteedCreditPaymentIssue
         || `Available ${formatFoodMoney(oxsteedCreditAvailableCents, oxsteedCreditAccount.currencyCode || currency)}`,
       disabled: Boolean(oxsteedCreditPaymentIssue),
+    }] : []),
+    // Guest Credit (locked decision #1): platform-funded, capped at $25/order.
+    ...(!user && oxsteedCreditPartner ? [{
+      id: 'oxsteed_credit',
+      icon: '◎',
+      label: t('food.restaurant.guestCredit'),
+      sub: t('food.restaurant.guestCreditSub'),
+      disabled: false,
     }] : []),
     ...(cardPaymentsReady ? [{
       id: 'card',

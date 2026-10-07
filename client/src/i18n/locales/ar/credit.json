@@ -1932,5 +1932,7 @@
   "adminParticipantTypeConsultingSeller": "بائع الاستشارات",
   "adminParticipantTypeInvoiceSeller": "بائع الفواتير",
   "adminParticipantTypeProductSeller": "بائع المنتجات",
-  "adminParticipantTypeRentalSeller": "بائع الإيجارات"
+  "adminParticipantTypeRentalSeller": "بائع الإيجارات",
+  "adminGuestCreditCaps": "حدود ائتمان الضيوف (سياسة ثابتة)",
+  "adminGuestCreditCapsDescription": "يمكن للضيوف إنفاق رصيد OxSteed حتى 25 دولارًا لكل طلب و50 دولارًا يوميًا و200 دولار مدى الحياة لكل جلسة. يتم تمويل إنفاق الضيوف من خزانة المنصة. هذه الحدود ثابتة وتنطبق على جميع المشاركين."
 }

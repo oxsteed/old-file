@@ -27,6 +27,7 @@ const {
   refundCreditForReferenceInTransaction,
   formatCreditAmount,
   getCustomerCreditEligibility,
+  getGuestCreditEligibility,
 } = require('../services/oxsteedCreditService');
 const { spendWithCreditInTransaction } = require('../services/creditSpendAdapter');
 const {
@@ -2487,6 +2488,24 @@ exports.quoteOrder = async (req, res, next) => {
           message: error.message,
         });
       }
+    } else {
+      // Guest Credit (locked decision #1): offer when the ticket is within
+      // the guest cap and the restaurant accepts Credit.
+      try {
+        oxsteedCreditEligibility = await getGuestCreditEligibility({
+          restaurantId,
+          amountCents: totalCents,
+          currencyCode: restaurant.currency_code,
+          orderType: fulfillmentType,
+        });
+        if (oxsteedCreditEligibility.eligible) supportedPaymentModes.push('oxsteed_credit');
+      } catch (error) {
+        logger.warn('Guest Credit quote eligibility check unavailable', {
+          restaurantId,
+          code: error.code || null,
+          message: error.message,
+        });
+      }
     }
     if (stripeStatus.readyForCheckout) supportedPaymentModes.push('pay_now');
 
@@ -2552,8 +2571,15 @@ exports.createOrder = async (req, res, next) => {
     if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     const paymentContract = normalizeFoodPaymentMode(req.body.paymentMode || req.body.payment_mode);
     const paymentMode = paymentContract.legacy;
-    if (paymentContract.canonical === 'oxsteed_credit' && !req.user?.id) {
-      throw new AppError('Sign in to use OxSteed Credit', 401, 'credit_authentication_required');
+    const isGuest = !req.user?.id;
+    // Locked decision #1: guest Credit allowed with risk limits (enforced in
+    // the spend adapter). Guests may also pay at the restaurant/counter, or
+    // use restaurant_credit on kiosk orders created as requires_payment for
+    // later POS QR redemption (no wallet is debited at order creation).
+    // All other payment modes still require sign-in.
+    const guestAllowedModes = ['oxsteed_credit', 'pay_at_restaurant', 'pay_at_counter', 'restaurant_credit'];
+    if (isGuest && !guestAllowedModes.includes(paymentContract.canonical)) {
+      throw new AppError('Sign in to complete your order', 401, 'authentication_required');
     }
 
     const items = Array.isArray(req.body.items) ? req.body.items : [];
@@ -3325,14 +3351,17 @@ exports.createOrder = async (req, res, next) => {
         } else {
           const creditResult = await spendWithCreditInTransaction(client, {
             participantRef: { type: 'restaurant', subjectId: restaurantId },
-            customerId: req.user.id,
+            customerId: req.user?.id || null,
+            guestSessionId: !req.user?.id
+              ? (req.body.guestSessionId || req.body.guest_session_id || req.get('X-Guest-Session') || `food-guest:${created.id}`)
+              : null,
             amountCents: total,
             currency: normalizeCurrency(restaurant.currency_code),
             surface: 'food_online',
             referenceType: 'food_order',
             referenceId: String(created.id),
             idempotencyKey: `food-order:${created.id}:oxsteed-credit`,
-            actorUserId: req.user.id,
+            actorUserId: req.user?.id || null,
             isImpersonated: !!req.isImpersonated,
             orderType: fulfillmentType,
             categories: normalizedItems.map((item) => item.menuItem.category_name).filter(Boolean),

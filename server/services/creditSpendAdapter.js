@@ -26,6 +26,7 @@ const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const logger = require('../utils/logger');
 const creditService = require('./oxsteedCreditService');
+const guestPolicy = require('./creditGuestPolicy');
 const {
   resolveParticipant,
   assertParticipantActive,
@@ -50,7 +51,14 @@ const SURFACE_MODES = Object.freeze({
 const MODES = Object.freeze(['debit', 'hold']);
 
 // Locked decision #1: guest Credit allowed with risk limits.
-const GUEST_SPEND_CAP_CENTS = 5000; // $50 per spend
+// Caps live in creditGuestPolicy (single source of truth).
+const {
+  GUEST_MAX_TICKET_CENTS,
+  GUEST_DAILY_CAP_CENTS,
+  GUEST_LIFETIME_CAP_CENTS,
+} = guestPolicy;
+// Back-compat export: the per-spend cap is the ticket cap.
+const GUEST_SPEND_CAP_CENTS = GUEST_MAX_TICKET_CENTS;
 
 function normalizeString(value, max = 255) {
   if (value === null || value === undefined) return null;
@@ -181,6 +189,13 @@ async function spendWithCreditInTransaction(client, args) {
   // 1. Surface + mode matrix enforcement (fail closed on mismatch).
   const { surface: normalizedSurface, mode: normalizedMode } = assertSurfaceMode(surface, mode);
 
+  // 1b. Guests are debit-only (no customer account for hold lifecycle).
+  const normalizedGuestSessionEarly = normalizeString(guestSessionId, 160);
+  const isGuestEarly = !customerId && !!normalizedGuestSessionEarly;
+  if (isGuestEarly && normalizedMode === 'hold') {
+    throw new AppError('Guest Credit does not support hold mode', 403, 'credit_guest_hold_not_supported');
+  }
+
   // 2. Impersonated sessions cannot initiate customer spend.
   if (isImpersonated) {
     throw new AppError('Impersonated sessions cannot spend OxSteed Credit', 403, 'impersonation_blocked');
@@ -194,18 +209,29 @@ async function spendWithCreditInTransaction(client, args) {
   }
 
   // 4. Customer or guest (locked decision #1: guest Credit with risk limits).
+  // Guest spend is platform-funded (platform_treasury → partner_payable) and
+  // bound to a session fingerprint with ticket/daily/lifetime caps.
   const normalizedGuestSession = normalizeString(guestSessionId, 160);
   let effectiveCustomerId = customerId ? String(customerId) : null;
-  if (!effectiveCustomerId) {
+  let guestFingerprint = null;
+  const isGuestSpend = !effectiveCustomerId;
+  if (isGuestSpend) {
     if (!normalizedGuestSession) {
       throw new AppError('customerId or guestSessionId is required', 400, 'credit_spender_required');
     }
-    if (amount > GUEST_SPEND_CAP_CENTS) {
+    guestFingerprint = guestPolicy.buildGuestFingerprint({
+      sessionId: normalizedGuestSession,
+      ip: requestIp,
+      userAgent: metadata?.userAgent || null,
+    });
+    // Ticket cap enforced here (fail fast); daily/lifetime enforced inside
+    // the purchase transaction against the tracking table.
+    if (amount > guestPolicy.GUEST_MAX_TICKET_CENTS) {
       throw new AppError(
-        `Guest Credit spend is limited to ${GUEST_SPEND_CAP_CENTS} cents per transaction`,
+        `Guest Credit is limited to $${(guestPolicy.GUEST_MAX_TICKET_CENTS / 100).toFixed(0)} per order`,
         403,
         'credit_guest_cap_exceeded',
-        { capCents: GUEST_SPEND_CAP_CENTS }
+        { capCents: guestPolicy.GUEST_MAX_TICKET_CENTS }
       );
     }
   }
@@ -263,6 +289,41 @@ async function spendWithCreditInTransaction(client, args) {
   }
 
   // Debit path: immediate purchase.
+  // Guests use the platform-funded path (platform_treasury → partner_payable).
+  if (isGuestSpend) {
+    const purchase = await creditService.purchaseWithGuestCreditInTransaction(client, {
+      guestFingerprint,
+      partnerId,
+      amountCents: amount,
+      currencyCode,
+      idempotencyKey: key,
+      orderType,
+      category,
+      categories,
+      menuItemId,
+      menuItemIds,
+      city,
+      state,
+      postalCode,
+      country,
+      surface: normalizedSurface,
+      referenceType: normalizedReferenceType,
+      referenceId: normalizedReferenceId,
+      correlationId,
+      requestIp,
+      description: description || `Guest Credit spend · ${normalizedSurface}`,
+      metadata: baseMetadata,
+    });
+    logger.info('credit_spend_adapter.guest_debit_completed', {
+      surface: normalizedSurface,
+      partnerId,
+      amountCents: amount,
+      currencyCode,
+      referenceType: normalizedReferenceType,
+    });
+    return { mode: 'debit', surface: normalizedSurface, partnerId, purchase, idempotencyKey: key, guest: true };
+  }
+
   const purchase = await creditService.purchaseWithCreditInTransaction(client, {
     customerId: effectiveCustomerId,
     partnerId,
@@ -316,6 +377,16 @@ async function finalizeCreditSpendInTransaction(client, {
   correlationId = null,
   requestIp = null,
   description = null,
+  orderType = null,
+  category = null,
+  categories = null,
+  menuItemId = null,
+  menuItemIds = null,
+  city = null,
+  state = null,
+  postalCode = null,
+  country = null,
+  reason = null,
 }) {
   if (!holdId) throw new AppError('holdId is required to finalize Credit spend', 400, 'credit_hold_id_required');
   const amount = parseAmountCents(finalAmountCents);
@@ -333,6 +404,18 @@ async function finalizeCreditSpendInTransaction(client, {
     correlationId,
     requestIp,
     description: description || 'Credit hold finalized',
+    // Locked decision #3: POS finalize is debit-then-adjust, not exact-capture.
+    allowAmountAdjust: true,
+    orderType,
+    category,
+    categories,
+    menuItemId,
+    menuItemIds,
+    city,
+    state,
+    postalCode,
+    country,
+    reason,
     metadata: { ...metadata, creditSpendFinalize: true },
   });
   logger.info('credit_spend_adapter.hold_finalized', { holdId, finalAmountCents: amount });
@@ -359,4 +442,7 @@ module.exports = {
   resolveSpendParticipant,
   SURFACE_MODES,
   GUEST_SPEND_CAP_CENTS,
+  GUEST_MAX_TICKET_CENTS,
+  GUEST_DAILY_CAP_CENTS,
+  GUEST_LIFETIME_CAP_CENTS,
 };

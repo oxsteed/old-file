@@ -19273,7 +19273,9 @@
       "creditSheetTopupSuccess": "Kredi ajoute nan bous ou.",
       "creditSheetNotEligible": "Rechaj ak kat pa disponib pou restoran sa a kounye a.",
       "creditSheetStripeUnavailable": "Peman ak kat pa disponib kounye a.",
-      "useNewCard": "Sèvi ak yon nouvo kat"
+      "useNewCard": "Sèvi ak yon nouvo kat",
+      "guestCredit": "Kredi vizitè",
+      "guestCreditSub": "Peye ak Kredi OxSteed kòm vizitè (jiska $25/kòmann)"
     },
     "order": {
       "specialInstructions": "Enstriksyon espesyal (si w vle)",

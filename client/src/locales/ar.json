@@ -19284,7 +19284,9 @@
       "creditSheetTopupSuccess": "تمت إضافة الرصيد إلى محفظتك.",
       "creditSheetNotEligible": "شحن البطاقة غير متاح لهذا المطعم حالياً.",
       "creditSheetStripeUnavailable": "الدفع بالبطاقة غير متاح حالياً.",
-      "useNewCard": "استخدام بطاقة جديدة"
+      "useNewCard": "استخدام بطاقة جديدة",
+      "guestCredit": "رصيد الضيف",
+      "guestCreditSub": "ادفع برصيد OxSteed كضيف (حتى 25 دولارًا/طلب)"
     },
     "order": {
       "specialInstructions": "تعليمات خاصة (اختياري)",

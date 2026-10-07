@@ -21,6 +21,13 @@ const { paymentsLimiter, strictLimiter, generalLimiter } = require('../middlewar
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { calculateTier3Fees } = require('../utils/feeCalculator');
+const { envFlagEnabled } = require('../middleware/featureFlags');
+
+// Phase 5 — Credit Everywhere: QR Credit payments stay behind this flag
+// (locked decision #10: wire behind flags before un-hide). Fail-closed.
+function qrCreditEnabled() {
+  return envFlagEnabled('QR_CREDIT_ENABLED', false);
+}
 
 // Route-local Redis store option, mirroring server/middleware/rateLimiter.js.
 // Falls back to in-memory when Redis is unavailable.
@@ -388,6 +395,19 @@ router.post('/pay/:code/checkout', qrCheckoutLimiter, async (req, res, next) => 
       payerEmail = req.body.payer_email.trim();
     }
 
+    // Phase 5 — Credit Everywhere: pay with OxSteed Credit instead of card.
+    // The QR merchant must be an enrolled Credit participant
+    // (type=qr_merchant, subject=code owner).
+    if (String(req.body?.payment_method || '').toLowerCase() === 'credit') {
+      if (!qrCreditEnabled()) {
+        return res.status(503).json({
+          error: 'Paying with OxSteed Credit is not available yet.',
+          code: 'feature_disabled',
+        });
+      }
+      return payQrWithCredit(req, res, next, code, { amountCents, payerEmail, clientRequestId });
+    }
+
     const connect = await getConnectAccount(code.owner_user_id);
     if (!connect || !connect.charges_enabled) return connectRequired(res);
 
@@ -526,5 +546,57 @@ router.get('/pay/:code/receipt', generalLimiter, async (req, res, next) => {
     return next(err);
   }
 });
+
+/**
+ * Phase 5 — Credit Everywhere: pay a QR code with OxSteed Credit.
+ *
+ * The QR merchant (code owner) must be an enrolled Credit participant
+ * (type=qr_merchant). Uses the shared spend adapter (surface=qr,
+ * mode=debit). Supports authenticated users and guests (guest cap applies).
+ */
+async function payQrWithCredit(req, res, next, code, { amountCents, payerEmail, clientRequestId }) {
+  try {
+    const { spendWithCredit } = require('../services/creditSpendAdapter');
+    // QR checkout is public; req.user is set only when the caller is signed
+    // in (no auth middleware on this route, so guests have req.user undefined).
+    const customerId = req.user?.id || null;
+
+    const result = await spendWithCredit({
+      participantRef: { type: 'qr_merchant', subjectId: String(code.owner_user_id) },
+      customerId,
+      guestSessionId: customerId ? null : `qr:${code.id}:${clientRequestId}`,
+      amountCents,
+      currency: code.currency || 'USD',
+      surface: 'qr',
+      mode: 'debit',
+      referenceType: 'qr_payment',
+      referenceId: `${code.id}:${clientRequestId}`,
+      idempotencyKey: `qr-credit:${code.id}:${clientRequestId}`,
+      isImpersonated: Boolean(req.impersonated),
+      metadata: { qrCode: code.code, label: code.label, payerEmail: payerEmail || null },
+    });
+
+    // Record the Credit payment alongside Stripe rows for unified receipts.
+    await pool.query(
+      `INSERT INTO qr_payments
+         (qr_code_id, amount_cents, platform_fee_cents, status, payer_email,
+          client_request_id, checkout_url, request_fingerprint, payment_method)
+       VALUES ($1, $2, 0, 'paid', $3, $4, $5, $6, 'oxsteed_credit')
+       ON CONFLICT (qr_code_id, client_request_id) DO NOTHING`,
+      [code.id, amountCents, payerEmail, clientRequestId, null,
+       crypto.createHash('sha256').update(`credit:${code.id}:${amountCents}`).digest('hex')]
+    );
+
+    return res.json({
+      ok: true,
+      payment_method: 'oxsteed_credit',
+      status: 'paid',
+      idempotencyKey: result.idempotencyKey,
+    });
+  } catch (err) {
+    logger.error('qrPayments: credit payment failed', { error: err.message, code: code.code });
+    return res.status(err.statusCode || 500).json({ error: err.message || 'Credit payment failed', code: err.code });
+  }
+}
 
 module.exports = router;

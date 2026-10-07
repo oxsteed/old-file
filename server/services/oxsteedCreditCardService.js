@@ -48,6 +48,7 @@ const {
   purchaseWithCreditInTransaction,
   formatTransaction,
 } = creditService;
+const { spendWithCreditInTransaction } = require('./creditSpendAdapter');
 
 const ACTIVATION_CODE_TTL_MINUTES = 60 * 24 * 14; // 14 days to receive + activate a physical card
 const VIRTUAL_CREDENTIAL_BYTES = 24; // -> 32-char base64url token
@@ -719,11 +720,24 @@ async function redeemCardAtPartner({ credential, pin, partnerId, amountCents, cu
   return withPersistentPinFailures(() => withTransaction(pool, async (client) => {
     const card = await resolveCardByCredential(client, credential);
     await verifyCardPin(client, card, normalizedPin);
-    const result = await purchaseWithCreditInTransaction(client, {
+    // Resolve the partner to a restaurant participant for the adapter.
+    // Kiosk redemptions are always at a restaurant partner.
+    const { rows: partnerRows } = await client.query(
+      `SELECT restaurant_id FROM oxsteed_credit_partners WHERE id = $1`,
+      [partnerId]
+    );
+    const kioskRestaurantId = partnerRows[0]?.restaurant_id;
+    if (!kioskRestaurantId) {
+      throw new AppError('Kiosk partner is not linked to a restaurant', 409, 'credit_partner_not_eligible');
+    }
+    const spendResult = await spendWithCreditInTransaction(client, {
+      participantRef: { type: 'restaurant', subjectId: String(kioskRestaurantId) },
       customerId: card.customer_id,
-      partnerId,
       amountCents: amount,
-      currencyCode,
+      currency: currencyCode,
+      surface: 'card_kiosk',
+      referenceType,
+      referenceId,
       idempotencyKey: normalizedIdempotencyKey,
       actorUserId: null,
       actorType,
@@ -736,13 +750,12 @@ async function redeemCardAtPartner({ credential, pin, partnerId, amountCents, cu
       state,
       postalCode,
       country,
-      referenceType,
-      referenceId,
       correlationId,
       requestIp,
       description,
       metadata: { ...normalizeMetadata(metadata), cardId: card.id, redemptionMethod: 'card', cardLast4: card.credential_last4 },
     });
+    const result = spendResult.purchase;
     await client.query(`UPDATE oxsteed_credit_cards SET last_used_at = NOW() WHERE id = $1`, [card.id]);
     return { ...result, card: formatCard({ ...card, last_used_at: new Date() }) };
   }, 'credit_card_redeem_at_partner'), { correlationId, requestIp });

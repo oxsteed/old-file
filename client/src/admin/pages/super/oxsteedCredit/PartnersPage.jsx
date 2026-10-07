@@ -490,6 +490,10 @@ export default function OxsteedCreditPartnersPage() {
             <input type="checkbox" checked={agreementForm.requiresCustomerEntitlement} onChange={(event) => setAgreementForm({ ...agreementForm, requiresCustomerEntitlement: event.target.checked })} className="mt-1 h-4 w-4 accent-sky-500" />
             <span><strong className="block text-sm text-white">{t('adminRestrictAssignedCustomers')}</strong><span className="mt-1 block text-xs leading-5 text-gray-500">{t('adminRestrictAssignedCustomersDescription')}</span></span>
           </label>
+          <div className="sm:col-span-2 rounded-xl border border-amber-500/20 bg-amber-950/10 p-3">
+            <strong className="block text-sm text-white">{t('adminGuestCreditCaps')}</strong>
+            <span className="mt-1 block text-xs leading-5 text-gray-500">{t('adminGuestCreditCapsDescription')}</span>
+          </div>
           <button disabled={busy || !selectablePartners.length} className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-50"><Plus className="h-4 w-4" /> {t('adminCreateDraftAgreement')}</button>
         </form>
       </Section>

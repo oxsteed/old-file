@@ -39,6 +39,7 @@ const {
 const { clearStaleAvailableNow } = require('./workers/availabilityWorkers');
 const { publishDueGuideVideos } = require('./controllers/learnController');
 const { expireVortexTokens } = require('./workers/vortexTokenWorkers');
+const { renewSubscriptionCredit } = require('./workers/subscriptionCreditWorkers');
 
 // Map queue to processor function
 const processors = {
@@ -212,7 +213,11 @@ const TRACKING_WORKER_SCHEDULE = [
     (options) => pollIssuanceCycle({ workerId: options.workerId, maxJobsPerProduct: options.maxJobsPerProduct }),
     5 * 60 * 1000, { workerId: 'worker-main', maxJobsPerProduct: 50 }],
   // Expire unused legacy Vortex invite tokens past their expires_at, hourly.
+  ['expireVortexTokens', expireVortexTokens, 60 * 60 * 1000, { limit: 500 }],  // Expire unused legacy Vortex invite tokens past their expires_at, hourly.
   ['expireVortexTokens', expireVortexTokens, 60 * 60 * 1000, { limit: 500 }],
+  // Renew OxSteed Credit subscriptions past period end, daily (Phase 5).
+  // No-op unless SUBSCRIPTIONS_CREDIT_ENABLED=true.
+  ['renewSubscriptionCredit', renewSubscriptionCredit, 24 * 60 * 60 * 1000, { limit: 100 }],
 ];
 
 /**

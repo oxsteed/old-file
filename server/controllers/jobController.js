@@ -882,6 +882,32 @@ exports.assignHelper = async (req, res, next) => {
         }
         const { setFinancials } = require('../models/jobModel');
         await setFinancials(jobResult.rows[0].id, Number(acceptedBid.amount), false, client);
+
+        // Phase 5 — Credit Everywhere (locked decision #2): hybrid jobs.
+        // Hold the customer's Credit as escrow collateral via the shared
+        // adapter (surface=jobs, mode=hold). This is collateral backing the
+        // platform escrow — not a rename of the existing escrow flow.
+        // Fail-closed: if the Credit hold fails, bid acceptance rolls back.
+        const { spendWithCredit } = require('../services/creditSpendAdapter');
+        const collateral = await spendWithCredit({
+          client,
+          participantRef: { type: 'helper', subjectId: String(bid.helper_id) },
+          customerId: req.user.id,
+          amountCents: Math.round(Number(acceptedBid.amount) * 100),
+          currency: 'USD',
+          surface: 'jobs',
+          mode: 'hold',
+          referenceType: 'job_escrow_collateral',
+          referenceId: String(bid.job_id),
+          isImpersonated: Boolean(req.impersonated),
+          metadata: { bidId: String(bid_id), jobTitle: bid.title },
+        });
+        await client.query(
+          `UPDATE jobs SET metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb
+            WHERE id = $1`,
+          [bid.job_id, JSON.stringify({ creditCollateralHoldId: collateral.hold?.id || null,
+            creditCollateralKey: collateral.idempotencyKey })]
+        );
       }
 
       return { job: jobResult.rows[0], bid: acceptedBid };
@@ -1068,6 +1094,13 @@ exports.completeJob = async (req, res, next) => {
     }, 'complete_job');
 
     res.json({ message: 'Job completed', job: result });
+
+    // Phase 5 — Credit Everywhere: release the Credit escrow collateral hold
+    // (non-blocking; the hold is collateral, not the payment).
+    try {
+      const { releaseJobCreditCollateral } = require('../services/jobCreditCollateral');
+      releaseJobCreditCollateral(result.id).catch(() => {});
+    } catch (_) { /* non-fatal */ }
 
     // Notify both parties to leave a review (non-blocking)
     try {

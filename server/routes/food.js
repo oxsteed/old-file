@@ -124,7 +124,7 @@ router.post('/restaurants/:restaurantId/customer-wallet-holds/:holdId/release', 
 // payment intent id.
 router.post('/card-payment/intent', authenticate, creditPurchaseLimiter, ctrl.createCardPaymentIntent);
 router.get('/payment-methods', authenticate, ctrl.listSavedPaymentMethods);
-router.post('/restaurants/:restaurantId/orders', authenticate, creditPurchaseLimiter, ctrl.createOrder);
+router.post('/restaurants/:restaurantId/orders', optionalAuth, creditPurchaseLimiter, ctrl.createOrder);
 
 // Merchant order operations (kitchen feed, status flow, in-store payment).
 router.get('/restaurants/:restaurantId/orders', authenticate, ctrl.listRestaurantOrders);

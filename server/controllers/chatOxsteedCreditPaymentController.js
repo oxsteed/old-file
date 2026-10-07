@@ -8,6 +8,10 @@ const { withTransaction } = require('../utils/transaction');
 const { AppError } = require('../middleware/errorHandler');
 const creditService = require('../services/oxsteedCreditService');
 const {
+  spendWithCreditInTransaction,
+  resolveSpendParticipant,
+} = require('../services/creditSpendAdapter');
+const {
   assertConversationParticipant,
   assertGuestInquiryAccess,
   assertBusinessAccess,
@@ -274,6 +278,69 @@ async function resolveCreditPartner({ businessId, helperId, client = pool } = {}
   };
 }
 
+/**
+ * Resolve a chat payee to a Credit participant via the shared spend adapter.
+ * Locked decision #8: chat works without a restaurant row — resolution goes
+ * through credit_participants, not oxsteed_credit_partners.restaurant_id.
+ *
+ * Tries in order: direct business participant → direct helper participant →
+ * helper's businesses as business participants. Returns { participantRef,
+ * partnerId } or throws credit_provider_not_eligible.
+ */
+async function resolveChatParticipant({ businessId, helperId, client = pool } = {}) {
+  const db = client || pool;
+
+  async function tryParticipant(type, subjectId) {
+    if (subjectId === null || subjectId === undefined) return null;
+    try {
+      const resolved = await resolveSpendParticipant(db, { type, subjectId: String(subjectId) }, 'chat');
+      return { participantRef: { type, subjectId: String(subjectId) }, partnerId: resolved.partnerId };
+    } catch (e) {
+      if (e.code === 'credit_participant_not_found') return null;
+      throw e;
+    }
+  }
+
+  if (businessId) {
+    const found = await tryParticipant('business', businessId);
+    if (found) return found;
+  }
+
+  if (helperId) {
+    const found = await tryParticipant('helper', helperId);
+    if (found) return found;
+
+    // Fallback: helper's businesses as business participants.
+    const { rows: bizRows } = await db.query(
+      `SELECT b.id
+         FROM businesses b
+        WHERE b.is_active = TRUE
+          AND (
+            b.user_id = $1
+            OR EXISTS (
+              SELECT 1 FROM business_members bm
+               WHERE bm.business_id = b.id
+                 AND bm.member_id = $1
+                 AND bm.status = 'active'
+            )
+          )
+        ORDER BY b.is_primary DESC NULLS LAST, b.updated_at DESC NULLS LAST
+        LIMIT 25`,
+      [helperId],
+    );
+    for (const row of bizRows) {
+      const bizFound = await tryParticipant('business', row.id);
+      if (bizFound) return bizFound;
+    }
+  }
+
+  throw new AppError(
+    'This provider is not enrolled to receive OxSteed Credit. Ask them to enroll as a Credit participant, or use another payment method / upload proof of payment.',
+    403,
+    'credit_provider_not_eligible'
+  );
+}
+
 async function loadPartnerAllowedOrderTypes(partnerId, client = pool) {
   if (!partnerId) return [];
   try {
@@ -386,12 +453,17 @@ exports.payWithOxsteedCredit = async (req, res, next) => {
     const quoteKind = normalized.quoteKind || paymentRequest?.quote_kind || null;
     const quoteId = normalized.quoteId || paymentRequest?.quote_id || null;
 
-    const partnerResult = await resolveCreditPartner({ businessId, helperId });
-    if (!partnerResult.ok) {
-      return bad(res, 403, partnerResult.error, partnerResult.code);
+    // Resolve the payee to a Credit participant (no restaurant row required).
+    let participantRef;
+    let partnerId;
+    try {
+      const resolved = await resolveChatParticipant({ businessId, helperId });
+      participantRef = resolved.participantRef;
+      partnerId = resolved.partnerId;
+    } catch (e) {
+      return bad(res, e.status || 403, e.message, e.code || 'credit_provider_not_eligible');
     }
-    const partner = partnerResult.partner;
-    const allowedOrderTypes = await loadPartnerAllowedOrderTypes(partner.id);
+    const allowedOrderTypes = await loadPartnerAllowedOrderTypes(partnerId);
     const chatOrderType = resolveChatPurchaseOrderType(allowedOrderTypes);
 
     const senderName =
@@ -404,18 +476,19 @@ exports.payWithOxsteedCredit = async (req, res, next) => {
       result = await withTransaction(
         pool,
         async (client) => {
-          const purchase = await creditService.purchaseWithCreditInTransaction(client, {
+          const spendResult = await spendWithCreditInTransaction(client, {
+            participantRef,
             customerId: userId,
-            partnerId: partner.id,
             amountCents: normalized.amountCents,
-            currencyCode: normalized.currency,
-            idempotencyKey: normalized.idempotencyKey,
-            actorUserId: userId,
-            actorType: 'customer',
-            orderType: chatOrderType,
-            category: 'chat_payment',
+            currency: normalized.currency,
+            surface: 'chat',
             referenceType: 'chat_payment',
             referenceId: paymentRequest?.id || normalized.conversationId,
+            idempotencyKey: normalized.idempotencyKey,
+            actorUserId: userId,
+            isImpersonated: !!req.isImpersonated,
+            orderType: chatOrderType,
+            category: 'chat_payment',
             correlationId,
             requestIp: requestIp(req),
             description: normalized.memo || `Chat payment${quoteId ? ` for quote ${quoteId}` : ''}`,
@@ -428,8 +501,10 @@ exports.payWithOxsteedCredit = async (req, res, next) => {
               businessId,
               channel: 'live_messenger',
               chatOrderTypeMapped: chatOrderType,
+              partnerId,
             },
           });
+          const purchase = spendResult.purchase;
 
           const creditTxnId =
             purchase?.transaction?.id != null
@@ -770,7 +845,16 @@ exports.getCreditPayHint = async (req, res, next) => {
 
     const businessId = req.query.businessId || req.query.business_id || conv.business_id || null;
     const helperId = req.query.helperId || req.query.helper_id || conv.helper_id || null;
-    const partnerResult = await resolveCreditPartner({ businessId, helperId });
+    let partnerEligible = false;
+    let partnerError = null;
+    let partnerCode = null;
+    try {
+      await resolveChatParticipant({ businessId, helperId });
+      partnerEligible = true;
+    } catch (e) {
+      partnerError = e.message;
+      partnerCode = e.code || 'credit_provider_not_eligible';
+    }
     let account = null;
     try {
       account = await creditService.getCustomerCreditAccount(userId);
@@ -779,11 +863,11 @@ exports.getCreditPayHint = async (req, res, next) => {
     }
 
     return res.json({
-      canPay: Boolean(partnerResult.ok && isCustomerOnConversation(userId, conv)),
+      canPay: Boolean(partnerEligible && isCustomerOnConversation(userId, conv)),
       isCustomer: isCustomerOnConversation(userId, conv),
-      partnerEligible: Boolean(partnerResult.ok),
-      partnerError: partnerResult.ok ? null : partnerResult.error,
-      partnerCode: partnerResult.ok ? null : partnerResult.code,
+      partnerEligible,
+      partnerError,
+      partnerCode,
       balanceCents: account?.availableBalanceCents ?? account?.balanceCents ?? null,
       currency: account?.currencyCode || creditService.CREDIT_CURRENCY || 'USD',
       method: CREDIT_PAY_METHOD,

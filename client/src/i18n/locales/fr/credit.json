@@ -1932,5 +1932,7 @@
   "adminParticipantTypeConsultingSeller": "Vendeur de conseil",
   "adminParticipantTypeInvoiceSeller": "Vendeur de factures",
   "adminParticipantTypeProductSeller": "Vendeur de produits",
-  "adminParticipantTypeRentalSeller": "Vendeur de locations"
+  "adminParticipantTypeRentalSeller": "Vendeur de locations",
+  "adminGuestCreditCaps": "Plafonds de crédit invité (politique fixe)",
+  "adminGuestCreditCapsDescription": "Les invités peuvent dépenser du crédit OxSteed jusqu'à 25 $ par commande, 50 $ par jour et 200 $ à vie par session. Les dépenses des invités sont financées par la trésorerie de la plateforme. Ces plafonds sont fixes et s'appliquent à tous les participants."
 }

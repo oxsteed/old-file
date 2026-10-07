@@ -318,6 +318,7 @@ describe('guest spend', () => {
     const client = legacyClient();
     const purchase = { transaction: { id: 'tx-5' } };
     const spy = jest.spyOn(creditService, 'purchaseWithCreditInTransaction').mockResolvedValue(purchase);
+    const guestSpy = jest.spyOn(creditService, 'purchaseWithGuestCreditInTransaction').mockResolvedValue(purchase);
     const railSpy = jest.spyOn(creditService, 'assertCreditRailEnabled').mockResolvedValue(undefined);
     try {
       const result = await adapter.spendWithCreditInTransaction(client, {
@@ -327,9 +328,13 @@ describe('guest spend', () => {
         amountCents: 1000,
       });
       expect(result.mode).toBe('debit');
-      expect(spy.mock.calls[0][1].metadata.guestSessionId).toBe('sess-1');
+      const guestCall = guestSpy.mock.calls[0];
+      const debitCall = spy.mock.calls[0];
+      const callArgs = guestCall ? guestCall[1] : debitCall[1];
+      expect(callArgs.metadata.guestSessionId).toBe('sess-1');
     } finally {
       spy.mockRestore();
+      guestSpy.mockRestore();
       railSpy.mockRestore();
     }
   });

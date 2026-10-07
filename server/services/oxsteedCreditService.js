@@ -1714,6 +1714,91 @@ async function getCustomerCreditEligibility({ customerId, restaurantId, currency
   }, 'credit_check_customer_eligibility');
 }
 
+/**
+ * Phase 3 — guest Credit eligibility for quotes (locked decision #1).
+ * Checks rail + partner/agreement active + ticket within guest cap.
+ * Does not check daily/lifetime (those need a session fingerprint, which
+ * quotes don't have yet — enforced at order time).
+ */
+async function getGuestCreditEligibility({ restaurantId, currencyCode = CREDIT_CURRENCY, amountCents = 0, orderType } = {}) {
+  const guestPolicy = require('./creditGuestPolicy');
+  const currency = assertSupportedCreditCurrency(currencyCode);
+  const normalizedRestaurantId = Number.parseInt(String(restaurantId), 10);
+  if (!Number.isSafeInteger(normalizedRestaurantId) || normalizedRestaurantId <= 0) {
+    throw new AppError('Invalid restaurantId', 400, 'invalid_restaurantId');
+  }
+  const normalizedAmount = amountCents === undefined || amountCents === null || String(amountCents).trim() === ''
+    ? 0
+    : parseAmountCents(amountCents);
+
+  const guestCaps = {
+    maxTicketCents: guestPolicy.GUEST_MAX_TICKET_CENTS,
+    dailyCapCents: guestPolicy.GUEST_DAILY_CAP_CENTS,
+    lifetimeCapCents: guestPolicy.GUEST_LIFETIME_CAP_CENTS,
+  };
+
+  // Guest ticket cap applies at quote time.
+  if (normalizedAmount > guestPolicy.GUEST_MAX_TICKET_CENTS) {
+    return {
+      eligible: false,
+      reasonCode: 'credit_guest_ticket_cap_exceeded',
+      message: `Guest Credit is limited to $${(guestPolicy.GUEST_MAX_TICKET_CENTS / 100).toFixed(0)} per order`,
+      guestCaps,
+    };
+  }
+
+  return withTransaction(pool, async (client) => {
+    const { rows } = await client.query(
+      `SELECT p.id AS partner_id, p.settlement_currency_code
+         FROM oxsteed_credit_partners p
+         JOIN food_restaurants fr ON fr.id = p.restaurant_id
+         JOIN credit_participants cp
+           ON cp.partner_id = p.id
+          AND cp.participant_type = 'restaurant'
+          AND cp.status = 'active'
+          AND cp.didit_verified = TRUE
+          AND cp.allowed_surfaces @> ARRAY['food_online']
+        WHERE p.restaurant_id = $1
+          AND p.status = 'active'
+          AND fr.status = 'active'
+        ORDER BY p.id
+        LIMIT 1`,
+      [normalizedRestaurantId]
+    );
+    const partner = rows[0];
+    if (!partner) {
+      return { eligible: false, reasonCode: 'credit_partner_not_eligible', message: 'This restaurant does not currently accept OxSteed Credit', guestCaps };
+    }
+    try {
+      await assertCreditRailEnabled(client);
+      const settlementCurrency = assertSupportedCreditCurrency(partner.settlement_currency_code);
+      if (settlementCurrency !== currency) {
+        throw new AppError('The partner settlement currency does not match', 409, 'credit_partner_currency_mismatch');
+      }
+      return {
+        eligible: true,
+        reasonCode: null,
+        message: null,
+        partnerId: String(partner.partner_id),
+        currencyCode: settlementCurrency,
+        guestCaps,
+      };
+    } catch (error) {
+      if (error instanceof AppError && CREDIT_ELIGIBILITY_FAILURE_CODES.has(error.code)) {
+        return {
+          eligible: false,
+          reasonCode: error.code,
+          message: error.message,
+          partnerId: String(partner.partner_id),
+          currencyCode: currency,
+          guestCaps,
+        };
+      }
+      throw error;
+    }
+  }, 'credit_check_guest_eligibility');
+}
+
 async function listEligiblePartners({ customerId, currencyCode = CREDIT_CURRENCY, city, state, postalCode, country, orderType, search, limit, offset, includePagination = false } = {}) {
   const currency = assertSupportedCreditCurrency(currencyCode);
   const normalizedOrderType = normalizeString(orderType, 40)?.toLowerCase() || null;
@@ -2122,6 +2207,203 @@ function requestedMenuItemsForMetadata(menuItemId, menuItemIds) {
 
 async function purchaseWithCredit(args) {
   return withTransaction(pool, (client) => purchaseWithCreditInTransaction(client, args), 'credit_purchase');
+}
+
+/**
+ * Phase 3 — guest Credit purchase (locked decision #1).
+ *
+ * Guest Credit is platform-funded promotional spend: the ledger movement is
+ * platform_treasury → partner_payable. The guest is bound to a session
+ * fingerprint and subject to strict caps (see creditGuestPolicy).
+ *
+ * Unlike customer purchases, there is no customer wallet, no customer
+ * entitlement, and no per-customer agreement limits — the guest policy caps
+ * are the binding constraint.
+ */
+async function purchaseWithGuestCreditInTransaction(client, {
+  guestFingerprint,
+  partnerId,
+  agreementId = null,
+  amountCents,
+  currencyCode = null,
+  idempotencyKey,
+  orderType,
+  category,
+  categories,
+  menuItemId,
+  menuItemIds,
+  city,
+  state,
+  postalCode,
+  country,
+  surface = 'food_online',
+  referenceType = 'food_order',
+  referenceId,
+  correlationId,
+  requestIp,
+  description,
+  metadata = {},
+}) {
+  const guestPolicy = require('./creditGuestPolicy');
+  const amount = parseAmountCents(amountCents);
+  const fingerprint = String(guestFingerprint || '').trim();
+  if (!fingerprint) {
+    throw new AppError('Guest session fingerprint is required', 400, 'credit_guest_session_required');
+  }
+  const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
+  if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required for credit transactions', 400, 'credit_idempotency_key_required');
+
+  // Idempotency replay (same semantics as customer purchases).
+  const existing = await getExistingTransaction(client, normalizedIdempotencyKey);
+  if (existing) {
+    if (existing.status !== 'posted') {
+      throw new AppError('Credit idempotency key points to a transaction that is not posted', 409, 'credit_idempotency_retry_required');
+    }
+    return { transaction: { ...formatTransaction(existing, await loadAccountEntries(client, existing.id)), replayed: true }, replayed: true };
+  }
+
+  await assertCreditRailEnabled(client);
+
+  // Serialize per guest fingerprint to prevent cap races.
+  await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit-guest:${fingerprint}`]);
+
+  // Guest policy caps (fail closed).
+  await guestPolicy.assertGuestSpendAllowed(client, { fingerprint, amountCents: amount });
+
+  // Agreement resolution (no customer check — guest path).
+  const agreement = await findGuestSpendAgreement(client, {
+    partnerId,
+    agreementId,
+    orderType,
+    category,
+    categories,
+    menuItemId,
+    menuItemIds,
+    city,
+    state,
+    postalCode,
+    country,
+    amountCents: amount,
+    surface,
+  });
+  const settlementCurrency = assertSupportedCreditCurrency(agreement.settlement_currency_code);
+  if (currencyCode !== null && assertSupportedCreditCurrency(currencyCode) !== settlementCurrency) {
+    throw new AppError('Credit currency does not match the partner agreement', 409, 'credit_currency_mismatch');
+  }
+
+  // Platform-funded: debit platform_treasury, credit partner_payable.
+  const treasuryAccount = await ensureAccount(client, { accountType: 'platform_treasury', currencyCode: settlementCurrency });
+  const partnerAccount = await ensureAccount(client, { accountType: 'partner_payable', partnerId, currencyCode: settlementCurrency });
+
+  const result = await postJournalTransaction(client, {
+    transactionType: 'purchase',
+    debitAccountId: treasuryAccount.id,
+    creditAccountId: partnerAccount.id,
+    partnerId,
+    agreementId: agreement.id,
+    customerId: null,
+    amountCents: amount,
+    currencyCode: settlementCurrency,
+    idempotencyKey: normalizedIdempotencyKey,
+    actorType: 'guest',
+    actorUserId: null,
+    referenceType: normalizeString(referenceType, 80),
+    referenceId: referenceId === null || referenceId === undefined ? null : String(referenceId),
+    correlationId,
+    requestIp,
+    description: description || `Guest Credit spend · ${surface}`,
+    metadata: {
+      ...normalizeMetadata(metadata),
+      guestFingerprint: fingerprint.slice(0, 16),
+      guestSpend: true,
+      orderType: normalizeString(orderType, 40),
+      categories: requestedCategoriesForMetadata(category, categories),
+      menuItemIds: requestedMenuItemsForMetadata(menuItemId, menuItemIds),
+    },
+  });
+
+  // Record against guest caps (only on success).
+  if (!result.replayed) {
+    await guestPolicy.recordGuestSpend(client, { fingerprint, amountCents: amount });
+  }
+
+  logger.info('credit_guest_purchase.completed', {
+    partnerId,
+    amountCents: amount,
+    currencyCode: settlementCurrency,
+    surface,
+  });
+  return result;
+}
+
+/**
+ * Guest variant of findSpendAgreement: same partner/agreement/participant/
+ * surface gates, but no customer existence or entitlement checks.
+ */
+async function findGuestSpendAgreement(client, {
+  partnerId,
+  agreementId = null,
+  orderType,
+  category,
+  categories,
+  menuItemId,
+  menuItemIds,
+  city,
+  state,
+  postalCode,
+  country,
+  amountCents,
+  surface = 'food_online',
+}) {
+  const { rows } = await client.query(
+    `SELECT a.*, p.restaurant_id, p.status AS partner_status, p.settlement_currency_code,
+            cp.id AS participant_id, cp.status AS participant_status,
+            cp.didit_verified AS participant_didit_verified,
+            cp.allowed_surfaces AS participant_allowed_surfaces,
+            fr.display_name AS restaurant_name, fr.status AS restaurant_status,
+            fr.address_city, fr.address_state, fr.address_zip, fr.address_country,
+            fr.currency_code AS restaurant_currency_code
+       FROM oxsteed_credit_partner_agreements a
+       JOIN oxsteed_credit_partners p ON p.id = a.partner_id
+       JOIN food_restaurants fr ON fr.id = p.restaurant_id
+       JOIN credit_participants cp
+         ON cp.partner_id = p.id
+        AND cp.participant_type = 'restaurant'
+        AND cp.status = 'active'
+        AND cp.didit_verified = TRUE
+      WHERE p.id = $1
+        AND p.status = 'active'
+        AND fr.status = 'active'
+        AND a.status = 'active'
+        AND ($2::uuid IS NULL OR a.id = $2::uuid)
+        AND a.starts_at <= NOW()
+        AND (a.ends_at IS NULL OR a.ends_at > NOW())
+      ORDER BY a.version DESC
+      LIMIT 1`,
+    [partnerId, agreementId]
+  );
+  const agreement = rows[0];
+  if (!agreement) {
+    throw new AppError('This restaurant is not currently eligible for guest OxSteed Credit', 403, 'credit_partner_not_eligible');
+  }
+  assertSurfaceAllowed(
+    { allowed_surfaces: agreement.participant_allowed_surfaces },
+    surface
+  );
+  const settlementCurrency = assertSupportedCreditCurrency(agreement.settlement_currency_code);
+  if (agreement.restaurant_currency_code && normalizeCurrency(agreement.restaurant_currency_code) !== settlementCurrency) {
+    throw new AppError('The partner settlement currency does not match the restaurant currency', 409, 'credit_partner_currency_mismatch');
+  }
+  const normalizedOrderType = normalizeString(orderType, 40)?.toLowerCase();
+  const allowedOrderTypes = normalizeList(agreement.allowed_order_types);
+  if (allowedOrderTypes.length && (!normalizedOrderType || !allowedOrderTypes.includes(normalizedOrderType))) {
+    throw new AppError('This order type is not covered by the OxSteed Credit agreement', 403, 'credit_order_type_not_eligible');
+  }
+  return agreement;
+}
+
+async function purchaseWithGuestCredit(args) {
+  return withTransaction(pool, (client) => purchaseWithGuestCreditInTransaction(client, args), 'credit_guest_purchase');
 }
 
 async function transferCreditInTransaction(client, { senderCustomerId, recipientCustomerId, amountCents, currencyCode = CREDIT_CURRENCY, idempotencyKey, actorUserId, referenceType = 'customer_transfer', referenceId, correlationId, requestIp, description, metadata = {} }) {
@@ -2552,7 +2834,7 @@ async function releaseCreditHold({ customerId, holdId, actorUserId, reason, corr
   }, 'credit_release_hold');
 }
 
-async function captureCreditHoldInTransaction(client, { holdId, amountCents, currencyCode = null, idempotencyKey, actorUserId, actorType = 'admin', orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, referenceType, referenceId, correlationId, requestIp, description, reason, metadata = {} }) {
+async function captureCreditHoldInTransaction(client, { holdId, amountCents, currencyCode = null, idempotencyKey, actorUserId, actorType = 'admin', orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, referenceType, referenceId, correlationId, requestIp, description, reason, metadata = {}, allowAmountAdjust = false }) {
   if (!normalizeString(idempotencyKey, 160)) throw new AppError('Idempotency-Key is required for credit hold capture', 400, 'credit_idempotency_key_required');
   const normalizedActorType = normalizeString(actorType, 20) || 'admin';
   if (!['admin', 'system'].includes(normalizedActorType)) throw new AppError('Invalid credit hold capture actor', 400, 'credit_capture_actor_invalid');
@@ -2577,11 +2859,20 @@ async function captureCreditHoldInTransaction(client, { holdId, amountCents, cur
     throw new AppError('Credit hold capture already used a different idempotency key', 409, 'credit_hold_capture_idempotency_conflict');
   }
   const requestedAmount = amountCents === undefined || amountCents === null ? Number(hold.amount_cents) : parseAmountCents(amountCents);
-  if (requestedAmount !== Number(hold.amount_cents)) throw new AppError('Credit hold capture amount must match the reserved amount', 409, 'credit_hold_amount_mismatch');
+  // Locked decision #3 (POS debit-then-adjust): when allowAmountAdjust is set,
+  // the final debit may differ from the held estimate. Otherwise the capture
+  // amount must match the reservation exactly (legacy/admin behavior).
+  const isAdjusted = requestedAmount !== Number(hold.amount_cents);
+  if (isAdjusted && !allowAmountAdjust) throw new AppError('Credit hold capture amount must match the reserved amount', 409, 'credit_hold_amount_mismatch');
   const requestedReferenceType = normalizeString(referenceType || hold.reference_type || 'credit_hold', 80);
   const requestedReferenceId = normalizeString(referenceId || hold.reference_id || String(hold.id), 160);
   const requestedDescription = description || hold.purpose || 'OxSteed Credit hold capture';
-  const requestedMetadata = { ...normalizeMetadata(hold.metadata), ...normalizeMetadata(metadata), capturedHoldId: String(hold.id) };
+  const requestedMetadata = {
+    ...normalizeMetadata(hold.metadata),
+    ...normalizeMetadata(metadata),
+    capturedHoldId: String(hold.id),
+    ...(isAdjusted ? { adjustedFromCents: Number(hold.amount_cents), adjustedToCents: requestedAmount } : {}),
+  };
   if (hold.status === 'captured') {
     const existing = hold.captured_transaction_id
       ? await getExistingTransactionById(client, hold.captured_transaction_id)
@@ -2641,7 +2932,11 @@ async function captureCreditHoldInTransaction(client, { holdId, amountCents, cur
       replayed: true,
     };
   } else {
-    await releaseHoldReservation(client, { ...hold, amount_cents: requestedAmount });
+    // For debit-then-adjust: release the FULL held reservation, then debit
+    // the final amount. The delta is freed (adjust down) or covered by the
+    // purchase balance check (adjust up).
+    const releaseAmount = isAdjusted ? Number(hold.amount_cents) : requestedAmount;
+    await releaseHoldReservation(client, { ...hold, amount_cents: releaseAmount });
     try {
       transactionResult = await purchaseWithCreditInTransaction(client, {
         customerId: hold.customer_id,
@@ -3721,6 +4016,7 @@ module.exports = {
   getCustomerCreditAccount,
   getCustomerCreditLimitSummary,
   getCustomerCreditEligibility,
+  getGuestCreditEligibility,
   listCustomerCreditAccounts,
   listEligiblePartners,
   listCustomerCreditHolds,
@@ -3737,6 +4033,9 @@ module.exports = {
   postJournalTransaction,
   purchaseWithCreditInTransaction,
   purchaseWithCredit,
+  purchaseWithGuestCreditInTransaction,
+  purchaseWithGuestCredit,
+  findGuestSpendAgreement,
   transferCreditInTransaction,
   transferCredit,
   adjustCustomerCreditInTransaction,

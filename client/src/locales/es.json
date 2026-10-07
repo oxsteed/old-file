@@ -19273,7 +19273,9 @@
       "creditSheetTopupSuccess": "Crédito agregado a tu billetera.",
       "creditSheetNotEligible": "Las recargas con tarjeta no están disponibles para este restaurante por ahora.",
       "creditSheetStripeUnavailable": "Los pagos con tarjeta no están disponibles por ahora.",
-      "useNewCard": "Usar una tarjeta nueva"
+      "useNewCard": "Usar una tarjeta nueva",
+      "guestCredit": "Crédito de invitado",
+      "guestCreditSub": "Paga con Crédito OxSteed como invitado (hasta $25/pedido)"
     },
     "order": {
       "specialInstructions": "Instrucciones especiales (opcional)",

@@ -1932,5 +1932,7 @@
   "adminParticipantTypeConsultingSeller": "Vandè konsiltasyon",
   "adminParticipantTypeInvoiceSeller": "Vandè fakti",
   "adminParticipantTypeProductSeller": "Vandè pwodwi",
-  "adminParticipantTypeRentalSeller": "Vandè lokasyon"
+  "adminParticipantTypeRentalSeller": "Vandè lokasyon",
+  "adminGuestCreditCaps": "Limit kredi pou vizitè (politik fiks)",
+  "adminGuestCreditCapsDescription": "Vizitè yo ka depanse Kredi OxSteed jiska $25 pa kòmann, $50 pa jou, ak $200 pou tout lavi pa sesyon. Depans vizitè yo finanse apati de trezò platfòm nan. Limit sa yo fiks epi yo aplike pou tout patisipan yo."
 }

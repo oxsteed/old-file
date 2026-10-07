@@ -34,8 +34,8 @@ const {
 } = require('./restaurantRunnerController');
 const {
   refundCreditInTransaction,
-  captureCreditHoldInTransaction,
 } = require('../services/oxsteedCreditService');
+const { finalizeCreditSpendInTransaction } = require('../services/creditSpendAdapter');
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
 const { getEffectivePermissions } = require('../services/permissionsService');
@@ -4191,9 +4191,9 @@ async function recordPosOxsteedCreditPayment(client, {
   if (String(hold.hold_account_currency_code || hold.currency_code).toUpperCase() !== String(currencyCode).toUpperCase()) {
     throw new AppError('The OxSteed Credit authorization currency does not match this order', 409, 'credit_currency_mismatch');
   }
-  if (Number(hold.amount_cents) !== Number(amountCents)) {
-    throw new AppError('The order total must match the customer\'s OxSteed Credit authorization', 409, 'credit_hold_amount_mismatch');
-  }
+  // Locked decision #3 (POS debit-then-adjust): the final total may differ
+  // from the customer's estimated hold. The adapter finalizes by debiting
+  // the actual amount and recording the adjustment; no exact-match required.
   const customerId = String(hold.hold_customer_id || hold.customer_id);
   if (order.customer_id && String(order.customer_id) !== customerId) {
     throw new AppError('This ticket is assigned to a different customer', 409, 'pos_customer_mismatch');
@@ -4210,14 +4210,24 @@ async function recordPosOxsteedCreditPayment(client, {
       ORDER BY foi.id`,
     [orderId]
   );
-  const creditCapture = await captureCreditHoldInTransaction(client, {
+  // POS finalize via the shared spend adapter: debit-then-adjust (locked
+  // decision #3). The hold is the customer's authorization; the final debit
+  // uses the actual order total and records any adjustment vs the estimate.
+  const finalizeResult = await finalizeCreditSpendInTransaction(client, {
     holdId,
-    amountCents,
+    customerId,
+    finalAmountCents: amountCents,
     currencyCode,
     actorUserId: createdByUserId,
     // The customer authorization is the authority. The POS operator is kept
     // in metadata and audit evidence without inventing a ledger actor type.
     actorType: 'system',
+    idempotencyKey: `pos-credit:${idempotencyKey}`,
+    referenceType: 'food_order',
+    referenceId: String(orderId),
+    correlationId: idempotencyKey,
+    requestIp: request.ip || null,
+    description: `POS payment for ${restaurant.display_name || 'restaurant'} order ${order.queue_number || order.id}`,
     orderType: order.fulfillment_type,
     categories: categoryRows.map((row) => row.category_name).filter(Boolean),
     menuItemIds: categoryRows.map((row) => row.menu_item_id).filter(Boolean),
@@ -4225,12 +4235,8 @@ async function recordPosOxsteedCreditPayment(client, {
     state: restaurant.address_state,
     postalCode: restaurant.address_zip,
     country: restaurant.address_country,
-    idempotencyKey: `pos-credit:${idempotencyKey}`,
-    referenceType: 'food_order',
-    referenceId: String(orderId),
-    correlationId: idempotencyKey,
-    requestIp: request.ip || null,
-    description: `POS payment for ${restaurant.display_name || 'restaurant'} order ${order.queue_number || order.id}`,
+    reason: normalizeString(request.body.reason || request.body.note, 500)
+      || 'Customer-authorized OxSteed Credit POS payment',
     metadata: {
       source: 'pos_oxsteed_credit',
       restaurantId,
@@ -4243,9 +4249,8 @@ async function recordPosOxsteedCreditPayment(client, {
       posIdempotencyKey: idempotencyKey,
       paymentContract: paymentContractMetadata(paymentContract),
     },
-    reason: normalizeString(request.body.reason || request.body.note, 500)
-      || 'Customer-authorized OxSteed Credit POS payment',
   });
+  const creditCapture = finalizeResult.capture;
 
   if (!order.customer_id) {
     await client.query(

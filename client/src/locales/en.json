@@ -19273,7 +19273,9 @@
       "creditSheetTopupSuccess": "Credit added to your wallet.",
       "creditSheetNotEligible": "Card top ups are not available for this restaurant right now.",
       "creditSheetStripeUnavailable": "Card payments are not available right now.",
-      "useNewCard": "Use a new card"
+      "useNewCard": "Use a new card",
+      "guestCredit": "Guest Credit",
+      "guestCreditSub": "Pay with OxSteed Credit as a guest (up to $25/order)"
     },
     "order": {
       "specialInstructions": "Special instructions (optional)",

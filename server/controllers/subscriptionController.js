@@ -8,6 +8,13 @@ const db = require('../db');
 const { withTransaction } = require('../utils/transaction');
 const pricingService = require('../services/pricingService');
 const { subscriptionPeriod } = require('../utils/stripePayload');
+const { envFlagEnabled } = require('../middleware/featureFlags');
+
+// Phase 5 — Credit Everywhere: subscription Credit payments stay behind this
+// flag (locked decision #10: wire behind flags before un-hide). Fail-closed.
+function subscriptionsCreditEnabled() {
+  return envFlagEnabled('SUBSCRIPTIONS_CREDIT_ENABLED', false);
+}
 
 let plansActiveColumn = null;
 
@@ -117,6 +124,19 @@ exports.createCheckout = async (req, res, next) => {
     } catch (checkErr) {
       if (checkErr instanceof AppError) throw checkErr;
       throw checkErr;
+    }
+
+    // Phase 5 — Credit Everywhere: pay for the subscription with OxSteed
+    // Credit instead of Stripe. Recurring debit in v1 (locked decision #9).
+    if (String(req.body?.paymentMethod || '').toLowerCase() === 'credit') {
+      if (!subscriptionsCreditEnabled()) {
+        throw new AppError(
+          'Paying subscriptions with OxSteed Credit is not available yet.',
+          503,
+          'feature_disabled'
+        );
+      }
+      return createCreditSubscription(req, res, next, plan, userId);
     }
 
     // Get or create Stripe customer
@@ -335,3 +355,110 @@ exports.createPortalSession = async (req, res, next) => {
     next(err);
   }
 };
+
+/**
+ * Phase 5 — Credit Everywhere: create a subscription paid with OxSteed Credit.
+ *
+ * Locked decision #9: recurring Credit debit in v1. The first period is
+ * debited immediately via the shared spend adapter (surface=subscriptions);
+ * subsequent periods are charged by the subscription Credit worker.
+ *
+ * The subscription merchant participant must be enrolled by an admin
+ * (type=subscription_merchant). Fail closed when none exists.
+ */
+async function createCreditSubscription(req, res, next, plan, userId) {
+  try {
+    const { spendWithCredit } = require('../services/creditSpendAdapter');
+    const { withTransaction } = require('../utils/transaction');
+    const db = require('../db');
+
+    const amountCents = Number(plan.amount_cents);
+    if (!Number.isSafeInteger(amountCents) || amountCents <= 0) {
+      throw new AppError('This plan cannot be paid with Credit', 400, 'credit_amount_invalid');
+    }
+    const currency = String(plan.currency || 'USD').toUpperCase();
+    const interval = String(plan.interval || 'month').toLowerCase();
+
+    // Resolve the platform subscription merchant participant (admin-enrolled).
+    const { rows: participantRows } = await db.query(
+      `SELECT p.id AS participant_id
+         FROM credit_participants p
+         JOIN oxsteed_credit_partners pa ON pa.id = p.partner_id
+        WHERE p.participant_type = 'subscription_merchant'
+          AND p.status = 'active'
+          AND p.didit_verified = TRUE
+          AND pa.status = 'active'
+          AND 'subscriptions' = ANY(p.allowed_surfaces)
+        LIMIT 1`
+    );
+    // Resolve via adapter using the participant's subject. We fetch the
+    // subject columns to build the participantRef the adapter expects.
+    let participantRef = null;
+    if (participantRows[0]) {
+      const { rows: subj } = await db.query(
+        `SELECT participant_type, business_id, user_id FROM credit_participants WHERE id = $1`,
+        [participantRows[0].participant_id]
+      );
+      const s = subj[0] || {};
+      const subjectId = s.business_id || s.user_id;
+      if (subjectId) participantRef = { type: s.participant_type, subjectId: String(subjectId) };
+    }
+    if (!participantRef) {
+      throw new AppError(
+        'Subscriptions cannot be paid with OxSteed Credit yet',
+        409,
+        'credit_participant_not_found'
+      );
+    }
+
+    const now = new Date();
+    const periodEnd = new Date(now);
+    if (interval === 'year') periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+    else periodEnd.setMonth(periodEnd.getMonth() + 1);
+
+    const result = await withTransaction(db, async (client) => {
+      // Double-check no active subscription (race-safe, mirrors Stripe path).
+      const { rows: existing } = await client.query(
+        `SELECT id FROM subscriptions WHERE user_id = $1 AND status IN ('active', 'trialing') FOR UPDATE`,
+        [userId]
+      );
+      if (existing.length) {
+        throw new AppError('You already have an active subscription', 400, 'already_exists');
+      }
+
+      // First period debit via the shared adapter (fail-closed on rail/freeze).
+      const spend = await spendWithCredit({
+        client,
+        participantRef,
+        customerId: userId,
+        amountCents,
+        currency,
+        surface: 'subscriptions',
+        mode: 'debit',
+        referenceType: 'subscription',
+        referenceId: `plan:${plan.id}:user:${userId}:${now.toISOString().slice(0, 10)}`,
+        isImpersonated: Boolean(req.impersonated),
+        metadata: { planSlug: plan.slug, interval },
+      });
+
+      const { rows: inserted } = await client.query(
+        `INSERT INTO subscriptions
+           (user_id, plan_id, status, payment_method,
+            current_period_start, current_period_end)
+         VALUES ($1, $2, 'active', 'oxsteed_credit', $3, $4)
+         RETURNING *`,
+        [userId, plan.id, now.toISOString(), periodEnd.toISOString()]
+      );
+      return { subscription: inserted[0], spend };
+    }, 'subscription_credit_checkout');
+
+    return res.json({
+      ok: true,
+      paymentMethod: 'oxsteed_credit',
+      subscription: result.subscription,
+      idempotencyKey: result.spend.idempotencyKey,
+    });
+  } catch (err) {
+    return next(err);
+  }
+}
