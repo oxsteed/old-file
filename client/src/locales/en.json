@@ -2294,7 +2294,10 @@
       "updatePassword": "Update Password",
       "twoFactor": "Two-Factor Authentication",
       "twoFactorDesc": "Add an extra layer of security to your account",
-      "manage2fa": "Manage 2FA"
+      "manage2fa": "Manage 2FA",
+      "passkeys": "Passkeys",
+      "passkeysDesc": "Sign in with Touch ID, Face ID, Windows Hello, or a security key",
+      "managePasskeys": "Manage passkeys"
     },
     "subscription": {
       "title": "Subscription",
@@ -9289,7 +9292,33 @@
     "passkeyUnsupported": "This browser does not support passkeys.",
     "passkeyRegistered": "Passkey registered. You can now sign in with it.",
     "passkeyRegisteredAdmin": "Passkey registered. TOTP and backup codes remain available.",
-    "passkeyRegisterFailed": "Could not register this passkey."
+    "passkeyRegisterFailed": "Could not register this passkey.",
+    "passkeysTitle": "Passkeys",
+    "passkeysDescUser": "Use Touch ID, Face ID, Windows Hello, or a security key to sign in without your password. Your password remains as a fallback.",
+    "passkeysDescAdmin": "Use Touch ID, Face ID, Windows Hello, or a security key after password sign-in. TOTP remains your fallback.",
+    "registerPasskey": "Register a passkey",
+    "passkeyWorking": "Working...",
+    "passkeyRevoked": "Passkey revoked.",
+    "passkeyRevokeFailed": "Could not revoke this passkey.",
+    "passkeyRevokeConfirm": "Revoke {{name}}?",
+    "passkeyThisDevice": "this passkey",
+    "passkeyRevokeBtn": "Revoke",
+    "passkeyAddedRecently": "Added recently",
+    "passkeyAddedOn": "Added {{date}}",
+    "passkeyRegisterTitle": "Register a passkey",
+    "passkeyDeviceNameLabel": "Device name",
+    "passkeyDeviceNamePlaceholder": "MacBook Touch ID",
+    "passkeyDeviceNameRequired": "Enter a name for this passkey.",
+    "passkeyPasswordLabel": "Current password",
+    "passkeyPasswordRequired": "Enter your current password to continue.",
+    "passkeyRegisterSubmit": "Register passkey",
+    "passkeyRegisterCancel": "Cancel",
+    "passkeyUnsupportedInline": "This browser does not support passkeys. Use a supported browser or device to register one.",
+    "passkeyRevokeTitle": "Revoke passkey",
+    "passkeyRevokeConfirmBtn": "Revoke passkey",
+    "passkeyRevokeCancel": "Cancel",
+    "passkeysPageTitle": "Passkeys",
+    "passkeysPageSubtitle": "Manage sign-in passkeys for your account"
   },
   "homePage": {
     "company": {

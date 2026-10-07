@@ -2294,7 +2294,10 @@
       "updatePassword": "تحديث كلمة المرور",
       "twoFactor": "المصادقة الثنائية",
       "twoFactorDesc": "أضف طبقة إضافية من الأمان إلى حسابك",
-      "manage2fa": "إدارة 2FA"
+      "manage2fa": "إدارة 2FA",
+      "passkeys": "مفاتيح المرور",
+      "passkeysDesc": "سجّل الدخول باستخدام Touch ID أو Face ID أو Windows Hello أو مفتاح أمان",
+      "managePasskeys": "إدارة مفاتيح المرور"
     },
     "subscription": {
       "title": "الاشتراك",
@@ -9289,7 +9292,33 @@
     "passkeyUnsupported": "هذا المتصفح لا يدعم مفاتيح المرور.",
     "passkeyRegistered": "تم تسجيل مفتاح المرور. يمكنك الآن تسجيل الدخول به.",
     "passkeyRegisteredAdmin": "تم تسجيل مفتاح المرور. تظل رموز TOTP والرموز الاحتياطية متاحة.",
-    "passkeyRegisterFailed": "تعذر تسجيل مفتاح المرور هذا."
+    "passkeyRegisterFailed": "تعذر تسجيل مفتاح المرور هذا.",
+    "passkeysTitle": "مفاتيح المرور",
+    "passkeysDescUser": "استخدم Touch ID أو Face ID أو Windows Hello أو مفتاح أمان لتسجيل الدخول بدون كلمة المرور. تظل كلمة المرور متاحة كخيار احتياطي.",
+    "passkeysDescAdmin": "استخدم Touch ID أو Face ID أو Windows Hello أو مفتاح أمان بعد تسجيل الدخول بكلمة المرور. يظل TOTP خيارًا احتياطيًا.",
+    "registerPasskey": "تسجيل مفتاح مرور",
+    "passkeyWorking": "جارٍ العمل...",
+    "passkeyRevoked": "تم إلغاء مفتاح المرور.",
+    "passkeyRevokeFailed": "تعذر إلغاء مفتاح المرور هذا.",
+    "passkeyRevokeConfirm": "إلغاء {{name}}؟",
+    "passkeyThisDevice": "مفتاح المرور هذا",
+    "passkeyRevokeBtn": "إلغاء",
+    "passkeyAddedRecently": "تمت الإضافة مؤخرًا",
+    "passkeyAddedOn": "تمت الإضافة في {{date}}",
+    "passkeyRegisterTitle": "تسجيل مفتاح مرور",
+    "passkeyDeviceNameLabel": "اسم الجهاز",
+    "passkeyDeviceNamePlaceholder": "MacBook Touch ID",
+    "passkeyDeviceNameRequired": "أدخل اسمًا لهذا مفتاح المرور.",
+    "passkeyPasswordLabel": "كلمة المرور الحالية",
+    "passkeyPasswordRequired": "أدخل كلمة المرور الحالية للمتابعة.",
+    "passkeyRegisterSubmit": "تسجيل مفتاح المرور",
+    "passkeyRegisterCancel": "إلغاء",
+    "passkeyUnsupportedInline": "هذا المتصفح لا يدعم مفاتيح المرور. استخدم متصفحًا أو جهازًا مدعومًا لتسجيل واحد.",
+    "passkeyRevokeTitle": "إلغاء مفتاح المرور",
+    "passkeyRevokeConfirmBtn": "إلغاء مفتاح المرور",
+    "passkeyRevokeCancel": "إلغاء",
+    "passkeysPageTitle": "مفاتيح المرور",
+    "passkeysPageSubtitle": "إدارة مفاتيح المرور لتسجيل الدخول إلى حسابك"
   },
   "homePage": {
     "company": {

@@ -2295,7 +2295,10 @@
       "updatePassword": "Mettre à Jour le Mot de Passe",
       "twoFactor": "Authentification à Deux Facteurs",
       "twoFactorDesc": "Ajoutez une couche supplémentaire de sécurité à votre compte",
-      "manage2fa": "Gérer 2FA"
+      "manage2fa": "Gérer 2FA",
+      "passkeys": "Clés d’accès",
+      "passkeysDesc": "Connectez-vous avec Touch ID, Face ID, Windows Hello ou une clé de sécurité",
+      "managePasskeys": "Gérer les clés d’accès"
     },
     "subscription": {
       "title": "Abonnement",
@@ -9289,7 +9292,33 @@
     "passkeyUnsupported": "Ce navigateur ne prend pas en charge les clés d’accès.",
     "passkeyRegistered": "Clé d’accès enregistrée. Vous pouvez maintenant vous connecter avec.",
     "passkeyRegisteredAdmin": "Clé d’accès enregistrée. TOTP et codes de secours restent disponibles.",
-    "passkeyRegisterFailed": "Impossible d’enregistrer cette clé d’accès."
+    "passkeyRegisterFailed": "Impossible d’enregistrer cette clé d’accès.",
+    "passkeysTitle": "Clés d’accès",
+    "passkeysDescUser": "Utilisez Touch ID, Face ID, Windows Hello ou une clé de sécurité pour vous connecter sans mot de passe. Votre mot de passe reste disponible en secours.",
+    "passkeysDescAdmin": "Utilisez Touch ID, Face ID, Windows Hello ou une clé de sécurité après la connexion par mot de passe. Le TOTP reste votre secours.",
+    "registerPasskey": "Enregistrer une clé d’accès",
+    "passkeyWorking": "Traitement...",
+    "passkeyRevoked": "Clé d’accès révoquée.",
+    "passkeyRevokeFailed": "Impossible de révoquer cette clé d’accès.",
+    "passkeyRevokeConfirm": "Révoquer {{name}} ?",
+    "passkeyThisDevice": "cette clé d’accès",
+    "passkeyRevokeBtn": "Révoquer",
+    "passkeyAddedRecently": "Ajoutée récemment",
+    "passkeyAddedOn": "Ajoutée le {{date}}",
+    "passkeyRegisterTitle": "Enregistrer une clé d’accès",
+    "passkeyDeviceNameLabel": "Nom de l’appareil",
+    "passkeyDeviceNamePlaceholder": "MacBook Touch ID",
+    "passkeyDeviceNameRequired": "Saisissez un nom pour cette clé d’accès.",
+    "passkeyPasswordLabel": "Mot de passe actuel",
+    "passkeyPasswordRequired": "Saisissez votre mot de passe actuel pour continuer.",
+    "passkeyRegisterSubmit": "Enregistrer la clé d’accès",
+    "passkeyRegisterCancel": "Annuler",
+    "passkeyUnsupportedInline": "Ce navigateur ne prend pas en charge les clés d’accès. Utilisez un navigateur ou un appareil compatible pour en enregistrer une.",
+    "passkeyRevokeTitle": "Révoquer la clé d’accès",
+    "passkeyRevokeConfirmBtn": "Révoquer la clé d’accès",
+    "passkeyRevokeCancel": "Annuler",
+    "passkeysPageTitle": "Clés d’accès",
+    "passkeysPageSubtitle": "Gérez les clés d’accès pour vous connecter à votre compte"
   },
   "homePage": {
     "company": {

@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { twoFactorAPI, userPasskeyAPI } from '../../api/twoFactor';
-import { startRegistration } from '@simplewebauthn/browser';
+import { twoFactorAPI } from '../../api/twoFactor';
 import toast from 'react-hot-toast';
 import { Shield, ShieldCheck, ShieldOff, ArrowLeft, Copy, RefreshCw } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
+import PasskeysSection from './PasskeysSection';
 
 export default function TwoFactorSetup({ adminSetup = false }) {
   const { t } = useTranslation();
@@ -17,21 +17,8 @@ export default function TwoFactorSetup({ adminSetup = false }) {
   const [disableCode, setDisableCode] = useState('');
   const [backupCodes, setBackupCodes] = useState(null);
   const [step, setStep] = useState('status');
-  const [passkeys, setPasskeys] = useState([]);
-  const [passkeyBusy, setPasskeyBusy] = useState(false);
 
-  useEffect(() => { fetchStatus(); fetchPasskeys(); }, [adminSetup]);
-
-  const passkeyAPI = adminSetup ? twoFactorAPI : userPasskeyAPI;
-
-  const fetchPasskeys = async () => {
-    try {
-      const { data } = await passkeyAPI.listPasskeys();
-      setPasskeys(Array.isArray(data?.passkeys) ? data.passkeys : []);
-    } catch {
-      setPasskeys([]);
-    }
-  };
+  useEffect(() => { fetchStatus(); }, [adminSetup]);
 
   const fetchStatus = async () => {
     try {
@@ -42,46 +29,6 @@ export default function TwoFactorSetup({ adminSetup = false }) {
       toast.error(t('twoFactor.failedLoad'));
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleRegisterPasskey = async () => {
-    if (!window.PublicKeyCredential || passkeyBusy) {
-      toast.error(t('twoFactor.passkeyUnsupported'));
-      return;
-    }
-    setPasskeyBusy(true);
-    try {
-      const deviceName = (window.prompt('Name this passkey (for example, MacBook Touch ID):') || '').trim();
-      if (!deviceName) return;
-      // Step-up: require current password to register a passkey.
-      const password = window.prompt('Enter your current password to register this passkey:');
-      if (!password) return;
-      const { data } = await passkeyAPI.registrationOptions();
-      const response = await startRegistration({ optionsJSON: data.options });
-      await passkeyAPI.verifyRegistration(response, deviceName, password);
-      await fetchPasskeys();
-      toast.success(adminSetup ? t('twoFactor.passkeyRegisteredAdmin') : t('twoFactor.passkeyRegistered'));
-    } catch (err) {
-      if (err?.name !== 'NotAllowedError') {
-        toast.error(err.response?.data?.error || t('twoFactor.passkeyRegisterFailed'));
-      }
-    } finally {
-      setPasskeyBusy(false);
-    }
-  };
-
-  const handleRevokePasskey = async (passkey) => {
-    if (!passkey?.id || passkeyBusy || !window.confirm(`Revoke ${passkey.deviceName || 'this passkey'}?`)) return;
-    setPasskeyBusy(true);
-    try {
-      await passkeyAPI.revokePasskey(passkey.id);
-      await fetchPasskeys();
-      toast.success('Passkey revoked.');
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'Could not revoke this passkey.');
-    } finally {
-      setPasskeyBusy(false);
     }
   };
 
@@ -142,43 +89,43 @@ export default function TwoFactorSetup({ adminSetup = false }) {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-gray-950 flex flex-col">
+    <div className="flex min-h-screen flex-col bg-[var(--color-bg)]">
       <Navbar />
-      <div className="flex-1 flex items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-2 border-orange-500 border-t-transparent rounded-full" />
+      <div className="flex flex-1 items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
       </div>
       <Footer />
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white flex flex-col">
+    <div className="flex min-h-screen flex-col bg-[var(--color-bg)] text-content">
       <Navbar />
-      <main className="flex-1 py-10 px-4">
-      <div className="max-w-lg mx-auto">
-        <Link to="/settings" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-8 transition text-sm">
+      <main className="flex-1 px-4 py-10">
+      <div className="mx-auto max-w-lg">
+        <Link to="/settings" className="mb-8 inline-flex items-center gap-2 text-sm text-muted transition hover:text-content">
           <ArrowLeft size={16} /> {t('twoFactor.backToSettings')}
         </Link>
 
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8">
-          <div className="flex items-center gap-3 mb-6">
-            <Shield className="text-orange-500" size={28} />
+        <div className="rounded-2xl border border-border bg-surface p-8">
+          <div className="mb-6 flex items-center gap-3">
+            <Shield className="text-primary" size={28} />
             <div>
-              <h1 className="text-2xl font-bold text-white">{t('twoFactor.title')}</h1>
-              <p className="text-gray-400 text-sm">{t('twoFactor.subtitle')}</p>
+              <h1 className="text-2xl font-bold text-content">{t('twoFactor.title')}</h1>
+              <p className="text-sm text-muted">{t('twoFactor.subtitle')}</p>
             </div>
           </div>
 
           {step === 'status' && (
             <div className="space-y-6">
-              <div className="flex items-center gap-3 p-4 bg-gray-800/50 rounded-xl">
-                <ShieldOff className="text-gray-500" size={24} />
+              <div className="flex items-center gap-3 rounded-xl bg-surface-2/50 p-4">
+                <ShieldOff className="text-muted" size={24} />
                 <div>
-                  <p className="text-white font-medium">{t('twoFactor.notEnabled')}</p>
-                  <p className="text-gray-400 text-sm">{t('twoFactor.notEnabledSub')}</p>
+                  <p className="font-medium text-content">{t('twoFactor.notEnabled')}</p>
+                  <p className="text-sm text-muted">{t('twoFactor.notEnabledSub')}</p>
                 </div>
               </div>
-              <button onClick={handleSetup} className="w-full py-3 px-4 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl transition">
+              <button onClick={handleSetup} className="w-full rounded-xl bg-action px-4 py-3 font-semibold text-on-action transition hover:bg-action-hover">
                 {t('twoFactor.enableBtn')}
               </button>
             </div>
@@ -187,43 +134,43 @@ export default function TwoFactorSetup({ adminSetup = false }) {
           {step === 'setup' && setupData && (
             <div className="space-y-6">
               <div className="text-center">
-                <p className="text-gray-300 mb-4">{t('twoFactor.scanQr')}</p>
-                <div className="inline-block p-4 bg-white rounded-xl">
-                  <img src={setupData.qrCode} alt="2FA QR Code" className="w-48 h-48" />
+                <p className="mb-4 text-muted">{t('twoFactor.scanQr')}</p>
+                <div className="inline-block rounded-xl bg-white p-4">
+                  <img src={setupData.qrCode} alt="2FA QR Code" className="h-48 w-48" />
                 </div>
               </div>
-              <div className="p-4 bg-gray-800/50 rounded-xl">
-                <p className="text-gray-400 text-xs mb-1">{t('twoFactor.manualKey')}</p>
-                <p className="text-orange-400 font-mono text-sm break-all">{setupData.secret}</p>
+              <div className="rounded-xl bg-surface-2/50 p-4">
+                <p className="mb-1 text-xs text-muted">{t('twoFactor.manualKey')}</p>
+                <p className="break-all font-mono text-sm text-primary">{setupData.secret}</p>
               </div>
               {backupCodes && (
-                <div className="p-4 bg-yellow-900/20 border border-yellow-800/30 rounded-xl">
-                  <p className="text-yellow-400 text-sm font-semibold mb-2">{t('twoFactor.saveBackupCodes')}</p>
-                  <p className="text-gray-400 text-xs mb-3">{t('twoFactor.backupCodesSub')}</p>
-                  <div className="grid grid-cols-2 gap-2 mb-3">
+                <div className="rounded-xl border p-4" style={{ borderColor: 'color-mix(in srgb, var(--color-warning) 35%, transparent)', background: 'var(--color-warning-bg)' }}>
+                  <p className="mb-2 text-sm font-semibold" style={{ color: 'var(--color-warning)' }}>{t('twoFactor.saveBackupCodes')}</p>
+                  <p className="mb-3 text-xs text-muted">{t('twoFactor.backupCodesSub')}</p>
+                  <div className="mb-3 grid grid-cols-2 gap-2">
                     {backupCodes.map((code, i) => (
-                      <code key={i} className="text-gray-300 bg-gray-800 px-3 py-1.5 rounded text-sm font-mono text-center">{code}</code>
+                      <code key={i} className="rounded bg-surface-2 px-3 py-1.5 text-center font-mono text-sm text-content">{code}</code>
                     ))}
                   </div>
-                  <button onClick={copyBackupCodes} className="flex items-center gap-2 text-sm text-orange-400 hover:text-orange-300">
+                  <button onClick={copyBackupCodes} className="flex items-center gap-2 text-sm text-primary hover:opacity-90">
                     <Copy size={14} /> {t('twoFactor.copyAllCodes')}
                   </button>
                 </div>
               )}
               <form onSubmit={handleVerify} className="space-y-4">
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1.5">{t('twoFactor.codeLabel')}</label>
+                  <label className="mb-1.5 block text-sm text-muted">{t('twoFactor.codeLabel')}</label>
                   <input
                     type="text"
                     value={verifyCode}
                     onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white text-center text-2xl tracking-widest font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full rounded-xl border border-border bg-surface-2 px-4 py-3 text-center font-mono text-2xl tracking-widest text-content focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder="000000"
                     maxLength={6}
                     autoFocus
                   />
                 </div>
-                <button type="submit" disabled={verifyCode.length !== 6} className="w-full py-3 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold rounded-xl transition">
+                <button type="submit" disabled={verifyCode.length !== 6} className="w-full rounded-xl bg-action py-3 font-semibold text-on-action transition hover:bg-action-hover disabled:opacity-50">
                   {t('twoFactor.verifyEnableBtn')}
                 </button>
               </form>
@@ -233,82 +180,62 @@ export default function TwoFactorSetup({ adminSetup = false }) {
           {step === 'enabled' && (
             <div className="space-y-6">
               {adminSetup && (
-                <Link to="/admin/dashboard" className="block text-center rounded-xl bg-orange-500 px-4 py-3 font-semibold text-white">
+                <Link to="/admin/dashboard" className="block rounded-xl bg-action px-4 py-3 text-center font-semibold text-on-action">
                   {t('nav.dashboard')}
                 </Link>
               )}
-              <div className="flex items-center gap-3 p-4 bg-green-900/20 border border-green-800/30 rounded-xl">
-                <ShieldCheck className="text-green-400" size={24} />
+              <div className="flex items-center gap-3 rounded-xl border p-4" style={{ borderColor: 'color-mix(in srgb, var(--color-success) 35%, transparent)', background: 'var(--color-success-bg)' }}>
+                <ShieldCheck style={{ color: 'var(--color-success)' }} size={24} />
                 <div>
-                  <p className="text-white font-medium">{t('twoFactor.isEnabled')}</p>
-                  <p className="text-gray-400 text-sm">{t('twoFactor.isEnabledSub')}</p>
+                  <p className="font-medium text-content">{t('twoFactor.isEnabled')}</p>
+                  <p className="text-sm text-muted">{t('twoFactor.isEnabledSub')}</p>
                 </div>
               </div>
               <div className="space-y-3">
-                <h3 className="text-white font-medium">{t('twoFactor.manage')}</h3>
+                <h3 className="font-medium text-content">{t('twoFactor.manage')}</h3>
                 <form onSubmit={handleDisable} className="space-y-3">
                   <input
                     type="text"
                     value={disableCode}
                     onChange={(e) => setDisableCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white text-center font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full rounded-xl border border-border bg-surface-2 px-4 py-3 text-center font-mono text-content focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder={t('twoFactor.manageCodePh')}
                     maxLength={6}
                   />
                   <div className="flex gap-3">
-                    <button type="submit" disabled={disableCode.length !== 6} className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-medium rounded-xl transition text-sm">
+                    <button type="submit" disabled={disableCode.length !== 6} className="flex-1 rounded-xl py-2.5 text-sm font-medium text-on-solid transition disabled:opacity-50" style={{ background: 'var(--color-error)' }}>
                       {t('twoFactor.disableBtn')}
                     </button>
-                    <button type="button" onClick={handleRegenBackup} disabled={disableCode.length !== 6} className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white font-medium rounded-xl transition text-sm flex items-center justify-center gap-2">
+                    <button type="button" onClick={handleRegenBackup} disabled={disableCode.length !== 6} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-surface-3 py-2.5 text-sm font-medium text-content transition hover:opacity-90 disabled:opacity-50">
                       <RefreshCw size={14} /> {t('twoFactor.newBackupCodesBtn')}
                     </button>
                   </div>
                 </form>
               </div>
-              <div className="space-y-3 border-t border-gray-800 pt-5">
-                <div>
-                  <h3 className="text-white font-medium">Passkeys</h3>
-                  <p className="text-gray-400 text-sm">{adminSetup ? 'Use Touch ID, Face ID, Windows Hello, or a security key after password sign-in. TOTP remains your fallback.' : 'Use Touch ID, Face ID, Windows Hello, or a security key to sign in without your password. Your password remains as a fallback.'}</p>
-                </div>
-                  {passkeys.length > 0 && (
-                    <div className="space-y-2">
-                      {passkeys.map((passkey) => (
-                        <div key={passkey.id} className="flex items-center justify-between gap-3 rounded-lg bg-gray-800/60 px-3 py-2">
-                          <div className="min-w-0">
-                            <p className="truncate text-sm text-white">{passkey.deviceName}</p>
-                            <p className="text-xs text-gray-500">Added {passkey.createdAt ? new Date(passkey.createdAt).toLocaleDateString() : 'recently'}</p>
-                          </div>
-                          <button type="button" onClick={() => handleRevokePasskey(passkey)} disabled={passkeyBusy} className="shrink-0 text-xs text-red-400 hover:text-red-300 disabled:opacity-50">Revoke</button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <button type="button" onClick={handleRegisterPasskey} disabled={passkeyBusy} className="w-full rounded-xl border border-orange-500/60 px-4 py-2.5 text-sm font-semibold text-orange-400 hover:bg-orange-500/10 disabled:opacity-50">
-                    {passkeyBusy ? 'Working...' : 'Register a passkey'}
-                  </button>
-                </div>
             </div>
           )}
 
           {step === 'backupCodes' && backupCodes && (
             <div className="space-y-6">
-              <div className="p-4 bg-yellow-900/20 border border-yellow-800/30 rounded-xl">
-                <p className="text-yellow-400 text-sm font-semibold mb-2">{t('twoFactor.newBackupTitle')}</p>
-                <p className="text-gray-400 text-xs mb-3">{t('twoFactor.newBackupSub')}</p>
-                <div className="grid grid-cols-2 gap-2 mb-3">
+              <div className="rounded-xl border p-4" style={{ borderColor: 'color-mix(in srgb, var(--color-warning) 35%, transparent)', background: 'var(--color-warning-bg)' }}>
+                <p className="mb-2 text-sm font-semibold" style={{ color: 'var(--color-warning)' }}>{t('twoFactor.newBackupTitle')}</p>
+                <p className="mb-3 text-xs text-muted">{t('twoFactor.newBackupSub')}</p>
+                <div className="mb-3 grid grid-cols-2 gap-2">
                   {backupCodes.map((code, i) => (
-                    <code key={i} className="text-gray-300 bg-gray-800 px-3 py-1.5 rounded text-sm font-mono text-center">{code}</code>
+                    <code key={i} className="rounded bg-surface-2 px-3 py-1.5 text-center font-mono text-sm text-content">{code}</code>
                   ))}
                 </div>
-                <button onClick={copyBackupCodes} className="flex items-center gap-2 text-sm text-orange-400 hover:text-orange-300">
+                <button onClick={copyBackupCodes} className="flex items-center gap-2 text-sm text-primary hover:opacity-90">
                   <Copy size={14} /> {t('twoFactor.copyAllCodes')}
                 </button>
               </div>
-              <button onClick={() => setStep('enabled')} className="w-full py-3 bg-gray-700 hover:bg-gray-600 text-white font-medium rounded-xl transition">
+              <button onClick={() => setStep('enabled')} className="w-full rounded-xl bg-surface-3 py-3 font-medium text-content transition hover:opacity-90">
                 {t('twoFactor.doneBtn')}
               </button>
             </div>
           )}
+
+          <PasskeysSection adminSetup={adminSetup} className="mt-6 space-y-3 border-t border-border pt-5" />
         </div>
       </div>
       </main>

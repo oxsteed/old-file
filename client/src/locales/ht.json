@@ -2382,7 +2382,10 @@
       "updatePassword": "Mete Ajou Modpas",
       "twoFactor": "Otantifikasyon Defo Faktè",
       "twoFactorDesc": "Ajoute yon kouch adisyonel sekirite nan kont ou",
-      "manage2fa": "Jere 2FA"
+      "manage2fa": "Jere 2FA",
+      "passkeys": "Passkeys",
+      "passkeysDesc": "Konekte ak Touch ID, Face ID, Windows Hello, oswa yon kle sekirite",
+      "managePasskeys": "Jere passkeys"
     },
     "subscription": {
       "title": "Abonman",
@@ -9289,7 +9292,33 @@
     "passkeyUnsupported": "Navigatè sa a pa sipòte passkey.",
     "passkeyRegistered": "Passkey anrejistre. Ou ka konekte avè l kounye a.",
     "passkeyRegisteredAdmin": "Passkey anrejistre. TOTP ak kòd sekou yo toujou disponib.",
-    "passkeyRegisterFailed": "Pa ka anrejistre passkey sa a."
+    "passkeyRegisterFailed": "Pa ka anrejistre passkey sa a.",
+    "passkeysTitle": "Passkeys",
+    "passkeysDescUser": "Sèvi ak Touch ID, Face ID, Windows Hello, oswa yon kle sekirite pou konekte san modpas ou. Modpas ou rete kòm yon opsyon rezèv.",
+    "passkeysDescAdmin": "Sèvi ak Touch ID, Face ID, Windows Hello, oswa yon kle sekirite apre ou fin konekte ak modpas. TOTP rete kòm rezèv.",
+    "registerPasskey": "Anrejistre yon passkey",
+    "passkeyWorking": "Ap travay...",
+    "passkeyRevoked": "Passkey revoke.",
+    "passkeyRevokeFailed": "Pa t kapab revoke passkey sa a.",
+    "passkeyRevokeConfirm": "Revoke {{name}}?",
+    "passkeyThisDevice": "passkey sa a",
+    "passkeyRevokeBtn": "Revoke",
+    "passkeyAddedRecently": "Ajoute resaman",
+    "passkeyAddedOn": "Ajoute {{date}}",
+    "passkeyRegisterTitle": "Anrejistre yon passkey",
+    "passkeyDeviceNameLabel": "Non aparèy la",
+    "passkeyDeviceNamePlaceholder": "MacBook Touch ID",
+    "passkeyDeviceNameRequired": "Antre yon non pou passkey sa a.",
+    "passkeyPasswordLabel": "Modpas aktyèl",
+    "passkeyPasswordRequired": "Antre modpas aktyèl ou pou kontinye.",
+    "passkeyRegisterSubmit": "Anrejistre passkey",
+    "passkeyRegisterCancel": "Anile",
+    "passkeyUnsupportedInline": "Navigatè sa a pa sipòte passkeys. Sèvi ak yon navigatè oswa aparèy ki sipòte yo pou anrejistre youn.",
+    "passkeyRevokeTitle": "Revoke passkey",
+    "passkeyRevokeConfirmBtn": "Revoke passkey",
+    "passkeyRevokeCancel": "Anile",
+    "passkeysPageTitle": "Passkeys",
+    "passkeysPageSubtitle": "Jere passkeys pou koneksyon kont ou"
   },
   "homePage": {
     "company": {
