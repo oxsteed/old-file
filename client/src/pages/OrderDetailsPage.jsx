@@ -1,11 +1,105 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useParams, useNavigate } from 'react-router-dom';
+import { useLocation, useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import {
+  ArrowLeft,
+  ArrowRight,
+  CalendarClock,
+  CheckCircle2,
+  Clock3,
+  CreditCard,
+  HelpCircle,
+  MapPin,
+  Package,
+  RefreshCw,
+  RotateCcw,
+  ShoppingBag,
+  Ticket,
+  XCircle,
+} from 'lucide-react';
 import api from '../api/axios';
 import PageMeta from '../components/PageMeta';
 import OrderErrorBoundary from '../components/OrderErrorBoundary';
 import { formatCents, formatDateTime } from '../lib/format';
 import { getFoodOrder } from '../api/food';
+import './OrderDetailsPage.css';
+
+const STATUS_GROUPS = {
+  positive: new Set(['paid', 'ready', 'completed', 'delivered', 'picked_up']),
+  active: new Set(['processing', 'received', 'accepted', 'preparing']),
+  negative: new Set(['cancelled', 'refunded', 'failed']),
+};
+
+function statusTone(status) {
+  const value = String(status || '').toLowerCase();
+  if (STATUS_GROUPS.positive.has(value)) return 'positive';
+  if (STATUS_GROUPS.active.has(value)) return 'active';
+  if (STATUS_GROUPS.negative.has(value)) return 'negative';
+  return 'pending';
+}
+function statusIcon(status) {
+  const tone = statusTone(status);
+  if (tone === 'positive') return CheckCircle2;
+  if (tone === 'negative') return XCircle;
+  if (tone === 'active') return RefreshCw;
+  return Clock3;
+}
+
+function statusText(status, t) {
+  const key = String(status || 'pending').toLowerCase();
+  return t(`orders.statusLabels.${key}`, {
+    defaultValue: key.replace(/_/g, ' ').replace(/^\w/, (character) => character.toUpperCase()),
+  });
+}
+
+function itemName(item, t) {
+  return item.name || item.itemName || t('food.order.yourOrder');
+}
+
+function itemTotal(item, currencyOptions) {
+  return formatCents(
+    item.total_price_cents ?? item.lineTotalCents ?? (Number(item.unit_price_cents || 0) * Number(item.quantity || 0)),
+    currencyOptions,
+  );
+}
+
+function itemUnitPrice(item, currencyOptions) {
+  const unitPrice = item.unit_price_cents ?? (
+    Number(item.lineTotalCents || item.total_price_cents || 0) / Math.max(Number(item.quantity || 1), 1)
+  );
+  return formatCents(unitPrice, currencyOptions);
+}
+
+function addressText(address) {
+  if (!address) return '';
+  if (typeof address === 'string') return address;
+  return [address.name, address.line1, address.line2, address.city, address.state, address.postal_code || address.zip, address.country]
+    .filter(Boolean)
+    .join(', ');
+}
+
+function DetailLine({ icon: Icon, label, children }) {
+  return (
+    <div className="order-details-line">
+      <Icon size={16} aria-hidden="true" />
+      <div>
+        <span>{label}</span>
+        <strong>{children || '—'}</strong>
+      </div>
+    </div>
+  );
+}
+
+function SummaryCard({ icon: Icon, label, value, detail, tone = '' }) {
+  return (
+    <div className={`order-details-summary-card ${tone ? `tone-${tone}` : ''}`}>
+      <div className="order-details-summary-icon"><Icon size={18} aria-hidden="true" /></div>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      {detail && <small>{detail}</small>}
+    </div>
+  );
+}
 
 export default function OrderDetailsPage() {
   return (
@@ -26,14 +120,12 @@ function OrderDetailsPageContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [cancelLoading, setCancelLoading] = useState(false);
-
-  useEffect(() => {
-    loadOrder();
-  }, [isFoodOrder, orderId]);
+  const [liveStatus, setLiveStatus] = useState(null);
 
   const loadOrder = async () => {
     try {
       setLoading(true);
+      setError(null);
       if (isFoodOrder) {
         setOrder(await getFoodOrder(orderId));
       } else {
@@ -41,21 +133,22 @@ function OrderDetailsPageContent() {
         setOrder(response.data.data);
       }
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to load order');
+      setError(err.response?.data?.error || t('orders.loadError', { defaultValue: 'Failed to load order' }));
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => { loadOrder(); }, [isFoodOrder, orderId]);
+
   const handleCancel = async () => {
     if (!window.confirm(t('orders.confirmCancel'))) return;
-
     try {
       setCancelLoading(true);
       await api.post(`/orders/${orderId}/cancel`);
       await loadOrder();
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to cancel order');
+      setError(err.response?.data?.error || t('orders.cancelError', { defaultValue: 'Failed to cancel order' }));
     } finally {
       setCancelLoading(false);
     }
@@ -63,28 +156,9 @@ function OrderDetailsPageContent() {
 
   const canCancel = !isFoodOrder && order && ['pending', 'paid'].includes(order.status);
   const currencyOptions = { currency: order?.currency_code || order?.currency || 'USD' };
-
-  // Food order: support deep-link with tracking token.
   const supportUrl = isFoodOrder && order
     ? `/support?orderId=${order.id}${order.tracking_token ? `&token=${order.tracking_token}` : ''}`
     : `/support?orderId=${orderId}`;
-
-  // Food order: live status polling.
-  const [liveStatus, setLiveStatus] = useState(null);
-  useEffect(() => {
-    if (!isFoodOrder || !orderId) return;
-    const interval = setInterval(async () => {
-      try {
-        const updated = await getFoodOrder(orderId);
-        setLiveStatus(updated.status);
-        if (updated.status !== order?.status) {
-          setOrder(updated);
-        }
-      } catch {}
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [isFoodOrder, orderId]);
-
   const paymentMethodLabel = (() => {
     const raw = String(order?.payment_method || order?.paymentMode || order?.payment_mode || '').toLowerCase();
     const labels = {
@@ -105,247 +179,151 @@ function OrderDetailsPageContent() {
     return 'Unrecorded';
   })();
 
-  const statusColor = (status) => {
-    const colors = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      paid: 'bg-green-100 text-green-800',
-      processing: 'bg-blue-100 text-blue-800',
-      received: 'bg-yellow-100 text-yellow-800',
-      accepted: 'bg-blue-100 text-blue-800',
-      preparing: 'bg-blue-100 text-blue-800',
-      ready: 'bg-green-100 text-green-800',
-      completed: 'bg-green-100 text-green-800',
-      cancelled: 'bg-red-100 text-red-800',
-      refunded: 'bg-gray-100 text-gray-800'
-    };
-    return colors[status] || 'bg-gray-100 text-gray-800';
-  };
+  useEffect(() => {
+    if (!isFoodOrder || !orderId) return undefined;
+    const interval = setInterval(async () => {
+      try {
+        const updated = await getFoodOrder(orderId);
+        setLiveStatus(updated.status);
+        if (updated.status !== order?.status) setOrder(updated);
+      } catch {
+        // The page keeps the last known state when a background refresh fails.
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [isFoodOrder, orderId, order?.status]);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
-          <p>{t('common.loading')}</p>
+      <div className="order-details-page">
+        <div className="order-details-wrap">
+          <div className="order-details-skeleton order-details-skeleton-back" />
+          <div className="order-details-skeleton order-details-skeleton-hero" />
+          <div className="order-details-skeleton-grid"><div /><div /><div /><div /></div>
+          <div className="order-details-skeleton-content"><div /><div /></div>
         </div>
       </div>
     );
   }
 
-  if (error) {
+  if (error || !order) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="max-w-md w-full bg-red-50 border border-red-200 rounded-lg p-6">
-          <h1 className="text-lg font-semibold text-red-900 mb-2">{t('common.error')}</h1>
-          <p className="text-red-700 mb-4">{error}</p>
-          <button
-            onClick={() => navigate('/orders')}
-            className="w-full bg-primary text-white py-2 rounded-lg hover:bg-primary-dark"
-          >
-            {t('orders.backToOrders')}
+      <div className="order-details-page">
+        <div className="order-details-wrap order-details-centered-state">
+          <XCircle size={42} aria-hidden="true" />
+          <p className="order-details-kicker">{t('common.error')}</p>
+          <h1>{order ? t('common.error') : t('orders.notFound')}</h1>
+          <p>{error || t('orders.notFound')}</p>
+          <button type="button" className="orders-btn orders-btn-primary" onClick={() => navigate(isFoodOrder ? '/orders' : '/orders')}>
+            <ArrowLeft size={16} /> {t('orders.backToOrders')}
           </button>
         </div>
       </div>
     );
   }
 
-  if (!order) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600 mb-4">{t('orders.notFound')}</p>
-          <button
-            onClick={() => navigate('/orders')}
-            className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary-dark"
-          >
-            {t('orders.backToOrders')}
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const effectiveStatus = liveStatus || order.status;
+  const StatusIcon = statusIcon(effectiveStatus);
+  const items = Array.isArray(order.items) ? order.items : [];
+  const totalItems = items.reduce((total, item) => total + Number(item.quantity || 0), 0);
+  const address = addressText(order.shipping_address || order.delivery_address);
+  const fulfillment = order.fulfillment_type || order.fulfillmentType || (address ? 'delivery' : 'pickup');
 
   return (
     <>
       <PageMeta title={`${t('orders.order')} #${orderId}`} />
-      <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="mb-6 flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">
-                {order.restaurant_name ? `${order.restaurant_name} · ` : ''}{t('orders.order')} #{order.id}
-              </h1>
-              <p className="text-gray-600">
-                {t('orders.placedOn')} {formatDateTime(order.created_at, { month: 'long' })}
-              </p>
-            </div>
-            <span className={`px-4 py-2 rounded-full font-semibold ${statusColor(order.status)}`}>
-              {t(`orders.statusLabels.${order.status}`, {
-                defaultValue: String(order.status || '').replace(/_/g, ' ').replace(/^\w/, (character) => character.toUpperCase()),
-              })}
-            </span>
+      <div className="order-details-page">
+        <div className="order-details-wrap">
+          <div className="order-details-topbar">
+            <Link to={isFoodOrder ? '/orders' : '/orders'} className="order-details-back"><ArrowLeft size={16} /> {t('orders.backToOrders')}</Link>
+            <button type="button" className="orders-btn" onClick={loadOrder} disabled={loading}><RefreshCw size={16} className={loading ? 'orders-spin' : ''} /> {t('common.refresh')}</button>
           </div>
 
-          {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-              {error}
+          <header className="order-details-hero">
+            <div>
+              <p className="orders-kicker">{isFoodOrder ? t('orders.foodKicker') : t('orders.order')}</p>
+              <h1>{order.restaurant_name ? `${order.restaurant_name} · ` : ''}{t('orders.order')} #{order.id}</h1>
+              <p>{t('orders.placedOn')} {formatDateTime(order.created_at, { month: 'long' })}</p>
             </div>
-          )}
+            <div className={`order-details-status tone-${statusTone(effectiveStatus)}`}>
+              <StatusIcon size={18} aria-hidden="true" />
+              <span>{statusText(effectiveStatus, t)}</span>
+            </div>
+          </header>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-              {/* Order Items */}
-              <div className="bg-white rounded-lg shadow overflow-hidden">
-                <div className="border-b px-6 py-4">
-                  <h2 className="text-lg font-semibold">{t('orders.items')}</h2>
-                </div>
-                <div className="divide-y">
-                  {order.items?.map(item => (
-                    <div key={item.id} className="px-6 py-4 flex items-center justify-between">
-                      <div className="flex-1">
-                        {item.image_url && (
-                          <img
-                            src={item.image_url}
-                            alt={item.name || item.itemName}
-                            className="w-20 h-20 object-cover rounded mb-3"
-                          />
-                        )}
-                        <h3 className="font-semibold">{item.name || item.itemName}</h3>
-                        {item.description && (
-                          <p className="text-sm text-gray-600">{item.description}</p>
-                        )}
-                        <p className="text-sm text-gray-600 mt-2">
-                          {t('orders.quantity')}: {item.quantity}
-                        </p>
+          {error && <div role="alert" className="order-details-alert"><XCircle size={17} /> {error}<button type="button" onClick={loadOrder}>{t('common.tryAgain')}</button></div>}
+
+          <section className="order-details-summary" aria-label={t('orders.summaryAriaLabel', { defaultValue: 'Order summary' })}>
+            <SummaryCard icon={ShoppingBag} label={t('orders.items')} value={totalItems || '—'} detail={`${items.length} ${items.length === 1 ? 'line item' : 'line items'}`} />
+            <SummaryCard icon={CreditCard} label={t('checkout.total')} value={formatCents(order.total_cents, currencyOptions)} detail={paymentMethodLabel} tone="accent" />
+            <SummaryCard icon={MapPin} label={t('orders.fulfillment', { defaultValue: 'Fulfillment' })} value={String(fulfillment).replace(/_/g, ' ')} detail={order.queue_number ? `${t('orders.orderNumber', { defaultValue: 'Order number' })} ${order.queue_number}` : t('orders.notSet', { defaultValue: 'Not set' })} />
+            <SummaryCard icon={CalendarClock} label={t('orders.date')} value={formatDateTime(order.created_at, { month: 'short', day: 'numeric' })} detail={order.updated_at ? `${t('orders.updated', { defaultValue: 'Updated' })} ${formatDateTime(order.updated_at)}` : ''} />
+          </section>
+
+          <div className="order-details-grid">
+            <main className="order-details-main">
+              <section className="order-details-card">
+                <div className="order-details-card-head"><div><p className="order-details-card-kicker">{t('orders.items')}</p><h2>{t('orders.orderItems', { defaultValue: 'Your order' })}</h2></div><span>{totalItems} {t('orders.items')}</span></div>
+                <div className="order-details-items">
+                  {items.length ? items.map((item) => (
+                    <div key={item.id || `${itemName(item, t)}-${item.quantity}`} className="order-details-item">
+                      <div className="order-details-item-qty">{item.quantity || 0}×</div>
+                      <div className="order-details-item-copy">
+                        <strong>{itemName(item, t)}</strong>
+                        {item.description && <p>{item.description}</p>}
+                        {item.specialInstructions && <small>{item.specialInstructions}</small>}
+                        <span>{itemUnitPrice(item, currencyOptions)} {t('common.each')}</span>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm text-gray-600 mb-1">
-                          {formatCents(
-                            item.unit_price_cents ?? (Number(item.lineTotalCents || 0) / Math.max(Number(item.quantity || 1), 1)),
-                            currencyOptions,
-                          )} {t('common.each')}
-                        </p>
-                        <p className="font-semibold">
-                          {formatCents(item.total_price_cents ?? item.lineTotalCents, currencyOptions)}
-                        </p>
-                      </div>
+                      <b>{itemTotal(item, currencyOptions)}</b>
                     </div>
-                  ))}
+                  )) : <div className="order-details-empty-inline"><Package size={24} /><p>{t('orders.noItems', { defaultValue: 'No items were recorded for this order.' })}</p></div>}
                 </div>
-              </div>
+              </section>
 
-              {/* Shipping Address */}
-              {order.shipping_address && Object.keys(order.shipping_address).length > 0 && (
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h2 className="text-lg font-semibold mb-4">{t('orders.shippingAddress')}</h2>
-                  <div className="text-gray-700 whitespace-pre-wrap">
-                    {JSON.stringify(order.shipping_address, null, 2)}
+              {(address || order.table_label || order.fulfillment_type) && (
+                <section className="order-details-card">
+                  <div className="order-details-card-head"><div><p className="order-details-card-kicker">{t('orders.fulfillment', { defaultValue: 'Fulfillment' })}</p><h2>{t('orders.deliveryDetails', { defaultValue: 'Where and how' })}</h2></div></div>
+                  <div className="order-details-lines">
+                    <DetailLine icon={MapPin} label={t('orders.fulfillment', { defaultValue: 'Fulfillment' })}>{String(fulfillment).replace(/_/g, ' ')}</DetailLine>
+                    {address && <DetailLine icon={MapPin} label={t('orders.shippingAddress')}>{address}</DetailLine>}
+                    {order.table_label && <DetailLine icon={Ticket} label={t('food.order.table', { defaultValue: 'Table' })}>{order.table_label}</DetailLine>}
+                    {order.queue_number && <DetailLine icon={Package} label={t('orders.orderNumber', { defaultValue: 'Order number' })}>#{order.queue_number}</DetailLine>}
                   </div>
-                </div>
+                </section>
               )}
-            </div>
+            </main>
 
-            {/* Sidebar */}
-            <div className="space-y-6">
-              {/* Order Summary */}
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold mb-4">{t('orders.orderSummary')}</h2>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">{t('checkout.subtotal')}</span>
-                    <span>{formatCents(order.subtotal_cents, currencyOptions)}</span>
-                  </div>
-                  {order.tax_cents > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">{t('checkout.tax')}</span>
-                      <span>{formatCents(order.tax_cents, currencyOptions)}</span>
-                    </div>
-                  )}
-                  {(order.shipping_cents > 0 || order.delivery_fee_cents > 0) && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">{t('orders.shipping')}</span>
-                      <span>{formatCents(order.shipping_cents || order.delivery_fee_cents, currencyOptions)}</span>
-                    </div>
-                  )}
-                  {order.discount_cents > 0 && (
-                    <div className="flex justify-between text-green-600">
-                      <span>{t('orders.discount')}</span>
-                      <span>-{formatCents(order.discount_cents, currencyOptions)}</span>
-                    </div>
-                  )}
-                  <div className="border-t pt-3 flex justify-between font-bold text-lg">
-                    <span>{t('checkout.total')}</span>
-                    <span>{formatCents(order.total_cents, currencyOptions)}</span>
-                  </div>
-                </div>
-              </div>
+            <aside className="order-details-sidebar">
+              <section className="order-details-card order-details-price-card">
+                <div className="order-details-card-head"><div><p className="order-details-card-kicker">{t('orders.orderSummary')}</p><h2>{t('checkout.total')}</h2></div></div>
+                <dl className="order-details-price-list">
+                  <div><dt>{t('checkout.subtotal')}</dt><dd>{formatCents(order.subtotal_cents, currencyOptions)}</dd></div>
+                  {order.tax_cents > 0 && <div><dt>{t('checkout.tax')}</dt><dd>{formatCents(order.tax_cents, currencyOptions)}</dd></div>}
+                  {(order.shipping_cents > 0 || order.delivery_fee_cents > 0) && <div><dt>{t('orders.shipping')}</dt><dd>{formatCents(order.shipping_cents || order.delivery_fee_cents, currencyOptions)}</dd></div>}
+                  {order.discount_cents > 0 && <div className="is-discount"><dt>{t('orders.discount')}</dt><dd>-{formatCents(order.discount_cents, currencyOptions)}</dd></div>}
+                  <div className="is-total"><dt>{t('checkout.total')}</dt><dd>{formatCents(order.total_cents, currencyOptions)}</dd></div>
+                </dl>
+              </section>
 
-              {/* Payment Information */}
               {(order.transaction || order.payment_method || order.payment_mode || order.payment_status) && (
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h2 className="text-lg font-semibold mb-4">{t('orders.payment')}</h2>
-                  <div className="space-y-2 text-sm">
-                    <div>
-                      <p className="text-gray-600">{t('orders.paymentMethod')}</p>
-                      <p className="font-semibold">{paymentMethodLabel}</p>
-                    </div>
-                    {order.transaction?.payment_intent_id && (
-                      <div>
-                        <p className="text-gray-600">{t('orders.transactionId')}</p>
-                        <p className="font-mono text-xs break-all">
-                          {order.transaction.payment_intent_id}
-                        </p>
-                      </div>
-                    )}
-                    {order.transaction?.status && (
-                      <div>
-                        <p className="text-gray-600">{t('orders.status')}</p>
-                        <p className="font-semibold capitalize">{order.transaction.status}</p>
-                      </div>
-                    )}
-                    {order.payment_status && (
-                      <div>
-                        <p className="text-gray-600">{t('orders.status')}</p>
-                        <p className="font-semibold capitalize">{String(order.payment_status).replace(/_/g, ' ')}</p>
-                      </div>
-                    )}
+                <section className="order-details-card">
+                  <div className="order-details-card-head"><div><p className="order-details-card-kicker">{t('orders.payment')}</p><h2>{t('orders.paymentDetails', { defaultValue: 'Payment details' })}</h2></div></div>
+                  <div className="order-details-lines">
+                    <DetailLine icon={CreditCard} label={t('orders.paymentMethod')}>{paymentMethodLabel}</DetailLine>
+                    {order.payment_status && <DetailLine icon={CheckCircle2} label={t('orders.status')}>{String(order.payment_status).replace(/_/g, ' ')}</DetailLine>}
+                    {order.transaction?.payment_intent_id && <DetailLine icon={Ticket} label={t('orders.transactionId')}><span className="order-details-mono">{order.transaction.payment_intent_id}</span></DetailLine>}
                   </div>
-                </div>
+                </section>
               )}
 
-              {/* Actions */}
-              <div className="space-y-2">
-                {canCancel && (
-                  <button
-                    onClick={handleCancel}
-                    disabled={cancelLoading}
-                    className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                  >
-                    {cancelLoading ? t('common.processing') : t('orders.cancelOrder')}
-                  </button>
-                )}
-                {isFoodOrder && order?.tracking_token && (
-                  <button
-                    onClick={() => navigate(`/food/track/${order.tracking_token}`)}
-                    className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-medium"
-                  >
-                    Track Order Live
-                  </button>
-                )}
-                <button
-                  onClick={() => navigate(supportUrl)}
-                  className="w-full bg-gray-100 text-gray-800 py-2 rounded-lg hover:bg-gray-200 font-medium"
-                >
-                  Get Help With This Order
-                </button>
-                <button
-                  onClick={() => navigate(isFoodOrder ? '/food' : '/orders')}
-                  className="w-full bg-gray-200 text-gray-800 py-2 rounded-lg hover:bg-gray-300 font-medium"
-                >
-                  {t('orders.backToOrders')}
-                </button>
-              </div>
-            </div>
+              <section className="order-details-actions">
+                {canCancel && <button type="button" className="orders-btn orders-btn-danger" onClick={handleCancel} disabled={cancelLoading}><XCircle size={16} /> {cancelLoading ? t('common.processing') : t('orders.cancelOrder')}</button>}
+                {isFoodOrder && order?.tracking_token && <button type="button" className="orders-btn orders-btn-primary" onClick={() => navigate(`/food/track/${order.tracking_token}`)}><RefreshCw size={16} /> {t('food.order.liveStatus', { defaultValue: 'Track order live' })}</button>}
+                <button type="button" className="orders-btn" onClick={() => navigate(supportUrl)}><HelpCircle size={16} /> {t('orders.getHelp', { defaultValue: 'Get help with this order' })}</button>
+                {isFoodOrder && !['cancelled', 'refunded'].includes(String(order.status || '').toLowerCase()) && <Link to="/restaurants" className="orders-btn"><RotateCcw size={16} /> {t('food.restaurant.orderAgain', { defaultValue: 'Order again' })}</Link>}
+                <button type="button" className="orders-btn" onClick={() => navigate(isFoodOrder ? '/food' : '/orders')}><ArrowRight size={16} /> {t('orders.backToOrders')}</button>
+              </section>
+            </aside>
           </div>
         </div>
       </div>
