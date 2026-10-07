@@ -30,11 +30,13 @@ export function validateToken() {
   // a stored user instead, which indicates an active session. The actual
   // token validation happens server-side via the cookie.
   const user = localStorage.getItem('user');
-  const token = localStorage.getItem('accessToken');
-  if (!user && !token) {
+  const impersonationToken = typeof sessionStorage !== 'undefined'
+    ? sessionStorage.getItem('oxs:impersonation_token')
+    : null;
+  if (!user && !impersonationToken) {
     throw new NoTokenError();
   }
-  return token || 'cookie';
+  return impersonationToken || 'cookie';
 }
 
 /**

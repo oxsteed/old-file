@@ -14,6 +14,7 @@ import {
   Loader2, AlertCircle, CheckCircle2, XCircle, Hammer,
 } from 'lucide-react';
 import api from '../api/axios';
+import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import PageMeta from '../components/PageMeta';
@@ -101,6 +102,7 @@ function formatBudget(min?: number, max?: number): string | null {
 export default function JobPublicPage() {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate  = useNavigate();
+  const { user } = useAuth();
 
   const [job, setJob]       = useState<PublicJob | null>(null);
   const [loading, setLoading] = useState(true);
@@ -123,8 +125,9 @@ export default function JobPublicPage() {
   }, [jobId]);
 
   const handleBid = () => {
-    const token = localStorage.getItem('accessToken');
-    if (!token) {
+    // The access token lives in an httpOnly cookie, so session presence comes
+    // from the auth context rather than localStorage.
+    if (!user) {
       navigate('/login', { state: { from: { pathname: `/jobs/${jobId}` } } });
     } else {
       navigate(`/jobs/${jobId}`);

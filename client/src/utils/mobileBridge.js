@@ -112,8 +112,12 @@ function installAuthTokenWatcher() {
   const originalSetItem = localStorage.setItem.bind(localStorage);
 
   localStorage.setItem = (key, value) => {
+    // A login persists the session user (the access token itself now lives
+    // in an httpOnly cookie and is never written to localStorage). Only react
+    // when a session starts, not on every profile refresh that rewrites it.
+    const sessionStarted = key === 'user' && !localStorage.getItem('user');
     originalSetItem(key, value);
-    if (key === 'accessToken') {
+    if (sessionStarted || key === 'accessToken') {
       window.setTimeout(() => {
         requestAndRegisterPush().catch(() => {});
       }, 250);
