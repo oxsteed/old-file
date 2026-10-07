@@ -42,6 +42,15 @@ function scrubUrl(raw) {
 
 function scrubEvent(event) {
   try {
+    // FRONTEND-1D: Axios 400s are client validation failures (bad login
+    // input, unchecked terms, etc.) — expected user behavior, not app
+    // errors. Drop them so they don't spam Sentry.
+    const values = event?.exception?.values || [];
+    for (const value of values) {
+      if (typeof value?.value === 'string' && /status code 400\b/.test(value.value)) {
+        return null;
+      }
+    }
     if (event?.request?.url) event.request.url = scrubUrl(event.request.url);
     for (const breadcrumb of event?.breadcrumbs?.values || []) {
       if (breadcrumb?.data?.url) breadcrumb.data.url = scrubUrl(breadcrumb.data.url);
