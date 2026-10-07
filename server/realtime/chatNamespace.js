@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const tokenRevocationService = require('../services/tokenRevocationService');
 const { validateBeforeHandler } = require('../utils/socketAuthValidator');
+const { logAdminAction } = require('../services/auditService');
 
 // Logistics roles admitted to the operations workspace (mirrors
 // server/middleware/requireInternalLogisticsWorkspace.js). Holders with an
@@ -13,6 +14,90 @@ const OPERATIONS_LOGISTICS_ROLES = new Set([
   'logistics_coordinator',
   'warehouse_operator',
 ]);
+
+/**
+ * ITEM 7 (P1) — guest_chat_admin break-glass access resolution.
+ *
+ * The guest chat admin room carries live guest PII, so nobody auto-joins,
+ * not even super_admin. Returns { allowed, grant }:
+ *
+ * - super_admin: allowed only while holding an active, unexpired, unrevoked
+ *   grant in `investigation_access_grants` — the same purpose + named-approver
+ *   model as investigationAccessService.checkInvestigationAccess, but without
+ *   the per-target-user scope (a room has no single target). `grant` is the
+ *   winning grant row (null when denied).
+ * - admin: allowed only with a live global `manage_support` grant in
+ *   `admin_permission_grants`, mirroring the REST model (T11-F01 in
+ *   routes/support.js). `grant` is null (standing grant, not break-glass).
+ * - any other role: denied.
+ */
+async function resolveGuestChatAdminAccess({ pool, userId, userRole }) {
+  if (!pool || !userId) return { allowed: false, grant: null };
+
+  if (userRole === 'super_admin') {
+    const { rows } = await pool.query(
+      `SELECT *
+         FROM investigation_access_grants
+        WHERE requester_admin_id = $1
+          AND status = 'active'
+          AND revoked_at IS NULL
+          AND expires_at > NOW()
+        ORDER BY expires_at DESC
+        LIMIT 1`,
+      [userId]
+    );
+    const grant = rows[0] || null;
+    // Break-glass grants require a stated purpose and a named approver who
+    // is not the grantee themselves: fail closed if the row lacks either.
+    if (!grant || !grant.purpose || !grant.approver_admin_id || grant.approver_admin_id === userId) {
+      return { allowed: false, grant: null };
+    }
+    return { allowed: true, grant };
+  }
+
+  if (userRole === 'admin') {
+    // REST parity (T11-F01): global, unexpired, unrevoked manage_support grant.
+    const { rows } = await pool.query(
+      `SELECT 1 FROM admin_permission_grants
+       WHERE grantee_id = $1 AND permissions ? 'manage_support'
+         AND expires_at > NOW() AND revoked_at IS NULL AND region_id IS NULL
+       LIMIT 1`,
+      [userId]
+    );
+    return { allowed: rows.length > 0, grant: null };
+  }
+
+  return { allowed: false, grant: null };
+}
+
+/**
+ * ITEM 7 (P1) — audit a super_admin's break-glass join of the guest chat
+ * admin room. Writes `guest_chat_admin_break_glass_join` to `admin_audit_log`
+ * with the grant id, investigation ref, purpose, approver, and expiry, and
+ * runs with throwOnError:true so a failed audit write throws and the caller
+ * fails closed (no room join).
+ */
+async function logGuestChatAdminBreakGlassJoin({ auditLog = logAdminAction, adminId, grant }) {
+  await auditLog({
+    adminId,
+    action: 'guest_chat_admin_break_glass_join',
+    targetType: 'investigation_access_grant',
+    targetKey: String(grant.id),
+    description:
+      `Break-glass join of the guest_chat_admin room by admin ${adminId} ` +
+      `under investigation grant #${grant.id} (ref: ${grant.investigation_ref || 'n/a'}, ` +
+      `approved by ${grant.approver_admin_id}) for purpose: ${String(grant.purpose || '').slice(0, 220)}`,
+    before: null,
+    after: {
+      grant_id: grant.id,
+      investigation_ref: grant.investigation_ref,
+      purpose: grant.purpose,
+      approver_admin_id: grant.approver_admin_id,
+      expires_at: grant.expires_at,
+    },
+    throwOnError: true,
+  });
+}
 
 function createChatAuthenticator({ pool, jwtSecret }) {
   if (!pool || typeof pool.query !== 'function') {
@@ -90,7 +175,7 @@ function createChatAuthenticator({ pool, jwtSecret }) {
   };
 }
 
-function bindChatNamespace(namespace, { pool, socketService, logger }) {
+function bindChatNamespace(namespace, { pool, socketService, logger, auditLog = logAdminAction }) {
   namespace.on('connection', async (socket) => {
     if (socket.isGuest) {
       socket.join(`guest_session_${socket.guestSessionId}`);
@@ -118,23 +203,30 @@ function bindChatNamespace(namespace, { pool, socketService, logger }) {
     if (['admin', 'super_admin'].includes(socket.userRole)) {
       socket.join('admins');
       socket.join('ops_delivery');
-      // Guest chat admin room: only super_admin auto-joins. Regular admins
-      // need the explicit manage_support grant (least privilege for guest PII).
-      if (socket.userRole === 'super_admin') {
-        socket.join('guest_chat_admin');
-      } else {
-        try {
-          const { rows: grantRows } = await pool.query(
-            `SELECT 1 FROM admin_grants WHERE grantee_id = $1 AND permissions ? 'manage_support' LIMIT 1`,
-            [socket.userId]
-          );
-          if (grantRows.length > 0) socket.join('guest_chat_admin');
-        } catch (err) {
-          logger.error('guest_chat_admin room membership check failed', {
-            userId: socket.userId,
-            error: err.message,
-          });
+      // ITEM 7 (P1): the guest chat admin room carries live guest PII, so it
+      // is break-glass only — nobody auto-joins, not even super_admin.
+      // super_admin: needs an active, unexpired, unrevoked investigation
+      // grant (join is audited before the room join). admin: needs a live
+      // global manage_support grant (REST parity, T11-F01 in
+      // routes/support.js). Any failure — grant check or audit write —
+      // fails closed: no join.
+      try {
+        const { allowed, grant } = await resolveGuestChatAdminAccess({
+          pool,
+          userId: socket.userId,
+          userRole: socket.userRole,
+        });
+        if (allowed) {
+          if (grant) {
+            await logGuestChatAdminBreakGlassJoin({ auditLog, adminId: socket.userId, grant });
+          }
+          socket.join('guest_chat_admin');
         }
+      } catch (err) {
+        logger.error('guest_chat_admin room membership check failed', {
+          userId: socket.userId,
+          error: err.message,
+        });
       }
     } else if (OPERATIONS_LOGISTICS_ROLES.has(socket.logisticsRole)) {
       try {
@@ -294,4 +386,9 @@ function bindChatNamespace(namespace, { pool, socketService, logger }) {
   });
 }
 
-module.exports = { bindChatNamespace, createChatAuthenticator };
+module.exports = {
+  bindChatNamespace,
+  createChatAuthenticator,
+  resolveGuestChatAdminAccess,
+  logGuestChatAdminBreakGlassJoin,
+};

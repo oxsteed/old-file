@@ -16,6 +16,8 @@ const SELLABLE_LIFECYCLE = 'live';
  * @param {boolean} [opts.slotsAvailable] - capacity-aware open slot exists in horizon
  * @param {boolean} [opts.freeCapacityInHorizon]
  * @param {number} [opts.assigneePoolSize]
++ * @param {string} [opts.offerabilityStatus] - 'error' when the offerability
++ *   check itself failed (distinct from "no slots"); unset on the happy path
  * @param {boolean} [opts.toolsBookable=false] - tools are not Bookable in v1
  * @param {'service'|'tool'} [opts.entity='service']
  */
@@ -73,7 +75,11 @@ function deriveServiceCapability(row, parentCategory = null, opts = {}) {
   } else if (assigneePoolSize === 0) {
     reasons.push('bookable_without_pool');
   } else if (!slotsAvailable || !freeCapacityInHorizon) {
-    if (assigneePoolSize != null && assigneePoolSize > 0 && opts.capacityExhausted === true) {
+    if (opts.offerabilityStatus === 'error') {
+      // The capacity check itself failed: do not report this as a plain
+      // "no open slots" — the service's bookability is unknown, not false.
+      reasons.push('offerability_check_failed');
+    } else if (assigneePoolSize != null && assigneePoolSize > 0 && opts.capacityExhausted === true) {
       reasons.push('capacity_exhausted');
     } else {
       reasons.push(opts.capacityExhausted === true ? 'capacity_exhausted' : 'no_open_slots');
@@ -98,6 +104,9 @@ function deriveServiceCapability(row, parentCategory = null, opts = {}) {
     capacityExhausted: opts.capacityExhausted === true,
     assigneePoolSize: assigneePoolSize == null ? undefined : assigneePoolSize,
     nextSlotStartsAt: opts.nextSlotStartsAt || null,
+    // Present only when the offerability check failed; the happy path
+    // (and the plain "unavailable" path) carries no such field.
+    offerabilityStatus: opts.offerabilityStatus || undefined,
   };
 }
 

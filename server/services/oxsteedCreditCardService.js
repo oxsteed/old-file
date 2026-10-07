@@ -15,11 +15,14 @@
 //     'load'), gated by its own PIN, velocity, and single-transaction caps
 //     because physical cash cannot be clawed back the way a refund can.
 //
-// Raw credentials and PINs are never persisted. Only a SHA-256 hash (plus a
-// per-card random salt for PINs) is stored; the raw values are returned to
-// the caller exactly once, at issuance/activation/PIN-set time.
+// Raw credentials and PINs are never persisted. Card credentials are stored as
+// a SHA-256 hash (a high-entropy random token, so a fast hash is acceptable).
+// PINs (low entropy) are stored as a memory-hard scrypt hash prefixed with
+// `$scrypt$`; legacy SHA-256 PIN hashes are verified on the fallback path and
+// transparently upgraded to scrypt on the next successful verification.
 
 const crypto = require('crypto');
+const util = require('util');
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
@@ -85,6 +88,48 @@ async function withPersistentPinFailures(operation, context = {}) {
 
 function sha256Hex(value) {
   return crypto.createHash('sha256').update(String(value)).digest('hex');
+}
+
+// Memory-hard PIN hashing (Item 21). Stored format:
+//   $scrypt$N=<N>,r=<r>,p=<p>$<salt hex>$<64-byte key hex>
+// The `$scrypt$` prefix marks the new format; anything without it is a legacy
+// fast hash verified on the fallback path and upgraded on success.
+const scryptAsync = util.promisify(crypto.scrypt);
+const CARD_PIN_SCRYPT_PARAMS = { N: 16384, r: 8, p: 1, keyLen: 64 };
+const SCRYPT_PIN_PREFIX = '$scrypt$';
+
+function isScryptPinHash(pinHash) {
+  return typeof pinHash === 'string' && pinHash.startsWith(SCRYPT_PIN_PREFIX);
+}
+
+async function hashCardPinScrypt(pin, salt) {
+  const key = await scryptAsync(
+    String(pin),
+    Buffer.from(String(salt), 'hex'),
+    CARD_PIN_SCRYPT_PARAMS.keyLen,
+    { N: CARD_PIN_SCRYPT_PARAMS.N, r: CARD_PIN_SCRYPT_PARAMS.r, p: CARD_PIN_SCRYPT_PARAMS.p }
+  );
+  return `${SCRYPT_PIN_PREFIX}N=${CARD_PIN_SCRYPT_PARAMS.N},r=${CARD_PIN_SCRYPT_PARAMS.r},p=${CARD_PIN_SCRYPT_PARAMS.p}$${salt}$${key.toString('hex')}`;
+}
+
+async function verifyScryptPinHash(storedHash, pin) {
+  try {
+    const parts = String(storedHash).split('$');
+    if (parts.length !== 5 || parts[1] !== 'scrypt') return false;
+    const params = {};
+    for (const pair of parts[2].split(',')) {
+      const [k, v] = pair.split('=');
+      params[k] = Number(v);
+    }
+    if (!Number.isInteger(params.N) || !Number.isInteger(params.r) || !Number.isInteger(params.p)) return false;
+    const salt = Buffer.from(parts[3], 'hex');
+    const expected = Buffer.from(parts[4], 'hex');
+    if (salt.length === 0 || expected.length === 0) return false;
+    const actual = await scryptAsync(String(pin), salt, expected.length, { N: params.N, r: params.r, p: params.p });
+    return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
+  } catch {
+    return false;
+  }
 }
 
 function generateCredential() {
@@ -490,7 +535,7 @@ async function setCardPin(args) {
     }
 
     const salt = crypto.randomBytes(16).toString('hex');
-    const pinHash = sha256Hex(`${salt}:${normalizedPin}`);
+    const pinHash = await hashCardPinScrypt(normalizedPin, salt);
     const { rows: updatedRows } = await client.query(
       `UPDATE oxsteed_credit_cards
           SET pin_hash = $2, pin_salt = $3, failed_pin_attempts = 0, pin_locked_until = NULL
@@ -517,8 +562,25 @@ async function verifyCardPin(client, card, pin) {
     throw new AppError('This card is temporarily locked after too many incorrect PIN attempts', 423, 'credit_card_pin_locked');
   }
   const normalizedPin = normalizeString(pin, 12);
-  const providedHash = normalizedPin ? sha256Hex(`${card.pin_salt}:${normalizedPin}`) : null;
-  if (providedHash && providedHash === card.pin_hash) {
+  let matched = false;
+  if (normalizedPin && card.pin_hash) {
+    if (isScryptPinHash(card.pin_hash)) {
+      matched = await verifyScryptPinHash(card.pin_hash, normalizedPin);
+    } else if (card.pin_salt) {
+      // Legacy fast hash: verify on the fallback path, then transparently
+      // upgrade the stored hash to memory-hard scrypt.
+      matched = sha256Hex(`${card.pin_salt}:${normalizedPin}`) === card.pin_hash;
+      if (matched) {
+        const newSalt = crypto.randomBytes(16).toString('hex');
+        const upgradedHash = await hashCardPinScrypt(normalizedPin, newSalt);
+        await client.query(
+          `UPDATE oxsteed_credit_cards SET pin_hash = $2, pin_salt = $3 WHERE id = $1`,
+          [card.id, upgradedHash, newSalt]
+        );
+      }
+    }
+  }
+  if (matched) {
     if (card.failed_pin_attempts > 0) {
       await client.query(`UPDATE oxsteed_credit_cards SET failed_pin_attempts = 0, pin_locked_until = NULL WHERE id = $1`, [card.id]);
     }
@@ -829,4 +891,8 @@ module.exports = {
   sha256Hex,
   generateCredential,
   generateActivationCode,
+  isScryptPinHash,
+  hashCardPinScrypt,
+  verifyScryptPinHash,
+  verifyCardPin,
 };

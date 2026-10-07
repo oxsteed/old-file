@@ -368,8 +368,10 @@ describe('POST /api/jobs/:id/complete', () => {
           client_id: 1,
           assigned_helper_id: 2,
           status: 'in_progress',
-          job_type: 'tier3_escrow',
-          job_type_label: 'Escrow Protected',
+          job_type: 'one_time',
+          job_type_label: 'One-Time',
+          // Deterministic tier enum (replaces label substring matching).
+          transaction_mode: 'guided_protected',
         }],
       },
       {
@@ -389,5 +391,29 @@ describe('POST /api/jobs/:id/complete', () => {
     expect(res.status).toBe(200);
     expect(stripe.paymentIntents.capture).toHaveBeenCalled();
     expect(res.body.job.status).toBe('completed');
+  });
+
+  test('tier-looking labels alone do not trigger escrow capture (fail closed)', async () => {
+    stripe.paymentIntents.capture.mockClear();
+    mockAuth(
+      MOCK_USER_CUSTOMER,
+      {
+        rows: [{
+          id: 10,
+          client_id: 1,
+          assigned_helper_id: 2,
+          status: 'in_progress',
+          // Legacy substring bait: must NOT count as tier-3 without the enum.
+          job_type: 'tier3_escrow',
+          job_type_label: 'Escrow Protected',
+          transaction_mode: 'direct',
+        }],
+      },
+      { rows: [{ id: 10, status: 'completed', client_id: 1, assigned_helper_id: 2 }] },
+    );
+    const res = await auth(request(buildApp()).post('/api/jobs/10/complete').send({}));
+    expect(res.status).toBe(200);
+    expect(res.body.job.status).toBe('completed');
+    expect(stripe.paymentIntents.capture).not.toHaveBeenCalled();
   });
 });

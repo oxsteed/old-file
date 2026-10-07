@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowRight, CalendarClock, Loader2 } from 'lucide-react';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowRight, CalendarClock, Loader2, LogIn } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
+import { useAuth } from '../context/AuthContext';
 import { bookDirectServiceSlot, getDirectServiceSlots, holdDirectServiceSlot } from '../api/direct';
 
 function formatSlot(iso, locale) {
@@ -44,10 +45,16 @@ function groupSlotsByDay(slots, locale) {
 export default function DirectBookSlotPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const [params] = useSearchParams();
+  const { user, loading: authLoading } = useAuth();
   const serviceId = params.get('serviceId') || '';
   const serviceName = params.get('service') || '';
   const serviceSlug = params.get('serviceSlug') || '';
+  // Instant booking creates a scheduled booking record, so it is an
+  // authenticated action: send anonymous visitors to sign in first and
+  // return them to this page afterwards.
+  const signInFrom = `${location.pathname}${location.search}`;
 
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -99,7 +106,9 @@ export default function DirectBookSlotPage() {
 
   async function handleSubmit(event) {
     event.preventDefault();
-    if (!selected || !serviceId) return;
+    // Belt and braces: the form only renders for signed-in users, but an
+    // expired session must not attempt the now-authenticated book endpoint.
+    if (!user || !selected || !serviceId) return;
     setSubmitting(true);
     setError('');
     try {
@@ -213,6 +222,20 @@ export default function DirectBookSlotPage() {
               </div>
             </section>
 
+            {!authLoading && !user ? (
+              <section className="rounded-3xl border border-white/10 bg-slate-900/70 p-5">
+                <h2 className="text-lg font-semibold text-white">{t('directCatalog.signInToBook')}</h2>
+                <p className="mt-2 text-sm text-slate-400">{t('directCatalog.signInToBookCopy')}</p>
+                <Link
+                  to="/login"
+                  state={{ from: signInFrom }}
+                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-bold text-white"
+                >
+                  <LogIn size={16} />
+                  {t('auth.signIn')}
+                </Link>
+              </section>
+            ) : (
             <form onSubmit={handleSubmit} className="rounded-3xl border border-white/10 bg-slate-900/70 p-5">
               <h2 className="text-lg font-semibold text-white">{t('directCatalog.confirmBooking', { defaultValue: 'Confirm booking' })}</h2>
               <p className="mt-1 text-xs text-slate-500">
@@ -241,6 +264,7 @@ export default function DirectBookSlotPage() {
                 {t('directCatalog.confirmBook', { defaultValue: 'Confirm book' })}
               </button>
             </form>
+            )}
           </div>
         )}
       </div>

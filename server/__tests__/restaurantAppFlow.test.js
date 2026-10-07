@@ -954,6 +954,87 @@ describe('restaurant app-flow backend', () => {
     expect(mockQuery.mock.calls.some(([, params]) => JSON.stringify(params).includes('ticket_voided'))).toBe(true);
   });
 
+  test('denies POS ticket voids to non-manager staff', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'employee' })] });
+
+    const res = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders/${ORDER_ID}/void`)
+      .send({ reason: 'Mistaken ticket' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('forbidden');
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_orders/.test(sql))).toBe(false);
+  });
+
+  test('allows managers to void unpaid POS tickets', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager' })] })
+      .mockResolvedValueOnce({ rows: [{ net_paid_cents: 0 }] })
+      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, pos_ticket_state: 'voided', status: 'cancelled', payment_status: 'unpaid' }] });
+
+    const res = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders/${ORDER_ID}/void`)
+      .send({ reason: 'Mistaken ticket' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.order.pos_ticket_state).toBe('voided');
+  });
+
+  test('denies cash payment recording to non-manager staff', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'employee' })] });
+
+    const res = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders/${ORDER_ID}/payments`)
+      .send({ paymentType: 'cash', amountCents: 899, status: 'captured' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('forbidden');
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO restaurant_pos_payments/.test(sql))).toBe(false);
+  });
+
+  test('denies external payment recording to non-manager staff', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'employee' })] });
+
+    const res = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders/${ORDER_ID}/payments`)
+      .send({ paymentType: 'external', amountCents: 1200 });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('forbidden');
+  });
+
+  test('allows managers to record cash POS payments', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'manager' })] })
+      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, restaurant_id: RESTAURANT_ID, total_cents: 899, payment_status: 'unpaid' }] })
+      .mockResolvedValueOnce({ rows: [{ paid_cents: 0, refunded_cents: 0 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 501, amount_cents: 899, payment_type: 'cash' }] })
+      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, total_cents: 899, payment_status: 'unpaid', pos_ticket_state: 'open' }] })
+      .mockResolvedValueOnce({ rows: [{ paid_cents: 899, refunded_cents: 0, pending_payments: 0 }] })
+      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, payment_status: 'paid', pos_ticket_state: 'closed' }] });
+
+    const res = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders/${ORDER_ID}/payments`)
+      .send({ paymentType: 'cash', amountCents: 899, status: 'captured' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.payment.payment_type).toBe('cash');
+  });
+
+  test('still allows non-manager staff to hold tickets (non-money routing)', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ effective_role: 'employee' })] })
+      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, pos_ticket_state: 'held', status: 'received', payment_status: 'unpaid' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 9001 }] });
+
+    const res = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders/${ORDER_ID}/hold`)
+      .send({ reason: 'Waiting on customer' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.order.pos_ticket_state).toBe('held');
+  });
+
   test('toggles menu availability for sold-out POS flows', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })

@@ -284,7 +284,7 @@ async function applyAdjustmentPosting(client, adjustment, {
       approverId,
       beforeBalanceCents,
       afterBalanceCents,
-      transaction?.id ? Number(transaction.id) : null,
+      transaction?.id ? String(transaction.id) : null,
     ]
   );
   const applied = rows[0];

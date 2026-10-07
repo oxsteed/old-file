@@ -3,10 +3,15 @@
 jest.mock('../services/notificationService', () => ({
   sendNotification: jest.fn().mockResolvedValue(true),
 }));
-jest.mock('../utils/storage', () => ({
-  uploadFile: jest.fn().mockResolvedValue('chat-attachments/private-photo.jpg'),
-  getSignedDownloadUrl: jest.fn().mockResolvedValue('/api/storage/files/chat-attachments/private-photo.jpg?exp=1&sig=test'),
-}));
+jest.mock('../utils/storage', () => {
+  const actual = jest.requireActual('../utils/storage');
+  return {
+    uploadFile: jest.fn().mockImplementation((_buffer, folder, originalname) =>
+      Promise.resolve(`${folder}/${originalname || 'file'}`)),
+    getSignedDownloadUrl: jest.fn().mockResolvedValue('/api/storage/files/chat-attachments/signed?exp=1&sig=test'),
+    normalizeStorageKey: actual.normalizeStorageKey,
+  };
+});
 
 const express = require('express');
 const request = require('supertest');
@@ -70,7 +75,13 @@ describe('message attachments', () => {
     expect(res.status).toBe(200);
     expect(res.body.url).toContain('/api/storage/files/');
     expect(res.body.url).not.toContain('s3.amazonaws.com');
-    expect(storage.getSignedDownloadUrl).toHaveBeenCalledWith('chat-attachments/private-photo.jpg', 3600);
+    // Uploads are scoped to the conversation: the minted key must live under
+    // this conversation's folder so it can only be re-signed here.
+    expect(storage.uploadFile).toHaveBeenCalledWith(
+      expect.any(Buffer), 'chat-attachments/c-conv-1', 'photo.jpg', 'image/jpeg'
+    );
+    expect(res.body.key).toBe('chat-attachments/c-conv-1/photo.jpg');
+    expect(storage.getSignedDownloadUrl).toHaveBeenCalledWith('chat-attachments/c-conv-1/photo.jpg', 3600);
   });
 
   test('POST /messages/conversations/:id accepts attachment-only messages', async () => {
@@ -186,7 +197,7 @@ describe('message attachments', () => {
   test('POST /messages/conversations/:id persists the storage key for later re-signing', async () => {
     const stored = {
       url: 'https://signed.example.com/chat/photo.jpg?exp=1',
-      key: 'chat-attachments/private-photo.jpg',
+      key: 'chat-attachments/c-conv-1/private-photo.jpg',
       type: 'image/jpeg',
       filename: 'photo.jpg',
     };
@@ -231,7 +242,7 @@ describe('message attachments', () => {
 
     expect(res.status).toBe(201);
     const persisted = JSON.parse(mockQuery.mock.calls[3][1][4]);
-    expect(persisted[0].key).toBe('chat-attachments/private-photo.jpg');
+    expect(persisted[0].key).toBe('chat-attachments/c-conv-1/private-photo.jpg');
     // Backward-compatible shape: url/type/filename still present
     expect(persisted[0].url).toBe(stored.url);
     expect(persisted[0].type).toBe('image/jpeg');

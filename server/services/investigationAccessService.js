@@ -24,6 +24,24 @@ const MAX_SCOPE_USERS = 25;
 const MAX_TTL_MS = 72 * 3600 * 1000; // 72 hours
 const MIN_PURPOSE_LENGTH = 10;
 
+// One Truth P1 (item 12.2): grant scope types. 'user_investigation' is the
+// original per-user investigation grant; 'fraud_analyst' marks a delegated
+// trust/fraud analyst grant requested through One Truth. Both ride the same
+// purpose + approver + expiry + scoped-ids machinery.
+const GRANT_SCOPES = ['user_investigation', 'fraud_analyst'];
+const DEFAULT_GRANT_SCOPE = 'user_investigation';
+
+function validateGrantScope(grantScope) {
+  const scope = grantScope || DEFAULT_GRANT_SCOPE;
+  if (!GRANT_SCOPES.includes(scope)) {
+    throw new InvestigationAccessError(
+      `Unknown grant scope: ${scope}. Expected one of: ${GRANT_SCOPES.join(', ')}.`,
+      'invalid_grant_scope'
+    );
+  }
+  return scope;
+}
+
 class InvestigationAccessError extends Error {
   constructor(message, code, statusCode = 400) {
     super(message);
@@ -99,6 +117,7 @@ async function requestInvestigationAccess({
   scopeUserIds,
   investigationRef,
   expiresAt,
+  grantScope,
 }) {
   if (!requesterId || !approverId) {
     throw new InvestigationAccessError('Requester and approver are required.', 'missing_parties');
@@ -119,15 +138,16 @@ async function requestInvestigationAccess({
   }
   validateScopeUserIds(scopeUserIds);
   const expires = validateExpiry(expiresAt);
+  const scope = validateGrantScope(grantScope);
   await assertApproverAuthorized(approverId);
 
   const { rows } = await db.query(
     `INSERT INTO investigation_access_grants
        (investigation_ref, requester_admin_id, approver_admin_id, purpose,
-        scope_user_ids, status, expires_at)
-     VALUES ($1, $2, $3, $4, $5::uuid[], 'pending', $6)
+        scope_user_ids, status, expires_at, grant_scope)
+     VALUES ($1, $2, $3, $4, $5::uuid[], 'pending', $6, $7)
      RETURNING *`,
-    [String(investigationRef || '').slice(0, 160) || 'unspecified', requesterId, approverId, cleanPurpose, scopeUserIds, expires.toISOString()]
+    [String(investigationRef || '').slice(0, 160) || 'unspecified', requesterId, approverId, cleanPurpose, scopeUserIds, expires.toISOString(), scope]
   );
   const grant = rows[0];
 
@@ -137,7 +157,7 @@ async function requestInvestigationAccess({
     targetType: 'investigation_access_grant',
     targetKey: String(grant.id),
     description: `Requested investigation access: ${cleanPurpose.slice(0, 200)}`,
-    after: { approver_admin_id: approverId, scope_user_ids: scopeUserIds, expires_at: expires.toISOString() },
+    after: { approver_admin_id: approverId, scope_user_ids: scopeUserIds, expires_at: expires.toISOString(), grant_scope: scope },
   });
 
   logger.info('Investigation access requested', { grantId: grant.id, requesterId, approverId });
@@ -237,9 +257,15 @@ async function revokeInvestigationAccess({ grantId, revokedBy, reason }) {
 
 /**
  * Check whether an admin currently holds an active, unexpired, unrevoked
- * grant covering targetUserId. Returns { granted, grant? }.
+ * grant covering targetUserId. Returns { granted, grant? }. Pass
+ * { scopes } to restrict to specific grant scope types (e.g. only
+ * fraud_analyst delegations); by default any scope type is accepted.
  */
-async function checkInvestigationAccess(adminId, targetUserId) {
+async function checkInvestigationAccess(adminId, targetUserId, { scopes = null } = {}) {
+  const scopeFilter = Array.isArray(scopes) && scopes.length
+    ? `AND grant_scope = ANY($3)`
+    : '';
+  const params = scopeFilter ? [adminId, targetUserId, scopes] : [adminId, targetUserId];
   const { rows } = await db.query(
     `SELECT *
        FROM investigation_access_grants
@@ -248,12 +274,38 @@ async function checkInvestigationAccess(adminId, targetUserId) {
         AND revoked_at IS NULL
         AND expires_at > NOW()
         AND $2 = ANY (scope_user_ids)
+        ${scopeFilter}
       ORDER BY expires_at DESC
       LIMIT 1`,
-    [adminId, targetUserId]
+    params
   );
   if (!rows.length) return { granted: false };
   return { granted: true, grant: rows[0] };
+}
+
+/**
+ * One Truth P1 (item 11/12.2): list every active, unexpired, unrevoked
+ * grant held by an admin. Powers the delegated-analyst path: list/stats
+ * reads are scoped to the union of these grants' scope_user_ids and each
+ * read is audit-logged with purpose + approver.
+ */
+async function listActiveGrants(adminId, { scopes = null } = {}) {
+  const scopeFilter = Array.isArray(scopes) && scopes.length
+    ? `AND grant_scope = ANY($2)`
+    : '';
+  const params = scopeFilter ? [adminId, scopes] : [adminId];
+  const { rows } = await db.query(
+    `SELECT *
+       FROM investigation_access_grants
+      WHERE requester_admin_id = $1
+        AND status = 'active'
+        AND revoked_at IS NULL
+        AND expires_at > NOW()
+        ${scopeFilter}
+      ORDER BY expires_at DESC`,
+    params
+  );
+  return rows;
 }
 
 /**
@@ -282,6 +334,55 @@ async function logInvestigationRead({ readerAdminId, targetUserId, grant, endpoi
       investigation_ref: grant.investigation_ref,
       expires_at: grant.expires_at,
     } : { super_admin: true },
+    req,
+  });
+}
+
+/**
+ * One Truth P1 (item 11): per-read audit entry for One Truth aggregate
+ * reads (list / stats / suspects). Records who read, through which
+ * endpoint, under which purpose(s) + approver(s), the scoped user ids, and
+ * which sensitive fields the response carried. Super-admin reads are logged
+ * with the super_admin_duty purpose, mirroring logInvestigationRead.
+ */
+async function logOneTruthRead({
+  readerAdminId,
+  grants,
+  endpoint,
+  resultCount,
+  sensitiveFields = [],
+  piiMasked = false,
+  req,
+}) {
+  const grantList = Array.isArray(grants) ? grants : [];
+  const purposes = grantList.map((g) => ({
+    grant_id: g.id,
+    grant_scope: g.grant_scope || DEFAULT_GRANT_SCOPE,
+    purpose: g.purpose,
+    approver_admin_id: g.approver_admin_id,
+    investigation_ref: g.investigation_ref,
+    expires_at: g.expires_at,
+    scope_user_ids: g.scope_user_ids,
+  }));
+  await logAdminAction({
+    adminId: readerAdminId,
+    action: 'one_truth_investigation_read',
+    targetType: 'one_truth',
+    description:
+      `One Truth read via ${endpoint}: ${resultCount} row(s)` +
+      (purposes.length
+        ? ` under ${purposes.length} grant(s): ` +
+          purposes.map((p) => `${p.purpose} (approved by ${p.approver_admin_id})`).join('; ').slice(0, 400)
+        : ' (super-admin duty review)'),
+    before: null,
+    after: {
+      endpoint,
+      result_count: resultCount,
+      grants: purposes,
+      sensitive_fields: sensitiveFields,
+      pii_masked: piiMasked,
+      super_admin: purposes.length === 0,
+    },
     req,
   });
 }
@@ -321,11 +422,15 @@ module.exports = {
   InvestigationAccessError,
   MAX_SCOPE_USERS,
   MAX_TTL_MS,
+  GRANT_SCOPES,
+  DEFAULT_GRANT_SCOPE,
   requestInvestigationAccess,
   approveInvestigationAccess,
   revokeInvestigationAccess,
   checkInvestigationAccess,
+  listActiveGrants,
   listInvestigationAccessGrants,
   logInvestigationRead,
+  logOneTruthRead,
   isSuperAdmin,
 };

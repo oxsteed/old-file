@@ -40,6 +40,12 @@ const stripeFactory = require('stripe');
 
 const service = require('../services/restaurantPayoutService');
 
+// Ledger transaction ids are UUIDs (oxsteed_credit_transactions.id); mock
+// them as UUID strings, never numbers, so the mocks cannot hide a numeric
+// assumption in the service.
+const TXN_UUID = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
+const REVERSAL_TXN_UUID = '11111111-2222-4333-8444-555555555555';
+
 const RESTAURANT = {
   id: 42,
   display_name: 'Test Kitchen',
@@ -95,7 +101,7 @@ function mockClient({ restaurant = RESTAURANT, balanceCents = 5000, payout = nul
   });
   creditService.ensureAccount.mockResolvedValue({ id: 200 });
   creditService.postJournalTransaction.mockResolvedValue({
-    transaction: { id: 300 },
+    transaction: { id: TXN_UUID },
     replayed: false,
   });
   stripeFactory.__instance.transfers.create.mockResolvedValue({ id: 'tr_test123' });
@@ -211,6 +217,11 @@ test('approve journals and queues the transfer without calling Stripe in the tra
     expect.stringContaining('INSERT INTO restaurant_payout_outbox'),
     ['payout-1']
   );
+  // The UUID journal id must be stored verbatim in ledger_transaction_id.
+  const approveUpdate = client.query.mock.calls.find(([sql]) =>
+    /ledger_transaction_id = \$4/.test(sql));
+  expect(approveUpdate).toBeDefined();
+  expect(approveUpdate[1][3]).toBe(TXN_UUID);
   expect(sendNotification).not.toHaveBeenCalled();
 });
 
@@ -265,7 +276,7 @@ test('worker creates Stripe transfer only for a journaled outbox item', async ()
     amount_cents: 2000,
     stripe_account_id: 'acct_test123',
     payout_status: 'approved',
-    ledger_transaction_id: 300,
+    ledger_transaction_id: TXN_UUID,
     attempts: 1,
     lease_token: 'lease-1',
   };
@@ -359,7 +370,7 @@ test('transfer.reversed webhook posts one compensating journal entry', async () 
   pool.query.mockResolvedValue({ rows: [{ owner_user_id: 'owner-1' }] });
   subBankService.ensureRestaurantSubBankAccount.mockResolvedValue({ id: 100 });
   creditService.ensureAccount.mockResolvedValue({ id: 200 });
-  creditService.postJournalTransaction.mockResolvedValue({ transaction: { id: 301 }, replayed: false });
+  creditService.postJournalTransaction.mockResolvedValue({ transaction: { id: REVERSAL_TXN_UUID }, replayed: false });
 
   const transfer = {
     id: 'tr_test123',
@@ -382,6 +393,12 @@ test('transfer.reversed webhook posts one compensating journal entry', async () 
       idempotencyKey: 'restaurant-payout-reversal:payout-1',
     }),
   );
+  // The compensating UUID ledger id must be stored verbatim in
+  // reversal_ledger_transaction_id.
+  const reversalUpdate = client.query.mock.calls.find(([sql]) =>
+    /reversal_ledger_transaction_id = \$3/.test(sql));
+  expect(reversalUpdate).toBeDefined();
+  expect(reversalUpdate[1][2]).toBe(REVERSAL_TXN_UUID);
   expect(sendNotification).toHaveBeenCalledTimes(1);
 });
 

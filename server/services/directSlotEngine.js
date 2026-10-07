@@ -61,31 +61,42 @@ async function loadAssigneePool(serviceId, executor = db) {
   };
 }
 
-async function resolveEligibleAssignees(pool, executor = db) {
+/**
+ * Resolve the service's eligible dispatch members.
+ *
+ * Eligibility is bounded by the service's real roster
+ * (direct_service_assignees): a configured role selects the roster members
+ * holding that role — it never expands to every platform user with the role.
+ * An empty roster (and no explicit ids) yields an empty pool, never a
+ * platform-wide expansion, so slot capacity is never computed against
+ * people who were never put on this service's team.
+ */
+async function resolveEligibleAssignees(serviceId, pool, executor = db) {
   const roleList = (pool.roles || []).filter((r) => DISPATCH_ROLES.includes(r));
   const explicitIds = [...new Set(pool.userIds || [])];
   if (!roleList.length && !explicitIds.length) return [];
 
-  const params = [];
+  const params = [serviceId, DISPATCH_ROLES];
   const clauses = [];
-  if (roleList.length) {
-    params.push(roleList);
-    clauses.push(`role = ANY($${params.length}::text[])`);
-  }
   if (explicitIds.length) {
     params.push(explicitIds);
-    clauses.push(`id = ANY($${params.length}::uuid[])`);
+    clauses.push(`u.id = ANY($${params.length}::uuid[])`);
   }
-  params.push(DISPATCH_ROLES);
+  if (roleList.length) {
+    params.push(roleList);
+    clauses.push(`(
+      u.role = ANY($${params.length}::text[])
+      AND u.id IN (SELECT user_id FROM direct_service_assignees WHERE service_id = $1)
+    )`);
+  }
   const { rows } = await executor.query(
-    `SELECT id, first_name, last_name, email, role
-       FROM users
-      WHERE is_active = TRUE
-        AND deleted_at IS NULL
-        AND role = ANY($${params.length}::text[])
+    `SELECT DISTINCT u.id, u.first_name, u.last_name, u.email, u.role
+       FROM users u
+      WHERE u.is_active = TRUE
+        AND u.deleted_at IS NULL
+        AND u.role = ANY($2::text[])
         AND (${clauses.join(' OR ')})
-      ORDER BY first_name ASC, last_name ASC, email ASC
-      LIMIT 500`,
+      ORDER BY u.first_name ASC, u.last_name ASC, u.email ASC`,
     params
   );
   return rows.map((row) => ({
@@ -222,7 +233,7 @@ async function computeServiceSlots({
   }
 
   const pool = await loadAssigneePool(serviceId, executor);
-  const members = await resolveEligibleAssignees(pool, executor);
+  const members = await resolveEligibleAssignees(serviceId, pool, executor);
   const slotMinutes = Number(service.booking_slot_minutes) || DEFAULT_SLOT_MINUTES;
   const requiredCrew = Number(service.required_crew_size) || 1;
 
@@ -289,6 +300,10 @@ async function computeServiceSlots({
 
 /**
  * Lightweight: does this service have any offerable slot in the default horizon?
+ *
+ * Three distinct outcomes: available (slots found), unavailable (no slots, no
+ * error), and error (the engine itself failed — surfaced via `error` so
+ * callers never mistake an engine failure for "not Bookable").
  */
 async function hasOfferableSlots(serviceId, executor = db) {
   const result = await computeServiceSlots({
@@ -302,6 +317,8 @@ async function hasOfferableSlots(serviceId, executor = db) {
     assigneePoolSize: result.assigneePoolSize || 0,
     capacityExhausted: (result.assigneePoolSize || 0) > 0 && !(result.slots || []).length,
     reason: result.reason || null,
+    error: result.error || null,
+    statusCode: result.statusCode || null,
   };
 }
 
@@ -359,11 +376,13 @@ async function loadPoolSizes(serviceIds, executor = db) {
   }
 
   for (const [serviceId, entry] of map.entries()) {
-    const roleSet = new Set(entry.roles);
     const userSet = new Set(entry.userIds);
-    const eligible = candidates.filter(
-      (c) => userSet.has(c.id) || roleSet.has(c.role)
-    );
+    // Roster-bounded eligibility (same rule as resolveEligibleAssignees):
+    // only the service's real roster members (direct_service_assignees)
+    // count toward the pool. A configured role selects roster members
+    // holding that role but can never expand the pool beyond the roster,
+    // so an empty roster always yields a size of 0.
+    const eligible = candidates.filter((c) => userSet.has(c.id));
     entry.size = new Set(eligible.map((c) => c.id)).size;
     entry.eligibleIds = [...new Set(eligible.map((c) => c.id))];
   }
@@ -433,7 +452,7 @@ async function createHold({
     }
 
     const pool = await loadAssigneePool(serviceId, client);
-    const members = await resolveEligibleAssignees(pool, client);
+    const members = await resolveEligibleAssignees(serviceId, pool, client);
     const busy = await loadBusyIntervals(
       members.map((m) => m.id),
       start,
@@ -552,6 +571,18 @@ async function bookServiceSlot({
     throw err;
   }
 
+  // Fail closed (audit 2026-10-07): a scheduled booking is inserted with
+  // payment_status='unpaid', so it must always have an authenticated owner.
+  // This is defense in depth behind the route-level authenticate middleware;
+  // the route denies anonymous callers first, but the service layer refuses
+  // on its own so no caller path can ever create an ownerless booking.
+  if (!actorUserId) {
+    const err = new Error('Sign in is required to book a slot');
+    err.statusCode = 401;
+    err.code = 'auth_required';
+    throw err;
+  }
+
   const client = await db.connect();
   try {
     await client.query('BEGIN');
@@ -566,7 +597,7 @@ async function bookServiceSlot({
 
     const { deriveServiceCapability } = require('./directCapability');
     const pool = await loadAssigneePool(serviceId, client);
-    const members = await resolveEligibleAssignees(pool, client);
+    const members = await resolveEligibleAssignees(serviceId, pool, client);
     const offerability = await hasOfferableSlots(serviceId, client);
     const capability = deriveServiceCapability(service, {
       lifecycle_status: service.category_lifecycle_status,
@@ -772,7 +803,7 @@ async function bookServiceSlot({
 
 async function getServiceAssigneePool(serviceId, executor = db) {
   const pool = await loadAssigneePool(serviceId, executor);
-  const members = await resolveEligibleAssignees(pool, executor);
+  const members = await resolveEligibleAssignees(serviceId, pool, executor);
   return {
     roles: pool.roles,
     userIds: pool.userIds,

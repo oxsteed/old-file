@@ -410,6 +410,16 @@ exports.createPaymentIntent = async (req, res, next) => {
         throw new AppError('Failed to save payment intent to database', 500, 'payment_save_failed');
       }
 
+      // Tier-3 escrow opt-in, deterministic: mark the job's transaction_mode
+      // so completion detects escrow via the enum instead of fragile label
+      // substring matching (see isTier3EscrowJob in jobController). Same
+      // transaction as the payments row — the flag and the intent commit or
+      // roll back together.
+      await client.query(
+        `UPDATE jobs SET transaction_mode = 'guided_protected', updated_at = NOW() WHERE id = $1`,
+        [job_id]
+      );
+
       // Audit fix: referral credit is NOT deducted here. It's recorded in the
       // payment metadata and deducted only when Stripe confirms the payment
       // (in the webhook). Deducting now would spend credit on a payment that

@@ -454,6 +454,7 @@ describe('setCardPin current-PIN requirement (M27b)', () => {
     const updated = cardWithPin({ pin_hash: 'newhash', pin_salt: 'newsalt' });
     mockQuery
       .mockResolvedValueOnce({ rows: [cardWithPin({ pin_hash: pinHash, pin_salt: salt })] }) // SELECT card FOR UPDATE
+      .mockResolvedValueOnce({ rows: [] }) // legacy-hash scrypt upgrade UPDATE
       .mockResolvedValueOnce({ rows: [updated] }) // UPDATE ... RETURNING *
       .mockResolvedValueOnce({ rows: [] }); // audit insert
 
@@ -465,6 +466,56 @@ describe('setCardPin current-PIN requirement (M27b)', () => {
       actorUserId: CUSTOMER_ID,
     });
     expect(result.card.hasPin).toBe(true);
+  });
+});
+
+describe('card PIN scrypt hashing (Item 21)', () => {
+  const legacyCard = (overrides = {}) => ({
+    id: CARD_ID,
+    pin_hash: cardService.sha256Hex('salty:1234'),
+    pin_salt: 'salty',
+    failed_pin_attempts: 0,
+    pin_locked_until: null,
+    ...overrides,
+  });
+  const mockClient = () => ({ query: jest.fn().mockResolvedValue({ rows: [] }) });
+
+  it('hashes new PINs with scrypt and verifies them', async () => {
+    const salt = crypto.randomBytes(16).toString('hex');
+    const hash = await cardService.hashCardPinScrypt('1234', salt);
+    expect(cardService.isScryptPinHash(hash)).toBe(true);
+    expect(cardService.isScryptPinHash(cardService.sha256Hex('salty:1234'))).toBe(false);
+
+    const client = mockClient();
+    const card = legacyCard({ pin_hash: hash, pin_salt: salt });
+    await expect(cardService.verifyCardPin(client, card, '1234')).resolves.toBeUndefined();
+    await expect(cardService.verifyCardPin(client, card, '0000'))
+      .rejects.toMatchObject({ code: 'credit_card_pin_incorrect', statusCode: 401 });
+  });
+
+  it('verifies a legacy sha256 hash and upgrades it to scrypt on success', async () => {
+    const client = mockClient();
+    const card = legacyCard();
+    await expect(cardService.verifyCardPin(client, card, '1234')).resolves.toBeUndefined();
+
+    const upgradeCall = client.query.mock.calls.find(([sql]) => String(sql).includes('SET pin_hash'));
+    expect(upgradeCall).toBeTruthy();
+    const newHash = upgradeCall[1][1];
+    const newSalt = upgradeCall[1][2];
+    expect(cardService.isScryptPinHash(newHash)).toBe(true);
+
+    // The upgraded hash verifies the same PIN without another upgrade.
+    const client2 = mockClient();
+    await expect(cardService.verifyCardPin(client2, { ...card, pin_hash: newHash, pin_salt: newSalt }, '1234'))
+      .resolves.toBeUndefined();
+    expect(client2.query.mock.calls.some(([sql]) => String(sql).includes('SET pin_hash'))).toBe(false);
+  });
+
+  it('rejects a wrong PIN against a legacy hash without upgrading', async () => {
+    const client = mockClient();
+    await expect(cardService.verifyCardPin(client, legacyCard(), '0000'))
+      .rejects.toMatchObject({ code: 'credit_card_pin_incorrect', statusCode: 401 });
+    expect(client.query.mock.calls.some(([sql]) => String(sql).includes('SET pin_hash'))).toBe(false);
   });
 });
 

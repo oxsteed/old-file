@@ -1,7 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
-const { computeServiceSlots, expireHolds, createHold } = require('../services/directSlotEngine');
+const { computeServiceSlots, expireHolds, createHold, resolveEligibleAssignees } = require('../services/directSlotEngine');
 const db = require('../db');
 
 beforeEach(() => resetMocks());
@@ -222,6 +222,46 @@ describe('directSlotEngine', () => {
       statusCode: 409,
       code: 'capacity_exhausted',
     });
+  });
+
+  // ITEM 18: role expansion must be bounded by the service's real roster
+  // (direct_service_assignees) — never a platform-wide LIMIT 500 pull.
+  test('resolveEligibleAssignees bounds role expansion to the roster (no LIMIT 500)', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{
+        id: '00000000-0000-4000-8000-000000000001',
+        first_name: 'Rita',
+        last_name: 'Roster',
+        email: 'rita@ox.test',
+        role: 'helper',
+      }],
+    });
+
+    const members = await resolveEligibleAssignees(
+      'svc-1',
+      { roles: ['helper'], userIds: ['00000000-0000-4000-8000-000000000001'] },
+      db
+    );
+
+    expect(members).toHaveLength(1);
+    expect(members[0].id).toBe('00000000-0000-4000-8000-000000000001');
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(sql).toMatch(/direct_service_assignees/);
+    expect(sql).not.toMatch(/LIMIT 500/);
+    expect(params[0]).toBe('svc-1');
+  });
+
+  test('resolveEligibleAssignees returns an empty pool when the roster is empty', async () => {
+    // Roles configured but nobody on the roster: must NOT expand to all
+    // platform users with that role. The users query would return rows only
+    // for roster members; an empty roster means zero rows.
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+
+    const members = await resolveEligibleAssignees('svc-1', { roles: ['helper'], userIds: [] }, db);
+
+    expect(members).toEqual([]);
+    const [sql] = mockQuery.mock.calls[0];
+    expect(sql).toMatch(/direct_service_assignees/);
   });
 
 });

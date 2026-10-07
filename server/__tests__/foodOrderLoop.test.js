@@ -312,7 +312,8 @@ describe('food order loop E2E (F7)', () => {
 
     expect(smsNotificationService.sendDirectSMS).toHaveBeenCalledWith(
       '+15551234567',
-      expect.stringMatching(/#7.*Ox Burger Lab.*ready for pickup/i)
+      expect.stringMatching(/#7.*Ox Burger Lab.*ready for pickup/i),
+      { notificationType: 'food_order_ready_guest' }
     );
     expect(sendNotification).not.toHaveBeenCalled();
     expect(emailService.send).not.toHaveBeenCalled();

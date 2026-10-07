@@ -239,7 +239,8 @@ async function getSMSLogs(req, res) {
       data: logs.map(log => ({
         id: log.id,
         type: log.notification_type,
-        message: log.message_body,
+        preview: log.message_preview,
+        messageHash: log.message_hash,
         status: log.status,
         sentAt: log.sent_at
       }))

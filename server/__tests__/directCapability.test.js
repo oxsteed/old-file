@@ -126,4 +126,36 @@ describe('deriveServiceCapability', () => {
     expect(result.requestable).toBe(true);
     expect(result.visible).toBe(true);
   });
+
+  test('offerability check failure surfaces a distinct status, not "no open slots"', () => {
+    const result = deriveServiceCapability({
+      lifecycle_status: 'live',
+      is_operationally_available: true,
+      is_bookable: true,
+      is_active: true,
+    }, liveParent, {
+      slotsAvailable: false,
+      assigneePoolSize: 2,
+      offerabilityStatus: 'error',
+    });
+    expect(result.bookable).toBe(false);
+    expect(result.offerabilityStatus).toBe('error');
+    expect(result.capabilityReasons).toContain('offerability_check_failed');
+    expect(result.capabilityReasons).not.toContain('no_open_slots');
+  });
+
+  test('happy path carries no offerabilityStatus field', () => {
+    const result = deriveServiceCapability({
+      lifecycle_status: 'live',
+      is_operationally_available: true,
+      is_bookable: true,
+      is_active: true,
+    }, liveParent, {
+      slotsAvailable: true,
+      freeCapacityInHorizon: true,
+      assigneePoolSize: 1,
+    });
+    expect(result.offerabilityStatus).toBeUndefined();
+    expect(result.capabilityReasons).not.toContain('offerability_check_failed');
+  });
 });

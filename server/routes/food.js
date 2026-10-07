@@ -8,7 +8,7 @@ const walletCtrl = require('../controllers/foodWalletController');
 const statementController = require('../controllers/creditStatementController');
 const kiosk = require('../controllers/restaurantKioskController');
 const oxsteedCreditPartnerCtrl = require('../controllers/oxsteedCreditPartnerController');
-const { creditExportLimiter, creditPurchaseLimiter, restaurantCreditMutationLimiter, profileChatLimiter } = require('../middleware/rateLimiter');
+const { creditExportLimiter, creditPurchaseLimiter, restaurantCreditMutationLimiter, profileChatLimiter, foodCheckoutCompleteLimiter } = require('../middleware/rateLimiter');
 
 function noStoreCreditResponse(_req, res, next) {
   res.set('Cache-Control', 'private, no-store');
@@ -27,7 +27,17 @@ router.get('/restaurants/:restaurantId/kiosk-config', kiosk.getPublicKioskConfig
 router.get('/payment-config', ctrl.getPaymentConfig);
 router.get('/orders/track/:trackingToken', ctrl.getTrackedOrder);
 router.post('/orders/:orderId/review', optionalAuth, ctrl.createOrderReview);
-router.get('/orders/:orderId/checkout/complete', optionalAuth, ctrl.completeCheckout);
+// Stripe hosted-checkout return URL. Kept on optionalAuth so guests can
+// complete a true guest cart (food_orders.customer_id IS NULL) after paying
+// at Stripe; user-bound carts require the signed-in owner (see controller).
+//
+// RESIDUAL RISK: the Stripe checkout session_id is an unguessable capability
+// string. Anyone who learns it can hit this endpoint and flip the matching
+// order to paid (only when Stripe itself reports the session paid) or trigger
+// the return_url redirect. Mitigations: foodCheckoutCompleteLimiter (10 per
+// 15min per IP+session), auth required for user-bound carts, and the
+// session's food_order_id/client_reference_id must match the order.
+router.get('/orders/:orderId/checkout/complete', optionalAuth, foodCheckoutCompleteLimiter, ctrl.completeCheckout);
 router.get('/orders/:orderId/checkout/cancelled', ctrl.cancelCheckout);
 // H12: resume an interrupted pay_now checkout without placing a duplicate order.
 router.post('/orders/:orderId/checkout', authenticate, ctrl.resumeFoodCheckoutSession);

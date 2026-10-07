@@ -70,6 +70,32 @@ function normalizeKey(key) {
   return normalized;
 }
 
+// Default-deny public surface (audit P1). Only these key prefixes may ever be
+// served through /api/storage/public or minted a public URL. Every other key
+// is private and must be fetched through a signed download URL. This is an
+// allowlist on purpose: a newly added upload folder stays private until it is
+// explicitly listed here.
+const PUBLIC_KEY_PREFIXES = [
+  'avatars/',
+  'beauty-intakes/',
+  'business-covers/',
+  'business-logos/',
+  'creative-intakes/',
+  'helper-covers/',
+  'helper-gallery/',
+  'jobs/',
+  'maintenance-requests/',
+  'public-uploads/',
+  'tool-rentals/',
+  'trades-diagnostics/',
+];
+
+function isPublicKeyAllowed(key) {
+  const normalized = normalizeKey(key);
+  if (!normalized) return false;
+  return PUBLIC_KEY_PREFIXES.some((prefix) => normalized.startsWith(prefix));
+}
+
 function localFilePath(key) {
   const normalized = normalizeKey(key);
   if (!normalized) return null;
@@ -194,6 +220,12 @@ async function deleteFile(key) {
 }
 
 function getPublicUrl(key) {
+  // Never mint a public URL for a key outside the public allowlist. Sensitive
+  // uploads (proofs, POP, logistics, Direct, chat attachments, ...) fail
+  // closed here instead of leaking a world-readable URL.
+  if (!isPublicKeyAllowed(key)) {
+    throw new Error('Refusing public URL for non-public storage key');
+  }
   if (s3) {
     const encodedKey = String(key).split('/').map(encodeURIComponent).join('/');
     if (PUBLIC_BASE_URL) return `${PUBLIC_BASE_URL}/${encodedKey}`;
@@ -283,5 +315,7 @@ module.exports = {
   verifyLocalDownloadSignature,
   normalizeStorageKey: normalizeKey,
   normalizeStorageContentType: normalizeContentType,
+  isPublicKeyAllowed,
+  PUBLIC_KEY_PREFIXES,
   LOCAL_STORAGE_ROOT,
 };

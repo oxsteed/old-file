@@ -15,6 +15,7 @@ const cron = require('node-cron');
 const db   = require('../db');
 const { sendNotification } = require('../services/notificationService');
 const { sendEmail }        = require('../utils/email');
+const { generateUnsubscribeToken } = require('../controllers/emailPreferencesController');
 const { tNotif, tNotifEmail } = require('../utils/i18n');
 const logger               = require('../utils/logger');
 
@@ -95,9 +96,22 @@ async function runCustomerReengagement() {
 
         // Email nudge (best-effort — don't fail the loop if email is missing)
         if (c.email) {
+          // RFC 8058 one-click unsubscribe: mint a per-recipient marketing
+          // token and advertise the one-click endpoint in the headers.
+          // Transactional mail elsewhere is untouched.
+          const oneClickToken = await generateUnsubscribeToken(c.id, 'marketing');
+          const oneClickUrl = oneClickToken
+            ? `${APP_URL}/api/notifications/email/unsubscribe-one-click?token=${encodeURIComponent(oneClickToken)}`
+            : null;
           await sendEmail({
             to:      c.email,
             subject: `${c.first_name}, ${reengagementTitle}`,
+            ...(oneClickUrl ? {
+              headers: {
+                'List-Unsubscribe': `<${oneClickUrl}>`,
+                'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+              },
+            } : {}),
             html: `
               <p>Hi ${c.first_name},</p>
               <p>${reengagementBodyWithContext}.</p>

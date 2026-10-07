@@ -255,7 +255,7 @@ if (RESEND_API_KEY && RESEND_API_KEY.startsWith('re_')) {
   logger.warn('Resend API key not set or invalid - email features disabled');
 }
 
-async function sendEmail({ to, subject, text, html, from, fromName, idempotencyKey }) {
+async function sendEmail({ to, subject, text, html, from, fromName, idempotencyKey, headers }) {
   if (!emailConfigured) {
     logger.debug('Email not sent - Resend not configured', { to });
     return { success: false, error: 'Email not configured' };
@@ -267,6 +267,9 @@ async function sendEmail({ to, subject, text, html, from, fromName, idempotencyK
   const normalizedIdempotencyKey = idempotencyKey
     ? String(idempotencyKey).trim().slice(0, 255)
     : '';
+  // Optional custom message headers (e.g. List-Unsubscribe for marketing
+  // mail). Passed straight through to the Resend API.
+  const customHeaders = headers && typeof headers === 'object' ? headers : null;
 
   try {
     const response = await fetch('https://api.resend.com/emails', {
@@ -283,6 +286,7 @@ async function sendEmail({ to, subject, text, html, from, fromName, idempotencyK
         subject: safeSubject,
         text: String(text || ''),
         html: String(html || ''),
+        ...(customHeaders ? { headers: customHeaders } : {}),
       }),
     });
 

@@ -1,9 +1,13 @@
 'use strict';
 
-jest.mock('../utils/storage', () => ({
-  uploadFile: jest.fn(),
-  getSignedDownloadUrl: jest.fn().mockResolvedValue('https://signed.example/fresh?sig=abc'),
-}));
+jest.mock('../utils/storage', () => {
+  const actual = jest.requireActual('../utils/storage');
+  return {
+    uploadFile: jest.fn(),
+    getSignedDownloadUrl: jest.fn().mockResolvedValue('https://signed.example/fresh?sig=abc'),
+    normalizeStorageKey: actual.normalizeStorageKey,
+  };
+});
 
 const express = require('express');
 const request = require('supertest');

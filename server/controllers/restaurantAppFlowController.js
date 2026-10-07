@@ -3802,6 +3802,11 @@ exports.updatePosTicket = async (req, res, next) => {
     if (!POS_TICKET_STATES.has(ticketState)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { ticketState: 'Unsupported ticket state' });
     }
+    // Voiding erases what the customer owes: owner/manager only. Hold and
+    // reopen are non-money ticket routing and stay employee-accessible.
+    if (ticketState === 'voided') {
+      assertManage(restaurant);
+    }
     if (ticketState === 'refunded') {
       throw new AppError(
         'Refund the original payment through the POS payment endpoint',
@@ -4466,7 +4471,11 @@ exports.recordPosPayment = async (req, res, next) => {
         'card_payment_requires_processor'
       );
     }
-    if (paymentType === 'refund') assertManage(restaurant);
+    // Every manual POS payment records or moves real money (cash tender,
+    // external receipt confirmation, customer wallet debits, refunds):
+    // owner/manager only. Order taking and non-money ticket updates stay
+    // employee-accessible elsewhere.
+    assertManage(restaurant);
     if (!POS_PAYMENT_STATUSES.has(status)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Unsupported payment status' });
     }

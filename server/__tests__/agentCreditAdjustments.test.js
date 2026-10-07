@@ -30,6 +30,10 @@ const ADMIN_A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'; // proposer
 const ADMIN_B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'; // second admin
 const CUSTOMER = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const ADJ_ID = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+// Ledger transaction ids are UUIDs (oxsteed_credit_transactions.id). Never
+// mock them as numbers: the approve path writes the UUID straight through,
+// and a numeric mock hides the Number(uuid) -> NaN class of bug.
+const TXN_UUID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
 
 function reqDouble(overrides = {}) {
   return {
@@ -92,7 +96,7 @@ function queueApplyLeg({ usedToday = '0', beforeCents = '10000', afterCents = '1
     approved_by: ADMIN_B,
     before_balance_cents: Number(beforeCents),
     after_balance_cents: Number(afterCents),
-    ledger_transaction_id: 77,
+    ledger_transaction_id: TXN_UUID,
     ...appliedOverrides,
   });
   mockQuery
@@ -110,7 +114,7 @@ beforeEach(() => {
   resetMocks();
   jest.clearAllMocks();
   creditService.assertCreditRailEnabled.mockResolvedValue(undefined);
-  creditService.adjustCustomerCreditInTransaction.mockResolvedValue({ transaction: { id: 77 } });
+  creditService.adjustCustomerCreditInTransaction.mockResolvedValue({ transaction: { id: TXN_UUID } });
 });
 
 describe('proposeAdjustment validation', () => {
@@ -303,6 +307,10 @@ describe('below-threshold single-admin apply', () => {
     expect(res.payload.adjustment.afterBalanceCents).toBe(6999);
     expect(creditService.adjustCustomerCreditInTransaction).toHaveBeenCalledTimes(1);
     expect(creditService.adjustCustomerCreditInTransaction.mock.calls[0][1].actorUserId).toBe(ADMIN_A);
+    // The UUID ledger id must round-trip as a string, never Number(uuid).
+    const updateCall = mockQuery.mock.calls.find(([sql]) => /ledger_transaction_id = \$5/.test(sql));
+    expect(updateCall).toBeDefined();
+    expect(updateCall[1][4]).toBe(TXN_UUID);
   });
 });
 

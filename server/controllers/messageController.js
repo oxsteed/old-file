@@ -3,14 +3,14 @@ const socketService = require('../services/socketService');
 const { broadcastGuestChatMessage } = socketService;
 const logger        = require('../utils/logger');
 const { sanitizeMessage, detectOffPlatformContact } = require('../utils/messageSanitizer');
-const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
+const { uploadFile, getSignedDownloadUrl, normalizeStorageKey } = require('../utils/storage');
 const { withTransaction } = require('../utils/transaction');
 const { verifyConversationAccess } = require('../utils/conversationAccess');
 const { AppError } = require('../middleware/errorHandler');
 const { ensureBusinessConversation, mirrorMessage } = require('../services/businessConversationSync');
 const { enqueueMessageNotifications } = require('../services/messageNotificationService');
 
-function normalizeMessageAttachments(value) {
+function normalizeMessageAttachments(value, { conversationId } = {}) {
   if (!Array.isArray(value)) return [];
   return value.slice(0, 10).flatMap((item) => {
     if (!item || typeof item !== 'object') return [];
@@ -29,14 +29,59 @@ function normalizeMessageAttachments(value) {
     // The storage key is persisted so expired signed URLs can be re-signed
     // on every read. Rows stored before this change have no key and keep
     // serving their original URL as-is.
-    const key = typeof item.key === 'string' ? item.key.trim() : null;
+    const rawKey = typeof item.key === 'string' ? item.key.trim() : null;
+    let key = rawKey ? rawKey.slice(0, 1024) : null;
+    // Ownership (audit P1): a caller-supplied attachment key is only accepted
+    // when it was minted under this conversation's scoped folder. This stops
+    // a client from planting another conversation's (or any unrelated)
+    // storage key in their own message and getting it re-signed on read.
+    if (key && conversationId) {
+      key = scopedChatAttachmentKey(key, conversationId);
+      if (!key) {
+        throw new AppError(
+          'Attachment key was not issued for this conversation',
+          400,
+          'attachment_key_not_issued_here'
+        );
+      }
+    }
     return [{
       url,
-      key: key ? key.slice(0, 1024) : null,
+      key,
       type: type ? type.slice(0, 120) : null,
       filename: filename ? filename.slice(0, 255) : null,
     }];
   });
+}
+
+function sanitizeScopeId(id) {
+  return String(id).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64);
+}
+
+// Chat attachment uploads are scoped to the conversation they belong to, so a
+// storage key can only ever be re-signed inside the conversation it was minted
+// for. Follows the same scopedUploadFolder pattern as chat-agreements/chat-pop.
+function chatAttachmentFolder(conversationId) {
+  return `chat-attachments/c-${sanitizeScopeId(conversationId)}`;
+}
+
+// Returns the normalized key when it was minted under this conversation's
+// attachment folder, otherwise null. Uploaded file bytes always win (minted
+// under the same folder by construction); this only gates caller-supplied keys.
+function scopedChatAttachmentKey(attachmentKey, conversationId) {
+  const normalized = normalizeStorageKey(attachmentKey);
+  if (!normalized || !normalized.startsWith(`${chatAttachmentFolder(conversationId)}/`)) return null;
+  return normalized;
+}
+
+// Keys minted before per-conversation scoping lived directly under
+// chat-attachments/<file>. They are grandfathered at re-sign time only; the
+// write-time gate above prevents new messages from referencing them.
+function isLegacyChatAttachmentKey(normalizedKey) {
+  const prefix = 'chat-attachments/';
+  if (!normalizedKey.startsWith(prefix)) return false;
+  const rest = normalizedKey.slice(prefix.length);
+  return rest.length > 0 && !rest.includes('/');
 }
 
 /**
@@ -44,9 +89,16 @@ function normalizeMessageAttachments(value) {
  * Signed URLs expire (1h); re-signing on every read keeps attachments
  * usable without storing long-lived public URLs. Attachments without a
  * key (legacy rows, data-URL fallbacks) are returned unchanged.
+ *
+ * Ownership (audit P1): a key is only re-signed when it belongs to this
+ * conversation - i.e. it was minted under the conversation's scoped folder
+ * (or is a grandfathered pre-scoping legacy key). Keys from other
+ * conversations, other storage areas, or with path traversal are rejected
+ * and their URL is nulled instead of signed.
  */
-async function refreshAttachmentUrls(attachments) {
+async function refreshAttachmentUrls(attachments, conversationId) {
   if (!Array.isArray(attachments) || attachments.length === 0) return attachments;
+  const scopePrefix = conversationId ? `${chatAttachmentFolder(conversationId)}/` : null;
   return Promise.all(attachments.map(async (item) => {
     if (!item || typeof item !== 'object' || typeof item.key !== 'string' || !item.key) {
       return item;
@@ -59,8 +111,20 @@ async function refreshAttachmentUrls(attachments) {
       logger.warn('Rejected suspicious attachment key', { key: key.slice(0, 50) });
       return { ...item, url: null };
     }
+    const normalized = normalizeStorageKey(key);
+    const belongsToConversation = Boolean(
+      normalized
+      && scopePrefix
+      && (normalized.startsWith(scopePrefix) || isLegacyChatAttachmentKey(normalized))
+    );
+    if (!belongsToConversation) {
+      logger.warn('Rejected attachment key outside conversation scope', {
+        key: normalized ? normalized.slice(0, 60) : null,
+      });
+      return { ...item, url: null };
+    }
     try {
-      const url = await getSignedDownloadUrl(key, 3600);
+      const url = await getSignedDownloadUrl(normalized, 3600);
       return { ...item, url };
     } catch (err) {
       logger.warn('Failed to re-sign attachment URL', { err: err.message });
@@ -504,7 +568,7 @@ const getMessages = async (req, res, next) => {
     // a non-issue. Legacy rows without keys keep their original URL.
     const rows = await Promise.all(result.rows.map(async (row) => ({
       ...row,
-      attachments: await refreshAttachmentUrls(row.attachments),
+      attachments: await refreshAttachmentUrls(row.attachments, conversationId),
     })));
     res.json(rows);
   } catch (error) {
@@ -647,7 +711,7 @@ const sendMessage = async (req, res, next) => {
     const userId = req.user.id;
     const { conversationId } = req.params;
     const rawContent = (req.body.content || '').trim();
-    const attachments = normalizeMessageAttachments(req.body.attachments);
+    const attachments = normalizeMessageAttachments(req.body.attachments, { conversationId });
     const clientMessageId = req.get('Idempotency-Key')
       || req.body.clientMessageId
       || req.body.client_message_id
@@ -1766,7 +1830,7 @@ async function uploadAttachment(req, res) {
     if (conv.rows.length === 0) return res.status(403).json({ error: 'Access denied' });
 
     const { buffer, originalname, mimetype, size } = req.file;
-    const key = await uploadFile(buffer, 'chat-attachments', originalname, mimetype);
+    const key = await uploadFile(buffer, chatAttachmentFolder(conversationId), originalname, mimetype);
 
     if (!key) {
       // S3 not configured - return a base64 data-URL fallback (dev only)

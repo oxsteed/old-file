@@ -262,7 +262,7 @@ export default function DirectCatalog({ embedded = false }) {
                   <p className="text-[11px] text-slate-500">
                     {t('directCatalogAdmin.poolSizeHint', {
                       count: (form.assigneePool?.userIds || []).length + (form.assigneePool?.roles || []).length,
-                      defaultValue: 'Pool selectors: {{count}} (roles expand to active dispatch users).',
+                      defaultValue: 'Pool selectors: {{count}} (roles expand to roster members holding that role).',
                     })}
                     {' · '}
                     <Link to="/direct/admin" className="text-orange-200 hover:underline">{t('directCatalogAdmin.manageCalendar', { defaultValue: 'Manage bookable slots' })}</Link>

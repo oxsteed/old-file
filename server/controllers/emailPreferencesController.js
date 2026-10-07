@@ -203,19 +203,23 @@ async function handleUnsubscribeLink(req, res) {
     const { user_id, category } = result.rows[0];
 
     if (category) {
-      // Unsubscribe from specific category
+      // Unsubscribe from specific category. marketing_emails=TRUE means opted
+      // IN, so unsubscribing sets it to FALSE (matching the POST confirm path);
+      // unsubscribed_from_bulk_emails uses inverted semantics (TRUE means
+      // unsubscribed) so that one stays TRUE.
       const categoryMapping = {
-        'marketing': 'marketing_emails',
-        'bulk': 'unsubscribed_from_bulk_emails',
+        'marketing': { column: 'marketing_emails', value: false },
+        'bulk': { column: 'unsubscribed_from_bulk_emails', value: true },
       };
 
       if (categoryMapping[category]) {
+        const { column, value } = categoryMapping[category];
         await pool.query(
           `UPDATE notification_preferences
-           SET ${categoryMapping[category]} = TRUE,
+           SET ${column} = $2,
                email_updated_at = CURRENT_TIMESTAMP
            WHERE user_id = $1`,
-          [user_id]
+          [user_id, value]
         );
       }
     } else {
@@ -249,66 +253,77 @@ async function handleUnsubscribeLink(req, res) {
   }
 }
 
+// Shared core for token-based unsubscribes (link confirm + RFC 8058 one-click).
+// Validates the token, applies the unsubscribe with the corrected polarity
+// (marketing_emails=TRUE means opted IN, so unsubscribing sets it to FALSE;
+// unsubscribed_from_bulk_emails uses inverted semantics: TRUE means
+// unsubscribed), marks the token used, and returns { userId, category }.
+// Returns { error: { status, message } } when the token is invalid.
+async function consumeUnsubscribeToken(token) {
+  if (!token || String(token).length < 32) {
+    return { error: { status: 400, message: 'Invalid unsubscribe token' } };
+  }
+
+  const result = await pool.query(
+    `SELECT user_id, category FROM email_unsubscribe_tokens
+     WHERE token = $1 AND used_at IS NULL`,
+    [token]
+  );
+
+  if (!result.rows.length) {
+    return { error: { status: 404, message: 'Token not found or already used' } };
+  }
+
+  const { user_id, category } = result.rows[0];
+
+  // Apply unsubscribe
+  if (category) {
+    const categoryMapping = {
+      'marketing': { column: 'marketing_emails', value: false },
+      'bulk': { column: 'unsubscribed_from_bulk_emails', value: true },
+    };
+
+    if (categoryMapping[category]) {
+      const { column, value } = categoryMapping[category];
+      await pool.query(
+        `UPDATE notification_preferences
+         SET ${column} = $2,
+             email_updated_at = CURRENT_TIMESTAMP
+         WHERE user_id = $1`,
+        [user_id, value]
+      );
+    }
+  } else {
+    await pool.query(
+      `UPDATE notification_preferences
+       SET unsubscribe_all = TRUE,
+           email_updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = $1`,
+      [user_id]
+    );
+  }
+
+  // Mark token as used
+  await pool.query(
+    `UPDATE email_unsubscribe_tokens
+     SET used_at = CURRENT_TIMESTAMP
+     WHERE token = $1`,
+    [token]
+  );
+
+  return { userId: user_id, category };
+}
+
 // Confirm unsubscribe via POST
 async function confirmUnsubscribe(req, res) {
   try {
     const { token } = req.params;
-
-    if (!token || token.length < 32) {
-      return sendError(res, 400, 'Invalid unsubscribe token');
+    const outcome = await consumeUnsubscribeToken(token);
+    if (outcome.error) {
+      return sendError(res, outcome.error.status, outcome.error.message);
     }
 
-    const result = await pool.query(
-      `SELECT user_id, category FROM email_unsubscribe_tokens
-       WHERE token = $1 AND used_at IS NULL`,
-      [token]
-    );
-
-    if (!result.rows.length) {
-      return sendError(res, 404, 'Token not found or already used');
-    }
-
-    const { user_id, category } = result.rows[0];
-
-    // Apply unsubscribe
-    if (category) {
-      // Audit fix: marketing_emails=TRUE means opted IN. Unsubscribing must
-      // set it to FALSE. (unsubscribed_from_bulk_emails uses inverted
-      // semantics: TRUE means unsubscribed, so that one stays TRUE.)
-      const categoryMapping = {
-        'marketing': { column: 'marketing_emails', value: false },
-        'bulk': { column: 'unsubscribed_from_bulk_emails', value: true },
-      };
-
-      if (categoryMapping[category]) {
-        const { column, value } = categoryMapping[category];
-        await pool.query(
-          `UPDATE notification_preferences
-           SET ${column} = $2,
-               email_updated_at = CURRENT_TIMESTAMP
-           WHERE user_id = $1`,
-          [user_id, value]
-        );
-      }
-    } else {
-      await pool.query(
-        `UPDATE notification_preferences
-         SET unsubscribe_all = TRUE,
-             email_updated_at = CURRENT_TIMESTAMP
-         WHERE user_id = $1`,
-        [user_id]
-      );
-    }
-
-    // Mark token as used
-    await pool.query(
-      `UPDATE email_unsubscribe_tokens
-       SET used_at = CURRENT_TIMESTAMP
-       WHERE token = $1`,
-      [token]
-    );
-
-    logger.info('Unsubscribe confirmed via POST', { userId: user_id, category });
+    logger.info('Unsubscribe confirmed via POST', { userId: outcome.userId, category: outcome.category });
 
     res.json({
       success: true,
@@ -320,11 +335,36 @@ async function confirmUnsubscribe(req, res) {
   }
 }
 
+// RFC 8058 one-click unsubscribe (no auth). Mail providers POST to the URL
+// from the List-Unsubscribe header with body `List-Unsubscribe=One-Click`;
+// the token identifying the recipient rides in the URL query string, and is
+// also accepted from the POST body for direct clients.
+async function unsubscribeOneClick(req, res) {
+  try {
+    const token = req.query?.token || req.body?.token;
+    const outcome = await consumeUnsubscribeToken(token);
+    if (outcome.error) {
+      return sendError(res, outcome.error.status, outcome.error.message);
+    }
+
+    logger.info('One-click unsubscribe honored', { userId: outcome.userId, category: outcome.category });
+
+    res.json({
+      success: true,
+      message: 'You have been unsubscribed successfully'
+    });
+  } catch (error) {
+    logger.error('Error handling one-click unsubscribe', { error });
+    sendError(res, 500, 'Failed to process unsubscribe request');
+  }
+}
+
 module.exports = {
   getEmailPreferences,
   updateEmailPreferences,
   unsubscribeFromAll,
   generateUnsubscribeToken,
   handleUnsubscribeLink,
-  confirmUnsubscribe
+  confirmUnsubscribe,
+  unsubscribeOneClick
 };

@@ -154,7 +154,11 @@ function getRestaurantStripeStatus(restaurant) {
   const accountStatus = normalizeString(
     restaurant?.stripe_account_status
       || restaurant?.business_stripe_account_status
-      || restaurant?.businessStripeAccountStatus,
+      || restaurant?.businessStripeAccountStatus
+      // restaurant_connect_accounts has no status column; derive it from the
+      // cached flags the same way restaurantPayoutController does
+      // ('active' when charges are enabled, else 'pending').
+      || (accountId ? (chargesEnabled ? 'active' : 'pending') : null),
     40
   );
   return {
@@ -1556,9 +1560,15 @@ async function notifyFoodOrderReady(order, restaurant) {
       return;
     }
 
-    // 2) Guest with a phone number — SMS.
+    // 2) Guest with a phone number — SMS. A guest who supplied their number at
+    // checkout is transactional consent for order notifications; STOP
+    // opt-outs and the per-phone rate limit are enforced inside sendDirectSMS.
     if (order.guest_phone) {
-      const smsResult = await smsNotificationService.sendDirectSMS(order.guest_phone, `${body} ${trackUrl}`.trim());
+      const smsResult = await smsNotificationService.sendDirectSMS(
+        order.guest_phone,
+        `${body} ${trackUrl}`.trim(),
+        { notificationType: 'food_order_ready_guest' }
+      );
       logger.info('notifyFoodOrderReady sent', {
         orderId: order.id,
         restaurantId: order.restaurant_id,
@@ -2000,9 +2010,13 @@ async function respondRestaurantProfile(req, res, next, adminPreview) {
 
     const { rows: restaurants } = await pool.query(
       `SELECT fr.*,
-              b.stripe_charges_enabled AS business_stripe_charges_enabled
+              -- Single Connect source of truth: restaurant_connect_accounts
+              -- (P0 fix). The public profile's card-payments signal must match
+              -- what checkout actually uses.
+              rca.charges_enabled AS business_stripe_charges_enabled
          FROM food_restaurants fr
          JOIN businesses b ON b.id = fr.business_id
+         LEFT JOIN restaurant_connect_accounts rca ON rca.restaurant_id = fr.id
         WHERE fr.id = $1
           AND b.deleted_at IS NULL
           ${adminPreview ? '' : `AND fr.status IN ('active', 'paused')
@@ -2273,10 +2287,11 @@ exports.quoteOrder = async (req, res, next) => {
     const isKioskOrder = ['kiosk', 'counter', 'tablet'].includes(orderSourceEarly);
     const { rows: restaurants } = await pool.query(
       `SELECT fr.*,
-              COALESCE(rca.stripe_account_id, b.stripe_account_id) AS business_stripe_account_id,
-              COALESCE(rca.charges_enabled, b.stripe_charges_enabled) AS business_stripe_charges_enabled,
-              COALESCE(rca.payouts_enabled, b.stripe_payouts_enabled) AS business_stripe_payouts_enabled,
-              COALESCE(rca.account_status, b.stripe_account_status) AS business_stripe_account_status
+              -- Single Connect source of truth: restaurant_connect_accounts
+              -- (P0 fix). No fallback to the legacy businesses.stripe_account_id.
+              rca.stripe_account_id AS business_stripe_account_id,
+              rca.charges_enabled AS business_stripe_charges_enabled,
+              rca.payouts_enabled AS business_stripe_payouts_enabled
          FROM food_restaurants fr
          LEFT JOIN businesses b ON b.id = fr.business_id
          LEFT JOIN restaurant_connect_accounts rca ON rca.restaurant_id = fr.id
@@ -2594,10 +2609,11 @@ exports.createOrder = async (req, res, next) => {
       // per-day queue number below cannot be duplicated under load.
     const { rows: restaurants } = await client.query(
         `SELECT fr.*,
-                COALESCE(rca.stripe_account_id, b.stripe_account_id) AS business_stripe_account_id,
-                COALESCE(rca.charges_enabled, b.stripe_charges_enabled) AS business_stripe_charges_enabled,
-                COALESCE(rca.payouts_enabled, b.stripe_payouts_enabled) AS business_stripe_payouts_enabled,
-                COALESCE(rca.account_status, b.stripe_account_status) AS business_stripe_account_status
+                -- Single Connect source of truth: restaurant_connect_accounts
+                -- (P0 fix). No fallback to the legacy businesses.stripe_account_id.
+                rca.stripe_account_id AS business_stripe_account_id,
+                rca.charges_enabled AS business_stripe_charges_enabled,
+                rca.payouts_enabled AS business_stripe_payouts_enabled
            FROM food_restaurants fr
            LEFT JOIN businesses b ON b.id = fr.business_id
            LEFT JOIN restaurant_connect_accounts rca ON rca.restaurant_id = fr.id
@@ -3522,12 +3538,14 @@ exports.createCardPaymentIntent = async (req, res, next) => {
     }
     const { rows: restaurants } = await pool.query(
       `SELECT fr.id, fr.business_id, fr.currency_code,
-              b.stripe_account_id AS business_stripe_account_id,
-              b.stripe_charges_enabled AS business_stripe_charges_enabled,
-              b.stripe_payouts_enabled AS business_stripe_payouts_enabled,
-              b.stripe_account_status AS business_stripe_account_status
+              -- Single Connect source of truth: restaurant_connect_accounts
+              -- (P0 fix). No fallback to the legacy businesses.stripe_account_id.
+              rca.stripe_account_id AS business_stripe_account_id,
+              rca.charges_enabled AS business_stripe_charges_enabled,
+              rca.payouts_enabled AS business_stripe_payouts_enabled
          FROM food_restaurants fr
          JOIN businesses b ON b.id = fr.business_id
+         LEFT JOIN restaurant_connect_accounts rca ON rca.restaurant_id = fr.id
         WHERE fr.id = $1
           AND fr.status = 'active'
           AND fr.discovery_status = 'visible'
@@ -4319,9 +4337,12 @@ exports.resumeFoodCheckoutSession = async (req, res, next) => {
     if (!orderId) throw new AppError('Order not found', 404, 'order_not_found');
     const { rows: orderRows } = await pool.query(
       `SELECT fo.*,
-              b.stripe_account_id AS business_stripe_account_id
+              -- Single Connect source of truth: restaurant_connect_accounts
+              -- (P0 fix). The session was created on the account stamped in
+              -- the order metadata; the live rca row is only a fallback.
+              rca.stripe_account_id AS business_stripe_account_id
          FROM food_orders fo
-         LEFT JOIN businesses b ON b.id = fo.business_id
+         LEFT JOIN restaurant_connect_accounts rca ON rca.restaurant_id = fo.restaurant_id
         WHERE fo.id = $1`,
       [orderId]
     );
@@ -4352,9 +4373,11 @@ exports.resumeFoodCheckoutSession = async (req, res, next) => {
       orderItems,
       customerEmail: normalizeString(req.user?.email || req.body.guestEmail || req.body.guest_email, 255),
       returnUrl: safeReturnUrl(req.body.returnUrl || req.body.return_url),
-      connectedAccountId: order.business_stripe_account_id
-        || order.metadata?.stripeCheckout?.connectedAccountId
+      // Creation-time truth first: the session lives on the account stamped
+      // in the order metadata. The live rca row is only a fallback.
+      connectedAccountId: order.metadata?.stripeCheckout?.connectedAccountId
         || order.metadata?.stripe_checkout?.connectedAccountId
+        || order.business_stripe_account_id
         || null,
     });
     res.status(result.replayed ? 200 : 201).json({
@@ -4381,27 +4404,42 @@ exports.completeCheckout = async (req, res, next) => {
 
     const { rows: orderRows } = await pool.query(
       `SELECT fo.*,
-              b.stripe_account_id AS business_stripe_account_id
+              -- Single Connect source of truth: restaurant_connect_accounts
+              -- (P0 fix). The session lives on the account stamped in the
+              -- order metadata; the live rca row is only a fallback.
+              rca.stripe_account_id AS business_stripe_account_id
          FROM food_orders fo
-         LEFT JOIN businesses b ON b.id = fo.business_id
+         LEFT JOIN restaurant_connect_accounts rca ON rca.restaurant_id = fo.restaurant_id
         WHERE fo.id = $1`,
       [orderId]
     );
     const order = orderRows[0];
     if (!order) throw new AppError('Order not found', 404, 'order_not_found');
 
-    // Ownership check for authenticated callers: if the order belongs to a
-    // user, it must be theirs. Guest orders (no user_id) rely on the Stripe
-    // session verification below. This is a Stripe redirect return URL and
-    // must stay accessible to guests completing checkout.
-    if (req.user?.id && order.user_id && String(order.user_id) !== String(req.user.id)) {
+    // Ownership check for the order's customer. food_orders carries
+    // customer_id (NULL for true guest carts) — there is no user_id column
+    // on this table, so the previous `order.user_id` check never fired.
+    // - Anonymous caller on a user-bound cart (customer_id set) → 401: the
+    //   session_id alone is not enough; the owner must be signed in.
+    // - Signed-in caller on someone else's cart → 403.
+    // - Guest carts (customer_id NULL) rely on the Stripe session
+    //   verification below. This is a Stripe redirect return URL and must
+    //   stay accessible to guests completing checkout.
+    const orderCustomerId = order.customer_id || null;
+    if (orderCustomerId && !req.user?.id) {
+      throw new AppError('Sign in to complete checkout for this order', 401, 'authentication_required');
+    }
+    if (req.user?.id && orderCustomerId && String(orderCustomerId) !== String(req.user.id)) {
       throw new AppError('Payment does not belong to this order', 403, 'payment_order_mismatch');
     }
 
+    // The session lives on the account stamped in the order metadata at
+    // creation; prefer it over the live rca row so retrieval always hits the
+    // right Connect account.
     const connectedAccountId = normalizeString(
-      order.business_stripe_account_id
-        || order.metadata?.stripeCheckout?.connectedAccountId
-        || order.metadata?.stripe_checkout?.connectedAccountId,
+      order.metadata?.stripeCheckout?.connectedAccountId
+        || order.metadata?.stripe_checkout?.connectedAccountId
+        || order.business_stripe_account_id,
       255
     );
     const session = await stripe.checkout.sessions.retrieve(
@@ -4486,10 +4524,11 @@ exports.listMyRestaurants = async (req, res, next) => {
   try {
     const { rows } = await pool.query(
       `SELECT fr.*,
-              b.stripe_account_id AS business_stripe_account_id,
-              b.stripe_charges_enabled AS business_stripe_charges_enabled,
-              b.stripe_payouts_enabled AS business_stripe_payouts_enabled,
-              b.stripe_account_status AS business_stripe_account_status,
+              -- Single Connect source of truth: restaurant_connect_accounts
+              -- (P0 fix). No fallback to the legacy businesses.stripe_account_id.
+              rca.stripe_account_id AS business_stripe_account_id,
+              rca.charges_enabled AS business_stripe_charges_enabled,
+              rca.payouts_enabled AS business_stripe_payouts_enabled,
               CASE
                 WHEN fr.owner_user_id = $1 OR b.user_id = $1 THEN 'owner'
                 ELSE bm.role
@@ -4497,6 +4536,7 @@ exports.listMyRestaurants = async (req, res, next) => {
               bm.id AS effective_membership_id
          FROM food_restaurants fr
          JOIN businesses b ON b.id = fr.business_id
+         LEFT JOIN restaurant_connect_accounts rca ON rca.restaurant_id = fr.id
          LEFT JOIN business_members bm
            ON bm.business_id = fr.business_id
           AND bm.member_id = $1

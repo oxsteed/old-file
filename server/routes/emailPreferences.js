@@ -12,6 +12,9 @@ router.put('/', requireAuth, emailPreferencesController.updateEmailPreferences);
 // Unsubscribe from all emails (authenticated)
 router.post('/unsubscribe-all', requireAuth, emailPreferencesController.unsubscribeFromAll);
 
+// RFC 8058 one-click unsubscribe (no auth; token in query string or body)
+router.post('/unsubscribe-one-click', emailPreferencesController.unsubscribeOneClick);
+
 // Handle unsubscribe via email link (no auth required)
 router.get('/unsubscribe/:token', emailPreferencesController.handleUnsubscribeLink);
 

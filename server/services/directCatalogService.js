@@ -1,6 +1,7 @@
 'use strict';
 
 const db = require('../db');
+const logger = require('../utils/logger');
 const { deriveServiceCapability } = require('./directCapability');
 const {
   loadPoolSizes,
@@ -117,6 +118,9 @@ function publicService(row, locale, capabilityOpts = {}) {
     nextSlotStartsAt: capability.nextSlotStartsAt || null,
     slotsAvailable: !!capability.slotsAvailable && capability.bookable,
     capacityExhausted: !!capability.capacityExhausted,
+    // Distinct from "not Bookable": present only when the offerability
+    // check itself failed (detail is server-logged, not exposed).
+    ...(capability.offerabilityStatus ? { offerabilityStatus: capability.offerabilityStatus } : null),
     assigneePoolSize: capability.assigneePoolSize ?? null,
     serviceArea: row.service_area || null,
     bookingSlotMinutes: row.booking_slot_minutes == null ? 120 : Number(row.booking_slot_minutes),
@@ -437,13 +441,23 @@ async function getCatalog({ locale = 'en', includeUnpublished = false, view = nu
     return prefersBook && requestableBase && pool.size > 0;
   });
   const offerResults = new Map();
+  const offerErrors = new Map();
   if (offerCandidates.length) {
+    // Keep the service id on rejections so a failed check can be told apart
+    // from a genuine "no slots" result per service.
     const settled = await Promise.allSettled(
-      offerCandidates.map((row) => hasOfferableSlots(row.id).then((offer) => [String(row.id), offer]))
+      offerCandidates.map((row) => hasOfferableSlots(row.id).then(
+        (offer) => ({ id: String(row.id), ok: true, offer }),
+        (error) => ({ id: String(row.id), ok: false, error })
+      ))
     );
     for (const s of settled) {
-      if (s.status === 'fulfilled') {
-        offerResults.set(s.value[0], s.value[1]);
+      // The mapper above never rejects, so s.status is always 'fulfilled'.
+      const v = s.value;
+      if (v.ok) {
+        offerResults.set(v.id, v.offer);
+      } else {
+        offerErrors.set(v.id, v.error);
       }
     }
   }
@@ -459,15 +473,28 @@ async function getCatalog({ locale = 'en', includeUnpublished = false, view = nu
     let slotsAvailable = false;
     let nextSlotStartsAt = null;
     let capacityExhausted = false;
+    // Distinct from "unavailable": set only when the offerability check
+    // itself failed. Happy-path payloads never carry this field.
+    let offerabilityStatus;
     if (prefersBook && requestableBase && pool.size > 0) {
       const offer = offerResults.get(String(row.id));
-      if (offer) {
+      const offerErr = offerErrors.get(String(row.id));
+      const engineError = offerErr || (offer && offer.error ? new Error(offer.error) : null);
+      if (engineError) {
+        // The engine failed for this service: log it and surface a distinct
+        // status instead of silently collapsing into "not Bookable".
+        logger.error('[directCatalog] offerability check failed', {
+          serviceId: String(row.id),
+          error: engineError.message,
+        });
+        offerabilityStatus = 'error';
+      } else if (offer) {
         slotsAvailable = offer.slotsAvailable;
         nextSlotStartsAt = offer.nextSlotStartsAt;
         capacityExhausted = offer.capacityExhausted;
       }
-      // If the batch lookup failed for this service, slotsAvailable stays
-      // false (soft-fail into not Bookable, as before).
+      // If the service simply has no offer result and no error, slotsAvailable
+      // stays false (unavailable, as before).
     } else if (prefersBook && requestableBase && pool.size === 0) {
       // preference on, no pool → not bookable (reason set in derive)
     }
@@ -475,6 +502,7 @@ async function getCatalog({ locale = 'en', includeUnpublished = false, view = nu
       slotsAvailable,
       nextSlotStartsAt,
       capacityExhausted,
+      offerabilityStatus,
       assigneePoolSize: prefersBook ? pool.size : undefined,
       freeCapacityInHorizon: slotsAvailable,
     });

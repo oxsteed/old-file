@@ -100,11 +100,14 @@ async function getPayoutableBalance(client, restaurantId, currencyCode) {
 async function requireRestaurantOwnership(client, userId, restaurantId) {
   const { rows } = await client.query(
     `SELECT fr.id, fr.display_name, fr.currency_code,
-            -- Audit fix: single Connect source of truth. The UI onboards
-            -- into restaurant_connect_accounts; prefer it over the legacy
-            -- businesses.stripe_account_id.
-            COALESCE(rca.stripe_account_id, b.stripe_account_id) AS stripe_account_id,
-            COALESCE(rca.payouts_enabled, b.stripe_payouts_enabled, FALSE) AS stripe_payouts_enabled
+            -- Single Connect source of truth: restaurant_connect_accounts
+            -- (one row per restaurant, migration 656; the UI onboards here).
+            -- The legacy businesses.stripe_account_id fallback was removed:
+            -- checkout, payouts, and top-ups all read this table now. A
+            -- restaurant with no row fails closed below
+            -- (payout_account_not_connected).
+            rca.stripe_account_id AS stripe_account_id,
+            COALESCE(rca.payouts_enabled, FALSE) AS stripe_payouts_enabled
        FROM food_restaurants fr
        JOIN businesses b ON b.id = fr.business_id
        LEFT JOIN restaurant_connect_accounts rca ON rca.restaurant_id = fr.id

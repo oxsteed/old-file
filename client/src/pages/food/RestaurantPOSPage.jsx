@@ -222,6 +222,7 @@ export default function RestaurantPOSPage() {
   const [items, setItems] = useState([]);
   const [discounts, setDiscounts] = useState([]);
   const [activeShift, setActiveShift] = useState(null);
+  const [canManage, setCanManage] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const [activeCat, setActiveCat] = useState(null);
@@ -239,12 +240,17 @@ export default function RestaurantPOSPage() {
 
   const load = useCallback(async () => {
     try {
-      const [r, shiftsResponse] = await Promise.all([
+      const [r, shiftsResponse, bootstrapResponse] = await Promise.all([
         getFoodRestaurant(restaurantId),
         api.get(`/restaurants/${restaurantId}/pos/shifts?limit=50`).catch(() => ({ data: { shifts: [] } })),
+        api.get(`/restaurants/${restaurantId}/app/bootstrap`).catch(() => null),
       ]);
       const rest = r?.restaurant || r;
       setRestaurant(rest);
+      // Recording a POS payment moves real money, so the pay flow is
+      // manager-only (the API enforces this too). Order taking stays
+      // available to every employee.
+      setCanManage(Boolean(bootstrapResponse?.data?.membership?.canManage));
       const openShifts = (shiftsResponse.data?.shifts || [])
         .filter((shift) => shift.status === 'open')
         .sort((a, b) => Number(Boolean(b.is_mine)) - Number(Boolean(a.is_mine)));
@@ -354,6 +360,10 @@ export default function RestaurantPOSPage() {
 
   const handlePay = async ({ method, discountId, discountCents, tipCents, finalTotal, creditHoldId }) => {
     if (!requireOpenShift()) return;
+    if (!canManage) {
+      toast.error(t('food.pos.payManagerOnly'));
+      return;
+    }
     setSubmitting(true);
     try {
       const payload = {
@@ -557,10 +567,18 @@ export default function RestaurantPOSPage() {
                   <button className="fd-btn-secondary" onClick={handleSendToKitchen} disabled={submitting}>
                     {t('food.pos.sendKitchen')}
                   </button>
-                  <button className="fd-btn" onClick={() => setShowPay(true)} disabled={submitting}>
+                  <button
+                    className="fd-btn"
+                    onClick={() => setShowPay(true)}
+                    disabled={submitting || !canManage}
+                    title={canManage ? undefined : t('food.pos.payManagerOnly')}
+                  >
                     {t('food.pos.payNow')}
                   </button>
                 </div>
+                {!canManage && (
+                  <div className="fd-pos-pay-hint">{t('food.pos.payManagerOnly')}</div>
+                )}
               </div>
             )}
 

@@ -44,8 +44,7 @@ const directHoldLimiter = rateLimit({
 });
 // Audit finding (2026-10-06): the book endpoint had only the general rate
 // limit. Booking creates real quote_requests, so it gets its own tight
-// bucket: 10 per 15 min per IP. Guests can still book (product decision),
-// but spam is throttled.
+// bucket: 10 per 15 min per IP. Spam is throttled on top of the auth gate.
 const directBookLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
@@ -82,7 +81,12 @@ router.get('/profile', optionalAuth, ctrl.getProfile);
 router.get('/catalog', generalLimiter, ctrl.getCatalog);
 router.get('/catalog/services/:id/slots', generalLimiter, ctrl.getServiceSlots);
 router.post('/catalog/services/:id/holds', authenticate, directHoldLimiter, ctrl.createServiceHold);
-router.post('/catalog/services/:id/book', directBookLimiter, ctrl.bookServiceSlot);
+// Audit finding P0 (2026-10-07): booking was unauthenticated, so anyone
+// could create scheduled quote_requests with user_id NULL and
+// payment_status='unpaid'. The book endpoint is now authenticated, matching
+// the holds route directly above it, with the Bookable gate already
+// enforced in the service layer and the tight rate-limit bucket kept.
+router.post('/catalog/services/:id/book', authenticate, directBookLimiter, ctrl.bookServiceSlot);
 router.get('/service-areas', generalLimiter, ctrl.getServiceAreas);
 router.post('/service-availability', generalLimiter, ctrl.checkServiceAvailability);
 router.post('/uploads', authenticate, directUploadLimiter, upload.single('image'), validateFileUpload, ctrl.uploadDirectAsset);

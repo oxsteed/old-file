@@ -502,6 +502,30 @@ const creditExportLimiter = rateLimit({
   },
 });
 
+// Food hosted-checkout completion (GET /orders/:orderId/checkout/complete)
+// accepts a bare Stripe session_id under optionalAuth: the session_id is a
+// bearer token, so throttle guessing per (IP, session) rather than per IP
+// alone. 10 attempts per 15 minutes is enough for legitimate Stripe
+// redirect retries while making session_id enumeration impractical.
+const foodCheckoutCompleteLimiter = rateLimit({
+  ...createStoreOption('rl:food_checkout_complete:'),
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  keyGenerator: (req) => {
+    const sessionId = req.query?.session_id;
+    if (typeof sessionId === 'string' && sessionId.length > 0) {
+      return `${req.ip}:${crypto.createHash('sha256').update(sessionId).digest('hex').slice(0, 32)}`;
+    }
+    return req.ip; // Fallback to IP when no session_id was presented
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many checkout completion attempts. Please try again in 15 minutes.',
+    retryAfter: '15 minutes',
+  },
+});
+
 // Admin-triggered phone verification sends are expensive and sensitive. Keep
 // the bucket keyed to the acting admin; the challenge service also enforces a
 // per-user cooldown.
@@ -598,6 +622,7 @@ module.exports = {
   creditPurchaseLimiter,
   creditAdminMutationLimiter,
   creditExportLimiter,
+  foodCheckoutCompleteLimiter,
   adminPhoneVerificationLimiter,
   connectorMutationLimiter,
   entityResolveLimiter,

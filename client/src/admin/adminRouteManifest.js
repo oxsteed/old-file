@@ -151,7 +151,10 @@ export const ADMIN_ROUTE_MANIFEST = Object.freeze({
   settings: defineRoute('/admin/super/settings', { grant: 'manage_settings' }),
   auditLog: defineRoute('/admin/super/audit-log', { grant: 'view_audit_log' }),
   userActionLog: defineRoute('/admin/super/audit-log/user-actions', { grant: 'view_audit_log' }),
-  oneTruth: defineRoute('/admin/super/one-truth', { superOnly: true }),
+  // P1 item 12.2: delegated trust/fraud analysts open the page; the API
+  // enforces the investigation-grant gate per read (super-admins pass by
+  // role, analysts need an active grant, others get the request flow).
+  oneTruth: defineRoute('/admin/super/one-truth', { superOnly: false }),
   franchiseHq: defineRoute('/admin/super/franchises', { superOnly: true }),
   careers: defineRoute('/admin/super/careers', { superOnly: true }),
   countryPacks: defineRoute('/admin/super/country-packs', { superOnly: true }),

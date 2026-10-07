@@ -17,10 +17,18 @@ let { notifyMatchingSavedSearches } = (() => {
   try { return require('../routes/savedSearches'); } catch (_) { return {}; }
 })();
 
+/**
+ * Tier-3 escrow detection, deterministic edition.
+ *
+ * The tier is an explicit enum on the job row (jobs.transaction_mode, CHECK
+ * ('direct', 'guided_protected')), set when the tier-3 protected payment
+ * intent is created (paymentController.createPaymentIntent). Never infer the
+ * tier from free-text labels: substring matching on job_type/job_type_label
+ * misfires on user-entered text ("escrow" in a title, "tier3" in a note)
+ * and silently misses real escrows whose labels were never tagged.
+ */
 function isTier3EscrowJob(jobRow) {
-  const label = String(jobRow?.job_type_label || '').toLowerCase();
-  const jt = String(jobRow?.job_type || '').toLowerCase();
-  return label.includes('tier3') || label.includes('escrow') || jt.includes('tier3') || jt.includes('escrow');
+  return String(jobRow?.transaction_mode || 'direct') === 'guided_protected';
 }
 
 function platformJobPaymentsEnabled() {
@@ -978,7 +986,7 @@ exports.completeJob = async (req, res, next) => {
 
     // First, verify the job exists and user has permission (outside transaction for early validation)
     const { rows: jobRows } = await pool.query(`
-      SELECT id, client_id, assigned_helper_id, status, job_type, job_type_label
+      SELECT id, client_id, assigned_helper_id, status, job_type, job_type_label, transaction_mode
       FROM jobs
       WHERE id = $1 AND (client_id = $2 OR assigned_helper_id = $2)
       AND status = 'in_progress'

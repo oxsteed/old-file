@@ -80,3 +80,96 @@ describe('email notification preferences', () => {
     expect(mockQuery.mock.calls[1][0]).toContain('UPDATE notification_preferences');
   });
 });
+
+describe('RFC 8058 one-click unsubscribe (Item 22)', () => {
+  const emailPreferencesRouter = require('../routes/emailPreferences');
+
+  function buildOneClickApp() {
+    const app = express();
+    app.use(express.json());
+    app.use(express.urlencoded({ extended: true }));
+    app.use('/api/notifications/email', emailPreferencesRouter);
+    return app;
+  }
+
+  const validToken = 'a'.repeat(64);
+
+  function mockTokenLookup(userId, category) {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ user_id: userId, category }], rowCount: 1 }) // token lookup
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 }) // preference update
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 }); // token marked used
+  }
+
+  test('POST /unsubscribe-one-click with token in query unsubscribes from marketing only', async () => {
+    mockTokenLookup('user-123', 'marketing');
+
+    const res = await request(buildOneClickApp())
+      .post(`/api/notifications/email/unsubscribe-one-click?token=${validToken}`)
+      .send('List-Unsubscribe=One-Click')
+      .set('Content-Type', 'application/x-www-form-urlencoded');
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    // marketing_emails must be set to FALSE (opted-IN polarity), not TRUE
+    const updateCall = mockQuery.mock.calls.find(([sql]) => sql.includes('UPDATE notification_preferences'));
+    expect(updateCall[0]).toContain('marketing_emails = $2');
+    expect(updateCall[1]).toEqual(['user-123', false]);
+    // token marked used
+    const markUsed = mockQuery.mock.calls.find(([sql]) => sql.includes('UPDATE email_unsubscribe_tokens'));
+    expect(markUsed[1]).toEqual([validToken]);
+  });
+
+  test('POST /unsubscribe-one-click accepts the token in the JSON body', async () => {
+    mockTokenLookup('user-123', 'marketing');
+
+    const res = await request(buildOneClickApp())
+      .post('/api/notifications/email/unsubscribe-one-click')
+      .send({ token: validToken });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
+  test('POST /unsubscribe-one-click with a category-less token unsubscribes from all', async () => {
+    mockTokenLookup('user-123', null);
+
+    const res = await request(buildOneClickApp())
+      .post('/api/notifications/email/unsubscribe-one-click')
+      .send({ token: validToken });
+
+    expect(res.status).toBe(200);
+    const updateCall = mockQuery.mock.calls.find(([sql]) => sql.includes('UPDATE notification_preferences'));
+    expect(updateCall[0]).toContain('unsubscribe_all = TRUE');
+  });
+
+  test('POST /unsubscribe-one-click rejects a short token with 400', async () => {
+    const res = await request(buildOneClickApp())
+      .post('/api/notifications/email/unsubscribe-one-click')
+      .send({ token: 'short' });
+
+    expect(res.status).toBe(400);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  test('POST /unsubscribe-one-click returns 404 for an unknown or used token', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+    const res = await request(buildOneClickApp())
+      .post('/api/notifications/email/unsubscribe-one-click')
+      .send({ token: validToken });
+
+    expect(res.status).toBe(404);
+  });
+
+  test('POST /unsubscribe/:token confirm path keeps the corrected marketing polarity', async () => {
+    mockTokenLookup('user-123', 'marketing');
+
+    const res = await request(buildOneClickApp())
+      .post(`/api/notifications/email/unsubscribe/${validToken}`);
+
+    expect(res.status).toBe(200);
+    const updateCall = mockQuery.mock.calls.find(([sql]) => sql.includes('UPDATE notification_preferences'));
+    expect(updateCall[1]).toEqual(['user-123', false]);
+  });
+});
