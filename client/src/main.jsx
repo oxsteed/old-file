@@ -7,6 +7,7 @@ import App from './App';
 import './index.css';
 import { initMobileBridge } from './utils/mobileBridge';
 import { i18nReady } from './i18n';
+import { installGlobalChunkReload } from './utils/lazyWithRetry';
 import {
   clearBootstrapRecoveryMarker,
   recoverFromBootstrapFailure,
@@ -84,6 +85,7 @@ function renderBootstrapFailure() {
 
 registerServiceWorker();
 initPwaInstall();
+installGlobalChunkReload();
 warmServiceWorkerAssets();
 i18nReady.then(() => {
   clearBootstrapRecoveryMarker();

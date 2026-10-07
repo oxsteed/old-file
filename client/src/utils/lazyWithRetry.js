@@ -96,6 +96,60 @@ function reportChunkFailure(error, name) {
   });
 }
 
+const GLOBAL_RELOAD_KEY = 'oxs:chunk-reload:global';
+
+/**
+ * installGlobalChunkReload — catches chunk-load failures from dynamic
+ * import() calls that never pass through React.lazy (i18n locale chunks,
+ * on-demand panel imports, etc.) and reloads the page once, guarded by a
+ * sessionStorage timestamp so a persistently missing chunk cannot loop.
+ * Sentry OXSTEED-FRONTEND-1A/17/18/19 class.
+ */
+export function installGlobalChunkReload() {
+  if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
+  const onUnhandledRejection = (event) => {
+    let error = null;
+    try {
+      error = event?.reason;
+    } catch {
+      return;
+    }
+    if (!isChunkLoadError(error)) return;
+
+    const storage = safeSessionStorage();
+    let shouldReload = true;
+    if (storage) {
+      try {
+        const last = Number(storage.getItem(GLOBAL_RELOAD_KEY));
+        if (Number.isFinite(last) && Date.now() - last < RETRY_TTL_MS) {
+          shouldReload = false;
+        } else {
+          storage.setItem(GLOBAL_RELOAD_KEY, String(Date.now()));
+        }
+      } catch {
+        // Storage unavailable; allow the single reload attempt.
+      }
+    }
+    if (!shouldReload) return;
+
+    try {
+      if (typeof event?.preventDefault === 'function') event.preventDefault();
+    } catch {
+      // Continue with the reload even if preventDefault fails.
+    }
+    Sentry.withScope((scope) => {
+      scope.setTag('failure_type', 'global_chunk_load');
+      scope.setTag('route', getPathname());
+      scope.setTag('release', getRelease());
+      Sentry.captureException(error);
+    });
+    const url = new URL(window.location.href);
+    url.searchParams.set('chunk-retry', 'auto-global');
+    window.location.replace(url.toString());
+  };
+  window.addEventListener('unhandledrejection', onUnhandledRejection);
+}
+
 export function lazyWithRetry(loader, options = {}) {
   const name = options.name || loader.name || 'route';
 

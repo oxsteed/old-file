@@ -268,7 +268,7 @@ async function listPendingSanctionHits(client, { limit = 50, offset = 0 } = {}) 
     `SELECT s.*,
             CASE WHEN s.subject_type = 'customer' THEN u.email ELSE NULL END AS subject_email
        FROM oxsteed_credit_sanctions_screenings s
-       LEFT JOIN users u ON u.id = s.subject_id AND s.subject_type = 'customer'
+       LEFT JOIN users u ON u.id::text = s.subject_id AND s.subject_type = 'customer'
       WHERE s.result = 'hit' AND s.cleared_at IS NULL
       ORDER BY s.screened_at ASC
       LIMIT $1 OFFSET $2`,

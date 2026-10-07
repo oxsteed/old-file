@@ -11,6 +11,7 @@ import {
   recoverFromBootstrapFailure,
   registerServiceWorker,
 } from '../utils/serviceWorkerRegistration';
+import { installGlobalChunkReload } from '../utils/lazyWithRetry';
 
 function sentryAdminFallback({ error, resetError }) {
   return (
@@ -56,6 +57,7 @@ function renderAdminBootstrapFailure() {
 }
 
 registerServiceWorker();
+installGlobalChunkReload();
 
 // Never mount an admin shell with an uninitialized i18next instance. That
 // turns a recoverable asset/cache failure into a page full of raw keys.

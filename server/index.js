@@ -274,7 +274,10 @@ app.use(securityHeaders);
 app.use(cors({
   origin: (origin, cb) => {
     if (!origin || allowedOrigins.includes(origin) || isTestLoopbackOrigin(origin)) return cb(null, true);
-    cb(new Error('CORS: origin not allowed'));
+    // Deny silently instead of throwing: an Error here becomes a 500 + Sentry
+    // event on every disallowed origin (e.g. /v1/graphql probes). cb(null, false)
+    // omits the CORS headers so the browser blocks the request.
+    return cb(null, false);
   },
   credentials: true,
 }));
@@ -855,6 +858,9 @@ let terminating = false;
 async function terminate(signal, exitCode = 0, cause) {
   if (terminating) return;
   terminating = true;
+  // Signal to Sentry's beforeSend that shutdown is in progress, so expected
+  // teardown errors (e.g. Redis "Connection is closed") are filtered.
+  global.__isShuttingDown = true;
   if (cause) logger.error('Fatal server error', { signal, error: cause.message, stack: cause.stack });
 
   const forceExit = setTimeout(() => {

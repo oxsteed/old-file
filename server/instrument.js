@@ -50,4 +50,13 @@ Sentry.init({
   tracesSampleRate,
   profilesSampleRate,
   transport: getLocalCaptureTransport(),
+  beforeSend(event) {
+    // Filter Redis "Connection is closed" errors during graceful shutdown.
+    // These are expected when the process is tearing down, not real bugs.
+    const msg = event?.exception?.values?.[0]?.value || event?.message || '';
+    if (typeof msg === 'string' && msg.includes('Connection is closed') && global.__isShuttingDown) {
+      return null;
+    }
+    return event;
+  },
 });

@@ -1,5 +1,5 @@
 const db = require('../db');
-const { tableExists, columnExists, userIdEq, ACTIVE_JOB_STATUS_SQL_IN } = require('../utils/schemaProbe');
+const { tableExists, columnExists, probeSchema, userIdEq, ACTIVE_JOB_STATUS_SQL_IN } = require('../utils/schemaProbe');
 const { logAdminAction, logUserAction } = require('../services/auditService');
 const { processPaymentRefund } = require('../services/paymentRefundService');
 const { sendNotification } = require('../services/notificationService');
@@ -208,17 +208,19 @@ exports.getDashboardStats = async (req, res) => {
     const period = PERIOD_INTERVAL[req.query.period] ? req.query.period : '30d';
     const { interval: cur, prev: prevInterval } = PERIOD_INTERVAL[period];
 
-    // Probe optional tables/columns in parallel — never throws
-    const [hasJobs, hasSubs, hasLedger, hasHP, hasST, hasPayouts, hasMig154, hasContentReports] = await Promise.all([
-      tableExists('jobs'),
-      tableExists('subscriptions'),
-      tableExists('platform_ledger'),
-      tableExists('helper_profiles'),
-      tableExists('support_tickets'),
-      tableExists('payouts'),
-      columnExists('users', 'is_suspended'),
-      tableExists('content_reports'),
-    ]);
+    // Probe optional tables/columns in one batched query — never throws
+    const schemaProbe = await probeSchema(
+      ['jobs', 'subscriptions', 'platform_ledger', 'helper_profiles', 'support_tickets', 'payouts', 'content_reports'],
+      [['users', 'is_suspended']]
+    );
+    const hasJobs = schemaProbe.tables.has('jobs');
+    const hasSubs = schemaProbe.tables.has('subscriptions');
+    const hasLedger = schemaProbe.tables.has('platform_ledger');
+    const hasHP = schemaProbe.tables.has('helper_profiles');
+    const hasST = schemaProbe.tables.has('support_tickets');
+    const hasPayouts = schemaProbe.tables.has('payouts');
+    const hasMig154 = schemaProbe.columns.has('users.is_suspended');
+    const hasContentReports = schemaProbe.tables.has('content_reports');
 
     // ── Core user stats (always available — no optional tables) ────────────
     const coreStats = await db.query(`

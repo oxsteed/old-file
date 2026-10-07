@@ -177,11 +177,14 @@ function createRealtimeServer({
         closed = true;
         supportService.shutdown?.();
         socketService.shutdown?.();
+        // Disconnect sockets BEFORE quitting Redis: disconnectSockets publishes
+        // to other nodes via the Redis adapter, which fails with "Connection is
+        // closed" if the pub/sub clients are already quit.
+        try { io.disconnectSockets(true); } catch (err) { log.warn('Realtime: disconnectSockets failed', { error: err.message }); }
+        await new Promise((resolve) => io.close(resolve));
         for (const client of [adapterClients?.pubClient, adapterClients?.subClient]) {
           try { await client?.quit(); } catch (err) { log.warn('Realtime: adapter client quit failed', { error: err.message }); }
         }
-        io.disconnectSockets(true);
-        await new Promise((resolve) => io.close(resolve));
       },
     };
   } catch (err) {

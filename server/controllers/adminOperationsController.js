@@ -12,15 +12,24 @@ function assertIdentifier(value) {
   return value;
 }
 
+const columnsCache = new Map();
+const COLUMNS_CACHE_TTL_MS = 60 * 1000;
+
 async function relationColumns(table) {
   assertIdentifier(table);
+  const cached = columnsCache.get(table);
+  if (cached && Date.now() - cached.at < COLUMNS_CACHE_TTL_MS) {
+    return cached.columns;
+  }
   const { rows } = await db.query(
     `SELECT column_name
        FROM information_schema.columns
       WHERE table_schema = 'public' AND table_name = $1`,
     [table],
   );
-  return new Set(rows.map((row) => row.column_name));
+  const columns = new Set(rows.map((row) => row.column_name));
+  columnsCache.set(table, { columns, at: Date.now() });
+  return columns;
 }
 
 async function statusSummary(table, statusColumn = 'status') {

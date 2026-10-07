@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/react';
+import { isChunkLoadError } from './lazyWithRetry';
 
 const routePromises = new Map();
 
@@ -53,6 +54,10 @@ export function prefetchRoute(name) {
 
   const promise = loader();
   promise.catch((error) => {
+    // Stale chunks after a deploy are expected here; the real navigation
+    // recovers through lazyWithRetry (guarded reload). Reporting them would
+    // just be Sentry noise (OXSTEED-FRONTEND-1B).
+    if (isChunkLoadError(error)) return;
     Sentry.withScope((scope) => {
       scope.setLevel('warning');
       scope.setTag('failure_type', 'route_prefetch');

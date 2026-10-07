@@ -74,6 +74,36 @@ function userIdEq(column) {
   return `${column}::text = $1`;
 }
 
+/**
+ * Batch probe: check multiple tables and columns in a single information_schema
+ * query instead of N separate probes. Returns { tables: Set, columns: Set } of
+ * existing "table" and "table.column" names.
+ */
+async function probeSchema(tables = [], columns = []) {
+  const schema = await getFirstSearchPathSchema();
+  const foundTables = new Set();
+  const foundColumns = new Set();
+  if (!tables.length && !columns.length) return { tables: foundTables, columns: foundColumns };
+  try {
+    const tableNames = [...new Set(tables)];
+    const colPairs = [...new Set(columns.map(([t, c]) => `${t}.${c}`))];
+    const { rows } = await db.query(
+      `SELECT table_name, column_name
+         FROM information_schema.columns
+        WHERE table_schema IN ($1, 'public')
+          AND (table_name = ANY($2) OR (table_name || '.' || column_name) = ANY($3))`,
+      [schema, tableNames, colPairs]
+    );
+    for (const row of rows) {
+      foundTables.add(row.table_name);
+      foundColumns.add(`${row.table_name}.${row.column_name}`);
+    }
+  } catch {
+    // Return empty sets on failure; callers treat missing as unavailable.
+  }
+  return { tables: foundTables, columns: foundColumns };
+}
+
 const { activeJobStatusSqlIn } = require('../constants/activeJobStatuses');
 
 /** SQL `IN (...)` fragment for account-deletion job guards; labels must exist on enum `job_status`. */
@@ -83,6 +113,7 @@ module.exports = {
   getFirstSearchPathSchema,
   tableExists,
   columnExists,
+  probeSchema,
   userIdEq,
   ACTIVE_JOB_STATUS_SQL_IN,
 };
