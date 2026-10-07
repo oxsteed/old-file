@@ -2,6 +2,7 @@
 
 const express = require('express');
 const request = require('supertest');
+const crypto = require('crypto');
 const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
 const ctrl = require('../controllers/foodController');
@@ -1067,6 +1068,9 @@ describe('food controller', () => {
     expect(validToken.status).toBe(200);
     expect(validToken.text).toContain('Checkout cancelled');
     expect(mockQuery.mock.calls[0][0]).toMatch(/metadata->>'trackingToken'/);
-    expect(mockQuery.mock.calls[0][1]).toEqual([100, 'private-random-token']);
+    expect(mockQuery.mock.calls[0][1]).toEqual([
+      100,
+      crypto.createHash('sha256').update('private-random-token').digest('hex'),
+    ]);
   });
 });

@@ -21,6 +21,9 @@ process.env.ENCRYPTION_KEY  = 'a'.repeat(64); // 32-byte key encoded as 64 hex c
 process.env.DATABASE_URL    = 'postgresql://test:test@localhost/test_db';
 process.env.STRIPE_SECRET_KEY    = 'sk_test_dummy';
 process.env.STRIPE_WEBHOOK_SECRET = 'whsec_dummy';
+// Route tests exercise the mocked payment flows; production keeps this flag
+// disabled unless explicitly enabled in its deployment environment.
+process.env.FEATURE_PAYMENTS_ENABLED = 'true';
 process.env.LOG_LEVEL       = 'error'; // suppress info/debug noise in tests
 
 // ── Mock pg pool ─────────────────────────────────────────────────────────────

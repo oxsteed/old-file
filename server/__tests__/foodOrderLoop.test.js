@@ -26,17 +26,19 @@ jest.mock('../services/emailService', () => ({
   send: jest.fn().mockResolvedValue(true),
 }));
 jest.mock('../services/oxsteedCreditService', () => ({
-  purchaseWithCreditInTransaction: jest.fn(),
   refundCreditForReferenceInTransaction: jest.fn(),
   formatCreditAmount: jest.fn((amountCents) => Number(amountCents || 0) / 100),
   getCustomerCreditEligibility: jest.fn(),
+}));
+jest.mock('../services/creditSpendAdapter', () => ({
+  spendWithCreditInTransaction: jest.fn(),
 }));
 
 const socketService = require('../services/socketService');
 const { sendNotification } = require('../services/notificationService');
 const smsNotificationService = require('../services/smsNotificationService');
 const emailService = require('../services/emailService');
-const { purchaseWithCreditInTransaction } = require('../services/oxsteedCreditService');
+const { spendWithCreditInTransaction } = require('../services/creditSpendAdapter');
 const { errorHandler } = require('../middleware/errorHandler');
 const ctrl = require('../controllers/foodController');
 
@@ -148,7 +150,7 @@ beforeEach(() => {
   sendNotification.mockClear();
   smsNotificationService.sendDirectSMS.mockClear();
   emailService.send.mockClear();
-  purchaseWithCreditInTransaction.mockReset();
+  spendWithCreditInTransaction.mockReset();
 });
 
 describe('food order loop E2E (F7)', () => {
@@ -159,13 +161,15 @@ describe('food order loop E2E (F7)', () => {
       payment_status: 'paid',
       metadata: { paymentMode: 'oxsteed_credit' },
     });
-    purchaseWithCreditInTransaction.mockResolvedValue({
-      replayed: false,
-      transaction: {
-        id: 'credit-txn-100',
-        amountCents: 899,
-        currencyCode: 'USD',
-        status: 'posted',
+    spendWithCreditInTransaction.mockResolvedValue({
+      purchase: {
+        replayed: false,
+        transaction: {
+          id: 'credit-txn-100',
+          amountCents: 899,
+          currencyCode: 'USD',
+          status: 'posted',
+        },
       },
     });
     mockQuery
@@ -210,11 +214,11 @@ describe('food order loop E2E (F7)', () => {
       transactionId: 'credit-txn-100',
     });
     expect(response.body.order.metadata.oxsteedCreditTransactionId).toBe('credit-txn-100');
-    expect(purchaseWithCreditInTransaction).toHaveBeenCalledWith(
+    expect(spendWithCreditInTransaction).toHaveBeenCalledWith(
       expect.any(Object),
       expect.objectContaining({
         customerId: CUSTOMER_ID,
-        partnerId: 901,
+        participantRef: { type: 'restaurant', subjectId: RESTAURANT_ID },
         amountCents: 899,
         referenceType: 'food_order',
         referenceId: String(ORDER_ID),

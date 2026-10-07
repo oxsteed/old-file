@@ -1,5 +1,7 @@
 'use strict';
 
+// These opt-in cases intentionally exercise the disposable PostgreSQL schema,
+// rather than the shared unit-test pg mock.
 jest.unmock('pg');
 
 /**

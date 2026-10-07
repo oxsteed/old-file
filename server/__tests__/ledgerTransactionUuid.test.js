@@ -25,6 +25,9 @@
  */
 
 jest.unmock('pg');
+// This suite exercises real multi-statement transactions; the shared Jest
+// setup's transaction helper is intentionally a unit-test mock.
+jest.unmock('../utils/transaction');
 
 const crypto = require('crypto');
 

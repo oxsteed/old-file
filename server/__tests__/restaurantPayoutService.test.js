@@ -328,7 +328,7 @@ test('transfer.created webhook completes the payout and is idempotent', async ()
     return { rows: [] };
   });
   withTransaction.mockImplementation(async (transactionPool, operation) => operation(client));
-  pool.query.mockResolvedValue({ rows: [{ owner_user_id: 'owner-1' }] });
+  pool.query.mockResolvedValue({ rows: [{ user_id: 'owner-1' }] });
 
   const transfer = {
     id: 'tr_test123',
@@ -367,7 +367,7 @@ test('transfer.reversed webhook posts one compensating journal entry', async () 
       : { rows: [] }
   ));
   withTransaction.mockImplementation(async (transactionPool, operation) => operation(client));
-  pool.query.mockResolvedValue({ rows: [{ owner_user_id: 'owner-1' }] });
+  pool.query.mockResolvedValue({ rows: [{ user_id: 'owner-1' }] });
   subBankService.ensureRestaurantSubBankAccount.mockResolvedValue({ id: 100 });
   creditService.ensureAccount.mockResolvedValue({ id: 200 });
   creditService.postJournalTransaction.mockResolvedValue({ transaction: { id: REVERSAL_TXN_UUID }, replayed: false });
