@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag, ClipboardCheck, Package, BookOpen, GraduationCap, ShieldCheck, BarChart3, HelpingHand } from 'lucide-react';
 import { subscribeRestaurantDisplay } from '../../api/restaurantDisplaySocket';
+import api from '../../api/axios';
 import {
   listMyFoodRestaurants,
   createFoodRestaurant,
@@ -546,7 +547,7 @@ function OrdersTab({ t, restaurant }) {
     const sourceId = prompt('Enter source order ID to merge from:');
     if (!sourceId) return;
     try {
-      await api.post(`/api/food/restaurants/${restaurant.id}/pos/orders/${order.id}/merge`, {
+      await api.post(`/restaurants/${restaurant.id}/pos/orders/${order.id}/merge`, {
         sourceOrderId: parseInt(sourceId, 10),
       });
       toast.success('Orders merged');
@@ -561,7 +562,7 @@ function OrdersTab({ t, restaurant }) {
     if (!reason?.trim()) return;
     const amount = prompt(`Refund amount in cents (blank = full $${(order.total_cents / 100).toFixed(2)}):`);
     try {
-      await api.post(`/api/food/restaurants/${restaurant.id}/pos/orders/${order.id}/refund`, {
+      await api.post(`/restaurants/${restaurant.id}/pos/orders/${order.id}/refund`, {
         amount_cents: amount ? parseInt(amount, 10) : undefined,
         reason: reason.trim(),
       });
