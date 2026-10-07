@@ -44,8 +44,25 @@ function resolvePaymentDelta(rawAmount, invoiceTotal, amountAlreadyPaid) {
   const total = Number(invoiceTotal);
   const prior = round2(amountAlreadyPaid);
   const remaining = round2(total - prior);
-  if (!Number.isFinite(total) || remaining <= 0) {
-    return { error: 'Invoice is already fully paid' };
+  if (!Number.isFinite(total)) {
+    return { error: 'Invalid invoice total' };
+  }
+  if (remaining <= 0) {
+    if (rawAmount === undefined || rawAmount === null || String(rawAmount).trim() === '') {
+      return { error: 'Invoice is already fully paid' };
+    }
+    const targetPaid = Number(rawAmount);
+    if (!Number.isFinite(targetPaid) || targetPaid < 0 || targetPaid > total + 0.009) {
+      return {
+        error: 'Correction amount must be between zero and the invoice total.',
+      };
+    }
+    const target = round2(targetPaid);
+    const delta = round2(target - prior);
+    if (Math.abs(delta) < 0.005) {
+      return { error: 'Payment amount does not change the balance.' };
+    }
+    return { value: delta, targetPaid: target };
   }
   if (rawAmount === undefined || rawAmount === null || String(rawAmount).trim() === '') {
     return { value: remaining };

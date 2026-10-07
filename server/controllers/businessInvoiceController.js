@@ -240,16 +240,14 @@ async function markInvoicePaid(req, res) {
       [req.params.invoiceId, access.id]
     );
     if (!existing) return res.status(404).json({ error: 'Invoice not found' });
-    if (existing.status === 'paid') {
-      return res.status(409).json({ error: 'Invoice is already fully paid' });
-    }
-
     const paidAmount = resolvePaymentDelta(amount, existing.total, existing.amount_paid);
     if (paidAmount.error) {
       const code = paidAmount.error.includes('fully paid') ? 409 : 400;
       return res.status(code).json({ error: paidAmount.error });
     }
-    const newPaidTotal = round2(Number(existing.amount_paid || 0) + paidAmount.value);
+    const newPaidTotal = paidAmount.targetPaid != null
+      ? paidAmount.targetPaid
+      : round2(Number(existing.amount_paid || 0) + paidAmount.value);
 
     const isFullyPaid = newPaidTotal >= parseFloat(existing.total) - 0.01;
     const newStatus   = isFullyPaid ? 'paid' : 'partial';
@@ -655,16 +653,14 @@ async function markHelperInvoicePaid(req, res) {
       [invoiceId, userId]
     );
     if (!existing) return res.status(404).json({ error: 'Invoice not found' });
-    if (existing.status === 'paid') {
-      return res.status(409).json({ error: 'Invoice is already fully paid' });
-    }
-
     const paidAmount = resolvePaymentDelta(amount, existing.total, existing.amount_paid);
     if (paidAmount.error) {
       const code = paidAmount.error.includes('fully paid') ? 409 : 400;
       return res.status(code).json({ error: paidAmount.error });
     }
-    const newPaidTotal = round2(Number(existing.amount_paid || 0) + paidAmount.value);
+    const newPaidTotal = paidAmount.targetPaid != null
+      ? paidAmount.targetPaid
+      : round2(Number(existing.amount_paid || 0) + paidAmount.value);
 
     const isFullyPaid = newPaidTotal >= parseFloat(existing.total) - 0.01;
     const newStatus   = isFullyPaid ? 'paid' : 'partial';

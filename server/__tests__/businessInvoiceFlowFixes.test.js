@@ -29,6 +29,7 @@ describe('business invoice flow fixes', () => {
     expect(resolvePaymentDelta('15', 100, 10)).toEqual({ value: 15 });
     expect(resolvePaymentDelta(undefined, 100, 90)).toEqual({ value: 10 });
     expect(resolvePaymentDelta('5', 100, 100).error).toMatch(/fully paid/);
+    expect(resolvePaymentDelta('60', 100, 100)).toEqual({ value: -40, targetPaid: 60 });
   });
 
   test('isInvoicePayer rejects issuer and accepts client email match', () => {
