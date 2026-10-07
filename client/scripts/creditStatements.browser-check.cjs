@@ -119,7 +119,7 @@ test('Apply-driven statements paginate, download applied dates, and isolate pend
   } finally { await env.close(); }
 });
 
-test('late account/product results never overwrite the current selection', async () => {
+test('late account results never overwrite the current selection', async () => {
   const env = await fixture();
   try {
     const page = await env.browser.newPage();
@@ -134,16 +134,19 @@ test('late account/product results never overwrite the current selection', async
     await page.getByRole('button', { name: 'Apply', exact: true }).click();
     await page.locator('.cs-document').waitFor();
     assert.match(await page.locator('.cs-identifiers').innerText(), /fixture-JPY/);
+    // Switch accounts again while a slow request is in flight: the late
+    // result for the previous account must not overwrite the new selection.
+    // (Cross-product tabs were removed; the guard is now exercised via the
+    // account selector instead of the Restaurant Credit tab.)
     await page.evaluate(() => { window.fixtureDelay = 200; });
     await page.getByRole('button', { name: 'Apply', exact: true }).click();
-    await page.getByRole('link', { name: 'Restaurant Credit', exact: true }).click();
-    await page.getByLabel('Account', { exact: true }).waitFor();
+    await page.getByLabel('Account', { exact: true }).selectOption('USD');
     await page.waitForTimeout(250);
     assert.equal(await page.locator('.cs-document').count(), 0);
     await page.evaluate(() => { window.fixtureDelay = 20; });
     await page.getByRole('button', { name: 'Apply', exact: true }).click();
-    await page.getByRole('heading', { name: 'Fixture Restaurant' }).waitFor();
-    assert.equal(await page.evaluate(() => window.fixtureRequests.at(-1).url), '/food/customer/wallets/42/statements');
+    await page.locator('.cs-document').waitFor();
+    assert.match(await page.locator('.cs-identifiers').innerText(), /fixture-USD/);
   } finally { await env.close(); }
 });
 
