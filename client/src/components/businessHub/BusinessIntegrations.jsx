@@ -176,6 +176,27 @@ export function BusinessIntegrations({ businessId }) {
     toast.success(t('common.copied'));
   };
 
+  const handleFinishStripeSetup = async () => {
+    try {
+      setSavingIntegration('stripe');
+      const response = await api.post(`/businesses/${businessId}/integrations/stripe/continue-setup`);
+      if (response.data?.already_ready) {
+        toast.success(t('businessHub.integrations.stripeReady', { defaultValue: 'Ready for card pay' }));
+        await loadIntegrations();
+        return;
+      }
+      const url = response.data?.url;
+      if (!url) {
+        throw new Error('missing_setup_url');
+      }
+      window.location.href = url;
+    } catch (error) {
+      toast.error(error.response?.data?.error || t('businessHub.integrations.toastStripeStartFail'));
+    } finally {
+      setSavingIntegration(null);
+    }
+  };
+
   const handleConnectStripe = async () => {
     try {
       setSavingIntegration('stripe');
@@ -240,6 +261,13 @@ export function BusinessIntegrations({ businessId }) {
               {t('businessHub.integrations.account')}: {integrations.stripe_account_id}
             </p>
           )}
+          {integrations.stripe_connected && !integrations.stripe_ready_for_checkout && (
+            <p className="bi-status-text bi-stripe-warning">
+              {t('businessHub.integrations.stripeChargesDisabled', {
+                defaultValue: 'Stripe is connected but card charges are not enabled yet. Finish requirements in Stripe to accept invoice card payments.',
+              })}
+            </p>
+          )}
           {integrations.stripe_ready_for_checkout ? (
             <button
               type="button"
@@ -248,6 +276,15 @@ export function BusinessIntegrations({ businessId }) {
               disabled={savingIntegration === 'stripe'}
             >
               {savingIntegration === 'stripe' ? t('businessHub.integrations.saving') : t('businessHub.integrations.disconnectStripe')}
+            </button>
+          ) : integrations.stripe_connected ? (
+            <button
+              type="button"
+              className="bi-btn-primary"
+              onClick={handleFinishStripeSetup}
+              disabled={savingIntegration === 'stripe'}
+            >
+              {savingIntegration === 'stripe' ? t('businessHub.integrations.saving') : t('businessHub.integrations.stripeFinishInStripe', { defaultValue: 'Open Stripe to finish requirements' })}
             </button>
           ) : (
             <button

@@ -24,6 +24,7 @@ import { useAuth } from '../hooks/useAuth';
 import invoicesApi from '../api/invoices';
 import InvoiceOxsteedCreditPay from '../components/invoices/InvoiceOxsteedCreditPay';
 import InvoiceStripeCardPay from '../components/invoices/InvoiceStripeCardPay';
+import HelperStripeConnectBanner from '../components/invoices/HelperStripeConnectBanner';
 import './InvoicesPage.css';
 
 function centsToMoney(cents, language) {
@@ -215,6 +216,10 @@ export default function InvoicesPage() {
             </button>
           ))}
         </div>
+
+        {isHelper && view === 'issued' && (
+          <HelperStripeConnectBanner className="invoices-stripe-issuer-banner" />
+        )}
 
         <section className="invoices-stats" aria-label={t('invoices.summaryAriaLabel', { defaultValue: 'Invoice summary' })}>
           <SummaryCard label={t('invoices.totalInvoiceValue', { defaultValue: 'Total invoice value' })} value={centsToMoney(stats.total, language)} icon={FileText} />
