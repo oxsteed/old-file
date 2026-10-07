@@ -57,7 +57,7 @@ export const LAUNCH_VISIBILITY = Object.freeze({
   businessHubRoleMenu: false,
   businessHubRoleMenuWidgets: false,
   businessHubSpecializedTemplates: false,
-  businessHubVortexAccess: false,
+  businessHubVortexAccess: true,
   oxsteedMedia: true,
   discoverEverything: false,
   footerUtilityPills: true,
@@ -75,7 +75,7 @@ export const LAUNCH_VISIBILITY = Object.freeze({
   subscriptions: false,
   templates: false,
   toolRentals: true,
-  vortexWorkspaceEntry: false,
+  vortexWorkspaceEntry: true,
 });
 
 export function isLaunchSelfSelectableMode(mode) {
