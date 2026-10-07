@@ -1522,6 +1522,10 @@ async function notifyFoodOrderReady(order, restaurant) {
     const title = 'Order ready for pickup';
     const body = `Your order ${queue} at ${place} is ready for pickup.`.replace(/\s+/g, ' ').trim();
     const boardUrl = absoluteUrl(`/restaurants/queue/${order.restaurant_id}`);
+    // Personal track URL (guest can see their own order without login).
+    const trackUrl = order.tracking_token
+      ? absoluteUrl(`/food/track/${order.tracking_token}`)
+      : boardUrl;
     const data = {
       orderId: String(order.id),
       restaurantId: String(order.restaurant_id),
@@ -1537,7 +1541,7 @@ async function notifyFoodOrderReady(order, restaurant) {
         title,
         body,
         data,
-        action_url: boardUrl,
+        action_url: trackUrl,
       });
       logger.info('notifyFoodOrderReady sent', {
         orderId: order.id,
@@ -1550,7 +1554,7 @@ async function notifyFoodOrderReady(order, restaurant) {
 
     // 2) Guest with a phone number — SMS.
     if (order.guest_phone) {
-      const smsResult = await smsNotificationService.sendDirectSMS(order.guest_phone, `${body} ${boardUrl}`.trim());
+      const smsResult = await smsNotificationService.sendDirectSMS(order.guest_phone, `${body} ${trackUrl}`.trim());
       logger.info('notifyFoodOrderReady sent', {
         orderId: order.id,
         restaurantId: order.restaurant_id,
@@ -1568,8 +1572,8 @@ async function notifyFoodOrderReady(order, restaurant) {
         html: checkoutCompletionHtml({
           title,
           detail: body,
-          actionLabel: 'View the pickup board',
-          actionHref: boardUrl,
+          actionLabel: 'Track your order',
+          actionHref: trackUrl,
         }),
       });
       logger.info('notifyFoodOrderReady sent', {

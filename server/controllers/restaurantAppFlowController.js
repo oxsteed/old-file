@@ -3477,6 +3477,7 @@ exports.createPosOrder = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage', 'orders.manage']);
     const items = Array.isArray(req.body.items) ? req.body.items : [];
     if (!items.length) throw new AppError('Validation failed', 400, 'validation_failed', { items: 'At least one item is required' });
     const source = normalizeString(req.body.orderSource || req.body.order_source, 24) || 'counter';
@@ -3919,6 +3920,7 @@ exports.splitPosOrder = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const sourceOrderId = parsePositiveInt(req.params.orderId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage', 'orders.manage']);
     const itemIds = Array.isArray(req.body.orderItemIds || req.body.order_item_ids)
       ? (req.body.orderItemIds || req.body.order_item_ids).map((id) => parsePositiveInt(id)).filter(Boolean)
       : [];
@@ -4036,6 +4038,7 @@ exports.mergePosOrders = async (req, res, next) => {
     const targetOrderId = parsePositiveInt(req.params.orderId);
     const sourceOrderId = parsePositiveInt(req.body.sourceOrderId || req.body.source_order_id);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage', 'orders.manage']);
     if (!sourceOrderId || sourceOrderId === targetOrderId) {
       throw new AppError('Validation failed', 400, 'validation_failed', { sourceOrderId: 'A different source order is required' });
     }
@@ -7353,6 +7356,7 @@ exports.claimRunnerTask = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantPermission(restaurant, req.user.id, ['runner.update', 'runner.manage', 'orders.manage']);
     const task = await withTransaction(pool, async (client) => {
       const { rows: [claimed] } = await client.query(
         `UPDATE restaurant_runner_tasks
