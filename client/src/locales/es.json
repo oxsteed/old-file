@@ -9235,7 +9235,11 @@
     "disableSuccess": "2FA desactivado correctamente",
     "newBackupGenerated": "Nuevos códigos de respaldo generados",
     "failedRegen": "Error al regenerar los códigos de respaldo",
-    "backupCopied": "Códigos copiados al portapapeles"
+    "backupCopied": "Códigos copiados al portapapeles",
+    "passkeyUnsupported": "Este navegador no admite claves de acceso.",
+    "passkeyRegistered": "Clave de acceso registrada. Ya puedes iniciar sesión con ella.",
+    "passkeyRegisteredAdmin": "Clave de acceso registrada. TOTP y códigos de respaldo siguen disponibles.",
+    "passkeyRegisterFailed": "No se pudo registrar esta clave de acceso."
   },
   "homePage": {
     "company": {
@@ -15227,7 +15231,8 @@
       "noShipments": "No se encontraron envios.",
       "milestone": "Hito",
       "allStatuses": "Todos",
-      "empty": "No se encontraron envíos."
+      "empty": "No se encontraron envíos.",
+      "loading": "Cargando…"
     },
     "warehousing": {
       "title": "Almacenamiento",
@@ -30007,7 +30012,12 @@
     "refundTitle": "Emitir un reembolso",
     "refundWarning": "Los reembolsos se registran en la vía de pago original y no se pueden deshacer.",
     "processingRefund": "Procesando reembolso…",
-    "issueRefund": "Emitir reembolso"
+    "issueRefund": "Emitir reembolso",
+    "itemHeader": "Artículo",
+    "qtyHeader": "Cant.",
+    "priceHeader": "Precio",
+    "refundUnavailable": "Reembolso no disponible",
+    "refundUnavailableHint": "Este pedido no se encuentra actualmente en un estado de pago reembolsable."
   },
   "media": {
     "post": {

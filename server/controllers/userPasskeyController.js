@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const {
   generateRegistrationOptions,
@@ -10,6 +11,7 @@ const {
 } = require('@simplewebauthn/server');
 const db = require('../db');
 const { generateTokens } = require('../middleware/auth');
+const { formatAuthUser } = require('./authController');
 
 const RP_NAME = 'OxSteed';
 const RP_ID = process.env.WEBAUTHN_RP_ID || (() => {
@@ -77,7 +79,10 @@ async function consumeChallenge(userId, purpose, challenge) {
 
 async function getUser(userId) {
   const { rows } = await db.query(
-    `SELECT id, first_name, last_name, email, is_active, login_locked_until
+    `SELECT id, first_name, last_name, email, phone, role, is_active,
+            login_locked_until, totp_enabled, terms_accepted, email_verified,
+            onboarding_completed, onboarding_status, profile_completed,
+            tier_selected, w9_completed, contact_completed, membership_tier
      FROM users WHERE id = $1`,
     [userId]
   );
@@ -113,7 +118,7 @@ async function registrationOptions(req, res, next) {
       attestationType: 'none',
       timeout: 60_000,
       excludeCredentials: rows.map((row) => ({ id: row.credential_id, transports: normalizeTransports(row.transports) })),
-      authenticatorSelection: { residentKey: 'preferred', userVerification: 'preferred' },
+      authenticatorSelection: { residentKey: 'preferred', userVerification: 'required' },
     });
     await saveChallenge(user.id, 'registration', options.challenge);
     return res.json({ options });
@@ -123,11 +128,19 @@ async function registrationOptions(req, res, next) {
 async function verifyRegistration(req, res, next) {
   const response = req.body?.response;
   const deviceName = String(req.body?.deviceName || 'Passkey').trim();
+  const password = req.body?.password;
   if (!response || typeof response !== 'object') return validationError(res, { response: 'WebAuthn response is required' });
   if (deviceName.length < 1 || deviceName.length > 120) return validationError(res, { deviceName: 'Device name must be 1 to 120 characters' });
+  // Step-up: require current password to register a new passkey.
+  // This ensures a stolen session alone cannot plant a lasting credential.
+  if (!password) return validationError(res, { password: 'Current password is required to register a passkey' });
   try {
     const user = await getUser(req.user.id);
     if (!user || !user.is_active) return res.status(403).json({ error: 'Account is not active.' });
+    const { rows: pwRows } = await db.query('SELECT password_hash FROM users WHERE id = $1', [user.id]);
+    if (!pwRows[0]?.password_hash || !(await bcrypt.compare(password, pwRows[0].password_hash))) {
+      return res.status(403).json({ error: 'Current password is incorrect.' });
+    }
     const { rows: challenges } = await db.query(
       `SELECT challenge FROM user_passkey_challenges
        WHERE user_id = $1 AND purpose = 'registration' AND expires_at > NOW()
@@ -141,21 +154,25 @@ async function verifyRegistration(req, res, next) {
       expectedChallenge: consumedChallenge,
       expectedOrigin: ORIGIN,
       expectedRPID: RP_ID,
-      requireUserVerification: false,
+      requireUserVerification: true,
     });
     if (!verification.verified || !verification.registrationInfo) return res.status(400).json({ error: 'Passkey verification failed.' });
     const info = verification.registrationInfo;
     const credentialId = response.id;
     // If this credential was previously revoked, hard-delete the revoked row
-    // so re-registration succeeds (credential_id is globally UNIQUE).
+    // so re-registration succeeds.
     await db.query(
       `DELETE FROM user_passkeys WHERE user_id = $1 AND credential_id = $2 AND revoked_at IS NOT NULL`,
       [user.id, credentialId]
     );
     await db.query(
-      `INSERT INTO user_passkeys (user_id, credential_id, public_key, counter, transports, device_name)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [user.id, credentialId, Buffer.from(info.credential.publicKey), info.credential.counter, normalizeTransports(response.response?.transports), deviceName]
+      `INSERT INTO user_passkeys (user_id, credential_id, public_key, counter, transports, device_name, backed_up, device_type, aaguid)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        user.id, credentialId, Buffer.from(info.credential.publicKey), info.credential.counter,
+        normalizeTransports(response.response?.transports), deviceName,
+        info.credential.backedUp ?? null, info.credential.deviceType ?? null, info.aaguid ?? null,
+      ]
     );
     return res.status(201).json({ passkey: { deviceName, createdAt: new Date().toISOString() } });
   } catch (err) {
@@ -173,6 +190,22 @@ async function revokePasskey(req, res, next) {
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Passkey not found.' });
     return res.json({ revoked: true });
+  } catch (err) { return next(err); }
+}
+
+async function renamePasskey(req, res, next) {
+  try {
+    const deviceName = String(req.body?.deviceName || '').trim();
+    if (!deviceName || deviceName.length > 120) {
+      return validationError(res, { deviceName: 'Device name must be 1 to 120 characters' });
+    }
+    const result = await db.query(
+      `UPDATE user_passkeys SET device_name = $1
+       WHERE id = $2 AND user_id = $3 AND revoked_at IS NULL RETURNING id`,
+      [deviceName, req.params.id, req.user.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Passkey not found.' });
+    return res.json({ renamed: true, deviceName });
   } catch (err) { return next(err); }
 }
 
@@ -197,7 +230,7 @@ async function authenticationOptions(req, res, next) {
     const options = await generateAuthenticationOptions({
       rpID: RP_ID,
       allowCredentials: rows.map((row) => ({ id: row.credential_id, transports: normalizeTransports(row.transports) })),
-      userVerification: 'preferred',
+      userVerification: 'required',
       timeout: 60_000,
     });
     await saveChallenge(user.id, 'authentication', options.challenge);
@@ -236,7 +269,7 @@ async function issueUserSession(user, req, res) {
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 
-  return res.json({ success: true, user, accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
+  return res.json({ success: true, user: formatAuthUser(user), accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
 }
 
 async function verifyAuthentication(req, res, next) {
@@ -271,7 +304,7 @@ async function verifyAuthentication(req, res, next) {
       expectedChallenge: consumedChallenge,
       expectedOrigin: ORIGIN,
       expectedRPID: RP_ID,
-      requireUserVerification: false,
+      requireUserVerification: true,
       credential: {
         id: stored.credential_id,
         publicKey: new Uint8Array(stored.public_key),
@@ -281,8 +314,25 @@ async function verifyAuthentication(req, res, next) {
     });
     if (!verification.verified) return res.status(401).json({ error: 'Passkey verification failed.' });
     const nextCounter = Number(verification.authenticationInfo.newCounter);
-    if (Number(stored.counter) > 0 && nextCounter <= Number(stored.counter)) return res.status(401).json({ error: 'Passkey counter validation failed.' });
+    if (nextCounter <= Number(stored.counter)) return res.status(401).json({ error: 'Passkey counter validation failed.' });
     await db.query(`UPDATE user_passkeys SET counter = $1, last_used_at = NOW() WHERE id = $2`, [nextCounter, stored.id]);
+    // Parity with password login: if TOTP is enabled, require it.
+    if (user.totp_enabled) {
+      const mfaToken = jwt.sign(
+        { id: user.id, isMfaToken: true, authMethod: 'passkey' },
+        process.env.JWT_SECRET,
+        { expiresIn: '15m' }
+      );
+      return res.status(200).json({
+        requiresTwoFactor: true,
+        mfaToken,
+        message: 'Please provide your 2FA code to complete login.',
+      });
+    }
+    // Terms acceptance check (parity with password login).
+    if (!user.terms_accepted) {
+      return res.status(403).json({ error: 'Terms must be accepted before signing in.', code: 'terms_required' });
+    }
     return issueUserSession(user, req, res);
   } catch (err) { return next(err); }
 }
@@ -292,6 +342,7 @@ module.exports = {
   registrationOptions,
   verifyRegistration,
   revokePasskey,
+  renamePasskey,
   authenticationOptions,
   verifyAuthentication,
 };

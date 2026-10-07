@@ -73,6 +73,16 @@ export default function Login() {
   const finishLogin = (result) => {
     const loggedInUser = result?.user;
 
+    if (result?.requiresTwoFactor && result?.mfaToken) {
+      setMfaToken(result.mfaToken);
+      return;
+    }
+
+    // Persist the session (tokens are in httpOnly cookies; hydrate AuthContext).
+    if (result?.accessToken) {
+      login(result);
+    }
+
     if (loggedInUser?.email_verified && !diditGateSatisfied(loggedInUser)) {
       toast.success(t('login.verifyIdentityToast'));
       navigate('/verify-identity', { replace: true });

@@ -1781,6 +1781,13 @@ async function changePassword(req, res) {
       [req.user.id, req.sessionId || '00000000-0000-0000-0000-000000000000']
     );
 
+    // Security: password change revokes passkeys too. A planted passkey
+    // (via stolen session) must not survive a password change.
+    await pool.query(
+      'UPDATE user_passkeys SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL',
+      [req.user.id]
+    );
+
     // FIX #10 & #11: Audit log password change
     const { ipAddress, userAgent } = extractRequestDetails(req);
     logSecurityEvent('password_changed', {

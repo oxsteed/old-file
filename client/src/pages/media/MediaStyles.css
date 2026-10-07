@@ -374,3 +374,11 @@
   color: var(--text-secondary, #666);
   margin-bottom: 16px;
 }
+
+.media-skeleton { padding: 1rem; }
+.media-skeleton .skeleton-line { height: 18px; background: var(--hover-bg, #f1f5f9); border-radius: 4px; margin-bottom: 0.75rem; animation: pulse 1.5s ease-in-out infinite; }
+.media-error { text-align: center; padding: 2rem 1rem; }
+.media-error p { margin-bottom: 1rem; color: var(--error, #ef4444); }
+.media-error button { padding: 0.6rem 1.5rem; border-radius: 8px; border: 1px solid var(--border-color, #d8dee5); background: var(--card-bg, #fff); cursor: pointer; }
+.media-empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-muted, #64748b); }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }

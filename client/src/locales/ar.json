@@ -9235,7 +9235,11 @@
     "failedLoad": "فشل تحميل حالة 2FA",
     "setupFailed": "فشل الإعداد",
     "invalidCode": "رمز غير صالح",
-    "failedRegen": "فشل"
+    "failedRegen": "فشل",
+    "passkeyUnsupported": "هذا المتصفح لا يدعم مفاتيح المرور.",
+    "passkeyRegistered": "تم تسجيل مفتاح المرور. يمكنك الآن تسجيل الدخول به.",
+    "passkeyRegisteredAdmin": "تم تسجيل مفتاح المرور. تظل رموز TOTP والرموز الاحتياطية متاحة.",
+    "passkeyRegisterFailed": "تعذر تسجيل مفتاح المرور هذا."
   },
   "homePage": {
     "company": {
@@ -15238,7 +15242,8 @@
       "noShipments": "لم يتم العثور على شحنات.",
       "milestone": "منعطف",
       "allStatuses": "الجميع",
-      "empty": "لم يتم العثور على شحنات."
+      "empty": "لم يتم العثور على شحنات.",
+      "loading": "جارٍ التحميل…"
     },
     "warehousing": {
       "title": "التخزين",
@@ -30018,7 +30023,12 @@
     "refundTitle": "إصدار استرداد",
     "refundWarning": "يتم تسجيل المبالغ المستردة على مسار الدفع الأصلي ولا يمكن التراجع عنها.",
     "processingRefund": "جارٍ معالجة الاسترداد…",
-    "issueRefund": "إصدار الاسترداد"
+    "issueRefund": "إصدار الاسترداد",
+    "itemHeader": "العنصر",
+    "qtyHeader": "الكمية",
+    "priceHeader": "السعر",
+    "refundUnavailable": "الاسترداد غير متاح",
+    "refundUnavailableHint": "هذا الطلب ليس حالياً في حالة دفع قابلة للاسترداد."
   },
   "media": {
     "post": {

@@ -214,7 +214,7 @@ export default function AdminFoodOrderDetail() {
         </Link>
         <div role="alert" className="rounded-3xl border border-rose-500/30 bg-rose-950/20 p-8 text-center">
           <XCircle className="mx-auto h-9 w-9 text-rose-400" />
-          <h1 className="mt-4 text-xl font-semibold text-white">Order not found</h1>
+          <h1 className="mt-4 text-xl font-semibold text-white">{ta('notFound')}</h1>
           <p className="mt-2 text-sm text-gray-400">{error || 'This order may have been removed or you may not have access to it.'}</p>
           <button type="button" onClick={load} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white hover:bg-orange-400">
             <RefreshCw className="h-4 w-4" /> Try again
@@ -247,7 +247,7 @@ export default function AdminFoodOrderDetail() {
         <header className="rounded-3xl border border-gray-800 bg-gradient-to-br from-[#17131d] via-[#111318] to-[#101923] p-5 sm:p-7">
           <div className="flex flex-wrap items-start justify-between gap-5">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-orange-400">Food order</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-orange-400">{ta('kicker')}</p>
               <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Order #{order.id}</h1>
               <p className="mt-2 flex items-center gap-2 text-sm text-gray-400"><Utensils className="h-4 w-4 text-orange-300" /> {order.restaurant_name || ta('restaurantFallback')}</p>
             </div>
@@ -265,7 +265,7 @@ export default function AdminFoodOrderDetail() {
         {error && (
           <div role="alert" aria-live="assertive" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-500/30 bg-rose-950/25 px-4 py-3 text-sm text-rose-300">
             <span className="inline-flex items-center gap-2"><AlertTriangle className="h-4 w-4 shrink-0" /> {error}</span>
-            <button type="button" onClick={load} disabled={loading} className="rounded-lg border border-rose-400/30 px-3 py-2 text-xs font-semibold text-rose-200 hover:bg-rose-500/10 disabled:opacity-50">Retry</button>
+            <button type="button" onClick={load} disabled={loading} className="rounded-lg border border-rose-400/30 px-3 py-2 text-xs font-semibold text-rose-200 hover:bg-rose-500/10 disabled:opacity-50">{ta('retry')}</button>
           </div>
         )}
         {notice && <div role="status" aria-live="polite" className="flex items-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-950/25 px-4 py-3 text-sm text-emerald-300"><CheckCircle2 className="h-4 w-4 shrink-0" /> {notice}</div>}
@@ -283,7 +283,7 @@ export default function AdminFoodOrderDetail() {
               {items.length ? (
                 <div className="overflow-hidden rounded-2xl border border-gray-800">
                   <div className="hidden grid-cols-[minmax(0,1fr)_80px_130px] gap-4 border-b border-gray-800 bg-gray-950/60 px-4 py-3 text-[10px] font-bold uppercase tracking-[0.16em] text-gray-500 sm:grid">
-                    <span>Item</span><span>Qty</span><span className="text-right">Price</span>
+                    <span>{ta('itemHeader')}</span><span>{ta('qtyHeader')}</span><span className="text-right">{ta('priceHeader')}</span>
                   </div>
                   <div className="divide-y divide-gray-800">
                     {items.map((item) => (
@@ -294,7 +294,7 @@ export default function AdminFoodOrderDetail() {
                       </div>
                     ))}
                   </div>
-                  <div className="flex items-center justify-between border-t border-gray-800 bg-gray-950/60 px-4 py-4"><span className="text-sm font-semibold text-gray-400">Order total</span><span className="text-lg font-semibold text-white">{formatMoney(order.total_cents, currency)}</span></div>
+                  <div className="flex items-center justify-between border-t border-gray-800 bg-gray-950/60 px-4 py-4"><span className="text-sm font-semibold text-gray-400">{ta('orderTotal')}</span><span className="text-lg font-semibold text-white">{formatMoney(order.total_cents, currency)}</span></div>
                 </div>
               ) : <p className="rounded-2xl border border-dashed border-gray-800 px-4 py-8 text-center text-sm text-gray-500">No line items were recorded for this order.</p>}
             </SectionCard>
@@ -323,7 +323,7 @@ export default function AdminFoodOrderDetail() {
               <section className="rounded-3xl border border-amber-500/25 bg-gradient-to-br from-amber-950/25 to-[#111318] p-5 sm:p-6">
                 <div className="flex items-start gap-3">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-amber-500/25 bg-amber-500/10 text-amber-300"><RotateCcw className="h-4 w-4" /></span>
-                  <div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-300">Financial action</p><h2 className="mt-1 text-lg font-semibold text-white">Issue a refund</h2><p className="mt-1 text-sm leading-6 text-gray-400">Refunds are recorded against the original payment rail and cannot be undone.</p></div>
+                  <div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-300">{ta('financialAction')}</p><h2 className="mt-1 text-lg font-semibold text-white">{ta('refundTitle')}</h2><p className="mt-1 text-sm leading-6 text-gray-400">{ta('refundWarning')}</p></div>
                 </div>
                 <div className="mt-5 space-y-4">
                   <label className="block text-sm font-medium text-gray-300">Partial refund amount <span className="font-normal text-gray-500">(cents, optional)</span><input type="number" min="1" max={order.total_cents} step="1" inputMode="numeric" value={refundAmount} onChange={(event) => setRefundAmount(event.target.value)} placeholder={`Leave blank for full refund (${order.total_cents} cents)`} className="mt-2 w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white placeholder:text-gray-600 outline-none focus:border-amber-400" /></label>
@@ -333,7 +333,7 @@ export default function AdminFoodOrderDetail() {
               </section>
             ) : (
               <section className="rounded-3xl border border-gray-800 bg-[#111318] p-5 sm:p-6">
-                <div className="flex items-start gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gray-800 bg-gray-900 text-gray-500"><CheckCircle2 className="h-4 w-4" /></span><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500">Financial action</p><h2 className="mt-1 text-lg font-semibold text-white">Refund unavailable</h2><p className="mt-1 text-sm leading-6 text-gray-500">This order is not currently in a refundable payment state.</p></div></div>
+                <div className="flex items-start gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gray-800 bg-gray-900 text-gray-500"><CheckCircle2 className="h-4 w-4" /></span><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500">{ta('financialAction')}</p><h2 className="mt-1 text-lg font-semibold text-white">{ta('refundUnavailable')}</h2><p className="mt-1 text-sm leading-6 text-gray-500">{ta('refundUnavailableHint')}</p></div></div>
               </section>
             )}
           </div>

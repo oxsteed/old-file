@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getFeed } from '../../api/media';
 import PageShell from '../../components/PageShell';
+import './MediaStyles.css';
 import MediaPostCard from './MediaPostCard';
 
 export default function MediaFeedPage() {

@@ -12,6 +12,7 @@ router.get('/', authenticate, controller.listPasskeys);
 router.post('/registration/options', authenticate, rejectImpersonated, strictLimiter, controller.registrationOptions);
 router.post('/registration/verify', authenticate, rejectImpersonated, strictLimiter, controller.verifyRegistration);
 router.delete('/:id', authenticate, rejectImpersonated, strictLimiter, controller.revokePasskey);
+router.patch('/:id', authenticate, rejectImpersonated, strictLimiter, controller.renamePasskey);
 router.post('/authentication/options', strictLimiter, controller.authenticationOptions);
 router.post('/authentication/verify', strictLimiter, controller.verifyAuthentication);
 

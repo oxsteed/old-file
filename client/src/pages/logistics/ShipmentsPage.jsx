@@ -64,7 +64,7 @@ export default function ShipmentsPage() {
         </div>
       </div>
 
-      {loading && <div className="lx-loading">Loading…</div>}
+      {loading && <div className="lx-loading">{t('logistics.shipments.loading')}</div>}
 
       {!loading && shipments.length === 0 && (
         <div className="lx-empty">

@@ -9235,7 +9235,11 @@
     "failedLoad": "Failed to load 2FA status",
     "setupFailed": "Setup failed",
     "invalidCode": "Invalid code",
-    "failedRegen": "Failed"
+    "failedRegen": "Failed",
+    "passkeyUnsupported": "This browser does not support passkeys.",
+    "passkeyRegistered": "Passkey registered. You can now sign in with it.",
+    "passkeyRegisteredAdmin": "Passkey registered. TOTP and backup codes remain available.",
+    "passkeyRegisterFailed": "Could not register this passkey."
   },
   "homePage": {
     "company": {
@@ -15227,7 +15231,8 @@
       "noShipments": "No shipments found.",
       "milestone": "Milestone",
       "allStatuses": "All",
-      "empty": "No shipments found."
+      "empty": "No shipments found.",
+      "loading": "Loading…"
     },
     "warehousing": {
       "title": "Warehousing",
@@ -30007,7 +30012,12 @@
     "refundTitle": "Issue a refund",
     "refundWarning": "Refunds are recorded against the original payment rail and cannot be undone.",
     "processingRefund": "Processing refund…",
-    "issueRefund": "Issue refund"
+    "issueRefund": "Issue refund",
+    "itemHeader": "Item",
+    "qtyHeader": "Qty",
+    "priceHeader": "Price",
+    "refundUnavailable": "Refund unavailable",
+    "refundUnavailableHint": "This order is not currently in a refundable payment state."
   },
   "media": {
     "post": {

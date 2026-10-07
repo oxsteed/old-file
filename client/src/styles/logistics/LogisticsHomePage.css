@@ -978,3 +978,6 @@ html.dark .lxh-role-heading { color: #f1f5f9; }
 }
 .lx-btn { display: inline-block; margin-top: 0.75rem; padding: 0.5rem 1rem; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; cursor: pointer; font-size: 0.9rem; }
 .lx-btn:hover { background: #f1f5f9; }
+
+.lx-error { text-align: center; padding: 2rem 1rem; }
+.lx-error p { margin-bottom: 1rem; color: #dc2626; }

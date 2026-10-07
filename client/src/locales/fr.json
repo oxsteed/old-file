@@ -9235,7 +9235,11 @@
     "disableSuccess": "2FA désactivé avec succès",
     "newBackupGenerated": "Nouveaux codes de secours générés",
     "failedRegen": "Impossible de régénérer les codes de secours",
-    "backupCopied": "Codes copiés dans le presse-papiers"
+    "backupCopied": "Codes copiés dans le presse-papiers",
+    "passkeyUnsupported": "Ce navigateur ne prend pas en charge les clés d’accès.",
+    "passkeyRegistered": "Clé d’accès enregistrée. Vous pouvez maintenant vous connecter avec.",
+    "passkeyRegisteredAdmin": "Clé d’accès enregistrée. TOTP et codes de secours restent disponibles.",
+    "passkeyRegisterFailed": "Impossible d’enregistrer cette clé d’accès."
   },
   "homePage": {
     "company": {
@@ -15227,7 +15231,8 @@
       "noShipments": "Aucune expedition trouvee.",
       "milestone": "Etape",
       "allStatuses": "Tous",
-      "empty": "Aucune expédition trouvée."
+      "empty": "Aucune expédition trouvée.",
+      "loading": "Chargement…"
     },
     "warehousing": {
       "title": "Entreposage",
@@ -30007,7 +30012,12 @@
     "refundTitle": "Émettre un remboursement",
     "refundWarning": "Les remboursements sont enregistrés sur le rail de paiement d’origine et ne peuvent pas être annulés.",
     "processingRefund": "Traitement du remboursement…",
-    "issueRefund": "Émettre le remboursement"
+    "issueRefund": "Émettre le remboursement",
+    "itemHeader": "Article",
+    "qtyHeader": "Qté",
+    "priceHeader": "Prix",
+    "refundUnavailable": "Remboursement indisponible",
+    "refundUnavailableHint": "Cette commande n’est pas actuellement dans un état de paiement remboursable."
   },
   "media": {
     "post": {

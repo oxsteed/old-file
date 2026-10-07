@@ -22,14 +22,14 @@ export const twoFactorAPI = {
   regenerateBackupCodes: (token) => api.post('/2fa/regenerate-backup', { token }),
   listPasskeys: () => api.get('/2fa/passkeys'),
   registrationOptions: () => api.post('/2fa/passkeys/registration/options'),
-  verifyRegistration: (response, deviceName) => api.post('/2fa/passkeys/registration/verify', { response, deviceName }),
+  verifyRegistration: (response, deviceName, password) => api.post('/2fa/passkeys/registration/verify', { response, deviceName, password }),
   revokePasskey: (id) => api.delete(`/2fa/passkeys/${id}`),
 };
 
 export const userPasskeyAPI = {
   listPasskeys: () => api.get('/passkeys'),
   registrationOptions: () => api.post('/passkeys/registration/options'),
-  verifyRegistration: (response, deviceName) => api.post('/passkeys/registration/verify', { response, deviceName }),
+  verifyRegistration: (response, deviceName, password) => api.post('/passkeys/registration/verify', { response, deviceName, password }),
   revokePasskey: (id) => api.delete(`/passkeys/${id}`),
   authenticationOptions: (email) => api.post('/passkeys/authentication/options', { email }),
   verifyAuthentication: (token, response) => api.post('/passkeys/authentication/verify', { token, response }),

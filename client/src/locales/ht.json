@@ -9235,7 +9235,11 @@
     "disableSuccess": "2FA dezaktive avèk siksè",
     "newBackupGenerated": "Nouvo kòd sèkouris jenere",
     "failedRegen": "Echèk rejenerasyon kòd sèkouris",
-    "backupCopied": "Kòd kopye nan pwen kole"
+    "backupCopied": "Kòd kopye nan pwen kole",
+    "passkeyUnsupported": "Navigatè sa a pa sipòte passkey.",
+    "passkeyRegistered": "Passkey anrejistre. Ou ka konekte avè l kounye a.",
+    "passkeyRegisteredAdmin": "Passkey anrejistre. TOTP ak kòd sekou yo toujou disponib.",
+    "passkeyRegisterFailed": "Pa ka anrejistre passkey sa a."
   },
   "homePage": {
     "company": {
@@ -15227,7 +15231,8 @@
       "noShipments": "Pa gen ekspedisyon jwenn.",
       "milestone": "Etap",
       "allStatuses": "Tout",
-      "empty": "Pa jwenn okenn chajman."
+      "empty": "Pa jwenn okenn chajman.",
+      "loading": "Ap chaje…"
     },
     "warehousing": {
       "title": "Depo",
@@ -30007,7 +30012,12 @@
     "refundTitle": "Bay yon ranbousman",
     "refundWarning": "Ranbousman yo anrejistre sou ray peman orijinal la epi yo pa ka anile.",
     "processingRefund": "Ap trete ranbousman an…",
-    "issueRefund": "Bay ranbousman an"
+    "issueRefund": "Bay ranbousman an",
+    "itemHeader": "Atik",
+    "qtyHeader": "Kantite",
+    "priceHeader": "Pri",
+    "refundUnavailable": "Ranbousman pa disponib",
+    "refundUnavailableHint": "Kòmand sa a pa nan yon eta peman ki ka ranbouse kounye a."
   },
   "media": {
     "post": {

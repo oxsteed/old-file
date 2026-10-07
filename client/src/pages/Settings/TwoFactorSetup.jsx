@@ -47,21 +47,24 @@ export default function TwoFactorSetup({ adminSetup = false }) {
 
   const handleRegisterPasskey = async () => {
     if (!window.PublicKeyCredential || passkeyBusy) {
-      toast.error('This browser does not support passkeys.');
+      toast.error(t('twoFactor.passkeyUnsupported'));
       return;
     }
     setPasskeyBusy(true);
     try {
       const deviceName = (window.prompt('Name this passkey (for example, MacBook Touch ID):') || '').trim();
       if (!deviceName) return;
+      // Step-up: require current password to register a passkey.
+      const password = window.prompt('Enter your current password to register this passkey:');
+      if (!password) return;
       const { data } = await passkeyAPI.registrationOptions();
       const response = await startRegistration({ optionsJSON: data.options });
-      await passkeyAPI.verifyRegistration(response, deviceName);
+      await passkeyAPI.verifyRegistration(response, deviceName, password);
       await fetchPasskeys();
-      toast.success(adminSetup ? 'Passkey registered. TOTP and backup codes remain available.' : 'Passkey registered. You can now sign in with it.');
+      toast.success(adminSetup ? t('twoFactor.passkeyRegisteredAdmin') : t('twoFactor.passkeyRegistered'));
     } catch (err) {
       if (err?.name !== 'NotAllowedError') {
-        toast.error(err.response?.data?.error || 'Could not register this passkey.');
+        toast.error(err.response?.data?.error || t('twoFactor.passkeyRegisterFailed'));
       }
     } finally {
       setPasskeyBusy(false);

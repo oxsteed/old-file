@@ -57,7 +57,7 @@ async function saveChallenge(userId, purpose, challenge) {
   );
   await db.query(
     `INSERT INTO admin_passkey_challenges (user_id, challenge, purpose, expires_at)
-     VALUES ($1, $2, $3, NOW() + INTERVAL '5 minutes')`,
+     VALUES ($1, $2, $3, NOW() + (CHALLENGE_TTL_SECONDS || ' seconds')::interval)`,
     [userId || null, challenge, purpose]
   );
 }
@@ -124,11 +124,18 @@ async function registrationOptions(req, res, next) {
 async function verifyRegistration(req, res, next) {
   const response = req.body?.response;
   const deviceName = String(req.body?.deviceName || 'Admin passkey').trim();
+  const password = req.body?.password;
   if (!response || typeof response !== 'object') return validationError(res, { response: 'WebAuthn response is required' });
   if (deviceName.length < 1 || deviceName.length > 120) return validationError(res, { deviceName: 'Device name must be 1 to 120 characters' });
+  if (!password) return validationError(res, { password: 'Current password is required to register a passkey' });
   try {
     const admin = await getAdmin(req.user.id);
     if (!admin || !admin.is_active || !admin.totp_enabled) return res.status(403).json({ error: 'Admin TOTP must be enabled before adding a passkey.' });
+    const { rows: pwRows } = await db.query('SELECT password_hash FROM admin_users WHERE id = $1', [admin.id]);
+    const bcrypt = require('bcryptjs');
+    if (!pwRows[0]?.password_hash || !(await bcrypt.compare(password, pwRows[0].password_hash))) {
+      return res.status(403).json({ error: 'Current password is incorrect.' });
+    }
     const { rows: challenges } = await db.query(
       `SELECT challenge FROM admin_passkey_challenges
        WHERE user_id = $1 AND purpose = 'registration' AND expires_at > NOW()
