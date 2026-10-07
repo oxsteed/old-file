@@ -613,6 +613,8 @@ async function stripeCallback(req, res, next) {
         WHERE id = $5`,
       [accountId, !!account.charges_enabled, !!account.payouts_enabled, accountStatus, businessId]
     );
+      const { syncBusinessOAuthToRestaurantConnect } = require('../services/stripeConnectSoTService');
+      await syncBusinessOAuthToRestaurantConnect(client, businessId);
     }, 'connect_business_stripe');
 
     return res.redirect(

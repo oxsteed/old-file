@@ -338,6 +338,7 @@ async function syncBusinessStripeAccountState(account) {
       FOR UPDATE OF b`,
     [accountId]
   );
+  const { syncBusinessOAuthToRestaurantConnect } = require('../services/stripeConnectSoTService');
   for (const { id: businessId } of businesses) {
 
   await client.query(
@@ -371,6 +372,7 @@ async function syncBusinessStripeAccountState(account) {
       last_synced_at: new Date().toISOString(),
     }), businessId]
   );
+  await syncBusinessOAuthToRestaurantConnect(client, businessId);
   }
   }, 'sync_business_stripe_account');
 }
@@ -405,6 +407,14 @@ async function syncConnectAccountState(account) {
       WHERE stripe_account_id = $1 AND user_id = $5`,
     [accountId, !!account.charges_enabled, !!account.payouts_enabled, onboardingComplete, userId]
   );
+
+  const { syncHelperProfileStripeFromConnect } = require('../services/stripeConnectSoTService');
+  await syncHelperProfileStripeFromConnect(db, userId, {
+    stripeAccountId: accountId,
+    chargesEnabled: account.charges_enabled,
+    payoutsEnabled: account.payouts_enabled,
+    onboardingComplete,
+  });
 
   logger.info('[Stripe] Connect account synced', {
     userId,

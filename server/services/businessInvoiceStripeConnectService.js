@@ -1,8 +1,8 @@
 'use strict';
 
 const pool = require('../db');
-const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
+const { resolveBusinessInvoiceConnect } = require('./stripeConnectSoTService');
 const {
   invoiceBalanceCents,
   stripeInvoiceCurrency,
@@ -38,69 +38,26 @@ async function resolveInvoiceStripeConnectDestination(invoice, client = pool) {
   const db = client || pool;
 
   if (invoice.business_id) {
-    const { rows: bizRows } = await db.query(
-      `SELECT b.id,
-              b.stripe_account_id,
-              b.stripe_charges_enabled,
-              b.stripe_payouts_enabled,
-              b.stripe_account_status
-         FROM businesses b
-        WHERE b.id = $1`,
-      [invoice.business_id],
-    );
-    const biz = bizRows[0];
-    if (biz) {
-      const accountId = normalizeAccountId(biz.stripe_account_id);
-      const candidate = {
-        accountId,
-        chargesEnabled: Boolean(biz.stripe_charges_enabled),
-        payoutsEnabled: Boolean(biz.stripe_payouts_enabled),
-        accountStatus: biz.stripe_account_status,
-        source: 'business_standard',
-        payeeKind: 'business',
-      };
-      if (connectReady(candidate)) return candidate;
-      if (accountId && !candidate.chargesEnabled) {
-        return { ...candidate, ready: false, reason: 'charges_disabled' };
-      }
+    const resolved = await resolveBusinessInvoiceConnect(db, invoice.business_id);
+    if (resolved.reason === 'stripe_connect_accounts_mismatch') {
+      return { ...resolved, ready: false };
     }
-
-    const { rows: rcaRows } = await db.query(
-      `SELECT rca.stripe_account_id,
-              rca.charges_enabled,
-              rca.payouts_enabled
-         FROM food_restaurants fr
-         JOIN restaurant_connect_accounts rca ON rca.restaurant_id = fr.id
-        WHERE fr.business_id = $1
-          AND rca.stripe_account_id IS NOT NULL
-        ORDER BY rca.charges_enabled DESC, fr.id ASC
-        LIMIT 1`,
-      [invoice.business_id],
-    );
-    const rca = rcaRows[0];
-    if (rca) {
-      const candidate = {
-        accountId: normalizeAccountId(rca.stripe_account_id),
-        chargesEnabled: Boolean(rca.charges_enabled),
-        payoutsEnabled: Boolean(rca.payouts_enabled),
-        accountStatus: rca.charges_enabled ? 'active' : 'pending',
-        source: 'restaurant_connect',
-        payeeKind: 'business',
-      };
-      if (connectReady(candidate)) return candidate;
-      if (candidate.accountId) {
-        return { ...candidate, ready: false, reason: 'charges_disabled' };
-      }
+    const candidate = {
+      accountId: resolved.accountId,
+      chargesEnabled: resolved.chargesEnabled,
+      payoutsEnabled: resolved.payoutsEnabled,
+      accountStatus: resolved.accountStatus,
+      source: resolved.source,
+      payeeKind: resolved.payeeKind,
+    };
+    if (connectReady(candidate)) return candidate;
+    if (candidate.accountId && !candidate.chargesEnabled) {
+      return { ...candidate, ready: false, reason: 'charges_disabled' };
     }
-
     return {
-      accountId: null,
-      chargesEnabled: false,
-      payoutsEnabled: false,
-      source: null,
-      payeeKind: 'business',
+      ...candidate,
       ready: false,
-      reason: 'no_connect_account',
+      reason: resolved.reason || 'no_connect_account',
     };
   }
 
@@ -148,6 +105,14 @@ async function resolveInvoiceStripeConnectDestination(invoice, client = pool) {
 }
 
 function assertConnectDestinationReady(connect) {
+  if (connect?.reason === 'stripe_connect_accounts_mismatch') {
+    throw new AppError(
+      'Stripe Connect is configured differently for this business and its restaurant. Align accounts in Business Hub or food merchant settings before accepting card payments.',
+      409,
+      'stripe_connect_accounts_mismatch',
+      { divergence: connect.divergence || null },
+    );
+  }
   if (!connect || !connect.accountId) {
     throw new AppError(
       'The invoice issuer has not connected Stripe for card payments.',

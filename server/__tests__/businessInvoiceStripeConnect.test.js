@@ -17,15 +17,18 @@ beforeEach(() => {
 
 describe('business invoice Stripe Connect', () => {
   test('resolveInvoiceStripeConnectDestination uses business Standard account when charges enabled', async () => {
-    mockQuery.mockResolvedValueOnce({
-      rows: [{
-        id: 3,
-        stripe_account_id: 'acct_biz_1',
-        stripe_charges_enabled: true,
-        stripe_payouts_enabled: true,
-        stripe_account_status: 'active',
-      }],
-    });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 3,
+          stripe_account_id: 'acct_biz_1',
+          stripe_charges_enabled: true,
+          stripe_payouts_enabled: true,
+          stripe_account_status: 'active',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] });
 
     const result = await resolveInvoiceStripeConnectDestination({
       business_id: 3,
@@ -38,15 +41,18 @@ describe('business invoice Stripe Connect', () => {
   });
 
   test('resolveInvoiceStripeConnectDestination fails closed when charges disabled', async () => {
-    mockQuery.mockResolvedValueOnce({
-      rows: [{
-        id: 3,
-        stripe_account_id: 'acct_incomplete',
-        stripe_charges_enabled: false,
-        stripe_payouts_enabled: false,
-        stripe_account_status: 'pending',
-      }],
-    });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 3,
+          stripe_account_id: 'acct_incomplete',
+          stripe_charges_enabled: false,
+          stripe_payouts_enabled: false,
+          stripe_account_status: 'pending',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] });
 
     const result = await resolveInvoiceStripeConnectDestination({
       business_id: 3,
