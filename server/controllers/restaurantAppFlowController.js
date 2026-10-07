@@ -3350,7 +3350,9 @@ exports.listShifts = async (req, res, next) => {
 exports.listPosOrders = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    // POS surfaces require pos.use, not just membership.
+    await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage', 'orders.manage']);
     const limit = Math.min(parsePositiveInt(req.query.limit, 50), 100);
     const ticketState = normalizeString(req.query.ticketState || req.query.ticket_state, 24);
     const status = normalizeString(req.query.status, 32);
@@ -7315,14 +7317,15 @@ exports.completeRunnerHandoff = async (req, res, next) => {
 exports.listRunnerOffers = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantPermission(restaurant, req.user.id, ['runner.update', 'runner.manage', 'orders.manage']);
     const { rows: offers } = await pool.query(
       `SELECT t.*,
               o.guest_name AS customer_name,
               o.fulfillment_type,
               o.total_cents,
-              o.tip_cents,
-              o.metadata AS order_metadata
+              o.tip_cents
+         -- trackingToken stripped: lives in metadata, not exposed to runners.
          FROM restaurant_runner_tasks t
          LEFT JOIN food_orders o ON o.id = t.food_order_id
         WHERE t.restaurant_id = $1

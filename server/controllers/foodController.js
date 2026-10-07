@@ -1468,6 +1468,12 @@ async function assertRestaurantPermission(restaurant, requested, message = 'You 
   }
 }
 
+async function hasRestaurantPermission(restaurant, requested) {
+  if (restaurant.effective_role === 'owner') return true;
+  const permissions = await getRestaurantPermissions(restaurant);
+  return permissionsService.hasAny(permissions, requested);
+}
+
 async function assertRestaurantManage(restaurant) {
   if (restaurant.effective_role === 'owner') return;
   await assertRestaurantPermission(restaurant, ['restaurant.manage', 'settings.manage']);
@@ -3876,8 +3882,16 @@ exports.updateOrderStatus = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const orderId = parsePositiveInt(req.params.orderId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    await assertRestaurantPermission(restaurant, ['orders.manage', 'kitchen.update']);
     const status = normalizeString(req.body.status, 24);
+    // Critical fix: status transitions to cancelled/refunded trigger money
+    // refunds. Kitchen staff (kitchen.update) must not be able to move money.
+    // Financial transitions require orders.manage or issue_refunds.
+    const isFinancialTransition = ['cancelled', 'refunded'].includes(status);
+    if (isFinancialTransition) {
+      await assertRestaurantPermission(restaurant, ['orders.manage', 'issue_refunds']);
+    } else {
+      await assertRestaurantPermission(restaurant, ['orders.manage', 'kitchen.update']);
+    }
     const reason = normalizeString(req.body.reason || req.body.note, 1000);
     const stationLabel = normalizeString(req.body.stationLabel || req.body.station_label, 80);
     const action = normalizeString(req.body.action, 48) || `order_${status}`;
@@ -5910,10 +5924,26 @@ exports.getOrder = async (req, res, next) => {
 
     const isCustomer = order.customer_id && req.user?.id === order.customer_id;
     if (!isCustomer) {
+      let restaurant = null;
       try {
-        await requireRestaurantAccess(req.user?.id, order.restaurant_id);
+        restaurant = await requireRestaurantAccess(req.user?.id, order.restaurant_id);
       } catch (_) {
         throw new AppError('Order not found', 404, 'order_not_found');
+      }
+      // Staff must have orders.view (or kitchen.view for KDS). Membership alone
+      // is not enough; this endpoint returns guest PII and payment fields.
+      await assertRestaurantPermission(restaurant, ['orders.view', 'orders.manage', 'kitchen.view', 'kitchen.update']);
+
+      // Mask sensitive fields for roles without orders.manage.
+      const canSeeSensitive = await hasRestaurantPermission(restaurant, ['orders.manage']);
+      if (!canSeeSensitive) {
+        order = {
+          ...order,
+          guest_phone: order.guest_phone ? '***' : null,
+          guest_email: order.guest_email ? '***' : null,
+          stripe_payment_intent_id: undefined,
+          metadata: undefined,
+        };
       }
     }
     order = await syncFoodOrderPaymentStatus(order);

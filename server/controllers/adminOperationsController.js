@@ -121,7 +121,9 @@ exports.getOverview = async (req, res) => {
       return { available: statuses.available, statuses, openIssues: issues, pendingEvents: events };
     }),
     section('jobs', 'jobs', '/admin/jobs', () => statusSummary('jobs')),
-    section('orders', 'food_orders', '/admin/orders', () => statusSummary('food_orders')),
+    // Fixed: was labeled food_orders but linked to marketplace /admin/orders.
+    // Food orders have no admin detail API yet; link to the correct section.
+    section('orders', 'marketplace_orders', '/admin/orders', () => statusSummary('marketplace_orders')),
     section('support', 'support_tickets', '/admin/support', async () => {
       const [tickets, queue] = await Promise.all([
         statusSummary('support_tickets'),

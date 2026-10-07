@@ -84,6 +84,7 @@ const FoodRestaurantPage = lazyWithRetry(() => import('./pages/food/FoodRestaura
 const FoodMerchantPage = lazyWithRetry(() => import('./pages/food/FoodMerchantPage'));
 const FoodKitchenPage = lazyWithRetry(() => import('./pages/food/FoodKitchenPage'));
 const FoodQueueBoardPage = lazyWithRetry(() => import('./pages/food/FoodQueueBoardPage'));
+const FoodTrackPage = lazyWithRetry(() => import('./pages/food/FoodTrackPage'));
 const FoodKioskPage = lazyWithRetry(() => import('./pages/food/FoodKioskPage'));
 const RestaurantPOSPage = lazyWithRetry(() => import('./pages/food/RestaurantPOSPage'));
 const RestaurantInventoryPage = lazyWithRetry(() => import('./pages/food/RestaurantInventoryPage'));
@@ -476,6 +477,7 @@ export default function App() {
                     <Route path="/orders"                  element={<Guarded><ProtectedRoute><OrderHistoryPage /></ProtectedRoute></Guarded>} />
                     <Route path="/orders/:id"             element={<Guarded><ProtectedRoute><RouteErrorBoundary><OrderDetailsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/food/orders/:orderId"   element={<Guarded><ProtectedRoute><RouteErrorBoundary><OrderDetailsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/food/track/:token"     element={<FoodTrackPage />} />
 
                     {/* ── Support & Help ───────────────────────────────────── */}
                     <Route path="/support"                element={<Guarded><SupportEscalationPage /></Guarded>} />
