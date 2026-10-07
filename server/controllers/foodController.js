@@ -573,6 +573,7 @@ function parseTipCents(value, subtotalCents, field = 'tipCents') {
   }
   return tipCents;
 }
+exports.parseTipCents = parseTipCents;
 
 function safeReturnUrl(value) {
   const raw = normalizeString(value, 1000);
@@ -2952,7 +2953,7 @@ exports.createOrder = async (req, res, next) => {
         );
       }
 
-      const tip = parseTipCents(req.body.tipCents ?? req.body.tip_cents ?? 0, Math.round(subtotal * 100), 'tipCents');
+      const tip = parseTipCents(req.body.tipCents ?? req.body.tip_cents ?? 0, subtotal, 'tipCents');
       // As with quoteOrder, only a promotion or loyalty redemption may set a
       // discount. Client-provided discount amounts are not authoritative.
       let discount = 0;
