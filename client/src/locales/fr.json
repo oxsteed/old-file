@@ -13944,7 +13944,8 @@
         "eyebrow": "Commencez ici",
         "metaTitle": "Commencer avec OxSteed",
         "metaDescription": "Choisissez le parcours OxSteed qui correspond à votre rôle."
-      }
+      },
+      "media": "OxSteed Media"
     },
     "steps": {
       "discover": {
