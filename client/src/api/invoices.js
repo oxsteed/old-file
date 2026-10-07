@@ -1,7 +1,7 @@
 import axios from './axios';
 
-const listInvoices = (limit = 20, offset = 0) =>
-  axios.get('/invoices', { params: { limit, offset } });
+const listInvoices = (limit = 20, offset = 0, view = 'all') =>
+  axios.get('/invoices', { params: { limit, offset, view } });
 
 const getInvoice = (invoiceId) =>
   axios.get(`/invoices/${invoiceId}`);

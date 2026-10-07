@@ -2,10 +2,13 @@ const db = require('../db');
 const logger = require('../utils/logger');
 const QRCode = require('qrcode');
 const PDFDocument = require('pdfkit');
-const { Readable } = require('stream');
 const crypto = require('crypto');
 const { sendInvoiceEmail } = require('../utils/invoiceEmail');
-const { decrypt } = require('../utils/encryption');
+const { decrypt, encrypt } = require('../utils/encryption');
+const {
+  maskPaymentIdentifier,
+  rentalInvoicePaymentView,
+} = require('../utils/rentalInvoicePayment');
 
 const generateInvoiceNumber = async () => {
   const today = new Date();
@@ -97,7 +100,8 @@ const createInvoice = async (req, res) => {
 
     // Get owner's payment method
     const paymentResult = await client.query(
-      `SELECT payment_type, payment_identifier, payment_identifier_encrypted FROM owner_payment_methods WHERE owner_id = $1`,
+      `SELECT id, payment_type, payment_identifier, payment_identifier_encrypted
+       FROM owner_payment_methods WHERE owner_id = $1`,
       [ownerId]
     );
 
@@ -127,10 +131,8 @@ const createInvoice = async (req, res) => {
       return res.status(500).json({ error: 'Failed to load payment method (encryption error)' });
     }
 
-    const payment = {
-      payment_type: paymentRow.payment_type,
-      payment_identifier: decryptedIdentifier
-    };
+    const maskedIdentifier = maskPaymentIdentifier(paymentRow.payment_type, decryptedIdentifier);
+    const encryptedIdentifier = encrypt(decryptedIdentifier);
 
     // Start transaction
     await client.query('BEGIN');
@@ -139,8 +141,9 @@ const createInvoice = async (req, res) => {
     const invoiceNumber = await generateInvoiceNumber();
     const invoiceResult = await client.query(
       `INSERT INTO tool_rental_invoices
-       (booking_id, invoice_number, customer_id, owner_id, tool_id, start_date, end_date, daily_rate, total_amount, payment_type, payment_identifier, idempotency_key)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       (booking_id, invoice_number, customer_id, owner_id, tool_id, start_date, end_date, daily_rate, total_amount,
+        payment_type, payment_identifier, payment_identifier_encrypted, owner_payment_method_id, idempotency_key)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING *`,
       [
         bookingId,
@@ -152,8 +155,10 @@ const createInvoice = async (req, res) => {
         booking.end_date,
         booking.daily_rate,
         booking.total_price,
-        payment.payment_type,
-        payment.payment_identifier,
+        paymentRow.payment_type,
+        maskedIdentifier,
+        encryptedIdentifier,
+        paymentRow.id,
         idempotencyKey
       ]
     );
@@ -168,6 +173,7 @@ const createInvoice = async (req, res) => {
       // Prepare invoice data for email
       const invoiceForEmail = {
         ...invoice,
+        payment_identifier: decryptedIdentifier,
         owner_first: booking.owner_first || '',
         owner_last: booking.owner_last || '',
         owner_email: booking.owner_email,
@@ -277,7 +283,10 @@ const getInvoice = async (req, res) => {
       });
     }
 
-    const invoice = result.rows[0];
+    const invoice = {
+      ...result.rows[0],
+      ...rentalInvoicePaymentView(result.rows[0]),
+    };
 
     // Mark as viewed if customer
     if (invoice.customer_id === userId && invoice.status === 'sent') {
@@ -329,16 +338,13 @@ const generateInvoicePDF = async (req, res) => {
     }
 
     const invoice = result.rows[0];
+    const paymentView = rentalInvoicePaymentView(invoice);
 
-    // Generate QR code with properly encoded payment link
     const baseUrl = process.env.CLIENT_URL || 'https://oxsteed.com';
-    const paymentLink = `${baseUrl}/pay/${encodeURIComponent(invoice.payment_type)}/${encodeURIComponent(invoice.payment_identifier)}`;
+    const paymentLink = `${baseUrl}/tool-rentals?invoice=${encodeURIComponent(invoice.invoice_number)}`;
     const qrCodeDataUrl = await QRCode.toDataURL(paymentLink);
 
-    // Create PDF
     const doc = new PDFDocument();
-    const stream = new Readable();
-    doc.pipe(stream);
 
     // Header
     doc.fontSize(24).font('Helvetica-Bold').text('INVOICE', { align: 'left' });
@@ -420,8 +426,8 @@ const generateInvoicePDF = async (req, res) => {
       .fontSize(9)
       .font('Helvetica')
       .text(`Payment Method: ${invoice.payment_type.toUpperCase()}`, 50, y + 105)
-      .text(`Account: ${invoice.payment_identifier}`, 50, y + 125)
-      .text('Scan QR code below to pay:', 50, y + 150);
+      .text(`Account: ${paymentView.payment_identifier_masked}`, 50, y + 125)
+      .text('Open OxSteed for full payment instructions or scan below:', 50, y + 150);
 
     // Add QR code image
     const qrSize = 150;
@@ -437,20 +443,10 @@ const generateInvoicePDF = async (req, res) => {
       { width: 500 }
     );
 
-    doc.end();
-
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="invoice-${invoice.invoice_number}.pdf"`);
-
-    stream.pipe(res);
-
-    stream.on('data', chunk => {
-      res.write(chunk);
-    });
-
-    stream.on('end', () => {
-      res.end();
-    });
+    doc.pipe(res);
+    doc.end();
 
     logger.info('Invoice PDF generated', { invoiceId, invoiceNumber: invoice.invoice_number });
   } catch (err) {

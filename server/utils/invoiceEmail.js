@@ -340,7 +340,7 @@ ${copy.textTotal} ${totalAmount}
 
 ${copy.textPaymentMethod}
 ${copy.labelPaymentMethod}: ${paymentMethodDisplay.display}
-${copy.textAccount}: ${invoice.payment_identifier || ''}
+${copy.textAccount}: ${paymentMethodDisplay.masked || ''}
 
 ${copy.textDisclaimer}
 
@@ -391,7 +391,9 @@ function formatPaymentMethod(type, identifier, language = 'en') {
 async function sendInvoiceEmail(invoice, recipientEmail, maxRetries = 3, language = 'en') {
   const { lang, copy } = getInvoiceCopy(language);
   const CLIENT_URL = process.env.CLIENT_URL || 'https://oxsteed.com';
-  const paymentLink = `${CLIENT_URL}/pay/${encodeURIComponent(invoice.payment_type)}/${encodeURIComponent(invoice.payment_identifier)}`;
+  const paymentLink = invoice.invoice_number
+    ? `${CLIENT_URL}/tool-rentals?invoice=${encodeURIComponent(invoice.invoice_number)}`
+    : `${CLIENT_URL}/invoices`;
 
   let lastError = null;
   let attempt = 0;

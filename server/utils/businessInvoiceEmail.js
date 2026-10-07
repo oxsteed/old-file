@@ -114,8 +114,72 @@ async function sendBusinessInvoiceEmail({
   return { success: false, error: lastError || 'Email send failed', attempt: maxRetries };
 }
 
+const OVERDUE_COPY = {
+  en: {
+    subject: (n, from) => `Overdue: Invoice ${n} from ${from}`,
+    intro: (from, total, due) => `Invoice ${total} from ${from} was due ${due} and is now overdue.`,
+    cta: 'View invoice',
+  },
+  es: {
+    subject: (n, from) => `Vencida: Factura ${n} de ${from}`,
+    intro: (from, total, due) => `La factura de ${total} de ${from} venció el ${due} y está atrasada.`,
+    cta: 'Ver factura',
+  },
+  fr: {
+    subject: (n, from) => `En retard : facture ${n} de ${from}`,
+    intro: (from, total, due) => `La facture de ${total} de ${from} était due le ${due} et est en retard.`,
+    cta: 'Voir la facture',
+  },
+  ht: {
+    subject: (n, from) => `An reta: Fakti ${n} nan men ${from}`,
+    intro: (from, total, due) => `Fakti ${total} nan men ${from} te dwe ${due} epi li an reta kounye a.`,
+    cta: 'Gade fakti a',
+  },
+  ar: {
+    subject: (n, from) => `متأخرة: فاتورة ${n} من ${from}`,
+    intro: (from, total, due) => `فاتورة ${total} من ${from} كان موعد استحقاقها ${due} وهي متأخرة الآن.`,
+    cta: 'عرض الفاتورة',
+  },
+};
+
+async function sendBusinessInvoiceOverdueReminder({
+  invoice,
+  recipientEmail,
+  issuerName,
+  language = 'en',
+}) {
+  const lang = normalizeEmailLanguage(language);
+  const copy = OVERDUE_COPY[lang] || OVERDUE_COPY.en;
+  const base = COPY[lang] || COPY.en;
+  const publicUrl = buildPublicInvoiceUrl(invoice.public_token);
+  const totalLabel = formatMoney(invoice.total, invoice.currency_code, lang);
+  const dueLabel = formatDueDate(invoice.due_date, lang);
+  const fromName = issuerName || 'OxSteed';
+  const invoiceNumber = invoice.invoice_number || String(invoice.id);
+
+  const htmlBody = `
+    <h2 style="margin:0 0 12px;font-size:22px;color:#b91c1c;">${escapeHtml(copy.subject(invoiceNumber, fromName))}</h2>
+    <p style="margin:0 0 16px;color:#334155;font-size:16px;line-height:1.6;">${escapeHtml(copy.intro(fromName, totalLabel, dueLabel))}</p>
+    <p style="margin:0 0 20px;"><a href="${escapeHtml(publicUrl)}" style="display:inline-block;background:#ea580c;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600;">${escapeHtml(copy.cta)}</a></p>
+    <p style="margin:0;color:#64748b;font-size:13px;">${escapeHtml(base.footer)}</p>
+  `;
+
+  const text = `${copy.subject(invoiceNumber, fromName)}\n\n${copy.intro(fromName, totalLabel, dueLabel)}\n\n${copy.cta}: ${publicUrl}`;
+
+  const result = await sendEmail({
+    to: recipientEmail,
+    subject: copy.subject(invoiceNumber, fromName),
+    text,
+    html: renderOxSteedEmail({ preheader: copy.subject(invoiceNumber, fromName), bodyHtml: htmlBody, language: lang }),
+    idempotencyKey: `business-invoice-overdue:${invoice.id}:${recipientEmail.toLowerCase()}`,
+  });
+
+  return { success: Boolean(result.success), error: result.error };
+}
+
 module.exports = {
   sendBusinessInvoiceEmail,
+  sendBusinessInvoiceOverdueReminder,
   buildPublicInvoiceUrl,
   COPY,
 };

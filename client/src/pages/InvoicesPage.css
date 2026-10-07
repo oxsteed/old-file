@@ -1,3 +1,39 @@
+.invoices-view-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  max-width: 1240px;
+  margin: 0 auto 18px;
+}
+
+.invoices-view-tab {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.invoices-view-tab.active {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: rgba(249, 115, 22, 0.08);
+}
+
+.invoices-pay-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  color: var(--color-primary);
+  border: 1px solid var(--color-border);
+}
+
 .invoices-page {
   min-height: 100vh;
   padding: 32px clamp(16px, 4vw, 56px) 72px;

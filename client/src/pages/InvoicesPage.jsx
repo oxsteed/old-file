@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import {
@@ -52,6 +52,7 @@ function statusLabel(status = 'draft', t) {
     paid: t('invoices.statusPaid', { defaultValue: 'Paid' }),
     overdue: t('invoices.statusOverdue', { defaultValue: 'Overdue' }),
     cancelled: t('invoices.statusCancelled', { defaultValue: 'Cancelled' }),
+    partial: t('invoices.statusPartial', { defaultValue: 'Partially paid' }),
     outstanding: t('invoices.statusOutstanding', { defaultValue: 'Outstanding' }),
   };
   return map[normalized] || normalized.replace(/_/g, ' ').replace(/^\w/, (char) => char.toUpperCase());
@@ -75,19 +76,28 @@ function invoiceAmount(invoice) {
 export default function InvoicesPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [resendingEmail, setResendingEmail] = useState(null);
+  const [view, setView] = useState(searchParams.get('view') || 'all');
 
   useEffect(() => {
-    loadInvoices();
-  }, []);
+    loadInvoices(view);
+  }, [view]);
 
-  const loadInvoices = async () => {
+  useEffect(() => {
+    const invoiceId = searchParams.get('invoiceId');
+    if (!invoiceId || loading || !invoices.length) return;
+    const match = invoices.find((inv) => String(inv.id) === String(invoiceId));
+    if (match) setSelectedInvoice(match);
+  }, [searchParams, invoices, loading]);
+
+  const loadInvoices = async (activeView = view) => {
     try {
       setLoading(true);
-      const response = await invoicesApi.listInvoices();
+      const response = await invoicesApi.listInvoices(50, 0, activeView);
       setInvoices(response.data.invoices || []);
     } catch (err) {
       toast.error(t('invoices.loadError') || 'Failed to load invoices');
@@ -116,7 +126,7 @@ export default function InvoicesPage() {
       .filter((invoice) => invoice.status === 'paid')
       .reduce((sum, invoice) => sum + invoiceAmount(invoice), 0);
     const outstanding = invoices
-      .filter((invoice) => ['issued', 'sent', 'overdue', 'draft'].includes(invoice.status))
+      .filter((invoice) => ['issued', 'sent', 'overdue', 'partial', 'draft'].includes(invoice.status))
       .reduce((sum, invoice) => sum + invoiceAmount(invoice), 0);
     const overdueCount = invoices.filter((invoice) => invoice.status === 'overdue').length;
     return { total, paid, outstanding, overdueCount };
@@ -153,6 +163,30 @@ export default function InvoicesPage() {
             </button>
           </div>
         </header>
+
+        <div className="invoices-view-tabs" role="tablist" aria-label={t('invoices.viewTabsAria', { defaultValue: 'Invoice views' })}>
+          {[
+            { key: 'all', label: t('invoices.viewAll', { defaultValue: 'All' }) },
+            { key: 'issued', label: t('invoices.viewIssued', { defaultValue: 'Issued by me' }) },
+            { key: 'received', label: t('invoices.viewReceived', { defaultValue: 'Bills to pay' }) },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              role="tab"
+              aria-selected={view === tab.key}
+              className={`invoices-view-tab${view === tab.key ? ' active' : ''}`}
+              onClick={() => {
+                setView(tab.key);
+                const next = new URLSearchParams(searchParams);
+                next.set('view', tab.key);
+                setSearchParams(next, { replace: true });
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
         <section className="invoices-stats" aria-label={t('invoices.summaryAriaLabel', { defaultValue: 'Invoice summary' })}>
           <SummaryCard label={t('invoices.totalInvoiceValue', { defaultValue: 'Total invoice value' })} value={centsToMoney(stats.total, language)} icon={FileText} />
@@ -191,7 +225,11 @@ export default function InvoicesPage() {
                 <article key={invoice.id} className="invoices-row">
                   <div>
                     <strong>{invoice.invoice_number || t('invoices.invoiceIdFallback', { id: invoice.id, defaultValue: 'Invoice {{id}}' })}</strong>
-                    <small>{invoice.customer_name || invoice.client_name || t('invoices.customerFallback', { defaultValue: 'OxSteed customer' })}</small>
+                    <small>
+                      {invoice.perspective === 'received'
+                        ? (invoice.business_name || t('invoices.fromBusinessFallback', { defaultValue: 'From a business' }))
+                        : (invoice.customer_name || invoice.client_name || t('invoices.customerFallback', { defaultValue: 'OxSteed customer' }))}
+                    </small>
                   </div>
                   <span>{formatDate(invoiceDate(invoice), language, notSetText)}</span>
                   <span className="invoices-amount">{centsToMoney(invoiceAmount(invoice), language)}</span>
@@ -208,15 +246,26 @@ export default function InvoicesPage() {
                     >
                       <Eye size={16} />
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => handleResendEmail(invoice.id)}
-                      disabled={resendingEmail === invoice.id}
-                      title={t('invoices.resendEmail') || 'Resend Email'}
-                      aria-label={t('invoices.resendAriaLabel', { invoice: invoice.invoice_number || t('invoices.invoiceGeneric', { defaultValue: 'invoice' }), defaultValue: 'Resend {{invoice}}' })}
-                    >
-                      <Mail size={16} />
-                    </button>
+                    {invoice.perspective === 'received' && invoice.public_token && invoice.status !== 'paid' ? (
+                      <Link
+                        to={`/invoice/p/${invoice.public_token}`}
+                        className="invoices-pay-link"
+                        title={t('invoices.viewAndPay', { defaultValue: 'View & pay' })}
+                      >
+                        <CreditCard size={16} />
+                      </Link>
+                    ) : null}
+                    {invoice.perspective !== 'received' ? (
+                      <button
+                        type="button"
+                        onClick={() => handleResendEmail(invoice.id)}
+                        disabled={resendingEmail === invoice.id}
+                        title={t('invoices.resendEmail') || 'Resend Email'}
+                        aria-label={t('invoices.resendAriaLabel', { invoice: invoice.invoice_number || t('invoices.invoiceGeneric', { defaultValue: 'invoice' }), defaultValue: 'Resend {{invoice}}' })}
+                      >
+                        <Mail size={16} />
+                      </button>
+                    ) : null}
                   </div>
                 </article>
               ))}

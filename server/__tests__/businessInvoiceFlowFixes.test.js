@@ -123,10 +123,10 @@ describe('business invoice flow fixes', () => {
   test('processBusinessInvoiceOverdue updates past-due rows under lock', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ locked: true }] })
-      .mockResolvedValueOnce({ rowCount: 3 })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] });
 
-    await expect(processBusinessInvoiceOverdue()).resolves.toEqual({ locked: true, updated: 3 });
+    await expect(processBusinessInvoiceOverdue()).resolves.toEqual({ locked: true, updated: 0, reminded: 0 });
     expect(mockQuery.mock.calls[1][0]).toMatch(/status = 'overdue'/);
   });
 });
