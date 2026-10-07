@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 import BookingFlow from '../components/booking/BookingFlow';
+import { businessProfilePath } from '../utils/profileUrls';
 
 /**
  * Direct-booking route for a business.
@@ -43,7 +44,7 @@ export default function BookBusinessPage() {
       <div style={{ maxWidth: 1180, margin: '0 auto', padding: '1.5rem 1rem 3rem' }}>
         <div style={{ marginBottom: '1.25rem' }}>
           <Link
-            to={`/businesses/public/${id}`}
+            to={businessProfilePath({ businessId: id })}
             style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}
           >
             ← {t('booking.backToProfile')}

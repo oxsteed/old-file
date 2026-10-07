@@ -238,11 +238,8 @@ exports.uploadCoverImage = async (req, res) => {
       });
     }
 
-    // Validate file size
-    // - Max 5MB for S3 upload
-    // - Max 2MB for base64 fallback (to avoid timeout issues)
+    // Validate file size: 5MB max for the storage upload.
     const max5MB = 5 * 1024 * 1024;
-    const max2MB = 2 * 1024 * 1024;
 
     if (file.size > max5MB) {
       return sendValidationError(res, {
@@ -262,18 +259,14 @@ exports.uploadCoverImage = async (req, res) => {
     const key = await uploadFile(file.buffer, 'helper-covers', file.originalname, file.mimetype);
 
     if (key) {
-      // S3 upload succeeded
+      // Storage upload succeeded
       imageUrl = getPublicUrl(key);
       logger.info('Image uploaded to S3', { helperId, key });
-    } else if (file.size <= max2MB) {
-      // AWS not configured and file is small enough — fallback to base64 data URL
-      logger.warn('S3 upload failed, falling back to base64 storage', { helperId, size: file.size });
-      const base64 = file.buffer.toString('base64');
-      imageUrl = `data:${file.mimetype};base64,${base64}`;
-      logger.info('Image stored as base64 data URL', { helperId, size: file.size });
     } else {
-      // File too large for base64 and S3 not available
-      return sendError(res, 400, 'File is too large. Configure AWS S3 to upload images larger than 2MB.');
+      // PS-10: storage upload failed — fail the upload instead of storing a
+      // data: base64 URL. Never write a data: URL to the database.
+      logger.error('Cover image storage upload failed', { helperId, size: file.size });
+      return sendError(res, 503, 'Image storage is unavailable. Please try again later.');
     }
 
     // Delete old cover image if it exists

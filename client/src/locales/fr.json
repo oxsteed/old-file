@@ -3997,7 +3997,11 @@
     "paymentDetailsSaved": "Détails de paiement enregistrés. Vous pouvez maintenant enregistrer et recevoir les paiements des missions.",
     "bidLabel": "Offre",
     "availabilityTitle": "Disponibilité",
-    "availabilityHint": "Choisissez comment les clients peuvent vous trouver et vous joindre."
+    "availabilityHint": "Choisissez comment les clients peuvent vous trouver et vous joindre.",
+    "listProfilePublicly": "Rendre mon profil public",
+    "listingStatePublished": "Publié : les clients peuvent trouver votre profil",
+    "listingStateDraft": "Brouillon : votre profil est masqué pour les clients",
+    "listingSaved": "Statut de publication mis à jour"
   },
   "postJob": {
     "title": "Publier une mission",
@@ -14403,7 +14407,12 @@
     "servicesEmpty": "Aucun service publié pour le moment.",
     "recentWorkEmpty": "Aucune réalisation récente à afficher.",
     "reviewsEmpty": "Aucun avis pour le moment.",
-    "hoursEmpty": "Horaires non définis pour le moment."
+    "hoursEmpty": "Horaires non définis pour le moment.",
+    "messageBusiness": "Envoyer un message à l'entreprise",
+    "faqsTitle": "Questions fréquentes",
+    "faqsEmpty": "Aucune question fréquente pour le moment.",
+    "policiesTitle": "Politiques",
+    "policiesEmpty": "Aucune politique publiée pour le moment."
   },
   "businessProfileEdit": {
     "loadError": "Impossible de charger l?entreprise",

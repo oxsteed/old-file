@@ -320,6 +320,9 @@ exports.getBusinessProfileWithCover = async (req, res) => {
   try {
     const { businessId } = req.params;
 
+    // Audit fix: same visibility gate as the aggregate public profile -
+    // unlisted, inactive, admin-hidden, setup-incomplete, non-service or
+    // deleted businesses 404 here too.
     const result = await pool.query(
       `SELECT
         b.id,
@@ -329,7 +332,13 @@ exports.getBusinessProfileWithCover = async (req, res) => {
         u.profile_photo_url
       FROM businesses b
       LEFT JOIN users u ON b.user_id = u.id
-      WHERE b.id = $1`,
+      WHERE b.id = $1
+        AND b.deleted_at IS NULL
+        AND b.is_active = TRUE
+        AND b.is_listed = TRUE
+        AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
+        AND b.setup_status = 'active'
+        AND b.business_kind = 'service'`,
       [businessId]
     );
 

@@ -9,12 +9,13 @@ import { CookieConsentContext } from '../../context/CookieConsentContext';
 import HelperBusinessProfilePage from '../../pages/HelperBusinessProfilePage';
 import BusinessPublicProfilePage from '../../pages/BusinessPublicProfilePage';
 import FoodRestaurantPage from '../../pages/food/FoodRestaurantPage';
+import { businessProfilePath } from '../../utils/profileUrls';
 import { NAVBAR_STYLES } from '../../components/Navbar';
 
 const noop = () => {};
 const pages = {
   helper: { path: '/helpers/:id', url: id => `/helpers/${id}`, Component: HelperBusinessProfilePage },
-  business: { path: '/businesses/public/:businessId', url: id => `/businesses/public/${id}`, Component: BusinessPublicProfilePage },
+  business: { path: '/businesses/public/:businessId', url: id => businessProfilePath({ businessId: id }), Component: BusinessPublicProfilePage },
   restaurant: { path: '/restaurants/r/:restaurantId', url: id => `/restaurants/r/${id}`, Component: FoodRestaurantPage },
 };
 

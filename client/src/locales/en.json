@@ -3997,7 +3997,11 @@
     "paymentDetailsSaved": "Payment details saved. You can now record and receive job payments.",
     "bidLabel": "Bid",
     "availabilityTitle": "Availability",
-    "availabilityHint": "Choose how customers can find and reach you."
+    "availabilityHint": "Choose how customers can find and reach you.",
+    "listProfilePublicly": "List my profile publicly",
+    "listingStatePublished": "Published: customers can find your profile",
+    "listingStateDraft": "Draft: your profile is hidden from customers",
+    "listingSaved": "Listing status updated"
   },
   "postJob": {
     "title": "Post a Job",
@@ -14403,7 +14407,12 @@
     "servicesEmpty": "No services listed yet.",
     "recentWorkEmpty": "No recent work to show yet.",
     "reviewsEmpty": "No reviews yet.",
-    "hoursEmpty": "Hours not set yet."
+    "hoursEmpty": "Hours not set yet.",
+    "messageBusiness": "Message business",
+    "faqsTitle": "FAQs",
+    "faqsEmpty": "No FAQs yet.",
+    "policiesTitle": "Policies",
+    "policiesEmpty": "No policies listed yet."
   },
   "businessProfileEdit": {
     "loadError": "Failed to load business",

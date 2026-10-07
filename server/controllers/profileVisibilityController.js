@@ -498,7 +498,7 @@ function publicBaseUrl() {
 
 const CANONICAL_PATH_BY_TYPE = {
   helper: (id) => `/helpers/${id}`,
-  business: (id) => `/businesses/public/${id}`,
+  business: (id, slug) => (slug ? `/b/${slug}` : `/businesses/public/${id}`),
   restaurant: (id) => `/restaurants/r/${id}`,
 };
 
@@ -529,7 +529,8 @@ exports.getProfilePreview = async (req, res) => {
         `SELECT COALESCE(NULLIF(TRIM(b.business_name), ''), 'Business ' || b.id::text) AS display_name,
                 COALESCE(b.is_hidden_by_admin, FALSE) AS is_hidden_by_admin,
                 COALESCE(b.is_listed, TRUE) AS owner_visible,
-                COALESCE(b.is_active, TRUE) AS is_active
+                COALESCE(b.is_active, TRUE) AS is_active,
+                b.profile_slug
            FROM businesses b
           WHERE b.id = $1::bigint AND b.deleted_at IS NULL LIMIT 1`,
         [profileId]
@@ -554,7 +555,7 @@ exports.getProfilePreview = async (req, res) => {
     return res.json({
       profile_type: profileType,
       profile_id: profileId,
-      canonical_url: publicBaseUrl() + CANONICAL_PATH_BY_TYPE[profileType](encodeURIComponent(profileId)),
+      canonical_url: publicBaseUrl() + CANONICAL_PATH_BY_TYPE[profileType](encodeURIComponent(profileId), row.profile_slug),
       display_name: row.display_name,
       is_hidden_by_admin: isHiddenByAdmin,
       owner_visible: ownerVisible,

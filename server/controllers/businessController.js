@@ -1350,6 +1350,30 @@ async function respondBusinessProfile(req, res, adminPreview) {
 
     const ownerId = biz.owner_id;
 
+    // GV-4: section visibility flags. A sibling migration adds show_services,
+    // show_faqs, show_policies, show_gallery, show_hours to `businesses`
+    // (mirroring helper_profiles migration 077). Read them defensively so the
+    // profile still serves when the migration has not been applied yet.
+    let sectionVisibility = {
+      show_services: true,
+      show_faqs: true,
+      show_policies: true,
+      show_gallery: true,
+      show_hours: true,
+    };
+    try {
+      const { rows: [flags] } = await pool.query(
+        `SELECT show_services, show_faqs, show_policies, show_gallery, show_hours
+         FROM businesses WHERE id = $1`,
+        [bizId]
+      );
+      if (flags) sectionVisibility = flags;
+    } catch (err) {
+      logger.warn('respondBusinessProfile: show_* columns unavailable, defaulting to visible', {
+        err: err.message,
+      });
+    }
+
     // Parallel: services, reviews, gallery, FAQs, policies, hours, active team members
     // Query from business_* tables (Phase 3 content) instead of helper_* tables
     const [svcRes, reviewRes, galRes, faqRes, polRes, hoursRes, teamRes] = await Promise.all([
@@ -1411,8 +1435,10 @@ async function respondBusinessProfile(req, res, adminPreview) {
         business_name:  biz.business_name,
         business_type:  biz.business_type,
         description:    biz.description,
-        website:        biz.website,
-        phone:          biz.phone,
+        // GV-5: website and phone are withheld from the public response
+        // (kept only in the admin content-preview payload).
+        website:        adminPreview ? biz.website : undefined,
+        phone:          adminPreview ? biz.phone : undefined,
         logo_url:       biz.logo_url,
         cover_photo_url: biz.cover_photo_url || null,
         address_city:    biz.address_city    || biz.service_city,
@@ -1428,8 +1454,10 @@ async function respondBusinessProfile(req, res, adminPreview) {
         avg_rating:              biz.avg_rating,
         total_reviews:           biz.total_reviews,
         completed_jobs_count:    biz.completed_jobs_count,
-        // Owner context - needed for chat initiation
-        owner_id:        ownerId,
+        // Owner context - needed for chat initiation.
+        // GV-5: the raw owner_id is withheld from the public response
+        // (kept only in the admin content-preview payload).
+        owner_id:        adminPreview ? ownerId : undefined,
         owner_name:      resolvePublicDisplayName({
           display_name_preference: biz.display_name_preference,
           first_name: biz.owner_first_name,
@@ -1452,6 +1480,14 @@ async function respondBusinessProfile(req, res, adminPreview) {
         business_mode: biz.business_mode,
         industry_category: biz.industry_category,
         setup_status: biz.setup_status,
+        // GV-4: section visibility flags so the client can hide sections the
+        // business has not enabled (default true until the sibling migration
+        // lands and the values above are read from the row).
+        show_services: sectionVisibility.show_services,
+        show_faqs: sectionVisibility.show_faqs,
+        show_policies: sectionVisibility.show_policies,
+        show_gallery: sectionVisibility.show_gallery,
+        show_hours: sectionVisibility.show_hours,
       }),
       services:  svcRes.rows,
       reviews:   reviewRes.rows,
@@ -1459,7 +1495,9 @@ async function respondBusinessProfile(req, res, adminPreview) {
       faqs:      faqRes.rows,
       policies:  polRes.rows,
       hours:     hoursRes.rows,
-      team:      teamRes.rows,
+      // GV-5: public viewers see team roles only; member names stay in the
+      // admin content-preview payload.
+      team:      adminPreview ? teamRes.rows : teamRes.rows.map(({ role }) => ({ role })),
     });
   } catch (err) {
     logger.error('getBusinessPublicProfile error', { err: err.message });

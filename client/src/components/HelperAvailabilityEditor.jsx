@@ -43,7 +43,7 @@ function to12(hhmm) {
   return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
-export default function HelperAvailabilityEditor({ onTemplateLoaded } = {}) {
+export default function HelperAvailabilityEditor({ onTemplateLoaded, saveRef } = {}) {
   const onTemplateLoadedRef = useRef(onTemplateLoaded);
   onTemplateLoadedRef.current = onTemplateLoaded;
   const { t } = useTranslation();
@@ -123,6 +123,13 @@ export default function HelperAvailabilityEditor({ onTemplateLoaded } = {}) {
       setSaving(false);
     }
   }
+
+  // PS-6: let a parent reuse this exact save function. Profile Studio's hours
+  // section wires its sticky Save bar to the same function the editor's own
+  // "Save Schedule" button calls, so there is one save path, not two.
+  useEffect(() => {
+    if (saveRef) saveRef.current = handleSave;
+  });
 
   async function handleAddOverride(e) {
     e.preventDefault();

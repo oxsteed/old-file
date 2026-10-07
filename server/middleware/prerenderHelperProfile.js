@@ -983,7 +983,8 @@ function buildHelperJsonLd(helper, services, location, { profileUrl, language = 
 
 function buildBusinessJsonLd(biz, services, location, { profileUrl, language = 'en' } = {}) {
   const origin = base();
-  const resolvedProfileUrl = profileUrl || `${origin}/businesses/public/${biz.id}`;
+  const resolvedProfileUrl = profileUrl
+    || `${origin}${biz.profile_slug ? `/b/${biz.profile_slug}` : `/businesses/public/${biz.id}`}`;
   const offerItems = (services || []).slice(0, 12).map((s) => ({
     '@type': 'Offer',
     itemOffered: { '@type': 'Service', name: s.name || 'Service' },
@@ -1287,6 +1288,7 @@ async function handleBusinessProfile(idOrSlug, template, res, next, req) {
   const biz = {
     id: b.id,
     businessName: b.business_name,
+    profile_slug: b.profile_slug,
     tagline,
     description: bioText,
     rating: parseFloat(b.avg_rating) || 0,

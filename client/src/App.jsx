@@ -187,7 +187,6 @@ const MyJobsPage = lazyWithRetry(() => import('./pages/MyJobsPage'));
 const MyBidsPage = lazyWithRetry(() => import('./pages/MyBidsPage'));
 const EnforcementPolicyPage = lazyWithRetry(() => import('./pages/EnforcementPolicyPage'));
 const HelperProfileEditPage = lazyWithRetry(() => import('./pages/HelperProfileEditPage'));
-const BusinessProfileEditPage = lazyWithRetry(() => import('./pages/BusinessProfileEditPage'));
 const FeatureGuidePage = lazyWithRetry(() => import('./pages/FeatureGuidePage'));
 const ExperienceGuidePage = lazyWithRetry(() => import('./pages/ExperienceGuidePage'));
 const LearnModePage = lazyWithRetry(() => import('./pages/LearnModePage'));
@@ -547,7 +546,9 @@ export default function App() {
                     <Route path="/settings/country" element={<Guarded><CountrySettings /></Guarded>} />
                     <Route path="/settings/payment-policies" element={<Guarded><ProtectedRoute><HelperCancellationSettings /></ProtectedRoute></Guarded>} />
                     <Route path="/dashboard/edit-profile" element={<Guarded><ProtectedRoute><RouteErrorBoundary><HelperProfileEditPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
-                    <Route path="/business/edit-profile" element={<Guarded><ProtectedRoute><RouteErrorBoundary><BusinessProfileEditPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    {/* Retired: the legacy business profile editor is superseded by the
+                        Business Hub profile tab; keep the old URL working as a redirect. */}
+                    <Route path="/business/edit-profile" element={<Guarded><ProtectedRoute><Navigate to="/business-hub?tab=profile" replace /></ProtectedRoute></Guarded>} />
                     <Route path="/enforcement-policy" element={<Guarded><EnforcementPolicyPage /></Guarded>} />
 
                     {/* Disputes: wrapped in RouteErrorBoundary to isolate crashes */}

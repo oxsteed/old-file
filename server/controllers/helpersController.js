@@ -1072,10 +1072,14 @@ async function getHelperStatus(req, res, next) {
       `SELECT hp.is_available_now FROM helper_profiles hp
        JOIN users u ON u.id = hp.user_id
        WHERE hp.user_id = $1 AND u.deleted_at IS NULL
+         AND COALESCE(hp.is_listed, TRUE) = TRUE
          AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [id]
     );
-    const available = hp ? hp.is_available_now : false;
+    // Unlisted, admin-hidden, or nonexistent helpers 404 like the profile endpoint
+    // so no status/online signal leaks publicly.
+    if (!hp) throw new AppError('Helper not found', 404, 'not_found');
+    const available = !!hp.is_available_now;
     const online = available || socketService.isOnline(id);
     res.json({
       helperId:     id,
@@ -1101,6 +1105,7 @@ async function getHelperAvailability(req, res, next) {
        WHERE hp.user_id = $1
          AND u.deleted_at IS NULL
          AND u.email_verified = TRUE
+         AND COALESCE(hp.is_listed, TRUE) = TRUE
          AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [id]
     );
@@ -1172,6 +1177,7 @@ async function getHelperAvailabilitySummary(req, res, next) {
         WHERE hp.user_id = $1
           AND u.deleted_at IS NULL
           AND u.email_verified = TRUE
+          AND COALESCE(hp.is_listed, TRUE) = TRUE
           AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [id]
     );
@@ -1208,6 +1214,7 @@ async function getHelperPricing(req, res, next) {
        WHERE hp.user_id = $1
          AND u.deleted_at IS NULL
          AND u.email_verified = TRUE
+         AND COALESCE(hp.is_listed, TRUE) = TRUE
          AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [id]
     );
@@ -1256,6 +1263,7 @@ async function getHelperSlots(req, res, next) {
        WHERE hp.user_id = $1
          AND u.deleted_at IS NULL
          AND u.email_verified = TRUE
+         AND COALESCE(hp.is_listed, TRUE) = TRUE
          AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [id]
     );

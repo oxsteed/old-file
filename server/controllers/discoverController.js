@@ -346,6 +346,7 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
     const { rows: businesses } = await pool.query(
       `SELECT b.id, b.business_name AS title,
               COALESCE(b.description, hp.profile_headline, '') AS subtitle,
+              b.profile_slug,
               b.logo_url AS image_url,
               hp.service_city, hp.service_state,
               hp.service_lat::float8 AS lat, hp.service_lng::float8 AS lng,
@@ -378,7 +379,7 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
         id: String(b.id),
         title: b.title,
         subtitle: (b.subtitle || '').slice(0, 160),
-        url: `/businesses/public/${b.id}`,
+        url: b.profile_slug ? `/b/${b.profile_slug}` : `/businesses/public/${b.id}`,
         imageUrl: b.image_url || null,
         meta: [b.service_city, b.service_state].filter(Boolean).join(', ') || null,
         distanceMiles: d,
@@ -726,6 +727,7 @@ exports.discoverPopular = async (req, res) => {
     const { rows: biz } = await pool.query(
       `SELECT b.id, b.business_name AS title,
               LEFT(COALESCE(b.description, ''), 100) AS subtitle,
+              b.profile_slug,
               hp.service_lat::float8 AS lat, hp.service_lng::float8 AS lng
        FROM businesses b
        JOIN users u ON u.id = b.user_id AND u.is_active AND u.deleted_at IS NULL
@@ -746,7 +748,7 @@ exports.discoverPopular = async (req, res) => {
         id: String(b.id),
         title: b.title,
         subtitle: (b.subtitle || '').slice(0, 120),
-        url: `/businesses/public/${b.id}`,
+        url: b.profile_slug ? `/b/${b.profile_slug}` : `/businesses/public/${b.id}`,
         distanceMiles: d,
         primaryAction: 'view',
       });

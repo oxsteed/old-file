@@ -13,6 +13,7 @@ import {
   Star, ShieldCheck, Sparkles, AlertCircle, Loader2,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { businessProfilePath } from '../utils/profileUrls';
 import { SuggestDropdown } from '../components/SuggestDropdown';
 import api from '../api/axios';
 import Navbar from '../components/Navbar';
@@ -51,7 +52,7 @@ function itemHref(item: DiscoverItem): string {
   switch (item.type) {
     case 'helper':   return `/helpers/${item.id}`;
     case 'job':      return `/jobs/public/${item.id}`;
-    case 'business': return `/businesses/public/${item.id}`;
+    case 'business': return businessProfilePath({ businessId: item.id });
     default:         return '#';
   }
 }

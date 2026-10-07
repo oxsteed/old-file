@@ -222,8 +222,12 @@ router.put('/visibility', helperOnly, generalLimiter, async (req, res) => {
     const { show_services, show_faqs, show_policies, show_gallery, show_hours } = req.body;
 
     await pool.query(
+      // Audit fix: show_* columns are BOOLEAN NOT NULL DEFAULT true (migration 077).
+      // Omitted toggles pass null so COALESCE preserves the existing value on
+      // UPDATE, while the VALUES clause falls back to TRUE on INSERT (same bug
+      // class as the /core boolean fix).
       `INSERT INTO helper_profiles (user_id, show_services, show_faqs, show_policies, show_gallery, show_hours)
-       VALUES ($1, $2, $3, $4, $5, $6)
+       VALUES ($1, COALESCE($2, TRUE), COALESCE($3, TRUE), COALESCE($4, TRUE), COALESCE($5, TRUE), COALESCE($6, TRUE))
        ON CONFLICT (user_id) DO UPDATE SET
          show_services = COALESCE($2, helper_profiles.show_services),
          show_faqs     = COALESCE($3, helper_profiles.show_faqs),
@@ -233,11 +237,11 @@ router.put('/visibility', helperOnly, generalLimiter, async (req, res) => {
          updated_at    = NOW()`,
       [
         uid,
-        show_services != null ? !!show_services : true,
-        show_faqs != null ? !!show_faqs : true,
-        show_policies != null ? !!show_policies : true,
-        show_gallery != null ? !!show_gallery : true,
-        show_hours != null ? !!show_hours : true,
+        show_services != null ? !!show_services : null,
+        show_faqs != null ? !!show_faqs : null,
+        show_policies != null ? !!show_policies : null,
+        show_gallery != null ? !!show_gallery : null,
+        show_hours != null ? !!show_hours : null,
       ],
     );
 
@@ -252,6 +256,33 @@ router.put('/visibility', helperOnly, generalLimiter, async (req, res) => {
   } catch (err) {
     logger.error('[helperProfile] PUT /visibility error', { err: err.message });
     res.status(500).json({ error: 'Failed to update visibility settings' });
+  }
+});
+
+// ── PATCH /api/helper-profile/listing ─────────────────────────────────────────
+// Toggle the caller's own directory listing (draft/publish). Body: { is_listed: boolean }.
+router.patch('/listing', helperOnly, generalLimiter, async (req, res) => {
+  try {
+    const uid = req.user.id;
+    const { is_listed } = req.body;
+
+    if (typeof is_listed !== 'boolean') {
+      return res.status(400).json({ error: 'is_listed must be a boolean' });
+    }
+
+    const { rows: [row] } = await pool.query(
+      `UPDATE helper_profiles
+       SET is_listed = $1, updated_at = NOW()
+       WHERE user_id = $2
+       RETURNING is_listed`,
+      [is_listed, uid],
+    );
+    if (!row) return res.status(404).json({ error: 'Helper profile not found' });
+
+    res.json({ ok: true, is_listed: row.is_listed });
+  } catch (err) {
+    logger.error('[helperProfile] PATCH /listing error', { err: err.message });
+    res.status(500).json({ error: 'Failed to update listing status' });
   }
 });
 
@@ -278,10 +309,29 @@ router.put('/photo', helperOnly, generalLimiter, async (req, res) => {
         if (!['https:', 'http:'].includes(parsed.protocol)) {
           throw new Error('Invalid protocol');
         }
-        // Block localhost and private IPs to prevent SSRF.
-        const host = parsed.hostname.toLowerCase();
-        if (host === 'localhost' || host.startsWith('127.') || host.startsWith('10.') ||
-            host.startsWith('192.168.') || host.startsWith('169.254.')) {
+        // Block localhost, private/link-local/loopback IPs, and IPv6 private
+        // ranges to prevent SSRF. Audit fix: also covers 172.16/12, 0.0.0.0/8,
+        // IPv6 loopback (::1), link-local (fe80::/10), unique-local (fc00::/7),
+        // and the unspecified address (::/128).
+        // Note: Node keeps brackets in URL.hostname for IPv6 literals ("[::1]"),
+        // so strip them before comparing.
+        const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+        const isIpv6 = host.includes(':');
+        const ipv4Blocked =
+          host === 'localhost' ||
+          host.startsWith('127.') ||        // 127/8 loopback
+          host.startsWith('10.') ||         // 10/8
+          /^172\.(1[6-9]|2\d|3[01])\./.test(host) || // 172.16/12
+          host.startsWith('192.168.') ||    // 192.168/16
+          host.startsWith('169.254.') ||    // 169.254/16 link-local
+          host.startsWith('0.');            // 0.0.0.0/8
+        const ipv6Blocked = isIpv6 && (
+          host === '::1' ||                 // loopback
+          host === '::' ||                  // unspecified
+          /^fe[89ab]/.test(host) ||         // fe80::/10 link-local
+          /^f[cd]/.test(host)               // fc00::/7 unique-local
+        );
+        if (ipv4Blocked || ipv6Blocked) {
           throw new Error('Private host not allowed');
         }
         return trimmed.slice(0, 2048);

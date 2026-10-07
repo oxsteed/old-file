@@ -51,6 +51,7 @@ import { getPublicProfessionalOperations } from '../api/professionalOperations';
 import { getPublicContinuityOperations } from '../api/continuityOperations';
 import { ProfileTemplateRenderer, getTemplateBehavior } from '../components/profileTemplates/index';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
+import { businessProfilePath } from '../utils/profileUrls';
 
 // ── Data mapping helpers ──────────────────────────────────────────────────────
 
@@ -191,7 +192,7 @@ function mapToHelperProfileData(profile, t) {
     website: business.website,
     // Canonical public URL path for this business, vanity-slug aware
     // (server computes `/b/:slug` when claimed, else `/businesses/public/:id`).
-    profileUrl: business.profileUrl || `/businesses/public/${business.id}`,
+    profileUrl: business.profileUrl || businessProfilePath({ businessId: business.id }),
   };
 }
 
@@ -912,7 +913,7 @@ export default function BusinessProfilePage() {
   );
 
   // Canonical public URL for this business (vanity-slug aware).
-  const canonicalUrl = `${getPublicSiteUrl()}${profileUrl || `/businesses/public/${id}`}`;
+  const canonicalUrl = `${getPublicSiteUrl()}${profileUrl || businessProfilePath({ businessId: id })}`;
 
   // Only show the Location card when the business actually has location data.
   const hasLocation = Boolean(

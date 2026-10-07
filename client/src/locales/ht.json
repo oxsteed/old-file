@@ -4084,7 +4084,11 @@
     "paymentDetailsSaved": "Detay peman yo sove. Kounye a ou ka anrejistre epi resevwa peman travay yo.",
     "bidLabel": "Òf",
     "availabilityTitle": "Disponiblite",
-    "availabilityHint": "Chwazi kijan kliyan yo ka jwenn ou epi kontakte ou."
+    "availabilityHint": "Chwazi kijan kliyan yo ka jwenn ou epi kontakte ou.",
+    "listProfilePublicly": "Mete pwofil mwen an piblik",
+    "listingStatePublished": "Pibliye: kliyan yo ka jwenn pwofil ou a",
+    "listingStateDraft": "Bouyon: pwofil ou a kache pou kliyan yo",
+    "listingSaved": "Estati piblikasyon an mete ajou"
   },
   "postJob": {
     "title": "Pibliye yon Travay",
@@ -14403,7 +14407,12 @@
     "servicesEmpty": "Poko gen sèvis ki afiche.",
     "recentWorkEmpty": "Poko gen travay resan pou montre.",
     "reviewsEmpty": "Poko gen revizyon.",
-    "hoursEmpty": "Orè poko mete."
+    "hoursEmpty": "Orè poko mete.",
+    "messageBusiness": "Voye yon mesaj bay biznis la",
+    "faqsTitle": "Kesyon yo poze souvan",
+    "faqsEmpty": "Poko gen kesyon yo poze souvan.",
+    "policiesTitle": "Règleman",
+    "policiesEmpty": "Poko gen règleman ki afiche."
   },
   "businessProfileEdit": {
     "loadError": "Pa t ka chaje biznis la",

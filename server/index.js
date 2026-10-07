@@ -616,7 +616,6 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // ── INLINE ROUTES ──────────────────────────────────────
-const { getPublicProfile } = require('./controllers/authController');
 const cartCheckoutRoutes = require('./routes/cartCheckout');
 const ordersRoutes = require('./routes/orders');
 const adminOrdersRoutes = require('./routes/adminOrders');
@@ -727,7 +726,6 @@ app.use('/api/notifications/email', emailPreferencesRoutes);
 app.use('/api/notifications/sms', smsNotificationsRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/country-config', countryConfigRoutes);
-app.get('/api/users/:id/profile', getPublicProfile);
 
 // Enterprise monitoring - admin only
 app.use('/api/monitoring', monitoringRoutes);

@@ -3997,7 +3997,11 @@
     "paymentDetailsSaved": "Detalles de pago guardados. Ya puedes registrar y recibir pagos de trabajos.",
     "bidLabel": "Oferta",
     "availabilityTitle": "Disponibilidad",
-    "availabilityHint": "Elige cómo pueden encontrarte y contactarte los clientes."
+    "availabilityHint": "Elige cómo pueden encontrarte y contactarte los clientes.",
+    "listProfilePublicly": "Mostrar mi perfil públicamente",
+    "listingStatePublished": "Publicado: los clientes pueden encontrar tu perfil",
+    "listingStateDraft": "Borrador: tu perfil está oculto para los clientes",
+    "listingSaved": "Estado de publicación actualizado"
   },
   "postJob": {
     "title": "Publicar un trabajo",
@@ -14403,7 +14407,12 @@
     "servicesEmpty": "Aún no hay servicios publicados.",
     "recentWorkEmpty": "Aún no hay trabajos recientes para mostrar.",
     "reviewsEmpty": "Aún no hay reseñas.",
-    "hoursEmpty": "Horario aún no establecido."
+    "hoursEmpty": "Horario aún no establecido.",
+    "messageBusiness": "Enviar mensaje al negocio",
+    "faqsTitle": "Preguntas frecuentes",
+    "faqsEmpty": "Aún no hay preguntas frecuentes.",
+    "policiesTitle": "Políticas",
+    "policiesEmpty": "Aún no hay políticas publicadas."
   },
   "businessProfileEdit": {
     "loadError": "No se pudo cargar el negocio",

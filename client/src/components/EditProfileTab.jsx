@@ -62,6 +62,11 @@ export default function EditProfileTab() {
     show_hours: true,
   });
 
+  // PS-7: draft/publish listing flag. GET /me may not return is_listed yet;
+  // the column is NOT NULL DEFAULT TRUE, so assume listed until PATCH syncs.
+  const [isListed, setIsListed] = useState(true);
+  const [listingSaving, setListingSaving] = useState(false);
+
   const [core, setCore] = useState({
     profile_headline: '', bio_long: '', hourly_rate_min: '', hourly_rate_max: '',
     service_radius_miles: 10, service_city: '', service_state: '',
@@ -92,6 +97,10 @@ export default function EditProfileTab() {
 
   const coreBaselineRef = useRef('');
   const coreSnapRef = useRef(null);
+  // PS-6: the hours availability editor registers its save function here so
+  // the sticky Save bar can call the SAME path as the editor's own
+  // "Save Schedule" button (PUT /helper-profile/availability/template).
+  const hoursSaveRef = useRef(null);
 
   useEffect(() => {
     api.get('/helper-profile/me')
@@ -117,6 +126,7 @@ export default function EditProfileTab() {
           show_gallery: d.show_gallery !== false,
           show_hours: d.show_hours !== false,
         });
+        setIsListed(d.is_listed !== false);
         setServices(d.services  || []);
         setFaqs(d.faqs          || []);
         setPolicies(d.policies  || []);
@@ -180,6 +190,20 @@ export default function EditProfileTab() {
     const snap = coreSnapRef.current;
     if (!snap) return;
     setCore({ ...snap });
+  };
+
+  // PS-6: the sticky Save bar uses one save path per section. In the hours
+  // section that is the availability editor's own save function (the same one
+  // its "Save Schedule" button calls); every other section uses saveCore.
+  const handleStickySave = () => {
+    if (section === 'hours') {
+      const saveHours = hoursSaveRef.current;
+      if (saveHours) {
+        saveHours();
+        return;
+      }
+    }
+    saveCore();
   };
 
   // ── Services ────────────────────────────────────────────────────────────────
@@ -391,6 +415,25 @@ export default function EditProfileTab() {
     saveVisibility({ [key]: !visibility[key] });
   };
 
+  // ── Listing status (PS-7) ─────────────────────────────────────────────────────
+  // Draft/publish toggle. Server contract: PATCH /helper-profile/listing,
+  // body { is_listed: boolean }, response { ok: true, is_listed }.
+  const toggleListing = async () => {
+    if (listingSaving) return;
+    const next = !isListed;
+    setListingSaving(true);
+    try {
+      const r = await api.patch('/helper-profile/listing', { is_listed: next });
+      setIsListed(r.data?.is_listed ?? next);
+      markSaved();
+      toast.success(t('helperDashboard.listingSaved'));
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('helperDashboard.failedSave'));
+    } finally {
+      setListingSaving(false);
+    }
+  };
+
   // ── Profile completeness ─────────────────────────────────────────────────────
   const checks = [
     !!core.bio_long,
@@ -574,9 +617,11 @@ export default function EditProfileTab() {
   } else if (section === 'hours') {
     // Single availability editor: weekly template + dated exceptions, all in
     // the one system. It saves itself; nothing here writes availability_json.
+    // The sticky Save bar calls the editor's own save function (same path).
     sectionBody = (
       <HelperAvailabilityEditor
         onTemplateLoaded={(tpl) => setHasSchedule((tpl || []).length > 0)}
+        saveRef={hoursSaveRef}
       />
     );
   } else if (section === 'services') {
@@ -826,6 +871,33 @@ export default function EditProfileTab() {
   } else if (section === 'visibility') {
     sectionBody = (
       <>
+        {/* PS-7: draft/publish listing toggle */}
+        <div className={`mb-5 rounded-xl border p-4 ${isListed ? 'border-emerald-700/50 bg-emerald-950/30' : 'border-gray-800 bg-gray-900/60'}`}>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-white">{t('helperDashboard.listProfilePublicly')}</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {isListed ? t('helperDashboard.listingStatePublished') : t('helperDashboard.listingStateDraft')}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={toggleListing}
+              disabled={listingSaving}
+              aria-pressed={isListed}
+              aria-label={t('helperDashboard.listProfilePublicly')}
+              className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${
+                isListed ? 'bg-emerald-600' : 'bg-gray-700'
+              } ${listingSaving ? 'opacity-50 cursor-wait' : ''}`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  isListed ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
         <div className="mb-5 rounded-xl border border-gray-800 bg-gray-900/60 p-4">
           <ProfileSlugField
             type="helper"
@@ -880,7 +952,7 @@ export default function EditProfileTab() {
       onSectionChange={handleSectionChange}
       dirty={dirty}
       saving={saving}
-      onSave={() => saveCore()}
+      onSave={handleStickySave}
       onDiscard={discardCore}
       saveLabel={saveLabel}
       hideSave={false}

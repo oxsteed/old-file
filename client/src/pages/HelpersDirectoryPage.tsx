@@ -18,6 +18,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
 import SearchBar from '../components/helperDirectory/SearchBar';
+import { businessProfilePath } from '../utils/profileUrls';
 import SaveSearchButton from '../components/SaveSearchButton';
 import FilterPanel from '../components/helperDirectory/FilterPanel';
 import SortControls from '../components/helperDirectory/SortControls';
@@ -652,7 +653,7 @@ const HelpersDirectoryPage: React.FC<{ entryPoint?: 'helpers' | 'direct' }> = ({
 
   const handleMessage = useCallback((id: string) => {
     if (id.startsWith('biz_')) {
-      navigate(`/businesses/public/${id.replace('biz_', '')}`);
+      navigate(businessProfilePath({ businessId: id.replace('biz_', '') }));
     } else {
       navigate(`/helpers/${id}`);
     }

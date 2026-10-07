@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { businessProfilePath } from '../utils/profileUrls';
 import {
   ArrowRight,
   Award,
@@ -1423,7 +1424,7 @@ export default function PromotePage() {
           selectedBusiness.state || selectedBusiness.location_state,
         ], '')
       : compactList([helperProfile?.service_city, helperProfile?.service_state], '');
-    const profilePath = canUseBusiness ? `/businesses/public/${selectedBusiness.id}` : `/helpers/${user?.id}`;
+    const profilePath = canUseBusiness ? businessProfilePath({ businessId: selectedBusiness.id }) : `/helpers/${user?.id}`;
     const bookingPath = canUseBusiness ? profilePath : `/book/${user?.id}`;
     return {
       businessId: canUseBusiness ? selectedBusiness.id : null,

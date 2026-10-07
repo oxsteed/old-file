@@ -3997,7 +3997,11 @@
     "paymentDetailsSaved": "تم حفظ تفاصيل الدفع. يمكنك الآن تسجيل مدفوعات العمل واستلامها.",
     "bidLabel": "عرض",
     "availabilityTitle": "التوافر",
-    "availabilityHint": "اختر كيف يمكن للعملاء العثور عليك والوصول إليك."
+    "availabilityHint": "اختر كيف يمكن للعملاء العثور عليك والوصول إليك.",
+    "listProfilePublicly": "إظهار ملفي الشخصي علنًا",
+    "listingStatePublished": "منشور: يمكن للعملاء العثور على ملفك الشخصي",
+    "listingStateDraft": "مسودة: ملفك الشخصي مخفي عن العملاء",
+    "listingSaved": "تم تحديث حالة النشر"
   },
   "postJob": {
     "title": "نشر وظيفة",
@@ -14414,7 +14418,12 @@
     "servicesEmpty": "لا توجد خدمات مدرجة بعد.",
     "recentWorkEmpty": "لا توجد أعمال حديثة لعرضها بعد.",
     "reviewsEmpty": "لا توجد تقييمات بعد.",
-    "hoursEmpty": "لم يتم تحديد الساعات بعد."
+    "hoursEmpty": "لم يتم تحديد الساعات بعد.",
+    "messageBusiness": "مراسلة النشاط التجاري",
+    "faqsTitle": "الأسئلة الشائعة",
+    "faqsEmpty": "لا توجد أسئلة شائعة بعد.",
+    "policiesTitle": "السياسات",
+    "policiesEmpty": "لا توجد سياسات مدرجة بعد."
   },
   "businessProfileEdit": {
     "loadError": "فشل تحميل الأعمال",
