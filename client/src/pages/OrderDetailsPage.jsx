@@ -381,7 +381,7 @@ function OrderDetailsPageContent() {
         <div className="order-help-overlay" onClick={() => setHelpOpen(false)}>
           <div className="order-help-panel" onClick={e => e.stopPropagation()}>
             <div className="order-help-head">
-              <h3>{t('orders.helpTitle', { defaultValue: 'Get help with this order' })}</h3>
+              <h3>{t('orders.helpTitle')}</h3>
               <button type="button" className="order-help-close" onClick={() => setHelpOpen(false)} aria-label={t('common.close')}>×</button>
             </div>
             {isFoodOrder && order && (
@@ -395,7 +395,7 @@ function OrderDetailsPageContent() {
             )}
             {helpSent ? (
               <div className="order-help-sent">
-                <p>{t('orders.helpSent', { defaultValue: 'Your message was sent. Our support team will get back to you.' })}</p>
+                <p>{t('orders.helpSent')}</p>
                 <button type="button" className="orders-btn orders-btn-primary" onClick={() => { setHelpOpen(false); setHelpSent(false); }}>
                   {t('common.done', { defaultValue: 'Done' })}
                 </button>
@@ -405,7 +405,7 @@ function OrderDetailsPageContent() {
                 <textarea
                   value={helpMessage}
                   onChange={e => setHelpMessage(e.target.value)}
-                  placeholder={t('orders.helpPlaceholder', { defaultValue: 'Describe the issue with your order...' })}
+                  placeholder={t('orders.helpPlaceholder')}
                   rows={5}
                   className="order-help-textarea"
                 />

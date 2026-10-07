@@ -13392,7 +13392,10 @@
       "help2": "Swiv estati depi peman jouk fini.",
       "help3": "Kenbe resi yo konekte ak dosye lajan ou.",
       "help4": "Retounen nan detay kòmand si ou bezwen sipò oswa swivi."
-    }
+    },
+    "helpTitle": "Jwenn èd pou kòmand sa a",
+    "helpSent": "Mesaj ou a voye. Ekip sipò nou an ap kontakte ou.",
+    "helpPlaceholder": "Dekri pwoblèm ou genyen ak kòmand ou a..."
   },
   "cancellationSettings": {
     "pageTitle": "Règleman Peman ak Anilasyon",

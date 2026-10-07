@@ -13392,7 +13392,10 @@
       "help2": "Suivre le statut du paiement à la finalisation.",
       "help3": "Garder les reçus reliés à vos dossiers financiers.",
       "help4": "Revenir aux détails si un support ou un suivi est nécessaire."
-    }
+    },
+    "helpTitle": "Obtenir de l'aide pour cette commande",
+    "helpSent": "Votre message a été envoyé. Notre équipe d’assistance vous répondra.",
+    "helpPlaceholder": "Décrivez le problème avec votre commande..."
   },
   "cancellationSettings": {
     "pageTitle": "Politiques de paiement et d'annulation",

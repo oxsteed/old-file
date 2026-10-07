@@ -13473,7 +13473,10 @@
       "help2": "Track status from payment through completion.",
       "help3": "Keep receipts connected to your money records.",
       "help4": "Return to order details if support or follow-up is needed."
-    }
+    },
+    "helpTitle": "Get help with this order",
+    "helpSent": "Your message was sent. Our support team will get back to you.",
+    "helpPlaceholder": "Describe the issue with your order..."
   },
   "howOxsteedWorks": {
     "experience": {

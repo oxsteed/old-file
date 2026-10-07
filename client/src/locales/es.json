@@ -13392,7 +13392,10 @@
       "help2": "Seguir el estado desde el pago hasta la finalización.",
       "help3": "Mantener recibos conectados con tus registros de dinero.",
       "help4": "Volver a detalles del pedido si necesitas soporte o seguimiento."
-    }
+    },
+    "helpTitle": "Obtener ayuda con este pedido",
+    "helpSent": "Tu mensaje fue enviado. Nuestro equipo de soporte se pondrá en contacto contigo.",
+    "helpPlaceholder": "Describe el problema con tu pedido..."
   },
   "cancellationSettings": {
     "pageTitle": "Políticas de Pago y Cancelación",
