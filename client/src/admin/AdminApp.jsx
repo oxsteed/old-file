@@ -260,8 +260,8 @@ export default function AdminApp() {
           <Route path={adminRoute('licenses').relative} element={<LicensesManager />} />
           <Route path={adminRoute('contentRemovals').relative} element={<GrantGuard grant={adminRoute('contentRemovals').grant}><ContentRemovals /></GrantGuard>} />
           <Route path={adminRoute('mediaFlags').relative} element={<GrantGuard grant={adminRoute('mediaFlags').grant}><MediaFlags /></GrantGuard>} />
-          <Route path="/admin/food-orders" element={<GrantGuard grant="manage_orders"><AdminFoodOrders /></GrantGuard>} />
-          <Route path="/admin/food-orders/:id" element={<GrantGuard grant="manage_orders"><AdminFoodOrderDetail /></GrantGuard>} />
+          <Route path={adminRoute('foodOrders').relative} element={<GrantGuard grant={adminRoute('foodOrders').grant}><AdminFoodOrders /></GrantGuard>} />
+          <Route path={adminRoute('foodOrderDetail').relative} element={<GrantGuard grant={adminRoute('foodOrderDetail').grant}><AdminFoodOrderDetail /></GrantGuard>} />
           <Route path={adminRoute('support').relative} element={<GrantGuard grant={adminRoute('support').grant}><SupportTickets /></GrantGuard>} />
           <Route path={adminRoute('supportChat').relative} element={<SupportAgentChat />} />
           <Route path={adminRoute('quoteRequests').relative} element={<GrantGuard grant={adminRoute('quoteRequests').grant}><QuoteRequestsInbox /></GrantGuard>} />
