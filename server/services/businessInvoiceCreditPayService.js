@@ -18,9 +18,30 @@ const {
   spendWithCreditInTransaction,
   resolveSpendParticipant,
 } = require('./creditSpendAdapter');
+const {
+  resolveParticipant,
+} = require('./creditParticipantService');
 
 const CREDIT_REFERENCE_TYPE = 'business_invoice';
 const CREDIT_SURFACE = 'invoices';
+
+const PARTICIPANT_TRY_SKIP_CODES = new Set([
+  'credit_participant_not_found',
+  'credit_surface_not_allowed',
+  'credit_participant_not_active',
+  'credit_participant_didit_required',
+  'credit_partner_not_active',
+]);
+
+function primaryPayeeSubject(invoice) {
+  if (invoice.business_id) {
+    return { payeeKind: 'business', subjectId: invoice.business_id };
+  }
+  if (invoice.user_id) {
+    return { payeeKind: 'helper', subjectId: invoice.user_id };
+  }
+  return null;
+}
 
 async function legacyPartnerForBusiness(client, businessId) {
   if (!businessId) return null;
@@ -59,33 +80,43 @@ async function resolveInvoiceParticipantRef(invoice, client = pool) {
         partnerId: resolved.partnerId,
       };
     } catch (e) {
-      if (e.code === 'credit_participant_not_found') return null;
+      if (PARTICIPANT_TRY_SKIP_CODES.has(e.code)) return null;
       throw e;
     }
   }
 
-  if (invoice.business_id) {
-    for (const type of ['invoice_seller', 'business']) {
-      const found = await tryParticipant(type, invoice.business_id);
-      if (found) return found;
+  const primary = primaryPayeeSubject(invoice);
+  if (primary) {
+    const seller = await tryParticipant('invoice_seller', primary.subjectId);
+    if (seller) {
+      return { ...seller, payeeKind: primary.payeeKind, resolution: 'invoice_seller' };
     }
+  }
+
+  if (invoice.business_id) {
+    const found = await tryParticipant('business', invoice.business_id);
+    if (found) return { ...found, payeeKind: 'business', resolution: 'business' };
     const legacy = await legacyPartnerForBusiness(db, invoice.business_id);
     if (legacy) {
       return {
         participantRef: { type: 'business', subjectId: String(invoice.business_id) },
         partnerId: legacy.id,
         legacyPartner: true,
+        payeeKind: 'business',
+        resolution: 'legacy_business_partner',
       };
     }
   }
 
   const issuerUserId = invoice.user_id;
-  if (issuerUserId) {
-    for (const type of ['invoice_seller', 'helper']) {
-      const found = await tryParticipant(type, issuerUserId);
-      if (found) return found;
+  if (issuerUserId && !invoice.business_id) {
+    const helperParticipant = await tryParticipant('helper', issuerUserId);
+    if (helperParticipant) {
+      return { ...helperParticipant, payeeKind: 'helper', resolution: 'helper' };
     }
+  }
 
+  if (issuerUserId) {
     const { rows: bizRows } = await db.query(
       `SELECT b.id
          FROM businesses b
@@ -104,9 +135,13 @@ async function resolveInvoiceParticipantRef(invoice, client = pool) {
       [issuerUserId],
     );
     for (const row of bizRows) {
-      for (const type of ['invoice_seller', 'business']) {
-        const found = await tryParticipant(type, row.id);
-        if (found) return found;
+      const seller = await tryParticipant('invoice_seller', row.id);
+      if (seller) {
+        return { ...seller, payeeKind: 'helper_linked_business', resolution: 'invoice_seller_linked_business' };
+      }
+      const found = await tryParticipant('business', row.id);
+      if (found) {
+        return { ...found, payeeKind: 'helper_linked_business', resolution: 'business_linked' };
       }
       const legacy = await legacyPartnerForBusiness(db, row.id);
       if (legacy) {
@@ -114,12 +149,114 @@ async function resolveInvoiceParticipantRef(invoice, client = pool) {
           participantRef: { type: 'business', subjectId: String(row.id) },
           partnerId: legacy.id,
           legacyPartner: true,
+          payeeKind: 'helper_linked_business',
+          resolution: 'legacy_business_partner',
         };
       }
     }
   }
 
   return null;
+}
+
+async function creditParticipantsTableReady(client = pool) {
+  const { rows } = await client.query(
+    `SELECT 1 FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = 'credit_participants' LIMIT 1`,
+  );
+  return Boolean(rows[0]);
+}
+
+/**
+ * Issuer/admin view: how the invoice payee maps to Credit enrollment.
+ * Does not auto-enroll; documents the admin path (invoice_seller + invoices surface).
+ */
+async function describeInvoiceCreditPayeeEnrollment(invoice, client = pool) {
+  const primary = primaryPayeeSubject(invoice);
+  const payeeKind = primary?.payeeKind || (invoice.business_id ? 'business' : 'helper');
+  const base = {
+    payeeKind,
+    autoEnrollOnSend: false,
+    enrollmentRequired: {
+      participantType: 'invoice_seller',
+      allowedSurfaces: ['invoices'],
+      diditRequiredBeforeActive: true,
+      adminAction: 'Use Credit admin participant enrollment (invoice_seller) for the payee subject; activate after Didit.',
+    },
+  };
+
+  if (!(await creditParticipantsTableReady(client))) {
+    return {
+      ...base,
+      enrolled: false,
+      creditParticipantsReady: false,
+      hint: 'credit_participants table not migrated; helper invoices need invoice_seller enrollment once Phase 1 is deployed.',
+    };
+  }
+
+  const attempts = [];
+  if (primary) {
+    attempts.push({ type: 'invoice_seller', subjectId: primary.subjectId, label: `${payeeKind}_invoice_seller` });
+  }
+  if (invoice.business_id) {
+    attempts.push({ type: 'business', subjectId: invoice.business_id, label: 'business' });
+  } else if (invoice.user_id) {
+    attempts.push({ type: 'helper', subjectId: invoice.user_id, label: 'helper' });
+  }
+
+  for (const attempt of attempts) {
+    const resolved = await resolveParticipant(client, {
+      type: attempt.type,
+      subjectId: attempt.subjectId,
+    });
+    if (!resolved) continue;
+    const surfaces = resolved.participant.allowed_surfaces || [];
+    const invoicesSurfaceAllowed = surfaces.includes(CREDIT_SURFACE);
+    return {
+      ...base,
+      creditParticipantsReady: true,
+      enrolled: true,
+      participantType: attempt.type,
+      participantLabel: attempt.label,
+      subjectId: String(attempt.subjectId),
+      participantStatus: resolved.participant.status,
+      diditVerified: resolved.participant.didit_verified,
+      invoicesSurfaceAllowed,
+      partnerId: resolved.partner.id,
+      partnerStatus: resolved.partner.status,
+      canAcceptCreditInvoices:
+        resolved.participant.status === 'active'
+        && resolved.partner.status === 'active'
+        && resolved.participant.didit_verified
+        && invoicesSurfaceAllowed,
+      hint: !invoicesSurfaceAllowed
+        ? 'Add the invoices surface to this participant before payers can use Credit.'
+        : resolved.participant.status !== 'active'
+          ? 'Participant must be admin-approved active before accepting Credit.'
+          : !resolved.participant.didit_verified
+            ? 'Didit verification is required before the participant can go active.'
+            : null,
+    };
+  }
+
+  return {
+    ...base,
+    creditParticipantsReady: true,
+    enrolled: false,
+    hint: payeeKind === 'helper'
+      ? 'Enroll an invoice_seller participant for the helper user_id with invoices in allowed_surfaces (no business partner required).'
+      : 'Enroll an invoice_seller participant for this business_id with invoices in allowed_surfaces.',
+  };
+}
+
+async function loadBusinessInvoiceForEnrollmentView(invoiceId, user) {
+  const { rows } = await pool.query('SELECT * FROM business_invoices WHERE id = $1', [invoiceId]);
+  const invoice = rows[0] || null;
+  if (!invoice) return null;
+  const isAdmin = ['admin', 'super_admin'].includes(String(user?.role || ''));
+  const isIssuer = String(invoice.user_id) === String(user?.id);
+  if (!isAdmin && !isIssuer) return null;
+  return invoice;
 }
 
 async function sumCreditPurchasesForInvoiceCents(client, invoiceId) {
@@ -216,11 +353,13 @@ async function evaluateInvoiceCreditEligibility(invoice, user) {
   try {
     const resolved = await resolveInvoiceParticipantRef(invoice);
     if (!resolved) {
+      const enrollment = await describeInvoiceCreditPayeeEnrollment(invoice);
       return {
         eligible: false,
         code: 'credit_provider_not_eligible',
         reason: 'payee_not_enrolled',
-        helperParticipantDeferred: !invoice.business_id,
+        payeeKind: enrollment.payeeKind,
+        enrollmentHint: enrollment.hint || enrollment.enrollmentRequired?.adminAction,
       };
     }
     return {
@@ -230,6 +369,11 @@ async function evaluateInvoiceCreditEligibility(invoice, user) {
       partnerId: resolved.partnerId,
       legacyPartner: Boolean(resolved.legacyPartner),
       invoiceKind: invoice.business_id ? 'business' : 'helper',
+      payeeKind: resolved.payeeKind || (invoice.business_id ? 'business' : 'helper'),
+      resolution: resolved.resolution || null,
+      partialPayAllowed: true,
+      minPayCents: 1,
+      maxPayCents: balanceCents,
     };
   } catch (err) {
     logger.warn('invoice_credit_eligibility_failed', {
@@ -373,6 +517,8 @@ module.exports = {
   CREDIT_REFERENCE_TYPE,
   CREDIT_SURFACE,
   resolveInvoiceParticipantRef,
+  describeInvoiceCreditPayeeEnrollment,
+  loadBusinessInvoiceForEnrollmentView,
   evaluateInvoiceCreditEligibility,
   payBusinessInvoiceWithCredit,
   syncInvoicePaidFromCreditLedger,

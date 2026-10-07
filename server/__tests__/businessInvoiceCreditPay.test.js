@@ -5,6 +5,8 @@ const {
   evaluateInvoiceCreditEligibility,
   payBusinessInvoiceWithCredit,
   syncInvoicePaidFromCreditLedger,
+  resolveInvoiceParticipantRef,
+  describeInvoiceCreditPayeeEnrollment,
 } = require('../services/businessInvoiceCreditPayService');
 const creditService = require('../services/oxsteedCreditService');
 const adapter = require('../services/creditSpendAdapter');
@@ -17,6 +19,11 @@ jest.mock('../services/creditSpendAdapter', () => {
     resolveSpendParticipant: jest.fn(),
   };
 });
+
+jest.mock('../services/creditParticipantService', () => ({
+  resolveParticipant: jest.fn(),
+}));
+const participantService = require('../services/creditParticipantService');
 
 function mockResponse() {
   const res = {};
@@ -31,6 +38,7 @@ beforeEach(() => {
   delete process.env.BUSINESS_INVOICE_CREDIT_PAY_ENABLED;
   adapter.spendWithCreditInTransaction.mockReset();
   adapter.resolveSpendParticipant.mockReset();
+  participantService.resolveParticipant.mockReset();
 });
 
 describe('business invoice credit pay', () => {
@@ -79,6 +87,57 @@ describe('business invoice credit pay', () => {
         isImpersonated: true,
       }),
     ).rejects.toMatchObject({ code: 'impersonation_blocked' });
+  });
+
+  test('helper invoice prefers invoice_seller on issuer user_id without business partner', async () => {
+    adapter.resolveSpendParticipant.mockImplementation(async (_db, ref) => {
+      if (ref.type === 'invoice_seller' && ref.subjectId === 'helper-uuid') {
+        return { partnerId: 99 };
+      }
+      const err = new Error('not found');
+      err.code = 'credit_participant_not_found';
+      throw err;
+    });
+
+    const resolved = await resolveInvoiceParticipantRef({
+      id: 1,
+      business_id: null,
+      user_id: 'helper-uuid',
+    });
+
+    expect(resolved.partnerId).toBe(99);
+    expect(resolved.resolution).toBe('invoice_seller');
+    expect(resolved.payeeKind).toBe('helper');
+    expect(adapter.resolveSpendParticipant).toHaveBeenCalledWith(
+      expect.anything(),
+      { type: 'invoice_seller', subjectId: 'helper-uuid' },
+      'invoices',
+    );
+  });
+
+  test('describeInvoiceCreditPayeeEnrollment documents helper invoice_seller path', async () => {
+    mockQuery.mockImplementation(async (sql) => {
+      if (sql.includes('information_schema.tables')) return { rows: [{}] };
+      return { rows: [] };
+    });
+    participantService.resolveParticipant.mockResolvedValue({
+      participant: {
+        status: 'active',
+        didit_verified: true,
+        allowed_surfaces: ['invoices'],
+      },
+      partner: { id: 12, status: 'active' },
+    });
+
+    const info = await describeInvoiceCreditPayeeEnrollment({
+      business_id: null,
+      user_id: 'helper-uuid',
+    });
+
+    expect(info.enrolled).toBe(true);
+    expect(info.participantType).toBe('invoice_seller');
+    expect(info.canAcceptCreditInvoices).toBe(true);
+    expect(info.autoEnrollOnSend).toBe(false);
   });
 
   test('syncInvoicePaidFromCreditLedger aligns amount_paid to ledger purchases', async () => {

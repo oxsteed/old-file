@@ -42,6 +42,7 @@ router.get('/', authenticate, generalLimiter, async (req, res) => {
   }
 });
 
+router.get('/:id/credit-payee-enrollment', authenticate, generalLimiter, businessInvoiceCreditController.getInvoiceCreditPayeeEnrollment);
 router.get('/:id/credit-eligibility', authenticate, generalLimiter, businessInvoiceCreditController.getInvoiceCreditEligibility);
 router.post(
   '/:id/pay-with-credit',

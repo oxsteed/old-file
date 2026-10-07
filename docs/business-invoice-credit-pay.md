@@ -1,27 +1,42 @@
-# Business / helper invoice — OxSteed Credit pay (MVP)
+# Business / helper invoice — OxSteed Credit pay
 
-## Scope landed
+## Payer flow
 
-- Payer-only (client email match via `isInvoicePayer`); issuer cannot pay their own invoice.
-- Payable statuses: `sent`, `partial`, `overdue`.
-- Launch gate: `BUSINESS_INVOICE_CREDIT_PAY_ENABLED=1` plus live `oxsteed_credit_enabled` feature flag.
-- Spend uses `creditSpendAdapter` surface `invoices` with ledger `reference_type` `business_invoice`.
-- Invoice `amount_paid` / status sync from summed Credit purchases (idempotent retries safe).
-- Routes: `GET|POST /api/invoices/:id/credit-eligibility|pay-with-credit` and mirrored under `/api/mobile/invoices/:invoiceId/…`.
-- `rejectImpersonated` on pay POST.
-- UI: public invoice view (signed-in payer) and received-invoice modal on `/invoices`.
+- Payer-only (`isInvoicePayer`); statuses `sent` / `partial` / `overdue`.
+- Launch: `BUSINESS_INVOICE_CREDIT_PAY_ENABLED=1` + `oxsteed_credit_enabled` rail flag.
+- Spend: `creditSpendAdapter` surface `invoices`, ledger `reference_type` `business_invoice`.
+- `amount_paid` syncs from summed Credit purchases (idempotent retries).
+- Partial amounts supported in API and UI (`amountCents` ≤ remaining balance).
 
-## Deferred / gaps
+## Payee enrollment (no auto-enroll on send)
 
-- **Helper payees without `credit_participants`:** falls back to helper-linked **business** participants or legacy `oxsteed_credit_partners.business_id` restaurant partners. Helpers with no linked business and no `invoice_seller` participant remain ineligible until enrolled.
-- **Full participant generalization** (admin approval, Didit on activate, per-surface limits) follows `credit_participants` / `invoice_seller` enrollment — not auto-created on send invoice.
-- **Stripe Connect** online card pay remains separate (`BUSINESS_INVOICE_STRIPE_CONNECT_ENABLED`); Credit does not mark paid without a successful ledger purchase.
-- **Partial Credit pay:** API accepts `amountCents`; UI pays full remaining balance in MVP.
+Sending an invoice does **not** create or activate Credit participants. Didit and admin activation stay on the enrollment side.
+
+| Invoice type | Primary enrollment |
+|--------------|-------------------|
+| Business (`business_id` set) | `invoice_seller` participant on **business_id**, `allowed_surfaces` includes `invoices` |
+| Helper (issuer `user_id`, no `business_id`) | `invoice_seller` participant on **helper user_id** — **no business partner required** |
+| Fallbacks | `business` / `helper` participants; helper-linked businesses; legacy `oxsteed_credit_partners.business_id` |
+
+Issuer/admin hook (read-only):
+
+`GET /api/invoices/:id/credit-payee-enrollment` — returns enrollment status, hints, and `canAcceptCreditInvoices`. Use when onboarding helpers who invoice without a business entity.
+
+Admin enrollment API (existing): Credit admin `enrollParticipant` with `participantType: invoice_seller`, `subjectUserId` or `businessId`, and `allowedSurfaces` including `invoices`.
+
+## Routes
+
+- Payer: `GET|POST /api/invoices/:id/credit-eligibility|pay-with-credit` (+ mobile mirrors).
+- Issuer/admin: `GET /api/invoices/:id/credit-payee-enrollment`.
+- Pay POST uses `rejectImpersonated`.
+
+## Out of scope here
+
+- Stripe Connect card settlement (`BUSINESS_INVOICE_STRIPE_CONNECT_ENABLED`).
+- Auto-provisioning participants when an invoice is sent.
 
 ## Verification
 
 ```bash
-cd server && npx jest --testPathPatterns='businessInvoiceCreditPay|businessInvoiceFlow'
+cd server && npx jest --testPathPatterns='businessInvoiceCreditPay'
 ```
-
-Enable in dev: `BUSINESS_INVOICE_CREDIT_PAY_ENABLED=1` and ensure payee has an active `invoice_seller` or business-linked partner with `invoices` in `allowed_surfaces`.

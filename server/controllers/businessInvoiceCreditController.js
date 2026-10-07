@@ -3,6 +3,8 @@
 const { AppError } = require('../middleware/errorHandler');
 const {
   loadPayableInvoiceForPayer,
+  loadBusinessInvoiceForEnrollmentView,
+  describeInvoiceCreditPayeeEnrollment,
   evaluateInvoiceCreditEligibility,
   payBusinessInvoiceWithCredit,
 } = require('../services/businessInvoiceCreditPayService');
@@ -47,6 +49,25 @@ exports.getInvoiceCreditEligibility = async (req, res, next) => {
 
     const eligibility = await evaluateInvoiceCreditEligibility(invoice, req.user);
     return res.json({ success: true, ...eligibility });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getInvoiceCreditPayeeEnrollment = async (req, res, next) => {
+  try {
+    const invoiceId = parseBusinessInvoiceId(req.params.invoiceId || req.params.id);
+    if (!invoiceId) {
+      return res.status(404).json({ success: false, error: 'Invoice not found', code: 'invoice_not_found' });
+    }
+
+    const invoice = await loadBusinessInvoiceForEnrollmentView(invoiceId, req.user);
+    if (!invoice) {
+      return res.status(404).json({ success: false, error: 'Invoice not found', code: 'invoice_not_found' });
+    }
+
+    const enrollment = await describeInvoiceCreditPayeeEnrollment(invoice);
+    return res.json({ success: true, enrollment });
   } catch (err) {
     next(err);
   }

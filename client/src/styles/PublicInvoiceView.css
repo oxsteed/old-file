@@ -492,6 +492,40 @@
   line-height: 1.45;
 }
 
+.invoice-credit-pay-modes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.invoice-credit-pay-mode {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 14px;
+  color: #334155;
+  cursor: pointer;
+}
+
+.invoice-credit-pay-partial-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.invoice-credit-pay-partial-field input {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 16px;
+}
+
+.invoice-credit-pay-partial-field small {
+  color: #64748b;
+}
+
 .piv-credit-signin {
   margin-top: 12px;
 }

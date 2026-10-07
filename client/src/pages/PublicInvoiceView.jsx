@@ -50,6 +50,7 @@ function PublicInvoiceView() {
   const [business, setBusiness] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -75,7 +76,7 @@ function PublicInvoiceView() {
     return () => {
       isMounted = false;
     };
-  }, [token, t]);
+  }, [token, t, reloadKey]);
 
   const lineItems = useMemo(() => parseLineItems(invoice?.line_items), [invoice]);
   const subtotal = Number(invoice?.subtotal || 0);
@@ -287,9 +288,7 @@ function PublicInvoiceView() {
                     <InvoiceOxsteedCreditPay
                       invoiceId={String(invoice.id)}
                       balanceCents={balanceDueCents}
-                      onPaid={() => {
-                        setInvoice((prev) => (prev ? { ...prev, status: 'paid', amount_paid: prev.total } : prev));
-                      }}
+                      onPaid={() => setReloadKey((key) => key + 1)}
                     />
                   ) : !user && !isPaid ? (
                     <InvoiceCreditPaySignInPrompt className="piv-credit-signin" />
