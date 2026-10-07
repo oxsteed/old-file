@@ -29,6 +29,13 @@
 --   direct_quote_lookup_challenges: code_expires_at, verified_at,
 --     created_at, updated_at
 
+-- Migration 420's direct_schedule_overlap_guard trigger references
+-- quote_requests.scheduled_start_at/scheduled_end_at, which blocks ALTER
+-- TYPE. Drop it here and recreate it after the conversion (the trigger
+-- function itself is type-agnostic).
+
+DROP TRIGGER IF EXISTS direct_schedule_overlap_guard ON quote_requests;
+
 ALTER TABLE quote_requests
   ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at AT TIME ZONE 'UTC',
   ALTER COLUMN updated_at TYPE TIMESTAMPTZ USING updated_at AT TIME ZONE 'UTC',
@@ -68,3 +75,11 @@ ALTER TABLE direct_quote_lookup_challenges
   ALTER COLUMN verified_at TYPE TIMESTAMPTZ USING verified_at AT TIME ZONE 'UTC',
   ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at AT TIME ZONE 'UTC',
   ALTER COLUMN updated_at TYPE TIMESTAMPTZ USING updated_at AT TIME ZONE 'UTC';
+
+-- Recreate the overlap guard dropped above (function from migration 420
+-- is unchanged and type-agnostic).
+CREATE TRIGGER direct_schedule_overlap_guard
+  BEFORE INSERT OR UPDATE OF scheduled_start_at, scheduled_end_at, assigned_to, status, metadata
+  ON quote_requests
+  FOR EACH ROW
+  EXECUTE FUNCTION prevent_direct_schedule_overlap();
