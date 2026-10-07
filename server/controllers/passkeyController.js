@@ -132,7 +132,7 @@ async function verifyRegistration(req, res, next) {
     const admin = await getAdmin(req.user.id);
     if (!admin || !admin.is_active || !admin.totp_enabled) return res.status(403).json({ error: 'Admin TOTP must be enabled before adding a passkey.' });
     const { rows: pwRows } = await db.query('SELECT password_hash FROM admin_users WHERE id = $1', [admin.id]);
-    const bcrypt = require('bcryptjs');
+    const bcrypt = require('bcrypt');
     if (!pwRows[0]?.password_hash || !(await bcrypt.compare(password, pwRows[0].password_hash))) {
       return res.status(403).json({ error: 'Current password is incorrect.' });
     }
