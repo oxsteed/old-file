@@ -422,6 +422,11 @@ exports.postRestaurantMedia = async (req, res, next) => {
         [restaurantId, req.user.id, parsed.url, parsed.provider, parsed.externalVideoId, caption]
       );
       await insertMediaDishSnapshots(client, media.id, dishRows);
+      // Dual-write into OxSteed Media (v2, Emile locked #17).
+      await dualWriteToMedia(client, {
+        restaurantId, userId: req.user.id, caption,
+        dishRows, restaurantName: req.restaurant?.name,
+      });
       await client.query('COMMIT');
       return res.status(201).json({ success: true, media });
     } catch (err) {
@@ -505,6 +510,52 @@ async function insertMediaDishSnapshots(client, mediaId, dishRows) {
        VALUES ($1, $2, $3, $4, $5)`,
       [mediaId, d.id, d.name, d.price_cents, d.currency_code]
     );
+  }
+}
+
+// Dual-write restaurant media into OxSteed Media (Emile locked #17).
+// Creates a media_post with actor_type=restaurant and mirrors dish items
+// into media_post_links. Fail-open: if Media tables don't exist yet, skip.
+async function dualWriteToMedia(client, { restaurantId, userId, caption, dishRows, restaurantName }) {
+  try {
+    // Get or create the restaurant actor.
+    const { rows: existing } = await client.query(
+      `SELECT id FROM media_actors WHERE actor_type = 'restaurant' AND restaurant_id = $1`,
+      [restaurantId]
+    );
+    let actorId = existing[0]?.id;
+    if (!actorId) {
+      const { rows: created } = await client.query(
+        `INSERT INTO media_actors
+           (actor_type, owner_user_id, restaurant_id, handle, display_name, verified_kind)
+         VALUES ('restaurant', $1, $2, $3, $4, 'restaurant')
+         ON CONFLICT (handle) DO UPDATE SET display_name = EXCLUDED.display_name
+         RETURNING id`,
+        [userId, restaurantId, `restaurant-${restaurantId}`, restaurantName || `Restaurant ${restaurantId}`]
+      );
+      actorId = created[0].id;
+    }
+
+    const { rows: post } = await client.query(
+      `INSERT INTO media_posts (actor_id, body, visibility)
+       VALUES ($1, $2, 'public') RETURNING id`,
+      [actorId, caption || '']
+    );
+
+    for (let i = 0; i < dishRows.length; i++) {
+      const d = dishRows[i];
+      await client.query(
+        `INSERT INTO media_post_links
+           (post_id, link_type, target_id, name_snapshot, price_snapshot_cents, currency_code, sort_order)
+         VALUES ($1, 'food_item', $2, $3, $4, $5, $6)
+         ON CONFLICT (post_id, link_type, target_id) DO NOTHING`,
+        [post[0].id, `${restaurantId}:${d.id}`, d.name, d.price_cents, d.currency_code, i]
+      );
+    }
+    return post[0].id;
+  } catch (err) {
+    // Fail-open: restaurant media must not break if Media tables are missing.
+    return null;
   }
 }
 
