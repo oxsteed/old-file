@@ -323,6 +323,7 @@ export default function Navbar() {
                 </NavLink>
                 <Divider />
                 <NavLink to={dashboardPath} active={isDashboardActive}>{t('nav.dashboard')}</NavLink>
+                <NavLink to="/statements" active={isActive('/statements')}>{t('statementCenter.title', { defaultValue: 'Statement center' })}</NavLink>
                 {isHelper && <NavLink to="/helper-earnings/statements" active={isActive('/helper-earnings/statements')}>{t('statementCenter.helperEarnings')}</NavLink>}
                 {showBusinessHub && (
                   <NavLink
@@ -503,6 +504,7 @@ export default function Navbar() {
             {user ? (
               <>
                 <MobileNavLink to={dashboardPath} onClick={() => setMobileOpen(false)}>{t('nav.dashboard')}</MobileNavLink>
+                <MobileNavLink to="/statements" onClick={() => setMobileOpen(false)}>{t('statementCenter.title', { defaultValue: 'Statement center' })}</MobileNavLink>
                 {showSupportWorkspaceNav && (
                   <MobileNavLink to="/support/agent" onClick={() => setMobileOpen(false)}>{t('nav.supportWorkspace')}</MobileNavLink>
                 )}

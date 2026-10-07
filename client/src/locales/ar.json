@@ -1,5 +1,18 @@
 {
   "statementCenter": {
+    "title": "مركز الكشوفات",
+    "description": "راجع كشوفات الائتمان والتسويات والأرباح والنشاط التجاري في مكان واحد.",
+    "eyebrow": "السجلات المالية",
+    "scope": "يمكنك فتح مساحات الكشوفات والسجلات المتاحة لحسابك فقط.",
+    "open": "فتح الكشوفات",
+    "archive": "عرض أرشيف الكشوفات",
+    "oxsteedCredit": "كشوف OxSteed Credit",
+    "oxsteedCreditDescription": "راجع رصيد OxSteed Credit والحركة المسجلة والتنزيلات.",
+    "restaurantCredit": "كشوف Restaurant Credit",
+    "restaurantCreditDescription": "راجع أرصدة محافظ المطاعم والحركة والتنزيلات.",
+    "restaurantSettlementDescription": "راجع أرباح المطعم ومستحقاته وتسوياته المسجلة.",
+    "helperEarningsDescription": "راجع أرباحك المسجلة كمساعد وسجل التسويات.",
+    "businessDescription": "راجع مستحقات النشاط التجاري وأرباحه وسجلات التسوية.",
     "exportCancelled": "تم إلغاء التصدير.",
     "restaurantSettlement": "كشوف تسويات المطعم",
     "helperEarnings": "كشوف أرباح المساعد",

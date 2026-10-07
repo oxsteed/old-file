@@ -93,6 +93,7 @@ const RestaurantRunnerPage = lazyWithRetry(() => import('./pages/food/Restaurant
 const RestaurantCreditPage = lazyWithRetry(() => import('./pages/food/RestaurantCreditPage'));
 const OxsteedCreditPage = lazyWithRetry(() => import('./pages/food/OxsteedCreditPage'));
 const CreditStatementsPage = lazyWithRetry(() => import('./pages/food/CreditStatementsPage'));
+const StatementCenterPage = lazyWithRetry(() => import('./pages/food/StatementCenterPage'));
 const StatementArchivePage = lazyWithRetry(() => import('./pages/food/StatementArchivePage'));
 const StatementExportPage = lazyWithRetry(() => import('./pages/food/StatementExportPage'));
 const StatementTransactionView = lazyWithRetry(() => import('./pages/food/StatementTransactionView'));
@@ -589,6 +590,7 @@ export default function App() {
                     <Route path="/restaurants/crew/:restaurantId"      element={<ProtectedRoute><RouteErrorBoundary><RestaurantCrewPage /></RouteErrorBoundary></ProtectedRoute>} />
                     <Route path="/restaurants/runner/:restaurantId"    element={<ProtectedRoute><RouteErrorBoundary><RestaurantRunnerPage /></RouteErrorBoundary></ProtectedRoute>} />
                     <Route path="/restaurant-credit" element={<Guarded><ProtectedRoute><RouteErrorBoundary><RestaurantCreditPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/statements" element={<Guarded><ProtectedRoute><RouteErrorBoundary><StatementCenterPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/restaurant-credit/statements" element={<Guarded><ProtectedRoute><RouteErrorBoundary><CreditStatementsPage product="restaurant" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/restaurant-credit/statements/archive" element={<Guarded><ProtectedRoute><RouteErrorBoundary><StatementArchivePage product="restaurant" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/restaurant-settlement/statements" element={<Guarded><ProtectedRoute><RouteErrorBoundary><StatementArchivePage product="restaurant_settlement" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

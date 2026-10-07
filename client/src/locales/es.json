@@ -1,5 +1,18 @@
 {
   "statementCenter": {
+    "title": "Centro de estados de cuenta",
+    "description": "Revisa tus estados de crédito, liquidaciones, ingresos y negocio en un solo lugar.",
+    "eyebrow": "Registros financieros",
+    "scope": "Solo podrás abrir las áreas y los registros de estados disponibles para tu cuenta.",
+    "open": "Abrir estados",
+    "archive": "Ver archivo de estados",
+    "oxsteedCredit": "Estados de OxSteed Credit",
+    "oxsteedCreditDescription": "Revisa el saldo, la actividad registrada y las descargas de OxSteed Credit.",
+    "restaurantCredit": "Estados de Restaurant Credit",
+    "restaurantCreditDescription": "Revisa los saldos, la actividad y las descargas de las billeteras de restaurantes.",
+    "restaurantSettlementDescription": "Revisa los ingresos, las cuentas por cobrar y las liquidaciones registradas del restaurante.",
+    "helperEarningsDescription": "Revisa tus ingresos registrados como colaborador y el historial de liquidaciones.",
+    "businessDescription": "Revisa las cuentas por cobrar, los ingresos y las liquidaciones del negocio.",
     "exportCancelled": "Tu exportación se canceló.",
     "restaurantSettlement": "Estados de liquidación del restaurante",
     "helperEarnings": "Estados de ingresos del colaborador",

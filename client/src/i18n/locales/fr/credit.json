@@ -1,5 +1,18 @@
 {
   "statementCenter": {
+    "title": "Centre des relevés",
+    "description": "Consultez vos relevés de crédit, de règlement, de revenus et d’entreprise au même endroit.",
+    "eyebrow": "Documents financiers",
+    "scope": "Vous ne pourrez ouvrir que les espaces et relevés disponibles pour votre compte.",
+    "open": "Ouvrir les relevés",
+    "archive": "Voir l’archive des relevés",
+    "oxsteedCredit": "Relevés OxSteed Credit",
+    "oxsteedCreditDescription": "Consultez le solde, les opérations comptabilisées et les téléchargements OxSteed Credit.",
+    "restaurantCredit": "Relevés Restaurant Credit",
+    "restaurantCreditDescription": "Consultez les soldes, opérations et téléchargements des portefeuilles de restaurants.",
+    "restaurantSettlementDescription": "Consultez les revenus, créances et règlements enregistrés du restaurant.",
+    "helperEarningsDescription": "Consultez vos revenus enregistrés et l’historique de vos règlements.",
+    "businessDescription": "Consultez les créances, revenus et règlements de l’entreprise.",
     "exportCancelled": "Votre export a été annulé.",
     "restaurantSettlement": "Relevés de règlement du restaurant",
     "helperEarnings": "Relevés de revenus du prestataire",

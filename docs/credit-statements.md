@@ -11,6 +11,9 @@ account-authority services are unchanged. Generating, correcting, or downloading
 a statement never initiates any balance, payment, fee, refund, payout, dispute
 decision, or eligibility change.
 
+- `/statements` is the authenticated Statement Center. It links users to the
+  statement areas available to their account while preserving the product-specific
+  statement and archive routes below.
 - `/oxsteed-credit/statements` and `/restaurant-credit/statements` provide account
   selection, UTC period selection, posted activity, balances, and PDF/CSV downloads.
 - Opening balance plus posted credits minus posted debits must equal the closing

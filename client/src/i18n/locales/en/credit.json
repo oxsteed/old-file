@@ -1,5 +1,18 @@
 {
   "statementCenter": {
+    "title": "Statement center",
+    "description": "Review your credit, settlement, earnings, and business statements in one place.",
+    "eyebrow": "Financial records",
+    "scope": "You will only be able to open statement areas and records available to your account.",
+    "open": "Open statements",
+    "archive": "View statement archive",
+    "oxsteedCredit": "OxSteed Credit statements",
+    "oxsteedCreditDescription": "Review your OxSteed Credit balance, posted activity, and downloads.",
+    "restaurantCredit": "Restaurant Credit statements",
+    "restaurantCreditDescription": "Review restaurant wallet balances, activity, and statement downloads.",
+    "restaurantSettlementDescription": "Review recorded restaurant earnings, receivables, and settlements.",
+    "helperEarningsDescription": "Review your recorded helper earnings and settlement history.",
+    "businessDescription": "Review business receivables, earnings, and settlement records.",
     "exportCancelled": "Your export was cancelled.",
     "restaurantSettlement": "Restaurant settlement statements",
     "helperEarnings": "Helper earnings statements",

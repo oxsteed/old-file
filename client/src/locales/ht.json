@@ -1,5 +1,18 @@
 {
   "statementCenter": {
+    "title": "Sant deklarasyon",
+    "description": "Revize deklarasyon kredi, règleman, revni ak biznis ou yo nan yon sèl kote.",
+    "eyebrow": "Dosye finansye",
+    "scope": "Ou ap kapab louvri sèlman zòn ak dosye deklarasyon ki disponib pou kont ou.",
+    "open": "Louvri deklarasyon",
+    "archive": "Gade achiv deklarasyon",
+    "oxsteedCredit": "Deklarasyon OxSteed Credit",
+    "oxsteedCreditDescription": "Revize balans OxSteed Credit, aktivite ki anrejistre ak telechajman yo.",
+    "restaurantCredit": "Deklarasyon Restaurant Credit",
+    "restaurantCreditDescription": "Revize balans bous restoran yo, aktivite ak telechajman deklarasyon yo.",
+    "restaurantSettlementDescription": "Revize revni restoran an, lajan li dwe resevwa ak règleman ki anrejistre.",
+    "helperEarningsDescription": "Revize revni ou kòm èd ak istwa règleman yo.",
+    "businessDescription": "Revize lajan biznis la dwe resevwa, revni ak dosye règleman yo.",
     "exportCancelled": "Ekspòtasyon ou an anile.",
     "restaurantSettlement": "Releve règleman restoran",
     "helperEarnings": "Releve revni èd la",
