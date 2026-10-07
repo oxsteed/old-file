@@ -4,7 +4,7 @@ const api = axios.create({ baseURL: '/api/media' });
 
 export const getFeed = (params = {}) => api.get('/feed', { params }).then(r => r.data);
 export const getPost = (id) => api.get(`/posts/${id}`).then(r => r.data);
-export const getReplies = (id) => api.get(`/posts/${id}/replies`).then(r => r.data);
+export const getReplies = (id, sort = 'latest') => api.get(`/posts/${id}/replies`, { params: { sort } }).then(r => r.data);
 export const getQuotes = (id) => api.get(`/posts/${id}/quotes`).then(r => r.data);
 export const createPost = (data) => api.post('/posts', data).then(r => r.data);
 export const toggleLike = (id) => api.post(`/posts/${id}/like`).then(r => r.data);

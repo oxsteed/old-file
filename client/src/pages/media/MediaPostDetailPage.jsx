@@ -8,10 +8,11 @@ export default function MediaPostDetailPage() {
   const { id } = useParams();
   const [post, setPost] = useState(null);
   const [replies, setReplies] = useState([]);
+  const [sort, setSort] = useState('latest');
   const [loading, setLoading] = useState(true);
 
-  const loadReplies = async () => {
-    const data = await getReplies(id);
+  const loadReplies = async (sortMode) => {
+    const data = await getReplies(id, sortMode);
     setReplies(data.replies);
   };
 
@@ -39,6 +40,11 @@ export default function MediaPostDetailPage() {
     setPost(p => p ? { ...p, reply_count: p.reply_count + 1 } : p);
   };
 
+  const handleSortChange = (newSort) => {
+    setSort(newSort);
+    loadReplies(newSort);
+  };
+
   if (loading) return <p>Loading...</p>;
   if (!post) return <p>Post not found.</p>;
 
@@ -49,7 +55,18 @@ export default function MediaPostDetailPage() {
       <div className="media-replies-section">
         <h2>Replies ({post.reply_count})</h2>
         <div className="media-reply-sort">
-          <span>Latest</span>
+          <button
+            onClick={() => handleSortChange('latest')}
+            className={sort === 'latest' ? 'active' : ''}
+          >
+            Latest
+          </button>
+          <button
+            onClick={() => handleSortChange('relevant')}
+            className={sort === 'relevant' ? 'active' : ''}
+          >
+            Relevant
+          </button>
         </div>
         {replies.map(reply => (
           <MediaPostCard key={reply.id} post={reply} />

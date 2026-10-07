@@ -209,12 +209,18 @@ async function getPost(req, res) {
 async function getReplies(req, res) {
   try {
     const sort = req.query.sort === 'relevant' ? 'relevant' : 'latest';
-    // MVP: Latest only. Relevant deferred.
+    let orderClause = 'p.created_at DESC';
+    if (sort === 'relevant') {
+      // Relevant: engagement-weighted (likes x3 + reposts x5 + replies x2),
+      // with recency decay (newer posts get a boost).
+      orderClause = `(p.like_count * 3 + p.repost_count * 5 + p.reply_count * 2 +
+        GREATEST(0, 100 - EXTRACT(EPOCH FROM (NOW() - p.created_at)) / 3600)) DESC`;
+    }
     const { rows } = await pool.query(
       `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
          FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
         WHERE p.parent_id = $1 AND p.deleted_at IS NULL AND p.visibility != 'removed'
-        ORDER BY p.created_at DESC LIMIT 50`,
+        ORDER BY ${orderClause} LIMIT 50`,
       [req.params.id]
     );
     const replies = [];
