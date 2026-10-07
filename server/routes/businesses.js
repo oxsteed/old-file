@@ -5,7 +5,8 @@ const { authenticate, optionalAuth } = require('../middleware/auth');
 const requireBusinessAccess = require('../middleware/requireBusinessAccess');
 const { requireFeatureEnabled } = require('../middleware/featureFlags');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
-const { vortexRedeemLimiter } = require('../middleware/rateLimiter');
+const { vortexRedeemLimiter, generalLimiter } = require('../middleware/rateLimiter');
+const businessPublicSignals = require('../controllers/businessPublicSignalsController');
 
 // Audit fix: Vortex is launch-hidden. Gate the leftover Vortex APIs in this
 // router to match the UI and the /api/vortex routes.
@@ -83,6 +84,10 @@ router.get('/media/:assetId',                getBusinessMediaAsset);
 
 // ── Public profile (no auth) - must be before authenticated /:id routes ───────
 router.get('/:id/public',  getBusinessPublicProfile);
+// GV-5 fallout: business-scoped public signals (owner resolved server-side,
+// owner user id never returned).
+router.get('/:id/status',     generalLimiter, businessPublicSignals.getBusinessStatus);
+router.get('/:id/reputation', generalLimiter, businessPublicSignals.getBusinessReputation);
 router.get('/:id/profile', getBusinessPublicProfile);
 
 // ── Authenticated profile editor (before generic PUT /:id) ───────────────────
@@ -154,7 +159,7 @@ router.delete('/:id/vortex-tokens/:tokenId',    authenticate, rejectImpersonated
 
 // ── Business content (services, gallery, policies, faqs, hours) ────────────────
 // Public GETs use optionalAuth so the content visibility gate
-// (businessContentController.passesContentVisibilityGate) can recognise the
+// (businessContentController.resolveContentGate) can recognise the
 // owner/manager: without req.user the Business Hub editor got 404 for its own
 // draft/unlisted business content.
 // SERVICES

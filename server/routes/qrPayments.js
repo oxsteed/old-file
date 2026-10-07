@@ -9,6 +9,7 @@
 // DELETE /api/qr-payments/codes/:id          → deactivate a code (auth, owner)
 // GET    /api/qr-payments/pay/:code          → public pay-page data
 // GET    /api/qr-payments/public/user/:userId/pay-code → public active pay link
+// GET    /api/qr-payments/public/business/:businessId/pay-code → same, by business
 // POST   /api/qr-payments/pay/:code/checkout → create Stripe Checkout Session
 // GET    /api/qr-payments/pay/:code/receipt  → receipt data for success page
 
@@ -338,6 +339,37 @@ router.get('/public/user/:userId/pay-code', strictLimiter, async (req, res, next
     });
   } catch (err) {
     logger.error('qrPayments: public pay-code lookup failed', { error: err.message });
+    return next(err);
+  }
+});
+
+// ── Public: a BUSINESS's pay link (GV-5: the public business payload no
+// longer carries the owner's user id). Resolves the owner server-side behind
+// the public business visibility gate; the owner id is never returned.
+router.get('/public/business/:businessId/pay-code', strictLimiter, async (req, res, next) => {
+  try {
+    const { resolvePublicBusinessOwner, parseBusinessId } = require('../services/businessPublicOwner');
+    if (!parseBusinessId(req.params.businessId)) {
+      return res.status(400).json({ error: 'Invalid business id.', code: 'invalid_business_id' });
+    }
+    const resolved = await resolvePublicBusinessOwner(req.params.businessId);
+    if (!resolved) return res.status(404).json({ error: 'Business not found.', code: 'not_found' });
+    const { rows } = await pool.query(
+      `SELECT code, label
+         FROM qr_payment_codes
+        WHERE owner_user_id = $1 AND is_active = TRUE
+        ORDER BY created_at DESC
+        LIMIT 1`,
+      [resolved.ownerId]
+    );
+    if (!rows[0]) return res.json({ pay_url: null });
+    return res.json({
+      pay_url: `${publicBaseUrl()}/pay/${rows[0].code}`,
+      code: rows[0].code,
+      label: rows[0].label,
+    });
+  } catch (err) {
+    logger.error('qrPayments: public business pay-code lookup failed', { error: err.message });
     return next(err);
   }
 });

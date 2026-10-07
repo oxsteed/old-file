@@ -15,7 +15,15 @@ const { getClientRequestId } = require('../utils/idempotency');
  */
 async function submitReport(req, res) {
   try {
-    const { reportedUserId, reason, description, evidenceUrls, jobId, conversationId } = req.body;
+    const { reason, description, evidenceUrls, jobId, conversationId } = req.body;
+    let { reportedUserId } = req.body;
+    // Business profiles do not expose the owner's user id (GV-5): a report
+    // filed from a business page names the business and the server resolves
+    // the accountable owner. The owner id is never echoed back.
+    const rawBusinessId = req.body.reportedBusinessId ?? req.body.reported_business_id;
+    const reportedBusinessId = rawBusinessId != null && rawBusinessId !== ''
+      ? (/^\d+$/.test(String(rawBusinessId)) ? Number(rawBusinessId) : NaN)
+      : null;
     const reporterId = req.user.id;
     const clientRequestId = getClientRequestId(req);
     if (clientRequestId === false) {
@@ -23,6 +31,19 @@ async function submitReport(req, res) {
     }
 
     // Validation
+    if (Number.isNaN(reportedBusinessId)) {
+      return sendValidationError(res, { reportedBusinessId: 'Invalid business id' });
+    }
+    if (!reportedUserId && reportedBusinessId) {
+      const bizResult = await pool.query(
+        'SELECT user_id FROM businesses WHERE id = $1 AND deleted_at IS NULL',
+        [reportedBusinessId]
+      );
+      if (!bizResult.rows.length) {
+        throw new AppError('Business not found', 404, 'BUSINESS_NOT_FOUND');
+      }
+      reportedUserId = bizResult.rows[0].user_id;
+    }
     if (!reportedUserId) {
       return sendValidationError(res, { reportedUserId: 'Required' });
     }
@@ -91,7 +112,10 @@ async function submitReport(req, res) {
       idempotent: replayed,
       data: {
         id: report.id,
-        reportedUserId: report.reported_user_id,
+        // Never reveal a business owner's user id to the reporter.
+        ...(reportedBusinessId
+          ? { reportedBusinessId }
+          : { reportedUserId: report.reported_user_id }),
         reason: report.reason,
         status: report.status,
         createdAt: report.created_at
