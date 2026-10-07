@@ -7,7 +7,7 @@
 CREATE TABLE IF NOT EXISTS incident_notes (
   id BIGSERIAL PRIMARY KEY,
   incident_id BIGINT NOT NULL REFERENCES incident_log(id) ON DELETE CASCADE,
-  author_user_id BIGINT NULL REFERENCES users(id) ON DELETE SET NULL,
+  author_user_id UUID NULL REFERENCES users(id) ON DELETE SET NULL,
   note TEXT NOT NULL CHECK (char_length(note) BETWEEN 1 AND 5000),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
