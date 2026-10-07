@@ -5,6 +5,8 @@
 
 const { pool } = require('../db');
 const logger = require('../utils/logger');
+const stripe = require('../utils/stripe');
+const { refundWalletDebitForReference } = require('../services/foodWalletService');
 
 async function auditAdminRead(adminId, orderId, purpose) {
   try {
@@ -114,22 +116,88 @@ async function refundFoodOrder(req, res) {
       return res.status(400).json({ error: 'Invalid refund amount' });
     }
 
-    // TODO: wire to actual Stripe/wallet refund based on payment_mode.
-    // For now, record the refund intent with audit.
+    const idempotencyKey = `admin-food-refund:${orderId}:${refundAmount}:${req.user.id}`;
+    let refundResult = null;
+
+    // Route by payment mode.
+    if (order.stripe_payment_intent_id) {
+      // Card payment: Stripe refund.
+      const connectedAccountId = order.metadata?.stripeCheckout?.connectedAccountId
+        || order.metadata?.stripe_checkout?.connectedAccountId;
+      try {
+        const refund = await stripe.refunds.create(
+          {
+            payment_intent: order.stripe_payment_intent_id,
+            amount: refundAmount,
+          },
+          {
+            stripeAccount: connectedAccountId || undefined,
+            idempotencyKey,
+          }
+        );
+        refundResult = { provider: 'stripe', refund_id: refund.id, amount: refund.amount };
+      } catch (refundErr) {
+        logger.error('Admin Stripe refund failed', { orderId, error: refundErr.message });
+        return res.status(502).json({ error: 'Stripe refund failed', code: 'stripe_refund_failed' });
+      }
+    } else if (order.payment_mode === 'wallet_credit' && order.customer_id) {
+      // Wallet credit: reverse the ledger debit.
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        refundResult = await refundWalletDebitForReference(client, {
+          restaurantId: order.restaurant_id,
+          customerId: order.customer_id,
+          currencyCode: order.currency_code || 'USD',
+          orderReferenceId: String(order.id),
+          description: `Admin refund for order #${order.queue_number || order.id}: ${reason}`,
+          createdByUserId: req.user.id,
+          correlationId: `admin-food-refund:${orderId}`,
+          actorType: 'admin',
+          metadata: { orderId: order.id, amount_cents: refundAmount, reason },
+        });
+        await client.query('COMMIT');
+        refundResult = { provider: 'wallet', ...refundResult };
+      } catch (walletErr) {
+        await client.query('ROLLBACK');
+        logger.error('Admin wallet refund failed', { orderId, error: walletErr.message });
+        return res.status(502).json({ error: 'Wallet refund failed', code: 'wallet_refund_failed' });
+      } finally {
+        client.release();
+      }
+    } else {
+      return res.status(400).json({
+        error: 'No refundable payment found (no Stripe intent or wallet debit)',
+        code: 'no_refundable_payment',
+      });
+    }
+
+    // Update order payment status.
+    const newStatus = refundAmount >= order.total_cents ? 'refunded' : 'partially_refunded';
+    await pool.query(
+      `UPDATE food_orders SET payment_status = $1, updated_at = NOW() WHERE id = $2`,
+      [newStatus, orderId]
+    );
+
+    // Audit trail.
     await pool.query(
       `INSERT INTO admin_audit_log (admin_user_id, action, entity_type, entity_id, metadata)
        VALUES ($1, 'food_order_refund', 'food_order', $2, $3)`,
       [req.user.id, String(orderId), JSON.stringify({
         amount_cents: refundAmount,
         reason,
-        payment_status: order.payment_status,
+        provider: refundResult.provider,
+        refund_id: refundResult.refund_id || null,
+        previous_status: order.payment_status,
+        new_status: newStatus,
       })]
     );
 
-    logger.info('adminFoodOrders.refund', {
+    logger.info('adminFoodOrders.refund completed', {
       orderId, adminId: req.user.id, amount_cents: refundAmount,
+      provider: refundResult.provider,
     });
-    res.json({ ok: true, order_id: orderId, amount_cents: refundAmount });
+    res.json({ ok: true, order_id: orderId, amount_cents: refundAmount, provider: refundResult.provider });
   } catch (err) {
     logger.error('adminFoodOrders.refund error', { message: err.message });
     res.status(500).json({ error: 'Failed to process refund' });
