@@ -62,8 +62,9 @@ export default function EditProfileTab() {
     show_hours: true,
   });
 
-  // PS-7: draft/publish listing flag. GET /me may not return is_listed yet;
-  // the column is NOT NULL DEFAULT TRUE, so assume listed until PATCH syncs.
+  // PS-7: draft/publish listing flag. GET /helper-profile/me returns
+  // is_listed (column is NOT NULL DEFAULT TRUE); default to listed until the
+  // profile loads.
   const [isListed, setIsListed] = useState(true);
   const [listingSaving, setListingSaving] = useState(false);
 

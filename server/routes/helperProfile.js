@@ -56,7 +56,7 @@ router.get('/me', helperOnly, async (req, res) => {
               cover_image_url,
               service_city, service_state, service_zip, service_radius_miles,
               hourly_rate_min, hourly_rate_max, rate_preference,
-              booking_buffer_minutes,
+              booking_buffer_minutes, is_listed,
               flat_rate_available, contact_for_pricing,
               is_available_now, response_rate,
               show_services, show_faqs, show_policies, show_gallery, show_hours,
@@ -139,7 +139,7 @@ router.put('/core', helperOnly, generalLimiter, async (req, res) => {
           hourly_rate_min, hourly_rate_max, rate_preference, flat_rate_available, contact_for_pricing,
           service_city, service_state, service_zip, service_radius_miles,
           is_available_now, ai_knowledge, booking_buffer_minutes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,COALESCE($8,FALSE),COALESCE($9,FALSE),$10,$11,$12,COALESCE($13,10),COALESCE($14,FALSE),$15,$17)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,COALESCE($8,FALSE),COALESCE($9,FALSE),$10,$11,$12,COALESCE($13,10),COALESCE($14,FALSE),$15,COALESCE($17::integer,0))
        ON CONFLICT (user_id) DO UPDATE SET
          profile_headline    = COALESCE($2,  helper_profiles.profile_headline),
          bio_long            = COALESCE($3,  helper_profiles.bio_long),
