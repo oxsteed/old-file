@@ -114,6 +114,7 @@ describe('POST /api/payments/intent', () => {
     mockAuth(
       { rows: [{ id: 10, client_id: 1, job_value: 100, assigned_helper_id: 2, title: 'Job' }] }, // job
       { rows: [{ stripe_account_id: 'acct_x', charges_enabled: true, payouts_enabled: true, onboarding_complete: true }] }, // connect
+      { rowCount: 0 },                                                                             // sync helper_profiles from connect_accounts
       { rows: [] },                                                                                // advisory lock
       { rows: [{ balance_cents: 0 }] },                                                           // customer credit balance
       { rows: [] },                                                                                // existing payment check
@@ -232,7 +233,8 @@ describe('GET /api/payments/connect/status', () => {
 
     mockAuth(
       { rows: [{ user_id: 1, stripe_account_id: 'acct_x', charges_enabled: false, payouts_enabled: false, onboarding_complete: false }] },
-      { rows: [] },
+      { rows: [] }, // UPDATE connect_accounts
+      { rowCount: 0 }, // sync helper_profiles from connect_accounts
     );
 
     const res = await auth(request(buildApp()).get('/api/payments/connect/status'));
