@@ -12,7 +12,6 @@ import OxSteedNetworkSwitcher from './OxSteedNetworkSwitcher';
 import { routeForMode } from '../utils/modeRouter';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 import { canUseQrGenerator, navLinksForMode } from '../utils/modeAccess';
-import { businessHubLandingPath, readLastBusinessHubId } from '../utils/businessProfileForm';
 import { useSocket } from '../hooks/useSocket';
 import '../styles/BusinessSwitcher.css';
 import { OxSteedIcon } from './OxSteedIcon';
@@ -140,7 +139,6 @@ export default function Navbar() {
   const dashboardPath = routeForMode(currentMode);
   const navLinks = navLinksForMode(user);
   const showBusinessHub = !!user && navLinks.showBusinessHub;
-  const businessHubTo = businessHubLandingPath(readLastBusinessHubId());
 
   const refreshUnreadCounts = useCallback(async () => {
     if (!user) {
@@ -324,13 +322,6 @@ export default function Navbar() {
                 <Divider />
                 <NavLink to={dashboardPath} active={isDashboardActive}>{t('nav.dashboard')}</NavLink>
                 <NavLink to="/statements" active={isActive('/statements')}>{t('statementCenter.title', { defaultValue: 'Statement center' })}</NavLink>
-                {isHelper && <NavLink to="/helper-earnings/statements" active={isActive('/helper-earnings/statements')}>{t('statementCenter.helperEarnings')}</NavLink>}
-                {showBusinessHub && (
-                  <NavLink
-                    to={businessHubTo}
-                    active={isActive('/business-hub') || location.pathname.startsWith('/business/')}
-                  >{t('nav.business')}</NavLink>
-                )}
                 {showSupportWorkspaceNav && (
                   <NavLink to="/support/agent" active={isActive('/support/agent')}>{t('nav.supportWorkspace')}</NavLink>
                 )}
@@ -400,14 +391,6 @@ export default function Navbar() {
                       </PrefetchLink>
                       {isHelper && (
                         <>
-                          <PrefetchLink
-                            role="menuitem"
-                            to={businessHubTo}
-                            className="ox-nav-resource-option"
-                            onClick={() => setResourcesMenuOpen(false)}
-                          >
-                            <span className="ox-nav-resource-option-title">{t('nav.business')}</span>
-                          </PrefetchLink>
                           {canUseQrGenerator(user) && (
                             <PrefetchLink
                               role="menuitem"
@@ -536,8 +519,6 @@ export default function Navbar() {
                     }}>{unreadMsgs}</span>
                   )}
                 </MobileNavLink>
-                {showBusinessHub && <MobileNavLink to={businessHubTo} onClick={() => setMobileOpen(false)}>{t('nav.business')}</MobileNavLink>}
-                {isHelper && <MobileNavLink to="/helper-earnings/statements" onClick={() => setMobileOpen(false)}>{t('statementCenter.helperEarnings')}</MobileNavLink>}
                 {SHOW_LEGACY_NAV_RESOURCES && canUseQrGenerator(user) && <MobileNavLink to="/qr-generator" onClick={() => setMobileOpen(false)}>{t('nav.qrGenerator')}</MobileNavLink>}
                 <button
                   onClick={() => { logout(); setMobileOpen(false); }}
