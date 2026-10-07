@@ -13,6 +13,7 @@ const logger     = require('../utils/logger');
 const { invalidateHelperContext } = require('../services/helperContext');
 const availabilityService = require('../services/helperAvailabilityService');
 const helperProfileImageController = require('../controllers/helperProfileImageController');
+const { validateMediaUrl } = require('../utils/mediaUrlValidation');
 
 const helperOnly = [authenticate, requireRole('helper', 'helper_pro', 'broker')];
 const BUFFER_MINUTES_MIN = 0;
@@ -297,51 +298,10 @@ router.put('/photo', helperOnly, generalLimiter, async (req, res) => {
       return res.status(400).json({ error: 'profile_photo_url or cover_photo_url required' });
     }
 
-    // Validate URLs: must be https, no javascript:/data: schemes, and
-    // should point to our storage or a reasonable image host. Reject
-    // obviously malicious URLs.
-    const validatePhotoUrl = (url, field) => {
-      if (!url) return null;
-      const trimmed = String(url).trim();
-      if (!trimmed) return null;
-      try {
-        const parsed = new URL(trimmed);
-        if (!['https:', 'http:'].includes(parsed.protocol)) {
-          throw new Error('Invalid protocol');
-        }
-        // Block localhost, private/link-local/loopback IPs, and IPv6 private
-        // ranges to prevent SSRF. Audit fix: also covers 172.16/12, 0.0.0.0/8,
-        // IPv6 loopback (::1), link-local (fe80::/10), unique-local (fc00::/7),
-        // and the unspecified address (::/128).
-        // Note: Node keeps brackets in URL.hostname for IPv6 literals ("[::1]"),
-        // so strip them before comparing.
-        const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, '');
-        const isIpv6 = host.includes(':');
-        const ipv4Blocked =
-          host === 'localhost' ||
-          host.startsWith('127.') ||        // 127/8 loopback
-          host.startsWith('10.') ||         // 10/8
-          /^172\.(1[6-9]|2\d|3[01])\./.test(host) || // 172.16/12
-          host.startsWith('192.168.') ||    // 192.168/16
-          host.startsWith('169.254.') ||    // 169.254/16 link-local
-          host.startsWith('0.');            // 0.0.0.0/8
-        const ipv6Blocked = isIpv6 && (
-          host === '::1' ||                 // loopback
-          host === '::' ||                  // unspecified
-          /^fe[89ab]/.test(host) ||         // fe80::/10 link-local
-          /^f[cd]/.test(host)               // fc00::/7 unique-local
-        );
-        if (ipv4Blocked || ipv6Blocked) {
-          throw new Error('Private host not allowed');
-        }
-        return trimmed.slice(0, 2048);
-      } catch (err) {
-        throw new AppError(`Invalid ${field}: must be a valid http(s) URL`, 400, 'validation_failed');
-      }
-    };
-
-    const validProfileUrl = validatePhotoUrl(profile_photo_url, 'profile_photo_url');
-    const validCoverUrl = validatePhotoUrl(cover_photo_url, 'cover_photo_url');
+    // PS-5: https + storage/CDN host allowlist (utils/mediaUrlValidation),
+    // shared with the business logo/cover/gallery endpoints.
+    const validProfileUrl = validateMediaUrl(profile_photo_url, 'profile_photo_url');
+    const validCoverUrl = validateMediaUrl(cover_photo_url, 'cover_photo_url');
 
     await pool.query(
       `INSERT INTO helper_profiles (user_id, profile_photo_url, cover_photo_url, cover_image_url)
@@ -371,6 +331,9 @@ router.put('/photo', helperOnly, generalLimiter, async (req, res) => {
 
     res.json({ ok: true });
   } catch (err) {
+    if (err.statusCode && err.statusCode < 500) {
+      return res.status(err.statusCode).json({ error: err.message, code: err.code });
+    }
     logger.error('[helperProfile] PUT /photo error', { err: err.message });
     res.status(500).json({ error: 'Failed to update photo' });
   }
