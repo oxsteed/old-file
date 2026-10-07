@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useParams, useNavigate, Link } from 'react-router-dom';
+import { useLocation, useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft,
-  ArrowRight,
   CalendarClock,
   CheckCircle2,
   Clock3,
@@ -186,6 +185,17 @@ function OrderDetailsPageContent() {
     }
   };
 
+  const handleBackToOrders = () => {
+    // If the user arrived here from the orders list (or anywhere in-app),
+    // browser-back preserves their scroll position and filters.
+    // On direct entry (email link, bookmark), fall back to the orders list.
+    if (window.history.state && window.history.state.idx > 0) {
+      navigate(-1);
+    } else {
+      navigate('/orders');
+    }
+  };
+
   const handleOrderAgain = () => {
     const restaurantId = order?.restaurant_id || order?.restaurantId;
     if (restaurantId && isFoodOrder) {
@@ -252,7 +262,7 @@ function OrderDetailsPageContent() {
             <p className="order-details-kicker">{t('common.error')}</p>
             <h1>{order ? t('common.error') : t('orders.notFound')}</h1>
             <p>{error || t('orders.notFound')}</p>
-            <button type="button" className="orders-btn orders-btn-primary" onClick={() => navigate(isFoodOrder ? '/orders' : '/orders')}>
+            <button type="button" className="orders-btn orders-btn-primary" onClick={handleBackToOrders}>
               <ArrowLeft size={16} /> {t('orders.backToOrders')}
             </button>
           </div>
@@ -274,7 +284,7 @@ function OrderDetailsPageContent() {
       <div className="order-details-page">
         <div className="order-details-wrap">
           <div className="order-details-topbar">
-            <Link to={isFoodOrder ? '/orders' : '/orders'} className="order-details-back"><ArrowLeft size={16} /> {t('orders.backToOrders')}</Link>
+            <button type="button" className="order-details-back" onClick={handleBackToOrders}><ArrowLeft size={16} /> {t('orders.backToOrders')}</button>
             <button type="button" className="orders-btn" onClick={loadOrder} disabled={loading}><RefreshCw size={16} className={loading ? 'orders-spin' : ''} /> {t('common.refresh')}</button>
           </div>
 
@@ -360,7 +370,7 @@ function OrderDetailsPageContent() {
                 {isFoodOrder && order?.tracking_token && <button type="button" className="orders-btn orders-btn-primary" onClick={() => navigate(`/food/track/${order.tracking_token}`)}><RefreshCw size={16} /> {t('food.order.liveStatus', { defaultValue: 'Track order live' })}</button>}
                 <button type="button" className="orders-btn" onClick={() => setHelpOpen(true)}><HelpCircle size={16} /> {t('orders.getHelp', { defaultValue: 'Get help with this order' })}</button>
                 {isFoodOrder && !['cancelled', 'refunded'].includes(String(order.status || '').toLowerCase()) && <button type="button" className="orders-btn" onClick={handleOrderAgain}><RotateCcw size={16} /> {t('food.restaurant.orderAgain', { defaultValue: 'Order again' })}</button>}
-                <button type="button" className="orders-btn" onClick={() => navigate(isFoodOrder ? '/food' : '/orders')}><ArrowRight size={16} /> {t('orders.backToOrders')}</button>
+                <button type="button" className="orders-btn" onClick={handleBackToOrders}><ArrowLeft size={16} /> {t('orders.backToOrders')}</button>
               </section>
             </aside>
           </div>
