@@ -314,10 +314,10 @@ router.post('/:restaurantId/runner/tasks/:taskId/location', appFlow.logRunnerLoc
 router.post('/:restaurantId/runner/tasks/:taskId/settlements', rejectImpersonated, appFlow.upsertRunnerSettlement);
 router.post('/:restaurantId/runner/location', appFlow.logRunnerLocation);
 router.get('/:restaurantId/runner/settlements', appFlow.listRunnerSettlements);
-router.post('/:restaurantId/runner/settlements', appFlow.upsertRunnerSettlement);
+router.post('/:restaurantId/runner/settlements', rejectImpersonated, appFlow.upsertRunnerSettlement);
 router.patch('/:restaurantId/runner/tasks/:taskId/status', runner.updateTaskStatus);
 router.post('/:restaurantId/runner/tasks/:taskId/proofs', runner.logProof);
 router.post('/:restaurantId/runner/tasks/:taskId/issues', runner.reportIssue);
-router.post('/:restaurantId/runner/tasks/:taskId/payment-notes', runner.logPaymentNote);
+router.post('/:restaurantId/runner/tasks/:taskId/payment-notes', rejectImpersonated, runner.logPaymentNote);
 
 module.exports = router;

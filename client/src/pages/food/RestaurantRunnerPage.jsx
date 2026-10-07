@@ -11,7 +11,7 @@ import { FoodBrand } from './foodShared';
 import PageShell from '../../components/PageShell';
 import '../../styles/FoodPages.css';
 
-const TASK_STATUSES = ['assigned', 'en_route', 'delivered', 'failed'];
+const TASK_STATUSES = ['Assigned', 'En route', 'Completed', 'Issue'];
 
 function ProofModal({ task, restaurantId, onSaved, onClose }) {
   const { t } = useTranslation();
@@ -54,15 +54,15 @@ function ProofModal({ task, restaurantId, onSaved, onClose }) {
 
 function IssueModal({ task, restaurantId, onSaved, onClose }) {
   const { t } = useTranslation();
-  const [description, setDescription] = useState('');
-  const [type, setType] = useState('delivery_failure');
+  const [note, setNote] = useState('');
+  const [severity, setSeverity] = useState('medium');
   const [saving, setSaving] = useState(false);
 
   const handle = async () => {
-    if (!description.trim()) return;
+    if (!note.trim()) return;
     setSaving(true);
     try {
-      await api.post(`/restaurants/${restaurantId}/runner/tasks/${task.id}/issues`, { description, issue_type: type });
+      await api.post(`/restaurants/${restaurantId}/runner/tasks/${task.id}/issues`, { note, severity });
       toast.success(t('food.runner.issueSent'));
       onSaved();
       onClose();
@@ -78,20 +78,20 @@ function IssueModal({ task, restaurantId, onSaved, onClose }) {
       <div className="fd-modal" onClick={(e) => e.stopPropagation()}>
         <h3>{t('food.runner.reportIssue')}</h3>
         <div className="fd-field">
-          <label>{t('food.runner.issueType')}</label>
-          <select value={type} onChange={(e) => setType(e.target.value)}>
-            {['delivery_failure', 'wrong_address', 'customer_absent', 'damaged', 'other'].map((it) => (
-              <option key={it} value={it}>{t(`food.runner.issueType_${it}`)}</option>
+          <label>{t('food.runner.issueSeverity')}</label>
+          <select value={severity} onChange={(e) => setSeverity(e.target.value)}>
+            {['low', 'medium', 'high', 'critical'].map((s) => (
+              <option key={s} value={s}>{t(`food.runner.severity_${s}`)}</option>
             ))}
           </select>
         </div>
         <div className="fd-field">
           <label>{t('food.runner.issueDesc')}</label>
-          <textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} required />
+          <textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} required />
         </div>
         <div className="fd-pos-modal-actions">
           <button className="fd-btn-secondary" onClick={onClose}>{t('food.common.cancel')}</button>
-          <button className="fd-btn" onClick={handle} disabled={saving || !description.trim()}>
+          <button className="fd-btn" onClick={handle} disabled={saving || !note.trim()}>
             {saving ? t('food.common.saving') : t('food.runner.submit')}
           </button>
         </div>
@@ -120,9 +120,9 @@ function TaskCard({ task, restaurantId, onRefresh }) {
 
   const statusColor = {
     assigned: '#f97316',
-    en_route: '#3b82f6',
-    delivered: '#22c55e',
-    failed: '#ef4444',
+    'En route': '#3b82f6',
+    'Completed': '#22c55e',
+    'Issue': '#ef4444',
   }[task.status] || '#888';
 
   return (
@@ -146,13 +146,13 @@ function TaskCard({ task, restaurantId, onRefresh }) {
       )}
 
       <div className="fd-runner-actions">
-        {task.status === 'assigned' && (
-          <button className="fd-btn fd-btn-sm" disabled={busy} onClick={() => advance('en_route')}>
+        {task.status === 'Assigned' && (
+          <button className="fd-btn fd-btn-sm" disabled={busy} onClick={() => advance('En route')}>
             {t('food.runner.startDelivery')}
           </button>
         )}
-        {task.status === 'en_route' && (
-          <button className="fd-btn fd-btn-sm" disabled={busy} onClick={() => advance('delivered')}>
+        {task.status === 'En route' && (
+          <button className="fd-btn fd-btn-sm" disabled={busy} onClick={() => advance('Completed')}>
             {t('food.runner.markDelivered')}
           </button>
         )}
@@ -233,8 +233,8 @@ export default function RestaurantRunnerPage() {
     ? tasks
     : tasks.filter((t) => t.status === statusFilter);
 
-  const activeCount = tasks.filter((t) => ['assigned', 'en_route'].includes(t.status)).length;
-  const deliveredCount = tasks.filter((t) => t.status === 'delivered').length;
+  const activeCount = tasks.filter((t) => ['Assigned', 'En route'].includes(t.status)).length;
+  const deliveredCount = tasks.filter((t) => t.status === 'Completed').length;
 
   if (loading) {
     return (
@@ -268,7 +268,7 @@ export default function RestaurantRunnerPage() {
             <div className="fd-inv-kpi-label">{t('food.runner.kpi_offers')}</div>
           </div>
           <div className="fd-inv-kpi">
-            <div className="fd-inv-kpi-val">{tasks.filter((t) => t.status === 'failed').length}</div>
+            <div className="fd-inv-kpi-val">{tasks.filter((t) => t.status === 'Issue').length}</div>
             <div className="fd-inv-kpi-label">{t('food.runner.kpi_failed')}</div>
           </div>
         </div>

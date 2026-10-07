@@ -19954,7 +19954,8 @@
       "issueType_damaged": "Articles endommagés",
       "issueType_other": "Autre",
       "submit": "Soumettre",
-      "noTasks": "Aucune livraison pour l'instant"
+      "noTasks": "Aucune livraison pour l'instant",
+      "issueSeverity": "Gravité"
     },
     "ownerHome": {
       "allClear": "Tout est en ordre. Rien ne requiert votre attention pour le moment.",

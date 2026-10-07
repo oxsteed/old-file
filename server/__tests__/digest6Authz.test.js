@@ -42,8 +42,21 @@ describe('Digest 6 authz', () => {
   });
 
   test('runner offers strip trackingToken from metadata', () => {
-    // The SELECT no longer includes o.metadata AS order_metadata.
-    // This is a contract test: the query must not expose trackingToken.
-    expect(true).toBe(true);
+    // The listRunnerOffers SELECT explicitly excludes o.metadata.
+    // Verify the query text does not select metadata.
+    const fs = require('fs');
+    const path = require('path');
+    const src = fs.readFileSync(
+      path.join(__dirname, '../controllers/restaurantAppFlowController.js'),
+      'utf8'
+    );
+    // Find the listRunnerOffers function and check its SELECT
+    const match = src.match(/exports\.listRunnerOffers[\s\S]*?FROM restaurant_runner_tasks t[\s\S]*?WHERE t\.restaurant_id/);
+    expect(match).toBeTruthy();
+    const querySection = match[0];
+    // Must not select o.metadata (which contains trackingToken)
+    expect(querySection).not.toMatch(/o\.metadata/);
+    // Should have a comment noting the stripping
+    expect(querySection).toMatch(/trackingToken stripped/i);
   });
 });

@@ -849,11 +849,11 @@ async function syncDeliveryRunnerTaskForOrderStatus(client, { order, createdBy }
       `UPDATE restaurant_runner_tasks
           SET status = CASE
                 WHEN $3 = 'Ready' AND status IN ('Queued','Assigned') THEN 'Ready'
-                WHEN $3 = 'Completed' THEN 'Completed'
+                -- Do NOT auto-complete from kitchen order status. Task completion
+                -- must come from the runner handoff flow (with proof).
                 WHEN $3 = 'Cancelled' AND status <> 'Completed' THEN 'Cancelled'
                 ELSE status
               END,
-              completed_at = CASE WHEN $3 = 'Completed' THEN COALESCE(completed_at, NOW()) ELSE completed_at END,
               updated_at = NOW()
         WHERE restaurant_id = $1
           AND food_order_id = $2
@@ -3995,7 +3995,7 @@ exports.updateOrderStatus = async (req, res, next) => {
           WHERE fo.id = current.id
             AND current.status = ANY($4::text[])
             AND ($1 <> 'completed' OR current.fulfillment_type <> 'delivery'
-                 OR EXISTS (SELECT 1 FROM restaurant_runner_tasks WHERE food_order_id = current.id))
+                 OR EXISTS (SELECT 1 FROM restaurant_runner_tasks WHERE food_order_id = current.id AND status = 'Completed' AND handoff_at IS NOT NULL))
             AND (
               $1 <> 'ready'
               OR $7 = FALSE

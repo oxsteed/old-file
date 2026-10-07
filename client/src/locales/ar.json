@@ -19965,7 +19965,8 @@
       "issueType_damaged": "عناصر تالفة",
       "issueType_other": "أخرى",
       "submit": "إرسال",
-      "noTasks": "لا توجد عمليات توصيل بعد"
+      "noTasks": "لا توجد عمليات توصيل بعد",
+      "issueSeverity": "الخطورة"
     },
     "ownerHome": {
       "allClear": "كل شيء على ما يرام. لا شيء يحتاج إلى انتباهك الآن.",

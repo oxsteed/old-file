@@ -19954,7 +19954,8 @@
       "issueType_damaged": "Atik andòmaje",
       "issueType_other": "Lòt",
       "submit": "Soumèt",
-      "noTasks": "Pa gen livrezon ankò"
+      "noTasks": "Pa gen livrezon ankò",
+      "issueSeverity": "Gravite"
     },
     "ownerHome": {
       "allClear": "Tout bagay anfòm. Anyen pa bezwen atansyon ou kounye a.",

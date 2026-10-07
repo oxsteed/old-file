@@ -81,7 +81,9 @@ function assertLegalRunnerCompletion(currentStatus) {
 // settled at handoff by design and are unaffected.
 function assertFoodOrderPaidForHandoff(order) {
   const paymentMode = order?.metadata?.paymentMode || order?.metadata?.payment_mode || null;
-  if (paymentMode === 'pay_now' && order.payment_status !== 'paid') {
+  // All prepaid modes must be paid before handoff. COD is the only exception.
+  const prepaidModes = ['pay_now', 'oxsteed_credit', 'wallet_credit', 'wallet'];
+  if (prepaidModes.includes(paymentMode) && order.payment_status !== 'paid') {
     throw new AppError(
       'This order has not been paid yet and cannot be completed',
       409,
@@ -148,12 +150,16 @@ function assertTaskActor(restaurant, task, userId) {
 exports.getDashboard = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const canManage = MANAGE_ROLES.has(restaurant.effective_role);
+    // Non-managers only see their own tasks.
+    const taskScope = canManage ? '' : 'AND assigned_to = $2';
+    const taskParams = canManage ? [restaurantId] : [restaurantId, req.user.id];
 
     const [{ rows: tasks }, { rows: contactRules }, { rows: proofs }, { rows: issues }, { rows: paymentNotes }] = await Promise.all([
       pool.query(
         `SELECT * FROM restaurant_runner_tasks
-          WHERE restaurant_id = $1
+          WHERE restaurant_id = $1 ${taskScope}
           ORDER BY
             CASE status
               WHEN 'Ready' THEN 0
@@ -166,7 +172,7 @@ exports.getDashboard = async (req, res, next) => {
               ELSE 7
             END,
             created_at DESC`,
-        [restaurantId]
+        taskParams
       ),
       pool.query(
         `SELECT * FROM restaurant_runner_contact_rules
@@ -537,12 +543,26 @@ exports.logPaymentNote = async (req, res, next) => {
     const task = await assertTask(restaurantId, taskId);
     assertTaskActor(restaurant, task, req.user.id);
 
+    const amount = parseAmount(req.body.amount);
+    const note = normalizeString(req.body.note, 2000);
+    // Validate: amount must be positive and reasonable; note is required.
+    // Payment notes are informational only, not a ledger.
+    if (!amount || amount <= 0) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { amount: 'Amount must be positive' });
+    }
+    if (amount > 1000000) { // $10,000 max
+      throw new AppError('Validation failed', 400, 'validation_failed', { amount: 'Amount exceeds maximum' });
+    }
+    if (!note) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { note: 'Note is required' });
+    }
+
     const { rows: [paymentNote] } = await pool.query(
       `INSERT INTO restaurant_runner_payment_notes
          (restaurant_id, task_id, amount, note, created_by)
        VALUES ($1,$2,$3,$4,$5)
        RETURNING *`,
-      [restaurantId, taskId, parseAmount(req.body.amount), normalizeString(req.body.note, 2000), req.user.id]
+      [restaurantId, taskId, amount, note, req.user.id]
     );
     res.status(201).json({ paymentNote });
   } catch (err) {

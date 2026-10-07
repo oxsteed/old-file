@@ -19954,7 +19954,8 @@
       "issueType_damaged": "Artículos dañados",
       "issueType_other": "Otro",
       "submit": "Enviar",
-      "noTasks": "Sin entregas aún"
+      "noTasks": "Sin entregas aún",
+      "issueSeverity": "Gravedad"
     },
     "ownerHome": {
       "allClear": "Todo en orden. Nada requiere tu atención ahora mismo.",

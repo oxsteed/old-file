@@ -19954,7 +19954,8 @@
       "issueType_damaged": "Damaged items",
       "issueType_other": "Other",
       "submit": "Submit",
-      "noTasks": "No deliveries yet"
+      "noTasks": "No deliveries yet",
+      "issueSeverity": "Severity"
     },
     "ownerHome": {
       "allClear": "All clear. Nothing needs your attention right now.",

@@ -7130,6 +7130,8 @@ exports.updateRunnerDispatch = async (req, res, next) => {
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     const canManage = MANAGE_ROLES.has(restaurant.effective_role);
+    // Require runner.update permission for dispatch changes (parity with claim).
+    await assertRestaurantPermission(restaurant, req.user.id, ['runner.update', 'runner.manage', 'orders.manage']);
     const hasAssignedTo = Object.prototype.hasOwnProperty.call(req.body, 'assignedTo')
       || Object.prototype.hasOwnProperty.call(req.body, 'assigned_to');
     const assignedTo = req.body.assignedTo ?? req.body.assigned_to ?? null;
@@ -7144,69 +7146,79 @@ exports.updateRunnerDispatch = async (req, res, next) => {
     if ((release || (hasAssignedTo && !assignedTo)) && !canManage) {
       throw new AppError('You do not have permission to release runner tasks', 403, 'forbidden');
     }
-    const { rows: [currentTask] } = await pool.query(
-      `SELECT * FROM restaurant_runner_tasks WHERE restaurant_id = $1 AND id = $2`,
-      [restaurantId, taskId]
-    );
-    if (!currentTask) throw new AppError('Runner task not found', 404, 'runner_task_not_found');
-    if (!canManage && String(currentTask.assigned_to || '') !== String(req.user.id)) {
-      throw new AppError('This runner task is assigned to another user', 403, 'runner_task_not_assigned');
-    }
-    if (assignedTo) {
-      const { rows: [eligible] } = await pool.query(
-        `SELECT 1
-           FROM businesses b
-          WHERE b.id = $1
-            AND (b.user_id = $2 OR EXISTS (
-              SELECT 1 FROM business_members bm
-               WHERE bm.business_id = b.id AND bm.member_id = $2 AND bm.status = 'active'
-            ))`,
-        [restaurant.business_id, assignedTo]
+    const task = await withTransaction(pool, async (client) => {
+      const { rows: [currentTask] } = await client.query(
+        `SELECT * FROM restaurant_runner_tasks WHERE restaurant_id = $1 AND id = $2 FOR UPDATE`,
+        [restaurantId, taskId]
       );
-      if (!eligible) throw new AppError('Assigned runner is not an active restaurant member', 400, 'runner_not_eligible');
-    }
-    const { rows: [task] } = await pool.query(
-      `UPDATE restaurant_runner_tasks
-          SET assigned_to = CASE
-                WHEN $1 = TRUE THEN NULL
-                WHEN $2 = TRUE THEN $3::uuid
-                ELSE assigned_to
-              END,
-              status = CASE
-                WHEN $1 = TRUE AND status = 'Assigned' THEN 'Queued'
-                WHEN $3::uuid IS NOT NULL AND status = 'Queued' THEN 'Assigned'
-                ELSE status
-              END,
-              assignment_source = CASE
-                WHEN $1 = TRUE THEN NULL
-                WHEN $3::uuid IS NOT NULL THEN 'manager'
-                ELSE assignment_source
-              END,
-              accepted_at = CASE
-                WHEN $1 = TRUE THEN NULL
-                WHEN $3::uuid IS NOT NULL THEN COALESCE(accepted_at, NOW())
-                ELSE accepted_at
-              END,
-              offered_at = CASE WHEN $1 = TRUE THEN NOW() ELSE offered_at END,
-              route_window = COALESCE($4, route_window),
-              pickup_eta_at = COALESCE($5::timestamptz, pickup_eta_at),
-              delivery_eta_at = COALESCE($6::timestamptz, delivery_eta_at),
-              handoff_at = CASE WHEN $7 = TRUE THEN NOW() ELSE handoff_at END,
-              updated_at = NOW()
-        WHERE restaurant_id = $8 AND id = $9
-        RETURNING *`,
-      [
-        release,
-        hasAssignedTo,
-        assignedTo,
-        normalizeString(req.body.routeWindow || req.body.route_window, 80),
-        req.body.pickupEtaAt || req.body.pickup_eta_at || null,
-        req.body.deliveryEtaAt || req.body.delivery_eta_at || null,
-        markHandoff,
-        restaurantId,
-        taskId,
-      ]
-    );
+      if (!currentTask) throw new AppError('Runner task not found', 404, 'runner_task_not_found');
+      if (!canManage && String(currentTask.assigned_to || '') !== String(req.user.id)) {
+        throw new AppError('This runner task is assigned to another user', 403, 'runner_task_not_assigned');
+      }
+      if (assignedTo) {
+        const { rows: [eligible] } = await client.query(
+          `SELECT 1
+             FROM businesses b
+            WHERE b.id = $1
+              AND (b.user_id = $2 OR EXISTS (
+                SELECT 1 FROM business_members bm
+                 WHERE bm.business_id = b.id AND bm.member_id = $2 AND bm.status = 'active'
+              ))`,
+          [restaurant.business_id, assignedTo]
+        );
+        if (!eligible) throw new AppError('Assigned runner is not an active restaurant member', 400, 'runner_not_eligible');
+      }
+      const { rows: [updated] } = await client.query(
+        `UPDATE restaurant_runner_tasks
+            SET assigned_to = CASE
+                  WHEN $1 = TRUE THEN NULL
+                  WHEN $2 = TRUE THEN $3::uuid
+                  ELSE assigned_to
+                END,
+                status = CASE
+                  WHEN $1 = TRUE AND status = 'Assigned' THEN 'Queued'
+                  WHEN $3::uuid IS NOT NULL AND status = 'Queued' THEN 'Assigned'
+                  ELSE status
+                END,
+                assignment_source = CASE
+                  WHEN $1 = TRUE THEN NULL
+                  WHEN $3::uuid IS NOT NULL THEN 'manager'
+                  ELSE assignment_source
+                END,
+                accepted_at = CASE
+                  WHEN $1 = TRUE THEN NULL
+                  WHEN $3::uuid IS NOT NULL THEN COALESCE(accepted_at, NOW())
+                  ELSE accepted_at
+                END,
+                offered_at = CASE WHEN $1 = TRUE THEN NOW() ELSE offered_at END,
+                route_window = COALESCE($4, route_window),
+                -- ETA must be in the future (prevents backdating); null keeps existing.
+                pickup_eta_at = CASE
+                  WHEN $5::timestamptz IS NOT NULL AND $5::timestamptz > NOW() THEN $5::timestamptz
+                  ELSE pickup_eta_at
+                END,
+                delivery_eta_at = CASE
+                  WHEN $6::timestamptz IS NOT NULL AND $6::timestamptz > NOW() THEN $6::timestamptz
+                  ELSE delivery_eta_at
+                END,
+                handoff_at = CASE WHEN $7 = TRUE THEN NOW() ELSE handoff_at END,
+                updated_at = NOW()
+          WHERE restaurant_id = $8 AND id = $9
+          RETURNING *`,
+        [
+          release,
+          hasAssignedTo,
+          assignedTo,
+          normalizeString(req.body.routeWindow || req.body.route_window, 80),
+          req.body.pickupEtaAt || req.body.pickup_eta_at || null,
+          req.body.deliveryEtaAt || req.body.delivery_eta_at || null,
+          markHandoff,
+          restaurantId,
+          taskId,
+        ]
+      );
+      return updated;
+    }, 'runner_dispatch_update');
     if (!task) throw new AppError('Runner task not found', 404, 'runner_task_not_found');
     broadcastRestaurant(restaurant, 'food:runner:dispatch:updated', { task });
     res.json({ task });
@@ -7239,6 +7251,10 @@ exports.completeRunnerHandoff = async (req, res, next) => {
       }
       if (!currentTask.assigned_to) {
         throw new AppError('Runner handoff requires an assigned runner', 409, 'runner_task_unassigned');
+      }
+      // Enforce proof requirement: tasks with requires_proof=true must include proof.
+      if (currentTask.requires_proof && !note && !proofMethod && !req.body.metadata) {
+        throw new AppError('Proof is required for this delivery', 400, 'proof_required');
       }
       // M14: only 'En route' may move to 'Completed' (transition map), which
       // also rejects already-terminal tasks.
@@ -7404,6 +7420,7 @@ exports.declineRunnerTask = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantPermission(restaurant, req.user.id, ['runner.update', 'runner.manage', 'orders.manage']);
     const { rows: [decline] } = await pool.query(
       `INSERT INTO restaurant_runner_task_declines
          (restaurant_id, task_id, runner_user_id, reason)
@@ -7448,14 +7465,26 @@ exports.logRunnerLocation = async (req, res, next) => {
       }
     }
     const canManage = MANAGE_ROLES.has(restaurant.effective_role);
-    const runnerUserId = canManage
-      ? (req.body.runnerUserId || req.body.runner_user_id || req.user.id)
-      : req.user.id;
-    const capturedAt = req.body.capturedAt || req.body.captured_at || null;
+    let runnerUserId = req.user.id;
+    if (canManage && (req.body.runnerUserId || req.body.runner_user_id)) {
+      // Validate the specified runner is a restaurant member.
+      const targetId = req.body.runnerUserId || req.body.runner_user_id;
+      const { rows: [member] } = await pool.query(
+        `SELECT 1 FROM businesses b
+          WHERE b.id = $1 AND (b.user_id = $2 OR EXISTS (
+            SELECT 1 FROM business_members bm
+            WHERE bm.business_id = b.id AND bm.member_id = $2 AND bm.status = 'active'
+          ))`,
+        [restaurant.business_id, targetId]
+      );
+      if (!member) throw new AppError('Invalid runner user', 400, 'invalid_runner');
+      runnerUserId = targetId;
+    }
+    // Always use server time; ignore client capturedAt (prevents backdating).
     const { rows: [ping] } = await pool.query(
       `INSERT INTO restaurant_runner_location_pings
          (restaurant_id, task_id, runner_user_id, latitude, longitude, accuracy_meters, captured_at)
-       VALUES ($1,$2,$3,$4,$5,$6,COALESCE($7::timestamptz, NOW()))
+       VALUES ($1,$2,$3,$4,$5,$6,NOW())
        RETURNING *`,
       [
         restaurantId,
@@ -7464,7 +7493,6 @@ exports.logRunnerLocation = async (req, res, next) => {
         latitude,
         longitude,
         req.body.accuracyMeters ?? req.body.accuracy_meters ?? null,
-        capturedAt,
       ]
     );
     if (taskId) {
@@ -7579,25 +7607,41 @@ exports.upsertRunnerSettlement = async (req, res, next) => {
       if (existingSettlement && !settlementTransitions[existingSettlement.status]?.has(status)) {
         throw new AppError('Settlement status transition is not allowed', 409, 'invalid_settlement_transition');
       }
+      // Once paid, financial columns are frozen. Reject attempts to modify them.
+      if (existingSettlement?.status === 'paid' && status === 'paid') {
+        const newCash = Number(cashCollectedCents || 0);
+        const oldCash = Number(existingSettlement.cash_collected_cents || 0);
+        if (newCash !== oldCash) {
+          throw new AppError('Paid settlement financials are frozen', 409, 'settlement_frozen');
+        }
+      }
+      // Require payment reference for paid settlements with non-zero amounts.
+      const paymentReference = normalizeString(req.body.paymentReference || req.body.payment_reference, 200);
+      const totalCents = Number(task.delivery_fee_cents || 0) + Number(task.tip_cents || 0) + Number(cashCollectedCents || 0);
+      if (status === 'paid' && totalCents > 0 && !paymentReference && !existingSettlement?.payment_reference) {
+        throw new AppError('Payment reference is required for paid settlements', 400, 'payment_reference_required');
+      }
       const { rows: [updated] } = await client.query(
         `INSERT INTO restaurant_runner_settlements
          (restaurant_id, task_id, food_order_id, runner_user_id, delivery_fee_cents, tip_cents,
-          cash_collected_cents, status, note, approved_by, approved_at, paid_at, metadata)
+          cash_collected_cents, status, note, approved_by, approved_at, paid_at, payment_reference, metadata)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
                CASE WHEN $8 = 'approved' THEN NOW() ELSE NULL END,
                CASE WHEN $8 = 'paid' THEN NOW() ELSE NULL END,
-               $11)
+               $12, $11)
        ON CONFLICT (restaurant_id, task_id) WHERE task_id IS NOT NULL
        DO UPDATE SET food_order_id = EXCLUDED.food_order_id,
                      runner_user_id = EXCLUDED.runner_user_id,
-                     delivery_fee_cents = EXCLUDED.delivery_fee_cents,
-                     tip_cents = EXCLUDED.tip_cents,
-                     cash_collected_cents = EXCLUDED.cash_collected_cents,
+                     -- Financial columns frozen once paid; only update if not paid
+                     delivery_fee_cents = CASE WHEN restaurant_runner_settlements.status = 'paid' THEN restaurant_runner_settlements.delivery_fee_cents ELSE EXCLUDED.delivery_fee_cents END,
+                     tip_cents = CASE WHEN restaurant_runner_settlements.status = 'paid' THEN restaurant_runner_settlements.tip_cents ELSE EXCLUDED.tip_cents END,
+                     cash_collected_cents = CASE WHEN restaurant_runner_settlements.status = 'paid' THEN restaurant_runner_settlements.cash_collected_cents ELSE EXCLUDED.cash_collected_cents END,
                      status = EXCLUDED.status,
                      note = EXCLUDED.note,
                      approved_by = COALESCE(EXCLUDED.approved_by, restaurant_runner_settlements.approved_by),
                      approved_at = CASE WHEN EXCLUDED.status = 'approved' THEN NOW() ELSE restaurant_runner_settlements.approved_at END,
                      paid_at = CASE WHEN EXCLUDED.status = 'paid' THEN NOW() ELSE restaurant_runner_settlements.paid_at END,
+                     payment_reference = COALESCE(EXCLUDED.payment_reference, restaurant_runner_settlements.payment_reference),
                      metadata = restaurant_runner_settlements.metadata || EXCLUDED.metadata
        RETURNING *`,
         [
@@ -7612,6 +7656,7 @@ exports.upsertRunnerSettlement = async (req, res, next) => {
           normalizeString(req.body.note, 1000),
           ['approved', 'paid'].includes(status) ? req.user.id : null,
           safeJson(req.body.metadata),
+          paymentReference || null,
         ]
       );
       return updated;
