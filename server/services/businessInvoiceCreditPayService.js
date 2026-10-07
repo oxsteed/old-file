@@ -529,9 +529,12 @@ async function payBusinessInvoiceWithCredit({
         });
       }
 
-      const updatedInvoice = await syncInvoicePaidFromCreditLedger(client, invoice.id, {
-        incrementCents: amountCents,
-      });
+      const spendReplayed = Boolean(spendResult?.purchase?.replayed);
+      const updatedInvoice = await syncInvoicePaidFromCreditLedger(
+        client,
+        invoice.id,
+        spendReplayed ? {} : { incrementCents: amountCents },
+      );
       return { spendResult, invoice: updatedInvoice, amountCents, currency };
     },
     'business_invoice_credit_pay',
