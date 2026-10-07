@@ -1,5 +1,7 @@
 'use strict';
 
+jest.unmock('pg');
+
 /**
  * Credit Everywhere Phase 1 — credit_participants.
  *
@@ -259,14 +261,60 @@ ddescribe('migration 724 backfill (disposable DB)', () => {
   test('backfilled restaurant participants resolve with correct status mapping', async () => {
     const client = await pool.connect();
     try {
-      // Every partner should have exactly one restaurant participant
+      // Self-contained: seed partners covering the status map, insert their
+      // participants with the migration 725 mapping (terminated -> revoked),
+      const statuses = ['pending', 'active', 'suspended', 'terminated'];
+      const fixtureTag = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+      const { rows: [admin] } = await client.query(
+        `INSERT INTO users (id, email, password_hash, first_name, last_name, role, email_verified, is_active)
+         VALUES (gen_random_uuid(), $1, 'x', 'Fix', 'Ture', 'admin', TRUE, TRUE)
+         RETURNING id`,
+        [`participant-fixture-${fixtureTag}@example.invalid`]
+      );
+      let rIdx = 0;
+      const seededPartnerIds = [];
+      for (const status of statuses) {
+        const { rows: [business] } = await client.query(
+          `INSERT INTO businesses (user_id, business_name)
+           VALUES ($1, $2) RETURNING id`,
+          [admin.id, `Participant Fixture ${fixtureTag} ${rIdx}`]
+        );
+        const { rows: [restaurant] } = await client.query(
+          `INSERT INTO food_restaurants (business_id, owner_user_id, display_name)
+           VALUES ($1, $2, $3) RETURNING id`,
+          [business.id, admin.id, `Participant Fixture ${fixtureTag} ${rIdx++}`]
+        );
+        const { rows: [p] } = await client.query(
+          `INSERT INTO oxsteed_credit_partners (restaurant_id, status, created_by)
+           VALUES ($1, $2, $3) RETURNING id`,
+          [restaurant.id, status, admin.id]
+        );
+        await client.query(
+          `INSERT INTO credit_participants (
+             partner_id, participant_type, restaurant_id,
+             status, didit_verified, didit_verified_at, allowed_surfaces
+           )
+           VALUES (
+             $1, 'restaurant', $3,
+             CASE $2 WHEN 'terminated' THEN 'revoked' ELSE $2 END,
+             FALSE, NULL,
+             ARRAY['food_online', 'food_pos', 'chat']::TEXT[]
+           )
+           ON CONFLICT (partner_id, participant_type) DO NOTHING`,
+          [p.id, status, restaurant.id]
+        );
+        seededPartnerIds.push(p.id);
+      }
+      // Every seeded partner should have exactly one restaurant participant
+      // with the mapped status (terminated -> revoked).
       const { rows } = await client.query(`
         SELECT p.id AS partner_id, p.status AS partner_status,
                cp.status AS participant_status, cp.didit_verified
           FROM oxsteed_credit_partners p
           JOIN credit_participants cp
             ON cp.partner_id = p.id AND cp.participant_type = 'restaurant'
-      `);
+         WHERE p.id = ANY($1::bigint[])
+      `, [seededPartnerIds]);
       expect(rows.length).toBeGreaterThan(0);
       for (const row of rows) {
         const expected = row.partner_status === 'terminated' ? 'revoked' : row.partner_status;
