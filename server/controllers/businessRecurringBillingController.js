@@ -1,3 +1,4 @@
+const { randomUUID } = require('crypto');
 const pool = require('../db');
 
 const VALID_FREQUENCIES = new Set(['weekly', 'biweekly', 'monthly', 'quarterly', 'annually']);
@@ -143,16 +144,18 @@ exports.generateInvoice = async (req, res, next) => {
       amount,
     }]);
 
+    const publicToken = randomUUID();
     const invoiceRow = await pool.query(
       `INSERT INTO business_invoices
          (user_id, business_id, invoice_number, client_name, client_email,
-          status, due_date, subtotal, invoice_tax_rate, tax_amount, total, line_items, notes)
-       VALUES ($1,$2,$3,$4,$5,'draft',$6,$7,0,0,$7,$8,$9)
+          status, due_date, subtotal, invoice_tax_rate, tax_amount, total, line_items, notes, public_token)
+       VALUES ($1,$2,$3,$4,$5,'draft',$6,$7,0,0,$7,$8,$9,$10)
        RETURNING *`,
       [
         businessRow.rows[0].user_id, businessId, invoiceNumber,
         billing.client_name, billing.client_email, dueDate, amount,
         lineItems, `Generated from recurring billing ${billingId}`,
+        publicToken,
       ]
     );
 

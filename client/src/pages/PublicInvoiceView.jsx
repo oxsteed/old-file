@@ -6,8 +6,8 @@ import {
   ArrowLeft,
   CheckCircle2,
   Clock3,
-  CreditCard,
   FileText,
+  Mail,
   Lock,
   ShieldCheck,
 } from 'lucide-react';
@@ -272,12 +272,9 @@ function PublicInvoiceView() {
                 </>
               ) : (
                 <>
-                  <CreditCard size={34} aria-hidden="true" />
-                  <h2>{t('publicInvoice.readyTitle')}</h2>
-                  <p>{t('publicInvoice.readyBody')}</p>
-                  <Link to="/login" className="piv-button piv-button-primary piv-full-button">
-                    {t('publicInvoice.loginToPay')}
-                  </Link>
+                  <Mail size={34} aria-hidden="true" />
+                  <h2>{t('publicInvoice.payOfflineTitle')}</h2>
+                  <p>{t('publicInvoice.payOfflineBody', { business: business?.business_name || t('publicInvoice.fallbackBusiness') })}</p>
                 </>
               )}
             </section>
@@ -286,7 +283,7 @@ function PublicInvoiceView() {
               <h2>{t('publicInvoice.whatNext')}</h2>
               <div className="piv-trust-item">
                 <Lock size={18} aria-hidden="true" />
-                <p>{t('publicInvoice.trustAccount')}</p>
+                <p>{t('publicInvoice.trustOffline')}</p>
               </div>
               <div className="piv-trust-item">
                 <Clock3 size={18} aria-hidden="true" />

@@ -6,7 +6,7 @@ const { requireSuperAdmin } = require('../middleware/adminAuth');
 const { generalLimiter } = require('../middleware/rateLimiter');
 const logger = require('../utils/logger');
 const { logAdminAction } = require('../services/auditService');
-const { tNotif } = require('../utils/i18n');
+const { sendBusinessInvoiceEmail } = require('../utils/businessInvoiceEmail');
 
 // Helper: check invoice ownership or admin
 async function getInvoiceForUser(invoiceId, userId, role) {
@@ -144,19 +144,22 @@ router.post('/:id/resend-email', authenticate, generalLimiter, async (req, res) 
     const inv = await getInvoiceForUser(req.params.id, req.user.id, req.user.role);
     if (!inv) return res.status(404).json({ error: 'Invoice not found' });
 
-    try {
-      const notificationService = require('../services/notificationService');
-      if (notificationService && notificationService.sendEmail) {
-        const localized = tNotif('invoice_resend', inv.preferred_language || 'en');
-        const subject = `${localized.title || 'Invoice'} ${inv.invoice_number}`;
-        const message = `${localized.body || 'Your invoice'} ${inv.invoice_number}`;
-        await notificationService.sendEmail({
-          to: inv.client_email,
-          subject,
-          text: `${message}.`,
-        });
-      }
-    } catch (_) {}
+    if (!inv.client_email) {
+      return res.status(400).json({ error: 'Invoice has no client email address' });
+    }
+    if (!inv.public_token) {
+      return res.status(409).json({ error: 'Invoice is missing a public link token' });
+    }
+
+    const emailResult = await sendBusinessInvoiceEmail({
+      invoice: inv,
+      recipientEmail: inv.client_email,
+      issuerName: inv.business_name || 'OxSteed',
+      language: inv.preferred_language || 'en',
+    });
+    if (!emailResult.success) {
+      return res.status(502).json({ error: 'Failed to deliver invoice email' });
+    }
 
     await pool.query(
       "UPDATE business_invoices SET sent_at = NOW(), status = CASE WHEN status = 'draft' THEN 'sent' ELSE status END WHERE id = $1",

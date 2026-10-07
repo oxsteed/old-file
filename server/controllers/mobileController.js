@@ -1,5 +1,10 @@
 const pool = require('../db');
 const AppError = require('../utils/appError');
+const {
+  isInvoicePayer,
+  stripeInvoiceCurrency,
+  businessInvoiceStripeConnectEnabled,
+} = require('../utils/businessInvoiceHelpers');
 const { uploadFile, getPublicUrl } = require('../utils/storage');
 const countriesUtil = require('../utils/countries');
 const modeRoleUtil = require('../utils/modeRole');
@@ -429,14 +434,22 @@ async function getPayableInvoice(invoiceId, user) {
     `SELECT bi.*, b.business_name
        FROM business_invoices bi
        LEFT JOIN businesses b ON b.id = bi.business_id
-      WHERE bi.id = $1
-        AND (
-          bi.user_id = $2
-          OR LOWER(COALESCE(bi.client_email, '')) = LOWER($3)
-        )`,
-    [invoiceId, user.id, user.email || '']
+      WHERE bi.id = $1`,
+    [invoiceId]
   );
-  return rows[0] || null;
+  const invoice = rows[0] || null;
+  if (!invoice || !isInvoicePayer(invoice, user)) return null;
+  return invoice;
+}
+
+function assertInvoiceOnlinePaymentAvailable() {
+  if (!businessInvoiceStripeConnectEnabled()) {
+    throw new AppError(
+      'Online invoice payment is not available yet. Pay the issuer using their agreed method.',
+      503,
+      'invoice_online_payment_unavailable'
+    );
+  }
 }
 
 exports.getPaymentConfig = async (req, res, next) => {
@@ -456,6 +469,7 @@ exports.getPaymentConfig = async (req, res, next) => {
 exports.createInvoicePaymentIntent = async (req, res, next) => {
   try {
     requireStripe();
+    assertInvoiceOnlinePaymentAvailable();
     const invoice = await getPayableInvoice(req.params.invoiceId, req.user);
     if (!invoice) {
       throw new AppError('Invoice not found', 404, 'invoice_not_found');
@@ -466,9 +480,14 @@ exports.createInvoicePaymentIntent = async (req, res, next) => {
       throw new AppError('Invoice is already paid', 409, 'invoice_already_paid');
     }
 
+    const currency = stripeInvoiceCurrency(invoice);
+    if (currency !== 'usd') {
+      throw new AppError('Only USD invoices can be paid online', 422, 'invoice_currency_not_supported');
+    }
+
     const paymentIntent = await stripe.paymentIntents.create({
       amount: balanceCents,
-      currency: 'usd',
+      currency,
       receipt_email: req.user.email || invoice.client_email || undefined,
       metadata: {
         invoice_id: String(invoice.id),
@@ -495,6 +514,7 @@ exports.createInvoicePaymentIntent = async (req, res, next) => {
 exports.confirmInvoicePayment = async (req, res, next) => {
   try {
     requireStripe();
+    assertInvoiceOnlinePaymentAvailable();
     const invoice = await getPayableInvoice(req.params.invoiceId, req.user);
     if (!invoice) {
       throw new AppError('Invoice not found', 404, 'invoice_not_found');
@@ -509,12 +529,13 @@ exports.confirmInvoicePayment = async (req, res, next) => {
 
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
     const expectedAmountCents = invoiceBalanceCents(invoice);
+    const expectedCurrency = stripeInvoiceCurrency(invoice);
     const actualAmountCents = Number(paymentIntent.amount_received || paymentIntent.amount || 0);
     if (
       String(paymentIntent.metadata?.invoice_id || '') !== String(invoice.id) ||
       String(paymentIntent.metadata?.payer_id || '') !== String(req.user.id) ||
       actualAmountCents !== expectedAmountCents ||
-      String(paymentIntent.currency || '').toLowerCase() !== 'usd'
+      String(paymentIntent.currency || '').toLowerCase() !== expectedCurrency
     ) {
       throw new AppError('Payment does not belong to this invoice', 403, 'payment_invoice_mismatch');
     }
