@@ -30,15 +30,6 @@ async function ownedOrManagedBusiness(userId, bizId) {
   return rows[0] || null;
 }
 
-// ── helper: check if user is business rep/manager ─────────────────────────────
-async function isBusinessMember(userId, bizId) {
-  const { rows } = await pool.query(
-    'SELECT 1 FROM business_members WHERE business_id = $1 AND member_id = $2 AND status = $3',
-    [bizId, userId, 'active']
-  );
-  return rows.length > 0;
-}
-
 // ── POST /api/businesses/:id/vortex-tokens ────────────────────────────────────
 // Owner or manager generates a new single-use Vortex token.
 // Privilege restriction: only the real business owner may issue manager-role
@@ -90,27 +81,23 @@ async function generateToken(req, res) {
 // ── GET /api/businesses/:id/vortex-tokens ─────────────────────────────────────
 // Owner or manager lists tokens for a business.
 //
-// Token-string visibility rules for ACTIVE tokens:
-//   • Owner   → sees all plaintext token strings
-//   • Manager → sees only the token string for active tokens they created
-//               (created_by_id = req.user.id); other active tokens listed
-//               but the secret column is NULL
+// Secret visibility rules:
+//   • ACTIVE tokens → the secret is NEVER returned here (NULL). The full
+//     token string is shown exactly once, at creation time (generateToken).
+//   • Used / revoked / expired tokens → plaintext is fine (they are inert).
 //
-// Used / revoked / expired tokens are always fully visible (they are inert).
+// The redeemer's email is masked (first char + '@' + domain) to limit PII
+// exposure in the list view.
 async function listTokens(req, res) {
   try {
     const biz = await ownedOrManagedBusiness(req.user.id, req.params.id);
     if (!biz) return res.status(404).json({ error: 'Business not found' });
-
-    const isOwner = biz.user_id === req.user.id;
 
     const { rows } = await pool.query(
       `SELECT
          t.id,
          CASE
            WHEN t.used_at IS NOT NULL OR t.is_revoked OR t.expires_at < NOW() THEN t.token
-           WHEN $3                                                              THEN t.token
-           WHEN t.created_by_id = $2                                           THEN t.token
            ELSE NULL
          END AS token,
          t.role,
@@ -123,7 +110,10 @@ async function listTokens(req, res) {
          creator.last_name  AS created_by_last,
          u.first_name AS used_by_first,
          u.last_name  AS used_by_last,
-         u.email      AS used_by_email,
+         CASE
+           WHEN u.email IS NULL THEN NULL
+           ELSE LEFT(u.email, 1) || '@' || SPLIT_PART(u.email, '@', 2)
+         END AS used_by_email,
          CASE
            WHEN t.is_revoked         THEN 'revoked'
            WHEN t.used_at IS NOT NULL THEN 'used'
@@ -135,7 +125,7 @@ async function listTokens(req, res) {
        LEFT JOIN users creator ON creator.id = t.created_by_id
        WHERE t.business_id = $1
        ORDER BY t.created_at DESC`,
-      [biz.id, req.user.id, isOwner]
+      [biz.id]
     );
 
     return res.json({ tokens: rows });
@@ -186,6 +176,12 @@ async function revokeToken(req, res) {
 // ── POST /api/businesses/vortex/redeem ────────────────────────────────────────
 // Any authenticated user enters a 64-char token to join a business as a rep.
 // Token is single-use: marked used_at + used_by_id immediately on success.
+//
+// Everything below runs inside one transaction: the token row is locked FIRST
+// (SELECT ... FOR UPDATE) so all validation, the already-member check, the
+// token burn, and the membership insert are atomic. Two concurrent
+// redemptions (same token or two different tokens by the same user) cannot
+// both succeed, and a failed membership insert never burns the token.
 async function redeemToken(req, res) {
   const client = await pool.connect();
   try {
@@ -194,6 +190,11 @@ async function redeemToken(req, res) {
       return res.status(400).json({ error: 'Invalid token format - must be exactly 64 characters' });
     }
 
+    // ── Begin atomic transaction ──────────────────────────────────────────────
+    await client.query('BEGIN');
+
+    // 1. Lock the token row FIRST. A concurrent redemption of the same token
+    //    blocks here, then sees used_at NOT NULL and fails below.
     const { rows: [record] } = await client.query(
       `SELECT t.id, t.business_id, t.owner_id, t.role, t.expires_at,
               b.business_name, b.is_active
@@ -202,35 +203,48 @@ async function redeemToken(req, res) {
        WHERE t.token       = $1
          AND t.used_at    IS NULL
          AND t.is_revoked  = FALSE
-       LIMIT 1`,
+       LIMIT 1
+       FOR UPDATE`,
       [token.trim()]
     );
 
     if (!record) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Token is invalid, already used, or has been revoked' });
     }
 
     if (new Date(record.expires_at) < new Date()) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Token has expired - ask the business owner for a new one' });
     }
 
     if (!record.is_active) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'This business is no longer active' });
     }
 
     if (record.owner_id === req.user.id) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'You cannot redeem your own token' });
     }
 
-    const alreadyMember = await isBusinessMember(req.user.id, record.business_id);
-    if (alreadyMember) {
+    // 2. Membership check INSIDE the transaction, locking the existing active
+    //    membership row when one exists. Two concurrent redemptions of
+    //    DIFFERENT tokens by the same user serialize here instead of
+    //    double-inserting.
+    const { rows: [lockedMember] } = await client.query(
+      `SELECT id FROM business_members
+       WHERE business_id = $1 AND member_id = $2 AND status = 'active'
+       LIMIT 1
+       FOR UPDATE`,
+      [record.business_id, req.user.id]
+    );
+    if (lockedMember) {
+      await client.query('ROLLBACK');
       return res.status(409).json({ error: `You are already an active member of "${record.business_name}"` });
     }
 
-    // ── Begin atomic transaction ──────────────────────────────────────────────
-    await client.query('BEGIN');
-
-    // 1. Mark the token consumed (prevents concurrent redemption)
+    // 3. Mark the token consumed (prevents concurrent redemption)
     const { rowCount } = await client.query(
       `UPDATE business_invite_tokens
        SET used_at = NOW(), used_by_id = $1
@@ -243,7 +257,7 @@ async function redeemToken(req, res) {
       return res.status(409).json({ error: 'Token was just used by someone else' });
     }
 
-    // 2. DELETE stale pending invite BEFORE inserting the active membership.
+    // 4. DELETE stale pending invite BEFORE inserting the active membership.
     //    If a pending row exists for the same (business_id, invite_email) unique
     //    constraint, the INSERT below would silently do nothing (ON CONFLICT DO
     //    NOTHING), and a subsequent DELETE would remove the only row - leaving
@@ -258,17 +272,26 @@ async function redeemToken(req, res) {
       );
     }
 
-    // 3. Insert the active membership - pending row is already gone so the
-    //    unique constraint will not block this insert.
-    await client.query(
+    // 5. Insert the active membership - pending row is already gone so the
+    //    unique constraint will not block this insert. Capture the result: if
+    //    a racing redemption slipped past the lock check, ON CONFLICT yields
+    //    rowCount 0 - roll back so the token is NOT burned for a membership
+    //    that was never created.
+    const insertRes = await client.query(
       `INSERT INTO business_members
          (business_id, owner_id, member_id, role, invite_email, status, accepted_at)
        VALUES ($1, $2, $3, $4, $5, 'active', NOW())
-       ON CONFLICT DO NOTHING`,
+       ON CONFLICT DO NOTHING
+       RETURNING id`,
       [record.business_id, record.owner_id, req.user.id, record.role, req.user.email || '']
     );
 
-    // 4. Notify the business owner
+    if (insertRes.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'A membership already exists - the token was not consumed' });
+    }
+
+    // 6. Notify the business owner
     await client.query(
       `INSERT INTO notifications (user_id, type, title, message, metadata)
        VALUES ($1, 'vortex_redeemed', $2, $3, $4)`,

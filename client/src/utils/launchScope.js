@@ -91,7 +91,6 @@ const LAUNCH_ROUTE_REDIRECTS = Object.freeze([
   { prefix: '/investor/login', to: '/login' },
   { prefix: '/investor', to: '/dashboard' },
   { prefix: '/affiliate', to: '/dashboard' },
-  { prefix: '/vortex', to: '/dashboard' },
   { prefix: '/network', to: '/dashboard' },
   { prefix: '/planned-needs', to: '/dashboard' },
   { prefix: '/car-care', to: '/dashboard' },

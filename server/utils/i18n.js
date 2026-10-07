@@ -368,6 +368,70 @@ const T = {
       ar: 'للأسف، تم رفض طلب حجزك لـ%{toolName}.',
     },
   },
+  vortex_approval_requested: {
+    title: {
+      en: 'Approval needed',
+      fr: 'Approbation requise',
+      es: 'Se necesita aprobación',
+      ht: 'Apwobasyon nesesè',
+      ar: 'مطلوب الموافقة',
+    },
+    body: {
+      en: 'Someone redeemed an access code and is waiting for your approval.',
+      fr: "Quelqu'un a utilisé un code d'accès et attend votre approbation.",
+      es: 'Alguien canjeó un código de acceso y está esperando tu aprobación.',
+      ht: 'Yon moun itilize yon kòd aksè epi l ap tann apwobasyon ou.',
+      ar: 'شخص ما استخدم رمز وصول وينتظر موافقتك.',
+    },
+  },
+  vortex_member_joined: {
+    title: {
+      en: 'New team member',
+      fr: "Nouveau membre de l'équipe",
+      es: 'Nuevo miembro del equipo',
+      ht: 'Nouvo manm ekip',
+      ar: 'عضو جديد في الفريق',
+    },
+    body: {
+      en: 'A new member joined your business via an access code.',
+      fr: "Un nouveau membre a rejoint votre entreprise grâce à un code d'accès.",
+      es: 'Un nuevo miembro se unió a tu negocio con un código de acceso.',
+      ht: 'Yon nouvo manm rantre nan biznis ou ak yon kòd aksè.',
+      ar: 'انضم عضو جديد إلى نشاطك التجاري عبر رمز وصول.',
+    },
+  },
+  vortex_membership_approved: {
+    title: {
+      en: 'You were approved',
+      fr: 'Votre demande a été approuvée',
+      es: 'Tu solicitud fue aprobada',
+      ht: 'Yo apwouve ou',
+      ar: 'تمت الموافقة عليك',
+    },
+    body: {
+      en: 'Your request to join the business was approved.',
+      fr: "Votre demande pour rejoindre l'entreprise a été approuvée.",
+      es: 'Se aprobó tu solicitud para unirte al negocio.',
+      ht: 'Yo apwouve demann ou pou rantre nan biznis la.',
+      ar: 'تمت الموافقة على طلبك للانضمام إلى النشاط التجاري.',
+    },
+  },
+  vortex_membership_denied: {
+    title: {
+      en: 'Request denied',
+      fr: 'Demande refusée',
+      es: 'Solicitud rechazada',
+      ht: 'Demann rejte',
+      ar: 'تم رفض الطلب',
+    },
+    body: {
+      en: 'Your request to join the business was not approved.',
+      fr: "Votre demande pour rejoindre l'entreprise n'a pas été approuvée.",
+      es: 'Tu solicitud para unirte al negocio no fue aprobada.',
+      ht: 'Yo pa apwouve demann ou pou rantre nan biznis la.',
+      ar: 'لم تتم الموافقة على طلبك للانضمام إلى النشاط التجاري.',
+    },
+  },
   booking_cancelled: {
     title: {
       en: 'Booking Cancelled',

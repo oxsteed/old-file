@@ -1171,8 +1171,13 @@
     "manageCookies": "Manage Cookies",
     "vortex": "Vortex",
     "vortexTitle": "Vortex",
+    "vortexTabCode": "Access code",
+    "vortexTabToken": "Legacy token",
     "vortexDesc": "Enter a 64-character Vortex token shared by a business owner to join their team.",
+    "vortexCodeDesc": "Enter the short access code shared by the business owner. This is the recommended way to join.",
+    "vortexTokenDesc": "Have an older 64-character invite token? You can still use it here.",
     "vortexPlaceholder": "Paste your 64-character token…",
+    "vortexCodePlaceholder": "VRTX-XXXXX-XXXXX",
     "vortexChars": "{{count}} / 64 characters",
     "vortexTokenError": "Token must be exactly 64 characters.",
     "vortexCancel": "Cancel",
@@ -1185,6 +1190,9 @@
     "vortexSignIn": "Sign in",
     "vortexContinueToLogin": "Continue to sign in",
     "vortexRedeemFailed": "Could not redeem this token. Check it is correct, unused, and not expired.",
+    "vortexCodeRedeemed": "You joined {{name}}.",
+    "vortexCodePending": "Request sent. The owner has been notified to approve your access.",
+    "vortexCodeError": "Please enter a valid access code.",
     "resource": "Resources",
     "qrGenerator": "QR Generator",
     "consulting": "Consulting",
@@ -8197,7 +8205,25 @@
       "notes": "Notes",
       "requiredFields": "Enter an amount greater than zero."
     },
-    "tabMediaLabel": "Media"
+    "tabMediaLabel": "Media",
+    "statusAwaitingApproval": "Awaiting approval",
+    "btnApprove": "Approve",
+    "btnDeny": "Deny",
+    "toastMemberApproved": "Member approved",
+    "toastMemberApproveFail": "Failed to approve member",
+    "confirmDenyMember": "Deny this membership request? They will not be able to access the workspace.",
+    "toastMemberDenied": "Membership request denied",
+    "toastMemberDenyFail": "Failed to deny membership",
+    "toastRoleChanged": "Member role updated",
+    "toastRoleChangeFail": "Failed to update member role",
+    "accessCodeMaxUsesLabel": "Max uses",
+    "accessCodeMaxUsesPlaceholder": "Unlimited",
+    "accessCodeExpiresLabel": "Expires in (days)",
+    "accessCodeExpiresPlaceholder": "Never",
+    "btnRotateCode": "Rotate",
+    "confirmRotateCode": "Rotate this code? The old code will stop working immediately.",
+    "toastCodeRotated": "Access code rotated",
+    "toastCodeRotateFail": "Failed to rotate access code"
   },
   "plans": {
     "free": "Free",
@@ -14324,6 +14350,7 @@
     "pageDescription": "Switch between business workspaces or join a team with an access code.",
     "title": "Vortex",
     "subtitle": "Your business workspaces in one place. Switch in, or join a new team with a code.",
+    "workspacesHiddenNote": "Workspace switching is coming soon. You can still join a business with an access code below.",
     "yourWorkspaces": "Your workspaces",
     "loadingWorkspaces": "Loading your workspaces...",
     "noWorkspacesTitle": "No business workspaces yet",
@@ -14345,11 +14372,14 @@
     "joining": "Joining...",
     "joined": "Welcome to {{name}}.",
     "pendingApproval": "You are in! The owner has been notified to approve your access.",
+    "pendingWaitingTitle": "Waiting for approval",
+    "pendingWaitingBody": "The business owner has been notified. This workspace will appear in your list once you are approved.",
     "redeemFailed": "Failed to redeem this code.",
     "launchTitle": "Launching your own business?",
     "launchBody": "Start the OxSteed business setup and we will guide you through it.",
     "launchCta": "Open business setup",
     "openOwnerWorkspace": "Open {{name}}",
+    "manageAccessCodes": "Manage access codes",
     "status": {
       "active": "Active",
       "pending": "Pending approval"
@@ -30051,5 +30081,10 @@
     "post": "Post",
     "composePlaceholder": "Share an update...",
     "empty": "No posts yet. Share your first update above."
+  },
+  "inventoryHelp": {
+    "managerCreateCodesTitle": "Create Vortex join codes",
+    "managerCreateCodesBody": "Business owners create role-specific codes for the team in the Business Hub. If you manage a team and need to add someone, ask the owner for a code.",
+    "managerTeamAccessStep1": "Ask the business owner for a code for the correct role."
   }
 }

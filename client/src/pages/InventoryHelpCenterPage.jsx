@@ -304,8 +304,31 @@ const APP_GUIDES = {
   },
 };
 
-function getGuide(key) {
-  return APP_GUIDES[key] || APP_GUIDES.inventory;
+function getGuide(key, t) {
+  const guide = APP_GUIDES[key] || APP_GUIDES.inventory;
+  if (guide !== APP_GUIDES.manager || typeof t !== 'function') return guide;
+  return {
+    ...guide,
+    setupSteps: guide.setupSteps.map((step) => (
+      step[0] === 'Create Vortex join codes'
+        ? [
+          t('inventoryHelp.managerCreateCodesTitle', { defaultValue: 'Create Vortex join codes' }),
+          t('inventoryHelp.managerCreateCodesBody', { defaultValue: 'Owners and managers create role-specific codes for employees who need access to restaurant apps.' }),
+          KeyRound,
+        ]
+        : step
+    )),
+    workflows: guide.workflows.map((wf) => (
+      wf[0] === 'Manage team access'
+        ? [
+          wf[0],
+          wf[1],
+          [t('inventoryHelp.managerTeamAccessStep1', { defaultValue: 'Create a code for the correct role.' }), ...wf[2].slice(1)],
+          wf[3],
+        ]
+        : wf
+    )),
+  };
 }
 
 function IconCard({ item }) {
@@ -341,7 +364,7 @@ export default function InventoryHelpCenterPage({ appKey }) {
   const { t } = useTranslation();
   const params = useParams();
   const resolvedKey = appKey || params.restaurantAppHelpSlug || 'inventory';
-  const guide = getGuide(resolvedKey);
+  const guide = getGuide(resolvedKey, t);
   const seoTitle = t(`publicSeo.help.${resolvedKey}.title`, {
     defaultValue: `${guide.name} Help Center`,
   });

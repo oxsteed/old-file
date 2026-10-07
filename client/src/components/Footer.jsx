@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import PrefetchLink from './PrefetchLink';
 import { useAuth } from '../context/AuthContext';
 import { redeemVortexToken } from '../api/businesses';
+import { previewVortexCode, redeemVortexCode } from '../api/vortex';
 import { useCookieConsentContext } from '../context/CookieConsentContext';
 import { useTranslation } from 'react-i18next';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
@@ -189,27 +190,41 @@ function VortexModal({ onClose, initialToken = '' }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [tab, setTab] = useState(initialToken ? 'token' : 'code');
+
+  // Legacy token tab state
   const [token, setToken]   = useState(initialToken);
   const [error, setError]   = useState('');
   const [success, setSuccess] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  // Code tab state
+  const [code, setCode] = useState('');
+  const [codePreview, setCodePreview] = useState(null);
+  const [codeLoading, setCodeLoading] = useState(false);
+  const [codeError, setCodeError] = useState('');
+  const [codeResult, setCodeResult] = useState(null); // { status, name } after redeem
+
   useEffect(() => {
-    if (initialToken) setToken(initialToken);
+    if (initialToken) { setToken(initialToken); setTab('token'); }
   }, [initialToken]);
+
+  function stashAndGoToLogin(value) {
+    if (value) {
+      try {
+        sessionStorage.setItem('oxs:vortexToken', value);
+      } catch {
+        /* ignore */
+      }
+    }
+    navigate(`/login?next=${encodeURIComponent('/')}`);
+  }
 
   async function handleRedeem() {
     setError('');
     if (!user) {
       const raw = token.trim();
-      if (raw.length === 64) {
-        try {
-          sessionStorage.setItem('oxs:vortexToken', raw);
-        } catch {
-          /* ignore */
-        }
-      }
-      navigate(`/login?next=${encodeURIComponent('/')}`);
+      stashAndGoToLogin(raw.length === 64 ? raw : null);
       return;
     }
     const raw = token.trim();
@@ -228,6 +243,53 @@ function VortexModal({ onClose, initialToken = '' }) {
     }
   }
 
+  function codeApiError(e) {
+    return e?.response?.data?.error?.message
+      || e?.response?.data?.message
+      || t('footer.vortexCodeError');
+  }
+
+  async function handleCodeCheck(e) {
+    if (e) e.preventDefault();
+    setCodeError('');
+    if (!user) {
+      const raw = code.trim();
+      stashAndGoToLogin(raw || null);
+      return;
+    }
+    const raw = code.trim();
+    if (!raw) {
+      setCodeError(t('footer.vortexCodeError'));
+      return;
+    }
+    setCodeLoading(true);
+    try {
+      const data = await previewVortexCode(raw);
+      setCodePreview(data);
+    } catch (e) {
+      setCodeError(codeApiError(e));
+    } finally {
+      setCodeLoading(false);
+    }
+  }
+
+  async function handleCodeRedeem() {
+    if (!codePreview) return;
+    setCodeError('');
+    setCodeLoading(true);
+    try {
+      const result = await redeemVortexCode(code.trim());
+      // Pending stays in the modal; active shows the success panel. No forced navigation.
+      setCodeResult({ status: result.status, name: result.business_name });
+      setCode('');
+      setCodePreview(null);
+    } catch (e) {
+      setCodeError(codeApiError(e));
+    } finally {
+      setCodeLoading(false);
+    }
+  }
+
   const overlayStyle = {
     position: 'fixed', inset: 0, zIndex: 9999,
     background: 'rgba(0,0,0,0.7)',
@@ -243,17 +305,65 @@ function VortexModal({ onClose, initialToken = '' }) {
     maxWidth: '480px',
     color: 'var(--color-text)',
   };
+  const tabButtonStyle = (active) => ({
+    flex: 1, border: 'none', borderRadius: '8px',
+    padding: '0.5rem', cursor: 'pointer',
+    fontSize: '0.85rem', fontWeight: 600,
+    background: active ? 'var(--color-primary)' : 'transparent',
+    color: active ? '#fff' : 'var(--color-text-muted)',
+  });
+  const primaryButtonStyle = (disabled) => ({
+    background: disabled ? 'var(--color-primary-light)' : 'var(--color-primary)',
+    border: 'none', borderRadius: '8px',
+    padding: '0.5rem 1.25rem',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    color: '#fff',
+    fontWeight: 600,
+    fontSize: '0.875rem',
+    opacity: disabled ? 0.7 : 1,
+  });
+  const cancelButtonStyle = {
+    background: 'none', border: '1px solid var(--color-border)', borderRadius: '8px',
+    padding: '0.5rem 1rem', cursor: 'pointer',
+    color: 'var(--color-text-muted)', fontSize: '0.875rem',
+  };
+  const inputStyle = {
+    width: '100%',
+    padding: '0.6rem 0.75rem',
+    border: '1px solid var(--color-border)',
+    borderRadius: '8px',
+    background: 'var(--color-bg)',
+    color: 'var(--color-text)',
+    fontFamily: 'monospace',
+    fontSize: '0.85rem',
+    letterSpacing: '0.04em',
+    boxSizing: 'border-box',
+    marginBottom: '0.5rem',
+  };
+  const descStyle = {
+    margin: '0 0 1rem', fontSize: '0.875rem',
+    color: 'var(--color-text-muted)', lineHeight: 1.55,
+  };
+
+  const codeDone = Boolean(codeResult);
+  const anySuccess = Boolean(success) || codeDone;
 
   return (
     <div style={overlayStyle} onClick={e => e.target === e.currentTarget && onClose()}>
       <div style={boxStyle}>
         <h2 style={{ margin: '0 0 0.5rem', fontSize: '1.25rem', fontWeight: 700 }}>{t('footer.vortexTitle')}</h2>
-        <p style={{ margin: '0 0 1.25rem', fontSize: '0.875rem', color: 'var(--color-text-muted)', lineHeight: 1.55 }}>
-          {t('footer.vortexDesc')}
-        </p>
 
-        {!success ? (
+        {!anySuccess && (
           <>
+            <div style={{ display: 'flex', gap: '0.25rem', margin: '0 0 1rem', background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '10px', padding: '0.25rem' }} role="tablist">
+              <button type="button" role="tab" aria-selected={tab === 'code'} onClick={() => setTab('code')} style={tabButtonStyle(tab === 'code')}>
+                {t('footer.vortexTabCode')}
+              </button>
+              <button type="button" role="tab" aria-selected={tab === 'token'} onClick={() => setTab('token')} style={tabButtonStyle(tab === 'token')}>
+                {t('footer.vortexTabToken')}
+              </button>
+            </div>
+
             {!user && (
               <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', margin: '0 0 1rem', lineHeight: 1.5 }}>
                 {t('footer.vortexSignInHint')}{' '}
@@ -262,25 +372,99 @@ function VortexModal({ onClose, initialToken = '' }) {
                 </Link>
               </p>
             )}
+          </>
+        )}
+
+        {tab === 'code' ? (
+          codeResult ? (
+            <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>✅</div>
+              <p style={{ fontWeight: 700, fontSize: '1.1rem', margin: '0 0 0.5rem' }}>
+                {codeResult.status === 'active'
+                  ? t('footer.vortexCodeRedeemed', { name: codeResult.name })
+                  : t('footer.vortexCodePending')}
+              </p>
+              <button onClick={onClose} style={{ background: 'var(--color-primary)', border: 'none', borderRadius: '8px', padding: '0.6rem 1.5rem', cursor: 'pointer', color: '#fff', fontWeight: 600, fontSize: '0.9rem' }}>
+                {t('footer.vortexContinue')}
+              </button>
+            </div>
+          ) : (
+            <>
+              <p style={descStyle}>{t('footer.vortexCodeDesc')}</p>
+              {!codePreview ? (
+                <>
+                  <form onSubmit={handleCodeCheck}>
+                    <input
+                      type="text"
+                      placeholder={t('footer.vortexCodePlaceholder')}
+                      value={code}
+                      onChange={e => { setCode(e.target.value.toUpperCase()); setCodeError(''); }}
+                      maxLength={32}
+                      style={inputStyle}
+                      autoComplete="off"
+                      spellCheck="false"
+                    />
+                  </form>
+                  {codeError && (
+                    <p style={{ color: '#f87171', fontSize: '0.85rem', margin: '0 0 0.75rem' }}>{codeError}</p>
+                  )}
+                  <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                    <button onClick={onClose} style={cancelButtonStyle}>
+                      {t('footer.vortexCancel')}
+                    </button>
+                    <button
+                      onClick={handleCodeCheck}
+                      disabled={codeLoading || !code.trim()}
+                      style={primaryButtonStyle(codeLoading || !code.trim())}
+                    >
+                      {codeLoading
+                        ? t('footer.vortexJoining')
+                        : user
+                          ? t('footer.vortexJoin')
+                          : t('footer.vortexContinueToLogin')}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ border: '1px solid var(--color-border)', borderRadius: '10px', padding: '1rem', marginBottom: '1rem' }}>
+                    <p style={{ fontWeight: 700, fontSize: '1rem', margin: '0 0 0.25rem' }}>{codePreview.business_name}</p>
+                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', margin: 0 }}>
+                      {t('footer.vortexRole', { role: codePreview.role })}
+                    </p>
+                  </div>
+                  {codeError && (
+                    <p style={{ color: '#f87171', fontSize: '0.85rem', margin: '0 0 0.75rem' }}>{codeError}</p>
+                  )}
+                  <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                    <button
+                      onClick={() => { setCodePreview(null); setCodeError(''); }}
+                      style={cancelButtonStyle}
+                    >
+                      {t('footer.vortexCancel')}
+                    </button>
+                    <button
+                      onClick={handleCodeRedeem}
+                      disabled={codeLoading}
+                      style={primaryButtonStyle(codeLoading)}
+                    >
+                      {codeLoading ? t('footer.vortexJoining') : t('footer.vortexJoin')}
+                    </button>
+                  </div>
+                </>
+              )}
+            </>
+          )
+        ) : !success ? (
+          <>
+            <p style={descStyle}>{t('footer.vortexTokenDesc')}</p>
             <input
               type="text"
               placeholder={t('footer.vortexPlaceholder')}
               value={token}
               onChange={e => { setToken(e.target.value); setError(''); }}
               maxLength={64}
-              style={{
-                width: '100%',
-                padding: '0.6rem 0.75rem',
-                border: '1px solid var(--color-border)',
-                borderRadius: '8px',
-                background: 'var(--color-bg)',
-                color: 'var(--color-text)',
-                fontFamily: 'monospace',
-                fontSize: '0.85rem',
-                letterSpacing: '0.04em',
-                boxSizing: 'border-box',
-                marginBottom: '0.5rem',
-              }}
+              style={inputStyle}
               autoComplete="off"
               spellCheck="false"
             />
@@ -293,25 +477,13 @@ function VortexModal({ onClose, initialToken = '' }) {
             )}
 
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-              <button
-                onClick={onClose}
-                style={{ background: 'none', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '0.5rem 1rem', cursor: 'pointer', color: 'var(--color-text-muted)', fontSize: '0.875rem' }}
-              >
+              <button onClick={onClose} style={cancelButtonStyle}>
                 {t('footer.vortexCancel')}
               </button>
               <button
                 onClick={handleRedeem}
                 disabled={loading || token.trim().length !== 64}
-                style={{
-                  background: loading ? 'var(--color-primary-light)' : 'var(--color-primary)',
-                  border: 'none', borderRadius: '8px',
-                  padding: '0.5rem 1.25rem',
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  color: '#fff',
-                  fontWeight: 600,
-                  fontSize: '0.875rem',
-                  opacity: loading || token.trim().length !== 64 ? 0.7 : 1,
-                }}
+                style={primaryButtonStyle(loading || token.trim().length !== 64)}
               >
                 {loading
                   ? t('footer.vortexJoining')
@@ -331,10 +503,7 @@ function VortexModal({ onClose, initialToken = '' }) {
               <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', margin: '0 0 1.5rem' }}>
                 {t('footer.vortexRole', { role: success.role })}
               </p>
-              <button
-                onClick={onClose}
-                style={{ background: 'var(--color-primary)', border: 'none', borderRadius: '8px', padding: '0.6rem 1.5rem', cursor: 'pointer', color: '#fff', fontWeight: 600, fontSize: '0.9rem' }}
-              >
+              <button onClick={onClose} style={{ background: 'var(--color-primary)', border: 'none', borderRadius: '8px', padding: '0.6rem 1.5rem', cursor: 'pointer', color: '#fff', fontWeight: 600, fontSize: '0.9rem' }}>
                 {t('footer.vortexContinue')}
               </button>
             </div>

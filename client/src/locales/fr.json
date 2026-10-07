@@ -1198,7 +1198,15 @@
     "howOxsteedWorks": "Comment fonctionne OxSteed",
     "careers": "Carrières",
     "callOxSteed": "Appelez OxSteed au {{phone}}",
-    "media": "Médias"
+    "media": "Médias",
+    "vortexTabCode": "Code d’accès",
+    "vortexTabToken": "Jeton hérité",
+    "vortexCodeDesc": "Saisissez le code d’accès court partagé par le propriétaire de l’entreprise. C’est la méthode recommandée pour rejoindre.",
+    "vortexTokenDesc": "Vous avez un ancien jeton d’invitation de 64 caractères ? Vous pouvez toujours l’utiliser ici.",
+    "vortexCodePlaceholder": "VRTX-XXXXX-XXXXX",
+    "vortexCodeError": "Veuillez saisir un code d’accès valide.",
+    "vortexCodeRedeemed": "Vous avez rejoint {{name}}.",
+    "vortexCodePending": "Demande envoyée. Le propriétaire a été notifié pour approuver votre accès."
   },
   "accountTermination": {
     "pageTitle": "Politique de Résiliation de Compte",
@@ -8197,7 +8205,25 @@
       "notes": "Notes",
       "requiredFields": "Saisissez un montant supérieur à zéro."
     },
-    "tabMediaLabel": "Médias"
+    "tabMediaLabel": "Médias",
+    "statusAwaitingApproval": "En attente d’approbation",
+    "btnApprove": "Approuver",
+    "btnDeny": "Refuser",
+    "toastMemberApproved": "Membre approuvé",
+    "toastMemberApproveFail": "Échec de l’approbation du membre",
+    "confirmDenyMember": "Refuser cette demande d’adhésion ? Cette personne ne pourra pas accéder à l’espace de travail.",
+    "toastMemberDenied": "Demande d’adhésion refusée",
+    "toastMemberDenyFail": "Échec du refus de l’adhésion",
+    "toastRoleChanged": "Rôle du membre mis à jour",
+    "toastRoleChangeFail": "Échec de la mise à jour du rôle",
+    "accessCodeMaxUsesLabel": "Utilisations max",
+    "accessCodeMaxUsesPlaceholder": "Illimité",
+    "accessCodeExpiresLabel": "Expire dans (jours)",
+    "accessCodeExpiresPlaceholder": "Jamais",
+    "btnRotateCode": "Renouveler",
+    "confirmRotateCode": "Renouveler ce code ? L’ancien code cessera immédiatement de fonctionner.",
+    "toastCodeRotated": "Code d’accès renouvelé",
+    "toastCodeRotateFail": "Échec du renouvellement du code"
   },
   "plans": {
     "free": "Gratuit",
@@ -14360,7 +14386,11 @@
       "representative": "Representant",
       "employee": "Employe",
       "support_agent": "Agent de support"
-    }
+    },
+    "pendingWaitingTitle": "En attente d’approbation",
+    "pendingWaitingBody": "Le propriétaire de l’entreprise a été notifié. Cet espace de travail apparaîtra dans votre liste une fois que vous serez approuvé.",
+    "manageAccessCodes": "Gérer les codes d’accès",
+    "workspacesHiddenNote": "Le changement d’espace de travail arrive bientôt. Vous pouvez toujours rejoindre une entreprise avec un code d’accès ci-dessous."
   },
   "corporateOrg": {
     "title": "Hierarchie corporative",
@@ -30051,5 +30081,10 @@
     "post": "Publier",
     "composePlaceholder": "Partagez une actualité...",
     "empty": "Aucune publication pour le moment. Partagez votre première actualité ci-dessus."
+  },
+  "inventoryHelp": {
+    "managerCreateCodesTitle": "Créer des codes d’accès Vortex",
+    "managerCreateCodesBody": "Les propriétaires d’entreprise créent des codes spécifiques à chaque rôle pour l’équipe dans le Business Hub. Si vous gérez une équipe et devez ajouter quelqu’un, demandez un code au propriétaire.",
+    "managerTeamAccessStep1": "Demandez au propriétaire de l’entreprise un code pour le bon rôle."
   }
 }

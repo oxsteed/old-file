@@ -74,6 +74,10 @@ import {
   createAccessCode,
   listAccessCodes,
   revokeAccessCode,
+  rotateAccessCode,
+  approveMembership,
+  denyMembership,
+  changeMembershipRole,
 } from '../api/vortex';
 import { getPropertyOperationsWorkspace } from '../api/propertyOperations';
 import { getTradesOperationsWorkspace } from '../api/tradesOperations';
@@ -224,7 +228,7 @@ function BusinessHubInner() {
   const [tokenForm, setTokenForm]         = useState({ role: 'representative', expires_in: '7d' });
   const [generatingToken, setGeneratingToken] = useState(false);
   const [accessCodes, setAccessCodes]     = useState([]);
-  const [accessCodeForm, setAccessCodeForm] = useState({ role: 'employee', label: '', requires_approval: true });
+  const [accessCodeForm, setAccessCodeForm] = useState({ role: 'employee', label: '', requires_approval: true, max_uses: '', expires_in_days: '' });
   const [generatingAccessCode, setGeneratingAccessCode] = useState(false);
 
   // profile tab
@@ -905,7 +909,8 @@ function BusinessHubInner() {
   }
 
   async function handleRevokeMember(member) {
-    const label = member.status === 'pending'
+    const isCodePending = member.status === 'pending' && member.member_id;
+    const label = member.status === 'pending' && !isCodePending
       ? t('businessHub.confirmCancelInvite', { email: member.invite_email })
       : t('businessHub.confirmRemoveMember', { name: member.first_name || member.invite_email });
     if (!window.confirm(label)) return;
@@ -914,6 +919,35 @@ function BusinessHubInner() {
       toast.success(t('businessHub.toastMemberRemoved'));
       await loadTeam();
     } catch { toast.error(t('businessHub.toastMemberRemoveFail')); }
+  }
+
+  async function handleApproveMember(member) {
+    if (!bizId) return;
+    try {
+      await approveMembership(bizId, member.id);
+      toast.success(t('businessHub.toastMemberApproved'));
+      await loadTeam();
+    } catch { toast.error(t('businessHub.toastMemberApproveFail')); }
+  }
+
+  async function handleDenyMember(member) {
+    if (!bizId) return;
+    if (!window.confirm(t('businessHub.confirmDenyMember'))) return;
+    try {
+      await denyMembership(bizId, member.id);
+      toast.success(t('businessHub.toastMemberDenied'));
+      await loadTeam();
+    } catch { toast.error(t('businessHub.toastMemberDenyFail')); }
+  }
+
+  async function handleChangeMemberRole(member, newRole) {
+    if (!bizId) return;
+    if (newRole === member.role) return;
+    try {
+      await changeMembershipRole(bizId, member.id, newRole);
+      toast.success(t('businessHub.toastRoleChanged'));
+      await loadTeam();
+    } catch { toast.error(t('businessHub.toastRoleChangeFail')); }
   }
 
   async function handleAcceptInvitation(inv) {
@@ -960,13 +994,17 @@ function BusinessHubInner() {
     setGeneratingAccessCode(true);
     try {
       const label = accessCodeForm.label.trim();
+      const maxUses = parseInt(accessCodeForm.max_uses, 10);
+      const expiresInDays = parseInt(accessCodeForm.expires_in_days, 10);
       await createAccessCode(bizId, {
         role: accessCodeForm.role,
         label: label || null,
         requires_approval: accessCodeForm.requires_approval,
+        max_uses: Number.isFinite(maxUses) && maxUses >= 1 ? maxUses : undefined,
+        expires_in_days: Number.isFinite(expiresInDays) && expiresInDays >= 1 ? expiresInDays : undefined,
       });
       toast.success(t('businessHub.toastAccessCodeCreated'));
-      setAccessCodeForm(current => ({ ...current, label: '' }));
+      setAccessCodeForm(current => ({ ...current, label: '', max_uses: '', expires_in_days: '' }));
       const codes = await listAccessCodes(bizId).catch(() => []);
       setAccessCodes(codes);
     } catch (e) {
@@ -985,6 +1023,19 @@ function BusinessHubInner() {
       setAccessCodes(codes);
     } catch {
       toast.error(t('businessHub.toastAccessCodeRevokeFail'));
+    }
+  }
+
+  async function handleRotateAccessCode(codeId) {
+    if (!bizId) return;
+    if (!window.confirm(t('businessHub.confirmRotateCode'))) return;
+    try {
+      await rotateAccessCode(bizId, codeId);
+      toast.success(t('businessHub.toastCodeRotated'));
+      const codes = await listAccessCodes(bizId).catch(() => []);
+      setAccessCodes(codes);
+    } catch {
+      toast.error(t('businessHub.toastCodeRotateFail'));
     }
   }
 
@@ -2012,11 +2063,16 @@ function BusinessHubInner() {
                 generatingAccessCode={generatingAccessCode}
                 onRevokeToken={handleRevokeToken}
                 onRevokeAccessCode={handleRevokeAccessCode}
+                onRotateAccessCode={handleRotateAccessCode}
                 showVortexAccess={LAUNCH_VISIBILITY.businessHubVortexAccess}
                 onInvite={() => { setForm({ invite_email: '', invite_role: 'representative' }); setFormErr(''); setModal('invite-member'); }}
                 onOpenHiring={canEditBizProfile ? () => setTab('hiring') : null}
                 businessId={bizId}
                 onRevoke={handleRevokeMember}
+                onApprove={handleApproveMember}
+                onDeny={handleDenyMember}
+                onChangeRole={handleChangeMemberRole}
+                isOwner={currentRole === 'owner'}
                 onAccept={handleAcceptInvitation}
                 onDecline={handleDeclineInvitation}
               />
@@ -3101,10 +3157,11 @@ function TeamTab({
   vortexTokens, tokenForm, accessCodes, accessCodeForm,
   onTokenFormChange, onAccessCodeFormChange,
   onGenerateToken, generatingToken, onCreateAccessCode, generatingAccessCode,
-  onRevokeToken, onRevokeAccessCode,
+  onRevokeToken, onRevokeAccessCode, onRotateAccessCode,
   showVortexAccess = false,
   onInvite, onOpenHiring, businessId,
-  onRevoke, onAccept, onDecline,
+  onRevoke, onAccept, onDecline, onApprove, onDeny, onChangeRole,
+  isOwner = false,
 }) {
   const { t } = useTranslation();
   const roleLabel = (role) => {
@@ -3229,6 +3286,24 @@ function TeamTab({
             />
             <span>{t('businessHub.accessCodeRequireApproval')}</span>
           </label>
+          <input
+            className="bh-input"
+            type="number"
+            min="1"
+            value={accessCodeForm.max_uses}
+            placeholder={t('businessHub.accessCodeMaxUsesPlaceholder')}
+            aria-label={t('businessHub.accessCodeMaxUsesLabel')}
+            onChange={e => onAccessCodeFormChange({ max_uses: e.target.value })}
+          />
+          <input
+            className="bh-input"
+            type="number"
+            min="1"
+            value={accessCodeForm.expires_in_days}
+            placeholder={t('businessHub.accessCodeExpiresPlaceholder')}
+            aria-label={t('businessHub.accessCodeExpiresLabel')}
+            onChange={e => onAccessCodeFormChange({ expires_in_days: e.target.value })}
+          />
           <button className="bh-btn primary" onClick={onCreateAccessCode} disabled={generatingAccessCode}>
             {generatingAccessCode ? t('businessHub.btnCreatingAccessCode') : t('businessHub.btnCreateAccessCode')}
           </button>
@@ -3261,6 +3336,13 @@ function TeamTab({
                         style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
                       >
                         {copiedAccessCodeId === code.id ? t('businessHub.btnCopied') : t('businessHub.btnCopy')}
+                      </button>
+                      <button
+                        className="bh-btn"
+                        onClick={() => onRotateAccessCode(code.id)}
+                        style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
+                      >
+                        {t('businessHub.btnRotateCode')}
                       </button>
                       <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevokeAccessCode(code.id)}>{t('businessHub.btnRevoke')}</button>
                     </>
@@ -3403,19 +3485,55 @@ function TeamTab({
                     </div>
                     <div className="bh-team-member-email">{m.member_email || m.invite_email}</div>
                   </td>
-                  <td><span className={`bh-role-badge bh-role-${m.role}`}>{roleLabel(m.role)}</span></td>
+                  <td>
+                    {isOwner && m.status === 'active' ? (
+                      <select
+                        className="bh-select"
+                        value={m.role}
+                        aria-label={t('businessHub.colRole')}
+                        onChange={e => onChangeRole(m, e.target.value)}
+                      >
+                        <option value="employee">{t('businessHub.roleEmployee')}</option>
+                        <option value="representative">{t('businessHub.roleRepresentative')}</option>
+                        <option value="manager">{t('businessHub.roleManager')}</option>
+                        <option value="support_agent">{t('businessHub.roleSupportAgent')}</option>
+                      </select>
+                    ) : (
+                      <span className={`bh-role-badge bh-role-${m.role}`}>{roleLabel(m.role)}</span>
+                    )}
+                  </td>
                   <td>
                     <span className={`bh-status-badge bh-status-${m.status}`}>
-                      {m.status === 'pending' ? t('businessHub.statusInviteSent') : t('businessHub.statusActive')}
+                      {m.status === 'pending'
+                        ? (m.member_id ? t('businessHub.statusAwaitingApproval') : t('businessHub.statusInviteSent'))
+                        : t('businessHub.statusActive')}
                     </span>
                   </td>
                   <td style={{ fontSize: '0.82rem', color: 'var(--muted-text)' }}>
                     {formatDate(m.accepted_at || m.invited_at, { month: 'short', day: 'numeric', year: 'numeric' })}
                   </td>
                   <td>
-                    <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevoke(m)}>
-                      {m.status === 'pending' ? t('businessHub.btnCancelInvite') : t('businessHub.btnRemoveMember')}
-                    </button>
+                    {m.status === 'pending' && m.member_id ? (
+                      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        <button
+                          className="bh-btn primary"
+                          style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
+                          onClick={() => onApprove(m)}
+                        >
+                          {t('businessHub.btnApprove')}
+                        </button>
+                        <button className="bh-btn bh-btn-danger-sm" onClick={() => onDeny(m)}>
+                          {t('businessHub.btnDeny')}
+                        </button>
+                        <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevoke(m)}>
+                          {t('businessHub.btnCancelInvite')}
+                        </button>
+                      </div>
+                    ) : (
+                      <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevoke(m)}>
+                        {m.status === 'pending' ? t('businessHub.btnCancelInvite') : t('businessHub.btnRemoveMember')}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

@@ -1285,7 +1285,15 @@
     "howOxsteedWorks": "Kijan OxSteed mache",
     "careers": "Karyè",
     "callOxSteed": "Rele OxSteed nan {{phone}}",
-    "media": "Medya"
+    "media": "Medya",
+    "vortexTabCode": "Kòd aksè",
+    "vortexTabToken": "Token ansyen",
+    "vortexCodeDesc": "Antre ti kòd aksè pwopriyetè biznis la te pataje a. Se fason yo rekòmande pou rantre.",
+    "vortexTokenDesc": "Ou gen yon ansyen token envitasyon 64 karaktè? Ou ka toujou sèvi ak li isit la.",
+    "vortexCodePlaceholder": "VRTX-XXXXX-XXXXX",
+    "vortexCodeError": "Tanpri antre yon kòd aksè ki valab.",
+    "vortexCodeRedeemed": "Ou rantre nan {{name}}.",
+    "vortexCodePending": "Demann voye. Yo avèti pwopriyetè a pou apwouve aksè ou."
   },
   "accountTermination": {
     "pageTitle": "Règleman Fèmti Kont",
@@ -8284,7 +8292,25 @@
       "notes": "Nòt",
       "requiredFields": "Antre yon montan ki pi gran pase zewo."
     },
-    "tabMediaLabel": "Medya"
+    "tabMediaLabel": "Medya",
+    "statusAwaitingApproval": "Ap tann apwobasyon",
+    "btnApprove": "Apwouve",
+    "btnDeny": "Refize",
+    "toastMemberApproved": "Manm apwouve",
+    "toastMemberApproveFail": "Pa t kapab apwouve manm lan",
+    "confirmDenyMember": "Refize demann manm sa a? Yo pap ka jwenn aksè nan espas travay la.",
+    "toastMemberDenied": "Demann manm lan refize",
+    "toastMemberDenyFail": "Pa t kapab refize manm lan",
+    "toastRoleChanged": "Wòl manm lan mete ajou",
+    "toastRoleChangeFail": "Pa t kapab mete wòl manm lan ajou",
+    "accessCodeMaxUsesLabel": "Itilizasyon maksimòm",
+    "accessCodeMaxUsesPlaceholder": "San limit",
+    "accessCodeExpiresLabel": "Ekspire nan (jou)",
+    "accessCodeExpiresPlaceholder": "Jamè",
+    "btnRotateCode": "Chanje",
+    "confirmRotateCode": "Chanje kòd sa a? Ansyen kòd la ap sispann mache touswit.",
+    "toastCodeRotated": "Kòd aksè a chanje",
+    "toastCodeRotateFail": "Pa t kapab chanje kòd aksè a"
   },
   "plans": {
     "free": "Gratis",
@@ -14360,7 +14386,11 @@
       "representative": "Reprezantan",
       "employee": "Anplwaye",
       "support_agent": "Ajan sipò"
-    }
+    },
+    "pendingWaitingTitle": "Ap tann apwobasyon",
+    "pendingWaitingBody": "Yo avèti pwopriyetè biznis la. Espas travay sa a ap parèt nan lis ou yon fwa yo apwouve ou.",
+    "manageAccessCodes": "Jere kòd aksè yo",
+    "workspacesHiddenNote": "Chanjman espas travay ap vini byento. Ou ka toujou rantre nan yon biznis ak yon kòd aksè anba a."
   },
   "corporateOrg": {
     "title": "Yerachi konpayi",
@@ -30051,5 +30081,10 @@
     "post": "Pibliye",
     "composePlaceholder": "Pataje yon nouvèl...",
     "empty": "Pa gen pòs ankò. Pataje premye nouvèl ou anwo a."
+  },
+  "inventoryHelp": {
+    "managerCreateCodesTitle": "Kreye kòd aksè Vortex",
+    "managerCreateCodesBody": "Pwopriyetè biznis yo kreye kòd espesyal pou chak wòl pou ekip la nan Business Hub. Si w ap jere yon ekip epi ou bezwen ajoute yon moun, mande pwopriyetè a yon kòd.",
+    "managerTeamAccessStep1": "Mande pwopriyetè biznis la yon kòd pou bon wòl la."
   }
 }

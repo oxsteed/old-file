@@ -1198,7 +1198,15 @@
     "howOxsteedWorks": "Cómo funciona OxSteed",
     "careers": "Carreras",
     "callOxSteed": "Llama a OxSteed al {{phone}}",
-    "media": "Medios"
+    "media": "Medios",
+    "vortexTabCode": "Código de acceso",
+    "vortexTabToken": "Token heredado",
+    "vortexCodeDesc": "Ingresa el código de acceso corto compartido por el propietario del negocio. Esta es la forma recomendada de unirte.",
+    "vortexTokenDesc": "¿Tienes un token de invitación antiguo de 64 caracteres? Aún puedes usarlo aquí.",
+    "vortexCodePlaceholder": "VRTX-XXXXX-XXXXX",
+    "vortexCodeError": "Ingresa un código de acceso válido.",
+    "vortexCodeRedeemed": "Te uniste a {{name}}.",
+    "vortexCodePending": "Solicitud enviada. El propietario ha sido notificado para aprobar tu acceso."
   },
   "accountTermination": {
     "pageTitle": "Política de Cancelación de Cuenta",
@@ -8197,7 +8205,25 @@
       "notes": "Notas",
       "requiredFields": "Introduce un importe mayor que cero."
     },
-    "tabMediaLabel": "Medios"
+    "tabMediaLabel": "Medios",
+    "statusAwaitingApproval": "En espera de aprobación",
+    "btnApprove": "Aprobar",
+    "btnDeny": "Denegar",
+    "toastMemberApproved": "Miembro aprobado",
+    "toastMemberApproveFail": "No se pudo aprobar al miembro",
+    "confirmDenyMember": "¿Denegar esta solicitud de membresía? No podrá acceder al espacio de trabajo.",
+    "toastMemberDenied": "Solicitud de membresía denegada",
+    "toastMemberDenyFail": "No se pudo denegar la membresía",
+    "toastRoleChanged": "Rol del miembro actualizado",
+    "toastRoleChangeFail": "No se pudo actualizar el rol del miembro",
+    "accessCodeMaxUsesLabel": "Usos máximos",
+    "accessCodeMaxUsesPlaceholder": "Ilimitado",
+    "accessCodeExpiresLabel": "Expira en (días)",
+    "accessCodeExpiresPlaceholder": "Nunca",
+    "btnRotateCode": "Rotar",
+    "confirmRotateCode": "¿Rotar este código? El código anterior dejará de funcionar de inmediato.",
+    "toastCodeRotated": "Código de acceso rotado",
+    "toastCodeRotateFail": "No se pudo rotar el código de acceso"
   },
   "plans": {
     "free": "Gratis",
@@ -14360,7 +14386,11 @@
       "representative": "Representante",
       "employee": "Empleado",
       "support_agent": "Agente de soporte"
-    }
+    },
+    "pendingWaitingTitle": "En espera de aprobación",
+    "pendingWaitingBody": "El propietario del negocio ha sido notificado. Este espacio de trabajo aparecerá en tu lista una vez que seas aprobado.",
+    "manageAccessCodes": "Gestionar códigos de acceso",
+    "workspacesHiddenNote": "El cambio de espacio de trabajo llegará pronto. Aún puedes unirte a un negocio con un código de acceso a continuación."
   },
   "corporateOrg": {
     "title": "Jerarquía corporativa",
@@ -30051,5 +30081,10 @@
     "post": "Publicar",
     "composePlaceholder": "Comparte una novedad...",
     "empty": "Aún no hay publicaciones. Comparte tu primera novedad arriba."
+  },
+  "inventoryHelp": {
+    "managerCreateCodesTitle": "Crear códigos de acceso de Vortex",
+    "managerCreateCodesBody": "Los propietarios de negocios crean códigos específicos por rol para el equipo en el Business Hub. Si gestionas un equipo y necesitas agregar a alguien, pide un código al propietario.",
+    "managerTeamAccessStep1": "Pide al propietario del negocio un código para el rol correcto."
   }
 }

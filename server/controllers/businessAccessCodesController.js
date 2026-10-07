@@ -17,6 +17,7 @@ const crypto = require('crypto');
 const pool = require('../db');
 const { sendError } = require('../utils/apiError');
 const { logBusinessAction } = require('../services/businessAuditLog');
+const { sendNotification } = require('../services/notificationService');
 const permissionsService = require('../services/permissionsService');
 
 const VALID_ROLES = ['manager', 'representative', 'employee', 'support_agent'];
@@ -25,10 +26,11 @@ const VALID_ROLES = ['manager', 'representative', 'employee', 'support_agent'];
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 function generateCode(length = 10) {
-  const bytes = crypto.randomBytes(length);
   let out = '';
   for (let i = 0; i < length; i += 1) {
-    out += CODE_ALPHABET[bytes[i] % CODE_ALPHABET.length];
+    // crypto.randomInt is uniform over [0, 32) with no modulo bias, and stays
+    // correct if the alphabet length ever stops dividing 256 evenly.
+    out += CODE_ALPHABET[crypto.randomInt(CODE_ALPHABET.length)];
   }
   // VRTX-XXXXX-XXXXX style for readability when length is 10
   if (length === 10) {
@@ -43,8 +45,14 @@ function generateCode(length = 10) {
  */
 exports.listAccessCodes = async (req, res, next) => {
   try {
+    // Audit fix: never return the secret of a live code in a list view. Active
+    // codes come back with code = NULL; the full code string is shown exactly
+    // once, at creation / rotation time. Revoked codes are inert, so their
+    // plaintext is kept for operator reference.
     const { rows } = await pool.query(
-      `SELECT bac.id, bac.code, bac.role, bac.label, bac.max_uses, bac.uses,
+      `SELECT bac.id,
+              CASE WHEN bac.is_active THEN NULL ELSE bac.code END AS code,
+              bac.role, bac.label, bac.max_uses, bac.uses,
               bac.requires_approval, bac.expires_at, bac.is_active,
               bac.created_at, bac.rotated_at,
               u.first_name AS created_by_first_name,
@@ -67,10 +75,19 @@ exports.listAccessCodes = async (req, res, next) => {
  */
 exports.createAccessCode = async (req, res, next) => {
   try {
-    const role = String(req.body.role || '').trim();
-    if (!VALID_ROLES.includes(role)) {
+    const requestedRole = String(req.body.role || '').trim();
+    if (!VALID_ROLES.includes(requestedRole)) {
       return sendError(res, 400, 'Invalid role for access code.', 'invalid_role', { allowed: VALID_ROLES });
     }
+
+    // Privilege restriction (mirrors vortexController.generateToken): only the
+    // real business owner (req.business.owner_id, set by requireBusinessAccess)
+    // may issue manager-role codes. A manager passing role:'manager' is
+    // silently capped to 'representative' - preventing privilege
+    // self-replication.
+    const isOwner = req.business.owner_id === req.user.id;
+    const role = (!isOwner && requestedRole === 'manager') ? 'representative' : requestedRole;
+
     const label = req.body.label != null ? String(req.body.label).slice(0, 120) : null;
     const maxUses = req.body.max_uses != null ? Math.max(1, parseInt(req.body.max_uses, 10)) : null;
     const expiresInDays = req.body.expires_in_days != null ? Math.max(1, parseInt(req.body.expires_in_days, 10)) : null;
@@ -282,7 +299,13 @@ exports.revokeAccessCode = async (req, res, next) => {
  * Body: { code }
  * Returns business name + role to be granted, WITHOUT consuming the code.
  * Lets the UI show a confirmation screen before the user commits.
+ *
+ * Status-oracle hardening: every "this code does not work" outcome returns the
+ * same 404 status and the same generic message, so an attacker cannot
+ * distinguish invalid / revoked / expired / exhausted codes by probing. The
+ * distinct reason is kept only in the machine-readable `code` field.
  */
+const CODE_UNAVAILABLE = 'This code is not valid or is no longer available.';
 exports.previewCode = async (req, res, next) => {
   try {
     const code = String(req.body.code || '').trim().toUpperCase();
@@ -300,14 +323,14 @@ exports.previewCode = async (req, res, next) => {
       [code]
     );
     if (rows.length === 0 || !rows[0].is_active) {
-      return sendError(res, 404, 'Invalid or revoked code.', 'invalid_code');
+      return sendError(res, 404, CODE_UNAVAILABLE, 'invalid_code');
     }
     const row = rows[0];
     if (row.expires_at && new Date(row.expires_at).getTime() < Date.now()) {
-      return sendError(res, 410, 'This code has expired.', 'code_expired');
+      return sendError(res, 404, CODE_UNAVAILABLE, 'code_expired');
     }
     if (row.max_uses != null && row.uses >= row.max_uses) {
-      return sendError(res, 410, 'This code has reached its usage limit.', 'code_exhausted');
+      return sendError(res, 404, CODE_UNAVAILABLE, 'code_exhausted');
     }
     res.json({
       data: {
@@ -352,24 +375,28 @@ exports.redeemCode = async (req, res, next) => {
     );
     if (codeRes.rowCount === 0 || !codeRes.rows[0].is_active) {
       await client.query('ROLLBACK');
-      return sendError(res, 404, 'Invalid or revoked code.', 'invalid_code');
+      return sendError(res, 404, CODE_UNAVAILABLE, 'invalid_code');
     }
     const codeRow = codeRes.rows[0];
 
     if (codeRow.expires_at && new Date(codeRow.expires_at).getTime() < Date.now()) {
       await client.query('ROLLBACK');
-      return sendError(res, 410, 'This code has expired.', 'code_expired');
+      return sendError(res, 404, CODE_UNAVAILABLE, 'code_expired');
     }
     if (codeRow.max_uses != null && codeRow.uses >= codeRow.max_uses) {
       await client.query('ROLLBACK');
-      return sendError(res, 410, 'This code has reached its usage limit.', 'code_exhausted');
+      return sendError(res, 404, CODE_UNAVAILABLE, 'code_exhausted');
     }
 
-    // Owner can't redeem their own code (they're already owner)
-    const bizRes = await client.query('SELECT user_id, business_name FROM businesses WHERE id = $1', [codeRow.business_id]);
+    // Owner can't redeem their own code (they're already owner).
+    // Also refuse codes whose business is not live (deactivated / soft-deleted).
+    const bizRes = await client.query(
+      'SELECT user_id, business_name FROM businesses WHERE id = $1 AND is_active = TRUE AND deleted_at IS NULL',
+      [codeRow.business_id]
+    );
     if (bizRes.rowCount === 0) {
       await client.query('ROLLBACK');
-      return sendError(res, 404, 'Business not found.', 'business_not_found');
+      return sendError(res, 410, 'This business is no longer active.', 'business_inactive');
     }
     if (bizRes.rows[0].user_id === req.user.id) {
       await client.query('ROLLBACK');
@@ -391,10 +418,16 @@ exports.redeemCode = async (req, res, next) => {
 
     let membershipId = null;
     let membershipStatus = desiredStatus;
+    // Only consume one of the code's limited uses when the redemption actually
+    // changes something (new membership or reactivation). A no-op re-redeem by
+    // someone who already holds a live membership must not burn max_uses.
+    let consumeUse = false;
+    // Tracks whether this redeem created or reactivated the membership, so we
+    // only notify the owner when there is something new to look at.
+    let isNewJoin = false;
     if (existing.rowCount > 0 && existing.rows[0].status !== 'revoked') {
       membershipId = existing.rows[0].id;
       membershipStatus = existing.rows[0].status;
-      // If they're already active, just bump the code uses and return.
     } else if (existing.rowCount > 0 && existing.rows[0].status === 'revoked') {
       const upd = await client.query(
         `UPDATE business_members
@@ -408,6 +441,8 @@ exports.redeemCode = async (req, res, next) => {
         [desiredStatus, codeRow.role, acceptedAt, bizRes.rows[0].user_id, existing.rows[0].id]
       );
       membershipId = upd.rows[0].id;
+      consumeUse = true;
+      isNewJoin = true;
     } else {
       const ins = await client.query(
         `INSERT INTO business_members
@@ -425,12 +460,16 @@ exports.redeemCode = async (req, res, next) => {
         ]
       );
       membershipId = ins.rows[0].id;
+      consumeUse = true;
+      isNewJoin = true;
     }
 
-    await client.query(
-      'UPDATE business_access_codes SET uses = uses + 1, updated_at = NOW() WHERE id = $1',
-      [codeRow.id]
-    );
+    if (consumeUse) {
+      await client.query(
+        'UPDATE business_access_codes SET uses = uses + 1, updated_at = NOW() WHERE id = $1',
+        [codeRow.id]
+      );
+    }
 
     await client.query(
       `INSERT INTO business_access_code_redemptions (code_id, user_id, membership_id, ip_address, user_agent)
@@ -454,6 +493,11 @@ exports.redeemCode = async (req, res, next) => {
       [req.user.id, codeRow.business_id, membershipId]
     );
 
+    // Capture notification values before COMMIT so no DB read is needed later.
+    const notifOwnerId = bizRes.rows[0].user_id;
+    const notifBusinessName = bizRes.rows[0].business_name;
+    const notifJoinerName = [req.user.first_name, req.user.last_name].filter(Boolean).join(' ') || 'Someone';
+
     await client.query('COMMIT');
 
     // Fire-and-forget audit (post-commit)
@@ -466,6 +510,26 @@ exports.redeemCode = async (req, res, next) => {
         metadata: { code_id: codeRow.id, role: codeRow.role, status: membershipStatus },
       }
     ).catch(() => {});
+
+    // Fire-and-forget owner notification, only when the redeem actually created
+    // or reactivated the membership (a no-op re-redeem must not re-notify).
+    if (isNewJoin) {
+      const payload = {
+        userId: notifOwnerId,
+        title: membershipStatus === 'pending' ? 'Approval needed' : 'New team member',
+        type: membershipStatus === 'pending' ? 'vortex_approval_requested' : 'vortex_member_joined',
+        body: membershipStatus === 'pending'
+          ? `${notifJoinerName} wants to join "${notifBusinessName}" as ${codeRow.role} via access code.`
+          : `${notifJoinerName} joined "${notifBusinessName}" as ${codeRow.role} via access code.`,
+        data: {
+          business_id: codeRow.business_id,
+          membership_id: membershipId,
+          member_id: req.user.id,
+          role: codeRow.role,
+        },
+      };
+      sendNotification(payload).catch(() => {});
+    }
 
     // Invalidate any cached permissions for this user on this business
     permissionsService.invalidateCache(codeRow.business_id, req.user.id);
@@ -516,6 +580,15 @@ exports.approveMembership = async (req, res, next) => {
       after_state: { status: 'active', role: rows[0].role },
     });
     res.json({ data: rows[0] });
+
+    // Fire-and-forget: notify the joiner they were approved.
+    sendNotification({
+      userId: rows[0].member_id,
+      type: 'vortex_membership_approved',
+      title: 'You were approved',
+      body: `Your request to join "${req.business.business_name}" was approved.`,
+      data: { business_id: req.business.id, membership_id: mid, role: rows[0].role },
+    }).catch(() => {});
   } catch (err) {
     next(err);
   }
@@ -548,6 +621,15 @@ exports.denyMembership = async (req, res, next) => {
       after_state: { status: 'revoked' },
     });
     res.json({ data: { ok: true } });
+
+    // Fire-and-forget: notify the joiner they were not approved.
+    sendNotification({
+      userId: rows[0].member_id,
+      type: 'vortex_membership_denied',
+      title: 'Request denied',
+      body: `Your request to join "${req.business.business_name}" was not approved.`,
+      data: { business_id: req.business.id, membership_id: mid },
+    }).catch(() => {});
   } catch (err) {
     next(err);
   }

@@ -3,6 +3,13 @@ const express = require('express');
 const router  = express.Router();
 const { authenticate, optionalAuth } = require('../middleware/auth');
 const requireBusinessAccess = require('../middleware/requireBusinessAccess');
+const { requireFeatureEnabled } = require('../middleware/featureFlags');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
+const { vortexRedeemLimiter } = require('../middleware/rateLimiter');
+
+// Audit fix: Vortex is launch-hidden. Gate the leftover Vortex APIs in this
+// router to match the UI and the /api/vortex routes.
+const requireVortexEnabled = requireFeatureEnabled('Vortex', 'VORTEX_ENABLED', false);
 const upload  = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 
@@ -64,7 +71,7 @@ const {
 router.get('/invoices/public/:token', getPublicInvoice);
 
 // ── Vortex redeem (no business id - must be before /:id routes) ───────────────
-router.post('/vortex/redeem',                authenticate, redeemToken);
+router.post('/vortex/redeem',                authenticate, rejectImpersonated, requireVortexEnabled, vortexRedeemLimiter, redeemToken);
 router.get('/categories',                    listBusinessCategories);
 
 // ── Member invitations (must come before /:id routes) ─────────────────────────
@@ -140,9 +147,9 @@ router.post('/:id/members',                     authenticate, bizIdAccess('manag
 router.delete('/:id/members/:memberId',         authenticate, bizIdAccess('manager'), revokeMember);
 
 // ── Vortex tokens (per-business) ─────────────────────────────────────────────
-router.get('/:id/vortex-tokens',                authenticate, listTokens);
-router.post('/:id/vortex-tokens',               authenticate, bizIdAccess('manager'), generateToken);
-router.delete('/:id/vortex-tokens/:tokenId',    authenticate, bizIdAccess('manager'), revokeToken);
+router.get('/:id/vortex-tokens',                authenticate, rejectImpersonated, requireVortexEnabled, bizIdAccess('manager'), listTokens);
+router.post('/:id/vortex-tokens',               authenticate, rejectImpersonated, requireVortexEnabled, bizIdAccess('manager'), generateToken);
+router.delete('/:id/vortex-tokens/:tokenId',    authenticate, rejectImpersonated, requireVortexEnabled, bizIdAccess('manager'), revokeToken);
 
 // ── Business content (services, gallery, policies, faqs, hours) ────────────────
 // SERVICES

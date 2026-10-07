@@ -16,6 +16,12 @@ const router  = express.Router();
 const { authenticate } = require('../middleware/auth');
 const requireBusinessAccess = require('../middleware/requireBusinessAccess');
 const requirePermission = require('../middleware/requirePermission');
+const { requireFeatureEnabled } = require('../middleware/featureFlags');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
+
+// Audit fix: Vortex is launch-hidden. Gate the leftover access-code and
+// membership approve/deny APIs to match the UI and /api/vortex routes.
+const requireVortexEnabled = requireFeatureEnabled('Vortex', 'VORTEX_ENABLED', false);
 
 const access = require('../controllers/businessAccessCodesController');
 const team   = require('../controllers/businessTeamController');
@@ -53,6 +59,8 @@ router.put(
 router.post(
   '/:businessId/memberships/:membershipId/approve',
   authenticate,
+  rejectImpersonated,
+  requireVortexEnabled,
   requireBusinessAccess({ minRole: 'manager' }),
   requirePermission(['team.invite','team.assign_roles'], { mode: 'any' }),
   access.approveMembership
@@ -61,6 +69,8 @@ router.post(
 router.post(
   '/:businessId/memberships/:membershipId/deny',
   authenticate,
+  rejectImpersonated,
+  requireVortexEnabled,
   requireBusinessAccess({ minRole: 'manager' }),
   requirePermission(['team.invite','team.remove_member'], { mode: 'any' }),
   access.denyMembership
@@ -78,6 +88,8 @@ router.get(
 router.get(
   '/:businessId/access-codes',
   authenticate,
+  rejectImpersonated,
+  requireVortexEnabled,
   requireBusinessAccess({ minRole: 'manager' }),
   requirePermission('team.invite'),
   access.listAccessCodes
@@ -86,6 +98,8 @@ router.get(
 router.post(
   '/:businessId/access-codes',
   authenticate,
+  rejectImpersonated,
+  requireVortexEnabled,
   requireBusinessAccess({ minRole: 'manager' }),
   requirePermission('team.invite'),
   access.createAccessCode
@@ -94,6 +108,8 @@ router.post(
 router.post(
   '/:businessId/access-codes/:codeId/rotate',
   authenticate,
+  rejectImpersonated,
+  requireVortexEnabled,
   requireBusinessAccess({ minRole: 'manager' }),
   requirePermission('team.invite'),
   access.rotateAccessCode
@@ -102,6 +118,8 @@ router.post(
 router.patch(
   '/:businessId/access-codes/:codeId',
   authenticate,
+  rejectImpersonated,
+  requireVortexEnabled,
   requireBusinessAccess({ minRole: 'manager' }),
   requirePermission('team.invite'),
   access.updateAccessCode
@@ -110,6 +128,8 @@ router.patch(
 router.delete(
   '/:businessId/access-codes/:codeId',
   authenticate,
+  rejectImpersonated,
+  requireVortexEnabled,
   requireBusinessAccess({ minRole: 'manager' }),
   requirePermission('team.invite'),
   access.revokeAccessCode

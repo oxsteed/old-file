@@ -27,6 +27,7 @@ import {
   getMyBusinesses,
   setWorkspaceContext,
 } from '../api/vortex';
+import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 
 function roleLabel(t, role) {
   if (!role) return '';
@@ -56,6 +57,8 @@ export default function VortexPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
+  const workspaceEntryVisible = LAUNCH_VISIBILITY.vortexWorkspaceEntry;
+
   const [loadingBiz, setLoadingBiz] = useState(true);
   const [bizList, setBizList] = useState({ items: [], owned_count: 0, membership_count: 0, pending_count: 0 });
 
@@ -64,6 +67,7 @@ export default function VortexPage() {
   const [previewing, setPreviewing] = useState(false);
   const [redeeming, setRedeeming] = useState(false);
   const [error, setError] = useState(null);
+  const [waitingBusiness, setWaitingBusiness] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,15 +125,17 @@ export default function VortexPage() {
     try {
       const result = await redeemVortexCode(code.trim());
       if (result.status === 'pending') {
-        toast.success(t('vortex.pendingApproval', {
-          defaultValue: 'You\'re in! The owner has been notified to approve your access.',
-        }));
-      } else {
-        toast.success(t('vortex.joined', {
-          defaultValue: 'Welcome to {{name}}.',
-          name: result.business_name,
-        }));
+        // Pending approval: stay on the page and show the waiting panel.
+        toast.success(t('vortex.pendingApproval'));
+        setWaitingBusiness({ name: result.business_name });
+        setCode('');
+        setPreview(null);
+        return;
       }
+      toast.success(t('vortex.joined', {
+        defaultValue: 'Welcome to {{name}}.',
+        name: result.business_name,
+      }));
       // Refresh the list and route to workspace.
       try { setBizList(await getMyBusinesses()); } catch (_) {}
       await setWorkspaceContext(result.business_id).catch(() => {});
@@ -173,8 +179,8 @@ export default function VortexPage() {
           </div>
         </header>
 
-        {/* Workspaces grid */}
-        {loadingBiz ? (
+        {/* Workspaces grid (hidden while workspace entry is launch-gated) */}
+        {workspaceEntryVisible && (loadingBiz ? (
           <div className="rounded-2xl border border-[color:var(--border-color)] bg-[color:var(--card-bg)] p-6 text-center text-sm text-[color:var(--muted-text)]">
             {t('vortex.loadingWorkspaces', { defaultValue: 'Loading your workspaces...' })}
           </div>
@@ -235,6 +241,12 @@ export default function VortexPage() {
               })}
             </p>
           </section>
+        ))}
+
+        {!workspaceEntryVisible && (
+          <p className="mb-3 text-sm text-[color:var(--muted-text)]">
+            {t('vortex.workspacesHiddenNote')}
+          </p>
         )}
 
         {/* Code entry */}
@@ -247,6 +259,17 @@ export default function VortexPage() {
               defaultValue: 'Enter the access code your business owner or manager shared with you.',
             })}
           </p>
+
+          {waitingBusiness ? (
+            <div className="mb-4 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-900/20 p-4">
+              <h3 className="text-base font-semibold text-[color:var(--app-text)]">
+                {t('vortex.pendingWaitingTitle')}
+              </h3>
+              <p className="mt-1 text-sm text-[color:var(--muted-text)]">
+                {t('vortex.pendingWaitingBody')}
+              </p>
+            </div>
+          ) : null}
 
           <form onSubmit={handlePreview} className="flex flex-col sm:flex-row gap-2 mb-2">
             <input
@@ -309,7 +332,8 @@ export default function VortexPage() {
           ) : null}
         </section>
 
-        {/* Owner launchpad shortcut */}
+        {/* Owner launchpad shortcut (hidden while workspace entry is launch-gated) */}
+        {workspaceEntryVisible && (
         <section className="rounded-2xl border border-[color:var(--border-color)] bg-[color:var(--card-bg)] p-6">
           <h2 className="text-lg font-semibold mb-1 text-[color:var(--app-text)]">
             {t('vortex.launchTitle', { defaultValue: 'Launching your own business?' })}
@@ -322,25 +346,35 @@ export default function VortexPage() {
           <div className="flex flex-wrap gap-3">
             <button
               type="button"
-              onClick={() => navigate('/business-launch-status')}
+              onClick={() => navigate('/business-hub')}
               className="px-4 py-2 rounded-lg border border-[color:var(--border-color)] hover:bg-[color:var(--app-bg)] text-sm font-medium text-[color:var(--app-text)] transition-colors"
             >
               {t('vortex.launchCta', { defaultValue: 'Open business setup' })}
             </button>
             {owned.length > 0 ? (
-              <button
-                type="button"
-                onClick={() => openWorkspace(owned[0])}
-                className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium transition-colors"
-              >
-                {t('vortex.openOwnerWorkspace', {
-                  defaultValue: 'Open {{name}}',
-                  name: owned[0].business_name,
-                })}
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => navigate('/business-hub?tab=team')}
+                  className="px-4 py-2 rounded-lg border border-[color:var(--border-color)] hover:bg-[color:var(--app-bg)] text-sm font-medium text-[color:var(--app-text)] transition-colors"
+                >
+                  {t('vortex.manageAccessCodes')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openWorkspace(owned[0])}
+                  className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium transition-colors"
+                >
+                  {t('vortex.openOwnerWorkspace', {
+                    defaultValue: 'Open {{name}}',
+                    name: owned[0].business_name,
+                  })}
+                </button>
+              </>
             ) : null}
           </div>
         </section>
+        )}
       </div>
     </PageShell>
   );

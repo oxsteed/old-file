@@ -1198,7 +1198,15 @@
     "howOxsteedWorks": "كيف يعمل OxSteed",
     "careers": "الوظائف",
     "callOxSteed": "اتصل بـ OxSteed على {{phone}}",
-    "media": "الوسائط"
+    "media": "الوسائط",
+    "vortexTabCode": "رمز الوصول",
+    "vortexTabToken": "رمز قديم",
+    "vortexCodeDesc": "أدخل رمز الوصول القصير الذي شاركه صاحب العمل. هذه هي الطريقة الموصى بها للانضمام.",
+    "vortexTokenDesc": "هل لديك رمز دعوة قديم مكون من 64 حرفًا؟ لا يزال بإمكانك استخدامه هنا.",
+    "vortexCodePlaceholder": "VRTX-XXXXX-XXXXX",
+    "vortexCodeError": "يرجى إدخال رمز وصول صالح.",
+    "vortexCodeRedeemed": "لقد انضممت إلى {{name}}.",
+    "vortexCodePending": "تم إرسال الطلب. تم إشعار المالك للموافقة على وصولك."
   },
   "accountTermination": {
     "pageTitle": "سياسة إنهاء الحساب",
@@ -8197,7 +8205,25 @@
       "notes": "ملاحظات",
       "requiredFields": "أدخل مبلغًا أكبر من الصفر."
     },
-    "tabMediaLabel": "الوسائط"
+    "tabMediaLabel": "الوسائط",
+    "statusAwaitingApproval": "بانتظار الموافقة",
+    "btnApprove": "الموافقة",
+    "btnDeny": "رفض",
+    "toastMemberApproved": "تمت الموافقة على العضو",
+    "toastMemberApproveFail": "تعذر الموافقة على العضو",
+    "confirmDenyMember": "رفض طلب العضوية هذا؟ لن يتمكن من الوصول إلى مساحة العمل.",
+    "toastMemberDenied": "تم رفض طلب العضوية",
+    "toastMemberDenyFail": "تعذر رفض العضوية",
+    "toastRoleChanged": "تم تحديث دور العضو",
+    "toastRoleChangeFail": "تعذر تحديث دور العضو",
+    "accessCodeMaxUsesLabel": "الحد الأقصى للاستخدامات",
+    "accessCodeMaxUsesPlaceholder": "غير محدود",
+    "accessCodeExpiresLabel": "تنتهي خلال (أيام)",
+    "accessCodeExpiresPlaceholder": "أبدًا",
+    "btnRotateCode": "تدوير",
+    "confirmRotateCode": "تدوير هذا الرمز؟ سيتوقف الرمز القديم عن العمل فورًا.",
+    "toastCodeRotated": "تم تدوير رمز الوصول",
+    "toastCodeRotateFail": "تعذر تدوير رمز الوصول"
   },
   "plans": {
     "free": "حر",
@@ -14371,7 +14397,11 @@
       "representative": "ممثل",
       "employee": "موظف",
       "support_agent": "وكيل الدعم"
-    }
+    },
+    "pendingWaitingTitle": "بانتظار الموافقة",
+    "pendingWaitingBody": "تم إشعار صاحب العمل. ستظهر مساحة العمل هذه في قائمتك بمجرد الموافقة عليك.",
+    "manageAccessCodes": "إدارة رموز الوصول",
+    "workspacesHiddenNote": "تبديل مساحة العمل قادم قريبًا. لا يزال بإمكانك الانضمام إلى عمل برمز وصول أدناه."
   },
   "corporateOrg": {
     "title": "التسلسل الهرمي للشركات",
@@ -30062,5 +30092,10 @@
     "post": "نشر",
     "composePlaceholder": "شارك تحديثاً...",
     "empty": "لا توجد منشورات بعد. شارك أول تحديث لك أعلاه."
+  },
+  "inventoryHelp": {
+    "managerCreateCodesTitle": "إنشاء رموز انضمام Vortex",
+    "managerCreateCodesBody": "ينشئ أصحاب الأعمال رموزًا خاصة بكل دور للفريق في Business Hub. إذا كنت تدير فريقًا وتحتاج إلى إضافة شخص ما، فاطلب رمزًا من المالك.",
+    "managerTeamAccessStep1": "اطلب من صاحب العمل رمزًا للدور الصحيح."
   }
 }

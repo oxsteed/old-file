@@ -536,6 +536,23 @@ const connectorMutationLimiter = rateLimit({
   },
 });
 
+// Vortex code/token redemption limiter: 10 attempts per 15 minutes per IP.
+// Code guessing against /api/vortex/preview, /api/vortex/redeem and
+// /api/businesses/vortex/redeem is otherwise unbounded. Keep a dedicated
+// bucket so a noisy read client cannot consume the redemption budget (and
+// vice versa). Redis makes the limit consistent across app instances.
+const vortexRedeemLimiter = rateLimit({
+  ...createStoreOption('rl:vortex_redeem:'),
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many Vortex redemption attempts. Please try again in 15 minutes.',
+    retryAfter: '15 minutes',
+  },
+});
+
 // Entity ID resolution is authenticated but enumerable by shape; keep a
 // tight per-user bucket on top of the global API limiters so one client
 // cannot sweep the ID space.
@@ -584,4 +601,5 @@ module.exports = {
   adminPhoneVerificationLimiter,
   connectorMutationLimiter,
   entityResolveLimiter,
+  vortexRedeemLimiter,
 };
