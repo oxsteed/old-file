@@ -1,7 +1,7 @@
 import axios from './axios';
 
-const listInvoices = (limit = 20, offset = 0) =>
-  axios.get('/invoices', { params: { limit, offset } });
+const listInvoices = (limit = 20, offset = 0, view = 'all') =>
+  axios.get('/invoices', { params: { limit, offset, view } });
 
 const getInvoice = (invoiceId) =>
   axios.get(`/invoices/${invoiceId}`);
@@ -15,10 +15,34 @@ const updateInvoiceStatus = (invoiceId, status) =>
 const resendInvoiceEmail = (invoiceId) =>
   axios.post(`/invoices/${invoiceId}/resend-email`);
 
+const getInvoiceCreditEligibility = (invoiceId) =>
+  axios.get(`/invoices/${invoiceId}/credit-eligibility`);
+
+const payInvoiceWithCredit = (invoiceId, body) =>
+  axios.post(`/invoices/${invoiceId}/pay-with-credit`, body, {
+    headers: body?.idempotencyKey
+      ? { 'Idempotency-Key': body.idempotencyKey }
+      : undefined,
+  });
+
+const getInvoiceCardEligibility = (invoiceId) =>
+  axios.get(`/invoices/${invoiceId}/card-eligibility`);
+
+const createInvoiceCardPaymentIntent = (invoiceId, body) =>
+  axios.post(`/invoices/${invoiceId}/payment-intent`, body || {});
+
+const confirmInvoiceCardPayment = (invoiceId, body) =>
+  axios.post(`/invoices/${invoiceId}/confirm-payment`, body);
+
 export default {
   listInvoices,
   getInvoice,
   markInvoicePaid,
   updateInvoiceStatus,
   resendInvoiceEmail,
+  getInvoiceCreditEligibility,
+  payInvoiceWithCredit,
+  getInvoiceCardEligibility,
+  createInvoiceCardPaymentIntent,
+  confirmInvoiceCardPayment,
 };

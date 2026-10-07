@@ -8,7 +8,7 @@ const { listHelpers, getHelperProfile, getHelperStatus, searchSkills, searchLice
 const { getHelperProfileQRCodePng } = require('../controllers/helperProfileImageController');
 const {
   listHelperInvoices, createHelperInvoice, updateHelperInvoice,
-  markHelperInvoicePaid, deleteHelperInvoice, sendHelperInvoice,
+  markHelperInvoicePaid, deleteHelperInvoice, sendHelperInvoice, voidHelperInvoice,
 } = require('../controllers/businessInvoiceController');
 const { generalLimiter, directoryLimiter } = require('../middleware/rateLimiter');
 const { authenticate } = require('../middleware/auth');
@@ -29,6 +29,7 @@ router.post('/invoices',                       authenticate, createHelperInvoice
 router.put('/invoices/:invoiceId',             authenticate, updateHelperInvoice);
 router.post('/invoices/:invoiceId/pay',        authenticate, markHelperInvoicePaid);
 router.post('/invoices/:invoiceId/send',       authenticate, sendHelperInvoice);
+router.post('/invoices/:invoiceId/void',       authenticate, voidHelperInvoice);
 router.delete('/invoices/:invoiceId',          authenticate, deleteHelperInvoice);
 
 // ── Public directory endpoints ───────────────────────────────────────────────

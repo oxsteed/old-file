@@ -70,6 +70,13 @@ router.get(
   ctrl.stripeCallback
 );
 
+router.post(
+  '/:businessId/integrations/stripe/continue-setup',
+  requireAuth,
+  requireBusinessAccess({ minRole: 'owner' }),
+  ctrl.stripeContinueSetup
+);
+
 // POST /:businessId/integrations/stripe/disconnect — owner only
 router.post(
   '/:businessId/integrations/stripe/disconnect',

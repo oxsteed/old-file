@@ -74,6 +74,13 @@ async function refreshConnectAccountStatus(userId, accountRow) {
                 updated_at = NOW()
           WHERE user_id = $1 AND stripe_account_id = $5`, [userId, chargesEnabled, payoutsEnabled, onboardingComplete, accountRow.stripe_account_id]);
     }
+    const { syncHelperProfileStripeFromConnect } = require('../services/stripeConnectSoTService');
+    await syncHelperProfileStripeFromConnect(pool, userId, {
+      stripeAccountId: accountRow.stripe_account_id,
+      chargesEnabled,
+      payoutsEnabled,
+      onboardingComplete,
+    });
     return {
       ...accountRow,
       status_verified: true,
@@ -182,6 +189,13 @@ exports.createConnectAccount = async (req, res, next) => {
        RETURNING stripe_account_id`, [req.user.id, account.id]);
     const accountId = persisted[0]?.stripe_account_id;
     if (!accountId) throw new AppError('Payment account could not be saved. Please retry.', 503, 'connect_account_persistence_failed');
+    const { syncHelperProfileStripeFromConnect } = require('../services/stripeConnectSoTService');
+    await syncHelperProfileStripeFromConnect(pool, req.user.id, {
+      stripeAccountId: accountId,
+      chargesEnabled: false,
+      payoutsEnabled: false,
+      onboardingComplete: false,
+    });
     const link = await stripe.accountLinks.create({
       account: accountId,
       refresh_url: refreshUrl,

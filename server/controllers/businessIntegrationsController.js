@@ -613,6 +613,8 @@ async function stripeCallback(req, res, next) {
         WHERE id = $5`,
       [accountId, !!account.charges_enabled, !!account.payouts_enabled, accountStatus, businessId]
     );
+      const { syncBusinessOAuthToRestaurantConnect } = require('../services/stripeConnectSoTService');
+      await syncBusinessOAuthToRestaurantConnect(client, businessId);
     }, 'connect_business_stripe');
 
     return res.redirect(
@@ -631,6 +633,42 @@ async function stripeCallback(req, res, next) {
 /**
  * POST /businesses/:businessId/integrations/stripe/disconnect
  */
+async function stripeContinueSetup(req, res, next) {
+  const { businessId } = req.params;
+  try {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new AppError('Stripe Connect is not configured for this environment.', 424, 'configuration_missing');
+    }
+    const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+    const { rows } = await pool.query(
+      `SELECT stripe_account_id, stripe_charges_enabled
+         FROM businesses
+        WHERE id = $1`,
+      [businessId],
+    );
+    const accountId = rows[0]?.stripe_account_id ? String(rows[0].stripe_account_id).trim() : '';
+    if (!accountId) {
+      throw new AppError(
+        'Connect Stripe before finishing setup.',
+        409,
+        'stripe_connect_not_linked',
+      );
+    }
+    if (rows[0]?.stripe_charges_enabled) {
+      return res.json({ success: true, already_ready: true, charges_enabled: true });
+    }
+    const loginLink = await stripe.accounts.createLoginLink(accountId);
+    return res.json({
+      success: true,
+      url: loginLink.url,
+      kind: 'login_link',
+      charges_enabled: false,
+    });
+  } catch (err) {
+    next(err instanceof AppError ? err : new AppError('Could not open Stripe setup', 502, 'stripe_continue_setup_failed'));
+  }
+}
+
 async function disconnectStripe(req, res, next) {
   const { businessId } = req.params;
   try {
@@ -696,5 +734,6 @@ module.exports = {
   updateIntegration,
   stripeAuthUrl,
   stripeCallback,
+  stripeContinueSetup,
   disconnectStripe
 };

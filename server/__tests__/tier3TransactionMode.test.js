@@ -30,6 +30,7 @@ describe('createPaymentIntent tier-3 enum write (ITEM 20)', () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 10, client_id: 1, job_value: 100, assigned_helper_id: 2 }] }) // job lookup
       .mockResolvedValueOnce({ rows: [{ user_id: 2, stripe_account_id: 'acct_x', charges_enabled: true, payouts_enabled: true, onboarding_complete: true }] }) // connect account
+      .mockResolvedValueOnce({ rowCount: 0 }) // sync helper_profiles from connect_accounts
       .mockResolvedValueOnce({ rows: [{ locked: true }] }) // advisory lock
       .mockResolvedValueOnce({ rows: [{ balance_cents: '0' }] }) // credit balance
       .mockResolvedValueOnce({ rows: [] }) // no existing payment

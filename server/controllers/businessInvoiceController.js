@@ -7,20 +7,14 @@ const { randomUUID } = require('crypto');
 const pool   = require('../db');
 const logger = require('../utils/logger');
 const { canManageBusinessFinance } = require('../utils/businessOwnership');
-
-function round2(n) { return Math.round((n || 0) * 100) / 100; }
-
-function resolvePaidAmount(rawAmount, invoiceTotal) {
-  if (rawAmount === undefined || rawAmount === null || String(rawAmount).trim() === '') {
-    return { value: round2(invoiceTotal) };
-  }
-  const amount = Number(rawAmount);
-  const total = Number(invoiceTotal);
-  if (!Number.isFinite(amount) || amount <= 0 || !Number.isFinite(total) || amount > total + 0.009) {
-    return { error: 'Paid amount must be greater than zero and no greater than the invoice total.' };
-  }
-  return { value: round2(amount) };
-}
+const { sendBusinessInvoiceEmail } = require('../utils/businessInvoiceEmail');
+const {
+  round2,
+  PUBLIC_VIEW_STATUSES,
+  assertCreatableStatus,
+  validateInvoiceUpdate,
+  resolvePaymentDelta,
+} = require('../utils/businessInvoiceHelpers');
 
 // ── Compute totals from line items + tax rate ─────────────────────────────────
 function computeTotals(lineItems, invoiceTaxRate) {
@@ -111,23 +105,25 @@ async function getInvoice(req, res) {
 
 // ── Create invoice ─────────────────────────────────────────────────────────────
 async function createInvoice(req, res) {
+  const access = await canManageBusinessFinance(req.user.id, req.params.id);
+  if (!access) return res.status(404).json({ error: 'Business not found' });
+
+  const {
+    client_name, client_email, client_company,
+    due_date, line_items = [], invoice_tax_rate = 0,
+    notes, job_id, status = 'draft',
+  } = req.body;
+
+  if (!client_name?.trim()) return res.status(400).json({ error: 'Client name is required' });
+  if (!Array.isArray(line_items) || line_items.length === 0) {
+    return res.status(400).json({ error: 'At least one line item is required' });
+  }
+  const statusError = assertCreatableStatus(status);
+  if (statusError) return res.status(400).json({ error: statusError });
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-
-    const access = await canManageBusinessFinance(req.user.id, req.params.id);
-    if (!access) return res.status(404).json({ error: 'Business not found' });
-
-    const {
-      client_name, client_email, client_company,
-      due_date, line_items = [], invoice_tax_rate = 0,
-      notes, job_id, status = 'draft',
-    } = req.body;
-
-    if (!client_name?.trim()) return res.status(400).json({ error: 'Client name is required' });
-    if (!Array.isArray(line_items) || line_items.length === 0) {
-      return res.status(400).json({ error: 'At least one line item is required' });
-    }
 
     const invoice_number = await nextInvoiceNumber(client, access.id);
     const { subtotal, tax_amount, total } = computeTotals(line_items, invoice_tax_rate);
@@ -149,7 +145,7 @@ async function createInvoice(req, res) {
     `, [
       access.owner_id, access.id, invoice_number,
       client_name.trim(), client_email || null, client_company || null,
-      status, due_date || null,
+      'draft', due_date || null,
       subtotal, parseFloat(invoice_tax_rate), tax_amount, total, currency_code,
       JSON.stringify(line_items), notes || null, job_id || null,
       public_token,
@@ -171,6 +167,15 @@ async function updateInvoice(req, res) {
   try {
     const access = await canManageBusinessFinance(req.user.id, req.params.id);
     if (!access) return res.status(404).json({ error: 'Business not found' });
+
+    const { rows: [existing] } = await pool.query(
+      'SELECT * FROM business_invoices WHERE id = $1 AND business_id = $2',
+      [req.params.invoiceId, access.id]
+    );
+    if (!existing) return res.status(404).json({ error: 'Invoice not found' });
+
+    const immutabilityError = validateInvoiceUpdate(existing, req.body);
+    if (immutabilityError) return res.status(400).json({ error: immutabilityError });
 
     const {
       client_name, client_email, client_company,
@@ -235,10 +240,14 @@ async function markInvoicePaid(req, res) {
       [req.params.invoiceId, access.id]
     );
     if (!existing) return res.status(404).json({ error: 'Invoice not found' });
-
-    const paidAmount = resolvePaidAmount(amount, existing.total);
-    if (paidAmount.error) return res.status(400).json({ error: paidAmount.error });
-    const newPaidTotal = paidAmount.value;
+    const paidAmount = resolvePaymentDelta(amount, existing.total, existing.amount_paid);
+    if (paidAmount.error) {
+      const code = paidAmount.error.includes('fully paid') ? 409 : 400;
+      return res.status(code).json({ error: paidAmount.error });
+    }
+    const newPaidTotal = paidAmount.targetPaid != null
+      ? paidAmount.targetPaid
+      : round2(Number(existing.amount_paid || 0) + paidAmount.value);
 
     const isFullyPaid = newPaidTotal >= parseFloat(existing.total) - 0.01;
     const newStatus   = isFullyPaid ? 'paid' : 'partial';
@@ -301,6 +310,9 @@ async function getPublicInvoice(req, res) {
     );
 
     if (!inv) return res.status(404).json({ error: 'Invoice not found' });
+    if (!PUBLIC_VIEW_STATUSES.has(String(inv.status || '').toLowerCase())) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
 
     let business = null;
     if (inv.business_id) {
@@ -371,11 +383,11 @@ async function getPublicInvoice(req, res) {
 // ── Send invoice (dual-track: internal notifications + external public link) ──
 // POST /api/businesses/:id/invoices/:invoiceId/send
 async function sendInvoice(req, res) {
+  const access = await canManageBusinessFinance(req.user.id, req.params.id);
+  if (!access) return res.status(404).json({ error: 'Business not found' });
+
   const client = await pool.connect();
   try {
-    const access = await canManageBusinessFinance(req.user.id, req.params.id);
-    if (!access) return res.status(404).json({ error: 'Business not found' });
-
     await client.query('BEGIN');
 
     // Fetch the invoice
@@ -387,16 +399,21 @@ async function sendInvoice(req, res) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Invoice not found' });
     }
+    if (['paid', 'cancelled'].includes(String(inv.status || '').toLowerCase())) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: `Cannot send an invoice in '${inv.status}' status` });
+    }
 
-    // Update invoice status to 'sent' and set sent_at
+    const publicTokenForSend = inv.status === 'draft' ? randomUUID() : inv.public_token;
     const { rows: [updatedInv] } = await client.query(`
       UPDATE business_invoices SET
         status = 'sent',
         sent_at = NOW(),
+        public_token = $2,
         updated_at = NOW()
       WHERE id = $1
       RETURNING *
-    `, [inv.id]);
+    `, [inv.id, publicTokenForSend]);
 
     // Check if a user exists with the client_email
     let isInternalUser = false;
@@ -419,7 +436,12 @@ async function sendInvoice(req, res) {
           `Invoice from ${access.business_name}`,
           notificationText,
           'invoice',
-          JSON.stringify({ invoiceId: inv.id, businessId: access.id }),
+          JSON.stringify({
+            invoiceId: inv.id,
+            businessId: access.id,
+            publicToken: updatedInv.public_token,
+            actionUrl: `/invoices?invoiceId=${inv.id}`,
+          }),
         ]);
 
         logger.info('Invoice sent to internal user', {
@@ -427,6 +449,23 @@ async function sendInvoice(req, res) {
           recipientUserId: user.id,
           businessId: access.id,
         });
+      }
+    }
+
+    if (inv.client_email) {
+      const { rows: [sender] } = await client.query(
+        'SELECT preferred_language FROM users WHERE id = $1',
+        [req.user.id]
+      );
+      const emailResult = await sendBusinessInvoiceEmail({
+        invoice: updatedInv,
+        recipientEmail: inv.client_email,
+        issuerName: access.business_name,
+        language: sender?.preferred_language || 'en',
+      });
+      if (!emailResult.success) {
+        await client.query('ROLLBACK');
+        return res.status(502).json({ error: 'Failed to deliver invoice email to the client' });
       }
     }
 
@@ -490,21 +529,23 @@ async function listHelperInvoices(req, res) {
 
 // ── Create helper invoice ──────────────────────────────────────────────────────
 async function createHelperInvoice(req, res) {
+  const userId = req.user.id;
+  const {
+    client_name, client_email, client_company,
+    due_date, line_items = [], invoice_tax_rate = 0,
+    notes, job_id, status = 'draft',
+  } = req.body;
+
+  if (!client_name?.trim()) return res.status(400).json({ error: 'Client name is required' });
+  if (!Array.isArray(line_items) || line_items.length === 0) {
+    return res.status(400).json({ error: 'At least one line item is required' });
+  }
+  const statusError = assertCreatableStatus(status);
+  if (statusError) return res.status(400).json({ error: statusError });
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-
-    const userId = req.user.id;
-    const {
-      client_name, client_email, client_company,
-      due_date, line_items = [], invoice_tax_rate = 0,
-      notes, job_id, status = 'draft',
-    } = req.body;
-
-    if (!client_name?.trim()) return res.status(400).json({ error: 'Client name is required' });
-    if (!Array.isArray(line_items) || line_items.length === 0) {
-      return res.status(400).json({ error: 'At least one line item is required' });
-    }
 
     const invoice_number = await nextHelperInvoiceNumber(client);
     const { subtotal, tax_amount, total } = computeTotals(line_items, invoice_tax_rate);
@@ -519,7 +560,7 @@ async function createHelperInvoice(req, res) {
     `, [
       userId, null, invoice_number,
       client_name.trim(), client_email || null, client_company || null,
-      status, due_date || null,
+      'draft', due_date || null,
       subtotal, parseFloat(invoice_tax_rate), tax_amount, total,
       JSON.stringify(line_items), notes || null, job_id || null,
       public_token,
@@ -541,6 +582,16 @@ async function updateHelperInvoice(req, res) {
   try {
     const userId = req.user.id;
     const invoiceId = req.params.invoiceId;
+
+    const { rows: [existing] } = await pool.query(
+      'SELECT * FROM business_invoices WHERE id = $1 AND user_id = $2 AND business_id IS NULL',
+      [invoiceId, userId]
+    );
+    if (!existing) return res.status(404).json({ error: 'Invoice not found' });
+
+    const immutabilityError = validateInvoiceUpdate(existing, req.body);
+    if (immutabilityError) return res.status(400).json({ error: immutabilityError });
+
     const {
       client_name, client_email, client_company,
       due_date, line_items, invoice_tax_rate, notes, status,
@@ -602,10 +653,14 @@ async function markHelperInvoicePaid(req, res) {
       [invoiceId, userId]
     );
     if (!existing) return res.status(404).json({ error: 'Invoice not found' });
-
-    const paidAmount = resolvePaidAmount(amount, existing.total);
-    if (paidAmount.error) return res.status(400).json({ error: paidAmount.error });
-    const newPaidTotal = paidAmount.value;
+    const paidAmount = resolvePaymentDelta(amount, existing.total, existing.amount_paid);
+    if (paidAmount.error) {
+      const code = paidAmount.error.includes('fully paid') ? 409 : 400;
+      return res.status(code).json({ error: paidAmount.error });
+    }
+    const newPaidTotal = paidAmount.targetPaid != null
+      ? paidAmount.targetPaid
+      : round2(Number(existing.amount_paid || 0) + paidAmount.value);
 
     const isFullyPaid = newPaidTotal >= parseFloat(existing.total) - 0.01;
     const newStatus   = isFullyPaid ? 'paid' : 'partial';
@@ -669,18 +724,22 @@ async function sendHelperInvoice(req, res) {
       [invoiceId, userId]
     );
     if (!inv) return res.status(404).json({ error: 'Invoice not found' });
+    if (['paid', 'cancelled'].includes(String(inv.status || '').toLowerCase())) {
+      return res.status(400).json({ error: `Cannot send an invoice in '${inv.status}' status` });
+    }
 
     await client.query('BEGIN');
 
-    // Update invoice status to 'sent' and set sent_at
+    const publicTokenForSend = inv.status === 'draft' ? randomUUID() : inv.public_token;
     const { rows: [updatedInv] } = await client.query(`
       UPDATE business_invoices SET
         status = 'sent',
         sent_at = NOW(),
+        public_token = $2,
         updated_at = NOW()
       WHERE id = $1
       RETURNING *
-    `, [inv.id]);
+    `, [inv.id, publicTokenForSend]);
 
     // Check if a user exists with the client_email
     let isInternalUser = false;
@@ -715,7 +774,11 @@ async function sendHelperInvoice(req, res) {
             `Invoice from ${helperName}`,
             notificationText,
             'invoice',
-            JSON.stringify({ invoiceId: inv.id }),
+            JSON.stringify({
+              invoiceId: inv.id,
+              publicToken: updatedInv.public_token,
+              actionUrl: `/invoices?invoiceId=${inv.id}`,
+            }),
           ]);
         }
 
@@ -724,6 +787,24 @@ async function sendHelperInvoice(req, res) {
           recipientUserId: user.id,
           senderId: userId,
         });
+      }
+    }
+
+    if (inv.client_email) {
+      const { rows: [helper] } = await client.query(
+        'SELECT first_name, last_name, preferred_language FROM users WHERE id = $1',
+        [userId]
+      );
+      const helperName = helper ? `${helper.first_name} ${helper.last_name}` : 'Helper';
+      const emailResult = await sendBusinessInvoiceEmail({
+        invoice: updatedInv,
+        recipientEmail: inv.client_email,
+        issuerName: helperName,
+        language: helper?.preferred_language || 'en',
+      });
+      if (!emailResult.success) {
+        await client.query('ROLLBACK');
+        return res.status(502).json({ error: 'Failed to deliver invoice email to the client' });
       }
     }
 
@@ -744,10 +825,82 @@ async function sendHelperInvoice(req, res) {
 }
 
 // ── Helper invoice number generator (global, not per-business) ─────────────────
+async function voidInvoice(req, res) {
+  try {
+    const access = await canManageBusinessFinance(req.user.id, req.params.id);
+    if (!access) return res.status(404).json({ error: 'Business not found' });
+
+    const { reason } = req.body;
+    if (!reason?.trim()) {
+      return res.status(400).json({ error: 'A void reason is required' });
+    }
+
+    const { rows: [existing] } = await pool.query(
+      'SELECT * FROM business_invoices WHERE id = $1 AND business_id = $2',
+      [req.params.invoiceId, access.id]
+    );
+    if (!existing) return res.status(404).json({ error: 'Invoice not found' });
+    if (['paid', 'cancelled'].includes(existing.status)) {
+      return res.status(400).json({ error: `Cannot void an invoice in '${existing.status}' status` });
+    }
+
+    const voidNote = `[Voided ${new Date().toISOString().slice(0, 10)}] ${reason.trim()}`;
+    const { rows: [inv] } = await pool.query(`
+      UPDATE business_invoices SET
+        status = 'cancelled',
+        public_token = NULL,
+        notes = TRIM(BOTH FROM CONCAT(COALESCE(notes, ''), E'\\n', $1)),
+        updated_at = NOW()
+      WHERE id = $2 AND business_id = $3
+      RETURNING *
+    `, [voidNote, req.params.invoiceId, access.id]);
+
+    return res.json({ invoice: inv });
+  } catch (err) {
+    logger.error('voidInvoice error', { err: err.message });
+    return res.status(500).json({ error: 'Failed to void invoice' });
+  }
+}
+
+async function voidHelperInvoice(req, res) {
+  try {
+    const userId = req.user.id;
+    const invoiceId = req.params.invoiceId;
+    const { reason } = req.body;
+    if (!reason?.trim()) {
+      return res.status(400).json({ error: 'A void reason is required' });
+    }
+
+    const { rows: [existing] } = await pool.query(
+      'SELECT * FROM business_invoices WHERE id = $1 AND user_id = $2 AND business_id IS NULL',
+      [invoiceId, userId]
+    );
+    if (!existing) return res.status(404).json({ error: 'Invoice not found' });
+    if (['paid', 'cancelled'].includes(existing.status)) {
+      return res.status(400).json({ error: `Cannot void an invoice in '${existing.status}' status` });
+    }
+
+    const voidNote = `[Voided ${new Date().toISOString().slice(0, 10)}] ${reason.trim()}`;
+    const { rows: [inv] } = await pool.query(`
+      UPDATE business_invoices SET
+        status = 'cancelled',
+        public_token = NULL,
+        notes = TRIM(BOTH FROM CONCAT(COALESCE(notes, ''), E'\\n', $1)),
+        updated_at = NOW()
+      WHERE id = $2 AND user_id = $3 AND business_id IS NULL
+      RETURNING *
+    `, [voidNote, invoiceId, userId]);
+
+    return res.json({ invoice: inv });
+  } catch (err) {
+    logger.error('voidHelperInvoice error', { err: err.message });
+    return res.status(500).json({ error: 'Failed to void invoice' });
+  }
+}
+
 async function nextHelperInvoiceNumber(client) {
-  // For helper invoices, use a simpler format: INV-YYYY-####
   const year = new Date().getFullYear();
-  // Get max invoice number from all helper invoices this year
+  await client.query('SELECT pg_advisory_xact_lock($1, $2)', [9026, year]);
   const { rows: [result] } = await client.query(`
     SELECT COALESCE(MAX(CAST(SUBSTRING(invoice_number FROM 9) AS INT)), 0) AS max_seq
     FROM business_invoices
@@ -764,4 +917,6 @@ module.exports = {
   updateInvoice, markInvoicePaid, deleteInvoice, sendInvoice,
   listHelperInvoices, createHelperInvoice, updateHelperInvoice,
   markHelperInvoicePaid, deleteHelperInvoice, sendHelperInvoice,
+  voidInvoice, voidHelperInvoice,
+  nextHelperInvoiceNumber,
 };

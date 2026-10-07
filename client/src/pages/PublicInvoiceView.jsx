@@ -6,13 +6,16 @@ import {
   ArrowLeft,
   CheckCircle2,
   Clock3,
-  CreditCard,
   FileText,
+  Mail,
   Lock,
   ShieldCheck,
 } from 'lucide-react';
 import PageMeta from '../components/PageMeta';
 import api from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
+import InvoiceOxsteedCreditPay, { InvoiceCreditPaySignInPrompt } from '../components/invoices/InvoiceOxsteedCreditPay';
+import InvoiceStripeCardPay from '../components/invoices/InvoiceStripeCardPay';
 import '../styles/PublicInvoiceView.css';
 import { formatDate, formatMoney } from '../lib/format';
 
@@ -42,11 +45,13 @@ function getWebsiteHref(url) {
 function PublicInvoiceView() {
   const { token } = useParams();
   const { t } = useTranslation();
+  const { user } = useAuth();
 
   const [invoice, setInvoice] = useState(null);
   const [business, setBusiness] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -72,7 +77,7 @@ function PublicInvoiceView() {
     return () => {
       isMounted = false;
     };
-  }, [token, t]);
+  }, [token, t, reloadKey]);
 
   const lineItems = useMemo(() => parseLineItems(invoice?.line_items), [invoice]);
   const subtotal = Number(invoice?.subtotal || 0);
@@ -80,8 +85,10 @@ function PublicInvoiceView() {
   const total = Number(invoice?.total || 0);
   const amountPaid = Number(invoice?.amount_paid || 0);
   const balanceDue = Math.max(total - amountPaid, 0);
+  const balanceDueCents = Math.round(balanceDue * 100);
   const status = invoice?.status || 'sent';
   const isPaid = status === 'paid';
+  const canTryCreditPay = user && !isPaid && ['sent', 'partial', 'overdue'].includes(status);
   const websiteHref = getWebsiteHref(business?.website);
 
   if (loading) {
@@ -272,12 +279,29 @@ function PublicInvoiceView() {
                 </>
               ) : (
                 <>
-                  <CreditCard size={34} aria-hidden="true" />
-                  <h2>{t('publicInvoice.readyTitle')}</h2>
-                  <p>{t('publicInvoice.readyBody')}</p>
-                  <Link to="/login" className="piv-button piv-button-primary piv-full-button">
-                    {t('publicInvoice.loginToPay')}
-                  </Link>
+                  <Mail size={34} aria-hidden="true" />
+                  <h2>{t('publicInvoice.payOfflineTitle', { defaultValue: 'Pay outside OxSteed' })}</h2>
+                  <p>{t('publicInvoice.payOfflineBody', {
+                    business: business?.business_name || t('publicInvoice.fallbackBusiness'),
+                    defaultValue: 'Use the payment method you agreed with {{business}} (bank transfer, cash, or other).',
+                  })}</p>
+                  {user && invoice?.id ? (
+                    <InvoiceStripeCardPay
+                      invoiceId={String(invoice.id)}
+                      balanceCents={balanceDueCents}
+                      onPaid={() => setReloadKey((key) => key + 1)}
+                      className="piv-stripe-card-pay"
+                    />
+                  ) : null}
+                  {canTryCreditPay && invoice?.id ? (
+                    <InvoiceOxsteedCreditPay
+                      invoiceId={String(invoice.id)}
+                      balanceCents={balanceDueCents}
+                      onPaid={() => setReloadKey((key) => key + 1)}
+                    />
+                  ) : !user && !isPaid ? (
+                    <InvoiceCreditPaySignInPrompt className="piv-credit-signin" />
+                  ) : null}
                 </>
               )}
             </section>
@@ -286,7 +310,7 @@ function PublicInvoiceView() {
               <h2>{t('publicInvoice.whatNext')}</h2>
               <div className="piv-trust-item">
                 <Lock size={18} aria-hidden="true" />
-                <p>{t('publicInvoice.trustAccount')}</p>
+                <p>{t('publicInvoice.trustOffline')}</p>
               </div>
               <div className="piv-trust-item">
                 <Clock3 size={18} aria-hidden="true" />

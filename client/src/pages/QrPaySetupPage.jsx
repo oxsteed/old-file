@@ -114,7 +114,13 @@ export default function QrPaySetupPage() {
     try {
       const status = await fetchConnectStatus();
       const ready = Boolean(status && status.connected && (status.charges_enabled || status.stripe_connect_ready));
-      setConnectState(ready ? 'ready' : 'blocked');
+      if (ready) {
+        setConnectState('ready');
+      } else if (status?.connected) {
+        setConnectState('incomplete');
+      } else {
+        setConnectState('blocked');
+      }
     } catch {
       setConnectState('error');
     }
@@ -293,15 +299,25 @@ export default function QrPaySetupPage() {
         </div>
       );
     }
-    // blocked: payouts not connected
+    const incomplete = connectState === 'incomplete';
     return (
       <section className="qrp-connect" aria-labelledby="qrp-connect-title">
         <span className="qrp-connect-icon" aria-hidden="true">
           <Wallet size={30} />
         </span>
         <div>
-          <h2 id="qrp-connect-title">{t('qrPay.connectTitle', { defaultValue: 'Connect payouts first' })}</h2>
-          <p>{t('qrPay.connectBody', { defaultValue: 'To receive QR payments, connect your bank account with our secure payment partner. It takes a few minutes.' })}</p>
+          <h2 id="qrp-connect-title">
+            {incomplete
+              ? t('qrPay.connectIncompleteTitle', { defaultValue: 'Finish Stripe setup' })
+              : t('qrPay.connectTitle', { defaultValue: 'Connect payouts first' })}
+          </h2>
+          <p>
+            {incomplete
+              ? t('qrPay.connectIncompleteBody', {
+                defaultValue: 'Your Stripe account is linked but card charges are not enabled yet. Continue in Stripe to finish requirements.',
+              })
+              : t('qrPay.connectBody', { defaultValue: 'To receive QR payments, connect your bank account with our secure payment partner. It takes a few minutes.' })}
+          </p>
         </div>
         <button
           type="button"
@@ -309,7 +325,11 @@ export default function QrPaySetupPage() {
           onClick={handleConnect}
           disabled={connecting}
         >
-          {connecting ? t('qrPay.connecting', { defaultValue: 'Connecting...' }) : t('qrPay.connectCta', { defaultValue: 'Connect payouts' })}
+          {connecting
+            ? t('qrPay.connecting', { defaultValue: 'Connecting...' })
+            : (incomplete
+              ? t('qrPay.connectContinueCta', { defaultValue: 'Continue in Stripe' })
+              : t('qrPay.connectCta', { defaultValue: 'Connect payouts' }))}
         </button>
       </section>
     );

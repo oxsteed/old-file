@@ -54,6 +54,7 @@ const { startProfileVisibilityNotificationRetryJob } = require('../jobs/profileV
 const { runSupportSlaMonitor } = require('../services/supportSlaMonitor');
 const { processSupportEmailOutbox } = require('../services/supportEmailOutbox');
 const { processSupportFollowUpReminders } = require('../services/supportFollowUpReminderWorker');
+const { processBusinessInvoicePaymentReminders } = require('../services/businessInvoicePaymentReminderWorker');
 const { recoverStaleSupportChannelDeliveries } = require('../services/supportChannelDeliveryRecovery');
 
 class BackgroundWorkers {
@@ -182,6 +183,12 @@ class BackgroundWorkers {
       cron.schedule('15 2 * * *', async () => {
         const result = await cleanupExpiredSupportMessages();
         if (!result.success) this.log.error('Support conversation retention job failed', result);
+      });
+
+      cron.schedule('5 3 * * *', () => {
+        processBusinessInvoicePaymentReminders().catch((error) => {
+          this.log.warn('Business invoice payment reminder job failed', { error: error.message });
+        });
       });
 
       const translationJobCron = process.env.TRANSLATION_JOB_POLL_CRON || '*/30 * * * * *';

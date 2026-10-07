@@ -1,5 +1,19 @@
 const pool = require('../db');
 const AppError = require('../utils/appError');
+const {
+  isInvoicePayer,
+  stripeInvoiceCurrency,
+  businessInvoiceStripeConnectEnabled,
+  invoiceBalanceCents: sharedInvoiceBalanceCents,
+} = require('../utils/businessInvoiceHelpers');
+const { withTransaction } = require('../utils/transaction');
+const {
+  createOrReuseInvoicePaymentIntent,
+  resolveInvoiceStripeConnectDestination,
+  assertConnectDestinationReady,
+  assertPaymentIntentMatchesInvoice,
+  applyInvoiceCardPayment,
+} = require('../services/businessInvoiceStripeConnectService');
 const { uploadFile, getPublicUrl } = require('../utils/storage');
 const countriesUtil = require('../utils/countries');
 const modeRoleUtil = require('../utils/modeRole');
@@ -419,9 +433,7 @@ function requireStripe() {
 }
 
 function invoiceBalanceCents(invoice) {
-  const totalCents = Math.round(Number(invoice.total || 0) * 100);
-  const paidCents = Math.round(Number(invoice.amount_paid || 0) * 100);
-  return Math.max(0, totalCents - paidCents);
+  return sharedInvoiceBalanceCents(invoice);
 }
 
 async function getPayableInvoice(invoiceId, user) {
@@ -429,14 +441,22 @@ async function getPayableInvoice(invoiceId, user) {
     `SELECT bi.*, b.business_name
        FROM business_invoices bi
        LEFT JOIN businesses b ON b.id = bi.business_id
-      WHERE bi.id = $1
-        AND (
-          bi.user_id = $2
-          OR LOWER(COALESCE(bi.client_email, '')) = LOWER($3)
-        )`,
-    [invoiceId, user.id, user.email || '']
+      WHERE bi.id = $1`,
+    [invoiceId]
   );
-  return rows[0] || null;
+  const invoice = rows[0] || null;
+  if (!invoice || !isInvoicePayer(invoice, user)) return null;
+  return invoice;
+}
+
+function assertInvoiceOnlinePaymentAvailable() {
+  if (!businessInvoiceStripeConnectEnabled()) {
+    throw new AppError(
+      'Online invoice payment is not available yet. Pay the issuer using their agreed method.',
+      503,
+      'invoice_online_payment_unavailable'
+    );
+  }
 }
 
 exports.getPaymentConfig = async (req, res, next) => {
@@ -456,6 +476,7 @@ exports.getPaymentConfig = async (req, res, next) => {
 exports.createInvoicePaymentIntent = async (req, res, next) => {
   try {
     requireStripe();
+    assertInvoiceOnlinePaymentAvailable();
     const invoice = await getPayableInvoice(req.params.invoiceId, req.user);
     if (!invoice) {
       throw new AppError('Invoice not found', 404, 'invoice_not_found');
@@ -466,15 +487,13 @@ exports.createInvoicePaymentIntent = async (req, res, next) => {
       throw new AppError('Invoice is already paid', 409, 'invoice_already_paid');
     }
 
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: balanceCents,
-      currency: 'usd',
-      receipt_email: req.user.email || invoice.client_email || undefined,
-      metadata: {
-        invoice_id: String(invoice.id),
-        payer_id: String(req.user.id),
-        invoice_type: invoice.business_id ? 'business_invoice' : 'helper_invoice',
-      },
+    const idempotencyKey = normalizeString(req.body?.idempotencyKey, 160)
+      || `invoice-card:${invoice.id}:${req.user.id}:${balanceCents}`;
+
+    const { paymentIntent, balanceCents: intentCents, connect } = await createOrReuseInvoicePaymentIntent({
+      invoice,
+      payerUserId: req.user.id,
+      idempotencyKey,
     });
 
     res.json({
@@ -483,8 +502,10 @@ exports.createInvoicePaymentIntent = async (req, res, next) => {
         invoiceId: invoice.id,
         clientSecret: paymentIntent.client_secret,
         paymentIntentId: paymentIntent.id,
-        amountCents: balanceCents,
+        amountCents: intentCents,
         publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+        connectAccountId: connect.accountId,
+        connectSource: connect.source,
       },
     });
   } catch (err) {
@@ -495,6 +516,7 @@ exports.createInvoicePaymentIntent = async (req, res, next) => {
 exports.confirmInvoicePayment = async (req, res, next) => {
   try {
     requireStripe();
+    assertInvoiceOnlinePaymentAvailable();
     const invoice = await getPayableInvoice(req.params.invoiceId, req.user);
     if (!invoice) {
       throw new AppError('Invoice not found', 404, 'invoice_not_found');
@@ -507,18 +529,19 @@ exports.confirmInvoicePayment = async (req, res, next) => {
       });
     }
 
+    const connect = assertConnectDestinationReady(
+      await resolveInvoiceStripeConnectDestination(invoice),
+    );
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
     const expectedAmountCents = invoiceBalanceCents(invoice);
-    const actualAmountCents = Number(paymentIntent.amount_received || paymentIntent.amount || 0);
-    if (
-      String(paymentIntent.metadata?.invoice_id || '') !== String(invoice.id) ||
-      String(paymentIntent.metadata?.payer_id || '') !== String(req.user.id) ||
-      actualAmountCents !== expectedAmountCents ||
-      String(paymentIntent.currency || '').toLowerCase() !== 'usd'
-    ) {
-      throw new AppError('Payment does not belong to this invoice', 403, 'payment_invoice_mismatch');
-    }
-    if (paymentIntent.status !== 'succeeded') {
+    const check = assertPaymentIntentMatchesInvoice({
+      paymentIntent,
+      invoice,
+      payerUserId: req.user.id,
+      connect,
+      expectedAmountCents,
+    });
+    if (!check.ok) {
       return res.status(409).json({
         success: false,
         error: `Payment status: ${paymentIntent.status}`,
@@ -526,24 +549,18 @@ exports.confirmInvoicePayment = async (req, res, next) => {
       });
     }
 
-    const amountPaid = Number(paymentIntent.amount_received || paymentIntent.amount || 0) / 100;
-    const { rows } = await pool.query(
-      `UPDATE business_invoices
-          SET status = CASE WHEN total <= COALESCE(amount_paid, 0) + $1 THEN 'paid' ELSE 'partial' END,
-              amount_paid = LEAST(total, COALESCE(amount_paid, 0) + $1),
-              paid_at = CASE WHEN total <= COALESCE(amount_paid, 0) + $1 THEN NOW() ELSE paid_at END,
-              updated_at = NOW()
-        WHERE id = $2
-        RETURNING *`,
-      [amountPaid, invoice.id]
-    );
+    const amountPaid = expectedAmountCents / 100;
+    const updated = await withTransaction(pool, (client) => applyInvoiceCardPayment(client, {
+      invoiceId: invoice.id,
+      amountDollars: amountPaid,
+    }));
 
     res.json({
       success: true,
       data: {
-        invoice: rows[0],
+        invoice: updated,
         paymentIntentId,
-        status: rows[0]?.status,
+        status: updated?.status,
       },
     });
   } catch (err) {
