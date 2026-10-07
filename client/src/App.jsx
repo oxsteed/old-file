@@ -140,6 +140,7 @@ const DistributionPage = lazyWithRetry(() => import('./pages/logistics/Distribut
 const CompliancePage = lazyWithRetry(() => import('./pages/logistics/CompliancePage'));
 const LogisticsFinancePage = lazyWithRetry(() => import('./pages/logistics/LogisticsFinancePage'));
 const BusinessHubPage = lazyWithRetry(() => import('./pages/BusinessHubPage'));
+const CreditApplyPage = lazyWithRetry(() => import('./pages/CreditApplyPage'));
 const VortexPage = lazyWithRetry(() => import('./pages/VortexPage'));
 const NetworkAppsPage = lazyWithRetry(() => import('./pages/NetworkAppsPage'));
 const AccessGateRecoveryPage = lazyWithRetry(() => import('./pages/AccessGateRecoveryPage'));
@@ -663,6 +664,8 @@ export default function App() {
                     <Route path="/access-gate/recovery" element={<RouteErrorBoundary><AccessGateRecoveryPage /></RouteErrorBoundary>} />
                     {/* Critical: Business analytics dashboard with multiple tabs */}
                     <Route path="/business-hub"  element={<Guarded><ProtectedRoute><RouteErrorBoundary><BusinessHubPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    {/* Credit Everywhere Phase 1: self-serve participant apply */}
+                    <Route path="/credit/apply" element={<Guarded><ProtectedRoute><RouteErrorBoundary><CreditApplyPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
                     {/* Role-aware appointment + availability calendar system */}
                     <Route path="/calendar" element={<Guarded><ProtectedRoute><RouteErrorBoundary><CalendarPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

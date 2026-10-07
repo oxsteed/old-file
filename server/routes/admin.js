@@ -412,6 +412,11 @@ router.get('/super/oxsteed-credit/entitlements', requireSuperAdmin, oxsteedCredi
 router.post('/super/oxsteed-credit/entitlements/bulk', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.bulkUpsertAdminEntitlements);
 router.post('/super/oxsteed-credit/partners', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.registerAdminPartner);
 router.post('/super/oxsteed-credit/partners/:partnerId/transition', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.transitionAdminPartner);
+router.post('/super/oxsteed-credit/partners/:partnerId/activation', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.requestAdminPartnerActivation);
+router.get('/super/oxsteed-credit/participants', requireSuperAdmin, oxsteedCreditCtrl.listAdminParticipants);
+router.post('/super/oxsteed-credit/participants', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.enrollAdminParticipant);
+router.get('/super/oxsteed-credit/participants/:participantId', requireSuperAdmin, oxsteedCreditCtrl.getAdminParticipant);
+router.post('/super/oxsteed-credit/participants/:participantId/activation', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.requestAdminParticipantActivation);
 router.post('/super/oxsteed-credit/partners/:partnerId/agreements', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.createAdminAgreement);
 router.post('/super/oxsteed-credit/agreements/:agreementId/transition', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.transitionAdminAgreement);
 router.post('/super/oxsteed-credit/agreements/:agreementId/entitlements', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.upsertAdminEntitlement);

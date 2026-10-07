@@ -168,7 +168,7 @@ function agreementRequestHash({ partnerId, startsAt, endsAt, customerTerms, allo
 function formatPartner(row) {
   return {
     partnerId: String(row.partner_id || row.id),
-    restaurantId: String(row.restaurant_id),
+    restaurantId: row.restaurant_id === null || row.restaurant_id === undefined ? null : String(row.restaurant_id),
     restaurantName: row.restaurant_name || null,
     businessId: row.business_id === null || row.business_id === undefined ? null : String(row.business_id),
     status: row.status,
@@ -197,6 +197,7 @@ function formatAgreement(row) {
     allowedOrderTypes: row.allowed_order_types || [],
     allowedCategories: row.allowed_categories || [],
     allowedMenuItemIds: (row.allowed_menu_item_ids || []).map(String),
+    allowedSurfaces: row.allowed_surfaces || [],
     geography: row.geography || {},
     maxTransactionCents: row.max_transaction_cents === null ? null : Number(row.max_transaction_cents),
     dailyCustomerLimitCents: row.daily_customer_limit_cents === null ? null : Number(row.daily_customer_limit_cents),
@@ -1180,7 +1181,7 @@ async function listAgreements({ partnerId, status, search, limit = 250, offset =
       `SELECT COUNT(*)::int AS total
          FROM oxsteed_credit_partner_agreements a
          JOIN oxsteed_credit_partners p ON p.id = a.partner_id
-         JOIN food_restaurants fr ON fr.id = p.restaurant_id
+         LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
         ${filters.length ? `WHERE ${filters.join(' AND ')}` : ''}`,
       filterParams
     );
@@ -1409,7 +1410,7 @@ async function createSettlement({ partnerId, agreementId, periodStart, periodEnd
               fr.display_name AS restaurant_name
          FROM oxsteed_credit_partner_agreements a
          JOIN oxsteed_credit_partners p ON p.id = a.partner_id
-         JOIN food_restaurants fr ON fr.id = p.restaurant_id
+         LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
         WHERE a.id = $1 AND a.partner_id = $2
         FOR SHARE`,
       [agreementId, normalizedPartnerId]
@@ -2062,7 +2063,7 @@ async function reconcileSubBankAggregates({ currencyCode = 'USD' }) {
   }, 'credit_admin_reconcile_sub_banks');
 }
 
-async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, allowedOrderTypes, allowedCategories, allowedMenuItemIds, geography, maxTransactionCents, dailyCustomerLimitCents, lifetimeCustomerLimitCents, requiresCustomerEntitlement = false, metadata, reason, idempotencyKey, actorUserId, correlationId, requestIp }) {
+async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, allowedOrderTypes, allowedCategories, allowedMenuItemIds, allowedSurfaces, geography, maxTransactionCents, dailyCustomerLimitCents, lifetimeCustomerLimitCents, requiresCustomerEntitlement = false, metadata, reason, idempotencyKey, actorUserId, correlationId, requestIp }) {
   const normalizedPartnerId = parsePositiveInt(partnerId, 'partnerId');
   const starts = parseDate(startsAt, 'startsAt', true);
   const ends = parseDate(endsAt, 'endsAt');
@@ -2078,6 +2079,7 @@ async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, all
   const normalizedDailyCustomerLimitCents = parseLimit(dailyCustomerLimitCents, 'dailyCustomerLimitCents');
   const normalizedLifetimeCustomerLimitCents = parseLimit(lifetimeCustomerLimitCents, 'lifetimeCustomerLimitCents');
   const normalizedRequiresCustomerEntitlement = requiresCustomerEntitlement === true;
+  const normalizedAllowedSurfaces = normalizeArray(allowedSurfaces, 40, 32).map((s) => String(s).toLowerCase());
   const normalizedMetadata = metadata && typeof metadata === 'object' ? metadata : {};
   const requestHash = agreementRequestHash({
     partnerId: normalizedPartnerId,
@@ -2087,6 +2089,7 @@ async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, all
     allowedOrderTypes: normalizedAllowedOrderTypes,
     allowedCategories: normalizedAllowedCategories,
     allowedMenuItemIds: normalizedAllowedMenuItemIds,
+    allowedSurfaces: normalizedAllowedSurfaces,
     geography: normalizedGeography,
     maxTransactionCents: normalizedMaxTransactionCents,
     dailyCustomerLimitCents: normalizedDailyCustomerLimitCents,
@@ -2099,7 +2102,7 @@ async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, all
       `SELECT a.*, p.restaurant_id, p.settlement_currency_code, fr.display_name AS restaurant_name
          FROM oxsteed_credit_partner_agreements a
          JOIN oxsteed_credit_partners p ON p.id = a.partner_id
-         JOIN food_restaurants fr ON fr.id = p.restaurant_id
+         LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
         WHERE a.creation_idempotency_key = $1
         FOR UPDATE`,
       [normalizedIdempotencyKey]
@@ -2124,13 +2127,13 @@ async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, all
     const { rows } = await client.query(
       `INSERT INTO oxsteed_credit_partner_agreements
          (partner_id, version, starts_at, ends_at, customer_terms, allowed_order_types,
-         allowed_categories, allowed_menu_item_ids, geography, max_transaction_cents,
+         allowed_categories, allowed_menu_item_ids, allowed_surfaces, geography, max_transaction_cents,
           daily_customer_limit_cents, lifetime_customer_limit_cents, metadata,
           requires_customer_entitlement, creation_idempotency_key, creation_request_hash, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6::text[], $7::text[], $8::bigint[], $9::jsonb, $10, $11, $12, $13::jsonb, $14, $15, $16, $17)
+       VALUES ($1, $2, $3, $4, $5, $6::text[], $7::text[], $8::bigint[], $9::text[], $10::jsonb, $11, $12, $13, $14::jsonb, $15, $16, $17, $18)
        ON CONFLICT (creation_idempotency_key) WHERE creation_idempotency_key IS NOT NULL DO NOTHING
        RETURNING *`,
-      [normalizedPartnerId, Number(versionRows[0].next_version), starts, ends, normalizedCustomerTerms, normalizedAllowedOrderTypes, normalizedAllowedCategories, normalizedAllowedMenuItemIds, JSON.stringify(normalizedGeography), normalizedMaxTransactionCents, normalizedDailyCustomerLimitCents, normalizedLifetimeCustomerLimitCents, JSON.stringify(storedAgreementMetadata), normalizedRequiresCustomerEntitlement, normalizedIdempotencyKey, requestHash, actorUserIdForStorage(actorUserId)]
+      [normalizedPartnerId, Number(versionRows[0].next_version), starts, ends, normalizedCustomerTerms, normalizedAllowedOrderTypes, normalizedAllowedCategories, normalizedAllowedMenuItemIds, normalizedAllowedSurfaces, JSON.stringify(normalizedGeography), normalizedMaxTransactionCents, normalizedDailyCustomerLimitCents, normalizedLifetimeCustomerLimitCents, JSON.stringify(storedAgreementMetadata), normalizedRequiresCustomerEntitlement, normalizedIdempotencyKey, requestHash, actorUserIdForStorage(actorUserId)]
     );
     // A concurrent duplicate can lose the insert race after the first request
     // commits. Re-read the winner and return it as a normal idempotent replay
@@ -2140,7 +2143,7 @@ async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, all
         `SELECT a.*, p.restaurant_id, p.settlement_currency_code, fr.display_name AS restaurant_name
            FROM oxsteed_credit_partner_agreements a
            JOIN oxsteed_credit_partners p ON p.id = a.partner_id
-           JOIN food_restaurants fr ON fr.id = p.restaurant_id
+           LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
           WHERE a.creation_idempotency_key = $1
           FOR UPDATE`,
         [normalizedIdempotencyKey]
@@ -2178,7 +2181,7 @@ async function transitionAgreement({ agreementId, targetStatus, expectedStatus, 
       `SELECT a.*, p.status AS partner_status, p.restaurant_id, fr.display_name AS restaurant_name
          FROM oxsteed_credit_partner_agreements a
          JOIN oxsteed_credit_partners p ON p.id = a.partner_id
-         JOIN food_restaurants fr ON fr.id = p.restaurant_id
+         LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
         WHERE a.id = $1
         FOR UPDATE`,
       [agreementId]
@@ -2250,7 +2253,7 @@ async function upsertEntitlement({ agreementId, customerId, status = 'active', s
       `SELECT a.*, p.status AS partner_status, fr.status AS restaurant_status
          FROM oxsteed_credit_partner_agreements a
          JOIN oxsteed_credit_partners p ON p.id = a.partner_id
-         JOIN food_restaurants fr ON fr.id = p.restaurant_id
+         LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
         WHERE a.id = $1
         FOR SHARE`,
       [agreementId]
@@ -2450,7 +2453,7 @@ async function bulkUpsertEntitlements({ agreementIds, customerId, status = 'acti
               p.status AS partner_status, fr.status AS restaurant_status
          FROM oxsteed_credit_partner_agreements a
          JOIN oxsteed_credit_partners p ON p.id = a.partner_id
-         JOIN food_restaurants fr ON fr.id = p.restaurant_id
+         LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
         WHERE a.id = ANY($1::uuid[])
         ORDER BY a.id ASC
         FOR SHARE`,
@@ -2632,7 +2635,7 @@ async function expireCreditAgreements({ limit = 250, now = new Date(), actorUser
               fr.display_name AS restaurant_name
          FROM oxsteed_credit_partner_agreements a
          JOIN oxsteed_credit_partners p ON p.id = a.partner_id
-         JOIN food_restaurants fr ON fr.id = p.restaurant_id
+         LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
         WHERE a.status IN ('active', 'suspended')
           AND a.ends_at IS NOT NULL
           AND a.ends_at <= $1

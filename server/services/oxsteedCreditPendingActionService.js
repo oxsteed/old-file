@@ -51,6 +51,10 @@ const { upsertRestaurantConversionPolicy } = require('./oxsteedCreditRestaurantC
 const { recordPartnerFundingInTransaction } = require('./oxsteedCreditPartnerLedgerService');
 const { createCurrencyQuote } = require('./oxsteedCreditCurrencyConversionService');
 const { verifyStepupChallenge } = require('./stepupChallengeService');
+const {
+  activateParticipantInTransaction,
+  activatePartnerWithGuards,
+} = require('./oxsteedCreditParticipantService');
 
 const PENDING_ACTION_TTL_HOURS = Math.max(
   1,
@@ -326,6 +330,30 @@ const ACTION_EXECUTORS = {
       correlationId,
       requestIp,
       metadata: { ...(payload.metadata || {}), approvedBy: actorUserId },
+    }),
+  // Credit Everywhere Phase 1 (LOCKED): partner/participant activation is
+  // amount-less, so it always requires dual approval — the threshold
+  // bypass in requestPendingAction never applies (resolveActionAmountCents
+  // returns null for these types). The executor runs inside the checker's
+  // decision transaction; the Didit gate is enforced here at execution
+  // time so a verification lapse between request and approval still
+  // blocks activation.
+  credit_partner_activation: async ({ payload, actorUserId, requestIp, correlationId }) =>
+    activatePartnerWithGuards({
+      partnerId: payload.partnerId,
+      expectedStatus: payload.expectedStatus || 'pending',
+      reason: payload.reason,
+      actorUserId,
+      requestIp,
+      correlationId,
+    }),
+  credit_participant_activation: async ({ client, payload, actorUserId, requestIp, correlationId }) =>
+    activateParticipantInTransaction(client, {
+      participantId: payload.participantId,
+      actorUserId,
+      reason: payload.reason,
+      requestIp,
+      correlationId,
     }),
   credit_currency_quote: async ({ payload, actorUserId, correlationId }) =>
     createCurrencyQuote({

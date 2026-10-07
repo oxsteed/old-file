@@ -6,6 +6,9 @@ const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const logger = require('../utils/logger');
 const { assertReserveFloorForPosting } = require('./oxsteedCreditReserveService');
+const {
+  assertSurfaceAllowed,
+} = require('./creditParticipantService');
 
 const CREDIT_CURRENCY = 'USD';
 // Credit amounts are stored as integer minor units. Keep this map explicit:
@@ -1473,9 +1476,15 @@ function formatGeography(geography) {
   }, {});
 }
 
-async function findSpendAgreement(client, { customerId, partnerId, agreementId = null, orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, amountCents, excludeHoldId = null, strict = true }) {
+async function findSpendAgreement(client, { customerId, partnerId, agreementId = null, orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, amountCents, excludeHoldId = null, strict = true, surface = 'food_online' }) {
   const { rows } = await client.query(
     `SELECT a.*, p.restaurant_id, p.status AS partner_status, p.settlement_currency_code,
+            cp.id AS participant_id, cp.status AS participant_status,
+            cp.didit_verified AS participant_didit_verified,
+            cp.allowed_surfaces AS participant_allowed_surfaces,
+            cp.max_ticket_cents AS participant_max_ticket_cents,
+            cp.daily_cap_cents AS participant_daily_cap_cents,
+            cp.lifetime_cap_cents AS participant_lifetime_cap_cents,
             fr.display_name AS restaurant_name, fr.status AS restaurant_status,
             fr.address_city, fr.address_state, fr.address_zip, fr.address_country,
             fr.currency_code AS restaurant_currency_code,
@@ -1486,6 +1495,15 @@ async function findSpendAgreement(client, { customerId, partnerId, agreementId =
        FROM oxsteed_credit_partner_agreements a
        JOIN oxsteed_credit_partners p ON p.id = a.partner_id
        JOIN food_restaurants fr ON fr.id = p.restaurant_id
+       -- Credit Everywhere Phase 1: every partner was backfilled with a
+       -- restaurant participant (migration 724). The participant lifecycle
+       -- and Didit gates are enforced here, atomically with agreement
+       -- resolution. Surface gating happens in JS below.
+       JOIN credit_participants cp
+         ON cp.partner_id = p.id
+        AND cp.participant_type = 'restaurant'
+        AND cp.status = 'active'
+        AND cp.didit_verified = TRUE
        LEFT JOIN oxsteed_credit_customer_entitlements e
          ON e.agreement_id = a.id AND e.customer_id = $1
       WHERE p.id = $2
@@ -1506,6 +1524,13 @@ async function findSpendAgreement(client, { customerId, partnerId, agreementId =
     if (strict) throw new AppError('This restaurant is not currently eligible for OxSteed Credit', 403, 'credit_partner_not_eligible');
     return null;
   }
+  // Credit Everywhere Phase 1: surface gate. The participant lifecycle and
+  // Didit gates are enforced in the JOIN above; the surface check needs JS
+  // because allowed_surfaces is an array.
+  assertSurfaceAllowed(
+    { allowed_surfaces: agreement.participant_allowed_surfaces },
+    surface
+  );
   const settlementCurrency = assertSupportedCreditCurrency(agreement.settlement_currency_code);
   if (agreement.restaurant_currency_code && normalizeCurrency(agreement.restaurant_currency_code) !== settlementCurrency) {
     throw new AppError('The partner settlement currency does not match the restaurant currency', 409, 'credit_partner_currency_mismatch');
@@ -1600,6 +1625,11 @@ async function findSpendAgreement(client, { customerId, partnerId, agreementId =
 const CREDIT_ELIGIBILITY_FAILURE_CODES = new Set([
   'credit_rail_suspended',
   'credit_partner_not_eligible',
+  'credit_partner_not_active',
+  'credit_participant_not_found',
+  'credit_participant_not_active',
+  'credit_participant_didit_required',
+  'credit_surface_not_allowed',
   'credit_partner_currency_mismatch',
   'credit_order_type_not_eligible',
   'credit_category_not_eligible',
@@ -1730,6 +1760,13 @@ async function listEligiblePartners({ customerId, currencyCode = CREDIT_CURRENCY
        FROM oxsteed_credit_partners p
        JOIN food_restaurants fr ON fr.id = p.restaurant_id
        JOIN oxsteed_credit_partner_agreements a ON a.partner_id = p.id
+       -- Credit Everywhere Phase 1: only list partners whose restaurant
+       -- participant is active and Didit-verified.
+       JOIN credit_participants cp
+         ON cp.partner_id = p.id
+        AND cp.participant_type = 'restaurant'
+        AND cp.status = 'active'
+        AND cp.didit_verified = TRUE
        LEFT JOIN oxsteed_credit_customer_entitlements e
          ON e.agreement_id = a.id AND e.customer_id = $1
       WHERE p.status = 'active' AND fr.status = 'active'
@@ -2269,7 +2306,7 @@ async function updateCustomerCreditAccountStatus({ customerId, status, currencyC
   }, 'credit_update_customer_status');
 }
 
-async function createCreditHold({ customerId, partnerId, amountCents, currencyCode = null, idempotencyKey, actorUserId, orderType, category, menuItemId, city, state, postalCode, country, purpose, referenceType, referenceId, correlationId, requestIp, expiresAt, metadata = {} }) {
+async function createCreditHoldInTransaction(client, { customerId, partnerId, amountCents, currencyCode = null, idempotencyKey, actorUserId, orderType, category, menuItemId, city, state, postalCode, country, purpose, referenceType, referenceId, correlationId, requestIp, expiresAt, metadata = {} }) {
   requireCustomerActor(actorUserId, customerId, 'The Credit hold owner must create the hold', 'credit_hold_actor_required');
   const amount = parseAmountCents(amountCents);
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
@@ -2290,7 +2327,7 @@ async function createCreditHold({ customerId, partnerId, amountCents, currencyCo
     ...(hasExplicitExpiry ? { expires_at: requestedExpiry.toISOString() } : {}),
   };
   const holdMetadata = { ...normalizeMetadata(metadata), _oxsteedCreditRequest: requestScope };
-  return withTransaction(pool, async (client) => {
+  {
     const existing = await findExistingCreditHoldForReplay(client, { customerId, partnerId, idempotencyKey: normalizedIdempotencyKey });
     if (existing) {
       const settlementCurrency = assertSupportedCreditCurrency(existing.currency_code);
@@ -2388,7 +2425,11 @@ async function createCreditHold({ customerId, partnerId, amountCents, currencyCo
       [actorUserId || null, customerId, partnerId, String(holdRows[0].id), normalizeString(purpose, 100), normalizeString(correlationId, 160), requestIp || null, JSON.stringify({ amountCents: amount, expiresAt: requestedExpiry.toISOString() })]
     );
     return { hold: formatHold(holdRows[0]), replayed: false };
-  }, 'credit_create_hold');
+  }
+}
+
+async function createCreditHold(args) {
+  return withTransaction(pool, (client) => createCreditHoldInTransaction(client, args), 'credit_create_hold');
 }
 
 function formatHold(row) {
@@ -3702,6 +3743,7 @@ module.exports = {
   adjustCustomerCredit,
   updateCustomerCreditAccountStatus,
   createCreditHold,
+  createCreditHoldInTransaction,
   captureCreditHoldInTransaction,
   captureCreditHold,
   releaseCreditHold,

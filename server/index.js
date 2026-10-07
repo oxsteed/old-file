@@ -672,6 +672,15 @@ app.use('/api/main-app', mainAppRoutes);
 app.use('/api/direct', directRoutes);
 app.use('/api/food', foodRoutes);
 app.use('/api/oxsteed-credit', oxsteedCreditRoutes);
+// Credit Everywhere Phase 1: self-serve participant apply. Any
+// authenticated user (business owner, helper) can apply; the customer
+// role gate on the main credit router does not apply here.
+app.post(
+  '/api/oxsteed-credit/participants/apply',
+  authenticate,
+  require('./middleware/rejectImpersonated').rejectImpersonated,
+  require('./controllers/oxsteedCreditController').applyForCredit
+);
 app.use('/api/media', require('./routes/media'));
 // Monthly statement operations: private archive, entry investigation, and
 // accessible renditions. Each router enforces per-request authorization.

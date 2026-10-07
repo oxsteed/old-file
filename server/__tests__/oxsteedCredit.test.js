@@ -528,6 +528,10 @@ test('customer allowlist agreements require an active entitlement in eligibility
 test('lets admins preview the exact restaurants a customer can spend at', async () => {
   mockQuery.mockResolvedValueOnce({ rows: [{
     partner_id: 41,
+    participant_id: 'participant-1',
+    participant_status: 'active',
+    participant_didit_verified: true,
+    participant_allowed_surfaces: ['food_online', 'food_pos', 'chat'],
     restaurant_id: 12,
     restaurant_name: 'OxSteed Cafe',
     address_city: 'Springfield',
@@ -956,6 +960,10 @@ test('exports filtered Credit agreements with formula-safe terms', async () => {
     .mockResolvedValueOnce({ rows: [{
       id: 'agreement-1',
       partner_id: 41,
+      participant_id: 'participant-1',
+      participant_status: 'active',
+      participant_didit_verified: true,
+      participant_allowed_surfaces: ['food_online', 'food_pos', 'chat'],
       restaurant_id: 12,
       restaurant_name: '=Cafe',
       settlement_currency_code: 'USD',
@@ -1117,6 +1125,10 @@ test('shows only spendable partner restaurants in the customer currency', async 
   mockQuery.mockResolvedValueOnce({ rows: [
     {
       partner_id: 41,
+      participant_id: 'participant-1',
+      participant_status: 'active',
+      participant_didit_verified: true,
+      participant_allowed_surfaces: ['food_online', 'food_pos', 'chat'],
       restaurant_id: 7,
       settlement_currency_code: 'USD',
       restaurant_currency_code: 'USD',
@@ -1136,6 +1148,10 @@ test('shows only spendable partner restaurants in the customer currency', async 
     },
     {
       partner_id: 42,
+      participant_id: 'participant-1',
+      participant_status: 'active',
+      participant_didit_verified: true,
+      participant_allowed_surfaces: ['food_online', 'food_pos', 'chat'],
       restaurant_id: 8,
       settlement_currency_code: 'EUR',
       restaurant_currency_code: 'EUR',
@@ -1169,6 +1185,10 @@ test('shows only spendable partner restaurants in the customer currency', async 
 test('shows geographic partner coverage before a customer enters a location and filters it when they do', async () => {
   const row = {
     partner_id: 41,
+    participant_id: 'participant-1',
+    participant_status: 'active',
+    participant_didit_verified: true,
+    participant_allowed_surfaces: ['food_online', 'food_pos', 'chat'],
     restaurant_id: 7,
     settlement_currency_code: 'USD',
     restaurant_currency_code: 'USD',
@@ -1238,6 +1258,10 @@ test('checks restaurant checkout eligibility with the same agreement policy as s
     .mockResolvedValueOnce({ rows: [{
       id: 'agreement-41',
       partner_id: 41,
+      participant_id: 'participant-1',
+      participant_status: 'active',
+      participant_didit_verified: true,
+      participant_allowed_surfaces: ['food_online', 'food_pos', 'chat'],
       settlement_currency_code: 'USD',
       restaurant_currency_code: 'USD',
       restaurant_id: 7,
@@ -1274,6 +1298,10 @@ test('uses the verified restaurant location when creating a hold without custome
   mockQuery.mockResolvedValueOnce({ rows: [{
     id: 'agreement-springfield',
     partner_id: 41,
+    participant_id: 'participant-1',
+    participant_status: 'active',
+    participant_didit_verified: true,
+    participant_allowed_surfaces: ['food_online', 'food_pos', 'chat'],
     restaurant_id: 7,
     settlement_currency_code: 'USD',
     restaurant_currency_code: 'USD',
@@ -2357,6 +2385,10 @@ test('counts active credit holds toward agreement spending limits', async () => 
     .mockResolvedValueOnce({ rows: [{
       id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
       partner_id: 41,
+      participant_id: 'participant-1',
+      participant_status: 'active',
+      participant_didit_verified: true,
+      participant_allowed_surfaces: ['food_online', 'food_pos', 'chat'],
       status: 'active',
       starts_at: '2026-09-01T00:00:00.000Z',
       ends_at: null,
@@ -2393,6 +2425,10 @@ test('can exclude the hold being captured from agreement usage totals', async ()
     .mockResolvedValueOnce({ rows: [{
       id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
       partner_id: 41,
+      participant_id: 'participant-1',
+      participant_status: 'active',
+      participant_didit_verified: true,
+      participant_allowed_surfaces: ['food_online', 'food_pos', 'chat'],
       status: 'active',
       starts_at: '2026-09-01T00:00:00.000Z',
       ends_at: null,
@@ -2427,6 +2463,10 @@ test('fails closed when a scoped agreement is missing request context', async ()
   const agreement = {
     id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
     partner_id: 41,
+    participant_id: 'participant-1',
+    participant_status: 'active',
+    participant_didit_verified: true,
+    participant_allowed_surfaces: ['food_online', 'food_pos', 'chat'],
     status: 'active',
     starts_at: '2026-09-01T00:00:00.000Z',
     ends_at: null,
@@ -2482,7 +2522,7 @@ test('passes the requested agreement through purchase authorization', async () =
     .mockResolvedValueOnce({ rows: [{ is_enabled: true }] })
     .mockResolvedValueOnce({ rows: [] }) // Phase 4: operator freeze check (oxsteed_credit_rail_freezes)
     .mockResolvedValueOnce({ rows: [] })
-    .mockResolvedValueOnce({ rows: [{ id: agreementId, partner_id: 41, status: 'active', starts_at: '2026-09-01T00:00:00.000Z', ends_at: null, allowed_order_types: [], allowed_categories: [], allowed_menu_item_ids: [], geography: {}, settlement_currency_code: 'USD', restaurant_currency_code: 'USD', daily_customer_limit_cents: '10000', entitlement_id: null, entitlement_status: null }] })
+    .mockResolvedValueOnce({ rows: [{ id: agreementId, partner_id: 41, participant_id: 'participant-1', participant_status: 'active', participant_didit_verified: true, participant_allowed_surfaces: ['food_online', 'food_pos', 'chat'], status: 'active', starts_at: '2026-09-01T00:00:00.000Z', ends_at: null, allowed_order_types: [], allowed_categories: [], allowed_menu_item_ids: [], geography: {}, settlement_currency_code: 'USD', restaurant_currency_code: 'USD', daily_customer_limit_cents: '10000', entitlement_id: null, entitlement_status: null }] })
     .mockResolvedValueOnce({ rows: [{ daily_cents: '0', lifetime_cents: '0' }] })
     .mockResolvedValueOnce({ rows: [{ movement_count: '0', movement_cents: '0' }] })
     .mockResolvedValueOnce({ rows: [] })
@@ -2633,6 +2673,10 @@ test('does not create a new hold for a suspended credit account', async () => {
     .mockResolvedValueOnce({ rows: [{
       id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
       partner_id: 41,
+      participant_id: 'participant-1',
+      participant_status: 'active',
+      participant_didit_verified: true,
+      participant_allowed_surfaces: ['food_online', 'food_pos', 'chat'],
       status: 'active',
       starts_at: '2026-09-01T00:00:00.000Z',
       ends_at: null,
@@ -2687,6 +2731,10 @@ test('rejects credit hold idempotency reuse for a different agreement or referen
     .mockResolvedValueOnce({ rows: [{
       id: 'agreement-current',
       partner_id: 41,
+      participant_id: 'participant-1',
+      participant_status: 'active',
+      participant_didit_verified: true,
+      participant_allowed_surfaces: ['food_online', 'food_pos', 'chat'],
       status: 'active',
       starts_at: '2026-09-01T00:00:00.000Z',
       ends_at: null,
@@ -2743,6 +2791,10 @@ test('replays a non-USD credit hold when the settlement currency matches', async
     .mockResolvedValueOnce({ rows: [{
       id: 'agreement-eur',
       partner_id: 41,
+      participant_id: 'participant-1',
+      participant_status: 'active',
+      participant_didit_verified: true,
+      participant_allowed_surfaces: ['food_online', 'food_pos', 'chat'],
       status: 'active',
       starts_at: '2026-09-01T00:00:00.000Z',
       ends_at: null,
@@ -3374,7 +3426,7 @@ function installHoldCaptureMocks({ rawKey, legacyPurchase = null, purchaseError 
   };
   const customerAccount = { id: 501, account_type: 'customer_wallet', customer_id: CUSTOMER_ID, currency_code: 'USD', balance_cents: 10000, reserved_cents: 5000, status: 'active', ledger_version: 3, last_entry_hash: 'abc' };
   const partnerAccount = { id: 502, account_type: 'partner_payable', partner_id: 41, currency_code: 'USD', balance_cents: 0, reserved_cents: 0, status: 'active', ledger_version: 1, last_entry_hash: null };
-  const agreement = { id: 'agr-1', settlement_currency_code: 'USD', restaurant_currency_code: 'USD', allowed_order_types: [], allowed_categories: [], allowed_menu_item_ids: [] };
+  const agreement = { id: 'agr-1', settlement_currency_code: 'USD', restaurant_currency_code: 'USD', allowed_order_types: [], allowed_categories: [], allowed_menu_item_ids: [], participant_id: 'participant-1', participant_status: 'active', participant_didit_verified: true, participant_allowed_surfaces: ['food_online', 'food_pos', 'chat'] };
   mockQuery.mockImplementation(async (text, params = []) => {
     const sql = String(text);
     if (sql.includes('FROM oxsteed_credit_holds h') && sql.includes('JOIN oxsteed_credit_accounts')) return { rows: [hold] };
@@ -3496,7 +3548,7 @@ test('concurrent hold creation loses the insert race and replays the winner with
     }
     if (sql.includes("FROM feature_flags WHERE key = 'oxsteed_credit_enabled'")) return { rows: [{ is_enabled: true }] };
     if (sql.includes('FROM oxsteed_credit_partner_agreements a')) {
-      return { rows: [{ id: 'agr-1', settlement_currency_code: 'USD', restaurant_currency_code: 'USD', allowed_order_types: [], allowed_categories: [], allowed_menu_item_ids: [] }] };
+      return { rows: [{ id: 'agr-1', settlement_currency_code: 'USD', restaurant_currency_code: 'USD', allowed_order_types: [], allowed_categories: [], allowed_menu_item_ids: [], participant_id: 'participant-1', participant_status: 'active', participant_didit_verified: true, participant_allowed_surfaces: ['food_online', 'food_pos', 'chat'] }] };
     }
     if (sql.includes('active_hold_usage')) return { rows: [{ movement_count: 0, movement_cents: '0' }] };
     if (sql.includes('INSERT INTO oxsteed_credit_accounts')) return { rows: [], rowCount: 0 };

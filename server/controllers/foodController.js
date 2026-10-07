@@ -24,11 +24,11 @@ const {
 const permissionsService = require('../services/permissionsService');
 const { debitFoodWallet, refundWalletDebitForReference, formatLedgerRow } = require('../services/foodWalletService');
 const {
-  purchaseWithCreditInTransaction,
   refundCreditForReferenceInTransaction,
   formatCreditAmount,
   getCustomerCreditEligibility,
 } = require('../services/oxsteedCreditService');
+const { spendWithCreditInTransaction } = require('../services/creditSpendAdapter');
 const {
   recordWalletCreditPaymentForOrder,
   recordWalletCreditRefundForOrder,
@@ -3323,24 +3323,17 @@ exports.createOrder = async (req, res, next) => {
             reason: 'zero_total_order',
           });
         } else {
-          const { rows: partnerRows } = await client.query(
-            `SELECT id
-               FROM oxsteed_credit_partners
-              WHERE restaurant_id = $1 AND status = 'active'
-              LIMIT 1`,
-            [restaurantId]
-          );
-          if (!partnerRows[0]) {
-            throw new AppError('This restaurant does not currently accept OxSteed Credit', 409, 'credit_partner_not_eligible');
-          }
-          const creditResult = await purchaseWithCreditInTransaction(client, {
+          const creditResult = await spendWithCreditInTransaction(client, {
+            participantRef: { type: 'restaurant', subjectId: restaurantId },
             customerId: req.user.id,
-            partnerId: partnerRows[0].id,
             amountCents: total,
-            currencyCode: normalizeCurrency(restaurant.currency_code),
+            currency: normalizeCurrency(restaurant.currency_code),
+            surface: 'food_online',
+            referenceType: 'food_order',
+            referenceId: String(created.id),
             idempotencyKey: `food-order:${created.id}:oxsteed-credit`,
             actorUserId: req.user.id,
-            actorType: 'customer',
+            isImpersonated: !!req.isImpersonated,
             orderType: fulfillmentType,
             categories: normalizedItems.map((item) => item.menuItem.category_name).filter(Boolean),
             menuItemIds: normalizedItems.map((item) => item.menuItem.id),
@@ -3361,7 +3354,7 @@ exports.createOrder = async (req, res, next) => {
               clientOrderId: clientOrderId || null,
             },
           });
-          const creditTransactionId = creditResult.transaction?.id || null;
+          const creditTransactionId = creditResult.purchase?.transaction?.id || null;
           await client.query(
             `UPDATE food_orders
                 SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb,
@@ -3376,9 +3369,9 @@ exports.createOrder = async (req, res, next) => {
           oxsteedCreditPayment = buildOxsteedCreditPaymentResponse({
             status: 'paid',
             amountCents: total,
-            currencyCode: creditResult.transaction?.currencyCode || normalizeCurrency(restaurant.currency_code),
-            transaction: creditResult.transaction,
-            replayed: Boolean(creditResult.replayed),
+            currencyCode: creditResult.purchase?.transaction?.currencyCode || normalizeCurrency(restaurant.currency_code),
+            transaction: creditResult.purchase?.transaction,
+            replayed: Boolean(creditResult.purchase?.replayed),
           });
         }
       }

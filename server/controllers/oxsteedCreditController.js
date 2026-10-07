@@ -90,6 +90,12 @@ const {
   triggerExternalReconciliation,
 } = require('../services/oxsteedCreditExternalReconciliation');
 const {
+  applyForCreditParticipation,
+  enrollParticipant,
+  getParticipant,
+  listParticipants,
+} = require('../services/oxsteedCreditParticipantService');
+const {
   NOTIFICATION_WORKER_NAME,
   STALE_AFTER_MINUTES,
   DAILY_WORKER_STALE_AFTER_MINUTES,
@@ -1661,9 +1667,20 @@ async function registerAdminPartner(req, res, next) {
 
 async function transitionAdminPartner(req, res, next) {
   try {
+    const targetStatus = req.body?.status || req.body?.targetStatus || req.body?.target_status;
+    // LOCKED (Credit Everywhere): activation is dual-control. The direct
+    // transition path refuses it; makers must use the activation request
+    // endpoint so a different admin approves.
+    if (String(targetStatus || '').toLowerCase() === 'active') {
+      throw new AppError(
+        'Partner activation requires dual approval: request it via POST /admin/super/oxsteed-credit/partners/:partnerId/activation',
+        409,
+        'credit_partner_activation_requires_dual_control'
+      );
+    }
     const result = await transitionPartner({
       partnerId: req.params.partnerId,
-      targetStatus: req.body?.status || req.body?.targetStatus || req.body?.target_status,
+      targetStatus,
       expectedStatus: req.body?.expectedStatus ?? req.body?.expected_status,
       reason: req.body?.reason,
       actorUserId: req.user.id,
@@ -1671,6 +1688,130 @@ async function transitionAdminPartner(req, res, next) {
       requestIp: req.ip || null,
     });
     res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /admin/super/oxsteed-credit/partners/:partnerId/activation
+ * Maker endpoint (LOCKED): queue a partner activation for checker
+ * approval. The Didit gate runs at execution time inside the checker's
+ * decision transaction. Returns 202 with the pending receipt.
+ */
+async function requestAdminPartnerActivation(req, res, next) {
+  try {
+    const result = await requestPendingAction({
+      actionType: 'credit_partner_activation',
+      payload: {
+        partnerId: req.params.partnerId,
+        expectedStatus: req.body?.expectedStatus ?? req.body?.expected_status ?? 'pending',
+        reason: req.body?.reason,
+      },
+      requestedBy: req.user.id,
+      idempotencyKey: getIdempotencyKey(req),
+      requestIp: req.ip || null,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+    });
+    sendMoneyMovementResult(res, result, 202);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /admin/super/oxsteed-credit/participants/:participantId/activation
+ * Maker endpoint (LOCKED): queue a participant activation for checker
+ * approval. Self-approval is 403 at decision time.
+ */
+async function requestAdminParticipantActivation(req, res, next) {
+  try {
+    const result = await requestPendingAction({
+      actionType: 'credit_participant_activation',
+      payload: {
+        participantId: req.params.participantId,
+        reason: req.body?.reason,
+      },
+      requestedBy: req.user.id,
+      idempotencyKey: getIdempotencyKey(req),
+      requestIp: req.ip || null,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+    });
+    sendMoneyMovementResult(res, result, 202);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * GET /admin/super/oxsteed-credit/participants?status=&type=&search=
+ * Admin participant queue (self-serve applications + admin enrollments).
+ */
+async function listAdminParticipants(req, res, next) {
+  try {
+    const participants = await listParticipants({
+      status: req.query.status || null,
+      participantType: req.query.type || req.query.participantType || null,
+      search: req.query.search || null,
+      limit: req.query.limit,
+      offset: req.query.offset,
+    });
+    res.json({ participants });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function getAdminParticipant(req, res, next) {
+  try {
+    res.json(await getParticipant(req.params.participantId));
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /admin/super/oxsteed-credit/participants
+ * Admin-initiated enrollment (LOCKED: both admin-only and self-serve
+ * apply feed the same pending queue).
+ */
+async function enrollAdminParticipant(req, res, next) {
+  try {
+    const result = await enrollParticipant({
+      actorUserId: req.user.id,
+      participantType: req.body?.participantType || req.body?.participant_type,
+      businessId: req.body?.businessId ?? req.body?.business_id,
+      subjectUserId: req.body?.subjectUserId || req.body?.subject_user_id,
+      notes: req.body?.notes,
+      allowedSurfaces: req.body?.allowedSurfaces || req.body?.allowed_surfaces,
+      requestIp: req.ip || null,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+    });
+    res.status(201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /api/oxsteed-credit/participants/apply
+ * Self-serve apply (LOCKED): a business owner or helper applies for
+ * their business/profile to accept Credit. Lands in the same pending
+ * queue as admin enrollments; activation still needs dual approval +
+ * Didit.
+ */
+async function applyForCredit(req, res, next) {
+  try {
+    const result = await applyForCreditParticipation({
+      userId: req.user.id,
+      participantType: req.body?.participantType || req.body?.participant_type,
+      businessId: req.body?.businessId ?? req.body?.business_id,
+      notes: req.body?.notes,
+      allowedSurfaces: req.body?.allowedSurfaces || req.body?.allowed_surfaces,
+      requestIp: req.ip || null,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+    });
+    res.status(result.replayed ? 200 : 201).json(result);
   } catch (error) {
     next(error);
   }
@@ -1686,6 +1827,7 @@ async function createAdminAgreement(req, res, next) {
       allowedOrderTypes: req.body?.allowedOrderTypes || req.body?.allowed_order_types,
       allowedCategories: req.body?.allowedCategories || req.body?.allowed_categories,
       allowedMenuItemIds: req.body?.allowedMenuItemIds || req.body?.allowed_menu_item_ids,
+      allowedSurfaces: req.body?.allowedSurfaces || req.body?.allowed_surfaces,
       geography: req.body?.geography,
       maxTransactionCents: req.body?.maxTransactionCents ?? req.body?.max_transaction_cents,
       dailyCustomerLimitCents: req.body?.dailyCustomerLimitCents ?? req.body?.daily_customer_limit_cents,
@@ -2360,6 +2502,12 @@ module.exports = {
   downloadAdminAgreements,
   registerAdminPartner,
   transitionAdminPartner,
+  requestAdminPartnerActivation,
+  requestAdminParticipantActivation,
+  listAdminParticipants,
+  getAdminParticipant,
+  enrollAdminParticipant,
+  applyForCredit,
   createAdminAgreement,
   transitionAdminAgreement,
   upsertAdminEntitlement,

@@ -1599,7 +1599,7 @@ test('concurrent agreement creation loses the insert race and replays the winner
   mockQuery.mockImplementation(async (text, params = []) => {
     const sql = String(text);
     if (sql.includes('INSERT INTO oxsteed_credit_partner_agreements')) {
-      capturedRequestHash = params[15]; // creation_request_hash position
+      capturedRequestHash = params[16]; // creation_request_hash position
       return { rows: [] }; // lost the race: ON CONFLICT DO NOTHING
     }
     if (sql.includes('a.creation_idempotency_key = $1')) {
