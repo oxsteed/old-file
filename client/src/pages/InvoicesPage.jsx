@@ -137,7 +137,7 @@ export default function InvoicesPage() {
       .reduce((sum, invoice) => sum + invoiceAmount(invoice), 0);
     const outstanding = invoices
       .filter((invoice) => ['issued', 'sent', 'overdue', 'partial', 'draft'].includes(invoice.status))
-      .reduce((sum, invoice) => sum + invoiceAmount(invoice), 0);
+      .reduce((sum, invoice) => sum + invoiceBalanceCents(invoice), 0);
     const overdueCount = invoices.filter((invoice) => invoice.status === 'overdue').length;
     return { total, paid, outstanding, overdueCount };
   }, [invoices]);

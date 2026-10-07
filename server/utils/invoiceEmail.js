@@ -391,8 +391,8 @@ function formatPaymentMethod(type, identifier, language = 'en') {
 async function sendInvoiceEmail(invoice, recipientEmail, maxRetries = 3, language = 'en') {
   const { lang, copy } = getInvoiceCopy(language);
   const CLIENT_URL = process.env.CLIENT_URL || 'https://oxsteed.com';
-  const paymentLink = invoice.invoice_number
-    ? `${CLIENT_URL}/tool-rentals?invoice=${encodeURIComponent(invoice.invoice_number)}`
+  const paymentLink = invoice.id
+    ? `${CLIENT_URL}/tool-rentals?rentalInvoiceId=${encodeURIComponent(invoice.id)}`
     : `${CLIENT_URL}/invoices`;
 
   let lastError = null;

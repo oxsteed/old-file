@@ -401,6 +401,10 @@ async function sendInvoice(req, res) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Invoice not found' });
     }
+    if (['paid', 'cancelled'].includes(String(inv.status || '').toLowerCase())) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: `Cannot send an invoice in '${inv.status}' status` });
+    }
 
     const publicTokenForSend = inv.status === 'draft' ? randomUUID() : inv.public_token;
     const { rows: [updatedInv] } = await client.query(`
@@ -724,6 +728,9 @@ async function sendHelperInvoice(req, res) {
       [invoiceId, userId]
     );
     if (!inv) return res.status(404).json({ error: 'Invoice not found' });
+    if (['paid', 'cancelled'].includes(String(inv.status || '').toLowerCase())) {
+      return res.status(400).json({ error: `Cannot send an invoice in '${inv.status}' status` });
+    }
 
     await client.query('BEGIN');
 

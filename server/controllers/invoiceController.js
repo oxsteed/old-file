@@ -341,7 +341,7 @@ const generateInvoicePDF = async (req, res) => {
     const paymentView = rentalInvoicePaymentView(invoice);
 
     const baseUrl = process.env.CLIENT_URL || 'https://oxsteed.com';
-    const paymentLink = `${baseUrl}/tool-rentals?invoice=${encodeURIComponent(invoice.invoice_number)}`;
+    const paymentLink = `${baseUrl}/tool-rentals?rentalInvoiceId=${encodeURIComponent(invoice.id)}`;
     const qrCodeDataUrl = await QRCode.toDataURL(paymentLink);
 
     const doc = new PDFDocument();

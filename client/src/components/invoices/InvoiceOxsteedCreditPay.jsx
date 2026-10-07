@@ -5,12 +5,17 @@ import toast from 'react-hot-toast';
 import { Loader2, Wallet } from 'lucide-react';
 import invoicesApi from '../../api/invoices';
 
-function formatMoneyFromCents(cents, language) {
+function formatMoneyFromCents(cents, language, currencyCode = 'USD') {
   const value = Number(cents || 0) / 100;
-  return new Intl.NumberFormat(language || undefined, {
-    style: 'currency',
-    currency: 'USD',
-  }).format(value);
+  const currency = String(currencyCode || 'USD').toUpperCase();
+  try {
+    return new Intl.NumberFormat(language || undefined, {
+      style: 'currency',
+      currency,
+    }).format(value);
+  } catch {
+    return `${value} ${currency}`;
+  }
 }
 
 function parseDollarsToCents(input) {
@@ -110,6 +115,7 @@ export default function InvoiceOxsteedCreditPay({
   };
 
   const ctaAmount = payMode === 'full' ? balanceCents : (payAmountCents || 0);
+  const displayCurrency = eligibility?.currency || 'USD';
 
   return (
     <div className={`invoice-credit-pay ${className}`.trim()}>
@@ -127,7 +133,7 @@ export default function InvoiceOxsteedCreditPay({
           />
           <span>
             {t('invoices.creditPayFull', {
-              amount: formatMoneyFromCents(balanceCents, i18n.language),
+              amount: formatMoneyFromCents(balanceCents, i18n.language, displayCurrency),
               defaultValue: 'Pay full balance ({{amount}})',
             })}
           </span>
@@ -145,18 +151,21 @@ export default function InvoiceOxsteedCreditPay({
 
       {payMode === 'partial' && (
         <label className="invoice-credit-pay-partial-field">
-          <span>{t('invoices.creditPayPartialLabel', { defaultValue: 'Amount (USD)' })}</span>
+          <span>{t('invoices.creditPayPartialLabel', {
+            defaultValue: 'Amount ({{currency}})',
+            currency: displayCurrency,
+          })}</span>
           <input
             type="text"
             inputMode="decimal"
             value={partialAmount}
             onChange={(event) => setPartialAmount(event.target.value)}
-            placeholder={formatMoneyFromCents(Math.min(balanceCents, 1000), i18n.language)}
+            placeholder={formatMoneyFromCents(Math.min(balanceCents, 1000), i18n.language, displayCurrency)}
             aria-invalid={partialInvalid}
           />
           <small>
             {t('invoices.creditPayPartialHint', {
-              max: formatMoneyFromCents(balanceCents, i18n.language),
+              max: formatMoneyFromCents(balanceCents, i18n.language, displayCurrency),
               defaultValue: 'Maximum {{max}}',
             })}
           </small>
@@ -173,7 +182,7 @@ export default function InvoiceOxsteedCreditPay({
         {paying
           ? t('invoices.creditPayProcessing', { defaultValue: 'Processing…' })
           : t('invoices.creditPayCta', {
-            amount: formatMoneyFromCents(ctaAmount, i18n.language),
+            amount: formatMoneyFromCents(ctaAmount, i18n.language, displayCurrency),
             defaultValue: 'Pay {{amount}} with OxSteed Credit',
           })}
       </button>

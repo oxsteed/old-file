@@ -75,6 +75,7 @@ async function sendBusinessInvoiceEmail({
   issuerName,
   language = 'en',
   maxRetries = 3,
+  idempotencyKey = null,
 }) {
   const lang = normalizeEmailLanguage(language);
   const copy = COPY[lang] || COPY.en;
@@ -100,7 +101,8 @@ async function sendBusinessInvoiceEmail({
       subject: copy.subject(invoiceNumber, fromName),
       text,
       html: renderOxSteedEmail({ preheader: copy.subject(invoiceNumber, fromName), bodyHtml: htmlBody, language: lang }),
-      idempotencyKey: `business-invoice:${invoice.id}:${recipientEmail.toLowerCase()}`,
+      idempotencyKey: idempotencyKey
+        || `business-invoice:${invoice.id}:${recipientEmail.toLowerCase()}`,
     });
     if (result.success) {
       logger.info('Business invoice email sent', { invoiceId: invoice.id, recipientEmail, attempt });

@@ -1,3 +1,4 @@
+const { randomUUID } = require('crypto');
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
@@ -162,31 +163,41 @@ router.post('/:id/resend-email', authenticate, generalLimiter, async (req, res) 
       return res.status(403).json({ error: 'Only the invoice issuer can resend email' });
     }
 
+    const isAdmin = ['admin', 'super_admin'].includes(req.user.role);
     const { rows: [full] } = await pool.query(
-      `SELECT bi.*, u.preferred_language, b.business_name
+      `SELECT bi.*,
+              u.preferred_language,
+              COALESCE(
+                NULLIF(TRIM(b.business_name), ''),
+                NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), '')
+              ) AS business_name
          FROM business_invoices bi
          LEFT JOIN businesses b ON b.id = bi.business_id
          LEFT JOIN users u ON u.id = bi.user_id
-        WHERE bi.id = $1 AND bi.user_id = $2`,
-      [inv.source_id, req.user.id]
+        WHERE bi.id = $1`,
+      [inv.source_id]
     );
-    if (!full && !['admin', 'super_admin'].includes(req.user.role)) {
+    if (!full) {
       return res.status(404).json({ error: 'Invoice not found' });
     }
-    const record = full || inv;
+    const isIssuer = String(full.user_id) === String(req.user.id);
+    if (!isAdmin && !isIssuer) {
+      return res.status(403).json({ error: 'Only the invoice issuer can resend email' });
+    }
 
-    if (!record.client_email) {
+    if (!full.client_email) {
       return res.status(400).json({ error: 'Invoice has no client email address' });
     }
-    if (!record.public_token) {
+    if (!full.public_token) {
       return res.status(409).json({ error: 'Invoice is missing a public link token' });
     }
 
     const emailResult = await sendBusinessInvoiceEmail({
-      invoice: record,
-      recipientEmail: record.client_email,
-      issuerName: record.business_name || 'OxSteed',
-      language: record.preferred_language || 'en',
+      invoice: full,
+      recipientEmail: full.client_email,
+      issuerName: full.business_name || 'OxSteed',
+      language: full.preferred_language || 'en',
+      idempotencyKey: `business-invoice:resend:${full.id}:${randomUUID()}:${full.client_email.toLowerCase()}`,
     });
     if (!emailResult.success) {
       return res.status(502).json({ error: 'Failed to deliver invoice email' });
@@ -194,7 +205,7 @@ router.post('/:id/resend-email', authenticate, generalLimiter, async (req, res) 
 
     await pool.query(
       "UPDATE business_invoices SET sent_at = NOW(), status = CASE WHEN status = 'draft' THEN 'sent' ELSE status END WHERE id = $1",
-      [record.id || inv.source_id]
+      [full.id]
     );
 
     res.json({ success: true, message: 'Invoice email sent successfully' });

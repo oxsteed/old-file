@@ -271,7 +271,7 @@ async function sumCreditPurchasesForInvoiceCents(client, invoiceId) {
   return Number(rows[0]?.total || 0);
 }
 
-async function syncInvoicePaidFromCreditLedger(client, invoiceId) {
+async function syncInvoicePaidFromCreditLedger(client, invoiceId, { incrementCents = null } = {}) {
   const creditPaidCents = await sumCreditPurchasesForInvoiceCents(client, invoiceId);
   const { rows: [locked] } = await client.query(
     `SELECT * FROM business_invoices WHERE id = $1 FOR UPDATE`,
@@ -280,9 +280,19 @@ async function syncInvoicePaidFromCreditLedger(client, invoiceId) {
   if (!locked) return null;
 
   const totalCents = Math.round(Number(locked.total || 0) * 100);
-  const targetPaidCents = Math.min(totalCents, creditPaidCents);
-  const targetPaid = round2(targetPaidCents / 100);
   const currentPaidCents = Math.round(Number(locked.amount_paid || 0) * 100);
+
+  let targetPaidCents;
+  if (incrementCents != null) {
+    targetPaidCents = Math.min(totalCents, currentPaidCents + incrementCents);
+  } else {
+    const nonCreditPaidCents = creditPaidCents > currentPaidCents
+      ? currentPaidCents
+      : Math.max(0, currentPaidCents - creditPaidCents);
+    targetPaidCents = Math.min(totalCents, nonCreditPaidCents + creditPaidCents);
+  }
+
+  const targetPaid = round2(targetPaidCents / 100);
 
   if (targetPaidCents <= currentPaidCents) {
     return locked;
@@ -349,6 +359,9 @@ async function evaluateInvoiceCreditEligibility(invoice, user) {
   }
 
   const currency = stripeInvoiceCurrency(invoice).toUpperCase();
+  if (currency !== 'USD') {
+    return { eligible: false, code: 'invoice_currency_not_supported', reason: 'currency' };
+  }
 
   try {
     const resolved = await resolveInvoiceParticipantRef(invoice);
@@ -421,25 +434,6 @@ async function payBusinessInvoiceWithCredit({
     );
   }
 
-  const balanceCents = eligibility.balanceCents;
-  let amountCents = balanceCents;
-  if (requestedAmountCents !== undefined && requestedAmountCents !== null) {
-    const parsed = Number(requestedAmountCents);
-    if (!Number.isSafeInteger(parsed) || parsed <= 0) {
-      throw new AppError('Amount must be a positive integer number of cents', 400, 'validation_failed');
-    }
-    if (parsed > balanceCents) {
-      throw new AppError('Payment exceeds the remaining invoice balance', 400, 'amount_exceeds_balance');
-    }
-    amountCents = parsed;
-  }
-
-  const currency = eligibility.currency;
-  const resolved = await resolveInvoiceParticipantRef(invoice);
-  if (!resolved) {
-    throw new AppError('Payee is not enrolled for OxSteed Credit', 403, 'credit_provider_not_eligible');
-  }
-
   const normalizedKey = String(idempotencyKey || '').trim();
   if (!normalizedKey) {
     throw new AppError('Idempotency-Key is required', 400, 'credit_idempotency_key_required');
@@ -447,10 +441,13 @@ async function payBusinessInvoiceWithCredit({
 
   const correlationId = `invoice-credit-${normalizedKey}`.slice(0, 160);
 
-  const spendBase = {
+  const resolved = await resolveInvoiceParticipantRef(invoice);
+  if (!resolved) {
+    throw new AppError('Payee is not enrolled for OxSteed Credit', 403, 'credit_provider_not_eligible');
+  }
+
+  const spendBaseTemplate = {
     customerId: user.id,
-    amountCents,
-    currency,
     referenceType: CREDIT_REFERENCE_TYPE,
     referenceId: String(invoice.id),
     idempotencyKey: normalizedKey,
@@ -475,10 +472,48 @@ async function payBusinessInvoiceWithCredit({
   const result = await withTransaction(
     pool,
     async (client) => {
+      const { rows: [locked] } = await client.query(
+        `SELECT * FROM business_invoices WHERE id = $1 FOR UPDATE`,
+        [invoiceId],
+      );
+      if (!locked || !isInvoicePayer(locked, user)) {
+        throw new AppError('Invoice not found', 404, 'invoice_not_found');
+      }
+
+      const lockedEligibility = await evaluateInvoiceCreditEligibility(locked, user);
+      if (!lockedEligibility.eligible) {
+        throw new AppError(
+          'This invoice cannot be paid with OxSteed Credit',
+          lockedEligibility.code === 'credit_provider_not_eligible' ? 403 : 409,
+          lockedEligibility.code || 'invoice_credit_not_eligible',
+          lockedEligibility,
+        );
+      }
+
+      const balanceCents = lockedEligibility.balanceCents;
+      let amountCents = balanceCents;
+      if (requestedAmountCents !== undefined && requestedAmountCents !== null) {
+        const parsed = Number(requestedAmountCents);
+        if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+          throw new AppError('Amount must be a positive integer number of cents', 400, 'validation_failed');
+        }
+        if (parsed > balanceCents) {
+          throw new AppError('Payment exceeds the remaining invoice balance', 400, 'amount_exceeds_balance');
+        }
+        amountCents = parsed;
+      }
+
+      const currency = lockedEligibility.currency;
+      const spendBaseLocked = {
+        ...spendBaseTemplate,
+        amountCents,
+        currency,
+      };
+
       let spendResult;
       if (resolved.legacyPartner) {
         const purchase = await creditService.purchaseWithCreditInTransaction(client, {
-          ...spendBase,
+          ...spendBaseLocked,
           partnerId: resolved.partnerId,
           currencyCode: currency,
           actorType: 'customer',
@@ -487,23 +522,25 @@ async function payBusinessInvoiceWithCredit({
       } else {
         spendResult = await spendWithCreditInTransaction(client, {
           participantRef: resolved.participantRef,
-          ...spendBase,
+          ...spendBaseLocked,
           currency,
           surface: CREDIT_SURFACE,
           isImpersonated: false,
         });
       }
 
-      const updatedInvoice = await syncInvoicePaidFromCreditLedger(client, invoice.id);
-      return { spendResult, invoice: updatedInvoice };
+      const updatedInvoice = await syncInvoicePaidFromCreditLedger(client, invoice.id, {
+        incrementCents: amountCents,
+      });
+      return { spendResult, invoice: updatedInvoice, amountCents, currency };
     },
     'business_invoice_credit_pay',
   );
 
   return {
     invoice: result.invoice,
-    amountCents,
-    currency,
+    amountCents: result.amountCents,
+    currency: result.currency,
     creditTransactionId:
       result.spendResult?.purchase?.transaction?.id != null
         ? String(result.spendResult.purchase.transaction.id)
