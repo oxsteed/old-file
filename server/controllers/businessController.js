@@ -319,6 +319,47 @@ async function addBusiness(req, res, next) {
 }
 
 // ── Update a business ─────────────────────────────────────────────────────────
+// GV-4: public section visibility flags (businesses.show_*, migration 730).
+const SECTION_VISIBILITY_FLAGS = Object.freeze([
+  'show_services', 'show_gallery', 'show_faqs', 'show_policies', 'show_hours',
+]);
+const DEFAULT_SECTION_VISIBILITY = Object.freeze(
+  Object.fromEntries(SECTION_VISIBILITY_FLAGS.map((flag) => [flag, true]))
+);
+
+// Returns { flag: boolean } for the flags present in `body`; throws a 400 when a
+// provided flag is not a boolean.
+function parseSectionVisibilityUpdate(body = {}) {
+  const updates = {};
+  for (const flag of SECTION_VISIBILITY_FLAGS) {
+    if (body[flag] === undefined) continue;
+    if (typeof body[flag] !== 'boolean') {
+      throw new AppError(`${flag} must be a boolean`, 400, 'validation_failed');
+    }
+    updates[flag] = body[flag];
+  }
+  return updates;
+}
+
+// Defensive read: an unmigrated database (no show_* columns) reads as all-visible.
+async function loadSectionVisibility(businessId, db = pool) {
+  try {
+    const { rows: [flags] } = await db.query(
+      `SELECT ${SECTION_VISIBILITY_FLAGS.join(', ')} FROM businesses WHERE id = $1`,
+      [businessId]
+    );
+    if (!flags) return { ...DEFAULT_SECTION_VISIBILITY };
+    return Object.fromEntries(
+      SECTION_VISIBILITY_FLAGS.map((flag) => [flag, flags[flag] !== false])
+    );
+  } catch (err) {
+    logger.warn('business section visibility unavailable, defaulting to visible', {
+      err: err.message,
+    });
+    return { ...DEFAULT_SECTION_VISIBILITY };
+  }
+}
+
 async function updateBusiness(req, res, next) {
   try {
     const { id } = req.params;
@@ -342,6 +383,8 @@ async function updateBusiness(req, res, next) {
       // Helper-profile fields that surface on the public business page (belong to owner)
       profile_headline, service_radius_miles,
     } = req.body;
+    // GV-4: owners and managers may toggle which sections the public page shows.
+    const sectionVisibilityUpdate = parseSectionVisibilityUpdate(req.body);
 
     // Country normalization. We resolve the effective country first because
     // state casing depends on it. If the request includes a new country use
@@ -513,6 +556,10 @@ async function updateBusiness(req, res, next) {
           bizVals.push(service_radius_miles != null ? parseFloat(service_radius_miles) : null);
           bizCols.push(`service_radius_miles = $${bizVals.length}`);
         }
+        for (const [flag, value] of Object.entries(sectionVisibilityUpdate)) {
+          bizVals.push(value);
+          bizCols.push(`${flag} = $${bizVals.length}`);
+        }
         if (bizCols.length > 0) {
           bizVals.push(id);
           await pool.query(
@@ -520,6 +567,7 @@ async function updateBusiness(req, res, next) {
             bizVals
           );
           invalidateHelperContext(ownerId, Number(id)).catch(() => {});
+          Object.assign(biz, sectionVisibilityUpdate);
         }
 
     return res.json({ business: withBusinessCapabilities(biz) });
@@ -1354,29 +1402,8 @@ async function respondBusinessProfile(req, res, adminPreview) {
 
     const ownerId = biz.owner_id;
 
-    // GV-4: section visibility flags. A sibling migration adds show_services,
-    // show_faqs, show_policies, show_gallery, show_hours to `businesses`
-    // (mirroring helper_profiles migration 077). Read them defensively so the
-    // profile still serves when the migration has not been applied yet.
-    let sectionVisibility = {
-      show_services: true,
-      show_faqs: true,
-      show_policies: true,
-      show_gallery: true,
-      show_hours: true,
-    };
-    try {
-      const { rows: [flags] } = await pool.query(
-        `SELECT show_services, show_faqs, show_policies, show_gallery, show_hours
-         FROM businesses WHERE id = $1`,
-        [bizId]
-      );
-      if (flags) sectionVisibility = flags;
-    } catch (err) {
-      logger.warn('respondBusinessProfile: show_* columns unavailable, defaulting to visible', {
-        err: err.message,
-      });
-    }
+    // GV-4: section visibility flags (migration 730), read defensively.
+    const sectionVisibility = await loadSectionVisibility(bizId);
 
     // Parallel: services, reviews, gallery, FAQs, policies, hours, active team members
     // Query from business_* tables (Phase 3 content) instead of helper_* tables
@@ -1431,6 +1458,8 @@ async function respondBusinessProfile(req, res, adminPreview) {
       ),
     ]);
 
+    const sectionShown = (flag) => adminPreview || sectionVisibility[flag] !== false;
+
     return res.json({
       business: withBusinessCapabilities({
         id:             biz.id,
@@ -1484,21 +1513,22 @@ async function respondBusinessProfile(req, res, adminPreview) {
         business_mode: biz.business_mode,
         industry_category: biz.industry_category,
         setup_status: biz.setup_status,
-        // GV-4: section visibility flags so the client can hide sections the
-        // business has not enabled (default true until the sibling migration
-        // lands and the values above are read from the row).
+        // GV-4: section visibility flags (businesses.show_*, migration 730)
+        // so the client hides the section entirely, not just its rows.
         show_services: sectionVisibility.show_services,
         show_faqs: sectionVisibility.show_faqs,
         show_policies: sectionVisibility.show_policies,
         show_gallery: sectionVisibility.show_gallery,
         show_hours: sectionVisibility.show_hours,
       }),
-      services:  svcRes.rows,
+      // GV-4: sections the business hid are omitted from the public payload
+      // (the admin content preview still sees everything).
+      services:  sectionShown('show_services') ? svcRes.rows : [],
       reviews:   reviewRes.rows,
-      gallery:   galRes.rows,
-      faqs:      faqRes.rows,
-      policies:  polRes.rows,
-      hours:     hoursRes.rows,
+      gallery:   sectionShown('show_gallery') ? galRes.rows : [],
+      faqs:      sectionShown('show_faqs') ? faqRes.rows : [],
+      policies:  sectionShown('show_policies') ? polRes.rows : [],
+      hours:     sectionShown('show_hours') ? hoursRes.rows : [],
       // GV-5: public viewers see team roles only; member names stay in the
       // admin content-preview payload.
       team:      adminPreview ? teamRes.rows : teamRes.rows.map(({ role }) => ({ role })),
@@ -1567,6 +1597,7 @@ async function sendBusinessEditorPayload(req, res, logName) {
 
     const business = await loadBusinessEditorRow(id);
     if (!business) return res.status(404).json({ error: 'Business not found' });
+    Object.assign(business, await loadSectionVisibility(id));
     return res.json({ business });
   } catch (err) {
     logger.error(`${logName} error`, { err: err.message, businessId: req.params?.id });
