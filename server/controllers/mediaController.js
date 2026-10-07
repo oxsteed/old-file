@@ -72,18 +72,47 @@ async function getOrCreateActor(userId) {
   return created[0];
 }
 
+const LINK_URL_BUILDERS = {
+  restaurant: (id) => `/restaurants/r/${id}`,
+  food_item: (id) => {
+    // food_item target_id format: "restaurantId:menuItemId"
+    const [restId, itemId] = String(id).split(':');
+    return `/restaurants/r/${restId}?dish=${itemId}`;
+  },
+  helper: (id) => `/helpers/${id}`,
+  business: (id) => `/b/${id}`,
+  job: (id) => `/jobs/public/${id}`,
+  tool_rental: (id) => `/tool-rentals/${id}`,
+  direct_catalog: (id) => `/direct/skills?item=${id}`,
+  logistics_campaign: (id) => `/logistics/campaigns/${id}`,
+};
+
+const LINK_CTAS = {
+  restaurant: 'View',
+  food_item: 'Order',
+  helper: 'Book',
+  business: 'View',
+  job: 'Apply',
+  tool_rental: 'Rent',
+  direct_catalog: 'Book',
+  logistics_campaign: 'View',
+};
+
 async function hydrateLinks(postId) {
   const { rows } = await pool.query(
     `SELECT * FROM media_post_links WHERE post_id = $1 ORDER BY sort_order`,
     [postId]
   );
-  // TODO: hydrate live name/available/canonical_url per link_type.
-  return rows.map(l => ({
-    ...l,
-    available: true,
-    canonical_url: null,
-    cta: 'view',
-  }));
+  return rows.map(l => {
+    const builder = LINK_URL_BUILDERS[l.link_type];
+    const canonical_url = builder ? builder(l.target_id) : null;
+    return {
+      ...l,
+      available: !!canonical_url,
+      canonical_url,
+      cta: LINK_CTAS[l.link_type] || 'View',
+    };
+  });
 }
 
 async function hydratePost(post, viewerUserId) {

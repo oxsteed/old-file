@@ -84,15 +84,23 @@ export default function MediaPostCard({ post, onUpdate }) {
             <div className="media-linked-label">Linked on OxSteed</div>
             <div className="media-linked-row">
               {post.links.map(link => (
-                <div key={link.id} className="media-link-chip">
-                  <span className="media-link-type">{link.link_type}</span>
-                  <span className="media-link-name">{link.name_snapshot}</span>
-                  {link.price_snapshot_cents != null && (
-                    <span className="media-link-price">
-                      ${(link.price_snapshot_cents / 100).toFixed(2)}
-                    </span>
-                  )}
-                </div>
+                link.available && link.canonical_url ? (
+                  <Link key={link.id} to={link.canonical_url} className="media-link-chip">
+                    <span className="media-link-type">{link.link_type}</span>
+                    <span className="media-link-name">{link.label || link.name_snapshot}</span>
+                    {link.price_snapshot_cents != null && (
+                      <span className="media-link-price">
+                        ${(link.price_snapshot_cents / 100).toFixed(2)}
+                      </span>
+                    )}
+                    <span className="media-link-cta">{link.cta}</span>
+                  </Link>
+                ) : (
+                  <div key={link.id} className="media-link-chip unavailable">
+                    <span className="media-link-type">{link.link_type}</span>
+                    <span className="media-link-name">{link.name_snapshot}</span>
+                  </div>
+                )
               ))}
             </div>
           </div>

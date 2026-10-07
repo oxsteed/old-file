@@ -197,6 +197,9 @@ const MediaShell = lazyWithRetry(() => import('./pages/media/MediaShell'));
 const MediaFeedPage = lazyWithRetry(() => import('./pages/media/MediaFeedPage'));
 const MediaPostDetailPage = lazyWithRetry(() => import('./pages/media/MediaPostDetailPage'));
 const MediaComposePage = lazyWithRetry(() => import('./pages/media/MediaComposePage'));
+const MediaSearchPage = lazyWithRetry(() => import('./pages/media/MediaSearchPage'));
+const MediaCommunitiesPage = lazyWithRetry(() => import('./pages/media/MediaCommunitiesPage'));
+const MediaLaunchGate = lazyWithRetry(() => import('./pages/media/MediaLaunchGate'));
 const MaintenanceRequestPage = lazyWithRetry(() => import('./pages/MaintenanceRequestPage'));
 const TradesDiagnosticRequestPage = lazyWithRetry(() => import('./pages/TradesDiagnosticRequestPage'));
 const BeautyIntakeRequestPage = lazyWithRetry(() => import('./pages/BeautyIntakeRequestPage'));
@@ -401,9 +404,13 @@ export default function App() {
                     <Route path="/direct/request-quote"    element={<Guarded><DirectPortalPage view="request" /></Guarded>} />
                     <Route path="/direct/request-quote/thanks" element={<Guarded><DirectPortalPage view="thanks" /></Guarded>} />
                     {/* OxSteed Media */}
-                    <Route path="/media"                   element={<Guarded><MediaShell><MediaFeedPage /></MediaShell></Guarded>} />
-                    <Route path="/media/compose"           element={<Guarded><ProtectedRoute><MediaShell><MediaComposePage /></MediaShell></ProtectedRoute></Guarded>} />
-                    <Route path="/media/post/:id"          element={<Guarded><MediaShell><MediaPostDetailPage /></MediaShell></Guarded>} />
+                    <Route path="/media"                   element={<Guarded><MediaLaunchGate><MediaShell><MediaFeedPage /></MediaShell></MediaLaunchGate></Guarded>} />
+                    <Route path="/media/compose"           element={<Guarded><ProtectedRoute><MediaLaunchGate><MediaShell><MediaComposePage /></MediaShell></MediaLaunchGate></ProtectedRoute></Guarded>} />
+                    <Route path="/media/post/:id"          element={<Guarded><MediaLaunchGate><MediaShell><MediaPostDetailPage /></MediaShell></MediaLaunchGate></Guarded>} />
+                    <Route path="/media/search"            element={<Guarded><MediaLaunchGate><MediaShell><MediaSearchPage /></MediaShell></MediaLaunchGate></Guarded>} />
+                    <Route path="/media/communities"       element={<Guarded><MediaLaunchGate><MediaShell><MediaCommunitiesPage /></MediaShell></MediaLaunchGate></Guarded>} />
+                    <Route path="/media/notifications"     element={<Navigate to="/notifications" replace />} />
+                    <Route path="/media/messages"          element={<Navigate to="/messages" replace />} />
                     <Route path="/direct/view-quote"       element={<Guarded><DirectPortalPage view="lookup" /></Guarded>} />
                     <Route path="/direct/quotes/:id"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><DirectPortalPage view="quote" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/direct/book-slot"       element={<Guarded><DirectBookSlotPage /></Guarded>} />
