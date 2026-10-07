@@ -8283,7 +8283,8 @@
       "description": "Deskripsyon",
       "notes": "Nòt",
       "requiredFields": "Antre yon montan ki pi gran pase zewo."
-    }
+    },
+    "tabMediaLabel": "Medya"
   },
   "plans": {
     "free": "Gratis",
@@ -21986,7 +21987,8 @@
     "savedAutomaticallyWithTime": "Sove otomatikman · {{time}}",
     "autoSaveHint": "Chanjman nan seksyon sa a sove lè ou ajoute, modifye, oswa retire atik.",
     "savingStatus": "Ap sove…",
-    "saveError": "Pa t kapab sove. Eseye ankò."
+    "saveError": "Pa t kapab sove. Eseye ankò.",
+    "sectionMedia": "Medya"
   },
   "chatLiveStatus": {
     "sending": "Ap voye…",
@@ -30034,5 +30036,19 @@
       "loadMore": "Chaje plis",
       "empty": "Pa gen piblikasyon pou kounye a. Se premye moun ki pataje."
     }
+  },
+  "businessMedia": {
+    "posted": "Pibliye",
+    "postFailed": "Pa ka pibliye",
+    "post": "Pibliye",
+    "composePlaceholder": "Pataje yon nouvèl biznis ou...",
+    "empty": "Pa gen pòs ankò. Pataje premye nouvèl ou anwo a."
+  },
+  "profileMedia": {
+    "posted": "Pibliye",
+    "postFailed": "Pa ka pibliye",
+    "post": "Pibliye",
+    "composePlaceholder": "Pataje yon nouvèl...",
+    "empty": "Pa gen pòs ankò. Pataje premye nouvèl ou anwo a."
   }
 }

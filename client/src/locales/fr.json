@@ -8196,7 +8196,8 @@
       "description": "Description",
       "notes": "Notes",
       "requiredFields": "Saisissez un montant supérieur à zéro."
-    }
+    },
+    "tabMediaLabel": "Médias"
   },
   "plans": {
     "free": "Gratuit",
@@ -21986,7 +21987,8 @@
     "savedAutomaticallyWithTime": "Enregistré automatiquement · {{time}}",
     "autoSaveHint": "Les modifications de cette section sont enregistrées lorsque vous ajoutez, modifiez ou supprimez des éléments.",
     "savingStatus": "Enregistrement…",
-    "saveError": "Échec de l’enregistrement. Réessayez."
+    "saveError": "Échec de l’enregistrement. Réessayez.",
+    "sectionMedia": "Médias"
   },
   "chatLiveStatus": {
     "sending": "Envoi…",
@@ -30034,5 +30036,19 @@
       "loadMore": "Charger plus",
       "empty": "Aucune publication pour le moment. Soyez le premier à partager."
     }
+  },
+  "businessMedia": {
+    "posted": "Publié",
+    "postFailed": "Impossible de publier",
+    "post": "Publier",
+    "composePlaceholder": "Partagez une actualité de votre entreprise...",
+    "empty": "Aucune publication pour le moment. Partagez votre première actualité ci-dessus."
+  },
+  "profileMedia": {
+    "posted": "Publié",
+    "postFailed": "Impossible de publier",
+    "post": "Publier",
+    "composePlaceholder": "Partagez une actualité...",
+    "empty": "Aucune publication pour le moment. Partagez votre première actualité ci-dessus."
   }
 }

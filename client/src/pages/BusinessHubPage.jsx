@@ -13,6 +13,7 @@ const AIKnowledgeTab = lazyDefault(() => import('../components/AIKnowledgeTab'))
 import RoleMenu from '../components/businessHub/RoleMenu';
 const BusinessCalendarView = lazyDefault(() => import('../components/calendar/BusinessCalendarView'));
 const BusinessClientsTab = lazyDefault(() => import('../components/businessHub/BusinessClientsTab'));
+const BusinessMediaTab = lazyDefault(() => import('../components/businessHub/BusinessMediaTab'));
 const MessagingWorkspace = lazyDefault(() => import('../components/messaging/MessagingWorkspace'));
 const AppointmentCalendarView = lazyNamed(() => import('../components/businessHub/AppointmentCalendarView'), 'AppointmentCalendarView');
 const BusinessServicesTab = lazyNamed(() => import('../components/businessHub/BusinessServicesTab'), 'BusinessServicesTab');
@@ -1237,6 +1238,7 @@ function BusinessHubInner() {
     'workflow',
     'profile',
     'clients',
+    'media',
     ...contentTabIds,
     'products',
     'messages',
@@ -1366,6 +1368,7 @@ function BusinessHubInner() {
     if (tb === 'continuity-ops') return t('businessHub.tabContinuityOpsLabel', { defaultValue: 'Continuity Ops' });
     if (tb === 'calendar') return t('businessHub.tabCalendarLabel', { defaultValue: 'Schedule' });
     if (tb === 'clients') return t('businessHub.tabClientsLabel', { defaultValue: 'Clients' });
+    if (tb === 'media') return t('businessHub.tabMediaLabel');
     if (tb === 'ai') return t('businessHub.tabAILabel');
     if (tb === 'messages')         return t('businessHub.tabMessagesLabel',        { defaultValue: 'Messages' });
     if (tb === 'appointments')     return t('businessHub.tabAppointmentsLabel',    { defaultValue: 'Appointments' });
@@ -1887,6 +1890,10 @@ function BusinessHubInner() {
                 businessName={currentBiz?.business_name}
                 currency={currency}
               />
+            )}
+
+            {tab === 'media' && bizId && canEditBizProfile && (
+              <BusinessMediaTab businessId={bizId} />
             )}
 
             {/* ── Overview tab ────────────────────────────────────── */}

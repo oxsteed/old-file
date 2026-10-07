@@ -8196,7 +8196,8 @@
       "description": "Description",
       "notes": "Notes",
       "requiredFields": "Enter an amount greater than zero."
-    }
+    },
+    "tabMediaLabel": "Media"
   },
   "plans": {
     "free": "Free",
@@ -21986,7 +21987,8 @@
     "savedAutomaticallyWithTime": "Saved automatically · {{time}}",
     "autoSaveHint": "Changes in this section save when you add, edit, or remove items.",
     "savingStatus": "Saving…",
-    "saveError": "Couldn’t save. Try again."
+    "saveError": "Couldn’t save. Try again.",
+    "sectionMedia": "Media"
   },
   "chatLiveStatus": {
     "sending": "Sending…",
@@ -30034,5 +30036,19 @@
       "loadMore": "Load more",
       "empty": "No posts yet. Be the first to share."
     }
+  },
+  "businessMedia": {
+    "posted": "Posted",
+    "postFailed": "Could not post",
+    "post": "Post",
+    "composePlaceholder": "Share an update from your business...",
+    "empty": "No posts yet. Share your first update above."
+  },
+  "profileMedia": {
+    "posted": "Posted",
+    "postFailed": "Could not post",
+    "post": "Post",
+    "composePlaceholder": "Share an update...",
+    "empty": "No posts yet. Share your first update above."
   }
 }

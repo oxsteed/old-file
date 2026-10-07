@@ -10,6 +10,7 @@ import CoverImageUpload from './profile/CoverImageUpload';
 import ProfileSlugField from './profile/ProfileSlugField';
 import { helperProfilePath } from '../utils/profileUrls';
 import ProfileStudioShell from './profileStudio/ProfileStudioShell';
+import ProfileMediaSection from './profileStudio/ProfileMediaSection';
 import PriceGuidance from './PriceGuidance';
 import ProfilePreviewCard from './profileStudio/ProfilePreviewCard';
 import HelperAvailabilityEditor from './HelperAvailabilityEditor';
@@ -421,6 +422,7 @@ export default function EditProfileTab() {
     { id: 'faqs',       label: t('helperDashboard.sectionFaqs') },
     { id: 'policies',   label: t('helperDashboard.sectionPolicies') },
     { id: 'gallery',    label: t('helperDashboard.sectionPhotos') },
+    { id: 'media',      label: t('profileStudio.sectionMedia') },
     { id: 'visibility', label: t('helperDashboard.sectionVisibility') },
   ], sectionFlags), [t, sectionFlags]);
 
@@ -782,6 +784,8 @@ export default function EditProfileTab() {
         </form>
       </>
     );
+  } else if (section === 'media') {
+    sectionBody = <ProfileMediaSection userId={user?.id} />;
   } else if (section === 'gallery') {
     sectionBody = (
       <>

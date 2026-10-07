@@ -8196,7 +8196,8 @@
       "description": "Descripción",
       "notes": "Notas",
       "requiredFields": "Introduce un importe mayor que cero."
-    }
+    },
+    "tabMediaLabel": "Medios"
   },
   "plans": {
     "free": "Gratis",
@@ -21986,7 +21987,8 @@
     "savedAutomaticallyWithTime": "Guardado automáticamente · {{time}}",
     "autoSaveHint": "Los cambios de esta sección se guardan al agregar, editar o eliminar elementos.",
     "savingStatus": "Guardando…",
-    "saveError": "No se pudo guardar. Inténtalo de nuevo."
+    "saveError": "No se pudo guardar. Inténtalo de nuevo.",
+    "sectionMedia": "Medios"
   },
   "chatLiveStatus": {
     "sending": "Enviando…",
@@ -30034,5 +30036,19 @@
       "loadMore": "Cargar más",
       "empty": "Aún no hay publicaciones. Sé el primero en compartir."
     }
+  },
+  "businessMedia": {
+    "posted": "Publicado",
+    "postFailed": "No se pudo publicar",
+    "post": "Publicar",
+    "composePlaceholder": "Comparte una novedad de tu negocio...",
+    "empty": "Aún no hay publicaciones. Comparte tu primera novedad arriba."
+  },
+  "profileMedia": {
+    "posted": "Publicado",
+    "postFailed": "No se pudo publicar",
+    "post": "Publicar",
+    "composePlaceholder": "Comparte una novedad...",
+    "empty": "Aún no hay publicaciones. Comparte tu primera novedad arriba."
   }
 }

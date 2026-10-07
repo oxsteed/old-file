@@ -10,6 +10,7 @@ const assetCtrl = require('../controllers/mediaAssetController');
 // Public feed (guests can view).
 router.get('/feed', ctrl.getFeed);
 router.get('/communities', ctrl.getCommunities);
+router.get('/business/:businessId/posts', ctrl.getBusinessPosts);
 router.get('/posts/:id', ctrl.getPost);
 router.get('/posts/:id/replies', ctrl.getReplies);
 router.get('/posts/:id/quotes', ctrl.getQuotes);

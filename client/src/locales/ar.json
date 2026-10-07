@@ -8196,7 +8196,8 @@
       "description": "الوصف",
       "notes": "ملاحظات",
       "requiredFields": "أدخل مبلغًا أكبر من الصفر."
-    }
+    },
+    "tabMediaLabel": "الوسائط"
   },
   "plans": {
     "free": "حر",
@@ -21997,7 +21998,8 @@
     "savedAutomaticallyWithTime": "تم الحفظ تلقائيًا · {{time}}",
     "autoSaveHint": "تُحفظ التغييرات في هذا القسم عند إضافة العناصر أو تعديلها أو حذفها.",
     "savingStatus": "جارٍ الحفظ…",
-    "saveError": "تعذّر الحفظ. حاول مرة أخرى."
+    "saveError": "تعذّر الحفظ. حاول مرة أخرى.",
+    "sectionMedia": "الوسائط"
   },
   "chatLiveStatus": {
     "sending": "جارٍ الإرسال…",
@@ -30045,5 +30047,19 @@
       "loadMore": "تحميل المزيد",
       "empty": "لا توجد منشورات بعد. كن أول من يشارك."
     }
+  },
+  "businessMedia": {
+    "posted": "تم النشر",
+    "postFailed": "تعذر النشر",
+    "post": "نشر",
+    "composePlaceholder": "شارك تحديثاً من عملك...",
+    "empty": "لا توجد منشورات بعد. شارك أول تحديث لك أعلاه."
+  },
+  "profileMedia": {
+    "posted": "تم النشر",
+    "postFailed": "تعذر النشر",
+    "post": "نشر",
+    "composePlaceholder": "شارك تحديثاً...",
+    "empty": "لا توجد منشورات بعد. شارك أول تحديث لك أعلاه."
   }
 }

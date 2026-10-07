@@ -257,7 +257,35 @@ async function getQuotes(req, res) {
 async function createPost(req, res) {
   try {
     const userId = req.user.id;
-    const actor = await getOrCreateActor(userId);
+    const businessId = req.body?.business_id ? parseInt(req.body.business_id, 10) : null;
+    
+    let actor;
+    if (businessId) {
+      // Verify user owns/manages this business.
+      const { rows: biz } = await pool.query(
+        `SELECT id, name, profile_slug, logo_url, is_business_verified
+           FROM businesses WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
+        [businessId, userId]
+      );
+      if (!biz[0]) return res.status(403).json({ error: 'Not authorized for this business' });
+      // Get or create business actor.
+      const { rows: actors } = await pool.query(
+        `SELECT * FROM media_actors WHERE business_id = $1 AND actor_type = 'business'`,
+        [businessId]
+      );
+      if (actors[0]) {
+        actor = actors[0];
+      } else {
+        const { rows: created } = await pool.query(
+          `INSERT INTO media_actors (actor_type, owner_user_id, business_id, handle, display_name, avatar_url, verified_kind)
+           VALUES ('business', $1, $2, $3, $4, $5, 'business') RETURNING *`,
+          [userId, businessId, biz[0].profile_slug || `business-${businessId}`, biz[0].name, biz[0].logo_url]
+        );
+        actor = created[0];
+      }
+    } else {
+      actor = await getOrCreateActor(userId);
+    }
     if (!actor) {
       return res.status(403).json({
         error: 'Only verified helpers, businesses, and restaurants can post.',
@@ -456,6 +484,31 @@ async function getCommunities(req, res) {
   }
 }
 
+async function getBusinessPosts(req, res) {
+  try {
+    const businessId = parseInt(req.params.businessId, 10);
+    if (!businessId) return res.status(400).json({ error: 'Invalid business ID' });
+    const { rows: actors } = await pool.query(
+      `SELECT id FROM media_actors WHERE business_id = $1 AND actor_type = 'business'`,
+      [businessId]
+    );
+    if (!actors[0]) return res.json({ posts: [] });
+    const { rows: posts } = await pool.query(
+      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
+         FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
+        WHERE p.actor_id = $1 AND p.deleted_at IS NULL AND p.parent_id IS NULL
+        ORDER BY p.created_at DESC LIMIT 20`,
+      [actors[0].id]
+    );
+    const hydrated = [];
+    for (const p of posts) hydrated.push(await hydratePost(p, req.user?.id || null));
+    res.json({ posts: hydrated });
+  } catch (err) {
+    logger.error('media.getBusinessPosts error', { message: err.message });
+    res.status(500).json({ error: 'Failed to load business posts' });
+  }
+}
+
 async function getActor(req, res) {
   try {
     const { rows } = await pool.query(
@@ -482,5 +535,5 @@ async function getActor(req, res) {
 module.exports = {
   getFeed, getPost, getReplies, getQuotes, createPost,
   toggleLike, toggleBookmark, toggleRepost, recordView, flagPost,
-  getCommunities, getActor, getOrCreateActor,
+  getCommunities, getActor, getOrCreateActor, getBusinessPosts,
 };
