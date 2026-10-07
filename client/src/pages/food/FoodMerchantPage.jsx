@@ -257,6 +257,13 @@ function OrderDetailPanel({ t, order, onAdvance, onCancel, onMarkPaid, onSplit, 
   const [showSplitModal, setShowSplitModal] = useState(false);
   const [selectedItems, setSelectedItems] = useState(new Set());
   const [splitting, setSplitting] = useState(false);
+  const [showMergeModal, setShowMergeModal] = useState(false);
+  const [mergeSourceId, setMergeSourceId] = useState('');
+  const [merging, setMerging] = useState(false);
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [refundAmount, setRefundAmount] = useState('');
+  const [refundReason, setRefundReason] = useState('');
+  const [refunding, setRefunding] = useState(false);
 
   if (!order) {
     return (
@@ -282,7 +289,7 @@ function OrderDetailPanel({ t, order, onAdvance, onCancel, onMarkPaid, onSplit, 
   const handleSplitConfirm = async () => {
     if (selectedItems.size === 0) return;
     if (selectedItems.size === items.length) {
-      alert(t('food.merchant.splitAllError', 'Cannot split all items. Select fewer items.'));
+      alert(t('food.merchant.splitAllError'));
       return;
     }
     setSplitting(true);
@@ -292,6 +299,32 @@ function OrderDetailPanel({ t, order, onAdvance, onCancel, onMarkPaid, onSplit, 
       setSelectedItems(new Set());
     } finally {
       setSplitting(false);
+    }
+  };
+
+  const handleMergeConfirm = async () => {
+    const sourceId = parseInt(mergeSourceId, 10);
+    if (!sourceId) return;
+    setMerging(true);
+    try {
+      await onMerge(order, sourceId);
+      setShowMergeModal(false);
+      setMergeSourceId('');
+    } finally {
+      setMerging(false);
+    }
+  };
+
+  const handleRefundConfirm = async () => {
+    if (!refundReason.trim()) return;
+    setRefunding(true);
+    try {
+      await onRefund(order, refundAmount ? parseInt(refundAmount, 10) : undefined, refundReason.trim());
+      setShowRefundModal(false);
+      setRefundAmount('');
+      setRefundReason('');
+    } finally {
+      setRefunding(false);
     }
   };
 
@@ -406,27 +439,27 @@ function OrderDetailPanel({ t, order, onAdvance, onCancel, onMarkPaid, onSplit, 
       )}
 
       <div className="fd-order-detail-actions">
-        {order.payment_status !== 'paid' && <button type="button" className="fd-btn fd-btn-secondary" onClick={() => onMarkPaid(order)}>{orderExternalPayment(order) ? t('food.merchant.confirmPayment', 'Confirm payment') : t('food.merchant.markPaid')}</button>}
+        {order.payment_status !== 'paid' && <button type="button" className="fd-btn fd-btn-secondary" onClick={() => onMarkPaid(order)}>{orderExternalPayment(order) ? t('food.merchant.confirmPayment') : t('food.merchant.markPaid')}</button>}
         {NEXT_STATUS[order.status] && <button type="button" className="fd-btn" onClick={() => onAdvance(order)}>{t(`food.advance.${NEXT_STATUS[order.status]}`)}</button>}
         {['received', 'accepted', 'preparing'].includes(order.status) && <button type="button" className="fd-btn fd-btn-danger" onClick={() => onCancel(order)}>{t('food.common.cancel')}</button>}
         {/* POS ops: split/merge/refund/reprint for active orders */}
         {['received', 'accepted', 'preparing', 'ready'].includes(order.status) && (
           <>
-            <button type="button" className="fd-btn fd-btn-secondary" onClick={() => setShowSplitModal(true)}>Split</button>
-            <button type="button" className="fd-btn fd-btn-secondary" onClick={() => onMerge(order)}>Merge</button>
+            <button type="button" className="fd-btn fd-btn-secondary" onClick={() => setShowSplitModal(true)}>{t('food.merchant.split')}</button>
+            <button type="button" className="fd-btn fd-btn-secondary" onClick={() => setShowMergeModal(true)}>{t('food.merchant.merge')}</button>
           </>
         )}
         {['paid', 'partially_refunded'].includes(order.payment_status) && (
-          <button type="button" className="fd-btn fd-btn-secondary" onClick={() => onRefund(order)}>Refund</button>
+          <button type="button" className="fd-btn fd-btn-secondary" onClick={() => setShowRefundModal(true)}>{t('food.merchant.refund')}</button>
         )}
-        <button type="button" className="fd-btn fd-btn-secondary" onClick={() => window.print()}>Reprint</button>
+        <button type="button" className="fd-btn fd-btn-secondary" onClick={() => window.print()}>{t('food.merchant.reprint')}</button>
       </div>
 
       {showSplitModal && (
         <div className="fd-modal-overlay" onClick={() => setShowSplitModal(false)}>
           <div className="fd-modal" onClick={e => e.stopPropagation()}>
-            <h3>{t('food.merchant.splitTitle', 'Split Order')}</h3>
-            <p>{t('food.merchant.splitHint', 'Select items to move to a new order:')}</p>
+            <h3>{t('food.merchant.splitTitle')}</h3>
+            <p>{t('food.merchant.splitHint')}</p>
             <div className="fd-split-items">
               {items.map(item => (
                 <label key={item.id} className="fd-split-item">
@@ -440,7 +473,7 @@ function OrderDetailPanel({ t, order, onAdvance, onCancel, onMarkPaid, onSplit, 
                 </label>
               ))}
             </div>
-            {items.length === 0 && <p>{t('food.merchant.noItems', 'No items in this order.')}</p>}
+            {items.length === 0 && <p>{t('food.merchant.noItems')}</p>}
             <div className="fd-modal-actions">
               <button
                 type="button"
@@ -456,7 +489,61 @@ function OrderDetailPanel({ t, order, onAdvance, onCancel, onMarkPaid, onSplit, 
                 onClick={handleSplitConfirm}
                 disabled={splitting || selectedItems.size === 0}
               >
-                {splitting ? t('common.processing', 'Processing...') : t('food.merchant.splitConfirm', { defaultValue: 'Split ({{count}})', count: selectedItems.size })}
+                {splitting ? t('common.processing', 'Processing...') : t('food.merchant.splitConfirm', { count: selectedItems.size })}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showMergeModal && (
+        <div className="fd-modal-overlay" onClick={() => setShowMergeModal(false)}>
+          <div className="fd-modal" onClick={e => e.stopPropagation()}>
+            <h3>{t('food.merchant.mergeTitle')}</h3>
+            <p>{t('food.merchant.mergeHint')}</p>
+            <input
+              type="number"
+              value={mergeSourceId}
+              onChange={e => setMergeSourceId(e.target.value)}
+              placeholder={t('food.merchant.mergePlaceholder')}
+              className="fd-modal-input"
+            />
+            <div className="fd-modal-actions">
+              <button type="button" className="fd-btn fd-btn-secondary" onClick={() => setShowMergeModal(false)} disabled={merging}>
+                {t('common.cancel', 'Cancel')}
+              </button>
+              <button type="button" className="fd-btn" onClick={handleMergeConfirm} disabled={merging || !mergeSourceId}>
+                {merging ? t('common.processing', 'Processing...') : t('food.merchant.mergeConfirm')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showRefundModal && (
+        <div className="fd-modal-overlay" onClick={() => setShowRefundModal(false)}>
+          <div className="fd-modal" onClick={e => e.stopPropagation()}>
+            <h3>{t('food.merchant.refundTitle')}</h3>
+            <p>{t('food.merchant.refundHint', 'Order total: ${{total}}', { total: (order.total_cents / 100).toFixed(2) })}</p>
+            <input
+              type="number"
+              value={refundAmount}
+              onChange={e => setRefundAmount(e.target.value)}
+              placeholder={t('food.merchant.refundAmountPlaceholder')}
+              className="fd-modal-input"
+            />
+            <input
+              value={refundReason}
+              onChange={e => setRefundReason(e.target.value)}
+              placeholder={t('food.merchant.refundReasonPlaceholder')}
+              className="fd-modal-input"
+            />
+            <div className="fd-modal-actions">
+              <button type="button" className="fd-btn fd-btn-secondary" onClick={() => setShowRefundModal(false)} disabled={refunding}>
+                {t('common.cancel', 'Cancel')}
+              </button>
+              <button type="button" className="fd-btn fd-btn-danger" onClick={handleRefundConfirm} disabled={refunding || !refundReason.trim()}>
+                {refunding ? t('common.processing', 'Processing...') : t('food.merchant.refundConfirm')}
               </button>
             </div>
           </div>
@@ -615,40 +702,35 @@ function OrdersTab({ t, restaurant }) {
       const { data } = await api.post(`/api/food/restaurants/${restaurant.id}/orders/${order.id}/split`, {
         itemIds,
       });
-      toast.success(t('food.merchant.splitSuccess', { defaultValue: 'Split complete. New order #{{newOrderId}}', newOrderId: data.newOrderId }));
+      toast.success(t('food.merchant.splitSuccess', { newOrderId: data.newOrderId }));
       reloadAfterAction();
     } catch (err) {
-      toast.error(apiErrorMessage(err, t('food.merchant.splitError', 'Unable to split order.')));
+      toast.error(apiErrorMessage(err, t('food.merchant.splitError')));
     }
   };
 
-  const merge = async (order) => {
-    const sourceId = prompt('Enter source order ID to merge from:');
-    if (!sourceId) return;
+  const merge = async (order, sourceOrderId) => {
     try {
-      await api.post(`/restaurants/${restaurant.id}/pos/orders/${order.id}/merge`, {
-        sourceOrderId: parseInt(sourceId, 10),
+      await api.post(`/api/food/restaurants/${restaurant.id}/pos/orders/${order.id}/merge`, {
+        sourceOrderId,
       });
-      toast.success('Orders merged');
+      toast.success(t('food.merchant.mergeSuccess'));
       reloadAfterAction();
     } catch (err) {
-      toast.error(apiErrorMessage(err, 'Unable to merge orders.'));
+      toast.error(apiErrorMessage(err, t('food.merchant.mergeError')));
     }
   };
 
-  const refund = async (order) => {
-    const reason = prompt('Refund reason (required):');
-    if (!reason?.trim()) return;
-    const amount = prompt(`Refund amount in cents (blank = full $${(order.total_cents / 100).toFixed(2)}):`);
+  const refund = async (order, amountCents, reason) => {
     try {
-      await api.post(`/restaurants/${restaurant.id}/pos/orders/${order.id}/refund`, {
-        amount_cents: amount ? parseInt(amount, 10) : undefined,
-        reason: reason.trim(),
+      await api.post(`/api/food/restaurants/${restaurant.id}/pos/orders/${order.id}/refund`, {
+        amount_cents: amountCents,
+        reason,
       });
-      toast.success('Refund issued');
+      toast.success(t('food.merchant.refundSuccess'));
       reloadAfterAction();
     } catch (err) {
-      toast.error(apiErrorMessage(err, 'Unable to issue refund.'));
+      toast.error(apiErrorMessage(err, t('food.merchant.refundError')));
     }
   };
 
@@ -1209,7 +1291,7 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
   const saveTaxRate = () => {
     const pct = Number(taxRatePct);
     if (taxRatePct.trim() === '' || !Number.isFinite(pct) || pct < 0 || pct > 100) {
-      toast.error(t('food.merchant.taxRateInvalid', 'Enter a tax rate between 0 and 100.'));
+      toast.error(t('food.merchant.taxRateInvalid'));
       return;
     }
     patch({ taxRateBps: Math.round(pct * 100) });
@@ -1243,16 +1325,16 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
       target: 'ordering',
       tone: restaurant.accepts_online_orders ? 'ok' : 'off',
       label: restaurant.accepts_online_orders
-        ? t('food.merchant.stChipOnlineOn', 'Online ordering on')
-        : t('food.merchant.stChipOnlineOff', 'Online ordering off'),
+        ? t('food.merchant.stChipOnlineOn')
+        : t('food.merchant.stChipOnlineOff'),
     },
     {
       key: 'instore',
       target: 'ordering',
       tone: restaurant.accepts_in_store_orders ? 'ok' : 'off',
       label: restaurant.accepts_in_store_orders
-        ? t('food.merchant.stChipInStoreOn', 'In-store on')
-        : t('food.merchant.stChipInStoreOff', 'In-store off'),
+        ? t('food.merchant.stChipInStoreOn')
+        : t('food.merchant.stChipInStoreOff'),
     },
     {
       key: 'hours',
@@ -1260,7 +1342,7 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
       tone: openDays > 0 ? 'ok' : 'warn',
       label: openDays > 0
         ? t('food.merchant.stChipHours', 'Hours {{open}} of 7 days', { open: openDays })
-        : t('food.merchant.stChipHoursNone', 'Hours not set'),
+        : t('food.merchant.stChipHoursNone'),
     },
     {
       key: 'tax',
@@ -1268,15 +1350,15 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
       tone: taxPct ? 'ok' : 'warn',
       label: taxPct
         ? t('food.merchant.stChipTaxSet', 'Tax {{rate}}%', { rate: taxPct })
-        : t('food.merchant.stChipTaxUnset', 'Tax not set'),
+        : t('food.merchant.stChipTaxUnset'),
     },
     {
       key: 'direct',
       target: 'money',
       tone: externalPaymentEnabled ? 'ok' : 'off',
       label: externalPaymentEnabled
-        ? t('food.merchant.stChipDirectOn', 'Direct payment on')
-        : t('food.merchant.stChipDirectOff', 'Direct payment off'),
+        ? t('food.merchant.stChipDirectOn')
+        : t('food.merchant.stChipDirectOff'),
     },
   ];
 
@@ -1348,7 +1430,7 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
   return (
     <div className="fd-section fd-settings">
       <h2>{t('food.merchant.settings')}</h2>
-      <div className="fd-settings-strip" role="navigation" aria-label={t('food.merchant.stAtAGlance', 'At a glance')}>
+      <div className="fd-settings-strip" role="navigation" aria-label={t('food.merchant.stAtAGlance')}>
         {statusChips.map((chip) => (
           <button key={chip.key} type="button" className="fd-settings-chip" onClick={() => scrollToCard(chip.target)}>
             <span className={`fd-settings-chip-dot fd-settings-chip-dot--${chip.tone}`} aria-hidden="true" />
@@ -1360,8 +1442,8 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
       <div className="fd-settings-grid">
         <SettingsCard
           icon={ShoppingBag}
-          title={t('food.merchant.stOrderingTitle', 'Ordering')}
-          desc={t('food.merchant.stOrderingDesc', 'Take the restaurant live and control where guests can order.')}
+          title={t('food.merchant.stOrderingTitle')}
+          desc={t('food.merchant.stOrderingDesc')}
           cardKey="ordering"
           registerRef={registerCard}
         >
@@ -1377,13 +1459,13 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
             )}
           </div>
           <FdSwitchRow
-            label={t('food.merchant.stSwitchOnline', 'Online orders')}
+            label={t('food.merchant.stSwitchOnline')}
             checked={!!restaurant.accepts_online_orders}
             disabled={saving}
             onChange={() => patch({ acceptsOnlineOrders: !restaurant.accepts_online_orders })}
           />
           <FdSwitchRow
-            label={t('food.merchant.stSwitchInStore', 'In-store orders')}
+            label={t('food.merchant.stSwitchInStore')}
             checked={!!restaurant.accepts_in_store_orders}
             disabled={saving}
             onChange={() => patch({ acceptsInStoreOrders: !restaurant.accepts_in_store_orders })}
@@ -1401,20 +1483,20 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
 
         <SettingsCard
           icon={ChefHat}
-          title={t('food.merchant.kitchenWorkflowTitle', 'Kitchen workflow')}
-          desc={t('food.merchant.kitchenWorkflowHint', 'Control the quality-check step and how long handed-off orders remain on the guest queue screen.')}
+          title={t('food.merchant.kitchenWorkflowTitle')}
+          desc={t('food.merchant.kitchenWorkflowHint')}
           cardKey="kitchen"
           registerRef={registerCard}
         >
           <FdSwitchRow
-            label={t('food.merchant.stSwitchQuality', 'Quality check')}
+            label={t('food.merchant.stSwitchQuality')}
             checked={requireQualityCheck}
             disabled={saving}
             onChange={toggleQualityCheck}
           />
           <div className="fd-settings-field-row">
             <div className="fd-field">
-              <label htmlFor="fd-handoff-delay">{t('food.merchant.handoffDisplaySeconds', 'Queue removal delay (seconds)')}</label>
+              <label htmlFor="fd-handoff-delay">{t('food.merchant.handoffDisplaySeconds')}</label>
               <input
                 id="fd-handoff-delay"
                 type="number"
@@ -1432,8 +1514,8 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
 
         <SettingsCard
           icon={Palette}
-          title={t('food.merchant.stBrandTitle', 'Brand')}
-          desc={t('food.merchant.stBrandDesc', 'Your accent color on the customer page and receipts.')}
+          title={t('food.merchant.stBrandTitle')}
+          desc={t('food.merchant.stBrandDesc')}
           cardKey="brand"
           registerRef={registerCard}
         >
@@ -1443,13 +1525,13 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
               className="fd-settings-color"
               value={colorValue}
               onChange={(e) => setBrandHex(e.target.value)}
-              aria-label={t('food.merchant.stColorPick', 'Pick a color')}
+              aria-label={t('food.merchant.stColorPick')}
             />
             <div className="fd-field">
-              <label htmlFor="fd-brand">{t('food.merchant.brandAccent', 'Brand accent (#RRGGBB)')}</label>
+              <label htmlFor="fd-brand">{t('food.merchant.brandAccent')}</label>
               <input id="fd-brand" value={brandHex} onChange={(e) => setBrandHex(e.target.value)} placeholder="#FF8800" maxLength={7} />
             </div>
-            <span className="fd-settings-swatch" style={{ background: colorValue }} title={t('food.merchant.stColorPreview', 'Preview')} aria-hidden="true" />
+            <span className="fd-settings-swatch" style={{ background: colorValue }} title={t('food.merchant.stColorPreview')} aria-hidden="true" />
           </div>
           <div className="fd-settings-actions">
             <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={() => patch({ brandAccentHex: brandHex.trim() || null })}>
@@ -1460,34 +1542,34 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
 
         <SettingsCard
           icon={UserCheck}
-          title={t('food.merchant.guestCheckoutTitle', 'Guest checkout')}
-          desc={t('food.merchant.guestCheckoutHint', 'Choose how much information guests must provide before placing an order.')}
+          title={t('food.merchant.guestCheckoutTitle')}
+          desc={t('food.merchant.guestCheckoutHint')}
           cardKey="guest"
           registerRef={registerCard}
         >
           <FdSwitchRow
-            label={t('food.merchant.stSwitchGuestName', 'Pickup name required')}
+            label={t('food.merchant.stSwitchGuestName')}
             checked={requirePickupGuestName}
             disabled={saving}
             onChange={() => patch({ settings: { ...restaurantSettings, requireGuestNameForPickup: !requirePickupGuestName } })}
           />
           <FdSwitchRow
-            label={t('food.merchant.stSwitchContact', 'Contact for status updates')}
+            label={t('food.merchant.stSwitchContact')}
             checked={requireContactForUpdates}
             disabled={saving}
             onChange={() => patch({ settings: { ...restaurantSettings, requireContactForUpdates: !requireContactForUpdates } })}
           />
           <p className="fd-card-meta fd-settings-note-text">
             {requireContactForUpdates
-              ? t('food.merchant.guestCheckoutContactNoteRequired', 'Guests must provide a phone number or email for order updates.')
-              : t('food.merchant.guestCheckoutContactNoteOptional', 'Phone and email stay optional unless you turn on status updates.')}
+              ? t('food.merchant.guestCheckoutContactNoteRequired')
+              : t('food.merchant.guestCheckoutContactNoteOptional')}
           </p>
         </SettingsCard>
 
         <SettingsCard
           icon={Clock}
-          title={t('food.merchant.hoursTitle', 'Operating hours')}
-          desc={t('food.merchant.hoursPerDayHint', 'Set hours for each day. Toggle a day off when the restaurant is closed.')}
+          title={t('food.merchant.hoursTitle')}
+          desc={t('food.merchant.hoursPerDayHint')}
           cardKey="hours"
           registerRef={registerCard}
           wide
@@ -1500,7 +1582,7 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
                   id={`fd-hours-open-${WEEKDAY_KEYS[index]}`}
                   type="time"
                   className="fd-settings-time"
-                  aria-label={t('food.merchant.openTime', 'Opens')}
+                  aria-label={t('food.merchant.openTime')}
                   value={day.open}
                   disabled={day.closed}
                   onChange={(e) => setDayHours((current) => current.map((entry, i) => (i === index ? { ...entry, open: e.target.value } : entry)))}
@@ -1509,7 +1591,7 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
                   id={`fd-hours-close-${WEEKDAY_KEYS[index]}`}
                   type="time"
                   className="fd-settings-time"
-                  aria-label={t('food.merchant.closeTime', 'Closes')}
+                  aria-label={t('food.merchant.closeTime')}
                   value={day.close}
                   disabled={day.closed}
                   onChange={(e) => setDayHours((current) => current.map((entry, i) => (i === index ? { ...entry, close: e.target.value } : entry)))}
@@ -1520,32 +1602,32 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
                     checked={day.closed}
                     onChange={(e) => setDayHours((current) => current.map((entry, i) => (i === index ? { ...entry, closed: e.target.checked } : entry)))}
                   />
-                  {t('food.merchant.hoursClosed', 'Closed')}
+                  {t('food.merchant.hoursClosed')}
                 </label>
               </div>
             ))}
           </div>
           <div className="fd-settings-actions">
             <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={copyMondayToAll}>
-              {t('food.merchant.stCopyMonday', 'Copy Monday to all days')}
+              {t('food.merchant.stCopyMonday')}
             </button>
             <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={saveHours}>
-              {t('food.merchant.saveHours', 'Save hours')}
+              {t('food.merchant.saveHours')}
             </button>
           </div>
         </SettingsCard>
 
         <SettingsCard
           icon={Wallet}
-          title={t('food.merchant.stMoneyTitle', 'Money')}
-          desc={t('food.merchant.stMoneyDesc', 'Sales tax and direct payment options for checkout.')}
+          title={t('food.merchant.stMoneyTitle')}
+          desc={t('food.merchant.stMoneyDesc')}
           cardKey="money"
           registerRef={registerCard}
           wide
         >
           <div className="fd-settings-field-row">
             <div className="fd-field">
-              <label htmlFor="fd-tax">{t('food.merchant.taxRate', 'Tax rate (%)')}</label>
+              <label htmlFor="fd-tax">{t('food.merchant.taxRate')}</label>
               <input
                 id="fd-tax"
                 type="number"
@@ -1563,22 +1645,22 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
             </button>
           </div>
           <p className="fd-card-meta">
-            {t('food.merchant.taxRateHint', 'Sales tax added to customer orders. Leave blank or 0 when tax does not apply.')}
+            {t('food.merchant.taxRateHint')}
           </p>
 
-          <h4 className="fd-settings-subhead">{t('food.merchant.externalPaymentTitle', 'Direct payment')}</h4>
+          <h4 className="fd-settings-subhead">{t('food.merchant.externalPaymentTitle')}</h4>
           <p className="fd-card-meta">
-            {t('food.merchant.externalPaymentHint', 'Share one payment account or QR. Customers attach a receipt or confirmation number when they order.')}
+            {t('food.merchant.externalPaymentHint')}
           </p>
           <FdSwitchRow
-            label={t('food.merchant.stSwitchDirectPay', 'Direct payment')}
+            label={t('food.merchant.stSwitchDirectPay')}
             checked={externalPaymentEnabled}
             disabled={saving}
             onChange={toggleDirectPayment}
           />
           {externalPaymentEnabled && (
             <FdSwitchRow
-              label={t('food.merchant.stSwitchProof', 'Require receipt or confirmation')}
+              label={t('food.merchant.stSwitchProof')}
               checked={requireExternalPaymentProof}
               disabled={saving}
               onChange={toggleDirectPaymentProof}
@@ -1594,7 +1676,7 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
               )}
               <div className="fd-settings-field-grid">
                 <div className="fd-field">
-                  <label htmlFor="fd-ext-label">{t('food.merchant.externalPaymentLabel', 'Payment label')}</label>
+                  <label htmlFor="fd-ext-label">{t('food.merchant.externalPaymentLabel')}</label>
                   <input
                     id="fd-ext-label"
                     value={externalPaymentLabel}
@@ -1604,7 +1686,7 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
                   />
                 </div>
                 <div className="fd-field">
-                  <label htmlFor="fd-ext-handle">{t('food.merchant.externalPaymentHandle', 'Handle / account')}</label>
+                  <label htmlFor="fd-ext-handle">{t('food.merchant.externalPaymentHandle')}</label>
                   <input
                     id="fd-ext-handle"
                     value={externalPaymentHandle}
@@ -1615,7 +1697,7 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
                 </div>
               </div>
               <div className="fd-field">
-                <label htmlFor="fd-ext-qr">{t('food.merchant.externalPaymentQr', 'QR code image')}</label>
+                <label htmlFor="fd-ext-qr">{t('food.merchant.externalPaymentQr')}</label>
                 <input
                   id="fd-ext-qr"
                   type="file"
@@ -1624,7 +1706,7 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
                   disabled={qrUploading}
                 />
                 <p className="fd-card-meta fd-settings-hint">
-                  {qrUploading ? t('food.common.saving', 'Saving…') : t('food.merchant.externalPaymentQrHint', 'Upload a payment QR image to show customers at checkout.')}
+                  {qrUploading ? t('food.common.saving', 'Saving…') : t('food.merchant.externalPaymentQrHint')}
                 </p>
               </div>
               {externalPaymentQrUrl && (
@@ -1635,7 +1717,7 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
                     className="fd-settings-qr-preview"
                   />
                   <p className="fd-card-meta">
-                    {t('food.merchant.externalPaymentQrPreview', 'This QR code will show to guests when they choose external payment.')}
+                    {t('food.merchant.externalPaymentQrPreview')}
                   </p>
                 </div>
               )}
@@ -1650,9 +1732,9 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
                 </button>
               </div>
               <details className="fd-settings-advanced">
-                <summary>{t('food.merchant.externalPaymentAdvanced', 'Advanced instructions')}</summary>
+                <summary>{t('food.merchant.externalPaymentAdvanced')}</summary>
                 <div className="fd-field">
-                  <label htmlFor="fd-ext-ref">{t('food.merchant.externalPaymentRef', 'Confirmation number hint')}</label>
+                  <label htmlFor="fd-ext-ref">{t('food.merchant.externalPaymentRef')}</label>
                   <input
                     id="fd-ext-ref"
                     value={externalPaymentReferenceHint}
@@ -1662,7 +1744,7 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
                   />
                 </div>
                 <div className="fd-field">
-                  <label htmlFor="fd-ext-instructions">{t('food.merchant.externalPaymentInstructions', 'Extra payment instructions')}</label>
+                  <label htmlFor="fd-ext-instructions">{t('food.merchant.externalPaymentInstructions')}</label>
                   <textarea
                     id="fd-ext-instructions"
                     rows={3}
@@ -1681,7 +1763,7 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
             </div>
           )}
           <div className="fd-settings-note">
-            <h4 className="fd-settings-subhead fd-settings-subhead--flush">{t('food.merchant.settlementTitle', 'Payment settlement records')}</h4>
+            <h4 className="fd-settings-subhead fd-settings-subhead--flush">{t('food.merchant.settlementTitle')}</h4>
             <p className="fd-card-meta">
               {t(
                 'food.merchant.settlementHint',
@@ -1699,8 +1781,8 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
 
         <SettingsCard
           icon={MapPin}
-          title={t('food.merchant.locationsTitle', 'Locations')}
-          desc={t('food.merchant.locationsHint', 'Add additional storefronts under the same brand.')}
+          title={t('food.merchant.locationsTitle')}
+          desc={t('food.merchant.locationsHint')}
           cardKey="locations"
           registerRef={registerCard}
           wide
@@ -1710,8 +1792,8 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
 
         <SettingsCard
           icon={Tag}
-          title={t('food.merchant.promotionsTitle', 'Coupons & promotions')}
-          desc={t('food.merchant.promotionsHint', 'Create codes customers enter at checkout on mobile, kiosk, or POS.')}
+          title={t('food.merchant.promotionsTitle')}
+          desc={t('food.merchant.promotionsHint')}
           cardKey="promotions"
           registerRef={registerCard}
           wide
@@ -2163,12 +2245,12 @@ function OwnerHomeTab({ t, restaurant, onGoTab, onUpdated }) {
       </section>
 
       <section className="fd-owner-attention" id="in-store-screens">
-        <h3>{t('food.merchant.inStoreScreens', 'In-store screens')}</h3>
-        <p className="fd-card-meta">{t('food.merchant.inStoreScreensHint', 'Open the kitchen display, order queue, or self-serve kiosk.')}</p>
+        <h3>{t('food.merchant.inStoreScreens')}</h3>
+        <p className="fd-card-meta">{t('food.merchant.inStoreScreensHint')}</p>
         <div className="fd-settings-actions">
-          <Link to={`/restaurants/kitchen/${restaurant.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openKitchen', 'Kitchen display')}</Link>
-          <Link to={`/restaurants/queue/${restaurant.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openQueue', 'Queue board')}</Link>
-          <Link to={`/restaurants/kiosk/${restaurant.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openKiosk', 'Kiosk')}</Link>
+          <Link to={`/restaurants/kitchen/${restaurant.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openKitchen')}</Link>
+          <Link to={`/restaurants/queue/${restaurant.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openQueue')}</Link>
+          <Link to={`/restaurants/kiosk/${restaurant.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openKiosk')}</Link>
         </div>
       </section>
 
@@ -2355,7 +2437,7 @@ export default function FoodMerchantPage() {
                 className="fd-btn fd-btn-secondary fd-btn-sm"
                 onClick={() => { setSetupForNew(false); setShowOnboarding(true); }}
               >
-                {t('food.merchant.openSetupGuide', 'Setup guide')}
+                {t('food.merchant.openSetupGuide')}
               </button>
             </div>
           )}

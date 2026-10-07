@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import {
   AlertTriangle,
@@ -37,8 +38,8 @@ function formatDate(value) {
   return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString();
 }
 
-function humanize(value) {
-  if (!value) return 'Not provided';
+function humanize(value, notProvidedLabel) {
+  if (!value) return notProvidedLabel || 'Not provided';
   return String(value).replace(/[_-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
@@ -140,6 +141,8 @@ function LoadingState() {
 }
 
 export default function AdminFoodOrderDetail() {
+  const { t } = useTranslation();
+  const ta = (key, opts = {}) => t(`adminFoodOrderDetail.${key}`, opts);
   const { id } = useParams();
   const navigate = useNavigate();
   const [order, setOrder] = useState(null);
@@ -246,11 +249,11 @@ export default function AdminFoodOrderDetail() {
             <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-orange-400">Food order</p>
               <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Order #{order.id}</h1>
-              <p className="mt-2 flex items-center gap-2 text-sm text-gray-400"><Utensils className="h-4 w-4 text-orange-300" /> {order.restaurant_name || 'Restaurant'}</p>
+              <p className="mt-2 flex items-center gap-2 text-sm text-gray-400"><Utensils className="h-4 w-4 text-orange-300" /> {order.restaurant_name || ta('restaurantFallback')}</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <StatusBadge status={order.status}>{humanize(order.status)}</StatusBadge>
-              <StatusBadge status={order.payment_status}>{humanize(order.payment_status)}</StatusBadge>
+              <StatusBadge status={order.status}>{humanize(order.status, ta('notProvided'))}</StatusBadge>
+              <StatusBadge status={order.payment_status}>{humanize(order.payment_status, ta('notProvided'))}</StatusBadge>
             </div>
           </div>
           <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-white/10 pt-4 text-xs text-gray-500">
@@ -269,9 +272,9 @@ export default function AdminFoodOrderDetail() {
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard icon={CircleDollarSign} label="Order total" value={formatMoney(order.total_cents, currency)} detail={currency} />
-          <MetricCard icon={ClipboardList} label="Queue" value={order.queue_number || '—'} detail={humanize(order.fulfillment_type)} />
+          <MetricCard icon={ClipboardList} label="Queue" value={order.queue_number || '—'} detail={humanize(order.fulfillment_type, ta('notProvided'))} />
           <MetricCard icon={Package} label="Items" value={items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)} detail={`${items.length} line item${items.length === 1 ? '' : 's'}`} />
-          <MetricCard icon={CreditCard} label="Payment mode" value={humanize(paymentMode)} detail={order.stripe_payment_intent_id ? 'Stripe payment attached' : 'No Stripe intent attached'} />
+          <MetricCard icon={CreditCard} label={ta('paymentMode')} value={humanize(paymentMode, ta('notProvided'))} detail={order.stripe_payment_intent_id ? ta('stripeAttached') : ta('noStripeIntent')} />
         </div>
 
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
@@ -285,7 +288,7 @@ export default function AdminFoodOrderDetail() {
                   <div className="divide-y divide-gray-800">
                     {items.map((item) => (
                       <div key={item.id} className="grid gap-2 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_80px_130px] sm:items-center sm:gap-4">
-                        <div className="min-w-0"><p className="truncate text-sm font-semibold text-gray-100">{item.name || 'Unnamed item'}</p>{item.description && <p className="mt-1 truncate text-xs text-gray-500">{item.description}</p>}</div>
+                        <div className="min-w-0"><p className="truncate text-sm font-semibold text-gray-100">{item.name || ta('unnamedItem')}</p>{item.description && <p className="mt-1 truncate text-xs text-gray-500">{item.description}</p>}</div>
                         <p className="text-xs text-gray-500"><span className="sm:hidden">Qty </span>{item.quantity || 0}</p>
                         <p className="text-sm font-semibold text-gray-200 sm:text-right">{formatMoney(item.price_cents, currency)}</p>
                       </div>
@@ -298,10 +301,10 @@ export default function AdminFoodOrderDetail() {
 
             <SectionCard eyebrow="Customer and fulfillment" title="Order context" detail="The operational details associated with this order." icon={UserRound}>
               <div className="grid gap-3 sm:grid-cols-2">
-                <DetailRow icon={UserRound} label="Guest" value={guestContact || 'Guest details not provided'} />
+                <DetailRow icon={UserRound} label={ta('guest')} value={guestContact || ta('noGuestDetails')} />
                 <DetailRow icon={Utensils} label="Restaurant" value={order.restaurant_name} />
-                <DetailRow icon={ClipboardList} label="Fulfillment" value={humanize(order.fulfillment_type)} />
-                <DetailRow icon={Package} label="Queue number" value={order.queue_number || 'Not assigned'} />
+                <DetailRow icon={ClipboardList} label="Fulfillment" value={humanize(order.fulfillment_type, ta('notProvided'))} />
+                <DetailRow icon={Package} label={ta('queueNumber')} value={order.queue_number || ta('notAssigned')} />
               </div>
             </SectionCard>
           </div>
@@ -309,9 +312,9 @@ export default function AdminFoodOrderDetail() {
           <div className="space-y-6">
             <SectionCard eyebrow="Payment and audit" title="Payment details" detail="Payment metadata is shown for administrative review." icon={WalletCards}>
               <div className="space-y-3">
-                <DetailRow icon={CreditCard} label="Payment status" value={humanize(order.payment_status)} valueClass="font-semibold" />
-                <DetailRow icon={WalletCards} label="Payment mode" value={humanize(paymentMode)} />
-                <DetailRow icon={FileText} label="Stripe payment intent" value={order.stripe_payment_intent_id || 'Not provided'} valueClass="font-mono text-xs" />
+                <DetailRow icon={CreditCard} label="Payment status" value={humanize(order.payment_status, ta('notProvided'))} valueClass="font-semibold" />
+                <DetailRow icon={WalletCards} label={ta('paymentMode')} value={humanize(paymentMode, ta('notProvided'))} />
+                <DetailRow icon={FileText} label={ta('stripeIntent')} value={order.stripe_payment_intent_id || ta('notProvided')} valueClass="font-mono text-xs" />
                 <DetailRow icon={CalendarClock} label="Created" value={formatDate(order.created_at)} />
               </div>
             </SectionCard>
@@ -325,7 +328,7 @@ export default function AdminFoodOrderDetail() {
                 <div className="mt-5 space-y-4">
                   <label className="block text-sm font-medium text-gray-300">Partial refund amount <span className="font-normal text-gray-500">(cents, optional)</span><input type="number" min="1" max={order.total_cents} step="1" inputMode="numeric" value={refundAmount} onChange={(event) => setRefundAmount(event.target.value)} placeholder={`Leave blank for full refund (${order.total_cents} cents)`} className="mt-2 w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white placeholder:text-gray-600 outline-none focus:border-amber-400" /></label>
                   <label className="block text-sm font-medium text-gray-300">Reason <span className="text-amber-300">*</span><textarea value={refundReason} onChange={(event) => setRefundReason(event.target.value)} rows={4} maxLength={500} placeholder="Explain why this refund is being issued" className="mt-2 w-full resize-y rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white placeholder:text-gray-600 outline-none focus:border-amber-400" /></label>
-                  <button type="button" onClick={handleRefund} disabled={refunding} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 text-sm font-semibold text-gray-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50">{refunding ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}{refunding ? 'Processing refund…' : 'Issue refund'}</button>
+                  <button type="button" onClick={handleRefund} disabled={refunding} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 text-sm font-semibold text-gray-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50">{refunding ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}{refunding ? ta('processingRefund') : ta('issueRefund')}</button>
                 </div>
               </section>
             ) : (

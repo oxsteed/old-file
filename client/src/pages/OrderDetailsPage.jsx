@@ -206,22 +206,22 @@ function OrderDetailsPageContent() {
   };
   const paymentMethodLabel = (() => {
     const raw = String(order?.payment_method || order?.paymentMode || order?.payment_mode || '').toLowerCase();
-    const labels = {
-      card: 'Card',
-      card_payment: 'Card',
-      bank_transfer: 'Bank transfer',
-      cash: 'Cash',
-      restaurant_credit: 'Restaurant credit',
-      wallet_credit: 'Restaurant credit',
-      direct_payment: 'Direct payment',
-      direct: 'Direct payment',
-      off_platform: 'Direct payment',
-      pay_at_restaurant: 'Pay at restaurant',
-      pay_in_person: 'Pay at restaurant',
+    const keyMap = {
+      card: 'orders.paymentMethods.card',
+      card_payment: 'orders.paymentMethods.card',
+      bank_transfer: 'orders.paymentMethods.bankTransfer',
+      cash: 'orders.paymentMethods.cash',
+      restaurant_credit: 'orders.paymentMethods.restaurantCredit',
+      wallet_credit: 'orders.paymentMethods.restaurantCredit',
+      direct_payment: 'orders.paymentMethods.directPayment',
+      direct: 'orders.paymentMethods.directPayment',
+      off_platform: 'orders.paymentMethods.directPayment',
+      pay_at_restaurant: 'orders.paymentMethods.payAtRestaurant',
+      pay_in_person: 'orders.paymentMethods.payAtRestaurant',
     };
-    if (labels[raw]) return labels[raw];
-    if (order?.transaction) return 'Processor payment';
-    return 'Unrecorded';
+    if (keyMap[raw]) return t(keyMap[raw]);
+    if (order?.transaction) return t('orders.paymentMethods.processor', 'Processor payment');
+    return t('orders.paymentMethods.unrecorded', 'Unrecorded');
   })();
 
   useEffect(() => {
@@ -262,9 +262,14 @@ function OrderDetailsPageContent() {
             <p className="order-details-kicker">{t('common.error')}</p>
             <h1>{order ? t('common.error') : t('orders.notFound')}</h1>
             <p>{error || t('orders.notFound')}</p>
-            <button type="button" className="orders-btn orders-btn-primary" onClick={handleBackToOrders}>
-              <ArrowLeft size={16} /> {t('orders.backToOrders')}
-            </button>
+            <div className="order-details-error-actions">
+              <button type="button" className="orders-btn orders-btn-primary" onClick={loadOrder}>
+                <RefreshCw size={16} /> {t('common.retry', 'Retry')}
+              </button>
+              <button type="button" className="orders-btn" onClick={handleBackToOrders}>
+                <ArrowLeft size={16} /> {t('orders.backToOrders')}
+              </button>
+            </div>
           </div>
         </div>
       </PageShell>

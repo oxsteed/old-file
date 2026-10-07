@@ -10090,6 +10090,19 @@
       "removeTitle": "إلغاء الوظيفة - يزيلها من السوق",
       "reportCount": "{{count}} بلاغ{{plural}}",
       "title": "إدارة المحتوى"
+    },
+    "foodOrders": {
+      "kicker": "العمليات",
+      "title": "طلبات الطعام",
+      "count": "{{count}} طلبات",
+      "filterStatus": "تصفية حسب الحالة",
+      "allStatuses": "جميع الحالات",
+      "restaurant": "مطعم",
+      "status": "الحالة",
+      "total": "الإجمالي",
+      "payment": "الدفع",
+      "created": "تم الإنشاء",
+      "empty": "لم يتم العثور على طلبات."
     }
   },
   "auditLogFilter": {
@@ -13385,8 +13398,8 @@
     "viewBid": "عرض العرض"
   },
   "orders": {
-    "helpTitle": "احصل على مساعدة بشأن هذا الطلب",
-    "helpSent": "تم إرسال رسالتك. سيرد عليك فريق الدعم لدينا.",
+    "helpTitle": "الحصول على مساعدة بشأن هذا الطلب",
+    "helpSent": "تم إرسال رسالتك. سيتواصل معك فريق الدعم.",
     "helpPlaceholder": "صف المشكلة المتعلقة بطلبك...",
     "title": "سجل الطلبات",
     "yourOrders": "طلباتك",
@@ -13450,7 +13463,14 @@
       "processing": "قيد المعالجة",
       "completed": "مكتمل",
       "cancelled": "ملغى",
-      "refunded": "مسترد"
+      "refunded": "مسترد",
+      "received": "تم الاستلام",
+      "accepted": "مقبول",
+      "preparing": "قيد التحضير",
+      "ready": "جاهز",
+      "picked_up": "تم الاستلام",
+      "delivered": "تم التوصيل",
+      "failed": "فشل"
     },
     "guide": {
       "ariaLabel": "كيفية ارتباط الطلبات",
@@ -13485,9 +13505,16 @@
       "help3": "إبقاء الإيصالات مرتبطة بسجلاتك المالية.",
       "help4": "العودة إلى تفاصيل الطلب إذا احتجت إلى دعم أو متابعة."
     },
-    "helpTitle": "الحصول على مساعدة بشأن هذا الطلب",
-    "helpSent": "تم إرسال رسالتك. سيتواصل معك فريق الدعم.",
-    "helpPlaceholder": "صف المشكلة المتعلقة بطلبك..."
+    "paymentMethods": {
+      "card": "بطاقة",
+      "bankTransfer": "تحويل بنكي",
+      "cash": "نقداً",
+      "restaurantCredit": "رصيد المطعم",
+      "directPayment": "دفع مباشر",
+      "payAtRestaurant": "الدفع في المطعم",
+      "processor": "دفعة معالجة",
+      "unrecorded": "غير مسجل"
+    }
   },
   "howOxsteedWorks": {
     "experience": {
@@ -15183,15 +15210,19 @@
     "orders": {
       "title": "طلبات الشراء",
       "subtitle": "تتبع جميع طلبات الشراء اللوجستية الخاصة بك.",
-      "reference": "مرجع",
-      "product": "منتج",
+      "reference": "المرجع",
+      "product": "المنتج",
       "qty": "الكمية",
       "landed": "هبطت المجموع",
-      "status": "حالة",
+      "status": "الحالة",
       "created": "مخلوق",
       "noOrders": "لم يتم العثور على طلبات الشراء.",
       "allStatuses": "جميع الحالات",
-      "empty": "لم يتم العثور على طلبات."
+      "empty": "لم يتم العثور على طلبات.",
+      "loading": "جارٍ التحميل…",
+      "lane": "المسار",
+      "landedCost": "التكلفة الإجمالية",
+      "expected": "المتوقع"
     },
     "shipments": {
       "title": "الشحنات",
@@ -19344,7 +19375,7 @@
       "splitHint": "اختر الأصناف التي تريد نقلها إلى طلب جديد:",
       "noItems": "لا توجد أصناف في هذا الطلب.",
       "splitConfirm": "تقسيم ({{count}})",
-      "splitSuccess": "اكتمل التقسيم. رقم الطلب الجديد {{newOrderId}}",
+      "splitSuccess": "اكتمل التقسيم. طلب جديد #{{newOrderId}}",
       "splitError": "تعذر تقسيم الطلب.",
       "openKitchen": "شاشة المطبخ",
       "openQueue": "لوحة الطابور",
@@ -19613,7 +19644,24 @@
       "externalPaymentAdvanced": "تعليمات متقدمة",
       "confirmPayment": "تأكيد الدفع",
       "closeTime": "يغلق",
-      "brandAccent": "لون العلامة (#RRGGBB)"
+      "brandAccent": "لون العلامة (#RRGGBB)",
+      "split": "تقسيم",
+      "merge": "دمج",
+      "refund": "استرداد",
+      "reprint": "إعادة طباعة",
+      "mergeTitle": "دمج الطلبات",
+      "mergeHint": "أدخل معرف الطلب المصدر للدمج في هذا الطلب:",
+      "mergePlaceholder": "معرف الطلب المصدر",
+      "mergeConfirm": "دمج",
+      "mergeSuccess": "تم دمج الطلبات",
+      "mergeError": "تعذر دمج الطلبات.",
+      "refundTitle": "إصدار استرداد",
+      "refundHint": "إجمالي الطلب: ${{total}}",
+      "refundAmountPlaceholder": "المبلغ بالسنت (فارغ = الكامل)",
+      "refundReasonPlaceholder": "السبب (مطلوب)",
+      "refundConfirm": "إصدار الاسترداد",
+      "refundSuccess": "تم إصدار الاسترداد",
+      "refundError": "تعذر إصدار الاسترداد."
     },
     "onboarding": {
       "eyebrow": "ليلة الافتتاح",
@@ -29947,6 +29995,45 @@
       "created": "Created",
       "lastUsed": "Last used",
       "confirmRevoke": "Revoke this API key?"
+    }
+  },
+  "adminFoodOrderDetail": {
+    "notProvided": "غير مقدم",
+    "notFound": "الطلب غير موجود",
+    "kicker": "طلب طعام",
+    "restaurantFallback": "مطعم",
+    "retry": "إعادة المحاولة",
+    "paymentMode": "طريقة الدفع",
+    "stripeAttached": "دفعة Stripe مرفقة",
+    "noStripeIntent": "لا توجد نية Stripe مرفقة",
+    "unnamedItem": "عنصر بدون اسم",
+    "orderTotal": "إجمالي الطلب",
+    "noLineItems": "لم يتم تسجيل أي عناصر لهذا الطلب.",
+    "noGuestDetails": "تفاصيل الضيف غير مقدمة",
+    "notAssigned": "غير معين",
+    "guest": "ضيف",
+    "queueNumber": "رقم الانتظار",
+    "stripeIntent": "نية دفع Stripe",
+    "financialAction": "إجراء مالي",
+    "refundTitle": "إصدار استرداد",
+    "refundWarning": "يتم تسجيل المبالغ المستردة على مسار الدفع الأصلي ولا يمكن التراجع عنها.",
+    "processingRefund": "جارٍ معالجة الاسترداد…",
+    "issueRefund": "إصدار الاسترداد"
+  },
+  "media": {
+    "post": {
+      "loadError": "فشل تحميل المنشور.",
+      "notFound": "المنشور غير موجود.",
+      "replies": "الردود",
+      "latest": "الأحدث",
+      "relevant": "الأكثر صلة",
+      "noReplies": "لا توجد ردود بعد."
+    },
+    "feed": {
+      "title": "OxSteed Media",
+      "loadError": "فشل تحميل الخلاصة.",
+      "loadMore": "تحميل المزيد",
+      "empty": "لا توجد منشورات بعد. كن أول من يشارك."
     }
   }
 }

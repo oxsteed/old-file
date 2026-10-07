@@ -10090,6 +10090,19 @@
       "removeTitle": "Cancelar trabajo - lo quita del marketplace",
       "reportCount": "{{count}} reporte{{plural}}",
       "title": "Moderación de contenido"
+    },
+    "foodOrders": {
+      "kicker": "Operaciones",
+      "title": "Pedidos de comida",
+      "count": "{{count}} pedidos",
+      "filterStatus": "Filtrar por estado",
+      "allStatuses": "Todos los estados",
+      "restaurant": "Restaurante",
+      "status": "Estado",
+      "total": "Total",
+      "payment": "Pago",
+      "created": "Creado",
+      "empty": "No se encontraron pedidos."
     }
   },
   "auditLogFilter": {
@@ -13293,7 +13306,7 @@
     "viewBid": "Ver oferta"
   },
   "orders": {
-    "helpTitle": "Obtén ayuda con este pedido",
+    "helpTitle": "Obtener ayuda con este pedido",
     "helpSent": "Tu mensaje fue enviado. Nuestro equipo de soporte se pondrá en contacto contigo.",
     "helpPlaceholder": "Describe el problema con tu pedido...",
     "title": "Historial de pedidos",
@@ -13358,7 +13371,14 @@
       "processing": "En proceso",
       "completed": "Completado",
       "cancelled": "Cancelado",
-      "refunded": "Reembolsado"
+      "refunded": "Reembolsado",
+      "received": "Recibido",
+      "accepted": "Aceptado",
+      "preparing": "En preparación",
+      "ready": "Listo",
+      "picked_up": "Recogido",
+      "delivered": "Entregado",
+      "failed": "Fallido"
     },
     "guide": {
       "ariaLabel": "Cómo se conectan los pedidos",
@@ -13393,9 +13413,16 @@
       "help3": "Mantener recibos conectados con tus registros de dinero.",
       "help4": "Volver a detalles del pedido si necesitas soporte o seguimiento."
     },
-    "helpTitle": "Obtener ayuda con este pedido",
-    "helpSent": "Tu mensaje fue enviado. Nuestro equipo de soporte se pondrá en contacto contigo.",
-    "helpPlaceholder": "Describe el problema con tu pedido..."
+    "paymentMethods": {
+      "card": "Tarjeta",
+      "bankTransfer": "Transferencia bancaria",
+      "cash": "Efectivo",
+      "restaurantCredit": "Crédito del restaurante",
+      "directPayment": "Pago directo",
+      "payAtRestaurant": "Pagar en el restaurante",
+      "processor": "Pago procesado",
+      "unrecorded": "No registrado"
+    }
   },
   "cancellationSettings": {
     "pageTitle": "Políticas de Pago y Cancelación",
@@ -15180,7 +15207,11 @@
       "created": "Creado",
       "noOrders": "No se encontraron ordenes de compra.",
       "allStatuses": "Todos los estados",
-      "empty": "No se encontraron pedidos."
+      "empty": "No se encontraron pedidos.",
+      "loading": "Cargando…",
+      "lane": "Ruta",
+      "landedCost": "Costo total",
+      "expected": "Previsto"
     },
     "shipments": {
       "title": "Envios",
@@ -19325,7 +19356,7 @@
       "splitHint": "Selecciona los artículos que moverás a un pedido nuevo:",
       "noItems": "No hay artículos en este pedido.",
       "splitConfirm": "Dividir ({{count}})",
-      "splitSuccess": "División completada. Nuevo pedido n.º {{newOrderId}}",
+      "splitSuccess": "División completa. Nuevo pedido #{{newOrderId}}",
       "splitError": "No se pudo dividir el pedido.",
       "openKitchen": "Pantalla de cocina",
       "openQueue": "Tablero de fila",
@@ -19602,7 +19633,24 @@
       "externalPaymentAdvanced": "Instrucciones avanzadas",
       "confirmPayment": "Confirmar pago",
       "closeTime": "Cierra",
-      "brandAccent": "Color de marca (#RRGGBB)"
+      "brandAccent": "Color de marca (#RRGGBB)",
+      "split": "Dividir",
+      "merge": "Combinar",
+      "refund": "Reembolsar",
+      "reprint": "Reimprimir",
+      "mergeTitle": "Combinar pedidos",
+      "mergeHint": "Ingrese el ID del pedido de origen para combinar en este pedido:",
+      "mergePlaceholder": "ID del pedido de origen",
+      "mergeConfirm": "Combinar",
+      "mergeSuccess": "Pedidos combinados",
+      "mergeError": "No se pudieron combinar los pedidos.",
+      "refundTitle": "Emitir reembolso",
+      "refundHint": "Total del pedido: ${{total}}",
+      "refundAmountPlaceholder": "Monto en centavos (vacío = total)",
+      "refundReasonPlaceholder": "Motivo (obligatorio)",
+      "refundConfirm": "Emitir reembolso",
+      "refundSuccess": "Reembolso emitido",
+      "refundError": "No se pudo emitir el reembolso."
     },
     "onboarding": {
       "eyebrow": "Noche de apertura",
@@ -29936,6 +29984,45 @@
       "created": "Created",
       "lastUsed": "Last used",
       "confirmRevoke": "Revoke this API key?"
+    }
+  },
+  "adminFoodOrderDetail": {
+    "notProvided": "No proporcionado",
+    "notFound": "Pedido no encontrado",
+    "kicker": "Pedido de comida",
+    "restaurantFallback": "Restaurante",
+    "retry": "Reintentar",
+    "paymentMode": "Modo de pago",
+    "stripeAttached": "Pago de Stripe adjunto",
+    "noStripeIntent": "Sin intención de Stripe adjunta",
+    "unnamedItem": "Artículo sin nombre",
+    "orderTotal": "Total del pedido",
+    "noLineItems": "No se registraron artículos para este pedido.",
+    "noGuestDetails": "Datos del invitado no proporcionados",
+    "notAssigned": "No asignado",
+    "guest": "Invitado",
+    "queueNumber": "Número de cola",
+    "stripeIntent": "Intención de pago de Stripe",
+    "financialAction": "Acción financiera",
+    "refundTitle": "Emitir un reembolso",
+    "refundWarning": "Los reembolsos se registran en la vía de pago original y no se pueden deshacer.",
+    "processingRefund": "Procesando reembolso…",
+    "issueRefund": "Emitir reembolso"
+  },
+  "media": {
+    "post": {
+      "loadError": "No se pudo cargar la publicación.",
+      "notFound": "Publicación no encontrada.",
+      "replies": "Respuestas",
+      "latest": "Recientes",
+      "relevant": "Relevantes",
+      "noReplies": "Aún no hay respuestas."
+    },
+    "feed": {
+      "title": "OxSteed Media",
+      "loadError": "No se pudo cargar el feed.",
+      "loadMore": "Cargar más",
+      "empty": "Aún no hay publicaciones. Sé el primero en compartir."
     }
   }
 }

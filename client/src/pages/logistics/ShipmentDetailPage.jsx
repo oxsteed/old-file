@@ -18,16 +18,36 @@ export default function ShipmentDetailPage() {
   const { id } = useParams();
   const [shipment, setShipment] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true);
+    setError(null);
     getShipment(id)
       .then((r) => setShipment(r.data))
-      .catch(() => {})
+      .catch((err) => setError(err.response?.data?.error || tx('shipmentDetailPage.loadError', 'Failed to load shipment.')))
       .finally(() => setLoading(false));
-  }, [id]);
+  };
+
+  useEffect(() => { load(); }, [id]);
 
   if (loading) return <div className="lx-page"><div className="lx-loading">{tx('shipmentDetailPage.loading', 'Loading…')}</div></div>;
-  if (!shipment) return <div className="lx-page"><div className="lx-error">{tx('shipmentDetailPage.notFound', 'Shipment not found.')}</div></div>;
+  if (error) return (
+    <div className="lx-page">
+      <div className="lx-error">
+        <p>{error}</p>
+        <button type="button" onClick={load} className="lx-btn">{tx('common.retry', 'Retry')}</button>
+      </div>
+    </div>
+  );
+  if (!shipment) return (
+    <div className="lx-page">
+      <div className="lx-error">
+        <p>{tx('shipmentDetailPage.notFound', 'Shipment not found.')}</p>
+        <Link to="/logistics/shipments" className="lx-link">{tx('shipmentDetailPage.backToShipments', '← Back to Shipments')}</Link>
+      </div>
+    </div>
+  );
 
   return (
     <div className="lx-page">
@@ -50,7 +70,7 @@ export default function ShipmentDetailPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+      <div className="lx-detail-grid">
         <div className="lx-card">
           <h3 style={{ fontWeight: 700, marginBottom: '1rem' }}>{tx('shipmentDetailPage.sections.details', 'Shipment details')}</h3>
           <div style={{ display: 'grid', gap: '.55rem', fontSize: '.88rem' }}>

@@ -10090,6 +10090,19 @@
       "removeTitle": "Annuler la mission - la retire de la place de marché",
       "reportCount": "{{count}} signalement{{plural}}",
       "title": "Modération de contenu"
+    },
+    "foodOrders": {
+      "kicker": "Opérations",
+      "title": "Commandes alimentaires",
+      "count": "{{count}} commandes",
+      "filterStatus": "Filtrer par statut",
+      "allStatuses": "Tous les statuts",
+      "restaurant": "Restaurant",
+      "status": "Statut",
+      "total": "Total",
+      "payment": "Paiement",
+      "created": "Créé",
+      "empty": "Aucune commande trouvée."
     }
   },
   "auditLogFilter": {
@@ -13293,7 +13306,7 @@
     "viewBid": "Voir l'offre"
   },
   "orders": {
-    "helpTitle": "Obtenir de l’aide pour cette commande",
+    "helpTitle": "Obtenir de l'aide pour cette commande",
     "helpSent": "Votre message a été envoyé. Notre équipe d’assistance vous répondra.",
     "helpPlaceholder": "Décrivez le problème avec votre commande...",
     "title": "Historique des commandes",
@@ -13358,7 +13371,14 @@
       "processing": "En traitement",
       "completed": "Terminé",
       "cancelled": "Annulé",
-      "refunded": "Remboursé"
+      "refunded": "Remboursé",
+      "received": "Reçu",
+      "accepted": "Accepté",
+      "preparing": "En préparation",
+      "ready": "Prêt",
+      "picked_up": "Récupéré",
+      "delivered": "Livré",
+      "failed": "Échoué"
     },
     "guide": {
       "ariaLabel": "Comment les commandes se connectent",
@@ -13393,9 +13413,16 @@
       "help3": "Garder les reçus reliés à vos dossiers financiers.",
       "help4": "Revenir aux détails si un support ou un suivi est nécessaire."
     },
-    "helpTitle": "Obtenir de l'aide pour cette commande",
-    "helpSent": "Votre message a été envoyé. Notre équipe d’assistance vous répondra.",
-    "helpPlaceholder": "Décrivez le problème avec votre commande..."
+    "paymentMethods": {
+      "card": "Carte",
+      "bankTransfer": "Virement bancaire",
+      "cash": "Espèces",
+      "restaurantCredit": "Crédit restaurant",
+      "directPayment": "Paiement direct",
+      "payAtRestaurant": "Payer au restaurant",
+      "processor": "Paiement traité",
+      "unrecorded": "Non enregistré"
+    }
   },
   "cancellationSettings": {
     "pageTitle": "Politiques de paiement et d'annulation",
@@ -15174,13 +15201,17 @@
       "subtitle": "Suivez tous vos bons de commande logistiques.",
       "reference": "Référence",
       "product": "Produit",
-      "qty": "Qte",
+      "qty": "Qté",
       "landed": "Total debarque",
       "status": "Statut",
       "created": "Cree",
       "noOrders": "Aucun bon de commande trouve.",
       "allStatuses": "Tous les statuts",
-      "empty": "Aucune commande trouvée."
+      "empty": "Aucune commande trouvée.",
+      "loading": "Chargement…",
+      "lane": "Ligne",
+      "landedCost": "Coût rendu",
+      "expected": "Prévu"
     },
     "shipments": {
       "title": "Expeditions",
@@ -19324,8 +19355,8 @@
       "splitTitle": "Répartir la commande",
       "splitHint": "Sélectionnez les articles à déplacer vers une nouvelle commande :",
       "noItems": "Aucun article dans cette commande.",
-      "splitConfirm": "Répartir ({{count}})",
-      "splitSuccess": "Répartition terminée. Nouvelle commande n° {{newOrderId}}",
+      "splitConfirm": "Diviser ({{count}})",
+      "splitSuccess": "Division terminée. Nouvelle commande #{{newOrderId}}",
       "splitError": "Impossible de répartir la commande.",
       "openKitchen": "Écran cuisine",
       "openQueue": "Tableau de file",
@@ -19602,7 +19633,24 @@
       "externalPaymentAdvanced": "Instructions avancées",
       "confirmPayment": "Confirmer le paiement",
       "closeTime": "Ferme",
-      "brandAccent": "Couleur de marque (#RRGGBB)"
+      "brandAccent": "Couleur de marque (#RRGGBB)",
+      "split": "Diviser",
+      "merge": "Fusionner",
+      "refund": "Rembourser",
+      "reprint": "Réimprimer",
+      "mergeTitle": "Fusionner les commandes",
+      "mergeHint": "Entrez l’ID de la commande source à fusionner :",
+      "mergePlaceholder": "ID commande source",
+      "mergeConfirm": "Fusionner",
+      "mergeSuccess": "Commandes fusionnées",
+      "mergeError": "Impossible de fusionner les commandes.",
+      "refundTitle": "Émettre un remboursement",
+      "refundHint": "Total de la commande : ${{total}}",
+      "refundAmountPlaceholder": "Montant en centimes (vide = total)",
+      "refundReasonPlaceholder": "Motif (obligatoire)",
+      "refundConfirm": "Émettre le remboursement",
+      "refundSuccess": "Remboursement émis",
+      "refundError": "Impossible d’émettre le remboursement."
     },
     "onboarding": {
       "eyebrow": "Nuit d'ouverture",
@@ -29936,6 +29984,45 @@
       "created": "Created",
       "lastUsed": "Last used",
       "confirmRevoke": "Revoke this API key?"
+    }
+  },
+  "adminFoodOrderDetail": {
+    "notProvided": "Non fourni",
+    "notFound": "Commande introuvable",
+    "kicker": "Commande alimentaire",
+    "restaurantFallback": "Restaurant",
+    "retry": "Réessayer",
+    "paymentMode": "Mode de paiement",
+    "stripeAttached": "Paiement Stripe joint",
+    "noStripeIntent": "Aucune intention Stripe jointe",
+    "unnamedItem": "Article sans nom",
+    "orderTotal": "Total de la commande",
+    "noLineItems": "Aucun article enregistré pour cette commande.",
+    "noGuestDetails": "Détails de l’invité non fournis",
+    "notAssigned": "Non attribué",
+    "guest": "Invité",
+    "queueNumber": "Numéro de file",
+    "stripeIntent": "Intention de paiement Stripe",
+    "financialAction": "Action financière",
+    "refundTitle": "Émettre un remboursement",
+    "refundWarning": "Les remboursements sont enregistrés sur le rail de paiement d’origine et ne peuvent pas être annulés.",
+    "processingRefund": "Traitement du remboursement…",
+    "issueRefund": "Émettre le remboursement"
+  },
+  "media": {
+    "post": {
+      "loadError": "Échec du chargement de la publication.",
+      "notFound": "Publication introuvable.",
+      "replies": "Réponses",
+      "latest": "Récents",
+      "relevant": "Pertinents",
+      "noReplies": "Aucune réponse pour le moment."
+    },
+    "feed": {
+      "title": "OxSteed Media",
+      "loadError": "Échec du chargement du fil.",
+      "loadMore": "Charger plus",
+      "empty": "Aucune publication pour le moment. Soyez le premier à partager."
     }
   }
 }

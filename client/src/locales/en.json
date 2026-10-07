@@ -10090,6 +10090,19 @@
       "removeTitle": "Cancel job - removes from marketplace",
       "reportCount": "{{count}} report{{plural}}",
       "title": "Content Moderation"
+    },
+    "foodOrders": {
+      "kicker": "Operations",
+      "title": "Food Orders",
+      "count": "{{count}} orders",
+      "filterStatus": "Filter by status",
+      "allStatuses": "All statuses",
+      "restaurant": "Restaurant",
+      "status": "Status",
+      "total": "Total",
+      "payment": "Payment",
+      "created": "Created",
+      "empty": "No orders found."
     }
   },
   "auditLogFilter": {
@@ -13439,7 +13452,14 @@
       "processing": "Processing",
       "completed": "Completed",
       "cancelled": "Cancelled",
-      "refunded": "Refunded"
+      "refunded": "Refunded",
+      "received": "Received",
+      "accepted": "Accepted",
+      "preparing": "Preparing",
+      "ready": "Ready",
+      "picked_up": "Picked up",
+      "delivered": "Delivered",
+      "failed": "Failed"
     },
     "guide": {
       "ariaLabel": "How orders connect",
@@ -13474,9 +13494,16 @@
       "help3": "Keep receipts connected to your money records.",
       "help4": "Return to order details if support or follow-up is needed."
     },
-    "helpTitle": "Get help with this order",
-    "helpSent": "Your message was sent. Our support team will get back to you.",
-    "helpPlaceholder": "Describe the issue with your order..."
+    "paymentMethods": {
+      "card": "Card",
+      "bankTransfer": "Bank transfer",
+      "cash": "Cash",
+      "restaurantCredit": "Restaurant credit",
+      "directPayment": "Direct payment",
+      "payAtRestaurant": "Pay at restaurant",
+      "processor": "Processor payment",
+      "unrecorded": "Unrecorded"
+    }
   },
   "howOxsteedWorks": {
     "experience": {
@@ -15180,7 +15207,11 @@
       "created": "Created",
       "noOrders": "No purchase orders found.",
       "allStatuses": "All Statuses",
-      "empty": "No orders found."
+      "empty": "No orders found.",
+      "loading": "Loading…",
+      "lane": "Lane",
+      "landedCost": "Landed Cost",
+      "expected": "Expected"
     },
     "shipments": {
       "title": "Shipments",
@@ -19602,7 +19633,24 @@
       "externalPaymentAdvanced": "Advanced instructions",
       "confirmPayment": "Confirm payment",
       "closeTime": "Closes",
-      "brandAccent": "Brand accent (#RRGGBB)"
+      "brandAccent": "Brand accent (#RRGGBB)",
+      "split": "Split",
+      "merge": "Merge",
+      "refund": "Refund",
+      "reprint": "Reprint",
+      "mergeTitle": "Merge Orders",
+      "mergeHint": "Enter the source order ID to merge into this order:",
+      "mergePlaceholder": "Source order ID",
+      "mergeConfirm": "Merge",
+      "mergeSuccess": "Orders merged",
+      "mergeError": "Unable to merge orders.",
+      "refundTitle": "Issue Refund",
+      "refundHint": "Order total: ${{total}}",
+      "refundAmountPlaceholder": "Amount in cents (blank = full)",
+      "refundReasonPlaceholder": "Reason (required)",
+      "refundConfirm": "Issue Refund",
+      "refundSuccess": "Refund issued",
+      "refundError": "Unable to issue refund."
     },
     "onboarding": {
       "eyebrow": "Opening Night",
@@ -29936,6 +29984,45 @@
       "created": "Created",
       "lastUsed": "Last used",
       "confirmRevoke": "Revoke this API key?"
+    }
+  },
+  "adminFoodOrderDetail": {
+    "notProvided": "Not provided",
+    "notFound": "Order not found",
+    "kicker": "Food order",
+    "restaurantFallback": "Restaurant",
+    "retry": "Retry",
+    "paymentMode": "Payment mode",
+    "stripeAttached": "Stripe payment attached",
+    "noStripeIntent": "No Stripe intent attached",
+    "unnamedItem": "Unnamed item",
+    "orderTotal": "Order total",
+    "noLineItems": "No line items were recorded for this order.",
+    "noGuestDetails": "Guest details not provided",
+    "notAssigned": "Not assigned",
+    "guest": "Guest",
+    "queueNumber": "Queue number",
+    "stripeIntent": "Stripe payment intent",
+    "financialAction": "Financial action",
+    "refundTitle": "Issue a refund",
+    "refundWarning": "Refunds are recorded against the original payment rail and cannot be undone.",
+    "processingRefund": "Processing refund…",
+    "issueRefund": "Issue refund"
+  },
+  "media": {
+    "post": {
+      "loadError": "Failed to load post.",
+      "notFound": "Post not found.",
+      "replies": "Replies",
+      "latest": "Latest",
+      "relevant": "Relevant",
+      "noReplies": "No replies yet."
+    },
+    "feed": {
+      "title": "OxSteed Media",
+      "loadError": "Failed to load feed.",
+      "loadMore": "Load more",
+      "empty": "No posts yet. Be the first to share."
     }
   }
 }

@@ -108,12 +108,12 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
   });
 
   const statusColor = {
-    pending: 'bg-yellow-100 text-yellow-800',
-    paid: 'bg-blue-100 text-blue-800',
-    processing: 'bg-purple-100 text-purple-800',
-    completed: 'bg-green-100 text-green-800',
-    cancelled: 'bg-red-100 text-red-800',
-    refunded: 'bg-gray-100 text-gray-800',
+    pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-950/50 dark:text-yellow-300 dark:border dark:border-yellow-800/50',
+    paid: 'bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 dark:border dark:border-blue-800/50',
+    processing: 'bg-purple-100 text-purple-800 dark:bg-purple-950/50 dark:text-purple-300 dark:border dark:border-purple-800/50',
+    completed: 'bg-green-100 text-green-800 dark:bg-green-950/50 dark:text-green-300 dark:border dark:border-green-800/50',
+    cancelled: 'bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300 dark:border dark:border-red-800/50',
+    refunded: 'bg-gray-100 text-gray-800 dark:bg-gray-800/60 dark:text-gray-300 dark:border dark:border-gray-700/50',
   };
 
   return (

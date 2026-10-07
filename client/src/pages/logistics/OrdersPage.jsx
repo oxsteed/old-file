@@ -43,12 +43,12 @@ export default function OrdersPage() {
 
       <div className="lx-filter-bar">
         <select className="lx-select" value={status} onChange={e => { setStatus(e.target.value); setPage(1); }}>
-          <option value="">All Statuses</option>
+          <option value="">{t('logistics.orders.allStatuses','All Statuses')}</option>
           {STATUSES.map(s => <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
         </select>
       </div>
 
-      {loading && <div className="lx-loading">Loading…</div>}
+      {loading && <div className="lx-loading">{t('logistics.orders.loading','Loading…')}</div>}
 
       {!loading && orders.length === 0 && (
         <div className="lx-empty">
@@ -62,8 +62,8 @@ export default function OrdersPage() {
           <table className="lx-table">
             <thead>
               <tr>
-                <th>Reference</th><th>Product</th><th>Lane</th><th>Qty</th>
-                <th>Landed Cost</th><th>Status</th><th>Expected</th><th></th>
+                <th>{t('logistics.orders.reference','Reference')}</th><th>{t('logistics.orders.product','Product')}</th><th>{t('logistics.orders.lane','Lane')}</th><th>{t('logistics.orders.qty','Qty')}</th>
+                <th>{t('logistics.orders.landedCost','Landed Cost')}</th><th>{t('logistics.orders.status','Status')}</th><th>{t('logistics.orders.expected','Expected')}</th><th></th>
               </tr>
             </thead>
             <tbody>

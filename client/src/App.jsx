@@ -284,6 +284,14 @@ function LegacyHelperProfileRedirect() {
   return <Navigate to={{ pathname: `/helpers/${helperId}`, search: location.search }} replace />;
 }
 
+// /orders/:id redirects to the canonical food order route since the
+// orders list only contains food orders.
+function OrderIdRedirect() {
+  const { id } = useParams();
+  const location = useLocation();
+  return <Navigate to={{ pathname: `/food/orders/${id}`, search: location.search }} replace />;
+}
+
 function RouteLoadingFallback() {
   return (
     <main className="min-h-screen flex items-center justify-center bg-gray-950 text-gray-300" aria-live="polite">
@@ -475,7 +483,7 @@ export default function App() {
                     <Route path="/shared-cart/:shareToken" element={<Guarded><SharedCartPage /></Guarded>} />
                     <Route path="/checkout/:cartId"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><CheckoutPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/orders"                  element={<Guarded><ProtectedRoute><OrderHistoryPage /></ProtectedRoute></Guarded>} />
-                    <Route path="/orders/:id"             element={<Guarded><ProtectedRoute><RouteErrorBoundary><OrderDetailsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/orders/:id"             element={<Guarded><ProtectedRoute><OrderIdRedirect /></ProtectedRoute></Guarded>} />
                     <Route path="/food/orders/:orderId"   element={<Guarded><ProtectedRoute><RouteErrorBoundary><OrderDetailsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/food/track/:token"     element={<FoodTrackPage />} />
 

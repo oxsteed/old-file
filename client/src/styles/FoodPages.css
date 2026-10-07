@@ -3141,3 +3141,32 @@ input[type="color"].fd-settings-color {
 .fd-split-item:hover { background: var(--hover-bg, #f8fafc); }
 .fd-split-item input[type="checkbox"] { width: 18px; height: 18px; }
 .fd-split-item span:nth-child(2) { flex: 1; }
+
+.fd-modal-input { width: 100%; min-height: 38px; padding: 0 0.7rem; margin-bottom: 0.75rem; border: 1px solid var(--border-color, #d8dee5); border-radius: 9px; font-size: 1rem; }
+
+.food-track-page { max-width: 640px; margin: 0 auto; padding: 2rem 1rem; }
+.food-track-page h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem; }
+.food-track-restaurant { color: var(--text-muted, #64748b); margin-bottom: 1.5rem; }
+.food-track-timeline { display: flex; justify-content: space-between; margin: 2rem 0; position: relative; }
+.food-track-timeline::before { content: ''; position: absolute; top: 12px; left: 24px; right: 24px; height: 2px; background: var(--border-color, #e2e8f0); }
+.food-track-step { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; position: relative; z-index: 1; font-size: 0.75rem; color: var(--text-muted, #64748b); }
+.food-track-dot { width: 24px; height: 24px; border-radius: 50%; background: var(--card-bg, #fff); border: 2px solid var(--border-color, #e2e8f0); }
+.food-track-step.done .food-track-dot { background: var(--success, #22c55e); border-color: var(--success, #22c55e); }
+.food-track-step.done { color: var(--app-text, #0f172a); font-weight: 600; }
+.food-track-step.current .food-track-dot { border-color: var(--primary, #f97316); box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.15); }
+.food-track-status { background: var(--card-bg, #fff); border: 1px solid var(--border-color, #e2e8f0); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; }
+.food-track-status p { margin: 0.5rem 0; }
+.food-track-items { background: var(--card-bg, #fff); border: 1px solid var(--border-color, #e2e8f0); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; }
+.food-track-items h2 { font-size: 1.1rem; margin-bottom: 0.75rem; }
+.food-track-item { display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid var(--border-color, #f1f5f9); }
+.food-track-total { display: flex; justify-content: flex-end; padding-top: 0.75rem; font-size: 1.1rem; }
+.food-track-print { width: 100%; padding: 0.75rem; border: 1px solid var(--border-color, #d8dee5); border-radius: 8px; background: var(--card-bg, #fff); cursor: pointer; font-size: 1rem; }
+.food-track-print:hover { background: var(--hover-bg, #f8fafc); }
+.food-track-skeleton .skeleton-line { height: 20px; background: var(--hover-bg, #f1f5f9); border-radius: 4px; margin-bottom: 0.75rem; animation: pulse 1.5s ease-in-out infinite; }
+.food-track-error { text-align: center; padding: 3rem 1rem; }
+.food-track-error p { margin-bottom: 1rem; color: var(--error, #ef4444); }
+.food-track-error button { padding: 0.6rem 1.5rem; border-radius: 8px; border: 1px solid var(--border-color, #d8dee5); background: var(--card-bg, #fff); cursor: pointer; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+@media print {
+  .food-track-print { display: none; }
+}

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import PageShell from '../../components/PageShell';
 import PageMeta from '../../components/PageMeta';
+import '../../styles/FoodPages.css';
 
 const STATUS_STEPS = ['received', 'accepted', 'preparing', 'ready', 'completed'];
 

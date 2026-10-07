@@ -10090,6 +10090,19 @@
       "removeTitle": "Anile djòb la - retire li nan mache a",
       "reportCount": "{{count}} rapò{{plural}}",
       "title": "Moderasyon kontni"
+    },
+    "foodOrders": {
+      "kicker": "Operasyon",
+      "title": "Kòmand manje",
+      "count": "{{count}} kòmand",
+      "filterStatus": "Filtre pa estati",
+      "allStatuses": "Tout estati",
+      "restaurant": "Restoran",
+      "status": "Estati",
+      "total": "Total",
+      "payment": "Peman",
+      "created": "Kreye",
+      "empty": "Pa jwenn okenn kòmand."
     }
   },
   "auditLogFilter": {
@@ -13294,7 +13307,7 @@
   },
   "orders": {
     "helpTitle": "Jwenn èd pou kòmand sa a",
-    "helpSent": "Mesaj ou a voye. Ekip sipò nou an ap reponn ou.",
+    "helpSent": "Mesaj ou a voye. Ekip sipò nou an ap kontakte ou.",
     "helpPlaceholder": "Dekri pwoblèm ou genyen ak kòmand ou a...",
     "title": "Istwa kòmand",
     "yourOrders": "Kòmand ou yo",
@@ -13358,7 +13371,14 @@
       "processing": "Ap trete",
       "completed": "Fini",
       "cancelled": "Anile",
-      "refunded": "Ranbouse"
+      "refunded": "Ranbouse",
+      "received": "Resevwa",
+      "accepted": "Aksepte",
+      "preparing": "Ap prepare",
+      "ready": "Pare",
+      "picked_up": "Te pran",
+      "delivered": "Te delivre",
+      "failed": "Echwe"
     },
     "guide": {
       "ariaLabel": "Kijan kòmand yo konekte",
@@ -13393,9 +13413,16 @@
       "help3": "Kenbe resi yo konekte ak dosye lajan ou.",
       "help4": "Retounen nan detay kòmand si ou bezwen sipò oswa swivi."
     },
-    "helpTitle": "Jwenn èd pou kòmand sa a",
-    "helpSent": "Mesaj ou a voye. Ekip sipò nou an ap kontakte ou.",
-    "helpPlaceholder": "Dekri pwoblèm ou genyen ak kòmand ou a..."
+    "paymentMethods": {
+      "card": "Kat",
+      "bankTransfer": "Transfè labank",
+      "cash": "Lajan kach",
+      "restaurantCredit": "Kredi restoran",
+      "directPayment": "Peman dirèk",
+      "payAtRestaurant": "Peye nan restoran an",
+      "processor": "Peman trete",
+      "unrecorded": "Pa anrejistre"
+    }
   },
   "cancellationSettings": {
     "pageTitle": "Règleman Peman ak Anilasyon",
@@ -15173,14 +15200,18 @@
       "title": "Lòd acha",
       "subtitle": "Swiv tout lòd acha lojistik ou yo.",
       "reference": "Referans",
-      "product": "Pwodui",
-      "qty": "Kont.",
+      "product": "Pwodwi",
+      "qty": "Kantite",
       "landed": "Total total",
       "status": "Estati",
       "created": "Kreye",
       "noOrders": "Pa gen lòd acha jwenn.",
       "allStatuses": "Tout estati",
-      "empty": "Pa jwenn okenn kòmand."
+      "empty": "Pa jwenn okenn kòmand.",
+      "loading": "Ap chaje…",
+      "lane": "Liy",
+      "landedCost": "Pri total",
+      "expected": "Previ"
     },
     "shipments": {
       "title": "Ekspedisyon",
@@ -19602,7 +19633,24 @@
       "externalPaymentAdvanced": "Enstriksyon avanse",
       "confirmPayment": "Konfime peman",
       "closeTime": "Fèmen",
-      "brandAccent": "Koulè mak (#RRGGBB)"
+      "brandAccent": "Koulè mak (#RRGGBB)",
+      "split": "Separe",
+      "merge": "Fizyone",
+      "refund": "Ranbouse",
+      "reprint": "Enprime ankò",
+      "mergeTitle": "Fizyone kòmand yo",
+      "mergeHint": "Antre ID kòmand sous la pou fizyone nan kòmand sa a:",
+      "mergePlaceholder": "ID kòmand sous",
+      "mergeConfirm": "Fizyone",
+      "mergeSuccess": "Kòmand yo fizyone",
+      "mergeError": "Pa ka fizyone kòmand yo.",
+      "refundTitle": "Bay yon ranbousman",
+      "refundHint": "Total kòmand lan: ${{total}}",
+      "refundAmountPlaceholder": "Kantite an santim (vid = tout)",
+      "refundReasonPlaceholder": "Rezon (obligatwa)",
+      "refundConfirm": "Bay ranbousman an",
+      "refundSuccess": "Ranbousman bay",
+      "refundError": "Pa ka bay ranbousman an."
     },
     "onboarding": {
       "eyebrow": "Sware Ouvèti",
@@ -29936,6 +29984,45 @@
       "created": "Created",
       "lastUsed": "Last used",
       "confirmRevoke": "Revoke this API key?"
+    }
+  },
+  "adminFoodOrderDetail": {
+    "notProvided": "Pa bay",
+    "notFound": "Kòmand pa jwenn",
+    "kicker": "Kòmand manje",
+    "restaurantFallback": "Restoran",
+    "retry": "Eseye ankò",
+    "paymentMode": "Mòd peman",
+    "stripeAttached": "Peman Stripe tache",
+    "noStripeIntent": "Pa gen entansyon Stripe tache",
+    "unnamedItem": "Atik san non",
+    "orderTotal": "Total kòmand lan",
+    "noLineItems": "Pa gen atik ki anrejistre pou kòmand sa a.",
+    "noGuestDetails": "Detay envite yo pa bay",
+    "notAssigned": "Pa asiyen",
+    "guest": "Envite",
+    "queueNumber": "Nimewo ke",
+    "stripeIntent": "Entansyon peman Stripe",
+    "financialAction": "Aksyon finansye",
+    "refundTitle": "Bay yon ranbousman",
+    "refundWarning": "Ranbousman yo anrejistre sou ray peman orijinal la epi yo pa ka anile.",
+    "processingRefund": "Ap trete ranbousman an…",
+    "issueRefund": "Bay ranbousman an"
+  },
+  "media": {
+    "post": {
+      "loadError": "Pa ka chaje piblikasyon an.",
+      "notFound": "Piblikasyon pa jwenn.",
+      "replies": "Repons",
+      "latest": "Dènye",
+      "relevant": "Ki konsène",
+      "noReplies": "Pa gen repons pou kounye a."
+    },
+    "feed": {
+      "title": "OxSteed Media",
+      "loadError": "Pa ka chaje fil la.",
+      "loadMore": "Chaje plis",
+      "empty": "Pa gen piblikasyon pou kounye a. Se premye moun ki pataje."
     }
   }
 }

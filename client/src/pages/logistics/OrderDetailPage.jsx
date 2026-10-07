@@ -18,16 +18,36 @@ export default function OrderDetailPage() {
   const { id } = useParams();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true);
+    setError(null);
     getOrder(id)
       .then((r) => setOrder(r.data))
-      .catch(() => {})
+      .catch((err) => setError(err.response?.data?.error || tx('orderDetailPage.loadError', 'Failed to load order.')))
       .finally(() => setLoading(false));
-  }, [id]);
+  };
+
+  useEffect(() => { load(); }, [id]);
 
   if (loading) return <div className="lx-page"><div className="lx-loading">{tx('orderDetailPage.loading', 'Loading…')}</div></div>;
-  if (!order) return <div className="lx-page"><div className="lx-error">{tx('orderDetailPage.notFound', 'Purchase order not found.')}</div></div>;
+  if (error) return (
+    <div className="lx-page">
+      <div className="lx-error">
+        <p>{error}</p>
+        <button type="button" onClick={load} className="lx-btn">{tx('common.retry', 'Retry')}</button>
+      </div>
+    </div>
+  );
+  if (!order) return (
+    <div className="lx-page">
+      <div className="lx-error">
+        <p>{tx('orderDetailPage.notFound', 'Purchase order not found.')}</p>
+        <Link to="/logistics/orders" className="lx-link">{tx('orderDetailPage.backToOrders', '← Back to Orders')}</Link>
+      </div>
+    </div>
+  );
 
   const remaining = Math.max(0, parseFloat(order.final_due_usd || 0) - parseFloat(order.final_paid_usd || 0));
 
@@ -52,7 +72,7 @@ export default function OrderDetailPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+      <div className="lx-detail-grid">
         <div className="lx-card">
           <h3 style={{ fontWeight: 700, marginBottom: '1rem' }}>{tx('orderDetailPage.sections.overview', 'Order overview')}</h3>
           <div style={{ display: 'grid', gap: '.55rem', fontSize: '.88rem' }}>
