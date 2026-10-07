@@ -818,6 +818,12 @@ export default function SettingsPage() {
         <p className="sp-card-subtitle">{t('settings.security.twoFactorDesc')}</p>
         <Link to="/settings/2fa" className="sp-btn sp-btn-ghost">{t('settings.security.manage2fa')}</Link>
       </div>
+
+      <div className="sp-card">
+        <h2 className="sp-card-title">{t('settings.security.passkeys')}</h2>
+        <p className="sp-card-subtitle">{t('settings.security.passkeysDesc')}</p>
+        <Link to="/settings/passkeys" className="sp-btn sp-btn-ghost">{t('settings.security.managePasskeys')}</Link>
+      </div>
     </>
   );
 

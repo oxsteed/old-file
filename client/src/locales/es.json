@@ -2295,7 +2295,10 @@
       "updatePassword": "Actualizar Contraseña",
       "twoFactor": "Autenticación de Dos Factores",
       "twoFactorDesc": "Agrega una capa adicional de seguridad a tu cuenta",
-      "manage2fa": "Administrar 2FA"
+      "manage2fa": "Administrar 2FA",
+      "passkeys": "Claves de acceso",
+      "passkeysDesc": "Inicia sesión con Touch ID, Face ID, Windows Hello o una llave de seguridad",
+      "managePasskeys": "Administrar claves de acceso"
     },
     "subscription": {
       "title": "Suscripción",
@@ -9289,7 +9292,33 @@
     "passkeyUnsupported": "Este navegador no admite claves de acceso.",
     "passkeyRegistered": "Clave de acceso registrada. Ya puedes iniciar sesión con ella.",
     "passkeyRegisteredAdmin": "Clave de acceso registrada. TOTP y códigos de respaldo siguen disponibles.",
-    "passkeyRegisterFailed": "No se pudo registrar esta clave de acceso."
+    "passkeyRegisterFailed": "No se pudo registrar esta clave de acceso.",
+    "passkeysTitle": "Claves de acceso",
+    "passkeysDescUser": "Usa Touch ID, Face ID, Windows Hello o una llave de seguridad para iniciar sesión sin tu contraseña. Tu contraseña sigue disponible como respaldo.",
+    "passkeysDescAdmin": "Usa Touch ID, Face ID, Windows Hello o una llave de seguridad después de iniciar sesión con contraseña. TOTP sigue siendo tu respaldo.",
+    "registerPasskey": "Registrar una clave de acceso",
+    "passkeyWorking": "Procesando...",
+    "passkeyRevoked": "Clave de acceso revocada.",
+    "passkeyRevokeFailed": "No se pudo revocar esta clave de acceso.",
+    "passkeyRevokeConfirm": "¿Revocar {{name}}?",
+    "passkeyThisDevice": "esta clave de acceso",
+    "passkeyRevokeBtn": "Revocar",
+    "passkeyAddedRecently": "Agregada recientemente",
+    "passkeyAddedOn": "Agregada el {{date}}",
+    "passkeyRegisterTitle": "Registrar una clave de acceso",
+    "passkeyDeviceNameLabel": "Nombre del dispositivo",
+    "passkeyDeviceNamePlaceholder": "MacBook Touch ID",
+    "passkeyDeviceNameRequired": "Ingresa un nombre para esta clave de acceso.",
+    "passkeyPasswordLabel": "Contraseña actual",
+    "passkeyPasswordRequired": "Ingresa tu contraseña actual para continuar.",
+    "passkeyRegisterSubmit": "Registrar clave de acceso",
+    "passkeyRegisterCancel": "Cancelar",
+    "passkeyUnsupportedInline": "Este navegador no admite claves de acceso. Usa un navegador o dispositivo compatible para registrar una.",
+    "passkeyRevokeTitle": "Revocar clave de acceso",
+    "passkeyRevokeConfirmBtn": "Revocar clave de acceso",
+    "passkeyRevokeCancel": "Cancelar",
+    "passkeysPageTitle": "Claves de acceso",
+    "passkeysPageSubtitle": "Administra las claves de acceso para iniciar sesión en tu cuenta"
   },
   "homePage": {
     "company": {
