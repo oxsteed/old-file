@@ -6833,7 +6833,14 @@
       "publishHint": "Fini verifikasyon lis yo pou pibliye.",
       "saveShortcut": "Anrejistre ak Ctrl+S oswa ⌘S",
       "websiteHint": "N ap ajoute https:// si ou tape yon domèn.",
-      "aboutCount": "{{count}} / {{max}}"
+      "aboutCount": "{{count}} / {{max}}",
+      "sectionVisibility": "Seksyon piblik",
+      "visibilityHint": "Chwazi ki seksyon ki parèt sou paj piblik biznis ou. Seksyon ki kache yo rete anrejistre epi ou ka toujou wè yo isit la.",
+      "showServices": "Montre sèvis yo",
+      "showGallery": "Montre galri a",
+      "showHours": "Montre lè biznis la louvri",
+      "showPolicies": "Montre règleman yo",
+      "showFaqs": "Montre kesyon yo poze souvan"
     },
     "kpiMtdRevenue": "Revni Mwa-a",
     "kpiMtdProfit": "Pwofi Mwa-a",

@@ -6427,7 +6427,14 @@
       "publishHint": "Finish the listing checks to publish.",
       "saveShortcut": "Save with Ctrl+S or ⌘S",
       "websiteHint": "We’ll add https:// if you type a domain.",
-      "aboutCount": "{{count}} / {{max}}"
+      "aboutCount": "{{count}} / {{max}}",
+      "sectionVisibility": "Public sections",
+      "visibilityHint": "Choose which sections appear on your public business page. Hidden sections stay saved and visible to you here.",
+      "showServices": "Show services",
+      "showGallery": "Show gallery",
+      "showHours": "Show business hours",
+      "showPolicies": "Show policies",
+      "showFaqs": "Show FAQs"
     },
     "kpiMtdRevenue": "MTD Revenue",
     "kpiMtdProfit": "MTD Profit",
