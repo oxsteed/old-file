@@ -68,7 +68,32 @@ function resolvePaymentDelta(rawAmount, invoiceTotal, amountAlreadyPaid) {
     return { value: remaining };
   }
   const amount = Number(rawAmount);
-  if (!Number.isFinite(amount) || amount <= 0 || amount > remaining + 0.009) {
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { error: 'Payment amount must be greater than zero and no greater than the remaining balance.' };
+  }
+  const target = round2(amount);
+  if (target < prior - 0.009) {
+    const incrementTotal = round2(prior + amount);
+    const canBeIncrement = incrementTotal <= total + 0.009
+      && incrementTotal > prior + 0.009
+      && amount <= remaining + 0.009;
+    if (!canBeIncrement) {
+      if (target < 0 || target > total + 0.009) {
+        return {
+          error: 'Correction amount must be between zero and the invoice total.',
+        };
+      }
+      const delta = round2(target - prior);
+      if (Math.abs(delta) < 0.005) {
+        return { error: 'Payment amount does not change the balance.' };
+      }
+      return { value: delta, targetPaid: target };
+    }
+  }
+  if (target > remaining + 0.009) {
+    if (Math.abs(target - round2(total)) < 0.005) {
+      return { value: remaining };
+    }
     return { error: 'Payment amount must be greater than zero and no greater than the remaining balance.' };
   }
   return { value: round2(amount) };

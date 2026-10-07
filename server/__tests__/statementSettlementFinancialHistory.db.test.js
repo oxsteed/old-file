@@ -60,7 +60,7 @@ dbDescribe('source capture and integrated settlement builders on PostgreSQL (694
   test('existing invoice writer captures partial/multiple payments and source correction', async () => {
     const initial = await getDocument('business');
     expect(initial.receivables).toMatchObject({ invoicedCents: 10000, collectedOrAdjustedCents: 0, closingOutstandingCents: 10000 });
-    for (const amount of [30, 70, 60, 100]) {
+    for (const amount of [30, 40, 60, 100]) {
       const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
       await invoicesController.markInvoicePaid({ user: { id: owner }, params: { id: String(business), invoiceId: String(invoiceId) }, body: { amount } }, res);
       expect(res.status).not.toHaveBeenCalled();
