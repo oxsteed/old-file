@@ -14,7 +14,9 @@ const REPORT_REASONS = [
   { value: 'other', label: 'reportModal.reasonOther' }
 ];
 
-const ReportModal = ({ userId, userName, jobId = null, conversationId = null, onClose, onSuccess }) => {
+// businessId: report a business (the server resolves the accountable owner;
+// business pages never receive the owner's user id).
+const ReportModal = ({ userId, userName, businessId = null, jobId = null, conversationId = null, onClose, onSuccess }) => {
   const { t } = useTranslation();
   const [reason, setReason] = useState('');
   const [description, setDescription] = useState('');
@@ -45,7 +47,7 @@ const ReportModal = ({ userId, userName, jobId = null, conversationId = null, on
       setLoading(true);
 
       const payload = {
-        reportedUserId: userId,
+        ...(businessId ? { reportedBusinessId: businessId } : { reportedUserId: userId }),
         reason,
         description: description.trim(),
         evidenceUrls: evidenceUrls

@@ -23,7 +23,9 @@ function formatRelativeDate(dateStr) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const UserReputationCard = ({ userId, showFeeHistory = false, className = '' }) => {
+// businessId: business-scoped reputation (owner resolved server-side; the
+// owner's user id is never sent to business pages). Fee history is user-only.
+const UserReputationCard = ({ userId, businessId = null, showFeeHistory = false, className = '' }) => {
   const { t } = useTranslation();
   const [reputation, setReputation] = useState(null);
   const [loading, setLoading]       = useState(true);
@@ -36,18 +38,21 @@ const UserReputationCard = ({ userId, showFeeHistory = false, className = '' }) 
 
   // ── Fetch reputation ───────────────────────────────────────────────────────
   useEffect(() => {
-    if (!userId) return;
+    const path = businessId
+      ? `/businesses/${encodeURIComponent(businessId)}/reputation`
+      : userId ? `/reputation/${userId}` : null;
+    if (!path) return;
     setLoading(true);
-    api.get(`/reputation/${userId}`)
+    api.get(path)
       .then(r => r.data)
       .then(({ data }) => setReputation(data))
       .catch(err => setError(err?.message || 'Failed to fetch'))
       .finally(() => setLoading(false));
-  }, [userId]);
+  }, [userId, businessId]);
 
   // ── Fetch fee history (lazy — only when section is revealed) ──────────────
   useEffect(() => {
-    if (!showFeeHistory || !userId || feeHistory !== null) return;
+    if (!showFeeHistory || !userId || businessId || feeHistory !== null) return;
     setFeeHistoryLoading(true);
     api.get(`/reputation/${userId}/fee-history`)
       .then(r => setFeeHistory(r.data?.data || null))

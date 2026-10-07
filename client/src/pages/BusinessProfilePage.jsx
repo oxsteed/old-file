@@ -1,15 +1,17 @@
 // client/src/pages/BusinessProfilePage.jsx
 //
 // Public-facing business profile page.
-// URL: /business/:id  - no auth required to view.
+// URLs: /b/:businessId (vanity slug or id), /businesses/public/:businessId and
+// /business/:id - one canonical renderer for every public business URL
+// (GV-1). No auth required to view.
 //
 // Layout is intentionally identical to HelperBusinessProfilePage.tsx.
 // Business API data is mapped to the HelperProfileData shape so all the
 // same shared components (BusinessHeader, ServicesSection, ReviewsSection,
 // ChatPanel, DynamicBlocks, etc.) render without modification.
 
-import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Flag } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -42,6 +44,7 @@ import FAQSection from '../components/helperProfile/FAQSection';
 import CTASection from '../components/helperProfile/CTASection';
 import PublicProfileMessenger from '../components/helperProfile/chat/PublicProfileMessenger.jsx';
 
+import api from '../api/axios';
 import { getBusinessPublicProfile } from '../api/businesses';
 import { getPublicPropertyOperations } from '../api/propertyOperations';
 import { getPublicTradesOperations } from '../api/tradesOperations';
@@ -70,7 +73,10 @@ function mapToHelperProfileData(profile, t) {
   const { business, services, reviews, gallery, faqs, policies, hours } = profile;
 
   const helper = {
-    id:            business.owner_id,
+    // GV-5: the public payload no longer carries the owner's user id. Owner
+    // features (status, reputation, report, Pay, messenger booking) use
+    // business-scoped endpoints keyed on business.id instead.
+    id:            business.owner_id || null,
     businessName:  business.business_name,
     ownerName:     business.owner_name || business.business_name,
     tagline:       business.profile_headline || '',
@@ -92,6 +98,17 @@ function mapToHelperProfileData(profile, t) {
       typeof business.allow_guest_contact === 'boolean'
         ? business.allow_guest_contact
         : true,
+    allowLiveChat: business.allow_live_chat !== false,
+  };
+
+  // GV-4: per-section visibility chosen by the business (server also omits
+  // hidden sections from the payload; default visible for older responses).
+  const sections = {
+    services: business.show_services !== false,
+    faqs:     business.show_faqs !== false,
+    policies: business.show_policies !== false,
+    gallery:  business.show_gallery !== false,
+    hours:    business.show_hours !== false,
   };
 
   const mappedServices = (services || []).map(s => ({
@@ -166,7 +183,7 @@ function mapToHelperProfileData(profile, t) {
   });
 
   const chatSession = {
-    id:            `session_${business.owner_id}`,
+    id:            `session_business_${business.id}`,
     destination:   'business',
     status:        'ai_assistant',
     helperStatus:  'ai_assistant',
@@ -185,6 +202,8 @@ function mapToHelperProfileData(profile, t) {
     location,
     hours:       mappedHours,
     chatSession,
+    sections,
+    profileSlug: business.profile_slug || null,
     // Extras not in HelperProfileData - kept for supplementary sections
     team:    profile.team || [],
     bizId:   business.id,
@@ -712,8 +731,12 @@ function ContinuityOperationsPublicSection({ data, t }) {
 
 // ── Main page component ───────────────────────────────────────────────────────
 export default function BusinessProfilePage() {
-  const { id }    = useParams();
+  const { id: idParam, businessId: businessIdParam } = useParams();
+  const id        = idParam || businessIdParam;
   const navigate  = useNavigate();
+  const location  = useLocation();
+  const pathnameRef = useRef(location.pathname);
+  pathnameRef.current = location.pathname;
   const { t }     = useTranslation();
   const { user } = useAuth();
 
@@ -730,6 +753,7 @@ export default function BusinessProfilePage() {
   const [chatOpen,    setChatOpen]    = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [guestSignInModalOpen, setGuestSignInModalOpen] = useState(false);
+  const [payUrl, setPayUrl] = useState(null);
 
   // Scroll padding: Navbar (~64px) + SectionNav (~40px) + breathing room
   useEffect(() => {
@@ -744,6 +768,12 @@ export default function BusinessProfilePage() {
     try {
       const raw = await getBusinessPublicProfile(id, signal);
       if (signal?.aborted) return;
+      // Canonicalize the short public URLs: once a vanity slug is claimed,
+      // /b/:slug is canonical (in-app /business/:id links keep working).
+      const slug = raw.business?.profile_slug;
+      if (slug && String(id) !== slug && !pathnameRef.current.startsWith('/business/')) {
+        navigate(businessProfilePath({ businessId: raw.business.id, slug }), { replace: true });
+      }
       setProfileData(mapToHelperProfileData(raw, t));
       setActiveTemplate(raw.business?.active_template || 'default');
       if (!LAUNCH_VISIBILITY.specializedProfileTemplates) {
@@ -779,13 +809,26 @@ export default function BusinessProfilePage() {
       );
       setLoadState('error');
     }
-  }, [id]);
+  }, [id, navigate]);
 
   useEffect(() => {
     const controller = new AbortController();
     loadProfile(controller.signal);
     return () => controller.abort();
   }, [loadProfile]);
+
+  // Owner's public QR pay link, looked up by business (GV-5: no owner id).
+  const loadedBizId = profileData?.bizId;
+  useEffect(() => {
+    setPayUrl(null);
+    if (!loadedBizId) return undefined;
+    let cancelled = false;
+    api
+      .get(`/qr-payments/public/business/${encodeURIComponent(loadedBizId)}/pay-code`)
+      .then((res) => { if (!cancelled && res.data?.pay_url) setPayUrl(res.data.pay_url); })
+      .catch(() => { /* no pay link; the Pay button stays hidden */ });
+    return () => { cancelled = true; };
+  }, [loadedBizId]);
 
   const handleBookNow = useCallback(() => {
     if (!profileData) return;
@@ -902,10 +945,11 @@ export default function BusinessProfilePage() {
   }
 
   const {
-    helper, services, gallery, hours, location,
-    policies, reviews, faqs, chatSession,
+    helper, services, gallery, hours, location: serviceLocation,
+    policies, reviews, faqs, chatSession, sections,
     team, bizId, phone, website, profileUrl,
   } = profileData;
+  const businessQrUrl = `/api/business-profile/${encodeURIComponent(bizId || id)}/qr-code?size=medium&format=png`;
 
   const isGuestVisitor = !user;
   const templateBehavior = getTemplateBehavior(
@@ -917,7 +961,7 @@ export default function BusinessProfilePage() {
 
   // Only show the Location card when the business actually has location data.
   const hasLocation = Boolean(
-    (location && (location.city || location.state)) || location?.serviceLat != null,
+    (serviceLocation && (serviceLocation.city || serviceLocation.state)) || serviceLocation?.serviceLat != null,
   );
 
   // Direct booking needs a service menu unless the template explicitly allows
@@ -973,7 +1017,7 @@ export default function BusinessProfilePage() {
         onClose={() => setChatOpen(false)}
         session={chatSession}
         helperName={helper.businessName}
-        helperId={helper.id}
+        helperId={helper.id || null}
         businessId={String(bizId)}
         avatarUrl={helper.avatar}
         avatarShape="square"
@@ -1024,8 +1068,8 @@ export default function BusinessProfilePage() {
 
       {reportModalOpen && (
         <ReportModal
-          reportedUserId={helper.id}
-          reportedName={helper.businessName}
+          businessId={bizId}
+          userName={helper.businessName}
           onClose={() => setReportModalOpen(false)}
         />
       )}
@@ -1056,7 +1100,7 @@ export default function BusinessProfilePage() {
           variant="business"
           businessId={bizId}
           helper={helper}
-          location={location}
+          location={serviceLocation}
           services={services}
         />
         <Navbar />
@@ -1065,6 +1109,7 @@ export default function BusinessProfilePage() {
             shareUrl={canonicalUrl}
             shareTitle={helper.businessName}
             i18nPrefix="businessProfile"
+            qrImageUrl={businessQrUrl}
           />
         </div>
         <ProfileTemplateRenderer slug={activeTemplate} profileData={profileData} />
@@ -1126,15 +1171,17 @@ export default function BusinessProfilePage() {
         variant="business"
         businessId={bizId}
         helper={helper}
-        location={location}
+        location={serviceLocation}
         services={services}
       />
       <Navbar />
 
       {/* Business hero — PublicProfileSummaryCard via BusinessHeader / PublicProfileHero */}
       <BusinessHeader
-        helperId={helper.id}
         helper={helper}
+        payUrl={payUrl}
+        qrImageUrl={businessQrUrl}
+        variant="business"
         onBookNow={handleBookNow}
         onPostJobPublic={handlePostJobPublic}
         shareUrl={canonicalUrl}
@@ -1191,26 +1238,28 @@ export default function BusinessProfilePage() {
             ) : null}
 
             {/* Services & Pricing (empty state built into component) */}
-            <ServicesSection
-              services={services}
-              onSelectService={handleSelectService}
-            />
+            {sections.services && (
+              <ServicesSection
+                services={services}
+                onSelectService={handleSelectService}
+              />
+            )}
 
             {/* Photo gallery */}
-            <GallerySection images={gallery} />
+            {sections.gallery && <GallerySection images={gallery} />}
 
             {/* Team members */}
             <TeamSection team={team} />
 
             {/* Hours + Location side by side on md+ (hidden when both are empty) */}
-            {(hours.length > 0 || hasLocation) && (
+            {((sections.hours && hours.length > 0) || hasLocation) && (
               <div className="grid sm:grid-cols-2 gap-6">
-                {hours.length > 0 && <HoursSection hours={hours} />}
-                {hasLocation && <LocationSection location={location} />}
+                {sections.hours && hours.length > 0 && <HoursSection hours={hours} />}
+                {hasLocation && <LocationSection location={serviceLocation} />}
               </div>
             )}
 
-            <PoliciesSection policies={policies} />
+            {sections.policies && <PoliciesSection policies={policies} />}
 
             {/*
               Identity separation: a business keeps its own identity. Its
@@ -1226,7 +1275,7 @@ export default function BusinessProfilePage() {
               totalCount={helper.reviewCount}
             />
 
-            <FAQSection faqs={faqs} />
+            {sections.faqs && <FAQSection faqs={faqs} />}
 
             {/* Bottom padding for mobile CTA bar + launcher + iOS home indicator */}
             <div className="h-32 lg:hidden" aria-hidden="true" />
@@ -1238,7 +1287,7 @@ export default function BusinessProfilePage() {
             aria-label={t('businessProfile.bookAndChatAria')}
           >
             <div className="sticky top-[7.25rem] space-y-5 max-h-[calc(100vh-7.25rem)] flex flex-col overflow-y-auto overscroll-contain">
-              <UserReputationCard userId={helper.id} />
+              <UserReputationCard businessId={bizId} />
               <CTASection
                 helper={helper}
                 services={services}

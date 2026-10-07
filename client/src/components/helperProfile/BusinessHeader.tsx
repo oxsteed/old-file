@@ -35,6 +35,8 @@ interface BusinessHeaderProps {
   shareI18nPrefix?: 'helperProfile' | 'businessProfile';
   /** Summary card variant — business pages pass 'business' for square logo */
   variant?: 'helper' | 'business';
+  /** Explicit QR image (business pages use the business QR, not a helper's) */
+  qrImageUrl?: string;
 }
 
 const iconMap: Record<string, React.ElementType> = {
@@ -66,6 +68,7 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
   shareText,
   shareI18nPrefix = 'helperProfile',
   variant: variantProp,
+  qrImageUrl,
 }) => {
   const { t } = useTranslation();
   const memberDate = helper.memberSince ? new Date(helper.memberSince) : null;
@@ -226,7 +229,7 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
             shareTitle={shareTitle}
             shareText={shareText}
             i18nPrefix={shareI18nPrefix}
-            qrImageUrl={helperId ? getHelperProfileQrPngUrl(helperId, 240) : undefined}
+            qrImageUrl={qrImageUrl ?? (helperId ? getHelperProfileQrPngUrl(helperId, 240) : undefined)}
           />
         </div>
       )}
