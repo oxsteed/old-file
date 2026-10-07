@@ -1,0 +1,16 @@
+import axios from 'axios';
+
+const api = axios.create({ baseURL: '/api/media' });
+
+export const getFeed = (params = {}) => api.get('/feed', { params }).then(r => r.data);
+export const getPost = (id) => api.get(`/posts/${id}`).then(r => r.data);
+export const getReplies = (id) => api.get(`/posts/${id}/replies`).then(r => r.data);
+export const getQuotes = (id) => api.get(`/posts/${id}/quotes`).then(r => r.data);
+export const createPost = (data) => api.post('/posts', data).then(r => r.data);
+export const toggleLike = (id) => api.post(`/posts/${id}/like`).then(r => r.data);
+export const toggleBookmark = (id) => api.post(`/posts/${id}/bookmark`).then(r => r.data);
+export const toggleRepost = (id) => api.post(`/posts/${id}/repost`).then(r => r.data);
+export const recordView = (id) => api.post(`/posts/${id}/view`).then(r => r.data);
+export const flagPost = (id, data) => api.post(`/posts/${id}/flags`, data).then(r => r.data);
+export const getCommunities = () => api.get('/communities').then(r => r.data);
+export const getActor = (handle) => api.get(`/actors/${handle}`).then(r => r.data);

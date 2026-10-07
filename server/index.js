@@ -667,6 +667,7 @@ app.use('/api/main-app', mainAppRoutes);
 app.use('/api/direct', directRoutes);
 app.use('/api/food', foodRoutes);
 app.use('/api/oxsteed-credit', oxsteedCreditRoutes);
+app.use('/api/media', require('./routes/media'));
 // Monthly statement operations: private archive, entry investigation, and
 // accessible renditions. Each router enforces per-request authorization.
 app.use('/api/statement-archive', createStatementArchiveRouter());

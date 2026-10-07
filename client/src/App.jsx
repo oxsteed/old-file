@@ -193,6 +193,10 @@ const DirectCatalogDirectoryPage = lazyWithRetry(() => import('./pages/DirectCat
 const DirectBookSlotPage = lazyWithRetry(() => import('./pages/DirectBookSlotPage'));
 const DirectAdminPortalPage = lazyWithRetry(() => import('./pages/DirectAdminPortalPage'));
 const DirectCatalog = lazyWithRetry(() => import('./admin/pages/DirectCatalog'));
+const MediaShell = lazyWithRetry(() => import('./pages/media/MediaShell'));
+const MediaFeedPage = lazyWithRetry(() => import('./pages/media/MediaFeedPage'));
+const MediaPostDetailPage = lazyWithRetry(() => import('./pages/media/MediaPostDetailPage'));
+const MediaComposePage = lazyWithRetry(() => import('./pages/media/MediaComposePage'));
 const MaintenanceRequestPage = lazyWithRetry(() => import('./pages/MaintenanceRequestPage'));
 const TradesDiagnosticRequestPage = lazyWithRetry(() => import('./pages/TradesDiagnosticRequestPage'));
 const BeautyIntakeRequestPage = lazyWithRetry(() => import('./pages/BeautyIntakeRequestPage'));
@@ -396,6 +400,10 @@ export default function App() {
                     <Route path="/direct/tools"            element={<Guarded><DirectCatalogDirectoryPage view="tools" /></Guarded>} />
                     <Route path="/direct/request-quote"    element={<Guarded><DirectPortalPage view="request" /></Guarded>} />
                     <Route path="/direct/request-quote/thanks" element={<Guarded><DirectPortalPage view="thanks" /></Guarded>} />
+                    {/* OxSteed Media */}
+                    <Route path="/media"                   element={<Guarded><MediaShell><MediaFeedPage /></MediaShell></Guarded>} />
+                    <Route path="/media/compose"           element={<Guarded><ProtectedRoute><MediaShell><MediaComposePage /></MediaShell></ProtectedRoute></Guarded>} />
+                    <Route path="/media/post/:id"          element={<Guarded><MediaShell><MediaPostDetailPage /></MediaShell></Guarded>} />
                     <Route path="/direct/view-quote"       element={<Guarded><DirectPortalPage view="lookup" /></Guarded>} />
                     <Route path="/direct/quotes/:id"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><DirectPortalPage view="quote" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/direct/book-slot"       element={<Guarded><DirectBookSlotPage /></Guarded>} />

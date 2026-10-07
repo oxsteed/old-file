@@ -1197,7 +1197,8 @@
     "independentContractor": "Travailleur Indépendant",
     "howOxsteedWorks": "Comment fonctionne OxSteed",
     "careers": "Carrières",
-    "callOxSteed": "Appelez OxSteed au {{phone}}"
+    "callOxSteed": "Appelez OxSteed au {{phone}}",
+    "media": "OxSteed Media"
   },
   "accountTermination": {
     "pageTitle": "Politique de Résiliation de Compte",

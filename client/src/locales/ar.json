@@ -1197,7 +1197,8 @@
     "independentContractor": "المقاول المستقل",
     "howOxsteedWorks": "كيف يعمل OxSteed",
     "careers": "الوظائف",
-    "callOxSteed": "اتصل بـ OxSteed على {{phone}}"
+    "callOxSteed": "اتصل بـ OxSteed على {{phone}}",
+    "media": "OxSteed Media"
   },
   "accountTermination": {
     "pageTitle": "سياسة إنهاء الحساب",
