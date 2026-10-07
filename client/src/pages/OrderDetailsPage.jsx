@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import api from '../api/axios';
 import PageMeta from '../components/PageMeta';
+import PageShell from '../components/PageShell';
 import OrderErrorBoundary from '../components/OrderErrorBoundary';
 import { formatCents, formatDateTime } from '../lib/format';
 import { getFoodOrder } from '../api/food';
@@ -195,30 +196,34 @@ function OrderDetailsPageContent() {
 
   if (loading) {
     return (
-      <div className="order-details-page">
-        <div className="order-details-wrap">
-          <div className="order-details-skeleton order-details-skeleton-back" />
-          <div className="order-details-skeleton order-details-skeleton-hero" />
-          <div className="order-details-skeleton-grid"><div /><div /><div /><div /></div>
-          <div className="order-details-skeleton-content"><div /><div /></div>
+      <PageShell>
+        <div className="order-details-page">
+          <div className="order-details-wrap">
+            <div className="order-details-skeleton order-details-skeleton-back" />
+            <div className="order-details-skeleton order-details-skeleton-hero" />
+            <div className="order-details-skeleton-grid"><div /><div /><div /><div /></div>
+            <div className="order-details-skeleton-content"><div /><div /></div>
+          </div>
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   if (error || !order) {
     return (
-      <div className="order-details-page">
-        <div className="order-details-wrap order-details-centered-state">
-          <XCircle size={42} aria-hidden="true" />
-          <p className="order-details-kicker">{t('common.error')}</p>
-          <h1>{order ? t('common.error') : t('orders.notFound')}</h1>
-          <p>{error || t('orders.notFound')}</p>
-          <button type="button" className="orders-btn orders-btn-primary" onClick={() => navigate(isFoodOrder ? '/orders' : '/orders')}>
-            <ArrowLeft size={16} /> {t('orders.backToOrders')}
-          </button>
+      <PageShell>
+        <div className="order-details-page">
+          <div className="order-details-wrap order-details-centered-state">
+            <XCircle size={42} aria-hidden="true" />
+            <p className="order-details-kicker">{t('common.error')}</p>
+            <h1>{order ? t('common.error') : t('orders.notFound')}</h1>
+            <p>{error || t('orders.notFound')}</p>
+            <button type="button" className="orders-btn orders-btn-primary" onClick={() => navigate(isFoodOrder ? '/orders' : '/orders')}>
+              <ArrowLeft size={16} /> {t('orders.backToOrders')}
+            </button>
+          </div>
         </div>
-      </div>
+      </PageShell>
     );
   }
 
@@ -230,7 +235,7 @@ function OrderDetailsPageContent() {
   const fulfillment = order.fulfillment_type || order.fulfillmentType || (address ? 'delivery' : 'pickup');
 
   return (
-    <>
+    <PageShell>
       <PageMeta title={`${t('orders.order')} #${orderId}`} />
       <div className="order-details-page">
         <div className="order-details-wrap">
@@ -327,6 +332,6 @@ function OrderDetailsPageContent() {
           </div>
         </div>
       </div>
-    </>
+    </PageShell>
   );
 }
