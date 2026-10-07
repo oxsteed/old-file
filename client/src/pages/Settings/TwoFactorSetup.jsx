@@ -235,7 +235,9 @@ export default function TwoFactorSetup({ adminSetup = false }) {
             </div>
           )}
 
-          <PasskeysSection adminSetup={adminSetup} className="mt-6 space-y-3 border-t border-border pt-5" />
+          {(!adminSetup || status?.enabled) && (
+            <PasskeysSection adminSetup={adminSetup} className="mt-6 space-y-3 border-t border-border pt-5" />
+          )}
         </div>
       </div>
       </main>
