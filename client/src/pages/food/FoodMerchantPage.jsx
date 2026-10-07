@@ -252,7 +252,7 @@ function paymentStatusLabel(t, status) {
   return t('food.payment.unpaid');
 }
 
-function OrderDetailPanel({ t, order, onAdvance, onCancel, onMarkPaid, onClose, detailRef }) {
+function OrderDetailPanel({ t, order, onAdvance, onCancel, onMarkPaid, onSplit, onMerge, onRefund, onClose, detailRef }) {
   if (!order) {
     return (
       <aside ref={detailRef} className="fd-order-detail fd-order-detail-empty">
@@ -377,6 +377,17 @@ function OrderDetailPanel({ t, order, onAdvance, onCancel, onMarkPaid, onClose, 
         {order.payment_status !== 'paid' && <button type="button" className="fd-btn fd-btn-secondary" onClick={() => onMarkPaid(order)}>{orderExternalPayment(order) ? t('food.merchant.confirmPayment', 'Confirm payment') : t('food.merchant.markPaid')}</button>}
         {NEXT_STATUS[order.status] && <button type="button" className="fd-btn" onClick={() => onAdvance(order)}>{t(`food.advance.${NEXT_STATUS[order.status]}`)}</button>}
         {['received', 'accepted', 'preparing'].includes(order.status) && <button type="button" className="fd-btn fd-btn-danger" onClick={() => onCancel(order)}>{t('food.common.cancel')}</button>}
+        {/* POS ops: split/merge/refund/reprint for active orders */}
+        {['received', 'accepted', 'preparing', 'ready'].includes(order.status) && (
+          <>
+            <button type="button" className="fd-btn fd-btn-secondary" onClick={() => onSplit(order)}>Split</button>
+            <button type="button" className="fd-btn fd-btn-secondary" onClick={() => onMerge(order)}>Merge</button>
+          </>
+        )}
+        {['paid', 'partially_refunded'].includes(order.payment_status) && (
+          <button type="button" className="fd-btn fd-btn-secondary" onClick={() => onRefund(order)}>Refund</button>
+        )}
+        <button type="button" className="fd-btn fd-btn-secondary" onClick={() => window.print()}>Reprint</button>
       </div>
     </aside>
   );
@@ -526,6 +537,41 @@ function OrdersTab({ t, restaurant }) {
     }
   };
 
+  const split = async (order) => {
+    // TODO: item selection UI. Opens split dialog.
+    toast.error('Select items to split in the ticket view');
+  };
+
+  const merge = async (order) => {
+    const sourceId = prompt('Enter source order ID to merge from:');
+    if (!sourceId) return;
+    try {
+      await api.post(`/api/food/restaurants/${restaurant.id}/pos/orders/${order.id}/merge`, {
+        sourceOrderId: parseInt(sourceId, 10),
+      });
+      toast.success('Orders merged');
+      reloadAfterAction();
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Unable to merge orders.'));
+    }
+  };
+
+  const refund = async (order) => {
+    const reason = prompt('Refund reason (required):');
+    if (!reason?.trim()) return;
+    const amount = prompt(`Refund amount in cents (blank = full $${(order.total_cents / 100).toFixed(2)}):`);
+    try {
+      await api.post(`/api/food/restaurants/${restaurant.id}/pos/orders/${order.id}/refund`, {
+        amount_cents: amount ? parseInt(amount, 10) : undefined,
+        reason: reason.trim(),
+      });
+      toast.success('Refund issued');
+      reloadAfterAction();
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Unable to issue refund.'));
+    }
+  };
+
   const statusOptions = view === 'active'
     ? ['received', 'accepted', 'preparing', 'ready']
     : ORDER_HISTORY_STATUSES;
@@ -647,6 +693,9 @@ function OrdersTab({ t, restaurant }) {
           onAdvance={advance}
           onCancel={cancel}
           onMarkPaid={markPaid}
+          onSplit={split}
+          onMerge={merge}
+          onRefund={refund}
           onClose={() => setSelectedOrderId(null)}
           detailRef={detailRef}
         />
