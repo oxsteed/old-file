@@ -31,6 +31,17 @@
  * Account identification: adjustments target a customer's credit wallet,
  * identified by customer_id (the users.id the wallet is keyed on).
  * Multi-currency is supported through assertSupportedCreditCurrency.
+ *
+ * Control-plane note: this console and the Super Admin adjustments endpoint
+ * (POST /super/oxsteed-credit/customers/:customerId/adjustments) enforce the
+ * SAME two-person policy through the SAME knob:
+ * OXSTEED_CREDIT_MAKER_CHECKER_THRESHOLD_CENTS. Amounts below the threshold
+ * may be applied by the proposing admin alone (fully reasoned and audited);
+ * amounts at or above it need a different admin to approve. The Super Admin
+ * path implements this via the generic maker-checker pending-action queue
+ * (requestPendingAction); this console implements it inline with PENDING
+ * rows and a hard self-approval 403. Default 5000 ($50.00): set the env var
+ * to 0 to require two-person approval for every adjustment on both planes.
  */
 
 const pool = require('../db');
@@ -48,8 +59,13 @@ const {
 } = creditService;
 
 // Amounts at or above this need a second admin. Below it the proposing admin
-// may apply directly in the same call.
-const TWO_PERSON_THRESHOLD_CENTS = 5000; // $50.00
+// may apply directly in the same call. Unified with the Super Admin
+// maker-checker plane: OXSTEED_CREDIT_MAKER_CHECKER_THRESHOLD_CENTS is the
+// single knob (default 5000 = $50.00 here; 0 = two-person for everything).
+const TWO_PERSON_THRESHOLD_CENTS = Math.max(
+  0,
+  Number.parseInt(process.env.OXSTEED_CREDIT_MAKER_CHECKER_THRESHOLD_CENTS || '5000', 10) || 5000
+);
 // Per proposing admin, per UTC calendar day, on abs(amount) of applied rows.
 const DAILY_ADJUSTMENT_CAP_CENTS = 50000; // $500.00
 

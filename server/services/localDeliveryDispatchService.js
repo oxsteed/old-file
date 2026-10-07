@@ -272,6 +272,12 @@ function createDispatchService(deps = {}) {
       const window = windowForJob(job, now);
       await checkAssignment(client, job, assignment, window);
       await reserve(client, job, assignment, window);
+      // Stop any prior tracking session for this job (reassignment).
+      await client.query(
+        `UPDATE delivery_tracking_assignments SET status = 'revoked', ended_at = NOW(), ended_reason = 'reassigned', updated_at = NOW()
+         WHERE delivery_job_id = $1 AND status IN ('active', 'paused')`,
+        [job.id]
+      );
       const updated = (await client.query(`UPDATE delivery_jobs SET fulfillment_source = 'internal', dispatch_state = 'internal_assigned', status = 'assigned',
         helper_user_id = NULL, internal_driver_user_id = $1, vehicle_id = $2, assigned_by_user_id = $3,
         internal_assigned_at = NOW(), assigned_at = NOW(), updated_at = NOW() WHERE id = $4 RETURNING *`, [assignment.driverId, assignment.vehicleId, req.user.id, job.id])).rows[0];
@@ -287,6 +293,12 @@ function createDispatchService(deps = {}) {
       if (job.status === 'posted' && job.dispatch_state === 'marketplace_posted' && job.fulfillment_source === 'marketplace' && !job.internal_driver_user_id && !job.vehicle_id) return { success: true, duplicate: true, job };
       if (!['internal_review', 'internal_assignment_attempt', 'internal_assigned', 'exception'].includes(job.dispatch_state)) throw fail('Delivery cannot be released', 'delivery_release_conflict');
       await lockResources(client, assignmentOf(job));
+      // Stop any prior tracking session (release to marketplace).
+      await client.query(
+        `UPDATE delivery_tracking_assignments SET status = 'revoked', ended_at = NOW(), ended_reason = 'released', updated_at = NOW()
+         WHERE delivery_job_id = $1 AND status IN ('active', 'paused')`,
+        [job.id]
+      );
       await client.query("UPDATE delivery_assignment_reservations SET status = 'released' WHERE delivery_job_id = $1 AND status = 'active'", [job.id]);
       const updated = (await client.query(`UPDATE delivery_jobs SET fulfillment_source = 'marketplace', dispatch_state = 'marketplace_posted', status = 'posted',
         helper_user_id = NULL, internal_driver_user_id = NULL, vehicle_id = NULL, assigned_by_user_id = NULL, assigned_at = NULL, internal_assigned_at = NULL,
@@ -299,6 +311,16 @@ function createDispatchService(deps = {}) {
       if (sameId(job.customer_user_id, req.user.id)) throw fail('Customers cannot claim their own delivery', 'delivery_self_claim', 403);
       if (job.status !== 'posted' || pickedUp(job) || job.dispatch_state !== 'marketplace_posted' || job.fulfillment_source !== 'marketplace'
         || job.helper_user_id || job.internal_driver_user_id || job.vehicle_id) throw fail('Delivery is no longer available', 'delivery_unavailable');
+      // Payment gate: cannot claim an unpaid job (unless COD).
+      const { rows: payments } = await client.query(
+        `SELECT captured_at, status FROM delivery_payments WHERE delivery_job_id=$1 AND delivery_extra_id IS NULL ORDER BY created_at DESC LIMIT 1`,
+        [job.id]
+      );
+      const payment = payments[0];
+      const isCod = job.metadata?.payment_mode === 'cod' || job.metadata?.paymentMode === 'cod';
+      if (!isCod && (!payment || (!payment.captured_at && payment.status !== 'paid'))) {
+        throw fail('Delivery cannot be claimed until payment is captured', 'delivery_unpaid', 409);
+      }
       await ensureNoOpenRecovery(client, job);
       const assignment = { driverId: req.user.id, vehicleId: null };
       await lockResources(client, assignment);

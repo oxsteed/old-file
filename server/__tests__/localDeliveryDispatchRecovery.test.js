@@ -90,6 +90,8 @@ function fixture(jobPatch = {}, options = {}) {
       if (q.startsWith('UPDATE delivery_returns')) { const row = db().returns.find((entry) => String(entry.id) === String(args[2])); row.status = args[0]; return rows([row]); }
       if (q.startsWith('UPDATE delivery_issues')) { const row = db().issues.find((entry) => String(entry.id) === String(args[2])); row.status = 'resolved'; row.resolution = args[0]; return rows([row]); }
       if (q.startsWith('UPDATE delivery_proofs')) return rows();
+      if (q.startsWith('UPDATE delivery_tracking_assignments')) return rows([]);
+      if (q.startsWith('SELECT captured_at, status FROM delivery_payments')) return rows([{ captured_at: new Date().toISOString(), status: 'paid' }]);
       if (q.startsWith('UPDATE delivery_jobs')) {
         const job = db().job;
         if (q.includes("fulfillment_source = 'internal'")) Object.assign(job, { fulfillment_source: 'internal', dispatch_state: 'internal_assigned', status: 'assigned', internal_driver_user_id: args[0], vehicle_id: args[1], helper_user_id: null });
@@ -100,6 +102,7 @@ function fixture(jobPatch = {}, options = {}) {
         else if (q.includes("status = 'failed'")) Object.assign(job, { status: 'failed', dispatch_state: 'exception', exception_code: q.includes("'return_requested'") ? 'return_requested' : args[1] });
         else if (q.includes('status = $1')) Object.assign(job, { status: args[0], dispatch_state: args[1], exception_code: args[2] });
         else if (q.includes('proof_pin_attempts')) job.proof_pin_attempts = (job.proof_pin_attempts || 0) + 1;
+        else if (q.includes('delivery_tracking_assignments')) return rows([]);
         else throw new Error(`Unhandled job mutation: ${q}`);
         return rows([job]);
       }

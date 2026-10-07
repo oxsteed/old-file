@@ -169,13 +169,19 @@ async function transitionComplianceCase({ caseId, toStatus, actorUserId, reason,
   }, 'credit_case_transition');
 }
 
-async function listComplianceCases(client, { status = null, limit = 50, offset = 0 } = {}) {
+async function listComplianceCases(client, { status = null, statuses = null, limit = 50, offset = 0 } = {}) {
   const params = [];
   let where = '';
-  if (status) {
-    if (!CASE_STATUSES.includes(status)) throw new AppError(`Unknown case status '${status}'`, 400, 'credit_case_status_invalid');
-    params.push(status);
-    where = `WHERE c.status = $${params.length}`;
+  // Audit fix: the compliance queue used to LIMIT/OFFSET all cases and then
+  // filter to open ones client-side, so a page could come back empty (or
+  // miss open cases) whenever resolved cases filled the page. Filter in SQL.
+  const statusList = statuses || (status ? [status] : null);
+  if (statusList) {
+    for (const s of statusList) {
+      if (!CASE_STATUSES.includes(s)) throw new AppError(`Unknown case status '${s}'`, 400, 'credit_case_status_invalid');
+    }
+    params.push(statusList);
+    where = `WHERE c.status = ANY($${params.length})`;
   }
   params.push(Math.min(Math.max(Number(limit) || 50, 1), 200));
   params.push(Math.max(Number(offset) || 0, 0));
@@ -216,7 +222,7 @@ async function getComplianceQueue(client, { limit = 50, offset = 0 } = {}) {
   const [verifications, sanctions, cases, counts] = await Promise.all([
     listPendingVerifications(client, { limit: lim, offset: off }),
     listPendingSanctionHits(client, { limit: lim, offset: off }),
-    listComplianceCases(client, { limit: lim, offset: off }),
+    listComplianceCases(client, { statuses: ['open', 'investigating', 'escalated'], limit: lim, offset: off }),
     // T38-F02: totals, not page lengths, so operators can navigate the full queue.
     client.query(
       `SELECT
@@ -225,7 +231,7 @@ async function getComplianceQueue(client, { limit = 50, offset = 0 } = {}) {
          (SELECT COUNT(*)::int FROM oxsteed_credit_compliance_cases WHERE status IN ('open', 'investigating', 'escalated')) AS open_cases`
     ),
   ]);
-  const openCases = cases.filter((c) => c.status === 'open' || c.status === 'investigating' || c.status === 'escalated');
+  const openCases = cases;
   const totals = counts.rows[0] || {};
   return {
     verifications,

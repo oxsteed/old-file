@@ -90,4 +90,12 @@ async function recordProof(client,job,proof,userId,key) {
   if (proof.proofType==='pin') await client.query('UPDATE delivery_jobs SET proof_pin_digest=NULL,proof_pin_consumed_at=NOW() WHERE id=$1',[job.id]);
   return rows[0];
 }
-module.exports={stableValue,fingerprint,idempotencyKey,actionReplay,saveAction,customerSafeJob,recordActivity,pinDigest,validateProof,recordProof};
+
+// Operator-safe job: includes operational fields but NEVER the PIN digest
+// (6-digit PIN, scrypt digest is brute-forceable) or other secrets.
+function operatorSafeJob(job) {
+  if (!job) return job;
+  const { proof_pin_digest, proof_pin_consumed_at, ...safe } = job;
+  return safe;
+}
+module.exports={stableValue,fingerprint,idempotencyKey,actionReplay,saveAction,customerSafeJob,operatorSafeJob,recordActivity,pinDigest,validateProof,recordProof};

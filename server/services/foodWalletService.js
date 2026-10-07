@@ -453,8 +453,10 @@ async function applyWalletLedgerEntry(client, {
   // customer transfers leave the aggregate unchanged and need no posting.
   // When the credit rail is disabled the wallet write fails OPEN: the mirror
   // is queued in credit_dual_posting_backfill (same transaction) and replayed
-  // when the rail is re-enabled. A frozen rail still fails closed.
-  await postFoodWalletDualEntry(client, {
+  // when the rail is re-enabled. A frozen rail still fails closed. The
+  // dual-post outcome is surfaced on the return value so API responses can
+  // report it truthfully instead of implying the central journal posted.
+  const dualPost = await postFoodWalletDualEntry(client, {
     ledgerEntryId: ledgerEntry.id,
     restaurantId,
     customerId,
@@ -474,6 +476,8 @@ async function applyWalletLedgerEntry(client, {
     account: updatedAccount,
     entry: ledgerEntry,
     replayed: false,
+    // dualPost: { posted } | { posted: false, backfilled: true, reason } | { posted: false, skipped }
+    dualPost,
   };
 }
 

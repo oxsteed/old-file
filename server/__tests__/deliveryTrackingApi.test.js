@@ -180,6 +180,10 @@ describe('delivery tracking API', () => {
   test('location batch evaluates geofence and refreshes ETA', async () => {
     authMock.__setUser(DRIVER);
     mockJobQuery();
+    // Mock the validated point query (after ingest, controller reads latest valid point from DB).
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ latitude: 18.541, longitude: -72.339, recorded_at: '2026-09-28T23:00:00.000Z' }],
+    });
     const assignment = { id: 9, status: 'active', driver_user_id: DRIVER.id };
     trackingService.getAssignmentStatus.mockResolvedValue({ assignment });
     trackingService.ingestLocationBatch.mockResolvedValue({

@@ -92,6 +92,30 @@ async function findExistingConversion(client, idempotencyKey) {
   return rows[0] || null;
 }
 
+// Validates a replayed conversion against the current request params.
+// Returns { conversion, replayed: true } on match, or throws 409 on mismatch.
+function checkConversionReplay(existing, { amount, currency, direction, restaurantId }) {
+  if (Number(existing.source_amount_cents) !== amount
+    || String(existing.currency_code) !== currency
+    || existing.direction !== direction
+    || Number(existing.restaurant_id) !== restaurantId) {
+    fail('Conversion idempotency key was already used with different parameters', 'credit_conversion_idempotency_conflict', 409);
+  }
+  return { conversion: formatConversion(existing), replayed: true };
+}
+
+// Re-checks for an existing conversion AFTER acquiring the advisory lock.
+// The pre-lock check is only a fast path: a concurrent request with the same
+// key can pass it, then serialize on the lock. Without this re-check both
+// requests would proceed to move money before the INSERT hits the UNIQUE
+// constraint (and the money legs run before the INSERT, so ON CONFLICT alone
+// cannot prevent the double spend).
+async function recheckConversionAfterLock(client, normalizedKey, params) {
+  const locked = await findExistingConversion(client, normalizedKey);
+  if (locked) return checkConversionReplay(locked, params);
+  return null;
+}
+
 async function convertRestaurantToOxsteed({
   customerId, restaurantId, amountCents, currencyCode = 'USD',
   idempotencyKey, actorUserId = null, requestIp = null, correlationId = null,
@@ -122,13 +146,7 @@ async function convertRestaurantToOxsteed({
 
     const existing = await findExistingConversion(client, normalizedKey);
     if (existing) {
-      if (Number(existing.source_amount_cents) !== amount
-        || String(existing.currency_code) !== currency
-        || existing.direction !== 'from_restaurant'
-        || Number(existing.restaurant_id) !== restaurantIdNum) {
-        fail('Conversion idempotency key was already used with different parameters', 'credit_conversion_idempotency_conflict', 409);
-      }
-      return { conversion: formatConversion(existing), replayed: true };
+      return checkConversionReplay(existing, { amount, currency, direction: 'from_restaurant', restaurantId: restaurantIdNum });
     }
 
     // Emile's requirement: OxSteed controls which restaurants' credit may
@@ -150,6 +168,9 @@ async function convertRestaurantToOxsteed({
     await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [
       `oxsteed-credit-restaurant-conversion:${restaurantIdNum}:${customerId}:${normalizedKey}`,
     ]);
+
+    const lockedReplay = await recheckConversionAfterLock(client, normalizedKey, { amount, currency, direction: 'from_restaurant', restaurantId: restaurantIdNum });
+    if (lockedReplay) return lockedReplay;
 
     const conversionId = crypto.randomUUID();
 
@@ -224,11 +245,22 @@ async function convertRestaurantToOxsteed({
           wallet_ledger_entry_id, journal_transaction_id, journal_fee_transaction_id,
           idempotency_key, actor_user_id)
        VALUES ($1,$2,$3,'from_restaurant',$4,$5,$6,$7,$8,'completed',$9,$10,$11,$12,$13)
+       ON CONFLICT (idempotency_key) DO NOTHING
        RETURNING *`,
       [conversionId, customerId, restaurantIdNum, amount, convertedAmount, feeCents,
        currency, String(rate), walletEntry.id, centralTransactionId, feeTransactionId,
        normalizedKey, actorUserId || customerId]
     );
+    // Defense in depth: the advisory lock + post-lock re-check should have
+    // caught this. If the INSERT lost the race (e.g. same key from a
+    // different customer/restaurant, which keys a different advisory lock),
+    // the money legs above already ran, so fail loudly rather than silently
+    // returning the other conversion's record.
+    if (!rows[0]) {
+      const raced = await findExistingConversion(client, normalizedKey);
+      if (!raced) fail('Conversion idempotency conflict', 'credit_conversion_idempotency_conflict', 409);
+      return checkConversionReplay(raced, { amount, currency, direction: 'from_restaurant', restaurantId: restaurantIdNum });
+    }
 
     await insertAudit(client, {
       actionType: 'credit.restaurant_conversion.completed',
@@ -280,13 +312,7 @@ async function convertOxsteedToRestaurant({
 
     const existing = await findExistingConversion(client, normalizedKey);
     if (existing) {
-      if (Number(existing.source_amount_cents) !== amount
-        || String(existing.currency_code) !== currency
-        || existing.direction !== 'to_restaurant'
-        || Number(existing.restaurant_id) !== restaurantIdNum) {
-        fail('Conversion idempotency key was already used with different parameters', 'credit_conversion_idempotency_conflict', 409);
-      }
-      return { conversion: formatConversion(existing), replayed: true };
+      return checkConversionReplay(existing, { amount, currency, direction: 'to_restaurant', restaurantId: restaurantIdNum });
     }
 
     // Converting OxSteed Credit into a restaurant wallet makes the credit
@@ -317,6 +343,9 @@ async function convertOxsteedToRestaurant({
     await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [
       `oxsteed-credit-restaurant-conversion:${restaurantIdNum}:${customerId}:${normalizedKey}`,
     ]);
+
+    const lockedReplay = await recheckConversionAfterLock(client, normalizedKey, { amount, currency, direction: 'to_restaurant', restaurantId: restaurantIdNum });
+    if (lockedReplay) return lockedReplay;
 
     const conversionId = crypto.randomUUID();
 
@@ -397,11 +426,17 @@ async function convertOxsteedToRestaurant({
           wallet_ledger_entry_id, journal_transaction_id, journal_fee_transaction_id,
           idempotency_key, actor_user_id)
        VALUES ($1,$2,$3,'to_restaurant',$4,$5,$6,$7,$8,'completed',$9,$10,$11,$12,$13)
+       ON CONFLICT (idempotency_key) DO NOTHING
        RETURNING *`,
       [conversionId, customerId, restaurantIdNum, amount, convertedAmount, feeCents,
        currency, String(rate), walletEntry.id, journalRows[0]?.id || null, feeTransactionId,
        normalizedKey, actorUserId || customerId]
     );
+    if (!rows[0]) {
+      const raced = await findExistingConversion(client, normalizedKey);
+      if (!raced) fail('Conversion idempotency conflict', 'credit_conversion_idempotency_conflict', 409);
+      return checkConversionReplay(raced, { amount, currency, direction: 'to_restaurant', restaurantId: restaurantIdNum });
+    }
 
     await insertAudit(client, {
       actionType: 'credit.restaurant_conversion.completed',

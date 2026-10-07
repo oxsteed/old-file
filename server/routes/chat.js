@@ -14,6 +14,7 @@ const {
 } = require('../controllers/chatController');
 const { chatLimiter, profileChatLimiter, authLimiter } = require('../middleware/rateLimiter');
 const { authenticate } = require('../middleware/auth');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const logger = require('../utils/logger');
@@ -136,10 +137,10 @@ router.post('/quotes/:kind/:id/schedule', chatLimiter, optionalAuth, chatQuotes.
 
 
 // ── In-chat OxSteed Credit payments ──────────────────────────────────────────
-router.post('/payments/oxsteed-credit', chatLimiter, authenticate, chatCreditPay.payWithOxsteedCredit);
+router.post('/payments/oxsteed-credit', chatLimiter, authenticate, rejectImpersonated, chatCreditPay.payWithOxsteedCredit);
 router.post('/payments/request', chatLimiter, authenticate, chatCreditPay.requestPayment);
 router.get('/payments/request/:id', chatLimiter, authenticate, chatCreditPay.getPaymentRequest);
-router.post('/payments/:id/refund', chatLimiter, authenticate, chatCreditPay.refundChatCreditPayment);
+router.post('/payments/:id/refund', chatLimiter, authenticate, rejectImpersonated, chatCreditPay.refundChatCreditPayment);
 router.get('/payments/credit-hint', chatLimiter, authenticate, chatCreditPay.getCreditPayHint);
 
 // ── In-chat proof of payment + agreements ────────────────────────────────────

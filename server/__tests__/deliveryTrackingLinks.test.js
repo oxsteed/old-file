@@ -315,7 +315,7 @@ describe('public tracking endpoint', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  test('expired token surfaces 410 through the error handler', async () => {
+  test('expired token returns 404 (unified with invalid to prevent oracle)', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ ...LINK_ROW, expires_at: pastIso() }] });
     const req = { params: { token: 'e'.repeat(64) } };
     const res = mockRes();
@@ -323,8 +323,8 @@ describe('public tracking endpoint', () => {
 
     await controller.publicTrack(req, res, next);
 
-    expect(res.json).not.toHaveBeenCalled();
-    expect(next).toHaveBeenCalledTimes(1);
-    expect(next.mock.calls[0][0]).toMatchObject({ code: 'tracking_link_expired', status: 410 });
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Not found', code: 'not_found', status: 404 });
+    expect(next).not.toHaveBeenCalled();
   });
 });

@@ -155,12 +155,9 @@ exports.publicTrack = async (req, res, next) => {
     try {
       resolved = await linkService.resolveToken(req.params.token);
     } catch (error) {
-      if (error && error.code === 'tracking_link_invalid') {
-        return res.status(404).json({ error: 'Not found', code: 'not_found', status: 404 });
-      }
-      // Expired/revoked tokens are real tokens: report 410 so the recipient
-      // sees a clear "link expired" state instead of a dead page.
-      throw error;
+      // Unify invalid and expired responses to prevent token oracle attacks.
+      // Both return 404 with the same body.
+      return res.status(404).json({ error: 'Not found', code: 'not_found', status: 404 });
     }
 
     const state = await linkService.getCustomerTrackingState(resolved.deliveryJobId);

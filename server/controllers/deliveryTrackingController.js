@@ -24,6 +24,7 @@ const etaService = require('../services/deliveryEtaService');
 const trackingEventBus = require('../services/deliveryTrackingEventBus');
 
 const OPS_ROLES = new Set(['admin', 'super_admin']);
+const LOGISTICS_ROLES = new Set(['sourcing_operator', 'logistics_coordinator', 'warehouse_operator']);
 const DEVICE_KINDS = new Set(['driver_phone', 'vehicle_tracker']);
 const MAX_BATCH_POINTS = 500;
 
@@ -39,7 +40,7 @@ function sameId(a, b) {
 }
 
 function isOps(user) {
-  return OPS_ROLES.has(user?.role);
+  return OPS_ROLES.has(user?.role) || LOGISTICS_ROLES.has(user?.logistics_role);
 }
 
 function isAssignedDriver(job, user) {
@@ -284,14 +285,22 @@ async function ingestLocations(req, res) {
     });
 
     // Evaluate the latest usable point against pickup/destination geofences.
+    // Use the latest VALIDATED point from DB, not raw request body (which may
+    // contain rejected/invalid points).
     let geofence = null;
-    const latest = latestPoint(points);
+    const { rows: validPoints } = await pool.query(
+      `SELECT latitude, longitude, recorded_at FROM delivery_location_points
+       WHERE assignment_id = $1 AND validation_state = 'valid'
+       ORDER BY recorded_at DESC LIMIT 1`,
+      [assignment.id]
+    );
+    const latest = validPoints[0];
     if (latest) {
       geofence = await geofenceService.evaluatePoint({
         deliveryJobId: job.id,
         latitude: latest.latitude,
         longitude: latest.longitude,
-        recordedAt: latest.recordedAt,
+        recordedAt: latest.recorded_at,
       });
     }
 
@@ -331,7 +340,7 @@ async function ingestLocations(req, res) {
           latest: latestPoint ? {
             latitude: latestPoint.latitude,
             longitude: latestPoint.longitude,
-            recordedAt: latestPoint.recordedAt,
+            recordedAt: latestPoint.recorded_at || latestPoint.recordedAt,
           } : null,
           pointCount: Number.isInteger(summary?.accepted) ? summary.accepted : points.length,
           source: 'driver_gps',

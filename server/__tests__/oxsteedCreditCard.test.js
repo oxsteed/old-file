@@ -6,6 +6,15 @@ const request = require('supertest');
 const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
 const cardController = require('../controllers/oxsteedCreditCardController');
+jest.mock('../controllers/restaurantAppFlowController', () => ({
+  requireDeviceCredential: jest.fn(async (_req, _restaurantId, deviceId) => ({
+    id: deviceId,
+    app_key: 'credit_kiosk',
+    restaurant_id: 7,
+  })),
+  assertDeviceApp: jest.fn(),
+}));
+
 const cardService = require('../services/oxsteedCreditCardService');
 
 const CUSTOMER_ID = '11111111-1111-4111-8111-111111111111';
@@ -500,5 +509,50 @@ describe('kiosk idempotency key requirement (H3)', () => {
       .send({ credential: 'raw', amountCents: 1500 });
     expect(res.status).toBe(400);
     expect(res.body.code).toBe('credit_card_pin_required');
+  });
+});
+
+describe('kiosk per-device rate-limit keying (audit regression)', () => {
+  const { authenticateCreditKiosk } = cardController;
+
+  it('sets req.kioskDeviceId from the authenticated device so the limiter keys per device, not per IP', async () => {
+    const req = { params: { restaurantId: '7', deviceId: '42' }, ip: '10.0.0.1' };
+    const res = {};
+    let nextCalled = false;
+    const next = (err) => { if (err) throw err; nextCalled = true; };
+    await authenticateCreditKiosk(req, res, next);
+    expect(nextCalled).toBe(true);
+    expect(req.kioskDeviceId).toBe(42);
+    expect(req.creditKioskDevice).toBeDefined();
+  });
+});
+
+describe('kiosk cash-out partner entitlement (audit regression)', () => {
+  function createCashOutApp() {
+    const app = express();
+    app.use(express.json());
+    app.use((req, _res, next) => {
+      req.creditKioskRestaurantId = 7;
+      req.creditKioskDevice = { id: 42 };
+      req.kioskDeviceId = 42;
+      req.correlationId = 'kiosk-cashout-entitlement-test';
+      next();
+    });
+    app.post('/kiosk/cashout', cardController.kioskCashOut);
+    app.use(errorHandler);
+    return app;
+  }
+
+  it('rejects cash-out when the restaurant is not an active credit partner', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // requireCreditPartnerForRestaurant: no active partner
+    const app = createCashOutApp();
+    const res = await request(app)
+      .post('/kiosk/cashout')
+      .set('Idempotency-Key', 'kiosk-cashout-no-partner')
+      .send({ credential: 'raw', pin: '1234', amountCents: 2000 });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('credit_partner_not_active');
+    // Only the partner lookup ran; no money movement was attempted.
+    expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 });

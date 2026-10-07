@@ -582,6 +582,10 @@ function createTrackingToken() {
   return crypto.randomBytes(18).toString('base64url');
 }
 
+function hashTrackingToken(token) {
+  return crypto.createHash('sha256').update(String(token)).digest('hex');
+}
+
 function attachRestaurantHours(row) {
   if (!row || typeof row !== 'object') return row;
   const hours = evaluateOperatingHours(row.operating_hours, row.timezone);
@@ -3002,6 +3006,7 @@ exports.createOrder = async (req, res, next) => {
       const queueNumber = Number(queueRows[0]?.next_queue || 1);
 
       const trackingToken = createTrackingToken();
+      const trackingTokenHash = hashTrackingToken(trackingToken);
       const discountMetadata = discount > 0
         ? {
           code: discountCode,
@@ -3015,7 +3020,8 @@ exports.createOrder = async (req, res, next) => {
       const metadata = req.body.metadata && typeof req.body.metadata === 'object'
         ? {
           ...req.body.metadata,
-          trackingToken,
+          trackingToken: trackingTokenHash,
+          tracking_token: trackingTokenHash,
           paymentMode,
           payment_mode: paymentMode,
           restaurantPaymentMode: paymentContract.canonical,
@@ -4442,7 +4448,7 @@ exports.cancelCheckout = async (req, res, next) => {
          FROM food_orders
         WHERE id = $1
           AND metadata->>'trackingToken' = $2`,
-      [orderId, trackingToken]
+      [orderId, hashTrackingToken(trackingToken)]
     );
     let order = rows[0];
     if (!order) throw new AppError('Order not found', 404, 'order_not_found');
@@ -5312,7 +5318,7 @@ exports.getTrackedOrder = async (req, res, next) => {
          LEFT JOIN food_order_items foi ON foi.order_id = fo.id
         WHERE fo.metadata->>'trackingToken' = $1
         GROUP BY fo.id, fr.display_name, fr.prep_time_min`,
-      [trackingToken]
+      [hashTrackingToken(trackingToken)]
     );
     let order = rows[0];
     if (!order) throw new AppError('Order not found', 404, 'order_not_found');

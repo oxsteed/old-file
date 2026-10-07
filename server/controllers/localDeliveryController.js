@@ -1,7 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
-const {stableValue,fingerprint,idempotencyKey,customerSafeJob,recordActivity,pinDigest,validateProof,recordProof,actionReplay,saveAction}=require('../services/localDeliveryIntegrity');
+const {stableValue,fingerprint,idempotencyKey,customerSafeJob,operatorSafeJob,recordActivity,pinDigest,validateProof,recordProof,actionReplay,saveAction}=require('../services/localDeliveryIntegrity');
 const pool = require('../db');
 const AppError = require('../utils/appError');
 const { calculateLocalDeliveryQuote } = require('../services/localDeliveryService');
@@ -356,9 +356,23 @@ exports.list = async (req, res, next) => {
     const helper = isDeliveryHelper(req.user);
     const driver = await pool.query('SELECT approved,active FROM delivery_driver_profiles WHERE user_id=$1',[req.user.id]);
     const internalDriver = driver.rows[0]?.approved === true && driver.rows[0]?.active === true;
+    // Geo filter for marketplace: only show jobs within 50 miles of helper's location (if provided).
+    const lat = parseFloat(req.query.lat);
+    const lng = parseFloat(req.query.lng);
+    const hasGeo = Number.isFinite(lat) && Number.isFinite(lng);
+    const maxMiles = 50;
+    let marketplaceClause = `($2::boolean AND status='posted' AND dispatch_state='marketplace_posted' AND fulfillment_source='marketplace' AND helper_user_id IS NULL AND internal_driver_user_id IS NULL)`;
+    const params = [req.user.id, helper];
+    if (hasGeo) {
+      // Haversine distance filter (approximate).
+      marketplaceClause += ` AND (
+        3959 * acos(cos(radians($3)) * cos(radians(origin_lat)) * cos(radians(origin_lng - $4)) + sin(radians($3)) * sin(radians(origin_lat)))
+      ) <= $5`;
+      params.push(lat, lng, maxMiles);
+    }
     const {rows} = await pool.query(`SELECT * FROM delivery_jobs WHERE customer_user_id=$1 OR helper_user_id=$1 OR internal_driver_user_id=$1
-      OR ($2::boolean AND status='posted' AND dispatch_state='marketplace_posted' AND fulfillment_source='marketplace' AND helper_user_id IS NULL AND internal_driver_user_id IS NULL)
-      ORDER BY created_at DESC LIMIT 100`,[req.user.id,helper]);
+      OR ${marketplaceClause}
+      ORDER BY created_at DESC LIMIT 100`, params);
     res.json({success:true,jobs:rows.map(job=>customerSafeJob(job,req.user)),helper,internalDriver});
   } catch(error) {next(error);}
 };
@@ -409,6 +423,18 @@ exports.updateStatus = async (req,res,next) => {
       await client.query('COMMIT');return res.json(response);
     }
     let proof;
+    if(requested==='picked_up' || requested==='delivered') {
+      // Payment gate: cannot pick up or deliver an unpaid job (unless COD).
+      const {rows: payments} = await client.query(
+        `SELECT captured_at, status FROM delivery_payments WHERE delivery_job_id=$1 AND delivery_extra_id IS NULL ORDER BY created_at DESC LIMIT 1`,
+        [job.id]
+      );
+      const payment = payments[0];
+      const isCod = job.metadata?.payment_mode === 'cod' || job.metadata?.paymentMode === 'cod';
+      if (!isCod && (!payment || (!payment.captured_at && payment.status !== 'paid'))) {
+        throw new AppError('Delivery cannot proceed until payment is captured', 409, 'delivery_unpaid');
+      }
+    }
     if(requested==='delivered') {
       proof=await validateProof(client,job,req.body,req.user.id);
       await recordProof(client,job,proof,req.user.id,key);
@@ -508,7 +534,8 @@ exports.createExtra = async (req, res, next) => {
     const category = text(req.body.category, 48);
     const amountCents = Number(req.body.amountCents);
     const notes = text(req.body.notes, 2000);
-    if (!EXTRA_CATEGORIES.has(category) || !Number.isInteger(amountCents) || amountCents <= 0 || !notes) throw new AppError('Extra category, amount, and notes are required', 400, 'delivery_extra_invalid');
+    const MAX_EXTRA_CENTS = 50000; // $500 max per extra
+    if (!EXTRA_CATEGORIES.has(category) || !Number.isInteger(amountCents) || amountCents <= 0 || amountCents > MAX_EXTRA_CENTS || !notes) throw new AppError('Extra category, amount, and notes are required', 400, 'delivery_extra_invalid');
     const actionKey = idempotencyKey(req);
     if (actionKey) {
       const existing = await client.query('SELECT * FROM delivery_extras WHERE delivery_job_id = $1 AND idempotency_key = $2', [job.id, actionKey]);
@@ -555,7 +582,7 @@ exports.reviewExtra = async (req, res, next) => {
 exports.internalQueue = async (_req, res, next) => {
   try {
     const { rows } = await pool.query(`SELECT dj.*, u.email AS customer_email FROM delivery_jobs dj JOIN users u ON u.id = dj.customer_user_id WHERE dj.dispatch_state IN ('internal_review','internal_assigned','exception') ORDER BY dj.created_at ASC LIMIT 200`);
-    res.json({ success: true, jobs: rows });
+    res.json({ success: true, jobs: rows.map(operatorSafeJob) });
   } catch (error) {
     next(error);
   }
@@ -612,7 +639,7 @@ exports.getInternalJob = async (req, res, next) => {
     if (!rows[0]) throw new AppError('Delivery job not found', 404, 'delivery_not_found');
     const activity = await pool.query('SELECT * FROM delivery_activity WHERE delivery_job_id = $1 ORDER BY created_at ASC', [req.params.id]);
     const attempts = await pool.query('SELECT * FROM delivery_dispatch_attempts WHERE delivery_job_id = $1 ORDER BY created_at DESC', [req.params.id]);
-    res.json({ success: true, job: rows[0], activity: activity.rows, dispatchAttempts: attempts.rows });
+    res.json({ success: true, job: operatorSafeJob(rows[0]), activity: activity.rows, dispatchAttempts: attempts.rows });
   } catch (error) {
     next(error);
   }

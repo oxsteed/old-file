@@ -1194,6 +1194,12 @@ exports.loadCustomerWallet = async (req, res, next) => {
         email: customer.email,
       },
       replayed: Boolean(result.replayed),
+      // Truthful dual-post state: when the credit rail is disabled the wallet
+      // write fails OPEN and the central-journal mirror is queued for
+      // backfill (dualPost.backfilled), not posted.
+      centralJournal: result.dualPost?.backfilled
+        ? { posted: false, queuedForBackfill: true, reason: result.dualPost.reason }
+        : { posted: result.dualPost?.posted !== false },
     });
   } catch (err) {
     next(err);
@@ -1230,6 +1236,17 @@ exports.updateCustomerWalletStatus = async (req, res, next) => {
       const account = await loadWalletAccountForOperator(client, restaurantId, customer.id);
       if (account.status === 'closed') {
         throw new AppError('Closed wallets cannot be reactivated', 409, 'wallet_closed');
+      }
+      // Optimistic locking: if the caller saw a status and it changed under
+      // them, fail instead of silently overwriting another operator's change.
+      const expectedStatus = normalizeString(req.body.expectedStatus || req.body.expected_status, 20);
+      if (expectedStatus && account.status !== expectedStatus) {
+        throw new AppError(
+          `Wallet status changed since you loaded it (expected '${expectedStatus}', now '${account.status}'). Reload and try again.`,
+          409,
+          'wallet_status_conflict',
+          { expectedStatus, currentStatus: account.status }
+        );
       }
       if (account.status === nextStatus) {
         return { account, changed: false };

@@ -8,6 +8,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, optionalAuth } = require('../middleware/auth');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const ops = require('../controllers/restaurantOpsController');
 const training = require('../controllers/restaurantTrainingController');
 const audits = require('../controllers/restaurantAuditsController');
@@ -308,9 +309,9 @@ router.patch('/:restaurantId/runner/tasks/:taskId/dispatch', appFlow.updateRunne
 router.post('/:restaurantId/runner/tasks/:taskId/assign', appFlow.updateRunnerDispatch);
 router.post('/:restaurantId/runner/tasks/:taskId/claim', appFlow.claimRunnerTask);
 router.post('/:restaurantId/runner/tasks/:taskId/decline', appFlow.declineRunnerTask);
-router.post('/:restaurantId/runner/tasks/:taskId/handoff', appFlow.completeRunnerHandoff);
+router.post('/:restaurantId/runner/tasks/:taskId/handoff', rejectImpersonated, appFlow.completeRunnerHandoff);
 router.post('/:restaurantId/runner/tasks/:taskId/location', appFlow.logRunnerLocation);
-router.post('/:restaurantId/runner/tasks/:taskId/settlements', appFlow.upsertRunnerSettlement);
+router.post('/:restaurantId/runner/tasks/:taskId/settlements', rejectImpersonated, appFlow.upsertRunnerSettlement);
 router.post('/:restaurantId/runner/location', appFlow.logRunnerLocation);
 router.get('/:restaurantId/runner/settlements', appFlow.listRunnerSettlements);
 router.post('/:restaurantId/runner/settlements', appFlow.upsertRunnerSettlement);

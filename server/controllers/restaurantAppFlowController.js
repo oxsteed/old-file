@@ -7221,7 +7221,8 @@ exports.completeRunnerHandoff = async (req, res, next) => {
     const taskId = parsePositiveInt(req.params.taskId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     const canManage = MANAGE_ROLES.has(restaurant.effective_role);
-    const handoffAt = req.body.handoffAt || req.body.handoff_at || null;
+    // Use server time; ignore client-supplied handoffAt (prevents backdating).
+    const handoffAt = new Date().toISOString();
     const note = normalizeString(req.body.note || req.body.handoffNote || req.body.handoff_note, 1000);
     const proofMethod = normalizeString(req.body.method || req.body.proofMethod || req.body.proof_method, 40);
     const result = await withTransaction(pool, async (client) => {

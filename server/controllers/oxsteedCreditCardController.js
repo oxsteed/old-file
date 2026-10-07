@@ -281,6 +281,10 @@ async function authenticateCreditKiosk(req, res, next) {
     const device = await requireDeviceCredential(req, restaurantId, deviceId);
     assertDeviceApp(device, 'credit_kiosk');
     req.creditKioskDevice = device;
+    // Audit fix: the per-device kiosk rate limiter keys on req.kioskDeviceId.
+    // Set it here so the limiter actually keys by device instead of
+    // silently falling back to IP-only (kiosk:<ip>).
+    req.kioskDeviceId = device.id;
     req.creditKioskRestaurantId = restaurantId;
     next();
   } catch (error) {
@@ -341,11 +345,15 @@ async function kioskCashOut(req, res, next) {
     if (!idempotencyKey) {
       throw new AppError('An Idempotency-Key is required for kiosk cash-out', 400, 'credit_idempotency_key_required');
     }
+    // Audit fix: cash may only be dispensed at an active OxSteed Credit
+    // partner restaurant, same as redemption. Previously partnerId was
+    // passed as null with no entitlement check at all.
+    const partnerId = await requireCreditPartnerForRestaurant(req.creditKioskRestaurantId);
     const result = await cardService.cashOutWithCard({
       credential: req.body?.credential,
       pin: req.body?.pin,
       kioskDeviceId: req.creditKioskDevice.id,
-      partnerId: null,
+      partnerId,
       amountCents: req.body?.amountCents ?? req.body?.amount_cents,
       currencyCode: req.body?.currencyCode || req.body?.currency_code,
       idempotencyKey,
