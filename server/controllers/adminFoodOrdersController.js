@@ -5,7 +5,9 @@
 
 const { pool } = require('../db');
 const logger = require('../utils/logger');
-const stripe = require('../utils/stripe');
+const stripe = process.env.STRIPE_SECRET_KEY
+  ? require('stripe')(process.env.STRIPE_SECRET_KEY)
+  : null;
 const { refundWalletDebitForReference } = require('../services/foodWalletService');
 
 async function auditAdminRead(adminId, orderId, purpose) {

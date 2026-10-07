@@ -4031,6 +4031,7 @@ exports.updateOrderStatus = async (req, res, next) => {
             'runner_handoff_required'
           );
         }
+        if (enforceKitchenReadiness && ORDER_TRANSITIONS.ready.includes(existing[0].status)) {
           const { rows: [readiness] } = await client.query(
             `SELECT COUNT(*)::int AS total_items,
                     COUNT(*) FILTER (WHERE kitchen_status IN ('ready','bumped','cancelled'))::int AS finished_items
@@ -4096,23 +4097,10 @@ exports.updateOrderStatus = async (req, res, next) => {
           req.user?.id || null,
         ]
       );
-
       delete order.previous_status;
       delete order.previous_kitchen_stage;
       const previousPaymentStatus = order.previous_payment_status || null;
       delete order.previous_payment_status;
-
-      // Auto-create runner task when a delivery order becomes ready.
-      // This ensures there's always a handoff task for the completed transition.
-      if (status === 'ready' && order.fulfillment_type === 'delivery') {
-        await client.query(
-          `INSERT INTO restaurant_runner_tasks
-             (restaurant_id, food_order_id, status, created_at)
-           VALUES ($1, $2, 'offered', NOW())
-           ON CONFLICT DO NOTHING`,
-          [restaurantId, orderId]
-        );
-      }
 
       let walletRefund = null;
       let payment = null;
