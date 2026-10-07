@@ -122,6 +122,10 @@ function OrderDetailsPageContent() {
   const [error, setError] = useState(null);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [liveStatus, setLiveStatus] = useState(null);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [helpMessage, setHelpMessage] = useState('');
+  const [helpSending, setHelpSending] = useState(false);
+  const [helpSent, setHelpSent] = useState(false);
 
   const loadOrder = async () => {
     try {
@@ -160,6 +164,36 @@ function OrderDetailsPageContent() {
   const supportUrl = isFoodOrder && order
     ? `/support?orderId=${order.id}${order.tracking_token ? `&token=${order.tracking_token}` : ''}`
     : `/support?orderId=${orderId}`;
+
+  const handleHelpSubmit = async () => {
+    if (!helpMessage.trim() || helpSending) return;
+    setHelpSending(true);
+    try {
+      const context = isFoodOrder && order
+        ? `Order #${order.id} (${order.restaurant_name || 'restaurant'}) - Status: ${order.status}, Total: ${formatCents(order.total_cents, currencyOptions)}. Items: ${(order.items || []).map(i => `${i.quantity}x ${i.item_name || i.name}`).join(', ')}`
+        : `Order #${orderId}`;
+      await api.post('/support/public/conversations', {
+        message: `[${context}] ${helpMessage.trim()}`,
+        clientRequestId: `order-help-${orderId}-${Date.now()}`,
+      });
+      setHelpSent(true);
+      setHelpMessage('');
+    } catch (err) {
+      // Fall back to the support page on error
+      navigate(supportUrl);
+    } finally {
+      setHelpSending(false);
+    }
+  };
+
+  const handleOrderAgain = () => {
+    const restaurantId = order?.restaurant_id || order?.restaurantId;
+    if (restaurantId && isFoodOrder) {
+      navigate(`/food/restaurants/${restaurantId}`, { state: { reorderOrder: order } });
+    } else {
+      navigate('/restaurants');
+    }
+  };
   const paymentMethodLabel = (() => {
     const raw = String(order?.payment_method || order?.paymentMode || order?.payment_mode || '').toLowerCase();
     const labels = {
@@ -324,14 +358,65 @@ function OrderDetailsPageContent() {
               <section className="order-details-actions">
                 {canCancel && <button type="button" className="orders-btn orders-btn-danger" onClick={handleCancel} disabled={cancelLoading}><XCircle size={16} /> {cancelLoading ? t('common.processing') : t('orders.cancelOrder')}</button>}
                 {isFoodOrder && order?.tracking_token && <button type="button" className="orders-btn orders-btn-primary" onClick={() => navigate(`/food/track/${order.tracking_token}`)}><RefreshCw size={16} /> {t('food.order.liveStatus', { defaultValue: 'Track order live' })}</button>}
-                <button type="button" className="orders-btn" onClick={() => navigate(supportUrl)}><HelpCircle size={16} /> {t('orders.getHelp', { defaultValue: 'Get help with this order' })}</button>
-                {isFoodOrder && !['cancelled', 'refunded'].includes(String(order.status || '').toLowerCase()) && <Link to="/restaurants" className="orders-btn"><RotateCcw size={16} /> {t('food.restaurant.orderAgain', { defaultValue: 'Order again' })}</Link>}
+                <button type="button" className="orders-btn" onClick={() => setHelpOpen(true)}><HelpCircle size={16} /> {t('orders.getHelp', { defaultValue: 'Get help with this order' })}</button>
+                {isFoodOrder && !['cancelled', 'refunded'].includes(String(order.status || '').toLowerCase()) && <button type="button" className="orders-btn" onClick={handleOrderAgain}><RotateCcw size={16} /> {t('food.restaurant.orderAgain', { defaultValue: 'Order again' })}</button>}
                 <button type="button" className="orders-btn" onClick={() => navigate(isFoodOrder ? '/food' : '/orders')}><ArrowRight size={16} /> {t('orders.backToOrders')}</button>
               </section>
             </aside>
           </div>
         </div>
       </div>
+
+      {helpOpen && (
+        <div className="order-help-overlay" onClick={() => setHelpOpen(false)}>
+          <div className="order-help-panel" onClick={e => e.stopPropagation()}>
+            <div className="order-help-head">
+              <h3>{t('orders.helpTitle', { defaultValue: 'Get help with this order' })}</h3>
+              <button type="button" className="order-help-close" onClick={() => setHelpOpen(false)} aria-label={t('common.close')}>×</button>
+            </div>
+            {isFoodOrder && order && (
+              <div className="order-help-context">
+                <p><strong>{t('orders.order')} #{order.id}</strong>{order.restaurant_name ? ` · ${order.restaurant_name}` : ''}</p>
+                <p>{t(`food.status.${order.status}`, order.status)} · {formatCents(order.total_cents, currencyOptions)}</p>
+                {(order.items || []).length > 0 && (
+                  <p className="order-help-items">{(order.items || []).map(i => `${i.quantity}x ${i.item_name || i.name}`).join(', ')}</p>
+                )}
+              </div>
+            )}
+            {helpSent ? (
+              <div className="order-help-sent">
+                <p>{t('orders.helpSent', { defaultValue: 'Your message was sent. Our support team will get back to you.' })}</p>
+                <button type="button" className="orders-btn orders-btn-primary" onClick={() => { setHelpOpen(false); setHelpSent(false); }}>
+                  {t('common.done', { defaultValue: 'Done' })}
+                </button>
+              </div>
+            ) : (
+              <>
+                <textarea
+                  value={helpMessage}
+                  onChange={e => setHelpMessage(e.target.value)}
+                  placeholder={t('orders.helpPlaceholder', { defaultValue: 'Describe the issue with your order...' })}
+                  rows={5}
+                  className="order-help-textarea"
+                />
+                <div className="order-help-actions">
+                  <button type="button" className="orders-btn" onClick={() => setHelpOpen(false)}>
+                    {t('common.cancel')}
+                  </button>
+                  <button
+                    type="button"
+                    className="orders-btn orders-btn-primary"
+                    onClick={handleHelpSubmit}
+                    disabled={helpSending || !helpMessage.trim()}
+                  >
+                    {helpSending ? t('common.sending', { defaultValue: 'Sending...' }) : t('common.send', { defaultValue: 'Send' })}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </PageShell>
   );
 }
