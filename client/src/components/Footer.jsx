@@ -83,6 +83,9 @@ export default function Footer() {
               <FooterLink to="/direct">{t('footer.direct')}</FooterLink>
               <FooterLink to="/products">{t('footer.products')}</FooterLink>
               <FooterLink to="/delivery">{t('footer.delivery')}</FooterLink>
+              {LAUNCH_VISIBILITY.oxsteedMedia && (
+                <FooterLink to="/media">{t('footer.media')}</FooterLink>
+              )}
               <FooterLink to="/consulting-intake">{t('footer.consultingIntake')}</FooterLink>
               <span className="site-footer__heading site-footer__heading--nested">
                 {t('footer.resource')}
