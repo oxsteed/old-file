@@ -193,6 +193,8 @@ exports.sendNotification = async ({
     // ── 4. Email notification (via Resend) ────────────────────
     const emailKey   = `email_${type.replace(':', '_')}`;
     const emailPrefOff = prefs[emailKey] === false;
+    // Respect global unsubscribe: if user opted out of all, skip non-transactional.
+    const unsubscribedAll = !!prefs.unsubscribe_all;
     const emailTypes = [
       'bid_accepted', 'payment_released', 'subscription_renewed',
       'subscription_cancelled', 'subscription_past_due',
@@ -222,7 +224,8 @@ exports.sendNotification = async ({
       'oxsteed_credit_transaction', 'oxsteed_credit_card_security',
     ]);
     const emailAllowed = userEmail && emailTypes.includes(type)
-      && (transactionalEmailTypes.has(type) ? true : !emailPrefOff);
+      && (transactionalEmailTypes.has(type) ? true : !emailPrefOff)
+      && !(unsubscribedAll && !transactionalEmailTypes.has(type));
     if (emailAllowed && !notificationRow?.is_email_sent) {
       // Banned users get the notification email but with no account link
       const safeActionUrl = isBanned ? null : action_url;
@@ -241,7 +244,8 @@ exports.sendNotification = async ({
       if (type === 'oxsteed_credit_card_security' && delivery?.success !== true) {
         throw new Error('Card security email delivery unavailable');
       }
-      if (notifId) {
+      // Only mark as sent if delivery was confirmed.
+      if (notifId && delivery?.success === true) {
         await db.query(
           `UPDATE notifications SET is_email_sent = true WHERE id = $1`,
           [notifId]

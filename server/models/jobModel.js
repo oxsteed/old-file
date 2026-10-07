@@ -219,12 +219,13 @@ exports.confirmAttendance = async (jobId, helperId) => {
 
 // --- Set Financial Breakdown ---
 // Called when a bid is accepted -- locks in all fee amounts
-exports.setFinancials = async (jobId, agreedAmountDollars, isBrokerMediated) => {
+exports.setFinancials = async (jobId, agreedAmountDollars, isBrokerMediated, client = null) => {
   const breakdown = calculateTier3Fees(
     Math.round(agreedAmountDollars * 100), // Convert to cents
     isBrokerMediated
   );
-  await db.query(
+  const q = client || db;
+  await q.query(
     `UPDATE jobs
      SET job_value          = $1,
          customer_total     = $2,

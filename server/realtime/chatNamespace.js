@@ -117,8 +117,25 @@ function bindChatNamespace(namespace, { pool, socketService, logger }) {
     // internal access credential).
     if (['admin', 'super_admin'].includes(socket.userRole)) {
       socket.join('admins');
-      socket.join('guest_chat_admin');
       socket.join('ops_delivery');
+      // Guest chat admin room: only super_admin auto-joins. Regular admins
+      // need the explicit manage_support grant (least privilege for guest PII).
+      if (socket.userRole === 'super_admin') {
+        socket.join('guest_chat_admin');
+      } else {
+        try {
+          const { rows: grantRows } = await pool.query(
+            `SELECT 1 FROM admin_grants WHERE grantee_id = $1 AND permissions ? 'manage_support' LIMIT 1`,
+            [socket.userId]
+          );
+          if (grantRows.length > 0) socket.join('guest_chat_admin');
+        } catch (err) {
+          logger.error('guest_chat_admin room membership check failed', {
+            userId: socket.userId,
+            error: err.message,
+          });
+        }
+      }
     } else if (OPERATIONS_LOGISTICS_ROLES.has(socket.logisticsRole)) {
       try {
         const { rows } = await pool.query(

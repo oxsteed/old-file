@@ -232,7 +232,9 @@ async function createFranchiseApplication(req, res) {
         [
           program.id,
           req.user?.id || null,
-          asTrimmed(req.body.owner_user_id),
+          // owner_user_id is always the authenticated applicant; the client
+          // must not supply it (lead form is public, so null for guests).
+          req.user?.id || null,
           linkedConsultingRequestId,
           firstName,
           lastName,

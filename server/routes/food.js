@@ -27,7 +27,7 @@ router.get('/restaurants/:restaurantId/kiosk-config', kiosk.getPublicKioskConfig
 router.get('/payment-config', ctrl.getPaymentConfig);
 router.get('/orders/track/:trackingToken', ctrl.getTrackedOrder);
 router.post('/orders/:orderId/review', optionalAuth, ctrl.createOrderReview);
-router.get('/orders/:orderId/checkout/complete', ctrl.completeCheckout);
+router.get('/orders/:orderId/checkout/complete', optionalAuth, ctrl.completeCheckout);
 router.get('/orders/:orderId/checkout/cancelled', ctrl.cancelCheckout);
 // H12: resume an interrupted pay_now checkout without placing a duplicate order.
 router.post('/orders/:orderId/checkout', authenticate, ctrl.resumeFoodCheckoutSession);

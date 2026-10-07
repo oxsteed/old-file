@@ -51,8 +51,16 @@ async function refreshAttachmentUrls(attachments) {
     if (!item || typeof item !== 'object' || typeof item.key !== 'string' || !item.key) {
       return item;
     }
+    // Ownership: keys must be simple storage keys (no path traversal,
+    // no absolute paths). The conversation participation check already
+    // verified the requester can access these messages.
+    const key = item.key.trim();
+    if (key.includes('..') || key.startsWith('/') || key.includes('\\')) {
+      logger.warn('Rejected suspicious attachment key', { key: key.slice(0, 50) });
+      return { ...item, url: null };
+    }
     try {
-      const url = await getSignedDownloadUrl(item.key, 3600);
+      const url = await getSignedDownloadUrl(key, 3600);
       return { ...item, url };
     } catch (err) {
       logger.warn('Failed to re-sign attachment URL', { err: err.message });

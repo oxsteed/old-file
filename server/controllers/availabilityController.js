@@ -97,6 +97,14 @@ exports.getAvailabilityBlocks = async (req, res, next) => {
     if (!isUuid(helper_id)) {
       throw new AppError('helper_id must be a valid UUID', 400, 'validation_failed', { helper_id: 'Must be a valid UUID' });
     }
+    // Unlisted helpers' availability is not public.
+    const { rows: listed } = await pool.query(
+      `SELECT is_listed FROM helper_profiles WHERE user_id = $1`,
+      [helper_id]
+    );
+    if (listed[0] && listed[0].is_listed === false) {
+      throw new AppError('Helper not found', 404, 'not_found');
+    }
     return queryAvailabilityBlocks(res, next, helper_id, req.query);
   } catch (err) {
     next(err);

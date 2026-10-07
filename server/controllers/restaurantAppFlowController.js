@@ -3573,6 +3573,13 @@ exports.createPosOrder = async (req, res, next) => {
       });
       const subtotal = normalized.reduce((sum, line) => sum + line.lineTotal, 0);
       const tip = parseCents(req.body.tipCents ?? req.body.tip_cents, 'tipCents');
+      // Cap tips at 100% of subtotal or $500, whichever is higher (prevents abuse)
+      const maxTip = Math.max(subtotal, 50000);
+      if (tip > maxTip) {
+        throw new AppError('Validation failed', 400, 'validation_failed', {
+          tipCents: `Tip cannot exceed ${maxTip / 100}`
+        });
+      }
       const { discountCents: discount, discountLines } = normalizeDiscountLines(req.body, subtotal, {
         allowManual: MANAGE_ROLES.has(restaurant.effective_role),
       });

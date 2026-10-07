@@ -1,6 +1,6 @@
 const AppError = require('../utils/appError');
 
-function envFlagEnabled(key, defaultEnabled = true) {
+function envFlagEnabled(key, defaultEnabled = false) {
   const raw = process.env[key];
   if (raw === undefined || raw === null || raw === '') return defaultEnabled;
 
@@ -10,7 +10,7 @@ function envFlagEnabled(key, defaultEnabled = true) {
   return defaultEnabled;
 }
 
-function requireFeatureEnabled(feature, envKey, defaultEnabled = true) {
+function requireFeatureEnabled(feature, envKey, defaultEnabled = false) {
   return function featureFlagMiddleware(req, res, next) {
     const enabled = envFlagEnabled(envKey, defaultEnabled);
     if (enabled) return next();

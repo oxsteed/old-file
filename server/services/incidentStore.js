@@ -178,6 +178,51 @@ async function resolveOpenIncidentsByDedupeKeys(dedupeKeys, resolutionNotes = nu
   }
 }
 
+
+async function addIncidentNote(incidentId, authorUserId, note) {
+  const text = String(note || '').trim().slice(0, 5000);
+  if (!text) return { persisted: false, error: 'Note text is required' };
+  const result = await db.query(
+    `INSERT INTO incident_notes (incident_id, author_user_id, note)
+     VALUES ($1, $2, $3) RETURNING id, incident_id, author_user_id, note, created_at`,
+    [incidentId, authorUserId || null, text]
+  );
+  return { persisted: true, note: result.rows[0] };
+}
+
+async function listIncidentNotes(incidentId, { limit = 100 } = {}) {
+  const result = await db.query(
+    `SELECT n.id, n.incident_id, n.author_user_id, n.note, n.created_at,
+            u.first_name, u.last_name
+       FROM incident_notes n
+       LEFT JOIN users u ON u.id = n.author_user_id
+      WHERE n.incident_id = $1
+      ORDER BY n.created_at DESC
+      LIMIT $2`,
+    [incidentId, Math.min(limit, 500)]
+  );
+  return result.rows;
+}
+
+async function getWatermark(consumer) {
+  const result = await db.query(
+    `SELECT consumer, watermark, updated_at FROM incident_watermarks WHERE consumer = $1`,
+    [String(consumer)]
+  );
+  return result.rows[0] || null;
+}
+
+async function setWatermark(consumer, watermark) {
+  const result = await db.query(
+    `INSERT INTO incident_watermarks (consumer, watermark, updated_at)
+     VALUES ($1, $2, NOW())
+     ON CONFLICT (consumer) DO UPDATE SET watermark = EXCLUDED.watermark, updated_at = NOW()
+     RETURNING consumer, watermark, updated_at`,
+    [String(consumer), watermark]
+  );
+  return result.rows[0];
+}
+
 module.exports = {
   DEFAULT_NOTIFICATION_COOLDOWN_MINUTES,
   INCIDENT_STATUSES,
@@ -187,4 +232,8 @@ module.exports = {
   acknowledgeIncident,
   resolveIncident,
   resolveOpenIncidentsByDedupeKeys,
+  addIncidentNote,
+  listIncidentNotes,
+  getWatermark,
+  setWatermark,
 };

@@ -5,6 +5,7 @@ const router = express.Router();
 const rateLimit = require('express-rate-limit');
 const { authenticate, optionalAuth } = require('../middleware/auth');
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
+const { requireDg1StepUp } = require('../middleware/requireDg1StepUp');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const { generalLimiter } = require('../middleware/rateLimiter');
@@ -98,12 +99,12 @@ router.delete('/account/locations/:locationId', authenticate, ctrl.deleteLocatio
 router.post('/requests', generalLimiter, limitDirectPhotoAttachments, quoteCtrl.createQuoteRequest);
 router.get('/requests/:id', authenticate, ctrl.getRequestDetail);
 router.get('/requests/:id/messages', authenticate, ctrl.getRequestMessages);
-router.post('/requests/:id/messages', authenticate, ctrl.addMessage);
-router.post('/requests/:id/accept', authenticate, ctrl.acceptRequest);
-router.post('/requests/:id/reject', authenticate, ctrl.rejectRequest);
-router.post('/requests/:id/schedule', authenticate, ctrl.scheduleRequest);
-router.post('/requests/:id/change', authenticate, ctrl.changeRequest);
-router.post('/requests/:id/proof', authenticate, ctrl.submitProof);
+router.post('/requests/:id/messages', authenticate, requireDg1StepUp, ctrl.addMessage);
+router.post('/requests/:id/accept', authenticate, requireDg1StepUp, ctrl.acceptRequest);
+router.post('/requests/:id/reject', authenticate, requireDg1StepUp, ctrl.rejectRequest);
+router.post('/requests/:id/schedule', authenticate, requireDg1StepUp, ctrl.scheduleRequest);
+router.post('/requests/:id/change', authenticate, requireDg1StepUp, ctrl.changeRequest);
+router.post('/requests/:id/proof', authenticate, requireDg1StepUp, ctrl.submitProof);
 router.post('/requests/:id/proof-confirm', authenticate, requireAdmin, requirePermission('manage_operations'), ctrl.confirmProof);
 
 router.get('/admin/dashboard', authenticate, requireAdmin, requirePermission('manage_operations'), ctrl.getAdminDashboard);

@@ -466,7 +466,7 @@ async function notifyPayoutOwner(payout, type, extra = {}) {
        WHERE fr.id = $1`,
       [payout.restaurant_id]
     );
-    const ownerId = rows[0]?.owner_user_id;
+    const ownerId = rows[0]?.user_id;
     if (!ownerId) return;
     await sendNotification({
       userId: ownerId,

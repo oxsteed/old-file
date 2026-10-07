@@ -2268,24 +2268,28 @@ exports.quoteOrder = async (req, res, next) => {
       throw new AppError('Validation failed', 400, 'validation_failed', { items: 'At least one item is required' });
     }
 
+    // Parse order source early: kiosk/in-store orders don't require public listing
+    const orderSourceEarly = normalizeString(req.body.orderSource || req.body.order_source, 24) || 'kiosk';
+    const isKioskOrder = ['kiosk', 'counter', 'tablet'].includes(orderSourceEarly);
     const { rows: restaurants } = await pool.query(
       `SELECT fr.*,
-              b.stripe_account_id AS business_stripe_account_id,
-              b.stripe_charges_enabled AS business_stripe_charges_enabled,
-              b.stripe_payouts_enabled AS business_stripe_payouts_enabled,
-              b.stripe_account_status AS business_stripe_account_status
+              COALESCE(rca.stripe_account_id, b.stripe_account_id) AS business_stripe_account_id,
+              COALESCE(rca.charges_enabled, b.stripe_charges_enabled) AS business_stripe_charges_enabled,
+              COALESCE(rca.payouts_enabled, b.stripe_payouts_enabled) AS business_stripe_payouts_enabled,
+              COALESCE(rca.account_status, b.stripe_account_status) AS business_stripe_account_status
          FROM food_restaurants fr
          LEFT JOIN businesses b ON b.id = fr.business_id
+         LEFT JOIN restaurant_connect_accounts rca ON rca.restaurant_id = fr.id
         WHERE fr.id = $1
           AND fr.status IN ('active','paused')
-                    AND fr.discovery_status = 'visible'
-                    AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
+          AND ($2 OR fr.discovery_status = 'visible')
+          AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
           AND b.is_active = TRUE
-          AND b.is_listed = TRUE
+          AND ($2 OR b.is_listed = TRUE)
           AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
           AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
           AND b.deleted_at IS NULL`,
-      [restaurantId]
+      [restaurantId, isKioskOrder]
     );
     const restaurant = restaurants[0];
     if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
@@ -2304,7 +2308,7 @@ exports.quoteOrder = async (req, res, next) => {
       );
     }
 
-    const orderSource = normalizeString(req.body.orderSource || req.body.order_source, 24) || 'kiosk';
+    const orderSource = orderSourceEarly;
     const fulfillmentType = normalizeString(req.body.fulfillmentType || req.body.fulfillment_type, 24) || 'pickup';
     if (!VALID_ORDER_SOURCES.has(orderSource)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { orderSource: 'Unsupported order source' });
@@ -2590,12 +2594,13 @@ exports.createOrder = async (req, res, next) => {
       // per-day queue number below cannot be duplicated under load.
     const { rows: restaurants } = await client.query(
         `SELECT fr.*,
-                b.stripe_account_id AS business_stripe_account_id,
-                b.stripe_charges_enabled AS business_stripe_charges_enabled,
-                b.stripe_payouts_enabled AS business_stripe_payouts_enabled,
-                b.stripe_account_status AS business_stripe_account_status
+                COALESCE(rca.stripe_account_id, b.stripe_account_id) AS business_stripe_account_id,
+                COALESCE(rca.charges_enabled, b.stripe_charges_enabled) AS business_stripe_charges_enabled,
+                COALESCE(rca.payouts_enabled, b.stripe_payouts_enabled) AS business_stripe_payouts_enabled,
+                COALESCE(rca.account_status, b.stripe_account_status) AS business_stripe_account_status
            FROM food_restaurants fr
            LEFT JOIN businesses b ON b.id = fr.business_id
+           LEFT JOIN restaurant_connect_accounts rca ON rca.restaurant_id = fr.id
           WHERE fr.id = $1
             AND fr.status = 'active'
                       AND fr.discovery_status = 'visible'
@@ -4384,6 +4389,14 @@ exports.completeCheckout = async (req, res, next) => {
     );
     const order = orderRows[0];
     if (!order) throw new AppError('Order not found', 404, 'order_not_found');
+
+    // Ownership check for authenticated callers: if the order belongs to a
+    // user, it must be theirs. Guest orders (no user_id) rely on the Stripe
+    // session verification below. This is a Stripe redirect return URL and
+    // must stay accessible to guests completing checkout.
+    if (req.user?.id && order.user_id && String(order.user_id) !== String(req.user.id)) {
+      throw new AppError('Payment does not belong to this order', 403, 'payment_order_mismatch');
+    }
 
     const connectedAccountId = normalizeString(
       order.business_stripe_account_id

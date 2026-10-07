@@ -6,10 +6,11 @@ const ACCESS_TOKEN_KEY = 'accessToken';
 const REFRESH_TOKEN_KEY = 'refreshToken';
 const USER_KEY = 'user';
 
-function setStoredAccessToken(token) {
-  if (token) {
-    localStorage.setItem(ACCESS_TOKEN_KEY, token);
-  }
+function setStoredAccessToken(_token) {
+  // The access token is set as an httpOnly cookie by the server on
+  // login/2FA/refresh. We intentionally do NOT store it in localStorage
+  // to prevent XSS theft. The cookie is sent automatically with requests.
+  // This helper is kept as a no-op for API compatibility.
 }
 
 // H8d: the refresh token is no longer persisted to localStorage on web. The

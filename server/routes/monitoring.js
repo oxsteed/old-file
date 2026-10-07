@@ -48,6 +48,8 @@ router.get('/incident-summary', monitoringController.getIncidentSummary);
 // operational alert details.
 router.post('/incidents/:incidentId/acknowledge', monitoringController.acknowledgeIncident);
 router.post('/incidents/:incidentId/resolve', monitoringController.resolveIncident);
+router.get('/incidents/:incidentId/notes', monitoringController.listIncidentNotes);
+router.post('/incidents/:incidentId/notes', monitoringController.addIncidentNote);
 
 // Authenticated operational release gate: audit integrity, backup freshness,
 // webhook/delivery failures, queue backlog, reconciliation backlog.

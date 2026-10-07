@@ -3,7 +3,7 @@ const path = require('path');
 const { authenticate } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
-const { uploadFile, getPublicUrl } = require('../utils/storage');
+const { uploadFile, getPublicUrl, getSignedDownloadUrl } = require('../utils/storage');
 const logger = require('../utils/logger');
 const AppError = require('../utils/appError');
 const { authenticatedLimiter } = require('../middleware/rateLimiter');
@@ -49,11 +49,24 @@ async function handleUpload(req, res, next, kind) {
       return res.status(503).json({ error: 'File storage is not configured' });
     }
 
+    // Visibility: private uploads get a signed URL (1h expiry), public
+    // uploads get a permanent public URL. Default to private for safety.
+    // Private purposes: message attachments, private documents, etc.
+    const visibility = String(req.body?.visibility || '').toLowerCase();
+    const purpose = cleanPurpose(req.body?.purpose);
+    const isPrivate = visibility === 'private' ||
+      ['message', 'attachment', 'private', 'document'].includes(purpose);
+    
+    const url = isPrivate
+      ? await getSignedDownloadUrl(key, 3600)
+      : getPublicUrl(key);
+
     return res.status(201).json({
-      url: getPublicUrl(key),
+      url,
       key,
       content_type: req.file.mimetype,
       size_bytes: req.file.size,
+      visibility: isPrivate ? 'private' : 'public',
     });
   } catch (error) {
     logger.error('upload route failed', { kind, error: error.message });

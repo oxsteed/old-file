@@ -724,3 +724,37 @@ exports.getReleaseGate = async (req, res, next) => {
 
   res.status(overall === 'fail' ? 503 : 200).json({ status: overall, checkedAt, signals });
 };
+
+exports.listIncidentNotes = async (req, res) => {
+  const incidentId = parseIncidentId(req.params.incidentId);
+  if (!incidentId) return sendValidationError(res, { incidentId: 'Must be a positive integer' });
+  try {
+    const notes = await incidentStore.listIncidentNotes(incidentId);
+    return res.json({ notes });
+  } catch (err) {
+    return sendError(res, 500, 'Failed to load incident notes');
+  }
+};
+
+exports.addIncidentNote = async (req, res) => {
+  const incidentId = parseIncidentId(req.params.incidentId);
+  if (!incidentId) return sendValidationError(res, { incidentId: 'Must be a positive integer' });
+  const note = req.body?.note == null ? '' : String(req.body.note).trim();
+  if (!note) return sendValidationError(res, { note: 'Note text is required' });
+  if (note.length > 5000) return sendValidationError(res, { note: 'Must be 5000 characters or fewer' });
+  try {
+    const result = await incidentStore.addIncidentNote(incidentId, req.user.id, note);
+    if (!result.persisted) return sendError(res, 400, result.error);
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'monitoring_incident_note_added',
+      targetType: 'incident_log',
+      targetId: incidentId,
+      description: 'Analyst note added to incident',
+      req,
+    });
+    return res.status(201).json({ note: result.note });
+  } catch (err) {
+    return sendError(res, 500, 'Failed to add incident note');
+  }
+};

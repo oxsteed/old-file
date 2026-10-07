@@ -26,11 +26,15 @@ export class SessionExpiredError extends Error {
  * @throws {NoTokenError} if token is missing
  */
 export function validateToken() {
+  // With httpOnly cookies, JS cannot read the access token. We check for
+  // a stored user instead, which indicates an active session. The actual
+  // token validation happens server-side via the cookie.
+  const user = localStorage.getItem('user');
   const token = localStorage.getItem('accessToken');
-  if (!token) {
+  if (!user && !token) {
     throw new NoTokenError();
   }
-  return token;
+  return token || 'cookie';
 }
 
 /**

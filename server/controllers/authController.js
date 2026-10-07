@@ -624,6 +624,16 @@ async function loginWith2FA(req, res, next) {
     // H8d: refresh token as httpOnly cookie for web clients (JSON fallback kept).
     setRefreshTokenCookie(res, tokens.refreshToken, { rememberMe });
 
+    // Set access token cookie (parity with password login).
+    const isProd = process.env.NODE_ENV === 'production';
+    res.cookie('oxsteed_access', tokens.accessToken, {
+      httpOnly: true,
+      sameSite: 'Lax',
+      secure: process.env.COOKIE_SECURE === 'true' || isProd,
+      path: '/',
+      maxAge: 15 * 60 * 1000,
+    });
+
     // Record last_login_at and login history (non-fatal)
     try {
       const loginIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
@@ -844,6 +854,15 @@ async function refreshToken(req, res, next) {
     );
     // H8d: rotate the httpOnly refresh cookie alongside the session.
     setRefreshTokenCookie(res, tokens.refreshToken);
+    // Set access token cookie (parity with login).
+    const isProdRefresh = process.env.NODE_ENV === 'production';
+    res.cookie('oxsteed_access', tokens.accessToken, {
+      httpOnly: true,
+      sameSite: 'Lax',
+      secure: process.env.COOKIE_SECURE === 'true' || isProdRefresh,
+      path: '/',
+      maxAge: 15 * 60 * 1000,
+    });
     res.json({
       success: true,
       user: formatAuthUser(user),

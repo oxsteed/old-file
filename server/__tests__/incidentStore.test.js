@@ -87,3 +87,36 @@ describe('incidentStore', () => {
     expect(mockQuery.mock.calls[1][1]).toEqual([7, 'Fixed', 'admin-id']);
   });
 });
+
+describe('incident investigation trail', () => {
+  test('addIncidentNote persists and listIncidentNotes returns them', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 1, incident_id: 5, author_user_id: 9, note: 'Looking into it', created_at: '2026-10-07' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, incident_id: 5, author_user_id: 9, note: 'Looking into it', created_at: '2026-10-07', first_name: 'A', last_name: 'B' }] });
+
+    const added = await incidentStore.addIncidentNote(5, 9, 'Looking into it');
+    expect(added.persisted).toBe(true);
+    expect(added.note.note).toBe('Looking into it');
+
+    const notes = await incidentStore.listIncidentNotes(5);
+    expect(notes).toHaveLength(1);
+    expect(notes[0].note).toBe('Looking into it');
+  });
+
+  test('addIncidentNote rejects empty note', async () => {
+    const result = await incidentStore.addIncidentNote(5, 9, '   ');
+    expect(result.persisted).toBe(false);
+  });
+
+  test('watermark round-trip', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ consumer: 'alerts', watermark: '2026-10-07', updated_at: '2026-10-07' }] })
+      .mockResolvedValueOnce({ rows: [{ consumer: 'alerts', watermark: '2026-10-07', updated_at: '2026-10-07' }] });
+
+    expect(await incidentStore.getWatermark('alerts')).toBeNull();
+    const set = await incidentStore.setWatermark('alerts', '2026-10-07');
+    expect(set.consumer).toBe('alerts');
+    expect(await incidentStore.getWatermark('alerts')).toBeTruthy();
+  });
+});

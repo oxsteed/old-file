@@ -736,7 +736,10 @@ exports.getHelperAvailableSlots = async (req, res, next) => {
     }
 
     const helperCheck = await pool.query(
-      'SELECT 1 FROM users u WHERE u.id = $1 AND u.deleted_at IS NULL',
+      `SELECT 1 FROM users u
+       LEFT JOIN helper_profiles hp ON hp.user_id = u.id
+       WHERE u.id = $1 AND u.deleted_at IS NULL
+       AND (hp.is_listed IS NULL OR hp.is_listed = true)`,
       [helperId]
     );
     if (!helperCheck.rows.length) {

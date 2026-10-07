@@ -266,6 +266,33 @@ router.put('/photo', helperOnly, generalLimiter, async (req, res) => {
       return res.status(400).json({ error: 'profile_photo_url or cover_photo_url required' });
     }
 
+    // Validate URLs: must be https, no javascript:/data: schemes, and
+    // should point to our storage or a reasonable image host. Reject
+    // obviously malicious URLs.
+    const validatePhotoUrl = (url, field) => {
+      if (!url) return null;
+      const trimmed = String(url).trim();
+      if (!trimmed) return null;
+      try {
+        const parsed = new URL(trimmed);
+        if (!['https:', 'http:'].includes(parsed.protocol)) {
+          throw new Error('Invalid protocol');
+        }
+        // Block localhost and private IPs to prevent SSRF.
+        const host = parsed.hostname.toLowerCase();
+        if (host === 'localhost' || host.startsWith('127.') || host.startsWith('10.') ||
+            host.startsWith('192.168.') || host.startsWith('169.254.')) {
+          throw new Error('Private host not allowed');
+        }
+        return trimmed.slice(0, 2048);
+      } catch (err) {
+        throw new AppError(`Invalid ${field}: must be a valid http(s) URL`, 400, 'validation_failed');
+      }
+    };
+
+    const validProfileUrl = validatePhotoUrl(profile_photo_url, 'profile_photo_url');
+    const validCoverUrl = validatePhotoUrl(cover_photo_url, 'cover_photo_url');
+
     await pool.query(
       `INSERT INTO helper_profiles (user_id, profile_photo_url, cover_photo_url, cover_image_url)
        VALUES ($1, $2, $3, $3)
@@ -274,14 +301,14 @@ router.put('/photo', helperOnly, generalLimiter, async (req, res) => {
          cover_photo_url   = COALESCE($3, helper_profiles.cover_photo_url),
          cover_image_url   = COALESCE($3, helper_profiles.cover_image_url),
          updated_at        = NOW()`,
-      [uid, profile_photo_url ?? null, cover_photo_url ?? null],
+      [uid, validProfileUrl, validCoverUrl],
     );
 
     // Keep users table in sync for avatar
-    if (profile_photo_url) {
+    if (validProfileUrl) {
       await pool.query(
         'UPDATE users SET profile_photo_url = $1, avatar_url = $1 WHERE id = $2',
-        [profile_photo_url, uid],
+        [validProfileUrl, uid],
       );
     }
 
