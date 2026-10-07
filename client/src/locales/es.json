@@ -13293,6 +13293,9 @@
     "viewBid": "Ver oferta"
   },
   "orders": {
+    "helpTitle": "Obtén ayuda con este pedido",
+    "helpSent": "Tu mensaje fue enviado. Nuestro equipo de soporte se pondrá en contacto contigo.",
+    "helpPlaceholder": "Describe el problema con tu pedido...",
     "title": "Historial de pedidos",
     "yourOrders": "Tus pedidos",
     "noOrders": "Aún no tienes pedidos.",

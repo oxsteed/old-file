@@ -13374,6 +13374,9 @@
     "viewBid": "View Bid"
   },
   "orders": {
+    "helpTitle": "Get help with this order",
+    "helpSent": "Your message was sent. Our support team will get back to you.",
+    "helpPlaceholder": "Describe the issue with your order...",
     "title": "Order History",
     "yourOrders": "Your Orders",
     "noOrders": "You have no orders yet.",
