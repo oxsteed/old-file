@@ -15,10 +15,22 @@ const updateInvoiceStatus = (invoiceId, status) =>
 const resendInvoiceEmail = (invoiceId) =>
   axios.post(`/invoices/${invoiceId}/resend-email`);
 
+const getInvoiceCreditEligibility = (invoiceId) =>
+  axios.get(`/invoices/${invoiceId}/credit-eligibility`);
+
+const payInvoiceWithCredit = (invoiceId, body) =>
+  axios.post(`/invoices/${invoiceId}/pay-with-credit`, body, {
+    headers: body?.idempotencyKey
+      ? { 'Idempotency-Key': body.idempotencyKey }
+      : undefined,
+  });
+
 export default {
   listInvoices,
   getInvoice,
   markInvoicePaid,
   updateInvoiceStatus,
   resendInvoiceEmail,
+  getInvoiceCreditEligibility,
+  payInvoiceWithCredit,
 };

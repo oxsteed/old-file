@@ -73,6 +73,18 @@ function businessInvoiceStripeConnectEnabled() {
   return process.env.BUSINESS_INVOICE_STRIPE_CONNECT_ENABLED === '1';
 }
 
+function businessInvoiceCreditPayEnabled() {
+  return process.env.BUSINESS_INVOICE_CREDIT_PAY_ENABLED === '1';
+}
+
+const PAYABLE_INVOICE_STATUSES = new Set(['sent', 'partial', 'overdue']);
+
+function invoiceBalanceCents(invoice) {
+  const totalCents = Math.round(Number(invoice.total || 0) * 100);
+  const paidCents = Math.round(Number(invoice.amount_paid || 0) * 100);
+  return Math.max(0, totalCents - paidCents);
+}
+
 module.exports = {
   round2,
   PUBLIC_VIEW_STATUSES,
@@ -82,4 +94,7 @@ module.exports = {
   isInvoicePayer,
   stripeInvoiceCurrency,
   businessInvoiceStripeConnectEnabled,
+  businessInvoiceCreditPayEnabled,
+  PAYABLE_INVOICE_STATUSES,
+  invoiceBalanceCents,
 };

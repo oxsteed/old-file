@@ -8,6 +8,8 @@ const logger = require('../utils/logger');
 const { logAdminAction } = require('../services/auditService');
 const { sendBusinessInvoiceEmail } = require('../utils/businessInvoiceEmail');
 const { listUserInvoices, getUserInvoiceById } = require('../services/userInvoicesService');
+const businessInvoiceCreditController = require('../controllers/businessInvoiceCreditController');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 
 // GET /api/invoices?view=issued|received|all
 router.get('/', authenticate, generalLimiter, async (req, res) => {
@@ -39,6 +41,15 @@ router.get('/', authenticate, generalLimiter, async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch invoices' });
   }
 });
+
+router.get('/:id/credit-eligibility', authenticate, generalLimiter, businessInvoiceCreditController.getInvoiceCreditEligibility);
+router.post(
+  '/:id/pay-with-credit',
+  authenticate,
+  generalLimiter,
+  rejectImpersonated,
+  businessInvoiceCreditController.payInvoiceWithOxsteedCredit,
+);
 
 router.get('/:id', authenticate, generalLimiter, async (req, res) => {
   try {

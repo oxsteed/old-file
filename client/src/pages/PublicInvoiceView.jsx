@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import PageMeta from '../components/PageMeta';
 import api from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
+import InvoiceOxsteedCreditPay, { InvoiceCreditPaySignInPrompt } from '../components/invoices/InvoiceOxsteedCreditPay';
 import '../styles/PublicInvoiceView.css';
 import { formatDate, formatMoney } from '../lib/format';
 
@@ -42,6 +44,7 @@ function getWebsiteHref(url) {
 function PublicInvoiceView() {
   const { token } = useParams();
   const { t } = useTranslation();
+  const { user } = useAuth();
 
   const [invoice, setInvoice] = useState(null);
   const [business, setBusiness] = useState(null);
@@ -80,8 +83,10 @@ function PublicInvoiceView() {
   const total = Number(invoice?.total || 0);
   const amountPaid = Number(invoice?.amount_paid || 0);
   const balanceDue = Math.max(total - amountPaid, 0);
+  const balanceDueCents = Math.round(balanceDue * 100);
   const status = invoice?.status || 'sent';
   const isPaid = status === 'paid';
+  const canTryCreditPay = user && !isPaid && ['sent', 'partial', 'overdue'].includes(status);
   const websiteHref = getWebsiteHref(business?.website);
 
   if (loading) {
@@ -273,8 +278,22 @@ function PublicInvoiceView() {
               ) : (
                 <>
                   <Mail size={34} aria-hidden="true" />
-                  <h2>{t('publicInvoice.payOfflineTitle')}</h2>
-                  <p>{t('publicInvoice.payOfflineBody', { business: business?.business_name || t('publicInvoice.fallbackBusiness') })}</p>
+                  <h2>{t('publicInvoice.payOfflineTitle', { defaultValue: 'Pay outside OxSteed' })}</h2>
+                  <p>{t('publicInvoice.payOfflineBody', {
+                    business: business?.business_name || t('publicInvoice.fallbackBusiness'),
+                    defaultValue: 'Use the payment method you agreed with {{business}} (bank transfer, cash, or other).',
+                  })}</p>
+                  {canTryCreditPay && invoice?.id ? (
+                    <InvoiceOxsteedCreditPay
+                      invoiceId={String(invoice.id)}
+                      balanceCents={balanceDueCents}
+                      onPaid={() => {
+                        setInvoice((prev) => (prev ? { ...prev, status: 'paid', amount_paid: prev.total } : prev));
+                      }}
+                    />
+                  ) : !user && !isPaid ? (
+                    <InvoiceCreditPaySignInPrompt className="piv-credit-signin" />
+                  ) : null}
                 </>
               )}
             </section>

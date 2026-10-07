@@ -471,6 +471,35 @@
   }
 }
 
+.invoice-credit-pay {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+
+.invoice-credit-pay-btn {
+  width: 100%;
+  justify-content: center;
+  gap: 8px;
+}
+
+.invoice-credit-pay-note {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.piv-credit-signin {
+  margin-top: 12px;
+}
+
+.invoice-credit-pay .spin {
+  animation: piv-spin 0.8s linear infinite;
+}
+
 @media (max-width: 620px) {
   .piv-page {
     padding: 18px 12px 32px;

@@ -22,6 +22,7 @@ import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import { useAuth } from '../hooks/useAuth';
 import invoicesApi from '../api/invoices';
+import InvoiceOxsteedCreditPay from '../components/invoices/InvoiceOxsteedCreditPay';
 import './InvoicesPage.css';
 
 function centsToMoney(cents, language) {
@@ -71,6 +72,14 @@ function invoiceAmount(invoice) {
   if (invoice.total_cents !== undefined) return Number(invoice.total_cents || 0);
   if (invoice.total !== undefined) return Math.round(Number(invoice.total || 0) * 100);
   return 0;
+}
+
+function invoiceBalanceCents(invoice) {
+  const totalCents = invoiceAmount(invoice);
+  const paidCents = invoice.amount_paid !== undefined && invoice.amount_paid !== null
+    ? Math.round(Number(invoice.amount_paid) * 100)
+    : 0;
+  return Math.max(0, totalCents - paidCents);
 }
 
 export default function InvoicesPage() {
@@ -310,8 +319,12 @@ export default function InvoicesPage() {
             notSetText={notSetText}
             notListedText={notListedText}
             resending={resendingEmail === selectedInvoice.id}
-            onClose={() => setSelectedInvoice(null)}
+            onClose={() => {
+              setSelectedInvoice(null);
+              loadInvoices(view);
+            }}
             onResend={() => handleResendEmail(selectedInvoice.id)}
+            onPaid={() => loadInvoices(view)}
           />
         )}
       </div>
@@ -386,8 +399,13 @@ function GuideItem({ icon: Icon, title, text }) {
   );
 }
 
-function InvoiceDetailModal({ invoice, language, notSetText, notListedText, resending, onClose, onResend }) {
+function InvoiceDetailModal({ invoice, language, notSetText, notListedText, resending, onClose, onResend, onPaid }) {
   const { t } = useTranslation();
+  const payableBusiness =
+    invoice.perspective === 'received'
+    && invoice.invoice_kind === 'business'
+    && !['paid', 'cancelled', 'draft'].includes(String(invoice.status || '').toLowerCase());
+  const payInvoiceId = invoice.source_id != null ? String(invoice.source_id) : String(invoice.id);
   return (
     <div className="invoices-modal-overlay" onClick={onClose}>
       <div className="invoices-modal" onClick={(event) => event.stopPropagation()}>
@@ -417,6 +435,15 @@ function InvoiceDetailModal({ invoice, language, notSetText, notListedText, rese
           <Detail label={t('invoices.consultant', { defaultValue: 'Consultant' })} value={invoice.consultant_name || notListedText} />
           <Detail label={t('invoices.status', { defaultValue: 'Status' })} value={statusLabel(invoice.status, t)} />
         </div>
+
+        {payableBusiness && (
+          <InvoiceOxsteedCreditPay
+            invoiceId={payInvoiceId}
+            balanceCents={invoiceBalanceCents(invoice)}
+            onPaid={onPaid}
+            className="invoices-modal-credit-pay"
+          />
+        )}
 
         <div className="invoices-modal-footer">
           <button type="button" className="invoices-btn invoices-btn-primary" onClick={onResend} disabled={resending}>
