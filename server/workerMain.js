@@ -38,6 +38,7 @@ const {
 } = require('./workers/deliveryTrackingWorkers');
 const { clearStaleAvailableNow } = require('./workers/availabilityWorkers');
 const { publishDueGuideVideos } = require('./controllers/learnController');
+const { expireVortexTokens } = require('./workers/vortexTokenWorkers');
 
 // Map queue to processor function
 const processors = {
@@ -210,6 +211,8 @@ const TRACKING_WORKER_SCHEDULE = [
   ['statementIssuanceCycle',
     (options) => pollIssuanceCycle({ workerId: options.workerId, maxJobsPerProduct: options.maxJobsPerProduct }),
     5 * 60 * 1000, { workerId: 'worker-main', maxJobsPerProduct: 50 }],
+  // Expire unused legacy Vortex invite tokens past their expires_at, hourly.
+  ['expireVortexTokens', expireVortexTokens, 60 * 60 * 1000, { limit: 500 }],
 ];
 
 /**

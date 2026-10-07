@@ -8223,7 +8223,11 @@
     "btnRotateCode": "تدوير",
     "confirmRotateCode": "تدوير هذا الرمز؟ سيتوقف الرمز القديم عن العمل فورًا.",
     "toastCodeRotated": "تم تدوير رمز الوصول",
-    "toastCodeRotateFail": "تعذر تدوير رمز الوصول"
+    "toastCodeRotateFail": "تعذر تدوير رمز الوصول",
+    "showOnceTitle": "رمز الوصول الجديد",
+    "showOnceDesc": "انسخ هذا الرمز الآن. لأسباب أمنية، لن يظهر مرة أخرى.",
+    "showOnceDismiss": "لقد نسخته",
+    "codeHiddenTitle": "مخفي لأسباب أمنية. قم بالتدوير لإصدار رمز جديد."
   },
   "plans": {
     "free": "حر",
@@ -30174,6 +30178,7 @@
   "inventoryHelp": {
     "managerCreateCodesTitle": "إنشاء رموز انضمام Vortex",
     "managerCreateCodesBody": "ينشئ أصحاب الأعمال رموزًا خاصة بكل دور للفريق في Business Hub. إذا كنت تدير فريقًا وتحتاج إلى إضافة شخص ما، فاطلب رمزًا من المالك.",
-    "managerTeamAccessStep1": "اطلب من صاحب العمل رمزًا للدور الصحيح."
+    "managerTeamAccessStep1": "اطلب من صاحب العمل رمزًا للدور الصحيح.",
+    "managerTroubleshootJoin": "إذا تعذر على أعضاء الفريق الانضمام، اطلب من مالك النشاط التجاري رمز Vortex جديداً للدور الصحيح."
   }
 }

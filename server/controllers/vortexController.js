@@ -6,6 +6,10 @@ const crypto = require('crypto');
 const pool   = require('../db');
 const logger = require('../utils/logger');
 
+// P1-b: token failures return the same generic 404 as access codes — never
+// leak whether a token exists, is expired, was used, or was revoked.
+const TOKEN_UNAVAILABLE = 'This token is not valid or is no longer available.';
+
 // ── ownership guard ───────────────────────────────────────────────────────────
 async function ownedBusiness(userId, bizId) {
   const { rows } = await pool.query(
@@ -210,17 +214,17 @@ async function redeemToken(req, res) {
 
     if (!record) {
       await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Token is invalid, already used, or has been revoked' });
+      return res.status(404).json({ error: TOKEN_UNAVAILABLE, code: 'token_unavailable' });
     }
 
     if (new Date(record.expires_at) < new Date()) {
       await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Token has expired - ask the business owner for a new one' });
+      return res.status(404).json({ error: TOKEN_UNAVAILABLE, code: 'token_unavailable' });
     }
 
     if (!record.is_active) {
       await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'This business is no longer active' });
+      return res.status(404).json({ error: TOKEN_UNAVAILABLE, code: 'token_unavailable' });
     }
 
     if (record.owner_id === req.user.id) {

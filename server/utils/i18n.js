@@ -432,6 +432,22 @@ const T = {
       ar: 'لم تتم الموافقة على طلبك للانضمام إلى النشاط التجاري.',
     },
   },
+  vortex_membership_removed: {
+    title: {
+      en: 'Removed from team',
+      fr: "Retiré de l'équipe",
+      es: 'Eliminado del equipo',
+      ht: 'Yo retire ou nan ekip la',
+      ar: 'تمت إزالتك من الفريق',
+    },
+    body: {
+      en: 'You were removed from the business team.',
+      fr: "Vous avez été retiré de l'équipe de l'entreprise.",
+      es: 'Fuiste eliminado del equipo del negocio.',
+      ht: 'Yo retire ou nan ekip biznis la.',
+      ar: 'تمت إزالتك من فريق النشاط التجاري.',
+    },
+  },
   booking_cancelled: {
     title: {
       en: 'Booking Cancelled',

@@ -596,6 +596,8 @@ exports.approveMembership = async (req, res, next) => {
 
 /**
  * POST /api/businesses/:businessId/memberships/:membershipId/deny
+ * Deny a PENDING join request. Active members are NOT affected — use the
+ * remove endpoint to kick an active member.
  */
 exports.denyMembership = async (req, res, next) => {
   try {
@@ -606,12 +608,12 @@ exports.denyMembership = async (req, res, next) => {
     const { rows, rowCount } = await pool.query(
       `UPDATE business_members
           SET status = 'revoked'
-        WHERE id = $1 AND business_id = $2 AND status IN ('pending','active')
+        WHERE id = $1 AND business_id = $2 AND status = 'pending'
         RETURNING id, member_id`,
       [mid, req.business.id]
     );
     if (rowCount === 0) {
-      return sendError(res, 404, 'Membership not found.', 'membership_not_found');
+      return sendError(res, 404, 'Pending membership not found.', 'membership_not_found');
     }
     permissionsService.invalidateCache(req.business.id, rows[0].member_id);
     await logBusinessAction(req, {
@@ -628,6 +630,54 @@ exports.denyMembership = async (req, res, next) => {
       type: 'vortex_membership_denied',
       title: 'Request denied',
       body: `Your request to join "${req.business.business_name}" was not approved.`,
+      data: { business_id: req.business.id, membership_id: mid },
+    }).catch(() => {});
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * POST /api/businesses/:businessId/memberships/:membershipId/remove
+ * Remove (kick) an ACTIVE member. Pending requests use the deny endpoint.
+ * The owner cannot remove themselves.
+ */
+exports.removeMembership = async (req, res, next) => {
+  try {
+    const mid = parseInt(req.params.membershipId, 10);
+    if (!Number.isFinite(mid)) {
+      return sendError(res, 400, 'Invalid membership id.', 'invalid_membership_id');
+    }
+    const { rows, rowCount } = await pool.query(
+      `SELECT id, member_id, role FROM business_members
+        WHERE id = $1 AND business_id = $2 AND status = 'active'`,
+      [mid, req.business.id]
+    );
+    if (rowCount === 0) {
+      return sendError(res, 404, 'Active membership not found.', 'membership_not_found');
+    }
+    if (rows[0].member_id === req.user.id) {
+      return sendError(res, 400, 'You cannot remove yourself.', 'cannot_remove_self');
+    }
+    await pool.query(
+      `UPDATE business_members SET status = 'revoked' WHERE id = $1`,
+      [mid]
+    );
+    permissionsService.invalidateCache(req.business.id, rows[0].member_id);
+    await logBusinessAction(req, {
+      action: 'business.member.removed',
+      target_type: 'business_member',
+      target_id: mid,
+      after_state: { status: 'revoked', role: rows[0].role },
+    });
+    res.json({ data: { ok: true } });
+
+    // Fire-and-forget: notify the removed member.
+    sendNotification({
+      userId: rows[0].member_id,
+      type: 'vortex_membership_removed',
+      title: 'Removed from team',
+      body: `You were removed from the team of "${req.business.business_name}".`,
       data: { business_id: req.business.id, membership_id: mid },
     }).catch(() => {});
   } catch (err) {

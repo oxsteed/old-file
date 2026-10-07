@@ -313,7 +313,7 @@ function getGuide(key, t) {
       step[0] === 'Create Vortex join codes'
         ? [
           t('inventoryHelp.managerCreateCodesTitle', { defaultValue: 'Create Vortex join codes' }),
-          t('inventoryHelp.managerCreateCodesBody', { defaultValue: 'Owners and managers create role-specific codes for employees who need access to restaurant apps.' }),
+          t('inventoryHelp.managerCreateCodesBody', { defaultValue: 'Owners create role-specific codes for employees who need access to restaurant apps. Managers can create codes for non-manager roles.' }),
           KeyRound,
         ]
         : step
@@ -323,10 +323,15 @@ function getGuide(key, t) {
         ? [
           wf[0],
           wf[1],
-          [t('inventoryHelp.managerTeamAccessStep1', { defaultValue: 'Create a code for the correct role.' }), ...wf[2].slice(1)],
+          [t('inventoryHelp.managerTeamAccessStep1', { defaultValue: 'Ask the owner for a code, or create one for a non-manager role.' }), ...wf[2].slice(1)],
           wf[3],
         ]
         : wf
+    )),
+    troubleshooting: guide.troubleshooting.map((rule) => (
+      rule === 'If team members cannot join, create a fresh Vortex code for the correct role.'
+        ? t('inventoryHelp.managerTroubleshootJoin', { defaultValue: 'If team members cannot join, ask the business owner for a fresh Vortex code for the correct role.' })
+        : rule
     )),
   };
 }

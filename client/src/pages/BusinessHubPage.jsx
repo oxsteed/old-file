@@ -50,7 +50,7 @@ import {
   listInvoices, createInvoice, updateInvoice, markInvoicePaid, deleteInvoice, sendInvoice,
   getTax, refreshTax, markTaxPaid,
   listGoals, createGoal, updateGoal, deleteGoal,
-  listMembers, inviteMember, revokeMember,
+  inviteMember, revokeMember,
   listMyInvitations, acceptInvitation, declineInvitation,
   listManagedBusinesses,
   listVortexTokens, generateVortexToken, revokeVortexToken,
@@ -77,7 +77,9 @@ import {
   rotateAccessCode,
   approveMembership,
   denyMembership,
+  removeMembership,
   changeMembershipRole,
+  listMemberships,
 } from '../api/vortex';
 import { getPropertyOperationsWorkspace } from '../api/propertyOperations';
 import { getTradesOperationsWorkspace } from '../api/tradesOperations';
@@ -230,6 +232,7 @@ function BusinessHubInner() {
   const [accessCodes, setAccessCodes]     = useState([]);
   const [accessCodeForm, setAccessCodeForm] = useState({ role: 'employee', label: '', requires_approval: true, max_uses: '', expires_in_days: '' });
   const [generatingAccessCode, setGeneratingAccessCode] = useState(false);
+  const [showOnceCode, setShowOnceCode] = useState(null); // { code, label, role } — shown once after create/rotate
 
   // profile tab
   const [profileForm, setProfileForm] = useState(null);   // null = not loaded
@@ -527,13 +530,14 @@ function BusinessHubInner() {
     setMembersLoading(true);
     try {
       const [m, inv, managed, tokens, codes] = await Promise.all([
-        listMembers(bizId),
+        listMemberships(bizId),
         listMyInvitations(),
         listManagedBusinesses(),
         LAUNCH_VISIBILITY.businessHubVortexAccess ? listVortexTokens(bizId).catch(() => []) : Promise.resolve([]),
         LAUNCH_VISIBILITY.businessHubVortexAccess ? listAccessCodes(bizId).catch(() => []) : Promise.resolve([]),
       ]);
-      setMembers(m);
+      // listMemberships returns user_email; the team table expects member_email.
+      setMembers(m.map((row) => ({ ...row, member_email: row.member_email || row.user_email })));
       setInvitations(inv);
       setManagedBiz(managed);
       setVortexTokens(tokens);
@@ -910,12 +914,21 @@ function BusinessHubInner() {
 
   async function handleRevokeMember(member) {
     const isCodePending = member.status === 'pending' && member.member_id;
-    const label = member.status === 'pending' && !isCodePending
-      ? t('businessHub.confirmCancelInvite', { email: member.invite_email })
-      : t('businessHub.confirmRemoveMember', { name: member.first_name || member.invite_email });
+    const isActive = member.status === 'active';
+    const label = isActive
+      ? t('businessHub.confirmRemoveMember', { name: member.first_name || member.invite_email })
+      : t('businessHub.confirmCancelInvite', { email: member.invite_email });
     if (!window.confirm(label)) return;
     try {
-      await revokeMember(bizId, member.id);
+      // Active members are kicked via the dedicated remove endpoint (deny is
+      // pending-only). Pending email invites cancel via revokeMember.
+      if (isActive) {
+        await removeMembership(bizId, member.id);
+      } else if (!isCodePending) {
+        await revokeMember(bizId, member.id);
+      } else {
+        await denyMembership(bizId, member.id);
+      }
       toast.success(t('businessHub.toastMemberRemoved'));
       await loadTeam();
     } catch { toast.error(t('businessHub.toastMemberRemoveFail')); }
@@ -996,13 +1009,17 @@ function BusinessHubInner() {
       const label = accessCodeForm.label.trim();
       const maxUses = parseInt(accessCodeForm.max_uses, 10);
       const expiresInDays = parseInt(accessCodeForm.expires_in_days, 10);
-      await createAccessCode(bizId, {
+      const created = await createAccessCode(bizId, {
         role: accessCodeForm.role,
         label: label || null,
         requires_approval: accessCodeForm.requires_approval,
         max_uses: Number.isFinite(maxUses) && maxUses >= 1 ? maxUses : undefined,
         expires_in_days: Number.isFinite(expiresInDays) && expiresInDays >= 1 ? expiresInDays : undefined,
       });
+      // Show-once: the server returns the full secret exactly once here.
+      if (created?.code) {
+        setShowOnceCode({ code: created.code, label: created.label, role: created.role });
+      }
       toast.success(t('businessHub.toastAccessCodeCreated'));
       setAccessCodeForm(current => ({ ...current, label: '', max_uses: '', expires_in_days: '' }));
       const codes = await listAccessCodes(bizId).catch(() => []);
@@ -1030,7 +1047,11 @@ function BusinessHubInner() {
     if (!bizId) return;
     if (!window.confirm(t('businessHub.confirmRotateCode'))) return;
     try {
-      await rotateAccessCode(bizId, codeId);
+      const rotated = await rotateAccessCode(bizId, codeId);
+      // Show-once: the server returns the new secret exactly once here.
+      if (rotated?.code) {
+        setShowOnceCode({ code: rotated.code, label: rotated.label, role: rotated.role });
+      }
       toast.success(t('businessHub.toastCodeRotated'));
       const codes = await listAccessCodes(bizId).catch(() => []);
       setAccessCodes(codes);
@@ -2075,6 +2096,8 @@ function BusinessHubInner() {
                 isOwner={currentRole === 'owner'}
                 onAccept={handleAcceptInvitation}
                 onDecline={handleDeclineInvitation}
+                showOnceCode={showOnceCode}
+                onDismissShowOnceCode={() => setShowOnceCode(null)}
               />
             )}
 
@@ -3162,6 +3185,7 @@ function TeamTab({
   onInvite, onOpenHiring, businessId,
   onRevoke, onAccept, onDecline, onApprove, onDeny, onChangeRole,
   isOwner = false,
+  showOnceCode, onDismissShowOnceCode,
 }) {
   const { t } = useTranslation();
   const roleLabel = (role) => {
@@ -3314,7 +3338,13 @@ function TeamTab({
             {accessCodes.map(code => (
               <div key={code.id} className={`bh-vortex-token-row ${code.is_active ? 'bh-vortex-active' : 'bh-vortex-revoked'}`}>
                 <div className="bh-vortex-token-info">
-                  <code className="bh-vortex-code bh-vortex-code-strong">{code.code}</code>
+                  {code.code ? (
+                    <code className="bh-vortex-code bh-vortex-code-strong">{code.code}</code>
+                  ) : (
+                    <code className="bh-vortex-code bh-vortex-code--hidden" title={t('businessHub.codeHiddenTitle')}>
+                      ••••••••••
+                    </code>
+                  )}
                   <span className={`bh-role-badge bh-role-${code.role}`}>{roleLabel(code.role)}</span>
                   {code.label && <span className="bh-vortex-used-by">{code.label}</span>}
                   <span className="bh-vortex-status" style={{ color: code.is_active ? '#4ade80' : '#ef4444' }}>
@@ -3330,13 +3360,15 @@ function TeamTab({
                 <div className="bh-vortex-token-actions">
                   {code.is_active && (
                     <>
-                      <button
-                        className="bh-btn"
-                        onClick={() => copyToken(code.code, code.id, 'access')}
-                        style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
-                      >
-                        {copiedAccessCodeId === code.id ? t('businessHub.btnCopied') : t('businessHub.btnCopy')}
-                      </button>
+                      {code.code && (
+                        <button
+                          className="bh-btn"
+                          onClick={() => copyToken(code.code, code.id, 'access')}
+                          style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
+                        >
+                          {copiedAccessCodeId === code.id ? t('businessHub.btnCopied') : t('businessHub.btnCopy')}
+                        </button>
+                      )}
                       <button
                         className="bh-btn"
                         onClick={() => onRotateAccessCode(code.id)}
@@ -3353,6 +3385,39 @@ function TeamTab({
           </div>
         )}
           </div>
+
+          {/* ── Show-once: new/rotated code secret (never shown again) ──────── */}
+          {showOnceCode && (
+            <div className="bh-modal-overlay" onClick={e => e.target === e.currentTarget && onDismissShowOnceCode()}>
+              <div className="bh-modal">
+                <h2>{t('businessHub.showOnceTitle')}</h2>
+                <p>{t('businessHub.showOnceDesc')}</p>
+                <div className="bh-show-once-code-row">
+                  <code className="bh-vortex-code bh-vortex-code-strong bh-show-once-code">{showOnceCode.code}</code>
+                  <button
+                    className="bh-btn primary"
+                    onClick={() => {
+                      navigator.clipboard.writeText(showOnceCode.code).then(() => {
+                        toast.success(t('businessHub.btnCopied'));
+                      }).catch(() => {});
+                    }}
+                  >
+                    {t('businessHub.btnCopy')}
+                  </button>
+                </div>
+                {(showOnceCode.label || showOnceCode.role) && (
+                  <p className="bh-show-once-meta">
+                    {[showOnceCode.label, showOnceCode.role].filter(Boolean).join(' · ')}
+                  </p>
+                )}
+                <div className="bh-modal-actions">
+                  <button className="bh-btn primary" onClick={onDismissShowOnceCode}>
+                    {t('businessHub.showOnceDismiss')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ── Legacy Vortex token generator ───────────────────────────────── */}
           <div className="bh-team-section">
@@ -3525,13 +3590,14 @@ function TeamTab({
                         <button className="bh-btn bh-btn-danger-sm" onClick={() => onDeny(m)}>
                           {t('businessHub.btnDeny')}
                         </button>
-                        <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevoke(m)}>
-                          {t('businessHub.btnCancelInvite')}
-                        </button>
                       </div>
+                    ) : m.status === 'pending' ? (
+                      <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevoke(m)}>
+                        {t('businessHub.btnCancelInvite')}
+                      </button>
                     ) : (
                       <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevoke(m)}>
-                        {m.status === 'pending' ? t('businessHub.btnCancelInvite') : t('businessHub.btnRemoveMember')}
+                        {t('businessHub.btnRemoveMember')}
                       </button>
                     )}
                   </td>

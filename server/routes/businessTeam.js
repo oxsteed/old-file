@@ -76,6 +76,16 @@ router.post(
   access.denyMembership
 );
 
+router.post(
+  '/:businessId/memberships/:membershipId/remove',
+  authenticate,
+  rejectImpersonated,
+  requireVortexEnabled,
+  requireBusinessAccess({ minRole: 'manager' }),
+  requirePermission('team.remove_member'),
+  access.removeMembership
+);
+
 // ── Catalog (for UI: roles + permission groups) ─────────────────────────────
 router.get(
   '/:businessId/team/catalog',

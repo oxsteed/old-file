@@ -8310,7 +8310,11 @@
     "btnRotateCode": "Chanje",
     "confirmRotateCode": "Chanje kòd sa a? Ansyen kòd la ap sispann mache touswit.",
     "toastCodeRotated": "Kòd aksè a chanje",
-    "toastCodeRotateFail": "Pa t kapab chanje kòd aksè a"
+    "toastCodeRotateFail": "Pa t kapab chanje kòd aksè a",
+    "showOnceTitle": "Nouvo kòd aksè ou",
+    "showOnceDesc": "Kopye kòd sa a kounye a. Pou sekirite, li pap parèt ankò.",
+    "showOnceDismiss": "Mwen kopye li",
+    "codeHiddenTitle": "Kache pou sekirite. Chanje pou bay yon nouvo kòd."
   },
   "plans": {
     "free": "Gratis",
@@ -30163,6 +30167,7 @@
   "inventoryHelp": {
     "managerCreateCodesTitle": "Kreye kòd aksè Vortex",
     "managerCreateCodesBody": "Pwopriyetè biznis yo kreye kòd espesyal pou chak wòl pou ekip la nan Business Hub. Si w ap jere yon ekip epi ou bezwen ajoute yon moun, mande pwopriyetè a yon kòd.",
-    "managerTeamAccessStep1": "Mande pwopriyetè biznis la yon kòd pou bon wòl la."
+    "managerTeamAccessStep1": "Mande pwopriyetè biznis la yon kòd pou bon wòl la.",
+    "managerTroubleshootJoin": "Si manm ekip yo pa ka rantre, mande pwopriyetè biznis la yon nouvo kòd Vortex pou bon wòl la."
   }
 }

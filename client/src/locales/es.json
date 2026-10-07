@@ -8223,7 +8223,11 @@
     "btnRotateCode": "Rotar",
     "confirmRotateCode": "¿Rotar este código? El código anterior dejará de funcionar de inmediato.",
     "toastCodeRotated": "Código de acceso rotado",
-    "toastCodeRotateFail": "No se pudo rotar el código de acceso"
+    "toastCodeRotateFail": "No se pudo rotar el código de acceso",
+    "showOnceTitle": "Tu nuevo código de acceso",
+    "showOnceDesc": "Copia este código ahora. Por seguridad, no se mostrará de nuevo.",
+    "showOnceDismiss": "Ya lo copié",
+    "codeHiddenTitle": "Oculto por seguridad. Rota para emitir un código nuevo."
   },
   "plans": {
     "free": "Gratis",
@@ -30163,6 +30167,7 @@
   "inventoryHelp": {
     "managerCreateCodesTitle": "Crear códigos de acceso de Vortex",
     "managerCreateCodesBody": "Los propietarios de negocios crean códigos específicos por rol para el equipo en el Business Hub. Si gestionas un equipo y necesitas agregar a alguien, pide un código al propietario.",
-    "managerTeamAccessStep1": "Pide al propietario del negocio un código para el rol correcto."
+    "managerTeamAccessStep1": "Pide al propietario del negocio un código para el rol correcto.",
+    "managerTroubleshootJoin": "Si los miembros del equipo no pueden unirse, pida al propietario del negocio un nuevo código Vortex para el rol correcto."
   }
 }

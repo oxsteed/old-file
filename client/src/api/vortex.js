@@ -56,5 +56,8 @@ export const approveMembership = (businessId, membershipId) =>
 export const denyMembership = (businessId, membershipId) =>
   api.post(`/businesses/${businessId}/memberships/${membershipId}/deny`).then((r) => r.data?.data);
 
+export const removeMembership = (businessId, membershipId) =>
+  api.post(`/businesses/${businessId}/memberships/${membershipId}/remove`).then((r) => r.data?.data);
+
 export const getTeamCatalog = (businessId) =>
   api.get(`/businesses/${businessId}/team/catalog`).then((r) => r.data?.data);

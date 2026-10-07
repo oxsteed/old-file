@@ -8223,7 +8223,11 @@
     "btnRotateCode": "Renouveler",
     "confirmRotateCode": "Renouveler ce code ? L’ancien code cessera immédiatement de fonctionner.",
     "toastCodeRotated": "Code d’accès renouvelé",
-    "toastCodeRotateFail": "Échec du renouvellement du code"
+    "toastCodeRotateFail": "Échec du renouvellement du code",
+    "showOnceTitle": "Votre nouveau code d’accès",
+    "showOnceDesc": "Copiez ce code maintenant. Par sécurité, il ne sera plus affiché.",
+    "showOnceDismiss": "Je l’ai copié",
+    "codeHiddenTitle": "Masqué par sécurité. Renouvelez pour émettre un nouveau code."
   },
   "plans": {
     "free": "Gratuit",
@@ -30163,6 +30167,7 @@
   "inventoryHelp": {
     "managerCreateCodesTitle": "Créer des codes d’accès Vortex",
     "managerCreateCodesBody": "Les propriétaires d’entreprise créent des codes spécifiques à chaque rôle pour l’équipe dans le Business Hub. Si vous gérez une équipe et devez ajouter quelqu’un, demandez un code au propriétaire.",
-    "managerTeamAccessStep1": "Demandez au propriétaire de l’entreprise un code pour le bon rôle."
+    "managerTeamAccessStep1": "Demandez au propriétaire de l’entreprise un code pour le bon rôle.",
+    "managerTroubleshootJoin": "Si les membres de l’équipe ne peuvent pas rejoindre, demandez au propriétaire un nouveau code Vortex pour le bon rôle."
   }
 }

@@ -8223,7 +8223,11 @@
     "btnRotateCode": "Rotate",
     "confirmRotateCode": "Rotate this code? The old code will stop working immediately.",
     "toastCodeRotated": "Access code rotated",
-    "toastCodeRotateFail": "Failed to rotate access code"
+    "toastCodeRotateFail": "Failed to rotate access code",
+    "showOnceTitle": "Your new access code",
+    "showOnceDesc": "Copy this code now. For security, it will not be shown again.",
+    "showOnceDismiss": "I have copied it",
+    "codeHiddenTitle": "Hidden for security. Rotate to issue a new code."
   },
   "plans": {
     "free": "Free",
@@ -30163,6 +30167,7 @@
   "inventoryHelp": {
     "managerCreateCodesTitle": "Create Vortex join codes",
     "managerCreateCodesBody": "Business owners create role-specific codes for the team in the Business Hub. If you manage a team and need to add someone, ask the owner for a code.",
-    "managerTeamAccessStep1": "Ask the business owner for a code for the correct role."
+    "managerTeamAccessStep1": "Ask the business owner for a code for the correct role.",
+    "managerTroubleshootJoin": "If team members cannot join, ask the business owner for a fresh Vortex code for the correct role."
   }
 }
