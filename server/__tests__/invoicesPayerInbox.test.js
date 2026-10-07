@@ -31,17 +31,19 @@ describe('GET /api/invoices payer inbox', () => {
     mockQuery
       .mockResolvedValueOnce({
         rows: [{
-          id: 12,
+          source_id: 12,
+          invoice_kind: 'business',
           invoice_number: 'INV-2026-0001',
           client_email: 'payer@example.com',
           status: 'sent',
           amount_cents: 5000,
-          business_name: 'Acme LLC',
+          counterparty_name: 'Acme LLC',
           perspective: 'received',
           public_token: 'tok-abc',
+          created_at: '2026-01-01T00:00:00.000Z',
         }],
       })
-      .mockResolvedValueOnce({ rows: [{ total: 1 }] });
+      .mockResolvedValueOnce({ rows: [] });
 
     const res = await request(buildApp()).get('/api/invoices?view=received');
 
@@ -50,7 +52,7 @@ describe('GET /api/invoices payer inbox', () => {
     expect(res.body.invoices[0]).toMatchObject({
       perspective: 'received',
       public_token: 'tok-abc',
+      id: '12',
     });
-    expect(mockQuery.mock.calls[0][0]).toMatch(/client_email/);
   });
 });

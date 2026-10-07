@@ -54,7 +54,7 @@ const { startProfileVisibilityNotificationRetryJob } = require('../jobs/profileV
 const { runSupportSlaMonitor } = require('../services/supportSlaMonitor');
 const { processSupportEmailOutbox } = require('../services/supportEmailOutbox');
 const { processSupportFollowUpReminders } = require('../services/supportFollowUpReminderWorker');
-const { processBusinessInvoiceOverdue } = require('../services/businessInvoiceOverdueWorker');
+const { processBusinessInvoicePaymentReminders } = require('../services/businessInvoicePaymentReminderWorker');
 const { recoverStaleSupportChannelDeliveries } = require('../services/supportChannelDeliveryRecovery');
 
 class BackgroundWorkers {
@@ -186,8 +186,8 @@ class BackgroundWorkers {
       });
 
       cron.schedule('5 3 * * *', () => {
-        processBusinessInvoiceOverdue().catch((error) => {
-          this.log.warn('Business invoice overdue job failed', { error: error.message });
+        processBusinessInvoicePaymentReminders().catch((error) => {
+          this.log.warn('Business invoice payment reminder job failed', { error: error.message });
         });
       });
 

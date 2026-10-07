@@ -90,7 +90,8 @@ export default function InvoicesPage() {
   useEffect(() => {
     const invoiceId = searchParams.get('invoiceId');
     if (!invoiceId || loading || !invoices.length) return;
-    const match = invoices.find((inv) => String(inv.id) === String(invoiceId));
+    const match = invoices.find((inv) => String(inv.id) === String(invoiceId)
+      || String(inv.source_id) === String(invoiceId));
     if (match) setSelectedInvoice(match);
   }, [searchParams, invoices, loading]);
 
@@ -222,7 +223,7 @@ export default function InvoicesPage() {
                 <span>{t('invoices.actions', { defaultValue: 'Actions' })}</span>
               </div>
               {invoices.map((invoice) => (
-                <article key={invoice.id} className="invoices-row">
+                <article key={`${invoice.invoice_kind || 'business'}-${invoice.id}`} className="invoices-row">
                   <div>
                     <strong>{invoice.invoice_number || t('invoices.invoiceIdFallback', { id: invoice.id, defaultValue: 'Invoice {{id}}' })}</strong>
                     <small>
@@ -246,16 +247,30 @@ export default function InvoicesPage() {
                     >
                       <Eye size={16} />
                     </button>
-                    {invoice.perspective === 'received' && invoice.public_token && invoice.status !== 'paid' ? (
-                      <Link
-                        to={`/invoice/p/${invoice.public_token}`}
-                        className="invoices-pay-link"
-                        title={t('invoices.viewAndPay', { defaultValue: 'View & pay' })}
-                      >
-                        <CreditCard size={16} />
-                      </Link>
-                    ) : null}
-                    {invoice.perspective !== 'received' ? (
+                    {invoice.perspective === 'received' && invoice.status !== 'paid' && (
+                      invoice.invoice_kind === 'tool_rental' ? (
+                        invoice.detail_href ? (
+                          <Link
+                            to={invoice.detail_href}
+                            className="invoices-pay-link"
+                            title={t('invoices.openToolRentalInvoice', { defaultValue: 'Open tool rental invoice' })}
+                          >
+                            <Wrench size={16} />
+                          </Link>
+                        ) : null
+                      ) : (
+                        invoice.public_token ? (
+                          <Link
+                            to={`/invoice/p/${invoice.public_token}`}
+                            className="invoices-pay-link"
+                            title={t('invoices.viewAndPay', { defaultValue: 'View & pay' })}
+                          >
+                            <CreditCard size={16} />
+                          </Link>
+                        ) : null
+                      )
+                    )}
+                    {invoice.perspective !== 'received' && invoice.invoice_kind !== 'tool_rental' ? (
                       <button
                         type="button"
                         onClick={() => handleResendEmail(invoice.id)}

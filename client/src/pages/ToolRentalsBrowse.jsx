@@ -22,6 +22,8 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SlidersHorizontal, X, ChevronDown, Sparkles, Wrench } from 'lucide-react';
+import toast from 'react-hot-toast';
+import api from '../api/axios';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import PageMeta from '../components/PageMeta';
@@ -400,6 +402,29 @@ const ToolRentalsBrowse = () => {
 
   const debounceRef = useRef(null);
   const isFirstLoad = useRef(true);
+
+  useEffect(() => {
+    const rentalInvoiceId = searchParams.get('rentalInvoiceId');
+    if (!rentalInvoiceId) return;
+    api.get(`/tool-rentals/invoices/${rentalInvoiceId}`)
+      .then(({ data }) => {
+        const number = data?.invoice_number || rentalInvoiceId;
+        toast.success(t('toolRentals.invoiceDeepLink', {
+          defaultValue: 'Tool rental invoice {{number}} — payment instructions are in your rental booking.',
+          number,
+        }));
+      })
+      .catch(() => {
+        toast.error(t('toolRentals.invoiceDeepLinkMissing', {
+          defaultValue: 'We could not load that rental invoice. Check My Invoices or your booking email.',
+        }));
+      })
+      .finally(() => {
+        const next = new URLSearchParams(searchParams);
+        next.delete('rentalInvoiceId');
+        setSearchParams(next, { replace: true });
+      });
+  }, [searchParams, setSearchParams, t]);
 
   const load = useCallback(async (f, s, offset, append = false) => {
     setLoadState('loading');

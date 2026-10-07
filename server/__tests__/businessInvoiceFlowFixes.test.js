@@ -120,13 +120,16 @@ describe('business invoice flow fixes', () => {
     if (prev !== undefined) process.env.BUSINESS_INVOICE_STRIPE_CONNECT_ENABLED = prev;
   });
 
-  test('processBusinessInvoiceOverdue updates past-due rows under lock', async () => {
+  test('processBusinessInvoiceOverdue delegates to payment reminder worker', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ locked: true }] })
+      .mockResolvedValueOnce({ rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] });
 
     await expect(processBusinessInvoiceOverdue()).resolves.toEqual({ locked: true, updated: 0, reminded: 0 });
-    expect(mockQuery.mock.calls[1][0]).toMatch(/status = 'overdue'/);
   });
 });

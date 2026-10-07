@@ -128,7 +128,7 @@ exports.generateInvoice = async (req, res) => {
   const { purchase_id } = req.body;
   try {
     const purchase = await db.query(
-      `SELECT cp.*, pkg.name, u.email, u.first_name FROM consulting_purchases cp
+      `SELECT cp.*, pkg.name, pkg.tier, u.email, u.first_name FROM consulting_purchases cp
        JOIN consulting_packages pkg ON cp.package_id = pkg.id
        JOIN users u ON cp.user_id = u.id
        WHERE cp.id = $1`,
@@ -152,10 +152,21 @@ exports.generateInvoice = async (req, res) => {
     const invoiceNumber = `CONS-${Date.now()}`;
 
     const result = await db.query(
-      `INSERT INTO consulting_invoices (purchase_id, user_id, invoice_number, amount_cents, issued_date, due_date, status)
-       VALUES ($1, $2, $3, $4, CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', 'sent')
+      `INSERT INTO consulting_invoices (
+         purchase_id, user_id, invoice_number, amount_cents, issued_date, due_date, status,
+         customer_email, customer_name, service_tier
+       )
+       VALUES ($1, $2, $3, $4, CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', 'sent', $5, $6, $7)
        RETURNING *`,
-      [purchase_id, p.user_id, invoiceNumber, p.total_cost_cents]
+      [
+        purchase_id,
+        p.user_id,
+        invoiceNumber,
+        p.total_cost_cents,
+        p.email,
+        `${p.first_name || ''}`.trim() || p.email,
+        p.tier || p.name,
+      ]
     );
 
     logger.info('Invoice generated', { invoice_number: invoiceNumber, purchase_id });
@@ -640,13 +651,16 @@ exports.listPurchases = async (req, res) => {
 exports.listInvoices = async (req, res) => {
   try {
     const result = await db.query(`
-      SELECT ci.*, u.first_name, u.last_name, u.email as client_email,
-             pkg.name AS package_name, pkg.tier AS service_tier
+      SELECT ci.*,
+             COALESCE(ci.customer_name, TRIM(CONCAT(u.first_name, ' ', u.last_name))) AS client_name,
+             COALESCE(ci.customer_email, u.email) AS client_email,
+             pkg.name AS package_name,
+             COALESCE(ci.service_tier, pkg.tier) AS service_tier
       FROM consulting_invoices ci
       LEFT JOIN consulting_purchases cp ON ci.purchase_id = cp.id
       LEFT JOIN users u ON ci.user_id = u.id
       LEFT JOIN consulting_packages pkg ON cp.package_id = pkg.id
-      ORDER BY ci.issued_date DESC
+      ORDER BY ci.issued_date DESC, ci.id DESC
       LIMIT 200
     `);
     return res.json(result.rows);
@@ -685,11 +699,29 @@ exports.generateManualInvoice = async (req, res) => {
     }
 
     const invoiceNumber = `CONS-${Date.now()}`;
+    const { rows: linkedUsers } = await db.query(
+      'SELECT id FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM($1)) AND is_active = TRUE LIMIT 1',
+      [client_email]
+    );
+    const linkedUserId = linkedUsers[0]?.id || null;
+
     const result = await db.query(
-      `INSERT INTO consulting_invoices (invoice_number, amount_cents, status, issued_date, due_date, notes, idempotency_key)
-       VALUES ($1, $2, 'sent', CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', $3, $4)
+      `INSERT INTO consulting_invoices (
+         user_id, invoice_number, amount_cents, status, issued_date, due_date,
+         notes, idempotency_key, customer_email, customer_name, service_tier
+       )
+       VALUES ($1, $2, $3, 'sent', CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', $4, $5, $6, $7, $8)
        RETURNING *`,
-      [invoiceNumber, amount_cents, notes || null, idempotencyKey]
+      [
+        linkedUserId,
+        invoiceNumber,
+        amount_cents,
+        notes || null,
+        idempotencyKey,
+        client_email.trim(),
+        client_name.trim(),
+        package_tier || null,
+      ]
     );
 
     // Escape admin-supplied name before interpolating into the email HTML.

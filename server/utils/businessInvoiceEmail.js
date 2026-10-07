@@ -114,6 +114,71 @@ async function sendBusinessInvoiceEmail({
   return { success: false, error: lastError || 'Email send failed', attempt: maxRetries };
 }
 
+const PRE_DUE_COPY = {
+  en: {
+    subject: (n, from, days) => `Reminder: Invoice ${n} from ${from} due in ${days} day${days === 1 ? '' : 's'}`,
+    intro: (from, total, due, days) => `${from} sent you invoice ${total}, due ${due} (${days} day${days === 1 ? '' : 's'} remaining).`,
+    cta: 'View invoice',
+  },
+  es: {
+    subject: (n, from, days) => `Recordatorio: factura ${n} de ${from} vence en ${days} día(s)`,
+    intro: (from, total, due, days) => `${from} le envió una factura por ${total}, con vencimiento ${due} (faltan ${days} día(s)).`,
+    cta: 'Ver factura',
+  },
+  fr: {
+    subject: (n, from, days) => `Rappel : facture ${n} de ${from} due dans ${days} jour(s)`,
+    intro: (from, total, due, days) => `${from} vous a envoyé une facture de ${total}, échéance ${due} (dans ${days} jour(s)).`,
+    cta: 'Voir la facture',
+  },
+  ht: {
+    subject: (n, from, days) => `Rapèl: Fakti ${n} nan men ${from} dwe nan ${days} jou`,
+    intro: (from, total, due, days) => `${from} voye yon fakti ${total}, dat limit ${due} (gen ${days} jou ki rete).`,
+    cta: 'Gade fakti a',
+  },
+  ar: {
+    subject: (n, from, days) => `تذكير: فاتورة ${n} من ${from} مستحقة خلال ${days} يوم`,
+    intro: (from, total, due, days) => `${from} أرسل لك فاتورة بمبلغ ${total}، الاستحقاق ${due} (يتبقى ${days} يوم).`,
+    cta: 'عرض الفاتورة',
+  },
+};
+
+async function sendBusinessInvoicePreDueReminder({
+  invoice,
+  recipientEmail,
+  issuerName,
+  language = 'en',
+  daysBeforeDue = 7,
+}) {
+  const lang = normalizeEmailLanguage(language);
+  const copy = PRE_DUE_COPY[lang] || PRE_DUE_COPY.en;
+  const base = COPY[lang] || COPY.en;
+  const publicUrl = buildPublicInvoiceUrl(invoice.public_token);
+  const totalLabel = formatMoney(invoice.total, invoice.currency_code, lang);
+  const dueLabel = formatDueDate(invoice.due_date, lang);
+  const fromName = issuerName || 'OxSteed';
+  const invoiceNumber = invoice.invoice_number || String(invoice.id);
+  const days = Number(daysBeforeDue) || 7;
+
+  const htmlBody = `
+    <h2 style="margin:0 0 12px;font-size:22px;color:#0f172a;">${escapeHtml(copy.subject(invoiceNumber, fromName, days))}</h2>
+    <p style="margin:0 0 16px;color:#334155;font-size:16px;line-height:1.6;">${escapeHtml(copy.intro(fromName, totalLabel, dueLabel, days))}</p>
+    <p style="margin:0 0 20px;"><a href="${escapeHtml(publicUrl)}" style="display:inline-block;background:#ea580c;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600;">${escapeHtml(copy.cta)}</a></p>
+    <p style="margin:0;color:#64748b;font-size:13px;">${escapeHtml(base.footer)}</p>
+  `;
+
+  const text = `${copy.subject(invoiceNumber, fromName, days)}\n\n${copy.intro(fromName, totalLabel, dueLabel, days)}\n\n${copy.cta}: ${publicUrl}`;
+
+  const result = await sendEmail({
+    to: recipientEmail,
+    subject: copy.subject(invoiceNumber, fromName, days),
+    text,
+    html: renderOxSteedEmail({ preheader: copy.subject(invoiceNumber, fromName, days), bodyHtml: htmlBody, language: lang }),
+    idempotencyKey: `business-invoice-predue:${days}:${invoice.id}:${recipientEmail.toLowerCase()}`,
+  });
+
+  return { success: Boolean(result.success), error: result.error };
+}
+
 const OVERDUE_COPY = {
   en: {
     subject: (n, from) => `Overdue: Invoice ${n} from ${from}`,
@@ -179,6 +244,7 @@ async function sendBusinessInvoiceOverdueReminder({
 
 module.exports = {
   sendBusinessInvoiceEmail,
+  sendBusinessInvoicePreDueReminder,
   sendBusinessInvoiceOverdueReminder,
   buildPublicInvoiceUrl,
   COPY,
