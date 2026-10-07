@@ -2,6 +2,7 @@ const db = require('../db');
 const { sendError, sendSuccess } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const { canAccessBusiness } = require('../utils/businessOwnership');
+const { validateMediaUrl } = require('../utils/mediaUrlValidation');
 
 function parsePositiveInt(value) {
   if (value === undefined || value === null || value === '') return null;
@@ -319,13 +320,22 @@ exports.addBusinessGalleryPhoto = async (req, res) => {
 
     if (!url) return sendError(res, 400, 'URL is required');
 
+    // PS-5: validate the gallery URL (reject non-http(s) and private hosts).
+    let validUrl;
+    try {
+      validUrl = validateMediaUrl(url, 'url');
+    } catch (err) {
+      return sendError(res, err.status || 400, err.message);
+    }
+    if (!validUrl) return sendError(res, 400, 'URL is required');
+
     const client = await db.connect();
     try {
       const result = await client.query(
         `INSERT INTO business_gallery (business_id, url, caption, alt)
          VALUES ($1, $2, $3, $4)
          RETURNING *`,
-        [businessId, url, caption, alt]
+        [businessId, validUrl, caption, alt]
       );
 
       sendSuccess(res, result.rows[0], 201);

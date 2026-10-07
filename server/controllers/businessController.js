@@ -7,6 +7,7 @@ const logger = require('../utils/logger');
 const { ownedBusiness, canEditProfile, canManageBusinessFinance } = require('../utils/businessOwnership');
 const countriesUtil = require('../utils/countries');
 const { AppError } = require('../middleware/errorHandler');
+const { validateMediaUrl } = require('../utils/mediaUrlValidation');
 const { withTransaction } = require('../utils/transaction');
 const { invalidateHelperContext } = require('../services/helperContext');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
@@ -393,6 +394,9 @@ async function updateBusiness(req, res, next) {
     const isOwner = req.user.id === ownerId;
     const logoExplicitNull = clear_logo_url === true;
     const coverExplicitNull = clear_cover_photo_url === true;
+    // PS-5: validate user-supplied media URLs (reject non-http(s) and private hosts).
+    const validLogoUrl = validateMediaUrl(logo_url, 'logo_url');
+    const validCoverUrl = validateMediaUrl(cover_photo_url, 'cover_photo_url');
     // Managers may edit marketing/contact/address only - not tax identity or lifecycle flags.
     const sensitiveEin = isOwner ? ein : undefined;
     const sensitiveTax = isOwner ? tax_rate : undefined;
@@ -457,8 +461,8 @@ async function updateBusiness(req, res, next) {
         address_zip,
         sensitiveActive,
         sensitiveTax != null ? parseFloat(sensitiveTax) : null,
-        logo_url        || null,
-        cover_photo_url || null,
+        validLogoUrl,
+        validCoverUrl,
         id,
         isOwner,
         logoExplicitNull,
