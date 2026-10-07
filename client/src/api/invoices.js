@@ -25,6 +25,15 @@ const payInvoiceWithCredit = (invoiceId, body) =>
       : undefined,
   });
 
+const getInvoiceCardEligibility = (invoiceId) =>
+  axios.get(`/invoices/${invoiceId}/card-eligibility`);
+
+const createInvoiceCardPaymentIntent = (invoiceId, body) =>
+  axios.post(`/invoices/${invoiceId}/payment-intent`, body || {});
+
+const confirmInvoiceCardPayment = (invoiceId, body) =>
+  axios.post(`/invoices/${invoiceId}/confirm-payment`, body);
+
 export default {
   listInvoices,
   getInvoice,
@@ -33,4 +42,7 @@ export default {
   resendInvoiceEmail,
   getInvoiceCreditEligibility,
   payInvoiceWithCredit,
+  getInvoiceCardEligibility,
+  createInvoiceCardPaymentIntent,
+  confirmInvoiceCardPayment,
 };

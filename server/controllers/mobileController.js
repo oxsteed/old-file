@@ -4,7 +4,16 @@ const {
   isInvoicePayer,
   stripeInvoiceCurrency,
   businessInvoiceStripeConnectEnabled,
+  invoiceBalanceCents: sharedInvoiceBalanceCents,
 } = require('../utils/businessInvoiceHelpers');
+const { withTransaction } = require('../utils/transaction');
+const {
+  createOrReuseInvoicePaymentIntent,
+  resolveInvoiceStripeConnectDestination,
+  assertConnectDestinationReady,
+  assertPaymentIntentMatchesInvoice,
+  applyInvoiceCardPayment,
+} = require('../services/businessInvoiceStripeConnectService');
 const { uploadFile, getPublicUrl } = require('../utils/storage');
 const countriesUtil = require('../utils/countries');
 const modeRoleUtil = require('../utils/modeRole');
@@ -424,9 +433,7 @@ function requireStripe() {
 }
 
 function invoiceBalanceCents(invoice) {
-  const totalCents = Math.round(Number(invoice.total || 0) * 100);
-  const paidCents = Math.round(Number(invoice.amount_paid || 0) * 100);
-  return Math.max(0, totalCents - paidCents);
+  return sharedInvoiceBalanceCents(invoice);
 }
 
 async function getPayableInvoice(invoiceId, user) {
@@ -480,20 +487,13 @@ exports.createInvoicePaymentIntent = async (req, res, next) => {
       throw new AppError('Invoice is already paid', 409, 'invoice_already_paid');
     }
 
-    const currency = stripeInvoiceCurrency(invoice);
-    if (currency !== 'usd') {
-      throw new AppError('Only USD invoices can be paid online', 422, 'invoice_currency_not_supported');
-    }
+    const idempotencyKey = normalizeString(req.body?.idempotencyKey, 160)
+      || `invoice-card:${invoice.id}:${req.user.id}:${balanceCents}`;
 
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: balanceCents,
-      currency,
-      receipt_email: req.user.email || invoice.client_email || undefined,
-      metadata: {
-        invoice_id: String(invoice.id),
-        payer_id: String(req.user.id),
-        invoice_type: invoice.business_id ? 'business_invoice' : 'helper_invoice',
-      },
+    const { paymentIntent, balanceCents: intentCents, connect } = await createOrReuseInvoicePaymentIntent({
+      invoice,
+      payerUserId: req.user.id,
+      idempotencyKey,
     });
 
     res.json({
@@ -502,8 +502,10 @@ exports.createInvoicePaymentIntent = async (req, res, next) => {
         invoiceId: invoice.id,
         clientSecret: paymentIntent.client_secret,
         paymentIntentId: paymentIntent.id,
-        amountCents: balanceCents,
+        amountCents: intentCents,
         publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+        connectAccountId: connect.accountId,
+        connectSource: connect.source,
       },
     });
   } catch (err) {
@@ -527,19 +529,19 @@ exports.confirmInvoicePayment = async (req, res, next) => {
       });
     }
 
+    const connect = assertConnectDestinationReady(
+      await resolveInvoiceStripeConnectDestination(invoice),
+    );
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
     const expectedAmountCents = invoiceBalanceCents(invoice);
-    const expectedCurrency = stripeInvoiceCurrency(invoice);
-    const actualAmountCents = Number(paymentIntent.amount_received || paymentIntent.amount || 0);
-    if (
-      String(paymentIntent.metadata?.invoice_id || '') !== String(invoice.id) ||
-      String(paymentIntent.metadata?.payer_id || '') !== String(req.user.id) ||
-      actualAmountCents !== expectedAmountCents ||
-      String(paymentIntent.currency || '').toLowerCase() !== expectedCurrency
-    ) {
-      throw new AppError('Payment does not belong to this invoice', 403, 'payment_invoice_mismatch');
-    }
-    if (paymentIntent.status !== 'succeeded') {
+    const check = assertPaymentIntentMatchesInvoice({
+      paymentIntent,
+      invoice,
+      payerUserId: req.user.id,
+      connect,
+      expectedAmountCents,
+    });
+    if (!check.ok) {
       return res.status(409).json({
         success: false,
         error: `Payment status: ${paymentIntent.status}`,
@@ -547,24 +549,18 @@ exports.confirmInvoicePayment = async (req, res, next) => {
       });
     }
 
-    const amountPaid = Number(paymentIntent.amount_received || paymentIntent.amount || 0) / 100;
-    const { rows } = await pool.query(
-      `UPDATE business_invoices
-          SET status = CASE WHEN total <= COALESCE(amount_paid, 0) + $1 THEN 'paid' ELSE 'partial' END,
-              amount_paid = LEAST(total, COALESCE(amount_paid, 0) + $1),
-              paid_at = CASE WHEN total <= COALESCE(amount_paid, 0) + $1 THEN NOW() ELSE paid_at END,
-              updated_at = NOW()
-        WHERE id = $2
-        RETURNING *`,
-      [amountPaid, invoice.id]
-    );
+    const amountPaid = expectedAmountCents / 100;
+    const updated = await withTransaction(pool, (client) => applyInvoiceCardPayment(client, {
+      invoiceId: invoice.id,
+      amountDollars: amountPaid,
+    }));
 
     res.json({
       success: true,
       data: {
-        invoice: rows[0],
+        invoice: updated,
         paymentIntentId,
-        status: rows[0]?.status,
+        status: updated?.status,
       },
     });
   } catch (err) {

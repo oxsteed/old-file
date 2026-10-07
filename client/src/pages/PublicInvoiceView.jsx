@@ -15,6 +15,7 @@ import PageMeta from '../components/PageMeta';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 import InvoiceOxsteedCreditPay, { InvoiceCreditPaySignInPrompt } from '../components/invoices/InvoiceOxsteedCreditPay';
+import InvoiceStripeCardPay from '../components/invoices/InvoiceStripeCardPay';
 import '../styles/PublicInvoiceView.css';
 import { formatDate, formatMoney } from '../lib/format';
 
@@ -284,6 +285,14 @@ function PublicInvoiceView() {
                     business: business?.business_name || t('publicInvoice.fallbackBusiness'),
                     defaultValue: 'Use the payment method you agreed with {{business}} (bank transfer, cash, or other).',
                   })}</p>
+                  {user && invoice?.id ? (
+                    <InvoiceStripeCardPay
+                      invoiceId={String(invoice.id)}
+                      balanceCents={balanceDueCents}
+                      onPaid={() => setReloadKey((key) => key + 1)}
+                      className="piv-stripe-card-pay"
+                    />
+                  ) : null}
                   {canTryCreditPay && invoice?.id ? (
                     <InvoiceOxsteedCreditPay
                       invoiceId={String(invoice.id)}

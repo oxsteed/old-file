@@ -10,6 +10,8 @@ const { logAdminAction } = require('../services/auditService');
 const { sendBusinessInvoiceEmail } = require('../utils/businessInvoiceEmail');
 const { listUserInvoices, getUserInvoiceById } = require('../services/userInvoicesService');
 const businessInvoiceCreditController = require('../controllers/businessInvoiceCreditController');
+const businessInvoiceStripeConnectController = require('../controllers/businessInvoiceStripeConnectController');
+const mobileController = require('../controllers/mobileController');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 
 // GET /api/invoices?view=issued|received|all
@@ -45,12 +47,33 @@ router.get('/', authenticate, generalLimiter, async (req, res) => {
 
 router.get('/:id/credit-payee-enrollment', authenticate, generalLimiter, businessInvoiceCreditController.getInvoiceCreditPayeeEnrollment);
 router.get('/:id/credit-eligibility', authenticate, generalLimiter, businessInvoiceCreditController.getInvoiceCreditEligibility);
+router.get('/:id/card-eligibility', authenticate, generalLimiter, businessInvoiceStripeConnectController.getInvoiceCardEligibility);
 router.post(
   '/:id/pay-with-credit',
   authenticate,
   generalLimiter,
   rejectImpersonated,
   businessInvoiceCreditController.payInvoiceWithOxsteedCredit,
+);
+router.post(
+  '/:id/payment-intent',
+  authenticate,
+  generalLimiter,
+  rejectImpersonated,
+  (req, res, next) => {
+    req.params.invoiceId = req.params.id;
+    return mobileController.createInvoicePaymentIntent(req, res, next);
+  },
+);
+router.post(
+  '/:id/confirm-payment',
+  authenticate,
+  generalLimiter,
+  rejectImpersonated,
+  (req, res, next) => {
+    req.params.invoiceId = req.params.id;
+    return mobileController.confirmInvoicePayment(req, res, next);
+  },
 );
 
 router.get('/:id', authenticate, generalLimiter, async (req, res) => {

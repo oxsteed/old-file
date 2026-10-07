@@ -23,6 +23,7 @@ import PageShell from '../components/PageShell';
 import { useAuth } from '../hooks/useAuth';
 import invoicesApi from '../api/invoices';
 import InvoiceOxsteedCreditPay from '../components/invoices/InvoiceOxsteedCreditPay';
+import InvoiceStripeCardPay from '../components/invoices/InvoiceStripeCardPay';
 import './InvoicesPage.css';
 
 function centsToMoney(cents, language) {
@@ -437,12 +438,20 @@ function InvoiceDetailModal({ invoice, language, notSetText, notListedText, rese
         </div>
 
         {payableBusiness && (
-          <InvoiceOxsteedCreditPay
-            invoiceId={payInvoiceId}
-            balanceCents={invoiceBalanceCents(invoice)}
-            onPaid={onPaid}
-            className="invoices-modal-credit-pay"
-          />
+          <>
+            <InvoiceStripeCardPay
+              invoiceId={payInvoiceId}
+              balanceCents={invoiceBalanceCents(invoice)}
+              onPaid={onPaid}
+              className="invoices-modal-stripe-pay"
+            />
+            <InvoiceOxsteedCreditPay
+              invoiceId={payInvoiceId}
+              balanceCents={invoiceBalanceCents(invoice)}
+              onPaid={onPaid}
+              className="invoices-modal-credit-pay"
+            />
+          </>
         )}
 
         <div className="invoices-modal-footer">

@@ -27,6 +27,7 @@ const { recordException } = require('../services/reconciliationExceptions');
 const { stripeObjectId, invoiceSubscriptionId, subscriptionPeriod } = require('../utils/stripePayload');
 const { applyChargeRefund, verifiedChargeRefundTotal } = require('../services/paymentRefundStateService');
 const stripeWebhookContract = require('../config/stripeWebhookContract');
+const businessInvoiceStripeConnectService = require('../services/businessInvoiceStripeConnectService');
 
 function extractFoodOrderId(metadata) {
   const raw = metadata?.food_order_id
@@ -847,8 +848,13 @@ exports.stripeWebhook = async (req, res, next) => {
         if (await restaurantTopupService.applyRestaurantTopupWebhookEvent({ type: event.type, object: event.data.object })) {
           break;
         }
-        // Capture completed - money is on its way to the helper or order is complete.
         const pi = event.data.object;
+        if (pi?.metadata?.business_invoice_payment === 'true') {
+          await withTransaction(db, (client) => businessInvoiceStripeConnectService
+            .applyBusinessInvoicePaymentFromWebhook(client, pi));
+          break;
+        }
+        // Capture completed - money is on its way to the helper or order is complete.
         const jobId = pi.metadata?.job_id;
         const orderId = pi.metadata?.orderId;
         let foodOrderId = extractFoodOrderId(pi.metadata);

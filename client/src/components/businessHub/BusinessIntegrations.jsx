@@ -176,6 +176,36 @@ export function BusinessIntegrations({ businessId }) {
     toast.success(t('common.copied'));
   };
 
+  const handleConnectStripe = async () => {
+    try {
+      setSavingIntegration('stripe');
+      const response = await api.post(`/businesses/${businessId}/integrations/stripe/auth`);
+      const url = response.data?.auth_url;
+      if (!url) {
+        throw new Error('missing_auth_url');
+      }
+      window.location.href = url;
+    } catch (error) {
+      toast.error(error.response?.data?.error || t('businessHub.integrations.toastStripeStartFail'));
+    } finally {
+      setSavingIntegration(null);
+    }
+  };
+
+  const handleDisconnectStripe = async () => {
+    if (!window.confirm(t('businessHub.integrations.confirmDisconnectStripe'))) return;
+    try {
+      setSavingIntegration('stripe');
+      await api.post(`/businesses/${businessId}/integrations/stripe/disconnect`);
+      toast.success(t('businessHub.integrations.toastStripeDisconnected'));
+      await loadIntegrations();
+    } catch (error) {
+      toast.error(error.response?.data?.error || t('businessHub.integrations.toastStripeDisconnectFail'));
+    } finally {
+      setSavingIntegration(null);
+    }
+  };
+
   if (loading) {
     return <div className="bi-loading">{t('businessHub.integrations.loading')}</div>;
   }
@@ -184,6 +214,52 @@ export function BusinessIntegrations({ businessId }) {
     <div className="bi-container">
       <div className="bi-header">
         <h3>{t('businessHub.integrations.title')}</h3>
+      </div>
+
+      <div className={`bi-integration-card bi-stripe-connect-card ${integrations.stripe_ready_for_checkout ? 'enabled' : integrations.stripe_connected ? 'pending' : 'disabled'}`}>
+        <div className="bi-integration-header">
+          <span className="bi-integration-icon">💳</span>
+          <h4>{t('businessHub.integrations.stripeTitle', { defaultValue: 'Stripe Connect' })}</h4>
+          <span className={`bi-status-badge ${integrations.stripe_ready_for_checkout ? 'active' : 'inactive'}`}>
+            {integrations.stripe_ready_for_checkout ? <Check size={14} /> : <X size={14} />}
+            {integrations.stripe_ready_for_checkout
+              ? t('businessHub.integrations.stripeReady', { defaultValue: 'Ready for card pay' })
+              : integrations.stripe_connected
+                ? t('businessHub.integrations.stripeIncomplete', { defaultValue: 'Onboarding incomplete' })
+                : t('businessHub.integrations.notConnected')}
+          </span>
+        </div>
+        <p className="bi-integration-desc">
+          {t('businessHub.integrations.stripeDescription', {
+            defaultValue: 'Connect Stripe so customers can pay invoices by card. Funds settle to your connected account.',
+          })}
+        </p>
+        <div className="bi-integration-actions">
+          {integrations.stripe_account_id && (
+            <p className="bi-status-text">
+              {t('businessHub.integrations.account')}: {integrations.stripe_account_id}
+            </p>
+          )}
+          {integrations.stripe_ready_for_checkout ? (
+            <button
+              type="button"
+              className="bi-btn-danger"
+              onClick={handleDisconnectStripe}
+              disabled={savingIntegration === 'stripe'}
+            >
+              {savingIntegration === 'stripe' ? t('businessHub.integrations.saving') : t('businessHub.integrations.disconnectStripe')}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="bi-btn-primary"
+              onClick={handleConnectStripe}
+              disabled={savingIntegration === 'stripe'}
+            >
+              {savingIntegration === 'stripe' ? t('businessHub.integrations.saving') : t('businessHub.integrations.connectStripe')}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="bi-integrations-grid">
