@@ -109,13 +109,30 @@ export default function InvoicesPage() {
     try {
       setLoading(true);
       const response = await invoicesApi.listInvoices(50, 0, activeView);
-      setInvoices(response.data.invoices || []);
+      const nextInvoices = response.data.invoices || [];
+      setInvoices(nextInvoices);
+      return nextInvoices;
     } catch (err) {
       toast.error(t('invoices.loadError') || 'Failed to load invoices');
       console.error('Failed to load invoices', err);
+      return null;
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleInvoicePaid = async () => {
+    const invoiceKey = selectedInvoice
+      ? (selectedInvoice.source_id != null
+        ? String(selectedInvoice.source_id)
+        : String(selectedInvoice.id))
+      : null;
+    const nextInvoices = await loadInvoices(view);
+    if (!invoiceKey || !nextInvoices?.length) return;
+    const match = nextInvoices.find(
+      (inv) => String(inv.id) === invoiceKey || String(inv.source_id) === invoiceKey,
+    );
+    if (match) setSelectedInvoice(match);
   };
 
   const handleResendEmail = async (invoiceId) => {
@@ -325,7 +342,7 @@ export default function InvoicesPage() {
               loadInvoices(view);
             }}
             onResend={() => handleResendEmail(selectedInvoice.id)}
-            onPaid={() => loadInvoices(view)}
+            onPaid={handleInvoicePaid}
           />
         )}
       </div>

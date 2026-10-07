@@ -1,6 +1,7 @@
 'use strict';
 
 const pool = require('../db');
+const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 const {
   invoiceBalanceCents,
@@ -278,13 +279,17 @@ async function applyBusinessInvoicePaymentFromWebhook(client, paymentIntent) {
   if (!invoiceId) return false;
 
   const { rows: [invoice] } = await client.query(
-    `SELECT * FROM business_invoices WHERE id = $1`,
+    `SELECT * FROM business_invoices WHERE id = $1 FOR UPDATE`,
     [invoiceId],
   );
   if (!invoice) return true;
 
+  const balanceCents = invoiceBalanceCents(invoice);
+  if (balanceCents <= 0) {
+    return true;
+  }
+
   const connect = await resolveInvoiceStripeConnectDestination(invoice, client);
-  const expectedCents = Number(paymentIntent.amount_received || paymentIntent.amount || 0);
   try {
     assertConnectDestinationReady(connect);
     const check = assertPaymentIntentMatchesInvoice({
@@ -292,14 +297,20 @@ async function applyBusinessInvoicePaymentFromWebhook(client, paymentIntent) {
       invoice,
       payerUserId: paymentIntent.metadata?.payer_id,
       connect,
-      expectedAmountCents: expectedCents,
+      expectedAmountCents: balanceCents,
     });
     if (!check.ok) return true;
-  } catch {
-    return true;
+  } catch (err) {
+    logger.error('[Stripe] Business invoice card webhook could not apply payment', {
+      paymentIntentId: paymentIntent.id,
+      invoiceId: invoice.id,
+      error: err.message,
+      code: err.code,
+    });
+    throw err;
   }
 
-  const amountPaid = expectedCents / 100;
+  const amountPaid = balanceCents / 100;
   await applyInvoiceCardPayment(client, { invoiceId: invoice.id, amountDollars: amountPaid });
   return true;
 }
@@ -385,6 +396,13 @@ async function createOrReuseInvoicePaymentIntent({
           balanceCents,
           reused: true,
         };
+      }
+      if (reusable) {
+        try {
+          await stripe.paymentIntents.cancel(invoice.stripe_payment_intent_id);
+        } catch {
+          /* intent may already be canceled or uncancelable */
+        }
       }
     } catch {
       /* create fresh intent below */

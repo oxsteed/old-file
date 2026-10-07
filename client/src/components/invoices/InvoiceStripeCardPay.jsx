@@ -106,12 +106,13 @@ export default function InvoiceStripeCardPay({ invoiceId, balanceCents: balanceC
 
   useEffect(() => {
     loadEligibility();
-  }, [loadEligibility]);
+  }, [loadEligibility, balanceCentsProp]);
 
   const balanceCents = useMemo(() => {
+    if (balanceCentsProp != null) return balanceCentsProp;
     if (eligibility?.balanceCents != null) return eligibility.balanceCents;
-    return balanceCentsProp;
-  }, [eligibility?.balanceCents, balanceCentsProp]);
+    return 0;
+  }, [balanceCentsProp, eligibility?.balanceCents]);
 
   const stripePromise = useMemo(() => {
     const key = intent?.publishableKey || import.meta.env?.VITE_STRIPE_PUBLISHABLE_KEY;
@@ -119,8 +120,12 @@ export default function InvoiceStripeCardPay({ invoiceId, balanceCents: balanceC
   }, [intent?.publishableKey]);
 
   useEffect(() => {
-    if (!eligibility?.eligible || !invoiceId) return undefined;
+    if (!eligibility?.eligible || !invoiceId || balanceCents <= 0) {
+      setIntent(null);
+      return undefined;
+    }
     let cancelled = false;
+    setIntent(null);
     (async () => {
       try {
         setIntentError('');
@@ -137,7 +142,7 @@ export default function InvoiceStripeCardPay({ invoiceId, balanceCents: balanceC
       }
     })();
     return () => { cancelled = true; };
-  }, [eligibility?.eligible, invoiceId, t]);
+  }, [eligibility?.eligible, invoiceId, balanceCents, t]);
 
   if (loading || !eligibility?.eligible) {
     return null;
