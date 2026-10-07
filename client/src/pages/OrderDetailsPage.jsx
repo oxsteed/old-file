@@ -64,6 +64,27 @@ function OrderDetailsPageContent() {
   const canCancel = !isFoodOrder && order && ['pending', 'paid'].includes(order.status);
   const currencyOptions = { currency: order?.currency_code || order?.currency || 'USD' };
 
+  // Food order: support deep-link with tracking token.
+  const supportUrl = isFoodOrder && order
+    ? `/support?orderId=${order.id}${order.tracking_token ? `&token=${order.tracking_token}` : ''}`
+    : `/support?orderId=${orderId}`;
+
+  // Food order: live status polling.
+  const [liveStatus, setLiveStatus] = useState(null);
+  useEffect(() => {
+    if (!isFoodOrder || !orderId) return;
+    const interval = setInterval(async () => {
+      try {
+        const updated = await getFoodOrder(orderId);
+        setLiveStatus(updated.status);
+        if (updated.status !== order?.status) {
+          setOrder(updated);
+        }
+      } catch {}
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [isFoodOrder, orderId]);
+
   const paymentMethodLabel = (() => {
     const raw = String(order?.payment_method || order?.paymentMode || order?.payment_mode || '').toLowerCase();
     const labels = {
@@ -303,8 +324,22 @@ function OrderDetailsPageContent() {
                     {cancelLoading ? t('common.processing') : t('orders.cancelOrder')}
                   </button>
                 )}
+                {isFoodOrder && order?.tracking_token && (
+                  <button
+                    onClick={() => navigate(`/food/track/${order.tracking_token}`)}
+                    className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-medium"
+                  >
+                    Track Order Live
+                  </button>
+                )}
                 <button
-                  onClick={() => navigate('/orders')}
+                  onClick={() => navigate(supportUrl)}
+                  className="w-full bg-gray-100 text-gray-800 py-2 rounded-lg hover:bg-gray-200 font-medium"
+                >
+                  Get Help With This Order
+                </button>
+                <button
+                  onClick={() => navigate(isFoodOrder ? '/food' : '/orders')}
                   className="w-full bg-gray-200 text-gray-800 py-2 rounded-lg hover:bg-gray-300 font-medium"
                 >
                   {t('orders.backToOrders')}
