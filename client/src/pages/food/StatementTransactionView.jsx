@@ -16,7 +16,7 @@ import './StatementTransactionView.css';
 // a readable fallback if an optional locale chunk cannot be loaded.
 export const INVESTIGATION_STRINGS = Object.freeze({
   title: 'Statement transaction',
-  backToStatements: 'Back to statements',
+  backToStatements: 'Back to statement center',
   loading: 'Loading transaction…',
   loadError: 'This transaction could not be loaded. Please try again.',
   entryNotFound: 'This statement entry was not found.',
@@ -170,7 +170,7 @@ export default function StatementTransactionView() {
   const related = data?.related || null;
   const cases = Array.isArray(data?.cases) ? data.cases : [];
   const canReport = supportsStatementCase(statement?.caseSupport);
-  const statementsPath = data?.product === 'restaurant' ? '/restaurant-credit/statements' : '/oxsteed-credit/statements';
+  const statementsPath = '/statements';
 
   function relatedKindLabel(kind) {
     if (kind === 'order') return text('relatedOrder');

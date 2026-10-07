@@ -35,7 +35,7 @@
     "description": "Review balances and posted activity, and download PDF or CSV statements.",
     "link": "Statements",
     "archiveLink": "Statement archive",
-    "back": "Back to credit account",
+    "back": "Back to statement center",
     "oxsteedProduct": "OxSteed Credit",
     "restaurantProduct": "Restaurant Credit",
     "productsAria": "Credit statement products",
@@ -105,7 +105,7 @@
     "accessible": {
       "title": "Accessible statement",
       "description": "Download a tagged PDF, an accessible HTML version, or a CSV of this statement.",
-      "backToStatements": "Back to statements",
+      "backToStatements": "Back to statement center",
       "languageLabel": "Statement language",
       "loading": "Loading…",
       "pdfTitle": "Tagged PDF",
@@ -127,7 +127,7 @@
   "archive": {
     "title": "Statement archive",
     "description": "Your issued monthly statements. Originals are immutable; download them again at any time.",
-    "back": "Back to statements",
+    "back": "Back to statement center",
     "product": "Product",
     "oxsteedProduct": "OxSteed Credit",
     "restaurantProduct": "Restaurant Credit",
@@ -200,7 +200,7 @@
   },
   "statementInvestigation": {
     "title": "Statement transaction",
-    "backToStatements": "Back to statements",
+    "backToStatements": "Back to statement center",
     "loading": "Loading transaction…",
     "loadError": "This transaction could not be loaded. Please try again.",
     "entryNotFound": "This statement entry was not found.",

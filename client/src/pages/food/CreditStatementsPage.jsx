@@ -23,10 +23,9 @@ export const STATEMENT_STRINGS = Object.freeze({
   description: 'Review balances and posted activity, and download PDF or CSV statements.',
   link: 'Statements',
   archiveLink: 'Statement archive',
-  back: 'Back to credit account',
+  back: 'Back to statement center',
   oxsteedProduct: 'OxSteed Credit',
   restaurantProduct: 'Restaurant Credit',
-  productsAria: 'Credit statement products',
   scope: 'Each product and currency has its own statement. These are credit-account records, not bank deposit statements.',
   account: 'Account',
   accountOption: '{{name}} · {{currency}}',
@@ -266,17 +265,13 @@ export default function CreditStatementsPage({ product = 'oxsteed' }) {
     <PageMeta title={text('title')} description={text('description')} noIndex />
     <Navbar />
     <main className="credit-statements-page">
-      <Link to={root} className="cs-back"><ArrowLeft size={16} aria-hidden="true" />{text('back')}</Link>
+      <Link to="/statements" className="cs-back"><ArrowLeft size={16} aria-hidden="true" />{text('back')}</Link>
       <header className="cs-header"><FileText size={30} aria-hidden="true" /><div><h1>{text('title')}</h1><p>{text('description')}</p></div></header>
-      <nav className="cs-products" aria-label={text('productsAria')}>
-        <Link to="/oxsteed-credit/statements" aria-current={product === 'oxsteed' ? 'page' : undefined}>{text('oxsteedProduct')}</Link>
-        <Link to="/restaurant-credit/statements" aria-current={product === 'restaurant' ? 'page' : undefined}>{text('restaurantProduct')}</Link>
-      </nav>
       <p className="cs-scope">{text('scope')}</p>
       <p className="cs-archive-link"><Link to={`${root}/statements/archive`}>{text('archiveLink')}</Link></p>
       {accountsLoading ? <div className="cs-state" role="status">{text('loadingAccounts')}</div>
         : accountsFailed ? <div className="cs-state" role="alert"><p>{text('accountsError')}</p><button type="button" onClick={() => setAccountRetry(value => value + 1)}>{text('retry')}</button></div>
-          : !entries.length ? <div className="cs-state" role="status"><h2>{text('noAccounts')}</h2><p>{text('noAccountsBody')}</p><Link to={root}>{text('back')}</Link></div>
+          : !entries.length ? <div className="cs-state" role="status"><h2>{text('noAccounts')}</h2><p>{text('noAccountsBody')}</p><Link to="/statements">{text('back')}</Link></div>
             : <>
               <form className="cs-filters" onSubmit={apply}>
                 <div className="cs-field"><label htmlFor="statement-account">{text('account')}</label><select id="statement-account" value={accountKey(selected, product)} onChange={changeAccount}>

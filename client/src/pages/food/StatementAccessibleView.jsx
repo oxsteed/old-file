@@ -157,14 +157,12 @@ export default function StatementAccessibleView() {
     }
   }
 
-  const backTarget = `${STATEMENT_PRODUCTS[product].root}/statements`;
-
   return (
     <div className="statement-accessible-shell" dir={i18n.dir(uiLanguage)}>
       <PageMeta title={text('title')} description={text('description')} noIndex />
       <Navbar />
       <main className="statement-accessible-page">
-        <Link to={backTarget} className="sa-back">
+        <Link to="/statements" className="sa-back">
           <ArrowLeft size={16} aria-hidden="true" />{text('backToStatements')}
         </Link>
         <header className="sa-header">

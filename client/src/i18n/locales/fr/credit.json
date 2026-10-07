@@ -35,7 +35,7 @@
     "description": "Consultez les soldes et opérations comptabilisées et téléchargez vos relevés en PDF ou CSV.",
     "link": "Relevés",
     "archiveLink": "Archives des relevés",
-    "back": "Retour au compte de crédit",
+    "back": "Retour au centre des relevés",
     "oxsteedProduct": "OxSteed Credit",
     "restaurantProduct": "Restaurant Credit",
     "productsAria": "Produits des relevés de crédit",
@@ -105,7 +105,7 @@
     "accessible": {
       "title": "Relevé accessible",
       "description": "Téléchargez un PDF balisé, une version HTML accessible ou un CSV de ce relevé.",
-      "backToStatements": "Retour aux relevés",
+      "backToStatements": "Retour au centre des relevés",
       "languageLabel": "Langue du relevé",
       "loading": "Chargement…",
       "pdfTitle": "PDF balisé",
@@ -127,7 +127,7 @@
   "archive": {
     "title": "Archives des relevés",
     "description": "Vos relevés mensuels émis. Les originaux sont immuables ; téléchargez-les à tout moment.",
-    "back": "Retour aux relevés",
+    "back": "Retour au centre des relevés",
     "product": "Produit",
     "oxsteedProduct": "OxSteed Credit",
     "restaurantProduct": "Crédit restaurant",
@@ -200,7 +200,7 @@
   },
   "statementInvestigation": {
     "title": "Transaction du relevé",
-    "backToStatements": "Retour aux relevés",
+    "backToStatements": "Retour au centre des relevés",
     "loading": "Chargement de la transaction…",
     "loadError": "Cette transaction n’a pas pu être chargée. Veuillez réessayer.",
     "entryNotFound": "Cette entrée de relevé est introuvable.",

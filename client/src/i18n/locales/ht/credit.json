@@ -35,7 +35,7 @@
     "description": "Gade balans ak aktivite ki anrejistre, epi telechaje eta kont an PDF oswa CSV.",
     "link": "Eta kont",
     "archiveLink": "Achiv relve yo",
-    "back": "Retounen sou kont kredi a",
+    "back": "Tounen nan sant deklarasyon",
     "oxsteedProduct": "OxSteed Credit",
     "restaurantProduct": "Restaurant Credit",
     "productsAria": "Pwodwi pou eta kredi",
@@ -105,7 +105,7 @@
     "accessible": {
       "title": "Eta kont aksesib",
       "description": "Telechaje yon PDF ak etikèt, yon vèsyon HTML aksesib, oswa yon CSV eta kont sa a.",
-      "backToStatements": "Retounen sou eta kont yo",
+      "backToStatements": "Tounen nan sant deklarasyon",
       "languageLabel": "Lang eta kont lan",
       "loading": "Ap chaje…",
       "pdfTitle": "PDF ak etikèt",
@@ -127,7 +127,7 @@
   "archive": {
     "title": "Achiv relve yo",
     "description": "Relve mansyèl ou yo ki deja pibliye. Orijinal yo pa ka chanje; telechaje yo nenpòt lè.",
-    "back": "Tounen nan relve yo",
+    "back": "Tounen nan sant deklarasyon",
     "product": "Pwodwi",
     "oxsteedProduct": "OxSteed Credit",
     "restaurantProduct": "Kredi restoran",
@@ -200,7 +200,7 @@
   },
   "statementInvestigation": {
     "title": "Tranzaksyon relve a",
-    "backToStatements": "Tounen nan relve yo",
+    "backToStatements": "Tounen nan sant deklarasyon",
     "loading": "Ap chaje tranzaksyon an…",
     "loadError": "Tranzaksyon sa a pa t ka chaje. Tanpri eseye ankò.",
     "entryNotFound": "Yo pa jwenn antre relve sa a.",

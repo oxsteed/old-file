@@ -35,7 +35,7 @@
     "description": "راجع الأرصدة والحركة المسجلة ونزّل كشوفًا بصيغة PDF أو CSV.",
     "link": "الكشوف",
     "archiveLink": "أرشيف الكشوفات",
-    "back": "العودة إلى حساب الائتمان",
+    "back": "العودة إلى مركز الكشوفات",
     "oxsteedProduct": "OxSteed Credit",
     "restaurantProduct": "Restaurant Credit",
     "productsAria": "منتجات كشوف الائتمان",
@@ -105,7 +105,7 @@
     "accessible": {
       "title": "كشف حساب ميسّر",
       "description": "نزّل ملف PDF موسومًا أو نسخة HTML ميسّرة أو ملف CSV لهذا الكشف.",
-      "backToStatements": "العودة إلى الكشوف",
+      "backToStatements": "العودة إلى مركز الكشوفات",
       "languageLabel": "لغة الكشف",
       "loading": "جارٍ التحميل…",
       "pdfTitle": "PDF موسوم",
@@ -127,7 +127,7 @@
   "archive": {
     "title": "أرشيف الكشوفات",
     "description": "كشوفاتك الشهرية الصادرة. النسخ الأصلية غير قابلة للتغيير؛ نزّلها في أي وقت.",
-    "back": "العودة إلى الكشوفات",
+    "back": "العودة إلى مركز الكشوفات",
     "product": "المنتج",
     "oxsteedProduct": "OxSteed Credit",
     "restaurantProduct": "ائتمان المطعم",
@@ -200,7 +200,7 @@
   },
   "statementInvestigation": {
     "title": "معاملة الكشف",
-    "backToStatements": "العودة إلى الكشوفات",
+    "backToStatements": "العودة إلى مركز الكشوفات",
     "loading": "جارٍ تحميل المعاملة…",
     "loadError": "تعذّر تحميل هذه المعاملة. يرجى المحاولة مرة أخرى.",
     "entryNotFound": "تعذّر العثور على هذا البند في الكشف.",

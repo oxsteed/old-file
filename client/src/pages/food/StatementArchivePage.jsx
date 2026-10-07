@@ -21,7 +21,7 @@ import './StatementArchivePage.css';
 export const ARCHIVE_STRINGS = Object.freeze({
   title: 'Statement archive',
   description: 'Your issued monthly statements. Originals are immutable; download them again at any time.',
-  back: 'Back to statements',
+  back: 'Back to statement center',
   product: 'Product',
   oxsteedProduct: 'OxSteed Credit',
   restaurantProduct: 'Restaurant Credit',
@@ -160,7 +160,6 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
   const [linkState, setLinkState] = useState({});
   const requestRef = useRef(null);
 
-  const root = STATEMENT_PRODUCTS[product].root;
   const settlement = STATEMENT_PRODUCTS[product].settlement;
 
   function updateFilters(next) {
@@ -360,13 +359,8 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
     <PageMeta title={text('title')} description={text('description')} noIndex />
     <Navbar />
     <main className="statement-archive-page">
-      <Link to={settlement ? (product === 'helper_earnings' ? '/dashboard' : '/business-hub') : `${root}/statements`} className="sa-back"><ArrowLeft size={16} aria-hidden="true" />{text('back')}</Link>
+      <Link to="/statements" className="sa-back"><ArrowLeft size={16} aria-hidden="true" />{text('back')}</Link>
       <header className="sa-header"><FileText size={30} aria-hidden="true" /><div><h1>{text('title')}</h1><p>{text('description')}</p></div></header>
-      <nav className="sa-products" aria-label={text('product')}>
-        {Object.entries(STATEMENT_PRODUCTS).map(([key, config]) => <Link key={key}
-          to={`${config.root}/statements${config.settlement ? '' : '/archive'}`}
-          aria-current={product === key ? 'page' : undefined}>{text(config.label)}</Link>)}
-      </nav>
       <p className="sa-scope">{text(settlement ? 'settlementScopeNote' : 'scopeNote')}</p>
       {statementCorrectionNotice(product) && <p className="sa-scope" role="note">{text(statementCorrectionNotice(product))} <Link to="/support/escalation">{text('contactSupport')}</Link></p>}
       <StatementExportPanel product={product} accounts={accounts} />

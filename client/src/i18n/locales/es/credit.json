@@ -35,7 +35,7 @@
     "description": "Revisa saldos y actividad contabilizada y descarga estados en PDF o CSV.",
     "link": "Estados de cuenta",
     "archiveLink": "Archivo de estados de cuenta",
-    "back": "Volver a la cuenta de crédito",
+    "back": "Volver al centro de estados de cuenta",
     "oxsteedProduct": "OxSteed Credit",
     "restaurantProduct": "Restaurant Credit",
     "productsAria": "Productos de estados de crédito",
@@ -105,7 +105,7 @@
     "accessible": {
       "title": "Estado accesible",
       "description": "Descarga un PDF etiquetado, una versión HTML accesible o un CSV de este estado de cuenta.",
-      "backToStatements": "Volver a los estados de cuenta",
+      "backToStatements": "Volver al centro de estados de cuenta",
       "languageLabel": "Idioma del estado de cuenta",
       "loading": "Cargando…",
       "pdfTitle": "PDF etiquetado",
@@ -127,7 +127,7 @@
   "archive": {
     "title": "Archivo de estados de cuenta",
     "description": "Sus estados de cuenta mensuales emitidos. Los originales son inmutables; descárguelos cuando quiera.",
-    "back": "Volver a los estados de cuenta",
+    "back": "Volver al centro de estados de cuenta",
     "product": "Producto",
     "oxsteedProduct": "OxSteed Credit",
     "restaurantProduct": "Crédito de restaurante",
@@ -200,7 +200,7 @@
   },
   "statementInvestigation": {
     "title": "Transacción del estado de cuenta",
-    "backToStatements": "Volver a los estados de cuenta",
+    "backToStatements": "Volver al centro de estados de cuenta",
     "loading": "Cargando la transacción…",
     "loadError": "No se pudo cargar esta transacción. Inténtalo de nuevo.",
     "entryNotFound": "No se encontró esta entrada del estado de cuenta.",
