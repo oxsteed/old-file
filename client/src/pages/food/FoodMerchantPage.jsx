@@ -254,6 +254,10 @@ function paymentStatusLabel(t, status) {
 }
 
 function OrderDetailPanel({ t, order, onAdvance, onCancel, onMarkPaid, onSplit, onMerge, onRefund, onClose, detailRef }) {
+  const [showSplitModal, setShowSplitModal] = useState(false);
+  const [selectedItems, setSelectedItems] = useState(new Set());
+  const [splitting, setSplitting] = useState(false);
+
   if (!order) {
     return (
       <aside ref={detailRef} className="fd-order-detail fd-order-detail-empty">
@@ -263,6 +267,33 @@ function OrderDetailPanel({ t, order, onAdvance, onCancel, onMarkPaid, onSplit, 
       </aside>
     );
   }
+
+  const items = Array.isArray(order.items) ? order.items : [];
+
+  const toggleItem = (itemId) => {
+    setSelectedItems(prev => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
+      return next;
+    });
+  };
+
+  const handleSplitConfirm = async () => {
+    if (selectedItems.size === 0) return;
+    if (selectedItems.size === items.length) {
+      alert(t('food.merchant.splitAllError', 'Cannot split all items. Select fewer items.'));
+      return;
+    }
+    setSplitting(true);
+    try {
+      await onSplit(order, Array.from(selectedItems));
+      setShowSplitModal(false);
+      setSelectedItems(new Set());
+    } finally {
+      setSplitting(false);
+    }
+  };
 
   const address = orderDeliveryAddress(order);
   const addressText = formatAddress(address);
@@ -381,7 +412,7 @@ function OrderDetailPanel({ t, order, onAdvance, onCancel, onMarkPaid, onSplit, 
         {/* POS ops: split/merge/refund/reprint for active orders */}
         {['received', 'accepted', 'preparing', 'ready'].includes(order.status) && (
           <>
-            <button type="button" className="fd-btn fd-btn-secondary" onClick={() => onSplit(order)}>Split</button>
+            <button type="button" className="fd-btn fd-btn-secondary" onClick={() => setShowSplitModal(true)}>Split</button>
             <button type="button" className="fd-btn fd-btn-secondary" onClick={() => onMerge(order)}>Merge</button>
           </>
         )}
@@ -390,6 +421,47 @@ function OrderDetailPanel({ t, order, onAdvance, onCancel, onMarkPaid, onSplit, 
         )}
         <button type="button" className="fd-btn fd-btn-secondary" onClick={() => window.print()}>Reprint</button>
       </div>
+
+      {showSplitModal && (
+        <div className="fd-modal-overlay" onClick={() => setShowSplitModal(false)}>
+          <div className="fd-modal" onClick={e => e.stopPropagation()}>
+            <h3>{t('food.merchant.splitTitle', 'Split Order')}</h3>
+            <p>{t('food.merchant.splitHint', 'Select items to move to a new order:')}</p>
+            <div className="fd-split-items">
+              {items.map(item => (
+                <label key={item.id} className="fd-split-item">
+                  <input
+                    type="checkbox"
+                    checked={selectedItems.has(item.id)}
+                    onChange={() => toggleItem(item.id)}
+                  />
+                  <span>{item.quantity}x {item.item_name}</span>
+                  <span>${(item.line_total_cents / 100).toFixed(2)}</span>
+                </label>
+              ))}
+            </div>
+            {items.length === 0 && <p>{t('food.merchant.noItems', 'No items in this order.')}</p>}
+            <div className="fd-modal-actions">
+              <button
+                type="button"
+                className="fd-btn fd-btn-secondary"
+                onClick={() => { setShowSplitModal(false); setSelectedItems(new Set()); }}
+                disabled={splitting}
+              >
+                {t('common.cancel', 'Cancel')}
+              </button>
+              <button
+                type="button"
+                className="fd-btn"
+                onClick={handleSplitConfirm}
+                disabled={splitting || selectedItems.size === 0}
+              >
+                {splitting ? t('common.processing', 'Processing...') : t('food.merchant.splitConfirm', `Split (${selectedItems.size})`)}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }
@@ -538,9 +610,16 @@ function OrdersTab({ t, restaurant }) {
     }
   };
 
-  const split = async (order) => {
-    // TODO: item selection UI. Opens split dialog.
-    toast.error('Select items to split in the ticket view');
+  const split = async (order, itemIds) => {
+    try {
+      const { data } = await api.post(`/api/food/restaurants/${restaurant.id}/orders/${order.id}/split`, {
+        itemIds,
+      });
+      toast.success(t('food.merchant.splitSuccess', `Split complete. New order #${data.newOrderId}`));
+      reloadAfterAction();
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t('food.merchant.splitError', 'Unable to split order.')));
+    }
   };
 
   const merge = async (order) => {

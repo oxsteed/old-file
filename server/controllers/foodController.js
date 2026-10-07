@@ -6836,6 +6836,124 @@ exports.createRestaurantReport = async (req, res, next) => {
   }
 };
 
+// ── POS operations: split, merge ───────────────────────────────────────
+exports.splitOrder = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const orderId = parsePositiveInt(req.params.orderId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantPermission(restaurant, ['orders.manage', 'pos.use']);
+
+    const itemIds = req.body.itemIds;
+    if (!Array.isArray(itemIds) || itemIds.length === 0) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { itemIds: 'Select at least one item to split' });
+    }
+
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Lock the original order
+      const orderRes = await client.query(
+        'SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2 FOR UPDATE',
+        [orderId, restaurantId]
+      );
+      if (orderRes.rows.length === 0) {
+        throw new AppError('Order not found', 404, 'not_found');
+      }
+      const original = orderRes.rows[0];
+
+      if (['completed', 'cancelled', 'refunded'].includes(original.status)) {
+        throw new AppError('Cannot split a closed order', 400, 'invalid_status');
+      }
+
+      // Verify items belong to this order
+      const itemsRes = await client.query(
+        'SELECT * FROM food_order_items WHERE id = ANY($1) AND order_id = $2',
+        [itemIds, orderId]
+      );
+      if (itemsRes.rows.length !== itemIds.length) {
+        throw new AppError('Some items do not belong to this order', 400, 'validation_failed');
+      }
+      if (itemsRes.rows.length === 0) {
+        throw new AppError('No items selected', 400, 'validation_failed');
+      }
+
+      // Cannot split all items (that would be a move, not a split)
+      const totalItemsRes = await client.query(
+        'SELECT COUNT(*) FROM food_order_items WHERE order_id = $1',
+        [orderId]
+      );
+      if (parseInt(totalItemsRes.rows[0].count, 10) === itemsRes.rows.length) {
+        throw new AppError('Cannot split all items. Use merge or cancel instead.', 400, 'validation_failed');
+      }
+
+      // Create the new split order (copy from original)
+      const newOrderRes = await client.query(
+        `INSERT INTO food_orders (
+          restaurant_id, customer_user_id, guest_name, guest_phone, guest_email,
+          fulfillment_type, status, payment_status, payment_mode,
+          subtotal_cents, tax_cents, tip_cents, delivery_fee_cents, service_fee_cents,
+          discount_cents, total_cents, currency,
+          delivery_address, special_instructions, metadata,
+          created_at
+        )
+        SELECT
+          restaurant_id, customer_user_id, guest_name, guest_phone, guest_email,
+          fulfillment_type, 'received', 'unpaid', payment_mode,
+          0, 0, 0, 0, 0, 0, 0, currency,
+          delivery_address, special_instructions,
+          jsonb_build_object('split_from', $2::bigint, 'split_by', $3::bigint),
+          NOW()
+        FROM food_orders WHERE id = $2
+        RETURNING *`,
+        [restaurantId, orderId, req.user.id]
+      );
+      const newOrder = newOrderRes.rows[0];
+
+      // Move items to the new order
+      await client.query(
+        'UPDATE food_order_items SET order_id = $1 WHERE id = ANY($2)',
+        [newOrder.id, itemIds]
+      );
+
+      // Recalculate totals for both orders
+      const recalc = async (oid) => {
+        const sumRes = await client.query(
+          'SELECT COALESCE(SUM(line_total_cents), 0) as subtotal FROM food_order_items WHERE order_id = $1',
+          [oid]
+        );
+        const subtotal = parseInt(sumRes.rows[0].subtotal, 10);
+        // Simple: total = subtotal (tax/fees recalculated by business logic if needed)
+        await client.query(
+          'UPDATE food_orders SET subtotal_cents = $1, total_cents = $1, updated_at = NOW() WHERE id = $2',
+          [subtotal, oid]
+        );
+        return subtotal;
+      };
+
+      await recalc(orderId);
+      await recalc(newOrder.id);
+
+      await client.query('COMMIT');
+
+      res.json({
+        ok: true,
+        originalOrderId: orderId,
+        newOrderId: newOrder.id,
+        movedItemCount: itemsRes.rows.length,
+      });
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    next(err);
+  }
+};
+
 // ── Test seams (exported for unit tests) ────────────────────────────────
 exports._refundFoodOrderStripePayment = refundFoodOrderStripePayment;
 exports._clawBackFoodLoyaltyOnRefund = clawBackFoodLoyaltyOnRefund;

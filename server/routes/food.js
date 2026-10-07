@@ -120,5 +120,6 @@ router.post('/restaurants/:restaurantId/orders', authenticate, creditPurchaseLim
 router.get('/restaurants/:restaurantId/orders', authenticate, ctrl.listRestaurantOrders);
 router.patch('/restaurants/:restaurantId/orders/:orderId/status', authenticate, ctrl.updateOrderStatus);
 router.patch('/restaurants/:restaurantId/orders/:orderId/payment', authenticate, ctrl.updateOrderPayment);
+router.post('/restaurants/:restaurantId/orders/:orderId/split', authenticate, ctrl.splitOrder);
 
 module.exports = router;
