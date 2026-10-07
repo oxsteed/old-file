@@ -27,8 +27,8 @@
   margin: 0 24px 16px;
   padding: 16px;
   border-radius: 12px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
 }
 
 .invoices-pay-link {

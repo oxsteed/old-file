@@ -488,7 +488,7 @@
 .invoice-credit-pay-note {
   margin: 0;
   font-size: 12px;
-  color: #64748b;
+  color: var(--color-text-muted);
   line-height: 1.45;
 }
 
@@ -503,7 +503,7 @@
   align-items: flex-start;
   gap: 8px;
   font-size: 14px;
-  color: #334155;
+  color: var(--color-text);
   cursor: pointer;
 }
 
@@ -512,18 +512,20 @@
   flex-direction: column;
   gap: 4px;
   font-size: 13px;
-  color: #475569;
+  color: var(--color-text-muted);
 }
 
 .invoice-credit-pay-partial-field input {
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 10px 12px;
   font-size: 16px;
+  background: var(--color-surface);
+  color: var(--color-text);
 }
 
 .invoice-credit-pay-partial-field small {
-  color: #64748b;
+  color: var(--color-text-muted);
 }
 
 .piv-credit-signin {
