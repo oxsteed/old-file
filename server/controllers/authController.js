@@ -1466,6 +1466,14 @@ async function resetPassword(req, res) {
     // refresh tokens in the sessions table that can mint new access tokens.
     await pool.query('UPDATE sessions SET is_valid = false, is_revoked = true WHERE user_id = $1', [rows[0].id]);
 
+    // Security: a password reset must also revoke passkeys. Otherwise an
+    // attacker who planted a passkey (via stolen session/impersonation)
+    // retains access after the victim resets their password.
+    await pool.query(
+      'UPDATE user_passkeys SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL',
+      [rows[0].id]
+    );
+
     // FIX #10 & #11: Audit log password reset
     const { ipAddress, userAgent } = extractRequestDetails(req);
     logSecurityEvent('password_reset', {

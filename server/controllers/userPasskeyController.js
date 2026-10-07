@@ -77,7 +77,7 @@ async function consumeChallenge(userId, purpose, challenge) {
 
 async function getUser(userId) {
   const { rows } = await db.query(
-    `SELECT id, first_name, last_name, email, is_active
+    `SELECT id, first_name, last_name, email, is_active, login_locked_until
      FROM users WHERE id = $1`,
     [userId]
   );
@@ -146,6 +146,12 @@ async function verifyRegistration(req, res, next) {
     if (!verification.verified || !verification.registrationInfo) return res.status(400).json({ error: 'Passkey verification failed.' });
     const info = verification.registrationInfo;
     const credentialId = response.id;
+    // If this credential was previously revoked, hard-delete the revoked row
+    // so re-registration succeeds (credential_id is globally UNIQUE).
+    await db.query(
+      `DELETE FROM user_passkeys WHERE user_id = $1 AND credential_id = $2 AND revoked_at IS NOT NULL`,
+      [user.id, credentialId]
+    );
     await db.query(
       `INSERT INTO user_passkeys (user_id, credential_id, public_key, counter, transports, device_name)
        VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -179,12 +185,15 @@ async function authenticationOptions(req, res, next) {
       [email]
     );
     const user = users[0];
-    if (!user || !user.is_active) return res.status(404).json({ error: 'No passkey sign-in available for this email.' });
+    // Return the same generic message whether the user is unknown, inactive,
+    // or has no passkeys, to avoid account enumeration.
+    const noPasskeyMsg = 'No passkey sign-in available for this email.';
+    if (!user || !user.is_active) return res.status(404).json({ error: noPasskeyMsg });
     const { rows } = await db.query(
       `SELECT credential_id, transports FROM user_passkeys WHERE user_id = $1 AND revoked_at IS NULL`,
       [user.id]
     );
-    if (!rows.length) return res.status(404).json({ error: 'No passkeys are registered for this account.' });
+    if (!rows.length) return res.status(404).json({ error: noPasskeyMsg });
     const options = await generateAuthenticationOptions({
       rpID: RP_ID,
       allowCredentials: rows.map((row) => ({ id: row.credential_id, transports: normalizeTransports(row.transports) })),
@@ -207,6 +216,26 @@ async function issueUserSession(user, req, res) {
   await db.query(`INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')`, [user.id, hashedRefresh]);
   await db.query(`UPDATE users SET last_login_at = NOW(), last_login_ip = $1 WHERE id = $2`, [req.ip || null, user.id]).catch(() => {});
   await db.query(`INSERT INTO user_login_history (user_id, ip_address, user_agent, success) VALUES ($1, $2, $3, TRUE)`, [user.id, req.ip || null, req.headers['user-agent'] || null]).catch(() => {});
+
+  // Set cookies for web clients (parity with password login).
+  // The JSON tokens are kept for API/mobile clients.
+  const isProd = process.env.NODE_ENV === 'production';
+  const cookieSecure = process.env.COOKIE_SECURE === 'true' || isProd;
+  res.cookie('oxsteed_access', tokens.accessToken, {
+    httpOnly: true,
+    sameSite: 'Lax',
+    secure: cookieSecure,
+    path: '/',
+    maxAge: 15 * 60 * 1000,
+  });
+  res.cookie('oxsteed_refresh', tokens.refreshToken, {
+    httpOnly: true,
+    secure: cookieSecure,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+
   return res.json({ success: true, user, accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
 }
 
@@ -218,6 +247,10 @@ async function verifyAuthentication(req, res, next) {
   try {
     const user = await getUser(token.id);
     if (!user || !user.is_active) return res.status(401).json({ error: 'Invalid or expired passkey session.' });
+    // Parity with password login: respect account lockout.
+    if (user.login_locked_until && new Date(user.login_locked_until) > new Date()) {
+      return res.status(423).json({ error: 'Account is temporarily locked. Try again later.' });
+    }
     const { rows } = await db.query(
       `SELECT id, credential_id, public_key, counter, transports
        FROM user_passkeys WHERE user_id = $1 AND credential_id = $2 AND revoked_at IS NULL`,

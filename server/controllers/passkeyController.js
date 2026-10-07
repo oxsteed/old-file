@@ -148,6 +148,10 @@ async function verifyRegistration(req, res, next) {
     const info = verification.registrationInfo;
     const credentialId = response.id;
     await db.query(
+      `DELETE FROM admin_passkeys WHERE user_id = $1 AND credential_id = $2 AND revoked_at IS NOT NULL`,
+      [admin.id, credentialId]
+    );
+    await db.query(
       `INSERT INTO admin_passkeys (user_id, credential_id, public_key, counter, transports, device_name)
        VALUES ($1, $2, $3, $4, $5, $6)`,
       [admin.id, credentialId, Buffer.from(info.credential.publicKey), info.credential.counter, normalizeTransports(response.response?.transports), deviceName]

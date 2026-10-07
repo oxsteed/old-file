@@ -76,7 +76,7 @@ describe('user passkey controls', () => {
     await controller.authenticationOptions({ body: { email: 'user@example.com' } }, res, jest.fn());
 
     expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith({ error: 'No passkeys are registered for this account.' });
+    expect(res.json).toHaveBeenCalledWith({ error: 'No passkey sign-in available for this email.' });
   });
 
   test('revokes only the requesting user\u2019s passkey', async () => {
