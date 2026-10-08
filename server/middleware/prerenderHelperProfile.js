@@ -21,6 +21,13 @@ let cachedTemplate = null;
 const SEO_LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
 const OG_LOCALES = { en: 'en_US', es: 'es_ES', fr: 'fr_FR', ht: 'ht_HT', ar: 'ar_AR' };
 const STATUS_SITE_URL = 'https://status.oxsteed.com';
+const MEDIA_POST_SHARE_COPY = {
+  en: { onMedia: 'on OxSteed Media', shared: (author) => `${author} shared an update on OxSteed Media.`, eyebrow: 'OXSTEED · OXSTEED MEDIA' },
+  es: { onMedia: 'en OxSteed Media', shared: (author) => `${author} compartió una actualización en OxSteed Media.`, eyebrow: 'OXSTEED · OXSTEED MEDIA' },
+  fr: { onMedia: 'sur OxSteed Media', shared: (author) => `${author} a partagé une mise à jour sur OxSteed Media.`, eyebrow: 'OXSTEED · OXSTEED MEDIA' },
+  ht: { onMedia: 'sou OxSteed Media', shared: (author) => `${author} pataje yon mizajou sou OxSteed Media.`, eyebrow: 'OXSTEED · OXSTEED MEDIA' },
+  ar: { onMedia: 'على OxSteed Media', shared: (author) => `شارك ${author} تحديثًا على OxSteed Media.`, eyebrow: 'OXSTEED · OXSTEED MEDIA' },
+};
 const SEO_COPY_KEYS = {
   '/': { title: 'pageMeta.defaults.title', description: 'pageMeta.defaults.description' },
   '/about': { title: 'aboutPage.title', description: 'aboutPage.mission' },
@@ -1408,12 +1415,13 @@ async function handleMediaPost(postId, template, res, next, req) {
   }
   const post = rows[0];
   const language = getRequestedLanguage(req);
+  const shareCopy = MEDIA_POST_SHARE_COPY[language] || MEDIA_POST_SHARE_COPY.en;
   const publicPath = `/media/post/${post.id}`;
   const url = getLocalizedRequestUrl(publicPath, req);
   const author = String(post.display_name || post.handle || 'OxSteed member').trim();
   const body = String(post.body || '').replace(/\s+/g, ' ').trim();
-  const description = (body || `${author} shared an update on OxSteed Media.`).slice(0, 320);
-  const title = `${author} on OxSteed Media | OxSteed`;
+  const description = (body || shareCopy.shared(author)).slice(0, 320);
+  const title = `${author} ${shareCopy.onMedia} | OxSteed`;
   // Keep the share image URL stable for crawlers. The endpoint rechecks the
   // public safety predicate and redirects to a short-lived storage signature.
   const image = post.thumbnail_key
@@ -1436,7 +1444,7 @@ async function handleMediaPost(postId, template, res, next, req) {
   html = injectJsonLd(html, buildBreadcrumbJsonLd(title, url, req, language));
   html = html.replace(
     '<div id="root"></div>',
-    `<div id="root"><main id="ssr-shell" style="max-width:42rem;margin:0 auto;padding:2rem 1rem;"><p>OXSTEED · OXSTEED MEDIA</p><h1>${escapeHtml(author)} on OxSteed Media</h1><p>${escapeHtml(description)}</p></main></div>`,
+    `<div id="root"><main id="ssr-shell" style="max-width:42rem;margin:0 auto;padding:2rem 1rem;"><p>${escapeHtml(shareCopy.eyebrow)}</p><h1>${escapeHtml(author)} ${escapeHtml(shareCopy.onMedia)}</h1><p>${escapeHtml(description)}</p></main></div>`,
   );
   res.set('Content-Type', 'text/html');
   res.set('Content-Language', language);
