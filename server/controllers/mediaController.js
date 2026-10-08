@@ -1109,6 +1109,7 @@ async function createPost(req, res) {
           title: 'New reply on your OxSteed Media post',
           body: 'Someone replied to your post.',
           postId: parent_id,
+          idempotencyKey: `media_reply:${post.id}`,
         });
       }
     }
@@ -1407,6 +1408,7 @@ async function toggleLike(req, res) {
         title: 'Someone liked your OxSteed Media post',
         body: 'Your post received a like.',
         postId: req.params.id,
+        idempotencyKey: `media_like:${req.params.id}:${req.user.id}`,
       });
     }
     res.json({ liked: result.active, like_count: result.count });

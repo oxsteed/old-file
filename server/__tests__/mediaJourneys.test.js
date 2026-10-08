@@ -134,7 +134,31 @@ describe('Media user journeys', () => {
     expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
       userId: 'parent-owner',
       type: 'media_reply',
-      idempotencyKey: 'media_reply:parent-1:parent-owner',
+      idempotencyKey: 'media_reply:reply-1',
+    }));
+  });
+
+  test('keeps like notifications distinct per liker while remaining retry-safe', async () => {
+    pool.connect.mockResolvedValue({
+      query: (...args) => pool.query(...args),
+      release: jest.fn(),
+    });
+    pool.query.mockImplementation(async (sql) => {
+      if (sql.includes('SELECT p.id FROM media_posts')) return { rows: [{ id: 'post-1' }] };
+      if (sql.includes('INSERT INTO media_likes')) return { rows: [{}], rowCount: 1 };
+      if (sql.includes('UPDATE media_posts SET like_count')) return { rows: [{ like_count: 2 }] };
+      if (sql.includes('SELECT a.owner_user_id')) return { rows: [{ owner_user_id: 'owner-1' }] };
+      return { rows: [], rowCount: 0 };
+    });
+    const res = response();
+
+    await media.toggleLike({ params: { id: 'post-1' }, user: { id: 'liker-7' } }, res);
+
+    expect(res.json).toHaveBeenCalledWith({ liked: true, like_count: 2 });
+    expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'owner-1',
+      type: 'media_like',
+      idempotencyKey: 'media_like:post-1:liker-7',
     }));
   });
 });
