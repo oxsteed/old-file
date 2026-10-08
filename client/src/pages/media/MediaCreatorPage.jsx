@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Briefcase, CheckCircle2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { acceptCreatorSponsorship, applyToCreatorGig, awardCreatorApplication, cancelCreatorSponsorship, createCreatorGig, createCreatorSponsorship, createCreatorTip, getCreatorApplications, getCreatorGigs, getCreatorSponsorships, getFeed, getMyCreatorApplications, openCreatorDispute, reviewCreatorDeliverable, settleCreatorSponsorship, settleCreatorTip, submitCreatorDeliverable } from '../../api/media';
+import { acceptCreatorSponsorship, applyToCreatorGig, awardCreatorApplication, cancelCreatorGig, cancelCreatorSponsorship, createCreatorGig, createCreatorSponsorship, createCreatorTip, getCreatorApplications, getCreatorGigs, getCreatorSponsorships, getFeed, getMyCreatorApplications, openCreatorDispute, reviewCreatorDeliverable, settleCreatorSponsorship, settleCreatorTip, submitCreatorDeliverable } from '../../api/media';
 import { useAuth } from '../../context/AuthContext';
 
 export default function MediaCreatorPage() {
@@ -158,6 +158,16 @@ export default function MediaCreatorPage() {
     finally { setSubmitting(false); }
   };
 
+  const cancelGig = async (gigId) => {
+    setSubmitting(true); setError('');
+    try {
+      await cancelCreatorGig(gigId);
+      setGigs((items) => items.map((item) => item.id === gigId ? { ...item, status: 'cancelled' } : item));
+      setApplicationsGig((gig) => gig?.id === gigId ? { ...gig, status: 'cancelled' } : gig);
+    } catch (err) { setError(err.response?.data?.error || t('media.creator.loadError')); }
+    finally { setSubmitting(false); }
+  };
+
   const submitDeliverableForApplication = async (event) => {
     event.preventDefault();
     if (!deliverableTarget || !deliverablePostId) return;
@@ -201,6 +211,7 @@ export default function MediaCreatorPage() {
             <button type="button" className="media-secondary-button" onClick={() => openSupport(gig, 'tip')}>{t('media.creator.tip')}</button>
             <button type="button" className="media-secondary-button" onClick={() => openSupport(gig, 'sponsorship')}>{t('media.creator.sponsor')}</button>
             {String(gig.owner_user_id) === String(user.id) && <button type="button" className="media-secondary-button" onClick={() => openApplications(gig)}>{t('media.creator.reviewApplications')}</button>}
+            {String(gig.owner_user_id) === String(user.id) && ['open', 'awarded', 'in_progress', 'submitted'].includes(gig.status) && <button type="button" className="media-secondary-button" onClick={() => cancelGig(gig.id)} disabled={submitting}>{t('media.creator.cancel', { defaultValue: 'Cancel' })}</button>}
           </div>}
         </article>
       ))}

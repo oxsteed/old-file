@@ -62,6 +62,7 @@ router.get('/creator/applications', requireAuth, creatorCtrl.listMyApplications)
 router.post('/creator/applications/:applicationId/award', requireAuth, creatorCtrl.awardApplication);
 router.post('/creator/applications/:applicationId/deliverables', requireAuth, creatorCtrl.submitDeliverable);
 router.patch('/creator/deliverables/:deliverableId', requireAuth, creatorCtrl.reviewDeliverable);
+router.post('/creator/gigs/:gigId/cancel', requireAuth, creatorCtrl.cancelGig);
 router.post('/creator/tips', requireAuth, creatorCtrl.createTip);
 router.post('/creator/tips/:tipId/settle', requireAuth, creatorCtrl.settleTip);
 router.post('/creator/sponsorships', requireAuth, creatorCtrl.createSponsorship);

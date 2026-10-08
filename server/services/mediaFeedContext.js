@@ -112,7 +112,7 @@ function localitySql(location, params) {
       WHERE ml.post_id=p.id AND ml.link_type='logistics_campaign'`;
   const distance = `6371 * acos(LEAST(1.0,GREATEST(-1.0,
     sin(radians(${lat}))*sin(radians(geo.lat::double precision)) +
-    cos(radians(${lat}))*cos(radians(geo.lat::double precision))*cos(radians(geo.lng::double precision-${lng})))`;
+    cos(radians(${lat}))*cos(radians(geo.lat::double precision))*cos(radians(geo.lng::double precision-${lng}))))`;
   return `COALESCE((SELECT MAX(CASE
     WHEN ${lat} IS NOT NULL AND geo.lat BETWEEN -90 AND 90 AND geo.lng BETWEEN -180 AND 180
       THEN CASE WHEN ${distance} <= 25 THEN 3 WHEN ${distance} <= 80 THEN 2 ELSE 0 END

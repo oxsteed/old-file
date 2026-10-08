@@ -2407,7 +2407,7 @@ async function purchaseWithGuestCredit(args) {
   return withTransaction(pool, (client) => purchaseWithGuestCreditInTransaction(client, args), 'credit_guest_purchase');
 }
 
-async function transferCreditInTransaction(client, { senderCustomerId, recipientCustomerId, amountCents, currencyCode = CREDIT_CURRENCY, idempotencyKey, actorUserId, referenceType = 'customer_transfer', referenceId, correlationId, requestIp, description, metadata = {}, allowCreatorRecipient = false }) {
+async function transferCreditInTransaction(client, { senderCustomerId, recipientCustomerId, amountCents, currencyCode = CREDIT_CURRENCY, idempotencyKey, actorUserId, referenceType = 'customer_transfer', referenceId, correlationId, requestIp, description, metadata = {}, allowCreatorRecipient = false, allowCreatorSender = false }) {
   if (!CUSTOMER_TRANSFERS_ENABLED) throw new AppError('Customer-to-customer OxSteed Credit transfers are disabled', 403, 'credit_transfers_disabled');
   if (senderCustomerId === recipientCustomerId) throw new AppError('Cannot transfer credit to the same customer', 400, 'credit_transfer_same_customer');
   requireCustomerActor(actorUserId, senderCustomerId, 'The Credit transfer actor must be the customer sending the balance', 'credit_transfer_actor_required');
@@ -2469,7 +2469,10 @@ async function transferCreditInTransaction(client, { senderCustomerId, recipient
     amountCents: amount,
     currencyCode: currency,
   });
-  const sender = await ensureAccount(client, { accountType: 'customer_wallet', customerId: senderCustomerId, currencyCode: currency });
+  const sender = await ensureAccount(client, {
+    accountType: 'customer_wallet', customerId: senderCustomerId, currencyCode: currency,
+    allowNonCustomerOwner: allowCreatorSender,
+  });
   const recipient = await ensureAccount(client, {
     accountType: 'customer_wallet', customerId: recipientCustomerId, currencyCode: currency,
     allowNonCustomerOwner: allowCreatorRecipient,
@@ -2532,7 +2535,9 @@ async function transferCredit(args) {
 async function transferCreatorCredit(args) {
   return withTransaction(
     pool,
-    (client) => transferCreditInTransaction(client, { ...args, allowCreatorRecipient: true }),
+    (client) => transferCreditInTransaction(client, {
+      ...args, allowCreatorRecipient: true, allowCreatorSender: true,
+    }),
     'media_creator_credit_transfer'
   );
 }

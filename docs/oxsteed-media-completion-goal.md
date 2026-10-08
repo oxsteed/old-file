@@ -669,3 +669,15 @@ Cloudflare interim policy with identity, malware-scan, and transcode gates;
 expected anonymous `401`. The release metadata does not expose a Git SHA, and
 no signed-in session was available, so owner authorization, uploads, worker
 transitions, and authenticated actions remain unverified live.
+
+Creator gig escrow batch (2026-10-08): awarding a creator gig now reserves the
+approved Credit amount, links the reservation to the gig, rejects competing
+applications, and replays safely after a lost response. Approved deliverables
+release the reservation and settle the transfer atomically; requested changes
+return the application to an editable awarded state; rejection and owner
+cancellation release any active reservation. The composer uses the existing
+localized cancel label, and the cancellation route is available in the Media
+shell. Focused Media suites (50 tests) and `npm run build:ci` pass locally.
+The disposable PostgreSQL migration test in hosted CI passed before the prior
+feed-ranking run failed on a locality SQL syntax error; that feed defect is
+included in this batch and must be reverified by the next CI run.

@@ -50,6 +50,7 @@ export const applyToCreatorGig = (gigId, data) => api.post(`/media/creator/gigs/
 export const getCreatorApplications = (gigId) => api.get(`/media/creator/gigs/${gigId}/applications`).then(r => r.data);
 export const getMyCreatorApplications = () => api.get('/media/creator/applications').then(r => r.data);
 export const awardCreatorApplication = (applicationId) => api.post(`/media/creator/applications/${applicationId}/award`).then(r => r.data);
+export const cancelCreatorGig = (gigId) => api.post(`/media/creator/gigs/${gigId}/cancel`).then(r => r.data);
 export const submitCreatorDeliverable = (applicationId, data) => api.post(`/media/creator/applications/${applicationId}/deliverables`, data).then(r => r.data);
 export const reviewCreatorDeliverable = (deliverableId, status) => api.patch(`/media/creator/deliverables/${deliverableId}`, { status }).then(r => r.data);
 export const createCreatorTip = (data) => api.post('/media/creator/tips', data).then(r => r.data);

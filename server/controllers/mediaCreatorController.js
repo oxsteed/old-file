@@ -4,7 +4,8 @@ const pool = require('../db');
 const AppError = require('../utils/appError');
 const { verifiedActorSql } = require('../services/mediaPublisherPolicy');
 const creditService = require('../services/oxsteedCreditService');
-const { transferCreatorCredit } = creditService;
+const { transferCreatorCredit, transferCreditInTransaction, ensureAccount } = creditService;
+const { reserveFunds, releaseReservation, getActiveReservation } = require('../services/oxsteedCreditReservationService');
 
 function asPositiveInt(value, code = 'media_creator_amount_invalid') {
   const amount = Number(value);
@@ -94,6 +95,9 @@ async function applyToGig(req, res, next) {
     const proposed = asPositiveInt(req.body?.proposedCents);
     const { rows: gigs } = await client.query(`SELECT * FROM media_creator_gigs WHERE id = $1 AND status = 'open' FOR UPDATE`, [req.params.gigId]);
     if (!gigs[0]) throw new AppError('Creator gig not found or closed.', 404, 'media_creator_gig_not_found');
+    if (proposed > Number(gigs[0].budget_cents)) {
+      throw new AppError('The proposed amount cannot exceed this gig budget.', 400, 'media_creator_amount_over_budget');
+    }
     const { rows: count } = await client.query(`SELECT COUNT(*)::int AS count FROM media_creator_applications WHERE gig_id = $1`, [req.params.gigId]);
     if (count[0].count >= gigs[0].max_applications) throw new AppError('This gig is no longer accepting applications.', 409, 'media_creator_gig_full');
     const { rows } = await client.query(
@@ -152,17 +156,56 @@ async function awardApplication(req, res, next) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { rows } = await client.query(
-      `UPDATE media_creator_applications ap SET status = 'awarded', updated_at = NOW()
-        FROM media_creator_gigs g
-       WHERE ap.id = $1 AND ap.gig_id = g.id AND g.owner_user_id = $2 AND g.status = 'open'
-       RETURNING ap.*, g.id AS gig_id`, [req.params.applicationId, req.user.id]
+    const { rows: currentRows } = await client.query(
+      `SELECT ap.*, g.owner_user_id, g.status AS gig_status, g.budget_cents, g.currency_code,
+              g.credit_reservation_id, g.award_amount_cents
+         FROM media_creator_applications ap
+         JOIN media_creator_gigs g ON g.id = ap.gig_id
+        WHERE ap.id = $1 AND g.owner_user_id = $2
+        FOR UPDATE OF ap, g`, [req.params.applicationId, req.user.id]
     );
-    if (!rows[0]) throw new AppError('Application is not available to award.', 404, 'media_creator_application_not_found');
-    await client.query(`UPDATE media_creator_gigs SET status = 'awarded', updated_at = NOW() WHERE id = $1`, [rows[0].gig_id]);
-    await client.query(`UPDATE media_creator_applications SET status = 'rejected', updated_at = NOW() WHERE gig_id = $1 AND id <> $2 AND status IN ('submitted','shortlisted')`, [rows[0].gig_id, rows[0].id]);
+    const current = currentRows[0];
+    if (!current) throw new AppError('Application is not available to award.', 404, 'media_creator_application_not_found');
+    // A lost response after a successful award is safely replayable.
+    if (current.status === 'awarded' && current.gig_status === 'awarded' && current.credit_reservation_id) {
+      await client.query('COMMIT');
+      return res.json({ application: current, replayed: true });
+    }
+    if (current.gig_status !== 'open' || !['submitted', 'shortlisted'].includes(current.status)) {
+      throw new AppError('Application is not available to award.', 409, 'media_creator_application_state_invalid');
+    }
+    const awardAmount = Number(current.proposed_cents);
+    if (!Number.isSafeInteger(awardAmount) || awardAmount <= 0 || awardAmount > Number(current.budget_cents)) {
+      throw new AppError('The application amount is not valid for this gig.', 409, 'media_creator_amount_invalid');
+    }
+    await creditService.assertCreditRailEnabled(client);
+    await creditService.assertCreditRailNotFrozen(client);
+    const ownerAccount = await ensureAccount(client, {
+      accountType: 'customer_wallet', customerId: current.owner_user_id,
+      currencyCode: current.currency_code, allowNonCustomerOwner: true,
+    });
+    const reservationResult = await reserveFunds(client, {
+      accountId: ownerAccount.id,
+      reservationType: 'media_creator_gig',
+      referenceType: 'media_creator_gig',
+      referenceId: current.gig_id,
+      amountCents: awardAmount,
+    });
+    const { rows } = await client.query(
+      `UPDATE media_creator_applications SET status = 'awarded', updated_at = NOW()
+        WHERE id = $1 RETURNING *`, [current.id]
+    );
+    await client.query(
+      `UPDATE media_creator_gigs
+          SET status = 'awarded', award_amount_cents = $2, credit_reservation_id = $3, updated_at = NOW()
+        WHERE id = $1`, [current.gig_id, awardAmount, reservationResult.reservation.id]
+    );
+    await client.query(
+      `UPDATE media_creator_applications SET status = 'rejected', updated_at = NOW()
+        WHERE gig_id = $1 AND id <> $2 AND status IN ('submitted','shortlisted')`, [current.gig_id, current.id]
+    );
     await client.query('COMMIT');
-    res.json({ application: rows[0] });
+    res.json({ application: rows[0], reservation: reservationResult.reservation });
   } catch (err) { await client.query('ROLLBACK').catch(() => {}); next(err); }
   finally { client.release(); }
 }
@@ -188,17 +231,97 @@ async function submitDeliverable(req, res, next) {
 
 async function reviewDeliverable(req, res, next) {
   const status = req.body?.status === 'changes_requested' ? 'changes_requested' : req.body?.status === 'rejected' ? 'rejected' : 'approved';
+  const client = await pool.connect();
   try {
-    const { rows } = await pool.query(
-      `UPDATE media_creator_deliverables d SET status = $2, reviewed_at = NOW()
-        FROM media_creator_applications ap JOIN media_creator_gigs g ON g.id = ap.gig_id
-       WHERE d.id = $1 AND d.application_id = ap.id AND g.owner_user_id = $3
-       RETURNING d.*`, [req.params.deliverableId, status, req.user.id]
+    await client.query('BEGIN');
+    const { rows: currentRows } = await client.query(
+      `SELECT d.*, ap.applicant_user_id, ap.gig_id, ap.status AS application_status,
+              g.owner_user_id, g.award_amount_cents, g.currency_code,
+              g.credit_reservation_id, g.credit_transaction_id, g.status AS gig_status
+         FROM media_creator_deliverables d
+         JOIN media_creator_applications ap ON ap.id = d.application_id
+         JOIN media_creator_gigs g ON g.id = ap.gig_id
+        WHERE d.id = $1 AND g.owner_user_id = $2
+        FOR UPDATE OF d, ap, g`, [req.params.deliverableId, req.user.id]
     );
-    if (!rows[0]) throw new AppError('Deliverable not found.', 404, 'media_creator_deliverable_not_found');
-    if (status === 'approved') await pool.query(`UPDATE media_creator_applications SET status = 'approved', updated_at = NOW() WHERE id = (SELECT application_id FROM media_creator_deliverables WHERE id = $1)`, [req.params.deliverableId]);
-    res.json({ deliverable: rows[0] });
-  } catch (err) { next(err); }
+    const current = currentRows[0];
+    if (!current) throw new AppError('Deliverable not found.', 404, 'media_creator_deliverable_not_found');
+    if (current.status === 'approved' && status === 'approved' && current.credit_transaction_id) {
+      await client.query('COMMIT');
+      return res.json({ deliverable: current, replayed: true });
+    }
+    if (current.status !== 'submitted') {
+      throw new AppError('Only a submitted deliverable can be reviewed.', 409, 'media_creator_deliverable_state_invalid');
+    }
+
+    let transfer = null;
+    let transactionId = current.credit_transaction_id;
+    if (status === 'approved') {
+      if (!current.credit_reservation_id || !current.award_amount_cents) {
+        throw new AppError('This award has no active Credit reservation.', 409, 'media_creator_reservation_missing');
+      }
+      await creditService.assertCreditRailEnabled(client);
+      await creditService.assertCreditRailNotFrozen(client);
+      const reservation = await getActiveReservation(client, {
+        referenceType: 'media_creator_gig', referenceId: current.gig_id,
+      });
+      if (!reservation) {
+        throw new AppError('The gig Credit reservation is no longer active.', 409, 'media_creator_reservation_missing');
+      }
+      await releaseReservation(client, {
+        reservationId: reservation.id,
+        reason: 'Approved Media creator deliverable',
+      });
+      transfer = await transferCreditInTransaction(client, {
+        senderCustomerId: current.owner_user_id,
+        recipientCustomerId: current.applicant_user_id,
+        amountCents: current.award_amount_cents,
+        currencyCode: current.currency_code,
+        idempotencyKey: `media-creator-gig:${current.gig_id}`,
+        actorUserId: current.owner_user_id,
+        referenceType: 'media_creator_gig',
+        referenceId: current.gig_id,
+        requestIp: req.ip || null,
+        description: 'OxSteed Media approved creator gig',
+        metadata: { mediaCreatorGigId: current.gig_id, deliverableId: current.id },
+        allowCreatorRecipient: true,
+        allowCreatorSender: true,
+      });
+      transactionId = transfer.transaction?.id || transfer.id || null;
+    }
+
+    const { rows } = await client.query(
+      `UPDATE media_creator_deliverables SET status = $2, reviewed_at = NOW()
+        WHERE id = $1 RETURNING *`, [current.id, status]
+    );
+    if (status === 'approved') {
+      await client.query(
+        `UPDATE media_creator_applications SET status = 'approved', updated_at = NOW() WHERE id = $1`, [current.application_id]
+      );
+      await client.query(
+        `UPDATE media_creator_gigs SET status = 'completed', credit_transaction_id = $2, updated_at = NOW() WHERE id = $1`,
+        [current.gig_id, transactionId]
+      );
+    } else if (status === 'changes_requested') {
+      await client.query(
+        `UPDATE media_creator_applications SET status = 'awarded', updated_at = NOW() WHERE id = $1`, [current.application_id]
+      );
+    } else {
+      await client.query(
+        `UPDATE media_creator_applications SET status = 'rejected', updated_at = NOW() WHERE id = $1`, [current.application_id]
+      );
+      if (current.credit_reservation_id) {
+        await releaseReservation(client, {
+          reservationId: current.credit_reservation_id,
+          reason: 'Rejected Media creator deliverable',
+        });
+      }
+      await client.query(`UPDATE media_creator_gigs SET status = 'cancelled', updated_at = NOW() WHERE id = $1`, [current.gig_id]);
+    }
+    await client.query('COMMIT');
+    res.json({ deliverable: rows[0], ...(transfer ? { transfer } : {}) });
+  } catch (err) { await client.query('ROLLBACK').catch(() => {}); next(err); }
+  finally { client.release(); }
 }
 
 async function createTip(req, res, next) {
@@ -315,6 +438,41 @@ async function cancelSponsorship(req, res, next) {
     if (!rows[0]) throw new AppError('Sponsorship cannot be cancelled.', 409, 'media_creator_sponsorship_cancel_invalid');
     res.json({ sponsorship: rows[0] });
   } catch (err) { next(err); }
+}
+
+async function cancelGig(req, res, next) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `SELECT * FROM media_creator_gigs
+        WHERE id = $1 AND owner_user_id = $2
+        FOR UPDATE`, [req.params.gigId, req.user.id]
+    );
+    const gig = rows[0];
+    if (!gig) throw new AppError('Creator gig not found.', 404, 'media_creator_gig_not_found');
+    if (['completed', 'cancelled'].includes(gig.status)) {
+      await client.query('COMMIT');
+      return res.json({ gig, replayed: true });
+    }
+    if (gig.credit_reservation_id) {
+      await releaseReservation(client, {
+        reservationId: gig.credit_reservation_id,
+        reason: 'Media creator gig cancelled',
+      });
+    }
+    const { rows: updated } = await client.query(
+      `UPDATE media_creator_gigs SET status = 'cancelled', updated_at = NOW()
+        WHERE id = $1 RETURNING *`, [gig.id]
+    );
+    await client.query(
+      `UPDATE media_creator_applications SET status = 'rejected', updated_at = NOW()
+        WHERE gig_id = $1 AND status IN ('submitted','shortlisted','awarded','delivered')`, [gig.id]
+    );
+    await client.query('COMMIT');
+    res.json({ gig: updated[0] });
+  } catch (err) { await client.query('ROLLBACK').catch(() => {}); next(err); }
+  finally { client.release(); }
 }
 
 async function createBoost(req, res, next) {
@@ -476,7 +634,7 @@ async function settleTip(req, res, next) {
 
 module.exports = {
   listGigs, createGig, applyToGig, listApplications, listMyApplications, awardApplication,
-  submitDeliverable, reviewDeliverable, createTip, createSponsorship, listSponsorships, createBoost,
+  submitDeliverable, reviewDeliverable, cancelGig, createTip, createSponsorship, listSponsorships, createBoost,
   settleTip,
   acceptSponsorship, settleSponsorship, cancelSponsorship, settleBoost, cancelBoost,
   openCreatorDispute,
