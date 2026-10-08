@@ -32,6 +32,33 @@ test('rejects a tip target that is not a currently verified creator actor', asyn
   expect(client.release).toHaveBeenCalled();
 });
 
+test('replays an identical submitted gig application without resetting its lifecycle', async () => {
+  const pool = require('../db');
+  const client = { query: mockQuery, release: jest.fn() };
+  pool.connect.mockResolvedValueOnce(client);
+  mockQuery.mockImplementation(async (sql) => {
+    const query = String(sql);
+    if (query === 'BEGIN' || query === 'COMMIT') return { rows: [] };
+    if (query.includes('FROM media_actors a')) return { rows: [{ id: 'actor-1', owner_user_id: 'creator-1' }] };
+    if (query.includes('FROM media_creator_gigs')) return { rows: [{ id: 'gig-1', budget_cents: 1000, max_applications: 1, status: 'open' }] };
+    if (query.includes('FROM media_creator_applications')) return { rows: [{ id: 'app-1', gig_id: 'gig-1', applicant_user_id: 'creator-1', applicant_actor_id: 'actor-1', pitch: 'I can do this', proposed_cents: 900, status: 'submitted' }] };
+    return { rows: [] };
+  });
+  const res = resMock();
+  await creator.applyToGig({
+    params: { gigId: 'gig-1' },
+    user: { id: 'creator-1' },
+    body: { actorId: 'actor-1', pitch: 'I can do this', proposedCents: 900 },
+  }, res, jest.fn());
+  expect(res.status).toHaveBeenCalledWith(200);
+  expect(res.json).toHaveBeenCalledWith({ application: expect.objectContaining({ id: 'app-1', status: 'submitted' }), replayed: true });
+  expect(mockQuery.mock.calls.map(([sql]) => String(sql))).toEqual([
+    'BEGIN', expect.stringContaining('FROM media_actors a'), expect.stringContaining('FROM media_creator_gigs'),
+    expect.stringContaining('FROM media_creator_applications'), 'COMMIT',
+  ]);
+  expect(client.release).toHaveBeenCalled();
+});
+
 test('only lets a currently verified creator accept a sponsorship and reserve its funds', async () => {
   const pool = require('../db');
   const client = { query: mockQuery, release: jest.fn() };

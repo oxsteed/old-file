@@ -96,6 +96,7 @@ async function createGig(req, res, next) {
 async function applyToGig(req, res, next) {
   const client = await pool.connect();
   try {
+    await client.query('BEGIN');
     const actor = await verifiedActor(client, req.user.id, req.body?.actorId || null);
     if (!actor) throw new AppError('A current verified helper, business, or restaurant actor is required.', 403, 'media_creator_unverified');
     const pitch = text(req.body?.pitch, 3000, 'Pitch');
@@ -105,18 +106,33 @@ async function applyToGig(req, res, next) {
     if (proposed > Number(gigs[0].budget_cents)) {
       throw new AppError('The proposed amount cannot exceed this gig budget.', 400, 'media_creator_amount_over_budget');
     }
+    const { rows: existingRows } = await client.query(
+      `SELECT * FROM media_creator_applications
+        WHERE gig_id = $1 AND applicant_user_id = $2
+        FOR UPDATE`, [req.params.gigId, req.user.id]
+    );
+    if (existingRows[0]) {
+      const existing = existingRows[0];
+      if (String(existing.applicant_actor_id) !== String(actor.id)
+        || String(existing.pitch) !== pitch
+        || Number(existing.proposed_cents) !== proposed
+        || existing.status !== 'submitted') {
+        throw new AppError('This creator application already moved forward or uses different details.', 409, 'media_creator_application_state_invalid');
+      }
+      await client.query('COMMIT');
+      return res.status(200).json({ application: existing, replayed: true });
+    }
     const { rows: count } = await client.query(`SELECT COUNT(*)::int AS count FROM media_creator_applications WHERE gig_id = $1`, [req.params.gigId]);
     if (count[0].count >= gigs[0].max_applications) throw new AppError('This gig is no longer accepting applications.', 409, 'media_creator_gig_full');
     const { rows } = await client.query(
       `INSERT INTO media_creator_applications
          (gig_id, applicant_user_id, applicant_actor_id, pitch, proposed_cents)
        VALUES ($1,$2,$3,$4,$5)
-       ON CONFLICT (gig_id, applicant_user_id) DO UPDATE SET pitch = EXCLUDED.pitch,
-         proposed_cents = EXCLUDED.proposed_cents, status = 'submitted', updated_at = NOW()
        RETURNING *`, [req.params.gigId, req.user.id, actor.id, pitch, proposed]
     );
+    await client.query('COMMIT');
     res.status(201).json({ application: rows[0] });
-  } catch (err) { next(err); }
+  } catch (err) { await client.query('ROLLBACK').catch(() => {}); next(err); }
   finally { client.release(); }
 }
 
