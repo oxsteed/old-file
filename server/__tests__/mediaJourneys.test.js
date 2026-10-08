@@ -65,6 +65,20 @@ describe('Media user journeys', () => {
     expect(next).toHaveBeenCalledTimes(1);
   });
 
+  test('preserves operational Media errors while keeping unknown failures generic', async () => {
+    pool.query.mockRejectedValueOnce({ status: 409, isOperational: true, code: 'media_retryable_state', message: 'The draft is still processing.' });
+    const operational = response();
+    await media.getPost({ params: { id: 'post-1' }, user: { id: 'viewer' } }, operational);
+    expect(operational.status).toHaveBeenCalledWith(409);
+    expect(operational.json).toHaveBeenCalledWith({ error: 'The draft is still processing.', code: 'media_retryable_state' });
+
+    pool.query.mockRejectedValueOnce(new Error('database password leaked'));
+    const unknown = response();
+    await media.getPost({ params: { id: 'post-2' }, user: { id: 'viewer' } }, unknown);
+    expect(unknown.status).toHaveBeenCalledWith(500);
+    expect(unknown.json).toHaveBeenCalledWith({ error: 'Failed to load post' });
+  });
+
   test('lets a verified actor reply and sends one stable notification to the parent owner', async () => {
     const actor = {
       id: 'actor-1', owner_user_id: 'replyer', actor_type: 'helper', verified_kind: 'identity',

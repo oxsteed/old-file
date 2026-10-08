@@ -16,6 +16,16 @@ const socketService = require('../services/socketService');
 
 const MAX_LINKS_PER_POST = 5;
 const POSTS_PER_DAY = 10;
+
+function mediaError(res, error, fallback) {
+  const status = Number.isInteger(error?.status) && error.status >= 400 && error.status <= 599
+    ? error.status : 500;
+  const operational = (status >= 400 && status < 500)
+    || (status === 503 && Boolean(error?.isOperational));
+  const payload = { error: operational && error?.message ? error.message : fallback };
+  if (operational && error?.code) payload.code = error.code;
+  return res.status(status).json(payload);
+}
 // All Media link types are enabled under the combined MVP/v2/v3 delivery
 // strategy. Each type still has to resolve to a currently public target before
 // it contributes to feed ranking or becomes clickable.
@@ -635,7 +645,7 @@ async function getFeed(req, res) {
   } catch (err) {
     if (err.status === 400) return res.status(400).json({ error: 'Refresh the feed with a valid location and cursor', code: err.code });
     logger.error('media.getFeed error', { message: err.message });
-    res.status(500).json({ error: 'Failed to load feed' });
+    mediaError(res, err, 'Failed to load feed');
   }
 }
 
@@ -678,7 +688,7 @@ async function getPost(req, res) {
     res.json({ post });
   } catch (err) {
     logger.error('media.getPost error', { message: err.message });
-    res.status(500).json({ error: 'Failed to load post' });
+    mediaError(res, err, 'Failed to load post');
   }
 }
 
@@ -700,7 +710,7 @@ async function getDrafts(req, res) {
     res.json({ drafts });
   } catch (err) {
     logger.error('media.getDrafts error', { message: err.message });
-    res.status(500).json({ error: 'Failed to load drafts' });
+    mediaError(res, err, 'Failed to load drafts');
   }
 }
 
@@ -720,7 +730,7 @@ async function getDraft(req, res) {
     res.json({ draft: await hydratePost(rows[0], req.user.id) });
   } catch (err) {
     logger.error('media.getDraft error', { message: err.message });
-    res.status(500).json({ error: 'Failed to load draft' });
+    mediaError(res, err, 'Failed to load draft');
   }
 }
 
@@ -749,7 +759,7 @@ async function getBookmarks(req, res) {
     res.json({ posts });
   } catch (err) {
     logger.error('media.getBookmarks error', { message: err.message });
-    res.status(500).json({ error: 'Failed to load saved posts' });
+    mediaError(res, err, 'Failed to load saved posts');
   }
 }
 
@@ -787,7 +797,7 @@ async function getReplies(req, res) {
     res.json({ replies, sort });
   } catch (err) {
     logger.error('media.getReplies error', { message: err.message });
-    res.status(500).json({ error: 'Failed to load replies' });
+    mediaError(res, err, 'Failed to load replies');
   }
 }
 
@@ -815,7 +825,7 @@ async function getQuotes(req, res) {
     res.json({ quotes });
   } catch (err) {
     logger.error('media.getQuotes error', { message: err.message });
-    res.status(500).json({ error: 'Failed to load quotes' });
+    mediaError(res, err, 'Failed to load quotes');
   }
 }
 
@@ -969,7 +979,7 @@ async function createPost(req, res) {
     res.status(201).json({ post: await hydratePost(post, userId), draft: isDraft });
   } catch (err) {
     logger.error('media.createPost error', { message: err.message });
-    res.status(500).json({ error: 'Failed to create post' });
+    mediaError(res, err, 'Failed to create post');
   }
 }
 
@@ -1038,7 +1048,7 @@ async function updateDraft(req, res) {
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
     logger.error('media.updateDraft error', { message: err.message });
-    return res.status(500).json({ error: 'Failed to update draft' });
+    return mediaError(res, err, 'Failed to update draft');
   } finally {
     client.release();
   }
@@ -1121,7 +1131,7 @@ async function publishPost(req, res) {
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
     logger.error('media.publishPost error', { message: err.message });
-    res.status(500).json({ error: 'Failed to publish draft' });
+    mediaError(res, err, 'Failed to publish draft');
   } finally {
     client.release();
   }
@@ -1150,7 +1160,7 @@ async function updatePost(req, res) {
     res.json({ post: await hydratePost(hydrated[0], req.user.id) });
   } catch (err) {
     logger.error('media.updatePost error', { message: err.message });
-    res.status(500).json({ error: 'Failed to update post' });
+    mediaError(res, err, 'Failed to update post');
   }
 }
 
@@ -1177,7 +1187,7 @@ async function deletePost(req, res) {
     res.json({ deleted: true, id: rows[0].id });
   } catch (err) {
     logger.error('media.deletePost error', { message: err.message });
-    res.status(500).json({ error: 'Failed to delete post' });
+    mediaError(res, err, 'Failed to delete post');
   }
 }
 
@@ -1224,7 +1234,7 @@ async function replacePostLinks(req, res) {
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
     logger.error('media.replacePostLinks error', { message: err.message });
-    return res.status(500).json({ error: 'Failed to update post links' });
+    return mediaError(res, err, 'Failed to update post links');
   } finally {
     client.release();
   }
@@ -1264,7 +1274,7 @@ async function toggleLike(req, res) {
     res.json({ liked: true, like_count: Number(updated[0]?.like_count || 0) });
   } catch (err) {
     logger.error('media.toggleLike error', { message: err.message });
-    res.status(500).json({ error: 'Failed to toggle like' });
+    mediaError(res, err, 'Failed to toggle like');
   }
 }
 
@@ -1289,7 +1299,7 @@ async function toggleBookmark(req, res) {
     res.json({ bookmarked: true, bookmark_count: Number(updated[0]?.bookmark_count || 0) });
   } catch (err) {
     logger.error('media.toggleBookmark error', { message: err.message });
-    res.status(500).json({ error: 'Failed to toggle bookmark' });
+    mediaError(res, err, 'Failed to toggle bookmark');
   }
 }
 
@@ -1316,7 +1326,7 @@ async function toggleRepost(req, res) {
     res.json({ reposted: true, repost_count: Number(updated[0]?.repost_count || 0) });
   } catch (err) {
     logger.error('media.toggleRepost error', { message: err.message });
-    res.status(500).json({ error: 'Failed to toggle repost' });
+    mediaError(res, err, 'Failed to toggle repost');
   }
 }
 
@@ -1351,7 +1361,7 @@ async function recordShare(req, res) {
     return res.json({ shared: Boolean(inserted[0]), share_count: Number(counts[0]?.share_count || 0) });
   } catch (err) {
     logger.error('media.recordShare error', { message: err.message });
-    return res.status(500).json({ error: 'Failed to record share' });
+    return mediaError(res, err, 'Failed to record share');
   }
 }
 
@@ -1383,7 +1393,7 @@ async function recordView(req, res) {
     res.json({ ok: true, recorded: rowCount > 0, ...(viewCount == null ? {} : { view_count: Number(viewCount) }) });
   } catch (err) {
     logger.error('media.recordView error', { message: err.message });
-    res.status(500).json({ error: 'Failed to record view' });
+    mediaError(res, err, 'Failed to record view');
   }
 }
 
@@ -1413,7 +1423,7 @@ async function flagPost(req, res) {
     res.status(201).json({ ok: true });
   } catch (err) {
     logger.error('media.flagPost error', { message: err.message });
-    res.status(500).json({ error: 'Failed to flag post' });
+    mediaError(res, err, 'Failed to flag post');
   }
 }
 
@@ -1441,7 +1451,7 @@ async function getCommunities(req, res) {
     res.json({ communities: rows });
   } catch (err) {
     logger.error('media.getCommunities error', { message: err.message });
-    res.status(500).json({ error: 'Failed to load communities' });
+    mediaError(res, err, 'Failed to load communities');
   }
 }
 
@@ -1485,7 +1495,7 @@ async function getCommunity(req, res) {
     res.json({ community: communities[0], posts });
   } catch (err) {
     logger.error('media.getCommunity error', { message: err.message });
-    res.status(500).json({ error: 'Failed to load Space' });
+    mediaError(res, err, 'Failed to load Space');
   }
 }
 
@@ -1501,7 +1511,7 @@ async function joinCommunity(req, res) {
     res.json({ joined: true });
   } catch (err) {
     logger.error('media.joinCommunity error', { message: err.message });
-    res.status(500).json({ error: 'Failed to join Space' });
+    mediaError(res, err, 'Failed to join Space');
   }
 }
 
@@ -1514,7 +1524,7 @@ async function leaveCommunity(req, res) {
     res.json({ joined: false });
   } catch (err) {
     logger.error('media.leaveCommunity error', { message: err.message });
-    res.status(500).json({ error: 'Failed to leave Space' });
+    mediaError(res, err, 'Failed to leave Space');
   }
 }
 
@@ -1558,7 +1568,7 @@ async function searchMedia(req, res) {
     res.json({ posts: hydrated, actors });
   } catch (err) {
     logger.error('media.searchMedia error', { message: err.message });
-    res.status(500).json({ error: 'Failed to search Media' });
+    mediaError(res, err, 'Failed to search Media');
   }
 }
 
@@ -1590,7 +1600,7 @@ async function getBusinessPosts(req, res) {
     res.json({ posts: hydrated });
   } catch (err) {
     logger.error('media.getBusinessPosts error', { message: err.message });
-    res.status(500).json({ error: 'Failed to load business posts' });
+    mediaError(res, err, 'Failed to load business posts');
   }
 }
 
@@ -1632,7 +1642,7 @@ async function getActor(req, res) {
     res.json({ actor: { ...rows[0], following }, posts: hydrated });
   } catch (err) {
     logger.error('media.getActor error', { message: err.message });
-    res.status(500).json({ error: 'Failed to load actor' });
+    mediaError(res, err, 'Failed to load actor');
   }
 }
 
@@ -1691,7 +1701,7 @@ async function toggleFollow(req, res) {
     return res.json({ following: true, follower_count: Number(counts[0]?.follower_count || 0) });
   } catch (err) {
     logger.error('media.toggleFollow error', { message: err.message });
-    return res.status(500).json({ error: 'Failed to update follow' });
+    return mediaError(res, err, 'Failed to update follow');
   }
 }
 
@@ -1779,7 +1789,7 @@ async function searchMediaEntities(req, res) {
     res.json({ entities: rows.map((row) => ({ ...row, link_type: type, label: row.name })) });
   } catch (err) {
     logger.error('media.searchMediaEntities error', { message: err.message });
-    res.status(500).json({ error: 'Failed to search Media entities' });
+    mediaError(res, err, 'Failed to search Media entities');
   }
 }
 
