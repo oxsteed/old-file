@@ -58,3 +58,11 @@ test('blocks sponsorship settlement after creator verification is revoked', asyn
   expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_creator_unverified' }));
   expect(client.release).toHaveBeenCalled();
 });
+
+test('lists sponsorship offers for either the sponsor or creator owner', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{ id: 's-1', status: 'accepted', creator_user_id: 'creator-1' }] });
+  const res = resMock();
+  await creator.listSponsorships({ user: { id: 'creator-1' } }, res, jest.fn());
+  expect(res.json).toHaveBeenCalledWith({ sponsorships: [{ id: 's-1', status: 'accepted', creator_user_id: 'creator-1' }] });
+  expect(mockQuery.mock.calls[0][0]).toContain('s.sponsor_user_id = $1 OR a.owner_user_id = $1');
+});

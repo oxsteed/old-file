@@ -218,6 +218,20 @@ async function createSponsorship(req, res, next) {
   finally { client.release(); }
 }
 
+async function listSponsorships(req, res, next) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT s.*, a.handle AS creator_handle, a.display_name AS creator_name,
+              a.owner_user_id AS creator_user_id
+         FROM media_creator_sponsorships s
+         JOIN media_actors a ON a.id = s.creator_actor_id
+        WHERE s.sponsor_user_id = $1 OR a.owner_user_id = $1
+        ORDER BY s.created_at DESC LIMIT 50`, [req.user.id]
+    );
+    res.json({ sponsorships: rows });
+  } catch (err) { next(err); }
+}
+
 async function acceptSponsorship(req, res, next) {
   const client = await pool.connect();
   try {
@@ -350,7 +364,7 @@ async function settleTip(req, res, next) {
 
 module.exports = {
   listGigs, createGig, applyToGig, listApplications, awardApplication,
-  submitDeliverable, reviewDeliverable, createTip, createSponsorship, createBoost,
+  submitDeliverable, reviewDeliverable, createTip, createSponsorship, listSponsorships, createBoost,
   settleTip,
   acceptSponsorship, settleSponsorship, settleBoost,
 };

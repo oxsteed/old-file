@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Briefcase, CheckCircle2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { applyToCreatorGig, createCreatorGig, createCreatorSponsorship, createCreatorTip, getCreatorGigs, settleCreatorTip } from '../../api/media';
+import { acceptCreatorSponsorship, applyToCreatorGig, createCreatorGig, createCreatorSponsorship, createCreatorTip, getCreatorGigs, getCreatorSponsorships, settleCreatorTip } from '../../api/media';
 import { useAuth } from '../../context/AuthContext';
 
 export default function MediaCreatorPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [gigs, setGigs] = useState([]);
+  const [sponsorships, setSponsorships] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selected, setSelected] = useState(null);
@@ -28,7 +29,10 @@ export default function MediaCreatorPage() {
   const load = () => {
     setLoading(true);
     setError('');
-    getCreatorGigs().then((data) => setGigs(data.gigs || []))
+    Promise.all([
+      getCreatorGigs(),
+      user ? getCreatorSponsorships() : Promise.resolve({ sponsorships: [] }),
+    ]).then(([gigData, sponsorshipData]) => { setGigs(gigData.gigs || []); setSponsorships(sponsorshipData.sponsorships || []); })
       .catch(() => setError(t('media.creator.loadError')))
       .finally(() => setLoading(false));
   };
@@ -43,7 +47,7 @@ export default function MediaCreatorPage() {
     } catch (err) { setError(err.response?.data?.error || t('media.creator.loadError')); }
     finally { setSubmitting(false); }
   };
-  useEffect(load, [t]);
+  useEffect(load, [t, user]);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -91,6 +95,13 @@ export default function MediaCreatorPage() {
     setSupportBrief(''); setSupportMessage(''); setError('');
   };
 
+  const acceptOffer = async (sponsorshipId) => {
+    setSubmitting(true); setError('');
+    try { await acceptCreatorSponsorship(sponsorshipId); setSponsorships((items) => items.map((item) => item.id === sponsorshipId ? { ...item, status: 'accepted' } : item)); }
+    catch (err) { setError(err.response?.data?.error || t('media.creator.paymentError')); }
+    finally { setSubmitting(false); }
+  };
+
   return (
     <section className="media-feed media-creator-page">
       <header className="media-timeline-header">
@@ -115,6 +126,14 @@ export default function MediaCreatorPage() {
           </div>}
         </article>
       ))}
+      {!loading && user && sponsorships.length > 0 && <section className="media-creator-offers" aria-labelledby="creator-offers-title">
+        <h2 id="creator-offers-title">{t('media.creator.offers')}</h2>
+        {sponsorships.map((offer) => <article className="media-card media-creator-gig" key={offer.id}>
+          <div className="media-creator-gig-heading"><div><h3>{offer.brief}</h3><p>{offer.creator_name || offer.creator_handle}</p></div><strong>{offer.amount_cents} {offer.currency_code}</strong></div>
+          <p>{offer.status === 'accepted' ? t('media.creator.accepted') : offer.status === 'pending_credit' ? t('media.creator.pendingAcceptance') : offer.status}</p>
+          {String(offer.creator_user_id) === String(user.id) && offer.status === 'pending_credit' && <button type="button" className="media-primary-button" onClick={() => acceptOffer(offer.id)} disabled={submitting}>{t('media.creator.accept')}</button>}
+        </article>)}
+      </section>}
       {selected && <div className="media-verification-dialog" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelected(null); }}>
         <form className="media-verification-form" onSubmit={submit} role="dialog" aria-modal="true" aria-labelledby="creator-apply-title">
           <button type="button" className="media-dialog-close" onClick={() => setSelected(null)} aria-label={t('media.shell.close')}><X size={18} /></button>

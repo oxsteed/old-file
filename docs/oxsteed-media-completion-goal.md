@@ -358,3 +358,10 @@ schedule its 24-hour placement window; failed rail authorization remains
 visible to the owner. The five localized labels, client typecheck, i18n parity,
 and production build pass locally. No boost is active without the server-side
 public/safety/ownership checks and a completed Credit transfer.
+
+Sponsorship review UI (2026-10-08): signed-in creators and sponsors can now
+load their sponsorship offers inside `/media/creator`; the creator can accept
+an offer only while current verification is valid, and the sponsor can then
+settle it through the existing guarded Credit route. The API query is limited
+to the two parties, and the focused controller suite now passes 5 tests.
+Authenticated Credit settlement and deployment verification remain open.

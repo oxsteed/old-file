@@ -64,6 +64,7 @@ router.patch('/creator/deliverables/:deliverableId', requireAuth, creatorCtrl.re
 router.post('/creator/tips', requireAuth, creatorCtrl.createTip);
 router.post('/creator/tips/:tipId/settle', requireAuth, creatorCtrl.settleTip);
 router.post('/creator/sponsorships', requireAuth, creatorCtrl.createSponsorship);
+router.get('/creator/sponsorships', requireAuth, creatorCtrl.listSponsorships);
 router.post('/creator/sponsorships/:sponsorshipId/accept', requireAuth, creatorCtrl.acceptSponsorship);
 router.post('/creator/sponsorships/:sponsorshipId/settle', requireAuth, creatorCtrl.settleSponsorship);
 router.post('/posts/:postId/boosts', requireAuth, creatorCtrl.createBoost);
