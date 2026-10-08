@@ -394,14 +394,17 @@ async function hydratePost(post, viewerUserId) {
 async function getFeed(req, res) {
   try {
     const tab = req.query.tab || 'home';
-    if (!['home', 'following'].includes(tab)) {
+    if (!['home', 'following', 'mine'].includes(tab)) {
       return res.status(400).json({ error: 'Unsupported Media feed' });
     }
     const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
     const before = req.query.before || null;
     const viewerUserId = req.user?.id || null;
-    if (tab === 'following' && !viewerUserId) {
-      return res.status(401).json({ error: 'Sign in to view your Following feed', code: 'media_following_auth_required' });
+    if ((tab === 'following' || tab === 'mine') && !viewerUserId) {
+      return res.status(401).json({
+        error: tab === 'mine' ? 'Sign in to view your Media posts' : 'Sign in to view your Following feed',
+        code: tab === 'mine' ? 'media_mine_auth_required' : 'media_following_auth_required',
+      });
     }
     let localityBoost = '0';
 
@@ -451,6 +454,9 @@ async function getFeed(req, res) {
          WHERE following_actor.follower_user_id = $${viewerParam}
            AND following_actor.actor_id = a.id
       )`;
+    }
+    if (tab === 'mine') {
+      where += ` AND a.owner_user_id = $${viewerParam}`;
     }
 
     let rankedAfter = '';
@@ -513,6 +519,7 @@ async function getFeed(req, res) {
                AND following_actor.actor_id = a.id
           )`;
         }
+        if (tab === 'mine') fallbackWhere += ` AND a.owner_user_id = $${fallbackViewerParam}`;
       }
       if (rankedCursor?.created_at && rankedCursor?.id) {
         fallbackParams.push(rankedCursor.created_at, rankedCursor.id);
@@ -558,6 +565,7 @@ async function getFeed(req, res) {
                  AND following_actor.actor_id = a.id
             )`;
           }
+          if (tab === 'mine') minimalWhere += ` AND a.owner_user_id = $${viewerParam}`;
         }
         if (rankedCursor?.created_at && rankedCursor?.id) {
           minimalParams.push(rankedCursor.created_at, rankedCursor.id);

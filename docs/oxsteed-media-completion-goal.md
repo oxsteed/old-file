@@ -270,3 +270,13 @@ the pushed CI run 37787111951 passed both server/client verification and the
 PostgreSQL migration rehearsal. This batch still needs deployment and an
 authenticated live linked-card journey before the full goal can be marked
 complete.
+
+Profile integration repair (2026-10-08): Profile Studio's existing Media
+section requests the signed-in owner's posts through `tab=mine`; the API now
+supports that scoped feed with the same public-safety, active-author and block
+filters as Home. Guests receive a dedicated authentication response, and the
+focused follow/contracts suite now passes 15 tests locally. Business Hub's
+existing business-scoped Media tab continues to use the owner-checked business
+actor endpoint. Public helper and business profile presentation still needs a
+live browser check and any missing visible Media tab wiring should be recorded
+before completion.
