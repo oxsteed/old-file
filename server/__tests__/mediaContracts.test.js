@@ -84,6 +84,37 @@ describe('OxSteed Media launch contracts', () => {
     expect(pool.query.mock.calls[1][0]).toContain('ORDER BY (p.like_count * 3');
   });
 
+  test('returns authoritative action counts for live card reconciliation', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ id: 'post-1' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ like_count: 9 }] })
+      .mockResolvedValueOnce({ rows: [] });
+    const likeRes = resMock();
+    await media.toggleLike({ params: { id: 'post-1' }, user: { id: 'user-1' } }, likeRes);
+    expect(likeRes.json).toHaveBeenCalledWith({ liked: true, like_count: 9 });
+
+    pool.query.mockReset()
+      .mockResolvedValueOnce({ rows: [{ id: 'post-1' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ bookmark_count: 4 }] });
+    const bookmarkRes = resMock();
+    await media.toggleBookmark({ params: { id: 'post-1' }, user: { id: 'user-1' } }, bookmarkRes);
+    expect(bookmarkRes.json).toHaveBeenCalledWith({ bookmarked: true, bookmark_count: 4 });
+
+    pool.query.mockReset()
+      .mockResolvedValueOnce({ rows: [{ id: 'post-1' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'actor-1', verified_kind: 'helper' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ repost_count: 3 }] });
+    const repostRes = resMock();
+    await media.toggleRepost({ params: { id: 'post-1' }, user: { id: 'user-1' } }, repostRes);
+    expect(repostRes.json).toHaveBeenCalledWith({ reposted: true, repost_count: 3 });
+  });
+
   test('requires a verified business before creating a business post', async () => {
     pool.query.mockResolvedValueOnce({ rows: [] });
 

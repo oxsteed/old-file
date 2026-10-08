@@ -89,7 +89,8 @@ export default function MediaPostCard({ post, onUpdate }) {
     try {
       const r = await toggleLike(post.id);
       setLiked(r.liked);
-      setLikeCount(c => Math.max(0, c + (r.liked ? 1 : -1)));
+      if (Number.isFinite(Number(r.like_count))) setLikeCount(Number(r.like_count));
+      else setLikeCount(c => Math.max(0, c + (r.liked ? 1 : -1)));
     } catch { /* keep the server state when the request fails */ }
   };
 
@@ -99,7 +100,8 @@ export default function MediaPostCard({ post, onUpdate }) {
     try {
       const r = await toggleBookmark(post.id);
       setBookmarked(r.bookmarked);
-      setBookmarkCount(c => Math.max(0, c + (r.bookmarked ? 1 : -1)));
+      if (Number.isFinite(Number(r.bookmark_count))) setBookmarkCount(Number(r.bookmark_count));
+      else setBookmarkCount(c => Math.max(0, c + (r.bookmarked ? 1 : -1)));
     } catch { /* keep the server state when the request fails */ }
   };
 
@@ -109,7 +111,8 @@ export default function MediaPostCard({ post, onUpdate }) {
     try {
       const r = await toggleRepost(post.id);
       setReposted(r.reposted);
-      setRepostCount(c => Math.max(0, c + (r.reposted ? 1 : -1)));
+      if (Number.isFinite(Number(r.repost_count))) setRepostCount(Number(r.repost_count));
+      else setRepostCount(c => Math.max(0, c + (r.reposted ? 1 : -1)));
     } catch { /* keep the server state when the request fails */ }
   };
 

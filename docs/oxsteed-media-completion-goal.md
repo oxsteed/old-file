@@ -469,3 +469,11 @@ pass 13 tests, `npm run verify:i18n`, `npm run typecheck`, and `git diff --check
 pass locally. Deployed reply ordering and mobile interaction remain pending
 live verification.
 
+Live-count reconciliation (2026-10-08): like, bookmark, and repost mutations
+now return the authoritative post-action counter from PostgreSQL, and Media
+cards use that value to reconcile concurrent changes instead of relying only
+on a local increment/decrement. Ranked reply threads re-fetch in the selected
+order after a new reply. The focused Media contracts/feed suites pass 14 tests,
+`npm run typecheck`, and `git diff --check` pass locally. Hosted CI and live
+multi-view count behavior remain pending.
+

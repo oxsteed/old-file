@@ -74,8 +74,14 @@ export default function MediaPostDetailPage() {
     return () => { cancelled = true; clearTimeout(timer); };
   }, [editingLinks, linkName, linkType]);
 
-  const handleNewReply = (reply) => {
-    setReplies(r => [reply, ...r]);
+  const handleNewReply = async (reply) => {
+    if (replySort === 'latest') setReplies(r => [reply, ...r]);
+    else {
+      try {
+        const data = await getReplies(id, replySort);
+        setReplies(data.replies || []);
+      } catch { /* keep the existing ranked list if refresh fails */ }
+    }
     setPost(p => p ? { ...p, reply_count: p.reply_count + 1 } : p);
   };
 

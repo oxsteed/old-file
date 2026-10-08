@@ -1158,11 +1158,11 @@ async function toggleLike(req, res) {
     );
     if (existing[0]) {
       await pool.query(`DELETE FROM media_likes WHERE post_id = $1 AND user_id = $2`, [postId, userId]);
-      await pool.query(`UPDATE media_posts SET like_count = GREATEST(0, like_count - 1) WHERE id = $1`, [postId]);
-      return res.json({ liked: false });
+      const { rows: updated } = await pool.query(`UPDATE media_posts SET like_count = GREATEST(0, like_count - 1) WHERE id = $1 RETURNING like_count`, [postId]);
+      return res.json({ liked: false, like_count: Number(updated[0]?.like_count || 0) });
     }
     await pool.query(`INSERT INTO media_likes (post_id, user_id) VALUES ($1, $2)`, [postId, userId]);
-    await pool.query(`UPDATE media_posts SET like_count = like_count + 1 WHERE id = $1`, [postId]);
+    const { rows: updated } = await pool.query(`UPDATE media_posts SET like_count = like_count + 1 WHERE id = $1 RETURNING like_count`, [postId]);
     const { rows: owners } = await pool.query(
       `SELECT a.owner_user_id FROM media_posts p JOIN media_actors a ON a.id = p.actor_id WHERE p.id = $1`,
       [postId]
@@ -1176,7 +1176,7 @@ async function toggleLike(req, res) {
         postId,
       });
     }
-    res.json({ liked: true });
+    res.json({ liked: true, like_count: Number(updated[0]?.like_count || 0) });
   } catch (err) {
     logger.error('media.toggleLike error', { message: err.message });
     res.status(500).json({ error: 'Failed to toggle like' });
@@ -1194,12 +1194,12 @@ async function toggleBookmark(req, res) {
     );
     if (existing[0]) {
       await pool.query(`DELETE FROM media_bookmarks WHERE post_id = $1 AND user_id = $2`, [postId, userId]);
-      await pool.query(`UPDATE media_posts SET bookmark_count = GREATEST(0, bookmark_count - 1) WHERE id = $1`, [postId]);
-      return res.json({ bookmarked: false });
+      const { rows: updated } = await pool.query(`UPDATE media_posts SET bookmark_count = GREATEST(0, bookmark_count - 1) WHERE id = $1 RETURNING bookmark_count`, [postId]);
+      return res.json({ bookmarked: false, bookmark_count: Number(updated[0]?.bookmark_count || 0) });
     }
     await pool.query(`INSERT INTO media_bookmarks (post_id, user_id) VALUES ($1, $2)`, [postId, userId]);
-    await pool.query(`UPDATE media_posts SET bookmark_count = bookmark_count + 1 WHERE id = $1`, [postId]);
-    res.json({ bookmarked: true });
+    const { rows: updated } = await pool.query(`UPDATE media_posts SET bookmark_count = bookmark_count + 1 WHERE id = $1 RETURNING bookmark_count`, [postId]);
+    res.json({ bookmarked: true, bookmark_count: Number(updated[0]?.bookmark_count || 0) });
   } catch (err) {
     logger.error('media.toggleBookmark error', { message: err.message });
     res.status(500).json({ error: 'Failed to toggle bookmark' });
@@ -1219,12 +1219,12 @@ async function toggleRepost(req, res) {
     );
     if (existing[0]) {
       await pool.query(`DELETE FROM media_reposts WHERE post_id = $1 AND actor_id = $2`, [postId, actor.id]);
-      await pool.query(`UPDATE media_posts SET repost_count = GREATEST(0, repost_count - 1) WHERE id = $1`, [postId]);
-      return res.json({ reposted: false });
+      const { rows: updated } = await pool.query(`UPDATE media_posts SET repost_count = GREATEST(0, repost_count - 1) WHERE id = $1 RETURNING repost_count`, [postId]);
+      return res.json({ reposted: false, repost_count: Number(updated[0]?.repost_count || 0) });
     }
     await pool.query(`INSERT INTO media_reposts (post_id, actor_id) VALUES ($1, $2)`, [postId, actor.id]);
-    await pool.query(`UPDATE media_posts SET repost_count = repost_count + 1 WHERE id = $1`, [postId]);
-    res.json({ reposted: true });
+    const { rows: updated } = await pool.query(`UPDATE media_posts SET repost_count = repost_count + 1 WHERE id = $1 RETURNING repost_count`, [postId]);
+    res.json({ reposted: true, repost_count: Number(updated[0]?.repost_count || 0) });
   } catch (err) {
     logger.error('media.toggleRepost error', { message: err.message });
     res.status(500).json({ error: 'Failed to toggle repost' });
