@@ -55,15 +55,19 @@ describe('Media sessions and target access', () => {
 describe('Media approval preserves safety evidence', () => {
   let client;
   const originalCertification = process.env.MEDIA_CSAM_CERTIFIED;
+  const originalMode = process.env.MEDIA_CSAM_MODE;
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.MEDIA_CSAM_CERTIFIED = 'true';
+    process.env.MEDIA_CSAM_MODE = 'vendor';
     client = { query: jest.fn().mockResolvedValue({ rows: [] }), release: jest.fn() };
     pool.connect.mockResolvedValue(client);
   });
   afterAll(() => {
     if (originalCertification === undefined) delete process.env.MEDIA_CSAM_CERTIFIED;
     else process.env.MEDIA_CSAM_CERTIFIED = originalCertification;
+    if (originalMode === undefined) delete process.env.MEDIA_CSAM_MODE;
+    else process.env.MEDIA_CSAM_MODE = originalMode;
   });
 
   async function approve(postChanges = {}, assetChanges = {}, certified = 'true') {
@@ -113,5 +117,21 @@ describe('Media approval preserves safety evidence', () => {
     expect(updates[0][0]).not.toMatch(/SET.*csam_status|SET.*processing_status/s);
     expect(audit.logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client, throwOnError: true }));
     expect(client.query).toHaveBeenCalledWith('COMMIT');
+  });
+
+  test('interim approval accepts processed videos and preserves their deferred verdict', async () => {
+    process.env.MEDIA_CSAM_MODE = 'cloudflare';
+    const res = await approve({ csam_status: 'cloudflare_deferred' }, { csam_status: 'cloudflare_deferred' }, 'false');
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ approved: true }));
+    expect(audit.logAdminAction).toHaveBeenCalledWith(expect.objectContaining({
+      after: expect.objectContaining({ csam_status: 'cloudflare_deferred', safety_mode: 'cloudflare' }),
+    }));
+  });
+
+  test.each(['pending', 'flagged', 'unavailable'])('interim approval still rejects %s video', async (status) => {
+    process.env.MEDIA_CSAM_MODE = 'cloudflare';
+    const res = await approve({}, { csam_status: status }, 'false');
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(audit.logAdminAction).not.toHaveBeenCalled();
   });
 });

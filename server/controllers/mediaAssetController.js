@@ -3,7 +3,7 @@
 // OxSteed Media asset uploads.
 // Photo: sync ready. Video: quarantine + CSAM/transcode jobs.
 // Gates (Emile locked #12): Didit identity required for video upload;
-// public video blocked until CSAM vendor certified.
+// Cloudflare interim policy; vendor screening is deferred until adoption.
 
 const pool = require('../db');
 const logger = require('../utils/logger');
@@ -17,9 +17,8 @@ const fileScanService = require('../services/fileScanService');
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const { stripExif } = require('../utils/stripExif');
 const AppError = require('../utils/appError');
+const mediaSafety = require('../services/mediaSafetyPolicy');
 
-// TODO: set true when production CSAM vendor contract is certified.
-const CSAM_VENDOR_CERTIFIED = process.env.MEDIA_CSAM_CERTIFIED === 'true';
 const PHOTO_MAX_BYTES = 10 * 1024 * 1024;
 const PHOTO_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const PHOTO_EXTENSIONS = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
@@ -262,7 +261,8 @@ async function videoUpload(req, res) {
     return res.status(202).json({
       asset,
       status: 'quarantine',
-      public_video_available: CSAM_VENDOR_CERTIFIED,
+      public_video_available: mediaSafety.videoAllowed(),
+      safety_mode: mediaSafety.mode(),
       message: 'Video queued for safety check and transcoding.',
     });
   } catch (err) {

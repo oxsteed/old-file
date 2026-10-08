@@ -3,8 +3,10 @@
 /**
  * OxSteed Media upload worker.
  *
- * Uploaded videos stay quarantined until the configured CSAM vendor returns a
- * clear verdict and ffmpeg has produced usable renditions. The worker shares
+ * Uploaded videos stay quarantined until the selected safety policy allows
+ * processing and ffmpeg has produced usable renditions. Interim Cloudflare
+ * mode records a deferred screening status, never a synthetic vendor pass.
+ * The worker shares
  * the restaurant Media worker's ffmpeg/storage primitives, but owns the
  * media_processing_jobs queue and Media asset state.
  */
@@ -18,6 +20,7 @@ const storage = require('../utils/storage');
 const logger = require('../utils/logger');
 const csamCheckService = require('./csamCheckService');
 const restaurantWorker = require('./videoTranscodeWorker');
+const mediaSafety = require('./mediaSafetyPolicy');
 
 const POLL_MS_DEFAULT = 15000;
 
@@ -32,7 +35,7 @@ function pollMs() {
 }
 
 function csamVendorCertified() {
-  return String(process.env.MEDIA_CSAM_CERTIFIED || '').trim().toLowerCase() === 'true';
+  return mediaSafety.vendorCertified();
 }
 
 async function claimJob() {
@@ -44,7 +47,7 @@ async function claimJob() {
         WHERE j.status IN ('pending', 'queued')
           AND (
                 j.job_type = 'csam_check'
-             OR (j.job_type = 'transcode' AND a.csam_status = 'passed')
+             OR (j.job_type = 'transcode' AND ${mediaSafety.videoVerdictSql('a.csam_status')})
               )
         ORDER BY j.created_at
         LIMIT 1
@@ -94,15 +97,25 @@ async function processCsam(job) {
   const asset = await getAsset(job.asset_id);
   if (!asset) return markFailed(job.id, new Error('media asset missing'));
   if (asset.csam_status === 'passed' || asset.csam_status === 'flagged') return markDone(job.id);
+  // Only pending/deferred assets can transition to the interim policy. A
+  // flagged or unavailable result must not be erased by a configuration change.
+  if (mediaSafety.mode() === 'cloudflare' && ['pending', 'cloudflare_deferred'].includes(asset.csam_status)) {
+    await pool.query(
+      `UPDATE media_post_assets SET csam_status = 'cloudflare_deferred'
+        WHERE id = $1 AND csam_status IN ('pending', 'cloudflare_deferred')`, [asset.id]
+    );
+    await refreshPostState(asset.post_id);
+    return markDone(job.id);
+  }
   // Keep the job pending until the production vendor is certified. Uploads
   // made while certification is pending must become eligible automatically
   // after the launch switch changes; marking them failed would strand them.
-  if (!csamVendorCertified()) {
+  if (mediaSafety.mode() !== 'vendor' || !csamVendorCertified()) {
     await pool.query(
       `UPDATE media_processing_jobs
           SET status = 'pending', last_error = $2, updated_at = NOW()
         WHERE id = $1`,
-      [job.id, 'CSAM vendor is not certified'],
+      [job.id, 'Media safety mode is disabled or vendor is not certified'],
     );
     return;
   }
@@ -114,12 +127,7 @@ async function processCsam(job) {
         WHERE id = $1`,
       [asset.id]
     );
-    await pool.query(
-      `UPDATE media_posts
-          SET csam_status = 'passed'
-        WHERE id = $1 AND processing_status = 'quarantine'`,
-      [asset.post_id]
-    );
+    await refreshPostState(asset.post_id);
     await markDone(job.id);
     return;
   }
@@ -129,11 +137,34 @@ async function processCsam(job) {
   await markFailed(job.id, new Error('CSAM screening unavailable'));
 }
 
+async function refreshPostState(postId) {
+  // Aggregate all assets: finishing one video must not clear another video's
+  // quarantine or overwrite a flagged post. Publication remains a separate step.
+  await pool.query(
+    `UPDATE media_posts p SET
+       csam_status = CASE
+         WHEN EXISTS (SELECT 1 FROM media_post_assets a WHERE a.post_id = p.id AND a.csam_status = 'flagged') THEN 'flagged'
+         WHEN EXISTS (SELECT 1 FROM media_post_assets a WHERE a.post_id = p.id AND a.csam_status IN ('pending', 'unavailable')) THEN 'pending'
+         WHEN EXISTS (SELECT 1 FROM media_post_assets a WHERE a.post_id = p.id AND a.csam_status = 'cloudflare_deferred') THEN 'cloudflare_deferred'
+         ELSE 'passed' END,
+       processing_status = CASE
+         WHEN EXISTS (SELECT 1 FROM media_post_assets a WHERE a.post_id = p.id AND a.processing_status = 'blocked') THEN 'blocked'
+         WHEN EXISTS (SELECT 1 FROM media_post_assets a WHERE a.post_id = p.id AND a.processing_status = 'failed') THEN 'failed'
+         WHEN EXISTS (SELECT 1 FROM media_post_assets a WHERE a.post_id = p.id AND a.processing_status <> 'ready') THEN 'quarantine'
+         ELSE 'ready' END
+     WHERE p.id = $1 AND p.visibility <> 'removed' AND p.deleted_at IS NULL
+       AND p.csam_status <> 'flagged' AND p.processing_status <> 'blocked'`,
+    [postId]
+  );
+}
+
 async function processTranscode(job) {
   const asset = await getAsset(job.asset_id);
   if (!asset) return markFailed(job.id, new Error('media asset missing'));
   if (asset.processing_status === 'ready') return markDone(job.id);
-  if (asset.csam_status !== 'passed' || asset.post_csam_status !== 'passed') {
+  if (!mediaSafety.videoVerdictAllowed(asset.csam_status)
+      || !mediaSafety.postVerdictAllowed(asset.post_csam_status)
+      || asset.visibility === 'removed' || asset.deleted_at || asset.post_processing_status === 'blocked') {
     await pool.query(
       `UPDATE media_processing_jobs SET status = 'pending', updated_at = NOW() WHERE id = $1`,
       [job.id]
@@ -165,20 +196,20 @@ async function processTranscode(job) {
       const poster = await fsp.readFile(posterPath);
       const thumbnailKey = await storage.uploadFile(poster, 'media/thumbnails', 'poster.jpg', 'image/jpeg');
       uploaded.push(thumbnailKey);
-      await pool.query(
+      const completed = await pool.query(
         `UPDATE media_post_assets
             SET renditions = $2::jsonb,
                 thumbnail_key = $3,
                 processing_status = 'ready'
-          WHERE id = $1`,
+          WHERE id = $1 AND processing_status <> 'blocked'
+            AND ${mediaSafety.videoVerdictSql('csam_status')}
+            AND EXISTS (SELECT 1 FROM media_posts p WHERE p.id = media_post_assets.post_id
+              AND p.visibility <> 'removed' AND p.deleted_at IS NULL
+              AND p.csam_status <> 'flagged' AND p.processing_status <> 'blocked')`,
         [asset.id, JSON.stringify(renditions), thumbnailKey]
       );
-      await pool.query(
-        `UPDATE media_posts
-            SET processing_status = 'ready', csam_status = 'passed'
-          WHERE id = $1 AND visibility <> 'removed' AND deleted_at IS NULL`,
-        [asset.post_id]
-      );
+      if (completed.rowCount === 0) throw new Error('Media no longer eligible for processing');
+      await refreshPostState(asset.post_id);
       await markDone(job.id);
       logger.info('OxSteed Media video transcode complete', { assetId: asset.id, postId: asset.post_id });
     } catch (error) {
@@ -188,7 +219,8 @@ async function processTranscode(job) {
   } catch (error) {
     logger.warn('OxSteed Media video transcode failed', { assetId: asset.id, message: error.message });
     await pool.query(
-      `UPDATE media_post_assets SET processing_status = 'failed' WHERE id = $1`,
+      `UPDATE media_post_assets SET processing_status = 'failed'
+        WHERE id = $1 AND processing_status <> 'blocked' AND csam_status <> 'flagged'`,
       [asset.id]
     );
     await markFailed(job.id, error);

@@ -20,6 +20,17 @@ const mediaUploadLimiter = rateLimit({
 // Resolve a valid session without requiring one: personal action state and
 // two-way blocks must apply on public reads too.
 router.use(optionalAuth);
+router.get('/capabilities', (_req, res) => {
+  const safety = require('../services/mediaSafetyPolicy');
+  res.set('Cache-Control', 'no-store');
+  res.json({
+    video_safety_mode: safety.mode(),
+    video_policy_allows_publication: safety.videoAllowed(),
+    upload_identity_required: true,
+    malware_scan_required: true,
+    transcode_required: true,
+  });
+});
 router.get('/feed', ctrl.getFeed);
 router.get('/posts/drafts', requireAuth, ctrl.getDrafts);
 router.get('/posts/bookmarks', requireAuth, ctrl.getBookmarks);

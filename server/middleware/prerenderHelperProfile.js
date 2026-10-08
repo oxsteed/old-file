@@ -1387,6 +1387,7 @@ async function handleMediaLanding(template, res, req) {
 }
 
 async function handleMediaPost(postId, template, res, next, req) {
+  const mediaSafety = require('../services/mediaSafetyPolicy');
   const { rows } = await pool.query(
     `SELECT p.id, p.body, p.created_at, a.display_name, a.handle,
             (SELECT thumbnail_key FROM media_post_assets mpa
@@ -1394,7 +1395,7 @@ async function handleMediaPost(postId, template, res, next, req) {
               ORDER BY mpa.sort_order, mpa.created_at LIMIT 1) AS thumbnail_key
        FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
       WHERE p.id = $1::uuid AND p.deleted_at IS NULL AND p.visibility = 'public'
-        AND p.processing_status = 'ready' AND p.csam_status = 'passed'`,
+        AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}`,
     [postId],
   );
   if (!rows[0]) {

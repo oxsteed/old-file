@@ -1,4 +1,5 @@
 'use strict';
+const mediaSafety = require('../services/mediaSafetyPolicy');
 
 // OxSteed Media admin: flag queue + post moderation.
 
@@ -152,14 +153,10 @@ async function approvePost(req, res) {
          FROM media_post_assets WHERE post_id = $1 FOR UPDATE`, [req.params.id]
     );
     const videos = assets.filter((asset) => asset.asset_type === 'video');
-    const certified = String(process.env.MEDIA_CSAM_CERTIFIED).toLowerCase() === 'true';
-    const videoReady = videos.every((asset) => asset.csam_status === 'passed'
-      && Array.isArray(asset.renditions) && asset.renditions.length > 0);
     if (post.visibility === 'removed' || post.processing_status !== 'ready'
-        || post.csam_status !== 'passed'
-        || assets.some((asset) => asset.processing_status !== 'ready'
-          || !['passed', 'not_required'].includes(asset.csam_status))
-        || (videos.length > 0 && (!certified || !post.identity_verified || !videoReady))) {
+        || !mediaSafety.postVerdictAllowed(post.csam_status)
+        || assets.some((asset) => !mediaSafety.assetReady(asset))
+        || (videos.length > 0 && !post.identity_verified)) {
       await client.query('ROLLBACK');
       return res.status(409).json({
         error: 'Required safety checks and processing must finish before this post can be approved.',
@@ -179,7 +176,7 @@ async function approvePost(req, res) {
       targetId: req.params.id,
       description: 'Administrator approved a safety-cleared OxSteed Media post for publication.',
       before: rows[0],
-      after: { visibility: 'public', processing_status: 'ready', csam_status: 'passed', reason },
+      after: { visibility: 'public', processing_status: 'ready', csam_status: post.csam_status, safety_mode: mediaSafety.mode(), reason },
       client,
       throwOnError: true,
     });

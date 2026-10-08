@@ -42,8 +42,11 @@ services:
       CLAMAV_HOST: ${CLAMAV_HOST:-clamav}
       CLAMAV_PORT: ${CLAMAV_PORT:-3310}
       CLAMAV_TIMEOUT_MS: ${CLAMAV_TIMEOUT_MS:-5000}
-      # Processing still requires an explicit CSAM pass; enabling this worker
-      # does not publish unreviewed/quarantined videos or bypass the scanner.
+      # Restaurant uploads still require a vendor pass. Media uses the revised
+      # interim Cloudflare policy unless an existing certified vendor is set.
+      # Neither policy bypasses identity, the malware scanner, or transcoding.
+      MEDIA_CSAM_MODE: ${MEDIA_CSAM_MODE:-}
+      MEDIA_CSAM_CERTIFIED: ${MEDIA_CSAM_CERTIFIED:-false}
       VIDEO_WORKER_ENABLED: ${VIDEO_WORKER_ENABLED:-1}
       VIDEO_WORKER_POLL_MS: ${VIDEO_WORKER_POLL_MS:-15000}
       FFMPEG_PATH: ${FFMPEG_PATH:-/usr/bin/ffmpeg}

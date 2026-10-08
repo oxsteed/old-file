@@ -2,12 +2,13 @@
 
 // OxSteed Media: X-shaped local content branch.
 // MVP: verified helpers/businesses/restaurants post; photo uploads public,
-// video uploads require Didit + block public until CSAM vendor certified.
+// video uploads require Didit + the configured interim/vendor safety policy.
 
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { sendNotification } = require('../services/notificationService');
 const { getSignedDownloadUrl } = require('../utils/storage');
+const mediaSafety = require('../services/mediaSafetyPolicy');
 
 const MAX_LINKS_PER_POST = 5;
 const POSTS_PER_DAY = 10;
@@ -80,7 +81,7 @@ async function visiblePost(postId, viewerUserId) {
   const params = [postId];
   const where = addViewerBlockFilter(
     `p.id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
-      AND p.processing_status = 'ready' AND p.csam_status = 'passed'`,
+      AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}`,
     params, viewerUserId
   );
   const { rows } = await pool.query(
@@ -309,11 +310,15 @@ async function hydratePost(post, viewerUserId) {
     [post.id]
   );
   const assets = await Promise.all(assetRows.map(async (asset) => {
+    if (post.visibility === 'public' && !mediaSafety.assetReady(asset)) {
+      return { ...asset, url: null, thumbnail_url: null };
+    }
     if (!asset.storage_key) return { ...asset, url: asset.external_url || null };
     try {
       return {
         ...asset,
-        url: await getSignedDownloadUrl(asset.storage_key),
+        url: await getSignedDownloadUrl(asset.asset_type === 'video' && mediaSafety.assetReady(asset)
+          ? asset.renditions[0].storage_key : asset.storage_key),
         thumbnail_url: asset.thumbnail_key ? await getSignedDownloadUrl(asset.thumbnail_key) : null,
       };
     } catch (err) {
@@ -355,7 +360,7 @@ async function getFeed(req, res) {
     const orderBy = 'p.created_at DESC, p.id DESC';
     const params = [limit];
     let where = `p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL
-      AND p.processing_status = 'ready' AND p.csam_status = 'passed'
+      AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}
       AND EXISTS (SELECT 1 FROM users au WHERE au.id = a.owner_user_id
         AND au.deleted_at IS NULL AND au.is_active = TRUE AND au.is_banned = FALSE)`;
 
@@ -434,7 +439,7 @@ async function getFeed(req, res) {
       logger.error('media.getFeed ranked schema fallback', { code: err.code, message: err.message });
       const fallbackParams = [limit];
       let fallbackWhere = `p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL
-        AND p.processing_status = 'ready' AND p.csam_status = 'passed'
+        AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}
         AND EXISTS (SELECT 1 FROM users au WHERE au.id = a.owner_user_id
           AND au.deleted_at IS NULL AND au.is_active = TRUE AND au.is_banned = FALSE)`;
       if (viewerUserId) {
@@ -474,7 +479,7 @@ async function getFeed(req, res) {
         logger.error('media.getFeed minimal fallback', { code: fallbackErr.code, message: fallbackErr.message });
         const minimalParams = [limit];
         let minimalWhere = `p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL
-          AND p.processing_status = 'ready' AND p.csam_status = 'passed'`;
+          AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}`;
         if (viewerUserId) {
           minimalParams.push(viewerUserId);
           const viewerParam = minimalParams.length;
@@ -531,7 +536,7 @@ async function getPost(req, res) {
     const viewerUserId = req.user?.id || null;
     const where = addViewerBlockFilter(
       `p.id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
-          AND p.processing_status = 'ready' AND p.csam_status = 'passed'`,
+          AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}`,
       params,
       viewerUserId
     );
@@ -549,7 +554,7 @@ async function getPost(req, res) {
       const quoteParams = [post.quoted_post_id];
       const quoteWhere = addViewerBlockFilter(
         `p.id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
-            AND p.processing_status = 'ready' AND p.csam_status = 'passed'`,
+            AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}`,
         quoteParams,
         viewerUserId
       );
@@ -615,7 +620,7 @@ async function getBookmarks(req, res) {
     const params = [req.user.id];
     const where = addViewerBlockFilter(
       `p.deleted_at IS NULL AND p.visibility = 'public'
-        AND p.processing_status = 'ready' AND p.csam_status = 'passed'
+        AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}
         AND b.user_id = $1`,
       params,
       req.user.id
@@ -656,7 +661,7 @@ async function getReplies(req, res) {
     const params = [req.params.id];
     const where = addViewerBlockFilter(
       `p.parent_id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
-          AND p.processing_status = 'ready' AND p.csam_status = 'passed'`,
+          AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}`,
       params,
       req.user?.id || null
     );
@@ -684,7 +689,7 @@ async function getQuotes(req, res) {
     const params = [req.params.id];
     const where = addViewerBlockFilter(
       `p.quoted_post_id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
-          AND p.processing_status = 'ready' AND p.csam_status = 'passed'`,
+          AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}`,
       params,
       req.user?.id || null
     );
@@ -860,7 +865,7 @@ async function publishPost(req, res) {
   try {
     await client.query('BEGIN');
     const { rows: owned } = await client.query(
-      `SELECT p.*, a.owner_user_id, a.actor_type,
+      `SELECT p.*, a.owner_user_id, a.actor_type, u.identity_verified,
               CASE
                 WHEN a.actor_type = 'helper' THEN EXISTS (
                   SELECT 1 FROM helper_profiles hp
@@ -905,27 +910,21 @@ async function publishPost(req, res) {
         code: 'media_not_verified_poster',
       });
     }
-    if (owned[0].visibility === 'public' && owned[0].processing_status === 'ready') {
-      await client.query('COMMIT');
-      return res.json({ post: await hydratePost(owned[0], req.user.id), published: true });
-    }
-    if (!['draft', 'quarantine', 'failed', 'ready'].includes(owned[0].processing_status) || owned[0].visibility !== 'unlisted') {
+    const alreadyPublished = owned[0].visibility === 'public' && owned[0].processing_status === 'ready';
+    if (!alreadyPublished && (!['draft', 'quarantine', 'failed', 'ready'].includes(owned[0].processing_status) || owned[0].visibility !== 'unlisted')) {
       await client.query('ROLLBACK');
       return res.status(409).json({ error: 'This post is not a publishable draft', code: 'media_draft_state_invalid' });
     }
 
     const { rows: assets } = await client.query(
       `SELECT id, asset_type, processing_status, csam_status, renditions
-         FROM media_post_assets WHERE post_id = $1 ORDER BY sort_order, created_at`,
+         FROM media_post_assets WHERE post_id = $1 ORDER BY sort_order, created_at FOR UPDATE`,
       [req.params.id]
     );
-    const unsafe = assets.find((asset) =>
-      !['ready'].includes(asset.processing_status || 'ready') ||
-      !['not_required', 'passed'].includes(asset.csam_status || 'not_required') ||
-      (asset.asset_type === 'video' && process.env.MEDIA_CSAM_CERTIFIED !== 'true') ||
-      (asset.asset_type === 'video' && (!asset.renditions || Object.keys(asset.renditions).length === 0))
-    );
-    if (unsafe || owned[0].csam_status !== 'passed') {
+    const unsafe = assets.find((asset) => !mediaSafety.assetReady(asset));
+    const hasVideo = assets.some((asset) => asset.asset_type === 'video');
+    if (unsafe || !mediaSafety.postVerdictAllowed(owned[0].csam_status)
+        || (hasVideo && !owned[0].identity_verified)) {
       await client.query('ROLLBACK');
       return res.status(409).json({
         error: 'Media is still processing or awaiting safety approval.',
@@ -938,13 +937,15 @@ async function publishPost(req, res) {
           asset_type: asset.asset_type,
           processing_status: asset.processing_status || 'ready',
           csam_status: asset.csam_status || 'not_required',
-          ready: asset.processing_status === 'ready'
-            && ['not_required', 'passed'].includes(asset.csam_status || 'not_required')
-            && (asset.asset_type !== 'video' || (process.env.MEDIA_CSAM_CERTIFIED === 'true' && asset.renditions && Object.keys(asset.renditions).length > 0)),
+          ready: mediaSafety.assetReady(asset),
         })),
       });
     }
 
+    if (alreadyPublished) {
+      await client.query('COMMIT');
+      return res.json({ post: await hydratePost(owned[0], req.user.id), published: true });
+    }
     const { rows: published } = await client.query(
       `UPDATE media_posts
           SET visibility = 'public', processing_status = 'ready', edited_at = NOW()
@@ -1167,7 +1168,7 @@ async function recordView(req, res) {
       await pool.query(
         `UPDATE media_posts SET view_count = view_count + 1
           WHERE id = $1 AND visibility = 'public'
-            AND processing_status = 'ready' AND csam_status = 'passed'`,
+            AND processing_status = 'ready' AND ${mediaSafety.publicPostSql('media_posts')}`,
         [postId]
       );
     }
@@ -1222,7 +1223,7 @@ async function getCommunities(req, res) {
          FROM media_communities c
         LEFT JOIN media_posts p ON p.community_id = c.id
           AND p.visibility = 'public' AND p.deleted_at IS NULL
-          AND p.processing_status = 'ready' AND p.csam_status = 'passed'
+          AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}
           AND p.parent_id IS NULL
           AND EXISTS (SELECT 1 FROM media_actors a WHERE ${authorWhere})
         GROUP BY c.id
@@ -1250,7 +1251,7 @@ async function getCommunity(req, res) {
          FROM media_communities c
          LEFT JOIN media_posts p ON p.community_id = c.id
           AND p.visibility = 'public' AND p.deleted_at IS NULL
-          AND p.processing_status = 'ready' AND p.csam_status = 'passed'
+          AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}
           AND p.parent_id IS NULL
           AND EXISTS (SELECT 1 FROM media_actors a WHERE ${authorWhere})
         WHERE c.slug = $1
@@ -1261,7 +1262,7 @@ async function getCommunity(req, res) {
     const postParams = [communities[0].id];
     const postWhere = addViewerBlockFilter(
       `p.community_id = $1 AND p.visibility = 'public' AND p.deleted_at IS NULL
-          AND p.processing_status = 'ready' AND p.csam_status = 'passed'
+          AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}
           AND p.parent_id IS NULL`, postParams, req.user?.id
     );
     const { rows } = await pool.query(
@@ -1318,7 +1319,7 @@ async function searchMedia(req, res) {
     const postParams = [pattern, limit];
     const postWhere = addViewerBlockFilter(
       `p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL
-          AND p.processing_status = 'ready' AND p.csam_status = 'passed'
+          AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}
           AND (p.body ILIKE $1 OR a.handle ILIKE $1 OR a.display_name ILIKE $1)`,
       postParams,
       req.user?.id || null
@@ -1365,7 +1366,7 @@ async function getBusinessPosts(req, res) {
     const params = [actors[0].id];
     const where = addViewerBlockFilter(
       `p.actor_id = $1 AND p.deleted_at IS NULL AND p.parent_id IS NULL
-          AND p.visibility = 'public' AND p.processing_status = 'ready' AND p.csam_status = 'passed'`,
+          AND p.visibility = 'public' AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}`,
       params,
       req.user?.id || null
     );
@@ -1397,7 +1398,7 @@ async function getActor(req, res) {
     const postParams = [rows[0].id];
     const postWhere = addViewerBlockFilter(
       `p.actor_id = $1 AND p.deleted_at IS NULL AND p.parent_id IS NULL
-          AND p.visibility = 'public' AND p.processing_status = 'ready' AND p.csam_status = 'passed'`,
+          AND p.visibility = 'public' AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}`,
       postParams,
       req.user?.id
     );

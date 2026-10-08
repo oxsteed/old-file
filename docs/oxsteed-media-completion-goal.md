@@ -7,7 +7,7 @@ against the locked specification, retaining the v2/v3 release boundaries.
 | Requirement | Current evidence / remaining work |
 | --- | --- |
 | Signed-in recognition, likes/bookmarks, two-way blocks | Public router now resolves optional sessions; shared browser API retains credentials/refresh; search grouping and actor aliases corrected. Route and PostgreSQL regression tests added; database and live execution pending. |
-| Safe admin approval | Approval rejects uncertified, unverified, unprocessed or flagged video and removed posts; never rewrites asset verdicts or finishes worker jobs. Focused regression tests added; live verification pending. |
+| Safe admin approval | Approval follows the revised interim Cloudflare/vendor policy and rejects unverified, unprocessed or flagged video and removed posts; never rewrites asset verdicts or finishes worker jobs. Focused regression tests added; live verification pending. |
 | Draft-to-publication uploads | Composer now creates a private durable draft, stores its ID for retry, restores draft text/links, shows previews/progress/status, keeps quarantined/failed drafts discoverable, refreshes processing state after a safety-pending response, attaches links idempotently, and publishes only after asset safety gates pass. Migration 735 adds the draft state; video drafts remain private while Didit/CSAM/transcode work is pending. End-to-end upload execution still needs live storage and worker verification. |
 | Upload safety in all public surfaces | Audit all asset delivery, worker concurrency, multi-asset readiness, certification and identity gates. Admin override fixed first. |
 | Nearby discovery and pagination | Feed ranking now uses a stable keyset cursor over valid-link, membership/city Space locality, timestamp, and post ID; page responses expose `has_more`. Actual city matching uses the viewer profile city and Space geo scope. Entity-level distance remains a live-data verification item. |
@@ -18,9 +18,12 @@ against the locked specification, retaining the v2/v3 release boundaries.
 | Full user journeys | Targeted API coverage now exercises verified replies and notification delivery, guest/blocked visibility and hydrated action state, structured oversized-upload failures, Didit video gating, and pending draft recovery. Mobile playback remains covered by the `playsInline`/muted video path and still needs a real-device check. |
 | CI and deployment | Push coherent changes, verify exact commit CI and deployed assets/runtime. Green CI alone does not close the goal. |
 
-External prerequisite: production CSAM vendor certification must be independently
-verified before enabling public uploaded videos. A configuration variable or
-administrator decision is not evidence that a vendor contract is certified.
+Policy revision authorized by Emile on 2026-10-08: Cloudflare is the interim MVP
+control, and Thorn is deferred until demand justifies its cost. This supersedes
+the earlier vendor-certification launch prerequisite in the historical evidence
+below. Cloudflare is not represented as upload-time video screening. See
+[Media safety policy](oxsteed-media-safety-policy.md) for the current application
+rules and future vendor-mode activation requirements.
 Follows, business/profile integration, restaurant federation and extra link types
 remain v2; creator payments/boosts remain v3.
 
