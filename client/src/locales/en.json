@@ -30254,7 +30254,10 @@
       "followers": "{{count}} followers",
       "signInToFollow": "Sign in to follow",
       "followError": "Could not update the follow.",
-      "you": "You"
+      "you": "You",
+      "loading": "Loading profile…",
+      "notFound": "Profile not found.",
+      "noPosts": "No posts yet."
     },
     "shell": {
       "navigation": "Media navigation",

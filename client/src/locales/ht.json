@@ -30254,7 +30254,10 @@
       "followers": "{{count}} moun ap swiv",
       "signInToFollow": "Konekte pou swiv",
       "followError": "Nou pa ka mete swiv la ajou.",
-      "you": "Ou"
+      "you": "Ou",
+      "loading": "Ap chaje pwofil la…",
+      "notFound": "Nou pa jwenn pwofil la.",
+      "noPosts": "Pa gen pòs ankò."
     },
     "shell": {
       "navigation": "Navigasyon Media",

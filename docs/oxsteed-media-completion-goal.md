@@ -454,3 +454,9 @@ contract, and follow suites pass 19 tests locally, including an exact-page
 regression case. Hosted CI run `37804524024` for commit `ff447903` passed both
 Server and Client Verification and the PostgreSQL migration rehearsal.
 
+Actor-page localization (2026-10-08): Media actor loading, missing-profile, and
+empty-post states now use the shared `media.actor` catalog in all five locales
+instead of English-only literals. `npm run verify:i18n`, `npm run typecheck`,
+`npm run build:ci`, and `git diff --check` pass locally. Authenticated actor
+pages and locale switching remain part of the pending deployed browser checks.
+

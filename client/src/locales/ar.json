@@ -30265,7 +30265,10 @@
       "followers": "{{count}} متابع",
       "signInToFollow": "سجّل الدخول للمتابعة",
       "followError": "تعذر تحديث المتابعة.",
-      "you": "أنت"
+      "you": "أنت",
+      "loading": "جارٍ تحميل الملف الشخصي…",
+      "notFound": "الملف الشخصي غير موجود.",
+      "noPosts": "لا توجد منشورات بعد."
     },
     "shell": {
       "navigation": "التنقل في Media",

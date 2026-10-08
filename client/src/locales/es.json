@@ -30254,7 +30254,10 @@
       "followers": "{{count}} seguidores",
       "signInToFollow": "Inicia sesión para seguir",
       "followError": "No se pudo actualizar el seguimiento.",
-      "you": "Tú"
+      "you": "Tú",
+      "loading": "Cargando perfil…",
+      "notFound": "No se encontró el perfil.",
+      "noPosts": "Aún no hay publicaciones."
     },
     "shell": {
       "navigation": "Navegación de Media",

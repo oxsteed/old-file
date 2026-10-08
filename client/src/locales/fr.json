@@ -30254,7 +30254,10 @@
       "followers": "{{count}} abonnés",
       "signInToFollow": "Connectez-vous pour suivre",
       "followError": "Impossible de mettre le suivi à jour.",
-      "you": "Vous"
+      "you": "Vous",
+      "loading": "Chargement du profil…",
+      "notFound": "Profil introuvable.",
+      "noPosts": "Aucune publication pour le moment."
     },
     "shell": {
       "navigation": "Navigation Media",

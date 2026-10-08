@@ -49,8 +49,8 @@ export default function MediaActorPage() {
     }
   };
 
-  if (loading) return <p>Loading...</p>;
-  if (!actor) return <p>Profile not found.</p>;
+  if (loading) return <p>{t('media.actor.loading')}</p>;
+  if (!actor) return <p>{t('media.actor.notFound')}</p>;
 
   return (
     <div className="media-actor-page">
@@ -83,7 +83,7 @@ export default function MediaActorPage() {
       {followError && <p className="media-error" role="alert">{followError}</p>}
       <div className="media-actor-posts">
         {posts.map(post => <MediaPostCard key={post.id} post={post} />)}
-        {!posts.length && <p className="media-empty">No posts yet.</p>}
+        {!posts.length && <p className="media-empty">{t('media.actor.noPosts')}</p>}
       </div>
     </div>
   );
