@@ -36,6 +36,7 @@ export default function MediaCreatorPage() {
   const [deliverableNote, setDeliverableNote] = useState('');
   const [disputeTarget, setDisputeTarget] = useState(null);
   const [disputeDescription, setDisputeDescription] = useState('');
+  const statusLabel = (status) => t(`media.creator.status.${status}`, { defaultValue: status });
 
   const load = () => {
     setLoading(true);
@@ -207,7 +208,7 @@ export default function MediaCreatorPage() {
         <h2 id="creator-offers-title">{t('media.creator.offers')}</h2>
         {sponsorships.map((offer) => <article className="media-card media-creator-gig" key={offer.id}>
           <div className="media-creator-gig-heading"><div><h3>{offer.brief}</h3><p>{offer.creator_name || offer.creator_handle}</p></div><strong>{offer.amount_cents} {offer.currency_code}</strong></div>
-          <p>{offer.status === 'accepted' ? t('media.creator.accepted') : offer.status === 'pending_credit' ? t('media.creator.pendingAcceptance') : offer.status}</p>
+          <p>{statusLabel(offer.status)}</p>
           {String(offer.creator_user_id) === String(user.id) && offer.status === 'pending_credit' && <button type="button" className="media-primary-button" onClick={() => acceptOffer(offer.id)} disabled={submitting}>{t('media.creator.accept')}</button>}
           {(String(offer.sponsor_user_id) === String(user.id) || String(offer.creator_user_id) === String(user.id)) && ['pending_credit', 'accepted'].includes(offer.status) && <button type="button" className="media-secondary-button" onClick={() => cancelOffer(offer.id)} disabled={submitting}>{t('media.creator.cancel')}</button>}
           {String(offer.sponsor_user_id) === String(user.id) && offer.status === 'accepted' && <button type="button" className="media-primary-button" onClick={() => settleOffer(offer.id)} disabled={submitting}>{t('media.creator.settle')}</button>}
@@ -217,7 +218,7 @@ export default function MediaCreatorPage() {
       {!loading && user && myApplications.length > 0 && <section className="media-creator-offers" aria-labelledby="creator-applications-title">
         <h2 id="creator-applications-title">{t('media.creator.myApplications')}</h2>
         {myApplications.map((application) => <article className="media-card media-creator-gig" key={application.id}>
-          <div className="media-creator-gig-heading"><div><h3>{application.gig_title}</h3><p>{application.status}</p></div><strong>{application.proposed_cents} {application.currency_code || 'USD'}</strong></div>
+          <div className="media-creator-gig-heading"><div><h3>{application.gig_title}</h3><p>{statusLabel(application.status)}</p></div><strong>{application.proposed_cents} {application.currency_code || 'USD'}</strong></div>
           <p>{application.gig_brief}</p>
           {application.status === 'awarded' && !application.deliverable_id && <button type="button" className="media-primary-button" onClick={() => { setDeliverableTarget(application); setDeliverablePostId(''); setDeliverableNote(''); }}>{t('media.creator.submitDeliverable')}</button>}
           {application.deliverable_status && <p>{t('media.creator.deliverableStatus')}: {application.deliverable_status}</p>}
@@ -264,7 +265,7 @@ export default function MediaCreatorPage() {
           {applicationsLoading ? <p role="status">{t('media.compose.posting')}</p> : applications.length === 0 ? <p>{t('media.creator.noApplications')}</p> : applications.map((application) => <article className="media-creator-application" key={application.id}>
             <strong>{application.applicant_name || application.applicant_handle}</strong>
             <p>{application.pitch}</p>
-            <span>{application.proposed_cents} {application.currency_code || 'USD'} · {application.status}</span>
+            <span>{application.proposed_cents} {application.currency_code || 'USD'} · {statusLabel(application.status)}</span>
             {application.status === 'submitted' && <button type="button" className="media-primary-button" onClick={() => awardApplication(application.id)} disabled={submitting}>{t('media.creator.award')}</button>}
             {application.deliverable_status === 'submitted' && <div className="media-creator-actions"><button type="button" className="media-primary-button" onClick={() => reviewDeliverable(application, 'approved')} disabled={submitting}>{t('media.creator.approveDeliverable')}</button><button type="button" className="media-secondary-button" onClick={() => reviewDeliverable(application, 'changes_requested')} disabled={submitting}>{t('media.creator.requestChanges')}</button></div>}
           </article>)}

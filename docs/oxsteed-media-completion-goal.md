@@ -477,3 +477,10 @@ order after a new reply. The focused Media contracts/feed suites pass 14 tests,
 `npm run typecheck`, and `git diff --check` pass locally. Hosted CI and live
 multi-view count behavior remain pending.
 
+Creator status localization (2026-10-08): sponsorship, application, and
+deliverable lifecycle values are now rendered through the localized creator
+status catalog in all five languages; machine status values remain unchanged
+for workflow decisions. `npm run verify:i18n`, `npm run typecheck`, and
+`git diff --check` pass locally. Authenticated marketplace browser coverage
+and Credit provider behavior remain deployment verification work.
+
