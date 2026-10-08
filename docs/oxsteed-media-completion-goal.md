@@ -144,6 +144,10 @@ deployment is complete.
 The same pre-start billing rejection was reproduced for the later UI and
 sponsorship commits (`37795836625` for `c24910fa` and `37796160256` for
 `193227d1`); no code job ran for those commits.
+
+The deliverable lifecycle push (`7dcde21c`) was likewise rejected before job
+startup in CI run `37797458742` for the same account billing reason. Local
+verification therefore remains the only current evidence for this slice.
 Follows, business/profile integration, restaurant post copying, extra link types,
 creator payments and boosts are all in the current implementation goal. The
 v2/v3 labels identify feature groups, not a requirement to postpone their build.
