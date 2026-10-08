@@ -376,3 +376,11 @@ closes the gig and rejects competing submitted applications transactionally.
 The creator controller suite covers the API contract, and client typecheck and
 locale parity pass. Deliverable submission/review and authenticated deployed
 award journeys remain next verification work.
+
+Deliverable lifecycle UI (2026-10-08): applicants can see their awarded Media
+applications, choose one of their own published posts from a server-loaded list,
+and submit it with a note; gig owners see the latest deliverable state and can
+approve it or request changes. The server keeps ownership, public-ready-post,
+and awarded-application checks in place, while the focused creator suite now
+passes 6 tests. Client production build and authenticated deployed deliverable
+verification remain required.

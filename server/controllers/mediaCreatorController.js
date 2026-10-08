@@ -121,12 +121,37 @@ async function applyToGig(req, res, next) {
 async function listApplications(req, res, next) {
   try {
     const { rows } = await pool.query(
-      `SELECT ap.*, g.owner_user_id, a.handle AS applicant_handle, a.display_name AS applicant_name
+      `SELECT ap.*, g.owner_user_id, a.handle AS applicant_handle, a.display_name AS applicant_name,
+              d.id AS deliverable_id, d.post_id AS deliverable_post_id,
+              d.status AS deliverable_status
          FROM media_creator_applications ap
          JOIN media_creator_gigs g ON g.id = ap.gig_id
          JOIN media_actors a ON a.id = ap.applicant_actor_id
+         LEFT JOIN LATERAL (
+           SELECT id, post_id, status FROM media_creator_deliverables
+            WHERE application_id = ap.id ORDER BY submitted_at DESC LIMIT 1
+         ) d ON TRUE
         WHERE ap.gig_id = $1 AND (g.owner_user_id = $2 OR ap.applicant_user_id = $2)
         ORDER BY ap.created_at DESC`, [req.params.gigId, req.user.id]
+    );
+    res.json({ applications: rows });
+  } catch (err) { next(err); }
+}
+
+async function listMyApplications(req, res, next) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT ap.*, g.title AS gig_title, g.brief AS gig_brief, g.status AS gig_status,
+              g.owner_user_id, d.id AS deliverable_id, d.post_id AS deliverable_post_id,
+              d.status AS deliverable_status
+         FROM media_creator_applications ap
+         JOIN media_creator_gigs g ON g.id = ap.gig_id
+         LEFT JOIN LATERAL (
+           SELECT id, post_id, status FROM media_creator_deliverables
+            WHERE application_id = ap.id ORDER BY submitted_at DESC LIMIT 1
+         ) d ON TRUE
+        WHERE ap.applicant_user_id = $1
+        ORDER BY ap.updated_at DESC LIMIT 50`, [req.user.id]
     );
     res.json({ applications: rows });
   } catch (err) { next(err); }
@@ -363,7 +388,7 @@ async function settleTip(req, res, next) {
 }
 
 module.exports = {
-  listGigs, createGig, applyToGig, listApplications, awardApplication,
+  listGigs, createGig, applyToGig, listApplications, listMyApplications, awardApplication,
   submitDeliverable, reviewDeliverable, createTip, createSponsorship, listSponsorships, createBoost,
   settleTip,
   acceptSponsorship, settleSponsorship, settleBoost,

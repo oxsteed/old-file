@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Briefcase, CheckCircle2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { acceptCreatorSponsorship, applyToCreatorGig, awardCreatorApplication, createCreatorGig, createCreatorSponsorship, createCreatorTip, getCreatorApplications, getCreatorGigs, getCreatorSponsorships, settleCreatorTip } from '../../api/media';
+import { acceptCreatorSponsorship, applyToCreatorGig, awardCreatorApplication, createCreatorGig, createCreatorSponsorship, createCreatorTip, getCreatorApplications, getCreatorGigs, getCreatorSponsorships, getFeed, getMyCreatorApplications, reviewCreatorDeliverable, settleCreatorTip, submitCreatorDeliverable } from '../../api/media';
 import { useAuth } from '../../context/AuthContext';
 
 export default function MediaCreatorPage() {
@@ -9,6 +9,8 @@ export default function MediaCreatorPage() {
   const { user } = useAuth();
   const [gigs, setGigs] = useState([]);
   const [sponsorships, setSponsorships] = useState([]);
+  const [myApplications, setMyApplications] = useState([]);
+  const [myPosts, setMyPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selected, setSelected] = useState(null);
@@ -28,6 +30,9 @@ export default function MediaCreatorPage() {
   const [applicationsGig, setApplicationsGig] = useState(null);
   const [applications, setApplications] = useState([]);
   const [applicationsLoading, setApplicationsLoading] = useState(false);
+  const [deliverableTarget, setDeliverableTarget] = useState(null);
+  const [deliverablePostId, setDeliverablePostId] = useState('');
+  const [deliverableNote, setDeliverableNote] = useState('');
 
   const load = () => {
     setLoading(true);
@@ -35,7 +40,12 @@ export default function MediaCreatorPage() {
     Promise.all([
       getCreatorGigs(),
       user ? getCreatorSponsorships() : Promise.resolve({ sponsorships: [] }),
-    ]).then(([gigData, sponsorshipData]) => { setGigs(gigData.gigs || []); setSponsorships(sponsorshipData.sponsorships || []); })
+      user ? getMyCreatorApplications() : Promise.resolve({ applications: [] }),
+      user ? getFeed({ tab: 'mine', limit: 50 }) : Promise.resolve({ posts: [] }),
+    ]).then(([gigData, sponsorshipData, applicationData, postData]) => {
+      setGigs(gigData.gigs || []); setSponsorships(sponsorshipData.sponsorships || []);
+      setMyApplications(applicationData.applications || []); setMyPosts(postData.posts || []);
+    })
       .catch(() => setError(t('media.creator.loadError')))
       .finally(() => setLoading(false));
   };
@@ -114,7 +124,27 @@ export default function MediaCreatorPage() {
 
   const awardApplication = async (applicationId) => {
     setSubmitting(true); setError('');
-    try { const data = await awardCreatorApplication(applicationId); setApplications((items) => items.map((item) => item.id === applicationId ? { ...item, status: 'awarded' } : { ...item, status: item.status === 'submitted' ? 'rejected' : item.status })); setApplicationsGig((gig) => gig ? { ...gig, status: 'awarded' } : gig); }
+    try { await awardCreatorApplication(applicationId); setApplications((items) => items.map((item) => item.id === applicationId ? { ...item, status: 'awarded' } : { ...item, status: item.status === 'submitted' ? 'rejected' : item.status })); setApplicationsGig((gig) => gig ? { ...gig, status: 'awarded' } : gig); }
+    catch (err) { setError(err.response?.data?.error || t('media.creator.loadError')); }
+    finally { setSubmitting(false); }
+  };
+
+  const submitDeliverableForApplication = async (event) => {
+    event.preventDefault();
+    if (!deliverableTarget || !deliverablePostId) return;
+    setSubmitting(true); setError('');
+    try {
+      const data = await submitCreatorDeliverable(deliverableTarget.id, { postId: deliverablePostId, note: deliverableNote });
+      setMyApplications((items) => items.map((item) => item.id === deliverableTarget.id ? { ...item, status: 'delivered', deliverable_id: data.deliverable?.id, deliverable_post_id: deliverablePostId, deliverable_status: 'submitted' } : item));
+      setDeliverableTarget(null);
+    } catch (err) { setError(err.response?.data?.error || t('media.creator.loadError')); }
+    finally { setSubmitting(false); }
+  };
+
+  const reviewDeliverable = async (application, status) => {
+    if (!application.deliverable_id) return;
+    setSubmitting(true); setError('');
+    try { await reviewCreatorDeliverable(application.deliverable_id, status); setApplications((items) => items.map((item) => item.id === application.id ? { ...item, status: status === 'approved' ? 'approved' : item.status, deliverable_status: status } : item)); }
     catch (err) { setError(err.response?.data?.error || t('media.creator.loadError')); }
     finally { setSubmitting(false); }
   };
@@ -150,6 +180,15 @@ export default function MediaCreatorPage() {
           <div className="media-creator-gig-heading"><div><h3>{offer.brief}</h3><p>{offer.creator_name || offer.creator_handle}</p></div><strong>{offer.amount_cents} {offer.currency_code}</strong></div>
           <p>{offer.status === 'accepted' ? t('media.creator.accepted') : offer.status === 'pending_credit' ? t('media.creator.pendingAcceptance') : offer.status}</p>
           {String(offer.creator_user_id) === String(user.id) && offer.status === 'pending_credit' && <button type="button" className="media-primary-button" onClick={() => acceptOffer(offer.id)} disabled={submitting}>{t('media.creator.accept')}</button>}
+        </article>)}
+      </section>}
+      {!loading && user && myApplications.length > 0 && <section className="media-creator-offers" aria-labelledby="creator-applications-title">
+        <h2 id="creator-applications-title">{t('media.creator.myApplications')}</h2>
+        {myApplications.map((application) => <article className="media-card media-creator-gig" key={application.id}>
+          <div className="media-creator-gig-heading"><div><h3>{application.gig_title}</h3><p>{application.status}</p></div><strong>{application.proposed_cents} {application.currency_code || 'USD'}</strong></div>
+          <p>{application.gig_brief}</p>
+          {application.status === 'awarded' && !application.deliverable_id && <button type="button" className="media-primary-button" onClick={() => { setDeliverableTarget(application); setDeliverablePostId(''); setDeliverableNote(''); }}>{t('media.creator.submitDeliverable')}</button>}
+          {application.deliverable_status && <p>{t('media.creator.deliverableStatus')}: {application.deliverable_status}</p>}
         </article>)}
       </section>}
       {selected && <div className="media-verification-dialog" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelected(null); }}>
@@ -195,8 +234,22 @@ export default function MediaCreatorPage() {
             <p>{application.pitch}</p>
             <span>{application.proposed_cents} {application.currency_code || 'USD'} · {application.status}</span>
             {application.status === 'submitted' && <button type="button" className="media-primary-button" onClick={() => awardApplication(application.id)} disabled={submitting}>{t('media.creator.award')}</button>}
+            {application.deliverable_status === 'submitted' && <div className="media-creator-actions"><button type="button" className="media-primary-button" onClick={() => reviewDeliverable(application, 'approved')} disabled={submitting}>{t('media.creator.approveDeliverable')}</button><button type="button" className="media-secondary-button" onClick={() => reviewDeliverable(application, 'changes_requested')} disabled={submitting}>{t('media.creator.requestChanges')}</button></div>}
           </article>)}
         </div>
+      </div>}
+      {deliverableTarget && <div className="media-verification-dialog" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDeliverableTarget(null); }}>
+        <form className="media-verification-form" onSubmit={submitDeliverableForApplication} role="dialog" aria-modal="true" aria-labelledby="creator-deliverable-title">
+          <button type="button" className="media-dialog-close" onClick={() => setDeliverableTarget(null)} aria-label={t('media.shell.close')}><X size={18} /></button>
+          <h2 id="creator-deliverable-title">{t('media.creator.submitDeliverable')}</h2>
+          <label htmlFor="creator-deliverable-post">{t('media.creator.choosePost')}</label>
+          <select id="creator-deliverable-post" value={deliverablePostId} onChange={(event) => setDeliverablePostId(event.target.value)} required>
+            <option value="">{t('media.creator.choosePost')}</option>
+            {myPosts.map((post) => <option key={post.id} value={post.id}>{post.body?.slice(0, 80) || post.id}</option>)}
+          </select>
+          <label htmlFor="creator-deliverable-note">{t('media.creator.deliverableNote')}</label><textarea id="creator-deliverable-note" value={deliverableNote} onChange={(event) => setDeliverableNote(event.target.value)} rows={4} />
+          <button type="submit" className="media-primary-button" disabled={submitting}>{submitting ? t('media.compose.posting') : t('media.creator.submit')}</button>
+        </form>
       </div>}
     </section>
   );

@@ -58,6 +58,7 @@ router.get('/creator/gigs', creatorCtrl.listGigs);
 router.post('/creator/gigs', requireAuth, creatorCtrl.createGig);
 router.post('/creator/gigs/:gigId/applications', requireAuth, creatorCtrl.applyToGig);
 router.get('/creator/gigs/:gigId/applications', requireAuth, creatorCtrl.listApplications);
+router.get('/creator/applications', requireAuth, creatorCtrl.listMyApplications);
 router.post('/creator/applications/:applicationId/award', requireAuth, creatorCtrl.awardApplication);
 router.post('/creator/applications/:applicationId/deliverables', requireAuth, creatorCtrl.submitDeliverable);
 router.patch('/creator/deliverables/:deliverableId', requireAuth, creatorCtrl.reviewDeliverable);

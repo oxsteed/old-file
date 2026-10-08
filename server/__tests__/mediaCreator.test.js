@@ -66,3 +66,11 @@ test('lists sponsorship offers for either the sponsor or creator owner', async (
   expect(res.json).toHaveBeenCalledWith({ sponsorships: [{ id: 's-1', status: 'accepted', creator_user_id: 'creator-1' }] });
   expect(mockQuery.mock.calls[0][0]).toContain('s.sponsor_user_id = $1 OR a.owner_user_id = $1');
 });
+
+test('lists an applicant’s awarded work with its latest deliverable state', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{ id: 'app-1', status: 'awarded', deliverable_status: 'submitted' }] });
+  const res = resMock();
+  await creator.listMyApplications({ user: { id: 'creator-1' } }, res, jest.fn());
+  expect(res.json).toHaveBeenCalledWith({ applications: [{ id: 'app-1', status: 'awarded', deliverable_status: 'submitted' }] });
+  expect(mockQuery.mock.calls[0][0]).toContain('media_creator_deliverables');
+});
