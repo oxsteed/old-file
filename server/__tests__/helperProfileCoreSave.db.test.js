@@ -41,7 +41,9 @@ describeDatabase('PUT /api/helper-profile/core against migrated PostgreSQL', () 
   afterAll(async () => {
     if (created.length) {
       await pool.query('DELETE FROM helper_profiles WHERE user_id = ANY($1::uuid[])', [created]);
-      await pool.query('DELETE FROM users WHERE id = ANY($1::uuid[])', [created]);
+      // Disposable CI DB only. Do not DELETE FROM users here: food_customer_wallet_ledger
+      // is append-only (no-delete rule), so ON DELETE CASCADE from users cannot complete
+      // when any ledger row references the test customer id.
     }
     await pool.end();
   });
