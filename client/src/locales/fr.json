@@ -30282,13 +30282,17 @@
       "verified": "Vérifié",
       "views": "vues",
       "repost": "Republier",
-      "share": "Partager"
+      "share": "Partager",
+      "videoEmbed": "Vidéo intégrée",
+      "photoAlt": "Photo partagée par {{name}}"
     },
     "search": {
       "title": "Rechercher dans Media",
       "placeholder": "Rechercher des publications et des comptes…",
       "submit": "Rechercher",
-      "empty": "Aucun résultat."
+      "empty": "Aucun résultat.",
+      "accounts": "Comptes",
+      "posts": "Publications"
     },
     "feed": {
       "refresh": "Actualiser le fil",
@@ -30339,7 +30343,9 @@
       "bodyRequired": "Le texte de la publication est requis.",
       "createError": "Impossible de créer la publication.",
       "posting": "Publication…",
-      "post": "Publier"
+      "post": "Publier",
+      "uploadLabel": "Télécharger une photo ou une vidéo",
+      "uploadHint": "Les photos sont analysées avant publication. Les vidéos exigent une vérification d’identité et restent en quarantaine jusqu’aux contrôles."
     },
     "notifications": {
       "kicker": "Actualités du réseau",

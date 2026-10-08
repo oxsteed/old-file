@@ -9,6 +9,18 @@ export const getReplies = (id, sort = 'latest') => api.get(`/posts/${id}/replies
 export const getQuotes = (id) => api.get(`/posts/${id}/quotes`).then(r => r.data);
 export const createPost = (data) => api.post('/posts', data).then(r => r.data);
 export const linkAsset = (postId, external_url) => api.post('/assets/link', { post_id: postId, external_url }).then(r => r.data);
+export const uploadPhoto = (postId, file, onUploadProgress) => {
+  const form = new FormData();
+  form.append('post_id', postId);
+  form.append('file', file);
+  return api.post('/assets/photo-uploads', form, { onUploadProgress }).then(r => r.data);
+};
+export const uploadVideo = (postId, file, onUploadProgress) => {
+  const form = new FormData();
+  form.append('post_id', postId);
+  form.append('file', file);
+  return api.post('/assets/video-uploads', form, { onUploadProgress }).then(r => r.data);
+};
 export const toggleLike = (id) => api.post(`/posts/${id}/like`).then(r => r.data);
 export const toggleBookmark = (id) => api.post(`/posts/${id}/bookmark`).then(r => r.data);
 export const toggleRepost = (id) => api.post(`/posts/${id}/repost`).then(r => r.data);

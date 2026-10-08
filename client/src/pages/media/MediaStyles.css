@@ -473,6 +473,11 @@ div.media-support-panel { z-index: 150; }
 .media-post-name, .media-post-handle { overflow-wrap: anywhere; }
 .media-post-text { overflow-wrap: anywhere; white-space: pre-wrap; }
 .media-action { min-height: 44px; }
+.media-post-assets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px; overflow: hidden; border: 1px solid var(--color-border); border-radius: 14px; background: var(--color-surface-2); }
+.media-post-assets > img, .media-post-assets > video, .media-post-assets > iframe { display: block; width: 100%; min-height: 180px; border: 0; background: #111; object-fit: cover; }
+.media-post-assets-1 > img, .media-post-assets-1 > video, .media-post-assets-1 > iframe { grid-column: 1 / -1; max-height: 560px; }
+.media-post-assets-3 > :first-child { grid-row: span 2; min-height: 368px; }
+.media-post-assets-3 > :not(:first-child) { min-height: 180px; }
 .media-feed .media-load-more { width: calc(100% - 40px); margin: 20px; color: var(--color-text); }
 .media-error { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 16px; padding: 16px; border-radius: 12px; text-align: start; background: var(--color-error-bg); color: var(--color-error); }
 .media-error p { flex: 1; margin: 0; color: inherit; }

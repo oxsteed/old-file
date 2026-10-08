@@ -29,8 +29,8 @@ router.post('/posts/:id/view', ctrl.recordView);
 router.post('/posts/:id/flags', requireAuth, ctrl.flagPost);
 
 // Asset uploads.
-router.post('/assets/photo-uploads', requireAuth, assetCtrl.photoUpload);
-router.post('/assets/video-uploads', requireAuth, assetCtrl.videoUpload);
+router.post('/assets/photo-uploads', requireAuth, assetCtrl.mediaPhotoUpload, assetCtrl.uploadPhoto);
+router.post('/assets/video-uploads', requireAuth, assetCtrl.mediaVideoUpload, assetCtrl.videoUpload);
 router.post('/assets/link', requireAuth, assetCtrl.linkAsset);
 
 module.exports = router;

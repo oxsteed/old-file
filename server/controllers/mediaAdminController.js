@@ -61,4 +61,44 @@ async function reviewFlag(req, res) {
   }
 }
 
-module.exports = { listFlags, reviewFlag };
+async function approvePost(req, res) {
+  const reason = String(req.body?.reason || '').trim();
+  if (reason.length < 3) return res.status(400).json({ error: 'An approval reason is required' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `SELECT id, processing_status, csam_status FROM media_posts
+        WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`, [req.params.id]
+    );
+    if (!rows[0]) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    await client.query(
+      `UPDATE media_posts
+          SET visibility = 'public', processing_status = 'ready', csam_status = 'passed',
+              admin_override_by = $2, admin_override_at = NOW(), admin_override_reason = $3
+        WHERE id = $1`, [req.params.id, req.user.id, reason]
+    );
+    await client.query(
+      `UPDATE media_post_assets
+          SET processing_status = 'ready', csam_status = CASE WHEN asset_type = 'video' THEN 'passed' ELSE csam_status END
+        WHERE post_id = $1`, [req.params.id]
+    );
+    await client.query(
+      `UPDATE media_processing_jobs SET status = 'done', updated_at = NOW()
+        WHERE post_id = $1 AND status IN ('pending', 'processing')`, [req.params.id]
+    );
+    await client.query('COMMIT');
+    return res.json({ ok: true, approved: true, admin_override: true });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    logger.error('mediaAdmin.approvePost error', { message: err.message });
+    return res.status(500).json({ error: 'Failed to approve post' });
+  } finally {
+    client.release();
+  }
+}
+
+module.exports = { listFlags, reviewFlag, approvePost };

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { createPost, getCommunities, linkAsset } from '../../api/media';
+import { createPost, getCommunities, linkAsset, uploadPhoto, uploadVideo } from '../../api/media';
 
 const LINK_TYPES = ['restaurant', 'food_item', 'helper', 'business', 'job'];
 
@@ -14,6 +14,7 @@ export default function MediaComposePage() {
   const [linkTarget, setLinkTarget] = useState('');
   const [linkName, setLinkName] = useState('');
   const [externalUrl, setExternalUrl] = useState('');
+  const [mediaFile, setMediaFile] = useState(null);
   const [communities, setCommunities] = useState([]);
   const [communityId, setCommunityId] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -57,6 +58,10 @@ export default function MediaComposePage() {
     try {
       const data = await createPost({ body: body.trim(), links, community_id: communityId || undefined });
       if (externalUrl.trim()) await linkAsset(data.post.id, externalUrl.trim());
+      if (mediaFile) {
+        if (mediaFile.type.startsWith('video/')) await uploadVideo(data.post.id, mediaFile);
+        else await uploadPhoto(data.post.id, mediaFile);
+      }
       navigate(`/media/post/${data.post.id}`);
     } catch (err) {
       setError(err.response?.data?.error || t('media.compose.createError'));
@@ -101,6 +106,15 @@ export default function MediaComposePage() {
             <button type="button" onClick={addLink}>{t('media.compose.addLink')}</button>
           </div>
         </div>
+        <label className="media-compose-field">
+          <span>{t('media.compose.uploadLabel')}</span>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
+            onChange={(e) => setMediaFile(e.target.files?.[0] || null)}
+          />
+          <small>{t('media.compose.uploadHint')}</small>
+        </label>
         <label className="media-compose-field">
           <span>{t('media.compose.spaceLabel')}</span>
           <select value={communityId} onChange={(e) => setCommunityId(e.target.value)}>

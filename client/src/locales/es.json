@@ -30282,13 +30282,17 @@
       "verified": "Verificado",
       "views": "vistas",
       "repost": "Republicar",
-      "share": "Compartir"
+      "share": "Compartir",
+      "videoEmbed": "Video insertado",
+      "photoAlt": "Foto compartida por {{name}}"
     },
     "search": {
       "title": "Buscar en Media",
       "placeholder": "Buscar publicaciones y cuentas…",
       "submit": "Buscar",
-      "empty": "No se encontraron resultados."
+      "empty": "No se encontraron resultados.",
+      "accounts": "Cuentas",
+      "posts": "Publicaciones"
     },
     "feed": {
       "refresh": "Actualizar publicaciones",
@@ -30339,7 +30343,9 @@
       "bodyRequired": "Se requiere texto para la publicación.",
       "createError": "No se pudo crear la publicación.",
       "posting": "Publicando…",
-      "post": "Publicar"
+      "post": "Publicar",
+      "uploadLabel": "Subir foto o video",
+      "uploadHint": "Las fotos se revisan antes de publicarse. Los videos requieren verificación de identidad y quedan en cuarentena hasta pasar los controles."
     },
     "notifications": {
       "kicker": "Actualizaciones de la red",

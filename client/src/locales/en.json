@@ -30282,13 +30282,17 @@
       "verified": "Verified",
       "views": "views",
       "repost": "Repost",
-      "share": "Share"
+      "share": "Share",
+      "videoEmbed": "Embedded video",
+      "photoAlt": "Photo shared by {{name}}"
     },
     "search": {
       "title": "Search Media",
       "placeholder": "Search posts and accounts…",
       "submit": "Search",
-      "empty": "No results found."
+      "empty": "No results found.",
+      "accounts": "Accounts",
+      "posts": "Posts"
     },
     "feed": {
       "refresh": "Refresh feed",
@@ -30339,7 +30343,9 @@
       "bodyRequired": "Post text is required.",
       "createError": "Could not create the post.",
       "posting": "Posting…",
-      "post": "Post"
+      "post": "Post",
+      "uploadLabel": "Photo or video upload",
+      "uploadHint": "Photos are scanned before publishing. Videos require identity verification and stay quarantined until safety checks pass."
     },
     "notifications": {
       "kicker": "Network updates",

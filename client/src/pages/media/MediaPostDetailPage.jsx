@@ -11,7 +11,6 @@ export default function MediaPostDetailPage() {
   const { id } = useParams();
   const [post, setPost] = useState(null);
   const [replies, setReplies] = useState([]);
-  const [sort, setSort] = useState('latest');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -35,19 +34,9 @@ export default function MediaPostDetailPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const loadReplies = async (sortMode) => {
-    const data = await getReplies(id, sortMode);
-    setReplies(data.replies);
-  };
-
   const handleNewReply = (reply) => {
     setReplies(r => [reply, ...r]);
     setPost(p => p ? { ...p, reply_count: p.reply_count + 1 } : p);
-  };
-
-  const handleSortChange = (newSort) => {
-    setSort(newSort);
-    loadReplies(newSort);
   };
 
   return (
@@ -76,20 +65,6 @@ export default function MediaPostDetailPage() {
             <MediaReplyComposer parentId={id} onReply={handleNewReply} />
             <div className="media-replies-section">
               <h2>{t('media.post.replies')} ({post.reply_count})</h2>
-              <div className="media-reply-sort">
-                <button
-                  onClick={() => handleSortChange('latest')}
-                  className={sort === 'latest' ? 'active' : ''}
-                >
-                  {t('media.post.latest')}
-                </button>
-                <button
-                  onClick={() => handleSortChange('relevant')}
-                  className={sort === 'relevant' ? 'active' : ''}
-                >
-                  {t('media.post.relevant')}
-                </button>
-              </div>
               {replies.map(reply => (
                 <MediaPostCard key={reply.id} post={reply} />
               ))}

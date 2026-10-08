@@ -93,6 +93,25 @@ export default function MediaPostCard({ post, onUpdate }) {
         <Link to={`/media/post/${post.id}`} className="media-post-text">
           {post.body}
         </Link>
+        {post.assets?.length > 0 && (
+          <div className={`media-post-assets media-post-assets-${Math.min(post.assets.length, 4)}`}>
+            {post.assets.map((asset) => {
+              if (asset.asset_type === 'video_link' && asset.external_url) {
+                const embedUrl = asset.provider === 'youtube'
+                  ? `https://www.youtube.com/embed/${asset.external_video_id}`
+                  : `https://player.vimeo.com/video/${asset.external_video_id}`;
+                return <iframe key={asset.id} title={t('media.post.videoEmbed')} src={embedUrl} loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />;
+              }
+              if (asset.asset_type === 'video' && asset.url) {
+                return <video key={asset.id} src={asset.url} poster={asset.thumbnail_url || undefined} controls muted playsInline preload="metadata" />;
+              }
+              if (asset.asset_type === 'image' && asset.url) {
+                return <img key={asset.id} src={asset.url} alt={t('media.post.photoAlt', { name: post.display_name })} loading="lazy" />;
+              }
+              return null;
+            })}
+          </div>
+        )}
         {post.quoted && (
           <div className="media-quoted-embed">
             <div className="media-post-header">

@@ -8,5 +8,6 @@ router.use(requireAdmin, requirePermission('moderate_content'));
 
 router.get('/flags', ctrl.listFlags);
 router.post('/flags/:id/review', ctrl.reviewFlag);
+router.post('/posts/:id/approve', ctrl.approvePost);
 
 module.exports = router;

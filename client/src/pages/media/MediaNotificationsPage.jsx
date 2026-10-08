@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bell, Check, RefreshCw } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useTranslation } from 'react-i18next';
@@ -15,6 +16,8 @@ const ICONS = {
   dispute_update: '⚠️',
   new_job_nearby: '📍',
   onboarding_complete: '🎉',
+  media_reply: '💬',
+  media_like: '❤️',
 };
 
 function notificationTime(value) {
@@ -28,6 +31,7 @@ function notificationTime(value) {
 
 export default function MediaNotificationsPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const {
     notifications,
     unreadCount,
@@ -85,7 +89,10 @@ export default function MediaNotificationsPage() {
                 key={notification.id}
                 className={`media-notification-row${unread ? ' unread' : ''}`}
                 role="listitem"
-                onClick={() => unread && markAsRead(notification.id)}
+                onClick={() => {
+                  if (unread) markAsRead(notification.id);
+                  if (notification.action_url) navigate(notification.action_url);
+                }}
               >
                 <span className="media-notification-icon" aria-hidden="true">
                   {ICONS[notification.type] || '🔔'}

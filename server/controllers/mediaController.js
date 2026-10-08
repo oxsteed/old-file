@@ -7,6 +7,7 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { sendNotification } = require('../services/notificationService');
+const { getSignedDownloadUrl } = require('../utils/storage');
 
 const MAX_LINKS_PER_POST = 5;
 const POSTS_PER_DAY = 10;
@@ -240,10 +241,23 @@ async function hydrateLinks(postId) {
 
 async function hydratePost(post, viewerUserId) {
   const links = await hydrateLinks(post.id);
-  const { rows: assets } = await pool.query(
+  const { rows: assetRows } = await pool.query(
     `SELECT * FROM media_post_assets WHERE post_id = $1 ORDER BY sort_order`,
     [post.id]
   );
+  const assets = await Promise.all(assetRows.map(async (asset) => {
+    if (!asset.storage_key) return { ...asset, url: asset.external_url || null };
+    try {
+      return {
+        ...asset,
+        url: await getSignedDownloadUrl(asset.storage_key),
+        thumbnail_url: asset.thumbnail_key ? await getSignedDownloadUrl(asset.thumbnail_key) : null,
+      };
+    } catch (err) {
+      logger.warn('media asset URL signing failed', { assetId: asset.id, message: err.message });
+      return { ...asset, url: null, thumbnail_url: null };
+    }
+  }));
   let liked = false, bookmarked = false, reposted = false;
   if (viewerUserId) {
     const { rows: l } = await pool.query(
@@ -276,11 +290,22 @@ async function getFeed(req, res) {
 
     let orderBy = 'p.created_at DESC';
     const params = [limit];
-    let where = `p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL`;
+    let where = `p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL
+      AND p.processing_status = 'ready' AND p.csam_status = 'passed'
+      AND EXISTS (SELECT 1 FROM users au WHERE au.id = a.owner_user_id
+        AND au.deleted_at IS NULL AND au.is_active = TRUE AND au.is_banned = FALSE)`;
 
     if (before) {
       where += ` AND p.created_at < $2`;
       params.push(before);
+    }
+    if (viewerUserId) {
+      params.push(viewerUserId);
+      where += ` AND NOT EXISTS (
+        SELECT 1 FROM user_blocks ub
+         WHERE (ub.blocker_id = $${params.length} AND ub.blocked_id = a.owner_user_id)
+            OR (ub.blocker_id = a.owner_user_id AND ub.blocked_id = $${params.length})
+      )`;
     }
 
     // Deep-link boost: posts with valid local entity links rank higher.
@@ -313,7 +338,8 @@ async function getPost(req, res) {
     const { rows } = await pool.query(
       `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
          FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
-        WHERE p.id = $1 AND p.deleted_at IS NULL`,
+        WHERE p.id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
+          AND p.processing_status = 'ready' AND p.csam_status = 'passed'`,
       [req.params.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Post not found' });
@@ -324,7 +350,8 @@ async function getPost(req, res) {
       const { rows: q } = await pool.query(
         `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind
            FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
-          WHERE p.id = $1 AND p.deleted_at IS NULL`,
+          WHERE p.id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
+            AND p.processing_status = 'ready' AND p.csam_status = 'passed'`,
         [post.quoted_post_id]
       );
       if (q[0]) post.quoted = await hydratePost(q[0], req.user?.id || null);
@@ -349,7 +376,8 @@ async function getReplies(req, res) {
     const { rows } = await pool.query(
       `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
          FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
-        WHERE p.parent_id = $1 AND p.deleted_at IS NULL AND p.visibility != 'removed'
+        WHERE p.parent_id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
+          AND p.processing_status = 'ready' AND p.csam_status = 'passed'
         ORDER BY ${orderClause} LIMIT 50`,
       [req.params.id]
     );
@@ -369,7 +397,8 @@ async function getQuotes(req, res) {
     const { rows } = await pool.query(
       `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
          FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
-        WHERE p.quoted_post_id = $1 AND p.deleted_at IS NULL
+        WHERE p.quoted_post_id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
+          AND p.processing_status = 'ready' AND p.csam_status = 'passed'
         ORDER BY p.created_at DESC LIMIT 50`,
       [req.params.id]
     );
@@ -630,6 +659,19 @@ async function flagPost(req, res) {
   try {
     const { reason, note } = req.body;
     if (!reason) return res.status(400).json({ error: 'Reason is required' });
+    const { rows: recent } = await pool.query(
+      `SELECT COUNT(*)::int AS count FROM media_post_flags
+        WHERE user_id = $1 AND created_at > NOW() - INTERVAL '1 day'`, [req.user.id]
+    );
+    if (recent[0]?.count >= 10) {
+      return res.status(429).json({ error: 'Daily report limit reached', code: 'media_report_limit_reached' });
+    }
+    const { rows: duplicate } = await pool.query(
+      `SELECT 1 FROM media_post_flags
+        WHERE post_id = $1 AND user_id = $2 AND status = 'open' LIMIT 1`,
+      [req.params.id, req.user.id]
+    );
+    if (duplicate[0]) return res.status(409).json({ error: 'You already reported this post', code: 'media_report_exists' });
     await pool.query(
       `INSERT INTO media_post_flags (post_id, user_id, reason, note)
        VALUES ($1, $2, $3, $4)`,
@@ -652,8 +694,9 @@ async function getCommunities(req, res) {
                  WHERE cm.community_id = c.id AND cm.user_id = $1
               ) AS joined
          FROM media_communities c
-         LEFT JOIN media_posts p ON p.community_id = c.id
+        LEFT JOIN media_posts p ON p.community_id = c.id
           AND p.visibility = 'public' AND p.deleted_at IS NULL
+          AND p.processing_status = 'ready' AND p.csam_status = 'passed'
         GROUP BY c.id
         ORDER BY c.geo_scope NULLS LAST, c.category NULLS LAST, c.title`,
       [req.user?.id || null]
@@ -677,6 +720,7 @@ async function getCommunity(req, res) {
          FROM media_communities c
          LEFT JOIN media_posts p ON p.community_id = c.id
           AND p.visibility = 'public' AND p.deleted_at IS NULL
+          AND p.processing_status = 'ready' AND p.csam_status = 'passed'
         WHERE c.slug = $1
         GROUP BY c.id`,
       [req.params.slug, req.user?.id || null]
@@ -686,6 +730,7 @@ async function getCommunity(req, res) {
       `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
          FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
         WHERE p.community_id = $1 AND p.visibility = 'public' AND p.deleted_at IS NULL
+          AND p.processing_status = 'ready' AND p.csam_status = 'passed'
           AND p.parent_id IS NULL
         ORDER BY p.created_at DESC LIMIT 50`,
       [communities[0].id]
@@ -738,6 +783,7 @@ async function searchMedia(req, res) {
       `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
          FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
         WHERE p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL
+          AND p.processing_status = 'ready' AND p.csam_status = 'passed'
           AND (p.body ILIKE $1 OR a.handle ILIKE $1 OR a.display_name ILIKE $1)
         ORDER BY p.created_at DESC LIMIT $2`,
       [pattern, limit]
@@ -771,6 +817,7 @@ async function getBusinessPosts(req, res) {
       `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
          FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
         WHERE p.actor_id = $1 AND p.deleted_at IS NULL AND p.parent_id IS NULL
+          AND p.visibility = 'public' AND p.processing_status = 'ready' AND p.csam_status = 'passed'
         ORDER BY p.created_at DESC LIMIT 20`,
       [actors[0].id]
     );
@@ -794,6 +841,7 @@ async function getActor(req, res) {
       `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
          FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
         WHERE p.actor_id = $1 AND p.deleted_at IS NULL AND p.parent_id IS NULL
+          AND p.visibility = 'public' AND p.processing_status = 'ready' AND p.csam_status = 'passed'
         ORDER BY p.created_at DESC LIMIT 20`,
       [rows[0].id]
     );

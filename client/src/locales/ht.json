@@ -30282,13 +30282,17 @@
       "verified": "Verifye",
       "views": "vi",
       "repost": "Repibliye",
-      "share": "Pataje"
+      "share": "Pataje",
+      "videoEmbed": "Videyo entegre",
+      "photoAlt": "Foto {{name}} pataje"
     },
     "search": {
       "title": "Chèche nan Media",
       "placeholder": "Chèche pòs ak kont…",
       "submit": "Chèche",
-      "empty": "Pa gen rezilta."
+      "empty": "Pa gen rezilta.",
+      "accounts": "Kont",
+      "posts": "Piblikasyon"
     },
     "feed": {
       "refresh": "Rafrechi fil la",
@@ -30339,7 +30343,9 @@
       "bodyRequired": "Nou bezwen tèks pòs la.",
       "createError": "Nou pa ka kreye pòs la.",
       "posting": "Ap pibliye…",
-      "post": "Pibliye"
+      "post": "Pibliye",
+      "uploadLabel": "Telechaje foto oswa videyo",
+      "uploadHint": "Nou tcheke foto yo anvan piblikasyon. Videyo yo mande verifikasyon idantite epi yo rete an karantèn jouk kontwòl sekirite yo fini."
     },
     "notifications": {
       "kicker": "Mizajou rezo a",
