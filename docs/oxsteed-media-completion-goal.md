@@ -75,3 +75,10 @@ now catches ranked-query read failures during rolling deployment, preserving
 visibility and block filters while logging the primary error; a minimal safety
 fallback handles an unavailable active-author predicate as a second boundary.
 The focused Media set is now 33 tests passing locally.
+
+Live follow-up after the rollout: `/api/media/feed?limit=1` returned HTTP 200
+with `{ posts: [], next_before: null, has_more: false }`. The rendered
+`/media` page initially retained its prior error state, but its Retry action
+then loaded the empty-feed state (“Good things start locally” / “No updates
+yet”). `/ready` was healthy with all 736 migrations applied and workers ready;
+the release metadata still does not expose a Git SHA.
