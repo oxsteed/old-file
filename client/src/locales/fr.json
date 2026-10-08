@@ -30256,6 +30256,11 @@
     },
     "feed": {
       "title": "OxSteed Media",
+      "subtitle": "Voix locales, connexions utiles et actualités du réseau OxSteed.",
+      "subtitleShort": "Les dernières nouvelles du réseau",
+      "latest": "Plus récentes",
+      "compose": "Partager une actualité",
+      "emptyTitle": "Votre fil commence ici",
       "loadError": "Échec du chargement du fil.",
       "loadMore": "Charger plus",
       "empty": "Aucune publication pour le moment. Soyez le premier à partager."

@@ -4,7 +4,7 @@
 // MVP: verified helpers/businesses/restaurants post; photo uploads public,
 // video uploads require Didit + block public until CSAM vendor certified.
 
-const { pool } = require('../db');
+const pool = require('../db');
 const logger = require('../utils/logger');
 
 const MAX_LINKS_PER_POST = 5;

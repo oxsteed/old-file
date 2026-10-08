@@ -5,7 +5,7 @@
 // Gates (Emile locked #12): Didit identity required for video upload;
 // public video blocked until CSAM vendor certified.
 
-const { pool } = require('../db');
+const pool = require('../db');
 const logger = require('../utils/logger');
 
 // TODO: set true when production CSAM vendor contract is certified.

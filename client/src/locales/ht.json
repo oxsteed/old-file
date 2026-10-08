@@ -30256,6 +30256,11 @@
     },
     "feed": {
       "title": "OxSteed Media",
+      "subtitle": "Vwa lokal, koneksyon itil, ak nouvèl ki soti nan rezo OxSteed la.",
+      "subtitleShort": "Dènye nouvèl nan rezo a",
+      "latest": "Pi resan",
+      "compose": "Pataje yon nouvèl",
+      "emptyTitle": "Fil ou a kòmanse isit la",
       "loadError": "Pa ka chaje fil la.",
       "loadMore": "Chaje plis",
       "empty": "Pa gen piblikasyon pou kounye a. Se premye moun ki pataje."

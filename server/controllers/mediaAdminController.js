@@ -2,7 +2,7 @@
 
 // OxSteed Media admin: flag queue + post moderation.
 
-const { pool } = require('../db');
+const pool = require('../db');
 const logger = require('../utils/logger');
 
 async function listFlags(req, res) {

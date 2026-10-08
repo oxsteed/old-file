@@ -4,6 +4,7 @@ import { getFeed } from '../../api/media';
 import PageShell from '../../components/PageShell';
 import './MediaStyles.css';
 import MediaPostCard from './MediaPostCard';
+import { Link } from 'react-router-dom';
 
 export default function MediaFeedPage() {
   const { t } = useTranslation();
@@ -36,11 +37,29 @@ export default function MediaFeedPage() {
 
   return (
     <PageShell>
-      <div className="media-feed">
-        <h1>{t('media.feed.title')}</h1>
+      <div className="media-feed media-feed-page">
+        <header className="media-feed-hero">
+          <div>
+            <span className="media-feed-eyebrow">OxSteed · {t('media.feed.title')}</span>
+            <h1>{t('media.feed.title')}</h1>
+            <p>{t('media.feed.subtitle')}</p>
+          </div>
+          <Link className="media-compose-cta" to="/media/compose">
+            <span aria-hidden="true">＋</span> {t('media.feed.compose')}
+          </Link>
+        </header>
+        <div className="media-feed-toolbar">
+          <span>{t('media.feed.latest')}</span>
+          <span className="media-feed-toolbar__dot" aria-hidden="true">•</span>
+          <span>{t('media.feed.subtitleShort')}</span>
+        </div>
         {error && (
-          <div className="media-error">
-            <p>{error}</p>
+          <div className="media-error" role="alert">
+            <div className="media-error-icon" aria-hidden="true">!</div>
+            <div>
+              <strong>{t('media.feed.loadError')}</strong>
+              <p>{error}</p>
+            </div>
             <button type="button" onClick={() => load(null)}>{t('common.retry', 'Retry')}</button>
           </div>
         )}
@@ -59,7 +78,12 @@ export default function MediaFeedPage() {
           </button>
         )}
         {!loading && !error && !posts.length && (
-          <p className="media-empty">{t('media.feed.empty')}</p>
+          <div className="media-empty media-empty-card">
+            <div className="media-empty-icon" aria-hidden="true">✦</div>
+            <h2>{t('media.feed.emptyTitle')}</h2>
+            <p>{t('media.feed.empty')}</p>
+            <Link className="media-empty-cta" to="/media/compose">{t('media.feed.compose')}</Link>
+          </div>
         )}
       </div>
     </PageShell>
