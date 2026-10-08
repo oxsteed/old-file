@@ -491,7 +491,8 @@ Share-count integration (2026-10-08): Media now persists idempotent user or
 guest share records, returns the authoritative `share_count`, and renders the
 share count beside the share action. The focused Media contracts/feed suites
 pass 15 tests, `node --check`, `npm run typecheck`, and `git diff --check` pass
-locally. Migration 741 is pending deployment and rehearsal.
+locally. Migration 741 is now reflected by the later live 742-migration check;
+formal hosted migration evidence remains tied to the active CI run.
 
 Live deployment check (2026-10-08): `/api/ready` returned healthy with release
 `content-3a84c217f45ad2a2` and 741 applied migrations, but the deployed
@@ -499,4 +500,12 @@ Live deployment check (2026-10-08): `/api/ready` returned healthy with release
 the current production release does not yet expose the branch represented by
 this checkout; authenticated Media verification and deployment of the pushed
 branch remain open.
+
+Deployment follow-up (2026-10-08): a later live check now reports release
+`content-eef8fc44394896b3` with 742 migrations applied and no pending work.
+`/api/media/capabilities` returns Cloudflare interim mode with malware and
+transcode requirements; `/api/media/feed`, `/api/media/communities`,
+`/api/media/search`, and the share route respond through the deployed Media
+router. The anonymous feed is empty, so authenticated publishing, action
+counts, uploads, and marketplace journeys still require a signed-in live check.
 
