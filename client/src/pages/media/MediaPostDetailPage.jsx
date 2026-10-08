@@ -2,7 +2,6 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getPost, getReplies, recordView } from '../../api/media';
-import PageShell from '../../components/PageShell';
 import './MediaStyles.css';
 import MediaPostCard from './MediaPostCard';
 import MediaReplyComposer from './MediaReplyComposer';
@@ -52,7 +51,6 @@ export default function MediaPostDetailPage() {
   };
 
   return (
-    <PageShell>
       <div className="media-post-detail">
         {loading && (
           <div className="media-skeleton">
@@ -100,6 +98,5 @@ export default function MediaPostDetailPage() {
           </>
         )}
       </div>
-    </PageShell>
   );
 }

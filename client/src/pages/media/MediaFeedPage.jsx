@@ -1,13 +1,15 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getFeed } from '../../api/media';
-import PageShell from '../../components/PageShell';
+import { MapPin, MessageCircle, RefreshCw, ArrowRight } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import './MediaStyles.css';
 import MediaPostCard from './MediaPostCard';
 import { Link } from 'react-router-dom';
 
 export default function MediaFeedPage() {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -27,7 +29,7 @@ export default function MediaFeedPage() {
       setBefore(data.next_before);
       setHasMore(data.posts.length > 0);
     } catch (err) {
-      setError(err.response?.data?.error || t('media.feed.loadError'));
+      setError(t('media.feed.loadError'));
     } finally {
       setLoading(false);
     }
@@ -36,30 +38,30 @@ export default function MediaFeedPage() {
   useEffect(() => { load(null); }, [load]);
 
   return (
-    <PageShell>
       <div className="media-feed media-feed-page">
-        <header className="media-feed-hero">
+        <header className="media-timeline-header">
           <div>
-            <span className="media-feed-eyebrow">OxSteed · {t('media.feed.title')}</span>
-            <h1>{t('media.feed.title')}</h1>
-            <p>{t('media.feed.subtitle')}</p>
+            <h1>{t('media.shell.home')}</h1>
+            <p><MapPin size={13} aria-hidden="true" />{t('media.shell.railNote')}</p>
           </div>
-          <Link className="media-compose-cta" to="/media/compose">
-            <span aria-hidden="true">＋</span> {t('media.feed.compose')}
-          </Link>
+          <button type="button" className="media-icon-button" disabled={loading}
+            onClick={() => load(null)} aria-label={t('media.feed.refresh')}>
+            <RefreshCw size={18} aria-hidden="true" />
+          </button>
         </header>
+        <Link className="media-composer-prompt" to="/media/compose">
+          <span className="media-composer-avatar" aria-hidden="true">
+            {user?.profile_photo_url ? <img src={user.profile_photo_url} alt="" /> : <MessageCircle size={20} />}
+          </span>
+          <span>{t('media.feed.prompt')}</span>
+          <ArrowRight size={18} aria-hidden="true" />
+        </Link>
         <div className="media-feed-toolbar">
-          <span>{t('media.feed.latest')}</span>
-          <span className="media-feed-toolbar__dot" aria-hidden="true">•</span>
-          <span>{t('media.feed.subtitleShort')}</span>
+          <span className="media-feed-tab">{t('media.feed.latest')}</span>
         </div>
         {error && (
           <div className="media-error" role="alert">
-            <div className="media-error-icon" aria-hidden="true">!</div>
-            <div>
-              <strong>{t('media.feed.loadError')}</strong>
-              <p>{error}</p>
-            </div>
+            <p>{error}</p>
             <button type="button" onClick={() => load(null)}>{t('common.retry', 'Retry')}</button>
           </div>
         )}
@@ -78,14 +80,16 @@ export default function MediaFeedPage() {
           </button>
         )}
         {!loading && !error && !posts.length && (
-          <div className="media-empty media-empty-card">
-            <div className="media-empty-icon" aria-hidden="true">✦</div>
-            <h2>{t('media.feed.emptyTitle')}</h2>
-            <p>{t('media.feed.empty')}</p>
-            <Link className="media-empty-cta" to="/media/compose">{t('media.feed.compose')}</Link>
+          <div className="media-feed-empty">
+            <div className="media-empty-illustration" aria-hidden="true">
+              <span className="media-empty-bubble"><MessageCircle size={27} /></span>
+              <span className="media-empty-pin"><MapPin size={21} /></span>
+            </div>
+            <h2>{t('media.feed.emptyHeading')}</h2>
+            <p>{t('media.feed.emptyDescription')}</p>
+            <Link className="media-text-link" to="/restaurants">{t('media.feed.explore')}<ArrowRight size={16} aria-hidden="true" /></Link>
           </div>
         )}
       </div>
-    </PageShell>
   );
 }

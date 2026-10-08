@@ -30246,6 +30246,29 @@
     "refundUnavailableHint": "Este pedido no se encuentra actualmente en un estado de pago reembolsable."
   },
   "media": {
+    "shell": {
+      "navigation": "Navegación de Media",
+      "home": "Inicio",
+      "search": "Buscar",
+      "spaces": "Espacios",
+      "notifications": "Notificaciones",
+      "messages": "Mensajes",
+      "back": "Volver a OxSteed",
+      "railNote": "Voces locales. Conexiones reales.",
+      "terms": "Términos",
+      "privacy": "Privacidad",
+      "support": "Soporte",
+      "discover": "Descubre lo local",
+      "discoverDescription": "Encuentra a las personas, lugares y oportunidades detrás de las publicaciones.",
+      "restaurants": "Restaurantes y platos",
+      "restaurantsDescription": "Encuentra tu próximo favorito local",
+      "helpers": "Ayudantes locales",
+      "helpersDescription": "Conoce a quienes hacen el trabajo",
+      "jobs": "Trabajos cercanos",
+      "jobsDescription": "Encuentra trabajo y oportunidades locales",
+      "purposeTitle": "Hecho para tu comunidad",
+      "purposeDescription": "Novedades de ayudantes y negocios verificados, conectadas con lo que puedes pedir, reservar o explorar."
+    },
     "post": {
       "loadError": "No se pudo cargar la publicación.",
       "notFound": "Publicación no encontrada.",
@@ -30255,6 +30278,11 @@
       "noReplies": "Aún no hay respuestas."
     },
     "feed": {
+      "refresh": "Actualizar publicaciones",
+      "prompt": "¿Qué pasa por aquí?",
+      "emptyHeading": "Lo bueno empieza cerca.",
+      "emptyDescription": "Aún no hay novedades. Cuando las personas compartan su trabajo, comida e ideas, las encontrarás aquí. Explora la comunidad local mientras tanto.",
+      "explore": "Explorar restaurantes locales",
       "title": "OxSteed Media",
       "subtitle": "Voces locales, conexiones útiles y novedades de la red OxSteed.",
       "subtitleShort": "Lo más reciente de la red",

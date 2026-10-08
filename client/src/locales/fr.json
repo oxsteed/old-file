@@ -30246,6 +30246,29 @@
     "refundUnavailableHint": "Cette commande n’est pas actuellement dans un état de paiement remboursable."
   },
   "media": {
+    "shell": {
+      "navigation": "Navigation Media",
+      "home": "Accueil",
+      "search": "Rechercher",
+      "spaces": "Espaces",
+      "notifications": "Notifications",
+      "messages": "Messages",
+      "back": "Retour à OxSteed",
+      "railNote": "Voix locales. Vrais liens.",
+      "terms": "Conditions",
+      "privacy": "Confidentialité",
+      "support": "Assistance",
+      "discover": "Découvrez le quartier",
+      "discoverDescription": "Retrouvez les personnes, les lieux et les occasions derrière les publications.",
+      "restaurants": "Restaurants et plats",
+      "restaurantsDescription": "Trouvez votre prochaine adresse préférée",
+      "helpers": "Prestataires locaux",
+      "helpersDescription": "Rencontrez ceux qui réalisent vos projets",
+      "jobs": "Missions à proximité",
+      "jobsDescription": "Trouvez du travail près de chez vous",
+      "purposeTitle": "Pour votre communauté",
+      "purposeDescription": "Des nouvelles de prestataires et d’entreprises vérifiés, liées à ce que vous pouvez commander, réserver ou découvrir."
+    },
     "post": {
       "loadError": "Échec du chargement de la publication.",
       "notFound": "Publication introuvable.",
@@ -30255,6 +30278,11 @@
       "noReplies": "Aucune réponse pour le moment."
     },
     "feed": {
+      "refresh": "Actualiser le fil",
+      "prompt": "Quoi de neuf près de chez vous ?",
+      "emptyHeading": "Tout commence près de chez vous.",
+      "emptyDescription": "Aucune nouvelle pour le moment. Retrouvez ici les projets, les plats et les idées de votre communauté. En attendant, découvrez les adresses locales.",
+      "explore": "Découvrir les restaurants locaux",
       "title": "OxSteed Media",
       "subtitle": "Voix locales, connexions utiles et actualités du réseau OxSteed.",
       "subtitleShort": "Les dernières nouvelles du réseau",

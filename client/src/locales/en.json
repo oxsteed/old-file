@@ -30246,6 +30246,29 @@
     "refundUnavailableHint": "This order is not currently in a refundable payment state."
   },
   "media": {
+    "shell": {
+      "navigation": "Media navigation",
+      "home": "Home",
+      "search": "Search",
+      "spaces": "Spaces",
+      "notifications": "Notifications",
+      "messages": "Messages",
+      "back": "Back to OxSteed",
+      "railNote": "Local voices. Real connections.",
+      "terms": "Terms",
+      "privacy": "Privacy",
+      "support": "Support",
+      "discover": "Discover local",
+      "discoverDescription": "Find the people, places, and opportunities behind the posts.",
+      "restaurants": "Restaurants & dishes",
+      "restaurantsDescription": "Find your next local favorite",
+      "helpers": "Local helpers",
+      "helpersDescription": "Meet people who get things done",
+      "jobs": "Jobs nearby",
+      "jobsDescription": "Find work and local opportunities",
+      "purposeTitle": "Built for your community",
+      "purposeDescription": "Updates from verified helpers and businesses, connected to things you can order, book, or explore."
+    },
     "post": {
       "loadError": "Failed to load post.",
       "notFound": "Post not found.",
@@ -30255,6 +30278,11 @@
       "noReplies": "No replies yet."
     },
     "feed": {
+      "refresh": "Refresh feed",
+      "prompt": "What’s happening nearby?",
+      "emptyHeading": "Good things start locally.",
+      "emptyDescription": "No updates yet. When people share their work, food, and ideas, you’ll find them here. Explore the local community while you wait.",
+      "explore": "Explore local restaurants",
       "title": "OxSteed Media",
       "subtitle": "Local voices, useful connections, and updates from the OxSteed network.",
       "subtitleShort": "Latest from the network",

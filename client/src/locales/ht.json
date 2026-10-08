@@ -30246,6 +30246,29 @@
     "refundUnavailableHint": "Kòmand sa a pa nan yon eta peman ki ka ranbouse kounye a."
   },
   "media": {
+    "shell": {
+      "navigation": "Navigasyon Media",
+      "home": "Akèy",
+      "search": "Chèche",
+      "spaces": "Espas",
+      "notifications": "Notifikasyon",
+      "messages": "Mesaj",
+      "back": "Retounen nan OxSteed",
+      "railNote": "Vwa lokal. Koneksyon reyèl.",
+      "terms": "Kondisyon",
+      "privacy": "Konfidansyalite",
+      "support": "Sipò",
+      "discover": "Dekouvri sa ki lokal",
+      "discoverDescription": "Jwenn moun, kote ak opòtinite ki dèyè piblikasyon yo.",
+      "restaurants": "Restoran ak plat",
+      "restaurantsDescription": "Jwenn pwochen kote lokal ou renmen",
+      "helpers": "Èd lokal",
+      "helpersDescription": "Rankontre moun ki fè travay la",
+      "jobs": "Travay toupre",
+      "jobsDescription": "Jwenn travay ak opòtinite lokal",
+      "purposeTitle": "Fèt pou kominote ou",
+      "purposeDescription": "Nouvèl ki soti nan èd ak biznis verifye, ki konekte ak bagay ou ka kòmande, rezève oswa dekouvri."
+    },
     "post": {
       "loadError": "Pa ka chaje piblikasyon an.",
       "notFound": "Piblikasyon pa jwenn.",
@@ -30255,6 +30278,11 @@
       "noReplies": "Pa gen repons pou kounye a."
     },
     "feed": {
+      "refresh": "Rafrechi fil la",
+      "prompt": "Kisa k ap pase toupre ou?",
+      "emptyHeading": "Bon bagay kòmanse lakay.",
+      "emptyDescription": "Poko gen nouvèl. Lè moun pataje travay, manje ak lide yo, ou pral jwenn yo isit la. Dekouvri kominote lokal la pandan w ap tann.",
+      "explore": "Dekouvri restoran lokal yo",
       "title": "OxSteed Media",
       "subtitle": "Vwa lokal, koneksyon itil, ak nouvèl ki soti nan rezo OxSteed la.",
       "subtitleShort": "Dènye nouvèl nan rezo a",

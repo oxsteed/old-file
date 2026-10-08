@@ -1,0 +1,59 @@
+# OxSteed Media layout: first implementation pass
+
+## Problem and resulting behavior
+
+The `/media/` feed nested the global site navigation and footer inside the
+narrow Media content column. The signed-in navigation extended beyond the
+viewport, while a large promotional banner and repeated compose buttons pushed
+the timeline down. The empty feed looked like a landing page.
+
+Media now owns one shared page shell. Desktop uses a navigation rail, a central
+timeline, and links to the real restaurant, helper, and job directories. Phones
+use the five-tab navigation bar. The timeline has a compact Home header, a
+compose entry, a Latest label, and a modest empty state. Its footer is replaced
+with compact legal/support links in the desktop rail. The post-detail route also
+uses the shared shell rather than nesting another global page shell.
+
+The shell retains language and theme controls and an accessible return link to
+OxSteed. Navigation and new feed text are translated in en/es/fr/ht/ar; generated
+locale namespaces/shards are produced by the existing catalog script. Styles
+use the shared theme tokens and logical properties for Arabic.
+
+## Scope relative to the locked product definition
+
+This change implements the page layout. It does not establish completion of the
+Media MVP. The current upload verification and public-video safety gates remain
+in effect. No payments, paid promotion, fabricated posts, or engagement rankings
+are introduced. Directory discovery links are not a claim that nearby ranking
+or every linked-card action is implemented.
+
+Next action: audit the existing posting, media rendering, five post actions,
+linked-card behavior, local Spaces, notifications, and identity permissions
+against the locked MVP definition, then implement the missing behavior with
+focused server/browser checks. Keep follows, Relevant sort, live counts, and
+the additional entity types in their later release scope.
+
+## Verification performed
+
+Verified in a writable checkout at `C:\Temp\oxsteed-media-design-20261008`,
+starting from `0e0a5963f530130d48c5920390f7c8df119eac81`.
+
+- `git diff --check`: passed.
+- `npm run verify:i18n`: passed, including five-language key parity.
+- `npm run typecheck`: passed.
+- `npm run build`: passed.
+- `npm run build:ci`: attempted; its existing frontend-reference fixture tests
+  fail on Windows before the build. Their override map uses native Windows
+  paths while TypeScript requests normalized paths. This layout change does not
+  modify or bypass that validation. The full Linux CI run must confirm it.
+- `node media-preview.cjs`: temporary browser check against the production build
+  with isolated API fixtures. Passed at 320, 390, 700, 768, 1024, and 1440 pixels;
+  no horizontal overflow, correct mobile/desktop navigation, one main landmark,
+  no large footer, correct Home selection with a trailing slash, empty/populated
+  feeds, error/retry, Arabic RTL, dark theme, and no uncaught page errors.
+  Service workers were disabled in this fixture test so mocked API requests
+  could not be intercepted by the worker.
+
+CI and live deployment evidence will be recorded after publication. Local
+fixtures do not establish that the new layout has deployed or that real users
+can upload and publish media.
