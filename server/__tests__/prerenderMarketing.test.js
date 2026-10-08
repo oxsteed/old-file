@@ -86,6 +86,16 @@ describe('localized marketing SEO shell', () => {
     }
   });
 
+  test('renders a complete Media landing metadata contract', async () => {
+    const res = await request(buildApp()).get('/media');
+
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('<title data-rh="true">OxSteed Media | Local updates</title>');
+    expect(res.text).toContain('property="og:image"');
+    expect(res.text).toContain('name="twitter:image"');
+    expect(res.text).toContain('"@type":"CollectionPage"');
+  });
+
   test('localizes eligible public profile metadata and structured data', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{

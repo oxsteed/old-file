@@ -87,3 +87,7 @@ Nearby ranking now trims and compares both the viewer city and state against a
 Space geo scope, with state omitted only when the Space has no state suffix.
 The focused ranking regression covers that state-aware SQL alongside cursor
 pagination and the fallback paths.
+
+SEO hardening: the prerender helper now inserts a title when a production
+template omits one, while preserving localized OG/Twitter images and Media
+CollectionPage JSON-LD. The Media metadata regression suite passes 8 tests.

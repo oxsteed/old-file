@@ -239,6 +239,12 @@ function replaceMeta(html, { title, description, url, ogType = 'website', image 
       `<meta data-rh="true" name="twitter:description" content="${escapeHtml(description)}" />`,
     );
 
+  // Some production shell templates omit a title entirely. Ensure crawlers
+  // still receive the page title when the regex above had nothing to replace.
+  if (!/<title(?:\s|>)/i.test(out)) {
+    out = out.replace('</head>', `<title data-rh="true">${escapeHtml(title)}</title>\n</head>`);
+  }
+
   if (!/<meta\s+(?:data-rh="true"\s+)?property="og:locale"/.test(out)) {
     out = out.replace('</head>', `<meta data-rh="true" property="og:locale" content="${ogLocale}" />\n</head>`);
   }
