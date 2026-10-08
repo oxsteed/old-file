@@ -102,3 +102,9 @@ Media accessibility coverage now asserts that inline video and mute controls
 have accessible labels and that composer processing status is exposed with a
 status landmark. The new client contract test passes locally; the existing
 client typecheck was also run after the change.
+
+Protected-route live check: anonymous requests to draft and bookmark retrieval
+return 401, and anonymous photo/video upload requests return 401 before any
+upload state can be created. Public feed reads continue to return 200. This is
+guest-boundary evidence only; an authenticated production test account is still
+required for owner, upload-worker, and moderation journey verification.
