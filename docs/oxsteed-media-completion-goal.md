@@ -342,3 +342,11 @@ contract coverage verifies accepted offers and blocks settlement after
 verification is revoked. Local creator tests now pass 4 tests; the Credit
 rail's deployment flag, authenticated settlement journey, CI, and live
 deployment evidence remain open prerequisites.
+
+Creator support UI (2026-10-08): the in-shell Creator Marketplace now exposes
+localized tip and sponsorship actions on each open gig. Tips create a durable
+pending Credit row and immediately request its idempotent settlement; sponsorship
+offers remain pending until the verified creator accepts them. The client API,
+five locale catalogs, typecheck, production build, and i18n parity checks pass.
+Live Credit authorization, acceptance, settlement, and failure/retry behavior
+still require authenticated deployment evidence.

@@ -30246,7 +30246,7 @@
     "refundUnavailableHint": "This order is not currently in a refundable payment state."
   },
   "media": {
-    "creator": { "kicker": "Creator marketplace", "title": "Creator marketplace", "subtitle": "Find paid local campaigns and turn approved Media work into opportunity.", "loadError": "Could not load creator opportunities.", "empty": "No creator opportunities are open yet.", "apply": "Apply to this gig", "createGig": "Post a creator gig", "gigTitle": "Gig title", "gigBrief": "Brief", "budget": "Budget in cents", "pitch": "Your pitch", "proposed": "Proposed amount in cents", "submit": "Submit application", "submitted": "Application submitted." },
+    "creator": { "kicker": "Creator marketplace", "title": "Creator marketplace", "subtitle": "Find paid local campaigns and turn approved Media work into opportunity.", "loadError": "Could not load creator opportunities.", "empty": "No creator opportunities are open yet.", "apply": "Apply to this gig", "createGig": "Post a creator gig", "gigTitle": "Gig title", "gigBrief": "Brief", "budget": "Budget in cents", "pitch": "Your pitch", "proposed": "Proposed amount in cents", "submit": "Submit application", "submitted": "Application submitted.", "tip": "Send a tip", "sponsor": "Offer sponsorship", "amount": "Amount in cents", "brief": "Campaign brief", "creditNotice": "Credit transfer is protected by the OxSteed Credit rail and may require account approval.", "send": "Continue", "tipSent": "Tip sent successfully.", "sponsorshipSent": "Sponsorship offer sent for creator acceptance.", "paymentError": "The Credit transfer could not be completed." },
     "actor": {
       "follow": "Follow",
       "unfollow": "Unfollow",

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Briefcase, CheckCircle2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { applyToCreatorGig, createCreatorGig, getCreatorGigs } from '../../api/media';
+import { applyToCreatorGig, createCreatorGig, createCreatorSponsorship, createCreatorTip, getCreatorGigs, settleCreatorTip } from '../../api/media';
 import { useAuth } from '../../context/AuthContext';
 
 export default function MediaCreatorPage() {
@@ -19,6 +19,11 @@ export default function MediaCreatorPage() {
   const [gigTitle, setGigTitle] = useState('');
   const [gigBrief, setGigBrief] = useState('');
   const [gigBudget, setGigBudget] = useState('');
+  const [supportTarget, setSupportTarget] = useState(null);
+  const [supportMode, setSupportMode] = useState('tip');
+  const [supportAmount, setSupportAmount] = useState('');
+  const [supportBrief, setSupportBrief] = useState('');
+  const [supportMessage, setSupportMessage] = useState('');
 
   const load = () => {
     setLoading(true);
@@ -53,6 +58,39 @@ export default function MediaCreatorPage() {
     } finally { setSubmitting(false); }
   };
 
+  const submitSupport = async (event) => {
+    event.preventDefault();
+    if (!supportTarget || !user) return;
+    setSubmitting(true);
+    setError('');
+    setSupportMessage('');
+    try {
+      if (supportMode === 'tip') {
+        const created = await createCreatorTip({
+          actorId: supportTarget.owner_actor_id,
+          amountCents: Number(supportAmount),
+          idempotencyKey: `media-tip-${supportTarget.id}-${Date.now()}`,
+        });
+        await settleCreatorTip(created.tip.id);
+        setSupportMessage(t('media.creator.tipSent'));
+      } else {
+        await createCreatorSponsorship({
+          actorId: supportTarget.owner_actor_id,
+          amountCents: Number(supportAmount),
+          brief: supportBrief,
+        });
+        setSupportMessage(t('media.creator.sponsorshipSent'));
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || t('media.creator.paymentError'));
+    } finally { setSubmitting(false); }
+  };
+
+  const openSupport = (gig, mode) => {
+    setSupportTarget(gig); setSupportMode(mode); setSupportAmount(String(gig.budget_cents || ''));
+    setSupportBrief(''); setSupportMessage(''); setError('');
+  };
+
   return (
     <section className="media-feed media-creator-page">
       <header className="media-timeline-header">
@@ -70,7 +108,11 @@ export default function MediaCreatorPage() {
         <article className="media-card media-creator-gig" key={gig.id}>
           <div className="media-creator-gig-heading"><div><h2>{gig.title}</h2><p>{gig.owner_name || gig.owner_handle}</p></div><strong>{gig.budget_cents} {gig.currency_code}</strong></div>
           <p>{gig.brief}</p>
-          {user && <button type="button" className="media-primary-button" onClick={() => { setSelected(gig); setPitch(''); setProposedCents(gig.budget_cents); setSubmitted(false); }}>{t('media.creator.apply')}</button>}
+          {user && <div className="media-creator-actions">
+            <button type="button" className="media-primary-button" onClick={() => { setSelected(gig); setPitch(''); setProposedCents(gig.budget_cents); setSubmitted(false); }}>{t('media.creator.apply')}</button>
+            <button type="button" className="media-secondary-button" onClick={() => openSupport(gig, 'tip')}>{t('media.creator.tip')}</button>
+            <button type="button" className="media-secondary-button" onClick={() => openSupport(gig, 'sponsorship')}>{t('media.creator.sponsor')}</button>
+          </div>}
         </article>
       ))}
       {selected && <div className="media-verification-dialog" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelected(null); }}>
@@ -92,6 +134,19 @@ export default function MediaCreatorPage() {
           <label htmlFor="creator-gig-brief">{t('media.creator.gigBrief')}</label><textarea id="creator-gig-brief" value={gigBrief} onChange={(event) => setGigBrief(event.target.value)} maxLength={5000} rows={5} required />
           <label htmlFor="creator-gig-budget">{t('media.creator.budget')}</label><input id="creator-gig-budget" type="number" min="1" step="1" value={gigBudget} onChange={(event) => setGigBudget(event.target.value)} required />
           <button type="submit" className="media-primary-button" disabled={submitting}>{submitting ? t('media.compose.posting') : t('media.creator.submit')}</button>
+        </form>
+      </div>}
+      {supportTarget && <div className="media-verification-dialog" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSupportTarget(null); }}>
+        <form className="media-verification-form" onSubmit={submitSupport} role="dialog" aria-modal="true" aria-labelledby="creator-support-title">
+          <button type="button" className="media-dialog-close" onClick={() => setSupportTarget(null)} aria-label={t('media.shell.close')}><X size={18} /></button>
+          <h2 id="creator-support-title">{supportMode === 'tip' ? t('media.creator.tip') : t('media.creator.sponsor')} · {supportTarget.owner_name || supportTarget.owner_handle}</h2>
+          {supportMessage ? <p role="status">{supportMessage}</p> : <>
+            <label htmlFor="creator-support-amount">{t('media.creator.amount')}</label>
+            <input id="creator-support-amount" type="number" min="1" step="1" value={supportAmount} onChange={(event) => setSupportAmount(event.target.value)} required />
+            {supportMode === 'sponsorship' && <><label htmlFor="creator-support-brief">{t('media.creator.brief')}</label><textarea id="creator-support-brief" value={supportBrief} onChange={(event) => setSupportBrief(event.target.value)} rows={4} required /></>}
+            <p className="media-form-hint">{t('media.creator.creditNotice')}</p>
+            <button type="submit" className="media-primary-button" disabled={submitting}>{submitting ? t('media.compose.posting') : t('media.creator.send')}</button>
+          </>}
         </form>
       </div>}
     </section>

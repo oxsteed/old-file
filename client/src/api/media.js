@@ -43,3 +43,8 @@ export const submitMediaVerification = (data) => api.post('/media/verification/r
 export const getCreatorGigs = (params = {}) => api.get('/media/creator/gigs', { params }).then(r => r.data);
 export const createCreatorGig = (data) => api.post('/media/creator/gigs', data).then(r => r.data);
 export const applyToCreatorGig = (gigId, data) => api.post(`/media/creator/gigs/${gigId}/applications`, data).then(r => r.data);
+export const createCreatorTip = (data) => api.post('/media/creator/tips', data).then(r => r.data);
+export const settleCreatorTip = (tipId) => api.post(`/media/creator/tips/${tipId}/settle`).then(r => r.data);
+export const createCreatorSponsorship = (data) => api.post('/media/creator/sponsorships', data).then(r => r.data);
+export const createCreatorBoost = (postId, data) => api.post(`/media/posts/${postId}/boosts`, data).then(r => r.data);
+export const settleCreatorBoost = (boostId) => api.post(`/media/creator/boosts/${boostId}/settle`).then(r => r.data);
