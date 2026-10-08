@@ -218,6 +218,56 @@ async function createSponsorship(req, res, next) {
   finally { client.release(); }
 }
 
+async function acceptSponsorship(req, res, next) {
+  const client = await pool.connect();
+  try {
+    const { rows: offerRows } = await client.query(
+      `SELECT creator_actor_id FROM media_creator_sponsorships
+        WHERE id = $1 AND status = 'pending_credit'`, [req.params.sponsorshipId]
+    );
+    if (!offerRows[0]) throw new AppError('Sponsorship offer is not available.', 404, 'media_creator_sponsorship_not_found');
+    const actor = await verifiedCreatorById(client, offerRows[0].creator_actor_id);
+    if (!actor || actor.owner_user_id !== req.user.id) throw new AppError('Creator verification is no longer active.', 409, 'media_creator_unverified');
+    const { rows } = await pool.query(
+      `UPDATE media_creator_sponsorships s SET status = 'accepted', updated_at = NOW()
+        FROM media_actors a
+       WHERE s.id = $1 AND s.creator_actor_id = a.id AND a.owner_user_id = $2
+         AND s.status = 'pending_credit' RETURNING s.*`,
+      [req.params.sponsorshipId, req.user.id]
+    );
+    if (!rows[0]) throw new AppError('Sponsorship offer is not available.', 404, 'media_creator_sponsorship_not_found');
+    res.json({ sponsorship: rows[0] });
+  } catch (err) { next(err); }
+  finally { client.release(); }
+}
+
+async function settleSponsorship(req, res, next) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT s.*, a.owner_user_id AS creator_user_id
+         FROM media_creator_sponsorships s JOIN media_actors a ON a.id = s.creator_actor_id
+        WHERE s.id = $1 AND s.sponsor_user_id = $2 AND s.status = 'accepted'`,
+      [req.params.sponsorshipId, req.user.id]
+    );
+    const sponsorship = rows[0];
+    if (!sponsorship) throw new AppError('Sponsorship is not ready for settlement.', 409, 'media_creator_sponsorship_not_ready');
+    const verificationClient = await pool.connect();
+    try {
+      const currentActor = await verifiedCreatorById(verificationClient, sponsorship.creator_actor_id);
+      if (!currentActor) throw new AppError('Creator verification is no longer active.', 409, 'media_creator_unverified');
+    } finally { verificationClient.release(); }
+    const transfer = await transferCreatorCredit({
+      senderCustomerId: req.user.id, recipientCustomerId: sponsorship.creator_user_id,
+      amountCents: sponsorship.amount_cents, currencyCode: sponsorship.currency_code,
+      idempotencyKey: `media-sponsorship:${sponsorship.id}`, actorUserId: req.user.id,
+      referenceType: 'media_creator_sponsorship', referenceId: sponsorship.id,
+      requestIp: req.ip || null, description: 'OxSteed Media creator sponsorship',
+      metadata: { mediaSponsorshipId: sponsorship.id },
+    });
+    res.json({ sponsorship, transfer });
+  } catch (err) { next(err); }
+}
+
 async function createBoost(req, res, next) {
   try {
     const amount = asPositiveInt(req.body?.amountCents);
@@ -230,6 +280,35 @@ async function createBoost(req, res, next) {
       [req.params.postId, req.user.id, amount, idempotencyKey]
     );
     res.status(202).json({ boost: rows[0], next: 'Boost activates only after a completed Credit settlement.' });
+  } catch (err) { next(err); }
+}
+
+async function settleBoost(req, res, next) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM media_post_boosts WHERE id = $1 AND purchaser_user_id = $2 AND status = 'pending_credit'`,
+      [req.params.boostId, req.user.id]
+    );
+    const boost = rows[0];
+    if (!boost) throw new AppError('Boost is not ready for settlement.', 409, 'media_boost_not_ready');
+    const { rows: ownerRows } = await pool.query(
+      `SELECT a.owner_user_id FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
+        WHERE p.id = $1 AND p.visibility = 'public' AND p.processing_status = 'ready'`, [boost.post_id]
+    );
+    if (!ownerRows[0]) throw new AppError('The boosted post is no longer available.', 409, 'media_boost_post_not_ready');
+    const transfer = await transferCreatorCredit({
+      senderCustomerId: req.user.id, recipientCustomerId: ownerRows[0].owner_user_id,
+      amountCents: boost.amount_cents, currencyCode: boost.currency_code,
+      idempotencyKey: `media-boost:${boost.id}`, actorUserId: req.user.id,
+      referenceType: 'media_post_boost', referenceId: boost.id,
+      requestIp: req.ip || null, description: 'OxSteed Media post boost',
+      metadata: { mediaBoostId: boost.id, postId: boost.post_id },
+    });
+    const { rows: updated } = await pool.query(
+      `UPDATE media_post_boosts SET status = 'scheduled', starts_at = NOW(), ends_at = NOW() + INTERVAL '24 hours'
+        WHERE id = $1 RETURNING *`, [boost.id]
+    );
+    res.json({ boost: updated[0], transfer });
   } catch (err) { next(err); }
 }
 
@@ -273,4 +352,5 @@ module.exports = {
   listGigs, createGig, applyToGig, listApplications, awardApplication,
   submitDeliverable, reviewDeliverable, createTip, createSponsorship, createBoost,
   settleTip,
+  acceptSponsorship, settleSponsorship, settleBoost,
 };

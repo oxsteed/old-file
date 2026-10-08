@@ -64,7 +64,10 @@ router.patch('/creator/deliverables/:deliverableId', requireAuth, creatorCtrl.re
 router.post('/creator/tips', requireAuth, creatorCtrl.createTip);
 router.post('/creator/tips/:tipId/settle', requireAuth, creatorCtrl.settleTip);
 router.post('/creator/sponsorships', requireAuth, creatorCtrl.createSponsorship);
+router.post('/creator/sponsorships/:sponsorshipId/accept', requireAuth, creatorCtrl.acceptSponsorship);
+router.post('/creator/sponsorships/:sponsorshipId/settle', requireAuth, creatorCtrl.settleSponsorship);
 router.post('/posts/:postId/boosts', requireAuth, creatorCtrl.createBoost);
+router.post('/creator/boosts/:boostId/settle', requireAuth, creatorCtrl.settleBoost);
 
 // Authenticated actions.
 router.post('/posts', requireAuth, ctrl.createPost);

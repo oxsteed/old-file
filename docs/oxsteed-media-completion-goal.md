@@ -314,3 +314,12 @@ all five locale catalogs. Signed-in owners also get an in-shell form to publish
 a gig after the server verifies their current business or restaurant identity.
 Client typecheck and production build pass; application review and settlement
 journeys still need authenticated deployment evidence.
+
+Creator settlement hardening (2026-10-08): sponsorship acceptance now
+rechecks the creator's current verification, sponsorship settlement repeats that
+check immediately before the guarded Credit transfer, and post-boost settlement
+transfers funds idempotently before scheduling the 24-hour boost window. New
+contract coverage verifies accepted offers and blocks settlement after
+verification is revoked. Local creator tests now pass 4 tests; the Credit
+rail's deployment flag, authenticated settlement journey, CI, and live
+deployment evidence remain open prerequisites.
