@@ -532,3 +532,10 @@ because recent account payments failed or the spending limit needs to be
 increased. The rerun attempts were rejected before checkout with no test or
 migration logs. This is an external CI availability condition; it does not
 invalidate the passing code verification for `820c9890` (run `37811076761`).
+
+Live draft-route check (2026-10-08): the current healthy release now exposes
+`PATCH /api/media/posts/:id/draft`; an anonymous request returns `401 Unauthorized`
+while `/api/ready` reports all 742 migrations applied and workers ready. This
+confirms route deployment and the authentication boundary, but not owner
+authorization, durable draft editing, storage, or worker processing because no
+signed-in production session is available in this check.
