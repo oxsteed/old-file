@@ -285,3 +285,14 @@ the Media shell, using the existing profile slug or stable entity ID. The
 client typecheck and production build pass after this addition. A signed-out
 browser check of the links and an actor with published content remain required
 to verify the full public-profile journey.
+
+Restaurant federation slice (2026-10-08): migration 739 links each restaurant
+Media row to at most one OxSteed Media post with a unique source key, making
+retries idempotent. YouTube/Vimeo links create ready external assets; scanned
+photo uploads create ready image assets; uploaded videos create an unlisted,
+quarantined Media asset and queue Media CSAM/transcode jobs. Restaurant deletes,
+moderation removals, and DMCA takedowns remove the federated post as well. The
+existing restaurant upload contract suites pass; the video worker tests remain
+environment-dependent when FFmpeg is unavailable on the local Windows host.
+Migration rehearsal, CI, and an authenticated live restaurant-to-Media journey
+remain required before this requirement can be marked complete.

@@ -142,7 +142,7 @@ async function viewerCanModerateRestaurant(userId, restaurantId, req) {
 // feed is only readable on restaurants the public page can render.
 async function getPublicRestaurant(restaurantId) {
   const { rows } = await pool.query(
-    `SELECT fr.id, fr.business_id, fr.owner_user_id
+    `SELECT fr.id, fr.business_id, fr.owner_user_id, b.business_name
        FROM food_restaurants fr
        JOIN businesses b ON b.id = fr.business_id
       WHERE fr.id = $1
@@ -422,10 +422,17 @@ exports.postRestaurantMedia = async (req, res, next) => {
         [restaurantId, req.user.id, parsed.url, parsed.provider, parsed.externalVideoId, caption]
       );
       await insertMediaDishSnapshots(client, media.id, dishRows);
-      // Dual-write into OxSteed Media (v2, Emile locked #17).
+      // Dual-write into OxSteed Media (v2). The source id makes retries
+      // idempotent and keeps the restaurant safety state linked to its Media
+      // post.
       await dualWriteToMedia(client, {
         restaurantId, userId: req.user.id, caption,
-        dishRows, restaurantName: req.restaurant?.name,
+        dishRows, restaurantName: restaurant.business_name,
+        sourceRestaurantMediaId: media.id,
+        asset: {
+          assetType: 'video_link', provider: parsed.provider,
+          externalUrl: parsed.url, externalVideoId: parsed.externalVideoId,
+        },
       });
       await client.query('COMMIT');
       return res.status(201).json({ success: true, media });
@@ -516,8 +523,18 @@ async function insertMediaDishSnapshots(client, mediaId, dishRows) {
 // Dual-write restaurant media into OxSteed Media (Emile locked #17).
 // Creates a media_post with actor_type=restaurant and mirrors dish items
 // into media_post_links. Fail-open: if Media tables don't exist yet, skip.
-async function dualWriteToMedia(client, { restaurantId, userId, caption, dishRows, restaurantName }) {
+async function dualWriteToMedia(client, {
+  restaurantId, userId, caption, dishRows, restaurantName,
+  sourceRestaurantMediaId, asset,
+}) {
   try {
+    if (sourceRestaurantMediaId) {
+      const { rows: existingPost } = await client.query(
+        `SELECT id FROM media_posts WHERE source_restaurant_media_id = $1`,
+        [sourceRestaurantMediaId]
+      );
+      if (existingPost[0]) return existingPost[0].id;
+    }
     // Get or create the restaurant actor.
     const { rows: existing } = await client.query(
       `SELECT id FROM media_actors WHERE actor_type = 'restaurant' AND restaurant_id = $1`,
@@ -536,10 +553,67 @@ async function dualWriteToMedia(client, { restaurantId, userId, caption, dishRow
       actorId = created[0].id;
     }
 
+    const isVideoUpload = asset?.assetType === 'video';
     const { rows: post } = await client.query(
-      `INSERT INTO media_posts (actor_id, body, visibility)
-       VALUES ($1, $2, 'public') RETURNING id`,
-      [actorId, caption || '']
+      `INSERT INTO media_posts
+         (actor_id, body, visibility, processing_status, csam_status, source_restaurant_media_id)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT DO NOTHING RETURNING id`,
+      [
+        actorId,
+        caption || '',
+        isVideoUpload ? 'unlisted' : 'public',
+        isVideoUpload ? 'quarantine' : 'ready',
+        isVideoUpload ? 'pending' : 'passed',
+        sourceRestaurantMediaId || null,
+      ]
+    );
+    if (!post[0] && sourceRestaurantMediaId) {
+      const { rows: existingPost } = await client.query(
+        `SELECT id FROM media_posts WHERE source_restaurant_media_id = $1`,
+        [sourceRestaurantMediaId]
+      );
+      return existingPost[0]?.id || null;
+    }
+    if (asset) {
+      await client.query(
+        `INSERT INTO media_post_assets
+           (post_id, asset_type, provider, storage_key, thumbnail_key, renditions,
+            external_url, external_video_id, processing_status, csam_status)
+         VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10)`,
+        [
+          post[0].id,
+          asset.assetType,
+          asset.provider || 'upload',
+          asset.storageKey || null,
+          asset.thumbnailKey || null,
+          JSON.stringify(asset.renditions || {}),
+          asset.externalUrl || null,
+          asset.externalVideoId || null,
+          isVideoUpload ? 'quarantine' : 'ready',
+          isVideoUpload ? 'pending' : 'not_required',
+        ]
+      );
+    }
+    if (isVideoUpload) {
+      const { rows: [assetRow] } = await client.query(
+        `SELECT id FROM media_post_assets WHERE post_id = $1 ORDER BY created_at DESC LIMIT 1`,
+        [post[0].id]
+      );
+      await client.query(
+        `INSERT INTO media_processing_jobs (post_id, asset_id, job_type)
+         VALUES ($1, $2, 'csam_check'), ($1, $2, 'transcode')`,
+        [post[0].id, assetRow.id]
+      );
+    }
+    // Keep the restaurant card actionable while preserving its snapshot if the
+    // target is removed later.
+    await client.query(
+      `INSERT INTO media_post_links
+         (post_id, link_type, target_id, name_snapshot, sort_order)
+       VALUES ($1, 'restaurant', $2, $3, 0)
+       ON CONFLICT (post_id, link_type, target_id) DO NOTHING`,
+      [post[0].id, String(restaurantId), restaurantName || `Restaurant ${restaurantId}`]
     );
 
     for (let i = 0; i < dishRows.length; i++) {
@@ -549,7 +623,7 @@ async function dualWriteToMedia(client, { restaurantId, userId, caption, dishRow
            (post_id, link_type, target_id, name_snapshot, price_snapshot_cents, currency_code, sort_order)
          VALUES ($1, 'food_item', $2, $3, $4, $5, $6)
          ON CONFLICT (post_id, link_type, target_id) DO NOTHING`,
-        [post[0].id, `${restaurantId}:${d.id}`, d.name, d.price_cents, d.currency_code, i]
+        [post[0].id, `${restaurantId}:${d.id}`, d.name, d.price_cents, d.currency_code, i + 1]
       );
     }
     return post[0].id;
@@ -691,6 +765,15 @@ exports.postRestaurantMediaPhoto = async (req, res, next) => {
           [restaurantId, req.user.id, caption, storageKey, thumbnailKey, renditions]
         );
         await insertMediaDishSnapshots(client, row.id, dishRows);
+        await dualWriteToMedia(client, {
+          restaurantId, userId: req.user.id, caption,
+          dishRows, restaurantName: restaurant.business_name,
+          sourceRestaurantMediaId: row.id,
+          asset: {
+            assetType: 'image', provider: 'upload',
+            storageKey, thumbnailKey, renditions: JSON.parse(renditions),
+          },
+        });
         await client.query('COMMIT');
         media = row;
       } catch (err) {
@@ -828,6 +911,10 @@ exports.deleteRestaurantMedia = async (req, res, next) => {
     }
 
     await pool.query(`UPDATE restaurant_media SET status = 'hidden' WHERE id = $1`, [media.id]);
+    await pool.query(
+      `UPDATE media_posts SET visibility = 'removed', deleted_at = COALESCE(deleted_at, NOW())
+        WHERE source_restaurant_media_id = $1`, [media.id]
+    );
     return res.json({ success: true });
   } catch (err) {
     next(err);
@@ -951,6 +1038,10 @@ exports.adminReviewMediaFlag = async (req, res, next) => {
           [flag.media_id]
         );
         await client.query(
+          `UPDATE media_posts SET visibility = 'removed', deleted_at = COALESCE(deleted_at, NOW())
+            WHERE source_restaurant_media_id = $1`, [flag.media_id]
+        );
+        await client.query(
           `UPDATE restaurant_media_flags
               SET status = 'resolved', decided_at = NOW(), decided_by = $1
             WHERE media_id = $2 AND status = 'open'`,
@@ -984,4 +1075,5 @@ module.exports = {
   flagMedia: exports.flagMedia,
   adminListMediaFlags: exports.adminListMediaFlags,
   adminReviewMediaFlag: exports.adminReviewMediaFlag,
+  dualWriteToMedia,
 };

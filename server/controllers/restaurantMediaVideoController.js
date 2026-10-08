@@ -52,6 +52,7 @@ const storage = require('../utils/storage');
 const fileScanService = require('../services/fileScanService');
 const auditService = require('../services/auditService');
 const logger = require('../utils/logger');
+const { dualWriteToMedia } = require('./restaurantMediaController');
 
 const VIDEO_UPLOAD_MAX_BYTES = (() => {
   const n = Number.parseInt(process.env.VIDEO_UPLOAD_MAX_BYTES, 10);
@@ -390,6 +391,12 @@ async function postVideoUpload(req, res, next) {
          ON CONFLICT DO NOTHING`,
         [media.id]
       );
+      await dualWriteToMedia(client, {
+        restaurantId, userId: req.user.id, caption,
+        dishRows, restaurantName: null,
+        sourceRestaurantMediaId: media.id,
+        asset: { assetType: 'video', provider: 'upload', storageKey: storedKey },
+      });
       await client.query('COMMIT');
       return res.status(202).json({
         id: media.id,
@@ -563,6 +570,10 @@ async function adminDmcaTakedownReview(req, res, next) {
       await client.query(
         `UPDATE restaurant_media SET status = 'hidden' WHERE id = $1`,
         [flag.media_id]
+      );
+      await client.query(
+        `UPDATE media_posts SET visibility = 'removed', deleted_at = COALESCE(deleted_at, NOW())
+          WHERE source_restaurant_media_id = $1`, [flag.media_id]
       );
       // Record 'DMCA takedown' as the review note on the decided flag, and
       // resolve every open flag on the media.
