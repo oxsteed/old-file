@@ -7,10 +7,8 @@ MVP, v2, and v3 scope. The former release boundaries no longer defer software
 implementation. Build and integrate the features in dependency order within
 this goal, using feature controls where needed for safe testing and activation.
 Do not restart completed work or require an MVP-only release before implementing
-v2 or v3. This update changes the plan; the goal remains paused until Emile
-resumes it. The available goal controls only change status, so the paused goal's
-displayed objective has not been rewritten; this document records the revised
-scope to use on resumption.
+v2 or v3. This update changes the plan; the goal is active and this document
+records the revised scope and evidence that the active implementation must use.
 
 **Replacement goal objective:** Complete, integrate, and verify all OxSteed Media
 MVP, v2, and v3 features in one implementation effort, continuing from the
