@@ -409,7 +409,10 @@ async function getFeed(req, res) {
     let localityBoost = '0';
 
     const orderBy = 'p.created_at DESC, p.id DESC';
-    const params = [limit];
+    // Fetch one look-ahead row so a full page does not falsely advertise a
+    // next page when the result set ends exactly on the requested limit.
+    const queryLimit = limit + 1;
+    const params = [queryLimit];
     let where = `p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL
       AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}
       AND EXISTS (SELECT 1 FROM users au WHERE au.id = a.owner_user_id
@@ -499,7 +502,7 @@ async function getFeed(req, res) {
       ));
     } catch (err) {
       logger.error('media.getFeed ranked schema fallback', { code: err.code, message: err.message });
-      const fallbackParams = [limit];
+      const fallbackParams = [queryLimit];
       let fallbackWhere = `p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL
         AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}
         AND EXISTS (SELECT 1 FROM users au WHERE au.id = a.owner_user_id
@@ -547,7 +550,7 @@ async function getFeed(req, res) {
         // during a staggered migration, retain public safety filters and the
         // two-way block boundary rather than returning a blank feed.
         logger.error('media.getFeed minimal fallback', { code: fallbackErr.code, message: fallbackErr.message });
-        const minimalParams = [limit];
+        const minimalParams = [queryLimit];
         let minimalWhere = `p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL
           AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}`;
         if (viewerUserId) {
@@ -590,18 +593,20 @@ async function getFeed(req, res) {
       }
     }
 
+    const hasMore = rows.length > limit;
+    const visibleRows = hasMore ? rows.slice(0, limit) : rows;
     const posts = [];
-    for (const row of rows) {
+    for (const row of visibleRows) {
       posts.push(await hydratePost(row, viewerUserId));
     }
-    const last = rows[rows.length - 1];
-    const nextBefore = last ? Buffer.from(JSON.stringify({
+    const last = visibleRows[visibleRows.length - 1];
+    const nextBefore = hasMore && last ? Buffer.from(JSON.stringify({
       link_count: Number(last.link_count) || 0,
       locality_boost: Number(last.locality_boost) || 0,
       created_at: last.created_at,
       id: last.id,
     })).toString('base64url') : null;
-    res.json({ posts, next_before: nextBefore, has_more: rows.length === limit, tab });
+    res.json({ posts, next_before: nextBefore, has_more: hasMore, tab });
   } catch (err) {
     logger.error('media.getFeed error', { message: err.message });
     res.status(500).json({ error: 'Failed to load feed' });

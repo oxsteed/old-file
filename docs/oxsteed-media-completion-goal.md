@@ -108,7 +108,7 @@ subsequent strategy and safety-policy revisions.
 | Upload safety in all public surfaces | Audit all asset delivery, worker concurrency, multi-asset readiness, certification and identity gates. Admin override fixed first. |
 | Nearby discovery and pagination | Feed ranking now uses a stable keyset cursor over valid-link, membership/city Space locality, timestamp, and post ID; page responses expose `has_more`. Actual city matching uses the viewer profile city and Space geo scope. Entity-level distance remains a live-data verification item. |
 | Saved posts, reports, edit/delete | Added authenticated saved-post retrieval/page, report menu with rate-limited server endpoint, and owner-only body edit/soft-delete endpoints with count cleanup. Live authorization verification remains. |
-| Accessible actions and entity picker | Added labels to action controls, keyboard-friendly report details, upload previews/progress, and read-only target IDs selected from server entity suggestions in compose and link editing. |
+| Accessible actions and entity picker | Added labels to action controls, keyboard-friendly report details, upload previews/progress, and server-backed entity selection in compose and link editing without exposing manual target IDs. |
 | Localized image-rich previews | Media post prerender now selects a public-safe stored thumbnail for OG/Twitter images and keeps localized document language/alternates; logo remains the fallback. |
 | Five languages | Existing catalog parity passes; all new copy is covered in en/es/fr/ht/ar and JSON-parses. |
 | Full user journeys | Targeted API coverage now exercises verified replies and notification delivery, guest/blocked visibility and hydrated action state, structured oversized-upload failures, Didit video gating, and pending draft recovery. Mobile playback remains covered by the `playsInline`/muted video path and still needs a real-device check. |
@@ -446,4 +446,11 @@ commit `5c1a55cf` passed both `Server and Client Verification` and the
 `PostgreSQL migration rehearsal`. This is the first passing hosted run after
 the earlier account-billing failures; it includes the browser, server, build,
 and migration gates for this change.
+
+Pagination correction (2026-10-08): ranked, Following, and fallback feed
+queries now fetch one look-ahead row, return only the requested page, and set
+`has_more`/`next_before` only when another visible row exists. The focused feed,
+contract, and follow suites pass 19 tests locally, including an exact-page
+regression case. Hosted CI and migration rehearsal remain required for this
+new server change.
 

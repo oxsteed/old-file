@@ -27,6 +27,11 @@ describe('Media ranked feed journey', () => {
               actor_id: 'actor-2', handle: 'local-two', display_name: 'Local Two',
               link_count: '0', locality_boost: '0',
             },
+            {
+              id: 'post-third', created_at: '2026-10-08T10:00:00.000Z',
+              actor_id: 'actor-3', handle: 'local-three', display_name: 'Local Three',
+              link_count: '0', locality_boost: '0',
+            },
           ],
         };
       }
@@ -61,7 +66,25 @@ describe('Media ranked feed journey', () => {
 
     const secondCall = pool.query.mock.calls.find(([sql]) => sql.includes('SELECT p.*, a.handle'));
     expect(secondCall[0]).toContain('HAVING (link_count <');
-    expect(secondCall[1]).toEqual(expect.arrayContaining(['viewer-1', 2, 2, '2026-10-08T11:00:00.000Z', 'post-plain-away']));
+    expect(secondCall[1]).toEqual(expect.arrayContaining([3, 'viewer-1', 0, 0, '2026-10-08T11:00:00.000Z', 'post-plain-away']));
+  });
+
+  test('does not advertise another page when the result ends on a full page', async () => {
+    pool.query.mockReset().mockImplementation(async (sql) => {
+      if (sql.includes('SELECT p.*, a.handle')) {
+        return { rows: [{
+          id: 'only-post', created_at: '2026-10-08T12:00:00.000Z', actor_id: 'actor-1',
+          handle: 'local-one', display_name: 'Local One', link_count: '0', locality_boost: '0',
+        }] };
+      }
+      return { rows: [] };
+    });
+    const result = response();
+    await media.getFeed({ query: { limit: '1' }, user: { id: 'viewer-1' } }, result);
+
+    expect(result.json.mock.calls[0][0]).toMatchObject({ posts: [{ id: 'only-post' }], has_more: false, next_before: null });
+    const feedCall = pool.query.mock.calls.find(([sql]) => sql.includes('SELECT p.*, a.handle'));
+    expect(feedCall[1][0]).toBe(2);
   });
 
   test('falls back to a read-only chronological feed during an optional schema rollout', async () => {
