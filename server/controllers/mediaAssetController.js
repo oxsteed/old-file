@@ -16,6 +16,7 @@ const { fileTypeFromBuffer } = require('file-type');
 const fileScanService = require('../services/fileScanService');
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const { stripExif } = require('../utils/stripExif');
+const AppError = require('../utils/appError');
 
 // TODO: set true when production CSAM vendor contract is certified.
 const CSAM_VENDOR_CERTIFIED = process.env.MEDIA_CSAM_CERTIFIED === 'true';
@@ -36,12 +37,56 @@ const mediaVideoUpload = multer({
   limits: { fileSize: VIDEO_MAX_BYTES, files: 1 },
 }).single('file');
 
+function mapUploadError(err, mediaType) {
+  if (!err) return null;
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return new AppError(
+      `${mediaType === 'video' ? 'Video' : 'Photo'} is too large (max ${mediaType === 'video' ? '200MB' : '10MB'}).`,
+      413,
+      'media_file_too_large',
+    );
+  }
+  if (err.code === 'LIMIT_FILE_COUNT' || err.code === 'LIMIT_UNEXPECTED_FILE') {
+    return new AppError('Attach exactly one media file in the "file" field.', 400, 'media_file_field');
+  }
+  return new AppError('Upload failed.', 400, 'media_upload_failed');
+}
+
+function mediaPhotoUploadHandler(req, res, next) {
+  mediaPhotoUpload(req, res, (err) => {
+    if (err) return next(mapUploadError(err, 'photo'));
+    return next();
+  });
+}
+
+function mediaVideoUploadHandler(req, res, next) {
+  mediaVideoUpload(req, res, (err) => {
+    if (err) return next(mapUploadError(err, 'video'));
+    return next();
+  });
+}
+
 async function checkDidit(userId) {
   const { rows } = await pool.query(
     `SELECT identity_verified FROM users WHERE id = $1`,
     [userId]
   );
   return !!rows[0]?.identity_verified;
+}
+
+async function requireVideoIdentity(req, res, next) {
+  try {
+    if (!await checkDidit(req.user.id)) {
+      return res.status(403).json({
+        error: 'Identity verification required to upload video.',
+        code: 'media_video_didit_required',
+      });
+    }
+    return next();
+  } catch (err) {
+    logger.error('media.requireVideoIdentity error', { message: err.message });
+    return next(new AppError('Could not verify identity for video upload.', 503, 'media_identity_unavailable'));
+  }
 }
 
 async function assertPostOwner(postId, userId) {
@@ -268,4 +313,14 @@ async function linkAsset(req, res) {
   }
 }
 
-module.exports = { photoUpload, uploadPhoto, mediaPhotoUpload, videoUpload, mediaVideoUpload, linkAsset };
+module.exports = {
+  photoUpload,
+  uploadPhoto,
+  mediaPhotoUpload,
+  mediaPhotoUploadHandler,
+  videoUpload,
+  mediaVideoUpload,
+  mediaVideoUploadHandler,
+  requireVideoIdentity,
+  linkAsset,
+};

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { createPost, getCommunities, getDrafts, linkAsset, publishPost, searchMediaEntities, uploadPhoto, uploadVideo } from '../../api/media';
+import { createPost, getCommunities, getDraft, getDrafts, linkAsset, publishPost, searchMediaEntities, uploadPhoto, uploadVideo } from '../../api/media';
 
 const LINK_TYPES = ['restaurant', 'food_item', 'helper', 'business', 'job'];
 const DRAFT_STORAGE_KEY = 'oxsteed.media.compose.draft';
@@ -27,6 +27,7 @@ export default function MediaComposePage() {
   const [attachedAsset, setAttachedAsset] = useState(false);
   const [previewUrl, setPreviewUrl] = useState('');
   const [status, setStatus] = useState('');
+  const [processingStatus, setProcessingStatus] = useState('');
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -48,7 +49,14 @@ export default function MediaComposePage() {
       setLinks(draft.links || []);
       setCommunityId(draft.community_id || '');
       setAttachedAsset((draft.assets || []).length > 0);
-      setStatus(t('media.compose.draftRestored', { defaultValue: 'Draft restored. Select the file again to retry an interrupted upload.' }));
+      setProcessingStatus(draft.processing_status || 'draft');
+      if (draft.processing_status === 'quarantine' || (draft.assets || []).some((asset) => asset.processing_status === 'quarantine' || asset.csam_status === 'pending')) {
+        setStatus(t('media.compose.processing', { defaultValue: 'Your media is being checked. This draft stays private until it is ready.' }));
+      } else if (draft.processing_status === 'failed' || draft.processing_status === 'blocked') {
+        setStatus(t('media.compose.processingFailed', { defaultValue: 'Media processing did not finish. Replace the file and try again.' }));
+      } else {
+        setStatus(t('media.compose.draftRestored', { defaultValue: 'Draft restored. Select the file again to retry an interrupted upload.' }));
+      }
     }).catch(() => {});
   }, [t]);
 
@@ -127,8 +135,8 @@ export default function MediaComposePage() {
     setError(null);
     setStatus('');
     setUploadProgress(0);
+    let postId = draftId;
     try {
-      let postId = draftId;
       if (!postId) {
         const data = await createPost({ body: body.trim(), links, community_id: communityId || undefined, draft: true });
         postId = data.post.id;
@@ -156,10 +164,24 @@ export default function MediaComposePage() {
       const published = await publishPost(postId);
       window.localStorage.removeItem(DRAFT_STORAGE_KEY);
       setDraftId('');
+      setProcessingStatus('ready');
       navigate(`/media/post/${published.post.id}`);
     } catch (err) {
-      setError(err.response?.data?.error || t('media.compose.createError'));
-      setStatus(t('media.compose.draftSaved', { defaultValue: 'Your draft is saved. Fix the issue and try again.' }));
+      const details = err.response?.data || {};
+      if (details.code === 'media_safety_pending' && postId) {
+        setProcessingStatus(details.processing_status || 'quarantine');
+        setStatus(t('media.compose.processing', { defaultValue: 'Your media is being checked. This draft stays private until it is ready.' }));
+        // Refresh the durable draft so a retry after a worker transition does
+        // not depend on stale in-memory state or a previous page session.
+        getDraft(postId).then(({ draft }) => {
+          if (!draft) return;
+          setAttachedAsset((draft.assets || []).length > 0);
+          setProcessingStatus(draft.processing_status || 'draft');
+        }).catch(() => {});
+      } else {
+        setStatus(t('media.compose.draftSaved', { defaultValue: 'Your draft is saved. Fix the issue and try again.' }));
+      }
+      setError(details.error || t('media.compose.createError'));
     } finally {
       setSubmitting(false);
     }
@@ -246,7 +268,7 @@ export default function MediaComposePage() {
           <input value={externalUrl} onChange={(e) => setExternalUrl(e.target.value)} placeholder={t('media.compose.videoPlaceholder')} type="url" />
           <small>{t('media.compose.videoHint')}</small>
         </label>
-        {status && <p className="media-status" role="status">{status}</p>}
+        {status && <p className="media-status" role="status" data-processing-status={processingStatus || undefined}>{status}</p>}
         {error && <p className="media-error" role="alert">{error}</p>}
         <button type="submit" disabled={submitting} className="media-post-btn">
           {submitting ? t('media.compose.posting') : t('media.compose.post')}

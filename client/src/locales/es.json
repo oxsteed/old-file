@@ -30439,6 +30439,8 @@
       "uploading": "Cargando y revisando tu contenido…",
       "publishing": "Se publicará cuando terminen las comprobaciones de seguridad…",
       "draftSaved": "Tu borrador está guardado. Corrige el problema e inténtalo de nuevo.",
+      "processing": "Tu contenido se está revisando. El borrador seguirá privado hasta que esté listo.",
+      "processingFailed": "El procesamiento no terminó. Reemplaza el archivo e inténtalo de nuevo.",
       "previewAlt": "Vista previa del contenido seleccionado",
       "uploadProgress": "Progreso de carga"
     },

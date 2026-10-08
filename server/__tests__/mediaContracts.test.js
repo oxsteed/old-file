@@ -29,8 +29,47 @@ describe('OxSteed Media launch contracts', () => {
     await media.publishPost({ params: { id: 'draft-1' }, user: { id: 'user-1' } }, res);
 
     expect(res.status).toHaveBeenCalledWith(409);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_safety_pending' }));
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      code: 'media_safety_pending',
+      retryable: true,
+      processing_status: 'draft',
+      csam_status: 'passed',
+      assets: [expect.objectContaining({ id: 'asset-1', ready: false })],
+    }));
     expect(client.query.mock.calls.at(-1)[0]).toBe('ROLLBACK');
+  });
+
+  test('rechecks the current poster verification before publishing an old draft', async () => {
+    const client = { query: jest.fn(), release: jest.fn() };
+    pool.connect = jest.fn().mockResolvedValue(client);
+    client.query
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ rows: [{ id: 'draft-2', visibility: 'unlisted', processing_status: 'draft', csam_status: 'passed', current_actor_verified: false }] })
+      .mockResolvedValueOnce({});
+    const res = resMock();
+
+    await media.publishPost({ params: { id: 'draft-2' }, user: { id: 'user-1' } }, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_not_verified_poster' }));
+    expect(client.query.mock.calls[1][0]).toMatch(/current_actor_verified/);
+    expect(client.query.mock.calls.at(-1)[0]).toBe('ROLLBACK');
+  });
+
+  test('keeps quarantined drafts discoverable for a later retry', async () => {
+    pool.query.mockImplementation(async (sql) => {
+      if (sql.includes('p.visibility = \'unlisted\'')) {
+        return { rows: [{ id: 'draft-3', visibility: 'unlisted', processing_status: 'quarantine', csam_status: 'pending', owner_user_id: 'user-1' }] };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+    const res = resMock();
+
+    await media.getDrafts({ user: { id: 'user-1' } }, res);
+
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ drafts: [expect.objectContaining({ id: 'draft-3', processing_status: 'quarantine' })] }));
+    expect(pool.query.mock.calls[0][0]).toMatch(/processing_status IN \('draft', 'quarantine', 'failed', 'blocked', 'ready'\)/);
   });
 
   test('requires a verified business before creating a business post', async () => {

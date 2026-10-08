@@ -67,7 +67,9 @@ async function notifyMediaUser({ userId, type, title, body, postId }) {
       body,
       data: { post_id: postId },
       action_url: `/media/post/${postId}`,
-      idempotencyKey: `${type}:${postId}:${userId}:${Date.now()}`,
+      // A stable key prevents duplicate notifications when a client retries an
+      // action or the request is replayed after a transient response failure.
+      idempotencyKey: `${type}:${postId}:${userId}`,
     });
   } catch (err) {
     logger.warn('media notification failed', { type, postId, message: err.message });
@@ -486,7 +488,8 @@ async function getDrafts(req, res) {
       `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id
          FROM media_posts p
          JOIN media_actors a ON a.id = p.actor_id
-        WHERE p.deleted_at IS NULL AND p.processing_status = 'draft'
+        WHERE p.deleted_at IS NULL AND p.visibility = 'unlisted'
+          AND p.processing_status IN ('draft', 'quarantine', 'failed', 'blocked', 'ready')
           AND a.owner_user_id = $1
         ORDER BY p.created_at DESC
         LIMIT 20`,
@@ -498,6 +501,26 @@ async function getDrafts(req, res) {
   } catch (err) {
     logger.error('media.getDrafts error', { message: err.message });
     res.status(500).json({ error: 'Failed to load drafts' });
+  }
+}
+
+async function getDraft(req, res) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id
+         FROM media_posts p
+         JOIN media_actors a ON a.id = p.actor_id
+        WHERE p.id = $1 AND p.deleted_at IS NULL AND p.visibility = 'unlisted'
+          AND p.processing_status IN ('draft', 'quarantine', 'failed', 'blocked', 'ready')
+          AND a.owner_user_id = $2
+        LIMIT 1`,
+      [req.params.id, req.user.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Draft not found', code: 'media_draft_not_found' });
+    res.json({ draft: await hydratePost(rows[0], req.user.id) });
+  } catch (err) {
+    logger.error('media.getDraft error', { message: err.message });
+    res.status(500).json({ error: 'Failed to load draft' });
   }
 }
 
@@ -748,7 +771,29 @@ async function publishPost(req, res) {
   try {
     await client.query('BEGIN');
     const { rows: owned } = await client.query(
-      `SELECT p.*, a.owner_user_id
+      `SELECT p.*, a.owner_user_id, a.actor_type,
+              CASE
+                WHEN a.actor_type = 'helper' THEN EXISTS (
+                  SELECT 1 FROM helper_profiles hp
+                  JOIN users hu ON hu.id = hp.user_id
+                  WHERE hp.user_id = a.owner_user_id
+                    AND hu.identity_verified = TRUE
+                    AND hu.is_active = TRUE AND hu.is_banned = FALSE
+                    AND hu.deleted_at IS NULL
+                )
+                WHEN a.actor_type = 'business' THEN EXISTS (
+                  SELECT 1 FROM businesses b
+                  WHERE b.user_id = a.owner_user_id
+                    AND b.deleted_at IS NULL AND b.is_active = TRUE
+                    AND b.is_business_verified = TRUE
+                )
+                WHEN a.actor_type = 'restaurant' THEN EXISTS (
+                  SELECT 1 FROM food_restaurants r
+                  WHERE r.owner_user_id = a.owner_user_id
+                    AND r.status <> 'suspended' AND r.is_verified = TRUE
+                )
+                ELSE FALSE
+              END AS current_actor_verified
          FROM media_posts p
          JOIN media_actors a ON a.id = p.actor_id
          JOIN users u ON u.id = a.owner_user_id
@@ -760,6 +805,16 @@ async function publishPost(req, res) {
     if (!owned[0]) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Draft not found', code: 'media_draft_not_found' });
+    }
+    // Verification is checked again at publication time. A draft created
+    // while verified must not become a public post after that verification is
+    // revoked.
+    if (owned[0].current_actor_verified === false) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({
+        error: 'A current verified helper, business, or restaurant profile is required to publish.',
+        code: 'media_not_verified_poster',
+      });
     }
     if (owned[0].visibility === 'public' && owned[0].processing_status === 'ready') {
       await client.query('COMMIT');
@@ -786,6 +841,18 @@ async function publishPost(req, res) {
       return res.status(409).json({
         error: 'Media is still processing or awaiting safety approval.',
         code: 'media_safety_pending',
+        retryable: true,
+        processing_status: owned[0].processing_status,
+        csam_status: owned[0].csam_status,
+        assets: assets.map((asset) => ({
+          id: asset.id,
+          asset_type: asset.asset_type,
+          processing_status: asset.processing_status || 'ready',
+          csam_status: asset.csam_status || 'not_required',
+          ready: asset.processing_status === 'ready'
+            && ['not_required', 'passed'].includes(asset.csam_status || 'not_required')
+            && (asset.asset_type !== 'video' || (process.env.MEDIA_CSAM_CERTIFIED === 'true' && asset.renditions && Object.keys(asset.renditions).length > 0)),
+        })),
       });
     }
 
@@ -1324,7 +1391,7 @@ async function searchMediaEntities(req, res) {
 }
 
 module.exports = {
-  getFeed, getPost, getDrafts, getBookmarks, getReplies, getQuotes, createPost, publishPost, updatePost, deletePost,
+  getFeed, getPost, getDrafts, getDraft, getBookmarks, getReplies, getQuotes, createPost, publishPost, updatePost, deletePost,
   replacePostLinks,
   toggleLike, toggleBookmark, toggleRepost, recordView, flagPost,
   getCommunities, getCommunity, joinCommunity, leaveCommunity, searchMedia,

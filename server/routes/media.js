@@ -30,6 +30,7 @@ router.get('/communities/:slug', ctrl.getCommunity);
 router.post('/communities/:id/join', requireAuth, ctrl.joinCommunity);
 router.delete('/communities/:id/join', requireAuth, ctrl.leaveCommunity);
 router.get('/business/:businessId/posts', ctrl.getBusinessPosts);
+router.get('/posts/:id/draft', requireAuth, ctrl.getDraft);
 router.get('/posts/:id', ctrl.getPost);
 router.get('/posts/:id/replies', ctrl.getReplies);
 router.get('/posts/:id/quotes', ctrl.getQuotes);
@@ -48,8 +49,8 @@ router.post('/posts/:id/view', ctrl.recordView);
 router.post('/posts/:id/flags', requireAuth, ctrl.flagPost);
 
 // Asset uploads.
-router.post('/assets/photo-uploads', requireAuth, mediaUploadLimiter, assetCtrl.mediaPhotoUpload, assetCtrl.uploadPhoto);
-router.post('/assets/video-uploads', requireAuth, mediaUploadLimiter, assetCtrl.mediaVideoUpload, assetCtrl.videoUpload);
+router.post('/assets/photo-uploads', requireAuth, mediaUploadLimiter, assetCtrl.mediaPhotoUploadHandler, assetCtrl.uploadPhoto);
+router.post('/assets/video-uploads', requireAuth, mediaUploadLimiter, assetCtrl.requireVideoIdentity, assetCtrl.mediaVideoUploadHandler, assetCtrl.videoUpload);
 router.post('/assets/link', requireAuth, assetCtrl.linkAsset);
 
 module.exports = router;

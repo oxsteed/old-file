@@ -5,6 +5,7 @@ export const searchMedia = (params = {}) => api.get('/media/search', { params })
 export const searchMediaEntities = (params = {}) => api.get('/media/entities', { params }).then(r => r.data);
 export const getPost = (id) => api.get(`/media/posts/${id}`).then(r => r.data);
 export const getDrafts = () => api.get('/media/posts/drafts').then(r => r.data);
+export const getDraft = (id) => api.get(`/media/posts/${id}/draft`).then(r => r.data);
 export const getBookmarks = () => api.get('/media/posts/bookmarks').then(r => r.data);
 export const getReplies = (id, sort = 'latest') => api.get(`/media/posts/${id}/replies`, { params: { sort } }).then(r => r.data);
 export const getQuotes = (id) => api.get(`/media/posts/${id}/quotes`).then(r => r.data);
