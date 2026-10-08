@@ -221,7 +221,7 @@ export default function MediaCreatorPage() {
           <div className="media-creator-gig-heading"><div><h3>{application.gig_title}</h3><p>{statusLabel(application.status)}</p></div><strong>{application.proposed_cents} {application.currency_code || 'USD'}</strong></div>
           <p>{application.gig_brief}</p>
           {application.status === 'awarded' && !application.deliverable_id && <button type="button" className="media-primary-button" onClick={() => { setDeliverableTarget(application); setDeliverablePostId(''); setDeliverableNote(''); }}>{t('media.creator.submitDeliverable')}</button>}
-          {application.deliverable_status && <p>{t('media.creator.deliverableStatus')}: {application.deliverable_status}</p>}
+          {application.deliverable_status && <p>{t('media.creator.deliverableStatus')}: {statusLabel(application.deliverable_status)}</p>}
         </article>)}
       </section>}
       {selected && <div className="media-verification-dialog" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelected(null); }}>

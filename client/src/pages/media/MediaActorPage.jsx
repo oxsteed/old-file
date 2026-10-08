@@ -66,7 +66,7 @@ export default function MediaActorPage() {
             {actor.verified_kind !== 'none' && <span className="media-verified">✓</span>}
           </h1>
           <p className="media-actor-handle">@{actor.handle}</p>
-          <p className="media-actor-type">{actor.actor_type}</p>
+          <p className="media-actor-type">{t(`media.post.linkTypes.${actor.actor_type}`, { defaultValue: actor.actor_type })}</p>
           <p className="media-actor-followers">{t('media.actor.followers', { count: actor.follower_count || 0 })}</p>
         </div>
         {user && String(actor.owner_user_id) !== String(user.id) ? (

@@ -484,3 +484,6 @@ for workflow decisions. `npm run verify:i18n`, `npm run typecheck`, and
 `git diff --check` pass locally. Authenticated marketplace browser coverage
 and Credit provider behavior remain deployment verification work.
 
+The same catalog now covers deliverable status and actor-type labels on the
+Media surfaces, so those machine values are not exposed as raw UI text.
+
