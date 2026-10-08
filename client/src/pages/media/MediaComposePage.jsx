@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { createPost, getCommunities, getDraft, getDrafts, linkAsset, publishPost, searchMediaEntities, uploadPhoto, uploadVideo } from '../../api/media';
 
@@ -29,6 +29,7 @@ export default function MediaComposePage() {
   const [status, setStatus] = useState('');
   const [processingStatus, setProcessingStatus] = useState('');
   const [error, setError] = useState(null);
+  const [errorCode, setErrorCode] = useState('');
 
   useEffect(() => {
     getCommunities().then((data) => setCommunities(data.communities || [])).catch(() => {});
@@ -90,15 +91,18 @@ export default function MediaComposePage() {
   const addLink = () => {
     if (links.length >= 5) {
       setError(t('media.compose.maxLinks'));
+      setErrorCode('');
       return;
     }
     if (!linkTarget.trim() || !linkName.trim()) {
       setError(t('media.compose.linkRequired'));
+      setErrorCode('');
       return;
     }
     const parsedPrice = linkPrice.trim() ? Number(linkPrice) : null;
     if (parsedPrice != null && (!Number.isFinite(parsedPrice) || parsedPrice < 0)) {
       setError(t('media.compose.priceInvalid'));
+      setErrorCode('');
       return;
     }
     setLinks([...links, {
@@ -112,6 +116,7 @@ export default function MediaComposePage() {
     setLinkPrice('');
     setEntitySuggestions([]);
     setError(null);
+    setErrorCode('');
   };
 
   const chooseEntity = (entity) => {
@@ -150,10 +155,12 @@ export default function MediaComposePage() {
     e.preventDefault();
     if (!body.trim()) {
       setError(t('media.compose.bodyRequired'));
+      setErrorCode('');
       return;
     }
     setSubmitting(true);
     setError(null);
+    setErrorCode('');
     setStatus('');
     setUploadProgress(0);
     let postId = draftId;
@@ -203,6 +210,7 @@ export default function MediaComposePage() {
         setStatus(t('media.compose.draftSaved', { defaultValue: 'Your draft is saved. Fix the issue and try again.' }));
       }
       setError(details.error || t('media.compose.createError'));
+      setErrorCode(details.code || '');
     } finally {
       setSubmitting(false);
     }
@@ -290,7 +298,7 @@ export default function MediaComposePage() {
           <small>{t('media.compose.videoHint')}</small>
         </label>
         {status && <p className="media-status" role="status" data-processing-status={processingStatus || undefined}>{status}</p>}
-        {error && <p className="media-error" role="alert">{error}</p>}
+        {error && <div className="media-error" role="alert"><p>{error}</p>{errorCode === 'media_video_didit_required' && <Link className="media-error-action" to="/media/verification?returnTo=/media/compose">{t('media.verification.verifyIdentity')}</Link>}</div>}
         <button type="submit" disabled={submitting} className="media-post-btn">
           {submitting ? t('media.compose.posting') : t('media.compose.post')}
         </button>

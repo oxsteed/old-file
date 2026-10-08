@@ -12,9 +12,11 @@ const ONBOARDING_ALLOWED_PATHS = [
 ];
 
 // Paths that are themselves part of the identity-verification flow and must
-// NOT trigger the Didit redirect (would create an infinite loop).
+// NOT trigger the Didit redirect (would create an infinite loop). Media keeps
+// its verification center available so users can choose the right path.
 const DIDIT_EXEMPT_PATHS = [
   '/verify-identity',
+  '/media/verification',
 ];
 
 // Paths that are part of email verification flow.

@@ -3,7 +3,7 @@
 // Shown when a logged-in user has not completed Didit (didit_status !== 'verified'/'skipped').
 // Also handles the case where Didit is not configured (verification_unavailable error).
 
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle2, CreditCard, Lock, ShieldCheck, UserCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -14,14 +14,19 @@ import './VerifyIdentityPage.css';
 
 export default function VerifyIdentityPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { t } = useTranslation();
 
   // After Didit webhook fires and status is 'verified', or after a skip, go to the
   // appropriate dashboard.
-  const destination = user && ['helper', 'helper_pro', 'broker'].includes(user?.role ?? '')
+  const requestedReturn = searchParams.get('returnTo');
+  const returnTo = requestedReturn && requestedReturn.startsWith('/') && !requestedReturn.startsWith('//')
+    ? requestedReturn
+    : null;
+  const destination = returnTo || (user && ['helper', 'helper_pro', 'broker'].includes(user?.role ?? '')
     ? '/helper-dashboard'
-    : '/dashboard';
+    : '/dashboard');
 
   return (
     <div className="verify-identity-page">

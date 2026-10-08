@@ -16,6 +16,17 @@ approval. The super-admin identity action sets the same flag and keeps the
 helper profile badge synchronized. Business and restaurant posting continue to
 use their entity-level `is_business_verified` and `is_verified` flags.
 
+Verification path implementation (2026-10-08): the signed-in Media shell now
+exposes `/media/verification`. Helpers are sent through the existing Didit
+identity flow and can return to Media; business and restaurant owners see the
+entities they own, submit an auditable verification request, and resubmit when
+an administrator asks for changes. Migration 737 adds the request table with
+an active-request uniqueness guard. Admin Media routes list and review requests
+under the existing `verify_users` permission; approval updates the existing
+entity verification flag in the same transaction as the audit record.
+The existing `/admin/media-flags` workspace now exposes the pending request
+queue to administrators who have that grant.
+
 The previous MVP completion report was premature. Passing generic CI does not
 prove the full Media journeys. This document tracks the renewed completion goal
 against the locked specification, retaining the v2/v3 release boundaries.
@@ -32,6 +43,7 @@ against the locked specification, retaining the v2/v3 release boundaries.
 | Localized image-rich previews | Media post prerender now selects a public-safe stored thumbnail for OG/Twitter images and keeps localized document language/alternates; logo remains the fallback. |
 | Five languages | Existing catalog parity passes; all new copy is covered in en/es/fr/ht/ar and JSON-parses. |
 | Full user journeys | Targeted API coverage now exercises verified replies and notification delivery, guest/blocked visibility and hydrated action state, structured oversized-upload failures, Didit video gating, and pending draft recovery. Mobile playback remains covered by the `playsInline`/muted video path and still needs a real-device check. |
+| Publisher verification paths | Media verification center, Didit return path, business/restaurant request storage, ownership checks, resubmission after `needs_changes`, and transactional admin approval are implemented. Focused controller tests pass; live authenticated request and admin review still need deployment verification. |
 | CI and deployment | Push coherent changes, verify exact commit CI and deployed assets/runtime. Green CI alone does not close the goal. |
 
 Policy revision authorized by Emile on 2026-10-08: Cloudflare is the interim MVP

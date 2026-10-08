@@ -5,6 +5,9 @@ export default function MediaFlagsPage() {
   const [flags, setFlags] = useState([]);
   const [pendingPosts, setPendingPosts] = useState([]);
   const [approvalReasons, setApprovalReasons] = useState({});
+  const [verificationRequests, setVerificationRequests] = useState([]);
+  const [verificationNotes, setVerificationNotes] = useState({});
+  const [verificationError, setVerificationError] = useState('');
   const [status, setStatus] = useState('open');
   const [loading, setLoading] = useState(true);
 
@@ -17,10 +20,30 @@ export default function MediaFlagsPage() {
       ]);
       setFlags(data.flags);
       setPendingPosts(pending.data.posts || []);
+      try {
+        const verification = await axios.get('/api/admin/media/verification-requests', { params: { status: 'submitted' } });
+        setVerificationRequests(verification.data.requests || []);
+        setVerificationError('');
+      } catch (verificationErr) {
+        setVerificationRequests([]);
+        setVerificationError(verificationErr.response?.data?.error || 'Verification requests require the verify_users permission.');
+      }
     } catch (err) {
       console.error('Failed to load flags', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVerificationReview = async (id, status) => {
+    const note = String(verificationNotes[id] || '').trim();
+    if ((status === 'needs_changes' || status === 'rejected') && note.length < 3) return;
+    try {
+      await axios.post(`/api/admin/media/verification-requests/${id}/review`, { status, note });
+      setVerificationNotes((current) => ({ ...current, [id]: '' }));
+      load();
+    } catch (err) {
+      alert('Failed: ' + (err.response?.data?.error || err.message));
     }
   };
 
@@ -50,6 +73,30 @@ export default function MediaFlagsPage() {
   return (
     <div className="admin-page">
       <h1>Media Flags</h1>
+      <section>
+        <h2>Publisher verification requests</h2>
+        {verificationError && <p>{verificationError}</p>}
+        {!verificationError && !verificationRequests.length ? <p>No pending publisher verification requests.</p> : (
+          <table className="admin-table">
+            <thead><tr><th>Entity</th><th>Requester</th><th>Details</th><th>Review note</th><th>Actions</th></tr></thead>
+            <tbody>
+              {verificationRequests.map((request) => (
+                <tr key={request.id}>
+                  <td>{request.entity_type}: {request.entity_name || request.entity_id}</td>
+                  <td>{request.requester_name || request.requester_email}</td>
+                  <td>{request.details?.notes || '—'}</td>
+                  <td><input value={verificationNotes[request.id] || ''} onChange={(event) => setVerificationNotes((current) => ({ ...current, [request.id]: event.target.value }))} placeholder="Add a note for changes or rejection" /></td>
+                  <td>
+                    <button type="button" onClick={() => handleVerificationReview(request.id, 'approved')}>Approve</button>
+                    <button type="button" onClick={() => handleVerificationReview(request.id, 'needs_changes')} disabled={(verificationNotes[request.id] || '').trim().length < 3}>Needs changes</button>
+                    <button type="button" onClick={() => handleVerificationReview(request.id, 'rejected')} disabled={(verificationNotes[request.id] || '').trim().length < 3}>Reject</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
       <section>
         <h2>Pending Media Approval</h2>
         {!pendingPosts.length ? <p>No pending Media posts.</p> : (

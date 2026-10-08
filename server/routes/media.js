@@ -7,6 +7,7 @@ const { requireAuth, optionalAuth } = require('../middleware/auth');
 const rateLimit = require('express-rate-limit');
 const ctrl = require('../controllers/mediaController');
 const assetCtrl = require('../controllers/mediaAssetController');
+const verificationCtrl = require('../controllers/mediaVerificationController');
 
 const mediaUploadLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -31,6 +32,8 @@ router.get('/capabilities', (_req, res) => {
     transcode_required: true,
   });
 });
+router.get('/verification', requireAuth, verificationCtrl.getCenter);
+router.post('/verification/requests', requireAuth, verificationCtrl.createRequest);
 router.get('/feed', ctrl.getFeed);
 router.get('/posts/drafts', requireAuth, ctrl.getDrafts);
 router.get('/posts/bookmarks', requireAuth, ctrl.getBookmarks);
