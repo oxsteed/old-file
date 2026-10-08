@@ -72,6 +72,23 @@ describe('OxSteed Media launch contracts', () => {
     expect(pool.query.mock.calls[0][0]).toMatch(/processing_status IN \('draft', 'quarantine', 'failed', 'blocked', 'ready'\)/);
   });
 
+  test('keeps launch replies newest-first until the Relevant rollout is enabled', async () => {
+    const original = process.env.MEDIA_RELEVANT_REPLIES_ENABLED;
+    delete process.env.MEDIA_RELEVANT_REPLIES_ENABLED;
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ id: 'post-1' }] })
+      .mockResolvedValueOnce({ rows: [] });
+    const res = resMock();
+
+    await media.getReplies({ params: { id: 'post-1' }, query: { sort: 'relevant' }, user: null }, res);
+
+    expect(res.json).toHaveBeenCalledWith({ replies: [], sort: 'latest' });
+    expect(pool.query.mock.calls[1][0]).toContain('ORDER BY p.created_at DESC');
+    expect(pool.query.mock.calls[1][0]).not.toContain('p.like_count * 3');
+    if (original === undefined) delete process.env.MEDIA_RELEVANT_REPLIES_ENABLED;
+    else process.env.MEDIA_RELEVANT_REPLIES_ENABLED = original;
+  });
+
   test('requires a verified business before creating a business post', async () => {
     pool.query.mockResolvedValueOnce({ rows: [] });
 

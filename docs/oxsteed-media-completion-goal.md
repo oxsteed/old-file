@@ -138,3 +138,8 @@ Vimeo link on a restored draft now clears the old attachment marker and resets
 processing progress, so submit actually sends the replacement instead of
 trying to publish a failed or quarantined asset again. The client contract
 suite covers both replacement handlers.
+
+Rollout-boundary repair: the API now keeps replies newest-first at launch even
+if a caller sends `sort=relevant`; the later Relevant ranking is only available
+when `MEDIA_RELEVANT_REPLIES_ENABLED=true` is explicitly configured. A server
+contract test verifies the default launch behavior and SQL ordering.
