@@ -37,7 +37,7 @@ describeDb('Media attachment transactions in PostgreSQL', () => {
         latitude double precision,longitude double precision,address_city text,address_state text,
         status text DEFAULT 'active', is_verified boolean DEFAULT false)`);
     // Actual migration DDL and constraints, isolated from all shared fixtures.
-    for (const number of [709, 731, 732, 735, 736, 742]) {
+    for (const number of [709, 731, 732, 735, 736, 742, 743, 744]) {
       const dir = path.resolve(__dirname, '../migrations');
       const file = fs.readdirSync(dir).find((name) => name.startsWith(`${number}_`));
       await db.query(fs.readFileSync(path.join(dir, file), 'utf8'));

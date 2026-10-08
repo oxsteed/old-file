@@ -23,6 +23,7 @@ const restaurantWorker = require('./videoTranscodeWorker');
 const mediaSafety = require('./mediaSafetyPolicy');
 
 const POLL_MS_DEFAULT = 15000;
+const LEASE_MS = 5 * 60 * 1000;
 
 function workerEnabled() {
   const configured = process.env.MEDIA_VIDEO_WORKER_ENABLED;
@@ -44,7 +45,11 @@ async function claimJob() {
        SELECT j.id
          FROM media_processing_jobs j
          LEFT JOIN media_post_assets a ON a.id = j.asset_id
-        WHERE j.status IN ('pending', 'queued')
+        WHERE (
+          (j.status IN ('pending', 'queued') AND j.next_attempt_at <= NOW())
+          OR (j.status = 'running' AND j.lease_expires_at < NOW())
+        )
+          AND j.attempts < COALESCE(j.max_attempts, 5)
           AND (
                 j.job_type = 'csam_check'
              OR (j.job_type = 'transcode' AND ${mediaSafety.videoVerdictSql('a.csam_status')})
@@ -54,7 +59,10 @@ async function claimJob() {
         FOR UPDATE OF j SKIP LOCKED
      )
      UPDATE media_processing_jobs j
-        SET status = 'running', attempts = j.attempts + 1, updated_at = NOW()
+        SET status = 'running', attempts = j.attempts + 1,
+            lease_token = gen_random_uuid(),
+            lease_expires_at = NOW() + INTERVAL '5 minutes',
+            updated_at = NOW()
        FROM next
       WHERE j.id = next.id
       RETURNING j.*`
@@ -62,21 +70,26 @@ async function claimJob() {
   return rows[0] || null;
 }
 
-async function markDone(jobId) {
+async function markDone(job) {
   await pool.query(
     `UPDATE media_processing_jobs
-        SET status = 'done', last_error = NULL, updated_at = NOW()
-      WHERE id = $1`,
-    [jobId]
+        SET status = 'done', last_error = NULL, lease_token = NULL,
+            lease_expires_at = NULL, updated_at = NOW()
+      WHERE id = $1 AND lease_token = $2`,
+    [job.id, job.lease_token]
   );
 }
 
-async function markFailed(jobId, error) {
+async function markFailed(job, error) {
   await pool.query(
     `UPDATE media_processing_jobs
-        SET status = 'failed', last_error = $2, updated_at = NOW()
-      WHERE id = $1`,
-    [jobId, restaurantWorker.sanitizeError(error && error.message)]
+        SET status = CASE WHEN attempts < COALESCE(max_attempts, 5) THEN 'pending' ELSE 'failed' END,
+            last_error = $2,
+            next_attempt_at = CASE WHEN attempts < COALESCE(max_attempts, 5)
+              THEN NOW() + (LEAST(attempts, 8) * INTERVAL '30 seconds') ELSE next_attempt_at END,
+            lease_token = NULL, lease_expires_at = NULL, updated_at = NOW()
+      WHERE id = $1 AND lease_token = $3`,
+    [job.id, restaurantWorker.sanitizeError(error && error.message), job.lease_token]
   );
 }
 
@@ -95,8 +108,8 @@ async function getAsset(assetId) {
 
 async function processCsam(job) {
   const asset = await getAsset(job.asset_id);
-  if (!asset) return markFailed(job.id, new Error('media asset missing'));
-  if (asset.csam_status === 'passed' || asset.csam_status === 'flagged') return markDone(job.id);
+  if (!asset) return markFailed(job, new Error('media asset missing'));
+  if (asset.csam_status === 'passed' || asset.csam_status === 'flagged') return markDone(job);
   // Only pending/deferred assets can transition to the interim policy. A
   // flagged or unavailable result must not be erased by a configuration change.
   if (mediaSafety.mode() === 'cloudflare' && ['pending', 'cloudflare_deferred'].includes(asset.csam_status)) {
@@ -105,7 +118,7 @@ async function processCsam(job) {
         WHERE id = $1 AND csam_status IN ('pending', 'cloudflare_deferred')`, [asset.id]
     );
     await refreshPostState(asset.post_id);
-    return markDone(job.id);
+    return markDone(job);
   }
   // Keep the job pending until the production vendor is certified. Uploads
   // made while certification is pending must become eligible automatically
@@ -128,13 +141,13 @@ async function processCsam(job) {
       [asset.id]
     );
     await refreshPostState(asset.post_id);
-    await markDone(job.id);
+    await markDone(job);
     return;
   }
   if (verdict === 'flagged') return markDone(job.id);
   // An unavailable vendor is a hard safety stop. Keep the video quarantined;
   // an operator can requeue the job after credentials/vendor health recover.
-  await markFailed(job.id, new Error('CSAM screening unavailable'));
+  await markFailed(job, new Error('CSAM screening unavailable'));
 }
 
 async function refreshPostState(postId) {
@@ -143,8 +156,8 @@ async function refreshPostState(postId) {
 
 async function processTranscode(job) {
   const asset = await getAsset(job.asset_id);
-  if (!asset) return markFailed(job.id, new Error('media asset missing'));
-  if (asset.processing_status === 'ready') return markDone(job.id);
+  if (!asset) return markFailed(job, new Error('media asset missing'));
+  if (asset.processing_status === 'ready') return markDone(job);
   if (!mediaSafety.videoVerdictAllowed(asset.csam_status)
       || !mediaSafety.postVerdictAllowed(asset.post_csam_status)
       || asset.visibility === 'removed' || asset.deleted_at || asset.post_processing_status === 'blocked') {
@@ -154,7 +167,7 @@ async function processTranscode(job) {
     );
     return;
   }
-  if (!restaurantWorker.ffmpegAvailable()) return markFailed(job.id, new Error('ffmpeg unavailable'));
+  if (!restaurantWorker.ffmpegAvailable()) return markFailed(job, new Error('ffmpeg unavailable'));
 
   const tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'oxsteed-media-transcode-'));
   let sourcePath = storage.resolveLocalStoragePath(asset.storage_key);
@@ -193,7 +206,7 @@ async function processTranscode(job) {
       );
       if (completed.rowCount === 0) throw new Error('Media no longer eligible for processing');
       await refreshPostState(asset.post_id);
-      await markDone(job.id);
+      await markDone(job);
       logger.info('OxSteed Media video transcode complete', { assetId: asset.id, postId: asset.post_id });
     } catch (error) {
       await Promise.allSettled(uploaded.map((key) => storage.deleteFile(key)));
@@ -207,7 +220,7 @@ async function processTranscode(job) {
       [asset.id]
     );
     await refreshPostState(asset.post_id);
-    await markFailed(job.id, error);
+    await markFailed(job, error);
   } finally {
     await fsp.rm(tmpDir, { recursive: true, force: true });
   }
@@ -221,7 +234,7 @@ async function runOnce() {
     else await processTranscode(job);
   } catch (error) {
     logger.error('OxSteed Media worker job crashed', { jobId: job.id, message: error.message });
-    await markFailed(job.id, error);
+    await markFailed(job, error);
   }
   return job;
 }
