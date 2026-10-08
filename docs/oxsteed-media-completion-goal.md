@@ -59,3 +59,8 @@ draft recovery path; the deployed post-card chunk contains `playsInline` and
 `muted` video behavior. The production release metadata still omits a Git SHA,
 so this confirms the deployed behavior but does not prove an exact commit
 identity. Authenticated upload and owner flows remain unverified live.
+
+Feed ranking coverage: `mediaFeedRanking.test.js` now exercises the ranked
+link/locality ordering, two-way block predicate, and opaque cursor parameters
+across a second page. The focused Media set is 31 tests passing locally; this
+test still needs the next CI run for remote confirmation.
