@@ -451,6 +451,6 @@ Pagination correction (2026-10-08): ranked, Following, and fallback feed
 queries now fetch one look-ahead row, return only the requested page, and set
 `has_more`/`next_before` only when another visible row exists. The focused feed,
 contract, and follow suites pass 19 tests locally, including an exact-page
-regression case. Hosted CI and migration rehearsal remain required for this
-new server change.
+regression case. Hosted CI run `37804524024` for commit `ff447903` passed both
+Server and Client Verification and the PostgreSQL migration rehearsal.
 
