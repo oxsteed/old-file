@@ -84,12 +84,6 @@ export default function MediaShell({ children }) {
               <Link className="media-primary-button media-rail-compose" to="/media/compose">
                 <Plus size={18} aria-hidden="true" />{t('media.feed.compose')}
               </Link>
-              <p className="media-rail-note">{t('media.shell.railNote')}</p>
-              <div className="media-legal-links">
-                <Link to="/terms">{t('media.shell.terms')}</Link>
-                <Link to="/privacy">{t('media.shell.privacy')}</Link>
-                <Link to="/support">{t('media.shell.support')}</Link>
-              </div>
             </div>
           </aside>
           <div className="media-content">{children}</div>
