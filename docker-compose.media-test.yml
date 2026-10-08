@@ -1,0 +1,38 @@
+# Optional extension of the disposable Credit harness; no public storage mounts,
+# daemon ports, production volumes or provider credentials are used.
+services:
+  clamav:
+    image: clamav/clamav:1.5-debian13-slim
+    environment:
+      CLAMAV_NO_MILTERD: "true"
+    volumes:
+      - media_test_clamav:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "clamdscan", "--ping=1"]
+      interval: 15s
+      timeout: 10s
+      start_period: 180s
+      retries: 30
+    networks:
+      - credit_test
+  app:
+    depends_on:
+      clamav:
+        condition: service_healthy
+    environment:
+      APP_URL: http://127.0.0.1:5000
+      CLIENT_URL: http://127.0.0.1:5000
+      MEDIA_TEST_MODE: "true"
+      CLAMAV_HOST: clamav
+      CLAMAV_PORT: 3310
+      CLAMAV_TIMEOUT_MS: 15000
+      FILE_SCAN_REQUIRE_MALWARE: "true"
+      MEDIA_CSAM_MODE: cloudflare
+      MEDIA_VIDEO_WORKER_ENABLED: "1"
+      MEDIA_VIDEO_WORKER_POLL_MS: 1000
+      LOCAL_UPLOAD_DIR: /app/server/runtime/media-test-private
+    volumes:
+      - media_test_private_uploads:/app/server/runtime/media-test-private
+volumes:
+  media_test_clamav:
+  media_test_private_uploads:

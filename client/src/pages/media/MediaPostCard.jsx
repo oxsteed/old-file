@@ -237,13 +237,7 @@ export default function MediaPostCard({ post, onUpdate }) {
             <div className="media-linked-row">
               {post.links.map(link => (
                 link.available && link.canonical_url ? (
-                  <Link key={link.id} to={link.canonical_url} className="media-link-chip" onClick={(event) => {
-                    const transactional = ['food_item', 'helper', 'job', 'tool_rental', 'direct_catalog'].includes(link.link_type);
-                    if (transactional && !user) {
-                      event.preventDefault();
-                      navigate('/login', { state: { from: window.location.pathname } });
-                    }
-                  }}>
+                  <Link key={link.id} to={link.canonical_url} className="media-link-chip">
                     <span className="media-link-type">{t(`media.post.linkTypes.${link.link_type}`, { defaultValue: link.link_type })}</span>
                     <span className="media-link-name">{link.label || link.name_snapshot}</span>
                     {(link.price_cents ?? link.price_snapshot_cents) != null && (

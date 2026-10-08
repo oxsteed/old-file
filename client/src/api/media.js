@@ -15,16 +15,18 @@ export const publishPost = (id) => api.post(`/media/posts/${id}/publish`).then(r
 export const updatePost = (id, data) => api.patch(`/media/posts/${id}`, data).then(r => r.data);
 export const deletePost = (id) => api.delete(`/media/posts/${id}`).then(r => r.data);
 export const replacePostLinks = (id, links) => api.put(`/media/posts/${id}/links`, { links }).then(r => r.data);
-export const linkAsset = (postId, external_url) => api.post('/media/assets/link', { post_id: postId, external_url }).then(r => r.data);
-export const uploadPhoto = (postId, file, onUploadProgress) => {
+export const linkAsset = (postId, external_url, replace = false) => api.post('/media/assets/link', { post_id: postId, external_url, replace_assets: replace }).then(r => r.data);
+export const uploadPhoto = (postId, file, onUploadProgress, replace = false) => {
   const form = new FormData();
   form.append('post_id', postId);
+  form.append('replace_assets', String(replace));
   form.append('file', file);
   return api.post('/media/assets/photo-uploads', form, { onUploadProgress }).then(r => r.data);
 };
-export const uploadVideo = (postId, file, onUploadProgress) => {
+export const uploadVideo = (postId, file, onUploadProgress, replace = false) => {
   const form = new FormData();
   form.append('post_id', postId);
+  form.append('replace_assets', String(replace));
   form.append('file', file);
   return api.post('/media/assets/video-uploads', form, { onUploadProgress }).then(r => r.data);
 };

@@ -191,9 +191,10 @@ describe('OxSteed Media launch contracts', () => {
     pool.query.mockResolvedValueOnce({ rows: [] });
     const res = resMock();
 
-    await assets.photoUpload({
+    await assets.uploadPhoto({
       user: { id: 'user-2' },
-      body: { post_id: 'post-1', storage_key: 'uploads/photo.jpg' },
+      body: { post_id: 'post-1' },
+      file: { buffer: Buffer.from('synthetic photo') },
     }, res);
 
     expect(res.status).toHaveBeenCalledWith(403);

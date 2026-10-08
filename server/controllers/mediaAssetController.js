@@ -6,6 +6,8 @@
 // Cloudflare interim policy; vendor screening is deferred until adoption.
 
 const pool = require('../db');
+const { createHash } = require('crypto');
+const attachments = require('../services/mediaDraftAttachments');
 const logger = require('../utils/logger');
 const fs = require('fs/promises');
 const os = require('os');
@@ -88,16 +90,33 @@ async function requireVideoIdentity(req, res, next) {
   }
 }
 
-async function assertPostOwner(postId, userId) {
-  const { rows } = await pool.query(
-    `SELECT p.id
-       FROM media_posts p
-       JOIN media_actors a ON a.id = p.actor_id
-      WHERE p.id = $1 AND a.owner_user_id = $2 AND p.deleted_at IS NULL`,
-    [postId, userId]
-  );
-  return !!rows[0];
+function uploadFailure(res, error, message) {
+  return res.status(error.status || 500).json({ error: error.isOperational ? error.message : message,
+    code: error.code || 'media_upload_failed' });
 }
+
+async function cleanup(keys) {
+  const results = await Promise.allSettled([...new Set(keys)].filter(Boolean).map((key) => deleteFile(key)));
+  if (results.some((result) => result.status === 'rejected')) {
+    logger.warn('media upload storage cleanup incomplete');
+  }
+}
+
+async function cleanupUncommitted(keys) {
+  // COMMIT can succeed before the connection drops. Preserve any durable
+  // references, and defer cleanup altogether if the DB cannot confirm them.
+  try {
+    const { rows } = await pool.query(`SELECT storage_key, thumbnail_key FROM media_post_assets
+      WHERE storage_key = ANY($1::text[]) OR thumbnail_key = ANY($1::text[])`, [keys]);
+    const referenced = new Set(rows.flatMap((asset) => [asset.storage_key, asset.thumbnail_key]));
+    await cleanup(keys.filter((key) => !referenced.has(key)));
+  } catch {
+    logger.warn('media upload cleanup deferred until persistence can be checked');
+  }
+}
+
+function replaceRequested(req) { return req.body?.replace_assets === true || req.body?.replace_assets === 'true'; }
+function digest(buffer) { return createHash('sha256').update(buffer).digest('hex'); }
 
 async function uploadPhoto(req, res) {
   try {
@@ -105,9 +124,7 @@ async function uploadPhoto(req, res) {
     if (!file?.buffer?.length) return res.status(400).json({ error: 'A photo file is required', code: 'media_photo_required' });
     const postId = req.body?.post_id;
     if (!postId) return res.status(400).json({ error: 'post_id is required' });
-    if (!await assertPostOwner(postId, req.user.id)) {
-      return res.status(403).json({ error: 'You can only attach media to your own post', code: 'media_post_forbidden' });
-    }
+    await attachments.requireDraft(pool, postId, req.user.id);
 
     const detected = await fileTypeFromBuffer(file.buffer);
     if (!detected || !PHOTO_MIMES.has(detected.mime)) {
@@ -135,59 +152,37 @@ async function uploadPhoto(req, res) {
       .toBuffer({ resolveWithObject: true });
     const ext = PHOTO_EXTENSIONS[detected.mime];
     const storedKeys = [];
+    let committed = false;
     try {
       const storageKey = await uploadFile(cleanBuffer, 'media/photos', `photo.${ext}`, detected.mime);
-      const thumbnailKey = await uploadFile(thumbnail.data, 'media/photos', `thumb.${ext}`, 'image/jpeg');
-      storedKeys.push(storageKey, thumbnailKey);
-      const { rows } = await pool.query(
-        `INSERT INTO media_post_assets
-           (post_id, asset_type, provider, storage_key, thumbnail_key, width, height)
-         VALUES ($1, 'image', 'upload', $2, $3, $4, $5)
-         RETURNING *`,
-        [postId, storageKey, thumbnailKey, thumbnail.info.width, thumbnail.info.height]
-      );
-      const asset = rows[0];
+      storedKeys.push(storageKey);
+      const thumbnailKey = await uploadFile(thumbnail.data, 'media/photos', 'thumb.jpg', 'image/jpeg');
+      storedKeys.push(thumbnailKey);
+      const result = await attachments.attach({ postId, userId: req.user.id, replace: replaceRequested(req),
+        asset: { asset_type: 'image', provider: 'upload', storage_key: storageKey, thumbnail_key: thumbnailKey,
+          width: thumbnail.info.width, height: thumbnail.info.height, content_sha256: digest(file.buffer) } });
+      committed = true;
+      await cleanup(result.existing ? storedKeys : result.removedKeys);
+      const asset = result.asset;
       asset.url = await getSignedDownloadUrl(asset.storage_key);
       asset.thumbnail_url = await getSignedDownloadUrl(asset.thumbnail_key);
-      return res.status(201).json({ asset });
+      return res.status(result.existing ? 200 : 201).json({ asset, existing: result.existing });
     } catch (err) {
-      await Promise.allSettled(storedKeys.filter(Boolean).map((key) => deleteFile(key)));
+      // Signing is a response step, not part of persistence. A lost response
+      // must never delete an attachment that the database already committed.
+      if (!committed) await cleanupUncommitted(storedKeys);
       throw err;
     }
   } catch (err) {
     logger.error('media.uploadPhoto error', { message: err.message });
-    return res.status(500).json({ error: 'Failed to attach photo' });
-  }
-}
-
-async function photoUpload(req, res) {
-  try {
-    // Expects { post_id, storage_key, width, height } after client uploads
-    // via the generic /api/upload endpoint.
-    const { post_id, storage_key, width, height } = req.body;
-    if (!post_id || !storage_key) {
-      return res.status(400).json({ error: 'post_id and storage_key required' });
-    }
-    if (!await assertPostOwner(post_id, req.user.id)) {
-      return res.status(403).json({ error: 'You can only attach media to your own post', code: 'media_post_forbidden' });
-    }
-    const { rows } = await pool.query(
-      `INSERT INTO media_post_assets
-         (post_id, asset_type, provider, storage_key, width, height)
-       VALUES ($1, 'image', 'upload', $2, $3, $4)
-       RETURNING *`,
-      [post_id, storage_key, width || null, height || null]
-    );
-    res.status(201).json({ asset: rows[0] });
-  } catch (err) {
-    logger.error('media.photoUpload error', { message: err.message });
-    res.status(500).json({ error: 'Failed to attach photo' });
+    return uploadFailure(res, err, 'Failed to attach photo');
   }
 }
 
 async function videoUpload(req, res) {
   const tempPath = req.file?.path || null;
   let storedKey = null;
+  let committed = false;
   try {
     const userId = req.user.id;
 
@@ -200,11 +195,9 @@ async function videoUpload(req, res) {
       });
     }
 
-    const { post_id, duration_ms, width, height } = req.body || {};
+    const { post_id } = req.body || {};
     if (!post_id) return res.status(400).json({ error: 'post_id is required' });
-    if (!await assertPostOwner(post_id, userId)) {
-      return res.status(403).json({ error: 'You can only attach media to your own post', code: 'media_post_forbidden' });
-    }
+    await attachments.requireDraft(pool, post_id, userId);
 
     if (!req.file || !tempPath) {
       return res.status(400).json({ error: 'A video file is required', code: 'media_video_required' });
@@ -230,45 +223,25 @@ async function videoUpload(req, res) {
     }
 
     storedKey = await uploadFile(fileBuffer, 'media/videos', `original${path.extname(req.file.originalname || '') || '.bin'}`, detected.mime);
-    const client = await pool.connect();
-    let asset;
-    try {
-      await client.query('BEGIN');
-      const { rows } = await client.query(
-        `INSERT INTO media_post_assets
-           (post_id, asset_type, provider, storage_key, duration_ms, width, height, processing_status, csam_status)
-         VALUES ($1, 'video', 'upload', $2, $3, $4, $5, 'quarantine', 'pending')
-         RETURNING *`,
-        [post_id, storedKey, duration_ms || null, width || null, height || null]
-      );
-      asset = rows[0];
-      await client.query(
-        `UPDATE media_posts SET processing_status = 'quarantine', csam_status = 'pending'
-          WHERE id = $1`, [post_id]
-      );
-      await client.query(
-        `INSERT INTO media_processing_jobs (post_id, asset_id, job_type)
-         VALUES ($1, $2, 'csam_check'), ($1, $2, 'transcode')`, [post_id, asset.id]
-      );
-      await client.query('COMMIT');
-    } catch (err) {
-      await client.query('ROLLBACK');
-      throw err;
-    } finally {
-      client.release();
-    }
+    const result = await attachments.attach({ postId: post_id, userId, replace: replaceRequested(req),
+      asset: { asset_type: 'video', provider: 'upload', storage_key: storedKey,
+        processing_status: 'quarantine', csam_status: 'pending', content_sha256: digest(fileBuffer) } });
+    committed = true;
+    await cleanup(result.existing ? [storedKey] : result.removedKeys);
+    const asset = result.asset;
     asset.url = await getSignedDownloadUrl(asset.storage_key);
     return res.status(202).json({
       asset,
-      status: 'quarantine',
+      existing: result.existing,
+      status: asset.processing_status,
       public_video_available: mediaSafety.videoAllowed(),
       safety_mode: mediaSafety.mode(),
       message: 'Video queued for safety check and transcoding.',
     });
   } catch (err) {
-    if (storedKey) await Promise.allSettled([deleteFile(storedKey)]);
+    if (storedKey && !committed) await cleanupUncommitted([storedKey]);
     logger.error('media.videoUpload error', { message: err.message });
-    res.status(500).json({ error: 'Failed to upload video' });
+    return uploadFailure(res, err, 'Failed to upload video');
   } finally {
     if (tempPath) await fs.rm(tempPath, { force: true }).catch(() => {});
   }
@@ -276,45 +249,20 @@ async function videoUpload(req, res) {
 
 async function linkAsset(req, res) {
   try {
-    const { post_id, external_url } = req.body;
-    if (!post_id || !external_url) {
-      return res.status(400).json({ error: 'post_id and external_url required' });
-    }
-    if (!await assertPostOwner(post_id, req.user.id)) {
-      return res.status(403).json({ error: 'You can only attach media to your own post', code: 'media_post_forbidden' });
-    }
-    // Validate YouTube/Vimeo.
-    const yt = external_url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
-    const vimeo = external_url.match(/vimeo\.com\/(\d+)/);
-    let provider = null, videoId = null;
-    if (yt) { provider = 'youtube'; videoId = yt[1]; }
-    else if (vimeo) { provider = 'vimeo'; videoId = vimeo[1]; }
-    else return res.status(400).json({ error: 'Only YouTube/Vimeo links supported' });
-
-    const { rows: existing } = await pool.query(
-      `SELECT * FROM media_post_assets
-        WHERE post_id = $1 AND provider = $2 AND external_url = $3
-        LIMIT 1`,
-      [post_id, provider, external_url]
-    );
-    if (existing[0]) return res.status(200).json({ asset: existing[0], existing: true });
-
-    const { rows } = await pool.query(
-      `INSERT INTO media_post_assets
-         (post_id, asset_type, provider, external_url, external_video_id)
-       VALUES ($1, 'video_link', $2, $3, $4)
-       RETURNING *`,
-      [post_id, provider, external_url, videoId]
-    );
-    res.status(201).json({ asset: rows[0] });
+    const { post_id, external_url } = req.body || {};
+    if (!post_id || !external_url) return res.status(400).json({ error: 'post_id and external_url required' });
+    const video = attachments.externalVideo(external_url);
+    const result = await attachments.attach({ postId: post_id, userId: req.user.id, replace: replaceRequested(req),
+      asset: { asset_type: 'video_link', ...video, content_sha256: digest(Buffer.from(video.external_url)) } });
+    await cleanup(result.removedKeys);
+    return res.status(result.existing ? 200 : 201).json({ asset: result.asset, existing: result.existing });
   } catch (err) {
     logger.error('media.linkAsset error', { message: err.message });
-    res.status(500).json({ error: 'Failed to attach video link' });
+    return uploadFailure(res, err, 'Failed to attach video link');
   }
 }
 
 module.exports = {
-  photoUpload,
   uploadPhoto,
   mediaPhotoUpload,
   mediaPhotoUploadHandler,

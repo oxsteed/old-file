@@ -119,6 +119,7 @@ jobs:
         run: |
           npm test -- --runInBand --forceExit --json --outputFile=statement-test-results.json
           node ../scripts/assert-statement-db-tests.cjs statement-test-results.json
+          node ../scripts/assert-media-db-tests.cjs statement-test-results.json
 
       - name: Active job status checks (Jest + optional pg_enum)
         working-directory: server

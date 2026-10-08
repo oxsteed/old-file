@@ -175,6 +175,7 @@ export default function MediaComposePage() {
     if (nextFile) {
       // A replacement file must be uploaded even when this draft restored a
       // failed or quarantined asset from a previous session.
+      setExternalUrl('');
       setAttachedAsset(false);
       setUploadProgress(0);
       setProcessingStatus('draft');
@@ -185,6 +186,7 @@ export default function MediaComposePage() {
     const nextUrl = event.target.value;
     setExternalUrl(nextUrl);
     if (nextUrl.trim()) {
+      setMediaFile(null);
       setAttachedAsset(false);
       setProcessingStatus('draft');
     }
@@ -221,7 +223,7 @@ export default function MediaComposePage() {
       let hasAttachedAsset = attachedAsset;
       if (externalUrl.trim() && !hasAttachedAsset) {
         setStatus(t('media.compose.attaching', { defaultValue: 'Attaching media…' }));
-        await linkAsset(postId, externalUrl.trim());
+        await linkAsset(postId, externalUrl.trim(), true);
         hasAttachedAsset = true;
         setAttachedAsset(true);
       }
@@ -230,8 +232,8 @@ export default function MediaComposePage() {
         const onUploadProgress = (event) => {
           if (event.total) setUploadProgress(Math.round((event.loaded / event.total) * 100));
         };
-        if (mediaFile.type.startsWith('video/')) await uploadVideo(postId, mediaFile, onUploadProgress);
-        else await uploadPhoto(postId, mediaFile, onUploadProgress);
+        if (mediaFile.type.startsWith('video/')) await uploadVideo(postId, mediaFile, onUploadProgress, true);
+        else await uploadPhoto(postId, mediaFile, onUploadProgress, true);
         hasAttachedAsset = true;
         setAttachedAsset(true);
       }

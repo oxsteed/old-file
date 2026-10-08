@@ -95,11 +95,12 @@ test.each([
   const original = path.join(sourceDir, 'original.mp4');
   await fs.writeFile(original, 'harmless mock upload');
   pool.query.mockImplementation(async (sql) => ({ rows: sql.includes('is_verified')
-    ? [{ is_verified: true }] : [{ id: 'post' }] }));
+    ? [{ id: 'post', is_verified: true, visibility: 'unlisted', processing_status: 'draft', csam_status: 'passed' }] : [{ id: 'post' }] }));
   if (scan instanceof Error) scanner.scanBuffer.mockRejectedValueOnce(scan);
   else scanner.scanBuffer.mockResolvedValueOnce(scan);
   const client = { query: jest.fn(async (sql) => ({ rows: sql.includes('INSERT INTO media_post_assets')
-    ? [{ ...clearedAsset(), processing_status: 'quarantine', csam_status: 'pending' }] : [] })), release: jest.fn() };
+    ? [{ ...clearedAsset(), processing_status: 'quarantine', csam_status: 'pending' }]
+      : sql.includes('SELECT p.id') ? [{ id: 'post', visibility: 'unlisted', processing_status: 'draft', csam_status: 'passed', is_verified: true }] : [] })), release: jest.fn() };
   pool.connect.mockResolvedValue(client);
   const res = response();
   await uploads.videoUpload({ user: { id: 'owner' }, body: { post_id: 'post' },

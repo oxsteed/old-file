@@ -138,24 +138,7 @@ async function processCsam(job) {
 }
 
 async function refreshPostState(postId) {
-  // Aggregate all assets: finishing one video must not clear another video's
-  // quarantine or overwrite a flagged post. Publication remains a separate step.
-  await pool.query(
-    `UPDATE media_posts p SET
-       csam_status = CASE
-         WHEN EXISTS (SELECT 1 FROM media_post_assets a WHERE a.post_id = p.id AND a.csam_status = 'flagged') THEN 'flagged'
-         WHEN EXISTS (SELECT 1 FROM media_post_assets a WHERE a.post_id = p.id AND a.csam_status IN ('pending', 'unavailable')) THEN 'pending'
-         WHEN EXISTS (SELECT 1 FROM media_post_assets a WHERE a.post_id = p.id AND a.csam_status = 'cloudflare_deferred') THEN 'cloudflare_deferred'
-         ELSE 'passed' END,
-       processing_status = CASE
-         WHEN EXISTS (SELECT 1 FROM media_post_assets a WHERE a.post_id = p.id AND a.processing_status = 'blocked') THEN 'blocked'
-         WHEN EXISTS (SELECT 1 FROM media_post_assets a WHERE a.post_id = p.id AND a.processing_status = 'failed') THEN 'failed'
-         WHEN EXISTS (SELECT 1 FROM media_post_assets a WHERE a.post_id = p.id AND a.processing_status <> 'ready') THEN 'quarantine'
-         ELSE 'ready' END
-     WHERE p.id = $1 AND p.visibility <> 'removed' AND p.deleted_at IS NULL
-       AND p.csam_status <> 'flagged' AND p.processing_status <> 'blocked'`,
-    [postId]
-  );
+  return require('./mediaDraftAttachments').refreshPostState(pool, postId);
 }
 
 async function processTranscode(job) {

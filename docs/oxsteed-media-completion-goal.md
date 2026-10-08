@@ -2,6 +2,90 @@
 
 ## Current objective and strategy (2026-10-08)
 
+Execution resumed under the user-approved
+[four-batch plan](oxsteed-media-execution-plan.md). The following matrix replaces
+broad completion claims. State vocabulary: **implemented** means current source
+exists; **behavior-tested** means the specified behavior actually ran;
+**verified live** requires exact deployed evidence; **incomplete** includes
+partial implementations and missing verification. No row below is marked
+verified live for the new candidate. A historical test count is not proof.
+
+### Current requirement-level work and evidence
+
+| Requirement | State and implementation / behavioral evidence | Deployment / dependency | Next exact action |
+| --- | --- | --- | --- |
+| Reconciled source and retained work | Behavior-tested: writable checkout HEAD `5c7e3096` matched origin; three pre-existing untracked browser scratch files preserved. | Runtime `/ready` release observed separately; exact candidate deployment outstanding. | Commit integrated changes and compare content identity after deployment. |
+| Repeatable isolated fixtures | Implemented: optional Media compose extension, scoped wrapper, synthetic persona seed and real API/scan/conversion verifier. | Not executed here: Windows host has no reachable Colima/Docker runtime. | Execute `start`, `seed`, `media-test` on Colima and capture repeat/reset evidence. |
+| Required real database proof | Implemented: attachment races/replacement/migration replay suite and existing visibility suite; CI now rejects skipped Media DB cases. | Five new DB cases skipped locally; disposable PostgreSQL execution outstanding. | Execute with `STATEMENT_TEST_DATABASE_URL` pointing only to `credit_statement_test`. |
+| Helper Didit-backed identity | Implemented: `users.is_verified` checks at upload and commit; mocked behavior covers revocation at attachment commit. | Authenticated Didit return and production upload outstanding. | Prove webhook → verified helper → compose in isolated/live journeys. |
+| Business and restaurant verification | Incomplete: request center/admin review exist; actor checks must bind verification to the exact represented entity. | Current flags and review on deployed candidate unverified. | Fix entity-specific authorization and prove multiple-entity/revocation cases. |
+| Verification request and return path | Implemented in prior source: in-shell center, owner submission, admin review and Didit return. | Fresh real API and signed-in deployed evidence outstanding. | Run helper/business/restaurant/admin request and return matrix. |
+| Durable private drafts | Behavior-tested locally: maintained desktop/mobile browser check retains edits and draft ID across upload failure/retry. | Browser dependencies mocked; real API harness unexecuted. | Execute real draft restore/update/attachment/publication path. |
+| Attachment replacement and duplicate recovery | Behavior-tested locally: locked draft service, server-computed digest, failed attachment/job deletion, file replacement and duplicate reuse. | Migration 742 and real concurrent PostgreSQL cases outstanding. | Run DB suite and isolated worker replacement/retry journey. |
+| Post-publication attachment protection | Behavior-tested locally: preflight plus locked recheck reject public/deleted/unowned drafts; race test specified in PostgreSQL. | PostgreSQL race and live boundary outstanding. | Execute concurrent upload/publish test and guest asset reads. |
+| Stored-file cleanup and lost responses | Behavior-tested locally: thumbnail failure cleanup, preserve committed files after signing/commit response loss, defer cleanup on DB outage. | Real storage outage/recovery outstanding. | Exercise storage interruptions inside disposable environment. |
+| Actual file content and external URLs | Behavior-tested locally: existing magic-byte checks and strict HTTPS host/video-ID parsing/canonicalization; lookalike hosts rejected. | Actual scanned upload journey outstanding. | Run valid/spoofed photo/video API cases against isolated storage. |
+| Malware, quarantine and conversion | Implemented: real scanner required; jobs and shared aggregate state preserve safety verdicts. | ClamAV/FFmpeg included in optional harness but not run here. | Execute real clean/infected/unavailable scan and successful/failed conversion. |
+| Preview, progress, processing and retry | Behavior-tested locally: composer browser cases cover failure and ready transition; existing bounded polling retained. | Real worker and real-device playback outstanding. | Verify long processing, replacement, refresh and mobile playback. |
+| Publication/public-delivery/admin safety predicates | Incomplete: common policy exists; admin cannot rewrite asset verdicts; sticky flagged replacement test passes. | Full public-storage and admin race proof outstanding. | Audit and test publication, storage delivery, moderation and copying together. |
+| Post identity, badges, handles, time and views | Implemented in existing card/actor source; complete entity recognition audit remains. | Fresh cross-surface browser/API proof outstanding. | Verify all actor types and counts in feed/search/detail/profile. |
+| Replies and sticky entry | Implemented: newest/relevant source and sticky entry exist. | Real unverified reply, notification and mobile keyboard proof outstanding. | Test newest ordering, eligible replies and sticky composer in all languages. |
+| Quotes and embeds | Implemented: quoted content/media and linked cards rendered. | Real blocked/removed quoted-target proof outstanding. | Exercise safe quoted hydration and removal across feeds. |
+| Reply/repost/like/bookmark/share counts | Incomplete: actions exist, with viewer state; full response/retry/concurrency coverage outstanding. | Exact deployed count behavior unverified. | Verify every action/count and personal state through actual APIs. |
+| Owner/viewer state on all responses | Incomplete: feed lacks owner identity; some search/actor responses require audit. | No fresh authenticated cross-surface proof. | Include owner state in every hydrated response and test all surfaces. |
+| Saved posts | Implemented: authenticated API/page exists. | Real reload/removal/block proof outstanding. | Test bookmark → saved feed → unsave and blocked/removed exclusion. |
+| Reporting and automatic moderation | Implemented: report API, limits and existing moderation flow. | Actual repeat/limit/DMCA/admin proof outstanding. | Verify report caps, moderator permissions and resulting visibility. |
+| Owner editing/deletion | Implemented: owner endpoints and actions exist. | Real authorization/count/source propagation outstanding. | Test owner versus non-owner, quoted/reply counters and source removal. |
+| Two-way blocking and inactive authors | Incomplete: primary visibility predicates exist; minimal feed fallback can drop active-author checks. | Existing PostgreSQL suite must run for candidate. | Remove unsafe fallback and verify every surface/target path. |
+| Daily/upload/report limits | Implemented: existing rate/count controls. | Concurrent actual API limit proof outstanding. | Test simultaneous post limits and structured upload/report rejection. |
+| Linked entity selection and five-card limit | Implemented: server search and composer selection exist. | Real invalid/removed/entity ownership and currencies outstanding. | Verify all eight link types and authoritative target metadata. |
+| Public cards versus transaction login | Behavior-tested locally: all formerly intercepted guest card types now navigate to public targets; removed cards remain inert. | Browser dependencies mocked; destination transaction gates outstanding. | Verify actual public pages and login at transaction start. |
+| City/category Spaces | Implemented in current source. | Real channel filters, membership and counts outstanding. | Run actual database/browser city/category/membership matrix. |
+| In-shell notifications and messages | Implemented in current source. | Actual replies/likes/inbox links and account sessions outstanding. | Exercise existing activity systems within Media for each persona. |
+| Navbar/account/footer/legal navigation | Implemented in current source. | Signed-in/out, cookies, keyboard and Arabic proof outstanding. | Include navigation and legal dialogs in browser matrix. |
+| Accessibility and five languages | Incomplete: existing catalogs and labels, but full error/keyboard/RTL audit outstanding. | Build/parity and Arabic/mobile matrix required for candidate. | Run build, localization parity, keyboard and RTL checks per batch. |
+| Image-rich share previews | Implemented in prior prerender source. | Current safe assets/localized real share previews outstanding. | Verify guest-safe image metadata in every language after build. |
+| Nearby coordinates and city/state fallback | Incomplete: existing ranking only considers Space membership/location. | Actual entity locality cases missing. | Implement entity coordinates with explicit city/state fallback and synthetic nearby/far cases. |
+| Guest and device location choices | Incomplete. | No explicit location flow yet. | Add saved guest choice and user-triggered device request; never request automatically. |
+| Versioned context-bound feed cursor | Incomplete: unversioned tuple; alias-based HAVING can fail into chronological fallback. | Real complete-pagination proof missing. | Use ranked subquery, bind tab/location/ranking version and test stable pagination. |
+| Stale tab responses and duplicates | Incomplete: current client appends without request-generation guard/deduplication. | Browser tab-switch race missing. | Guard stale requests and deduplicate page append; test out-of-order responses. |
+| Follows and Following | Implemented in existing source. | Real block/follow/paging and actor-count proof outstanding. | Run actual SQL and browser tab-switch journey. |
+| Live authoritative counts | Incomplete. | Existing realtime lifecycle integration/reconciliation outstanding. | Subscribe through existing lifecycle and reconcile API counts on refresh/events. |
+| Business Hub integration | Implemented in prior source. | Actual selected-business authorization/navigation outstanding. | Verify Media posting and history for owned entities. |
+| Profile Studio/public-profile integration | Implemented in prior source. | Actual safe profile tabs and guest behavior outstanding. | Test profile editing/navigation and public safe posts. |
+| Rentals/Direct/Logistics cards | Implemented in current link resolvers/search. | Actual public targets/removal/currency proof outstanding. | Seed and verify additional types alongside launch types. |
+| Restaurant copy/ownership/deduplication | Implemented in prior source/migration 739. | Real source moderation/removal propagation incomplete. | Test and repair safe idempotent copy plus removal propagation. |
+| Creator/buyer dashboards and opportunities | Incomplete: existing marketplace skeleton is partial. | Real full dashboard journey outstanding. | Complete owner/creator-specific lists and actions through API and UI. |
+| Applications and award/acceptance | Incomplete: existing application lock is outside transaction; award race gaps. | Real concurrent authorization/limits outstanding. | Lock state transitions inside transaction and integrate reserve-on-award. |
+| Deliverable revisions and approval | Incomplete: delivered state currently prevents resubmission. | Real revision/concurrent approval proof missing. | Implement coherent revision and approval state machine. |
+| Gig reservation and payment | Incomplete: no reservation/approved-delivery settlement. | Credit isolated accounting required. | Add creator reservations; reserve on award and settle once on approval. |
+| Sponsorship reservation/delivery/payment | Incomplete: accepted sponsorship currently pays without approved delivery. | Credit isolated accounting required. | Reserve on acceptance and settle after approved delivery only. |
+| Tips | Incomplete: current transfer exists but payload-key/retry/accounting audit remains. | Real currency/freeze/fee/replay proof missing. | Use durable payload-bound idempotency and shared accounting transaction. |
+| Cancellation/release/refund/dispute review | Incomplete: current shared dispute wrappers do not close full lifecycle. | Real accounting and admin audit proof required. | Implement authorized single release, contest review and audited refunds. |
+| Boost payment to platform revenue | Incomplete: current code transfers to creator, including purchaser self-transfer. | Correct accounting movement and DB guards missing. | Implement purchaser-wallet → platform-revenue movement through shared rail. |
+| Sponsored placement and 24-hour duration | Incomplete: boost rows currently do not affect feed placement. | Actual nearby/relevance/cap/expiry proof missing. | Activate only after paid transaction; label and cap at one in five. |
+| Price/currency disclosure and purchaser history | Incomplete: existing boost dialog/history insufficient. | Payment retry/cancellation/history proof missing. | Add confirmed price/currency, durable key and status/history/refund review. |
+| Atomic accounting/precision/fees/isolation | Incomplete for marketplace: shared rail safeguards exist, transitions are not fully atomic with payment. | Real isolated conservation/races/currency cases required. | Add transactional marketplace service and accounting behavior suites. |
+| Migration upgrade and repeat application | Implemented: new 742 filename follows inspected 741; repeat-application DB case added. | Actual migration execution outstanding. | Rehearse against disposable upgraded schema and repeat without data changes. |
+| Cloudflare interim and deferred Thorn | Implemented: retained explicit interim status; no synthetic vendor clearance. | Real runtime/public-delivery proof outstanding. | Keep honest policy disclosures and future vendor switch tests. |
+| Passing exact-candidate CI | Incomplete: baseline run `37815891575` rejected before steps for GitHub billing. | Failed payments/spending limit is an external CI dependency. | Check once at coherent release checkpoint; run candidate CI when available. |
+| Exact deployed release/readiness/schema/assets | Incomplete: healthy baseline is not new-candidate deployment proof. | Deployment access and reproducible content identity required. | Compare candidate hash and validate `/ready`, migration 742, workers and assets. |
+| Authenticated production/real-device matrix | Incomplete. | Signed-in helper/business/restaurant/admin and real device access outstanding. | Capture full non-financial production journeys; reconcile finance read-only. |
+
+Current local execution: all 143 Media behavior checks passed in 11 suites;
+13 PostgreSQL cases in two suites skipped because no disposable PostgreSQL is
+available locally. Two maintained Chromium browser journeys passed, covering
+desktop and 390px composer recovery and guest public-card navigation. The CI
+result checker, existing Credit fixture regression, fixture isolation rejection,
+shell syntax and `git diff --check` passed. `npm run build:ci` passed localization,
+TypeScript, production bundling and verification of 760 assets. A broader local
+server run encountered existing non-Media Windows/FFmpeg/SQL-artifact failures
+and was stopped; it is not a passing full-suite result. Isolated ClamAV/FFmpeg
+execution, candidate CI and deployed verification remain outstanding. The
+baseline CI check still reports a pre-start billing rejection; canonical `/ready`
+currently reports healthy release `content-840a33b23300d6be`, which is not proof
+that the new changes deployed. No completion claim is made.
+
 Emile has authorized one combined implementation effort covering the complete
 MVP, v2, and v3 scope. The former release boundaries no longer defer software
 implementation. Build and integrate the features in dependency order within

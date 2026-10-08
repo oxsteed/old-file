@@ -18,7 +18,11 @@ require_docker() {
 }
 
 compose() {
-  docker compose --env-file "$STATE_FILE" --project-name "$CREDIT_TEST_PROJECT" --file "$COMPOSE_FILE" "$@"
+  local media_files=()
+  if [ "${OXSTEED_MEDIA_TEST_MODE:-false}" = true ]; then
+    media_files=(--file "$ROOT_DIR/docker-compose.media-test.yml")
+  fi
+  docker --context colima compose --env-file "$STATE_FILE" --project-name "$CREDIT_TEST_PROJECT" --file "$COMPOSE_FILE" "${media_files[@]}" "$@"
 }
 
 create_state() {
@@ -123,6 +127,18 @@ test_environment() {
     return 1
   fi
   suspend_isolated_rail
+}
+
+media_test() {
+  [ "${OXSTEED_MEDIA_TEST_MODE:-false}" = true ] || die 'Use scripts/media-isolated-env.sh for Media verification.'
+  require_docker
+  load_state
+  suspend_isolated_rail
+  wait_ready "$(base_url)"
+  if ! compose exec -T app node /app/server/scripts/verify-media-isolated.js; then
+    save_failure_artifacts
+    return 1
+  fi
 }
 
 accounting() {
@@ -296,6 +312,7 @@ case "${1:-}" in
   start|up) start ;;
   seed) seed ;;
   test|smoke) test_environment ;;
+  media-test) media_test ;;
   accounting) accounting ;;
   races) races ;;
   queue-recovery) queue_recovery ;;
