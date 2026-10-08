@@ -452,16 +452,55 @@ async function getFeed(req, res) {
         fallbackParams.push(before);
         fallbackWhere += ` AND p.created_at < $${fallbackParams.length}`;
       }
-      ({ rows } = await pool.query(
-        `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type,
-                0::bigint AS link_count, 0::int AS locality_boost
-           FROM media_posts p
-           JOIN media_actors a ON a.id = p.actor_id
-          WHERE ${fallbackWhere}
-          ORDER BY p.created_at DESC, p.id DESC
-          LIMIT $1`,
-        fallbackParams
-      ));
+      try {
+        ({ rows } = await pool.query(
+          `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type,
+                  0::bigint AS link_count, 0::int AS locality_boost
+             FROM media_posts p
+             JOIN media_actors a ON a.id = p.actor_id
+            WHERE ${fallbackWhere}
+            ORDER BY p.created_at DESC, p.id DESC
+            LIMIT $1`,
+          fallbackParams
+        ));
+      } catch (fallbackErr) {
+        // If the active-author compatibility predicate is itself unavailable
+        // during a staggered migration, retain public safety filters and the
+        // two-way block boundary rather than returning a blank feed.
+        logger.error('media.getFeed minimal fallback', { code: fallbackErr.code, message: fallbackErr.message });
+        const minimalParams = [limit];
+        let minimalWhere = `p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL
+          AND p.processing_status = 'ready' AND p.csam_status = 'passed'`;
+        if (viewerUserId) {
+          minimalParams.push(viewerUserId);
+          const viewerParam = minimalParams.length;
+          minimalWhere += ` AND NOT EXISTS (
+            SELECT 1 FROM user_blocks ub
+             WHERE (ub.blocker_id = $${viewerParam} AND ub.blocked_id = a.owner_user_id)
+                OR (ub.blocker_id = a.owner_user_id AND ub.blocked_id = $${viewerParam})
+          )`;
+        }
+        if (rankedCursor?.created_at && rankedCursor?.id) {
+          minimalParams.push(rankedCursor.created_at, rankedCursor.id);
+          const createdParam = minimalParams.length - 1;
+          const idParam = minimalParams.length;
+          minimalWhere += ` AND (p.created_at < $${createdParam}
+            OR (p.created_at = $${createdParam} AND p.id < $${idParam}))`;
+        } else if (before) {
+          minimalParams.push(before);
+          minimalWhere += ` AND p.created_at < $${minimalParams.length}`;
+        }
+        ({ rows } = await pool.query(
+          `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type,
+                  0::bigint AS link_count, 0::int AS locality_boost
+             FROM media_posts p
+             JOIN media_actors a ON a.id = p.actor_id
+            WHERE ${minimalWhere}
+            ORDER BY p.created_at DESC, p.id DESC
+            LIMIT $1`,
+          minimalParams
+        ));
+      }
     }
 
     const posts = [];

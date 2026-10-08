@@ -82,4 +82,21 @@ describe('Media ranked feed journey', () => {
     expect(result.status).not.toHaveBeenCalled();
     expect(result.json.mock.calls[0][0].posts[0]).toMatchObject({ id: 'fallback-post' });
   });
+
+  test('keeps the feed readable when the active-author predicate is unavailable', async () => {
+    pool.query
+      .mockImplementationOnce(async () => { throw Object.assign(new Error('ranked query failed'), { code: '42703' }); })
+      .mockImplementationOnce(async () => { throw Object.assign(new Error('users.is_banned missing'), { code: '42703' }); })
+      .mockImplementationOnce(async (sql) => {
+        if (sql.includes('0::bigint AS link_count')) return { rows: [{
+          id: 'minimal-post', created_at: '2026-10-08T09:00:00.000Z', actor_id: 'actor-1',
+          handle: 'local-one', display_name: 'Local One', link_count: '0', locality_boost: '0',
+        }] };
+        return { rows: [] };
+      });
+    const result = response();
+    await media.getFeed({ query: { limit: '1' }, user: { id: 'viewer-1' } }, result);
+    expect(result.status).not.toHaveBeenCalled();
+    expect(result.json.mock.calls[0][0].posts[0]).toMatchObject({ id: 'minimal-post' });
+  });
 });
