@@ -460,3 +460,12 @@ instead of English-only literals. `npm run verify:i18n`, `npm run typecheck`,
 `npm run build:ci`, and `git diff --check` pass locally. Authenticated actor
 pages and locale switching remain part of the pending deployed browser checks.
 
+Reply ranking integration (2026-10-08): the Relevant reply ranking path is now
+enabled as part of the unified MVP/v2/v3 implementation instead of being
+hidden behind `MEDIA_RELEVANT_REPLIES_ENABLED`. The post detail page exposes a
+localized, accessible Latest/Relevant selector, and the server safely falls
+back to Latest for unknown values. The focused Media contracts/feed suites
+pass 13 tests, `npm run verify:i18n`, `npm run typecheck`, and `git diff --check`
+pass locally. Deployed reply ordering and mobile interaction remain pending
+live verification.
+

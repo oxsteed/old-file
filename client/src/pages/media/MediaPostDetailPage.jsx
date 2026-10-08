@@ -17,6 +17,7 @@ export default function MediaPostDetailPage() {
   const [replies, setReplies] = useState([]);
   const [quotes, setQuotes] = useState([]);
   const [quotesOpen, setQuotesOpen] = useState(false);
+  const [replySort, setReplySort] = useState('latest');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [quoteBody, setQuoteBody] = useState('');
@@ -40,7 +41,7 @@ export default function MediaPostDetailPage() {
     try {
       const [postData, repliesData] = await Promise.all([
         getPost(id),
-        getReplies(id),
+        getReplies(id, replySort),
       ]);
       setPost(postData.post);
       setBodyDraft(postData.post.body || '');
@@ -52,7 +53,7 @@ export default function MediaPostDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [id, t]);
+  }, [id, replySort, t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -312,7 +313,17 @@ export default function MediaPostDetailPage() {
             <div className="media-replies-section">
               <div className="media-replies-heading">
                 <h2>{t('media.post.replies')} ({post.reply_count})</h2>
-                <span className="media-latest-sort">{t('media.post.latest')}</span>
+                <label className="media-reply-sort">
+                  <span className="sr-only">{t('media.post.replySort')}</span>
+                  <select
+                    value={replySort}
+                    onChange={(event) => setReplySort(event.target.value)}
+                    aria-label={t('media.post.replySort')}
+                  >
+                    <option value="latest">{t('media.post.latest')}</option>
+                    <option value="relevant">{t('media.post.relevant')}</option>
+                  </select>
+                </label>
               </div>
               {replies.map(reply => (
                 <MediaPostCard key={reply.id} post={reply} />

@@ -730,10 +730,9 @@ async function getBookmarks(req, res) {
 async function getReplies(req, res) {
   try {
     if (!await visiblePost(req.params.id, req.user?.id)) return res.status(404).json({ error: 'Post not found' });
-    // Relevant reply ranking is a later rollout feature. Keep launch behavior
-    // newest-first unless the v2 flag is explicitly enabled in deployment.
-    const relevantEnabled = String(process.env.MEDIA_RELEVANT_REPLIES_ENABLED || '').toLowerCase() === 'true';
-    const sort = req.query.sort === 'relevant' && relevantEnabled ? 'relevant' : 'latest';
+    // Relevant ranking is part of the unified Media rollout. Unknown values
+    // safely fall back to the launch default, newest-first.
+    const sort = req.query.sort === 'relevant' ? 'relevant' : 'latest';
     let orderClause = 'p.created_at DESC';
     if (sort === 'relevant') {
       // Relevant: engagement-weighted (likes x3 + reposts x5 + replies x2),
