@@ -430,6 +430,24 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
               allowPrimaryWithoutServices={templateBehavior.allowPrimaryWithoutServices}
             />
 
+            <section
+              aria-labelledby="helper-media-heading"
+              className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-6 py-5"
+            >
+              <h2 id="helper-media-heading" className="text-base font-semibold text-gray-900 dark:text-white mb-1">
+                {t('media.feed.title')}
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                {t('media.feed.subtitleShort')}
+              </p>
+              <Link
+                className="inline-flex items-center rounded-xl border border-orange-500/40 px-4 py-2 text-sm font-semibold text-orange-600 dark:text-orange-300"
+                to={`/media/@${encodeURIComponent((helper as any).profile_slug || (helper as any).profileSlug || id || '')}`}
+              >
+                {t('media.feed.title')}
+              </Link>
+            </section>
+
             {visibility?.services && (
               <ServicesSection
                 services={services}

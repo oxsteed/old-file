@@ -280,3 +280,10 @@ existing business-scoped Media tab continues to use the owner-checked business
 actor endpoint. Public helper and business profile presentation still needs a
 live browser check and any missing visible Media tab wiring should be recorded
 before completion.
+
+Public profile integration (2026-10-08): helper and business public profile
+surfaces now expose a localized link into the matching Media actor page inside
+the Media shell, using the existing profile slug or stable entity ID. The
+client typecheck and production build pass after this addition. A signed-out
+browser check of the links and an actor with published content remain required
+to verify the full public-profile journey.

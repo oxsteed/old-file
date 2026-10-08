@@ -293,6 +293,17 @@ export default function BusinessPublicProfilePage({ customerSnapshot = null } = 
             )}
           />
 
+          <section className="profile-card" aria-labelledby="business-media-heading">
+            <h2 id="business-media-heading">{t('media.feed.title')}</h2>
+            <p className="profile-empty">{t('media.feed.subtitleShort')}</p>
+            <Link
+              className="cta-button cta-button-secondary"
+              to={`/media/@${encodeURIComponent(business.profile_slug || business.profileSlug || business.id || businessId)}`}
+            >
+              {t('media.feed.title')}
+            </Link>
+          </section>
+
           {/* Services */}
           {business.showServices && (
           <div className="profile-card">
