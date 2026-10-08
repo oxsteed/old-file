@@ -234,32 +234,42 @@ function TeamSection({ team }) {
         {t('businessProfile.ourTeam')}
       </h2>
       <ul className="space-y-3" role="list">
-        {team.map((member, i) => (
+        {team.map((member, i) => {
+          const displayName = [member.first_name, member.last_name].filter(Boolean).join(' ').trim();
+          const roleLabel = member.role === 'manager'
+            ? t('businessProfile.manager')
+            : t('businessProfile.representative');
+          const avatarLabel = displayName || roleLabel;
+
+          return (
           <li key={i} className="flex items-center gap-3">
             {member.profile_photo_url ? (
               <img
                 src={member.profile_photo_url}
-                alt={`${member.first_name} ${member.last_name}`}
+                alt={avatarLabel}
                 className="w-10 h-10 rounded-full object-cover flex-shrink-0"
                 loading="lazy"
               />
             ) : (
               <div className="w-10 h-10 rounded-full bg-gray-700 border border-gray-600 flex items-center justify-center flex-shrink-0">
                 <span className="text-sm font-semibold text-gray-300 select-none">
-                  {getInitials(member.first_name, member.last_name)}
+                  {displayName
+                    ? getInitials(member.first_name, member.last_name)
+                    : (roleLabel[0] || '?').toUpperCase()}
                 </span>
               </div>
             )}
             <div>
               <p className="text-sm font-medium text-white">
-                {member.first_name} {member.last_name}
+                {displayName || roleLabel}
               </p>
-              <p className="text-xs text-gray-400">
-                {member.role === 'manager' ? t('businessProfile.manager') : t('businessProfile.representative')}
-              </p>
+              {displayName ? (
+                <p className="text-xs text-gray-400">{roleLabel}</p>
+              ) : null}
             </div>
           </li>
-        ))}
+          );
+        })}
       </ul>
     </section>
   );
@@ -1189,8 +1199,16 @@ export default function BusinessProfilePage() {
         shareI18nPrefix="businessProfile"
       />
 
-      {/* Sticky section nav */}
-      <SectionNav />
+      {/* Sticky section nav — only tabs whose sections actually render */}
+      <SectionNav
+        visibleSections={[
+          ...(sections.services ? ['services'] : []),
+          ...(sections.gallery ? ['gallery'] : []),
+          'reviews',
+          ...(sections.faqs ? ['faqs'] : []),
+          ...(sections.policies ? ['policies'] : []),
+        ]}
+      />
 
       {/* Page body */}
       <main
