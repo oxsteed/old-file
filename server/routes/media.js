@@ -76,6 +76,7 @@ router.post('/creator/disputes/:kind/:id', requireAuth, creatorCtrl.openCreatorD
 
 // Authenticated actions.
 router.post('/posts', requireAuth, ctrl.createPost);
+router.patch('/posts/:id/draft', requireAuth, ctrl.updateDraft);
 router.post('/posts/:id/publish', requireAuth, ctrl.publishPost);
 router.patch('/posts/:id', requireAuth, ctrl.updatePost);
 router.delete('/posts/:id', requireAuth, ctrl.deletePost);

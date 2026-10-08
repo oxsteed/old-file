@@ -943,6 +943,77 @@ async function createPost(req, res) {
   }
 }
 
+async function updateDraft(req, res) {
+  const body = typeof req.body?.body === 'string' ? req.body.body.trim() : '';
+  const links = Array.isArray(req.body?.links) ? req.body.links : [];
+  const communityId = req.body?.community_id || null;
+  if (!body) return res.status(400).json({ error: 'Post body is required', code: 'media_body_required' });
+  if (body.length > 2000) return res.status(400).json({ error: 'Post body too long (max 2000)', code: 'media_body_too_long' });
+  if (links.length > MAX_LINKS_PER_POST) {
+    return res.status(400).json({ error: `Max ${MAX_LINKS_PER_POST} links per post`, code: 'media_links_limit' });
+  }
+  if (links.some((link) => !link || !MEDIA_LINK_TYPES.has(link.link_type) || !String(link.target_id || '').trim())) {
+    return res.status(400).json({ error: 'Unsupported or incomplete OxSteed link.', code: 'media_link_type_unavailable' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows: owned } = await client.query(
+      `SELECT p.*, a.owner_user_id
+         FROM media_posts p
+         JOIN media_actors a ON a.id = p.actor_id
+        WHERE p.id = $1 AND a.owner_user_id = $2 AND p.deleted_at IS NULL
+        FOR UPDATE`,
+      [req.params.id, req.user.id]
+    );
+    const draft = owned[0];
+    if (!draft || draft.visibility !== 'unlisted' || !['draft', 'quarantine', 'failed', 'blocked', 'ready'].includes(draft.processing_status)) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Draft not found', code: 'media_draft_not_found' });
+    }
+    if (communityId) {
+      const { rows: spaces } = await client.query(
+        `SELECT id FROM media_communities WHERE id = $1`, [communityId]
+      );
+      if (!spaces[0]) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Space not found', code: 'media_space_not_found' });
+      }
+    }
+    const { rows: updated } = await client.query(
+      `UPDATE media_posts SET body = $1, community_id = $2, edited_at = NOW()
+        WHERE id = $3 RETURNING *`,
+      [body, communityId, req.params.id]
+    );
+    await client.query(`DELETE FROM media_post_links WHERE post_id = $1`, [req.params.id]);
+    for (let index = 0; index < links.length; index += 1) {
+      const link = links[index];
+      await client.query(
+        `INSERT INTO media_post_links
+           (post_id, link_type, target_id, label, name_snapshot, price_snapshot_cents, currency_code, sort_order)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [req.params.id, link.link_type, String(link.target_id).trim(), link.label || null,
+          link.name_snapshot || link.label || link.target_id,
+          link.price_snapshot_cents || null, link.currency_code || null, index]
+      );
+    }
+    await client.query('COMMIT');
+    const { rows: hydrated } = await pool.query(
+      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id
+         FROM media_posts p JOIN media_actors a ON a.id = p.actor_id WHERE p.id = $1`,
+      [req.params.id]
+    );
+    return res.json({ post: await hydratePost(hydrated[0] || updated[0], req.user.id), draft: true });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    logger.error('media.updateDraft error', { message: err.message });
+    return res.status(500).json({ error: 'Failed to update draft' });
+  } finally {
+    client.release();
+  }
+}
+
 async function publishPost(req, res) {
   const client = await pool.connect();
   try {
@@ -1691,7 +1762,7 @@ async function searchMediaEntities(req, res) {
 }
 
 module.exports = {
-  getFeed, getPost, getDrafts, getDraft, getBookmarks, getReplies, getQuotes, createPost, publishPost, updatePost, deletePost,
+  getFeed, getPost, getDrafts, getDraft, getBookmarks, getReplies, getQuotes, createPost, updateDraft, publishPost, updatePost, deletePost,
   replacePostLinks,
   toggleLike, toggleBookmark, toggleRepost, recordShare, recordView, flagPost,
   getCommunities, getCommunity, joinCommunity, leaveCommunity, searchMedia,

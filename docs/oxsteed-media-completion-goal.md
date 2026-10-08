@@ -509,3 +509,13 @@ transcode requirements; `/api/media/feed`, `/api/media/communities`,
 router. The anonymous feed is empty, so authenticated publishing, action
 counts, uploads, and marketplace journeys still require a signed-in live check.
 
+
+Draft retry durability (2026-10-08): the composer now synchronizes an existing
+private draft's body, Space, and up to five selected entity links through the
+owner-authorized `PATCH /api/media/posts/:id/draft` endpoint before every retry.
+The endpoint keeps drafts unlisted, validates supported link types and Space,
+replaces link snapshots transactionally, and cannot update another user's post
+or a published post. The focused Media contracts/feed suites pass 16 tests
+locally; client typecheck, controller syntax, and `git diff --check` also pass.
+Authenticated production retry and worker/storage execution remain deployment
+verification work.

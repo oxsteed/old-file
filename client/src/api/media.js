@@ -10,6 +10,7 @@ export const getBookmarks = () => api.get('/media/posts/bookmarks').then(r => r.
 export const getReplies = (id, sort = 'latest') => api.get(`/media/posts/${id}/replies`, { params: { sort } }).then(r => r.data);
 export const getQuotes = (id) => api.get(`/media/posts/${id}/quotes`).then(r => r.data);
 export const createPost = (data) => api.post('/media/posts', data).then(r => r.data);
+export const updateDraft = (id, data) => api.patch(`/media/posts/${id}/draft`, data).then(r => r.data);
 export const publishPost = (id) => api.post(`/media/posts/${id}/publish`).then(r => r.data);
 export const updatePost = (id, data) => api.patch(`/media/posts/${id}`, data).then(r => r.data);
 export const deletePost = (id) => api.delete(`/media/posts/${id}`).then(r => r.data);

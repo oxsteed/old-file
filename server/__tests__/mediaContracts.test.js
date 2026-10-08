@@ -72,6 +72,43 @@ describe('OxSteed Media launch contracts', () => {
     expect(pool.query.mock.calls[0][0]).toMatch(/processing_status IN \('draft', 'quarantine', 'failed', 'blocked', 'ready'\)/);
   });
 
+  test('persists owner edits to a private draft before a retry', async () => {
+    const client = { query: jest.fn(), release: jest.fn() };
+    pool.connect = jest.fn().mockResolvedValue(client);
+    client.query
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ rows: [{ id: 'draft-4', visibility: 'unlisted', processing_status: 'failed' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'space-1' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'draft-4', body: 'Updated copy', visibility: 'unlisted', processing_status: 'failed' }] })
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({});
+    pool.query.mockImplementation(async (sql) => {
+      if (sql.includes('FROM media_posts p JOIN media_actors')) {
+        return { rows: [{ id: 'draft-4', body: 'Updated copy', visibility: 'unlisted', processing_status: 'failed' }] };
+      }
+      if (sql.includes('FROM media_post_links')) return { rows: [] };
+      if (sql.includes('FROM media_post_assets')) return { rows: [] };
+      return { rows: [] };
+    });
+    const res = resMock();
+
+    await media.updateDraft({
+      params: { id: 'draft-4' },
+      user: { id: 'user-1' },
+      body: {
+        body: 'Updated copy',
+        community_id: 'space-1',
+        links: [{ link_type: 'restaurant', target_id: '7', name_snapshot: 'Local Cafe' }],
+      },
+    }, res);
+
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ draft: true }));
+    expect(client.query.mock.calls.some(([sql]) => sql.includes('a.owner_user_id = $2'))).toBe(true);
+    expect(client.query.mock.calls.some(([sql]) => sql.includes('DELETE FROM media_post_links'))).toBe(true);
+  });
+
   test('supports Relevant reply ranking without a deployment flag', async () => {
     pool.query
       .mockResolvedValueOnce({ rows: [{ id: 'post-1' }] })

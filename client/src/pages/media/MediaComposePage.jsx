@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { createPost, getCommunities, getDraft, getDrafts, linkAsset, publishPost, searchMediaEntities, uploadPhoto, uploadVideo } from '../../api/media';
+import { createPost, getCommunities, getDraft, getDrafts, linkAsset, publishPost, searchMediaEntities, updateDraft, uploadPhoto, uploadVideo } from '../../api/media';
 
 const LINK_TYPES = [
   'restaurant', 'food_item', 'helper', 'business', 'job',
@@ -176,6 +176,10 @@ export default function MediaComposePage() {
         postId = data.post.id;
         setDraftId(postId);
         window.localStorage.setItem(DRAFT_STORAGE_KEY, postId);
+      } else {
+        // Keep edits made after a failed upload durable before retrying. This
+        // also makes entity and Space changes survive a page refresh.
+        await updateDraft(postId, { body: body.trim(), links, community_id: communityId || null });
       }
       let hasAttachedAsset = attachedAsset;
       if (externalUrl.trim() && !hasAttachedAsset) {
