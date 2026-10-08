@@ -369,3 +369,10 @@ an offer only while current verification is valid, and the sponsor can then
 settle it through the existing guarded Credit route. The API query is limited
 to the two parties, and the focused controller suite now passes 5 tests.
 Authenticated Credit settlement and deployment verification remain open.
+
+Gig review UI (2026-10-08): gig owners can open an in-shell application list,
+review pitches and proposed amounts, and award one applicant; the server then
+closes the gig and rejects competing submitted applications transactionally.
+The creator controller suite covers the API contract, and client typecheck and
+locale parity pass. Deliverable submission/review and authenticated deployed
+award journeys remain next verification work.

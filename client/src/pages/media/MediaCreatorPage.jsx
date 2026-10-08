@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Briefcase, CheckCircle2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { acceptCreatorSponsorship, applyToCreatorGig, createCreatorGig, createCreatorSponsorship, createCreatorTip, getCreatorGigs, getCreatorSponsorships, settleCreatorTip } from '../../api/media';
+import { acceptCreatorSponsorship, applyToCreatorGig, awardCreatorApplication, createCreatorGig, createCreatorSponsorship, createCreatorTip, getCreatorApplications, getCreatorGigs, getCreatorSponsorships, settleCreatorTip } from '../../api/media';
 import { useAuth } from '../../context/AuthContext';
 
 export default function MediaCreatorPage() {
@@ -25,6 +25,9 @@ export default function MediaCreatorPage() {
   const [supportAmount, setSupportAmount] = useState('');
   const [supportBrief, setSupportBrief] = useState('');
   const [supportMessage, setSupportMessage] = useState('');
+  const [applicationsGig, setApplicationsGig] = useState(null);
+  const [applications, setApplications] = useState([]);
+  const [applicationsLoading, setApplicationsLoading] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -102,6 +105,20 @@ export default function MediaCreatorPage() {
     finally { setSubmitting(false); }
   };
 
+  const openApplications = async (gig) => {
+    setApplicationsGig(gig); setApplications([]); setApplicationsLoading(true); setError('');
+    try { const data = await getCreatorApplications(gig.id); setApplications(data.applications || []); }
+    catch (err) { setError(err.response?.data?.error || t('media.creator.loadError')); }
+    finally { setApplicationsLoading(false); }
+  };
+
+  const awardApplication = async (applicationId) => {
+    setSubmitting(true); setError('');
+    try { const data = await awardCreatorApplication(applicationId); setApplications((items) => items.map((item) => item.id === applicationId ? { ...item, status: 'awarded' } : { ...item, status: item.status === 'submitted' ? 'rejected' : item.status })); setApplicationsGig((gig) => gig ? { ...gig, status: 'awarded' } : gig); }
+    catch (err) { setError(err.response?.data?.error || t('media.creator.loadError')); }
+    finally { setSubmitting(false); }
+  };
+
   return (
     <section className="media-feed media-creator-page">
       <header className="media-timeline-header">
@@ -123,6 +140,7 @@ export default function MediaCreatorPage() {
             <button type="button" className="media-primary-button" onClick={() => { setSelected(gig); setPitch(''); setProposedCents(gig.budget_cents); setSubmitted(false); }}>{t('media.creator.apply')}</button>
             <button type="button" className="media-secondary-button" onClick={() => openSupport(gig, 'tip')}>{t('media.creator.tip')}</button>
             <button type="button" className="media-secondary-button" onClick={() => openSupport(gig, 'sponsorship')}>{t('media.creator.sponsor')}</button>
+            {String(gig.owner_user_id) === String(user.id) && <button type="button" className="media-secondary-button" onClick={() => openApplications(gig)}>{t('media.creator.reviewApplications')}</button>}
           </div>}
         </article>
       ))}
@@ -167,6 +185,18 @@ export default function MediaCreatorPage() {
             <button type="submit" className="media-primary-button" disabled={submitting}>{submitting ? t('media.compose.posting') : t('media.creator.send')}</button>
           </>}
         </form>
+      </div>}
+      {applicationsGig && <div className="media-verification-dialog" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setApplicationsGig(null); }}>
+        <div className="media-verification-form" role="dialog" aria-modal="true" aria-labelledby="creator-applications-title">
+          <button type="button" className="media-dialog-close" onClick={() => setApplicationsGig(null)} aria-label={t('media.shell.close')}><X size={18} /></button>
+          <h2 id="creator-applications-title">{t('media.creator.applications')}</h2>
+          {applicationsLoading ? <p role="status">{t('media.compose.posting')}</p> : applications.length === 0 ? <p>{t('media.creator.noApplications')}</p> : applications.map((application) => <article className="media-creator-application" key={application.id}>
+            <strong>{application.applicant_name || application.applicant_handle}</strong>
+            <p>{application.pitch}</p>
+            <span>{application.proposed_cents} {application.currency_code || 'USD'} · {application.status}</span>
+            {application.status === 'submitted' && <button type="button" className="media-primary-button" onClick={() => awardApplication(application.id)} disabled={submitting}>{t('media.creator.award')}</button>}
+          </article>)}
+        </div>
       </div>}
     </section>
   );

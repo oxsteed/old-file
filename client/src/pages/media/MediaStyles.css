@@ -625,6 +625,9 @@ div.media-support-panel { z-index: 150; }
 .media-creator-offers { padding: 10px 20px 0; }
 .media-creator-offers > h2 { margin: 18px 0 8px; color: var(--color-text); font-size: 18px; }
 .media-creator-offers .media-creator-gig { margin: 10px 0; }
+.media-creator-application { display: grid; gap: 7px; padding: 12px 0; border-top: 1px solid var(--color-border); }
+.media-creator-application p { margin: 0; color: var(--color-text-muted); line-height: 1.5; }
+.media-creator-application span { color: var(--color-text-muted); font-size: 12px; }
 .media-dialog-close { align-self: flex-end; display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--color-border); border-radius: 50%; background: transparent; color: var(--color-text-muted); cursor: pointer; }
 .media-dialog-close:hover { color: var(--color-text); background: var(--color-surface-2); }
 .media-legal-overlay { position: fixed; inset: 0; z-index: 240; display: grid; place-items: center; padding: 24px; background: rgb(12 15 22 / 72%); backdrop-filter: blur(8px); animation: media-legal-fade-in 180ms ease-out; }
