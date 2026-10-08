@@ -525,3 +525,10 @@ Hosted verification (2026-10-08): CI run `37811076761` for commit
 migration rehearsal. The run covered the client Media draft-retry contract,
 full client build/localization checks, server regression/security tests, and
 idempotent migration application.
+
+CI availability note (2026-10-08): the documentation-only follow-up commit
+`c10313f9` received a GitHub check annotation that the job was not started
+because recent account payments failed or the spending limit needs to be
+increased. The rerun attempts were rejected before checkout with no test or
+migration logs. This is an external CI availability condition; it does not
+invalidate the passing code verification for `820c9890` (run `37811076761`).
