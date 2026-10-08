@@ -104,6 +104,7 @@
 .media-purpose-card > svg { margin-bottom: 10px; color: var(--color-primary); }
 .media-purpose-card p { margin: 10px 0 0; color: var(--color-text-muted); font-size: 12px; line-height: 1.8; }
 .media-bottom-nav { display: none; }
+div.media-support-panel { z-index: 150; }
 
 .media-post-card {
   display: flex;
@@ -466,6 +467,7 @@
   .media-discovery { display: none; }
 }
 @media (max-width: 700px) {
+  button.media-support-launcher { bottom: calc(88px + env(safe-area-inset-bottom)); }
   .media-app-header-inner { min-height: 60px; padding: 8px 16px; gap: 8px; }
   .media-wordmark { font-size: 17px; gap: 7px; }
   .media-brand-mark { width: 29px; height: 29px; }

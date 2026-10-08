@@ -19,6 +19,10 @@ OxSteed. Navigation and new feed text are translated in en/es/fr/ht/ar; generate
 locale namespaces/shards are produced by the existing catalog script. Styles
 use the shared theme tokens and logical properties for Arabic.
 
+The assistant and support launchers clear the bottom navigation at phone and
+tablet widths. The assistant panel opens above Media navigation; these changes
+are scoped to Media routes.
+
 ## Scope relative to the locked product definition
 
 This change implements the page layout. It does not establish completion of the
@@ -47,13 +51,26 @@ starting from `0e0a5963f530130d48c5920390f7c8df119eac81`.
   paths while TypeScript requests normalized paths. This layout change does not
   modify or bypass that validation. The full Linux CI run must confirm it.
 - `node media-preview.cjs`: temporary browser check against the production build
-  with isolated API fixtures. Passed at 320, 390, 700, 768, 1024, and 1440 pixels;
+  with isolated API fixtures. Passed at 320, 390, 640, 700, 768, 1024, and 1440 pixels;
   no horizontal overflow, correct mobile/desktop navigation, one main landmark,
   no large footer, correct Home selection with a trailing slash, empty/populated
   feeds, error/retry, Arabic RTL, dark theme, and no uncaught page errors.
+  Also checked assistant-button clearance and opening/closing the assistant
+  above the mobile navigation, with AI capability enabled in the fixture.
   Service workers were disabled in this fixture test so mocked API requests
   could not be intercepted by the worker.
 
-CI and live deployment evidence will be recorded after publication. Local
-fixtures do not establish that the new layout has deployed or that real users
-can upload and publish media.
+## Live verification
+
+The initial layout commit `1549bd25822361f7b7df88b73d6a62593cbb9d66` was pushed
+to `old-files-claude`. The real `/media/` page served the new fingerprinted
+`MediaShell-DKcU0bzS.js`, `MediaFeedPage-BDAUcNAe.js`, and
+`MediaStyles-qC66_-FI.css` and loaded the public feed. `/ready` reported ready.
+The temporary `node media-live-check.cjs` browser check passed at 320, 390, 768,
+and 1440 pixels with one main landmark, no footer, no overflow, and no uncaught
+page errors. The public feed returned no posts, so real populated-feed and
+upload/publication checks are still unavailable.
+
+The assistant-spacing follow-up is validated locally as described above. Its
+live verification and the final CI result must be checked separately from this
+initial deployment.

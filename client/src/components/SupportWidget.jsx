@@ -145,6 +145,7 @@ function exportTranscript(messages, locale, labels) {
 // ── Main widget ───────────────────────────────────────────────────────────────
 function AISupportWidget() {
   const location = useLocation();
+  const isMediaPage = /^\/media(?:\/|$)/.test(location.pathname);
   const hideOnHelperProfile = isHelperPublicProfilePath(location.pathname);
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -434,7 +435,7 @@ function markProactiveDismissed() {
         <button
           onClick={() => { setOpen(true); setMinimized(false); setUnread(0); }}
           aria-label={t('supportWidget.openAssistant')}
-          className="fixed bottom-20 end-4 sm:bottom-6 sm:end-6 z-40 flex items-center gap-2 px-3.5 py-2.5 bg-action hover:bg-action-hover text-on-action rounded-full shadow-md shadow-orange-500/20 font-semibold text-xs transition-all hover:scale-105 active:scale-95 backdrop-blur-sm"
+          className={`${isMediaPage ? 'media-support-launcher ' : ''}fixed bottom-20 end-4 sm:bottom-6 sm:end-6 z-40 flex items-center gap-2 px-3.5 py-2.5 bg-action hover:bg-action-hover text-on-action rounded-full shadow-md shadow-orange-500/20 font-semibold text-xs transition-all hover:scale-105 active:scale-95 backdrop-blur-sm`}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
@@ -451,10 +452,10 @@ function markProactiveDismissed() {
       {/* ── Chat panel ── */}
       {open && (
         <div
-          className={isFullScreen
+          className={(isMediaPage ? 'media-support-panel ' : '') + (isFullScreen
             ? 'fixed inset-0 z-[55]'
             : 'fixed inset-0 z-[45] flex items-end justify-end p-4 sm:p-6 pointer-events-none'
-          }
+          )}
           onClick={isFullScreen ? undefined : (e => { if (e.target === e.currentTarget) { markProactiveDismissed(); setOpen(false); } })}
         >
           <div
@@ -777,6 +778,8 @@ function markProactiveDismissed() {
 
 export default function SupportWidget() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const isMediaPage = /^\/media(?:\/|$)/.test(pathname);
   const { t } = useTranslation();
   const { isAvailable, loading } = useCapabilities();
 
@@ -786,7 +789,7 @@ export default function SupportWidget() {
       <button
         type="button"
         onClick={() => navigate('/support/escalation')}
-        className="support-contact-fab fixed bottom-[4.75rem] lg:bottom-5 end-5 z-40 rounded-full bg-action px-4 py-3 text-sm font-semibold text-on-action shadow-xl transition hover:bg-action-hover"
+        className={`${isMediaPage ? 'media-support-launcher ' : ''}support-contact-fab fixed bottom-[4.75rem] lg:bottom-5 end-5 z-40 rounded-full bg-action px-4 py-3 text-sm font-semibold text-on-action shadow-xl transition hover:bg-action-hover`}
         aria-label={t('supportWidget.talkToHuman')}
       >
         {t('supportWidget.talkToHuman')}
