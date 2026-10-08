@@ -30295,7 +30295,32 @@
       "unmute": "Retabli son",
       "viewQuotes": "Wè sitasyon yo",
       "hideQuotes": "Kache sitasyon yo",
-      "noQuotes": "Pa gen sitasyon ankò."
+      "noQuotes": "Pa gen sitasyon ankò.",
+      "linkTypes": {
+        "restaurant": "Restoran",
+        "food_item": "Plat",
+        "helper": "Ede",
+        "business": "Biznis",
+        "job": "Travay",
+        "tool_rental": "Lwe zouti",
+        "direct_catalog": "Sèvis Direct",
+        "logistics_campaign": "Kanpay lojistik",
+        "view": "Gade",
+        "order": "Kòmande",
+        "book": "Rezève",
+        "apply": "Aplike",
+        "rent": "Lwe"
+      },
+      "cta": {
+        "restaurant": "Gade",
+        "food_item": "Kòmande",
+        "helper": "Rezève",
+        "business": "Gade",
+        "job": "Aplike",
+        "tool_rental": "Lwe",
+        "direct_catalog": "Rezève",
+        "logistics_campaign": "Gade"
+      }
     },
     "search": {
       "title": "Chèche nan Media",
@@ -30356,7 +30381,22 @@
       "posting": "Ap pibliye…",
       "post": "Pibliye",
       "uploadLabel": "Telechaje foto oswa videyo",
-      "uploadHint": "Nou tcheke foto yo anvan piblikasyon. Videyo yo mande verifikasyon idantite epi yo rete an karantèn jouk kontwòl sekirite yo fini."
+      "uploadHint": "Nou tcheke foto yo anvan piblikasyon. Videyo yo mande verifikasyon idantite epi yo rete an karantèn jouk kontwòl sekirite yo fini.",
+      "linkTypes": {
+        "restaurant": "Restoran",
+        "food_item": "Plat",
+        "helper": "Ede",
+        "business": "Biznis",
+        "job": "Travay",
+        "tool_rental": "Lwe zouti",
+        "direct_catalog": "Sèvis Direct",
+        "logistics_campaign": "Kanpay lojistik",
+        "view": "Gade",
+        "order": "Kòmande",
+        "book": "Rezève",
+        "apply": "Aplike",
+        "rent": "Lwe"
+      }
     },
     "notifications": {
       "kicker": "Mizajou rezo a",

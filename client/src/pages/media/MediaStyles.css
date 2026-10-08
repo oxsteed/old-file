@@ -177,6 +177,8 @@ div.media-support-panel { z-index: 150; }
   padding: 12px;
   margin: 8px 0;
 }
+.media-quoted-media { display: block; width: min(100%, 420px); max-height: 260px; margin-top: 10px; border-radius: 10px; object-fit: cover; background: #111; }
+.media-quoted-video-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; color: var(--color-primary); font-size: 13px; font-weight: 700; }
 
 .media-linked-entities {
   margin: 8px 0;

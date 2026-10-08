@@ -30295,7 +30295,32 @@
       "unmute": "Unmute",
       "viewQuotes": "View quotes",
       "hideQuotes": "Hide quotes",
-      "noQuotes": "No quotes yet."
+      "noQuotes": "No quotes yet.",
+      "linkTypes": {
+        "restaurant": "Restaurant",
+        "food_item": "Dish",
+        "helper": "Helper",
+        "business": "Business",
+        "job": "Job",
+        "tool_rental": "Tool rental",
+        "direct_catalog": "Direct service",
+        "logistics_campaign": "Logistics campaign",
+        "view": "View",
+        "order": "Order",
+        "book": "Book",
+        "apply": "Apply",
+        "rent": "Rent"
+      },
+      "cta": {
+        "restaurant": "View",
+        "food_item": "Order",
+        "helper": "Book",
+        "business": "View",
+        "job": "Apply",
+        "tool_rental": "Rent",
+        "direct_catalog": "Book",
+        "logistics_campaign": "View"
+      }
     },
     "search": {
       "title": "Search Media",
@@ -30356,7 +30381,22 @@
       "posting": "Posting…",
       "post": "Post",
       "uploadLabel": "Photo or video upload",
-      "uploadHint": "Photos are scanned before publishing. Videos require identity verification and stay quarantined until safety checks pass."
+      "uploadHint": "Photos are scanned before publishing. Videos require identity verification and stay quarantined until safety checks pass.",
+      "linkTypes": {
+        "restaurant": "Restaurant",
+        "food_item": "Dish",
+        "helper": "Helper",
+        "business": "Business",
+        "job": "Job",
+        "tool_rental": "Tool rental",
+        "direct_catalog": "Direct service",
+        "logistics_campaign": "Logistics campaign",
+        "view": "View",
+        "order": "Order",
+        "book": "Book",
+        "apply": "Apply",
+        "rent": "Rent"
+      }
     },
     "notifications": {
       "kicker": "Network updates",

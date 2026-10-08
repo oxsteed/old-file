@@ -38,6 +38,21 @@ function MediaVideo({ asset, label, mutedLabel, unmutedLabel }) {
   );
 }
 
+function QuotedMedia({ assets, label }) {
+  const asset = assets?.find((candidate) => candidate?.url || candidate?.external_url);
+  if (!asset) return null;
+  if (asset.asset_type === 'image' && asset.url) {
+    return <img className="media-quoted-media" src={asset.url} alt={label} loading="lazy" />;
+  }
+  if (asset.asset_type === 'video' && asset.thumbnail_url) {
+    return <img className="media-quoted-media" src={asset.thumbnail_url} alt={label} loading="lazy" />;
+  }
+  if (asset.asset_type === 'video_link' && asset.external_url) {
+    return <span className="media-quoted-video-link">▶ {label}</span>;
+  }
+  return null;
+}
+
 export default function MediaPostCard({ post, onUpdate }) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -140,6 +155,7 @@ export default function MediaPostCard({ post, onUpdate }) {
               <span className="media-post-handle">@{post.quoted.handle}</span>
             </div>
             <p>{post.quoted.body}</p>
+            <QuotedMedia assets={post.quoted.assets} label={t('media.post.videoEmbed')} />
           </div>
         )}
         {post.links && post.links.length > 0 && (
@@ -155,18 +171,18 @@ export default function MediaPostCard({ post, onUpdate }) {
                       navigate('/login', { state: { from: window.location.pathname } });
                     }
                   }}>
-                    <span className="media-link-type">{link.link_type}</span>
+                    <span className="media-link-type">{t(`media.post.linkTypes.${link.link_type}`, { defaultValue: link.link_type })}</span>
                     <span className="media-link-name">{link.label || link.name_snapshot}</span>
                     {link.price_snapshot_cents != null && (
                       <span className="media-link-price">
                         ${(link.price_snapshot_cents / 100).toFixed(2)}
                       </span>
                     )}
-                    <span className="media-link-cta">{link.cta}</span>
+                    <span className="media-link-cta">{t(`media.post.cta.${link.link_type}`, { defaultValue: link.cta })}</span>
                   </Link>
                 ) : (
                   <div key={link.id} className="media-link-chip unavailable">
-                    <span className="media-link-type">{link.link_type}</span>
+                    <span className="media-link-type">{t(`media.post.linkTypes.${link.link_type}`, { defaultValue: link.link_type })}</span>
                     <span className="media-link-name">{link.name_snapshot}</span>
                   </div>
                 )

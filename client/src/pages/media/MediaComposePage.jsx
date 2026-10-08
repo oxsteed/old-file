@@ -85,13 +85,13 @@ export default function MediaComposePage() {
           <h3>{t('media.compose.linkedOn')} ({links.length}/5)</h3>
           {links.map((link, idx) => (
             <div key={idx} className="media-compose-link">
-              <span>{link.link_type}: {link.name_snapshot}</span>
+              <span>{t(`media.compose.linkTypes.${link.link_type}`, { defaultValue: link.link_type })}: {link.name_snapshot}</span>
               <button type="button" onClick={() => removeLink(idx)}>{t('media.compose.remove')}</button>
             </div>
           ))}
           <div className="media-link-picker">
             <select value={linkType} onChange={e => setLinkType(e.target.value)}>
-              {LINK_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              {LINK_TYPES.map(type => <option key={type} value={type}>{t(`media.compose.linkTypes.${type}`, { defaultValue: type })}</option>)}
             </select>
             <input
               value={linkTarget}

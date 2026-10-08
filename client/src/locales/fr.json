@@ -30295,7 +30295,32 @@
       "unmute": "Activer le son",
       "viewQuotes": "Voir les citations",
       "hideQuotes": "Masquer les citations",
-      "noQuotes": "Aucune citation pour l’instant."
+      "noQuotes": "Aucune citation pour l’instant.",
+      "linkTypes": {
+        "restaurant": "Restaurant",
+        "food_item": "Plat",
+        "helper": "Intervenant",
+        "business": "Entreprise",
+        "job": "Emploi",
+        "tool_rental": "Location d’outil",
+        "direct_catalog": "Service Direct",
+        "logistics_campaign": "Campagne logistique",
+        "view": "Voir",
+        "order": "Commander",
+        "book": "Réserver",
+        "apply": "Postuler",
+        "rent": "Louer"
+      },
+      "cta": {
+        "restaurant": "Voir",
+        "food_item": "Commander",
+        "helper": "Réserver",
+        "business": "Voir",
+        "job": "Postuler",
+        "tool_rental": "Louer",
+        "direct_catalog": "Réserver",
+        "logistics_campaign": "Voir"
+      }
     },
     "search": {
       "title": "Rechercher dans Media",
@@ -30356,7 +30381,22 @@
       "posting": "Publication…",
       "post": "Publier",
       "uploadLabel": "Télécharger une photo ou une vidéo",
-      "uploadHint": "Les photos sont analysées avant publication. Les vidéos exigent une vérification d’identité et restent en quarantaine jusqu’aux contrôles."
+      "uploadHint": "Les photos sont analysées avant publication. Les vidéos exigent une vérification d’identité et restent en quarantaine jusqu’aux contrôles.",
+      "linkTypes": {
+        "restaurant": "Restaurant",
+        "food_item": "Plat",
+        "helper": "Intervenant",
+        "business": "Entreprise",
+        "job": "Emploi",
+        "tool_rental": "Location d’outil",
+        "direct_catalog": "Service Direct",
+        "logistics_campaign": "Campagne logistique",
+        "view": "Voir",
+        "order": "Commander",
+        "book": "Réserver",
+        "apply": "Postuler",
+        "rent": "Louer"
+      }
     },
     "notifications": {
       "kicker": "Actualités du réseau",

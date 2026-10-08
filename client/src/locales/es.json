@@ -30295,7 +30295,32 @@
       "unmute": "Activar sonido",
       "viewQuotes": "Ver citas",
       "hideQuotes": "Ocultar citas",
-      "noQuotes": "Aún no hay citas."
+      "noQuotes": "Aún no hay citas.",
+      "linkTypes": {
+        "restaurant": "Restaurante",
+        "food_item": "Plato",
+        "helper": "Ayudante",
+        "business": "Negocio",
+        "job": "Trabajo",
+        "tool_rental": "Alquiler de herramienta",
+        "direct_catalog": "Servicio Direct",
+        "logistics_campaign": "Campaña logística",
+        "view": "Ver",
+        "order": "Pedir",
+        "book": "Reservar",
+        "apply": "Solicitar",
+        "rent": "Alquilar"
+      },
+      "cta": {
+        "restaurant": "Ver",
+        "food_item": "Pedir",
+        "helper": "Reservar",
+        "business": "Ver",
+        "job": "Solicitar",
+        "tool_rental": "Alquilar",
+        "direct_catalog": "Reservar",
+        "logistics_campaign": "Ver"
+      }
     },
     "search": {
       "title": "Buscar en Media",
@@ -30356,7 +30381,22 @@
       "posting": "Publicando…",
       "post": "Publicar",
       "uploadLabel": "Subir foto o video",
-      "uploadHint": "Las fotos se revisan antes de publicarse. Los videos requieren verificación de identidad y quedan en cuarentena hasta pasar los controles."
+      "uploadHint": "Las fotos se revisan antes de publicarse. Los videos requieren verificación de identidad y quedan en cuarentena hasta pasar los controles.",
+      "linkTypes": {
+        "restaurant": "Restaurante",
+        "food_item": "Plato",
+        "helper": "Ayudante",
+        "business": "Negocio",
+        "job": "Trabajo",
+        "tool_rental": "Alquiler de herramienta",
+        "direct_catalog": "Servicio Direct",
+        "logistics_campaign": "Campaña logística",
+        "view": "Ver",
+        "order": "Pedir",
+        "book": "Reservar",
+        "apply": "Solicitar",
+        "rent": "Alquilar"
+      }
     },
     "notifications": {
       "kicker": "Actualizaciones de la red",

@@ -30306,7 +30306,32 @@
       "unmute": "تشغيل الصوت",
       "viewQuotes": "عرض الاقتباسات",
       "hideQuotes": "إخفاء الاقتباسات",
-      "noQuotes": "لا توجد اقتباسات بعد."
+      "noQuotes": "لا توجد اقتباسات بعد.",
+      "linkTypes": {
+        "restaurant": "مطعم",
+        "food_item": "طبق",
+        "helper": "مساعد",
+        "business": "نشاط تجاري",
+        "job": "وظيفة",
+        "tool_rental": "تأجير أداة",
+        "direct_catalog": "خدمة Direct",
+        "logistics_campaign": "حملة لوجستية",
+        "view": "عرض",
+        "order": "طلب",
+        "book": "حجز",
+        "apply": "تقديم",
+        "rent": "استئجار"
+      },
+      "cta": {
+        "restaurant": "عرض",
+        "food_item": "طلب",
+        "helper": "حجز",
+        "business": "عرض",
+        "job": "تقديم",
+        "tool_rental": "استئجار",
+        "direct_catalog": "حجز",
+        "logistics_campaign": "عرض"
+      }
     },
     "search": {
       "title": "البحث في Media",
@@ -30367,7 +30392,22 @@
       "posting": "جارٍ النشر…",
       "post": "نشر",
       "uploadLabel": "رفع صورة أو فيديو",
-      "uploadHint": "تُفحص الصور قبل النشر. تتطلب مقاطع الفيديو التحقق من الهوية وتبقى في الحجر حتى تنجح فحوصات السلامة."
+      "uploadHint": "تُفحص الصور قبل النشر. تتطلب مقاطع الفيديو التحقق من الهوية وتبقى في الحجر حتى تنجح فحوصات السلامة.",
+      "linkTypes": {
+        "restaurant": "مطعم",
+        "food_item": "طبق",
+        "helper": "مساعد",
+        "business": "نشاط تجاري",
+        "job": "وظيفة",
+        "tool_rental": "تأجير أداة",
+        "direct_catalog": "خدمة Direct",
+        "logistics_campaign": "حملة لوجستية",
+        "view": "عرض",
+        "order": "طلب",
+        "book": "حجز",
+        "apply": "تقديم",
+        "rent": "استئجار"
+      }
     },
     "notifications": {
       "kicker": "تحديثات الشبكة",
