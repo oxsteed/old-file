@@ -519,3 +519,9 @@ or a published post. The focused Media contracts/feed suites pass 16 tests
 locally; client typecheck, controller syntax, and `git diff --check` also pass.
 Authenticated production retry and worker/storage execution remain deployment
 verification work.
+
+Hosted verification (2026-10-08): CI run `37811076761` for commit
+`820c9890` passed both `Server and Client Verification` and the PostgreSQL
+migration rehearsal. The run covered the client Media draft-retry contract,
+full client build/localization checks, server regression/security tests, and
+idempotent migration application.
