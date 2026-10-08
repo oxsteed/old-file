@@ -113,6 +113,18 @@ test('lists sponsorship offers for either the sponsor or creator owner', async (
   expect(mockQuery.mock.calls[0][0]).toContain('s.sponsor_user_id = $1 OR a.owner_user_id = $1');
 });
 
+test('lists creator payment history across tips, sponsorships and boosts', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [
+    { kind: 'boost', id: 'boost-1', status: 'active', amount_cents: 700, currency_code: 'USD' },
+  ] });
+  const res = resMock();
+  await creator.listCreatorPayments({ user: { id: 'viewer-1' } }, res, jest.fn());
+  expect(res.json).toHaveBeenCalledWith({ payments: [{ kind: 'boost', id: 'boost-1', status: 'active', amount_cents: 700, currency_code: 'USD' }] });
+  expect(mockQuery.mock.calls[0][0]).toContain("'tip'::text AS kind");
+  expect(mockQuery.mock.calls[0][0]).toContain("'sponsorship'::text AS kind");
+  expect(mockQuery.mock.calls[0][0]).toContain("'boost'::text AS kind");
+});
+
 test('lists an applicant’s awarded work with its latest deliverable state', async () => {
   mockQuery.mockResolvedValueOnce({ rows: [{ id: 'app-1', status: 'awarded', deliverable_status: 'submitted' }] });
   const res = resMock();

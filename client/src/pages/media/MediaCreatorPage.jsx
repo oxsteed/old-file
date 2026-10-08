@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Briefcase, CheckCircle2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { acceptCreatorSponsorship, applyToCreatorGig, awardCreatorApplication, cancelCreatorGig, cancelCreatorSponsorship, createCreatorGig, createCreatorSponsorship, createCreatorTip, getCreatorApplications, getCreatorGigs, getCreatorSponsorships, getFeed, getMyCreatorApplications, openCreatorDispute, reviewCreatorDeliverable, settleCreatorSponsorship, settleCreatorTip, submitCreatorDeliverable, submitCreatorSponsorshipDeliverable } from '../../api/media';
+import { acceptCreatorSponsorship, applyToCreatorGig, awardCreatorApplication, cancelCreatorGig, cancelCreatorSponsorship, createCreatorGig, createCreatorSponsorship, createCreatorTip, getCreatorApplications, getCreatorGigs, getCreatorPayments, getCreatorSponsorships, getFeed, getMyCreatorApplications, openCreatorDispute, reviewCreatorDeliverable, settleCreatorSponsorship, settleCreatorTip, submitCreatorDeliverable, submitCreatorSponsorshipDeliverable } from '../../api/media';
 import { useAuth } from '../../context/AuthContext';
 
 export default function MediaCreatorPage() {
@@ -9,6 +9,7 @@ export default function MediaCreatorPage() {
   const { user } = useAuth();
   const [gigs, setGigs] = useState([]);
   const [sponsorships, setSponsorships] = useState([]);
+  const [payments, setPayments] = useState([]);
   const [myApplications, setMyApplications] = useState([]);
   const [myPosts, setMyPosts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -40,6 +41,7 @@ export default function MediaCreatorPage() {
   const [disputeTarget, setDisputeTarget] = useState(null);
   const [disputeDescription, setDisputeDescription] = useState('');
   const statusLabel = (status) => t(`media.creator.status.${status}`, { defaultValue: status });
+  const paymentLabel = (kind) => kind === 'tip' ? t('media.creator.tip') : kind === 'sponsorship' ? t('media.creator.sponsor') : t('media.post.boost');
 
   const load = () => {
     setLoading(true);
@@ -47,10 +49,12 @@ export default function MediaCreatorPage() {
     Promise.all([
       getCreatorGigs(),
       user ? getCreatorSponsorships() : Promise.resolve({ sponsorships: [] }),
+      user ? getCreatorPayments() : Promise.resolve({ payments: [] }),
       user ? getMyCreatorApplications() : Promise.resolve({ applications: [] }),
       user ? getFeed({ tab: 'mine', limit: 50 }) : Promise.resolve({ posts: [] }),
-    ]).then(([gigData, sponsorshipData, applicationData, postData]) => {
+    ]).then(([gigData, sponsorshipData, paymentData, applicationData, postData]) => {
       setGigs(gigData.gigs || []); setSponsorships(sponsorshipData.sponsorships || []);
+      setPayments(paymentData.payments || []);
       setMyApplications(applicationData.applications || []); setMyPosts(postData.posts || []);
     })
       .catch(() => setError(t('media.creator.loadError')))
@@ -158,7 +162,7 @@ export default function MediaCreatorPage() {
     if (!disputeTarget || !disputeDescription.trim()) return;
     setSubmitting(true); setError('');
     try {
-      await openCreatorDispute('sponsorship', disputeTarget.id, { description: disputeDescription.trim() }, `media-dispute-${disputeTarget.id}-${Date.now()}`);
+      await openCreatorDispute(disputeTarget.kind, disputeTarget.id, { description: disputeDescription.trim() }, `media-dispute-${disputeTarget.kind}-${disputeTarget.id}-${Date.now()}`);
       setDisputeTarget(null); setDisputeDescription(''); setActionMessage(t('media.creator.disputeSubmitted'));
     } catch (err) { setError(err.response?.data?.error || t('media.creator.paymentError')); }
     finally { setSubmitting(false); }
@@ -245,6 +249,13 @@ export default function MediaCreatorPage() {
           {String(offer.creator_user_id) === String(user.id) && offer.status === 'accepted' && <button type="button" className="media-primary-button" onClick={() => { setSponsorshipDeliverableTarget(offer); setSponsorshipDeliverablePostId(''); setSponsorshipDeliverableNote(''); }}>{t('media.creator.submitDeliverable')}</button>}
           {String(offer.sponsor_user_id) === String(user.id) && offer.status === 'delivered' && <button type="button" className="media-primary-button" onClick={() => settleOffer(offer.id)} disabled={submitting}>{t('media.creator.settle')}</button>}
           {String(offer.sponsor_user_id) === String(user.id) && offer.status === 'completed' && <button type="button" className="media-secondary-button" onClick={() => { setDisputeTarget(offer); setDisputeDescription(''); }} disabled={submitting}>{t('media.creator.dispute')}</button>}
+        </article>)}
+      </section>}
+      {!loading && user && payments.length > 0 && <section className="media-creator-offers" aria-labelledby="creator-payments-title">
+        <h2 id="creator-payments-title">{t('media.creator.paymentHistory')}</h2>
+        {payments.map((payment) => <article className="media-card media-creator-gig" key={`${payment.kind}-${payment.id}`}>
+          <div className="media-creator-gig-heading"><div><h3>{paymentLabel(payment.kind)}</h3><p>{statusLabel(payment.status)}</p></div><strong>{payment.amount_cents} {payment.currency_code}</strong></div>
+          {payment.credit_transaction_id && ['completed', 'posted', 'active', 'scheduled'].includes(payment.status) && <button type="button" className="media-secondary-button" onClick={() => { setDisputeTarget(payment); setDisputeDescription(''); }} disabled={submitting}>{t('media.creator.dispute')}</button>}
         </article>)}
       </section>}
       {!loading && user && myApplications.length > 0 && <section className="media-creator-offers" aria-labelledby="creator-applications-title">

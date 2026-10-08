@@ -64,7 +64,7 @@ verified live for the new candidate. A historical test count is not proof.
 | Cancellation/release/refund/dispute review | Incomplete: current shared dispute wrappers do not close full lifecycle. | Real accounting and admin audit proof required. | Implement authorized single release, contest review and audited refunds. |
 | Boost payment to platform revenue | Implemented and behavior-tested locally: purchaser wallet is charged through the shared settlement rail into `platform_revenue`; self-transfer and replay are rejected. | Real accounting and deployed proof outstanding. | Verify conservation, idempotent retries and platform ledger history in the isolated/live release checks. |
 | Sponsored placement and 24-hour duration | Incomplete: boost rows currently do not affect feed placement. | Actual nearby/relevance/cap/expiry proof missing. | Activate only after paid transaction; label and cap at one in five. |
-| Price/currency disclosure and purchaser history | Incomplete: existing boost dialog/history insufficient. | Payment retry/cancellation/history proof missing. | Add confirmed price/currency, durable key and status/history/refund review. |
+| Price/currency disclosure and purchaser history | Behavior-tested locally: boost confirmation returns amount/currency before settlement, and the Media creator shell now lists tip, sponsorship and boost payment history with transaction-linked dispute entry points. | Payment retry/cancellation/refund and authenticated live history proof missing. | Add admin refund review and verify purchaser/creator history against deployed Credit records. |
 | Atomic accounting/precision/fees/isolation | Incomplete for marketplace: shared rail safeguards exist, transitions are not fully atomic with payment. | Real isolated conservation/races/currency cases required. | Add transactional marketplace service and accounting behavior suites. |
 | Migration upgrade and repeat application | Implemented: new 742, 743, 744 and 746 filenames follow inspected predecessors; 746 adds creator payment reservation/transaction links and delivery metadata. | Actual 746 migration execution is pending hosted CI/deployment. | Rehearse against disposable upgraded schema and repeat without data changes. |
 | Cloudflare interim and deferred Thorn | Implemented: retained explicit interim status; no synthetic vendor clearance. | Real runtime/public-delivery proof outstanding. | Keep honest policy disclosures and future vendor switch tests. |
@@ -695,3 +695,12 @@ creator, journey, access and feed-ranking suites pass (45 tests), and the
 client `npm run build:ci` passed with 760 verified assets. Hosted migration
 rehearsal, exact-candidate CI, authenticated production payment history and
 full financial conservation tests remain pending for this batch.
+
+Creator payment history batch (2026-10-08): authenticated Media creator pages
+now load a unified, transaction-linked history for tips, sponsorships and boosts;
+each settled item can open the existing audited Credit dispute flow using its own
+payment kind and identifier. The history endpoint filters rows to the logged-in
+user as payer or represented creator, and all five locale catalogs include the
+new section label. Focused server tests (47 total across the Media suites),
+localization parity and TypeScript checks pass. Sponsored placement, admin
+refund resolution and authenticated live history remain outstanding.

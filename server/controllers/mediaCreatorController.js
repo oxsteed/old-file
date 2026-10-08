@@ -457,6 +457,45 @@ async function acceptSponsorship(req, res, next) {
   finally { client.release(); }
 }
 
+async function listCreatorPayments(req, res, next) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM (
+         SELECT 'tip'::text AS kind, t.id, t.status, t.amount_cents, t.currency_code,
+                t.credit_transaction_id, t.created_at, tx.posted_at,
+                t.from_user_id AS payer_user_id, a.owner_user_id AS creator_user_id,
+                t.post_id
+           FROM media_creator_tips t
+           JOIN media_actors a ON a.id = t.creator_actor_id
+           LEFT JOIN oxsteed_credit_transactions tx ON tx.id = t.credit_transaction_id
+          WHERE t.from_user_id = $1 OR a.owner_user_id = $1
+         UNION ALL
+         SELECT 'sponsorship'::text AS kind, s.id, s.status, s.amount_cents, s.currency_code,
+                s.credit_transaction_id, s.created_at, tx.posted_at,
+                s.sponsor_user_id AS payer_user_id, a.owner_user_id AS creator_user_id,
+                s.post_id
+           FROM media_creator_sponsorships s
+           JOIN media_actors a ON a.id = s.creator_actor_id
+           LEFT JOIN oxsteed_credit_transactions tx ON tx.id = s.credit_transaction_id
+          WHERE s.sponsor_user_id = $1 OR a.owner_user_id = $1
+         UNION ALL
+         SELECT 'boost'::text AS kind, b.id, b.status, b.amount_cents, b.currency_code,
+                b.credit_transaction_id, b.created_at, tx.posted_at,
+                b.purchaser_user_id AS payer_user_id, a.owner_user_id AS creator_user_id,
+                b.post_id
+           FROM media_post_boosts b
+           JOIN media_posts p ON p.id = b.post_id
+           JOIN media_actors a ON a.id = p.actor_id
+           LEFT JOIN oxsteed_credit_transactions tx ON tx.id = b.credit_transaction_id
+          WHERE b.purchaser_user_id = $1 OR a.owner_user_id = $1
+       ) payments
+      ORDER BY created_at DESC, id DESC
+      LIMIT 100`, [req.user.id]
+    );
+    res.json({ payments: rows });
+  } catch (err) { next(err); }
+}
+
 async function submitSponsorshipDeliverable(req, res, next) {
   const client = await pool.connect();
   try {
@@ -813,7 +852,7 @@ async function settleTip(req, res, next) {
 }
 
 module.exports = {
-  listGigs, createGig, applyToGig, listApplications, listMyApplications, awardApplication,
+  listGigs, createGig, applyToGig, listApplications, listMyApplications, listCreatorPayments, awardApplication,
   submitDeliverable, reviewDeliverable, cancelGig, createTip, createSponsorship, listSponsorships, createBoost,
   settleTip, submitSponsorshipDeliverable,
   acceptSponsorship, settleSponsorship, cancelSponsorship, settleBoost, cancelBoost,
