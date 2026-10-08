@@ -13,6 +13,8 @@ test('lists only the open creator opportunities returned by the API query', asyn
   await creator.listGigs({ query: { limit: '12' } }, res, jest.fn());
   expect(res.json).toHaveBeenCalledWith({ gigs: [{ id: 'gig-1', status: 'open', title: 'Local launch' }] });
   expect(mockQuery.mock.calls[0][0]).toContain("g.status = 'open'");
+  expect(mockQuery.mock.calls[0][0]).toContain('helper_profiles');
+  expect(mockQuery.mock.calls[0][0]).toContain('is_business_verified = TRUE');
 });
 
 test('rejects a tip target that is not a currently verified creator actor', async () => {

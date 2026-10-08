@@ -55,7 +55,9 @@ async function listGigs(req, res, next) {
       `SELECT g.*, a.handle AS owner_handle, a.display_name AS owner_name,
               a.avatar_url AS owner_avatar, a.verified_kind
          FROM media_creator_gigs g JOIN media_actors a ON a.id = g.owner_actor_id
-        WHERE g.status = 'open' ORDER BY g.created_at DESC LIMIT $1`, [limit]
+        WHERE g.status = 'open'
+          AND (${verifiedActorSql('a')})
+        ORDER BY g.created_at DESC LIMIT $1`, [limit]
     );
     res.json({ gigs: rows });
   } catch (err) { next(err); }
