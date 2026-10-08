@@ -30292,6 +30292,21 @@
       "loadError": "Échec du chargement du fil.",
       "loadMore": "Charger plus",
       "empty": "Aucune publication pour le moment. Soyez le premier à partager."
+    },
+    "notifications": {
+      "kicker": "Actualités du réseau",
+      "description": "Réponses, mentions J’aime et nouvelles utiles de votre réseau OxSteed.",
+      "refresh": "Actualiser les notifications",
+      "unread": "{{count}} non lue(s)",
+      "unreadLabel": "Non lue",
+      "markAllRead": "Tout marquer comme lu",
+      "loading": "Chargement des notifications…",
+      "emptyHeading": "Vous êtes à jour.",
+      "emptyDescription": "Les nouvelles réponses et actualités apparaîtront ici."
+    },
+    "messages": {
+      "kicker": "Conversations privées",
+      "description": "Gardez vos activités locales en mouvement avec vos messages au même endroit."
     }
   },
   "businessMedia": {

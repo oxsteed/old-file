@@ -30292,6 +30292,21 @@
       "loadError": "Pa ka chaje fil la.",
       "loadMore": "Chaje plis",
       "empty": "Pa gen piblikasyon pou kounye a. Se premye moun ki pataje."
+    },
+    "notifications": {
+      "kicker": "Mizajou rezo a",
+      "description": "Repons, renmen, ak nouvèl itil nan rezo OxSteed ou a.",
+      "refresh": "Rafrechi notifikasyon yo",
+      "unread": "{{count}} ki poko li",
+      "unreadLabel": "Poko li",
+      "markAllRead": "Make tout kòm li",
+      "loading": "Ap chaje notifikasyon yo…",
+      "emptyHeading": "Ou fin wè tout bagay.",
+      "emptyDescription": "Nouvo repons ak mizajou ap parèt isit la."
+    },
+    "messages": {
+      "kicker": "Konvèsasyon prive",
+      "description": "Kontinye travay lokal la ak mesaj ou yo nan yon sèl kote."
     }
   },
   "businessMedia": {

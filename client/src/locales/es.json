@@ -30292,6 +30292,21 @@
       "loadError": "No se pudo cargar el feed.",
       "loadMore": "Cargar más",
       "empty": "Aún no hay publicaciones. Sé el primero en compartir."
+    },
+    "notifications": {
+      "kicker": "Actualizaciones de la red",
+      "description": "Respuestas, me gusta y novedades útiles de tu red OxSteed.",
+      "refresh": "Actualizar notificaciones",
+      "unread": "{{count}} sin leer",
+      "unreadLabel": "Sin leer",
+      "markAllRead": "Marcar todo como leído",
+      "loading": "Cargando notificaciones…",
+      "emptyHeading": "Ya estás al día.",
+      "emptyDescription": "Las nuevas respuestas y novedades aparecerán aquí."
+    },
+    "messages": {
+      "kicker": "Conversaciones privadas",
+      "description": "Mantén el trabajo local en marcha con tus mensajes en un solo lugar."
     }
   },
   "businessMedia": {

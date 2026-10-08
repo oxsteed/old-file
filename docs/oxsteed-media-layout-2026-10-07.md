@@ -71,6 +71,29 @@ and 1440 pixels with one main landmark, no footer, no overflow, and no uncaught
 page errors. The public feed returned no posts, so real populated-feed and
 upload/publication checks are still unavailable.
 
-The assistant-spacing follow-up is validated locally as described above. Its
-live verification and the final CI result must be checked separately from this
-initial deployment.
+CI run [37715586794](https://github.com/oxsteed/old-file/actions/runs/37715586794)
+passed the full client/server verification and PostgreSQL migration rehearsal
+for that initial layout commit.
+
+The assistant-spacing follow-up `4530efc4aabfe3aa2edd0867222318624254b161`
+also deployed. The live page loaded `MediaShell-FQTe1Sez.js`,
+`MediaFeedPage-CcrxGLN0.js`, and `MediaStyles-CpOujqsV.css`. The live browser
+check passed at 320, 390, 640, 700, 768, and 1440 pixels, including assistant
+clearance and opening/closing its panel. Search and Spaces also retained the
+single shared shell and fit the phone viewport. `/ready` remained ready and the
+feed returned zero posts. The follow-up's full client/server verification and
+PostgreSQL migration rehearsal passed in
+[37716165736](https://github.com/oxsteed/old-file/actions/runs/37716165736).
+
+## Activity tabs
+
+`/media/notifications` now renders the existing authenticated notification
+feed inside the Media shell. It supports unread counts, mark-all-as-read, row
+read state, refresh, empty/loading states, and the existing notification API.
+`/media/messages` embeds the existing conversation workspace so inbox search,
+filters, conversation threads, archive actions, and realtime refresh continue to
+use the established messaging system while the Media rail and bottom tabs stay
+visible.
+
+Both pages remain behind the existing authentication, identity, onboarding, and
+Media launch gates. Their new copy is localized across all five catalogs.
