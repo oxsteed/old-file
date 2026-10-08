@@ -1,11 +1,12 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, ArrowUpRight, Bell, Briefcase, Home, Mail, MapPin, Plus, Search, ShieldCheck, Users, Utensils, UserRound } from 'lucide-react';
+import { ArrowUpRight, Bell, Briefcase, Home, Mail, MapPin, Plus, Search, ShieldCheck, Users, Utensils, UserRound } from 'lucide-react';
 import PageShell from '../../components/PageShell';
 import LanguageSelector from '../../components/LanguageSelector';
 import ThemeToggle from '../../components/ThemeToggle';
 import OxSteedIcon from '../../components/OxSteedIcon';
+import { useAuth } from '../../context/AuthContext';
 import MediaFooter from './MediaFooter';
 import './MediaStyles.css';
 
@@ -25,10 +26,16 @@ const DISCOVER = [
 
 export default function MediaShell({ children }) {
   const { t } = useTranslation();
+  const { user, loading, logout } = useAuth();
   const { pathname } = useLocation();
   const currentPath = pathname.replace(/\/+$/, '') || '/';
   const activeTab = currentPath === '/media/compose' ? null
     : TABS.find(tab => tab.path !== '/media' && currentPath.startsWith(tab.path))?.path || '/media';
+  const displayName = user?.display_name
+    || user?.name
+    || [user?.first_name, user?.last_name].filter(Boolean).join(' ').trim()
+    || user?.email
+    || '';
 
   const navigation = (mobile = false) => (
     <nav className={mobile ? 'media-bottom-nav' : 'media-side-nav'} aria-label={t('media.shell.navigation')}>
@@ -47,12 +54,24 @@ export default function MediaShell({ children }) {
       <div className="media-shell">
         <header className="media-app-header">
           <div className="media-app-header-inner">
-            <Link to="/media" className="media-wordmark" aria-label={t('media.feed.title')}>
+            <Link to="/" className="media-wordmark" aria-label={t('media.shell.homepage')}>
               <span className="media-brand-mark"><OxSteedIcon size={34} /></span>
               <span>OxSteed <span className="media-wordmark-branch">Media</span></span>
             </Link>
             <div className="media-header-tools">
-              <Link to="/" className="media-back-link" aria-label={t('media.shell.back')}><ArrowLeft size={16} aria-hidden="true" /><span>{t('media.shell.back')}</span></Link>
+              {!loading && (user ? (
+                <div className="media-account-tools">
+                  <span className="media-account-name" title={displayName}>{displayName}</span>
+                  <button type="button" className="media-account-action" onClick={() => { void logout(); }}>
+                    {t('nav.signOut')}
+                  </button>
+                </div>
+              ) : (
+                <div className="media-auth-links" aria-label={t('media.shell.account')}>
+                  <Link to="/login" className="media-auth-link">{t('nav.signIn')}</Link>
+                  <Link to="/join" className="media-auth-link media-auth-link-primary">{t('auth.signUp')}</Link>
+                </div>
+              ))}
               <LanguageSelector />
               <ThemeToggle />
             </div>

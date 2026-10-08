@@ -40,7 +40,13 @@
 .media-brand-mark { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; overflow: hidden; }
 .media-wordmark-branch { font-weight: 500; color: var(--color-text-muted); }
 .media-header-tools { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.media-back-link { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; margin-inline-end: 10px; color: var(--color-text-muted); text-decoration: none; font-size: 13px; }
+.media-auth-links, .media-account-tools { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.media-auth-link, .media-account-action { display: inline-flex; align-items: center; justify-content: center; min-height: 38px; padding: 7px 12px; border: 1px solid transparent; border-radius: 999px; color: var(--color-text-muted); background: transparent; font: inherit; font-size: 13px; font-weight: 700; text-decoration: none; white-space: nowrap; cursor: pointer; }
+.media-auth-link:hover, .media-account-action:hover { color: var(--color-text); background: var(--color-surface-2); }
+.media-auth-link-primary { border-color: var(--color-action); background: var(--color-action); color: var(--color-on-action); }
+.media-auth-link-primary:hover { background: var(--color-action-hover); color: var(--color-on-action); }
+.media-account-name { min-width: 0; max-width: 180px; overflow: hidden; color: var(--color-text); font-size: 13px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+.media-account-action { padding-inline: 9px; color: var(--color-text-muted); }
 .media-layout {
   display: grid;
   grid-template-columns: 220px minmax(0, 600px) minmax(0, 280px);
@@ -521,8 +527,9 @@ div.media-support-panel { z-index: 150; }
   .media-wordmark { font-size: 17px; gap: 7px; }
   .media-brand-mark { width: 29px; height: 29px; }
   .media-header-tools { gap: 6px; }
-  .media-back-link { margin: 0; width: 36px; justify-content: center; }
-  .media-back-link span { display: none; }
+  .media-auth-links, .media-account-tools { gap: 3px; }
+  .media-auth-link, .media-account-action { min-height: 36px; padding-inline: 7px; font-size: 11px; }
+  .media-account-name { max-width: 92px; font-size: 11px; }
   .media-layout { display: block; padding: 0; min-height: calc(100dvh - 60px); }
   .media-left-rail { display: none; }
   .media-content { border: 0; padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
