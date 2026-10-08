@@ -17,6 +17,10 @@ function resMock() {
 describe('OxSteed Media follows', () => {
   beforeEach(() => {
     pool.query.mockReset();
+    pool.connect = jest.fn(async () => ({
+      query: (...args) => pool.query(...args),
+      release: jest.fn(),
+    }));
     sendNotification.mockClear();
   });
 
@@ -46,15 +50,16 @@ describe('OxSteed Media follows', () => {
 
   test('follows an accessible actor and returns the follower count', async () => {
     pool.query
-      .mockResolvedValueOnce({ rows: [{ id: 'actor-1', owner_user_id: 'owner-1', display_name: 'Local Helper' }] })
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rowCount: 1, rows: [] })
-      .mockResolvedValueOnce({ rows: [{ follower_count: 3 }] });
+      .mockResolvedValueOnce({ rows: [{ id: 'actor-1', owner_user_id: 'owner-1', display_name: 'Local Helper' }] })
+      .mockResolvedValueOnce({ rows: [{ 1: 1 }] })
+      .mockResolvedValueOnce({ rows: [{ follower_count: 3 }] })
+      .mockResolvedValueOnce({ rows: [] });
     const res = resMock();
 
     await media.toggleFollow({ params: { actorId: 'actor-1' }, user: { id: 'viewer-1' } }, res);
 
-    expect(pool.query.mock.calls[0][0]).toContain('media_author');
+    expect(pool.query.mock.calls[1][0]).toContain('FOR UPDATE');
     expect(pool.query.mock.calls[2][0]).toContain('ON CONFLICT (follower_user_id, actor_id) DO NOTHING');
     expect(res.json).toHaveBeenCalledWith({ following: true, follower_count: 3 });
     expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
@@ -66,27 +71,32 @@ describe('OxSteed Media follows', () => {
 
   test('unfollows an actor without sending a notification', async () => {
     pool.query
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 'actor-1', owner_user_id: 'owner-1', display_name: 'Local Helper' }] })
-      .mockResolvedValueOnce({ rows: [{ 1: 1 }] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rowCount: 1, rows: [] })
-      .mockResolvedValueOnce({ rows: [{ follower_count: 2 }] });
+      .mockResolvedValueOnce({ rows: [{ follower_count: 2 }] })
+      .mockResolvedValueOnce({ rows: [] });
     const res = resMock();
 
     await media.toggleFollow({ params: { actorId: 'actor-1' }, user: { id: 'viewer-1' } }, res);
 
-    expect(pool.query.mock.calls[2][0]).toContain('DELETE FROM media_follows');
+    expect(pool.query.mock.calls[3][0]).toContain('DELETE FROM media_follows');
     expect(res.json).toHaveBeenCalledWith({ following: false, follower_count: 2 });
     expect(sendNotification).not.toHaveBeenCalled();
   });
 
   test('prevents following the current user actor', async () => {
-    pool.query.mockResolvedValueOnce({ rows: [{ id: 'actor-1', owner_user_id: 'viewer-1' }] });
+    pool.query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 'actor-1', owner_user_id: 'viewer-1' }] })
+      .mockResolvedValueOnce({ rows: [] });
     const res = resMock();
 
     await media.toggleFollow({ params: { actorId: 'actor-1' }, user: { id: 'viewer-1' } }, res);
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_follow_self' }));
-    expect(pool.query).toHaveBeenCalledTimes(1);
+    expect(pool.query).toHaveBeenCalledTimes(3);
   });
 });

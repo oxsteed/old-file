@@ -1766,52 +1766,74 @@ async function toggleFollow(req, res) {
   if (!actorId) return res.status(400).json({ error: 'Actor is required' });
 
   try {
-    const actorParams = [actorId];
-    const actorWhere = addViewerBlockFilter('a.id = $1', actorParams, userId, 'a');
-    const { rows: actors } = await pool.query(
-      `SELECT a.id, a.owner_user_id, a.display_name
-         FROM media_actors a
-        WHERE ${actorWhere}`,
-      actorParams
-    );
-    const actor = actors[0];
-    if (!actor) return res.status(404).json({ error: 'Actor not found' });
-    if (String(actor.owner_user_id) === String(userId)) {
-      return res.status(400).json({ error: 'You cannot follow your own account', code: 'media_follow_self' });
-    }
+    // Serialize the toggle on the actor row so concurrent requests cannot
+    // both observe the same state or return a stale follower count.
+    const client = await pool.connect();
+    let actor;
+    let following;
+    let followerCount;
+    try {
+      await client.query('BEGIN');
+      const actorParams = [actorId, userId];
+      const { rows: actors } = await client.query(
+        `SELECT a.id, a.owner_user_id, a.display_name
+           FROM media_actors a
+          WHERE a.id = $1
+            AND NOT EXISTS (
+              SELECT 1 FROM user_blocks ub
+               WHERE (ub.blocker_id = $2 AND ub.blocked_id = a.owner_user_id)
+                  OR (ub.blocker_id = a.owner_user_id AND ub.blocked_id = $2)
+            )
+          FOR UPDATE`,
+        actorParams
+      );
+      actor = actors[0];
+      if (!actor) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Actor not found' });
+      }
+      if (String(actor.owner_user_id) === String(userId)) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'You cannot follow your own account', code: 'media_follow_self' });
+      }
 
-    const { rows: existing } = await pool.query(
-      `SELECT 1 FROM media_follows WHERE follower_user_id = $1 AND actor_id = $2`,
-      [userId, actor.id]
-    );
-    if (existing[0]) {
-      await pool.query(
-        `DELETE FROM media_follows WHERE follower_user_id = $1 AND actor_id = $2`,
+      const { rows: inserted = [] } = await client.query(
+        `INSERT INTO media_follows (follower_user_id, actor_id)
+         VALUES ($1, $2) ON CONFLICT (follower_user_id, actor_id) DO NOTHING RETURNING 1`,
         [userId, actor.id]
       );
-      const { rows: counts } = await pool.query(
+      if (inserted.length > 0) {
+        following = true;
+      } else {
+        const { rowCount } = await client.query(
+          `DELETE FROM media_follows WHERE follower_user_id = $1 AND actor_id = $2`,
+          [userId, actor.id]
+        );
+        following = rowCount === 0;
+      }
+      const { rows: counts } = await client.query(
         `SELECT COUNT(*)::int AS follower_count FROM media_follows WHERE actor_id = $1`, [actor.id]
       );
-      return res.json({ following: false, follower_count: Number(counts[0]?.follower_count || 0) });
+      followerCount = Number(counts[0]?.follower_count || 0);
+      await client.query('COMMIT');
+    } catch (err) {
+      try { await client.query('ROLLBACK'); } catch (_) { /* preserve original follow error */ }
+      throw err;
+    } finally {
+      client.release();
     }
 
-    await pool.query(
-      `INSERT INTO media_follows (follower_user_id, actor_id)
-       VALUES ($1, $2) ON CONFLICT (follower_user_id, actor_id) DO NOTHING`,
-      [userId, actor.id]
-    );
-    await notifyMediaUser({
-      userId: actor.owner_user_id,
-      type: 'media_follow',
-      title: 'New Media follower',
-      body: 'Someone followed your OxSteed Media account.',
-      postId: null,
-      idempotencyKey: `media_follow:${actor.id}:${userId}`,
-    });
-    const { rows: counts } = await pool.query(
-      `SELECT COUNT(*)::int AS follower_count FROM media_follows WHERE actor_id = $1`, [actor.id]
-    );
-    return res.json({ following: true, follower_count: Number(counts[0]?.follower_count || 0) });
+    if (following) {
+      await notifyMediaUser({
+        userId: actor.owner_user_id,
+        type: 'media_follow',
+        title: 'New Media follower',
+        body: 'Someone followed your OxSteed Media account.',
+        postId: null,
+        idempotencyKey: `media_follow:${actor.id}:${userId}`,
+      });
+    }
+    return res.json({ following, follower_count: followerCount });
   } catch (err) {
     logger.error('media.toggleFollow error', { message: err.message });
     return mediaError(res, err, 'Failed to update follow');
