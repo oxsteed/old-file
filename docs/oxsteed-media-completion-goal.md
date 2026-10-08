@@ -1,4 +1,64 @@
-# OxSteed Media completion evidence
+# OxSteed Media combined implementation goal and completion evidence
+
+## Current objective and strategy (2026-10-08)
+
+Emile has authorized one combined implementation effort covering the complete
+MVP, v2, and v3 scope. The former release boundaries no longer defer software
+implementation. Build and integrate the features in dependency order within
+this goal, using feature controls where needed for safe testing and activation.
+Do not restart completed work or require an MVP-only release before implementing
+v2 or v3. This update changes the plan; the goal remains paused until Emile
+resumes it. The available goal controls only change status, so the paused goal's
+displayed objective has not been rewritten; this document records the revised
+scope to use on resumption.
+
+**Replacement goal objective:** Complete, integrate, and verify all OxSteed Media
+MVP, v2, and v3 features in one implementation effort, continuing from the
+existing code and verification center. Deliver the local discovery feed and
+post/reply/quote/repost/like/bookmark/view journeys; reliable uploads and
+processing; linked local entities; real Spaces; existing notifications and
+messaging; publisher verification; follows and a Following feed; Business Hub,
+Profile Studio and public-profile Media integration; restaurant post copying;
+tool rental, Direct service and Logistics campaign links; live counts and
+Relevant reply sorting; and a creator marketplace with paid gigs, sponsorships,
+OxSteed Credit tipping and paid boosts. Implement the marketplace before
+activating paid boosts within this same goal. Apply the user-approved Cloudflare
+interim video policy, retaining Didit, real malware scanning, quarantine,
+conversion and moderation controls; defer Thorn adoption until demand justifies
+its cost rather than making it a prerequisite for this implementation. Preserve
+server authorization and Credit accounting safeguards. Localize all new UI in
+five languages, complete accessible mobile journeys and share previews, record
+requirement-by-requirement evidence, push coherent changes, obtain passing CI,
+apply migrations through the established deployment process, and verify the
+deployed behavior. Exercise financial flows in isolated environments. Track
+unavailable provider approvals and live checks explicitly without claiming
+them completed or treating them as a reason to defer independent software work.
+
+## Combined scope and acceptance checklist
+
+| Workstream | Required completion evidence |
+| --- | --- |
+| MVP publishing and discovery | Verified helper/business/restaurant posting; avatars, existing slugs and badges; media/mute controls; timestamps and views; all five actions and counts; quotes and newest-first replies; sticky reply entry; local ranking with correct pagination; up to five actionable local cards and disabled removed links; durable drafts, previews, progress, retry and processing states. |
+| MVP navigation and protections | Search posts/accounts, actual city/category Spaces, notifications and existing messages within Media; saved posts, owner edit/delete, reports, two-way blocks, rate limits and launch controls; Didit and entity verification paths; shared public-read safety gates, admin permissions and audits; accessible mobile behavior, five languages and share previews. |
+| v2 discovery and integration | Follow/unfollow and Following feed; Media in Business Hub, Profile Studio and public profiles; restaurant posts copied with ownership, safety and duplicate prevention; tool rentals, Direct services and Logistics campaigns as linked targets; live count reconciliation and Relevant sorting tested alongside newest-first. |
+| v3 creator marketplace | Complete creator, buyer and admin journeys for paid gigs and sponsorships, including offers/acceptance, deliverables, completion, cancellations/refunds and disputes as applicable; disclosure, permissions and audit history; safe retries and provider-failure handling. |
+| v3 Credit tipping and paid boosts | Integrate the existing Credit accounting and activation controls; preserve precision, currency boundaries, wallet isolation, transactional writes, idempotency and append-only ledger history; verify tipping and boost purchase/delivery/refund behavior in isolation. Implement marketplace dependencies before boost activation, with transparent sponsored placement that retains local relevance. |
+| Video policy and future provider transition | Verify Cloudflare interim mode honestly without claiming upload-time video screening; demonstrate Didit, malware, quarantine, conversion, publication and playback paths; retain the documented future vendor transition. Thorn is deferred by the user's cost/demand decision. |
+| Integration and delivery | Each feature has meaningful behavior coverage and current evidence; all new migrations rehearse safely; CI passes for the pushed commit; deployed schema/assets/runtime and authenticated user/admin journeys are verified. External/provider or real-device checks still unavailable are itemized rather than silently marked complete. |
+
+Current baseline: verification alignment commit `00576a18` and publisher
+verification center commit `53f5b0f4` are pushed. The center includes Didit return
+navigation, owned business/restaurant request submission and status, migration
+737, and transactional admin decisions with auditing. CI
+[37782637913](https://github.com/oxsteed/old-file/actions/runs/37782637913)
+passed client/browser/admin checks, server regression/security checks, and the
+PostgreSQL migration rehearsal. Deployment and authenticated live verification
+of these new paths remain open; passing CI does not establish their deployment.
+
+On resumption, reconcile existing code against this checklist, record the next
+exact action for each missing feature, and build the combined scope in coherent
+batches. Earlier evidence below is retained as history; current strategy and
+the current safety policy take precedence over old rollout restrictions.
 
 Current policy and latest application evidence (2026-10-08): the user-authorized
 Cloudflare interim update is implemented and pushed in `ac5ca62c` / `d45c3efa`.
@@ -27,9 +87,9 @@ entity verification flag in the same transaction as the audit record.
 The existing `/admin/media-flags` workspace now exposes the pending request
 queue to administrators who have that grant.
 
-The previous MVP completion report was premature. Passing generic CI does not
-prove the full Media journeys. This document tracks the renewed completion goal
-against the locked specification, retaining the v2/v3 release boundaries.
+Passing generic CI does not prove the full Media journeys. This document tracks
+the combined MVP, v2, and v3 goal against the specification and the user's
+subsequent strategy and safety-policy revisions.
 
 | Requirement | Current evidence / remaining work |
 | --- | --- |
@@ -52,8 +112,9 @@ the earlier vendor-certification launch prerequisite in the historical evidence
 below. Cloudflare is not represented as upload-time video screening. See
 [Media safety policy](oxsteed-media-safety-policy.md) for the current application
 rules and future vendor-mode activation requirements.
-Follows, business/profile integration, restaurant federation and extra link types
-remain v2; creator payments/boosts remain v3.
+Follows, business/profile integration, restaurant post copying, extra link types,
+creator payments and boosts are all in the current implementation goal. The
+v2/v3 labels identify feature groups, not a requirement to postpone their build.
 
 ## First repair batch
 

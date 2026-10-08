@@ -4,7 +4,10 @@ Emile revised decision #12 in `oxsteed-media-spec.md`: the enabled Cloudflare
 CSAM Scanning Tool is accepted as the interim MVP control. Thorn Safer is
 deferred until Media demand justifies its cost. This decision replaces the
 previous requirement that a certified upload-screening vendor must precede
-public Media video publication. v2/v3 commerce boundaries remain unchanged.
+public Media video publication. Emile's subsequent strategy update brings MVP,
+v2, and v3 into one implementation goal; this changes build scope, while the
+interim safety policy and financial activation controls still apply. See
+[combined Media goal](oxsteed-media-completion-goal.md).
 
 Cloudflare documents cached-image hash matching and URL blocking at
 https://developers.cloudflare.com/cache/reference/csam-scanning/ . This interim
