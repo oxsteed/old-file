@@ -46,6 +46,7 @@ router.post('/communities/:id/join', requireAuth, ctrl.joinCommunity);
 router.delete('/communities/:id/join', requireAuth, ctrl.leaveCommunity);
 router.get('/business/:businessId/posts', ctrl.getBusinessPosts);
 router.get('/posts/:id/draft', requireAuth, ctrl.getDraft);
+router.get('/posts/:id/share-image', ctrl.getShareImage);
 router.get('/posts/:id', ctrl.getPost);
 router.get('/posts/:id/replies', ctrl.getReplies);
 router.get('/posts/:id/quotes', ctrl.getQuotes);

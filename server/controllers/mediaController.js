@@ -685,6 +685,34 @@ async function getPost(req, res) {
   }
 }
 
+// Stable, guest-safe image endpoint for social crawlers. The HTML preview uses
+// this URL instead of embedding a short-lived private storage signature; the
+// endpoint rechecks the same public safety predicate before issuing a brief
+// signed redirect to the current thumbnail.
+async function getShareImage(req, res) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT mpa.thumbnail_key
+         FROM media_posts p
+         JOIN media_post_assets mpa ON mpa.post_id = p.id
+        WHERE p.id = $1::uuid AND p.deleted_at IS NULL AND p.visibility = 'public'
+          AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}
+          AND mpa.thumbnail_key IS NOT NULL
+        ORDER BY mpa.sort_order, mpa.created_at
+        LIMIT 1`,
+      [req.params.id]
+    );
+    if (!rows[0]?.thumbnail_key) return res.status(404).json({ error: 'Media preview not found' });
+    const signedUrl = await getSignedDownloadUrl(rows[0].thumbnail_key, 900);
+    if (!signedUrl) return res.status(404).json({ error: 'Media preview not found' });
+    res.set('Cache-Control', 'public, max-age=60, s-maxage=300');
+    return res.redirect(302, signedUrl);
+  } catch (err) {
+    logger.error('media.getShareImage error', { message: err.message });
+    return mediaError(res, err, 'Failed to load media preview');
+  }
+}
+
 async function getDrafts(req, res) {
   try {
     const { rows } = await pool.query(
@@ -1787,7 +1815,7 @@ async function searchMediaEntities(req, res) {
 }
 
 module.exports = {
-  getFeed, getPost, getDrafts, getDraft, getBookmarks, getReplies, getQuotes, createPost, updateDraft, publishPost, updatePost, deletePost,
+  getFeed, getPost, getShareImage, getDrafts, getDraft, getBookmarks, getReplies, getQuotes, createPost, updateDraft, publishPost, updatePost, deletePost,
   replacePostLinks,
   toggleLike, toggleBookmark, toggleRepost, recordShare, recordView, flagPost,
   getCommunities, getCommunity, joinCommunity, leaveCommunity, searchMedia,

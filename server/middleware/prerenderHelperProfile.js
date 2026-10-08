@@ -16,7 +16,6 @@ const { getPublicSiteUrl, absoluteUrl } = require('../utils/publicSiteUrl');
 const { buildPublicProfileDescription } = require('../utils/seoProfileDescription');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 const { createTtlCache } = require('../utils/processState');
-const { getSignedDownloadUrl } = require('../utils/storage');
 
 let cachedTemplate = null;
 const SEO_LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
@@ -1415,12 +1414,11 @@ async function handleMediaPost(postId, template, res, next, req) {
   const body = String(post.body || '').replace(/\s+/g, ' ').trim();
   const description = (body || `${author} shared an update on OxSteed Media.`).slice(0, 320);
   const title = `${author} on OxSteed Media | OxSteed`;
-  let image = `${base()}/icons/icon-512.png`;
-  if (post.thumbnail_key) {
-    try { image = await getSignedDownloadUrl(post.thumbnail_key); } catch (err) {
-      logger.warn('[prerender] Media thumbnail unavailable', { postId: post.id, message: err.message });
-    }
-  }
+  // Keep the share image URL stable for crawlers. The endpoint rechecks the
+  // public safety predicate and redirects to a short-lived storage signature.
+  const image = post.thumbnail_key
+    ? `${base()}/api/media/posts/${post.id}/share-image`
+    : `${base()}/icons/icon-512.png`;
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'SocialMediaPosting',

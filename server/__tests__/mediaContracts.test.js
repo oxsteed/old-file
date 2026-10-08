@@ -1,6 +1,11 @@
 'use strict';
 
 jest.mock('../db', () => ({ query: jest.fn() }));
+jest.mock('../utils/storage', () => ({
+  getSignedDownloadUrl: jest.fn(async (key) => `/signed/${key}`),
+  uploadFile: jest.fn(),
+  deleteFile: jest.fn(),
+}));
 
 const pool = require('../db');
 const media = require('../controllers/mediaController');
@@ -10,6 +15,8 @@ function resMock() {
   const res = {};
   res.status = jest.fn().mockReturnValue(res);
   res.json = jest.fn().mockReturnValue(res);
+  res.redirect = jest.fn().mockReturnValue(res);
+  res.set = jest.fn().mockReturnValue(res);
   return res;
 }
 
@@ -37,6 +44,17 @@ describe('OxSteed Media launch contracts', () => {
       assets: [expect.objectContaining({ id: 'asset-1', ready: false })],
     }));
     expect(client.query.mock.calls.at(-1)[0]).toBe('ROLLBACK');
+  });
+
+  test('serves a stable guest share-image URL only for safety-cleared thumbnails', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [{ thumbnail_key: 'media/photos/thumb.jpg' }] });
+    const res = resMock();
+
+    await media.getShareImage({ params: { id: 'post-1' } }, res);
+
+    expect(res.set).toHaveBeenCalledWith('Cache-Control', 'public, max-age=60, s-maxage=300');
+    expect(res.redirect).toHaveBeenCalledWith(302, '/signed/media/photos/thumb.jpg');
+    expect(pool.query.mock.calls[0][0]).toContain('safety_asset');
   });
 
   test('rechecks the current poster verification before publishing an old draft', async () => {
