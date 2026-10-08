@@ -181,6 +181,7 @@ export default function MediaPostCard({ post, onUpdate }) {
           <Link to={`/media/@${post.handle}`} className="media-post-name">
             {post.display_name}
           </Link>
+          {post.is_sponsored && <span className="media-post-sponsored">{t('media.post.sponsored')}</span>}
           <VerifiedBadge kind={post.verified_kind} label={t('media.post.verified')} />
           <span className="media-post-handle">@{post.handle}</span>
           <span className="media-post-time">· {timeAgo(post.created_at, i18n.language)}</span>

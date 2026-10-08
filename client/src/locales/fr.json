@@ -30305,7 +30305,7 @@
       "boost": "Mettre en avant la publication",
       "boostAmount": "Montant de mise en avant en centimes",
       "boostNotice": "Les mises en avant utilisent OxSteed Credit et respectent la pertinence locale.",
-      "boostConfirm": "Mettre en avant",
+      "boostConfirm": "Mettre en avant", "sponsored": "Sponsorisé",
       "boostSent": "Mise en avant programmée.",
       "boostError": "La mise en avant n’a pas pu être effectuée.",
       "videoEmbed": "Vidéo intégrée",

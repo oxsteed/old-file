@@ -60,6 +60,14 @@ const VALID_LINK_COUNT_SQL = `COUNT(l.id) FILTER (WHERE
        WHERE po.id::text = l.target_id AND po.status IN ('open', 'pledging')
     ))
   )`;
+// A paid placement is active only after the Credit settlement transition.
+const ACTIVE_BOOST_SQL = `EXISTS (
+  SELECT 1 FROM media_post_boosts active_boost
+   WHERE active_boost.post_id = p.id
+     AND active_boost.status = 'active'
+     AND active_boost.starts_at <= NOW()
+     AND active_boost.ends_at > NOW()
+)`;
 
 // Blocks apply to direct links as well as the feed. Keep the same two-way
 // relationship everywhere so a blocked author cannot be reached through a
@@ -401,7 +409,22 @@ async function hydratePost(post, viewerUserId) {
     );
     reposted = !!r[0];
   }
-  return { ...post, links, assets, liked, bookmarked, reposted };
+  let isSponsored = post.is_sponsored;
+  if (isSponsored === undefined) {
+    try {
+      const { rows: boostRows } = await pool.query(
+        `SELECT 1 FROM media_post_boosts
+          WHERE post_id = $1 AND status = 'active'
+            AND starts_at <= NOW() AND ends_at > NOW()
+          LIMIT 1`, [post.id]
+      );
+      isSponsored = !!boostRows[0];
+    } catch (err) {
+      logger.warn('media boost label lookup failed', { postId: post.id, message: err.message });
+      isSponsored = false;
+    }
+  }
+  return { ...post, links, assets, liked, bookmarked, reposted, is_sponsored: Boolean(isSponsored) };
 }
 
 async function getFeed(req, res) {
@@ -472,7 +495,10 @@ async function getFeed(req, res) {
     }
 
     let rankedAfter = '';
-    if (rankedCursor?.created_at && rankedCursor?.id) {
+    if (rankedCursor?.feed_position) {
+      params.push(Number(rankedCursor.feed_position));
+      rankedAfter = ` WHERE feed_position > $${params.length}`;
+    } else if (rankedCursor?.created_at && rankedCursor?.id) {
       params.push(Number(rankedCursor.link_count) || 0, Number(rankedCursor.locality_boost) || 0,
         rankedCursor.created_at, rankedCursor.id);
       const linkParam = params.length - 3;
@@ -481,8 +507,8 @@ async function getFeed(req, res) {
       const idParam = params.length;
       rankedAfter = ` WHERE (locality_boost < $${localityParam}
         OR (locality_boost = $${localityParam} AND link_count < $${linkParam})
-        OR (locality_boost = $${localityParam} AND link_count = $${linkParam} AND ranked.created_at < $${createdParam})
-        OR (locality_boost = $${localityParam} AND link_count = $${linkParam} AND ranked.created_at = $${createdParam} AND ranked.id < $${idParam}))`;
+        OR (locality_boost = $${localityParam} AND link_count = $${linkParam} AND slotted.created_at < $${createdParam})
+        OR (locality_boost = $${localityParam} AND link_count = $${linkParam} AND slotted.created_at = $${createdParam} AND slotted.id < $${idParam}))`;
     }
 
     // Nearby posts lead; valid local entity links boost within that area.
@@ -494,20 +520,36 @@ async function getFeed(req, res) {
     try {
       if (mode === 'chronological') throw Object.assign(new Error('Continue chronological cursor'), { chronological: true });
       ({ rows } = await pool.query(
-        `SELECT ranked.* FROM (
-         SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id,
-                to_char(p.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_created_at,
-                ${VALID_LINK_COUNT_SQL} AS link_count,
-                ${localityBoost} AS locality_boost
-           FROM media_posts p
-           JOIN media_actors a ON a.id = p.actor_id
-           LEFT JOIN media_post_links l ON l.post_id = p.id
-          WHERE ${where}
-          GROUP BY p.id, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type,
-                   a.owner_user_id, a.business_id, a.restaurant_id
-         ) ranked
+        `WITH base AS (
+           SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id,
+                  to_char(p.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_created_at,
+                  ${VALID_LINK_COUNT_SQL} AS link_count,
+                  ${localityBoost} AS locality_boost,
+                  ${ACTIVE_BOOST_SQL} AS is_sponsored
+             FROM media_posts p
+             JOIN media_actors a ON a.id = p.actor_id
+             LEFT JOIN media_post_links l ON l.post_id = p.id
+            WHERE ${where}
+            GROUP BY p.id, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type,
+                     a.owner_user_id, a.business_id, a.restaurant_id
+         ), ranked AS (
+           SELECT base.*,
+                  ROW_NUMBER() OVER (
+                    PARTITION BY is_sponsored
+                    ORDER BY locality_boost DESC, link_count DESC, created_at DESC, id DESC
+                  ) AS lane_rank
+             FROM base
+         ), slotted AS (
+           SELECT ranked.*,
+                  CASE WHEN is_sponsored
+                    THEN lane_rank * 5
+                    ELSE lane_rank + ((lane_rank - 1) / 4)
+                  END::bigint AS feed_position
+             FROM ranked
+         )
+         SELECT slotted.* FROM slotted
           ${rankedAfter}
-          ORDER BY locality_boost DESC, link_count DESC, ${orderBy}
+          ORDER BY feed_position ASC
           LIMIT $1`,
         params
       ));

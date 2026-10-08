@@ -2,7 +2,7 @@
 
 const { createHash } = require('crypto');
 
-const VERSION = 1;
+const VERSION = 2;
 function invalid(code = 'media_location_invalid') {
   return Object.assign(new Error('Refresh the feed with a valid location and cursor'), { status: 400, code });
 }
@@ -56,8 +56,10 @@ function decodeCursor(input, context) {
       || typeof value.id !== 'string' || !value.id || value.id.length > 100
       || !/^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/.test(value.created_at) || !Number.isFinite(Date.parse(value.created_at))
       || !Number.isFinite(Date.parse(value.as_of)) || Date.parse(value.created_at) > Date.parse(value.as_of)
-      || !Number.isInteger(value.link_count) || value.link_count < 0 || value.link_count > 5
-      || !Number.isInteger(value.locality_boost) || value.locality_boost < 0 || value.locality_boost > 3) throw invalid();
+      || (value.mode === 'ranked' && value.feed_position !== undefined
+        && (!Number.isInteger(value.feed_position) || value.feed_position < 1 || value.feed_position > 1000000000))
+      || (value.link_count !== undefined && (!Number.isInteger(value.link_count) || value.link_count < 0 || value.link_count > 5))
+      || (value.locality_boost !== undefined && (!Number.isInteger(value.locality_boost) || value.locality_boost < 0 || value.locality_boost > 3))) throw invalid();
     return value;
   } catch { throw invalid('media_feed_cursor_invalid'); }
 }
@@ -65,6 +67,7 @@ function encodeCursor(row, context, mode, asOf) {
   return Buffer.from(JSON.stringify({ v: VERSION, context, mode, as_of: asOf,
     id: row.id, created_at: row.cursor_created_at || row.created_at,
     link_count: Number(row.link_count) || 0, locality_boost: Number(row.locality_boost) || 0,
+    ...(Number.isInteger(Number(row.feed_position)) ? { feed_position: Number(row.feed_position) } : {}),
   })).toString('base64url');
 }
 

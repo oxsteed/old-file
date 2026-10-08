@@ -30305,7 +30305,7 @@
       "boost": "Impulsar publicación",
       "boostAmount": "Monto del impulso en centavos",
       "boostNotice": "Los impulsos usan OxSteed Credit y mantienen las salvaguardas de relevancia local.",
-      "boostConfirm": "Impulsar publicación",
+      "boostConfirm": "Impulsar publicación", "sponsored": "Patrocinado",
       "boostSent": "Impulso programado correctamente.",
       "boostError": "No se pudo completar el impulso.",
       "videoEmbed": "Video insertado",

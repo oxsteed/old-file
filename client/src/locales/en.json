@@ -30305,7 +30305,7 @@
       "boost": "Boost post",
       "boostAmount": "Boost amount in cents",
       "boostNotice": "Boosts use OxSteed Credit and keep local relevance safeguards.",
-      "boostConfirm": "Boost post",
+      "boostConfirm": "Boost post", "sponsored": "Sponsored",
       "boostSent": "Boost scheduled successfully.",
       "boostError": "The post boost could not be completed.",
       "videoEmbed": "Embedded video",

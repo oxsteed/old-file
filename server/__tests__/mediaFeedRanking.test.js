@@ -60,7 +60,8 @@ describe('Media ranked feed journey', () => {
     expect(firstSql).toContain('j.location_approx_lat');
     expect(firstSql).toContain('TRIM(split_part(nearby.geo_scope');
     expect(firstSql).not.toContain('j.deleted_at');
-    expect(firstSql).toContain('ORDER BY locality_boost DESC, link_count DESC, ranked.created_at DESC, ranked.id DESC');
+    expect(firstSql).toContain('ROW_NUMBER() OVER');
+    expect(firstSql).toContain('ORDER BY feed_position ASC');
 
     pool.query.mockClear();
     const second = response();
@@ -87,6 +88,29 @@ describe('Media ranked feed journey', () => {
     expect(result.json.mock.calls[0][0]).toMatchObject({ posts: [{ id: 'only-post' }], has_more: false, next_before: null });
     const feedCall = pool.query.mock.calls.find(([sql]) => sql.includes('SELECT p.*, a.handle'));
     expect(feedCall[1][0]).toBe(2);
+  });
+
+  test('uses sponsored lane slots and carries the slot position in the cursor', async () => {
+    pool.query.mockReset().mockImplementation(async (sql) => {
+      if (sql.includes('SELECT p.*, a.handle')) {
+        return { rows: [
+          { id: 'organic-1', created_at: '2026-10-08T12:00:00.000Z', cursor_created_at: '2026-10-08T12:00:00.000Z', actor_id: 'actor-1', link_count: 0, locality_boost: 0, is_sponsored: false, feed_position: 1 },
+          { id: 'organic-2', created_at: '2026-10-08T11:00:00.000Z', cursor_created_at: '2026-10-08T11:00:00.000Z', actor_id: 'actor-2', link_count: 0, locality_boost: 0, is_sponsored: false, feed_position: 2 },
+          { id: 'sponsored-1', created_at: '2026-10-08T10:00:00.000Z', cursor_created_at: '2026-10-08T10:00:00.000Z', actor_id: 'actor-3', link_count: 0, locality_boost: 0, is_sponsored: true, feed_position: 5 },
+        ] };
+      }
+      return { rows: [] };
+    });
+    const first = response();
+    await media.getFeed({ query: { limit: '2', location_mode: 'all' } }, first);
+    const payload = first.json.mock.calls[0][0];
+    const decoded = JSON.parse(Buffer.from(payload.next_before, 'base64url').toString());
+    expect(decoded.feed_position).toBe(2);
+    expect(payload.posts.map((post) => post.id)).toEqual(['organic-1', 'organic-2']);
+    expect(payload.has_more).toBe(true);
+    const feedCall = pool.query.mock.calls.find(([sql]) => sql.includes('SELECT p.*, a.handle'));
+    expect(feedCall[0]).toContain('PARTITION BY is_sponsored');
+    expect(feedCall[0]).toContain('lane_rank * 5');
   });
 
   test('falls back to a read-only chronological feed during an optional schema rollout', async () => {

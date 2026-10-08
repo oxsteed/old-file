@@ -63,7 +63,7 @@ verified live for the new candidate. A historical test count is not proof.
 | Tips | Implemented and behavior-tested locally: tips use durable payload-bound idempotency and settle through the shared creator settlement rail with verification and self-payment guards. | Real currency/freeze/fee/replay proof missing. | Run isolated accounting replay/failure cases and verify live transaction history. |
 | Cancellation/release/refund/dispute review | Incomplete: current shared dispute wrappers do not close full lifecycle. | Real accounting and admin audit proof required. | Implement authorized single release, contest review and audited refunds. |
 | Boost payment to platform revenue | Implemented and behavior-tested locally: purchaser wallet is charged through the shared settlement rail into `platform_revenue`; self-transfer and replay are rejected. | Real accounting and deployed proof outstanding. | Verify conservation, idempotent retries and platform ledger history in the isolated/live release checks. |
-| Sponsored placement and 24-hour duration | Incomplete: boost rows currently do not affect feed placement. | Actual nearby/relevance/cap/expiry proof missing. | Activate only after paid transaction; label and cap at one in five. |
+| Sponsored placement and 24-hour duration | Behavior-tested locally: active settled boosts receive a separate ranked lane inserted at positions 5, 10, and so on; organic ordering remains stable, ranked cursors carry `feed_position`, and cards show a localized sponsored label only during the active window. | Real active-boost database cases and deployed feed proof remain outstanding. | Run isolated expiry/replay/cap cases and verify live placement. |
 | Price/currency disclosure and purchaser history | Behavior-tested locally: boost confirmation returns amount/currency before settlement, and the Media creator shell now lists tip, sponsorship and boost payment history with transaction-linked dispute entry points. | Payment retry/cancellation/refund and authenticated live history proof missing. | Add admin refund review and verify purchaser/creator history against deployed Credit records. |
 | Atomic accounting/precision/fees/isolation | Incomplete for marketplace: shared rail safeguards exist, transitions are not fully atomic with payment. | Real isolated conservation/races/currency cases required. | Add transactional marketplace service and accounting behavior suites. |
 | Migration upgrade and repeat application | Implemented: new 742, 743, 744 and 746 filenames follow inspected predecessors; 746 adds creator payment reservation/transaction links and delivery metadata. | Actual 746 migration execution is pending hosted CI/deployment. | Rehearse against disposable upgraded schema and repeat without data changes. |
@@ -704,3 +704,12 @@ user as payer or represented creator, and all five locale catalogs include the
 new section label. Focused server tests (47 total across the Media suites),
 localization parity and TypeScript checks pass. Sponsored placement, admin
 refund resolution and authenticated live history remain outstanding.
+
+Sponsored placement batch (2026-10-08): ranked Home now derives active boosts
+only from settled rows within their `starts_at`/`ends_at` window, assigns organic
+and sponsored lanes, and interleaves one sponsored slot per five feed positions.
+Ranked cursors are version 2 and carry `feed_position`, keeping page boundaries
+stable without duplicate rows or ranking changes. `MediaPostCard` labels active
+paid placement in all five locales. Focused Media suites (62 tests) and
+`npm run build:ci` pass locally; hosted CI, real active-boost expiry/cap cases,
+and authenticated live placement remain pending.

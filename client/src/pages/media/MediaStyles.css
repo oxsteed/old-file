@@ -156,6 +156,14 @@ div.media-support-panel { z-index: 150; }
   text-decoration: none;
 }
 
+.media-post-sponsored {
+  color: var(--brand, #b34112);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .media-verified {
   color: var(--brand, #1a73e8);
   font-weight: bold;
