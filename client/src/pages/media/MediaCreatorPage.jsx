@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Briefcase, CheckCircle2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { applyToCreatorGig, getCreatorGigs } from '../../api/media';
+import { applyToCreatorGig, createCreatorGig, getCreatorGigs } from '../../api/media';
 import { useAuth } from '../../context/AuthContext';
 
 export default function MediaCreatorPage() {
@@ -15,6 +15,10 @@ export default function MediaCreatorPage() {
   const [proposedCents, setProposedCents] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [gigTitle, setGigTitle] = useState('');
+  const [gigBrief, setGigBrief] = useState('');
+  const [gigBudget, setGigBudget] = useState('');
 
   const load = () => {
     setLoading(true);
@@ -22,6 +26,17 @@ export default function MediaCreatorPage() {
     getCreatorGigs().then((data) => setGigs(data.gigs || []))
       .catch(() => setError(t('media.creator.loadError')))
       .finally(() => setLoading(false));
+  };
+
+  const createGig = async (event) => {
+    event.preventDefault();
+    setSubmitting(true);
+    setError('');
+    try {
+      await createCreatorGig({ title: gigTitle, brief: gigBrief, budgetCents: Number(gigBudget) });
+      setCreateOpen(false); setGigTitle(''); setGigBrief(''); setGigBudget(''); load();
+    } catch (err) { setError(err.response?.data?.error || t('media.creator.loadError')); }
+    finally { setSubmitting(false); }
   };
   useEffect(load, [t]);
 
@@ -46,6 +61,7 @@ export default function MediaCreatorPage() {
           <h1>{t('media.creator.title')}</h1>
           <p>{t('media.creator.subtitle')}</p>
         </div>
+        {user && <button type="button" className="media-primary-button" onClick={() => setCreateOpen(true)}>{t('media.creator.createGig')}</button>}
       </header>
       {error && <div className="media-error" role="alert"><p>{error}</p><button type="button" onClick={load}>{t('media.feed.refresh')}</button></div>}
       {loading && <div className="media-skeleton" role="status"><div className="skeleton-line" /><div className="skeleton-line" /></div>}
@@ -66,6 +82,16 @@ export default function MediaCreatorPage() {
             <label htmlFor="creator-budget">{t('media.creator.proposed')}</label><input id="creator-budget" type="number" min="1" step="1" value={proposedCents} onChange={(event) => setProposedCents(event.target.value)} required />
             <button type="submit" className="media-primary-button" disabled={submitting}>{submitting ? t('media.compose.posting') : t('media.creator.submit')}</button>
           </>}
+        </form>
+      </div>}
+      {createOpen && <div className="media-verification-dialog" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCreateOpen(false); }}>
+        <form className="media-verification-form" onSubmit={createGig} role="dialog" aria-modal="true" aria-labelledby="creator-gig-title">
+          <button type="button" className="media-dialog-close" onClick={() => setCreateOpen(false)} aria-label={t('media.shell.close')}><X size={18} /></button>
+          <h2 id="creator-gig-title">{t('media.creator.createGig')}</h2>
+          <label htmlFor="creator-gig-name">{t('media.creator.gigTitle')}</label><input id="creator-gig-name" value={gigTitle} onChange={(event) => setGigTitle(event.target.value)} maxLength={160} required />
+          <label htmlFor="creator-gig-brief">{t('media.creator.gigBrief')}</label><textarea id="creator-gig-brief" value={gigBrief} onChange={(event) => setGigBrief(event.target.value)} maxLength={5000} rows={5} required />
+          <label htmlFor="creator-gig-budget">{t('media.creator.budget')}</label><input id="creator-gig-budget" type="number" min="1" step="1" value={gigBudget} onChange={(event) => setGigBudget(event.target.value)} required />
+          <button type="submit" className="media-primary-button" disabled={submitting}>{submitting ? t('media.compose.posting') : t('media.creator.submit')}</button>
         </form>
       </div>}
     </section>

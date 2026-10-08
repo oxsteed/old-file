@@ -31,10 +31,12 @@ async function verifiedActor(client, userId, actorId = null) {
           WHEN a.actor_type = 'helper' THEN u.is_verified = TRUE
           WHEN a.actor_type = 'business' THEN EXISTS (
             SELECT 1 FROM businesses b WHERE b.user_id = a.owner_user_id
-              AND b.id = a.business_id AND b.is_active = TRUE
+              AND (a.business_id IS NULL OR b.id = a.business_id)
+              AND b.is_active = TRUE
               AND b.is_business_verified = TRUE AND b.deleted_at IS NULL)
           WHEN a.actor_type = 'restaurant' THEN EXISTS (
-            SELECT 1 FROM food_restaurants r WHERE r.id = a.restaurant_id
+            SELECT 1 FROM food_restaurants r WHERE r.owner_user_id = a.owner_user_id
+              AND (a.restaurant_id IS NULL OR r.id = a.restaurant_id)
               AND r.is_verified = TRUE AND r.status <> 'suspended')
           ELSE FALSE END`, params
   );
@@ -241,6 +243,11 @@ async function settleTip(req, res, next) {
     const tip = rows[0];
     if (!tip) throw new AppError('Tip not found.', 404, 'media_creator_tip_not_found');
     if (tip.status === 'posted') return res.json({ tip });
+    const verificationClient = await pool.connect();
+    try {
+      const currentActor = await verifiedCreatorById(verificationClient, tip.creator_actor_id);
+      if (!currentActor) throw new AppError('Creator verification is no longer active.', 409, 'media_creator_unverified');
+    } finally { verificationClient.release(); }
     const transfer = await transferCreatorCredit({
       senderCustomerId: req.user.id,
       recipientCustomerId: tip.creator_user_id,

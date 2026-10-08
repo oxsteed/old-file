@@ -30246,7 +30246,7 @@
     "refundUnavailableHint": "Kòmand sa a pa nan yon eta peman ki ka ranbouse kounye a."
   },
   "media": {
-    "creator": { "kicker": "Mache kreyatè", "title": "Mache kreyatè", "subtitle": "Jwenn kanpay lokal ki peye epi fè travay Media ou tounen opòtinite.", "loadError": "Nou pa t kapab chaje opòtinite yo.", "empty": "Pa gen opòtinite ouvè ankò.", "apply": "Aplike pou gig sa a", "pitch": "Pwopozisyon ou", "proposed": "Montan ou pwopoze an santim", "submit": "Voye aplikasyon", "submitted": "Aplikasyon voye." },
+    "creator": { "kicker": "Mache kreyatè", "title": "Mache kreyatè", "subtitle": "Jwenn kanpay lokal ki peye epi fè travay Media ou tounen opòtinite.", "loadError": "Nou pa t kapab chaje opòtinite yo.", "empty": "Pa gen opòtinite ouvè ankò.", "apply": "Aplike pou gig sa a", "createGig": "Pibliye yon gig kreyatè", "gigTitle": "Tit gig la", "gigBrief": "Deskripsyon", "budget": "Bidjè an santim", "pitch": "Pwopozisyon ou", "proposed": "Montan ou pwopoze an santim", "submit": "Voye aplikasyon", "submitted": "Aplikasyon voye." },
     "actor": {
       "follow": "Swiv",
       "unfollow": "Sispann swiv",

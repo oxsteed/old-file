@@ -30246,7 +30246,7 @@
     "refundUnavailableHint": "This order is not currently in a refundable payment state."
   },
   "media": {
-    "creator": { "kicker": "Creator marketplace", "title": "Creator marketplace", "subtitle": "Find paid local campaigns and turn approved Media work into opportunity.", "loadError": "Could not load creator opportunities.", "empty": "No creator opportunities are open yet.", "apply": "Apply to this gig", "pitch": "Your pitch", "proposed": "Proposed amount in cents", "submit": "Submit application", "submitted": "Application submitted." },
+    "creator": { "kicker": "Creator marketplace", "title": "Creator marketplace", "subtitle": "Find paid local campaigns and turn approved Media work into opportunity.", "loadError": "Could not load creator opportunities.", "empty": "No creator opportunities are open yet.", "apply": "Apply to this gig", "createGig": "Post a creator gig", "gigTitle": "Gig title", "gigBrief": "Brief", "budget": "Budget in cents", "pitch": "Your pitch", "proposed": "Proposed amount in cents", "submit": "Submit application", "submitted": "Application submitted." },
     "actor": {
       "follow": "Follow",
       "unfollow": "Unfollow",

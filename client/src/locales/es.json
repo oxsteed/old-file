@@ -30246,7 +30246,7 @@
     "refundUnavailableHint": "Este pedido no se encuentra actualmente en un estado de pago reembolsable."
   },
   "media": {
-    "creator": { "kicker": "Mercado de creadores", "title": "Mercado de creadores", "subtitle": "Encuentra campañas locales pagadas y convierte tu trabajo aprobado en oportunidades.", "loadError": "No se pudieron cargar las oportunidades.", "empty": "Aún no hay oportunidades abiertas.", "apply": "Solicitar este trabajo", "pitch": "Tu propuesta", "proposed": "Monto propuesto en centavos", "submit": "Enviar solicitud", "submitted": "Solicitud enviada." },
+    "creator": { "kicker": "Mercado de creadores", "title": "Mercado de creadores", "subtitle": "Encuentra campañas locales pagadas y convierte tu trabajo aprobado en oportunidades.", "loadError": "No se pudieron cargar las oportunidades.", "empty": "Aún no hay oportunidades abiertas.", "apply": "Solicitar este trabajo", "createGig": "Publicar un trabajo de creador", "gigTitle": "Título del trabajo", "gigBrief": "Descripción", "budget": "Presupuesto en centavos", "pitch": "Tu propuesta", "proposed": "Monto propuesto en centavos", "submit": "Enviar solicitud", "submitted": "Solicitud enviada." },
     "actor": {
       "follow": "Seguir",
       "unfollow": "Dejar de seguir",
