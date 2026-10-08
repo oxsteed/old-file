@@ -5,6 +5,8 @@ import { ArrowLeft, ArrowUpRight, Bell, Briefcase, Home, Mail, MapPin, Plus, Sea
 import PageShell from '../../components/PageShell';
 import LanguageSelector from '../../components/LanguageSelector';
 import ThemeToggle from '../../components/ThemeToggle';
+import OxSteedIcon from '../../components/OxSteedIcon';
+import MediaFooter from './MediaFooter';
 import './MediaStyles.css';
 
 const TABS = [
@@ -46,7 +48,7 @@ export default function MediaShell({ children }) {
         <header className="media-app-header">
           <div className="media-app-header-inner">
             <Link to="/media" className="media-wordmark" aria-label={t('media.feed.title')}>
-              <span className="media-brand-mark" aria-hidden="true"><MapPin size={20} /></span>
+              <span className="media-brand-mark"><OxSteedIcon size={34} /></span>
               <span>OxSteed <span className="media-wordmark-branch">Media</span></span>
             </Link>
             <div className="media-header-tools">
@@ -93,6 +95,7 @@ export default function MediaShell({ children }) {
             </div>
           </aside>
         </div>
+        <MediaFooter />
         {navigation(true)}
       </div>
     </PageShell>

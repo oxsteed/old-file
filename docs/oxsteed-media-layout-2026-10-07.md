@@ -97,3 +97,8 @@ visible.
 
 Both pages remain behind the existing authentication, identity, onboarding, and
 Media launch gates. Their new copy is localized across all five catalogs.
+
+The Media shell also uses the real OxSteed logo in its header and a compact
+footer card with the full legal links, cookie settings, copyright, support email,
+and phone contact. The footer stays above the mobile tab bar with safe-area
+spacing on phones.
