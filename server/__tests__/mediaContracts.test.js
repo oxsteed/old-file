@@ -127,6 +127,14 @@ describe('OxSteed Media launch contracts', () => {
     expect(res.json).toHaveBeenCalledWith({ shared: true, share_count: 6 });
     expect(pool.query.mock.calls[1][0]).toContain('ON CONFLICT (post_id, viewer_hash) DO NOTHING');
     expect(pool.query.mock.calls[2][0]).toContain('share_count = share_count + CASE');
+
+    pool.query.mockReset()
+      .mockResolvedValueOnce({ rows: [{ id: 'post-1' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ share_count: 6 }] });
+    const duplicateRes = resMock();
+    await media.recordShare({ params: { id: 'post-1' }, user: { id: 'user-1' }, ip: '127.0.0.1', headers: {} }, duplicateRes);
+    expect(duplicateRes.json).toHaveBeenCalledWith({ shared: false, share_count: 6 });
   });
 
   test('requires a verified business before creating a business post', async () => {
