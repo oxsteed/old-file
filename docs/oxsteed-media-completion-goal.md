@@ -131,6 +131,15 @@ required or when the configured daemon is unavailable. The local
 and malformed verdicts. Production health and an authenticated uploaded-video
 scan/processing check still need to be captured after the deployment billing
 block is cleared.
+
+Delivery evidence (2026-10-08): commits `b8a58eb9` and `598ab92c` are pushed to
+`old-files-claude`. Local creator, Media contract, malware-scan, upload-failure,
+and migration-recovery suites pass (27 tests in the combined run). CI run
+`37794549189` was created for `598ab92c` but the verification job was rejected
+before starting with GitHub's account billing message about failed recent
+payments or an exceeded spending limit. This is recorded as an external CI
+availability blocker; it is not treated as a passing run or as evidence that
+deployment is complete.
 Follows, business/profile integration, restaurant post copying, extra link types,
 creator payments and boosts are all in the current implementation goal. The
 v2/v3 labels identify feature groups, not a requirement to postpone their build.
