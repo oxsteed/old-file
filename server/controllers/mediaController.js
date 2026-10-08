@@ -503,7 +503,8 @@ async function getFeed(req, res) {
            JOIN media_actors a ON a.id = p.actor_id
            LEFT JOIN media_post_links l ON l.post_id = p.id
           WHERE ${where}
-          GROUP BY p.id, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id
+          GROUP BY p.id, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type,
+                   a.owner_user_id, a.business_id, a.restaurant_id
          ) ranked
           ${rankedAfter}
           ORDER BY locality_boost DESC, link_count DESC, ${orderBy}
