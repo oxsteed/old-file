@@ -651,9 +651,16 @@ async function cancelSponsorship(req, res, next) {
     );
     const sponsorship = rows[0];
     if (!sponsorship) throw new AppError('Sponsorship cannot be cancelled.', 404, 'media_creator_sponsorship_not_found');
-    if (!['pending_credit', 'accepted', 'delivered'].includes(sponsorship.status)
-      || (String(sponsorship.sponsor_user_id) !== String(req.user.id)
-        && String(sponsorship.creator_user_id) !== String(req.user.id))) {
+    const isParty = String(sponsorship.sponsor_user_id) === String(req.user.id)
+      || String(sponsorship.creator_user_id) === String(req.user.id);
+    if (!isParty) {
+      throw new AppError('Sponsorship cannot be cancelled.', 409, 'media_creator_sponsorship_cancel_invalid');
+    }
+    if (sponsorship.status === 'cancelled') {
+      await client.query('COMMIT');
+      return res.json({ sponsorship, replayed: true });
+    }
+    if (!['pending_credit', 'accepted', 'delivered'].includes(sponsorship.status)) {
       throw new AppError('Sponsorship cannot be cancelled.', 409, 'media_creator_sponsorship_cancel_invalid');
     }
     if (sponsorship.credit_reservation_id) {
@@ -786,7 +793,14 @@ async function cancelBoost(req, res, next) {
         WHERE id = $1 AND purchaser_user_id = $2 AND status = 'pending_credit' RETURNING *`,
       [req.params.boostId, req.user.id]
     );
-    if (!rows[0]) throw new AppError('Boost cannot be cancelled after settlement.', 409, 'media_boost_cancel_invalid');
+    if (!rows[0]) {
+      const { rows: existing } = await pool.query(
+        `SELECT * FROM media_post_boosts WHERE id = $1 AND purchaser_user_id = $2`,
+        [req.params.boostId, req.user.id]
+      );
+      if (existing[0]?.status === 'cancelled') return res.json({ boost: existing[0], replayed: true });
+      throw new AppError('Boost cannot be cancelled after settlement.', 409, 'media_boost_cancel_invalid');
+    }
     res.json({ boost: rows[0] });
   } catch (err) { next(err); }
 }

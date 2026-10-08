@@ -177,6 +177,38 @@ test('cancels an unsettled sponsorship for one of its parties', async () => {
   expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('FOR UPDATE OF s'))).toBe(true);
 });
 
+test('replays sponsorship cancellation without releasing Credit twice', async () => {
+  const pool = require('../db');
+  const client = { query: mockQuery, release: jest.fn() };
+  pool.connect.mockResolvedValueOnce(client);
+  mockQuery.mockImplementation(async (sql) => {
+    const query = String(sql);
+    if (query === 'BEGIN' || query === 'COMMIT') return { rows: [] };
+    if (query.includes('SELECT s.*, a.owner_user_id AS creator_user_id')) {
+      return { rows: [{ id: 's-1', status: 'cancelled', sponsor_user_id: 'sponsor-1', creator_user_id: 'creator-1' }] };
+    }
+    return { rows: [] };
+  });
+  const res = resMock();
+  await creator.cancelSponsorship({ params: { sponsorshipId: 's-1' }, user: { id: 'sponsor-1' } }, res, jest.fn());
+  expect(res.json).toHaveBeenCalledWith({ sponsorship: expect.objectContaining({ id: 's-1', status: 'cancelled' }), replayed: true });
+  expect(mockQuery.mock.calls.map(([sql]) => String(sql))).toEqual([
+    'BEGIN', expect.stringContaining('SELECT s.*, a.owner_user_id AS creator_user_id'), 'COMMIT',
+  ]);
+  expect(client.release).toHaveBeenCalled();
+});
+
+test('replays boost cancellation after the first cancellation', async () => {
+  const pool = require('../db');
+  mockQuery
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ id: 'boost-1', status: 'cancelled', purchaser_user_id: 'buyer-1' }] });
+  const res = resMock();
+  await creator.cancelBoost({ params: { boostId: 'boost-1' }, user: { id: 'buyer-1' } }, res, jest.fn());
+  expect(res.json).toHaveBeenCalledWith({ boost: expect.objectContaining({ id: 'boost-1', status: 'cancelled' }), replayed: true });
+  expect(mockQuery).toHaveBeenCalledTimes(2);
+});
+
 test('opens an idempotent dispute only for the payer\'s settled creator payment', async () => {
   mockQuery.mockResolvedValueOnce({ rows: [{ id: '11111111-1111-4111-8111-111111111111', payer_user_id: 'payer-1', transaction_id: 'tx-1', payment_status: 'posted' }] });
   const openCreditDispute = jest.spyOn(require('../services/oxsteedCreditService'), 'openCreditDispute')
