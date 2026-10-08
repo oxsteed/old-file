@@ -108,6 +108,12 @@ on phones.
 
 ## MVP implementation audit (2026-10-08)
 
+This earlier audit overstated completion. The renewed
+[completion evidence](oxsteed-media-completion-goal.md) supersedes its readiness
+claims: signed-in visibility, safe approval, publication reliability, discovery,
+and complete user journeys require further implementation and verification.
+The following records the earlier implementation claims, not launch approval.
+
 The Media branch now includes the locked MVP behavior across the feed, detail,
 compose, Spaces, notifications, messages, moderation, and upload paths. The
 server enforces verified helper/business/restaurant posting, the five MVP link

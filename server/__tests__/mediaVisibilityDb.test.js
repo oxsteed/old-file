@@ -1,0 +1,93 @@
+'use strict';
+
+// Exercise the real visibility SQL against CI's disposable database. Temporary
+// tables shadow production names only for this connection and disappear on exit.
+jest.mock('../db', () => ({ query: jest.fn() }));
+const { Client } = jest.requireActual('pg');
+const pool = require('../db');
+const media = require('../controllers/mediaController');
+const url = process.env.STATEMENT_TEST_DATABASE_URL;
+if (process.env.STATEMENT_REQUIRE_DB_TESTS === 'true' && !url) {
+  throw new Error('Media SQL verification requires the disposable test database in CI');
+}
+const describeDb = url ? describe : describe.skip;
+
+describeDb('Media block boundaries in PostgreSQL', () => {
+  let db;
+  beforeAll(async () => {
+    if (!/\/credit_statement_test(?:\?|$)/.test(url)) throw new Error('Use only the disposable credit_statement_test database');
+    db = new Client({ connectionString: url });
+    await db.connect();
+    await db.query(`
+      CREATE TEMP TABLE users (id text PRIMARY KEY, deleted_at timestamptz, is_active boolean DEFAULT true, is_banned boolean DEFAULT false);
+      CREATE TEMP TABLE media_actors (id text PRIMARY KEY, owner_user_id text, handle text, display_name text, avatar_url text, verified_kind text, actor_type text);
+      CREATE TEMP TABLE user_blocks (blocker_id text, blocked_id text);
+      CREATE TEMP TABLE media_posts (id text PRIMARY KEY, actor_id text, body text, parent_id text, quoted_post_id text, community_id text, deleted_at timestamptz,
+        visibility text DEFAULT 'public', processing_status text DEFAULT 'ready', csam_status text DEFAULT 'passed', created_at timestamptz DEFAULT now());
+      CREATE TEMP TABLE media_post_links (id text, post_id text, sort_order int);
+      CREATE TEMP TABLE media_post_assets (id text, post_id text, sort_order int);
+      CREATE TEMP TABLE media_likes (post_id text, user_id text);
+      CREATE TEMP TABLE media_bookmarks (post_id text, user_id text);
+      CREATE TEMP TABLE media_reposts (post_id text, actor_id text);
+      CREATE TEMP TABLE media_communities (id text PRIMARY KEY, slug text, title text, geo_scope text, category text);
+      CREATE TEMP TABLE media_community_members (community_id text, user_id text);
+      INSERT INTO users (id) VALUES ('viewer'), ('outbound'), ('inbound'), ('allowed'), ('banned');
+      UPDATE users SET is_banned = true WHERE id = 'banned';
+      INSERT INTO media_actors (id, owner_user_id, handle, display_name)
+        SELECT id, id, 'local-' || id, 'Local ' || id FROM users WHERE id <> 'viewer';
+      INSERT INTO media_posts (id, actor_id, body) SELECT id, id, 'Local update' FROM media_actors;
+      INSERT INTO media_communities VALUES ('town', 'local-town', 'Local town', 'Springfield', 'food');
+      INSERT INTO media_community_members VALUES ('town', 'viewer');
+      UPDATE media_posts SET community_id = 'town';
+      INSERT INTO user_blocks VALUES ('viewer', 'outbound'), ('inbound', 'viewer');
+    `);
+    pool.query.mockImplementation((...args) => db.query(...args));
+  });
+  afterAll(async () => { if (db) await db.end(); });
+
+  function res() { return { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() }; }
+
+  test('search excludes both block directions even when the handle matches', async () => {
+    const response = res();
+    await media.searchMedia({ query: { q: 'local' }, user: { id: 'viewer' } }, response);
+    expect(response.status).not.toHaveBeenCalled();
+    const data = response.json.mock.calls[0][0];
+    expect(data.actors.map((a) => a.id)).toEqual(['allowed']);
+    expect(data.posts.map((p) => p.id)).toEqual(['allowed']);
+  });
+
+  test.each(['outbound', 'inbound', 'banned'])('direct actor and post URLs hide %s', async (id) => {
+    const actorRes = res();
+    await media.getActor({ params: { handle: `local-${id}` }, user: { id: 'viewer' } }, actorRes);
+    expect(actorRes.status).toHaveBeenCalledWith(404);
+    const postRes = res();
+    await media.getPost({ params: { id }, user: { id: 'viewer' } }, postRes);
+    expect(postRes.status).toHaveBeenCalledWith(404);
+  });
+
+  test('allowed actor resolves and hydrated action state survives reload', async () => {
+    await db.query("INSERT INTO media_likes VALUES ('allowed', 'viewer'); INSERT INTO media_bookmarks VALUES ('allowed', 'viewer')");
+    const response = res();
+    await media.getActor({ params: { handle: 'local-allowed' }, user: { id: 'viewer' } }, response);
+    expect(response.status).not.toHaveBeenCalled();
+    expect(response.json.mock.calls[0][0].posts[0]).toMatchObject({ id: 'allowed', liked: true, bookmarked: true });
+  });
+
+  test('guests can browse active authors but cannot see banned authors', async () => {
+    const response = res();
+    await media.searchMedia({ query: { q: 'local' } }, response);
+    expect(response.status).not.toHaveBeenCalled();
+    expect(response.json.mock.calls[0][0].actors.map((a) => a.id).sort()).toEqual(['allowed', 'inbound', 'outbound']);
+  });
+
+  test('Space membership, counts and detail feed use the same visibility rules', async () => {
+    const list = res();
+    await media.getCommunities({ user: { id: 'viewer' } }, list);
+    expect(list.status).not.toHaveBeenCalled();
+    expect(list.json.mock.calls[0][0].communities[0]).toMatchObject({ joined: true, post_count: 1 });
+    const detail = res();
+    await media.getCommunity({ params: { slug: 'local-town' }, user: { id: 'viewer' } }, detail);
+    expect(detail.status).not.toHaveBeenCalled();
+    expect(detail.json.mock.calls[0][0].posts.map((p) => p.id)).toEqual(['allowed']);
+  });
+});

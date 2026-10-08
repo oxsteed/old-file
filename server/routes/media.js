@@ -3,7 +3,7 @@
 // OxSteed Media routes.
 
 const router = require('express').Router();
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth, optionalAuth } = require('../middleware/auth');
 const rateLimit = require('express-rate-limit');
 const ctrl = require('../controllers/mediaController');
 const assetCtrl = require('../controllers/mediaAssetController');
@@ -17,6 +17,9 @@ const mediaUploadLimiter = rateLimit({
 });
 
 // Public feed (guests can view).
+// Resolve a valid session without requiring one: personal action state and
+// two-way blocks must apply on public reads too.
+router.use(optionalAuth);
 router.get('/feed', ctrl.getFeed);
 router.get('/search', ctrl.searchMedia);
 router.get('/entities', ctrl.searchMediaEntities);

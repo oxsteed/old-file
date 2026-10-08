@@ -256,7 +256,7 @@ test('business workflow labels remain visible on small screens', async () => {
   for (const action of ['onQuote', 'onPaymentRequest', 'onAgreement', 'onSchedule', 'onContact']) {
     assert.ok(toolbar.includes(`onClick={${action}}`));
   }
-  assert.ok(styles.includes('.provider-messenger-toolbar .hide-sm {\n  display: inline !important;'));
+  assert.match(styles, /\.provider-messenger-toolbar \.hide-sm \{\r?\n  display: inline !important;/);
 });
 
 test('message moderation stays in an accessible overflow menu', async () => {

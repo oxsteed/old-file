@@ -45,19 +45,21 @@ describe('OxSteed Media launch contracts', () => {
 
   test('only increments a view counter when the unique view insert succeeds', async () => {
     pool.query
+      .mockResolvedValueOnce({ rows: [{ id: 'post-1' }] })
       .mockResolvedValueOnce({ rowCount: 1, rows: [{ post_id: 'post-1' }] })
       .mockResolvedValueOnce({ rowCount: 1, rows: [] });
     const first = resMock();
     await media.recordView({ params: { id: 'post-1' }, ip: '127.0.0.1', headers: {} }, first);
-    expect(pool.query).toHaveBeenCalledTimes(2);
-    expect(pool.query.mock.calls[1][0]).toMatch(/view_count = view_count \+ 1/);
+    expect(pool.query).toHaveBeenCalledTimes(3);
+    expect(pool.query.mock.calls[2][0]).toMatch(/view_count = view_count \+ 1/);
     expect(first.json).toHaveBeenCalledWith({ ok: true, recorded: true });
 
     pool.query.mockReset();
-    pool.query.mockResolvedValueOnce({ rowCount: 0, rows: [] });
+    pool.query.mockResolvedValueOnce({ rows: [{ id: 'post-1' }] })
+      .mockResolvedValueOnce({ rowCount: 0, rows: [] });
     const duplicate = resMock();
     await media.recordView({ params: { id: 'post-1' }, ip: '127.0.0.1', headers: {} }, duplicate);
-    expect(pool.query).toHaveBeenCalledTimes(1);
+    expect(pool.query).toHaveBeenCalledTimes(2);
     expect(duplicate.json).toHaveBeenCalledWith({ ok: true, recorded: false });
   });
 

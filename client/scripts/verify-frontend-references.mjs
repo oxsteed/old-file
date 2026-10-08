@@ -46,16 +46,20 @@ export function scanReferences(fileNames, options = {}, overrides = new Map()) {
   const compilerOptions = { ...options, allowJs: true, noEmit: true, noResolve: true };
   const host = ts.createCompilerHost(compilerOptions);
   const originalSourceFile = host.getSourceFile;
-  host.getSourceFile = (name, ...args) => overrides.has(name)
-    ? ts.createSourceFile(name, overrides.get(name), compilerOptions.target ?? ts.ScriptTarget.ES2020, true)
+  // TypeScript normalizes separators before calling the host. Match virtual
+  // fixtures by canonical absolute path on Windows as well as Linux.
+  const canonicalPath = name => host.getCanonicalFileName(path.resolve(name));
+  const sourceOverrides = new Map([...overrides].map(([name, text]) => [canonicalPath(name), text]));
+  host.getSourceFile = (name, ...args) => sourceOverrides.has(canonicalPath(name))
+    ? ts.createSourceFile(name, sourceOverrides.get(canonicalPath(name)), compilerOptions.target ?? ts.ScriptTarget.ES2020, true)
     : originalSourceFile(name, ...args);
   const program = ts.createProgram(fileNames, compilerOptions, host);
   const checker = program.getTypeChecker();
-  const included = new Set(fileNames.map(name => path.resolve(name)));
+  const included = new Set(fileNames.map(canonicalPath));
   const findings = [];
   let files = 0;
   for (const source of program.getSourceFiles()) {
-    if (!included.has(path.resolve(source.fileName)) || source.isDeclarationFile) continue;
+    if (!included.has(canonicalPath(source.fileName)) || source.isDeclarationFile) continue;
     files++;
     function walk(node) {
       if (ts.isIdentifier(node) && isReference(node)) {

@@ -43,10 +43,14 @@ const VALID_LINK_COUNT_SQL = `COUNT(l.id) FILTER (WHERE
 // relationship everywhere so a blocked author cannot be reached through a
 // post, quote, reply, actor, or search result URL.
 function addViewerBlockFilter(where, params, viewerUserId, actorAlias = 'a') {
-  if (!viewerUserId) return where;
+  const activeAuthor = `EXISTS (SELECT 1 FROM users media_author
+    WHERE media_author.id = ${actorAlias}.owner_user_id
+      AND media_author.deleted_at IS NULL AND media_author.is_active = TRUE
+      AND media_author.is_banned = FALSE)`;
+  if (!viewerUserId) return `(${where}) AND ${activeAuthor}`;
   params.push(viewerUserId);
   const viewerParam = params.length;
-  return `${where} AND NOT EXISTS (
+  return `(${where}) AND ${activeAuthor} AND NOT EXISTS (
     SELECT 1 FROM user_blocks ub
      WHERE (ub.blocker_id = $${viewerParam} AND ub.blocked_id = ${actorAlias}.owner_user_id)
         OR (ub.blocker_id = ${actorAlias}.owner_user_id AND ub.blocked_id = $${viewerParam})
@@ -68,6 +72,19 @@ async function notifyMediaUser({ userId, type, title, body, postId }) {
   } catch (err) {
     logger.warn('media notification failed', { type, postId, message: err.message });
   }
+}
+
+async function visiblePost(postId, viewerUserId) {
+  const params = [postId];
+  const where = addViewerBlockFilter(
+    `p.id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
+      AND p.processing_status = 'ready' AND p.csam_status = 'passed'`,
+    params, viewerUserId
+  );
+  const { rows } = await pool.query(
+    `SELECT p.id FROM media_posts p JOIN media_actors a ON a.id = p.actor_id WHERE ${where}`, params
+  );
+  return !!rows[0];
 }
 
 // Who can post at MVP: verified helpers, businesses, restaurants only.
@@ -429,6 +446,7 @@ async function getPost(req, res) {
 
 async function getReplies(req, res) {
   try {
+    if (!await visiblePost(req.params.id, req.user?.id)) return res.status(404).json({ error: 'Post not found' });
     const sort = req.query.sort === 'relevant' ? 'relevant' : 'latest';
     let orderClause = 'p.created_at DESC';
     if (sort === 'relevant') {
@@ -464,6 +482,7 @@ async function getReplies(req, res) {
 
 async function getQuotes(req, res) {
   try {
+    if (!await visiblePost(req.params.id, req.user?.id)) return res.status(404).json({ error: 'Post not found' });
     const params = [req.params.id];
     const where = addViewerBlockFilter(
       `p.quoted_post_id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
@@ -566,13 +585,8 @@ async function createPost(req, res) {
     }
     if (parent_id || quoted_post_id) {
       const targetIds = [parent_id, quoted_post_id].filter(Boolean);
-      const { rows: targets } = await pool.query(
-        `SELECT id FROM media_posts
-          WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL
-            AND visibility = 'public' AND processing_status = 'ready' AND csam_status = 'passed'`,
-        [targetIds]
-      );
-      if (targets.length !== targetIds.length) {
+      const accessible = await Promise.all(targetIds.map((id) => visiblePost(id, userId)));
+      if (accessible.some((allowed) => !allowed)) {
         return res.status(404).json({ error: 'The post you are replying to or quoting is unavailable', code: 'media_target_unavailable' });
       }
     }
@@ -686,6 +700,7 @@ async function replacePostLinks(req, res) {
 
 async function toggleLike(req, res) {
   try {
+    if (!await visiblePost(req.params.id, req.user.id)) return res.status(404).json({ error: 'Post not found' });
     const userId = req.user.id;
     const postId = req.params.id;
     const { rows: existing } = await pool.query(
@@ -721,6 +736,7 @@ async function toggleLike(req, res) {
 
 async function toggleBookmark(req, res) {
   try {
+    if (!await visiblePost(req.params.id, req.user.id)) return res.status(404).json({ error: 'Post not found' });
     const userId = req.user.id;
     const postId = req.params.id;
     const { rows: existing } = await pool.query(
@@ -743,9 +759,10 @@ async function toggleBookmark(req, res) {
 
 async function toggleRepost(req, res) {
   try {
+    if (!await visiblePost(req.params.id, req.user.id)) return res.status(404).json({ error: 'Post not found' });
     const userId = req.user.id;
     const actor = await getOrCreateActor(userId);
-    if (!actor) return res.status(403).json({ error: 'Only verified posters can repost' });
+    if (!actor || actor.verified_kind === 'none') return res.status(403).json({ error: 'Only verified posters can repost' });
     const postId = req.params.id;
     const { rows: existing } = await pool.query(
       `SELECT 1 FROM media_reposts WHERE post_id = $1 AND actor_id = $2`,
@@ -767,6 +784,7 @@ async function toggleRepost(req, res) {
 
 async function recordView(req, res) {
   try {
+    if (!await visiblePost(req.params.id, req.user?.id)) return res.status(404).json({ error: 'Post not found' });
     const postId = req.params.id;
     const viewerUserId = req.user?.id || null;
     const hash = viewerUserId || req.ip + (req.headers['user-agent'] || '');
@@ -796,6 +814,7 @@ async function recordView(req, res) {
 
 async function flagPost(req, res) {
   try {
+    if (!await visiblePost(req.params.id, req.user.id)) return res.status(404).json({ error: 'Post not found' });
     const { reason, note } = req.body;
     if (!reason) return res.status(400).json({ error: 'Reason is required' });
     const { rows: recent } = await pool.query(
@@ -825,6 +844,8 @@ async function flagPost(req, res) {
 
 async function getCommunities(req, res) {
   try {
+    const params = [req.user?.id || null];
+    const authorWhere = addViewerBlockFilter('a.id = p.actor_id', params, req.user?.id);
     const { rows } = await pool.query(
       `SELECT c.*,
               COUNT(DISTINCT p.id)::int AS post_count,
@@ -836,9 +857,11 @@ async function getCommunities(req, res) {
         LEFT JOIN media_posts p ON p.community_id = c.id
           AND p.visibility = 'public' AND p.deleted_at IS NULL
           AND p.processing_status = 'ready' AND p.csam_status = 'passed'
+          AND p.parent_id IS NULL
+          AND EXISTS (SELECT 1 FROM media_actors a WHERE ${authorWhere})
         GROUP BY c.id
         ORDER BY c.geo_scope NULLS LAST, c.category NULLS LAST, c.title`,
-      [req.user?.id || null]
+      params
     );
     res.json({ communities: rows });
   } catch (err) {
@@ -849,6 +872,8 @@ async function getCommunities(req, res) {
 
 async function getCommunity(req, res) {
   try {
+    const params = [req.params.slug, req.user?.id || null];
+    const authorWhere = addViewerBlockFilter('a.id = p.actor_id', params, req.user?.id);
     const { rows: communities } = await pool.query(
       `SELECT c.*,
               COUNT(DISTINCT p.id)::int AS post_count,
@@ -860,19 +885,25 @@ async function getCommunity(req, res) {
          LEFT JOIN media_posts p ON p.community_id = c.id
           AND p.visibility = 'public' AND p.deleted_at IS NULL
           AND p.processing_status = 'ready' AND p.csam_status = 'passed'
+          AND p.parent_id IS NULL
+          AND EXISTS (SELECT 1 FROM media_actors a WHERE ${authorWhere})
         WHERE c.slug = $1
         GROUP BY c.id`,
-      [req.params.slug, req.user?.id || null]
+      params
     );
     if (!communities[0]) return res.status(404).json({ error: 'Space not found' });
+    const postParams = [communities[0].id];
+    const postWhere = addViewerBlockFilter(
+      `p.community_id = $1 AND p.visibility = 'public' AND p.deleted_at IS NULL
+          AND p.processing_status = 'ready' AND p.csam_status = 'passed'
+          AND p.parent_id IS NULL`, postParams, req.user?.id
+    );
     const { rows } = await pool.query(
       `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
          FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
-        WHERE p.community_id = $1 AND p.visibility = 'public' AND p.deleted_at IS NULL
-          AND p.processing_status = 'ready' AND p.csam_status = 'passed'
-          AND p.parent_id IS NULL
+        WHERE ${postWhere}
         ORDER BY p.created_at DESC LIMIT 50`,
-      [communities[0].id]
+      postParams
     );
     const posts = [];
     for (const post of rows) posts.push(await hydratePost(post, req.user?.id || null));
@@ -991,7 +1022,7 @@ async function getBusinessPosts(req, res) {
 async function getActor(req, res) {
   try {
     const actorParams = [req.params.handle];
-    const actorWhere = addViewerBlockFilter('handle = $1', actorParams, req.user?.id);
+    const actorWhere = addViewerBlockFilter('handle = $1', actorParams, req.user?.id, 'media_actors');
     const { rows } = await pool.query(
       `SELECT * FROM media_actors WHERE ${actorWhere}`,
       actorParams

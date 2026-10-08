@@ -104,16 +104,42 @@ async function approvePost(req, res) {
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `SELECT id, visibility, processing_status, csam_status FROM media_posts
-        WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`, [req.params.id]
+      `SELECT p.id, p.visibility, p.processing_status, p.csam_status,
+              u.identity_verified
+         FROM media_posts p
+         JOIN media_actors a ON a.id = p.actor_id
+         JOIN users u ON u.id = a.owner_user_id
+        WHERE p.id = $1 AND p.deleted_at IS NULL
+          AND u.is_active = TRUE AND u.is_banned = FALSE AND u.deleted_at IS NULL
+        FOR UPDATE OF p`, [req.params.id]
     );
     if (!rows[0]) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Post not found' });
     }
+    const post = rows[0];
+    const { rows: assets } = await client.query(
+      `SELECT asset_type, processing_status, csam_status, renditions
+         FROM media_post_assets WHERE post_id = $1 FOR UPDATE`, [req.params.id]
+    );
+    const videos = assets.filter((asset) => asset.asset_type === 'video');
+    const certified = String(process.env.MEDIA_CSAM_CERTIFIED).toLowerCase() === 'true';
+    const videoReady = videos.every((asset) => asset.csam_status === 'passed'
+      && Array.isArray(asset.renditions) && asset.renditions.length > 0);
+    if (post.visibility === 'removed' || post.processing_status !== 'ready'
+        || post.csam_status !== 'passed'
+        || assets.some((asset) => asset.processing_status !== 'ready'
+          || !['passed', 'not_required'].includes(asset.csam_status))
+        || (videos.length > 0 && (!certified || !post.identity_verified || !videoReady))) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        error: 'Required safety checks and processing must finish before this post can be approved.',
+        code: 'media_safety_pending',
+      });
+    }
     await client.query(
       `UPDATE media_posts
-          SET visibility = 'public', processing_status = 'ready', csam_status = 'passed',
+          SET visibility = 'public',
               admin_override_by = $2, admin_override_at = NOW(), admin_override_reason = $3
         WHERE id = $1`, [req.params.id, req.user.id, reason]
     );
@@ -122,21 +148,12 @@ async function approvePost(req, res) {
       action: 'media_post_admin_approved',
       targetType: 'media_post',
       targetId: req.params.id,
-      description: 'Administrator approved a quarantined OxSteed Media post for publication.',
+      description: 'Administrator approved a safety-cleared OxSteed Media post for publication.',
       before: rows[0],
       after: { visibility: 'public', processing_status: 'ready', csam_status: 'passed', reason },
       client,
       throwOnError: true,
     });
-    await client.query(
-      `UPDATE media_post_assets
-          SET processing_status = 'ready', csam_status = CASE WHEN asset_type = 'video' THEN 'passed' ELSE csam_status END
-        WHERE post_id = $1`, [req.params.id]
-    );
-    await client.query(
-      `UPDATE media_processing_jobs SET status = 'done', updated_at = NOW()
-        WHERE post_id = $1 AND status IN ('pending', 'queued', 'processing', 'running')`, [req.params.id]
-    );
     await client.query('COMMIT');
     return res.json({ ok: true, approved: true, admin_override: true });
   } catch (err) {
