@@ -734,3 +734,5 @@ service. Focused server suites (39 Media tests and 150 Credit governance tests)
 and the full client `npm run build:ci` pass locally. Disposable PostgreSQL,
 authenticated administrator execution and live deployment verification remain
 open for this batch.
+
+Creator dispute admin surface batch (2026-10-08): the existing super-admin Credit dispute queue now exposes a localized Media creator disputes filter and labels Media tips, sponsorships, and post boosts. The filter and CSV export use the server-side `mediaOnly` reference-type predicate, so the displayed queue and exported evidence remain scoped to the same three Media payment kinds. Client contract checks, server dispute regression tests (137 tests), localization parity, typecheck, full client build, and dist-asset verification pass locally. Hosted CI and authenticated live administrator verification remain the next release checkpoint.

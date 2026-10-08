@@ -112,6 +112,12 @@ function normalizeString(value, max = 255) {
 
 const MAX_ADMIN_CREDIT_EXPORT_ROWS = 5000;
 
+const MEDIA_CREATOR_DISPUTE_REFERENCE_TYPES = Object.freeze([
+  'media_creator_tip',
+  'media_creator_sponsorship',
+  'media_post_boost',
+]);
+
 function csvCell(value) {
   const raw = value === null || value === undefined ? '' : String(value);
   const safe = /^[=+\-@]/.test(raw) ? `'${raw}` : raw;
@@ -721,9 +727,11 @@ async function listAdminDisputes(req, res, next) {
     const partnerId = req.query.partnerId || req.query.partner_id
       ? parsePositiveInt(req.query.partnerId || req.query.partner_id, 'partnerId')
       : undefined;
+    const mediaOnly = req.query.mediaOnly === undefined ? false : parseBoolean(req.query.mediaOnly, 'mediaOnly');
     const result = await listCreditDisputes({
       partnerId,
       status: req.query.status,
+      referenceTypes: mediaOnly ? MEDIA_CREATOR_DISPUTE_REFERENCE_TYPES : undefined,
       limit: req.query.limit,
       offset: req.query.offset,
       includePagination: true,
@@ -745,6 +753,9 @@ async function downloadAdminCreditDisputes(req, res, next) {
       const options = {
         partnerId,
         status: req.query.status,
+        referenceTypes: req.query.mediaOnly === undefined || !parseBoolean(req.query.mediaOnly, 'mediaOnly')
+          ? undefined
+          : MEDIA_CREATOR_DISPUTE_REFERENCE_TYPES,
         limit: 250,
         offset: 0,
         includePagination: true,

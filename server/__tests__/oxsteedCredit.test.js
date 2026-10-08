@@ -2276,6 +2276,24 @@ test('paginates and filters the admin credit dispute queue', async () => {
   expect(mockQuery.mock.calls[0][1]).toEqual(['resolved', 11, 20]);
 });
 
+test('scopes the admin dispute queue to Media creator payments', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [] });
+
+  const response = await request(createAdminApp()).get('/disputes?mediaOnly=true&limit=10');
+
+  expect(response.status).toBe(200);
+  expect(response.body).toEqual({
+    disputes: [],
+    pagination: { limit: 10, offset: 0, hasMore: false, nextOffset: null },
+  });
+  expect(mockQuery.mock.calls[0][0]).toContain('t.reference_type = ANY($1::text[])');
+  expect(mockQuery.mock.calls[0][1]).toEqual([[
+    'media_creator_tip',
+    'media_creator_sponsorship',
+    'media_post_boost',
+  ], 11, 0]);
+});
+
 test('exports a filtered, formula-safe admin credit dispute queue', async () => {
   mockQuery.mockResolvedValueOnce({ rows: [{
     id: 'dispute-3',
