@@ -42,8 +42,10 @@ test('Media composer persists restored draft edits before retrying publication',
 
 test('Media composer keeps polling private processing drafts until a terminal state', () => {
   assert.match(compose, /refreshProcessingDraft/);
+  assert.match(compose, /pollCount > 90/);
   assert.match(compose, /setInterval\(refreshProcessingDraft, 4000\)/);
   assert.match(compose, /processingReady/);
+  assert.match(compose, /processingDelayed/);
   assert.match(compose, /clearInterval\(timer\)/);
 });
 

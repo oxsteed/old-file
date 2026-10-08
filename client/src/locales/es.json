@@ -30468,6 +30468,7 @@
       "processing": "Tu contenido se está revisando. El borrador seguirá privado hasta que esté listo.",
       "processingFailed": "El procesamiento no terminó. Reemplaza el archivo e inténtalo de nuevo.",
       "processingReady": "Las comprobaciones del contenido terminaron. Tu borrador está listo para publicarse.",
+      "processingDelayed": "Las comprobaciones están tardando más de lo esperado. Puedes reintentar este borrador más tarde.",
       "previewAlt": "Vista previa del contenido seleccionado",
       "uploadProgress": "Progreso de carga"
     },

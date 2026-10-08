@@ -30468,6 +30468,7 @@
       "processing": "N ap verifye medya ou a. Bouyon an ap rete prive jouk li pare.",
       "processingFailed": "Pwosesis medya a pa fini. Ranplase fichye a epi eseye ankò.",
       "processingReady": "Verifikasyon medya a fini. Bouyon ou pare pou pibliye.",
+      "processingDelayed": "Verifikasyon medya a pran plis tan pase nòmal. Ou ka eseye bouyon sa a ankò pita.",
       "previewAlt": "Aperçu medya ou chwazi a",
       "uploadProgress": "Pwogrè telechajman"
     },

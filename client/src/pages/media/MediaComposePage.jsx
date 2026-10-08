@@ -68,7 +68,15 @@ export default function MediaComposePage() {
   useEffect(() => {
     if (!draftId || !attachedAsset || !['quarantine', 'processing'].includes(processingStatus)) return undefined;
     let cancelled = false;
+    let pollCount = 0;
+    let timer;
     const refreshProcessingDraft = async () => {
+      pollCount += 1;
+      if (pollCount > 90) {
+        setStatus(t('media.compose.processingDelayed'));
+        window.clearInterval(timer);
+        return;
+      }
       try {
         const { draft } = await getDraft(draftId);
         if (cancelled || !draft) return;
@@ -77,15 +85,17 @@ export default function MediaComposePage() {
         setProcessingStatus(nextStatus);
         if (nextStatus === 'ready') {
           setStatus(t('media.compose.processingReady'));
+          window.clearInterval(timer);
         } else if (nextStatus === 'failed' || nextStatus === 'blocked') {
           setStatus(t('media.compose.processingFailed'));
+          window.clearInterval(timer);
         }
       } catch {
         // Keep the current private-draft status visible through transient polls.
       }
     };
+    timer = window.setInterval(refreshProcessingDraft, 4000);
     refreshProcessingDraft();
-    const timer = window.setInterval(refreshProcessingDraft, 4000);
     return () => {
       cancelled = true;
       window.clearInterval(timer);

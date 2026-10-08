@@ -30468,6 +30468,7 @@
       "processing": "Votre média est en cours de vérification. Le brouillon reste privé jusqu’à sa validation.",
       "processingFailed": "Le traitement du média n’est pas terminé. Remplacez le fichier puis réessayez.",
       "processingReady": "Les vérifications du média sont terminées. Votre brouillon est prêt à être publié.",
+      "processingDelayed": "Les vérifications prennent plus de temps que prévu. Vous pourrez réessayer ce brouillon plus tard.",
       "previewAlt": "Aperçu du média sélectionné",
       "uploadProgress": "Progression de l’envoi"
     },

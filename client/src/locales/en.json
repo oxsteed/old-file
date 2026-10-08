@@ -30468,6 +30468,7 @@
       "processing": "Your media is being checked. This draft stays private until it is ready.",
       "processingFailed": "Media processing did not finish. Replace the file and try again.",
       "processingReady": "Media checks passed. Your draft is ready to publish.",
+      "processingDelayed": "Media checks are taking longer than expected. You can retry this draft later.",
       "previewAlt": "Selected media preview",
       "uploadProgress": "Upload progress"
     },
