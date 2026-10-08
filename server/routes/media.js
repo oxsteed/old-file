@@ -68,8 +68,10 @@ router.post('/creator/sponsorships', requireAuth, creatorCtrl.createSponsorship)
 router.get('/creator/sponsorships', requireAuth, creatorCtrl.listSponsorships);
 router.post('/creator/sponsorships/:sponsorshipId/accept', requireAuth, creatorCtrl.acceptSponsorship);
 router.post('/creator/sponsorships/:sponsorshipId/settle', requireAuth, creatorCtrl.settleSponsorship);
+router.post('/creator/sponsorships/:sponsorshipId/cancel', requireAuth, creatorCtrl.cancelSponsorship);
 router.post('/posts/:postId/boosts', requireAuth, creatorCtrl.createBoost);
 router.post('/creator/boosts/:boostId/settle', requireAuth, creatorCtrl.settleBoost);
+router.post('/creator/boosts/:boostId/cancel', requireAuth, creatorCtrl.cancelBoost);
 
 // Authenticated actions.
 router.post('/posts', requireAuth, ctrl.createPost);

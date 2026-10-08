@@ -388,3 +388,19 @@ approve it or request changes. The server keeps ownership, public-ready-post,
 and awarded-application checks in place, while the focused creator suite now
 passes 6 tests. Client production build and authenticated deployed deliverable
 verification remain required.
+
+Creator cancellation hardening (2026-10-08): unsettled sponsorships can be
+cancelled by either party, settlement transitions accepted sponsorships to
+`completed`, and pending boosts can be cancelled before Credit settlement.
+Settled boosts remain protected from cancellation. The focused creator suite
+now passes 7 tests; refund/dispute handling for completed Credit transfers and
+authenticated production verification remain open.
+
+Anonymous production evidence (2026-10-08): `/health`, `/ready`,
+`/api/media/capabilities`, and `/api/media/creator/gigs` returned 200. The live
+capabilities report Cloudflare safety mode with malware and transcode required;
+the ready payload reports all workers healthy and 741 migrations applied. The
+current source checkout contains migrations through 740, so that live schema
+count is recorded as a deployment/source discrepancy requiring reconciliation,
+not as proof that this branch is deployed. Authenticated Media and Credit
+journeys remain unverified.

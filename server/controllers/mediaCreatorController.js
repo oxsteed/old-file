@@ -303,7 +303,26 @@ async function settleSponsorship(req, res, next) {
       requestIp: req.ip || null, description: 'OxSteed Media creator sponsorship',
       metadata: { mediaSponsorshipId: sponsorship.id },
     });
-    res.json({ sponsorship, transfer });
+    const { rows: updated } = await pool.query(
+      `UPDATE media_creator_sponsorships SET status = 'completed', updated_at = NOW()
+        WHERE id = $1 AND status = 'accepted' RETURNING *`, [sponsorship.id]
+    );
+    res.json({ sponsorship: updated[0] || sponsorship, transfer });
+  } catch (err) { next(err); }
+}
+
+async function cancelSponsorship(req, res, next) {
+  try {
+    const { rows } = await pool.query(
+      `UPDATE media_creator_sponsorships s SET status = 'cancelled', updated_at = NOW()
+        FROM media_actors a
+       WHERE s.id = $1
+         AND (s.sponsor_user_id = $2 OR (a.id = s.creator_actor_id AND a.owner_user_id = $2))
+         AND s.status IN ('pending_credit','accepted')
+       RETURNING s.*`, [req.params.sponsorshipId, req.user.id]
+    );
+    if (!rows[0]) throw new AppError('Sponsorship cannot be cancelled.', 409, 'media_creator_sponsorship_cancel_invalid');
+    res.json({ sponsorship: rows[0] });
   } catch (err) { next(err); }
 }
 
@@ -351,6 +370,18 @@ async function settleBoost(req, res, next) {
   } catch (err) { next(err); }
 }
 
+async function cancelBoost(req, res, next) {
+  try {
+    const { rows } = await pool.query(
+      `UPDATE media_post_boosts SET status = 'cancelled'
+        WHERE id = $1 AND purchaser_user_id = $2 AND status = 'pending_credit' RETURNING *`,
+      [req.params.boostId, req.user.id]
+    );
+    if (!rows[0]) throw new AppError('Boost cannot be cancelled after settlement.', 409, 'media_boost_cancel_invalid');
+    res.json({ boost: rows[0] });
+  } catch (err) { next(err); }
+}
+
 async function settleTip(req, res, next) {
   try {
     const { rows } = await pool.query(
@@ -391,5 +422,5 @@ module.exports = {
   listGigs, createGig, applyToGig, listApplications, listMyApplications, awardApplication,
   submitDeliverable, reviewDeliverable, createTip, createSponsorship, listSponsorships, createBoost,
   settleTip,
-  acceptSponsorship, settleSponsorship, settleBoost,
+  acceptSponsorship, settleSponsorship, cancelSponsorship, settleBoost, cancelBoost,
 };

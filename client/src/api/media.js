@@ -53,5 +53,7 @@ export const settleCreatorTip = (tipId) => api.post(`/media/creator/tips/${tipId
 export const createCreatorSponsorship = (data) => api.post('/media/creator/sponsorships', data).then(r => r.data);
 export const getCreatorSponsorships = () => api.get('/media/creator/sponsorships').then(r => r.data);
 export const acceptCreatorSponsorship = (sponsorshipId) => api.post(`/media/creator/sponsorships/${sponsorshipId}/accept`).then(r => r.data);
+export const cancelCreatorSponsorship = (sponsorshipId) => api.post(`/media/creator/sponsorships/${sponsorshipId}/cancel`).then(r => r.data);
 export const createCreatorBoost = (postId, data) => api.post(`/media/posts/${postId}/boosts`, data).then(r => r.data);
 export const settleCreatorBoost = (boostId) => api.post(`/media/creator/boosts/${boostId}/settle`).then(r => r.data);
+export const cancelCreatorBoost = (boostId) => api.post(`/media/creator/boosts/${boostId}/cancel`).then(r => r.data);

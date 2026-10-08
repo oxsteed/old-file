@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Briefcase, CheckCircle2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { acceptCreatorSponsorship, applyToCreatorGig, awardCreatorApplication, createCreatorGig, createCreatorSponsorship, createCreatorTip, getCreatorApplications, getCreatorGigs, getCreatorSponsorships, getFeed, getMyCreatorApplications, reviewCreatorDeliverable, settleCreatorTip, submitCreatorDeliverable } from '../../api/media';
+import { acceptCreatorSponsorship, applyToCreatorGig, awardCreatorApplication, cancelCreatorSponsorship, createCreatorGig, createCreatorSponsorship, createCreatorTip, getCreatorApplications, getCreatorGigs, getCreatorSponsorships, getFeed, getMyCreatorApplications, reviewCreatorDeliverable, settleCreatorTip, submitCreatorDeliverable } from '../../api/media';
 import { useAuth } from '../../context/AuthContext';
 
 export default function MediaCreatorPage() {
@@ -115,6 +115,13 @@ export default function MediaCreatorPage() {
     finally { setSubmitting(false); }
   };
 
+  const cancelOffer = async (sponsorshipId) => {
+    setSubmitting(true); setError('');
+    try { await cancelCreatorSponsorship(sponsorshipId); setSponsorships((items) => items.map((item) => item.id === sponsorshipId ? { ...item, status: 'cancelled' } : item)); }
+    catch (err) { setError(err.response?.data?.error || t('media.creator.paymentError')); }
+    finally { setSubmitting(false); }
+  };
+
   const openApplications = async (gig) => {
     setApplicationsGig(gig); setApplications([]); setApplicationsLoading(true); setError('');
     try { const data = await getCreatorApplications(gig.id); setApplications(data.applications || []); }
@@ -180,6 +187,7 @@ export default function MediaCreatorPage() {
           <div className="media-creator-gig-heading"><div><h3>{offer.brief}</h3><p>{offer.creator_name || offer.creator_handle}</p></div><strong>{offer.amount_cents} {offer.currency_code}</strong></div>
           <p>{offer.status === 'accepted' ? t('media.creator.accepted') : offer.status === 'pending_credit' ? t('media.creator.pendingAcceptance') : offer.status}</p>
           {String(offer.creator_user_id) === String(user.id) && offer.status === 'pending_credit' && <button type="button" className="media-primary-button" onClick={() => acceptOffer(offer.id)} disabled={submitting}>{t('media.creator.accept')}</button>}
+          {(String(offer.sponsor_user_id) === String(user.id) || String(offer.creator_user_id) === String(user.id)) && ['pending_credit', 'accepted'].includes(offer.status) && <button type="button" className="media-secondary-button" onClick={() => cancelOffer(offer.id)} disabled={submitting}>{t('media.creator.cancel')}</button>}
         </article>)}
       </section>}
       {!loading && user && myApplications.length > 0 && <section className="media-creator-offers" aria-labelledby="creator-applications-title">

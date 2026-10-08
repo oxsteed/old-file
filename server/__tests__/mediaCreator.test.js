@@ -74,3 +74,11 @@ test('lists an applicant’s awarded work with its latest deliverable state', as
   expect(res.json).toHaveBeenCalledWith({ applications: [{ id: 'app-1', status: 'awarded', deliverable_status: 'submitted' }] });
   expect(mockQuery.mock.calls[0][0]).toContain('media_creator_deliverables');
 });
+
+test('cancels an unsettled sponsorship for one of its parties', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{ id: 's-1', status: 'cancelled' }] });
+  const res = resMock();
+  await creator.cancelSponsorship({ params: { sponsorshipId: 's-1' }, user: { id: 'sponsor-1' } }, res, jest.fn());
+  expect(res.json).toHaveBeenCalledWith({ sponsorship: { id: 's-1', status: 'cancelled' } });
+  expect(mockQuery.mock.calls[0][0]).toContain("s.status IN ('pending_credit','accepted')");
+});
