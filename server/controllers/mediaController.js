@@ -427,7 +427,7 @@ async function getFeed(req, res) {
         params
       ));
     } catch (err) {
-      if (!['42703', '42P01'].includes(err.code)) throw err;
+      if (!['42703', '42P01', '42803', '42702', '42P18'].includes(err.code)) throw err;
       logger.error('media.getFeed ranked schema fallback', { code: err.code, message: err.message });
       const fallbackParams = [limit];
       let fallbackWhere = `p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL
