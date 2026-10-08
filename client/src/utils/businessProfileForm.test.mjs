@@ -28,6 +28,16 @@ test('profile form fallback and unpublished businesses stay off the public profi
   assert.equal(isBusinessPubliclyListed({ setup_status: 'active', is_listed: true }), true);
   assert.equal(profileFormFromBusiness(created).business_name, 'FastFix');
   assert.equal(profileFormFromBusiness(created).address_city, 'Columbus');
+  const withFlags = profileFormFromBusiness({
+    business_name: 'Hide Co',
+    show_services: false,
+    show_gallery: null,
+    show_faqs: true,
+  });
+  assert.equal(withFlags.show_services, false);
+  assert.equal(withFlags.show_gallery, true);
+  assert.equal(withFlags.show_faqs, true);
+  assert.equal(withFlags.show_hours, true);
   const merged = mergeBusinessList([created], [{ id: 8, business_name: 'FastFix LLC', _role: 'owner' }]);
   assert.equal(merged.length, 1);
   assert.equal(merged[0].business_name, 'FastFix LLC');

@@ -303,11 +303,20 @@ export default function BusinessProfileEditor({
   const contactComplete = !!(form?.phone || form?.website);
   const locationComplete = !!(form?.address_city && form?.address_country);
 
+  const visibilityToggles = useMemo(() => ([
+    { key: 'show_services', label: t('businessHub.profileEditor.showServices') },
+    { key: 'show_gallery', label: t('businessHub.profileEditor.showGallery') },
+    { key: 'show_hours', label: t('businessHub.profileEditor.showHours') },
+    { key: 'show_policies', label: t('businessHub.profileEditor.showPolicies') },
+    { key: 'show_faqs', label: t('businessHub.profileEditor.showFaqs') },
+  ]), [t]);
+
   const sections = useMemo(() => ([
     { id: 'photos', label: t('businessHub.sectionPhotos'), complete: photosComplete },
     { id: 'identity', label: t('businessHub.sectionBusinessIdentity'), complete: identityComplete },
     { id: 'contact', label: t('businessHub.sectionContact'), complete: contactComplete },
     { id: 'location', label: t('businessHub.sectionLocation'), complete: locationComplete },
+    { id: 'visibility', label: t('businessHub.profileEditor.sectionVisibility'), complete: true },
     { id: 'readiness', label: t('profileStudio.sectionReadiness'), complete: listingReady },
   ]), [t, photosComplete, identityComplete, contactComplete, locationComplete, listingReady]);
 
@@ -316,6 +325,7 @@ export default function BusinessProfileEditor({
     identity: t('profileStudio.hintIdentity'),
     contact: t('profileStudio.hintContact'),
     location: t('profileStudio.hintLocation'),
+    visibility: t('businessHub.profileEditor.visibilityHint'),
     readiness: t('profileStudio.hintReadiness'),
   };
 
@@ -699,6 +709,26 @@ export default function BusinessProfileEditor({
           </div>
         </div>
       </>
+    );
+  } else if (activeSection === 'visibility') {
+    sectionBody = (
+      <div className="bpe-visibility">
+        <p className="bpe-hint">{t('businessHub.profileEditor.visibilityHint')}</p>
+        <ul className="bpe-visibility-list">
+          {visibilityToggles.map(({ key, label }) => (
+            <li key={key}>
+              <label className="bpe-visibility-row">
+                <span>{label}</span>
+                <input
+                  type="checkbox"
+                  checked={form[key] !== false}
+                  onChange={(e) => patch(key, e.target.checked)}
+                />
+              </label>
+            </li>
+          ))}
+        </ul>
+      </div>
     );
   } else if (activeSection === 'readiness') {
     sectionBody = (

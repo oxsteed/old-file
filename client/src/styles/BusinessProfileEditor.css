@@ -68,6 +68,34 @@
   color: #fdba74;
 }
 
+.bpe-visibility-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.bpe-visibility-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.65rem;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.45);
+  font-size: 0.88rem;
+  color: #e5e7eb;
+  cursor: pointer;
+}
+
+.bpe-visibility-row input {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: #f97316;
+}
+
 .bpe-ghost {
   display: inline-flex;
   align-items: center;
