@@ -1094,7 +1094,13 @@ async function createPost(req, res) {
     // Update parent reply count.
     if (parent_id) {
       const { rows: parentCounts } = await pool.query(
-        `UPDATE media_posts SET reply_count = reply_count + 1 WHERE id = $1 RETURNING reply_count`,
+        `UPDATE media_posts parent
+            SET reply_count = (
+              SELECT COUNT(*)::int FROM media_posts reply
+               WHERE reply.parent_id = parent.id AND reply.deleted_at IS NULL
+                 AND reply.visibility = 'public' AND reply.processing_status = 'ready'
+            )
+          WHERE parent.id = $1 RETURNING parent.reply_count`,
         [parent_id]
       );
       broadcastMediaPostCounts(parent_id, { reply_count: parentCounts[0]?.reply_count });
@@ -1115,7 +1121,13 @@ async function createPost(req, res) {
     }
     if (quoted_post_id) {
       const { rows: quoteCounts } = await pool.query(
-        `UPDATE media_posts SET quote_count = quote_count + 1 WHERE id = $1 RETURNING quote_count`,
+        `UPDATE media_posts quoted
+            SET quote_count = (
+              SELECT COUNT(*)::int FROM media_posts quote
+               WHERE quote.quoted_post_id = quoted.id AND quote.deleted_at IS NULL
+                 AND quote.visibility = 'public' AND quote.processing_status = 'ready'
+            )
+          WHERE quoted.id = $1 RETURNING quoted.quote_count`,
         [quoted_post_id]
       );
       broadcastMediaPostCounts(quoted_post_id, { quote_count: quoteCounts[0]?.quote_count });
@@ -1322,11 +1334,29 @@ async function deletePost(req, res) {
     );
     if (!rows[0]) return res.status(404).json({ error: 'Post not found', code: 'media_post_not_found' });
     if (rows[0].parent_id) {
-      const { rows: parentCounts } = await pool.query(`UPDATE media_posts SET reply_count = GREATEST(0, reply_count - 1) WHERE id = $1 RETURNING reply_count`, [rows[0].parent_id]);
+      const { rows: parentCounts } = await pool.query(
+        `UPDATE media_posts parent
+            SET reply_count = (
+              SELECT COUNT(*)::int FROM media_posts reply
+               WHERE reply.parent_id = parent.id AND reply.deleted_at IS NULL
+                 AND reply.visibility = 'public' AND reply.processing_status = 'ready'
+            )
+          WHERE parent.id = $1 RETURNING parent.reply_count`,
+        [rows[0].parent_id]
+      );
       broadcastMediaPostCounts(rows[0].parent_id, { reply_count: parentCounts[0]?.reply_count });
     }
     if (rows[0].quoted_post_id) {
-      const { rows: quoteCounts } = await pool.query(`UPDATE media_posts SET quote_count = GREATEST(0, quote_count - 1) WHERE id = $1 RETURNING quote_count`, [rows[0].quoted_post_id]);
+      const { rows: quoteCounts } = await pool.query(
+        `UPDATE media_posts quoted
+            SET quote_count = (
+              SELECT COUNT(*)::int FROM media_posts quote
+               WHERE quote.quoted_post_id = quoted.id AND quote.deleted_at IS NULL
+                 AND quote.visibility = 'public' AND quote.processing_status = 'ready'
+            )
+          WHERE quoted.id = $1 RETURNING quoted.quote_count`,
+        [rows[0].quoted_post_id]
+      );
       broadcastMediaPostCounts(rows[0].quoted_post_id, { quote_count: quoteCounts[0]?.quote_count });
     }
     res.json({ deleted: true, id: rows[0].id });
