@@ -24,6 +24,32 @@ async function listFlags(req, res) {
   }
 }
 
+async function listPendingPosts(req, res) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT p.id, p.body, p.processing_status, p.csam_status, p.visibility, p.created_at,
+              a.display_name AS actor_name, a.handle AS actor_handle,
+              COALESCE(json_agg(json_build_object(
+                'id', pa.id, 'asset_type', pa.asset_type,
+                'processing_status', pa.processing_status, 'csam_status', pa.csam_status
+              ) ORDER BY pa.sort_order) FILTER (WHERE pa.id IS NOT NULL), '[]'::json) AS assets
+         FROM media_posts p
+         JOIN media_actors a ON a.id = p.actor_id
+         LEFT JOIN media_post_assets pa ON pa.post_id = p.id
+        WHERE p.deleted_at IS NULL
+          AND p.visibility <> 'removed'
+          AND p.processing_status IN ('quarantine', 'failed', 'blocked')
+        GROUP BY p.id, a.display_name, a.handle
+        ORDER BY p.created_at DESC
+        LIMIT 100`
+    );
+    res.json({ posts: rows });
+  } catch (err) {
+    logger.error('mediaAdmin.listPendingPosts error', { message: err.message });
+    res.status(500).json({ error: 'Failed to load pending posts' });
+  }
+}
+
 async function reviewFlag(req, res) {
   try {
     const { action, takedownReason } = req.body;
@@ -88,7 +114,7 @@ async function approvePost(req, res) {
     );
     await client.query(
       `UPDATE media_processing_jobs SET status = 'done', updated_at = NOW()
-        WHERE post_id = $1 AND status IN ('pending', 'processing')`, [req.params.id]
+        WHERE post_id = $1 AND status IN ('pending', 'queued', 'processing', 'running')`, [req.params.id]
     );
     await client.query('COMMIT');
     return res.json({ ok: true, approved: true, admin_override: true });
@@ -101,4 +127,4 @@ async function approvePost(req, res) {
   }
 }
 
-module.exports = { listFlags, reviewFlag, approvePost };
+module.exports = { listFlags, listPendingPosts, reviewFlag, approvePost };
