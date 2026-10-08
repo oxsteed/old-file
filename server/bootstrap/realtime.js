@@ -6,6 +6,7 @@ const defaultSocketService = require('../services/socketService');
 const defaultSupportService = require('../services/websocketService');
 const { bindChatNamespace, createChatAuthenticator } = require('../realtime/chatNamespace');
 const { bindRestaurantDisplayNamespace } = require('../realtime/restaurantDisplayNamespace');
+const { bindMediaNamespace } = require('../realtime/mediaNamespace');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const tokenRevocationService = require('../services/tokenRevocationService');
@@ -173,14 +174,20 @@ function createRealtimeServer({
     bindRestaurantDisplayNamespace(restaurantDisplay);
     socketService.initRestaurantDisplay(restaurantDisplay);
 
+    // Public, read-only Media count updates. REST remains the source of truth;
+    // this namespace only helps already-rendered cards reconcile quickly.
+    const media = io.of('/media');
+    bindMediaNamespace(media);
+    socketService.initMedia?.(media);
+
     log.info('Realtime server initialized', {
-      namespaces: ['/chat', '/support', '/restaurant-display'],
+      namespaces: ['/chat', '/support', '/restaurant-display', '/media'],
     });
 
     let closed = false;
     return {
       io,
-      namespaces: { chat, support, restaurantDisplay },
+      namespaces: { chat, support, restaurantDisplay, media },
       async close() {
         if (closed) return;
         closed = true;

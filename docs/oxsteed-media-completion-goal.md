@@ -14,9 +14,9 @@ verified live for the new candidate. A historical test count is not proof.
 
 | Requirement | State and implementation / behavioral evidence | Deployment / dependency | Next exact action |
 | --- | --- | --- | --- |
-| Reconciled source and retained work | Behavior-tested: writable checkout HEAD `5c7e3096` matched origin; three pre-existing untracked browser scratch files preserved. | Runtime `/ready` release observed separately; exact candidate deployment outstanding. | Commit integrated changes and compare content identity after deployment. |
+| Reconciled source and retained work | Behavior-tested: writable checkout HEAD `95e844cb` matches the pushed branch; three pre-existing untracked browser scratch files remain preserved. | Runtime release metadata still exposes content identity but no git SHA. | Keep the scratch files untracked and compare release metadata at each deployment checkpoint. |
 | Repeatable isolated fixtures | Implemented: optional Media compose extension, scoped wrapper, synthetic persona seed and real API/scan/conversion verifier. | Not executed here: Windows host has no reachable Colima/Docker runtime. | Execute `start`, `seed`, `media-test` on Colima and capture repeat/reset evidence. |
-| Required real database proof | Implemented: attachment races/replacement/migration replay suite and existing visibility suite; CI now rejects skipped Media DB cases. | Five new DB cases skipped locally; disposable PostgreSQL execution outstanding. | Execute with `STATEMENT_TEST_DATABASE_URL` pointing only to `credit_statement_test`. |
+| Required real database proof | Behavior-tested in hosted CI: `mediaVisibilityDb.test.js` and `mediaDraftAttachmentsDb.test.js` both ran without skips against disposable PostgreSQL; the migration rehearsal also applied every migration twice and exercised concurrent recovery. | Local Windows checkout still has no disposable PostgreSQL runtime. | Preserve the CI database assertion and rerun it for each candidate. |
 | Helper Didit-backed identity | Implemented: `users.is_verified` checks at upload and commit; mocked behavior covers revocation at attachment commit. | Authenticated Didit return and production upload outstanding. | Prove webhook → verified helper → compose in isolated/live journeys. |
 | Business and restaurant verification | Incomplete: request center/admin review exist; source now binds publishing, admin approval and marketplace recognition to the exact represented entity via `mediaPublisherPolicy`; real request/revocation execution remains outstanding. | Current flags and review on deployed candidate unverified. | Execute the added PostgreSQL multiple-entity, revocation, approval and legacy-migration cases. |
 | Verification request and return path | Implemented in prior source: in-shell center, owner submission, admin review and Didit return. | Fresh real API and signed-in deployed evidence outstanding. | Run helper/business/restaurant/admin request and return matrix. |
@@ -50,7 +50,7 @@ verified live for the new candidate. A historical test count is not proof.
 | Versioned context-bound feed cursor | Behavior-tested locally: cursor includes version, tab, viewer, location, ranking mode, cutoff and microsecond timestamp; changed context returns a recoverable 400; fallback preserves its chronological mode and cutoff. | Real complete-pagination proof is skipped without PostgreSQL. | Execute isolated ranked and fallback pagination cases, then verify candidate deployment. |
 | Stale tab responses and duplicates | Behavior-tested locally: generation guards discard out-of-order tab/location responses and page appends deduplicate post IDs. | Browser test uses mocked API; production race evidence outstanding. | Verify rapid tab/location changes against the deployed API. |
 | Follows and Following | Implemented in existing source. | Real block/follow/paging and actor-count proof outstanding. | Run actual SQL and browser tab-switch journey. |
-| Live authoritative counts | Incomplete. | Existing realtime lifecycle integration/reconciliation outstanding. | Subscribe through existing lifecycle and reconcile API counts on refresh/events. |
+| Live authoritative counts | Behavior-tested locally: the shared Socket.IO lifecycle now exposes a read-only `/media` namespace, action endpoints broadcast committed post counters, and feed/detail cards reconcile those counters without mutating state from socket events. | Authenticated live multi-client count proof remains outstanding. | Verify two signed-in/guest browsers receive the same committed counts and recover after reconnect. |
 | Business Hub integration | Implemented in prior source. | Actual selected-business authorization/navigation outstanding. | Verify Media posting and history for owned entities. |
 | Profile Studio/public-profile integration | Implemented in prior source. | Actual safe profile tabs and guest behavior outstanding. | Test profile editing/navigation and public safe posts. |
 | Rentals/Direct/Logistics cards | Implemented in current link resolvers/search. | Actual public targets/removal/currency proof outstanding. | Seed and verify additional types alongside launch types. |
@@ -68,8 +68,8 @@ verified live for the new candidate. A historical test count is not proof.
 | Atomic accounting/precision/fees/isolation | Incomplete for marketplace: shared rail safeguards exist, transitions are not fully atomic with payment. | Real isolated conservation/races/currency cases required. | Add transactional marketplace service and accounting behavior suites. |
 | Migration upgrade and repeat application | Implemented: new 742, 743, 744 and 746 filenames follow inspected predecessors; 746 adds creator payment reservation/transaction links and delivery metadata. | Actual 746 migration execution is pending hosted CI/deployment. | Rehearse against disposable upgraded schema and repeat without data changes. |
 | Cloudflare interim and deferred Thorn | Implemented: retained explicit interim status; no synthetic vendor clearance. | Real runtime/public-delivery proof outstanding. | Keep honest policy disclosures and future vendor switch tests. |
-| Passing exact-candidate CI | Incomplete: baseline run `37815891575` rejected before steps for GitHub billing. | Failed payments/spending limit is an external CI dependency. | Check once at coherent release checkpoint; run candidate CI when available. |
-| Exact deployed release/readiness/schema/assets | Incomplete: healthy baseline is not new-candidate deployment proof. | Deployment access and reproducible content identity required. | Compare candidate hash and validate `/ready`, migration 742, workers and assets. |
+| Passing exact-candidate CI | Behavior-verified: candidate `95e844cb` passed CI run `37842488994`; the full server/client job and the PostgreSQL migration rehearsal both passed. | Hosted CI is available again; authenticated production behavior is still separate evidence. | Keep the run linked to the batch and require a new passing run before each later push. |
+| Exact deployed release/readiness/schema/assets | Behavior-verified live after the candidate checkpoint: `/ready` and `/health` returned 200; `/ready` reported release `content-94eb0730a824dca6`, migrations `747/747`, no pending/unexpected migrations, healthy database/Redis/Credit/realtime/workers; Media feed and capabilities returned 200. | Coolify release metadata does not expose the git SHA, so exact commit-to-image identity remains unavailable. | Obtain release SHA or reproducible asset identity from deployment metadata and verify authenticated journeys. |
 | Authenticated production/real-device matrix | Incomplete. | Signed-in helper/business/restaurant/admin and real device access outstanding. | Capture full non-financial production journeys; reconcile finance read-only. |
 
 Current local execution: all 165 Media behavior checks passed in 13 suites;
@@ -711,5 +711,15 @@ and sponsored lanes, and interleaves one sponsored slot per five feed positions.
 Ranked cursors are version 2 and carry `feed_position`, keeping page boundaries
 stable without duplicate rows or ranking changes. `MediaPostCard` labels active
 paid placement in all five locales. Focused Media suites (62 tests) and
-`npm run build:ci` pass locally; hosted CI, real active-boost expiry/cap cases,
-and authenticated live placement remain pending.
+`npm run build:ci` pass locally; candidate CI run `37842488994` and its
+PostgreSQL rehearsal pass. Real active-boost expiry/cap cases and authenticated
+live placement remain pending.
+
+Live count reconciliation batch (2026-10-08): the shared Socket.IO lifecycle now
+includes a public, read-only `/media` namespace. Clients subscribe to post rooms;
+like, bookmark, repost, share, view, reply and quote mutations broadcast only
+after their database update returns the committed counter. Feed and detail cards
+reconcile those counters while REST remains authoritative, including room
+rejoin after reconnect. Focused Media/realtime suites (53 tests) and the client
+build pass locally; the hosted candidate CI and anonymous production endpoints
+are healthy, while an authenticated multi-client live count check remains open.

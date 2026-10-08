@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { createCreatorBoost, flagPost, recordShare, settleCreatorBoost, toggleLike, toggleBookmark, toggleRepost } from '../../api/media';
+import useMediaPostRealtime from '../../hooks/useMediaPostRealtime';
 
 function VerifiedBadge({ kind, label }) {
   if (!kind || kind === 'none') return null;
@@ -64,6 +65,8 @@ export default function MediaPostCard({ post, onUpdate }) {
   const [likeCount, setLikeCount] = useState(post.like_count);
   const [bookmarkCount, setBookmarkCount] = useState(post.bookmark_count);
   const [repostCount, setRepostCount] = useState(post.repost_count);
+  const [replyCount, setReplyCount] = useState(post.reply_count);
+  const [viewCount, setViewCount] = useState(post.view_count);
   const [reportReason, setReportReason] = useState('spam');
   const [reporting, setReporting] = useState(false);
   const [reportMessage, setReportMessage] = useState('');
@@ -83,7 +86,22 @@ export default function MediaPostCard({ post, onUpdate }) {
     setLikeCount(Number(post.like_count) || 0);
     setBookmarkCount(Number(post.bookmark_count) || 0);
     setRepostCount(Number(post.repost_count) || 0);
-  }, [post.id, post.liked, post.bookmarked, post.reposted, post.like_count, post.bookmark_count, post.repost_count, post.share_count]);
+    setReplyCount(Number(post.reply_count) || 0);
+    setViewCount(Number(post.view_count) || 0);
+  }, [post.id, post.liked, post.bookmarked, post.reposted, post.like_count, post.bookmark_count, post.repost_count, post.share_count, post.reply_count, post.view_count]);
+
+  const applyLiveCounts = useCallback((payload) => {
+    const next = {};
+    if (Number.isFinite(Number(payload?.like_count))) { setLikeCount(Number(payload.like_count)); next.like_count = Number(payload.like_count); }
+    if (Number.isFinite(Number(payload?.bookmark_count))) { setBookmarkCount(Number(payload.bookmark_count)); next.bookmark_count = Number(payload.bookmark_count); }
+    if (Number.isFinite(Number(payload?.repost_count))) { setRepostCount(Number(payload.repost_count)); next.repost_count = Number(payload.repost_count); }
+    if (Number.isFinite(Number(payload?.share_count))) { setShareCount(Number(payload.share_count)); next.share_count = Number(payload.share_count); }
+    if (Number.isFinite(Number(payload?.reply_count))) { setReplyCount(Number(payload.reply_count)); next.reply_count = Number(payload.reply_count); }
+    if (Number.isFinite(Number(payload?.view_count))) { setViewCount(Number(payload.view_count)); next.view_count = Number(payload.view_count); }
+    if (Object.keys(next).length) onUpdate?.(current => ({ ...current, ...next }));
+  }, [onUpdate]);
+
+  useMediaPostRealtime(post.id, applyLiveCounts);
 
   const handleLike = async (e) => {
     e.preventDefault();
@@ -185,7 +203,7 @@ export default function MediaPostCard({ post, onUpdate }) {
           <VerifiedBadge kind={post.verified_kind} label={t('media.post.verified')} />
           <span className="media-post-handle">@{post.handle}</span>
           <span className="media-post-time">· {timeAgo(post.created_at, i18n.language)}</span>
-          <span className="media-post-views">· {formatCount(post.view_count || 0)} {t('media.post.views')}</span>
+          <span className="media-post-views">· {formatCount(viewCount)} {t('media.post.views')}</span>
         </div>
         <Link to={`/media/post/${post.id}`} className="media-post-text">
           {post.body}
@@ -260,7 +278,7 @@ export default function MediaPostCard({ post, onUpdate }) {
         )}
         <div className="media-action-row">
           <Link to={`/media/post/${post.id}`} className="media-action" aria-label={t('media.post.reply', { defaultValue: 'Reply' })}>
-            💬 {formatCount(post.reply_count)}
+            💬 {formatCount(replyCount)}
           </Link>
           <button onClick={handleRepost} className={`media-action ${reposted ? 'active' : ''}`} aria-label={t('media.post.repost')} aria-pressed={reposted}>
             🔁 {formatCount(repostCount)}

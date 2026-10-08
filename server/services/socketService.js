@@ -10,6 +10,7 @@
 // connected to process B is still reported online by process A.
 
 let io = null;
+let mediaIo = null;
 const pool = require('../db');
 const logger = require('../utils/logger');
 const presence = require('./realtimePresence');
@@ -88,6 +89,21 @@ function broadcastToAdmins(event, data) {
 function broadcastToRoom(room, event, data) {
   if (!io || !room) return;
   io.to(room).emit(event, data);
+}
+
+function initMedia(namespace) {
+  if (!namespace || typeof namespace.to !== 'function') {
+    throw new TypeError('initMedia requires a Socket.IO namespace');
+  }
+  if (mediaIo === namespace) return namespace;
+  if (mediaIo) throw new Error('Media namespace has already been initialized');
+  mediaIo = namespace;
+  return namespace;
+}
+
+function broadcastToMediaPost(postId, event, data) {
+  if (!mediaIo || !postId) return;
+  mediaIo.to(`media_post_${postId}`).emit(event, data);
 }
 
 // Exact operational delivery-tracking events. Only admin/super_admin
@@ -214,6 +230,7 @@ function initRestaurantDisplay(ns) {
 function shutdown() {
   onlineMap.clear();
   io = null;
+  mediaIo = null;
   displayNs = null;
 }
 
@@ -250,6 +267,7 @@ module.exports = {
   init, trackConnect, trackDisconnect, isOnline,
   broadcastToUser, broadcastToConversation, broadcastToAdmins,
   broadcastToRoom, broadcastToOpsDelivery,
+  initMedia, broadcastToMediaPost,
   broadcastNewGuestSession, broadcastGuestSessionUpdate, broadcastGuestChatMessage,
   disconnectUserSockets, getSocketCount, validateConversationAccess,
   joinBusinessRooms, listUserBusinessIds,

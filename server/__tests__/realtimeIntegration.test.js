@@ -51,12 +51,14 @@ describe('shared realtime server', () => {
   const socketBridge = {
     chat: null,
     display: null,
+    media: null,
     init(namespace) { this.chat = namespace; },
     initRestaurantDisplay(namespace) { this.display = namespace; },
+    initMedia(namespace) { this.media = namespace; },
     trackConnect: jest.fn(),
     trackDisconnect: jest.fn(),
     joinBusinessRooms: jest.fn(async () => []),
-    shutdown() { this.chat = null; this.display = null; },
+    shutdown() { this.chat = null; this.display = null; this.media = null; },
   };
 
   beforeEach(async () => {
@@ -89,7 +91,7 @@ describe('shared realtime server', () => {
     await realtime.close();
   });
 
-  test('connects and exchanges events on chat, support, and restaurant-display namespaces', async () => {
+  test('connects and exchanges events on chat, support, restaurant-display, and Media namespaces', async () => {
     const token = jwt.sign({ id: 'user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
     const chat = await connect(`${baseUrl}/chat`, { auth: { token } });
     clients.push(chat);
@@ -112,6 +114,14 @@ describe('shared realtime server', () => {
     const displayEvent = once(display, 'order:changed');
     realtime.namespaces.restaurantDisplay.to('rdisplay_42').emit('order:changed', { orderId: 7 });
     await expect(displayEvent).resolves.toEqual({ orderId: 7 });
+
+    const media = await connect(`${baseUrl}/media`);
+    clients.push(media);
+    media.emit('media:post:join', 42);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const countsEvent = once(media, 'media:post:counts');
+    realtime.namespaces.media.to('media_post_42').emit('media:post:counts', { post_id: '42', like_count: 3 });
+    await expect(countsEvent).resolves.toEqual({ post_id: '42', like_count: 3 });
   });
 
   test('rejects unauthenticated chat connections without affecting public namespaces', async () => {
@@ -120,6 +130,9 @@ describe('shared realtime server', () => {
     const display = await connect(`${baseUrl}/restaurant-display`);
     clients.push(display);
     expect(display.connected).toBe(true);
+    const media = await connect(`${baseUrl}/media`);
+    clients.push(media);
+    expect(media.connected).toBe(true);
   });
 
   test('rejects revoked access tokens during support socket handshake', async () => {

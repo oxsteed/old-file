@@ -214,7 +214,7 @@ export default function MediaPostDetailPage() {
         )}
         {post && !loading && (
           <>
-            <MediaPostCard post={post} />
+            <MediaPostCard post={post} onUpdate={setPost} />
             {user?.id && String(post.owner_user_id) === String(user.id) && (
               <section className="media-owner-controls">
                 <div className="media-owner-actions">

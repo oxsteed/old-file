@@ -12,6 +12,7 @@ const { getSignedDownloadUrl } = require('../utils/storage');
 const mediaSafety = require('../services/mediaSafetyPolicy');
 const { verifiedActorSql } = require('../services/mediaPublisherPolicy');
 const feedContext = require('../services/mediaFeedContext');
+const socketService = require('../services/socketService');
 
 const MAX_LINKS_PER_POST = 5;
 const POSTS_PER_DAY = 10;
@@ -425,6 +426,21 @@ async function hydratePost(post, viewerUserId) {
     }
   }
   return { ...post, links, assets, liked, bookmarked, reposted, is_sponsored: Boolean(isSponsored) };
+}
+
+function broadcastMediaPostCounts(postId, counts = {}) {
+  const payload = Object.fromEntries(Object.entries(counts)
+    .filter(([, value]) => Number.isFinite(Number(value)))
+    .map(([key, value]) => [key, Number(value)]));
+  if (!postId || !Object.keys(payload).length) return;
+  try {
+    socketService.broadcastToMediaPost(postId, 'media:post:counts', {
+      post_id: String(postId),
+      ...payload,
+    });
+  } catch (error) {
+    logger.warn('media.count_broadcast_failed', { postId: String(postId), error: error.message });
+  }
 }
 
 async function getFeed(req, res) {
@@ -923,10 +939,11 @@ async function createPost(req, res) {
 
     // Update parent reply count.
     if (parent_id) {
-      await pool.query(
-        `UPDATE media_posts SET reply_count = reply_count + 1 WHERE id = $1`,
+      const { rows: parentCounts } = await pool.query(
+        `UPDATE media_posts SET reply_count = reply_count + 1 WHERE id = $1 RETURNING reply_count`,
         [parent_id]
       );
+      broadcastMediaPostCounts(parent_id, { reply_count: parentCounts[0]?.reply_count });
       const { rows: parentActors } = await pool.query(
         `SELECT a.owner_user_id FROM media_posts p JOIN media_actors a ON a.id = p.actor_id WHERE p.id = $1`,
         [parent_id]
@@ -942,10 +959,11 @@ async function createPost(req, res) {
       }
     }
     if (quoted_post_id) {
-      await pool.query(
-        `UPDATE media_posts SET quote_count = quote_count + 1 WHERE id = $1`,
+      const { rows: quoteCounts } = await pool.query(
+        `UPDATE media_posts SET quote_count = quote_count + 1 WHERE id = $1 RETURNING quote_count`,
         [quoted_post_id]
       );
+      broadcastMediaPostCounts(quoted_post_id, { quote_count: quoteCounts[0]?.quote_count });
     }
 
     res.status(201).json({ post: await hydratePost(post, userId), draft: isDraft });
@@ -1149,10 +1167,12 @@ async function deletePost(req, res) {
     );
     if (!rows[0]) return res.status(404).json({ error: 'Post not found', code: 'media_post_not_found' });
     if (rows[0].parent_id) {
-      await pool.query(`UPDATE media_posts SET reply_count = GREATEST(0, reply_count - 1) WHERE id = $1`, [rows[0].parent_id]);
+      const { rows: parentCounts } = await pool.query(`UPDATE media_posts SET reply_count = GREATEST(0, reply_count - 1) WHERE id = $1 RETURNING reply_count`, [rows[0].parent_id]);
+      broadcastMediaPostCounts(rows[0].parent_id, { reply_count: parentCounts[0]?.reply_count });
     }
     if (rows[0].quoted_post_id) {
-      await pool.query(`UPDATE media_posts SET quote_count = GREATEST(0, quote_count - 1) WHERE id = $1`, [rows[0].quoted_post_id]);
+      const { rows: quoteCounts } = await pool.query(`UPDATE media_posts SET quote_count = GREATEST(0, quote_count - 1) WHERE id = $1 RETURNING quote_count`, [rows[0].quoted_post_id]);
+      broadcastMediaPostCounts(rows[0].quoted_post_id, { quote_count: quoteCounts[0]?.quote_count });
     }
     res.json({ deleted: true, id: rows[0].id });
   } catch (err) {
@@ -1222,10 +1242,12 @@ async function toggleLike(req, res) {
     if (existing[0]) {
       await pool.query(`DELETE FROM media_likes WHERE post_id = $1 AND user_id = $2`, [postId, userId]);
       const { rows: updated } = await pool.query(`UPDATE media_posts SET like_count = GREATEST(0, like_count - 1) WHERE id = $1 RETURNING like_count`, [postId]);
+      broadcastMediaPostCounts(postId, { like_count: updated[0]?.like_count });
       return res.json({ liked: false, like_count: Number(updated[0]?.like_count || 0) });
     }
     await pool.query(`INSERT INTO media_likes (post_id, user_id) VALUES ($1, $2)`, [postId, userId]);
     const { rows: updated } = await pool.query(`UPDATE media_posts SET like_count = like_count + 1 WHERE id = $1 RETURNING like_count`, [postId]);
+    broadcastMediaPostCounts(postId, { like_count: updated[0]?.like_count });
     const { rows: owners } = await pool.query(
       `SELECT a.owner_user_id FROM media_posts p JOIN media_actors a ON a.id = p.actor_id WHERE p.id = $1`,
       [postId]
@@ -1258,10 +1280,12 @@ async function toggleBookmark(req, res) {
     if (existing[0]) {
       await pool.query(`DELETE FROM media_bookmarks WHERE post_id = $1 AND user_id = $2`, [postId, userId]);
       const { rows: updated } = await pool.query(`UPDATE media_posts SET bookmark_count = GREATEST(0, bookmark_count - 1) WHERE id = $1 RETURNING bookmark_count`, [postId]);
+      broadcastMediaPostCounts(postId, { bookmark_count: updated[0]?.bookmark_count });
       return res.json({ bookmarked: false, bookmark_count: Number(updated[0]?.bookmark_count || 0) });
     }
     await pool.query(`INSERT INTO media_bookmarks (post_id, user_id) VALUES ($1, $2)`, [postId, userId]);
     const { rows: updated } = await pool.query(`UPDATE media_posts SET bookmark_count = bookmark_count + 1 WHERE id = $1 RETURNING bookmark_count`, [postId]);
+    broadcastMediaPostCounts(postId, { bookmark_count: updated[0]?.bookmark_count });
     res.json({ bookmarked: true, bookmark_count: Number(updated[0]?.bookmark_count || 0) });
   } catch (err) {
     logger.error('media.toggleBookmark error', { message: err.message });
@@ -1283,10 +1307,12 @@ async function toggleRepost(req, res) {
     if (existing[0]) {
       await pool.query(`DELETE FROM media_reposts WHERE post_id = $1 AND actor_id = $2`, [postId, actor.id]);
       const { rows: updated } = await pool.query(`UPDATE media_posts SET repost_count = GREATEST(0, repost_count - 1) WHERE id = $1 RETURNING repost_count`, [postId]);
+      broadcastMediaPostCounts(postId, { repost_count: updated[0]?.repost_count });
       return res.json({ reposted: false, repost_count: Number(updated[0]?.repost_count || 0) });
     }
     await pool.query(`INSERT INTO media_reposts (post_id, actor_id) VALUES ($1, $2)`, [postId, actor.id]);
     const { rows: updated } = await pool.query(`UPDATE media_posts SET repost_count = repost_count + 1 WHERE id = $1 RETURNING repost_count`, [postId]);
+    broadcastMediaPostCounts(postId, { repost_count: updated[0]?.repost_count });
     res.json({ reposted: true, repost_count: Number(updated[0]?.repost_count || 0) });
   } catch (err) {
     logger.error('media.toggleRepost error', { message: err.message });
@@ -1321,6 +1347,7 @@ async function recordShare(req, res) {
         RETURNING share_count`,
       [postId, Boolean(inserted[0])]
     );
+    broadcastMediaPostCounts(postId, { share_count: counts[0]?.share_count });
     return res.json({ shared: Boolean(inserted[0]), share_count: Number(counts[0]?.share_count || 0) });
   } catch (err) {
     logger.error('media.recordShare error', { message: err.message });
@@ -1341,15 +1368,19 @@ async function recordView(req, res) {
        RETURNING post_id`,
       [postId, viewerUserId, viewerHash]
     );
+    let viewCount = null;
     if (rowCount > 0) {
-      await pool.query(
+      const { rows: updated } = await pool.query(
         `UPDATE media_posts SET view_count = view_count + 1
           WHERE id = $1 AND visibility = 'public'
-            AND processing_status = 'ready' AND ${mediaSafety.publicPostSql('media_posts')}`,
+            AND processing_status = 'ready' AND ${mediaSafety.publicPostSql('media_posts')}
+          RETURNING view_count`,
         [postId]
       );
+      viewCount = updated[0]?.view_count ?? null;
+      broadcastMediaPostCounts(postId, { view_count: viewCount });
     }
-    res.json({ ok: true, recorded: rowCount > 0 });
+    res.json({ ok: true, recorded: rowCount > 0, ...(viewCount == null ? {} : { view_count: Number(viewCount) }) });
   } catch (err) {
     logger.error('media.recordView error', { message: err.message });
     res.status(500).json({ error: 'Failed to record view' });
