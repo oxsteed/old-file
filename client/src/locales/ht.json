@@ -30453,6 +30453,8 @@
       "pricePlaceholder": "Pri (si ou vle)",
       "priceInvalid": "Mete yon pri valab ki pa negatif.",
       "entitySearchHint": "Sijesyon antite",
+      "entityRequired": "Chwazi yon antite OxSteed nan rezilta rechèch yo anvan ou ajoute lyen an.",
+      "selectedEntity": "Chwazi: {{name}}",
       "searchingEntities": "Ap chèche…",
       "draftRestored": "Bouyon an retabli. Chwazi fichye a ankò pou eseye telechaje li.",
       "attaching": "Ap ajoute medya…",

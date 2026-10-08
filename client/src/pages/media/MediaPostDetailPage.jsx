@@ -26,6 +26,7 @@ export default function MediaPostDetailPage() {
   const [linkType, setLinkType] = useState('restaurant');
   const [linkTarget, setLinkTarget] = useState('');
   const [linkName, setLinkName] = useState('');
+  const [selectedEntity, setSelectedEntity] = useState(null);
   const [savingLinks, setSavingLinks] = useState(false);
   const [editingBody, setEditingBody] = useState(false);
   const [bodyDraft, setBodyDraft] = useState('');
@@ -108,7 +109,14 @@ export default function MediaPostDetailPage() {
 
   const addDraftLink = (event) => {
     event.preventDefault();
-    if (!linkTarget.trim() || !linkName.trim() || draftLinks.length >= 5) return;
+    if (draftLinks.length >= 5) {
+      setError(t('media.compose.maxLinks'));
+      return;
+    }
+    if (!selectedEntity || !linkTarget.trim()) {
+      setError(t('media.compose.entityRequired'));
+      return;
+    }
     setDraftLinks((current) => [...current, {
       link_type: linkType,
       target_id: linkTarget.trim(),
@@ -116,12 +124,14 @@ export default function MediaPostDetailPage() {
     }]);
     setLinkTarget('');
     setLinkName('');
+    setSelectedEntity(null);
     setEntitySuggestions([]);
   };
 
   const chooseEntity = (entity) => {
     setLinkTarget(entity.target_id);
     setLinkName(entity.name);
+    setSelectedEntity(entity);
     setEntitySuggestions([]);
   };
 
@@ -232,13 +242,30 @@ export default function MediaPostDetailPage() {
                       ))}
                     </div>
                     <form className="media-link-picker" onSubmit={addDraftLink}>
-                      <select value={linkType} onChange={(event) => setLinkType(event.target.value)}>
+                      <select value={linkType} onChange={(event) => {
+                        setLinkType(event.target.value);
+                        setLinkName('');
+                        setLinkTarget('');
+                        setSelectedEntity(null);
+                      }}>
                       {['restaurant', 'food_item', 'helper', 'business', 'job', 'tool_rental', 'direct_catalog', 'logistics_campaign'].map((type) => <option key={type} value={type}>{t(`media.compose.linkTypes.${type}`, { defaultValue: type })}</option>)}
                       </select>
-                      <input value={linkName} onChange={(event) => setLinkName(event.target.value)} placeholder={t('media.compose.entitySearchPlaceholder')} />
-                      <input value={linkTarget} readOnly aria-label={t('media.compose.targetId')} placeholder={t('media.compose.targetId')} />
+                      <input
+                        value={linkName}
+                        onChange={(event) => {
+                          setLinkName(event.target.value);
+                          setSelectedEntity(null);
+                          setLinkTarget('');
+                        }}
+                        placeholder={t('media.compose.entitySearchPlaceholder')}
+                      />
                       <button type="submit" disabled={draftLinks.length >= 5}>{t('media.compose.addLink')}</button>
                     </form>
+                    {selectedEntity && (
+                      <p className="media-selected-entity" role="status">
+                        {t('media.compose.selectedEntity', { name: selectedEntity.name })}
+                      </p>
+                    )}
                     {(searchingEntities || entitySuggestions.length > 0) && (
                       <div className="media-entity-suggestions" role="listbox" aria-label={t('media.compose.entitySearchHint')}>
                         {searchingEntities && <span className="media-entity-suggestion-status">{t('media.compose.searchingEntities')}</span>}

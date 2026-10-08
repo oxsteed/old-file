@@ -30453,6 +30453,8 @@
       "pricePlaceholder": "Precio (opcional)",
       "priceInvalid": "Introduce un precio válido no negativo.",
       "entitySearchHint": "Sugerencias de entidades",
+      "entityRequired": "Elige una entidad de OxSteed en los resultados antes de añadir el enlace.",
+      "selectedEntity": "Seleccionado: {{name}}",
       "searchingEntities": "Buscando…",
       "draftRestored": "Borrador restaurado. Selecciona el archivo otra vez para reintentar la carga.",
       "attaching": "Adjuntando contenido…",

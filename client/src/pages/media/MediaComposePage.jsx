@@ -17,6 +17,7 @@ export default function MediaComposePage() {
   const [linkType, setLinkType] = useState('restaurant');
   const [linkTarget, setLinkTarget] = useState('');
   const [linkName, setLinkName] = useState('');
+  const [selectedEntity, setSelectedEntity] = useState(null);
   const [linkPrice, setLinkPrice] = useState('');
   const [entitySuggestions, setEntitySuggestions] = useState([]);
   const [searchingEntities, setSearchingEntities] = useState(false);
@@ -97,8 +98,8 @@ export default function MediaComposePage() {
       setErrorCode('');
       return;
     }
-    if (!linkTarget.trim() || !linkName.trim()) {
-      setError(t('media.compose.linkRequired'));
+    if (!selectedEntity || !linkTarget.trim()) {
+      setError(t('media.compose.entityRequired'));
       setErrorCode('');
       return;
     }
@@ -116,6 +117,7 @@ export default function MediaComposePage() {
     }]);
     setLinkTarget('');
     setLinkName('');
+    setSelectedEntity(null);
     setLinkPrice('');
     setEntitySuggestions([]);
     setError(null);
@@ -125,6 +127,7 @@ export default function MediaComposePage() {
   const chooseEntity = (entity) => {
     setLinkTarget(entity.target_id);
     setLinkName(entity.name);
+    setSelectedEntity(entity);
     setLinkPrice(entity.price_snapshot_cents != null ? (Number(entity.price_snapshot_cents) / 100).toFixed(2) : '');
     setEntitySuggestions([]);
   };
@@ -239,18 +242,21 @@ export default function MediaComposePage() {
             </div>
           ))}
           <div className="media-link-picker">
-            <select value={linkType} onChange={e => setLinkType(e.target.value)}>
+            <select value={linkType} onChange={e => {
+              setLinkType(e.target.value);
+              setLinkName('');
+              setLinkTarget('');
+              setSelectedEntity(null);
+            }}>
               {LINK_TYPES.map(type => <option key={type} value={type}>{t(`media.compose.linkTypes.${type}`, { defaultValue: type })}</option>)}
             </select>
             <input
-              value={linkTarget}
-              readOnly
-              aria-label={t('media.compose.targetId')}
-              placeholder={t('media.compose.targetId')}
-            />
-            <input
               value={linkName}
-              onChange={e => setLinkName(e.target.value)}
+              onChange={e => {
+                setLinkName(e.target.value);
+                setSelectedEntity(null);
+                setLinkTarget('');
+              }}
               placeholder={t('media.compose.entitySearchPlaceholder')}
             />
             <input
@@ -264,6 +270,11 @@ export default function MediaComposePage() {
             />
             <button type="button" onClick={addLink}>{t('media.compose.addLink')}</button>
           </div>
+          {selectedEntity && (
+            <p className="media-selected-entity" role="status">
+              {t('media.compose.selectedEntity', { name: selectedEntity.name })}
+            </p>
+          )}
           {(searchingEntities || entitySuggestions.length > 0) && (
             <div className="media-entity-suggestions" role="listbox" aria-label={t('media.compose.entitySearchHint')}>
               {searchingEntities && <span className="media-entity-suggestion-status">{t('media.compose.searchingEntities')}</span>}

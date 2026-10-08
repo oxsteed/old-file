@@ -30464,6 +30464,8 @@
       "pricePlaceholder": "السعر (اختياري)",
       "priceInvalid": "أدخل سعراً صالحاً غير سالب.",
       "entitySearchHint": "اقتراحات الكيانات",
+      "entityRequired": "اختر كيانًا من OxSteed من نتائج البحث قبل إضافة الرابط.",
+      "selectedEntity": "تم الاختيار: {{name}}",
       "searchingEntities": "جارٍ البحث…",
       "draftRestored": "تمت استعادة المسودة. اختر الملف مرة أخرى لإعادة محاولة الرفع.",
       "attaching": "جارٍ إرفاق الوسائط…",

@@ -431,3 +431,13 @@ dist-asset gates. The focused server creator/contracts suite passes 18 tests,
 and the creator dispute UI/API remains pending authenticated deployment and
 Credit-rail evidence.
 
+Entity-link picker hardening (2026-10-08): new-post and owner-link-edit flows
+now require choosing a result from the server-backed OxSteed entity search
+before adding a Linked on OxSteed card. The raw target-ID field is no longer
+shown, stale selections are cleared when the type or search text changes, and
+the selected entity is announced to assistive technology. The five locale
+catalogs include the validation and selection status copy. `npm run verify:i18n`,
+`npm run typecheck`, the focused Media contract/creator suite (18 tests),
+`git diff --check`, and `npm run build:ci` all pass locally. Authenticated
+production entity search and owner-edit journeys remain live verification work.
+
