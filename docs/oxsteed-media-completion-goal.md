@@ -119,3 +119,10 @@ Media notification rows are now keyboard-operable with Enter/Space, retain a
 visible list-item role, and expose the notification title as an accessible
 label. The new client accessibility contract passes locally with the existing
 client typecheck.
+
+Localized share-preview repair: Media landing prerendering now reads the
+existing `media.feed.metaTitle` and `media.feed.metaDescription` catalog keys
+for `en`, `es`, `fr`, `ht`, and `ar`, while retaining the English fallback.
+The Spanish regression verifies the document language, localized title and
+description, `og:locale`, image metadata, and CollectionPage language. The
+prerender marketing suite passes 9 tests locally.

@@ -96,6 +96,18 @@ describe('localized marketing SEO shell', () => {
     expect(res.text).toContain('"@type":"CollectionPage"');
   });
 
+  test('localizes Media landing metadata for share previews', async () => {
+    const res = await request(buildApp()).get('/media?lang=es');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-language']).toBe('es');
+    expect(res.text).toContain('<html lang="es">');
+    expect(res.text).toContain('<title data-rh="true">OxSteed Media | OxSteed</title>');
+    expect(res.text).toContain('Actualizaciones locales de ayudantes, negocios y restaurantes verificados en OxSteed.');
+    expect(res.text).toContain('property="og:locale" content="es_ES"');
+    expect(res.text).toContain('"inLanguage":"es"');
+  });
+
   test('localizes eligible public profile metadata and structured data', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{

@@ -63,6 +63,7 @@ const SEO_COPY_KEYS = {
   '/direct/view-quote': { title: 'directPortal.lookup.title', description: 'directPortal.lookup.subtitle' },
   '/support/escalation': { title: 'support.escalation.pageTitle', description: 'support.escalation.pageDesc' },
   '/status': { title: 'statusPage.metaTitle', description: 'statusPage.metaDescription' },
+  '/media': { title: 'media.feed.metaTitle', description: 'media.feed.metaDescription' },
 };
 const seoLocaleCache = createTtlCache({ name: 'seo-locale', ttlMs: 60 * 60 * 1000, maxEntries: 32 });
 const seoContentLocaleCache = createTtlCache({ name: 'seo-content-locale', ttlMs: 60 * 60 * 1000, maxEntries: 512 });
@@ -1355,8 +1356,12 @@ async function handleMediaLanding(template, res, req) {
   const language = getRequestedLanguage(req);
   const publicPath = '/media';
   const url = getLocalizedRequestUrl(publicPath, req);
-  const title = 'OxSteed Media | Local updates';
-  const description = 'Local videos, photos, and useful connections from verified OxSteed helpers, businesses, and restaurants.';
+  const localized = getLocalizedSeoCopy('/media', {
+    title: 'OxSteed Media | Local updates',
+    description: 'Local videos, photos, and useful connections from verified OxSteed helpers, businesses, and restaurants.',
+  }, req);
+  const title = localized.title;
+  const description = localized.description;
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'CollectionPage',
