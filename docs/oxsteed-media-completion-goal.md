@@ -1,5 +1,14 @@
 # OxSteed Media completion evidence
 
+Current policy and latest application evidence (2026-10-08): the user-authorized
+Cloudflare interim update is implemented and pushed in `ac5ca62c` / `d45c3efa`.
+CI run [37774701476](https://github.com/oxsteed/old-file/actions/runs/37774701476)
+passed verification and migration rehearsal, including actual PostgreSQL Media
+visibility tests. Production reports Cloudflare mode, the new schema (737
+migrations), and required identity/malware/transcode controls. See
+[Media safety policy](oxsteed-media-safety-policy.md) for commands, observations,
+and the remaining authenticated-upload/live-coverage limitations.
+
 The previous MVP completion report was premature. Passing generic CI does not
 prove the full Media journeys. This document tracks the renewed completion goal
 against the locked specification, retaining the v2/v3 release boundaries.

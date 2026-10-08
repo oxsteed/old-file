@@ -61,3 +61,37 @@ passed. No browser interface copy was changed by this application update.
 A follow-up test confirmed that conversion failure marks the asset failed and
 refreshes the draft's aggregate state for the existing replacement/retry UI.
 The focused safety-policy suite then passed all 20 tests.
+
+Commands executed:
+
+```text
+cd server
+npm test -- --runTestsByPath __tests__/mediaSafetyPolicy.test.js __tests__/mediaAccess.test.js __tests__/mediaContracts.test.js __tests__/mediaJourneys.test.js __tests__/mediaFeedRanking.test.js __tests__/mediaVisibilityDb.test.js __tests__/prerenderMarketing.test.js
+npm test -- --runTestsByPath __tests__/mediaSafetyPolicy.test.js
+```
+
+JavaScript syntax checks covered the changed controllers, safety policy,
+worker, route module, and prerender middleware; `git diff --check` passed.
+
+CI for application commit `d45c3efa3138b97f03073beefbab14a55c721d94`
+passed both Server and Client Verification and PostgreSQL migration rehearsal:
+https://github.com/oxsteed/old-file/actions/runs/37774701476 . The server run
+passed 464 suites / 5,112 tests, with 3 suites / 46 tests skipped. The Media
+safety-policy and real PostgreSQL visibility suites specifically passed;
+`STATEMENT_REQUIRE_DB_TESTS=true` required the disposable database tests.
+
+Final live checks on 2026-10-08:
+
+- `GET /api/media/capabilities`: 200; mode `cloudflare`, policy allows video
+  publication, identity/malware/transcode requirements all true.
+- `GET /ready`: ready; release `content-da1b83ca00b32c75`; all 737 migrations
+  applied, zero pending, workers ready.
+- `GET /api/media/feed?limit=1`: 200; empty feed with a valid pagination payload.
+- `GET /media`: 200 after the deployment restart.
+- Guest `POST /api/media/assets/video-uploads` with no file: 401 before upload.
+
+The deployment metadata still omits its Git SHA, so these observations prove
+the revised live policy and schema, not an exact deployed commit identity.
+Authenticated upload/processing/playback and Cloudflare scanning coverage
+remain unverified in production. No claim of full Media goal completion is
+made from anonymous checks.
