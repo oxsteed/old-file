@@ -596,6 +596,55 @@ async function createPost(req, res) {
   }
 }
 
+async function replacePostLinks(req, res) {
+  const postId = req.params.id;
+  const links = Array.isArray(req.body?.links) ? req.body.links : [];
+  if (links.length > MAX_LINKS_PER_POST) {
+    return res.status(400).json({ error: `Max ${MAX_LINKS_PER_POST} links per post` });
+  }
+  if (links.some((link) => !link || !MVP_LINK_TYPES.has(link.link_type) || !String(link.target_id || '').trim())) {
+    return res.status(400).json({ error: 'Only restaurant, dish, helper, business, and job links are available at launch.', code: 'media_link_type_unavailable' });
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows: owned } = await client.query(
+      `SELECT p.id FROM media_posts p
+        JOIN media_actors a ON a.id = p.actor_id
+       WHERE p.id = $1 AND a.owner_user_id = $2 AND p.deleted_at IS NULL
+       FOR UPDATE`, [postId, req.user.id]
+    );
+    if (!owned[0]) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'You can only edit links on your own post', code: 'media_post_forbidden' });
+    }
+    await client.query(`DELETE FROM media_post_links WHERE post_id = $1`, [postId]);
+    for (let index = 0; index < links.length; index += 1) {
+      const link = links[index];
+      await client.query(
+        `INSERT INTO media_post_links
+           (post_id, link_type, target_id, label, name_snapshot, price_snapshot_cents, currency_code, sort_order)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [postId, link.link_type, String(link.target_id).trim(), link.label || null,
+          link.name_snapshot || link.label || link.target_id,
+          link.price_snapshot_cents || null, link.currency_code || null, index]
+      );
+    }
+    await client.query('COMMIT');
+    const { rows } = await pool.query(
+      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
+         FROM media_posts p JOIN media_actors a ON a.id = p.actor_id WHERE p.id = $1`, [postId]
+    );
+    return res.json({ post: await hydratePost(rows[0], req.user.id) });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    logger.error('media.replacePostLinks error', { message: err.message });
+    return res.status(500).json({ error: 'Failed to update post links' });
+  } finally {
+    client.release();
+  }
+}
+
 async function toggleLike(req, res) {
   try {
     const userId = req.user.id;
@@ -969,6 +1018,7 @@ async function searchMediaEntities(req, res) {
 
 module.exports = {
   getFeed, getPost, getReplies, getQuotes, createPost,
+  replacePostLinks,
   toggleLike, toggleBookmark, toggleRepost, recordView, flagPost,
   getCommunities, getCommunity, joinCommunity, leaveCommunity, searchMedia,
   getActor, getOrCreateActor, getBusinessPosts,

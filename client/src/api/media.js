@@ -9,6 +9,7 @@ export const getPost = (id) => api.get(`/posts/${id}`).then(r => r.data);
 export const getReplies = (id, sort = 'latest') => api.get(`/posts/${id}/replies`, { params: { sort } }).then(r => r.data);
 export const getQuotes = (id) => api.get(`/posts/${id}/quotes`).then(r => r.data);
 export const createPost = (data) => api.post('/posts', data).then(r => r.data);
+export const replacePostLinks = (id, links) => api.put(`/posts/${id}/links`, { links }).then(r => r.data);
 export const linkAsset = (postId, external_url) => api.post('/assets/link', { post_id: postId, external_url }).then(r => r.data);
 export const uploadPhoto = (postId, file, onUploadProgress) => {
   const form = new FormData();

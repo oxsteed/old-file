@@ -32,6 +32,7 @@ router.get('/actors/:handle', ctrl.getActor);
 
 // Authenticated actions.
 router.post('/posts', requireAuth, ctrl.createPost);
+router.put('/posts/:id/links', requireAuth, ctrl.replacePostLinks);
 router.post('/posts/:id/like', requireAuth, ctrl.toggleLike);
 router.post('/posts/:id/bookmark', requireAuth, ctrl.toggleBookmark);
 router.post('/posts/:id/repost', requireAuth, ctrl.toggleRepost);
