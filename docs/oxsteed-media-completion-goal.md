@@ -143,3 +143,7 @@ Rollout-boundary repair: the API now keeps replies newest-first at launch even
 if a caller sends `sort=relevant`; the later Relevant ranking is only available
 when `MEDIA_RELEVANT_REPLIES_ENABLED=true` is explicitly configured. A server
 contract test verifies the default launch behavior and SQL ordering.
+
+Media shell navigation repair: account results in Media Search now use the
+client router instead of a full-page anchor, preserving the Media shell while
+opening an actor profile. The client contract suite covers this route behavior.

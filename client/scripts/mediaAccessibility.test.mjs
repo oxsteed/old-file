@@ -7,6 +7,7 @@ import test from 'node:test';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const postCard = fs.readFileSync(path.join(root, 'src/pages/media/MediaPostCard.jsx'), 'utf8');
 const compose = fs.readFileSync(path.join(root, 'src/pages/media/MediaComposePage.jsx'), 'utf8');
+const search = fs.readFileSync(path.join(root, 'src/pages/media/MediaSearchPage.jsx'), 'utf8');
 
 test('Media video controls expose accessible labels and inline playback', () => {
   assert.match(postCard, /playsInline[^>]+aria-label=\{label\}/);
@@ -32,4 +33,10 @@ test('Media composer retries a restored asset when replacement media is selected
   assert.match(compose, /setAttachedAsset\(false\)/);
   assert.match(compose, /onChange=\{handleMediaFileChange\}/);
   assert.match(compose, /const handleExternalUrlChange = \(event\)/);
+});
+
+test('Media search keeps account navigation inside the Media shell', () => {
+  assert.match(search, /import \{ Link \} from 'react-router-dom'/);
+  assert.match(search, /<Link key=\{account\.id\} to=\{`\/media\/@\$\{account\.handle\}`\}/);
+  assert.doesNotMatch(search, /<a key=\{account\.id\} href=/);
 });

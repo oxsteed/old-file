@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { searchMedia } from '../../api/media';
 import MediaPostCard from './MediaPostCard';
 
@@ -37,10 +38,10 @@ export default function MediaSearchPage() {
               <h2>{t('media.search.accounts', { defaultValue: 'Accounts' })}</h2>
               <div className="media-search-account-list">
                 {accounts.map((account) => (
-                  <a key={account.id} href={`/media/@${account.handle}`} className="media-search-account">
+                  <Link key={account.id} to={`/media/@${account.handle}`} className="media-search-account">
                     <strong>{account.display_name}</strong>
                     <span>@{account.handle}</span>
-                  </a>
+                  </Link>
                 ))}
               </div>
             </section>
