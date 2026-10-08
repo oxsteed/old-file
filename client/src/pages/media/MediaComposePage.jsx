@@ -66,6 +66,33 @@ export default function MediaComposePage() {
   }, [t]);
 
   useEffect(() => {
+    if (!draftId || !attachedAsset || !['quarantine', 'processing'].includes(processingStatus)) return undefined;
+    let cancelled = false;
+    const refreshProcessingDraft = async () => {
+      try {
+        const { draft } = await getDraft(draftId);
+        if (cancelled || !draft) return;
+        const nextStatus = draft.processing_status || 'draft';
+        setAttachedAsset((draft.assets || []).length > 0);
+        setProcessingStatus(nextStatus);
+        if (nextStatus === 'ready') {
+          setStatus(t('media.compose.processingReady'));
+        } else if (nextStatus === 'failed' || nextStatus === 'blocked') {
+          setStatus(t('media.compose.processingFailed'));
+        }
+      } catch {
+        // Keep the current private-draft status visible through transient polls.
+      }
+    };
+    refreshProcessingDraft();
+    const timer = window.setInterval(refreshProcessingDraft, 4000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [attachedAsset, draftId, processingStatus, t]);
+
+  useEffect(() => {
     if (!mediaFile) {
       setPreviewUrl('');
       return undefined;

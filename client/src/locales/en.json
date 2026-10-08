@@ -30467,6 +30467,7 @@
       "draftSaved": "Your draft is saved. Fix the issue and try again.",
       "processing": "Your media is being checked. This draft stays private until it is ready.",
       "processingFailed": "Media processing did not finish. Replace the file and try again.",
+      "processingReady": "Media checks passed. Your draft is ready to publish.",
       "previewAlt": "Selected media preview",
       "uploadProgress": "Upload progress"
     },

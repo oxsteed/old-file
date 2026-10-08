@@ -539,3 +539,11 @@ while `/api/ready` reports all 742 migrations applied and workers ready. This
 confirms route deployment and the authentication boundary, but not owner
 authorization, durable draft editing, storage, or worker processing because no
 signed-in production session is available in this check.
+
+Processing-status polling (2026-10-08): the composer now polls an attached
+private draft every four seconds while it is in quarantine/processing, stops
+on ready/failed/blocked or unmount, and shows localized terminal status copy in
+all five locales. The Media accessibility contract has 7 passing checks;
+`npm run verify:i18n`, `npm run typecheck`, `npm run build:ci`, and
+`git diff --check` pass locally. A signed-in production upload-worker journey
+is still required to verify the real transition and storage behavior.

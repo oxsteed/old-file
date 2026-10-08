@@ -40,6 +40,13 @@ test('Media composer persists restored draft edits before retrying publication',
   assert.match(compose, /await updateDraft\(postId, \{ body: body\.trim\(\), links, community_id: communityId \|\| null \}\)/);
 });
 
+test('Media composer keeps polling private processing drafts until a terminal state', () => {
+  assert.match(compose, /refreshProcessingDraft/);
+  assert.match(compose, /setInterval\(refreshProcessingDraft, 4000\)/);
+  assert.match(compose, /processingReady/);
+  assert.match(compose, /clearInterval\(timer\)/);
+});
+
 test('Media search keeps account navigation inside the Media shell', () => {
   assert.match(search, /import \{ Link \} from 'react-router-dom'/);
   assert.match(search, /<Link key=\{account\.id\} to=\{`\/media\/@\$\{account\.handle\}`\}/);
