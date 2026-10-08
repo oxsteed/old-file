@@ -121,6 +121,16 @@ the earlier vendor-certification launch prerequisite in the historical evidence
 below. Cloudflare is not represented as upload-time video screening. See
 [Media safety policy](oxsteed-media-safety-policy.md) for the current application
 rules and future vendor-mode activation requirements.
+
+Malware provider evidence (2026-10-08): upload scanning is wired to the private
+ClamAV `clamd` service in `docker-compose.coolify.yml` (`clamav/clamav:1.5-
+debian13-slim`) through the `CLAMAV_HOST`/`CLAMAV_PORT` configuration. The
+scanner uses the INSTREAM protocol and fails closed when malware scanning is
+required or when the configured daemon is unavailable. The local
+`fileScanService` and upload-failure suites cover clean, infected, unavailable,
+and malformed verdicts. Production health and an authenticated uploaded-video
+scan/processing check still need to be captured after the deployment billing
+block is cleared.
 Follows, business/profile integration, restaurant post copying, extra link types,
 creator payments and boosts are all in the current implementation goal. The
 v2/v3 labels identify feature groups, not a requirement to postpone their build.
