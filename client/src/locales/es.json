@@ -30278,7 +30278,11 @@
       "replies": "Respuestas",
       "latest": "Recientes",
       "relevant": "Relevantes",
-      "noReplies": "Aún no hay respuestas."
+      "noReplies": "Aún no hay respuestas.",
+      "verified": "Verificado",
+      "views": "vistas",
+      "repost": "Republicar",
+      "share": "Compartir"
     },
     "feed": {
       "refresh": "Actualizar publicaciones",

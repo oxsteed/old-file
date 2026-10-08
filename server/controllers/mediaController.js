@@ -6,9 +6,54 @@
 
 const pool = require('../db');
 const logger = require('../utils/logger');
+const { sendNotification } = require('../services/notificationService');
 
 const MAX_LINKS_PER_POST = 5;
 const POSTS_PER_DAY = 10;
+const MVP_LINK_TYPES = new Set(['restaurant', 'food_item', 'helper', 'business', 'job']);
+const VALID_LINK_COUNT_SQL = `COUNT(l.id) FILTER (WHERE
+    (l.link_type = 'restaurant' AND EXISTS (
+      SELECT 1 FROM food_restaurants r
+       WHERE r.id::text = l.target_id AND r.status = 'active'
+    )) OR
+    (l.link_type = 'food_item' AND EXISTS (
+      SELECT 1 FROM food_menu_items i
+      JOIN food_restaurants r ON r.id = i.restaurant_id
+       WHERE i.id::text = split_part(l.target_id, ':', 2)
+         AND r.id::text = split_part(l.target_id, ':', 1)
+         AND r.status = 'active'
+    )) OR
+    (l.link_type = 'helper' AND EXISTS (
+      SELECT 1 FROM helper_profiles hp JOIN users u ON u.id = hp.user_id
+       WHERE (hp.id::text = l.target_id OR hp.user_id::text = l.target_id OR hp.profile_slug::text = l.target_id)
+         AND u.deleted_at IS NULL
+    )) OR
+    (l.link_type = 'business' AND EXISTS (
+      SELECT 1 FROM businesses b
+       WHERE b.id::text = l.target_id AND b.deleted_at IS NULL AND b.is_active = TRUE
+    )) OR
+    (l.link_type = 'job' AND EXISTS (
+      SELECT 1 FROM jobs j
+       WHERE j.id::text = l.target_id AND j.deleted_at IS NULL AND j.status IN ('open', 'published')
+    ))
+  )`;
+
+async function notifyMediaUser({ userId, type, title, body, postId }) {
+  if (!userId) return;
+  try {
+    await sendNotification({
+      userId,
+      type,
+      title,
+      body,
+      data: { post_id: postId },
+      action_url: `/media/post/${postId}`,
+      idempotencyKey: `${type}:${postId}:${userId}:${Date.now()}`,
+    });
+  } catch (err) {
+    logger.warn('media notification failed', { type, postId, message: err.message });
+  }
+}
 
 // Who can post at MVP: verified helpers, businesses, restaurants only.
 async function getOrCreateActor(userId) {
@@ -27,32 +72,33 @@ async function getOrCreateActor(userId) {
     [userId]
   );
   const { rows: biz } = await pool.query(
-    `SELECT b.id, b.profile_slug, b.name, b.logo_url, b.is_business_verified
+    `SELECT b.id, b.profile_slug, b.business_name, b.logo_url, b.is_business_verified
        FROM businesses b WHERE b.user_id = $1 AND b.deleted_at IS NULL LIMIT 1`,
     [userId]
   );
   const { rows: rest } = await pool.query(
-    `SELECT r.id, r.name, r.logo_url, r.is_verified
-       FROM restaurants r WHERE r.owner_user_id = $1 LIMIT 1`,
+    `SELECT r.id, r.display_name, r.logo_url, r.is_verified
+       FROM food_restaurants r
+      WHERE r.owner_user_id = $1 AND r.status != 'suspended' LIMIT 1`,
     [userId]
   );
 
   let actor = null;
   if (helper[0]?.identity_verified) {
     actor = {
-      type: 'helper', handle: helper[0].profile_slug,
+      type: 'helper', handle: helper[0].profile_slug || `helper-${helper[0].id}`,
       name: `${helper[0].first_name || ''} ${helper[0].last_name || ''}`.trim(),
       avatar: helper[0].profile_photo_url, verified: 'identity',
     };
   } else if (biz[0]?.is_business_verified) {
     actor = {
-      type: 'business', handle: biz[0].profile_slug,
-      name: biz[0].name, avatar: biz[0].logo_url, verified: 'business',
+      type: 'business', handle: biz[0].profile_slug || `business-${biz[0].id}`,
+      name: biz[0].business_name, avatar: biz[0].logo_url, verified: 'business',
     };
   } else if (rest[0]?.is_verified) {
     actor = {
       type: 'restaurant', handle: `restaurant-${rest[0].id}`,
-      name: rest[0].name, avatar: rest[0].logo_url, verified: 'restaurant',
+      name: rest[0].display_name, avatar: rest[0].logo_url, verified: 'restaurant',
     };
   }
   if (!actor) return null;
@@ -68,6 +114,36 @@ async function getOrCreateActor(userId) {
        updated_at = NOW()
      RETURNING *`,
     [actor.type, userId, actor.handle, actor.name, actor.avatar, actor.verified]
+  );
+  return created[0];
+}
+
+// Everyone may reply at launch, even when they are not an approved poster.
+// Keep those replies attached to the same identity surface without granting
+// the account a verified posting actor.
+async function getOrCreateReplyActor(userId) {
+  const { rows: existing } = await pool.query(
+    `SELECT * FROM media_actors WHERE owner_user_id = $1 AND actor_type = 'user' LIMIT 1`,
+    [userId]
+  );
+  if (existing[0]) return existing[0];
+
+  const { rows: users } = await pool.query(
+    `SELECT id, first_name, last_name, email, profile_photo_url
+       FROM users WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
+    [userId]
+  );
+  if (!users[0]) return null;
+  const user = users[0];
+  const displayName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || 'OxSteed member';
+  const { rows: created } = await pool.query(
+    `INSERT INTO media_actors
+       (actor_type, owner_user_id, handle, display_name, avatar_url, verified_kind)
+     VALUES ('user', $1, $2, $3, $4, 'none')
+     ON CONFLICT (handle) DO UPDATE SET display_name = EXCLUDED.display_name,
+       avatar_url = EXCLUDED.avatar_url, updated_at = NOW()
+     RETURNING *`,
+    [userId, `user-${userId}`, displayName, user.profile_photo_url || null]
   );
   return created[0];
 }
@@ -103,12 +179,59 @@ async function hydrateLinks(postId) {
     `SELECT * FROM media_post_links WHERE post_id = $1 ORDER BY sort_order`,
     [postId]
   );
-  return rows.map(l => {
+  const availability = await Promise.all(rows.map(async (l) => {
+    const targetId = String(l.target_id || '');
+    try {
+      if (l.link_type === 'restaurant') {
+        const { rows: targets } = await pool.query(
+          `SELECT 1 FROM food_restaurants WHERE id = $1 AND status = 'active'`, [targetId]
+        );
+        return !!targets[0];
+      }
+      if (l.link_type === 'food_item') {
+        const [restaurantId, itemId] = targetId.split(':');
+        const { rows: targets } = await pool.query(
+          `SELECT 1
+             FROM food_menu_items i
+             JOIN food_restaurants r ON r.id = i.restaurant_id
+            WHERE i.id = $1 AND r.id = $2 AND r.status = 'active'`,
+          [itemId, restaurantId]
+        );
+        return !!targets[0];
+      }
+      if (l.link_type === 'helper') {
+        const { rows: targets } = await pool.query(
+          `SELECT 1 FROM helper_profiles hp
+             JOIN users u ON u.id = hp.user_id
+            WHERE (hp.id::text = $1 OR hp.user_id::text = $1 OR hp.profile_slug::text = $1)
+              AND u.deleted_at IS NULL`, [targetId]
+        );
+        return !!targets[0];
+      }
+      if (l.link_type === 'business') {
+        const { rows: targets } = await pool.query(
+          `SELECT 1 FROM businesses WHERE id = $1 AND deleted_at IS NULL AND is_active = TRUE`, [targetId]
+        );
+        return !!targets[0];
+      }
+      if (l.link_type === 'job') {
+        const { rows: targets } = await pool.query(
+          `SELECT 1 FROM jobs WHERE id = $1 AND deleted_at IS NULL AND status IN ('open', 'published')`, [targetId]
+        );
+        return !!targets[0];
+      }
+      return false;
+    } catch (err) {
+      logger.warn('media.hydrateLinks target lookup failed', { linkType: l.link_type, message: err.message });
+      return false;
+    }
+  }));
+  return rows.map((l, index) => {
     const builder = LINK_URL_BUILDERS[l.link_type];
-    const canonical_url = builder ? builder(l.target_id) : null;
+    const canonical_url = availability[index] && builder ? builder(l.target_id) : null;
     return {
       ...l,
-      available: !!canonical_url,
+      available: availability[index],
       canonical_url,
       cta: LINK_CTAS[l.link_type] || 'View',
     };
@@ -133,6 +256,13 @@ async function hydratePost(post, viewerUserId) {
       [post.id, viewerUserId]
     );
     bookmarked = !!b[0];
+    const { rows: r } = await pool.query(
+      `SELECT 1 FROM media_reposts mr
+         JOIN media_actors ma ON ma.id = mr.actor_id
+        WHERE mr.post_id = $1 AND ma.owner_user_id = $2`,
+      [post.id, viewerUserId]
+    );
+    reposted = !!r[0];
   }
   return { ...post, links, assets, liked, bookmarked, reposted };
 }
@@ -156,13 +286,13 @@ async function getFeed(req, res) {
     // Deep-link boost: posts with valid local entity links rank higher.
     const { rows } = await pool.query(
       `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type,
-              COUNT(l.id) AS link_count
+              ${VALID_LINK_COUNT_SQL} AS link_count
          FROM media_posts p
          JOIN media_actors a ON a.id = p.actor_id
          LEFT JOIN media_post_links l ON l.post_id = p.id
         WHERE ${where}
         GROUP BY p.id, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
-        ORDER BY COUNT(l.id) DESC, ${orderBy}
+        ORDER BY link_count DESC, ${orderBy}
         LIMIT $1`,
       params
     );
@@ -258,13 +388,16 @@ async function createPost(req, res) {
   try {
     const userId = req.user.id;
     const businessId = req.body?.business_id ? parseInt(req.body.business_id, 10) : null;
+    const { body, parent_id, quoted_post_id, links } = req.body;
     
     let actor;
     if (businessId) {
       // Verify user owns/manages this business.
       const { rows: biz } = await pool.query(
-        `SELECT id, name, profile_slug, logo_url, is_business_verified
-           FROM businesses WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
+        `SELECT id, business_name, profile_slug, logo_url, is_business_verified
+           FROM businesses
+          WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
+            AND is_business_verified = TRUE`,
         [businessId, userId]
       );
       if (!biz[0]) return res.status(403).json({ error: 'Not authorized for this business' });
@@ -279,21 +412,21 @@ async function createPost(req, res) {
         const { rows: created } = await pool.query(
           `INSERT INTO media_actors (actor_type, owner_user_id, business_id, handle, display_name, avatar_url, verified_kind)
            VALUES ('business', $1, $2, $3, $4, $5, 'business') RETURNING *`,
-          [userId, businessId, biz[0].profile_slug || `business-${businessId}`, biz[0].name, biz[0].logo_url]
+          [userId, businessId, biz[0].profile_slug || `business-${businessId}`, biz[0].business_name, biz[0].logo_url]
         );
         actor = created[0];
       }
     } else {
       actor = await getOrCreateActor(userId);
+      if (!actor && parent_id) actor = await getOrCreateReplyActor(userId);
     }
-    if (!actor) {
+    if (!actor || (!parent_id && actor.verified_kind === 'none')) {
       return res.status(403).json({
         error: 'Only verified helpers, businesses, and restaurants can post.',
         code: 'media_not_verified_poster',
       });
     }
 
-    const { body, parent_id, quoted_post_id, links } = req.body;
     if (!body || !body.trim()) {
       return res.status(400).json({ error: 'Post body is required' });
     }
@@ -313,6 +446,12 @@ async function createPost(req, res) {
 
     if (links && links.length > MAX_LINKS_PER_POST) {
       return res.status(400).json({ error: `Max ${MAX_LINKS_PER_POST} links per post` });
+    }
+    if (links && links.some((link) => !link || !MVP_LINK_TYPES.has(link.link_type) || !String(link.target_id || '').trim())) {
+      return res.status(400).json({
+        error: 'Only restaurant, dish, helper, business, and job links are available at launch.',
+        code: 'media_link_type_unavailable',
+      });
     }
 
     const { rows } = await pool.query(
@@ -345,6 +484,19 @@ async function createPost(req, res) {
         `UPDATE media_posts SET reply_count = reply_count + 1 WHERE id = $1`,
         [parent_id]
       );
+      const { rows: parentActors } = await pool.query(
+        `SELECT a.owner_user_id FROM media_posts p JOIN media_actors a ON a.id = p.actor_id WHERE p.id = $1`,
+        [parent_id]
+      );
+      if (parentActors[0]?.owner_user_id && parentActors[0].owner_user_id !== userId) {
+        await notifyMediaUser({
+          userId: parentActors[0].owner_user_id,
+          type: 'media_reply',
+          title: 'New reply on your OxSteed Media post',
+          body: 'Someone replied to your post.',
+          postId: parent_id,
+        });
+      }
     }
     if (quoted_post_id) {
       await pool.query(
@@ -375,6 +527,19 @@ async function toggleLike(req, res) {
     }
     await pool.query(`INSERT INTO media_likes (post_id, user_id) VALUES ($1, $2)`, [postId, userId]);
     await pool.query(`UPDATE media_posts SET like_count = like_count + 1 WHERE id = $1`, [postId]);
+    const { rows: owners } = await pool.query(
+      `SELECT a.owner_user_id FROM media_posts p JOIN media_actors a ON a.id = p.actor_id WHERE p.id = $1`,
+      [postId]
+    );
+    if (owners[0]?.owner_user_id && owners[0].owner_user_id !== userId) {
+      await notifyMediaUser({
+        userId: owners[0].owner_user_id,
+        type: 'media_like',
+        title: 'Someone liked your OxSteed Media post',
+        body: 'Your post received a like.',
+        postId,
+      });
+    }
     res.json({ liked: true });
   } catch (err) {
     logger.error('media.toggleLike error', { message: err.message });
@@ -435,21 +600,20 @@ async function recordView(req, res) {
     const hash = viewerUserId || req.ip + (req.headers['user-agent'] || '');
     const crypto = require('crypto');
     const viewerHash = crypto.createHash('sha256').update(String(hash)).digest('hex').slice(0, 32);
-    await pool.query(
+    const { rowCount } = await pool.query(
       `INSERT INTO media_post_views (post_id, viewer_user_id, viewer_hash)
-       VALUES ($1, $2, $3) ON CONFLICT (post_id, viewer_hash) DO NOTHING`,
+       VALUES ($1, $2, $3)
+       ON CONFLICT (post_id, viewer_hash) DO NOTHING
+       RETURNING post_id`,
       [postId, viewerUserId, viewerHash]
     );
-    // Only increment if this was a new view (check via rowcount would need RETURNING).
-    await pool.query(
-      `UPDATE media_posts SET view_count = view_count + 1 WHERE id = $1
-       AND NOT EXISTS (
-         SELECT 1 FROM media_post_views
-         WHERE post_id = $1 AND viewer_hash = $2 AND created_at < NOW() - INTERVAL '1 second'
-       )`,
-      [postId, viewerHash]
-    );
-    res.json({ ok: true });
+    if (rowCount > 0) {
+      await pool.query(
+        `UPDATE media_posts SET view_count = view_count + 1 WHERE id = $1`,
+        [postId]
+      );
+    }
+    res.json({ ok: true, recorded: rowCount > 0 });
   } catch (err) {
     logger.error('media.recordView error', { message: err.message });
     res.status(500).json({ error: 'Failed to record view' });

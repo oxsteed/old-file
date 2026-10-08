@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { toggleLike, toggleBookmark, toggleRepost } from '../../api/media';
 
-function VerifiedBadge({ kind }) {
+function VerifiedBadge({ kind, label }) {
   if (!kind || kind === 'none') return null;
-  return <span className="media-verified" title={`Verified: ${kind}`}>✓</span>;
+  return <span className="media-verified" title={`${label}: ${kind}`}>✓</span>;
 }
 
 function formatCount(n) {
@@ -13,39 +14,61 @@ function formatCount(n) {
   return String(n);
 }
 
-function timeAgo(date) {
+function timeAgo(date, language) {
   const s = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
-  if (s < 60) return `${s}s`;
-  if (s < 3600) return `${Math.floor(s / 60)}m`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h`;
-  return `${Math.floor(s / 86400)}d`;
+  const formatter = new Intl.RelativeTimeFormat(language || 'en', { numeric: 'always' });
+  if (s < 60) return formatter.format(-s, 'second');
+  if (s < 3600) return formatter.format(-Math.floor(s / 60), 'minute');
+  if (s < 86400) return formatter.format(-Math.floor(s / 3600), 'hour');
+  return formatter.format(-Math.floor(s / 86400), 'day');
 }
 
 export default function MediaPostCard({ post, onUpdate }) {
+  const { t, i18n } = useTranslation();
   const [liked, setLiked] = useState(post.liked);
   const [bookmarked, setBookmarked] = useState(post.bookmarked);
+  const [reposted, setReposted] = useState(!!post.reposted);
   const [likeCount, setLikeCount] = useState(post.like_count);
   const [bookmarkCount, setBookmarkCount] = useState(post.bookmark_count);
   const [repostCount, setRepostCount] = useState(post.repost_count);
 
   const handleLike = async (e) => {
     e.preventDefault();
-    const r = await toggleLike(post.id);
-    setLiked(r.liked);
-    setLikeCount(c => c + (r.liked ? 1 : -1));
+    try {
+      const r = await toggleLike(post.id);
+      setLiked(r.liked);
+      setLikeCount(c => Math.max(0, c + (r.liked ? 1 : -1)));
+    } catch { /* keep the server state when the request fails */ }
   };
 
   const handleBookmark = async (e) => {
     e.preventDefault();
-    const r = await toggleBookmark(post.id);
-    setBookmarked(r.bookmarked);
-    setBookmarkCount(c => c + (r.bookmarked ? 1 : -1));
+    try {
+      const r = await toggleBookmark(post.id);
+      setBookmarked(r.bookmarked);
+      setBookmarkCount(c => Math.max(0, c + (r.bookmarked ? 1 : -1)));
+    } catch { /* keep the server state when the request fails */ }
   };
 
   const handleRepost = async (e) => {
     e.preventDefault();
-    const r = await toggleRepost(post.id);
-    setRepostCount(c => c + (r.reposted ? 1 : -1));
+    try {
+      const r = await toggleRepost(post.id);
+      setReposted(r.reposted);
+      setRepostCount(c => Math.max(0, c + (r.reposted ? 1 : -1)));
+    } catch { /* keep the server state when the request fails */ }
+  };
+
+  const handleShare = async (e) => {
+    e.preventDefault();
+    const url = `${window.location.origin}/media/post/${post.id}`;
+    try {
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        await navigator.share({ title: post.display_name, text: post.body, url });
+      } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(url);
+      }
+    } catch { /* sharing can be cancelled by the user */ }
   };
 
   return (
@@ -62,9 +85,10 @@ export default function MediaPostCard({ post, onUpdate }) {
           <Link to={`/media/@${post.handle}`} className="media-post-name">
             {post.display_name}
           </Link>
-          <VerifiedBadge kind={post.verified_kind} />
+          <VerifiedBadge kind={post.verified_kind} label={t('media.post.verified')} />
           <span className="media-post-handle">@{post.handle}</span>
-          <span className="media-post-time">· {timeAgo(post.created_at)}</span>
+          <span className="media-post-time">· {timeAgo(post.created_at, i18n.language)}</span>
+          <span className="media-post-views">· {formatCount(post.view_count || 0)} {t('media.post.views')}</span>
         </div>
         <Link to={`/media/post/${post.id}`} className="media-post-text">
           {post.body}
@@ -73,7 +97,7 @@ export default function MediaPostCard({ post, onUpdate }) {
           <div className="media-quoted-embed">
             <div className="media-post-header">
               <span className="media-post-name">{post.quoted.display_name}</span>
-              <VerifiedBadge kind={post.quoted.verified_kind} />
+              <VerifiedBadge kind={post.quoted.verified_kind} label={t('media.post.verified')} />
               <span className="media-post-handle">@{post.quoted.handle}</span>
             </div>
             <p>{post.quoted.body}</p>
@@ -109,15 +133,17 @@ export default function MediaPostCard({ post, onUpdate }) {
           <Link to={`/media/post/${post.id}`} className="media-action">
             💬 {formatCount(post.reply_count)}
           </Link>
-          <button onClick={handleRepost} className="media-action">
+          <button onClick={handleRepost} className={`media-action ${reposted ? 'active' : ''}`} aria-label={t('media.post.repost')}>
             🔁 {formatCount(repostCount)}
           </button>
           <button onClick={handleLike} className={`media-action ${liked ? 'active' : ''}`}>
             {liked ? '❤️' : '🤍'} {formatCount(likeCount)}
           </button>
-          <span className="media-action">👁️ {formatCount(post.view_count)}</span>
           <button onClick={handleBookmark} className={`media-action ${bookmarked ? 'active' : ''}`}>
             {bookmarked ? '🔖' : '📑'} {formatCount(bookmarkCount)}
+          </button>
+          <button onClick={handleShare} className="media-action" aria-label={t('media.post.share')}>
+            ↗️ {t('media.post.share')}
           </button>
         </div>
       </div>

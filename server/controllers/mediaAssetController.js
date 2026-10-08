@@ -19,6 +19,17 @@ async function checkDidit(userId) {
   return !!rows[0]?.identity_verified;
 }
 
+async function assertPostOwner(postId, userId) {
+  const { rows } = await pool.query(
+    `SELECT p.id
+       FROM media_posts p
+       JOIN media_actors a ON a.id = p.actor_id
+      WHERE p.id = $1 AND a.owner_user_id = $2 AND p.deleted_at IS NULL`,
+    [postId, userId]
+  );
+  return !!rows[0];
+}
+
 async function photoUpload(req, res) {
   try {
     // Expects { post_id, storage_key, width, height } after client uploads
@@ -26,6 +37,9 @@ async function photoUpload(req, res) {
     const { post_id, storage_key, width, height } = req.body;
     if (!post_id || !storage_key) {
       return res.status(400).json({ error: 'post_id and storage_key required' });
+    }
+    if (!await assertPostOwner(post_id, req.user.id)) {
+      return res.status(403).json({ error: 'You can only attach media to your own post', code: 'media_post_forbidden' });
     }
     const { rows } = await pool.query(
       `INSERT INTO media_post_assets
@@ -66,6 +80,9 @@ async function videoUpload(req, res) {
     if (!post_id || !storage_key) {
       return res.status(400).json({ error: 'post_id and storage_key required' });
     }
+    if (!await assertPostOwner(post_id, userId)) {
+      return res.status(403).json({ error: 'You can only attach media to your own post', code: 'media_post_forbidden' });
+    }
 
     const { rows } = await pool.query(
       `INSERT INTO media_post_assets
@@ -104,6 +121,9 @@ async function linkAsset(req, res) {
     const { post_id, external_url } = req.body;
     if (!post_id || !external_url) {
       return res.status(400).json({ error: 'post_id and external_url required' });
+    }
+    if (!await assertPostOwner(post_id, req.user.id)) {
+      return res.status(403).json({ error: 'You can only attach media to your own post', code: 'media_post_forbidden' });
     }
     // Validate YouTube/Vimeo.
     const yt = external_url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);

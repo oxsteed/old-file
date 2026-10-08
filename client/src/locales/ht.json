@@ -30278,7 +30278,11 @@
       "replies": "Repons",
       "latest": "Dènye",
       "relevant": "Ki konsène",
-      "noReplies": "Pa gen repons pou kounye a."
+      "noReplies": "Pa gen repons pou kounye a.",
+      "verified": "Verifye",
+      "views": "vi",
+      "repost": "Repibliye",
+      "share": "Pataje"
     },
     "feed": {
       "refresh": "Rafrechi fil la",
