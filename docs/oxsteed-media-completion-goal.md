@@ -151,6 +151,10 @@ verification therefore remains the only current evidence for this slice.
 
 The cancellation safeguards push (`e7b0ca3a`) hit the same pre-start billing
 rejection in CI run `37798153624`; no remote test or migration job executed.
+The creator dispute and settlement push (`dea57de4`) was rejected before job
+startup in CI run `37800225510` for the same account billing reason; its
+PostgreSQL rehearsal was skipped. The local `build:ci` and focused server
+evidence above remain valid, but this commit has no remote CI confirmation.
 Follows, business/profile integration, restaurant post copying, extra link types,
 creator payments and boosts are all in the current implementation goal. The
 v2/v3 labels identify feature groups, not a requirement to postpone their build.
