@@ -350,3 +350,11 @@ offers remain pending until the verified creator accepts them. The client API,
 five locale catalogs, typecheck, production build, and i18n parity checks pass.
 Live Credit authorization, acceptance, settlement, and failure/retry behavior
 still require authenticated deployment evidence.
+
+Owner boost UI (2026-10-08): public ready posts owned by the signed-in user
+now expose an accessible Boost action in the post card. The dialog creates a
+pending boost and requests the idempotent Credit settlement before the API can
+schedule its 24-hour placement window; failed rail authorization remains
+visible to the owner. The five localized labels, client typecheck, i18n parity,
+and production build pass locally. No boost is active without the server-side
+public/safety/ownership checks and a completed Credit transfer.
