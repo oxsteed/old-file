@@ -97,6 +97,14 @@ describe('Media approval preserves safety evidence', () => {
     expect(audit.logAdminAction).not.toHaveBeenCalled();
   });
 
+  test('rejects approval after the actor loses current verification', async () => {
+    const res = await approve({ current_actor_verified: false }, {}, 'true');
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_not_verified_poster' }));
+    expect(client.query.mock.calls.some(([sql]) => /^\s*(UPDATE|INSERT|DELETE)\b/.test(sql))).toBe(false);
+    expect(audit.logAdminAction).not.toHaveBeenCalled();
+  });
+
   test('publishes cleared content without rewriting asset verdicts or completing worker jobs', async () => {
     const res = await approve();
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ approved: true }));

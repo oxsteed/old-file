@@ -91,3 +91,9 @@ pagination and the fallback paths.
 SEO hardening: the prerender helper now inserts a title when a production
 template omits one, while preserving localized OG/Twitter images and Media
 CollectionPage JSON-LD. The Media metadata regression suite passes 8 tests.
+
+Admin approval now rechecks current actor eligibility for helper, business, and
+restaurant actors before any approval write. A revoked verification returns
+`media_not_verified_poster`; no post, asset, or audit row is mutated. The
+focused Media authorization/safety suite now passes 20 tests, and the combined
+Media API focus passes 34 tests.
