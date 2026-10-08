@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { flagPost, toggleLike, toggleBookmark, toggleRepost } from '../../api/media';
+import { createCreatorBoost, flagPost, settleCreatorBoost, toggleLike, toggleBookmark, toggleRepost } from '../../api/media';
 
 function VerifiedBadge({ kind, label }) {
   if (!kind || kind === 'none') return null;
@@ -66,6 +66,10 @@ export default function MediaPostCard({ post, onUpdate }) {
   const [reportReason, setReportReason] = useState('spam');
   const [reporting, setReporting] = useState(false);
   const [reportMessage, setReportMessage] = useState('');
+  const [boostOpen, setBoostOpen] = useState(false);
+  const [boostAmount, setBoostAmount] = useState('');
+  const [boosting, setBoosting] = useState(false);
+  const [boostMessage, setBoostMessage] = useState('');
 
   // Feed refreshes and route transitions can reuse a card instance. Reconcile
   // the server's viewer-specific action state whenever the post payload is
@@ -133,6 +137,22 @@ export default function MediaPostCard({ post, onUpdate }) {
     } finally {
       setReporting(false);
     }
+  };
+
+  const handleBoost = async (event) => {
+    event.preventDefault();
+    if (!user) return navigate('/login', { state: { from: window.location.pathname } });
+    setBoosting(true); setBoostMessage('');
+    try {
+      const created = await createCreatorBoost(post.id, {
+        amountCents: Number(boostAmount),
+        idempotencyKey: `media-boost-${post.id}-${Date.now()}`,
+      });
+      await settleCreatorBoost(created.boost.id);
+      setBoostMessage(t('media.post.boostSent'));
+    } catch (err) {
+      setBoostMessage(err.response?.data?.error || t('media.post.boostError'));
+    } finally { setBoosting(false); }
   };
 
   return (
@@ -247,6 +267,11 @@ export default function MediaPostCard({ post, onUpdate }) {
           <button onClick={handleShare} className="media-action" aria-label={t('media.post.share')}>
             ↗️ {t('media.post.share')}
           </button>
+          {user && String(post.owner_user_id) === String(user.id) && post.visibility === 'public' && (
+            <button type="button" onClick={() => { setBoostAmount(''); setBoostMessage(''); setBoostOpen(true); }} className="media-action" aria-label={t('media.post.boost')}>
+              ✨ {t('media.post.boost')}
+            </button>
+          )}
           <details className="media-report-menu">
             <summary className="media-action" aria-label={t('media.post.report', { defaultValue: 'Report post' })}>•••</summary>
             <div className="media-report-panel">
@@ -263,6 +288,18 @@ export default function MediaPostCard({ post, onUpdate }) {
           </details>
         </div>
       </div>
+      {boostOpen && <div className="media-verification-dialog" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setBoostOpen(false); }}>
+        <form className="media-verification-form" onSubmit={handleBoost} role="dialog" aria-modal="true" aria-labelledby={`media-boost-title-${post.id}`}>
+          <button type="button" className="media-dialog-close" onClick={() => setBoostOpen(false)} aria-label={t('media.shell.close')}><span aria-hidden="true">×</span></button>
+          <h2 id={`media-boost-title-${post.id}`}>{t('media.post.boost')}</h2>
+          {boostMessage ? <p role="status">{boostMessage}</p> : <>
+            <label htmlFor={`media-boost-amount-${post.id}`}>{t('media.post.boostAmount')}</label>
+            <input id={`media-boost-amount-${post.id}`} type="number" min="1" step="1" value={boostAmount} onChange={(event) => setBoostAmount(event.target.value)} required />
+            <p className="media-form-hint">{t('media.post.boostNotice')}</p>
+            <button type="submit" className="media-primary-button" disabled={boosting}>{boosting ? t('media.compose.posting') : t('media.post.boostConfirm')}</button>
+          </>}
+        </form>
+      </div>}
     </article>
   );
 }
