@@ -306,3 +306,9 @@ same rail limits/sanctions checks; all money-bearing rows remain
 active before settlement. Focused Credit, Media contract, migration, and source
 syntax checks pass locally. A client creator surface, full Credit-enabled
 settlement journey, CI, and deployed verification remain open evidence.
+
+Creator surface (2026-10-08): `/media/creator` now opens inside the Media shell,
+lists open opportunities, and lets signed-in verified creators submit a pitch
+and proposed amount without leaving Media. The route and copy are wired across
+all five locale catalogs; client typecheck remains required after the final
+build and the owner-side gig management UI is still a follow-up surface.

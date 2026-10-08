@@ -613,6 +613,15 @@ div.media-support-panel { z-index: 150; }
 .media-footer-contact { display: inline-flex; flex-wrap: wrap; gap: 8px; }
 .media-footer-contact a { color: var(--color-text-muted); text-decoration: none; }
 .media-footer-contact a:hover { color: var(--color-primary); text-decoration: underline; }
+.media-creator-page { padding-bottom: 30px; }
+.media-creator-gig { margin: 14px 20px; padding: 20px; border: 1px solid var(--color-border); border-radius: 16px; background: var(--color-surface); }
+.media-creator-gig-heading { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+.media-creator-gig-heading h2 { margin: 0; color: var(--color-text); font-size: 19px; }
+.media-creator-gig-heading p { margin: 5px 0 0; color: var(--color-text-muted); font-size: 13px; }
+.media-creator-gig-heading strong { color: var(--color-primary); white-space: nowrap; }
+.media-creator-gig > p { color: var(--color-text-muted); line-height: 1.6; }
+.media-dialog-close { align-self: flex-end; display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--color-border); border-radius: 50%; background: transparent; color: var(--color-text-muted); cursor: pointer; }
+.media-dialog-close:hover { color: var(--color-text); background: var(--color-surface-2); }
 .media-legal-overlay { position: fixed; inset: 0; z-index: 240; display: grid; place-items: center; padding: 24px; background: rgb(12 15 22 / 72%); backdrop-filter: blur(8px); animation: media-legal-fade-in 180ms ease-out; }
 .media-legal-dialog { display: flex; flex-direction: column; width: min(960px, 100%); max-height: min(880px, calc(100dvh - 48px)); overflow: hidden; border: 1px solid var(--color-border); border-radius: 22px; background: var(--color-surface); box-shadow: 0 28px 90px rgb(0 0 0 / 30%); animation: media-legal-slide-in 220ms ease-out; }
 .media-legal-dialog-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 22px 26px; border-bottom: 1px solid var(--color-border); background: linear-gradient(110deg, var(--color-surface-2), var(--color-surface)); }

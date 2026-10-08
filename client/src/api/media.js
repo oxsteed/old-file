@@ -40,3 +40,5 @@ export const getActor = (handle) => api.get(`/media/actors/${handle}`).then(r =>
 export const toggleFollow = (actorId) => api.post(`/media/actors/${actorId}/follow`).then(r => r.data);
 export const getMediaVerification = () => api.get('/media/verification').then(r => r.data);
 export const submitMediaVerification = (data) => api.post('/media/verification/requests', data).then(r => r.data);
+export const getCreatorGigs = (params = {}) => api.get('/media/creator/gigs', { params }).then(r => r.data);
+export const applyToCreatorGig = (gigId, data) => api.post(`/media/creator/gigs/${gigId}/applications`, data).then(r => r.data);

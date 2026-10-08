@@ -30246,6 +30246,7 @@
     "refundUnavailableHint": "Cette commande n’est pas actuellement dans un état de paiement remboursable."
   },
   "media": {
+    "creator": { "kicker": "Marché des créateurs", "title": "Marché des créateurs", "subtitle": "Trouvez des campagnes locales rémunérées et transformez votre travail approuvé en opportunités.", "loadError": "Impossible de charger les opportunités.", "empty": "Aucune opportunité ouverte pour le moment.", "apply": "Postuler à cette mission", "pitch": "Votre proposition", "proposed": "Montant proposé en centimes", "submit": "Envoyer la candidature", "submitted": "Candidature envoyée." },
     "actor": {
       "follow": "Suivre",
       "unfollow": "Ne plus suivre",

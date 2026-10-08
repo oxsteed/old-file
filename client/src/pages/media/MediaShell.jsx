@@ -33,7 +33,7 @@ export default function MediaShell({ children }) {
   const [messageUnread, setMessageUnread] = useState(0);
   const { pathname } = useLocation();
   const currentPath = pathname.replace(/\/+$/, '') || '/';
-  const activeTab = ['/media/compose', '/media/verification'].includes(currentPath) ? null
+  const activeTab = ['/media/compose', '/media/verification', '/media/creator'].includes(currentPath) ? null
     : TABS.find(tab => tab.path !== '/media' && currentPath.startsWith(tab.path))?.path || '/media';
   const displayName = user?.display_name
     || user?.name
@@ -112,6 +112,7 @@ export default function MediaShell({ children }) {
               </Link>
               {user && <Link className="media-saved-link" to="/media/bookmarks"><Bookmark size={17} aria-hidden="true" />{t('media.shell.saved', { defaultValue: 'Saved posts' })}</Link>}
               {user && <Link className="media-saved-link" to="/media/verification"><ShieldCheck size={17} aria-hidden="true" />{t('media.shell.verification', { defaultValue: 'Verification' })}</Link>}
+              <Link className="media-saved-link" to="/media/creator"><Briefcase size={17} aria-hidden="true" />{t('media.creator.title', { defaultValue: 'Creator marketplace' })}</Link>
             </div>
           </aside>
           <div className="media-content">{children}</div>

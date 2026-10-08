@@ -208,6 +208,7 @@ const MediaMessagesPage = lazyWithRetry(() => import('./pages/media/MediaMessage
 const MediaLaunchGate = lazyWithRetry(() => import('./pages/media/MediaLaunchGate'));
 const MediaActorPage = lazyWithRetry(() => import('./pages/media/MediaActorPage'));
 const MediaVerificationPage = lazyWithRetry(() => import('./pages/media/MediaVerificationPage'));
+const MediaCreatorPage = lazyWithRetry(() => import('./pages/media/MediaCreatorPage'));
 const MaintenanceRequestPage = lazyWithRetry(() => import('./pages/MaintenanceRequestPage'));
 const TradesDiagnosticRequestPage = lazyWithRetry(() => import('./pages/TradesDiagnosticRequestPage'));
 const BeautyIntakeRequestPage = lazyWithRetry(() => import('./pages/BeautyIntakeRequestPage'));
@@ -424,6 +425,7 @@ export default function App() {
                     <Route path="/media/compose"           element={<Guarded><ProtectedRoute><MediaLaunchGate><MediaShell><MediaComposePage /></MediaShell></MediaLaunchGate></ProtectedRoute></Guarded>} />
                     <Route path="/media/bookmarks"         element={<Guarded><ProtectedRoute><MediaLaunchGate><MediaShell><MediaBookmarksPage /></MediaShell></MediaLaunchGate></ProtectedRoute></Guarded>} />
                     <Route path="/media/verification"      element={<Guarded><ProtectedRoute requireOnboarded={false}><MediaLaunchGate><MediaShell><MediaVerificationPage /></MediaShell></MediaLaunchGate></ProtectedRoute></Guarded>} />
+                    <Route path="/media/creator"           element={<Guarded><MediaLaunchGate><MediaShell><MediaCreatorPage /></MediaShell></MediaLaunchGate></Guarded>} />
                     <Route path="/media/post/:id"          element={<Guarded><MediaLaunchGate><MediaShell><MediaPostDetailPage /></MediaShell></MediaLaunchGate></Guarded>} />
                     <Route path="/media/search"            element={<Guarded><MediaLaunchGate><MediaShell><MediaSearchPage /></MediaShell></MediaLaunchGate></Guarded>} />
                     <Route path="/media/communities"       element={<Guarded><MediaLaunchGate><MediaShell><MediaCommunitiesPage /></MediaShell></MediaLaunchGate></Guarded>} />
