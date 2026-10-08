@@ -548,3 +548,10 @@ Media accessibility contract has 7 passing checks; `npm run verify:i18n`,
 `npm run typecheck`, `npm run build:ci`, and `git diff --check` pass locally. A
 signed-in production upload-worker journey is still required to verify the real
 transition and storage behavior.
+
+Hosted verification follow-up (2026-10-08): commit `e44ad315` was pushed after
+the bounded polling change. CI run `37815703524` was rejected before starting
+because the GitHub account still reports failed recent payments or an exceeded
+spending limit; the migration rehearsal was skipped and no test logs were
+produced. The prior passing hosted code run `37811076761` remains the latest
+authoritative CI evidence for the preceding draft-retry implementation.
