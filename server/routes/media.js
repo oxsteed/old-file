@@ -8,6 +8,7 @@ const rateLimit = require('express-rate-limit');
 const ctrl = require('../controllers/mediaController');
 const assetCtrl = require('../controllers/mediaAssetController');
 const verificationCtrl = require('../controllers/mediaVerificationController');
+const creatorCtrl = require('../controllers/mediaCreatorController');
 
 const mediaUploadLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -50,6 +51,20 @@ router.get('/posts/:id/replies', ctrl.getReplies);
 router.get('/posts/:id/quotes', ctrl.getQuotes);
 router.get('/actors/:handle', ctrl.getActor);
 router.post('/actors/:actorId/follow', requireAuth, ctrl.toggleFollow);
+
+// Combined v3 creator marketplace surfaces. Monetary rows are held in
+// pending_credit until the guarded OxSteed Credit transfer is authorized.
+router.get('/creator/gigs', creatorCtrl.listGigs);
+router.post('/creator/gigs', requireAuth, creatorCtrl.createGig);
+router.post('/creator/gigs/:gigId/applications', requireAuth, creatorCtrl.applyToGig);
+router.get('/creator/gigs/:gigId/applications', requireAuth, creatorCtrl.listApplications);
+router.post('/creator/applications/:applicationId/award', requireAuth, creatorCtrl.awardApplication);
+router.post('/creator/applications/:applicationId/deliverables', requireAuth, creatorCtrl.submitDeliverable);
+router.patch('/creator/deliverables/:deliverableId', requireAuth, creatorCtrl.reviewDeliverable);
+router.post('/creator/tips', requireAuth, creatorCtrl.createTip);
+router.post('/creator/tips/:tipId/settle', requireAuth, creatorCtrl.settleTip);
+router.post('/creator/sponsorships', requireAuth, creatorCtrl.createSponsorship);
+router.post('/posts/:postId/boosts', requireAuth, creatorCtrl.createBoost);
 
 // Authenticated actions.
 router.post('/posts', requireAuth, ctrl.createPost);

@@ -296,3 +296,13 @@ existing restaurant upload contract suites pass; the video worker tests remain
 environment-dependent when FFmpeg is unavailable on the local Windows host.
 Migration rehearsal, CI, and an authenticated live restaurant-to-Media journey
 remain required before this requirement can be marked complete.
+
+Creator marketplace foundation (2026-10-08): migration 740 and Media routes now
+cover verified creator gigs, applications, awards, published-post deliverables,
+review states, sponsorship offers, creator tips, and post boosts. Tip settlement
+uses the existing append-only Credit transfer service with idempotency and the
+same rail limits/sanctions checks; all money-bearing rows remain
+`pending_credit` until that guarded transfer succeeds, and boosts cannot be
+active before settlement. Focused Credit, Media contract, migration, and source
+syntax checks pass locally. A client creator surface, full Credit-enabled
+settlement journey, CI, and deployed verification remain open evidence.

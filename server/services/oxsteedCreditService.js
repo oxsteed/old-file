@@ -803,7 +803,7 @@ async function findExistingCreditHoldForReplay(client, { customerId, partnerId, 
   return existing;
 }
 
-async function ensureAccount(client, { accountType, customerId = null, partnerId = null, restaurantId = null, currencyCode = CREDIT_CURRENCY }) {
+async function ensureAccount(client, { accountType, customerId = null, partnerId = null, restaurantId = null, currencyCode = CREDIT_CURRENCY, allowNonCustomerOwner = false }) {
   const currency = assertSupportedCreditCurrency(currencyCode);
   if (!['customer_wallet', 'partner_payable', 'partner_reserve', 'platform_treasury', 'platform_revenue', 'restaurant_sub_bank'].includes(accountType)) {
     throw new AppError('Unsupported credit account type', 400, 'credit_account_type_invalid');
@@ -821,12 +821,13 @@ async function ensureAccount(client, { accountType, customerId = null, partnerId
     }
   }
 
+  const walletOwnerRoles = allowNonCustomerOwner ? "('customer', 'helper', 'helper_pro', 'broker')" : "('customer')";
   const insertQuery = accountType === 'customer_wallet'
     ? `INSERT INTO oxsteed_credit_accounts (account_type, customer_id, partner_id, restaurant_id, currency_code)
          SELECT $1, $2, $3, $4, $5
           WHERE EXISTS (
             SELECT 1 FROM users
-             WHERE id = $2 AND role = 'customer' AND is_active = TRUE
+             WHERE id = $2 AND role IN ${walletOwnerRoles} AND is_active = TRUE
           )
          ON CONFLICT DO NOTHING`
     : `INSERT INTO oxsteed_credit_accounts (account_type, customer_id, partner_id, restaurant_id, currency_code)
@@ -850,7 +851,7 @@ async function ensureAccount(client, { accountType, customerId = null, partnerId
         ? partnerId
         : accountType;
   const ownerJoin = accountType === 'customer_wallet'
-    ? `JOIN users owner ON owner.id = a.customer_id AND owner.role = 'customer' AND owner.is_active = TRUE`
+    ? `JOIN users owner ON owner.id = a.customer_id AND owner.role IN ${walletOwnerRoles} AND owner.is_active = TRUE`
     : '';
   const ownerScopedTypes = ['customer_wallet', 'partner_payable', 'partner_reserve', 'restaurant_sub_bank'];
   const currencyPlaceholder = ownerScopedTypes.includes(accountType) ? '$3' : '$2';
@@ -2406,7 +2407,7 @@ async function purchaseWithGuestCredit(args) {
   return withTransaction(pool, (client) => purchaseWithGuestCreditInTransaction(client, args), 'credit_guest_purchase');
 }
 
-async function transferCreditInTransaction(client, { senderCustomerId, recipientCustomerId, amountCents, currencyCode = CREDIT_CURRENCY, idempotencyKey, actorUserId, referenceType = 'customer_transfer', referenceId, correlationId, requestIp, description, metadata = {} }) {
+async function transferCreditInTransaction(client, { senderCustomerId, recipientCustomerId, amountCents, currencyCode = CREDIT_CURRENCY, idempotencyKey, actorUserId, referenceType = 'customer_transfer', referenceId, correlationId, requestIp, description, metadata = {}, allowCreatorRecipient = false }) {
   if (!CUSTOMER_TRANSFERS_ENABLED) throw new AppError('Customer-to-customer OxSteed Credit transfers are disabled', 403, 'credit_transfers_disabled');
   if (senderCustomerId === recipientCustomerId) throw new AppError('Cannot transfer credit to the same customer', 400, 'credit_transfer_same_customer');
   requireCustomerActor(actorUserId, senderCustomerId, 'The Credit transfer actor must be the customer sending the balance', 'credit_transfer_actor_required');
@@ -2442,8 +2443,9 @@ async function transferCreditInTransaction(client, { senderCustomerId, recipient
   await assertCreditRailEnabled(client);
   const customerLockKeys = [String(senderCustomerId), String(recipientCustomerId)].sort();
   await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit-transfer:${customerLockKeys.join(':')}`]);
+  const recipientRoles = allowCreatorRecipient ? "('customer', 'helper', 'helper_pro', 'broker')" : "('customer')";
   const { rows: recipientRows } = await client.query(
-    `SELECT id FROM users WHERE id = $1 AND role = 'customer' AND is_active = TRUE LIMIT 1`,
+    `SELECT id FROM users WHERE id = $1 AND role IN ${recipientRoles} AND is_active = TRUE LIMIT 1`,
     [recipientCustomerId]
   );
   if (!recipientRows[0]) throw new AppError('Recipient customer was not found', 404, 'credit_recipient_not_found');
@@ -2468,7 +2470,10 @@ async function transferCreditInTransaction(client, { senderCustomerId, recipient
     currencyCode: currency,
   });
   const sender = await ensureAccount(client, { accountType: 'customer_wallet', customerId: senderCustomerId, currencyCode: currency });
-  const recipient = await ensureAccount(client, { accountType: 'customer_wallet', customerId: recipientCustomerId, currencyCode: currency });
+  const recipient = await ensureAccount(client, {
+    accountType: 'customer_wallet', customerId: recipientCustomerId, currencyCode: currency,
+    allowNonCustomerOwner: allowCreatorRecipient,
+  });
   const transferResult = await postJournalTransaction(client, {
     transactionType: 'transfer',
     debitAccountId: sender.id,
@@ -2518,6 +2523,18 @@ async function transferCreditInTransaction(client, { senderCustomerId, recipient
 
 async function transferCredit(args) {
   return withTransaction(pool, (client) => transferCreditInTransaction(client, args), 'credit_transfer');
+}
+
+// Creator tips, sponsorships, and boosts use the same append-only journal,
+// limits, sanctions checks, and idempotency as customer transfers. The only
+// additional recipient class is a verified helper account, which is needed for
+// creator payouts while the public Credit router remains customer-only.
+async function transferCreatorCredit(args) {
+  return withTransaction(
+    pool,
+    (client) => transferCreditInTransaction(client, { ...args, allowCreatorRecipient: true }),
+    'media_creator_credit_transfer'
+  );
 }
 
 async function adjustCustomerCreditInTransaction(client, { customerId, amountCents, currencyCode = CREDIT_CURRENCY, direction = 'credit', idempotencyKey, actorUserId, actorType = 'admin', reason, referenceType = 'admin_adjustment', referenceId, correlationId, requestIp, metadata = {} }) {
@@ -4038,6 +4055,7 @@ module.exports = {
   findGuestSpendAgreement,
   transferCreditInTransaction,
   transferCredit,
+  transferCreatorCredit,
   adjustCustomerCreditInTransaction,
   adjustCustomerCredit,
   updateCustomerCreditAccountStatus,
