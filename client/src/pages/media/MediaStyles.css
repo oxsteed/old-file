@@ -83,8 +83,10 @@
 .media-composer-avatar { display: grid; place-items: center; flex-shrink: 0; width: 42px; height: 42px; border-radius: 50%; background: var(--color-surface-2); color: var(--color-text-muted); }
 .media-composer-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 .media-feed-toolbar { border-bottom: 1px solid var(--color-border); padding: 0 20px; }
-.media-feed-tab { position: relative; display: inline-block; padding: 14px 8px; color: var(--color-text); font-size: 14px; font-weight: 700; }
-.media-feed-tab::after { content: ''; position: absolute; inset-inline: 4px; bottom: 0; height: 3px; border-radius: 4px; background: var(--color-primary); }
+.media-feed-tab { position: relative; display: inline-block; border: 0; background: transparent; padding: 14px 8px; color: var(--color-text-muted); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.media-feed-tab.active { color: var(--color-text); }
+.media-feed-tab::after { content: ''; position: absolute; inset-inline: 4px; bottom: 0; height: 3px; border-radius: 4px; background: transparent; }
+.media-feed-tab.active::after { background: var(--color-primary); }
 .media-feed-empty { max-width: 380px; margin: 0 auto; padding: 70px 28px; text-align: start; }
 .media-feed-empty h2 { margin: 24px 0 10px; color: var(--color-text); font-size: 27px; line-height: 1.25; font-weight: 750; letter-spacing: -.5px; }
 .media-feed-empty p { color: var(--color-text-muted); font-size: 14px; line-height: 1.8; margin: 0 0 20px; }
@@ -404,6 +406,10 @@ div.media-support-panel { z-index: 150; }
   align-items: center;
   margin-bottom: 24px;
 }
+.media-actor-header > div { min-width: 0; }
+.media-actor-follow { margin-inline-start: auto; flex-shrink: 0; }
+.media-actor-follow.is-following { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border); }
+.media-actor-followers { margin: 8px 0 0; color: var(--color-text-muted); font-size: 13px; }
 
 .media-actor-avatar,
 .media-actor-avatar-fallback {

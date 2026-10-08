@@ -11,17 +11,18 @@ import PageMeta from '../../components/PageMeta';
 export default function MediaFeedPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const [tab, setTab] = useState('home');
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [before, setBefore] = useState(null);
   const [hasMore, setHasMore] = useState(true);
 
-  const load = useCallback(async (beforeParam) => {
+  const load = useCallback(async (beforeParam, requestedTab = tab) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getFeed({ before: beforeParam, limit: 20 });
+      const data = await getFeed({ before: beforeParam, limit: 20, tab: requestedTab });
       if (beforeParam) {
         setPosts(p => [...p, ...data.posts]);
       } else {
@@ -34,9 +35,14 @@ export default function MediaFeedPage() {
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [t, tab]);
 
-  useEffect(() => { load(null); }, [load]);
+  useEffect(() => { load(null, tab); }, [load, tab]);
+
+  const selectTab = (nextTab) => {
+    if (nextTab === tab) return;
+    setTab(nextTab);
+  };
 
   return (
       <div className="media-feed media-feed-page">
@@ -59,7 +65,16 @@ export default function MediaFeedPage() {
           <ArrowRight size={18} aria-hidden="true" />
         </Link>
         <div className="media-feed-toolbar">
-          <span className="media-feed-tab">{t('media.feed.latest')}</span>
+          <button type="button" className={`media-feed-tab ${tab === 'home' ? 'active' : ''}`}
+            aria-pressed={tab === 'home'} onClick={() => selectTab('home')}>
+            {t('media.feed.latest')}
+          </button>
+          {user && (
+            <button type="button" className={`media-feed-tab ${tab === 'following' ? 'active' : ''}`}
+              aria-pressed={tab === 'following'} onClick={() => selectTab('following')}>
+              {t('media.feed.following')}
+            </button>
+          )}
         </div>
         {error && (
           <div className="media-error" role="alert">
@@ -87,8 +102,8 @@ export default function MediaFeedPage() {
               <span className="media-empty-bubble"><MessageCircle size={27} /></span>
               <span className="media-empty-pin"><MapPin size={21} /></span>
             </div>
-            <h2>{t('media.feed.emptyHeading')}</h2>
-            <p>{t('media.feed.emptyDescription')}</p>
+            <h2>{tab === 'following' ? t('media.feed.followingEmptyHeading') : t('media.feed.emptyHeading')}</h2>
+            <p>{tab === 'following' ? t('media.feed.followingEmptyDescription') : t('media.feed.emptyDescription')}</p>
             <Link className="media-text-link" to="/restaurants">{t('media.feed.explore')}<ArrowRight size={16} aria-hidden="true" /></Link>
           </div>
         )}

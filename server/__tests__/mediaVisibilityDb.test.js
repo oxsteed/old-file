@@ -29,6 +29,7 @@ describeDb('Media block boundaries in PostgreSQL', () => {
       CREATE TEMP TABLE media_likes (post_id text, user_id text);
       CREATE TEMP TABLE media_bookmarks (post_id text, user_id text);
       CREATE TEMP TABLE media_reposts (post_id text, actor_id text);
+      CREATE TEMP TABLE media_follows (follower_user_id text, actor_id text, created_at timestamptz DEFAULT now());
       CREATE TEMP TABLE media_communities (id text PRIMARY KEY, slug text, title text, geo_scope text, category text);
       CREATE TEMP TABLE media_community_members (community_id text, user_id text);
       INSERT INTO users (id) VALUES ('viewer'), ('outbound'), ('inbound'), ('allowed'), ('banned');

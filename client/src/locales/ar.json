@@ -30257,6 +30257,15 @@
     "refundUnavailableHint": "هذا الطلب ليس حالياً في حالة دفع قابلة للاسترداد."
   },
   "media": {
+    "actor": {
+      "follow": "متابعة",
+      "unfollow": "إلغاء المتابعة",
+      "followingAction": "جارٍ التحديث…",
+      "followers": "{{count}} متابع",
+      "signInToFollow": "سجّل الدخول للمتابعة",
+      "followError": "تعذر تحديث المتابعة.",
+      "you": "أنت"
+    },
     "shell": {
       "navigation": "التنقل في Media",
       "home": "الرئيسية",
@@ -30373,6 +30382,7 @@
       "posts": "المنشورات"
     },
     "feed": {
+      "following": "المتابَعون",
       "refresh": "تحديث الخلاصة",
       "prompt": "ما الجديد بالقرب منك؟",
       "emptyHeading": "الأشياء الجميلة تبدأ محليًا.",
@@ -30388,7 +30398,9 @@
       "loadMore": "تحميل المزيد",
       "empty": "لا توجد منشورات بعد. كن أول من يشارك.",
       "metaTitle": "OxSteed Media",
-      "metaDescription": "تحديثات محلية من المساعدين والأنشطة التجارية والمطاعم الموثقة على OxSteed."
+      "metaDescription": "تحديثات محلية من المساعدين والأنشطة التجارية والمطاعم الموثقة على OxSteed.",
+      "followingEmptyHeading": "تبدأ دائرتك المحلية من هنا.",
+      "followingEmptyDescription": "تابع الحسابات المحلية الموثقة لترى تحديثاتها في هذه الخلاصة."
     },
     "spaces": {
       "description": "قنوات محلية حقيقية حسب المدينة والفئة.",

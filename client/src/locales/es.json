@@ -30246,6 +30246,15 @@
     "refundUnavailableHint": "Este pedido no se encuentra actualmente en un estado de pago reembolsable."
   },
   "media": {
+    "actor": {
+      "follow": "Seguir",
+      "unfollow": "Dejar de seguir",
+      "followingAction": "Actualizando…",
+      "followers": "{{count}} seguidores",
+      "signInToFollow": "Inicia sesión para seguir",
+      "followError": "No se pudo actualizar el seguimiento.",
+      "you": "Tú"
+    },
     "shell": {
       "navigation": "Navegación de Media",
       "home": "Inicio",
@@ -30371,13 +30380,16 @@
       "subtitle": "Voces locales, conexiones útiles y novedades de la red OxSteed.",
       "subtitleShort": "Lo más reciente de la red",
       "latest": "Más recientes",
+      "following": "Siguiendo",
       "compose": "Compartir una actualización",
       "emptyTitle": "Tu feed comienza aquí",
       "loadError": "No se pudo cargar el feed.",
       "loadMore": "Cargar más",
       "empty": "Aún no hay publicaciones. Sé el primero en compartir.",
       "metaTitle": "OxSteed Media",
-      "metaDescription": "Actualizaciones locales de ayudantes, negocios y restaurantes verificados en OxSteed."
+      "metaDescription": "Actualizaciones locales de ayudantes, negocios y restaurantes verificados en OxSteed.",
+      "followingEmptyHeading": "Tu círculo local empieza aquí.",
+      "followingEmptyDescription": "Sigue cuentas locales verificadas para ver sus novedades en este feed."
     },
     "spaces": {
       "description": "Canales locales reales por ciudad y categoría.",

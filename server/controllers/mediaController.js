@@ -58,7 +58,7 @@ function addViewerBlockFilter(where, params, viewerUserId, actorAlias = 'a') {
   )`;
 }
 
-async function notifyMediaUser({ userId, type, title, body, postId }) {
+async function notifyMediaUser({ userId, type, title, body, postId, actionUrl, data, idempotencyKey }) {
   if (!userId) return;
   try {
     await sendNotification({
@@ -66,11 +66,11 @@ async function notifyMediaUser({ userId, type, title, body, postId }) {
       type,
       title,
       body,
-      data: { post_id: postId },
-      action_url: `/media/post/${postId}`,
+      data: { ...(data || {}), ...(postId ? { post_id: postId } : {}) },
+      action_url: actionUrl || (postId ? `/media/post/${postId}` : '/media'),
       // A stable key prevents duplicate notifications when a client retries an
       // action or the request is replayed after a transient response failure.
-      idempotencyKey: `${type}:${postId}:${userId}`,
+      idempotencyKey: idempotencyKey || `${type}:${postId}:${userId}`,
     });
   } catch (err) {
     logger.warn('media notification failed', { type, postId, message: err.message });
@@ -352,9 +352,15 @@ async function hydratePost(post, viewerUserId) {
 async function getFeed(req, res) {
   try {
     const tab = req.query.tab || 'home';
+    if (!['home', 'following'].includes(tab)) {
+      return res.status(400).json({ error: 'Unsupported Media feed' });
+    }
     const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
     const before = req.query.before || null;
     const viewerUserId = req.user?.id || null;
+    if (tab === 'following' && !viewerUserId) {
+      return res.status(401).json({ error: 'Sign in to view your Following feed', code: 'media_following_auth_required' });
+    }
     let localityBoost = '0';
 
     const orderBy = 'p.created_at DESC, p.id DESC';
@@ -370,9 +376,10 @@ async function getFeed(req, res) {
         rankedCursor = JSON.parse(Buffer.from(before, 'base64url').toString('utf8'));
       } catch { rankedCursor = null; }
     }
+    let viewerParam = null;
     if (viewerUserId) {
       params.push(viewerUserId);
-      const viewerParam = params.length;
+      viewerParam = params.length;
       where += ` AND NOT EXISTS (
         SELECT 1 FROM user_blocks ub
          WHERE (ub.blocker_id = $${viewerParam} AND ub.blocked_id = a.owner_user_id)
@@ -395,6 +402,13 @@ async function getFeed(req, res) {
              )
         ) THEN 1
         ELSE 0 END`;
+    }
+    if (tab === 'following') {
+      where += ` AND EXISTS (
+        SELECT 1 FROM media_follows following_actor
+         WHERE following_actor.follower_user_id = $${viewerParam}
+           AND following_actor.actor_id = a.id
+      )`;
     }
 
     let rankedAfter = '';
@@ -444,12 +458,19 @@ async function getFeed(req, res) {
           AND au.deleted_at IS NULL AND au.is_active = TRUE AND au.is_banned = FALSE)`;
       if (viewerUserId) {
         fallbackParams.push(viewerUserId);
-        const viewerParam = fallbackParams.length;
+        const fallbackViewerParam = fallbackParams.length;
         fallbackWhere += ` AND NOT EXISTS (
           SELECT 1 FROM user_blocks ub
-           WHERE (ub.blocker_id = $${viewerParam} AND ub.blocked_id = a.owner_user_id)
-              OR (ub.blocker_id = a.owner_user_id AND ub.blocked_id = $${viewerParam})
+           WHERE (ub.blocker_id = $${fallbackViewerParam} AND ub.blocked_id = a.owner_user_id)
+              OR (ub.blocker_id = a.owner_user_id AND ub.blocked_id = $${fallbackViewerParam})
         )`;
+        if (tab === 'following') {
+          fallbackWhere += ` AND EXISTS (
+            SELECT 1 FROM media_follows following_actor
+             WHERE following_actor.follower_user_id = $${fallbackViewerParam}
+               AND following_actor.actor_id = a.id
+          )`;
+        }
       }
       if (rankedCursor?.created_at && rankedCursor?.id) {
         fallbackParams.push(rankedCursor.created_at, rankedCursor.id);
@@ -488,6 +509,13 @@ async function getFeed(req, res) {
              WHERE (ub.blocker_id = $${viewerParam} AND ub.blocked_id = a.owner_user_id)
                 OR (ub.blocker_id = a.owner_user_id AND ub.blocked_id = $${viewerParam})
           )`;
+          if (tab === 'following') {
+            minimalWhere += ` AND EXISTS (
+              SELECT 1 FROM media_follows following_actor
+               WHERE following_actor.follower_user_id = $${viewerParam}
+                 AND following_actor.actor_id = a.id
+            )`;
+          }
         }
         if (rankedCursor?.created_at && rankedCursor?.id) {
           minimalParams.push(rankedCursor.created_at, rankedCursor.id);
@@ -523,7 +551,7 @@ async function getFeed(req, res) {
       created_at: last.created_at,
       id: last.id,
     })).toString('base64url') : null;
-    res.json({ posts, next_before: nextBefore, has_more: rows.length === limit });
+    res.json({ posts, next_before: nextBefore, has_more: rows.length === limit, tab });
   } catch (err) {
     logger.error('media.getFeed error', { message: err.message });
     res.status(500).json({ error: 'Failed to load feed' });
@@ -1389,12 +1417,22 @@ async function getBusinessPosts(req, res) {
 async function getActor(req, res) {
   try {
     const actorParams = [req.params.handle];
-    const actorWhere = addViewerBlockFilter('handle = $1', actorParams, req.user?.id, 'media_actors');
+    const actorWhere = addViewerBlockFilter('a.handle = $1', actorParams, req.user?.id, 'a');
     const { rows } = await pool.query(
-      `SELECT * FROM media_actors WHERE ${actorWhere}`,
+      `SELECT a.*,
+              (SELECT COUNT(*)::int FROM media_follows mf WHERE mf.actor_id = a.id) AS follower_count
+         FROM media_actors a WHERE ${actorWhere}`,
       actorParams
     );
     if (!rows[0]) return res.status(404).json({ error: 'Actor not found' });
+    let following = false;
+    if (req.user?.id) {
+      const { rows: followRows } = await pool.query(
+        `SELECT 1 FROM media_follows WHERE follower_user_id = $1 AND actor_id = $2`,
+        [req.user.id, rows[0].id]
+      );
+      following = !!followRows[0];
+    }
     const postParams = [rows[0].id];
     const postWhere = addViewerBlockFilter(
       `p.actor_id = $1 AND p.deleted_at IS NULL AND p.parent_id IS NULL
@@ -1411,10 +1449,69 @@ async function getActor(req, res) {
     );
     const hydrated = [];
     for (const p of posts) hydrated.push(await hydratePost(p, req.user?.id || null));
-    res.json({ actor: rows[0], posts: hydrated });
+    res.json({ actor: { ...rows[0], following }, posts: hydrated });
   } catch (err) {
     logger.error('media.getActor error', { message: err.message });
     res.status(500).json({ error: 'Failed to load actor' });
+  }
+}
+
+async function toggleFollow(req, res) {
+  const userId = req.user?.id;
+  const actorId = String(req.params.actorId || '').trim();
+  if (!userId) return res.status(401).json({ error: 'Authentication required' });
+  if (!actorId) return res.status(400).json({ error: 'Actor is required' });
+
+  try {
+    const actorParams = [actorId];
+    const actorWhere = addViewerBlockFilter('a.id = $1', actorParams, userId, 'a');
+    const { rows: actors } = await pool.query(
+      `SELECT a.id, a.owner_user_id, a.display_name
+         FROM media_actors a
+        WHERE ${actorWhere}`,
+      actorParams
+    );
+    const actor = actors[0];
+    if (!actor) return res.status(404).json({ error: 'Actor not found' });
+    if (String(actor.owner_user_id) === String(userId)) {
+      return res.status(400).json({ error: 'You cannot follow your own account', code: 'media_follow_self' });
+    }
+
+    const { rows: existing } = await pool.query(
+      `SELECT 1 FROM media_follows WHERE follower_user_id = $1 AND actor_id = $2`,
+      [userId, actor.id]
+    );
+    if (existing[0]) {
+      await pool.query(
+        `DELETE FROM media_follows WHERE follower_user_id = $1 AND actor_id = $2`,
+        [userId, actor.id]
+      );
+      const { rows: counts } = await pool.query(
+        `SELECT COUNT(*)::int AS follower_count FROM media_follows WHERE actor_id = $1`, [actor.id]
+      );
+      return res.json({ following: false, follower_count: Number(counts[0]?.follower_count || 0) });
+    }
+
+    await pool.query(
+      `INSERT INTO media_follows (follower_user_id, actor_id)
+       VALUES ($1, $2) ON CONFLICT (follower_user_id, actor_id) DO NOTHING`,
+      [userId, actor.id]
+    );
+    await notifyMediaUser({
+      userId: actor.owner_user_id,
+      type: 'media_follow',
+      title: 'New Media follower',
+      body: 'Someone followed your OxSteed Media account.',
+      postId: null,
+      idempotencyKey: `media_follow:${actor.id}:${userId}`,
+    });
+    const { rows: counts } = await pool.query(
+      `SELECT COUNT(*)::int AS follower_count FROM media_follows WHERE actor_id = $1`, [actor.id]
+    );
+    return res.json({ following: true, follower_count: Number(counts[0]?.follower_count || 0) });
+  } catch (err) {
+    logger.error('media.toggleFollow error', { message: err.message });
+    return res.status(500).json({ error: 'Failed to update follow' });
   }
 }
 
@@ -1485,6 +1582,6 @@ module.exports = {
   replacePostLinks,
   toggleLike, toggleBookmark, toggleRepost, recordView, flagPost,
   getCommunities, getCommunity, joinCommunity, leaveCommunity, searchMedia,
-  getActor, getOrCreateActor, getBusinessPosts,
+  getActor, getOrCreateActor, getBusinessPosts, toggleFollow,
   searchMediaEntities,
 };

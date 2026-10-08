@@ -55,6 +55,17 @@ passed client/browser/admin checks, server regression/security checks, and the
 PostgreSQL migration rehearsal. Deployment and authenticated live verification
 of these new paths remain open; passing CI does not establish their deployment.
 
+Following implementation batch (2026-10-08): the existing `media_follows` table
+now has its actor-count index in migration 738. Media exposes authenticated
+follow/unfollow actions with reciprocal block and active-author visibility,
+self-follow prevention, follower counts, follow notifications and stable
+idempotency. Actor pages show current follow state and a localized control. Home
+now has a signed-in Following tab; its feed filters to followed actors while
+retaining the same safety, active-author, block and cursor-pagination predicates
+as the local feed. Focused `mediaFollows.test.js` and `mediaContracts.test.js`
+pass locally (13 tests). CI, migration deployment and authenticated live follow
+checks remain open.
+
 On resumption, reconcile existing code against this checklist, record the next
 exact action for each missing feature, and build the combined scope in coherent
 batches. Earlier evidence below is retained as history; current strategy and

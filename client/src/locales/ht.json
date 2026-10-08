@@ -30246,6 +30246,15 @@
     "refundUnavailableHint": "Kòmand sa a pa nan yon eta peman ki ka ranbouse kounye a."
   },
   "media": {
+    "actor": {
+      "follow": "Swiv",
+      "unfollow": "Sispann swiv",
+      "followingAction": "Ap mete ajou…",
+      "followers": "{{count}} moun ap swiv",
+      "signInToFollow": "Konekte pou swiv",
+      "followError": "Nou pa ka mete swiv la ajou.",
+      "you": "Ou"
+    },
     "shell": {
       "navigation": "Navigasyon Media",
       "home": "Akèy",
@@ -30371,13 +30380,16 @@
       "subtitle": "Vwa lokal, koneksyon itil, ak nouvèl ki soti nan rezo OxSteed la.",
       "subtitleShort": "Dènye nouvèl nan rezo a",
       "latest": "Pi resan",
+      "following": "Sa w ap swiv",
       "compose": "Pataje yon nouvèl",
       "emptyTitle": "Fil ou a kòmanse isit la",
       "loadError": "Pa ka chaje fil la.",
       "loadMore": "Chaje plis",
       "empty": "Pa gen piblikasyon pou kounye a. Se premye moun ki pataje.",
       "metaTitle": "OxSteed Media",
-      "metaDescription": "Nouvèl lokal moun k ap ede, biznis ak restoran verifye sou OxSteed."
+      "metaDescription": "Nouvèl lokal moun k ap ede, biznis ak restoran verifye sou OxSteed.",
+      "followingEmptyHeading": "Sèk lokal ou a kòmanse isit la.",
+      "followingEmptyDescription": "Swiv kont lokal verifye pou wè nouvèl yo nan fil sa a."
     },
     "spaces": {
       "description": "Chanèl lokal reyèl selon vil ak kategori.",

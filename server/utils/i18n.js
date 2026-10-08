@@ -1,4 +1,20 @@
 const T = {
+  media_follow: {
+    title: {
+      en: 'New Media follower',
+      es: 'Nuevo seguidor de Media',
+      fr: 'Nouvel abonné Media',
+      ht: 'Nouvo moun k ap swiv ou sou Media',
+      ar: 'متابع جديد على Media',
+    },
+    body: {
+      en: 'Someone followed your OxSteed Media account.',
+      es: 'Alguien siguió tu cuenta de OxSteed Media.',
+      fr: 'Quelqu’un a suivi votre compte OxSteed Media.',
+      ht: 'Yon moun kòmanse swiv kont OxSteed Media ou a.',
+      ar: 'تابع شخص ما حسابك على OxSteed Media.',
+    },
+  },
   oxsteed_credit_card_security: {
     title: { en: 'OxSteed Credit card security', es: 'Seguridad de tarjeta OxSteed Credit', fr: 'Sécurité de la carte OxSteed Credit', ht: 'Sekirite kat OxSteed Credit', ar: 'أمان بطاقة OxSteed Credit' },
     body: {

@@ -30246,6 +30246,15 @@
     "refundUnavailableHint": "This order is not currently in a refundable payment state."
   },
   "media": {
+    "actor": {
+      "follow": "Follow",
+      "unfollow": "Unfollow",
+      "followingAction": "Updating…",
+      "followers": "{{count}} followers",
+      "signInToFollow": "Sign in to follow",
+      "followError": "Could not update the follow.",
+      "you": "You"
+    },
     "shell": {
       "navigation": "Media navigation",
       "home": "Home",
@@ -30362,6 +30371,7 @@
       "posts": "Posts"
     },
     "feed": {
+      "following": "Following",
       "refresh": "Refresh feed",
       "prompt": "What’s happening nearby?",
       "emptyHeading": "Good things start locally.",
@@ -30377,7 +30387,9 @@
       "loadMore": "Load more",
       "empty": "No posts yet. Be the first to share.",
       "metaTitle": "OxSteed Media",
-      "metaDescription": "Local updates from verified helpers, businesses, and restaurants on OxSteed."
+      "metaDescription": "Local updates from verified helpers, businesses, and restaurants on OxSteed.",
+      "followingEmptyHeading": "Your local circle starts here.",
+      "followingEmptyDescription": "Follow verified local accounts to see their updates in this feed."
     },
     "spaces": {
       "description": "Real local channels by city and category.",

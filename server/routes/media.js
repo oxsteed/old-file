@@ -49,6 +49,7 @@ router.get('/posts/:id', ctrl.getPost);
 router.get('/posts/:id/replies', ctrl.getReplies);
 router.get('/posts/:id/quotes', ctrl.getQuotes);
 router.get('/actors/:handle', ctrl.getActor);
+router.post('/actors/:actorId/follow', requireAuth, ctrl.toggleFollow);
 
 // Authenticated actions.
 router.post('/posts', requireAuth, ctrl.createPost);
