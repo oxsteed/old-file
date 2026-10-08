@@ -30331,7 +30331,9 @@
         "tool_rental": "استئجار",
         "direct_catalog": "حجز",
         "logistics_campaign": "عرض"
-      }
+      },
+      "metaTitle": "منشور OxSteed Media",
+      "metaDescription": "تحديث محلي من مجتمع OxSteed."
     },
     "search": {
       "title": "البحث في Media",
@@ -30355,7 +30357,9 @@
       "emptyTitle": "تبدأ خلاصتك من هنا",
       "loadError": "فشل تحميل الخلاصة.",
       "loadMore": "تحميل المزيد",
-      "empty": "لا توجد منشورات بعد. كن أول من يشارك."
+      "empty": "لا توجد منشورات بعد. كن أول من يشارك.",
+      "metaTitle": "OxSteed Media",
+      "metaDescription": "تحديثات محلية من المساعدين والأنشطة التجارية والمطاعم الموثقة على OxSteed."
     },
     "spaces": {
       "description": "قنوات محلية حقيقية حسب المدينة والفئة.",

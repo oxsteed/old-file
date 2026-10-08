@@ -30320,7 +30320,9 @@
         "tool_rental": "Lwe",
         "direct_catalog": "Rezève",
         "logistics_campaign": "Gade"
-      }
+      },
+      "metaTitle": "Piblikasyon OxSteed Media",
+      "metaDescription": "Yon nouvèl lokal nan kominote OxSteed la."
     },
     "search": {
       "title": "Chèche nan Media",
@@ -30344,7 +30346,9 @@
       "emptyTitle": "Fil ou a kòmanse isit la",
       "loadError": "Pa ka chaje fil la.",
       "loadMore": "Chaje plis",
-      "empty": "Pa gen piblikasyon pou kounye a. Se premye moun ki pataje."
+      "empty": "Pa gen piblikasyon pou kounye a. Se premye moun ki pataje.",
+      "metaTitle": "OxSteed Media",
+      "metaDescription": "Nouvèl lokal moun k ap ede, biznis ak restoran verifye sou OxSteed."
     },
     "spaces": {
       "description": "Chanèl lokal reyèl selon vil ak kategori.",

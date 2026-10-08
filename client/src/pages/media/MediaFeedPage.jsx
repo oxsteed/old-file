@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import './MediaStyles.css';
 import MediaPostCard from './MediaPostCard';
 import { Link } from 'react-router-dom';
+import PageMeta from '../../components/PageMeta';
 
 export default function MediaFeedPage() {
   const { t } = useTranslation();
@@ -39,6 +40,7 @@ export default function MediaFeedPage() {
 
   return (
       <div className="media-feed media-feed-page">
+        <PageMeta title={t('media.feed.metaTitle')} description={t('media.feed.metaDescription')} />
         <header className="media-timeline-header">
           <div>
             <h1>{t('media.shell.home')}</h1>

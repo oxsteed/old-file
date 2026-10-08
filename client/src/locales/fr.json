@@ -30320,7 +30320,9 @@
         "tool_rental": "Louer",
         "direct_catalog": "Réserver",
         "logistics_campaign": "Voir"
-      }
+      },
+      "metaTitle": "Publication OxSteed Media",
+      "metaDescription": "Une actualité locale de la communauté OxSteed."
     },
     "search": {
       "title": "Rechercher dans Media",
@@ -30344,7 +30346,9 @@
       "emptyTitle": "Votre fil commence ici",
       "loadError": "Échec du chargement du fil.",
       "loadMore": "Charger plus",
-      "empty": "Aucune publication pour le moment. Soyez le premier à partager."
+      "empty": "Aucune publication pour le moment. Soyez le premier à partager.",
+      "metaTitle": "OxSteed Media",
+      "metaDescription": "Actualités locales de professionnels, entreprises et restaurants vérifiés sur OxSteed."
     },
     "spaces": {
       "description": "Des canaux locaux réels par ville et catégorie.",

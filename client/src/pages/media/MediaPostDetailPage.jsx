@@ -6,6 +6,7 @@ import { createPost, getPost, getQuotes, getReplies, recordView } from '../../ap
 import './MediaStyles.css';
 import MediaPostCard from './MediaPostCard';
 import MediaReplyComposer from './MediaReplyComposer';
+import PageMeta from '../../components/PageMeta';
 
 export default function MediaPostDetailPage() {
   const { t } = useTranslation();
@@ -77,6 +78,11 @@ export default function MediaPostDetailPage() {
 
   return (
       <div className="media-post-detail">
+        <PageMeta
+          title={post?.body ? `${post.display_name}: ${post.body.slice(0, 70)}` : t('media.post.metaTitle')}
+          description={post?.body || t('media.post.metaDescription')}
+          type="article"
+        />
         {loading && (
           <div className="media-skeleton">
             <div className="skeleton-line" />
