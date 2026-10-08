@@ -106,13 +106,13 @@ async function approvePost(req, res) {
     await client.query('BEGIN');
     const { rows } = await client.query(
       `SELECT p.id, p.visibility, p.processing_status, p.csam_status,
-              u.identity_verified, a.actor_type,
+              u.is_verified, a.actor_type,
               CASE
                 WHEN a.actor_type = 'helper' THEN EXISTS (
                   SELECT 1 FROM helper_profiles hp
                   JOIN users hu ON hu.id = hp.user_id
                   WHERE hp.user_id = a.owner_user_id
-                    AND hu.identity_verified = TRUE
+                    AND hu.is_verified = TRUE
                     AND hu.is_active = TRUE AND hu.is_banned = FALSE
                     AND hu.deleted_at IS NULL
                 )
@@ -156,7 +156,7 @@ async function approvePost(req, res) {
     if (post.visibility === 'removed' || post.processing_status !== 'ready'
         || !mediaSafety.postVerdictAllowed(post.csam_status)
         || assets.some((asset) => !mediaSafety.assetReady(asset))
-        || (videos.length > 0 && !post.identity_verified)) {
+        || (videos.length > 0 && !post.is_verified)) {
       await client.query('ROLLBACK');
       return res.status(409).json({
         error: 'Required safety checks and processing must finish before this post can be approved.',

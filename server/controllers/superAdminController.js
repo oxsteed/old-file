@@ -951,6 +951,7 @@ exports.verifyUser = async (req, res) => {
       const { rows: idVerifyRows } = await db.query(
         `UPDATE users SET
            didit_status = 'verified',
+           is_verified = TRUE,
            identity_verified = TRUE,
            id_verified = TRUE,
            didit_verified_at = COALESCE(didit_verified_at, NOW()),

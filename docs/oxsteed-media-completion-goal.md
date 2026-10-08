@@ -9,6 +9,13 @@ migrations), and required identity/malware/transcode controls. See
 [Media safety policy](oxsteed-media-safety-policy.md) for commands, observations,
 and the remaining authenticated-upload/live-coverage limitations.
 
+Verification alignment update (2026-10-08): Media now uses `users.is_verified`,
+the flag written by the Didit approval webhook, for helper actor creation,
+video upload, publication, public video visibility, entity search, and admin
+approval. The super-admin identity action sets the same flag and keeps the
+helper profile badge synchronized. Business and restaurant posting continue to
+use their entity-level `is_business_verified` and `is_verified` flags.
+
 The previous MVP completion report was premature. Passing generic CI does not
 prove the full Media journeys. This document tracks the renewed completion goal
 against the locked specification, retaining the v2/v3 release boundaries.

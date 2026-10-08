@@ -67,10 +67,10 @@ function mediaVideoUploadHandler(req, res, next) {
 
 async function checkDidit(userId) {
   const { rows } = await pool.query(
-    `SELECT identity_verified FROM users WHERE id = $1`,
+    `SELECT is_verified FROM users WHERE id = $1`,
     [userId]
   );
-  return !!rows[0]?.identity_verified;
+  return !!rows[0]?.is_verified;
 }
 
 async function requireVideoIdentity(req, res, next) {

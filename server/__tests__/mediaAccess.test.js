@@ -72,7 +72,7 @@ describe('Media approval preserves safety evidence', () => {
 
   async function approve(postChanges = {}, assetChanges = {}, certified = 'true') {
     process.env.MEDIA_CSAM_CERTIFIED = certified;
-    const post = { id: 'post-1', visibility: 'unlisted', processing_status: 'ready', csam_status: 'passed', identity_verified: true, ...postChanges };
+    const post = { id: 'post-1', visibility: 'unlisted', processing_status: 'ready', csam_status: 'passed', is_verified: true, ...postChanges };
     const asset = { asset_type: 'video', processing_status: 'ready', csam_status: 'passed', renditions: [{ storage_key: 'ready.mp4' }], ...assetChanges };
     client.query.mockImplementation(async (sql) => {
       if (sql.includes('SELECT p.id')) return { rows: [post] };
@@ -86,7 +86,7 @@ describe('Media approval preserves safety evidence', () => {
 
   test.each([
     [{}, {}, 'false'],
-    [{ identity_verified: false }, {}, 'true'],
+    [{ is_verified: false }, {}, 'true'],
     [{}, { csam_status: 'flagged' }, 'true'],
     [{}, { csam_status: 'pending' }, 'true'],
     [{}, { processing_status: 'quarantine' }, 'true'],

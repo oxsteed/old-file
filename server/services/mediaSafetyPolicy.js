@@ -56,7 +56,7 @@ function publicPostSql(alias = 'p') {
            WHERE COALESCE(TRIM(rendition->>'storage_key'), '') = '')
          OR NOT EXISTS (SELECT 1 FROM media_actors safety_actor JOIN users safety_user
            ON safety_user.id = safety_actor.owner_user_id
-           WHERE safety_actor.id = ${alias}.actor_id AND safety_user.identity_verified = TRUE)
+           WHERE safety_actor.id = ${alias}.actor_id AND safety_user.is_verified = TRUE)
        ))
      )
   )`;

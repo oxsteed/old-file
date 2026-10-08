@@ -43,7 +43,7 @@ describe('Media user journeys', () => {
   });
 
   test('blocks video parsing before a non-Didit account can upload a file', async () => {
-    pool.query.mockResolvedValueOnce({ rows: [{ identity_verified: false }] });
+    pool.query.mockResolvedValueOnce({ rows: [{ is_verified: false }] });
     const next = jest.fn();
     const res = response();
 
@@ -52,6 +52,17 @@ describe('Media user journeys', () => {
     expect(res.status).toHaveBeenCalledWith(403);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_video_didit_required' }));
     expect(next).not.toHaveBeenCalled();
+  });
+
+  test('allows video parsing for a Didit-verified account', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [{ is_verified: true }] });
+    const next = jest.fn();
+    const res = response();
+
+    await assets.requireVideoIdentity({ user: { id: 'verified-user' } }, res, next);
+
+    expect(res.status).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledTimes(1);
   });
 
   test('lets a verified actor reply and sends one stable notification to the parent owner', async () => {

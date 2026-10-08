@@ -103,7 +103,7 @@ async function getOrCreateActor(userId) {
     if (existing.actor_type === 'helper') {
       const { rows: verified } = await pool.query(
         `SELECT 1 FROM helper_profiles hp JOIN users u ON u.id = hp.user_id
-          WHERE hp.user_id = $1 AND u.identity_verified = TRUE AND u.is_active = TRUE
+          WHERE hp.user_id = $1 AND u.is_verified = TRUE AND u.is_active = TRUE
             AND u.is_banned = FALSE LIMIT 1`, [userId]
       );
       if (!verified[0]) return null;
@@ -126,7 +126,7 @@ async function getOrCreateActor(userId) {
   // Determine actor type from verified profiles.
   const { rows: helper } = await pool.query(
     `SELECT hp.id, hp.profile_slug, u.first_name, u.last_name, u.profile_photo_url,
-            u.identity_verified
+            u.is_verified
        FROM helper_profiles hp JOIN users u ON u.id = hp.user_id
       WHERE hp.user_id = $1 LIMIT 1`,
     [userId]
@@ -144,7 +144,7 @@ async function getOrCreateActor(userId) {
   );
 
   let actor = null;
-  if (helper[0]?.identity_verified) {
+  if (helper[0]?.is_verified) {
     actor = {
       type: 'helper', handle: helper[0].profile_slug || `helper-${helper[0].id}`,
       name: `${helper[0].first_name || ''} ${helper[0].last_name || ''}`.trim(),
@@ -865,13 +865,13 @@ async function publishPost(req, res) {
   try {
     await client.query('BEGIN');
     const { rows: owned } = await client.query(
-      `SELECT p.*, a.owner_user_id, a.actor_type, u.identity_verified,
+      `SELECT p.*, a.owner_user_id, a.actor_type, u.is_verified,
               CASE
                 WHEN a.actor_type = 'helper' THEN EXISTS (
                   SELECT 1 FROM helper_profiles hp
                   JOIN users hu ON hu.id = hp.user_id
                   WHERE hp.user_id = a.owner_user_id
-                    AND hu.identity_verified = TRUE
+                    AND hu.is_verified = TRUE
                     AND hu.is_active = TRUE AND hu.is_banned = FALSE
                     AND hu.deleted_at IS NULL
                 )
@@ -924,7 +924,7 @@ async function publishPost(req, res) {
     const unsafe = assets.find((asset) => !mediaSafety.assetReady(asset));
     const hasVideo = assets.some((asset) => asset.asset_type === 'video');
     if (unsafe || !mediaSafety.postVerdictAllowed(owned[0].csam_status)
-        || (hasVideo && !owned[0].identity_verified)) {
+        || (hasVideo && !owned[0].is_verified)) {
       await client.query('ROLLBACK');
       return res.status(409).json({
         error: 'Media is still processing or awaiting safety approval.',
@@ -1450,7 +1450,7 @@ async function searchMediaEntities(req, res) {
            FROM helper_profiles hp
            JOIN users u ON u.id = hp.user_id
           WHERE u.deleted_at IS NULL AND u.is_active = TRUE
-            AND u.identity_verified = TRUE
+            AND u.is_verified = TRUE
             AND (hp.profile_slug ILIKE $1 OR u.first_name ILIKE $1 OR u.last_name ILIKE $1)
           ORDER BY name LIMIT $2`, [like, limit]
       ));

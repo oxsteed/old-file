@@ -19,7 +19,7 @@ describeDb('Media block boundaries in PostgreSQL', () => {
     db = new Client({ connectionString: url });
     await db.connect();
     await db.query(`
-      CREATE TEMP TABLE users (id text PRIMARY KEY, deleted_at timestamptz, is_active boolean DEFAULT true, is_banned boolean DEFAULT false, identity_verified boolean DEFAULT true);
+      CREATE TEMP TABLE users (id text PRIMARY KEY, deleted_at timestamptz, is_active boolean DEFAULT true, is_banned boolean DEFAULT false, is_verified boolean DEFAULT true);
       CREATE TEMP TABLE media_actors (id text PRIMARY KEY, owner_user_id text, handle text, display_name text, avatar_url text, verified_kind text, actor_type text);
       CREATE TEMP TABLE user_blocks (blocker_id text, blocked_id text);
       CREATE TEMP TABLE media_posts (id text PRIMARY KEY, actor_id text, body text, parent_id text, quoted_post_id text, community_id text, deleted_at timestamptz,
@@ -116,7 +116,7 @@ describeDb('Media block boundaries in PostgreSQL', () => {
       await db.query("UPDATE media_post_assets SET processing_status = 'ready', renditions = '[]'");
       expect((await read()).status).toHaveBeenCalledWith(404);
       await db.query(`UPDATE media_post_assets SET renditions = '[{"storage_key":"ready.mp4"}]'`);
-      await db.query("UPDATE users SET identity_verified = false WHERE id = 'allowed'");
+      await db.query("UPDATE users SET is_verified = false WHERE id = 'allowed'");
       expect((await read()).status).toHaveBeenCalledWith(404);
     } finally {
       if (previousMode === undefined) delete process.env.MEDIA_CSAM_MODE;

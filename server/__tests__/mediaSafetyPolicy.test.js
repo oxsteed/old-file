@@ -79,6 +79,12 @@ test('public capabilities report the effective policy without credentials', asyn
   });
 });
 
+test('public video visibility follows the Didit-backed users.is_verified flag', () => {
+  const sql = policy.publicPostSql('p');
+  expect(sql).toContain('safety_user.is_verified = TRUE');
+  expect(sql).not.toContain('safety_user.identity_verified');
+});
+
 test.each([
   [{ clean: true, provider: 'clamav' }, 202],
   [{ clean: false, provider: 'clamav' }, 400],
@@ -88,8 +94,8 @@ test.each([
   sourceDir = await fs.mkdtemp(path.join(os.tmpdir(), 'media-upload-policy-test-'));
   const original = path.join(sourceDir, 'original.mp4');
   await fs.writeFile(original, 'harmless mock upload');
-  pool.query.mockImplementation(async (sql) => ({ rows: sql.includes('identity_verified')
-    ? [{ identity_verified: true }] : [{ id: 'post' }] }));
+  pool.query.mockImplementation(async (sql) => ({ rows: sql.includes('is_verified')
+    ? [{ is_verified: true }] : [{ id: 'post' }] }));
   if (scan instanceof Error) scanner.scanBuffer.mockRejectedValueOnce(scan);
   else scanner.scanBuffer.mockResolvedValueOnce(scan);
   const client = { query: jest.fn(async (sql) => ({ rows: sql.includes('INSERT INTO media_post_assets')
@@ -212,7 +218,7 @@ test.each([
 ])('draft publication honors mode=%s identity=%s verdict=%s processing=%s', async (mode, identity, verdict, processing, renditions, expected) => {
   process.env.MEDIA_CSAM_MODE = mode;
   const post = { id: 'post', visibility: 'unlisted', processing_status: processing, csam_status: verdict,
-    current_actor_verified: true, identity_verified: identity };
+    current_actor_verified: true, is_verified: identity };
   const asset = { ...clearedAsset(), csam_status: verdict, processing_status: processing, renditions };
   const client = { query: jest.fn(async (sql) => {
     if (sql.includes('SELECT p.*')) return { rows: [post] };
