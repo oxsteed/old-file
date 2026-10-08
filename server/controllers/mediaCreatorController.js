@@ -4,7 +4,12 @@ const pool = require('../db');
 const AppError = require('../utils/appError');
 const { verifiedActorSql } = require('../services/mediaPublisherPolicy');
 const creditService = require('../services/oxsteedCreditService');
-const { transferCreatorCredit, transferCreditInTransaction, ensureAccount } = creditService;
+const {
+  transferCreditInTransaction,
+  settleCreatorCreditInTransaction,
+  chargeCreatorBoostInTransaction,
+  ensureAccount,
+} = creditService;
 const { reserveFunds, releaseReservation, getActiveReservation } = require('../services/oxsteedCreditReservationService');
 
 function asPositiveInt(value, code = 'media_creator_amount_invalid') {
@@ -327,17 +332,42 @@ async function reviewDeliverable(req, res, next) {
 async function createTip(req, res, next) {
   const client = await pool.connect();
   try {
+    await client.query('BEGIN');
     const amount = asPositiveInt(req.body?.amountCents);
     const idempotencyKey = text(req.get('Idempotency-Key') || req.body?.idempotencyKey, 160, 'Idempotency-Key');
     const actor = await verifiedCreatorById(client, req.body?.actorId);
     if (!actor) throw new AppError('Creator actor is not currently verified.', 404, 'media_creator_actor_not_found');
+    if (String(actor.owner_user_id) === String(req.user.id)) throw new AppError('You cannot tip your own creator account.', 400, 'media_creator_self_payment');
+    if (req.body?.postId) {
+      const { rows: posts } = await client.query(
+        `SELECT id FROM media_posts
+          WHERE id = $1 AND actor_id = $2 AND visibility = 'public'
+            AND processing_status = 'ready' AND deleted_at IS NULL`, [req.body.postId, actor.id]
+      );
+      if (!posts[0]) throw new AppError('The tip post is not available.', 404, 'media_creator_post_invalid');
+    }
+    const { rows: existingRows } = await client.query(
+      `SELECT * FROM media_creator_tips WHERE from_user_id = $1 AND idempotency_key = $2 FOR UPDATE`,
+      [req.user.id, idempotencyKey]
+    );
+    if (existingRows[0]) {
+      const existing = existingRows[0];
+      if (String(existing.creator_actor_id) !== String(actor.id)
+        || Number(existing.amount_cents) !== amount
+        || String(existing.post_id || '') !== String(req.body?.postId || '')) {
+        throw new AppError('Tip idempotency key was already used for different payment details.', 409, 'media_creator_idempotency_conflict');
+      }
+      await client.query('COMMIT');
+      return res.status(202).json({ tip: existing, replayed: true });
+    }
     const { rows } = await client.query(
       `INSERT INTO media_creator_tips (from_user_id, creator_actor_id, post_id, amount_cents, idempotency_key)
-       VALUES ($1,$2,$3,$4,$5) ON CONFLICT (from_user_id, idempotency_key) DO UPDATE SET idempotency_key = EXCLUDED.idempotency_key RETURNING *`,
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
       [req.user.id, actor.id, req.body?.postId || null, amount, idempotencyKey]
     );
+    await client.query('COMMIT');
     res.status(202).json({ tip: rows[0], next: 'Credit transfer authorization is required before settlement.' });
-  } catch (err) { next(err); }
+  } catch (err) { await client.query('ROLLBACK').catch(() => {}); next(err); }
   finally { client.release(); }
 }
 
@@ -348,6 +378,15 @@ async function createSponsorship(req, res, next) {
     const brief = text(req.body?.brief, 3000, 'Brief');
     const actor = await verifiedCreatorById(client, req.body?.actorId);
     if (!actor) throw new AppError('Creator actor is not currently verified.', 404, 'media_creator_actor_not_found');
+    if (String(actor.owner_user_id) === String(req.user.id)) throw new AppError('You cannot sponsor your own creator account.', 400, 'media_creator_self_payment');
+    if (req.body?.postId) {
+      const { rows: posts } = await client.query(
+        `SELECT id FROM media_posts
+          WHERE id = $1 AND actor_id = $2 AND visibility = 'public'
+            AND processing_status = 'ready' AND deleted_at IS NULL`, [req.body.postId, actor.id]
+      );
+      if (!posts[0]) throw new AppError('The sponsorship post is not available.', 404, 'media_creator_post_invalid');
+    }
     const { rows } = await client.query(
       `INSERT INTO media_creator_sponsorships (sponsor_user_id, creator_actor_id, post_id, brief, amount_cents)
        VALUES ($1,$2,$3,$4,$5) RETURNING *`, [req.user.id, actor.id, req.body?.postId || null, brief, amount]
@@ -374,70 +413,176 @@ async function listSponsorships(req, res, next) {
 async function acceptSponsorship(req, res, next) {
   const client = await pool.connect();
   try {
+    await client.query('BEGIN');
     const { rows: offerRows } = await client.query(
-      `SELECT creator_actor_id FROM media_creator_sponsorships
-        WHERE id = $1 AND status = 'pending_credit'`, [req.params.sponsorshipId]
+      `SELECT s.*, a.owner_user_id AS creator_user_id
+         FROM media_creator_sponsorships s
+         JOIN media_actors a ON a.id = s.creator_actor_id
+        WHERE s.id = $1
+        FOR UPDATE OF s`, [req.params.sponsorshipId]
     );
-    if (!offerRows[0]) throw new AppError('Sponsorship offer is not available.', 404, 'media_creator_sponsorship_not_found');
-    const actor = await verifiedCreatorById(client, offerRows[0].creator_actor_id);
-    if (!actor || actor.owner_user_id !== req.user.id) throw new AppError('Creator verification is no longer active.', 409, 'media_creator_unverified');
-    const { rows } = await pool.query(
-      `UPDATE media_creator_sponsorships s SET status = 'accepted', updated_at = NOW()
-        FROM media_actors a
-       WHERE s.id = $1 AND s.creator_actor_id = a.id AND a.owner_user_id = $2
-         AND s.status = 'pending_credit' RETURNING s.*`,
-      [req.params.sponsorshipId, req.user.id]
+    const offer = offerRows[0];
+    if (!offer) throw new AppError('Sponsorship offer is not available.', 404, 'media_creator_sponsorship_not_found');
+    if (offer.status === 'accepted' && offer.credit_reservation_id) {
+      await client.query('COMMIT');
+      return res.json({ sponsorship: offer, replayed: true });
+    }
+    if (offer.status !== 'pending_credit' || String(offer.creator_user_id) !== String(req.user.id)) {
+      throw new AppError('Sponsorship offer is not available.', 409, 'media_creator_sponsorship_state_invalid');
+    }
+    const actor = await verifiedCreatorById(client, offer.creator_actor_id);
+    if (!actor || String(actor.owner_user_id) !== String(req.user.id)) throw new AppError('Creator verification is no longer active.', 409, 'media_creator_unverified');
+    await creditService.assertCreditRailEnabled(client);
+    await creditService.assertCreditRailNotFrozen(client);
+    const sponsorAccount = await ensureAccount(client, {
+      accountType: 'customer_wallet', customerId: offer.sponsor_user_id,
+      currencyCode: offer.currency_code, allowNonCustomerOwner: true,
+    });
+    const reservationResult = await reserveFunds(client, {
+      accountId: sponsorAccount.id,
+      reservationType: 'media_creator_sponsorship',
+      referenceType: 'media_creator_sponsorship',
+      referenceId: offer.id,
+      amountCents: offer.amount_cents,
+    });
+    const { rows } = await client.query(
+      `UPDATE media_creator_sponsorships
+          SET status = 'accepted', credit_reservation_id = $2, updated_at = NOW()
+        WHERE id = $1 AND status = 'pending_credit'
+        RETURNING *`, [offer.id, reservationResult.reservation.id]
     );
-    if (!rows[0]) throw new AppError('Sponsorship offer is not available.', 404, 'media_creator_sponsorship_not_found');
-    res.json({ sponsorship: rows[0] });
-  } catch (err) { next(err); }
+    await client.query('COMMIT');
+    res.json({ sponsorship: rows[0], reservation: reservationResult.reservation, replayed: reservationResult.replayed });
+  } catch (err) { await client.query('ROLLBACK').catch(() => {}); next(err); }
+  finally { client.release(); }
+}
+
+async function submitSponsorshipDeliverable(req, res, next) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows: sponsorshipRows } = await client.query(
+      `SELECT s.*, a.owner_user_id AS creator_user_id
+         FROM media_creator_sponsorships s
+         JOIN media_actors a ON a.id = s.creator_actor_id
+        WHERE s.id = $1
+        FOR UPDATE OF s`, [req.params.sponsorshipId]
+    );
+    const sponsorship = sponsorshipRows[0];
+    if (!sponsorship) throw new AppError('Sponsorship was not found.', 404, 'media_creator_sponsorship_not_found');
+    if (String(sponsorship.creator_user_id) !== String(req.user.id)) {
+      throw new AppError('Only the verified creator can submit this deliverable.', 403, 'media_creator_sponsorship_forbidden');
+    }
+    if (!['accepted', 'delivered'].includes(sponsorship.status)) {
+      throw new AppError('This sponsorship is not accepting a deliverable.', 409, 'media_creator_sponsorship_state_invalid');
+    }
+    const postId = req.body?.postId;
+    const { rows: posts } = await client.query(
+      `SELECT p.id
+         FROM media_posts p
+        WHERE p.id = $1 AND p.actor_id = $2 AND p.visibility = 'public'
+          AND p.processing_status = 'ready' AND p.deleted_at IS NULL`,
+      [postId, sponsorship.creator_actor_id]
+    );
+    if (!posts[0]) throw new AppError('Only a published post owned by the creator can be submitted.', 403, 'media_creator_sponsorship_deliverable_invalid');
+    const note = typeof req.body?.note === 'string' ? req.body.note.trim().slice(0, 2000) || null : null;
+    const { rows } = await client.query(
+      `UPDATE media_creator_sponsorships
+          SET status = 'delivered', delivery_post_id = $2, delivery_note = $3, updated_at = NOW()
+        WHERE id = $1 AND status IN ('accepted','delivered')
+        RETURNING *`, [sponsorship.id, postId, note]
+    );
+    await client.query('COMMIT');
+    res.status(201).json({ sponsorship: rows[0] });
+  } catch (err) { await client.query('ROLLBACK').catch(() => {}); next(err); }
   finally { client.release(); }
 }
 
 async function settleSponsorship(req, res, next) {
+  const client = await pool.connect();
   try {
-    const { rows } = await pool.query(
+    await client.query('BEGIN');
+    const { rows } = await client.query(
       `SELECT s.*, a.owner_user_id AS creator_user_id
          FROM media_creator_sponsorships s JOIN media_actors a ON a.id = s.creator_actor_id
-        WHERE s.id = $1 AND s.sponsor_user_id = $2 AND s.status = 'accepted'`,
-      [req.params.sponsorshipId, req.user.id]
+        WHERE s.id = $1 AND s.sponsor_user_id = $2
+        FOR UPDATE OF s`, [req.params.sponsorshipId, req.user.id]
     );
     const sponsorship = rows[0];
     if (!sponsorship) throw new AppError('Sponsorship is not ready for settlement.', 409, 'media_creator_sponsorship_not_ready');
-    const verificationClient = await pool.connect();
-    try {
-      const currentActor = await verifiedCreatorById(verificationClient, sponsorship.creator_actor_id);
-      if (!currentActor) throw new AppError('Creator verification is no longer active.', 409, 'media_creator_unverified');
-    } finally { verificationClient.release(); }
-    const transfer = await transferCreatorCredit({
-      senderCustomerId: req.user.id, recipientCustomerId: sponsorship.creator_user_id,
-      amountCents: sponsorship.amount_cents, currencyCode: sponsorship.currency_code,
-      idempotencyKey: `media-sponsorship:${sponsorship.id}`, actorUserId: req.user.id,
+    if (sponsorship.status === 'completed' && sponsorship.credit_transaction_id) {
+      await client.query('COMMIT');
+      return res.json({ sponsorship, replayed: true });
+    }
+    if (sponsorship.status !== 'delivered') throw new AppError('The creator must submit an approved deliverable before settlement.', 409, 'media_creator_sponsorship_deliverable_required');
+    const currentActor = await verifiedCreatorById(client, sponsorship.creator_actor_id);
+    if (!currentActor) throw new AppError('Creator verification is no longer active.', 409, 'media_creator_unverified');
+    await creditService.assertCreditRailEnabled(client);
+    await creditService.assertCreditRailNotFrozen(client);
+    const reservation = await getActiveReservation(client, {
       referenceType: 'media_creator_sponsorship', referenceId: sponsorship.id,
-      requestIp: req.ip || null, description: 'OxSteed Media creator sponsorship',
-      metadata: { mediaSponsorshipId: sponsorship.id },
     });
-    const { rows: updated } = await pool.query(
-      `UPDATE media_creator_sponsorships SET status = 'completed', updated_at = NOW()
-        WHERE id = $1 AND status = 'accepted' RETURNING *`, [sponsorship.id]
+    if (!reservation) throw new AppError('The sponsorship Credit reservation is no longer active.', 409, 'media_creator_reservation_missing');
+    await releaseReservation(client, {
+      reservationId: reservation.id,
+      reason: 'Approved Media creator sponsorship deliverable',
+    });
+    const transfer = await settleCreatorCreditInTransaction(client, {
+      senderCustomerId: sponsorship.sponsor_user_id,
+      recipientCustomerId: sponsorship.creator_user_id,
+      amountCents: sponsorship.amount_cents,
+      currencyCode: sponsorship.currency_code,
+      idempotencyKey: `media-sponsorship:${sponsorship.id}`,
+      actorUserId: req.user.id,
+      referenceType: 'media_creator_sponsorship',
+      referenceId: sponsorship.id,
+      requestIp: req.ip || null,
+      description: 'OxSteed Media approved creator sponsorship',
+      metadata: { mediaSponsorshipId: sponsorship.id, deliveryPostId: sponsorship.delivery_post_id },
+    });
+    const { rows: updated } = await client.query(
+      `UPDATE media_creator_sponsorships
+          SET status = 'completed', credit_transaction_id = $2, updated_at = NOW()
+        WHERE id = $1 AND status = 'delivered'
+        RETURNING *`, [sponsorship.id, transfer.transaction?.id || transfer.id || null]
     );
-    res.json({ sponsorship: updated[0] || sponsorship, transfer });
-  } catch (err) { next(err); }
+    await client.query('COMMIT');
+    res.json({ sponsorship: updated[0], transfer });
+  } catch (err) { await client.query('ROLLBACK').catch(() => {}); next(err); }
+  finally { client.release(); }
 }
 
 async function cancelSponsorship(req, res, next) {
+  const client = await pool.connect();
   try {
-    const { rows } = await pool.query(
-      `UPDATE media_creator_sponsorships s SET status = 'cancelled', updated_at = NOW()
-        FROM media_actors a
-       WHERE s.id = $1
-         AND (s.sponsor_user_id = $2 OR (a.id = s.creator_actor_id AND a.owner_user_id = $2))
-         AND s.status IN ('pending_credit','accepted')
-       RETURNING s.*`, [req.params.sponsorshipId, req.user.id]
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `SELECT s.*, a.owner_user_id AS creator_user_id
+         FROM media_creator_sponsorships s JOIN media_actors a ON a.id = s.creator_actor_id
+        WHERE s.id = $1
+        FOR UPDATE OF s`, [req.params.sponsorshipId]
     );
-    if (!rows[0]) throw new AppError('Sponsorship cannot be cancelled.', 409, 'media_creator_sponsorship_cancel_invalid');
-    res.json({ sponsorship: rows[0] });
-  } catch (err) { next(err); }
+    const sponsorship = rows[0];
+    if (!sponsorship) throw new AppError('Sponsorship cannot be cancelled.', 404, 'media_creator_sponsorship_not_found');
+    if (!['pending_credit', 'accepted', 'delivered'].includes(sponsorship.status)
+      || (String(sponsorship.sponsor_user_id) !== String(req.user.id)
+        && String(sponsorship.creator_user_id) !== String(req.user.id))) {
+      throw new AppError('Sponsorship cannot be cancelled.', 409, 'media_creator_sponsorship_cancel_invalid');
+    }
+    if (sponsorship.credit_reservation_id) {
+      await releaseReservation(client, {
+        reservationId: sponsorship.credit_reservation_id,
+        reason: 'Media creator sponsorship cancelled',
+      });
+    }
+    const { rows: updated } = await client.query(
+      `UPDATE media_creator_sponsorships SET status = 'cancelled', updated_at = NOW()
+        WHERE id = $1 RETURNING *`, [sponsorship.id]
+    );
+    await client.query('COMMIT');
+    res.json({ sponsorship: updated[0] });
+  } catch (err) { await client.query('ROLLBACK').catch(() => {}); next(err); }
+  finally { client.release(); }
 }
 
 async function cancelGig(req, res, next) {
@@ -476,47 +621,75 @@ async function cancelGig(req, res, next) {
 }
 
 async function createBoost(req, res, next) {
+  const client = await pool.connect();
   try {
+    await client.query('BEGIN');
     const amount = asPositiveInt(req.body?.amountCents);
     const idempotencyKey = text(req.get('Idempotency-Key') || req.body?.idempotencyKey, 160, 'Idempotency-Key');
-    const { rows: posts } = await pool.query(`SELECT id FROM media_posts WHERE id = $1 AND visibility = 'public' AND processing_status = 'ready'`, [req.params.postId]);
+    const { rows: posts } = await client.query(`SELECT id FROM media_posts WHERE id = $1 AND visibility = 'public' AND processing_status = 'ready' AND deleted_at IS NULL`, [req.params.postId]);
     if (!posts[0]) throw new AppError('Only a published, safety-cleared post can be boosted.', 409, 'media_boost_post_not_ready');
-    const { rows } = await pool.query(
+    const { rows: existingRows } = await client.query(
+      `SELECT * FROM media_post_boosts WHERE purchaser_user_id = $1 AND idempotency_key = $2 FOR UPDATE`,
+      [req.user.id, idempotencyKey]
+    );
+    if (existingRows[0]) {
+      const existing = existingRows[0];
+      if (String(existing.post_id) !== String(req.params.postId) || Number(existing.amount_cents) !== amount) {
+        throw new AppError('Boost idempotency key was already used for different payment details.', 409, 'media_creator_idempotency_conflict');
+      }
+      await client.query('COMMIT');
+      return res.status(202).json({ boost: existing, replayed: true, disclosure: { amountCents: amount, currencyCode: existing.currency_code } });
+    }
+    const { rows } = await client.query(
       `INSERT INTO media_post_boosts (post_id, purchaser_user_id, amount_cents, idempotency_key)
-       VALUES ($1,$2,$3,$4) ON CONFLICT (purchaser_user_id, idempotency_key) DO UPDATE SET idempotency_key = EXCLUDED.idempotency_key RETURNING *`,
+       VALUES ($1,$2,$3,$4) RETURNING *`,
       [req.params.postId, req.user.id, amount, idempotencyKey]
     );
-    res.status(202).json({ boost: rows[0], next: 'Boost activates only after a completed Credit settlement.' });
-  } catch (err) { next(err); }
+    await client.query('COMMIT');
+    res.status(202).json({ boost: rows[0], disclosure: { amountCents: amount, currencyCode: rows[0]?.currency_code || 'USD' }, next: 'Boost activates only after a completed Credit settlement.' });
+  } catch (err) { await client.query('ROLLBACK').catch(() => {}); next(err); }
+  finally { client.release(); }
 }
 
 async function settleBoost(req, res, next) {
+  const client = await pool.connect();
   try {
-    const { rows } = await pool.query(
-      `SELECT * FROM media_post_boosts WHERE id = $1 AND purchaser_user_id = $2 AND status = 'pending_credit'`,
-      [req.params.boostId, req.user.id]
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `SELECT b.*, p.visibility, p.processing_status
+         FROM media_post_boosts b JOIN media_posts p ON p.id = b.post_id
+        WHERE b.id = $1 AND b.purchaser_user_id = $2
+        FOR UPDATE OF b`, [req.params.boostId, req.user.id]
     );
     const boost = rows[0];
-    if (!boost) throw new AppError('Boost is not ready for settlement.', 409, 'media_boost_not_ready');
-    const { rows: ownerRows } = await pool.query(
-      `SELECT a.owner_user_id FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
-        WHERE p.id = $1 AND p.visibility = 'public' AND p.processing_status = 'ready'`, [boost.post_id]
-    );
-    if (!ownerRows[0]) throw new AppError('The boosted post is no longer available.', 409, 'media_boost_post_not_ready');
-    const transfer = await transferCreatorCredit({
-      senderCustomerId: req.user.id, recipientCustomerId: ownerRows[0].owner_user_id,
-      amountCents: boost.amount_cents, currencyCode: boost.currency_code,
-      idempotencyKey: `media-boost:${boost.id}`, actorUserId: req.user.id,
+    if (!boost) throw new AppError('Boost is not ready for settlement.', 404, 'media_boost_not_found');
+    if (['scheduled', 'active', 'completed'].includes(boost.status) && boost.credit_transaction_id) {
+      await client.query('COMMIT');
+      return res.json({ boost, replayed: true });
+    }
+    if (boost.status !== 'pending_credit') throw new AppError('Boost is not ready for settlement.', 409, 'media_boost_not_ready');
+    if (boost.visibility !== 'public' || boost.processing_status !== 'ready') throw new AppError('The boosted post is no longer available.', 409, 'media_boost_post_not_ready');
+    const transfer = await chargeCreatorBoostInTransaction(client, {
+      senderCustomerId: req.user.id,
+      amountCents: boost.amount_cents,
+      currencyCode: boost.currency_code,
+      idempotencyKey: `media-boost:${boost.id}`,
+      actorUserId: req.user.id,
       referenceType: 'media_post_boost', referenceId: boost.id,
-      requestIp: req.ip || null, description: 'OxSteed Media post boost',
+      requestIp: req.ip || null,
+      description: 'OxSteed Media paid post boost',
       metadata: { mediaBoostId: boost.id, postId: boost.post_id },
     });
-    const { rows: updated } = await pool.query(
-      `UPDATE media_post_boosts SET status = 'scheduled', starts_at = NOW(), ends_at = NOW() + INTERVAL '24 hours'
-        WHERE id = $1 RETURNING *`, [boost.id]
+    const { rows: updated } = await client.query(
+      `UPDATE media_post_boosts
+          SET status = 'active', credit_transaction_id = $2, starts_at = NOW(), ends_at = NOW() + INTERVAL '24 hours'
+        WHERE id = $1 AND status = 'pending_credit' RETURNING *`,
+      [boost.id, transfer.transaction?.id || transfer.id || null]
     );
+    await client.query('COMMIT');
     res.json({ boost: updated[0], transfer });
-  } catch (err) { next(err); }
+  } catch (err) { await client.query('ROLLBACK').catch(() => {}); next(err); }
+  finally { client.release(); }
 }
 
 async function cancelBoost(req, res, next) {
@@ -556,7 +729,7 @@ async function openCreatorDispute(req, res, next) {
                       JOIN oxsteed_credit_transactions tx
                         ON tx.reference_type = 'media_creator_sponsorship'
                        AND tx.reference_id = s.id::text
-                       AND tx.transaction_type = 'transfer'
+                       AND tx.transaction_type = 'settlement'
                        AND tx.status = 'posted'
                      WHERE s.id = $1 AND s.sponsor_user_id = $2
                        AND s.status IN ('completed','delivered')
@@ -567,7 +740,7 @@ async function openCreatorDispute(req, res, next) {
                 JOIN oxsteed_credit_transactions tx
                   ON tx.reference_type = 'media_post_boost'
                  AND tx.reference_id = b.id::text
-                 AND tx.transaction_type = 'transfer'
+                 AND tx.transaction_type = 'settlement'
                  AND tx.status = 'posted'
                WHERE b.id = $1 AND b.purchaser_user_id = $2
                  AND b.status IN ('scheduled','active','completed')
@@ -597,21 +770,25 @@ async function openCreatorDispute(req, res, next) {
 }
 
 async function settleTip(req, res, next) {
+  const client = await pool.connect();
   try {
-    const { rows } = await pool.query(
+    await client.query('BEGIN');
+    const { rows } = await client.query(
       `SELECT t.*, a.owner_user_id AS creator_user_id
          FROM media_creator_tips t JOIN media_actors a ON a.id = t.creator_actor_id
-        WHERE t.id = $1 AND t.from_user_id = $2`, [req.params.tipId, req.user.id]
+        WHERE t.id = $1 AND t.from_user_id = $2
+        FOR UPDATE OF t`, [req.params.tipId, req.user.id]
     );
     const tip = rows[0];
     if (!tip) throw new AppError('Tip not found.', 404, 'media_creator_tip_not_found');
-    if (tip.status === 'posted') return res.json({ tip });
-    const verificationClient = await pool.connect();
-    try {
-      const currentActor = await verifiedCreatorById(verificationClient, tip.creator_actor_id);
-      if (!currentActor) throw new AppError('Creator verification is no longer active.', 409, 'media_creator_unverified');
-    } finally { verificationClient.release(); }
-    const transfer = await transferCreatorCredit({
+    if (tip.status === 'posted' && tip.credit_transaction_id) {
+      await client.query('COMMIT');
+      return res.json({ tip, replayed: true });
+    }
+    if (tip.status !== 'pending_credit') throw new AppError('Tip is not ready for settlement.', 409, 'media_creator_tip_state_invalid');
+    const currentActor = await verifiedCreatorById(client, tip.creator_actor_id);
+    if (!currentActor) throw new AppError('Creator verification is no longer active.', 409, 'media_creator_unverified');
+    const transfer = await settleCreatorCreditInTransaction(client, {
       senderCustomerId: req.user.id,
       recipientCustomerId: tip.creator_user_id,
       amountCents: tip.amount_cents,
@@ -624,18 +801,21 @@ async function settleTip(req, res, next) {
       description: 'OxSteed Media creator tip',
       metadata: { mediaTipId: tip.id, postId: tip.post_id || null },
     });
-    const { rows: updated } = await pool.query(
-      `UPDATE media_creator_tips SET status = 'posted', credit_transaction_id = $2 WHERE id = $1 RETURNING *`,
+    const { rows: updated } = await client.query(
+      `UPDATE media_creator_tips SET status = 'posted', credit_transaction_id = $2
+        WHERE id = $1 AND status = 'pending_credit' RETURNING *`,
       [tip.id, transfer.transaction?.id || transfer.id || null]
     );
+    await client.query('COMMIT');
     res.json({ tip: updated[0], transfer });
-  } catch (err) { next(err); }
+  } catch (err) { await client.query('ROLLBACK').catch(() => {}); next(err); }
+  finally { client.release(); }
 }
 
 module.exports = {
   listGigs, createGig, applyToGig, listApplications, listMyApplications, awardApplication,
   submitDeliverable, reviewDeliverable, cancelGig, createTip, createSponsorship, listSponsorships, createBoost,
-  settleTip,
+  settleTip, submitSponsorshipDeliverable,
   acceptSponsorship, settleSponsorship, cancelSponsorship, settleBoost, cancelBoost,
   openCreatorDispute,
 };

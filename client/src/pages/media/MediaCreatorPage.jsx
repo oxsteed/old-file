@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Briefcase, CheckCircle2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { acceptCreatorSponsorship, applyToCreatorGig, awardCreatorApplication, cancelCreatorGig, cancelCreatorSponsorship, createCreatorGig, createCreatorSponsorship, createCreatorTip, getCreatorApplications, getCreatorGigs, getCreatorSponsorships, getFeed, getMyCreatorApplications, openCreatorDispute, reviewCreatorDeliverable, settleCreatorSponsorship, settleCreatorTip, submitCreatorDeliverable } from '../../api/media';
+import { acceptCreatorSponsorship, applyToCreatorGig, awardCreatorApplication, cancelCreatorGig, cancelCreatorSponsorship, createCreatorGig, createCreatorSponsorship, createCreatorTip, getCreatorApplications, getCreatorGigs, getCreatorSponsorships, getFeed, getMyCreatorApplications, openCreatorDispute, reviewCreatorDeliverable, settleCreatorSponsorship, settleCreatorTip, submitCreatorDeliverable, submitCreatorSponsorshipDeliverable } from '../../api/media';
 import { useAuth } from '../../context/AuthContext';
 
 export default function MediaCreatorPage() {
@@ -34,6 +34,9 @@ export default function MediaCreatorPage() {
   const [deliverableTarget, setDeliverableTarget] = useState(null);
   const [deliverablePostId, setDeliverablePostId] = useState('');
   const [deliverableNote, setDeliverableNote] = useState('');
+  const [sponsorshipDeliverableTarget, setSponsorshipDeliverableTarget] = useState(null);
+  const [sponsorshipDeliverablePostId, setSponsorshipDeliverablePostId] = useState('');
+  const [sponsorshipDeliverableNote, setSponsorshipDeliverableNote] = useState('');
   const [disputeTarget, setDisputeTarget] = useState(null);
   const [disputeDescription, setDisputeDescription] = useState('');
   const statusLabel = (status) => t(`media.creator.status.${status}`, { defaultValue: status });
@@ -133,6 +136,23 @@ export default function MediaCreatorPage() {
     finally { setSubmitting(false); }
   };
 
+  const submitSponsorshipDeliverable = async (event) => {
+    event.preventDefault();
+    if (!sponsorshipDeliverableTarget || !sponsorshipDeliverablePostId) return;
+    setSubmitting(true); setError('');
+    try {
+      const data = await submitCreatorSponsorshipDeliverable(sponsorshipDeliverableTarget.id, {
+        postId: sponsorshipDeliverablePostId,
+        note: sponsorshipDeliverableNote,
+      });
+      setSponsorships((items) => items.map((item) => item.id === sponsorshipDeliverableTarget.id
+        ? { ...item, status: 'delivered', delivery_post_id: sponsorshipDeliverablePostId, delivery_note: data.sponsorship?.delivery_note || sponsorshipDeliverableNote }
+        : item));
+      setSponsorshipDeliverableTarget(null);
+    } catch (err) { setError(err.response?.data?.error || t('media.creator.paymentError')); }
+    finally { setSubmitting(false); }
+  };
+
   const submitDispute = async (event) => {
     event.preventDefault();
     if (!disputeTarget || !disputeDescription.trim()) return;
@@ -221,8 +241,9 @@ export default function MediaCreatorPage() {
           <div className="media-creator-gig-heading"><div><h3>{offer.brief}</h3><p>{offer.creator_name || offer.creator_handle}</p></div><strong>{offer.amount_cents} {offer.currency_code}</strong></div>
           <p>{statusLabel(offer.status)}</p>
           {String(offer.creator_user_id) === String(user.id) && offer.status === 'pending_credit' && <button type="button" className="media-primary-button" onClick={() => acceptOffer(offer.id)} disabled={submitting}>{t('media.creator.accept')}</button>}
-          {(String(offer.sponsor_user_id) === String(user.id) || String(offer.creator_user_id) === String(user.id)) && ['pending_credit', 'accepted'].includes(offer.status) && <button type="button" className="media-secondary-button" onClick={() => cancelOffer(offer.id)} disabled={submitting}>{t('media.creator.cancel')}</button>}
-          {String(offer.sponsor_user_id) === String(user.id) && offer.status === 'accepted' && <button type="button" className="media-primary-button" onClick={() => settleOffer(offer.id)} disabled={submitting}>{t('media.creator.settle')}</button>}
+          {(String(offer.sponsor_user_id) === String(user.id) || String(offer.creator_user_id) === String(user.id)) && ['pending_credit', 'accepted', 'delivered'].includes(offer.status) && <button type="button" className="media-secondary-button" onClick={() => cancelOffer(offer.id)} disabled={submitting}>{t('media.creator.cancel')}</button>}
+          {String(offer.creator_user_id) === String(user.id) && offer.status === 'accepted' && <button type="button" className="media-primary-button" onClick={() => { setSponsorshipDeliverableTarget(offer); setSponsorshipDeliverablePostId(''); setSponsorshipDeliverableNote(''); }}>{t('media.creator.submitDeliverable')}</button>}
+          {String(offer.sponsor_user_id) === String(user.id) && offer.status === 'delivered' && <button type="button" className="media-primary-button" onClick={() => settleOffer(offer.id)} disabled={submitting}>{t('media.creator.settle')}</button>}
           {String(offer.sponsor_user_id) === String(user.id) && offer.status === 'completed' && <button type="button" className="media-secondary-button" onClick={() => { setDisputeTarget(offer); setDisputeDescription(''); }} disabled={submitting}>{t('media.creator.dispute')}</button>}
         </article>)}
       </section>}
@@ -292,6 +313,19 @@ export default function MediaCreatorPage() {
             {myPosts.map((post) => <option key={post.id} value={post.id}>{post.body?.slice(0, 80) || post.id}</option>)}
           </select>
           <label htmlFor="creator-deliverable-note">{t('media.creator.deliverableNote')}</label><textarea id="creator-deliverable-note" value={deliverableNote} onChange={(event) => setDeliverableNote(event.target.value)} rows={4} />
+          <button type="submit" className="media-primary-button" disabled={submitting}>{submitting ? t('media.compose.posting') : t('media.creator.submit')}</button>
+        </form>
+      </div>}
+      {sponsorshipDeliverableTarget && <div className="media-verification-dialog" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSponsorshipDeliverableTarget(null); }}>
+        <form className="media-verification-form" onSubmit={submitSponsorshipDeliverable} role="dialog" aria-modal="true" aria-labelledby="creator-sponsorship-deliverable-title">
+          <button type="button" className="media-dialog-close" onClick={() => setSponsorshipDeliverableTarget(null)} aria-label={t('media.shell.close')}><X size={18} /></button>
+          <h2 id="creator-sponsorship-deliverable-title">{t('media.creator.submitDeliverable')}</h2>
+          <label htmlFor="creator-sponsorship-deliverable-post">{t('media.creator.choosePost')}</label>
+          <select id="creator-sponsorship-deliverable-post" value={sponsorshipDeliverablePostId} onChange={(event) => setSponsorshipDeliverablePostId(event.target.value)} required>
+            <option value="">{t('media.creator.choosePost')}</option>
+            {myPosts.map((post) => <option key={post.id} value={post.id}>{post.body?.slice(0, 80) || post.id}</option>)}
+          </select>
+          <label htmlFor="creator-sponsorship-deliverable-note">{t('media.creator.deliverableNote')}</label><textarea id="creator-sponsorship-deliverable-note" value={sponsorshipDeliverableNote} onChange={(event) => setSponsorshipDeliverableNote(event.target.value)} rows={4} />
           <button type="submit" className="media-primary-button" disabled={submitting}>{submitting ? t('media.compose.posting') : t('media.creator.submit')}</button>
         </form>
       </div>}

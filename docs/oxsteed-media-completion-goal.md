@@ -55,18 +55,18 @@ verified live for the new candidate. A historical test count is not proof.
 | Profile Studio/public-profile integration | Implemented in prior source. | Actual safe profile tabs and guest behavior outstanding. | Test profile editing/navigation and public safe posts. |
 | Rentals/Direct/Logistics cards | Implemented in current link resolvers/search. | Actual public targets/removal/currency proof outstanding. | Seed and verify additional types alongside launch types. |
 | Restaurant copy/ownership/deduplication | Implemented in prior source/migration 739. | Real source moderation/removal propagation incomplete. | Test and repair safe idempotent copy plus removal propagation. |
-| Creator/buyer dashboards and opportunities | Incomplete: existing marketplace skeleton is partial. | Real full dashboard journey outstanding. | Complete owner/creator-specific lists and actions through API and UI. |
-| Applications and award/acceptance | Incomplete: existing application lock is outside transaction; award race gaps. | Real concurrent authorization/limits outstanding. | Lock state transitions inside transaction and integrate reserve-on-award. |
-| Deliverable revisions and approval | Incomplete: delivered state currently prevents resubmission. | Real revision/concurrent approval proof missing. | Implement coherent revision and approval state machine. |
-| Gig reservation and payment | Incomplete: no reservation/approved-delivery settlement. | Credit isolated accounting required. | Add creator reservations; reserve on award and settle once on approval. |
-| Sponsorship reservation/delivery/payment | Incomplete: accepted sponsorship currently pays without approved delivery. | Credit isolated accounting required. | Reserve on acceptance and settle after approved delivery only. |
-| Tips | Incomplete: current transfer exists but payload-key/retry/accounting audit remains. | Real currency/freeze/fee/replay proof missing. | Use durable payload-bound idempotency and shared accounting transaction. |
+| Creator/buyer dashboards and opportunities | Behavior-tested locally: creator shell lists offers, open gigs and applications; sponsorship offers now support acceptance, deliverable submission and settlement controls. | Real full dashboard journey outstanding. | Verify authenticated creator/buyer/admin dashboards live and add remaining marketplace status/history views. |
+| Applications and award/acceptance | Behavior-tested locally: existing transactional award path reserves the approved amount and rejects competing applications; concurrent production proof remains outstanding. | Real concurrent authorization/limits outstanding. | Execute isolated race cases and verify authenticated deployment. |
+| Deliverable revisions and approval | Behavior-tested locally: awarded gig deliverables and sponsorship deliverables expose owner checks, publish/ready validation and review transitions; full revision matrix remains outstanding. | Real revision/concurrent approval proof missing. | Implement and test any remaining revision states across gig and sponsorship UI. |
+| Gig reservation and payment | Behavior-tested locally: award reserves Credit, approved deliverables settle once, and cancellation/rejection releases the reservation. | Isolated accounting and live execution still required. | Re-run conservation/replay cases in disposable PostgreSQL and verify deployed payment history. |
+| Sponsorship reservation/delivery/payment | Behavior-tested locally: acceptance reserves funds, creators submit a published ready deliverable, settlement requires `delivered`, and cancellation releases an active reservation. | Credit isolated accounting and authenticated live proof outstanding. | Execute sponsorship reserve/settle/release races and verify the deployed journey. |
+| Tips | Implemented and behavior-tested locally: tips use durable payload-bound idempotency and settle through the shared creator settlement rail with verification and self-payment guards. | Real currency/freeze/fee/replay proof missing. | Run isolated accounting replay/failure cases and verify live transaction history. |
 | Cancellation/release/refund/dispute review | Incomplete: current shared dispute wrappers do not close full lifecycle. | Real accounting and admin audit proof required. | Implement authorized single release, contest review and audited refunds. |
-| Boost payment to platform revenue | Incomplete: current code transfers to creator, including purchaser self-transfer. | Correct accounting movement and DB guards missing. | Implement purchaser-wallet → platform-revenue movement through shared rail. |
+| Boost payment to platform revenue | Implemented and behavior-tested locally: purchaser wallet is charged through the shared settlement rail into `platform_revenue`; self-transfer and replay are rejected. | Real accounting and deployed proof outstanding. | Verify conservation, idempotent retries and platform ledger history in the isolated/live release checks. |
 | Sponsored placement and 24-hour duration | Incomplete: boost rows currently do not affect feed placement. | Actual nearby/relevance/cap/expiry proof missing. | Activate only after paid transaction; label and cap at one in five. |
 | Price/currency disclosure and purchaser history | Incomplete: existing boost dialog/history insufficient. | Payment retry/cancellation/history proof missing. | Add confirmed price/currency, durable key and status/history/refund review. |
 | Atomic accounting/precision/fees/isolation | Incomplete for marketplace: shared rail safeguards exist, transitions are not fully atomic with payment. | Real isolated conservation/races/currency cases required. | Add transactional marketplace service and accounting behavior suites. |
-| Migration upgrade and repeat application | Implemented: new 742, 743 and 744 filenames follow inspected predecessors; repeat-application DB case and lease columns are covered in the disposable suite. | Actual migration execution outstanding. | Rehearse against disposable upgraded schema and repeat without data changes. |
+| Migration upgrade and repeat application | Implemented: new 742, 743, 744 and 746 filenames follow inspected predecessors; 746 adds creator payment reservation/transaction links and delivery metadata. | Actual 746 migration execution is pending hosted CI/deployment. | Rehearse against disposable upgraded schema and repeat without data changes. |
 | Cloudflare interim and deferred Thorn | Implemented: retained explicit interim status; no synthetic vendor clearance. | Real runtime/public-delivery proof outstanding. | Keep honest policy disclosures and future vendor switch tests. |
 | Passing exact-candidate CI | Incomplete: baseline run `37815891575` rejected before steps for GitHub billing. | Failed payments/spending limit is an external CI dependency. | Check once at coherent release checkpoint; run candidate CI when available. |
 | Exact deployed release/readiness/schema/assets | Incomplete: healthy baseline is not new-candidate deployment proof. | Deployment access and reproducible content identity required. | Compare candidate hash and validate `/ready`, migration 742, workers and assets. |
@@ -681,3 +681,17 @@ shell. Focused Media suites (50 tests) and `npm run build:ci` pass locally.
 The disposable PostgreSQL migration test in hosted CI passed before the prior
 feed-ranking run failed on a locality SQL syntax error; that feed defect is
 included in this batch and must be reverified by the next CI run.
+
+Creator payment escrow batch (2026-10-08): migration 746 links sponsorships,
+tips and boosts to their Credit reservation or settlement transaction and
+stores sponsorship delivery metadata. Sponsorship acceptance now reserves the
+funds, creator submission requires a published ready post, settlement requires
+the delivered state and releases the reservation in the same transaction;
+authorized cancellation releases an active reservation. Tips use durable
+payload-bound idempotency and settle through the shared creator settlement
+rail. Boost settlement charges the purchaser wallet into platform revenue,
+then activates the existing 24-hour window only after payment. Focused Media
+creator, journey, access and feed-ranking suites pass (45 tests), and the
+client `npm run build:ci` passed with 760 verified assets. Hosted migration
+rehearsal, exact-candidate CI, authenticated production payment history and
+full financial conservation tests remain pending for this batch.

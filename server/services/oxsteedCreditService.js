@@ -1042,7 +1042,13 @@ async function assertCustomerTransferCapacity(client, { customerId, amountCents,
        JOIN oxsteed_credit_accounts debit_account ON debit_account.id = t.debit_account_id
        CROSS JOIN lock
       WHERE t.status = 'posted'
-        AND t.transaction_type = 'transfer'
+        AND (
+          t.transaction_type = 'transfer'
+          OR (t.transaction_type = 'settlement' AND t.reference_type IN (
+            'media_creator_gig', 'media_creator_sponsorship',
+            'media_creator_tip', 'media_post_boost'
+          ))
+        )
         AND t.created_at >= CURRENT_DATE
         AND t.currency_code = $1
         AND debit_account.account_type = 'customer_wallet'
@@ -2540,6 +2546,136 @@ async function transferCreatorCredit(args) {
     }),
     'media_creator_credit_transfer'
   );
+}
+
+/**
+ * Post a creator-marketplace payout without depending on the public
+ * customer-to-customer transfer feature flag. The sender and creator are
+ * still customer wallets in the shared append-only journal, but the
+ * transaction is a guarded settlement with its own creator-payment limits,
+ * sanctions checks, idempotency semantics, and account locks.
+ */
+async function settleCreatorCreditInTransaction(client, {
+  senderCustomerId,
+  recipientCustomerId,
+  amountCents,
+  currencyCode = CREDIT_CURRENCY,
+  idempotencyKey,
+  actorUserId,
+  referenceType,
+  referenceId,
+  correlationId,
+  requestIp,
+  description,
+  reason = null,
+  metadata = {},
+}) {
+  if (String(senderCustomerId) === String(recipientCustomerId)) {
+    throw new AppError('Cannot settle creator Credit to the same account', 400, 'credit_transfer_same_customer');
+  }
+  requireCustomerActor(actorUserId, senderCustomerId, 'The Credit settlement actor must be the customer sending the balance', 'credit_transfer_actor_required');
+  const amount = parseAmountCents(amountCents);
+  const currency = assertSupportedCreditCurrency(currencyCode);
+  const normalizedKey = normalizeString(idempotencyKey, 160);
+  if (!normalizedKey) throw new AppError('Idempotency-Key is required for creator settlements', 400, 'credit_idempotency_key_required');
+  if (!normalizeString(referenceType, 80) || !normalizeString(referenceId, 160)) {
+    throw new AppError('Creator settlement reference is required', 400, 'credit_reference_required');
+  }
+  await assertCreditRailEnabled(client);
+  await assertCreditRailNotFrozen(client);
+  const lockKeys = [String(senderCustomerId), String(recipientCustomerId)].sort();
+  await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit-creator-settlement:${lockKeys.join(':')}`]);
+  const { assertSanctionsClear } = require('./sanctionsScreeningService');
+  await assertSanctionsClear(client, { subjectType: 'customer', subjectId: senderCustomerId, context: { operation: 'media_creator_settlement', role: 'sender' } });
+  await assertSanctionsClear(client, { subjectType: 'customer', subjectId: recipientCustomerId, context: { operation: 'media_creator_settlement', role: 'recipient' } });
+  await assertCustomerTransferCapacity(client, { customerId: senderCustomerId, amountCents: amount, currencyCode: currency });
+  const sender = await ensureAccount(client, {
+    accountType: 'customer_wallet', customerId: senderCustomerId, currencyCode: currency,
+    allowNonCustomerOwner: true,
+  });
+  const recipient = await ensureAccount(client, {
+    accountType: 'customer_wallet', customerId: recipientCustomerId, currencyCode: currency,
+    allowNonCustomerOwner: true,
+  });
+  return postJournalTransaction(client, {
+    transactionType: 'settlement',
+    debitAccountId: sender.id,
+    creditAccountId: recipient.id,
+    customerId: senderCustomerId,
+    amountCents: amount,
+    currencyCode: currency,
+    idempotencyKey: normalizedKey,
+    actorType: 'user',
+    actorUserId,
+    referenceType,
+    referenceId,
+    correlationId,
+    requestIp,
+    description,
+    reason,
+    metadata: { ...normalizeMetadata(metadata), creatorPayment: true, recipientCustomerId },
+    bindIdempotencySemantics: true,
+  });
+}
+
+async function settleCreatorCredit(args) {
+  return withTransaction(pool, (client) => settleCreatorCreditInTransaction(client, args), 'media_creator_settlement');
+}
+
+/** Charge a paid Media boost into platform revenue. A boost never pays the
+ * post owner; it buys a labeled placement from the OxSteed platform. */
+async function chargeCreatorBoostInTransaction(client, {
+  senderCustomerId,
+  amountCents,
+  currencyCode = CREDIT_CURRENCY,
+  idempotencyKey,
+  actorUserId,
+  referenceType = 'media_post_boost',
+  referenceId,
+  correlationId,
+  requestIp,
+  description = 'OxSteed Media paid boost',
+  metadata = {},
+}) {
+  requireCustomerActor(actorUserId, senderCustomerId, 'The boost payment actor must be the customer paying the balance', 'credit_transfer_actor_required');
+  const amount = parseAmountCents(amountCents);
+  const currency = assertSupportedCreditCurrency(currencyCode);
+  const normalizedKey = normalizeString(idempotencyKey, 160);
+  if (!normalizedKey) throw new AppError('Idempotency-Key is required for boost payments', 400, 'credit_idempotency_key_required');
+  if (!normalizeString(referenceId, 160)) throw new AppError('Boost payment reference is required', 400, 'credit_reference_required');
+  await assertCreditRailEnabled(client);
+  await assertCreditRailNotFrozen(client);
+  await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit-boost:${senderCustomerId}:${currency}`]);
+  const { assertSanctionsClear } = require('./sanctionsScreeningService');
+  await assertSanctionsClear(client, { subjectType: 'customer', subjectId: senderCustomerId, context: { operation: 'media_boost_payment', role: 'payer' } });
+  await assertCustomerTransferCapacity(client, { customerId: senderCustomerId, amountCents: amount, currencyCode: currency });
+  const sender = await ensureAccount(client, {
+    accountType: 'customer_wallet', customerId: senderCustomerId, currencyCode: currency,
+    allowNonCustomerOwner: true,
+  });
+  const revenue = await ensureAccount(client, { accountType: 'platform_revenue', currencyCode: currency });
+  return postJournalTransaction(client, {
+    transactionType: 'settlement',
+    debitAccountId: sender.id,
+    creditAccountId: revenue.id,
+    customerId: senderCustomerId,
+    amountCents: amount,
+    currencyCode: currency,
+    idempotencyKey: normalizedKey,
+    actorType: 'user',
+    actorUserId,
+    referenceType,
+    referenceId,
+    correlationId,
+    requestIp,
+    description,
+    metadata: { ...normalizeMetadata(metadata), mediaBoost: true },
+    bindIdempotencySemantics: true,
+  });
+}
+
+async function chargeCreatorBoost(args) {
+  return withTransaction(pool, (client) => chargeCreatorBoostInTransaction(client, args), 'media_creator_boost_payment');
 }
 
 async function adjustCustomerCreditInTransaction(client, { customerId, amountCents, currencyCode = CREDIT_CURRENCY, direction = 'credit', idempotencyKey, actorUserId, actorType = 'admin', reason, referenceType = 'admin_adjustment', referenceId, correlationId, requestIp, metadata = {} }) {
@@ -4061,6 +4197,10 @@ module.exports = {
   transferCreditInTransaction,
   transferCredit,
   transferCreatorCredit,
+  settleCreatorCreditInTransaction,
+  settleCreatorCredit,
+  chargeCreatorBoostInTransaction,
+  chargeCreatorBoost,
   adjustCustomerCreditInTransaction,
   adjustCustomerCredit,
   updateCustomerCreditAccountStatus,

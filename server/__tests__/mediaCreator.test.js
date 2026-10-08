@@ -30,32 +30,78 @@ test('rejects a tip target that is not a currently verified creator actor', asyn
   expect(client.release).toHaveBeenCalled();
 });
 
-test('only lets a currently verified creator accept a sponsorship', async () => {
+test('only lets a currently verified creator accept a sponsorship and reserve its funds', async () => {
   const pool = require('../db');
   const client = { query: mockQuery, release: jest.fn() };
   pool.connect.mockResolvedValueOnce(client);
-  mockQuery
-    .mockResolvedValueOnce({ rows: [{ creator_actor_id: 'actor-1' }] })
-    .mockResolvedValueOnce({ rows: [{ owner_user_id: 'creator-1' }] })
-    .mockResolvedValueOnce({ rows: [{ id: 'actor-1', owner_user_id: 'creator-1' }] })
-    .mockResolvedValueOnce({ rows: [{ id: 's-1', status: 'accepted' }] });
+  const credit = require('../services/oxsteedCreditService');
+  const enabled = jest.spyOn(credit, 'assertCreditRailEnabled').mockResolvedValue(undefined);
+  const unfrozen = jest.spyOn(credit, 'assertCreditRailNotFrozen').mockResolvedValue(undefined);
+  mockQuery.mockImplementation(async (sql) => {
+    const query = String(sql);
+    if (query.includes('SELECT s.*, a.owner_user_id AS creator_user_id')) return { rows: [{ id: 's-1', creator_actor_id: 'actor-1', creator_user_id: 'creator-1', sponsor_user_id: 'sponsor-1', amount_cents: 900, currency_code: 'USD', status: 'pending_credit' }] };
+    if (query.includes('SELECT owner_user_id FROM media_actors')) return { rows: [{ owner_user_id: 'creator-1' }] };
+    if (query.includes('FROM media_actors a')) return { rows: [{ id: 'actor-1', owner_user_id: 'creator-1' }] };
+    if (query.includes('SELECT a.* FROM oxsteed_credit_accounts')) return { rows: [{ id: 11, account_type: 'customer_wallet', balance_cents: 2000, reserved_cents: 0, status: 'active', currency_code: 'USD' }] };
+    if (query.includes('SELECT id, balance_cents, reserved_cents, status')) return { rows: [{ id: 11, account_type: 'customer_wallet', balance_cents: 2000, reserved_cents: 0, status: 'active', currency_code: 'USD' }] };
+    if (query.includes('INSERT INTO oxsteed_credit_reservations')) return { rows: [{ id: 'reservation-1', account_id: 11, amount_cents: 900, status: 'active' }] };
+    if (query.includes('UPDATE media_creator_sponsorships')) return { rows: [{ id: 's-1', status: 'accepted', credit_reservation_id: 'reservation-1' }] };
+    return { rows: [] };
+  });
   const res = resMock();
-  await creator.acceptSponsorship({ params: { sponsorshipId: 's-1' }, user: { id: 'creator-1' } }, res, jest.fn());
-  expect(res.json).toHaveBeenCalledWith({ sponsorship: { id: 's-1', status: 'accepted' } });
+  const next = jest.fn();
+  await creator.acceptSponsorship({ params: { sponsorshipId: 's-1' }, user: { id: 'creator-1' } }, res, next);
+  expect(next).not.toHaveBeenCalled();
+  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+    sponsorship: expect.objectContaining({ id: 's-1', status: 'accepted' }),
+    reservation: expect.objectContaining({ id: 'reservation-1' }),
+  }));
+  enabled.mockRestore();
+  unfrozen.mockRestore();
   expect(client.release).toHaveBeenCalled();
 });
 
 test('blocks sponsorship settlement after creator verification is revoked', async () => {
   const pool = require('../db');
-  mockQuery.mockResolvedValueOnce({ rows: [{ id: 's-1', creator_actor_id: 'actor-1', creator_user_id: 'creator-1', amount_cents: 900, currency_code: 'USD', status: 'accepted' }] });
   const client = { query: mockQuery, release: jest.fn() };
   pool.connect.mockResolvedValueOnce(client);
-  mockQuery
-    .mockResolvedValueOnce({ rows: [{ owner_user_id: 'creator-1' }] })
-    .mockResolvedValueOnce({ rows: [] });
+  mockQuery.mockImplementation(async (sql) => {
+    const query = String(sql);
+    if (query.includes('SELECT s.*, a.owner_user_id AS creator_user_id')) return { rows: [{ id: 's-1', creator_actor_id: 'actor-1', creator_user_id: 'creator-1', sponsor_user_id: 'sponsor-1', amount_cents: 900, currency_code: 'USD', status: 'delivered', credit_reservation_id: 'reservation-1' }] };
+    if (query.includes('SELECT owner_user_id FROM media_actors')) return { rows: [{ owner_user_id: 'creator-1' }] };
+    if (query.includes('SELECT a.* FROM media_actors')) return { rows: [] };
+    return { rows: [] };
+  });
   const next = jest.fn();
   await creator.settleSponsorship({ params: { sponsorshipId: 's-1' }, user: { id: 'sponsor-1' } }, resMock(), next);
   expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_creator_unverified' }));
+  expect(client.release).toHaveBeenCalled();
+});
+
+test('accepts only a published ready post as a sponsorship deliverable', async () => {
+  const pool = require('../db');
+  const client = { query: mockQuery, release: jest.fn() };
+  pool.connect.mockResolvedValueOnce(client);
+  mockQuery.mockImplementation(async (sql) => {
+    const query = String(sql);
+    if (query.includes('SELECT s.*, a.owner_user_id AS creator_user_id')) {
+      return { rows: [{ id: 's-1', creator_actor_id: 'actor-1', creator_user_id: 'creator-1', status: 'accepted' }] };
+    }
+    if (query.includes('SELECT p.id')) return { rows: [{ id: 'post-1' }] };
+    if (query.includes("SET status = 'delivered'")) return { rows: [{ id: 's-1', status: 'delivered', delivery_post_id: 'post-1' }] };
+    return { rows: [] };
+  });
+  const res = resMock();
+  const next = jest.fn();
+  await creator.submitSponsorshipDeliverable({
+    params: { sponsorshipId: 's-1' },
+    user: { id: 'creator-1' },
+    body: { postId: 'post-1', note: 'Ready for review' },
+  }, res, next);
+  expect(next).not.toHaveBeenCalled();
+  expect(res.status).toHaveBeenCalledWith(201);
+  expect(res.json).toHaveBeenCalledWith({ sponsorship: expect.objectContaining({ status: 'delivered', delivery_post_id: 'post-1' }) });
+  expect(client.query.mock.calls.some(([sql]) => String(sql).includes("processing_status = 'ready'"))).toBe(true);
   expect(client.release).toHaveBeenCalled();
 });
 
@@ -76,11 +122,16 @@ test('lists an applicant’s awarded work with its latest deliverable state', as
 });
 
 test('cancels an unsettled sponsorship for one of its parties', async () => {
-  mockQuery.mockResolvedValueOnce({ rows: [{ id: 's-1', status: 'cancelled' }] });
+  mockQuery.mockImplementation(async (sql) => {
+    const query = String(sql);
+    if (query.includes('SELECT s.*, a.owner_user_id AS creator_user_id')) return { rows: [{ id: 's-1', status: 'pending_credit', sponsor_user_id: 'sponsor-1', creator_user_id: 'creator-1' }] };
+    if (query.includes('UPDATE media_creator_sponsorships')) return { rows: [{ id: 's-1', status: 'cancelled' }] };
+    return { rows: [] };
+  });
   const res = resMock();
   await creator.cancelSponsorship({ params: { sponsorshipId: 's-1' }, user: { id: 'sponsor-1' } }, res, jest.fn());
   expect(res.json).toHaveBeenCalledWith({ sponsorship: { id: 's-1', status: 'cancelled' } });
-  expect(mockQuery.mock.calls[0][0]).toContain("s.status IN ('pending_credit','accepted')");
+  expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('FOR UPDATE OF s'))).toBe(true);
 });
 
 test('opens an idempotent dispute only for the payer\'s settled creator payment', async () => {
