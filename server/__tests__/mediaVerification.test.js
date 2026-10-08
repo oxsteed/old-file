@@ -39,6 +39,37 @@ describe('OxSteed Media verification paths', () => {
     expect(pool.query).toHaveBeenCalledTimes(3);
   });
 
+  test('preserves an operational verification dependency error', async () => {
+    pool.query.mockRejectedValueOnce({
+      status: 503,
+      isOperational: true,
+      code: 'media_identity_unavailable',
+      message: 'Identity verification is temporarily unavailable.',
+    });
+    const res = resMock();
+
+    await verification.getCenter({ user: { id: 'user-1' } }, res);
+
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'Identity verification is temporarily unavailable.',
+      code: 'media_identity_unavailable',
+    });
+  });
+
+  test('keeps unknown verification failures generic', async () => {
+    pool.query.mockRejectedValueOnce(new Error('database password leaked'));
+    const res = resMock();
+
+    await verification.getCenter({ user: { id: 'user-1' } }, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'Failed to load verification status.',
+      code: 'media_verification_load_failed',
+    });
+  });
+
   test('only creates a request for an owned unverified entity', async () => {
     const client = { query: jest.fn(), release: jest.fn() };
     pool.connect.mockResolvedValue(client);

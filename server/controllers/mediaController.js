@@ -13,19 +13,12 @@ const mediaSafety = require('../services/mediaSafetyPolicy');
 const { verifiedActorSql } = require('../services/mediaPublisherPolicy');
 const feedContext = require('../services/mediaFeedContext');
 const socketService = require('../services/socketService');
+const { sendMediaError } = require('../utils/mediaError');
 
 const MAX_LINKS_PER_POST = 5;
 const POSTS_PER_DAY = 10;
 
-function mediaError(res, error, fallback) {
-  const status = Number.isInteger(error?.status) && error.status >= 400 && error.status <= 599
-    ? error.status : 500;
-  const operational = (status >= 400 && status < 500)
-    || (status === 503 && Boolean(error?.isOperational));
-  const payload = { error: operational && error?.message ? error.message : fallback };
-  if (operational && error?.code) payload.code = error.code;
-  return res.status(status).json(payload);
-}
+const mediaError = sendMediaError;
 // All Media link types are enabled under the combined MVP/v2/v3 delivery
 // strategy. Each type still has to resolve to a currently public target before
 // it contributes to feed ranking or becomes clickable.

@@ -3,6 +3,7 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const auditService = require('../services/auditService');
+const { sendMediaError } = require('../utils/mediaError');
 
 const REVIEW_STATUSES = new Set(['in_review', 'needs_changes', 'approved', 'rejected']);
 
@@ -31,7 +32,7 @@ async function listVerificationRequests(req, res) {
     return res.json({ requests: rows });
   } catch (err) {
     logger.error('mediaVerificationAdmin.list error', { message: err.message });
-    return res.status(500).json({ error: 'Failed to load verification requests.' });
+    return sendMediaError(res, err, 'Failed to load verification requests.');
   }
 }
 
@@ -129,7 +130,7 @@ async function reviewVerificationRequest(req, res) {
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
     logger.error('mediaVerificationAdmin.review error', { message: err.message, requestId: req.params.id });
-    return res.status(500).json({ error: 'Could not review verification request.' });
+    return sendMediaError(res, err, 'Could not review verification request.');
   } finally {
     client.release();
   }

@@ -2,6 +2,7 @@
 
 const pool = require('../db');
 const logger = require('../utils/logger');
+const { sendMediaError } = require('../utils/mediaError');
 
 const ENTITY_TYPES = new Set(['business', 'restaurant']);
 const ACTIVE_STATUSES = ['submitted', 'in_review'];
@@ -68,7 +69,7 @@ async function getCenter(req, res) {
     });
   } catch (err) {
     logger.error('mediaVerification.getCenter error', { message: err.message, userId: req.user?.id });
-    return res.status(500).json({ error: 'Failed to load verification status.', code: 'media_verification_load_failed' });
+    return sendMediaError(res, err, 'Failed to load verification status.', { fallbackCode: 'media_verification_load_failed' });
   }
 }
 
@@ -151,7 +152,7 @@ async function createRequest(req, res) {
     if (err.code === '23505') {
       return res.status(409).json({ error: 'A verification request is already in review.', code: 'media_verification_request_exists' });
     }
-    return res.status(500).json({ error: 'Could not submit verification request.', code: 'media_verification_submit_failed' });
+    return sendMediaError(res, err, 'Could not submit verification request.', { fallbackCode: 'media_verification_submit_failed' });
   } finally {
     client.release();
   }

@@ -9,6 +9,7 @@ const logger = require('../utils/logger');
 const auditService = require('../services/auditService');
 const { listCreditDisputes } = require('../services/oxsteedCreditService');
 const { resolveDisputeWithCompensation } = require('../services/oxsteedCreditDisputeService');
+const { sendMediaError } = require('../utils/mediaError');
 
 const MEDIA_PAYMENT_REFERENCE_TYPES = Object.freeze([
   'media_creator_tip',
@@ -105,7 +106,7 @@ async function listFlags(req, res) {
     res.json({ flags: rows });
   } catch (err) {
     logger.error('mediaAdmin.listFlags error', { message: err.message });
-    res.status(500).json({ error: 'Failed to load flags' });
+    sendMediaError(res, err, 'Failed to load flags');
   }
 }
 
@@ -131,7 +132,7 @@ async function listPendingPosts(req, res) {
     res.json({ posts: rows });
   } catch (err) {
     logger.error('mediaAdmin.listPendingPosts error', { message: err.message });
-    res.status(500).json({ error: 'Failed to load pending posts' });
+    sendMediaError(res, err, 'Failed to load pending posts');
   }
 }
 
@@ -177,7 +178,7 @@ async function reviewFlag(req, res) {
     res.json({ ok: true, status: newStatus });
   } catch (err) {
     logger.error('mediaAdmin.reviewFlag error', { message: err.message });
-    res.status(500).json({ error: 'Failed to review flag' });
+    sendMediaError(res, err, 'Failed to review flag');
   }
 }
 
@@ -247,7 +248,7 @@ async function approvePost(req, res) {
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
     logger.error('mediaAdmin.approvePost error', { message: err.message });
-    return res.status(500).json({ error: 'Failed to approve post' });
+    return sendMediaError(res, err, 'Failed to approve post');
   } finally {
     client.release();
   }

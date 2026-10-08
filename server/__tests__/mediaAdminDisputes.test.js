@@ -41,6 +41,24 @@ describe('Media creator dispute administration', () => {
     }));
   });
 
+  test('preserves an operational flag-queue failure', async () => {
+    pool.query.mockRejectedValueOnce({
+      status: 503,
+      isOperational: true,
+      code: 'credit_queue_unavailable',
+      message: 'The dispute queue is temporarily unavailable.',
+    });
+    const res = response();
+
+    await admin.listFlags({ query: {} }, res);
+
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'The dispute queue is temporarily unavailable.',
+      code: 'credit_queue_unavailable',
+    });
+  });
+
   test('moves a Media dispute into audited review', async () => {
     pool.query.mockResolvedValue({ rows: [{ id: 'd-1', reference_type: 'media_creator_tip' }] });
     resolveDisputeWithCompensation.mockResolvedValue({ dispute: { id: 'd-1', status: 'in_review' } });

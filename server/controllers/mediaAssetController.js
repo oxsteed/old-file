@@ -20,6 +20,7 @@ const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/stora
 const { stripExif } = require('../utils/stripExif');
 const AppError = require('../utils/appError');
 const mediaSafety = require('../services/mediaSafetyPolicy');
+const { sendMediaError } = require('../utils/mediaError');
 
 const PHOTO_MAX_BYTES = 10 * 1024 * 1024;
 const PHOTO_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -91,8 +92,7 @@ async function requireVideoIdentity(req, res, next) {
 }
 
 function uploadFailure(res, error, message) {
-  return res.status(error.status || 500).json({ error: error.isOperational ? error.message : message,
-    code: error.code || 'media_upload_failed' });
+  return sendMediaError(res, error, message, { fallbackCode: 'media_upload_failed' });
 }
 
 async function cleanup(keys) {

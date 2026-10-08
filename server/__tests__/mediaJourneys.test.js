@@ -14,6 +14,7 @@ jest.mock('../utils/storage', () => ({
 const pool = require('../db');
 const media = require('../controllers/mediaController');
 const assets = require('../controllers/mediaAssetController');
+const attachments = require('../services/mediaDraftAttachments');
 const { sendNotification } = require('../services/notificationService');
 
 function response() {
@@ -77,6 +78,29 @@ describe('Media user journeys', () => {
     await media.getPost({ params: { id: 'post-2' }, user: { id: 'viewer' } }, unknown);
     expect(unknown.status).toHaveBeenCalledWith(500);
     expect(unknown.json).toHaveBeenCalledWith({ error: 'Failed to load post' });
+  });
+
+  test('preserves operational upload errors instead of flattening them to HTTP 500', async () => {
+    jest.spyOn(attachments, 'requireDraft').mockRejectedValueOnce({
+      status: 409,
+      isOperational: true,
+      code: 'media_draft_processing',
+      message: 'The draft is still processing.',
+    });
+    const res = response();
+
+    await assets.uploadPhoto({
+      user: { id: 'owner' },
+      body: { post_id: 'draft-1' },
+      file: { buffer: Buffer.from('synthetic') },
+    }, res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'The draft is still processing.',
+      code: 'media_draft_processing',
+    });
+    attachments.requireDraft.mockRestore();
   });
 
   test('lets a verified actor reply and sends one stable notification to the parent owner', async () => {
