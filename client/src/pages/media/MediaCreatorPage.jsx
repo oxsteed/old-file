@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Briefcase, CheckCircle2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { acceptCreatorSponsorship, applyToCreatorGig, awardCreatorApplication, cancelCreatorSponsorship, createCreatorGig, createCreatorSponsorship, createCreatorTip, getCreatorApplications, getCreatorGigs, getCreatorSponsorships, getFeed, getMyCreatorApplications, reviewCreatorDeliverable, settleCreatorTip, submitCreatorDeliverable } from '../../api/media';
+import { acceptCreatorSponsorship, applyToCreatorGig, awardCreatorApplication, cancelCreatorSponsorship, createCreatorGig, createCreatorSponsorship, createCreatorTip, getCreatorApplications, getCreatorGigs, getCreatorSponsorships, getFeed, getMyCreatorApplications, openCreatorDispute, reviewCreatorDeliverable, settleCreatorSponsorship, settleCreatorTip, submitCreatorDeliverable } from '../../api/media';
 import { useAuth } from '../../context/AuthContext';
 
 export default function MediaCreatorPage() {
@@ -27,12 +27,15 @@ export default function MediaCreatorPage() {
   const [supportAmount, setSupportAmount] = useState('');
   const [supportBrief, setSupportBrief] = useState('');
   const [supportMessage, setSupportMessage] = useState('');
+  const [actionMessage, setActionMessage] = useState('');
   const [applicationsGig, setApplicationsGig] = useState(null);
   const [applications, setApplications] = useState([]);
   const [applicationsLoading, setApplicationsLoading] = useState(false);
   const [deliverableTarget, setDeliverableTarget] = useState(null);
   const [deliverablePostId, setDeliverablePostId] = useState('');
   const [deliverableNote, setDeliverableNote] = useState('');
+  const [disputeTarget, setDisputeTarget] = useState(null);
+  const [disputeDescription, setDisputeDescription] = useState('');
 
   const load = () => {
     setLoading(true);
@@ -122,6 +125,24 @@ export default function MediaCreatorPage() {
     finally { setSubmitting(false); }
   };
 
+  const settleOffer = async (sponsorshipId) => {
+    setSubmitting(true); setError('');
+    try { await settleCreatorSponsorship(sponsorshipId); setSponsorships((items) => items.map((item) => item.id === sponsorshipId ? { ...item, status: 'completed' } : item)); }
+    catch (err) { setError(err.response?.data?.error || t('media.creator.paymentError')); }
+    finally { setSubmitting(false); }
+  };
+
+  const submitDispute = async (event) => {
+    event.preventDefault();
+    if (!disputeTarget || !disputeDescription.trim()) return;
+    setSubmitting(true); setError('');
+    try {
+      await openCreatorDispute('sponsorship', disputeTarget.id, { description: disputeDescription.trim() }, `media-dispute-${disputeTarget.id}-${Date.now()}`);
+      setDisputeTarget(null); setDisputeDescription(''); setActionMessage(t('media.creator.disputeSubmitted'));
+    } catch (err) { setError(err.response?.data?.error || t('media.creator.paymentError')); }
+    finally { setSubmitting(false); }
+  };
+
   const openApplications = async (gig) => {
     setApplicationsGig(gig); setApplications([]); setApplicationsLoading(true); setError('');
     try { const data = await getCreatorApplications(gig.id); setApplications(data.applications || []); }
@@ -167,6 +188,7 @@ export default function MediaCreatorPage() {
         {user && <button type="button" className="media-primary-button" onClick={() => setCreateOpen(true)}>{t('media.creator.createGig')}</button>}
       </header>
       {error && <div className="media-error" role="alert"><p>{error}</p><button type="button" onClick={load}>{t('media.feed.refresh')}</button></div>}
+      {actionMessage && <p className="media-status" role="status">{actionMessage}</p>}
       {loading && <div className="media-skeleton" role="status"><div className="skeleton-line" /><div className="skeleton-line" /></div>}
       {!loading && !error && !gigs.length && <div className="media-empty"><CheckCircle2 size={26} aria-hidden="true" /><h2>{t('media.creator.empty')}</h2></div>}
       {!loading && !error && gigs.map((gig) => (
@@ -188,6 +210,8 @@ export default function MediaCreatorPage() {
           <p>{offer.status === 'accepted' ? t('media.creator.accepted') : offer.status === 'pending_credit' ? t('media.creator.pendingAcceptance') : offer.status}</p>
           {String(offer.creator_user_id) === String(user.id) && offer.status === 'pending_credit' && <button type="button" className="media-primary-button" onClick={() => acceptOffer(offer.id)} disabled={submitting}>{t('media.creator.accept')}</button>}
           {(String(offer.sponsor_user_id) === String(user.id) || String(offer.creator_user_id) === String(user.id)) && ['pending_credit', 'accepted'].includes(offer.status) && <button type="button" className="media-secondary-button" onClick={() => cancelOffer(offer.id)} disabled={submitting}>{t('media.creator.cancel')}</button>}
+          {String(offer.sponsor_user_id) === String(user.id) && offer.status === 'accepted' && <button type="button" className="media-primary-button" onClick={() => settleOffer(offer.id)} disabled={submitting}>{t('media.creator.settle')}</button>}
+          {String(offer.sponsor_user_id) === String(user.id) && offer.status === 'completed' && <button type="button" className="media-secondary-button" onClick={() => { setDisputeTarget(offer); setDisputeDescription(''); }} disabled={submitting}>{t('media.creator.dispute')}</button>}
         </article>)}
       </section>}
       {!loading && user && myApplications.length > 0 && <section className="media-creator-offers" aria-labelledby="creator-applications-title">
@@ -257,6 +281,16 @@ export default function MediaCreatorPage() {
           </select>
           <label htmlFor="creator-deliverable-note">{t('media.creator.deliverableNote')}</label><textarea id="creator-deliverable-note" value={deliverableNote} onChange={(event) => setDeliverableNote(event.target.value)} rows={4} />
           <button type="submit" className="media-primary-button" disabled={submitting}>{submitting ? t('media.compose.posting') : t('media.creator.submit')}</button>
+        </form>
+      </div>}
+      {disputeTarget && <div className="media-verification-dialog" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDisputeTarget(null); }}>
+        <form className="media-verification-form" onSubmit={submitDispute} role="dialog" aria-modal="true" aria-labelledby="creator-dispute-title">
+          <button type="button" className="media-dialog-close" onClick={() => setDisputeTarget(null)} aria-label={t('media.shell.close')}><X size={18} /></button>
+          <h2 id="creator-dispute-title">{t('media.creator.dispute')}</h2>
+          <label htmlFor="creator-dispute-description">{t('media.creator.disputeDescription')}</label>
+          <textarea id="creator-dispute-description" value={disputeDescription} onChange={(event) => setDisputeDescription(event.target.value)} rows={5} maxLength={4000} required />
+          <p className="media-form-hint">{t('media.creator.disputeHint')}</p>
+          <button type="submit" className="media-primary-button" disabled={submitting}>{submitting ? t('media.creator.settling') : t('media.creator.submitDispute')}</button>
         </form>
       </div>}
     </section>

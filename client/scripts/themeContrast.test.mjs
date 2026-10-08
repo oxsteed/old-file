@@ -118,7 +118,9 @@ test('legal page styles cannot overwrite global tokens or unrelated components',
 });
 
 test('post-job hero has an explicit light-mode surface and readable accents', () => {
-  const postJobCss = postcss.parse(read('src/styles/PostJobPage.css'));
+  // Git preserves CRLF in the Windows checkout; selector matching below is
+  // semantic and should not depend on the platform line ending.
+  const postJobCss = postcss.parse(read('src/styles/PostJobPage.css').replace(/\r\n/g, '\n'));
   const declarations = (selector) => {
     const rule = postJobCss.nodes
       .flatMap((node) => node.type === 'atrule' ? node.nodes || [] : [node])

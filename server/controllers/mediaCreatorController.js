@@ -2,7 +2,8 @@
 
 const pool = require('../db');
 const AppError = require('../utils/appError');
-const { transferCreatorCredit } = require('../services/oxsteedCreditService');
+const creditService = require('../services/oxsteedCreditService');
+const { transferCreatorCredit } = creditService;
 
 function asPositiveInt(value, code = 'media_creator_amount_invalid') {
   const amount = Number(value);
@@ -382,6 +383,71 @@ async function cancelBoost(req, res, next) {
   } catch (err) { next(err); }
 }
 
+/**
+ * Open a Credit dispute for a settled creator payment.  The caller is always
+ * resolved from the creator payment row, so a client cannot submit an
+ * arbitrary ledger transaction id or dispute another customer's transfer.
+ * The shared Credit dispute service owns idempotency, one-open-case rules,
+ * audit history, and the eventual admin resolution path.
+ */
+async function openCreatorDispute(req, res, next) {
+  try {
+    const kind = String(req.params.kind || '').trim().toLowerCase();
+    const id = String(req.params.id || '').trim();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+      throw new AppError('Creator payment was not found.', 404, 'media_creator_dispute_payment_not_found');
+    }
+    const queries = {
+      tip: `SELECT t.id, t.from_user_id AS payer_user_id, t.credit_transaction_id AS transaction_id,
+                   t.status AS payment_status
+              FROM media_creator_tips t
+             WHERE t.id = $1 AND t.from_user_id = $2 AND t.status = 'posted'`,
+      sponsorship: `SELECT s.id, s.sponsor_user_id AS payer_user_id, tx.id AS transaction_id,
+                           s.status AS payment_status
+                      FROM media_creator_sponsorships s
+                      JOIN oxsteed_credit_transactions tx
+                        ON tx.reference_type = 'media_creator_sponsorship'
+                       AND tx.reference_id = s.id::text
+                       AND tx.transaction_type = 'transfer'
+                       AND tx.status = 'posted'
+                     WHERE s.id = $1 AND s.sponsor_user_id = $2
+                       AND s.status IN ('completed','delivered')
+                     ORDER BY tx.posted_at DESC NULLS LAST, tx.id DESC LIMIT 1`,
+      boost: `SELECT b.id, b.purchaser_user_id AS payer_user_id, tx.id AS transaction_id,
+                     b.status AS payment_status
+                FROM media_post_boosts b
+                JOIN oxsteed_credit_transactions tx
+                  ON tx.reference_type = 'media_post_boost'
+                 AND tx.reference_id = b.id::text
+                 AND tx.transaction_type = 'transfer'
+                 AND tx.status = 'posted'
+               WHERE b.id = $1 AND b.purchaser_user_id = $2
+                 AND b.status IN ('scheduled','active','completed')
+               ORDER BY tx.posted_at DESC NULLS LAST, tx.id DESC LIMIT 1`,
+    };
+    if (!queries[kind]) throw new AppError('Unsupported creator payment type.', 400, 'media_creator_dispute_type_invalid');
+    const { rows } = await pool.query(queries[kind], [id, req.user.id]);
+    const payment = rows[0];
+    if (!payment?.transaction_id) throw new AppError('This creator payment is not eligible for a dispute.', 404, 'media_creator_dispute_payment_not_found');
+    const description = text(req.body?.description, 4000, 'Description');
+    const idempotencyKey = text(req.get('Idempotency-Key') || req.body?.idempotencyKey, 160, 'Idempotency-Key');
+    const result = await creditService.openCreditDispute({
+      customerId: req.user.id,
+      transactionId: payment.transaction_id,
+      reasonCode: text(req.body?.reasonCode || 'media_creator_dispute', 60, 'Reason'),
+      description,
+      actorUserId: req.user.id,
+      idempotencyKey,
+      requestIp: req.ip || null,
+      // The current Credit schema deliberately limits dispute types. Keep
+      // creator disputes in that audited path until a dedicated marketplace
+      // dispute taxonomy is approved and migrated.
+      disputeType: 'incorrect_amount',
+    });
+    res.status(result.replayed ? 200 : 201).json({ ...result, payment: { kind, id, status: payment.payment_status } });
+  } catch (err) { next(err); }
+}
+
 async function settleTip(req, res, next) {
   try {
     const { rows } = await pool.query(
@@ -423,4 +489,5 @@ module.exports = {
   submitDeliverable, reviewDeliverable, createTip, createSponsorship, listSponsorships, createBoost,
   settleTip,
   acceptSponsorship, settleSponsorship, cancelSponsorship, settleBoost, cancelBoost,
+  openCreatorDispute,
 };

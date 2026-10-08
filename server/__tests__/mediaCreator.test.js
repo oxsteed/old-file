@@ -82,3 +82,31 @@ test('cancels an unsettled sponsorship for one of its parties', async () => {
   expect(res.json).toHaveBeenCalledWith({ sponsorship: { id: 's-1', status: 'cancelled' } });
   expect(mockQuery.mock.calls[0][0]).toContain("s.status IN ('pending_credit','accepted')");
 });
+
+test('opens an idempotent dispute only for the payer\'s settled creator payment', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{ id: '11111111-1111-4111-8111-111111111111', payer_user_id: 'payer-1', transaction_id: 'tx-1', payment_status: 'posted' }] });
+  const openCreditDispute = jest.spyOn(require('../services/oxsteedCreditService'), 'openCreditDispute')
+    .mockResolvedValueOnce({ replayed: false, dispute: { id: 'case-1', status: 'open' } });
+  const next = jest.fn();
+  const res = resMock();
+  await creator.openCreatorDispute({
+    params: { kind: 'tip', id: '11111111-1111-4111-8111-111111111111' },
+    user: { id: 'payer-1' },
+    body: { description: 'The creator payment needs review.' },
+    get: (header) => header === 'Idempotency-Key' ? 'creator-dispute-1' : null,
+    ip: '127.0.0.1',
+  }, res, next);
+  expect(next).not.toHaveBeenCalled();
+  expect(openCreditDispute).toHaveBeenCalledWith(expect.objectContaining({
+    customerId: 'payer-1', transactionId: 'tx-1', idempotencyKey: 'creator-dispute-1', disputeType: 'incorrect_amount',
+  }));
+  expect(res.status).toHaveBeenCalledWith(201);
+  openCreditDispute.mockRestore();
+});
+
+test('does not allow a creator dispute to target an unrelated payment kind', async () => {
+  const next = jest.fn();
+  await creator.openCreatorDispute({ params: { kind: 'refund', id: '11111111-1111-4111-8111-111111111111' }, user: { id: 'payer-1' }, body: {}, get: () => null }, resMock(), next);
+  expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_creator_dispute_type_invalid' }));
+  expect(mockQuery).not.toHaveBeenCalled();
+});

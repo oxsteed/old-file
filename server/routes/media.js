@@ -72,6 +72,7 @@ router.post('/creator/sponsorships/:sponsorshipId/cancel', requireAuth, creatorC
 router.post('/posts/:postId/boosts', requireAuth, creatorCtrl.createBoost);
 router.post('/creator/boosts/:boostId/settle', requireAuth, creatorCtrl.settleBoost);
 router.post('/creator/boosts/:boostId/cancel', requireAuth, creatorCtrl.cancelBoost);
+router.post('/creator/disputes/:kind/:id', requireAuth, creatorCtrl.openCreatorDispute);
 
 // Authenticated actions.
 router.post('/posts', requireAuth, ctrl.createPost);

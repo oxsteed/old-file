@@ -399,6 +399,19 @@ Settled boosts remain protected from cancellation. The focused creator suite
 now passes 7 tests; refund/dispute handling for completed Credit transfers and
 authenticated production verification remain open.
 
+Creator payment disputes (2026-10-08): settled tips, sponsorships, and boosts
+now have an authenticated `/media/creator/disputes/:kind/:id` entry point. The
+server resolves the payment's own posted transfer by its Media reference and
+requires the original payer, so callers cannot submit arbitrary Credit
+transaction IDs or open a case for another customer. Requests require a
+description and Idempotency-Key, then reuse `openCreditDispute` for the shared
+one-open-case rule, audit event, SLA, and admin resolution flow. The current
+Credit schema has no marketplace-specific dispute taxonomy, so the endpoint
+uses the existing `incorrect_amount` type and records the detailed reason in
+the description until that taxonomy is approved. Focused creator and contract
+tests now pass 18 tests locally; authenticated dispute resolution and the
+provider/CI deployment checks remain open.
+
 Anonymous production evidence (2026-10-08): `/health`, `/ready`,
 `/api/media/capabilities`, and `/api/media/creator/gigs` returned 200. The live
 capabilities report Cloudflare safety mode with malware and transcode required;
@@ -407,3 +420,10 @@ current source checkout contains migrations through 740, so that live schema
 count is recorded as a deployment/source discrepancy requiring reconciliation,
 not as proof that this branch is deployed. Authenticated Media and Credit
 journeys remain unverified.
+Verification update (2026-10-08): client `npm run build:ci` now passes after
+making the theme-contrast selector check line-ending independent; it completed
+the full frontend reference, localization, typecheck, production build, and
+dist-asset gates. The focused server creator/contracts suite passes 18 tests,
+and the creator dispute UI/API remains pending authenticated deployment and
+Credit-rail evidence.
+
