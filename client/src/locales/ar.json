@@ -30295,7 +30295,12 @@
       "repost": "إعادة النشر",
       "share": "مشاركة",
       "videoEmbed": "فيديو مضمن",
-      "photoAlt": "صورة شاركها {{name}}"
+      "photoAlt": "صورة شاركها {{name}}",
+      "quote": "اقتباس المنشور",
+      "quoteLabel": "أضف تعليقك",
+      "quotePlaceholder": "أضف سياقًا إلى هذا المنشور…",
+      "quotePosting": "جارٍ الاقتباس…",
+      "quoteError": "تعذر اقتباس هذا المنشور."
     },
     "search": {
       "title": "البحث في Media",

@@ -484,6 +484,11 @@ div.media-support-panel { z-index: 150; }
 .media-error button { min-height: 44px; color: var(--color-text); background: var(--color-surface); border-color: var(--color-border); }
 .media-content > .media-search, .media-content > .media-compose, .media-content > .media-communities, .media-content > .media-actor-page { padding: 20px; }
 .media-reply-composer { padding: 16px 20px; bottom: 0; }
+.media-quote-composer { display: grid; gap: 9px; margin: 0 20px; padding: 16px; border: 1px solid var(--color-border); border-radius: 14px; background: var(--color-surface-2); }
+.media-quote-composer label { color: var(--color-text); font-size: 13px; font-weight: 700; }
+.media-quote-composer textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: 10px; resize: vertical; }
+.media-quote-composer button { justify-self: end; min-height: 38px; padding: 8px 14px; border: 0; border-radius: 999px; background: var(--color-primary); color: #fff; font-weight: 700; cursor: pointer; }
+.media-quote-composer button:disabled { opacity: .55; cursor: not-allowed; }
 .media-replies-section { padding: 0 20px; }
 .media-link-picker > * { min-width: 0; max-width: 100%; }
 .media-compose-field { display: grid; gap: 7px; margin: 16px 0; color: var(--color-text); font-size: 14px; font-weight: 700; }

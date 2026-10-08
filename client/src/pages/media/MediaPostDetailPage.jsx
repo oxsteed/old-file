@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { getPost, getReplies, recordView } from '../../api/media';
+import { createPost, getPost, getReplies, recordView } from '../../api/media';
 import './MediaStyles.css';
 import MediaPostCard from './MediaPostCard';
 import MediaReplyComposer from './MediaReplyComposer';
@@ -13,6 +13,8 @@ export default function MediaPostDetailPage() {
   const [replies, setReplies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [quoteBody, setQuoteBody] = useState('');
+  const [quoting, setQuoting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -39,6 +41,20 @@ export default function MediaPostDetailPage() {
     setPost(p => p ? { ...p, reply_count: p.reply_count + 1 } : p);
   };
 
+  const handleQuote = async (event) => {
+    event.preventDefault();
+    if (!quoteBody.trim()) return;
+    setQuoting(true);
+    try {
+      await createPost({ body: quoteBody.trim(), quoted_post_id: id });
+      setQuoteBody('');
+    } catch (err) {
+      setError(err.response?.data?.error || t('media.post.quoteError'));
+    } finally {
+      setQuoting(false);
+    }
+  };
+
   return (
       <div className="media-post-detail">
         {loading && (
@@ -62,6 +78,20 @@ export default function MediaPostDetailPage() {
         {post && !loading && (
           <>
             <MediaPostCard post={post} />
+            <form className="media-quote-composer" onSubmit={handleQuote}>
+              <label htmlFor="media-quote-body">{t('media.post.quoteLabel')}</label>
+              <textarea
+                id="media-quote-body"
+                value={quoteBody}
+                onChange={(event) => setQuoteBody(event.target.value)}
+                placeholder={t('media.post.quotePlaceholder')}
+                maxLength={2000}
+                rows={3}
+              />
+              <button type="submit" disabled={quoting || !quoteBody.trim()}>
+                {quoting ? t('media.post.quotePosting') : t('media.post.quote')}
+              </button>
+            </form>
             <MediaReplyComposer parentId={id} onReply={handleNewReply} />
             <div className="media-replies-section">
               <h2>{t('media.post.replies')} ({post.reply_count})</h2>

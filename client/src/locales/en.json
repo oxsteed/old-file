@@ -30284,7 +30284,12 @@
       "repost": "Repost",
       "share": "Share",
       "videoEmbed": "Embedded video",
-      "photoAlt": "Photo shared by {{name}}"
+      "photoAlt": "Photo shared by {{name}}",
+      "quote": "Quote post",
+      "quoteLabel": "Add your comment",
+      "quotePlaceholder": "Add context to this post…",
+      "quotePosting": "Quoting…",
+      "quoteError": "Could not quote this post."
     },
     "search": {
       "title": "Search Media",

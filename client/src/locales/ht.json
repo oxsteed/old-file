@@ -30284,7 +30284,12 @@
       "repost": "Repibliye",
       "share": "Pataje",
       "videoEmbed": "Videyo entegre",
-      "photoAlt": "Foto {{name}} pataje"
+      "photoAlt": "Foto {{name}} pataje",
+      "quote": "Site piblikasyon an",
+      "quoteLabel": "Ajoute kòmantè ou",
+      "quotePlaceholder": "Ajoute kontèks sou piblikasyon sa a…",
+      "quotePosting": "Ap site…",
+      "quoteError": "Nou pa t kapab site piblikasyon sa a."
     },
     "search": {
       "title": "Chèche nan Media",

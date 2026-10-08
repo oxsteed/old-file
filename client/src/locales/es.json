@@ -30284,7 +30284,12 @@
       "repost": "Republicar",
       "share": "Compartir",
       "videoEmbed": "Video insertado",
-      "photoAlt": "Foto compartida por {{name}}"
+      "photoAlt": "Foto compartida por {{name}}",
+      "quote": "Citar publicación",
+      "quoteLabel": "Añade tu comentario",
+      "quotePlaceholder": "Añade contexto a esta publicación…",
+      "quotePosting": "Citando…",
+      "quoteError": "No se pudo citar esta publicación."
     },
     "search": {
       "title": "Buscar en Media",
