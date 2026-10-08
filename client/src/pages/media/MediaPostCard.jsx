@@ -72,6 +72,7 @@ export default function MediaPostCard({ post, onUpdate }) {
   const [reportMessage, setReportMessage] = useState('');
   const [boostOpen, setBoostOpen] = useState(false);
   const [boostAmount, setBoostAmount] = useState('');
+  const [boostIdempotencyKey, setBoostIdempotencyKey] = useState('');
   const [boosting, setBoosting] = useState(false);
   const [boostMessage, setBoostMessage] = useState('');
 
@@ -176,7 +177,7 @@ export default function MediaPostCard({ post, onUpdate }) {
     try {
       const created = await createCreatorBoost(post.id, {
         amountCents: Number(boostAmount),
-        idempotencyKey: `media-boost-${post.id}-${Date.now()}`,
+        idempotencyKey: boostIdempotencyKey,
       });
       await settleCreatorBoost(created.boost.id);
       setBoostMessage(t('media.post.boostSent'));
@@ -293,7 +294,7 @@ export default function MediaPostCard({ post, onUpdate }) {
             ↗️ {t('media.post.share')} {formatCount(shareCount)}
           </button>
           {user && String(post.owner_user_id) === String(user.id) && post.visibility === 'public' && (
-            <button type="button" onClick={() => { setBoostAmount(''); setBoostMessage(''); setBoostOpen(true); }} className="media-action" aria-label={t('media.post.boost')}>
+            <button type="button" onClick={() => { setBoostAmount(''); setBoostMessage(''); setBoostIdempotencyKey(`media-boost-${post.id}-${Date.now()}-${Math.random().toString(16).slice(2)}`); setBoostOpen(true); }} className="media-action" aria-label={t('media.post.boost')}>
               ✨ {t('media.post.boost')}
             </button>
           )}

@@ -99,7 +99,7 @@ export default function MediaCreatorPage() {
         const created = await createCreatorTip({
           actorId: supportTarget.owner_actor_id,
           amountCents: Number(supportAmount),
-          idempotencyKey: `media-tip-${supportTarget.id}-${Date.now()}`,
+          idempotencyKey: supportIdempotencyKey,
         });
         await settleCreatorTip(created.tip.id);
         setSupportMessage(t('media.creator.tipSent'));
@@ -120,7 +120,7 @@ export default function MediaCreatorPage() {
   const openSupport = (gig, mode) => {
     setSupportTarget(gig); setSupportMode(mode); setSupportAmount(String(gig.budget_cents || ''));
     setSupportBrief(''); setSupportMessage(''); setError('');
-    setSupportIdempotencyKey(`media-sponsorship-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    setSupportIdempotencyKey(`media-${mode}-${gig.id}-${Date.now()}-${Math.random().toString(16).slice(2)}`);
   };
 
   const acceptOffer = async (sponsorshipId) => {

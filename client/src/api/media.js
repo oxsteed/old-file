@@ -53,7 +53,12 @@ export const awardCreatorApplication = (applicationId) => api.post(`/media/creat
 export const cancelCreatorGig = (gigId) => api.post(`/media/creator/gigs/${gigId}/cancel`).then(r => r.data);
 export const submitCreatorDeliverable = (applicationId, data) => api.post(`/media/creator/applications/${applicationId}/deliverables`, data).then(r => r.data);
 export const reviewCreatorDeliverable = (deliverableId, status) => api.patch(`/media/creator/deliverables/${deliverableId}`, { status }).then(r => r.data);
-export const createCreatorTip = (data) => api.post('/media/creator/tips', data).then(r => r.data);
+export const createCreatorTip = (data) => {
+  const { idempotencyKey, ...payload } = data || {};
+  return api.post('/media/creator/tips', payload, {
+    headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+  }).then(r => r.data);
+};
 export const settleCreatorTip = (tipId) => api.post(`/media/creator/tips/${tipId}/settle`).then(r => r.data);
 export const createCreatorSponsorship = (data) => {
   const { idempotencyKey, ...payload } = data || {};
@@ -67,7 +72,12 @@ export const acceptCreatorSponsorship = (sponsorshipId) => api.post(`/media/crea
 export const submitCreatorSponsorshipDeliverable = (sponsorshipId, data) => api.post(`/media/creator/sponsorships/${sponsorshipId}/deliverables`, data).then(r => r.data);
 export const settleCreatorSponsorship = (sponsorshipId) => api.post(`/media/creator/sponsorships/${sponsorshipId}/settle`).then(r => r.data);
 export const cancelCreatorSponsorship = (sponsorshipId) => api.post(`/media/creator/sponsorships/${sponsorshipId}/cancel`).then(r => r.data);
-export const createCreatorBoost = (postId, data) => api.post(`/media/posts/${postId}/boosts`, data).then(r => r.data);
+export const createCreatorBoost = (postId, data) => {
+  const { idempotencyKey, ...payload } = data || {};
+  return api.post(`/media/posts/${postId}/boosts`, payload, {
+    headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+  }).then(r => r.data);
+};
 export const settleCreatorBoost = (boostId) => api.post(`/media/creator/boosts/${boostId}/settle`).then(r => r.data);
 export const cancelCreatorBoost = (boostId) => api.post(`/media/creator/boosts/${boostId}/cancel`).then(r => r.data);
 export const openCreatorDispute = (kind, id, data, idempotencyKey) => api.post(`/media/creator/disputes/${kind}/${id}`, data, { headers: { 'Idempotency-Key': idempotencyKey } }).then(r => r.data);
