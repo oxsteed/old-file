@@ -201,6 +201,7 @@ const MediaPostDetailPage = lazyWithRetry(() => import('./pages/media/MediaPostD
 const MediaComposePage = lazyWithRetry(() => import('./pages/media/MediaComposePage'));
 const MediaSearchPage = lazyWithRetry(() => import('./pages/media/MediaSearchPage'));
 const MediaCommunitiesPage = lazyWithRetry(() => import('./pages/media/MediaCommunitiesPage'));
+const MediaCommunityPage = lazyWithRetry(() => import('./pages/media/MediaCommunityPage'));
 const MediaNotificationsPage = lazyWithRetry(() => import('./pages/media/MediaNotificationsPage'));
 const MediaMessagesPage = lazyWithRetry(() => import('./pages/media/MediaMessagesPage'));
 const MediaLaunchGate = lazyWithRetry(() => import('./pages/media/MediaLaunchGate'));
@@ -422,6 +423,7 @@ export default function App() {
                     <Route path="/media/post/:id"          element={<Guarded><MediaLaunchGate><MediaShell><MediaPostDetailPage /></MediaShell></MediaLaunchGate></Guarded>} />
                     <Route path="/media/search"            element={<Guarded><MediaLaunchGate><MediaShell><MediaSearchPage /></MediaShell></MediaLaunchGate></Guarded>} />
                     <Route path="/media/communities"       element={<Guarded><MediaLaunchGate><MediaShell><MediaCommunitiesPage /></MediaShell></MediaLaunchGate></Guarded>} />
+                    <Route path="/media/communities/:slug" element={<Guarded><MediaLaunchGate><MediaShell><MediaCommunityPage /></MediaShell></MediaLaunchGate></Guarded>} />
                     <Route path="/media/@:handle"          element={<Guarded><MediaLaunchGate><MediaShell><MediaActorPage /></MediaShell></MediaLaunchGate></Guarded>} />
                     <Route path="/media/notifications"     element={<Guarded><ProtectedRoute><MediaLaunchGate><MediaShell><MediaNotificationsPage /></MediaShell></MediaLaunchGate></ProtectedRoute></Guarded>} />
                     <Route path="/media/messages"          element={<Guarded><ProtectedRoute><MediaLaunchGate><MediaShell><MediaMessagesPage /></MediaShell></MediaLaunchGate></ProtectedRoute></Guarded>} />

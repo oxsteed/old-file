@@ -388,7 +388,7 @@ async function createPost(req, res) {
   try {
     const userId = req.user.id;
     const businessId = req.body?.business_id ? parseInt(req.body.business_id, 10) : null;
-    const { body, parent_id, quoted_post_id, links } = req.body;
+    const { body, parent_id, quoted_post_id, links, community_id } = req.body;
     
     let actor;
     if (businessId) {
@@ -453,13 +453,19 @@ async function createPost(req, res) {
         code: 'media_link_type_unavailable',
       });
     }
+    if (community_id) {
+      const { rows: communities } = await pool.query(
+        `SELECT id FROM media_communities WHERE id = $1`, [community_id]
+      );
+      if (!communities[0]) return res.status(400).json({ error: 'Space not found', code: 'media_space_not_found' });
+    }
 
     const { rows } = await pool.query(
-      `INSERT INTO media_posts (actor_id, body, parent_id, quoted_post_id, root_id)
-       VALUES ($1, $2, $3, $4,
+      `INSERT INTO media_posts (actor_id, body, parent_id, quoted_post_id, community_id, root_id)
+       VALUES ($1, $2, $3, $4, $5,
          CASE WHEN $3 IS NOT NULL THEN (SELECT COALESCE(root_id, id) FROM media_posts WHERE id = $3) END)
        RETURNING *`,
-      [actor.id, body.trim(), parent_id || null, quoted_post_id || null]
+      [actor.id, body.trim(), parent_id || null, quoted_post_id || null, community_id || null]
     );
     const post = rows[0];
 
@@ -639,12 +645,86 @@ async function flagPost(req, res) {
 async function getCommunities(req, res) {
   try {
     const { rows } = await pool.query(
-      `SELECT * FROM media_communities ORDER BY title`
+      `SELECT c.*,
+              COUNT(DISTINCT p.id)::int AS post_count,
+              EXISTS (
+                SELECT 1 FROM media_community_members cm
+                 WHERE cm.community_id = c.id AND cm.user_id = $1
+              ) AS joined
+         FROM media_communities c
+         LEFT JOIN media_posts p ON p.community_id = c.id
+          AND p.visibility = 'public' AND p.deleted_at IS NULL
+        GROUP BY c.id
+        ORDER BY c.geo_scope NULLS LAST, c.category NULLS LAST, c.title`,
+      [req.user?.id || null]
     );
     res.json({ communities: rows });
   } catch (err) {
     logger.error('media.getCommunities error', { message: err.message });
     res.status(500).json({ error: 'Failed to load communities' });
+  }
+}
+
+async function getCommunity(req, res) {
+  try {
+    const { rows: communities } = await pool.query(
+      `SELECT c.*,
+              COUNT(DISTINCT p.id)::int AS post_count,
+              EXISTS (
+                SELECT 1 FROM media_community_members cm
+                 WHERE cm.community_id = c.id AND cm.user_id = $2
+              ) AS joined
+         FROM media_communities c
+         LEFT JOIN media_posts p ON p.community_id = c.id
+          AND p.visibility = 'public' AND p.deleted_at IS NULL
+        WHERE c.slug = $1
+        GROUP BY c.id`,
+      [req.params.slug, req.user?.id || null]
+    );
+    if (!communities[0]) return res.status(404).json({ error: 'Space not found' });
+    const { rows } = await pool.query(
+      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
+         FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
+        WHERE p.community_id = $1 AND p.visibility = 'public' AND p.deleted_at IS NULL
+          AND p.parent_id IS NULL
+        ORDER BY p.created_at DESC LIMIT 50`,
+      [communities[0].id]
+    );
+    const posts = [];
+    for (const post of rows) posts.push(await hydratePost(post, req.user?.id || null));
+    res.json({ community: communities[0], posts });
+  } catch (err) {
+    logger.error('media.getCommunity error', { message: err.message });
+    res.status(500).json({ error: 'Failed to load Space' });
+  }
+}
+
+async function joinCommunity(req, res) {
+  try {
+    const { rows } = await pool.query(`SELECT id FROM media_communities WHERE id = $1`, [req.params.id]);
+    if (!rows[0]) return res.status(404).json({ error: 'Space not found' });
+    await pool.query(
+      `INSERT INTO media_community_members (community_id, user_id)
+       VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [req.params.id, req.user.id]
+    );
+    res.json({ joined: true });
+  } catch (err) {
+    logger.error('media.joinCommunity error', { message: err.message });
+    res.status(500).json({ error: 'Failed to join Space' });
+  }
+}
+
+async function leaveCommunity(req, res) {
+  try {
+    await pool.query(
+      `DELETE FROM media_community_members WHERE community_id = $1 AND user_id = $2`,
+      [req.params.id, req.user.id]
+    );
+    res.json({ joined: false });
+  } catch (err) {
+    logger.error('media.leaveCommunity error', { message: err.message });
+    res.status(500).json({ error: 'Failed to leave Space' });
   }
 }
 
@@ -729,5 +809,6 @@ async function getActor(req, res) {
 module.exports = {
   getFeed, getPost, getReplies, getQuotes, createPost,
   toggleLike, toggleBookmark, toggleRepost, recordView, flagPost,
-  getCommunities, searchMedia, getActor, getOrCreateActor, getBusinessPosts,
+  getCommunities, getCommunity, joinCommunity, leaveCommunity, searchMedia,
+  getActor, getOrCreateActor, getBusinessPosts,
 };
