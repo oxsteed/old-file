@@ -218,22 +218,37 @@ async function awardApplication(req, res, next) {
 }
 
 async function submitDeliverable(req, res, next) {
+  const client = await pool.connect();
   try {
-    const { rows: posts } = await pool.query(
+    await client.query('BEGIN');
+    const { rows: applications } = await client.query(
+      `SELECT ap.id, ap.status, ap.applicant_actor_id
+         FROM media_creator_applications ap
+        WHERE ap.id = $1 AND ap.applicant_user_id = $2
+        FOR UPDATE`,
+      [req.params.applicationId, req.user.id]
+    );
+    const application = applications[0];
+    if (!application || application.status !== 'awarded') {
+      throw new AppError('Only an awarded creator application can submit a deliverable.', 403, 'media_creator_deliverable_invalid');
+    }
+    const { rows: posts } = await client.query(
       `SELECT p.id FROM media_posts p JOIN media_creator_applications ap ON ap.applicant_actor_id = p.actor_id
         WHERE ap.id = $1 AND ap.applicant_user_id = $2 AND ap.status = 'awarded'
           AND p.id = $3 AND p.visibility = 'public' AND p.processing_status = 'ready'`,
       [req.params.applicationId, req.user.id, req.body?.postId]
     );
     if (!posts[0]) throw new AppError('Only a published post owned by the awarded creator can be submitted.', 403, 'media_creator_deliverable_invalid');
-    const { rows } = await pool.query(
+    const { rows } = await client.query(
       `INSERT INTO media_creator_deliverables (application_id, post_id, note)
        VALUES ($1,$2,$3) ON CONFLICT (application_id, post_id) DO UPDATE SET note = EXCLUDED.note, status = 'submitted'
        RETURNING *`, [req.params.applicationId, req.body.postId, typeof req.body?.note === 'string' ? req.body.note.trim().slice(0, 2000) || null : null]
     );
-    await pool.query(`UPDATE media_creator_applications SET status = 'delivered', updated_at = NOW() WHERE id = $1`, [req.params.applicationId]);
+    await client.query(`UPDATE media_creator_applications SET status = 'delivered', updated_at = NOW() WHERE id = $1`, [req.params.applicationId]);
+    await client.query('COMMIT');
     res.status(201).json({ deliverable: rows[0] });
-  } catch (err) { next(err); }
+  } catch (err) { await client.query('ROLLBACK').catch(() => {}); next(err); }
+  finally { client.release(); }
 }
 
 async function reviewDeliverable(req, res, next) {

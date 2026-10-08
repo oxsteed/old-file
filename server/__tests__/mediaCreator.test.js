@@ -136,6 +136,35 @@ test('accepts only a published ready post as a sponsorship deliverable', async (
   expect(client.release).toHaveBeenCalled();
 });
 
+test('submits gig deliverables with application and deliverable updates in one transaction', async () => {
+  const pool = require('../db');
+  const client = { query: mockQuery, release: jest.fn() };
+  pool.connect.mockResolvedValueOnce(client);
+  mockQuery.mockImplementation(async (sql) => {
+    const query = String(sql);
+    if (query === 'BEGIN' || query === 'COMMIT') return { rows: [] };
+    if (query.includes('SELECT ap.id, ap.status, ap.applicant_actor_id')) return { rows: [{ id: 'app-1', status: 'awarded', applicant_actor_id: 'actor-1' }] };
+    if (query.includes('SELECT p.id FROM media_posts')) return { rows: [{ id: 'post-1' }] };
+    if (query.includes('INSERT INTO media_creator_deliverables')) return { rows: [{ id: 'deliverable-1', application_id: 'app-1', status: 'submitted' }] };
+    return { rows: [] };
+  });
+  const res = resMock();
+  const next = jest.fn();
+  await creator.submitDeliverable({
+    params: { applicationId: 'app-1' },
+    user: { id: 'creator-1' },
+    body: { postId: 'post-1', note: 'Ready for review' },
+  }, res, next);
+  expect(next).not.toHaveBeenCalled();
+  expect(res.status).toHaveBeenCalledWith(201);
+  expect(res.json).toHaveBeenCalledWith({ deliverable: expect.objectContaining({ id: 'deliverable-1' }) });
+  expect(mockQuery.mock.calls.map(([sql]) => String(sql))).toEqual([
+    'BEGIN', expect.stringContaining('SELECT ap.id, ap.status'), expect.stringContaining('SELECT p.id FROM media_posts'),
+    expect.stringContaining('INSERT INTO media_creator_deliverables'), expect.stringContaining('UPDATE media_creator_applications'), 'COMMIT',
+  ]);
+  expect(client.release).toHaveBeenCalled();
+});
+
 test('lists sponsorship offers for either the sponsor or creator owner', async () => {
   mockQuery.mockResolvedValueOnce({ rows: [{ id: 's-1', status: 'accepted', creator_user_id: 'creator-1' }] });
   const res = resMock();
