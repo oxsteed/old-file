@@ -1,5 +1,6 @@
 'use strict';
 const mediaSafety = require('../services/mediaSafetyPolicy');
+const { verifiedActorSql } = require('../services/mediaPublisherPolicy');
 
 // OxSteed Media admin: flag queue + post moderation.
 
@@ -107,28 +108,7 @@ async function approvePost(req, res) {
     const { rows } = await client.query(
       `SELECT p.id, p.visibility, p.processing_status, p.csam_status,
               u.is_verified, a.actor_type,
-              CASE
-                WHEN a.actor_type = 'helper' THEN EXISTS (
-                  SELECT 1 FROM helper_profiles hp
-                  JOIN users hu ON hu.id = hp.user_id
-                  WHERE hp.user_id = a.owner_user_id
-                    AND hu.is_verified = TRUE
-                    AND hu.is_active = TRUE AND hu.is_banned = FALSE
-                    AND hu.deleted_at IS NULL
-                )
-                WHEN a.actor_type = 'business' THEN EXISTS (
-                  SELECT 1 FROM businesses b
-                  WHERE b.user_id = a.owner_user_id
-                    AND b.deleted_at IS NULL AND b.is_active = TRUE
-                    AND b.is_business_verified = TRUE
-                )
-                WHEN a.actor_type = 'restaurant' THEN EXISTS (
-                  SELECT 1 FROM food_restaurants r
-                  WHERE r.owner_user_id = a.owner_user_id
-                    AND r.status <> 'suspended' AND r.is_verified = TRUE
-                )
-                ELSE FALSE
-              END AS current_actor_verified
+              ${verifiedActorSql('a')} AS current_actor_verified
          FROM media_posts p
          JOIN media_actors a ON a.id = p.actor_id
          JOIN users u ON u.id = a.owner_user_id

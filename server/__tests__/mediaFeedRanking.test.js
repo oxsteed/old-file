@@ -58,14 +58,14 @@ describe('Media ranked feed journey', () => {
     expect(firstSql).toContain('viewer_location.state');
     expect(firstSql).toContain('TRIM(split_part(nearby.geo_scope');
     expect(firstSql).not.toContain('j.deleted_at');
-    expect(firstSql).toContain('ORDER BY link_count DESC, locality_boost DESC, p.created_at DESC, p.id DESC');
+    expect(firstSql).toContain('ORDER BY link_count DESC, locality_boost DESC, ranked.created_at DESC, ranked.id DESC');
 
     pool.query.mockClear();
     const second = response();
     await media.getFeed({ query: { limit: '2', before: payload.next_before }, user: { id: 'viewer-1' } }, second);
 
     const secondCall = pool.query.mock.calls.find(([sql]) => sql.includes('SELECT p.*, a.handle'));
-    expect(secondCall[0]).toContain('HAVING (link_count <');
+    expect(secondCall[0]).toContain('WHERE (link_count <');
     expect(secondCall[1]).toEqual(expect.arrayContaining([3, 'viewer-1', 0, 0, '2026-10-08T11:00:00.000Z', 'post-plain-away']));
   });
 
@@ -108,20 +108,37 @@ describe('Media ranked feed journey', () => {
     expect(result.json.mock.calls[0][0].posts[0]).toMatchObject({ id: 'fallback-post' });
   });
 
-  test('keeps the feed readable when the active-author predicate is unavailable', async () => {
+  test('fails closed when the active-author predicate is unavailable', async () => {
     pool.query
       .mockImplementationOnce(async () => { throw Object.assign(new Error('ranked query failed'), { code: '42703' }); })
-      .mockImplementationOnce(async () => { throw Object.assign(new Error('users.is_banned missing'), { code: '42703' }); })
-      .mockImplementationOnce(async (sql) => {
-        if (sql.includes('0::bigint AS link_count')) return { rows: [{
-          id: 'minimal-post', created_at: '2026-10-08T09:00:00.000Z', actor_id: 'actor-1',
-          handle: 'local-one', display_name: 'Local One', link_count: '0', locality_boost: '0',
-        }] };
-        return { rows: [] };
-      });
+      .mockImplementationOnce(async () => { throw Object.assign(new Error('users.is_banned missing'), { code: '42703' }); });
     const result = response();
     await media.getFeed({ query: { limit: '1' }, user: { id: 'viewer-1' } }, result);
-    expect(result.status).not.toHaveBeenCalled();
-    expect(result.json.mock.calls[0][0].posts[0]).toMatchObject({ id: 'minimal-post' });
+    expect(result.status).toHaveBeenCalledWith(500);
+    expect(pool.query).toHaveBeenCalledTimes(2);
+    expect(result.json.mock.calls[0][0].posts).toBeUndefined();
+  });
+
+  test('never silently changes ranking after a ranked page cursor', async () => {
+    const cursor = Buffer.from(JSON.stringify({ id: 'post', created_at: '2026-10-08T10:00:00.000Z', link_count: 1, locality_boost: 2 })).toString('base64url');
+    pool.query.mockImplementationOnce(async () => { throw Object.assign(new Error('optional column missing'), { code: '42703' }); });
+    const result = response();
+    await media.getFeed({ query: { before: cursor }, user: { id: 'viewer' } }, result);
+    expect(result.status).toHaveBeenCalledWith(500);
+    expect(pool.query).toHaveBeenCalledTimes(1);
+  });
+
+  test('the cursor retains database timestamp precision beyond JavaScript milliseconds', async () => {
+    pool.query.mockImplementationOnce(async () => ({ rows: [
+      { id: 'precise', created_at: new Date('2026-10-08T12:00:00.123Z'),
+        cursor_created_at: '2026-10-08T12:00:00.123456Z', link_count: 0, locality_boost: 0 },
+      { id: 'next', created_at: new Date('2026-10-08T12:00:00.123Z'),
+        cursor_created_at: '2026-10-08T12:00:00.123455Z', link_count: 0, locality_boost: 0 },
+    ] }));
+    const result = response();
+    await media.getFeed({ query: { limit: '1' } }, result);
+    const payload = result.json.mock.calls[0][0];
+    expect(JSON.parse(Buffer.from(payload.next_before, 'base64url').toString()).created_at)
+      .toBe('2026-10-08T12:00:00.123456Z');
   });
 });

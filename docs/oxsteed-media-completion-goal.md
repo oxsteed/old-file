@@ -18,7 +18,7 @@ verified live for the new candidate. A historical test count is not proof.
 | Repeatable isolated fixtures | Implemented: optional Media compose extension, scoped wrapper, synthetic persona seed and real API/scan/conversion verifier. | Not executed here: Windows host has no reachable Colima/Docker runtime. | Execute `start`, `seed`, `media-test` on Colima and capture repeat/reset evidence. |
 | Required real database proof | Implemented: attachment races/replacement/migration replay suite and existing visibility suite; CI now rejects skipped Media DB cases. | Five new DB cases skipped locally; disposable PostgreSQL execution outstanding. | Execute with `STATEMENT_TEST_DATABASE_URL` pointing only to `credit_statement_test`. |
 | Helper Didit-backed identity | Implemented: `users.is_verified` checks at upload and commit; mocked behavior covers revocation at attachment commit. | Authenticated Didit return and production upload outstanding. | Prove webhook → verified helper → compose in isolated/live journeys. |
-| Business and restaurant verification | Incomplete: request center/admin review exist; actor checks must bind verification to the exact represented entity. | Current flags and review on deployed candidate unverified. | Fix entity-specific authorization and prove multiple-entity/revocation cases. |
+| Business and restaurant verification | Incomplete: request center/admin review exist; source now binds publishing, admin approval and marketplace recognition to the exact represented entity via `mediaPublisherPolicy`; real request/revocation execution remains outstanding. | Current flags and review on deployed candidate unverified. | Execute the added PostgreSQL multiple-entity, revocation, approval and legacy-migration cases. |
 | Verification request and return path | Implemented in prior source: in-shell center, owner submission, admin review and Didit return. | Fresh real API and signed-in deployed evidence outstanding. | Run helper/business/restaurant/admin request and return matrix. |
 | Durable private drafts | Behavior-tested locally: maintained desktop/mobile browser check retains edits and draft ID across upload failure/retry. | Browser dependencies mocked; real API harness unexecuted. | Execute real draft restore/update/attachment/publication path. |
 | Attachment replacement and duplicate recovery | Behavior-tested locally: locked draft service, server-computed digest, failed attachment/job deletion, file replacement and duplicate reuse. | Migration 742 and real concurrent PostgreSQL cases outstanding. | Run DB suite and isolated worker replacement/retry journey. |
@@ -32,11 +32,11 @@ verified live for the new candidate. A historical test count is not proof.
 | Replies and sticky entry | Implemented: newest/relevant source and sticky entry exist. | Real unverified reply, notification and mobile keyboard proof outstanding. | Test newest ordering, eligible replies and sticky composer in all languages. |
 | Quotes and embeds | Implemented: quoted content/media and linked cards rendered. | Real blocked/removed quoted-target proof outstanding. | Exercise safe quoted hydration and removal across feeds. |
 | Reply/repost/like/bookmark/share counts | Incomplete: actions exist, with viewer state; full response/retry/concurrency coverage outstanding. | Exact deployed count behavior unverified. | Verify every action/count and personal state through actual APIs. |
-| Owner/viewer state on all responses | Incomplete: feed lacks owner identity; some search/actor responses require audit. | No fresh authenticated cross-surface proof. | Include owner state in every hydrated response and test all surfaces. |
+| Owner/viewer state on all responses | Implemented: owner identity now included in feed, search, actor, replies, quotes and business-post responses; real cross-surface execution remains outstanding. | No fresh authenticated cross-surface proof. | Run the actual owner/viewer response matrix, including quoted and saved posts. |
 | Saved posts | Implemented: authenticated API/page exists. | Real reload/removal/block proof outstanding. | Test bookmark → saved feed → unsave and blocked/removed exclusion. |
 | Reporting and automatic moderation | Implemented: report API, limits and existing moderation flow. | Actual repeat/limit/DMCA/admin proof outstanding. | Verify report caps, moderator permissions and resulting visibility. |
 | Owner editing/deletion | Implemented: owner endpoints and actions exist. | Real authorization/count/source propagation outstanding. | Test owner versus non-owner, quoted/reply counters and source removal. |
-| Two-way blocking and inactive authors | Incomplete: primary visibility predicates exist; minimal feed fallback can drop active-author checks. | Existing PostgreSQL suite must run for candidate. | Remove unsafe fallback and verify every surface/target path. |
+| Two-way blocking and inactive authors | Incomplete: unsafe minimal fallback removed; failure preserves author/block restrictions; fresh actual SQL proof for all surfaces remains outstanding. | Existing PostgreSQL suite must run for candidate. | Execute all real PostgreSQL visibility cases and blocked target/action paths. |
 | Daily/upload/report limits | Implemented: existing rate/count controls. | Concurrent actual API limit proof outstanding. | Test simultaneous post limits and structured upload/report rejection. |
 | Linked entity selection and five-card limit | Implemented: server search and composer selection exist. | Real invalid/removed/entity ownership and currencies outstanding. | Verify all eight link types and authoritative target metadata. |
 | Public cards versus transaction login | Behavior-tested locally: all formerly intercepted guest card types now navigate to public targets; removed cards remain inert. | Browser dependencies mocked; destination transaction gates outstanding. | Verify actual public pages and login at transaction start. |
@@ -47,7 +47,7 @@ verified live for the new candidate. A historical test count is not proof.
 | Image-rich share previews | Implemented in prior prerender source. | Current safe assets/localized real share previews outstanding. | Verify guest-safe image metadata in every language after build. |
 | Nearby coordinates and city/state fallback | Incomplete: existing ranking only considers Space membership/location. | Actual entity locality cases missing. | Implement entity coordinates with explicit city/state fallback and synthetic nearby/far cases. |
 | Guest and device location choices | Incomplete. | No explicit location flow yet. | Add saved guest choice and user-triggered device request; never request automatically. |
-| Versioned context-bound feed cursor | Incomplete: unversioned tuple; alias-based HAVING can fail into chronological fallback. | Real complete-pagination proof missing. | Use ranked subquery, bind tab/location/ranking version and test stable pagination. |
+| Versioned context-bound feed cursor | Incomplete: ranked subquery replaces invalid alias HAVING; cursor retains microseconds and never silently changes ranking after a page. Version/location binding still outstanding. | Real complete-pagination proof missing. | Use ranked subquery, bind tab/location/ranking version and test stable pagination. |
 | Stale tab responses and duplicates | Incomplete: current client appends without request-generation guard/deduplication. | Browser tab-switch race missing. | Guard stale requests and deduplicate page append; test out-of-order responses. |
 | Follows and Following | Implemented in existing source. | Real block/follow/paging and actor-count proof outstanding. | Run actual SQL and browser tab-switch journey. |
 | Live authoritative counts | Incomplete. | Existing realtime lifecycle integration/reconciliation outstanding. | Subscribe through existing lifecycle and reconcile API counts on refresh/events. |
@@ -72,8 +72,8 @@ verified live for the new candidate. A historical test count is not proof.
 | Exact deployed release/readiness/schema/assets | Incomplete: healthy baseline is not new-candidate deployment proof. | Deployment access and reproducible content identity required. | Compare candidate hash and validate `/ready`, migration 742, workers and assets. |
 | Authenticated production/real-device matrix | Incomplete. | Signed-in helper/business/restaurant/admin and real device access outstanding. | Capture full non-financial production journeys; reconcile finance read-only. |
 
-Current local execution: all 143 Media behavior checks passed in 11 suites;
-13 PostgreSQL cases in two suites skipped because no disposable PostgreSQL is
+Current local execution: all 149 Media behavior checks passed in 12 suites;
+17 PostgreSQL cases in two suites skipped because no disposable PostgreSQL is
 available locally. Two maintained Chromium browser journeys passed, covering
 desktop and 390px composer recovery and guest public-card navigation. The CI
 result checker, existing Credit fixture regression, fixture isolation rejection,
@@ -85,6 +85,25 @@ execution, candidate CI and deployed verification remain outstanding. The
 baseline CI check still reports a pre-start billing rejection; canonical `/ready`
 currently reports healthy release `content-840a33b23300d6be`, which is not proof
 that the new changes deployed. No completion claim is made.
+
+Publishing/identity checkpoint: shared entity-specific verification now covers
+ordinary publication, admin approval and creator recognition. Previously created
+unverified reply actors no longer strand a subsequently verified helper. New
+entity actors retain their profile slugs and exact entity IDs, badge state is
+reconciled, and conflicting handles cannot take over another owner/entity.
+Migration 743 backfills only unambiguous historical handles and has a replay
+case. Owner state is returned on all post-list surfaces. Ranked pagination now
+uses a subquery and full PostgreSQL timestamp precision; safety failures cannot
+fall back to weaker author restrictions. These are current source/local behavior
+results; the added real SQL cases remain skipped on this Windows host.
+
+The first integrated push is `89fc8aa0`. Its exact CI run
+[37820019828](https://github.com/oxsteed/old-file/actions/runs/37820019828)
+was rejected before any steps: GitHub reports failed recent payments or an
+exceeded spending limit. The migration job was skipped. This is an external CI
+availability condition, not a passing test result. Continue independent code
+work; do not call either implementation batch accepted or the full goal complete.
+
 
 Emile has authorized one combined implementation effort covering the complete
 MVP, v2, and v3 scope. The former release boundaries no longer defer software

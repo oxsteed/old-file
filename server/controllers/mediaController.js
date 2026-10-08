@@ -10,6 +10,7 @@ const logger = require('../utils/logger');
 const { sendNotification } = require('../services/notificationService');
 const { getSignedDownloadUrl } = require('../utils/storage');
 const mediaSafety = require('../services/mediaSafetyPolicy');
+const { verifiedActorSql } = require('../services/mediaPublisherPolicy');
 
 const MAX_LINKS_PER_POST = 5;
 const POSTS_PER_DAY = 10;
@@ -112,34 +113,38 @@ async function visiblePost(postId, viewerUserId) {
 // Who can post at MVP: verified helpers, businesses, restaurants only.
 async function getOrCreateActor(userId) {
   const { rows } = await pool.query(
-    `SELECT * FROM media_actors WHERE owner_user_id = $1 LIMIT 1`,
+    `SELECT * FROM media_actors WHERE owner_user_id = $1 ORDER BY created_at, id`,
     [userId]
   );
-  if (rows[0]) {
-    const existing = rows[0];
+  for (const existing of rows) {
+    if (!['helper', 'business', 'restaurant'].includes(existing.actor_type)) continue;
     // Verification can be revoked after an actor row is created. Recheck the
     // source of truth before allowing a new post or repost.
     if (existing.actor_type === 'helper') {
       const { rows: verified } = await pool.query(
         `SELECT 1 FROM helper_profiles hp JOIN users u ON u.id = hp.user_id
           WHERE hp.user_id = $1 AND u.is_verified = TRUE AND u.is_active = TRUE
-            AND u.is_banned = FALSE LIMIT 1`, [userId]
+            AND u.is_banned = FALSE AND u.deleted_at IS NULL LIMIT 1`, [userId]
       );
-      if (!verified[0]) return null;
+      if (!verified[0]) continue;
     } else if (existing.actor_type === 'business') {
       const { rows: verified } = await pool.query(
-        `SELECT 1 FROM businesses WHERE user_id = $1 AND deleted_at IS NULL
-          AND is_active = TRUE AND is_business_verified = TRUE LIMIT 1`, [userId]
+        `SELECT 1 FROM businesses WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL
+          AND is_active = TRUE AND is_business_verified = TRUE LIMIT 1`, [userId, existing.business_id]
       );
-      if (!verified[0]) return null;
+      if (!verified[0]) continue;
     } else if (existing.actor_type === 'restaurant') {
       const { rows: verified } = await pool.query(
-        `SELECT 1 FROM food_restaurants WHERE owner_user_id = $1
-          AND status != 'suspended' AND is_verified = TRUE LIMIT 1`, [userId]
+        `SELECT 1 FROM food_restaurants WHERE owner_user_id = $1 AND id = $2
+          AND status != 'suspended' AND is_verified = TRUE LIMIT 1`, [userId, existing.restaurant_id]
       );
-      if (!verified[0]) return null;
+      if (!verified[0]) continue;
     }
-    return existing;
+    const kind = { helper: 'identity', business: 'business', restaurant: 'restaurant' }[existing.actor_type];
+    if (existing.verified_kind !== kind) {
+      await pool.query('UPDATE media_actors SET verified_kind=$2,updated_at=NOW() WHERE id=$1', [existing.id, kind]);
+    }
+    return { ...existing, verified_kind: kind };
   }
 
   // Determine actor type from verified profiles.
@@ -147,18 +152,20 @@ async function getOrCreateActor(userId) {
     `SELECT hp.id, hp.profile_slug, u.first_name, u.last_name, u.profile_photo_url,
             u.is_verified
        FROM helper_profiles hp JOIN users u ON u.id = hp.user_id
-      WHERE hp.user_id = $1 LIMIT 1`,
+      WHERE hp.user_id = $1 AND u.is_verified = TRUE AND u.is_active = TRUE
+        AND u.is_banned = FALSE AND u.deleted_at IS NULL LIMIT 1`,
     [userId]
   );
   const { rows: biz } = await pool.query(
     `SELECT b.id, b.profile_slug, b.business_name, b.logo_url, b.is_business_verified
-       FROM businesses b WHERE b.user_id = $1 AND b.deleted_at IS NULL LIMIT 1`,
+       FROM businesses b WHERE b.user_id = $1 AND b.deleted_at IS NULL
+        AND b.is_active = TRUE AND b.is_business_verified = TRUE ORDER BY b.id LIMIT 1`,
     [userId]
   );
   const { rows: rest } = await pool.query(
-    `SELECT r.id, r.display_name, r.logo_url, r.is_verified
+    `SELECT r.id, r.slug, r.business_id, r.display_name, r.logo_url, r.is_verified
        FROM food_restaurants r
-      WHERE r.owner_user_id = $1 AND r.status != 'suspended' LIMIT 1`,
+      WHERE r.owner_user_id = $1 AND r.status != 'suspended' AND r.is_verified = TRUE ORDER BY r.id LIMIT 1`,
     [userId]
   );
 
@@ -172,27 +179,31 @@ async function getOrCreateActor(userId) {
   } else if (biz[0]?.is_business_verified) {
     actor = {
       type: 'business', handle: biz[0].profile_slug || `business-${biz[0].id}`,
-      name: biz[0].business_name, avatar: biz[0].logo_url, verified: 'business',
+      name: biz[0].business_name, avatar: biz[0].logo_url, verified: 'business', businessId: biz[0].id,
     };
   } else if (rest[0]?.is_verified) {
     actor = {
-      type: 'restaurant', handle: `restaurant-${rest[0].id}`,
-      name: rest[0].display_name, avatar: rest[0].logo_url, verified: 'restaurant',
+      type: 'restaurant', handle: rest[0].slug || `restaurant-${rest[0].id}`,
+      name: rest[0].display_name, avatar: rest[0].logo_url, verified: 'restaurant', restaurantId: rest[0].id, businessId: rest[0].business_id,
     };
   }
   if (!actor) return null;
 
   const { rows: created } = await pool.query(
     `INSERT INTO media_actors
-       (actor_type, owner_user_id, handle, display_name, avatar_url, verified_kind)
-     VALUES ($1, $2, $3, $4, $5, $6)
+       (actor_type, owner_user_id, handle, display_name, avatar_url, verified_kind, business_id, restaurant_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      ON CONFLICT (handle) DO UPDATE SET
        display_name = EXCLUDED.display_name,
        avatar_url = EXCLUDED.avatar_url,
        verified_kind = EXCLUDED.verified_kind,
+       business_id = EXCLUDED.business_id, restaurant_id = EXCLUDED.restaurant_id,
        updated_at = NOW()
+     WHERE media_actors.owner_user_id = EXCLUDED.owner_user_id AND media_actors.actor_type = EXCLUDED.actor_type
+       AND (media_actors.business_id IS NULL OR media_actors.business_id IS NOT DISTINCT FROM EXCLUDED.business_id)
+       AND (media_actors.restaurant_id IS NULL OR media_actors.restaurant_id IS NOT DISTINCT FROM EXCLUDED.restaurant_id)
      RETURNING *`,
-    [actor.type, userId, actor.handle, actor.name, actor.avatar, actor.verified]
+    [actor.type, userId, actor.handle, actor.name, actor.avatar, actor.verified, actor.businessId || null, actor.restaurantId || null]
   );
   return created[0];
 }
@@ -398,7 +409,7 @@ async function getFeed(req, res) {
     if (!['home', 'following', 'mine'].includes(tab)) {
       return res.status(400).json({ error: 'Unsupported Media feed' });
     }
-    const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 50);
     const before = req.query.before || null;
     const viewerUserId = req.user?.id || null;
     if ((tab === 'following' || tab === 'mine') && !viewerUserId) {
@@ -409,7 +420,7 @@ async function getFeed(req, res) {
     }
     let localityBoost = '0';
 
-    const orderBy = 'p.created_at DESC, p.id DESC';
+    const orderBy = 'ranked.created_at DESC, ranked.id DESC';
     // Fetch one look-ahead row so a full page does not falsely advertise a
     // next page when the result set ends exactly on the requested limit.
     const queryLimit = limit + 1;
@@ -471,13 +482,13 @@ async function getFeed(req, res) {
       const localityParam = params.length - 2;
       const createdParam = params.length - 1;
       const idParam = params.length;
-      rankedAfter = ` HAVING (link_count < $${linkParam}
+      rankedAfter = ` WHERE (link_count < $${linkParam}
         OR (link_count = $${linkParam} AND locality_boost < $${localityParam})
-        OR (link_count = $${linkParam} AND locality_boost = $${localityParam} AND p.created_at < $${createdParam})
-        OR (link_count = $${linkParam} AND locality_boost = $${localityParam} AND p.created_at = $${createdParam} AND p.id < $${idParam}))`;
+        OR (link_count = $${linkParam} AND locality_boost = $${localityParam} AND ranked.created_at < $${createdParam})
+        OR (link_count = $${linkParam} AND locality_boost = $${localityParam} AND ranked.created_at = $${createdParam} AND ranked.id < $${idParam}))`;
     } else if (before) {
       params.push(before);
-      rankedAfter = ` HAVING p.created_at < $${params.length}`;
+      rankedAfter = ` WHERE ranked.created_at < $${params.length}`;
     }
 
     // Deep-link boost: posts with valid local entity links rank higher.
@@ -488,20 +499,25 @@ async function getFeed(req, res) {
     let rows;
     try {
       ({ rows } = await pool.query(
-        `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type,
+        `SELECT ranked.* FROM (
+         SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id,
+                to_char(p.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_created_at,
                 ${VALID_LINK_COUNT_SQL} AS link_count,
                 ${localityBoost} AS locality_boost
            FROM media_posts p
            JOIN media_actors a ON a.id = p.actor_id
            LEFT JOIN media_post_links l ON l.post_id = p.id
           WHERE ${where}
-          GROUP BY p.id, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
+          GROUP BY p.id, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id
+         ) ranked
           ${rankedAfter}
           ORDER BY link_count DESC, locality_boost DESC, ${orderBy}
           LIMIT $1`,
         params
       ));
     } catch (err) {
+      // Never switch ranking mid-pagination or relax author/block predicates.
+      if (before || !['42703', '42P01'].includes(err.code)) throw err;
       logger.error('media.getFeed ranked schema fallback', { code: err.code, message: err.message });
       const fallbackParams = [queryLimit];
       let fallbackWhere = `p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL
@@ -535,9 +551,9 @@ async function getFeed(req, res) {
         fallbackParams.push(before);
         fallbackWhere += ` AND p.created_at < $${fallbackParams.length}`;
       }
-      try {
         ({ rows } = await pool.query(
-          `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type,
+          `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id,
+                to_char(p.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_created_at,
                   0::bigint AS link_count, 0::int AS locality_boost
              FROM media_posts p
              JOIN media_actors a ON a.id = p.actor_id
@@ -546,52 +562,7 @@ async function getFeed(req, res) {
             LIMIT $1`,
           fallbackParams
         ));
-      } catch (fallbackErr) {
-        // If the active-author compatibility predicate is itself unavailable
-        // during a staggered migration, retain public safety filters and the
-        // two-way block boundary rather than returning a blank feed.
-        logger.error('media.getFeed minimal fallback', { code: fallbackErr.code, message: fallbackErr.message });
-        const minimalParams = [queryLimit];
-        let minimalWhere = `p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL
-          AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}`;
-        if (viewerUserId) {
-          minimalParams.push(viewerUserId);
-          const viewerParam = minimalParams.length;
-          minimalWhere += ` AND NOT EXISTS (
-            SELECT 1 FROM user_blocks ub
-             WHERE (ub.blocker_id = $${viewerParam} AND ub.blocked_id = a.owner_user_id)
-                OR (ub.blocker_id = a.owner_user_id AND ub.blocked_id = $${viewerParam})
-          )`;
-          if (tab === 'following') {
-            minimalWhere += ` AND EXISTS (
-              SELECT 1 FROM media_follows following_actor
-               WHERE following_actor.follower_user_id = $${viewerParam}
-                 AND following_actor.actor_id = a.id
-            )`;
-          }
-          if (tab === 'mine') minimalWhere += ` AND a.owner_user_id = $${viewerParam}`;
-        }
-        if (rankedCursor?.created_at && rankedCursor?.id) {
-          minimalParams.push(rankedCursor.created_at, rankedCursor.id);
-          const createdParam = minimalParams.length - 1;
-          const idParam = minimalParams.length;
-          minimalWhere += ` AND (p.created_at < $${createdParam}
-            OR (p.created_at = $${createdParam} AND p.id < $${idParam}))`;
-        } else if (before) {
-          minimalParams.push(before);
-          minimalWhere += ` AND p.created_at < $${minimalParams.length}`;
-        }
-        ({ rows } = await pool.query(
-          `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type,
-                  0::bigint AS link_count, 0::int AS locality_boost
-             FROM media_posts p
-             JOIN media_actors a ON a.id = p.actor_id
-            WHERE ${minimalWhere}
-            ORDER BY p.created_at DESC, p.id DESC
-            LIMIT $1`,
-          minimalParams
-        ));
-      }
+
     }
 
     const hasMore = rows.length > limit;
@@ -604,7 +575,7 @@ async function getFeed(req, res) {
     const nextBefore = hasMore && last ? Buffer.from(JSON.stringify({
       link_count: Number(last.link_count) || 0,
       locality_boost: Number(last.locality_boost) || 0,
-      created_at: last.created_at,
+      created_at: last.cursor_created_at || last.created_at,
       id: last.id,
     })).toString('base64url') : null;
     res.json({ posts, next_before: nextBefore, has_more: hasMore, tab });
@@ -643,7 +614,7 @@ async function getPost(req, res) {
         viewerUserId
       );
       const { rows: q } = await pool.query(
-        `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind
+        `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id
            FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
           WHERE ${quoteWhere}`,
         quoteParams
@@ -749,7 +720,7 @@ async function getReplies(req, res) {
       req.user?.id || null
     );
     const { rows } = await pool.query(
-      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
+      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id
          FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
         WHERE ${where}
         ORDER BY ${orderClause} LIMIT 50`,
@@ -777,7 +748,7 @@ async function getQuotes(req, res) {
       req.user?.id || null
     );
     const { rows } = await pool.query(
-      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
+      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id
          FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
         WHERE ${where}
         ORDER BY p.created_at DESC LIMIT 50`,
@@ -822,6 +793,9 @@ async function createPost(req, res) {
         [businessId]
       );
       if (actors[0]) {
+        if (String(actors[0].owner_user_id) !== String(userId)) {
+          return res.status(403).json({ error: 'The Media actor is not owned by this business owner', code: 'media_post_forbidden' });
+        }
         actor = actors[0];
       } else {
         const { rows: created } = await pool.query(
@@ -1020,28 +994,7 @@ async function publishPost(req, res) {
     await client.query('BEGIN');
     const { rows: owned } = await client.query(
       `SELECT p.*, a.owner_user_id, a.actor_type, u.is_verified,
-              CASE
-                WHEN a.actor_type = 'helper' THEN EXISTS (
-                  SELECT 1 FROM helper_profiles hp
-                  JOIN users hu ON hu.id = hp.user_id
-                  WHERE hp.user_id = a.owner_user_id
-                    AND hu.is_verified = TRUE
-                    AND hu.is_active = TRUE AND hu.is_banned = FALSE
-                    AND hu.deleted_at IS NULL
-                )
-                WHEN a.actor_type = 'business' THEN EXISTS (
-                  SELECT 1 FROM businesses b
-                  WHERE b.user_id = a.owner_user_id
-                    AND b.deleted_at IS NULL AND b.is_active = TRUE
-                    AND b.is_business_verified = TRUE
-                )
-                WHEN a.actor_type = 'restaurant' THEN EXISTS (
-                  SELECT 1 FROM food_restaurants r
-                  WHERE r.owner_user_id = a.owner_user_id
-                    AND r.status <> 'suspended' AND r.is_verified = TRUE
-                )
-                ELSE FALSE
-              END AS current_actor_verified
+              ${verifiedActorSql('a')} AS current_actor_verified
          FROM media_posts p
          JOIN media_actors a ON a.id = p.actor_id
          JOIN users u ON u.id = a.owner_user_id
@@ -1206,7 +1159,7 @@ async function replacePostLinks(req, res) {
     }
     await client.query('COMMIT');
     const { rows } = await pool.query(
-      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
+      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id
          FROM media_posts p JOIN media_actors a ON a.id = p.actor_id WHERE p.id = $1`, [postId]
     );
     return res.json({ post: await hydratePost(rows[0], req.user.id) });
@@ -1452,7 +1405,7 @@ async function getCommunity(req, res) {
           AND p.parent_id IS NULL`, postParams, req.user?.id
     );
     const { rows } = await pool.query(
-      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
+      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id
          FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
         WHERE ${postWhere}
         ORDER BY p.created_at DESC LIMIT 50`,
@@ -1511,7 +1464,7 @@ async function searchMedia(req, res) {
       req.user?.id || null
     );
     const { rows: posts } = await pool.query(
-      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
+      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id
          FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
         WHERE ${postWhere}
         ORDER BY p.created_at DESC LIMIT $2`,
@@ -1557,7 +1510,7 @@ async function getBusinessPosts(req, res) {
       req.user?.id || null
     );
     const { rows: posts } = await pool.query(
-      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
+      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id
          FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
         WHERE ${where}
         ORDER BY p.created_at DESC LIMIT 20`,
@@ -1599,7 +1552,7 @@ async function getActor(req, res) {
       req.user?.id
     );
     const { rows: posts } = await pool.query(
-      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
+      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id
          FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
         WHERE ${postWhere}
         ORDER BY p.created_at DESC LIMIT 20`,

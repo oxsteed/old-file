@@ -7,6 +7,9 @@ jest.mock('../db', () => ({ query: jest.fn(), connect: jest.fn() }));
 const { Pool } = jest.requireActual('pg');
 const pool = require('../db');
 const attachments = require('../services/mediaDraftAttachments');
+const { verifiedActorSql } = require('../services/mediaPublisherPolicy');
+const media = require('../controllers/mediaController');
+const admin = require('../controllers/mediaAdminController');
 const url = process.env.STATEMENT_TEST_DATABASE_URL;
 if (process.env.STATEMENT_REQUIRE_DB_TESTS === 'true' && !url) throw new Error('Disposable Media database required');
 const describeDb = url ? describe : describe.skip;
@@ -24,14 +27,22 @@ describeDb('Media attachment transactions in PostgreSQL', () => {
     await setup.query(`CREATE SCHEMA ${schema}`);
     db = new Pool({ connectionString: url, options: `-c search_path=${schema},public`, max: 5 });
     await db.query(`CREATE TABLE users (id UUID PRIMARY KEY, is_verified boolean DEFAULT true,
+      city text DEFAULT 'Springfield', state text DEFAULT 'OH',
       deleted_at timestamptz, is_active boolean DEFAULT true, is_banned boolean DEFAULT false)`);
+    await db.query(`CREATE TABLE helper_profiles (id serial PRIMARY KEY,user_id UUID,profile_slug text);
+      CREATE TABLE businesses (id bigint PRIMARY KEY, user_id UUID, profile_slug text,
+        business_name text DEFAULT 'Synthetic business',
+        deleted_at timestamptz, is_active boolean DEFAULT true, is_business_verified boolean DEFAULT false);
+      CREATE TABLE food_restaurants (id bigint PRIMARY KEY, business_id bigint, owner_user_id UUID, slug text,
+        status text DEFAULT 'active', is_verified boolean DEFAULT false)`);
     // Actual migration DDL and constraints, isolated from all shared fixtures.
-    for (const number of [709, 732, 735, 736, 742]) {
+    for (const number of [709, 731, 732, 735, 736, 742]) {
       const dir = path.resolve(__dirname, '../migrations');
       const file = fs.readdirSync(dir).find((name) => name.startsWith(`${number}_`));
       await db.query(fs.readFileSync(path.join(dir, file), 'utf8'));
     }
     await db.query('INSERT INTO users (id) VALUES ($1)', [user]);
+    await db.query('INSERT INTO helper_profiles (user_id) VALUES ($1)', [user]);
     await db.query(`INSERT INTO media_actors (id,actor_type,owner_user_id,handle,display_name)
       VALUES ($1,'helper',$2,'synthetic-helper','Synthetic helper')`, [actor, user]);
     pool.connect.mockImplementation(() => db.connect());
@@ -96,5 +107,72 @@ describeDb('Media attachment transactions in PostgreSQL', () => {
     const replay = await attachments.attach(image());
     expect(replay.asset.id).toBe(stored.asset.id);
     expect(replay.existing).toBe(true);
+  });
+
+  test.each(['business', 'restaurant'])('another verified %s cannot authorize this unverified represented entity', async type => {
+    const representedActor = randomUUID();
+    const unverifiedId = type === 'business' ? 101 : 201;
+    if (type === 'business') {
+      await db.query(`INSERT INTO businesses (id,user_id,profile_slug,is_business_verified)
+        VALUES (101,$1,'unverified-business',false),(102,$1,'verified-business',true)`, [user]);
+    } else {
+      await db.query(`INSERT INTO food_restaurants (id,business_id,owner_user_id,slug,is_verified)
+        VALUES (201,101,$1,'unverified-restaurant',false),(202,102,$1,'verified-restaurant',true)`, [user]);
+    }
+    await db.query(`INSERT INTO media_actors (id,actor_type,owner_user_id,handle,display_name,business_id,restaurant_id)
+      VALUES ($1,$2,$3,$4,'Unverified represented entity',$5,$6)`,
+    [representedActor, type, user, `unverified-${type}`, type === 'business' ? unverifiedId : 101,
+      type === 'restaurant' ? unverifiedId : null]);
+    await db.query('UPDATE media_posts SET actor_id=$2,processing_status=\'ready\' WHERE id=$1', [post, representedActor]);
+    const status = await db.query(`SELECT (${verifiedActorSql('a')}) AS verified FROM media_actors a WHERE id=$1`, [representedActor]);
+    expect(status.rows[0].verified).toBe(false);
+    const res = () => ({ status: jest.fn().mockReturnThis(), json: jest.fn() });
+    const publication = res();
+    await media.publishPost({ params: { id: post }, user: { id: user } }, publication);
+    expect(publication.status).toHaveBeenCalledWith(403);
+    const approval = res();
+    await admin.approvePost({ params: { id: post }, user: { id: user }, body: { reason: 'Synthetic review' } }, approval);
+    expect(approval.status).toHaveBeenCalledWith(409);
+    const table = type === 'business' ? 'businesses' : 'food_restaurants';
+    const flag = type === 'business' ? 'is_business_verified' : 'is_verified';
+    await db.query(`UPDATE ${table} SET ${flag}=true WHERE id=$1`, [unverifiedId]);
+    const verified = await db.query(`SELECT (${verifiedActorSql('a')}) AS verified FROM media_actors a WHERE id=$1`, [representedActor]);
+    expect(verified.rows[0].verified).toBe(true);
+  });
+
+  test('legacy migration binds only the entity named by its handle and safely repeats', async () => {
+    const legacy = randomUUID();
+    await db.query(`INSERT INTO media_actors (id,actor_type,owner_user_id,handle,display_name)
+      VALUES ($1,'business',$2,'business-102','Legacy business')`, [legacy, user]);
+    const migration = fs.readFileSync(path.resolve(__dirname, '../migrations/743_oxsteed_media_actor_entities.sql'), 'utf8');
+    await db.query(migration); await db.query(migration);
+    expect((await db.query('SELECT business_id FROM media_actors WHERE id=$1', [legacy])).rows[0].business_id).toBe('102');
+  });
+
+  test('real ranked pagination preserves link ordering and microsecond timestamp precision', async () => {
+    await db.query("UPDATE media_posts SET visibility='unlisted'");
+    const ids = Array.from({ length: 8 }, () => randomUUID());
+    for (let index = 0; index < ids.length; index += 1) {
+      await db.query(`INSERT INTO media_posts (id,actor_id,body,visibility,created_at)
+        VALUES ($1,$2,'Synthetic ranked post','public',TIMESTAMPTZ '2026-10-08 12:00:00.123000+00' + $3 * INTERVAL '1 microsecond')`,
+      [ids[index], actor, index]);
+    }
+    // The oldest linked post must outrank all newer unlinked posts.
+    await db.query(`INSERT INTO media_post_links (post_id,link_type,target_id,name_snapshot)
+      VALUES ($1,'business','102','Synthetic business')`, [ids[0]]);
+    const seen = [];
+    let before;
+    for (let page = 0; page < 6; page += 1) {
+      const response = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+      await media.getFeed({ query: { limit: '2', tab: 'mine', before }, user: { id: user } }, response);
+      expect(response.status).not.toHaveBeenCalled();
+      const payload = response.json.mock.calls[0][0];
+      seen.push(...payload.posts.map(item => item.id));
+      if (!payload.has_more) break;
+      before = payload.next_before;
+    }
+    expect(seen[0]).toBe(ids[0]);
+    expect(seen).toHaveLength(ids.length);
+    expect(new Set(seen)).toEqual(new Set(ids));
   });
 });

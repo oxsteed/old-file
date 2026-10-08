@@ -71,7 +71,7 @@ describeDb('Media block boundaries in PostgreSQL', () => {
     const response = res();
     await media.getActor({ params: { handle: 'local-allowed' }, user: { id: 'viewer' } }, response);
     expect(response.status).not.toHaveBeenCalled();
-    expect(response.json.mock.calls[0][0].posts[0]).toMatchObject({ id: 'allowed', liked: true, bookmarked: true });
+    expect(response.json.mock.calls[0][0].posts[0]).toMatchObject({ id: 'allowed', owner_user_id: 'allowed', liked: true, bookmarked: true });
   });
 
   test('guests can browse active authors but cannot see banned authors', async () => {

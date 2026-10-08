@@ -2,6 +2,7 @@
 
 const pool = require('../db');
 const AppError = require('../utils/appError');
+const { verifiedActorSql } = require('../services/mediaPublisherPolicy');
 const creditService = require('../services/oxsteedCreditService');
 const { transferCreatorCredit } = creditService;
 
@@ -28,18 +29,7 @@ async function verifiedActor(client, userId, actorId = null) {
       WHERE a.owner_user_id = $1 ${actorFilter}
         AND a.actor_type IN ('helper','business','restaurant')
         AND u.is_active = TRUE AND u.is_banned = FALSE AND u.deleted_at IS NULL
-        AND CASE
-          WHEN a.actor_type = 'helper' THEN u.is_verified = TRUE
-          WHEN a.actor_type = 'business' THEN EXISTS (
-            SELECT 1 FROM businesses b WHERE b.user_id = a.owner_user_id
-              AND (a.business_id IS NULL OR b.id = a.business_id)
-              AND b.is_active = TRUE
-              AND b.is_business_verified = TRUE AND b.deleted_at IS NULL)
-          WHEN a.actor_type = 'restaurant' THEN EXISTS (
-            SELECT 1 FROM food_restaurants r WHERE r.owner_user_id = a.owner_user_id
-              AND (a.restaurant_id IS NULL OR r.id = a.restaurant_id)
-              AND r.is_verified = TRUE AND r.status <> 'suspended')
-          ELSE FALSE END`, params
+        AND (${verifiedActorSql('a')})`, params
   );
   return rows[0] || null;
 }

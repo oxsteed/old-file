@@ -143,7 +143,8 @@ describe('OxSteed Media launch contracts', () => {
 
     pool.query.mockReset()
       .mockResolvedValueOnce({ rows: [{ id: 'post-1' }] })
-      .mockResolvedValueOnce({ rows: [{ id: 'actor-1', verified_kind: 'helper' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'actor-1', actor_type: 'helper', verified_kind: 'identity' }] })
+      .mockResolvedValueOnce({ rows: [{ found: 1 }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rowCount: 1 })
       .mockResolvedValueOnce({ rows: [{ repost_count: 3 }] });
