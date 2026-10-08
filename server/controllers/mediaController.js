@@ -513,6 +513,18 @@ async function createPost(req, res) {
       );
       if (!communities[0]) return res.status(400).json({ error: 'Space not found', code: 'media_space_not_found' });
     }
+    if (parent_id || quoted_post_id) {
+      const targetIds = [parent_id, quoted_post_id].filter(Boolean);
+      const { rows: targets } = await pool.query(
+        `SELECT id FROM media_posts
+          WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL
+            AND visibility = 'public' AND processing_status = 'ready' AND csam_status = 'passed'`,
+        [targetIds]
+      );
+      if (targets.length !== targetIds.length) {
+        return res.status(404).json({ error: 'The post you are replying to or quoting is unavailable', code: 'media_target_unavailable' });
+      }
+    }
 
     const { rows } = await pool.query(
       `INSERT INTO media_posts (actor_id, body, parent_id, quoted_post_id, community_id, root_id)
