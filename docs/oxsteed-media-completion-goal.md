@@ -140,6 +140,10 @@ before starting with GitHub's account billing message about failed recent
 payments or an exceeded spending limit. This is recorded as an external CI
 availability blocker; it is not treated as a passing run or as evidence that
 deployment is complete.
+
+The same pre-start billing rejection was reproduced for the later UI and
+sponsorship commits (`37795836625` for `c24910fa` and `37796160256` for
+`193227d1`); no code job ran for those commits.
 Follows, business/profile integration, restaurant post copying, extra link types,
 creator payments and boosts are all in the current implementation goal. The
 v2/v3 labels identify feature groups, not a requirement to postpone their build.
