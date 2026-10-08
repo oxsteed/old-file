@@ -30,6 +30,7 @@ export const uploadVideo = (postId, file, onUploadProgress) => {
 export const toggleLike = (id) => api.post(`/media/posts/${id}/like`).then(r => r.data);
 export const toggleBookmark = (id) => api.post(`/media/posts/${id}/bookmark`).then(r => r.data);
 export const toggleRepost = (id) => api.post(`/media/posts/${id}/repost`).then(r => r.data);
+export const recordShare = (id) => api.post(`/media/posts/${id}/share`).then(r => r.data);
 export const recordView = (id) => api.post(`/media/posts/${id}/view`).then(r => r.data);
 export const flagPost = (id, data) => api.post(`/media/posts/${id}/flags`, data).then(r => r.data);
 export const getCommunities = () => api.get('/media/communities').then(r => r.data);

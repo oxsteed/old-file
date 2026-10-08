@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { createCreatorBoost, flagPost, settleCreatorBoost, toggleLike, toggleBookmark, toggleRepost } from '../../api/media';
+import { createCreatorBoost, flagPost, recordShare, settleCreatorBoost, toggleLike, toggleBookmark, toggleRepost } from '../../api/media';
 
 function VerifiedBadge({ kind, label }) {
   if (!kind || kind === 'none') return null;
@@ -60,6 +60,7 @@ export default function MediaPostCard({ post, onUpdate }) {
   const [liked, setLiked] = useState(post.liked);
   const [bookmarked, setBookmarked] = useState(post.bookmarked);
   const [reposted, setReposted] = useState(!!post.reposted);
+  const [shareCount, setShareCount] = useState(post.share_count);
   const [likeCount, setLikeCount] = useState(post.like_count);
   const [bookmarkCount, setBookmarkCount] = useState(post.bookmark_count);
   const [repostCount, setRepostCount] = useState(post.repost_count);
@@ -78,10 +79,11 @@ export default function MediaPostCard({ post, onUpdate }) {
     setLiked(Boolean(post.liked));
     setBookmarked(Boolean(post.bookmarked));
     setReposted(Boolean(post.reposted));
+    setShareCount(Number(post.share_count) || 0);
     setLikeCount(Number(post.like_count) || 0);
     setBookmarkCount(Number(post.bookmark_count) || 0);
     setRepostCount(Number(post.repost_count) || 0);
-  }, [post.id, post.liked, post.bookmarked, post.reposted, post.like_count, post.bookmark_count, post.repost_count]);
+  }, [post.id, post.liked, post.bookmarked, post.reposted, post.like_count, post.bookmark_count, post.repost_count, post.share_count]);
 
   const handleLike = async (e) => {
     e.preventDefault();
@@ -120,10 +122,17 @@ export default function MediaPostCard({ post, onUpdate }) {
     e.preventDefault();
     const url = `${window.location.origin}/media/post/${post.id}`;
     try {
+      let shared = false;
       if (typeof navigator !== 'undefined' && navigator.share) {
         await navigator.share({ title: post.display_name, text: post.body, url });
+        shared = true;
       } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
         await navigator.clipboard.writeText(url);
+        shared = true;
+      }
+      if (shared) {
+        const result = await recordShare(post.id);
+        if (Number.isFinite(Number(result.share_count))) setShareCount(Number(result.share_count));
       }
     } catch { /* sharing can be cancelled by the user */ }
   };
@@ -268,7 +277,7 @@ export default function MediaPostCard({ post, onUpdate }) {
             {bookmarked ? '🔖' : '📑'} {formatCount(bookmarkCount)}
           </button>
           <button onClick={handleShare} className="media-action" aria-label={t('media.post.share')}>
-            ↗️ {t('media.post.share')}
+            ↗️ {t('media.post.share')} {formatCount(shareCount)}
           </button>
           {user && String(post.owner_user_id) === String(user.id) && post.visibility === 'public' && (
             <button type="button" onClick={() => { setBoostAmount(''); setBoostMessage(''); setBoostOpen(true); }} className="media-action" aria-label={t('media.post.boost')}>

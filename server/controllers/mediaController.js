@@ -5,6 +5,7 @@
 // video uploads require Didit + the configured interim/vendor safety policy.
 
 const pool = require('../db');
+const crypto = require('crypto');
 const logger = require('../utils/logger');
 const { sendNotification } = require('../services/notificationService');
 const { getSignedDownloadUrl } = require('../utils/storage');
@@ -1231,14 +1232,46 @@ async function toggleRepost(req, res) {
   }
 }
 
+function viewerHashForRequest(req, viewerUserId) {
+  const raw = viewerUserId
+    ? `user:${viewerUserId}`
+    : `guest:${req.ip || ''}:${req.headers?.['user-agent'] || ''}`;
+  return crypto.createHash('sha256').update(String(raw)).digest('hex').slice(0, 32);
+}
+
+async function recordShare(req, res) {
+  try {
+    if (!await visiblePost(req.params.id, req.user?.id)) return res.status(404).json({ error: 'Post not found' });
+    const postId = req.params.id;
+    const viewerUserId = req.user?.id || null;
+    const viewerHash = viewerHashForRequest(req, viewerUserId);
+    const { rows: inserted } = await pool.query(
+      `INSERT INTO media_shares (post_id, user_id, viewer_hash)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (post_id, viewer_hash) DO NOTHING
+       RETURNING post_id`,
+      [postId, viewerUserId, viewerHash]
+    );
+    const { rows: counts } = await pool.query(
+      `UPDATE media_posts
+          SET share_count = share_count + CASE WHEN $2::boolean THEN 1 ELSE 0 END
+        WHERE id = $1
+        RETURNING share_count`,
+      [postId, Boolean(inserted[0])]
+    );
+    return res.json({ shared: Boolean(inserted[0]), share_count: Number(counts[0]?.share_count || 0) });
+  } catch (err) {
+    logger.error('media.recordShare error', { message: err.message });
+    return res.status(500).json({ error: 'Failed to record share' });
+  }
+}
+
 async function recordView(req, res) {
   try {
     if (!await visiblePost(req.params.id, req.user?.id)) return res.status(404).json({ error: 'Post not found' });
     const postId = req.params.id;
     const viewerUserId = req.user?.id || null;
-    const hash = viewerUserId || req.ip + (req.headers['user-agent'] || '');
-    const crypto = require('crypto');
-    const viewerHash = crypto.createHash('sha256').update(String(hash)).digest('hex').slice(0, 32);
+    const viewerHash = viewerHashForRequest(req, viewerUserId);
     const { rowCount } = await pool.query(
       `INSERT INTO media_post_views (post_id, viewer_user_id, viewer_hash)
        VALUES ($1, $2, $3)
@@ -1660,7 +1693,7 @@ async function searchMediaEntities(req, res) {
 module.exports = {
   getFeed, getPost, getDrafts, getDraft, getBookmarks, getReplies, getQuotes, createPost, publishPost, updatePost, deletePost,
   replacePostLinks,
-  toggleLike, toggleBookmark, toggleRepost, recordView, flagPost,
+  toggleLike, toggleBookmark, toggleRepost, recordShare, recordView, flagPost,
   getCommunities, getCommunity, joinCommunity, leaveCommunity, searchMedia,
   getActor, getOrCreateActor, getBusinessPosts, toggleFollow,
   searchMediaEntities,

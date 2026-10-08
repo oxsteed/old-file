@@ -115,6 +115,20 @@ describe('OxSteed Media launch contracts', () => {
     expect(repostRes.json).toHaveBeenCalledWith({ reposted: true, repost_count: 3 });
   });
 
+  test('records a share once and returns the authoritative share count', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ id: 'post-1' }] })
+      .mockResolvedValueOnce({ rows: [{ post_id: 'post-1' }] })
+      .mockResolvedValueOnce({ rows: [{ share_count: 6 }] });
+    const res = resMock();
+
+    await media.recordShare({ params: { id: 'post-1' }, user: { id: 'user-1' }, ip: '127.0.0.1', headers: {} }, res);
+
+    expect(res.json).toHaveBeenCalledWith({ shared: true, share_count: 6 });
+    expect(pool.query.mock.calls[1][0]).toContain('ON CONFLICT (post_id, viewer_hash) DO NOTHING');
+    expect(pool.query.mock.calls[2][0]).toContain('share_count = share_count + CASE');
+  });
+
   test('requires a verified business before creating a business post', async () => {
     pool.query.mockResolvedValueOnce({ rows: [] });
 

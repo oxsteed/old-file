@@ -83,6 +83,7 @@ router.put('/posts/:id/links', requireAuth, ctrl.replacePostLinks);
 router.post('/posts/:id/like', requireAuth, ctrl.toggleLike);
 router.post('/posts/:id/bookmark', requireAuth, ctrl.toggleBookmark);
 router.post('/posts/:id/repost', requireAuth, ctrl.toggleRepost);
+router.post('/posts/:id/share', ctrl.recordShare);
 router.post('/posts/:id/view', ctrl.recordView);
 router.post('/posts/:id/flags', requireAuth, ctrl.flagPost);
 

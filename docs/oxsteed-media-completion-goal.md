@@ -487,3 +487,16 @@ and Credit provider behavior remain deployment verification work.
 The same catalog now covers deliverable status and actor-type labels on the
 Media surfaces, so those machine values are not exposed as raw UI text.
 
+Share-count integration (2026-10-08): Media now persists idempotent user or
+guest share records, returns the authoritative `share_count`, and renders the
+share count beside the share action. The focused Media contracts/feed suites
+pass 15 tests, `node --check`, `npm run typecheck`, and `git diff --check` pass
+locally. Migration 741 is pending deployment and rehearsal.
+
+Live deployment check (2026-10-08): `/api/ready` returned healthy with release
+`content-3a84c217f45ad2a2` and 741 applied migrations, but the deployed
+`/api/media/capabilities` and `/api/media` endpoints returned 404. This proves
+the current production release does not yet expose the branch represented by
+this checkout; authenticated Media verification and deployment of the pushed
+branch remain open.
+
