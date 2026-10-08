@@ -126,3 +126,9 @@ for `en`, `es`, `fr`, `ht`, and `ar`, while retaining the English fallback.
 The Spanish regression verifies the document language, localized title and
 description, `og:locale`, image metadata, and CollectionPage language. The
 prerender marketing suite passes 9 tests locally.
+
+Personal action-state repair: Media post cards now reconcile server-provided
+like, bookmark, repost, and count fields when a post payload is replaced, and
+their toggle buttons expose `aria-pressed`. This prevents stale viewer state
+from surviving feed refreshes or reused card instances. The client contract
+test covers the reconciliation and accessibility attributes.

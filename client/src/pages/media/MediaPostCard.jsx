@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -66,6 +66,18 @@ export default function MediaPostCard({ post, onUpdate }) {
   const [reportReason, setReportReason] = useState('spam');
   const [reporting, setReporting] = useState(false);
   const [reportMessage, setReportMessage] = useState('');
+
+  // Feed refreshes and route transitions can reuse a card instance. Reconcile
+  // the server's viewer-specific action state whenever the post payload is
+  // replaced so a previous viewer/post state cannot leak into the new card.
+  useEffect(() => {
+    setLiked(Boolean(post.liked));
+    setBookmarked(Boolean(post.bookmarked));
+    setReposted(Boolean(post.reposted));
+    setLikeCount(Number(post.like_count) || 0);
+    setBookmarkCount(Number(post.bookmark_count) || 0);
+    setRepostCount(Number(post.repost_count) || 0);
+  }, [post.id, post.liked, post.bookmarked, post.reposted, post.like_count, post.bookmark_count, post.repost_count]);
 
   const handleLike = async (e) => {
     e.preventDefault();
@@ -223,13 +235,13 @@ export default function MediaPostCard({ post, onUpdate }) {
           <Link to={`/media/post/${post.id}`} className="media-action" aria-label={t('media.post.reply', { defaultValue: 'Reply' })}>
             💬 {formatCount(post.reply_count)}
           </Link>
-          <button onClick={handleRepost} className={`media-action ${reposted ? 'active' : ''}`} aria-label={t('media.post.repost')}>
+          <button onClick={handleRepost} className={`media-action ${reposted ? 'active' : ''}`} aria-label={t('media.post.repost')} aria-pressed={reposted}>
             🔁 {formatCount(repostCount)}
           </button>
-          <button onClick={handleLike} className={`media-action ${liked ? 'active' : ''}`} aria-label={t('media.post.like', { defaultValue: 'Like' })}>
+          <button onClick={handleLike} className={`media-action ${liked ? 'active' : ''}`} aria-label={t('media.post.like', { defaultValue: 'Like' })} aria-pressed={liked}>
             {liked ? '❤️' : '🤍'} {formatCount(likeCount)}
           </button>
-          <button onClick={handleBookmark} className={`media-action ${bookmarked ? 'active' : ''}`} aria-label={t('media.post.bookmark', { defaultValue: 'Bookmark' })}>
+          <button onClick={handleBookmark} className={`media-action ${bookmarked ? 'active' : ''}`} aria-label={t('media.post.bookmark', { defaultValue: 'Bookmark' })} aria-pressed={bookmarked}>
             {bookmarked ? '🔖' : '📑'} {formatCount(bookmarkCount)}
           </button>
           <button onClick={handleShare} className="media-action" aria-label={t('media.post.share')}>
