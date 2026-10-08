@@ -62,7 +62,32 @@ async function getOrCreateActor(userId) {
     `SELECT * FROM media_actors WHERE owner_user_id = $1 LIMIT 1`,
     [userId]
   );
-  if (rows[0]) return rows[0];
+  if (rows[0]) {
+    const existing = rows[0];
+    // Verification can be revoked after an actor row is created. Recheck the
+    // source of truth before allowing a new post or repost.
+    if (existing.actor_type === 'helper') {
+      const { rows: verified } = await pool.query(
+        `SELECT 1 FROM helper_profiles hp JOIN users u ON u.id = hp.user_id
+          WHERE hp.user_id = $1 AND u.identity_verified = TRUE AND u.is_active = TRUE
+            AND u.is_banned = FALSE LIMIT 1`, [userId]
+      );
+      if (!verified[0]) return null;
+    } else if (existing.actor_type === 'business') {
+      const { rows: verified } = await pool.query(
+        `SELECT 1 FROM businesses WHERE user_id = $1 AND deleted_at IS NULL
+          AND is_active = TRUE AND is_business_verified = TRUE LIMIT 1`, [userId]
+      );
+      if (!verified[0]) return null;
+    } else if (existing.actor_type === 'restaurant') {
+      const { rows: verified } = await pool.query(
+        `SELECT 1 FROM food_restaurants WHERE owner_user_id = $1
+          AND status != 'suspended' AND is_verified = TRUE LIMIT 1`, [userId]
+      );
+      if (!verified[0]) return null;
+    }
+    return existing;
+  }
 
   // Determine actor type from verified profiles.
   const { rows: helper } = await pool.query(
@@ -644,7 +669,9 @@ async function recordView(req, res) {
     );
     if (rowCount > 0) {
       await pool.query(
-        `UPDATE media_posts SET view_count = view_count + 1 WHERE id = $1`,
+        `UPDATE media_posts SET view_count = view_count + 1
+          WHERE id = $1 AND visibility = 'public'
+            AND processing_status = 'ready' AND csam_status = 'passed'`,
         [postId]
       );
     }
