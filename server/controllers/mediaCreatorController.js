@@ -378,6 +378,8 @@ async function createSponsorship(req, res, next) {
   try {
     const amount = asPositiveInt(req.body?.amountCents);
     const brief = text(req.body?.brief, 3000, 'Brief');
+    const idempotencyKey = text(req.get('Idempotency-Key') || req.body?.idempotencyKey, 160, 'Idempotency-Key');
+    await client.query('BEGIN');
     const actor = await verifiedCreatorById(client, req.body?.actorId);
     if (!actor) throw new AppError('Creator actor is not currently verified.', 404, 'media_creator_actor_not_found');
     if (String(actor.owner_user_id) === String(req.user.id)) throw new AppError('You cannot sponsor your own creator account.', 400, 'media_creator_self_payment');
@@ -389,12 +391,32 @@ async function createSponsorship(req, res, next) {
       );
       if (!posts[0]) throw new AppError('The sponsorship post is not available.', 404, 'media_creator_post_invalid');
     }
-    const { rows } = await client.query(
-      `INSERT INTO media_creator_sponsorships (sponsor_user_id, creator_actor_id, post_id, brief, amount_cents)
-       VALUES ($1,$2,$3,$4,$5) RETURNING *`, [req.user.id, actor.id, req.body?.postId || null, brief, amount]
+    const { rows: existingRows } = await client.query(
+      `SELECT * FROM media_creator_sponsorships
+        WHERE sponsor_user_id = $1 AND idempotency_key = $2
+        FOR UPDATE`,
+      [req.user.id, idempotencyKey]
     );
+    if (existingRows[0]) {
+      const existing = existingRows[0];
+      if (String(existing.creator_actor_id) !== String(actor.id)
+        || Number(existing.amount_cents) !== amount
+        || String(existing.brief) !== brief
+        || String(existing.post_id || '') !== String(req.body?.postId || '')) {
+        throw new AppError('Sponsorship idempotency key was already used for different offer details.', 409, 'media_creator_idempotency_conflict');
+      }
+      await client.query('COMMIT');
+      return res.status(202).json({ sponsorship: existing, replayed: true });
+    }
+    const { rows } = await client.query(
+      `INSERT INTO media_creator_sponsorships
+         (sponsor_user_id, creator_actor_id, post_id, brief, amount_cents, idempotency_key)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [req.user.id, actor.id, req.body?.postId || null, brief, amount, idempotencyKey]
+    );
+    await client.query('COMMIT');
     res.status(202).json({ sponsorship: rows[0], next: 'Credit transfer authorization is required before settlement.' });
-  } catch (err) { next(err); }
+  } catch (err) { await client.query('ROLLBACK').catch(() => {}); next(err); }
   finally { client.release(); }
 }
 

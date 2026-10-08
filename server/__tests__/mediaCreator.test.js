@@ -63,6 +63,35 @@ test('only lets a currently verified creator accept a sponsorship and reserve it
   expect(client.release).toHaveBeenCalled();
 });
 
+test('replays an identical sponsorship offer instead of creating a duplicate', async () => {
+  const pool = require('../db');
+  const client = { query: mockQuery, release: jest.fn() };
+  pool.connect.mockResolvedValueOnce(client);
+  mockQuery.mockImplementation(async (sql) => {
+    const query = String(sql);
+    if (query === 'BEGIN' || query === 'COMMIT') return { rows: [] };
+    if (query.includes('SELECT owner_user_id FROM media_actors')) return { rows: [{ owner_user_id: 'creator-1' }] };
+    if (query.includes('FROM media_actors a')) return { rows: [{ id: 'actor-1', owner_user_id: 'creator-1' }] };
+    if (query.includes('FROM media_creator_sponsorships')) return { rows: [{
+      id: 's-1', sponsor_user_id: 'sponsor-1', creator_actor_id: 'actor-1',
+      amount_cents: 900, brief: 'Launch brief', idempotency_key: 'sponsor-key-1', status: 'pending_credit',
+    }] };
+    return { rows: [] };
+  });
+  const res = resMock();
+
+  await creator.createSponsorship({
+    user: { id: 'sponsor-1' },
+    body: { actorId: 'actor-1', amountCents: 900, brief: 'Launch brief', idempotencyKey: 'sponsor-key-1' },
+    get: (header) => header === 'Idempotency-Key' ? 'sponsor-key-1' : null,
+  }, res, jest.fn());
+
+  expect(res.status).toHaveBeenCalledWith(202);
+  expect(res.json).toHaveBeenCalledWith({ sponsorship: expect.objectContaining({ id: 's-1' }), replayed: true });
+  expect(client.query).toHaveBeenCalledWith('COMMIT');
+  expect(client.release).toHaveBeenCalled();
+});
+
 test('blocks sponsorship settlement after creator verification is revoked', async () => {
   const pool = require('../db');
   const client = { query: mockQuery, release: jest.fn() };

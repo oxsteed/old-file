@@ -27,6 +27,7 @@ export default function MediaCreatorPage() {
   const [supportMode, setSupportMode] = useState('tip');
   const [supportAmount, setSupportAmount] = useState('');
   const [supportBrief, setSupportBrief] = useState('');
+  const [supportIdempotencyKey, setSupportIdempotencyKey] = useState('');
   const [supportMessage, setSupportMessage] = useState('');
   const [actionMessage, setActionMessage] = useState('');
   const [applicationsGig, setApplicationsGig] = useState(null);
@@ -107,6 +108,7 @@ export default function MediaCreatorPage() {
           actorId: supportTarget.owner_actor_id,
           amountCents: Number(supportAmount),
           brief: supportBrief,
+          idempotencyKey: supportIdempotencyKey,
         });
         setSupportMessage(t('media.creator.sponsorshipSent'));
       }
@@ -118,6 +120,7 @@ export default function MediaCreatorPage() {
   const openSupport = (gig, mode) => {
     setSupportTarget(gig); setSupportMode(mode); setSupportAmount(String(gig.budget_cents || ''));
     setSupportBrief(''); setSupportMessage(''); setError('');
+    setSupportIdempotencyKey(`media-sponsorship-${Date.now()}-${Math.random().toString(16).slice(2)}`);
   };
 
   const acceptOffer = async (sponsorshipId) => {
