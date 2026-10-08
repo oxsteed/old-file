@@ -555,3 +555,13 @@ because the GitHub account still reports failed recent payments or an exceeded
 spending limit; the migration rehearsal was skipped and no test logs were
 produced. The prior passing hosted code run `37811076761` remains the latest
 authoritative CI evidence for the preceding draft-retry implementation.
+
+Live health check (2026-10-08): `/api/ready` returned healthy release
+`content-b9586e2b5d1b6714` with all 742 migrations applied, Redis, database,
+workers, and Credit checks healthy. `/api/media/capabilities` returned the
+Cloudflare interim policy with identity, malware-scan, and transcode gates;
+`/api/media/feed?limit=1` returned a valid empty page; `/media` and
+`/media/compose` returned 200 HTML; and the draft PATCH route returned the
+expected anonymous `401`. The release metadata does not expose a Git SHA, and
+no signed-in session was available, so owner authorization, uploads, worker
+transitions, and authenticated actions remain unverified live.
