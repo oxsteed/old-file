@@ -310,5 +310,7 @@ settlement journey, CI, and deployed verification remain open evidence.
 Creator surface (2026-10-08): `/media/creator` now opens inside the Media shell,
 lists open opportunities, and lets signed-in verified creators submit a pitch
 and proposed amount without leaving Media. The route and copy are wired across
-all five locale catalogs; client typecheck remains required after the final
-build and the owner-side gig management UI is still a follow-up surface.
+all five locale catalogs. Signed-in owners also get an in-shell form to publish
+a gig after the server verifies their current business or restaurant identity.
+Client typecheck and production build pass; application review and settlement
+journeys still need authenticated deployment evidence.
