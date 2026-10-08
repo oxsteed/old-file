@@ -30284,6 +30284,12 @@
       "repost": "Repost",
       "share": "Share"
     },
+    "search": {
+      "title": "Search Media",
+      "placeholder": "Search posts and accounts…",
+      "submit": "Search",
+      "empty": "No results found."
+    },
     "feed": {
       "refresh": "Refresh feed",
       "prompt": "What’s happening nearby?",

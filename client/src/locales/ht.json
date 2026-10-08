@@ -30284,6 +30284,12 @@
       "repost": "Repibliye",
       "share": "Pataje"
     },
+    "search": {
+      "title": "Chèche nan Media",
+      "placeholder": "Chèche pòs ak kont…",
+      "submit": "Chèche",
+      "empty": "Pa gen rezilta."
+    },
     "feed": {
       "refresh": "Rafrechi fil la",
       "prompt": "Kisa k ap pase toupre ou?",

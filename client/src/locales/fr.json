@@ -30284,6 +30284,12 @@
       "repost": "Republier",
       "share": "Partager"
     },
+    "search": {
+      "title": "Rechercher dans Media",
+      "placeholder": "Rechercher des publications et des comptes…",
+      "submit": "Rechercher",
+      "empty": "Aucun résultat."
+    },
     "feed": {
       "refresh": "Actualiser le fil",
       "prompt": "Quoi de neuf près de chez vous ?",

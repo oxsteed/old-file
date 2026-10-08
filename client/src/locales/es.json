@@ -30284,6 +30284,12 @@
       "repost": "Republicar",
       "share": "Compartir"
     },
+    "search": {
+      "title": "Buscar en Media",
+      "placeholder": "Buscar publicaciones y cuentas…",
+      "submit": "Buscar",
+      "empty": "No se encontraron resultados."
+    },
     "feed": {
       "refresh": "Actualizar publicaciones",
       "prompt": "¿Qué pasa por aquí?",

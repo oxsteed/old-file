@@ -648,6 +648,36 @@ async function getCommunities(req, res) {
   }
 }
 
+async function searchMedia(req, res) {
+  try {
+    const query = String(req.query.q || '').trim().slice(0, 100);
+    if (!query) return res.json({ posts: [], actors: [] });
+    const pattern = `%${query}%`;
+    const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
+    const { rows: posts } = await pool.query(
+      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
+         FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
+        WHERE p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL
+          AND (p.body ILIKE $1 OR a.handle ILIKE $1 OR a.display_name ILIKE $1)
+        ORDER BY p.created_at DESC LIMIT $2`,
+      [pattern, limit]
+    );
+    const hydrated = [];
+    for (const post of posts) hydrated.push(await hydratePost(post, req.user?.id || null));
+    const { rows: actors } = await pool.query(
+      `SELECT id, actor_type, handle, display_name, avatar_url, verified_kind
+         FROM media_actors
+        WHERE handle ILIKE $1 OR display_name ILIKE $1
+        ORDER BY display_name ASC LIMIT $2`,
+      [pattern, limit]
+    );
+    res.json({ posts: hydrated, actors });
+  } catch (err) {
+    logger.error('media.searchMedia error', { message: err.message });
+    res.status(500).json({ error: 'Failed to search Media' });
+  }
+}
+
 async function getBusinessPosts(req, res) {
   try {
     const businessId = parseInt(req.params.businessId, 10);
@@ -699,5 +729,5 @@ async function getActor(req, res) {
 module.exports = {
   getFeed, getPost, getReplies, getQuotes, createPost,
   toggleLike, toggleBookmark, toggleRepost, recordView, flagPost,
-  getCommunities, getActor, getOrCreateActor, getBusinessPosts,
+  getCommunities, searchMedia, getActor, getOrCreateActor, getBusinessPosts,
 };

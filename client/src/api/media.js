@@ -3,6 +3,7 @@ import axios from 'axios';
 const api = axios.create({ baseURL: '/api/media' });
 
 export const getFeed = (params = {}) => api.get('/feed', { params }).then(r => r.data);
+export const searchMedia = (params = {}) => api.get('/search', { params }).then(r => r.data);
 export const getPost = (id) => api.get(`/posts/${id}`).then(r => r.data);
 export const getReplies = (id, sort = 'latest') => api.get(`/posts/${id}/replies`, { params: { sort } }).then(r => r.data);
 export const getQuotes = (id) => api.get(`/posts/${id}/quotes`).then(r => r.data);
