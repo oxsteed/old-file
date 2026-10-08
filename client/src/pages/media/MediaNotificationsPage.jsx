@@ -1,7 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, Check, RefreshCw } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import useNotifications from '../../hooks/useNotifications';
 
@@ -20,17 +19,21 @@ const ICONS = {
   media_like: '❤️',
 };
 
-function notificationTime(value) {
+function notificationTime(value, language) {
   if (!value) return '';
   try {
-    return formatDistanceToNow(new Date(value), { addSuffix: true });
+    const seconds = Math.round((new Date(value).getTime() - Date.now()) / 1000);
+    const absolute = Math.abs(seconds);
+    const unit = absolute < 60 ? 'second' : absolute < 3600 ? 'minute' : absolute < 86400 ? 'hour' : 'day';
+    const divisor = unit === 'second' ? 1 : unit === 'minute' ? 60 : unit === 'hour' ? 3600 : 86400;
+    return new Intl.RelativeTimeFormat(language || 'en', { numeric: 'auto' }).format(Math.round(seconds / divisor), unit);
   } catch {
     return '';
   }
 }
 
 export default function MediaNotificationsPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const {
     notifications,
@@ -100,7 +103,7 @@ export default function MediaNotificationsPage() {
                 <div className="media-notification-body">
                   <h2>{notification.title}</h2>
                   {notification.body && <p>{notification.body}</p>}
-                  <time dateTime={notification.created_at}>{notificationTime(notification.created_at)}</time>
+                  <time dateTime={notification.created_at}>{notificationTime(notification.created_at, i18n.language)}</time>
                 </div>
                 {unread && <span className="media-notification-dot" aria-label={t('media.notifications.unreadLabel')} />}
               </article>

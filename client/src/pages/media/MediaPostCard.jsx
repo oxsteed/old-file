@@ -156,6 +156,18 @@ export default function MediaPostCard({ post, onUpdate }) {
             </div>
             <p>{post.quoted.body}</p>
             <QuotedMedia assets={post.quoted.assets} label={t('media.post.videoEmbed')} />
+            {post.quoted.links?.length > 0 && (
+              <div className="media-quoted-links">
+                <span className="media-linked-label">{t('media.post.linkedOn')}</span>
+                {post.quoted.links.map((link) => link.available && link.canonical_url ? (
+                  <Link key={link.id} to={link.canonical_url} className="media-link-chip">
+                    <span className="media-link-name">{link.name || link.name_snapshot}</span>
+                  </Link>
+                ) : (
+                  <span key={link.id} className="media-link-chip unavailable">{link.name || link.name_snapshot}</span>
+                ))}
+              </div>
+            )}
           </div>
         )}
         {post.links && post.links.length > 0 && (
@@ -173,9 +185,9 @@ export default function MediaPostCard({ post, onUpdate }) {
                   }}>
                     <span className="media-link-type">{t(`media.post.linkTypes.${link.link_type}`, { defaultValue: link.link_type })}</span>
                     <span className="media-link-name">{link.label || link.name_snapshot}</span>
-                    {link.price_snapshot_cents != null && (
+                    {(link.price_cents ?? link.price_snapshot_cents) != null && (
                       <span className="media-link-price">
-                        ${(link.price_snapshot_cents / 100).toFixed(2)}
+                        ${(Number(link.price_cents ?? link.price_snapshot_cents) / 100).toFixed(2)}
                       </span>
                     )}
                     <span className="media-link-cta">{t(`media.post.cta.${link.link_type}`, { defaultValue: link.cta })}</span>

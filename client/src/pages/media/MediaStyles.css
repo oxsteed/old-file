@@ -179,6 +179,9 @@ div.media-support-panel { z-index: 150; }
 }
 .media-quoted-media { display: block; width: min(100%, 420px); max-height: 260px; margin-top: 10px; border-radius: 10px; object-fit: cover; background: #111; }
 .media-quoted-video-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; color: var(--color-primary); font-size: 13px; font-weight: 700; }
+.media-quoted-links { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.media-quoted-links .media-linked-label { width: 100%; margin-bottom: 0; }
+.media-quoted-links .media-link-chip { padding: 6px 9px; font-size: 12px; }
 
 .media-linked-entities {
   margin: 8px 0;

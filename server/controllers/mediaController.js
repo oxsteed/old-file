@@ -205,59 +205,64 @@ async function hydrateLinks(postId) {
     `SELECT * FROM media_post_links WHERE post_id = $1 ORDER BY sort_order`,
     [postId]
   );
-  const availability = await Promise.all(rows.map(async (l) => {
+  const targetInfo = await Promise.all(rows.map(async (l) => {
     const targetId = String(l.target_id || '');
     try {
       if (l.link_type === 'restaurant') {
         const { rows: targets } = await pool.query(
-          `SELECT 1 FROM food_restaurants WHERE id = $1 AND status = 'active'`, [targetId]
+          `SELECT display_name AS name FROM food_restaurants WHERE id = $1 AND status = 'active'`, [targetId]
         );
-        return !!targets[0];
+        return targets[0] || null;
       }
       if (l.link_type === 'food_item') {
         const [restaurantId, itemId] = targetId.split(':');
         const { rows: targets } = await pool.query(
-          `SELECT 1
+          `SELECT i.name, i.price_cents
              FROM food_menu_items i
              JOIN food_restaurants r ON r.id = i.restaurant_id
             WHERE i.id = $1 AND r.id = $2 AND r.status = 'active'`,
           [itemId, restaurantId]
         );
-        return !!targets[0];
+        return targets[0] || null;
       }
       if (l.link_type === 'helper') {
         const { rows: targets } = await pool.query(
-          `SELECT 1 FROM helper_profiles hp
+          `SELECT TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) AS name
+             FROM helper_profiles hp
              JOIN users u ON u.id = hp.user_id
             WHERE (hp.id::text = $1 OR hp.user_id::text = $1 OR hp.profile_slug::text = $1)
               AND u.deleted_at IS NULL`, [targetId]
         );
-        return !!targets[0];
+        return targets[0] || null;
       }
       if (l.link_type === 'business') {
         const { rows: targets } = await pool.query(
-          `SELECT 1 FROM businesses WHERE id = $1 AND deleted_at IS NULL AND is_active = TRUE`, [targetId]
+          `SELECT business_name AS name FROM businesses WHERE (id::text = $1 OR profile_slug::text = $1)
+             AND deleted_at IS NULL AND is_active = TRUE`, [targetId]
         );
-        return !!targets[0];
+        return targets[0] || null;
       }
       if (l.link_type === 'job') {
         const { rows: targets } = await pool.query(
-          `SELECT 1 FROM jobs WHERE id = $1 AND deleted_at IS NULL AND status IN ('open', 'published')`, [targetId]
+          `SELECT title AS name FROM jobs WHERE id = $1 AND deleted_at IS NULL AND status IN ('open', 'published')`, [targetId]
         );
-        return !!targets[0];
+        return targets[0] || null;
       }
-      return false;
+      return null;
     } catch (err) {
       logger.warn('media.hydrateLinks target lookup failed', { linkType: l.link_type, message: err.message });
-      return false;
+      return null;
     }
   }));
   return rows.map((l, index) => {
     const builder = LINK_URL_BUILDERS[l.link_type];
-    const canonical_url = availability[index] && builder ? builder(l.target_id) : null;
+    const target = targetInfo[index];
+    const canonical_url = target && builder ? builder(l.target_id) : null;
     return {
       ...l,
-      available: availability[index],
+      name: target?.name || l.name_snapshot,
+      price_cents: target?.price_cents ?? l.price_snapshot_cents ?? null,
+      available: !!target,
       canonical_url,
       cta: LINK_CTAS[l.link_type] || 'View',
     };
