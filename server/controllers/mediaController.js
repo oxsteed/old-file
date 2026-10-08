@@ -512,7 +512,10 @@ async function getFeed(req, res) {
       ));
     } catch (err) {
       // Never switch ranking mid-pagination or relax author/block predicates.
-      if (!err.chronological && (before || !['42703', '42P01'].includes(err.code))) throw err;
+      // A first page may fall back to the safety-preserving chronological
+      // query during a rolling schema/code deployment. Once a cursor exists,
+      // fail closed rather than changing ranking or context mid-pagination.
+      if (!err.chronological && (before || !['42703', '42P01', '42601', '42804'].includes(err.code))) throw err;
       if (!err.chronological) logger.error('media.getFeed ranked schema fallback', { code: err.code });
       mode = 'chronological';
       const fallbackParams = [queryLimit, asOf];
