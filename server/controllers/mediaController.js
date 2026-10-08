@@ -406,20 +406,64 @@ async function getFeed(req, res) {
     }
 
     // Deep-link boost: posts with valid local entity links rank higher.
-    const { rows } = await pool.query(
-      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type,
-              ${VALID_LINK_COUNT_SQL} AS link_count,
-              ${localityBoost} AS locality_boost
-         FROM media_posts p
-         JOIN media_actors a ON a.id = p.actor_id
-         LEFT JOIN media_post_links l ON l.post_id = p.id
-        WHERE ${where}
-        GROUP BY p.id, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
-        ${rankedAfter}
-        ORDER BY link_count DESC, locality_boost DESC, ${orderBy}
-        LIMIT $1`,
-      params
-    );
+    // Keep a schema-compatible read path for rolling deployments where an
+    // optional entity table/column may not have arrived with the Media code.
+    // The fallback never publishes or mutates data; it simply omits link and
+    // locality boosts until the primary query is available again.
+    let rows;
+    try {
+      ({ rows } = await pool.query(
+        `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type,
+                ${VALID_LINK_COUNT_SQL} AS link_count,
+                ${localityBoost} AS locality_boost
+           FROM media_posts p
+           JOIN media_actors a ON a.id = p.actor_id
+           LEFT JOIN media_post_links l ON l.post_id = p.id
+          WHERE ${where}
+          GROUP BY p.id, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
+          ${rankedAfter}
+          ORDER BY link_count DESC, locality_boost DESC, ${orderBy}
+          LIMIT $1`,
+        params
+      ));
+    } catch (err) {
+      if (!['42703', '42P01'].includes(err.code)) throw err;
+      logger.error('media.getFeed ranked schema fallback', { code: err.code, message: err.message });
+      const fallbackParams = [limit];
+      let fallbackWhere = `p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL
+        AND p.processing_status = 'ready' AND p.csam_status = 'passed'
+        AND EXISTS (SELECT 1 FROM users au WHERE au.id = a.owner_user_id
+          AND au.deleted_at IS NULL AND au.is_active = TRUE AND au.is_banned = FALSE)`;
+      if (viewerUserId) {
+        fallbackParams.push(viewerUserId);
+        const viewerParam = fallbackParams.length;
+        fallbackWhere += ` AND NOT EXISTS (
+          SELECT 1 FROM user_blocks ub
+           WHERE (ub.blocker_id = $${viewerParam} AND ub.blocked_id = a.owner_user_id)
+              OR (ub.blocker_id = a.owner_user_id AND ub.blocked_id = $${viewerParam})
+        )`;
+      }
+      if (rankedCursor?.created_at && rankedCursor?.id) {
+        fallbackParams.push(rankedCursor.created_at, rankedCursor.id);
+        const createdParam = fallbackParams.length - 1;
+        const idParam = fallbackParams.length;
+        fallbackWhere += ` AND (p.created_at < $${createdParam}
+          OR (p.created_at = $${createdParam} AND p.id < $${idParam}))`;
+      } else if (before) {
+        fallbackParams.push(before);
+        fallbackWhere += ` AND p.created_at < $${fallbackParams.length}`;
+      }
+      ({ rows } = await pool.query(
+        `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type,
+                0::bigint AS link_count, 0::int AS locality_boost
+           FROM media_posts p
+           JOIN media_actors a ON a.id = p.actor_id
+          WHERE ${fallbackWhere}
+          ORDER BY p.created_at DESC, p.id DESC
+          LIMIT $1`,
+        fallbackParams
+      ));
+    }
 
     const posts = [];
     for (const row of rows) {

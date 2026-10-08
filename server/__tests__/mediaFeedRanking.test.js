@@ -61,4 +61,25 @@ describe('Media ranked feed journey', () => {
     expect(secondCall[0]).toContain('HAVING (link_count <');
     expect(secondCall[1]).toEqual(expect.arrayContaining(['viewer-1', 2, 2, '2026-10-08T11:00:00.000Z', 'post-plain-away']));
   });
+
+  test('falls back to a read-only chronological feed during an optional schema rollout', async () => {
+    const ranked = pool.query.mockImplementationOnce(async () => {
+      const error = new Error('column jobs.deleted_at does not exist');
+      error.code = '42703';
+      throw error;
+    });
+    expect(ranked).toBeTruthy();
+    const fallbackPost = {
+      id: 'fallback-post', created_at: '2026-10-08T10:00:00.000Z', actor_id: 'actor-1',
+      handle: 'local-one', display_name: 'Local One', link_count: '0', locality_boost: '0',
+    };
+    pool.query.mockImplementationOnce(async (sql) => {
+      if (sql.includes('0::bigint AS link_count')) return { rows: [fallbackPost] };
+      return { rows: [] };
+    });
+    const result = response();
+    await media.getFeed({ query: { limit: '1' }, user: { id: 'viewer-1' } }, result);
+    expect(result.status).not.toHaveBeenCalled();
+    expect(result.json.mock.calls[0][0].posts[0]).toMatchObject({ id: 'fallback-post' });
+  });
 });
